@@ -1,5 +1,8 @@
 .section {
-  padding-block: var(--space-12);
+  margin-block-start: var(--space-16);
+  padding-block: var(--space-20);
+  background: var(--color-surface-sunken);
+  border-block: var(--border-hairline) solid var(--color-hairline);
 }
 .head {
   text-align: center;

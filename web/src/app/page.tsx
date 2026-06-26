@@ -3,14 +3,13 @@ import { AIHero } from '@/components/home/AIHero';
 import { FeaturedPrices } from '@/components/home/FeaturedPrices';
 import { CategoryGrid } from '@/components/home/CategoryGrid';
 import { ValueProps } from '@/components/home/ValueProps';
-import { CategoryRail } from '@/components/layout/CategoryRail';
+import { Reveal } from '@/components/ui';
 import { JsonLd } from '@/components/seo/JsonLd';
 import { orgJsonLd, localBusinessJsonLd } from '@/lib/seo';
 
 /**
- * Home — the dual-mode landing (UX Engineering, Phase 2).
- * AI door (hero) + structured door (rail / featured prices / category grid) +
- * trust pillars. The rail is the signature nav (desktop fixed / mobile chip bar).
+ * Home — the minimal, dual-mode landing. AI door (hero) + structured door
+ * (featured prices · category grid) + trust pillars, each revealing on scroll.
  */
 export default async function HomePage() {
   const categories = await getCategories();
@@ -19,15 +18,20 @@ export default async function HomePage() {
     <>
       <JsonLd data={[orgJsonLd(), localBusinessJsonLd()]} />
 
-      <CategoryRail categories={categories} />
-
       <AIHero />
 
       <div className="container">
-        <FeaturedPrices />
-        <CategoryGrid categories={categories} />
-        <ValueProps />
+        <Reveal>
+          <CategoryGrid categories={categories} />
+        </Reveal>
+        <Reveal>
+          <FeaturedPrices />
+        </Reveal>
       </div>
+
+      <Reveal>
+        <ValueProps />
+      </Reveal>
     </>
   );
 }

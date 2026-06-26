@@ -36,4 +36,28 @@ export const rebarRows: PriceRow[] = [
     theoreticalWeightKg: 24.7, unit: 'kg', isActive: true,
     current: { skuId: 's2', price: 32100, unit: 'kg', deliveryTime: '۴۸ ساعت', vatIncluded: false, movementPct: -0.3, movementDir: 'down', updatedAt: new Date().toISOString(), isStale: false },
   },
+  {
+    id: 's3', subCategoryId: 'sc1', categoryId: 'c1', slug: 'میلگرد-18-a3-ذوب-اهن',
+    name: 'میلگرد ۱۸ A3 ذوب‌آهن', standard: 'A3', size: '18', grade: 'A3', factory: 'ذوب‌آهن',
+    theoreticalWeightKg: 31.2, unit: 'kg', isActive: true,
+    current: { skuId: 's3', price: 31950, unit: 'kg', deliveryTime: '۲۴ ساعت', vatIncluded: false, movementPct: 0.5, movementDir: 'up', updatedAt: new Date().toISOString(), isStale: false },
+  },
+  {
+    id: 's4', subCategoryId: 'sc1', categoryId: 'c1', slug: 'میلگرد-20-a3-نیشابور',
+    name: 'میلگرد ۲۰ A3 نیشابور', standard: 'A3', size: '20', grade: 'A3', factory: 'نیشابور',
+    theoreticalWeightKg: 38.5, unit: 'kg', isActive: true,
+    current: { skuId: 's4', price: 32600, unit: 'kg', deliveryTime: '۲۴ ساعت', vatIncluded: false, movementPct: 1.2, movementDir: 'up', updatedAt: new Date().toISOString(), isStale: false },
+  },
+  {
+    id: 's5', subCategoryId: 'sc1', categoryId: 'c1', slug: 'میلگرد-22-a3-ذوب-اهن',
+    name: 'میلگرد ۲۲ A3 ذوب‌آهن', standard: 'A3', size: '22', grade: 'A3', factory: 'ذوب‌آهن',
+    theoreticalWeightKg: 46.5, unit: 'kg', isActive: true,
+    current: { skuId: 's5', price: 31800, unit: 'kg', deliveryTime: '۷۲ ساعت', vatIncluded: false, movementPct: 0, movementDir: 'flat', updatedAt: new Date().toISOString(), isStale: false },
+  },
+  {
+    id: 's6', subCategoryId: 'sc1', categoryId: 'c1', slug: 'میلگرد-25-a3-کاوه',
+    name: 'میلگرد ۲۵ A3 کاوه', standard: 'A3', size: '25', grade: 'A3', factory: 'کاوه',
+    theoreticalWeightKg: 60.1, unit: 'kg', isActive: true,
+    current: { skuId: 's6', price: 33150, unit: 'kg', deliveryTime: '۲۴ ساعت', vatIncluded: false, movementPct: -0.6, movementDir: 'down', updatedAt: new Date().toISOString(), isStale: false },
+  },
 ];

@@ -32,6 +32,7 @@ const PILLARS = [
 export function ValueProps() {
   return (
     <section className={styles.section} aria-labelledby="why-title">
+      <div className="container">
       <div className={styles.head}>
         <p className={styles.eyebrow}>چرا پولادین</p>
         <h2 id="why-title" className={styles.title}>
@@ -53,6 +54,7 @@ export function ValueProps() {
           </li>
         ))}
       </ul>
+      </div>
     </section>
   );
 }

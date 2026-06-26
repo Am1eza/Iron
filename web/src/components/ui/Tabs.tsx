@@ -32,8 +32,10 @@ export function Tabs({
     }
     e.preventDefault();
     const next = (index + dir + items.length) % items.length;
+    const target = items[next];
+    if (!target) return;
     refs.current[next]?.focus();
-    onChange(items[next].id);
+    onChange(target.id);
   };
 
   return (

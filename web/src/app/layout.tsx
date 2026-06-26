@@ -52,7 +52,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       }
     : null;
   return (
-    <html lang="fa" dir="rtl">
+    <html lang="fa" dir="rtl" suppressHydrationWarning>
       <body>
         <ThemeScript />
         <a href="#main" className="skip-link">
