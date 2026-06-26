@@ -1,0 +1,88 @@
+.bar {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .bar {
+    position: fixed;
+    inset-inline: 0;
+    inset-block-end: 0;
+    z-index: var(--z-sticky);
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    align-items: end;
+    block-size: calc(60px + env(safe-area-inset-bottom));
+    padding-block-end: env(safe-area-inset-bottom);
+    background: var(--color-surface);
+    border-block-start: var(--border-hairline) solid var(--color-hairline);
+    box-shadow: 0 -4px 16px rgba(16, 22, 30, 0.06);
+  }
+}
+
+.tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  block-size: 60px;
+  color: var(--color-text-muted);
+  text-decoration: none;
+}
+.tab[data-active] {
+  color: var(--color-accent);
+}
+.label {
+  font: var(--t-micro);
+}
+
+/* ===== Center AI tab ===== */
+.ai {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-decoration: none;
+  color: var(--color-text);
+  transform: translateY(-12px);
+}
+.aiOrb {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 52px;
+  block-size: 52px;
+  border-radius: var(--radius-circle);
+  background: var(--color-action);
+  color: var(--color-on-action);
+  box-shadow: 0 6px 18px rgba(245, 150, 30, 0.42);
+  border: 3px solid var(--color-surface);
+}
+.aiLabel {
+  font: var(--t-micro);
+  font-weight: 600;
+  color: var(--color-action-text);
+}
+
+/* ===== Cart badge ===== */
+.cartWrap {
+  position: relative;
+  display: inline-flex;
+}
+.badge {
+  position: absolute;
+  inset-block-start: -6px;
+  inset-inline-end: -8px;
+  min-inline-size: 16px;
+  block-size: 16px;
+  padding-inline: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-pill);
+  background: var(--color-loss);
+  color: #fff;
+  font: var(--t-micro);
+  font-weight: 700;
+  line-height: 1;
+}

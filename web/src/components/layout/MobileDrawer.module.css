@@ -1,0 +1,202 @@
+.root {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-drawer);
+}
+
+.scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--color-overlay);
+  animation: scrim-in var(--dur-fast) var(--ease-standard);
+}
+@keyframes scrim-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.panel {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0; /* right in RTL */
+  inline-size: min(88vw, 360px);
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-lg);
+  animation: drawer-in var(--dur-base) var(--ease-emphasized);
+}
+/* Slide in from the inline-start edge. */
+@keyframes drawer-in {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+/* In RTL the start edge is the right, so the offscreen position is +100%. */
+[dir='rtl'] .panel {
+  animation-name: drawer-in-rtl;
+}
+@keyframes drawer-in-rtl {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scrim,
+  .panel {
+    animation: none;
+  }
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  block-size: 60px;
+  padding-inline: var(--space-4);
+  border-block-end: var(--border-hairline) solid var(--color-hairline);
+}
+.brand {
+  font: var(--t-h4);
+  font-weight: 800;
+  color: var(--color-text-strong);
+}
+.close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 40px;
+  block-size: 40px;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-strong);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.nav {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: var(--space-3) var(--space-2) var(--space-6);
+  overscroll-behavior: contain;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.item,
+.accordion,
+.catLink {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  inline-size: 100%;
+  min-block-size: 48px;
+  padding-inline: var(--space-3);
+  font: var(--t-label);
+  font-size: 1rem;
+  color: var(--color-text-strong);
+  text-decoration: none;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: start;
+}
+.item:hover,
+.accordion:hover,
+.catLink:hover {
+  background: var(--color-surface-sunken);
+  text-decoration: none;
+}
+
+.section {
+  border-block-end: var(--border-hairline) solid var(--color-hairline);
+  padding-block: var(--space-1);
+}
+.groupTitle {
+  font: var(--t-overline);
+  color: var(--color-text-muted);
+  margin: var(--space-3) var(--space-3) var(--space-1);
+}
+
+.caretOpen {
+  transform: rotate(180deg);
+}
+
+.accordionBody {
+  list-style: none;
+  margin: 0 0 var(--space-2);
+  padding: 0;
+}
+.subList {
+  list-style: none;
+  margin: 0 0 var(--space-2);
+  padding-inline-start: var(--space-5);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+}
+.subLink {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 36px;
+  padding-inline: var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-sunken);
+  font: var(--t-body-sm);
+  color: var(--color-text-muted);
+  text-decoration: none;
+}
+.subLink:hover {
+  color: var(--color-accent-text);
+  text-decoration: none;
+}
+
+.foot {
+  padding: var(--space-4) var(--space-3) 0;
+}
+.account {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  inline-size: 100%;
+  min-block-size: 48px;
+  justify-content: center;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-tint);
+  color: var(--color-accent-text);
+  font: var(--t-button);
+  text-decoration: none;
+}
+.account:hover {
+  text-decoration: none;
+}
+.channels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  list-style: none;
+  margin: var(--space-5) 0 0;
+  padding: 0;
+}
+.channels a {
+  font: var(--t-body-sm);
+  color: var(--color-text-muted);
+  text-decoration: none;
+}
+.channels a:hover {
+  color: var(--color-accent);
+}

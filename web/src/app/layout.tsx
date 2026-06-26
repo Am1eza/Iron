@@ -1,6 +1,12 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { AppProviders } from '@/lib/providers/AppProviders';
+import { getCategories } from '@/lib/data/catalog';
+import { Ticker } from '@/components/layout/Ticker';
+import { Header } from '@/components/layout/Header';
+import { Footer } from '@/components/layout/Footer';
+import { BottomTabBar } from '@/components/layout/BottomTabBar';
+import { MobileDrawer } from '@/components/layout/MobileDrawer';
 
 /**
  * Root layout — the RTL, Persian-first shell.
@@ -32,7 +38,8 @@ export const viewport: Viewport = {
   themeColor: '#171C22',
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const categories = await getCategories();
   return (
     <html lang="fa" dir="rtl">
       <body>
@@ -40,7 +47,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           پرش به محتوا
         </a>
         <AppProviders>
+          <Ticker />
+          <Header categories={categories} />
+          <MobileDrawer categories={categories} />
           <main id="main">{children}</main>
+          <Footer categories={categories} />
+          <BottomTabBar />
         </AppProviders>
       </body>
     </html>
