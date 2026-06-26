@@ -2,7 +2,7 @@ import type { MetadataRoute } from 'next';
 import { STATIC_INDEXABLE, routes } from '@/lib/routes';
 import { categories } from '@/lib/mock/fixtures';
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://fooladno.com';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://ahantime.com';
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();

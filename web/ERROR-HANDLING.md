@@ -1,4 +1,4 @@
-# Fooladno Web — Error Handling
+# Ahantime Web — Error Handling
 ## Layer 4 · Frontend — Document 7 (Error Handling)
 
 **Version:** 1.0 · 26 June 2026
@@ -86,4 +86,4 @@ lib/errors/report.ts · lib/api/errors.ts (ApiError/toUserMessage)
 lib/query/queryClient.ts (cache onError → reportError)
 ```
 
-*Fooladno — اول مشورت، بعد خرید.*
+*Ahantime — اول مشورت، بعد خرید.*

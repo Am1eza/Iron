@@ -6,7 +6,7 @@ import { toPersianDigits } from '@/lib/utils/format';
 
 export const metadata: Metadata = buildMetadata({
   title: 'تماس با ما',
-  description: 'آدرس و شماره‌های تماس فولادنو.',
+  description: 'آدرس و شماره‌های تماس آهن‌تایم.',
   path: routes.contact(),
 });
 

@@ -6,5 +6,5 @@ import { routes } from '@/lib/routes';
 export const metadata: Metadata = buildMetadata({ title: 'درباره ما', path: routes.about() });
 
 export default function AboutPage() {
-  return <PagePlaceholder eyebrow="شرکت" title="درباره فولادنو" note="معرفی، تأمین‌کنندگان و مشتریان در بخش صفحات شرکت ساخته می‌شود." />;
+  return <PagePlaceholder eyebrow="شرکت" title="درباره آهن‌تایم" note="معرفی، تأمین‌کنندگان و مشتریان در بخش صفحات شرکت ساخته می‌شود." />;
 }

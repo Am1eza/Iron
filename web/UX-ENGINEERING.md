@@ -1,4 +1,4 @@
-# Fooladno — Phase 2 · UX Engineering
+# Ahantime — Phase 2 · UX Engineering
 
 **Status:** ✅ Built (items 11–20 implemented as real React components in the Next.js app).
 **Builds on:** Phase 1 — Foundation, the UI/Design System (`design/*`, `web/src/styles/tokens.css`), and the engineering foundation (routing, state, forms, validation, API client, error handling).
@@ -42,7 +42,7 @@ Plus supporting pieces in this phase: `lib/data/catalog.ts` (server category hel
 
 ## The AI door (N14) vs the structured door
 
-- **AIHero** is unmistakably AI — Cobalt + the Spark orb, a large prompt field, starter chips, and an **honesty line**: «پاسخ‌ها بر پایهٔ قیمت‌های واقعی است؛ فولادنو هرگز عدد نمی‌سازد». Submit deep-links to `/فولادنو?q=…`.
+- **AIHero** is unmistakably AI — Cobalt + the Spark orb, a large prompt field, starter chips, and an **honesty line**: «پاسخ‌ها بر پایهٔ قیمت‌های واقعی است؛ آهن‌تایم هرگز عدد نمی‌سازد». Submit deep-links to `/آهن‌تایم?q=…`.
 - A parallel **structured door** (rail, FeaturedPrices preview, CategoryGrid) serves Pros who want to go straight to tables — the co-primary audience model.
 
 ## Accessibility & RTL
@@ -82,4 +82,4 @@ Modified: `app/layout.tsx` (chrome), `app/page.tsx` (landing), `app/globals.css`
 
 > **Next phase:** catalog/Datasheet pages (the price tables behind the rail), the AI conversation view, and the request→پیش‌فاکتور commerce flow.
 
-*Fooladno — اول مشورت، بعد خرید.*
+*Ahantime — اول مشورت، بعد خرید.*

@@ -55,7 +55,7 @@ export const useUiStore = create<UiState>()(
       dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
     }),
     {
-      name: 'fooladno-ui',
+      name: 'ahantime-ui',
       version: 1,
       storage: createJSONStorage(() => localStorage),
       skipHydration: true,

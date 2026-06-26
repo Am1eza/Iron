@@ -1,4 +1,4 @@
-# Fooladno — Navigation Specification
+# Ahantime — Navigation Specification
 ## Layer 2 · Product Design — Document 10 of N (final)
 
 **Version:** 1.0 · 26 June 2026
@@ -47,12 +47,12 @@
 ## 3. N2 · Global Header / Primary Nav
 
 ### Structure (RTL — right→left visual order)
-`▦لوگو` → `محصولات ▾` → `قیمت‌ها` → `فولادنو` → `ابزارها ▾` → `وبلاگ/اخبار` → `باشگاه` → `همکاری` → `تماس` … then utility (§6): `طلا و ارز` · `🔍` · `ورود/حساب`.
+`▦لوگو` → `محصولات ▾` → `قیمت‌ها` → `آهن‌تایم` → `ابزارها ▾` → `وبلاگ/اخبار` → `باشگاه` → `همکاری` → `تماس` … then utility (§6): `طلا و ارز` · `🔍` · `ورود/حساب`.
 
 ### Behavior
-- **Sticky:** on scroll-down past the ticker, the header **condenses** into a sticky bar: `▦لوگو · 🔍/فولادنو · حساب · ☰(secondary)`. On scroll-up, full header returns. Ticker scrolls away with the page (re-appears at top).
+- **Sticky:** on scroll-down past the ticker, the header **condenses** into a sticky bar: `▦لوگو · 🔍/آهن‌تایم · حساب · ☰(secondary)`. On scroll-up, full header returns. Ticker scrolls away with the page (re-appears at top).
 - **Active top-level:** the section matching the current route is marked (Cobalt underline + `aria-current="page"`).
-- **«فولادنو»** entry opens the AI (hero focus on home, full AI view elsewhere).
+- **«آهن‌تایم»** entry opens the AI (hero focus on home, full AI view elsewhere).
 - **«ابزارها ▾»** small dropdown: وزن‌سنج · پروژه‌سنج · محاسبه هزینه · طلا و ارز.
 
 ### States (every nav item)
@@ -68,7 +68,7 @@
 
 ## 4. N3 · «محصولات» Mega-Menu
 - **Trigger:** hover (desktop, with 150ms intent delay) **or** click/Enter; closes on mouse-leave, `Esc`, or outside-click.
-- **Layout:** full-width panel, **7 category columns**; each column = category title (link) + its sub-categories (links) + a small «قیمت روز» CTA. A trailing **«بپرس از فولادنو»** column with the AI chip + a featured price.
+- **Layout:** full-width panel, **7 category columns**; each column = category title (link) + its sub-categories (links) + a small «قیمت روز» CTA. A trailing **«بپرس از آهن‌تایم»** column with the AI chip + a featured price.
 - **Active marking:** the column for the current category is highlighted.
 - **A11y:** `role=menu`, arrow-key traversal within/between columns, focus trapped while open, focus returns to the trigger on close.
 - **Mobile:** not a hover panel — collapses into the drawer (§13) as an accordion.
@@ -118,7 +118,7 @@
 ## 7. N6 · Footer Nav (grouped columns, RTL)
 1. **محصولات:** 7 categories.
 2. **ابزارها:** وزن‌سنج · پروژه‌سنج · محاسبه هزینه · طلا و ارز.
-3. **شرکت:** چرا فولادنو · درباره ما · تماس · همکاری با ما.
+3. **شرکت:** چرا آهن‌تایم · درباره ما · تماس · همکاری با ما.
 4. **پشتیبانی:** سؤالات متداول · قوانین · حریم خصوصی.
 5. **کانال‌ها:** تلگرام · ایتا · اینستاگرام · واتساپ.
 6. **Trust block:** eNamad/Samandehi/اتحادیه + address + phones (click-to-call).
@@ -145,7 +145,7 @@
 - On every sub-category table: سایز · گرید · کارخانه · ضخامت (+ search). Selections update the table and the URL query (`?سایز=14&کارخانه=ذوب-اهن`), `rel=canonical` to base. «حذف فیلترها» resets. Empty result → AI/request CTA (no dead-end).
 
 ## 11. N10 · Contextual / Related Nav
-- **SKU:** related SKUs (same sub-category, other sizes/factories) + «مقالهٔ مرتبط» + «پرسش از فولادنو».
+- **SKU:** related SKUs (same sub-category, other sizes/factories) + «مقالهٔ مرتبط» + «پرسش از آهن‌تایم».
 - **Article:** referenced SKUs/categories (two-way).
 - **طلا و ارز → «قیمت آهن امروز»** (funnel).
 - **Empty/error/stale/404:** popular categories + search + AI + home (no dead-ends).
@@ -158,17 +158,17 @@
 ## 13. Mobile Navigation (N12 bottom bar + N13 drawer)
 
 ### N12 · Bottom Tab Bar (sticky, ≤767px)
-`خانه` · `قیمت‌ها` · **`🟠 فولادنو`** (center, elevated, amber spark) · `سبد استعلام` · `حساب`
+`خانه` · `قیمت‌ها` · **`🟠 آهن‌تایم`** (center, elevated, amber spark) · `سبد استعلام` · `حساب`
 - 5 targets, ≥44px; center AI visually emphasized; active tab highlighted (Cobalt) with `aria-current`; badge on سبد when items exist.
 
 ### N13 · Hamburger Drawer (opens from the RIGHT, RTL)
-- Mirrors header + footer: محصولات (accordion → categories → sub-categories) · قیمت‌ها · فولادنو · ابزارها · وبلاگ/اخبار · باشگاه · همکاری · درباره/تماس · (طلا و ارز) · ورود/حساب · channels.
+- Mirrors header + footer: محصولات (accordion → categories → sub-categories) · قیمت‌ها · آهن‌تایم · ابزارها · وبلاگ/اخبار · باشگاه · همکاری · درباره/تماس · (طلا و ارز) · ورود/حساب · channels.
 - `role="dialog"`, **focus-trapped**, `Esc`/overlay closes, focus returns to the toggle; swipe-to-close.
 
 ---
 
 ## 14. N14 · AI as Navigation
-- The AI «فولادنو» is a **first-class navigation method**: a natural-language query routes the user to a price/table/tool/quote. It can deep-link («صفحهٔ میلگرد ۱۴ ذوب‌آهن را باز کن») and always offers structured next steps (chips). Present as the hero (home) and a FAB (everywhere on mobile).
+- The AI «آهن‌تایم» is a **first-class navigation method**: a natural-language query routes the user to a price/table/tool/quote. It can deep-link («صفحهٔ میلگرد ۱۴ ذوب‌آهن را باز کن») and always offers structured next steps (chips). Present as the hero (home) and a FAB (everywhere on mobile).
 
 ## 15. N15 · Search as Navigation
 - Header search + `/جستجو`: autosuggest grouped (قیمت‌ها / مقالات / ابزارها); Enter → results page; selecting a suggestion deep-links to the node; digit/spelling normalization; empty → AI/request CTA.
@@ -261,4 +261,4 @@ At any location, the system marks "you are here" consistently:
 
 **→ Next: Layer 3 — UI / Design System** (design tokens from the brand book, component library, the high-fidelity look of every nav/screen specified here).
 
-*Fooladno — اول مشورت، بعد خرید.*
+*Ahantime — اول مشورت، بعد خرید.*

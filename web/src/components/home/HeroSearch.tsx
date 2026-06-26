@@ -8,7 +8,7 @@ import styles from './HeroSearch.module.css';
 /**
  * The central AI search (the home's focal point). A clearly-labelled assistant
  * that greets first and asks *what you need* — not just a price box. Submitting
- * opens «فولادنو» (the advisor) with the question. Light, professional, calm.
+ * opens «آهن‌تایم» (the advisor) with the question. Light, professional, calm.
  */
 const STARTERS = [
   'برای یک ساختمان ۲ طبقه چه می‌خواهم؟',
@@ -26,11 +26,11 @@ export function HeroSearch() {
   };
 
   return (
-    <section className={styles.hero} aria-label="مشاور هوشمند فولادنو">
+    <section className={styles.hero} aria-label="مشاور هوشمند آهن‌تایم">
       <div className={`container ${styles.inner}`}>
         <p className={styles.badge}>
           <SparkIcon size={15} />
-          مشاور هوشمند فولادنو
+          مشاور هوشمند آهن‌تایم
           <span className={styles.online}>
             <span className={styles.dot} /> آنلاین
           </span>
@@ -61,11 +61,11 @@ export function HeroSearch() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="مثلاً: می‌خوام یه خونه بسازم، چی و چقدر لازم دارم؟"
-            aria-label="از مشاور هوشمند فولادنو بپرسید"
+            aria-label="از مشاور هوشمند آهن‌تایم بپرسید"
             enterKeyHint="send"
           />
           <button type="submit" className={styles.searchSend}>
-            <span className={styles.sendText}>بپرس از فولادنو</span>
+            <span className={styles.sendText}>بپرس از آهن‌تایم</span>
             <ChevronStartIcon size={18} className="icon--rtl" />
           </button>
         </form>

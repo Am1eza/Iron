@@ -6,8 +6,8 @@
 import { SignJWT, jwtVerify } from 'jose';
 import type { AccessTokenClaims } from './types';
 
-const ISSUER = 'fooladno';
-const AUDIENCE = 'fooladno-web';
+const ISSUER = 'ahantime';
+const AUDIENCE = 'ahantime-web';
 
 function getSecret(): Uint8Array {
   const secret = process.env.SESSION_SECRET;

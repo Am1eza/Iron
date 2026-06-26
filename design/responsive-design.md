@@ -1,4 +1,4 @@
-# Fooladno — Responsive Design
+# Ahantime — Responsive Design
 ## Layer 3 · UI / Design System — Document 7 of N
 
 **Version:** 1.0 · 26 June 2026
@@ -51,7 +51,7 @@
 
 ## 4. Navigation — responsive behavior (detail)
 - **Header:** desktop full bar → **condenses to a sticky compact bar** on scroll (`logo · search/AI · account · ☰`). Mobile = `☰ · logo · login`.
-- **Bottom Tab Bar (≤md):** fixed 5-tab (خانه · قیمت‌ها · 🟠فولادنو center · سبد · حساب), respects `safe-area-inset-bottom`; appears only ≤767.
+- **Bottom Tab Bar (≤md):** fixed 5-tab (خانه · قیمت‌ها · 🟠آهن‌تایم center · سبد · حساب), respects `safe-area-inset-bottom`; appears only ≤767.
 - **Drawer:** hamburger opens from inline-end (right), focus-trapped, full menu accordion.
 - **Category Rail:**
   - **lg+:** fixed vertical rail, **hover name→image** flip.
@@ -177,4 +177,4 @@ The Datasheet must stay scannable on a phone.
 - Applies the foundations/components across all viewports; pairs with the navigation responsive matrix.
 - **Next recommended:** Motion/Interaction spec, then **high-fidelity screens** at each breakpoint — and the **live HTML style tile** (responsive) to validate.
 
-*Fooladno — اول مشورت، بعد خرید.*
+*Ahantime — اول مشورت، بعد خرید.*

@@ -1,4 +1,4 @@
-# Fooladno — Information Architecture (IA)
+# Ahantime — Information Architecture (IA)
 ## Layer 2 · Product Design — Document 9 of N
 
 **Version:** 1.0 · 26 June 2026
@@ -19,14 +19,14 @@
 
 ### 1.1 Top-level content domains
 ```
-Fooladno
+Ahantime
 ├─ قیمت‌ها (Prices)        → catalog taxonomy (the core)
-├─ فولادنو (AI advisor)    → conversational findability
+├─ آهن‌تایم (AI advisor)    → conversational findability
 ├─ بازار (Market)          → نبض بازار / طلا و ارز
 ├─ ابزارها (Tools)         → وزن‌سنج، پروژه‌سنج، محاسبه‌گرها
 ├─ محتوا (Content)         → وبلاگ، اخبار، راهنماها، اصطلاحنامه
 ├─ تعامل (Engagement)      → سبد استعلام، درخواست/پیش‌فاکتور، هشدارها، باشگاه
-├─ شرکت (Company/Trust)    → چرا فولادنو، درباره، تماس، تأمین‌کنندگان، مشتریان
+├─ شرکت (Company/Trust)    → چرا آهن‌تایم، درباره، تماس، تأمین‌کنندگان، مشتریان
 ├─ همکاری (Cooperation)    → تحلیل بازار، تأمین از شما، فروش از ما
 ├─ حساب (Account)          → علاقه‌مندی، درخواست‌ها، هشدارها، پروفایل، باشگاه
 └─ ادمین (Admin)           → operational back office
@@ -85,7 +85,7 @@ PartnerLogo / CustomerLogo (brand assets)   AuditEntry (any change)
   /قیمت/ورق-سرد  /قیمت/ورق-سرد/روغنی · /گالوانیزه · /رنگی …
   /قیمت/نبشی-ناودانی  /نبشی · /ناودانی …
   /قیمت/لوله     /قیمت/لوله/سیاه · /مانیسمان · /گالوانیزه …
-/فولادنو                              دستیار هوش مصنوعی (full view)          [AI]
+/آهن‌تایم                              دستیار هوش مصنوعی (full view)          [AI]
 /طلا-و-ارز                            بازار طلا و ارز (tgju)                 [Market]
 /ابزار/وزن                            وزن‌سنج                                [Tool]
 /ابزار/براورد-پروژه                   پروژه‌سنج                              [Tool]
@@ -95,12 +95,12 @@ PartnerLogo / CustomerLogo (brand assets)   AuditEntry (any change)
 /ورود                                 ورود/ثبت‌نام با موبایل+OTP             [Auth]
 /حساب                                 داشبورد حساب                          [Account]
   /حساب/علاقه‌مندی  /حساب/درخواست‌ها  /حساب/هشدارها  /حساب/پروفایل  /حساب/باشگاه
-/باشگاه                               باشگاه فولادنو                        [Club]
+/باشگاه                               باشگاه آهن‌تایم                        [Club]
 /وبلاگ            /وبلاگ/{slug}        وبلاگ + مقاله                         [BlogList/Article]
 /اخبار            /اخبار/{slug}        اخبار بازار + خبر                     [NewsList/Article]
 /راهنما           /راهنما/{slug}       راهنمای خرید (v1.1)                   [Guide]
 /اصطلاحنامه                            واژه‌نامه (v1.1)                       [Glossary]
-/چرا-فولادنو                          چرا فولادنو؟                          [Why]
+/چرا-آهن‌تایم                          چرا آهن‌تایم؟                          [Why]
 /درباره-ما                            درباره ما                             [About]
 /تماس                                 تماس با ما (آدرس/تلفن/نقشه/فرم)        [Contact]
 /همکاری                               هاب همکاری                            [CoopHub]
@@ -139,7 +139,7 @@ sitemap.xml  robots.txt                                                    [SEO]
 | Category | `/قیمت/{دسته}` | `/قیمت/میلگرد` |
 | Sub-category (table) | `/قیمت/{دسته}/{زیردسته}` | `/قیمت/میلگرد/اجدار` |
 | SKU | `/قیمت/{دسته}/{زیردسته}/{sku-slug}` | `/قیمت/میلگرد/اجدار/میلگرد-14-a3-ذوب-اهن` |
-| AI | `/فولادنو` | |
+| AI | `/آهن‌تایم` | |
 | Market | `/طلا-و-ارز` | |
 | Tool | `/ابزار/{tool}` | `/ابزار/وزن` |
 | Blog/News | `/وبلاگ/{slug}` · `/اخبار/{slug}` | `/وبلاگ/عوامل-موثر-بر-قیمت-میلگرد` |
@@ -185,28 +185,28 @@ sitemap.xml  robots.txt                                                    [SEO]
 ## 5. Navigation Systems
 
 ### 5.1 Global primary nav (header, RTL right→left)
-`▦لوگو | محصولات ▾ | قیمت‌ها | فولادنو(AI) | ابزارها | وبلاگ/اخبار | باشگاه | همکاری | تماس` … utility: `طلا و ارز · 🔍جستجو · ورود/حساب`
-- **«محصولات ▾» mega-menu:** 7 columns (categories) each listing its sub-categories + a featured price/CTA; «فولادنو» chip to ask the AI.
+`▦لوگو | محصولات ▾ | قیمت‌ها | آهن‌تایم(AI) | ابزارها | وبلاگ/اخبار | باشگاه | همکاری | تماس` … utility: `طلا و ارز · 🔍جستجو · ورود/حساب`
+- **«محصولات ▾» mega-menu:** 7 columns (categories) each listing its sub-categories + a featured price/CTA; «آهن‌تایم» chip to ask the AI.
 
 ### 5.2 Fixed category rail (persistent secondary nav) — the signature
 - Pinned **right**, on all catalog/home pages; lists the 7 categories; **hover → name flips to image**; click → category/sub table (US-B1). Mobile → bottom-sheet/accordion. Acts as the always-available fast lane.
 
 ### 5.3 Footer nav (grouped)
-- **محصولات:** 7 categories · **ابزارها:** وزن‌سنج، پروژه‌سنج، محاسبه هزینه · **شرکت:** چرا فولادنو، درباره، تماس، همکاری · **پشتیبانی:** قوانین، حریم خصوصی، سؤالات متداول · **کانال‌ها:** تلگرام/ایتا/اینستاگرام/واتساپ · **Trust:** eNamad/Samandehi/اتحادیه + address + phones.
+- **محصولات:** 7 categories · **ابزارها:** وزن‌سنج، پروژه‌سنج، محاسبه هزینه · **شرکت:** چرا آهن‌تایم، درباره، تماس، همکاری · **پشتیبانی:** قوانین، حریم خصوصی، سؤالات متداول · **کانال‌ها:** تلگرام/ایتا/اینستاگرام/واتساپ · **Trust:** eNamad/Samandehi/اتحادیه + address + phones.
 
 ### 5.4 Breadcrumbs (catalog + content)
 `خانه › قیمت‌ها › میلگرد › آجدار › میلگرد ۱۴ A3 ذوب‌آهن` (BreadcrumbList schema).
 
 ### 5.5 Contextual / cross-linking (SEO + UX)
 - SKU → related SKUs (same sub-category, other sizes/factories) + a relevant guide.
-- Sub-category → sibling sub-categories + «پرسش از فولادنو».
+- Sub-category → sibling sub-categories + «پرسش از آهن‌تایم».
 - طلا و ارز → «قیمت آهن امروز» (FX→steel funnel).
 - Article ↔ referenced SKUs/categories (two-way links).
-- Every empty/error/stale view → «ثبت درخواست»/«پرسش از فولادنو» (no dead-ends).
+- Every empty/error/stale view → «ثبت درخواست»/«پرسش از آهن‌تایم» (no dead-ends).
 
 ### 5.6 Mobile navigation
 - **Top:** hamburger (full menu) + logo + login.
-- **Bottom tab bar:** `خانه · قیمت‌ها · 🟠فولادنو(center) · سبد · حساب`.
+- **Bottom tab bar:** `خانه · قیمت‌ها · 🟠آهن‌تایم(center) · سبد · حساب`.
 - **Rail** → bottom-sheet; **AI** also a floating button; ticker scrolls at top.
 
 ---
@@ -219,12 +219,12 @@ sitemap.xml  robots.txt                                                    [SEO]
 | Pro-forma invoice | **پیش‌فاکتور** |
 | Delivery time | **زمان تحویل** |
 | Price change | **نوسان** |
-| AI advisor | **فولادنو** (یا «دستیار فولادنو») |
+| AI advisor | **آهن‌تایم** (یا «دستیار آهن‌تایم») |
 | Price alert | **هشدار قیمت / قیمت‌سنج** |
 | Weight calc | **وزن‌سنج** |
 | Project estimator | **پروژه‌سنج** |
 | Favorites | **علاقه‌مندی‌ها** |
-| Loyalty club | **باشگاه فولادنو** |
+| Loyalty club | **باشگاه آهن‌تایم** |
 | Cooperation | **همکاری با ما** |
 | FX/gold | **طلا و ارز** |
 | Market ticker | **نبض بازار** |
@@ -235,20 +235,20 @@ sitemap.xml  robots.txt                                                    [SEO]
 ## 7. Metadata & SEO Schema (per page type)
 | Page | `<title>` pattern | schema.org |
 |---|---|---|
-| Category | «قیمت روز {دسته} — {تاریخ جلالی} | فولادنو» | BreadcrumbList + ItemList |
-| Sub-category (table) | «قیمت {زیردسته} امروز {تاریخ} | فولادنو» | AggregateOffer + BreadcrumbList |
-| SKU | «قیمت {محصول} {سایز} {کارخانه} امروز {تاریخ} | فولادنو» | **Product + Offer** (price, priceCurrency, priceValidUntil, availability) |
-| AI | «فولادنو — مشاور هوشمند خرید آهن و فولاد» | WebApplication |
-| Market | «قیمت لحظه‌ای دلار، یورو و طلا — فولادنو» | — |
-| Blog/News | «{عنوان} | وبلاگ فولادنو» | **Article** + (FAQPage if Q&A) |
-| Tool | «{ابزار} آنلاین — فولادنو» | WebApplication |
-| Why/About/Contact | «{عنوان} — فولادنو» | Organization + LocalBusiness (address/phone) |
+| Category | «قیمت روز {دسته} — {تاریخ جلالی} | آهن‌تایم» | BreadcrumbList + ItemList |
+| Sub-category (table) | «قیمت {زیردسته} امروز {تاریخ} | آهن‌تایم» | AggregateOffer + BreadcrumbList |
+| SKU | «قیمت {محصول} {سایز} {کارخانه} امروز {تاریخ} | آهن‌تایم» | **Product + Offer** (price, priceCurrency, priceValidUntil, availability) |
+| AI | «آهن‌تایم — مشاور هوشمند خرید آهن و فولاد» | WebApplication |
+| Market | «قیمت لحظه‌ای دلار، یورو و طلا — آهن‌تایم» | — |
+| Blog/News | «{عنوان} | وبلاگ آهن‌تایم» | **Article** + (FAQPage if Q&A) |
+| Tool | «{ابزار} آنلاین — آهن‌تایم» | WebApplication |
+| Why/About/Contact | «{عنوان} — آهن‌تایم» | Organization + LocalBusiness (address/phone) |
 - **Global:** unique title+description, canonical, OG/Twitter tags, `lang=fa dir=rtl`, Organization sitewide, sitemap auto-includes new SKUs/articles, robots disallows `/admin`, `/حساب`, `/درخواست`, `/جستجو`.
 
 ---
 
 ## 8. Search & Findability
-- **Three findability paths:** (1) **AI** «فولادنو» (natural language), (2) **taxonomy** (rail/mega-menu/breadcrumbs), (3) **site search** `/جستجو`.
+- **Three findability paths:** (1) **AI** «آهن‌تایم» (natural language), (2) **taxonomy** (rail/mega-menu/breadcrumbs), (3) **site search** `/جستجو`.
 - **Site search** indexes SKUs (by محصول/سایز/گرید/کارخانه synonyms) + content; results grouped (قیمت‌ها / مقالات / ابزارها); supports Persian/Arabic/Latin-digit normalization and common misspellings; empty results → AI/request CTA.
 - **Filters** (facets §1.3) on every sub-category table; filter state in query params (canonical to base).
 
@@ -269,4 +269,4 @@ sitemap.xml  robots.txt                                                    [SEO]
 
 *Next Layer-2 document: Data Model (entities, fields, relationships) — IA's content model becomes a concrete schema.*
 
-*Fooladno — اول مشورت، بعد خرید.*
+*Ahantime — اول مشورت، بعد خرید.*

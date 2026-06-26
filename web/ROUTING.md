@@ -1,4 +1,4 @@
-# Fooladno Web — Routing
+# Ahantime Web — Routing
 ## Layer 4 · Frontend — Document 2 (Routing)
 
 **Version:** 1.0 · 26 June 2026
@@ -20,7 +20,7 @@
 | `/قیمت/{cat}` | `app/قیمت/[category]/page.tsx` | ISR + `generateStaticParams` | ✓ |
 | `/قیمت/{cat}/{sub}` | `app/قیمت/[category]/[sub]/page.tsx` | ISR (short revalidate) | ✓ (primary SEO) |
 | `/قیمت/{cat}/{sub}/{sku}` | `…/[sku]/page.tsx` | ISR + `generateMetadata` (Product/Offer) | ✓ (long-tail) |
-| `/فولادنو` | `app/فولادنو/page.tsx` | dynamic (client) | ✓ (landing) |
+| `/آهن‌تایم` | `app/آهن‌تایم/page.tsx` | dynamic (client) | ✓ (landing) |
 | `/طلا-و-ارز` | `app/طلا-و-ارز/page.tsx` | static shell + client | ✓ |
 | `/ابزار/{tool}` | `app/ابزار/[tool]/page.tsx` | static | ✓ |
 | `/حساب`, `/حساب/{tab}` | `app/حساب/[[...tab]]/page.tsx` | dynamic | ✗ noindex |
@@ -32,7 +32,7 @@
 | `/درخواست` | `app/درخواست/page.tsx` | dynamic | ✗ |
 | `/ورود` | `app/ورود/page.tsx` | dynamic | ✗ |
 | `/جستجو` | `app/جستجو/page.tsx` | dynamic | ✗ |
-| `/درباره-ما`,`/تماس`,`/چرا-فولادنو` | resp. folders | static (+ LocalBusiness on تماس) | ✓ |
+| `/درباره-ما`,`/تماس`,`/چرا-آهن‌تایم` | resp. folders | static (+ LocalBusiness on تماس) | ✓ |
 | `/قوانین`,`/حریم-خصوصی` | resp. folders | static | ✓ |
 | `/admin/*` | `app/admin/...` | dynamic, role-gated | ✗ noindex |
 
@@ -66,4 +66,4 @@
 - Use `lib/routes.ts` for all links; `lib/seo.ts` for all metadata/JSON-LD.
 - `notFound()` for missing slugs; `redirect()` for moved/legacy.
 
-*Fooladno — اول مشورت، بعد خرید.*
+*Ahantime — اول مشورت، بعد خرید.*

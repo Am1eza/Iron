@@ -12,9 +12,38 @@
   flex-wrap: wrap;
 }
 .eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
   font: var(--t-overline);
   color: var(--color-accent-text);
   margin: 0 0 var(--space-1);
+}
+.liveBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--gain-50);
+  color: var(--color-gain-text);
+  font: var(--t-micro);
+  letter-spacing: 0;
+}
+.liveDot {
+  inline-size: 6px;
+  block-size: 6px;
+  border-radius: 50%;
+  background: var(--color-gain);
+  box-shadow: 0 0 0 0 rgba(21, 163, 74, 0.5);
+  animation: livedot 2s ease-out infinite;
+}
+@keyframes livedot {
+  0% { box-shadow: 0 0 0 0 rgba(21, 163, 74, 0.5); }
+  70%, 100% { box-shadow: 0 0 0 6px rgba(21, 163, 74, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .liveDot { animation: none; }
 }
 .title {
   font: var(--t-h3);

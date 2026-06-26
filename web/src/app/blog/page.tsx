@@ -10,5 +10,5 @@ export const metadata: Metadata = buildMetadata({
 });
 
 export default function BlogPage() {
-  return <PagePlaceholder eyebrow="محتوا" title="وبلاگ فولادنو" note="فهرست مطالب در بخش محتوا ساخته می‌شود." />;
+  return <PagePlaceholder eyebrow="محتوا" title="وبلاگ آهن‌تایم" note="فهرست مطالب در بخش محتوا ساخته می‌شود." />;
 }

@@ -1,4 +1,4 @@
-# Fooladno — Phase 1 · Foundation
+# Ahantime — Phase 1 · Foundation
 
 **Status:** ✅ Complete (all 10 items defined, cross-referenced, and — where applicable — implemented in code).
 **Methodology note:** the project is organized by **product-lifecycle phases**. This is **Phase 1 — Foundation** (done once). Earlier work was filed under "layers"; this index maps the foundation cleanly onto the 10 canonical items.
@@ -35,7 +35,7 @@
 9. **Roadmap** — Now/Next/Later + Phase 2 (web app)/Phase 3 (mobile)/Future, themes, dependencies; maps to the feature list. ✔ (newly added)
 10. **Success Metrics** — north star + funnel KPIs + business/ops/AI/SEO/guardrail metrics + instrumentation + cadence. ✔ (newly added)
 
-**Cross-consistency checked:** name/decisions (Fooladno · lead-gen, no payment · admin-entered prices · DeepSeek server-side · tgju ticker · OTP · co-primary audience) are consistent across all 10 and with the design system and the built frontend foundation.
+**Cross-consistency checked:** name/decisions (Ahantime · lead-gen, no payment · admin-entered prices · DeepSeek server-side · tgju ticker · OTP · co-primary audience) are consistent across all 10 and with the design system and the built frontend foundation.
 
 ---
 
@@ -44,4 +44,4 @@ The frontend foundation is scaffolded and pushed: project structure · routing (
 
 > **Phase 1 is locked.** Ready to proceed to the next phase whenever you are.
 
-*Fooladno — اول مشورت، بعد خرید.*
+*Ahantime — اول مشورت، بعد خرید.*

@@ -2,8 +2,9 @@
 import Link from 'next/link';
 import { useMarket } from '@/lib/hooks/useMarket';
 import { routes } from '@/lib/routes';
-import { formatToman, toPersianDigits, formatMovement } from '@/lib/utils/format';
+import { formatMovement } from '@/lib/utils/format';
 import { marketValues as fallback } from '@/lib/mock/fixtures';
+import { CountUp } from '@/components/ui/CountUp';
 import { ChevronStartIcon } from '@/components/primitives/icons';
 import styles from './MarketSnapshot.module.css';
 
@@ -21,7 +22,12 @@ export function MarketSnapshot() {
       <div className="container">
         <div className={styles.head}>
           <div>
-            <p className={styles.eyebrow}>نبض بازار</p>
+            <p className={styles.eyebrow}>
+              نبض بازار
+              <span className={styles.liveBadge}>
+                <span className={styles.liveDot} /> هم‌اکنون
+              </span>
+            </p>
             <h2 id="market-title" className={styles.title}>
               دلار، طلا و شمش فولاد — لحظه‌ای
             </h2>
@@ -36,15 +42,11 @@ export function MarketSnapshot() {
           {values.map((v) => {
             const up = v.movementDir === 'up';
             const down = v.movementDir === 'down';
-            const val =
-              v.unit === 'تومان'
-                ? formatToman(v.value, false)
-                : toPersianDigits(v.value.toLocaleString('en-US'));
             return (
               <li key={v.key} className={styles.card}>
                 <span className={styles.label}>{v.label}</span>
                 <span className={`${styles.value} tnum`}>
-                  {val}
+                  <CountUp value={v.value} />
                   <span className={styles.unit}>{v.unit}</span>
                 </span>
                 <span className={`${styles.move} ${up ? styles.up : down ? styles.down : styles.flat} tnum`}>

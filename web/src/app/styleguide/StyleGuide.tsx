@@ -69,7 +69,7 @@ export function StyleGuide() {
         <Cluster justify="space-between">
           <div>
             <Overline>Phase 3 · UI Engineering</Overline>
-            <Heading level={1}>راهنمای سیستم طراحی فولادنو</Heading>
+            <Heading level={1}>راهنمای سیستم طراحی آهن‌تایم</Heading>
           </div>
           <ThemeToggle />
         </Cluster>
@@ -287,7 +287,7 @@ export function StyleGuide() {
 
       <Divider />
       <Text variant="caption" color="muted" align="center">
-        فولادنو — سیستم طراحی · اول مشورت، بعد خرید.
+        آهن‌تایم — سیستم طراحی · اول مشورت، بعد خرید.
       </Text>
       <div style={{ blockSize: 'var(--space-16)' }} />
     </Container>

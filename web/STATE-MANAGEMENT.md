@@ -1,4 +1,4 @@
-# Fooladno Web — State Management
+# Ahantime Web — State Management
 ## Layer 4 · Frontend — Document 3 (State Management)
 
 **Version:** 1.0 · 26 June 2026
@@ -36,7 +36,7 @@
 - UI store is small and synchronous; components select single fields.
 
 ## 5. Persistent State — `cartStore` (Zustand + persist)
-- The **inquiry cart (سبد استعلام)** persists to `localStorage` (`name: 'fooladno-cart'`, **versioned**, migration-ready).
+- The **inquiry cart (سبد استعلام)** persists to `localStorage` (`name: 'ahantime-cart'`, **versioned**, migration-ready).
 - **Hydration guard:** `skipHydration: true` + a `<StoreHydrator>` that rehydrates on mount → no SSR mismatch.
 - Selectors expose items, count, total weight, est. total.
 
@@ -69,4 +69,4 @@ lib/
   hooks/    useMarket.ts · useToast.ts · useReducedMotion.ts · useMediaQuery.ts
 ```
 
-*Fooladno — اول مشورت، بعد خرید.*
+*Ahantime — اول مشورت، بعد خرید.*

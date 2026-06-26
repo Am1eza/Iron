@@ -4,12 +4,12 @@
  * this covers the recurring, cross-cutting labels (actions, nav, states).
  */
 export const fa = {
-  brand: 'فولادنو',
+  brand: 'آهن‌تایم',
   tagline: 'اول مشورت، بعد خرید.',
 
   // actions
   'action.submitRequest': 'ثبت درخواست',
-  'action.askAi': 'پرسش از فولادنو',
+  'action.askAi': 'پرسش از آهن‌تایم',
   'action.viewPrices': 'مشاهدهٔ قیمت‌ها',
   'action.retry': 'تلاش دوباره',
   'action.search': 'جستجو',
@@ -23,7 +23,7 @@ export const fa = {
   // nav
   'nav.home': 'خانه',
   'nav.prices': 'قیمت‌ها',
-  'nav.ai': 'فولادنو',
+  'nav.ai': 'آهن‌تایم',
   'nav.tools': 'ابزارها',
   'nav.club': 'باشگاه',
   'nav.cooperation': 'همکاری',

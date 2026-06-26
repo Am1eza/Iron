@@ -1,4 +1,4 @@
-# Fooladno — Success Metrics
+# Ahantime — Success Metrics
 ## Phase 1 · Foundation — #10
 
 **Version:** 1.0 · 26 June 2026
@@ -62,4 +62,4 @@ Closed orders / **GMV** · **AOV** · **margin per order/ton** · **lead→won %
 ## 10. Definition of "winning" (Phase-1)
 A steady, **growing flow of qualified leads converting to orders**, with **fresh prices**, a **grounded, trusted AI**, **rising organic share**, and **early repeat/club signals** — proving the funnel and the model before scaling to web/mobile apps and new revenue lines.
 
-*Fooladno — اول مشورت، بعد خرید.*
+*Ahantime — اول مشورت، بعد خرید.*

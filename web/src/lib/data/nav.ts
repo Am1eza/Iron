@@ -88,7 +88,7 @@ export const FOOTER_COLUMNS: { title: string; links: NavLink[] }[] = [
   {
     title: 'شرکت',
     links: [
-      { label: 'چرا فولادنو', href: routes.why() },
+      { label: 'چرا آهن‌تایم', href: routes.why() },
       { label: 'درباره ما', href: routes.about() },
       { label: 'تماس با ما', href: routes.contact() },
       { label: 'همکاری با ما', href: routes.cooperation() },
@@ -106,8 +106,8 @@ export const FOOTER_COLUMNS: { title: string; links: NavLink[] }[] = [
 
 /** Social / messaging channels (navigation.md §7.5) — hrefs are placeholders. */
 export const CHANNELS: NavLink[] = [
-  { label: 'تلگرام', href: 'https://t.me/fooladno' },
-  { label: 'ایتا', href: 'https://eitaa.com/fooladno' },
-  { label: 'اینستاگرام', href: 'https://instagram.com/fooladno' },
+  { label: 'تلگرام', href: 'https://t.me/ahantime' },
+  { label: 'ایتا', href: 'https://eitaa.com/ahantime' },
+  { label: 'اینستاگرام', href: 'https://instagram.com/ahantime' },
   { label: 'واتساپ', href: 'https://wa.me/989121395954' },
 ];

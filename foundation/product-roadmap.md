@@ -1,4 +1,4 @@
-# Fooladno — Product Roadmap
+# Ahantime — Product Roadmap
 ## Phase 1 · Foundation — #9
 
 **Version:** 1.0 · 26 June 2026
@@ -22,7 +22,7 @@ Price **alerts (قیمت‌سنج)** delivery + **daily digest** · **price char
 **Exit:** measurable return-visit & repeat lift; rising organic share.
 
 ## LATER — v1.2 · Theme: "Loyalty & content moat"
-**باشگاه فولادنو** (tiers/benefits) + intent popup · **AI content engine** (auto news + daily blog at scale, editor-gated) · standalone **پروژه‌سنج** · buying guides + glossary · advanced admin analytics · supplier استعلام log.
+**باشگاه آهن‌تایم** (tiers/benefits) + intent popup · **AI content engine** (auto news + daily blog at scale, editor-gated) · standalone **پروژه‌سنج** · buying guides + glossary · advanced admin analytics · supplier استعلام log.
 **Exit:** active club cohort; content-driven organic growth.
 
 ## PHASE 2 — Web App · Theme: "Deeper, account-driven experience"
@@ -32,7 +32,7 @@ Buyer **dashboard** (saved projects, request history, alerts, club status) · de
 Native app on **Cafe Bazaar + Myket** (iOS later) reusing the APIs: price tables, ticker, AI advisor, **push price-alerts**, club.
 
 ## FUTURE BETS — Theme: "New margin & moats"
-**Embedded credit/financing** (چک/LC/installments/BNPL) · **integrated logistics/freight** · **two-sided marketplace** (verified suppliers) · **price index «شاخص فولادنو»** + data/API subscription · **export module** (EN/AR) · partner API/EDI · mill-certificate vault.
+**Embedded credit/financing** (چک/LC/installments/BNPL) · **integrated logistics/freight** · **two-sided marketplace** (verified suppliers) · **price index «شاخص آهن‌تایم»** + data/API subscription · **export module** (EN/AR) · partner API/EDI · mill-certificate vault.
 
 ---
 
@@ -46,4 +46,4 @@ Native app on **Cafe Bazaar + Myket** (iOS later) reusing the APIs: price tables
 ## Release-contents ↔ Feature List
 Maps to `product/feature-list.md` priority tags: **★ MVP** = Now · **➕ Add** = v1.1 · **◇ Future** = Later/Phase 2-3/Future. The feature list stays the backlog; this roadmap orders it.
 
-*Fooladno — اول مشورت، بعد خرید.*
+*Ahantime — اول مشورت، بعد خرید.*

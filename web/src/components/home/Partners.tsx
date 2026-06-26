@@ -44,7 +44,7 @@ export function Partners() {
 
         <div className={styles.block}>
           <p className={styles.eyebrow}>اعتماد مشتریان</p>
-          <h2 className={styles.title}>کسانی که به فولادنو اعتماد کرده‌اند</h2>
+          <h2 className={styles.title}>کسانی که به آهن‌تایم اعتماد کرده‌اند</h2>
           <ul className={styles.wall} aria-label="مشتریان">
             {CUSTOMERS.map((name) => (
               <li key={name} className={`${styles.logo} ${styles.customer}`}>

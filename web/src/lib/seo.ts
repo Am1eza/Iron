@@ -3,8 +3,8 @@
  */
 import type { Metadata } from 'next';
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://fooladno.com';
-const BRAND = 'فولادنو';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://ahantime.com';
+const BRAND = 'آهن‌تایم';
 
 export const ORG_NAME = BRAND;
 export const CONTACT = {

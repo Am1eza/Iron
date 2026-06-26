@@ -120,7 +120,7 @@ function TabContent({ slug }: { slug: string }) {
         <Card>
           <EmptyState
             size="section"
-            headline="باشگاه فولادنو"
+            headline="باشگاه آهن‌تایم"
             body="با عضویت، قیمت ویژه، تحویل اولویت‌دار و مشاور اختصاصی بگیرید."
             primary={{ label: 'عضویت در باشگاه', href: routes.club() }}
           />

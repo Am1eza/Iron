@@ -1,15 +1,15 @@
-# Fooladno — Product Scope
+# Ahantime — Product Scope
 ## Layer 2 · Product Design — Document 1 of N
 
 **Version:** 1.0 · 26 June 2026
 **Status:** Draft for approval
-**Scope of this document:** Defines *what* the Fooladno product is and is not — its objectives, users, platforms, capability areas (in-scope), explicit exclusions (out-of-scope), data, integrations, constraints, and release phasing. It is the boundary-setting document; detailed feature specs, flows, and the data model follow in later Layer-2 documents.
+**Scope of this document:** Defines *what* the Ahantime product is and is not — its objectives, users, platforms, capability areas (in-scope), explicit exclusions (out-of-scope), data, integrations, constraints, and release phasing. It is the boundary-setting document; detailed feature specs, flows, and the data model follow in later Layer-2 documents.
 
 ---
 
 ## 1. Product Definition
 
-**Fooladno (فولادنو)** is a **smart iron & steel marketplace** for the Iranian market. It combines four things no single Iranian competitor does well together:
+**Ahantime (آهن‌تایم)** is a **smart iron & steel marketplace** for the Iranian market. It combines four things no single Iranian competitor does well together:
 
 1. A **grounded AI advisor** that consults before it quotes — helping buyers decide, estimate, and plan.
 2. **Transparent, live, admin-curated prices** with a signature **guaranteed delivery time (زمان تحویل تضمینی)**.
@@ -75,7 +75,7 @@ Sales are **lead-generation based**: there is **no online payment/checkout** in 
 ### External users
 - **Visitor (guest):** browses prices, uses the AI, ticker, tools, content. No account needed to look.
 - **Registered user:** has an account; can save favorites, set price alerts, view request history, manage profile.
-- **Club member (باشگاه فولادنو):** a registered user enrolled in the loyalty club; receives tiered benefits.
+- **Club member (باشگاه آهن‌تایم):** a registered user enrolled in the loyalty club; receives tiered benefits.
 
 ### Internal users (admin panel)
 - **Super Admin:** full access; manages users/roles and settings.
@@ -94,7 +94,7 @@ Grouped into product modules. Each is in-scope; detailed specs come in later Lay
 
 ### A. Public / Marketing Site
 - **Landing/home** centered on the **AI search hero** with the **نبض بازار ticker** above it.
-- **«چرا فولادنو؟» (Why us)** — competitive advantages (cheaper, faster, AI advisor, transparent prices, guaranteed delivery, expert support).
+- **«چرا آهن‌تایم؟» (Why us)** — competitive advantages (cheaper, faster, AI advisor, transparent prices, guaranteed delivery, expert support).
 - **«تأمین‌کنندگان ما» (Who we work with)** — producer/mill logos (فولاد مبارکه، ذوب آهن، …).
 - **«مشتریان ما» / اعتماد (Who trusts us)** — customer logos / trust wall.
 - **درباره ما (About)** + **تماس با ما (Contact)** with the real address & phones:
@@ -112,8 +112,8 @@ Grouped into product modules. Each is in-scope; detailed specs come in later Lay
 - **Price history:** time-series captured per SKU to power charts and نوسان.
 - **Differentiator surface (optional, high-value):** «قیمت ما در کنار قیمت پایه» transparency where data allows.
 
-### C. AI Advisor — «فولادنو»
-- **Central AI search hero** ("سلام، من فولادنوم. چه محصولی می‌خواید بخرید؟") — **clearly an AI**, with greeting and suggested-question chips.
+### C. AI Advisor — «آهن‌تایم»
+- **Central AI search hero** ("سلام، من آهن‌تایمم. چه محصولی می‌خواید بخرید؟") — **clearly an AI**, with greeting and suggested-question chips.
 - **Intent-first behavior:** when asked a price, it **asks the purpose first** (e.g., "برای چه کاری؟"), then helps with **project cost estimate, total cost of requested items, and weight estimate**, plus expert guidance and **proactive suggested questions**.
 - **Grounded via tools:** `getPrice` (from DB), `calcWeight` (وزن‌سنج formulas), `estimateProject` (پروژه‌سنج), `createLead` (CRM). Never invents numbers; offers a callback when data is missing.
 - **Outputs a structured result** (a BOM / پیش‌فاکتور draft) that flows into the cart and the CRM as a qualified lead.
@@ -138,7 +138,7 @@ Grouped into product modules. Each is in-scope; detailed specs come in later Lay
 - Requires identity (phone/account) — converting passive price-checkers into leads.
 - Delivered via **SMS / Telegram / WhatsApp / Eitaa** (channel set in §10).
 
-### G. Customer Club — «باشگاه فولادنو»
+### G. Customer Club — «باشگاه آهن‌تایم»
 - Tiered membership (**آهن → فولاد → پولاد**) with concrete benefits (locked prices, priority delivery, dedicated advisor, exclusive alerts/content).
 - **Intent-timed join popup** (after a quote or alert — not an annoying on-load interrupt).
 - Member benefits, status, and history surfaced in the account.
@@ -177,7 +177,7 @@ Grouped into product modules. Each is in-scope; detailed specs come in later Lay
 To keep Phase 1 focused, the following are **not** in scope (may be revisited later):
 - **Online payment / درگاه پرداخت and checkout completion** — sales stay traditional/human-closed.
 - **Self-serve order fulfillment, shipping/logistics booking, returns** — handled offline by sales.
-- **Two-sided open marketplace / third-party sellers** — Fooladno curates its own catalog/prices (the «تأمین از شما» track is a lead form, not a seller portal, in Phase 1).
+- **Two-sided open marketplace / third-party sellers** — Ahantime curates its own catalog/prices (the «تأمین از شما» track is a lead form, not a seller portal, in Phase 1).
 - **Real-time exchange/auction or live bourse trading.**
 - **Multi-currency / multi-language storefront** — Persian/Toman only at launch (English logo/app-store text aside).
 - **Native mobile apps** — Phase 3, not Phase 1.
@@ -265,4 +265,4 @@ To keep Phase 1 focused, the following are **not** in scope (may be revisited la
 
 *Next Layer-2 documents (after this scope is approved): Information Architecture & Sitemap → Core User Flows → Data Model → Feature Specs (module by module) → Admin Spec → AI Advisor Spec.*
 
-*Fooladno — اول مشورت، بعد خرید.*
+*Ahantime — اول مشورت، بعد خرید.*

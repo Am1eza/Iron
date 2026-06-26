@@ -1,10 +1,10 @@
-# Fooladno — MVP Definition
+# Ahantime — MVP Definition
 ## Layer 2 · Product Design — Document 2 of N
 
 **Version:** 1.0 · 26 June 2026
 **Status:** Draft for approval
 **Builds on:** `product/product-scope.md` (v1.0)
-**Scope of this document:** Defines the **Minimum Viable Product** — the smallest launchable version of the Fooladno **website** that proves the core loop and is genuinely useful and differentiated. It states precisely what is **in the MVP**, what is **deferred (fast-follow)**, and what is **hard-excluded**, each with rationale and acceptance criteria.
+**Scope of this document:** Defines the **Minimum Viable Product** — the smallest launchable version of the Ahantime **website** that proves the core loop and is genuinely useful and differentiated. It states precisely what is **in the MVP**, what is **deferred (fast-follow)**, and what is **hard-excluded**, each with rationale and acceptance criteria.
 
 ---
 
@@ -38,7 +38,7 @@
                                          │
                  ┌───────────────────────┴───────────────────────┐
             Fast path (Pro)                                  Guided path (Builder)
-        Right-side category rail                          AI hero «فولادنو»
+        Right-side category rail                          AI hero «آهن‌تایم»
         → price table (قیمت/نوسان/تحویل)                  → asks intent → estimates
                  └───────────────────────┬───────────────────────┘
                                   «ثبت درخواست»
@@ -89,7 +89,7 @@ Admin keeps the prices/ticker that feed this loop fresh every day.
 - [ ] Ticker displays current values; FX/gold/ounce pull from tgju; billet reflects admin entry.
 - [ ] Direction arrows/colors derive from recent history; graceful fallback if tgju is unreachable (last-known value + subtle stale indicator).
 
-### M4 · AI Advisor «فولادنو» (focused MVP)
+### M4 · AI Advisor «آهن‌تایم» (focused MVP)
 **Includes**
 - **Central AI hero** on home + reachable site-wide; greeting, **clearly an AI**, **suggested-question chips**.
 - **Intent-first**: asks purpose before quoting (e.g., «برای چه کاری؟»).
@@ -125,7 +125,7 @@ Admin keeps the prices/ticker that feed this loop fresh every day.
 ### M7 · Marketing & Trust Pages (lightweight)
 **Includes**
 - **Home** (AI hero + ticker + category entry + trust strip + a few featured prices).
-- **چرا فولادنو** (Why us).
+- **چرا آهن‌تایم** (Why us).
 - **تأمین‌کنندگان** (mill logos) + **مشتریان** (customer logos) — at minimum a home trust strip + an about section.
 - **درباره ما / تماس با ما** with the real address + phones (map optional).
 - **همکاری با ما** — one page with a **cooperation lead form** carrying a type selector (تحلیل بازار / تأمین از شما / فروش از ما) → CRM.
@@ -165,7 +165,7 @@ Admin keeps the prices/ticker that feed this loop fresh every day.
 | **v1.1** | **Price charts** in tables | Needs accumulated **price history**, which barely exists at launch. |
 | **v1.1** | **Excel / logo-image / print** table exports | Enhancements, not core; quick to add post-launch. |
 | **v1.1** | **WhatsApp / Telegram / Eitaa** hand-off + price channels | SMS covers MVP; messaging channels are additive. |
-| **v1.2** | **Customer club (باشگاه فولادنو)** + intent popup | Needs benefit machinery & tiers; not required to validate hypotheses. |
+| **v1.2** | **Customer club (باشگاه آهن‌تایم)** + intent popup | Needs benefit machinery & tiers; not required to validate hypotheses. |
 | **v1.2** | **AI content engine** (auto news + daily blog) | Heavy; SEO can start with a few manual articles; automate later with editor approval. |
 | **v1.2** | **Standalone پروژه‌سنج** polished tool | MVP delivers estimation inside the AI; standalone UI is a follow-up. |
 | **v1.2** | **«قیمت ما vs قیمت پایه»** transparency surface | Valuable differentiator; needs reference-price data plumbing. |
@@ -239,4 +239,4 @@ A few items sit right on the MVP line — tell me if you want any **pulled into 
 
 *Next Layer-2 document after MVP approval: Information Architecture & Sitemap.*
 
-*Fooladno — اول مشورت، بعد خرید.*
+*Ahantime — اول مشورت، بعد خرید.*

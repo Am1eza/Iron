@@ -3,7 +3,7 @@ import { routes } from '@/lib/routes';
 import styles from './Logo.module.css';
 
 /**
- * Fooladno lockup — the «steel tile» symbol (I-beam mark + amber Spark) + wordmark.
+ * Ahantime lockup — the «steel tile» symbol (I-beam mark + amber Spark) + wordmark.
  * Inline SVG so it inherits currentColor and scales crisply; the Spark is the one
  * licensed flourish (brand-book). `compact` drops the wordmark for the condensed header.
  */
@@ -12,7 +12,7 @@ export function Logo({ compact = false, light = false }: { compact?: boolean; li
     <Link
       href={routes.home()}
       className={`${styles.logo} ${light ? styles.light : ''}`}
-      aria-label="فولادنو — خانه"
+      aria-label="آهن‌تایم — خانه"
     >
       <svg
         className={styles.mark}
@@ -35,7 +35,7 @@ export function Logo({ compact = false, light = false }: { compact?: boolean; li
       </svg>
       {!compact && (
         <span className={styles.word}>
-          <span className={styles.wordmark}>فولادنو</span>
+          <span className={styles.wordmark}>آهن‌تایم</span>
           <span className={styles.tagline}>بازار هوشمند فولاد</span>
         </span>
       )}

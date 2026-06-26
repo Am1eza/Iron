@@ -18,18 +18,18 @@ import { MobileDrawer } from '@/components/layout/MobileDrawer';
  */
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://fooladno.com'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://ahantime.com'),
   title: {
-    default: 'فولادنو — بازار هوشمند آهن و فولاد',
-    template: '%s | فولادنو',
+    default: 'آهن‌تایم — بازار هوشمند آهن و فولاد',
+    template: '%s | آهن‌تایم',
   },
   description:
-    'فولادنو، بازار هوشمند آهن و فولاد: مشاور هوش مصنوعی، قیمت‌های شفاف و لحظه‌ای و زمان تحویل تضمینی. اول مشورت، بعد خرید.',
-  applicationName: 'فولادنو',
+    'آهن‌تایم، بازار هوشمند آهن و فولاد: مشاور هوش مصنوعی، قیمت‌های شفاف و لحظه‌ای و زمان تحویل تضمینی. اول مشورت، بعد خرید.',
+  applicationName: 'آهن‌تایم',
   openGraph: {
     type: 'website',
     locale: 'fa_IR',
-    siteName: 'فولادنو',
+    siteName: 'آهن‌تایم',
   },
   robots: { index: true, follow: true },
 };

@@ -1,6 +1,6 @@
-# Fooladno Web
+# Ahantime Web
 
-The Fooladno website — **Layer 4 (Frontend)**. Built on the specs in the repo root (`/docs`, `/product`, `/design`).
+The Ahantime website — **Layer 4 (Frontend)**. Built on the specs in the repo root (`/docs`, `/product`, `/design`).
 
 > See **[`ARCHITECTURE.md`](./ARCHITECTURE.md)** for the full stack, structure, and conventions.
 
@@ -40,4 +40,4 @@ Semantic tokens only (no hardcoded colors/spacing) · CSS **logical properties**
 - **Fonts:** self-host the `.var.woff2` files in `public/fonts/`; until then the system fallback renders.
 - **API:** runs in **mock** mode (MSW + fixtures) until the backend layer; flip with `NEXT_PUBLIC_API_MODE`.
 
-*Fooladno — اول مشورت، بعد خرید.*
+*Ahantime — اول مشورت، بعد خرید.*

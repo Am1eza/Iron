@@ -9,8 +9,8 @@ import { cookies } from 'next/headers';
 import { verifyAccessToken } from './jwt';
 import type { AuthUser, IssuedTokens } from './types';
 
-export const ACCESS_COOKIE = 'fooladno_at';
-export const REFRESH_COOKIE = 'fooladno_rt';
+export const ACCESS_COOKIE = 'ahantime_at';
+export const REFRESH_COOKIE = 'ahantime_rt';
 
 const isProd = process.env.NODE_ENV === 'production';
 

@@ -92,7 +92,7 @@ export function Footer({ categories }: { categories: Category[] }) {
             <li className={styles.badge}>اتحادیه آهن‌فروشان</li>
           </ul>
           <p className={styles.copy}>
-            © {toPersianDigits('۱۴۰۵')} فولادنو — همهٔ حقوق محفوظ است.
+            © {toPersianDigits('۱۴۰۵')} آهن‌تایم — همهٔ حقوق محفوظ است.
           </p>
         </div>
       </div>

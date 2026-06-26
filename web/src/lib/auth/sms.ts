@@ -14,7 +14,7 @@ export interface SmsResult {
 /** Send an OTP code to a mobile. Returns ok even on provider hiccups we retry. */
 export async function sendOtpSms(mobile: string, code: string): Promise<SmsResult> {
   const apiKey = process.env.KAVENEGAR_API_KEY;
-  const template = process.env.KAVENEGAR_OTP_TEMPLATE ?? 'fooladno-otp';
+  const template = process.env.KAVENEGAR_OTP_TEMPLATE ?? 'ahantime-otp';
 
   // Dev / unconfigured: log instead of sending; surface the code for local testing.
   if (!apiKey) {

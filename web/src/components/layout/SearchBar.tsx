@@ -22,7 +22,7 @@ export function SearchBar({
   size = 'sm',
   autoFocus = false,
   placeholder = 'جستجوی محصول، سایز، کارخانه…',
-  label = 'جستجو در فولادنو',
+  label = 'جستجو در آهن‌تایم',
 }: Props) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement | null>(null);

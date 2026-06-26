@@ -1,4 +1,4 @@
-# Fooladno — Component Library
+# Ahantime — Component Library
 ## Layer 3 · UI / Design System — Document 5 of N
 
 **Version:** 1.0 · 26 June 2026
@@ -111,7 +111,7 @@ Slides from bottom; drag handle; same semantics as modal; used for filters, rail
 Anchored, `--shadow-sm`, `--radius-md`; used for chart preview, row actions overflow, account menu; click-out/Esc closes.
 
 ## C6 · Empty State
-Centered: subtle I-beam/illustration glyph + `--t-h4` message + `--t-body-sm` hint + **a CTA** («ثبت درخواست»/«پرسش از فولادنو»). **No dead-ends.**
+Centered: subtle I-beam/illustration glyph + `--t-h4` message + `--t-body-sm` hint + **a CTA** («ثبت درخواست»/«پرسش از آهن‌تایم»). **No dead-ends.**
 
 ## C7 · Club Popup (intent-timed)
 A modal/sheet variant; benefits list + tier teaser + «عضو می‌شوم»/«بعداً»; appears after a quote/alert only; dismiss → 7-day suppress.
@@ -130,7 +130,7 @@ A modal/sheet variant; benefits list + tier teaser + «عضو می‌شوم»/«
 **Mobile:** ☰ · logo · login.
 
 ## D3 · Mega-menu «محصولات»
-Full-width panel (`--shadow-md`), 7 category columns (links + sub-categories) + a «بپرس از فولادنو» column. Hover (150ms intent) or click; arrow-key traversal; focus-trapped while open; Esc closes; current category highlighted. Mobile → drawer accordion.
+Full-width panel (`--shadow-md`), 7 category columns (links + sub-categories) + a «بپرس از آهن‌تایم» column. Hover (150ms intent) or click; arrow-key traversal; focus-trapped while open; Esc closes; current category highlighted. Mobile → drawer accordion.
 
 ## D4 · Category Rail (the signature)
 **Anatomy:** fixed band `inset-inline-end:0`, `--z-sticky`; vertical list of 7 **rail items** (name + hidden image).
@@ -147,7 +147,7 @@ Full-width panel (`--shadow-md`), 7 category columns (links + sub-categories) + 
 Underline tabs; active = `--color-accent` underline + strong text; `role="tablist"`, arrow-key nav, panels `role="tabpanel"`. Used in account, cooperation, admin.
 
 ## D7 · Bottom Tab Bar (mobile)
-Fixed (`--z-sticky`), 5 items: خانه · قیمت‌ها · **🟠 فولادنو (center, elevated, amber)** · سبد (count badge) · حساب. Active highlighted + `aria-current`; ≥44px.
+Fixed (`--z-sticky`), 5 items: خانه · قیمت‌ها · **🟠 آهن‌تایم (center, elevated, amber)** · سبد (count badge) · حساب. Active highlighted + `aria-current`; ≥44px.
 
 ## D8 · Drawer (mobile)
 Slides from inline-end (right), `--z-drawer` over scrim; accordion menu; focus-trapped; Esc/scrim/swipe closes; returns focus.
@@ -201,13 +201,13 @@ Even grid of `Frame` logos (mill/customer), mono/duotone, consistent sizing, gen
 # F. Domain Components
 
 ## F1 · AI Hero / Search Bar (central rectangle)
-**Anatomy:** greeting line («سلام، من فولادنوم…», clearly-AI w/ amber spark mark) · large input (`--t-input`, `--radius-md`, cobalt focus) · submit (cobalt) · suggested-question chips beneath. On graphite `surface-inverse` on home.
+**Anatomy:** greeting line («سلام، من آهن‌تایمم…», clearly-AI w/ amber spark mark) · large input (`--t-input`, `--radius-md`, cobalt focus) · submit (cobalt) · suggested-question chips beneath. On graphite `surface-inverse` on home.
 **Behavior:** submit → opens F2 conversation (or routes); voice mic (v1.1); always labeled AI.
 **States:** idle · focused · submitting (cobalt spinner) · relay-down (graceful note + «ثبت درخواست»).
 **A11y:** labeled search/assistant; chips are buttons.
 
 ## F2 · AI Chat / Conversation
-**Anatomy:** message list (user vs فولادنو bubbles, `--radius-md`; AI cobalt-tinted) · **streaming** cursor (calm) · suggested chips · **tool-result cards** (price card, estimate card) · composer (input + mic + send).
+**Anatomy:** message list (user vs آهن‌تایم bubbles, `--radius-md`; AI cobalt-tinted) · **streaming** cursor (calm) · suggested chips · **tool-result cards** (price card, estimate card) · composer (input + mic + send).
 **Estimate card:** structured BOM (items + total weight + total cost) labeled «تخمینی» + actions [دریافت پیش‌فاکتور][گفتگو با کارشناس]. Numbers grounded/tabular.
 **States:** thinking (skeleton/typing) · grounded answer · **fallback** (missing data → «کارشناس اعلام می‌کند» + creates lead) · error.
 **A11y:** `aria-live` for streamed messages; clearly distinguishes AI from human/system.
@@ -231,7 +231,7 @@ Name + mobile (OTP) + channel + notes; items pre-filled; clear required states; 
 Track tabs (تحلیل بازار/تأمین/فروش) + relevant fields → CRM lead tagged; validated; success/error states.
 
 ## F9 · Trust Strip
-Row of eNamad/Samandehi/اتحادیه frames + «چرا فولادنو» mini-points; quiet, hairline-separated.
+Row of eNamad/Samandehi/اتحادیه frames + «چرا آهن‌تایم» mini-points; quiet, hairline-separated.
 
 ## F10 · Card variants
 - **Featured-price card:** product + قیمت + نوسان + تحویل + [درخواست].
@@ -286,4 +286,4 @@ G: Price grid · CRM kanban · Admin sidebar · Approval item · Audit row — 5
 - Realizes the Design Language signatures (Datasheet, Rail flip, the Spark, graphite-paper, cobalt=smart) using the foundation tokens.
 - **Next:** Iconography & Illustration · Motion/Interaction spec · then high-fidelity screen designs (applying components to every Layer-2 wireframe). And the recommended **live HTML style tile** to validate the look.
 
-*Fooladno — اول مشورت، بعد خرید.*
+*Ahantime — اول مشورت، بعد خرید.*

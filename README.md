@@ -1,8 +1,8 @@
-# فولادنو — Fooladno
+# آهن‌تایم — Ahantime
 
 **Smart Steel Marketplace · بازار هوشمند آهن و فولاد**
 
-Fooladno is a smart iron & steel marketplace for Iran that pairs a grounded **AI advisor** with transparent **live prices**, a signature **guaranteed delivery time**, and a modern, human-closed (lead-gen) sales flow.
+Ahantime is a smart iron & steel marketplace for Iran that pairs a grounded **AI advisor** with transparent **live prices**, a signature **guaranteed delivery time**, and a modern, human-closed (lead-gen) sales flow.
 
 > **Promise:** «اول مشورت، بعد خرید.» — *First advice, then purchase.*
 
@@ -29,7 +29,7 @@ This repository currently holds the **complete specification** across three laye
 - [`docs/vision.md`](docs/vision.md) — north star: problem, vision, mission, positioning, pillars, metrics
 - [`docs/market-research.md`](docs/market-research.md) — Iran + global competitive research (cited)
 - [`brand/brand-book.md`](brand/brand-book.md) — name, voice, color/type, logo, sub-brands
-- [`brand/fooladno-symbol.svg`](brand/fooladno-symbol.svg) · [`brand/fooladno-logo-horizontal.svg`](brand/fooladno-logo-horizontal.svg) — logo concept (final art TBD)
+- [`brand/ahantime-symbol.svg`](brand/ahantime-symbol.svg) · [`brand/ahantime-logo-horizontal.svg`](brand/ahantime-logo-horizontal.svg) — logo concept (final art TBD)
 
 ### Layer 2 — Product Design
 - [`product/product-scope.md`](product/product-scope.md) — scope, platforms, constraints, locked decisions
@@ -60,7 +60,7 @@ This repository currently holds the **complete specification** across three laye
 ---
 
 ## Key decisions (locked)
-- **Name:** Fooladno (فولادنو) · `.com` available at spec time.
+- **Name:** Ahantime (آهن‌تایم) · `.com` available at spec time.
 - **Sales:** lead-gen + پیش‌فاکتور + human close — **no online payment (yet)**.
 - **Prices:** 100% **admin-entered** (manual استعلام); no bourse formula. Weight = deterministic formula.
 - **AI:** **DeepSeek**, server-side via an out-of-Iran relay; **grounded** (never invents a number).
@@ -83,4 +83,4 @@ This repository currently holds the **complete specification** across three laye
 
 ---
 
-*Fooladno — اول مشورت، بعد خرید.*
+*Ahantime — اول مشورت، بعد خرید.*

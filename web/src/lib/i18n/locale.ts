@@ -1,5 +1,5 @@
 /**
- * Locale configuration. Fooladno is Persian-first (fa-IR, RTL, Jalali, Toman).
+ * Locale configuration. Ahantime is Persian-first (fa-IR, RTL, Jalali, Toman).
  * fa is the only active locale in the MVP; en/ar are reserved (App Router, so no
  * next/i18n routing — locale is a runtime concern, not a URL prefix yet).
  */

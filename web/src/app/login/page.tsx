@@ -8,7 +8,7 @@ export const metadata: Metadata = buildMetadata({ title: 'ورود', noindex: tr
 export default function LoginPage() {
   return (
     <div className="container" style={{ paddingBlock: 'var(--space-16)', maxInlineSize: 480 }}>
-      <h1>ورود به فولادنو</h1>
+      <h1>ورود به آهن‌تایم</h1>
       <p
         style={{
           font: 'var(--t-body-sm)',
