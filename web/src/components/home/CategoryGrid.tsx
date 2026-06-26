@@ -35,7 +35,7 @@ export function CategoryGrid({ categories }: { categories: Category[] }) {
               </span>
               <span className={styles.name}>{cat.name}</span>
               <span className={styles.subs}>
-                {(CATEGORY_SUBS[cat.slug] ?? []).slice(0, 3).join(' · ')}
+                {(CATEGORY_SUBS[cat.slug] ?? []).slice(0, 3).map((s) => s.name).join(' · ')}
               </span>
               <span className={styles.cta} aria-hidden="true">
                 مشاهده قیمت

@@ -1,6 +1,8 @@
 /**
  * Typed route builders — the single source for all in-app URLs (IA §3).
- * Never hardcode Persian paths in components; use these.
+ * Paths are ASCII slugs (Next.js App Router doesn't reliably match non-ASCII
+ * folder segments). All visible labels/content remain Persian; only the URL is
+ * Latin. Never hardcode paths in components — use these.
  */
 const enc = (s: string) => encodeURIComponent(s);
 
@@ -8,39 +10,39 @@ export const routes = {
   home: () => '/',
 
   // Catalog
-  prices: () => '/قیمت',
-  category: (cat: string) => `/قیمت/${enc(cat)}`,
-  subCategory: (cat: string, sub: string) => `/قیمت/${enc(cat)}/${enc(sub)}`,
-  sku: (cat: string, sub: string, sku: string) => `/قیمت/${enc(cat)}/${enc(sub)}/${enc(sku)}`,
+  prices: () => '/prices',
+  category: (cat: string) => `/prices/${enc(cat)}`,
+  subCategory: (cat: string, sub: string) => `/prices/${enc(cat)}/${enc(sub)}`,
+  sku: (cat: string, sub: string, sku: string) => `/prices/${enc(cat)}/${enc(sub)}/${enc(sku)}`,
 
   // Core
-  ai: () => '/پولادین',
-  market: () => '/طلا-و-ارز',
-  tool: (t: 'وزن' | 'براورد-پروژه' | 'محاسبه-هزینه') => `/ابزار/${t}`,
+  ai: () => '/ai',
+  market: () => '/market',
+  tool: (t: 'weight' | 'project' | 'cost') => `/tools/${t}`,
 
   // Engagement / account
-  cart: () => '/سبد-استعلام',
-  request: () => '/درخواست',
-  login: (next?: string) => (next ? `/ورود?next=${enc(next)}` : '/ورود'),
-  account: (tab?: 'علاقه-مندی' | 'درخواست-ها' | 'هشدارها' | 'پروفایل' | 'باشگاه') =>
-    tab ? `/حساب/${tab}` : '/حساب',
-  club: () => '/باشگاه',
+  cart: () => '/cart',
+  request: () => '/request',
+  login: (next?: string) => (next ? `/login?next=${enc(next)}` : '/login'),
+  account: (tab?: 'favorites' | 'requests' | 'alerts' | 'profile' | 'club') =>
+    tab ? `/account/${tab}` : '/account',
+  club: () => '/club',
 
   // Content
-  blog: (slug?: string) => (slug ? `/وبلاگ/${enc(slug)}` : '/وبلاگ'),
-  news: (slug?: string) => (slug ? `/اخبار/${enc(slug)}` : '/اخبار'),
+  blog: (slug?: string) => (slug ? `/blog/${enc(slug)}` : '/blog'),
+  news: (slug?: string) => (slug ? `/news/${enc(slug)}` : '/news'),
 
   // Company / cooperation
-  about: () => '/درباره-ما',
-  contact: () => '/تماس',
-  why: () => '/چرا-پولادین',
-  cooperation: (track?: 'تحلیل-بازار' | 'تامین' | 'فروش') =>
-    track ? `/همکاری/${track}` : '/همکاری',
+  about: () => '/about',
+  contact: () => '/contact',
+  why: () => '/why',
+  cooperation: (track?: 'analysis' | 'supply' | 'sell') =>
+    track ? `/cooperation/${track}` : '/cooperation',
 
   // Utility / legal
-  search: (q: string) => `/جستجو?q=${enc(q)}`,
-  terms: () => '/قوانین',
-  privacy: () => '/حریم-خصوصی',
+  search: (q: string) => `/search?q=${enc(q)}`,
+  terms: () => '/terms',
+  privacy: () => '/privacy',
 
   // Admin
   admin: {
@@ -59,8 +61,8 @@ export const routes = {
 
 /** Static, indexable routes for the sitemap. */
 export const STATIC_INDEXABLE = [
-  '/', '/قیمت', '/پولادین', '/طلا-و-ارز',
-  '/ابزار/وزن', '/ابزار/براورد-پروژه', '/ابزار/محاسبه-هزینه',
-  '/باشگاه', '/وبلاگ', '/اخبار', '/همکاری',
-  '/درباره-ما', '/تماس', '/چرا-پولادین', '/قوانین', '/حریم-خصوصی',
+  '/', '/prices', '/ai', '/market',
+  '/tools/weight', '/tools/project', '/tools/cost',
+  '/club', '/blog', '/news', '/cooperation',
+  '/about', '/contact', '/why', '/terms', '/privacy',
 ] as const;

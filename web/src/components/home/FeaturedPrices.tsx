@@ -20,7 +20,7 @@ export function FeaturedPrices({ rows = rebarRows }: { rows?: PriceRow[] }) {
             قیمت میلگرد امروز
           </h2>
         </div>
-        <Link href={routes.category('میلگرد')} className={styles.all}>
+        <Link href={routes.category('rebar')} className={styles.all}>
           جدول کامل میلگرد
           <ChevronStartIcon size={16} className="icon--rtl" />
         </Link>
@@ -66,7 +66,7 @@ export function FeaturedPrices({ rows = rebarRows }: { rows?: PriceRow[] }) {
                   <td className={styles.muted}>{r.current.deliveryTime}</td>
                   <td className={styles.action}>
                     <Link
-                      href={routes.sku('میلگرد', 'آجدار', r.slug)}
+                      href={routes.sku('rebar', 'deformed', r.slug)}
                       className={styles.detail}
                       aria-label={`جزئیات ${r.name}`}
                     >

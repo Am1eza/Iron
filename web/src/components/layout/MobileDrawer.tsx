@@ -116,12 +116,12 @@ export function MobileDrawer({ categories }: { categories: Category[] }) {
                     </Link>
                     <ul className={styles.subList}>
                       {(CATEGORY_SUBS[cat.slug] ?? []).map((sub) => (
-                        <li key={sub}>
+                        <li key={sub.slug}>
                           <Link
-                            href={routes.subCategory(cat.slug, sub)}
+                            href={routes.subCategory(cat.slug, sub.slug)}
                             className={styles.subLink}
                           >
-                            {sub}
+                            {sub.name}
                           </Link>
                         </li>
                       ))}

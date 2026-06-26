@@ -19,24 +19,54 @@ export const PRIMARY_NAV: NavLink[] = [
 
 /** «ابزارها ▾» dropdown. */
 export const TOOLS_NAV: NavLink[] = [
-  { label: 'وزن‌سنج', href: routes.tool('وزن') },
-  { label: 'برآورد پروژه', href: routes.tool('براورد-پروژه') },
-  { label: 'محاسبه هزینه', href: routes.tool('محاسبه-هزینه') },
+  { label: 'وزن‌سنج', href: routes.tool('weight') },
+  { label: 'برآورد پروژه', href: routes.tool('project') },
+  { label: 'محاسبه هزینه', href: routes.tool('cost') },
   { label: 'طلا و ارز', href: routes.market() },
 ];
 
 /**
  * Representative sub-categories per category slug — drives the mega-menu columns
- * and the drawer accordion until the live taxonomy is wired. (data-model taxonomy.)
+ * and the drawer accordion until the live taxonomy is wired. Slugs are ASCII (URL);
+ * names stay Persian (display). (data-model taxonomy.)
  */
-export const CATEGORY_SUBS: Record<string, string[]> = {
-  میلگرد: ['آجدار', 'ساده', 'کلاف'],
-  تیراهن: ['IPE', 'INP', 'لانه‌زنبوری'],
-  پروفیل: ['قوطی', 'پروفیل ساختمانی', 'صنعتی'],
-  'ورق-گرم': ['سیاه', 'آجدار', 'API'],
-  'ورق-سرد': ['روغنی', 'گالوانیزه', 'رنگی'],
-  'نبشی-ناودانی': ['نبشی', 'ناودانی', 'سپری'],
-  لوله: ['صنعتی', 'گازی', 'مبلی'],
+export type SubCat = { slug: string; name: string };
+export const CATEGORY_SUBS: Record<string, SubCat[]> = {
+  rebar: [
+    { slug: 'deformed', name: 'آجدار' },
+    { slug: 'plain', name: 'ساده' },
+    { slug: 'coil', name: 'کلاف' },
+  ],
+  ibeam: [
+    { slug: 'ipe', name: 'IPE' },
+    { slug: 'inp', name: 'INP' },
+    { slug: 'castellated', name: 'لانه‌زنبوری' },
+  ],
+  profile: [
+    { slug: 'box', name: 'قوطی' },
+    { slug: 'structural', name: 'پروفیل ساختمانی' },
+    { slug: 'industrial', name: 'صنعتی' },
+  ],
+  'hot-sheet': [
+    { slug: 'black', name: 'سیاه' },
+    { slug: 'checkered', name: 'آجدار' },
+    { slug: 'api', name: 'API' },
+  ],
+  'cold-sheet': [
+    { slug: 'oiled', name: 'روغنی' },
+    { slug: 'galvanized', name: 'گالوانیزه' },
+    { slug: 'colored', name: 'رنگی' },
+  ],
+  'angle-channel': [
+    { slug: 'angle', name: 'نبشی' },
+    { slug: 'channel', name: 'ناودانی' },
+    { slug: 'tbar', name: 'سپری' },
+  ],
+  pipe: [
+    { slug: 'industrial', name: 'صنعتی' },
+    { slug: 'gas', name: 'گازی' },
+    { slug: 'furniture', name: 'مبلی' },
+  ],
 };
 
 /** Footer column groups (navigation.md §7). */

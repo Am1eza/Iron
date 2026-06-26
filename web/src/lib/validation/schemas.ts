@@ -49,7 +49,7 @@ export const alertSchema = z.object({
 export type AlertValues = z.infer<typeof alertSchema>;
 
 export const cooperationSchema = z.object({
-  track: z.enum(['تحلیل-بازار', 'تامین', 'فروش']),
+  track: z.enum(['analysis', 'supply', 'sell']),
   company: z.string().min(1, { message: M.required }),
   product: z.string().optional(),
   mobile: mobileSchema,

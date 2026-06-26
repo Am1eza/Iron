@@ -4,9 +4,9 @@ import { PagePlaceholder } from '@/components/dev/PagePlaceholder';
 import { buildMetadata } from '@/lib/seo';
 
 const TOOLS: Record<string, string> = {
-  وزن: 'وزن‌سنج',
-  'براورد-پروژه': 'پروژه‌سنج',
-  'محاسبه-هزینه': 'محاسبه‌گر هزینه',
+  weight: 'وزن‌سنج',
+  project: 'پروژه‌سنج',
+  cost: 'محاسبه‌گر هزینه',
 };
 
 type Params = { params: Promise<{ tool: string }> };
@@ -17,13 +17,13 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { tool } = await params;
-  const name = TOOLS[decodeURIComponent(tool)] ?? 'ابزار';
-  return buildMetadata({ title: `${name} آنلاین`, path: `/ابزار/${tool}` });
+  const name = TOOLS[tool] ?? 'ابزار';
+  return buildMetadata({ title: `${name} آنلاین`, path: `/tools/${tool}` });
 }
 
 export default async function ToolPage({ params }: Params) {
   const { tool } = await params;
-  const name = TOOLS[decodeURIComponent(tool)];
+  const name = TOOLS[tool];
   if (!name) notFound();
   return <PagePlaceholder eyebrow="ابزارها" title={name} note="ابزار محاسبه در بخش ابزارها ساخته می‌شود." />;
 }

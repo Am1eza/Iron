@@ -1,4 +1,5 @@
 'use client';
+import { routes } from '@/lib/routes';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -63,7 +64,7 @@ export function LoginForm() {
     try {
       const { user } = await formsApi.verifyOtp(mobile, code);
       setUser(user);
-      router.push(next ?? '/حساب');
+      router.push(next ?? routes.account());
       router.refresh(); // let server components re-read the new session cookie
     } catch (e) {
       setOtpError(true);

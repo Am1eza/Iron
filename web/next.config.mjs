@@ -11,7 +11,7 @@ const nextConfig = {
     return [
       {
         // Keep admin + personal areas out of search indexes (IA / SEO rules).
-        source: '/:path(admin|حساب|درخواست|سبد-استعلام|جستجو)(.*)',
+        source: '/:path(admin|account|request|cart|search)(.*)',
         headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }],
       },
     ];

@@ -8,7 +8,7 @@ export default function robots(): MetadataRoute.Robots {
       userAgent: '*',
       allow: '/',
       // Personal/admin/transient areas (IA): keep out of indexes.
-      disallow: ['/admin', '/حساب', '/درخواست', '/سبد-استعلام', '/جستجو', '/ورود', '/api'],
+      disallow: ['/admin', '/account', '/request', '/cart', '/search', '/login', '/api'],
     },
     sitemap: new URL('/sitemap.xml', SITE_URL).toString(),
     host: SITE_URL,

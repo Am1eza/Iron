@@ -179,8 +179,8 @@ export function StyleGuide() {
         <Breadcrumbs
           items={[
             { label: 'خانه', href: '/' },
-            { label: 'قیمت‌ها', href: '/قیمت' },
-            { label: 'میلگرد', href: '/قیمت/میلگرد' },
+            { label: 'قیمت‌ها', href: '/prices' },
+            { label: 'میلگرد', href: '/prices/rebar' },
             { label: 'میلگرد ۱۴ A3 ذوب‌آهن' },
           ]}
         />

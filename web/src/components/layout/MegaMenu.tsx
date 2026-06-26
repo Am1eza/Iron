@@ -41,14 +41,14 @@ export function MegaMenu({
               </Link>
               <ul className={styles.subs}>
                 {(CATEGORY_SUBS[cat.slug] ?? []).map((sub) => (
-                  <li key={sub}>
+                  <li key={sub.slug}>
                     <Link
-                      href={routes.subCategory(cat.slug, sub)}
+                      href={routes.subCategory(cat.slug, sub.slug)}
                       className={styles.subLink}
                       role="menuitem"
                       onClick={onNavigate}
                     >
-                      {sub}
+                      {sub.name}
                     </Link>
                   </li>
                 ))}

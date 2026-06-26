@@ -22,7 +22,7 @@ export function middleware(req: NextRequest) {
     const hasSession = req.cookies.has(SESSION_COOKIE);
     if (!hasSession) {
       const url = req.nextUrl.clone();
-      url.pathname = '/ورود';
+      url.pathname = '/login';
       url.searchParams.set('next', req.nextUrl.pathname);
       return NextResponse.redirect(url);
     }

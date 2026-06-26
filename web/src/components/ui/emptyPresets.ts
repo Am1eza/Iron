@@ -75,7 +75,7 @@ export const emptyPresets = {
   alertsEmpty: (): Preset => ({
     headline: 'هشداری ندارید',
     body: 'برای هر محصول یا دلار/طلا هشدار بگذارید تا خبرتان کنیم.',
-    primary: { label: 'ساخت هشدار', href: routes.account('هشدارها') },
+    primary: { label: 'ساخت هشدار', href: routes.account('alerts') },
   }),
 
   /** Inquiry cart — empty. */
