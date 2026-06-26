@@ -56,10 +56,10 @@ export function useFocusTrap<T extends HTMLElement = HTMLDivElement>(
       const activeEl = document.activeElement;
       if (e.shiftKey && activeEl === first) {
         e.preventDefault();
-        last.focus();
+        last?.focus();
       } else if (!e.shiftKey && activeEl === last) {
         e.preventDefault();
-        first.focus();
+        first?.focus();
       }
     };
 

@@ -26,6 +26,7 @@ export function useIntersectionObserver<T extends HTMLElement = HTMLDivElement>(
     const io = new IntersectionObserver(
       (entries) => {
         const entry = entries[0];
+        if (!entry) return;
         setIsIntersecting(entry.isIntersecting);
         if (entry.isIntersecting && freezeOnceVisible) {
           frozen.current = true;

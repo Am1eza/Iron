@@ -30,7 +30,7 @@ export function randomOtp(length: number): string {
   const arr = new Uint8Array(length);
   crypto.getRandomValues(arr);
   let out = '';
-  for (let i = 0; i < length; i++) out += String(arr[i] % 10);
+  for (let i = 0; i < length; i++) out += String((arr[i] ?? 0) % 10);
   return out;
 }
 

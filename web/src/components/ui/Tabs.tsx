@@ -33,7 +33,8 @@ export function Tabs({
     e.preventDefault();
     const next = (index + dir + items.length) % items.length;
     refs.current[next]?.focus();
-    onChange(items[next].id);
+    const nextItem = items[next];
+    if (nextItem) onChange(nextItem.id);
   };
 
   return (
