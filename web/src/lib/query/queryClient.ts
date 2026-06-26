@@ -1,11 +1,21 @@
 import {
   QueryClient,
+  QueryCache,
+  MutationCache,
   defaultShouldDehydrateQuery,
   isServer,
 } from '@tanstack/react-query';
+import { reportError } from '@/lib/errors/report';
 
 function makeQueryClient(): QueryClient {
   return new QueryClient({
+    // Centralized logging — UI is handled locally (no global toast → no double-notify).
+    queryCache: new QueryCache({
+      onError: (error, query) => reportError(error, { source: 'query', key: query.queryKey }),
+    }),
+    mutationCache: new MutationCache({
+      onError: (error) => reportError(error, { source: 'mutation' }),
+    }),
     defaultOptions: {
       queries: {
         staleTime: 60_000, // 1 min
