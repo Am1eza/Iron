@@ -7,7 +7,7 @@ name: Deploy preview to GitHub Pages
 
 on:
   push:
-    branches: [claude/local-website-setup-2e8pta]
+    branches: [main, claude/local-website-setup-2e8pta]
   workflow_dispatch:
 
 permissions:
