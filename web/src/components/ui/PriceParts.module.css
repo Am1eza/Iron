@@ -1,0 +1,74 @@
+/* ===== نوسان ===== */
+.move {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font: var(--t-movement);
+}
+.movePill {
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+}
+.up {
+  color: var(--color-gain-text);
+}
+.up.movePill {
+  background: var(--gain-50);
+}
+.down {
+  color: var(--color-loss-text);
+}
+.down.movePill {
+  background: var(--loss-50);
+}
+.flat {
+  color: var(--color-text-muted);
+}
+.flat.movePill {
+  background: var(--color-surface-sunken);
+}
+
+/* ===== Price ===== */
+.price {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  color: var(--color-text-strong);
+}
+.cell {
+  font: var(--t-price-cell);
+}
+.hero {
+  font: var(--t-price-hero);
+}
+.priceUnit {
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+/* ===== زمان تحویل ===== */
+.delivery {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 3px var(--space-2);
+  border-radius: var(--radius-sm);
+  border: var(--border-hairline) solid var(--color-hairline);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: var(--t-caption);
+  white-space: nowrap;
+}
+.deliveryIcon {
+  display: inline-flex;
+  color: var(--color-text-muted);
+}
+.guaranteed {
+  border-color: var(--gain-100);
+  background: var(--gain-50);
+  color: var(--color-gain-text);
+}
+.guaranteed .deliveryIcon {
+  color: var(--color-gain);
+}

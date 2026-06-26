@@ -1,0 +1,121 @@
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-4);
+  margin-inline: auto;
+  max-inline-size: 480px;
+  animation: empty-in var(--dur-base) var(--ease-entrance);
+}
+@keyframes empty-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .empty {
+    animation: none;
+  }
+}
+
+.full {
+  padding-block: var(--space-24);
+}
+.section {
+  padding-block: var(--space-16);
+}
+.inline {
+  padding-block: var(--space-8);
+  gap: var(--space-2);
+  max-inline-size: 360px;
+}
+
+.glyph {
+  display: inline-flex;
+  color: var(--neutral-300);
+}
+
+.headline {
+  font: var(--t-h4);
+  color: var(--color-text-strong);
+  margin: 0;
+}
+.headline:focus {
+  outline: none;
+}
+.inline .headline {
+  font: var(--t-label);
+}
+.body {
+  font: var(--t-body-sm);
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  margin-block-start: var(--space-2);
+}
+
+.cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-block-size: 44px;
+  padding-inline: var(--space-6);
+  border-radius: var(--radius-sm);
+  font: var(--t-button);
+  text-decoration: none;
+  cursor: pointer;
+  border: var(--border-hairline) solid transparent;
+}
+.ctaPrimary {
+  background: var(--color-action);
+  color: var(--color-on-action);
+}
+.ctaPrimary:hover {
+  background: var(--color-action-hover);
+  text-decoration: none;
+}
+.ctaGhost {
+  background: transparent;
+  color: var(--color-accent-text);
+  border-color: var(--color-hairline);
+}
+.ctaGhost:hover {
+  background: var(--color-accent-tint);
+  text-decoration: none;
+}
+
+.ai {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-accent-text);
+  font: var(--t-label);
+  text-decoration: none;
+}
+.ai:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 640px) {
+  .actions {
+    inline-size: 100%;
+    flex-direction: column;
+  }
+  .cta {
+    inline-size: 100%;
+  }
+}

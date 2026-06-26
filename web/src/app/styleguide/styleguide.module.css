@@ -1,0 +1,36 @@
+.blockTitle {
+  padding-block-end: var(--space-2);
+  margin-block-end: var(--space-2);
+  border-block-end: var(--border-hairline) solid var(--color-hairline);
+}
+
+.swatchCard {
+  overflow: hidden;
+}
+.swatch {
+  display: block;
+  block-size: 56px;
+  inline-size: 100%;
+}
+.swatchMeta {
+  padding: var(--space-2) var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.countWrap {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font: var(--t-label);
+}
+
+.infoTrigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font: var(--t-label);
+  color: var(--color-accent-text);
+  cursor: help;
+}

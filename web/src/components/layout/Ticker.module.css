@@ -1,0 +1,161 @@
+.ticker {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  block-size: 36px;
+  background: var(--color-surface-inverse);
+  color: var(--color-text-inverse);
+  border-block-end: var(--border-hairline) solid rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+  font: var(--t-ticker);
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  padding-inline: var(--space-4) var(--space-3);
+  font: var(--t-overline);
+  letter-spacing: 0;
+  color: var(--color-action);
+  background: rgba(245, 150, 30, 0.08);
+  border-inline-end: var(--border-hairline) solid rgba(255, 255, 255, 0.08);
+}
+
+.viewport {
+  position: relative;
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  overflow: hidden;
+  /* fade the leading/trailing edges */
+  -webkit-mask-image: linear-gradient(
+    to left,
+    transparent 0,
+    #000 var(--space-8),
+    #000 calc(100% - var(--space-8)),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to left,
+    transparent 0,
+    #000 var(--space-8),
+    #000 calc(100% - var(--space-8)),
+    transparent 100%
+  );
+}
+/* Reduced motion → no mask trickery, allow manual horizontal scroll */
+.viewport[data-reduced] {
+  overflow-x: auto;
+  -webkit-mask-image: none;
+  mask-image: none;
+  scrollbar-width: none;
+}
+.viewport[data-reduced]::-webkit-scrollbar {
+  display: none;
+}
+
+.track {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  inline-size: max-content;
+  animation: ticker-marquee 48s linear infinite;
+}
+.viewport[data-reduced] .track {
+  animation: none;
+}
+.viewport:hover .track,
+.viewport:focus-within .track {
+  animation-play-state: paused;
+}
+
+/* RTL: content flows right→left, so translate toward the inline-end (positive X). */
+@keyframes ticker-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(50%);
+  }
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  flex: none;
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-inline: var(--space-4);
+  block-size: 36px;
+  color: var(--color-text-inverse);
+  text-decoration: none;
+  border-inline-end: var(--border-hairline) solid rgba(255, 255, 255, 0.07);
+  transition: background var(--dur-fast) var(--ease-standard);
+}
+.link:hover {
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.label {
+  color: rgba(255, 255, 255, 0.72);
+  font-weight: 500;
+}
+.value {
+  color: var(--color-text-inverse);
+  font-weight: 700;
+}
+.unit {
+  color: rgba(255, 255, 255, 0.52);
+  font: var(--t-micro);
+}
+
+.move {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font: var(--t-movement);
+  font-size: 0.8125rem;
+}
+.arrow {
+  font-size: 0.625rem;
+  line-height: 1;
+}
+.up {
+  color: #4ade80;
+}
+.down {
+  color: #f87171;
+}
+.flat {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.itemStale,
+.stale {
+  font: var(--t-micro);
+  color: var(--amber-300);
+}
+.stale {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  padding-inline: var(--space-3);
+  border-inline-start: var(--border-hairline) solid rgba(255, 255, 255, 0.08);
+}
+.itemStale {
+  opacity: 0.85;
+}
+
+@media (max-width: 767px) {
+  .tag {
+    display: none;
+  }
+}

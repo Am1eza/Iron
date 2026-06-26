@@ -1,0 +1,66 @@
+.wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  user-select: none;
+}
+.wrap[data-disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.input {
+  position: absolute;
+  opacity: 0;
+  inline-size: 1px;
+  block-size: 1px;
+}
+
+.track {
+  position: relative;
+  display: inline-block;
+  inline-size: 44px;
+  block-size: 24px;
+  border-radius: var(--radius-pill);
+  background: var(--neutral-300);
+  transition: background var(--dur-base) var(--ease-standard);
+  flex: none;
+}
+.thumb {
+  position: absolute;
+  inset-block-start: 2px;
+  inset-inline-start: 2px;
+  inline-size: 20px;
+  block-size: 20px;
+  border-radius: var(--radius-circle);
+  background: var(--neutral-0);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--dur-base) var(--ease-emphasized);
+}
+/* On: track turns accent, thumb slides to the inline-end. */
+.input:checked + .track {
+  background: var(--color-accent);
+}
+.input:checked + .track .thumb {
+  transform: translateX(-20px);
+}
+[dir='ltr'] .input:checked + .track .thumb {
+  transform: translateX(20px);
+}
+.input:focus-visible + .track {
+  outline: var(--border-focus) solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.label {
+  font: var(--t-label);
+  color: var(--color-text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .track,
+  .thumb {
+    transition: none;
+  }
+}

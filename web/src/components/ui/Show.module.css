@@ -1,0 +1,72 @@
+.show {
+  display: contents;
+}
+
+/* Visible only AT OR ABOVE the breakpoint → hidden below it. */
+.above-sm {
+  display: none;
+}
+@media (min-width: 480px) {
+  .above-sm {
+    display: contents;
+  }
+}
+.above-md {
+  display: none;
+}
+@media (min-width: 768px) {
+  .above-md {
+    display: contents;
+  }
+}
+.above-lg {
+  display: none;
+}
+@media (min-width: 1024px) {
+  .above-lg {
+    display: contents;
+  }
+}
+.above-xl {
+  display: none;
+}
+@media (min-width: 1280px) {
+  .above-xl {
+    display: contents;
+  }
+}
+.above-wide {
+  display: none;
+}
+@media (min-width: 1440px) {
+  .above-wide {
+    display: contents;
+  }
+}
+
+/* Visible only BELOW the breakpoint → hidden at or above it. */
+@media (min-width: 480px) {
+  .below-sm {
+    display: none;
+  }
+}
+@media (min-width: 768px) {
+  .below-md {
+    display: none;
+  }
+}
+@media (min-width: 1024px) {
+  .below-lg {
+    display: none;
+  }
+}
+@media (min-width: 1280px) {
+  .below-xl {
+    display: none;
+  }
+}
+@media (min-width: 1440px) {
+  .below-wide {
+    display: none;
+  }
+}

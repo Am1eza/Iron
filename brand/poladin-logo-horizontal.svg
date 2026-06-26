@@ -1,0 +1,22 @@
+<svg width="640" height="200" viewBox="0 0 640 200" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Poladin logo">
+  <defs>
+    <linearGradient id="tile2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#222A33"/>
+      <stop offset="1" stop-color="#12171C"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="200" fill="#FFFFFF"/>
+  <!-- Symbol -->
+  <g transform="translate(40,40)">
+    <rect width="120" height="120" rx="27" fill="url(#tile2)"/>
+    <g fill="#FFFFFF">
+      <rect x="36" y="40" width="48" height="11" rx="3"/>
+      <rect x="54.5" y="48" width="11" height="24" rx="2"/>
+      <rect x="36" y="69" width="48" height="11" rx="3"/>
+    </g>
+    <path d="M89,26 C89.5,33 91.5,35 98.5,35.5 C91.5,36 89.5,38 89,45 C88.5,38 86.5,36 79.5,35.5 C86.5,35 88.5,33 89,26 Z" fill="#F5961E"/>
+  </g>
+  <!-- Wordmark (Latin) -->
+  <text x="190" y="108" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="54" font-weight="800" fill="#171C22" letter-spacing="2">POLADIN</text>
+  <text x="192" y="138" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="15" font-weight="500" fill="#64707E" letter-spacing="4.5">SMART STEEL MARKETPLACE</text>
+</svg>

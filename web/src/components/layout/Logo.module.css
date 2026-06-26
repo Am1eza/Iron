@@ -1,0 +1,63 @@
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-strong);
+  text-decoration: none;
+}
+.logo:hover {
+  text-decoration: none;
+}
+.logo:hover .spark {
+  fill: var(--color-action-hover);
+}
+
+.mark {
+  display: block;
+  flex: none;
+  border-radius: var(--radius-md);
+}
+.tile {
+  fill: var(--color-surface-inverse);
+}
+.beam {
+  fill: var(--color-text-inverse);
+}
+.spark {
+  fill: var(--color-action);
+  transition: fill var(--dur-fast) var(--ease-standard);
+}
+
+.word {
+  display: inline-flex;
+  flex-direction: column;
+  line-height: 1;
+}
+.wordmark {
+  font: var(--t-h4);
+  font-weight: 800;
+  color: var(--color-text-strong);
+  letter-spacing: 0;
+}
+.tagline {
+  font: var(--t-micro);
+  color: var(--color-text-muted);
+  margin-block-start: 2px;
+}
+
+/* Light variant — over the dark hero overlay */
+.light .tile {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+}
+.light .wordmark {
+  color: #fff;
+}
+.light .tagline {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+@media (max-width: 767px) {
+  .tagline {
+    display: none;
+  }
+}
