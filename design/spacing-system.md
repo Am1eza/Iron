@@ -1,4 +1,4 @@
-# Poladin — Spacing & Layout System
+# Fooladno — Spacing & Layout System
 ## Layer 3 · UI / Design System — Document 4 of N
 
 **Version:** 1.0 · 26 June 2026
@@ -255,4 +255,4 @@ Recommended composable primitives (build once, reuse):
 - Completes the **three foundation pillars**: Color · Typography · **Spacing/Layout**.
 - Provides the grid, scale, radius, shadow, and z-index that the **Component Library** (next) will assemble into buttons, the Datasheet table, ticker, AI hero, rail, inputs, modals, and the admin grid.
 
-*Poladin — اول مشورت، بعد خرید.*
+*Fooladno — اول مشورت، بعد خرید.*

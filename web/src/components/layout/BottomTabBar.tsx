@@ -8,7 +8,7 @@ import { HomeIcon, TagIcon, SparkIcon, CartIcon, UserIcon } from '@/components/p
 import styles from './BottomTabBar.module.css';
 
 /**
- * N12 · Mobile bottom tab bar (≤767px). Five targets with the AI «پولادین» tab
+ * N12 · Mobile bottom tab bar (≤767px). Five targets with the AI «فولادنو» tab
  * centered and elevated (amber). سبد carries a Persian-digit badge when non-empty.
  */
 export function BottomTabBar() {
@@ -31,14 +31,14 @@ export function BottomTabBar() {
       <Link
         href={routes.ai()}
         className={styles.ai}
-        aria-label="پولادین — مشاور هوشمند"
+        aria-label="فولادنو — مشاور هوشمند"
         aria-current={isActive(routes.ai()) ? 'page' : undefined}
         data-event="ai_entry"
       >
         <span className={styles.aiOrb}>
           <SparkIcon size={24} />
         </span>
-        <span className={styles.aiLabel}>پولادین</span>
+        <span className={styles.aiLabel}>فولادنو</span>
       </Link>
 
       <Tab href={routes.cart()} label="سبد" active={isActive(routes.cart())}>

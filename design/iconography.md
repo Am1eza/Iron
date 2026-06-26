@@ -1,4 +1,4 @@
-# Poladin — Iconography
+# Fooladno — Iconography
 ## Layer 3 · UI / Design System — Document 6 of N
 
 **Version:** 1.0 · 26 June 2026
@@ -124,7 +124,7 @@ The 7 product categories are drawn as **structural silhouettes / cross-sections*
 ### 5.5 AI
 | Icon | id | Use | M? |
 |---|---|---|---|
-| Poladin spark | `spark` | the AI mark (4-point amber spark) | – |
+| Fooladno spark | `spark` | the AI mark (4-point amber spark) | – |
 | Microphone | `mic` | voice input | – |
 | Send | `send` | submit message | **✓** (points to writing dir) |
 
@@ -134,7 +134,7 @@ The 7 product categories are drawn as **structural silhouettes / cross-sections*
 | User | `user` | account | – |
 | Login / Logout | `login`/`logout` | auth | **✓** (arrow) |
 | Bell / alert | `bell` | قیمت‌سنج alerts | – |
-| Club / medal | `medal` | باشگاه پولادین | – |
+| Club / medal | `medal` | باشگاه فولادنو | – |
 | Settings / gear | `settings` | preferences/admin | – |
 | Shield / trust | `shield` | trust/eNamad context | – |
 
@@ -208,4 +208,4 @@ The 7 product categories are drawn as **structural silhouettes / cross-sections*
 - Completes the visual vocabulary (color · type · space · components · **icons**).
 - **Next recommended:** Motion/Interaction spec, then high-fidelity screens — and the **live HTML style tile** to validate icons + color + type + spacing together.
 
-*Poladin — اول مشورت، بعد خرید.*
+*Fooladno — اول مشورت، بعد خرید.*

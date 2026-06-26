@@ -1,4 +1,4 @@
-# Poladin — Empty, Zero & Error States
+# Fooladno — Empty, Zero & Error States
 ## Layer 3 · UI / Design System — Document 10 of N (final core)
 
 **Version:** 1.0 · 26 June 2026
@@ -7,7 +7,7 @@
 **Purpose:** Specify every empty / zero-data / no-result / error / offline / stale state precisely — structure, copy, CTA, and behavior — so the product is **never a dead-end** and every "nothing here" becomes a helpful, on-brand moment that moves the user forward (Design Language §10: "no dead-ends").
 
 ### Principles
-1. **No dead-ends.** Every empty/error/stale view offers a way forward — usually **«ثبت درخواست»** or **«پرسش از پولادین»** or **retry**.
+1. **No dead-ends.** Every empty/error/stale view offers a way forward — usually **«ثبت درخواست»** or **«پرسش از فولادنو»** or **retry**.
 2. **Helpful, not blank.** Explain *what* and *why* in one breath; give the next action.
 3. **Never blame the user.** Warm Persian; no jargon; **no English/technical errors** ever shown.
 4. **On-brand & quiet.** The structural I-beam/category glyph, muted, minimal — not a cartoon.
@@ -40,7 +40,7 @@
 │      «عنوان کوتاه»             │  ← headline  --t-h4 / text-strong
 │  توضیح یک‌خطی و کمک‌کننده.       │  ← body  --t-body-sm / text-muted, ≤2 lines, measure ≤ 360px
 │   [ اقدام اصلی (amber) ]       │  ← ONE primary CTA
-│   [ اقدام دوم ]  ·  «پرسش از پولادین» │  ← optional secondary / AI
+│   [ اقدام دوم ]  ·  «پرسش از فولادنو» │  ← optional secondary / AI
 └───────────────────────────────┘
 ```
 - **Glyph:** 1.75-stroke line glyph from the icon family (I-beam motif or the context's icon), color `--neutral-300/400`; **never** a 3D/mascot illustration.
@@ -84,24 +84,24 @@
 
 | Context | Type | Headline | Body | Primary | Secondary |
 |---|---|---|---|---|---|
-| **Price table — filter no-results** | no-results | «موردی پیدا نشد» | با این فیلترها محصولی نیست. فیلترها رو ساده‌تر کنید یا از پولادین بپرسید. | **حذف فیلترها** | *پرسش از پولادین* |
+| **Price table — filter no-results** | no-results | «موردی پیدا نشد» | با این فیلترها محصولی نیست. فیلترها رو ساده‌تر کنید یا از فولادنو بپرسید. | **حذف فیلترها** | *پرسش از فولادنو* |
 | **Price table — empty category** | first-use | «به‌زودی در این دسته» | هنوز محصولی در این دسته ثبت نشده. درخواست بدید تا کارشناس کمک کنه. | **ثبت درخواست** | *دسته‌های دیگر* |
 | **SKU — no/stale price** | no-price | «قیمت لحظه‌ای بگیرید» | قیمت این محصول رو کارشناس به‌روز اعلام می‌کنه. | **ثبت درخواست** | *تماس* `۰۹۱۲۱۳۹۵۹۵۴* |
-| **Site search — no results** | no-results | «چیزی پیدا نشد» | برای «{q}» نتیجه‌ای نبود. املا رو بررسی کنید یا از پولادین بپرسید. | **پرسش از پولادین** | *مشاهدهٔ دسته‌ها* |
+| **Site search — no results** | no-results | «چیزی پیدا نشد» | برای «{q}» نتیجه‌ای نبود. املا رو بررسی کنید یا از فولادنو بپرسید. | **پرسش از فولادنو** | *مشاهدهٔ دسته‌ها* |
 | **AI — missing data fallback** | degraded | (در گفتگو) «الان قیمت دقیق رو ندارم» | کارشناس بهتون اعلام می‌کنه. درخواست‌تون رو ثبت کنم؟ | **ثبت درخواست** | *ادامهٔ گفتگو* |
 | **AI — relay down** | error | «الان نمی‌تونم محاسبه کنم» | چند لحظه دیگه دوباره امتحان کنید، یا درخواست بدید تا کارشناس تماس بگیره. | **ثبت درخواست** | *تلاش دوباره* |
 | **Favorites — empty** | first-use | «علاقه‌مندی‌ای ندارید» | محصول‌ها رو با ♡ ذخیره کنید تا اینجا ببینیدشون. | **مشاهدهٔ قیمت‌ها** | — |
-| **Requests/history — empty** | first-use | «هنوز درخواستی ثبت نکردید» | از جدول قیمت یا پولادین، درخواست بدید تا اینجا پیگیری کنید. | **مشاهدهٔ قیمت‌ها** | *پرسش از پولادین* |
+| **Requests/history — empty** | first-use | «هنوز درخواستی ثبت نکردید» | از جدول قیمت یا فولادنو، درخواست بدید تا اینجا پیگیری کنید. | **مشاهدهٔ قیمت‌ها** | *پرسش از فولادنو* |
 | **Alerts — empty** | first-use | «هشداری ندارید» | برای هر محصول یا دلار/طلا هشدار بذارید تا خبرتون کنیم. | **ساخت هشدار** | — |
 | **Alerts — none triggered** | success-empty | «همه‌چیز آرومه» | هنوز هیچ هشداری فعال نشده. خیالتون راحت. | *مدیریت هشدارها* | — |
-| **Inquiry cart — empty** | cleared | «سبد استعلام خالیه» | محصول‌ها رو به سبد اضافه کنید تا یک‌جا پیش‌فاکتور بگیرید. | **بازگشت به قیمت‌ها** | *پرسش از پولادین* |
-| **Account — first visit** | first-use | «به پولادین خوش اومدید» | قیمت‌ها رو ببینید، هشدار بذارید و درخواست بدید. | **مشاهدهٔ قیمت‌ها** | *عضویت در باشگاه* |
-| **Club — not a member** | first-use | «باشگاه پولادین» | با عضویت، قیمت ویژه، تحویل اولویت‌دار و مشاور اختصاصی بگیرید. | **عضویت** | *بیشتر بدونید* |
+| **Inquiry cart — empty** | cleared | «سبد استعلام خالیه» | محصول‌ها رو به سبد اضافه کنید تا یک‌جا پیش‌فاکتور بگیرید. | **بازگشت به قیمت‌ها** | *پرسش از فولادنو* |
+| **Account — first visit** | first-use | «به فولادنو خوش اومدید» | قیمت‌ها رو ببینید، هشدار بذارید و درخواست بدید. | **مشاهدهٔ قیمت‌ها** | *عضویت در باشگاه* |
+| **Club — not a member** | first-use | «باشگاه فولادنو» | با عضویت، قیمت ویژه، تحویل اولویت‌دار و مشاور اختصاصی بگیرید. | **عضویت** | *بیشتر بدونید* |
 | **Blog/News — empty category** | no-data | «به‌زودی مطلب جدید» | الان مطلبی در این بخش نیست. سری به دسته‌های دیگر بزنید. | *همهٔ مطالب* | — |
 | **Chart — insufficient history** | no-data | «تاریخچهٔ کافی نیست» | به‌محض ثبت قیمت‌های بیشتر، نمودار اینجا نمایش داده می‌شه. | *مشاهدهٔ قیمت امروز* | — |
 | **طلا و ارز / ticker — source down** | degraded | (روی ریبون) «به‌روزرسانی با تأخیر» | آخرین مقادیر نمایش داده می‌شه. | *تلاش دوباره* | — |
 | **Cooperation — submitted** | success | «درخواست همکاری ثبت شد» | کارشناس ما به‌زودی تماس می‌گیره. ممنون از شما. | **بازگشت به خانه** | — |
-| **404** | not-found | «این صفحه پیدا نشد» | شاید آدرس عوض شده. از جستجو یا پولادین کمک بگیرید. | **بازگشت به خانه** | *جستجو · دسته‌های پرطرفدار · پرسش از پولادین* |
+| **404** | not-found | «این صفحه پیدا نشد» | شاید آدرس عوض شده. از جستجو یا فولادنو کمک بگیرید. | **بازگشت به خانه** | *جستجو · دسته‌های پرطرفدار · پرسش از فولادنو* |
 | **500 / server** | error | «مشکلی پیش اومد» | از طرف ما بود. چند لحظه دیگه دوباره امتحان کنید. | **تلاش دوباره** | *تماس با ما* |
 | **Offline** | offline | «اتصال اینترنت قطعه» | به‌محض وصل‌شدن، خودش به‌روز می‌شه. | **تلاش دوباره** | — |
 | **Auth required** | blocked | «برای ادامه وارد شوید» | با شمارهٔ موبایل و کد پیامکی وارد بشید. | **ورود** | — |
@@ -160,4 +160,4 @@ This completes **Layer 3 — UI / Design System**:
 
 Recommended next: build the **live HTML style tile / reference implementation** (proves the whole system renders premium, custom, accessible, and motion-correct), then **high-fidelity screen designs** for each Layer-2 wireframe — leading into **Layer 4 (build)**.
 
-*Poladin — اول مشورت، بعد خرید.*
+*Fooladno — اول مشورت، بعد خرید.*

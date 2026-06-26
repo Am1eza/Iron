@@ -1,4 +1,4 @@
-# Poladin — Phase 5 · Authentication
+# Fooladno — Phase 5 · Authentication
 
 **Status:** ✅ Implemented end-to-end (passwordless mobile + OTP, JWT access + rotating refresh, RBAC, profile, security). The earlier TODO stubs in `api/auth/*` are now real.
 
@@ -13,7 +13,7 @@
 | 51 | **Login** | OTP flow (`LoginForm` → `/api/auth/otp/*`); returning users log in on verify |
 | 52 | **Register** | Same flow; first OTP for a new mobile creates the account (optional name captured at request) |
 | 53 | **OTP** | `service.requestOtp/verifyOtp`: 5-digit code, 120s TTL, hashed at rest, attempts + lockout, resend cooldown, per-hour cap; Kavenegar (dev logs the code) |
-| 54 | **Session** | httpOnly cookies — access JWT (`poladin_at`, path `/`) + refresh (`poladin_rt`, path `/api/auth`); `getSession()` server helper |
+| 54 | **Session** | httpOnly cookies — access JWT (`fooladno_at`, path `/`) + refresh (`fooladno_rt`, path `/api/auth`); `getSession()` server helper |
 | 55 | **JWT** | `jwt.ts` — HS256 via `jose`, 15-min access token, issuer/audience, signed with `SESSION_SECRET` |
 | 56 | **Refresh Token** | Opaque 32-byte token, **hashed** in store, **single-use rotation** (`rotateRefresh`); silent client refresh every 12 min |
 | 57 | **Role Management** | `Role` = customer + operator/sales/content/catalog/admin (navigation §21); `ROLE_LABEL`, `STAFF_ROLES` |
@@ -75,4 +75,4 @@ Modified: `stores/auth.ts` (+role, loading status), `api/resources/auth.ts` (rea
 
 > **To go live:** set `SESSION_SECRET`, `KAVENEGAR_API_KEY`/template, `AUTH_ENFORCED=true`, and replace `lib/auth/store.ts` with a DB-backed repo (users, refresh tokens, OTP, rate-limits). The interfaces stay identical.
 
-*Poladin — اول مشورت، بعد خرید.*
+*Fooladno — اول مشورت، بعد خرید.*

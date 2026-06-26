@@ -12,7 +12,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const name = decodeURIComponent(sku).replace(/-/g, ' ');
   return buildMetadata({
     title: `قیمت ${name} امروز`,
-    description: `قیمت روز ${name}، وزن، نوسان و زمان تحویل در پولادین.`,
+    description: `قیمت روز ${name}، وزن، نوسان و زمان تحویل در فولادنو.`,
     path: routes.sku(category, sub, sku),
   });
 }

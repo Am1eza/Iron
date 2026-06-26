@@ -80,7 +80,7 @@ export function MobileDrawer({ categories }: { categories: Category[] }) {
         aria-label="منوی اصلی"
       >
         <div className={styles.head}>
-          <span className={styles.brand}>پولادین</span>
+          <span className={styles.brand}>فولادنو</span>
           <button
             type="button"
             className={styles.close}

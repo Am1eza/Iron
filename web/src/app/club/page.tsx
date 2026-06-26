@@ -4,11 +4,11 @@ import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 
 export const metadata: Metadata = buildMetadata({
-  title: 'باشگاه پولادین',
+  title: 'باشگاه فولادنو',
   description: 'مزایای ویژه: قیمت ویژه، تحویل اولویت‌دار، مشاور اختصاصی و هشدارهای ویژه.',
   path: routes.club(),
 });
 
 export default function ClubPage() {
-  return <PagePlaceholder eyebrow="وفاداری" title="باشگاه پولادین" note="سطوح (آهن/فولاد/پولاد) و مزایا در بخش باشگاه ساخته می‌شود." />;
+  return <PagePlaceholder eyebrow="وفاداری" title="باشگاه فولادنو" note="سطوح (آهن/فولاد/پولاد) و مزایا در بخش باشگاه ساخته می‌شود." />;
 }

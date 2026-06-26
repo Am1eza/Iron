@@ -10,7 +10,7 @@ type CtaAction = { label: string; href?: string; onClick?: () => void };
 /**
  * C6 · Empty / zero / error state — the "no dead-ends" component (empty-states.md).
  * Centered glyph + headline + one-line body + ONE amber primary CTA + optional
- * secondary + an always-available «پرسش از پولادین» link. Sizes: full / section / inline.
+ * secondary + an always-available «پرسش از فولادنو» link. Sizes: full / section / inline.
  * On `size="full"` focus moves to the heading and the region is announced.
  */
 export function EmptyState({
@@ -61,7 +61,7 @@ export function EmptyState({
           {showAi ? (
             <Link href={routes.ai()} className={styles.ai} data-event="ai_entry">
               <SparkIcon size={16} />
-              پرسش از پولادین
+              پرسش از فولادنو
             </Link>
           ) : null}
         </div>

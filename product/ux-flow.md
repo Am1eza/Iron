@@ -1,4 +1,4 @@
-# Poladin — UX Flows
+# Fooladno — UX Flows
 ## Layer 2 · Product Design — Document 7 of N
 
 **Version:** 1.0 · 26 June 2026
@@ -15,9 +15,9 @@
 
 ## 0. Experience Model & Navigation
 
-Poladin is a **funnel with two parallel lanes** (per User Prioritization):
+Fooladno is a **funnel with two parallel lanes** (per User Prioritization):
 
-- **Guided lane** (Builder/newcomer) → the **AI hero «پولادین»**.
+- **Guided lane** (Builder/newcomer) → the **AI hero «فولادنو»**.
 - **Fast lane** (Pro/Trader) → the **fixed right-side category rail → price tables**.
 
 Both lanes are reachable from every page; neither is forced.
@@ -25,7 +25,7 @@ Both lanes are reachable from every page; neither is forced.
 ```mermaid
 flowchart LR
   E[Entry points] --> H[▭ Home / any page]
-  H --> AI[▭ AI hero «پولادین» — guided lane]
+  H --> AI[▭ AI hero «فولادنو» — guided lane]
   H --> RAIL[▭ Category rail → price tables — fast lane]
   H --> TICK[▭ نبض بازار ticker]
   AI --> LEAD[Lead / پیش‌فاکتور]
@@ -157,7 +157,7 @@ flowchart TD
 
 **Goal:** turn an unsure buyer into a confident, qualified lead.
 **Steps (intent-first, mandatory):**
-1. ▭ AI hero greets («سلام، من پولادینم…»), suggested chips shown.
+1. ▭ AI hero greets («سلام، من فولادنوم…»), suggested chips shown.
 2. User: «قیمت آهن چنده؟» ➜ ◆ bare price? → **AI asks purpose first** (AC-D-2), does **not** quote.
 3. User: «می‌خوام ساختمون بسازم» ➜ AI gathers متراژ/طبقات/نوع سازه (asks targeted follow-ups if missing).
 4. ⚙ estimateProject + calcWeight + getPrice ➜ **[Grounding-Fallback]** governs every number.
@@ -233,7 +233,7 @@ Header «ورود» ➜ **[OTP-Gate]** ➜ ▭ account: favorites · request his
 ---
 
 ## F10 · Customer Club join  *(US-H1/H2; AC-H)*
-Trigger: user completes a quote or sets an alert ➜ ◆ member? no & not recently dismissed ➜ ▭ **intent-timed popup** «عضویت در باشگاه پولادین» (never on first load).
+Trigger: user completes a quote or sets an alert ➜ ◆ member? no & not recently dismissed ➜ ▭ **intent-timed popup** «عضویت در باشگاه فولادنو» (never on first load).
 - Accept ➜ ◆ logged-in? → [OTP-Gate] ➜ ⚙ enroll ➜ ▭ tier (آهن/فولاد/پولاد) + benefits.
 - Dismiss ➜ suppressed for 7 days.
 
@@ -314,4 +314,4 @@ flowchart TD
 
 *Next Layer-2 document: Information Architecture & Sitemap (these flows become concrete pages/routes), then Wireframes.*
 
-*Poladin — اول مشورت، بعد خرید.*
+*Fooladno — اول مشورت، بعد خرید.*

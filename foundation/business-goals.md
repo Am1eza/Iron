@@ -1,4 +1,4 @@
-# Poladin — Business Goals
+# Fooladno — Business Goals
 ## Phase 1 · Foundation — #2
 
 **Version:** 1.0 · 26 June 2026
@@ -15,12 +15,12 @@
 5. **Platform expansion.** Web → web app → mobile app (Cafe Bazaar/Myket), then new revenue lines (credit, marketplace, data).
 
 ## 2. Business Model
-**Phase 1 (now): lead-gen + direct/aggregated sale.** Poladin curates supply and prices, the website generates qualified demand, and the **sales team closes by phone** (no online payment yet). Revenue = **trading margin** on steel sold; the platform's job is to *lower CAC, raise conversion, and protect margin* versus the cluttered price-list incumbents.
+**Phase 1 (now): lead-gen + direct/aggregated sale.** Fooladno curates supply and prices, the website generates qualified demand, and the **sales team closes by phone** (no online payment yet). Revenue = **trading margin** on steel sold; the platform's job is to *lower CAC, raise conversion, and protect margin* versus the cluttered price-list incumbents.
 
 **Future revenue lines (Roadmap):**
 - **Embedded credit margin** (چک/LC/installments → BNPL) — the India lesson (OfBusiness/Oxyzo).
 - **Marketplace commissions** (verified third-party suppliers — «تأمین از شما» → marketplace).
-- **Subscription / data** (a trusted price index «شاخص پولادین», alerts, API — the Mysteel/BigMint lesson).
+- **Subscription / data** (a trusted price index «شاخص فولادنو», alerts, API — the Mysteel/BigMint lesson).
 - **Club & advertising** (premium tiers; mill/brand placements).
 - **Logistics margin** (integrated freight) — later.
 
@@ -70,4 +70,4 @@
 4. **Scale (Phase 2/3):** web app + mobile app; expand catalog/regions.
 5. **New margin (Future):** credit, marketplace, data/index, logistics.
 
-*Poladin — اول مشورت، بعد خرید.*
+*Fooladno — اول مشورت، بعد خرید.*

@@ -7,7 +7,7 @@ import { z } from 'zod';
 
 /* ---- Public (NEXT_PUBLIC_*) — safe in client + server ---- */
 const publicSchema = z.object({
-  NEXT_PUBLIC_SITE_URL: z.string().url().default('https://poladin.com'),
+  NEXT_PUBLIC_SITE_URL: z.string().url().default('https://fooladno.com'),
   NEXT_PUBLIC_API_MODE: z.enum(['mock', 'live']).default('mock'),
 });
 

@@ -18,7 +18,7 @@ export const emptyPresets = {
   /** Price table — filters returned nothing. */
   filterNoResults: (onClear?: () => void): Preset => ({
     headline: 'موردی پیدا نشد',
-    body: 'با این فیلترها محصولی نیست. فیلترها را ساده‌تر کنید یا از پولادین بپرسید.',
+    body: 'با این فیلترها محصولی نیست. فیلترها را ساده‌تر کنید یا از فولادنو بپرسید.',
     primary: { label: 'حذف فیلترها', onClick: onClear },
     showAi: true,
   }),
@@ -42,8 +42,8 @@ export const emptyPresets = {
   /** Site search — no results for the query. */
   searchNoResults: (q: string): Preset => ({
     headline: 'چیزی پیدا نشد',
-    body: `برای «${q}» نتیجه‌ای نبود. املا را بررسی کنید یا از پولادین بپرسید.`,
-    primary: { label: 'پرسش از پولادین', href: routes.ai() },
+    body: `برای «${q}» نتیجه‌ای نبود. املا را بررسی کنید یا از فولادنو بپرسید.`,
+    primary: { label: 'پرسش از فولادنو', href: routes.ai() },
     secondary: { label: 'مشاهدهٔ دسته‌ها', href: routes.prices() },
   }),
 
@@ -66,7 +66,7 @@ export const emptyPresets = {
   /** Account — requests/history empty. */
   requestsEmpty: (): Preset => ({
     headline: 'هنوز درخواستی ثبت نکرده‌اید',
-    body: 'از جدول قیمت یا پولادین، درخواست بدهید تا اینجا پیگیری کنید.',
+    body: 'از جدول قیمت یا فولادنو، درخواست بدهید تا اینجا پیگیری کنید.',
     primary: { label: 'مشاهدهٔ قیمت‌ها', href: routes.prices() },
     showAi: true,
   }),
@@ -95,7 +95,7 @@ export const emptyPresets = {
   /** 404. */
   notFound: (): Preset => ({
     headline: 'این صفحه پیدا نشد',
-    body: 'شاید آدرس عوض شده. از جستجو یا پولادین کمک بگیرید.',
+    body: 'شاید آدرس عوض شده. از جستجو یا فولادنو کمک بگیرید.',
     primary: { label: 'بازگشت به خانه', href: routes.home() },
     secondary: { label: 'مشاهدهٔ قیمت‌ها', href: routes.prices() },
     showAi: true,

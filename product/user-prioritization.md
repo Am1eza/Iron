@@ -1,15 +1,15 @@
-# Poladin — User Prioritization
+# Fooladno — User Prioritization
 ## Layer 2 · Product Design — Document 4 of N
 
 **Version:** 1.0 · 26 June 2026
 **Status:** Draft for approval
 **Builds on:** `product-scope.md`, `mvp.md`, `feature-list.md`
-**Purpose:** Identify every user of Poladin, **prioritize them with a transparent framework**, and translate that ranking into design rules — i.e., *whose needs win* when they conflict. This document governs the next artifacts (IA, flows, UI).
+**Purpose:** Identify every user of Fooladno, **prioritize them with a transparent framework**, and translate that ranking into design rules — i.e., *whose needs win* when they conflict. This document governs the next artifacts (IA, flows, UI).
 
 ---
 
 ## 1. Why this matters
-Poladin serves very different people: a contractor who wants a price in 2 seconds, a first-time home-builder who needs hand-holding, a trader who checks prices ten times a day, and a curious visitor who just wants the dollar rate. Designing for "everyone" means designing for no one. This document sets a **defensible priority order** so the product has a clear primary owner at every screen — while still serving the rest.
+Fooladno serves very different people: a contractor who wants a price in 2 seconds, a first-time home-builder who needs hand-holding, a trader who checks prices ten times a day, and a curious visitor who just wants the dollar rate. Designing for "everyone" means designing for no one. This document sets a **defensible priority order** so the product has a clear primary owner at every screen — while still serving the rest.
 
 > **Founder direction honored:** you stated the **Contractor (B2B)** and the **Individual Builder (retail)** are *both* primary. We treat them as **co-primary (Tier 1)**, resolved through the **dual-mode** design (AI hero for the Builder, fast price tables for the Pro). The framework below adds the rigor and shows where each leads.
 
@@ -62,7 +62,7 @@ Each external segment is scored **1–5** on six weighted criteria; the weighted
 - **Context:** Building/renovating one home; buys once or twice; doesn't know steel grades or quantities; afraid of being overcharged.
 - **Goals:** Understand what to buy, how much, and the total cost; trust the seller.
 - **Frustrations (today):** Jargon; no guidance; fear of cheating; can't estimate quantities.
-- **Entry mode:** **Guided lane** — AI advisor «پولادین» (intent-first) + پروژه‌سنج + وزن‌سنج.
+- **Entry mode:** **Guided lane** — AI advisor «فولادنو» (intent-first) + پروژه‌سنج + وزن‌سنج.
 - **Key features:** AI advisor, project estimator, weight calculator, trust signals, پیش‌فاکتور, buying guides.
 - **Success:** "The AI estimated my rebar and beams for a 200 m² home and the cost — I felt safe ordering."
 - **Device:** mobile, evenings.
@@ -93,7 +93,7 @@ Each external segment is scored **1–5** on six weighted criteria; the weighted
 - **Why prioritized:** huge **volume + frequency + retention**; the top of our funnel. Low direct value, high pipeline value.
 
 ### P7 · تأمین‌کننده — Supplier / Seller  *(Tier 3)*
-- **Context:** Wants to sell supply to/through Poladin («تأمین از شما»).
+- **Context:** Wants to sell supply to/through Fooladno («تأمین از شما»).
 - **Phase 1:** a simple intake/lead form. Not optimized further yet (marketplace = future).
 
 ### Internal personas
@@ -216,4 +216,4 @@ When two users' needs collide, resolve in this order:
 
 *Next Layer-2 document: Information Architecture & Sitemap (now grounded in these priorities).*
 
-*Poladin — اول مشورت، بعد خرید.*
+*Fooladno — اول مشورت، بعد خرید.*

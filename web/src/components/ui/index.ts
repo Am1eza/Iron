@@ -1,5 +1,5 @@
 /**
- * Poladin UI system — the single import surface for the component library
+ * Fooladno UI system — the single import surface for the component library
  * (Phase 3 · UI Engineering). Built entirely on the design tokens; RTL-native;
  * every interactive piece defines hover/press/focus/disabled and respects
  * reduced-motion. See web/UI-SYSTEM.md.

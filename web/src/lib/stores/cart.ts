@@ -43,7 +43,7 @@ export const useCartStore = create<CartState>()(
       clear: () => set({ items: [] }),
     }),
     {
-      name: 'poladin-cart',
+      name: 'fooladno-cart',
       version: 1,
       storage: createJSONStorage(() => localStorage),
       skipHydration: true, // rehydrated by <StoreHydrator/> → no SSR mismatch

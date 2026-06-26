@@ -1,9 +1,9 @@
-# Poladin — User Journey Maps
+# Fooladno — User Journey Maps
 ## Phase 1 · Foundation — #4
 
 **Version:** 1.0 · 26 June 2026
 **Companions:** `product/user-prioritization.md` (personas), `product/ux-flow.md` (detailed step flows).
-**Purpose:** The *high-altitude* journey — how each primary persona moves from first contact to purchase and beyond — with emotions, pain points (today), and the Poladin moment that wins them. (Step-level flows live in `ux-flow.md`.)
+**Purpose:** The *high-altitude* journey — how each primary persona moves from first contact to purchase and beyond — with emotions, pain points (today), and the Fooladno moment that wins them. (Step-level flows live in `ux-flow.md`.)
 
 ### The macro funnel (all personas)
 **Magnet → Engage → Capture → Convert → Retain.** Every feature serves one stage; every journey below maps onto it.
@@ -13,9 +13,9 @@
 ## Journey A — آقای کریمی · Individual Builder (Tier 1, the AI's audience)
 *Building one home; doesn't know steel; afraid of being overcharged.*
 
-| Stage | Goal | Actions / touchpoints | Feeling | Pain today | Poladin moment | Stage metric |
+| Stage | Goal | Actions / touchpoints | Feeling | Pain today | Fooladno moment | Stage metric |
 |---|---|---|---|---|---|---|
-| **Awareness** | understand what/how much | Google «چقدر میلگرد برای خونه» → lands on a guide/AI | confused, cautious | jargon, no guidance | **AI «پولادین»** greets, asks intent | organic entry, AI start |
+| **Awareness** | understand what/how much | Google «چقدر میلگرد برای خونه» → lands on a guide/AI | confused, cautious | jargon, no guidance | **AI «فولادنو»** greets, asks intent | organic entry, AI start |
 | **Consideration** | estimate & cost | tells AI متراژ/طبقات → gets BOM + weight + cost | reassured | can't estimate; fears being cheated | **پروژه‌سنج / grounded estimate** | conversation completion |
 | **Decision** | trust the price | sees transparent price + زمان تحویل + trust signals | confident | opaque markups | **transparency + delivery time + eNamad/logos** | quote built |
 | **Purchase** | order safely | «دریافت پیش‌فاکتور» → OTP → پیش‌فاکتور via SMS → sales calls | relieved | phone-only, anxious | **warm human close, armed with context** | lead → won |
@@ -28,7 +28,7 @@
 ## Journey B — رضا · Contractor / پیمانکار (Tier 1, the volume buyer)
 *Buys by the ton, weekly; knows specs; wants speed + reliable delivery + credit.*
 
-| Stage | Goal | Actions | Feeling | Pain today | Poladin moment | Metric |
+| Stage | Goal | Actions | Feeling | Pain today | Fooladno moment | Metric |
 |---|---|---|---|---|---|---|
 | **Awareness** | today's price | SEO «قیمت میلگرد امروز» / Telegram → price table | hurried | phoning around | **fast price tables (Datasheet) + rail** | price-page sessions |
 | **Consideration** | compare & plan | filters, نوسان, **زمان تحویل**, cart multiple SKUs | focused | no delivery clarity | **delivery-time + inquiry cart** | cart adds |
@@ -63,4 +63,4 @@ Specs structures: **وزن‌سنج / پروژه‌سنج / standards / certs / 
 3. AI accuracy fear → **grounded numbers + callback fallback**.
 4. Trust on first order → **transparency + delivery-time + guarantee + logos**.
 
-*Poladin — اول مشورت، بعد خرید.*
+*Fooladno — اول مشورت، بعد خرید.*

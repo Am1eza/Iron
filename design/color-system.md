@@ -1,4 +1,4 @@
-# Poladin — Color System
+# Fooladno — Color System
 ## Layer 3 · UI / Design System — Document 2 of N
 
 **Version:** 1.0 · 26 June 2026
@@ -180,7 +180,7 @@ Kept tight; reuse the system so feedback never competes with the action-amber.
 ---
 
 ## 8. AI & Spark
-- **AI presence = Cobalt.** The AI hero, the «پولادین» chip, the spark mark, suggested chips, and streaming cursor use cobalt cues (`accent`, `accent-tint`). This teaches *cobalt = smart*.
+- **AI presence = Cobalt.** The AI hero, the «فولادنو» chip, the spark mark, suggested chips, and streaming cursor use cobalt cues (`accent`, `accent-tint`). This teaches *cobalt = smart*.
 - **The Spark accent = Amber.** The single amber glow marks "intelligence/value just happened" (AI begins, price fresh, primary action).
 
 ---
@@ -297,4 +297,4 @@ Restrained, datasheet-grade:
 - Realizes Design Language §4.3 (color behavior) precisely.
 - **Next document: Typography System** (Estedad/Vazirmatn/Inter scale, weights, numerals, the price-as-hero treatment) — pairs with these colors to form the foundations, before the Component Library.
 
-*Poladin — اول مشورت، بعد خرید.*
+*Fooladno — اول مشورت، بعد خرید.*

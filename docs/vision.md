@@ -1,4 +1,4 @@
-# Poladin — Product Vision
+# Fooladno — Product Vision
 ## Layer 1 · Vision — North Star
 
 **Version:** 1.0 · 26 June 2026
@@ -17,12 +17,12 @@ Iran's iron & steel market is opaque, impersonal, and look-alike. Hundreds of ne
 Replace the opaque, phone-only, copy-paste price market with a **transparent, intelligent, genuinely helpful** experience — web, web app, and mobile app — that pairs a grounded **AI advisor** with honest **live prices**, a signature **guaranteed delivery time**, and a modern, human-closed sales flow.
 
 ## Brand Idea & Promise
-- **Brand:** **پولادین / Poladin** — "steely / made of steel."
+- **Brand:** **فولادنو / Fooladno** — "steely / made of steel."
 - **Essence:** همراه هوشمند، خرید مطمئن — *a smart companion, a confident purchase.*
 - **Promise:** **«اول مشورت، بعد خرید.»** — *First advice, then purchase.*
 
 ## Positioning
-For Iranian builders, contractors, and buyers who find the iron market confusing and impersonal, **Poladin is the smart steel marketplace** that combines an expert AI advisor with transparent live prices and guaranteed delivery times — so you buy **right**, not just fast. *Unlike the dozens of look-alike price-list sites, Poladin actually helps you decide.*
+For Iranian builders, contractors, and buyers who find the iron market confusing and impersonal, **Fooladno is the smart steel marketplace** that combines an expert AI advisor with transparent live prices and guaranteed delivery times — so you buy **right**, not just fast. *Unlike the dozens of look-alike price-list sites, Fooladno actually helps you decide.*
 
 ## Who We Serve (priority)
 - **Co-primary:** the **Contractor (پیمانکار)** and the **Individual Builder (سازندهٔ شخصی)** — served by **dual-mode** (fast tables vs guided AI).
@@ -68,4 +68,4 @@ For Iranian builders, contractors, and buyers who find the iron market confusing
 4. **Frontend** — build the website on this foundation. → next
 5. **Backend / AI / Integrations**, then **Web App** & **Mobile App**.
 
-*Poladin — اول مشورت، بعد خرید.*
+*Fooladno — اول مشورت، بعد خرید.*

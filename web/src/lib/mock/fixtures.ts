@@ -7,11 +7,11 @@ import type { Category, MarketValue, PriceRow } from '@/lib/types/domain';
 export const categories: Category[] = [
   { id: 'c1', slug: 'rebar', name: 'میلگرد', order: 1, iconId: 'cat-rebar', isActive: true },
   { id: 'c2', slug: 'ibeam', name: 'تیرآهن', order: 2, iconId: 'cat-ibeam', isActive: true },
-  { id: 'c3', slug: 'profile', name: 'پروفیل', order: 3, iconId: 'cat-profile', isActive: true },
-  { id: 'c4', slug: 'hot-sheet', name: 'ورق گرم', order: 4, iconId: 'cat-hot-sheet', isActive: true },
-  { id: 'c5', slug: 'cold-sheet', name: 'ورق سرد', order: 5, iconId: 'cat-cold-sheet', isActive: true },
-  { id: 'c6', slug: 'angle-channel', name: 'نبشی و ناودانی', order: 6, iconId: 'cat-angle-channel', isActive: true },
-  { id: 'c7', slug: 'pipe', name: 'لوله', order: 7, iconId: 'cat-pipe', isActive: true },
+  { id: 'c3', slug: 'profile', name: 'پروفیل و قوطی', order: 3, iconId: 'cat-profile', isActive: true },
+  { id: 'c4', slug: 'sheet', name: 'ورق', order: 4, iconId: 'cat-sheet', isActive: true },
+  { id: 'c5', slug: 'angle-channel', name: 'نبشی و ناودانی', order: 5, iconId: 'cat-angle-channel', isActive: true },
+  { id: 'c6', slug: 'pipe', name: 'لوله', order: 6, iconId: 'cat-pipe', isActive: true },
+  { id: 'c7', slug: 'wire', name: 'کلاف و مفتول', order: 7, iconId: 'cat-wire', isActive: true },
 ];
 
 export const marketValues: MarketValue[] = [

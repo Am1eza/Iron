@@ -1,4 +1,4 @@
-# Poladin — Accessibility (a11y)
+# Fooladno — Accessibility (a11y)
 ## Layer 3 · UI / Design System — Document 8 of N
 
 **Version:** 1.0 · 26 June 2026
@@ -7,7 +7,7 @@
 **Target:** **WCAG 2.2 Level AA** (aligned with EN 301 549). Accessibility is part of the Definition of Done — not an afterthought.
 
 ### Principles (POUR)
-Perceivable · Operable · Understandable · Robust. Plus a Poladin-specific lever: **the AI advisor «پولادین» is an accessibility feature** — it lets users who struggle with tables, jargon, or typing get prices and estimates conversationally.
+Perceivable · Operable · Understandable · Robust. Plus a Fooladno-specific lever: **the AI advisor «فولادنو» is an accessibility feature** — it lets users who struggle with tables, jargon, or typing get prices and estimates conversationally.
 
 ---
 
@@ -151,7 +151,7 @@ Perceivable · Operable · Understandable · Robust. Plus a Poladin-specific lev
 ## 7. AI Chat Accessibility (special)
 - **Container:** `role="log"`/region with `aria-live="polite"`; new completed messages are announced (announce the **finished** message, not every streamed token — avoid SR spam).
 - **Streaming:** purely visual; the accessible announcement is the final message text; a "در حال نوشتن" status is polite.
-- **Messages:** user vs پولادین visually + semantically distinguished (e.g., prefix/`aria-label`).
+- **Messages:** user vs فولادنو visually + semantically distinguished (e.g., prefix/`aria-label`).
 - **Suggested chips** are real `<button>`s, keyboard-reachable.
 - **Estimate card** is a structured, readable region (headings + data), not an image.
 - **As an a11y aid:** the AI lets users avoid the dense table entirely — a low-vision or less-literate user can ask «قیمت میلگرد ۱۴» and get a spoken-friendly answer.
@@ -231,4 +231,4 @@ Perceivable · Operable · Understandable · Robust. Plus a Poladin-specific lev
 - Encodes `acceptance-criteria.md §1.3` into an implementable a11y standard across all components.
 - **Next recommended:** Motion/Interaction spec (with reduced-motion already specified here), then high-fidelity screens — and the **live HTML style tile** (built accessible from the start).
 
-*Poladin — اول مشورت، بعد خرید.*
+*Fooladno — اول مشورت، بعد خرید.*

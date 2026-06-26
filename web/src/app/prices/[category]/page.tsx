@@ -29,7 +29,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const name = cat?.name ?? category;
   return buildMetadata({
     title: `قیمت روز ${name}`,
-    description: `قیمت روز ${name} با نوسان، وزن شاخه و زمان تحویل در پولادین.`,
+    description: `قیمت روز ${name} با نوسان، وزن شاخه و زمان تحویل در فولادنو.`,
     path: routes.category(category),
   });
 }

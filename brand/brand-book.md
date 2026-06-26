@@ -1,28 +1,28 @@
-# پولادین — Poladin
+# فولادنو — Fooladno
 ## Brand Book v1.0
 
 **Smart Steel Marketplace · بازار هوشمند آهن و فولاد**
 Minimal · Premium · Professional — 26 June 2026
 
-> **Domain verified** via Verisign RDAP at time of writing: **`poladin.com` — AVAILABLE.** Register immediately (note: `pooladin.com` is already taken). Secure defensively: `poladin.ir`, `poladinsteel.com`, plus the **Cafe Bazaar / Myket** app id and **@poladin** on Instagram / Telegram / Eitaa — all matching, before launch.
+> **Domain verified** via Verisign RDAP at time of writing: **`fooladno.com` — AVAILABLE.** Register immediately (note: `pooladin.com` is already taken). Secure defensively: `fooladno.ir`, `fooladnosteel.com`, plus the **Cafe Bazaar / Myket** app id and **@fooladno** on Instagram / Telegram / Eitaa — all matching, before launch.
 
 ---
 
 ## 00 · How to use this book
-This is the single source of truth for the Poladin identity — every screen, invoice, post, and app icon must trace back to these rules. The governing aesthetic is **minimal**: restraint, generous white space, one dominant accent, clean type, and nothing decorative that doesn't earn its place. **When in doubt, remove.**
+This is the single source of truth for the Fooladno identity — every screen, invoice, post, and app icon must trace back to these rules. The governing aesthetic is **minimal**: restraint, generous white space, one dominant accent, clean type, and nothing decorative that doesn't earn its place. **When in doubt, remove.**
 
 ---
 
 ## 01 · Brand Strategy
 
 ### The name
-**پولادین / Poladin.** In Persian, **پولادین** is a real adjective — *"steely, made of steel."* It carries strength, resilience, temper, and permanence, without being a literal "آهن/فولاد + X" label like every competitor. In Latin, **"Poladin"** reads as a confident, modern, almost international brand — perfect for the app stores and future growth. One word, premium, ownable, and instantly on-category.
+**فولادنو / Fooladno.** In Persian, **فولادنو** is a real adjective — *"steely, made of steel."* It carries strength, resilience, temper, and permanence, without being a literal "آهن/فولاد + X" label like every competitor. In Latin, **"Fooladno"** reads as a confident, modern, almost international brand — perfect for the app stores and future growth. One word, premium, ownable, and instantly on-category.
 
 ### Brand essence
 **همراه هوشمند، خرید مطمئن** — *A smart companion, a confident purchase.*
 
 ### Positioning statement
-For Iranian builders, contractors, and buyers who find the iron & steel market opaque and impersonal, **Poladin** is the smart marketplace that pairs an expert AI advisor with transparent live prices and guaranteed delivery times — so you buy **right**, not just fast. Unlike the dozens of look-alike price-list sites, **Poladin actually helps you decide.**
+For Iranian builders, contractors, and buyers who find the iron & steel market opaque and impersonal, **Fooladno** is the smart marketplace that pairs an expert AI advisor with transparent live prices and guaranteed delivery times — so you buy **right**, not just fast. Unlike the dozens of look-alike price-list sites, **Fooladno actually helps you decide.**
 
 ### Brand promise (the soul)
 **«اول مشورت، بعد خرید.»** — *First advice, then purchase.*
@@ -49,7 +49,7 @@ Replace the opaque, phone-only, look-alike iron market with a transparent, intel
 
 > The dual-mode design (AI hero **+** fast price tables) serves both without forcing either through the other.
 
-### Competitive advantage — the «چرا پولادین؟»
+### Competitive advantage — the «چرا فولادنو؟»
 1. **مشاور هوشمند، نه فقط لیست قیمت** — a smart advisor, not a price board.
 2. **قیمت شفاف و لحظه‌ای** — transparent, live prices.
 3. **زمان تحویل تضمینی** — guaranteed delivery time (our signature innovation).
@@ -69,10 +69,10 @@ Replace the opaque, phone-only, look-alike iron market with a transparent, intel
 - آهن رو هوشمند بخر.
 
 ### Boilerplate (≈40 words — footers, about, press)
-> پولادین، بازار هوشمند آهن و فولاد ایران است؛ جایی که یک مشاور هوش مصنوعی در کنار قیمت‌های شفاف و لحظه‌ای و زمان تحویل مشخص، به شما کمک می‌کند بهترین خرید را انجام دهید. اول مشورت، بعد خرید.
+> فولادنو، بازار هوشمند آهن و فولاد ایران است؛ جایی که یک مشاور هوش مصنوعی در کنار قیمت‌های شفاف و لحظه‌ای و زمان تحویل مشخص، به شما کمک می‌کند بهترین خرید را انجام دهید. اول مشورت، بعد خرید.
 
 ### One-line elevator pitch
-*Poladin is the smart iron & steel marketplace where an AI advisor, transparent live prices, and guaranteed delivery times help you buy right — not just fast.*
+*Fooladno is the smart iron & steel marketplace where an AI advisor, transparent live prices, and guaranteed delivery times help you buy right — not just fast.*
 
 ### Tone of voice
 A **knowledgeable friend in the bازار who happens to be tech-savvy.** Warm, clear, confident — never hypey, never condescending. Light on jargon for newcomers, precise for pros, and radically honest about prices. The AI persona *is* this voice made literal.
@@ -92,17 +92,17 @@ A **knowledgeable friend in the bازار who happens to be tech-savvy.** Warm, 
 
 ## 03 · The Sub-Brand System
 
-A cohesive, ownable system. The master brand **پولادین** owns the voice; the precision tools share the **«-سنج»** (gauge / meter) suffix — an engineering cue that fits steel, measurement, and trust.
+A cohesive, ownable system. The master brand **فولادنو** owns the voice; the precision tools share the **«-سنج»** (gauge / meter) suffix — an engineering cue that fits steel, measurement, and trust.
 
 | Element | Name | Role |
 |---|---|---|
-| Master brand & AI advisor | **پولادین / Poladin** | The company *and* the AI — unified. Opens: «سلام، من پولادینم. چه محصولی می‌خواید بخرید؟» |
+| Master brand & AI advisor | **فولادنو / Fooladno** | The company *and* the AI — unified. Opens: «سلام، من فولادنوم. چه محصولی می‌خواید بخرید؟» |
 | Project estimator | **پروژه‌سنج** | Estimates materials, weight & cost for a build |
 | Weight calculator | **وزن‌سنج** | Weight by quantity/size (markazeahan formulas) |
 | Price tracker & alerts | **قیمت‌سنج** | Live price, نوسان, alerts, «قیمت ما vs قیمت پایه» |
 | Live market ticker | **نبض بازار** | Dollar / euro / gold (Iran) / global ounce / billet |
 | Guaranteed delivery feature | **تحویل تضمینی** | The branded, signature delivery-time promise |
-| Loyalty club | **باشگاه پولادین** | Tiers: **آهن → فولاد → پولاد** (ascending) |
+| Loyalty club | **باشگاه فولادنو** | Tiers: **آهن → فولاد → پولاد** (ascending) |
 
 ---
 
@@ -110,16 +110,16 @@ A cohesive, ownable system. The master brand **پولادین** owns the voice; 
 
 ### Concept
 A minimal **I-beam (تیرآهن)** — the universal glyph of structural steel — paired with a single **amber spark**, the mark of the intelligent companion. **Steel + intelligence, in one quiet symbol.**
-Files: `poladin-symbol.svg` (app tile) · `poladin-logo-horizontal.svg` (lockup).
+Files: `fooladno-symbol.svg` (app tile) · `fooladno-logo-horizontal.svg` (lockup).
 
 ### Variants
 1. **Symbol / app icon** — graphite rounded tile + white I-beam + amber spark.
-2. **Horizontal lockup** — symbol + wordmark (Persian primary «پولادین»; Latin «POLADIN» for app stores / global).
+2. **Horizontal lockup** — symbol + wordmark (Persian primary «فولادنو»; Latin «FOOLADNO» for app stores / global).
 3. **Wordmark only** — for tight spaces.
 4. **Monochrome** — single ink or single white (stamps, invoices, embossing).
 
 ### Persian wordmark
-Set **«پولادین»** in **Estedad Bold**, optical letter-spacing tightened ~2%, baseline aligned to the symbol's center. The Persian lockup is the **primary** logo for the Iranian market; Latin is secondary.
+Set **«فولادنو»** in **Estedad Bold**, optical letter-spacing tightened ~2%, baseline aligned to the symbol's center. The Persian lockup is the **primary** logo for the Iranian market; Latin is secondary.
 
 ### Clear space & minimum size
 - **Clear space:** a margin equal to the height of the I-beam's top flange on all sides — nothing intrudes.
@@ -222,12 +222,12 @@ Represented by the **amber spark** motif + **Cobalt** accent — restrained, nev
 
 ## 09 · Core UI Components (brand-defined)
 
-- **AI Search Hero** — a single, central rectangle, the page's focal point: «سلام، من پولادینم. چه محصولی می‌خواید بخرید؟» Cobalt focus ring, suggested-question chips beneath, streaming answers. **Unmistakably an AI.**
+- **AI Search Hero** — a single, central rectangle, the page's focal point: «سلام، من فولادنوم. چه محصولی می‌خواید بخرید؟» Cobalt focus ring, suggested-question chips beneath, streaming answers. **Unmistakably an AI.**
 - **نبض بازار ticker** — a slim ribbon above the hero: dollar / euro / gold (Iran) / global ounce / steel billet (admin-entered), each with Gain/Loss color + arrow.
 - **Category rail (fixed, right side)** — names that flip to category icon/image on hover; click → price table.
 - **Price table** — columns: استاندارد · وزن · قیمت · نوسان · تاریخ · **زمان تحویل** · actions (علاقه‌مندی · چارت · اکسل · تصویر با لوگو · پرینت). Last-updated stamp always visible.
 - **پیش‌فاکتور card** — generated from any row or AI quote; logo header; one amber CTA «ثبت درخواست».
-- **Club popup** — minimal, **intent-timed** (after a quote or alert), inviting to «باشگاه پولادین».
+- **Club popup** — minimal, **intent-timed** (after a quote or alert), inviting to «باشگاه فولادنو».
 
 ---
 
@@ -247,4 +247,4 @@ Business card & letterhead (graphite + single amber rule) · پیش‌فاکتو
 
 ---
 
-*Poladin — اول مشورت، بعد خرید.*
+*Fooladno — اول مشورت، بعد خرید.*
