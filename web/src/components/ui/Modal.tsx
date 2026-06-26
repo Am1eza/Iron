@@ -1,5 +1,6 @@
 'use client';
-import { useEffect, useRef, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
+import { useFocusTrap } from '@/lib/hooks/useFocusTrap';
 import { CloseIcon } from '@/components/primitives/icons';
 import styles from './Modal.module.css';
 
@@ -21,44 +22,7 @@ export function Modal({
   children: ReactNode;
   footer?: ReactNode;
 }) {
-  const panelRef = useRef<HTMLDivElement | null>(null);
-  const lastFocused = useRef<HTMLElement | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    lastFocused.current = document.activeElement as HTMLElement;
-    document.body.style.overflow = 'hidden';
-    const panel = panelRef.current;
-    const target = panel?.querySelector<HTMLElement>('[data-autofocus]');
-    (target ?? panel)?.focus();
-
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-        return;
-      }
-      if (e.key !== 'Tab' || !panel) return;
-      const f = panel.querySelectorAll<HTMLElement>(
-        'a[href], button:not([disabled]), input, textarea, select, [tabindex]:not([tabindex="-1"])',
-      );
-      if (!f.length) return;
-      const first = f[0];
-      const last = f[f.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.body.style.overflow = '';
-      document.removeEventListener('keydown', onKey);
-      lastFocused.current?.focus?.();
-    };
-  }, [open, onClose]);
+  const panelRef = useFocusTrap<HTMLDivElement>(open, onClose);
 
   if (!open) return null;
 

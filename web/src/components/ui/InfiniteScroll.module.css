@@ -1,0 +1,22 @@
+.foot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: 56px;
+  padding-block: var(--space-4);
+}
+.loading {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font: var(--t-body-sm);
+  color: var(--color-text-muted);
+}
+.end {
+  font: var(--t-caption);
+  color: var(--color-text-placeholder);
+}
+.sentinel {
+  inline-size: 1px;
+  block-size: 1px;
+}

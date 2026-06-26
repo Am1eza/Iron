@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { AppProviders } from '@/lib/providers/AppProviders';
+import { ThemeScript } from '@/components/theme/ThemeScript';
 import { getCategories } from '@/lib/data/catalog';
 import { Ticker } from '@/components/layout/Ticker';
 import { Header } from '@/components/layout/Header';
@@ -43,6 +44,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="fa" dir="rtl">
       <body>
+        <ThemeScript />
         <a href="#main" className="skip-link">
           پرش به محتوا
         </a>

@@ -4,6 +4,7 @@ import { FeaturedPrices } from '@/components/home/FeaturedPrices';
 import { CategoryGrid } from '@/components/home/CategoryGrid';
 import { ValueProps } from '@/components/home/ValueProps';
 import { CategoryRail } from '@/components/layout/CategoryRail';
+import { JsonLd } from '@/components/seo/JsonLd';
 import { orgJsonLd, localBusinessJsonLd } from '@/lib/seo';
 
 /**
@@ -16,13 +17,7 @@ export default async function HomePage() {
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        // eslint-disable-next-line react/no-danger
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify([orgJsonLd(), localBusinessJsonLd()]),
-        }}
-      />
+      <JsonLd data={[orgJsonLd(), localBusinessJsonLd()]} />
 
       <CategoryRail categories={categories} />
 

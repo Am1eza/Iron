@@ -9,7 +9,7 @@ import { useUiStore } from '@/lib/stores/ui';
 import { useAuthStore } from '@/lib/stores/auth';
 import { Logo } from './Logo';
 import { SearchBar } from './SearchBar';
-import { MegaMenu } from './MegaMenu';
+import { MegaMenu } from '@/components/lazy';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import {
   MenuIcon,
