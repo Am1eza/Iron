@@ -10,6 +10,7 @@ import { useAuthStore } from '@/lib/stores/auth';
 import { Logo } from './Logo';
 import { SearchBar } from './SearchBar';
 import { MegaMenu } from './MegaMenu';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import {
   MenuIcon,
   SearchIcon,
@@ -165,6 +166,9 @@ export function Header({ categories }: { categories: Category[] }) {
           >
             <SearchIcon size={20} />
           </button>
+          <span className={styles.themeToggle}>
+            <ThemeToggle />
+          </span>
           {user ? (
             <Link href={routes.account()} className={styles.accountBtn}>
               <UserIcon size={20} />

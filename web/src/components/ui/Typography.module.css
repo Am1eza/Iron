@@ -1,0 +1,8 @@
+.reset {
+  margin: 0;
+}
+.num {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums lining-nums;
+  white-space: nowrap;
+}

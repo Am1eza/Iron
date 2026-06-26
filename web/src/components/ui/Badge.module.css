@@ -1,0 +1,64 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  font: var(--t-overline);
+  letter-spacing: 0;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.icon {
+  display: inline-flex;
+}
+
+.neutral {
+  background: var(--color-surface-sunken);
+  color: var(--color-text);
+  border: var(--border-hairline) solid var(--color-hairline);
+}
+.accent {
+  background: var(--color-accent-tint);
+  color: var(--color-accent-text);
+}
+.action {
+  background: var(--amber-50);
+  color: var(--color-action-text);
+}
+.gain {
+  background: var(--gain-50);
+  color: var(--color-gain-text);
+}
+.loss,
+.stale {
+  background: var(--loss-50);
+  color: var(--color-loss-text);
+}
+.success {
+  background: var(--gain-50);
+  color: var(--color-gain-text);
+}
+.info {
+  background: var(--color-accent-tint);
+  color: var(--color-accent-text);
+}
+.warning {
+  background: var(--amber-50);
+  color: var(--color-action-text);
+}
+
+.count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: 18px;
+  block-size: 18px;
+  padding-inline: 5px;
+  border-radius: var(--radius-pill);
+  background: var(--color-action);
+  color: var(--color-on-action);
+  font: var(--t-micro);
+  font-weight: 700;
+  line-height: 1;
+}

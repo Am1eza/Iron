@@ -209,7 +209,8 @@
     display: inline-flex;
   }
   .fxLink,
-  .accountName {
+  .accountName,
+  .themeToggle {
     display: none;
   }
 }

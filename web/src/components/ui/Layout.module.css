@@ -1,0 +1,48 @@
+.container {
+  inline-size: 100%;
+  max-inline-size: var(--container-w, var(--container-max));
+  margin-inline: auto;
+  padding-inline: var(--page-x);
+}
+
+.section {
+  inline-size: 100%;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+}
+
+.cluster {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.grid {
+  display: grid;
+}
+
+.divider {
+  block-size: 0;
+  border: 0;
+  border-block-start: var(--border-hairline) solid var(--color-hairline);
+  margin-block: var(--space-4);
+}
+
+.dividerLabeled {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-block: var(--space-4);
+}
+.dividerLine {
+  flex: 1 1 auto;
+  block-size: 0;
+  border-block-start: var(--border-hairline) solid var(--color-hairline);
+}
+.dividerText {
+  flex: none;
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}

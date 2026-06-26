@@ -1,0 +1,64 @@
+.chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-pill);
+  border: var(--border-hairline) solid var(--color-border-strong);
+  background: var(--color-surface);
+  overflow: hidden;
+  transition: border-color var(--dur-fast) var(--ease-standard),
+    background var(--dur-fast) var(--ease-standard);
+}
+
+.main {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  font: var(--t-body-sm);
+  padding: var(--space-2) var(--space-4);
+  min-block-size: 36px;
+  cursor: pointer;
+}
+.main:focus-visible {
+  outline: var(--border-focus) solid var(--color-focus);
+  outline-offset: -2px;
+}
+
+.suggestion {
+  border-color: var(--color-accent-tint);
+}
+.suggestion .main {
+  color: var(--color-accent-text);
+}
+.suggestion:hover {
+  background: var(--color-accent-tint);
+  border-color: var(--color-accent);
+}
+
+.filter:hover {
+  border-color: var(--color-accent);
+}
+.selected {
+  border-color: var(--color-accent);
+  background: var(--color-accent-tint);
+}
+.selected .main {
+  color: var(--color-accent-text);
+  font-weight: 600;
+}
+
+.remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 28px;
+  block-size: 36px;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding-inline-end: var(--space-2);
+}
+.remove:hover {
+  color: var(--color-loss);
+}
