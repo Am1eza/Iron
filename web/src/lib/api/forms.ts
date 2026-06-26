@@ -5,7 +5,7 @@
 import { api } from './index';
 
 export const formsApi = {
-  requestOtp: (mobile: string) => api.auth.requestOtp(mobile),
+  requestOtp: (mobile: string, name?: string) => api.auth.requestOtp(mobile, name),
   verifyOtp: (mobile: string, code: string) => api.auth.verifyOtp(mobile, code),
   submitRequest: (payload: unknown) => api.leads.create(payload),
   createAlert: (payload: unknown) => api.alerts.create(payload),

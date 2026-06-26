@@ -64,6 +64,11 @@ export const contactSchema = z.object({
 });
 export type ContactValues = z.infer<typeof contactSchema>;
 
+export const profileSchema = z.object({
+  name: z.string().trim().min(1, { message: M.name }).max(60),
+});
+export type ProfileValues = z.infer<typeof profileSchema>;
+
 export const weightSchema = z.object({
   category: z.string().min(1, { message: M.selectOne }),
   size: z.string().min(1, { message: M.required }),

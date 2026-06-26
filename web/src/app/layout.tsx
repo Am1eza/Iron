@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { AppProviders } from '@/lib/providers/AppProviders';
+import { AuthHydrator } from '@/lib/providers/AuthHydrator';
 import { ThemeScript } from '@/components/theme/ThemeScript';
+import { getSession } from '@/lib/auth/session';
 import { getCategories } from '@/lib/data/catalog';
 import { Ticker } from '@/components/layout/Ticker';
 import { Header } from '@/components/layout/Header';
@@ -40,7 +42,15 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const categories = await getCategories();
+  const [categories, session] = await Promise.all([getCategories(), getSession()]);
+  const initialUser = session
+    ? {
+        id: session.id,
+        mobile: session.mobile,
+        name: session.name,
+        role: session.role,
+      }
+    : null;
   return (
     <html lang="fa" dir="rtl">
       <body>
@@ -49,6 +59,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           پرش به محتوا
         </a>
         <AppProviders>
+          <AuthHydrator initialUser={initialUser} />
           <Ticker />
           <Header categories={categories} />
           <MobileDrawer categories={categories} />

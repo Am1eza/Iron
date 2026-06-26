@@ -1,31 +1,47 @@
-import { API_MODE } from '../config';
 import { http } from '../http';
 import { ApiError } from '../errors';
-import { normalizeDigits, normalizeMobile } from '@/lib/utils/format';
-import { CONSTANTS } from '@/lib/config/constants';
+import { normalizeMobile } from '@/lib/utils/format';
+import type { PublicUser } from '@/lib/auth/publicUser';
 
-const delay = (ms = 500) => new Promise((r) => setTimeout(r, ms));
-
+/**
+ * Auth client — talks to the in-app route handlers (always real; auth isn't part of
+ * the mock⇄live data switch). The server sets httpOnly session cookies; these calls
+ * only carry/receive the public user. Errors surface as ApiError (Persian message).
+ */
 export const authApi = {
-  async requestOtp(mobile: string): Promise<{ ok: true; ttl: number }> {
+  /** Request an OTP. `name` is used to register a new account on first login. */
+  async requestOtp(
+    mobile: string,
+    name?: string,
+  ): Promise<{ ok: true; ttl: number; devCode?: string }> {
     const m = normalizeMobile(mobile);
     if (!m) throw new ApiError(400, 'شمارهٔ موبایل نامعتبر است.');
-    if (API_MODE === 'mock') {
-      await delay();
-      return { ok: true, ttl: CONSTANTS.OTP_TTL_SECONDS };
-    }
-    return http.post('/api/auth/otp/request', { mobile: m });
+    return http.post('/api/auth/otp/request', { mobile: m, name });
   },
 
-  async verifyOtp(
-    mobile: string,
-    code: string,
-  ): Promise<{ user: { id: string; mobile: string; name?: string } }> {
-    if (API_MODE === 'mock') {
-      await delay();
-      if (normalizeDigits(code) !== '12345') throw new ApiError(401, 'کد وارد‌شده اشتباه است.');
-      return { user: { id: 'u-mock', mobile: normalizeMobile(mobile) ?? mobile } };
-    }
-    return http.post('/api/auth/otp/verify', { mobile, code });
+  /** Verify the code → sets session cookies; returns the user + whether new. */
+  async verifyOtp(mobile: string, code: string): Promise<{ user: PublicUser; isNew: boolean }> {
+    const m = normalizeMobile(mobile) ?? mobile;
+    return http.post('/api/auth/otp/verify', { mobile: m, code });
+  },
+
+  /** Rotate the refresh token → new access token. */
+  async refresh(): Promise<{ user: PublicUser }> {
+    return http.post('/api/auth/refresh', {});
+  },
+
+  /** Revoke the session. */
+  async logout(): Promise<{ ok: true }> {
+    return http.post('/api/auth/logout', {});
+  },
+
+  /** Current user from the session cookie (401 when anonymous). */
+  async me(): Promise<{ user: PublicUser }> {
+    return http.get('/api/me');
+  },
+
+  /** Update the signed-in user's profile. */
+  async updateProfile(name: string): Promise<{ user: PublicUser }> {
+    return http.put('/api/me/profile', { name });
   },
 };

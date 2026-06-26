@@ -5,8 +5,13 @@ import { M } from './messages';
 /* ---------- request payloads (server re-validates these) ---------- */
 const priceUnit = z.enum(['kg', 'branch', 'sheet', 'meter']);
 
-export const otpRequestPayload = z.object({ mobile: mobileSchema });
+export const otpRequestPayload = z.object({
+  mobile: mobileSchema,
+  // Optional name captured at first request → used to register a new account.
+  name: z.string().trim().min(1).max(60).optional(),
+});
 export const otpVerifyPayload = z.object({ mobile: mobileSchema, code: otpCodeSchema });
+export const profileUpdatePayload = z.object({ name: z.string().trim().min(1).max(60) });
 
 export const leadPayload = z.object({
   contact: z.object({ name: z.string().optional(), mobile: mobileSchema }),
