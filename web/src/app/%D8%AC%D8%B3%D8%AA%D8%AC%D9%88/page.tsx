@@ -7,7 +7,9 @@ export const metadata: Metadata = buildMetadata({ title: 'جستجو', noindex: 
 type Props = { searchParams: Promise<{ q?: string }> };
 
 export default async function SearchPage({ searchParams }: Props) {
-  const { q } = await searchParams;
+  // Static export (Pages preview) has no request query string; render the
+  // default state. Live search runs client-side.
+  const { q } = process.env.EXPORT === '1' ? { q: undefined } : await searchParams;
   return (
     <PagePlaceholder
       eyebrow="جستجو"

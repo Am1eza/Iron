@@ -1,0 +1,71 @@
+name: Deploy preview to GitHub Pages
+
+# Builds the Poladin web app as a static export and publishes it to GitHub
+# Pages so the site can be viewed at a public URL without running it locally.
+# Server-only routes (/api, the authed /حساب area) are excluded from the static
+# build; the app stays full-SSR for `next dev` / `next start`.
+
+on:
+  push:
+    branches: [claude/local-website-setup-2e8pta]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Remove server-only routes (unsupported by static export)
+        run: rm -rf src/app/api "src/app/%D8%AD%D8%B3%D8%A7%D8%A8"
+
+      - name: Build static export
+        run: pnpm build
+        env:
+          EXPORT: '1'
+          PAGES_BASE_PATH: /Iron
+          NEXT_PUBLIC_API_MODE: mock
+          NEXT_PUBLIC_SITE_URL: https://am1eza.github.io/Iron
+
+      - name: Post-process export (decode names + .nojekyll)
+        run: node scripts/pages-postbuild.mjs
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/out
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

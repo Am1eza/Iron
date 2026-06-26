@@ -28,3 +28,11 @@ export default async function SkuPage({ params }: Params) {
     />
   );
 }
+
+// Sample SKUs (from mock fixtures) so the path is browsable in static export.
+export function generateStaticParams() {
+  return [
+    { category: 'میلگرد', sub: 'آجدار', sku: 'میلگرد-14-a3-ذوب-اهن' },
+    { category: 'میلگرد', sub: 'آجدار', sku: 'میلگرد-16-a3-ذوب-اهن' },
+  ];
+}

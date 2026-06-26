@@ -15,3 +15,8 @@ export default async function BlogArticlePage({ params }: Params) {
   const { slug } = await params;
   return <PagePlaceholder eyebrow="وبلاگ" title={decodeURIComponent(slug).replace(/-/g, ' ')} note="صفحهٔ مقاله (SSR + Article schema + لینک محصولات مرتبط) در بخش محتوا ساخته می‌شود." />;
 }
+
+// No seeded posts yet; pages render on demand in SSR. Static export: none.
+export function generateStaticParams() {
+  return [{ slug: 'نمونه-مقاله' }];
+}

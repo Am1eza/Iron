@@ -54,6 +54,9 @@ export async function getRefreshToken(): Promise<string | undefined> {
  * job — so this stays cheap and Edge-safe.
  */
 export async function getSession(): Promise<AuthUser | null> {
+  // Static export (GitHub Pages preview) has no request context / cookies —
+  // render the anonymous (logged-out) state so pages can prerender statically.
+  if (process.env.EXPORT === '1') return null;
   const token = (await cookies()).get(ACCESS_COOKIE)?.value;
   if (!token) return null;
   const claims = await verifyAccessToken(token);

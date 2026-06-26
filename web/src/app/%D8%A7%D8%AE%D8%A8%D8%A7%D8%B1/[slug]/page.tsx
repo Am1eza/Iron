@@ -15,3 +15,8 @@ export default async function NewsArticlePage({ params }: Params) {
   const { slug } = await params;
   return <PagePlaceholder eyebrow="اخبار" title={decodeURIComponent(slug).replace(/-/g, ' ')} note="صفحهٔ خبر (SSR + Article schema) در بخش محتوا ساخته می‌شود." />;
 }
+
+// No seeded articles yet; pages render on demand in SSR. Static export: none.
+export function generateStaticParams() {
+  return [{ slug: 'نمونه-خبر' }];
+}

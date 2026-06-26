@@ -28,3 +28,8 @@ export default async function SubCategoryPage({ params }: Params) {
     />
   );
 }
+
+// Sample sub-category so the path is browsable in static export.
+export function generateStaticParams() {
+  return [{ category: 'میلگرد', sub: 'آجدار' }];
+}
