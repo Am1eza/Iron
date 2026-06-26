@@ -32,3 +32,15 @@ const nextConfig = {
 };
 
 export default nextConfig;
+
+// Cloudflare (OpenNext) dev binding support. No-op outside `next dev`, and
+// only loads the adapter when it's installed, so the GitHub Pages static
+// export build (which doesn't need it) is unaffected.
+if (!isExport) {
+  try {
+    const { initOpenNextCloudflareForDev } = await import('@opennextjs/cloudflare');
+    initOpenNextCloudflareForDev();
+  } catch {
+    /* adapter not installed (e.g. static-export CI) — ignore */
+  }
+}
