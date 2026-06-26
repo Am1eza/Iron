@@ -28,3 +28,10 @@ export default async function SkuPage({ params }: Params) {
     />
   );
 }
+
+export function generateStaticParams() {
+  return [
+    { category: 'rebar', sub: 'ajdar', sku: 'rebar-14-a3-zob' },
+    { category: 'rebar', sub: 'ajdar', sku: 'rebar-16-a3-zob' },
+  ];
+}

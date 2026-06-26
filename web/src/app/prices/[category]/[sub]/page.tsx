@@ -28,3 +28,7 @@ export default async function SubCategoryPage({ params }: Params) {
     />
   );
 }
+
+export function generateStaticParams() {
+  return [{ category: 'rebar', sub: 'ajdar' }];
+}

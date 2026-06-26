@@ -2,6 +2,9 @@ import type { MetadataRoute } from 'next';
 import { STATIC_INDEXABLE, routes } from '@/lib/routes';
 import { categories } from '@/lib/mock/fixtures';
 
+// Required for `output: export` (static-only).
+export const dynamic = "force-static";
+
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://poladin.com';
 
 export default function sitemap(): MetadataRoute.Sitemap {
