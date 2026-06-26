@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useMarket } from '@/lib/hooks/useMarket';
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion';
 import { routes } from '@/lib/routes';
@@ -15,8 +16,11 @@ import styles from './Ticker.module.css';
  * `prefers-reduced-motion`. Never blank: falls back to last-known/seed values.
  */
 export function Ticker() {
+  const pathname = usePathname();
   const { data, isError } = useMarket();
   const reduced = useReducedMotion();
+  // The home hero shows live prices as floating chips instead of the dense ribbon.
+  if (pathname === '/') return null;
   const values = data?.values?.length ? data.values : fallbackValues;
 
   // Duplicate the set so the marquee loops seamlessly (the second copy is decorative).

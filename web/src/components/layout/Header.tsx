@@ -32,6 +32,7 @@ export function Header({ categories }: { categories: Category[] }) {
   const user = useAuthStore((s) => s.user);
 
   const [condensed, setCondensed] = useState(false);
+  const [atTop, setAtTop] = useState(true);
   const [searchOpen, setSearchOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<'products' | 'tools' | null>(null);
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -42,11 +43,16 @@ export function Header({ categories }: { categories: Category[] }) {
     const onScroll = () => {
       const y = window.scrollY;
       setCondensed(y > 64 && y > lastY.current);
+      setAtTop(y < 24);
       lastY.current = y;
     };
+    onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
+
+  // Transparent overlay over the home's dark cinematic hero, until you scroll.
+  const overlay = pathname === '/' && atTop && openMenu === null && !searchOpen;
 
   // Close menus on route change.
   useEffect(() => {
@@ -70,6 +76,7 @@ export function Header({ categories }: { categories: Category[] }) {
     <header
       className={styles.header}
       data-condensed={condensed ? '' : undefined}
+      data-overlay={overlay ? '' : undefined}
       onKeyDown={(e) => {
         if (e.key === 'Escape') setOpenMenu(null);
       }}
@@ -85,7 +92,7 @@ export function Header({ categories }: { categories: Category[] }) {
           <MenuIcon size={24} />
         </button>
 
-        <Logo compact={condensed} />
+        <Logo compact={condensed} light={overlay} />
 
         {/* Primary nav (desktop) */}
         <nav className={styles.primary} aria-label="ناوبری اصلی">

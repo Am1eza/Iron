@@ -45,6 +45,17 @@
   margin-block-start: 2px;
 }
 
+/* Light variant — over the dark hero overlay */
+.light .tile {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+}
+.light .wordmark {
+  color: #fff;
+}
+.light .tagline {
+  color: rgba(255, 255, 255, 0.6);
+}
+
 @media (max-width: 767px) {
   .tagline {
     display: none;

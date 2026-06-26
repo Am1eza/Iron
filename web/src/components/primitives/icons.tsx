@@ -219,13 +219,13 @@ export const ChartIcon = (p: IconProps) => (
     <path d="M7 15l4-5 3 3 4-6" fill="none" />
   </Svg>
 );
-export const HeartIcon = (p: IconProps & { filled?: boolean }) => (
-  <Svg {...p} fill={p.filled ? 'currentColor' : 'none'}>
+export const HeartIcon = ({ filled, ...p }: IconProps & { filled?: boolean }) => (
+  <Svg {...p} fill={filled ? 'currentColor' : 'none'}>
     <path d="M12 20s-7-4.5-9.2-8.4C1.2 8.5 2.6 5 6 5c2 0 3.2 1.3 4 2.5C10.8 6.3 12 5 14 5c3.4 0 4.8 3.5 3.2 6.6C19 15.5 12 20 12 20z" />
   </Svg>
 );
-export const StarIcon = (p: IconProps & { filled?: boolean }) => (
-  <Svg {...p} fill={p.filled ? 'currentColor' : 'none'}>
+export const StarIcon = ({ filled, ...p }: IconProps & { filled?: boolean }) => (
+  <Svg {...p} fill={filled ? 'currentColor' : 'none'}>
     <path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 17l-5.2 2.6 1-5.8L3.5 9.7l5.9-.9z" />
   </Svg>
 );

@@ -7,9 +7,13 @@ import styles from './Logo.module.css';
  * Inline SVG so it inherits currentColor and scales crisply; the Spark is the one
  * licensed flourish (brand-book). `compact` drops the wordmark for the condensed header.
  */
-export function Logo({ compact = false }: { compact?: boolean }) {
+export function Logo({ compact = false, light = false }: { compact?: boolean; light?: boolean }) {
   return (
-    <Link href={routes.home()} className={styles.logo} aria-label="پولادین — خانه">
+    <Link
+      href={routes.home()}
+      className={`${styles.logo} ${light ? styles.light : ''}`}
+      aria-label="پولادین — خانه"
+    >
       <svg
         className={styles.mark}
         viewBox="0 0 120 120"

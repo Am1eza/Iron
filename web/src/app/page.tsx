@@ -1,5 +1,5 @@
 import { getCategories } from '@/lib/data/catalog';
-import { AIHero } from '@/components/home/AIHero';
+import { ForgedHero } from '@/components/home/ForgedHero';
 import { FeaturedPrices } from '@/components/home/FeaturedPrices';
 import { CategoryGrid } from '@/components/home/CategoryGrid';
 import { ValueProps } from '@/components/home/ValueProps';
@@ -8,8 +8,8 @@ import { JsonLd } from '@/components/seo/JsonLd';
 import { orgJsonLd, localBusinessJsonLd } from '@/lib/seo';
 
 /**
- * Home — the minimal, dual-mode landing. AI door (hero) + structured door
- * (featured prices · category grid) + trust pillars, each revealing on scroll.
+ * Home — «Forged Minimalism». A cinematic, AI-first dark hero (the only focal
+ * point: ask پولادین), then a calm light data flow revealed on scroll.
  */
 export default async function HomePage() {
   const categories = await getCategories();
@@ -18,7 +18,7 @@ export default async function HomePage() {
     <>
       <JsonLd data={[orgJsonLd(), localBusinessJsonLd()]} />
 
-      <AIHero />
+      <ForgedHero />
 
       <div className="container">
         <Reveal>

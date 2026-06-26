@@ -5,6 +5,47 @@
   background: color-mix(in srgb, var(--color-surface) 92%, transparent);
   backdrop-filter: saturate(1.2) blur(10px);
   border-block-end: var(--border-hairline) solid var(--color-hairline);
+  transition: background var(--dur-base) var(--ease-standard),
+    border-color var(--dur-base) var(--ease-standard);
+}
+
+/* ===== Transparent overlay over the dark home hero ===== */
+.header[data-overlay] {
+  background: transparent;
+  backdrop-filter: none;
+  border-color: transparent;
+}
+.header[data-overlay] .navLink,
+.header[data-overlay] .navTrigger,
+.header[data-overlay] .fxLink {
+  color: rgba(255, 255, 255, 0.82);
+}
+.header[data-overlay] .navLink:hover,
+.header[data-overlay] .navTrigger:hover,
+.header[data-overlay] .fxLink:hover {
+  color: #fff;
+}
+.header[data-overlay] .iconBtn,
+.header[data-overlay] .menuBtn {
+  color: #fff;
+}
+.header[data-overlay] .iconBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+.header[data-overlay] .loginBtn {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+.header[data-overlay] .loginBtn:hover {
+  border-color: #fff;
+}
+.header[data-overlay] .accountBtn {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+.header[data-overlay] .themeToggle {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .inner {
