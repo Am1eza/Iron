@@ -122,7 +122,7 @@ Grouped into product modules. Each is in-scope; detailed specs come in later Lay
 
 ### D. Market Data — «نبض بازار» (ticker)
 - A **moving ribbon above the AI hero** showing: **gold price (Iran)**, **global ounce**, **USD**, **EUR**, **steel billet (شمش فولاد)** — each with up/down color + arrow.
-- **Billet and most values are admin-entered;** FX/gold may be admin-entered or optionally auto-fetched from a source (decision in §11).
+- **FX, gold (Iran), and the global ounce are auto-fetched from tgju.org;** the **steel billet (شمش فولاد) stays admin-entered.** Up/down color + arrows derive from each value's recent history.
 - The ticker is the **primary magnet** for the "just checking the dollar" audience and a hook into alerts.
 
 ### E. Lead & Quote Engine (traditional sales, no payment)
@@ -201,9 +201,9 @@ To keep Phase 1 focused, the following are **not** in scope (may be revisited la
 
 ## 9. Integrations Scope
 - **DeepSeek API** — server-side, via a swappable **model-adapter** (with fallback handling).
-- **SMS gateway** (Iranian — e.g., Kavenegar / SMS.ir) — OTP, پیش‌فاکتور, alerts.
+- **SMS gateway** — **Kavenegar (recommended)** or SMS.ir — OTP, پیش‌فاکتور, alerts.
 - **Messaging** — WhatsApp / Telegram / Eitaa (hand-off, alerts, channels).
-- **Market data feed (optional)** — for auto FX/gold ticker values (else fully admin-entered).
+- **tgju.org** — source for ticker FX / gold / global-ounce values (integration method — API or scheduled fetch — set in tech design); billet stays admin-entered.
 - **Trust** — eNamad / Samandehi badges.
 - **Analytics** — privacy-respecting web analytics.
 - **(Later) Payment gateway** — architecture leaves a clean seam.
@@ -227,7 +227,7 @@ To keep Phase 1 focused, the following are **not** in scope (may be revisited la
 ### Constraints (fixed)
 - **No payment gateway** in Phase 1 — lead-gen + human close.
 - **Prices are 100% manual** (admin calls استعلام, enters by hand). **No price formula** (bourse-derived pricing does not apply). *(Weight is the exception — weight uses deterministic formulas.)*
-- **AI runs server-side via DeepSeek** (Iran/sanctions reality); model access must be reliable + abstracted.
+- **AI runs server-side via DeepSeek** (Iran/sanctions reality); model access must be reliable + abstracted, routed through the out-of-Iran relay (see §11 hosting decision).
 - **Persian-first, RTL, Toman, Jalali.**
 
 ### Assumptions
@@ -235,13 +235,13 @@ To keep Phase 1 focused, the following are **not** in scope (may be revisited la
 - Mills/customers will permit logo usage for the trust walls.
 - DeepSeek API is reachable from the chosen server environment.
 
-### Open decisions to confirm (before deeper specs)
-1. **Ticker FX/gold:** fully **admin-entered**, or **auto-fetched** from a market source (with billet always manual)?
-2. **Hosting location:** inside Iran (latency/access for users) vs outside (model/API access) — or a split (app in Iran, AI calls proxied out)?
-3. **SMS provider** preference (Kavenegar / SMS.ir / other)?
-4. **Auth model:** phone + OTP only, or also email/password?
-5. **«تأمین از شما»** in Phase 1 = simple lead form (assumed) — confirm it's not a full seller portal yet.
-6. **Web App vs Website boundary** for Phase 2 — confirm the additive interpretation in §4.
+### Resolved decisions (locked 26 June 2026)
+1. **Ticker FX/gold:** auto-fetched from **tgju.org** (USD, EUR, gold-Iran, global ounce); **steel billet remains admin-entered.**
+2. **Hosting:** **hybrid / split** — the main app + database run **inside Iran** (fast for users, domestic SMS/services), while **AI (DeepSeek) and any sanctioned calls are routed through a server-side relay hosted outside Iran.** Keeps users fast and the AI reliably reachable.
+3. **SMS provider:** **Kavenegar (recommended)** for OTP/پیش‌فاکتور/alerts (strong API, reliable); SMS.ir as alternative — final pick at tech-stack stage.
+4. **Auth:** **mobile number + OTP** (no email/password at launch).
+5. **«تأمین از شما»:** Phase 1 = a **simple lead/intake form** into the CRM (not a seller portal); expandable later.
+6. **Web App (Phase 2):** confirmed **additive on the same codebase / PWA**, not a separate build.
 
 ---
 
