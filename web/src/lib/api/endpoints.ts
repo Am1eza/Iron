@@ -6,6 +6,8 @@
 import { API_MODE, apiFetch } from './client';
 import type { Category, MarketValue, PriceRow } from '@/lib/types/domain';
 import { categories as mockCategories, marketValues, rebarRows } from '@/lib/mock/fixtures';
+import { marketResponseSchema } from '@/lib/validation/api';
+import { parseOr } from '@/lib/validation/utils';
 
 const delay = (ms = 120) => new Promise((r) => setTimeout(r, ms));
 
@@ -15,7 +17,9 @@ export const endpoints = {
       await delay();
       return { values: marketValues };
     }
-    return apiFetch('/api/market');
+    // Boundary validation: external/backend data is parsed; bad data falls back gracefully.
+    const raw = await apiFetch<unknown>('/api/market');
+    return parseOr(marketResponseSchema, raw, { values: [] }) as { values: MarketValue[] };
   },
 
   async getCategories(): Promise<{ categories: Category[] }> {
