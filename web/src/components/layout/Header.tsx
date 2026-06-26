@@ -24,7 +24,6 @@ export function Header(_props: { categories: Category[] }) {
   const user = useAuthStore((s) => s.user);
 
   const [condensed, setCondensed] = useState(false);
-  const [atTop, setAtTop] = useState(true);
   const [searchOpen, setSearchOpen] = useState(false);
   const lastY = useRef(0);
 
@@ -32,7 +31,6 @@ export function Header(_props: { categories: Category[] }) {
     const onScroll = () => {
       const y = window.scrollY;
       setCondensed(y > 64 && y > lastY.current);
-      setAtTop(y < 24);
       lastY.current = y;
     };
     onScroll();
@@ -44,16 +42,11 @@ export function Header(_props: { categories: Category[] }) {
     setSearchOpen(false);
   }, [pathname]);
 
-  const overlay = pathname === '/' && atTop && !searchOpen;
   const isActive = (href: string) =>
     href === routes.home() ? pathname === '/' : pathname.startsWith(href);
 
   return (
-    <header
-      className={styles.header}
-      data-condensed={condensed ? '' : undefined}
-      data-overlay={overlay ? '' : undefined}
-    >
+    <header className={styles.header} data-condensed={condensed ? '' : undefined}>
       <div className={`container ${styles.inner}`}>
         <button
           type="button"
@@ -64,7 +57,7 @@ export function Header(_props: { categories: Category[] }) {
           <MenuIcon size={24} />
         </button>
 
-        <Logo compact={condensed} light={overlay} />
+        <Logo compact={condensed} />
 
         <nav className={styles.primary} aria-label="ناوبری اصلی">
           {PRIMARY_NAV.map((item) => (

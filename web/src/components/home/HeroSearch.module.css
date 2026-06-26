@@ -1,0 +1,164 @@
+.hero {
+  position: relative;
+  padding-block: clamp(var(--space-12), 7vw, var(--space-20)) var(--space-10);
+  background:
+    radial-gradient(80% 60% at 50% -10%, var(--color-accent-tint) 0%, transparent 60%),
+    var(--color-surface);
+  border-block-end: var(--border-hairline) solid var(--color-hairline);
+}
+.inner {
+  max-inline-size: 820px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-5);
+  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-4);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  border: var(--border-hairline) solid var(--color-hairline);
+  box-shadow: var(--shadow-sm);
+  font: var(--t-caption);
+  color: var(--color-accent-text);
+}
+.online {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding-inline-start: var(--space-2);
+  margin-inline-start: var(--space-1);
+  border-inline-start: var(--border-hairline) solid var(--color-hairline);
+  color: var(--color-gain-text);
+}
+.dot {
+  inline-size: 6px;
+  block-size: 6px;
+  border-radius: 50%;
+  background: var(--color-gain);
+  box-shadow: 0 0 0 0 rgba(21, 163, 74, 0.5);
+  animation: pulse 2.4s ease-out infinite;
+}
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(21, 163, 74, 0.5); }
+  70%, 100% { box-shadow: 0 0 0 6px rgba(21, 163, 74, 0); }
+}
+
+.title {
+  font: var(--t-display);
+  font-size: clamp(1.75rem, 1.2rem + 2.6vw, 2.75rem);
+  color: var(--color-text-strong);
+  margin: 0 0 var(--space-3);
+}
+.sub {
+  font: var(--t-body-lg);
+  color: var(--color-text-muted);
+  margin: 0 auto var(--space-8);
+  max-inline-size: 56ch;
+}
+
+/* ===== AI search bar ===== */
+.search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  inline-size: 100%;
+  max-inline-size: 680px;
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+  background: var(--color-surface);
+  border: var(--border-strong) solid var(--color-accent);
+  border-radius: var(--radius-pill);
+  box-shadow: 0 1px 2px rgba(16, 22, 30, 0.04), 0 14px 36px -14px rgba(46, 107, 255, 0.3);
+  transition: box-shadow var(--dur-base) var(--ease-standard);
+}
+.search:focus-within {
+  box-shadow: 0 0 0 4px var(--color-accent-tint), 0 18px 44px -16px rgba(46, 107, 255, 0.4);
+}
+.searchIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  inline-size: 44px;
+  block-size: 44px;
+  border-radius: 50%;
+  background: linear-gradient(140deg, var(--cobalt-400), var(--cobalt-700));
+  color: #fff;
+  box-shadow: 0 4px 12px -2px rgba(46, 107, 255, 0.5);
+}
+.searchInput {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  border: 0;
+  background: transparent;
+  outline: none;
+  font: var(--t-body-lg);
+  font-size: 1.0625rem;
+  color: var(--color-text-strong);
+  padding-block: var(--space-2);
+}
+.searchInput::placeholder {
+  color: var(--color-text-placeholder);
+}
+.searchSend {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex: none;
+  block-size: 48px;
+  padding-inline: var(--space-5);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+  color: #fff;
+  font: var(--t-button);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-standard);
+}
+.searchSend:hover {
+  background: var(--cobalt-600);
+}
+
+/* ===== Chips ===== */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+  list-style: none;
+  margin: var(--space-5) 0 0;
+  padding: 0;
+}
+.chip {
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-pill);
+  border: var(--border-hairline) solid var(--color-border-strong);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: var(--t-body-sm);
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-standard),
+    color var(--dur-fast) var(--ease-standard), background var(--dur-fast);
+}
+.chip:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  background: var(--color-accent-tint);
+}
+
+@media (max-width: 767px) {
+  .search {
+    flex-wrap: nowrap;
+  }
+  .sendText {
+    display: none;
+  }
+  .searchSend {
+    padding-inline: var(--space-4);
+  }
+}
