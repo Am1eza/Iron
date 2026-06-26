@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import { AppProviders } from '@/lib/providers/AppProviders';
 
 /**
  * Root layout — the RTL, Persian-first shell.
@@ -38,8 +39,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <a href="#main" className="skip-link">
           پرش به محتوا
         </a>
-        {/* Providers (TanStack Query, stores) will wrap children in the next section. */}
-        <main id="main">{children}</main>
+        <AppProviders>
+          <main id="main">{children}</main>
+        </AppProviders>
       </body>
     </html>
   );
