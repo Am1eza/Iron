@@ -2,7 +2,8 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { buildMetadata, productJsonLd } from '@/lib/seo';
 import { routes } from '@/lib/routes';
-import { categories, rebarRows } from '@/lib/mock/fixtures';
+import { categories } from '@/lib/mock/fixtures';
+import { getRows } from '@/lib/mock/catalogData';
 import { CATEGORY_SUBS } from '@/lib/data/nav';
 import {
   Container,
@@ -39,8 +40,7 @@ export default async function CategoryPage({ params }: Params) {
   const cat = categories.find((c) => c.slug === category);
   if (!cat) notFound();
 
-  // Only میلگرد has seeded rows in the mock; others show a tasteful "coming soon".
-  const rows = category === 'rebar' ? rebarRows : [];
+  const rows = getRows(category);
   const subs = CATEGORY_SUBS[category] ?? [];
 
   const crumbs = [
