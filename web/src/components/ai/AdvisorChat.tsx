@@ -4,8 +4,16 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { routes } from '@/lib/routes';
 import { normalizeDigits, toPersianDigits, formatToman } from '@/lib/utils/format';
+import { getRows } from '@/lib/mock/catalogData';
 import { SparkIcon, ChevronStartIcon } from '@/components/primitives/icons';
 import styles from './AdvisorChat.module.css';
+
+/** Average میلگرد price from the seeded catalog — grounded, never an invented number. */
+const AVG_REBAR_PRICE: number = (() => {
+  const rows = getRows('rebar');
+  if (rows.length === 0) return 0;
+  return Math.round(rows.reduce((sum, r) => sum + r.current.price, 0) / rows.length);
+})();
 
 /**
  * مشاور هوشمند آهن‌تایم — the intent-first advisor. It greets, asks *what you need*
@@ -46,7 +54,7 @@ function buildEstimate(areaM2: number, floors: number): Estimate {
     { name: 'تیرآهن', weightKg: beamKg },
   ];
   const totalKg = rebarKg + beamKg;
-  const totalToman = Math.round(totalKg * 31500); // ~rebar price, demo only
+  const totalToman = Math.round(totalKg * AVG_REBAR_PRICE); // grounded in the live catalog avg
   return { items, totalKg, totalToman };
 }
 
@@ -172,7 +180,7 @@ export function AdvisorChat({ initialQuestion }: { initialQuestion?: string }) {
           <SparkIcon size={20} />
         </span>
         <div className={styles.headText}>
-          <p className={styles.headName}>مشاور هوشمند آهن‌تایم</p>
+          <h1 className={styles.headName}>مشاور هوشمند آهن‌تایم</h1>
           <p className={styles.headStatus}>
             <span className={styles.live} /> آنلاین · معمولاً سریع پاسخ می‌دهد
           </p>
@@ -180,7 +188,7 @@ export function AdvisorChat({ initialQuestion }: { initialQuestion?: string }) {
       </header>
 
       <div className={styles.scroll} ref={scrollRef}>
-        <div className={styles.thread}>
+        <div className={styles.thread} role="log" aria-live="polite" aria-atomic="false" aria-relevant="additions">
           <AnimatePresence initial={false}>
             {messages.map((m) => (
               <motion.div
@@ -217,11 +225,11 @@ export function AdvisorChat({ initialQuestion }: { initialQuestion?: string }) {
           </AnimatePresence>
 
           {typing && (
-            <div className={`${styles.row} ${styles.rowAi}`}>
+            <div className={`${styles.row} ${styles.rowAi}`} aria-hidden="true">
               <span className={styles.bubbleAvatar} aria-hidden>
                 <SparkIcon size={14} />
               </span>
-              <div className={`${styles.bubble} ${styles.ai} ${styles.typing}`} aria-label="در حال نوشتن">
+              <div className={`${styles.bubble} ${styles.ai} ${styles.typing}`}>
                 <span />
                 <span />
                 <span />

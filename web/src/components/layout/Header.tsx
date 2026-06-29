@@ -80,6 +80,7 @@ export function Header(_props: { categories: Category[] }) {
             className={styles.iconBtn}
             aria-label="جستجو"
             aria-expanded={searchOpen}
+            aria-controls="header-search"
             onClick={() => setSearchOpen((v) => !v)}
           >
             <SearchIcon size={20} />
@@ -99,7 +100,7 @@ export function Header(_props: { categories: Category[] }) {
       </div>
 
       {searchOpen && (
-        <div className={styles.searchRow}>
+        <div id="header-search" className={styles.searchRow}>
           <div className="container">
             <SearchBar size="lg" autoFocus />
           </div>

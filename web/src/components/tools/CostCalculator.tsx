@@ -69,7 +69,7 @@ export function CostCalculator() {
     add({
       skuId: product.id,
       name: product.name,
-      qty,
+      qty: Math.max(1, Math.round(qty)), // cart qty is an integer (±1 stepper)
       unit: product.unit,
       unitPrice: product.current.price,
       weightKg: mode === 'branch' ? product.theoreticalWeightKg : 1,
@@ -169,7 +169,11 @@ export function CostCalculator() {
             ) : null}
           </div>
 
-          <Switch checked={vat} onChange={setVat} label="احتساب ارزش افزوده (۱۰٪)" />
+          <Switch
+            checked={vat}
+            onChange={setVat}
+            label={`احتساب ارزش افزوده (${toPersianDigits(CONSTANTS.VAT_RATE * 100)}٪)`}
+          />
         </Stack>
       </Card>
 
@@ -217,7 +221,7 @@ export function CostCalculator() {
               </div>
               {vat ? (
                 <div className={styles.row}>
-                  <dt>ارزش افزوده (۱۰٪)</dt>
+                  <dt>{`ارزش افزوده (${toPersianDigits(CONSTANTS.VAT_RATE * 100)}٪)`}</dt>
                   <dd className="tnum">{formatToman(vatAmount)}</dd>
                 </div>
               ) : null}

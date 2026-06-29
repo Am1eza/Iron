@@ -53,7 +53,7 @@
   flex-wrap: wrap;
 }
 .note {
-  color: var(--color-text-placeholder);
+  color: var(--color-text-muted);
 }
 
 /* ===== Desktop table ===== */

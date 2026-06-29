@@ -41,7 +41,12 @@ export function BottomTabBar() {
         <span className={styles.aiLabel}>آهن‌تایم</span>
       </Link>
 
-      <Tab href={routes.cart()} label="سبد" active={isActive(routes.cart())}>
+      <Tab
+        href={routes.cart()}
+        label="سبد"
+        active={isActive(routes.cart())}
+        ariaLabel={cartCount > 0 ? `سبد، ${toPersianDigits(cartCount)} کالا` : 'سبد'}
+      >
         <span className={styles.cartWrap}>
           <CartIcon size={22} />
           {cartCount > 0 && (
@@ -62,11 +67,13 @@ function Tab({
   href,
   label,
   active,
+  ariaLabel,
   children,
 }: {
   href: string;
   label: string;
   active: boolean;
+  ariaLabel?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -75,6 +82,7 @@ function Tab({
       className={styles.tab}
       data-active={active ? '' : undefined}
       aria-current={active ? 'page' : undefined}
+      aria-label={ariaLabel}
     >
       {children}
       <span className={styles.label}>{label}</span>

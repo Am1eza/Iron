@@ -29,6 +29,7 @@ export function ArrivalPopup() {
   const reduced = useReducedMotion();
   const dismiss = useUiStore((s) => s.dismissClubPopup);
   const closeRef = useRef<HTMLButtonElement | null>(null);
+  const lastFocused = useRef<HTMLElement | null>(null);
 
   // Mark mounted on the client so we never render during SSR / first paint.
   useEffect(() => {
@@ -49,6 +50,7 @@ export function ArrivalPopup() {
   // When shown, move focus to the close button and wire up Esc to dismiss.
   useEffect(() => {
     if (!visible) return;
+    lastFocused.current = (document.activeElement as HTMLElement) ?? null;
     closeRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') handleDismiss();
@@ -61,6 +63,8 @@ export function ArrivalPopup() {
   const handleDismiss = () => {
     setVisible(false);
     dismiss();
+    // Return focus to where it was before the popup grabbed it.
+    lastFocused.current?.focus();
   };
 
   if (!mounted || !visible) return null;

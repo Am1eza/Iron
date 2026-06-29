@@ -53,12 +53,12 @@ export function PriceChart({ series, unit = 'تومان' }: { series: number[]; 
           <span className={styles.nowUnit}>{unit}</span>
           <span className={`${styles.delta} ${up ? styles.up : styles.down} tnum`}>{deltaText}</span>
         </div>
-        <div className={styles.tabs} role="tablist" aria-label="بازهٔ زمانی">
+        <div className={styles.tabs} role="group" aria-label="بازهٔ زمانی">
           {RANGES.map((r) => (
             <button
               key={r.v}
-              role="tab"
-              aria-selected={range === r.v}
+              type="button"
+              aria-pressed={range === r.v}
               className={styles.tab}
               data-active={range === r.v ? '' : undefined}
               onClick={() => setRange(r.v)}

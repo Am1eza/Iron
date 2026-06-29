@@ -27,7 +27,8 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { category } = await params;
   const cat = categories.find((c) => c.slug === category);
-  const name = cat?.name ?? category;
+  if (!cat) return buildMetadata({ title: 'دسته پیدا نشد', noindex: true });
+  const name = cat.name;
   return buildMetadata({
     title: `قیمت روز ${name}`,
     description: `قیمت روز ${name} با نوسان، وزن شاخه و زمان تحویل در آهن‌تایم.`,
@@ -55,7 +56,11 @@ export default async function CategoryPage({ params }: Params) {
       {rows.length > 0 && (
         <JsonLd
           data={rows.map((r) =>
-            productJsonLd({ name: r.name, price: r.current.price, url: routes.category(category) }),
+            productJsonLd({
+              name: r.name,
+              price: r.current.price,
+              url: routes.sku(r.categoryId, r.subCategoryId, r.slug),
+            }),
           )}
         />
       )}
@@ -68,7 +73,7 @@ export default async function CategoryPage({ params }: Params) {
               قیمت روز {cat.name}
             </Heading>
             <Text color="muted">
-              قیمت‌های لحظه‌ای {cat.name} با نوسان، وزن شاخه و زمان تحویل تضمینی. اول مشورت، بعد خرید.
+              قیمت‌های لحظه‌ای {cat.name} با نوسان، وزن شاخه و زمان تحویل اعلام‌شده. اول مشورت، بعد خرید.
             </Text>
           </div>
 

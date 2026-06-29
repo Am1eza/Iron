@@ -111,7 +111,7 @@
 .updated {
   margin: 0;
   font: var(--t-caption);
-  color: var(--color-text-placeholder);
+  color: var(--color-text-muted);
 }
 
 .actions {

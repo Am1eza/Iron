@@ -67,7 +67,7 @@ export default async function ToolPage({ params }: Params) {
   const t = TOOLS[tool];
   const crumbs = [
     { label: 'خانه', href: routes.home() },
-    { label: 'ابزارها', href: routes.tool('weight') },
+    { label: 'ابزارها' },
     { label: t.title },
   ];
 

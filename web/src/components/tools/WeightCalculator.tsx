@@ -176,7 +176,7 @@ export function WeightCalculator() {
       skuId: `weight-calc-${profile.key}`,
       name: `${profile.label} (محاسبهٔ وزن‌سنج)`,
       qty: pieces,
-      unit: 'kg',
+      unit: profile.key === 'plate' ? 'sheet' : 'branch',
       weightKg: Math.round(perPiece * 100) / 100,
     });
     toast.success('نتیجهٔ محاسبه به سبد استعلام اضافه شد.', {
@@ -190,15 +190,14 @@ export function WeightCalculator() {
       {/* Profile selector — segmented */}
       <div
         className={styles.segmented}
-        role="tablist"
+        role="group"
         aria-label="نوع مقطع"
       >
         {PROFILES.map((p) => (
           <button
             key={p.key}
             type="button"
-            role="tab"
-            aria-selected={p.key === profileKey}
+            aria-pressed={p.key === profileKey}
             className={styles.segment}
             data-active={p.key === profileKey ? '' : undefined}
             onClick={() => switchProfile(p.key)}

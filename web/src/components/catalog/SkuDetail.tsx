@@ -177,7 +177,7 @@ export function SkuDetail({ row }: { row: PriceRow }) {
             </div>
             <div className={styles.priceMeta}>
               <MovementBadge dir={row.current.movementDir} pct={row.current.movementPct} pill />
-              <DeliveryBadge value={row.current.deliveryTime} guaranteed />
+              <DeliveryBadge value={row.current.deliveryTime} />
             </div>
 
             <div className={styles.vatRow}>

@@ -96,8 +96,7 @@ export function CartView() {
                     {item.weightKg ? (
                       <>
                         {' · '}
-                        <span className="tnum">{toPersianDigits(item.weightKg)}</span> کیلوگرم در هر{' '}
-                        {unit}
+                        وزن هر واحد: <span className="tnum">{toPersianDigits(item.weightKg)}</span> کیلوگرم
                       </>
                     ) : null}
                   </p>

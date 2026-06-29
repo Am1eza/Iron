@@ -97,7 +97,6 @@ export const FOOTER_COLUMNS: { title: string; links: NavLink[] }[] = [
   {
     title: 'پشتیبانی',
     links: [
-      { label: 'سؤالات متداول', href: routes.about() },
       { label: 'قوانین', href: routes.terms() },
       { label: 'حریم خصوصی', href: routes.privacy() },
     ],

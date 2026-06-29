@@ -3,9 +3,9 @@ import { notFound } from 'next/navigation';
 import { buildMetadata, productJsonLd } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { categories } from '@/lib/mock/fixtures';
-import { findSku } from '@/lib/mock/catalogData';
+import { findSku, subName } from '@/lib/mock/catalogData';
 import { formatToman } from '@/lib/utils/format';
-import { JsonLd } from '@/components/seo/JsonLd';
+import { JsonLd, BreadcrumbJsonLd } from '@/components/seo/JsonLd';
 import { Container, Section } from '@/components/ui';
 import { SkuDetail } from '@/components/catalog/SkuDetail';
 
@@ -15,9 +15,9 @@ type Params = { params: Promise<{ category: string; sub: string; sku: string }> 
 export const revalidate = 300;
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
-  const { sku } = await params;
+  const { category, sub, sku } = await params;
   const row = findSku(sku);
-  if (!row) {
+  if (!row || row.categoryId !== category || row.subCategoryId !== sub) {
     return buildMetadata({ title: 'محصول پیدا نشد', noindex: true });
   }
   const price = formatToman(row.current.price);
@@ -29,17 +29,26 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 }
 
 export default async function SkuPage({ params }: Params) {
-  const { sku } = await params;
+  const { category, sub, sku } = await params;
 
+  // The URL must reflect the SKU's canonical category/sub — otherwise a SKU
+  // would resolve under any path and create duplicate, crawlable 200s.
   const row = findSku(sku);
-  if (!row) notFound();
+  if (!row || row.categoryId !== category || row.subCategoryId !== sub) notFound();
 
-  // Defensive: route must reflect the canonical category for this SKU.
-  const cat = categories.find((c) => c.slug === row.categoryId);
-  if (!cat) notFound();
+  const catName = categories.find((c) => c.slug === category)?.name ?? category;
+  const subLabel = subName(category, sub) ?? sub;
+  const crumbs = [
+    { label: 'خانه', href: routes.home() },
+    { label: 'قیمت‌ها', href: routes.prices() },
+    { label: catName, href: routes.category(category) },
+    { label: subLabel, href: routes.subCategory(category, sub) },
+    { label: row.name, href: routes.sku(category, sub, row.slug) },
+  ];
 
   return (
     <Container>
+      <BreadcrumbJsonLd items={crumbs} />
       <JsonLd
         data={productJsonLd({
           name: row.name,

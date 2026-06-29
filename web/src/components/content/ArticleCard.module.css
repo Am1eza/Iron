@@ -16,13 +16,13 @@
   color: var(--color-text);
   text-decoration: none;
   transition:
-    border-color var(--dur-base) var(--ease-standard),
-    box-shadow var(--dur-base) var(--ease-standard),
-    transform var(--dur-base) var(--ease-standard);
+    border-color var(--dur-fast) var(--ease-standard),
+    box-shadow var(--dur-fast) var(--ease-standard),
+    transform var(--dur-fast) var(--ease-standard);
 }
 .card:hover {
-  border-color: var(--color-accent);
-  box-shadow: var(--shadow-md);
+  border-color: var(--color-border-strong);
+  box-shadow: var(--shadow-sm);
   transform: translateY(-2px);
   text-decoration: none;
 }

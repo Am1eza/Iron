@@ -89,7 +89,7 @@ export default async function SubCategoryPage({ params }: Params) {
             </Heading>
             <Text color="muted">
               قیمت لحظه‌ای {name} {cat.name} به تفکیک سایز و کارخانه، همراه با نوسان، وزن شاخه و زمان
-              تحویل تضمینی. پیش از خرید، با کارشناس ما مشورت کنید.
+              تحویل اعلام‌شده. پیش از خرید، با کارشناس ما مشورت کنید.
             </Text>
           </div>
 

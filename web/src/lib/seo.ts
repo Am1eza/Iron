@@ -61,15 +61,17 @@ export function localBusinessJsonLd() {
   };
 }
 
-export function breadcrumbJsonLd(items: { name: string; url: string }[]) {
+export function breadcrumbJsonLd(items: { name: string; url?: string }[]) {
   return {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
+    // The current page (last crumb) may omit `item` per schema.org — include its
+    // name so the full trail is represented.
     itemListElement: items.map((it, i) => ({
       '@type': 'ListItem',
       position: i + 1,
       name: it.name,
-      item: new URL(it.url, SITE_URL).toString(),
+      ...(it.url ? { item: new URL(it.url, SITE_URL).toString() } : {}),
     })),
   };
 }
