@@ -1,0 +1,286 @@
+/* ============================================================================
+   SkuDetail — product page. Calm hero, chart, specs, related. Tokens only; RTL
+   via logical properties; numbers tabular.
+   ============================================================================ */
+
+/* ===== Hero ===== */
+.hero {
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+.heroMain {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-6);
+  padding: var(--space-6);
+}
+
+.identity {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-inline-size: 0;
+}
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.crumbCat {
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}
+.title {
+  font: var(--t-h1);
+  color: var(--color-text-strong);
+  margin: 0;
+}
+.attrs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  font: var(--t-body-sm);
+  color: var(--color-text-muted);
+}
+.attrs li {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-1);
+}
+.attrs strong {
+  color: var(--color-text-strong);
+  font-weight: 600;
+}
+
+/* ===== Price box ===== */
+.priceBox {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  background: var(--color-surface-sunken);
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-md);
+}
+.priceLabel {
+  font: var(--t-overline);
+  color: var(--color-text-muted);
+}
+.priceRow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.priceVal {
+  font: var(--t-price-hero);
+  color: var(--color-text-strong);
+  letter-spacing: -0.01em;
+}
+.priceUnit {
+  font: var(--t-body);
+  color: var(--color-text-muted);
+}
+.priceMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.vatRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding-block: var(--space-3);
+  border-block: var(--border-hairline) solid var(--color-hairline);
+}
+.vatNote {
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}
+.updated {
+  margin: 0;
+  font: var(--t-caption);
+  color: var(--color-text-placeholder);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-block-start: var(--space-1);
+}
+.addBtn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+.lead {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: 0;
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}
+.lead svg {
+  flex: none;
+  margin-block-start: 2px;
+  color: var(--color-accent-text);
+}
+
+/* ===== Generic content block ===== */
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.blockTitle {
+  font: var(--t-h3);
+  color: var(--color-text-strong);
+  margin: 0;
+}
+.card {
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  padding: var(--space-5);
+}
+
+/* ===== Specs table ===== */
+.specs {
+  inline-size: 100%;
+  border-collapse: collapse;
+}
+.specs th,
+.specs td {
+  text-align: start;
+  padding: var(--space-3) var(--space-2);
+  border-block-end: var(--border-hairline) solid var(--color-hairline);
+  font: var(--t-data);
+  vertical-align: middle;
+}
+.specs tr:last-child th,
+.specs tr:last-child td {
+  border-block-end: 0;
+}
+.specs th {
+  inline-size: 40%;
+  color: var(--color-text-muted);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.specs td {
+  color: var(--color-text-strong);
+  font-weight: 600;
+}
+.specsNote {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: var(--space-4) 0 0;
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}
+.specsNote svg {
+  flex: none;
+  margin-block-start: 2px;
+  color: var(--color-gain);
+}
+
+/* ===== Related ===== */
+.related {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-3);
+}
+.relCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: inherit;
+  text-decoration: none;
+  block-size: 100%;
+  transition: border-color var(--dur-fast) var(--ease-standard),
+    box-shadow var(--dur-fast) var(--ease-standard),
+    transform var(--dur-fast) var(--ease-standard);
+}
+.relCard:hover {
+  border-color: var(--color-border-strong);
+  box-shadow: var(--shadow-sm);
+  text-decoration: none;
+  transform: translateY(-2px);
+}
+.relCard:focus-visible {
+  outline: var(--border-focus) solid var(--color-focus);
+  outline-offset: 2px;
+}
+.relName {
+  font: var(--t-h4);
+  color: var(--color-text-strong);
+}
+.relPriceRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.relPrice {
+  font: var(--t-price-cell);
+  color: var(--color-text-strong);
+}
+.relUnit {
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+.relFoot {
+  display: flex;
+  align-items: center;
+  margin-block-start: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .relCard:hover {
+    transform: none;
+  }
+}
+
+/* ===== Responsive ===== */
+@media (min-width: 768px) {
+  .heroMain {
+    grid-template-columns: 1.15fr 0.85fr;
+    align-items: start;
+    padding: var(--space-8);
+    gap: var(--space-8);
+  }
+  .related {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1024px) {
+  .related {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}

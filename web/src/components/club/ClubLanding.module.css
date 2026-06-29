@@ -1,0 +1,286 @@
+/* ============================================================================
+   باشگاه مشتریان آهن‌تایم — light, calm, minimal loyalty landing.
+   Tokens only; logical properties for RTL.
+   ============================================================================ */
+
+/* ===== Hero ===== */
+.hero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-inline-size: var(--container-prose);
+}
+.heroTitle {
+  margin-block-start: var(--space-1);
+}
+.heroLead {
+  max-inline-size: 62ch;
+}
+.heroCtas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.heroHint {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}
+.heroHint svg {
+  color: var(--color-action);
+  flex: none;
+}
+
+/* ===== Shared CTA buttons (links styled as buttons) ===== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  font: var(--t-button);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3) var(--space-6);
+  min-block-size: 48px;
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: none;
+  border: var(--border-hairline) solid transparent;
+  transition: background var(--dur-fast) var(--ease-standard),
+    border-color var(--dur-fast) var(--ease-standard);
+}
+.btn:hover {
+  text-decoration: none;
+}
+.btnPrimary {
+  background: var(--color-action);
+  color: var(--color-on-action);
+}
+.btnPrimary:hover {
+  background: var(--color-action-hover);
+}
+.btnPrimary:active {
+  background: var(--color-action-press);
+}
+.btnGhost {
+  background: var(--color-surface);
+  color: var(--color-text-strong);
+  border-color: var(--color-border-strong);
+}
+.btnGhost:hover {
+  background: var(--color-surface-sunken);
+  color: var(--color-text-strong);
+}
+
+/* ===== Generic section block ===== */
+.block {
+  display: block;
+}
+.blockHead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-inline-size: var(--container-prose);
+}
+
+/* ===== Tiers ===== */
+.tierGrid {
+  align-items: stretch;
+}
+.tier {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  block-size: 100%;
+}
+.tierFeatured {
+  border-color: var(--color-action);
+  box-shadow: var(--shadow-sm);
+  background: linear-gradient(var(--color-surface), var(--color-surface)) padding-box;
+  position: relative;
+}
+.tierFeatured::before {
+  content: "";
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 0;
+  block-size: 3px;
+  background: var(--color-action);
+  border-start-start-radius: var(--radius-md);
+  border-start-end-radius: var(--radius-md);
+}
+.tierTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-block-size: 22px;
+}
+.tierLevel {
+  font: var(--t-overline);
+  color: var(--color-text-muted);
+}
+.tierIdentity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.tierMedal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 44px;
+  block-size: 44px;
+  border-radius: var(--radius-circle);
+  background: var(--color-surface-sunken);
+  color: var(--color-action);
+  border: var(--border-hairline) solid var(--color-hairline);
+  flex: none;
+}
+.tierFeatured .tierMedal {
+  background: var(--amber-50);
+  border-color: var(--amber-100);
+}
+.tierName {
+  font: var(--t-h3);
+  color: var(--color-text-strong);
+  margin: 0;
+}
+.tierTagline {
+  font: var(--t-body-sm);
+  color: var(--color-text-muted);
+  margin: 0;
+  margin-block-start: 2px;
+}
+.perks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.perk {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  font: var(--t-body-sm);
+  color: var(--color-text);
+}
+.perkIcon {
+  color: var(--color-gain);
+  flex: none;
+  margin-block-start: 2px;
+}
+
+/* ===== Benefits ===== */
+.benefit {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  block-size: 100%;
+}
+.benefitIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 48px;
+  block-size: 48px;
+  border-radius: var(--radius-md);
+  background: var(--color-accent-tint);
+  color: var(--color-accent-text);
+}
+.benefitTitle {
+  font: var(--t-h4);
+  color: var(--color-text-strong);
+  margin: 0;
+}
+.benefitBody {
+  font: var(--t-body-sm);
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+/* ===== How to join — steps ===== */
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+  counter-reset: club-step;
+}
+.step {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+  padding: var(--inset-card);
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+.stepNum {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 40px;
+  block-size: 40px;
+  border-radius: var(--radius-circle);
+  background: var(--color-action);
+  color: var(--color-on-action);
+  font: var(--t-h4);
+  font-weight: 700;
+  flex: none;
+}
+.stepBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.stepTitle {
+  font: var(--t-h4);
+  color: var(--color-text-strong);
+  margin: 0;
+}
+.stepText {
+  font: var(--t-body-sm);
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+/* ===== Closing CTA ===== */
+.closing {
+  text-align: center;
+  padding: var(--space-12) var(--space-6);
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-sunken);
+}
+.closingTitle {
+  text-align: center;
+}
+.closingLead {
+  max-inline-size: 52ch;
+}
+.closingNote {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  margin-block-start: var(--space-1);
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}
+.closingNote svg {
+  color: var(--color-accent-text);
+  flex: none;
+}
+
+@media (max-width: 767px) {
+  .closing {
+    padding: var(--space-10) var(--space-4);
+  }
+}

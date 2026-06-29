@@ -52,7 +52,7 @@ function buildEstimate(areaM2: number, floors: number): Estimate {
 
 function aiReply(text: string, ctx: { purpose: string | null }): { msgs: Msg[]; purpose: string | null } {
   const t = normalizeDigits(text);
-  let purpose = ctx.purpose ?? detectPurpose(t);
+  const purpose = ctx.purpose ?? detectPurpose(t);
 
   // Did they give an area (and maybe floors)?
   const area = Number(t.match(/(\d{2,5})\s*(?:متر|m2|مترمربع|متری)/)?.[1] ?? '');

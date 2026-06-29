@@ -1,0 +1,108 @@
+/* ContactCard — a single calm panel pairing the office address with tappable
+   phone links and a primary «تماس» CTA. Light surface, hairline, soft shadow. */
+
+.card {
+  display: grid;
+  gap: var(--space-6);
+  padding: var(--space-8);
+  background: var(--color-surface);
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+@media (min-width: 768px) {
+  .card {
+    grid-template-columns: 1.2fr 1fr;
+    align-items: center;
+  }
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.title {
+  font: var(--t-h3);
+  color: var(--color-text-strong);
+  margin: 0;
+}
+
+.address {
+  font: var(--t-body-sm);
+  color: var(--color-text-muted);
+  font-style: normal;
+  margin: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.address svg {
+  flex: none;
+  margin-block-start: 2px;
+  color: var(--color-text-placeholder);
+}
+
+.phones {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.phoneRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+}
+
+.phoneLabel {
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}
+
+.phoneLink {
+  font: var(--t-data);
+  font-weight: 600;
+  color: var(--color-text-strong);
+  text-decoration: none;
+  margin-inline-start: auto;
+}
+
+.phoneLink:hover {
+  text-decoration: underline;
+}
+
+.phoneIcon {
+  display: inline-flex;
+  color: var(--color-action-text);
+}
+
+.cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-block-size: 48px;
+  padding-inline: var(--space-6);
+  border-radius: var(--radius-md);
+  background: var(--color-action);
+  color: var(--color-on-action);
+  font: var(--t-button);
+  text-decoration: none;
+  transition: background var(--dur-fast) var(--ease-standard);
+}
+
+.cta:hover {
+  background: var(--color-action-hover);
+  text-decoration: none;
+}

@@ -10,6 +10,7 @@ import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { BottomTabBar } from '@/components/layout/BottomTabBar';
 import { MobileDrawer } from '@/components/layout/MobileDrawer';
+import { ArrivalPopup } from '@/components/club/ArrivalPopup';
 
 /**
  * Root layout — the RTL, Persian-first shell.
@@ -66,6 +67,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <main id="main">{children}</main>
           <Footer categories={categories} />
           <BottomTabBar />
+          <ArrivalPopup />
         </AppProviders>
       </body>
     </html>

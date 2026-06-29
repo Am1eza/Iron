@@ -1,0 +1,54 @@
+/* Prose — token-bound typography for long-form / legal copy.
+   Calm, readable measure; logical properties for RTL. Used by terms/privacy
+   and the narrative parts of about/why. */
+
+.prose {
+  max-inline-size: var(--container-prose);
+  color: var(--color-text);
+  font: var(--t-body);
+}
+
+.prose > * + * {
+  margin-block-start: var(--space-4);
+}
+
+.prose p {
+  margin: 0;
+  color: var(--color-text);
+}
+
+.prose strong {
+  color: var(--color-text-strong);
+  font-weight: 600;
+}
+
+.prose a {
+  color: var(--color-accent-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.prose ul,
+.prose ol {
+  margin: 0;
+  padding-inline-start: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.prose li {
+  padding-inline-start: var(--space-1);
+}
+
+.prose li::marker {
+  color: var(--color-text-muted);
+}
+
+/* Lead paragraph — slightly larger, calmer intro under a heading. */
+.lead {
+  font: var(--t-body-lg);
+  color: var(--color-text);
+  margin: 0;
+  max-inline-size: var(--container-prose);
+}

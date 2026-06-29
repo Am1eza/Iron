@@ -1,14 +1,54 @@
 import type { Metadata } from 'next';
-import { PagePlaceholder } from '@/components/dev/PagePlaceholder';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
+import {
+  Container,
+  Section,
+  Stack,
+  Heading,
+  Text,
+  Overline,
+  Breadcrumbs,
+} from '@/components/ui';
+import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
+import { MarketBoard } from '@/components/market/MarketBoard';
 
 export const metadata: Metadata = buildMetadata({
-  title: 'قیمت لحظه‌ای دلار، یورو و طلا',
-  description: 'بازار طلا و ارز به‌صورت لحظه‌ای — و قیمت روز آهن و فولاد در کنار آن.',
+  title: 'طلا، ارز و شمش فولاد',
+  description:
+    'نرخ لحظه‌ای دلار، یورو، طلای ۱۸ عیار، انس جهانی و شمش فولاد در آهن‌تایم — همان متغیرهایی که قیمت روز آهن‌آلات را جابه‌جا می‌کنند.',
   path: routes.market(),
 });
 
+const crumbs = [
+  { label: 'خانه', href: routes.home() },
+  { label: 'طلا، ارز و شمش' },
+];
+
 export default function MarketPage() {
-  return <PagePlaceholder eyebrow="بازار" title="طلا و ارز" note="تابلوی کامل tgju و اتصال به «نبض بازار» در بخش بازار ساخته می‌شود." />;
+  return (
+    <Container>
+      <BreadcrumbJsonLd items={crumbs} />
+
+      <Section space={10}>
+        <Stack gap={8}>
+          <Stack gap={3}>
+            <Breadcrumbs items={crumbs} />
+            <Overline>نبض بازار</Overline>
+            <Heading level={1} id="market-title">
+              طلا، ارز و شمش فولاد
+            </Heading>
+            <Text color="muted" variant="body-lg">
+              قیمت آهن‌آلات روی هواست؛ موتور آن دلار، نرخ شمش و بهای جهانی فولاد است. وقتی دلار
+              بالا می‌رود، میلگرد و تیرآهن هم دیر یا زود همان مسیر را می‌روند. این صفحه برای همان
+              کسانی است که هر روز نرخ دلار را چک می‌کنند — اینجا یک قدم جلوتر، تأثیرش بر بازار آهن را
+              هم می‌بینید. اول مشورت، بعد خرید.
+            </Text>
+          </Stack>
+
+          <MarketBoard />
+        </Stack>
+      </Section>
+    </Container>
+  );
 }

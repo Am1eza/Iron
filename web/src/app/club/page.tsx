@@ -1,14 +1,15 @@
 import type { Metadata } from 'next';
-import { PagePlaceholder } from '@/components/dev/PagePlaceholder';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
+import { ClubLanding } from '@/components/club/ClubLanding';
 
 export const metadata: Metadata = buildMetadata({
-  title: 'باشگاه آهن‌تایم',
-  description: 'مزایای ویژه: قیمت ویژه، تحویل اولویت‌دار، مشاور اختصاصی و هشدارهای ویژه.',
+  title: 'باشگاه مشتریان آهن‌تایم',
+  description:
+    'با هر استعلام و خرید، سطح خود را در باشگاه مشتریان آهن‌تایم ارتقا دهید: تخفیف پلکانی، اولویت در تأمین، هشدار قیمت اختصاصی و مشاور اختصاصی.',
   path: routes.club(),
 });
 
 export default function ClubPage() {
-  return <PagePlaceholder eyebrow="وفاداری" title="باشگاه آهن‌تایم" note="سطوح (آهن/فولاد/پولاد) و مزایا در بخش باشگاه ساخته می‌شود." />;
+  return <ClubLanding />;
 }

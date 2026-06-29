@@ -39,6 +39,11 @@ export function PriceChart({ series, unit = 'تومان' }: { series: number[]; 
   const last = data[data.length - 1]!;
   const up = last >= first;
   const pct = (((last - first) / first) * 100).toFixed(1);
+  const rangeLabel = RANGES.find((r) => r.v === range)?.label ?? '';
+  // Build text as single strings — interleaved text/expression nodes inside an
+  // SVG <title> can hydrate-mismatch, so we render one text node per element.
+  const titleText = `نمودار قیمت در ${rangeLabel}؛ از ${formatToman(first)} به ${formatToman(last)}`;
+  const deltaText = `${up ? '▲' : '▼'} ${toPersianDigits(Math.abs(Number(pct)).toString())}٪`;
 
   return (
     <div className={styles.wrap}>
@@ -46,9 +51,7 @@ export function PriceChart({ series, unit = 'تومان' }: { series: number[]; 
         <div className={styles.now}>
           <span className={`${styles.nowVal} tnum`}>{formatToman(last, false)}</span>
           <span className={styles.nowUnit}>{unit}</span>
-          <span className={`${styles.delta} ${up ? styles.up : styles.down} tnum`}>
-            {up ? '▲' : '▼'} {toPersianDigits(Math.abs(Number(pct)).toString())}٪
-          </span>
+          <span className={`${styles.delta} ${up ? styles.up : styles.down} tnum`}>{deltaText}</span>
         </div>
         <div className={styles.tabs} role="tablist" aria-label="بازهٔ زمانی">
           {RANGES.map((r) => (
@@ -73,10 +76,7 @@ export function PriceChart({ series, unit = 'تومان' }: { series: number[]; 
         role="img"
         aria-labelledby={id}
       >
-        <title id={id}>
-          نمودار قیمت در {RANGES.find((r) => r.v === range)?.label}؛ از {formatToman(first)} به{' '}
-          {formatToman(last)}
-        </title>
+        <title id={id}>{titleText}</title>
         <defs>
           <linearGradient id={`grad-${id}`} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stopColor={up ? 'var(--color-gain)' : 'var(--color-loss)'} stopOpacity="0.18" />

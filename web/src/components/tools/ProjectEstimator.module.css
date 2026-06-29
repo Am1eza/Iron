@@ -1,0 +1,153 @@
+/* ===== Layout ===== */
+.layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-5);
+  align-items: start;
+}
+@media (min-width: 768px) {
+  .layout {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.panel,
+.result {
+  block-size: 100%;
+}
+
+/* ===== Inputs ===== */
+.fields {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+}
+@media (min-width: 480px) {
+  .fields {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.fieldLabel {
+  font: var(--t-label);
+  color: var(--color-text-strong);
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+.fieldUnit {
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}
+.input {
+  inline-size: 100%;
+  font: var(--t-input);
+  color: var(--color-text-strong);
+  background: var(--color-surface);
+  border: var(--border-hairline) solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3) var(--space-4);
+  min-block-size: 48px;
+  text-align: start;
+}
+.input::placeholder {
+  color: var(--color-text-placeholder);
+}
+.input:focus-visible {
+  outline: var(--border-focus) solid var(--color-focus);
+  outline-offset: 1px;
+  border-color: var(--color-accent);
+}
+
+/* ===== Results ===== */
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.metricValue {
+  margin: var(--space-1) 0;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.metricNum {
+  font: var(--t-price-hero);
+  font-size: 1.75rem;
+  color: var(--color-text-strong);
+}
+.metricUnit {
+  font: var(--t-body-sm);
+  color: var(--color-text-muted);
+}
+.divider {
+  block-size: var(--border-hairline);
+  background: var(--color-hairline);
+}
+.cost {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.costValue {
+  margin: var(--space-1) 0 0;
+  font: var(--t-price-hero);
+  font-size: 1.75rem;
+  color: var(--color-accent-text);
+}
+
+.placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  min-block-size: 180px;
+  color: var(--color-text-placeholder);
+  text-align: center;
+}
+
+/* ===== CTAs (styled links) ===== */
+.ctaPrimary,
+.ctaSecondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  font: var(--t-button);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3) var(--space-5);
+  min-block-size: 44px;
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: background var(--dur-fast) var(--ease-standard);
+}
+.ctaPrimary:hover,
+.ctaSecondary:hover {
+  text-decoration: none;
+}
+.ctaPrimary {
+  background: var(--color-action);
+  color: var(--color-on-action);
+}
+.ctaPrimary:hover {
+  background: var(--color-action-hover);
+}
+.ctaSecondary {
+  background: var(--color-surface);
+  color: var(--color-text-strong);
+  border: var(--border-hairline) solid var(--color-border-strong);
+}
+.ctaSecondary:hover {
+  background: var(--color-surface-sunken);
+}
+.ctaPrimary:focus-visible,
+.ctaSecondary:focus-visible {
+  outline: var(--border-focus) solid var(--color-focus);
+  outline-offset: 2px;
+}
