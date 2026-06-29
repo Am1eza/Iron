@@ -58,6 +58,16 @@
   color: var(--color-text-strong);
   font-weight: 600;
 }
+.heroImage {
+  margin: var(--space-2) 0 0;
+  aspect-ratio: 16 / 9;
+  inline-size: 100%;
+  max-block-size: 280px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: var(--border-hairline) solid var(--color-hairline);
+  background: var(--color-surface-sunken);
+}
 
 /* ===== Price box ===== */
 .priceBox {

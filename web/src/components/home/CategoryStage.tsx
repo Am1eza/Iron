@@ -6,6 +6,8 @@ import { routes } from '@/lib/routes';
 import { CATEGORY_SUBS } from '@/lib/data/nav';
 import type { Category } from '@/lib/types/domain';
 import { CategoryArt } from '@/components/catalog/CategoryArt';
+import { ProductImage } from '@/components/catalog/ProductImage';
+import { productImage } from '@/lib/data/productImages';
 import { ChevronStartIcon } from '@/components/primitives/icons';
 import styles from './CategoryStage.module.css';
 
@@ -49,7 +51,14 @@ export function CategoryStage({ categories }: { categories: Category[] }) {
                   <span className={styles.railSwap}>
                     <span className={styles.railName}>{cat.name}</span>
                     <span className={styles.railArt} aria-hidden>
-                      <CategoryArt slug={cat.slug} size={32} />
+                      {productImage(cat.slug) ? (
+                        <span className={styles.railThumb}>
+                          <ProductImage slug={cat.slug} name={cat.name} />
+                        </span>
+                      ) : (
+                        <CategoryArt slug={cat.slug} size={32} />
+                      )}
+                      <span className={styles.railThumbLabel}>{cat.name}</span>
                     </span>
                   </span>
                   <ChevronStartIcon size={16} className={`${styles.railChev} icon--rtl`} />
@@ -71,7 +80,11 @@ export function CategoryStage({ categories }: { categories: Category[] }) {
               transition={{ duration: reduced ? 0 : 0.3, ease: [0.16, 1, 0.3, 1] }}
             >
               <span className={styles.cardArt}>
-                <CategoryArt slug={active.slug} size={104} />
+                {productImage(active.slug) ? (
+                  <ProductImage slug={active.slug} name={active.name} eager />
+                ) : (
+                  <CategoryArt slug={active.slug} size={104} />
+                )}
               </span>
               <div className={styles.cardBody}>
                 <h3 className={styles.cardTitle}>قیمت روز {active.name}</h3>

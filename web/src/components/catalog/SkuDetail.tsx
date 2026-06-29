@@ -21,6 +21,8 @@ import {
   Button,
 } from '@/components/ui';
 import { PriceChart } from './PriceChart';
+import { ProductImage } from './ProductImage';
+import { productImage } from '@/lib/data/productImages';
 import {
   HeartIcon,
   ShareIcon,
@@ -167,6 +169,11 @@ export function SkuDetail({ row }: { row: PriceRow }) {
                 </li>
               ) : null}
             </ul>
+            {productImage(row.categoryId) ? (
+              <figure className={styles.heroImage}>
+                <ProductImage slug={row.categoryId} name={categoryName} eager />
+              </figure>
+            ) : null}
           </div>
 
           <div className={styles.priceBox}>

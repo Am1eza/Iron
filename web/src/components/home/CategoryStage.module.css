@@ -93,11 +93,27 @@
   inset-inline-start: 0;
   display: inline-flex;
   align-items: center;
+  gap: var(--space-3);
   color: var(--color-text-strong);
   opacity: 0;
   transform: translateX(8px);
   transition: opacity var(--dur-base) var(--ease-standard),
     transform var(--dur-base) var(--ease-emphasized);
+}
+.railThumb {
+  flex: none;
+  inline-size: 54px;
+  block-size: 34px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: var(--border-hairline) solid var(--color-hairline);
+  background: var(--color-surface-sunken);
+}
+.railThumbLabel {
+  font: var(--t-h4);
+  font-weight: 600;
+  color: var(--color-text-strong);
+  white-space: nowrap;
 }
 .railItem:hover .railName,
 .railItem[data-active] .railName {
@@ -136,13 +152,14 @@
   box-shadow: var(--shadow-sm);
 }
 .cardArt {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
   flex: none;
-  inline-size: 160px;
-  block-size: 160px;
+  inline-size: 300px;
+  block-size: 220px;
   border-radius: var(--radius-lg);
+  overflow: hidden;
   background: var(--color-surface-sunken);
   border: var(--border-hairline) solid var(--color-hairline);
   color: var(--color-text-strong);
@@ -212,8 +229,8 @@
     gap: var(--space-5);
   }
   .cardArt {
-    inline-size: 96px;
-    block-size: 96px;
+    inline-size: 240px;
+    block-size: 172px;
   }
   /* names always visible on touch */
   .railName {
@@ -239,6 +256,11 @@
     flex-direction: column;
     text-align: center;
     align-items: center;
+  }
+  .cardArt {
+    inline-size: 100%;
+    block-size: auto;
+    aspect-ratio: 3 / 2;
   }
   .subs {
     justify-content: center;
