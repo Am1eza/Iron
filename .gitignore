@@ -1,0 +1,11 @@
+# Local Claude Code settings (holds API keys — never commit)
+.claude/settings.local.json
+
+# Secrets / env
+.env
+.env.local
+.env*.local
+.dev.vars
+
+# OS / editor
+.DS_Store

@@ -72,8 +72,11 @@
       "url": "http://localhost:39300/model_context_protocol/2024-11-05/sse"
     },
     "exa": {
-      "type": "http",
-      "url": "https://mcp.exa.ai/mcp"
+      "command": "npx",
+      "args": ["-y", "exa-mcp-server"],
+      "env": {
+        "EXA_API_KEY": "${EXA_API_KEY}"
+      }
     },
     "playwright": {
       "command": "npx",
