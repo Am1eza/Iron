@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { buildMetadata, productJsonLd } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { categories } from '@/lib/mock/fixtures';
-import { getSubRows, subName } from '@/lib/mock/catalogData';
+import { getRows, getSubRows, subName } from '@/lib/mock/catalogData';
 import { CATEGORY_SUBS } from '@/lib/data/nav';
 import {
   Container,
@@ -16,7 +16,8 @@ import {
   emptyPresets,
 } from '@/components/ui';
 import { BreadcrumbJsonLd, JsonLd } from '@/components/seo/JsonLd';
-import { PriceTable } from '@/components/catalog/PriceTable';
+import { CategoryBrowser } from '@/components/catalog/CategoryBrowser';
+import { BulkQuote } from '@/components/catalog/BulkQuote';
 
 type Params = { params: Promise<{ category: string; sub: string }> };
 
@@ -57,6 +58,7 @@ export default async function SubCategoryPage({ params }: Params) {
   if (!name) notFound();
 
   const rows = getSubRows(category, sub);
+  const allRows = getRows(category);
 
   const crumbs = [
     { label: 'خانه', href: routes.home() },
@@ -94,7 +96,16 @@ export default async function SubCategoryPage({ params }: Params) {
           </div>
 
           {rows.length > 0 ? (
-            <PriceTable rows={rows} subs={subs} categoryName={cat.name} />
+            <>
+              <CategoryBrowser
+                category={category}
+                categoryName={cat.name}
+                rows={allRows}
+                subs={subs}
+                initialSub={sub}
+              />
+              <BulkQuote category={category} categoryName={cat.name} rows={allRows} />
+            </>
           ) : (
             <EmptyState size="section" {...emptyPresets.emptyCategory()} />
           )}

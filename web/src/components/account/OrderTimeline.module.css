@@ -1,0 +1,136 @@
+/* Order/cargo shipment stepper — horizontal (desktop) / vertical (mobile).
+   Connected dots: done = filled gain + check, current = emphasized accent,
+   future = hairline. Reduced-motion safe. Tokens only. */
+
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.step {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: var(--space-3);
+  padding-block-end: var(--space-4);
+}
+
+/* Vertical connector line (mobile-first) running through the dots. */
+.step:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  inset-block-start: 1.5rem;
+  inset-block-end: -0.25rem;
+  inset-inline-start: 0.6875rem; /* center of the 1.375rem dot */
+  inline-size: var(--border-hairline);
+  background: var(--color-hairline);
+}
+.step.done:not(:last-child)::before {
+  background: var(--color-gain);
+}
+
+.dot {
+  inline-size: 1.375rem;
+  block-size: 1.375rem;
+  border-radius: var(--radius-circle);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-surface);
+  border: var(--border-hairline) solid var(--color-hairline);
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+  transition: transform var(--t-fast, 120ms) ease, background-color var(--t-fast, 120ms) ease;
+}
+.done .dot {
+  background: var(--color-gain);
+  border-color: var(--color-gain);
+  color: var(--color-text-inverse);
+}
+.current .dot {
+  background: var(--color-accent-tint);
+  border-color: var(--color-accent);
+  color: var(--color-accent-text);
+  transform: scale(1.12);
+  box-shadow: 0 0 0 3px var(--color-accent-tint);
+}
+
+.check {
+  inline-size: 0.75rem;
+  block-size: 0.75rem;
+}
+.bullet {
+  inline-size: 0.5rem;
+  block-size: 0.5rem;
+  border-radius: var(--radius-circle);
+  background: currentColor;
+}
+
+.label {
+  font: var(--t-label);
+  color: var(--color-text);
+  line-height: 1.375rem;
+}
+.done .label {
+  color: var(--color-text-strong);
+}
+.current .label {
+  color: var(--color-accent-text);
+  font-weight: 600;
+}
+.future .label {
+  color: var(--color-text-muted);
+}
+
+.current .tag {
+  font: var(--t-caption);
+  color: var(--color-accent-text);
+  margin-inline-start: var(--space-2);
+}
+
+/* Horizontal layout on wider screens. */
+@media (min-width: 40rem) {
+  .timeline {
+    flex-direction: row;
+    gap: 0;
+  }
+  .step {
+    flex: 1 1 0;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+    justify-items: center;
+    text-align: center;
+    gap: var(--space-2);
+    padding-block-end: 0;
+    padding-inline: var(--space-1);
+  }
+  .step:not(:last-child)::before {
+    inset-block: 0.6875rem auto;
+    block-size: var(--border-hairline);
+    inline-size: auto;
+    /* line spans from this dot's center to the next dot's center */
+    inset-inline-start: calc(50% + 0.6875rem);
+    inset-inline-end: calc(-50% + 0.6875rem);
+  }
+  .label {
+    line-height: var(--leading-normal, 1.4);
+  }
+  .current .tag {
+    display: block;
+    margin-inline-start: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dot {
+    transition: none;
+  }
+  .current .dot {
+    transform: none;
+  }
+}

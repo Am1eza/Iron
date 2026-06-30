@@ -86,8 +86,58 @@ export interface MarketValue {
   isStale: boolean;
 }
 
-export type LeadSource = 'table' | 'ai' | 'cart' | 'cooperation' | 'tool';
+export type LeadSource = 'table' | 'ai' | 'cart' | 'cooperation' | 'tool' | 'warehouse';
 export type LeadStatus = 'new' | 'contacted' | 'won' | 'lost';
+
+/* ---------- Customer warehouse «انبار مشتریان» (request #7) ---------- */
+
+/** Lifecycle of a consigned stock item we store on the customer's behalf. */
+export type WarehouseStatus = 'pending' | 'stored' | 'selling' | 'released';
+
+export const WAREHOUSE_STATUS_LABEL: Record<WarehouseStatus, string> = {
+  pending: 'در انتظار تحویل',
+  stored: 'انبارشده',
+  selling: 'در حال فروش',
+  released: 'تسویه‌شده',
+};
+
+export interface WarehouseItem {
+  id: string;
+  ref: string;
+  product: string;
+  sizeLabel?: string;
+  quantityTons: number;
+  monthlyFeeToman: number;
+  storedAt: string; // ISO
+  status: WarehouseStatus;
+}
+
+/* ---------- Order / cargo tracking (request #11) ---------- */
+
+/** Ordered shipment timeline — from registration to delivery. */
+export type ShipmentStatus =
+  | 'registered'
+  | 'confirmed'
+  | 'loading'
+  | 'in_transit'
+  | 'delivered';
+
+/** Ordered steps so a stepper/timeline can render the full path. */
+export const SHIPMENT_STEPS: { key: ShipmentStatus; label: string }[] = [
+  { key: 'registered', label: 'ثبت‌شده' },
+  { key: 'confirmed', label: 'تأییدشده' },
+  { key: 'loading', label: 'بارگیری' },
+  { key: 'in_transit', label: 'در حال حمل' },
+  { key: 'delivered', label: 'تحویل' },
+];
+
+export interface Order {
+  ref: string;
+  placedAt: string; // ISO
+  items: LineItem[];
+  status: ShipmentStatus;
+  lastUpdate: string; // ISO
+}
 
 export interface LineItem {
   skuId: string;

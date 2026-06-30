@@ -23,9 +23,12 @@ export const routes = {
   // Engagement / account
   cart: () => '/cart',
   request: () => '/request',
+  warehouse: () => '/warehouse',
+  track: () => '/track',
   login: (next?: string) => (next ? `/login?next=${enc(next)}` : '/login'),
-  account: (tab?: 'favorites' | 'requests' | 'alerts' | 'profile' | 'club') =>
-    tab ? `/account/${tab}` : '/account',
+  account: (
+    tab?: 'favorites' | 'requests' | 'alerts' | 'profile' | 'club' | 'warehouse' | 'orders',
+  ) => (tab ? `/account/${tab}` : '/account'),
   club: () => '/club',
 
   // Content
@@ -51,6 +54,8 @@ export const routes = {
     catalog: () => '/admin/catalog',
     market: () => '/admin/market',
     leads: () => '/admin/leads',
+    warehouse: () => '/admin/warehouse',
+    orders: () => '/admin/orders',
     content: () => '/admin/content',
     club: () => '/admin/club',
     users: () => '/admin/users',
@@ -63,6 +68,7 @@ export const routes = {
 export const STATIC_INDEXABLE = [
   '/', '/prices', '/ai', '/market',
   '/tools/weight', '/tools/project', '/tools/cost',
+  '/warehouse',
   '/club', '/blog', '/news', '/cooperation',
   '/about', '/contact', '/why', '/terms', '/privacy',
 ] as const;

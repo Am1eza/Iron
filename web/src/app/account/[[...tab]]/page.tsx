@@ -18,11 +18,19 @@ import {
 } from '@/components/ui';
 import { ProfileForm } from '@/components/auth/ProfileForm';
 import { LogoutButton } from '@/components/auth/LogoutButton';
+import { WarehouseList } from '@/components/account/WarehouseList';
+import { OrderTimeline } from '@/components/account/OrderTimeline';
+import { getWarehouseItems } from '@/lib/mock/warehouse';
+import { getOrders } from '@/lib/mock/orders';
+import { SHIPMENT_STEPS } from '@/lib/types/domain';
+import { formatJalali, toPersianDigits } from '@/lib/utils/format';
 
 export const metadata: Metadata = buildMetadata({ title: 'حساب من', noindex: true });
 
 const TABS = [
   { slug: 'profile', label: 'پروفایل' },
+  { slug: 'orders', label: 'سفارش‌ها' },
+  { slug: 'warehouse', label: 'انبار من' },
   { slug: 'favorites', label: 'علاقه‌مندی‌ها' },
   { slug: 'requests', label: 'درخواست‌ها' },
   { slug: 'alerts', label: 'هشدارها' },
@@ -97,6 +105,72 @@ export default async function AccountPage({ params }: Params) {
 
 function TabContent({ slug }: { slug: string }) {
   switch (slug) {
+    case 'orders': {
+      const orders = getOrders();
+      return (
+        <Card>
+          <Stack gap={6}>
+            <div>
+              <Heading level={3}>سفارش‌های من</Heading>
+              <Text color="muted">وضعیت لحظه‌ای حمل بار هر سفارش را اینجا دنبال کنید.</Text>
+            </div>
+            <Stack gap={6}>
+              {orders.map((o) => {
+                const label =
+                  SHIPMENT_STEPS.find((s) => s.key === o.status)?.label ?? '';
+                return (
+                  <div
+                    key={o.ref}
+                    style={{
+                      border: 'var(--border-hairline) solid var(--color-hairline)',
+                      borderRadius: 'var(--radius-md)',
+                      padding: 'var(--space-4)',
+                    }}
+                  >
+                    <Stack gap={4}>
+                      <Cluster justify="space-between" align="flex-start">
+                        <Stack gap={1}>
+                          <Text variant="label" color="strong" as="span">
+                            سفارش <bdi>{o.ref}</bdi>
+                          </Text>
+                          <Text variant="caption" color="muted">
+                            ثبت: {formatJalali(o.placedAt)} · آخرین به‌روزرسانی:{' '}
+                            {formatJalali(o.lastUpdate)}
+                          </Text>
+                        </Stack>
+                        <Badge tone={o.status === 'delivered' ? 'gain' : 'accent'}>
+                          {label}
+                        </Badge>
+                      </Cluster>
+                      <OrderTimeline status={o.status} />
+                      <Text variant="caption" color="muted">
+                        {o.items.map((it) => it.name).join('، ')} ({toPersianDigits(o.items.length)}{' '}
+                        ردیف)
+                      </Text>
+                    </Stack>
+                  </div>
+                );
+              })}
+            </Stack>
+          </Stack>
+        </Card>
+      );
+    }
+    case 'warehouse':
+      return (
+        <Card>
+          <Stack gap={6}>
+            <div>
+              <Heading level={3}>انبار من</Heading>
+              <Text color="muted">
+                کالاهای امانی شما نزد آهن‌تایم. برای ثبت کالای جدید به{' '}
+                <Link href={routes.warehouse()}>صفحهٔ انبار مشتریان</Link> بروید.
+              </Text>
+            </div>
+            <WarehouseList items={getWarehouseItems()} />
+          </Stack>
+        </Card>
+      );
     case 'favorites':
       return (
         <Card>

@@ -250,6 +250,58 @@
 }
 .estGhost:hover { background: var(--color-accent-tint); text-decoration: none; }
 
+/* ===== Factory-split card (bulk tonnage) ===== */
+.splitList {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-2) var(--space-4);
+}
+.splitList li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding-block: var(--space-2);
+  font: var(--t-data);
+  color: var(--color-text);
+  border-block-end: var(--border-hairline) solid var(--color-hairline);
+}
+.splitList li:last-child { border-block-end: 0; }
+.splitBest {
+  color: var(--color-gain-text);
+  font-weight: 600;
+}
+.splitFactory {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.splitTag {
+  display: inline-flex;
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-gain);
+  color: var(--neutral-0);
+  font: var(--t-overline);
+}
+.splitSuggest {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: 0 var(--space-4) var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--gain-50);
+  font: var(--t-caption);
+  color: var(--color-text);
+}
+.splitSuggest svg {
+  flex: none;
+  margin-block-start: 2px;
+  color: var(--color-gain);
+}
+.splitSuggest strong { color: var(--color-text-strong); font-weight: 700; }
+
 /* ===== Composer ===== */
 .composer {
   display: flex;

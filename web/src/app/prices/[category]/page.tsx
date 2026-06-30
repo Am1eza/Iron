@@ -16,7 +16,12 @@ import {
   emptyPresets,
 } from '@/components/ui';
 import { BreadcrumbJsonLd, JsonLd } from '@/components/seo/JsonLd';
-import { PriceTable } from '@/components/catalog/PriceTable';
+import { CategoryBrowser } from '@/components/catalog/CategoryBrowser';
+import { BulkQuote } from '@/components/catalog/BulkQuote';
+import { ProductImage } from '@/components/catalog/ProductImage';
+import { CategoryArt } from '@/components/catalog/CategoryArt';
+import { productImage } from '@/lib/data/productImages';
+import styles from './page.module.css';
 
 type Params = { params: Promise<{ category: string }> };
 
@@ -69,16 +74,37 @@ export default async function CategoryPage({ params }: Params) {
         <Stack gap={6}>
           <div>
             <Breadcrumbs items={crumbs} />
-            <Heading level={1} id="cat-title">
-              قیمت روز {cat.name}
-            </Heading>
-            <Text color="muted">
-              قیمت‌های لحظه‌ای {cat.name} با نوسان، وزن شاخه و زمان تحویل اعلام‌شده. اول مشورت، بعد خرید.
-            </Text>
+            <div className={styles.header}>
+              <div className={styles.headerText}>
+                <Heading level={1} id="cat-title">
+                  قیمت روز {cat.name}
+                </Heading>
+                <Text color="muted">
+                  قیمت‌های لحظه‌ای {cat.name} با نوسان، وزن شاخه و زمان تحویل اعلام‌شده. اول مشورت، بعد خرید.
+                </Text>
+              </div>
+              <figure className={styles.media}>
+                {productImage(category) ? (
+                  <ProductImage slug={category} name={cat.name} eager />
+                ) : (
+                  <span className={styles.art} aria-hidden="true">
+                    <CategoryArt slug={category} size={72} />
+                  </span>
+                )}
+              </figure>
+            </div>
           </div>
 
           {rows.length > 0 ? (
-            <PriceTable rows={rows} subs={subs} categoryName={cat.name} />
+            <>
+              <CategoryBrowser
+                category={category}
+                categoryName={cat.name}
+                rows={rows}
+                subs={subs}
+              />
+              <BulkQuote category={category} categoryName={cat.name} rows={rows} />
+            </>
           ) : (
             <EmptyState size="section" {...emptyPresets.emptyCategory()} />
           )}

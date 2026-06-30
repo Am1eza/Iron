@@ -86,6 +86,13 @@ export const FOOTER_COLUMNS: { title: string; links: NavLink[] }[] = [
     links: TOOLS_NAV,
   },
   {
+    title: 'خدمات',
+    links: [
+      { label: 'انبار مشتریان', href: routes.warehouse() },
+      { label: 'پیگیری سفارش', href: routes.track() },
+    ],
+  },
+  {
     title: 'شرکت',
     links: [
       { label: 'چرا آهن‌تایم', href: routes.why() },

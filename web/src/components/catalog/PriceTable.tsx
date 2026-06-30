@@ -34,10 +34,20 @@ export function PriceTable({
   rows,
   subs,
   categoryName,
+  sub: subProp,
+  onSubChange,
+  initialSub = null,
 }: {
   rows: PriceRow[];
   subs: SubCat[];
   categoryName: string;
+  /** Controlled active sub-category slug (or null = همه). When provided with
+   *  `onSubChange`, the toolbar filter is driven by the parent and stays in
+   *  sync with the sub-group selection band. */
+  sub?: string | null;
+  onSubChange?: (sub: string | null) => void;
+  /** Initial sub for the uncontrolled case (e.g. deep-link landing). */
+  initialSub?: string | null;
 }) {
   const add = useCartStore((s) => s.add);
   const toast = useToast();
@@ -45,7 +55,13 @@ export function PriceTable({
   const { isAuthenticated } = useAuth();
   const [vat, setVat] = useState(false);
   const [sort, setSort] = useState<SortKey>('size');
-  const [sub, setSub] = useState<string | null>(null);
+  const [internalSub, setInternalSub] = useState<string | null>(initialSub);
+  const controlled = onSubChange !== undefined;
+  const sub = controlled ? subProp ?? null : internalSub;
+  const setSub = (next: string | null) => {
+    if (controlled) onSubChange?.(next);
+    else setInternalSub(next);
+  };
   const [fav, setFav] = useState<Set<string>>(new Set());
   const [chartFor, setChartFor] = useState<PriceRow | null>(null);
 
@@ -106,7 +122,7 @@ export function PriceTable({
               key={s.slug}
               variant="filter"
               selected={sub === s.slug}
-              onClick={() => setSub((cur) => (cur === s.slug ? null : s.slug))}
+              onClick={() => setSub(sub === s.slug ? null : s.slug)}
             >
               {s.name}
             </Chip>

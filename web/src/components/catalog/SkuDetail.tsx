@@ -21,6 +21,7 @@ import {
   Button,
 } from '@/components/ui';
 import { PriceChart } from './PriceChart';
+import { BulkQuote } from './BulkQuote';
 import { ProductImage } from './ProductImage';
 import { productImage } from '@/lib/data/productImages';
 import {
@@ -265,6 +266,9 @@ export function SkuDetail({ row }: { row: PriceRow }) {
           </p>
         </div>
       </section>
+
+      {/* ===== Bulk / per-factory split ===== */}
+      <BulkQuote category={row.categoryId} categoryName={categoryName} />
 
       {/* ===== Related ===== */}
       {related.length > 0 ? (

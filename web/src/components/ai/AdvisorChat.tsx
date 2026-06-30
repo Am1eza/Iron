@@ -5,7 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { routes } from '@/lib/routes';
 import { normalizeDigits, toPersianDigits, formatToman } from '@/lib/utils/format';
 import { getRows } from '@/lib/mock/catalogData';
-import { SparkIcon, ChevronStartIcon } from '@/components/primitives/icons';
+import { computeBulkSplit, type BulkSplit } from '@/components/catalog/BulkQuote';
+import { SparkIcon, ChevronStartIcon, CheckCircleIcon } from '@/components/primitives/icons';
 import styles from './AdvisorChat.module.css';
 
 /** Average میلگرد price from the seeded catalog — grounded, never an invented number. */
@@ -23,13 +24,37 @@ const AVG_REBAR_PRICE: number = (() => {
  */
 
 type Estimate = { items: { name: string; weightKg: number }[]; totalKg: number; totalToman: number };
+type SplitAnswer = { categoryName: string; split: BulkSplit };
 type Msg = {
   id: string;
   role: 'ai' | 'user';
   text?: string;
   chips?: string[];
   estimate?: Estimate;
+  split?: SplitAnswer;
 };
+
+/** Map a Persian product keyword to its catalog slug + display name. */
+const CATEGORY_KEYWORDS: { re: RegExp; slug: string; name: string }[] = [
+  { re: /میلگرد/, slug: 'rebar', name: 'میلگرد' },
+  { re: /تیرآهن|تیراهن|هاش|آی‌بیم|ای بیم/, slug: 'ibeam', name: 'تیرآهن' },
+  { re: /ورق/, slug: 'sheet', name: 'ورق' },
+  { re: /پروفیل|قوطی/, slug: 'profile', name: 'پروفیل' },
+  { re: /نبشی|ناودانی|سپری/, slug: 'angle-channel', name: 'نبشی و ناودانی' },
+  { re: /لوله/, slug: 'pipe', name: 'لوله' },
+  { re: /مفتول|سیم|کلاف|توری/, slug: 'wire', name: 'سیم و مفتول' },
+];
+
+/** Detect «۲۰ تن میلگرد» → tonnage + category. Returns null if not a bulk ask. */
+function detectBulk(t: string): { tonnage: number; slug: string; name: string } | null {
+  const tonMatch = t.match(/(\d{1,5}(?:\.\d+)?)\s*تن/);
+  if (!tonMatch) return null;
+  const tonnage = Number(tonMatch[1]);
+  if (!Number.isFinite(tonnage) || tonnage <= 0) return null;
+  const cat = CATEGORY_KEYWORDS.find((c) => c.re.test(t));
+  if (!cat) return null;
+  return { tonnage, slug: cat.slug, name: cat.name };
+}
 
 let seq = 0;
 const uid = () => `m${++seq}`;
@@ -61,6 +86,26 @@ function buildEstimate(areaM2: number, floors: number): Estimate {
 function aiReply(text: string, ctx: { purpose: string | null }): { msgs: Msg[]; purpose: string | null } {
   const t = normalizeDigits(text);
   const purpose = ctx.purpose ?? detectPurpose(t);
+
+  // Bulk tonnage ask, e.g. «۲۰ تن میلگرد» → per-factory price split.
+  const bulk = detectBulk(t);
+  if (bulk) {
+    const split = computeBulkSplit(getRows(bulk.slug), bulk.tonnage);
+    if (split.cheapest) {
+      return {
+        purpose,
+        msgs: [
+          {
+            id: uid(),
+            role: 'ai',
+            text: `برای ${toPersianDigits(bulk.tonnage)} تن ${bulk.name}، قیمت روز را به تفکیک کارخانه حساب کردم 👇 ارزان‌ترین گزینه را برایت مشخص کرده‌ام. این اعداد تخمینی‌اند؛ نرخ نهایی را کارشناس تأیید می‌کند.`,
+            split: { categoryName: bulk.name, split },
+            chips: ['دریافت پیش‌فاکتور', `قیمت ${bulk.name}`],
+          },
+        ],
+      };
+    }
+  }
 
   // Did they give an area (and maybe floors)?
   const area = Number(t.match(/(\d{2,5})\s*(?:متر|m2|مترمربع|متری)/)?.[1] ?? '');
@@ -212,6 +257,7 @@ export function AdvisorChat({ initialQuestion }: { initialQuestion?: string }) {
                     </div>
                   )}
                   {m.estimate && <EstimateCard est={m.estimate} />}
+                  {m.split && <SplitCard answer={m.split} />}
                   {m.chips && (
                     <div className={styles.chips}>
                       {m.chips.map((c) => (
@@ -339,6 +385,48 @@ function EstimateCard({ est }: { est: Estimate }) {
       <div className={styles.estActions}>
         <Link href={routes.request()} className={styles.estCta}>
           دریافت پیش‌فاکتور دقیق
+        </Link>
+        <Link href={routes.contact()} className={styles.estGhost}>
+          گفتگو با کارشناس
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function SplitCard({ answer }: { answer: SplitAnswer }) {
+  const { categoryName, split } = answer;
+  return (
+    <div className={styles.estimate}>
+      <div className={styles.estHead}>
+        <span className={styles.estBadge}>
+          {toPersianDigits(split.tonnage)} تن {categoryName} · تفکیک کارخانه
+        </span>
+      </div>
+      <ul className={styles.splitList}>
+        {split.lines.map((l) => (
+          <li key={l.factory} className={l.best ? styles.splitBest : undefined}>
+            <span className={styles.splitFactory}>
+              {l.factory}
+              {l.best ? <span className={styles.splitTag}>بهترین</span> : null}
+            </span>
+            <span className="tnum">{formatToman(l.lineToman)}</span>
+          </li>
+        ))}
+      </ul>
+      {split.cheapest ? (
+        <div className={styles.splitSuggest}>
+          <CheckCircleIcon size={15} aria-hidden="true" />
+          <span>
+            ارزان‌ترین: کارخانهٔ <strong>{split.cheapest.factory}</strong> —{' '}
+            <strong className="tnum">{formatToman(split.cheapest.pricePerKg, false)}</strong> تومان
+            بر کیلوگرم.
+          </span>
+        </div>
+      ) : null}
+      <div className={styles.estActions}>
+        <Link href={routes.request()} className={styles.estCta}>
+          دریافت پیش‌فاکتور
         </Link>
         <Link href={routes.contact()} className={styles.estGhost}>
           گفتگو با کارشناس

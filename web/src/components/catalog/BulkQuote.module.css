@@ -1,0 +1,257 @@
+/* ============================================================================
+   BulkQuote — خرید عمده / تفکیک کارخانه. Tonnage → per-factory price split.
+   Tokens only; RTL logical properties; tabular numbers. Cheapest row uses the
+   distinct gain-green (NOT the brand emerald action color).
+   ============================================================================ */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-6);
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+.title {
+  font: var(--t-h3);
+  color: var(--color-text-strong);
+  margin: 0;
+}
+.sub {
+  margin: var(--space-2) 0 0;
+  font: var(--t-body-sm);
+  color: var(--color-text-muted);
+  max-inline-size: 56ch;
+}
+
+/* ===== Controls ===== */
+.controls {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.fieldLabel {
+  font: var(--t-overline);
+  color: var(--color-text-muted);
+}
+.input {
+  inline-size: 9rem;
+  max-inline-size: 100%;
+  block-size: 44px;
+  padding-inline: var(--space-4);
+  border: var(--border-hairline) solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-strong);
+  font: var(--t-data);
+  font-variant-numeric: tabular-nums;
+}
+.input:focus-visible {
+  outline: var(--border-focus) solid var(--color-focus);
+  outline-offset: 1px;
+}
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.preset {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 36px;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-hairline) solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: var(--t-label);
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-standard),
+    background var(--dur-fast) var(--ease-standard);
+}
+.preset:hover {
+  border-color: var(--color-accent);
+}
+.preset[data-active] {
+  border-color: var(--color-accent);
+  background: var(--color-accent-tint);
+  color: var(--color-accent-text);
+}
+.preset:focus-visible {
+  outline: var(--border-focus) solid var(--color-focus);
+  outline-offset: 1px;
+}
+
+/* ===== Table ===== */
+.tableScroll {
+  overflow-x: auto;
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-md);
+}
+.tableScroll:focus-visible {
+  outline: var(--border-focus) solid var(--color-focus);
+  outline-offset: 2px;
+}
+.table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  min-inline-size: 420px;
+}
+.table thead th {
+  font: var(--t-thead);
+  color: var(--color-text-muted);
+  text-align: start;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface-sunken);
+  border-block-end: var(--border-hairline) solid var(--color-hairline);
+  white-space: nowrap;
+}
+.table tbody th,
+.table tbody td {
+  padding: var(--space-3) var(--space-4);
+  border-block-end: var(--border-hairline) solid var(--color-hairline);
+  font: var(--t-data);
+  color: var(--color-text);
+  text-align: start;
+  vertical-align: middle;
+}
+.table tbody tr:last-child th,
+.table tbody tr:last-child td {
+  border-block-end: 0;
+}
+.num {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+.factoryCell {
+  font-weight: 600;
+  color: var(--color-text-strong);
+  white-space: nowrap;
+}
+.factoryName {
+  margin-inline-end: var(--space-2);
+}
+.lineCost {
+  font: var(--t-price-cell);
+  color: var(--color-text-strong);
+}
+
+/* Cheapest — gain green (distinct from brand emerald) */
+.bestRow {
+  background: var(--gain-50);
+}
+.bestRow th,
+.bestRow .lineCost {
+  color: var(--color-gain-text);
+}
+.bestTag {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-gain);
+  color: var(--neutral-0);
+  font: var(--t-overline);
+  white-space: nowrap;
+}
+
+/* ===== Suggestion + actions ===== */
+.suggest {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--gain-50);
+  font: var(--t-body-sm);
+  color: var(--color-text);
+}
+.suggest svg {
+  flex: none;
+  margin-block-start: 3px;
+  color: var(--color-gain);
+}
+.suggest strong {
+  color: var(--color-text-strong);
+  font-weight: 700;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--color-action);
+  color: var(--color-on-action);
+  font: var(--t-button);
+  font-weight: 600;
+  padding: var(--space-3) var(--space-5);
+  min-block-size: 44px;
+  cursor: pointer;
+}
+.cta:hover {
+  background: var(--color-action-hover);
+}
+.ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border: var(--border-hairline) solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-strong);
+  font: var(--t-button);
+  font-weight: 600;
+  padding: var(--space-3) var(--space-5);
+  min-block-size: 44px;
+  cursor: pointer;
+}
+.ghost:hover {
+  background: var(--color-surface-sunken);
+}
+.cta:focus-visible,
+.ghost:focus-visible {
+  outline: var(--border-focus) solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.note {
+  margin: 0;
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}
+
+@media (max-width: 600px) {
+  .panel {
+    padding: var(--space-5);
+  }
+  .actions .cta,
+  .actions .ghost {
+    flex: 1 1 100%;
+  }
+}
