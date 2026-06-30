@@ -1,48 +1,36 @@
 # Missing client logos
 
-These logos could **not** be obtained from the companies' official websites.
-Per the task rules, no substitute sources (Google Images, Wikipedia, unofficial
-sites) were used — so they are intentionally skipped.
+17 of 21 logos could not be obtained from a reachable source. **Obtained:**
+Pars Garma (official site), and PGPIC, Azarab, MAPNA Pars (Persian Wikipedia).
 
-## Root cause
-The build/agent environment cannot reach Iranian‑hosted websites: outbound
-requests to them time out at the network edge (HTTP `000`), and `azarab.ir`
-returns `503` on every attempt. Exa (no API key here) and WebFetch also failed,
-and the headless‑browser path is unavailable. The **only** reachable official
-site was `parsgarma.com`, whose logo was downloaded successfully.
+## Why these are missing
+The official Iranian sites are geo-blocked from this environment (HTTP `000` /
+`503`), and the companies below have **no Persian Wikipedia page** with a usable
+logo. Per your guidance I searched in Persian (Wikipedia/Wikimedia, which are
+reachable) — these simply aren't available there.
 
-A reachability sweep of all 21 sites confirmed: **1 reachable** (parsgarma),
-**18 unreachable** (`000`), **1 blocked** (`azarab`, `503`), and **2 with no
-official URL** to try.
-
-## How to complete these
-Drop the official logo file into this folder named `<slug>.svg` (preferred) or
+## How to add one
+Drop the official logo into this folder as `<slug>.svg` (preferred) or
 `<slug>.png`, then set `hasLogo: true` for that entry in `index.ts`. The
-trusted‑by wall upgrades the name chip to the real logo automatically. (You can
-also just upload the files to me and I'll optimize + wire them in.)
+carousel upgrades the name chip to the real logo automatically. (Uploading the
+files here also works — I'll optimize + wire them in.)
 
-| # | Company | Website | Reason |
-|---|---------|---------|--------|
-| 1 | Kurdestan Cement | https://www.kordestancement.com | Unreachable (HTTP 000 — geo‑restricted egress) |
-| 2 | Dashtestan Cement | https://dashtestancement.com | Unreachable (HTTP 000) |
-| 3 | Hegmatan Cement | https://www.hegmatancement.com | Unreachable (HTTP 000) |
-| 4 | Parsian Construction Development | https://pcdco.org | Unreachable (HTTP 000) |
-| 5 | Sina Port & Marine Services Development | https://spmco.co | Unreachable (HTTP 000) |
-| 6 | Persi Iran Gas | https://persiirangas.ir | Unreachable (HTTP 000) |
-| 7 | Tehran Oil Refining Company | https://www.torc.ir | Unreachable (HTTP 000) |
-| 8 | MIBIC (International Building & Industry Co.) | https://mibic.ir | Unreachable (HTTP 000) |
-| 9 | Pasargad Alloy Steel | https://www.pascosteel.com | Unreachable (HTTP 000) |
-| 10 | Esfahan Alloy Steel | — | No official URL provided; could not confirm an official source (non‑official sources excluded) |
-| 11 | Faradast Energy Falat | — | No official URL provided; could not confirm an official source (non‑official sources excluded) |
-| 13 | Persian Gulf Petrochemical Industries Co. (PGPIC) | https://pgpic.ir | Unreachable (HTTP 000) |
-| 14 | Azarab | http://www.azarab.ir | Blocked — HTTP 503 on every attempt |
-| 15 | Shams Energy | https://shams.energy | Unreachable (HTTP 000) |
-| 16 | Persian Gulf Star Oil Company | https://www.pgsoc.ir | Unreachable (HTTP 000) |
-| 17 | MAPNA Pars Generator Eng. & Mfg. | https://mapnagroup.com/mapnacompanies/mapna-pars | Unreachable (HTTP 000) |
-| 18 | Pars Machine Manufacturing | https://mspco.ir | Unreachable (HTTP 000) |
-| 19 | National Iranian Steel Industries Group | https://insig.org | Unreachable (HTTP 000) |
-| 20 | Karun Agro Industry | https://karuncane.com | Unreachable (HTTP 000) |
-| 21 | Imam Khomeini Agro Industry | https://www.ik-sugarcane.ir | Unreachable (HTTP 000) |
-
-> Obtained successfully: **#12 Pars Garma** → `pars-garma.png` (official header
-> logo from parsgarma.com, transparent PNG, trimmed).
+| # | Company | Slug | Website | Reason |
+|---|---------|------|---------|--------|
+| 1 | Kurdestan Cement | `kordestan-cement` | https://www.kordestancement.com | Site unreachable (000); no Wikipedia logo |
+| 2 | Dashtestan Cement | `dashtestan-cement` | https://dashtestancement.com | Site unreachable (000); no Wikipedia logo |
+| 3 | Hegmatan Cement | `hegmatan-cement` | https://www.hegmatancement.com | Site unreachable (000); no Wikipedia logo |
+| 4 | Parsian Construction Development | `parsian-construction-development` | https://pcdco.org | Site unreachable (000); no Wikipedia logo |
+| 5 | Sina Port & Marine Services Development | `sina-port-marine` | https://spmco.co | Site unreachable (000); no Wikipedia logo |
+| 6 | Persi Iran Gas | `persi-iran-gas` | https://persiirangas.ir | Site unreachable (000); Wikipedia page has no logo file |
+| 7 | Tehran Oil Refining Company | `torc` | https://www.torc.ir | Site unreachable (000); no Wikipedia logo |
+| 8 | MIBIC | `mibic` | https://mibic.ir | Site unreachable (000); no Wikipedia logo |
+| 9 | Pasargad Alloy Steel | `pasargad-alloy-steel` | https://www.pascosteel.com | Site unreachable (000); no Wikipedia logo |
+| 10 | Esfahan Alloy Steel | `esfahan-alloy-steel` | — | No official URL; no Wikipedia logo |
+| 11 | Faradast Energy Falat | `faradast-energy-falat` | — | No official URL; no Wikipedia logo |
+| 15 | Shams Energy | `shams-energy` | https://shams.energy | Site unreachable (000); no Wikipedia logo |
+| 16 | Persian Gulf Star Oil Company | `pgsoc` | https://www.pgsoc.ir | Site unreachable (000); no Wikipedia logo |
+| 18 | Pars Machine Manufacturing | `pars-machine-manufacturing` | https://mspco.ir | Site unreachable (000); no Wikipedia logo |
+| 19 | National Iranian Steel Industries Group | `insig` | https://insig.org | Site unreachable (000); the Wikipedia image was a foundry photo, not a logo |
+| 20 | Karun Agro Industry | `karun-agro-industry` | https://karuncane.com | Site unreachable (000); no Wikipedia logo |
+| 21 | Imam Khomeini Agro Industry | `imam-khomeini-agro-industry` | https://www.ik-sugarcane.ir | Site unreachable (000); no Wikipedia logo |

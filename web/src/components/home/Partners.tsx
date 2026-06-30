@@ -1,10 +1,10 @@
-import { ClientMarquee } from './ClientMarquee';
+import { ClientCarousel } from './ClientCarousel';
 import styles from './Partners.module.css';
 
 /**
  * Trust: the mills we source from + the clients who trust us. The supplier mills
- * stay a quiet name wall; the client section is a rotating logo marquee
- * (ClientMarquee), driven by public/assets/logos/clients/index.ts.
+ * stay a quiet name wall; the client section is an auto-advancing logo carousel
+ * (ClientCarousel), driven by public/assets/logos/clients/index.ts.
  */
 const FACTORIES = [
   'فولاد مبارکه',
@@ -42,7 +42,7 @@ export function Partners() {
             از سیمان و فولاد تا نفت، گاز و پتروشیمی — در کنار بزرگان صنعت ایران.
           </p>
         </div>
-        <ClientMarquee />
+        <ClientCarousel />
       </div>
     </section>
   );
