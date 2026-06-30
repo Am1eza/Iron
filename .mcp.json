@@ -55,6 +55,36 @@
     "cloudflare-dex": {
       "type": "http",
       "url": "https://dex.mcp.cloudflare.com/mcp"
+    },
+    "ref": {
+      "command": "npx",
+      "args": ["ref-tools-mcp@latest"],
+      "env": {
+        "REF_API_KEY": "${REF_API_KEY}"
+      }
+    },
+    "semgrep": {
+      "command": "uvx",
+      "args": ["semgrep-mcp"]
+    },
+    "pieces": {
+      "type": "sse",
+      "url": "http://localhost:39300/model_context_protocol/2024-11-05/sse"
+    },
+    "exa": {
+      "type": "http",
+      "url": "https://mcp.exa.ai/mcp"
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["@playwright/mcp@latest"]
+    },
+    "graphql": {
+      "command": "npx",
+      "args": ["mcp-graphql"],
+      "env": {
+        "ENDPOINT": "${GRAPHQL_ENDPOINT:-http://localhost:4000/graphql}"
+      }
     }
   }
 }
