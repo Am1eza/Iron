@@ -1,0 +1,43 @@
+# syntax=docker/dockerfile:1
+# Production image for the آهن‌تایم (ahantime.com) Next.js app.
+# Multi-stage: install deps → build (standalone) → tiny runner. Build context is web/.
+
+# ---- 1. deps ----------------------------------------------------------------
+FROM node:20-alpine AS deps
+RUN corepack enable
+WORKDIR /app
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
+
+# ---- 2. build ---------------------------------------------------------------
+FROM node:20-alpine AS build
+RUN corepack enable
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+# NEXT_PUBLIC_* are inlined into the client bundle at build time, so they must be
+# present now (not just at runtime). Defaults match the app's own defaults.
+ARG NEXT_PUBLIC_SITE_URL=https://ahantime.com
+ARG NEXT_PUBLIC_API_MODE=mock
+ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL \
+    NEXT_PUBLIC_API_MODE=$NEXT_PUBLIC_API_MODE \
+    NEXT_TELEMETRY_DISABLED=1 \
+    NODE_ENV=production
+RUN pnpm build
+
+# ---- 3. runner --------------------------------------------------------------
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1 \
+    PORT=3000 \
+    HOSTNAME=0.0.0.0
+RUN addgroup -S nodejs && adduser -S nextjs -G nodejs
+# Standalone bundle + the assets it does NOT include (static + public).
+COPY --from=build /app/public ./public
+COPY --from=build --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=build --chown=nextjs:nodejs /app/.next/static ./.next/static
+USER nextjs
+EXPOSE 3000
+# server.js is emitted by Next's standalone output; it reads PORT/HOSTNAME.
+CMD ["node", "server.js"]

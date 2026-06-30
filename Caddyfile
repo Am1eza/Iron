@@ -1,0 +1,8 @@
+# Caddy auto-provisions and renews a free Let's Encrypt TLS certificate for these
+# hostnames and reverse-proxies to the Next.js container. HTTP is auto-redirected
+# to HTTPS. Requires ports 80 + 443 reachable from the internet and the domain's
+# DNS A record pointing at this server.
+ahantime.com, www.ahantime.com {
+	encode zstd gzip
+	reverse_proxy web:3000
+}

@@ -1,0 +1,8 @@
+# Deployment secrets — never commit. Use .env.example as the template.
+.env
+.env.*
+!.env.example
+
+# Caddy / Docker local state
+caddy_data/
+caddy_config/

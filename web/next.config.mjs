@@ -2,6 +2,9 @@
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // Emit a self-contained server bundle (.next/standalone/server.js) so the
+  // production Docker image stays small — see Dockerfile / DEPLOY.md.
+  output: 'standalone',
   images: {
     formats: ['image/avif', 'image/webp'],
   },
