@@ -10,11 +10,9 @@
   },
   "observability": {
     "enabled": true
-  },
-  // Production domain. Requires ahantime.com to be an active zone in the same
-  // Cloudflare account; `custom_domain` routes auto-provision DNS + TLS on deploy.
-  "routes": [
-    { "pattern": "ahantime.com", "custom_domain": true },
-    { "pattern": "www.ahantime.com", "custom_domain": true }
-  ]
+  }
+  // Custom domain (ahantime.com) is attached via the Cloudflare dashboard
+  // after the first successful deploy (Workers → Settings → Domains & Routes),
+  // which auto-creates the DNS + TLS. Kept out of here so the first deploy
+  // succeeds on a *.workers.dev URL with no DNS dependency.
 }
