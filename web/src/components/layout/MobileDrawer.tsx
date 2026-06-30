@@ -3,7 +3,15 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { routes } from '@/lib/routes';
-import { PRIMARY_NAV, TOOLS_NAV, CATEGORY_SUBS, CHANNELS } from '@/lib/data/nav';
+import {
+  PRIMARY_NAV,
+  TOOLS_NAV,
+  SERVICES_NAV,
+  COMPANY_NAV,
+  SUPPORT_NAV,
+  CATEGORY_SUBS,
+  CHANNELS,
+} from '@/lib/data/nav';
 import type { Category } from '@/lib/types/domain';
 import { useUiStore } from '@/lib/stores/ui';
 import { useAuthStore } from '@/lib/stores/auth';
@@ -156,6 +164,26 @@ export function MobileDrawer({ categories }: { categories: Category[] }) {
               ))}
             </ul>
           </div>
+
+          {/* Services / Company / Support — same sets as the header & footer */}
+          {[
+            { title: 'خدمات', links: SERVICES_NAV },
+            { title: 'شرکت', links: COMPANY_NAV },
+            { title: 'پشتیبانی', links: SUPPORT_NAV },
+          ].map((group) => (
+            <div key={group.title} className={styles.section}>
+              <p className={styles.groupTitle}>{group.title}</p>
+              <ul className={styles.list}>
+                {group.links.map((l) => (
+                  <li key={l.href}>
+                    <Link href={l.href} className={styles.item}>
+                      {l.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
 
           {/* Account / channels */}
           <div className={styles.foot}>

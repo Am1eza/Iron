@@ -14,7 +14,7 @@ import {
   emptyPresets,
 } from '@/components/ui';
 import { BreadcrumbJsonLd, JsonLd } from '@/components/seo/JsonLd';
-import { CategoryBrowser } from '@/components/catalog/CategoryBrowser';
+import { PriceTable } from '@/components/catalog/PriceTable';
 import { BulkQuote } from '@/components/catalog/BulkQuote';
 import { PriceHeader } from '@/components/catalog/PriceHeader';
 
@@ -80,12 +80,7 @@ export default async function CategoryPage({ params }: Params) {
 
           {rows.length > 0 ? (
             <>
-              <CategoryBrowser
-                category={category}
-                categoryName={cat.name}
-                rows={rows}
-                subs={subs}
-              />
+              <PriceTable rows={rows} subs={subs} categoryName={cat.name} />
               <BulkQuote category={category} categoryName={cat.name} rows={rows} />
             </>
           ) : (

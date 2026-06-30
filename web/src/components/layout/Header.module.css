@@ -162,6 +162,113 @@
   color: var(--color-accent-text);
   text-decoration: none;
 }
+.dropdownList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.dropdownDivider {
+  block-size: 1px;
+  margin: var(--space-2) var(--space-2);
+  background: var(--color-hairline);
+}
+
+/* ===== «مشاور هوشمند» emphasized link ===== */
+.aiLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-4);
+  margin-inline-start: var(--space-1);
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-tint);
+  color: var(--color-accent-text);
+  font: var(--t-label);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.aiLink:hover {
+  background: var(--color-action);
+  color: var(--color-on-action);
+  text-decoration: none;
+}
+
+/* ===== «محصولات» mega-menu ===== */
+.mega {
+  position: absolute;
+  inset-block-start: calc(100% + var(--space-1));
+  inset-inline: var(--page-x);
+  max-inline-size: var(--container-max);
+  margin-inline: auto;
+  padding: var(--space-5);
+  background: var(--color-surface-raised);
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  z-index: var(--z-dropdown);
+}
+.megaGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-5) var(--space-6);
+}
+.megaCol {
+  min-inline-size: 0;
+}
+.megaHead {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-block-end: var(--space-2);
+  font: var(--t-h4);
+  font-weight: 700;
+  color: var(--color-text-strong);
+  text-decoration: none;
+}
+.megaHead:hover {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+.megaThumb {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 34px;
+  block-size: 26px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: var(--border-hairline) solid var(--color-hairline);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-strong);
+}
+.megaThumb > * {
+  inline-size: 100%;
+  block-size: 100%;
+}
+.megaSubs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.megaSub {
+  display: block;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  font: var(--t-body-sm);
+  text-decoration: none;
+}
+.megaSub:hover {
+  background: var(--color-accent-tint);
+  color: var(--color-accent-text);
+  text-decoration: none;
+}
 
 /* ===== Utility nav ===== */
 .utility {
@@ -198,6 +305,27 @@
 }
 .iconBtn:hover {
   background: var(--color-surface-sunken);
+}
+.cartWrap {
+  position: relative;
+  display: inline-flex;
+}
+.cartBadge {
+  position: absolute;
+  inset-block-start: -6px;
+  inset-inline-end: -7px;
+  min-inline-size: 16px;
+  block-size: 16px;
+  padding-inline: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-pill);
+  background: var(--color-action);
+  color: var(--color-on-action);
+  font: var(--t-micro);
+  font-weight: 700;
+  line-height: 1;
 }
 
 .loginBtn,

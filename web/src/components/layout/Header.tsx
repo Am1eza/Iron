@@ -3,25 +3,30 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { routes } from '@/lib/routes';
-import { PRIMARY_NAV } from '@/lib/data/nav';
+import { TOOLS_NAV, SERVICES_NAV, COMPANY_NAV, SUPPORT_NAV } from '@/lib/data/nav';
 import type { Category } from '@/lib/types/domain';
 import { useUiStore } from '@/lib/stores/ui';
 import { useAuthStore } from '@/lib/stores/auth';
+import { useCartStore, selectCartCount } from '@/lib/stores/cart';
+import { toPersianDigits } from '@/lib/utils/format';
 import { Logo } from './Logo';
 import { SearchBar } from './SearchBar';
-import { MenuIcon, SearchIcon, UserIcon } from '@/components/primitives/icons';
+import { NavDropdown } from './NavDropdown';
+import { ProductsMenu } from './ProductsMenu';
+import { MenuIcon, SearchIcon, UserIcon, CartIcon, SparkIcon } from '@/components/primitives/icons';
 import styles from './Header.module.css';
 
 /**
- * Minimal global header. Logo · three essential links · search · account. No
- * mega-menus or dropdowns — browsing happens on the home rail and /prices, so the
- * bar stays calm. Transparent overlay over the home's dark hero; solidifies on scroll.
- * (`categories` kept for the mobile drawer wiring.)
+ * Global header. Logo · full product/tools/services/company nav (parity with the
+ * footer & mobile drawer) · search · cart · account. The desktop nav uses a
+ * «محصولات» mega-menu + «ابزارها/خدمات/شرکت» dropdowns; below 1024px it collapses
+ * to the hamburger drawer (which mirrors the same destinations).
  */
-export function Header(_props: { categories: Category[] }) {
+export function Header({ categories }: { categories: Category[] }) {
   const pathname = usePathname();
   const setDrawerOpen = useUiStore((s) => s.setDrawerOpen);
   const user = useAuthStore((s) => s.user);
+  const cartCount = useCartStore(selectCartCount);
 
   const [condensed, setCondensed] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -60,18 +65,71 @@ export function Header(_props: { categories: Category[] }) {
         <Logo compact={condensed} />
 
         <nav className={styles.primary} aria-label="ناوبری اصلی">
-          {PRIMARY_NAV.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={styles.navLink}
-              data-active={isActive(item.href) ? '' : undefined}
-              aria-current={isActive(item.href) ? 'page' : undefined}
-              data-event={item.event}
-            >
-              {item.label}
-            </Link>
-          ))}
+          <ProductsMenu categories={categories} />
+
+          <Link
+            href={routes.prices()}
+            className={styles.navLink}
+            data-active={isActive(routes.prices()) ? '' : undefined}
+            aria-current={isActive(routes.prices()) ? 'page' : undefined}
+          >
+            قیمت‌ها
+          </Link>
+
+          <NavDropdown label="ابزارها" active={isActive('/tools') || isActive(routes.market())}>
+            <ul className={styles.dropdownList}>
+              {TOOLS_NAV.map((t) => (
+                <li key={t.href}>
+                  <Link href={t.href} className={styles.dropdownItem}>
+                    {t.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </NavDropdown>
+
+          <NavDropdown label="خدمات" active={isActive(routes.warehouse()) || isActive(routes.track())}>
+            <ul className={styles.dropdownList}>
+              {SERVICES_NAV.map((s) => (
+                <li key={s.href}>
+                  <Link href={s.href} className={styles.dropdownItem}>
+                    {s.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </NavDropdown>
+
+          <Link
+            href={routes.ai()}
+            className={styles.aiLink}
+            data-active={isActive(routes.ai()) ? '' : undefined}
+            aria-current={isActive(routes.ai()) ? 'page' : undefined}
+            data-event="ai_entry"
+          >
+            <SparkIcon size={16} />
+            مشاور هوشمند
+          </Link>
+
+          <NavDropdown label="شرکت">
+            <ul className={styles.dropdownList}>
+              {COMPANY_NAV.map((c) => (
+                <li key={c.href}>
+                  <Link href={c.href} className={styles.dropdownItem}>
+                    {c.label}
+                  </Link>
+                </li>
+              ))}
+              <li className={styles.dropdownDivider} aria-hidden="true" />
+              {SUPPORT_NAV.map((c) => (
+                <li key={c.href}>
+                  <Link href={c.href} className={styles.dropdownItem}>
+                    {c.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </NavDropdown>
         </nav>
 
         <div className={styles.utility}>
@@ -85,6 +143,20 @@ export function Header(_props: { categories: Category[] }) {
           >
             <SearchIcon size={20} />
           </button>
+          <Link
+            href={routes.cart()}
+            className={styles.iconBtn}
+            aria-label={cartCount > 0 ? `سبد استعلام، ${toPersianDigits(cartCount)} کالا` : 'سبد استعلام'}
+          >
+            <span className={styles.cartWrap}>
+              <CartIcon size={20} />
+              {cartCount > 0 && (
+                <span className={styles.cartBadge} aria-hidden="true">
+                  {toPersianDigits(cartCount)}
+                </span>
+              )}
+            </span>
+          </Link>
           {user ? (
             <Link href={routes.account()} className={styles.accountBtn}>
               <UserIcon size={20} />

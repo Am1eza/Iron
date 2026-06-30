@@ -79,35 +79,36 @@ export const CATEGORY_SUBS: Record<string, SubCat[]> = {
   ],
 };
 
-/** Footer column groups (navigation.md §7). */
+/** «خدمات» — commercial services. Shared by header dropdown, drawer & footer. */
+export const SERVICES_NAV: NavLink[] = [
+  { label: 'انبار مشتریان', href: routes.warehouse() },
+  { label: 'پیگیری سفارش', href: routes.track() },
+];
+
+/** «شرکت» — company links. Shared by header dropdown, drawer & footer. */
+export const COMPANY_NAV: NavLink[] = [
+  { label: 'چرا آهن‌تایم', href: routes.why() },
+  { label: 'درباره ما', href: routes.about() },
+  { label: 'همکاری با ما', href: routes.cooperation() },
+  { label: 'تماس با ما', href: routes.contact() },
+];
+
+/** «پشتیبانی» — legal/support. Shared by header dropdown, drawer & footer. */
+export const SUPPORT_NAV: NavLink[] = [
+  { label: 'قوانین', href: routes.terms() },
+  { label: 'حریم خصوصی', href: routes.privacy() },
+];
+
+/**
+ * Footer column groups (navigation.md §7) — built from the SAME shared nav sets
+ * the header dropdowns and the mobile drawer consume, so every surface stays in
+ * sync from one source of truth.
+ */
 export const FOOTER_COLUMNS: { title: string; links: NavLink[] }[] = [
-  {
-    title: 'ابزارها',
-    links: TOOLS_NAV,
-  },
-  {
-    title: 'خدمات',
-    links: [
-      { label: 'انبار مشتریان', href: routes.warehouse() },
-      { label: 'پیگیری سفارش', href: routes.track() },
-    ],
-  },
-  {
-    title: 'شرکت',
-    links: [
-      { label: 'چرا آهن‌تایم', href: routes.why() },
-      { label: 'درباره ما', href: routes.about() },
-      { label: 'تماس با ما', href: routes.contact() },
-      { label: 'همکاری با ما', href: routes.cooperation() },
-    ],
-  },
-  {
-    title: 'پشتیبانی',
-    links: [
-      { label: 'قوانین', href: routes.terms() },
-      { label: 'حریم خصوصی', href: routes.privacy() },
-    ],
-  },
+  { title: 'ابزارها', links: TOOLS_NAV },
+  { title: 'خدمات', links: SERVICES_NAV },
+  { title: 'شرکت', links: COMPANY_NAV },
+  { title: 'پشتیبانی', links: SUPPORT_NAV },
 ];
 
 /** Social / messaging channels (navigation.md §7.5) — hrefs are placeholders. */
