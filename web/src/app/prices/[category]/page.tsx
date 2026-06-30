@@ -9,8 +9,6 @@ import {
   Container,
   Section,
   Stack,
-  Heading,
-  Text,
   Breadcrumbs,
   EmptyState,
   emptyPresets,
@@ -18,10 +16,7 @@ import {
 import { BreadcrumbJsonLd, JsonLd } from '@/components/seo/JsonLd';
 import { CategoryBrowser } from '@/components/catalog/CategoryBrowser';
 import { BulkQuote } from '@/components/catalog/BulkQuote';
-import { ProductImage } from '@/components/catalog/ProductImage';
-import { CategoryArt } from '@/components/catalog/CategoryArt';
-import { productImage } from '@/lib/data/productImages';
-import styles from './page.module.css';
+import { PriceHeader } from '@/components/catalog/PriceHeader';
 
 type Params = { params: Promise<{ category: string }> };
 
@@ -74,25 +69,13 @@ export default async function CategoryPage({ params }: Params) {
         <Stack gap={6}>
           <div>
             <Breadcrumbs items={crumbs} />
-            <div className={styles.header}>
-              <div className={styles.headerText}>
-                <Heading level={1} id="cat-title">
-                  قیمت روز {cat.name}
-                </Heading>
-                <Text color="muted">
-                  قیمت‌های لحظه‌ای {cat.name} با نوسان، وزن شاخه و زمان تحویل اعلام‌شده. اول مشورت، بعد خرید.
-                </Text>
-              </div>
-              <figure className={styles.media}>
-                {productImage(category) ? (
-                  <ProductImage slug={category} name={cat.name} eager />
-                ) : (
-                  <span className={styles.art} aria-hidden="true">
-                    <CategoryArt slug={category} size={72} />
-                  </span>
-                )}
-              </figure>
-            </div>
+            <PriceHeader
+              categorySlug={category}
+              categoryName={cat.name}
+              id="cat-title"
+              title={`قیمت روز ${cat.name}`}
+              description={`قیمت‌های لحظه‌ای ${cat.name} با نوسان، وزن شاخه و زمان تحویل اعلام‌شده. اول مشورت، بعد خرید.`}
+            />
           </div>
 
           {rows.length > 0 ? (

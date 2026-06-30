@@ -9,17 +9,19 @@ import {
   Container,
   Section,
   Stack,
-  Heading,
-  Text,
   Breadcrumbs,
   EmptyState,
   emptyPresets,
 } from '@/components/ui';
 import { BreadcrumbJsonLd, JsonLd } from '@/components/seo/JsonLd';
-import { CategoryBrowser } from '@/components/catalog/CategoryBrowser';
+import { PriceTable } from '@/components/catalog/PriceTable';
+import { PriceHeader } from '@/components/catalog/PriceHeader';
 import { BulkQuote } from '@/components/catalog/BulkQuote';
 
-type Params = { params: Promise<{ category: string; sub: string }> };
+type Params = {
+  params: Promise<{ category: string; sub: string }>;
+  searchParams: Promise<{ factory?: string | string[] }>;
+};
 
 // Prices change intraday (admin-entered) → revalidate often (ROUTING.md §6).
 export const revalidate = 300;
@@ -47,8 +49,10 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   });
 }
 
-export default async function SubCategoryPage({ params }: Params) {
+export default async function SubCategoryPage({ params, searchParams }: Params) {
   const { category, sub } = await params;
+  const { factory } = await searchParams;
+  const factoryFilter = Array.isArray(factory) ? factory[0] ?? null : factory ?? null;
 
   const cat = categories.find((c) => c.slug === category);
   if (!cat) notFound();
@@ -86,23 +90,23 @@ export default async function SubCategoryPage({ params }: Params) {
         <Stack gap={6}>
           <div>
             <Breadcrumbs items={crumbs} />
-            <Heading level={1} id="sub-title">
-              قیمت روز {name} {cat.name}
-            </Heading>
-            <Text color="muted">
-              قیمت لحظه‌ای {name} {cat.name} به تفکیک سایز و کارخانه، همراه با نوسان، وزن شاخه و زمان
-              تحویل اعلام‌شده. پیش از خرید، با کارشناس ما مشورت کنید.
-            </Text>
+            <PriceHeader
+              categorySlug={category}
+              categoryName={cat.name}
+              id="sub-title"
+              title={`قیمت روز ${name} ${cat.name}`}
+              description={`قیمت لحظه‌ای ${name} ${cat.name} به تفکیک سایز و کارخانه، همراه با نوسان، وزن شاخه و زمان تحویل اعلام‌شده. پیش از خرید، با کارشناس ما مشورت کنید.`}
+            />
           </div>
 
           {rows.length > 0 ? (
             <>
-              <CategoryBrowser
-                category={category}
-                categoryName={cat.name}
+              <PriceTable
                 rows={allRows}
                 subs={subs}
+                categoryName={cat.name}
                 initialSub={sub}
+                initialFactory={factoryFilter}
               />
               <BulkQuote category={category} categoryName={cat.name} rows={allRows} />
             </>

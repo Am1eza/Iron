@@ -145,6 +145,23 @@ export function findSku(slug: string): PriceRow | undefined {
   return allRows.find((r) => r.slug === slug);
 }
 
+/**
+ * Unique factories/mills for a category, or for one sub-category. Derived from
+ * the mock rows so it stays in sync with the tables. Used by the home cascade
+ * menu's 3rd level (category → sub-group → factory). Falls back to the full
+ * category list if a sub happens to carry fewer than two distinct mills.
+ */
+export function getFactories(categorySlug: string, subSlug?: string): string[] {
+  const namesOf = (rs: PriceRow[]): string[] =>
+    [...new Set(rs.map((r) => r.factory).filter((f): f is string => Boolean(f)))];
+  const rows = subSlug ? getSubRows(categorySlug, subSlug) : getRows(categorySlug);
+  const uniq = namesOf(rows);
+  if (subSlug && uniq.length < 2) {
+    return namesOf(getRows(categorySlug));
+  }
+  return uniq;
+}
+
 /** Display name for a sub-category slug (or undefined if unknown). */
 export function subName(categorySlug: string, subSlug: string): string | undefined {
   return (CATEGORY_SUBS[categorySlug] ?? []).find((s) => s.slug === subSlug)?.name;

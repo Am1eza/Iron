@@ -12,17 +12,36 @@ import { ChevronStartIcon } from '@/components/primitives/icons';
 import styles from './CategoryStage.module.css';
 
 /**
- * Product menu — placed directly under the AI hero. A single category column
- * (the rail) on the RTL start; hovering/focusing a row opens a sub-group flyout
- * panel beside it (photo + sub-groups + «جدول قیمت» CTA). Click a row → that
- * category's price table. On touch screens the flyout collapses to inline
- * sub-group chips under each row. Mega-menu inspired, kept clean.
+ * Product menu — directly under the AI hero. A three-level cascade revealed on
+ * hover/focus: category (rail) → sub-group → factory/mill. Hover a category to
+ * open its sub-groups; hover a sub-group to open its mills. Click a category →
+ * its table; a sub-group → that family; a mill → the sub table filtered by it.
+ * On touch screens it degrades to categories with inline sub-group chips.
  */
-export function CategoryStage({ categories }: { categories: Category[] }) {
+type FactoryMap = Record<string, Record<string, string[]>>;
+
+const firstSub = (slug: string): string => CATEGORY_SUBS[slug]?.[0]?.slug ?? '';
+
+export function CategoryStage({
+  categories,
+  factories,
+}: {
+  categories: Category[];
+  factories: FactoryMap;
+}) {
   const reduced = useReducedMotion();
-  const [active, setActive] = useState<Category | null>(categories[0] ?? null);
-  if (!active) return null;
-  const subs = CATEGORY_SUBS[active.slug] ?? [];
+  const [activeCat, setActiveCat] = useState<Category | null>(categories[0] ?? null);
+  const [activeSub, setActiveSub] = useState<string>(firstSub(categories[0]?.slug ?? ''));
+  if (!activeCat) return null;
+
+  const subs = CATEGORY_SUBS[activeCat.slug] ?? [];
+  const mills = factories[activeCat.slug]?.[activeSub] ?? [];
+  const activeSubName = subs.find((s) => s.slug === activeSub)?.name ?? '';
+
+  const pickCat = (cat: Category) => {
+    setActiveCat(cat);
+    setActiveSub(firstSub(cat.slug));
+  };
 
   return (
     <section className={styles.section} aria-labelledby="browse-title">
@@ -34,7 +53,7 @@ export function CategoryStage({ categories }: { categories: Category[] }) {
       </div>
 
       <div className={`container ${styles.menu}`}>
-        {/* category column (RTL start = right) */}
+        {/* Column 1 — categories (RTL start = right) */}
         <nav className={styles.rail} aria-label="دسته‌بندی محصولات">
           <ul className={styles.railList}>
             {categories.map((cat) => {
@@ -44,9 +63,9 @@ export function CategoryStage({ categories }: { categories: Category[] }) {
                   <Link
                     href={routes.category(cat.slug)}
                     className={styles.railItem}
-                    data-active={active.slug === cat.slug ? '' : undefined}
-                    onMouseEnter={() => setActive(cat)}
-                    onFocus={() => setActive(cat)}
+                    data-active={activeCat.slug === cat.slug ? '' : undefined}
+                    onMouseEnter={() => pickCat(cat)}
+                    onFocus={() => pickCat(cat)}
                     data-event="rail_category_click"
                   >
                     <span className={styles.railThumb} aria-hidden>
@@ -79,44 +98,63 @@ export function CategoryStage({ categories }: { categories: Category[] }) {
           </ul>
         </nav>
 
-        {/* flyout panel — desktop (hover/focus opens the active category's subs) */}
-        <div className={styles.panelWrap}>
+        {/* Columns 2 & 3 — cascade flyout (desktop) */}
+        <div className={styles.flyout}>
           <AnimatePresence mode="wait">
             <motion.div
-              key={active.slug}
+              key={activeCat.slug}
               className={styles.panel}
               initial={{ opacity: 0, x: reduced ? 0 : 14 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: reduced ? 0 : -10 }}
-              transition={{ duration: reduced ? 0 : 0.26, ease: [0.16, 1, 0.3, 1] }}
+              transition={{ duration: reduced ? 0 : 0.24, ease: [0.16, 1, 0.3, 1] }}
             >
-              <span className={styles.panelArt}>
-                {productImage(active.slug) ? (
-                  <ProductImage slug={active.slug} name={active.name} eager />
-                ) : (
-                  <CategoryArt slug={active.slug} size={96} />
-                )}
-              </span>
-              <div className={styles.panelBody}>
-                <h3 className={styles.panelTitle}>قیمت روز {active.name}</h3>
-                <ul className={styles.panelSubs}>
-                  {subs.map((s) => (
-                    <li key={s.slug}>
-                      <Link
-                        href={routes.subCategory(active.slug, s.slug)}
-                        className={styles.panelSub}
-                      >
-                        <ChevronStartIcon size={14} className={`${styles.subChev} icon--rtl`} />
-                        {s.name}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-                <Link href={routes.category(active.slug)} className={styles.cta}>
-                  مشاهده جدول قیمت {active.name}
-                  <ChevronStartIcon size={18} className="icon--rtl" />
-                </Link>
+              <div className={styles.cols}>
+                {/* sub-groups */}
+                <div className={styles.col}>
+                  <p className={styles.colLabel}>زیرشاخه‌های {activeCat.name}</p>
+                  <ul className={styles.colList}>
+                    {subs.map((s) => (
+                      <li key={s.slug}>
+                        <Link
+                          href={routes.subCategory(activeCat.slug, s.slug)}
+                          className={styles.subItem}
+                          data-active={activeSub === s.slug ? '' : undefined}
+                          onMouseEnter={() => setActiveSub(s.slug)}
+                          onFocus={() => setActiveSub(s.slug)}
+                        >
+                          <span>{s.name}</span>
+                          <ChevronStartIcon size={14} className={`${styles.subChev} icon--rtl`} />
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* factories of the active sub-group */}
+                <div className={`${styles.col} ${styles.colFactories}`}>
+                  <p className={styles.colLabel}>
+                    کارخانه‌های {activeSubName}
+                  </p>
+                  <ul className={styles.colList}>
+                    {mills.map((f) => (
+                      <li key={f}>
+                        <Link
+                          href={`${routes.subCategory(activeCat.slug, activeSub)}?factory=${encodeURIComponent(f)}`}
+                          className={styles.factoryItem}
+                        >
+                          {f}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
+
+              <Link href={routes.category(activeCat.slug)} className={styles.cta}>
+                مشاهده جدول قیمت {activeCat.name}
+                <ChevronStartIcon size={18} className="icon--rtl" />
+              </Link>
             </motion.div>
           </AnimatePresence>
         </div>

@@ -37,6 +37,7 @@ export function PriceTable({
   sub: subProp,
   onSubChange,
   initialSub = null,
+  initialFactory = null,
 }: {
   rows: PriceRow[];
   subs: SubCat[];
@@ -48,6 +49,9 @@ export function PriceTable({
   onSubChange?: (sub: string | null) => void;
   /** Initial sub for the uncontrolled case (e.g. deep-link landing). */
   initialSub?: string | null;
+  /** Pre-applied factory/mill filter (e.g. from the home cascade menu's
+   *  «?factory=…» deep link). Shown as a clearable chip. */
+  initialFactory?: string | null;
 }) {
   const add = useCartStore((s) => s.add);
   const toast = useToast();
@@ -64,12 +68,16 @@ export function PriceTable({
   };
   const [fav, setFav] = useState<Set<string>>(new Set());
   const [chartFor, setChartFor] = useState<PriceRow | null>(null);
+  const [factory, setFactory] = useState<string | null>(initialFactory);
 
   const withVat = (p: number) => (vat ? Math.round(p * (1 + CONSTANTS.VAT_RATE)) : p);
 
   const filtered = useMemo(
-    () => (sub ? rows.filter((r) => r.subCategoryId === sub) : rows),
-    [rows, sub],
+    () =>
+      rows.filter(
+        (r) => (!sub || r.subCategoryId === sub) && (!factory || r.factory === factory),
+      ),
+    [rows, sub, factory],
   );
 
   const sorted = useMemo(() => {
@@ -127,6 +135,17 @@ export function PriceTable({
               {s.name}
             </Chip>
           ))}
+          {factory && (
+            <button
+              type="button"
+              className={styles.factoryChip}
+              onClick={() => setFactory(null)}
+              aria-label={`حذف فیلتر کارخانه ${factory}`}
+            >
+              کارخانه: {factory}
+              <span className={styles.factoryClear} aria-hidden="true">×</span>
+            </button>
+          )}
         </div>
         <div className={styles.tools}>
           <label className={styles.sort}>
