@@ -73,11 +73,11 @@
   background: var(--color-surface);
   border: var(--border-strong) solid var(--color-accent);
   border-radius: var(--radius-pill);
-  box-shadow: 0 1px 2px rgba(16, 22, 30, 0.04), 0 14px 36px -14px rgba(46, 107, 255, 0.3);
+  box-shadow: 0 1px 2px rgba(16, 22, 30, 0.04), 0 14px 36px -14px rgba(15, 138, 99, 0.3);
   transition: box-shadow var(--dur-base) var(--ease-standard);
 }
 .search:focus-within {
-  box-shadow: 0 0 0 4px var(--color-accent-tint), 0 18px 44px -16px rgba(46, 107, 255, 0.4);
+  box-shadow: 0 0 0 4px var(--color-accent-tint), 0 18px 44px -16px rgba(15, 138, 99, 0.4);
 }
 .searchIcon {
   display: inline-flex;
@@ -87,9 +87,9 @@
   inline-size: 44px;
   block-size: 44px;
   border-radius: 50%;
-  background: linear-gradient(140deg, var(--cobalt-400), var(--cobalt-700));
+  background: linear-gradient(140deg, var(--emerald-400), var(--emerald-700));
   color: #fff;
-  box-shadow: 0 4px 12px -2px rgba(46, 107, 255, 0.5);
+  box-shadow: 0 4px 12px -2px rgba(15, 138, 99, 0.5);
 }
 .searchInput {
   flex: 1 1 auto;

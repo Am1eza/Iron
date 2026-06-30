@@ -34,7 +34,7 @@
   --color-accent:var(--emerald-500); --color-accent-text:var(--emerald-700); --color-accent-tint:var(--emerald-50);
   --color-action:var(--emerald-500); --color-action-hover:var(--emerald-400); --color-action-press:var(--emerald-600);
   --color-on-action:var(--neutral-0); --color-action-text:var(--emerald-700);
-  --color-focus:var(--cobalt-500);
+  --color-focus:var(--emerald-500);
   --color-gain:var(--gain-500); --color-gain-text:var(--gain-700);
   --color-loss:var(--loss-500); --color-loss-text:var(--loss-600);
   --color-overlay:rgba(15,19,24,.55);
@@ -103,7 +103,7 @@
   --color-surface-inverse:var(--neutral-900); --color-hairline:rgba(255,255,255,.08); --color-border-strong:var(--neutral-700);
   --color-text:var(--neutral-100); --color-text-strong:var(--neutral-0); --color-text-muted:var(--neutral-400);
   --color-accent:var(--emerald-400); --color-accent-text:var(--emerald-300); --color-accent-tint:rgba(15,138,99,.16);
-  --color-action:var(--emerald-500); --color-on-action:var(--neutral-0); --color-action-hover:var(--emerald-400); --color-action-press:var(--emerald-600); --color-action-text:var(--emerald-300); --color-focus:var(--cobalt-400);
+  --color-action:var(--emerald-500); --color-on-action:var(--neutral-0); --color-action-hover:var(--emerald-400); --color-action-press:var(--emerald-600); --color-action-text:var(--emerald-300); --color-focus:var(--emerald-400);
   --color-overlay:rgba(0,0,0,.6);
   --shadow-sm:0 2px 8px rgba(0,0,0,.4); --shadow-md:0 8px 24px rgba(0,0,0,.5); --shadow-lg:0 16px 48px rgba(0,0,0,.6);
 }

@@ -12,94 +12,104 @@ import { ChevronStartIcon } from '@/components/primitives/icons';
 import styles from './CategoryStage.module.css';
 
 /**
- * Browse by category — the signature interaction (ahanprice-inspired, refined).
- * The category names sit in a fixed list on the RIGHT; hovering one swaps its
- * label for its product image AND shows its preview (sub-categories) on the left.
- * Click → that category's price table. Built for non-technical buyers.
+ * Product menu — placed directly under the AI hero. A single category column
+ * (the rail) on the RTL start; hovering/focusing a row opens a sub-group flyout
+ * panel beside it (photo + sub-groups + «جدول قیمت» CTA). Click a row → that
+ * category's price table. On touch screens the flyout collapses to inline
+ * sub-group chips under each row. Mega-menu inspired, kept clean.
  */
 export function CategoryStage({ categories }: { categories: Category[] }) {
   const reduced = useReducedMotion();
   const [active, setActive] = useState<Category | null>(categories[0] ?? null);
   if (!active) return null;
+  const subs = CATEGORY_SUBS[active.slug] ?? [];
 
   return (
     <section className={styles.section} aria-labelledby="browse-title">
       <div className={`container ${styles.head}`}>
-        <div>
-          <p className={styles.eyebrow}>دسته‌بندی محصولات</p>
-          <h2 id="browse-title" className={styles.title}>
-            قیمت روز آهن‌آلات را ببینید
-          </h2>
-        </div>
-        <p className={styles.hint}>روی هر دسته بروید تا تصویر و زیرشاخه‌ها را ببینید؛ کلیک = جدول قیمت.</p>
+        <p className={styles.eyebrow}>دسته‌بندی محصولات</p>
+        <h2 id="browse-title" className={styles.title}>
+          محصول را انتخاب کنید
+        </h2>
       </div>
 
-      <div className={`container ${styles.grid}`}>
-        {/* RIGHT (RTL start) — the fixed category rail */}
+      <div className={`container ${styles.menu}`}>
+        {/* category column (RTL start = right) */}
         <nav className={styles.rail} aria-label="دسته‌بندی محصولات">
           <ul className={styles.railList}>
-            {categories.map((cat) => (
-              <li key={cat.id}>
-                <Link
-                  href={routes.category(cat.slug)}
-                  className={styles.railItem}
-                  data-active={active.slug === cat.slug ? '' : undefined}
-                  onMouseEnter={() => setActive(cat)}
-                  onFocus={() => setActive(cat)}
-                  data-event="rail_category_click"
-                >
-                  <span className={styles.railSwap}>
-                    <span className={styles.railName}>{cat.name}</span>
-                    <span className={styles.railArt} aria-hidden>
+            {categories.map((cat) => {
+              const catSubs = CATEGORY_SUBS[cat.slug] ?? [];
+              return (
+                <li key={cat.id} className={styles.railLi}>
+                  <Link
+                    href={routes.category(cat.slug)}
+                    className={styles.railItem}
+                    data-active={active.slug === cat.slug ? '' : undefined}
+                    onMouseEnter={() => setActive(cat)}
+                    onFocus={() => setActive(cat)}
+                    data-event="rail_category_click"
+                  >
+                    <span className={styles.railThumb} aria-hidden>
                       {productImage(cat.slug) ? (
-                        <span className={styles.railThumb}>
-                          <ProductImage slug={cat.slug} name={cat.name} />
-                        </span>
+                        <ProductImage slug={cat.slug} name={cat.name} />
                       ) : (
-                        <CategoryArt slug={cat.slug} size={32} />
+                        <CategoryArt slug={cat.slug} size={28} />
                       )}
-                      <span className={styles.railThumbLabel}>{cat.name}</span>
                     </span>
-                  </span>
-                  <ChevronStartIcon size={16} className={`${styles.railChev} icon--rtl`} />
-                </Link>
-              </li>
-            ))}
+                    <span className={styles.railName}>{cat.name}</span>
+                    <ChevronStartIcon size={16} className={`${styles.railChev} icon--rtl`} />
+                  </Link>
+
+                  {/* inline sub-groups — shown on touch/small screens (CSS) */}
+                  <ul className={styles.inlineSubs}>
+                    {catSubs.map((s) => (
+                      <li key={s.slug}>
+                        <Link
+                          href={routes.subCategory(cat.slug, s.slug)}
+                          className={styles.inlineSub}
+                        >
+                          {s.name}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              );
+            })}
           </ul>
         </nav>
 
-        {/* LEFT — live preview of the active category */}
-        <div className={styles.preview}>
+        {/* flyout panel — desktop (hover/focus opens the active category's subs) */}
+        <div className={styles.panelWrap}>
           <AnimatePresence mode="wait">
             <motion.div
               key={active.slug}
-              className={styles.card}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: reduced ? 0 : 0.3, ease: [0.16, 1, 0.3, 1] }}
+              className={styles.panel}
+              initial={{ opacity: 0, x: reduced ? 0 : 14 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: reduced ? 0 : -10 }}
+              transition={{ duration: reduced ? 0 : 0.26, ease: [0.16, 1, 0.3, 1] }}
             >
-              <span className={styles.cardArt}>
+              <span className={styles.panelArt}>
                 {productImage(active.slug) ? (
                   <ProductImage slug={active.slug} name={active.name} eager />
                 ) : (
-                  <CategoryArt slug={active.slug} size={104} />
+                  <CategoryArt slug={active.slug} size={96} />
                 )}
               </span>
-              <div className={styles.cardBody}>
-                <h3 className={styles.cardTitle}>قیمت روز {active.name}</h3>
-                <ul className={styles.subs}>
-                  {(CATEGORY_SUBS[active.slug] ?? []).map((s, i) => (
-                    <motion.li
-                      key={s.slug}
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: reduced ? 0 : 0.03 * i, duration: 0.28 }}
-                    >
-                      <Link href={routes.subCategory(active.slug, s.slug)} className={styles.subChip}>
+              <div className={styles.panelBody}>
+                <h3 className={styles.panelTitle}>قیمت روز {active.name}</h3>
+                <ul className={styles.panelSubs}>
+                  {subs.map((s) => (
+                    <li key={s.slug}>
+                      <Link
+                        href={routes.subCategory(active.slug, s.slug)}
+                        className={styles.panelSub}
+                      >
+                        <ChevronStartIcon size={14} className={`${styles.subChev} icon--rtl`} />
                         {s.name}
                       </Link>
-                    </motion.li>
+                    </li>
                   ))}
                 </ul>
                 <Link href={routes.category(active.slug)} className={styles.cta}>

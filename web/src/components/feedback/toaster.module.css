@@ -33,7 +33,7 @@
 
 .success { background: var(--gain-50); color: var(--color-gain-text); border-color: var(--gain-100); }
 .error { background: var(--loss-50); color: var(--color-loss-text); border-color: var(--loss-100); }
-.info { background: var(--cobalt-50); color: var(--color-accent-text); border-color: var(--cobalt-200); }
+.info { background: var(--color-accent-tint); color: var(--color-accent-text); border-color: var(--emerald-200); }
 
 .msg { flex: 1; }
 .close {

@@ -61,6 +61,6 @@
 }
 .info {
   background: var(--color-accent-tint);
-  border-color: var(--cobalt-100);
+  border-color: var(--emerald-100);
   color: var(--color-accent-text);
 }

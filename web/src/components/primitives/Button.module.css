@@ -29,8 +29,16 @@
 .primary:hover:not(:disabled) { background: var(--color-action-hover); }
 .primary:active:not(:disabled) { background: var(--color-action-press); }
 
-.secondary { background: var(--cobalt-600); color: #fff; }
-.secondary:hover:not(:disabled) { background: var(--cobalt-700); }
+.secondary {
+  background: var(--color-surface);
+  color: var(--color-text-strong);
+  border: var(--border-hairline) solid var(--color-border-strong);
+}
+.secondary:hover:not(:disabled) {
+  border-color: var(--color-accent);
+  color: var(--color-accent-text);
+  background: var(--color-accent-tint);
+}
 
 .ghost {
   background: transparent;
