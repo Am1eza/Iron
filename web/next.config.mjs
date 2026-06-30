@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 const isExport = process.env.EXPORT === '1';
+// Self-contained server bundle for the optional Docker/VPS path (see web/Dockerfile).
+// Off by default, so the Cloudflare (OpenNext) and normal builds are unaffected.
+const isStandalone = process.env.BUILD_STANDALONE === '1';
 const basePath = process.env.PAGES_BASE_PATH || '';
 
 const nextConfig = {
@@ -8,7 +11,9 @@ const nextConfig = {
   // Static export for GitHub Pages (preview). `next start`/dev keep full SSR.
   ...(isExport
     ? { output: 'export', trailingSlash: true, basePath, assetPrefix: basePath || undefined }
-    : {}),
+    : isStandalone
+      ? { output: 'standalone' }
+      : {}),
   images: {
     formats: ['image/avif', 'image/webp'],
     ...(isExport ? { unoptimized: true } : {}),

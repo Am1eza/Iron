@@ -1,4 +1,4 @@
-# Poladin — Motion Design
+# Ahantime — Motion Design
 ## Layer 3 · UI / Design System — Document 9 of N
 
 **Version:** 1.0 · 26 June 2026
@@ -203,4 +203,4 @@ Continuous `translateX` loop, `--ease-linear`, full-loop ~40–60s (speed scales
 - Completes the core UI/Design-System foundations: **Design Language · Color · Typography · Spacing · Components · Icons · Responsive · Accessibility · Motion.**
 - **Next:** apply everything to **high-fidelity screen designs** (each Layer-2 wireframe), and build the **live HTML style tile** to validate color + type + spacing + components + icons + motion together.
 
-*Poladin — اول مشورت، بعد خرید.*
+*Ahantime — اول مشورت، بعد خرید.*

@@ -1,4 +1,4 @@
-# Poladin — Feature List (Big Brainstorm)
+# Ahantime — Feature List (Big Brainstorm)
 ## Layer 2 · Product Design — Document 3 of N
 
 **Version:** 1.0 · 26 June 2026
@@ -63,11 +63,11 @@
 |3.5|"Lowest in N days" badge|Highlight genuine dips|➕ Add|*(ours)*|
 |3.6|Best-time-to-buy hint|AI trend signal "احتمال افزایش/کاهش" (clearly labeled estimate)|◇ Future|Mysteel/MEPS forecasts|
 |3.7|Multi-factory price compare|Same spec across producers|➕ Add|samaneahan|
-|3.8|Poladin Price Index|A branded reference index («شاخص پولادین») — long-term authority play|◇ Future|Mysteel, BigMint, Bryzos Index|
+|3.8|Ahantime Price Index|A branded reference index («شاخص آهن‌تایم») — long-term authority play|◇ Future|Mysteel, BigMint, Bryzos Index|
 
 ---
 
-## 4. AI Advisor — «پولادین» (the differentiator)
+## 4. AI Advisor — «آهن‌تایم» (the differentiator)
 
 | # | Feature | Description | Priority | Inspired by |
 |---|---|---|---|---|
@@ -136,7 +136,7 @@
 
 ---
 
-## 8. Customer Club & Loyalty — «باشگاه پولادین»
+## 8. Customer Club & Loyalty — «باشگاه آهن‌تایم»
 
 | # | Feature | Description | Priority | Inspired by |
 |---|---|---|---|---|
@@ -170,7 +170,7 @@
 
 | # | Feature | Description | Priority | Inspired by |
 |---|---|---|---|---|
-|10.1|«چرا پولادین؟»|Competitive advantages section|★ MVP|*(your req)*|
+|10.1|«چرا آهن‌تایم؟»|Competitive advantages section|★ MVP|*(your req)*|
 |10.2|Mill logos — «تأمین‌کنندگان»|فولاد مبارکه، ذوب آهن…|★ MVP|*(your req)*|
 |10.3|Customer logos — «مشتریان»|Trust wall|★ MVP|*(your req)*|
 |10.4|eNamad / Samandehi / اتحادیه|Iranian trust badges|★ MVP|fooladsell, all|
@@ -248,7 +248,7 @@
 - **★ MVP (confirmed):** all your described features + the essentials to run them — ticker, full price tables (with charts, Excel, logo-image, print, favorites, زمان تحویل), grounded AI advisor with estimates, وزن‌سنج + پروژه‌سنج, lead/پیش‌فاکتور/CRM/SMS, price alerts, customer club, AI news+blog (with approval), full trust + cooperation pages, and the admin spine.
 - **➕ Add — recommend pulling into MVP (cheap, high-value):** VAT toggle (2.10), unit toggle (2.11), quick filter/search (2.14), inquiry cart (2.16), total-cost calculator (5.4), quote-validity countdown (6.7), «طلا و ارز» retention page (1.2), bulk Excel import (12.4).
 - **➕ Add — strong for v1.1:** «قیمت ما vs قیمت پایه» (3.4), factory-vs-بنگاه (2.12), reviews (10.6), guarantee (10.7), referral (8.5), Telegram price-bot (11.6), request/order tracking (6.8).
-- **◇ Future (v2 / Web App / Mobile / moonshots):** credit, logistics, marketplace, Poladin Price Index, voice/photo AI, API, export, mill-cert vault, mobile & web apps.
+- **◇ Future (v2 / Web App / Mobile / moonshots):** credit, logistics, marketplace, Ahantime Price Index, voice/photo AI, API, export, mill-cert vault, mobile & web apps.
 
 ### Your decision needed
 1. Confirm the **➕ "recommend pull into MVP"** list — accept all, or trim any?
@@ -257,4 +257,4 @@
 
 *Next Layer-2 document after this list is prioritized: Information Architecture & Sitemap.*
 
-*Poladin — اول مشورت، بعد خرید.*
+*Ahantime — اول مشورت، بعد خرید.*

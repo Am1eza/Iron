@@ -1,13 +1,13 @@
 import { SparkIcon, TagIcon, BellIcon, UserIcon } from '@/components/primitives/icons';
 import styles from './ValueProps.module.css';
 
-/** «چرا پولادین» — the four trust pillars (vision/brand). Calm, no hype. */
+/** «چرا آهن‌تایم» — the four trust pillars (vision/brand). Calm, no hype. */
 const PILLARS = [
   {
     Icon: SparkIcon,
     accent: 'ai',
     title: 'مشاور هوشمند، نه فروشندهٔ پرحرف',
-    text: 'پولادین متراژ پروژه‌ات را می‌فهمد و بر پایهٔ قیمت‌های واقعی راهنمایی می‌کند — بدون عدد ساختگی.',
+    text: 'آهن‌تایم متراژ پروژه‌ات را می‌فهمد و بر پایهٔ قیمت‌های واقعی راهنمایی می‌کند — بدون عدد ساختگی.',
   },
   {
     Icon: TagIcon,
@@ -34,7 +34,7 @@ export function ValueProps() {
     <section className={styles.section} aria-labelledby="why-title">
       <div className="container">
       <div className={styles.head}>
-        <p className={styles.eyebrow}>چرا پولادین</p>
+        <p className={styles.eyebrow}>چرا آهن‌تایم</p>
         <h2 id="why-title" className={styles.title}>
           اول مشورت، بعد خرید.
         </h2>

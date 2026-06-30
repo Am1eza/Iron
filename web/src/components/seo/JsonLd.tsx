@@ -19,9 +19,8 @@ export function JsonLd({ data }: { data: object | object[] }) {
 
 /** BreadcrumbList JSON-LD paired with the visual <Breadcrumbs/> (D5 / N7). */
 export function BreadcrumbJsonLd({ items }: { items: Crumb[] }) {
-  const withUrls = items
-    .filter((c): c is { label: string; href: string } => Boolean(c.href))
-    .map((c) => ({ name: c.label, url: c.href }));
-  if (withUrls.length === 0) return null;
-  return <JsonLd data={breadcrumbJsonLd(withUrls)} />;
+  if (items.length === 0) return null;
+  // Include every crumb (the current page often has no href) so the trail is complete.
+  const entries = items.map((c) => (c.href ? { name: c.label, url: c.href } : { name: c.label }));
+  return <JsonLd data={breadcrumbJsonLd(entries)} />;
 }

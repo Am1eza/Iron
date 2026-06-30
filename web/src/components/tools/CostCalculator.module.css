@@ -1,0 +1,183 @@
+/* ===== Layout ===== */
+.layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-5);
+  align-items: start;
+}
+@media (min-width: 768px) {
+  .layout {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.panel {
+  block-size: 100%;
+}
+.summary {
+  position: sticky;
+  inset-block-start: var(--space-4);
+}
+
+/* ===== Fields ===== */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.fieldLabel {
+  font: var(--t-label);
+  color: var(--color-text-strong);
+}
+
+/* select */
+.selectWrap {
+  position: relative;
+  display: block;
+}
+.select {
+  appearance: none;
+  inline-size: 100%;
+  font: var(--t-input);
+  color: var(--color-text-strong);
+  background: var(--color-surface);
+  border: var(--border-hairline) solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  padding-block: var(--space-3);
+  padding-inline: var(--space-4) var(--space-10);
+  min-block-size: 48px;
+  cursor: pointer;
+}
+.select:focus-visible {
+  outline: var(--border-focus) solid var(--color-focus);
+  outline-offset: 1px;
+  border-color: var(--color-accent);
+}
+.select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.selectChevron {
+  position: absolute;
+  inset-inline-end: var(--space-3);
+  inset-block-start: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
+/* qty + unit toggle */
+.qtyRow {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.input {
+  flex: 1 1 120px;
+  min-inline-size: 0;
+  font: var(--t-input);
+  color: var(--color-text-strong);
+  background: var(--color-surface);
+  border: var(--border-hairline) solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3) var(--space-4);
+  min-block-size: 48px;
+  text-align: start;
+}
+.input::placeholder {
+  color: var(--color-text-placeholder);
+}
+.input:focus-visible {
+  outline: var(--border-focus) solid var(--color-focus);
+  outline-offset: 1px;
+  border-color: var(--color-accent);
+}
+.unitToggle {
+  display: inline-flex;
+  padding: var(--space-1);
+  gap: var(--space-1);
+  background: var(--color-surface-sunken);
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-sm);
+}
+.unitBtn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: var(--t-label);
+  font-weight: 600;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-standard),
+    color var(--dur-fast) var(--ease-standard);
+}
+.unitBtn:hover {
+  color: var(--color-text-strong);
+}
+.unitBtn[data-active] {
+  background: var(--color-surface);
+  color: var(--color-text-strong);
+  box-shadow: var(--shadow-sm);
+}
+.unitBtn:focus-visible {
+  outline: var(--border-focus) solid var(--color-focus);
+  outline-offset: 1px;
+}
+
+/* ===== Summary ===== */
+.unitPrice {
+  font: var(--t-price-cell);
+  font-size: 1.25rem;
+  color: var(--color-text-strong);
+}
+.divider {
+  block-size: var(--border-hairline);
+  background: var(--color-hairline);
+}
+.breakdown {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+.row dt {
+  font: var(--t-body-sm);
+  color: var(--color-text-muted);
+}
+.row dd {
+  margin: 0;
+  font: var(--t-data);
+  color: var(--color-text-strong);
+  font-variant-numeric: tabular-nums;
+}
+.totalRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding-block-start: var(--space-3);
+  border-block-start: var(--border-hairline) solid var(--color-hairline);
+}
+.totalLabel {
+  font: var(--t-h4);
+  color: var(--color-text-strong);
+}
+.totalValue {
+  font: var(--t-price-hero);
+  font-size: 1.75rem;
+  color: var(--color-accent-text);
+}
+.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: 180px;
+  text-align: center;
+}

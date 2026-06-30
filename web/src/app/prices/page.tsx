@@ -8,7 +8,7 @@ import { FeaturedPrices } from '@/components/home/FeaturedPrices';
 
 export const metadata: Metadata = buildMetadata({
   title: 'قیمت روز آهن و فولاد',
-  description: 'قیمت روز میلگرد، تیرآهن، پروفیل، ورق و سایر مقاطع فولادی در پولادین.',
+  description: 'قیمت روز میلگرد، تیرآهن، پروفیل، ورق و سایر مقاطع فولادی در آهن‌تایم.',
   path: routes.prices(),
 });
 

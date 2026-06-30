@@ -1,4 +1,4 @@
-# Poladin — Phase 4 · Frontend Engineering
+# Ahantime — Phase 4 · Frontend Engineering
 
 **Status:** ✅ Complete. The frontend engineering layer (items 31–50) is implemented and wired into the app. Several items were established in earlier phases (Foundation 1–10, UX Eng. 11–20, UI Eng. 21–30); this phase **fills the remaining gaps** (infinite scroll, URL-synced pagination, responsive/a11y utilities, SEO components, no-flash theming, localization layer, web-vitals, code splitting, and a test scaffold) and audits the whole layer.
 
@@ -49,7 +49,7 @@
 `<JsonLd data={…}>` server-renders schema.org graphs from `lib/seo.ts` builders; `<BreadcrumbJsonLd items={…}>` pairs structured data with the visual breadcrumb. Home now emits Organization + LocalBusiness via `<JsonLd>`.
 
 ### 46 · Theme (no-flash)
-`<ThemeScript>` runs before first paint (top of `<body>`), reading the persisted `poladin-ui` preference or `prefers-color-scheme` and setting `:root[data-theme]` — eliminating the light→dark FOUC. `<StoreHydrator>` keeps it in sync after hydration.
+`<ThemeScript>` runs before first paint (top of `<body>`), reading the persisted `ahantime-ui` preference or `prefers-color-scheme` and setting `:root[data-theme]` — eliminating the light→dark FOUC. `<StoreHydrator>` keeps it in sync after hydration.
 
 ### 47 · Localization
 `lib/i18n/` formalizes the Persian-first model: `LOCALES` (fa active; en/ar reserved with dir/calendar/digits/currency), a typed `fa` strings dictionary for cross-cutting copy, and `t(key, vars)` with `{token}` interpolation. Number/date localization (Persian digits, Toman, Jalali) is re-exported from `lib/utils/format.ts`.
@@ -85,4 +85,4 @@ Modified: `app/layout.tsx` (ThemeScript), `providers/AppProviders.tsx` (Announce
 
 > **Next phase:** the data/feature screens — the price **Datasheet** (E1) with filters/sort/pagination/infinite-scroll, the **AI conversation** view, and the **request → پیش‌فاکتور** commerce flow — assembled from the UI system and wired to the API layer.
 
-*Poladin — اول مشورت، بعد خرید.*
+*Ahantime — اول مشورت، بعد خرید.*

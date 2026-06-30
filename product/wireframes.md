@@ -1,4 +1,4 @@
-# Poladin — Wireframes
+# Ahantime — Wireframes
 ## Layer 2 · Product Design — Document 8 of N
 
 **Version:** 1.0 · 26 June 2026
@@ -24,7 +24,7 @@ Global frame · 1 Home(desktop) · 2 Home(mobile) · 3 Category/Price-Table(desk
 ┌──────────────────────────────────────────────────────────────────────┐
 │ نبض بازار:  دلار ↑۸۲٬۳۵۰  یورو ↑۸۹٬۱۰۰  طلا ۱۸ ↓…  انس ↑…  شمش ↑…   (moving ticker, top)
 ├──────────────────────────────────────────────────────────────────────┤
-│ [ورود/حساب]            «جستجوی پولادین»            ☰nav        ▦لوگو    │  ← header (RTL: logo right)
+│ [ورود/حساب]            «جستجوی آهن‌تایم»            ☰nav        ▦لوگو    │  ← header (RTL: logo right)
 └──────────────────────────────────────────────────────────────────────┘
                               ... page body ...
 ┌──────────────────────────────────────────────────────────────────────┐
@@ -34,7 +34,7 @@ Global frame · 1 Home(desktop) · 2 Home(mobile) · 3 Category/Price-Table(desk
 └──────────────────────────────────────────────────────────────────────┘
 ```
 - **Ticker (US-A1/AC-A):** moving, top of every page; arrows+colors; click item → طلا و ارز / SKU; `◎`stale indicator on tgju outage.
-- **Header:** logo (right, RTL), nav, login/account, persistent AI entry («جستجوی پولادین»).
+- **Header:** logo (right, RTL), nav, login/account, persistent AI entry («جستجوی آهن‌تایم»).
 - **Footer:** trust badges, exact address/phones (click-to-call), channels, sitemap links.
 
 ---
@@ -45,7 +45,7 @@ Global frame · 1 Home(desktop) · 2 Home(mobile) · 3 Category/Price-Table(desk
 ┌───────────────── ticker (موجود در فریم سراسری) ─────────────────────────┐
 ├──────────────────────────────────────────────────────────────────────┤
 │   ┌──────────────────────────────────────────────────┐   ┌──────────┐ │
-│   │   «سلام، من پولادینم 🟠 — چه محصولی می‌خواید بخرید؟»  │   │ رِیل دسته‌ها│ │  RIGHT(fixed):
+│   │   «سلام، من آهن‌تایمم 🟠 — چه محصولی می‌خواید بخرید؟»  │   │ رِیل دسته‌ها│ │  RIGHT(fixed):
 │   │   ____________________________________  [بپرس] │   │ «میلگرد» │ │  category rail
 │   │   چیپ‌ها: [قیمت میلگرد] [برآورد پروژه] [وزن‌سنج]   │   │ «تیرآهن» │ │  hover→▦image
 │   └──────────────────────────────────────────────────┘   │ «پروفیل»│ │  click→table
@@ -55,11 +55,11 @@ Global frame · 1 Home(desktop) · 2 Home(mobile) · 3 Category/Price-Table(desk
 │   │ میلگرد۱۴ A3 ذوب‌آهن  ۳۲٬۴۵۰  ↑۰٫۸٪  تحویل: ۲۴ساعت [درخواست] │ │ «لوله»  │ │
 │   │ تیرآهن۱۴      …       ↓…    تحویل: …      [درخواست]      │ └──────────┘ │
 │   └────────────────────────────────────────────────────────────┘          │
-│   ┌─ چرا پولادین؟ ─┐ ┌─ تأمین‌کنندگان ▦▦▦ ─┐ ┌─ مشتریان ▦▦▦▦ ─┐            │
+│   ┌─ چرا آهن‌تایم؟ ─┐ ┌─ تأمین‌کنندگان ▦▦▦ ─┐ ┌─ مشتریان ▦▦▦▦ ─┐            │
 │   │ ✓شفاف ✓تحویل   │ │ فولاد مبارکه/ذوب‌آهن │ │ لوگوهای مشتریان │            │
 │   │ ✓هوشمند ✓سریع  │ └────────────────────┘ └────────────────┘            │
 │   └────────────────┘                                                       │
-│   ┌─ از وبلاگ ─ ۳ مطلب اخیر ─┐         [ بنر باشگاه پولادین → عضویت ]       │
+│   ┌─ از وبلاگ ─ ۳ مطلب اخیر ─┐         [ بنر باشگاه آهن‌تایم → عضویت ]       │
 │   └─────────────────────────┘                                              │
 └────────────────────────────────────────────────────────────────────────┘
 ```
@@ -67,7 +67,7 @@ Global frame · 1 Home(desktop) · 2 Home(mobile) · 3 Category/Price-Table(desk
 - **AI hero:** central, top; greeting + clearly-AI badge (amber spark); input + suggested chips (AC-D-1). Submitting → §6 conversation.
 - **Category rail (right, fixed):** 7 names; hover flips name→image; click → §3 (US-B1/AC-B-1).
 - **Featured prices:** few SKUs with نوسان + زمان تحویل + last-updated + «درخواست» (→§9). [Stale-Price] applies.
-- **Trust band:** چرا پولادین / mill logos / customer logos (US-J).
+- **Trust band:** چرا آهن‌تایم / mill logos / customer logos (US-J).
 - **Blog teaser + club banner** (intent popup handled separately, §14).
 - **States:** ticker stale; AI relay-down → hero shows graceful note + «ثبت درخواست».
 
@@ -81,7 +81,7 @@ Global frame · 1 Home(desktop) · 2 Home(mobile) · 3 Category/Price-Table(desk
 ├───────────────────────────┤
 │ ▦لوگو            ☰   ورود │
 ├───────────────────────────┤
-│ «سلام، من پولادینم»        │
+│ «سلام، من آهن‌تایمم»        │
 │ ____________________ [بپرس]│
 │ [قیمت] [برآورد] [وزن‌سنج]  │
 ├───────────────────────────┤
@@ -91,10 +91,10 @@ Global frame · 1 Home(desktop) · 2 Home(mobile) · 3 Category/Price-Table(desk
 │ ┌ میلگرد۱۴ ۳۲٬۴۵۰ ↑ تحویل۲۴ساعت [درخواست]┐│
 │ └──────────────────────────────────────┘│
 ├───────────────────────────┤
-│ چرا پولادین؟ / تأمین‌کنندگان │
+│ چرا آهن‌تایم؟ / تأمین‌کنندگان │
 │ مشتریان / وبلاگ / باشگاه    │
 └───────────────────────────┘
-[ شناور: 🟠 پولادین (AI) ]   ← persistent AI FAB
+[ شناور: 🟠 آهن‌تایم (AI) ]   ← persistent AI FAB
 ```
 - Rail → bottom-sheet/accordion (AC-B-1 mobile). AI also as a floating button.
 
@@ -115,7 +115,7 @@ Global frame · 1 Home(desktop) · 2 Home(mobile) · 3 Category/Price-Table(desk
 │ │────────────────────────────────────────────────────────────────│ │ه│
 │ │ [ افزودن انتخاب‌ها به سبد استعلام ]      انتخاب‌شده: ۲             │ │‌│
 │ └────────────────────────────────────────────────────────────────┘ │ها│
-│  ◎ empty: «موردی یافت نشد» + [پرسش از پولادین]/[ثبت درخواست]          │ │ │
+│  ◎ empty: «موردی یافت نشد» + [پرسش از آهن‌تایم]/[ثبت درخواست]          │ │ │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 **Spec**
@@ -168,12 +168,12 @@ Global frame · 1 Home(desktop) · 2 Home(mobile) · 3 Category/Price-Table(desk
 ## 6 · AI Advisor — Conversation  *(F4; US-D2..D8, AC-D)*
 
 ```
-┌ پولادین 🟠 (دستیار هوشمند) ──────────────────────── [بستن] ┐
-│ پولادین: سلام! چه محصولی می‌خواید بخرید؟                    │
+┌ آهن‌تایم 🟠 (دستیار هوشمند) ──────────────────────── [بستن] ┐
+│ آهن‌تایم: سلام! چه محصولی می‌خواید بخرید؟                    │
 │ کاربر:  قیمت آهن چنده؟                                     │
-│ پولادین: برای چه کاری می‌خواید؟ (ساختمان/صنعتی/…)            │  ← intent-first (AC-D-2)
+│ آهن‌تایم: برای چه کاری می‌خواید؟ (ساختمان/صنعتی/…)            │  ← intent-first (AC-D-2)
 │ کاربر:  می‌خوام خونه بسازم، ۲۰۰ متر، ۲ طبقه                 │
-│ پولادین: (در حال محاسبه…▍ streaming)                       │
+│ آهن‌تایم: (در حال محاسبه…▍ streaming)                       │
 │ ┌ برآورد تخمینی پروژه ───────────────────────────────────┐ │
 │ │ میلگرد: ~۳٫۲ تن   تیرآهن: …   وزن کل: …   هزینه: ~…تومان │ │  ← grounded (tools)
 │ │ * تخمینی — کارشناس نهایی می‌کند                          │ │
@@ -196,7 +196,7 @@ Global frame · 1 Home(desktop) · 2 Home(mobile) · 3 Category/Price-Table(desk
 │ [نمودار هر مورد]                                            │
 │ ◎ tgju down → آخرین مقادیر + نشان «با تأخیر»                │
 │ ─────────────────────────────────────────────────────────  │
-│ «دنبال قیمت آهن هستید؟» → [قیمت آهن امروز] [پولادین بپرس]    │ ← cross-sell to steel
+│ «دنبال قیمت آهن هستید؟» → [قیمت آهن امروز] [آهن‌تایم بپرس]    │ ← cross-sell to steel
 └────────────────────────────────────────────────────────────┘
 ```
 
@@ -299,7 +299,7 @@ Global frame · 1 Home(desktop) · 2 Home(mobile) · 3 Category/Price-Table(desk
 
 ```
 Popup (intent-timed, نه در بارگذاری اول):       Club page:
-┌ عضویت در باشگاه پولادین ──────┐               ┌ باشگاه پولادین ───────────┐
+┌ عضویت در باشگاه آهن‌تایم ──────┐               ┌ باشگاه آهن‌تایم ───────────┐
 │ مزایا: قیمت ویژه، تحویل اولویت‌دار،│             │ سطح شما: «فولاد» ▦          │
 │ مشاور اختصاصی، هشدار ویژه       │             │ مزایای سطح: …              │
 │ [عضو می‌شوم] [بعداً]            │             │ ارتقا به «پولاد»: …        │
@@ -325,7 +325,7 @@ Popup (intent-timed, نه در بارگذاری اول):       Club page:
 ## 16 · Why-us / About / Contact  *(US-J)*
 
 ```
-┌ چرا پولادین؟ ─────────┐  ┌ تماس با ما ───────────────────────┐
+┌ چرا آهن‌تایم؟ ─────────┐  ┌ تماس با ما ───────────────────────┐
 │ ✓شفافیت ✓تحویل تضمینی  │  │ آدرس: تهران، اقدسیه، خ موحد دانش…   │
 │ ✓مشاور هوشمند ✓سرعت    │  │ پلاک۱ ط۴ و۷                        │
 │ ✓قیمت رقابتی           │  │ ☎ ۰۲۱۲۶۲۹۷۵۱۲  📱 ۰۹۱۲۱۳۹۵۹۵۴ [تماس]│
@@ -429,11 +429,11 @@ Popup (intent-timed, نه در بارگذاری اول):       Club page:
 - **Rail:** fixed-right on desktop; bottom-sheet/accordion on mobile; AI as FAB on mobile.
 - **Tables → cards** on mobile (screen 4); sticky inquiry-cart bar.
 - **Every data region** implements loading/empty/error/stale per `acceptance-criteria.md §1.5` and `[Stale-Price]`.
-- **No dead-ends:** empty/error/stale always offer «ثبت درخواست»/«پرسش از پولادین».
+- **No dead-ends:** empty/error/stale always offer «ثبت درخواست»/«پرسش از آهن‌تایم».
 
 ## Wireframe → Flow/Story coverage
 Home(1,2)→F1 · Table(3,4)→F3 · SKU(5)→B5 · AI(6)→F4 · FX(7)→F2 · Cart(8)→B8 · Request(9)→F6 · Tools(10,11)→F8 · Alert(12)→F7 · Account(13)→F9 · Club(14)→F10 · Content(15)→F11 · Why/Contact(16)→J · Cooperation(17)→F12 · Admin(18–22)→F13/F14/F15/M3/M9.
 
 *Next Layer-2 document: Information Architecture & Sitemap (routes/URLs), then high-fidelity UI design.*
 
-*Poladin — اول مشورت، بعد خرید.*
+*Ahantime — اول مشورت، بعد خرید.*

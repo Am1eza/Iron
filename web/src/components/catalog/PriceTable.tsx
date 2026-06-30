@@ -1,13 +1,19 @@
 'use client';
 import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useCartStore } from '@/lib/stores/cart';
 import { useToast } from '@/lib/hooks/useToast';
+import { useAuth } from '@/lib/hooks/useAuth';
 import { CONSTANTS } from '@/lib/config/constants';
+import { routes } from '@/lib/routes';
 import { formatToman, toPersianDigits, formatJalali } from '@/lib/utils/format';
+import { priceSeries } from '@/lib/mock/catalogData';
 import type { PriceRow } from '@/lib/types/domain';
 import type { SubCat } from '@/lib/data/nav';
-import { MovementBadge, DeliveryBadge, Switch, Chip } from '@/components/ui';
+import { MovementBadge, DeliveryBadge, Switch, Chip, Modal } from '@/components/ui';
 import { IconButton } from '@/components/ui';
+import { ExportMenu } from './ExportMenu';
+import { PriceChart } from './PriceChart';
 import {
   HeartIcon,
   ChartIcon,
@@ -20,8 +26,9 @@ type SortKey = 'size' | 'price' | 'movement';
 
 /**
  * E1 · The Datasheet — the signature price table. Toolbar (sub-category filter ·
- * sort · VAT toggle), a real <table> on desktop, and stacked cards on mobile.
- * VAT/unit recompute live; rows add to the inquiry cart. Numbers are tabular.
+ * sort · VAT toggle · exports), a real <table> on desktop, and stacked cards on
+ * mobile. VAT/unit recompute live; the date column is our innovation; the chart
+ * button opens a history modal; rows add to the inquiry cart. Numbers tabular.
  */
 export function PriceTable({
   rows,
@@ -34,26 +41,40 @@ export function PriceTable({
 }) {
   const add = useCartStore((s) => s.add);
   const toast = useToast();
+  const router = useRouter();
+  const { isAuthenticated } = useAuth();
   const [vat, setVat] = useState(false);
   const [sort, setSort] = useState<SortKey>('size');
+  const [sub, setSub] = useState<string | null>(null);
   const [fav, setFav] = useState<Set<string>>(new Set());
+  const [chartFor, setChartFor] = useState<PriceRow | null>(null);
 
   const withVat = (p: number) => (vat ? Math.round(p * (1 + CONSTANTS.VAT_RATE)) : p);
 
+  const filtered = useMemo(
+    () => (sub ? rows.filter((r) => r.subCategoryId === sub) : rows),
+    [rows, sub],
+  );
+
   const sorted = useMemo(() => {
-    const copy = [...rows];
+    const copy = [...filtered];
     copy.sort((a, b) => {
       if (sort === 'price') return a.current.price - b.current.price;
       if (sort === 'movement') return (b.current.movementPct ?? 0) - (a.current.movementPct ?? 0);
       return Number(a.size ?? 0) - Number(b.size ?? 0);
     });
     return copy;
-  }, [rows, sort]);
+  }, [filtered, sort]);
 
   const toggleFav = (id: string) => {
+    if (!isAuthenticated) {
+      toast.info('برای ذخیرهٔ علاقه‌مندی‌ها وارد شوید.', { label: 'ورود', href: routes.login(routes.category(rows[0]?.categoryId ?? '')) });
+      return;
+    }
     setFav((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };
@@ -67,7 +88,7 @@ export function PriceTable({
       unitPrice: r.current.price,
       weightKg: r.theoreticalWeightKg,
     });
-    toast.success(`${r.name} به سبد استعلام اضافه شد.`);
+    toast.success(`${r.name} به سبد استعلام اضافه شد.`, { label: 'مشاهده سبد', href: routes.cart() });
   };
 
   const updated = rows[0]?.current.updatedAt;
@@ -77,11 +98,16 @@ export function PriceTable({
       {/* Toolbar */}
       <div className={styles.toolbar}>
         <div className={styles.subs}>
-          <Chip variant="filter" selected onClick={() => {}}>
+          <Chip variant="filter" selected={sub === null} onClick={() => setSub(null)}>
             همه
           </Chip>
           {subs.map((s) => (
-            <Chip key={s.slug} variant="filter" onClick={() => {}}>
+            <Chip
+              key={s.slug}
+              variant="filter"
+              selected={sub === s.slug}
+              onClick={() => setSub((cur) => (cur === s.slug ? null : s.slug))}
+            >
               {s.name}
             </Chip>
           ))}
@@ -102,12 +128,13 @@ export function PriceTable({
             </select>
           </label>
           <Switch checked={vat} onChange={setVat} label="با ارزش‌افزوده" />
+          <ExportMenu rows={sorted} title={categoryName} />
         </div>
       </div>
 
       <div className={styles.meta}>
         <span>
-          {toPersianDigits(rows.length)} کالا
+          {toPersianDigits(sorted.length)} کالا
           {updated ? ` · به‌روزرسانی ${formatJalali(updated)}` : ''}
         </span>
         <span className={styles.note}>قیمت‌ها به تومان و برای هر کیلوگرم است.</span>
@@ -124,6 +151,7 @@ export function PriceTable({
               <th scope="col" className={styles.num}>وزن شاخه</th>
               <th scope="col" className={styles.num}>قیمت (تومان)</th>
               <th scope="col" className={styles.num}>نوسان</th>
+              <th scope="col">تاریخ</th>
               <th scope="col">تحویل</th>
               <th scope="col" className={styles.actionsCol}>عملیات</th>
             </tr>
@@ -141,6 +169,7 @@ export function PriceTable({
                 <td className={styles.num}>
                   <MovementBadge dir={r.current.movementDir} pct={r.current.movementPct} />
                 </td>
+                <td className={styles.muted}>{formatJalali(r.current.updatedAt, 'MM/dd')}</td>
                 <td><DeliveryBadge value={r.current.deliveryTime} /></td>
                 <td>
                   <div className={styles.actions}>
@@ -151,7 +180,12 @@ export function PriceTable({
                       icon={<HeartIcon size={18} filled={fav.has(r.id)} />}
                       onClick={() => toggleFav(r.id)}
                     />
-                    <IconButton size="sm" label="نمودار قیمت" icon={<ChartIcon size={18} />} />
+                    <IconButton
+                      size="sm"
+                      label="نمودار قیمت"
+                      icon={<ChartIcon size={18} />}
+                      onClick={() => setChartFor(r)}
+                    />
                     <button className={styles.addBtn} onClick={() => addToCart(r)}>
                       <PlusIcon size={16} /> سبد
                     </button>
@@ -186,12 +220,41 @@ export function PriceTable({
               <span>کارخانه: {r.factory ?? '—'}</span>
               <DeliveryBadge value={r.current.deliveryTime} />
             </div>
-            <button className={styles.addBtnFull} onClick={() => addToCart(r)}>
-              <PlusIcon size={16} /> افزودن به سبد استعلام
-            </button>
+            <div className={styles.cardActions}>
+              <button className={styles.ghostBtn} onClick={() => setChartFor(r)}>
+                <ChartIcon size={16} /> نمودار
+              </button>
+              <button className={styles.addBtnFull} onClick={() => addToCart(r)}>
+                <PlusIcon size={16} /> افزودن به سبد استعلام
+              </button>
+            </div>
           </li>
         ))}
       </ul>
+
+      {/* Price history modal */}
+      <Modal
+        open={chartFor !== null}
+        onClose={() => setChartFor(null)}
+        title={chartFor ? `نمودار قیمت ${chartFor.name}` : 'نمودار قیمت'}
+        footer={
+          chartFor ? (
+            <button
+              className={styles.modalCta}
+              onClick={() => {
+                router.push(routes.sku(chartFor.categoryId, chartFor.subCategoryId, chartFor.slug));
+                setChartFor(null);
+              }}
+            >
+              مشاهدهٔ صفحهٔ محصول
+            </button>
+          ) : undefined
+        }
+      >
+        {chartFor ? (
+          <PriceChart series={priceSeries(chartFor.slug, chartFor.current.price)} />
+        ) : null}
+      </Modal>
     </div>
   );
 }

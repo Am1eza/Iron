@@ -1,0 +1,40 @@
+# Production stack for ahantime.com:
+#   web   — the Next.js app (standalone), reachable only inside the network
+#   caddy — public reverse proxy that terminates TLS (auto Let's Encrypt) on 80/443
+#
+# Usage:  cp .env.example .env && edit .env   then   docker compose up -d --build
+services:
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://ahantime.com}
+        NEXT_PUBLIC_API_MODE: ${NEXT_PUBLIC_API_MODE:-mock}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      # REQUIRED — the app refuses to start in production without this.
+      SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET in .env (openssl rand -hex 32)}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://ahantime.com}
+      NEXT_PUBLIC_API_MODE: ${NEXT_PUBLIC_API_MODE:-mock}
+      AUTH_ENFORCED: ${AUTH_ENFORCED:-false}
+    expose:
+      - "3000"          # internal only — not published to the host
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - web
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data      # persists issued certificates across restarts
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

@@ -1,10 +1,10 @@
-# Poladin — Design Language
+# Ahantime — Design Language
 ## Layer 3 · UI / Design System — Document 1 of N
 
 **Version:** 1.0 · 26 June 2026
 **Status:** Draft for approval
 **Builds on:** `brand/brand-book.md`, all of Layer 2.
-**Purpose:** Define the **soul of the interface** — the philosophy, principles, signature elements, and explicit anti-patterns that make Poladin look *intentional, premium, and unmistakably crafted* — never like a generic AI/SaaS template. This document governs the tokens and components that follow.
+**Purpose:** Define the **soul of the interface** — the philosophy, principles, signature elements, and explicit anti-patterns that make Ahantime look *intentional, premium, and unmistakably crafted* — never like a generic AI/SaaS template. This document governs the tokens and components that follow.
 
 > **Mandate:** minimal, striking, and it must **not read as AI-designed**. We achieve that not by adding more, but by being *opinionated* — an ownable point of view that a template cannot fake.
 
@@ -125,7 +125,7 @@ These are the tells of generic AI/template design. **Banned:**
 ---
 
 ## 5. Signature Elements (the ownable details)
-What makes a Poladin screen recognizable at a glance — and impossible to mistake for a template:
+What makes a Ahantime screen recognizable at a glance — and impossible to mistake for a template:
 1. **The Datasheet table** — hairline-ruled, tabular Persian numerals, نوسان as the lone color, زمان تحویل as a quiet badge. Beautiful, terminal-grade data.
 2. **The fixed category rail** with the **name→image flip** — our signature navigation gesture.
 3. **The Spark** — amber heat at the single point of value/action per view.
@@ -178,7 +178,7 @@ A screen is **on-language** only if:
 - [ ] Persian typography and RTL feel native and cared-for.
 - [ ] Removing any element would lose meaning (nothing decorative).
 
-> If a screen could be any SaaS startup, it fails. If it could only be **Poladin**, it passes.
+> If a screen could be any SaaS startup, it fails. If it could only be **Ahantime**, it passes.
 
 ---
 
@@ -190,4 +190,4 @@ This language sets the constraints for:
 
 *Recommended immediate proof step:* a hand-built **HTML/CSS style tile** (live, in-browser) demonstrating the graphite/cobalt/amber triad, the hairline datasheet, the Persian price typography, and the Spark — to validate the look before tokens/components.
 
-*Poladin — اول مشورت، بعد خرید.*
+*Ahantime — اول مشورت، بعد خرید.*

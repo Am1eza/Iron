@@ -1,4 +1,4 @@
-# Poladin Web — Forms
+# Ahantime Web — Forms
 ## Layer 4 · Frontend — Document 4 (Forms)
 
 **Version:** 1.0 · 26 June 2026
@@ -63,4 +63,4 @@ components/primitives/ Button (shared; formalized in the Primitives section)
 ## 9. Mock ⇄ live
 - `NEXT_PUBLIC_API_MODE=mock` → submitters resolve success (verify accepts `12345`, others succeed) so flows are demoable; `live` calls the real `/api/*`.
 
-*Poladin — اول مشورت، بعد خرید.*
+*Ahantime — اول مشورت، بعد خرید.*

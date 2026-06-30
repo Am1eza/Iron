@@ -22,6 +22,6 @@ export function reportError(error: unknown, context?: Record<string, unknown>): 
     at: new Date().toISOString(),
   };
   // eslint-disable-next-line no-console
-  console.error('[poladin:error]', payload);
+  console.error('[ahantime:error]', payload);
   // TODO: server → monitoring sink; client → navigator.sendBeacon('/api/log', JSON.stringify(payload)).
 }

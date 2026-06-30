@@ -10,6 +10,7 @@ import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { BottomTabBar } from '@/components/layout/BottomTabBar';
 import { MobileDrawer } from '@/components/layout/MobileDrawer';
+import { ArrivalPopup } from '@/components/club/ArrivalPopup';
 
 /**
  * Root layout — the RTL, Persian-first shell.
@@ -18,18 +19,18 @@ import { MobileDrawer } from '@/components/layout/MobileDrawer';
  */
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://poladin.com'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://ahantime.com'),
   title: {
-    default: 'پولادین — بازار هوشمند آهن و فولاد',
-    template: '%s | پولادین',
+    default: 'آهن‌تایم — بازار هوشمند آهن و فولاد',
+    template: '%s | آهن‌تایم',
   },
   description:
-    'پولادین، بازار هوشمند آهن و فولاد: مشاور هوش مصنوعی، قیمت‌های شفاف و لحظه‌ای و زمان تحویل تضمینی. اول مشورت، بعد خرید.',
-  applicationName: 'پولادین',
+    'آهن‌تایم، بازار هوشمند آهن و فولاد: مشاور هوش مصنوعی، قیمت‌های شفاف و لحظه‌ای و زمان تحویل مشخص. اول مشورت، بعد خرید.',
+  applicationName: 'آهن‌تایم',
   openGraph: {
     type: 'website',
     locale: 'fa_IR',
-    siteName: 'پولادین',
+    siteName: 'آهن‌تایم',
   },
   robots: { index: true, follow: true },
 };
@@ -66,6 +67,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <main id="main">{children}</main>
           <Footer categories={categories} />
           <BottomTabBar />
+          <ArrivalPopup />
         </AppProviders>
       </body>
     </html>

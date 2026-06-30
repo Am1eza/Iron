@@ -1,4 +1,4 @@
-# Poladin — User Stories
+# Ahantime — User Stories
 ## Layer 2 · Product Design — Document 5 of N
 
 **Version:** 1.0 · 26 June 2026
@@ -98,10 +98,10 @@
 
 ---
 
-## EPIC D — AI Advisor «پولادین» (critical)
+## EPIC D — AI Advisor «آهن‌تایم» (critical)
 
 **US-D1** — *As any visitor, I want a central AI search bar that greets me and is clearly an AI, so that I know I can ask for help.*
-- AC1: The homepage shows a central rectangle/search hero with a greeting (e.g., «سلام، من پولادینم. چه محصولی می‌خواید بخرید؟»).
+- AC1: The homepage shows a central rectangle/search hero with a greeting (e.g., «سلام، من آهن‌تایمم. چه محصولی می‌خواید بخرید؟»).
 - AC2: It is visibly labeled as an AI assistant; suggested-question chips are shown.
 
 **US-D2** — *As P2 (Builder), when I ask a bare price, I want the AI to ask my purpose first, so that it can truly help me.*
@@ -197,7 +197,7 @@
 
 ---
 
-## EPIC H — Customer Club «باشگاه پولادین»
+## EPIC H — Customer Club «باشگاه آهن‌تایم»
 
 **US-H1** — *As a returning user, I want an invitation to join the club at the right moment, so that it feels helpful not annoying.*
 - AC1: A join popup appears **intent-timed** (after a quote/alert), not on first load; it can be dismissed and won't nag.
@@ -229,7 +229,7 @@
 
 ## EPIC J — Trust & Credibility
 
-**US-J1** — *As P2 (Builder), I want a clear «چرا پولادین؟», so that I understand why to trust/choose you.*
+**US-J1** — *As P2 (Builder), I want a clear «چرا آهن‌تایم؟», so that I understand why to trust/choose you.*
 - AC1: A section states the advantages (transparent prices, guaranteed delivery, AI advisor, speed, value, expert support).
 
 **US-J2** — *As any visitor, I want to see supplier (mill) logos and customer logos, so that I trust the operation.*
@@ -323,4 +323,4 @@
 
 *Next Layer-2 document: Information Architecture & Sitemap (these stories map onto pages/routes).*
 
-*Poladin — اول مشورت، بعد خرید.*
+*Ahantime — اول مشورت، بعد خرید.*

@@ -1,11 +1,17 @@
 # Local Claude Code settings (holds API keys — never commit)
 .claude/settings.local.json
 
-# Secrets / env
+# Secrets / env — never commit. Use .env.example as the template.
 .env
 .env.local
 .env*.local
+.env.*
+!.env.example
 .dev.vars
+
+# Caddy / Docker local state
+caddy_data/
+caddy_config/
 
 # OS / editor
 .DS_Store

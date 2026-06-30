@@ -1,0 +1,48 @@
+.prose {
+  max-inline-size: var(--container-prose);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.p {
+  font: var(--t-body-lg);
+  color: var(--color-text);
+  margin: 0;
+  text-align: justify;
+  text-justify: inter-word;
+}
+
+.h2 {
+  font: var(--t-h3);
+  color: var(--color-text-strong);
+  margin: 0;
+  margin-block-start: var(--space-3);
+}
+
+.ul {
+  margin: 0;
+  padding-inline-start: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.ul li {
+  font: var(--t-body);
+  color: var(--color-text);
+  padding-inline-start: var(--space-1);
+}
+.ul li::marker {
+  color: var(--color-accent);
+}
+
+.quote {
+  margin: 0;
+  padding: var(--space-4) var(--space-5);
+  border-inline-start: var(--border-strong) solid var(--color-accent);
+  background: var(--color-surface-sunken);
+  border-radius: var(--radius-sm);
+  font: var(--t-body-lg);
+  font-weight: 500;
+  color: var(--color-text-strong);
+}

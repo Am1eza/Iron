@@ -1,4 +1,4 @@
-# Poladin — Data Model
+# Ahantime — Data Model
 ## Layer 2 · Product Design — Document 11 (completes the IA's content model)
 
 **Version:** 1.0 · 26 June 2026
@@ -254,4 +254,4 @@ Admin (role-gated, `noindex`):
 - Completes the IA's promised content model; gives Layer 4 **typed models, validation rules, and a mock contract**.
 - Pairs with `acceptance-criteria.md` (rules/constants) and `information-architecture.md` (slugs/SEO).
 
-*Poladin — اول مشورت، بعد خرید.*
+*Ahantime — اول مشورت، بعد خرید.*

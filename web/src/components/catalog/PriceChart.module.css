@@ -1,0 +1,67 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.headRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.now {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+.nowVal {
+  font: var(--t-price-hero);
+  font-size: 1.75rem;
+  color: var(--color-text-strong);
+}
+.nowUnit {
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}
+.delta {
+  font: var(--t-movement);
+}
+.up { color: var(--color-gain-text); }
+.down { color: var(--color-loss-text); }
+
+.tabs {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-sunken);
+  border: var(--border-hairline) solid var(--color-hairline);
+}
+.tab {
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: var(--t-label);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+}
+.tab[data-active] {
+  background: var(--color-surface);
+  color: var(--color-text-strong);
+  box-shadow: var(--shadow-sm);
+}
+
+.svg {
+  inline-size: 100%;
+  block-size: 220px;
+  display: block;
+}
+.axis {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}

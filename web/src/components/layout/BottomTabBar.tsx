@@ -8,7 +8,7 @@ import { HomeIcon, TagIcon, SparkIcon, CartIcon, UserIcon } from '@/components/p
 import styles from './BottomTabBar.module.css';
 
 /**
- * N12 · Mobile bottom tab bar (≤767px). Five targets with the AI «پولادین» tab
+ * N12 · Mobile bottom tab bar (≤767px). Five targets with the AI «آهن‌تایم» tab
  * centered and elevated (amber). سبد carries a Persian-digit badge when non-empty.
  */
 export function BottomTabBar() {
@@ -31,17 +31,22 @@ export function BottomTabBar() {
       <Link
         href={routes.ai()}
         className={styles.ai}
-        aria-label="پولادین — مشاور هوشمند"
+        aria-label="آهن‌تایم — مشاور هوشمند"
         aria-current={isActive(routes.ai()) ? 'page' : undefined}
         data-event="ai_entry"
       >
         <span className={styles.aiOrb}>
           <SparkIcon size={24} />
         </span>
-        <span className={styles.aiLabel}>پولادین</span>
+        <span className={styles.aiLabel}>آهن‌تایم</span>
       </Link>
 
-      <Tab href={routes.cart()} label="سبد" active={isActive(routes.cart())}>
+      <Tab
+        href={routes.cart()}
+        label="سبد"
+        active={isActive(routes.cart())}
+        ariaLabel={cartCount > 0 ? `سبد، ${toPersianDigits(cartCount)} کالا` : 'سبد'}
+      >
         <span className={styles.cartWrap}>
           <CartIcon size={22} />
           {cartCount > 0 && (
@@ -62,11 +67,13 @@ function Tab({
   href,
   label,
   active,
+  ariaLabel,
   children,
 }: {
   href: string;
   label: string;
   active: boolean;
+  ariaLabel?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -75,6 +82,7 @@ function Tab({
       className={styles.tab}
       data-active={active ? '' : undefined}
       aria-current={active ? 'page' : undefined}
+      aria-label={ariaLabel}
     >
       {children}
       <span className={styles.label}>{label}</span>

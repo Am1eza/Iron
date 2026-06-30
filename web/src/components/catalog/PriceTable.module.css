@@ -53,7 +53,7 @@
   flex-wrap: wrap;
 }
 .note {
-  color: var(--color-text-placeholder);
+  color: var(--color-text-muted);
 }
 
 /* ===== Desktop table ===== */
@@ -196,11 +196,55 @@
   font: var(--t-body-sm);
   color: var(--color-text-muted);
 }
+.cardActions {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-2);
+}
+.ghostBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: var(--border-hairline) solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-strong);
+  font: var(--t-label);
+  font-weight: 600;
+  padding: var(--space-3);
+  min-block-size: 48px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ghostBtn:hover {
+  background: var(--color-surface-sunken);
+}
+.cardActions .addBtnFull {
+  flex: 1;
+}
 .addBtnFull {
   justify-content: center;
   padding: var(--space-3);
   min-block-size: 48px;
   font: var(--t-button);
+}
+.modalCta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--color-action);
+  color: var(--color-on-action);
+  font: var(--t-button);
+  font-weight: 600;
+  padding: var(--space-3) var(--space-5);
+  min-block-size: 44px;
+  cursor: pointer;
+}
+.modalCta:hover {
+  background: var(--color-action-hover);
 }
 
 @media (max-width: 767px) {

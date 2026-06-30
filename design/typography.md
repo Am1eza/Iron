@@ -1,4 +1,4 @@
-# Poladin — Typography System
+# Ahantime — Typography System
 ## Layer 3 · UI / Design System — Document 3 of N
 
 **Version:** 1.0 · 26 June 2026
@@ -36,7 +36,7 @@
 
 ## 2. Persian Typography — exact rules (this is what makes it look *crafted*, not auto-translated)
 
-1. **نیم‌فاصله / ZWNJ (U+200C) is mandatory.** Use it in prefixes/suffixes and compounds: «می‌خواهم»، «پولادین»، «خانه‌ها»، «به‌روزرسانی»، «قیمت‌ها». Content pipeline and the AI output must insert correct ZWNJ. **Never** a full space where a half-space belongs.
+1. **نیم‌فاصله / ZWNJ (U+200C) is mandatory.** Use it in prefixes/suffixes and compounds: «می‌خواهم»، «آهن‌تایم»، «خانه‌ها»، «به‌روزرسانی»، «قیمت‌ها». Content pipeline and the AI output must insert correct ZWNJ. **Never** a full space where a half-space belongs.
 2. **Persian numerals (۰۱۲۳۴۵۶۷۸۹) in the UI.** Inputs accept Latin/Arabic/Persian and normalize; display is Persian. Technical Latin codes are exempt (see §6).
 3. **No letter-spacing (tracking) on Persian.** Persian is connected script — tracking breaks it. `letter-spacing: 0` on all Persian. (Tracking is allowed *only* on Latin all-caps labels.)
 4. **No faux bold / no italics.** Persian has no italic; use real Estedad weights. Never synthesize bold/oblique.
@@ -207,9 +207,9 @@ h1{font:var(--t-h1)} h2{font:var(--t-h2)} h3{font:var(--t-h3)} h4{font:var(--t-h
 
 ## 12. Specimen (reference)
 ```
-display   پولادین، مشاور هوشمند خرید آهن و فولاد            (Estedad 800/40)
+display   آهن‌تایم، مشاور هوشمند خرید آهن و فولاد            (Estedad 800/40)
 h1        قیمت میلگرد امروز                                  (700/32)
-h2        چرا پولادین؟                                       (700/26)
+h2        چرا آهن‌تایم؟                                       (700/26)
 body      اول مشورت، بعد خرید؛ قیمت شفاف و تحویل تضمینی.      (400/16, lh1.75)
 price     ۳۲٬۴۵۰ تومان   ↑۰٫۸٪                               (Vazirmatn 700 + gain)
 caption   به‌روزرسانی: ۱۴۰۵/۰۴/۰۵ ۱۱:۰۳                       (500/13 muted)
@@ -223,4 +223,4 @@ mixed     میلگرد A3 سایز ۱۴ — ذوب‌آهن                     
 - Pairs with the Color System to complete two of the three foundation pillars.
 - **Next: Spacing & Layout System** (4px base grid, scale, container/12-col grid, radius, breakpoints) — the third foundation — then the **Component Library**.
 
-*Poladin — اول مشورت، بعد خرید.*
+*Ahantime — اول مشورت، بعد خرید.*

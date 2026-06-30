@@ -1,4 +1,4 @@
-# Poladin Web — API Client
+# Ahantime Web — API Client
 ## Layer 4 · Frontend — Document 6 (API Client)
 
 **Version:** 1.0 · 26 June 2026
@@ -64,4 +64,4 @@ lib/api/
 ## 10. Conventions
 - Components/hooks call **`api.*`** (or `formsApi`), never `fetch` directly. New endpoints add a typed resource action + (if external) a response schema.
 
-*Poladin — اول مشورت، بعد خرید.*
+*Ahantime — اول مشورت، بعد خرید.*

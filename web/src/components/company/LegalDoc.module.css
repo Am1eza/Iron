@@ -1,0 +1,121 @@
+/* LegalDoc — a two-column legal document: a sticky table of contents beside
+   numbered, anchored sections. Collapses to a single column on small screens.
+   Calm, readable, token-bound. */
+
+.layout {
+  display: grid;
+  gap: var(--space-8);
+}
+
+@media (min-width: 1024px) {
+  .layout {
+    grid-template-columns: 240px 1fr;
+    align-items: start;
+    gap: var(--space-12);
+  }
+}
+
+/* ===== Table of contents ===== */
+.toc {
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  padding: var(--space-5);
+}
+
+@media (min-width: 1024px) {
+  .toc {
+    position: sticky;
+    inset-block-start: var(--space-6);
+  }
+}
+
+.tocTitle {
+  font: var(--t-overline);
+  color: var(--color-text-muted);
+  margin: 0 0 var(--space-3);
+  text-transform: none;
+}
+
+.tocList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  counter-reset: toc;
+}
+
+.tocLink {
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+  padding: var(--space-2) var(--space-2);
+  border-radius: var(--radius-sm);
+  font: var(--t-body-sm);
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.tocLink:hover {
+  background: var(--color-surface-sunken);
+  text-decoration: none;
+}
+
+.tocNum {
+  font: var(--t-data);
+  color: var(--color-text-muted);
+  font-feature-settings: 'tnum' 1;
+  min-inline-size: 1.5em;
+  text-align: end;
+}
+
+/* ===== Sections ===== */
+.sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+  counter-reset: sec;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  scroll-margin-block-start: var(--space-8);
+}
+
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.sectionNum {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  min-inline-size: 32px;
+  block-size: 32px;
+  padding-inline: var(--space-2);
+  border-radius: var(--radius-md);
+  background: var(--amber-50);
+  color: var(--color-action-text);
+  font: var(--t-data);
+  font-weight: 700;
+  font-feature-settings: 'tnum' 1;
+}
+
+.sectionTitle {
+  font: var(--t-h3);
+  color: var(--color-text-strong);
+  margin: 0;
+}
+
+.updated {
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+  margin: 0 0 var(--space-2);
+}

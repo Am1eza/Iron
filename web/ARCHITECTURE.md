@@ -1,9 +1,9 @@
-# Poladin Web — Frontend Architecture & Project Structure
+# Ahantime Web — Frontend Architecture & Project Structure
 ## Layer 4 · Frontend — Document 1 (Project Structure)
 
 **Version:** 1.0 · 26 June 2026
 **Builds on:** all of Layers 1–3, especially `design/tokens.css`, `product/data-model.md`, `product/information-architecture.md`, `product/acceptance-criteria.md`.
-**Purpose:** Lock the stack, the folder structure, and the conventions for building the Poladin **website** — so every later section (components, pages, AI, admin) drops into a clean, scalable foundation.
+**Purpose:** Lock the stack, the folder structure, and the conventions for building the Ahantime **website** — so every later section (components, pages, AI, admin) drops into a clean, scalable foundation.
 
 ---
 
@@ -51,7 +51,7 @@ web/
    │  ├─ page.tsx             ← Home (dual-mode)
    │  ├─ not-found.tsx · error.tsx · sitemap.ts · robots.ts   (added in routing section)
    │  ├─ قیمت/                ← catalog: [category]/[sub]/[sku] (Persian segments per IA)
-   │  ├─ پولادین/             ← AI advisor
+   │  ├─ آهن‌تایم/             ← AI advisor
    │  ├─ طلا-و-ارز/ · ابزار/ · حساب/ · باشگاه/ · وبلاگ/ · همکاری/ · درخواست/ · سبد-استعلام/
    │  ├─ api/                 ← route handlers: ai/chat, auth/otp, leads, market, tools (server-only)
    │  └─ admin/               ← admin panel (noindex, role-gated)
@@ -121,4 +121,4 @@ web/
 Config (`package.json`, `tsconfig`, `next.config`, lint/format, env, gitignore) · `src/app/layout.tsx` (RTL shell + tokens) · `globals.css` · `tokens.css` · `lib/config/constants.ts` · `lib/utils/format.ts` (digits/Toman/Jalali) · `lib/types/domain.ts` · `lib/mock/fixtures.ts` · a Home placeholder · `web/README.md`.
 **Next sections:** Foundation/Theme provider → primitives → layout (Header/Rail/Ticker) → Home → catalog/price table → AI → commerce → admin.
 
-*Poladin — اول مشورت، بعد خرید.*
+*Ahantime — اول مشورت، بعد خرید.*

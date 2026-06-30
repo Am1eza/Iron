@@ -1,5 +1,5 @@
 /**
- * Auth domain types. Poladin uses passwordless **mobile + OTP** auth (locked
+ * Auth domain types. Ahantime uses passwordless **mobile + OTP** auth (locked
  * product decision; Kavenegar SMS). Access is a short-lived JWT; sessions are
  * refreshed with a rotating opaque refresh token. Roles drive RBAC for admin.
  */

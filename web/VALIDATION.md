@@ -1,4 +1,4 @@
-# Poladin Web — Validation
+# Ahantime Web — Validation
 ## Layer 4 · Frontend — Document 5 (Validation)
 
 **Version:** 1.0 · 26 June 2026
@@ -72,4 +72,4 @@ Unit-test schemas (valid/invalid/edge: Persian digits, `+98`, off-by-one OTP), d
 lib/validation/  messages.ts · schemas.ts · api.ts · request.ts · domain.ts · env.ts · utils.ts
 ```
 
-*Poladin — اول مشورت، بعد خرید.*
+*Ahantime — اول مشورت، بعد خرید.*

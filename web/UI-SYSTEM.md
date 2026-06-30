@@ -1,4 +1,4 @@
-# Poladin — Phase 3 · UI Engineering
+# Ahantime — Phase 3 · UI Engineering
 
 **Status:** ✅ Built. A real, reusable component library under `web/src/components/ui/`, exported from one barrel (`@/components/ui`) and validated by a live style guide at **`/styleguide`** (noindex).
 **Spec source:** `design/components.md` (A–H, ~56 components), `design/color-system.md`, `design/typography.md`, `design/spacing-system.md`, `design/iconography.md`, `design/motion-design.md`, `design/empty-states.md`.
@@ -33,7 +33,7 @@ This phase turns the design system *documents* + *tokens* into **engineered, imp
 - **RTL-native.** Logical properties throughout; directional icons mirror via `.icon--rtl`; switches/thumbs/tooltips account for direction.
 - **A11y.** Focus rings everywhere; `IconButton` *requires* a `label`; `Modal` is focus-trapped with Esc/scrim close and focus return; `Tabs` use roving arrow-keys; `EmptyState`/`Alert` announce via live regions; targets ≥44px.
 - **Motion is calm and optional.** The Spark ≤300ms; skeleton shimmer, reveal, modal/tooltip transitions all degrade to instant/static under `prefers-reduced-motion`.
-- **No dead-ends.** `EmptyState` + `emptyPresets` make every "nothing here" a funnel moment (request / browse / ask پولادین) with on-brand Persian copy.
+- **No dead-ends.** `EmptyState` + `emptyPresets` make every "nothing here" a funnel moment (request / browse / ask آهن‌تایم) with on-brand Persian copy.
 
 ## How to use
 
@@ -94,4 +94,4 @@ Modified: `primitives/icons.tsx` (+~30 icons + IBeamGlyph), `app/{not-found,erro
 
 > **Next phase:** assemble these primitives into the **feature screens** — the price Datasheet (E1) behind the rail, the AI conversation view (F1/F2), and the request→پیش‌فاکتور commerce flow (F3/F4/F7).
 
-*Poladin — اول مشورت، بعد خرید.*
+*Ahantime — اول مشورت، بعد خرید.*

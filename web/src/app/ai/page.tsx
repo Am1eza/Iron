@@ -1,14 +1,17 @@
 import type { Metadata } from 'next';
-import { PagePlaceholder } from '@/components/dev/PagePlaceholder';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
+import { AdvisorChat } from '@/components/ai/AdvisorChat';
 
 export const metadata: Metadata = buildMetadata({
-  title: 'پولادین — مشاور هوشمند خرید آهن و فولاد',
-  description: 'از پولادین بپرسید؛ اول مشورت، بعد خرید. برآورد پروژه، وزن و قیمت.',
+  title: 'مشاور هوشمند آهن‌تایم — اول مشورت، بعد خرید',
+  description: 'از آهن‌تایم بپرسید؛ اول می‌پرسد برای چه کاری، بعد مقدار، وزن و هزینهٔ پروژه را حساب می‌کند.',
   path: routes.ai(),
 });
 
-export default function AiPage() {
-  return <PagePlaceholder eyebrow="دستیار هوشمند" title="پولادین" note="تجربهٔ کامل گفتگو و برآورد در بخش هوش مصنوعی ساخته می‌شود." />;
+type Search = { searchParams: Promise<{ q?: string }> };
+
+export default async function AiPage({ searchParams }: Search) {
+  const { q } = await searchParams;
+  return <AdvisorChat initialQuestion={typeof q === 'string' ? q : undefined} />;
 }

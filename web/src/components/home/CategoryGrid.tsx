@@ -3,6 +3,8 @@ import { routes } from '@/lib/routes';
 import { CATEGORY_SUBS } from '@/lib/data/nav';
 import type { Category } from '@/lib/types/domain';
 import { CategoryGlyph, ChevronStartIcon } from '@/components/primitives/icons';
+import { ProductImage } from '@/components/catalog/ProductImage';
+import { productImage } from '@/lib/data/productImages';
 import styles from './CategoryGrid.module.css';
 
 /** Home «structured door» — the 7 categories as cards (mirrors the rail/mega-menu). */
@@ -30,8 +32,12 @@ export function CategoryGrid({ categories }: { categories: Category[] }) {
               className={styles.card}
               data-event="rail_category_click"
             >
-              <span className={styles.glyph}>
-                <CategoryGlyph iconId={cat.iconId} size={32} />
+              <span className={styles.media}>
+                {productImage(cat.slug) ? (
+                  <ProductImage slug={cat.slug} name={cat.name} />
+                ) : (
+                  <CategoryGlyph iconId={cat.iconId} size={32} />
+                )}
               </span>
               <span className={styles.name}>{cat.name}</span>
               <span className={styles.subs}>

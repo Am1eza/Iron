@@ -6,14 +6,11 @@ import { routes } from '@/lib/routes';
 
 export type NavLink = { label: string; href: string; event?: string };
 
-/** Primary header nav (RTL right→left order). «محصولات» is the mega-menu trigger. */
+/** Primary header nav — deliberately minimal (3 essentials). Everything else
+ *  lives in the footer + mobile drawer, so the bar stays calm for non-tech users. */
 export const PRIMARY_NAV: NavLink[] = [
   { label: 'قیمت‌ها', href: routes.prices() },
-  { label: 'پولادین', href: routes.ai(), event: 'ai_entry' },
-  { label: 'وبلاگ', href: routes.blog() },
-  { label: 'اخبار', href: routes.news() },
-  { label: 'باشگاه', href: routes.club() },
-  { label: 'همکاری', href: routes.cooperation() },
+  { label: 'مشاور هوشمند', href: routes.ai(), event: 'ai_entry' },
   { label: 'تماس', href: routes.contact() },
 ];
 
@@ -36,26 +33,30 @@ export const CATEGORY_SUBS: Record<string, SubCat[]> = {
     { slug: 'deformed', name: 'آجدار' },
     { slug: 'plain', name: 'ساده' },
     { slug: 'coil', name: 'کلاف' },
+    { slug: 'stirrup', name: 'خاموت' },
+    { slug: 'alloy', name: 'آلیاژی' },
   ],
   ibeam: [
     { slug: 'ipe', name: 'IPE' },
-    { slug: 'inp', name: 'INP' },
+    { slug: 'hash', name: 'هاش (H)' },
     { slug: 'castellated', name: 'لانه‌زنبوری' },
   ],
   profile: [
-    { slug: 'box', name: 'قوطی' },
-    { slug: 'structural', name: 'پروفیل ساختمانی' },
-    { slug: 'industrial', name: 'صنعتی' },
+    { slug: 'box-industrial', name: 'قوطی صنعتی' },
+    { slug: 'box-furniture', name: 'قوطی مبلی' },
+    { slug: 'column', name: 'قوطی ستونی' },
+    { slug: 'z', name: 'پروفیل Z' },
+    { slug: 'c', name: 'پروفیل C' },
+    { slug: 'frame', name: 'درب و پنجره' },
   ],
-  'hot-sheet': [
+  sheet: [
     { slug: 'black', name: 'سیاه' },
-    { slug: 'checkered', name: 'آجدار' },
-    { slug: 'api', name: 'API' },
-  ],
-  'cold-sheet': [
     { slug: 'oiled', name: 'روغنی' },
     { slug: 'galvanized', name: 'گالوانیزه' },
+    { slug: 'pickled', name: 'اسیدشویی' },
+    { slug: 'checkered', name: 'آجدار' },
     { slug: 'colored', name: 'رنگی' },
+    { slug: 'deck', name: 'عرشه فولادی' },
   ],
   'angle-channel': [
     { slug: 'angle', name: 'نبشی' },
@@ -63,9 +64,18 @@ export const CATEGORY_SUBS: Record<string, SubCat[]> = {
     { slug: 'tbar', name: 'سپری' },
   ],
   pipe: [
-    { slug: 'industrial', name: 'صنعتی' },
+    { slug: 'seamless', name: 'مانیسمان' },
     { slug: 'gas', name: 'گازی' },
+    { slug: 'industrial', name: 'صنعتی' },
+    { slug: 'scaffold', name: 'داربستی' },
+    { slug: 'galvanized', name: 'گالوانیزه' },
     { slug: 'furniture', name: 'مبلی' },
+  ],
+  wire: [
+    { slug: 'coil', name: 'کلاف' },
+    { slug: 'wire', name: 'مفتول' },
+    { slug: 'mesh', name: 'توری' },
+    { slug: 'truss', name: 'خرپا' },
   ],
 };
 
@@ -78,7 +88,7 @@ export const FOOTER_COLUMNS: { title: string; links: NavLink[] }[] = [
   {
     title: 'شرکت',
     links: [
-      { label: 'چرا پولادین', href: routes.why() },
+      { label: 'چرا آهن‌تایم', href: routes.why() },
       { label: 'درباره ما', href: routes.about() },
       { label: 'تماس با ما', href: routes.contact() },
       { label: 'همکاری با ما', href: routes.cooperation() },
@@ -87,7 +97,6 @@ export const FOOTER_COLUMNS: { title: string; links: NavLink[] }[] = [
   {
     title: 'پشتیبانی',
     links: [
-      { label: 'سؤالات متداول', href: routes.about() },
       { label: 'قوانین', href: routes.terms() },
       { label: 'حریم خصوصی', href: routes.privacy() },
     ],
@@ -96,8 +105,8 @@ export const FOOTER_COLUMNS: { title: string; links: NavLink[] }[] = [
 
 /** Social / messaging channels (navigation.md §7.5) — hrefs are placeholders. */
 export const CHANNELS: NavLink[] = [
-  { label: 'تلگرام', href: 'https://t.me/poladin' },
-  { label: 'ایتا', href: 'https://eitaa.com/poladin' },
-  { label: 'اینستاگرام', href: 'https://instagram.com/poladin' },
+  { label: 'تلگرام', href: 'https://t.me/ahantime' },
+  { label: 'ایتا', href: 'https://eitaa.com/ahantime' },
+  { label: 'اینستاگرام', href: 'https://instagram.com/ahantime' },
   { label: 'واتساپ', href: 'https://wa.me/989121395954' },
 ];

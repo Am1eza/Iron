@@ -6,7 +6,7 @@ import { NextResponse, type NextRequest } from 'next/server';
  * Persian-path auth gating is also enforced at the route/layout level (server components)
  * to avoid encoded-path matcher pitfalls.
  */
-const SESSION_COOKIE = 'poladin_at'; // access-token cookie (lib/auth/session)
+const SESSION_COOKIE = 'ahantime_at'; // access-token cookie (lib/auth/session)
 const AUTH_ENFORCED = process.env.AUTH_ENFORCED === 'true'; // off in dev/mock by default
 
 export function middleware(req: NextRequest) {
