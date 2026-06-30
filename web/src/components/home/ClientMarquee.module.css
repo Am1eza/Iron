@@ -1,0 +1,110 @@
+.viewport {
+  position: relative;
+  overflow: hidden;
+  /* fade the edges so logos enter/leave softly */
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
+}
+
+.track {
+  display: flex;
+  inline-size: max-content;
+  align-items: center;
+  gap: var(--space-10);
+  margin: 0;
+  padding-block: var(--space-3);
+  list-style: none;
+  /* predictable transform math; each chip restores RTL for its own text */
+  direction: ltr;
+  animation: marquee 70s linear infinite;
+  will-change: transform;
+}
+.viewport:hover .track,
+.viewport:focus-within .track {
+  animation-play-state: paused;
+}
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.item {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  block-size: 54px;
+}
+
+.logo {
+  block-size: 100%;
+  inline-size: auto;
+  max-inline-size: 200px;
+  object-fit: contain;
+  filter: grayscale(1);
+  opacity: 0.72;
+  transition:
+    filter var(--dur-base) var(--ease-standard),
+    opacity var(--dur-base) var(--ease-standard);
+}
+.item:hover .logo {
+  filter: grayscale(0);
+  opacity: 1;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  direction: rtl;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-pill);
+  border: var(--border-hairline) solid var(--color-hairline);
+  background: var(--color-surface);
+  white-space: nowrap;
+  transition:
+    border-color var(--dur-fast) var(--ease-standard),
+    box-shadow var(--dur-fast) var(--ease-standard);
+}
+.item:hover .chip {
+  border-color: var(--color-border-strong);
+  box-shadow: var(--shadow-sm);
+}
+.mono {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: 30px;
+  block-size: 30px;
+  padding-inline: 7px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-sunken);
+  color: var(--color-accent-text);
+  font: var(--t-micro);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.chipName {
+  font: var(--t-body-sm);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .viewport {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+  .track {
+    animation: none;
+    inline-size: auto;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--space-4) var(--space-5);
+  }
+  /* show each company once when motion is off */
+  .item[data-dup] {
+    display: none;
+  }
+}

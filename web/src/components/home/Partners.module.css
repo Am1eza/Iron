@@ -14,7 +14,14 @@
 .title {
   font: var(--t-h3);
   text-align: center;
-  margin: 0 0 var(--space-6);
+  margin: 0 0 var(--space-4);
+}
+.sub {
+  font: var(--t-body-sm);
+  color: var(--color-text-muted);
+  text-align: center;
+  margin: calc(-1 * var(--space-2)) auto var(--space-7);
+  max-inline-size: 52ch;
 }
 .wall {
   display: grid;
