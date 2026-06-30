@@ -77,6 +77,16 @@
   align-items: flex-end;
   max-inline-size: 86%;
 }
+.rowIn {
+  animation: msg-in var(--dur-slow) var(--ease-emphasized);
+}
+@keyframes msg-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rowIn { animation: none; }
+}
 .rowAi {
   align-self: flex-start;
 }

@@ -1,7 +1,6 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { routes } from '@/lib/routes';
 import { CATEGORY_SUBS } from '@/lib/data/nav';
 import type { Category } from '@/lib/types/domain';
@@ -29,7 +28,6 @@ export function CategoryStage({
   categories: Category[];
   factories: FactoryMap;
 }) {
-  const reduced = useReducedMotion();
   const [activeCat, setActiveCat] = useState<Category | null>(categories[0] ?? null);
   const [activeSub, setActiveSub] = useState<string>(firstSub(categories[0]?.slug ?? ''));
   if (!activeCat) return null;
@@ -70,7 +68,7 @@ export function CategoryStage({
                   >
                     <span className={styles.railThumb} aria-hidden>
                       {productImage(cat.slug) ? (
-                        <ProductImage slug={cat.slug} name={cat.name} />
+                        <ProductImage slug={cat.slug} name={cat.name} variant="thumb" />
                       ) : (
                         <CategoryArt slug={cat.slug} size={28} />
                       )}
@@ -98,17 +96,10 @@ export function CategoryStage({
           </ul>
         </nav>
 
-        {/* Columns 2 & 3 — cascade flyout (desktop) */}
+        {/* Columns 2 & 3 — cascade flyout (desktop). Keyed so the CSS fade/slide
+            re-runs on each category change (no framer-motion). */}
         <div className={styles.flyout}>
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={activeCat.slug}
-              className={styles.panel}
-              initial={{ opacity: 0, x: reduced ? 0 : 14 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: reduced ? 0 : -10 }}
-              transition={{ duration: reduced ? 0 : 0.24, ease: [0.16, 1, 0.3, 1] }}
-            >
+            <div key={activeCat.slug} className={styles.panel}>
               <div className={styles.cols}>
                 {/* sub-groups */}
                 <div className={styles.col}>
@@ -155,8 +146,7 @@ export function CategoryStage({
                 مشاهده جدول قیمت {activeCat.name}
                 <ChevronStartIcon size={18} className="icon--rtl" />
               </Link>
-            </motion.div>
-          </AnimatePresence>
+            </div>
         </div>
       </div>
     </section>

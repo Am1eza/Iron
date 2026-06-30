@@ -5,7 +5,6 @@ import { StoreHydrator } from './StoreHydrator';
 import { Toaster } from '@/components/feedback/Toaster';
 import { Announcer } from '@/components/a11y/Announcer';
 import { WebVitals } from '@/components/perf/WebVitals';
-import { SmoothScroll } from '@/components/motion/SmoothScroll';
 
 /** Client provider tree — mounted once in the root layout. */
 export function AppProviders({ children }: { children: React.ReactNode }) {
@@ -17,7 +16,6 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
       <Toaster />
       <Announcer />
       <WebVitals />
-      <SmoothScroll />
     </QueryClientProvider>
   );
 }

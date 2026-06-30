@@ -26,7 +26,7 @@ export function PriceHeader({
     <div className={styles.header}>
       <figure className={styles.thumb}>
         {productImage(categorySlug) ? (
-          <ProductImage slug={categorySlug} name={categoryName} eager />
+          <ProductImage slug={categorySlug} name={categoryName} variant="thumb" eager />
         ) : (
           <span className={styles.art} aria-hidden="true">
             <CategoryArt slug={categorySlug} size={40} />

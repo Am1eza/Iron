@@ -18,3 +18,13 @@ export const PRODUCT_IMAGES: Record<string, string> = {
 export function productImage(slug: string): string | undefined {
   return PRODUCT_IMAGES[slug];
 }
+
+/**
+ * Small (~320px) thumbnail variant for menus, rails and compact headers — a
+ * fraction of the full image's bytes/decode. Returns undefined if the category
+ * has no photo. Files: /products/<slug>-thumb.webp.
+ */
+export function productThumb(slug: string): string | undefined {
+  const full = PRODUCT_IMAGES[slug];
+  return full ? full.replace(/\.webp$/, '-thumb.webp') : undefined;
+}

@@ -110,12 +110,13 @@
 
 @media (prefers-reduced-motion: reduce){
   :root{ --dur-fast:0ms; --dur-base:0ms; --dur-slow:0ms; --dur-slower:0ms; --dur-spark:0ms; }
+  html{ scroll-behavior:auto; }
 }
 
 /* ===== Base layer ===== */
 *,*::before,*::after{box-sizing:border-box;}
 html{font:var(--t-body);color:var(--color-text);background:var(--color-bg);letter-spacing:0;
-  -webkit-text-size-adjust:100%;text-rendering:optimizeLegibility;}
+  -webkit-text-size-adjust:100%;text-rendering:optimizeLegibility;scroll-behavior:smooth;}
 html[dir="rtl"]{text-align:right;}
 body{margin:0;min-block-size:100svh;}
 h1{font:var(--t-h1);color:var(--color-text-strong);margin:0;}

@@ -3,6 +3,8 @@
   padding-block: var(--space-20);
   background: var(--color-surface-sunken);
   border-block: var(--border-hairline) solid var(--color-hairline);
+  content-visibility: auto;
+  contain-intrinsic-size: auto 720px;
 }
 .head {
   text-align: center;

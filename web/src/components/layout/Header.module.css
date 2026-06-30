@@ -2,8 +2,8 @@
   position: sticky;
   inset-block-start: 0;
   z-index: var(--z-sticky);
-  background: color-mix(in srgb, var(--color-surface) 92%, transparent);
-  backdrop-filter: saturate(1.2) blur(10px);
+  background: color-mix(in srgb, var(--color-surface) 94%, transparent);
+  backdrop-filter: blur(6px);
   border-block-end: var(--border-hairline) solid var(--color-hairline);
   transition: background var(--dur-base) var(--ease-standard),
     border-color var(--dur-base) var(--ease-standard);
@@ -384,6 +384,11 @@
   }
 }
 @media (max-width: 767px) {
+  /* Cheaper compositing on phones — solid bar, no backdrop blur. */
+  .header {
+    background: var(--color-surface);
+    backdrop-filter: none;
+  }
   .inner {
     block-size: 60px;
     gap: var(--space-2);

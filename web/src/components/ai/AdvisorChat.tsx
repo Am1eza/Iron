@@ -1,7 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
 import { routes } from '@/lib/routes';
 import { normalizeDigits, toPersianDigits, formatToman } from '@/lib/utils/format';
 import { getRows } from '@/lib/mock/catalogData';
@@ -234,14 +233,10 @@ export function AdvisorChat({ initialQuestion }: { initialQuestion?: string }) {
 
       <div className={styles.scroll} ref={scrollRef}>
         <div className={styles.thread} role="log" aria-live="polite" aria-atomic="false" aria-relevant="additions">
-          <AnimatePresence initial={false}>
-            {messages.map((m) => (
-              <motion.div
+          {messages.map((m) => (
+              <div
                 key={m.id}
-                className={`${styles.row} ${m.role === 'user' ? styles.rowUser : styles.rowAi}`}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+                className={`${styles.row} ${styles.rowIn} ${m.role === 'user' ? styles.rowUser : styles.rowAi}`}
               >
                 {m.role === 'ai' && (
                   <span className={styles.bubbleAvatar} aria-hidden>
@@ -266,9 +261,8 @@ export function AdvisorChat({ initialQuestion }: { initialQuestion?: string }) {
                     </div>
                   )}
                 </div>
-              </motion.div>
+              </div>
             ))}
-          </AnimatePresence>
 
           {typing && (
             <div className={`${styles.row} ${styles.rowAi}`} aria-hidden="true">

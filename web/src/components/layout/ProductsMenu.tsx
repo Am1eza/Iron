@@ -23,7 +23,7 @@ export function ProductsMenu({ categories }: { categories: Category[] }) {
             <Link href={routes.category(cat.slug)} className={styles.megaHead}>
               <span className={styles.megaThumb} aria-hidden>
                 {productImage(cat.slug) ? (
-                  <ProductImage slug={cat.slug} name={cat.name} />
+                  <ProductImage slug={cat.slug} name={cat.name} variant="thumb" />
                 ) : (
                   <CategoryArt slug={cat.slug} size={24} />
                 )}

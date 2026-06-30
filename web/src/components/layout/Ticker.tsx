@@ -1,6 +1,5 @@
 'use client';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import { useMarket } from '@/lib/hooks/useMarket';
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion';
 import { routes } from '@/lib/routes';
@@ -10,20 +9,15 @@ import { marketValues as fallbackValues } from '@/lib/mock/fixtures';
 import styles from './Ticker.module.css';
 
 /**
- * N1 · نبض بازار — the slim moving ribbon at the very top of every page.
- * Polls tgju-backed market values (useMarket, 60s). Auto-scroll marquee that
- * pauses on hover/focus and degrades to a static, manually-scrollable strip under
- * `prefers-reduced-motion`. Never blank: falls back to last-known/seed values.
- * Hidden on the landing page — the home leads with products, not FX/gold prices.
+ * N1 · نبض بازار — the slim moving ribbon at the very top of every page (home
+ * included). Polls tgju-backed market values (useMarket, 60s). Auto-scroll marquee
+ * that pauses on hover/focus and degrades to a static, manually-scrollable strip
+ * under `prefers-reduced-motion`. Never blank: falls back to last-known/seed values.
  */
 export function Ticker() {
-  const pathname = usePathname();
   const { data, isError } = useMarket();
   const reduced = useReducedMotion();
   const values = data?.values?.length ? data.values : fallbackValues;
-
-  // The landing must read as an iron marketplace first — no market ribbon there.
-  if (pathname === routes.home()) return null;
 
   // Duplicate the set so the marquee loops seamlessly (the second copy is decorative).
   const items = reduced ? values : [...values, ...values];

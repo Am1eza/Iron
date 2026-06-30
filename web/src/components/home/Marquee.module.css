@@ -1,0 +1,83 @@
+.wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  max-inline-size: var(--container-wide);
+  margin-inline: auto;
+  padding-inline: var(--page-x);
+}
+
+.viewport {
+  position: relative;
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent);
+}
+
+.track {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-2) 0;
+  list-style: none;
+  inline-size: max-content;
+  direction: ltr; /* predictable transform; item content keeps its own RTL */
+  will-change: transform;
+}
+
+.item {
+  flex: 0 0 auto;
+  display: flex;
+}
+
+.nav {
+  flex: none;
+  inline-size: 46px;
+  block-size: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-pill);
+  border: var(--border-hairline) solid var(--color-hairline);
+  background: var(--color-surface);
+  color: var(--color-text-strong);
+  cursor: pointer;
+  transition:
+    border-color var(--dur-fast) var(--ease-standard),
+    color var(--dur-fast) var(--ease-standard),
+    box-shadow var(--dur-fast) var(--ease-standard);
+}
+.nav:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  box-shadow: var(--shadow-sm);
+}
+.nav:focus-visible {
+  outline: var(--border-focus) solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+/* Reduced-motion / no-JS: a swipeable, snap row instead of an auto-marquee. */
+.viewport[data-reduced] {
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  -webkit-mask-image: none;
+  mask-image: none;
+  scrollbar-width: none;
+}
+.viewport[data-reduced]::-webkit-scrollbar {
+  display: none;
+}
+.viewport[data-reduced] .item {
+  scroll-snap-align: center;
+}
+
+@media (max-width: 640px) {
+  .nav {
+    inline-size: 40px;
+    block-size: 40px;
+  }
+}

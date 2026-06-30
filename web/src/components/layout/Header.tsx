@@ -33,12 +33,20 @@ export function Header({ categories }: { categories: Category[] }) {
   const lastY = useRef(0);
 
   useEffect(() => {
-    const onScroll = () => {
+    let ticking = false;
+    const update = () => {
       const y = window.scrollY;
       setCondensed(y > 64 && y > lastY.current);
       lastY.current = y;
+      ticking = false;
     };
-    onScroll();
+    const onScroll = () => {
+      if (!ticking) {
+        ticking = true;
+        requestAnimationFrame(update);
+      }
+    };
+    update();
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
