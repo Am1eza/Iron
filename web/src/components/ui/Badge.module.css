@@ -23,7 +23,7 @@
   color: var(--color-accent-text);
 }
 .action {
-  background: var(--amber-50);
+  background: var(--color-accent-tint);
   color: var(--color-action-text);
 }
 .gain {
@@ -44,7 +44,7 @@
   color: var(--color-accent-text);
 }
 .warning {
-  background: var(--amber-50);
+  background: var(--color-accent-tint);
   color: var(--color-action-text);
 }
 

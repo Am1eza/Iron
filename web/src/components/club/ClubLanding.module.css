@@ -140,8 +140,8 @@
   flex: none;
 }
 .tierFeatured .tierMedal {
-  background: var(--amber-50);
-  border-color: var(--amber-100);
+  background: var(--color-accent-tint);
+  border-color: var(--emerald-200);
 }
 .tierName {
   font: var(--t-h3);

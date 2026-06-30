@@ -121,7 +121,37 @@
   transition: background var(--dur-fast) var(--ease-standard);
 }
 .searchSend:hover {
-  background: var(--cobalt-600);
+  background: var(--color-action-hover);
+}
+
+/* ===== Quick category jumps ===== */
+.quick {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: var(--space-2);
+  margin-block-start: var(--space-6);
+}
+.quickLabel {
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}
+.quickItem {
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  border: var(--border-hairline) solid var(--color-accent);
+  background: var(--color-accent-tint);
+  color: var(--color-accent-text);
+  font: var(--t-label);
+  text-decoration: none;
+  transition: background var(--dur-fast) var(--ease-standard),
+    color var(--dur-fast) var(--ease-standard);
+}
+.quickItem:hover {
+  background: var(--color-action);
+  color: var(--color-on-action);
+  text-decoration: none;
 }
 
 /* ===== Chips ===== */

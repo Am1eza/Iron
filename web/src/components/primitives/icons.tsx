@@ -332,6 +332,21 @@ export const OfflineIcon = (p: IconProps) => (
     <path d="M3 3l18 18" />
   </Svg>
 );
+/** Exchange / bourse — a columned institution (بورس کالا). */
+export const BankIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M4 9l8-5 8 5" />
+    <path d="M5 9v8M10 9v8M14 9v8M19 9v8" />
+    <path d="M3 20h18" />
+  </Svg>
+);
+/** Letter of credit / guarantee — a document with a seal (LC). */
+export const ShieldIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z" />
+    <path d="M9 12l2 2 4-4" />
+  </Svg>
+);
 
 /** Structural I-beam glyph for empty/zero states (decorative). */
 export const IBeamGlyph = ({ size = 48 }: { size?: number }) => (

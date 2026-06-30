@@ -12,6 +12,8 @@ import {
   ChartIcon,
   CheckCircleIcon,
   PhoneIcon,
+  BankIcon,
+  ShieldIcon,
 } from '@/components/primitives/icons';
 
 export const metadata: Metadata = buildMetadata({
@@ -52,6 +54,17 @@ const advantages: Feature[] = [
     title: 'پشتیبانی واقعی',
     desc: 'کارشناسان ما برای نهایی‌سازی پیش‌فاکتور، موجودی و تحویل با شما تماس می‌گیرند؛ انسان واقعی، نه ربات.',
     icon: <PhoneIcon size={22} />,
+  },
+  {
+    title: 'خرید از بورس کالا',
+    desc: 'تأمین رسمی از بورس کالای ایران؛ قیمت شفاف، فاکتور معتبر و اصالت تضمین‌شدهٔ محصول.',
+    icon: <BankIcon size={22} />,
+  },
+  {
+    title: 'گشایش LC برای مشتریان',
+    desc: 'برای خریدهای عمده اعتبار اسنادی (LC) باز می‌کنیم تا معاملهٔ بزرگ شما امن و بی‌دغدغه باشد.',
+    icon: <ShieldIcon size={22} />,
+    accent: true,
   },
 ];
 

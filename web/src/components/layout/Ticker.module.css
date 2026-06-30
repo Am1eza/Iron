@@ -18,7 +18,7 @@
   font: var(--t-overline);
   letter-spacing: 0;
   color: var(--color-action);
-  background: rgba(245, 150, 30, 0.08);
+  background: rgba(15, 138, 99, 0.08);
   border-inline-end: var(--border-hairline) solid rgba(255, 255, 255, 0.08);
 }
 
@@ -141,7 +141,7 @@
 .itemStale,
 .stale {
   font: var(--t-micro);
-  color: var(--amber-300);
+  color: var(--emerald-300);
 }
 .stale {
   display: inline-flex;

@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { routes } from '@/lib/routes';
 import { SparkIcon, ChevronStartIcon } from '@/components/primitives/icons';
@@ -9,12 +10,23 @@ import styles from './HeroSearch.module.css';
  * The central AI search (the home's focal point). A clearly-labelled assistant
  * that greets first and asks *what you need* — not just a price box. Submitting
  * opens «آهن‌تایم» (the advisor) with the question. Light, professional, calm.
+ * The headline + quick-category row make it read as an iron marketplace at once.
  */
 const STARTERS = [
   'برای یک ساختمان ۲ طبقه چه می‌خواهم؟',
   'قیمت میلگرد ۱۴ امروز؟',
   'وزن ۱۰۰ شاخه میلگرد ۱۶ چقدر است؟',
   'ارزان‌ترین تیرآهن کدام است؟',
+];
+
+/** Quick jumps into the most-asked price tables (slug → Persian label). */
+const QUICK_CATS: { slug: string; name: string }[] = [
+  { slug: 'rebar', name: 'میلگرد' },
+  { slug: 'ibeam', name: 'تیرآهن' },
+  { slug: 'sheet', name: 'ورق' },
+  { slug: 'profile', name: 'پروفیل' },
+  { slug: 'pipe', name: 'لوله' },
+  { slug: 'angle-channel', name: 'نبشی و ناودانی' },
 ];
 
 export function HeroSearch() {
@@ -37,11 +49,11 @@ export function HeroSearch() {
         </p>
 
         <h1 className={styles.title}>
-          سلام 👋 چه محصولی می‌خواهید بخرید؟
+          قیمت و خرید آهن‌آلات، با یک مشاور هوشمند
         </h1>
         <p className={styles.sub}>
-          فقط قیمت نمی‌دهم — اول می‌پرسم برای چه کاری می‌خواهید، بعد مقدار، وزن و هزینهٔ پروژه را
-          مثل یک مشاور خبره برایتان حساب می‌کنم.
+          میلگرد، تیرآهن، ورق، پروفیل و لوله — مستقیم از کارخانه. فقط قیمت نمی‌دهم؛ اول می‌پرسم
+          برای چه کاری می‌خواهید، بعد مقدار، وزن و هزینهٔ پروژه را مثل یک مشاور خبره حساب می‌کنم.
         </p>
 
         <form
@@ -79,6 +91,15 @@ export function HeroSearch() {
             </li>
           ))}
         </ul>
+
+        <nav className={styles.quick} aria-label="دسترسی سریع به قیمت‌ها">
+          <span className={styles.quickLabel}>قیمت روز:</span>
+          {QUICK_CATS.map((c) => (
+            <Link key={c.slug} href={routes.category(c.slug)} className={styles.quickItem}>
+              {c.name}
+            </Link>
+          ))}
+        </nav>
       </div>
     </section>
   );

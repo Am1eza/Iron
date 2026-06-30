@@ -31,7 +31,7 @@
   inline-size: 44px;
   block-size: 44px;
   border-radius: var(--radius-md);
-  background: var(--amber-50);
+  background: var(--color-accent-tint);
   color: var(--color-action-text);
 }
 

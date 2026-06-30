@@ -1,7 +1,7 @@
-import { SparkIcon, TagIcon, BellIcon, UserIcon } from '@/components/primitives/icons';
+import { SparkIcon, TagIcon, BellIcon, UserIcon, BankIcon, ShieldIcon } from '@/components/primitives/icons';
 import styles from './ValueProps.module.css';
 
-/** «چرا آهن‌تایم» — the four trust pillars (vision/brand). Calm, no hype. */
+/** «چرا آهن‌تایم» — the trust pillars (vision/brand). Calm, no hype. */
 const PILLARS = [
   {
     Icon: SparkIcon,
@@ -26,6 +26,18 @@ const PILLARS = [
     accent: 'action',
     title: 'پشتیبانی انسانی و آگاه',
     text: 'درخواستت با همهٔ جزئیات به کارشناس می‌رسد؛ تماس، آگاهانه و سریع است.',
+  },
+  {
+    Icon: BankIcon,
+    accent: 'ai',
+    title: 'خرید از بورس کالا',
+    text: 'تأمین رسمی از بورس کالای ایران؛ قیمت شفاف، فاکتور معتبر و اصالت تضمین‌شدهٔ محصول.',
+  },
+  {
+    Icon: ShieldIcon,
+    accent: 'action',
+    title: 'گشایش LC برای مشتریان',
+    text: 'برای خریدهای عمده، اعتبار اسنادی (LC) باز می‌کنیم تا معاملهٔ بزرگ‌ات امن و بی‌دغدغه باشد.',
   },
 ] as const;
 

@@ -55,7 +55,7 @@
   border-radius: var(--radius-circle);
   background: var(--color-action);
   color: var(--color-on-action);
-  box-shadow: 0 6px 18px rgba(245, 150, 30, 0.42);
+  box-shadow: 0 6px 18px rgba(15, 138, 99, 0.42);
   border: 3px solid var(--color-surface);
 }
 .aiLabel {

@@ -28,16 +28,49 @@ export function ExportMenu({ rows, title }: { rows: PriceRow[]; title: string })
   const toast = useToast();
   const today = formatJalali('2026-06-27');
 
-  const exportCsv = () => {
-    const lines = [COLS.join(','), ...rows.map((r) => rowCells(r).map((c) => `"${c}"`).join(','))];
-    const blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  // Branded spreadsheet — a styled HTML table saved as .xls (Excel opens it with
+  // the branding + RTL intact). Header carries «آهن‌تایم» + the date; green header
+  // row, zebra rows. No dependency; for a true .xlsx with an embedded raster logo,
+  // swap in exceljs later.
+  const exportXls = () => {
+    const head = `<tr>${COLS.map((c) => `<th>${c}</th>`).join('')}</tr>`;
+    const body = rows
+      .map(
+        (r, i) =>
+          `<tr class="${i % 2 ? 'even' : ''}">${rowCells(r)
+            .map((c) => `<td>${c}</td>`)
+            .join('')}</tr>`,
+      )
+      .join('');
+    const cols = COLS.length;
+    const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8">
+      <!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>قیمت ${title}</x:Name><x:WorksheetOptions><x:DisplayRightToLeft/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
+      <style>
+        table{border-collapse:collapse;font-family:Tahoma,'B Nazanin',sans-serif;}
+        .brand{font-size:20px;font-weight:800;color:#171C22;}
+        .brand .a{color:#0F8A63;}
+        .meta{color:#64707E;font-size:12px;}
+        .foot{color:#97A2B0;font-size:11px;}
+        th{background:#0F8A63;color:#FFFFFF;font-weight:700;border:1px solid #0B6B4F;padding:8px 10px;text-align:right;}
+        td{border:1px solid #E5E9F0;padding:6px 10px;text-align:right;font-size:12px;color:#171C22;mso-number-format:'\\@';}
+        tr.even td{background:#F4F7FA;}
+      </style></head><body>
+      <table dir="rtl" border="0">
+        <tr><td colspan="${cols}" style="border:none;padding:6px 0 0;"><span class="brand">آهن‌<span class="a">تایم</span></span></td></tr>
+        <tr><td colspan="${cols}" style="border:none;padding:2px 0 12px;"><span class="meta">قیمت روز ${title} · ${today}</span></td></tr>
+        <thead>${head}</thead>
+        <tbody>${body}</tbody>
+        <tr><td colspan="${cols}" style="border:none;padding-top:12px;"><span class="foot">ahantime.com · اول مشورت، بعد خرید</span></td></tr>
+      </table>
+    </body></html>`;
+    const blob = new Blob(['﻿' + html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `ahantime-${title}.csv`;
+    a.download = `ahantime-${title}.xls`;
     a.click();
     URL.revokeObjectURL(url);
-    toast.success('فایل اکسل دانلود شد.');
+    toast.success('فایل اکسل برنددار دانلود شد.');
   };
 
   const print = () => {
@@ -51,7 +84,7 @@ export function ExportMenu({ rows, title }: { rows: PriceRow[]; title: string })
       <style>
         body{font-family:Tahoma,sans-serif;color:#171C22;padding:24px;}
         .bar{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #171C22;padding-bottom:12px;margin-bottom:16px;}
-        .brand{font-size:22px;font-weight:800;} .brand span{color:#F5961E;}
+        .brand{font-size:22px;font-weight:800;} .brand span{color:#0F8A63;}
         .meta{color:#64707E;font-size:13px;}
         table{width:100%;border-collapse:collapse;font-size:13px;}
         th,td{border:1px solid #E5E9F0;padding:8px 10px;text-align:right;}
@@ -94,7 +127,7 @@ export function ExportMenu({ rows, title }: { rows: PriceRow[]; title: string })
     ctx.fillStyle = '#171C22';
     ctx.font = '800 26px Tahoma';
     ctx.fillText('آهن‌تایم', width - padX, 40);
-    ctx.fillStyle = '#F5961E';
+    ctx.fillStyle = '#0F8A63';
     ctx.fillRect(width - padX - 150, 56, 150, 3);
     ctx.fillStyle = '#64707E';
     ctx.font = '14px Tahoma';
@@ -148,7 +181,7 @@ export function ExportMenu({ rows, title }: { rows: PriceRow[]; title: string })
 
   return (
     <div className={styles.menu} role="group" aria-label="خروجی جدول">
-      <button type="button" className={styles.btn} onClick={exportCsv}>
+      <button type="button" className={styles.btn} onClick={exportXls}>
         <SheetIcon size={18} /> <span>اکسل</span>
       </button>
       <button type="button" className={styles.btn} onClick={print}>

@@ -53,7 +53,7 @@
   color: var(--color-accent);
 }
 .accentAction {
-  background: var(--amber-50);
+  background: var(--color-accent-tint);
   color: var(--color-action-text);
 }
 .cardTitle {
