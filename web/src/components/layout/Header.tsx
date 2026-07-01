@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { routes } from '@/lib/routes';
@@ -30,14 +30,14 @@ export function Header({ categories }: { categories: Category[] }) {
 
   const [condensed, setCondensed] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const lastY = useRef(0);
 
+  // Condense purely by scroll POSITION (identical going down or up), with
+  // hysteresis so the bar never flip-flops around a single threshold.
   useEffect(() => {
     let ticking = false;
     const update = () => {
       const y = window.scrollY;
-      setCondensed(y > 64 && y > lastY.current);
-      lastY.current = y;
+      setCondensed((prev) => (prev ? y > 40 : y > 120));
       ticking = false;
     };
     const onScroll = () => {

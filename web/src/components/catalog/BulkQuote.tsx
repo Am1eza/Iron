@@ -3,6 +3,8 @@ import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/lib/hooks/useToast';
 import { useCartStore } from '@/lib/stores/cart';
+import { useRequestsStore } from '@/lib/stores/requests';
+import { useRequireAuth } from '@/lib/hooks/useRequireAuth';
 import { routes } from '@/lib/routes';
 import { formatToman, toPersianDigits } from '@/lib/utils/format';
 import { getRows } from '@/lib/mock/catalogData';
@@ -37,6 +39,8 @@ export function BulkQuote({
   const router = useRouter();
   const toast = useToast();
   const add = useCartStore((s) => s.add);
+  const addRequest = useRequestsStore((s) => s.add);
+  const { requireAuth } = useRequireAuth();
   const [tonnage, setTonnage] = useState<number>(defaultTonnage);
 
   const rows = useMemo(() => rowsProp ?? getRows(category), [rowsProp, category]);
@@ -181,7 +185,25 @@ export function BulkQuote({
       ) : null}
 
       <div className={styles.actions}>
-        <button type="button" className={styles.cta} onClick={() => router.push(routes.request())}>
+        <button
+          type="button"
+          className={styles.cta}
+          onClick={() =>
+            // Requests live in the profile: sign in first, then file it there.
+            requireAuth(() => {
+              const best = split.cheapest;
+              addRequest({
+                type: 'bulk',
+                title: `پیش‌فاکتور ${categoryName} عمده — ${toPersianDigits(split.tonnage)} تن`,
+                detail: best
+                  ? `پیشنهاد سیستم: کارخانهٔ ${best.factory} · ${formatToman(best.pricePerKg, false)} تومان بر کیلوگرم`
+                  : undefined,
+              });
+              toast.success('درخواست پیش‌فاکتور ثبت شد؛ وضعیت آن در پروفایل شماست.');
+              router.push(routes.account('requests'));
+            })
+          }
+        >
           دریافت پیش‌فاکتور
         </button>
         <button type="button" className={styles.ghost} onClick={addToInquiry}>

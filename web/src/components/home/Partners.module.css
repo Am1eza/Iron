@@ -54,12 +54,15 @@
   transform: translateY(-2px);
 }
 
-/* Client logo cell — light surface so real logos read correctly */
+/* Client logo cell — light surface so real logos read correctly. Sized by its
+   content (long company names must never overflow the box). */
 .cell {
   display: flex;
   align-items: center;
   justify-content: center;
-  inline-size: 208px;
+  inline-size: auto;
+  min-inline-size: 176px;
+  max-inline-size: 320px;
   block-size: 96px;
   padding: var(--space-4) var(--space-5);
   border-radius: var(--radius-lg);
@@ -84,6 +87,8 @@
   gap: var(--space-2);
   direction: rtl;
   white-space: nowrap;
+  min-inline-size: 0;
+  max-inline-size: 100%;
 }
 .mono {
   display: inline-flex;
@@ -103,6 +108,8 @@
   font: var(--t-body-sm);
   font-weight: 600;
   color: var(--neutral-700);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 @media (max-width: 640px) {

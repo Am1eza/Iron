@@ -1,19 +1,21 @@
 'use client';
 import { useState } from 'react';
+import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { TextInput, Textarea, Field } from '@/components/forms/fields';
 import { FormStatus } from '@/components/forms/FormStatus';
-import { Button } from '@/components/ui';
+import { Button, EmptyState } from '@/components/ui';
 import { useToast } from '@/lib/hooks/useToast';
-import { normalizeMobile } from '@/lib/utils/format';
+import { useAuthStore } from '@/lib/stores/auth';
+import { useRequestsStore } from '@/lib/stores/requests';
+import { routes } from '@/lib/routes';
+import { toPersianDigits } from '@/lib/utils/format';
 import fieldStyles from '@/components/forms/field.module.css';
 
 type WarehouseFormValues = {
   product: string;
   quantityTons: string;
   duration: string;
-  name: string;
-  mobile: string;
   notes?: string;
 };
 
@@ -32,41 +34,54 @@ const PRODUCTS = [
 const DURATIONS = ['۱ تا ۳ ماه', '۳ تا ۶ ماه', '۶ تا ۱۲ ماه', 'بیش از یک سال'];
 
 /**
- * Request form for the «انبار مشتریان» consignment-storage service.
- * Mock submit only — conceptually creates a lead with source `'warehouse'`.
+ * «انبار مشتریان» request — profile-centric: guests are asked to sign in first
+ * (no name/mobile fields; the account already has them). Submitting files a
+ * request in /account/requests where its status is tracked.
  */
 export function WarehouseForm() {
   const toast = useToast();
+  const status = useAuthStore((s) => s.status);
+  const addRequest = useRequestsStore((s) => s.add);
   const [done, setDone] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const { register, handleSubmit, reset, formState } = useForm<WarehouseFormValues>({
     defaultValues: { product: '', duration: '' },
   });
 
+  if (status !== 'authenticated') {
+    return (
+      <EmptyState
+        size="section"
+        headline="برای ثبت درخواست وارد شوید"
+        body="درخواست نگهداری کالا در پروفایل شما ثبت و پیگیری می‌شود؛ ابتدا با شمارهٔ موبایل وارد شوید."
+        primary={{ label: 'ورود / ثبت‌نام', href: routes.login(routes.warehouse()) }}
+      />
+    );
+  }
+
   const onSubmit = async (values: WarehouseFormValues) => {
-    setError(null);
-    // Mock latency.
-    await new Promise((r) => setTimeout(r, 600));
-    // Conceptually: api.leads.create({ ...values, source: 'warehouse' })
-    void values;
+    await new Promise((r) => setTimeout(r, 400)); // mock latency
+    addRequest({
+      type: 'warehouse',
+      title: `نگهداری ${values.product} — ${toPersianDigits(values.quantityTons)} تن`,
+      detail: `مدت نگهداری: ${values.duration}`,
+      note: values.notes?.trim() || undefined,
+    });
     setDone(true);
     reset();
-    toast.success('درخواست نگهداری شما ثبت شد؛ کارشناس به‌زودی تماس می‌گیرد.');
+    toast.success('درخواست نگهداری ثبت شد؛ وضعیت آن در پروفایل شماست.');
   };
 
   if (done) {
     return (
       <FormStatus variant="success">
-        درخواست نگهداری کالای شما ثبت شد. کارشناس آهن‌تایم برای هماهنگی تحویل و قرارداد با شما تماس
-        می‌گیرد.
+        درخواست نگهداری کالای شما ثبت شد و کارشناس برای هماهنگی تحویل و قرارداد تماس می‌گیرد.{' '}
+        <Link href={routes.account('requests')}>پیگیری در پروفایل</Link>
       </FormStatus>
     );
   }
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate style={{ maxInlineSize: 480 }}>
-      {error ? <FormStatus variant="error">{error}</FormStatus> : null}
-
       <Field
         label="نوع محصول"
         htmlFor="wh-product"
@@ -126,26 +141,6 @@ export function WarehouseForm() {
           ))}
         </select>
       </Field>
-
-      <TextInput
-        label="نام"
-        required
-        error={formState.errors.name?.message}
-        {...register('name', { required: 'نام را وارد کنید.' })}
-      />
-
-      <TextInput
-        label="شمارهٔ موبایل"
-        type="tel"
-        inputMode="numeric"
-        required
-        helper="برای هماهنگی تحویل کالا با همین شماره تماس می‌گیریم."
-        error={formState.errors.mobile?.message}
-        {...register('mobile', {
-          required: 'شمارهٔ موبایل را وارد کنید.',
-          validate: (v) => normalizeMobile(v) !== null || 'شمارهٔ موبایل معتبر نیست.',
-        })}
-      />
 
       <Textarea label="توضیحات" {...register('notes')} />
 

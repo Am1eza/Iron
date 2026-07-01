@@ -4,7 +4,7 @@
 
 .grid {
   display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
   gap: var(--space-10);
   align-items: center;
 }
@@ -23,86 +23,144 @@
   max-inline-size: 46ch;
   text-wrap: pretty;
 }
-.cta {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  block-size: 48px;
-  padding-inline: var(--space-6);
-  border-radius: var(--radius-sm);
+
+/* Product tabs — the slide selector */
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.tab {
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-pill);
+  border: var(--border-hairline) solid var(--color-border-strong);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: var(--t-label);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-standard),
+    color var(--dur-fast) var(--ease-standard),
+    border-color var(--dur-fast) var(--ease-standard);
+}
+.tab:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent-text);
+}
+.tab[data-active] {
   background: var(--color-action);
+  border-color: var(--color-action);
   color: var(--color-on-action);
-  font: var(--t-button);
-  text-decoration: none;
-  transition: background var(--dur-fast) var(--ease-standard);
 }
-.cta:hover {
-  background: var(--color-action-hover);
-  text-decoration: none;
-}
-.cta:active {
-  background: var(--color-action-press);
+.tab:active {
   transform: translateY(1px);
 }
 
-/* Gunmetal mini-chart — ties to the hero board's steel identity */
-.chartWrap {
+/* Gunmetal slide card */
+.cardCol {
   min-inline-size: 0;
 }
-.chart {
+.card {
   border-radius: var(--radius-lg);
   border: 1px solid var(--color-panel-hairline);
-  padding: var(--space-5) var(--space-6);
+  padding: var(--space-5) var(--space-6) var(--space-6);
   box-shadow: var(--shadow-lg);
+  animation: slide-in var(--dur-slow) var(--ease-emphasized);
 }
-.chartLabel {
+@keyframes slide-in {
+  from { opacity: 0; transform: translateX(10px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card { animation: none; }
+}
+
+.cardHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-block-end: var(--space-3);
+  border-block-end: 1px solid var(--color-panel-hairline);
+}
+.cardTitle {
+  font: var(--t-h3);
+  font-size: 1.25rem;
+  color: var(--color-on-panel);
+}
+.cardMeta {
   font: var(--t-caption);
   color: var(--color-on-panel-muted);
-  margin: 0 0 var(--space-4);
 }
-.bars {
+
+.rows {
   list-style: none;
-  margin: 0;
+  margin: 0 0 var(--space-5);
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
 }
-.barRow {
-  display: grid;
-  grid-template-columns: 92px 1fr auto;
+.row {
+  display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: var(--space-3);
+  padding-block: var(--space-3);
+}
+.row + .row {
+  border-block-start: 1px solid var(--color-panel-hairline);
 }
 .factory {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
   font: var(--t-body-sm);
   font-weight: 600;
   color: var(--color-on-panel);
+  min-inline-size: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.track {
-  display: block;
-  min-inline-size: 0;
-}
-.bar {
-  display: block;
-  block-size: 14px;
+.bestTag {
+  flex: none;
+  padding: 1px var(--space-2);
   border-radius: var(--radius-pill);
-  background: rgba(255, 255, 255, 0.22);
-}
-.barBest {
   background: var(--gain-500);
+  color: var(--neutral-0);
+  font: var(--t-micro);
+  font-weight: 700;
+}
+.figures {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  flex: none;
 }
 .price {
   font: var(--t-price-cell);
+  font-size: 1.125rem;
   color: var(--color-on-panel);
 }
-.chartHint {
-  margin: var(--space-4) 0 0;
-  font: var(--t-micro);
+.row[data-best] .price {
+  color: var(--emerald-300);
+}
+.delta {
+  font: var(--t-caption);
   color: var(--color-on-panel-muted);
+  min-inline-size: 5ch;
+  text-align: start;
+}
+
+.cta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font: var(--t-label);
+  font-weight: 700;
+  color: var(--emerald-300);
+  text-decoration: none;
+}
+.cta:hover {
+  color: var(--emerald-200);
+  text-decoration: none;
 }
 
 @media (max-width: 1023px) {
@@ -112,10 +170,13 @@
   }
 }
 @media (max-width: 520px) {
-  .barRow {
-    grid-template-columns: 76px 1fr auto;
-  }
-  .chart {
+  .card {
     padding: var(--space-4);
+  }
+  .figures {
+    gap: var(--space-2);
+  }
+  .price {
+    font-size: 1rem;
   }
 }

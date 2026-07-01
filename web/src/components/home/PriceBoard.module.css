@@ -76,6 +76,9 @@
   font-weight: 600;
   color: var(--color-on-panel-muted);
   min-inline-size: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .figures {
   display: inline-flex;

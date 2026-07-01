@@ -5,7 +5,8 @@ import type { PriceRow } from '@/lib/types/domain';
 import { HeroSearch } from '@/components/home/HeroSearch';
 import { PriceBoard } from '@/components/home/PriceBoard';
 import { CategoryStage } from '@/components/home/CategoryStage';
-import { CompareTeaser } from '@/components/home/CompareTeaser';
+import { CompareTeaser, type CompareSlide } from '@/components/home/CompareTeaser';
+import { computeBulkSplit } from '@/lib/utils/bulkSplit';
 import { ValueProps } from '@/components/home/ValueProps';
 import { Partners } from '@/components/home/Partners';
 import { JsonLd } from '@/components/seo/JsonLd';
@@ -37,12 +38,26 @@ export default async function HomePage() {
     })
     .filter((r): r is PriceRow => Boolean(r));
 
+  // Per-category mill comparison (top 4 mills each) for the compare explorer —
+  // slide-by-slide across ALL products, computed server-side.
+  const compareSlides: CompareSlide[] = categories
+    .map((cat) => ({
+      slug: cat.slug,
+      name: cat.name,
+      lines: computeBulkSplit(getRows(cat.slug), 1).lines.slice(0, 4).map((l) => ({
+        factory: l.factory,
+        pricePerKg: l.pricePerKg,
+        best: l.best,
+      })),
+    }))
+    .filter((s) => s.lines.length >= 2);
+
   return (
     <>
       <JsonLd data={[orgJsonLd(), localBusinessJsonLd()]} />
       <HeroSearch board={<PriceBoard rows={boardRows} />} />
       <CategoryStage categories={categories} factories={factories} />
-      <CompareTeaser />
+      <CompareTeaser slides={compareSlides} />
       <ValueProps />
       <Partners />
     </>

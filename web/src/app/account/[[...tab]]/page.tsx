@@ -20,6 +20,8 @@ import { ProfileForm } from '@/components/auth/ProfileForm';
 import { LogoutButton } from '@/components/auth/LogoutButton';
 import { WarehouseList } from '@/components/account/WarehouseList';
 import { OrderTimeline } from '@/components/account/OrderTimeline';
+import { RequestsList } from '@/components/account/RequestsList';
+import { ProfileStats } from '@/components/account/ProfileStats';
 import { getWarehouseItems } from '@/lib/mock/warehouse';
 import { getOrders } from '@/lib/mock/orders';
 import { SHIPMENT_STEPS } from '@/lib/types/domain';
@@ -53,7 +55,7 @@ export default async function AccountPage({ params }: Params) {
               <Text variant="overline" color="accent">
                 حساب من
               </Text>
-              <Heading level={1}>سلام{user.name ? `، ${user.name}` : ''} 👋</Heading>
+              <Heading level={1}>سلام{user.name ? `، ${user.name}` : ''}</Heading>
             </div>
             <Cluster gap={2}>
               <Badge tone="neutral">{ROLE_LABEL[user.role]}</Badge>
@@ -180,7 +182,15 @@ function TabContent({ slug }: { slug: string }) {
     case 'requests':
       return (
         <Card>
-          <EmptyState size="section" {...emptyPresets.requestsEmpty()} />
+          <Stack gap={6}>
+            <div>
+              <Heading level={3}>درخواست‌های من</Heading>
+              <Text color="muted">
+                پیش‌فاکتورها، خرید عمده و درخواست‌های انبار — با وضعیت لحظه‌ای هرکدام.
+              </Text>
+            </div>
+            <RequestsList />
+          </Stack>
         </Card>
       );
     case 'alerts':
@@ -202,18 +212,21 @@ function TabContent({ slug }: { slug: string }) {
       );
     default:
       return (
-        <Card>
-          <Stack gap={6}>
-            <div>
-              <Heading level={3}>اطلاعات حساب</Heading>
-              <Text color="muted">
-                نام نمایشی شما در پیش‌فاکتورها و گفتگو با کارشناس استفاده می‌شود.
-              </Text>
-            </div>
-            <ProfileForm />
-            <LogoutButton />
-          </Stack>
-        </Card>
+        <Stack gap={4}>
+          <ProfileStats />
+          <Card>
+            <Stack gap={6}>
+              <div>
+                <Heading level={3}>اطلاعات حساب</Heading>
+                <Text color="muted">
+                  نام نمایشی شما در پیش‌فاکتورها و گفتگو با کارشناس استفاده می‌شود.
+                </Text>
+              </div>
+              <ProfileForm />
+              <LogoutButton />
+            </Stack>
+          </Card>
+        </Stack>
       );
   }
 }

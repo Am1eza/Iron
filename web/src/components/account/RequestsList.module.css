@@ -1,0 +1,117 @@
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.item {
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  padding: var(--space-4) var(--space-5);
+  background: var(--color-surface);
+}
+
+.top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+.titleWrap {
+  min-inline-size: 0;
+}
+.type {
+  display: inline-flex;
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-tint);
+  color: var(--color-accent-text);
+  font: var(--t-micro);
+  font-weight: 700;
+  margin-block-end: var(--space-1);
+}
+.title {
+  font: var(--t-h4);
+  margin: 0;
+}
+.meta {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  flex: none;
+}
+.ref {
+  font: var(--t-label);
+  color: var(--color-text-strong);
+}
+.date {
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}
+
+.detail {
+  margin: var(--space-2) 0 0;
+  font: var(--t-body-sm);
+  color: var(--color-text);
+}
+.note {
+  margin: var(--space-1) 0 0;
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}
+
+/* 4-step status trail */
+.steps {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  flex-wrap: wrap;
+}
+.step {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.step:not(:last-child)::after {
+  content: '';
+  inline-size: 28px;
+  block-size: 2px;
+  border-radius: 2px;
+  background: var(--color-hairline);
+  margin-inline-start: var(--space-2);
+}
+.step[data-done]:not(:last-child)::after {
+  background: var(--color-accent);
+}
+.dot {
+  inline-size: 10px;
+  block-size: 10px;
+  border-radius: 50%;
+  background: var(--color-border-strong);
+}
+.step[data-done] .dot {
+  background: var(--color-accent);
+}
+.step[aria-current] .dot {
+  box-shadow: 0 0 0 4px var(--color-accent-tint);
+}
+.stepLabel {
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}
+.step[data-done] .stepLabel {
+  color: var(--color-text-strong);
+}
+
+@media (max-width: 520px) {
+  .step:not(:last-child)::after {
+    inline-size: 14px;
+  }
+}
