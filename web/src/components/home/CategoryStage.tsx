@@ -47,7 +47,6 @@ export function CategoryStage({
         <h2 id="browse-title" className={styles.title}>
           محصول را انتخاب کنید
         </h2>
-        <p className={styles.hint}>روی هر دسته بروید؛ زیرشاخه‌ها و کارخانه‌ها باز می‌شوند.</p>
       </div>
 
       <div className={`container ${styles.menu}`}>
@@ -139,13 +138,6 @@ export function CategoryStage({
                       </li>
                     ))}
                   </ul>
-                  <Link
-                    href={`${routes.category(activeCat.slug)}#compare`}
-                    className={styles.compareAll}
-                  >
-                    مقایسهٔ همهٔ کارخانه‌ها
-                    <ChevronStartIcon size={14} className="icon--rtl" />
-                  </Link>
                 </div>
               </div>
 

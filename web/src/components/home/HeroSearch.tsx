@@ -1,6 +1,5 @@
 'use client';
 import { useState, type ReactNode } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { routes } from '@/lib/routes';
 import { SparkIcon, ChevronStartIcon } from '@/components/primitives/icons';
@@ -15,17 +14,7 @@ import styles from './HeroSearch.module.css';
 const STARTERS = [
   'برای یک ساختمان ۲ طبقه چه می‌خواهم؟',
   'قیمت میلگرد ۱۴ امروز؟',
-  'وزن ۱۰۰ شاخه میلگرد ۱۶ چقدر است؟',
   'ارزان‌ترین تیرآهن کدام است؟',
-];
-
-/** Quick jumps into the most-asked price tables. */
-const QUICK_CATS: { slug: string; name: string }[] = [
-  { slug: 'rebar', name: 'میلگرد' },
-  { slug: 'ibeam', name: 'تیرآهن' },
-  { slug: 'sheet', name: 'ورق' },
-  { slug: 'profile', name: 'پروفیل' },
-  { slug: 'pipe', name: 'لوله' },
 ];
 
 export function HeroSearch({ board }: { board?: ReactNode }) {
@@ -85,15 +74,6 @@ export function HeroSearch({ board }: { board?: ReactNode }) {
               </li>
             ))}
           </ul>
-
-          <nav className={styles.quick} aria-label="دسترسی سریع به قیمت‌ها">
-            <span className={styles.quickLabel}>قیمت روز:</span>
-            {QUICK_CATS.map((c) => (
-              <Link key={c.slug} href={routes.category(c.slug)} className={styles.quickItem}>
-                {c.name}
-              </Link>
-            ))}
-          </nav>
         </div>
 
         {board && <div className={styles.boardCol}>{board}</div>}

@@ -74,7 +74,6 @@ export function BulkQuote({
   if (allRows.length === 0) return null;
 
   const most = split.lines[split.lines.length - 1] ?? null;
-  const maxPrice = most?.pricePerKg ?? 0;
   const savings =
     split.cheapest && most && most.factory !== split.cheapest.factory
       ? most.lineToman - split.cheapest.lineToman
@@ -115,7 +114,6 @@ export function BulkQuote({
             و ارزان‌ترین را انتخاب کنید.
           </p>
         </div>
-        <span className={styles.exclusive}>فقط در آهن‌تایم</span>
       </header>
 
       <div className={styles.controls}>
@@ -217,9 +215,6 @@ export function BulkQuote({
           <thead>
             <tr>
               <th scope="col">کارخانه</th>
-              <th scope="col" className={styles.barCol}>
-                <span className="visually-hidden">نمودار مقایسهٔ قیمت</span>
-              </th>
               <th scope="col" className={styles.num}>قیمت هر کیلوگرم</th>
               <th scope="col" className={styles.num}>اختلاف با ارزان‌ترین</th>
               <th scope="col" className={styles.num}>
@@ -230,24 +225,15 @@ export function BulkQuote({
           <tbody>
             {split.lines.map((l) => {
               const delta = split.cheapest ? l.pricePerKg - split.cheapest.pricePerKg : 0;
-              const ratio = maxPrice > 0 ? Math.max(0.12, l.pricePerKg / maxPrice) : 0;
               return (
                 <tr key={l.factory} className={l.best ? styles.bestRow : undefined}>
                   <th scope="row" className={styles.factoryCell}>
                     <span className={styles.factoryName}>{l.factory}</span>
                     {l.best ? <span className={styles.bestTag}>ارزان‌ترین</span> : null}
                   </th>
-                  <td className={styles.barCol} aria-hidden="true">
-                    <span className={styles.barTrack}>
-                      <span
-                        className={`${styles.bar} ${l.best ? styles.barBest : ''}`}
-                        style={{ inlineSize: `${Math.round(ratio * 100)}%` }}
-                      />
-                    </span>
-                  </td>
                   <td className={styles.num}>{formatToman(l.pricePerKg, false)}</td>
                   <td className={`${styles.num} ${l.best ? styles.deltaBest : styles.delta}`}>
-                    {l.best ? '—' : `${formatToman(delta, false)}+`}
+                    {l.best ? '۰' : `${formatToman(delta, false)}+`}
                   </td>
                   <td className={`${styles.num} ${styles.lineCost}`}>{formatToman(l.lineToman, false)}</td>
                 </tr>
@@ -311,8 +297,7 @@ export function BulkQuote({
             </div>
           </dl>
           <p className={styles.landedMeta}>
-            زمان تحویل تقریبی: <strong>{landed.delivery}</strong> · شهر مقصد در پروفایل شما ذخیره
-            می‌شود.
+            زمان تحویل تقریبی: <strong>{landed.delivery}</strong>
           </p>
         </div>
       ) : null}
