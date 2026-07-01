@@ -51,7 +51,7 @@ export function PriceTable({
   /** Initial sub for the uncontrolled case (e.g. deep-link landing). */
   initialSub?: string | null;
   /** Pre-applied factory/mill filter (e.g. from the home cascade menu's
-   *  «?factory=…» deep link). Shown as a clearable chip. */
+   *  «?factory=…» deep link). Pre-selects the کارخانه select. */
   initialFactory?: string | null;
 }) {
   const add = useCartStore((s) => s.add);
@@ -84,15 +84,32 @@ export function PriceTable({
   const [chartFor, setChartFor] = useState<PriceRow | null>(null);
   const [factory, setFactoryState] = useState<string | null>(initialFactory);
   const setFactory = (next: string | null) => withTransition(() => setFactoryState(next));
+  const [size, setSizeState] = useState<string | null>(null);
+  const setSize = (next: string | null) => withTransition(() => setSizeState(next));
 
   const withVat = (p: number) => (vat ? Math.round(p * (1 + CONSTANTS.VAT_RATE)) : p);
+
+  const factoryOptions = useMemo(
+    () => [...new Set(rows.map((r) => r.factory).filter((f): f is string => Boolean(f)))],
+    [rows],
+  );
+  const sizeOptions = useMemo(
+    () =>
+      [...new Set(rows.map((r) => r.size).filter((s): s is string => Boolean(s)))].sort(
+        (a, b) => Number(a) - Number(b) || a.localeCompare(b, 'fa'),
+      ),
+    [rows],
+  );
 
   const filtered = useMemo(
     () =>
       rows.filter(
-        (r) => (!sub || r.subCategoryId === sub) && (!factory || r.factory === factory),
+        (r) =>
+          (!sub || r.subCategoryId === sub) &&
+          (!factory || r.factory === factory) &&
+          (!size || r.size === size),
       ),
-    [rows, sub, factory],
+    [rows, sub, factory, size],
   );
 
   const sorted = useMemo(() => {
@@ -150,19 +167,34 @@ export function PriceTable({
               {s.name}
             </Chip>
           ))}
-          {factory && (
-            <button
-              type="button"
-              className={styles.factoryChip}
-              onClick={() => setFactory(null)}
-              aria-label={`حذف فیلتر کارخانه ${factory}`}
-            >
-              کارخانه: {factory}
-              <span className={styles.factoryClear} aria-hidden="true">×</span>
-            </button>
-          )}
         </div>
         <div className={styles.tools}>
+          <select
+            value={factory ?? ''}
+            onChange={(e) => setFactory(e.target.value || null)}
+            className={styles.select}
+            aria-label="فیلتر کارخانه"
+          >
+            <option value="">همهٔ کارخانه‌ها</option>
+            {factoryOptions.map((f) => (
+              <option key={f} value={f}>
+                {f}
+              </option>
+            ))}
+          </select>
+          <select
+            value={size ?? ''}
+            onChange={(e) => setSize(e.target.value || null)}
+            className={styles.select}
+            aria-label="فیلتر سایز"
+          >
+            <option value="">همهٔ سایزها</option>
+            {sizeOptions.map((s) => (
+              <option key={s} value={s}>
+                {toPersianDigits(s)}
+              </option>
+            ))}
+          </select>
           <label className={styles.sort}>
             <SortIcon size={16} />
             <span className="visually-hidden">مرتب‌سازی</span>

@@ -1,6 +1,5 @@
 .section {
-  margin-block-start: var(--space-16);
-  padding-block: var(--space-16) var(--space-20);
+  padding-block: var(--space-16);
   background: var(--color-surface-sunken);
   border-block: var(--border-hairline) solid var(--color-hairline);
 }

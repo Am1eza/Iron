@@ -1,7 +1,7 @@
 /* The dark «factory» color-block — the page's one inverted moment. Gunmetal +
    blueprint grid; emerald accents; light logo cells for contrast. */
 .section {
-  padding-block: var(--space-16) var(--space-20);
+  padding-block: var(--space-16);
   /* marquee theming hooks */
   --marquee-fade: var(--steel-900);
   --marquee-nav-bg: var(--color-panel-raised);
@@ -51,7 +51,7 @@
 }
 .mill:hover {
   border-color: var(--emerald-400);
-  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
 }
 
 /* Client logo cell — light surface so real logos read correctly. Sized by its
@@ -72,8 +72,7 @@
 }
 .cell:hover {
   border-color: var(--emerald-400);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
 }
 .logoImg {
   max-block-size: 58px;

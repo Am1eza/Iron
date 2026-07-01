@@ -48,7 +48,6 @@ export function PriceBoard({ rows }: { rows: PriceRow[] }) {
         <Link href={routes.prices()} className={styles.all}>
           مشاهده همهٔ قیمت‌ها
         </Link>
-        <span className={styles.hint}>به‌روزرسانی روزانه · بدون واسطه</span>
       </footer>
     </aside>
   );

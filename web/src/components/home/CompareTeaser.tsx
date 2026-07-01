@@ -72,8 +72,7 @@ export function CompareTeaser({ slides }: { slides: CompareSlide[] }) {
             یک محصول، همهٔ کارخانه‌ها
           </h2>
           <p className={styles.sub}>
-            قابلیتی که جای دیگری پیدا نمی‌کنید: قیمت روزِ هر کارخانه را کنار هم ببینید، اختلاف را
-            بسنجید و با خیال راحت ارزان‌ترین را انتخاب کنید.
+            قیمت روز هر کارخانه را کنار هم ببینید، اختلاف را بسنجید و ارزان‌ترین را انتخاب کنید.
           </p>
 
           <div className={styles.tabs} role="tablist" aria-label="انتخاب محصول برای مقایسه">
@@ -97,7 +96,7 @@ export function CompareTeaser({ slides }: { slides: CompareSlide[] }) {
           <div key={slide.slug} className={`${styles.card} blueprint`}>
             <header className={styles.cardHead}>
               <span className={styles.cardTitle}>{slide.name}</span>
-              <span className={styles.cardMeta}>قیمت هر کیلوگرم · تومان</span>
+              <span className={styles.cardMeta}>تومان بر کیلوگرم</span>
             </header>
 
             <ul className={styles.rows}>
