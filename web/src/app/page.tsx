@@ -1,7 +1,9 @@
 import { getCategories } from '@/lib/data/catalog';
-import { getFactories } from '@/lib/mock/catalogData';
+import { getFactories, getRows } from '@/lib/mock/catalogData';
 import { CATEGORY_SUBS } from '@/lib/data/nav';
+import type { PriceRow } from '@/lib/types/domain';
 import { HeroSearch } from '@/components/home/HeroSearch';
+import { PriceBoard } from '@/components/home/PriceBoard';
 import { CategoryStage } from '@/components/home/CategoryStage';
 import { ValueProps } from '@/components/home/ValueProps';
 import { Partners } from '@/components/home/Partners';
@@ -9,10 +11,9 @@ import { JsonLd } from '@/components/seo/JsonLd';
 import { orgJsonLd, localBusinessJsonLd } from '@/lib/seo';
 
 /**
- * Home — light, professional, product-first. Central AI search (asks what you
- * need) → the cascade product menu directly under the AI (category → sub-group →
- * factory, each level opening on hover) → why us → mills & customers. Reads as an
- * iron marketplace on entry; no FX/gold prices here (those live on /market).
+ * Home — the «Steel Terminal». Asymmetric hero (AI search + live price board) →
+ * cascade product menu (category → sub-group → factory on hover) → why us →
+ * dark factory block (mills & customers). Price data is the visual anchor.
  */
 export default async function HomePage() {
   const categories = await getCategories();
@@ -27,10 +28,18 @@ export default async function HomePage() {
     }
   }
 
+  // One representative SKU per headline category for the hero price board.
+  const boardRows = ['rebar', 'ibeam', 'sheet', 'profile']
+    .map((slug) => {
+      const rows = getRows(slug);
+      return rows[2] ?? rows[0];
+    })
+    .filter((r): r is PriceRow => Boolean(r));
+
   return (
     <>
       <JsonLd data={[orgJsonLd(), localBusinessJsonLd()]} />
-      <HeroSearch />
+      <HeroSearch board={<PriceBoard rows={boardRows} />} />
       <CategoryStage categories={categories} factories={factories} />
       <ValueProps />
       <Partners />

@@ -27,11 +27,11 @@
 }
 .fadeStart {
   inset-inline-start: 0;
-  background: linear-gradient(90deg, var(--color-bg), transparent);
+  background: linear-gradient(90deg, var(--marquee-fade, var(--color-bg)), transparent);
 }
 .fadeEnd {
   inset-inline-end: 0;
-  background: linear-gradient(270deg, var(--color-bg), transparent);
+  background: linear-gradient(270deg, var(--marquee-fade, var(--color-bg)), transparent);
 }
 
 .track {
@@ -59,9 +59,9 @@
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-pill);
-  border: var(--border-hairline) solid var(--color-hairline);
-  background: var(--color-surface);
-  color: var(--color-text-strong);
+  border: var(--border-hairline) solid var(--marquee-nav-border, var(--color-hairline));
+  background: var(--marquee-nav-bg, var(--color-surface));
+  color: var(--marquee-nav-fg, var(--color-text-strong));
   cursor: pointer;
   transition:
     border-color var(--dur-fast) var(--ease-standard),
@@ -72,6 +72,9 @@
   border-color: var(--color-accent);
   color: var(--color-accent);
   box-shadow: var(--shadow-sm);
+}
+.nav:active {
+  transform: translateY(1px);
 }
 .nav:focus-visible {
   outline: var(--border-focus) solid var(--color-focus);

@@ -5,6 +5,9 @@
 
 @font-face{font-family:"Vazirmatn";src:url(/fonts/Vazirmatn.var.woff2) format("woff2");font-weight:100 900;font-display:swap;font-named-instance:"Regular";}
 @font-face{font-family:"Inter";src:url(/fonts/Inter.var.woff2) format("woff2");font-weight:100 900;font-display:swap;}
+/* Display face — Estedad variable (OFL). Black-weight Farsi headlines + the big
+   tabular price numerals; the brand's typographic signature. */
+@font-face{font-family:"Estedad";src:url(/fonts/Estedad.var.woff2) format("woff2");font-weight:100 900;font-display:swap;}
 
 :root{
   /* ===== PRIMITIVES ===== */
@@ -24,6 +27,8 @@
   --emerald-800:#074533; --emerald-900:#053425;
   --gain-50:#E9F8EF; --gain-100:#CBEFD8; --gain-500:#15A34A; --gain-600:#128B40; --gain-700:#0E6E33;
   --loss-50:#FDECEB; --loss-100:#FAD2CF; --loss-500:#E0322B; --loss-600:#C42822; --loss-700:#A11F1B;
+  /* Steel — cool gunmetal for the "factory" panels/blocks (distinct from neutral) */
+  --steel-800:#1C242E; --steel-850:#161D26; --steel-900:#111820; --steel-950:#0C1218;
 
   /* ===== SEMANTIC COLOR — LIGHT ===== */
   --color-bg:var(--neutral-50); --color-surface:var(--neutral-0); --color-surface-sunken:var(--neutral-50);
@@ -38,14 +43,20 @@
   --color-gain:var(--gain-500); --color-gain-text:var(--gain-700);
   --color-loss:var(--loss-500); --color-loss-text:var(--loss-600);
   --color-overlay:rgba(15,19,24,.55);
+  /* Gunmetal panel — same in both themes (the "steel terminal" surfaces) */
+  --color-panel:var(--steel-900); --color-panel-raised:var(--steel-800);
+  --color-on-panel:#EDF2F6; --color-on-panel-muted:#8D9AA8;
+  --color-panel-hairline:rgba(255,255,255,.09);
 
   /* ===== TYPOGRAPHY ===== */
   --font-fa:"Vazirmatn","Segoe UI",Tahoma,system-ui,sans-serif;
+  --font-display:"Estedad","Vazirmatn","Segoe UI",Tahoma,system-ui,sans-serif;
   --font-num:"Vazirmatn","Segoe UI",Tahoma,sans-serif;
   --font-latin:"Inter",system-ui,"Segoe UI",Roboto,Arial,sans-serif;
-  --t-display: 800 clamp(1.875rem,1.2rem + 2.4vw,2.5rem)/1.2 var(--font-fa);
-  --t-h1: 700 clamp(1.625rem,1.2rem + 1.6vw,2rem)/1.25 var(--font-fa);
-  --t-h2: 700 clamp(1.375rem,1.1rem + 1vw,1.625rem)/1.3 var(--font-fa);
+  --t-display: 900 clamp(2rem,1.2rem + 3vw,3.25rem)/1.15 var(--font-display);
+  --t-display-num: 800 clamp(1.5rem,1rem + 1.6vw,2.25rem)/1.1 var(--font-display);
+  --t-h1: 800 clamp(1.625rem,1.2rem + 1.6vw,2rem)/1.25 var(--font-display);
+  --t-h2: 800 clamp(1.375rem,1.1rem + 1vw,1.625rem)/1.3 var(--font-display);
   --t-h3: 600 1.375rem/1.35 var(--font-fa);
   --t-h4: 600 1.125rem/1.4 var(--font-fa);
   --t-body-lg: 400 1.125rem/1.8 var(--font-fa);
@@ -57,8 +68,8 @@
   --t-label: 500 .875rem/1.4 var(--font-fa);
   --t-input: 400 1rem/1.5 var(--font-fa);
   --t-micro: 400 .75rem/1.5 var(--font-fa);
-  --t-price-hero: 700 clamp(2rem,1.5rem + 2vw,2.5rem)/1.1 var(--font-num);
-  --t-price-cell: 600 1rem/1.4 var(--font-num);
+  --t-price-hero: 800 clamp(2rem,1.5rem + 2vw,2.5rem)/1.1 var(--font-display);
+  --t-price-cell: 700 1rem/1.4 var(--font-display);
   --t-movement: 600 .875rem/1.4 var(--font-num);
   --t-ticker: 600 .9375rem/1.3 var(--font-num);
   --t-data: 500 .9375rem/1.4 var(--font-num);
@@ -119,8 +130,8 @@ html{font:var(--t-body);color:var(--color-text);background:var(--color-bg);lette
   -webkit-text-size-adjust:100%;text-rendering:optimizeLegibility;scroll-behavior:smooth;}
 html[dir="rtl"]{text-align:right;}
 body{margin:0;min-block-size:100svh;}
-h1{font:var(--t-h1);color:var(--color-text-strong);margin:0;}
-h2{font:var(--t-h2);color:var(--color-text-strong);margin:0;}
+h1{font:var(--t-h1);color:var(--color-text-strong);margin:0;text-wrap:balance;}
+h2{font:var(--t-h2);color:var(--color-text-strong);margin:0;text-wrap:balance;}
 h3{font:var(--t-h3);color:var(--color-text-strong);margin:0;}
 h4{font:var(--t-h4);color:var(--color-text-strong);margin:0;}
 a{color:var(--color-accent-text);text-decoration:none;}
@@ -138,6 +149,14 @@ img{max-inline-size:100%;height:auto;}
   border-radius:var(--radius-md);background:var(--color-surface);box-shadow:var(--shadow-none);}
 
 .label-latin{font-family:var(--font-latin);letter-spacing:.04em;text-transform:uppercase;}
+
+/* Blueprint grid — the faint engineering-drawing texture on gunmetal panels. */
+.blueprint{
+  background-color:var(--color-panel);
+  background-image:
+    repeating-linear-gradient(0deg,rgba(255,255,255,.045) 0 1px,transparent 1px 44px),
+    repeating-linear-gradient(90deg,rgba(255,255,255,.045) 0 1px,transparent 1px 44px);
+}
 
 @keyframes spark{ from{transform:scale(.9);opacity:.5} to{transform:scale(1.15);opacity:0} }
 .spark{position:relative;}

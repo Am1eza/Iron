@@ -3,17 +3,21 @@
   background: var(--color-bg);
 }
 .head {
-  text-align: center;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  text-align: start;
   margin-block-end: var(--space-6);
-}
-.eyebrow {
-  font: var(--t-overline);
-  letter-spacing: 0.04em;
-  color: var(--color-accent-text);
-  margin: 0 0 var(--space-1);
 }
 .title {
   font: var(--t-h2);
+  margin: 0;
+}
+.hint {
+  font: var(--t-body-sm);
+  color: var(--color-text-muted);
   margin: 0;
 }
 

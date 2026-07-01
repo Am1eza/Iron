@@ -30,7 +30,7 @@
   block-size: 40px;
   border-radius: var(--radius-circle);
   background: linear-gradient(140deg, var(--emerald-400), var(--emerald-700));
-  color: #fff;
+  color: var(--color-on-action);
   box-shadow: 0 4px 12px -2px rgba(15, 138, 99, 0.5);
 }
 .headName {
@@ -103,7 +103,7 @@
   block-size: 26px;
   border-radius: var(--radius-circle);
   background: var(--color-accent);
-  color: #fff;
+  color: var(--color-on-action);
   margin-block-end: 2px;
 }
 .bubbleWrap {
@@ -132,7 +132,7 @@
 }
 .user {
   background: var(--color-accent);
-  color: #fff;
+  color: var(--color-on-action);
   border-end-end-radius: var(--radius-xs);
 }
 
@@ -347,7 +347,7 @@
   border: 0;
   border-radius: var(--radius-circle);
   background: var(--color-accent);
-  color: #fff;
+  color: var(--color-on-action);
   cursor: pointer;
 }
 .send:hover { background: var(--color-action-hover); }

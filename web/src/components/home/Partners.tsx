@@ -26,6 +26,8 @@ function LogoCell({ c }: { c: ClientLogo }) {
   return (
     <div className={styles.cell} title={c.name}>
       {showImg ? (
+        // eager on purpose: lazy-loading never fires inside the clipped,
+        // transformed marquee track → logos would stay blank (round-6 bug).
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={c.file}
@@ -48,7 +50,7 @@ function LogoCell({ c }: { c: ClientLogo }) {
 
 export function Partners() {
   return (
-    <section className={styles.section} aria-labelledby="partners-title">
+    <section className={`${styles.section} blueprint`} aria-labelledby="partners-title">
       <div className={styles.block}>
         <div className="container">
           <p className={styles.eyebrow}>تأمین مستقیم از کارخانه</p>
@@ -67,10 +69,9 @@ export function Partners() {
 
       <div className={styles.block}>
         <div className="container">
-          <p className={styles.eyebrow}>اعتماد مشتریان</p>
           <h2 className={styles.title}>کسانی که به آهن‌تایم اعتماد کرده‌اند</h2>
           <p className={styles.sub}>
-            از سیمان و فولاد تا نفت، گاز و پتروشیمی — در کنار بزرگان صنعت ایران.
+            از سیمان و فولاد تا نفت، گاز و پتروشیمی؛ در کنار بزرگان صنعت ایران.
           </p>
         </div>
         <Marquee

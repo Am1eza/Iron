@@ -1,43 +1,45 @@
 import { SparkIcon, TagIcon, BellIcon, UserIcon, BankIcon, ShieldIcon } from '@/components/primitives/icons';
+import { Reveal } from '@/components/motion/Reveal';
 import styles from './ValueProps.module.css';
 
-/** «چرا آهن‌تایم» — the trust pillars (vision/brand). Calm, no hype. */
-const PILLARS = [
+/**
+ * «چرا آهن‌تایم» — asymmetric editorial grid: two featured tiles carry the core
+ * promise (smart advisor, transparent prices); four compact rows carry the rest.
+ * One layout family, used once on the page. Calm, no hype.
+ */
+const FEATURED = [
   {
     Icon: SparkIcon,
-    accent: 'ai',
     title: 'مشاور هوشمند، نه فروشندهٔ پرحرف',
-    text: 'آهن‌تایم متراژ پروژه‌ات را می‌فهمد و بر پایهٔ قیمت‌های واقعی راهنمایی می‌کند — بدون عدد ساختگی.',
+    text: 'آهن‌تایم متراژ پروژه‌ات را می‌فهمد و بر پایهٔ قیمت‌های واقعی راهنمایی می‌کند. بدون عدد ساختگی، بدون اصرار به خرید.',
   },
   {
     Icon: TagIcon,
-    accent: 'action',
     title: 'قیمت شفاف و لحظه‌ای',
-    text: 'قیمت‌ها روزانه استعلام و به‌روز می‌شوند؛ نوسان و تاریخ هر قیمت پیش چشم توست.',
+    text: 'قیمت‌ها روزانه استعلام و به‌روز می‌شوند؛ نوسان و تاریخ هر قیمت پیش چشم توست و چیزی پشت تلفن پنهان نمی‌ماند.',
   },
+] as const;
+
+const COMPACT = [
   {
     Icon: BellIcon,
-    accent: 'ai',
     title: 'زمان تحویل مشخص',
-    text: 'برای هر کالا زمان تحویل اعلام می‌شود تا برنامهٔ پروژه‌ات بی‌وقفه پیش برود.',
+    text: 'برای هر کالا زمان تحویل اعلام می‌شود تا برنامهٔ پروژه بی‌وقفه پیش برود.',
   },
   {
     Icon: UserIcon,
-    accent: 'action',
     title: 'پشتیبانی انسانی و آگاه',
     text: 'درخواستت با همهٔ جزئیات به کارشناس می‌رسد؛ تماس، آگاهانه و سریع است.',
   },
   {
     Icon: BankIcon,
-    accent: 'ai',
     title: 'خرید از بورس کالا',
-    text: 'تأمین رسمی از بورس کالای ایران؛ قیمت شفاف، فاکتور معتبر و اصالت تضمین‌شدهٔ محصول.',
+    text: 'تأمین رسمی از بورس کالای ایران؛ فاکتور معتبر و اصالت تضمین‌شده.',
   },
   {
     Icon: ShieldIcon,
-    accent: 'action',
     title: 'گشایش LC برای مشتریان',
-    text: 'برای خریدهای عمده، اعتبار اسنادی (LC) باز می‌کنیم تا معاملهٔ بزرگ‌ات امن و بی‌دغدغه باشد.',
+    text: 'برای خریدهای عمده اعتبار اسنادی باز می‌کنیم تا معاملهٔ بزرگ امن باشد.',
   },
 ] as const;
 
@@ -45,27 +47,42 @@ export function ValueProps() {
   return (
     <section className={styles.section} aria-labelledby="why-title">
       <div className="container">
-      <div className={styles.head}>
-        <p className={styles.eyebrow}>چرا آهن‌تایم</p>
-        <h2 id="why-title" className={styles.title}>
-          اول مشورت، بعد خرید.
-        </h2>
-        <p className={styles.sub}>
-          خرید آهن‌آلات را از حدس و تماس‌های پراکنده به یک تصمیم روشن و مطمئن تبدیل می‌کنیم.
-        </p>
-      </div>
+        <div className={styles.head}>
+          <p className={styles.eyebrow}>چرا آهن‌تایم</p>
+          <h2 id="why-title" className={styles.title}>
+            اول مشورت، بعد خرید.
+          </h2>
+        </div>
 
-      <ul className={styles.grid}>
-        {PILLARS.map(({ Icon, accent, title, text }) => (
-          <li key={title} className={styles.card}>
-            <span className={`${styles.icon} ${accent === 'ai' ? styles.accentAi : styles.accentAction}`}>
-              <Icon size={22} />
-            </span>
-            <h3 className={styles.cardTitle}>{title}</h3>
-            <p className={styles.cardText}>{text}</p>
-          </li>
-        ))}
-      </ul>
+        <div className={styles.grid}>
+          {FEATURED.map(({ Icon, title, text }, i) => (
+            <Reveal key={title} index={i} className={styles.featured}>
+              <article className={styles.featuredCard}>
+                <span className={styles.featuredIcon}>
+                  <Icon size={26} />
+                </span>
+                <h3 className={styles.featuredTitle}>{title}</h3>
+                <p className={styles.featuredText}>{text}</p>
+              </article>
+            </Reveal>
+          ))}
+
+          <div className={styles.compactCol}>
+            {COMPACT.map(({ Icon, title, text }, i) => (
+              <Reveal key={title} index={i + 2}>
+                <article className={styles.row}>
+                  <span className={styles.rowIcon}>
+                    <Icon size={20} />
+                  </span>
+                  <div>
+                    <h3 className={styles.rowTitle}>{title}</h3>
+                    <p className={styles.rowText}>{text}</p>
+                  </div>
+                </article>
+              </Reveal>
+            ))}
+          </div>
+        </div>
       </div>
     </section>
   );

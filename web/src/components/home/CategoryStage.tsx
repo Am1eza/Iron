@@ -44,10 +44,10 @@ export function CategoryStage({
   return (
     <section className={styles.section} aria-labelledby="browse-title">
       <div className={`container ${styles.head}`}>
-        <p className={styles.eyebrow}>دسته‌بندی محصولات</p>
         <h2 id="browse-title" className={styles.title}>
           محصول را انتخاب کنید
         </h2>
+        <p className={styles.hint}>روی هر دسته بروید؛ زیرشاخه‌ها و کارخانه‌ها باز می‌شوند.</p>
       </div>
 
       <div className={`container ${styles.menu}`}>

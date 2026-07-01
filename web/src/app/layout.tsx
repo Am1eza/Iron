@@ -54,6 +54,22 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     : null;
   return (
     <html lang="fa" dir="rtl" suppressHydrationWarning>
+      <head>
+        <link
+          rel="preload"
+          href="/fonts/Estedad.var.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
+        <link
+          rel="preload"
+          href="/fonts/Vazirmatn.var.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
+      </head>
       <body>
         <ThemeScript />
         <a href="#main" className="skip-link">

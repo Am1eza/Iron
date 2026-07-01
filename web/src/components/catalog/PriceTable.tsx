@@ -1,5 +1,6 @@
 'use client';
 import { useMemo, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { useCartStore } from '@/lib/stores/cart';
 import { useToast } from '@/lib/hooks/useToast';
@@ -62,13 +63,27 @@ export function PriceTable({
   const [internalSub, setInternalSub] = useState<string | null>(initialSub);
   const controlled = onSubChange !== undefined;
   const sub = controlled ? subProp ?? null : internalSub;
+
+  // Filter changes animate via same-document View Transitions where supported
+  // (a no-op elsewhere) — the rows crossfade instead of snapping.
+  const withTransition = (apply: () => void) => {
+    if (typeof document !== 'undefined' && 'startViewTransition' in document) {
+      (document as Document & { startViewTransition: (cb: () => void) => void })
+        .startViewTransition(() => flushSync(apply));
+    } else {
+      apply();
+    }
+  };
   const setSub = (next: string | null) => {
-    if (controlled) onSubChange?.(next);
-    else setInternalSub(next);
+    withTransition(() => {
+      if (controlled) onSubChange?.(next);
+      else setInternalSub(next);
+    });
   };
   const [fav, setFav] = useState<Set<string>>(new Set());
   const [chartFor, setChartFor] = useState<PriceRow | null>(null);
-  const [factory, setFactory] = useState<string | null>(initialFactory);
+  const [factory, setFactoryState] = useState<string | null>(initialFactory);
+  const setFactory = (next: string | null) => withTransition(() => setFactoryState(next));
 
   const withVat = (p: number) => (vat ? Math.round(p * (1 + CONSTANTS.VAT_RATE)) : p);
 

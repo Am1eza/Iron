@@ -3,8 +3,8 @@ import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { getCategories } from '@/lib/data/catalog';
 import { Container, Section, Stack, Heading, Text, Breadcrumbs } from '@/components/ui';
-import { CategoryGrid } from '@/components/home/CategoryGrid';
-import { FeaturedPrices } from '@/components/home/FeaturedPrices';
+import { CategoryGrid } from '@/components/market/CategoryGrid';
+import { FeaturedPrices } from '@/components/market/FeaturedPrices';
 
 export const metadata: Metadata = buildMetadata({
   title: 'قیمت روز آهن و فولاد',

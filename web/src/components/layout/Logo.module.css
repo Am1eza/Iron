@@ -50,7 +50,7 @@
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
 }
 .light .wordmark {
-  color: #fff;
+  color: var(--color-on-action);
 }
 .light .tagline {
   color: rgba(255, 255, 255, 0.6);

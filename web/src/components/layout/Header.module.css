@@ -23,25 +23,25 @@
 .header[data-overlay] .navLink:hover,
 .header[data-overlay] .navTrigger:hover,
 .header[data-overlay] .fxLink:hover {
-  color: #fff;
+  color: var(--color-text-inverse);
 }
 .header[data-overlay] .iconBtn,
 .header[data-overlay] .menuBtn {
-  color: #fff;
+  color: var(--color-text-inverse);
 }
 .header[data-overlay] .iconBtn:hover {
   background: rgba(255, 255, 255, 0.1);
 }
 .header[data-overlay] .loginBtn {
-  color: #fff;
+  color: var(--color-text-inverse);
   border-color: rgba(255, 255, 255, 0.3);
 }
 .header[data-overlay] .loginBtn:hover {
-  border-color: #fff;
+  border-color: var(--color-text-inverse);
 }
 .header[data-overlay] .accountBtn {
   background: rgba(255, 255, 255, 0.12);
-  color: #fff;
+  color: var(--color-text-inverse);
 }
 .header[data-overlay] .themeToggle {
   opacity: 0;
@@ -166,6 +166,23 @@
   list-style: none;
   margin: 0;
   padding: 0;
+}
+
+/* Entry animation on mount — modern @starting-style, zero JS, degrades to instant. */
+@media (prefers-reduced-motion: no-preference) {
+  .dropdown,
+  .mega {
+    transition:
+      opacity var(--dur-base) var(--ease-entrance),
+      transform var(--dur-base) var(--ease-emphasized);
+  }
+  @starting-style {
+    .dropdown,
+    .mega {
+      opacity: 0;
+      transform: translateY(-6px);
+    }
+  }
 }
 .dropdownDivider {
   block-size: 1px;

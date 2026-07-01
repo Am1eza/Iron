@@ -1,29 +1,38 @@
+/* The dark «factory» color-block — the page's one inverted moment. Gunmetal +
+   blueprint grid; emerald accents; light logo cells for contrast. */
 .section {
-  padding-block: var(--space-16);
-  background: var(--color-bg);
+  padding-block: var(--space-16) var(--space-20);
+  /* marquee theming hooks */
+  --marquee-fade: var(--steel-900);
+  --marquee-nav-bg: var(--color-panel-raised);
+  --marquee-nav-fg: var(--color-on-panel);
+  --marquee-nav-border: var(--color-panel-hairline);
 }
 .block + .block {
   margin-block-start: var(--space-12);
 }
 .eyebrow {
   font: var(--t-overline);
-  color: var(--color-accent-text);
+  letter-spacing: 0.04em;
+  color: var(--emerald-300);
   margin: 0 0 var(--space-1);
-  text-align: center;
+  text-align: start;
 }
 .title {
-  font: var(--t-h3);
-  text-align: center;
-  margin: 0 0 var(--space-4);
+  font: var(--t-h2);
+  color: var(--color-on-panel);
+  text-align: start;
+  margin: 0 0 var(--space-6);
 }
 .sub {
   font: var(--t-body-sm);
-  color: var(--color-text-muted);
-  text-align: center;
-  margin: calc(-1 * var(--space-2)) auto var(--space-7);
+  color: var(--color-on-panel-muted);
+  text-align: start;
+  margin: calc(-1 * var(--space-4)) 0 var(--space-6);
   max-inline-size: 52ch;
 }
-/* Mill name chip (supplier strip) */
+
+/* Mill name chip (supplier strip) — raised gunmetal cells */
 .mill {
   display: inline-flex;
   align-items: center;
@@ -32,21 +41,20 @@
   block-size: 76px;
   padding-inline: var(--space-6);
   border-radius: var(--radius-md);
-  border: var(--border-hairline) solid var(--color-hairline);
-  background: var(--color-surface);
-  color: var(--color-text);
+  border: 1px solid var(--color-panel-hairline);
+  background: var(--color-panel-raised);
+  color: var(--color-on-panel);
   font: var(--t-h4);
   font-weight: 700;
   white-space: nowrap;
-  transition: color var(--dur-fast), border-color var(--dur-fast), box-shadow var(--dur-fast);
+  transition: border-color var(--dur-fast), transform var(--dur-fast);
 }
 .mill:hover {
-  color: var(--color-text-strong);
-  border-color: var(--color-border-strong);
-  box-shadow: var(--shadow-sm);
+  border-color: var(--emerald-400);
+  transform: translateY(-2px);
 }
 
-/* Client logo cell */
+/* Client logo cell — light surface so real logos read correctly */
 .cell {
   display: flex;
   align-items: center;
@@ -55,13 +63,13 @@
   block-size: 96px;
   padding: var(--space-4) var(--space-5);
   border-radius: var(--radius-lg);
-  border: var(--border-hairline) solid var(--color-hairline);
-  background: var(--color-surface);
+  border: 1px solid var(--color-panel-hairline);
+  background: var(--neutral-0);
   transition: border-color var(--dur-fast), box-shadow var(--dur-fast), transform var(--dur-fast);
 }
 .cell:hover {
-  border-color: var(--color-border-strong);
-  box-shadow: var(--shadow-sm);
+  border-color: var(--emerald-400);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
   transform: translateY(-2px);
 }
 .logoImg {
@@ -85,8 +93,8 @@
   block-size: 32px;
   padding-inline: 7px;
   border-radius: var(--radius-pill);
-  background: var(--color-surface-sunken);
-  color: var(--color-accent-text);
+  background: var(--neutral-50);
+  color: var(--emerald-700);
   font: var(--t-micro);
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -94,7 +102,7 @@
 .chipName {
   font: var(--t-body-sm);
   font-weight: 600;
-  color: var(--color-text);
+  color: var(--neutral-700);
 }
 
 @media (max-width: 640px) {

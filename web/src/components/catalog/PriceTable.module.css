@@ -123,6 +123,8 @@
 }
 .table tbody tr:hover {
   background: var(--color-surface-sunken);
+  /* emerald rule on the inline-start edge (right in RTL) */
+  box-shadow: inset -2px 0 0 var(--color-accent);
 }
 .name {
   font-weight: 600;

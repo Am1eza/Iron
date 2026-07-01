@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Reveal } from '@/components/motion/Reveal';
 import styles from './FeatureGrid.module.css';
 
 /**
@@ -19,16 +20,18 @@ export type Feature = {
 export function FeatureGrid({ items }: { items: Feature[] }) {
   return (
     <ul className={styles.grid}>
-      {items.map((f) => (
-        <li key={f.title} className={styles.card}>
-          <span
-            className={[styles.icon, f.accent ? styles.iconAccent : ''].filter(Boolean).join(' ')}
-            aria-hidden="true"
-          >
-            {f.icon}
-          </span>
-          <h3 className={styles.title}>{f.title}</h3>
-          <p className={styles.desc}>{f.desc}</p>
+      {items.map((f, i) => (
+        <li key={f.title}>
+          <Reveal index={i % 3} className={styles.card}>
+            <span
+              className={[styles.icon, f.accent ? styles.iconAccent : ''].filter(Boolean).join(' ')}
+              aria-hidden="true"
+            >
+              {f.icon}
+            </span>
+            <h3 className={styles.title}>{f.title}</h3>
+            <p className={styles.desc}>{f.desc}</p>
+          </Reveal>
         </li>
       ))}
     </ul>

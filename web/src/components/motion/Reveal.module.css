@@ -1,0 +1,16 @@
+/* Hidden start state ONLY when scripting is available (otherwise content renders
+   plainly — a reveal must never be able to blank the page). */
+@media (scripting: enabled) and (prefers-reduced-motion: no-preference) {
+  .reveal {
+    opacity: 0;
+    transform: translateY(18px);
+    transition:
+      opacity var(--dur-slower) var(--ease-entrance),
+      transform var(--dur-slower) var(--ease-emphasized);
+    transition-delay: calc(var(--reveal-i, 0) * 70ms);
+  }
+  .reveal[data-in] {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

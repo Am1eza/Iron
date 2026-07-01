@@ -97,7 +97,7 @@ function aiReply(text: string, ctx: { purpose: string | null }): { msgs: Msg[]; 
           {
             id: uid(),
             role: 'ai',
-            text: `برای ${toPersianDigits(bulk.tonnage)} تن ${bulk.name}، قیمت روز را به تفکیک کارخانه حساب کردم 👇 ارزان‌ترین گزینه را برایت مشخص کرده‌ام. این اعداد تخمینی‌اند؛ نرخ نهایی را کارشناس تأیید می‌کند.`,
+            text: `برای ${toPersianDigits(bulk.tonnage)} تن ${bulk.name}، قیمت روز را به تفکیک کارخانه حساب کردم؛ ارزان‌ترین گزینه را برایت مشخص کرده‌ام. این اعداد تخمینی‌اند؛ نرخ نهایی را کارشناس تأیید می‌کند.`,
             split: { categoryName: bulk.name, split },
             chips: ['دریافت پیش‌فاکتور', `قیمت ${bulk.name}`],
           },
@@ -118,7 +118,7 @@ function aiReply(text: string, ctx: { purpose: string | null }): { msgs: Msg[]; 
         {
           id: uid(),
           role: 'ai',
-          text: `برای حدود ${toPersianDigits(area)} متر${floors > 1 ? ` و ${toPersianDigits(floors)} طبقه` : ''}، یک برآورد تقریبی آماده کردم 👇 این عددها «تخمینی» است؛ برای قیمت دقیق همین حالا می‌توانم درخواستت را ثبت کنم تا کارشناس نهایی کند.`,
+          text: `برای حدود ${toPersianDigits(area)} متر${floors > 1 ? ` و ${toPersianDigits(floors)} طبقه` : ''}، یک برآورد تقریبی آماده کردم. این عددها «تخمینی» است؛ برای قیمت دقیق همین حالا می‌توانم درخواستت را ثبت کنم تا کارشناس نهایی کند.`,
           estimate: est,
           chips: ['دریافت پیش‌فاکتور', 'وزن دقیق را حساب کن', 'قیمت میلگرد امروز'],
         },
@@ -205,7 +205,7 @@ export function AdvisorChat({ initialQuestion }: { initialQuestion?: string }) {
       {
         id: uid(),
         role: 'ai',
-        text: 'سلام! من مشاور هوشمند آهن‌تایم‌ام 👋\nمثل یک دوستِ کاربلد کمکت می‌کنم بهترین خرید را بکنی — اول مشورت، بعد خرید.',
+        text: 'سلام! من مشاور هوشمند آهن‌تایم‌ام.\nمثل یک دوستِ کاربلد کمکت می‌کنم بهترین خرید را بکنی؛ اول مشورت، بعد خرید.',
         chips: initialQuestion ? undefined : PURPOSE_CHIPS,
       },
     ]);
@@ -412,7 +412,7 @@ function SplitCard({ answer }: { answer: SplitAnswer }) {
         <div className={styles.splitSuggest}>
           <CheckCircleIcon size={15} aria-hidden="true" />
           <span>
-            ارزان‌ترین: کارخانهٔ <strong>{split.cheapest.factory}</strong> —{' '}
+            ارزان‌ترین: کارخانهٔ <strong>{split.cheapest.factory}</strong> با{' '}
             <strong className="tnum">{formatToman(split.cheapest.pricePerKg, false)}</strong> تومان
             بر کیلوگرم.
           </span>
