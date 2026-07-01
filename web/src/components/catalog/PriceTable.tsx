@@ -179,6 +179,9 @@ export function PriceTable({
           </label>
           <Switch checked={vat} onChange={setVat} label="با ارزش‌افزوده" />
           <ExportMenu rows={sorted} title={categoryName} />
+          <a href="#compare" className={styles.compareLink}>
+            مقایسهٔ کارخانه‌ها
+          </a>
         </div>
       </div>
 

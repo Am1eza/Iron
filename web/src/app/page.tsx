@@ -5,6 +5,7 @@ import type { PriceRow } from '@/lib/types/domain';
 import { HeroSearch } from '@/components/home/HeroSearch';
 import { PriceBoard } from '@/components/home/PriceBoard';
 import { CategoryStage } from '@/components/home/CategoryStage';
+import { CompareTeaser } from '@/components/home/CompareTeaser';
 import { ValueProps } from '@/components/home/ValueProps';
 import { Partners } from '@/components/home/Partners';
 import { JsonLd } from '@/components/seo/JsonLd';
@@ -41,6 +42,7 @@ export default async function HomePage() {
       <JsonLd data={[orgJsonLd(), localBusinessJsonLd()]} />
       <HeroSearch board={<PriceBoard rows={boardRows} />} />
       <CategoryStage categories={categories} factories={factories} />
+      <CompareTeaser />
       <ValueProps />
       <Partners />
     </>

@@ -6,74 +6,22 @@ import { useCartStore } from '@/lib/stores/cart';
 import { routes } from '@/lib/routes';
 import { formatToman, toPersianDigits } from '@/lib/utils/format';
 import { getRows } from '@/lib/mock/catalogData';
+import { computeBulkSplit } from '@/lib/utils/bulkSplit';
 import type { PriceRow } from '@/lib/types/domain';
 import { PlusIcon, CheckCircleIcon } from '@/components/primitives/icons';
 import styles from './BulkQuote.module.css';
 
-/** One factory's line in a bulk split: its representative per-kg price + line cost. */
-export type FactoryLine = {
-  factory: string;
-  pricePerKg: number;
-  lineToman: number;
-  rowCount: number;
-  best: boolean;
-};
-
-export type BulkSplit = {
-  tonnage: number;
-  totalKg: number;
-  lines: FactoryLine[];
-  cheapest: FactoryLine | null;
-};
-
-/**
- * Pure factory-split calculator — reused by both the BulkQuote panel and the AI
- * advisor. Groups rows by factory, takes each factory's *average* current per-kg
- * price as its representative quote, and prices the requested tonnage against it.
- * Cheapest factory is flagged `best`. Guards empty input (returns no lines).
- */
-export function computeBulkSplit(rows: PriceRow[], tonnage: number): BulkSplit {
-  const tons = Number.isFinite(tonnage) && tonnage > 0 ? tonnage : 0;
-  const totalKg = tons * 1000;
-
-  const byFactory = new Map<string, { sum: number; count: number }>();
-  for (const r of rows) {
-    const f = r.factory ?? 'سایر';
-    const acc = byFactory.get(f) ?? { sum: 0, count: 0 };
-    acc.sum += r.current.price;
-    acc.count += 1;
-    byFactory.set(f, acc);
-  }
-
-  const draft = [...byFactory.entries()].map(([factory, acc]) => {
-    const pricePerKg = Math.round(acc.sum / acc.count);
-    return {
-      factory,
-      pricePerKg,
-      lineToman: Math.round(pricePerKg * totalKg),
-      rowCount: acc.count,
-    };
-  });
-  draft.sort((a, b) => a.pricePerKg - b.pricePerKg);
-
-  const minPrice = draft.length > 0 ? draft[0]!.pricePerKg : 0;
-  const lines: FactoryLine[] = draft.map((d) => ({ ...d, best: d.pricePerKg === minPrice }));
-
-  return {
-    tonnage: tons,
-    totalKg,
-    lines,
-    cheapest: lines[0] ?? null,
-  };
-}
+// Re-exported so existing imports (AI advisor) keep working from one place.
+export { computeBulkSplit } from '@/lib/utils/bulkSplit';
+export type { BulkSplit, FactoryLine } from '@/lib/utils/bulkSplit';
 
 const TONNAGE_PRESETS = [10, 20, 50, 100];
 
 /**
- * خرید عمده / تفکیک کارخانه — a bulk-tonnage panel that splits the requested
- * volume across factories by their current per-kg price, highlights the cheapest
- * (gain accent) and suggests the best-value source. Mock CTAs route to the
- * inquiry flow. Surfaced on the category page (below the table) and the SKU page.
+ * «مقایسهٔ کارخانه‌ها» — the signature capability. Enter a tonnage and see the
+ * same product priced across every mill: proportional price bars, the gap to the
+ * cheapest, and what you save by choosing it. Anchored at #compare so the
+ * landing teaser, the table toolbar and the cascade menu can deep-link here.
  */
 export function BulkQuote({
   category,
@@ -96,6 +44,13 @@ export function BulkQuote({
 
   if (rows.length === 0) return null;
 
+  const most = split.lines[split.lines.length - 1] ?? null;
+  const maxPrice = most?.pricePerKg ?? 0;
+  const savings =
+    split.cheapest && most && most.factory !== split.cheapest.factory
+      ? most.lineToman - split.cheapest.lineToman
+      : 0;
+
   const addToInquiry = () => {
     const best = split.cheapest;
     if (!best) return;
@@ -114,17 +69,18 @@ export function BulkQuote({
   };
 
   return (
-    <section className={styles.panel} aria-labelledby="bulk-title">
+    <section id="compare" className={styles.panel} aria-labelledby="bulk-title">
       <header className={styles.head}>
         <div>
           <h2 id="bulk-title" className={styles.title}>
-            خرید عمده / تفکیک کارخانه
+            مقایسهٔ کارخانه‌ها
           </h2>
           <p className={styles.sub}>
-            تناژ موردنظر را وارد کنید تا هزینهٔ {categoryName} را به تفکیک کارخانه ببینید و
-            ارزان‌ترین گزینه را انتخاب کنید.
+            تناژ موردنظر را وارد کنید تا قیمت روز {categoryName} را کارخانه‌به‌کارخانه مقایسه کنید
+            و ارزان‌ترین را انتخاب کنید.
           </p>
         </div>
+        <span className={styles.exclusive}>فقط در آهن‌تایم</span>
       </header>
 
       <div className={styles.controls}>
@@ -160,28 +116,47 @@ export function BulkQuote({
         </div>
       </div>
 
-      <div className={styles.tableScroll} role="region" aria-label="تفکیک کارخانه" tabIndex={0}>
+      <div className={styles.tableScroll} role="region" aria-label="مقایسهٔ کارخانه‌ها" tabIndex={0}>
         <table className={`${styles.table} tnum`}>
           <thead>
             <tr>
               <th scope="col">کارخانه</th>
+              <th scope="col" className={styles.barCol}>
+                <span className="visually-hidden">نمودار مقایسهٔ قیمت</span>
+              </th>
               <th scope="col" className={styles.num}>قیمت هر کیلوگرم</th>
+              <th scope="col" className={styles.num}>اختلاف با ارزان‌ترین</th>
               <th scope="col" className={styles.num}>
                 هزینهٔ {toPersianDigits(split.tonnage)} تن
               </th>
             </tr>
           </thead>
           <tbody>
-            {split.lines.map((l) => (
-              <tr key={l.factory} className={l.best ? styles.bestRow : undefined}>
-                <th scope="row" className={styles.factoryCell}>
-                  <span className={styles.factoryName}>{l.factory}</span>
-                  {l.best ? <span className={styles.bestTag}>بهترین قیمت</span> : null}
-                </th>
-                <td className={styles.num}>{formatToman(l.pricePerKg, false)}</td>
-                <td className={`${styles.num} ${styles.lineCost}`}>{formatToman(l.lineToman, false)}</td>
-              </tr>
-            ))}
+            {split.lines.map((l) => {
+              const delta = split.cheapest ? l.pricePerKg - split.cheapest.pricePerKg : 0;
+              const ratio = maxPrice > 0 ? Math.max(0.12, l.pricePerKg / maxPrice) : 0;
+              return (
+                <tr key={l.factory} className={l.best ? styles.bestRow : undefined}>
+                  <th scope="row" className={styles.factoryCell}>
+                    <span className={styles.factoryName}>{l.factory}</span>
+                    {l.best ? <span className={styles.bestTag}>ارزان‌ترین</span> : null}
+                  </th>
+                  <td className={styles.barCol} aria-hidden="true">
+                    <span className={styles.barTrack}>
+                      <span
+                        className={`${styles.bar} ${l.best ? styles.barBest : ''}`}
+                        style={{ inlineSize: `${Math.round(ratio * 100)}%` }}
+                      />
+                    </span>
+                  </td>
+                  <td className={styles.num}>{formatToman(l.pricePerKg, false)}</td>
+                  <td className={`${styles.num} ${l.best ? styles.deltaBest : styles.delta}`}>
+                    {l.best ? '—' : `${formatToman(delta, false)}+`}
+                  </td>
+                  <td className={`${styles.num} ${styles.lineCost}`}>{formatToman(l.lineToman, false)}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -194,6 +169,13 @@ export function BulkQuote({
             <strong className="tnum">{formatToman(split.cheapest.pricePerKg, false)}</strong> تومان
             بر کیلوگرم؛ هزینهٔ تقریبی کل{' '}
             <strong className="tnum">{formatToman(split.cheapest.lineToman)}</strong>.
+            {savings > 0 ? (
+              <>
+                {' '}
+                این انتخاب نسبت به گران‌ترین کارخانه حدود{' '}
+                <strong className="tnum">{formatToman(savings)}</strong> صرفه‌جویی دارد.
+              </>
+            ) : null}
           </span>
         </p>
       ) : null}

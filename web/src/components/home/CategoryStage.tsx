@@ -139,6 +139,13 @@ export function CategoryStage({
                       </li>
                     ))}
                   </ul>
+                  <Link
+                    href={`${routes.category(activeCat.slug)}#compare`}
+                    className={styles.compareAll}
+                  >
+                    مقایسهٔ همهٔ کارخانه‌ها
+                    <ChevronStartIcon size={14} className="icon--rtl" />
+                  </Link>
                 </div>
               </div>
 
