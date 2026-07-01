@@ -6,17 +6,18 @@ import styles from './Marquee.module.css';
 
 /**
  * Robust, seamless marquee. The item list is rendered THREE times so the strip is
- * always wider than the viewport and the loop is perfectly contiguous. A single
+ * always wider than the viewport; the loop is always contiguous. A single
  * requestAnimationFrame loop eases `pos` toward `goal` and writes
- * `track.style.transform` (a string assignment that can't throw). It wraps on the
- * EXACT one-copy period — measured as the layout distance between copy 1 and copy 2
- * (so it accounts for the flex gap; the old scrollWidth/2 was wrong and left a
- * blank). The period is cached (no per-frame layout reads). «prev/next» nudge the
- * goal by one item. Pauses on hover/focus and when the tab is hidden. Under
+ * `track.style.transform` (a string assignment that can't throw). The displayed
+ * phase is `pos mod period`, so the transform is ALWAYS within one copy — it can
+ * never run off into blank space, no matter the timing. Content drifts to the
+ * RIGHT (items enter from the left, exit on the right). «بعدی» advances (right),
+ * «قبلی» goes back (left). Pauses on hover/focus and when the tab is hidden. Under
  * `prefers-reduced-motion` the loop is off and the strip is a swipeable row.
  *
- * Markup is identical on server and client (only the JS loop is gated on
- * reduced-motion) → no hydration divergence, no white screen.
+ * No CSS mask on the moving layer (mask + transform can blank a composited layer
+ * on some GPUs) — the edge fade is a plain overlay instead. Markup is identical on
+ * server and client (only the JS loop is gated on reduced-motion).
  */
 const COPIES = 3;
 
@@ -38,8 +39,7 @@ export function Marquee({
   const period = useRef(0);
   const n = Math.max(1, items.length);
 
-  // Exact width of ONE copy including the gap that follows it — the distance
-  // between the first item of copy 1 and the first item of copy 2.
+  // Exact width of ONE copy including the gap that follows it.
   const measure = () => {
     const track = trackRef.current;
     if (!track || track.children.length <= n) return;
@@ -66,14 +66,11 @@ export function Marquee({
       const dt = last ? Math.min(0.05, (now - last) / 1000) : 0;
       last = now;
       if (per > 0) {
-        if (!paused.current && !document.hidden) goal.current += speed * dt;
+        if (!paused.current && !document.hidden) goal.current += speed * dt; // drift right
         pos.current += (goal.current - pos.current) * Math.min(1, dt * 12);
-        // seamless wrap on the exact period (keep pos within [0, per))
-        while (pos.current >= per && goal.current >= per) {
-          pos.current -= per;
-          goal.current -= per;
-        }
-        track.style.transform = `translateX(${-pos.current}px)`;
+        // phase is always in [0, per) → transform can never leave the content
+        const phase = ((pos.current % per) + per) % per;
+        track.style.transform = `translateX(${phase - per}px)`;
       }
     };
     raf = requestAnimationFrame(frame);
@@ -83,10 +80,11 @@ export function Marquee({
     };
   }, [reduced, speed, n]);
 
+  // dir: +1 = «بعدی» (advance / right), -1 = «قبلی» (back / left)
   const nudge = (dir: 1 | -1) => {
     if (reduced) {
       const vp = viewportRef.current;
-      vp?.scrollBy({ left: dir * Math.round((vp.clientWidth || 240) * 0.6), behavior: 'smooth' });
+      vp?.scrollBy({ left: -dir * Math.round((vp.clientWidth || 240) * 0.6), behavior: 'smooth' });
       return;
     }
     const per = period.current;
@@ -106,8 +104,9 @@ export function Marquee({
 
   return (
     <div className={styles.wrap}>
+      {/* right side in RTL — moves content left (back) */}
       <button type="button" className={styles.nav} aria-label="قبلی" onClick={() => nudge(-1)}>
-        <ChevronEndIcon size={22} className="icon--rtl" />
+        <ChevronEndIcon size={22} />
       </button>
 
       <div
@@ -121,13 +120,16 @@ export function Marquee({
         role="group"
         aria-label={ariaLabel}
       >
+        <span className={`${styles.fade} ${styles.fadeStart}`} aria-hidden="true" />
         <ul ref={trackRef} className={styles.track}>
           {Array.from({ length: COPIES }, (_, c) => renderCopy(c))}
         </ul>
+        <span className={`${styles.fade} ${styles.fadeEnd}`} aria-hidden="true" />
       </div>
 
+      {/* left side in RTL — moves content right (forward) */}
       <button type="button" className={styles.nav} aria-label="بعدی" onClick={() => nudge(1)}>
-        <ChevronStartIcon size={22} className="icon--rtl" />
+        <ChevronStartIcon size={22} />
       </button>
     </div>
   );
