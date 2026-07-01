@@ -31,7 +31,7 @@ function LogoCell({ c }: { c: ClientLogo }) {
           src={c.file}
           alt={c.name}
           className={styles.logoImg}
-          loading="lazy"
+          loading="eager"
           decoding="async"
           draggable={false}
           onError={() => setErrored(true)}

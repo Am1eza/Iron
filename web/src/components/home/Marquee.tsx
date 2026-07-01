@@ -1,21 +1,26 @@
 'use client';
-import { useCallback, useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion';
 import { ChevronStartIcon, ChevronEndIcon } from '@/components/primitives/icons';
 import styles from './Marquee.module.css';
 
 /**
- * Seamless, GPU-accelerated marquee. The items are rendered twice (the back copy
- * is aria-hidden) and the track is translated 0 → -50% via the Web Animations API
- * — because the back half duplicates the front, the loop never re-centers and
- * never "teleports". Pauses on hover/focus, when offscreen, and when the tab is
- * hidden. «prev/next» smoothly tween the playhead by one item (no jump). Under
- * `prefers-reduced-motion` it becomes a static, swipeable, snap row.
+ * Robust, seamless marquee. Items are rendered twice (the back copy is
+ * aria-hidden) so the loop never re-centers. A single requestAnimationFrame loop
+ * eases `pos` toward `goal` and writes `track.style.transform` — a string
+ * assignment that can't throw. Wraps by the measured half-width (self-heals if not
+ * laid out yet, so it always shows every item). «prev/next» bump `goal` by one
+ * item for a smooth nudge (no jump, no Web-Animations seeks). Pauses on
+ * hover/focus and when the tab is hidden. Under `prefers-reduced-motion` the JS
+ * loop is off and the strip becomes a swipeable, static row.
+ *
+ * The DOM (both copies) is identical on server and client — only the JS loop is
+ * gated on reduced-motion — so there is no hydration divergence.
  */
 export function Marquee({
   items,
   ariaLabel,
-  speed = 44,
+  speed = 40,
 }: {
   items: ReactNode[];
   ariaLabel?: string;
@@ -24,100 +29,60 @@ export function Marquee({
   const reduced = useReducedMotion();
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const trackRef = useRef<HTMLUListElement | null>(null);
-  const animRef = useRef<Animation | null>(null);
-  const hovered = useRef(false);
-  const visible = useRef(true);
-  const n = items.length;
-
-  // Resume only when it should actually be running.
-  const maybePlay = useCallback(() => {
-    const a = animRef.current;
-    if (a && !hovered.current && visible.current && !document.hidden) a.play();
-  }, []);
+  const paused = useRef(false);
+  const pos = useRef(0);
+  const goal = useRef(0);
+  const n = Math.max(1, items.length);
 
   useEffect(() => {
     if (reduced) return;
     const track = trackRef.current;
-    const viewport = viewportRef.current;
-    if (!track || !viewport) return;
+    if (!track) return;
 
-    let anim: Animation | null = null;
-    const build = () => {
-      const half = track.scrollWidth / 2;
-      if (half <= 0) return;
-      const duration = (half / speed) * 1000;
-      anim?.cancel();
-      anim = track.animate(
-        [{ transform: 'translateX(0)' }, { transform: 'translateX(-50%)' }],
-        { duration, iterations: Infinity, easing: 'linear' },
-      );
-      animRef.current = anim;
-      maybePlay();
+    let raf = 0;
+    let last = 0;
+    const frame = (now: number) => {
+      raf = requestAnimationFrame(frame);
+      const track2 = trackRef.current;
+      if (!track2) return;
+      const dt = last ? Math.min(0.05, (now - last) / 1000) : 0; // clamp big gaps
+      last = now;
+      const half = track2.scrollWidth / 2;
+      if (half > 0) {
+        if (!paused.current && !document.hidden) goal.current += speed * dt;
+        // ease toward the goal (smooths both auto drift and button nudges)
+        pos.current += (goal.current - pos.current) * Math.min(1, dt * 12);
+        // seamless wrap: subtract one copy width from both once we pass it
+        if (pos.current >= half && goal.current >= half) {
+          pos.current -= half;
+          goal.current -= half;
+        }
+        track2.style.transform = `translateX(${-pos.current}px)`;
+      }
     };
-    build();
+    raf = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(raf);
+  }, [reduced, speed, n]);
 
-    const ro = new ResizeObserver(build);
-    ro.observe(track);
-
-    const io = new IntersectionObserver(
-      (entries) => {
-        visible.current = entries.some((e) => e.isIntersecting);
-        if (visible.current) maybePlay();
-        else animRef.current?.pause();
-      },
-      { threshold: 0 },
-    );
-    io.observe(viewport);
-
-    const onVis = () => (document.hidden ? animRef.current?.pause() : maybePlay());
-    document.addEventListener('visibilitychange', onVis);
-
-    return () => {
-      ro.disconnect();
-      io.disconnect();
-      document.removeEventListener('visibilitychange', onVis);
-      anim?.cancel();
-      animRef.current = null;
-    };
-  }, [reduced, speed, n, maybePlay]);
-
-  const pause = () => {
-    hovered.current = true;
-    animRef.current?.pause();
-  };
-  const resume = () => {
-    hovered.current = false;
-    maybePlay();
-  };
-
-  // Smoothly tween the playhead by one item (dir: 1 = next, -1 = prev).
   const nudge = (dir: 1 | -1) => {
     if (reduced) {
       const vp = viewportRef.current;
-      vp?.scrollBy({ left: dir * Math.round(vp.clientWidth * 0.6), behavior: 'smooth' });
+      vp?.scrollBy({ left: dir * Math.round((vp.clientWidth || 240) * 0.6), behavior: 'smooth' });
       return;
     }
-    const a = animRef.current;
-    const dur = (a?.effect?.getComputedTiming().duration as number) ?? 0;
-    if (!a || !dur) return;
-    a.pause();
-    const from = (a.currentTime as number) ?? 0;
-    const to = from + dir * (dur / Math.max(1, n));
-    const t0 = performance.now();
-    const T = 420;
-    const ease = (p: number) => 1 - Math.pow(1 - p, 3);
-    const step = (now: number) => {
-      const p = Math.min(1, (now - t0) / T);
-      a.currentTime = from + (to - from) * ease(p);
-      if (p < 1) requestAnimationFrame(step);
-      else maybePlay();
-    };
-    requestAnimationFrame(step);
+    const track = trackRef.current;
+    const half = track ? track.scrollWidth / 2 : 0;
+    const item = half > 0 ? half / n : 160;
+    goal.current += dir * item;
   };
 
   const renderItems = (muted: boolean) =>
     items.map((node, i) => (
-      <li key={(muted ? 'b' : 'a') + i} className={styles.item} aria-hidden={muted ? true : undefined}>
+      <li
+        key={(muted ? 'b' : 'a') + i}
+        className={styles.item}
+        aria-hidden={muted ? true : undefined}
+      >
         {node}
       </li>
     ));
@@ -132,16 +97,16 @@ export function Marquee({
         ref={viewportRef}
         className={styles.viewport}
         data-reduced={reduced ? '' : undefined}
-        onMouseEnter={pause}
-        onMouseLeave={resume}
-        onFocusCapture={pause}
-        onBlurCapture={resume}
+        onMouseEnter={() => (paused.current = true)}
+        onMouseLeave={() => (paused.current = false)}
+        onFocusCapture={() => (paused.current = true)}
+        onBlurCapture={() => (paused.current = false)}
         role="group"
         aria-label={ariaLabel}
       >
         <ul ref={trackRef} className={styles.track}>
           {renderItems(false)}
-          {!reduced && renderItems(true)}
+          {renderItems(true)}
         </ul>
       </div>
 

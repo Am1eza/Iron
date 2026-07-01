@@ -1,8 +1,6 @@
 .section {
   padding-block: var(--space-16);
   background: var(--color-bg);
-  content-visibility: auto;
-  contain-intrinsic-size: auto 640px;
 }
 .block + .block {
   margin-block-start: var(--space-12);
