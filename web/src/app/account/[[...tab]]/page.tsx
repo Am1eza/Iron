@@ -22,6 +22,7 @@ import { WarehouseList } from '@/components/account/WarehouseList';
 import { OrderTimeline } from '@/components/account/OrderTimeline';
 import { RequestsList } from '@/components/account/RequestsList';
 import { ProfileStats } from '@/components/account/ProfileStats';
+import { DeliveryCity } from '@/components/account/DeliveryCity';
 import { getWarehouseItems } from '@/lib/mock/warehouse';
 import { getOrders } from '@/lib/mock/orders';
 import { SHIPMENT_STEPS } from '@/lib/types/domain';
@@ -214,6 +215,7 @@ function TabContent({ slug }: { slug: string }) {
       return (
         <Stack gap={4}>
           <ProfileStats />
+          <DeliveryCity />
           <Card>
             <Stack gap={6}>
               <div>

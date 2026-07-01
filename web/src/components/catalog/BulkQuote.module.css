@@ -184,6 +184,88 @@
   white-space: nowrap;
 }
 
+.select {
+  min-inline-size: 10rem;
+  max-inline-size: 100%;
+  block-size: 44px;
+  padding-inline: var(--space-3);
+  border: var(--border-hairline) solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-strong);
+  font: var(--t-input);
+  cursor: pointer;
+}
+.select:focus-visible {
+  outline: var(--border-focus) solid var(--color-focus);
+  outline-offset: 1px;
+}
+.exactNote {
+  margin: calc(-1 * var(--space-2)) 0 0;
+  font: var(--t-caption);
+  color: var(--color-accent-text);
+}
+
+/* Landed-cost benchmark (تا شهر مقصد) */
+.landed {
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+  padding: var(--space-4) var(--space-5);
+}
+.landedTitle {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  font: var(--t-h4);
+  margin: 0 0 var(--space-3);
+}
+.landedOrigin {
+  font: var(--t-caption);
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+.landedGrid {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+.landedRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-block: var(--space-2);
+}
+.landedRow + .landedRow {
+  border-block-start: var(--border-hairline) solid var(--color-hairline);
+}
+.landedRow dt {
+  font: var(--t-body-sm);
+  color: var(--color-text-muted);
+}
+.landedRow dd {
+  margin: 0;
+  font: var(--t-data);
+  color: var(--color-text-strong);
+}
+.landedTotal dt {
+  font-weight: 700;
+  color: var(--color-text-strong);
+}
+.landedTotal dd {
+  font: var(--t-price-cell);
+  font-size: 1.125rem;
+  color: var(--color-accent-text);
+}
+.landedMeta {
+  margin: var(--space-3) 0 0;
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}
+
 /* Proportional price bars — the at-a-glance comparison */
 .barCol {
   inline-size: 26%;

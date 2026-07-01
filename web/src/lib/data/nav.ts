@@ -28,9 +28,15 @@ export const TOOLS_NAV: NavLink[] = [
  * names stay Persian (display). (data-model taxonomy.)
  */
 export type SubCat = { slug: string; name: string };
+/**
+ * Benchmarked against the major Iranian price sites (ahanonline/ahanprice/
+ * foolad24 class) — the canonical sub-families each lists per category. The 7
+ * top-level categories are fixed; only the sub-taxonomy is enriched.
+ */
 export const CATEGORY_SUBS: Record<string, SubCat[]> = {
   rebar: [
-    { slug: 'deformed', name: 'آجدار' },
+    { slug: 'deformed', name: 'آجدار A3' },
+    { slug: 'deformed-a2', name: 'آجدار A2' },
     { slug: 'plain', name: 'ساده' },
     { slug: 'coil', name: 'کلاف' },
     { slug: 'stirrup', name: 'خاموت' },
@@ -38,16 +44,19 @@ export const CATEGORY_SUBS: Record<string, SubCat[]> = {
   ],
   ibeam: [
     { slug: 'ipe', name: 'IPE' },
-    { slug: 'hash', name: 'هاش (H)' },
+    { slug: 'light', name: 'سبک' },
+    { slug: 'hea', name: 'هاش سبک (HEA)' },
+    { slug: 'heb', name: 'هاش سنگین (HEB)' },
     { slug: 'castellated', name: 'لانه‌زنبوری' },
   ],
   profile: [
-    { slug: 'box-industrial', name: 'قوطی صنعتی' },
-    { slug: 'box-furniture', name: 'قوطی مبلی' },
-    { slug: 'column', name: 'قوطی ستونی' },
+    { slug: 'box-square', name: 'قوطی مربع' },
+    { slug: 'box-rect', name: 'قوطی مستطیل' },
+    { slug: 'column', name: 'ستونی ۱۳۵' },
     { slug: 'z', name: 'پروفیل Z' },
-    { slug: 'c', name: 'پروفیل C' },
     { slug: 'frame', name: 'درب و پنجره' },
+    { slug: 'furniture', name: 'مبلی' },
+    { slug: 'galvanized', name: 'گالوانیزه' },
   ],
   sheet: [
     { slug: 'black', name: 'سیاه' },
@@ -56,26 +65,33 @@ export const CATEGORY_SUBS: Record<string, SubCat[]> = {
     { slug: 'pickled', name: 'اسیدشویی' },
     { slug: 'checkered', name: 'آجدار' },
     { slug: 'colored', name: 'رنگی' },
+    { slug: 'alloy', name: 'آلیاژی' },
     { slug: 'deck', name: 'عرشه فولادی' },
   ],
   'angle-channel': [
-    { slug: 'angle', name: 'نبشی' },
-    { slug: 'channel', name: 'ناودانی' },
+    { slug: 'angle', name: 'نبشی بال مساوی' },
+    { slug: 'angle-unequal', name: 'نبشی بال نامساوی' },
+    { slug: 'spot', name: 'نبشی لقمه' },
+    { slug: 'channel-light', name: 'ناودانی سبک' },
+    { slug: 'channel-heavy', name: 'ناودانی سنگین' },
     { slug: 'tbar', name: 'سپری' },
   ],
   pipe: [
     { slug: 'seamless', name: 'مانیسمان' },
     { slug: 'gas', name: 'گازی' },
-    { slug: 'industrial', name: 'صنعتی' },
+    { slug: 'industrial', name: 'صنعتی درزدار' },
     { slug: 'scaffold', name: 'داربستی' },
     { slug: 'galvanized', name: 'گالوانیزه' },
+    { slug: 'spiral', name: 'اسپیرال' },
     { slug: 'furniture', name: 'مبلی' },
   ],
   wire: [
-    { slug: 'coil', name: 'کلاف' },
-    { slug: 'wire', name: 'مفتول' },
+    { slug: 'coil', name: 'کلاف ساده' },
+    { slug: 'coil-ribbed', name: 'کلاف آجدار' },
+    { slug: 'wire', name: 'مفتول سیاه' },
+    { slug: 'wire-galvanized', name: 'مفتول گالوانیزه' },
+    { slug: 'tie', name: 'سیم آرماتوربندی' },
     { slug: 'mesh', name: 'توری' },
-    { slug: 'truss', name: 'خرپا' },
   ],
 };
 
