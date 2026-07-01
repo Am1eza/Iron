@@ -5,18 +5,21 @@ import { ChevronStartIcon, ChevronEndIcon } from '@/components/primitives/icons'
 import styles from './Marquee.module.css';
 
 /**
- * Robust, seamless marquee. Items are rendered twice (the back copy is
- * aria-hidden) so the loop never re-centers. A single requestAnimationFrame loop
- * eases `pos` toward `goal` and writes `track.style.transform` — a string
- * assignment that can't throw. Wraps by the measured half-width (self-heals if not
- * laid out yet, so it always shows every item). «prev/next» bump `goal` by one
- * item for a smooth nudge (no jump, no Web-Animations seeks). Pauses on
- * hover/focus and when the tab is hidden. Under `prefers-reduced-motion` the JS
- * loop is off and the strip becomes a swipeable, static row.
+ * Robust, seamless marquee. The item list is rendered THREE times so the strip is
+ * always wider than the viewport and the loop is perfectly contiguous. A single
+ * requestAnimationFrame loop eases `pos` toward `goal` and writes
+ * `track.style.transform` (a string assignment that can't throw). It wraps on the
+ * EXACT one-copy period — measured as the layout distance between copy 1 and copy 2
+ * (so it accounts for the flex gap; the old scrollWidth/2 was wrong and left a
+ * blank). The period is cached (no per-frame layout reads). «prev/next» nudge the
+ * goal by one item. Pauses on hover/focus and when the tab is hidden. Under
+ * `prefers-reduced-motion` the loop is off and the strip is a swipeable row.
  *
- * The DOM (both copies) is identical on server and client — only the JS loop is
- * gated on reduced-motion — so there is no hydration divergence.
+ * Markup is identical on server and client (only the JS loop is gated on
+ * reduced-motion) → no hydration divergence, no white screen.
  */
+const COPIES = 3;
+
 export function Marquee({
   items,
   ariaLabel,
@@ -32,36 +35,52 @@ export function Marquee({
   const paused = useRef(false);
   const pos = useRef(0);
   const goal = useRef(0);
+  const period = useRef(0);
   const n = Math.max(1, items.length);
+
+  // Exact width of ONE copy including the gap that follows it — the distance
+  // between the first item of copy 1 and the first item of copy 2.
+  const measure = () => {
+    const track = trackRef.current;
+    if (!track || track.children.length <= n) return;
+    const first = track.children[0] as HTMLElement;
+    const nextCopy = track.children[n] as HTMLElement;
+    const p = nextCopy.offsetLeft - first.offsetLeft;
+    if (p > 0) period.current = p;
+  };
 
   useEffect(() => {
     if (reduced) return;
-    const track = trackRef.current;
-    if (!track) return;
+    measure();
+    const onResize = () => measure();
+    window.addEventListener('resize', onResize);
 
     let raf = 0;
     let last = 0;
     const frame = (now: number) => {
       raf = requestAnimationFrame(frame);
-      const track2 = trackRef.current;
-      if (!track2) return;
-      const dt = last ? Math.min(0.05, (now - last) / 1000) : 0; // clamp big gaps
+      const track = trackRef.current;
+      if (!track) return;
+      if (period.current <= 0) measure();
+      const per = period.current;
+      const dt = last ? Math.min(0.05, (now - last) / 1000) : 0;
       last = now;
-      const half = track2.scrollWidth / 2;
-      if (half > 0) {
+      if (per > 0) {
         if (!paused.current && !document.hidden) goal.current += speed * dt;
-        // ease toward the goal (smooths both auto drift and button nudges)
         pos.current += (goal.current - pos.current) * Math.min(1, dt * 12);
-        // seamless wrap: subtract one copy width from both once we pass it
-        if (pos.current >= half && goal.current >= half) {
-          pos.current -= half;
-          goal.current -= half;
+        // seamless wrap on the exact period (keep pos within [0, per))
+        while (pos.current >= per && goal.current >= per) {
+          pos.current -= per;
+          goal.current -= per;
         }
-        track2.style.transform = `translateX(${-pos.current}px)`;
+        track.style.transform = `translateX(${-pos.current}px)`;
       }
     };
     raf = requestAnimationFrame(frame);
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', onResize);
+    };
   }, [reduced, speed, n]);
 
   const nudge = (dir: 1 | -1) => {
@@ -70,18 +89,16 @@ export function Marquee({
       vp?.scrollBy({ left: dir * Math.round((vp.clientWidth || 240) * 0.6), behavior: 'smooth' });
       return;
     }
-    const track = trackRef.current;
-    const half = track ? track.scrollWidth / 2 : 0;
-    const item = half > 0 ? half / n : 160;
-    goal.current += dir * item;
+    const per = period.current;
+    goal.current += dir * (per > 0 ? per / n : 180);
   };
 
-  const renderItems = (muted: boolean) =>
+  const renderCopy = (copy: number) =>
     items.map((node, i) => (
       <li
-        key={(muted ? 'b' : 'a') + i}
+        key={copy + '-' + i}
         className={styles.item}
-        aria-hidden={muted ? true : undefined}
+        aria-hidden={copy > 0 ? true : undefined}
       >
         {node}
       </li>
@@ -105,8 +122,7 @@ export function Marquee({
         aria-label={ariaLabel}
       >
         <ul ref={trackRef} className={styles.track}>
-          {renderItems(false)}
-          {renderItems(true)}
+          {Array.from({ length: COPIES }, (_, c) => renderCopy(c))}
         </ul>
       </div>
 
