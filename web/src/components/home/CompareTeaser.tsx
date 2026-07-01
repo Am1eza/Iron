@@ -1,8 +1,9 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { routes } from '@/lib/routes';
 import { formatToman } from '@/lib/utils/format';
+import { useReducedMotion } from '@/lib/hooks/useReducedMotion';
 import { ChevronStartIcon } from '@/components/primitives/icons';
 import styles from './CompareTeaser.module.css';
 
@@ -19,14 +20,52 @@ export type CompareSlide = {
   lines: { factory: string; pricePerKg: number; best: boolean }[];
 };
 
+const AUTO_MS = 6000;
+
 export function CompareTeaser({ slides }: { slides: CompareSlide[] }) {
   const [active, setActive] = useState(0);
+  const reduced = useReducedMotion();
+  const paused = useRef(false);
+  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const n = slides.length;
+
+  // Auto-advance like a slideshow; hover pauses, manual selection resets the
+  // clock, reduced-motion disables it entirely.
+  useEffect(() => {
+    if (reduced || n < 2) return;
+    const start = () => {
+      timer.current = setInterval(() => {
+        if (!paused.current && !document.hidden) setActive((v) => (v + 1) % n);
+      }, AUTO_MS);
+    };
+    start();
+    return () => {
+      if (timer.current) clearInterval(timer.current);
+    };
+  }, [reduced, n]);
+
+  const pick = (i: number) => {
+    setActive(i);
+    // manual choice restarts the countdown so it doesn't flip right away
+    if (timer.current) {
+      clearInterval(timer.current);
+      timer.current = setInterval(() => {
+        if (!paused.current && !document.hidden) setActive((v) => (v + 1) % n);
+      }, AUTO_MS);
+    }
+  };
+
   const slide = slides[active];
   if (!slide || slide.lines.length < 2) return null;
   const cheapest = slide.lines[0]!;
 
   return (
-    <section className={styles.section} aria-labelledby="compare-teaser-title">
+    <section
+      className={styles.section}
+      aria-labelledby="compare-teaser-title"
+      onMouseEnter={() => (paused.current = true)}
+      onMouseLeave={() => (paused.current = false)}
+    >
       <div className={`container ${styles.grid}`}>
         <div className={styles.copy}>
           <h2 id="compare-teaser-title" className={styles.title}>
@@ -46,7 +85,7 @@ export function CompareTeaser({ slides }: { slides: CompareSlide[] }) {
                 aria-selected={i === active}
                 className={styles.tab}
                 data-active={i === active ? '' : undefined}
-                onClick={() => setActive(i)}
+                onClick={() => pick(i)}
               >
                 {s.name}
               </button>
