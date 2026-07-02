@@ -4,31 +4,13 @@
  * exercise it directly since instrumentation.ts itself has side effects
  * (starting jobs) that don't belong in a unit test. `publicEnv`/the server
  * schema are computed at module-load time from process.env, so each case
- * sets env vars THEN dynamically re-imports the module via vi.resetModules().
+ * sets env vars (via vi.stubEnv — NODE_ENV is read-only on process.env
+ * itself) THEN dynamically re-imports the module via vi.resetModules().
  */
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 
-const ENV_KEYS = [
-  'NEXT_PUBLIC_API_MODE',
-  'DATABASE_URL',
-  'SESSION_SECRET',
-  'SMSIR_API_KEY',
-  'SMSIR_TEMPLATE_ID',
-  'AI_ENABLED',
-  'DEEPSEEK_API_KEY',
-  'DEEPSEEK_BASE_URL',
-] as const;
-
-const original: Record<string, string | undefined> = {};
-
-beforeEach(() => {
-  for (const key of ENV_KEYS) original[key] = process.env[key];
-});
 afterEach(() => {
-  for (const key of ENV_KEYS) {
-    if (original[key] === undefined) delete process.env[key];
-    else process.env[key] = original[key];
-  }
+  vi.unstubAllEnvs();
   vi.resetModules();
 });
 
@@ -38,35 +20,58 @@ async function loadEnv() {
 }
 
 describe('getServerEnv — live mode', () => {
-  it('throws when DATABASE_URL/SESSION_SECRET/SMSIR_* are missing', async () => {
-    process.env.NEXT_PUBLIC_API_MODE = 'live';
-    delete process.env.DATABASE_URL;
-    delete process.env.SESSION_SECRET;
-    delete process.env.SMSIR_API_KEY;
-    delete process.env.SMSIR_TEMPLATE_ID;
+  it('throws when DATABASE_URL/SESSION_SECRET are missing, regardless of NODE_ENV', async () => {
+    vi.stubEnv('NEXT_PUBLIC_API_MODE', 'live');
+    vi.stubEnv('NODE_ENV', 'development');
+    vi.stubEnv('DATABASE_URL', '');
+    vi.stubEnv('SESSION_SECRET', '');
     const { getServerEnv } = await loadEnv();
     expect(() => getServerEnv()).toThrow(/پیکربندی محیط نامعتبر است/);
   });
 
-  it('passes once DATABASE_URL/SESSION_SECRET/SMSIR_* are all set', async () => {
-    process.env.NEXT_PUBLIC_API_MODE = 'live';
-    process.env.DATABASE_URL = 'postgres://u:p@localhost:5432/db';
-    process.env.SESSION_SECRET = 'x'.repeat(32);
-    process.env.SMSIR_API_KEY = 'key';
-    process.env.SMSIR_TEMPLATE_ID = '123';
+  it('boots fine in development without SMSIR_* — OTP has a real dev-log fallback (sms.ts)', async () => {
+    vi.stubEnv('NEXT_PUBLIC_API_MODE', 'live');
+    vi.stubEnv('NODE_ENV', 'development');
+    vi.stubEnv('DATABASE_URL', 'postgres://u:p@localhost:5432/db');
+    vi.stubEnv('SESSION_SECRET', 'x'.repeat(32));
+    vi.stubEnv('SMSIR_API_KEY', '');
+    vi.stubEnv('SMSIR_TEMPLATE_ID', '');
+    const { getServerEnv } = await loadEnv();
+    expect(() => getServerEnv()).not.toThrow();
+  });
+
+  it('throws in production without SMSIR_* — OTP login has no fallback once deployed', async () => {
+    vi.stubEnv('NEXT_PUBLIC_API_MODE', 'live');
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('DATABASE_URL', 'postgres://u:p@localhost:5432/db');
+    vi.stubEnv('SESSION_SECRET', 'x'.repeat(32));
+    vi.stubEnv('SMSIR_API_KEY', '');
+    vi.stubEnv('SMSIR_TEMPLATE_ID', '');
+    const { getServerEnv } = await loadEnv();
+    expect(() => getServerEnv()).toThrow(/پیکربندی محیط نامعتبر است/);
+  });
+
+  it('passes in production once DATABASE_URL/SESSION_SECRET/SMSIR_* are all set', async () => {
+    vi.stubEnv('NEXT_PUBLIC_API_MODE', 'live');
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('DATABASE_URL', 'postgres://u:p@localhost:5432/db');
+    vi.stubEnv('SESSION_SECRET', 'x'.repeat(32));
+    vi.stubEnv('SMSIR_API_KEY', 'key');
+    vi.stubEnv('SMSIR_TEMPLATE_ID', '123');
     const { getServerEnv } = await loadEnv();
     expect(() => getServerEnv()).not.toThrow();
   });
 
   it('still throws for AI_ENABLED=true without DeepSeek keys, even with the rest set', async () => {
-    process.env.NEXT_PUBLIC_API_MODE = 'live';
-    process.env.DATABASE_URL = 'postgres://u:p@localhost:5432/db';
-    process.env.SESSION_SECRET = 'x'.repeat(32);
-    process.env.SMSIR_API_KEY = 'key';
-    process.env.SMSIR_TEMPLATE_ID = '123';
-    process.env.AI_ENABLED = 'true';
-    delete process.env.DEEPSEEK_API_KEY;
-    delete process.env.DEEPSEEK_BASE_URL;
+    vi.stubEnv('NEXT_PUBLIC_API_MODE', 'live');
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('DATABASE_URL', 'postgres://u:p@localhost:5432/db');
+    vi.stubEnv('SESSION_SECRET', 'x'.repeat(32));
+    vi.stubEnv('SMSIR_API_KEY', 'key');
+    vi.stubEnv('SMSIR_TEMPLATE_ID', '123');
+    vi.stubEnv('AI_ENABLED', 'true');
+    vi.stubEnv('DEEPSEEK_API_KEY', '');
+    vi.stubEnv('DEEPSEEK_BASE_URL', '');
     const { getServerEnv } = await loadEnv();
     expect(() => getServerEnv()).toThrow(/دستیار هوشمند/);
   });
@@ -74,11 +79,11 @@ describe('getServerEnv — live mode', () => {
 
 describe('getServerEnv — mock mode', () => {
   it('never throws — every server var is optional when NEXT_PUBLIC_API_MODE is mock (the default)', async () => {
-    process.env.NEXT_PUBLIC_API_MODE = 'mock';
-    delete process.env.DATABASE_URL;
-    delete process.env.SESSION_SECRET;
-    delete process.env.SMSIR_API_KEY;
-    delete process.env.SMSIR_TEMPLATE_ID;
+    vi.stubEnv('NEXT_PUBLIC_API_MODE', 'mock');
+    vi.stubEnv('DATABASE_URL', '');
+    vi.stubEnv('SESSION_SECRET', '');
+    vi.stubEnv('SMSIR_API_KEY', '');
+    vi.stubEnv('SMSIR_TEMPLATE_ID', '');
     const { getServerEnv } = await loadEnv();
     expect(() => getServerEnv()).not.toThrow();
   });
