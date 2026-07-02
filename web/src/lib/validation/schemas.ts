@@ -41,13 +41,6 @@ export const requestSchema = z.object({
 });
 export type RequestValues = z.infer<typeof requestSchema>;
 
-export const alertSchema = z.object({
-  op: z.enum(['below', 'above']),
-  threshold: numberSchema,
-  channel: z.enum(['sms', 'telegram']),
-});
-export type AlertValues = z.infer<typeof alertSchema>;
-
 export const cooperationSchema = z.object({
   track: z.enum(['analysis', 'supply', 'sell']),
   company: z.string().min(1, { message: M.required }),
