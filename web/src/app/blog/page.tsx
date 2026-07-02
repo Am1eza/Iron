@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
-import { articlesByType } from '@/lib/mock/catalogData';
+import { getArticlesByType } from '@/lib/server/catalog';
 import {
   Container,
   Section,
@@ -25,8 +25,8 @@ export const metadata: Metadata = buildMetadata({
   path: routes.blog(),
 });
 
-export default function BlogPage() {
-  const articles = articlesByType('blog');
+export default async function BlogPage() {
+  const articles = await getArticlesByType('blog');
   const crumbs = [{ label: 'خانه', href: routes.home() }, { label: 'وبلاگ' }];
 
   return (

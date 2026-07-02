@@ -7,15 +7,21 @@ import { setSessionCookies } from '@/lib/auth/session';
 import { authErrorResponse } from '@/lib/auth/apiError';
 import { assertSameOrigin } from '@/lib/auth/origin';
 import { publicUser } from '@/lib/auth/publicUser';
+import { rateLimit } from '@/lib/server/utils/rateLimit';
+import { withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 
 /**
  * POST /api/auth/otp/verify — verify the code, login or register, set the session
  * cookies (access + refresh), and return the public user. Wrong codes count toward
- * the attempt limit; too many → temporary lockout (handled in the service).
+ * the per-mobile attempt limit (handled in the service); the IP limit here stops
+ * one client from spreading brute-force attempts across many mobile numbers.
  */
-export async function POST(req: NextRequest) {
+async function POSTImpl(req: NextRequest) {
   const origin = assertSameOrigin(req);
   if (origin) return origin;
+
+  const limited = rateLimit(req, 'otp-verify', { limit: 20, windowMs: 5 * 60_000 });
+  if (limited) return limited;
 
   const v = await validateBody(req, otpVerifyPayload);
   if (!v.ok) return v.response;
@@ -33,3 +39,5 @@ export async function POST(req: NextRequest) {
     return authErrorResponse(err);
   }
 }
+
+export const POST = withApiErrorHandling(POSTImpl);

@@ -4,7 +4,7 @@ import { authApi } from './resources/auth';
 import { leadsApi } from './resources/leads';
 import { toolsApi } from './resources/tools';
 import { aiApi } from './resources/ai';
-import { alertsApi, contactApi, cooperationApi } from './resources/misc';
+import { contactApi, cooperationApi } from './resources/misc';
 
 /** The API client — components/hooks call api.<resource>.<action>(). */
 export const api = {
@@ -16,7 +16,6 @@ export const api = {
   ai: aiApi,
   cooperation: cooperationApi,
   contact: contactApi,
-  alerts: alertsApi,
 } as const;
 
 export type Api = typeof api;

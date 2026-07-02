@@ -51,13 +51,11 @@ function detectBulk(t: string): { tonnage: number; slug: string; name: string } 
 let seq = 0;
 const uid = () => `m${++seq}`;
 
-/* ---- live mode: SSE events from /api/ai/chat (mirrors server AdvisorEvent) ---- */
-type ServerCard =
-  | { kind: 'estimate'; estimate: Estimate }
-  | { kind: 'split'; split: SplitAnswer };
+/* ---- live mode: SSE frames from /api/ai/chat (route.ts contract) ---- */
 type ServerEvent =
-  | { type: 'delta'; text: string }
-  | { type: 'card'; card: ServerCard }
+  | { type: 'token'; text: string }
+  | { type: 'tool'; name: string }
+  | { type: 'lead'; ref?: string }
   | { type: 'chips'; chips: string[] }
   | { type: 'done' }
   | { type: 'error'; message: string };
@@ -233,7 +231,6 @@ export function AdvisorChat({ initialQuestion }: { initialQuestion?: string }) {
     const aiId = uid();
     let streamedText = '';
     let opened = false;
-    let extraSeq = 0;
     const patch = (fn: (m: Msg) => Msg) =>
       setMessages((all) => all.map((m) => (m.id === aiId ? fn(m) : m)));
     const open = (init: Partial<Msg> = {}) => {
@@ -242,46 +239,37 @@ export function AdvisorChat({ initialQuestion }: { initialQuestion?: string }) {
       setMessages((all) => [...all, { id: aiId, role: 'ai', ...init }]);
     };
     try {
-      // Only recent non-empty turns travel (server trims again) — bounded payload.
-      const transcript = transcriptRef.current.filter((m) => m.text.trim()).slice(-10);
+      // Only recent non-empty turns travel (server re-validates) — bounded payload.
+      const transcript = transcriptRef.current
+        .filter((m) => m.text.trim())
+        .slice(-10)
+        .map((m) => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.text }));
       const res = await api.ai.chatStream(transcript);
       if (!res.body) throw new Error('no-body');
       for await (const ev of readSse(res.body)) {
-        if (ev.type === 'delta') {
+        if (ev.type === 'token') {
           streamedText += ev.text;
           if (!opened) open({ text: ev.text });
           else {
             const t = streamedText;
             patch((m) => ({ ...m, text: t }));
           }
-        } else if (ev.type === 'card') {
-          const card = ev.card;
-          if (!opened) open();
-          // A second card of the same kind gets its own bubble instead of
-          // overwriting the first (e.g. concrete + steel estimates in one turn).
-          setMessages((all) => {
-            const target = all.find((m) => m.id === aiId);
-            const taken = card.kind === 'estimate' ? target?.estimate : target?.split;
-            if (taken) {
-              const extra: Msg = { id: `${aiId}x${++extraSeq}`, role: 'ai' };
-              if (card.kind === 'estimate') extra.estimate = card.estimate;
-              else extra.split = card.split;
-              return [...all, extra];
-            }
-            return all.map((m) =>
-              m.id === aiId
-                ? card.kind === 'estimate'
-                  ? { ...m, estimate: card.estimate }
-                  : { ...m, split: card.split }
-                : m,
-            );
-          });
+        } else if (ev.type === 'lead') {
+          const ref = ev.ref;
+          if (ref) {
+            const line = `درخواستت ثبت شد؛ کد پیگیری: ${toPersianDigits(ref)}`;
+            streamedText = streamedText ? `${streamedText}\n${line}` : line;
+            const t = streamedText;
+            if (!opened) open({ text: t });
+            else patch((m) => ({ ...m, text: t }));
+          }
         } else if (ev.type === 'chips') {
           const chips = ev.chips;
           if (opened) patch((m) => ({ ...m, chips }));
         } else if (ev.type === 'error') {
           throw new Error(ev.message);
         }
+        // 'tool' frames just keep the typing indicator honest — nothing to render.
       }
       if (!opened) throw new Error('empty');
       if (streamedText.trim()) transcriptRef.current.push({ role: 'ai', text: streamedText });
@@ -290,7 +278,7 @@ export function AdvisorChat({ initialQuestion }: { initialQuestion?: string }) {
       // transient failure (timeout, 429, network blip) retries next turn.
       if (isApiError(e) && e.status === 503) useServer.current = false;
       setTyping(false);
-      if (opened) setMessages((all) => all.filter((m) => m.id !== aiId && !m.id.startsWith(`${aiId}x`)));
+      if (opened) setMessages((all) => all.filter((m) => m.id !== aiId));
       sendLocal(text);
     } finally {
       busyRef.current = false;

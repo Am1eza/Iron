@@ -65,7 +65,7 @@ This repository currently holds the **complete specification** across three laye
 - **Prices:** 100% **admin-entered** (manual استعلام); no bourse formula. Weight = deterministic formula.
 - **AI:** **DeepSeek**, server-side via an out-of-Iran relay; **grounded** (never invents a number).
 - **Ticker:** FX/gold/ounce from **tgju.org**; **billet admin-entered**.
-- **Auth:** mobile + **OTP**. **SMS:** Kavenegar (recommended).
+- **Auth:** mobile + **OTP**. **SMS:** SMS.ir (locked provider).
 - **Hosting:** hybrid — app/DB in Iran, AI relay outside.
 - **Audience:** co-primary **Contractor + Builder** (dual-mode).
 - **Localization:** Persian-first, **RTL**, Jalali, Toman.
@@ -80,6 +80,21 @@ This repository currently holds the **complete specification** across three laye
 - Start from [`design/tokens.css`](design/tokens.css) and the typed models in [`product/data-model.md`](product/data-model.md).
 - Build against **mock fixtures** (data-model §11) so screens are clickable before the backend exists.
 - Honor [`design/accessibility.md`](design/accessibility.md) and [`product/acceptance-criteria.md`](product/acceptance-criteria.md) as the Definition of Done.
+
+## Layer 5 — Backend (implemented)
+The full backend lives inside the Next.js app (`web/`), on **PostgreSQL + Drizzle**:
+- **Catalog & pricing** — admin-entered prices with movement %, append-only history,
+  Jalali freshness/staleness rules («تماس بگیرید» beyond 2 business days).
+- **Auth** — mobile + OTP (SMS.ir), JWT + rotating refresh, RBAC; persistence in Postgres.
+- **Conversion spine** — lead → پیش‌فاکتور (VAT, next-business-day validity) → SMS → CRM,
+  plus order tracking, consignment warehouse, per-user requests inbox.
+- **Engagement** — price alerts with a 60s evaluation job, favorites, customer club tiers.
+- **Content & AI** — article approval/scheduling queue; DeepSeek relay (SSE, grounded tools)
+  behind `AI_ENABLED`.
+- **Admin panel** — pricing grid, CRM, orders, warehouse, content, catalog, users, settings,
+  audit — all functional, every write audited.
+- Mock mode still works (`NEXT_PUBLIC_API_MODE=mock`); see [`DEPLOY.md`](DEPLOY.md) to run
+  the real stack (`docker compose up` = web + Postgres + Caddy; migrate + seed on boot).
 
 ---
 

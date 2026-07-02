@@ -1,5 +1,15 @@
-import { PagePlaceholder } from '@/components/dev/PagePlaceholder';
+import { Heading, Text, Stack } from '@/components/ui';
+import { ContentQueue } from '@/components/admin/content/ContentQueue';
 
+/** /admin/content — the article approval/scheduling queue. */
 export default function AdminContentPage() {
-  return <PagePlaceholder eyebrow="پنل › محتوا" title="صف تأیید محتوا" note="تأیید/زمان‌بندی پیش‌نویس‌های هوش مصنوعی در بخش ادمین ساخته می‌شود." />;
+  return (
+    <Stack gap={5}>
+      <div>
+        <Heading level={1}>محتوا</Heading>
+        <Text color="muted">پیش‌نویس‌های هوش مصنوعی پس از بازبینی سردبیر منتشر می‌شوند.</Text>
+      </div>
+      <ContentQueue />
+    </Stack>
+  );
 }

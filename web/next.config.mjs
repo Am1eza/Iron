@@ -8,6 +8,15 @@ const basePath = process.env.PAGES_BASE_PATH || '';
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // `pg` (Postgres driver, server/API-route usage — see db/client.ts) as an
+  // external so route handlers that import it don't get it bundled by
+  // webpack. NOTE: this does NOT fix `next dev` — see the KNOWN-ISSUES note
+  // in instrumentation.ts; instrumentation.ts has its own compilation unit
+  // that doesn't respect this (or a webpack `externals` push, tried and
+  // reverted — see git history), a known unresolved Next.js 15.x limitation
+  // (vercel/next.js#73179). `next build`/the Cloudflare Workers build are
+  // both unaffected — confirmed green.
+  serverExternalPackages: ['pg'],
   // Static export for GitHub Pages (preview). `next start`/dev keep full SSR.
   ...(isExport
     ? { output: 'export', trailingSlash: true, basePath, assetPrefix: basePath || undefined }
@@ -27,8 +36,12 @@ const nextConfig = {
         async headers() {
           return [
             {
-              // Keep admin + personal areas out of search indexes (IA / SEO rules).
-              source: '/:path(admin|account|request|cart|search)(.*)',
+              // Keep admin, personal, and internal-tooling areas out of search
+              // indexes (IA / SEO rules). styleguide is an internal component
+              // reference — not customer-facing, not in sitemap.ts, and never
+              // linked from the site, but with no noindex it would still get
+              // crawled/indexed if ever discovered via an external link.
+              source: '/:path(admin|account|request|cart|search|styleguide)(.*)',
               headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }],
             },
           ];

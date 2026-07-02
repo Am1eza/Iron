@@ -57,7 +57,11 @@
 .warning {
   background: var(--amber-50);
   border-color: var(--amber-100);
-  color: var(--color-action-text);
+  /* --amber-50 has no dark-mode variant by design (fixed light tint, like
+     --gain-50/--loss-50 above) — pin to the light-appropriate emerald-700
+     directly rather than --color-action-text, which flips to a much lighter
+     emerald-300 in dark mode and falls to ~2:1 contrast against this bg. */
+  color: var(--emerald-700);
 }
 .info {
   background: var(--color-accent-tint);

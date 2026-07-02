@@ -5,7 +5,11 @@ import { useRouter } from 'next/navigation';
 import { routes } from '@/lib/routes';
 import { useCartStore } from '@/lib/stores/cart';
 import { useRequestsStore } from '@/lib/stores/requests';
+import { useAuthStore } from '@/lib/stores/auth';
 import { useToast } from '@/lib/hooks/useToast';
+import { api } from '@/lib/api';
+import { API_MODE } from '@/lib/api/config';
+import { ApiError } from '@/lib/api/errors';
 import { formatToman, toPersianDigits } from '@/lib/utils/format';
 import { Textarea } from '@/components/forms/fields';
 import { Button, EmptyState } from '@/components/ui';
@@ -22,7 +26,9 @@ export function RequestFlow() {
   const items = useCartStore((s) => s.items);
   const clear = useCartStore((s) => s.clear);
   const addRequest = useRequestsStore((s) => s.add);
+  const user = useAuthStore((s) => s.user);
   const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
 
   if (items.length === 0) {
     return (
@@ -35,7 +41,7 @@ export function RequestFlow() {
     );
   }
 
-  const submit = () => {
+  const submit = async () => {
     const title =
       items.length === 1
         ? `پیش‌فاکتور ${items[0]!.name}`
@@ -43,6 +49,30 @@ export function RequestFlow() {
     const detail = items
       .map((i) => `${i.name} × ${toPersianDigits(i.qty)}`)
       .join(' · ');
+
+    // Live: the server creates the lead, issues the پیش‌فاکتور, SMSes the ref
+    // and mirrors it into the account inbox. Mock: local store only.
+    if (API_MODE === 'live' && user) {
+      setBusy(true);
+      try {
+        const result = await api.leads.create({
+          contact: { name: user.name, mobile: user.mobile },
+          items: items.map((i) => ({ skuId: i.skuId, qty: i.qty, unit: i.unit })),
+          channel: 'sms',
+          source: 'cart',
+          note: note.trim() || undefined,
+        });
+        clear();
+        toast.success(`درخواست ثبت شد؛ شمارهٔ پیگیری: ${result.ref}`);
+        router.push(routes.account('requests'));
+      } catch (err) {
+        toast.error(err instanceof ApiError ? err.message : 'ثبت درخواست ناموفق بود. دوباره تلاش کنید.');
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+
     addRequest({ type: 'proforma', title, detail, note: note.trim() || undefined });
     clear();
     toast.success('درخواست ثبت شد؛ وضعیت آن در پروفایل شماست.');
@@ -72,7 +102,9 @@ export function RequestFlow() {
       />
 
       <div className={styles.actions}>
-        <Button onClick={submit}>ثبت درخواست پیش‌فاکتور</Button>
+        <Button onClick={submit} disabled={busy}>
+          {busy ? 'در حال ثبت…' : 'ثبت درخواست پیش‌فاکتور'}
+        </Button>
         <Link href={routes.cart()} className={styles.editLink}>
           ویرایش سبد
         </Link>

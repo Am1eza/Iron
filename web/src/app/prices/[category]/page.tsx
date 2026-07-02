@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { buildMetadata, productJsonLd } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { categories } from '@/lib/mock/fixtures';
-import { getRows } from '@/lib/mock/catalogData';
+import { getRows } from '@/lib/server/catalog';
 import { CATEGORY_SUBS } from '@/lib/data/nav';
 import {
   Container,
@@ -41,7 +41,7 @@ export default async function CategoryPage({ params }: Params) {
   const cat = categories.find((c) => c.slug === category);
   if (!cat) notFound();
 
-  const rows = getRows(category);
+  const rows = await getRows(category);
   const subs = CATEGORY_SUBS[category] ?? [];
 
   const crumbs = [

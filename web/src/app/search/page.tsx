@@ -3,7 +3,8 @@ import Link from 'next/link';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { categories } from '@/lib/mock/fixtures';
-import { getRows, articles } from '@/lib/mock/catalogData';
+import { getRows } from '@/lib/mock/catalogData';
+import { searchAll } from '@/lib/server/catalog';
 import type { PriceRow, Article, Category } from '@/lib/types/domain';
 import { formatToman, toPersianDigits, normalizeDigits } from '@/lib/utils/format';
 import {
@@ -72,22 +73,16 @@ export default async function SearchPage({ searchParams }: Props) {
     );
   }
 
-  // ----- Run the search (simple substring on the Persian name) -----
-  const productHits: ProductHit[] = [];
-  for (const cat of categories) {
-    if (!cat.isActive) continue;
-    for (const row of getRows(cat.slug)) {
-      const haystack = norm(`${row.name} ${row.factory ?? ''} ${row.size ?? ''} ${row.grade ?? ''}`);
-      if (haystack.includes(needle)) productHits.push({ row, categoryName: cat.name });
-    }
-  }
+  // ----- Run the search (mock: substring scan; live: DB search) -----
+  const { skus: skuHits, articles: articleHits } = await searchAll(q);
+  const catName = new Map(categories.map((c) => [c.slug, c.name] as const));
+  const productHits: ProductHit[] = skuHits.map((row) => ({
+    row,
+    categoryName: catName.get(row.categoryId) ?? row.categoryId,
+  }));
 
   const categoryHits: Category[] = categories.filter(
     (c) => c.isActive && norm(c.name).includes(needle),
-  );
-
-  const articleHits: Article[] = articles.filter(
-    (a) => a.status === 'published' && norm(a.title).includes(needle),
   );
 
   const totalHits = productHits.length + categoryHits.length + articleHits.length;

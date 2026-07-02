@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import { CONSTANTS } from '@/lib/config/constants';
 import { routes } from '@/lib/routes';
 import { formatToman, toPersianDigits, formatJalali } from '@/lib/utils/format';
-import { priceSeries, relatedRows, subName } from '@/lib/mock/catalogData';
+import { priceSeries as mockSeries, relatedRows as mockRelated, subName } from '@/lib/mock/catalogData';
 import { categories } from '@/lib/mock/fixtures';
 import type { PriceRow } from '@/lib/types/domain';
 import {
@@ -39,7 +39,18 @@ import styles from './SkuDetail.module.css';
  * live; favorite gates on auth; share uses the Web Share API with a clipboard
  * fallback. Server passes the resolved `row`; everything here is client-only.
  */
-export function SkuDetail({ row }: { row: PriceRow }) {
+export function SkuDetail({
+  row,
+  related: relatedProp,
+  series: seriesProp,
+  categoryRows,
+}: {
+  row: PriceRow;
+  /** Server-provided (live mode); mock fallbacks apply when absent. */
+  related?: PriceRow[];
+  series?: number[];
+  categoryRows?: PriceRow[];
+}) {
   const add = useCartStore((s) => s.add);
   const toast = useToast();
   const { isAuthenticated } = useAuth();
@@ -136,7 +147,7 @@ export function SkuDetail({ row }: { row: PriceRow }) {
     { label: 'زمان تحویل', value: toPersianDigits(row.current.deliveryTime) },
   ];
 
-  const related = relatedRows(row);
+  const related = relatedProp ?? mockRelated(row);
 
   return (
     <Stack gap={8}>
@@ -236,7 +247,7 @@ export function SkuDetail({ row }: { row: PriceRow }) {
           روند قیمت
         </h2>
         <div className={styles.card}>
-          <PriceChart series={priceSeries(row.slug, row.current.price)} />
+          <PriceChart series={seriesProp ?? mockSeries(row.slug, row.current.price)} />
         </div>
       </section>
 
@@ -268,7 +279,7 @@ export function SkuDetail({ row }: { row: PriceRow }) {
       </section>
 
       {/* ===== Bulk / per-factory split ===== */}
-      <BulkQuote category={row.categoryId} categoryName={categoryName} />
+      <BulkQuote category={row.categoryId} categoryName={categoryName} rows={categoryRows} />
 
       {/* ===== Related ===== */}
       {related.length > 0 ? (

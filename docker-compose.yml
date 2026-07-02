@@ -10,23 +10,65 @@ services:
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://ahantime.com}
-        NEXT_PUBLIC_API_MODE: ${NEXT_PUBLIC_API_MODE:-mock}
+        NEXT_PUBLIC_API_MODE: ${NEXT_PUBLIC_API_MODE:-live}
     restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
     environment:
       NODE_ENV: production
       # REQUIRED — the app refuses to start in production without this.
       SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET in .env (openssl rand -hex 32)}
       NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://ahantime.com}
-      NEXT_PUBLIC_API_MODE: ${NEXT_PUBLIC_API_MODE:-mock}
-      AUTH_ENFORCED: ${AUTH_ENFORCED:-false}
+      NEXT_PUBLIC_API_MODE: ${NEXT_PUBLIC_API_MODE:-live}
+      AUTH_ENFORCED: ${AUTH_ENFORCED:-true}
+      DATABASE_URL: postgres://ahantime:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/ahantime
+      SEED_ON_START: ${SEED_ON_START:-true}   # idempotent — only fills empty tables
+      # SMS.ir — REQUIRED with the defaults above (live mode + AUTH_ENFORCED):
+      # OTP login has no fallback, so the app refuses to boot without these.
+      SMSIR_API_KEY: ${SMSIR_API_KEY:?set SMSIR_API_KEY in .env (OTP login has no fallback in live mode)}
+      SMSIR_TEMPLATE_ID: ${SMSIR_TEMPLATE_ID:?set SMSIR_TEMPLATE_ID in .env (OTP verify template on the SMS.ir panel)}
+      SMSIR_LINE_NUMBER: ${SMSIR_LINE_NUMBER:-}   # optional — پیش‌فاکتور/alert texts dev-log if unset
+      # Fully optional integrations (dev fallbacks / last-known values apply when blank)
+      TGJU_BASE_URL: ${TGJU_BASE_URL:-}
+      TGJU_API_KEY: ${TGJU_API_KEY:-}
+      AI_ENABLED: ${AI_ENABLED:-false}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-chat}
+      DEV_ADMIN_MOBILE: ${DEV_ADMIN_MOBILE:-}
     expose:
       - "3000"          # internal only — not published to the host
+    healthcheck:
+      # No curl/wget in the minimal node:alpine runner image — use Node's
+      # built-in fetch instead of adding a package just for this.
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s   # migrations (+ optional seed) run before server.js starts
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ahantime
+      POSTGRES_USER: ahantime
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ahantime -d ahantime"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
     depends_on:
-      - web
+      web:
+        condition: service_healthy
     ports:
       - "80:80"
       - "443:443"
@@ -38,3 +80,4 @@ services:
 volumes:
   caddy_data:
   caddy_config:
+  pgdata:

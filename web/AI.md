@@ -7,17 +7,15 @@ cheaply. Implements `product/acceptance-criteria.md §D`.
 
 ```
 AdvisorChat (client)
-  │  POST /api/ai/chat  {messages:[{role:'user'|'ai', text}]}   (SSE back)
+  │  POST /api/ai/chat  {messages:[{role:'user'|'assistant', content}]}   (SSE back)
   ▼
-/api/ai/chat (route) ── zod validation · rate limit · 503 when unconfigured
+/api/ai/chat (route) ── same-origin guard · rate limit · 503 when AI disabled
+  │   agent loop (≤4 tool rounds) + grounding gate, 20s hard timeout
+  ├─ lib/server/integrations/deepseek.ts  streaming relay client (max_tokens capped)
+  ├─ lib/server/services/aiTools.ts       getPrice · calcWeight · estimateProject · createLead (Postgres-backed)
+  └─ lib/server/ai/grounding.ts           ledger + post-generation numeric validator
   ▼
-lib/server/ai/engine.ts ── the agent loop
-  │   ├─ deepseek.ts   fetch client → DeepSeek via the out-of-Iran relay
-  │   ├─ tools.ts      get_prices · calc_weight · estimate_project · compare_factories
-  │   ├─ grounding.ts  ledger + post-generation numeric validator
-  │   └─ prompt.ts     ONE byte-stable system prompt (cache-friendly)
-  ▼
-SSE events: delta │ card (estimate/split) │ chips │ done │ error
+SSE frames: token │ tool │ lead │ chips │ done │ error
 ```
 
 The client keeps the local rule engine as a zero-cost fallback: mock mode,
@@ -26,9 +24,9 @@ the advisor never dead-ends (AC-D-9).
 
 ## The grounding guarantee (AC-D-3)
 
-1. **Tools decide every number.** The four tools read the same catalog the
+1. **Tools decide every number.** The tools read the same Postgres data the
    price tables render. Every number in every tool result is recorded in a
-   per-request `GroundingLedger` (including «هزار/میلیون» scaled forms).
+   per-request `GroundingLedger`.
 2. **The model's final text is buffered — not streamed raw.** Before anything
    reaches the user, `sanitizeGrounded` scans it: any price/weight/cost-sized
    number (or any number glued to تومان/ریال/هزار/میلیون/کیلوگرم/گرم) that is
@@ -38,7 +36,7 @@ the advisor never dead-ends (AC-D-9).
    with «قیمت دقیق را کارشناس اعلام می‌کند». Only validated text is then
    re-chunked to the client as a stream.
 4. **Arithmetic is code, not the model** (BR-D3.2): totals in
-   `estimate_project` / `compare_factories` are computed server-side.
+   `estimateProject` / `calcWeight` are computed server-side.
 
 The scanner is scale-aware: «۳۸ هزار و ۵۰۰ تومان» evaluates to 38,500 and is
 checked as a whole, «۴۵ هزار تومان» is NOT licensed by a grounded 45,000,000,
@@ -62,11 +60,11 @@ and asserts zero ungrounded numbers survive (DoD-D).
 | Lever | Implementation |
 |---|---|
 | DeepSeek context caching | `SYSTEM_PROMPT` is one static string — never interpolated; cache-hit input is ~1/10 the price |
-| History trim | client sends last 10 turns; server re-trims (count + chars) — `CONSTANTS.AI_HISTORY_*` |
-| Token caps | explicit `max_tokens` every round — `CONSTANTS.AI_MAX_TOKENS` |
-| Compact payloads | short tool schemas; `get_prices` returns top-8 rows only |
+| History trim | client sends only the last 10 turns; server caps 40 msgs × 4000 chars |
+| Token caps | explicit `max_tokens` on every relay round (integrations/deepseek.ts) |
+| Compact payloads | short tool schemas; compact DB tool results |
 | Model tier | `deepseek-chat` (non-thinking) — enough for tool routing |
-| Abuse guard | per-client rate limit — `CONSTANTS.AI_RATE_LIMIT_*` |
+| Abuse guard | per-IP rate limit (10 req / 5 min) — lib/server/utils/rateLimit |
 | Zero-cost fallback | mock mode / outages answer locally, no API call |
 
 ## Configuration
@@ -77,11 +75,15 @@ and asserts zero ungrounded numbers survive (DoD-D).
 | `DEEPSEEK_BASE_URL` | OpenAI-compatible relay base, e.g. `https://relay/v1` |
 | `DEEPSEEK_MODEL` | default `deepseek-chat` |
 | `NEXT_PUBLIC_API_MODE` | `live` activates the server advisor; `mock` keeps the local engine |
+| `AI_ENABLED` | `true` switches the relay on (backend flag) |
 
-Without the `DEEPSEEK_*` vars the route answers `503 ai_unconfigured` and the
+With `AI_ENABLED` false or `DEEPSEEK_*` missing the route answers `503` and the
 client silently uses the local engine.
 
-## Swapping mock → live catalog
+## Division of labour
 
-`tools.ts` imports from `lib/mock/catalogData`. When the backend lands, point
-those reads at the live price service — the grounding pipeline is unchanged.
+The backend owns the tools (Postgres prices, real lead creation); this layer
+owns the **grounding gate**: the route buffers each completion, feeds every
+tool result into the `GroundingLedger`, sanitizes, and only then streams. The
+client's local rule engine remains the zero-cost fallback for mock mode and
+outages.

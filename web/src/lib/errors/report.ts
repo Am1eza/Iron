@@ -15,13 +15,23 @@ function redact(context?: Record<string, unknown>): Record<string, unknown> | un
 
 export function reportError(error: unknown, context?: Record<string, unknown>): void {
   const payload = {
+    level: 'error',
+    tag: 'ahantime:error',
     name: error instanceof Error ? error.name : 'Unknown',
     message: error instanceof Error ? error.message : String(error),
+    stack: error instanceof Error ? error.stack : undefined,
     status: (error as { status?: number } | null)?.status,
     context: redact(context),
     at: new Date().toISOString(),
   };
+  // One JSON object per line (not util.inspect's multi-line pretty-print of
+  // the raw object) — Docker's json-file driver and any real log aggregator
+  // (Loki, CloudWatch, ...) can parse/query this without a custom sink; the
+  // sink below is for alerting on top of these logs, not for making them
+  // structured in the first place.
   // eslint-disable-next-line no-console
-  console.error('[ahantime:error]', payload);
-  // TODO: server → monitoring sink; client → navigator.sendBeacon('/api/log', JSON.stringify(payload)).
+  console.error(JSON.stringify(payload));
+  // TODO: proactive alerting sink (Sentry via instrumentation.onRequestError,
+  // or a webhook) — logs are structured and captured today; nothing pages
+  // anyone yet. client → navigator.sendBeacon('/api/log', JSON.stringify(payload)).
 }

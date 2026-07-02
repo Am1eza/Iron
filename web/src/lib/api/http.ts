@@ -1,7 +1,7 @@
 import { ApiError } from './errors';
 import { BASE_URL, DEFAULT_GET_RETRIES, DEFAULT_TIMEOUT_MS } from './config';
 
-type Method = 'GET' | 'POST' | 'PUT' | 'DELETE';
+type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
 export interface RequestOptions<T> {
   method?: Method;
@@ -131,6 +131,8 @@ export const http = {
     httpRequest<T>(path, { ...opts, method: 'POST', body }),
   put: <T>(path: string, body?: unknown, opts?: Omit<RequestOptions<T>, 'method'>) =>
     httpRequest<T>(path, { ...opts, method: 'PUT', body }),
+  patch: <T>(path: string, body?: unknown, opts?: Omit<RequestOptions<T>, 'method'>) =>
+    httpRequest<T>(path, { ...opts, method: 'PATCH', body }),
   del: <T>(path: string, opts?: Omit<RequestOptions<T>, 'method' | 'body'>) =>
     httpRequest<T>(path, { ...opts, method: 'DELETE' }),
   stream: httpStream,

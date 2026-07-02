@@ -1,9 +1,15 @@
 import { NextResponse } from 'next/server';
-import { marketValues } from '@/lib/mock/fixtures';
+import { hasDb } from '@/lib/server/db/client';
+import { listMarketValues } from '@/lib/server/repos/marketRepo';
+import { marketValues as fixtureValues } from '@/lib/mock/fixtures';
+import { withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 
 /** GET /api/market — ticker values (tgju FX/gold/ounce + admin billet).
- *  Mock mode returns fixtures; live mode will fetch tgju + the admin billet value. */
-export async function GET() {
-  // TODO(live): fetch tgju (server-side) + billet from DB; handle outage → last-known + isStale.
-  return NextResponse.json({ values: marketValues }, { headers: { 'Cache-Control': 'no-store' } });
+ *  Served from the DB (the poll job keeps it fresh); fixture fallback keeps
+ *  dev without a DB working. */
+async function GETImpl() {
+  const values = hasDb() ? await listMarketValues() : fixtureValues;
+  return NextResponse.json({ values }, { headers: { 'Cache-Control': 'no-store' } });
 }
+
+export const GET = withApiErrorHandling(GETImpl);

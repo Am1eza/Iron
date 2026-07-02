@@ -25,14 +25,8 @@ export const CONSTANTS = {
   /** Session */
   SESSION_TTL_DAYS: 30,
 
-  /** AI advisor (acceptance-criteria §D + cost controls) */
+  /** AI advisor (acceptance-criteria §D) */
   AI_TIMEOUT_MS: 20_000, // AC-D-9: never hang beyond 20s
-  AI_MAX_TOOL_ROUNDS: 4,
-  AI_MAX_TOKENS: 700,
-  AI_HISTORY_MAX_MESSAGES: 10, // cost: old turns stop being resent
-  AI_MESSAGE_MAX_CHARS: 1000,
-  AI_RATE_LIMIT_MAX: 20, // requests per window per client (cost guard)
-  AI_RATE_LIMIT_WINDOW_MS: 5 * 60_000,
 
   /** Currency unit label */
   CURRENCY_LABEL: 'تومان',

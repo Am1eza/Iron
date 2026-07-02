@@ -11,6 +11,7 @@
   color: var(--color-text);
 }
 .req { color: var(--color-loss); }
+:root[data-theme='dark'] .req { color: var(--loss-400); }
 
 .input,
 .select,
@@ -39,6 +40,7 @@
 
 .helper { font: var(--t-caption); color: var(--color-text-muted); }
 .error { font: var(--t-caption); color: var(--color-loss-text); }
+:root[data-theme='dark'] .error { color: var(--loss-400); }
 
 .radios { display: flex; flex-wrap: wrap; gap: var(--space-4); }
 .radio { display: inline-flex; align-items: center; gap: var(--space-2); cursor: pointer; }

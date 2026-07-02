@@ -151,3 +151,11 @@
   outline: var(--border-focus) solid var(--color-focus);
   outline-offset: 2px;
 }
+
+/* Matches the warning Alert's fixed --amber-50 background (never themed, by
+   design) — pin to the same fixed emerald-700 the Alert itself uses. */
+.alertBody {
+  font: var(--t-body-sm);
+  color: var(--emerald-700);
+  margin: 0;
+}

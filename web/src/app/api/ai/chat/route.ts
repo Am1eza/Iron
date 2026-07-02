@@ -1,91 +1,204 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { validateBody } from '@/lib/validation/request';
-import { aiChatPayload } from '@/lib/validation/api';
+import { z } from 'zod';
+import { getSession } from '@/lib/auth/session';
+import { assertSameOrigin } from '@/lib/auth/origin';
+import { requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
+import {
+  aiEnabled,
+  streamCompletion,
+  type ChatMessage,
+  type ToolCall,
+} from '@/lib/server/integrations/deepseek';
+import { AI_TOOLS, AI_SYSTEM_PROMPT, runTool } from '@/lib/server/services/aiTools';
+import {
+  GroundingLedger,
+  numbersInText,
+  sanitizeGrounded,
+} from '@/lib/server/ai/grounding';
+import { CHIP, PURPOSE_CHIPS } from '@/lib/data/aiTaxonomy';
+import { reportError } from '@/lib/errors/report';
+import { rateLimit } from '@/lib/server/utils/rateLimit';
 import { CONSTANTS } from '@/lib/config/constants';
-import { getRelayConfig, type RelayConfig } from '@/lib/server/ai/deepseek';
-import { runAdvisorTurn, type AdvisorEvent } from '@/lib/server/ai/engine';
+
+export const runtime = 'nodejs';
+
+const payload = z.object({
+  messages: z
+    .array(
+      z.object({
+        role: z.enum(['user', 'assistant']),
+        content: z.string().max(4000),
+      }),
+    )
+    .min(1)
+    .max(40),
+  conversationId: z.string().max(64).optional(),
+});
+
+const MAX_TOOL_ROUNDS = 4;
 
 /**
- * POST /api/ai/chat — the grounded AI advisor (DeepSeek via the out-of-Iran
- * relay). Streams SSE events: delta | card | chips | done | error. Every number
- * in the reply passed the grounding validator server-side (acceptance-criteria §D).
+ * POST /api/ai/chat — the server-side AI advisor (DeepSeek via the relay).
+ * GROUNDING (acceptance-criteria §D): the model talks; TOOLS decide every
+ * number (getPrice/calcWeight/estimateProject/createLead) — and a
+ * post-generation validator (AC-D-3) gates the text: each completion round is
+ * BUFFERED, every number checked against the tool ledger + the user's own
+ * inputs, and only sanitized text is streamed. One correction round (which may
+ * call tools — the legitimate recovery) runs before censorship wins.
+ * SSE frames: data: {type:'token'|'tool'|'lead'|'chips'|'done'|'error', ...}
  */
+async function POSTImpl(req: NextRequest) {
+  const origin = assertSameOrigin(req);
+  if (origin) return origin;
 
-/* Best-effort per-isolate rate limit (cost guard) — fixed window {count,resetAt}:
- * O(1) per hit, bounded by evicting only EXPIRED windows (never wiping live
- * counters, so a key-spraying abuser can't reset their own budget). A durable/KV
- * limiter replaces this in the backend layer. */
-const hits = new Map<string, { count: number; resetAt: number }>();
-function rateLimited(key: string): boolean {
-  const now = Date.now();
-  if (hits.size > 2000) {
-    for (const [k, v] of hits) if (v.resetAt <= now) hits.delete(k);
-  }
-  const cur = hits.get(key);
-  if (!cur || cur.resetAt <= now) {
-    hits.set(key, { count: 1, resetAt: now + CONSTANTS.AI_RATE_LIMIT_WINDOW_MS });
-    return false;
-  }
-  if (cur.count >= CONSTANTS.AI_RATE_LIMIT_MAX) return true;
-  cur.count += 1;
-  return false;
-}
+  // Anonymous access is deliberate (AI advisor is the funnel's "Magnet"
+  // stage — the grounded tools never leak another user's data regardless of
+  // session). Rate-limit instead of gating on auth: each request drives real
+  // DeepSeek API cost across up to MAX_TOOL_ROUNDS.
+  const limited = rateLimit(req, 'ai-chat', { limit: 10, windowMs: 5 * 60_000 });
+  if (limited) return limited;
 
-const sse = (e: AdvisorEvent) => `data: ${JSON.stringify(e)}\n\n`;
-
-export async function POST(req: NextRequest) {
-  const v = await validateBody(req, aiChatPayload);
-  if (!v.ok) return v.response;
-
-  const client =
-    req.headers.get('cf-connecting-ip') ??
-    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-    'anon';
-  if (rateLimited(client)) {
+  if (!aiEnabled()) {
     return NextResponse.json(
-      { error: 'rate_limited', message: 'تعداد پیام‌ها زیاد شد؛ چند دقیقهٔ دیگر دوباره امتحان کن.' },
-      { status: 429 },
-    );
-  }
-
-  // getServerEnv throws in live mode when DEEPSEEK_* is missing — that
-  // misconfiguration must surface as the documented 503, not a raw 500.
-  let cfg: RelayConfig | null = null;
-  try {
-    cfg = getRelayConfig();
-  } catch {
-    cfg = null;
-  }
-  if (!cfg) {
-    // No relay configured (mock/preview) — tell the client to use its offline advisor.
-    return NextResponse.json(
-      { error: 'ai_unconfigured', message: 'دستیار ابری پیکربندی نشده است.' },
+      { error: 'ai_disabled', message: 'دستیار هوشمند موقتاً در دسترس نیست. از جدول قیمت‌ها و ابزارها استفاده کنید.' },
       { status: 503 },
     );
   }
+  const guard = requireDb();
+  if (guard) return guard;
 
-  const { messages } = v.data;
-  const relay = cfg;
+  const body: unknown = await req.json().catch(() => null);
+  const parsed = payload.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'invalid', message: 'درخواست نامعتبر است.' }, { status: 400 });
+  }
+
+  const session = await getSession();
+  const conversationId = parsed.data.conversationId;
+  const messages: ChatMessage[] = [
+    { role: 'system', content: AI_SYSTEM_PROMPT },
+    ...parsed.data.messages.map((m) => ({ role: m.role, content: m.content })),
+  ];
+
+  // AC-D-3 state: every tool-returned number + the user's own typed numbers.
+  const ledger = new GroundingLedger();
+  const userNumbers = new Set<number>();
+  for (const m of parsed.data.messages)
+    if (m.role === 'user') numbersInText(m.content).forEach((n) => userNumbers.add(n));
+
+  // AC-D-9: never hang past AI_TIMEOUT_MS; user disconnect also stops paid work.
+  const timeout = AbortSignal.timeout(CONSTANTS.AI_TIMEOUT_MS);
+  const signal =
+    typeof AbortSignal.any === 'function' ? AbortSignal.any([req.signal, timeout]) : timeout;
+
+  const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
-      const enc = new TextEncoder();
       let closed = false;
-      // A cancelled stream (closed tab) makes enqueue throw — swallow it so the
-      // engine's never-throws contract holds and teardown stays clean.
-      const send = (e: AdvisorEvent) => {
+      // A cancelled stream (closed tab) makes enqueue throw — swallow so
+      // teardown stays clean; req.signal already stops the relay stream.
+      const send = (frame: Record<string, unknown>) => {
         if (closed) return;
         try {
-          controller.enqueue(enc.encode(sse(e)));
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(frame)}\n\n`));
         } catch {
           closed = true;
         }
       };
-      await runAdvisorTurn(relay, messages, send, undefined, req.signal);
-      if (!closed) {
-        try {
-          controller.close();
-        } catch {
-          /* already cancelled */
+
+      const toolsUsed = new Set<string>();
+
+      /** One model⇄tools loop; returns the buffered final text (never streamed raw). */
+      const runLoop = async (maxRounds: number): Promise<string> => {
+        let rounds = 0;
+        for (;;) {
+          let pendingCalls: ToolCall[] | null = null;
+          let buffered = '';
+          for await (const ev of streamCompletion(messages, AI_TOOLS, signal)) {
+            if (ev.type === 'token') buffered += ev.text;
+            else if (ev.type === 'tool_calls') pendingCalls = ev.calls;
+          }
+          if (!pendingCalls || rounds >= maxRounds) return buffered;
+          rounds++;
+
+          messages.push({ role: 'assistant', content: null, tool_calls: pendingCalls });
+          for (const call of pendingCalls) {
+            let args: Record<string, unknown> = {};
+            try {
+              args = JSON.parse(call.function.arguments || '{}') as Record<string, unknown>;
+            } catch {
+              /* tolerate malformed args */
+            }
+            send({ type: 'tool', name: call.function.name });
+            const result = await runTool(call.function.name, args, session, conversationId);
+            toolsUsed.add(call.function.name);
+            ledger.addFromJson(result); // every tool number becomes quotable
+            if (call.function.name === 'createLead' && result && typeof result === 'object' && 'ref' in result) {
+              send({ type: 'lead', ...(result as Record<string, unknown>) });
+            }
+            messages.push({
+              role: 'tool',
+              tool_call_id: call.id,
+              content: JSON.stringify(result),
+            });
+          }
+        }
+      };
+
+      try {
+        const final = await runLoop(MAX_TOOL_ROUNDS);
+
+        // The validator gate — nothing unvalidated ever reaches the user.
+        let checked = sanitizeGrounded(final, ledger, userNumbers);
+        if (checked.violations.length > 0 && !req.signal.aborted) {
+          try {
+            messages.push(
+              { role: 'assistant', content: final },
+              {
+                role: 'user',
+                content:
+                  'پاسخ قبلی عددی داشت که از ابزارها نیامده بود. اگر لازم است ابزار را صدا بزن و دوباره فقط با اعداد خروجی ابزارها پاسخ بده؛ اگر عددی نداری، بگو کارشناس اعلام می‌کند.',
+              },
+            );
+            const retry = await runLoop(2);
+            if (retry.trim()) {
+              const retryChecked = sanitizeGrounded(retry, ledger, userNumbers);
+              if (retryChecked.violations.length === 0) checked = retryChecked;
+            }
+          } catch {
+            /* keep the censored first answer */
+          }
+        }
+
+        // Validated text streams in small frames (typewriter UX, few re-renders).
+        for (let i = 0; i < checked.text.length; i += 120) {
+          send({ type: 'token', text: checked.text.slice(i, i + 120) });
+        }
+
+        // Contextual follow-up chips (AC-D-7) — deterministic, zero model tokens.
+        const chips =
+          toolsUsed.has('estimateProject') || toolsUsed.has('createLead')
+            ? [CHIP.proforma, CHIP.weighTool]
+            : toolsUsed.has('getPrice') || toolsUsed.has('calcWeight')
+              ? [CHIP.proforma, CHIP.allPrices]
+              : parsed.data.messages.filter((m) => m.role === 'user').length <= 1
+                ? [...PURPOSE_CHIPS]
+                : [];
+        if (chips.length > 0) send({ type: 'chips', chips });
+
+        send({ type: 'done' });
+      } catch (err) {
+        if (!req.signal.aborted) {
+          reportError(err, { route: 'ai/chat' });
+          send({ type: 'error', message: 'دستیار هوشمند با خطا مواجه شد. دوباره تلاش کنید.' });
+        }
+      } finally {
+        if (!closed) {
+          try {
+            controller.close();
+          } catch {
+            /* already cancelled */
+          }
         }
       }
     },
@@ -94,8 +207,10 @@ export async function POST(req: NextRequest) {
   return new Response(stream, {
     headers: {
       'Content-Type': 'text/event-stream; charset=utf-8',
-      'Cache-Control': 'no-cache, no-transform',
+      'Cache-Control': 'no-store',
       Connection: 'keep-alive',
     },
   });
 }
+
+export const POST = withApiErrorHandling(POSTImpl);

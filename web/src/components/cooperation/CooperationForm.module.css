@@ -21,6 +21,9 @@
 .req {
   color: var(--color-loss);
 }
+:root[data-theme='dark'] .req {
+  color: var(--loss-400);
+}
 
 .input,
 .textarea {
@@ -67,6 +70,9 @@
   margin: 0;
   font: var(--t-caption);
   color: var(--color-loss-text);
+}
+:root[data-theme='dark'] .error {
+  color: var(--loss-400);
 }
 
 .consent {

@@ -5,9 +5,13 @@ import { ChevronDownIcon } from '@/components/primitives/icons';
 import styles from './Header.module.css';
 
 /**
- * Reusable header dropdown / mega-menu shell. Opens on hover, focus, and click;
- * closes on outside-click, Esc, route change, and focus leaving the group. The
- * panel content is provided as children, so the same shell serves the simple
+ * Reusable header dropdown / mega-menu shell. Opens on hover (mouse) and on
+ * click / Enter / Space (keyboard, via the trigger's native button click) —
+ * deliberately NOT on mere Tab-focus, so a keyboard user tabbing past the
+ * trigger to reach the rest of the page isn't forced through the entire
+ * panel first. Closes on outside-click, Esc (which also returns focus to the
+ * trigger), route change, and focus leaving the group. The panel content is
+ * provided as children, so the same shell serves the simple
  * «ابزارها/خدمات/شرکت» menus and the wide «محصولات» mega-menu.
  */
 export function NavDropdown({
@@ -23,6 +27,7 @@ export function NavDropdown({
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const pathname = usePathname();
 
@@ -35,7 +40,12 @@ export function NavDropdown({
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
+      // Return focus to the trigger — otherwise closing the panel from deep
+      // inside the mega-menu drops keyboard focus to <body>, stranding the user.
+      if (e.key === 'Escape') {
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
     };
     document.addEventListener('mousedown', onDoc);
     document.addEventListener('keydown', onKey);
@@ -64,13 +74,13 @@ export function NavDropdown({
       }}
     >
       <button
+        ref={triggerRef}
         type="button"
         className={styles.navTrigger}
         data-active={active ? '' : undefined}
         aria-haspopup="true"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        onFocus={openNow}
       >
         {label}
         <ChevronDownIcon size={16} className={styles.caret} />

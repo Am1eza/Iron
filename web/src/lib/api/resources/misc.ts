@@ -14,7 +14,3 @@ export const cooperationApi = {
 export const contactApi = {
   submit: (payload: unknown) => (API_MODE === 'mock' ? ok() : http.post<{ ok: true }>('/api/contact', payload)),
 };
-
-export const alertsApi = {
-  create: (payload: unknown) => (API_MODE === 'mock' ? ok() : http.post<{ ok: true }>('/api/alerts', payload)),
-};

@@ -296,6 +296,9 @@
   color: var(--neutral-0);
   font: var(--t-overline);
 }
+/* --gain-50 is a fixed light-bg/dark-text pair by design (regardless of site
+   theme) — every child must use --color-gain-text, never the ambient
+   theme-aware --color-text*, which flips to near-white in dark mode. */
 .splitSuggest {
   display: flex;
   align-items: flex-start;
@@ -305,14 +308,14 @@
   border-radius: var(--radius-sm);
   background: var(--gain-50);
   font: var(--t-caption);
-  color: var(--color-text);
+  color: var(--color-gain-text);
 }
 .splitSuggest svg {
   flex: none;
   margin-block-start: 2px;
   color: var(--color-gain);
 }
-.splitSuggest strong { color: var(--color-text-strong); font-weight: 700; }
+.splitSuggest strong { color: var(--color-gain-text); font-weight: 700; }
 
 /* ===== Composer ===== */
 .composer {

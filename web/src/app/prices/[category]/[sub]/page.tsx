@@ -3,7 +3,8 @@ import { notFound } from 'next/navigation';
 import { buildMetadata, productJsonLd } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { categories } from '@/lib/mock/fixtures';
-import { getRows, getSubRows, subName } from '@/lib/mock/catalogData';
+import { subName } from '@/lib/mock/catalogData';
+import { getRows, getSubRows } from '@/lib/server/catalog';
 import { CATEGORY_SUBS } from '@/lib/data/nav';
 import {
   Container,
@@ -61,8 +62,8 @@ export default async function SubCategoryPage({ params, searchParams }: Params) 
   const name = subName(category, sub);
   if (!name) notFound();
 
-  const rows = getSubRows(category, sub);
-  const allRows = getRows(category);
+  const rows = await getSubRows(category, sub);
+  const allRows = await getRows(category);
 
   const crumbs = [
     { label: 'خانه', href: routes.home() },

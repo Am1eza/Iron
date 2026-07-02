@@ -29,6 +29,15 @@
 }
 .up { color: var(--color-gain-text); }
 .down { color: var(--color-loss-text); }
+/* --color-gain-text/--color-loss-text are tuned for a light card surface and
+   fall below WCAG AA once the ambient surface goes dark (same root cause
+   fixed for MovementBadge in ui/PriceParts.module.css). */
+:root[data-theme='dark'] .up {
+  color: var(--color-gain);
+}
+:root[data-theme='dark'] .down {
+  color: var(--loss-400);
+}
 .deltaPeriod {
   font: var(--t-caption);
   color: var(--color-text-muted);
