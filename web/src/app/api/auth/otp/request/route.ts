@@ -7,7 +7,7 @@ import { authErrorResponse } from '@/lib/auth/apiError';
 import { assertSameOrigin } from '@/lib/auth/origin';
 
 /**
- * POST /api/auth/otp/request — issue + send an OTP (Kavenegar/dev) to a normalized
+ * POST /api/auth/otp/request — issue + send an OTP (SMS.ir/dev) to a normalized
  * mobile. Rate-limited (cooldown / per-hour cap / lockout) in the auth service.
  */
 export async function POST(req: NextRequest) {

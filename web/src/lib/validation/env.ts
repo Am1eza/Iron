@@ -22,8 +22,8 @@ const serverSchema = z
     DEEPSEEK_API_KEY: z.string().optional(),
     DEEPSEEK_BASE_URL: z.string().url().optional(),
     DEEPSEEK_MODEL: z.string().default('deepseek-chat'),
-    KAVENEGAR_API_KEY: z.string().optional(),
-    KAVENEGAR_SENDER: z.string().optional(),
+    SMSIR_API_KEY: z.string().optional(),
+    SMSIR_TEMPLATE_ID: z.string().optional(),
     TGJU_BASE_URL: z.string().optional(),
     SESSION_SECRET: z.string().optional(),
     DATABASE_URL: z.string().optional(),
@@ -32,7 +32,7 @@ const serverSchema = z
   // In live mode, required secrets must be present.
   .superRefine((env, ctx) => {
     if (publicEnv.NEXT_PUBLIC_API_MODE !== 'live') return;
-    const required: (keyof typeof env)[] = ['DEEPSEEK_API_KEY', 'DEEPSEEK_BASE_URL', 'KAVENEGAR_API_KEY', 'SESSION_SECRET'];
+    const required: (keyof typeof env)[] = ['DEEPSEEK_API_KEY', 'DEEPSEEK_BASE_URL', 'SMSIR_API_KEY', 'SMSIR_TEMPLATE_ID', 'SESSION_SECRET'];
     for (const key of required) {
       if (!env[key]) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key as string], message: `${String(key)} در حالت live الزامی است.` });

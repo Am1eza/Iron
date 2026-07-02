@@ -1,6 +1,6 @@
 /**
  * Auth domain types. Ahantime uses passwordless **mobile + OTP** auth (locked
- * product decision; Kavenegar SMS). Access is a short-lived JWT; sessions are
+ * product decision; SMS.ir Verify API). Access is a short-lived JWT; sessions are
  * refreshed with a rotating opaque refresh token. Roles drive RBAC for admin.
  */
 

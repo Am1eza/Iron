@@ -103,7 +103,7 @@ web/
 - a11y = **WCAG 2.2 AA** (`design/accessibility.md`).
 
 ## 9. Environment (`.env.example`)
-`NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_API_MODE`, `DEEPSEEK_API_KEY` + `DEEPSEEK_BASE_URL` (relay), `KAVENEGAR_API_KEY`, `TGJU_*`, `JWT/SESSION_SECRET`. Secrets are server-only (no `NEXT_PUBLIC_` prefix).
+`NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_API_MODE`, `DEEPSEEK_API_KEY` + `DEEPSEEK_BASE_URL` (relay), `SMSIR_API_KEY` + `SMSIR_TEMPLATE_ID`, `TGJU_*`, `JWT/SESSION_SECRET`. Secrets are server-only (no `NEXT_PUBLIC_` prefix).
 
 ## 10. Scripts
 `pnpm dev` · `pnpm build` · `pnpm start` · `pnpm lint` · `pnpm typecheck` · `pnpm test` · `pnpm test:e2e` · `pnpm format`.

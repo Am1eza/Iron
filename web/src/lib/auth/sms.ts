@@ -1,7 +1,7 @@
 /**
- * SMS delivery — Kavenegar in live mode (the locked provider), a console logger in
- * dev so the OTP flow works without credentials. Server-only. Never throws to the
- * caller in a way that leaks provider details to the client.
+ * SMS delivery — SMS.ir Verify API in live mode (the locked provider), a console
+ * logger in dev so the OTP flow works without credentials. Server-only. Never
+ * throws to the caller in a way that leaks provider details to the client.
  */
 import { reportError } from '@/lib/errors/report';
 
@@ -13,32 +13,50 @@ export interface SmsResult {
 
 /** Send an OTP code to a mobile. Returns ok even on provider hiccups we retry. */
 export async function sendOtpSms(mobile: string, code: string): Promise<SmsResult> {
-  const apiKey = process.env.KAVENEGAR_API_KEY;
-  const template = process.env.KAVENEGAR_OTP_TEMPLATE ?? 'ahantime-otp';
+  const apiKey = process.env.SMSIR_API_KEY;
+  const templateId = process.env.SMSIR_TEMPLATE_ID;
 
   // Missing credentials in production is a deploy misconfiguration, not a valid
   // "dev mode" — fail loudly instead of silently claiming an SMS was sent (the
   // caller would otherwise tell every user "a code was texted to you" while
   // nobody can ever receive one).
-  if (!apiKey && process.env.NODE_ENV === 'production') {
-    reportError(new Error('KAVENEGAR_API_KEY missing in production'), { scope: 'sms' });
+  if ((!apiKey || !templateId) && process.env.NODE_ENV === 'production') {
+    reportError(new Error('SMSIR_API_KEY or SMSIR_TEMPLATE_ID missing in production'), {
+      scope: 'sms',
+    });
     return { ok: false };
   }
 
   // Dev / unconfigured: log instead of sending; surface the code for local testing.
-  if (!apiKey) {
+  if (!apiKey || !templateId) {
     // eslint-disable-next-line no-console
     console.info(`[sms:dev] OTP for ${mobile} = ${code}`);
     return { ok: true, devCode: code };
   }
 
   try {
-    // Kavenegar Verify Lookup (token-based OTP template).
-    const url = `https://api.kavenegar.com/v1/${apiKey}/verify/lookup.json`;
-    const params = new URLSearchParams({ receptor: mobile, token: code, template });
-    const res = await fetch(`${url}?${params.toString()}`, { method: 'POST' });
+    // SMS.ir Verify (templated OTP) API.
+    const res = await fetch('https://api.sms.ir/v1/send/verify', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'text/plain',
+        'x-api-key': apiKey,
+      },
+      body: JSON.stringify({
+        mobile,
+        templateId: Number(templateId),
+        parameters: [{ name: 'Code', value: code }],
+      }),
+    });
     if (!res.ok) {
-      reportError(new Error(`kavenegar ${res.status}`), { scope: 'sms' });
+      reportError(new Error(`sms.ir ${res.status}`), { scope: 'sms' });
+      return { ok: false };
+    }
+    // sms.ir returns { status, message, data } — status 1 means accepted.
+    const body: { status?: number } | null = await res.json().catch(() => null);
+    if (body && typeof body.status === 'number' && body.status !== 1) {
+      reportError(new Error(`sms.ir status ${body.status}`), { scope: 'sms' });
       return { ok: false };
     }
     return { ok: true };
