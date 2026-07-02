@@ -26,7 +26,7 @@
   --emerald-400:#15A06F; --emerald-500:#0F8A63; --emerald-600:#0B6B4F; --emerald-700:#095840;
   --emerald-800:#074533; --emerald-900:#053425;
   --gain-50:#E9F8EF; --gain-100:#CBEFD8; --gain-500:#15A34A; --gain-600:#128B40; --gain-700:#0E6E33;
-  --loss-50:#FDECEB; --loss-100:#FAD2CF; --loss-500:#E0322B; --loss-600:#C42822; --loss-700:#A11F1B;
+  --loss-50:#FDECEB; --loss-100:#FAD2CF; --loss-400:#EA6259; --loss-500:#E0322B; --loss-600:#C42822; --loss-700:#A11F1B;
   /* Steel — cool gunmetal for the "factory" panels/blocks (distinct from neutral) */
   --steel-800:#1C242E; --steel-850:#161D26; --steel-900:#111820; --steel-950:#0C1218;
 
@@ -96,6 +96,10 @@
   /* ===== LAYOUT ===== */
   --container-wide:1440px; --container-max:1280px; --container-narrow:768px; --container-prose:720px;
   --page-x:1rem;
+  /* Fixed bottom tab bar's real footprint (BottomTabBar.module.css) — 0 above
+     the 767px breakpoint where the bar doesn't render. Any fixed bottom-anchored
+     UI (toasts, popups) must add this so it never collides with the bar. */
+  --bottom-bar-h:0px;
 
   /* ===== MOTION ===== */
   --dur-instant:0ms; --dur-fast:140ms; --dur-base:200ms; --dur-slow:280ms;
@@ -108,11 +112,15 @@
 
 @media (min-width:768px){ :root{ --page-x:1.5rem; } }
 @media (min-width:1024px){ :root{ --page-x:2rem; } }
+@media (max-width:767px){ :root{ --bottom-bar-h:calc(60px + env(safe-area-inset-bottom)); } }
 
 :root[data-theme="dark"]{
   --color-bg:var(--neutral-950); --color-surface:var(--neutral-900); --color-surface-raised:var(--neutral-800);
+  /* mirrors the light theme's sunken===bg relationship (both neutral-50 there) */
+  --color-surface-sunken:var(--neutral-950);
   --color-surface-inverse:var(--neutral-900); --color-hairline:rgba(255,255,255,.08); --color-border-strong:var(--neutral-700);
   --color-text:var(--neutral-100); --color-text-strong:var(--neutral-0); --color-text-muted:var(--neutral-400);
+  --color-text-placeholder:var(--neutral-500);
   --color-accent:var(--emerald-400); --color-accent-text:var(--emerald-300); --color-accent-tint:rgba(15,138,99,.16);
   --color-action:var(--emerald-500); --color-on-action:var(--neutral-0); --color-action-hover:var(--emerald-400); --color-action-press:var(--emerald-600); --color-action-text:var(--emerald-300); --color-focus:var(--emerald-400);
   --color-overlay:rgba(0,0,0,.6);

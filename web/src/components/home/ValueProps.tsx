@@ -1,5 +1,6 @@
 import { SparkIcon, TagIcon, BellIcon, UserIcon, BankIcon, ShieldIcon } from '@/components/primitives/icons';
 import { Reveal } from '@/components/motion/Reveal';
+import { toPersianDigits } from '@/lib/utils/format';
 import styles from './ValueProps.module.css';
 
 /**
@@ -63,6 +64,9 @@ export function ValueProps() {
                 </span>
                 <h3 className={styles.featuredTitle}>{title}</h3>
                 <p className={styles.featuredText}>{text}</p>
+                <span className={styles.featuredIndex} aria-hidden="true">
+                  {toPersianDigits(String(i + 1).padStart(2, '0'))}
+                </span>
               </article>
             </Reveal>
           ))}

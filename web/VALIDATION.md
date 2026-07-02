@@ -52,7 +52,7 @@ Encodes the acceptance-criteria constants:
 
 ## 9. Environment validation (`env.ts`)
 - **Public** vars validated always (`NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_API_MODE`).
-- **Server** vars validated lazily server-side; in **`live`** mode required secrets (DeepSeek, Kavenegar, session) are enforced; in **`mock`** they're optional. Invalid → throw at startup.
+- **Server** vars validated lazily server-side; in **`live`** mode required secrets (DeepSeek, SMS.ir, session) are enforced; in **`mock`** they're optional. Invalid → throw at startup.
 
 ## 10. URL / param validation
 Catalog filters and search params are parsed with a tolerant schema → **safe defaults** on bad input (never crash on a hand-edited URL); the canonical view-state stays in the URL (IA §3.3).

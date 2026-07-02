@@ -21,6 +21,21 @@
 .down.movePill {
   background: var(--loss-50);
 }
+/* --color-gain-text/--color-loss-text are tuned for the .movePill's fixed-light
+   tint (never themed — see BulkQuote/AdvisorChat's matching comments) and fall
+   below WCAG AA once rendered bare on a surface that itself goes dark. Cover
+   both cases the plain (non-pill) badge meets a dark background: the always-
+   dark gunmetal panel (`onPanel`, any site theme) and the ambient surface in
+   dark site theme. The tinted `.movePill` is never affected — it keeps its own
+   fixed light background in both themes, so it's excluded from both overrides. */
+.up.onPanel,
+:root[data-theme='dark'] .up:not(.movePill) {
+  color: var(--color-gain);
+}
+.down.onPanel,
+:root[data-theme='dark'] .down:not(.movePill) {
+  color: var(--loss-400);
+}
 .flat {
   color: var(--color-text-muted);
 }

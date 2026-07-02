@@ -154,12 +154,16 @@
   color: var(--color-text-strong);
 }
 
-/* Cheapest — gain green (distinct from brand emerald) */
+/* Cheapest — gain green (distinct from brand emerald). --gain-50/--color-gain-text
+   are a fixed light-bg/dark-text pair (by design, regardless of site theme), so
+   EVERY cell in this row must use the matching text color — never the ambient
+   theme-aware --color-text*, which flips to near-white in dark mode and goes
+   invisible on this always-light tint. */
 .bestRow {
   background: var(--gain-50);
 }
-.bestRow th,
-.bestRow .lineCost {
+.table tbody .bestRow th,
+.table tbody .bestRow td {
   color: var(--color-gain-text);
 }
 .bestTag {
@@ -265,6 +269,8 @@
 }
 
 /* ===== Suggestion + actions ===== */
+/* Same fixed light-bg/dark-text pairing as .bestRow above — never the ambient
+   theme-aware --color-text*. */
 .suggest {
   display: flex;
   align-items: flex-start;
@@ -274,7 +280,7 @@
   border-radius: var(--radius-md);
   background: var(--gain-50);
   font: var(--t-body-sm);
-  color: var(--color-text);
+  color: var(--color-gain-text);
 }
 .suggest svg {
   flex: none;
@@ -282,7 +288,7 @@
   color: var(--color-gain);
 }
 .suggest strong {
-  color: var(--color-text-strong);
+  color: var(--color-gain-text);
   font-weight: 700;
 }
 

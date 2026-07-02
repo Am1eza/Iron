@@ -11,16 +11,21 @@ export function MovementBadge({
   dir,
   pct,
   pill = false,
+  onPanel = false,
 }: {
   dir: MovementDir;
   pct?: number;
   pill?: boolean;
+  /** Set on the dark gunmetal "steel terminal" panels (PriceBoard's aside, etc.)
+   *  — the plain gain/loss text colors are tuned for light surfaces and fall
+   *  below WCAG AA against a permanently-dark background. */
+  onPanel?: boolean;
 }) {
   const arrow = dir === 'up' ? '▲' : dir === 'down' ? '▼' : '—';
   const cls = dir === 'up' ? styles.up : dir === 'down' ? styles.down : styles.flat;
   const label = dir === 'up' ? 'افزایش' : dir === 'down' ? 'کاهش' : 'بدون تغییر';
   return (
-    <span className={`${styles.move} ${cls} ${pill ? styles.movePill : ''} tnum`}>
+    <span className={`${styles.move} ${cls} ${pill ? styles.movePill : ''} ${onPanel ? styles.onPanel : ''} tnum`}>
       <span aria-hidden="true">{arrow}</span>
       <span className="visually-hidden">{label} </span>
       {formatMovement(pct)}

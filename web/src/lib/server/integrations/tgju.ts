@@ -42,10 +42,13 @@ function normalize(key: Exclude<MarketKey, 'billet'>, raw: number): number {
 export async function fetchTgju(): Promise<Partial<Record<MarketKey, number>> | null> {
   const base = process.env.TGJU_BASE_URL;
   if (!base) return null; // not configured — dev/seed values keep serving
+  const apiKey = process.env.TGJU_API_KEY;
   try {
     const res = await fetch(base, {
       signal: AbortSignal.timeout(5000),
-      headers: { accept: 'application/json' },
+      // TGJU_API_KEY is optional — some relays front the public tgju feed
+      // with their own auth; a bare tgju.org JSON endpoint needs none.
+      headers: { accept: 'application/json', ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}) },
       cache: 'no-store',
     });
     if (!res.ok) throw new Error(`tgju HTTP ${res.status}`);

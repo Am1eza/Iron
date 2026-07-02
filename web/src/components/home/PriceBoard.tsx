@@ -37,7 +37,7 @@ export function PriceBoard({ rows }: { rows: PriceRow[] }) {
                   <CountUp value={r.current.price} />
                 </span>
                 <span className={styles.unit}>تومان</span>
-                <MovementBadge dir={r.current.movementDir} pct={r.current.movementPct} />
+                <MovementBadge dir={r.current.movementDir} pct={r.current.movementPct} onPanel />
               </span>
             </Link>
           </li>

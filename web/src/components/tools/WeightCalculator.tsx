@@ -59,8 +59,7 @@ const PROFILES: ProfileSpec[] = [
       if (!d || !len) return null;
       return ((d * d) / 162) * len;
     },
-    formula: (v) =>
-      `وزن هر متر = (قطر² ÷ ۱۶۲) = (${toPersianDigits(v.d || 0)}² ÷ ۱۶۲)`,
+    formula: (v) => `(قطر² ÷ ۱۶۲) = (${toPersianDigits(v.d || 0)}² ÷ ۱۶۲)`,
   },
   {
     key: 'plate',
@@ -81,7 +80,7 @@ const PROFILES: ProfileSpec[] = [
       return len * w * t * STEEL_DENSITY;
     },
     formula: (v) =>
-      `وزن هر برگ = طول × عرض × ضخامت × ۷٫۸۵ = ${toPersianDigits(v.len || 0)} × ${toPersianDigits(v.w || 0)} × ${toPersianDigits(v.t || 0)} × ۷٫۸۵`,
+      `طول × عرض × ضخامت × ۷٫۸۵ = ${toPersianDigits(v.len || 0)} × ${toPersianDigits(v.w || 0)} × ${toPersianDigits(v.t || 0)} × ۷٫۸۵`,
   },
   {
     key: 'pipe',
@@ -103,7 +102,7 @@ const PROFILES: ProfileSpec[] = [
       return (od - t) * t * 0.02466 * len;
     },
     formula: (v) =>
-      `وزن هر متر = (قطر خارجی − ضخامت) × ضخامت × ۰٫۰۲۴۶۶ = (${toPersianDigits(v.od || 0)} − ${toPersianDigits(v.t || 0)}) × ${toPersianDigits(v.t || 0)} × ۰٫۰۲۴۶۶`,
+      `(قطر خارجی − ضخامت) × ضخامت × ۰٫۰۲۴۶۶ = (${toPersianDigits(v.od || 0)} − ${toPersianDigits(v.t || 0)}) × ${toPersianDigits(v.t || 0)} × ۰٫۰۲۴۶۶`,
   },
   {
     key: 'flat',
@@ -124,7 +123,7 @@ const PROFILES: ProfileSpec[] = [
       return w * t * 0.00785 * len;
     },
     formula: (v) =>
-      `وزن هر متر = عرض × ضخامت × ۰٫۰۰۷۸۵ = ${toPersianDigits(v.w || 0)} × ${toPersianDigits(v.t || 0)} × ۰٫۰۰۷۸۵`,
+      `عرض × ضخامت × ۰٫۰۰۷۸۵ = ${toPersianDigits(v.w || 0)} × ${toPersianDigits(v.t || 0)} × ۰٫۰۰۷۸۵`,
   },
 ];
 
@@ -296,8 +295,9 @@ export function WeightCalculator() {
             {perPiece !== null ? (
               <p className={styles.formula}>
                 <span className={styles.formulaLabel}>فرمول:</span>{' '}
-                {profile.formula(parsed)}
-                {profile.perMeter ? ' × طول' : ''}
+                {profile.perMeter
+                  ? `وزن هر متر = ${profile.formula(parsed)} → وزن هر ${profile.pieceWord} = وزن هر متر × طول`
+                  : `وزن هر ${profile.pieceWord} = ${profile.formula(parsed)}`}
               </p>
             ) : null}
 

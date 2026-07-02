@@ -9,7 +9,7 @@ import { rateLimit } from '@/lib/server/utils/rateLimit';
 import { withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 
 /**
- * POST /api/auth/otp/request — issue + send an OTP (Kavenegar/dev) to a normalized
+ * POST /api/auth/otp/request — issue + send an OTP (SMS.ir/dev) to a normalized
  * mobile. Per-mobile throttling (cooldown / per-hour cap / lockout) lives in the
  * auth service; the IP limit here stops one client from spraying OTP requests
  * across many DIFFERENT mobile numbers (SMS-cost / toll-fraud abuse) which the
