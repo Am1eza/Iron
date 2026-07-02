@@ -10,7 +10,7 @@ import { seedDatabase } from '@/lib/server/db/seed';
 import * as schema from '@/lib/server/db/schema';
 import type { Db } from '@/lib/server/db/client';
 import { listCategories, tableRows, findSkuRow, skuHistory, searchSkus } from '@/lib/server/repos/catalogRepo';
-import { savePrice, recomputeStaleness } from '@/lib/server/services/pricing.service';
+import { savePrice, savePrices, recomputeStaleness } from '@/lib/server/services/pricing.service';
 import { upsertMarketValue, listMarketValues, flagTgjuStale } from '@/lib/server/repos/marketRepo';
 
 let db: Db;
@@ -100,6 +100,26 @@ describe('savePrice transaction', () => {
 
     const fresh = await findSkuRow(sku.slug);
     expect(fresh!.current.isStale).toBe(true);
+  });
+
+  it('bulk save isolates a bad row — every other row still commits (EC-M1.3)', async () => {
+    const rows = await tableRows('rebar');
+    const [good1, good2] = rows;
+    const results = await savePrices('u-admin', [
+      { skuId: good1!.id, price: good1!.current.price + 500 },
+      { skuId: 'sku-does-not-exist', price: 10_000 },
+      { skuId: good2!.id, price: good2!.current.price + 700 },
+    ]);
+
+    expect(results).toHaveLength(3);
+    expect(results[0]).toMatchObject({ ok: true, skuId: good1!.id });
+    expect(results[1]).toMatchObject({ ok: false, skuId: 'sku-does-not-exist' });
+    expect(results[2]).toMatchObject({ ok: true, skuId: good2!.id });
+
+    const refreshed1 = await findSkuRow(good1!.slug);
+    const refreshed2 = await findSkuRow(good2!.slug);
+    expect(refreshed1!.current.price).toBe(good1!.current.price + 500);
+    expect(refreshed2!.current.price).toBe(good2!.current.price + 700);
   });
 });
 

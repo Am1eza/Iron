@@ -60,6 +60,17 @@ async function runExclusive(job: Job): Promise<void> {
   }
 }
 
+/**
+ * No SIGTERM drain: on container shutdown, an in-flight `job.run()` is cut
+ * off mid-work rather than awaited to completion. Accepted, not fixed —
+ * every job here is safe to interrupt and re-run: `savePrice`/alert-claim
+ * use atomic UPDATE/advisory-lock guards, `marketPoll`/`staleness`/
+ * `proformaExpire`/`cleanup` just recompute derived state from source rows,
+ * and the advisory lock itself is released by `client.release()` returning
+ * the connection to the pool (Postgres also drops session-scoped locks when
+ * a session ends), so a killed replica never leaves a job permanently
+ * wedged for the next one to pick up.
+ */
 export function startJobs(jobs: Job[]): void {
   if (started) return;
   started = true;

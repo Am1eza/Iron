@@ -10,7 +10,7 @@ import { seedDatabase } from '@/lib/server/db/seed';
 import * as schema from '@/lib/server/db/schema';
 import type { Db } from '@/lib/server/db/client';
 import { tableRows } from '@/lib/server/repos/catalogRepo';
-import { createAlert, alertsForUser } from '@/lib/server/repos/alertsRepo';
+import { createAlert, alertsForUser, claimAlertForTrigger } from '@/lib/server/repos/alertsRepo';
 import { evaluateAlerts } from '@/lib/server/services/alerts.service';
 import { addFavorite, favoritesForUser, removeFavorite } from '@/lib/server/repos/favoritesRepo';
 import { joinClub, clubStatus, recomputeTier } from '@/lib/server/repos/clubRepo';
@@ -58,6 +58,56 @@ describe('alerts', () => {
     const sms = await db.select().from(schema.smsLog).where(eq(schema.smsLog.kind, 'alert'));
     expect(sms.length).toBe(1);
     expect(sms[0]!.status).toBe('dev_logged');
+  });
+
+  it('merges a duplicate create into the existing active alert instead of inserting a second row (VR-C1)', async () => {
+    const rows = await tableRows('ibeam');
+    const sku = rows[1]!;
+    const spec = {
+      userId: USER,
+      target: { type: 'sku' as const, skuId: sku.id },
+      op: 'above' as const,
+      threshold: sku.current.price + 5000,
+      channel: 'sms' as const,
+    };
+
+    const first = await createAlert(spec);
+    expect(first.merged).toBe(false);
+
+    // A double-submit (same user/target/op/threshold, still active) merges.
+    const second = await createAlert(spec);
+    expect(second.merged).toBe(true);
+    expect(second.alert.id).toBe(first.alert.id);
+
+    const mine = await alertsForUser(USER);
+    const matching = mine.filter(
+      (a) => a.target.type === 'sku' && a.target.skuId === sku.id && a.threshold === spec.threshold,
+    );
+    expect(matching).toHaveLength(1);
+  });
+
+  it('claimAlertForTrigger is a one-winner compare-and-swap (concurrent evaluators cannot double-fire)', async () => {
+    const rows = await tableRows('ibeam');
+    const sku = rows[2]!;
+    const created = await createAlert({
+      userId: USER,
+      target: { type: 'sku', skuId: sku.id },
+      op: 'below',
+      threshold: sku.current.price + 1000,
+      channel: 'sms',
+    });
+
+    // Simulate two evaluators racing to claim the same crossing concurrently.
+    const [a, b] = await Promise.all([
+      claimAlertForTrigger(created.alert.id),
+      claimAlertForTrigger(created.alert.id),
+    ]);
+    const winners = [a, b].filter((r) => r !== null);
+    expect(winners).toHaveLength(1);
+    expect(winners[0]!.status).toBe('triggered');
+
+    // Already triggered — a third claim attempt also loses.
+    expect(await claimAlertForTrigger(created.alert.id)).toBeNull();
   });
 });
 
