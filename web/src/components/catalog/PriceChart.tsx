@@ -52,6 +52,10 @@ export function PriceChart({ series, unit = 'تومان' }: { series: number[]; 
           <span className={`${styles.nowVal} tnum`}>{formatToman(last, false)}</span>
           <span className={styles.nowUnit}>{unit}</span>
           <span className={`${styles.delta} ${up ? styles.up : styles.down} tnum`}>{deltaText}</span>
+          {/* the daily movement badge elsewhere on the page uses the same up/down
+              language for a different period — label this one so the two never
+              read as contradicting each other */}
+          <span className={styles.deltaPeriod}>طی {rangeLabel}</span>
         </div>
         <div className={styles.tabs} role="group" aria-label="بازهٔ زمانی">
           {RANGES.map((r) => (

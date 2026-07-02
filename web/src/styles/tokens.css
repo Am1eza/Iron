@@ -96,6 +96,10 @@
   /* ===== LAYOUT ===== */
   --container-wide:1440px; --container-max:1280px; --container-narrow:768px; --container-prose:720px;
   --page-x:1rem;
+  /* Fixed bottom tab bar's real footprint (BottomTabBar.module.css) — 0 above
+     the 767px breakpoint where the bar doesn't render. Any fixed bottom-anchored
+     UI (toasts, popups) must add this so it never collides with the bar. */
+  --bottom-bar-h:0px;
 
   /* ===== MOTION ===== */
   --dur-instant:0ms; --dur-fast:140ms; --dur-base:200ms; --dur-slow:280ms;
@@ -108,6 +112,7 @@
 
 @media (min-width:768px){ :root{ --page-x:1.5rem; } }
 @media (min-width:1024px){ :root{ --page-x:2rem; } }
+@media (max-width:767px){ :root{ --bottom-bar-h:calc(60px + env(safe-area-inset-bottom)); } }
 
 :root[data-theme="dark"]{
   --color-bg:var(--neutral-950); --color-surface:var(--neutral-900); --color-surface-raised:var(--neutral-800);

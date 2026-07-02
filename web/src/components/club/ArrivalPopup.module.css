@@ -6,7 +6,8 @@
 
 .root {
   position: fixed;
-  inset-block-end: var(--space-4);
+  /* clear the fixed bottom tab bar (below 768px) plus a breathing gap */
+  inset-block-end: calc(var(--bottom-bar-h) + var(--space-4));
   inset-inline-start: var(--space-4);
   z-index: var(--z-toast, 500);
   inline-size: min(360px, calc(100vw - 2 * var(--space-4)));

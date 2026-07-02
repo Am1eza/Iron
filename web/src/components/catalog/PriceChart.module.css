@@ -29,6 +29,10 @@
 }
 .up { color: var(--color-gain-text); }
 .down { color: var(--color-loss-text); }
+.deltaPeriod {
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}
 
 .tabs {
   display: inline-flex;
