@@ -18,7 +18,7 @@ export function WarehouseManager() {
   const qc = useQueryClient();
   const [form, setForm] = useState({ mobile: '', product: '', sizeLabel: '', quantityTons: '', monthlyFeeToman: '' });
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['admin', 'warehouse'],
     queryFn: () => adminApi.warehouse(),
   });
@@ -31,7 +31,14 @@ export function WarehouseManager() {
       toast.success('وضعیت کالا به‌روزرسانی شد.');
       invalidate();
     },
-    onError: () => toast.error('به‌روزرسانی ناموفق بود.'),
+    // The <select> below offers every status (including ones "behind" the
+    // current one) — surface the server's specific message (e.g. the
+    // backward-transition guard) instead of a generic failure, and
+    // invalidate so the <select> snaps back to the real (unchanged) status.
+    onError: (err) => {
+      toast.error(err instanceof ApiError ? err.message : 'به‌روزرسانی ناموفق بود.');
+      invalidate();
+    },
   });
   const create = useMutation({
     mutationFn: () =>
@@ -60,6 +67,13 @@ export function WarehouseManager() {
     <div style={{ display: 'grid', gap: 'var(--space-5)' }}>
       {isLoading ? (
         <TableSkeleton rows={5} cols={6} />
+      ) : isError ? (
+        <EmptyState
+          size="section"
+          tone="error"
+          headline="بارگذاری انبار ناموفق بود."
+          primary={{ label: 'تلاش دوباره', onClick: () => void refetch() }}
+        />
       ) : items.length === 0 ? (
         <EmptyState size="section" headline="انبار خالی است" body="کالای امانی مشتریان اینجا ثبت می‌شود." />
       ) : (

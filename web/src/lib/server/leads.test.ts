@@ -14,7 +14,14 @@ import { tableRows } from '@/lib/server/repos/catalogRepo';
 import { createLead, proformaSmsText } from '@/lib/server/services/leads.service';
 import { findProformaByRef } from '@/lib/server/repos/leadsRepo';
 import { requestsForUser, insertRequest } from '@/lib/server/repos/requestsRepo';
-import { createOrder, findOrderByRef, updateOrderStatus } from '@/lib/server/repos/ordersRepo';
+import {
+  createOrder,
+  findOrderByRef,
+  updateOrderStatus,
+  createWarehouseItem,
+  updateWarehouseItem,
+  InvalidStatusTransitionError,
+} from '@/lib/server/repos/ordersRepo';
 import { nextRef } from '@/lib/server/utils/refs';
 import { quoteValidUntil, jalaliStamp } from '@/lib/server/utils/jalali';
 import type { AuthUser } from '@/lib/auth/types';
@@ -142,6 +149,27 @@ describe('orders & tracking', () => {
 
     const advanced = await updateOrderStatus(ref, 'in_transit');
     expect(advanced?.status).toBe('in_transit');
+  });
+
+  it('rejects a backward order-status transition (delivered -> registered)', async () => {
+    const ref = await nextRef('OR');
+    await createOrder({ ref, userId: user.id, items: [{ skuId: '', name: 'تیرآهن', qty: 2, unit: 'branch' }] });
+    await updateOrderStatus(ref, 'delivered');
+    await expect(updateOrderStatus(ref, 'registered')).rejects.toThrow(InvalidStatusTransitionError);
+    // Rejected transition must not have partially applied.
+    const found = await findOrderByRef(ref);
+    expect(found?.status).toBe('delivered');
+  });
+
+  it('rejects a backward warehouse-status transition (released -> stored)', async () => {
+    const item = await createWarehouseItem({
+      ref: await nextRef('WH'),
+      userId: user.id,
+      product: 'ورق سیاه',
+      quantityTons: 5,
+    });
+    await updateWarehouseItem(item.id, { status: 'released' });
+    await expect(updateWarehouseItem(item.id, { status: 'stored' })).rejects.toThrow(InvalidStatusTransitionError);
   });
 });
 

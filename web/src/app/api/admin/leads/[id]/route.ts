@@ -42,8 +42,12 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }
     callbackAt: v.data.callbackAt === undefined ? undefined : v.data.callbackAt ? new Date(v.data.callbackAt) : null,
   });
   await audit(auth.session.id, 'lead.update', { type: 'lead', id }, { status: before.status }, v.data);
-  // A won lead advances the customer's club tier.
-  if (v.data.status === 'won' && lead?.userId) void recomputeTier(lead.userId).catch(() => {});
+  // Recompute on any change into OR out of 'won' — recomputeTier derives
+  // the tier fresh from the live won-lead count and downgrades correctly
+  // when it's lower than stored, so an admin reverting a mis-marked 'won'
+  // lead (e.g. back to 'lost') un-advances the tier too, not just upgrades.
+  const wonChanged = v.data.status !== undefined && (v.data.status === 'won' || before.status === 'won');
+  if (wonChanged && lead?.userId) void recomputeTier(lead.userId).catch(() => {});
   return NextResponse.json({ lead });
 }
 

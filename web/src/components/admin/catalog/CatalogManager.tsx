@@ -79,6 +79,17 @@ export function CatalogManager() {
     return (hit?.price as { price?: number } | null)?.price;
   };
 
+  if (cats.isError) {
+    return (
+      <EmptyState
+        size="section"
+        tone="error"
+        headline="بارگذاری دسته‌ها ناموفق بود."
+        primary={{ label: 'تلاش دوباره', onClick: () => void cats.refetch() }}
+      />
+    );
+  }
+
   return (
     <div style={{ display: 'grid', gap: 'var(--space-4)' }}>
       <div className={ui.toolbar}>
@@ -144,6 +155,13 @@ export function CatalogManager() {
         <EmptyState size="section" headline="یک دسته انتخاب کنید" body="کالاهای هر دسته اینجا فهرست می‌شود." />
       ) : skus.isLoading ? (
         <TableSkeleton rows={6} cols={6} />
+      ) : skus.isError ? (
+        <EmptyState
+          size="section"
+          tone="error"
+          headline="بارگذاری کالاها ناموفق بود."
+          primary={{ label: 'تلاش دوباره', onClick: () => void skus.refetch() }}
+        />
       ) : rows.length === 0 ? (
         <EmptyState size="section" headline="کالایی نیست" body="با «کالای جدید» اضافه کنید." />
       ) : (

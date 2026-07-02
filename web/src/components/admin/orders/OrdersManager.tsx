@@ -15,7 +15,7 @@ export function OrdersManager() {
   const qc = useQueryClient();
   const [status, setStatus] = useState('');
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['admin', 'orders', status],
     queryFn: () => adminApi.orders({ status: status || undefined }),
   });
@@ -46,6 +46,13 @@ export function OrdersManager() {
 
       {isLoading ? (
         <TableSkeleton rows={4} cols={4} />
+      ) : isError ? (
+        <EmptyState
+          size="section"
+          tone="error"
+          headline="بارگذاری سفارش‌ها ناموفق بود."
+          primary={{ label: 'تلاش دوباره', onClick: () => void refetch() }}
+        />
       ) : orders.length === 0 ? (
         <EmptyState size="section" headline="سفارشی نیست" body="سفارش‌ها از سرنخ‌های موفق ساخته می‌شوند (CRM ← تبدیل به سفارش)." />
       ) : (

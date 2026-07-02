@@ -26,7 +26,7 @@ export function UsersTable() {
     return () => clearTimeout(t);
   }, [search]);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['admin', 'users', role, q],
     queryFn: () => adminApi.users({ role: role || undefined, q: q || undefined }),
   });
@@ -65,6 +65,13 @@ export function UsersTable() {
         </div>
         {isLoading ? (
           <TableSkeleton rows={6} cols={5} />
+        ) : isError ? (
+          <EmptyState
+            size="section"
+            tone="error"
+            headline="بارگذاری کاربران ناموفق بود."
+            primary={{ label: 'تلاش دوباره', onClick: () => void refetch() }}
+          />
         ) : users.length === 0 ? (
           <EmptyState size="section" headline="کاربری نیست" body="با این فیلتر کاربری پیدا نشد." />
         ) : (
@@ -127,7 +134,7 @@ export function UsersTable() {
 function ClubSection() {
   const toast = useToast();
   const qc = useQueryClient();
-  const { data, isLoading } = useQuery({ queryKey: ['admin', 'club'], queryFn: () => adminApi.clubMembers() });
+  const { data, isLoading, isError, refetch } = useQuery({ queryKey: ['admin', 'club'], queryFn: () => adminApi.clubMembers() });
   const setTier = useMutation({
     mutationFn: ({ id, tier }: { id: string; tier: 'iron' | 'steel' | 'poolad' }) => adminApi.setClubTier(id, tier),
     onSuccess: () => {
@@ -144,6 +151,13 @@ function ClubSection() {
       <Heading level={3}>باشگاه مشتریان</Heading>
       {isLoading ? (
         <TableSkeleton rows={3} cols={4} />
+      ) : isError ? (
+        <EmptyState
+          size="section"
+          tone="error"
+          headline="بارگذاری باشگاه ناموفق بود."
+          primary={{ label: 'تلاش دوباره', onClick: () => void refetch() }}
+        />
       ) : members.length === 0 ? (
         <p className={ui.muted}>هنوز عضوی ندارد.</p>
       ) : (
