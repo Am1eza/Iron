@@ -88,7 +88,12 @@
   padding-inline: var(--space-5);
   border: 0;
   border-radius: var(--radius-pill);
-  background: var(--color-accent);
+  /* --color-action (emerald-550), not --color-accent (emerald-500) — see
+     tokens.css:40's own comment: white text on -500 is 4.34:1, just under
+     AA's 4.5:1 (caught by an automated axe sweep in
+     e2e/accessibility.spec.ts). -action exists specifically for white text
+     on a filled accent background; this button just wasn't using it. */
+  background: var(--color-action);
   color: var(--color-on-action);
   font: var(--t-button);
   cursor: pointer;

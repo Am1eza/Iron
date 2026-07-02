@@ -112,12 +112,18 @@
 }
 .navLink:hover,
 .navTrigger:hover {
-  color: var(--color-accent);
+  color: var(--color-accent-text);
   text-decoration: none;
 }
 .navLink[data-active],
 .navTrigger[data-active] {
-  color: var(--color-accent);
+  /* --color-accent-text, not --color-accent — the latter is tuned for
+     larger fills/icons, not ~15px text; it fails WCAG AA contrast
+     (4.33:1, needs 4.5:1) against the header background (caught by an
+     automated axe sweep in e2e/accessibility.spec.ts). Every other text
+     usage in the app already goes through this token (tokens.css:149's
+     global `a` rule, PriceParts, …) — this was the one place that didn't. */
+  color: var(--color-accent-text);
 }
 .navLink[data-active]::after,
 .navTrigger[data-active]::after {

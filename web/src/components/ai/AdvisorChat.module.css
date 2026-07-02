@@ -102,7 +102,9 @@
   inline-size: 26px;
   block-size: 26px;
   border-radius: var(--radius-circle);
-  background: var(--color-accent);
+  /* --color-action, not --color-accent — see tokens.css:40; .estCta below
+     already gets this right, this and the next two rules didn't. */
+  background: var(--color-action);
   color: var(--color-on-action);
   margin-block-end: 2px;
 }
@@ -131,7 +133,7 @@
   border-end-start-radius: var(--radius-xs);
 }
 .user {
-  background: var(--color-accent);
+  background: var(--color-action);
   color: var(--color-on-action);
   border-end-end-radius: var(--radius-xs);
 }
@@ -351,7 +353,7 @@
   block-size: 48px;
   border: 0;
   border-radius: var(--radius-circle);
-  background: var(--color-accent);
+  background: var(--color-action);
   color: var(--color-on-action);
   cursor: pointer;
 }
