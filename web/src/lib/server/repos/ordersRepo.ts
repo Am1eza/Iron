@@ -9,6 +9,24 @@ import { normalizeDigits } from '@/lib/utils/format';
 type OrderRow = typeof orders.$inferSelect;
 type WarehouseRow = typeof warehouseItems.$inferSelect;
 
+/** Thrown by updateOrderStatus/updateWarehouseItem on a backward transition. */
+export class InvalidStatusTransitionError extends Error {}
+
+// Canonical forward sequences (mirrors SHIPMENT_STEPS / WAREHOUSE_STATUS_LABEL
+// in lib/types/domain.ts). Skipping ahead is allowed (e.g. an order that's
+// already loaded when first registered in the system can jump straight to
+// in_transit); moving to an EARLIER step is not — an admin PATCH with no
+// transition guard could otherwise silently regress delivered→registered or
+// released→stored with nothing but the raw enum check.
+const ORDER_STATUS_ORDER: OrderRow['status'][] = ['registered', 'confirmed', 'loading', 'in_transit', 'delivered'];
+const WAREHOUSE_STATUS_ORDER: WarehouseRow['status'][] = ['pending', 'stored', 'selling', 'released'];
+
+function assertForwardTransition<T extends string>(order: T[], from: T, to: T): void {
+  if (order.indexOf(to) < order.indexOf(from)) {
+    throw new InvalidStatusTransitionError(`نمی‌توان وضعیت را از «${from}» به «${to}» (به عقب) تغییر داد.`);
+  }
+}
+
 function toLineItem(r: typeof orderItems.$inferSelect): LineItem {
   return {
     skuId: r.skuId ?? '',
@@ -110,7 +128,11 @@ export async function createOrder(input: {
 }
 
 export async function updateOrderStatus(ref: string, status: OrderRow['status']): Promise<Order | null> {
-  const rows = await getDb()
+  const db = getDb();
+  const current = await db.select({ status: orders.status }).from(orders).where(eq(orders.ref, ref)).limit(1);
+  if (!current[0]) return null;
+  assertForwardTransition(ORDER_STATUS_ORDER, current[0].status, status);
+  const rows = await db
     .update(orders)
     .set({ status, lastUpdate: new Date(), updatedAt: new Date() })
     .where(eq(orders.ref, ref))
@@ -200,7 +222,17 @@ export async function updateWarehouseItem(
   id: string,
   patch: Partial<{ status: WarehouseRow['status']; monthlyFeeToman: number; quantityTons: number }>,
 ): Promise<WarehouseItem | null> {
-  const rows = await getDb()
+  const db = getDb();
+  if (patch.status) {
+    const current = await db
+      .select({ status: warehouseItems.status })
+      .from(warehouseItems)
+      .where(eq(warehouseItems.id, id))
+      .limit(1);
+    if (!current[0]) return null;
+    assertForwardTransition(WAREHOUSE_STATUS_ORDER, current[0].status, patch.status);
+  }
+  const rows = await db
     .update(warehouseItems)
     .set({ ...patch, updatedAt: new Date() })
     .where(eq(warehouseItems.id, id))

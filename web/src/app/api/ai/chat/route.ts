@@ -76,6 +76,16 @@ async function POSTImpl(req: NextRequest) {
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(frame)}\n\n`));
       try {
         let rounds = 0;
+        // createLead sends a real SMS per call and, unlike POST /api/leads,
+        // isn't gated by that route's own rate limiter — it's invoked here
+        // as a plain service function. DeepSeek can request several tool
+        // calls per round (and there are up to MAX_TOOL_ROUNDS rounds), so
+        // without a cap here a single ai-chat request (1 of the caller's
+        // 10-per-5min budget) could be steered into an SMS-bombing run
+        // against arbitrary numbers. One lead per conversation covers the
+        // real use case (a single visitor requesting their own proforma).
+        let leadCalls = 0;
+        const MAX_LEAD_CALLS = 1;
         // Tool loop: stream tokens; on tool_calls execute + feed results back.
         for (;;) {
           let pendingCalls: ToolCall[] | null = null;
@@ -95,7 +105,13 @@ async function POSTImpl(req: NextRequest) {
               /* tolerate malformed args */
             }
             send({ type: 'tool', name: call.function.name });
-            const result = await runTool(call.function.name, args, session, conversationId);
+            let result: unknown;
+            if (call.function.name === 'createLead' && leadCalls >= MAX_LEAD_CALLS) {
+              result = { error: 'در هر گفتگو فقط یک درخواست ثبت می‌شود. برای مورد بعدی با کارشناس تماس بگیرید.' };
+            } else {
+              result = await runTool(call.function.name, args, session, conversationId);
+              if (call.function.name === 'createLead') leadCalls++;
+            }
             if (call.function.name === 'createLead' && result && typeof result === 'object' && 'ref' in result) {
               send({ type: 'lead', ...(result as Record<string, unknown>) });
             }
