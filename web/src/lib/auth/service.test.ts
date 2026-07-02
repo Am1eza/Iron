@@ -24,11 +24,12 @@ describe('OTP auth flow', () => {
     expect(claims?.role).toBe('customer');
   });
 
-  it('logs an existing user in (not new) on subsequent OTP', async () => {
+  it('logs an existing user in (not new) on subsequent OTP — no cooldown after success', async () => {
     const mobile = '09131000002';
     const first = await requestOtp(mobile);
     await verifyOtp(mobile, first.devCode!);
 
+    // Successful verification clears the resend cooldown: re-login works immediately.
     const second = await requestOtp(mobile);
     const { isNew } = await verifyOtp(mobile, second.devCode!);
     expect(isNew).toBe(false);

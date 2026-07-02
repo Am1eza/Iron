@@ -25,6 +25,9 @@ export const CONSTANTS = {
   /** Session */
   SESSION_TTL_DAYS: 30,
 
+  /** AI advisor (acceptance-criteria §D) */
+  AI_TIMEOUT_MS: 20_000, // AC-D-9: never hang beyond 20s
+
   /** Currency unit label */
   CURRENCY_LABEL: 'تومان',
 } as const;

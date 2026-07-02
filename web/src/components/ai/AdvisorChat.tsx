@@ -2,8 +2,10 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { routes } from '@/lib/routes';
+import { api, API_MODE, isApiError } from '@/lib/api';
 import { normalizeDigits, toPersianDigits, formatToman } from '@/lib/utils/format';
 import { getRows } from '@/lib/mock/catalogData';
+import { CATEGORY_ALIASES, PURPOSE_CHIPS } from '@/lib/data/aiTaxonomy';
 import { computeBulkSplit, type BulkSplit } from '@/components/catalog/BulkQuote';
 import { SparkIcon, ChevronStartIcon, CheckCircleIcon } from '@/components/primitives/icons';
 import styles from './AdvisorChat.module.css';
@@ -18,8 +20,9 @@ const AVG_REBAR_PRICE: number = (() => {
 /**
  * مشاور هوشمند آهن‌تایم — the intent-first advisor. It greets, asks *what you need*
  * before quoting, then helps estimate amount/weight/cost like an expert friend,
- * always offering next steps. This is a grounded MOCK engine (no invented prices —
- * it sends you to the live tables / a human); the DeepSeek relay swaps in later.
+ * always offering next steps. In live mode it streams from /api/ai/chat (DeepSeek
+ * relay, server-grounded); this local rule engine stays as the zero-cost fallback
+ * for mock mode and relay outages, so the advisor never dead-ends.
  */
 
 type Estimate = { items: { name: string; weightKg: number }[]; totalKg: number; totalToman: number };
@@ -33,24 +36,14 @@ type Msg = {
   split?: SplitAnswer;
 };
 
-/** Map a Persian product keyword to its catalog slug + display name. */
-const CATEGORY_KEYWORDS: { re: RegExp; slug: string; name: string }[] = [
-  { re: /میلگرد/, slug: 'rebar', name: 'میلگرد' },
-  { re: /تیرآهن|تیراهن|هاش|آی‌بیم|ای بیم/, slug: 'ibeam', name: 'تیرآهن' },
-  { re: /ورق/, slug: 'sheet', name: 'ورق' },
-  { re: /پروفیل|قوطی/, slug: 'profile', name: 'پروفیل' },
-  { re: /نبشی|ناودانی|سپری/, slug: 'angle-channel', name: 'نبشی و ناودانی' },
-  { re: /لوله/, slug: 'pipe', name: 'لوله' },
-  { re: /مفتول|سیم|کلاف|توری/, slug: 'wire', name: 'سیم و مفتول' },
-];
-
-/** Detect «۲۰ تن میلگرد» → tonnage + category. Returns null if not a bulk ask. */
+/** Detect «۲۰ تن میلگرد» → tonnage + category (shared alias table — no drift
+ *  with the server tools). Returns null if not a bulk ask. */
 function detectBulk(t: string): { tonnage: number; slug: string; name: string } | null {
   const tonMatch = t.match(/(\d{1,5}(?:\.\d+)?)\s*تن/);
   if (!tonMatch) return null;
   const tonnage = Number(tonMatch[1]);
   if (!Number.isFinite(tonnage) || tonnage <= 0) return null;
-  const cat = CATEGORY_KEYWORDS.find((c) => c.re.test(t));
+  const cat = CATEGORY_ALIASES.find((c) => c.re.test(t));
   if (!cat) return null;
   return { tonnage, slug: cat.slug, name: cat.name };
 }
@@ -58,7 +51,37 @@ function detectBulk(t: string): { tonnage: number; slug: string; name: string } 
 let seq = 0;
 const uid = () => `m${++seq}`;
 
-const PURPOSE_CHIPS = ['ساختمان مسکونی', 'سوله یا سازهٔ صنعتی', 'بازرگانی و فروش', 'فقط می‌خواهم قیمت ببینم'];
+/* ---- live mode: SSE frames from /api/ai/chat (route.ts contract) ---- */
+type ServerEvent =
+  | { type: 'token'; text: string }
+  | { type: 'tool'; name: string }
+  | { type: 'lead'; ref?: string; total?: number }
+  | { type: 'chips'; chips: string[] }
+  | { type: 'done' }
+  | { type: 'error'; message: string };
+
+async function* readSse(body: ReadableStream<Uint8Array>): AsyncGenerator<ServerEvent> {
+  const reader = body.getReader();
+  const dec = new TextDecoder();
+  let buf = '';
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    let idx: number;
+    while ((idx = buf.indexOf('\n\n')) !== -1) {
+      const frame = buf.slice(0, idx);
+      buf = buf.slice(idx + 2);
+      const line = frame.split('\n').find((l) => l.startsWith('data: '));
+      if (!line) continue;
+      try {
+        yield JSON.parse(line.slice(6)) as ServerEvent;
+      } catch {
+        /* skip malformed frame */
+      }
+    }
+  }
+}
 
 function detectPurpose(t: string): 'building' | 'industrial' | 'trade' | 'price' | null {
   if (/خانه|خونه|ساختمان|مسکونی|سقف|طبقه|ویلا|بنا/.test(t)) return 'building';
@@ -174,27 +197,113 @@ function aiReply(text: string, ctx: { purpose: string | null }): { msgs: Msg[]; 
 export function AdvisorChat({ initialQuestion }: { initialQuestion?: string }) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [typing, setTyping] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [input, setInput] = useState('');
   const purposeRef = useRef<string | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const started = useRef(false);
+  // Live DeepSeek advisor when configured; the local grounded engine remains the
+  // zero-cost fallback — per turn for transient errors, permanently only when the
+  // server says it has no relay at all (503 ai_unconfigured). No dead-ends (AC-D-9).
+  const useServer = useRef(API_MODE !== 'mock');
+  const transcriptRef = useRef<{ role: 'user' | 'ai'; text: string }[]>([]);
+  const busyRef = useRef(false);
 
   const pushAi = (msgs: Msg[]) => {
     setTyping(true);
     window.setTimeout(() => {
       setTyping(false);
+      msgs.forEach((m) => m.text && transcriptRef.current.push({ role: 'ai', text: m.text }));
       setMessages((m) => [...m, ...msgs]);
     }, 650);
   };
 
-  const send = (raw: string) => {
-    const text = raw.trim();
-    if (!text) return;
-    setInput('');
-    setMessages((m) => [...m, { id: uid(), role: 'user', text }]);
+  const sendLocal = (text: string) => {
     const { msgs, purpose } = aiReply(text, { purpose: purposeRef.current });
     purposeRef.current = purpose;
     pushAi(msgs);
+  };
+
+  const sendLive = async (text: string) => {
+    busyRef.current = true;
+    setBusy(true);
+    setTyping(true);
+    const aiId = uid();
+    let streamedText = '';
+    let opened = false;
+    // The server always emits 'lead' (during tool execution) strictly BEFORE
+    // any 'token' (the buffered, sanitized final text) — so it's held and
+    // appended after the model's own prose instead of rendering it first.
+    let leadLine: string | null = null;
+    const patch = (fn: (m: Msg) => Msg) =>
+      setMessages((all) => all.map((m) => (m.id === aiId ? fn(m) : m)));
+    const open = (init: Partial<Msg> = {}) => {
+      opened = true;
+      setTyping(false);
+      setMessages((all) => [...all, { id: aiId, role: 'ai', ...init }]);
+    };
+    const appendLine = (line: string) => {
+      streamedText = streamedText ? `${streamedText}\n${line}` : line;
+      const t = streamedText;
+      if (!opened) open({ text: t });
+      else patch((m) => ({ ...m, text: t }));
+    };
+    try {
+      // Only recent non-empty turns travel (server re-validates) — bounded payload.
+      const transcript = transcriptRef.current
+        .filter((m) => m.text.trim())
+        .slice(-10)
+        .map((m) => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.text }));
+      const res = await api.ai.chatStream(transcript);
+      if (!res.body) throw new Error('no-body');
+      for await (const ev of readSse(res.body)) {
+        if (ev.type === 'token') {
+          streamedText += ev.text;
+          if (!opened) open({ text: ev.text });
+          else {
+            const t = streamedText;
+            patch((m) => ({ ...m, text: t }));
+          }
+        } else if (ev.type === 'lead') {
+          if (ev.ref) {
+            const amount = ev.total ? ` — مبلغ ${formatToman(ev.total)}` : '';
+            leadLine = `درخواستت ثبت شد؛ کد پیگیری: ${toPersianDigits(ev.ref)}${amount}`;
+          }
+        } else if (ev.type === 'chips') {
+          const chips = ev.chips;
+          if (opened) patch((m) => ({ ...m, chips }));
+        } else if (ev.type === 'error') {
+          throw new Error(ev.message);
+        }
+        // 'tool' frames just keep the typing indicator honest — nothing to render.
+      }
+      if (leadLine) appendLine(leadLine);
+      if (!opened) throw new Error('empty');
+      if (streamedText.trim()) transcriptRef.current.push({ role: 'ai', text: streamedText });
+    } catch (e) {
+      // Permanent downgrade ONLY when the server says no relay exists; every
+      // transient failure (timeout, 429, network blip) retries next turn.
+      if (isApiError(e) && e.status === 503) useServer.current = false;
+      setTyping(false);
+      if (opened) setMessages((all) => all.filter((m) => m.id !== aiId));
+      sendLocal(text);
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
+  };
+
+  const send = (raw: string) => {
+    const text = raw.trim().slice(0, 1000);
+    if (!text || busyRef.current) return;
+    setInput('');
+    // Track the stated purpose on BOTH paths so a mid-conversation fallback
+    // to the local engine doesn't restart the intent-first questioning.
+    purposeRef.current = purposeRef.current ?? detectPurpose(normalizeDigits(text));
+    transcriptRef.current.push({ role: 'user', text });
+    setMessages((m) => [...m, { id: uid(), role: 'user', text }]);
+    if (useServer.current) void sendLive(text);
+    else sendLocal(text);
   };
 
   // First load: greet, then auto-send the question from the home search (if any).
@@ -290,11 +399,13 @@ export function AdvisorChat({ initialQuestion }: { initialQuestion?: string }) {
           className={styles.input}
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="بنویس… مثلاً: یه خونهٔ ۱۰۰ متری دو طبقه می‌سازم"
+          placeholder={busy ? 'در حال پاسخ…' : 'بنویس… مثلاً: یه خونهٔ ۱۰۰ متری دو طبقه می‌سازم'}
           aria-label="پیام به مشاور هوشمند"
           enterKeyHint="send"
+          maxLength={1000}
+          disabled={busy}
         />
-        <button type="submit" className={styles.send} aria-label="ارسال">
+        <button type="submit" className={styles.send} aria-label="ارسال" disabled={busy}>
           <ChevronStartIcon size={20} className="icon--rtl" />
         </button>
       </form>
