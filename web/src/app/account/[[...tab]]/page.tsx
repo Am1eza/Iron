@@ -24,6 +24,9 @@ import { RequestsList } from '@/components/account/RequestsList';
 import { ProfileStats } from '@/components/account/ProfileStats';
 import { DeliveryCity } from '@/components/account/DeliveryCity';
 import { getOrders, getWarehouseItems } from '@/lib/server/account';
+import { API_MODE } from '@/lib/api/config';
+import { FavoritesList } from '@/components/account/FavoritesList';
+import { AlertsList } from '@/components/account/AlertsList';
 import { SHIPMENT_STEPS } from '@/lib/types/domain';
 import { formatJalali, toPersianDigits } from '@/lib/utils/format';
 
@@ -176,7 +179,11 @@ async function TabContent({ slug, userId }: { slug: string; userId: string }) {
     case 'favorites':
       return (
         <Card>
-          <EmptyState size="section" {...emptyPresets.favoritesEmpty()} />
+          {API_MODE === 'live' ? (
+            <FavoritesList />
+          ) : (
+            <EmptyState size="section" {...emptyPresets.favoritesEmpty()} />
+          )}
         </Card>
       );
     case 'requests':
@@ -196,7 +203,11 @@ async function TabContent({ slug, userId }: { slug: string; userId: string }) {
     case 'alerts':
       return (
         <Card>
-          <EmptyState size="section" {...emptyPresets.alertsEmpty()} />
+          {API_MODE === 'live' ? (
+            <AlertsList />
+          ) : (
+            <EmptyState size="section" {...emptyPresets.alertsEmpty()} />
+          )}
         </Card>
       );
     case 'club':

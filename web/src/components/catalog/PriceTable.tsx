@@ -1,5 +1,5 @@
 'use client';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { useCartStore } from '@/lib/stores/cart';
@@ -8,6 +8,7 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import { CONSTANTS } from '@/lib/config/constants';
 import { routes } from '@/lib/routes';
 import { formatToman, toPersianDigits, formatJalali } from '@/lib/utils/format';
+import { API_MODE } from '@/lib/api/config';
 import { priceSeries } from '@/lib/mock/catalogData';
 import type { PriceRow } from '@/lib/types/domain';
 import type { SubCat } from '@/lib/data/nav';
@@ -81,6 +82,21 @@ export function PriceTable({
     });
   };
   const [fav, setFav] = useState<Set<string>>(new Set());
+  // Live mode: hydrate stars from the server once per mount (signed-in only).
+  useEffect(() => {
+    if (API_MODE !== 'live' || !isAuthenticated) return;
+    let cancelled = false;
+    fetch('/api/me/favorites')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { favorites?: { id: string }[] } | null) => {
+        if (!cancelled && data?.favorites) setFav(new Set(data.favorites.map((f) => f.id)));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
   const [chartFor, setChartFor] = useState<PriceRow | null>(null);
   const [factory, setFactoryState] = useState<string | null>(initialFactory);
   const setFactory = (next: string | null) => withTransition(() => setFactoryState(next));
@@ -127,12 +143,31 @@ export function PriceTable({
       toast.info('برای ذخیرهٔ علاقه‌مندی‌ها وارد شوید.', { label: 'ورود', href: routes.login(routes.category(rows[0]?.categoryId ?? '')) });
       return;
     }
+    const adding = !fav.has(id);
     setFav((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
+    // Live mode: persist (optimistic — a failure just reverts the star).
+    if (API_MODE === 'live') {
+      const req = adding
+        ? fetch('/api/me/favorites', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ skuId: id }),
+          })
+        : fetch(`/api/me/favorites/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      req.catch(() => {
+        setFav((prev) => {
+          const next = new Set(prev);
+          if (adding) next.delete(id);
+          else next.add(id);
+          return next;
+        });
+      });
+    }
   };
 
   const addToCart = (r: PriceRow) => {
