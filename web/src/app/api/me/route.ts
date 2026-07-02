@@ -10,6 +10,6 @@ export async function GET() {
     return NextResponse.json({ error: 'unauthenticated', message: 'وارد نشده‌اید.' }, { status: 401 });
   }
   // Re-read from the repo so name/role/club changes reflect without a new login.
-  const fresh = userById(session.id);
+  const fresh = await userById(session.id);
   return NextResponse.json({ user: publicUser(fresh ?? session) });
 }

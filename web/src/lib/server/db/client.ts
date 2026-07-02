@@ -13,10 +13,11 @@ export type Db = NodePgDatabase<typeof schema>;
 const globalForDb = globalThis as unknown as { __ahantimeDb?: { pool: Pool; db: Db } };
 
 export function hasDb(): boolean {
-  return Boolean(process.env.DATABASE_URL);
+  return Boolean(process.env.DATABASE_URL) || Boolean(globalForDb.__ahantimeDb);
 }
 
 export function getDb(): Db {
+  if (globalForDb.__ahantimeDb) return globalForDb.__ahantimeDb.db;
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error('DATABASE_URL is not configured');
   if (!globalForDb.__ahantimeDb) {

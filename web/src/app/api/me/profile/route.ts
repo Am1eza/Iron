@@ -19,7 +19,7 @@ export async function PUT(req: NextRequest) {
   const v = await validateBody(req, profileUpdatePayload);
   if (!v.ok) return v.response;
 
-  const updated = updateUser(session.id, { name: v.data.name });
+  const updated = await updateUser(session.id, { name: v.data.name });
   if (!updated) {
     return NextResponse.json({ error: 'not_found', message: 'کاربر یافت نشد.' }, { status: 404 });
   }
