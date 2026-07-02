@@ -11,7 +11,7 @@
     display: grid;
     grid-template-columns: repeat(5, 1fr);
     align-items: end;
-    block-size: calc(60px + env(safe-area-inset-bottom));
+    block-size: var(--bottom-bar-h);
     padding-block-end: env(safe-area-inset-bottom);
     background: var(--color-surface);
     border-block-start: var(--border-hairline) solid var(--color-hairline);
