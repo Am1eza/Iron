@@ -2,7 +2,7 @@
 
 **Status:** ✅ Implemented end-to-end (passwordless mobile + OTP, JWT access + rotating refresh, RBAC, profile, security). The earlier TODO stubs in `api/auth/*` are now real.
 
-**Locked product decision:** auth is **mobile number + OTP** (no passwords), SMS via **Kavenegar**. "Register" and "Login" are the same flow — the first verified OTP for a new mobile creates the account (with an optional name).
+**Locked product decision:** auth is **mobile number + OTP** (no passwords), SMS via **SMS.ir**. "Register" and "Login" are the same flow — the first verified OTP for a new mobile creates the account (with an optional name).
 
 ---
 
@@ -12,7 +12,7 @@
 |---|------|----------------|
 | 51 | **Login** | OTP flow (`LoginForm` → `/api/auth/otp/*`); returning users log in on verify |
 | 52 | **Register** | Same flow; first OTP for a new mobile creates the account (optional name captured at request) |
-| 53 | **OTP** | `service.requestOtp/verifyOtp`: 5-digit code, 120s TTL, hashed at rest, attempts + lockout, resend cooldown, per-hour cap; Kavenegar (dev logs the code) |
+| 53 | **OTP** | `service.requestOtp/verifyOtp`: 5-digit code, 120s TTL, hashed at rest, attempts + lockout, resend cooldown, per-hour cap; SMS.ir (dev logs the code) |
 | 54 | **Session** | httpOnly cookies — access JWT (`ahantime_at`, path `/`) + refresh (`ahantime_rt`, path `/api/auth`); `getSession()` server helper |
 | 55 | **JWT** | `jwt.ts` — HS256 via `jose`, 15-min access token, issuer/audience, signed with `SESSION_SECRET` |
 | 56 | **Refresh Token** | Opaque 32-byte token, **hashed** in store, **single-use rotation** (`rotateRefresh`); silent client refresh every 12 min |
@@ -26,7 +26,7 @@
 ## Architecture
 
 ```
-Browser  ──POST /api/auth/otp/request──▶  rate-limit → issue OTP → hash+store → Kavenegar/dev-log
+Browser  ──POST /api/auth/otp/request──▶  rate-limit → issue OTP → hash+store → SMS.ir/dev-log
 Browser  ──POST /api/auth/otp/verify ──▶  check TTL/attempts → constant-time compare → login|register
                                           → sign access JWT + issue refresh → Set-Cookie (httpOnly)
 Server Components ── getSession() ───────▶ verify access JWT from cookie → AuthUser | null
@@ -73,6 +73,6 @@ tests: lib/auth/{roles,service}.test.ts
 ```
 Modified: `stores/auth.ts` (+role, loading status), `api/resources/auth.ts` (real endpoints), `forms.ts`, `LoginForm.tsx` (name + dev hint), `layout.tsx` (server session → AuthHydrator), `middleware.ts` (cookie name), `validation/{api,schemas}.ts`, `package.json` (jose), `.env.example`.
 
-> **To go live:** set `SESSION_SECRET`, `KAVENEGAR_API_KEY`/template, `AUTH_ENFORCED=true`, and replace `lib/auth/store.ts` with a DB-backed repo (users, refresh tokens, OTP, rate-limits). The interfaces stay identical.
+> **To go live:** set `SESSION_SECRET`, `SMSIR_API_KEY`/`SMSIR_TEMPLATE_ID`, `AUTH_ENFORCED=true`, and replace `lib/auth/store.ts` with a DB-backed repo (users, refresh tokens, OTP, rate-limits). The interfaces stay identical.
 
 *Ahantime — اول مشورت، بعد خرید.*

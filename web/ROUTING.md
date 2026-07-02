@@ -59,7 +59,7 @@
 - **Interactive routes** (AI, cart, account, admin) are dynamic/client.
 
 ## 7. API routes (`app/api/*` — server-only)
-`ai/chat` (DeepSeek relay + tools, streaming) · `auth/otp/request|verify` (Kavenegar) · `leads` (request→proforma→SMS→CRM) · `market` (tgju + billet) · `tools/weight|estimate`. All keep secrets server-side; mock-mode returns fixtures.
+`ai/chat` (DeepSeek relay + tools, streaming) · `auth/otp/request|verify` (SMS.ir) · `leads` (request→proforma→SMS→CRM) · `market` (tgju + billet) · `tools/weight|estimate`. All keep secrets server-side; mock-mode returns fixtures.
 
 ## 8. Conventions
 - Next 15: `params`/`searchParams` are **async (Promises)** in server components — `await` them.

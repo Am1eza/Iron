@@ -39,7 +39,8 @@ preview; this is the real production path.)
    ```bash
    cd web
    npx wrangler secret put SESSION_SECRET
-   npx wrangler secret put KAVENEGAR_API_KEY    # …and the rest
+   npx wrangler secret put SMSIR_API_KEY
+   npx wrangler secret put SMSIR_TEMPLATE_ID    # …and the rest
    ```
    or via Workers → `ahantime` → Settings → Variables and Secrets.
 
