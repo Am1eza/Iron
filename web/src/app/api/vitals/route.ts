@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 
 /**
  * Web Vitals sink — receives the fire-and-forget beacon from reportMetric()
@@ -10,6 +11,8 @@ import { NextResponse } from 'next/server';
  * the default runtime on workerd (nodejs_compat), and edge routes would need to be
  * bundled separately.
  */
-export async function POST(): Promise<NextResponse> {
+async function POSTImpl(): Promise<NextResponse> {
   return new NextResponse(null, { status: 204 });
 }
+
+export const POST = withApiErrorHandling(POSTImpl);

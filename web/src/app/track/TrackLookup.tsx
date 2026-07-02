@@ -5,6 +5,7 @@ import { TextInput } from '@/components/forms/fields';
 import { FormStatus } from '@/components/forms/FormStatus';
 import { OrderTimeline } from '@/components/account/OrderTimeline';
 import { findOrder } from '@/lib/mock/orders';
+import { API_MODE } from '@/lib/api/config';
 import { SHIPMENT_STEPS, type Order } from '@/lib/types/domain';
 import { formatJalali, toPersianDigits } from '@/lib/utils/format';
 
@@ -14,8 +15,25 @@ export function TrackLookup() {
   const [order, setOrder] = useState<Order | null>(null);
   const [notFound, setNotFound] = useState(false);
 
-  const lookup = (e: React.FormEvent) => {
+  const lookup = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (API_MODE === 'live') {
+      try {
+        const res = await fetch(`/api/track/${encodeURIComponent(ref.trim())}`);
+        if (res.ok) {
+          const data = (await res.json()) as { order: Order };
+          setOrder(data.order);
+          setNotFound(false);
+        } else {
+          setOrder(null);
+          setNotFound(true);
+        }
+      } catch {
+        setOrder(null);
+        setNotFound(true);
+      }
+      return;
+    }
     const found = findOrder(ref);
     setOrder(found ?? null);
     setNotFound(!found);

@@ -10,4 +10,9 @@ export const queryKeys = {
   me: () => ['me'] as const,
   myLeads: () => ['me', 'leads'] as const,
   myAlerts: () => ['me', 'alerts'] as const,
+  myFavorites: () => ['me', 'favorites'] as const,
+  myRequests: () => ['me', 'requests'] as const,
+  myOrders: () => ['me', 'orders'] as const,
+  myClub: () => ['me', 'club'] as const,
+  search: (q: string) => ['search', q] as const,
 } as const;

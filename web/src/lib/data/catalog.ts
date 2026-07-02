@@ -3,13 +3,13 @@
  * Wraps the API client so mock⇄live switches transparently. The list of 7
  * categories drives the rail, mega-menu, footer and home grid (IA §1).
  */
-import { api } from '@/lib/api';
 import type { Category } from '@/lib/types/domain';
+import { getCategories as serverCategories } from '@/lib/server/catalog';
 
 /** The 7 product categories in taxonomy order, active only. */
 export async function getCategories(): Promise<Category[]> {
   try {
-    const { categories } = await api.catalog.categories();
+    const categories = await serverCategories();
     return categories.filter((c) => c.isActive).sort((a, b) => a.order - b.order);
   } catch {
     // Chrome must never hard-fail; an empty rail degrades gracefully.

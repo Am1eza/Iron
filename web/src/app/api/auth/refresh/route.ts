@@ -4,12 +4,13 @@ import { getRefreshToken, setSessionCookies, clearSessionCookies } from '@/lib/a
 import { authErrorResponse } from '@/lib/auth/apiError';
 import { assertSameOrigin } from '@/lib/auth/origin';
 import { publicUser } from '@/lib/auth/publicUser';
+import { withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 
 /**
  * POST /api/auth/refresh — rotate the refresh token and mint a fresh access token.
  * The old refresh token is single-use; reuse fails and clears the session.
  */
-export async function POST(req: NextRequest) {
+async function POSTImpl(req: NextRequest) {
   const origin = assertSameOrigin(req);
   if (origin) return origin;
 
@@ -27,3 +28,5 @@ export async function POST(req: NextRequest) {
     return authErrorResponse(err);
   }
 }
+
+export const POST = withApiErrorHandling(POSTImpl);

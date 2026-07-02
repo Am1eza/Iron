@@ -1,0 +1,125 @@
+.sheet {
+  max-inline-size: 720px;
+  margin-inline: auto;
+  padding: var(--space-8) var(--space-5);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-block-end: 2px solid var(--color-text);
+  padding-block-end: var(--space-4);
+  margin-block-end: var(--space-4);
+}
+
+.brand {
+  font-weight: 800;
+  font-size: 1.4rem;
+}
+
+.tagline {
+  color: var(--color-text-muted);
+  font: var(--t-body-sm);
+}
+
+.meta {
+  text-align: start;
+}
+
+.title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.ref {
+  font-weight: 600;
+}
+
+.date,
+.validity {
+  color: var(--color-text-muted);
+  font: var(--t-body-sm);
+}
+
+.validity {
+  margin-block-end: var(--space-4);
+}
+
+.expired {
+  background: var(--color-danger-bg, #fdecea);
+  color: var(--color-danger, #b3261e);
+  padding: var(--space-3);
+  border-radius: var(--radius-md, 8px);
+  margin-block-end: var(--space-4);
+  font: var(--t-body-sm);
+}
+
+.table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  margin-block-end: var(--space-5);
+  font: var(--t-body-sm);
+}
+
+.table th,
+.table td {
+  border: 1px solid var(--color-border);
+  padding: var(--space-2) var(--space-3);
+  text-align: center;
+}
+
+.table th {
+  background: var(--color-surface-sunken, rgba(0, 0, 0, 0.04));
+}
+
+.name {
+  text-align: start !important;
+}
+
+.totals {
+  display: grid;
+  gap: var(--space-1);
+  max-inline-size: 320px;
+  margin-inline-start: auto;
+  margin-block-end: var(--space-6);
+}
+
+.totals > div {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--space-1) 0;
+}
+
+.totals dt {
+  color: var(--color-text-muted);
+}
+
+.grand {
+  border-block-start: 2px solid var(--color-text);
+  font-weight: 700;
+}
+
+.grand dt {
+  color: var(--color-text) !important;
+}
+
+.foot {
+  border-block-start: 1px solid var(--color-border);
+  padding-block-start: var(--space-3);
+  color: var(--color-text-muted);
+  font: var(--t-caption, var(--t-body-sm));
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+@media print {
+  .sheet {
+    padding: 0;
+  }
+}

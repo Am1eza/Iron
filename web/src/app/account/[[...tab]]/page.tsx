@@ -23,8 +23,10 @@ import { OrderTimeline } from '@/components/account/OrderTimeline';
 import { RequestsList } from '@/components/account/RequestsList';
 import { ProfileStats } from '@/components/account/ProfileStats';
 import { DeliveryCity } from '@/components/account/DeliveryCity';
-import { getWarehouseItems } from '@/lib/mock/warehouse';
-import { getOrders } from '@/lib/mock/orders';
+import { getOrders, getWarehouseItems } from '@/lib/server/account';
+import { API_MODE } from '@/lib/api/config';
+import { FavoritesList } from '@/components/account/FavoritesList';
+import { AlertsList } from '@/components/account/AlertsList';
 import { SHIPMENT_STEPS } from '@/lib/types/domain';
 import { formatJalali, toPersianDigits } from '@/lib/utils/format';
 
@@ -99,17 +101,17 @@ export default async function AccountPage({ params }: Params) {
            </Cluster>
           </nav>
 
-          <TabContent slug={slug} />
+          <TabContent slug={slug} userId={user.id} />
         </Stack>
       </Section>
     </Container>
   );
 }
 
-function TabContent({ slug }: { slug: string }) {
+async function TabContent({ slug, userId }: { slug: string; userId: string }) {
   switch (slug) {
     case 'orders': {
-      const orders = getOrders();
+      const orders = await getOrders(userId);
       return (
         <Card>
           <Stack gap={6}>
@@ -170,14 +172,18 @@ function TabContent({ slug }: { slug: string }) {
                 <Link href={routes.warehouse()}>صفحهٔ انبار مشتریان</Link> بروید.
               </Text>
             </div>
-            <WarehouseList items={getWarehouseItems()} />
+            <WarehouseList items={await getWarehouseItems(userId)} />
           </Stack>
         </Card>
       );
     case 'favorites':
       return (
         <Card>
-          <EmptyState size="section" {...emptyPresets.favoritesEmpty()} />
+          {API_MODE === 'live' ? (
+            <FavoritesList />
+          ) : (
+            <EmptyState size="section" {...emptyPresets.favoritesEmpty()} />
+          )}
         </Card>
       );
     case 'requests':
@@ -197,7 +203,11 @@ function TabContent({ slug }: { slug: string }) {
     case 'alerts':
       return (
         <Card>
-          <EmptyState size="section" {...emptyPresets.alertsEmpty()} />
+          {API_MODE === 'live' ? (
+            <AlertsList />
+          ) : (
+            <EmptyState size="section" {...emptyPresets.alertsEmpty()} />
+          )}
         </Card>
       );
     case 'club':

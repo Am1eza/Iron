@@ -5,9 +5,10 @@ import { getSession } from '@/lib/auth/session';
 import { updateUser } from '@/lib/auth/store';
 import { publicUser } from '@/lib/auth/publicUser';
 import { assertSameOrigin } from '@/lib/auth/origin';
+import { withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 
 /** PUT /api/me/profile — update the signed-in user's profile (name). */
-export async function PUT(req: NextRequest) {
+async function PUTImpl(req: NextRequest) {
   const origin = assertSameOrigin(req);
   if (origin) return origin;
 
@@ -19,9 +20,11 @@ export async function PUT(req: NextRequest) {
   const v = await validateBody(req, profileUpdatePayload);
   if (!v.ok) return v.response;
 
-  const updated = updateUser(session.id, { name: v.data.name });
+  const updated = await updateUser(session.id, { name: v.data.name });
   if (!updated) {
     return NextResponse.json({ error: 'not_found', message: 'کاربر یافت نشد.' }, { status: 404 });
   }
   return NextResponse.json({ user: publicUser(updated) });
 }
+
+export const PUT = withApiErrorHandling(PUTImpl);

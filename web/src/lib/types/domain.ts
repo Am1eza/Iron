@@ -59,6 +59,8 @@ export interface CurrentPrice {
   movementDir: MovementDir;
   updatedAt: string;
   isStale: boolean;
+  /** Older than PRICE_STALE_HIDE_AFTER — UI shows «تماس بگیرید» instead of the price. */
+  priceHidden?: boolean;
 }
 
 export interface PricePoint {
@@ -166,6 +168,8 @@ export interface Article {
   type: 'blog' | 'news';
   title: string;
   excerpt?: string;
+  /** Markdown body — present on live article-detail reads. */
+  bodyMd?: string;
   status: 'draft' | 'scheduled' | 'published';
   source: 'ai' | 'human';
   publishAt?: string;

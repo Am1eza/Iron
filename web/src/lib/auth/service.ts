@@ -17,6 +17,7 @@ import {
   clearOtp,
   getRate,
   setRate,
+  clearRate,
   saveRefresh,
   findRefresh,
   revokeRefresh,
@@ -44,7 +45,7 @@ export async function requestOtp(
   name?: string,
 ): Promise<{ ttl: number; devCode?: string }> {
   const now = Date.now();
-  const rate = getRate(mobile);
+  const rate = await getRate(mobile);
 
   if (rate.lockedUntil && rate.lockedUntil > now) {
     throw new AuthError(
@@ -75,13 +76,13 @@ export async function requestOtp(
 
   const code = randomOtp(CONSTANTS.OTP_LENGTH);
   const hash = await sha256(code, pepper());
-  setOtp(mobile, {
+  await setOtp(mobile, {
     hash,
     expiresAt: now + CONSTANTS.OTP_TTL_SECONDS * 1000,
     attempts: 0,
     name,
   });
-  setRate(mobile, { sends: [...recentSends, now], lockedUntil: rate.lockedUntil });
+  await setRate(mobile, { sends: [...recentSends, now], lockedUntil: rate.lockedUntil });
 
   const sms = await sendOtpSms(mobile, code);
   if (!sms.ok) throw new AuthError('sms_failed', 'ارسال پیامک ناموفق بود. دوباره تلاش کنید.', 502);
@@ -94,19 +95,19 @@ export async function verifyOtp(
   mobile: string,
   code: string,
 ): Promise<{ user: AuthUser; tokens: IssuedTokens; isNew: boolean }> {
-  const record = getOtp(mobile);
+  const record = await getOtp(mobile);
   if (!record || record.expiresAt < Date.now()) {
     throw new AuthError('expired', 'کد منقضی شده. کد جدید بگیرید.', 410);
   }
   if (record.attempts >= CONSTANTS.OTP_MAX_ATTEMPTS) {
-    clearOtp(mobile);
-    lock(mobile);
+    await clearOtp(mobile);
+    await lock(mobile);
     throw new AuthError('locked', 'تلاش بیش از حد. چند دقیقه بعد دوباره وارد شوید.', 429);
   }
 
   const hash = await sha256(code, pepper());
   if (!timingSafeEqual(hash, record.hash)) {
-    setOtp(mobile, { ...record, attempts: record.attempts + 1 });
+    await setOtp(mobile, { ...record, attempts: record.attempts + 1 });
     const left = CONSTANTS.OTP_MAX_ATTEMPTS - (record.attempts + 1);
     throw new AuthError(
       'wrong_code',
@@ -115,12 +116,14 @@ export async function verifyOtp(
     );
   }
 
-  clearOtp(mobile);
+  await clearOtp(mobile);
+  // A successful login resets the send throttle for this number.
+  await clearRate(mobile);
 
   // Login or register (first OTP for a new mobile creates the account).
-  const existing = userByMobile(mobile);
+  const existing = await userByMobile(mobile);
   const isNew = !existing;
-  const user = existing ?? createUser({ mobile, name: record.name });
+  const user = existing ?? (await createUser({ mobile, name: record.name }));
 
   const tokens = await issueTokens(user);
   return { user, tokens, isNew };
@@ -131,17 +134,17 @@ export async function rotateRefresh(
   refreshToken: string,
 ): Promise<{ user: AuthUser; tokens: IssuedTokens }> {
   const hash = await sha256(refreshToken, pepper());
-  const record = findRefresh(hash);
+  const record = await findRefresh(hash);
   if (!record) throw new AuthError('invalid_refresh', 'نشست نامعتبر است. دوباره وارد شوید.', 401);
 
-  const user = userById(record.userId);
+  const user = await userById(record.userId);
   if (!user) {
-    revokeRefresh(hash);
+    await revokeRefresh(hash);
     throw new AuthError('invalid_refresh', 'نشست نامعتبر است. دوباره وارد شوید.', 401);
   }
 
   // Rotate: the old refresh token is single-use.
-  revokeRefresh(hash);
+  await revokeRefresh(hash);
   const tokens = await issueTokens(user);
   return { user, tokens };
 }
@@ -149,7 +152,7 @@ export async function rotateRefresh(
 export async function logout(refreshToken: string | undefined): Promise<void> {
   if (!refreshToken) return;
   const hash = await sha256(refreshToken, pepper());
-  revokeRefresh(hash);
+  await revokeRefresh(hash);
 }
 
 /* ------------------------------- helpers ------------------------------- */
@@ -163,11 +166,11 @@ async function issueTokens(user: AuthUser): Promise<IssuedTokens> {
   const refreshToken = randomToken(32);
   const refreshExpiresAt = Date.now() + CONSTANTS.SESSION_TTL_DAYS * 24 * HOUR;
   const refreshHash = await sha256(refreshToken, pepper());
-  saveRefresh(refreshHash, { userId: user.id, expiresAt: refreshExpiresAt });
+  await saveRefresh(refreshHash, { userId: user.id, expiresAt: refreshExpiresAt });
   return { accessToken, accessExpiresAt, refreshToken, refreshExpiresAt };
 }
 
-function lock(mobile: string) {
-  const rate = getRate(mobile);
-  setRate(mobile, { ...rate, lockedUntil: Date.now() + CONSTANTS.OTP_LOCK_MINUTES * 60 * 1000 });
+async function lock(mobile: string) {
+  const rate = await getRate(mobile);
+  await setRate(mobile, { ...rate, lockedUntil: Date.now() + CONSTANTS.OTP_LOCK_MINUTES * 60 * 1000 });
 }

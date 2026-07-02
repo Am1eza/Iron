@@ -1,0 +1,1 @@
+CREATE INDEX "proformas_status_valid_idx" ON "proformas" USING btree ("status","valid_until");

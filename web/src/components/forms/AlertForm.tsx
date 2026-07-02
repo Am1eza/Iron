@@ -8,8 +8,21 @@ import { TextInput, RadioGroup } from './fields';
 import { FormStatus } from './FormStatus';
 import { Button } from '@/components/primitives/Button';
 
+export type AlertTarget =
+  | { type: 'sku'; skuId: string }
+  | { type: 'market'; key: 'usd' | 'eur' | 'gold18' | 'ounce' | 'billet' };
+
 /** قیمت‌سنج — set a price alert. Mounted in a modal from a row/ticker item. */
-export function AlertForm({ targetLabel, onDone }: { targetLabel: string; onDone?: () => void }) {
+export function AlertForm({
+  targetLabel,
+  target,
+  onDone,
+}: {
+  targetLabel: string;
+  /** Structured target for the live API; label-only submissions stay mock-friendly. */
+  target?: AlertTarget;
+  onDone?: () => void;
+}) {
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { register, handleSubmit, formState } = useForm<AlertValues>({
@@ -20,7 +33,7 @@ export function AlertForm({ targetLabel, onDone }: { targetLabel: string; onDone
   const onSubmit = async (values: AlertValues) => {
     setError(null);
     try {
-      await formsApi.createAlert({ ...values, target: targetLabel });
+      await formsApi.createAlert({ ...values, target: target ?? targetLabel, targetLabel });
       setDone(true);
       onDone?.();
     } catch (e) {

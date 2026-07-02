@@ -1,5 +1,15 @@
-import { PagePlaceholder } from '@/components/dev/PagePlaceholder';
+import { Heading, Text, Stack } from '@/components/ui';
+import { DashboardTiles } from '@/components/admin/dashboard/DashboardTiles';
 
+/** /admin — the operations dashboard. */
 export default function AdminDashboardPage() {
-  return <PagePlaceholder eyebrow="پنل مدیریت" title="داشبورد" note="تازگی قیمت، لیدها، ترافیک و میانبرها در بخش ادمین ساخته می‌شود." />;
+  return (
+    <Stack gap={5}>
+      <div>
+        <Heading level={1}>داشبورد</Heading>
+        <Text color="muted">وضعیت لحظه‌ای قیمت‌ها، سرنخ‌ها و سفارش‌ها.</Text>
+      </div>
+      <DashboardTiles />
+    </Stack>
+  );
 }

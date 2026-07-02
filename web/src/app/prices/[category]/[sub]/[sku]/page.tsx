@@ -3,7 +3,8 @@ import { notFound } from 'next/navigation';
 import { buildMetadata, productJsonLd } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { categories } from '@/lib/mock/fixtures';
-import { findSku, subName, allRows } from '@/lib/mock/catalogData';
+import { subName, allRows } from '@/lib/mock/catalogData';
+import { findSku, relatedRows, priceSeries, getRows } from '@/lib/server/catalog';
 import { formatToman } from '@/lib/utils/format';
 import { JsonLd, BreadcrumbJsonLd } from '@/components/seo/JsonLd';
 import { Container, Section } from '@/components/ui';
@@ -16,7 +17,7 @@ export const revalidate = 300;
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { category, sub, sku } = await params;
-  const row = findSku(sku);
+  const row = await findSku(sku);
   if (!row || row.categoryId !== category || row.subCategoryId !== sub) {
     return buildMetadata({ title: 'محصول پیدا نشد', noindex: true });
   }
@@ -33,8 +34,14 @@ export default async function SkuPage({ params }: Params) {
 
   // The URL must reflect the SKU's canonical category/sub — otherwise a SKU
   // would resolve under any path and create duplicate, crawlable 200s.
-  const row = findSku(sku);
+  const row = await findSku(sku);
   if (!row || row.categoryId !== category || row.subCategoryId !== sub) notFound();
+
+  const [related, series, categoryRows] = await Promise.all([
+    relatedRows(row),
+    priceSeries(row.slug, row.current.price),
+    getRows(category),
+  ]);
 
   const catName = categories.find((c) => c.slug === category)?.name ?? category;
   const subLabel = subName(category, sub) ?? sub;
@@ -57,7 +64,7 @@ export default async function SkuPage({ params }: Params) {
         })}
       />
       <Section space={10}>
-        <SkuDetail row={row} />
+        <SkuDetail row={row} related={related} series={series} categoryRows={categoryRows} />
       </Section>
     </Container>
   );

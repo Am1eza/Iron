@@ -5,10 +5,15 @@ standalone container, and **Caddy** sits in front as a reverse proxy that
 automatically obtains and renews a free HTTPS certificate. You only expose ports
 80 and 443 to the internet.
 
-> **Heads-up:** the app currently runs in **mock mode** — prices, OTP login, the
-> AI advisor, and the admin panel use realistic sample data, not a live backend.
-> This is perfect for a preview / soft launch. Real data arrives in the backend
-> phase (set `NEXT_PUBLIC_API_MODE=live` + the backend env vars then).
+> **The backend is live:** the stack now includes **PostgreSQL** — real OTP
+> login, admin-entered prices with history, leads → پیش‌فاکتور → SMS, the admin
+> panel, alerts and order tracking. On first boot the database is migrated and
+> seeded automatically with the benchmarked catalog (`SEED_ON_START=true`).
+> `SMSIR_API_KEY`/`SMSIR_TEMPLATE_ID` are **required** — OTP login has no
+> fallback in live mode (`AUTH_ENFORCED=true` by default), so the app refuses
+> to boot without them. Everything else degrades gracefully: without
+> `TGJU_BASE_URL` the ticker serves seeded/last-known values, and the AI advisor
+> stays off until `AI_ENABLED=true` + DeepSeek relay keys.
 
 ---
 
@@ -38,19 +43,31 @@ sudo usermod -aG docker $USER   # then log out/in so `docker` works without sudo
 ## 3. Get the code onto the server
 ```bash
 git clone <your-repo-url> ahantime && cd ahantime
-git checkout claude/steel-marketplace-research-wmn0xx   # or main, once merged
+git checkout main
 ```
 
 ## 4. Configure secrets
 ```bash
 cp .env.example .env
-# generate a strong session secret:
-echo "SESSION_SECRET=$(openssl rand -hex 32)" >> .env   # or edit .env by hand
+# generate the two required secrets:
+echo "SESSION_SECRET=$(openssl rand -hex 32)" >> .env
+echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)" >> .env
 ```
-At minimum `.env` must contain a non-empty `SESSION_SECRET` — the app **will not
-start in production without it**. The other defaults (`NEXT_PUBLIC_SITE_URL`,
-`NEXT_PUBLIC_API_MODE=mock`, `AUTH_ENFORCED=false`) are already correct for a
-mock launch.
+`.env` must contain a non-empty `SESSION_SECRET`, `POSTGRES_PASSWORD`,
+`SMSIR_API_KEY` **and** `SMSIR_TEMPLATE_ID` — the stack will not start
+without them (OTP login has no fallback with the default `AUTH_ENFORCED=true`,
+so the app fails fast rather than silently never texting a code to anyone).
+`SMSIR_TEMPLATE_ID` is the numeric ID of a Verify template on your SMS.ir
+panel with a `Code` variable. The other defaults (`NEXT_PUBLIC_API_MODE=live`,
+`SEED_ON_START=true`) are already correct for a real launch. Set
+`DEV_ADMIN_MOBILE=09…` to your own number so the seeded admin account is
+yours — sign in at `/login` with that number, then manage roles at
+`/admin/users`.
+
+Optional integration keys (add anytime; the app degrades gracefully without
+them): `SMSIR_LINE_NUMBER` (پیش‌فاکتور/alert texts — actually sends instead
+of just logging), `TGJU_BASE_URL` (ticker), `AI_ENABLED=true` +
+`DEEPSEEK_API_KEY`/`DEEPSEEK_BASE_URL` (AI advisor).
 
 ## 5. Build and start
 ```bash
@@ -91,7 +108,35 @@ docker compose up -d --build
 - **No-Docker alternative:** `pnpm install && pnpm build && node .next/standalone/server.js`
   behind nginx + certbot, kept alive by systemd/pm2. Docker is recommended.
 - **Resources:** the image is small (Next standalone, no native deps). 1 GB RAM
-  is enough for mock mode; size up when the live backend + DB are added.
-- **Going live later:** set `NEXT_PUBLIC_API_MODE=live` and fill the backend vars
-  in `.env` (`DATABASE_URL`, `KAVENEGAR_API_KEY`, `DEEPSEEK_*`, `TGJU_BASE_URL`),
-  then rebuild.
+  is enough for mock mode; size up now that the live backend + DB are the default.
+- **Running mock mode instead:** set `NEXT_PUBLIC_API_MODE=mock` in `.env` and
+  rebuild — the frontend serves sample data with no DB/SMS/AI vars needed at all.
+
+
+---
+
+## Database operations
+
+Migrations run automatically on every container start (`docker-entrypoint.sh`).
+Useful commands on the server:
+
+```bash
+docker compose exec db pg_dump -U ahantime ahantime > backup-$(date +%F).sql   # backup
+docker compose exec web node scripts/seed.mjs                                  # re-seed (idempotent)
+docker compose logs -f web | grep -E "sms:dev|jobs"                            # dev SMS + job logs
+```
+
+Nightly backups: add a cron entry —
+`0 3 * * * cd /path/to/ahantime && docker compose exec -T db pg_dump -U ahantime ahantime | gzip > /var/backups/ahantime-$(date +\%F).sql.gz`
+
+## Local development against a real database
+
+```bash
+docker compose up -d db          # just Postgres
+cd web
+export DATABASE_URL=postgres://ahantime:<POSTGRES_PASSWORD>@localhost:5432/ahantime
+pnpm db:migrate && pnpm db:seed
+NEXT_PUBLIC_API_MODE=live SESSION_SECRET=dev-secret pnpm dev
+```
+(Note: the bundled `db` service doesn't publish 5432 to the host by default —
+add `ports: ["5432:5432"]` to it locally, or run any local Postgres.)

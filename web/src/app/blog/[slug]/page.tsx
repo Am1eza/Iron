@@ -3,7 +3,8 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { buildMetadata, articleJsonLd } from '@/lib/seo';
 import { routes } from '@/lib/routes';
-import { articlesByType, findArticle } from '@/lib/mock/catalogData';
+import { articlesByType } from '@/lib/mock/catalogData';
+import { getArticle, getArticlesByType } from '@/lib/server/catalog';
 import { formatJalali } from '@/lib/utils/format';
 import {
   Container,
@@ -27,7 +28,7 @@ export function generateStaticParams() {
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params;
-  const article = findArticle(slug);
+  const article = await getArticle(slug);
   if (!article || article.type !== 'blog') {
     return buildMetadata({ title: 'مطلب یافت نشد', noindex: true, path: routes.blog(slug) });
   }
@@ -40,10 +41,10 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 
 export default async function BlogArticlePage({ params }: Params) {
   const { slug } = await params;
-  const article = findArticle(slug);
+  const article = await getArticle(slug);
   if (!article || article.type !== 'blog') notFound();
 
-  const related = articlesByType('blog')
+  const related = (await getArticlesByType('blog'))
     .filter((a) => a.slug !== article.slug)
     .slice(0, 3);
 

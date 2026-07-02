@@ -297,7 +297,33 @@ function renderBlock(block: Block, index: number): ReactNode {
   }
 }
 
+/** Minimal markdown → blocks (paragraphs, ## headings, - lists, > quotes). */
+function blocksFromMarkdown(md: string): Block[] {
+  const blocks: Block[] = [];
+  const chunks = md.replace(/\r\n/g, '\n').split(/\n{2,}/);
+  for (const chunk of chunks) {
+    const lines = chunk.split('\n').map((l) => l.trim()).filter(Boolean);
+    if (lines.length === 0) continue;
+    if (lines.every((l) => l.startsWith('- ') || l.startsWith('* '))) {
+      blocks.push({ kind: 'ul', items: lines.map((l) => l.slice(2).trim()) });
+    } else if (lines[0]!.startsWith('## ')) {
+      blocks.push({ kind: 'h2', text: lines[0]!.slice(3).trim() });
+      const rest = lines.slice(1).join(' ').trim();
+      if (rest) blocks.push({ kind: 'p', text: rest });
+    } else if (lines[0]!.startsWith('> ')) {
+      blocks.push({ kind: 'quote', text: lines.map((l) => l.replace(/^> ?/, '')).join(' ') });
+    } else {
+      blocks.push({ kind: 'p', text: lines.join(' ') });
+    }
+  }
+  return blocks;
+}
+
 export function ArticleBody({ article }: { article: Article }) {
-  const blocks = BODIES[article.slug] ?? fallbackBody(article);
+  // Live articles carry a real markdown body; mock-era ones use the curated set.
+  const blocks =
+    article.bodyMd && article.bodyMd.trim().length > 0 && !BODIES[article.slug]
+      ? blocksFromMarkdown(article.bodyMd)
+      : (BODIES[article.slug] ?? fallbackBody(article));
   return <div className={styles.prose}>{blocks.map(renderBlock)}</div>;
 }
