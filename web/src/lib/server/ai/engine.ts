@@ -19,6 +19,7 @@ import { complete, type ChatMessage, type RelayConfig } from './deepseek';
 export type AdvisorEvent =
   | { type: 'delta'; text: string }
   | { type: 'card'; card: ToolCard }
+  | { type: 'chips'; chips: string[] }
   | { type: 'done' }
   | { type: 'error'; message: string };
 
@@ -58,17 +59,21 @@ export async function runAdvisorTurn(
   const cards: ToolCard[] = [];
   const timeout = AbortSignal.timeout(CONSTANTS.AI_TIMEOUT_MS);
 
+  const toolsUsed = new Set<string>();
   try {
     let final = '';
     for (let round = 0; ; round++) {
+      // Past the round cap, tools are withheld so the model MUST answer with
+      // what it already gathered — never an empty reply, never an endless loop.
+      const allowTools = round < CONSTANTS.AI_MAX_TOOL_ROUNDS;
       const res = await complete(cfg, messages, {
-        tools: TOOL_SCHEMAS,
+        tools: allowTools ? TOOL_SCHEMAS : undefined,
         maxTokens: CONSTANTS.AI_MAX_TOKENS,
         signal: timeout,
         fetchImpl,
       });
 
-      if (res.toolCalls.length === 0 || round >= CONSTANTS.AI_MAX_TOOL_ROUNDS) {
+      if (res.toolCalls.length === 0 || !allowTools) {
         final = res.content;
         break;
       }
@@ -76,6 +81,7 @@ export async function runAdvisorTurn(
       messages.push({ role: 'assistant', content: res.content || null, tool_calls: res.toolCalls });
       for (const call of res.toolCalls) {
         const outcome = executeTool(call.function.name, call.function.arguments, ledger);
+        toolsUsed.add(call.function.name);
         if (outcome.card) cards.push(outcome.card);
         messages.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify(outcome.result) });
       }
@@ -114,10 +120,29 @@ export async function runAdvisorTurn(
     // Buffered-then-chunked streaming: correctness first, then typewriter UX.
     for (const chunk of chunkText(checked.text)) send({ type: 'delta', text: chunk });
     for (const card of cards) send({ type: 'card', card });
+    const chips = suggestChips(toolsUsed, history);
+    if (chips.length > 0) send({ type: 'chips', chips });
     send({ type: 'done' });
   } catch {
     send({ type: 'error', message: FALLBACK_MESSAGE });
   }
+}
+
+/**
+ * Contextual follow-up chips (AC-D-7) — deterministic, derived from which tools
+ * ran this turn: zero extra model tokens, always-relevant next steps.
+ */
+export function suggestChips(toolsUsed: ReadonlySet<string>, history: ClientMessage[]): string[] {
+  if (toolsUsed.has('estimate_project') || toolsUsed.has('compare_factories'))
+    return ['دریافت پیش‌فاکتور', 'وزن دقیق را حساب کن'];
+  if (toolsUsed.has('get_prices') || toolsUsed.has('calc_weight'))
+    return ['دریافت پیش‌فاکتور', 'همهٔ قیمت‌ها'];
+  // No tools ran → the model asked a clarifying question; on the opening turn
+  // offer the purpose quick-replies so the intent-first ask is one tap.
+  const userTurns = history.filter((m) => m.role === 'user').length;
+  return userTurns <= 1
+    ? ['ساختمان مسکونی', 'سوله یا سازهٔ صنعتی', 'بازرگانی و فروش', 'فقط می‌خواهم قیمت ببینم']
+    : [];
 }
 
 /** Split validated text into small chunks so the client renders a live stream. */

@@ -67,6 +67,7 @@ type ServerCard =
 type ServerEvent =
   | { type: 'delta'; text: string }
   | { type: 'card'; card: ServerCard }
+  | { type: 'chips'; chips: string[] }
   | { type: 'done' }
   | { type: 'error'; message: string };
 
@@ -266,6 +267,9 @@ export function AdvisorChat({ initialQuestion }: { initialQuestion?: string }) {
           }
           if (card.kind === 'estimate') patch((m) => ({ ...m, estimate: card.estimate }));
           else patch((m) => ({ ...m, split: card.split }));
+        } else if (ev.type === 'chips') {
+          const chips = ev.chips;
+          if (opened) patch((m) => ({ ...m, chips }));
         } else if (ev.type === 'error') {
           throw new Error(ev.message);
         }

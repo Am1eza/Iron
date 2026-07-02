@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { requestOtp, verifyOtp, rotateRefresh, logout, AuthError } from './service';
 import { verifyAccessToken } from './jwt';
 
@@ -29,9 +29,17 @@ describe('OTP auth flow', () => {
     const first = await requestOtp(mobile);
     await verifyOtp(mobile, first.devCode!);
 
-    const second = await requestOtp(mobile);
-    const { isNew } = await verifyOtp(mobile, second.devCode!);
-    expect(isNew).toBe(false);
+    // The second request must wait out the resend cooldown — hop over it.
+    const spy = vi
+      .spyOn(Date, 'now')
+      .mockImplementation(() => new Date().getTime() + 61_000);
+    try {
+      const second = await requestOtp(mobile);
+      const { isNew } = await verifyOtp(mobile, second.devCode!);
+      expect(isNew).toBe(false);
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it('rejects a wrong code', async () => {

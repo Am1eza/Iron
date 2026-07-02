@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { GroundingLedger, numbersInText, sanitizeGrounded, UNGROUNDED_REPLACEMENT } from './grounding';
 import { executeTool, resolveCategory } from './tools';
-import { runAdvisorTurn, trimHistory, chunkText, FALLBACK_MESSAGE, type AdvisorEvent } from './engine';
+import { runAdvisorTurn, trimHistory, chunkText, suggestChips, FALLBACK_MESSAGE, type AdvisorEvent } from './engine';
 import { getRows } from '@/lib/mock/catalogData';
 import { CONSTANTS } from '@/lib/config/constants';
 
@@ -68,6 +68,73 @@ describe('GroundingLedger + sanitizeGrounded (AC-D-3)', () => {
     ledger.addFromJson({ a: [{ price: 41000 }], b: { total: 820000000 } });
     expect(ledger.has(41000)).toBe(true);
     expect(ledger.has(820000000)).toBe(true);
+  });
+});
+
+/**
+ * DoD-D: «a QA test set of ≥30 adversarial prompts produces zero ungrounded
+ * numbers». Each entry simulates a model reply that tries to smuggle an
+ * invented figure in a different disguise; the only grounded number is 38500.
+ */
+describe('adversarial QA set (DoD-D, ≥30 prompts, zero ungrounded numbers)', () => {
+  const ADVERSARIAL: string[] = [
+    'قیمت میلگرد ۴۲۰۰۰ تومان است.',
+    'قیمت میلگرد 42000 تومان است.',
+    'قیمت حدوداً ۴۲,۰۰۰ تومان بر کیلوگرم.',
+    'قیمت ۴۲٬۰۰۰ تومان بر کیلوگرم است.',
+    'حدود ۴۲ هزار تومان در نظر بگیر.',
+    'چیزی حدود 42 هزار تومان می‌شود.',
+    'بین ۴۱۵۰۰ تا ۴۳۰۰۰ تومان است.',
+    'دیروز ۳۹۹۰۰ بود، امروز کمی بالاتر.',
+    'هر شاخه تقریباً ۱۵۵۰ گرم سبک‌تر شده و قیمتش ۴۱۲۳۴ تومان است.',
+    'وزن هر شاخه ۱۸۷۵ کیلوگرم است.',
+    'هزینهٔ کل پروژه ۸۵۰ میلیون تومان می‌شود.',
+    'جمعاً ۸۵۰٬۰۰۰٬۰۰۰ تومان هزینه دارد.',
+    'با احتساب مالیات ۴۶۲۰۰ تومان.',
+    'قیمت درب کارخانه ۴۰۵۵۰ و بنگاه ۴۱۹۰۰ تومان.',
+    'تقریباً ۴.۲ میلیون تومان برای هر تن.',
+    'هر کیلو 41500 ریال… ببخشید تومان.',
+    'نرخ امروز: ۴۱۵۰۰',
+    'میانگین بازار ۴۰۰۰۰ تومان است.',
+    'اگر عجله داری همین ۴۱۰۰۰ را قبول کن.',
+    'کارخانهٔ الف ۴۰۹۰۰ و کارخانهٔ ب ۴۱۲۰۰ می‌دهد.',
+    'با تخفیف می‌شود ۳۹۵۰۰ تومان.',
+    'فقط ۹۹ تومان با رقیب اختلاف داریم.',
+    'قیمت جهانی حدود ۵۵۰ دلار است، یعنی حدود ۴۵۰۰۰ تومان.',
+    'بشکه‌ای ۱۲۰۰۰۰۰ تومان حساب کن.',
+    'هر متر مربع ۲۲ کیلو، یعنی ۲۶۴۰ کیلوگرم و ۱۰۸٬۲۴۰٬۰۰۰ تومان.',
+    'به‌روزرسانی ۱۴۰۵/۰۴/۱۱: قیمت ۴۱۷۵۰ تومان.',
+    'حدود ۴۱ هزار و ۵۰۰ تومان است.',
+    'قیمت پایه ۳۸۵۰۱ تومان است.',
+    'یعنی روزی ۱۵۰۰۰۰۰ تومان سود می‌کنی.',
+    'مجموع سفارش شما ۷۷۰٬۰۰۰٬۰۰۰ تومان می‌شود.',
+    'وزنش می‌شود ۲۳۴۵ کیلو.',
+    'قیمت ورق هم ۴۹۹۰۰ تومان است.',
+  ];
+
+  it(`censors every invented number across ${ADVERSARIAL.length} adversarial replies`, () => {
+    const ledger = new GroundingLedger();
+    ledger.add(38500); // the ONLY real number this session
+    for (const reply of ADVERSARIAL) {
+      const r = sanitizeGrounded(reply, ledger, new Set());
+      expect(r.violations.length, `should catch: ${reply}`).toBeGreaterThan(0);
+      // No censored figure may survive in the sanitized text.
+      for (const v of r.violations) {
+        expect(numbersInText(r.text)).not.toContain(v);
+      }
+    }
+  });
+
+  it('while the genuinely grounded phrasings still pass', () => {
+    const ledger = new GroundingLedger();
+    ledger.add(38500);
+    for (const ok of [
+      'قیمت امروز ۳۸۵۰۰ تومان بر کیلوگرم است.',
+      'قیمت امروز ۳۸,۵۰۰ تومان است.',
+      'قیمت 38500 تومان (به‌روز).',
+    ]) {
+      expect(sanitizeGrounded(ok, ledger, new Set()).violations, ok).toEqual([]);
+    }
   });
 });
 
@@ -196,5 +263,23 @@ describe('advisor engine', () => {
   it('chunkText reassembles exactly', () => {
     const s = 'سلام دنیا! '.repeat(20);
     expect(chunkText(s).join('')).toBe(s);
+  });
+
+  it('at the tool-round cap the model is forced to answer without tools (no empty reply)', async () => {
+    const call = modelCalls('get_prices', { category: 'میلگرد' });
+    const price = Math.min(...getRows('rebar').map((r) => r.current.price));
+    // Model asks for tools every round; only the final (tool-less) round answers.
+    const events = await collect([call, call, call, call, modelSays(`قیمت ${price} تومان است.`)]);
+    expect(events.at(-1)).toEqual({ type: 'done' });
+    const text = events.filter((e): e is Extract<AdvisorEvent, { type: 'delta' }> => e.type === 'delta').map((e) => e.text).join('');
+    expect(text).toContain(String(price));
+  });
+
+  it('suggestChips: contextual follow-ups per tools used (AC-D-7)', () => {
+    const h = [{ role: 'user' as const, text: 'سلام' }];
+    expect(suggestChips(new Set(['get_prices']), h)).toContain('دریافت پیش‌فاکتور');
+    expect(suggestChips(new Set(['estimate_project']), h)).toContain('دریافت پیش‌فاکتور');
+    expect(suggestChips(new Set(), h).length).toBeGreaterThan(0); // opening turn → purpose chips
+    expect(suggestChips(new Set(), [...h, { role: 'user' as const, text: 'دوم' }])).toEqual([]);
   });
 });
