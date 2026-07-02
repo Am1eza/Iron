@@ -2,7 +2,7 @@
  * Articles — blog/news with the AI-draft → editor approval gate.
  * Public reads only expose published items whose publishAt has passed.
  */
-import { and, desc, eq, ilike, isNull, lte, or, sql } from 'drizzle-orm';
+import { and, desc, eq, ilike, isNull, isNotNull, lte, or, sql } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { getDb } from '@/lib/server/db/client';
 import { articles } from '@/lib/server/db/schema';
@@ -157,12 +157,18 @@ export async function updateArticle(
   return rows[0] ? toArticleFull(rows[0]) : null;
 }
 
-/** Publish-job body: scheduled articles whose time has come → published. */
+/**
+ * Publish-job body: scheduled articles whose time has come → published.
+ * Requires approvedBy IS NOT NULL as defense-in-depth for the approval
+ * gate — only POST .../publish ever sets it, so this can never auto-live
+ * an article that skipped that endpoint, even if some other write path
+ * manages to set status='scheduled' directly in the future.
+ */
 export async function publishDueArticles(): Promise<number> {
   const rows = await getDb()
     .update(articles)
     .set({ status: 'published', updatedAt: new Date() })
-    .where(and(eq(articles.status, 'scheduled'), lte(articles.publishAt, new Date())))
+    .where(and(eq(articles.status, 'scheduled'), lte(articles.publishAt, new Date()), isNotNull(articles.approvedBy)))
     .returning({ id: articles.id });
   return rows.length;
 }

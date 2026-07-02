@@ -22,7 +22,15 @@ const patchPayload = z.object({
   excerpt: z.string().trim().max(500).nullable().optional(),
   bodyMd: z.string().max(100_000).optional(),
   coverUrl: z.string().url().nullable().optional(),
-  status: z.enum(['draft', 'scheduled']).optional(), // publishing goes through /publish
+  // Only 'draft' — moving DOWN in privilege (cancel/revert a scheduled
+  // publish) is a safe content:write operation. Scheduling or publishing
+  // is content:publish's job (POST .../publish, which also stamps
+  // approvedBy): 'scheduled' used to be accepted here too, with nothing
+  // but a comment enforcing the split — content:write alone could PATCH
+  // straight to 'scheduled' with a past publishAt and the cron job would
+  // publish it within ~60s with approvedBy left null, entirely bypassing
+  // the approval gate this endpoint's docstring claims to guarantee.
+  status: z.enum(['draft']).optional(),
   publishAt: z.string().datetime().nullable().optional(),
 });
 

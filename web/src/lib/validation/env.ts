@@ -33,18 +33,31 @@ const serverSchema = z
     AI_ENABLED: z.enum(['true', 'false']).default('false'),
     SEED_ON_START: z.enum(['true', 'false']).default('false'),
   })
-  // Live mode requires the DB + session secret + the OTP-send credentials
-  // (login has no fallback once AUTH_ENFORCED=true, so SMS.ir's verify keys
-  // fail the boot the same as a missing DB, matching sms.ts's fail-closed
-  // behavior). Everything else degrades gracefully instead of blocking boot:
-  // SMSIR_LINE_NUMBER (پیش‌فاکتور/alert notices) falls back to a dev log,
-  // tgju falls back to last-known values, and the AI relay keys are only
-  // required once AI_ENABLED is explicitly turned on.
+  // Live mode structurally requires the DB + session secret — there is no
+  // fallback path for either (auth literally cannot sign a JWT without
+  // SESSION_SECRET), so these are required whenever live mode is on, dev or
+  // prod. SMS.ir is different: sms.ts already has a real, tested dev-log
+  // fallback for missing credentials, gated on NODE_ENV==='production' —
+  // requiring the keys in EVERY live-mode context (including a developer
+  // running `next dev` against a real local Postgres before they've signed
+  // up for SMS.ir yet) would contradict that and block a legitimate
+  // workflow, so this mirrors sms.ts's own condition instead of just
+  // checking live-mode. Everything else degrades gracefully without
+  // blocking boot at all: SMSIR_LINE_NUMBER (پیش‌فاکتور/alert notices)
+  // falls back to a dev log, tgju falls back to last-known values, and the
+  // AI relay keys are only required once AI_ENABLED is explicitly on.
   .superRefine((env, ctx) => {
     if (publicEnv.NEXT_PUBLIC_API_MODE === 'live') {
-      for (const key of ['DATABASE_URL', 'SESSION_SECRET', 'SMSIR_API_KEY', 'SMSIR_TEMPLATE_ID'] as const) {
+      for (const key of ['DATABASE_URL', 'SESSION_SECRET'] as const) {
         if (!env[key]) {
           ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: `${key} در حالت live الزامی است.` });
+        }
+      }
+      if (process.env.NODE_ENV === 'production') {
+        for (const key of ['SMSIR_API_KEY', 'SMSIR_TEMPLATE_ID'] as const) {
+          if (!env[key]) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: `${key} در production الزامی است.` });
+          }
         }
       }
     }

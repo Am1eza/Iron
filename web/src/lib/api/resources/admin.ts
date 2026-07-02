@@ -136,7 +136,7 @@ export const adminApi = {
   article: (id: string) => http.get<{ article: ArticleFull }>(`/api/admin/articles/${id}`),
   createArticle: (input: { slug: string; type: 'blog' | 'news'; title: string; excerpt?: string; bodyMd?: string }) =>
     http.post<{ article: ArticleFull }>('/api/admin/articles', input),
-  updateArticle: (id: string, patch: Partial<{ slug: string; title: string; excerpt: string | null; bodyMd: string; publishAt: string | null; status: 'draft' | 'scheduled' }>) =>
+  updateArticle: (id: string, patch: Partial<{ slug: string; title: string; excerpt: string | null; bodyMd: string; publishAt: string | null; status: 'draft' }>) =>
     http.patch<{ article: ArticleFull }>(`/api/admin/articles/${id}`, patch),
   publishArticle: (id: string, publishAt?: string) =>
     http.post<{ article: ArticleFull }>(`/api/admin/articles/${id}/publish`, publishAt ? { publishAt } : {}),
