@@ -171,7 +171,9 @@
   align-items: center;
   padding: 1px var(--space-2);
   border-radius: var(--radius-pill);
-  background: var(--color-gain);
+  /* same fix as CompareTeaser's matching badge: --color-gain (gain-500) only
+     clears 3.30:1 with white text; gain-700 clears 6.37:1. */
+  background: var(--gain-700);
   color: var(--neutral-0);
   font: var(--t-overline);
   white-space: nowrap;
