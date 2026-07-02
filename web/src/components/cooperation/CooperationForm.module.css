@@ -18,8 +18,10 @@
   font: var(--t-label);
   color: var(--color-text-strong);
 }
+/* --color-loss is tuned as a graphical/border tone (3:1); the asterisk is
+   literal text needing 4.5:1, so it uses the text-safe token instead. */
 .req {
-  color: var(--color-loss);
+  color: var(--color-loss-text);
 }
 :root[data-theme='dark'] .req {
   color: var(--loss-400);

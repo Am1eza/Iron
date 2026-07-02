@@ -14,7 +14,7 @@
 }
 .end {
   font: var(--t-caption);
-  color: var(--color-text-placeholder);
+  color: var(--color-text-muted);
 }
 .sentinel {
   inline-size: 1px;

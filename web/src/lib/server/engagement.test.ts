@@ -151,4 +151,17 @@ describe('club', () => {
     expect(status.wonLeads).toBe(3);
     expect(status.nextTier?.tier).toBe('poolad');
   });
+
+  it('downgrades the tier when a won lead is reverted (sales corrects a mistake)', async () => {
+    // Picks up from the prior test's state: USER is 'steel' with 3 won leads.
+    const rows = await db.select().from(schema.leads).where(eq(schema.leads.ref, 'LD-WON-0'));
+    await updateLead(rows[0]!.id, { status: 'lost' });
+
+    const tier = await recomputeTier(USER);
+    expect(tier).toBe('iron'); // 2 won leads < steel's 3-lead threshold
+
+    const status = await clubStatus(USER);
+    expect(status.wonLeads).toBe(2);
+    expect(status.tier).toBe('iron');
+  });
 });

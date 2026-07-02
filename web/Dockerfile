@@ -25,11 +25,12 @@ ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL \
     NODE_ENV=production \
     BUILD_STANDALONE=1
 RUN pnpm build
-# Bundle the DB scripts (migrate + seed) so the runner needs no dev deps.
-# esbuild resolves the "@/" tsconfig alias; pg stays external (traced into
-# the standalone node_modules via the app's own imports).
+# Bundle the DB/job scripts (migrate + seed + jobs) so the runner needs no
+# dev deps. esbuild resolves the "@/" tsconfig alias; pg stays external
+# (traced into the standalone node_modules via the app's own imports).
 RUN npx esbuild scripts/migrate.mjs --bundle --platform=node --format=esm --outfile=scripts-dist/migrate.mjs --external:pg \
- && npx esbuild scripts/seed.ts --bundle --platform=node --format=esm --outfile=scripts-dist/seed.mjs --external:pg
+ && npx esbuild scripts/seed.ts --bundle --platform=node --format=esm --outfile=scripts-dist/seed.mjs --external:pg \
+ && npx esbuild scripts/jobs.ts --bundle --platform=node --format=esm --outfile=scripts-dist/jobs.mjs --external:pg
 
 # ---- 3. runner --------------------------------------------------------------
 FROM node:20-alpine AS runner

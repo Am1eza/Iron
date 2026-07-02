@@ -10,7 +10,10 @@
   font: var(--t-label);
   color: var(--color-text);
 }
-.req { color: var(--color-loss); }
+/* --color-loss is tuned as a graphical/border tone (3:1); the asterisk is
+   literal text needing 4.5:1, so it uses the same text-safe token as .error
+   below rather than the borderline-on-tinted-surfaces --color-loss. */
+.req { color: var(--color-loss-text); }
 :root[data-theme='dark'] .req { color: var(--loss-400); }
 
 .input,

@@ -111,6 +111,16 @@ async function POSTImpl(req: NextRequest) {
       };
 
       const toolsUsed = new Set<string>();
+      // createLead sends a real SMS per call and, unlike POST /api/leads,
+      // isn't gated by that route's own rate limiter — it's invoked here as a
+      // plain service function. DeepSeek can request several tool calls per
+      // round across up to MAX_TOOL_ROUNDS (plus a correction retry), so
+      // without a cap a single ai-chat request could be steered into an
+      // SMS-bombing run against arbitrary numbers. Scoped OUTSIDE runLoop so
+      // the cap holds across the correction-retry call too — one lead per
+      // conversation covers the real use case (a visitor's own proforma).
+      let leadCalls = 0;
+      const MAX_LEAD_CALLS = 1;
 
       /** One model⇄tools loop; returns the buffered final text (never streamed raw).
        *  On the last allowed round tools are WITHHELD so the model must answer
@@ -136,7 +146,13 @@ async function POSTImpl(req: NextRequest) {
               /* tolerate malformed args */
             }
             send({ type: 'tool', name: call.function.name });
-            const result = await runTool(call.function.name, args, session, conversationId);
+            let result: unknown;
+            if (call.function.name === 'createLead' && leadCalls >= MAX_LEAD_CALLS) {
+              result = { error: 'در هر گفتگو فقط یک درخواست ثبت می‌شود. برای مورد بعدی با کارشناس تماس بگیرید.' };
+            } else {
+              result = await runTool(call.function.name, args, session, conversationId);
+              if (call.function.name === 'createLead') leadCalls++;
+            }
             toolsUsed.add(call.function.name);
             ledger.addFromJson(result); // every tool number becomes quotable
             if (call.function.name === 'createLead' && result && typeof result === 'object' && 'ref' in result) {

@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
-import { updateOrderStatus } from '@/lib/server/repos/ordersRepo';
+import { updateOrderStatus, InvalidStatusTransitionError } from '@/lib/server/repos/ordersRepo';
 
 const payload = z.object({
   status: z.enum(['registered', 'confirmed', 'loading', 'in_transit', 'delivered']),
@@ -17,7 +17,15 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ ref: string 
   const { ref } = await ctx.params;
   const v = await validateBody(req, payload);
   if (!v.ok) return v.response;
-  const order = await updateOrderStatus(decodeURIComponent(ref), v.data.status);
+  let order;
+  try {
+    order = await updateOrderStatus(decodeURIComponent(ref), v.data.status);
+  } catch (err) {
+    if (err instanceof InvalidStatusTransitionError) {
+      return NextResponse.json({ error: 'invalid_transition', message: 'وضعیت سفارش را نمی‌توان به عقب برد.' }, { status: 409 });
+    }
+    throw err;
+  }
   if (!order) return NextResponse.json({ error: 'not_found', message: 'سفارش یافت نشد.' }, { status: 404 });
   await audit(auth.session.id, 'order.status', { type: 'order', id: order.ref }, null, v.data);
   return NextResponse.json({ order });

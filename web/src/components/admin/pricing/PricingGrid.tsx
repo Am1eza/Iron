@@ -24,7 +24,7 @@ export function PricingGrid() {
   const [drafts, setDrafts] = useState<Map<string, Draft>>(new Map());
   const tableRef = useRef<HTMLTableElement>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['admin', 'pricing', cat, sub],
     queryFn: () => adminApi.pricingGrid(cat, sub || undefined),
   });
@@ -84,15 +84,45 @@ export function PricingGrid() {
     next?.select();
   };
 
+  // Switching category/sub-category used to clear `drafts` unconditionally
+  // — an operator who edited several prices then clicked a filter to
+  // double-check something lost all unsaved edits instantly, silently.
+  const changeFilter = (apply: () => void) => {
+    if (dirty.length > 0 && !window.confirm(`${dirty.length} قیمت ذخیره‌نشده دارید. با تغییر فیلتر از بین می‌رود — ادامه می‌دهید؟`)) {
+      return;
+    }
+    setDrafts(new Map());
+    apply();
+  };
+
   return (
     <div>
       <div className={ui.toolbar}>
-        <select className={ui.select} value={cat} onChange={(e) => { setCat(e.target.value); setSub(''); setDrafts(new Map()); }} aria-label="دسته">
+        <select
+          className={ui.select}
+          value={cat}
+          onChange={(e) => {
+            const next = e.target.value;
+            changeFilter(() => {
+              setCat(next);
+              setSub('');
+            });
+          }}
+          aria-label="دسته"
+        >
           {categories.map((c) => (
             <option key={c.slug} value={c.slug}>{c.name}</option>
           ))}
         </select>
-        <select className={ui.select} value={sub} onChange={(e) => { setSub(e.target.value); setDrafts(new Map()); }} aria-label="زیر‌دسته">
+        <select
+          className={ui.select}
+          value={sub}
+          onChange={(e) => {
+            const next = e.target.value;
+            changeFilter(() => setSub(next));
+          }}
+          aria-label="زیر‌دسته"
+        >
           <option value="">همهٔ زیر‌دسته‌ها</option>
           {subs.map((s) => (
             <option key={s.slug} value={s.slug}>{s.name}</option>
@@ -103,6 +133,13 @@ export function PricingGrid() {
 
       {isLoading ? (
         <TableSkeleton rows={8} cols={6} />
+      ) : isError ? (
+        <EmptyState
+          size="section"
+          tone="error"
+          headline="بارگذاری جدول قیمت ناموفق بود."
+          primary={{ label: 'تلاش دوباره', onClick: () => void refetch() }}
+        />
       ) : rows.length === 0 ? (
         <EmptyState size="section" headline="کالایی در این دسته نیست" body="از بخش کاتالوگ کالا اضافه کنید." />
       ) : (
@@ -123,8 +160,15 @@ export function PricingGrid() {
               {rows.map((r, i) => {
                 const d = drafts.get(r.id);
                 const isDirty = dirty.some((x) => x.skuId === r.id);
+                // A price the operator typed but that doesn't parse to a
+                // valid positive number is silently excluded from `dirty`
+                // (never saved) — previously with zero feedback, so the row
+                // never got the dirty highlight and the save button never
+                // included it, making it look like a no-op edit.
+                const draftPrice = d?.price !== undefined ? Number(normalizeDigits(d.price)) : undefined;
+                const isInvalidPrice = d?.price !== undefined && (!Number.isFinite(draftPrice) || draftPrice! <= 0);
                 return (
-                  <tr key={r.id} className={isDirty ? ui.rowDirty : undefined}>
+                  <tr key={r.id} className={isDirty ? ui.rowDirty : isInvalidPrice ? ui.rowInvalid : undefined}>
                     <td>{r.name}</td>
                     <td className="tnum">{r.size ?? '—'}</td>
                     <td>{r.factory ?? '—'}</td>
@@ -136,6 +180,7 @@ export function PricingGrid() {
                         value={d?.price ?? String(r.current.price || '')}
                         onChange={(e) => setDraft(r.id, { price: e.target.value })}
                         onFocus={(e) => e.currentTarget.select()}
+                        aria-invalid={isInvalidPrice || undefined}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
                             e.preventDefault();
@@ -144,6 +189,7 @@ export function PricingGrid() {
                         }}
                         aria-label={`قیمت ${r.name}`}
                       />
+                      {isInvalidPrice ? <div className={ui.tileHint}>عدد نامعتبر — ذخیره نمی‌شود</div> : null}
                     </td>
                     <td>
                       <input

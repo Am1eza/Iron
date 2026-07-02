@@ -97,7 +97,7 @@
 }
 .fresh {
   font: var(--t-micro);
-  color: var(--color-text-placeholder);
+  color: var(--color-text-muted);
 }
 
 /* ===== Source badge ===== */

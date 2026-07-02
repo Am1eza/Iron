@@ -40,6 +40,10 @@
   background: color-mix(in srgb, var(--color-accent, #c97b2e) 8%, transparent);
 }
 
+.rowInvalid {
+  background: color-mix(in srgb, var(--color-loss, #c0392b) 8%, transparent);
+}
+
 .select {
   min-block-size: 38px;
   padding: var(--space-1) var(--space-2);
@@ -60,6 +64,10 @@
   direction: ltr;
   text-align: end;
   font-variant-numeric: tabular-nums;
+}
+
+.numInput[aria-invalid='true'] {
+  border-color: var(--color-loss, #c0392b);
 }
 
 .textCell {

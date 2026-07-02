@@ -52,8 +52,10 @@ export async function* streamCompletion(
       tools: tools.length > 0 ? tools : undefined,
       stream: true,
       temperature: 0.3,
-      // Cost cap — an unbounded completion can't run up the relay bill.
-      max_tokens: 700,
+      // Advisor replies are short Persian answers (system prompt: "کوتاه و
+      // کاربردی") — cap per-call generation so a request's cost is bounded
+      // by call count × this, not by an unbounded model response.
+      max_tokens: 1000,
     }),
     signal,
   });

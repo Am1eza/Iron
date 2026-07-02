@@ -1,4 +1,4 @@
-/** The production job set — imported once by instrumentation.ts. */
+/** The production job set — imported once by scripts/jobs.ts. */
 import type { Job } from './scheduler';
 import { cleanupJob } from './cleanup.job';
 import { marketPollJob } from './marketPoll.job';
