@@ -23,8 +23,7 @@ import { OrderTimeline } from '@/components/account/OrderTimeline';
 import { RequestsList } from '@/components/account/RequestsList';
 import { ProfileStats } from '@/components/account/ProfileStats';
 import { DeliveryCity } from '@/components/account/DeliveryCity';
-import { getWarehouseItems } from '@/lib/mock/warehouse';
-import { getOrders } from '@/lib/mock/orders';
+import { getOrders, getWarehouseItems } from '@/lib/server/account';
 import { SHIPMENT_STEPS } from '@/lib/types/domain';
 import { formatJalali, toPersianDigits } from '@/lib/utils/format';
 
@@ -99,17 +98,17 @@ export default async function AccountPage({ params }: Params) {
            </Cluster>
           </nav>
 
-          <TabContent slug={slug} />
+          <TabContent slug={slug} userId={user.id} />
         </Stack>
       </Section>
     </Container>
   );
 }
 
-function TabContent({ slug }: { slug: string }) {
+async function TabContent({ slug, userId }: { slug: string; userId: string }) {
   switch (slug) {
     case 'orders': {
-      const orders = getOrders();
+      const orders = await getOrders(userId);
       return (
         <Card>
           <Stack gap={6}>
@@ -170,7 +169,7 @@ function TabContent({ slug }: { slug: string }) {
                 <Link href={routes.warehouse()}>صفحهٔ انبار مشتریان</Link> بروید.
               </Text>
             </div>
-            <WarehouseList items={getWarehouseItems()} />
+            <WarehouseList items={await getWarehouseItems(userId)} />
           </Stack>
         </Card>
       );

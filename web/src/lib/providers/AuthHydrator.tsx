@@ -2,6 +2,7 @@
 import { useEffect } from 'react';
 import { useAuthStore, type SessionUser } from '@/lib/stores/auth';
 import { api } from '@/lib/api';
+import { useRequestsSync } from '@/lib/hooks/useRequestsSync';
 
 /** Access-token lifetime (15 min) → refresh comfortably before it expires. */
 const REFRESH_INTERVAL_MS = 12 * 60 * 1000;
@@ -14,6 +15,8 @@ const REFRESH_INTERVAL_MS = 12 * 60 * 1000;
  */
 export function AuthHydrator({ initialUser }: { initialUser: SessionUser | null }) {
   const setUser = useAuthStore((s) => s.setUser);
+  // Live mode: mirror the server-side requests inbox into the local store.
+  useRequestsSync();
 
   useEffect(() => {
     setUser(initialUser);

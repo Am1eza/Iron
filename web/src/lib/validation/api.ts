@@ -24,8 +24,9 @@ export const leadPayload = z.object({
       }),
     )
     .min(1, { message: M.required }),
-  channel: z.enum(['sms', 'whatsapp']).default('sms'),
+  channel: z.enum(['sms', 'whatsapp', 'telegram', 'eitaa']).default('sms'),
   source: z.string().optional(),
+  note: z.string().trim().max(1000).optional(),
 });
 
 export const weightPayload = z.object({

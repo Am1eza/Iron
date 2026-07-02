@@ -3,5 +3,6 @@ import type { Job } from './scheduler';
 import { cleanupJob } from './cleanup.job';
 import { marketPollJob } from './marketPoll.job';
 import { stalenessJob } from './staleness.job';
+import { proformaExpireJob } from './proformaExpire.job';
 
-export const jobs: Job[] = [marketPollJob, stalenessJob, cleanupJob];
+export const jobs: Job[] = [marketPollJob, stalenessJob, proformaExpireJob, cleanupJob];

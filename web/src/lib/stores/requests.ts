@@ -39,6 +39,8 @@ type RequestsState = {
   requests: UserRequest[];
   add: (req: Pick<UserRequest, 'type' | 'title' | 'detail' | 'note'>) => UserRequest;
   clear: () => void;
+  /** Live mode: replace the local mirror with the server's list (sync hook). */
+  replaceAll: (requests: UserRequest[]) => void;
 };
 
 export const useRequestsStore = create<RequestsState>()(
@@ -58,6 +60,7 @@ export const useRequestsStore = create<RequestsState>()(
         return created;
       },
       clear: () => set({ requests: [] }),
+      replaceAll: (requests) => set({ requests }),
     }),
     {
       name: 'ahantime-requests',
