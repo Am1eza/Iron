@@ -17,7 +17,7 @@ export function Footer({ categories }: { categories: Category[] }) {
       <div className={`container ${styles.top}`}>
         {/* Brand + tagline */}
         <div className={styles.brandCol}>
-          <Logo />
+          <Logo light />
           <p className={styles.tagline}>اول مشورت، بعد خرید.</p>
           <p className={styles.blurb}>
             بازار هوشمند آهن و فولاد: مشاور هوش مصنوعی، قیمت‌های شفاف و زمان تحویل مشخص.

@@ -26,7 +26,7 @@
   --emerald-400:#15A06F; --emerald-500:#0F8A63; --emerald-600:#0B6B4F; --emerald-700:#095840;
   --emerald-800:#074533; --emerald-900:#053425;
   --gain-50:#E9F8EF; --gain-100:#CBEFD8; --gain-500:#15A34A; --gain-600:#128B40; --gain-700:#0E6E33;
-  --loss-50:#FDECEB; --loss-100:#FAD2CF; --loss-500:#E0322B; --loss-600:#C42822; --loss-700:#A11F1B;
+  --loss-50:#FDECEB; --loss-100:#FAD2CF; --loss-400:#EA6259; --loss-500:#E0322B; --loss-600:#C42822; --loss-700:#A11F1B;
   /* Steel — cool gunmetal for the "factory" panels/blocks (distinct from neutral) */
   --steel-800:#1C242E; --steel-850:#161D26; --steel-900:#111820; --steel-950:#0C1218;
 
