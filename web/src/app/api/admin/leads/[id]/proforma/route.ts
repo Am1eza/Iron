@@ -1,8 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { findLead, leadItemsOf, toLineItem } from '@/lib/server/repos/leadsRepo';
-import { issueProforma } from '@/lib/server/services/leads.service';
-import { sendTemplateSms } from '@/lib/server/integrations/kavenegar';
+import { issueProforma, proformaSmsText } from '@/lib/server/services/leads.service';
+import { sendSms } from '@/lib/server/integrations/smsir';
 
 /** POST /api/admin/leads/{id}/proforma — issue/re-issue from current lead items
  *  (snapshot already priced at lead creation; sales adjusts via lead items later). */
@@ -24,12 +24,7 @@ async function POSTImpl(req: NextRequest, ctx: { params: Promise<{ id: string }>
     );
   }
   const proforma = await issueProforma(lead, priced);
-  await sendTemplateSms(
-    lead.contactMobile,
-    process.env.KAVENEGAR_PROFORMA_TEMPLATE ?? 'ahantime-proforma',
-    { token: proforma.ref, token2: String(proforma.total) },
-    'proforma',
-  );
+  await sendSms(lead.contactMobile, proformaSmsText(proforma.ref, proforma.total, proforma.validUntil), 'proforma');
   await audit(auth.session.id, 'lead.proforma', { type: 'lead', id }, null, { ref: proforma.ref, total: proforma.total });
   return NextResponse.json({ proforma }, { status: 201 });
 }

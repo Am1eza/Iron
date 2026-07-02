@@ -11,7 +11,7 @@ import { seedDatabase } from '@/lib/server/db/seed';
 import * as schema from '@/lib/server/db/schema';
 import type { Db } from '@/lib/server/db/client';
 import { tableRows } from '@/lib/server/repos/catalogRepo';
-import { createLead } from '@/lib/server/services/leads.service';
+import { createLead, proformaSmsText } from '@/lib/server/services/leads.service';
 import { findProformaByRef } from '@/lib/server/repos/leadsRepo';
 import { requestsForUser, insertRequest } from '@/lib/server/repos/requestsRepo';
 import { createOrder, findOrderByRef, updateOrderStatus } from '@/lib/server/repos/ordersRepo';
@@ -35,6 +35,22 @@ beforeAll(async () => {
 }, 120_000);
 afterAll(async () => {
   await close();
+});
+
+describe('proformaSmsText', () => {
+  it('includes the total and Jalali validity when priced', () => {
+    const text = proformaSmsText('PF-14050411-0001-ABCDEF', 782650, new Date('2026-07-04T07:30:00.000Z'));
+    expect(text).toContain('PF-14050411-0001-ABCDEF');
+    expect(text).toContain('۷۸۲٬۶۵۰ تومان');
+    expect(text).toContain('/proforma/PF-14050411-0001-ABCDEF');
+  });
+
+  it('falls back to a plain "we received it" message when unpriced', () => {
+    const text = proformaSmsText('PF-14050411-0002-ABCDEF');
+    expect(text).toContain('PF-14050411-0002-ABCDEF');
+    expect(text).toContain('کارشناسان ما');
+    expect(text).not.toContain('تومان');
+  });
 });
 
 describe('refs & validity', () => {

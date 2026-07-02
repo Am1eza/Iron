@@ -12,7 +12,7 @@
  * the SMS, regardless of scheduler-level locking.
  */
 import { activeAlertsWithValues, claimAlertForTrigger } from '@/lib/server/repos/alertsRepo';
-import { sendRawSms } from '@/lib/server/integrations/kavenegar';
+import { sendSms } from '@/lib/server/integrations/smsir';
 import { formatToman } from '@/lib/utils/format';
 
 export async function evaluateAlerts(): Promise<number> {
@@ -30,7 +30,7 @@ export async function evaluateAlerts(): Promise<number> {
     const label = r.skuName ?? r.marketLabel ?? 'شاخص';
     const text = `آهن‌تایم: ${label} به ${formatToman(value, false)} تومان رسید (هدف شما: ${r.alert.op === 'below' ? 'زیر' : 'بالای'} ${formatToman(r.alert.threshold, false)}). ahantime.com`;
     // Non-SMS channels aren't integrated yet — the send is recorded either way.
-    await sendRawSms(r.mobile, text, 'alert');
+    await sendSms(r.mobile, text, 'alert');
     fired++;
   }
   return fired;

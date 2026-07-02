@@ -14,8 +14,19 @@ import { insertRequest } from '@/lib/server/repos/requestsRepo';
 import { getVatRate, getHolidays, getSetting } from '@/lib/server/repos/settingsRepo';
 import { nextRef } from '@/lib/server/utils/refs';
 import { quoteValidUntil } from '@/lib/server/utils/jalali';
-import { sendTemplateSms } from '@/lib/server/integrations/kavenegar';
+import { sendSms } from '@/lib/server/integrations/smsir';
 import { getPriceFreshness } from '@/lib/server/services/priceFreshness';
+import { publicEnv } from '@/lib/validation/env';
+import { formatJalali, formatToman } from '@/lib/utils/format';
+
+/** Shared proforma-ref SMS text — used on first issue and on admin re-issue. */
+export function proformaSmsText(ref: string, total?: number, validUntil?: Date): string {
+  const link = `${publicEnv.NEXT_PUBLIC_SITE_URL}/proforma/${ref}`;
+  if (total && validUntil) {
+    return `آهن‌تایم: پیش‌فاکتور شما صادر شد. کد پیگیری: ${ref} — مبلغ: ${formatToman(total)} — اعتبار تا ${formatJalali(validUntil)} ساعت ۱۱:۰۰. مشاهده: ${link}`;
+  }
+  return `آهن‌تایم: درخواست شما با کد پیگیری ${ref} ثبت شد. کارشناسان ما به‌زودی با شما تماس می‌گیرند. پیگیری: ${link}`;
+}
 
 export interface CreateLeadInput {
   contact: { name?: string; mobile: string };
@@ -117,10 +128,12 @@ export async function createLead(
   });
 
   let result: CreateLeadResult = { ref };
+  let validUntilDate: Date | undefined;
 
   // Auto-issue the proforma when every line has a live price.
   if (allPriced && lines.length > 0) {
     const proforma = await issueProforma(lead, lines);
+    validUntilDate = proforma.validUntil;
     result = {
       ref,
       proformaRef: proforma.ref,
@@ -129,13 +142,9 @@ export async function createLead(
     };
   }
 
-  // SMS the reference (dev: logged). Template tokens: ref (+ total when priced).
-  await sendTemplateSms(
-    input.contact.mobile,
-    process.env.KAVENEGAR_PROFORMA_TEMPLATE ?? 'ahantime-proforma',
-    { token: ref, token2: result.total ? String(result.total) : '0' },
-    'proforma',
-  );
+  // SMS the reference (dev: logged) — a priced proforma with total+validity,
+  // or a plain "request received, sales will follow up" when unpriced.
+  await sendSms(input.contact.mobile, proformaSmsText(ref, result.total, validUntilDate), 'proforma');
 
   // Mirror into the account inbox so /account/requests shows it immediately.
   if (session) {

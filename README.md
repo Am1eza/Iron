@@ -65,7 +65,7 @@ This repository currently holds the **complete specification** across three laye
 - **Prices:** 100% **admin-entered** (manual استعلام); no bourse formula. Weight = deterministic formula.
 - **AI:** **DeepSeek**, server-side via an out-of-Iran relay; **grounded** (never invents a number).
 - **Ticker:** FX/gold/ounce from **tgju.org**; **billet admin-entered**.
-- **Auth:** mobile + **OTP**. **SMS:** Kavenegar (recommended).
+- **Auth:** mobile + **OTP**. **SMS:** SMS.ir (locked provider).
 - **Hosting:** hybrid — app/DB in Iran, AI relay outside.
 - **Audience:** co-primary **Contractor + Builder** (dual-mode).
 - **Localization:** Persian-first, **RTL**, Jalali, Toman.
@@ -85,7 +85,7 @@ This repository currently holds the **complete specification** across three laye
 The full backend lives inside the Next.js app (`web/`), on **PostgreSQL + Drizzle**:
 - **Catalog & pricing** — admin-entered prices with movement %, append-only history,
   Jalali freshness/staleness rules («تماس بگیرید» beyond 2 business days).
-- **Auth** — mobile + OTP (Kavenegar), JWT + rotating refresh, RBAC; persistence in Postgres.
+- **Auth** — mobile + OTP (SMS.ir), JWT + rotating refresh, RBAC; persistence in Postgres.
 - **Conversion spine** — lead → پیش‌فاکتور (VAT, next-business-day validity) → SMS → CRM,
   plus order tracking, consignment warehouse, per-user requests inbox.
 - **Engagement** — price alerts with a 60s evaluation job, favorites, customer club tiers.

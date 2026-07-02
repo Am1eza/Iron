@@ -6,7 +6,7 @@
  * held only for "is another replica already running this job" — the job
  * body then runs OUTSIDE that lock/transaction, against the normal shared
  * pool. This deliberately does NOT wrap `job.run()` in a transaction:
- * several jobs do real network I/O (tgju fetch, Kavenegar SMS sends) and/or
+ * several jobs do real network I/O (tgju fetch, SMS.ir sends) and/or
  * their own multi-query work, and holding a transaction (and its connection)
  * open across that — the previous `pg_try_advisory_xact_lock` inside
  * `db.transaction()` did exactly this — risks pinning a connection
