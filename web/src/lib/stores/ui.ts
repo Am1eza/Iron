@@ -31,10 +31,23 @@ type UiState = {
 
 let toastSeq = 0;
 
+/** The inline ThemeScript (in <head>, runs pre-hydration) already resolved the
+ *  correct starting theme onto <html data-theme> — from the persisted choice,
+ *  or the OS `prefers-color-scheme` fallback for first-time visitors. Seed the
+ *  store from that DOM value (not a hardcoded 'light') so StoreHydrator's
+ *  post-mount sync can't stomp a correct OS-dark guess with a stale default
+ *  before the async persist.rehydrate() resolves.
+ */
+function initialTheme(): Theme {
+  if (typeof document === 'undefined') return 'light';
+  const t = document.documentElement.dataset.theme;
+  return t === 'dark' ? 'dark' : 'light';
+}
+
 export const useUiStore = create<UiState>()(
   persist(
     (set) => ({
-      theme: 'light',
+      theme: initialTheme(),
       reducedMotionOverride: null,
       dismissedClubPopupAt: null,
       setTheme: (theme) => set({ theme }),
