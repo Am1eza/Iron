@@ -81,6 +81,10 @@ async function POSTImpl(req: NextRequest) {
   ];
 
   // AC-D-3 state: every tool-returned number + the user's own typed numbers.
+  // Only whitelists numbers within the messages the client actually sent (it
+  // trims to the last 10 turns for cost) — an older user-stated figure falling
+  // out of that window can only cause OVER-censoring of a later legitimate
+  // echo, never under-censoring, so the safe direction is preserved.
   const ledger = new GroundingLedger();
   const userNumbers = new Set<number>();
   for (const m of parsed.data.messages)
@@ -108,18 +112,20 @@ async function POSTImpl(req: NextRequest) {
 
       const toolsUsed = new Set<string>();
 
-      /** One model⇄tools loop; returns the buffered final text (never streamed raw). */
+      /** One model⇄tools loop; returns the buffered final text (never streamed raw).
+       *  On the last allowed round tools are WITHHELD so the model must answer
+       *  with what it already has — otherwise a model that keeps requesting
+       *  tools past the cap would silently return an empty final answer. */
       const runLoop = async (maxRounds: number): Promise<string> => {
-        let rounds = 0;
-        for (;;) {
+        for (let round = 0; ; round++) {
+          const allowTools = round < maxRounds;
           let pendingCalls: ToolCall[] | null = null;
           let buffered = '';
-          for await (const ev of streamCompletion(messages, AI_TOOLS, signal)) {
+          for await (const ev of streamCompletion(messages, allowTools ? AI_TOOLS : [], signal)) {
             if (ev.type === 'token') buffered += ev.text;
             else if (ev.type === 'tool_calls') pendingCalls = ev.calls;
           }
-          if (!pendingCalls || rounds >= maxRounds) return buffered;
-          rounds++;
+          if (!pendingCalls || !allowTools) return buffered;
 
           messages.push({ role: 'assistant', content: null, tool_calls: pendingCalls });
           for (const call of pendingCalls) {
@@ -150,7 +156,7 @@ async function POSTImpl(req: NextRequest) {
 
         // The validator gate — nothing unvalidated ever reaches the user.
         let checked = sanitizeGrounded(final, ledger, userNumbers);
-        if (checked.violations.length > 0 && !req.signal.aborted) {
+        if (checked.violations.length > 0 && !signal.aborted) {
           try {
             messages.push(
               { role: 'assistant', content: final },

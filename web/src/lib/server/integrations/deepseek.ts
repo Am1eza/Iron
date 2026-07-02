@@ -52,6 +52,8 @@ export async function* streamCompletion(
       tools: tools.length > 0 ? tools : undefined,
       stream: true,
       temperature: 0.3,
+      // Cost cap — an unbounded completion can't run up the relay bill.
+      max_tokens: 700,
     }),
     signal,
   });

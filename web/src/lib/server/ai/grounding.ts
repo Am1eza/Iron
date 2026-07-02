@@ -1,56 +1,92 @@
 /**
  * Grounding ledger + post-generation numeric validator (acceptance-criteria AC-D-3).
  *
- * Every number a tool returns is recorded in a per-request ledger. Before any
- * model text reaches the user, `sanitizeGrounded` scans it and censors any
- * money/weight claim that was NOT produced by a tool and NOT typed by the user.
+ * Every number a tool returns is recorded in a per-request ledger, TAGGED by
+ * kind (money/weight/other, inferred from the JSON field name it came from —
+ * `rebarCost` is money, `rebarKg` is weight). Before any model text reaches
+ * the user, `sanitizeGrounded` scans it and censors any money/weight claim
+ * that was NOT produced by a tool OF THE SAME KIND and NOT typed by the user.
+ * The kind tag exists specifically so a real weight (e.g. 3000 kg from
+ * calcWeight) can never validate an invented PRICE that happens to share the
+ * same numeral («۳٬۰۰۰ تومان») — cross-field numeric coincidence is common
+ * enough in this domain to matter.
  *
  * The scanner is scale-aware: «۳۸ هزار و ۵۰۰ تومان» is evaluated as 38,500 and
  * checked as a whole (so a grounded price verbalized that way passes, while an
  * invented «۴۵ هزار تومان» fails even if a *different* scale of 45 was real).
  * It covers Persian, Arabic-Indic and Latin digits, tolerates ZWNJ joiners,
- * exempts date patterns, and rejects digit-less spelled-out money figures
- * outright (the prompt requires digits). Pure functions; unit-tested.
+ * exempts date patterns, and rejects digit-less spelled-out money/weight
+ * figures outright, scaled or not (the prompt requires digits). Pure
+ * functions; unit-tested.
  */
 import { normalizeDigits } from '@/lib/utils/format';
 
+export type NumberKind = 'money' | 'weight' | 'other';
+
 export class GroundingLedger {
-  private nums = new Set<number>();
+  private byNum = new Map<number, Set<NumberKind>>();
 
   /** Record one grounded number (tool output or a code-computed derivative). */
-  add(n: number): void {
+  add(n: number, kind: NumberKind = 'other'): void {
     if (!Number.isFinite(n)) return;
-    this.nums.add(Math.round(n));
+    const r = Math.round(n);
+    const set = this.byNum.get(r) ?? new Set<NumberKind>();
+    set.add(kind);
+    this.byNum.set(r, set);
   }
 
-  addAll(ns: Iterable<number>): void {
-    for (const n of ns) this.add(n);
+  addAll(ns: Iterable<number>, kind: NumberKind = 'other'): void {
+    for (const n of ns) this.add(n, kind);
   }
 
-  /** Recursively record every number in a tool's JSON result. */
-  addFromJson(value: unknown): void {
-    if (typeof value === 'number') this.add(value);
-    else if (Array.isArray(value)) value.forEach((v) => this.addFromJson(v));
+  /** Recursively record every number in a tool's JSON result, tagging each by
+   *  its field name (e.g. `rebarKg` → weight, `rebarCost`/`price` → money). */
+  addFromJson(value: unknown, keyHint?: string): void {
+    if (typeof value === 'number') this.add(value, kindFromKey(keyHint));
+    else if (Array.isArray(value)) value.forEach((v) => this.addFromJson(v, keyHint));
     else if (value && typeof value === 'object')
-      Object.values(value as Record<string, unknown>).forEach((v) => this.addFromJson(v));
+      Object.entries(value as Record<string, unknown>).forEach(([k, v]) => this.addFromJson(v, k));
   }
 
-  has(n: number): boolean {
-    return this.nums.has(Math.round(n));
+  /** `kind` omitted → match regardless of tag (used for plain lookups/tests).
+   *  `kind` given → matches that kind or an untagged/'other' entry — money
+   *  claims never validate against a number ONLY ever seen tagged 'weight'. */
+  has(n: number, kind?: NumberKind): boolean {
+    const set = this.byNum.get(Math.round(n));
+    if (!set) return false;
+    if (!kind) return true;
+    return set.has(kind) || set.has('other');
   }
 
   /** Scale-tolerant check: a claim of `value` at granularity `scale` (1000 for
-   *  «هزار», 1e6 for «میلیون») matches any grounded number in the same bucket —
-   *  «۳۸ هزار» is a fair verbalization of a grounded 38,500. */
-  hasNear(value: number, scale: number): boolean {
-    if (this.nums.has(Math.round(value))) return true;
-    for (const n of this.nums) if (Math.abs(n - value) < scale) return true;
+   *  «هزار», 1e6 for «میلیون») matches any grounded number of the same kind in
+   *  the same bucket — «۳۸ هزار» is a fair verbalization of a grounded 38,500. */
+  hasNear(value: number, scale: number, kind?: NumberKind): boolean {
+    const r = Math.round(value);
+    if (this.has(r, kind)) return true;
+    for (const [n, set] of this.byNum) {
+      if (Math.abs(n - r) < scale && (!kind || set.has(kind) || set.has('other'))) return true;
+    }
     return false;
   }
 
   get size(): number {
-    return this.nums.size;
+    return this.byNum.size;
   }
+}
+
+/** Heuristic kind from a JSON field name — conservative: only tag what the
+ *  name clearly implies, everything else stays 'other' (permissive, matching
+ *  the pre-existing behavior for numbers we can't classify). */
+function kindFromKey(key?: string): NumberKind {
+  if (!key) return 'other';
+  const k = key.toLowerCase();
+  if (/area|floor|qty|quantity|count|percent|pct|rate\b|index|id$/.test(k)) return 'other';
+  // Money checked FIRST: a field like `avgRebarPricePerKg` contains both
+  // "price" and a trailing "kg" — it's the price, not the weight.
+  if (/price|cost|toman|rial|amount|fee|budget/.test(k)) return 'money';
+  if (/weight|kg\b|ton/.test(k)) return 'weight';
+  return 'other';
 }
 
 /* ------------------------------------------------------------------ */
@@ -72,14 +108,17 @@ const SCALED = new RegExp(
 );
 /** Date patterns are data, not price claims: 1405/04/11 · 2026-06-27. */
 const DATE = new RegExp(`[${D}]{4}[/\\-][${D}]{1,2}[/\\-][${D}]{1,2}`, 'g');
+const MONEY_UNIT = '(?:تومان|ریال)';
+const WEIGHT_UNIT = '(?:کیلوگرم|کیلو(?!متر)|گرم)';
 /** Units that make ANY attached number a money/weight claim. */
-const CLAIM_UNIT = new RegExp(`^${J}(هزار|میلیون|میلیارد|تومان|ریال|کیلوگرم|کیلو(?!متر)|گرم)`);
-/** Digit-less spelled-out money («چهل و دو هزار تومان») — the prompt requires
- *  digits, so any word-number scaled to a currency is censored outright. */
+const CLAIM_UNIT = new RegExp(`^${J}(هزار|میلیون|میلیارد|${MONEY_UNIT.slice(3, -1)}|${WEIGHT_UNIT.slice(3, -1)})`);
+/** Digit-less spelled-out money/weight («چهل و دو هزار تومان», «پانصد تومان»,
+ *  «صد کیلوگرم») — the prompt requires digits, so ANY word-number directly
+ *  attached to a money/weight unit is censored outright, scale word or not. */
 const WORD_NUM =
   '(?:یک|دو|سه|چهار|پنج|شش|شیش|هفت|هشت|نه|ده|یازده|دوازده|سیزده|چهارده|پانزده|شانزده|هفده|هجده|نوزده|بیست|سی|چهل|پنجاه|شصت|هفتاد|هشتاد|نود|صد|دویست|سیصد|چهارصد|پانصد|ششصد|هفتصد|هشتصد|نهصد)';
 const WORD_MONEY = new RegExp(
-  `${WORD_NUM}(?:${J}و${J}${WORD_NUM})*${J}(?:هزار|میلیون|میلیارد)${J}(?:تومان|ریال)`,
+  `${WORD_NUM}(?:${J}و${J}${WORD_NUM})*(?:${J}(?:هزار|میلیون|میلیارد))?${J}(?:${MONEY_UNIT}|${WEIGHT_UNIT})`,
   'g',
 );
 
@@ -90,8 +129,16 @@ export function parseNumericToken(token: string): number {
   return Number(cleaned);
 }
 
+/** Which kind of claim a trailing unit implies — undefined when the tail has
+ *  no unit at all (a bare large number: kind-agnostic, matches either). */
+function claimKind(tail: string): NumberKind | undefined {
+  if (new RegExp(`^${J}${WEIGHT_UNIT}`).test(tail)) return 'weight';
+  if (new RegExp(`^${J}(?:${MONEY_UNIT}|هزار|میلیون|میلیارد)`).test(tail)) return 'money';
+  return undefined;
+}
+
 /** One numeric claim found in text: its resolved value + match span + scale. */
-type Claim = { start: number; end: number; value: number; scale: number; isClaim: boolean };
+type Claim = { start: number; end: number; value: number; scale: number; isClaim: boolean; kind?: NumberKind };
 
 function findClaims(text: string): Claim[] {
   const claims: Claim[] = [];
@@ -102,6 +149,7 @@ function findClaims(text: string): Claim[] {
   for (const m of text.matchAll(DATE)) covered.push([m.index, m.index + m[0].length]);
 
   // 2. Scaled compounds — evaluate the FULL value («۳۸ هزار و ۵۰۰» → 38500).
+  // Scale words in this domain are overwhelmingly money-denominated.
   for (const m of text.matchAll(SCALED)) {
     const s = m.index;
     const e = s + m[0].length;
@@ -111,7 +159,9 @@ function findClaims(text: string): Claim[] {
     let value = head * scale;
     if (m[3]) value += parseNumericToken(m[3]) * (m[4] ? SCALE_VALUE[m[4]]! : 1);
     if (Number.isFinite(value)) {
-      claims.push({ start: s, end: e, value, scale, isClaim: true });
+      const tail = text.slice(e, e + 14);
+      const kind = new RegExp(`^${J}${WEIGHT_UNIT}`).test(tail) ? 'weight' : 'money';
+      claims.push({ start: s, end: e, value, scale, isClaim: true, kind });
       covered.push([s, e]);
     }
   }
@@ -125,7 +175,7 @@ function findClaims(text: string): Claim[] {
     if (!Number.isFinite(value)) continue;
     const tail = text.slice(e, e + 14);
     const isClaim = Math.round(value) >= SIGNIFICANT_MIN || CLAIM_UNIT.test(tail);
-    claims.push({ start: s, end: e, value, scale: 1, isClaim });
+    claims.push({ start: s, end: e, value, scale: 1, isClaim, kind: claimKind(tail) });
   }
 
   return claims.sort((a, b) => a.start - b.start);
@@ -150,7 +200,9 @@ export interface SanitizeResult {
 
 /**
  * Enforce AC-D-3 on a final answer: every significant number must exist in the
- * tool ledger or in the user's own messages. Ungrounded ones are replaced.
+ * tool ledger (of the SAME kind — money can't be validated by a real weight
+ * that coincidentally shares the numeral) or in the user's own messages.
+ * Ungrounded ones are replaced.
  */
 export function sanitizeGrounded(
   text: string,
@@ -165,16 +217,16 @@ export function sanitizeGrounded(
     const rounded = Math.round(c.value);
     const ok =
       c.scale > 1
-        ? ledger.hasNear(c.value, c.scale) || userNumbers.has(rounded)
-        : ledger.has(rounded) || userNumbers.has(rounded);
+        ? ledger.hasNear(c.value, c.scale, c.kind) || userNumbers.has(rounded)
+        : ledger.has(rounded, c.kind) || userNumbers.has(rounded);
     if (!ok) {
       violations.push(rounded);
       cuts.push({ start: c.start, end: c.end });
     }
   }
 
-  // Spelled-out money with no digits is never grounded — censor the phrase.
-  // (-1 marks a word-form violation so the retry still triggers.)
+  // Spelled-out money/weight with no digits is never grounded — censor the
+  // phrase outright (-1 marks a word-form violation so the retry still triggers).
   for (const m of text.matchAll(WORD_MONEY)) {
     const s = m.index;
     const e = s + m[0].length;

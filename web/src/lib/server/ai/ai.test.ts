@@ -119,6 +119,36 @@ describe('GroundingLedger + sanitizeGrounded (AC-D-3)', () => {
     expect(ledger.has(41000)).toBe(true);
     expect(ledger.has(820000000)).toBe(true);
   });
+
+  it('kind separation: a real WEIGHT never validates an invented PRICE with the same numeral', () => {
+    const ledger = new GroundingLedger();
+    ledger.addFromJson({ rebarKg: 3000 }); // calcWeight-style result — tagged 'weight'
+    const r = sanitizeGrounded('قیمت میلگرد ۳۰۰۰ تومان است.', ledger, new Set());
+    expect(r.violations).toEqual([3000]);
+    expect(r.text).toContain(UNGROUNDED_REPLACEMENT);
+    // ...but the SAME 3000 correctly grounds a weight claim.
+    const r2 = sanitizeGrounded('وزنش ۳۰۰۰ کیلوگرم است.', ledger, new Set());
+    expect(r2.violations).toEqual([]);
+  });
+
+  it('kind tagging from field names: price/cost → money, weight/kg/ton → weight', () => {
+    const ledger = new GroundingLedger();
+    ledger.addFromJson({ rebarCost: 92000000, avgRebarPricePerKg: 41000, rebarKg: 2200, rebarTons: 2.2, totalAreaM2: 120 });
+    expect(sanitizeGrounded('هزینه حدود ۹۲ میلیون تومان می‌شود.', ledger, new Set()).violations).toEqual([]);
+    expect(sanitizeGrounded('قیمت هر کیلو ۴۱۰۰۰ تومان است.', ledger, new Set()).violations).toEqual([]);
+    expect(sanitizeGrounded('وزن میلگرد ۲۲۰۰ کیلوگرم است.', ledger, new Set()).violations).toEqual([]);
+    // A weight-only figure must not ground an unrelated money claim of the same size.
+    expect(sanitizeGrounded('قیمت ۲۲۰۰ تومان است.', ledger, new Set()).violations).toEqual([2200]);
+  });
+
+  it('censors scale-LESS spelled money/weight («پانصد تومان», «صد کیلوگرم»)', () => {
+    const r1 = sanitizeGrounded('فقط پانصد تومان بیشتر است.', new GroundingLedger(), new Set());
+    expect(r1.violations.length).toBeGreaterThan(0);
+    expect(r1.text).not.toContain('پانصد تومان');
+    const r2 = sanitizeGrounded('وزنش حدود صد کیلوگرم است.', new GroundingLedger(), new Set());
+    expect(r2.violations.length).toBeGreaterThan(0);
+    expect(r2.text).not.toContain('صد کیلوگرم');
+  });
 });
 
 /**

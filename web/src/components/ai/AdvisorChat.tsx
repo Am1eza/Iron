@@ -55,7 +55,7 @@ const uid = () => `m${++seq}`;
 type ServerEvent =
   | { type: 'token'; text: string }
   | { type: 'tool'; name: string }
-  | { type: 'lead'; ref?: string }
+  | { type: 'lead'; ref?: string; total?: number }
   | { type: 'chips'; chips: string[] }
   | { type: 'done' }
   | { type: 'error'; message: string };
@@ -231,12 +231,22 @@ export function AdvisorChat({ initialQuestion }: { initialQuestion?: string }) {
     const aiId = uid();
     let streamedText = '';
     let opened = false;
+    // The server always emits 'lead' (during tool execution) strictly BEFORE
+    // any 'token' (the buffered, sanitized final text) — so it's held and
+    // appended after the model's own prose instead of rendering it first.
+    let leadLine: string | null = null;
     const patch = (fn: (m: Msg) => Msg) =>
       setMessages((all) => all.map((m) => (m.id === aiId ? fn(m) : m)));
     const open = (init: Partial<Msg> = {}) => {
       opened = true;
       setTyping(false);
       setMessages((all) => [...all, { id: aiId, role: 'ai', ...init }]);
+    };
+    const appendLine = (line: string) => {
+      streamedText = streamedText ? `${streamedText}\n${line}` : line;
+      const t = streamedText;
+      if (!opened) open({ text: t });
+      else patch((m) => ({ ...m, text: t }));
     };
     try {
       // Only recent non-empty turns travel (server re-validates) — bounded payload.
@@ -255,13 +265,9 @@ export function AdvisorChat({ initialQuestion }: { initialQuestion?: string }) {
             patch((m) => ({ ...m, text: t }));
           }
         } else if (ev.type === 'lead') {
-          const ref = ev.ref;
-          if (ref) {
-            const line = `درخواستت ثبت شد؛ کد پیگیری: ${toPersianDigits(ref)}`;
-            streamedText = streamedText ? `${streamedText}\n${line}` : line;
-            const t = streamedText;
-            if (!opened) open({ text: t });
-            else patch((m) => ({ ...m, text: t }));
+          if (ev.ref) {
+            const amount = ev.total ? ` — مبلغ ${formatToman(ev.total)}` : '';
+            leadLine = `درخواستت ثبت شد؛ کد پیگیری: ${toPersianDigits(ev.ref)}${amount}`;
           }
         } else if (ev.type === 'chips') {
           const chips = ev.chips;
@@ -271,6 +277,7 @@ export function AdvisorChat({ initialQuestion }: { initialQuestion?: string }) {
         }
         // 'tool' frames just keep the typing indicator honest — nothing to render.
       }
+      if (leadLine) appendLine(leadLine);
       if (!opened) throw new Error('empty');
       if (streamedText.trim()) transcriptRef.current.push({ role: 'ai', text: streamedText });
     } catch (e) {
