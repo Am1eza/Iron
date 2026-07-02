@@ -116,6 +116,9 @@ export async function verifyOtp(
   }
 
   clearOtp(mobile);
+  // Successful verification consumes the pending code, so the resend cooldown
+  // no longer protects anything — clear it so an immediate re-login works.
+  setRate(mobile, { sends: [], lockedUntil: undefined });
 
   // Login or register (first OTP for a new mobile creates the account).
   const existing = userByMobile(mobile);

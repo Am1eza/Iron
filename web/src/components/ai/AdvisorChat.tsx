@@ -2,9 +2,10 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { routes } from '@/lib/routes';
-import { api, API_MODE } from '@/lib/api';
+import { api, API_MODE, isApiError } from '@/lib/api';
 import { normalizeDigits, toPersianDigits, formatToman } from '@/lib/utils/format';
 import { getRows } from '@/lib/mock/catalogData';
+import { CATEGORY_ALIASES, PURPOSE_CHIPS } from '@/lib/data/aiTaxonomy';
 import { computeBulkSplit, type BulkSplit } from '@/components/catalog/BulkQuote';
 import { SparkIcon, ChevronStartIcon, CheckCircleIcon } from '@/components/primitives/icons';
 import styles from './AdvisorChat.module.css';
@@ -35,24 +36,14 @@ type Msg = {
   split?: SplitAnswer;
 };
 
-/** Map a Persian product keyword to its catalog slug + display name. */
-const CATEGORY_KEYWORDS: { re: RegExp; slug: string; name: string }[] = [
-  { re: /میلگرد/, slug: 'rebar', name: 'میلگرد' },
-  { re: /تیرآهن|تیراهن|هاش|آی‌بیم|ای بیم/, slug: 'ibeam', name: 'تیرآهن' },
-  { re: /ورق/, slug: 'sheet', name: 'ورق' },
-  { re: /پروفیل|قوطی/, slug: 'profile', name: 'پروفیل' },
-  { re: /نبشی|ناودانی|سپری/, slug: 'angle-channel', name: 'نبشی و ناودانی' },
-  { re: /لوله/, slug: 'pipe', name: 'لوله' },
-  { re: /مفتول|سیم|کلاف|توری/, slug: 'wire', name: 'سیم و مفتول' },
-];
-
-/** Detect «۲۰ تن میلگرد» → tonnage + category. Returns null if not a bulk ask. */
+/** Detect «۲۰ تن میلگرد» → tonnage + category (shared alias table — no drift
+ *  with the server tools). Returns null if not a bulk ask. */
 function detectBulk(t: string): { tonnage: number; slug: string; name: string } | null {
   const tonMatch = t.match(/(\d{1,5}(?:\.\d+)?)\s*تن/);
   if (!tonMatch) return null;
   const tonnage = Number(tonMatch[1]);
   if (!Number.isFinite(tonnage) || tonnage <= 0) return null;
-  const cat = CATEGORY_KEYWORDS.find((c) => c.re.test(t));
+  const cat = CATEGORY_ALIASES.find((c) => c.re.test(t));
   if (!cat) return null;
   return { tonnage, slug: cat.slug, name: cat.name };
 }
@@ -93,8 +84,6 @@ async function* readSse(body: ReadableStream<Uint8Array>): AsyncGenerator<Server
     }
   }
 }
-
-const PURPOSE_CHIPS = ['ساختمان مسکونی', 'سوله یا سازهٔ صنعتی', 'بازرگانی و فروش', 'فقط می‌خواهم قیمت ببینم'];
 
 function detectPurpose(t: string): 'building' | 'industrial' | 'trade' | 'price' | null {
   if (/خانه|خونه|ساختمان|مسکونی|سقف|طبقه|ویلا|بنا/.test(t)) return 'building';
@@ -210,12 +199,14 @@ function aiReply(text: string, ctx: { purpose: string | null }): { msgs: Msg[]; 
 export function AdvisorChat({ initialQuestion }: { initialQuestion?: string }) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [typing, setTyping] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [input, setInput] = useState('');
   const purposeRef = useRef<string | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const started = useRef(false);
   // Live DeepSeek advisor when configured; the local grounded engine remains the
-  // zero-cost fallback (mock mode, relay outage, rate limit) — no dead-ends (AC-D-9).
+  // zero-cost fallback — per turn for transient errors, permanently only when the
+  // server says it has no relay at all (503 ai_unconfigured). No dead-ends (AC-D-9).
   const useServer = useRef(API_MODE !== 'mock');
   const transcriptRef = useRef<{ role: 'user' | 'ai'; text: string }[]>([]);
   const busyRef = useRef(false);
@@ -237,36 +228,54 @@ export function AdvisorChat({ initialQuestion }: { initialQuestion?: string }) {
 
   const sendLive = async (text: string) => {
     busyRef.current = true;
+    setBusy(true);
     setTyping(true);
     const aiId = uid();
     let streamedText = '';
     let opened = false;
+    let extraSeq = 0;
     const patch = (fn: (m: Msg) => Msg) =>
       setMessages((all) => all.map((m) => (m.id === aiId ? fn(m) : m)));
+    const open = (init: Partial<Msg> = {}) => {
+      opened = true;
+      setTyping(false);
+      setMessages((all) => [...all, { id: aiId, role: 'ai', ...init }]);
+    };
     try {
-      // Only the recent turns travel (server trims again) — bounded payload & cost.
-      const res = await api.ai.chatStream(transcriptRef.current.slice(-10));
+      // Only recent non-empty turns travel (server trims again) — bounded payload.
+      const transcript = transcriptRef.current.filter((m) => m.text.trim()).slice(-10);
+      const res = await api.ai.chatStream(transcript);
       if (!res.body) throw new Error('no-body');
       for await (const ev of readSse(res.body)) {
         if (ev.type === 'delta') {
           streamedText += ev.text;
-          if (!opened) {
-            opened = true;
-            setTyping(false);
-            setMessages((all) => [...all, { id: aiId, role: 'ai', text: ev.text }]);
-          } else {
+          if (!opened) open({ text: ev.text });
+          else {
             const t = streamedText;
             patch((m) => ({ ...m, text: t }));
           }
         } else if (ev.type === 'card') {
           const card = ev.card;
-          if (!opened) {
-            opened = true;
-            setTyping(false);
-            setMessages((all) => [...all, { id: aiId, role: 'ai' }]);
-          }
-          if (card.kind === 'estimate') patch((m) => ({ ...m, estimate: card.estimate }));
-          else patch((m) => ({ ...m, split: card.split }));
+          if (!opened) open();
+          // A second card of the same kind gets its own bubble instead of
+          // overwriting the first (e.g. concrete + steel estimates in one turn).
+          setMessages((all) => {
+            const target = all.find((m) => m.id === aiId);
+            const taken = card.kind === 'estimate' ? target?.estimate : target?.split;
+            if (taken) {
+              const extra: Msg = { id: `${aiId}x${++extraSeq}`, role: 'ai' };
+              if (card.kind === 'estimate') extra.estimate = card.estimate;
+              else extra.split = card.split;
+              return [...all, extra];
+            }
+            return all.map((m) =>
+              m.id === aiId
+                ? card.kind === 'estimate'
+                  ? { ...m, estimate: card.estimate }
+                  : { ...m, split: card.split }
+                : m,
+            );
+          });
         } else if (ev.type === 'chips') {
           const chips = ev.chips;
           if (opened) patch((m) => ({ ...m, chips }));
@@ -275,24 +284,27 @@ export function AdvisorChat({ initialQuestion }: { initialQuestion?: string }) {
         }
       }
       if (!opened) throw new Error('empty');
-      transcriptRef.current.push({ role: 'ai', text: streamedText });
-    } catch {
-      // Relay unreachable/unconfigured → answer locally and stop retrying the server.
-      useServer.current = false;
+      if (streamedText.trim()) transcriptRef.current.push({ role: 'ai', text: streamedText });
+    } catch (e) {
+      // Permanent downgrade ONLY when the server says no relay exists; every
+      // transient failure (timeout, 429, network blip) retries next turn.
+      if (isApiError(e) && e.status === 503) useServer.current = false;
       setTyping(false);
-      if (opened) {
-        setMessages((all) => all.filter((m) => m.id !== aiId));
-      }
+      if (opened) setMessages((all) => all.filter((m) => m.id !== aiId && !m.id.startsWith(`${aiId}x`)));
       sendLocal(text);
     } finally {
       busyRef.current = false;
+      setBusy(false);
     }
   };
 
   const send = (raw: string) => {
-    const text = raw.trim();
+    const text = raw.trim().slice(0, 1000);
     if (!text || busyRef.current) return;
     setInput('');
+    // Track the stated purpose on BOTH paths so a mid-conversation fallback
+    // to the local engine doesn't restart the intent-first questioning.
+    purposeRef.current = purposeRef.current ?? detectPurpose(normalizeDigits(text));
     transcriptRef.current.push({ role: 'user', text });
     setMessages((m) => [...m, { id: uid(), role: 'user', text }]);
     if (useServer.current) void sendLive(text);
@@ -392,11 +404,13 @@ export function AdvisorChat({ initialQuestion }: { initialQuestion?: string }) {
           className={styles.input}
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="بنویس… مثلاً: یه خونهٔ ۱۰۰ متری دو طبقه می‌سازم"
+          placeholder={busy ? 'در حال پاسخ…' : 'بنویس… مثلاً: یه خونهٔ ۱۰۰ متری دو طبقه می‌سازم'}
           aria-label="پیام به مشاور هوشمند"
           enterKeyHint="send"
+          maxLength={1000}
+          disabled={busy}
         />
-        <button type="submit" className={styles.send} aria-label="ارسال">
+        <button type="submit" className={styles.send} aria-label="ارسال" disabled={busy}>
           <ChevronStartIcon size={20} className="icon--rtl" />
         </button>
       </form>

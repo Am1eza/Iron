@@ -36,8 +36,62 @@ describe('GroundingLedger + sanitizeGrounded (AC-D-3)', () => {
     const ledger = new GroundingLedger();
     ledger.add(38000); // only 38k is real
     const r = sanitizeGrounded('حدود ۴۵ هزار تومان بر کیلو.', ledger, new Set());
-    expect(r.violations).toEqual([45]);
+    expect(r.violations).toEqual([45000]);
     expect(r.text).toContain(UNGROUNDED_REPLACEMENT);
+  });
+
+  it('a grounded but scaled 45-میلیون total does NOT license an invented «۴۵ هزار» price', () => {
+    const ledger = new GroundingLedger();
+    ledger.add(45_000_000); // real project total
+    const r = sanitizeGrounded('قیمت هر کیلو حدود ۴۵ هزار تومان است.', ledger, new Set());
+    expect(r.violations).toEqual([45000]);
+  });
+
+  it('passes the compound verbalization «۳۸ هزار و ۵۰۰ تومان» of a grounded 38,500', () => {
+    const ledger = new GroundingLedger();
+    ledger.add(38500);
+    const r = sanitizeGrounded('قیمت امروز ۳۸ هزار و ۵۰۰ تومان بر کیلوگرم است.', ledger, new Set());
+    expect(r.violations).toEqual([]);
+  });
+
+  it('catches Arabic-Indic digits «٤٢٠٠٠» (script LLMs emit for Persian)', () => {
+    const r = sanitizeGrounded('قیمت ٤٢٠٠٠ تومان است.', new GroundingLedger(), new Set());
+    expect(r.violations).toEqual([42000]);
+    expect(r.text).toContain(UNGROUNDED_REPLACEMENT);
+  });
+
+  it('catches a ZWNJ-joined money figure «۹۵‌تومان»', () => {
+    const r = sanitizeGrounded('فقط ۹۵‌تومان اختلاف دارد.', new GroundingLedger(), new Set());
+    expect(r.violations).toEqual([95]);
+  });
+
+  it('censors spelled-out money («چهل و دو هزار تومان») outright', () => {
+    const r = sanitizeGrounded('قیمت حدود چهل و دو هزار تومان است.', new GroundingLedger(), new Set());
+    expect(r.violations.length).toBeGreaterThan(0);
+    expect(r.text).toContain(UNGROUNDED_REPLACEMENT);
+    expect(r.text).not.toContain('چهل و دو هزار تومان');
+  });
+
+  it('date patterns are data, not claims (Jalali + ISO)', () => {
+    const ledger = new GroundingLedger();
+    ledger.add(38500);
+    const r = sanitizeGrounded(
+      'قیمت ۳۸۵۰۰ تومان؛ به‌روزرسانی ۱۴۰۵/۰۴/۱۱ (2026-06-27).',
+      ledger,
+      new Set(),
+    );
+    expect(r.violations).toEqual([]);
+    expect(r.text).toContain('۱۴۰۵/۰۴/۱۱');
+  });
+
+  it('user scale-aware whitelist: «بودجه ۵۰۰ میلیون» licenses the full 500,000,000', () => {
+    const user = new Set(numbersInText('بودجه‌ام ۵۰۰ میلیون تومان است'));
+    const r = sanitizeGrounded('با بودجهٔ ۵۰۰ میلیون تومانی‌ات…', new GroundingLedger(), user);
+    expect(r.violations).toEqual([]);
+    // …but the bare user "3" (طبقه) does NOT license an invented ۳ میلیون.
+    const user2 = new Set(numbersInText('خونهٔ ۳ طبقه می‌سازم'));
+    const r2 = sanitizeGrounded('هزینهٔ جوشکاری حدود ۳ میلیون تومان است.', new GroundingLedger(), user2);
+    expect(r2.violations).toEqual([3000000]);
   });
 
   it('allows the «میلیون تومان» scaled form of a grounded total', () => {
@@ -233,6 +287,19 @@ describe('advisor engine', () => {
     const text = events.filter((e): e is Extract<AdvisorEvent, { type: 'delta' }> => e.type === 'delta').map((e) => e.text).join('');
     expect(text).not.toMatch(/[۹9]{2}[٬,]?[۹9]{3}|[۸8]{2}[٬,]?[۸8]{3}/);
     expect(text).toContain(UNGROUNDED_REPLACEMENT);
+  });
+
+  it('the correction round may call tools — the model recovers with a REAL price', async () => {
+    const price = Math.min(...getRows('rebar').map((r) => r.current.price));
+    const events = await collect([
+      modelSays('قیمت میلگرد ۹۹٬۹۹۹ تومان است.'), // invented, no tool call
+      modelCalls('get_prices', { category: 'میلگرد' }), // retry does the right thing
+      modelSays(`قیمت واقعی ${price} تومان بر کیلوگرم است.`),
+    ]);
+    const text = events.filter((e): e is Extract<AdvisorEvent, { type: 'delta' }> => e.type === 'delta').map((e) => e.text).join('');
+    expect(text).toContain(String(price));
+    expect(text).not.toContain(UNGROUNDED_REPLACEMENT);
+    expect(events.at(-1)).toEqual({ type: 'done' });
   });
 
   it('relay failure → graceful Persian fallback (AC-D-9)', async () => {

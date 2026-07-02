@@ -40,7 +40,13 @@ the advisor never dead-ends (AC-D-9).
 4. **Arithmetic is code, not the model** (BR-D3.2): totals in
    `estimate_project` / `compare_factories` are computed server-side.
 
-The adversarial QA set (`lib/server/ai/ai.test.ts`) covers 30+ smuggling
+The scanner is scale-aware: «۳۸ هزار و ۵۰۰ تومان» evaluates to 38,500 and is
+checked as a whole, «۴۵ هزار تومان» is NOT licensed by a grounded 45,000,000,
+Persian/Arabic-Indic/Latin digits and ZWNJ joiners are all covered, date
+patterns (۱۴۰۵/۰۴/۱۱ · 2026-06-27) are exempt data, and digit-less spelled-out
+money («چهل و دو هزار تومان») is censored outright — the prompt requires digits.
+
+The adversarial QA set (`lib/server/ai/ai.test.ts`) covers 40+ smuggling
 disguises — separators, digit scripts, scaled forms, ranges, ریال, decimals —
 and asserts zero ungrounded numbers survive (DoD-D).
 

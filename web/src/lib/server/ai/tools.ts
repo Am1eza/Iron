@@ -6,6 +6,7 @@
  */
 import { getRows, getSubRows } from '@/lib/mock/catalogData';
 import { CATEGORY_SUBS } from '@/lib/data/nav';
+import { CATEGORY_ALIASES } from '@/lib/data/aiTaxonomy';
 import { computeBulkSplit } from '@/lib/utils/bulkSplit';
 import { normalizeDigits, toPersianDigits } from '@/lib/utils/format';
 import type { PriceRow } from '@/lib/types/domain';
@@ -13,18 +14,9 @@ import type { GroundingLedger } from './grounding';
 
 /* ------------------------------------------------------------------ */
 /* Category / size normalization — the model may pass Persian names,   */
-/* Latin slugs, either digit script.                                   */
+/* Latin slugs, either digit script. (Alias table shared with the      */
+/* client fallback via lib/data/aiTaxonomy — one source, no drift.)    */
 /* ------------------------------------------------------------------ */
-
-const CATEGORY_ALIASES: { re: RegExp; slug: string; name: string }[] = [
-  { re: /rebar|میلگرد/, slug: 'rebar', name: 'میلگرد' },
-  { re: /ibeam|beam|تیرآهن|تیراهن|هاش/, slug: 'ibeam', name: 'تیرآهن' },
-  { re: /sheet|ورق/, slug: 'sheet', name: 'ورق' },
-  { re: /profile|پروفیل|قوطی/, slug: 'profile', name: 'پروفیل' },
-  { re: /angle|channel|نبشی|ناودانی|سپری/, slug: 'angle-channel', name: 'نبشی و ناودانی' },
-  { re: /pipe|لوله/, slug: 'pipe', name: 'لوله' },
-  { re: /wire|مفتول|سیم|کلاف|توری/, slug: 'wire', name: 'سیم و مفتول' },
-];
 
 export function resolveCategory(input: string): { slug: string; name: string } | null {
   const t = normalizeDigits(String(input)).toLowerCase();
@@ -112,7 +104,8 @@ function toolCalcWeight(args: Record<string, unknown>): ToolOutcome {
   if (!row) return { result: { error: 'وزن استاندارد این سایز ثبت نشده؛ کارشناس اعلام می‌کند.' } };
   const unitKg = row.theoreticalWeightKg;
   if (!unitKg) return { result: { error: 'وزن استاندارد این سایز ثبت نشده؛ کارشناس اعلام می‌کند.' } };
-  const totalKg = Math.round(unitKg * qty * 10) / 10;
+  // Same rounding as POST /api/tools/weight — the two must never disagree.
+  const totalKg = Math.round(unitKg * qty * 100) / 100;
   return {
     result: {
       category: cat.name,
@@ -138,10 +131,14 @@ const STRUCTURE_COEFF: Record<string, { name: string; slug: string; kgPerM2: num
   ],
 };
 
+const avgPriceCache = new Map<string, number>();
 function avgPrice(slug: string): number {
+  const hit = avgPriceCache.get(slug);
+  if (hit !== undefined) return hit;
   const rows = getRows(slug);
-  if (rows.length === 0) return 0;
-  return Math.round(rows.reduce((s, r) => s + r.current.price, 0) / rows.length);
+  const avg = rows.length === 0 ? 0 : Math.round(rows.reduce((s, r) => s + r.current.price, 0) / rows.length);
+  avgPriceCache.set(slug, avg);
+  return avg;
 }
 
 function toolEstimateProject(args: Record<string, unknown>): ToolOutcome {
@@ -290,9 +287,9 @@ export function executeTool(name: string, rawArgs: string, ledger: GroundingLedg
   }
   try {
     const outcome = fn(args);
+    // Only `result` reaches the model, so only its numbers can be echoed —
+    // cards go straight to the UI and need no ledger entry.
     ledger.addFromJson(outcome.result);
-    if (outcome.card?.kind === 'estimate') ledger.addFromJson(outcome.card.estimate);
-    if (outcome.card?.kind === 'split') ledger.addFromJson(outcome.card.split.split);
     return outcome;
   } catch {
     return { result: { error: 'اجرای ابزار ناموفق بود؛ کارشناس اعلام می‌کند.' } };
