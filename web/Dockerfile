@@ -25,6 +25,11 @@ ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL \
     NODE_ENV=production \
     BUILD_STANDALONE=1
 RUN pnpm build
+# Bundle the DB scripts (migrate + seed) so the runner needs no dev deps.
+# esbuild resolves the "@/" tsconfig alias; pg stays external (traced into
+# the standalone node_modules via the app's own imports).
+RUN npx esbuild scripts/migrate.mjs --bundle --platform=node --format=esm --outfile=scripts-dist/migrate.mjs --external:pg \
+ && npx esbuild scripts/seed.ts --bundle --platform=node --format=esm --outfile=scripts-dist/seed.mjs --external:pg
 
 # ---- 3. runner --------------------------------------------------------------
 FROM node:20-alpine AS runner
@@ -38,7 +43,11 @@ RUN addgroup -S nodejs && adduser -S nextjs -G nodejs
 COPY --from=build /app/public ./public
 COPY --from=build --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=build --chown=nextjs:nodejs /app/.next/static ./.next/static
+# DB migrations + bundled migrate/seed scripts (see docker-entrypoint.sh).
+COPY --from=build --chown=nextjs:nodejs /app/drizzle ./drizzle
+COPY --from=build --chown=nextjs:nodejs /app/scripts-dist ./scripts
+COPY --from=build --chown=nextjs:nodejs /app/docker-entrypoint.sh ./docker-entrypoint.sh
 USER nextjs
 EXPOSE 3000
-# server.js is emitted by Next's standalone output; it reads PORT/HOSTNAME.
-CMD ["node", "server.js"]
+# Applies pending migrations (and optionally seeds) before starting server.js.
+CMD ["sh", "docker-entrypoint.sh"]

@@ -28,14 +28,25 @@ const serverSchema = z
     SESSION_SECRET: z.string().optional(),
     DATABASE_URL: z.string().optional(),
     AUTH_ENFORCED: z.enum(['true', 'false']).default('false'),
+    AI_ENABLED: z.enum(['true', 'false']).default('false'),
+    SEED_ON_START: z.enum(['true', 'false']).default('false'),
   })
-  // In live mode, required secrets must be present.
+  // Live mode requires the DB + session secret. Integrations stay optional and
+  // degrade gracefully (SMS -> dev log, ticker -> last-known values); the AI
+  // relay keys are only required once the feature flag is on.
   .superRefine((env, ctx) => {
-    if (publicEnv.NEXT_PUBLIC_API_MODE !== 'live') return;
-    const required: (keyof typeof env)[] = ['DEEPSEEK_API_KEY', 'DEEPSEEK_BASE_URL', 'KAVENEGAR_API_KEY', 'SESSION_SECRET'];
-    for (const key of required) {
-      if (!env[key]) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key as string], message: `${String(key)} در حالت live الزامی است.` });
+    if (publicEnv.NEXT_PUBLIC_API_MODE === 'live') {
+      for (const key of ['DATABASE_URL', 'SESSION_SECRET'] as const) {
+        if (!env[key]) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: `${key} در حالت live الزامی است.` });
+        }
+      }
+    }
+    if (env.AI_ENABLED === 'true') {
+      for (const key of ['DEEPSEEK_API_KEY', 'DEEPSEEK_BASE_URL'] as const) {
+        if (!env[key]) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: `${key} برای فعال‌سازی دستیار هوشمند الزامی است.` });
+        }
       }
     }
   });
