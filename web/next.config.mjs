@@ -36,8 +36,12 @@ const nextConfig = {
         async headers() {
           return [
             {
-              // Keep admin + personal areas out of search indexes (IA / SEO rules).
-              source: '/:path(admin|account|request|cart|search)(.*)',
+              // Keep admin, personal, and internal-tooling areas out of search
+              // indexes (IA / SEO rules). styleguide is an internal component
+              // reference — not customer-facing, not in sitemap.ts, and never
+              // linked from the site, but with no noindex it would still get
+              // crawled/indexed if ever discovered via an external link.
+              source: '/:path(admin|account|request|cart|search|styleguide)(.*)',
               headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }],
             },
           ];
