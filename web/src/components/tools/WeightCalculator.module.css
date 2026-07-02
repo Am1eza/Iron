@@ -127,7 +127,7 @@
 }
 .empty {
   font: var(--t-body-sm);
-  color: var(--color-text-placeholder);
+  color: var(--color-text-muted);
 }
 .divider {
   block-size: var(--border-hairline);
