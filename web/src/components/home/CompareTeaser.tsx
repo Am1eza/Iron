@@ -44,7 +44,7 @@ export function CompareTeaser({ slides }: { slides: CompareSlide[] }) {
     };
   }, [reduced, n]);
 
-  const pick = (i: number) => {
+  const pick = (i: number, focusTab = false) => {
     setActive(i);
     // manual choice restarts the countdown so it doesn't flip right away
     if (timer.current) {
@@ -52,6 +52,26 @@ export function CompareTeaser({ slides }: { slides: CompareSlide[] }) {
       timer.current = setInterval(() => {
         if (!paused.current && !document.hidden) setActive((v) => (v + 1) % n);
       }, AUTO_MS);
+    }
+    if (focusTab) {
+      // wait for the newly-active tab's tabIndex=0 to land before moving focus
+      requestAnimationFrame(() => tabRefs.current[i]?.focus());
+    }
+  };
+
+  // Standard ARIA tablist keyboard pattern (roving tabindex + arrow keys) —
+  // Left/Right alone isn't enough here since the page is RTL: the tab visually
+  // to the LEFT is the NEXT one in reading order, so Left advances forward.
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const onTabKeyDown = (e: React.KeyboardEvent, i: number) => {
+    let next: number | null = null;
+    if (e.key === 'ArrowLeft') next = (i + 1) % n;
+    else if (e.key === 'ArrowRight') next = (i - 1 + n) % n;
+    else if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = n - 1;
+    if (next !== null) {
+      e.preventDefault();
+      pick(next, true);
     }
   };
 
@@ -79,12 +99,17 @@ export function CompareTeaser({ slides }: { slides: CompareSlide[] }) {
             {slides.map((s, i) => (
               <button
                 key={s.slug}
+                ref={(el) => { tabRefs.current[i] = el; }}
                 type="button"
+                id={`compare-tab-${s.slug}`}
                 role="tab"
                 aria-selected={i === active}
+                aria-controls={`compare-panel-${s.slug}`}
+                tabIndex={i === active ? 0 : -1}
                 className={styles.tab}
                 data-active={i === active ? '' : undefined}
                 onClick={() => pick(i)}
+                onKeyDown={(e) => onTabKeyDown(e, i)}
               >
                 {s.name}
               </button>
@@ -93,7 +118,13 @@ export function CompareTeaser({ slides }: { slides: CompareSlide[] }) {
         </div>
 
         <div className={styles.cardCol}>
-          <div key={slide.slug} className={`${styles.card} blueprint`}>
+          <div
+            key={slide.slug}
+            role="tabpanel"
+            id={`compare-panel-${slide.slug}`}
+            aria-labelledby={`compare-tab-${slide.slug}`}
+            className={`${styles.card} blueprint`}
+          >
             <header className={styles.cardHead}>
               <span className={styles.cardTitle}>{slide.name}</span>
               <span className={styles.cardMeta}>تومان بر کیلوگرم</span>
