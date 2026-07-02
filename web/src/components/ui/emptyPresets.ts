@@ -71,11 +71,13 @@ export const emptyPresets = {
     showAi: true,
   }),
 
-  /** Account — alerts empty. */
+  /** Account — alerts empty. No alert-creation UI exists yet anywhere in the
+   *  app (the feature's trigger point was never built), so this points at
+   *  browsing prices instead of a dead self-link. */
   alertsEmpty: (): Preset => ({
     headline: 'هشداری ندارید',
     body: 'برای هر محصول یا دلار/طلا هشدار بگذارید تا خبرتان کنیم.',
-    primary: { label: 'ساخت هشدار', href: routes.account('alerts') },
+    primary: { label: 'مشاهدهٔ قیمت‌ها', href: routes.prices() },
   }),
 
   /** Inquiry cart — empty. */
