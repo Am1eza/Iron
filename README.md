@@ -81,6 +81,21 @@ This repository currently holds the **complete specification** across three laye
 - Build against **mock fixtures** (data-model §11) so screens are clickable before the backend exists.
 - Honor [`design/accessibility.md`](design/accessibility.md) and [`product/acceptance-criteria.md`](product/acceptance-criteria.md) as the Definition of Done.
 
+## Layer 5 — Backend (implemented)
+The full backend lives inside the Next.js app (`web/`), on **PostgreSQL + Drizzle**:
+- **Catalog & pricing** — admin-entered prices with movement %, append-only history,
+  Jalali freshness/staleness rules («تماس بگیرید» beyond 2 business days).
+- **Auth** — mobile + OTP (Kavenegar), JWT + rotating refresh, RBAC; persistence in Postgres.
+- **Conversion spine** — lead → پیش‌فاکتور (VAT, next-business-day validity) → SMS → CRM,
+  plus order tracking, consignment warehouse, per-user requests inbox.
+- **Engagement** — price alerts with a 60s evaluation job, favorites, customer club tiers.
+- **Content & AI** — article approval/scheduling queue; DeepSeek relay (SSE, grounded tools)
+  behind `AI_ENABLED`.
+- **Admin panel** — pricing grid, CRM, orders, warehouse, content, catalog, users, settings,
+  audit — all functional, every write audited.
+- Mock mode still works (`NEXT_PUBLIC_API_MODE=mock`); see [`DEPLOY.md`](DEPLOY.md) to run
+  the real stack (`docker compose up` = web + Postgres + Caddy; migrate + seed on boot).
+
 ---
 
 *Ahantime — اول مشورت، بعد خرید.*

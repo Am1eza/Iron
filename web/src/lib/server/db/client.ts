@@ -21,7 +21,7 @@ export function getDb(): Db {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error('DATABASE_URL is not configured');
   if (!globalForDb.__ahantimeDb) {
-    const pool = new Pool({ connectionString: url, max: 10 });
+    const pool = new Pool({ connectionString: url, max: 10, connectionTimeoutMillis: 5000 });
     globalForDb.__ahantimeDb = { pool, db: drizzle(pool, { schema }) };
   }
   return globalForDb.__ahantimeDb.db;
