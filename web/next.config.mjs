@@ -10,12 +10,7 @@ const nextConfig = {
   poweredByHeader: false,
   // `pg` (Postgres driver, server/API-route usage — see db/client.ts) as an
   // external so route handlers that import it don't get it bundled by
-  // webpack. NOTE: this does NOT fix `next dev` — see the KNOWN-ISSUES note
-  // in instrumentation.ts; instrumentation.ts has its own compilation unit
-  // that doesn't respect this (or a webpack `externals` push, tried and
-  // reverted — see git history), a known unresolved Next.js 15.x limitation
-  // (vercel/next.js#73179). `next build`/the Cloudflare Workers build are
-  // both unaffected — confirmed green.
+  // webpack.
   serverExternalPackages: ['pg'],
   // Static export for GitHub Pages (preview). `next start`/dev keep full SSR.
   ...(isExport
