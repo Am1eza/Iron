@@ -6,7 +6,7 @@ import { adminApi } from '@/lib/api/resources/admin';
 import { normalizeDigits } from '@/lib/utils/format';
 import { useToast } from '@/lib/hooks/useToast';
 import { ApiError } from '@/lib/api/errors';
-import { Button, Card, Heading, Text, TableSkeleton } from '@/components/ui';
+import { Button, Card, Heading, Text, TableSkeleton, EmptyState } from '@/components/ui';
 import { TextInput, Textarea } from '@/components/forms/fields';
 import ui from '../adminUi.module.css';
 
@@ -23,7 +23,7 @@ interface Logistics {
 export function SettingsForm() {
   const toast = useToast();
   const qc = useQueryClient();
-  const { data, isLoading } = useQuery({ queryKey: ['admin', 'settings'], queryFn: adminApi.settings });
+  const { data, isLoading, isError, refetch } = useQuery({ queryKey: ['admin', 'settings'], queryFn: adminApi.settings });
 
   const save = useMutation({
     mutationFn: ({ key, value }: { key: string; value: unknown }) => adminApi.saveSetting(key, value),
@@ -40,6 +40,22 @@ export function SettingsForm() {
   };
 
   if (isLoading) return <TableSkeleton rows={4} cols={2} />;
+
+  // Critical: without this, a failed fetch left `data` undefined and every
+  // card silently rendered its hardcoded fallback (VAT=10%, default freight
+  // rates, …) as if they were the live settings — an admin could believe a
+  // stale/wrong value is correct, or worse, "save" a card and overwrite the
+  // real settings with these fabricated defaults.
+  if (isError) {
+    return (
+      <EmptyState
+        tone="error"
+        headline="بارگذاری تنظیمات ناموفق بود."
+        body="این‌ها مقادیر واقعی نیستند — تا رفع خطا چیزی را ذخیره نکنید."
+        primary={{ label: 'تلاش دوباره', onClick: () => void refetch() }}
+      />
+    );
+  }
 
   return (
     <div style={{ display: 'grid', gap: 'var(--space-4)' }}>

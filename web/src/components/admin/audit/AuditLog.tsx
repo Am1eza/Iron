@@ -21,7 +21,7 @@ export function AuditLog() {
   const [entityType, setEntityType] = useState('');
   const [page, setPage] = useState(1);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['admin', 'audit', entityType, page],
     queryFn: () => adminApi.audit({ entityType: entityType || undefined, page }),
   });
@@ -41,6 +41,13 @@ export function AuditLog() {
 
       {isLoading ? (
         <TableSkeleton rows={8} cols={4} />
+      ) : isError ? (
+        <EmptyState
+          size="section"
+          tone="error"
+          headline="بارگذاری رویدادها ناموفق بود."
+          primary={{ label: 'تلاش دوباره', onClick: () => void refetch() }}
+        />
       ) : entries.length === 0 ? (
         <EmptyState size="section" headline="رویدادی نیست" body="تغییرات ادمین اینجا ثبت می‌شود." />
       ) : (

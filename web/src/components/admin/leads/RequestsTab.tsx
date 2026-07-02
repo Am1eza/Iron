@@ -23,7 +23,7 @@ const STATUSES = [
 export function RequestsTab() {
   const toast = useToast();
   const qc = useQueryClient();
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['admin', 'requests'],
     queryFn: () => adminApi.requests(),
   });
@@ -42,6 +42,13 @@ export function RequestsTab() {
     <div style={{ paddingBlockStart: 'var(--space-4)' }}>
       {isLoading ? (
         <TableSkeleton rows={5} cols={5} />
+      ) : isError ? (
+        <EmptyState
+          size="section"
+          tone="error"
+          headline="بارگذاری درخواست‌ها ناموفق بود."
+          primary={{ label: 'تلاش دوباره', onClick: () => void refetch() }}
+        />
       ) : requests.length === 0 ? (
         <EmptyState size="section" headline="درخواستی نیست" body="درخواست‌های کاربران اینجا می‌آید." />
       ) : (
