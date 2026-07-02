@@ -26,7 +26,7 @@ function rowCells(r: PriceRow): string[] {
 
 export function ExportMenu({ rows, title }: { rows: PriceRow[]; title: string }) {
   const toast = useToast();
-  const today = formatJalali('2026-06-27');
+  const today = formatJalali(new Date());
 
   // Branded spreadsheet — a styled HTML table saved as .xls (Excel opens it with
   // the branding + RTL intact). Header carries «آهن‌تایم» + the date; green header

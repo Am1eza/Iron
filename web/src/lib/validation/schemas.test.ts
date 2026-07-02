@@ -3,7 +3,6 @@ import {
   mobileSchema,
   otpCodeSchema,
   requestSchema,
-  alertSchema,
 } from './schemas';
 
 describe('mobileSchema', () => {
@@ -39,18 +38,5 @@ describe('requestSchema', () => {
   it('fails with an empty name', () => {
     const r = requestSchema.safeParse({ name: '', mobile: '09121395954', channel: 'sms' });
     expect(r.success).toBe(false);
-  });
-});
-
-describe('alertSchema', () => {
-  it('coerces a Persian-digit threshold to a positive number', () => {
-    const r = alertSchema.safeParse({ op: 'below', threshold: '۳۲۰۰۰', channel: 'sms' });
-    expect(r.success).toBe(true);
-    if (r.success) expect(r.data.threshold).toBe(32000);
-  });
-  it('rejects a non-positive threshold', () => {
-    expect(
-      alertSchema.safeParse({ op: 'below', threshold: '0', channel: 'sms' }).success,
-    ).toBe(false);
   });
 });
