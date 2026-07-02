@@ -11,6 +11,19 @@ import type { Instrumentation } from 'next';
  * configured. Job list grows per phase (market poll, staleness, alerts,
  * publishing).
  */
+// KNOWN ISSUE: `next dev` fails to boot entirely — every route 500s — with
+// "Module not found: Can't resolve 'fs'" from pg-connection-string, even
+// though the runtime guard below never actually reaches the pg import
+// locally (no DATABASE_URL). Webpack's dev bundler still eagerly resolves
+// this dynamic import's dependency graph at compile time, and
+// instrumentation.ts has its own compilation unit that doesn't respect
+// `serverExternalPackages`/webpack `externals` (both tried in
+// next.config.mjs, neither worked) — an apparently unresolved Next.js 15.x
+// limitation (vercel/next.js#73179). `next build` and the Cloudflare
+// Workers build are both confirmed unaffected — this is dev-server-only,
+// but it currently makes local development impossible. Needs a fix from
+// whoever owns this job-scheduler work — e.g. moving the pg import fully
+// out of the instrumentation entry's static module graph.
 export async function register() {
   if (process.env.NEXT_RUNTIME !== 'nodejs') return;
   const { getServerEnv } = await import('@/lib/validation/env');
