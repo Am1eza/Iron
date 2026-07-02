@@ -35,8 +35,11 @@
   text-decoration: none;
 }
 .page[data-active] {
-  background: var(--color-accent);
-  border-color: var(--color-accent);
+  /* --color-action, not --color-accent: this is a solid badge with inverse
+     text (same pattern as Badge's .count), and --color-action is the token
+     already tuned to clear 4.5:1 with white text in both themes. */
+  background: var(--color-action);
+  border-color: var(--color-action);
   color: var(--color-text-inverse);
   font-weight: 700;
 }
