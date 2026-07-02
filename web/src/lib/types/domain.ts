@@ -168,6 +168,8 @@ export interface Article {
   type: 'blog' | 'news';
   title: string;
   excerpt?: string;
+  /** Markdown body — present on live article-detail reads. */
+  bodyMd?: string;
   status: 'draft' | 'scheduled' | 'published';
   source: 'ai' | 'human';
   publishAt?: string;
