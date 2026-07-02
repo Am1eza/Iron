@@ -106,7 +106,12 @@ docker compose up -d --build
   `NEXT_PUBLIC_SITE_URL` in `.env`, then rebuild (`docker compose up -d --build`)
   — `NEXT_PUBLIC_*` is baked in at build time.
 - **No-Docker alternative:** `pnpm install && pnpm build && node .next/standalone/server.js`
-  behind nginx + certbot, kept alive by systemd/pm2. Docker is recommended.
+  behind nginx + certbot, kept alive by systemd/pm2. Background jobs (market
+  poll, alerts, staleness, etc.) run as their own process, not inside the web
+  server — also start `node scripts/migrate.mjs` once, then keep
+  `tsx scripts/jobs.ts` (or the esbuild-bundled equivalent — see `Dockerfile`)
+  running under systemd/pm2 alongside `server.js`, or jobs silently never run.
+  Docker is recommended precisely so you don't have to wire this up by hand.
 - **Resources:** the image is small (Next standalone, no native deps). 1 GB RAM
   is enough for mock mode; size up now that the live backend + DB are the default.
 - **Running mock mode instead:** set `NEXT_PUBLIC_API_MODE=mock` in `.env` and

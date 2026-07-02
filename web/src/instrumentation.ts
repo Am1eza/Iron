@@ -4,34 +4,27 @@ import type { Instrumentation } from 'next';
  * Next.js instrumentation — runs once per server boot (nodejs runtime).
  * Validates required env vars (throwing crashes the boot — the intended
  * fail-fast behavior for a live-mode deploy missing DATABASE_URL/
- * SESSION_SECRET/SMSIR_* — see env.ts; this was previously dead code, never
- * called from anywhere, so a misconfigured live deploy would boot "clean"
- * and only fail confusingly later, e.g. signing a JWT with an undefined
- * secret), then starts the in-process background jobs when a database is
- * configured. Job list grows per phase (market poll, staleness, alerts,
- * publishing).
+ * SESSION_SECRET/SMSIR_* — see env.ts).
+ *
+ * Deliberately does NOT import anything from `src/lib/server/jobs/**` or
+ * `src/lib/server/db/**` here (not even behind a runtime-guarded dynamic
+ * `import()`) — `pg`'s dependency tree pulls in Node built-ins
+ * (fs/path/stream) that Next.js 15's webpack dev-mode bundler cannot
+ * resolve for THIS SPECIFIC compilation unit, crashing `next dev` (every
+ * route 500s) even though the runtime guard never reaches the import
+ * locally. `serverExternalPackages` does not fix it (confirmed by testing:
+ * externalizing 'pg' just relocates the error to 'pg-connection-string',
+ * externalizing that too relocates it again to 'pgpass', and so on down
+ * the tree) — an unresolved Next.js 15.x limitation specific to the
+ * instrumentation entry (vercel/next.js#73179). `next build`/the
+ * Cloudflare Workers build are both confirmed unaffected. The background
+ * job scheduler now runs as its own process instead (scripts/jobs.ts,
+ * started by docker-entrypoint.sh) — see that file for the full rationale.
  */
-// KNOWN ISSUE: `next dev` fails to boot entirely — every route 500s — with
-// "Module not found: Can't resolve 'fs'" from pg-connection-string, even
-// though the runtime guard below never actually reaches the pg import
-// locally (no DATABASE_URL). Webpack's dev bundler still eagerly resolves
-// this dynamic import's dependency graph at compile time, and
-// instrumentation.ts has its own compilation unit that doesn't respect
-// `serverExternalPackages`/webpack `externals` (both tried in
-// next.config.mjs, neither worked) — an apparently unresolved Next.js 15.x
-// limitation (vercel/next.js#73179). `next build` and the Cloudflare
-// Workers build are both confirmed unaffected — this is dev-server-only,
-// but it currently makes local development impossible. Needs a fix from
-// whoever owns this job-scheduler work — e.g. moving the pg import fully
-// out of the instrumentation entry's static module graph.
 export async function register() {
   if (process.env.NEXT_RUNTIME !== 'nodejs') return;
   const { getServerEnv } = await import('@/lib/validation/env');
   getServerEnv();
-  if (!process.env.DATABASE_URL) return;
-  const { startJobs } = await import('@/lib/server/jobs/scheduler');
-  const { jobs } = await import('@/lib/server/jobs');
-  startJobs(jobs);
 }
 
 /**
