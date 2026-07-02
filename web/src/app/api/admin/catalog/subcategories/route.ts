@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit } from '@/lib/server/utils/apiGuard';
 import { adminListSubCategories, createSubCategory } from '@/lib/server/repos/catalogAdminRepo';
+import { finiteNumber } from '@/lib/validation/utils';
 
 export async function GET(req: NextRequest) {
   const guard = requireDb();
@@ -20,7 +21,7 @@ const createPayload = z.object({
   categoryId: z.string().min(1),
   slug: z.string().trim().min(1).max(60),
   name: z.string().trim().min(1).max(80),
-  order: z.number().int().min(0).optional(),
+  order: finiteNumber.int().min(0).max(9999).optional(),
 });
 
 export async function POST(req: NextRequest) {

@@ -4,8 +4,9 @@ import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit } from '@/lib/server/utils/apiGuard';
 import { upsertMarketValue, getMarketValue } from '@/lib/server/repos/marketRepo';
 import { evaluateAlerts } from '@/lib/server/services/alerts.service';
+import { finiteNumber } from '@/lib/validation/utils';
 
-const payload = z.object({ value: z.number().positive() });
+const payload = z.object({ value: finiteNumber.positive().max(1e13) });
 
 /** PUT /api/admin/market/billet — the one admin-entered ticker value (شمش). */
 export async function PUT(req: NextRequest) {

@@ -4,12 +4,11 @@
  * (not raw ids) because the frontend builds /prices/{cat}/{sub}/{sku} links
  * from these fields (mock fixtures established that contract).
  */
-import { and, asc, desc, eq, gte, ilike, ne, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, ilike, inArray, ne, or, sql } from 'drizzle-orm';
 import { getDb } from '@/lib/server/db/client';
 import { categories, subCategories, skus, currentPrices, pricePoints } from '@/lib/server/db/schema';
 import type { Category, SubCategory, PriceRow, PricePoint } from '@/lib/types/domain';
-import { isSameJalaliDay, businessDaysSince } from '@/lib/server/utils/jalali';
-import { getHolidays, getStaleHideAfterDays } from './settingsRepo';
+import { getPriceFreshness } from '@/lib/server/services/priceFreshness';
 
 /* ------------------------------ mapping ------------------------------ */
 
@@ -19,15 +18,6 @@ type JoinedRow = {
   catSlug: string;
   subSlug: string;
 };
-
-async function staleness() {
-  const [holidays, hideAfter] = await Promise.all([getHolidays(), getStaleHideAfterDays()]);
-  const now = new Date();
-  return {
-    isStale: (updatedAt: Date) => !isSameJalaliDay(updatedAt, now),
-    isHidden: (updatedAt: Date) => businessDaysSince(updatedAt, now, holidays) >= hideAfter,
-  };
-}
 
 function toPriceRow(r: JoinedRow, s: { isStale: (d: Date) => boolean; isHidden: (d: Date) => boolean }): PriceRow {
   const p = r.price;
@@ -107,7 +97,12 @@ export async function listSubCategories(categorySlug: string): Promise<SubCatego
 /** Price table rows for a category (optionally one sub-category). */
 export async function tableRows(categorySlug: string, subSlug?: string): Promise<PriceRow[]> {
   const db = getDb();
-  const conds = [eq(categories.slug, categorySlug), eq(skus.isActive, true), eq(subCategories.isActive, true)];
+  const conds = [
+    eq(categories.slug, categorySlug),
+    eq(categories.isActive, true),
+    eq(skus.isActive, true),
+    eq(subCategories.isActive, true),
+  ];
   if (subSlug) conds.push(eq(subCategories.slug, subSlug));
   const rows = await db
     .select({ sku: skus, price: currentPrices, catSlug: categories.slug, subSlug: subCategories.slug })
@@ -117,7 +112,7 @@ export async function tableRows(categorySlug: string, subSlug?: string): Promise
     .leftJoin(currentPrices, eq(currentPrices.skuId, skus.id))
     .where(and(...conds))
     .orderBy(asc(subCategories.order), asc(skus.name));
-  const s = await staleness();
+  const s = await getPriceFreshness();
   return rows.map((r) => toPriceRow(r, s));
 }
 
@@ -130,11 +125,32 @@ export async function findSkuRow(slug: string): Promise<PriceRow | null> {
     .innerJoin(categories, eq(skus.categoryId, categories.id))
     .innerJoin(subCategories, eq(skus.subCategoryId, subCategories.id))
     .leftJoin(currentPrices, eq(currentPrices.skuId, skus.id))
-    .where(and(eq(skus.slug, slug), eq(skus.isActive, true)))
+    .where(and(eq(skus.slug, slug), eq(skus.isActive, true), eq(categories.isActive, true)))
     .limit(1);
   if (!rows[0]) return null;
-  const s = await staleness();
+  const s = await getPriceFreshness();
   return toPriceRow(rows[0], s);
+}
+
+/**
+ * Batched SKU-id lookup, one query for N ids (favorites/wishlists) instead
+ * of N queries — preserves the caller's `ids` order (drizzle's `inArray`
+ * does not) so callers with a meaningful order (e.g. favorited-most-recently
+ * first) don't need to re-sort.
+ */
+export async function findSkuRowsByIds(ids: string[]): Promise<PriceRow[]> {
+  if (ids.length === 0) return [];
+  const db = getDb();
+  const rows = await db
+    .select({ sku: skus, price: currentPrices, catSlug: categories.slug, subSlug: subCategories.slug })
+    .from(skus)
+    .innerJoin(categories, eq(skus.categoryId, categories.id))
+    .innerJoin(subCategories, eq(skus.subCategoryId, subCategories.id))
+    .leftJoin(currentPrices, eq(currentPrices.skuId, skus.id))
+    .where(and(inArray(skus.id, ids), eq(skus.isActive, true), eq(categories.isActive, true)));
+  const s = await getPriceFreshness();
+  const bySkuId = new Map(rows.map((r) => [r.sku.id, toPriceRow(r, s)] as const));
+  return ids.map((id) => bySkuId.get(id)).filter((r): r is PriceRow => Boolean(r));
 }
 
 /** Same-category related rows for cross-sell (excludes self). */
@@ -148,10 +164,17 @@ export async function relatedSkuRows(slug: string, limit = 4): Promise<PriceRow[
     .innerJoin(categories, eq(skus.categoryId, categories.id))
     .innerJoin(subCategories, eq(skus.subCategoryId, subCategories.id))
     .leftJoin(currentPrices, eq(currentPrices.skuId, skus.id))
-    .where(and(eq(skus.categoryId, self[0].categoryId), ne(skus.slug, slug), eq(skus.isActive, true)))
+    .where(
+      and(
+        eq(skus.categoryId, self[0].categoryId),
+        ne(skus.slug, slug),
+        eq(skus.isActive, true),
+        eq(categories.isActive, true),
+      ),
+    )
     .orderBy(asc(skus.name))
     .limit(limit);
-  const s = await staleness();
+  const s = await getPriceFreshness();
   return rows.map((r) => toPriceRow(r, s));
 }
 
@@ -185,11 +208,12 @@ export async function searchSkus(q: string, limit = 20): Promise<PriceRow[]> {
     .where(
       and(
         eq(skus.isActive, true),
+        eq(categories.isActive, true),
         or(ilike(skus.name, term), ilike(skus.factory, term), ilike(skus.size, term), ilike(categories.name, term)),
       ),
     )
     .orderBy(desc(sql`similarity(${skus.name}, ${q.trim()})`))
     .limit(limit);
-  const s = await staleness();
+  const s = await getPriceFreshness();
   return rows.map((r) => toPriceRow(r, s));
 }

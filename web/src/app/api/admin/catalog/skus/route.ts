@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit } from '@/lib/server/utils/apiGuard';
 import { adminListSkus, createSku } from '@/lib/server/repos/catalogAdminRepo';
+import { finiteNumber } from '@/lib/validation/utils';
 
 export async function GET(req: NextRequest) {
   const guard = requireDb();
@@ -29,7 +30,7 @@ const createPayload = z.object({
   size: z.string().trim().max(40).optional(),
   grade: z.string().trim().max(40).optional(),
   factory: z.string().trim().max(80).optional(),
-  theoreticalWeightKg: z.number().positive().optional(),
+  theoreticalWeightKg: finiteNumber.positive().max(100_000).optional(),
   unit: z.enum(['kg', 'branch', 'sheet', 'meter']).optional(),
 });
 

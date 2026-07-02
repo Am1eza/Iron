@@ -111,7 +111,13 @@ export const proformas = pgTable(
     pdfUrl: text('pdf_url'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index('proformas_lead_idx').on(t.leadId)],
+  (t) => [
+    index('proformas_lead_idx').on(t.leadId),
+    // Hot path for the proforma-expiry sweep job (WHERE status='active' AND
+    // valid_until < now()), run every 10 minutes and growing with every
+    // issued proforma — was previously unindexed.
+    index('proformas_status_valid_idx').on(t.status, t.validUntil),
+  ],
 );
 
 /** Atomic per-scope sequence for human refs (PF-14050410-0021, RQ-…, OR-…). */

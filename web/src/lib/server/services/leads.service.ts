@@ -11,10 +11,11 @@ import type { AuthUser } from '@/lib/auth/types';
 import type { LineItem, PriceUnit } from '@/lib/types/domain';
 import { insertLead, insertProforma, proformasOfLead, type LeadRow } from '@/lib/server/repos/leadsRepo';
 import { insertRequest } from '@/lib/server/repos/requestsRepo';
-import { getVatRate, getHolidays, getSetting, getStaleHideAfterDays } from '@/lib/server/repos/settingsRepo';
+import { getVatRate, getHolidays, getSetting } from '@/lib/server/repos/settingsRepo';
 import { nextRef } from '@/lib/server/utils/refs';
-import { quoteValidUntil, businessDaysSince } from '@/lib/server/utils/jalali';
+import { quoteValidUntil } from '@/lib/server/utils/jalali';
 import { sendTemplateSms } from '@/lib/server/integrations/kavenegar';
+import { getPriceFreshness } from '@/lib/server/services/priceFreshness';
 
 export interface CreateLeadInput {
   contact: { name?: string; mobile: string };
@@ -60,14 +61,13 @@ async function priceItems(
     .where(inArray(skus.slug, ids));
   for (const r of slugRows) bySlug.set(r.sku.slug, r);
 
-  const [holidays, hideAfter] = await Promise.all([getHolidays(), getStaleHideAfterDays()]);
-  const now = new Date();
+  const freshness = await getPriceFreshness();
 
   let allPriced = true;
   const lines: LineItem[] = items.map((item) => {
     const hit = bySku.get(item.skuId) ?? bySlug.get(item.skuId);
     const price = hit?.price ?? null;
-    const hidden = price ? businessDaysSince(price.updatedAt, now, holidays) >= hideAfter : true;
+    const hidden = price ? freshness.isHidden(price.updatedAt) : true;
     const unitPrice = price && !hidden ? price.price : undefined;
     if (!unitPrice) allPriced = false;
     const weightKg =

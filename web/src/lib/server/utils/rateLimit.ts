@@ -9,12 +9,32 @@ import { NextResponse, type NextRequest } from 'next/server';
 const windows = new Map<string, number[]>();
 let lastSweep = Date.now();
 
+/**
+ * Client IP for rate-limit bucketing — trusts exactly ONE hop (Caddy in
+ * front, per Caddyfile/docker-compose.yml: `web` is `expose`-only, never
+ * `ports`-published, so it is only reachable through Caddy's reverse_proxy).
+ *
+ * SECURITY: Caddy's `reverse_proxy` APPENDS the real peer IP to any
+ * client-supplied `X-Forwarded-For` rather than replacing it — so
+ * `X-Forwarded-For: 1.2.3.4, <real-ip>` may arrive with an attacker-chosen
+ * first value. Taking the LEFTMOST entry (as many naive implementations do)
+ * lets any client spoof their rate-limit bucket. We take the RIGHTMOST
+ * entry instead — the one Caddy itself appended — which is not
+ * attacker-controlled under this single-trusted-proxy topology. If this app
+ * is ever deployed WITHOUT Caddy in front (e.g. bare `next start` reachable
+ * directly, or a second proxy hop added), this header is fully spoofable —
+ * `TRUST_PROXY=false` disables per-IP granularity in that case rather than
+ * silently trusting attacker input.
+ */
 function clientIp(req: NextRequest): string {
-  return (
-    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-    req.headers.get('x-real-ip') ??
-    'local'
-  );
+  if (process.env.TRUST_PROXY === 'false') return 'untrusted-proxy';
+  const xff = req.headers.get('x-forwarded-for');
+  if (xff) {
+    const hops = xff.split(',').map((h) => h.trim()).filter(Boolean);
+    const last = hops[hops.length - 1];
+    if (last) return last;
+  }
+  return req.headers.get('x-real-ip') ?? 'local';
 }
 
 /** Returns a 429 response when over the limit, else null. */

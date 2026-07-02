@@ -3,7 +3,7 @@
  * AI/admin tools). One transaction: lock row → compute movement → upsert
  * current_prices → append price_points → audit. (acceptance-criteria §B2)
  */
-import { eq, inArray } from 'drizzle-orm';
+import { eq, inArray, sql } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { getDb } from '@/lib/server/db/client';
 import { currentPrices, pricePoints, skus, auditEntries } from '@/lib/server/db/schema';
@@ -29,15 +29,19 @@ export interface SavePriceResult {
 export async function savePrice(actorId: string, input: SavePriceInput): Promise<SavePriceResult> {
   const db = getDb();
   return db.transaction(async (tx) => {
+    // A brand-new SKU has no `current_prices` row yet, so `SELECT ... FOR
+    // UPDATE` below has nothing to lock — two concurrent first-time saves
+    // could both read `prev = null` and both compute movement as if no
+    // price existed, regardless of commit order. The advisory lock
+    // serializes access to this SKU's price unconditionally, whether or not
+    // a row exists yet, closing that race.
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${'price:' + input.skuId}))`);
+
     const skuRows = await tx.select().from(skus).where(eq(skus.id, input.skuId)).limit(1);
     const sku = skuRows[0];
     if (!sku) throw new Error(`SKU not found: ${input.skuId}`);
 
-    const prevRows = await tx
-      .select()
-      .from(currentPrices)
-      .where(eq(currentPrices.skuId, input.skuId))
-      .for('update');
+    const prevRows = await tx.select().from(currentPrices).where(eq(currentPrices.skuId, input.skuId));
     const prev = prevRows[0] ?? null;
 
     const price = Math.round(input.price);
@@ -96,11 +100,26 @@ export async function savePrice(actorId: string, input: SavePriceInput): Promise
   });
 }
 
-/** Bulk daily grid save — sequential per-row transactions, collects results. */
-export async function savePrices(actorId: string, inputs: SavePriceInput[]): Promise<SavePriceResult[]> {
-  const out: SavePriceResult[] = [];
+export type SavePricesRowResult =
+  | ({ ok: true } & SavePriceResult)
+  | { ok: false; skuId: string; error: string };
+
+/**
+ * Bulk daily grid save — sequential per-row transactions with per-row fault
+ * isolation. A bad row (e.g. an unknown skuId) is reported and skipped;
+ * every other row still commits — nothing after a failing row is silently
+ * dropped (EC-M1.3: "bulk import with some invalid rows imports valid rows
+ * and reports the failures").
+ */
+export async function savePrices(actorId: string, inputs: SavePriceInput[]): Promise<SavePricesRowResult[]> {
+  const out: SavePricesRowResult[] = [];
   for (const input of inputs) {
-    out.push(await savePrice(actorId, input));
+    try {
+      const result = await savePrice(actorId, input);
+      out.push({ ok: true, ...result });
+    } catch (err) {
+      out.push({ ok: false, skuId: input.skuId, error: err instanceof Error ? err.message : 'ذخیره ناموفق بود.' });
+    }
   }
   return out;
 }

@@ -38,12 +38,16 @@ afterAll(async () => {
 });
 
 describe('refs & validity', () => {
-  it('generates PF-{jalali}-{seq} refs with an atomic per-day sequence', async () => {
+  it('generates PF-{jalali}-{seq}-{random} refs with an atomic per-day sequence', async () => {
     const a = await nextRef('PF');
     const b = await nextRef('PF');
     const stamp = jalaliStamp(new Date());
-    expect(a).toBe(`PF-${stamp}-0001`);
-    expect(b).toBe(`PF-${stamp}-0002`);
+    // The trailing random suffix is the actual unguessability guarantee for
+    // the public proforma/track lookup endpoints (see refs.ts) — assert the
+    // sequence prefix deterministically, the suffix only by shape.
+    expect(a).toMatch(new RegExp(`^PF-${stamp}-0001-[A-Z2-9]{6}$`));
+    expect(b).toMatch(new RegExp(`^PF-${stamp}-0002-[A-Z2-9]{6}$`));
+    expect(a).not.toBe(b);
   });
 
   it('quoteValidUntil lands on a business day at 11:00 Tehran', () => {
@@ -67,7 +71,7 @@ describe('lead → proforma flow', () => {
       user,
     );
 
-    expect(result.ref).toMatch(/^PF-\d{8}-\d{4}$/);
+    expect(result.ref).toMatch(/^PF-\d{8}-\d{4}-[A-Z2-9]{6}$/);
     expect(result.proformaRef).toBe(result.ref); // first issue reuses the lead ref
     expect(result.total).toBeGreaterThan(0);
 

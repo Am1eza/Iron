@@ -11,6 +11,7 @@ import {
 } from '@/lib/server/integrations/deepseek';
 import { AI_TOOLS, AI_SYSTEM_PROMPT, runTool } from '@/lib/server/services/aiTools';
 import { reportError } from '@/lib/errors/report';
+import { rateLimit } from '@/lib/server/utils/rateLimit';
 
 export const runtime = 'nodejs';
 
@@ -38,6 +39,13 @@ const MAX_TOOL_ROUNDS = 4;
 export async function POST(req: NextRequest) {
   const origin = assertSameOrigin(req);
   if (origin) return origin;
+
+  // Anonymous access is deliberate (AI advisor is the funnel's "Magnet"
+  // stage — acceptance-criteria's grounded tools never leak another user's
+  // data regardless of session). Rate-limit instead of gating on auth: each
+  // request drives real DeepSeek API cost across up to MAX_TOOL_ROUNDS.
+  const limited = rateLimit(req, 'ai-chat', { limit: 10, windowMs: 5 * 60_000 });
+  if (limited) return limited;
 
   if (!aiEnabled()) {
     return NextResponse.json(

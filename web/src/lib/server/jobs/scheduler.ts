@@ -1,11 +1,19 @@
 /**
  * In-process job scheduler — started once per server via instrumentation.ts.
- * Plain setInterval (single long-running container; no queue infra). Each run
- * takes a pg transaction-scoped advisory lock so scaling to multiple app
- * replicas never double-runs a job.
+ * Plain setInterval (single long-running container; no queue infra). Each
+ * run takes a SESSION-scoped pg advisory lock (`pg_try_advisory_lock` /
+ * `pg_advisory_unlock`) on ONE dedicated connection borrowed from the pool,
+ * held only for "is another replica already running this job" — the job
+ * body then runs OUTSIDE that lock/transaction, against the normal shared
+ * pool. This deliberately does NOT wrap `job.run()` in a transaction:
+ * several jobs do real network I/O (tgju fetch, Kavenegar SMS sends) and/or
+ * their own multi-query work, and holding a transaction (and its connection)
+ * open across that — the previous `pg_try_advisory_xact_lock` inside
+ * `db.transaction()` did exactly this — risks pinning a connection
+ * idle-in-transaction for seconds against a 10-connection pool shared with
+ * live request traffic.
  */
-import { sql } from 'drizzle-orm';
-import { getDb, hasDb } from '@/lib/server/db/client';
+import { getPool, hasDb } from '@/lib/server/db/client';
 import { reportError } from '@/lib/errors/report';
 
 export type Job = {
@@ -21,19 +29,34 @@ let started = false;
 
 async function runExclusive(job: Job): Promise<void> {
   if (!hasDb()) return;
-  try {
-    const db = getDb();
-    await db.transaction(async (tx) => {
-      const rows = await tx.execute(
-        sql`SELECT pg_try_advisory_xact_lock(hashtext(${'job:' + job.name})) AS locked`,
-      );
-      const locked = (rows as unknown as { rows?: { locked: boolean }[] }).rows?.[0]?.locked
-        ?? (rows as unknown as { locked: boolean }[])[0]?.locked;
-      if (!locked) return; // another replica is running this job
+  const pool = getPool();
+  if (!pool) {
+    // No real pg pool (e.g. pglite in tests) — nothing to lock against;
+    // run once, uncontended.
+    try {
       await job.run();
-    });
+    } catch (err) {
+      reportError(err, { job: job.name });
+    }
+    return;
+  }
+
+  const client = await pool.connect();
+  try {
+    const lockKey = `job:${job.name}`;
+    const { rows } = await client.query<{ locked: boolean }>('SELECT pg_try_advisory_lock(hashtext($1)) AS locked', [
+      lockKey,
+    ]);
+    if (!rows[0]?.locked) return; // another replica is already running this job
+    try {
+      await job.run();
+    } finally {
+      await client.query('SELECT pg_advisory_unlock(hashtext($1))', [lockKey]);
+    }
   } catch (err) {
     reportError(err, { job: job.name });
+  } finally {
+    client.release();
   }
 }
 

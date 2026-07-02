@@ -67,10 +67,14 @@ export const adminApi = {
   pricingGrid: (cat: string, sub?: string) =>
     http.get<{ rows: PriceRow[] }>(`/api/admin/pricing?cat=${encodeURIComponent(cat)}${sub ? `&sub=${encodeURIComponent(sub)}` : ''}`),
   savePrices: (prices: Array<{ skuId: string; price: number; deliveryTime?: string; vatIncluded?: boolean }>) =>
-    http.put<{ results: Array<{ skuId: string; price: number; movementPct: number | null; movementDir: string }> }>(
-      '/api/admin/pricing',
-      { prices },
-    ),
+    http.put<{
+      results: Array<
+        | { ok: true; skuId: string; price: number; movementPct: number | null; movementDir: string }
+        | { ok: false; skuId: string; error: string }
+      >;
+      saved: number;
+      failed: number;
+    }>('/api/admin/pricing', { prices }),
   saveBillet: (value: number) => http.put<{ value: MarketValue }>('/api/admin/market/billet', { value }),
 
   /* leads / crm */

@@ -32,8 +32,19 @@ export function PricingGrid() {
   const save = useMutation({
     mutationFn: adminApi.savePrices,
     onSuccess: (res) => {
-      toast.success(`${toPersianDigits(res.results.length)} قیمت ذخیره شد.`);
-      setDrafts(new Map());
+      // Partial failures (e.g. a stale/removed SKU) are reported, not
+      // silently dropped — keep those rows' drafts so the admin can retry;
+      // clear only the ones that actually saved.
+      if (res.saved > 0) {
+        toast.success(`${toPersianDigits(res.saved)} قیمت ذخیره شد.`);
+      }
+      if (res.failed > 0) {
+        const failedIds = new Set(res.results.filter((r) => !r.ok).map((r) => r.skuId));
+        toast.error(`${toPersianDigits(res.failed)} قیمت ذخیره نشد؛ دوباره تلاش کنید.`);
+        setDrafts((prev) => new Map([...prev].filter(([skuId]) => failedIds.has(skuId))));
+      } else {
+        setDrafts(new Map());
+      }
       void qc.invalidateQueries({ queryKey: ['admin', 'pricing'] });
       void qc.invalidateQueries({ queryKey: ['admin', 'stats'] });
     },

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { mobileSchema, otpCodeSchema } from './schemas';
 import { M } from './messages';
+import { finiteNumber } from './utils';
 
 /* ---------- request payloads (server re-validates these) ---------- */
 const priceUnit = z.enum(['kg', 'branch', 'sheet', 'meter']);
@@ -14,35 +15,31 @@ export const otpVerifyPayload = z.object({ mobile: mobileSchema, code: otpCodeSc
 export const profileUpdatePayload = z.object({ name: z.string().trim().min(1).max(60) });
 
 export const leadPayload = z.object({
-  contact: z.object({ name: z.string().optional(), mobile: mobileSchema }),
+  contact: z.object({ name: z.string().max(60).optional(), mobile: mobileSchema }),
   items: z
     .array(
       z.object({
-        skuId: z.string().min(1),
-        qty: z.number().positive(),
+        skuId: z.string().min(1).max(120),
+        qty: finiteNumber.positive().max(100_000),
         unit: priceUnit,
       }),
     )
-    .min(1, { message: M.required }),
+    .min(1, { message: M.required })
+    .max(100),
   channel: z.enum(['sms', 'whatsapp', 'telegram', 'eitaa']).default('sms'),
-  source: z.string().optional(),
+  source: z.string().max(40).optional(),
   note: z.string().trim().max(1000).optional(),
-});
-
-export const weightPayload = z.object({
-  theoreticalWeightKg: z.number().positive({ message: M.positive }),
-  qty: z.number().positive({ message: M.positive }),
 });
 
 /* ---------- external/response schemas (parse at the boundary) ---------- */
 export const marketValueSchema = z.object({
   key: z.enum(['usd', 'eur', 'gold18', 'ounce', 'billet']),
   label: z.string(),
-  value: z.number(),
+  value: finiteNumber,
   unit: z.string(),
   source: z.enum(['tgju', 'admin']),
   movementDir: z.enum(['up', 'down', 'flat']),
-  movementPct: z.number().optional(),
+  movementPct: finiteNumber.optional(),
   updatedAt: z.string(),
   isStale: z.boolean(),
 });

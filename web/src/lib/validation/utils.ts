@@ -2,6 +2,19 @@ import { z } from 'zod';
 
 export type FieldErrors = Record<string, string>;
 
+/**
+ * Base for any numeric field on a server-trust boundary (API route bodies).
+ * `z.number()` alone accepts `Infinity`/`NaN` — Zod does not reject
+ * non-finite values by default (verified: `z.number().positive().safeParse
+ * (Infinity).success === true`, and `JSON.parse('{"q":1e400}')` yields
+ * `{q: Infinity}`, so a raw API client can smuggle it through unless every
+ * numeric schema explicitly chains `.finite()`). Always build request-body
+ * number schemas from this, not `z.number()` directly, and pair with a
+ * business-realistic `.max()` — `.finite()` alone still allows e.g.
+ * `Number.MAX_VALUE`, which is finite but nonsensical for a quantity/price.
+ */
+export const finiteNumber = z.number().finite();
+
 /** Flatten a ZodError into a { field: firstMessage } map (Persian messages). */
 export function formatZodError(error: z.ZodError): FieldErrors {
   const out: FieldErrors = {};

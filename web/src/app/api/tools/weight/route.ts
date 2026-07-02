@@ -1,42 +1,46 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
+import { finiteNumber } from '@/lib/validation/utils';
+import { rateLimit } from '@/lib/server/utils/rateLimit';
 
 const STEEL_DENSITY = 7.85; // g/cm³
+
+const qty = finiteNumber.positive().max(100_000);
 
 /** Either the simple theoretical form or a per-shape spec. */
 const payload = z.union([
   z.object({
-    theoreticalWeightKg: z.number().positive(),
-    qty: z.number().positive(),
+    theoreticalWeightKg: finiteNumber.positive().max(1_000_000),
+    qty,
   }),
   z.object({
     shape: z.literal('rebar'),
-    diameterMm: z.number().positive().max(60),
-    lengthM: z.number().positive().max(24).default(12),
-    qty: z.number().positive(),
+    diameterMm: finiteNumber.positive().max(60),
+    lengthM: finiteNumber.positive().max(24).default(12),
+    qty,
   }),
   z.object({
     shape: z.literal('plate'),
-    thicknessMm: z.number().positive().max(200),
-    widthM: z.number().positive().max(4),
-    lengthM: z.number().positive().max(12),
-    qty: z.number().positive(),
+    thicknessMm: finiteNumber.positive().max(200),
+    widthM: finiteNumber.positive().max(4),
+    lengthM: finiteNumber.positive().max(12),
+    qty,
   }),
   z.object({
     shape: z.literal('pipe'),
-    outerDiameterMm: z.number().positive().max(1000),
-    thicknessMm: z.number().positive().max(60),
-    lengthM: z.number().positive().max(24).default(6),
-    qty: z.number().positive(),
+    outerDiameterMm: finiteNumber.positive().max(1000),
+    thicknessMm: finiteNumber.positive().max(60),
+    lengthM: finiteNumber.positive().max(24).default(6),
+    qty,
   }),
   z.object({
     shape: z.literal('box'),
-    widthMm: z.number().positive().max(600),
-    heightMm: z.number().positive().max(600),
-    thicknessMm: z.number().positive().max(20),
-    lengthM: z.number().positive().max(24).default(6),
-    qty: z.number().positive(),
+    widthMm: finiteNumber.positive().max(600),
+    heightMm: finiteNumber.positive().max(600),
+    thicknessMm: finiteNumber.positive().max(20),
+    lengthM: finiteNumber.positive().max(24).default(6),
+    qty,
   }),
 ]);
 
@@ -61,6 +65,8 @@ function unitWeightKg(d: z.infer<typeof payload>): number {
 /** POST /api/tools/weight — وزن‌سنج: theoretical or per-shape formulas.
  *  Also backs the AI's calcWeight tool (single source of truth). */
 export async function POST(req: NextRequest) {
+  const limited = rateLimit(req, 'tools', { limit: 60, windowMs: 60_000 });
+  if (limited) return limited;
   const v = await validateBody(req, payload);
   if (!v.ok) return v.response;
   const unit = unitWeightKg(v.data);

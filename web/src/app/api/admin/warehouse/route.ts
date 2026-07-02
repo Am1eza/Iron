@@ -5,6 +5,7 @@ import { requireApiPermission, requireDb, audit } from '@/lib/server/utils/apiGu
 import { adminListWarehouse, createWarehouseItem } from '@/lib/server/repos/ordersRepo';
 import { userByMobile } from '@/lib/auth/store';
 import { nextRef } from '@/lib/server/utils/refs';
+import { finiteNumber } from '@/lib/validation/utils';
 
 /** GET /api/admin/warehouse — all consigned stock. */
 export async function GET(req: NextRequest) {
@@ -21,8 +22,8 @@ const createPayload = z.object({
   mobile: z.string().regex(/^09\d{9}$/, 'شمارهٔ موبایل نامعتبر است.'),
   product: z.string().trim().min(1).max(160),
   sizeLabel: z.string().trim().max(60).optional(),
-  quantityTons: z.number().positive().max(100000),
-  monthlyFeeToman: z.number().min(0).optional(),
+  quantityTons: finiteNumber.positive().max(100000),
+  monthlyFeeToman: finiteNumber.min(0).max(1e12).optional(),
 });
 
 /** POST /api/admin/warehouse — receive a customer's stock (assign by mobile). */

@@ -1,9 +1,16 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { requireDb } from '@/lib/server/utils/apiGuard';
 import { findProformaByRef } from '@/lib/server/repos/leadsRepo';
+import { rateLimit } from '@/lib/server/utils/rateLimit';
 
-/** GET /api/proforma/{ref} — the issued پیش‌فاکتور (lazy-expires on read). */
-export async function GET(_req: Request, ctx: { params: Promise<{ ref: string }> }) {
+/**
+ * GET /api/proforma/{ref} — the issued پیش‌فاکتور (lazy-expires on read).
+ * The ref is a bearer capability (unauthenticated lookup) — it carries real
+ * entropy (see refs.ts), and this endpoint is throttled as defense in depth.
+ */
+export async function GET(req: NextRequest, ctx: { params: Promise<{ ref: string }> }) {
+  const limited = rateLimit(req, 'proforma', { limit: 20, windowMs: 60_000 });
+  if (limited) return limited;
   const guard = requireDb();
   if (guard) return guard;
   const { ref } = await ctx.params;

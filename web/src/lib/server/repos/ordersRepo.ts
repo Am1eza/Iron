@@ -1,5 +1,5 @@
 /** Orders (cargo tracking) + consignment warehouse items. */
-import { desc, eq, sql } from 'drizzle-orm';
+import { desc, eq, inArray, sql } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { getDb } from '@/lib/server/db/client';
 import { orders, orderItems, warehouseItems } from '@/lib/server/db/schema';
@@ -9,9 +9,8 @@ import { normalizeDigits } from '@/lib/utils/format';
 type OrderRow = typeof orders.$inferSelect;
 type WarehouseRow = typeof warehouseItems.$inferSelect;
 
-async function itemsOf(orderId: string): Promise<LineItem[]> {
-  const rows = await getDb().select().from(orderItems).where(eq(orderItems.orderId, orderId));
-  return rows.map((r) => ({
+function toLineItem(r: typeof orderItems.$inferSelect): LineItem {
+  return {
     skuId: r.skuId ?? '',
     name: r.name,
     qty: r.qty,
@@ -19,24 +18,51 @@ async function itemsOf(orderId: string): Promise<LineItem[]> {
     weightKg: r.weightKg ?? undefined,
     unitPrice: r.unitPrice ?? undefined,
     lineTotal: r.lineTotal ?? undefined,
-  }));
+  };
 }
 
-async function toOrderDto(r: OrderRow): Promise<Order> {
+function toOrderDto(r: OrderRow, items: LineItem[]): Order {
   return {
     ref: r.ref,
     placedAt: r.placedAt.toISOString(),
-    items: await itemsOf(r.id),
+    items,
     status: r.status,
     lastUpdate: r.lastUpdate.toISOString(),
   };
+}
+
+async function itemsOf(orderId: string): Promise<LineItem[]> {
+  const rows = await getDb().select().from(orderItems).where(eq(orderItems.orderId, orderId));
+  return rows.map(toLineItem);
+}
+
+/**
+ * DTO assembly for a LIST of orders — one `inArray` query for every order's
+ * items, grouped in JS, instead of one `itemsOf` query per order (the
+ * previous `Promise.all(rows.map(toOrderDto))` pattern was N+1: an admin
+ * page with 50 orders issued 51 queries against a 10-connection pool).
+ */
+async function toOrderDtos(rows: OrderRow[]): Promise<Order[]> {
+  if (rows.length === 0) return [];
+  const itemRows = await getDb()
+    .select()
+    .from(orderItems)
+    .where(inArray(orderItems.orderId, rows.map((r) => r.id)));
+  const byOrderId = new Map<string, LineItem[]>();
+  for (const r of itemRows) {
+    const list = byOrderId.get(r.orderId) ?? [];
+    list.push(toLineItem(r));
+    byOrderId.set(r.orderId, list);
+  }
+  return rows.map((r) => toOrderDto(r, byOrderId.get(r.id) ?? []));
 }
 
 /** Public tracking: ref is the capability (digits normalized, case-insensitive). */
 export async function findOrderByRef(rawRef: string): Promise<Order | null> {
   const ref = normalizeDigits(rawRef.trim()).toUpperCase();
   const rows = await getDb().select().from(orders).where(eq(orders.ref, ref)).limit(1);
-  return rows[0] ? toOrderDto(rows[0]) : null;
+  if (!rows[0]) return null;
+  return toOrderDto(rows[0], await itemsOf(rows[0].id));
 }
 
 export async function ordersForUser(userId: string): Promise<Order[]> {
@@ -46,7 +72,7 @@ export async function ordersForUser(userId: string): Promise<Order[]> {
     .where(eq(orders.userId, userId))
     .orderBy(desc(orders.placedAt))
     .limit(100);
-  return Promise.all(rows.map(toOrderDto));
+  return toOrderDtos(rows);
 }
 
 export async function createOrder(input: {
@@ -80,7 +106,7 @@ export async function createOrder(input: {
     return row;
   });
   // DTO assembly queries run outside the transaction (single-connection safe).
-  return toOrderDto(order);
+  return toOrderDto(order, input.items);
 }
 
 export async function updateOrderStatus(ref: string, status: OrderRow['status']): Promise<Order | null> {
@@ -89,7 +115,8 @@ export async function updateOrderStatus(ref: string, status: OrderRow['status'])
     .set({ status, lastUpdate: new Date(), updatedAt: new Date() })
     .where(eq(orders.ref, ref))
     .returning();
-  return rows[0] ? toOrderDto(rows[0]) : null;
+  if (!rows[0]) return null;
+  return toOrderDto(rows[0], await itemsOf(rows[0].id));
 }
 
 export async function adminListOrders(query: { status?: OrderRow['status']; page?: number; perPage?: number }) {
@@ -105,7 +132,7 @@ export async function adminListOrders(query: { status?: OrderRow['status']; page
     .limit(perPage)
     .offset((page - 1) * perPage);
   const total = await db.select({ n: sql<number>`count(*)::int` }).from(orders).where(where);
-  return { orders: await Promise.all(rows.map(toOrderDto)), total: total[0]?.n ?? 0 };
+  return { orders: await toOrderDtos(rows), total: total[0]?.n ?? 0 };
 }
 
 /* ---------------------------- warehouse ---------------------------- */

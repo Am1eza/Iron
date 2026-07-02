@@ -10,6 +10,7 @@ import { estimateProject } from '@/lib/server/services/estimate.service';
 import { createLead } from '@/lib/server/services/leads.service';
 import type { AuthUser } from '@/lib/auth/types';
 import type { ToolDef } from '@/lib/server/integrations/deepseek';
+import { finiteNumber } from '@/lib/validation/utils';
 
 export const AI_TOOLS: ToolDef[] = [
   {
@@ -90,7 +91,43 @@ export const AI_TOOLS: ToolDef[] = [
 
 const STEEL_DENSITY = 7.85;
 
-function weight(shape: string, a: Record<string, number>): number | null {
+const leadArgs = z.object({
+  mobile: z.string().regex(/^09\d{9}$/),
+  name: z.string().max(60).optional(),
+  items: z
+    .array(
+      z.object({
+        skuId: z.string().max(120),
+        qty: finiteNumber.positive().max(100_000),
+        unit: z.enum(['kg', 'branch', 'sheet', 'meter']),
+      }),
+    )
+    .min(1)
+    .max(100),
+});
+
+// Tool-call arguments are model-generated JSON — arguably the LEAST trusted
+// input in the system (parsed straight from `call.function.arguments` with
+// no other gate). Both need the same finite+bounded validation as the public
+// HTTP endpoints backing the identical formulas (tools/weight, tools/estimate).
+const calcWeightArgs = z.object({
+  shape: z.enum(['rebar', 'plate', 'pipe', 'box']),
+  qty: finiteNumber.positive().max(100_000),
+  diameterMm: finiteNumber.positive().max(60).optional(),
+  thicknessMm: finiteNumber.positive().max(200).optional(),
+  widthM: finiteNumber.positive().max(4).optional(),
+  lengthM: finiteNumber.positive().max(24).optional(),
+  widthMm: finiteNumber.positive().max(600).optional(),
+  heightMm: finiteNumber.positive().max(600).optional(),
+  outerDiameterMm: finiteNumber.positive().max(1000).optional(),
+});
+
+const estimateProjectArgs = z.object({
+  areaM2: finiteNumber.positive().max(100_000),
+  floors: finiteNumber.int().positive().max(50),
+});
+
+function weight(shape: string, a: z.infer<typeof calcWeightArgs>): number | null {
   switch (shape) {
     case 'rebar':
       return a.diameterMm ? ((a.diameterMm * a.diameterMm) / 162) * (a.lengthM ?? 12) : null;
@@ -108,12 +145,6 @@ function weight(shape: string, a: Record<string, number>): number | null {
       return null;
   }
 }
-
-const leadArgs = z.object({
-  mobile: z.string().regex(/^09\d{9}$/),
-  name: z.string().optional(),
-  items: z.array(z.object({ skuId: z.string(), qty: z.number().positive(), unit: z.enum(['kg', 'branch', 'sheet', 'meter']) })).min(1),
-});
 
 /** Execute one tool call; ALWAYS returns a JSON-safe result (errors as text). */
 export async function runTool(
@@ -146,19 +177,19 @@ export async function runTool(
         };
       }
       case 'calcWeight': {
-        const qty = Number(args.qty ?? 0);
-        const unitKg = weight(String(args.shape), args as Record<string, number>);
-        if (!unitKg || !qty) return { error: 'ورودی ناقص است — ابعاد لازم را بپرس.' };
+        const parsed = calcWeightArgs.safeParse(args);
+        if (!parsed.success) return { error: 'ورودی ناقص است — ابعاد لازم را بپرس.' };
+        const unitKg = weight(parsed.data.shape, parsed.data);
+        if (!unitKg) return { error: 'ورودی ناقص است — ابعاد لازم را بپرس.' };
         return {
           unitWeightKg: Math.round(unitKg * 100) / 100,
-          totalWeightKg: Math.round(unitKg * qty * 100) / 100,
+          totalWeightKg: Math.round(unitKg * parsed.data.qty * 100) / 100,
         };
       }
       case 'estimateProject': {
-        const areaM2 = Number(args.areaM2 ?? 0);
-        const floors = Number(args.floors ?? 0);
-        if (!areaM2 || !floors) return { error: 'متراژ و تعداد طبقات لازم است.' };
-        return await estimateProject(areaM2, floors);
+        const parsed = estimateProjectArgs.safeParse(args);
+        if (!parsed.success) return { error: 'متراژ و تعداد طبقات لازم است.' };
+        return await estimateProject(parsed.data.areaM2, parsed.data.floors);
       }
       case 'createLead': {
         const parsed = leadArgs.safeParse(args);

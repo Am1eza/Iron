@@ -16,11 +16,18 @@ export async function sendOtpSms(mobile: string, code: string): Promise<SmsResul
   const apiKey = process.env.KAVENEGAR_API_KEY;
   const template = process.env.KAVENEGAR_OTP_TEMPLATE ?? 'ahantime-otp';
 
-  // Dev / unconfigured: log instead of sending; surface the code for local testing.
   if (!apiKey) {
+    if (process.env.NODE_ENV === 'production') {
+      // Fail closed: a live OTP must never be written to logs. A missing
+      // provider key in production is a deploy misconfiguration and must
+      // surface as a hard failure, not silently degrade into a security hole.
+      reportError(new Error('KAVENEGAR_API_KEY missing in production'), { scope: 'sms' });
+      return { ok: false };
+    }
+    // Dev / unconfigured: log instead of sending; surface the code for local testing.
     // eslint-disable-next-line no-console
     console.info(`[sms:dev] OTP for ${mobile} = ${code}`);
-    return { ok: true, devCode: process.env.NODE_ENV === 'production' ? undefined : code };
+    return { ok: true, devCode: code };
   }
 
   try {

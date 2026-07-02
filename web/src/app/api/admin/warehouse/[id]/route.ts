@@ -3,11 +3,12 @@ import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit } from '@/lib/server/utils/apiGuard';
 import { updateWarehouseItem } from '@/lib/server/repos/ordersRepo';
+import { finiteNumber } from '@/lib/validation/utils';
 
 const payload = z.object({
   status: z.enum(['pending', 'stored', 'selling', 'released']).optional(),
-  monthlyFeeToman: z.number().min(0).optional(),
-  quantityTons: z.number().positive().optional(),
+  monthlyFeeToman: finiteNumber.min(0).max(1e12).optional(),
+  quantityTons: finiteNumber.positive().max(100000).optional(),
 });
 
 /** PATCH /api/admin/warehouse/{id} — status / fee / quantity. */

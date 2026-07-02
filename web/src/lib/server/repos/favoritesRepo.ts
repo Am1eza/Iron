@@ -3,22 +3,18 @@ import { and, desc, eq } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { getDb } from '@/lib/server/db/client';
 import { favorites, skus } from '@/lib/server/db/schema';
-import { findSkuRow } from './catalogRepo';
+import { findSkuRowsByIds } from './catalogRepo';
 import type { PriceRow } from '@/lib/types/domain';
 
+/** One query for the favorite ids, one batched query for their PriceRows —
+ *  not N+1 (a per-favorite `findSkuRow` call for each row). */
 export async function favoritesForUser(userId: string): Promise<PriceRow[]> {
   const rows = await getDb()
-    .select({ skuSlug: skus.slug })
+    .select({ skuId: favorites.skuId })
     .from(favorites)
-    .innerJoin(skus, eq(favorites.skuId, skus.id))
     .where(eq(favorites.userId, userId))
     .orderBy(desc(favorites.createdAt));
-  const out: PriceRow[] = [];
-  for (const r of rows) {
-    const row = await findSkuRow(r.skuSlug);
-    if (row) out.push(row);
-  }
-  return out;
+  return findSkuRowsByIds(rows.map((r) => r.skuId));
 }
 
 /** Add by SKU id or slug. Returns false when the SKU doesn't exist. */

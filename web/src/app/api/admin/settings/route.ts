@@ -3,24 +3,31 @@ import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit } from '@/lib/server/utils/apiGuard';
 import { listSettings, setSetting } from '@/lib/server/repos/settingsRepo';
+import { finiteNumber } from '@/lib/validation/utils';
 
-/** Known keys with per-key validation — unknown keys are rejected. */
+/**
+ * Known keys with per-key validation — unknown keys are rejected. These
+ * values are PERSISTED and read by every subsequent request (VAT/quote/
+ * freight calculations across the whole app), so a non-finite value here is
+ * higher-impact than a single bad request body — every numeric field uses
+ * `finiteNumber` with a business-realistic ceiling, not bare `z.number()`.
+ */
 const KEY_SCHEMAS: Record<string, z.ZodTypeAny> = {
-  VAT_RATE: z.number().min(0).max(1),
-  PRICE_STALE_HIDE_AFTER_DAYS: z.number().int().min(1).max(30),
-  QUOTE_VALIDITY_HOUR: z.number().int().min(0).max(23),
+  VAT_RATE: finiteNumber.min(0).max(1),
+  PRICE_STALE_HIDE_AFTER_DAYS: finiteNumber.int().min(1).max(30),
+  QUOTE_VALIDITY_HOUR: finiteNumber.int().min(0).max(23),
   HOLIDAYS: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).max(100),
-  CLUB_TIERS: z.record(z.string(), z.object({ name: z.string(), minLeads: z.number().int().min(0) })),
+  CLUB_TIERS: z.record(z.string(), z.object({ name: z.string(), minLeads: finiteNumber.int().min(0).max(100_000) })),
   LOGISTICS: z.object({
-    originLabel: z.string(),
-    freightRatePerTonKm: z.number().positive(),
-    freightMinTrip: z.number().positive(),
-    handlingPerTon: z.number().min(0),
-    insuranceRate: z.number().min(0).max(0.2),
-    scaleFee: z.number().min(0),
-    cities: z.array(z.object({ name: z.string(), km: z.number().min(0) })).max(200),
+    originLabel: z.string().max(120),
+    freightRatePerTonKm: finiteNumber.positive().max(1_000_000_000),
+    freightMinTrip: finiteNumber.positive().max(1e13),
+    handlingPerTon: finiteNumber.min(0).max(1e13),
+    insuranceRate: finiteNumber.min(0).max(0.2),
+    scaleFee: finiteNumber.min(0).max(1e13),
+    cities: z.array(z.object({ name: z.string().max(60), km: finiteNumber.min(0).max(100_000) })).max(200),
   }),
-  ALERT_MAX_ACTIVE_PER_USER: z.number().int().min(1).max(200),
+  ALERT_MAX_ACTIVE_PER_USER: finiteNumber.int().min(1).max(200),
 };
 
 /** GET /api/admin/settings. */

@@ -19,6 +19,9 @@ async function log(to: string, kind: SmsKind, payload: Record<string, unknown>, 
   }
 }
 
+const FETCH_TIMEOUT_MS = 5000;
+const isProd = () => process.env.NODE_ENV === 'production';
+
 /** Kavenegar verify/lookup — token-based template send (OTP, proforma ref). */
 export async function sendTemplateSms(
   mobile: string,
@@ -28,7 +31,9 @@ export async function sendTemplateSms(
 ): Promise<{ ok: boolean }> {
   const apiKey = process.env.KAVENEGAR_API_KEY;
   if (!apiKey) {
-    console.info(`[sms:dev] ${kind} → ${mobile} (${template}):`, tokens);
+    // PII (mobile + message content) — never echoed to prod stdout, only the
+    // DB-backed sms_log (which is access-controlled via the admin panel).
+    if (!isProd()) console.info(`[sms:dev] ${kind} → ${mobile} (${template}):`, tokens);
     await log(mobile, kind, { template, ...tokens }, 'dev_logged');
     return { ok: true };
   }
@@ -37,7 +42,10 @@ export async function sendTemplateSms(
     const params = new URLSearchParams({ receptor: mobile, template, token: tokens.token });
     if (tokens.token2) params.set('token2', tokens.token2);
     if (tokens.token3) params.set('token3', tokens.token3);
-    const res = await fetch(`${url}?${params.toString()}`, { method: 'POST' });
+    const res = await fetch(`${url}?${params.toString()}`, {
+      method: 'POST',
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
     const ok = res.ok;
     await log(mobile, kind, { template, ...tokens }, ok ? 'sent' : 'failed');
     if (!ok) reportError(new Error(`kavenegar ${res.status}`), { scope: 'sms', template });
@@ -54,7 +62,7 @@ export async function sendRawSms(mobile: string, text: string, kind: SmsKind = '
   const apiKey = process.env.KAVENEGAR_API_KEY;
   const sender = process.env.KAVENEGAR_SENDER;
   if (!apiKey) {
-    console.info(`[sms:dev] ${kind} → ${mobile}: ${text}`);
+    if (!isProd()) console.info(`[sms:dev] ${kind} → ${mobile}: ${text}`);
     await log(mobile, kind, { text }, 'dev_logged');
     return { ok: true };
   }
@@ -62,7 +70,10 @@ export async function sendRawSms(mobile: string, text: string, kind: SmsKind = '
     const url = `https://api.kavenegar.com/v1/${apiKey}/sms/send.json`;
     const params = new URLSearchParams({ receptor: mobile, message: text });
     if (sender) params.set('sender', sender);
-    const res = await fetch(`${url}?${params.toString()}`, { method: 'POST' });
+    const res = await fetch(`${url}?${params.toString()}`, {
+      method: 'POST',
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
     const ok = res.ok;
     await log(mobile, kind, { text }, ok ? 'sent' : 'failed');
     if (!ok) reportError(new Error(`kavenegar ${res.status}`), { scope: 'sms' });

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit } from '@/lib/server/utils/apiGuard';
 import { updateSku, deactivateSku } from '@/lib/server/repos/catalogAdminRepo';
+import { finiteNumber } from '@/lib/validation/utils';
 
 const patchPayload = z.object({
   slug: z.string().trim().min(1).max(120).optional(),
@@ -11,7 +12,7 @@ const patchPayload = z.object({
   size: z.string().trim().max(40).optional(),
   grade: z.string().trim().max(40).optional(),
   factory: z.string().trim().max(80).optional(),
-  theoreticalWeightKg: z.number().positive().optional(),
+  theoreticalWeightKg: finiteNumber.positive().max(100_000).optional(),
   unit: z.enum(['kg', 'branch', 'sheet', 'meter']).optional(),
   isActive: z.boolean().optional(),
 });
