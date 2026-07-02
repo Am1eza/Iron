@@ -116,8 +116,11 @@
 
 :root[data-theme="dark"]{
   --color-bg:var(--neutral-950); --color-surface:var(--neutral-900); --color-surface-raised:var(--neutral-800);
+  /* mirrors the light theme's sunken===bg relationship (both neutral-50 there) */
+  --color-surface-sunken:var(--neutral-950);
   --color-surface-inverse:var(--neutral-900); --color-hairline:rgba(255,255,255,.08); --color-border-strong:var(--neutral-700);
   --color-text:var(--neutral-100); --color-text-strong:var(--neutral-0); --color-text-muted:var(--neutral-400);
+  --color-text-placeholder:var(--neutral-500);
   --color-accent:var(--emerald-400); --color-accent-text:var(--emerald-300); --color-accent-tint:rgba(15,138,99,.16);
   --color-action:var(--emerald-500); --color-on-action:var(--neutral-0); --color-action-hover:var(--emerald-400); --color-action-press:var(--emerald-600); --color-action-text:var(--emerald-300); --color-focus:var(--emerald-400);
   --color-overlay:rgba(0,0,0,.6);
