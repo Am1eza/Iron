@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
-import { requireDb } from '@/lib/server/utils/apiGuard';
+import { requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { estimateItems, estimateProject } from '@/lib/server/services/estimate.service';
 import { finiteNumber } from '@/lib/validation/utils';
 import { rateLimit } from '@/lib/server/utils/rateLimit';
@@ -27,7 +27,7 @@ const payload = z.union([
 
 /** POST /api/tools/estimate — grounded totals (items) or a project estimate
  *  (area×floors → rebar tonnage + cost band). Backs the AI estimateProject tool. */
-export async function POST(req: NextRequest) {
+async function POSTImpl(req: NextRequest) {
   const limited = rateLimit(req, 'tools', { limit: 60, windowMs: 60_000 });
   if (limited) return limited;
   const guard = requireDb();
@@ -38,3 +38,5 @@ export async function POST(req: NextRequest) {
     'items' in v.data ? await estimateItems(v.data.items) : await estimateProject(v.data.areaM2, v.data.floors);
   return NextResponse.json(result);
 }
+
+export const POST = withApiErrorHandling(POSTImpl);

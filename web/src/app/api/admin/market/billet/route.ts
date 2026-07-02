@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
-import { requireApiPermission, requireDb, audit } from '@/lib/server/utils/apiGuard';
+import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { upsertMarketValue, getMarketValue } from '@/lib/server/repos/marketRepo';
 import { evaluateAlerts } from '@/lib/server/services/alerts.service';
 import { finiteNumber } from '@/lib/validation/utils';
@@ -9,7 +9,7 @@ import { finiteNumber } from '@/lib/validation/utils';
 const payload = z.object({ value: finiteNumber.positive().max(1e13) });
 
 /** PUT /api/admin/market/billet — the one admin-entered ticker value (شمش). */
-export async function PUT(req: NextRequest) {
+async function PUTImpl(req: NextRequest) {
   const guard = requireDb();
   if (guard) return guard;
   const auth = await requireApiPermission(req, 'market:write');
@@ -29,3 +29,5 @@ export async function PUT(req: NextRequest) {
   void evaluateAlerts().catch(() => {});
   return NextResponse.json({ value: updated });
 }
+
+export const PUT = withApiErrorHandling(PUTImpl);

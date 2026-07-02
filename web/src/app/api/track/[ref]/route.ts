@@ -1,10 +1,10 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { requireDb } from '@/lib/server/utils/apiGuard';
+import { requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { findOrderByRef } from '@/lib/server/repos/ordersRepo';
 import { rateLimit } from '@/lib/server/utils/rateLimit';
 
 /** GET /api/track/{ref} — public order lookup (the ref is the capability). */
-export async function GET(req: NextRequest, ctx: { params: Promise<{ ref: string }> }) {
+async function GETImpl(req: NextRequest, ctx: { params: Promise<{ ref: string }> }) {
   // Refs act as capabilities — throttle guessing.
   const limited = rateLimit(req, 'track', { limit: 30 });
   if (limited) return limited;
@@ -20,3 +20,5 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ ref: string
   }
   return NextResponse.json({ order }, { headers: { 'Cache-Control': 'no-store' } });
 }
+
+export const GET = withApiErrorHandling(GETImpl);

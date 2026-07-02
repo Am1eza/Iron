@@ -1,11 +1,11 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { desc, eq, sql } from 'drizzle-orm';
-import { requireApiPermission, requireDb } from '@/lib/server/utils/apiGuard';
+import { requireApiPermission, requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { getDb } from '@/lib/server/db/client';
 import { contactMessages } from '@/lib/server/db/schema';
 
 /** GET /api/admin/contact-messages?status= — the contact-form inbox. */
-export async function GET(req: NextRequest) {
+async function GETImpl(req: NextRequest) {
   const guard = requireDb();
   if (guard) return guard;
   const auth = await requireApiPermission(req, 'leads:read');
@@ -17,3 +17,5 @@ export async function GET(req: NextRequest) {
   const total = await db.select({ n: sql<number>`count(*)::int` }).from(contactMessages).where(where);
   return NextResponse.json({ messages: rows, total: total[0]?.n ?? 0 }, { headers: { 'Cache-Control': 'no-store' } });
 }
+
+export const GET = withApiErrorHandling(GETImpl);

@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { requireDb } from '@/lib/server/utils/apiGuard';
+import { requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { listCategories } from '@/lib/server/repos/catalogRepo';
 
 /** GET /api/categories — active categories, ordered (client caches 5 min). */
-export async function GET() {
+async function GETImpl() {
   const guard = requireDb();
   if (guard) return guard;
   const categories = await listCategories();
@@ -12,3 +12,5 @@ export async function GET() {
     { headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' } },
   );
 }
+
+export const GET = withApiErrorHandling(GETImpl);

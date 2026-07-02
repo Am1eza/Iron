@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
-import { requireApiPermission, requireDb, audit } from '@/lib/server/utils/apiGuard';
+import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { updateOrderStatus } from '@/lib/server/repos/ordersRepo';
 
 const payload = z.object({
@@ -9,7 +9,7 @@ const payload = z.object({
 });
 
 /** PATCH /api/admin/orders/{ref} — advance the shipment stepper. */
-export async function PATCH(req: NextRequest, ctx: { params: Promise<{ ref: string }> }) {
+async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ ref: string }> }) {
   const guard = requireDb();
   if (guard) return guard;
   const auth = await requireApiPermission(req, 'leads:write');
@@ -22,3 +22,5 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ ref: stri
   await audit(auth.session.id, 'order.status', { type: 'order', id: order.ref }, null, v.data);
   return NextResponse.json({ order });
 }
+
+export const PATCH = withApiErrorHandling(PATCHImpl);

@@ -1,12 +1,12 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
-import { requireApiPermission, requireDb, audit } from '@/lib/server/utils/apiGuard';
+import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { findLead, leadItemsOf, leadNotesOf, proformasOfLead, updateLead } from '@/lib/server/repos/leadsRepo';
 import { recomputeTier } from '@/lib/server/repos/clubRepo';
 
 /** GET /api/admin/leads/{id} — full lead: items, notes, proformas. */
-export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+async function GETImpl(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const guard = requireDb();
   if (guard) return guard;
   const auth = await requireApiPermission(req, 'leads:read');
@@ -25,7 +25,7 @@ const patchPayload = z.object({
 });
 
 /** PATCH /api/admin/leads/{id} — status / assignee / callback. */
-export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const guard = requireDb();
   if (guard) return guard;
   const auth = await requireApiPermission(req, 'leads:write');
@@ -46,3 +46,6 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   if (v.data.status === 'won' && lead?.userId) void recomputeTier(lead.userId).catch(() => {});
   return NextResponse.json({ lead });
 }
+
+export const GET = withApiErrorHandling(GETImpl);
+export const PATCH = withApiErrorHandling(PATCHImpl);

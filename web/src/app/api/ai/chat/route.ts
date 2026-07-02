@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { getSession } from '@/lib/auth/session';
 import { assertSameOrigin } from '@/lib/auth/origin';
-import { requireDb } from '@/lib/server/utils/apiGuard';
+import { requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import {
   aiEnabled,
   streamCompletion,
@@ -36,7 +36,7 @@ const MAX_TOOL_ROUNDS = 4;
  * number (getPrice/calcWeight/estimateProject/createLead). SSE frames:
  * data: {type:'token'|'tool'|'lead'|'done'|'error', ...}
  */
-export async function POST(req: NextRequest) {
+async function POSTImpl(req: NextRequest) {
   const origin = assertSameOrigin(req);
   if (origin) return origin;
 
@@ -126,3 +126,5 @@ export async function POST(req: NextRequest) {
     },
   });
 }
+
+export const POST = withApiErrorHandling(POSTImpl);

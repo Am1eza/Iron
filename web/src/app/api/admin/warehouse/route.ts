@@ -1,14 +1,14 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
-import { requireApiPermission, requireDb, audit } from '@/lib/server/utils/apiGuard';
+import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { adminListWarehouse, createWarehouseItem } from '@/lib/server/repos/ordersRepo';
 import { userByMobile } from '@/lib/auth/store';
 import { nextRef } from '@/lib/server/utils/refs';
 import { finiteNumber } from '@/lib/validation/utils';
 
 /** GET /api/admin/warehouse — all consigned stock. */
-export async function GET(req: NextRequest) {
+async function GETImpl(req: NextRequest) {
   const guard = requireDb();
   if (guard) return guard;
   const auth = await requireApiPermission(req, 'leads:read');
@@ -27,7 +27,7 @@ const createPayload = z.object({
 });
 
 /** POST /api/admin/warehouse — receive a customer's stock (assign by mobile). */
-export async function POST(req: NextRequest) {
+async function POSTImpl(req: NextRequest) {
   const guard = requireDb();
   if (guard) return guard;
   const auth = await requireApiPermission(req, 'leads:write');
@@ -53,3 +53,6 @@ export async function POST(req: NextRequest) {
   await audit(auth.session.id, 'warehouse.create', { type: 'warehouseItem', id: item.id }, null, v.data);
   return NextResponse.json({ item }, { status: 201 });
 }
+
+export const GET = withApiErrorHandling(GETImpl);
+export const POST = withApiErrorHandling(POSTImpl);

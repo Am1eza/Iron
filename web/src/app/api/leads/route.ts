@@ -3,13 +3,13 @@ import { validateBody } from '@/lib/validation/request';
 import { leadPayload } from '@/lib/validation/api';
 import { getSession } from '@/lib/auth/session';
 import { assertSameOrigin } from '@/lib/auth/origin';
-import { requireDb } from '@/lib/server/utils/apiGuard';
+import { requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { createLead } from '@/lib/server/services/leads.service';
 import { rateLimit } from '@/lib/server/utils/rateLimit';
 import { reportError } from '@/lib/errors/report';
 
 /** POST /api/leads — request → پیش‌فاکتور + SMS + CRM lead (UX-flow F6). */
-export async function POST(req: NextRequest) {
+async function POSTImpl(req: NextRequest) {
   const origin = assertSameOrigin(req);
   if (origin) return origin;
   const limited = rateLimit(req, 'leads', { limit: 10 });
@@ -41,3 +41,5 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+export const POST = withApiErrorHandling(POSTImpl);

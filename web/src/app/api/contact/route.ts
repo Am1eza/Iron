@@ -3,14 +3,14 @@ import { ulid } from 'ulid';
 import { validateBody } from '@/lib/validation/request';
 import { contactSchema } from '@/lib/validation/schemas';
 import { assertSameOrigin } from '@/lib/auth/origin';
-import { requireDb } from '@/lib/server/utils/apiGuard';
+import { requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { getDb } from '@/lib/server/db/client';
 import { contactMessages } from '@/lib/server/db/schema';
 import { reportError } from '@/lib/errors/report';
 import { rateLimit } from '@/lib/server/utils/rateLimit';
 
 /** POST /api/contact — contact-form message → admin inbox. */
-export async function POST(req: NextRequest) {
+async function POSTImpl(req: NextRequest) {
   const origin = assertSameOrigin(req);
   if (origin) return origin;
   const limited = rateLimit(req, 'contact', { limit: 5 });
@@ -37,3 +37,5 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+export const POST = withApiErrorHandling(POSTImpl);

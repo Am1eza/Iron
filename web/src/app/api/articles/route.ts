@@ -1,9 +1,9 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { requireDb } from '@/lib/server/utils/apiGuard';
+import { requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { listPublished } from '@/lib/server/repos/articlesRepo';
 
 /** GET /api/articles?type=blog|news&page= — published articles. */
-export async function GET(req: NextRequest) {
+async function GETImpl(req: NextRequest) {
   const guard = requireDb();
   if (guard) return guard;
   const type = req.nextUrl.searchParams.get('type') === 'news' ? 'news' : 'blog';
@@ -13,3 +13,5 @@ export async function GET(req: NextRequest) {
     headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' },
   });
 }
+
+export const GET = withApiErrorHandling(GETImpl);

@@ -1,9 +1,9 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { requireApiPermission, requireDb } from '@/lib/server/utils/apiGuard';
+import { requireApiPermission, requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { adminListLeads } from '@/lib/server/repos/leadsRepo';
 
 /** GET /api/admin/leads?status=&assignee=&q=&page= — the CRM list. */
-export async function GET(req: NextRequest) {
+async function GETImpl(req: NextRequest) {
   const guard = requireDb();
   if (guard) return guard;
   const auth = await requireApiPermission(req, 'leads:read');
@@ -18,3 +18,5 @@ export async function GET(req: NextRequest) {
   });
   return NextResponse.json(result, { headers: { 'Cache-Control': 'no-store' } });
 }
+
+export const GET = withApiErrorHandling(GETImpl);

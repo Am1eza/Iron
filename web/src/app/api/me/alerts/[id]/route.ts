@@ -1,10 +1,10 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
-import { requireApiUser, requireDb } from '@/lib/server/utils/apiGuard';
-import { findAlert, updateAlertStatus, deleteAlert, toAlertDto } from '@/lib/server/repos/alertsRepo';
+import { requireApiUser, requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
+import { findAlert, updateAlertStatus, deleteAlert, toAlertDto, type AlertRow } from '@/lib/server/repos/alertsRepo';
 
-async function owned(req: NextRequest, id: string) {
+async function owned(req: NextRequest, id: string): Promise<{ response: NextResponse } | { alert: AlertRow }> {
   const auth = await requireApiUser(req);
   if ('response' in auth) return { response: auth.response };
   const alert = await findAlert(id);
@@ -19,7 +19,7 @@ async function owned(req: NextRequest, id: string) {
 const patchPayload = z.object({ status: z.enum(['active', 'paused']) });
 
 /** PATCH /api/me/alerts/{id} — pause / re-arm. */
-export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const guard = requireDb();
   if (guard) return guard;
   const { id } = await ctx.params;
@@ -32,7 +32,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
 }
 
 /** DELETE /api/me/alerts/{id}. */
-export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+async function DELETEImpl(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const guard = requireDb();
   if (guard) return guard;
   const { id } = await ctx.params;
@@ -41,3 +41,6 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: stri
   await deleteAlert(id);
   return NextResponse.json({ ok: true });
 }
+
+export const PATCH = withApiErrorHandling(PATCHImpl);
+export const DELETE = withApiErrorHandling(DELETEImpl);

@@ -1,14 +1,14 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
-import { requireApiPermission, requireDb } from '@/lib/server/utils/apiGuard';
+import { requireApiPermission, requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { tableRows } from '@/lib/server/repos/catalogRepo';
 import { savePrices } from '@/lib/server/services/pricing.service';
 import { evaluateAlerts } from '@/lib/server/services/alerts.service';
 import { finiteNumber } from '@/lib/validation/utils';
 
 /** GET /api/admin/pricing?cat=&sub= — the daily grid (rows incl. stale flags). */
-export async function GET(req: NextRequest) {
+async function GETImpl(req: NextRequest) {
   const guard = requireDb();
   if (guard) return guard;
   const auth = await requireApiPermission(req, 'pricing:write');
@@ -40,7 +40,7 @@ const bulkPayload = z.object({
  * row), with per-row fault isolation: a bad row is reported, not silently
  * dropped, and every other row still commits.
  */
-export async function PUT(req: NextRequest) {
+async function PUTImpl(req: NextRequest) {
   const guard = requireDb();
   if (guard) return guard;
   const auth = await requireApiPermission(req, 'pricing:write');
@@ -57,3 +57,6 @@ export async function PUT(req: NextRequest) {
     { status: failed.length > 0 && failed.length === results.length ? 422 : 200 },
   );
 }
+
+export const GET = withApiErrorHandling(GETImpl);
+export const PUT = withApiErrorHandling(PUTImpl);

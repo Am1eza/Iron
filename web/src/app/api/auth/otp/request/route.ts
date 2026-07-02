@@ -6,6 +6,7 @@ import { requestOtp } from '@/lib/auth/service';
 import { authErrorResponse } from '@/lib/auth/apiError';
 import { assertSameOrigin } from '@/lib/auth/origin';
 import { rateLimit } from '@/lib/server/utils/rateLimit';
+import { withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 
 /**
  * POST /api/auth/otp/request — issue + send an OTP (Kavenegar/dev) to a normalized
@@ -14,7 +15,7 @@ import { rateLimit } from '@/lib/server/utils/rateLimit';
  * across many DIFFERENT mobile numbers (SMS-cost / toll-fraud abuse) which the
  * per-mobile limit alone can't catch.
  */
-export async function POST(req: NextRequest) {
+async function POSTImpl(req: NextRequest) {
   const origin = assertSameOrigin(req);
   if (origin) return origin;
 
@@ -36,3 +37,5 @@ export async function POST(req: NextRequest) {
     return authErrorResponse(err);
   }
 }
+
+export const POST = withApiErrorHandling(POSTImpl);

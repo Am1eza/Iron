@@ -5,9 +5,10 @@ import { getSession } from '@/lib/auth/session';
 import { updateUser } from '@/lib/auth/store';
 import { publicUser } from '@/lib/auth/publicUser';
 import { assertSameOrigin } from '@/lib/auth/origin';
+import { withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 
 /** PUT /api/me/profile — update the signed-in user's profile (name). */
-export async function PUT(req: NextRequest) {
+async function PUTImpl(req: NextRequest) {
   const origin = assertSameOrigin(req);
   if (origin) return origin;
 
@@ -25,3 +26,5 @@ export async function PUT(req: NextRequest) {
   }
   return NextResponse.json({ user: publicUser(updated) });
 }
+
+export const PUT = withApiErrorHandling(PUTImpl);

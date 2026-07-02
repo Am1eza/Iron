@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
-import { requireApiPermission, requireDb, audit } from '@/lib/server/utils/apiGuard';
+import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { listUsers, updateUser, userById, revokeAllForUser } from '@/lib/auth/store';
 
 const payload = z.object({
@@ -11,7 +11,7 @@ const payload = z.object({
 });
 
 /** PATCH /api/admin/users/{id} — role / active / name. Guards the last admin. */
-export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const guard = requireDb();
   if (guard) return guard;
   const auth = await requireApiPermission(req, 'users:manage');
@@ -41,3 +41,5 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   await audit(auth.session.id, 'user.update', { type: 'user', id }, { role: before.role }, v.data);
   return NextResponse.json({ user });
 }
+
+export const PATCH = withApiErrorHandling(PATCHImpl);

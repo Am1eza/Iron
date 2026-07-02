@@ -1,11 +1,11 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { sql, eq, and, gte } from 'drizzle-orm';
-import { requireApiPermission, requireDb } from '@/lib/server/utils/apiGuard';
+import { requireApiPermission, requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { getDb } from '@/lib/server/db/client';
 import { currentPrices, leads, userRequests, orders, contactMessages, users, articles } from '@/lib/server/db/schema';
 
 /** GET /api/admin/stats — the dashboard tiles. */
-export async function GET(req: NextRequest) {
+async function GETImpl(req: NextRequest) {
   const guard = requireDb();
   if (guard) return guard;
   const auth = await requireApiPermission(req, 'admin:access');
@@ -33,3 +33,5 @@ export async function GET(req: NextRequest) {
     { headers: { 'Cache-Control': 'no-store' } },
   );
 }
+
+export const GET = withApiErrorHandling(GETImpl);

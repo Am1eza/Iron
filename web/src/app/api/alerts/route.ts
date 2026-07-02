@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
-import { requireApiUser, requireDb } from '@/lib/server/utils/apiGuard';
+import { requireApiUser, requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { createAlert, activeAlertCount } from '@/lib/server/repos/alertsRepo';
 import { getSetting } from '@/lib/server/repos/settingsRepo';
 import { finiteNumber } from '@/lib/validation/utils';
@@ -19,7 +19,7 @@ const alertPayload = z.object({
 
 /** POST /api/alerts — create a price alert (قیمت‌سنج). Auth required.
  *  Merges into an identical active alert (VR-C1) instead of duplicating it. */
-export async function POST(req: NextRequest) {
+async function POSTImpl(req: NextRequest) {
   const guard = requireDb();
   if (guard) return guard;
   const auth = await requireApiUser(req);
@@ -41,3 +41,5 @@ export async function POST(req: NextRequest) {
     { status: merged ? 200 : 201 },
   );
 }
+
+export const POST = withApiErrorHandling(POSTImpl);

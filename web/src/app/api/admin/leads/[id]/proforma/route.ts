@@ -1,12 +1,12 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { requireApiPermission, requireDb, audit } from '@/lib/server/utils/apiGuard';
+import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { findLead, leadItemsOf, toLineItem } from '@/lib/server/repos/leadsRepo';
 import { issueProforma } from '@/lib/server/services/leads.service';
 import { sendTemplateSms } from '@/lib/server/integrations/kavenegar';
 
 /** POST /api/admin/leads/{id}/proforma — issue/re-issue from current lead items
  *  (snapshot already priced at lead creation; sales adjusts via lead items later). */
-export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+async function POSTImpl(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const guard = requireDb();
   if (guard) return guard;
   const auth = await requireApiPermission(req, 'leads:write');
@@ -33,3 +33,5 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   await audit(auth.session.id, 'lead.proforma', { type: 'lead', id }, null, { ref: proforma.ref, total: proforma.total });
   return NextResponse.json({ proforma }, { status: 201 });
 }
+
+export const POST = withApiErrorHandling(POSTImpl);

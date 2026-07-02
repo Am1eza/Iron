@@ -1,12 +1,12 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
-import { requireApiUser, requireDb } from '@/lib/server/utils/apiGuard';
+import { requireApiUser, requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { requestsForUser, insertRequest } from '@/lib/server/repos/requestsRepo';
 import { nextRef } from '@/lib/server/utils/refs';
 
 /** GET /api/me/requests — the account inbox («درخواست‌های من»). */
-export async function GET(req: NextRequest) {
+async function GETImpl(req: NextRequest) {
   const guard = requireDb();
   if (guard) return guard;
   const auth = await requireApiUser(req);
@@ -23,7 +23,7 @@ const createPayload = z.object({
 });
 
 /** POST /api/me/requests — file a request (bulk/warehouse asks from the UI). */
-export async function POST(req: NextRequest) {
+async function POSTImpl(req: NextRequest) {
   const guard = requireDb();
   if (guard) return guard;
   const auth = await requireApiUser(req);
@@ -36,3 +36,6 @@ export async function POST(req: NextRequest) {
   const request = await insertRequest({ userId: auth.session.id, ref, ...v.data });
   return NextResponse.json({ request }, { status: 201 });
 }
+
+export const GET = withApiErrorHandling(GETImpl);
+export const POST = withApiErrorHandling(POSTImpl);

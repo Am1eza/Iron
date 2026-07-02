@@ -1,11 +1,11 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
-import { requireApiPermission, requireDb, audit } from '@/lib/server/utils/apiGuard';
+import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { adminGetArticle, updateArticle } from '@/lib/server/repos/articlesRepo';
 
 /** GET /api/admin/articles/{id} — full article for the editor. */
-export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+async function GETImpl(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const guard = requireDb();
   if (guard) return guard;
   const auth = await requireApiPermission(req, 'content:write');
@@ -27,7 +27,7 @@ const patchPayload = z.object({
 });
 
 /** PATCH /api/admin/articles/{id} — edit draft/scheduled fields. */
-export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const guard = requireDb();
   if (guard) return guard;
   const auth = await requireApiPermission(req, 'content:write');
@@ -44,3 +44,6 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   await audit(auth.session.id, 'content.update', { type: 'article', id }, null, { fields: Object.keys(v.data) });
   return NextResponse.json({ article });
 }
+
+export const GET = withApiErrorHandling(GETImpl);
+export const PATCH = withApiErrorHandling(PATCHImpl);

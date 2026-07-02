@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
-import { requireDb } from '@/lib/server/utils/apiGuard';
+import { requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { landedCost } from '@/lib/server/services/estimate.service';
 import { finiteNumber } from '@/lib/validation/utils';
 import { rateLimit } from '@/lib/server/utils/rateLimit';
@@ -16,7 +16,7 @@ const payload = z.object({
 
 /** POST /api/tools/cost — landed-cost breakdown (freight/handling/insurance/
  *  scale/VAT) using the admin-configurable logistics settings. */
-export async function POST(req: NextRequest) {
+async function POSTImpl(req: NextRequest) {
   const limited = rateLimit(req, 'tools', { limit: 60, windowMs: 60_000 });
   if (limited) return limited;
   const guard = requireDb();
@@ -26,3 +26,5 @@ export async function POST(req: NextRequest) {
   const result = await landedCost(v.data.tons, v.data.city, v.data.goodsToman);
   return NextResponse.json(result);
 }
+
+export const POST = withApiErrorHandling(POSTImpl);

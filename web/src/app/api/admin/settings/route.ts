@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
-import { requireApiPermission, requireDb, audit } from '@/lib/server/utils/apiGuard';
+import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { listSettings, setSetting } from '@/lib/server/repos/settingsRepo';
 import { finiteNumber } from '@/lib/validation/utils';
 
@@ -31,7 +31,7 @@ const KEY_SCHEMAS: Record<string, z.ZodTypeAny> = {
 };
 
 /** GET /api/admin/settings. */
-export async function GET(req: NextRequest) {
+async function GETImpl(req: NextRequest) {
   const guard = requireDb();
   if (guard) return guard;
   const auth = await requireApiPermission(req, 'settings:write');
@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
 const putPayload = z.object({ key: z.string().min(1), value: z.unknown() });
 
 /** PUT /api/admin/settings — one validated key at a time. */
-export async function PUT(req: NextRequest) {
+async function PUTImpl(req: NextRequest) {
   const guard = requireDb();
   if (guard) return guard;
   const auth = await requireApiPermission(req, 'settings:write');
@@ -63,3 +63,6 @@ export async function PUT(req: NextRequest) {
   await audit(auth.session.id, 'settings.update', { type: 'setting', id: v.data.key }, null, { value: parsed.data });
   return NextResponse.json({ ok: true });
 }
+
+export const GET = withApiErrorHandling(GETImpl);
+export const PUT = withApiErrorHandling(PUTImpl);

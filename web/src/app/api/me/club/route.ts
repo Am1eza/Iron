@@ -1,9 +1,9 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { requireApiUser, requireDb } from '@/lib/server/utils/apiGuard';
+import { requireApiUser, requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { clubStatus, joinClub } from '@/lib/server/repos/clubRepo';
 
 /** GET /api/me/club — membership status + progress to the next tier. */
-export async function GET(req: NextRequest) {
+async function GETImpl(req: NextRequest) {
   const guard = requireDb();
   if (guard) return guard;
   const auth = await requireApiUser(req);
@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
 }
 
 /** POST /api/me/club — join (tier آهنی). */
-export async function POST(req: NextRequest) {
+async function POSTImpl(req: NextRequest) {
   const guard = requireDb();
   if (guard) return guard;
   const auth = await requireApiUser(req);
@@ -22,3 +22,6 @@ export async function POST(req: NextRequest) {
   const club = await clubStatus(auth.session.id);
   return NextResponse.json({ ok: true, club }, { status: 201 });
 }
+
+export const GET = withApiErrorHandling(GETImpl);
+export const POST = withApiErrorHandling(POSTImpl);

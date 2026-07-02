@@ -1,9 +1,9 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { requireApiPermission, requireDb } from '@/lib/server/utils/apiGuard';
+import { requireApiPermission, requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { adminListMembers } from '@/lib/server/repos/clubRepo';
 
 /** GET /api/admin/club/members. */
-export async function GET(req: NextRequest) {
+async function GETImpl(req: NextRequest) {
   const guard = requireDb();
   if (guard) return guard;
   const auth = await requireApiPermission(req, 'club:manage');
@@ -12,3 +12,5 @@ export async function GET(req: NextRequest) {
   const result = await adminListMembers(page);
   return NextResponse.json(result, { headers: { 'Cache-Control': 'no-store' } });
 }
+
+export const GET = withApiErrorHandling(GETImpl);

@@ -8,6 +8,7 @@ import { authErrorResponse } from '@/lib/auth/apiError';
 import { assertSameOrigin } from '@/lib/auth/origin';
 import { publicUser } from '@/lib/auth/publicUser';
 import { rateLimit } from '@/lib/server/utils/rateLimit';
+import { withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 
 /**
  * POST /api/auth/otp/verify — verify the code, login or register, set the session
@@ -15,7 +16,7 @@ import { rateLimit } from '@/lib/server/utils/rateLimit';
  * the per-mobile attempt limit (handled in the service); the IP limit here stops
  * one client from spreading brute-force attempts across many mobile numbers.
  */
-export async function POST(req: NextRequest) {
+async function POSTImpl(req: NextRequest) {
   const origin = assertSameOrigin(req);
   if (origin) return origin;
 
@@ -38,3 +39,5 @@ export async function POST(req: NextRequest) {
     return authErrorResponse(err);
   }
 }
+
+export const POST = withApiErrorHandling(POSTImpl);

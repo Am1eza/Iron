@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { requireDb } from '@/lib/server/utils/apiGuard';
+import { requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { findCategoryBySlug, listSubCategories, tableRows } from '@/lib/server/repos/catalogRepo';
 
 /** GET /api/categories/{cat} — category + subs + the full price table. */
-export async function GET(_req: Request, ctx: { params: Promise<{ cat: string }> }) {
+async function GETImpl(_req: Request, ctx: { params: Promise<{ cat: string }> }) {
   const guard = requireDb();
   if (guard) return guard;
   const { cat } = await ctx.params;
@@ -20,3 +20,5 @@ export async function GET(_req: Request, ctx: { params: Promise<{ cat: string }>
     { headers: { 'Cache-Control': 'public, s-maxage=120, stale-while-revalidate=300' } },
   );
 }
+
+export const GET = withApiErrorHandling(GETImpl);

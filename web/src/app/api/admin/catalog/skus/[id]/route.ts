@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
-import { requireApiPermission, requireDb, audit } from '@/lib/server/utils/apiGuard';
+import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { updateSku, deactivateSku } from '@/lib/server/repos/catalogAdminRepo';
 import { finiteNumber } from '@/lib/validation/utils';
 
@@ -17,7 +17,7 @@ const patchPayload = z.object({
   isActive: z.boolean().optional(),
 });
 
-export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const guard = requireDb();
   if (guard) return guard;
   const auth = await requireApiPermission(req, 'catalog:write');
@@ -32,7 +32,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
 }
 
 /** DELETE = soft-delete; priced SKUs keep their history forever. */
-export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+async function DELETEImpl(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const guard = requireDb();
   if (guard) return guard;
   const auth = await requireApiPermission(req, 'catalog:write');
@@ -43,3 +43,6 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: stri
   await audit(auth.session.id, 'catalog.sku.deactivate', { type: 'sku', id });
   return NextResponse.json({ ok: true });
 }
+
+export const PATCH = withApiErrorHandling(PATCHImpl);
+export const DELETE = withApiErrorHandling(DELETEImpl);

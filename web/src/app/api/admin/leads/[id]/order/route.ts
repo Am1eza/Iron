@@ -1,11 +1,11 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { requireApiPermission, requireDb, audit } from '@/lib/server/utils/apiGuard';
+import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { findLead, leadItemsOf, toLineItem, updateLead } from '@/lib/server/repos/leadsRepo';
 import { createOrder } from '@/lib/server/repos/ordersRepo';
 import { nextRef } from '@/lib/server/utils/refs';
 
 /** POST /api/admin/leads/{id}/order — convert a won lead into a tracked order. */
-export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+async function POSTImpl(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const guard = requireDb();
   if (guard) return guard;
   const auth = await requireApiPermission(req, 'leads:write');
@@ -21,3 +21,5 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   await audit(auth.session.id, 'lead.order', { type: 'lead', id }, null, { orderRef: ref });
   return NextResponse.json({ order }, { status: 201 });
 }
+
+export const POST = withApiErrorHandling(POSTImpl);

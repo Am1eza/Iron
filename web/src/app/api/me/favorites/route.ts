@@ -1,11 +1,11 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
-import { requireApiUser, requireDb } from '@/lib/server/utils/apiGuard';
+import { requireApiUser, requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { favoritesForUser, addFavorite } from '@/lib/server/repos/favoritesRepo';
 
 /** GET /api/me/favorites — starred SKUs as PriceRows. */
-export async function GET(req: NextRequest) {
+async function GETImpl(req: NextRequest) {
   const guard = requireDb();
   if (guard) return guard;
   const auth = await requireApiUser(req);
@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
 const payload = z.object({ skuId: z.string().min(1) });
 
 /** POST /api/me/favorites — star a SKU (id or slug). */
-export async function POST(req: NextRequest) {
+async function POSTImpl(req: NextRequest) {
   const guard = requireDb();
   if (guard) return guard;
   const auth = await requireApiUser(req);
@@ -30,3 +30,6 @@ export async function POST(req: NextRequest) {
   }
   return NextResponse.json({ ok: true }, { status: 201 });
 }
+
+export const GET = withApiErrorHandling(GETImpl);
+export const POST = withApiErrorHandling(POSTImpl);

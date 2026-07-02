@@ -35,6 +35,14 @@ services:
       DEV_ADMIN_MOBILE: ${DEV_ADMIN_MOBILE:-}
     expose:
       - "3000"          # internal only — not published to the host
+    healthcheck:
+      # No curl/wget in the minimal node:alpine runner image — use Node's
+      # built-in fetch instead of adding a package just for this.
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s   # migrations (+ optional seed) run before server.js starts
 
   db:
     image: postgres:16-alpine
@@ -55,7 +63,8 @@ services:
     image: caddy:2-alpine
     restart: unless-stopped
     depends_on:
-      - web
+      web:
+        condition: service_healthy
     ports:
       - "80:80"
       - "443:443"

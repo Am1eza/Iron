@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
-import { requireApiUser, requireDb } from '@/lib/server/utils/apiGuard';
+import { requireApiUser, requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { insertRequest } from '@/lib/server/repos/requestsRepo';
 
 const importPayload = z.object({
@@ -21,7 +21,7 @@ const importPayload = z.object({
 });
 
 /** POST /api/me/requests/import — one-shot localStorage migration (idempotent by ref). */
-export async function POST(req: NextRequest) {
+async function POSTImpl(req: NextRequest) {
   const guard = requireDb();
   if (guard) return guard;
   const auth = await requireApiUser(req);
@@ -45,3 +45,5 @@ export async function POST(req: NextRequest) {
   }
   return NextResponse.json({ ok: true, imported });
 }
+
+export const POST = withApiErrorHandling(POSTImpl);

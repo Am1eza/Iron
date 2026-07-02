@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { requireDb } from '@/lib/server/utils/apiGuard';
+import { requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { findSkuRow, relatedSkuRows } from '@/lib/server/repos/catalogRepo';
 
 /** GET /api/sku/{slug} — one SKU row + related rows for cross-sell. */
-export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }> }) {
+async function GETImpl(_req: Request, ctx: { params: Promise<{ slug: string }> }) {
   const guard = requireDb();
   if (guard) return guard;
   const { slug } = await ctx.params;
@@ -17,3 +17,5 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }
     { headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' } },
   );
 }
+
+export const GET = withApiErrorHandling(GETImpl);

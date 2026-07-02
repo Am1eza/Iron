@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
 import { finiteNumber } from '@/lib/validation/utils';
 import { rateLimit } from '@/lib/server/utils/rateLimit';
+import { withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 
 const STEEL_DENSITY = 7.85; // g/cm³
 
@@ -64,7 +65,7 @@ function unitWeightKg(d: z.infer<typeof payload>): number {
 
 /** POST /api/tools/weight — وزن‌سنج: theoretical or per-shape formulas.
  *  Also backs the AI's calcWeight tool (single source of truth). */
-export async function POST(req: NextRequest) {
+async function POSTImpl(req: NextRequest) {
   const limited = rateLimit(req, 'tools', { limit: 60, windowMs: 60_000 });
   if (limited) return limited;
   const v = await validateBody(req, payload);
@@ -73,3 +74,5 @@ export async function POST(req: NextRequest) {
   const totalWeightKg = Math.round(unit * v.data.qty * 100) / 100;
   return NextResponse.json({ unitWeightKg: Math.round(unit * 100) / 100, totalWeightKg });
 }
+
+export const POST = withApiErrorHandling(POSTImpl);

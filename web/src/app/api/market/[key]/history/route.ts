@@ -1,12 +1,12 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { requireDb } from '@/lib/server/utils/apiGuard';
+import { requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { marketHistory } from '@/lib/server/repos/marketRepo';
 import type { MarketKey } from '@/lib/types/domain';
 
 const KEYS: MarketKey[] = ['usd', 'eur', 'gold18', 'ounce', 'billet'];
 
 /** GET /api/market/{key}/history?range= — ticker chart series. */
-export async function GET(req: NextRequest, ctx: { params: Promise<{ key: string }> }) {
+async function GETImpl(req: NextRequest, ctx: { params: Promise<{ key: string }> }) {
   const guard = requireDb();
   if (guard) return guard;
   const { key } = await ctx.params;
@@ -20,3 +20,5 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ key: string
     { headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' } },
   );
 }
+
+export const GET = withApiErrorHandling(GETImpl);
