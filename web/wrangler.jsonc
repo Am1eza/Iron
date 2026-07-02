@@ -3,7 +3,14 @@
   "name": "ahantime",
   "main": ".open-next/worker.js",
   "compatibility_date": "2025-03-25",
-  "compatibility_flags": ["nodejs_compat"],
+  // nodejs_compat_populate_process_env is required explicitly because our
+  // compatibility_date (2025-03-25) is before the 2025-04-01 threshold at
+  // which Cloudflare made process.env population the default for
+  // nodejs_compat Workers. Without it, process.env is NEVER populated on
+  // the deployed Worker — not just DATABASE_URL, but every secret/var the
+  // app reads (SESSION_SECRET, SMSIR_*, DEEPSEEK_*, ...) — regardless of
+  // what's set via `wrangler secret put` or the dashboard.
+  "compatibility_flags": ["nodejs_compat", "nodejs_compat_populate_process_env"],
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"

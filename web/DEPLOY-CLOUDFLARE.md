@@ -35,14 +35,43 @@ preview; this is the real production path.)
    Optionally set the variable `NEXT_PUBLIC_API_MODE` to `live` once a backend exists.
 
 4. **Set the app's runtime secrets** on the Worker (see `web/.dev.vars.example`
-   for the list) — either:
+   for the full list) — at minimum, live mode structurally requires
+   `DATABASE_URL` and `SESSION_SECRET` (the app 503s `db_unavailable` on every
+   DB-backed route, including the AI advisor, without the former; auth cannot
+   sign a session JWT without the latter):
    ```bash
    cd web
+   npx wrangler secret put DATABASE_URL     # postgres://user:pass@host:5432/db (sslmode=require)
    npx wrangler secret put SESSION_SECRET
    npx wrangler secret put SMSIR_API_KEY
    npx wrangler secret put SMSIR_TEMPLATE_ID    # …and the rest
    ```
    or via Workers → `ahantime` → Settings → Variables and Secrets.
+   `NEXT_PUBLIC_API_MODE` must also be `live` (set as a GitHub Actions
+   variable, step 3 above, or a plain Worker var) — otherwise the app boots
+   in mock mode and never touches the database at all.
+
+5. **(Recommended for production) Provision Cloudflare Hyperdrive** — raw TCP
+   Postgres from a Worker has no cross-request connection pooling of its own
+   (each request opens a fresh TCP+TLS handshake), so at real traffic volumes
+   it risks exhausting your database's connection limit. Hyperdrive pools and
+   caches connections at Cloudflare's edge, transparently, with zero
+   additional application code — `web/src/lib/server/db/client.ts` already
+   detects a `HYPERDRIVE` binding and prefers it automatically the moment one
+   is configured:
+   ```bash
+   cd web
+   npx wrangler hyperdrive create ahantime-db \
+     --connection-string="postgres://user:pass@host:5432/db"
+   ```
+   Copy the printed `id` into `wrangler.jsonc`:
+   ```jsonc
+   "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "<id from the command above>" }]
+   ```
+   Redeploy after adding the binding. `DATABASE_URL` must still be set (step 4)
+   even when Hyperdrive is bound — it's the boot-time fail-fast check
+   (`src/lib/validation/env.ts`) and the fallback if the binding is ever
+   removed; the actual runtime traffic goes through Hyperdrive once bound.
 
 ## Deploying
 
@@ -64,7 +93,24 @@ preview; this is the real production path.)
 
 - Pin `@opennextjs/cloudflare` to **≥ 1.3.0** (the `^1.3.0` here satisfies it) —
   earlier versions had the CVE-2025-6087 `/_next/image` SSRF.
-- `nodejs_compat` + a compatibility date ≥ `2024-09-23` are required and set in
-  `wrangler.jsonc`.
+- `nodejs_compat` + a compatibility date ≥ `2024-09-23` are the minimum for
+  Next.js itself to run on Workers at all — but **secrets/vars set via
+  `wrangler secret put` or the dashboard are only exposed on `process.env`**
+  once the `nodejs_compat_populate_process_env` compatibility flag is active
+  (auto-enabled only once `compatibility_date` is ≥ `2025-04-01`, or set
+  explicitly otherwise, which is what `wrangler.jsonc` does here). Without it
+  the Worker deploys fine and looks healthy, but every `process.env.*` read
+  is `undefined` — `DATABASE_URL`, `SESSION_SECRET`, everything — which is
+  exactly what produced the `db_unavailable` 503 on the AI advisor and the
+  fixture-data fallback on `/api/market` before this flag was added.
+- `db/client.ts` opens a **fresh Postgres pool per request on Workers**, not
+  a persisted one — Cloudflare does not allow a TCP socket created in one
+  request to be reused in another (`"TCP sockets cannot be created in global
+  scope and shared across requests"`); a shared pool works for exactly one
+  request per Worker isolate and then hangs (confirmed locally via
+  `wrangler dev` against a real Postgres: every other request silently hung
+  until the runtime's watchdog killed it). This is transparent to callers —
+  `getDb()`'s signature is unchanged — and is exactly the class of problem
+  Hyperdrive (step 5 above) is designed to solve at the edge instead.
 - ISR / incremental cache currently uses the in-Worker default; back it with R2 or
   KV via `open-next.config.ts` if you need persistent caching across instances.
