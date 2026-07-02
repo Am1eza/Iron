@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { routes } from '@/lib/routes';
 import { CATEGORY_SUBS } from '@/lib/data/nav';
@@ -30,6 +30,8 @@ export function CategoryStage({
 }) {
   const [activeCat, setActiveCat] = useState<Category | null>(categories[0] ?? null);
   const [activeSub, setActiveSub] = useState<string>(firstSub(categories[0]?.slug ?? ''));
+  const activeRailLinkRef = useRef<HTMLAnchorElement | null>(null);
+  const firstFlyoutLinkRef = useRef<HTMLAnchorElement | null>(null);
   if (!activeCat) return null;
 
   const subs = CATEGORY_SUBS[activeCat.slug] ?? [];
@@ -39,6 +41,25 @@ export function CategoryStage({
   const pickCat = (cat: Category) => {
     setActiveCat(cat);
     setActiveSub(firstSub(cat.slug));
+  };
+
+  // The flyout is one shared block positioned after the whole rail <ul> (so
+  // its visual position can track whichever category is active), not nested
+  // inside each <li> — which means Tab would normally jump straight from one
+  // rail item to the next, skipping the flyout's sub-category/factory links
+  // entirely. Redirect focus explicitly so keyboard order follows the logical
+  // (not DOM) order: rail item → that item's flyout → next rail item.
+  const handleRailKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Tab' && !e.shiftKey && firstFlyoutLinkRef.current) {
+      e.preventDefault();
+      firstFlyoutLinkRef.current.focus();
+    }
+  };
+  const handleFlyoutFirstKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Tab' && e.shiftKey) {
+      e.preventDefault();
+      activeRailLinkRef.current?.focus();
+    }
   };
 
   return (
@@ -58,11 +79,13 @@ export function CategoryStage({
               return (
                 <li key={cat.id} className={styles.railLi}>
                   <Link
+                    ref={activeCat.slug === cat.slug ? activeRailLinkRef : undefined}
                     href={routes.category(cat.slug)}
                     className={styles.railItem}
                     data-active={activeCat.slug === cat.slug ? '' : undefined}
                     onMouseEnter={() => pickCat(cat)}
                     onFocus={() => pickCat(cat)}
+                    onKeyDown={activeCat.slug === cat.slug ? handleRailKeyDown : undefined}
                     data-event="rail_category_click"
                   >
                     <span className={styles.railThumb} aria-hidden>
@@ -104,14 +127,16 @@ export function CategoryStage({
                 <div className={styles.col}>
                   <p className={styles.colLabel}>زیرشاخه‌های {activeCat.name}</p>
                   <ul className={styles.colList}>
-                    {subs.map((s) => (
+                    {subs.map((s, i) => (
                       <li key={s.slug}>
                         <Link
+                          ref={i === 0 ? firstFlyoutLinkRef : undefined}
                           href={routes.subCategory(activeCat.slug, s.slug)}
                           className={styles.subItem}
                           data-active={activeSub === s.slug ? '' : undefined}
                           onMouseEnter={() => setActiveSub(s.slug)}
                           onFocus={() => setActiveSub(s.slug)}
+                          onKeyDown={i === 0 ? handleFlyoutFirstKeyDown : undefined}
                         >
                           <span>{s.name}</span>
                           <ChevronStartIcon size={14} className={`${styles.subChev} icon--rtl`} />
