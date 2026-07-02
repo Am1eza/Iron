@@ -59,6 +59,20 @@ describe('catalog reads', () => {
     const hits = await searchSkus('میلگرد');
     expect(hits.length).toBeGreaterThan(0);
   });
+
+  it('matches multi-word queries whose tokens are not contiguous in the SKU name', async () => {
+    // Names are generated as `${category} ${subCategory} ${size}` (e.g.
+    // «میلگرد آجدار A3 ۱۴») — a natural query like «میلگرد ۱۴» has no
+    // contiguous substring match even though both words are present.
+    const hits = await searchSkus('میلگرد ۱۴');
+    expect(hits.length).toBeGreaterThan(0);
+    expect(hits.every((r) => r.name.includes('میلگرد') && r.name.includes('۱۴'))).toBe(true);
+  });
+
+  it('returns nothing when one token has no match anywhere (AND semantics)', async () => {
+    const hits = await searchSkus('میلگرد بشقاب‌غیرموجود');
+    expect(hits).toHaveLength(0);
+  });
 });
 
 describe('savePrice transaction', () => {

@@ -195,24 +195,34 @@ export async function skuHistory(slug: string, range = '90d'): Promise<PricePoin
   return rows.map((p) => ({ id: p.id, skuId: p.skuId, price: p.price, unit: p.unit, at: p.at.toISOString() }));
 }
 
-/** Substring search over SKUs (name/factory/size) — powers /search and the AI getPrice tool. */
+/**
+ * Word-AND search over SKUs (name/factory/size) — powers /search and the AI
+ * getPrice tool. Matches per WHITESPACE-SEPARATED TOKEN rather than the
+ * whole phrase as one contiguous substring: SKU names are generated as
+ * `${category} ${subCategory} ${size}` (e.g. «میلگرد آجدار A3 ۱۴»), so a
+ * natural query like «میلگرد ۱۴» has no contiguous match in that string even
+ * though both words are clearly present — a single ILIKE '%میلگرد ۱۴%' gate
+ * returned zero rows for exactly this query (caught via a live smoke test of
+ * the AI advisor's getPrice tool). Each token must match SOME column; the
+ * full phrase still drives the pg_trgm similarity ranking.
+ */
 export async function searchSkus(q: string, limit = 20): Promise<PriceRow[]> {
-  const term = `%${q.trim()}%`;
+  const trimmed = q.trim();
+  const tokens = trimmed.split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) return [];
   const db = getDb();
+  const perTokenMatch = tokens.map((token) => {
+    const term = `%${token}%`;
+    return or(ilike(skus.name, term), ilike(skus.factory, term), ilike(skus.size, term), ilike(categories.name, term));
+  });
   const rows = await db
     .select({ sku: skus, price: currentPrices, catSlug: categories.slug, subSlug: subCategories.slug })
     .from(skus)
     .innerJoin(categories, eq(skus.categoryId, categories.id))
     .innerJoin(subCategories, eq(skus.subCategoryId, subCategories.id))
     .leftJoin(currentPrices, eq(currentPrices.skuId, skus.id))
-    .where(
-      and(
-        eq(skus.isActive, true),
-        eq(categories.isActive, true),
-        or(ilike(skus.name, term), ilike(skus.factory, term), ilike(skus.size, term), ilike(categories.name, term)),
-      ),
-    )
-    .orderBy(desc(sql`similarity(${skus.name}, ${q.trim()})`))
+    .where(and(eq(skus.isActive, true), eq(categories.isActive, true), ...perTokenMatch))
+    .orderBy(desc(sql`similarity(${skus.name}, ${trimmed})`))
     .limit(limit);
   const s = await getPriceFreshness();
   return rows.map((r) => toPriceRow(r, s));
