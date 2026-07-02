@@ -169,11 +169,16 @@ export function ProjectEstimator() {
 
       <Alert tone="warning" title="برآورد اولیه">
         <Stack gap={4}>
-          <Text variant="body-sm">
+          {/* Plain element, not <Text> — Text always sets color via inline
+              style (higher specificity than the Alert's own inherited tone
+              color), and none of Text's semantic TextColor options are pinned
+              the same fixed way --amber-50 is, so any of them would flip to a
+              too-light shade in dark mode against this permanently-light bg. */}
+          <p className={styles.alertBody}>
             این اعداد بر پایهٔ ضرایب سرانگشتی (میلگرد حدود ۵۰ کیلوگرم و بتن حدود
             ۰٫۳۵ مترمکعب در هر متر مربع زیربنا) محاسبه شده‌اند و جای محاسبات مهندسی
             را نمی‌گیرند. برای قیمت دقیق با مشاور هوشمند گفتگو کنید.
-          </Text>
+          </p>
           <Cluster gap={3}>
             <Link href={routes.ai()} className={styles.ctaPrimary} data-event="ai_entry">
               <SparkIcon size={18} /> گفتگو با مشاور هوشمند
