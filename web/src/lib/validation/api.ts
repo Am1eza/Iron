@@ -28,6 +28,18 @@ export const leadPayload = z.object({
   source: z.string().optional(),
 });
 
+export const aiChatPayload = z.object({
+  messages: z
+    .array(
+      z.object({
+        role: z.enum(['user', 'ai']),
+        text: z.string().trim().min(1).max(4000),
+      }),
+    )
+    .min(1)
+    .max(40),
+});
+
 export const weightPayload = z.object({
   theoreticalWeightKg: z.number().positive({ message: M.positive }),
   qty: z.number().positive({ message: M.positive }),

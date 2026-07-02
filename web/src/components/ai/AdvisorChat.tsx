@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { routes } from '@/lib/routes';
+import { api, API_MODE } from '@/lib/api';
 import { normalizeDigits, toPersianDigits, formatToman } from '@/lib/utils/format';
 import { getRows } from '@/lib/mock/catalogData';
 import { computeBulkSplit, type BulkSplit } from '@/components/catalog/BulkQuote';
@@ -18,8 +19,9 @@ const AVG_REBAR_PRICE: number = (() => {
 /**
  * مشاور هوشمند آهن‌تایم — the intent-first advisor. It greets, asks *what you need*
  * before quoting, then helps estimate amount/weight/cost like an expert friend,
- * always offering next steps. This is a grounded MOCK engine (no invented prices —
- * it sends you to the live tables / a human); the DeepSeek relay swaps in later.
+ * always offering next steps. In live mode it streams from /api/ai/chat (DeepSeek
+ * relay, server-grounded); this local rule engine stays as the zero-cost fallback
+ * for mock mode and relay outages, so the advisor never dead-ends.
  */
 
 type Estimate = { items: { name: string; weightKg: number }[]; totalKg: number; totalToman: number };
@@ -57,6 +59,39 @@ function detectBulk(t: string): { tonnage: number; slug: string; name: string } 
 
 let seq = 0;
 const uid = () => `m${++seq}`;
+
+/* ---- live mode: SSE events from /api/ai/chat (mirrors server AdvisorEvent) ---- */
+type ServerCard =
+  | { kind: 'estimate'; estimate: Estimate }
+  | { kind: 'split'; split: SplitAnswer };
+type ServerEvent =
+  | { type: 'delta'; text: string }
+  | { type: 'card'; card: ServerCard }
+  | { type: 'done' }
+  | { type: 'error'; message: string };
+
+async function* readSse(body: ReadableStream<Uint8Array>): AsyncGenerator<ServerEvent> {
+  const reader = body.getReader();
+  const dec = new TextDecoder();
+  let buf = '';
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    let idx: number;
+    while ((idx = buf.indexOf('\n\n')) !== -1) {
+      const frame = buf.slice(0, idx);
+      buf = buf.slice(idx + 2);
+      const line = frame.split('\n').find((l) => l.startsWith('data: '));
+      if (!line) continue;
+      try {
+        yield JSON.parse(line.slice(6)) as ServerEvent;
+      } catch {
+        /* skip malformed frame */
+      }
+    }
+  }
+}
 
 const PURPOSE_CHIPS = ['ساختمان مسکونی', 'سوله یا سازهٔ صنعتی', 'بازرگانی و فروش', 'فقط می‌خواهم قیمت ببینم'];
 
@@ -178,23 +213,86 @@ export function AdvisorChat({ initialQuestion }: { initialQuestion?: string }) {
   const purposeRef = useRef<string | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const started = useRef(false);
+  // Live DeepSeek advisor when configured; the local grounded engine remains the
+  // zero-cost fallback (mock mode, relay outage, rate limit) — no dead-ends (AC-D-9).
+  const useServer = useRef(API_MODE !== 'mock');
+  const transcriptRef = useRef<{ role: 'user' | 'ai'; text: string }[]>([]);
+  const busyRef = useRef(false);
 
   const pushAi = (msgs: Msg[]) => {
     setTyping(true);
     window.setTimeout(() => {
       setTyping(false);
+      msgs.forEach((m) => m.text && transcriptRef.current.push({ role: 'ai', text: m.text }));
       setMessages((m) => [...m, ...msgs]);
     }, 650);
   };
 
-  const send = (raw: string) => {
-    const text = raw.trim();
-    if (!text) return;
-    setInput('');
-    setMessages((m) => [...m, { id: uid(), role: 'user', text }]);
+  const sendLocal = (text: string) => {
     const { msgs, purpose } = aiReply(text, { purpose: purposeRef.current });
     purposeRef.current = purpose;
     pushAi(msgs);
+  };
+
+  const sendLive = async (text: string) => {
+    busyRef.current = true;
+    setTyping(true);
+    const aiId = uid();
+    let streamedText = '';
+    let opened = false;
+    const patch = (fn: (m: Msg) => Msg) =>
+      setMessages((all) => all.map((m) => (m.id === aiId ? fn(m) : m)));
+    try {
+      // Only the recent turns travel (server trims again) — bounded payload & cost.
+      const res = await api.ai.chatStream(transcriptRef.current.slice(-10));
+      if (!res.body) throw new Error('no-body');
+      for await (const ev of readSse(res.body)) {
+        if (ev.type === 'delta') {
+          streamedText += ev.text;
+          if (!opened) {
+            opened = true;
+            setTyping(false);
+            setMessages((all) => [...all, { id: aiId, role: 'ai', text: ev.text }]);
+          } else {
+            const t = streamedText;
+            patch((m) => ({ ...m, text: t }));
+          }
+        } else if (ev.type === 'card') {
+          const card = ev.card;
+          if (!opened) {
+            opened = true;
+            setTyping(false);
+            setMessages((all) => [...all, { id: aiId, role: 'ai' }]);
+          }
+          if (card.kind === 'estimate') patch((m) => ({ ...m, estimate: card.estimate }));
+          else patch((m) => ({ ...m, split: card.split }));
+        } else if (ev.type === 'error') {
+          throw new Error(ev.message);
+        }
+      }
+      if (!opened) throw new Error('empty');
+      transcriptRef.current.push({ role: 'ai', text: streamedText });
+    } catch {
+      // Relay unreachable/unconfigured → answer locally and stop retrying the server.
+      useServer.current = false;
+      setTyping(false);
+      if (opened) {
+        setMessages((all) => all.filter((m) => m.id !== aiId));
+      }
+      sendLocal(text);
+    } finally {
+      busyRef.current = false;
+    }
+  };
+
+  const send = (raw: string) => {
+    const text = raw.trim();
+    if (!text || busyRef.current) return;
+    setInput('');
+    transcriptRef.current.push({ role: 'user', text });
+    setMessages((m) => [...m, { id: uid(), role: 'user', text }]);
+    if (useServer.current) void sendLive(text);
+    else sendLocal(text);
   };
 
   // First load: greet, then auto-send the question from the home search (if any).
