@@ -44,20 +44,3 @@ export const marketValueSchema = z.object({
   isStale: z.boolean(),
 });
 export const marketResponseSchema = z.object({ values: z.array(marketValueSchema) });
-
-/* ---------- URL / filter params (tolerant; safe defaults) ---------- */
-export const catalogFiltersSchema = z.object({
-  سایز: z.string().optional(),
-  گرید: z.string().optional(),
-  کارخانه: z.string().optional(),
-  sort: z.enum(['price', 'size', 'movement']).optional(),
-});
-export type CatalogFilters = z.infer<typeof catalogFiltersSchema>;
-
-/** Parse URLSearchParams → typed filters with safe defaults on bad input. */
-export function parseFilters(params: URLSearchParams | Record<string, string | undefined>): CatalogFilters {
-  const obj =
-    params instanceof URLSearchParams ? Object.fromEntries(params.entries()) : params;
-  const r = catalogFiltersSchema.safeParse(obj);
-  return r.success ? r.data : {};
-}

@@ -25,15 +25,6 @@ export function formatZodError(error: z.ZodError): FieldErrors {
   return out;
 }
 
-/** Safe validate → discriminated result for use anywhere. */
-export function safeValidate<S extends z.ZodTypeAny>(
-  schema: S,
-  data: unknown,
-): { ok: true; data: z.infer<S> } | { ok: false; errors: FieldErrors } {
-  const r = schema.safeParse(data);
-  return r.success ? { ok: true, data: r.data } : { ok: false, errors: formatZodError(r.error) };
-}
-
 /** Parse-or-fallback for tolerant boundaries (bad external/URL data must not crash). */
 export function parseOr<S extends z.ZodTypeAny>(schema: S, data: unknown, fallback: z.infer<S>): z.infer<S> {
   const r = schema.safeParse(data);

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { finiteNumber, formatZodError, safeValidate } from './utils';
+import { finiteNumber, formatZodError } from './utils';
 import { z } from 'zod';
 
 describe('finiteNumber', () => {
@@ -48,14 +48,5 @@ describe('formatZodError', () => {
     if (r.success) throw new Error('expected failure');
     const errors = formatZodError(r.error);
     expect(Object.keys(errors)).toEqual(['mobile']);
-  });
-});
-
-describe('safeValidate', () => {
-  it('returns a discriminated ok/errors result', () => {
-    const schema = z.object({ n: finiteNumber.positive() });
-    expect(safeValidate(schema, { n: 5 })).toEqual({ ok: true, data: { n: 5 } });
-    const bad = safeValidate(schema, { n: Infinity });
-    expect(bad.ok).toBe(false);
   });
 });
