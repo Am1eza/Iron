@@ -30,7 +30,7 @@ export function createUser(input: { mobile: string; name?: string; role?: Role }
 export function updateUser(id: string, patch: UserPatch): Promise<AuthUser | null> {
   return store().updateUser(id, patch);
 }
-export function listUsers(query?: ListUsersQuery): Promise<{ users: AuthUser[]; total: number }> {
+export function listUsers(query?: ListUsersQuery): Promise<{ users: (AuthUser & { isActive?: boolean })[]; total: number }> {
   return store().listUsers(query);
 }
 

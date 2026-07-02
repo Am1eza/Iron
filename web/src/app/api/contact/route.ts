@@ -7,11 +7,14 @@ import { requireDb } from '@/lib/server/utils/apiGuard';
 import { getDb } from '@/lib/server/db/client';
 import { contactMessages } from '@/lib/server/db/schema';
 import { reportError } from '@/lib/errors/report';
+import { rateLimit } from '@/lib/server/utils/rateLimit';
 
 /** POST /api/contact — contact-form message → admin inbox. */
 export async function POST(req: NextRequest) {
   const origin = assertSameOrigin(req);
   if (origin) return origin;
+  const limited = rateLimit(req, 'contact', { limit: 5 });
+  if (limited) return limited;
   const guard = requireDb();
   if (guard) return guard;
 

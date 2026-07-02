@@ -1,5 +1,15 @@
-import { PagePlaceholder } from '@/components/dev/PagePlaceholder';
+import { Heading, Text, Stack } from '@/components/ui';
+import { LeadsBoard } from '@/components/admin/leads/LeadsBoard';
 
+/** /admin/leads — the CRM: leads, user requests and contact messages. */
 export default function AdminLeadsPage() {
-  return <PagePlaceholder eyebrow="پنل › درخواست‌ها" title="CRM لیدها" note="کانبان لیدها با کانتکست کامل (اقلام/گفتگوی AI) در بخش ادمین ساخته می‌شود." />;
+  return (
+    <Stack gap={5}>
+      <div>
+        <Heading level={1}>سرنخ‌ها و درخواست‌ها</Heading>
+        <Text color="muted">پیگیری فروش: از درخواست تا پیش‌فاکتور و سفارش.</Text>
+      </div>
+      <LeadsBoard />
+    </Stack>
+  );
 }

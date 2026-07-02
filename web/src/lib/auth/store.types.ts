@@ -27,7 +27,7 @@ export interface AuthStore {
   userById(id: string): Promise<AuthUser | null>;
   createUser(input: { mobile: string; name?: string; role?: Role }): Promise<AuthUser>;
   updateUser(id: string, patch: UserPatch): Promise<AuthUser | null>;
-  listUsers(query?: ListUsersQuery): Promise<{ users: AuthUser[]; total: number }>;
+  listUsers(query?: ListUsersQuery): Promise<{ users: (AuthUser & { isActive?: boolean })[]; total: number }>;
 
   saveRefresh(hash: string, record: RefreshRecord): Promise<void>;
   findRefresh(hash: string): Promise<RefreshRecord | null>;

@@ -1,5 +1,19 @@
-import { PagePlaceholder } from '@/components/dev/PagePlaceholder';
+import { Heading, Text, Stack } from '@/components/ui';
+import { PricingGrid } from '@/components/admin/pricing/PricingGrid';
+import { BilletCard } from '@/components/admin/pricing/BilletCard';
 
+/** /admin/pricing — the daily pricing grid + billet entry. */
 export default function AdminPricingPage() {
-  return <PagePlaceholder eyebrow="پنل › قیمت‌گذاری" title="قیمت‌گذاری روزانه" note="گرید ویرایش سریع + فلگ کهنه + نوسان/تاریخچهٔ خودکار در بخش ادمین ساخته می‌شود." />;
+  return (
+    <Stack gap={5}>
+      <div>
+        <Heading level={1}>قیمت‌گذاری روزانه</Heading>
+        <Text color="muted">
+          قیمت هر کالا را ویرایش و یک‌جا ذخیره کنید؛ نوسان و تاریخچه خودکار ثبت می‌شود.
+        </Text>
+      </div>
+      <PricingGrid />
+      <BilletCard />
+    </Stack>
+  );
 }

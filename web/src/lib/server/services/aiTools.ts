@@ -6,7 +6,7 @@
  */
 import { z } from 'zod';
 import { searchSkus, findSkuRow } from '@/lib/server/repos/catalogRepo';
-import { estimateItems, estimateProject } from '@/lib/server/services/estimate.service';
+import { estimateProject } from '@/lib/server/services/estimate.service';
 import { createLead } from '@/lib/server/services/leads.service';
 import type { AuthUser } from '@/lib/auth/types';
 import type { ToolDef } from '@/lib/server/integrations/deepseek';

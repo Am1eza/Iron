@@ -86,7 +86,7 @@ export const pgStore: AuthStore = {
       .limit(perPage)
       .offset((page - 1) * perPage);
     const totalRows = await db.select({ n: sql<number>`count(*)::int` }).from(users).where(where);
-    return { users: rows.map((r) => toAuthUser(r)), total: totalRows[0]?.n ?? 0 };
+    return { users: rows.map((r) => ({ ...toAuthUser(r), isActive: r.isActive })), total: totalRows[0]?.n ?? 0 };
   },
 
   async saveRefresh(hash, record) {

@@ -5,7 +5,7 @@ import { requireApiUser, requireDb } from '@/lib/server/utils/apiGuard';
 import { createAlert, activeAlertCount } from '@/lib/server/repos/alertsRepo';
 import { getSetting } from '@/lib/server/repos/settingsRepo';
 
-export const alertPayload = z.object({
+const alertPayload = z.object({
   target: z.union([
     z.object({ type: z.literal('sku'), skuId: z.string().min(1) }),
     z.object({ type: z.literal('market'), key: z.enum(['usd', 'eur', 'gold18', 'ounce', 'billet']) }),

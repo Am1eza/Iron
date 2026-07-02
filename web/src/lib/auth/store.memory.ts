@@ -70,7 +70,7 @@ export const memoryStore: AuthStore = {
     const total = all.length;
     const page = query.page ?? 1;
     const perPage = query.perPage ?? 50;
-    return { users: all.slice((page - 1) * perPage, page * perPage), total };
+    return { users: all.slice((page - 1) * perPage, page * perPage).map((u) => ({ ...u, isActive: true })), total };
   },
 
   async saveRefresh(hash: string, record: RefreshRecord) {

@@ -7,6 +7,7 @@ import { getSession } from '@/lib/auth/session';
 import { insertLead } from '@/lib/server/repos/leadsRepo';
 import { nextRef } from '@/lib/server/utils/refs';
 import { reportError } from '@/lib/errors/report';
+import { rateLimit } from '@/lib/server/utils/rateLimit';
 
 const TRACK_TYPE = { analysis: 'market-analysis', supply: 'supply', sell: 'sell' } as const;
 
@@ -14,6 +15,8 @@ const TRACK_TYPE = { analysis: 'market-analysis', supply: 'supply', sell: 'sell'
 export async function POST(req: NextRequest) {
   const origin = assertSameOrigin(req);
   if (origin) return origin;
+  const limited = rateLimit(req, 'cooperation', { limit: 5 });
+  if (limited) return limited;
   const guard = requireDb();
   if (guard) return guard;
 
