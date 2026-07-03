@@ -9,6 +9,7 @@ import { getDb } from '@/lib/server/db/client';
 import { categories, subCategories, skus, currentPrices, pricePoints } from '@/lib/server/db/schema';
 import type { Category, SubCategory, PriceRow, PricePoint } from '@/lib/types/domain';
 import { getPriceFreshness } from '@/lib/server/services/priceFreshness';
+import { normalizeDigits, toPersianDigits } from '@/lib/utils/format';
 
 /* ------------------------------ mapping ------------------------------ */
 
@@ -195,6 +196,47 @@ export async function skuHistory(slug: string, range = '90d'): Promise<PricePoin
   return rows.map((p) => ({ id: p.id, skuId: p.skuId, price: p.price, unit: p.unit, at: p.at.toISOString() }));
 }
 
+const ZWNJ = '‌';
+
+/** Spaced spellings of compound product words — users type «تیر آهن» while
+ *  the catalog stores «تیرآهن» (idem میلگرد/ناودانی), so the pair would fail
+ *  token-AND matching as two separate tokens. Merged BEFORE tokenizing. */
+const COMPOUND_WORDS = [
+  ['تیر', 'آهن', 'تیرآهن'],
+  ['میل', 'گرد', 'میلگرد'],
+  ['ناو', 'دانی', 'ناودانی'],
+] as const;
+
+/** Street/industry vocabulary → the catalog's canonical product word. Applied
+ *  per token as an EXTRA variant (the raw token still matches too). */
+const SEARCH_SYNONYMS: Record<string, string> = {
+  آرماتور: 'میلگرد',
+  هاش: 'تیرآهن',
+  ایبیم: 'تیرآهن',
+  ناودونی: 'ناودانی',
+  قوطی: 'پروفیل',
+  ورقه: 'ورق',
+};
+
+/** All spellings of one query token worth matching: as typed, ZWNJ-stripped
+ *  (typed «تیرآهن» vs stored «تیر‌آهن» and vice versa), digits unified BOTH
+ *  ways (the DB stores sizes in PERSIAN digits — «۱۴» — while users often
+ *  type 14), and the industry synonym (itself digit/ZWNJ-agnostic). */
+function tokenVariants(token: string): string[] {
+  const variants = new Set<string>([token]);
+  for (const t of [token, token.replaceAll(ZWNJ, '')]) {
+    variants.add(t);
+    variants.add(normalizeDigits(t));
+    variants.add(toPersianDigits(t));
+  }
+  const synonym = SEARCH_SYNONYMS[normalizeDigits(token).replaceAll(ZWNJ, '')];
+  if (synonym) {
+    variants.add(synonym);
+    variants.add(toPersianDigits(synonym));
+  }
+  return [...variants];
+}
+
 /**
  * Word-AND search over SKUs (name/factory/size) — powers /search and the AI
  * getPrice tool. Matches per WHITESPACE-SEPARATED TOKEN rather than the
@@ -203,18 +245,26 @@ export async function skuHistory(slug: string, range = '90d'): Promise<PricePoin
  * natural query like «میلگرد ۱۴» has no contiguous match in that string even
  * though both words are clearly present — a single ILIKE '%میلگرد ۱۴%' gate
  * returned zero rows for exactly this query (caught via a live smoke test of
- * the AI advisor's getPrice tool). Each token must match SOME column; the
- * full phrase still drives the pg_trgm similarity ranking.
+ * the AI advisor's getPrice tool). Each token must match SOME column via ANY
+ * of its spelling variants (Persian/Latin digits, ZWNJ, industry synonyms);
+ * the full phrase still drives the pg_trgm similarity ranking.
  */
 export async function searchSkus(q: string, limit = 20): Promise<PriceRow[]> {
-  const trimmed = q.trim();
+  let trimmed = q.trim();
+  for (const [a, b, joined] of COMPOUND_WORDS) {
+    trimmed = trimmed.replace(new RegExp(`${a}[\\s${ZWNJ}]+${b}`, 'g'), joined);
+  }
   const tokens = trimmed.split(/\s+/).filter(Boolean);
   if (tokens.length === 0) return [];
   const db = getDb();
-  const perTokenMatch = tokens.map((token) => {
-    const term = `%${token}%`;
-    return or(ilike(skus.name, term), ilike(skus.factory, term), ilike(skus.size, term), ilike(categories.name, term));
-  });
+  const perTokenMatch = tokens.map((token) =>
+    or(
+      ...tokenVariants(token).flatMap((variant) => {
+        const term = `%${variant}%`;
+        return [ilike(skus.name, term), ilike(skus.factory, term), ilike(skus.size, term), ilike(categories.name, term)];
+      }),
+    ),
+  );
   const rows = await db
     .select({ sku: skus, price: currentPrices, catSlug: categories.slug, subSlug: subCategories.slug })
     .from(skus)

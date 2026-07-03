@@ -34,7 +34,12 @@ export interface CreateLeadInput {
   channel?: 'sms' | 'whatsapp' | 'telegram' | 'eitaa';
   source?: string;
   note?: string;
-  context?: { aiConversationId?: string; sourcePage?: string };
+  context?: {
+    aiConversationId?: string;
+    sourcePage?: string;
+    /** AI-advisor chat that led to this lead (capped upstream) — sales context. */
+    transcript?: Array<{ role: string; content: string }>;
+  };
 }
 
 export interface CreateLeadResult {

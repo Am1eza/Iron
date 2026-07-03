@@ -29,6 +29,8 @@ export interface LeadContext {
   aiConversationId?: string;
   sourcePage?: string;
   estimate?: { totalWeightKg?: number; totalPrice?: number };
+  /** AI-advisor chat that led to this lead (capped upstream) — sales context. */
+  transcript?: Array<{ role: string; content: string }>;
   [key: string]: unknown;
 }
 

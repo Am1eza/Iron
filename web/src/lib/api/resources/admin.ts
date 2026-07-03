@@ -15,6 +15,7 @@ export interface AdminStats {
   totalUsers: number;
   newUsers24h: number;
   draftArticles: number;
+  aiToday: { promptTokens: number; completionTokens: number; cacheHitRate: number; violations: number };
 }
 
 export interface AdminLead {

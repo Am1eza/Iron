@@ -28,6 +28,13 @@ export function DashboardTiles() {
     { label: 'پیام‌های جدید', value: s.newMessages, href: routes.admin.leads() },
     { label: 'کاربران', value: s.totalUsers, href: routes.admin.users(), hint: `${toPersianDigits(s.newUsers24h)} کاربر تازه در ۲۴ ساعت` },
     { label: 'پیش‌نویس محتوا', value: s.draftArticles, href: routes.admin.content() },
+    {
+      label: 'هوش مصنوعی امروز',
+      value: s.aiToday.promptTokens + s.aiToday.completionTokens,
+      href: routes.admin.leads(),
+      tone: s.aiToday.violations > 0 ? ('bad' as const) : undefined,
+      hint: `${toPersianDigits(s.aiToday.violations)} تخطی عددی · کش ${toPersianDigits(Math.round(s.aiToday.cacheHitRate * 100))}٪`,
+    },
   ];
 
   return (

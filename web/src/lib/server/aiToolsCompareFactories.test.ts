@@ -84,3 +84,17 @@ describe('compareFactories tool', () => {
     for (const f of r.factories) expect(f.pricePerKg).toBeGreaterThan(0);
   });
 });
+
+describe('getPrice tool', () => {
+  it('dates every result with a Jalali updatedAt so a stale price can be quoted with its date', async () => {
+    const r = (await runTool('getPrice', { query: 'میلگرد ۱۴' }, null)) as {
+      results: Array<{ price: number | null; isStale: boolean; updatedAtJalali: string }>;
+    };
+    expect(r.results.length).toBeGreaterThan(0);
+    for (const row of r.results) {
+      // Persian-digit yyyy/MM/dd — the exact pattern the grounding validator
+      // exempts as a date, so quoting it can never trip the censor.
+      expect(row.updatedAtJalali).toMatch(/^[۰-۹]{4}\/[۰-۹]{2}\/[۰-۹]{2}$/);
+    }
+  });
+});

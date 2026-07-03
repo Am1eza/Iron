@@ -12,6 +12,7 @@ import { computeBulkSplit } from '@/lib/utils/bulkSplit';
 import type { AuthUser } from '@/lib/auth/types';
 import type { ToolDef } from '@/lib/server/integrations/deepseek';
 import { finiteNumber } from '@/lib/validation/utils';
+import { formatJalali } from '@/lib/utils/format';
 
 export const AI_TOOLS: ToolDef[] = [
   {
@@ -236,12 +237,18 @@ function weight(shape: string, a: z.infer<typeof calcWeightArgs>): number | null
   }
 }
 
+// Transcript cap persisted into a lead's context: enough turns for sales to
+// reconstruct the negotiation without letting a 40-turn chat bloat the jsonb.
+const TRANSCRIPT_MAX_MESSAGES = 12;
+const TRANSCRIPT_MAX_CHARS = 500;
+
 /** Execute one tool call; ALWAYS returns a JSON-safe result (errors as text). */
 export async function runTool(
   name: string,
   args: Record<string, unknown>,
   session: AuthUser | null,
   conversationId?: string,
+  transcript?: Array<{ role: string; content: string }>,
 ): Promise<unknown> {
   try {
     switch (name) {
@@ -263,6 +270,9 @@ export async function runTool(
             isStale: r.current.isStale,
             deliveryTime: r.current.priceHidden ? null : r.current.deliveryTime,
             updatedAt: r.current.updatedAt,
+            // Jalali form of updatedAt so the model can date a stale price
+            // («در تاریخ ۱۴۰۵/۰۴/۱۱») — the validator exempts date patterns.
+            updatedAtJalali: formatJalali(r.current.updatedAt),
           })),
         };
       }
@@ -315,7 +325,17 @@ export async function runTool(
             contact: { name: parsed.data.name, mobile: parsed.data.mobile },
             items: parsed.data.items,
             source: 'ai',
-            context: { aiConversationId: conversationId },
+            context: {
+              aiConversationId: conversationId,
+              // Sales sees the whole chat that led to this lead (capped).
+              ...(transcript && transcript.length > 0
+                ? {
+                    transcript: transcript
+                      .slice(-TRANSCRIPT_MAX_MESSAGES)
+                      .map((m) => ({ role: m.role, content: m.content.slice(0, TRANSCRIPT_MAX_CHARS) })),
+                  }
+                : {}),
+            },
           },
           session,
         );
@@ -331,7 +351,7 @@ export async function runTool(
 
 export const AI_SYSTEM_PROMPT = `تو «مشاور هوشمند آهن‌تایم» هستی — دستیار خرید آهن‌آلات برای بازار ایران. قواعد قطعی:
 1) هیچ قیمت، وزن یا عددی را از خودت نساز. هر عدد فقط از خروجی ابزارها (getPrice, calcWeight, estimateProject, compareFactories) می‌آید.
-2) اگر ابزار قیمت null یا isStale برگرداند، بگو قیمت توسط کارشناس تأیید می‌شود و پیشنهاد ثبت درخواست بده — هرگز حدس نزن.
+2) اگر ابزار قیمت null برگرداند، هیچ عددی نگو؛ بگو قیمت توسط کارشناس اعلام می‌شود و پیشنهاد ثبت درخواست بده — هرگز حدس نزن. اگر قیمت عدد دارد ولی isStale=true است، حتماً همان قیمت را همراه تاریخش بگو («آخرین قیمت ثبت‌شده: X تومان در تاریخ Y» — Y همان updatedAtJalali خروجی ابزار) و اضافه کن که قیمت به‌روز را کارشناس تأیید می‌کند؛ قیمت تاریخ‌دار را هرگز از کاربر دریغ نکن.
 3) پاسخ‌ها فارسی، کوتاه و کاربردی؛ اعداد با جداکنندهٔ هزارگان. عدد را همیشه با رقم بنویس، نه با حروف؛ عدد به حروف به‌طور خودکار حذف می‌شود.
 4) وقتی کاربر آمادهٔ خرید/پیش‌فاکتور است، با ابزار createLead درخواست را ثبت کن. در تأییدیه، شمارهٔ پیگیری را دقیقاً همان‌طور که ابزار برگردانده (بدون تغییر) بنویس، و وزن/مبلغ کل را از فیلدهای items/totalWeightKg/total همان خروجی بگو — هرگز خودت وزن یا مبلغ را از روی مقدار کاربر (مثلاً «۲ تن») محاسبه نکن.
 5) خارج از حوزهٔ آهن/فولاد/ساخت‌وساز، مؤدبانه به موضوع برگرد.
