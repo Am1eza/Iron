@@ -6,39 +6,67 @@ full Next.js app — SSR, `/api/*` routes, OTP auth, and the `/account` area —
 the Workers runtime. (The GitHub Pages workflow still produces the static mock
 preview; this is the real production path.)
 
+**Build/deploy is handled by Cloudflare's own "Workers Builds" git
+integration** (Workers & Pages → `ahantime` → Settings → Build), configured
+directly in the Cloudflare dashboard — not by a GitHub Actions workflow. An
+earlier `deploy-cloudflare.yml` workflow existed but was removed (it required
+`CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID` as GitHub secrets that were
+never set, so it failed on every push); Workers Builds needs no GitHub-side
+secrets at all — it authenticates directly through Cloudflare's own GitHub
+App installation on this repo.
+
 ## What's already wired in the repo
 
 | File | Purpose |
 | --- | --- |
-| `web/wrangler.jsonc` | Worker config + `ahantime.com` / `www.ahantime.com` custom-domain routes |
+| `web/wrangler.jsonc` | Worker config (compat flags, assets binding, observability) |
 | `web/open-next.config.ts` | OpenNext adapter config |
 | `web/next.config.mjs` | `initOpenNextCloudflareForDev()` for local binding support |
 | `web/package.json` | `cf:build` / `cf:preview` / `cf:deploy` / `cf-typegen` scripts + `@opennextjs/cloudflare`, `wrangler` |
-| `.github/workflows/deploy-cloudflare.yml` | CI: builds + deploys on push to `main` (paths `web/**`) |
 | `web/.dev.vars.example` | Template for runtime secrets |
 
 ## One-time setup (requires your Cloudflare account — cannot be automated here)
 
-1. **Add `ahantime.com` as a zone** in your Cloudflare account and point the
-   registrar's nameservers at Cloudflare (Cloudflare dashboard → Add a site).
-   The `custom_domain` routes in `wrangler.jsonc` auto-create the DNS records and
-   TLS cert on first deploy, but the zone must exist and be active first.
+1. **Connect the repo via Workers Builds**, if not already done: Cloudflare
+   dashboard → Workers & Pages → Create → Import a repository, or on an
+   existing `ahantime` Worker → Settings → Build → connect this GitHub repo.
+   Set the build command to `pnpm run cf:build` (or leave Cloudflare's
+   Next.js auto-detection) and root directory to `web`. Every push to `main`
+   then builds + deploys "production"; every branch/PR gets its own preview
+   URL — this is what's already posting the ✅ build-status comments on PRs.
 
-2. **Create a Cloudflare API token** (My Profile → API Tokens) with:
-   - *Account* → Workers Scripts: Edit
-   - *Zone* → Workers Routes: Edit, DNS: Edit (scoped to the `ahantime.com` zone)
-   Note your **Account ID** (dashboard sidebar).
+2. **Add `ahantime.com` as a zone** in your Cloudflare account and point the
+   registrar's nameservers at Cloudflare (Cloudflare dashboard → Add a site)
+   — the zone must exist and be active before the next step.
 
-3. **Add GitHub Actions secrets** (repo → Settings → Secrets and variables → Actions):
-   - `CLOUDFLARE_API_TOKEN`
-   - `CLOUDFLARE_ACCOUNT_ID`
-   Optionally set the variable `NEXT_PUBLIC_API_MODE` to `live` once a backend exists.
+3. **Attach the custom domain to the Worker**: Workers & Pages → `ahantime` →
+   Settings → Domains & Routes → Add → Custom Domain → `ahantime.com` (and
+   again for `www.ahantime.com`). This auto-creates the DNS record + TLS
+   cert. `wrangler.jsonc` deliberately does **not** declare `custom_domain`
+   routes — doing it here instead means the first deploy always lands on a
+   working `*.workers.dev` URL with zero DNS dependency, and you attach the
+   real domain once you've confirmed that URL works.
+   **If `ahantime.com` 503s from Cloudflare's edge while
+   `https://ahantime.<your-workers-dev-subdomain>.workers.dev` works fine,
+   this step is the fix** — it means the Worker is healthy but the domain
+   was never actually bound to it (or the binding broke). Check this page
+   first before debugging application code.
 
-4. **Set the app's runtime secrets** on the Worker (see `web/.dev.vars.example`
-   for the full list) — at minimum, live mode structurally requires
-   `DATABASE_URL` and `SESSION_SECRET` (the app 503s `db_unavailable` on every
-   DB-backed route, including the AI advisor, without the former; auth cannot
-   sign a session JWT without the latter):
+4. **Set the app's build-time and runtime config** — both matter, and
+   missing either one silently keeps the site behaving as if nothing here
+   was ever deployed:
+   - **Build-time**: in the Workers Builds project settings (not a Worker
+     secret — this is a `NEXT_PUBLIC_*` var, inlined into the client bundle
+     at build time), set `NEXT_PUBLIC_API_MODE=live`. Without this the app
+     ships built in `mock` mode: every client-side data call (catalog,
+     market ticker, the AI chat button) short-circuits to canned fixture
+     data or a "coming soon" message and **never reaches your API routes at
+     all**, regardless of what secrets are set below.
+   - **Runtime secrets** on the Worker (see `web/.dev.vars.example` for the
+     full list) — at minimum, live mode structurally requires
+     `DATABASE_URL` and `SESSION_SECRET` (the app 503s `db_unavailable` on
+     every DB-backed route, including the AI advisor, without the former;
+     auth cannot sign a session JWT without the latter):
    ```bash
    cd web
    npx wrangler secret put DATABASE_URL     # see "which connection string" below
@@ -47,9 +75,6 @@ preview; this is the real production path.)
    npx wrangler secret put SMSIR_TEMPLATE_ID    # …and the rest
    ```
    or via Workers → `ahantime` → Settings → Variables and Secrets.
-   `NEXT_PUBLIC_API_MODE` must also be `live` (set as a GitHub Actions
-   variable, step 3 above, or a plain Worker var) — otherwise the app boots
-   in mock mode and never touches the database at all.
 
    **Which connection string** — if your Postgres provider offers a pooled
    endpoint (e.g. Neon's PgBouncer-backed `...-pooler....neon.tech` host vs.
@@ -98,9 +123,12 @@ preview; this is the real production path.)
 
 ## Deploying
 
-- **Automatic:** push to `main` (any change under `web/**`) → the workflow runs
-  `pnpm run cf:deploy`.
-- **Manually from your machine:**
+- **Automatic:** push to `main` → Cloudflare Workers Builds picks it up and
+  deploys to production; any other branch/PR gets its own preview deployment
+  (visible as a bot comment on the PR with a preview URL). No local action
+  needed — this is the normal path.
+- **Manually from your machine** (rarely needed — e.g. to deploy without
+  waiting on a push, or to debug the build itself):
   ```bash
   cd web
   npx wrangler login          # one-time browser auth
