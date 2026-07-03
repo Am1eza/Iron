@@ -84,6 +84,16 @@ App installation on this repo.
    ```
    or via Workers → `ahantime` → Settings → Variables and Secrets.
 
+   **Secret vs. plain "Variable" — this matters.** In the dashboard, prefer
+   the encrypted **Secret** type for all of the above. Values added as
+   plain-text *Variables* were historically wiped by the next deploy (every
+   git push), because `wrangler deploy` replaces plain vars with this file's
+   `vars` block unless `keep_vars` is set. Observed live: `AI_ENABLED` set
+   as a Variable turned the advisor on, and the very next merge silently
+   turned it back off. `wrangler.jsonc` now sets `"keep_vars": true` so
+   dashboard-set Variables survive deploys too — but Secrets were never
+   affected and remain the safer default.
+
    **Which connection string** — if your Postgres provider offers a pooled
    endpoint (e.g. Neon's PgBouncer-backed `...-pooler....neon.tech` host vs.
    its direct `...neon.tech` host), **use the pooled one for this Worker
