@@ -53,6 +53,7 @@ const uid = () => `m${++seq}`;
 
 /* ---- live mode: SSE frames from /api/ai/chat (route.ts contract) ---- */
 type ServerEvent =
+  | { type: 'conversation'; id: string }
   | { type: 'token'; text: string }
   | { type: 'tool'; name: string }
   | { type: 'lead'; ref?: string; total?: number }
@@ -208,6 +209,9 @@ export function AdvisorChat({ initialQuestion }: { initialQuestion?: string }) {
   const useServer = useRef(API_MODE !== 'mock');
   const transcriptRef = useRef<{ role: 'user' | 'ai'; text: string }[]>([]);
   const busyRef = useRef(false);
+  // Server-issued conversation id ({type:'conversation'} frame) — echoed on
+  // later turns so the server keeps persistence + rolling-summary continuity.
+  const conversationIdRef = useRef<string | undefined>(undefined);
 
   const pushAi = (msgs: Msg[]) => {
     setTyping(true);
@@ -254,10 +258,12 @@ export function AdvisorChat({ initialQuestion }: { initialQuestion?: string }) {
         .filter((m) => m.text.trim())
         .slice(-10)
         .map((m) => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.text }));
-      const res = await api.ai.chatStream(transcript);
+      const res = await api.ai.chatStream(transcript, { conversationId: conversationIdRef.current });
       if (!res.body) throw new Error('no-body');
       for await (const ev of readSse(res.body)) {
-        if (ev.type === 'token') {
+        if (ev.type === 'conversation') {
+          conversationIdRef.current = ev.id;
+        } else if (ev.type === 'token') {
           streamedText += ev.text;
           if (!opened) open({ text: ev.text });
           else {

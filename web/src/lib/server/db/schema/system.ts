@@ -33,6 +33,38 @@ export const settings = pgTable('settings', {
 export const SMS_KINDS = ['otp', 'proforma', 'alert', 'generic'] as const;
 export const SMS_STATUSES = ['sent', 'failed', 'dev_logged'] as const;
 
+/** One AI-advisor conversation — anchors persisted turns and the rolling
+ *  Persian summary that keeps long chats cheap (older turns collapse into
+ *  `summary` instead of riding the prompt forever). `userId` stays nullable:
+ *  the advisor is deliberately open to anonymous visitors. */
+export const aiConversations = pgTable(
+  'ai_conversations',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id').references(() => users.id),
+    summary: text('summary'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('ai_conversations_user_idx').on(t.userId)],
+);
+
+/** One persisted chat turn (user or assistant — only the SANITIZED assistant
+ *  text is ever stored, the same text the visitor saw). */
+export const aiMessages = pgTable(
+  'ai_messages',
+  {
+    id: text('id').primaryKey(),
+    conversationId: text('conversation_id')
+      .notNull()
+      .references(() => aiConversations.id),
+    role: text('role', { enum: ['user', 'assistant'] }).notNull(),
+    content: text('content').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('ai_messages_conversation_idx').on(t.conversationId, t.createdAt)],
+);
+
 /** One row per /api/ai/chat request — DeepSeek token cost (summed across all
  *  completion rounds) plus how many grounding violations the validator cut. */
 export const aiUsage = pgTable(

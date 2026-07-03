@@ -3,18 +3,10 @@ import { z } from 'zod';
 import { getSession } from '@/lib/auth/session';
 import { assertSameOrigin } from '@/lib/auth/origin';
 import { requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
-import {
-  aiEnabled,
-  streamCompletion,
-  type ChatMessage,
-  type ToolCall,
-} from '@/lib/server/integrations/deepseek';
-import { AI_TOOLS, AI_SYSTEM_PROMPT, runTool } from '@/lib/server/services/aiTools';
-import {
-  GroundingLedger,
-  numbersInText,
-  sanitizeGrounded,
-} from '@/lib/server/ai/grounding';
+import { aiEnabled } from '@/lib/server/integrations/deepseek';
+import { numbersInText } from '@/lib/server/ai/grounding';
+import { runAdvisorPipeline } from '@/lib/server/ai/pipeline';
+import { buildChatMessages, ensureConversation, persistTurn } from '@/lib/server/ai/conversation';
 import { isBareGreeting, GREETING_REPLY } from '@/lib/server/ai/greeting';
 import { CHIP, PURPOSE_CHIPS } from '@/lib/data/aiTaxonomy';
 import { reportError } from '@/lib/errors/report';
@@ -38,8 +30,6 @@ const payload = z.object({
     .max(40),
   conversationId: z.string().max(64).optional(),
 });
-
-const MAX_TOOL_ROUNDS = 4;
 
 const SSE_HEADERS = {
   'Content-Type': 'text/event-stream; charset=utf-8',
@@ -69,12 +59,14 @@ function sseGreetingResponse(): Response {
 /**
  * POST /api/ai/chat — the server-side AI advisor (DeepSeek via the relay).
  * GROUNDING (acceptance-criteria §D): the model talks; TOOLS decide every
- * number (getPrice/calcWeight/estimateProject/createLead) — and a
- * post-generation validator (AC-D-3) gates the text: each completion round is
- * BUFFERED, every number checked against the tool ledger + the user's own
- * inputs, and only sanitized text is streamed. One correction round (which may
- * call tools — the legitimate recovery) runs before censorship wins.
- * SSE frames: data: {type:'token'|'tool'|'lead'|'chips'|'done'|'error', ...}
+ * number (getPrice/calcWeight/estimateProject/createLead) — the model⇄tools
+ * loop + AC-D-3 validator gate live in `runAdvisorPipeline` (shared with the
+ * eval harness); only sanitized text is streamed.
+ * CONTINUITY: each request resolves/creates an ai_conversations row, announces
+ * its id in a {type:'conversation'} frame, persists the turn, and injects the
+ * rolling summary as a SECOND system message (AI_SYSTEM_PROMPT stays the
+ * byte-identical first message — it is the DeepSeek cache prefix).
+ * SSE frames: data: {type:'conversation'|'token'|'tool'|'lead'|'chips'|'done'|'error', ...}
  */
 async function POSTImpl(req: NextRequest) {
   const origin = assertSameOrigin(req);
@@ -112,17 +104,13 @@ async function POSTImpl(req: NextRequest) {
 
   const session = await getSession();
   const conversationId = parsed.data.conversationId;
-  const messages: ChatMessage[] = [
-    { role: 'system', content: AI_SYSTEM_PROMPT },
-    ...parsed.data.messages.map((m) => ({ role: m.role, content: m.content })),
-  ];
 
-  // AC-D-3 state: every tool-returned number + the user's own typed numbers.
-  // Only whitelists numbers within the messages the client actually sent (it
-  // trims to the last 10 turns for cost) — an older user-stated figure falling
-  // out of that window can only cause OVER-censoring of a later legitimate
-  // echo, never under-censoring, so the safe direction is preserved.
-  const ledger = new GroundingLedger();
+  // AC-D-3 state: the user's own typed numbers (the tool ledger lives inside
+  // the pipeline). Only whitelists numbers within the messages the client
+  // actually sent (it trims to the last 10 turns for cost) — an older
+  // user-stated figure falling out of that window can only cause
+  // OVER-censoring of a later legitimate echo, never under-censoring, so the
+  // safe direction is preserved.
   const userNumbers = new Set<number>();
   for (const m of parsed.data.messages)
     if (m.role === 'user') numbersInText(m.content).forEach((n) => userNumbers.add(n));
@@ -147,110 +135,41 @@ async function POSTImpl(req: NextRequest) {
         }
       };
 
-      const toolsUsed = new Set<string>();
-      // createLead sends a real SMS per call and, unlike POST /api/leads,
-      // isn't gated by that route's own rate limiter — it's invoked here as a
-      // plain service function. DeepSeek can request several tool calls per
-      // round across up to MAX_TOOL_ROUNDS (plus a correction retry), so
-      // without a cap a single ai-chat request could be steered into an
-      // SMS-bombing run against arbitrary numbers. Scoped OUTSIDE runLoop so
-      // the cap holds across the correction-retry call too — one lead per
-      // conversation covers the real use case (a visitor's own proforma).
-      let leadCalls = 0;
-      const MAX_LEAD_CALLS = 1;
-
-      // Token cost accumulated across ALL completion rounds (tool rounds +
-      // the correction retry) — one aiUsage row per request.
-      const usageTotals = { promptTokens: 0, completionTokens: 0, cacheHitTokens: 0 };
-
-      /** One model⇄tools loop; returns the buffered final text (never streamed raw).
-       *  On the last allowed round tools are WITHHELD so the model must answer
-       *  with what it already has — otherwise a model that keeps requesting
-       *  tools past the cap would silently return an empty final answer. */
-      const runLoop = async (maxRounds: number): Promise<string> => {
-        for (let round = 0; ; round++) {
-          const allowTools = round < maxRounds;
-          let pendingCalls: ToolCall[] | null = null;
-          let buffered = '';
-          for await (const ev of streamCompletion(messages, allowTools ? AI_TOOLS : [], signal)) {
-            if (ev.type === 'token') buffered += ev.text;
-            else if (ev.type === 'tool_calls') pendingCalls = ev.calls;
-            else if (ev.type === 'usage') {
-              // Server-side telemetry only — never forwarded to the client.
-              usageTotals.promptTokens += ev.usage.promptTokens;
-              usageTotals.completionTokens += ev.usage.completionTokens;
-              usageTotals.cacheHitTokens += ev.usage.cacheHitTokens;
-            }
-          }
-          if (!pendingCalls || !allowTools) return buffered;
-
-          messages.push({ role: 'assistant', content: null, tool_calls: pendingCalls });
-          for (const call of pendingCalls) {
-            let args: Record<string, unknown> = {};
-            try {
-              args = JSON.parse(call.function.arguments || '{}') as Record<string, unknown>;
-            } catch {
-              /* tolerate malformed args */
-            }
-            send({ type: 'tool', name: call.function.name });
-            let result: unknown;
-            if (call.function.name === 'createLead' && leadCalls >= MAX_LEAD_CALLS) {
-              result = { error: 'در هر گفتگو فقط یک درخواست ثبت می‌شود. برای مورد بعدی با کارشناس تماس بگیرید.' };
-            } else {
-              // The validated request messages ride along so createLead can
-              // persist the chat transcript into the lead for sales.
-              result = await runTool(call.function.name, args, session, conversationId, parsed.data.messages);
-              if (call.function.name === 'createLead') leadCalls++;
-            }
-            toolsUsed.add(call.function.name);
-            ledger.addFromJson(result); // every tool number becomes quotable
-            if (call.function.name === 'createLead' && result && typeof result === 'object' && 'ref' in result) {
-              send({ type: 'lead', ...(result as Record<string, unknown>) });
-            }
-            messages.push({
-              role: 'tool',
-              tool_call_id: call.id,
-              content: JSON.stringify(result),
-            });
-          }
-        }
-      };
-
       try {
-        const final = await runLoop(MAX_TOOL_ROUNDS);
-
-        // The validator gate — nothing unvalidated ever reaches the user.
-        let checked = sanitizeGrounded(final, ledger, userNumbers);
-        // Telemetry keeps the FIRST pass's count: a clean retry still means
-        // the model tried to invent numbers this request.
-        const violationsCaught = checked.violations.length;
-        if (checked.violations.length > 0 && !signal.aborted) {
-          try {
-            messages.push(
-              { role: 'assistant', content: final },
-              {
-                // Framed explicitly as a SYSTEM correction, not the user
-                // speaking — otherwise the model replies AS IF the user had
-                // just pointed out its mistake ("شما درست می‌فرمایید…"),
-                // which is confusing since the real user never said that.
-                role: 'user',
-                content:
-                  '[یادداشت داخلی سیستم — این را کاربر ننوشته و کاربر آن را نمی‌بیند]: پاسخ قبلی عددی داشت که از خروجی ابزارها نیامده بود. اگر لازم است دوباره ابزار را صدا بزن و فقط با اعداد خروجی ابزارها پاسخ بده؛ اگر عددی نداری، بگو کارشناس اعلام می‌کند. مستقیماً پاسخ نهایی و طبیعی را برای کاربر بنویس — به این یادداشت، به اشتباه قبلی، یا به فرایند اصلاح هیچ اشاره‌ای نکن.',
-              },
-            );
-            const retry = await runLoop(2);
-            if (retry.trim()) {
-              const retryChecked = sanitizeGrounded(retry, ledger, userNumbers);
-              if (retryChecked.violations.length === 0) checked = retryChecked;
-            }
-          } catch {
-            /* keep the censored first answer */
-          }
+        // Conversation continuity (best-effort — the chat works without it):
+        // resolve/create the row up front and announce its id as the FIRST
+        // frame so the client can echo it on later turns.
+        let convId: string | undefined = conversationId;
+        let summary: string | null = null;
+        try {
+          const conv = await ensureConversation(conversationId, session?.id ?? null);
+          convId = conv.id;
+          summary = conv.summary;
+          send({ type: 'conversation', id: conv.id });
+        } catch {
+          /* persistence must never block the answer */
         }
+
+        // AI_SYSTEM_PROMPT stays the byte-identical FIRST message (DeepSeek
+        // cache prefix); the rolling summary rides AFTER it. GROUNDING: the
+        // summary is context only — its numbers are never added to the
+        // ledger or userNumbers, so it can't license new claims.
+        const messages = buildChatMessages(parsed.data.messages, summary);
+
+        const result = await runAdvisorPipeline({
+          messages,
+          userNumbers,
+          session,
+          conversationId: convId,
+          clientMessages: parsed.data.messages,
+          signal,
+          send,
+        });
+        const { toolsUsed } = result;
 
         // Validated text streams in small frames (typewriter UX, few re-renders).
-        for (let i = 0; i < checked.text.length; i += 120) {
-          send({ type: 'token', text: checked.text.slice(i, i + 120) });
+        for (let i = 0; i < result.text.length; i += 120) {
+          send({ type: 'token', text: result.text.slice(i, i + 120) });
         }
 
         // Contextual follow-up chips (AC-D-7) — deterministic, zero model tokens.
@@ -266,17 +185,26 @@ async function POSTImpl(req: NextRequest) {
 
         send({ type: 'done' });
 
+        // Turn persistence + rolling-summary refresh — fire-and-forget AFTER
+        // the stream is complete; a failure can never break the answer.
+        if (convId) {
+          const lastUser = [...parsed.data.messages].reverse().find((m) => m.role === 'user');
+          void persistTurn(convId, lastUser?.content ?? null, result.text).catch(() => {
+            /* persistence must never surface an error */
+          });
+        }
+
         // Usage telemetry — fire-and-forget AFTER the stream is complete, so
         // a slow/failed insert can never delay or break the user's answer.
         void getDb()
           .insert(aiUsage)
           .values({
             id: ulid(),
-            conversationId: conversationId ?? null,
-            promptTokens: usageTotals.promptTokens,
-            completionTokens: usageTotals.completionTokens,
-            cacheHitTokens: usageTotals.cacheHitTokens,
-            violations: violationsCaught,
+            conversationId: convId ?? null,
+            promptTokens: result.usage.promptTokens,
+            completionTokens: result.usage.completionTokens,
+            cacheHitTokens: result.usage.cacheHitTokens,
+            violations: result.violationsCaught,
           })
           .catch(() => {
             /* telemetry must never surface an error */

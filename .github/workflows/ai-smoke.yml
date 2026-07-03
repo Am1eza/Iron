@@ -1,0 +1,70 @@
+name: AI advisor nightly smoke
+
+# Three curl canaries against the production /api/ai/chat route. The job's own
+# red status IS the alert — no external secrets or webhooks needed.
+#
+# Pass criteria (anything else — other 5xx, missing frames, timeouts — FAILS):
+#   1. greeting        → HTTP 200 + token/done SSE frames (the greeting
+#                        short-circuit works even while the relay is off)
+#   2. price ask       → HTTP 200 stream that reaches {"type":"done"},
+#                        OR the documented 503 {"error":"ai_disabled"}
+#   3. invalid payload → HTTP 400 {"error":"invalid"} (route validation alive)
+
+on:
+  schedule:
+    - cron: '30 2 * * *' # nightly 02:30 UTC ≈ 06:00 Tehran, before the workday
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      BASE_URL: https://ahantime.giminesap.workers.dev
+
+    steps:
+      - name: 'Canary 1: greeting short-circuit streams token + done frames'
+        run: |
+          set -euo pipefail
+          code=$(curl -sS -m 30 -o /tmp/greeting.out -w '%{http_code}' \
+            -H 'Content-Type: application/json' -H 'Accept: text/event-stream' \
+            -d '{"messages":[{"role":"user","content":"سلام"}]}' \
+            "$BASE_URL/api/ai/chat")
+          echo "HTTP $code"; head -c 800 /tmp/greeting.out; echo
+          test "$code" = "200"
+          grep -q '"type":"token"' /tmp/greeting.out
+          grep -q '"type":"done"' /tmp/greeting.out
+
+      - name: 'Canary 2: price ask streams to done, or the documented 503 ai_disabled'
+        run: |
+          set -euo pipefail
+          code=$(curl -sS -m 90 -o /tmp/price.out -w '%{http_code}' \
+            -H 'Content-Type: application/json' -H 'Accept: text/event-stream' \
+            -d '{"messages":[{"role":"user","content":"قیمت میلگرد ۱۴ چنده؟"}]}' \
+            "$BASE_URL/api/ai/chat")
+          echo "HTTP $code"; head -c 800 /tmp/price.out; echo
+          if test "$code" = "200"; then
+            # A 200 stream must complete: an {"type":"error"} frame without a
+            # final done (relay blew up mid-request) fails the canary.
+            grep -q '"type":"done"' /tmp/price.out
+          elif test "$code" = "503"; then
+            # The ONLY tolerated 5xx: the relay switch is deliberately off.
+            jq -e '.error == "ai_disabled"' /tmp/price.out
+          else
+            echo "unexpected HTTP $code" >&2
+            exit 1
+          fi
+
+      - name: 'Canary 3: invalid payload rejected with 400'
+        run: |
+          set -euo pipefail
+          code=$(curl -sS -m 30 -o /tmp/bad.out -w '%{http_code}' \
+            -H 'Content-Type: application/json' \
+            -d '{"messages":[]}' \
+            "$BASE_URL/api/ai/chat")
+          echo "HTTP $code"; cat /tmp/bad.out; echo
+          test "$code" = "400"
+          jq -e '.error == "invalid"' /tmp/bad.out
