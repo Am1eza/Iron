@@ -10,24 +10,40 @@ const windows = new Map<string, number[]>();
 let lastSweep = Date.now();
 
 /**
- * Client IP for rate-limit bucketing — trusts exactly ONE hop (Caddy in
- * front, per Caddyfile/docker-compose.yml: `web` is `expose`-only, never
- * `ports`-published, so it is only reachable through Caddy's reverse_proxy).
+ * Client IP for rate-limit bucketing. Two supported deployment topologies,
+ * each with exactly ONE trusted hop in front of this app:
  *
- * SECURITY: Caddy's `reverse_proxy` APPENDS the real peer IP to any
- * client-supplied `X-Forwarded-For` rather than replacing it — so
- * `X-Forwarded-For: 1.2.3.4, <real-ip>` may arrive with an attacker-chosen
- * first value. Taking the LEFTMOST entry (as many naive implementations do)
- * lets any client spoof their rate-limit bucket. We take the RIGHTMOST
- * entry instead — the one Caddy itself appended — which is not
- * attacker-controlled under this single-trusted-proxy topology. If this app
- * is ever deployed WITHOUT Caddy in front (e.g. bare `next start` reachable
- * directly, or a second proxy hop added), this header is fully spoofable —
- * `TRUST_PROXY=false` disables per-IP granularity in that case rather than
- * silently trusting attacker input.
+ * 1. Cloudflare Workers — `CF-Connecting-IP` is set by Cloudflare's edge
+ *    itself, before the Worker ever runs, and cannot be reached except
+ *    through that edge (Workers are not independently internet-routable).
+ *    Not spoofable under this topology. This MUST be checked first:
+ *    Cloudflare's own docs confirm `X-Forwarded-For` is only appended by
+ *    the backend proxy *after* a Worker has already run, so it is simply
+ *    ABSENT during Worker execution — every request here used to silently
+ *    fall through to the `'local'` literal below, collapsing every visitor
+ *    into a single shared rate-limit bucket sitewide (found via a live
+ *    production check, not a hypothetical).
+ * 2. Docker/Caddy — per Caddyfile/docker-compose.yml: `web` is
+ *    `expose`-only, never `ports`-published, so it is only reachable
+ *    through Caddy's `reverse_proxy`.
+ *
+ * SECURITY (Docker/Caddy path): Caddy's `reverse_proxy` APPENDS the real
+ * peer IP to any client-supplied `X-Forwarded-For` rather than replacing
+ * it — so `X-Forwarded-For: 1.2.3.4, <real-ip>` may arrive with an
+ * attacker-chosen first value. Taking the LEFTMOST entry (as many naive
+ * implementations do) lets any client spoof their rate-limit bucket. We
+ * take the RIGHTMOST entry instead — the one Caddy itself appended — which
+ * is not attacker-controlled under this single-trusted-proxy topology.
+ *
+ * If this app is ever deployed behind neither of these (e.g. bare
+ * `next start` reachable directly, or an added proxy hop), both headers
+ * are fully spoofable — `TRUST_PROXY=false` disables per-IP granularity in
+ * that case rather than silently trusting attacker input.
  */
 function clientIp(req: NextRequest): string {
   if (process.env.TRUST_PROXY === 'false') return 'untrusted-proxy';
+  const cfIp = req.headers.get('cf-connecting-ip');
+  if (cfIp) return cfIp;
   const xff = req.headers.get('x-forwarded-for');
   if (xff) {
     const hops = xff.split(',').map((h) => h.trim()).filter(Boolean);
