@@ -99,29 +99,6 @@ App installation on this repo.
    `unlock` call would then be a no-op on a lock nobody actually holds. Use
    the direct (non-pooled) connection string there.
 
-   **Which connection string** — if your Postgres provider offers a pooled
-   endpoint (e.g. Neon's PgBouncer-backed `...-pooler....neon.tech` host vs.
-   its direct `...neon.tech` host), **use the pooled one for this Worker
-   secret**. `db/client.ts` opens a fresh, small `pg.Pool` per request on
-   Workers (see Notes below) — under real concurrent traffic that adds up to
-   many simultaneous *direct* backend connections, which a pooled endpoint
-   is specifically designed to absorb without exhausting the database's
-   connection limit. This is safe here because the Worker never runs the
-   background job scheduler (it always runs as its own separate Node.js
-   process, see `scripts/jobs.ts`), so none of the Worker's queries ever need
-   session-scoped state.
-   **Exception — do NOT use a pooled endpoint for the Docker/self-hosted
-   deployment path** (`docker-compose.yml`'s `DATABASE_URL`, if you point it
-   at the same external Postgres instead of the bundled `db` service): the
-   job scheduler in that process takes a **session-scoped** advisory lock
-   (`pg_try_advisory_lock`/`pg_advisory_unlock` on one dedicated connection,
-   see `jobs/scheduler.ts`) to keep jobs from double-running across
-   replicas. PgBouncer's transaction-mode pooling (what Neon's pooled
-   endpoint uses) can hand that connection's next query to a *different*
-   backend session, silently breaking the lock's mutual exclusion — the
-   `unlock` call would then be a no-op on a lock nobody actually holds. Use
-   the direct (non-pooled) connection string there.
-
 5. **(Recommended for production) Provision Cloudflare Hyperdrive** — raw TCP
    Postgres from a Worker has no cross-request connection pooling of its own
    (each request opens a fresh TCP+TLS handshake), so at real traffic volumes
