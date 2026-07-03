@@ -35,18 +35,26 @@ export async function sendOtpSms(mobile: string, code: string): Promise<SmsResul
   }
 
   try {
-    // SMS.ir Verify (templated OTP) API.
-    const res = await fetch('https://api.sms.ir/v1/send/verify', {
+    // SMS.ir Verify (templated OTP) API. Body shape and the trailing slash on
+    // the URL are verified against the official `smsir-js` SDK's source
+    // (github.com/IPeCompany/SmsPanelV2.nodejs) — its request body uses
+    // PascalCase (Mobile/TemplateId/Parameters), not the camelCase this
+    // handler previously sent. Kept on native `fetch` rather than adopting
+    // that SDK directly: it hard-depends on axios, which does not work on
+    // Cloudflare Workers (this app's other deployment target) — confirmed
+    // via axios/axios#7383 and Cloudflare's own Node-compat docs; `fetch` is
+    // the one HTTP client guaranteed to work identically on both targets.
+    const res = await fetch('https://api.sms.ir/v1/send/verify/', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Accept: 'text/plain',
+        Accept: 'application/json',
         'x-api-key': apiKey,
       },
       body: JSON.stringify({
-        mobile,
-        templateId: Number(templateId),
-        parameters: [{ name: 'Code', value: code }],
+        Mobile: mobile,
+        TemplateId: Number(templateId),
+        Parameters: [{ Name: 'Code', Value: code }],
       }),
     });
     if (!res.ok) {
