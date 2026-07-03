@@ -42,6 +42,11 @@ export interface CreateLeadResult {
   proformaRef?: string;
   validUntil?: string;
   total?: number;
+  // Resolved line items (name/weight/price) — surfaced so the AI advisor's
+  // confirmation message can quote real figures instead of leaving a
+  // grounding-censored gap where the user's requested weight/cost would go.
+  items?: Array<{ name: string; qty: number; unit: PriceUnit; weightKg?: number; unitPrice?: number; lineTotal?: number }>;
+  totalWeightKg?: number;
 }
 
 const KNOWN_SOURCES = ['table', 'ai', 'cart', 'cooperation', 'tool', 'warehouse', 'contact'] as const;
@@ -127,7 +132,17 @@ export async function createLead(
     items: lines,
   });
 
-  let result: CreateLeadResult = { ref };
+  const items = lines.map((l) => ({
+    name: l.name,
+    qty: l.qty,
+    unit: l.unit,
+    weightKg: l.weightKg,
+    unitPrice: l.unitPrice,
+    lineTotal: l.lineTotal,
+  }));
+  const totalWeightKg = lines.reduce((s, l) => s + (l.weightKg ?? 0), 0) || undefined;
+
+  let result: CreateLeadResult = { ref, items, totalWeightKg };
   let validUntilDate: Date | undefined;
 
   // Auto-issue the proforma when every line has a live price.
@@ -139,6 +154,8 @@ export async function createLead(
       proformaRef: proforma.ref,
       validUntil: proforma.validUntil.toISOString(),
       total: proforma.total,
+      items,
+      totalWeightKg,
     };
   }
 

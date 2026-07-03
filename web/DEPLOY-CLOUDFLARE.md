@@ -66,13 +66,21 @@ App installation on this repo.
      full list) — at minimum, live mode structurally requires
      `DATABASE_URL` and `SESSION_SECRET` (the app 503s `db_unavailable` on
      every DB-backed route, including the AI advisor, without the former;
-     auth cannot sign a session JWT without the latter):
+     auth cannot sign a session JWT without the latter). **The AI advisor
+     additionally needs its own master switch** — `AI_ENABLED` must be set
+     to the exact string `true` (not `True`/`1`), or `/api/ai/chat` 503s
+     `ai_disabled` regardless of how correct `DEEPSEEK_API_KEY`/
+     `DEEPSEEK_BASE_URL` are — this is the single most commonly missed step
+     since it's easy to assume the two DeepSeek keys alone are enough:
    ```bash
    cd web
    npx wrangler secret put DATABASE_URL     # see "which connection string" below
    npx wrangler secret put SESSION_SECRET
    npx wrangler secret put SMSIR_API_KEY
    npx wrangler secret put SMSIR_TEMPLATE_ID    # …and the rest
+   npx wrangler secret put AI_ENABLED       # exactly: true
+   npx wrangler secret put DEEPSEEK_API_KEY
+   npx wrangler secret put DEEPSEEK_BASE_URL
    ```
    or via Workers → `ahantime` → Settings → Variables and Secrets.
 

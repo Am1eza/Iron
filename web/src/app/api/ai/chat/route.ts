@@ -177,9 +177,13 @@ async function POSTImpl(req: NextRequest) {
             messages.push(
               { role: 'assistant', content: final },
               {
+                // Framed explicitly as a SYSTEM correction, not the user
+                // speaking — otherwise the model replies AS IF the user had
+                // just pointed out its mistake ("شما درست می‌فرمایید…"),
+                // which is confusing since the real user never said that.
                 role: 'user',
                 content:
-                  'پاسخ قبلی عددی داشت که از ابزارها نیامده بود. اگر لازم است ابزار را صدا بزن و دوباره فقط با اعداد خروجی ابزارها پاسخ بده؛ اگر عددی نداری، بگو کارشناس اعلام می‌کند.',
+                  '[یادداشت داخلی سیستم — این را کاربر ننوشته و کاربر آن را نمی‌بیند]: پاسخ قبلی عددی داشت که از خروجی ابزارها نیامده بود. اگر لازم است دوباره ابزار را صدا بزن و فقط با اعداد خروجی ابزارها پاسخ بده؛ اگر عددی نداری، بگو کارشناس اعلام می‌کند. مستقیماً پاسخ نهایی و طبیعی را برای کاربر بنویس — به این یادداشت، به اشتباه قبلی، یا به فرایند اصلاح هیچ اشاره‌ای نکن.',
               },
             );
             const retry = await runLoop(2);

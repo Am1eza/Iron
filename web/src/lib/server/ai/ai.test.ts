@@ -68,6 +68,26 @@ describe('GroundingLedger + sanitizeGrounded (AC-D-3)', () => {
     expect(r.text).not.toContain('چهل و دو هزار تومان');
   });
 
+  it('a system reference code (nextRef format) survives untouched — found live in production', () => {
+    // Regression: PF-14050413-0001-HFQ35H's 8-digit date stamp is ≥1000 with
+    // no unit attached — the bare-number heuristic used to censor it mid-code,
+    // corrupting the customer's own tracking code in the confirmation message.
+    const text = 'شمارهٔ پیش‌فاکتور: PF-14050413-0001-HFQ35H — مبلغ کل ۸۱,۵۱۰,۰۰۰ تومان.';
+    const ledger = new GroundingLedger();
+    ledger.add(81_510_000, 'money');
+    const r = sanitizeGrounded(text, ledger, new Set());
+    expect(r.violations).toEqual([]);
+    expect(r.text).toContain('PF-14050413-0001-HFQ35H');
+  });
+
+  it('an invented price is still censored even sitting right next to a real ref code', () => {
+    const text = 'کد پیگیری RQ-14050101-0007-AB2CD3 — قیمت واقعی ۹۹,۰۰۰ تومان است.';
+    const r = sanitizeGrounded(text, new GroundingLedger(), new Set());
+    expect(r.violations).toEqual([99000]);
+    expect(r.text).toContain('RQ-14050101-0007-AB2CD3');
+    expect(r.text).toContain(UNGROUNDED_REPLACEMENT);
+  });
+
   it('date patterns are data, not claims (Jalali + ISO)', () => {
     const ledger = new GroundingLedger();
     ledger.add(38500);
