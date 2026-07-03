@@ -5,7 +5,13 @@
 #
 # These mirror web/.env.example but apply to the deployed Worker on ahantime.com.
 
-# AI: DeepSeek via the out-of-Iran relay (OpenAI-compatible)
+# AI: DeepSeek via the out-of-Iran relay (OpenAI-compatible).
+# AI_ENABLED is the master switch checked by aiEnabled() — off by default;
+# without it set to exactly "true" the advisor 503s ai_disabled even with
+# valid DEEPSEEK_API_KEY/DEEPSEEK_BASE_URL set (this line was missing from
+# this file, which DEPLOY-CLOUDFLARE.md points to as "the full list" — a
+# real, silent trap for anyone following that doc literally).
+AI_ENABLED=true
 DEEPSEEK_API_KEY=
 DEEPSEEK_BASE_URL=https://<relay-host>/v1
 DEEPSEEK_MODEL=deepseek-chat

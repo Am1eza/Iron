@@ -5,9 +5,10 @@
  * می‌گیرد», never a guess).
  */
 import { z } from 'zod';
-import { searchSkus, findSkuRow } from '@/lib/server/repos/catalogRepo';
+import { searchSkus, findSkuRow, listCategories, listSubCategories, tableRows } from '@/lib/server/repos/catalogRepo';
 import { estimateProject } from '@/lib/server/services/estimate.service';
 import { createLead } from '@/lib/server/services/leads.service';
+import { computeBulkSplit } from '@/lib/utils/bulkSplit';
 import type { AuthUser } from '@/lib/auth/types';
 import type { ToolDef } from '@/lib/server/integrations/deepseek';
 import { finiteNumber } from '@/lib/validation/utils';
@@ -59,6 +60,23 @@ export const AI_TOOLS: ToolDef[] = [
         type: 'object',
         properties: { areaM2: { type: 'number' }, floors: { type: 'number' } },
         required: ['areaM2', 'floors'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'compareFactories',
+      description:
+        'سیگنیچر آهن‌تایم: یک تناژ مشخص از یک محصول را بین همهٔ کارخانه‌ها مقایسه می‌کند و ارزان‌ترین را پیدا می‌کند — برای «۲۰ تن میلگرد از کجا ارزون‌تره؟».',
+      parameters: {
+        type: 'object',
+        properties: {
+          category: { type: 'string', description: 'مثلاً «میلگرد» یا slug دسته (rebar)' },
+          sub: { type: 'string', description: 'زیردسته (اختیاری)، مثلاً «آجدار A3»' },
+          tonnage: { type: 'number', description: 'تناژ (تن)' },
+        },
+        required: ['category', 'tonnage'],
       },
     },
   },
@@ -152,6 +170,35 @@ const estimateProjectArgs = z.object({
   floors: finiteNumber.int().positive().max(50),
 });
 
+const compareFactoriesArgs = z.object({
+  category: z.string().trim().min(1).max(60),
+  sub: z.string().trim().max(60).optional(),
+  tonnage: finiteNumber.positive().max(100_000),
+});
+
+/** Resolve the model's free-text category/sub-category name to the DB's real
+ *  slug — exact slug, exact name, or substring match (either direction), so
+ *  «میلگرد» / «rebar» / «میلگرد آجدار» all land on the same row. Reads the
+ *  live category list rather than a hardcoded alias table, so it can never
+ *  drift from what's actually in the database. */
+async function resolveCategory(query: string): Promise<{ slug: string; name: string } | null> {
+  const q = query.trim().toLowerCase();
+  const cats = await listCategories();
+  const hit =
+    cats.find((c) => c.slug.toLowerCase() === q || c.name.toLowerCase() === q) ??
+    cats.find((c) => c.name.toLowerCase().includes(q) || q.includes(c.name.toLowerCase()));
+  return hit ? { slug: hit.slug, name: hit.name } : null;
+}
+
+async function resolveSubCategory(categorySlug: string, query: string): Promise<string | undefined> {
+  const q = query.trim().toLowerCase();
+  const subs = await listSubCategories(categorySlug);
+  const hit = subs.find(
+    (s) => s.slug.toLowerCase() === q || s.name.toLowerCase() === q || s.name.toLowerCase().includes(q),
+  );
+  return hit?.slug;
+}
+
 function weight(shape: string, a: z.infer<typeof calcWeightArgs>): number | null {
   switch (shape) {
     case 'rebar':
@@ -234,6 +281,32 @@ export async function runTool(
         if (!parsed.success) return { error: 'متراژ و تعداد طبقات لازم است.' };
         return await estimateProject(parsed.data.areaM2, parsed.data.floors);
       }
+      case 'compareFactories': {
+        const parsed = compareFactoriesArgs.safeParse(args);
+        if (!parsed.success) return { error: 'دسته‌بندی محصول و تناژ لازم است.' };
+        const category = await resolveCategory(parsed.data.category);
+        if (!category) return { error: 'این دسته‌بندی شناخته نشد.' };
+        const subSlug = parsed.data.sub ? await resolveSubCategory(category.slug, parsed.data.sub) : undefined;
+        const rows = await tableRows(category.slug, subSlug);
+        // A hidden/stale price is stored as 0 (toPriceRow's contract) — never
+        // let a row with no real price win as "cheapest" by default.
+        const priced = rows.filter((r) => !r.current.priceHidden && r.current.price > 0);
+        if (priced.length === 0) return { error: 'قیمتی برای این محصول ثبت نشده؛ کارشناس اعلام می‌کند.' };
+        const split = computeBulkSplit(priced, parsed.data.tonnage);
+        if (!split.cheapest) return { error: 'قیمتی برای این محصول ثبت نشده؛ کارشناس اعلام می‌کند.' };
+        return {
+          category: category.name,
+          tonnage: split.tonnage,
+          cheapestFactory: split.cheapest.factory,
+          cheapestPricePerKg: split.cheapest.pricePerKg,
+          cheapestTotalToman: split.cheapest.lineToman,
+          factories: split.lines.slice(0, 8).map((l) => ({
+            factory: l.factory,
+            pricePerKg: l.pricePerKg,
+            totalToman: l.lineToman,
+          })),
+        };
+      }
       case 'createLead': {
         const parsed = leadArgs.safeParse(args);
         if (!parsed.success) return { error: 'اطلاعات ناقص است — موبایل و اقلام را کامل بپرس.' };
@@ -257,11 +330,12 @@ export async function runTool(
 }
 
 export const AI_SYSTEM_PROMPT = `تو «مشاور هوشمند آهن‌تایم» هستی — دستیار خرید آهن‌آلات برای بازار ایران. قواعد قطعی:
-1) هیچ قیمت، وزن یا عددی را از خودت نساز. هر عدد فقط از خروجی ابزارها (getPrice, calcWeight, estimateProject) می‌آید.
+1) هیچ قیمت، وزن یا عددی را از خودت نساز. هر عدد فقط از خروجی ابزارها (getPrice, calcWeight, estimateProject, compareFactories) می‌آید.
 2) اگر ابزار قیمت null یا isStale برگرداند، بگو قیمت توسط کارشناس تأیید می‌شود و پیشنهاد ثبت درخواست بده — هرگز حدس نزن.
 3) پاسخ‌ها فارسی، کوتاه و کاربردی؛ اعداد با جداکنندهٔ هزارگان. عدد را همیشه با رقم بنویس، نه با حروف؛ عدد به حروف به‌طور خودکار حذف می‌شود.
 4) وقتی کاربر آمادهٔ خرید/پیش‌فاکتور است، با ابزار createLead درخواست را ثبت کن و شمارهٔ پیگیری را اعلام کن.
 5) خارج از حوزهٔ آهن/فولاد/ساخت‌وساز، مؤدبانه به موضوع برگرد.
 6) اگر کاربر فقط پرسید «قیمت چنده؟» بدون مشخصات، اول با یک سؤال کوتاه بپرس برای چه کاری می‌خواهد و هنوز قیمت نده؛ پرسش دقیق (محصول + سایز) را مستقیم جواب بده.
 7) اگر کاربر خودش قیمتی گفت، آن را تأیید یا رد نکن؛ قیمت معتبر را از ابزار بگیر و همان را بگو.
+8) اگر کاربر تناژ خرید عمده پرسید (مثلاً «۲۰ تن میلگرد از کجا ارزون‌تره؟»)، حتماً ابزار compareFactories را صدا بزن و ارزان‌ترین کارخانه را با تفکیک قیمت هر کارخانه نشان بده — این قابلیت سیگنیچر آهن‌تایم است.
 آهن‌تایم: «اول مشورت، بعد خرید» — پرداخت آنلاین نداریم؛ فروش با پیش‌فاکتور و تماس کارشناس نهایی می‌شود.`;
