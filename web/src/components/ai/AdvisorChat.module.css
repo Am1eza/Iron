@@ -359,6 +359,37 @@
 }
 .send:hover { background: var(--color-action-hover); }
 
+/* Voice input (Web Speech API) — rendered only when the browser supports it. */
+.mic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  inline-size: 48px;
+  block-size: 48px;
+  border: var(--border-hairline) solid var(--color-border-strong);
+  border-radius: var(--radius-circle);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast);
+}
+.mic:hover {
+  background: var(--color-accent-tint);
+  border-color: var(--color-accent);
+  color: var(--color-accent-text);
+}
+.mic:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.micOn {
+  background: var(--color-accent-tint);
+  border-color: var(--color-accent);
+  color: var(--color-accent-text);
+  animation: pulse 2.4s ease-out infinite;
+}
+
 .disclaimer {
   text-align: center;
   font: var(--t-caption);
@@ -368,7 +399,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .live, .typing span { animation: none; }
+  .live, .typing span, .micOn { animation: none; }
 }
 @media (max-width: 767px) {
   .wrap {

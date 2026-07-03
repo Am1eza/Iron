@@ -74,8 +74,11 @@ and asserts zero ungrounded numbers survive (DoD-D).
 | `DEEPSEEK_API_KEY` | relay key (server-only) |
 | `DEEPSEEK_BASE_URL` | OpenAI-compatible relay base, e.g. `https://relay/v1` |
 | `DEEPSEEK_MODEL` | default `deepseek-chat` |
+| `FALLBACK_BASE_URL` | optional second OpenAI-compatible relay — a primary failure (throw or non-2xx) retries the same request once here |
+| `FALLBACK_API_KEY` | key for the fallback relay; the fallback only activates when BOTH this and `FALLBACK_BASE_URL` are set |
+| `FALLBACK_MODEL` | model on the fallback relay (default: `DEEPSEEK_MODEL`) |
 | `NEXT_PUBLIC_API_MODE` | `live` activates the server advisor; `mock` keeps the local engine |
-| `AI_ENABLED` | `true` switches the relay on (backend flag) |
+| `AI_ENABLED` | `true` switches the relay on (backend flag) — the fallback never replaces the primary config in `aiEnabled()` |
 
 With `AI_ENABLED` false or `DEEPSEEK_*` missing the route answers `503` and the
 client silently uses the local engine.

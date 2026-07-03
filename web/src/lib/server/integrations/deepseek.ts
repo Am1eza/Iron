@@ -39,26 +39,23 @@ export interface CompletionUsage {
   cacheHitTokens: number;
 }
 
-/** One streaming completion call. Yields token deltas and collects tool calls. */
-export async function* streamCompletion(
+/** POST one OpenAI-compatible streaming completion to a relay. */
+function postCompletion(
+  base: string,
+  apiKey: string,
+  model: string,
   messages: ChatMessage[],
   tools: ToolDef[],
   signal?: AbortSignal,
-): AsyncGenerator<
-  | { type: 'token'; text: string }
-  | { type: 'tool_calls'; calls: ToolCall[] }
-  | { type: 'usage'; usage: CompletionUsage }
-  | { type: 'done' }
-> {
-  const base = process.env.DEEPSEEK_BASE_URL!.replace(/\/$/, '');
-  const res = await fetch(`${base}/chat/completions`, {
+): Promise<Response> {
+  return fetch(`${base.replace(/\/$/, '')}/chat/completions`, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
-      authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`,
+      authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: process.env.DEEPSEEK_MODEL ?? 'deepseek-chat',
+      model,
       messages,
       tools: tools.length > 0 ? tools : undefined,
       stream: true,
@@ -73,11 +70,70 @@ export async function* streamCompletion(
     }),
     signal,
   });
-  if (!res.ok || !res.body) {
-    throw new Error(`deepseek HTTP ${res.status}`);
-  }
+}
 
-  const reader = res.body.getReader();
+/**
+ * Availability: when FALLBACK_BASE_URL + FALLBACK_API_KEY are set, a primary
+ * relay failure (fetch throw or non-2xx) retries the SAME request ONCE
+ * against the fallback relay (FALLBACK_MODEL, default: the primary model).
+ * No fallback configured → the single attempt's failure surfaces unchanged.
+ * aiEnabled() is deliberately untouched — the fallback is an extra leg, not
+ * a way to run without the primary DEEPSEEK_* config.
+ */
+async function fetchCompletion(
+  messages: ChatMessage[],
+  tools: ToolDef[],
+  signal?: AbortSignal,
+): Promise<Response> {
+  const primaryModel = process.env.DEEPSEEK_MODEL ?? 'deepseek-chat';
+  const fallbackBase = process.env.FALLBACK_BASE_URL;
+  const fallbackKey = process.env.FALLBACK_API_KEY;
+  const hasFallback = Boolean(fallbackBase && fallbackKey);
+
+  let res: Response | null = null;
+  try {
+    res = await postCompletion(
+      process.env.DEEPSEEK_BASE_URL!,
+      process.env.DEEPSEEK_API_KEY!,
+      primaryModel,
+      messages,
+      tools,
+      signal,
+    );
+  } catch (e) {
+    // A user abort is not an outage — never burn the fallback on it.
+    if (!hasFallback || signal?.aborted) throw e;
+  }
+  if (res?.ok && res.body) return res;
+  if (!hasFallback) throw new Error(`deepseek HTTP ${res?.status}`);
+
+  const retry = await postCompletion(
+    fallbackBase!,
+    fallbackKey!,
+    process.env.FALLBACK_MODEL ?? primaryModel,
+    messages,
+    tools,
+    signal,
+  );
+  if (!retry.ok || !retry.body) throw new Error(`fallback HTTP ${retry.status}`);
+  return retry;
+}
+
+/** One streaming completion call. Yields token deltas and collects tool calls. */
+export async function* streamCompletion(
+  messages: ChatMessage[],
+  tools: ToolDef[],
+  signal?: AbortSignal,
+): AsyncGenerator<
+  | { type: 'token'; text: string }
+  | { type: 'tool_calls'; calls: ToolCall[] }
+  | { type: 'usage'; usage: CompletionUsage }
+  | { type: 'done' }
+> {
+  const res = await fetchCompletion(messages, tools, signal);
+
+  // fetchCompletion only ever returns a response WITH a body (checked on both legs).
+  const reader = res.body!.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
   // Accumulate streamed tool-call fragments by index.

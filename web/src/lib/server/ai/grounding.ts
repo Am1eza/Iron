@@ -43,6 +43,11 @@ export class GroundingLedger {
    *  its field name (e.g. `rebarKg` → weight, `rebarCost`/`price` → money). */
   addFromJson(value: unknown, keyHint?: string): void {
     if (typeof value === 'number') this.add(value, kindFromKey(keyHint));
+    // Tool-returned STRINGS are tool data too: a guide excerpt (searchGuides)
+    // carries its figures as prose, and quoting a number the tool itself
+    // returned must never be censored. This only widens the ledger's INPUT
+    // (what a tool actually said) — the validator gate itself is untouched.
+    else if (typeof value === 'string') this.addAll(numbersInText(value), kindFromKey(keyHint));
     else if (Array.isArray(value)) value.forEach((v) => this.addFromJson(v, keyHint));
     else if (value && typeof value === 'object')
       Object.entries(value as Record<string, unknown>).forEach(([k, v]) => this.addFromJson(v, k));
