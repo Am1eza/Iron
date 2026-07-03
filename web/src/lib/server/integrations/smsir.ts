@@ -43,14 +43,20 @@ export async function sendSms(mobile: string, text: string, kind: SmsKind = 'gen
     return { ok: true };
   }
   try {
+    // Body shape verified against the official `smsir-js` SDK's source
+    // (github.com/IPeCompany/SmsPanelV2.nodejs): lineNumber is the one
+    // camelCase field, MessageText/Mobiles/SendDateTime are PascalCase — an
+    // inconsistent-looking but confirmed-real mix, not a typo. See sms.ts's
+    // sendOtpSms for why this stays on `fetch` instead of that SDK directly
+    // (axios, which it depends on, does not work on Cloudflare Workers).
     const res = await fetch('https://api.sms.ir/v1/send/bulk', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'text/plain', 'x-api-key': apiKey },
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'x-api-key': apiKey },
       body: JSON.stringify({
         lineNumber: Number(lineNumber),
-        messageText: text,
-        mobiles: [mobile],
-        sendDateTime: null,
+        MessageText: text,
+        Mobiles: [mobile],
+        SendDateTime: null,
       }),
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
