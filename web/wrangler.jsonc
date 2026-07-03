@@ -11,6 +11,16 @@
   // app reads (SESSION_SECRET, SMSIR_*, DEEPSEEK_*, ...) — regardless of
   // what's set via `wrangler secret put` or the dashboard.
   "compatibility_flags": ["nodejs_compat", "nodejs_compat_populate_process_env"],
+  // Without keep_vars, EVERY deploy (each Workers Builds run — i.e. every git
+  // push) replaces the Worker's plain-text environment variables with the
+  // `vars` in this file (none), silently DELETING anything set as a
+  // "Variable" in the dashboard. Observed live: AI_ENABLED set via the
+  // dashboard turned the advisor on, then the very next merge's deploy wiped
+  // it and /api/ai/chat went back to 503 ai_disabled. Encrypted Secrets are
+  // never affected — but keep_vars makes dashboard-set plain vars survive
+  // deploys too, so a config choice in the dashboard can't be undone by an
+  // unrelated code push.
+  "keep_vars": true,
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
