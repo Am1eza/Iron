@@ -23,5 +23,9 @@ SESSION_SECRET=
 AUTH_ENFORCED=true
 DEV_ADMIN_MOBILE=09120000000
 
-# Database
+# Database — postgres://user:pass@host:5432/db?sslmode=require
+# If your provider offers a pooled endpoint (e.g. Neon's "-pooler" host), use
+# it here for the Cloudflare Worker deployment; use the DIRECT endpoint for
+# Docker/self-hosted (the job scheduler's advisory locks need one dedicated
+# session — see DEPLOY-CLOUDFLARE.md's "Which connection string" note).
 DATABASE_URL=
