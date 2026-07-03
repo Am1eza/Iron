@@ -31,13 +31,24 @@ export function aiEnabled(): boolean {
   );
 }
 
+/** Token accounting from the stream's final usage chunk (server-side telemetry
+ *  only — never emitted to the client SSE). */
+export interface CompletionUsage {
+  promptTokens: number;
+  completionTokens: number;
+  cacheHitTokens: number;
+}
+
 /** One streaming completion call. Yields token deltas and collects tool calls. */
 export async function* streamCompletion(
   messages: ChatMessage[],
   tools: ToolDef[],
   signal?: AbortSignal,
 ): AsyncGenerator<
-  { type: 'token'; text: string } | { type: 'tool_calls'; calls: ToolCall[] } | { type: 'done' }
+  | { type: 'token'; text: string }
+  | { type: 'tool_calls'; calls: ToolCall[] }
+  | { type: 'usage'; usage: CompletionUsage }
+  | { type: 'done' }
 > {
   const base = process.env.DEEPSEEK_BASE_URL!.replace(/\/$/, '');
   const res = await fetch(`${base}/chat/completions`, {
@@ -51,6 +62,9 @@ export async function* streamCompletion(
       messages,
       tools: tools.length > 0 ? tools : undefined,
       stream: true,
+      // Ask for the final usage chunk (prompt/completion/cache tokens) so
+      // per-request cost is measurable — the chunk stays server-side.
+      stream_options: { include_usage: true },
       temperature: 0.3,
       // Advisor replies are short Persian answers (system prompt: "کوتاه و
       // کاربردی") — cap per-call generation so a request's cost is bounded
@@ -93,9 +107,30 @@ export async function* streamCompletion(
             };
             finish_reason?: string | null;
           }>;
+          usage?: {
+            prompt_tokens?: number;
+            completion_tokens?: number;
+            prompt_cache_hit_tokens?: number;
+            prompt_cache_miss_tokens?: number;
+          } | null;
         };
         const choice = json.choices?.[0];
-        if (!choice) continue;
+        if (!choice) {
+          // With stream_options.include_usage the FINAL chunk carries no
+          // choices — only the request's token accounting (DeepSeek adds the
+          // prompt_cache_hit/miss split on top of the OpenAI shape).
+          if (json.usage) {
+            yield {
+              type: 'usage',
+              usage: {
+                promptTokens: json.usage.prompt_tokens ?? 0,
+                completionTokens: json.usage.completion_tokens ?? 0,
+                cacheHitTokens: json.usage.prompt_cache_hit_tokens ?? 0,
+              },
+            };
+          }
+          continue;
+        }
         if (choice.delta?.content) yield { type: 'token', text: choice.delta.content };
         for (const tc of choice.delta?.tool_calls ?? []) {
           const existing = toolCalls.get(tc.index) ?? {

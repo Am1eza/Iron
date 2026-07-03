@@ -73,6 +73,33 @@ describe('catalog reads', () => {
     const hits = await searchSkus('میلگرد بشقاب‌غیرموجود');
     expect(hits).toHaveLength(0);
   });
+
+  it('matches Latin digits against the Persian-digit sizes and merges spaced compounds («تیر آهن 14»)', async () => {
+    // The DB stores sizes/names with PERSIAN digits («تیرآهن … ۱۴») and the
+    // compound word joined — a natural query uses Latin 14 and a space.
+    const hits = await searchSkus('تیر آهن 14');
+    expect(hits.length).toBeGreaterThan(0);
+    expect(hits.every((r) => r.name.includes('تیرآهن') && r.name.includes('۱۴'))).toBe(true);
+  });
+
+  it('resolves industry synonyms per token («آرماتور ۱۴» → میلگرد rows)', async () => {
+    const hits = await searchSkus('آرماتور ۱۴');
+    expect(hits.length).toBeGreaterThan(0);
+    expect(hits.every((r) => r.name.includes('میلگرد') && r.name.includes('۱۴'))).toBe(true);
+  });
+
+  it('resolves the other synonyms too (هاش، ناودونی، ورقه)', async () => {
+    const beams = await searchSkus('هاش');
+    expect(beams.length).toBeGreaterThan(0);
+    expect(beams.every((r) => r.categoryId === 'ibeam')).toBe(true);
+
+    const channels = await searchSkus('ناودونی');
+    expect(channels.length).toBeGreaterThan(0);
+    expect(channels.every((r) => r.name.includes('ناودانی'))).toBe(true);
+
+    const sheets = await searchSkus('ورقه');
+    expect(sheets.length).toBeGreaterThan(0);
+  });
 });
 
 describe('savePrice transaction', () => {

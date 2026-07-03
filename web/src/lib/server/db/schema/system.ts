@@ -1,8 +1,9 @@
 /**
- * System — audit log (every admin write), kv settings, and the SMS delivery
- * log (also how dev-mode SMS stays visible without a provider key).
+ * System — audit log (every admin write), kv settings, the SMS delivery
+ * log (also how dev-mode SMS stays visible without a provider key), and the
+ * AI-advisor usage log (per-request token cost + grounding violations).
  */
-import { index, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
+import { index, integer, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
 import { users } from './auth';
 
 export const auditEntries = pgTable(
@@ -31,6 +32,22 @@ export const settings = pgTable('settings', {
 
 export const SMS_KINDS = ['otp', 'proforma', 'alert', 'generic'] as const;
 export const SMS_STATUSES = ['sent', 'failed', 'dev_logged'] as const;
+
+/** One row per /api/ai/chat request — DeepSeek token cost (summed across all
+ *  completion rounds) plus how many grounding violations the validator cut. */
+export const aiUsage = pgTable(
+  'ai_usage',
+  {
+    id: text('id').primaryKey(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    conversationId: text('conversation_id'),
+    promptTokens: integer('prompt_tokens').notNull().default(0),
+    completionTokens: integer('completion_tokens').notNull().default(0),
+    cacheHitTokens: integer('cache_hit_tokens').notNull().default(0),
+    violations: integer('violations').notNull().default(0),
+  },
+  (t) => [index('ai_usage_created_idx').on(t.createdAt)],
+);
 
 export const smsLog = pgTable(
   'sms_log',

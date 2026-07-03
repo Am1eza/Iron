@@ -12,6 +12,7 @@ import * as schema from '@/lib/server/db/schema';
 import type { Db } from '@/lib/server/db/client';
 import { tableRows } from '@/lib/server/repos/catalogRepo';
 import { createLead, proformaSmsText } from '@/lib/server/services/leads.service';
+import { runTool } from '@/lib/server/services/aiTools';
 import { findProformaByRef } from '@/lib/server/repos/leadsRepo';
 import { requestsForUser, insertRequest } from '@/lib/server/repos/requestsRepo';
 import {
@@ -145,6 +146,35 @@ describe('lead → proforma flow', () => {
     // advisor can confirm WHAT was requested while pricing awaits a کارشناس.
     expect(result.items).toHaveLength(1);
     expect(result.items![0]!.unitPrice).toBeUndefined();
+  });
+
+  it('AI createLead persists the chat transcript into the lead context (capped) for sales', async () => {
+    const rows = await tableRows('rebar');
+    const sku = rows[0]!;
+    // 14 turns, the newest one oversized — expect the last 12, sliced to 500.
+    const transcript = Array.from({ length: 13 }, (_, i) => ({
+      role: i % 2 === 0 ? 'user' : 'assistant',
+      content: `پیام شمارهٔ ${i}`,
+    }));
+    transcript.push({ role: 'user', content: 'ب'.repeat(700) });
+
+    const result = (await runTool(
+      'createLead',
+      { mobile: '09123334455', items: [{ skuId: sku.id, qty: 2, unit: sku.unit }] },
+      null,
+      'conv-transcript-1',
+      transcript,
+    )) as { ref: string };
+    expect(result.ref).toMatch(/^PF-/);
+
+    const lead = (await db.select().from(schema.leads).where(eq(schema.leads.ref, result.ref)))[0]!;
+    expect(lead.source).toBe('ai');
+    expect(lead.context?.aiConversationId).toBe('conv-transcript-1');
+    const saved = lead.context?.transcript as Array<{ role: string; content: string }>;
+    expect(saved).toHaveLength(12);
+    expect(saved[0]).toEqual({ role: 'user', content: 'پیام شمارهٔ 2' });
+    expect(saved[11]!.role).toBe('user');
+    expect(saved[11]!.content).toHaveLength(500);
   });
 });
 
