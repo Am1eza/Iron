@@ -98,6 +98,16 @@ describe('lead → proforma flow', () => {
     expect(result.proformaRef).toBe(result.ref); // first issue reuses the lead ref
     expect(result.total).toBeGreaterThan(0);
 
+    // Line items + total weight are surfaced (the AI advisor's confirmation
+    // quotes these directly instead of re-deriving/guessing them — AC-D-3).
+    expect(result.items).toHaveLength(2);
+    expect(result.items![0]!.qty).toBe(10);
+    expect(result.totalWeightKg).toBeGreaterThan(0);
+    expect(result.totalWeightKg).toBeCloseTo(
+      result.items!.reduce((s, i) => s + (i.weightKg ?? 0), 0),
+      5,
+    );
+
     // Proforma persisted with VAT math.
     const p = await findProformaByRef(result.ref);
     expect(p).not.toBeNull();
@@ -131,6 +141,10 @@ describe('lead → proforma flow', () => {
     expect(result.proformaRef).toBeUndefined();
     const p = await findProformaByRef(result.ref);
     expect(p).toBeNull();
+    // Even unpriced, the resolved item (name/qty) is still surfaced so the
+    // advisor can confirm WHAT was requested while pricing awaits a کارشناس.
+    expect(result.items).toHaveLength(1);
+    expect(result.items![0]!.unitPrice).toBeUndefined();
   });
 });
 

@@ -108,6 +108,12 @@ const SCALED = new RegExp(
 );
 /** Date patterns are data, not price claims: 1405/04/11 · 2026-06-27. */
 const DATE = new RegExp(`[${D}]{4}[/\\-][${D}]{1,2}[/\\-][${D}]{1,2}`, 'g');
+/** System reference codes (nextRef): `PF-14050413-0001-HFQ35H` — prefix +
+ *  8-digit Jalali stamp + 4-digit sequence + random suffix. The stamp/seq
+ *  segments are plain digit runs that would otherwise read as bare price
+ *  claims (≥1000, no unit) and get censored mid-code — exempt the whole
+ *  token, the same way a date is exempt. */
+const REF_CODE = /\b(?:PF|RQ|OR|LD|WH)-\d{8}-\d{4}-[A-Z0-9]{4,8}\b/g;
 const MONEY_UNIT = '(?:تومان|ریال)';
 const WEIGHT_UNIT = '(?:کیلوگرم|کیلو(?!متر)|گرم)';
 /** Units that make ANY attached number a money/weight claim. */
@@ -145,8 +151,10 @@ function findClaims(text: string): Claim[] {
   const covered: [number, number][] = [];
   const overlaps = (s: number, e: number) => covered.some(([cs, ce]) => s < ce && cs < e);
 
-  // 1. Dates — mark exempt so their numbers are never treated as prices.
+  // 1. Dates and system reference codes — mark exempt so their embedded
+  // digit runs are never treated as prices.
   for (const m of text.matchAll(DATE)) covered.push([m.index, m.index + m[0].length]);
+  for (const m of text.matchAll(REF_CODE)) covered.push([m.index, m.index + m[0].length]);
 
   // 2. Scaled compounds — evaluate the FULL value («۳۸ هزار و ۵۰۰» → 38500).
   // Scale words in this domain are overwhelmingly money-denominated.
