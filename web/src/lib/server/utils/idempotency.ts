@@ -32,7 +32,11 @@ export async function withIdempotency(
 ): Promise<NextResponse> {
   const db = getDb();
   const headerKey = req.headers.get('idempotency-key')?.trim();
-  const key = `${route}:${headerKey || fallbackKey}`;
+  // `fallbackKey` always carries the caller-scoped identity (e.g. `${leadId}:${session.id}:...`)
+  // set by the route. A client-supplied header is layered ON TOP of that scope, never in place
+  // of it — otherwise two different admins/leads that happen to send the same header value would
+  // collide on one row and replay each other's stored response.
+  const key = headerKey ? `${route}:${fallbackKey}:${headerKey}` : `${route}:${fallbackKey}`;
 
   const claimed = await db
     .insert(idempotencyKeys)

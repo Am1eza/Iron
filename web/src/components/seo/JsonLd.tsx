@@ -7,12 +7,18 @@ import type { Crumb } from '@/components/ui';
  * Accepts one object or an array (multiple graphs).
  */
 export function JsonLd({ data }: { data: object | object[] }) {
+  // Fields inside `data` (article titles, SKU/category names, breadcrumb
+  // labels, ...) are admin- or catalog-authored strings validated only for
+  // length, not markup — an unescaped `</script>` in one of them would break
+  // out of this tag and execute as a second, attacker-controlled <script>.
+  // Escaping `<` (as its JS unicode form) neutralizes any tag-close sequence
+  // while staying valid JSON — `<` is not a JSON control character.
+  const json = JSON.stringify(data).replace(/</g, '\\u003c');
   return (
     <script
       type="application/ld+json"
-      // Structured data is developer-authored (not user input) → safe to inline.
       // eslint-disable-next-line react/no-danger
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+      dangerouslySetInnerHTML={{ __html: json }}
     />
   );
 }

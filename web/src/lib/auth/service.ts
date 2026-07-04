@@ -15,6 +15,7 @@ import {
   getOtp,
   setOtp,
   clearOtp,
+  incrementOtpAttempts,
   getRate,
   setRate,
   clearRate,
@@ -37,7 +38,20 @@ export class AuthError extends Error {
 }
 
 const HOUR = 60 * 60 * 1000;
-const pepper = () => process.env.SESSION_SECRET ?? 'dev-pepper';
+// Mirrors jwt.ts#getSecret's guard: without it, a production deploy missing
+// SESSION_SECRET would silently hash/verify OTPs against the hardcoded
+// literal below, making every OTP hash trivially offline-crackable from a DB
+// dump rather than failing loudly like the JWT signer already does.
+const pepper = () => {
+  const secret = process.env.SESSION_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('SESSION_SECRET is required in production.');
+    }
+    return 'dev-pepper';
+  }
+  return secret;
+};
 
 /* ----------------------------- request OTP ----------------------------- */
 export async function requestOtp(
@@ -99,7 +113,16 @@ export async function verifyOtp(
   if (!record || record.expiresAt < Date.now()) {
     throw new AuthError('expired', 'کد منقضی شده. کد جدید بگیرید.', 410);
   }
-  if (record.attempts >= CONSTANTS.OTP_MAX_ATTEMPTS) {
+
+  // Claim an attempt atomically BEFORE checking the code — a plain
+  // read-then-write (getOtp + setOtp) lets concurrent verify requests for the
+  // same mobile all read the same `attempts` value and each independently
+  // conclude they're still under the cap, so a burst of parallel guesses
+  // could exceed OTP_MAX_ATTEMPTS before any single request's write lands.
+  // incrementOtpAttempts is one atomic UPDATE...RETURNING, so every request
+  // gets a distinct, strictly increasing count with no such window.
+  const attempts = await incrementOtpAttempts(mobile);
+  if (attempts === null || attempts > CONSTANTS.OTP_MAX_ATTEMPTS) {
     await clearOtp(mobile);
     await lock(mobile);
     throw new AuthError('locked', 'تلاش بیش از حد. چند دقیقه بعد دوباره وارد شوید.', 429);
@@ -107,8 +130,7 @@ export async function verifyOtp(
 
   const hash = await sha256(code, pepper());
   if (!timingSafeEqual(hash, record.hash)) {
-    await setOtp(mobile, { ...record, attempts: record.attempts + 1 });
-    const left = CONSTANTS.OTP_MAX_ATTEMPTS - (record.attempts + 1);
+    const left = CONSTANTS.OTP_MAX_ATTEMPTS - attempts;
     throw new AuthError(
       'wrong_code',
       left > 0 ? 'کد اشتباه است. دوباره تلاش کنید.' : 'کد اشتباه است.',
@@ -162,6 +184,7 @@ async function issueTokens(user: AuthUser): Promise<IssuedTokens> {
     mobile: user.mobile,
     role: user.role,
     name: user.name,
+    tv: user.tokenVersion ?? 0,
   });
   const refreshToken = randomToken(32);
   const refreshExpiresAt = Date.now() + CONSTANTS.SESSION_TTL_DAYS * 24 * HOUR;

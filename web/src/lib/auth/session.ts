@@ -7,6 +7,7 @@
  */
 import { cookies } from 'next/headers';
 import { verifyAccessToken } from './jwt';
+import { userById } from './store';
 import type { AuthUser, IssuedTokens } from './types';
 
 export const ACCESS_COOKIE = 'ahantime_at';
@@ -68,4 +69,23 @@ export async function getSession(): Promise<AuthUser | null> {
     role: claims.role,
     createdAt: '',
   };
+}
+
+/**
+ * Like `getSession()`, but also re-checks the DB: rejects the session if the
+ * user was deactivated or their role changed since this access token was
+ * issued (tokenVersion mismatch — see schema/auth.ts), instead of trusting
+ * the JWT's claims for its full ~15min lifetime regardless. One extra
+ * indexed lookup, so use this at actual permission/authorization boundaries
+ * (requireApiUser/requirePermission and friends), not on every page render.
+ */
+export async function getSessionVerified(): Promise<AuthUser | null> {
+  if (process.env.EXPORT === '1') return null;
+  const token = (await cookies()).get(ACCESS_COOKIE)?.value;
+  if (!token) return null;
+  const claims = await verifyAccessToken(token);
+  if (!claims) return null;
+  const current = await userById(claims.sub);
+  if (!current || (current.tokenVersion ?? 0) !== (claims.tv ?? 0)) return null;
+  return current;
 }

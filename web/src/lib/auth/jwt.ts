@@ -28,7 +28,7 @@ export async function signAccessToken(
 ): Promise<{ token: string; expiresAt: number }> {
   const now = Math.floor(Date.now() / 1000);
   const exp = now + ttlSeconds;
-  const token = await new SignJWT({ mobile: claims.mobile, role: claims.role, name: claims.name })
+  const token = await new SignJWT({ mobile: claims.mobile, role: claims.role, name: claims.name, tv: claims.tv ?? 0 })
     .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
     .setSubject(claims.sub)
     .setIssuer(ISSUER)
@@ -52,6 +52,10 @@ export async function verifyAccessToken(token: string): Promise<AccessTokenClaim
       mobile: String(payload.mobile ?? ''),
       role: payload.role as AccessTokenClaims['role'],
       name: payload.name ? String(payload.name) : undefined,
+      // Tokens signed before this field existed have no `tv` claim — treat
+      // them as version 0, matching the column's default, so already-issued
+      // tokens keep working until the next role/isActive change bumps it.
+      tv: typeof payload.tv === 'number' ? payload.tv : 0,
     };
   } catch {
     return null;

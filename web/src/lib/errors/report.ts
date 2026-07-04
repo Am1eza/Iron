@@ -5,13 +5,17 @@
  */
 import { sendToSentry } from './sentry';
 
-const PII_KEYS = /mobile|phone|code|otp|name|address/i;
+// Covers both PII (mobile/name/address/...) and credential-shaped keys
+// (token/secret/password/authorization/...) — a future call site passing
+// something like `{ authorization: req.headers.get('authorization') }` must
+// not reach logs/Sentry in the clear just because it isn't "personal" data.
+const REDACT_KEYS = /mobile|phone|code|otp|name|address|token|secret|password|apikey|api_key|authorization|jwt|dsn|cookie/i;
 
 function redact(context?: Record<string, unknown>): Record<string, unknown> | undefined {
   if (!context) return undefined;
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(context)) {
-    out[k] = PII_KEYS.test(k) ? '[redacted]' : v;
+    out[k] = REDACT_KEYS.test(k) ? '[redacted]' : v;
   }
   return out;
 }

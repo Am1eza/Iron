@@ -21,6 +21,7 @@ function toAuthUser(row: UserRow, clubTier?: 'iron' | 'steel' | 'poolad' | null)
     role: row.role,
     clubTier: clubTier ?? undefined,
     createdAt: row.createdAt.toISOString(),
+    tokenVersion: row.tokenVersion,
   };
 }
 
@@ -66,6 +67,12 @@ export const pgStore: AuthStore = {
     if (patch.role !== undefined) set.role = patch.role;
     if (patch.isActive !== undefined) set.isActive = patch.isActive;
     if (patch.lastSeenAt !== undefined) set.lastSeenAt = new Date(patch.lastSeenAt);
+    // Role/active-state changes invalidate any access token already issued
+    // under the old privileges — bumping this makes getSessionVerified()
+    // reject it on the very next request instead of trusting it until expiry.
+    if (patch.role !== undefined || patch.isActive !== undefined) {
+      set.tokenVersion = sql`${users.tokenVersion} + 1`;
+    }
     if (Object.keys(set).length === 0) return this.userById(id);
     const updated = await db.update(users).set(set).where(eq(users.id, id)).returning();
     return updated[0] ? toAuthUser(updated[0]) : null;
@@ -135,6 +142,19 @@ export const pgStore: AuthStore = {
 
   async clearOtp(mobile) {
     await getDb().delete(otpCodes).where(eq(otpCodes.mobile, mobile));
+  },
+
+  async incrementOtpAttempts(mobile) {
+    // Single atomic UPDATE...RETURNING — Postgres serializes concurrent
+    // updates to the same row, so two simultaneous verify attempts can never
+    // both observe the pre-increment value the way a separate read-then-write
+    // (getOtp + setOtp) could.
+    const rows = await getDb()
+      .update(otpCodes)
+      .set({ attempts: sql`${otpCodes.attempts} + 1` })
+      .where(eq(otpCodes.mobile, mobile))
+      .returning({ attempts: otpCodes.attempts });
+    return rows[0]?.attempts ?? null;
   },
 
   async getRate(mobile) {

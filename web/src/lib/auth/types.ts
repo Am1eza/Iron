@@ -30,6 +30,8 @@ export interface AuthUser {
   role: Role;
   clubTier?: 'iron' | 'steel' | 'poolad';
   createdAt: string;
+  /** Revocation counter — see schema/auth.ts. Defaults to 0 for stores/paths that don't track it. */
+  tokenVersion?: number;
 }
 
 /** The signed JWT payload (kept minimal — no PII beyond the mobile). */
@@ -38,6 +40,8 @@ export interface AccessTokenClaims {
   mobile: string;
   role: Role;
   name?: string;
+  /** Token-issue-time snapshot of the user's tokenVersion; see getSessionVerified(). Defaults to 0. */
+  tv?: number;
 }
 
 export interface IssuedTokens {
