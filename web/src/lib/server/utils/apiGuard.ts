@@ -4,7 +4,7 @@
  * mutation calls. 404 (not 403) hides admin surfaces from non-staff (AUTH.md).
  */
 import { NextResponse, type NextRequest } from 'next/server';
-import { getSession } from '@/lib/auth/session';
+import { getSessionVerified } from '@/lib/auth/session';
 import { can } from '@/lib/auth/roles';
 import type { AuthUser, Permission } from '@/lib/auth/types';
 import { assertSameOrigin } from '@/lib/auth/origin';
@@ -57,7 +57,7 @@ export async function requireApiUser(
     const origin = assertSameOrigin(req);
     if (origin) return { response: origin };
   }
-  const session = await getSession();
+  const session = await getSessionVerified();
   if (!session) {
     return {
       response: NextResponse.json(

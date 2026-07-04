@@ -10,7 +10,11 @@ const userIdByMobile = new Map<string, string>();
 let seq = 0;
 
 function seedAdmin() {
-  // A dev staff account so the admin area is reachable locally.
+  // A dev staff account so the admin area is reachable locally. This store is
+  // only ever selected when there's no DATABASE_URL (see store.ts), which
+  // live mode's env validation already forbids — but guard the well-known
+  // '09120000000' fallback against production anyway, defense in depth.
+  if (process.env.NODE_ENV === 'production' && !process.env.DEV_ADMIN_MOBILE) return;
   const mobile = process.env.DEV_ADMIN_MOBILE ?? '09120000000';
   if (userIdByMobile.has(mobile)) return;
   const id = 'u-admin';
@@ -49,6 +53,7 @@ export const memoryStore: AuthStore = {
       name: input.name,
       role: input.role ?? 'customer',
       createdAt: new Date().toISOString(),
+      tokenVersion: 0,
     };
     usersById.set(id, user);
     userIdByMobile.set(input.mobile, id);
@@ -58,7 +63,10 @@ export const memoryStore: AuthStore = {
   async updateUser(id: string, patch: UserPatch) {
     const user = usersById.get(id);
     if (!user) return null;
-    const next = { ...user, ...patch };
+    // Mirrors store.pg.ts: role/active-state changes bump tokenVersion so an
+    // already-issued access token is rejected on the next request.
+    const bump = patch.role !== undefined || patch.isActive !== undefined;
+    const next = { ...user, ...patch, tokenVersion: bump ? (user.tokenVersion ?? 0) + 1 : user.tokenVersion };
     usersById.set(id, next);
     return next;
   },
@@ -105,6 +113,12 @@ export const memoryStore: AuthStore = {
   },
   async clearOtp(mobile: string) {
     otpByMobile.delete(mobile);
+  },
+  async incrementOtpAttempts(mobile: string) {
+    const rec = otpByMobile.get(mobile);
+    if (!rec) return null;
+    rec.attempts += 1;
+    return rec;
   },
 
   async getRate(mobile: string) {

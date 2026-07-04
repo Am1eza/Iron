@@ -5,16 +5,20 @@
  * 1. Cloudflare's native Rate Limiting binding (`env.RL_<SCOPE>`, configured
  *    in wrangler.jsonc's `ratelimits`) — cross-isolate counters shared by
  *    `namespace_id`, so this is the AUTHORITATIVE check on the Workers
- *    deploy. Only supports fixed 10s/60s windows (Cloudflare's limit), so
- *    it only covers the scopes whose window is <= 60s.
+ *    deploy. Only supports a fixed 60s window (Cloudflare's cap), so scopes
+ *    whose business rule is a longer window (ai-chat, otp-verify,
+ *    otp-request) get a binding sized to match their full 5-minute limit
+ *    (not a fraction of it) — a durable, cross-isolate backstop against a
+ *    burst distributed across isolates/PoPs, without throttling a single
+ *    legitimate 60s burst below what the app already allows over 5 minutes.
  * 2. An in-process sliding window (the original implementation) — correct
  *    and sufficient on its own for the single-container Docker/Node deploy,
- *    and used as a best-effort supplement on Workers for the few >60s
- *    windows (ai-chat, otp-verify, otp-request) that the binding can't
- *    express directly. Those three routes also have their own DB-backed
- *    controls beneath this (OTP attempt-lock/resend-cooldown in
- *    lib/auth/service.ts; ai-chat's one-lead-per-conversation cap) — this
- *    layer is defense in depth for them, not the sole guard.
+ *    and still the one that enforces the FULL 5-minute rule for ai-chat/
+ *    otp-verify/otp-request on Workers, layered under the 60s binding above.
+ *    Those three routes also have their own DB-backed controls beneath all
+ *    of this (OTP attempt-lock/resend-cooldown in lib/auth/service.ts;
+ *    ai-chat's one-lead-per-conversation cap) — defense in depth, not the
+ *    sole guard.
  *
  * Why both layers instead of just the binding: the binding is intentionally
  * "eventually consistent, not an accurate accounting system" per Cloudflare's
@@ -27,10 +31,10 @@ import { getCloudflareContext } from '@opennextjs/cloudflare';
 const windows = new Map<string, number[]>();
 let lastSweep = Date.now();
 
-/** Maps a `rateLimit()` scope to its wrangler.jsonc binding name, for the
- *  scopes whose window fits Cloudflare's binding (<=60s). Scopes not listed
- *  here (ai-chat, otp-verify, otp-request — all >60s windows) rely solely
- *  on the in-process layer below. */
+/** Maps a `rateLimit()` scope to its wrangler.jsonc binding name. The
+ *  >60s-window scopes (ai-chat, otp-verify, otp-request) are included too —
+ *  their binding enforces a scaled-down 60s ceiling as a durable backstop,
+ *  while the in-process check below still enforces their full window. */
 const BINDING_BY_SCOPE: Record<string, string> = {
   track: 'RL_TRACK',
   contact: 'RL_CONTACT',
@@ -39,6 +43,9 @@ const BINDING_BY_SCOPE: Record<string, string> = {
   proforma: 'RL_PROFORMA',
   cooperation: 'RL_COOPERATION',
   search: 'RL_SEARCH',
+  'ai-chat': 'RL_AI_CHAT',
+  'otp-verify': 'RL_OTP_VERIFY',
+  'otp-request': 'RL_OTP_REQUEST',
 };
 
 /** `true`/`false` from the binding, or `null` when unavailable (not on

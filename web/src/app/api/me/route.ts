@@ -1,19 +1,20 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { ulid } from 'ulid';
-import { getSession, clearSessionCookies } from '@/lib/auth/session';
-import { userById, updateUser, revokeAllForUser } from '@/lib/auth/store';
+import { getSessionVerified, clearSessionCookies } from '@/lib/auth/session';
+import { updateUser, revokeAllForUser } from '@/lib/auth/store';
 import { publicUser } from '@/lib/auth/publicUser';
 import { requireApiUser, requireDb, withApiErrorHandling, audit } from '@/lib/server/utils/apiGuard';
 
 /** GET /api/me — the current user (from the access cookie), or 401 if anonymous. */
 async function GETImpl() {
-  const session = await getSession();
+  // getSessionVerified() already re-reads the repo (so name/role/club changes
+  // reflect without a new login) as part of its revocation check — no need
+  // for a second userById() call here.
+  const session = await getSessionVerified();
   if (!session) {
     return NextResponse.json({ error: 'unauthenticated', message: 'وارد نشده‌اید.' }, { status: 401 });
   }
-  // Re-read from the repo so name/role/club changes reflect without a new login.
-  const fresh = await userById(session.id);
-  return NextResponse.json({ user: publicUser(fresh ?? session) });
+  return NextResponse.json({ user: publicUser(session) });
 }
 
 /**

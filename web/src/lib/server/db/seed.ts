@@ -42,12 +42,21 @@ export async function seedDatabase(db: Db, opts: SeedOptions = {}): Promise<void
   const { force = false, historyDays = 90, log = () => {} } = opts;
 
   /* ---------- dev admin ---------- */
-  const adminMobile = process.env.DEV_ADMIN_MOBILE ?? '09120000000';
-  await db
-    .insert(schema.users)
-    .values({ id: 'u-admin', mobile: adminMobile, name: 'مدیر سیستم', role: 'admin' })
-    .onConflictDoNothing();
-  log(`dev admin ${adminMobile}`);
+  // The '09120000000' fallback is a publicly-known constant (it's in this
+  // repo's own .env.example/.dev.vars.example) — seeding a real admin row
+  // under it in production would hand out a discoverable admin identity.
+  // Only fall back to it outside production; in production, require an
+  // explicit DEV_ADMIN_MOBILE or skip seeding the admin account entirely.
+  const adminMobile = process.env.DEV_ADMIN_MOBILE ?? (process.env.NODE_ENV === 'production' ? null : '09120000000');
+  if (!adminMobile) {
+    log('skipped dev admin seed: DEV_ADMIN_MOBILE is not set in production');
+  } else {
+    await db
+      .insert(schema.users)
+      .values({ id: 'u-admin', mobile: adminMobile, name: 'مدیر سیستم', role: 'admin' })
+      .onConflictDoNothing();
+    log(`dev admin ${adminMobile}`);
+  }
 
   /* ---------- dev limited-scope staff (RBAC test fixture) ---------- */
   const contentStaffMobiles = ['09120000001', '09120000002', '09120000003', '09120000004'];

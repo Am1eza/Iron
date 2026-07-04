@@ -33,12 +33,20 @@
   },
   // Cross-isolate rate limiting (see lib/server/utils/rateLimit.ts) — one
   // binding per public-endpoint scope, since a single binding only enforces
-  // one fixed limit/period. Cloudflare's binding period is capped at 60s, so
-  // the three >60s-window scopes (ai-chat, otp-verify, otp-request) aren't
-  // listed here; they fall back to that file's in-process check, layered on
-  // top of their own DB-backed controls (OTP attempt-lock, ai-chat's
-  // one-lead-per-conversation cap). `namespace_id` values just need to be
-  // unique within this account — picked arbitrarily, not secrets.
+  // one fixed limit/period, and Cloudflare's binding period is capped at 60s.
+  // The three scopes whose *business* window is >60s (ai-chat, otp-verify,
+  // otp-request) still get a 60s-period binding here as a durable, cross-
+  // isolate backstop, sized to match their existing 5-minute in-process
+  // limit (not a fraction of it) — so a burst distributed across
+  // isolates/PoPs can't silently skip the cap the way a pure in-process Map
+  // could, WITHOUT throttling a single legitimate 60s burst below what the
+  // app already allows over 5 minutes (a real regression caught by e2e:
+  // `initOpenNextCloudflareForDev()` emulates these bindings for real in
+  // `next dev`, and a stricter-than-intended limit here 429'd normal rapid
+  // test/dev logins). The in-process check (and, for OTP, the per-mobile
+  // DB-backed attempt-lock/cooldown) still enforces the full 5-minute rule
+  // on top of this. `namespace_id` values just need to be unique within
+  // this account — picked arbitrarily, not secrets.
   "ratelimits": [
     { "name": "RL_TRACK", "namespace_id": "1001", "simple": { "limit": 30, "period": 60 } },
     { "name": "RL_CONTACT", "namespace_id": "1002", "simple": { "limit": 5, "period": 60 } },
@@ -46,7 +54,10 @@
     { "name": "RL_TOOLS", "namespace_id": "1004", "simple": { "limit": 60, "period": 60 } },
     { "name": "RL_PROFORMA", "namespace_id": "1005", "simple": { "limit": 20, "period": 60 } },
     { "name": "RL_COOPERATION", "namespace_id": "1006", "simple": { "limit": 5, "period": 60 } },
-    { "name": "RL_SEARCH", "namespace_id": "1007", "simple": { "limit": 30, "period": 60 } }
+    { "name": "RL_SEARCH", "namespace_id": "1007", "simple": { "limit": 30, "period": 60 } },
+    { "name": "RL_AI_CHAT", "namespace_id": "1008", "simple": { "limit": 10, "period": 60 } },
+    { "name": "RL_OTP_VERIFY", "namespace_id": "1009", "simple": { "limit": 20, "period": 60 } },
+    { "name": "RL_OTP_REQUEST", "namespace_id": "1010", "simple": { "limit": 8, "period": 60 } }
   ],
   // Background jobs (see src/lib/server/jobs/) have no long-lived process on
   // Workers to run their old `setInterval` scheduler (that only exists in

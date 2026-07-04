@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { validateBody } from '@/lib/validation/request';
 import { profileUpdatePayload } from '@/lib/validation/api';
-import { getSession } from '@/lib/auth/session';
+import { getSessionVerified } from '@/lib/auth/session';
 import { updateUser } from '@/lib/auth/store';
 import { publicUser } from '@/lib/auth/publicUser';
 import { assertSameOrigin } from '@/lib/auth/origin';
@@ -12,7 +12,7 @@ async function PUTImpl(req: NextRequest) {
   const origin = assertSameOrigin(req);
   if (origin) return origin;
 
-  const session = await getSession();
+  const session = await getSessionVerified();
   if (!session) {
     return NextResponse.json({ error: 'unauthenticated', message: 'وارد نشده‌اید.' }, { status: 401 });
   }
