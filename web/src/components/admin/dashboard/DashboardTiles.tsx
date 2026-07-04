@@ -20,22 +20,41 @@ export function DashboardTiles() {
 
   const s = data.stats;
   const tiles = [
-    { label: 'قیمت‌های به‌روز', value: s.freshPrices, href: routes.admin.pricing(), tone: 'good' as const },
-    { label: 'قیمت‌های کهنه', value: s.stalePrices, href: routes.admin.pricing(), tone: s.stalePrices > 0 ? ('bad' as const) : undefined },
-    { label: 'سرنخ‌های جدید', value: s.newLeads, href: routes.admin.leads(), tone: s.newLeads > 0 ? ('good' as const) : undefined },
-    { label: 'درخواست‌های باز', value: s.openRequests, href: routes.admin.leads() },
-    { label: 'سفارش‌های در جریان', value: s.activeOrders, href: routes.admin.orders() },
-    { label: 'پیام‌های جدید', value: s.newMessages, href: routes.admin.leads() },
-    { label: 'کاربران', value: s.totalUsers, href: routes.admin.users(), hint: `${toPersianDigits(s.newUsers24h)} کاربر تازه در ۲۴ ساعت` },
-    { label: 'پیش‌نویس محتوا', value: s.draftArticles, href: routes.admin.content() },
-    {
+    s.freshPrices !== undefined && { label: 'قیمت‌های به‌روز', value: s.freshPrices, href: routes.admin.pricing(), tone: 'good' as const },
+    s.stalePrices !== undefined && {
+      label: 'قیمت‌های کهنه',
+      value: s.stalePrices,
+      href: routes.admin.pricing(),
+      tone: s.stalePrices > 0 ? ('bad' as const) : undefined,
+    },
+    s.newLeads !== undefined && {
+      label: 'سرنخ‌های جدید',
+      value: s.newLeads,
+      href: routes.admin.leads(),
+      tone: s.newLeads > 0 ? ('good' as const) : undefined,
+    },
+    s.openRequests !== undefined && { label: 'درخواست‌های باز', value: s.openRequests, href: routes.admin.leads() },
+    s.activeOrders !== undefined && { label: 'سفارش‌های در جریان', value: s.activeOrders, href: routes.admin.orders() },
+    s.newMessages !== undefined && { label: 'پیام‌های جدید', value: s.newMessages, href: routes.admin.leads() },
+    s.totalUsers !== undefined && {
+      label: 'کاربران',
+      value: s.totalUsers,
+      href: routes.admin.users(),
+      hint: `${toPersianDigits(s.newUsers24h ?? 0)} کاربر تازه در ۲۴ ساعت`,
+    },
+    s.draftArticles !== undefined && { label: 'پیش‌نویس محتوا', value: s.draftArticles, href: routes.admin.content() },
+    s.aiToday !== undefined && {
       label: 'هوش مصنوعی امروز',
       value: s.aiToday.promptTokens + s.aiToday.completionTokens,
       href: routes.admin.leads(),
       tone: s.aiToday.violations > 0 ? ('bad' as const) : undefined,
       hint: `${toPersianDigits(s.aiToday.violations)} تخطی عددی · کش ${toPersianDigits(Math.round(s.aiToday.cacheHitRate * 100))}٪`,
     },
-  ];
+  ].filter((t): t is Exclude<typeof t, false> => t !== false);
+
+  if (tiles.length === 0) {
+    return <p className={ui.muted}>آماری برای نمایش به شما اختصاص نیافته است.</p>;
+  }
 
   return (
     <div className={ui.tiles}>

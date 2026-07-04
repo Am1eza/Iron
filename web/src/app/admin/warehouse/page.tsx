@@ -1,8 +1,11 @@
 import { Heading, Text, Stack } from '@/components/ui';
 import { WarehouseManager } from '@/components/admin/warehouse/WarehouseManager';
+import { requirePermission } from '@/lib/auth/guards';
+import { routes } from '@/lib/routes';
 
 /** /admin/warehouse — the consignment stock (انبار مشتریان). */
-export default function AdminWarehousePage() {
+export default async function AdminWarehousePage() {
+  await requirePermission('leads:read', routes.admin.dashboard());
   return (
     <Stack gap={5}>
       <div>
