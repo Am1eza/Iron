@@ -113,7 +113,25 @@ export function getDb(): Db {
     const pool = new Pool({ connectionString: url, max: 5, connectionTimeoutMillis: 5000 });
     const db = drizzle(pool, { schema });
     workersRequestDb.set(ctxKey, { pool, db });
-    after(() => pool.end().catch(() => {}));
+    after(() => {
+      // MUST delete before/with ending the pool, not just end it: real
+      // Workers gives each request its own fresh `ExecutionContext`, so this
+      // cache would naturally never be looked up again after `after()` runs
+      // — but `next dev` (used by `next dev`/e2e via
+      // `initOpenNextCloudflareForDev()`) hands back the SAME static
+      // context object for every request in the whole dev-server process.
+      // Without this delete, the very next `getDb()` call — same ctxKey —
+      // finds this now-ended pool still cached and reuses it, throwing
+      // "Cannot use a pool after calling end on the pool" for every request
+      // for the rest of the process (reproduced: this broke every e2e test
+      // hitting a DB route after the first one, deterministically, not
+      // flaky). Deleting first means a same-ctxKey call gets a fresh pool
+      // instead, which is correct in both dev (works around the shared
+      // static context) and real Workers (harmless — the entry would never
+      // be looked up again anyway).
+      workersRequestDb.delete(ctxKey);
+      pool.end().catch(() => {});
+    });
     return db;
   }
 

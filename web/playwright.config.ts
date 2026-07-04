@@ -14,16 +14,18 @@ const BASE_URL = `http://127.0.0.1:${APP_PORT}`;
 
 export default defineConfig({
   testDir: './e2e',
-  timeout: 30_000,
-  expect: { timeout: 8_000 },
+  // A route Playwright hasn't hit yet in this run costs `next dev`'s
+  // on-demand compile the first time (measured directly: ~4.5s for
+  // /prices/rebar cold vs ~0.2s once compiled) — that plus the real Postgres
+  // round-trip can outrun a tight assertion timeout on the very first visit.
+  // A prebuilt/production server wouldn't have this tax; bumped both
+  // budgets rather than the previous 30s/8s, which were tuned for an
+  // already-warm dev server.
+  timeout: 45_000,
+  expect: { timeout: 15_000 },
   fullyParallel: false,
   workers: 1,
-  // Retry in CI only: a couple of these specs (auth OTP login, catalog live
-  // price table) are known-flaky under CI's slower/shared CPU — reproduced
-  // failing intermittently even on a clean `main` checkout, unrelated to any
-  // one PR's changes. Local runs stay retry-free so a real regression fails
-  // immediately instead of being masked.
-  retries: process.env.CI ? 2 : 0,
+  retries: process.env.CI ? 1 : 0,
   reporter: 'list',
   use: {
     baseURL: BASE_URL,
