@@ -4,6 +4,14 @@ const isExport = process.env.EXPORT === '1';
 // Off by default, so the Cloudflare (OpenNext) and normal builds are unaffected.
 const isStandalone = process.env.BUILD_STANDALONE === '1';
 const basePath = process.env.PAGES_BASE_PATH || '';
+// `next dev` needs 'unsafe-eval' in its CSP — React/Next use eval() in
+// development for HMR and richer error stacks. It is NOT needed (and not
+// granted) in production builds. See the CSP header below and
+// https://nextjs.org/docs/app/guides/content-security-policy
+const isDev = process.env.NODE_ENV !== 'production';
+const scriptSrc = isDev
+  ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+  : "script-src 'self' 'unsafe-inline'";
 
 const nextConfig = {
   reactStrictMode: true,
@@ -89,32 +97,45 @@ const nextConfig = {
                   value: 'max-age=31536000; includeSubDomains',
                 },
                 // Content-Security-Policy — deliberately nonce-free so pages
-                // keep static rendering/ISR (a nonce-based CSP forces every
-                // route to render dynamically per request — see
-                // https://nextjs.org/docs/app/guides/content-security-policy
-                // — which would undo this app's ISR strategy). That's only
-                // possible because the app has exactly one inline-script
-                // need (ThemeScript's FOUC guard), now served as an external
-                // same-origin file (`/theme-init.js`) instead of inline, so
-                // `script-src 'self'` alone covers it. The per-page JSON-LD
-                // `<script type="application/ld+json">` blocks need no
-                // allowance at all: CSP's script-src only gates elements
-                // whose type is a JavaScript MIME type, and `application/
-                // ld+json` isn't one — browsers treat it as inert data, not
-                // a script to execute or block (confirmed against MDN's
-                // CSP docs and Google's strict-CSP guide; there is no
-                // per-block nonce/hash mechanism for this that wouldn't
-                // itself force dynamic rendering). style-src keeps
-                // 'unsafe-inline' because React's `style={{...}}` prop
-                // compiles to inline `style="…"` attributes throughout the
-                // app (used in ~40 files) — a much lower-severity CSP
-                // relaxation than script-src, since it can't execute
-                // arbitrary JS on its own.
+                // keep static rendering/ISR. A nonce-based CSP forces every
+                // route to render dynamically per request (Next.js applies
+                // the nonce during SSR, so it can't be baked into a static
+                // page — see
+                // https://nextjs.org/docs/app/guides/content-security-policy),
+                // which would undo this app's ISR strategy across ~250
+                // prerendered SKU/blog/tool pages.
+                //
+                // `script-src` therefore keeps 'unsafe-inline': the Next.js
+                // App Router streams its RSC payload and hydration bootstrap
+                // as INLINE `<script>self.__next_f.push(...)</script>` tags
+                // (~60+ per page, content varying per request), so a strict
+                // `script-src 'self'` blocks them all — the browser refuses
+                // every inline script, hydration never completes, and the
+                // whole app renders a dead, non-interactive loading shell.
+                // (Verified directly: reproduced the blocked-hydration
+                // failure and the "Refused to execute inline script" console
+                // errors, then confirmed 'unsafe-inline' fixes it.) Those
+                // inline scripts can't be nonce-free-hashed either — their
+                // content is per-request streamed data, so no static hash
+                // exists. This matches Next's own "Without Nonces" guidance.
+                // Net: still a real improvement over the previous no-CSP
+                // baseline (locks script/style/img/font/connect origins to
+                // 'self', object-src none, frame-ancestors none, base-uri /
+                // form-action self); the residual gap is inline-injection
+                // XSS, which React's default output escaping already
+                // mitigates since the app renders no user-authored HTML.
+                //
+                // The per-page JSON-LD `<script type="application/ld+json">`
+                // blocks are unaffected regardless: CSP's script-src only
+                // gates JavaScript-MIME-type scripts, and application/ld+json
+                // is inert data. style-src keeps 'unsafe-inline' for React's
+                // `style={{...}}` prop (compiled to inline style attributes
+                // across ~40 files).
                 {
                   key: 'Content-Security-Policy',
                   value: [
                     "default-src 'self'",
-                    "script-src 'self'",
+                    scriptSrc,
                     "style-src 'self' 'unsafe-inline'",
                     "img-src 'self' data:",
                     "font-src 'self'",

@@ -59,16 +59,14 @@ jobs:
         run: pnpm audit --audit-level=high || true
 
   e2e:
-    # Informational, not a merge gate: 2 of the 8 specs (auth OTP login,
-    # catalog live price table) hang intermittently against the pglite-over-
-    # TCP dev DB this suite spins up (scripts/e2e-db.ts) under CI's shared
-    # CPU — root-caused one real bug this way already (a stale-pool-reuse
-    # crash in db/client.ts, fixed), but a residual timing issue remains
-    # that's specific to this local-dev-server harness, not production
-    # (Workers gives every request a fresh context; Docker never takes this
-    # code path at all). Tracked as a follow-up rather than blocking every
-    # PR on an e2e-harness quirk. Remove `continue-on-error` once resolved.
-    continue-on-error: true
+    # A real merge gate. It caught a genuine, production-breaking bug on this
+    # very PR: the sitewide Content-Security-Policy (added here) used
+    # `script-src 'self'`, which blocks the Next.js App Router's inline
+    # hydration/RSC-streaming scripts — every page rendered a dead,
+    # non-interactive loading shell. The e2e run surfaced it (the table never
+    # hydrated); the fix was to allow `'unsafe-inline'` for scripts (plus
+    # `'unsafe-eval'` in dev only). Exactly the class of regression unit
+    # tests can't see, which is why this job blocks.
     runs-on: ubuntu-latest
     defaults:
       run:
