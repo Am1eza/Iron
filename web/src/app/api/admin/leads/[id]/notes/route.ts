@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
-import { requireApiPermission, requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
+import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { addLeadNote, findLead } from '@/lib/server/repos/leadsRepo';
 
 const payload = z.object({ text: z.string().trim().min(1).max(2000) });
@@ -19,6 +19,7 @@ async function POSTImpl(req: NextRequest, ctx: { params: Promise<{ id: string }>
   const v = await validateBody(req, payload);
   if (!v.ok) return v.response;
   const note = await addLeadNote(id, auth.session.id, v.data.text);
+  await audit(auth.session.id, 'lead.note', { type: 'lead', id }, null, { text: v.data.text });
   return NextResponse.json({ note }, { status: 201 });
 }
 

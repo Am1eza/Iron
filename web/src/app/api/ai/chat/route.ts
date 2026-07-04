@@ -76,7 +76,7 @@ async function POSTImpl(req: NextRequest) {
   // stage — the grounded tools never leak another user's data regardless of
   // session). Rate-limit instead of gating on auth: each request drives real
   // DeepSeek API cost across up to MAX_TOOL_ROUNDS.
-  const limited = rateLimit(req, 'ai-chat', { limit: 10, windowMs: 5 * 60_000 });
+  const limited = await rateLimit(req, 'ai-chat', { limit: 10, windowMs: 5 * 60_000 });
   if (limited) return limited;
 
   const body: unknown = await req.json().catch(() => null);

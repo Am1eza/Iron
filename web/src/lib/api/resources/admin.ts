@@ -5,17 +5,20 @@
 import { http } from '../http';
 import type { PriceRow, LineItem, Order, WarehouseItem, Article, MarketValue } from '@/lib/types/domain';
 
+/** Every field is scoped to the caller's permissions server-side — a field is
+ * simply absent if the current role can't see that domain (e.g. a content
+ * editor never receives `stalePrices` or `totalUsers`). */
 export interface AdminStats {
-  stalePrices: number;
-  freshPrices: number;
-  newLeads: number;
-  openRequests: number;
-  activeOrders: number;
-  newMessages: number;
-  totalUsers: number;
-  newUsers24h: number;
-  draftArticles: number;
-  aiToday: { promptTokens: number; completionTokens: number; cacheHitRate: number; violations: number };
+  stalePrices?: number;
+  freshPrices?: number;
+  newLeads?: number;
+  openRequests?: number;
+  activeOrders?: number;
+  newMessages?: number;
+  totalUsers?: number;
+  newUsers24h?: number;
+  draftArticles?: number;
+  aiToday?: { promptTokens: number; completionTokens: number; cacheHitRate: number; violations: number };
 }
 
 export interface AdminLead {

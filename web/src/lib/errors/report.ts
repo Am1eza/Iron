@@ -1,7 +1,10 @@
 /**
- * Centralized error reporting. Server: structured log (→ monitoring later).
+ * Centralized error reporting. Server: structured log + Sentry (once
+ * SENTRY_DSN is set — see lib/errors/sentry.ts, a no-op until then).
  * Client: console now, sendBeacon('/api/log') later. NEVER expose to the user; redact PII.
  */
+import { sendToSentry } from './sentry';
+
 const PII_KEYS = /mobile|phone|code|otp|name|address/i;
 
 function redact(context?: Record<string, unknown>): Record<string, unknown> | undefined {
@@ -31,7 +34,6 @@ export function reportError(error: unknown, context?: Record<string, unknown>): 
   // structured in the first place.
   // eslint-disable-next-line no-console
   console.error(JSON.stringify(payload));
-  // TODO: proactive alerting sink (Sentry via instrumentation.onRequestError,
-  // or a webhook) — logs are structured and captured today; nothing pages
-  // anyone yet. client → navigator.sendBeacon('/api/log', JSON.stringify(payload)).
+  sendToSentry(error, payload.context);
+  // TODO: client-side alerting — navigator.sendBeacon('/api/log', JSON.stringify(payload)).
 }

@@ -80,7 +80,7 @@ export async function sendSms(mobile: string, text: string, kind: SmsKind = 'gen
       { retries: 1, baseDelayMs: 200, isRetryable: (err) => err instanceof SmsHttpError && err.status >= 500 },
     );
     // sms.ir returns { status, message, data } — status 1 means accepted.
-    const body: { status?: number } | null = await res.json().catch(() => null);
+    const body = (await res.json().catch(() => null)) as { status?: number } | null;
     const ok = !body || typeof body.status !== 'number' || body.status === 1;
     await log(mobile, kind, { text }, ok ? 'sent' : 'failed');
     if (!ok) reportError(new Error(`sms.ir status ${body!.status}`), { scope: 'sms', kind });

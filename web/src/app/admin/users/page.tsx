@@ -1,8 +1,11 @@
 import { Heading, Text, Stack } from '@/components/ui';
 import { UsersTable } from '@/components/admin/users/UsersTable';
+import { requirePermission } from '@/lib/auth/guards';
+import { routes } from '@/lib/routes';
 
 /** /admin/users — roles (RBAC) + club tiers. */
-export default function AdminUsersPage() {
+export default async function AdminUsersPage() {
+  await requirePermission('users:manage', routes.admin.dashboard());
   return (
     <Stack gap={5}>
       <div>

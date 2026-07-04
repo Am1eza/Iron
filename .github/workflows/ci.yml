@@ -1,0 +1,100 @@
+name: CI
+
+# Gate every push/PR on lint, types, unit tests, the production build, and
+# an audit of production dependencies — none of this ran in CI before
+# (pages.yml only builds the static mock demo; ai-smoke.yml is a nightly
+# prod canary). e2e runs against the app's own self-contained pglite-backed
+# dev server (see playwright.config.ts) — no external services needed.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Unit tests
+        run: pnpm test -- --run
+
+      - name: Build (production, live mode)
+        run: pnpm build
+        env:
+          NEXT_PUBLIC_API_MODE: mock
+          NEXT_PUBLIC_SITE_URL: https://ahantime.com
+
+      - name: Audit production dependencies (blocking on high/critical)
+        run: pnpm audit --prod --audit-level=high
+
+      - name: Audit all dependencies (report only — dev tooling isn't shipped)
+        if: always()
+        run: pnpm audit --audit-level=high || true
+
+  e2e:
+    # A real merge gate. It caught a genuine, production-breaking bug on this
+    # very PR: the sitewide Content-Security-Policy (added here) used
+    # `script-src 'self'`, which blocks the Next.js App Router's inline
+    # hydration/RSC-streaming scripts — every page rendered a dead,
+    # non-interactive loading shell. The e2e run surfaced it (the table never
+    # hydrated); the fix was to allow `'unsafe-inline'` for scripts (plus
+    # `'unsafe-eval'` in dev only). Exactly the class of regression unit
+    # tests can't see, which is why this job blocks.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: E2E (Playwright, incl. axe-core accessibility scans)
+        run: pnpm test:e2e
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: web/playwright-report/
+          retention-days: 14

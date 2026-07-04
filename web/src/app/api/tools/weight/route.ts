@@ -66,7 +66,7 @@ function unitWeightKg(d: z.infer<typeof payload>): number {
 /** POST /api/tools/weight — وزن‌سنج: theoretical or per-shape formulas.
  *  Also backs the AI's calcWeight tool (single source of truth). */
 async function POSTImpl(req: NextRequest) {
-  const limited = rateLimit(req, 'tools', { limit: 60, windowMs: 60_000 });
+  const limited = await rateLimit(req, 'tools', { limit: 60, windowMs: 60_000 });
   if (limited) return limited;
   const v = await validateBody(req, payload);
   if (!v.ok) return v.response;
