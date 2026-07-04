@@ -20,7 +20,7 @@ async function POSTImpl(req: NextRequest) {
   const origin = assertSameOrigin(req);
   if (origin) return origin;
 
-  const limited = rateLimit(req, 'otp-verify', { limit: 20, windowMs: 5 * 60_000 });
+  const limited = await rateLimit(req, 'otp-verify', { limit: 20, windowMs: 5 * 60_000 });
   if (limited) return limited;
 
   const v = await validateBody(req, otpVerifyPayload);

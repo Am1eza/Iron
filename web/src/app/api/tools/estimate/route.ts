@@ -28,7 +28,7 @@ const payload = z.union([
 /** POST /api/tools/estimate — grounded totals (items) or a project estimate
  *  (area×floors → rebar tonnage + cost band). Backs the AI estimateProject tool. */
 async function POSTImpl(req: NextRequest) {
-  const limited = rateLimit(req, 'tools', { limit: 60, windowMs: 60_000 });
+  const limited = await rateLimit(req, 'tools', { limit: 60, windowMs: 60_000 });
   if (limited) return limited;
   const guard = requireDb();
   if (guard) return guard;

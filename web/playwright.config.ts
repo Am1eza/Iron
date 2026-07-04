@@ -14,11 +14,22 @@ const BASE_URL = `http://127.0.0.1:${APP_PORT}`;
 
 export default defineConfig({
   testDir: './e2e',
-  timeout: 30_000,
-  expect: { timeout: 8_000 },
+  // A route Playwright hasn't hit yet in this run costs `next dev`'s
+  // on-demand compile the first time (measured directly: ~4.5s for
+  // /prices/rebar cold vs ~0.2s once compiled) — that plus the real Postgres
+  // round-trip can outrun a tight assertion timeout on the very first visit.
+  // A prebuilt/production server wouldn't have this tax; bumped both
+  // budgets rather than the previous 30s/8s, which were tuned for an
+  // already-warm dev server.
+  timeout: 45_000,
+  expect: { timeout: 15_000 },
   fullyParallel: false,
   workers: 1,
-  retries: 0,
+  // One retry in CI only — standard cushion for an e2e suite driving a
+  // dev server on shared CI CPU (cold compiles, GC pauses). NOT masking a
+  // known failure: the earlier "flakiness" was a real CSP hydration bug,
+  // now fixed; these specs pass deterministically.
+  retries: process.env.CI ? 1 : 0,
   reporter: 'list',
   use: {
     baseURL: BASE_URL,
@@ -31,6 +42,13 @@ export default defineConfig({
       port: DB_PORT,
       timeout: 60_000,
       reuseExistingServer: false,
+      // Surface the DB + dev-server logs in the Playwright output (and thus
+      // in CI job logs). Off by default in Playwright, which is why an
+      // earlier CI failure showed only client-side timeouts with no trace of
+      // the server-side "Cannot use a pool"/"Failed query" errors that were
+      // the real cause — making a DB race invisible in CI.
+      stdout: 'pipe',
+      stderr: 'pipe',
       env: { E2E_DB_PORT: String(DB_PORT) },
     },
     {
@@ -38,6 +56,8 @@ export default defineConfig({
       url: `${BASE_URL}/api/health`,
       timeout: 60_000,
       reuseExistingServer: false,
+      stdout: 'pipe',
+      stderr: 'pipe',
       // Explicit, deterministic env for the spawned dev server — does not
       // rely on (and overrides) anything in a developer's local .env.local.
       // SMSIR_*/AI_ENABLED deliberately unset: NODE_ENV stays 'development'

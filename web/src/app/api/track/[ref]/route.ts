@@ -6,7 +6,7 @@ import { rateLimit } from '@/lib/server/utils/rateLimit';
 /** GET /api/track/{ref} — public order lookup (the ref is the capability). */
 async function GETImpl(req: NextRequest, ctx: { params: Promise<{ ref: string }> }) {
   // Refs act as capabilities — throttle guessing.
-  const limited = rateLimit(req, 'track', { limit: 30 });
+  const limited = await rateLimit(req, 'track', { limit: 30 });
   if (limited) return limited;
   const guard = requireDb();
   if (guard) return guard;

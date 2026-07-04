@@ -87,8 +87,8 @@ export function PriceTable({
     if (API_MODE !== 'live' || !isAuthenticated) return;
     let cancelled = false;
     fetch('/api/me/favorites')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data: { favorites?: { id: string }[] } | null) => {
+      .then((r) => (r.ok ? (r.json() as Promise<{ favorites?: { id: string }[] }>) : null))
+      .then((data) => {
         if (!cancelled && data?.favorites) setFav(new Set(data.favorites.map((f) => f.id)));
       })
       .catch(() => {});

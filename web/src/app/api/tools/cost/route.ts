@@ -17,7 +17,7 @@ const payload = z.object({
 /** POST /api/tools/cost — landed-cost breakdown (freight/handling/insurance/
  *  scale/VAT) using the admin-configurable logistics settings. */
 async function POSTImpl(req: NextRequest) {
-  const limited = rateLimit(req, 'tools', { limit: 60, windowMs: 60_000 });
+  const limited = await rateLimit(req, 'tools', { limit: 60, windowMs: 60_000 });
   if (limited) return limited;
   const guard = requireDb();
   if (guard) return guard;

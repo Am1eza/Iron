@@ -15,7 +15,7 @@ const TRACK_TYPE = { analysis: 'market-analysis', supply: 'supply', sell: 'sell'
 async function POSTImpl(req: NextRequest) {
   const origin = assertSameOrigin(req);
   if (origin) return origin;
-  const limited = rateLimit(req, 'cooperation', { limit: 5 });
+  const limited = await rateLimit(req, 'cooperation', { limit: 5 });
   if (limited) return limited;
   const guard = requireDb();
   if (guard) return guard;

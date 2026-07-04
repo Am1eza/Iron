@@ -13,7 +13,7 @@ import { rateLimit } from '@/lib/server/utils/rateLimit';
 async function POSTImpl(req: NextRequest) {
   const origin = assertSameOrigin(req);
   if (origin) return origin;
-  const limited = rateLimit(req, 'contact', { limit: 5 });
+  const limited = await rateLimit(req, 'contact', { limit: 5 });
   if (limited) return limited;
   const guard = requireDb();
   if (guard) return guard;
