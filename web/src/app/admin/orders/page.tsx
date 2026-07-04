@@ -1,8 +1,11 @@
 import { Heading, Text, Stack } from '@/components/ui';
 import { OrdersManager } from '@/components/admin/orders/OrdersManager';
+import { requirePermission } from '@/lib/auth/guards';
+import { routes } from '@/lib/routes';
 
 /** /admin/orders — shipment tracking management. */
-export default function AdminOrdersPage() {
+export default async function AdminOrdersPage() {
+  await requirePermission('leads:read', routes.admin.dashboard());
   return (
     <Stack gap={5}>
       <div>

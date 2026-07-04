@@ -1,8 +1,11 @@
 import { Heading, Text, Stack } from '@/components/ui';
 import { AuditLog } from '@/components/admin/audit/AuditLog';
+import { requirePermission } from '@/lib/auth/guards';
+import { routes } from '@/lib/routes';
 
 /** /admin/audit — the append-only change log. */
-export default function AdminAuditPage() {
+export default async function AdminAuditPage() {
+  await requirePermission('audit:read', routes.admin.dashboard());
   return (
     <Stack gap={5}>
       <div>

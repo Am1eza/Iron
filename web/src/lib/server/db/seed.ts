@@ -49,6 +49,16 @@ export async function seedDatabase(db: Db, opts: SeedOptions = {}): Promise<void
     .onConflictDoNothing();
   log(`dev admin ${adminMobile}`);
 
+  /* ---------- dev limited-scope staff (RBAC test fixture) ---------- */
+  const contentStaffMobiles = ['09120000001', '09120000002', '09120000003', '09120000004'];
+  for (const [i, mobile] of contentStaffMobiles.entries()) {
+    await db
+      .insert(schema.users)
+      .values({ id: `u-content-staff-${i + 1}`, mobile, name: 'سردبیر محتوا', role: 'content' })
+      .onConflictDoNothing();
+  }
+  log(`dev content-role staff ${contentStaffMobiles.join(', ')}`);
+
   /* ---------- categories & sub-categories ---------- */
   const subIdBySlug = new Map<string, string>(); // `${catSlug}/${subSlug}` -> id
   for (const c of categoryFixtures) {
