@@ -241,23 +241,60 @@ function LogisticsCard({ cfg, onSave, busy }: { cfg: Logistics; onSave: (v: Logi
     });
   }, [cfg]);
 
+  const [errors, setErrors] = useState<{
+    rate?: string;
+    minTrip?: string;
+    handling?: string;
+    insurance?: string;
+    scale?: string;
+    cities?: string;
+  }>({});
+
+  const NON_NEGATIVE_MSG = 'عدد معتبر و نامنفی وارد کنید.';
+
   const submit = () => {
-    const cities = normalizeDigits(v.cities)
+    const nextErrors: typeof errors = {};
+
+    const rate = num(v.rate);
+    if (!Number.isFinite(rate) || rate < 0) nextErrors.rate = NON_NEGATIVE_MSG;
+    const minTrip = num(v.minTrip);
+    if (!Number.isFinite(minTrip) || minTrip < 0) nextErrors.minTrip = NON_NEGATIVE_MSG;
+    const handling = num(v.handling);
+    if (!Number.isFinite(handling) || handling < 0) nextErrors.handling = NON_NEGATIVE_MSG;
+    const insurance = num(v.insurance);
+    if (!Number.isFinite(insurance) || insurance < 0) nextErrors.insurance = NON_NEGATIVE_MSG;
+    const scale = num(v.scale);
+    if (!Number.isFinite(scale) || scale < 0) nextErrors.scale = NON_NEGATIVE_MSG;
+
+    const cityLines = normalizeDigits(v.cities)
       .split('\n')
       .map((l) => l.trim())
-      .filter(Boolean)
-      .map((l) => {
-        const [name, km] = l.split(/[,،]/).map((p) => p.trim());
-        return { name: name ?? '', km: Number(km) || 0 };
-      })
-      .filter((c) => c.name && c.km > 0);
+      .filter(Boolean);
+    const cities: { name: string; km: number }[] = [];
+    let hasInvalidCity = false;
+    for (const l of cityLines) {
+      const [name, km] = l.split(/[,،]/).map((p) => p.trim());
+      const kmNum = Number(km);
+      if (!name || !Number.isFinite(kmNum) || kmNum <= 0) {
+        hasInvalidCity = true;
+        continue;
+      }
+      cities.push({ name, km: kmNum });
+    }
+    if (hasInvalidCity) {
+      nextErrors.cities = 'برخی خطوط نامعتبرند — فرمت درست: نام,کیلومتر (مثلاً تهران,120).';
+    }
+
+    setErrors(nextErrors);
+    if (Object.values(nextErrors).some(Boolean)) return;
+
     onSave({
       originLabel: v.originLabel.trim(),
-      freightRatePerTonKm: num(v.rate),
-      freightMinTrip: num(v.minTrip),
-      handlingPerTon: num(v.handling),
-      insuranceRate: num(v.insurance) / 100,
-      scaleFee: num(v.scale),
+      freightRatePerTonKm: rate,
+      freightMinTrip: minTrip,
+      handlingPerTon: handling,
+      insuranceRate: insurance / 100,
+      scaleFee: scale,
       cities,
     });
   };
@@ -267,16 +304,17 @@ function LogisticsCard({ cfg, onSave, busy }: { cfg: Logistics; onSave: (v: Logi
       <Heading level={2}>لجستیک و هزینهٔ حمل</Heading>
       <div className={ui.grid2} style={{ marginBlockStart: 'var(--space-3)' }}>
         <TextInput label="مبدأ بارگیری" value={v.originLabel} onChange={(e) => setV({ ...v, originLabel: e.target.value })} />
-        <TextInput label="نرخ حمل (تومان/تن‌کیلومتر)" inputMode="numeric" value={v.rate} onChange={(e) => setV({ ...v, rate: e.target.value })} />
-        <TextInput label="حداقل کرایهٔ سرویس (تومان)" inputMode="numeric" value={v.minTrip} onChange={(e) => setV({ ...v, minTrip: e.target.value })} />
-        <TextInput label="بارگیری/تخلیه (تومان/تن)" inputMode="numeric" value={v.handling} onChange={(e) => setV({ ...v, handling: e.target.value })} />
-        <TextInput label="بیمه (٪ ارزش کالا)" inputMode="decimal" value={v.insurance} onChange={(e) => setV({ ...v, insurance: e.target.value })} />
-        <TextInput label="باسکول (تومان)" inputMode="numeric" value={v.scale} onChange={(e) => setV({ ...v, scale: e.target.value })} />
+        <TextInput label="نرخ حمل (تومان/تن‌کیلومتر)" inputMode="numeric" value={v.rate} error={errors.rate} onChange={(e) => setV({ ...v, rate: e.target.value })} />
+        <TextInput label="حداقل کرایهٔ سرویس (تومان)" inputMode="numeric" value={v.minTrip} error={errors.minTrip} onChange={(e) => setV({ ...v, minTrip: e.target.value })} />
+        <TextInput label="بارگیری/تخلیه (تومان/تن)" inputMode="numeric" value={v.handling} error={errors.handling} onChange={(e) => setV({ ...v, handling: e.target.value })} />
+        <TextInput label="بیمه (٪ ارزش کالا)" inputMode="decimal" value={v.insurance} error={errors.insurance} onChange={(e) => setV({ ...v, insurance: e.target.value })} />
+        <TextInput label="باسکول (تومان)" inputMode="numeric" value={v.scale} error={errors.scale} onChange={(e) => setV({ ...v, scale: e.target.value })} />
       </div>
       <Textarea
         label="شهرها (هر خط: نام,کیلومتر)"
         rows={6}
         value={v.cities}
+        error={errors.cities}
         onChange={(e) => setV({ ...v, cities: e.target.value })}
       />
       <Button size="sm" style={{ marginBlockStart: 'var(--space-2)' }} loading={busy} onClick={submit}>
