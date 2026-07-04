@@ -7,6 +7,7 @@ import { ulid } from 'ulid';
 import { getDb } from '@/lib/server/db/client';
 import { articles } from '@/lib/server/db/schema';
 import type { Article } from '@/lib/types/domain';
+import { normalizeDigits, toPersianDigits } from '@/lib/utils/format';
 
 type Row = typeof articles.$inferSelect;
 
@@ -70,6 +71,52 @@ export async function searchArticles(q: string, limit = 10): Promise<Article[]> 
     .orderBy(desc(articles.publishAt))
     .limit(limit);
   return rows.map(toArticleDto);
+}
+
+/**
+ * AI advisor's guide search (searchGuides tool) — same ilike/pg_trgm approach
+ * as catalogRepo.searchSkus, but over PUBLISHED articles only and including
+ * the body (a knowledge question's keywords often live in the prose, not the
+ * title). Tokens are matched with OR in SQL (each token against title/excerpt
+ * /body in Persian AND Latin digit spellings) and the MAJORITY-match filter
+ * runs in JS: «فرق A2 و A3» must find the grade guide via A2+A3 even though
+ * «فرق» appears nowhere, while a query whose tokens mostly match nothing
+ * returns [] so the model can honestly say no guide exists — a token-AND gate
+ * (searchSkus' shape) had exactly that false-negative on the canonical
+ * question. pg_trgm similarity on the title stays the SQL-side ranking.
+ */
+export async function searchPublishedGuides(q: string, limit = 3): Promise<ArticleFull[]> {
+  const trimmed = q.trim();
+  // Single-char tokens are stop-words in this domain («و», «یا») — drop them.
+  const tokens = [...new Set(trimmed.split(/\s+/).filter((t) => t.length >= 2))];
+  if (tokens.length === 0) return [];
+  const variantsOf = (token: string) => [...new Set([token, normalizeDigits(token), toPersianDigits(token)])];
+  const anyToken = or(
+    ...tokens.flatMap((token) =>
+      variantsOf(token).flatMap((v) => {
+        const term = `%${v}%`;
+        return [ilike(articles.title, term), ilike(articles.excerpt, term), ilike(articles.bodyMd, term)];
+      }),
+    ),
+  );
+  const rows = await getDb()
+    .select()
+    .from(articles)
+    .where(and(publishedCond(), anyToken))
+    .orderBy(desc(sql`similarity(${articles.title}, ${trimmed})`), desc(articles.publishAt))
+    .limit(24);
+  const matchCount = (r: Row) => {
+    const hay = normalizeDigits(`${r.title}\n${r.excerpt ?? ''}\n${r.bodyMd}`).toLowerCase();
+    return tokens.filter((t) => hay.includes(normalizeDigits(t).toLowerCase())).length;
+  };
+  const threshold = Math.ceil(tokens.length / 2);
+  return rows
+    .map((r) => ({ r, score: matchCount(r) }))
+    .filter(({ score }) => score >= threshold)
+    // Stable sort: majority score first, then the SQL similarity order.
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map(({ r }) => toArticleFull(r));
 }
 
 /** Related articles for a SKU/category context (simple recency fallback). */

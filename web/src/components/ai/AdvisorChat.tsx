@@ -7,7 +7,8 @@ import { normalizeDigits, toPersianDigits, formatToman } from '@/lib/utils/forma
 import { getRows } from '@/lib/mock/catalogData';
 import { CATEGORY_ALIASES, PURPOSE_CHIPS } from '@/lib/data/aiTaxonomy';
 import { computeBulkSplit, type BulkSplit } from '@/components/catalog/BulkQuote';
-import { SparkIcon, ChevronStartIcon, CheckCircleIcon } from '@/components/primitives/icons';
+import { SparkIcon, ChevronStartIcon, CheckCircleIcon, MicIcon } from '@/components/primitives/icons';
+import { getSpeechRecognition, type SpeechRecognitionLike } from '@/lib/utils/speech';
 import styles from './AdvisorChat.module.css';
 
 /** Average میلگرد price from the seeded catalog — grounded, never an invented number. */
@@ -212,6 +213,47 @@ export function AdvisorChat({ initialQuestion }: { initialQuestion?: string }) {
   // Server-issued conversation id ({type:'conversation'} frame) — echoed on
   // later turns so the server keeps persistence + rolling-summary continuity.
   const conversationIdRef = useRef<string | undefined>(undefined);
+  // Voice input (Web Speech API) — پیمانکار با دست‌های سیمانی تایپ نمی‌کند.
+  // Feature-detected AFTER mount (SSR renders without window); unsupported
+  // browsers simply never see the mic button. One utterance lands in the
+  // input for review — it is NEVER auto-sent.
+  const [voiceSupported, setVoiceSupported] = useState(false);
+  const [listening, setListening] = useState(false);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  useEffect(() => {
+    setVoiceSupported(getSpeechRecognition() !== null);
+    return () => recognitionRef.current?.abort();
+  }, []);
+
+  const toggleVoice = () => {
+    if (listening) {
+      recognitionRef.current?.stop();
+      return;
+    }
+    const Recognition = getSpeechRecognition();
+    if (!Recognition) return;
+    const rec = new Recognition();
+    rec.lang = 'fa-IR';
+    rec.interimResults = false;
+    rec.maxAlternatives = 1;
+    rec.onresult = (ev) => {
+      const transcript = ev.results[0]?.[0]?.transcript?.trim();
+      if (transcript) setInput((prev) => (prev.trim() ? `${prev.trim()} ${transcript}` : transcript));
+    };
+    // onend also fires after onerror (mic denied, no speech) — one cleanup path.
+    rec.onend = () => {
+      recognitionRef.current = null;
+      setListening(false);
+    };
+    recognitionRef.current = rec;
+    setListening(true);
+    try {
+      rec.start();
+    } catch {
+      recognitionRef.current = null;
+      setListening(false);
+    }
+  };
 
   const pushAi = (msgs: Msg[]) => {
     setTyping(true);
@@ -411,6 +453,18 @@ export function AdvisorChat({ initialQuestion }: { initialQuestion?: string }) {
           maxLength={1000}
           disabled={busy}
         />
+        {voiceSupported && (
+          <button
+            type="button"
+            className={`${styles.mic} ${listening ? styles.micOn : ''}`}
+            onClick={toggleVoice}
+            aria-label={listening ? 'توقف ورودی صوتی' : 'ورودی صوتی'}
+            aria-pressed={listening}
+            disabled={busy}
+          >
+            <MicIcon size={20} />
+          </button>
+        )}
         <button type="submit" className={styles.send} aria-label="ارسال" disabled={busy}>
           <ChevronStartIcon size={20} className="icon--rtl" />
         </button>

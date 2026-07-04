@@ -237,6 +237,13 @@ export const ShareIcon = (p: IconProps) => (
     <path d="M8.2 10.8l7.6-4.6M8.2 13.2l7.6 4.6" />
   </Svg>
 );
+export const MicIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="9" y="3.5" width="6" height="11" rx="3" />
+    <path d="M5.5 11.5a6.5 6.5 0 0013 0" />
+    <path d="M12 18v2.5" />
+  </Svg>
+);
 export const PhoneIcon = (p: IconProps) => (
   <Svg {...p}>
     <path d="M5 4h3l1.5 4-2 1.5a12 12 0 005 5l1.5-2 4 1.5v3a2 2 0 01-2 2A15 15 0 013 6a2 2 0 012-2z" />
