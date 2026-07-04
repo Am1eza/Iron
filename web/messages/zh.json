@@ -1,0 +1,119 @@
+{
+  "common": {
+    "brand": "Ahan Time",
+    "tagline": "先咨询，后购买。",
+    "action": {
+      "submitRequest": "提交询价",
+      "askAi": "咨询 Ahan Time",
+      "viewPrices": "查看价格",
+      "retry": "重试",
+      "search": "搜索",
+      "loadMore": "加载更多",
+      "save": "保存",
+      "cancel": "取消",
+      "close": "关闭",
+      "login": "登录",
+      "backHome": "返回首页"
+    },
+    "state": {
+      "loading": "加载中…",
+      "empty": "未找到相关内容",
+      "error": "出现错误",
+      "offline": "网络连接已断开",
+      "stale": "数据延迟",
+      "end": "已到列表末尾"
+    },
+    "unit": {
+      "currency": "土曼",
+      "vat": "增值税"
+    },
+    "data": {
+      "delivery": "交货时间",
+      "movement": "涨跌幅",
+      "updatedAt": "最后更新时间"
+    },
+    "skipToContent": "跳转到内容",
+    "nameLabel": "姓名"
+  },
+  "nav": {
+    "home": "首页",
+    "prices": "价格",
+    "ai": "Ahan Time",
+    "tools": "工具",
+    "services": "服务",
+    "club": "会员俱乐部",
+    "cooperation": "合作",
+    "contact": "联系我们",
+    "account": "我的账户",
+    "cart": "询价车",
+    "company": "公司"
+  },
+  "header": {
+    "openMenu": "打开菜单",
+    "mainNav": "主导航",
+    "smartAdvisor": "智能顾问",
+    "search": "搜索",
+    "cartAria": "询价车",
+    "cartAriaWithCount": "询价车，{count} 件商品",
+    "language": "语言"
+  },
+  "footer": {
+    "products": "产品",
+    "contact": "联系我们",
+    "channels": "联系渠道",
+    "trustBadges": "信誉标志",
+    "badgeETrust": "电子信誉认证",
+    "badgeRegistered": "工商注册",
+    "badgeUnion": "钢铁经销商协会成员",
+    "blurb": "智能钢铁市场：AI 智能顾问、透明实时报价与明确的交货时间。",
+    "rights": "© {year} Ahan Time — 保留所有权利。"
+  },
+  "auth": {
+    "mobileLabel": "手机号码",
+    "mobileHelper": "验证码将通过短信发送到该号码。",
+    "nameLabel": "姓名（可选）",
+    "nameHelper": "如果这是您首次登录，请输入您的姓名。",
+    "getCode": "获取验证码",
+    "codeSentTo": "5 位验证码已发送至 {mobile}。",
+    "devCode": "开发环境测试验证码：{code}",
+    "verifyAndLogin": "验证并登录",
+    "changeNumber": "更改号码",
+    "resendIn": "{seconds} 秒后可重新发送",
+    "resendCode": "重新发送验证码",
+    "genericError": "发生错误。",
+    "wrongCode": "验证码错误。",
+    "otpLabel": "短信验证码",
+    "otpDigit": "第 {n} 位"
+  },
+  "phone": {
+    "country": "国家/地区",
+    "searchCountry": "搜索国家/地区…",
+    "invalid": "请输入有效的手机号码。",
+    "otpCountryUnsupported": "短信验证目前仅支持伊朗手机号码（+98）。请使用伊朗号码，或联系我们寻求帮助。"
+  },
+  "metadata": {
+    "title": "Ahan Time — 智能钢铁市场",
+    "description": "Ahan Time，智能钢铁市场：AI 智能顾问、透明实时报价与明确的交货时间。先咨询，后购买。"
+  },
+  "contact": {
+    "messageLabel": "您的留言",
+    "send": "发送消息",
+    "success": "您的留言已收到，感谢您的联系。"
+  },
+  "cooperation": {
+    "formLabel": "合作申请表",
+    "fullName": "姓名",
+    "fullNamePlaceholder": "例如：张伟",
+    "nameError": "请输入您的姓名。",
+    "notes": "备注",
+    "notesPlaceholder": "请在此填写您的需求或备注…",
+    "submit": "提交合作申请",
+    "consent": "提交此申请即表示您同意 Ahan Time 代表就此事与您联系。",
+    "success": "您的申请已收到，我们会尽快与您联系。"
+  },
+  "profile": {
+    "updated": "个人资料已更新。",
+    "updateFailed": "更新失败。",
+    "saveChanges": "保存更改"
+  }
+}

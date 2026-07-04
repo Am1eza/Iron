@@ -1,9 +1,11 @@
 import Link from 'next/link';
+import { useTranslations, useLocale } from 'next-intl';
 import { routes } from '@/lib/routes';
 import { FOOTER_COLUMNS, CHANNELS } from '@/lib/data/nav';
 import { CONTACT } from '@/lib/seo';
-import { toPersianDigits } from '@/lib/utils/format';
+import { localizeDigits } from '@/lib/utils/format';
 import type { Category } from '@/lib/types/domain';
+import type { AppLocale } from '@/i18n/config';
 import { Logo } from './Logo';
 import styles from './Footer.module.css';
 
@@ -12,21 +14,28 @@ import styles from './Footer.module.css';
  * channels) + the trust block (badges, address, click-to-call phones). RTL columns.
  */
 export function Footer({ categories }: { categories: Category[] }) {
+  const t = useTranslations('footer');
+  const tCommon = useTranslations('common');
+  const locale = useLocale() as AppLocale;
+  // Copyright year: the fa locale keeps the deliberate Jalali ۱۴۰۵ (this is a
+  // Persian-calendar business, not a raw current-year computation); every
+  // other locale shows the actual Gregorian year, which is what a non-Persian
+  // reader expects from a "©" line.
+  const year = locale === 'fa' ? localizeDigits('۱۴۰۵', locale) : String(new Date().getFullYear());
+
   return (
     <footer className={styles.footer}>
       <div className={`container ${styles.top}`}>
         {/* Brand + tagline */}
         <div className={styles.brandCol}>
           <Logo light />
-          <p className={styles.tagline}>اول مشورت، بعد خرید.</p>
-          <p className={styles.blurb}>
-            بازار هوشمند آهن و فولاد: مشاور هوش مصنوعی، قیمت‌های شفاف و زمان تحویل مشخص.
-          </p>
+          <p className={styles.tagline}>{tCommon('tagline')}</p>
+          <p className={styles.blurb}>{t('blurb')}</p>
         </div>
 
         {/* Products column */}
-        <nav className={styles.col} aria-label="محصولات">
-          <h2 className={styles.colTitle}>محصولات</h2>
+        <nav className={styles.col} aria-label={t('products')}>
+          <h2 className={styles.colTitle}>{t('products')}</h2>
           <ul className={styles.links}>
             {categories.map((c) => (
               <li key={c.id}>
@@ -38,7 +47,10 @@ export function Footer({ categories }: { categories: Category[] }) {
           </ul>
         </nav>
 
-        {/* Configured columns */}
+        {/* Configured columns — data-driven (lib/data/nav.ts); still fa-only
+            pending the broader page-content translation pass (see
+            GEO-ROUTING.md-adjacent scope note: this session translated the
+            shell, not every data source). */}
         {FOOTER_COLUMNS.map((group) => (
           <nav key={group.title} className={styles.col} aria-label={group.title}>
             <h2 className={styles.colTitle}>{group.title}</h2>
@@ -56,17 +68,17 @@ export function Footer({ categories }: { categories: Category[] }) {
 
         {/* Contact / trust */}
         <div className={styles.col}>
-          <h2 className={styles.colTitle}>تماس</h2>
+          <h2 className={styles.colTitle}>{t('contact')}</h2>
           <address className={styles.address}>{CONTACT.address}</address>
           <div className={styles.phones}>
             <a href={`tel:${CONTACT.phoneLandline}`} className={styles.phone} dir="ltr">
-              {toPersianDigits(CONTACT.phoneLandline)}
+              {localizeDigits(CONTACT.phoneLandline, locale)}
             </a>
             <a href={`tel:${CONTACT.phoneMobile}`} className={styles.phone} dir="ltr">
-              {toPersianDigits(CONTACT.phoneMobile)}
+              {localizeDigits(CONTACT.phoneMobile, locale)}
             </a>
           </div>
-          <ul className={styles.channels} aria-label="کانال‌ها">
+          <ul className={styles.channels} aria-label={t('channels')}>
             {CHANNELS.map((ch) => (
               <li key={ch.href}>
                 <a
@@ -86,14 +98,12 @@ export function Footer({ categories }: { categories: Category[] }) {
       {/* Trust badges + legal strip */}
       <div className={styles.trustStrip}>
         <div className={`container ${styles.trustInner}`}>
-          <ul className={styles.badges} aria-label="نمادهای اعتماد">
-            <li className={styles.badge}>نماد اعتماد الکترونیکی</li>
-            <li className={styles.badge}>ساماندهی</li>
-            <li className={styles.badge}>اتحادیه آهن‌فروشان</li>
+          <ul className={styles.badges} aria-label={t('trustBadges')}>
+            <li className={styles.badge}>{t('badgeETrust')}</li>
+            <li className={styles.badge}>{t('badgeRegistered')}</li>
+            <li className={styles.badge}>{t('badgeUnion')}</li>
           </ul>
-          <p className={styles.copy}>
-            © {toPersianDigits('۱۴۰۵')} آهن‌تایم — همهٔ حقوق محفوظ است.
-          </p>
+          <p className={styles.copy}>{t('rights', { year })}</p>
         </div>
       </div>
     </footer>

@@ -1,15 +1,16 @@
 'use client';
 import { routes } from '@/lib/routes';
 import { useEffect, useRef, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { loginMobileSchema, type LoginMobileValues } from '@/lib/validation/schemas';
+import { useTranslations, useLocale } from 'next-intl';
 import { formsApi } from '@/lib/api/forms';
 import { useAuthStore } from '@/lib/stores/auth';
 import { canAccessAdmin } from '@/lib/auth/roles';
-import { normalizeDigits, toPersianDigits } from '@/lib/utils/format';
+import { normalizeDigits, localizeDigits } from '@/lib/utils/format';
+import { parsePhone, DEFAULT_PHONE_COUNTRY, type CountryCode } from '@/lib/utils/phone';
+import type { AppLocale } from '@/i18n/config';
 import { TextInput } from './fields';
+import { PhoneField } from './PhoneField';
 import { OtpInput, type OtpInputHandle } from './OtpInput';
 import { FormStatus } from './FormStatus';
 import { Button } from '@/components/primitives/Button';
@@ -18,26 +19,30 @@ export function LoginForm() {
   const router = useRouter();
   const next = useSearchParams().get('next');
   const setUser = useAuthStore((s) => s.setUser);
+  const t = useTranslations('auth');
+  const tPhone = useTranslations('phone');
+  const locale = useLocale() as AppLocale;
 
   const [step, setStep] = useState<'mobile' | 'code'>('mobile');
-  const [mobile, setMobile] = useState('');
+  const [country, setCountry] = useState<CountryCode>(DEFAULT_PHONE_COUNTRY);
+  const [national, setNational] = useState('');
+  const [name, setName] = useState('');
+  const [mobileError, setMobileError] = useState<string | undefined>(undefined);
+  const [mobile, setMobile] = useState(''); // normalized value once sent
   const [code, setCode] = useState('');
   const [otpError, setOtpError] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [resendIn, setResendIn] = useState(0);
   const [devCode, setDevCode] = useState<string | null>(null);
   const [regName, setRegName] = useState<string | undefined>(undefined);
   const otpRef = useRef<OtpInputHandle>(null);
 
-  const { register, handleSubmit, formState } = useForm<LoginMobileValues>({
-    resolver: zodResolver(loginMobileSchema),
-  });
-
   useEffect(() => {
     if (resendIn <= 0) return;
-    const t = setTimeout(() => setResendIn((s) => s - 1), 1000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setResendIn((s) => s - 1), 1000);
+    return () => clearTimeout(timer);
   }, [resendIn]);
 
   // Move focus to the first OTP box whenever the step changes to 'code' so
@@ -46,10 +51,10 @@ export function LoginForm() {
     if (step === 'code') otpRef.current?.focus();
   }, [step]);
 
-  const sendOtp = async (m: string, name?: string) => {
+  const sendOtp = async (m: string, submittedName?: string) => {
     setError(null);
     try {
-      const cleanName = name?.trim() || regName;
+      const cleanName = submittedName?.trim() || regName;
       const res = await formsApi.requestOtp(m, cleanName);
       setMobile(m);
       setRegName(cleanName);
@@ -57,8 +62,21 @@ export function LoginForm() {
       setResendIn(60);
       setDevCode(res.devCode ?? null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'خطایی رخ داد.');
+      setError(e instanceof Error ? e.message : t('genericError'));
     }
+  };
+
+  const handleMobileSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const parsed = parsePhone(national, country);
+    if (!parsed) {
+      setMobileError(tPhone('invalid'));
+      return;
+    }
+    setMobileError(undefined);
+    setSubmitting(true);
+    await sendOtp(parsed.normalized, name);
+    setSubmitting(false);
   };
 
   const verify = async () => {
@@ -80,7 +98,7 @@ export function LoginForm() {
       router.refresh(); // let server components re-read the new session cookie
     } catch (e) {
       setOtpError(true);
-      setError(e instanceof Error ? e.message : 'کد اشتباه است.');
+      setError(e instanceof Error ? e.message : t('wrongCode'));
       otpRef.current?.focus();
     } finally {
       setVerifying(false);
@@ -96,28 +114,30 @@ export function LoginForm() {
       ) : null}
 
       {step === 'mobile' ? (
-        <form onSubmit={handleSubmit((v) => sendOtp(v.mobile, v.name))} noValidate>
-          <TextInput
-            label="شمارهٔ موبایل"
-            type="tel"
-            inputMode="numeric"
+        <form onSubmit={handleMobileSubmit} noValidate>
+          <PhoneField
+            label={t('mobileLabel')}
             required
-            placeholder="۰۹۱۲۳۴۵۶۷۸۹"
-            autoComplete="tel"
-            helper="کد تأیید برای همین شماره پیامک می‌شود."
-            error={formState.errors.mobile?.message}
-            {...register('mobile')}
+            helper={t('mobileHelper')}
+            error={mobileError}
+            country={country}
+            onCountryChange={setCountry}
+            national={national}
+            onNationalChange={(v) => {
+              setNational(v);
+              if (mobileError) setMobileError(undefined);
+            }}
           />
           <TextInput
-            label="نام (اختیاری)"
+            label={t('nameLabel')}
             type="text"
             autoComplete="name"
-            helper="اگر اولین ورود شماست، نامتان را وارد کنید."
-            error={formState.errors.name?.message}
-            {...register('name')}
+            helper={t('nameHelper')}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
           />
-          <Button type="submit" fullWidth loading={formState.isSubmitting}>
-            دریافت کد تأیید
+          <Button type="submit" fullWidth loading={submitting}>
+            {t('getCode')}
           </Button>
         </form>
       ) : (
@@ -126,19 +146,19 @@ export function LoginForm() {
             role="status"
             style={{ font: 'var(--t-body-sm)', color: 'var(--color-text-muted)' }}
           >
-            کد ۵ رقمی برای {toPersianDigits(mobile)} پیامک شد.
+            {t('codeSentTo', { mobile: localizeDigits(mobile, locale) })}
           </p>
           {devCode ? (
             <p
               style={{ font: 'var(--t-caption)', color: 'var(--color-action-text)' }}
               role="status"
             >
-              کد آزمایشی (محیط توسعه): {toPersianDigits(devCode)}
+              {t('devCode', { code: localizeDigits(devCode, locale) })}
             </p>
           ) : null}
-          <OtpInput ref={otpRef} value={code} onChange={setCode} error={otpError} />
+          <OtpInput ref={otpRef} value={code} onChange={setCode} error={otpError} label={t('otpLabel')} />
           <Button onClick={verify} fullWidth loading={verifying}>
-            تأیید و ورود
+            {t('verifyAndLogin')}
           </Button>
           <div className="cluster" style={{ justifyContent: 'space-between' }}>
             <button
@@ -146,7 +166,7 @@ export function LoginForm() {
               onClick={() => setStep('mobile')}
               style={{ background: 'none', border: 0, color: 'var(--color-accent-text)', cursor: 'pointer' }}
             >
-              تغییر شماره
+              {t('changeNumber')}
             </button>
             <button
               type="button"
@@ -159,7 +179,9 @@ export function LoginForm() {
                 cursor: resendIn > 0 ? 'default' : 'pointer',
               }}
             >
-              {resendIn > 0 ? `ارسال مجدد تا ${toPersianDigits(resendIn)} ثانیه` : 'ارسال مجدد کد'}
+              {resendIn > 0
+                ? t('resendIn', { seconds: localizeDigits(resendIn, locale) })
+                : t('resendCode')}
             </button>
           </div>
         </div>

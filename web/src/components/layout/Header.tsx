@@ -2,17 +2,20 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useTranslations, useLocale } from 'next-intl';
 import { routes } from '@/lib/routes';
 import { TOOLS_NAV, SERVICES_NAV, COMPANY_NAV, SUPPORT_NAV } from '@/lib/data/nav';
 import type { Category } from '@/lib/types/domain';
 import { useUiStore } from '@/lib/stores/ui';
 import { useAuthStore } from '@/lib/stores/auth';
 import { useCartStore, selectCartCount } from '@/lib/stores/cart';
-import { toPersianDigits } from '@/lib/utils/format';
+import { localizeDigits } from '@/lib/utils/format';
+import type { AppLocale } from '@/i18n/config';
 import { Logo } from './Logo';
 import { SearchBar } from './SearchBar';
 import { NavDropdown } from './NavDropdown';
 import { ProductsMenu } from './ProductsMenu';
+import { LocaleSwitcher } from './LocaleSwitcher';
 import { MenuIcon, SearchIcon, UserIcon, CartIcon, SparkIcon } from '@/components/primitives/icons';
 import styles from './Header.module.css';
 
@@ -24,6 +27,10 @@ import styles from './Header.module.css';
  */
 export function Header({ categories }: { categories: Category[] }) {
   const pathname = usePathname();
+  const t = useTranslations('header');
+  const tNav = useTranslations('nav');
+  const tCommon = useTranslations('common');
+  const locale = useLocale() as AppLocale;
   const drawerOpen = useUiStore((s) => s.drawerOpen);
   const setDrawerOpen = useUiStore((s) => s.setDrawerOpen);
   const user = useAuthStore((s) => s.user);
@@ -80,7 +87,7 @@ export function Header({ categories }: { categories: Category[] }) {
         <button
           type="button"
           className={styles.menuBtn}
-          aria-label="باز کردن منو"
+          aria-label={t('openMenu')}
           aria-expanded={drawerOpen}
           aria-controls="mobile-drawer-panel"
           onClick={() => setDrawerOpen(true)}
@@ -90,7 +97,7 @@ export function Header({ categories }: { categories: Category[] }) {
 
         <Logo compact={condensed} />
 
-        <nav className={styles.primary} aria-label="ناوبری اصلی">
+        <nav className={styles.primary} aria-label={t('mainNav')}>
           <ProductsMenu categories={categories} />
 
           <Link
@@ -99,22 +106,22 @@ export function Header({ categories }: { categories: Category[] }) {
             data-active={isActive(routes.prices()) ? '' : undefined}
             aria-current={isActive(routes.prices()) ? 'page' : undefined}
           >
-            قیمت‌ها
+            {tNav('prices')}
           </Link>
 
-          <NavDropdown label="ابزارها" active={isActive('/tools') || isActive(routes.market())}>
+          <NavDropdown label={tNav('tools')} active={isActive('/tools') || isActive(routes.market())}>
             <ul className={styles.dropdownList}>
-              {TOOLS_NAV.map((t) => (
-                <li key={t.href}>
-                  <Link href={t.href} className={styles.dropdownItem}>
-                    {t.label}
+              {TOOLS_NAV.map((item) => (
+                <li key={item.href}>
+                  <Link href={item.href} className={styles.dropdownItem}>
+                    {item.label}
                   </Link>
                 </li>
               ))}
             </ul>
           </NavDropdown>
 
-          <NavDropdown label="خدمات" active={isActive(routes.warehouse()) || isActive(routes.track())}>
+          <NavDropdown label={tNav('services')} active={isActive(routes.warehouse()) || isActive(routes.track())}>
             <ul className={styles.dropdownList}>
               {SERVICES_NAV.map((s) => (
                 <li key={s.href}>
@@ -134,10 +141,10 @@ export function Header({ categories }: { categories: Category[] }) {
             data-event="ai_entry"
           >
             <SparkIcon size={16} />
-            مشاور هوشمند
+            {t('smartAdvisor')}
           </Link>
 
-          <NavDropdown label="شرکت">
+          <NavDropdown label={tNav('company')}>
             <ul className={styles.dropdownList}>
               {COMPANY_NAV.map((c) => (
                 <li key={c.href}>
@@ -163,7 +170,7 @@ export function Header({ categories }: { categories: Category[] }) {
             ref={searchToggleRef}
             type="button"
             className={styles.iconBtn}
-            aria-label="جستجو"
+            aria-label={t('search')}
             aria-expanded={searchOpen}
             aria-controls="header-search"
             onClick={() => setSearchOpen((v) => !v)}
@@ -173,13 +180,17 @@ export function Header({ categories }: { categories: Category[] }) {
           <Link
             href={routes.cart()}
             className={styles.iconBtn}
-            aria-label={cartCount > 0 ? `سبد استعلام، ${toPersianDigits(cartCount)} کالا` : 'سبد استعلام'}
+            aria-label={
+              cartCount > 0
+                ? t('cartAriaWithCount', { count: localizeDigits(cartCount, locale) })
+                : t('cartAria')
+            }
           >
             <span className={styles.cartWrap}>
               <CartIcon size={20} />
               {cartCount > 0 && (
                 <span className={styles.cartBadge} aria-hidden="true">
-                  {toPersianDigits(cartCount)}
+                  {localizeDigits(cartCount, locale)}
                 </span>
               )}
             </span>
@@ -187,14 +198,15 @@ export function Header({ categories }: { categories: Category[] }) {
           {user ? (
             <Link href={routes.account()} className={styles.accountBtn}>
               <UserIcon size={20} />
-              <span className={styles.accountName}>{user.name ?? 'حساب من'}</span>
+              <span className={styles.accountName}>{user.name ?? tNav('account')}</span>
             </Link>
           ) : (
             <Link href={routes.login()} className={styles.loginBtn}>
               <UserIcon size={18} />
-              ورود
+              {tCommon('action.login')}
             </Link>
           )}
+          <LocaleSwitcher />
         </div>
       </div>
 

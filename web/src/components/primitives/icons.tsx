@@ -321,6 +321,12 @@ export const ExternalIcon = (p: IconProps) => (
     <path d="M14 4h6v6M20 4l-9 9M18 14v4a2 2 0 01-2 2H6a2 2 0 01-2-2V8a2 2 0 012-2h4" />
   </Svg>
 );
+export const GlobeIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M3 12h18M12 3c2.5 2.6 4 5.8 4 9s-1.5 6.4-4 9c-2.5-2.6-4-5.8-4-9s1.5-6.4 4-9z" />
+  </Svg>
+);
 export const CopyIcon = (p: IconProps) => (
   <Svg {...p}>
     <rect x="9" y="9" width="11" height="11" rx="2" />

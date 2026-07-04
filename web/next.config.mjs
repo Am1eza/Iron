@@ -1,3 +1,5 @@
+import createNextIntlPlugin from 'next-intl/plugin';
+
 /** @type {import('next').NextConfig} */
 const isExport = process.env.EXPORT === '1';
 // Self-contained server bundle for the optional Docker/VPS path (see web/Dockerfile).
@@ -157,7 +159,9 @@ const nextConfig = {
       }),
 };
 
-export default nextConfig;
+const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
+
+export default withNextIntl(nextConfig);
 
 // Cloudflare (OpenNext) dev binding support. No-op outside `next dev`, and
 // only loads the adapter when it's installed, so the GitHub Pages static

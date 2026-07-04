@@ -1,38 +1,43 @@
 'use client';
 import { useId, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useToast } from '@/lib/hooks/useToast';
-import { normalizeMobile } from '@/lib/utils/format';
+import { parsePhone, DEFAULT_PHONE_COUNTRY, type CountryCode } from '@/lib/utils/phone';
 import { Button } from '@/components/ui';
+import { PhoneField } from '@/components/forms/PhoneField';
 import type { TrackKey } from './tracks';
 import styles from './CooperationForm.module.css';
 
 type Errors = { name?: string; mobile?: string };
 
 /**
- * CooperationForm — the همکاری lead form. Collects نام، شمارهٔ موبایل (validated with
- * normalizeMobile) and توضیحات. No backend: on a valid submit it shows a success
- * toast and resets. Inline errors are announced via aria-describedby + role.
+ * CooperationForm — the همکاری lead form. Collects name, mobile (any
+ * country — this is a lead-capture form, not OTP, so international numbers
+ * work today unlike login) and notes. No backend: on a valid submit it
+ * shows a success toast and resets. Inline errors are announced via
+ * aria-describedby + role.
  */
 export function CooperationForm({ track }: { track: TrackKey }) {
+  const t = useTranslations('cooperation');
+  const tPhone = useTranslations('phone');
+  const tAuth = useTranslations('auth');
   const toast = useToast();
   const baseId = useId();
   const [name, setName] = useState('');
-  const [mobile, setMobile] = useState('');
+  const [country, setCountry] = useState<CountryCode>(DEFAULT_PHONE_COUNTRY);
+  const [national, setNational] = useState('');
   const [note, setNote] = useState('');
   const [errors, setErrors] = useState<Errors>({});
   const nameRef = useRef<HTMLInputElement>(null);
-  const mobileRef = useRef<HTMLInputElement>(null);
 
   const nameId = `${baseId}-name`;
-  const mobileId = `${baseId}-mobile`;
   const noteId = `${baseId}-note`;
   const nameErrId = `${baseId}-name-err`;
-  const mobileErrId = `${baseId}-mobile-err`;
 
   const validate = (): Errors => {
     const next: Errors = {};
-    if (name.trim().length < 2) next.name = 'نام خود را وارد کنید.';
-    if (!normalizeMobile(mobile)) next.mobile = 'شمارهٔ موبایل معتبر نیست (مثال: ۰۹۱۲۳۴۵۶۷۸۹).';
+    if (name.trim().length < 2) next.name = t('nameError');
+    if (!parsePhone(national, country)) next.mobile = tPhone('invalid');
     return next;
   };
 
@@ -42,26 +47,26 @@ export function CooperationForm({ track }: { track: TrackKey }) {
     setErrors(next);
     if (Object.keys(next).length > 0) {
       if (next.name) nameRef.current?.focus();
-      else if (next.mobile) mobileRef.current?.focus();
       return;
     }
 
     // No backend — record the lead client-side only.
-    toast.success('درخواست شما ثبت شد؛ به‌زودی تماس می‌گیریم.');
+    toast.success(t('success'));
     setName('');
-    setMobile('');
+    setNational('');
+    setCountry(DEFAULT_PHONE_COUNTRY);
     setNote('');
     setErrors({});
   };
 
   return (
-    <form className={styles.form} onSubmit={handleSubmit} noValidate aria-label="فرم درخواست همکاری">
+    <form className={styles.form} onSubmit={handleSubmit} noValidate aria-label={t('formLabel')}>
       {/* Track is implicit from the page; carried for completeness. */}
       <input type="hidden" name="track" value={track} />
 
       <div className={styles.field}>
         <label className={styles.label} htmlFor={nameId}>
-          نام و نام خانوادگی
+          {t('fullName')}
           <span className={styles.req} aria-hidden>
             *
           </span>
@@ -78,7 +83,7 @@ export function CooperationForm({ track }: { track: TrackKey }) {
           aria-required="true"
           aria-invalid={errors.name ? true : undefined}
           aria-describedby={errors.name ? nameErrId : undefined}
-          placeholder="مثلاً علی رضایی"
+          placeholder={t('fullNamePlaceholder')}
         />
         {errors.name ? (
           <p id={nameErrId} className={styles.error} role="alert">
@@ -87,39 +92,22 @@ export function CooperationForm({ track }: { track: TrackKey }) {
         ) : null}
       </div>
 
-      <div className={styles.field}>
-        <label className={styles.label} htmlFor={mobileId}>
-          شمارهٔ موبایل
-          <span className={styles.req} aria-hidden>
-            *
-          </span>
-        </label>
-        <input
-          ref={mobileRef}
-          id={mobileId}
-          name="mobile"
-          type="tel"
-          inputMode="numeric"
-          dir="ltr"
-          className={`${styles.input} ${styles.ltr} tnum`}
-          value={mobile}
-          onChange={(e) => setMobile(e.target.value)}
-          autoComplete="tel"
-          aria-required="true"
-          aria-invalid={errors.mobile ? true : undefined}
-          aria-describedby={errors.mobile ? mobileErrId : undefined}
-          placeholder="09xxxxxxxxx"
-        />
-        {errors.mobile ? (
-          <p id={mobileErrId} className={styles.error} role="alert">
-            {errors.mobile}
-          </p>
-        ) : null}
-      </div>
+      <PhoneField
+        label={tAuth('mobileLabel')}
+        required
+        error={errors.mobile}
+        country={country}
+        onCountryChange={setCountry}
+        national={national}
+        onNationalChange={(v) => {
+          setNational(v);
+          if (errors.mobile) setErrors((e) => ({ ...e, mobile: undefined }));
+        }}
+      />
 
       <div className={styles.field}>
         <label className={styles.label} htmlFor={noteId}>
-          توضیحات
+          {t('notes')}
         </label>
         <textarea
           id={noteId}
@@ -128,17 +116,15 @@ export function CooperationForm({ track }: { track: TrackKey }) {
           value={note}
           onChange={(e) => setNote(e.target.value)}
           rows={4}
-          placeholder="درخواست یا توضیح خود را اینجا بنویسید…"
+          placeholder={t('notesPlaceholder')}
         />
       </div>
 
       <Button type="submit" variant="primary" size="lg">
-        ثبت درخواست همکاری
+        {t('submit')}
       </Button>
 
-      <p className={styles.consent}>
-        با ثبت درخواست، با تماس کارشناسان آهن‌تایم برای پیگیری همین موضوع موافقت می‌کنید.
-      </p>
+      <p className={styles.consent}>{t('consent')}</p>
     </form>
   );
 }

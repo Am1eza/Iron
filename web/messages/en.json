@@ -1,0 +1,119 @@
+{
+  "common": {
+    "brand": "Ahan Time",
+    "tagline": "Consult first, then buy.",
+    "action": {
+      "submitRequest": "Submit Request",
+      "askAi": "Ask Ahan Time",
+      "viewPrices": "View Prices",
+      "retry": "Try Again",
+      "search": "Search",
+      "loadMore": "Load More",
+      "save": "Save",
+      "cancel": "Cancel",
+      "close": "Close",
+      "login": "Log In",
+      "backHome": "Back to Home"
+    },
+    "state": {
+      "loading": "Loading…",
+      "empty": "No items found",
+      "error": "Something went wrong",
+      "offline": "You're offline",
+      "stale": "Delayed",
+      "end": "End of list"
+    },
+    "unit": {
+      "currency": "Toman",
+      "vat": "VAT"
+    },
+    "data": {
+      "delivery": "Delivery time",
+      "movement": "Change",
+      "updatedAt": "Last updated"
+    },
+    "skipToContent": "Skip to content",
+    "nameLabel": "Name"
+  },
+  "nav": {
+    "home": "Home",
+    "prices": "Prices",
+    "ai": "Ahan Time",
+    "tools": "Tools",
+    "services": "Services",
+    "club": "Club",
+    "cooperation": "Partnership",
+    "contact": "Contact",
+    "account": "My Account",
+    "cart": "Inquiry Cart",
+    "company": "Company"
+  },
+  "header": {
+    "openMenu": "Open menu",
+    "mainNav": "Main navigation",
+    "smartAdvisor": "Smart Advisor",
+    "search": "Search",
+    "cartAria": "Inquiry cart",
+    "cartAriaWithCount": "Inquiry cart, {count} items",
+    "language": "Language"
+  },
+  "footer": {
+    "products": "Products",
+    "contact": "Contact",
+    "channels": "Channels",
+    "trustBadges": "Trust marks",
+    "badgeETrust": "E-Trust Certified",
+    "badgeRegistered": "Business Registered",
+    "badgeUnion": "Iron Sellers Union Member",
+    "blurb": "The smart iron & steel marketplace: an AI advisor, transparent live pricing, and clear delivery times.",
+    "rights": "© {year} Ahan Time — All rights reserved."
+  },
+  "auth": {
+    "mobileLabel": "Mobile Number",
+    "mobileHelper": "We'll text a verification code to this number.",
+    "nameLabel": "Name (optional)",
+    "nameHelper": "If this is your first time signing in, please enter your name.",
+    "getCode": "Get Verification Code",
+    "codeSentTo": "A 5-digit code was texted to {mobile}.",
+    "devCode": "Dev test code (development environment): {code}",
+    "verifyAndLogin": "Verify & Log In",
+    "changeNumber": "Change Number",
+    "resendIn": "Resend in {seconds}s",
+    "resendCode": "Resend Code",
+    "genericError": "Something went wrong.",
+    "wrongCode": "Incorrect code.",
+    "otpLabel": "SMS verification code",
+    "otpDigit": "Digit {n}"
+  },
+  "phone": {
+    "country": "Country",
+    "searchCountry": "Search country…",
+    "invalid": "Enter a valid mobile number.",
+    "otpCountryUnsupported": "SMS sign-in currently only supports Iranian mobile numbers (+98). Please use an Iranian number, or contact us for help."
+  },
+  "metadata": {
+    "title": "Ahan Time — Smart Iron & Steel Marketplace",
+    "description": "Ahan Time, the smart iron & steel marketplace: an AI advisor, transparent real-time pricing, and clear delivery times. Consult first, then buy."
+  },
+  "contact": {
+    "messageLabel": "Your Message",
+    "send": "Send Message",
+    "success": "Your message has been received. Thank you for reaching out."
+  },
+  "cooperation": {
+    "formLabel": "Partnership Request Form",
+    "fullName": "Full Name",
+    "fullNamePlaceholder": "e.g. John Smith",
+    "nameError": "Please enter your name.",
+    "notes": "Notes",
+    "notesPlaceholder": "Write your request or notes here…",
+    "submit": "Submit Partnership Request",
+    "consent": "By submitting this request, you agree to be contacted by an Ahan Time representative about this matter.",
+    "success": "Your request has been received; we'll be in touch soon."
+  },
+  "profile": {
+    "updated": "Profile updated.",
+    "updateFailed": "Update failed.",
+    "saveChanges": "Save Changes"
+  }
+}

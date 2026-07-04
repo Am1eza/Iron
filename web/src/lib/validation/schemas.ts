@@ -1,13 +1,22 @@
 import { z } from 'zod';
+import { isValidPhoneNumber } from 'libphonenumber-js/min';
 import { normalizeDigits, normalizeMobile } from '@/lib/utils/format';
 import { M } from './messages';
 
-/* ---- shared fields ---- */
+/**
+ * Accepts the app's canonical stored mobile shape: Iran's existing
+ * 09XXXXXXXXX (via normalizeMobile, unchanged — same check every current
+ * user/OTP row already passed) OR a full E.164 number for any other
+ * country (validated via libphonenumber-js — self-describing from its `+`
+ * prefix, no default-country needed here since PhoneField already resolved
+ * country + national number into this canonical form before submission).
+ */
 export const mobileSchema = z
   .string()
   .min(1, { message: M.required })
   .superRefine((val, ctx) => {
-    if (!normalizeMobile(val)) ctx.addIssue({ code: z.ZodIssueCode.custom, message: M.mobile });
+    const ok = normalizeMobile(val) !== null || (val.startsWith('+') && isValidPhoneNumber(val));
+    if (!ok) ctx.addIssue({ code: z.ZodIssueCode.custom, message: M.mobile });
   });
 
 export const otpCodeSchema = z.string().superRefine((val, ctx) => {

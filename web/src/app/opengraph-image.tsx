@@ -3,6 +3,10 @@ import { ImageResponse } from 'next/og';
 export const alt = 'آهن‌تایم — بازار هوشمند آهن و فولاد';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
+// Required for `output: export` (this file's own comment already documents
+// export-build compatibility as the intent) — without it, `next build
+// EXPORT=1` fails collecting page data for this route (confirmed directly).
+export const dynamic = 'force-static';
 
 /**
  * Sitewide default OG/Twitter share card. Rendered once at build time (no

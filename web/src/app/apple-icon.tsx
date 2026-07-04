@@ -2,6 +2,9 @@ import { ImageResponse } from 'next/og';
 
 export const size = { width: 180, height: 180 };
 export const contentType = 'image/png';
+// Required for `output: export` — without it, `next build EXPORT=1` fails
+// collecting page data for this route (confirmed directly).
+export const dynamic = 'force-static';
 
 /** Apple touch icon (iOS "Add to Home Screen") — apple-icon.png must be a
  *  raster format, so this mirrors icon.svg as a generated PNG. */

@@ -1,6 +1,8 @@
 'use client';
 import { forwardRef, useImperativeHandle, useRef } from 'react';
-import { normalizeDigits, toPersianDigits } from '@/lib/utils/format';
+import { useLocale, useTranslations } from 'next-intl';
+import { normalizeDigits, localizeDigits } from '@/lib/utils/format';
+import type { AppLocale } from '@/i18n/config';
 import styles from './otp.module.css';
 
 export type OtpInputHandle = {
@@ -19,9 +21,12 @@ export const OtpInput = forwardRef<OtpInputHandle, {
   error?: boolean;
   label?: string;
 }>(function OtpInput(
-  { length = 5, value, onChange, error, label = 'کد تأیید پیامک‌شده' },
+  { length = 5, value, onChange, error, label },
   ref,
 ) {
+  const t = useTranslations('auth');
+  const locale = useLocale() as AppLocale;
+  const groupLabel = label ?? t('otpLabel');
   const refs = useRef<(HTMLInputElement | null)[]>([]);
   const chars = value.padEnd(length).slice(0, length).split('');
 
@@ -62,7 +67,7 @@ export const OtpInput = forwardRef<OtpInputHandle, {
     <div
       className={`${styles.wrap} ${error ? `${styles.error} ${styles.shake}` : ''}`}
       role="group"
-      aria-label={label}
+      aria-label={groupLabel}
     >
       {Array.from({ length }).map((_, i) => (
         <input
@@ -74,10 +79,10 @@ export const OtpInput = forwardRef<OtpInputHandle, {
           inputMode="numeric"
           autoComplete={i === 0 ? 'one-time-code' : 'off'}
           maxLength={1}
-          aria-label={`رقم ${toPersianDigits(i + 1)}`}
+          aria-label={t('otpDigit', { n: localizeDigits(i + 1, locale) })}
           aria-invalid={error || undefined}
           aria-describedby={error ? 'otp-error' : undefined}
-          value={chars[i]?.trim() ? toPersianDigits(chars[i]!.trim()) : ''}
+          value={chars[i]?.trim() ? localizeDigits(chars[i]!.trim(), locale) : ''}
           onChange={(e) => handleChange(i, e.target.value)}
           onKeyDown={(e) => handleKeyDown(i, e)}
           onPaste={handlePaste}

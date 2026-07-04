@@ -1,9 +1,14 @@
 /**
  * Locale configuration. Ahantime is Persian-first (fa-IR, RTL, Jalali, Toman).
- * fa is the only active locale in the MVP; en/ar are reserved (App Router, so no
- * next/i18n routing — locale is a runtime concern, not a URL prefix yet).
+ *
+ * fa/en/ar/zh are all live (see src/i18n/* for the actual next-intl runtime —
+ * cookie-based locale switching, no URL prefix; src/i18n/config.ts is the
+ * canonical locale list the app consumes today). This file predates that
+ * work and isn't imported anywhere currently — kept as a reference (the
+ * calendar/digit/currency-per-locale intent) rather than deleted; `enabled`
+ * now reflects actual state instead of the stale MVP-era false defaults.
  */
-export type LocaleCode = 'fa' | 'en' | 'ar';
+export type LocaleCode = 'fa' | 'en' | 'ar' | 'zh';
 
 export type LocaleConfig = {
   code: LocaleCode;
@@ -36,7 +41,7 @@ export const LOCALES: Record<LocaleCode, LocaleConfig> = {
     calendar: 'gregorian',
     digits: 'latin',
     currency: 'IRR',
-    enabled: false,
+    enabled: true,
   },
   ar: {
     code: 'ar',
@@ -44,9 +49,19 @@ export const LOCALES: Record<LocaleCode, LocaleConfig> = {
     dir: 'rtl',
     htmlLang: 'ar',
     calendar: 'gregorian',
-    digits: 'fa',
-    currency: 'تومان',
-    enabled: false,
+    digits: 'latin',
+    currency: 'IRR',
+    enabled: true,
+  },
+  zh: {
+    code: 'zh',
+    label: '中文',
+    dir: 'ltr',
+    htmlLang: 'zh',
+    calendar: 'gregorian',
+    digits: 'latin',
+    currency: 'IRR',
+    enabled: true,
   },
 };
 

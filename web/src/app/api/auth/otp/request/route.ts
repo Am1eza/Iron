@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { getTranslations } from 'next-intl/server';
 import { validateBody } from '@/lib/validation/request';
 import { otpRequestPayload } from '@/lib/validation/api';
 import { normalizeMobile } from '@/lib/utils/format';
@@ -27,7 +28,17 @@ async function POSTImpl(req: NextRequest) {
 
   const mobile = normalizeMobile(v.data.mobile);
   if (!mobile) {
-    return NextResponse.json({ error: 'invalid_mobile', message: 'شمارهٔ موبایل نامعتبر است.' }, { status: 400 });
+    // otpRequestPayload's mobileSchema already accepted this as a valid
+    // international number (E.164) — it just isn't Iranian, and SMS.ir
+    // (OTP delivery) is Iran-only today. A distinct error/status from
+    // "not a phone number at all" so the client can show the real reason
+    // instead of a generic "invalid number" message. See GEO-ROUTING.md's
+    // phone-input note and lib/utils/phone.ts's header comment.
+    const t = await getTranslations('phone');
+    return NextResponse.json(
+      { error: 'otp_country_unsupported', message: t('otpCountryUnsupported') },
+      { status: 422 },
+    );
   }
 
   try {

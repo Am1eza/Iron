@@ -20,6 +20,18 @@ export function normalizeDigits(input: string): string {
     .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660));
 }
 
+/**
+ * Locale-aware digit display: Persian numerals for fa, Latin for every other
+ * locale (en/ar/zh) — Western digits are the standard, widely-understood
+ * convention for Arabic/Chinese commerce UI, matching how the rest of this
+ * function's callers (Header cart badge, etc.) format counts for display.
+ * Accepts the string form so callers can also localize composite values
+ * (e.g. already-formatted numbers with separators).
+ */
+export function localizeDigits(input: string | number, locale: string): string {
+  return locale === 'fa' ? toPersianDigits(input) : normalizeDigits(String(input));
+}
+
 /** Format an integer Toman value with thousands separators + Persian digits + unit. */
 export function formatToman(value: number, withUnit = true): string {
   const grouped = Math.round(value).toLocaleString('en-US'); // 32,450
