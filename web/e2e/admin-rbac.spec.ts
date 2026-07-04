@@ -24,7 +24,13 @@ async function loginAs(page: import('@playwright/test').Page, mobile: string) {
 
 test('content-role nav only lists permitted sections', async ({ page }) => {
   await loginAs(page, '09120000001');
-  const navLabels = await page.locator('nav[aria-label="پنل مدیریت"] a').allTextContents();
+  // `toHaveURL` above only confirms the navigation committed, not that the
+  // (cold-compiling, on a first hit) admin layout has actually painted its
+  // nav yet — reading `allTextContents()` immediately can race a still-empty
+  // DOM. Wait for at least one nav link before reading all of them.
+  const nav = page.locator('nav[aria-label="پنل مدیریت"] a');
+  await expect(nav.first()).toBeVisible();
+  const navLabels = await nav.allTextContents();
   expect(navLabels).toContain('داشبورد');
   expect(navLabels).toContain('محتوا');
   expect(navLabels).not.toContain('قیمت‌گذاری');
