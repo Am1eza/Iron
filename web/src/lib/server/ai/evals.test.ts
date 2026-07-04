@@ -45,12 +45,18 @@ beforeAll(async () => {
   const rows = await tableRows('rebar');
   pricedRebar = rows.filter((r) => !r.current.priceHidden && r.current.price > 0);
   expect(pricedRebar.length).toBeGreaterThan(2);
-  // Age one SKU's price to 26h ago: a different Jalali day (→ isStale) but
-  // under the 2-business-day hide threshold (→ price still visible).
+  // Age one SKU's price to exactly 24h ago: guaranteed to land on the
+  // immediately-preceding Jalali day (→ isStale) while staying at exactly
+  // 1 business day elapsed, under the 2-business-day hide threshold (→
+  // price still visible) — see businessDaysSince (jalali.ts). A larger
+  // offset like 26h is NOT safe here: with Tehran's fixed UTC+3:30 offset,
+  // whenever the test happens to run within ~2h after Tehran midnight, 26h
+  // back crosses TWO Jalali day boundaries instead of one, pushing the
+  // business-day count to 2 and flakily hiding the price.
   staleSku = pricedRebar[1]!;
   await db
     .update(schema.currentPrices)
-    .set({ updatedAt: new Date(Date.now() - 26 * 60 * 60 * 1000) })
+    .set({ updatedAt: new Date(Date.now() - 24 * 60 * 60 * 1000) })
     .where(eq(schema.currentPrices.skuId, staleSku.id));
 }, 120_000);
 afterAll(async () => {
