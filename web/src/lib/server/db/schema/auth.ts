@@ -39,9 +39,10 @@ export const refreshTokens = pgTable(
   'refresh_tokens',
   {
     tokenHash: text('token_hash').primaryKey(),
+    // A deleted account's sessions must go with it, not linger as orphans.
     userId: text('user_id')
       .notNull()
-      .references(() => users.id),
+      .references(() => users.id, { onDelete: 'cascade' }),
     expiresAt: bigint('expires_at', { mode: 'number' }).notNull(),
   },
   (t) => [index('refresh_tokens_user_idx').on(t.userId)],

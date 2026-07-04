@@ -6,7 +6,22 @@
  */
 import { z } from 'zod';
 import { reportError } from '@/lib/errors/report';
+import { withResilience } from '@/lib/server/utils/resilience';
 import type { MarketKey } from '@/lib/types/domain';
+
+/** HTTP errors this module throws internally, tagged with a status so the
+ *  resilience layer can tell a transient 5xx/network blip (worth retrying)
+ *  from a persistent 4xx (retrying won't fix a bad URL/expired key). */
+class TgjuHttpError extends Error {
+  constructor(public status: number) {
+    super(`tgju HTTP ${status}`);
+  }
+}
+
+function isRetryableTgjuError(err: unknown): boolean {
+  if (err instanceof TgjuHttpError) return err.status >= 500;
+  return true; // network errors, timeouts, DNS failures, etc.
+}
 
 /** tgju current-rates payload (api.tgju.org/v1/data/sana/json format is a
  *  key→{p: "price", ...} map; a relay may pre-shape it to {usd: number, ...}). */
@@ -39,20 +54,37 @@ function normalize(key: Exclude<MarketKey, 'billet'>, raw: number): number {
   return raw > 10_000_000 ? Math.round(raw / 10) : Math.round(raw);
 }
 
+/**
+ * Only ever called from the background market-poll job (see
+ * jobs/marketPoll.job.ts), never synchronously in a request path — so the
+ * retry/backoff below adds no user-facing latency, just improves the odds
+ * a single poll tick survives a momentary blip instead of serving stale
+ * values for a full extra interval. 2 retries + a circuit breaker (opens
+ * after 3 consecutive failed poll attempts) sit behind the existing
+ * try/catch: any thrown error — including CircuitOpenError while the
+ * breaker is open — still lands in the same `return null`, so callers'
+ * last-known-value/isStale fallback is unchanged.
+ */
 export async function fetchTgju(): Promise<Partial<Record<MarketKey, number>> | null> {
   const base = process.env.TGJU_BASE_URL;
   if (!base) return null; // not configured — dev/seed values keep serving
   const apiKey = process.env.TGJU_API_KEY;
   try {
-    const res = await fetch(base, {
-      signal: AbortSignal.timeout(5000),
-      // TGJU_API_KEY is optional — some relays front the public tgju feed
-      // with their own auth; a bare tgju.org JSON endpoint needs none.
-      headers: { accept: 'application/json', ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}) },
-      cache: 'no-store',
-    });
-    if (!res.ok) throw new Error(`tgju HTTP ${res.status}`);
-    const json: unknown = await res.json();
+    const json: unknown = await withResilience(
+      'tgju',
+      async () => {
+        const res = await fetch(base, {
+          signal: AbortSignal.timeout(5000),
+          // TGJU_API_KEY is optional — some relays front the public tgju feed
+          // with their own auth; a bare tgju.org JSON endpoint needs none.
+          headers: { accept: 'application/json', ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}) },
+          cache: 'no-store',
+        });
+        if (!res.ok) throw new TgjuHttpError(res.status);
+        return res.json();
+      },
+      { retries: 2, baseDelayMs: 300, isRetryable: isRetryableTgjuError },
+    );
     // Accept either a flat map or tgju's {current: {...}} envelope.
     const body = (json && typeof json === 'object' && 'current' in (json as Record<string, unknown>)
       ? (json as Record<string, unknown>).current

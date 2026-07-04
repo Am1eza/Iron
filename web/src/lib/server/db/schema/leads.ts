@@ -39,7 +39,9 @@ export const leads = pgTable(
   {
     id: text('id').primaryKey(),
     ref: text('ref').notNull().unique(),
-    userId: text('user_id').references(() => users.id),
+    // Leads are real business records — a deleted user/staff account must
+    // not take the lead down with it, just detach from it.
+    userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
     contactName: text('contact_name'),
     contactMobile: text('contact_mobile').notNull(),
     contactVerified: boolean('contact_verified').notNull().default(false),
@@ -48,10 +50,16 @@ export const leads = pgTable(
     context: jsonb('context').$type<LeadContext>(),
     channelPref: text('channel_pref', { enum: NOTIFY_CHANNELS }).notNull().default('sms'),
     status: text('status', { enum: LEAD_STATUSES }).notNull().default('new'),
-    assigneeId: text('assignee_id').references(() => users.id),
+    assigneeId: text('assignee_id').references(() => users.id, { onDelete: 'set null' }),
     callbackAt: timestamp('callback_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    // Soft-delete (archive a spam/duplicate/test lead out of admin views
+    // without losing its audit trail) — deliberately separate from `status`:
+    // 'lost' means a real lead that didn't convert, this means "shouldn't
+    // have existed in the working set at all". Null = active (the default,
+    // and every existing row after migration).
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
   },
   (t) => [
     index('leads_status_assignee_created_idx').on(t.status, t.assigneeId, t.createdAt),
@@ -64,10 +72,14 @@ export const leadItems = pgTable(
   'lead_items',
   {
     id: text('id').primaryKey(),
+    // Structural child of the lead — goes with it.
     leadId: text('lead_id')
       .notNull()
-      .references(() => leads.id),
-    skuId: text('sku_id').references(() => skus.id),
+      .references(() => leads.id, { onDelete: 'cascade' }),
+    // The line item snapshots name/qty/price already — the sku link is a
+    // cross-reference, not required for the record's own integrity, so a
+    // deleted product must not erase real order/lead history.
+    skuId: text('sku_id').references(() => skus.id, { onDelete: 'set null' }),
     name: text('name').notNull(),
     qty: doublePrecision('qty').notNull(),
     unit: text('unit', { enum: PRICE_UNITS }).notNull(),
@@ -85,7 +97,12 @@ export const leadNotes = pgTable(
     id: text('id').primaryKey(),
     leadId: text('lead_id')
       .notNull()
-      .references(() => leads.id),
+      .references(() => leads.id, { onDelete: 'cascade' }),
+    // `authorId` intentionally has NO onDelete override: it's required
+    // (a note must have a writer) and notes are real sales history — the
+    // Postgres default (RESTRICT) blocks deleting a staff account that has
+    // authored notes rather than silently cascading the loss or leaving a
+    // dangling reference. Deactivate the account (users.isActive) instead.
     authorId: text('author_id')
       .notNull()
       .references(() => users.id),
@@ -99,9 +116,10 @@ export const proformas = pgTable(
   'proformas',
   {
     id: text('id').primaryKey(),
+    // Structural child of the lead (frozen line-item snapshot) — goes with it.
     leadId: text('lead_id')
       .notNull()
-      .references(() => leads.id),
+      .references(() => leads.id, { onDelete: 'cascade' }),
     ref: text('ref').notNull().unique(),
     lines: jsonb('lines').$type<LineItem[]>().notNull(),
     subtotal: bigint('subtotal', { mode: 'number' }).notNull(),
@@ -109,7 +127,12 @@ export const proformas = pgTable(
     vatAmount: bigint('vat_amount', { mode: 'number' }).notNull(),
     total: bigint('total', { mode: 'number' }).notNull(),
     validUntil: timestamp('valid_until', { withTimezone: true }).notNull(),
-    status: text('status', { enum: ['active', 'expired'] }).notNull().default('active'),
+    // 'cancelled' — an admin voiding an issued proforma (customer changed the
+    // order, a pricing error, etc.), distinct from the automatic time-based
+    // 'expired' the sweep job sets. Adding it is safe: expireDueProformas()
+    // only ever touches rows WHERE status='active', so a cancelled row is
+    // never picked up or overwritten by it.
+    status: text('status', { enum: ['active', 'expired', 'cancelled'] }).notNull().default('active'),
     pdfUrl: text('pdf_url'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -134,6 +157,9 @@ export const userRequests = pgTable(
   {
     id: text('id').primaryKey(),
     ref: text('ref').notNull().unique(),
+    // `userId` intentionally has NO onDelete override — same reasoning as
+    // lead_notes.authorId: required, and a submitted request is real
+    // customer history the app must not silently discard or orphan.
     userId: text('user_id')
       .notNull()
       .references(() => users.id),
@@ -142,7 +168,7 @@ export const userRequests = pgTable(
     detail: text('detail'),
     note: text('note'),
     status: text('status', { enum: REQUEST_STATUSES }).notNull().default('submitted'),
-    leadId: text('lead_id').references(() => leads.id),
+    leadId: text('lead_id').references(() => leads.id, { onDelete: 'set null' }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
