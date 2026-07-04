@@ -20,8 +20,16 @@ const nextConfig = {
   poweredByHeader: false,
   // `pg` (Postgres driver, server/API-route usage — see db/client.ts) as an
   // external so route handlers that import it don't get it bundled by
-  // webpack.
-  serverExternalPackages: ['pg'],
+  // webpack. `pg-cloudflare` (pg's optional Workers-native socket, used via
+  // its package.json's "workerd" export condition) needs to be listed here
+  // too, not just `pg` itself: @opennextjs/cloudflare's copyWorkerdPackages
+  // step only does a full, condition-aware copy of a dependency's workerd
+  // build for packages that appear in this list — otherwise it falls back to
+  // generic file tracing, which inconsistently drops pg-cloudflare's
+  // `dist/index.js`, breaking the Cloudflare Workers build with "Could not
+  // resolve pg-cloudflare" (reproduced in CI; see @opennextjs/cloudflare's
+  // dist/cli/build/utils/workerd.js).
+  serverExternalPackages: ['pg', 'pg-cloudflare'],
   // `date-fns-jalali` is imported (named imports only) across format/validation/
   // server utils; this keeps only the modules actually used in the bundle
   // instead of Next's default whole-package handling for non-`esm`-optimized
