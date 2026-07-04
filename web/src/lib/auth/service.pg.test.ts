@@ -4,9 +4,10 @@
  * facade swap: same service code, sessions/accounts persisted in SQL.
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { ulid } from 'ulid';
 import { createTestDb } from '@/test/db';
 import { requestOtp, verifyOtp, rotateRefresh, logout, AuthError } from './service';
-import { userByMobile } from './store';
+import { userByMobile, userById, updateUser, revokeAllForUser } from './store';
 
 let close: () => Promise<void>;
 
@@ -43,5 +44,23 @@ describe('OTP auth flow (pg store)', () => {
     const mobile = '09135000002';
     await requestOtp(mobile);
     await expect(requestOtp(mobile)).rejects.toBeInstanceOf(AuthError);
+  });
+
+  it('account erasure (DELETE /api/me): scrubbed mobile + revoked tokens + deactivated account all take', async () => {
+    const mobile = '09135000003';
+    const { devCode } = await requestOtp(mobile, 'سارا');
+    const { user, tokens } = await verifyOtp(mobile, devCode!);
+
+    // Mirrors the DELETEImpl handler in app/api/me/route.ts.
+    await revokeAllForUser(user.id);
+    await updateUser(user.id, { name: '', mobile: `deleted:${ulid()}`, isActive: false });
+
+    // Old mobile no longer resolves to anyone — a re-registration with the
+    // same number is possible again, exactly as if the account never existed.
+    expect(await userByMobile(mobile)).toBeNull();
+    // Deactivated: store.pg.ts's userWhere excludes isActive=false rows.
+    expect(await userById(user.id)).toBeNull();
+    // Every refresh token was revoked before the scrub.
+    await expect(rotateRefresh(tokens.refreshToken)).rejects.toBeInstanceOf(AuthError);
   });
 });
