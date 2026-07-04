@@ -24,8 +24,13 @@ async function loginAs(page: import('@playwright/test').Page, mobile: string) {
 
 test('content-role nav only lists permitted sections', async ({ page }) => {
   await loginAs(page, '09120000001');
-  const navLabels = await page.locator('nav[aria-label="پنل مدیریت"] a').allTextContents();
-  expect(navLabels).toContain('داشبورد');
+  const nav = page.locator('nav[aria-label="پنل مدیریت"]');
+  // The nav's link set is role-filtered client-side (useAuth()'s Zustand
+  // store), which can still be resolving right after the login redirect —
+  // `.toContainText` auto-retries until the filtered links actually render,
+  // unlike a one-shot `allTextContents()` snapshot.
+  await expect(nav).toContainText('داشبورد');
+  const navLabels = await nav.locator('a').allTextContents();
   expect(navLabels).toContain('محتوا');
   expect(navLabels).not.toContain('قیمت‌گذاری');
   expect(navLabels).not.toContain('کاربران');

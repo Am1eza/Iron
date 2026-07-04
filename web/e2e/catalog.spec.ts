@@ -27,10 +27,19 @@ test('category price table renders real seeded rows from the live DB', async ({ 
 
 test('SKU detail page shows a live price, reached via the chart modal', async ({ page }) => {
   await page.goto('/prices/rebar');
+  const chartBtn = page.getByRole('table').first().locator('tbody tr').first().getByLabel(/نمودار/);
+  const viewSkuBtn = page.getByRole('button', { name: 'مشاهدهٔ صفحهٔ محصول' });
   // Row → chart icon opens a modal → "مشاهدهٔ صفحهٔ محصول" navigates to the
   // SKU detail page — there's no direct row link, this is the real path.
-  await page.getByRole('table').first().locator('tbody tr').first().getByLabel(/نمودار/).click();
-  await page.getByRole('button', { name: 'مشاهدهٔ صفحهٔ محصول' }).click();
+  // Retry the click: on a cold `next dev` compile the button is server-rendered
+  // (and thus clickable per Playwright's actionability checks) slightly before
+  // React finishes hydrating it, so the very first click on a fresh page load
+  // can be lost — retrying re-issues the click until it actually lands.
+  await expect(async () => {
+    await chartBtn.click();
+    await expect(viewSkuBtn).toBeVisible({ timeout: 1000 });
+  }).toPass({ timeout: 15_000 });
+  await viewSkuBtn.click();
   await expect(page).toHaveURL(/\/prices\/rebar\/.+\/.+/);
   await expect(page.getByText('تومان').first()).toBeVisible();
 });
