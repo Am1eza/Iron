@@ -1,6 +1,6 @@
 {
-  "id": "b1f6b73c-36e4-4c66-885c-902be5bfc733",
-  "prevId": "9798c62b-17ec-4c54-9ffe-1b2f08a5da49",
+  "id": "c882b12d-1083-4256-b1e2-28fafc720d54",
+  "prevId": "b1f6b73c-36e4-4c66-885c-902be5bfc733",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -176,6 +176,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": true
+        },
+        "token_version": {
+          "name": "token_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
         },
         "created_at": {
           "name": "created_at",
