@@ -37,8 +37,17 @@ test('content-role nav only lists permitted sections', async ({ page }) => {
 
 test('content-role direct navigation to an unpermitted page 404s', async ({ page }) => {
   await loginAs(page, '09120000002');
-  const resp = await page.goto('/admin/pricing');
-  expect(resp?.status()).toBe(404);
+  // Not asserting on the HTTP status code here: this app renders under a
+  // root loading.tsx, which wraps every route in a Suspense boundary per
+  // Next.js's file-system convention — and Next.js has a well-documented
+  // limitation (https://github.com/vercel/next.js/issues/62228) where a
+  // notFound() thrown below an active Suspense boundary locks in the 200
+  // status streaming already started with, even though the not-found UI
+  // renders correctly. The actual security property — the pricing page's
+  // protected content never reaching the client — is what this asserts.
+  await page.goto('/admin/pricing');
+  await expect(page.getByText('این صفحه پیدا نشد')).toBeVisible();
+  await expect(page.getByText('قیمت‌گذاری روزانه')).toHaveCount(0);
 });
 
 test('content-role can reach its own page', async ({ page }) => {

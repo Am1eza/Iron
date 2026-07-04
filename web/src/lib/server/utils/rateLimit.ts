@@ -7,9 +7,10 @@
  *    `namespace_id`, so this is the AUTHORITATIVE check on the Workers
  *    deploy. Only supports a fixed 60s window (Cloudflare's cap), so scopes
  *    whose business rule is a longer window (ai-chat, otp-verify,
- *    otp-request) get a binding sized to a fraction of their real limit —
- *    a durable, cross-isolate backstop against a burst distributed across
- *    isolates/PoPs, not a full substitute for the longer window.
+ *    otp-request) get a binding sized to match their full 5-minute limit
+ *    (not a fraction of it) — a durable, cross-isolate backstop against a
+ *    burst distributed across isolates/PoPs, without throttling a single
+ *    legitimate 60s burst below what the app already allows over 5 minutes.
  * 2. An in-process sliding window (the original implementation) — correct
  *    and sufficient on its own for the single-container Docker/Node deploy,
  *    and still the one that enforces the FULL 5-minute rule for ai-chat/
