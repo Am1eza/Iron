@@ -18,6 +18,17 @@ export function ArticleCard({ article }: { article: Article }) {
   return (
     <li className={styles.item}>
       <Link href={href} className={styles.card}>
+        {article.coverUrl ? (
+          <img
+            src={article.coverUrl}
+            alt=""
+            width={400}
+            height={225}
+            loading="lazy"
+            decoding="async"
+            className={styles.cover}
+          />
+        ) : null}
         <div className={styles.top}>
           <span className={styles.kicker}>{kicker}</span>
           {article.source === 'ai' ? (

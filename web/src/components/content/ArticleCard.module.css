@@ -27,6 +27,15 @@
   text-decoration: none;
 }
 
+.cover {
+  inline-size: 100%;
+  block-size: auto;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: var(--radius-sm, 6px);
+  margin-block-end: var(--space-1);
+}
+
 .top {
   display: flex;
   align-items: center;

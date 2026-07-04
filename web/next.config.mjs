@@ -43,8 +43,11 @@ const nextConfig = {
               // indexes (IA / SEO rules). styleguide is an internal component
               // reference — not customer-facing, not in sitemap.ts, and never
               // linked from the site, but with no noindex it would still get
-              // crawled/indexed if ever discovered via an external link.
-              source: '/:path(admin|account|request|cart|search|styleguide)(.*)',
+              // crawled/indexed if ever discovered via an external link. These
+              // paths are intentionally NOT in robots.ts's `disallow` (except
+              // /admin) — see the comment there for why noindex-only (not
+              // Disallow+noindex) is the correct pairing.
+              source: '/:path(admin|account|request|cart|search|login|styleguide)(.*)',
               headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }],
             },
             {
