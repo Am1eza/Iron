@@ -49,8 +49,8 @@ import styles from './styleguide.module.css';
 
 const SWATCHES = [
   ['--color-text-strong', 'متن قوی'],
-  ['--color-accent', 'کبالت / هوشمند'],
-  ['--color-action', 'کهربا / اقدام'],
+  ['--color-accent', 'زمرد / لوگو'],
+  ['--color-action', 'زمرد / اقدام'],
   ['--color-gain', 'رشد'],
   ['--color-loss', 'افت'],
   ['--color-surface-sunken', 'سطح فرورفته'],

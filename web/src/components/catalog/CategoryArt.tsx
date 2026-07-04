@@ -14,7 +14,7 @@ export function CategoryArt({ slug, size = 64 }: Props) {
     'aria-hidden': true,
     focusable: false,
   } as const;
-  const A = '#0F8A63'; // emerald (brand) accent
+  const A = '#178261'; // emerald (brand) accent
 
   switch (slug) {
     case 'rebar': // ribbed bars (bundle)

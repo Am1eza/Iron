@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { ImageResponse } from 'next/og';
 
 export const alt = 'آهن‌تایم — بازار هوشمند آهن و فولاد';
@@ -12,6 +14,9 @@ export const contentType = 'image/png';
  * script, so Persian text would render as disconnected glyphs.
  */
 export default function OpengraphImage() {
+  const logoData = readFileSync(join(process.cwd(), 'public/brand/icon-512.png'));
+  const logoSrc = `data:image/png;base64,${logoData.toString('base64')}`;
+
   return new ImageResponse(
     (
       <div
@@ -33,18 +38,8 @@ export default function OpengraphImage() {
             gap: 28,
           }}
         >
-          <svg width="108" height="108" viewBox="0 0 120 120" fill="none">
-            <rect width="120" height="120" rx="27" fill="#20262F" />
-            <g fill="#FFFFFF">
-              <rect x="36" y="40" width="48" height="11" rx="3" />
-              <rect x="54.5" y="48" width="11" height="24" rx="2" />
-              <rect x="36" y="69" width="48" height="11" rx="3" />
-            </g>
-            <path
-              d="M89 26c.5 7 2.5 9 9.5 9.5-7 .5-9 2.5-9.5 9.5-.5-7-2.5-9-9.5-9.5 7-.5 9-2.5 9.5-9.5Z"
-              fill="#F5961E"
-            />
-          </svg>
+          {/* eslint-disable-next-line @next/next/no-img-element -- satori (next/og) needs a plain <img>, not next/image */}
+          <img src={logoSrc} width={108} height={108} alt="" />
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <div style={{ fontSize: 76, fontWeight: 700, color: '#FFFFFF', letterSpacing: -1 }}>
               Ahantime

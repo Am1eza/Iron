@@ -4,7 +4,7 @@
 **Smart Steel Marketplace · بازار هوشمند آهن و فولاد**
 Minimal · Premium · Professional — 26 June 2026
 
-> **Domain verified** via Verisign RDAP at time of writing: **`ahantime.com` — AVAILABLE.** Register immediately (note: `pooladin.com` is already taken). Secure defensively: `ahantime.ir`, `ahantimesteel.com`, plus the **Cafe Bazaar / Myket** app id and **@ahantime** on Instagram / Telegram / Eitaa — all matching, before launch.
+> **Domain verified** via Verisign RDAP at time of writing: **`ahantime.com` — AVAILABLE.** Register immediately. Secure defensively: `ahantime.ir`, `ahantimesteel.com`, plus the **Cafe Bazaar / Myket** app id and **@ahantime** on Instagram / Telegram / Eitaa — all matching, before launch.
 
 ---
 

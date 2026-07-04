@@ -1,10 +1,12 @@
 import type { Metadata } from 'next';
+import Image from 'next/image';
 import Link from 'next/link';
 import { requirePermission } from '@/lib/auth/guards';
 import { can, permissionForAdminPath } from '@/lib/auth/roles';
 import { routes } from '@/lib/routes';
 import { AdminNavLinks } from './AdminNavLinks';
 import styles from './admin.module.css';
+import logoMark from '../../../public/brand/ahantime-logo.png';
 
 /** Admin shell — noindex; server-gated on admin:access (404 for non-staff). */
 export const metadata: Metadata = { robots: { index: false, follow: false } };
@@ -39,7 +41,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       </a>
       <header className={styles.topbar}>
         <Link href={routes.admin.dashboard()} className={styles.brand}>
-          پنل آهن‌تایم
+          <Image src={logoMark} alt="" className={styles.brandMark} priority />
+          پنل مدیریت
         </Link>
         <nav className={styles.nav} aria-label="پنل مدیریت">
           <AdminNavLinks nav={nav} />
