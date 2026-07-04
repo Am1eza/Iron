@@ -32,10 +32,13 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   if (!article || article.type !== 'news') {
     return buildMetadata({ title: 'خبر یافت نشد', noindex: true, path: routes.news(slug) });
   }
+  // Admin-authored SEO overrides (title/description/canonical/ogImage) win when set.
+  const seo = article.seo;
   return buildMetadata({
-    title: article.title,
-    description: article.excerpt,
-    path: routes.news(article.slug),
+    title: seo?.title ?? article.title,
+    description: seo?.description ?? article.excerpt,
+    path: seo?.canonical ?? routes.news(article.slug),
+    ogImage: seo?.ogImage ?? article.coverUrl,
   });
 }
 
@@ -62,6 +65,7 @@ export default async function NewsArticlePage({ params }: Params) {
           title: article.title,
           url: routes.news(article.slug),
           publishedAt: article.publishAt,
+          image: article.seo?.ogImage ?? article.coverUrl,
         })}
       />
 
@@ -71,6 +75,17 @@ export default async function NewsArticlePage({ params }: Params) {
 
           <article className={styles.article}>
             <header className={styles.header}>
+              {article.coverUrl ? (
+                <img
+                  src={article.coverUrl}
+                  alt={article.title}
+                  width={1200}
+                  height={630}
+                  loading="eager"
+                  decoding="async"
+                  className={styles.cover}
+                />
+              ) : null}
               <p className={styles.kicker}>خبر بازار</p>
               <Heading level={1}>{article.title}</Heading>
               <div className={styles.meta}>

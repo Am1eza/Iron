@@ -93,6 +93,7 @@ export default function WhyPage() {
           <FeatureGrid items={advantages} />
 
           <PageHero
+            level={2}
             eyebrow="آماده‌اید شروع کنید؟"
             title="قیمت‌ها را ببینید یا با مشاور صحبت کنید"
             lead="چه پیمانکار باشید و چه سازندهٔ شخصی، آهن‌تایم کنار شماست؛ اول مشورت، بعد خرید."

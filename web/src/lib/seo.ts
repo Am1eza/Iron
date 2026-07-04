@@ -2,9 +2,13 @@
  * SEO helpers — metadata patterns (IA §7) + schema.org JSON-LD.
  */
 import type { Metadata } from 'next';
+import { CHANNELS } from '@/lib/data/nav';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://ahantime.com';
 const BRAND = 'آهن‌تایم';
+/** Default social-preview image — served by app/opengraph-image.tsx (1200×630). */
+const DEFAULT_OG_IMAGE = new URL('/opengraph-image', SITE_URL).toString();
+const LOGO_URL = new URL('/icon.svg', SITE_URL).toString();
 
 export const ORG_NAME = BRAND;
 export const CONTACT = {
@@ -19,21 +23,32 @@ export function buildMetadata(opts: {
   path?: string;
   noindex?: boolean;
   ogImage?: string;
+  /** Homepage only: `title` is already the full brand title — skip the root
+   *  layout's `%s | آهن‌تایم` template instead of double-appending the brand. */
+  absoluteTitle?: boolean;
 }): Metadata {
   const canonical = opts.path ? new URL(opts.path, SITE_URL).toString() : undefined;
+  const ogImage = opts.ogImage ? new URL(opts.ogImage, SITE_URL).toString() : DEFAULT_OG_IMAGE;
+  const socialTitle = opts.absoluteTitle ? opts.title : `${opts.title} | ${BRAND}`;
   return {
-    title: opts.title,
+    title: opts.absoluteTitle ? { absolute: opts.title } : opts.title,
     description: opts.description,
     alternates: canonical ? { canonical } : undefined,
     robots: opts.noindex ? { index: false, follow: false } : undefined,
     openGraph: {
-      title: `${opts.title} | ${BRAND}`,
+      title: socialTitle,
       description: opts.description,
       url: canonical,
-      images: opts.ogImage ? [opts.ogImage] : undefined,
+      images: [ogImage],
       siteName: BRAND,
       locale: 'fa_IR',
       type: 'website',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: socialTitle,
+      description: opts.description,
+      images: [ogImage],
     },
   };
 }
@@ -46,7 +61,16 @@ export function orgJsonLd() {
     '@type': 'Organization',
     name: BRAND,
     url: SITE_URL,
+    logo: LOGO_URL,
     slogan: 'اول مشورت، بعد خرید',
+    contactPoint: {
+      '@type': 'ContactPoint',
+      telephone: CONTACT.phoneLandline,
+      contactType: 'customer service',
+      areaServed: 'IR',
+      availableLanguage: 'fa',
+    },
+    sameAs: CHANNELS.map((c) => c.href),
   };
 }
 
@@ -56,8 +80,25 @@ export function localBusinessJsonLd() {
     '@type': 'LocalBusiness',
     name: BRAND,
     url: SITE_URL,
+    image: DEFAULT_OG_IMAGE,
     telephone: [CONTACT.phoneLandline, CONTACT.phoneMobile],
     address: { '@type': 'PostalAddress', addressLocality: 'تهران', streetAddress: CONTACT.address },
+    priceRange: '$$',
+  };
+}
+
+/** WebSite + SearchAction — lets Google offer a sitelinks search box for brand queries. */
+export function websiteJsonLd() {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: BRAND,
+    url: SITE_URL,
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: `${SITE_URL}/search?q={search_term_string}`,
+      'query-input': 'required name=search_term_string',
+    },
   };
 }
 
@@ -76,33 +117,67 @@ export function breadcrumbJsonLd(items: { name: string; url?: string }[]) {
   };
 }
 
+/** Lightweight listing schema for category/sub-category hub pages (one Product per SKU
+ *  is reserved for the SKU detail page itself — see productJsonLd). */
+export function itemListJsonLd(items: { name: string; url: string }[]) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    itemListElement: items.map((it, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      name: it.name,
+      url: new URL(it.url, SITE_URL).toString(),
+    })),
+  };
+}
+
 export function productJsonLd(p: {
   name: string;
-  price: number;
-  availability?: boolean;
+  price: number; // Toman, excl. VAT (see PriceRow.current.price)
+  /** Defaults to true (InStock) when omitted — pass row.isActive explicitly where known. */
+  available?: boolean;
   url: string;
+  image?: string;
+  brand?: string;
+  sku?: string;
 }) {
   return {
     '@context': 'https://schema.org',
     '@type': 'Product',
     name: p.name,
+    ...(p.image ? { image: [new URL(p.image, SITE_URL).toString()] } : {}),
+    ...(p.sku ? { sku: p.sku } : {}),
+    ...(p.brand ? { brand: { '@type': 'Brand', name: p.brand } } : {}),
     offers: {
       '@type': 'Offer',
-      price: p.price,
-      priceCurrency: 'IRR', // displayed as Toman; stored unit per backend
-      availability: `https://schema.org/${p.availability === false ? 'OutOfStock' : 'InStock'}`,
+      // Toman has no ISO 4217 code; Rial (IRR) is the smallest official unit — 1 Toman = 10 Rial.
+      price: p.price * 10,
+      priceCurrency: 'IRR',
+      availability: `https://schema.org/${p.available === false ? 'OutOfStock' : 'InStock'}`,
       url: new URL(p.url, SITE_URL).toString(),
+      seller: { '@type': 'Organization', name: BRAND },
     },
   };
 }
 
-export function articleJsonLd(a: { title: string; url: string; publishedAt?: string }) {
+export function articleJsonLd(a: {
+  title: string;
+  url: string;
+  publishedAt?: string;
+  updatedAt?: string;
+  image?: string;
+}) {
   return {
     '@context': 'https://schema.org',
     '@type': 'Article',
     headline: a.title,
     datePublished: a.publishedAt,
+    dateModified: a.updatedAt ?? a.publishedAt,
+    image: [a.image ? new URL(a.image, SITE_URL).toString() : DEFAULT_OG_IMAGE],
     url: new URL(a.url, SITE_URL).toString(),
-    publisher: { '@type': 'Organization', name: BRAND },
+    mainEntityOfPage: new URL(a.url, SITE_URL).toString(),
+    author: { '@type': 'Organization', name: BRAND },
+    publisher: { '@type': 'Organization', name: BRAND, logo: { '@type': 'ImageObject', url: LOGO_URL } },
   };
 }

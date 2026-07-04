@@ -18,6 +18,7 @@ export function toArticleDto(r: Row): Article {
     type: r.type,
     title: r.title,
     excerpt: r.excerpt ?? undefined,
+    coverUrl: r.coverUrl ?? undefined,
     status: r.status,
     source: r.source,
     publishAt: r.publishAt?.toISOString(),
@@ -26,10 +27,10 @@ export function toArticleDto(r: Row): Article {
 }
 
 /** Body included — for the article page and the admin editor. */
-export type ArticleFull = Article & { bodyMd: string; coverUrl?: string };
+export type ArticleFull = Article & { bodyMd: string };
 
 export function toArticleFull(r: Row): ArticleFull {
-  return { ...toArticleDto(r), bodyMd: r.bodyMd, coverUrl: r.coverUrl ?? undefined };
+  return { ...toArticleDto(r), bodyMd: r.bodyMd };
 }
 
 function publishedCond() {

@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { buildMetadata, breadcrumbJsonLd } from '@/lib/seo';
+import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import {
   Container,
@@ -11,6 +11,7 @@ import {
   Card,
   Breadcrumbs,
 } from '@/components/ui';
+import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
 import { WarehouseForm } from '@/components/warehouse/WarehouseForm';
 
 export const metadata: Metadata = buildMetadata({
@@ -46,25 +47,18 @@ const STEPS: { n: string; title: string; body: string }[] = [
   { n: '۴', title: 'فروش و تسویه', body: 'در زمان مناسب می‌فروشیم و وجه را تسویه می‌کنیم.' },
 ];
 
+const crumbs = [
+  { label: 'خانه', href: routes.home() },
+  { label: 'انبار مشتریان' },
+];
+
 export default function WarehousePage() {
   return (
     <Container>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(
-            breadcrumbJsonLd([
-              { name: 'خانه', url: routes.home() },
-              { name: 'انبار مشتریان', url: routes.warehouse() },
-            ]),
-          ),
-        }}
-      />
+      <BreadcrumbJsonLd items={crumbs} />
       <Section space={12}>
         <Stack gap={8}>
-          <Breadcrumbs
-            items={[{ label: 'خانه', href: routes.home() }, { label: 'انبار مشتریان' }]}
-          />
+          <Breadcrumbs items={crumbs} />
 
           <Stack gap={3}>
             <Text variant="overline" color="accent">

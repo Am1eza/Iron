@@ -73,7 +73,7 @@ export async function getArticlesByType(type: 'blog' | 'news'): Promise<Article[
   return articles;
 }
 
-export async function getArticle(slug: string): Promise<(Article & { bodyMd?: string }) | undefined> {
+export async function getArticle(slug: string): Promise<ArticleFull | Article | undefined> {
   if (!live()) return mock.findArticle(slug);
-  return ((await findPublishedBySlug(slug)) as ArticleFull | null) ?? undefined;
+  return (await findPublishedBySlug(slug)) ?? undefined;
 }
