@@ -5,20 +5,17 @@ import { routes } from '@/lib/routes';
 import { categories } from '@/lib/mock/fixtures';
 import { getRows } from '@/lib/server/catalog';
 import { CATEGORY_SUBS } from '@/lib/data/nav';
-import {
-  Container,
-  Section,
-  Stack,
-  Breadcrumbs,
-  EmptyState,
-  emptyPresets,
-} from '@/components/ui';
+import { Container, Section, Stack, Breadcrumbs, EmptyState, emptyPresets } from '@/components/ui';
 import { BreadcrumbJsonLd, JsonLd } from '@/components/seo/JsonLd';
 import { PriceTable } from '@/components/catalog/PriceTable';
 import { BulkQuote } from '@/components/catalog/BulkQuote';
 import { PriceHeader } from '@/components/catalog/PriceHeader';
 
 type Params = { params: Promise<{ category: string }> };
+
+// Prices change intraday (admin-entered) → revalidate often (ROUTING.md §6),
+// matching the [sub] and [sku] pages one level down.
+export const revalidate = 300;
 
 export function generateStaticParams() {
   return categories.filter((c) => c.isActive).map((c) => ({ category: c.slug }));

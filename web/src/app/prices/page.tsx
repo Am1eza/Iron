@@ -12,6 +12,11 @@ export const metadata: Metadata = buildMetadata({
   path: routes.prices(),
 });
 
+// Category list is admin-curated and rarely changes, but without a revalidate
+// window this page would otherwise cache forever after build (no
+// revalidatePath call exists for category admin writes yet).
+export const revalidate = 300;
+
 export default async function PriceHubPage() {
   const categories = await getCategories();
   return (

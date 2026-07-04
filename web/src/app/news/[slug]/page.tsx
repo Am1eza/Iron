@@ -6,14 +6,7 @@ import { routes } from '@/lib/routes';
 import { articlesByType } from '@/lib/mock/catalogData';
 import { getArticle, getArticlesByType } from '@/lib/server/catalog';
 import { formatJalali } from '@/lib/utils/format';
-import {
-  Container,
-  Section,
-  Stack,
-  Heading,
-  Breadcrumbs,
-  Badge,
-} from '@/components/ui';
+import { Container, Section, Stack, Heading, Breadcrumbs, Badge } from '@/components/ui';
 import { SparkIcon, CalendarIcon, ChevronStartIcon } from '@/components/primitives/icons';
 import { BreadcrumbJsonLd, JsonLd } from '@/components/seo/JsonLd';
 import { ArticleBody } from '@/components/content/ArticleBody';
@@ -21,6 +14,9 @@ import { ArticleCard } from '@/components/content/ArticleCard';
 import styles from './article.module.css';
 
 type Params = { params: Promise<{ slug: string }> };
+
+// Matches the /news list's cadence.
+export const revalidate = 600;
 
 export function generateStaticParams() {
   return articlesByType('news').map((a) => ({ slug: a.slug }));
@@ -41,12 +37,12 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 
 export default async function NewsArticlePage({ params }: Params) {
   const { slug } = await params;
-  const article = await getArticle(slug);
+  // Independent reads — the related list only needs the static 'news' type,
+  // not the resolved article — so fetch both concurrently.
+  const [article, allNews] = await Promise.all([getArticle(slug), getArticlesByType('news')]);
   if (!article || article.type !== 'news') notFound();
 
-  const related = (await getArticlesByType('news'))
-    .filter((a) => a.slug !== article.slug)
-    .slice(0, 3);
+  const related = allNews.filter((a) => a.slug !== article.slug).slice(0, 3);
 
   const crumbs = [
     { label: 'خانه', href: routes.home() },

@@ -38,13 +38,15 @@ export async function listAudit(query: {
   if (query.entityId) conds.push(eq(auditEntries.entityId, query.entityId));
   if (query.actorId) conds.push(eq(auditEntries.actorId, query.actorId));
   const where = conds.length ? and(...conds) : undefined;
-  const rows = await db
-    .select()
-    .from(auditEntries)
-    .where(where)
-    .orderBy(desc(auditEntries.at))
-    .limit(perPage)
-    .offset((page - 1) * perPage);
-  const total = await db.select({ n: sql<number>`count(*)::int` }).from(auditEntries).where(where);
+  const [rows, total] = await Promise.all([
+    db
+      .select()
+      .from(auditEntries)
+      .where(where)
+      .orderBy(desc(auditEntries.at))
+      .limit(perPage)
+      .offset((page - 1) * perPage),
+    db.select({ n: sql<number>`count(*)::int` }).from(auditEntries).where(where),
+  ]);
   return { entries: rows, total: total[0]?.n ?? 0 };
 }

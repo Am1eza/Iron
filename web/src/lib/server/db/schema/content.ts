@@ -2,15 +2,8 @@
  * Content — articles (blog/news with the AI-draft → editor approval gate)
  * and brand/customer logos.
  */
-import {
-  boolean,
-  index,
-  integer,
-  jsonb,
-  pgTable,
-  text,
-  timestamp,
-} from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+import { boolean, index, integer, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
 import { users } from './auth';
 import type { SeoMeta } from '@/lib/types/domain';
 
@@ -42,6 +35,13 @@ export const articles = pgTable(
   (t) => [
     index('articles_status_publish_idx').on(t.status, t.publishAt),
     index('articles_type_status_idx').on(t.type, t.status),
+    // Trigram indexes — searchArticles/searchPublishedGuides (articlesRepo,
+    // used by /api/search and the AI advisor's searchGuides tool) run
+    // leading-wildcard `ilike()` + `similarity()` ORDER BY over these columns,
+    // which only a GIN trigram index (not a plain btree) can serve.
+    index('articles_title_trgm_idx').using('gin', sql`${t.title} gin_trgm_ops`),
+    index('articles_excerpt_trgm_idx').using('gin', sql`${t.excerpt} gin_trgm_ops`),
+    index('articles_body_trgm_idx').using('gin', sql`${t.bodyMd} gin_trgm_ops`),
   ],
 );
 

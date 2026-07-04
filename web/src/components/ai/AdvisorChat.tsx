@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { routes } from '@/lib/routes';
 import { api, API_MODE, isApiError } from '@/lib/api';
@@ -196,6 +196,52 @@ function aiReply(text: string, ctx: { purpose: string | null }): { msgs: Msg[]; 
   };
 }
 
+/**
+ * One message bubble, memoized. `updateMsg` (below) only replaces the object
+ * for the message actively streaming — every other message keeps its exact
+ * same object reference across a `setMessages` update, so `React.memo`'s
+ * default shallow-prop comparison lets the rest of a long thread skip
+ * re-rendering on every SSE token instead of re-rendering the whole thread.
+ * `onPick` must stay referentially stable for that to hold (see `stableSend`
+ * in `AdvisorChat`) — otherwise every bubble would see a "changed" prop on
+ * every render regardless of whether its own message changed.
+ */
+const MessageBubble = memo(function MessageBubble({
+  message: m,
+  onPick,
+}: {
+  message: Msg;
+  onPick: (text: string) => void;
+}) {
+  return (
+    <div className={`${styles.row} ${styles.rowIn} ${m.role === 'user' ? styles.rowUser : styles.rowAi}`}>
+      {m.role === 'ai' && (
+        <span className={styles.bubbleAvatar} aria-hidden>
+          <SparkIcon size={14} />
+        </span>
+      )}
+      <div className={styles.bubbleWrap}>
+        {m.text && (
+          <div className={`${styles.bubble} ${m.role === 'user' ? styles.user : styles.ai}`}>
+            {m.text.split('\n').map((line, i) => (
+              <p key={i}>{line}</p>
+            ))}
+          </div>
+        )}
+        {m.estimate && <EstimateCard est={m.estimate} />}
+        {m.split && <SplitCard answer={m.split} />}
+        {m.chips && (
+          <div className={styles.chips}>
+            {m.chips.map((c) => (
+              <QuickReply key={c} label={c} onPick={onPick} />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+});
+
 export function AdvisorChat({ initialQuestion }: { initialQuestion?: string }) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [typing, setTyping] = useState(false);
@@ -353,6 +399,11 @@ export function AdvisorChat({ initialQuestion }: { initialQuestion?: string }) {
     if (useServer.current) void sendLive(text);
     else sendLocal(text);
   };
+  // Stable wrapper so `MessageBubble`'s `onPick` prop never changes reference
+  // (see MessageBubble's docstring) — `send` itself is recreated every render.
+  const sendRef = useRef(send);
+  sendRef.current = send;
+  const stableSend = useCallback((text: string) => sendRef.current(text), []);
 
   // First load: greet, then auto-send the question from the home search (if any).
   useEffect(() => {
@@ -391,35 +442,8 @@ export function AdvisorChat({ initialQuestion }: { initialQuestion?: string }) {
       <div className={styles.scroll} ref={scrollRef}>
         <div className={styles.thread} role="log" aria-live="polite" aria-atomic="false" aria-relevant="additions">
           {messages.map((m) => (
-              <div
-                key={m.id}
-                className={`${styles.row} ${styles.rowIn} ${m.role === 'user' ? styles.rowUser : styles.rowAi}`}
-              >
-                {m.role === 'ai' && (
-                  <span className={styles.bubbleAvatar} aria-hidden>
-                    <SparkIcon size={14} />
-                  </span>
-                )}
-                <div className={styles.bubbleWrap}>
-                  {m.text && (
-                    <div className={`${styles.bubble} ${m.role === 'user' ? styles.user : styles.ai}`}>
-                      {m.text.split('\n').map((line, i) => (
-                        <p key={i}>{line}</p>
-                      ))}
-                    </div>
-                  )}
-                  {m.estimate && <EstimateCard est={m.estimate} />}
-                  {m.split && <SplitCard answer={m.split} />}
-                  {m.chips && (
-                    <div className={styles.chips}>
-                      {m.chips.map((c) => (
-                        <QuickReply key={c} label={c} onPick={send} />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
+            <MessageBubble key={m.id} message={m} onPick={stableSend} />
+          ))}
 
           {typing && (
             <div className={`${styles.row} ${styles.rowAi}`} aria-hidden="true">

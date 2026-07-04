@@ -76,15 +76,17 @@ export async function adminListSkus(query: {
   if (!query.includeInactive) conds.push(eq(skus.isActive, true));
   if (query.q) conds.push(ilike(skus.name, `%${query.q}%`));
   const where = conds.length ? and(...conds) : undefined;
-  const rows = await db
-    .select({ sku: skus, price: currentPrices })
-    .from(skus)
-    .leftJoin(currentPrices, eq(currentPrices.skuId, skus.id))
-    .where(where)
-    .orderBy(asc(skus.name))
-    .limit(perPage)
-    .offset((page - 1) * perPage);
-  const total = await db.select({ n: sql<number>`count(*)::int` }).from(skus).where(where);
+  const [rows, total] = await Promise.all([
+    db
+      .select({ sku: skus, price: currentPrices })
+      .from(skus)
+      .leftJoin(currentPrices, eq(currentPrices.skuId, skus.id))
+      .where(where)
+      .orderBy(asc(skus.name))
+      .limit(perPage)
+      .offset((page - 1) * perPage),
+    db.select({ n: sql<number>`count(*)::int` }).from(skus).where(where),
+  ]);
   return { rows, total: total[0]?.n ?? 0 };
 }
 

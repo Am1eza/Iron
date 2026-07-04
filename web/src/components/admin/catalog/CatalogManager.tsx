@@ -1,6 +1,6 @@
 'use client';
 /** Catalog manager — categories → subs → SKUs with soft-delete only. */
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api/resources/admin';
 import { formatToman } from '@/lib/utils/format';
@@ -74,10 +74,15 @@ export function CatalogManager() {
   });
 
   const rows = (skus.data?.rows ?? []).map((r) => r.sku as unknown as SkuRow & { subCategoryId: string });
-  const priceOf = (id: string) => {
-    const hit = skus.data?.rows.find((r) => (r.sku as { id?: string }).id === id);
-    return (hit?.price as { price?: number } | null)?.price;
-  };
+  // O(1) lookup instead of an O(n) `.find()` per row (this ran twice per row
+  // inside the table body's `.map`, making the render O(n²) on the SKU list).
+  const priceById = useMemo(() => {
+    const map = new Map<string, number | undefined>();
+    for (const r of skus.data?.rows ?? []) {
+      map.set((r.sku as { id?: string }).id ?? '', (r.price as { price?: number } | null)?.price);
+    }
+    return map;
+  }, [skus.data]);
 
   if (cats.isError) {
     return (
@@ -178,7 +183,9 @@ export function CatalogManager() {
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
+            {rows.map((r) => {
+              const price = priceById.get(r.id);
+              return (
               <tr key={r.id}>
                 <td>
                   {r.name}
@@ -187,7 +194,7 @@ export function CatalogManager() {
                 <td className="tnum">{r.size ?? '—'}</td>
                 <td>{r.factory ?? '—'}</td>
                 <td>{r.unit === 'kg' ? 'کیلوگرم' : r.unit === 'branch' ? 'شاخه' : r.unit === 'sheet' ? 'برگ' : 'متر'}</td>
-                <td className="tnum">{priceOf(r.id) ? `${formatToman(priceOf(r.id)!, false)} تومان` : '—'}</td>
+                <td className="tnum">{price ? `${formatToman(price, false)} تومان` : '—'}</td>
                 <td>{r.isActive ? <Badge tone="gain">فعال</Badge> : <Badge tone="stale">غیرفعال</Badge>}</td>
                 <td>
                   <span style={{ display: 'flex', gap: 'var(--space-1)' }}>
@@ -214,7 +221,8 @@ export function CatalogManager() {
                   </span>
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       )}

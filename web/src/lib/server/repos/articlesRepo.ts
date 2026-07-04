@@ -42,14 +42,16 @@ function publishedCond() {
 export async function listPublished(type: 'blog' | 'news', page = 1, perPage = 20) {
   const db = getDb();
   const where = and(eq(articles.type, type), publishedCond());
-  const rows = await db
-    .select()
-    .from(articles)
-    .where(where)
-    .orderBy(desc(articles.publishAt))
-    .limit(perPage)
-    .offset((page - 1) * perPage);
-  const total = await db.select({ n: sql<number>`count(*)::int` }).from(articles).where(where);
+  const [rows, total] = await Promise.all([
+    db
+      .select()
+      .from(articles)
+      .where(where)
+      .orderBy(desc(articles.publishAt))
+      .limit(perPage)
+      .offset((page - 1) * perPage),
+    db.select({ n: sql<number>`count(*)::int` }).from(articles).where(where),
+  ]);
   return { articles: rows.map(toArticleDto), total: total[0]?.n ?? 0 };
 }
 
@@ -140,14 +142,16 @@ export async function adminListArticles(query: { status?: Row['status']; type?: 
   if (query.status) conds.push(eq(articles.status, query.status));
   if (query.type) conds.push(eq(articles.type, query.type));
   const where = conds.length ? and(...conds) : undefined;
-  const rows = await db
-    .select()
-    .from(articles)
-    .where(where)
-    .orderBy(desc(articles.updatedAt))
-    .limit(perPage)
-    .offset((page - 1) * perPage);
-  const total = await db.select({ n: sql<number>`count(*)::int` }).from(articles).where(where);
+  const [rows, total] = await Promise.all([
+    db
+      .select()
+      .from(articles)
+      .where(where)
+      .orderBy(desc(articles.updatedAt))
+      .limit(perPage)
+      .offset((page - 1) * perPage),
+    db.select({ n: sql<number>`count(*)::int` }).from(articles).where(where),
+  ]);
   return { articles: rows.map(toArticleFull), total: total[0]?.n ?? 0 };
 }
 

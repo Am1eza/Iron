@@ -77,6 +77,10 @@ export function PricingGrid() {
     }
     return out;
   }, [drafts, rows]);
+  // `dirty` alone would need an O(n) `.some()` scan per row inside the table
+  // body's `.map` below — O(n²) over the datasheet on every keystroke. A Set
+  // makes that lookup O(1).
+  const dirtySkuIds = useMemo(() => new Set(dirty.map((x) => x.skuId)), [dirty]);
 
   const focusNext = (i: number) => {
     const next = tableRef.current?.querySelector<HTMLInputElement>(`[data-price-index="${i + 1}"]`);
@@ -159,7 +163,7 @@ export function PricingGrid() {
             <tbody>
               {rows.map((r, i) => {
                 const d = drafts.get(r.id);
-                const isDirty = dirty.some((x) => x.skuId === r.id);
+                const isDirty = dirtySkuIds.has(r.id);
                 // A price the operator typed but that doesn't parse to a
                 // valid positive number is silently excluded from `dirty`
                 // (never saved) — previously with zero feedback, so the row

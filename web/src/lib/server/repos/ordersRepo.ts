@@ -146,14 +146,16 @@ export async function adminListOrders(query: { status?: OrderRow['status']; page
   const page = query.page ?? 1;
   const perPage = query.perPage ?? 50;
   const where = query.status ? eq(orders.status, query.status) : undefined;
-  const rows = await db
-    .select()
-    .from(orders)
-    .where(where)
-    .orderBy(desc(orders.placedAt))
-    .limit(perPage)
-    .offset((page - 1) * perPage);
-  const total = await db.select({ n: sql<number>`count(*)::int` }).from(orders).where(where);
+  const [rows, total] = await Promise.all([
+    db
+      .select()
+      .from(orders)
+      .where(where)
+      .orderBy(desc(orders.placedAt))
+      .limit(perPage)
+      .offset((page - 1) * perPage),
+    db.select({ n: sql<number>`count(*)::int` }).from(orders).where(where),
+  ]);
   return { orders: await toOrderDtos(rows), total: total[0]?.n ?? 0 };
 }
 
@@ -185,13 +187,15 @@ export async function adminListWarehouse(query: { page?: number; perPage?: numbe
   const db = getDb();
   const page = query.page ?? 1;
   const perPage = query.perPage ?? 50;
-  const rows = await db
-    .select()
-    .from(warehouseItems)
-    .orderBy(desc(warehouseItems.storedAt))
-    .limit(perPage)
-    .offset((page - 1) * perPage);
-  const total = await db.select({ n: sql<number>`count(*)::int` }).from(warehouseItems);
+  const [rows, total] = await Promise.all([
+    db
+      .select()
+      .from(warehouseItems)
+      .orderBy(desc(warehouseItems.storedAt))
+      .limit(perPage)
+      .offset((page - 1) * perPage),
+    db.select({ n: sql<number>`count(*)::int` }).from(warehouseItems),
+  ]);
   return { items: rows.map((r) => ({ ...toWarehouseDto(r), userId: r.userId })), total: total[0]?.n ?? 0 };
 }
 

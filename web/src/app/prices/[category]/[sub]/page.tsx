@@ -6,14 +6,7 @@ import { categories } from '@/lib/mock/fixtures';
 import { subName } from '@/lib/mock/catalogData';
 import { getRows, getSubRows } from '@/lib/server/catalog';
 import { CATEGORY_SUBS } from '@/lib/data/nav';
-import {
-  Container,
-  Section,
-  Stack,
-  Breadcrumbs,
-  EmptyState,
-  emptyPresets,
-} from '@/components/ui';
+import { Container, Section, Stack, Breadcrumbs, EmptyState, emptyPresets } from '@/components/ui';
 import { BreadcrumbJsonLd, JsonLd } from '@/components/seo/JsonLd';
 import { PriceTable } from '@/components/catalog/PriceTable';
 import { PriceHeader } from '@/components/catalog/PriceHeader';
@@ -21,7 +14,6 @@ import { BulkQuote } from '@/components/catalog/BulkQuote';
 
 type Params = {
   params: Promise<{ category: string; sub: string }>;
-  searchParams: Promise<{ factory?: string | string[] }>;
 };
 
 // Prices change intraday (admin-entered) → revalidate often (ROUTING.md §6).
@@ -31,9 +23,7 @@ export const revalidate = 300;
 export function generateStaticParams() {
   return categories
     .filter((c) => c.isActive)
-    .flatMap((c) =>
-      (CATEGORY_SUBS[c.slug] ?? []).map((s) => ({ category: c.slug, sub: s.slug })),
-    );
+    .flatMap((c) => (CATEGORY_SUBS[c.slug] ?? []).map((s) => ({ category: c.slug, sub: s.slug })));
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
@@ -50,10 +40,8 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   });
 }
 
-export default async function SubCategoryPage({ params, searchParams }: Params) {
+export default async function SubCategoryPage({ params }: Params) {
   const { category, sub } = await params;
-  const { factory } = await searchParams;
-  const factoryFilter = Array.isArray(factory) ? factory[0] ?? null : factory ?? null;
 
   const cat = categories.find((c) => c.slug === category);
   if (!cat) notFound();
@@ -62,8 +50,7 @@ export default async function SubCategoryPage({ params, searchParams }: Params) 
   const name = subName(category, sub);
   if (!name) notFound();
 
-  const rows = await getSubRows(category, sub);
-  const allRows = await getRows(category);
+  const [rows, allRows] = await Promise.all([getSubRows(category, sub), getRows(category)]);
 
   const crumbs = [
     { label: 'خانه', href: routes.home() },
@@ -102,13 +89,7 @@ export default async function SubCategoryPage({ params, searchParams }: Params) 
 
           {rows.length > 0 ? (
             <>
-              <PriceTable
-                rows={allRows}
-                subs={subs}
-                categoryName={cat.name}
-                initialSub={sub}
-                initialFactory={factoryFilter}
-              />
+              <PriceTable rows={allRows} subs={subs} categoryName={cat.name} initialSub={sub} />
               <BulkQuote category={category} categoryName={cat.name} rows={allRows} />
             </>
           ) : (

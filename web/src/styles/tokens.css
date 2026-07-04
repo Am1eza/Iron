@@ -3,11 +3,12 @@
    Use SEMANTIC tokens (--color-*, --t-*, --space-*) in components, not primitives.
    ============================================================================ */
 
-@font-face{font-family:"Vazirmatn";src:url(/fonts/Vazirmatn.var.woff2) format("woff2");font-weight:100 900;font-display:swap;font-named-instance:"Regular";}
-@font-face{font-family:"Inter";src:url(/fonts/Inter.var.woff2) format("woff2");font-weight:100 900;font-display:swap;}
-/* Display face — Estedad variable (OFL). Black-weight Farsi headlines + the big
-   tabular price numerals; the brand's typographic signature. */
-@font-face{font-family:"Estedad";src:url(/fonts/Estedad.var.woff2) format("woff2");font-weight:100 900;font-display:swap;}
+/* Vazirmatn/Estedad/Inter are loaded via `next/font/local`
+   (src/lib/theme/fonts.ts), not manual @font-face here — that gets automatic
+   fallback-matching metrics (ascent/descent/line-gap/size-adjust), which cuts
+   the reflow a plain @font-face + font-display:swap causes on first paint.
+   Their `--font-vazirmatn`/`--font-estedad`/`--font-inter` custom properties
+   are applied on <html> (see app/layout.tsx) and consumed below. */
 
 :root{
   /* ===== PRIMITIVES ===== */
@@ -53,10 +54,10 @@
   --color-panel-hairline:rgba(255,255,255,.09);
 
   /* ===== TYPOGRAPHY ===== */
-  --font-fa:"Vazirmatn","Segoe UI",Tahoma,system-ui,sans-serif;
-  --font-display:"Estedad","Vazirmatn","Segoe UI",Tahoma,system-ui,sans-serif;
-  --font-num:"Vazirmatn","Segoe UI",Tahoma,sans-serif;
-  --font-latin:"Inter",system-ui,"Segoe UI",Roboto,Arial,sans-serif;
+  --font-fa:var(--font-vazirmatn),"Segoe UI",Tahoma,system-ui,sans-serif;
+  --font-display:var(--font-estedad),var(--font-vazirmatn),"Segoe UI",Tahoma,system-ui,sans-serif;
+  --font-num:var(--font-vazirmatn),"Segoe UI",Tahoma,sans-serif;
+  --font-latin:var(--font-inter),system-ui,"Segoe UI",Roboto,Arial,sans-serif;
   --t-display: 900 clamp(2rem,1.2rem + 3vw,3.25rem)/1.15 var(--font-display);
   --t-display-num: 800 clamp(1.5rem,1rem + 1.6vw,2.25rem)/1.1 var(--font-display);
   --t-h1: 800 clamp(1.625rem,1.2rem + 1.6vw,2rem)/1.25 var(--font-display);

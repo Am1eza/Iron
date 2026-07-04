@@ -76,13 +76,15 @@ export async function recomputeTier(userId: string): Promise<ClubTier | null> {
 export async function adminListMembers(page = 1, perPage = 50) {
   const db = getDb();
   const { users } = await import('@/lib/server/db/schema');
-  const rows = await db
-    .select({ membership: clubMemberships, mobile: users.mobile, name: users.name })
-    .from(clubMemberships)
-    .innerJoin(users, eq(clubMemberships.userId, users.id))
-    .limit(perPage)
-    .offset((page - 1) * perPage);
-  const total = await db.select({ n: sql<number>`count(*)::int` }).from(clubMemberships);
+  const [rows, total] = await Promise.all([
+    db
+      .select({ membership: clubMemberships, mobile: users.mobile, name: users.name })
+      .from(clubMemberships)
+      .innerJoin(users, eq(clubMemberships.userId, users.id))
+      .limit(perPage)
+      .offset((page - 1) * perPage),
+    db.select({ n: sql<number>`count(*)::int` }).from(clubMemberships),
+  ]);
   return {
     members: rows.map((r) => ({
       id: r.membership.id,

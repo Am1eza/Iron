@@ -78,14 +78,16 @@ export const pgStore: AuthStore = {
     if (query.role) conds.push(eq(users.role, query.role));
     if (query.q) conds.push(or(ilike(users.mobile, `%${query.q}%`), ilike(users.name, `%${query.q}%`)));
     const where = conds.length ? and(...conds) : undefined;
-    const rows = await db
-      .select()
-      .from(users)
-      .where(where)
-      .orderBy(sql`${users.createdAt} DESC`)
-      .limit(perPage)
-      .offset((page - 1) * perPage);
-    const totalRows = await db.select({ n: sql<number>`count(*)::int` }).from(users).where(where);
+    const [rows, totalRows] = await Promise.all([
+      db
+        .select()
+        .from(users)
+        .where(where)
+        .orderBy(sql`${users.createdAt} DESC`)
+        .limit(perPage)
+        .offset((page - 1) * perPage),
+      db.select({ n: sql<number>`count(*)::int` }).from(users).where(where),
+    ]);
     return { users: rows.map((r) => ({ ...toAuthUser(r), isActive: r.isActive })), total: totalRows[0]?.n ?? 0 };
   },
 

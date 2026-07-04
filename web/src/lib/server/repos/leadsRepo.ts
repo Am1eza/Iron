@@ -75,7 +75,11 @@ export async function insertLead(input: {
 }
 
 export async function leadItemsOf(leadId: string): Promise<LeadItemRow[]> {
-  return getDb().select().from(leadItems).where(eq(leadItems.leadId, leadId)).orderBy(leadItems.order);
+  return getDb()
+    .select()
+    .from(leadItems)
+    .where(eq(leadItems.leadId, leadId))
+    .orderBy(leadItems.order);
 }
 
 export async function findLead(id: string): Promise<LeadRow | null> {
@@ -118,7 +122,11 @@ export async function addLeadNote(leadId: string, authorId: string, text: string
 }
 
 export async function leadNotesOf(leadId: string) {
-  return getDb().select().from(leadNotes).where(eq(leadNotes.leadId, leadId)).orderBy(desc(leadNotes.at));
+  return getDb()
+    .select()
+    .from(leadNotes)
+    .where(eq(leadNotes.leadId, leadId))
+    .orderBy(desc(leadNotes.at));
 }
 
 export async function adminListLeads(query: {
@@ -136,18 +144,27 @@ export async function adminListLeads(query: {
   if (query.assigneeId) conds.push(eq(leads.assigneeId, query.assigneeId));
   if (query.q) {
     conds.push(
-      or(ilike(leads.ref, `%${query.q}%`), ilike(leads.contactMobile, `%${query.q}%`), ilike(leads.contactName, `%${query.q}%`)),
+      or(
+        ilike(leads.ref, `%${query.q}%`),
+        ilike(leads.contactMobile, `%${query.q}%`),
+        ilike(leads.contactName, `%${query.q}%`),
+      ),
     );
   }
   const where = conds.length ? and(...conds) : undefined;
-  const rows = await db
-    .select()
-    .from(leads)
-    .where(where)
-    .orderBy(desc(leads.createdAt))
-    .limit(perPage)
-    .offset((page - 1) * perPage);
-  const total = await db.select({ n: sql<number>`count(*)::int` }).from(leads).where(where);
+  const [rows, total] = await Promise.all([
+    db
+      .select()
+      .from(leads)
+      .where(where)
+      .orderBy(desc(leads.createdAt))
+      .limit(perPage)
+      .offset((page - 1) * perPage),
+    db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(leads)
+      .where(where),
+  ]);
   return { leads: rows, total: total[0]?.n ?? 0 };
 }
 
@@ -183,7 +200,11 @@ export async function findProformaByRef(ref: string): Promise<ProformaRow | null
 }
 
 export async function proformasOfLead(leadId: string): Promise<ProformaRow[]> {
-  return getDb().select().from(proformas).where(eq(proformas.leadId, leadId)).orderBy(desc(proformas.createdAt));
+  return getDb()
+    .select()
+    .from(proformas)
+    .where(eq(proformas.leadId, leadId))
+    .orderBy(desc(proformas.createdAt));
 }
 
 export async function expireDueProformas(): Promise<number> {

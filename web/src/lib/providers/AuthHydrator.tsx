@@ -1,6 +1,6 @@
 'use client';
-import { useEffect } from 'react';
-import { useAuthStore, type SessionUser } from '@/lib/stores/auth';
+import { useEffect, useState } from 'react';
+import { useAuthStore } from '@/lib/stores/auth';
 import { api } from '@/lib/api';
 import { useRequestsSync } from '@/lib/hooks/useRequestsSync';
 
@@ -8,22 +8,40 @@ import { useRequestsSync } from '@/lib/hooks/useRequestsSync';
 const REFRESH_INTERVAL_MS = 12 * 60 * 1000;
 
 /**
- * Seeds the auth store with the server-resolved user (from the access cookie) so
- * the first client paint already knows who's signed in — no fetch flash. While
+ * Resolves the signed-in user from the access cookie on the client (`GET /api/me`)
+ * instead of a server-side session read in the root layout — reading the session
+ * cookie there (`cookies()`) forces every route in the app into per-request
+ * dynamic rendering, defeating ISR site-wide (the app is otherwise ~100%
+ * anonymous, cacheable traffic). The store already starts in a `loading` status
+ * so consumers can render a neutral shell until this resolves. While
  * authenticated, it silently rotates the session (refresh token) on an interval
  * so long sessions never expire mid-use.
  */
-export function AuthHydrator({ initialUser }: { initialUser: SessionUser | null }) {
+export function AuthHydrator() {
   const setUser = useAuthStore((s) => s.setUser);
+  const [authenticated, setAuthenticated] = useState(false);
   // Live mode: mirror the server-side requests inbox into the local store.
   useRequestsSync();
 
   useEffect(() => {
-    setUser(initialUser);
-  }, [initialUser, setUser]);
+    let cancelled = false;
+    api.auth
+      .me()
+      .then(({ user }) => {
+        if (cancelled) return;
+        setUser(user);
+        setAuthenticated(true);
+      })
+      .catch(() => {
+        if (!cancelled) setUser(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [setUser]);
 
   useEffect(() => {
-    if (!initialUser) return;
+    if (!authenticated) return;
 
     let cancelled = false;
     const refresh = async () => {
@@ -40,7 +58,7 @@ export function AuthHydrator({ initialUser }: { initialUser: SessionUser | null 
       cancelled = true;
       clearInterval(interval);
     };
-  }, [initialUser, setUser]);
+  }, [authenticated, setUser]);
 
   return null;
 }
