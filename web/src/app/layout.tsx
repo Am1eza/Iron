@@ -5,12 +5,8 @@ import { AuthHydrator } from '@/lib/providers/AuthHydrator';
 import { ThemeScript } from '@/components/theme/ThemeScript';
 import { getSession } from '@/lib/auth/session';
 import { getCategories } from '@/lib/data/catalog';
-import { Ticker } from '@/components/layout/Ticker';
-import { Header } from '@/components/layout/Header';
-import { Footer } from '@/components/layout/Footer';
-import { BottomTabBar } from '@/components/layout/BottomTabBar';
-import { MobileDrawer } from '@/components/layout/MobileDrawer';
-import { ArrivalPopup } from '@/components/club/ArrivalPopup';
+import { SiteChromeTop, SiteChromeBottom } from '@/components/layout/SiteChrome';
+import { RouteAnnouncer } from '@/components/a11y/RouteAnnouncer';
 
 /**
  * Root layout — the RTL, Persian-first shell.
@@ -77,13 +73,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         </a>
         <AppProviders>
           <AuthHydrator initialUser={initialUser} />
-          <Ticker />
-          <Header categories={categories} />
-          <MobileDrawer categories={categories} />
-          <main id="main">{children}</main>
-          <Footer categories={categories} />
-          <BottomTabBar />
-          <ArrivalPopup />
+          <SiteChromeTop categories={categories} />
+          <main id="main" tabIndex={-1}>
+            {children}
+          </main>
+          <SiteChromeBottom categories={categories} />
+          <RouteAnnouncer />
         </AppProviders>
       </body>
     </html>

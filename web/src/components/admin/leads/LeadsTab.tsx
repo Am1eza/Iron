@@ -75,13 +75,14 @@ export function LeadsTab() {
         <EmptyState size="section" headline="سرنخی نیست" body="با این فیلتر سرنخی ثبت نشده است." />
       ) : (
         <table className={ui.table}>
+          <caption className="visually-hidden">فهرست سرنخ‌ها</caption>
           <thead>
             <tr>
-              <th>شماره</th>
-              <th>مشتری</th>
-              <th>منبع</th>
-              <th>وضعیت</th>
-              <th>تاریخ</th>
+              <th scope="col">شماره</th>
+              <th scope="col">مشتری</th>
+              <th scope="col">منبع</th>
+              <th scope="col">وضعیت</th>
+              <th scope="col">تاریخ</th>
             </tr>
           </thead>
           <tbody>
@@ -118,7 +119,19 @@ function FragmentRow({
 }) {
   return (
     <>
-      <tr className={ui.rowClickable} onClick={onToggle}>
+      <tr
+        className={ui.rowClickable}
+        onClick={onToggle}
+        tabIndex={0}
+        role="button"
+        aria-expanded={open}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onToggle();
+          }
+        }}
+      >
         <td className="tnum">
           <bdi>{lead.ref}</bdi>
         </td>

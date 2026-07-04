@@ -75,7 +75,7 @@ export function LeadDetail({ id }: { id: string }) {
     <div className={ui.panel} onClick={(e) => e.stopPropagation()}>
       <div className={ui.grid2}>
         <div>
-          <h4>اقلام</h4>
+          <h2>اقلام</h2>
           {items.length === 0 ? (
             <p className={ui.muted}>بدون قلم کالا.</p>
           ) : (
@@ -90,7 +90,7 @@ export function LeadDetail({ id }: { id: string }) {
           )}
           {noteText ? <p className={ui.muted}>یادداشت مشتری: {noteText}</p> : null}
 
-          <h4 style={{ marginBlockStart: 'var(--space-3)' }}>پیش‌فاکتورها</h4>
+          <h2 style={{ marginBlockStart: 'var(--space-3)' }}>پیش‌فاکتورها</h2>
           {proformas.length === 0 ? (
             <p className={ui.muted}>صادر نشده.</p>
           ) : (
@@ -133,7 +133,7 @@ export function LeadDetail({ id }: { id: string }) {
         </div>
 
         <div>
-          <h4>یادداشت‌ها</h4>
+          <h2>یادداشت‌ها</h2>
           {notes.length === 0 ? (
             <p className={ui.muted}>یادداشتی نیست.</p>
           ) : (

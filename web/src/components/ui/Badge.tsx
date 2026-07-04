@@ -36,13 +36,28 @@ export function Badge({
   );
 }
 
-/** Count badge (cart / notifications) — a small circular counter. */
-export function CountBadge({ count, max = 99 }: { count: number; max?: number }) {
+/**
+ * Count badge (cart / notifications) — a small circular counter. The visible
+ * digits are always `aria-hidden` (they're a fragment, e.g. "3" with no unit);
+ * pass `label` (e.g. "۳ کالا") to expose a proper accessible name via a
+ * visually-hidden span — otherwise the parent control must fold the count
+ * into its own `aria-label` (as the header cart link already does).
+ */
+export function CountBadge({
+  count,
+  max = 99,
+  label,
+}: {
+  count: number;
+  max?: number;
+  label?: string;
+}) {
   if (count <= 0) return null;
   const text = count > max ? `${max}+` : String(count);
   return (
-    <span className={`${styles.count} tnum`} aria-hidden="true">
-      {text}
+    <span className={`${styles.count} tnum`}>
+      <span aria-hidden="true">{text}</span>
+      {label ? <span className="visually-hidden">{label}</span> : null}
     </span>
   );
 }

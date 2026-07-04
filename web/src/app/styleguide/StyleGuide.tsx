@@ -228,9 +228,9 @@ export function StyleGuide() {
         </Stack>
         <Cluster gap={3}>
           <Tooltip content="قیمت بدون ارزش افزوده است">
-            <span className={styles.infoTrigger}>
+            <button type="button" className={styles.infoTrigger}>
               <InfoIcon size={18} /> راهنما
-            </span>
+            </button>
           </Tooltip>
           <Button onClick={() => setModal(true)}>باز کردن مودال</Button>
         </Cluster>

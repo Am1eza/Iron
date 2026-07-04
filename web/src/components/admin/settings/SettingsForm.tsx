@@ -105,30 +105,71 @@ function PricingRulesCard({
   busy: boolean;
 }) {
   const [v, setV] = useState({ vat: String(vat * 100), hideDays: String(hideDays), quoteHour: String(quoteHour), alertCap: String(alertCap) });
+  const [errors, setErrors] = useState<{ vat?: string; hideDays?: string; quoteHour?: string; alertCap?: string }>({});
   useEffect(() => {
     setV({ vat: String(vat * 100), hideDays: String(hideDays), quoteHour: String(quoteHour), alertCap: String(alertCap) });
+    setErrors({});
   }, [vat, hideDays, quoteHour, alertCap]);
+
+  const NON_NEGATIVE_MSG = 'عدد صحیح و نامنفی وارد کنید.';
+
+  const saveVat = () => {
+    const n = num(v.vat);
+    if (!Number.isFinite(n) || n < 0 || n > 100) {
+      setErrors((e) => ({ ...e, vat: 'عددی بین ۰ تا ۱۰۰ وارد کنید.' }));
+      return;
+    }
+    setErrors((e) => ({ ...e, vat: undefined }));
+    onSave('VAT_RATE', n / 100);
+  };
+  const saveHideDays = () => {
+    const n = num(v.hideDays);
+    if (!Number.isFinite(n) || n < 0) {
+      setErrors((e) => ({ ...e, hideDays: NON_NEGATIVE_MSG }));
+      return;
+    }
+    setErrors((e) => ({ ...e, hideDays: undefined }));
+    onSave('PRICE_STALE_HIDE_AFTER_DAYS', Math.round(n));
+  };
+  const saveQuoteHour = () => {
+    const n = num(v.quoteHour);
+    if (!Number.isFinite(n) || n < 0) {
+      setErrors((e) => ({ ...e, quoteHour: NON_NEGATIVE_MSG }));
+      return;
+    }
+    setErrors((e) => ({ ...e, quoteHour: undefined }));
+    onSave('QUOTE_VALIDITY_HOUR', Math.round(n));
+  };
+  const saveAlertCap = () => {
+    const n = num(v.alertCap);
+    if (!Number.isFinite(n) || n < 0) {
+      setErrors((e) => ({ ...e, alertCap: NON_NEGATIVE_MSG }));
+      return;
+    }
+    setErrors((e) => ({ ...e, alertCap: undefined }));
+    onSave('ALERT_MAX_ACTIVE_PER_USER', Math.round(n));
+  };
 
   return (
     <Card>
-      <Heading level={3}>قوانین قیمت و هشدار</Heading>
+      <Heading level={2}>قوانین قیمت و هشدار</Heading>
       <div className={ui.grid2} style={{ marginBlockStart: 'var(--space-3)' }}>
-        <TextInput label="ارزش افزوده (٪)" inputMode="decimal" value={v.vat} onChange={(e) => setV({ ...v, vat: e.target.value })} />
-        <TextInput label="پنهان‌سازی قیمت پس از (روز کاری)" inputMode="numeric" value={v.hideDays} onChange={(e) => setV({ ...v, hideDays: e.target.value })} />
-        <TextInput label="ساعت اعتبار پیش‌فاکتور (روز کاری بعد)" inputMode="numeric" value={v.quoteHour} onChange={(e) => setV({ ...v, quoteHour: e.target.value })} />
-        <TextInput label="سقف هشدار فعال هر کاربر" inputMode="numeric" value={v.alertCap} onChange={(e) => setV({ ...v, alertCap: e.target.value })} />
+        <TextInput label="ارزش افزوده (٪)" inputMode="decimal" value={v.vat} error={errors.vat} onChange={(e) => setV({ ...v, vat: e.target.value })} />
+        <TextInput label="پنهان‌سازی قیمت پس از (روز کاری)" inputMode="numeric" value={v.hideDays} error={errors.hideDays} onChange={(e) => setV({ ...v, hideDays: e.target.value })} />
+        <TextInput label="ساعت اعتبار پیش‌فاکتور (روز کاری بعد)" inputMode="numeric" value={v.quoteHour} error={errors.quoteHour} onChange={(e) => setV({ ...v, quoteHour: e.target.value })} />
+        <TextInput label="سقف هشدار فعال هر کاربر" inputMode="numeric" value={v.alertCap} error={errors.alertCap} onChange={(e) => setV({ ...v, alertCap: e.target.value })} />
       </div>
       <div className={ui.toolbar} style={{ marginBlockStart: 'var(--space-3)' }}>
-        <Button size="sm" loading={busy} onClick={() => onSave('VAT_RATE', num(v.vat) / 100)}>
+        <Button size="sm" loading={busy} onClick={saveVat}>
           ذخیرهٔ ارزش افزوده
         </Button>
-        <Button size="sm" variant="secondary" loading={busy} onClick={() => onSave('PRICE_STALE_HIDE_AFTER_DAYS', Math.round(num(v.hideDays)))}>
+        <Button size="sm" variant="secondary" loading={busy} onClick={saveHideDays}>
           ذخیرهٔ پنهان‌سازی
         </Button>
-        <Button size="sm" variant="secondary" loading={busy} onClick={() => onSave('QUOTE_VALIDITY_HOUR', Math.round(num(v.quoteHour)))}>
+        <Button size="sm" variant="secondary" loading={busy} onClick={saveQuoteHour}>
           ذخیرهٔ ساعت اعتبار
         </Button>
-        <Button size="sm" variant="secondary" loading={busy} onClick={() => onSave('ALERT_MAX_ACTIVE_PER_USER', Math.round(num(v.alertCap)))}>
+        <Button size="sm" variant="secondary" loading={busy} onClick={saveAlertCap}>
           ذخیرهٔ سقف هشدار
         </Button>
       </div>
@@ -138,32 +179,40 @@ function PricingRulesCard({
 
 function HolidaysCard({ holidays, onSave, busy }: { holidays: string[]; onSave: (v: string[]) => void; busy: boolean }) {
   const [text, setText] = useState(holidays.join('\n'));
-  useEffect(() => setText(holidays.join('\n')), [holidays]);
+  const [error, setError] = useState<string | undefined>();
+  useEffect(() => {
+    setText(holidays.join('\n'));
+    setError(undefined);
+  }, [holidays]);
+
+  const submit = () => {
+    const lines = normalizeDigits(text)
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean);
+    const invalidCount = lines.filter((l) => !/^\d{4}-\d{2}-\d{2}$/.test(l)).length;
+    if (invalidCount > 0) {
+      setError(`${invalidCount} خط با فرمت نادرست — تاریخ‌ها باید به شکل 1405-01-13 باشند.`);
+      return;
+    }
+    setError(undefined);
+    onSave(lines);
+  };
+
   return (
     <Card>
-      <Heading level={3}>تعطیلات رسمی</Heading>
+      <Heading level={2}>تعطیلات رسمی</Heading>
       <Text color="muted">هر خط یک تاریخ جلالی به شکل 1405-01-13؛ جمعه‌ها خودکار تعطیل‌اند.</Text>
       <Textarea
         label="تاریخ‌ها"
         rows={5}
         dir="ltr"
         value={text}
+        error={error}
         onChange={(e) => setText(e.target.value)}
         style={{ fontFamily: 'monospace' }}
       />
-      <Button
-        size="sm"
-        style={{ marginBlockStart: 'var(--space-2)' }}
-        loading={busy}
-        onClick={() =>
-          onSave(
-            normalizeDigits(text)
-              .split('\n')
-              .map((l) => l.trim())
-              .filter((l) => /^\d{4}-\d{2}-\d{2}$/.test(l)),
-          )
-        }
-      >
+      <Button size="sm" style={{ marginBlockStart: 'var(--space-2)' }} loading={busy} onClick={submit}>
         ذخیرهٔ تعطیلات
       </Button>
     </Card>
@@ -215,7 +264,7 @@ function LogisticsCard({ cfg, onSave, busy }: { cfg: Logistics; onSave: (v: Logi
 
   return (
     <Card>
-      <Heading level={3}>لجستیک و هزینهٔ حمل</Heading>
+      <Heading level={2}>لجستیک و هزینهٔ حمل</Heading>
       <div className={ui.grid2} style={{ marginBlockStart: 'var(--space-3)' }}>
         <TextInput label="مبدأ بارگیری" value={v.originLabel} onChange={(e) => setV({ ...v, originLabel: e.target.value })} />
         <TextInput label="نرخ حمل (تومان/تن‌کیلومتر)" inputMode="numeric" value={v.rate} onChange={(e) => setV({ ...v, rate: e.target.value })} />

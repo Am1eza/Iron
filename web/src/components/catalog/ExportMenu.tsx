@@ -75,7 +75,10 @@ export function ExportMenu({ rows, title }: { rows: PriceRow[]; title: string })
 
   const print = () => {
     const win = window.open('', '_blank', 'width=900,height=700');
-    if (!win) return;
+    if (!win) {
+      toast.error('اجازهٔ باز کردن پنجرهٔ چاپ داده نشد؛ مسدودکنندهٔ پاپ‌آپ را بررسی کنید.');
+      return;
+    }
     const head = `<tr>${COLS.map((c) => `<th>${c}</th>`).join('')}</tr>`;
     const body = rows
       .map((r) => `<tr>${rowCells(r).map((c) => `<td>${c}</td>`).join('')}</tr>`)

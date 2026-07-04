@@ -54,5 +54,14 @@ export function CountUp({ value, duration = 1.1 }: { value: number; duration?: n
     return () => cancelAnimationFrame(raf);
   }, [value, duration, reduced, seen]);
 
-  return <span ref={ref}>{toPersianDigits(display.toLocaleString('en-US'))}</span>;
+  // The animating digits are presentation-only (a `requestAnimationFrame` tick
+  // would spam AT with every intermediate value if ever nested in a live
+  // region) — hide them and expose the settled `value` once, via a
+  // visually-hidden sibling, so this primitive is safe wherever it's used.
+  return (
+    <span ref={ref}>
+      <span aria-hidden="true">{toPersianDigits(display.toLocaleString('en-US'))}</span>
+      <span className="visually-hidden">{toPersianDigits(value.toLocaleString('en-US'))}</span>
+    </span>
+  );
 }

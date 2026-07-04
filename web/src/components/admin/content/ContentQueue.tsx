@@ -48,17 +48,34 @@ export function ContentQueue() {
               <EmptyState size="section" headline="مقاله‌ای نیست" body="با «مقالهٔ جدید» شروع کنید." />
             ) : (
               <table className={ui.table}>
+                <caption className="visually-hidden">فهرست مقاله‌های {STATUS_TABS.find((s) => s.id === status)?.label}</caption>
                 <thead>
                   <tr>
-                    <th>عنوان</th>
-                    <th>نوع</th>
-                    <th>منبع</th>
-                    <th>انتشار</th>
+                    <th scope="col">عنوان</th>
+                    <th scope="col">نوع</th>
+                    <th scope="col">منبع</th>
+                    <th scope="col">انتشار</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {articles.map((a) => (
-                    <tr key={a.id} className={ui.rowClickable} onClick={() => setSelectedId(selectedId === a.id ? null : a.id)}>
+                  {articles.map((a) => {
+                    const isOpen = selectedId === a.id;
+                    const toggle = () => setSelectedId(isOpen ? null : a.id);
+                    return (
+                    <tr
+                      key={a.id}
+                      className={ui.rowClickable}
+                      onClick={toggle}
+                      tabIndex={0}
+                      role="button"
+                      aria-expanded={isOpen}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          toggle();
+                        }
+                      }}
+                    >
                       <td>
                         {a.title}
                         <div className={`${ui.muted} ${ui.mono}`}>{a.slug}</div>
@@ -69,7 +86,8 @@ export function ContentQueue() {
                       </td>
                       <td className="tnum">{a.publishAt ? formatJalali(a.publishAt) : '—'}</td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             )}
@@ -107,9 +125,9 @@ function NewArticleButton({ onCreated }: { onCreated: (a: ArticleFull) => void }
   }
   return (
     <span className={ui.toolbar} style={{ marginInlineStart: 'auto' }}>
-      <input className={ui.textCell} style={{ inlineSize: '12rem' }} placeholder="عنوان" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-      <input className={`${ui.textCell} ${ui.mono}`} style={{ inlineSize: '10rem' }} placeholder="slug-latin" dir="ltr" value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} />
-      <select className={ui.select} value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as 'blog' | 'news' })}>
+      <input className={ui.textCell} style={{ inlineSize: '12rem' }} placeholder="عنوان" aria-label="عنوان" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+      <input className={`${ui.textCell} ${ui.mono}`} style={{ inlineSize: '10rem' }} placeholder="slug-latin" aria-label="نشانی (slug)" dir="ltr" value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} />
+      <select className={ui.select} value={form.type} aria-label="نوع مقاله" onChange={(e) => setForm({ ...form, type: e.target.value as 'blog' | 'news' })}>
         <option value="blog">وبلاگ</option>
         <option value="news">خبر</option>
       </select>

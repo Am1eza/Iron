@@ -28,7 +28,7 @@ export function Ticker() {
         نبض بازار
       </span>
       <div className={styles.viewport} data-reduced={reduced ? '' : undefined}>
-        <ul className={`${styles.track} tnum`} aria-hidden={reduced ? undefined : 'false'}>
+        <ul className={`${styles.track} tnum`}>
           {items.map((v, i) => (
             <TickerItem key={`${v.key}-${i}`} v={v} decorative={!reduced && i >= values.length} />
           ))}

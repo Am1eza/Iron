@@ -37,10 +37,12 @@
   min-inline-size: 0;
   border: 0;
   background: transparent;
-  outline: none;
   color: var(--color-text-strong);
   font: var(--t-input);
 }
+/* Let the shared :focus-visible ring (tokens.css) show through — the pill's
+   border-color/box-shadow change on `.bar:focus-within` is a supplementary
+   cue, not a substitute (its tint is too low-contrast to stand alone). */
 .lg .input {
   font: var(--t-body-lg);
 }
@@ -58,8 +60,10 @@
   align-items: center;
   justify-content: center;
   flex: none;
-  inline-size: 28px;
-  block-size: 28px;
+  inline-size: 44px;
+  block-size: 44px;
+  margin-block: calc(-1 * var(--space-2));
+  margin-inline-end: calc(-1 * var(--space-2));
   border: 0;
   border-radius: var(--radius-circle);
   background: var(--color-surface-sunken);

@@ -4,6 +4,7 @@ import { requirePermission } from '@/lib/auth/guards';
 import { can } from '@/lib/auth/roles';
 import type { Permission } from '@/lib/auth/types';
 import { routes } from '@/lib/routes';
+import { AdminNavLinks } from './AdminNavLinks';
 import styles from './admin.module.css';
 
 /** Admin shell — noindex; server-gated on admin:access (404 for non-staff). */
@@ -28,16 +29,15 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div data-area="admin" className={styles.shell}>
+      <a href="#admin-main" className="skip-link">
+        پرش به محتوای پنل
+      </a>
       <header className={styles.topbar}>
         <Link href={routes.admin.dashboard()} className={styles.brand}>
           پنل آهن‌تایم
         </Link>
         <nav className={styles.nav} aria-label="پنل مدیریت">
-          {nav.map((item) => (
-            <Link key={item.href} href={item.href} className={styles.navLink}>
-              {item.label}
-            </Link>
-          ))}
+          <AdminNavLinks nav={nav} />
         </nav>
         <div className={styles.user}>
           <span>{user.name ?? user.mobile}</span>
@@ -46,7 +46,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           </Link>
         </div>
       </header>
-      <main className={styles.main}>{children}</main>
+      {/* Not a <main> — the root layout's <main id="main"> is the page's only
+          main landmark; SiteChrome hides the public header/footer/nav here,
+          so this is simply the admin panel's content area. */}
+      <div id="admin-main" className={styles.main}>
+        {children}
+      </div>
     </div>
   );
 }

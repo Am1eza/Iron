@@ -127,6 +127,7 @@ export function MarketBoard() {
           className={styles.ctaGhost}
         >
           منبع نرخ‌های بازار
+          <span className="visually-hidden"> (در تب جدید باز می‌شود)</span>
           <ExternalIcon size={16} />
         </a>
       </div>

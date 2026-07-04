@@ -82,6 +82,7 @@ export function MobileDrawer({ categories }: { categories: Category[] }) {
       <div className={styles.scrim} onClick={() => setOpen(false)} aria-hidden="true" />
       <div
         ref={panelRef}
+        id="mobile-drawer-panel"
         className={styles.panel}
         role="dialog"
         aria-modal="true"
@@ -107,6 +108,7 @@ export function MobileDrawer({ categories }: { categories: Category[] }) {
               type="button"
               className={styles.accordion}
               aria-expanded={expanded === 'products'}
+              aria-controls="mobile-drawer-products-panel"
               onClick={() => setExpanded((e) => (e === 'products' ? null : 'products'))}
             >
               محصولات
@@ -116,7 +118,7 @@ export function MobileDrawer({ categories }: { categories: Category[] }) {
               />
             </button>
             {expanded === 'products' && (
-              <ul className={styles.accordionBody}>
+              <ul id="mobile-drawer-products-panel" className={styles.accordionBody}>
                 {categories.map((cat) => (
                   <li key={cat.id}>
                     <Link href={routes.category(cat.slug)} className={styles.catLink}>
@@ -203,6 +205,7 @@ export function MobileDrawer({ categories }: { categories: Category[] }) {
                 <li key={ch.href}>
                   <a href={ch.href} target="_blank" rel="noopener noreferrer">
                     {ch.label}
+                    <span className="visually-hidden"> (در تب جدید باز می‌شود)</span>
                   </a>
                 </li>
               ))}

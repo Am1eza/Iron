@@ -142,7 +142,13 @@ export function CartView() {
         </ul>
 
         <div className={styles.itemsFoot}>
-          <button type="button" className={styles.clearBtn} onClick={() => clear()}>
+          <button
+            type="button"
+            className={styles.clearBtn}
+            onClick={() => {
+              if (window.confirm('سبد استعلام خالی شود؟')) clear();
+            }}
+          >
             <TrashIcon size={16} />
             خالی کردن سبد
           </button>
