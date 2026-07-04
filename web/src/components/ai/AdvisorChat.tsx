@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { routes } from '@/lib/routes';
 import { api, API_MODE, isApiError } from '@/lib/api';
@@ -201,6 +201,61 @@ function aiReply(text: string, ctx: { purpose: string | null }): { msgs: Msg[]; 
   };
 }
 
+/**
+ * One thread row (user or آهن‌تایم), memoized. `hidden` renders it aria-hidden
+ * for the presentational in-progress streaming preview (`streamPreview`
+ * below) — the finished message is what actually lands in the role="log"
+ * region and gets announced, once. Messages committed to `messages` keep
+ * their exact same object reference across a `setMessages` update unless
+ * they're the one that changed, so `React.memo`'s default shallow-prop
+ * comparison lets the rest of a long thread skip re-rendering on every SSE
+ * token instead of re-rendering the whole thread. `onPick` must stay
+ * referentially stable for that to hold (see `stableSend` in `AdvisorChat`)
+ * — otherwise every row would see a "changed" prop on every render
+ * regardless of whether its own message changed.
+ */
+const MessageBubble = memo(function MessageBubble({
+  message: m,
+  onPick,
+  hidden,
+}: {
+  message: Msg;
+  onPick: (text: string) => void;
+  hidden?: boolean;
+}) {
+  return (
+    <div
+      className={`${styles.row} ${styles.rowIn} ${m.role === 'user' ? styles.rowUser : styles.rowAi}`}
+      aria-hidden={hidden || undefined}
+    >
+      {m.role === 'ai' && (
+        <span className={styles.bubbleAvatar} aria-hidden>
+          <SparkIcon size={14} />
+        </span>
+      )}
+      <div className={styles.bubbleWrap}>
+        {m.text && (
+          <div className={`${styles.bubble} ${m.role === 'user' ? styles.user : styles.ai}`}>
+            <span className="visually-hidden">{m.role === 'user' ? 'شما' : 'آهن‌تایم'}: </span>
+            {m.text.split('\n').map((line, i) => (
+              <p key={i}>{line}</p>
+            ))}
+          </div>
+        )}
+        {m.estimate && <EstimateCard est={m.estimate} />}
+        {m.split && <SplitCard answer={m.split} />}
+        {m.chips && (
+          <div className={styles.chips}>
+            {m.chips.map((c) => (
+              <QuickReply key={c} label={c} onPick={onPick} />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+});
+
 export function AdvisorChat({
   initialQuestion,
   initialMessages,
@@ -379,6 +434,11 @@ export function AdvisorChat({
     if (useServer.current) void sendLive(text);
     else sendLocal(text);
   };
+  // Stable wrapper so `MessageBubble`'s `onPick` prop never changes reference
+  // (see MessageBubble's docstring) — `send` itself is recreated every render.
+  const sendRef = useRef(send);
+  sendRef.current = send;
+  const stableSend = useCallback((text: string) => sendRef.current(text), []);
 
   // First load: greet (unless the server already rendered it — see
   // `initialMessages`), then auto-send the question from the home search (if any).
@@ -420,13 +480,13 @@ export function AdvisorChat({
       <div className={styles.scroll} ref={scrollRef}>
         <div className={styles.thread} role="log" aria-live="polite" aria-atomic="false" aria-relevant="additions">
           {messages.map((m) => (
-            <MessageRow key={m.id} m={m} onPick={send} />
+            <MessageBubble key={m.id} message={m} onPick={stableSend} />
           ))}
 
           {/* Presentational-only: the token-by-token streaming animation. Marked
               aria-hidden so it is never announced; the finished text lands in
               `messages` above (and is announced once) when the stream ends. */}
-          {streamPreview && <MessageRow m={streamPreview} onPick={send} hidden />}
+          {streamPreview && <MessageBubble message={streamPreview} onPick={stableSend} hidden />}
 
           {typing && (
             <div className={`${styles.row} ${styles.rowAi}`} aria-hidden="true">
@@ -488,42 +548,6 @@ export function AdvisorChat({
       <p className={styles.disclaimer}>
         پاسخ‌ها بر پایهٔ قیمت‌های واقعی است؛ آهن‌تایم هرگز عدد ساختگی نمی‌سازد.
       </p>
-    </div>
-  );
-}
-
-/** One thread row (user or آهن‌تایم). `hidden` renders it aria-hidden for the
- *  presentational in-progress streaming preview — see AdvisorChat's role="log". */
-function MessageRow({ m, onPick, hidden }: { m: Msg; onPick: (t: string) => void; hidden?: boolean }) {
-  return (
-    <div
-      className={`${styles.row} ${styles.rowIn} ${m.role === 'user' ? styles.rowUser : styles.rowAi}`}
-      aria-hidden={hidden || undefined}
-    >
-      {m.role === 'ai' && (
-        <span className={styles.bubbleAvatar} aria-hidden>
-          <SparkIcon size={14} />
-        </span>
-      )}
-      <div className={styles.bubbleWrap}>
-        {m.text && (
-          <div className={`${styles.bubble} ${m.role === 'user' ? styles.user : styles.ai}`}>
-            <span className="visually-hidden">{m.role === 'user' ? 'شما' : 'آهن‌تایم'}: </span>
-            {m.text.split('\n').map((line, i) => (
-              <p key={i}>{line}</p>
-            ))}
-          </div>
-        )}
-        {m.estimate && <EstimateCard est={m.estimate} />}
-        {m.split && <SplitCard answer={m.split} />}
-        {m.chips && (
-          <div className={styles.chips}>
-            {m.chips.map((c) => (
-              <QuickReply key={c} label={c} onPick={onPick} />
-            ))}
-          </div>
-        )}
-      </div>
     </div>
   );
 }

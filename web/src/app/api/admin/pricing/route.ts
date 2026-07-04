@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
+import { safeRevalidatePath } from '@/lib/server/utils/revalidate';
 import { tableRows } from '@/lib/server/repos/catalogRepo';
 import { savePrices } from '@/lib/server/services/pricing.service';
 import { evaluateAlerts } from '@/lib/server/services/alerts.service';
@@ -52,6 +53,12 @@ async function PUTImpl(req: NextRequest) {
   const failed = results.filter((r) => !r.ok);
   // Fire alert evaluation inline so price alerts react immediately.
   void evaluateAlerts().catch(() => {});
+  // The /prices ISR pages now cache for up to 5 minutes (see [category]/[sub]/[sku]
+  // page.tsx `revalidate`) — bust the whole subtree on any successful save so an
+  // admin price edit shows up immediately instead of waiting out the window.
+  if (failed.length < results.length) {
+    safeRevalidatePath('/prices', 'layout');
+  }
   return NextResponse.json(
     { results, saved: results.length - failed.length, failed: failed.length },
     { status: failed.length > 0 && failed.length === results.length ? 422 : 200 },

@@ -14,7 +14,7 @@ import type { AppLocale } from '@/i18n/config';
 import { Logo } from './Logo';
 import { SearchBar } from './SearchBar';
 import { NavDropdown } from './NavDropdown';
-import { ProductsMenu } from './ProductsMenu';
+import { ProductsMenu } from '@/components/lazy';
 import { LocaleSwitcher } from './LocaleSwitcher';
 import { MenuIcon, SearchIcon, UserIcon, CartIcon, SparkIcon } from '@/components/primitives/icons';
 import styles from './Header.module.css';

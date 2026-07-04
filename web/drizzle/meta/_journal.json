@@ -50,6 +50,13 @@
       "when": 1783188343183,
       "tag": "0006_dear_puppet_master",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1783192081281,
+      "tag": "0007_typical_the_santerians",
+      "breakpoints": true
     }
   ]
 }

@@ -22,6 +22,13 @@ const nextConfig = {
   // external so route handlers that import it don't get it bundled by
   // webpack.
   serverExternalPackages: ['pg'],
+  // `date-fns-jalali` is imported (named imports only) across format/validation/
+  // server utils; this keeps only the modules actually used in the bundle
+  // instead of Next's default whole-package handling for non-`esm`-optimized
+  // libraries.
+  experimental: {
+    optimizePackageImports: ['date-fns-jalali'],
+  },
   // Static export for GitHub Pages (preview). `next start`/dev keep full SSR.
   ...(isExport
     ? { output: 'export', trailingSlash: true, basePath, assetPrefix: basePath || undefined }

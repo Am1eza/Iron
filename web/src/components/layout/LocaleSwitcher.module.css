@@ -10,9 +10,6 @@
 .wrap:hover {
   background: var(--color-surface-sunken);
 }
-.wrap[data-pending] {
-  opacity: 0.6;
-}
 .icon {
   flex: none;
 }

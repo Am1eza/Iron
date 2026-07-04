@@ -34,14 +34,22 @@ export function CategoryGrid({ categories }: { categories: Category[] }) {
             >
               <span className={styles.media} aria-hidden>
                 {productImage(cat.slug) ? (
-                  <ProductImage slug={cat.slug} name={cat.name} />
+                  // `.media` renders this at ~124px tall — the full 1200×800
+                  // photo was ~8.5× more bytes than the pre-generated thumb
+                  // needs, and this grid is above the fold on both `/` and
+                  // `/prices`, so it's eager too (not lazy-loaded off-screen
+                  // content).
+                  <ProductImage slug={cat.slug} name={cat.name} variant="thumb" eager />
                 ) : (
                   <CategoryGlyph iconId={cat.iconId} size={32} />
                 )}
               </span>
               <span className={styles.name}>{cat.name}</span>
               <span className={styles.subs}>
-                {(CATEGORY_SUBS[cat.slug] ?? []).slice(0, 3).map((s) => s.name).join(' · ')}
+                {(CATEGORY_SUBS[cat.slug] ?? [])
+                  .slice(0, 3)
+                  .map((s) => s.name)
+                  .join(' · ')}
               </span>
               <span className={styles.cta} aria-hidden="true">
                 مشاهده قیمت

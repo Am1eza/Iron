@@ -1,50 +1,50 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
-import { NextIntlClientProvider } from 'next-intl';
-import { getLocale, getMessages, getTranslations } from 'next-intl/server';
 import { AppProviders } from '@/lib/providers/AppProviders';
 import { AuthHydrator } from '@/lib/providers/AuthHydrator';
 import { ThemeScript } from '@/components/theme/ThemeScript';
-import { getSession } from '@/lib/auth/session';
 import { getCategories } from '@/lib/data/catalog';
 import { SiteChromeTop, SiteChromeBottom } from '@/components/layout/SiteChrome';
 import { RouteAnnouncer } from '@/components/a11y/RouteAnnouncer';
-import { getDirection, type AppLocale } from '@/i18n/config';
+import { vazirmatn, estedad, inter } from '@/lib/theme/fonts';
+import { LocaleProvider } from '@/i18n/LocaleProvider';
+import { LocaleScript } from '@/i18n/LocaleScript';
+import faMessages from '../../messages/fa.json';
 
 /**
- * Root layout — the multi-language shell (fa default; en/ar/zh via the
- * header's language switcher — see src/i18n/request.ts for why this is
- * cookie-based rather than URL-prefixed). `<html lang dir>` are resolved
- * per-request from the active locale; fa/ar are RTL, en/zh are LTR.
- * Fonts are self-hosted via @font-face in tokens.css (add the .woff2 files to /public/fonts).
+ * Root layout — the RTL, Persian-first shell.
+ * <html lang="fa" dir="rtl"> + design tokens (via globals.css).
+ * Fonts are self-hosted via `next/font/local` (lib/theme/fonts.ts); Estedad and
+ * Vazirmatn preload automatically, and tokens.css consumes their `--font-*`
+ * CSS variables (see the `className` below).
+ *
+ * Multi-language (fa default; en/ar/zh via the header's language switcher)
+ * is deliberately layered in client-side (`LocaleProvider`/`LocaleScript`)
+ * rather than resolved here via next-intl's server APIs — see
+ * `LocaleProvider`'s header comment for why: this layout wraps every route,
+ * and any dynamic API call here (cookies()/getLocale()/getMessages() all
+ * read the same way) would force the entire app into per-request dynamic
+ * rendering, undoing the ISR strategy across ~250 prerendered pages the
+ * same way the signed-in session cookie once did (see `AuthHydrator`).
+ * Static metadata below is fa-only for the same reason.
  */
 
-export async function generateMetadata(): Promise<Metadata> {
-  const locale = (await getLocale()) as AppLocale;
-  const t = await getTranslations({ locale, namespace: 'metadata' });
-  const c = await getTranslations({ locale, namespace: 'common' });
-  const OG_LOCALE: Record<AppLocale, string> = {
-    fa: 'fa_IR',
-    en: 'en_US',
-    ar: 'ar',
-    zh: 'zh_CN',
-  };
-  return {
-    metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://ahantime.com'),
-    title: {
-      default: t('title'),
-      template: `%s | ${c('brand')}`,
-    },
-    description: t('description'),
-    applicationName: c('brand'),
-    openGraph: {
-      type: 'website',
-      locale: OG_LOCALE[locale],
-      siteName: c('brand'),
-    },
-    robots: { index: true, follow: true },
-  };
-}
+export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://ahantime.com'),
+  title: {
+    default: 'آهن‌تایم — بازار هوشمند آهن و فولاد',
+    template: '%s | آهن‌تایم',
+  },
+  description:
+    'آهن‌تایم، بازار هوشمند آهن و فولاد: مشاور هوش مصنوعی، قیمت‌های شفاف و لحظه‌ای و زمان تحویل مشخص. اول مشورت، بعد خرید.',
+  applicationName: 'آهن‌تایم',
+  openGraph: {
+    type: 'website',
+    locale: 'fa_IR',
+    siteName: 'آهن‌تایم',
+  },
+  robots: { index: true, follow: true },
+};
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -54,47 +54,31 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const [categories, session, locale, messages] = await Promise.all([
-    getCategories(),
-    getSession(),
-    getLocale(),
-    getMessages(),
-  ]);
-  const t = await getTranslations({ locale, namespace: 'common' });
-  const initialUser = session
-    ? {
-        id: session.id,
-        mobile: session.mobile,
-        name: session.name,
-        role: session.role,
-      }
-    : null;
+  // No cookies()/headers() read here (and none in anything this layout renders
+  // synchronously) — that's deliberate. Any dynamic API call reached from the
+  // root layout forces every route in the app into per-request dynamic
+  // rendering, silently defeating the ISR/generateStaticParams strategy used
+  // across the ~250 prerendered SKU/blog/tool pages. The signed-in user is
+  // resolved client-side instead (`AuthHydrator` → `GET /api/me`), which is
+  // enough since 100% of auth-driven UI already lives behind Zustand's
+  // `useAuthStore`, not server-rendered markup.
+  const categories = await getCategories();
   return (
-    <html lang={locale} dir={getDirection(locale as AppLocale)} suppressHydrationWarning>
-      <head>
-        <link
-          rel="preload"
-          href="/fonts/Estedad.var.woff2"
-          as="font"
-          type="font/woff2"
-          crossOrigin="anonymous"
-        />
-        <link
-          rel="preload"
-          href="/fonts/Vazirmatn.var.woff2"
-          as="font"
-          type="font/woff2"
-          crossOrigin="anonymous"
-        />
-      </head>
+    <html
+      lang="fa"
+      dir="rtl"
+      suppressHydrationWarning
+      className={`${vazirmatn.variable} ${estedad.variable} ${inter.variable}`}
+    >
       <body>
         <ThemeScript />
+        <LocaleScript />
         <a href="#main" className="skip-link">
-          {t('skipToContent')}
+          {faMessages.common.skipToContent}
         </a>
-        <NextIntlClientProvider locale={locale} messages={messages}>
+        <LocaleProvider defaultMessages={faMessages}>
           <AppProviders>
-            <AuthHydrator initialUser={initialUser} />
+            <AuthHydrator />
             <SiteChromeTop categories={categories} />
             <main id="main" tabIndex={-1}>
               {children}
@@ -102,7 +86,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <SiteChromeBottom categories={categories} />
             <RouteAnnouncer />
           </AppProviders>
-        </NextIntlClientProvider>
+        </LocaleProvider>
       </body>
     </html>
   );
