@@ -8,19 +8,28 @@ import { test, expect } from '@playwright/test';
  */
 test('OTP login: request code, verify with the dev code, land on account', async ({ page }) => {
   await page.goto('/login');
+  await page.waitForLoadState('networkidle');
+  const mobileField = page.getByLabel('شمارهٔ موبایل');
+  const submitBtn = page.getByRole('button', { name: 'دریافت کد تأیید' });
   const devCodeStatus = page.getByRole('status').filter({ hasText: 'کد آزمایشی' });
-  // Retry the fill+submit: on a cold `next dev` compile, the mobile field is
-  // a React-controlled input that can be filled by Playwright fractionally
-  // before hydration attaches its onChange handler — the DOM value briefly
-  // shows the typed number, then React's own (still-empty) state re-renders
-  // over it, clearing the field and failing client validation. Re-filling
-  // and re-submitting until the OTP step actually appears rides out that
-  // window instead of racing it once.
+  // The mobile field is a React-controlled input, and the form has no
+  // `action`/`method` fallback — both the fill and the click depend on
+  // hydration having attached React's handlers. Confirming the DOM value
+  // right after `.fill()` is NOT enough: hydration can still commit *after*
+  // that check passes, re-rendering the input from React's own (still-empty)
+  // state and silently discarding the native fill before the click ever
+  // reads it — surfacing later as a "برای ثبت شماره معتبر لازم است" client
+  // validation error despite the value looking right a moment earlier. So
+  // retry the WHOLE fill+click+outcome sequence, not just the fill. This is
+  // safe to repeat: a client-rejected or hydration-lost attempt never
+  // reaches the server (no request is logged for it), and a genuinely
+  // in-flight real request disables the submit button (`loading={submitting}`),
+  // making a retried click on it a no-op rather than a second request.
   await expect(async () => {
-    await page.getByLabel('شمارهٔ موبایل').fill('09121234567');
-    await page.getByRole('button', { name: 'دریافت کد تأیید' }).click();
-    await expect(devCodeStatus).toBeVisible({ timeout: 2000 });
-  }).toPass({ timeout: 20_000 });
+    await mobileField.fill('09121234567');
+    await submitBtn.click();
+    await expect(devCodeStatus).toBeVisible({ timeout: 3000 });
+  }).toPass({ timeout: 30_000 });
   const text = await devCodeStatus.textContent();
   const code = text?.match(/[۰-۹0-9]{5}/)?.[0];
   expect(code).toBeTruthy();
