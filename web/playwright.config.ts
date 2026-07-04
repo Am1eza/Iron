@@ -18,7 +18,12 @@ export default defineConfig({
   expect: { timeout: 8_000 },
   fullyParallel: false,
   workers: 1,
-  retries: 0,
+  // Retry in CI only: a couple of these specs (auth OTP login, catalog live
+  // price table) are known-flaky under CI's slower/shared CPU — reproduced
+  // failing intermittently even on a clean `main` checkout, unrelated to any
+  // one PR's changes. Local runs stay retry-free so a real regression fails
+  // immediately instead of being masked.
+  retries: process.env.CI ? 2 : 0,
   reporter: 'list',
   use: {
     baseURL: BASE_URL,
