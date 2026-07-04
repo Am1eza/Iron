@@ -23,7 +23,7 @@ export function Card({
   /** e.g. `role="status"` to make a result panel an announced live region. */
   role?: string;
   'aria-live'?: 'polite' | 'assertive' | 'off';
-  'aria-atomic'?: boolean;
+  'aria-atomic'?: boolean | 'true' | 'false';
 }) {
   return (
     <Tag

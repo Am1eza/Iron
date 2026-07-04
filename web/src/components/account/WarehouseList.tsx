@@ -71,8 +71,8 @@ export function WarehouseList({ items }: { items: WarehouseItem[] }) {
               </Stack>
             </Cluster>
           </Stack>
-        </div>
+        </li>
       ))}
-    </Stack>
+    </ul>
   );
 }
