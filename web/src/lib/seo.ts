@@ -6,8 +6,8 @@ import { CHANNELS } from '@/lib/data/nav';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://ahantime.com';
 const BRAND = 'آهن‌تایم';
-/** Default social-preview image — served by app/opengraph-image.tsx (1200×630). */
-const DEFAULT_OG_IMAGE = new URL('/opengraph-image', SITE_URL).toString();
+/** Default social-preview image — static app/opengraph-image.png (1200×630). */
+const DEFAULT_OG_IMAGE = new URL('/opengraph-image.png', SITE_URL).toString();
 const LOGO_URL = new URL('/brand/icon-512.png', SITE_URL).toString();
 
 export const ORG_NAME = BRAND;
