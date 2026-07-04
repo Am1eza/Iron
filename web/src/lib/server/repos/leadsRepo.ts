@@ -2,7 +2,7 @@
  * Leads + proformas — the conversion spine's persistence. Lead items snapshot
  * name/price at creation; issued proformas freeze lines as jsonb.
  */
-import { and, desc, eq, ilike, or, sql } from 'drizzle-orm';
+import { and, desc, eq, ilike, isNull, or, sql } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { getDb } from '@/lib/server/db/client';
 import { leads, leadItems, leadNotes, proformas } from '@/lib/server/db/schema';
@@ -82,8 +82,14 @@ export async function leadItemsOf(leadId: string): Promise<LeadItemRow[]> {
     .orderBy(leadItems.order);
 }
 
+/** Excludes soft-deleted leads — same "gone means gone" precedent as
+ *  catalog's isActive (see catalogRepo's findCategory). */
 export async function findLead(id: string): Promise<LeadRow | null> {
-  const rows = await getDb().select().from(leads).where(eq(leads.id, id)).limit(1);
+  const rows = await getDb()
+    .select()
+    .from(leads)
+    .where(and(eq(leads.id, id), isNull(leads.deletedAt)))
+    .limit(1);
   return rows[0] ?? null;
 }
 
@@ -91,9 +97,20 @@ export async function leadsForUser(userId: string, mobile: string) {
   return getDb()
     .select()
     .from(leads)
-    .where(or(eq(leads.userId, userId), eq(leads.contactMobile, mobile)))
+    .where(and(or(eq(leads.userId, userId), eq(leads.contactMobile, mobile)), isNull(leads.deletedAt)))
     .orderBy(desc(leads.createdAt))
     .limit(100);
+}
+
+/** Soft-delete — archives a spam/duplicate/test lead out of admin views
+ *  without losing its audit trail (see the `deletedAt` column comment). */
+export async function softDeleteLead(id: string): Promise<LeadRow | null> {
+  const rows = await getDb()
+    .update(leads)
+    .set({ deletedAt: new Date(), updatedAt: new Date() })
+    .where(and(eq(leads.id, id), isNull(leads.deletedAt)))
+    .returning();
+  return rows[0] ?? null;
 }
 
 export async function updateLead(
@@ -135,11 +152,14 @@ export async function adminListLeads(query: {
   q?: string;
   page?: number;
   perPage?: number;
+  /** Show archived (soft-deleted) leads instead of the normal working set. */
+  includeDeleted?: boolean;
 }) {
   const db = getDb();
   const page = query.page ?? 1;
   const perPage = query.perPage ?? 30;
   const conds = [];
+  if (!query.includeDeleted) conds.push(isNull(leads.deletedAt));
   if (query.status) conds.push(eq(leads.status, query.status));
   if (query.assigneeId) conds.push(eq(leads.assigneeId, query.assigneeId));
   if (query.q) {
@@ -214,4 +234,16 @@ export async function expireDueProformas(): Promise<number> {
     .where(and(eq(proformas.status, 'active'), sql`${proformas.validUntil} < now()`))
     .returning({ id: proformas.id });
   return rows.length;
+}
+
+/** Void an issued proforma (customer changed the order, a pricing error,
+ *  etc.) — only from 'active', so an already-expired/cancelled one can't be
+ *  "re-cancelled" or have its terminal state clobbered. */
+export async function cancelProforma(ref: string): Promise<ProformaRow | null> {
+  const rows = await getDb()
+    .update(proformas)
+    .set({ status: 'cancelled' })
+    .where(and(eq(proformas.ref, ref), eq(proformas.status, 'active')))
+    .returning();
+  return rows[0] ?? null;
 }

@@ -1,5 +1,5 @@
 {
-  "id": "b1cffc8d-01f2-4603-b12f-51603743ecfb",
+  "id": "b1f6b73c-36e4-4c66-885c-902be5bfc733",
   "prevId": "9798c62b-17ec-4c54-9ffe-1b2f08a5da49",
   "version": "7",
   "dialect": "postgresql",
@@ -125,9 +125,13 @@
           "name": "refresh_tokens_user_id_users_id_fk",
           "tableFrom": "refresh_tokens",
           "tableTo": "users",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -194,7 +198,9 @@
         "users_mobile_unique": {
           "name": "users_mobile_unique",
           "nullsNotDistinct": false,
-          "columns": ["mobile"]
+          "columns": [
+            "mobile"
+          ]
         }
       },
       "policies": {},
@@ -276,30 +282,16 @@
           "default": "now()"
         }
       },
-      "indexes": {
-        "categories_name_trgm_idx": {
-          "name": "categories_name_trgm_idx",
-          "columns": [
-            {
-              "expression": "\"name\" gin_trgm_ops",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "gin",
-          "with": {}
-        }
-      },
+      "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "categories_slug_unique": {
           "name": "categories_slug_unique",
           "nullsNotDistinct": false,
-          "columns": ["slug"]
+          "columns": [
+            "slug"
+          ]
         }
       },
       "policies": {},
@@ -467,10 +459,11 @@
           "name": "skus_name_trgm_idx",
           "columns": [
             {
-              "expression": "\"name\" gin_trgm_ops",
+              "expression": "name",
+              "isExpression": false,
               "asc": true,
-              "isExpression": true,
-              "nulls": "last"
+              "nulls": "last",
+              "opclass": "gin_trgm_ops"
             }
           ],
           "isUnique": false,
@@ -482,25 +475,11 @@
           "name": "skus_factory_trgm_idx",
           "columns": [
             {
-              "expression": "\"factory\" gin_trgm_ops",
+              "expression": "factory",
+              "isExpression": false,
               "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "gin",
-          "with": {}
-        },
-        "skus_size_trgm_idx": {
-          "name": "skus_size_trgm_idx",
-          "columns": [
-            {
-              "expression": "\"size\" gin_trgm_ops",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
+              "nulls": "last",
+              "opclass": "gin_trgm_ops"
             }
           ],
           "isUnique": false,
@@ -514,18 +493,26 @@
           "name": "skus_sub_category_id_sub_categories_id_fk",
           "tableFrom": "skus",
           "tableTo": "sub_categories",
-          "columnsFrom": ["sub_category_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
+          "columnsFrom": [
+            "sub_category_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
           "onUpdate": "no action"
         },
         "skus_category_id_categories_id_fk": {
           "name": "skus_category_id_categories_id_fk",
           "tableFrom": "skus",
           "tableTo": "categories",
-          "columnsFrom": ["category_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
+          "columnsFrom": [
+            "category_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -534,7 +521,9 @@
         "skus_slug_unique": {
           "name": "skus_slug_unique",
           "nullsNotDistinct": false,
-          "columns": ["slug"]
+          "columns": [
+            "slug"
+          ]
         }
       },
       "policies": {},
@@ -618,9 +607,13 @@
           "name": "sub_categories_category_id_categories_id_fk",
           "tableFrom": "sub_categories",
           "tableTo": "categories",
-          "columnsFrom": ["category_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
+          "columnsFrom": [
+            "category_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -706,18 +699,26 @@
           "name": "current_prices_sku_id_skus_id_fk",
           "tableFrom": "current_prices",
           "tableTo": "skus",
-          "columnsFrom": ["sku_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
+          "columnsFrom": [
+            "sku_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
           "onUpdate": "no action"
         },
         "current_prices_updated_by_users_id_fk": {
           "name": "current_prices_updated_by_users_id_fk",
           "tableFrom": "current_prices",
           "tableTo": "users",
-          "columnsFrom": ["updated_by"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
+          "columnsFrom": [
+            "updated_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -791,9 +792,13 @@
           "name": "price_points_sku_id_skus_id_fk",
           "tableFrom": "price_points",
           "tableTo": "skus",
-          "columnsFrom": ["sku_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
+          "columnsFrom": [
+            "sku_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -1044,18 +1049,26 @@
           "name": "alerts_user_id_users_id_fk",
           "tableFrom": "alerts",
           "tableTo": "users",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
           "onUpdate": "no action"
         },
         "alerts_sku_id_skus_id_fk": {
           "name": "alerts_sku_id_skus_id_fk",
           "tableFrom": "alerts",
           "tableTo": "skus",
-          "columnsFrom": ["sku_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
+          "columnsFrom": [
+            "sku_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -1102,9 +1115,13 @@
           "name": "club_memberships_user_id_users_id_fk",
           "tableFrom": "club_memberships",
           "tableTo": "users",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -1113,7 +1130,9 @@
         "club_memberships_user_id_unique": {
           "name": "club_memberships_user_id_unique",
           "nullsNotDistinct": false,
-          "columns": ["user_id"]
+          "columns": [
+            "user_id"
+          ]
         }
       },
       "policies": {},
@@ -1178,18 +1197,26 @@
           "name": "favorites_user_id_users_id_fk",
           "tableFrom": "favorites",
           "tableTo": "users",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
           "onUpdate": "no action"
         },
         "favorites_sku_id_skus_id_fk": {
           "name": "favorites_sku_id_skus_id_fk",
           "tableFrom": "favorites",
           "tableTo": "skus",
-          "columnsFrom": ["sku_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
+          "columnsFrom": [
+            "sku_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -1338,18 +1365,26 @@
           "name": "lead_items_lead_id_leads_id_fk",
           "tableFrom": "lead_items",
           "tableTo": "leads",
-          "columnsFrom": ["lead_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
+          "columnsFrom": [
+            "lead_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
           "onUpdate": "no action"
         },
         "lead_items_sku_id_skus_id_fk": {
           "name": "lead_items_sku_id_skus_id_fk",
           "tableFrom": "lead_items",
           "tableTo": "skus",
-          "columnsFrom": ["sku_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
+          "columnsFrom": [
+            "sku_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -1417,17 +1452,25 @@
           "name": "lead_notes_lead_id_leads_id_fk",
           "tableFrom": "lead_notes",
           "tableTo": "leads",
-          "columnsFrom": ["lead_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
+          "columnsFrom": [
+            "lead_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
           "onUpdate": "no action"
         },
         "lead_notes_author_id_users_id_fk": {
           "name": "lead_notes_author_id_users_id_fk",
           "tableFrom": "lead_notes",
           "tableTo": "users",
-          "columnsFrom": ["author_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "author_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1536,6 +1579,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -1602,18 +1651,26 @@
           "name": "leads_user_id_users_id_fk",
           "tableFrom": "leads",
           "tableTo": "users",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         },
         "leads_assignee_id_users_id_fk": {
           "name": "leads_assignee_id_users_id_fk",
           "tableFrom": "leads",
           "tableTo": "users",
-          "columnsFrom": ["assignee_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
+          "columnsFrom": [
+            "assignee_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -1622,7 +1679,9 @@
         "leads_ref_unique": {
           "name": "leads_ref_unique",
           "nullsNotDistinct": false,
-          "columns": ["ref"]
+          "columns": [
+            "ref"
+          ]
         }
       },
       "policies": {},
@@ -1751,9 +1810,13 @@
           "name": "proformas_lead_id_leads_id_fk",
           "tableFrom": "proformas",
           "tableTo": "leads",
-          "columnsFrom": ["lead_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
+          "columnsFrom": [
+            "lead_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -1762,7 +1825,9 @@
         "proformas_ref_unique": {
           "name": "proformas_ref_unique",
           "nullsNotDistinct": false,
-          "columns": ["ref"]
+          "columns": [
+            "ref"
+          ]
         }
       },
       "policies": {},
@@ -1897,8 +1962,12 @@
           "name": "user_requests_user_id_users_id_fk",
           "tableFrom": "user_requests",
           "tableTo": "users",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1906,9 +1975,13 @@
           "name": "user_requests_lead_id_leads_id_fk",
           "tableFrom": "user_requests",
           "tableTo": "leads",
-          "columnsFrom": ["lead_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
+          "columnsFrom": [
+            "lead_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -1917,7 +1990,9 @@
         "user_requests_ref_unique": {
           "name": "user_requests_ref_unique",
           "nullsNotDistinct": false,
-          "columns": ["ref"]
+          "columns": [
+            "ref"
+          ]
         }
       },
       "policies": {},
@@ -2005,18 +2080,26 @@
           "name": "order_items_order_id_orders_id_fk",
           "tableFrom": "order_items",
           "tableTo": "orders",
-          "columnsFrom": ["order_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
+          "columnsFrom": [
+            "order_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
           "onUpdate": "no action"
         },
         "order_items_sku_id_skus_id_fk": {
           "name": "order_items_sku_id_skus_id_fk",
           "tableFrom": "order_items",
           "tableTo": "skus",
-          "columnsFrom": ["sku_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
+          "columnsFrom": [
+            "sku_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -2088,6 +2171,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -2112,18 +2201,26 @@
           "name": "orders_user_id_users_id_fk",
           "tableFrom": "orders",
           "tableTo": "users",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         },
         "orders_lead_id_leads_id_fk": {
           "name": "orders_lead_id_leads_id_fk",
           "tableFrom": "orders",
           "tableTo": "leads",
-          "columnsFrom": ["lead_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
+          "columnsFrom": [
+            "lead_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -2132,7 +2229,9 @@
         "orders_ref_unique": {
           "name": "orders_ref_unique",
           "nullsNotDistinct": false,
-          "columns": ["ref"]
+          "columns": [
+            "ref"
+          ]
         }
       },
       "policies": {},
@@ -2213,6 +2312,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -2237,8 +2342,12 @@
           "name": "warehouse_items_user_id_users_id_fk",
           "tableFrom": "warehouse_items",
           "tableTo": "users",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2248,7 +2357,9 @@
         "warehouse_items_ref_unique": {
           "name": "warehouse_items_ref_unique",
           "nullsNotDistinct": false,
-          "columns": ["ref"]
+          "columns": [
+            "ref"
+          ]
         }
       },
       "policies": {},
@@ -2409,51 +2520,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "articles_title_trgm_idx": {
-          "name": "articles_title_trgm_idx",
-          "columns": [
-            {
-              "expression": "\"title\" gin_trgm_ops",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "gin",
-          "with": {}
-        },
-        "articles_excerpt_trgm_idx": {
-          "name": "articles_excerpt_trgm_idx",
-          "columns": [
-            {
-              "expression": "\"excerpt\" gin_trgm_ops",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "gin",
-          "with": {}
-        },
-        "articles_body_trgm_idx": {
-          "name": "articles_body_trgm_idx",
-          "columns": [
-            {
-              "expression": "\"body_md\" gin_trgm_ops",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "gin",
-          "with": {}
         }
       },
       "foreignKeys": {
@@ -2461,18 +2527,26 @@
           "name": "articles_author_id_users_id_fk",
           "tableFrom": "articles",
           "tableTo": "users",
-          "columnsFrom": ["author_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
+          "columnsFrom": [
+            "author_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         },
         "articles_approved_by_users_id_fk": {
           "name": "articles_approved_by_users_id_fk",
           "tableFrom": "articles",
           "tableTo": "users",
-          "columnsFrom": ["approved_by"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
+          "columnsFrom": [
+            "approved_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -2481,7 +2555,9 @@
         "articles_slug_unique": {
           "name": "articles_slug_unique",
           "nullsNotDistinct": false,
-          "columns": ["slug"]
+          "columns": [
+            "slug"
+          ]
         }
       },
       "policies": {},
@@ -2598,9 +2674,13 @@
           "name": "ai_conversations_user_id_users_id_fk",
           "tableFrom": "ai_conversations",
           "tableTo": "users",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -2674,9 +2754,13 @@
           "name": "ai_messages_conversation_id_ai_conversations_id_fk",
           "tableFrom": "ai_messages",
           "tableTo": "ai_conversations",
-          "columnsFrom": ["conversation_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
+          "columnsFrom": [
+            "conversation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -2858,6 +2942,27 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "audit_entries_at_id_idx": {
+          "name": "audit_entries_at_id_idx",
+          "columns": [
+            {
+              "expression": "at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -2865,9 +2970,13 @@
           "name": "audit_entries_actor_id_users_id_fk",
           "tableFrom": "audit_entries",
           "tableTo": "users",
-          "columnsFrom": ["actor_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
+          "columnsFrom": [
+            "actor_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },

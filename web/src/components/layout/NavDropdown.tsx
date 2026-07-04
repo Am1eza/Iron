@@ -78,7 +78,6 @@ export function NavDropdown({
         type="button"
         className={styles.navTrigger}
         data-active={active ? '' : undefined}
-        aria-haspopup="true"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >

@@ -197,24 +197,32 @@ function aiReply(text: string, ctx: { purpose: string | null }): { msgs: Msg[]; 
 }
 
 /**
- * One message bubble, memoized. `updateMsg` (below) only replaces the object
- * for the message actively streaming — every other message keeps its exact
- * same object reference across a `setMessages` update, so `React.memo`'s
- * default shallow-prop comparison lets the rest of a long thread skip
- * re-rendering on every SSE token instead of re-rendering the whole thread.
- * `onPick` must stay referentially stable for that to hold (see `stableSend`
- * in `AdvisorChat`) — otherwise every bubble would see a "changed" prop on
- * every render regardless of whether its own message changed.
+ * One thread row (user or آهن‌تایم), memoized. `hidden` renders it aria-hidden
+ * for the presentational in-progress streaming preview (`streamPreview`
+ * below) — the finished message is what actually lands in the role="log"
+ * region and gets announced, once. Messages committed to `messages` keep
+ * their exact same object reference across a `setMessages` update unless
+ * they're the one that changed, so `React.memo`'s default shallow-prop
+ * comparison lets the rest of a long thread skip re-rendering on every SSE
+ * token instead of re-rendering the whole thread. `onPick` must stay
+ * referentially stable for that to hold (see `stableSend` in `AdvisorChat`)
+ * — otherwise every row would see a "changed" prop on every render
+ * regardless of whether its own message changed.
  */
 const MessageBubble = memo(function MessageBubble({
   message: m,
   onPick,
+  hidden,
 }: {
   message: Msg;
   onPick: (text: string) => void;
+  hidden?: boolean;
 }) {
   return (
-    <div className={`${styles.row} ${styles.rowIn} ${m.role === 'user' ? styles.rowUser : styles.rowAi}`}>
+    <div
+      className={`${styles.row} ${styles.rowIn} ${m.role === 'user' ? styles.rowUser : styles.rowAi}`}
+      aria-hidden={hidden || undefined}
+    >
       {m.role === 'ai' && (
         <span className={styles.bubbleAvatar} aria-hidden>
           <SparkIcon size={14} />
@@ -223,6 +231,7 @@ const MessageBubble = memo(function MessageBubble({
       <div className={styles.bubbleWrap}>
         {m.text && (
           <div className={`${styles.bubble} ${m.role === 'user' ? styles.user : styles.ai}`}>
+            <span className="visually-hidden">{m.role === 'user' ? 'شما' : 'آهن‌تایم'}: </span>
             {m.text.split('\n').map((line, i) => (
               <p key={i}>{line}</p>
             ))}
@@ -244,6 +253,11 @@ const MessageBubble = memo(function MessageBubble({
 
 export function AdvisorChat({ initialQuestion }: { initialQuestion?: string }) {
   const [messages, setMessages] = useState<Msg[]>([]);
+  // The in-progress streamed reply — purely presentational (rendered aria-hidden)
+  // so screen readers are never spammed token-by-token. Only once the stream
+  // completes does the finished text get pushed into `messages`, which the
+  // role="log" region below actually announces (accessibility.md §7).
+  const [streamPreview, setStreamPreview] = useState<Msg | null>(null);
   const [typing, setTyping] = useState(false);
   const [busy, setBusy] = useState(false);
   const [input, setInput] = useState('');
@@ -323,22 +337,26 @@ export function AdvisorChat({ initialQuestion }: { initialQuestion?: string }) {
     const aiId = uid();
     let streamedText = '';
     let opened = false;
+    let chipsBuf: string[] | undefined;
     // The server always emits 'lead' (during tool execution) strictly BEFORE
     // any 'token' (the buffered, sanitized final text) — so it's held and
     // appended after the model's own prose instead of rendering it first.
     let leadLine: string | null = null;
-    const patch = (fn: (m: Msg) => Msg) =>
-      setMessages((all) => all.map((m) => (m.id === aiId ? fn(m) : m)));
+    // These mutate ONLY the presentational preview (aria-hidden, not the
+    // role="log" region) — the finished message is committed to `messages`
+    // (and thus announced) a single time, after the stream ends.
+    const patchPreview = (fn: (m: Msg) => Msg) =>
+      setStreamPreview((m) => (m ? fn(m) : m));
     const open = (init: Partial<Msg> = {}) => {
       opened = true;
       setTyping(false);
-      setMessages((all) => [...all, { id: aiId, role: 'ai', ...init }]);
+      setStreamPreview({ id: aiId, role: 'ai', ...init });
     };
     const appendLine = (line: string) => {
       streamedText = streamedText ? `${streamedText}\n${line}` : line;
       const t = streamedText;
       if (!opened) open({ text: t });
-      else patch((m) => ({ ...m, text: t }));
+      else patchPreview((m) => ({ ...m, text: t }));
     };
     try {
       // Only recent non-empty turns travel (server re-validates) — bounded payload.
@@ -356,7 +374,7 @@ export function AdvisorChat({ initialQuestion }: { initialQuestion?: string }) {
           if (!opened) open({ text: ev.text });
           else {
             const t = streamedText;
-            patch((m) => ({ ...m, text: t }));
+            patchPreview((m) => ({ ...m, text: t }));
           }
         } else if (ev.type === 'lead') {
           if (ev.ref) {
@@ -364,8 +382,8 @@ export function AdvisorChat({ initialQuestion }: { initialQuestion?: string }) {
             leadLine = `درخواستت ثبت شد؛ کد پیگیری: ${toPersianDigits(ev.ref)}${amount}`;
           }
         } else if (ev.type === 'chips') {
-          const chips = ev.chips;
-          if (opened) patch((m) => ({ ...m, chips }));
+          chipsBuf = ev.chips;
+          if (opened) patchPreview((m) => ({ ...m, chips: ev.chips }));
         } else if (ev.type === 'error') {
           throw new Error(ev.message);
         }
@@ -374,12 +392,16 @@ export function AdvisorChat({ initialQuestion }: { initialQuestion?: string }) {
       if (leadLine) appendLine(leadLine);
       if (!opened) throw new Error('empty');
       if (streamedText.trim()) transcriptRef.current.push({ role: 'ai', text: streamedText });
+      // Streaming is done — clear the presentational preview and commit the
+      // FINISHED message into the live region in one shot (one announcement).
+      setStreamPreview(null);
+      setMessages((all) => [...all, { id: aiId, role: 'ai', text: streamedText, chips: chipsBuf }]);
     } catch (e) {
       // Permanent downgrade ONLY when the server says no relay exists; every
       // transient failure (timeout, 429, network blip) retries next turn.
       if (isApiError(e) && e.status === 503) useServer.current = false;
       setTyping(false);
-      if (opened) setMessages((all) => all.filter((m) => m.id !== aiId));
+      if (opened) setStreamPreview(null);
       sendLocal(text);
     } finally {
       busyRef.current = false;
@@ -445,6 +467,11 @@ export function AdvisorChat({ initialQuestion }: { initialQuestion?: string }) {
             <MessageBubble key={m.id} message={m} onPick={stableSend} />
           ))}
 
+          {/* Presentational-only: the token-by-token streaming animation. Marked
+              aria-hidden so it is never announced; the finished text lands in
+              `messages` above (and is announced once) when the stream ends. */}
+          {streamPreview && <MessageBubble message={streamPreview} onPick={stableSend} hidden />}
+
           {typing && (
             <div className={`${styles.row} ${styles.rowAi}`} aria-hidden="true">
               <span className={styles.bubbleAvatar} aria-hidden>
@@ -458,6 +485,12 @@ export function AdvisorChat({ initialQuestion }: { initialQuestion?: string }) {
             </div>
           )}
         </div>
+
+        {typing && (
+          <span className="visually-hidden" role="status">
+            در حال نوشتن…
+          </span>
+        )}
       </div>
 
       <form
@@ -467,12 +500,15 @@ export function AdvisorChat({ initialQuestion }: { initialQuestion?: string }) {
           send(input);
         }}
       >
+        <label htmlFor="chat-input" className="visually-hidden">
+          پیام به مشاور هوشمند
+        </label>
         <input
+          id="chat-input"
           className={styles.input}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder={busy ? 'در حال پاسخ…' : 'بنویس… مثلاً: یه خونهٔ ۱۰۰ متری دو طبقه می‌سازم'}
-          aria-label="پیام به مشاور هوشمند"
           enterKeyHint="send"
           maxLength={1000}
           disabled={busy}

@@ -1,5 +1,5 @@
 'use client';
-import { type ReactNode } from 'react';
+import { useId, type ReactNode } from 'react';
 import { useFocusTrap } from '@/lib/hooks/useFocusTrap';
 import { CloseIcon } from '@/components/primitives/icons';
 import styles from './Modal.module.css';
@@ -23,6 +23,7 @@ export function Modal({
   footer?: ReactNode;
 }) {
   const panelRef = useFocusTrap<HTMLDivElement>(open, onClose);
+  const titleId = useId();
 
   if (!open) return null;
 
@@ -34,11 +35,11 @@ export function Modal({
         className={styles.panel}
         role="dialog"
         aria-modal="true"
-        aria-label={title}
+        aria-labelledby={titleId}
         tabIndex={-1}
       >
         <header className={styles.head}>
-          <h2 className={styles.title}>{title}</h2>
+          <h2 id={titleId} className={styles.title}>{title}</h2>
           <button
             type="button"
             className={styles.close}

@@ -46,6 +46,11 @@
   background: var(--color-surface-sunken, rgba(0, 0, 0, 0.04));
   color: var(--color-text);
 }
+.navLink[aria-current='page'] {
+  background: var(--color-accent-tint);
+  color: var(--color-accent-text);
+  font-weight: 600;
+}
 
 .user {
   display: flex;

@@ -1,5 +1,5 @@
 /** Orders (cargo tracking) + consignment warehouse items. */
-import { desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { getDb } from '@/lib/server/db/client';
 import { orders, orderItems, warehouseItems } from '@/lib/server/db/schema';
@@ -75,10 +75,15 @@ async function toOrderDtos(rows: OrderRow[]): Promise<Order[]> {
   return rows.map((r) => toOrderDto(r, byOrderId.get(r.id) ?? []));
 }
 
-/** Public tracking: ref is the capability (digits normalized, case-insensitive). */
+/** Public tracking: ref is the capability (digits normalized, case-insensitive).
+ *  Excludes cancelled/archived orders — "gone means gone" for tracking too. */
 export async function findOrderByRef(rawRef: string): Promise<Order | null> {
   const ref = normalizeDigits(rawRef.trim()).toUpperCase();
-  const rows = await getDb().select().from(orders).where(eq(orders.ref, ref)).limit(1);
+  const rows = await getDb()
+    .select()
+    .from(orders)
+    .where(and(eq(orders.ref, ref), isNull(orders.deletedAt)))
+    .limit(1);
   if (!rows[0]) return null;
   return toOrderDto(rows[0], await itemsOf(rows[0].id));
 }
@@ -87,10 +92,23 @@ export async function ordersForUser(userId: string): Promise<Order[]> {
   const rows = await getDb()
     .select()
     .from(orders)
-    .where(eq(orders.userId, userId))
+    .where(and(eq(orders.userId, userId), isNull(orders.deletedAt)))
     .orderBy(desc(orders.placedAt))
     .limit(100);
   return toOrderDtos(rows);
+}
+
+/** Cancel/archive an order (mis-registered, duplicate, customer cancelled
+ *  before shipment) — separate from the shipment `status` stepper, see the
+ *  schema column comment. */
+export async function cancelOrder(ref: string): Promise<Order | null> {
+  const rows = await getDb()
+    .update(orders)
+    .set({ deletedAt: new Date(), updatedAt: new Date() })
+    .where(and(eq(orders.ref, ref), isNull(orders.deletedAt)))
+    .returning();
+  if (!rows[0]) return null;
+  return toOrderDto(rows[0], await itemsOf(rows[0].id));
 }
 
 export async function createOrder(input: {
@@ -129,7 +147,11 @@ export async function createOrder(input: {
 
 export async function updateOrderStatus(ref: string, status: OrderRow['status']): Promise<Order | null> {
   const db = getDb();
-  const current = await db.select({ status: orders.status }).from(orders).where(eq(orders.ref, ref)).limit(1);
+  const current = await db
+    .select({ status: orders.status })
+    .from(orders)
+    .where(and(eq(orders.ref, ref), isNull(orders.deletedAt)))
+    .limit(1);
   if (!current[0]) return null;
   assertForwardTransition(ORDER_STATUS_ORDER, current[0].status, status);
   const rows = await db
@@ -141,11 +163,20 @@ export async function updateOrderStatus(ref: string, status: OrderRow['status'])
   return toOrderDto(rows[0], await itemsOf(rows[0].id));
 }
 
-export async function adminListOrders(query: { status?: OrderRow['status']; page?: number; perPage?: number }) {
+export async function adminListOrders(query: {
+  status?: OrderRow['status'];
+  page?: number;
+  perPage?: number;
+  /** Show cancelled/archived orders instead of the normal working set. */
+  includeDeleted?: boolean;
+}) {
   const db = getDb();
   const page = query.page ?? 1;
   const perPage = query.perPage ?? 50;
-  const where = query.status ? eq(orders.status, query.status) : undefined;
+  const conds = [];
+  if (!query.includeDeleted) conds.push(isNull(orders.deletedAt));
+  if (query.status) conds.push(eq(orders.status, query.status));
+  const where = conds.length ? and(...conds) : undefined;
   const [rows, total] = await Promise.all([
     db
       .select()
@@ -178,25 +209,40 @@ export async function warehouseForUser(userId: string): Promise<WarehouseItem[]>
   const rows = await getDb()
     .select()
     .from(warehouseItems)
-    .where(eq(warehouseItems.userId, userId))
+    .where(and(eq(warehouseItems.userId, userId), isNull(warehouseItems.deletedAt)))
     .orderBy(desc(warehouseItems.storedAt));
   return rows.map(toWarehouseDto);
 }
 
-export async function adminListWarehouse(query: { page?: number; perPage?: number } = {}) {
+export async function adminListWarehouse(
+  query: { page?: number; perPage?: number; includeDeleted?: boolean } = {},
+) {
   const db = getDb();
   const page = query.page ?? 1;
   const perPage = query.perPage ?? 50;
+  const where = query.includeDeleted ? undefined : isNull(warehouseItems.deletedAt);
   const [rows, total] = await Promise.all([
     db
       .select()
       .from(warehouseItems)
+      .where(where)
       .orderBy(desc(warehouseItems.storedAt))
       .limit(perPage)
       .offset((page - 1) * perPage),
-    db.select({ n: sql<number>`count(*)::int` }).from(warehouseItems),
+    db.select({ n: sql<number>`count(*)::int` }).from(warehouseItems).where(where),
   ]);
   return { items: rows.map((r) => ({ ...toWarehouseDto(r), userId: r.userId })), total: total[0]?.n ?? 0 };
+}
+
+/** Soft-delete — remove a mistakenly-created or duplicate warehouse entry
+ *  from the working set without losing the record. */
+export async function softDeleteWarehouseItem(id: string): Promise<WarehouseItem | null> {
+  const rows = await getDb()
+    .update(warehouseItems)
+    .set({ deletedAt: new Date(), updatedAt: new Date() })
+    .where(and(eq(warehouseItems.id, id), isNull(warehouseItems.deletedAt)))
+    .returning();
+  return rows[0] ? toWarehouseDto(rows[0]) : null;
 }
 
 export async function createWarehouseItem(input: {
@@ -231,7 +277,7 @@ export async function updateWarehouseItem(
     const current = await db
       .select({ status: warehouseItems.status })
       .from(warehouseItems)
-      .where(eq(warehouseItems.id, id))
+      .where(and(eq(warehouseItems.id, id), isNull(warehouseItems.deletedAt)))
       .limit(1);
     if (!current[0]) return null;
     assertForwardTransition(WAREHOUSE_STATUS_ORDER, current[0].status, patch.status);
@@ -239,7 +285,7 @@ export async function updateWarehouseItem(
   const rows = await db
     .update(warehouseItems)
     .set({ ...patch, updatedAt: new Date() })
-    .where(eq(warehouseItems.id, id))
+    .where(and(eq(warehouseItems.id, id), isNull(warehouseItems.deletedAt)))
     .returning();
   return rows[0] ? toWarehouseDto(rows[0]) : null;
 }

@@ -31,12 +31,19 @@ export function ContactForm() {
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate style={{ maxInlineSize: 480 }}>
       {error ? <FormStatus variant="error">{error}</FormStatus> : null}
-      <TextInput label="نام" required error={formState.errors.name?.message} {...register('name')} />
+      <TextInput
+        label="نام"
+        required
+        autoComplete="name"
+        error={formState.errors.name?.message}
+        {...register('name')}
+      />
       <TextInput
         label="شمارهٔ موبایل"
         type="tel"
         inputMode="numeric"
         required
+        autoComplete="tel"
         error={formState.errors.mobile?.message}
         {...register('mobile')}
       />

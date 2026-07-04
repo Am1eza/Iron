@@ -18,6 +18,7 @@ export function EmptyState({
   tone = 'empty',
   glyph,
   headline,
+  headingLevel,
   body,
   primary,
   secondary,
@@ -27,21 +28,27 @@ export function EmptyState({
   tone?: 'empty' | 'error';
   glyph?: ReactNode;
   headline: string;
+  /** Heading level for `headline` — defaults to h1 for `full` (whole-page states like 404/500) and h2 otherwise. */
+  headingLevel?: 1 | 2 | 3;
   body?: string;
   primary?: CtaAction;
   secondary?: CtaAction;
   showAi?: boolean;
 }) {
-  const headingRef = useRef<HTMLParagraphElement | null>(null);
+  const headingRef = useRef<HTMLHeadingElement | null>(null);
   useEffect(() => {
     if (size === 'full') headingRef.current?.focus();
   }, [size]);
 
+  const Heading = `h${headingLevel ?? (size === 'full' ? 1 : 2)}` as 'h1' | 'h2' | 'h3';
+
   return (
     <div
       className={[styles.empty, styles[size]].join(' ')}
+      // role="alert"/"status" already implies the correct aria-live
+      // politeness — an explicit aria-live here would force "polite" even
+      // for the error/alert case, downgrading it.
       role={tone === 'error' ? 'alert' : 'status'}
-      aria-live="polite"
     >
       {size !== 'inline' ? (
         <span className={styles.glyph} aria-hidden="true">
@@ -49,9 +56,9 @@ export function EmptyState({
         </span>
       ) : null}
 
-      <p className={styles.headline} ref={headingRef} tabIndex={size === 'full' ? -1 : undefined}>
+      <Heading className={styles.headline} ref={headingRef} tabIndex={size === 'full' ? -1 : undefined}>
         {headline}
-      </p>
+      </Heading>
       {body ? <p className={styles.body}>{body}</p> : null}
 
       {(primary || secondary || showAi) && (

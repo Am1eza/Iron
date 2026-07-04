@@ -1,5 +1,5 @@
 'use client';
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { useToast } from '@/lib/hooks/useToast';
 import { normalizeMobile } from '@/lib/utils/format';
 import { Button } from '@/components/ui';
@@ -20,6 +20,8 @@ export function CooperationForm({ track }: { track: TrackKey }) {
   const [mobile, setMobile] = useState('');
   const [note, setNote] = useState('');
   const [errors, setErrors] = useState<Errors>({});
+  const nameRef = useRef<HTMLInputElement>(null);
+  const mobileRef = useRef<HTMLInputElement>(null);
 
   const nameId = `${baseId}-name`;
   const mobileId = `${baseId}-mobile`;
@@ -38,7 +40,11 @@ export function CooperationForm({ track }: { track: TrackKey }) {
     e.preventDefault();
     const next = validate();
     setErrors(next);
-    if (Object.keys(next).length > 0) return;
+    if (Object.keys(next).length > 0) {
+      if (next.name) nameRef.current?.focus();
+      else if (next.mobile) mobileRef.current?.focus();
+      return;
+    }
 
     // No backend — record the lead client-side only.
     toast.success('درخواست شما ثبت شد؛ به‌زودی تماس می‌گیریم.');
@@ -61,6 +67,7 @@ export function CooperationForm({ track }: { track: TrackKey }) {
           </span>
         </label>
         <input
+          ref={nameRef}
           id={nameId}
           name="name"
           type="text"
@@ -88,6 +95,7 @@ export function CooperationForm({ track }: { track: TrackKey }) {
           </span>
         </label>
         <input
+          ref={mobileRef}
           id={mobileId}
           name="mobile"
           type="tel"

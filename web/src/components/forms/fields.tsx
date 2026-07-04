@@ -1,5 +1,5 @@
 'use client';
-import { forwardRef } from 'react';
+import { forwardRef, useId } from 'react';
 import type { UseFormRegisterReturn } from 'react-hook-form';
 import styles from './field.module.css';
 
@@ -59,7 +59,8 @@ export const TextInput = forwardRef<HTMLInputElement, InputProps>(function TextI
   { label, error, helper, required, id, name, ...rest },
   ref,
 ) {
-  const fid = id ?? name ?? label;
+  const autoId = useId();
+  const fid = id ?? name ?? autoId;
   return (
     <Field label={label} htmlFor={fid} required={required} error={error} helper={helper}>
       <input
@@ -67,6 +68,8 @@ export const TextInput = forwardRef<HTMLInputElement, InputProps>(function TextI
         id={fid}
         name={name}
         ref={ref}
+        required={required}
+        aria-required={required || undefined}
         className={styles.input}
         aria-invalid={error ? true : undefined}
         aria-describedby={descId(fid, !!error, !!helper)}
@@ -86,7 +89,8 @@ export const Textarea = forwardRef<HTMLTextAreaElement, AreaProps>(function Text
   { label, error, helper, required, id, name, ...rest },
   ref,
 ) {
-  const fid = id ?? name ?? label;
+  const autoId = useId();
+  const fid = id ?? name ?? autoId;
   return (
     <Field label={label} htmlFor={fid} required={required} error={error} helper={helper}>
       <textarea
@@ -94,6 +98,8 @@ export const Textarea = forwardRef<HTMLTextAreaElement, AreaProps>(function Text
         id={fid}
         name={name}
         ref={ref}
+        required={required}
+        aria-required={required || undefined}
         className={styles.textarea}
         aria-invalid={error ? true : undefined}
         aria-describedby={descId(fid, !!error, !!helper)}

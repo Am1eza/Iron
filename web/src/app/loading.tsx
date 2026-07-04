@@ -5,7 +5,9 @@ export default function Loading() {
   return (
     <Container>
       <Section space={16}>
-        <span className="visually-hidden">در حال بارگذاری…</span>
+        <span className="visually-hidden" role="status" aria-live="polite">
+          در حال بارگذاری…
+        </span>
         <Stack gap={4}>
           <Skeleton variant="text" width="40%" height={28} />
           <Skeleton variant="text" width="65%" />

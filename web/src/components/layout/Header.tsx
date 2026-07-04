@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { routes } from '@/lib/routes';
@@ -24,12 +24,14 @@ import styles from './Header.module.css';
  */
 export function Header({ categories }: { categories: Category[] }) {
   const pathname = usePathname();
+  const drawerOpen = useUiStore((s) => s.drawerOpen);
   const setDrawerOpen = useUiStore((s) => s.setDrawerOpen);
   const user = useAuthStore((s) => s.user);
   const cartCount = useCartStore(selectCartCount);
 
   const [condensed, setCondensed] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const searchToggleRef = useRef<HTMLButtonElement | null>(null);
 
   // Condense purely by scroll POSITION (identical going down or up), with
   // hysteresis so the bar never flip-flops around a single threshold.
@@ -55,6 +57,20 @@ export function Header({ categories }: { categories: Category[] }) {
     setSearchOpen(false);
   }, [pathname]);
 
+  // Esc closes the inline search row and returns focus to its toggle —
+  // consistent with every other disclosure in the app (NavDropdown, MobileDrawer).
+  useEffect(() => {
+    if (!searchOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setSearchOpen(false);
+        searchToggleRef.current?.focus();
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [searchOpen]);
+
   const isActive = (href: string) =>
     href === routes.home() ? pathname === '/' : pathname.startsWith(href);
 
@@ -65,6 +81,8 @@ export function Header({ categories }: { categories: Category[] }) {
           type="button"
           className={styles.menuBtn}
           aria-label="باز کردن منو"
+          aria-expanded={drawerOpen}
+          aria-controls="mobile-drawer-panel"
           onClick={() => setDrawerOpen(true)}
         >
           <MenuIcon size={24} />
@@ -145,6 +163,7 @@ export function Header({ categories }: { categories: Category[] }) {
 
         <div className={styles.utility}>
           <button
+            ref={searchToggleRef}
             type="button"
             className={styles.iconBtn}
             aria-label="جستجو"

@@ -32,7 +32,7 @@ export function CategoryGrid({ categories }: { categories: Category[] }) {
               className={styles.card}
               data-event="rail_category_click"
             >
-              <span className={styles.media}>
+              <span className={styles.media} aria-hidden>
                 {productImage(cat.slug) ? (
                   // `.media` renders this at ~124px tall — the full 1200×800
                   // photo was ~8.5× more bytes than the pre-generated thumb

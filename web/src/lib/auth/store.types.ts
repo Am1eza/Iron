@@ -15,7 +15,7 @@ export type OtpRecord = {
 
 export type RateRecord = { sends: number[]; lockedUntil?: number };
 
-export type UserPatch = Partial<Pick<AuthUser, 'name' | 'role'>> & {
+export type UserPatch = Partial<Pick<AuthUser, 'name' | 'role' | 'mobile'>> & {
   isActive?: boolean;
   lastSeenAt?: string;
 };

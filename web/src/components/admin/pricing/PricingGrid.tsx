@@ -149,15 +149,16 @@ export function PricingGrid() {
       ) : (
         <div style={{ overflowX: 'auto' }}>
           <table className={ui.table} ref={tableRef}>
+            <caption className="visually-hidden">جدول قیمت‌گذاری روزانه کالاها</caption>
             <thead>
               <tr>
-                <th>کالا</th>
-                <th>سایز</th>
-                <th>کارخانه</th>
-                <th>قیمت (تومان)</th>
-                <th>زمان تحویل</th>
-                <th>نوسان</th>
-                <th>وضعیت</th>
+                <th scope="col">کالا</th>
+                <th scope="col">سایز</th>
+                <th scope="col">کارخانه</th>
+                <th scope="col">قیمت (تومان)</th>
+                <th scope="col">زمان تحویل</th>
+                <th scope="col">نوسان</th>
+                <th scope="col">وضعیت</th>
               </tr>
             </thead>
             <tbody>
@@ -171,9 +172,13 @@ export function PricingGrid() {
                 // included it, making it look like a no-op edit.
                 const draftPrice = d?.price !== undefined ? Number(normalizeDigits(d.price)) : undefined;
                 const isInvalidPrice = d?.price !== undefined && (!Number.isFinite(draftPrice) || draftPrice! <= 0);
+                const priceErrId = `price-err-${r.id}`;
                 return (
                   <tr key={r.id} className={isDirty ? ui.rowDirty : isInvalidPrice ? ui.rowInvalid : undefined}>
-                    <td>{r.name}</td>
+                    <td>
+                      {r.name}
+                      {isDirty ? <span className="visually-hidden"> (ویرایش نشده، ذخیره نشده)</span> : null}
+                    </td>
                     <td className="tnum">{r.size ?? '—'}</td>
                     <td>{r.factory ?? '—'}</td>
                     <td>
@@ -185,6 +190,7 @@ export function PricingGrid() {
                         onChange={(e) => setDraft(r.id, { price: e.target.value })}
                         onFocus={(e) => e.currentTarget.select()}
                         aria-invalid={isInvalidPrice || undefined}
+                        aria-describedby={isInvalidPrice ? priceErrId : undefined}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
                             e.preventDefault();
@@ -193,7 +199,11 @@ export function PricingGrid() {
                         }}
                         aria-label={`قیمت ${r.name}`}
                       />
-                      {isInvalidPrice ? <div className={ui.tileHint}>عدد نامعتبر — ذخیره نمی‌شود</div> : null}
+                      {isInvalidPrice ? (
+                        <div id={priceErrId} className={ui.tileHint}>
+                          عدد نامعتبر — ذخیره نمی‌شود
+                        </div>
+                      ) : null}
                     </td>
                     <td>
                       <input

@@ -44,9 +44,16 @@ export const subCategories = pgTable(
   'sub_categories',
   {
     id: text('id').primaryKey(),
+    // Structural parent-child (category → sub-category → sku, see below):
+    // cascading is correct here — the app never actually hard-deletes
+    // categories in normal operation (isActive=false is the real "delete"),
+    // this is a safety net for the rare deliberate admin cleanup, and each
+    // downstream table (current_prices, price_points, favorites, alerts vs.
+    // lead_items, order_items) sets its OWN onDelete appropriately so the
+    // cascade doesn't silently destroy real transaction history further down.
     categoryId: text('category_id')
       .notNull()
-      .references(() => categories.id),
+      .references(() => categories.id, { onDelete: 'cascade' }),
     slug: text('slug').notNull(),
     name: text('name').notNull(),
     order: integer('order').notNull().default(0),
@@ -62,10 +69,10 @@ export const skus = pgTable(
     id: text('id').primaryKey(),
     subCategoryId: text('sub_category_id')
       .notNull()
-      .references(() => subCategories.id),
+      .references(() => subCategories.id, { onDelete: 'cascade' }),
     categoryId: text('category_id')
       .notNull()
-      .references(() => categories.id),
+      .references(() => categories.id, { onDelete: 'cascade' }),
     slug: text('slug').notNull().unique(),
     name: text('name').notNull(),
     standard: text('standard'),
@@ -83,13 +90,14 @@ export const skus = pgTable(
     index('skus_sub_active_idx').on(t.subCategoryId, t.isActive),
     index('skus_cat_active_idx').on(t.categoryId, t.isActive),
     index('skus_factory_idx').on(t.factory),
-    // Trigram indexes — searchSkus (catalogRepo) does `ilike('%term%')` across
-    // these columns plus `ORDER BY similarity(name, ...)`; a leading-wildcard
-    // ILIKE can't use a plain btree index, only a GIN trigram one. This is the
-    // hot path behind the one unauthenticated, uncached, DB-hitting endpoint
-    // (`GET /api/search`) plus the AI advisor's getPrice/searchGuides tools.
-    index('skus_name_trgm_idx').using('gin', sql`${t.name} gin_trgm_ops`),
-    index('skus_factory_trgm_idx').using('gin', sql`${t.factory} gin_trgm_ops`),
-    index('skus_size_trgm_idx').using('gin', sql`${t.size} gin_trgm_ops`),
+    // GIN trigram indexes back both the ILIKE '%term%' matching AND the
+    // similarity() ranking in catalogRepo.searchSkus — without these, both
+    // are full table scans at catalog scale (pg_trgm extension is already
+    // enabled, see drizzle/0000_init.sql). `size` stays a plain btree
+    // (skus_factory_idx-style) candidate too, but it's short/near-enumerated
+    // text where a trigram index adds little over the existing scan cost —
+    // `name` and `factory` are the actual free-text search targets.
+    index('skus_name_trgm_idx').using('gin', t.name.op('gin_trgm_ops')),
+    index('skus_factory_trgm_idx').using('gin', t.factory.op('gin_trgm_ops')),
   ],
 );

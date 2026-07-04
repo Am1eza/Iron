@@ -250,8 +250,9 @@ export function WeightCalculator() {
           </Stack>
         </Card>
 
-        {/* Result */}
-        <Card className={styles.result}>
+        {/* Result — announced politely (accessibility.md §4.3) so the computed
+            weight is heard without re-reading the whole panel on every keystroke. */}
+        <Card className={styles.result} role="status" aria-live="polite" aria-atomic="true">
           <Stack gap={5}>
             <div>
               <Text variant="overline" color="muted" as="p">

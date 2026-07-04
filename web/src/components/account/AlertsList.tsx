@@ -2,6 +2,7 @@
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query/keys';
 import { http } from '@/lib/api/http';
+import { useToast } from '@/lib/hooks/useToast';
 import { formatToman, formatJalali } from '@/lib/utils/format';
 import { Badge, Button, EmptyState, emptyPresets } from '@/components/ui';
 import styles from './RequestsList.module.css';
@@ -26,6 +27,7 @@ const STATUS_LABEL: Record<AlertDto['status'], string> = {
 /** Live alerts (قیمت‌سنج) — pause / re-arm / delete from the account. */
 export function AlertsList() {
   const qc = useQueryClient();
+  const toast = useToast();
   const { data, isLoading } = useQuery({
     queryKey: queryKeys.myAlerts(),
     queryFn: () => http.get<{ alerts: AlertDto[] }>('/api/me/alerts'),
@@ -34,11 +36,17 @@ export function AlertsList() {
   const patch = useMutation({
     mutationFn: ({ id, status }: { id: string; status: 'active' | 'paused' }) =>
       http.patch(`/api/me/alerts/${id}`, { status }),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      invalidate();
+      toast.success('هشدار به‌روزرسانی شد.');
+    },
   });
   const remove = useMutation({
     mutationFn: (id: string) => http.del(`/api/me/alerts/${id}`),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      invalidate();
+      toast.success('هشدار حذف شد.');
+    },
   });
 
   if (isLoading) return <p style={{ color: 'var(--color-text-muted)' }}>در حال بارگذاری…</p>;

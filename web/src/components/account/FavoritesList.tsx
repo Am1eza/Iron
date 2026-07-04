@@ -4,6 +4,7 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query/keys';
 import { routes } from '@/lib/routes';
 import { http } from '@/lib/api/http';
+import { useToast } from '@/lib/hooks/useToast';
 import type { PriceRow } from '@/lib/types/domain';
 import { formatToman } from '@/lib/utils/format';
 import { Button, EmptyState, emptyPresets, MovementBadge } from '@/components/ui';
@@ -12,13 +13,17 @@ import styles from './RequestsList.module.css';
 /** Live favorites — starred SKUs as price rows with quick links + remove. */
 export function FavoritesList() {
   const qc = useQueryClient();
+  const toast = useToast();
   const { data, isLoading } = useQuery({
     queryKey: queryKeys.myFavorites(),
     queryFn: () => http.get<{ favorites: PriceRow[] }>('/api/me/favorites'),
   });
   const remove = useMutation({
     mutationFn: (skuId: string) => http.del(`/api/me/favorites/${encodeURIComponent(skuId)}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.myFavorites() }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.myFavorites() });
+      toast.success('از علاقه‌مندی‌ها حذف شد.');
+    },
   });
 
   if (isLoading) return <p style={{ color: 'var(--color-text-muted)' }}>در حال بارگذاری…</p>;

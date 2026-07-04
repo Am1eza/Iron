@@ -53,13 +53,14 @@ export function RequestsTab() {
         <EmptyState size="section" headline="درخواستی نیست" body="درخواست‌های کاربران اینجا می‌آید." />
       ) : (
         <table className={ui.table}>
+          <caption className="visually-hidden">فهرست درخواست‌های کاربران</caption>
           <thead>
             <tr>
-              <th>شماره</th>
-              <th>نوع</th>
-              <th>عنوان</th>
-              <th>تاریخ</th>
-              <th>وضعیت</th>
+              <th scope="col">شماره</th>
+              <th scope="col">نوع</th>
+              <th scope="col">عنوان</th>
+              <th scope="col">تاریخ</th>
+              <th scope="col">وضعیت</th>
             </tr>
           </thead>
           <tbody>

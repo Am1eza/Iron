@@ -37,13 +37,18 @@
 
 .msg { flex: 1; }
 .close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: 44px;
+  min-block-size: 44px;
+  margin: calc(-1 * var(--space-2));
   background: none;
   border: 0;
   cursor: pointer;
   color: inherit;
   font: var(--t-button);
   line-height: 1;
-  padding: var(--space-1);
 }
 .action {
   background: none;

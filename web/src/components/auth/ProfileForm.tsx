@@ -38,6 +38,8 @@ export function ProfileForm() {
   return (
     <form className="stack" style={{ maxInlineSize: 360 }} onSubmit={handleSubmit(onSubmit)} noValidate>
       <TextInput
+        id="profile-mobile"
+        name="mobile"
         label="شمارهٔ موبایل"
         value={user ? toPersianDigits(user.mobile) : ''}
         readOnly

@@ -54,7 +54,13 @@ const PriceTableRow = memo(function PriceTableRow({
       <td>{r.size ? toPersianDigits(r.size) : '—'}</td>
       <td className={styles.muted}>{r.factory ?? '—'}</td>
       <td className={styles.num}>
-        {r.theoreticalWeightKg ? `${toPersianDigits(r.theoreticalWeightKg)} kg` : '—'}
+        {r.theoreticalWeightKg ? (
+          <>
+            {toPersianDigits(r.theoreticalWeightKg)} <bdi lang="en">kg</bdi>
+          </>
+        ) : (
+          '—'
+        )}
       </td>
       <td className={`${styles.num} ${styles.price}`}>
         {formatToman(withVat(r.current.price, vat), false)}
@@ -120,6 +126,13 @@ const PriceTableCard = memo(function PriceTableCard({
       </div>
       <div className={styles.cardMeta}>
         <span>کارخانه: {r.factory ?? '—'}</span>
+        {r.size ? <span>سایز {toPersianDigits(r.size)}</span> : null}
+        {r.theoreticalWeightKg ? (
+          <span>
+            وزن شاخه {toPersianDigits(r.theoreticalWeightKg)} <bdi lang="en">kg</bdi>
+          </span>
+        ) : null}
+        <span>به‌روزرسانی {formatJalali(r.current.updatedAt, 'MM/dd')}</span>
         <DeliveryBadge value={r.current.deliveryTime} />
       </div>
       <div className={styles.cardActions}>
@@ -400,18 +413,30 @@ export function PriceTable({
         tabIndex={0}
       >
         <table className={`${styles.table} tnum`}>
+          <caption className="visually-hidden">
+            قیمت {categoryName}
+            {updated ? ` — به‌روزرسانی ${formatJalali(updated)}` : ''}
+          </caption>
           <thead>
             <tr>
               <th scope="col">محصول</th>
-              <th scope="col">سایز</th>
+              <th scope="col" aria-sort={sort === 'size' ? 'ascending' : 'none'}>سایز</th>
               <th scope="col">کارخانه</th>
               <th scope="col" className={styles.num}>
                 وزن شاخه
               </th>
-              <th scope="col" className={styles.num}>
+              <th
+                scope="col"
+                className={styles.num}
+                aria-sort={sort === 'price' ? 'ascending' : 'none'}
+              >
                 قیمت (تومان)
               </th>
-              <th scope="col" className={styles.num}>
+              <th
+                scope="col"
+                className={styles.num}
+                aria-sort={sort === 'movement' ? 'descending' : 'none'}
+              >
                 نوسان
               </th>
               <th scope="col">تاریخ</th>

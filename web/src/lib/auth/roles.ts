@@ -55,3 +55,29 @@ export function can(role: Role | undefined | null, permission: Permission): bool
 export function canAccessAdmin(role: Role | undefined | null): boolean {
   return can(role, 'admin:access');
 }
+
+/**
+ * Admin sub-path → permission required to view it. Single source of truth
+ * shared by the admin nav filter (admin/layout.tsx) and the edge-level
+ * `middleware.ts` gate — each admin/*\/page.tsx also calls `requirePermission`
+ * with the matching entry below as defense-in-depth.
+ */
+export const ADMIN_PATH_PERMISSIONS: Array<[prefix: string, permission: Permission]> = [
+  ['/admin/pricing', 'pricing:write'],
+  ['/admin/leads', 'leads:read'],
+  ['/admin/orders', 'leads:read'],
+  ['/admin/warehouse', 'leads:read'],
+  ['/admin/content', 'content:write'],
+  ['/admin/catalog', 'catalog:read'],
+  ['/admin/users', 'users:manage'],
+  ['/admin/settings', 'settings:write'],
+  ['/admin/audit', 'audit:read'],
+];
+
+/** The permission required for an admin path, or undefined for the dashboard root. */
+export function permissionForAdminPath(pathname: string): Permission | undefined {
+  const match = ADMIN_PATH_PERMISSIONS.find(
+    ([prefix]) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
+  return match?.[1];
+}

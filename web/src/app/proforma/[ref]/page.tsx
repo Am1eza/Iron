@@ -52,13 +52,14 @@ export default async function ProformaPage({ params }: Params) {
       )}
 
       <table className={`${styles.table} tnum`}>
+        <caption className="visually-hidden">جدول اقلام پیش‌فاکتور {p.ref}</caption>
         <thead>
           <tr>
-            <th>ردیف</th>
-            <th>شرح کالا</th>
-            <th>مقدار</th>
-            <th>فی (تومان)</th>
-            <th>جمع (تومان)</th>
+            <th scope="col">ردیف</th>
+            <th scope="col">شرح کالا</th>
+            <th scope="col">مقدار</th>
+            <th scope="col">فی (تومان)</th>
+            <th scope="col">جمع (تومان)</th>
           </tr>
         </thead>
         <tbody>

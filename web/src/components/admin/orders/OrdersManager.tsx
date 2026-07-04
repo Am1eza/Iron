@@ -84,8 +84,10 @@ export function OrdersManager() {
                 </div>
                 <ol className={ui.toolbar} style={{ listStyle: 'none', padding: 0 }}>
                   {SHIPMENT_STEPS.map((s, i) => (
-                    <li key={s.key}>
-                      <Badge tone={i <= idx ? 'action' : 'neutral'}>{s.label}</Badge>
+                    <li key={s.key} aria-current={i === idx ? 'step' : undefined}>
+                      <Badge tone={i <= idx ? 'action' : 'neutral'} icon={i < idx ? <span aria-hidden="true">✓</span> : undefined}>
+                        {s.label}
+                      </Badge>
                     </li>
                   ))}
                 </ol>

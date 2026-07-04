@@ -171,15 +171,18 @@ export function CatalogManager() {
         <EmptyState size="section" headline="کالایی نیست" body="با «کالای جدید» اضافه کنید." />
       ) : (
         <table className={ui.table}>
+          <caption className="visually-hidden">فهرست کالاهای دستهٔ انتخاب‌شده</caption>
           <thead>
             <tr>
-              <th>نام</th>
-              <th>سایز</th>
-              <th>کارخانه</th>
-              <th>واحد</th>
-              <th>قیمت فعلی</th>
-              <th>وضعیت</th>
-              <th />
+              <th scope="col">نام</th>
+              <th scope="col">سایز</th>
+              <th scope="col">کارخانه</th>
+              <th scope="col">واحد</th>
+              <th scope="col">قیمت فعلی</th>
+              <th scope="col">وضعیت</th>
+              <th scope="col">
+                <span className="visually-hidden">عملیات</span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -277,7 +280,7 @@ function SkuForm({
   const [v, setV] = useState(initial);
   return (
     <Card>
-      <Heading level={3}>{heading}</Heading>
+      <Heading level={2}>{heading}</Heading>
       <div className={ui.grid2} style={{ marginBlockStart: 'var(--space-3)' }}>
         <TextInput label="نام" value={v.name} onChange={(e) => setV({ ...v, name: e.target.value })} />
         <TextInput label="نشانی (slug)" dir="ltr" value={v.slug} onChange={(e) => setV({ ...v, slug: e.target.value })} />

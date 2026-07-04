@@ -61,11 +61,16 @@ export default async function NewsPage() {
           </p>
 
           {articles.length > 0 ? (
-            <ul className={styles.grid} aria-labelledby="news-title">
-              {articles.map((article) => (
-                <ArticleCard key={article.id} article={article} />
-              ))}
-            </ul>
+            <div>
+              <Heading level={2} id="news-list-title">
+                همهٔ مطالب
+              </Heading>
+              <ul className={styles.grid} aria-labelledby="news-list-title">
+                {articles.map((article) => (
+                  <ArticleCard key={article.id} article={article} />
+                ))}
+              </ul>
+            </div>
           ) : (
             <EmptyState
               size="section"
