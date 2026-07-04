@@ -22,6 +22,14 @@ export const cleanupJob: Job = {
     await db
       .delete(idempotencyKeys)
       .where(sql`${idempotencyKeys.status} = 'pending' AND ${idempotencyKeys.createdAt} < now() - interval '10 minutes'`);
+    // A 'done' row (incl. its stored responseBody) otherwise lives forever —
+    // no TTL means the table only grows. 24h covers any realistic client
+    // retry window for the Idempotency-Key convention this implements
+    // (Stripe et al. use the same order of magnitude); a genuine re-issue
+    // after that is meant to run again anyway, per withIdempotency's contract.
+    await db
+      .delete(idempotencyKeys)
+      .where(sql`${idempotencyKeys.status} = 'done' AND ${idempotencyKeys.createdAt} < now() - interval '24 hours'`);
     // Market points: after 48h keep at most one point per 15 minutes.
     await db.execute(sql`
       DELETE FROM market_points mp

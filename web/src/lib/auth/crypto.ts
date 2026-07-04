@@ -41,3 +41,18 @@ export function timingSafeEqual(a: string, b: string): boolean {
   for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return diff === 0;
 }
+
+/**
+ * Shared policy for secrets that MUST be set in production but may fall back
+ * to a hardcoded dev-only value locally: throw if missing in production
+ * (`NODE_ENV==='production'`), otherwise use `devFallback`. Used by both the
+ * JWT signer (jwt.ts) and the OTP hash pepper (service.ts) so the two never
+ * silently diverge on this policy.
+ */
+export function requiredSecret(envVar: string | undefined, devFallback: string): string {
+  if (envVar) return envVar;
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('SESSION_SECRET is required in production.');
+  }
+  return devFallback;
+}

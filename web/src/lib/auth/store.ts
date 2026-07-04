@@ -59,7 +59,7 @@ export function getOtp(mobile: string): Promise<OtpRecord | null> {
 export function clearOtp(mobile: string): Promise<void> {
   return store().clearOtp(mobile);
 }
-export function incrementOtpAttempts(mobile: string): Promise<number | null> {
+export function incrementOtpAttempts(mobile: string): Promise<OtpRecord | null> {
   return store().incrementOtpAttempts(mobile);
 }
 

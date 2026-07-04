@@ -37,11 +37,13 @@ export interface AuthStore {
   setOtp(mobile: string, record: OtpRecord): Promise<void>;
   getOtp(mobile: string): Promise<OtpRecord | null>;
   clearOtp(mobile: string): Promise<void>;
-  /** Atomically increments and returns the new attempt count in one
-   *  round trip (no separate read-then-write), so concurrent verify
-   *  requests for the same mobile can't all read the same `attempts`
-   *  value and bypass the lockout. `null` if there's no OTP record. */
-  incrementOtpAttempts(mobile: string): Promise<number | null>;
+  /** Atomically increments the attempt counter and returns the updated
+   *  record (hash/expiresAt/name included, so callers don't need a separate
+   *  getOtp round trip) in one shot — no read-then-write window where
+   *  concurrent verify requests for the same mobile could all observe the
+   *  same `attempts` value and bypass the lockout. `null` if there's no OTP
+   *  record for this mobile. */
+  incrementOtpAttempts(mobile: string): Promise<OtpRecord | null>;
 
   getRate(mobile: string): Promise<RateRecord>;
   setRate(mobile: string, record: RateRecord): Promise<void>;

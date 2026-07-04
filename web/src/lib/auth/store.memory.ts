@@ -118,7 +118,7 @@ export const memoryStore: AuthStore = {
     const rec = otpByMobile.get(mobile);
     if (!rec) return null;
     rec.attempts += 1;
-    return rec.attempts;
+    return rec;
   },
 
   async getRate(mobile: string) {

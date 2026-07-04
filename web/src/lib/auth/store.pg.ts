@@ -148,13 +148,16 @@ export const pgStore: AuthStore = {
     // Single atomic UPDATE...RETURNING — Postgres serializes concurrent
     // updates to the same row, so two simultaneous verify attempts can never
     // both observe the pre-increment value the way a separate read-then-write
-    // (getOtp + setOtp) could.
+    // (getOtp + setOtp) could. Returning the full row also saves callers a
+    // separate getOtp round trip.
     const rows = await getDb()
       .update(otpCodes)
       .set({ attempts: sql`${otpCodes.attempts} + 1` })
       .where(eq(otpCodes.mobile, mobile))
-      .returning({ attempts: otpCodes.attempts });
-    return rows[0]?.attempts ?? null;
+      .returning({ attempts: otpCodes.attempts, hash: otpCodes.codeHash, expiresAt: otpCodes.expiresAt, name: otpCodes.name });
+    const row = rows[0];
+    if (!row) return null;
+    return { hash: row.hash, expiresAt: row.expiresAt, attempts: row.attempts, name: row.name ?? undefined };
   },
 
   async getRate(mobile) {

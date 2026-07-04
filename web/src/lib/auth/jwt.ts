@@ -4,20 +4,15 @@
  * SESSION_SECRET (required in live mode; a loud dev fallback otherwise).
  */
 import { SignJWT, jwtVerify } from 'jose';
+import { requiredSecret } from './crypto';
 import type { AccessTokenClaims } from './types';
 
 const ISSUER = 'ahantime';
 const AUDIENCE = 'ahantime-web';
 
 function getSecret(): Uint8Array {
-  const secret = process.env.SESSION_SECRET;
-  if (!secret) {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('SESSION_SECRET is required in production.');
-    }
-    // Dev-only fallback so the flow runs locally without config.
-    return new TextEncoder().encode('dev-insecure-secret-change-me-0000000000');
-  }
+  // Dev-only fallback so the flow runs locally without config.
+  const secret = requiredSecret(process.env.SESSION_SECRET, 'dev-insecure-secret-change-me-0000000000');
   return new TextEncoder().encode(secret);
 }
 
