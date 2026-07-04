@@ -9,11 +9,18 @@ import { z } from 'zod';
 const publicSchema = z.object({
   NEXT_PUBLIC_SITE_URL: z.string().url().default('https://ahantime.com'),
   NEXT_PUBLIC_API_MODE: z.enum(['mock', 'live']).default('mock'),
+  // Free-form label for whichever deployment served this build — no
+  // behavioral effect, just surfaced on /api/health so a geo-routing setup
+  // (see GEO-ROUTING.md) can be verified by curling from each region and
+  // confirming the expected origin actually answered. Set per-deployment:
+  // docker-compose.yml → "ir-docker", wrangler.jsonc vars → "cloudflare-edge".
+  NEXT_PUBLIC_DEPLOY_REGION: z.string().default('unknown'),
 });
 
 export const publicEnv = publicSchema.parse({
   NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
   NEXT_PUBLIC_API_MODE: process.env.NEXT_PUBLIC_API_MODE,
+  NEXT_PUBLIC_DEPLOY_REGION: process.env.NEXT_PUBLIC_DEPLOY_REGION,
 });
 
 /* ---- Server-only — validated lazily on the server ---- */
