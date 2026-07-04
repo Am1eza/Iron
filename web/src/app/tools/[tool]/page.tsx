@@ -2,20 +2,9 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
-import {
-  Container,
-  Section,
-  Stack,
-  Heading,
-  Text,
-  Breadcrumbs,
-} from '@/components/ui';
+import { Container, Section, Stack, Heading, Text, Breadcrumbs } from '@/components/ui';
 import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
-import { WeightCalculator } from '@/components/tools/WeightCalculator';
-import { ProjectEstimator } from '@/components/tools/ProjectEstimator';
-import { CostCalculator } from '@/components/tools/CostCalculator';
-
-type ToolSlug = 'weight' | 'project' | 'cost';
+import { ToolRenderer, type ToolSlug } from '@/components/tools/ToolRenderer';
 
 const TOOLS: Record<ToolSlug, { title: string; intro: string }> = {
   weight: {
@@ -65,11 +54,7 @@ export default async function ToolPage({ params }: Params) {
   if (!isToolSlug(tool)) notFound();
 
   const t = TOOLS[tool];
-  const crumbs = [
-    { label: 'خانه', href: routes.home() },
-    { label: 'ابزارها' },
-    { label: t.title },
-  ];
+  const crumbs = [{ label: 'خانه', href: routes.home() }, { label: 'ابزارها' }, { label: t.title }];
 
   return (
     <Container>
@@ -84,9 +69,7 @@ export default async function ToolPage({ params }: Params) {
             <Text color="muted">{t.intro}</Text>
           </Stack>
 
-          {tool === 'weight' ? <WeightCalculator /> : null}
-          {tool === 'project' ? <ProjectEstimator /> : null}
-          {tool === 'cost' ? <CostCalculator /> : null}
+          <ToolRenderer tool={tool} />
         </Stack>
       </Section>
     </Container>

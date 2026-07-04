@@ -25,6 +25,10 @@ export const metadata: Metadata = buildMetadata({
   path: routes.blog(),
 });
 
+// New/edited articles publish infrequently; a 10-minute window keeps the list
+// fresh without hitting Postgres on every request.
+export const revalidate = 600;
+
 export default async function BlogPage() {
   const articles = await getArticlesByType('blog');
   const crumbs = [{ label: 'خانه', href: routes.home() }, { label: 'وبلاگ' }];
@@ -41,8 +45,8 @@ export default async function BlogPage() {
               وبلاگ آهن‌تایم
             </Heading>
             <Text color="muted">
-              راهنمای خرید، تحلیل بازار و آموزش آهن‌آلات؛ نوشته‌شده برای کسانی که اول مشورت می‌کنند، بعد
-              خرید.
+              راهنمای خرید، تحلیل بازار و آموزش آهن‌آلات؛ نوشته‌شده برای کسانی که اول مشورت می‌کنند،
+              بعد خرید.
             </Text>
           </div>
 
@@ -52,8 +56,8 @@ export default async function BlogPage() {
                 هوش مصنوعی
               </Badge>
             </span>
-            بخشی از مطالب با کمک هوش مصنوعی و بر پایهٔ داده‌های روزانهٔ بازار تهیه می‌شود و پیش از انتشار،
-            بازبینی کارشناسی دارد.
+            بخشی از مطالب با کمک هوش مصنوعی و بر پایهٔ داده‌های روزانهٔ بازار تهیه می‌شود و پیش از
+            انتشار، بازبینی کارشناسی دارد.
           </p>
 
           {articles.length > 0 ? (

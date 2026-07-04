@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { clientLogos, type ClientLogo } from '../../../public/assets/logos/clients';
+import { useIntersectionObserver } from '@/lib/hooks/useIntersectionObserver';
 import { Marquee } from './Marquee';
 import styles from './Partners.module.css';
 
@@ -20,14 +21,17 @@ const FACTORIES = [
   'فولاد کویر',
 ];
 
-function LogoCell({ c }: { c: ClientLogo }) {
+function LogoCell({ c, shouldLoad }: { c: ClientLogo; shouldLoad: boolean }) {
   const [errored, setErrored] = useState(false);
-  const showImg = c.hasLogo && !errored;
+  const showImg = c.hasLogo && !errored && shouldLoad;
   return (
     <div className={styles.cell} title={c.name}>
       {showImg ? (
         // eager on purpose: lazy-loading never fires inside the clipped,
         // transformed marquee track → logos would stay blank (round-6 bug).
+        // Gated on `shouldLoad` (the section entering the viewport) instead,
+        // so these don't compete for bandwidth with the hero/fonts on every
+        // page load — this is the last section on the homepage.
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={c.file}
@@ -40,7 +44,9 @@ function LogoCell({ c }: { c: ClientLogo }) {
         />
       ) : (
         <span className={styles.chip}>
-          <span className={styles.mono} aria-hidden="true">{c.monogram}</span>
+          <span className={styles.mono} aria-hidden="true">
+            {c.monogram}
+          </span>
           <span className={styles.chipName}>{c.nameFa}</span>
         </span>
       )}
@@ -49,6 +55,16 @@ function LogoCell({ c }: { c: ClientLogo }) {
 }
 
 export function Partners() {
+  // Client logos are eager-loaded (see LogoCell) to work around lazy-loading
+  // never firing inside the clipped/transformed marquee track — but this
+  // section is the last thing on the homepage, so gate that eager load on
+  // the section actually approaching the viewport instead of firing on every
+  // page load regardless of scroll position.
+  const { ref, isIntersecting } = useIntersectionObserver<HTMLDivElement>({
+    rootMargin: '600px',
+    freezeOnceVisible: true,
+  });
+
   return (
     <section className={`${styles.section} blueprint`} aria-labelledby="partners-title">
       <div className={styles.block}>
@@ -62,12 +78,14 @@ export function Partners() {
           ariaLabel="کارخانه‌های تأمین‌کننده"
           speed={36}
           items={FACTORIES.map((name) => (
-            <span key={name} className={styles.mill}>{name}</span>
+            <span key={name} className={styles.mill}>
+              {name}
+            </span>
           ))}
         />
       </div>
 
-      <div className={styles.block}>
+      <div className={styles.block} ref={ref}>
         <div className="container">
           <h2 className={styles.title}>کسانی که به آهن‌تایم اعتماد کرده‌اند</h2>
           <p className={styles.sub}>
@@ -78,7 +96,7 @@ export function Partners() {
           ariaLabel="مشتریانی که به آهن‌تایم اعتماد کرده‌اند"
           speed={48}
           items={clientLogos.map((c) => (
-            <LogoCell key={c.slug} c={c} />
+            <LogoCell key={c.slug} c={c} shouldLoad={isIntersecting} />
           ))}
         />
       </div>

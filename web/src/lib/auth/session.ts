@@ -5,6 +5,7 @@
  * tokens). Cookies are Secure in production and SameSite=Lax (CSRF-resistant).
  * Server-only (uses next/headers).
  */
+import { cache } from 'react';
 import { cookies } from 'next/headers';
 import { verifyAccessToken } from './jwt';
 import { userById } from './store';
@@ -65,8 +66,13 @@ async function resolveClaims(): Promise<AccessTokenClaims | null> {
  * Resolve the session from the access cookie (verify the JWT). Returns a minimal
  * user view or null. Does NOT auto-refresh — that's the client/refresh endpoint's
  * job — so this stays cheap and Edge-safe.
+ *
+ * Wrapped in React's `cache()` so the several independent call sites that all
+ * need "who is this request's user" (admin layout + every admin page's
+ * `requirePermission`, route-handler guards, etc.) share one cookie read + one
+ * JWT verification per request instead of re-verifying the same token 2-3x.
  */
-export async function getSession(): Promise<AuthUser | null> {
+export const getSession = cache(async (): Promise<AuthUser | null> => {
   const claims = await resolveClaims();
   if (!claims) return null;
   return {
@@ -76,7 +82,7 @@ export async function getSession(): Promise<AuthUser | null> {
     role: claims.role,
     createdAt: '',
   };
-}
+});
 
 /**
  * Like `getSession()`, but also re-checks the DB: rejects the session if the
@@ -91,7 +97,7 @@ export async function getSession(): Promise<AuthUser | null> {
  * degrades to getSession()'s pre-existing trust window rather than taking
  * down every admin page/route that calls this.
  */
-export async function getSessionVerified(): Promise<AuthUser | null> {
+export const getSessionVerified = cache(async (): Promise<AuthUser | null> => {
   const claims = await resolveClaims();
   if (!claims) return null;
   const fallback: AuthUser = {
@@ -109,4 +115,4 @@ export async function getSessionVerified(): Promise<AuthUser | null> {
     reportError(err, { scope: 'auth', fn: 'getSessionVerified' });
     return fallback;
   }
-}
+});

@@ -25,6 +25,10 @@ export const metadata: Metadata = buildMetadata({
   path: routes.news(),
 });
 
+// New/edited articles publish infrequently; a 10-minute window keeps the list
+// fresh without hitting Postgres on every request.
+export const revalidate = 600;
+
 export default async function NewsPage() {
   const articles = await getArticlesByType('news');
   const crumbs = [{ label: 'خانه', href: routes.home() }, { label: 'اخبار بازار' }];
@@ -41,7 +45,8 @@ export default async function NewsPage() {
               اخبار بازار آهن و فولاد
             </Heading>
             <Text color="muted">
-              تازه‌ترین تحولات تولید، عرضه و نرخ شمش؛ تا پیش از خرید، نبض بازار را در دست داشته باشید.
+              تازه‌ترین تحولات تولید، عرضه و نرخ شمش؛ تا پیش از خرید، نبض بازار را در دست داشته
+              باشید.
             </Text>
           </div>
 
@@ -51,8 +56,8 @@ export default async function NewsPage() {
                 هوش مصنوعی
               </Badge>
             </span>
-            گزیدهٔ اخبار به‌صورت روزانه و با کمک هوش مصنوعی از داده‌های بازار تهیه و پیش از انتشار بازبینی
-            می‌شود.
+            گزیدهٔ اخبار به‌صورت روزانه و با کمک هوش مصنوعی از داده‌های بازار تهیه و پیش از انتشار
+            بازبینی می‌شود.
           </p>
 
           {articles.length > 0 ? (

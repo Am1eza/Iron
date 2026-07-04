@@ -12,7 +12,7 @@ import { toPersianDigits } from '@/lib/utils/format';
 import { Logo } from './Logo';
 import { SearchBar } from './SearchBar';
 import { NavDropdown } from './NavDropdown';
-import { ProductsMenu } from './ProductsMenu';
+import { ProductsMenu } from '@/components/lazy';
 import { MenuIcon, SearchIcon, UserIcon, CartIcon, SparkIcon } from '@/components/primitives/icons';
 import styles from './Header.module.css';
 
@@ -114,7 +114,10 @@ export function Header({ categories }: { categories: Category[] }) {
             </ul>
           </NavDropdown>
 
-          <NavDropdown label="خدمات" active={isActive(routes.warehouse()) || isActive(routes.track())}>
+          <NavDropdown
+            label="خدمات"
+            active={isActive(routes.warehouse()) || isActive(routes.track())}
+          >
             <ul className={styles.dropdownList}>
               {SERVICES_NAV.map((s) => (
                 <li key={s.href}>
@@ -173,7 +176,9 @@ export function Header({ categories }: { categories: Category[] }) {
           <Link
             href={routes.cart()}
             className={styles.iconBtn}
-            aria-label={cartCount > 0 ? `سبد استعلام، ${toPersianDigits(cartCount)} کالا` : 'سبد استعلام'}
+            aria-label={
+              cartCount > 0 ? `سبد استعلام، ${toPersianDigits(cartCount)} کالا` : 'سبد استعلام'
+            }
           >
             <span className={styles.cartWrap}>
               <CartIcon size={20} />

@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { useCartStore } from '@/lib/stores/cart';
@@ -12,19 +12,140 @@ import { API_MODE } from '@/lib/api/config';
 import { priceSeries } from '@/lib/mock/catalogData';
 import type { PriceRow } from '@/lib/types/domain';
 import type { SubCat } from '@/lib/data/nav';
-import { MovementBadge, DeliveryBadge, Switch, Chip, Modal } from '@/components/ui';
+import { MovementBadge, DeliveryBadge, Switch, Chip } from '@/components/ui';
 import { IconButton } from '@/components/ui';
+import { Modal, PriceChart } from '@/components/lazy';
 import { ExportMenu } from './ExportMenu';
-import { PriceChart } from './PriceChart';
-import {
-  HeartIcon,
-  ChartIcon,
-  PlusIcon,
-  SortIcon,
-} from '@/components/primitives/icons';
+import { HeartIcon, ChartIcon, PlusIcon, SortIcon } from '@/components/primitives/icons';
 import styles from './PriceTable.module.css';
 
 type SortKey = 'size' | 'price' | 'movement';
+
+const withVat = (price: number, vat: boolean) =>
+  vat ? Math.round(price * (1 + CONSTANTS.VAT_RATE)) : price;
+
+type RowActions = {
+  onToggleFav: (id: string) => void;
+  onChart: (row: PriceRow) => void;
+  onAddToCart: (row: PriceRow) => void;
+};
+
+/**
+ * One desktop table row. Memoized so toggling a favorite / opening the chart
+ * modal / anything else that only affects one row doesn't re-render every
+ * other row too — `isFav` and `vat` are plain primitives (not the parent's
+ * `fav` Set) and the callbacks are stable (`useCallback` in the parent), so
+ * `React.memo`'s default shallow comparison actually catches "nothing
+ * relevant to this row changed".
+ */
+const PriceTableRow = memo(function PriceTableRow({
+  row: r,
+  vat,
+  isFav,
+  onToggleFav,
+  onChart,
+  onAddToCart,
+}: { row: PriceRow; vat: boolean; isFav: boolean } & RowActions) {
+  return (
+    <tr>
+      <th scope="row" className={styles.name}>
+        {r.name}
+      </th>
+      <td>{r.size ? toPersianDigits(r.size) : '—'}</td>
+      <td className={styles.muted}>{r.factory ?? '—'}</td>
+      <td className={styles.num}>
+        {r.theoreticalWeightKg ? (
+          <>
+            {toPersianDigits(r.theoreticalWeightKg)} <bdi lang="en">kg</bdi>
+          </>
+        ) : (
+          '—'
+        )}
+      </td>
+      <td className={`${styles.num} ${styles.price}`}>
+        {formatToman(withVat(r.current.price, vat), false)}
+      </td>
+      <td className={styles.num}>
+        <MovementBadge dir={r.current.movementDir} pct={r.current.movementPct} />
+      </td>
+      <td className={styles.muted}>{formatJalali(r.current.updatedAt, 'MM/dd')}</td>
+      <td>
+        <DeliveryBadge value={r.current.deliveryTime} />
+      </td>
+      <td>
+        <div className={styles.actions}>
+          <IconButton
+            size="sm"
+            label="افزودن به علاقه‌مندی"
+            active={isFav}
+            icon={<HeartIcon size={18} filled={isFav} />}
+            onClick={() => onToggleFav(r.id)}
+          />
+          <IconButton
+            size="sm"
+            label="نمودار قیمت"
+            icon={<ChartIcon size={18} />}
+            onClick={() => onChart(r)}
+          />
+          <button className={styles.addBtn} onClick={() => onAddToCart(r)}>
+            <PlusIcon size={16} /> سبد
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+});
+
+/** One mobile card — same memoization rationale as `PriceTableRow`. */
+const PriceTableCard = memo(function PriceTableCard({
+  row: r,
+  vat,
+  isFav,
+  onToggleFav,
+  onChart,
+  onAddToCart,
+}: { row: PriceRow; vat: boolean; isFav: boolean } & RowActions) {
+  return (
+    <li className={styles.card}>
+      <div className={styles.cardTop}>
+        <span className={styles.cardName}>{r.name}</span>
+        <IconButton
+          size="sm"
+          label="علاقه‌مندی"
+          active={isFav}
+          icon={<HeartIcon size={18} filled={isFav} />}
+          onClick={() => onToggleFav(r.id)}
+        />
+      </div>
+      <div className={styles.cardPrice}>
+        <span className={`${styles.price} tnum`}>
+          {formatToman(withVat(r.current.price, vat), false)}
+        </span>
+        <span className={styles.unit}>تومان / کیلوگرم</span>
+        <MovementBadge dir={r.current.movementDir} pct={r.current.movementPct} pill />
+      </div>
+      <div className={styles.cardMeta}>
+        <span>کارخانه: {r.factory ?? '—'}</span>
+        {r.size ? <span>سایز {toPersianDigits(r.size)}</span> : null}
+        {r.theoreticalWeightKg ? (
+          <span>
+            وزن شاخه {toPersianDigits(r.theoreticalWeightKg)} <bdi lang="en">kg</bdi>
+          </span>
+        ) : null}
+        <span>به‌روزرسانی {formatJalali(r.current.updatedAt, 'MM/dd')}</span>
+        <DeliveryBadge value={r.current.deliveryTime} />
+      </div>
+      <div className={styles.cardActions}>
+        <button className={styles.ghostBtn} onClick={() => onChart(r)}>
+          <ChartIcon size={16} /> نمودار
+        </button>
+        <button className={styles.addBtnFull} onClick={() => onAddToCart(r)}>
+          <PlusIcon size={16} /> افزودن به سبد استعلام
+        </button>
+      </div>
+    </li>
+  );
+});
 
 /**
  * E1 · The Datasheet — the signature price table. Toolbar (sub-category filter ·
@@ -39,7 +160,6 @@ export function PriceTable({
   sub: subProp,
   onSubChange,
   initialSub = null,
-  initialFactory = null,
 }: {
   rows: PriceRow[];
   subs: SubCat[];
@@ -51,9 +171,6 @@ export function PriceTable({
   onSubChange?: (sub: string | null) => void;
   /** Initial sub for the uncontrolled case (e.g. deep-link landing). */
   initialSub?: string | null;
-  /** Pre-applied factory/mill filter (e.g. from the home cascade menu's
-   *  «?factory=…» deep link). Pre-selects the کارخانه select. */
-  initialFactory?: string | null;
 }) {
   const add = useCartStore((s) => s.add);
   const toast = useToast();
@@ -63,14 +180,15 @@ export function PriceTable({
   const [sort, setSort] = useState<SortKey>('size');
   const [internalSub, setInternalSub] = useState<string | null>(initialSub);
   const controlled = onSubChange !== undefined;
-  const sub = controlled ? subProp ?? null : internalSub;
+  const sub = controlled ? (subProp ?? null) : internalSub;
 
   // Filter changes animate via same-document View Transitions where supported
   // (a no-op elsewhere) — the rows crossfade instead of snapping.
   const withTransition = (apply: () => void) => {
     if (typeof document !== 'undefined' && 'startViewTransition' in document) {
-      (document as Document & { startViewTransition: (cb: () => void) => void })
-        .startViewTransition(() => flushSync(apply));
+      (
+        document as Document & { startViewTransition: (cb: () => void) => void }
+      ).startViewTransition(() => flushSync(apply));
     } else {
       apply();
     }
@@ -82,6 +200,12 @@ export function PriceTable({
     });
   };
   const [fav, setFav] = useState<Set<string>>(new Set());
+  // Mirrors `fav` so `toggleFav` (below) can read the latest value without
+  // depending on it — keeping `toggleFav`'s identity stable across renders
+  // that don't touch favorites (sort/VAT/filter/chart) so the memoized row
+  // components don't all re-render on every parent state change.
+  const favRef = useRef(fav);
+  favRef.current = fav;
   // Live mode: hydrate stars from the server once per mount (signed-in only).
   useEffect(() => {
     if (API_MODE !== 'live' || !isAuthenticated) return;
@@ -98,12 +222,21 @@ export function PriceTable({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
   const [chartFor, setChartFor] = useState<PriceRow | null>(null);
-  const [factory, setFactoryState] = useState<string | null>(initialFactory);
+  const [factory, setFactoryState] = useState<string | null>(null);
   const setFactory = (next: string | null) => withTransition(() => setFactoryState(next));
   const [size, setSizeState] = useState<string | null>(null);
   const setSize = (next: string | null) => withTransition(() => setSizeState(next));
 
-  const withVat = (p: number) => (vat ? Math.round(p * (1 + CONSTANTS.VAT_RATE)) : p);
+  // Pre-select the کارخانه filter from a «?factory=…» deep link (e.g. the home
+  // cascade menu). Read via plain `window.location` on mount rather than the
+  // server-provided `searchParams` prop — the page passing that through would
+  // force per-request dynamic rendering (opting the whole route out of ISR)
+  // just to pre-select a client-side dropdown.
+  useEffect(() => {
+    const fromUrl = new URLSearchParams(window.location.search).get('factory');
+    if (fromUrl) setFactoryState(fromUrl);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const factoryOptions = useMemo(
     () => [...new Set(rows.map((r) => r.factory).filter((f): f is string => Boolean(f)))],
@@ -138,49 +271,61 @@ export function PriceTable({
     return copy;
   }, [filtered, sort]);
 
-  const toggleFav = (id: string) => {
-    if (!isAuthenticated) {
-      toast.info('برای ذخیرهٔ علاقه‌مندی‌ها وارد شوید.', { label: 'ورود', href: routes.login(routes.category(rows[0]?.categoryId ?? '')) });
-      return;
-    }
-    const adding = !fav.has(id);
-    setFav((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-    // Live mode: persist (optimistic — a failure just reverts the star).
-    if (API_MODE === 'live') {
-      const req = adding
-        ? fetch('/api/me/favorites', {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ skuId: id }),
-          })
-        : fetch(`/api/me/favorites/${encodeURIComponent(id)}`, { method: 'DELETE' });
-      req.catch(() => {
-        setFav((prev) => {
-          const next = new Set(prev);
-          if (adding) next.delete(id);
-          else next.add(id);
-          return next;
+  const toggleFav = useCallback(
+    (id: string) => {
+      if (!isAuthenticated) {
+        toast.info('برای ذخیرهٔ علاقه‌مندی‌ها وارد شوید.', {
+          label: 'ورود',
+          href: routes.login(routes.category(rows[0]?.categoryId ?? '')),
         });
+        return;
+      }
+      const adding = !favRef.current.has(id);
+      setFav((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
       });
-    }
-  };
+      // Live mode: persist (optimistic — a failure just reverts the star).
+      if (API_MODE === 'live') {
+        const req = adding
+          ? fetch('/api/me/favorites', {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ skuId: id }),
+            })
+          : fetch(`/api/me/favorites/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        req.catch(() => {
+          setFav((prev) => {
+            const next = new Set(prev);
+            if (adding) next.delete(id);
+            else next.add(id);
+            return next;
+          });
+        });
+      }
+    },
+    [isAuthenticated, rows, toast],
+  );
 
-  const addToCart = (r: PriceRow) => {
-    add({
-      skuId: r.id,
-      name: r.name,
-      qty: 1,
-      unit: r.unit,
-      unitPrice: r.current.price,
-      weightKg: r.theoreticalWeightKg,
-    });
-    toast.success(`${r.name} به سبد استعلام اضافه شد.`, { label: 'مشاهده سبد', href: routes.cart() });
-  };
+  const addToCart = useCallback(
+    (r: PriceRow) => {
+      add({
+        skuId: r.id,
+        name: r.name,
+        qty: 1,
+        unit: r.unit,
+        unitPrice: r.current.price,
+        weightKg: r.theoreticalWeightKg,
+      });
+      toast.success(`${r.name} به سبد استعلام اضافه شد.`, {
+        label: 'مشاهده سبد',
+        href: routes.cart(),
+      });
+    },
+    [add, toast],
+  );
 
   const updated = rows[0]?.current.updatedAt;
 
@@ -261,7 +406,12 @@ export function PriceTable({
       </div>
 
       {/* Desktop table */}
-      <div className={styles.tableScroll} role="region" aria-label={`قیمت ${categoryName}`} tabIndex={0}>
+      <div
+        className={styles.tableScroll}
+        role="region"
+        aria-label={`قیمت ${categoryName}`}
+        tabIndex={0}
+      >
         <table className={`${styles.table} tnum`}>
           <caption className="visually-hidden">
             قیمت {categoryName}
@@ -272,56 +422,41 @@ export function PriceTable({
               <th scope="col">محصول</th>
               <th scope="col" aria-sort={sort === 'size' ? 'ascending' : 'none'}>سایز</th>
               <th scope="col">کارخانه</th>
-              <th scope="col" className={styles.num}>وزن شاخه</th>
-              <th scope="col" className={styles.num} aria-sort={sort === 'price' ? 'ascending' : 'none'}>قیمت (تومان)</th>
-              <th scope="col" className={styles.num} aria-sort={sort === 'movement' ? 'descending' : 'none'}>نوسان</th>
+              <th scope="col" className={styles.num}>
+                وزن شاخه
+              </th>
+              <th
+                scope="col"
+                className={styles.num}
+                aria-sort={sort === 'price' ? 'ascending' : 'none'}
+              >
+                قیمت (تومان)
+              </th>
+              <th
+                scope="col"
+                className={styles.num}
+                aria-sort={sort === 'movement' ? 'descending' : 'none'}
+              >
+                نوسان
+              </th>
               <th scope="col">تاریخ</th>
               <th scope="col">تحویل</th>
-              <th scope="col" className={styles.actionsCol}>عملیات</th>
+              <th scope="col" className={styles.actionsCol}>
+                عملیات
+              </th>
             </tr>
           </thead>
           <tbody>
             {sorted.map((r) => (
-              <tr key={r.id}>
-                <th scope="row" className={styles.name}>{r.name}</th>
-                <td>{r.size ? toPersianDigits(r.size) : '—'}</td>
-                <td className={styles.muted}>{r.factory ?? '—'}</td>
-                <td className={styles.num}>
-                  {r.theoreticalWeightKg ? (
-                    <>
-                      {toPersianDigits(r.theoreticalWeightKg)} <bdi lang="en">kg</bdi>
-                    </>
-                  ) : (
-                    '—'
-                  )}
-                </td>
-                <td className={`${styles.num} ${styles.price}`}>{formatToman(withVat(r.current.price), false)}</td>
-                <td className={styles.num}>
-                  <MovementBadge dir={r.current.movementDir} pct={r.current.movementPct} />
-                </td>
-                <td className={styles.muted}>{formatJalali(r.current.updatedAt, 'MM/dd')}</td>
-                <td><DeliveryBadge value={r.current.deliveryTime} /></td>
-                <td>
-                  <div className={styles.actions}>
-                    <IconButton
-                      size="sm"
-                      label="افزودن به علاقه‌مندی"
-                      active={fav.has(r.id)}
-                      icon={<HeartIcon size={18} filled={fav.has(r.id)} />}
-                      onClick={() => toggleFav(r.id)}
-                    />
-                    <IconButton
-                      size="sm"
-                      label="نمودار قیمت"
-                      icon={<ChartIcon size={18} />}
-                      onClick={() => setChartFor(r)}
-                    />
-                    <button className={styles.addBtn} onClick={() => addToCart(r)}>
-                      <PlusIcon size={16} /> سبد
-                    </button>
-                  </div>
-                </td>
-              </tr>
+              <PriceTableRow
+                key={r.id}
+                row={r}
+                vat={vat}
+                isFav={fav.has(r.id)}
+                onToggleFav={toggleFav}
+                onChart={setChartFor}
+                onAddToCart={addToCart}
+              />
             ))}
           </tbody>
         </table>
@@ -330,42 +465,15 @@ export function PriceTable({
       {/* Mobile cards */}
       <ul className={styles.cards}>
         {sorted.map((r) => (
-          <li key={r.id} className={styles.card}>
-            <div className={styles.cardTop}>
-              <span className={styles.cardName}>{r.name}</span>
-              <IconButton
-                size="sm"
-                label="علاقه‌مندی"
-                active={fav.has(r.id)}
-                icon={<HeartIcon size={18} filled={fav.has(r.id)} />}
-                onClick={() => toggleFav(r.id)}
-              />
-            </div>
-            <div className={styles.cardPrice}>
-              <span className={`${styles.price} tnum`}>{formatToman(withVat(r.current.price), false)}</span>
-              <span className={styles.unit}>تومان / کیلوگرم</span>
-              <MovementBadge dir={r.current.movementDir} pct={r.current.movementPct} pill />
-            </div>
-            <div className={styles.cardMeta}>
-              <span>کارخانه: {r.factory ?? '—'}</span>
-              {r.size ? <span>سایز {toPersianDigits(r.size)}</span> : null}
-              {r.theoreticalWeightKg ? (
-                <span>
-                  وزن شاخه {toPersianDigits(r.theoreticalWeightKg)} <bdi lang="en">kg</bdi>
-                </span>
-              ) : null}
-              <span>به‌روزرسانی {formatJalali(r.current.updatedAt, 'MM/dd')}</span>
-              <DeliveryBadge value={r.current.deliveryTime} />
-            </div>
-            <div className={styles.cardActions}>
-              <button className={styles.ghostBtn} onClick={() => setChartFor(r)}>
-                <ChartIcon size={16} /> نمودار
-              </button>
-              <button className={styles.addBtnFull} onClick={() => addToCart(r)}>
-                <PlusIcon size={16} /> افزودن به سبد استعلام
-              </button>
-            </div>
-          </li>
+          <PriceTableCard
+            key={r.id}
+            row={r}
+            vat={vat}
+            isFav={fav.has(r.id)}
+            onToggleFav={toggleFav}
+            onChart={setChartFor}
+            onAddToCart={addToCart}
+          />
         ))}
       </ul>
 

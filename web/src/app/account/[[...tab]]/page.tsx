@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
@@ -16,19 +17,40 @@ import {
   EmptyState,
   emptyPresets,
 } from '@/components/ui';
-import { ProfileForm } from '@/components/auth/ProfileForm';
-import { LogoutButton } from '@/components/auth/LogoutButton';
 import { WarehouseList } from '@/components/account/WarehouseList';
 import { OrderTimeline } from '@/components/account/OrderTimeline';
-import { RequestsList } from '@/components/account/RequestsList';
-import { ProfileStats } from '@/components/account/ProfileStats';
-import { DeliveryCity } from '@/components/account/DeliveryCity';
 import { getOrders, getWarehouseItems } from '@/lib/server/account';
 import { API_MODE } from '@/lib/api/config';
-import { FavoritesList } from '@/components/account/FavoritesList';
-import { AlertsList } from '@/components/account/AlertsList';
 import { SHIPMENT_STEPS } from '@/lib/types/domain';
 import { formatJalali, toPersianDigits } from '@/lib/utils/format';
+
+// Every tab is resolved server-side (the `switch` below already knows which
+// one is active per request), but a static import of all 7 tab components
+// would still bundle them together into one `/account/*` chunk — visiting
+// `/account/warehouse` would ship ProfileForm/FavoritesList/AlertsList/etc.
+// too. `next/dynamic` (SSR stays on — this is a Server Component, so
+// `ssr: false` isn't used/needed here) code-splits each into its own chunk.
+const ProfileForm = dynamic(() =>
+  import('@/components/auth/ProfileForm').then((m) => m.ProfileForm),
+);
+const LogoutButton = dynamic(() =>
+  import('@/components/auth/LogoutButton').then((m) => m.LogoutButton),
+);
+const RequestsList = dynamic(() =>
+  import('@/components/account/RequestsList').then((m) => m.RequestsList),
+);
+const ProfileStats = dynamic(() =>
+  import('@/components/account/ProfileStats').then((m) => m.ProfileStats),
+);
+const DeliveryCity = dynamic(() =>
+  import('@/components/account/DeliveryCity').then((m) => m.DeliveryCity),
+);
+const FavoritesList = dynamic(() =>
+  import('@/components/account/FavoritesList').then((m) => m.FavoritesList),
+);
+const AlertsList = dynamic(() =>
+  import('@/components/account/AlertsList').then((m) => m.AlertsList),
+);
 
 export const metadata: Metadata = buildMetadata({ title: 'حساب من', noindex: true });
 
@@ -72,33 +94,33 @@ export default async function AccountPage({ params }: Params) {
 
           {/* Deep-linkable section nav */}
           <nav aria-label="بخش‌های حساب">
-           <Cluster gap={2}>
-            {TABS.map((t) => {
-              const active = t.slug === slug;
-              return (
-                <Link
-                  key={t.slug}
-                  href={routes.account(t.slug)}
-                  aria-current={active ? 'page' : undefined}
-                  style={{
-                    display: 'inline-flex',
-                    minBlockSize: 40,
-                    alignItems: 'center',
-                    paddingInline: 'var(--space-4)',
-                    borderRadius: 'var(--radius-pill)',
-                    font: 'var(--t-label)',
-                    textDecoration: 'none',
-                    background: active
-                      ? 'var(--color-accent-tint)'
-                      : 'var(--color-surface-sunken)',
-                    color: active ? 'var(--color-accent-text)' : 'var(--color-text)',
-                  }}
-                >
-                  {t.label}
-                </Link>
-              );
-            })}
-           </Cluster>
+            <Cluster gap={2}>
+              {TABS.map((t) => {
+                const active = t.slug === slug;
+                return (
+                  <Link
+                    key={t.slug}
+                    href={routes.account(t.slug)}
+                    aria-current={active ? 'page' : undefined}
+                    style={{
+                      display: 'inline-flex',
+                      minBlockSize: 40,
+                      alignItems: 'center',
+                      paddingInline: 'var(--space-4)',
+                      borderRadius: 'var(--radius-pill)',
+                      font: 'var(--t-label)',
+                      textDecoration: 'none',
+                      background: active
+                        ? 'var(--color-accent-tint)'
+                        : 'var(--color-surface-sunken)',
+                      color: active ? 'var(--color-accent-text)' : 'var(--color-text)',
+                    }}
+                  >
+                    {t.label}
+                  </Link>
+                );
+              })}
+            </Cluster>
           </nav>
 
           <TabContent slug={slug} userId={user.id} />
@@ -121,8 +143,7 @@ async function TabContent({ slug, userId }: { slug: string; userId: string }) {
             </div>
             <Stack gap={6}>
               {orders.map((o) => {
-                const label =
-                  SHIPMENT_STEPS.find((s) => s.key === o.status)?.label ?? '';
+                const label = SHIPMENT_STEPS.find((s) => s.key === o.status)?.label ?? '';
                 return (
                   <div
                     key={o.ref}
@@ -143,9 +164,7 @@ async function TabContent({ slug, userId }: { slug: string; userId: string }) {
                             {formatJalali(o.lastUpdate)}
                           </Text>
                         </Stack>
-                        <Badge tone={o.status === 'delivered' ? 'gain' : 'accent'}>
-                          {label}
-                        </Badge>
+                        <Badge tone={o.status === 'delivered' ? 'gain' : 'accent'}>{label}</Badge>
                       </Cluster>
                       <OrderTimeline status={o.status} />
                       <Text variant="caption" color="muted">

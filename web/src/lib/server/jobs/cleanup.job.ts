@@ -41,5 +41,13 @@ export const cleanupJob: Job = {
           ORDER BY key, date_trunc('hour', at), floor(extract(minute FROM at) / 15), at DESC
         )
     `);
+    // Idempotency keys: one row per financially-meaningful write (proforma/
+    // order/lead issuance). A row is only ever deleted on its own failure
+    // path (see lib/server/utils/idempotency.ts) — successful ones are kept
+    // forever otherwise, so this table grows without bound. 7 days is
+    // comfortably past any realistic client retry window.
+    await db.execute(sql`
+      DELETE FROM idempotency_keys WHERE created_at < now() - interval '7 days'
+    `);
   },
 };

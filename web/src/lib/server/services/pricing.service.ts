@@ -104,22 +104,43 @@ export type SavePricesRowResult =
   | ({ ok: true } & SavePriceResult)
   | { ok: false; skuId: string; error: string };
 
+// Bulk saves can carry up to 500 rows (validated at the route). Each row is
+// its own transaction (independent SKUs — no reason to serialize them), so we
+// run a bounded number concurrently rather than one at a time; 500 sequential
+// round trips (each 5+ queries) inside one HTTP request risked hitting
+// platform request-duration limits, especially on the Cloudflare Workers
+// deploy target. Stays comfortably under the per-request pg Pool's `max`
+// (15 on Node, 5 on Workers — see db/client.ts) so this can't itself exhaust
+// the pool.
+const BULK_SAVE_CONCURRENCY = 5;
+
 /**
- * Bulk daily grid save — sequential per-row transactions with per-row fault
- * isolation. A bad row (e.g. an unknown skuId) is reported and skipped;
- * every other row still commits — nothing after a failing row is silently
- * dropped (EC-M1.3: "bulk import with some invalid rows imports valid rows
- * and reports the failures").
+ * Bulk daily grid save — bounded-concurrency per-row transactions with
+ * per-row fault isolation. A bad row (e.g. an unknown skuId) is reported and
+ * skipped; every other row still commits — nothing is silently dropped
+ * (EC-M1.3: "bulk import with some invalid rows imports valid rows and
+ * reports the failures"). Results are returned in the same order as `inputs`.
  */
-export async function savePrices(actorId: string, inputs: SavePriceInput[]): Promise<SavePricesRowResult[]> {
-  const out: SavePricesRowResult[] = [];
-  for (const input of inputs) {
+export async function savePrices(
+  actorId: string,
+  inputs: SavePriceInput[],
+): Promise<SavePricesRowResult[]> {
+  const out: SavePricesRowResult[] = new Array(inputs.length);
+  const runOne = async (input: SavePriceInput, index: number) => {
     try {
       const result = await savePrice(actorId, input);
-      out.push({ ok: true, ...result });
+      out[index] = { ok: true, ...result };
     } catch (err) {
-      out.push({ ok: false, skuId: input.skuId, error: err instanceof Error ? err.message : 'ذخیره ناموفق بود.' });
+      out[index] = {
+        ok: false,
+        skuId: input.skuId,
+        error: err instanceof Error ? err.message : 'ذخیره ناموفق بود.',
+      };
     }
+  };
+  for (let i = 0; i < inputs.length; i += BULK_SAVE_CONCURRENCY) {
+    const chunk = inputs.slice(i, i + BULK_SAVE_CONCURRENCY);
+    await Promise.all(chunk.map((input, j) => runOne(input, i + j)));
   }
   return out;
 }

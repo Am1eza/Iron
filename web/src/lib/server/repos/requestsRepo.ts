@@ -79,18 +79,27 @@ export async function updateRequestStatus(id: string, status: UserRequestRow['st
   return rows[0] ? toRequestDto(rows[0]) : null;
 }
 
-export async function adminListRequests(query: { status?: UserRequestRow['status']; page?: number; perPage?: number }) {
+export async function adminListRequests(query: {
+  status?: UserRequestRow['status'];
+  page?: number;
+  perPage?: number;
+}) {
   const db = getDb();
   const page = query.page ?? 1;
   const perPage = query.perPage ?? 50;
   const where = query.status ? and(eq(userRequests.status, query.status)) : undefined;
-  const rows = await db
-    .select()
-    .from(userRequests)
-    .where(where)
-    .orderBy(desc(userRequests.createdAt))
-    .limit(perPage)
-    .offset((page - 1) * perPage);
-  const total = await db.select({ n: sql<number>`count(*)::int` }).from(userRequests).where(where);
+  const [rows, total] = await Promise.all([
+    db
+      .select()
+      .from(userRequests)
+      .where(where)
+      .orderBy(desc(userRequests.createdAt))
+      .limit(perPage)
+      .offset((page - 1) * perPage),
+    db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(userRequests)
+      .where(where),
+  ]);
   return { requests: rows, total: total[0]?.n ?? 0 };
 }
