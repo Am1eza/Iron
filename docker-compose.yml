@@ -11,6 +11,10 @@ services:
       args:
         NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://ahantime.com}
         NEXT_PUBLIC_API_MODE: ${NEXT_PUBLIC_API_MODE:-live}
+        # See GEO-ROUTING.md — a free-form label, just surfaced on /api/health
+        # so a geo-split setup can be verified (curl from Iran vs. abroad and
+        # confirm each hit the origin you expect).
+        NEXT_PUBLIC_DEPLOY_REGION: ${NEXT_PUBLIC_DEPLOY_REGION:-ir-docker}
     restart: unless-stopped
     depends_on:
       db:

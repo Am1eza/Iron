@@ -1,10 +1,10 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { buildMetadata, productJsonLd } from '@/lib/seo';
+import { buildMetadata, itemListJsonLd } from '@/lib/seo';
 import { routes } from '@/lib/routes';
-import { categories } from '@/lib/mock/fixtures';
+import { categories as mockCategories } from '@/lib/mock/fixtures';
 import { subName } from '@/lib/mock/catalogData';
-import { getRows, getSubRows } from '@/lib/server/catalog';
+import { getCategories, getRows, getSubRows } from '@/lib/server/catalog';
 import { CATEGORY_SUBS } from '@/lib/data/nav';
 import { Container, Section, Stack, Breadcrumbs, EmptyState, emptyPresets } from '@/components/ui';
 import { BreadcrumbJsonLd, JsonLd } from '@/components/seo/JsonLd';
@@ -21,13 +21,14 @@ export const revalidate = 300;
 
 /** Pre-render the real (category, sub) pairs; unknown combos 404 on demand. */
 export function generateStaticParams() {
-  return categories
+  return mockCategories
     .filter((c) => c.isActive)
     .flatMap((c) => (CATEGORY_SUBS[c.slug] ?? []).map((s) => ({ category: c.slug, sub: s.slug })));
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { category, sub } = await params;
+  const categories = await getCategories();
   const cat = categories.find((c) => c.slug === category);
   const name = subName(category, sub);
   if (!cat || !name) {
@@ -43,6 +44,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 export default async function SubCategoryPage({ params }: Params) {
   const { category, sub } = await params;
 
+  const categories = await getCategories();
   const cat = categories.find((c) => c.slug === category);
   if (!cat) notFound();
 
@@ -64,12 +66,11 @@ export default async function SubCategoryPage({ params }: Params) {
       <BreadcrumbJsonLd items={crumbs} />
       {rows.length > 0 && (
         <JsonLd
-          data={rows.map((r) =>
-            productJsonLd({
+          data={itemListJsonLd(
+            rows.map((r) => ({
               name: r.name,
-              price: r.current.price,
               url: routes.sku(r.categoryId, r.subCategoryId, r.slug),
-            }),
+            })),
           )}
         />
       )}

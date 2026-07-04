@@ -28,10 +28,13 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   if (!article || article.type !== 'blog') {
     return buildMetadata({ title: 'مطلب یافت نشد', noindex: true, path: routes.blog(slug) });
   }
+  // Admin-authored SEO overrides (title/description/canonical/ogImage) win when set.
+  const seo = article.seo;
   return buildMetadata({
-    title: article.title,
-    description: article.excerpt,
-    path: routes.blog(article.slug),
+    title: seo?.title ?? article.title,
+    description: seo?.description ?? article.excerpt,
+    path: seo?.canonical ?? routes.blog(article.slug),
+    ogImage: seo?.ogImage ?? article.coverUrl,
   });
 }
 
@@ -58,6 +61,7 @@ export default async function BlogArticlePage({ params }: Params) {
           title: article.title,
           url: routes.blog(article.slug),
           publishedAt: article.publishAt,
+          image: article.seo?.ogImage ?? article.coverUrl,
         })}
       />
 
@@ -67,6 +71,17 @@ export default async function BlogArticlePage({ params }: Params) {
 
           <article className={styles.article}>
             <header className={styles.header}>
+              {article.coverUrl ? (
+                <img
+                  src={article.coverUrl}
+                  alt={article.title}
+                  width={1200}
+                  height={630}
+                  loading="eager"
+                  decoding="async"
+                  className={styles.cover}
+                />
+              ) : null}
               <p className={styles.kicker}>مقاله</p>
               <Heading level={1}>{article.title}</Heading>
               <div className={styles.meta}>

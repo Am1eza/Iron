@@ -28,7 +28,7 @@ const AVG_REBAR_PRICE: number = (() => {
 
 type Estimate = { items: { name: string; weightKg: number }[]; totalKg: number; totalToman: number };
 type SplitAnswer = { categoryName: string; split: BulkSplit };
-type Msg = {
+export type Msg = {
   id: string;
   role: 'ai' | 'user';
   text?: string;
@@ -36,6 +36,11 @@ type Msg = {
   estimate?: Estimate;
   split?: SplitAnswer;
 };
+
+/** The opening greeting — shared so it can be rendered server-side (crawlable
+ *  initial HTML) and reused as the client fallback if no SSR message is passed. */
+export const GREETING_TEXT =
+  'سلام! من مشاور هوشمند آهن‌تایم‌ام.\nمثل یک دوستِ کاربلد کمکت می‌کنم بهترین خرید را بکنی؛ اول مشورت، بعد خرید.';
 
 /** Detect «۲۰ تن میلگرد» → tonnage + category (shared alias table — no drift
  *  with the server tools). Returns null if not a bulk ask. */
@@ -251,8 +256,16 @@ const MessageBubble = memo(function MessageBubble({
   );
 });
 
-export function AdvisorChat({ initialQuestion }: { initialQuestion?: string }) {
-  const [messages, setMessages] = useState<Msg[]>([]);
+export function AdvisorChat({
+  initialQuestion,
+  initialMessages,
+}: {
+  initialQuestion?: string;
+  /** Server-rendered greeting (see app/ai/page.tsx) so the advisor's opening
+   *  message is present in the initial HTML, not only injected client-side. */
+  initialMessages?: Msg[];
+}) {
+  const [messages, setMessages] = useState<Msg[]>(() => initialMessages ?? []);
   // The in-progress streamed reply — purely presentational (rendered aria-hidden)
   // so screen readers are never spammed token-by-token. Only once the stream
   // completes does the finished text get pushed into `messages`, which the
@@ -427,18 +440,21 @@ export function AdvisorChat({ initialQuestion }: { initialQuestion?: string }) {
   sendRef.current = send;
   const stableSend = useCallback((text: string) => sendRef.current(text), []);
 
-  // First load: greet, then auto-send the question from the home search (if any).
+  // First load: greet (unless the server already rendered it — see
+  // `initialMessages`), then auto-send the question from the home search (if any).
   useEffect(() => {
     if (started.current) return;
     started.current = true;
-    setMessages([
-      {
-        id: uid(),
-        role: 'ai',
-        text: 'سلام! من مشاور هوشمند آهن‌تایم‌ام.\nمثل یک دوستِ کاربلد کمکت می‌کنم بهترین خرید را بکنی؛ اول مشورت، بعد خرید.',
-        chips: initialQuestion ? undefined : PURPOSE_CHIPS,
-      },
-    ]);
+    if (!initialMessages) {
+      setMessages([
+        {
+          id: uid(),
+          role: 'ai',
+          text: GREETING_TEXT,
+          chips: initialQuestion ? undefined : PURPOSE_CHIPS,
+        },
+      ]);
+    }
     if (initialQuestion) window.setTimeout(() => send(initialQuestion), 500);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

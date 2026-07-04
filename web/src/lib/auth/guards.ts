@@ -6,13 +6,13 @@
  */
 import { redirect, notFound } from 'next/navigation';
 import { routes } from '@/lib/routes';
-import { getSession } from './session';
+import { getSessionVerified } from './session';
 import { can } from './roles';
 import type { AuthUser, Permission } from './types';
 
 /** Require any authenticated user; otherwise redirect to login with a return path. */
 export async function requireUser(nextPath?: string): Promise<AuthUser> {
-  const user = await getSession();
+  const user = await getSessionVerified();
   if (!user) redirect(routes.login(nextPath));
   return user;
 }
@@ -22,7 +22,7 @@ export async function requirePermission(
   permission: Permission,
   nextPath?: string,
 ): Promise<AuthUser> {
-  const user = await getSession();
+  const user = await getSessionVerified();
   if (!user) redirect(routes.login(nextPath));
   if (!can(user.role, permission)) notFound();
   return user;

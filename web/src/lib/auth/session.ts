@@ -8,7 +8,9 @@
 import { cache } from 'react';
 import { cookies } from 'next/headers';
 import { verifyAccessToken } from './jwt';
-import type { AuthUser, IssuedTokens } from './types';
+import { userById } from './store';
+import { reportError } from '@/lib/errors/report';
+import type { AccessTokenClaims, AuthUser, IssuedTokens } from './types';
 
 export const ACCESS_COOKIE = 'ahantime_at';
 export const REFRESH_COOKIE = 'ahantime_rt';
@@ -49,6 +51,17 @@ export async function getRefreshToken(): Promise<string | undefined> {
   return (await cookies()).get(REFRESH_COOKIE)?.value;
 }
 
+/** Shared by getSession()/getSessionVerified() so the EXPORT-mode guard and
+ *  cookie/JWT resolution only exist in one place. */
+async function resolveClaims(): Promise<AccessTokenClaims | null> {
+  // Static export (GitHub Pages preview) has no request context / cookies —
+  // render the anonymous (logged-out) state so pages can prerender statically.
+  if (process.env.EXPORT === '1') return null;
+  const token = (await cookies()).get(ACCESS_COOKIE)?.value;
+  if (!token) return null;
+  return verifyAccessToken(token);
+}
+
 /**
  * Resolve the session from the access cookie (verify the JWT). Returns a minimal
  * user view or null. Does NOT auto-refresh — that's the client/refresh endpoint's
@@ -60,12 +73,7 @@ export async function getRefreshToken(): Promise<string | undefined> {
  * JWT verification per request instead of re-verifying the same token 2-3x.
  */
 export const getSession = cache(async (): Promise<AuthUser | null> => {
-  // Static export (GitHub Pages preview) has no request context / cookies —
-  // render the anonymous (logged-out) state so pages can prerender statically.
-  if (process.env.EXPORT === '1') return null;
-  const token = (await cookies()).get(ACCESS_COOKIE)?.value;
-  if (!token) return null;
-  const claims = await verifyAccessToken(token);
+  const claims = await resolveClaims();
   if (!claims) return null;
   return {
     id: claims.sub,
@@ -74,4 +82,37 @@ export const getSession = cache(async (): Promise<AuthUser | null> => {
     role: claims.role,
     createdAt: '',
   };
+});
+
+/**
+ * Like `getSession()`, but also re-checks the DB: rejects the session if the
+ * user was deactivated or their role changed since this access token was
+ * issued (tokenVersion mismatch — see schema/auth.ts), instead of trusting
+ * the JWT's claims for its full ~15min lifetime regardless. One extra
+ * indexed lookup, so use this at actual permission/authorization boundaries
+ * (requireApiUser/requirePermission and friends), not on every page render.
+ *
+ * If the DB lookup itself fails (connection blip, not "user not found"), this
+ * falls back to the JWT-only result instead of throwing — a transient outage
+ * degrades to getSession()'s pre-existing trust window rather than taking
+ * down every admin page/route that calls this.
+ */
+export const getSessionVerified = cache(async (): Promise<AuthUser | null> => {
+  const claims = await resolveClaims();
+  if (!claims) return null;
+  const fallback: AuthUser = {
+    id: claims.sub,
+    mobile: claims.mobile,
+    name: claims.name,
+    role: claims.role,
+    createdAt: '',
+  };
+  try {
+    const current = await userById(claims.sub);
+    if (!current || (current.tokenVersion ?? 0) !== (claims.tv ?? 0)) return null;
+    return current;
+  } catch (err) {
+    reportError(err, { scope: 'auth', fn: 'getSessionVerified' });
+    return fallback;
+  }
 });

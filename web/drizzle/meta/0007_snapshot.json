@@ -1,6 +1,6 @@
 {
-  "id": "c882b12d-1083-4256-b1e2-28fafc720d54",
-  "prevId": "b1f6b73c-36e4-4c66-885c-902be5bfc733",
+  "id": "8d57a341-d0ed-44b4-aa32-e607488631ac",
+  "prevId": "c882b12d-1083-4256-b1e2-28fafc720d54",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -289,7 +289,23 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "categories_name_trgm_idx": {
+          "name": "categories_name_trgm_idx",
+          "columns": [
+            {
+              "expression": "\"name\" gin_trgm_ops",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
@@ -2526,6 +2542,51 @@
           "isUnique": false,
           "concurrently": false,
           "method": "btree",
+          "with": {}
+        },
+        "articles_title_trgm_idx": {
+          "name": "articles_title_trgm_idx",
+          "columns": [
+            {
+              "expression": "\"title\" gin_trgm_ops",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        },
+        "articles_excerpt_trgm_idx": {
+          "name": "articles_excerpt_trgm_idx",
+          "columns": [
+            {
+              "expression": "\"excerpt\" gin_trgm_ops",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        },
+        "articles_body_trgm_idx": {
+          "name": "articles_body_trgm_idx",
+          "columns": [
+            {
+              "expression": "\"body_md\" gin_trgm_ops",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
           "with": {}
         }
       },

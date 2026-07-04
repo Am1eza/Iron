@@ -15,6 +15,10 @@ automatically obtains and renews a free HTTPS certificate. You only expose ports
 > `TGJU_BASE_URL` the ticker serves seeded/last-known values, and the AI advisor
 > stays off until `AI_ENABLED=true` + DeepSeek relay keys.
 
+> **Running this alongside a foreign (Cloudflare) deployment** so Iranian and
+> international visitors each reach a nearby origin? See `GEO-ROUTING.md` at
+> the repo root — this Docker stack is the "Iran" origin in that setup.
+
 ---
 
 ## 0. Prerequisites

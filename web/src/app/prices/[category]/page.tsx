@@ -1,9 +1,9 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { buildMetadata, productJsonLd } from '@/lib/seo';
+import { buildMetadata, itemListJsonLd } from '@/lib/seo';
 import { routes } from '@/lib/routes';
-import { categories } from '@/lib/mock/fixtures';
-import { getRows } from '@/lib/server/catalog';
+import { categories as mockCategories } from '@/lib/mock/fixtures';
+import { getCategories, getRows } from '@/lib/server/catalog';
 import { CATEGORY_SUBS } from '@/lib/data/nav';
 import { Container, Section, Stack, Breadcrumbs, EmptyState, emptyPresets } from '@/components/ui';
 import { BreadcrumbJsonLd, JsonLd } from '@/components/seo/JsonLd';
@@ -18,11 +18,12 @@ type Params = { params: Promise<{ category: string }> };
 export const revalidate = 300;
 
 export function generateStaticParams() {
-  return categories.filter((c) => c.isActive).map((c) => ({ category: c.slug }));
+  return mockCategories.filter((c) => c.isActive).map((c) => ({ category: c.slug }));
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { category } = await params;
+  const categories = await getCategories();
   const cat = categories.find((c) => c.slug === category);
   if (!cat) return buildMetadata({ title: 'دسته پیدا نشد', noindex: true });
   const name = cat.name;
@@ -35,6 +36,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 
 export default async function CategoryPage({ params }: Params) {
   const { category } = await params;
+  const categories = await getCategories();
   const cat = categories.find((c) => c.slug === category);
   if (!cat) notFound();
 
@@ -52,12 +54,11 @@ export default async function CategoryPage({ params }: Params) {
       <BreadcrumbJsonLd items={crumbs} />
       {rows.length > 0 && (
         <JsonLd
-          data={rows.map((r) =>
-            productJsonLd({
+          data={itemListJsonLd(
+            rows.map((r) => ({
               name: r.name,
-              price: r.current.price,
               url: routes.sku(r.categoryId, r.subCategoryId, r.slug),
-            }),
+            })),
           )}
         />
       )}

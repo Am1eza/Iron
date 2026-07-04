@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import { buildMetadata } from '@/lib/seo';
-import { routes } from '@/lib/routes';
 import {
   Container,
   Section,
@@ -11,10 +10,11 @@ import {
 } from '@/components/ui';
 import { CartView } from '@/components/cart/CartView';
 
+// noindex'd (personal/transient cart state) — no canonical `path` since
+// canonical is meaningless on a page that's never indexed.
 export const metadata: Metadata = buildMetadata({
   title: 'سبد استعلام',
   description: 'محصول‌های انتخابی خود را در سبد استعلام جمع کنید و یک‌جا پیش‌فاکتور بگیرید. در آهن‌تایم پرداخت آنلاین نداریم؛ کارشناس برای نهایی‌کردن قیمت و تحویل تماس می‌گیرد.',
-  path: routes.cart(),
   noindex: true,
 });
 

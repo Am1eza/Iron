@@ -24,10 +24,11 @@ import { SearchIcon, TagIcon, ChevronStartIcon } from '@/components/primitives/i
 import { SearchBox } from '@/components/search/SearchBox';
 import resultStyles from '@/components/search/SearchResults.module.css';
 
+// noindex'd (thin/duplicate search-results content) — no canonical `path` is
+// set since canonical is meaningless on a page that's never indexed.
 export const metadata: Metadata = buildMetadata({
   title: 'جستجو',
   description: 'جستجوی محصولات، دسته‌بندی‌ها و مقالات آهن‌تایم.',
-  path: '/search',
   noindex: true,
 });
 

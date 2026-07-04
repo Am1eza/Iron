@@ -170,6 +170,8 @@ export interface Article {
   excerpt?: string;
   /** Markdown body — present on live article-detail reads. */
   bodyMd?: string;
+  /** Cover/hero image — used for the list thumbnail, OG image and Article JSON-LD. */
+  coverUrl?: string;
   status: 'draft' | 'scheduled' | 'published';
   source: 'ai' | 'human';
   publishAt?: string;

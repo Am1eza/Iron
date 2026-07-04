@@ -1,6 +1,8 @@
+import type { Metadata } from 'next';
 import { getCategories } from '@/lib/data/catalog';
 import { getRows } from '@/lib/server/catalog';
 import { CATEGORY_SUBS } from '@/lib/data/nav';
+import { routes } from '@/lib/routes';
 import type { PriceRow } from '@/lib/types/domain';
 import { HeroSearch } from '@/components/home/HeroSearch';
 import { PriceBoard } from '@/components/home/PriceBoard';
@@ -10,7 +12,15 @@ import { computeBulkSplit } from '@/lib/utils/bulkSplit';
 import { ValueProps } from '@/components/home/ValueProps';
 import { Partners } from '@/components/home/Partners';
 import { JsonLd } from '@/components/seo/JsonLd';
-import { orgJsonLd, localBusinessJsonLd } from '@/lib/seo';
+import { buildMetadata, orgJsonLd, localBusinessJsonLd, websiteJsonLd } from '@/lib/seo';
+
+export const metadata: Metadata = buildMetadata({
+  title: 'آهن‌تایم — بازار هوشمند آهن و فولاد',
+  description:
+    'آهن‌تایم، بازار هوشمند آهن و فولاد: مشاور هوش مصنوعی، قیمت‌های شفاف و لحظه‌ای و زمان تحویل مشخص. اول مشورت، بعد خرید.',
+  path: routes.home(),
+  absoluteTitle: true,
+});
 
 /**
  * Home — the «Steel Terminal». Asymmetric hero (AI search + live price board) →
@@ -66,7 +76,7 @@ export default async function HomePage() {
 
   return (
     <>
-      <JsonLd data={[orgJsonLd(), localBusinessJsonLd()]} />
+      <JsonLd data={[orgJsonLd(), localBusinessJsonLd(), websiteJsonLd()]} />
       <HeroSearch board={<PriceBoard rows={boardRows} />} />
       <CategoryStage categories={categories} factories={factories} />
       <CompareTeaser slides={compareSlides} />

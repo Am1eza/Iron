@@ -1,10 +1,13 @@
 # Deploying ahantime.com to Cloudflare (Workers + OpenNext)
 
-The Poladin web app is deployed to **Cloudflare Workers** using the
-[OpenNext Cloudflare adapter](https://opennext.js.org/cloudflare), which runs the
-full Next.js app — SSR, `/api/*` routes, OTP auth, and the `/account` area — on
-the Workers runtime. (The GitHub Pages workflow still produces the static mock
-preview; this is the real production path.)
+The آهن‌تایم (ahantime.com) web app is deployed to **Cloudflare Workers** using
+the [OpenNext Cloudflare adapter](https://opennext.js.org/cloudflare), which
+runs the full Next.js app — SSR, `/api/*` routes, OTP auth, and the `/account`
+area — on the Workers runtime. (The GitHub Pages workflow still produces the
+static mock preview; this is the real production path.)
+
+> **Running this alongside an Iran-based server?** See `../GEO-ROUTING.md` at
+> the repo root — this deployment is the "foreign" origin in that setup.
 
 **Build/deploy is handled by Cloudflare's own "Workers Builds" git
 integration** (Workers & Pages → `ahantime` → Settings → Build), configured
@@ -61,7 +64,10 @@ App installation on this repo.
      ships built in `mock` mode: every client-side data call (catalog,
      market ticker, the AI chat button) short-circuits to canned fixture
      data or a "coming soon" message and **never reaches your API routes at
-     all**, regardless of what secrets are set below.
+     all**, regardless of what secrets are set below. Also set
+     `NEXT_PUBLIC_DEPLOY_REGION=cloudflare-edge` here (same build-time
+     mechanism) — purely a label surfaced on `/api/health`, used to verify a
+     geo-routing setup actually reached this origin; see `../GEO-ROUTING.md`.
    - **Runtime secrets** on the Worker (see `web/.dev.vars.example` for the
      full list) — at minimum, live mode structurally requires
      `DATABASE_URL` and `SESSION_SECRET` (the app 503s `db_unavailable` on

@@ -28,6 +28,12 @@ export const users = pgTable(
     name: text('name'),
     role: text('role', { enum: ROLES }).notNull().default('customer'),
     isActive: boolean('is_active').notNull().default(true),
+    // Bumped whenever role/isActive changes (see store.pg.ts#updateUser).
+    // Embedded in the access-token JWT (`tv` claim) and compared against this
+    // column on every permission-gated request, so a demoted/deactivated
+    // staff member's already-issued token stops working immediately instead
+    // of staying valid until its natural (default 15min) expiry.
+    tokenVersion: integer('token_version').notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
   },
