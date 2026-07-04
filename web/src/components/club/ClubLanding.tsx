@@ -180,9 +180,7 @@ export function ClubLanding() {
                     className={`${styles.tier} ${tier.featured ? styles.tierFeatured : ''}`}
                   >
                     <div className={styles.tierTop}>
-                      <span className={styles.tierLevel} aria-hidden="true">
-                        سطح {toFaLevel(i)}
-                      </span>
+                      <span className={styles.tierLevel}>سطح {toFaLevel(i)}</span>
                       {tier.featured ? <Badge tone="action">محبوب‌ترین</Badge> : null}
                     </div>
                     <div className={styles.tierIdentity}>

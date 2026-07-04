@@ -1,10 +1,13 @@
 'use client';
-import { useId, useState, type ReactNode } from 'react';
+import { useId, useState, useEffect, cloneElement, isValidElement, type ReactElement, type ReactNode } from 'react';
 import styles from './Tooltip.module.css';
 
 /**
- * B5 · Tooltip — dark surface, 150ms delay, shown on hover/focus. Never the only
- * source of essential info. The trigger must be a focusable element.
+ * B5 · Tooltip — dark surface, 150ms delay, shown on hover/focus, dismissible
+ * via Esc (WCAG 1.4.13). Never the only source of essential info. The trigger
+ * must be a single focusable element — `aria-describedby` is injected onto it
+ * directly (not a wrapping span) so assistive tech announces the tooltip text
+ * when the trigger itself receives focus.
  */
 export function Tooltip({
   content,
@@ -12,11 +15,24 @@ export function Tooltip({
   placement = 'top',
 }: {
   content: ReactNode;
-  children: ReactNode;
+  children: ReactElement;
   placement?: 'top' | 'bottom';
 }) {
   const id = useId();
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open]);
+
+  const trigger = isValidElement(children)
+    ? cloneElement(children, { 'aria-describedby': open ? id : undefined } as Record<string, unknown>)
+    : children;
 
   return (
     <span
@@ -26,7 +42,7 @@ export function Tooltip({
       onFocusCapture={() => setOpen(true)}
       onBlurCapture={() => setOpen(false)}
     >
-      <span aria-describedby={open ? id : undefined}>{children}</span>
+      {trigger}
       <span
         role="tooltip"
         id={id}

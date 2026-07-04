@@ -28,6 +28,7 @@ export function FeaturedPrices({ rows = rebarRows }: { rows?: PriceRow[] }) {
 
       <div className={styles.tableWrap} role="region" aria-label="قیمت میلگرد" tabIndex={0}>
         <table className={`${styles.table} tnum`}>
+          <caption className="visually-hidden">قیمت میلگرد</caption>
           <thead>
             <tr>
               <th scope="col">محصول</th>
@@ -40,7 +41,9 @@ export function FeaturedPrices({ rows = rebarRows }: { rows?: PriceRow[] }) {
                 نوسان
               </th>
               <th scope="col">زمان تحویل</th>
-              <th scope="col" className={styles.action} />
+              <th scope="col" className={styles.action}>
+                <span className="visually-hidden">جزئیات</span>
+              </th>
             </tr>
           </thead>
           <tbody>

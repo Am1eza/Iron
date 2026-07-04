@@ -58,13 +58,14 @@ export function AuditLog() {
         <EmptyState size="section" headline="رویدادی نیست" body="تغییرات ادمین اینجا ثبت می‌شود." />
       ) : (
         <table className={ui.table}>
+          <caption className="visually-hidden">فهرست رویدادهای ثبت‌شده در گزارش تغییرات</caption>
           <thead>
             <tr>
-              <th>زمان</th>
-              <th>عملیات</th>
-              <th>موجودیت</th>
-              <th>کاربر</th>
-              <th>جزئیات</th>
+              <th scope="col">زمان</th>
+              <th scope="col">عملیات</th>
+              <th scope="col">موجودیت</th>
+              <th scope="col">کاربر</th>
+              <th scope="col">جزئیات</th>
             </tr>
           </thead>
           <tbody>

@@ -38,7 +38,7 @@ export function DeliveryCity() {
           ))}
         </select>
         {city && km !== null && (
-          <p className={styles.hint}>
+          <p className={styles.hint} role="status" aria-live="polite">
             {toPersianDigits(km)} کیلومتر از انبار · تحویل {deliveryLabel(km)}
           </p>
         )}

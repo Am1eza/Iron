@@ -164,11 +164,11 @@
 }
 
 .tileGood .tileValue {
-  color: var(--color-gain, #15a34a);
+  color: var(--color-gain-text);
 }
 
 .tileBad .tileValue {
-  color: var(--color-loss, #e0322b);
+  color: var(--color-loss-text);
 }
 
 .tileLabel {

@@ -212,6 +212,9 @@ export function BulkQuote({
 
       <div className={styles.tableScroll} role="region" aria-label="مقایسهٔ کارخانه‌ها" tabIndex={0}>
         <table className={`${styles.table} tnum`}>
+          <caption className="visually-hidden">
+            مقایسهٔ کارخانه‌های {categoryName} برای {toPersianDigits(split.tonnage)} تن
+          </caption>
           <thead>
             <tr>
               <th scope="col">کارخانه</th>

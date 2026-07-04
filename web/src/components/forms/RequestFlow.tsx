@@ -102,7 +102,7 @@ export function RequestFlow() {
       />
 
       <div className={styles.actions}>
-        <Button onClick={submit} disabled={busy}>
+        <Button onClick={submit} disabled={busy} loading={busy}>
           {busy ? 'در حال ثبت…' : 'ثبت درخواست پیش‌فاکتور'}
         </Button>
         <Link href={routes.cart()} className={styles.editLink}>

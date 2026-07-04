@@ -176,7 +176,7 @@ export function SkuDetail({
                 <li>
                   وزن شاخه{' '}
                   <strong className="tnum">
-                    {toPersianDigits(row.theoreticalWeightKg)} kg
+                    {toPersianDigits(row.theoreticalWeightKg)} <bdi lang="en">kg</bdi>
                   </strong>
                 </li>
               ) : null}

@@ -1,6 +1,6 @@
 'use client';
 import { useId, useMemo, useState } from 'react';
-import { formatToman, toPersianDigits } from '@/lib/utils/format';
+import { formatToman, formatJalali, toPersianDigits } from '@/lib/utils/format';
 import styles from './PriceChart.module.css';
 
 type Range = 7 | 30 | 90 | 365;
@@ -40,6 +40,14 @@ export function PriceChart({ series, unit = 'تومان' }: { series: number[]; 
   const up = last >= first;
   const pct = (((last - first) / first) * 100).toFixed(1);
   const rangeLabel = RANGES.find((r) => r.v === range)?.label ?? '';
+  // Each point in `data` is one day; the last entry is today, so walk backwards
+  // from today to recover the calendar date for a given index (for the table
+  // fallback below — the SVG itself has no per-point date, only the series).
+  const dateFor = (i: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (data.length - 1 - i));
+    return d;
+  };
   // Build text as single strings — interleaved text/expression nodes inside an
   // SVG <title> can hydrate-mismatch, so we render one text node per element.
   const titleText = `نمودار قیمت در ${rangeLabel}؛ از ${formatToman(first)} به ${formatToman(last)}`;
@@ -97,6 +105,32 @@ export function PriceChart({ series, unit = 'تومان' }: { series: number[]; 
         <span>کمینه / بیشینه</span>
         <span>{formatToman(max, false)}</span>
       </div>
+
+      {/* Text/table alternative to the SVG (WCAG 1.1.1) — the trend summary in
+          the SVG <title> above covers the gist, but a low-vision or screen-reader
+          user still needs the actual series data, not just a min/max pair. */}
+      <details className={styles.dataTableToggle}>
+        <summary>جدول داده‌های نمودار</summary>
+        <div className={styles.tableScroll}>
+          <table>
+            <caption className="visually-hidden">داده‌های نمودار قیمت</caption>
+            <thead>
+              <tr>
+                <th scope="col">تاریخ</th>
+                <th scope="col">قیمت</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.map((v, i) => (
+                <tr key={i}>
+                  <td>{formatJalali(dateFor(i))}</td>
+                  <td>{formatToman(v)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </details>
     </div>
   );
 }

@@ -92,6 +92,7 @@ export function WarehouseForm() {
           id="wh-product"
           className={fieldStyles.select}
           aria-invalid={formState.errors.product ? true : undefined}
+          aria-describedby={formState.errors.product ? 'wh-product-error' : undefined}
           {...register('product', { required: 'انتخاب نوع محصول الزامی است.' })}
         >
           <option value="" disabled>
@@ -129,6 +130,7 @@ export function WarehouseForm() {
           id="wh-duration"
           className={fieldStyles.select}
           aria-invalid={formState.errors.duration ? true : undefined}
+          aria-describedby={formState.errors.duration ? 'wh-duration-error' : undefined}
           {...register('duration', { required: 'مدت نگهداری را انتخاب کنید.' })}
         >
           <option value="" disabled>

@@ -32,7 +32,7 @@ export function CategoryGrid({ categories }: { categories: Category[] }) {
               className={styles.card}
               data-event="rail_category_click"
             >
-              <span className={styles.media}>
+              <span className={styles.media} aria-hidden>
                 {productImage(cat.slug) ? (
                   <ProductImage slug={cat.slug} name={cat.name} />
                 ) : (

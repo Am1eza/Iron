@@ -177,8 +177,9 @@ export function CostCalculator() {
         </Stack>
       </Card>
 
-      {/* Summary */}
-      <Card className={styles.summary}>
+      {/* Summary — announced politely so keyboard/AT users hear the computed
+          total without having to re-read the whole panel (accessibility.md §4.3). */}
+      <Card className={styles.summary} role="status" aria-live="polite" aria-atomic="true">
         {product && canCompute ? (
           <Stack gap={5}>
             <div>

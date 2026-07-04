@@ -78,14 +78,15 @@ export function WarehouseManager() {
         <EmptyState size="section" headline="انبار خالی است" body="کالای امانی مشتریان اینجا ثبت می‌شود." />
       ) : (
         <table className={ui.table}>
+          <caption className="visually-hidden">فهرست کالاهای امانی انبار مشتریان</caption>
           <thead>
             <tr>
-              <th>کد</th>
-              <th>محصول</th>
-              <th>مقدار (تن)</th>
-              <th>هزینهٔ ماهانه</th>
-              <th>تاریخ ثبت</th>
-              <th>وضعیت</th>
+              <th scope="col">کد</th>
+              <th scope="col">محصول</th>
+              <th scope="col">مقدار (تن)</th>
+              <th scope="col">هزینهٔ ماهانه</th>
+              <th scope="col">تاریخ ثبت</th>
+              <th scope="col">وضعیت</th>
             </tr>
           </thead>
           <tbody>
@@ -122,7 +123,7 @@ export function WarehouseManager() {
       )}
 
       <Card>
-        <Heading level={3}>ثبت کالای جدید</Heading>
+        <Heading level={2}>ثبت کالای جدید</Heading>
         <div className={ui.grid2} style={{ marginBlockStart: 'var(--space-3)' }}>
           <TextInput
             label="موبایل مشتری"

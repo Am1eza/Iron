@@ -3,14 +3,17 @@
 /** Inline form status banner — success (status) / error (alert). Persian, tokenized. */
 export function FormStatus({
   variant,
+  id,
   children,
 }: {
   variant: 'success' | 'error';
+  id?: string;
   children: React.ReactNode;
 }) {
   const isError = variant === 'error';
   return (
     <p
+      id={id}
       role={isError ? 'alert' : 'status'}
       style={{
         font: 'var(--t-body-sm)',

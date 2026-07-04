@@ -78,3 +78,34 @@
   font: var(--t-caption);
   color: var(--color-text-muted);
 }
+
+/* Data-table fallback (WCAG 1.1.1 / §9) — visually minimal, just needs to be
+   reachable/readable, not to match the chart's look. */
+.dataTableToggle {
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}
+.dataTableToggle summary {
+  cursor: pointer;
+  color: var(--color-accent-text);
+  font: var(--t-label);
+  padding: var(--space-2) 0;
+}
+.dataTableToggle .tableScroll {
+  max-block-size: 320px;
+  overflow-y: auto;
+  margin-block-start: var(--space-2);
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-sm);
+}
+.dataTableToggle table {
+  inline-size: 100%;
+  border-collapse: collapse;
+}
+.dataTableToggle th,
+.dataTableToggle td {
+  padding: var(--space-2) var(--space-3);
+  border-block-end: var(--border-hairline) solid var(--color-hairline);
+  text-align: start;
+  font-variant-numeric: tabular-nums;
+}

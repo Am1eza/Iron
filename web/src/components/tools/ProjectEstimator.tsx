@@ -107,8 +107,9 @@ export function ProjectEstimator() {
           </Stack>
         </Card>
 
-        {/* Results */}
-        <Card className={styles.result}>
+        {/* Results — announced politely (accessibility.md §4.3) so the estimate
+            is heard without re-reading the whole panel on every keystroke. */}
+        <Card className={styles.result} role="status" aria-live="polite" aria-atomic="true">
           {result ? (
             <Stack gap={5}>
               <Grid min="150px" gap={4}>

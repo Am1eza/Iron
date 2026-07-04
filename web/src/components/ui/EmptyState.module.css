@@ -9,12 +9,13 @@
   animation: empty-in var(--dur-base) var(--ease-entrance);
 }
 @keyframes empty-in {
+  /* Transform-only (no opacity fade): an opacity dip during entrance can put
+     text mid-transition at the moment a11y tooling (or a user's eye) samples
+     it, momentarily failing the 4.5:1 contrast ratio the settled state meets. */
   from {
-    opacity: 0;
     transform: translateY(8px);
   }
   to {
-    opacity: 1;
     transform: translateY(0);
   }
 }

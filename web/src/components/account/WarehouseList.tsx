@@ -19,9 +19,18 @@ const STATUS_TONE: Record<WarehouseStatus, 'neutral' | 'info' | 'action' | 'gain
 
 export function WarehouseList({ items }: { items: WarehouseItem[] }) {
   return (
-    <Stack gap={4}>
+    <ul
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 'var(--space-4)',
+        listStyle: 'none',
+        margin: 0,
+        padding: 0,
+      }}
+    >
       {items.map((it) => (
-        <div
+        <li
           key={it.id}
           style={{
             border: 'var(--border-hairline) solid var(--color-hairline)',
@@ -62,8 +71,8 @@ export function WarehouseList({ items }: { items: WarehouseItem[] }) {
               </Stack>
             </Cluster>
           </Stack>
-        </div>
+        </li>
       ))}
-    </Stack>
+    </ul>
   );
 }

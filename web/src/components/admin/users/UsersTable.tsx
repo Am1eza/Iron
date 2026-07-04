@@ -76,13 +76,14 @@ export function UsersTable() {
           <EmptyState size="section" headline="کاربری نیست" body="با این فیلتر کاربری پیدا نشد." />
         ) : (
           <table className={ui.table}>
+            <caption className="visually-hidden">فهرست کاربران</caption>
             <thead>
               <tr>
-                <th>موبایل</th>
-                <th>نام</th>
-                <th>نقش</th>
-                <th>وضعیت</th>
-                <th>عضویت</th>
+                <th scope="col">موبایل</th>
+                <th scope="col">نام</th>
+                <th scope="col">نقش</th>
+                <th scope="col">وضعیت</th>
+                <th scope="col">عضویت</th>
               </tr>
             </thead>
             <tbody>
@@ -96,7 +97,16 @@ export function UsersTable() {
                     <select
                       className={ui.select}
                       value={u.role}
-                      onChange={(e) => update.mutate({ id: u.id, patch: { role: e.target.value } })}
+                      onChange={(e) => {
+                        const nextRole = e.target.value;
+                        if (
+                          nextRole === 'admin' &&
+                          !window.confirm(`نقش ${u.mobile} به «${ROLE_LABEL.admin}» تغییر می‌کند و دسترسی کامل می‌گیرد. ادامه؟`)
+                        ) {
+                          return;
+                        }
+                        update.mutate({ id: u.id, patch: { role: nextRole } });
+                      }}
                       aria-label={`نقش ${u.mobile}`}
                     >
                       {ROLES.map((r) => (
@@ -110,7 +120,13 @@ export function UsersTable() {
                     <select
                       className={ui.select}
                       value={u.isActive === false ? 'off' : 'on'}
-                      onChange={(e) => update.mutate({ id: u.id, patch: { isActive: e.target.value === 'on' } })}
+                      onChange={(e) => {
+                        const nextActive = e.target.value === 'on';
+                        if (!nextActive && !window.confirm(`کاربر ${u.mobile} غیرفعال می‌شود و امکان ورود نخواهد داشت. ادامه؟`)) {
+                          return;
+                        }
+                        update.mutate({ id: u.id, patch: { isActive: nextActive } });
+                      }}
                       aria-label={`وضعیت ${u.mobile}`}
                     >
                       <option value="on">فعال</option>
@@ -148,7 +164,7 @@ function ClubSection() {
 
   return (
     <div>
-      <Heading level={3}>باشگاه مشتریان</Heading>
+      <Heading level={2}>باشگاه مشتریان</Heading>
       {isLoading ? (
         <TableSkeleton rows={3} cols={4} />
       ) : isError ? (
@@ -162,12 +178,13 @@ function ClubSection() {
         <p className={ui.muted}>هنوز عضوی ندارد.</p>
       ) : (
         <table className={ui.table}>
+          <caption className="visually-hidden">فهرست اعضای باشگاه مشتریان</caption>
           <thead>
             <tr>
-              <th>موبایل</th>
-              <th>نام</th>
-              <th>سطح</th>
-              <th>عضویت</th>
+              <th scope="col">موبایل</th>
+              <th scope="col">نام</th>
+              <th scope="col">سطح</th>
+              <th scope="col">عضویت</th>
             </tr>
           </thead>
           <tbody>

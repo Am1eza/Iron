@@ -11,12 +11,19 @@ export function Card({
   interactive = false,
   padded = true,
   as: Tag = 'div',
+  role,
+  'aria-live': ariaLive,
+  'aria-atomic': ariaAtomic,
 }: {
   children: ReactNode;
   className?: string;
   interactive?: boolean;
   padded?: boolean;
   as?: ElementType;
+  /** e.g. `role="status"` to make a result panel an announced live region. */
+  role?: string;
+  'aria-live'?: 'polite' | 'assertive' | 'off';
+  'aria-atomic'?: boolean | 'true' | 'false';
 }) {
   return (
     <Tag
@@ -28,6 +35,9 @@ export function Card({
       ]
         .filter(Boolean)
         .join(' ')}
+      role={role}
+      aria-live={ariaLive}
+      aria-atomic={ariaAtomic}
     >
       {children}
     </Tag>

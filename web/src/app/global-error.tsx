@@ -4,13 +4,21 @@
  * Must render its own <html>/<body>; tokens/CSS may be unavailable here,
  * so styles are self-contained with literal brand colors.
  */
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { reportError } from '@/lib/errors/report';
 
 export default function GlobalError({ error, reset }: { error: Error; reset: () => void }) {
+  const headingRef = useRef<HTMLHeadingElement | null>(null);
+
   useEffect(() => {
     reportError(error, { source: 'global-error' });
   }, [error]);
+
+  // Move focus to the heading so AT users are told about the failure
+  // immediately, same as role="alert" announces it (accessibility.md §4.3).
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, []);
 
   return (
     <html lang="fa" dir="rtl">
@@ -27,8 +35,14 @@ export default function GlobalError({ error, reset }: { error: Error; reset: () 
           textAlign: 'center',
         }}
       >
-        <div style={{ maxWidth: 420 }}>
-          <h1 style={{ color: '#171C22', fontSize: 28, margin: 0 }}>مشکلی پیش اومد</h1>
+        <div role="alert" style={{ maxWidth: 420 }}>
+          <h1
+            ref={headingRef}
+            tabIndex={-1}
+            style={{ color: '#171C22', fontSize: 28, margin: 0 }}
+          >
+            مشکلی پیش اومد
+          </h1>
           <p style={{ color: '#64707E', marginTop: 12 }}>
             از طرف ما بود. چند لحظه دیگر دوباره امتحان کنید.
           </p>

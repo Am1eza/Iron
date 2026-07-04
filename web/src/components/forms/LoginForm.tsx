@@ -1,6 +1,6 @@
 'use client';
 import { routes } from '@/lib/routes';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -10,7 +10,7 @@ import { useAuthStore } from '@/lib/stores/auth';
 import { canAccessAdmin } from '@/lib/auth/roles';
 import { normalizeDigits, toPersianDigits } from '@/lib/utils/format';
 import { TextInput } from './fields';
-import { OtpInput } from './OtpInput';
+import { OtpInput, type OtpInputHandle } from './OtpInput';
 import { FormStatus } from './FormStatus';
 import { Button } from '@/components/primitives/Button';
 
@@ -28,6 +28,7 @@ export function LoginForm() {
   const [resendIn, setResendIn] = useState(0);
   const [devCode, setDevCode] = useState<string | null>(null);
   const [regName, setRegName] = useState<string | undefined>(undefined);
+  const otpRef = useRef<OtpInputHandle>(null);
 
   const { register, handleSubmit, formState } = useForm<LoginMobileValues>({
     resolver: zodResolver(loginMobileSchema),
@@ -38,6 +39,12 @@ export function LoginForm() {
     const t = setTimeout(() => setResendIn((s) => s - 1), 1000);
     return () => clearTimeout(t);
   }, [resendIn]);
+
+  // Move focus to the first OTP box whenever the step changes to 'code' so
+  // screen reader users land on the field they need to fill next.
+  useEffect(() => {
+    if (step === 'code') otpRef.current?.focus();
+  }, [step]);
 
   const sendOtp = async (m: string, name?: string) => {
     setError(null);
@@ -59,6 +66,7 @@ export function LoginForm() {
     setError(null);
     if (normalizeDigits(code).length !== 5) {
       setOtpError(true);
+      otpRef.current?.focus();
       return;
     }
     setVerifying(true);
@@ -73,6 +81,7 @@ export function LoginForm() {
     } catch (e) {
       setOtpError(true);
       setError(e instanceof Error ? e.message : 'کد اشتباه است.');
+      otpRef.current?.focus();
     } finally {
       setVerifying(false);
     }
@@ -80,7 +89,11 @@ export function LoginForm() {
 
   return (
     <div className="stack" style={{ maxInlineSize: 360 }}>
-      {error ? <FormStatus variant="error">{error}</FormStatus> : null}
+      {error ? (
+        <FormStatus variant="error" id={step === 'code' ? 'otp-error' : undefined}>
+          {error}
+        </FormStatus>
+      ) : null}
 
       {step === 'mobile' ? (
         <form onSubmit={handleSubmit((v) => sendOtp(v.mobile, v.name))} noValidate>
@@ -88,6 +101,7 @@ export function LoginForm() {
             label="شمارهٔ موبایل"
             type="tel"
             inputMode="numeric"
+            required
             placeholder="۰۹۱۲۳۴۵۶۷۸۹"
             autoComplete="tel"
             helper="کد تأیید برای همین شماره پیامک می‌شود."
@@ -108,7 +122,10 @@ export function LoginForm() {
         </form>
       ) : (
         <div className="stack">
-          <p style={{ font: 'var(--t-body-sm)', color: 'var(--color-text-muted)' }}>
+          <p
+            role="status"
+            style={{ font: 'var(--t-body-sm)', color: 'var(--color-text-muted)' }}
+          >
             کد ۵ رقمی برای {toPersianDigits(mobile)} پیامک شد.
           </p>
           {devCode ? (
@@ -119,7 +136,7 @@ export function LoginForm() {
               کد آزمایشی (محیط توسعه): {toPersianDigits(devCode)}
             </p>
           ) : null}
-          <OtpInput value={code} onChange={setCode} error={otpError} />
+          <OtpInput ref={otpRef} value={code} onChange={setCode} error={otpError} />
           <Button onClick={verify} fullWidth loading={verifying}>
             تأیید و ورود
           </Button>

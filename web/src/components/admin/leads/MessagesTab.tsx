@@ -34,12 +34,13 @@ export function MessagesTab() {
         <EmptyState size="section" headline="پیامی نیست" body="پیام‌های فرم تماس اینجا می‌آید." />
       ) : (
         <table className={ui.table}>
+          <caption className="visually-hidden">فهرست پیام‌های فرم تماس</caption>
           <thead>
             <tr>
-              <th>فرستنده</th>
-              <th>پیام</th>
-              <th>تاریخ</th>
-              <th>وضعیت</th>
+              <th scope="col">فرستنده</th>
+              <th scope="col">پیام</th>
+              <th scope="col">تاریخ</th>
+              <th scope="col">وضعیت</th>
             </tr>
           </thead>
           <tbody>
