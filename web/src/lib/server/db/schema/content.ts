@@ -30,8 +30,10 @@ export const articles = pgTable(
     coverUrl: text('cover_url'),
     status: text('status', { enum: ARTICLE_STATUSES }).notNull().default('draft'),
     source: text('source', { enum: ARTICLE_SOURCES }).notNull().default('human'),
-    authorId: text('author_id').references(() => users.id),
-    approvedBy: text('approved_by').references(() => users.id),
+    // Articles are content, not user-owned — preserve them, just drop the
+    // reference to a since-deleted author/approver account.
+    authorId: text('author_id').references(() => users.id, { onDelete: 'set null' }),
+    approvedBy: text('approved_by').references(() => users.id, { onDelete: 'set null' }),
     publishAt: timestamp('publish_at', { withTimezone: true }),
     relatedSkuIds: jsonb('related_sku_ids').$type<string[]>(),
     relatedCategoryIds: jsonb('related_category_ids').$type<string[]>(),

@@ -21,12 +21,13 @@ export const favorites = pgTable(
   'favorites',
   {
     id: text('id').primaryKey(),
+    // Pure preference, no historical value beyond the user/sku it points at.
     userId: text('user_id')
       .notNull()
-      .references(() => users.id),
+      .references(() => users.id, { onDelete: 'cascade' }),
     skuId: text('sku_id')
       .notNull()
-      .references(() => skus.id),
+      .references(() => skus.id, { onDelete: 'cascade' }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex('favorites_user_sku_uq').on(t.userId, t.skuId)],
@@ -36,11 +37,14 @@ export const alerts = pgTable(
   'alerts',
   {
     id: text('id').primaryKey(),
+    // An alert with no owner or no target is operationally dead weight (the
+    // evaluation job has nothing to notify or compare) — cascade removes it
+    // rather than leaving a permanently-orphaned row for either FK.
     userId: text('user_id')
       .notNull()
-      .references(() => users.id),
+      .references(() => users.id, { onDelete: 'cascade' }),
     targetType: text('target_type', { enum: ['sku', 'market'] }).notNull(),
-    skuId: text('sku_id').references(() => skus.id),
+    skuId: text('sku_id').references(() => skus.id, { onDelete: 'cascade' }),
     marketKey: text('market_key', { enum: MARKET_KEYS }),
     op: text('op', { enum: ALERT_OPS }).notNull(),
     threshold: bigint('threshold', { mode: 'number' }).notNull(), // Toman
@@ -54,10 +58,11 @@ export const alerts = pgTable(
 
 export const clubMemberships = pgTable('club_memberships', {
   id: text('id').primaryKey(),
+  // 1:1 with the user, meaningless without them.
   userId: text('user_id')
     .notNull()
     .unique()
-    .references(() => users.id),
+    .references(() => users.id, { onDelete: 'cascade' }),
   tier: text('tier', { enum: CLUB_TIERS }).notNull().default('iron'),
   joinedAt: timestamp('joined_at', { withTimezone: true }).notNull().defaultNow(),
 });

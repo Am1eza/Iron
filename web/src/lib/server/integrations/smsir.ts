@@ -16,6 +16,13 @@ import { ulid } from 'ulid';
 import { reportError } from '@/lib/errors/report';
 import { getDb, hasDb } from '@/lib/server/db/client';
 import { smsLog } from '@/lib/server/db/schema';
+import { withResilience } from '@/lib/server/utils/resilience';
+
+class SmsHttpError extends Error {
+  constructor(public status: number) {
+    super(`sms.ir ${status}`);
+  }
+}
 
 export type SmsKind = 'otp' | 'proforma' | 'alert' | 'generic';
 
@@ -49,22 +56,29 @@ export async function sendSms(mobile: string, text: string, kind: SmsKind = 'gen
     // inconsistent-looking but confirmed-real mix, not a typo. See sms.ts's
     // sendOtpSms for why this stays on `fetch` instead of that SDK directly
     // (axios, which it depends on, does not work on Cloudflare Workers).
-    const res = await fetch('https://api.sms.ir/v1/send/bulk', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'x-api-key': apiKey },
-      body: JSON.stringify({
-        lineNumber: Number(lineNumber),
-        MessageText: text,
-        Mobiles: [mobile],
-        SendDateTime: null,
-      }),
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-    });
-    if (!res.ok) {
-      reportError(new Error(`sms.ir ${res.status}`), { scope: 'sms', kind });
-      await log(mobile, kind, { text }, 'failed');
-      return { ok: false };
-    }
+    // Unlike tgju (background-only poll), sendSms is awaited synchronously
+    // on user-facing request paths (proforma issuance, alert crossings) —
+    // so the retry budget here is deliberately smaller (1 retry, 200ms base)
+    // to bound the added latency, vs tgju's 2 retries/300ms in a background job.
+    const res = await withResilience(
+      'smsir',
+      async () => {
+        const r = await fetch('https://api.sms.ir/v1/send/bulk', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'x-api-key': apiKey },
+          body: JSON.stringify({
+            lineNumber: Number(lineNumber),
+            MessageText: text,
+            Mobiles: [mobile],
+            SendDateTime: null,
+          }),
+          signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+        });
+        if (!r.ok) throw new SmsHttpError(r.status);
+        return r;
+      },
+      { retries: 1, baseDelayMs: 200, isRetryable: (err) => err instanceof SmsHttpError && err.status >= 500 },
+    );
     // sms.ir returns { status, message, data } — status 1 means accepted.
     const body = (await res.json().catch(() => null)) as { status?: number } | null;
     const ok = !body || typeof body.status !== 'number' || body.status === 1;

@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
-import { findLead, leadItemsOf, leadNotesOf, proformasOfLead, updateLead } from '@/lib/server/repos/leadsRepo';
+import { findLead, leadItemsOf, leadNotesOf, proformasOfLead, softDeleteLead, updateLead } from '@/lib/server/repos/leadsRepo';
 import { recomputeTier } from '@/lib/server/repos/clubRepo';
 
 /** GET /api/admin/leads/{id} — full lead: items, notes, proformas. */
@@ -51,5 +51,22 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }
   return NextResponse.json({ lead });
 }
 
+/** DELETE /api/admin/leads/{id} — archive (soft-delete) a spam/duplicate/test
+ *  lead. Preserves the row (and its audit trail) for compliance — see the
+ *  `deletedAt` column comment in the schema; it just drops out of the normal
+ *  admin working set. */
+async function DELETEImpl(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const guard = requireDb();
+  if (guard) return guard;
+  const auth = await requireApiPermission(req, 'leads:write');
+  if ('response' in auth) return auth.response;
+  const { id } = await ctx.params;
+  const lead = await softDeleteLead(id);
+  if (!lead) return NextResponse.json({ error: 'not_found', message: 'سرنخ یافت نشد.' }, { status: 404 });
+  await audit(auth.session.id, 'lead.delete', { type: 'lead', id }, null, null);
+  return NextResponse.json({ ok: true });
+}
+
 export const GET = withApiErrorHandling(GETImpl);
 export const PATCH = withApiErrorHandling(PATCHImpl);
+export const DELETE = withApiErrorHandling(DELETEImpl);

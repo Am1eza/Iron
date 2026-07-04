@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { loginMobileSchema, type LoginMobileValues } from '@/lib/validation/schemas';
 import { formsApi } from '@/lib/api/forms';
 import { useAuthStore } from '@/lib/stores/auth';
+import { canAccessAdmin } from '@/lib/auth/roles';
 import { normalizeDigits, toPersianDigits } from '@/lib/utils/format';
 import { TextInput } from './fields';
 import { OtpInput } from './OtpInput';
@@ -64,7 +65,10 @@ export function LoginForm() {
     try {
       const { user } = await formsApi.verifyOtp(mobile, code);
       setUser(user);
-      router.push(next ?? routes.account());
+      // Staff roles land in the admin panel, not the customer account page —
+      // unless a specific `next` was already requested (e.g. a staff member
+      // deep-linked to a particular /admin/* page before being sent to login).
+      router.push(next ?? (canAccessAdmin(user.role) ? routes.admin.dashboard() : routes.account()));
       router.refresh(); // let server components re-read the new session cookie
     } catch (e) {
       setOtpError(true);

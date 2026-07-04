@@ -1,9 +1,9 @@
 'use client';
 /** Read-only audit trail — every admin/system write, with before/after diffs. */
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api/resources/admin';
-import { formatJalali, toPersianDigits } from '@/lib/utils/format';
+import { formatJalali } from '@/lib/utils/format';
 import { Badge, Button, Chip, EmptyState, TableSkeleton } from '@/components/ui';
 import ui from '../adminUi.module.css';
 
@@ -19,21 +19,27 @@ const ENTITY_FILTERS = [
 
 export function AuditLog() {
   const [entityType, setEntityType] = useState('');
-  const [page, setPage] = useState(1);
 
-  const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['admin', 'audit', entityType, page],
-    queryFn: () => adminApi.audit({ entityType: entityType || undefined, page }),
+  // Keyset ("load more") instead of page numbers — the API is now
+  // cursor-paginated (see auditRepo.listAudit): an ever-growing append-only
+  // log has no cheap "page N of M" (that needs a total count(*), a full
+  // table scan on every request), so there's no random page access anymore,
+  // only "older" via nextCursor.
+  const { data, isLoading, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
+    queryKey: ['admin', 'audit', entityType],
+    queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
+      adminApi.audit({ entityType: entityType || undefined, cursor: pageParam }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
 
-  const entries = data?.entries ?? [];
-  const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / 50));
+  const entries = data?.pages.flatMap((p) => p.entries) ?? [];
 
   return (
     <div>
       <div className={ui.toolbar}>
         {ENTITY_FILTERS.map((f) => (
-          <Chip key={f.id} selected={entityType === f.id} onClick={() => { setEntityType(f.id); setPage(1); }}>
+          <Chip key={f.id} selected={entityType === f.id} onClick={() => setEntityType(f.id)}>
             {f.label}
           </Chip>
         ))}
@@ -90,17 +96,13 @@ export function AuditLog() {
         </table>
       )}
 
-      <div className={ui.toolbar} style={{ marginBlockStart: 'var(--space-3)' }}>
-        <Button size="sm" variant="ghost" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-          صفحهٔ قبل
-        </Button>
-        <span className={`${ui.muted} tnum`}>
-          صفحهٔ {toPersianDigits(page)} از {toPersianDigits(totalPages)}
-        </span>
-        <Button size="sm" variant="ghost" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
-          صفحهٔ بعد
-        </Button>
-      </div>
+      {hasNextPage && (
+        <div className={ui.toolbar} style={{ marginBlockStart: 'var(--space-3)' }}>
+          <Button size="sm" variant="ghost" disabled={isFetchingNextPage} onClick={() => void fetchNextPage()}>
+            {isFetchingNextPage ? 'در حال بارگذاری…' : 'نمایش موارد قدیمی‌تر'}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

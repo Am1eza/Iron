@@ -184,12 +184,13 @@ export const adminApi = {
     http.patch<{ member: unknown }>(`/api/admin/club/members/${id}`, { tier }),
   settings: () => http.get<{ settings: Array<{ key: string; value: unknown; updatedAt: string }> }>('/api/admin/settings'),
   saveSetting: (key: string, value: unknown) => http.put<{ ok: true }>('/api/admin/settings', { key, value }),
-  audit: (params: { entityType?: string; page?: number } = {}) => {
+  audit: (params: { entityType?: string; cursor?: string } = {}) => {
     const qs = new URLSearchParams();
     if (params.entityType) qs.set('entityType', params.entityType);
-    if (params.page) qs.set('page', String(params.page));
-    return http.get<{ entries: Array<{ id: string; actorId: string | null; action: string; entityType: string; entityId: string; before: unknown; after: unknown; at: string }>; total: number }>(
-      `/api/admin/audit?${qs}`,
-    );
+    if (params.cursor) qs.set('cursor', params.cursor);
+    return http.get<{
+      entries: Array<{ id: string; actorId: string | null; action: string; entityType: string; entityId: string; before: unknown; after: unknown; at: string }>;
+      nextCursor: string | null;
+    }>(`/api/admin/audit?${qs}`);
   },
 };

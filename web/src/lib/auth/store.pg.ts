@@ -62,6 +62,7 @@ export const pgStore: AuthStore = {
     const db = getDb();
     const set: Record<string, unknown> = {};
     if (patch.name !== undefined) set.name = patch.name;
+    if (patch.mobile !== undefined) set.mobile = patch.mobile;
     if (patch.role !== undefined) set.role = patch.role;
     if (patch.isActive !== undefined) set.isActive = patch.isActive;
     if (patch.lastSeenAt !== undefined) set.lastSeenAt = new Date(patch.lastSeenAt);

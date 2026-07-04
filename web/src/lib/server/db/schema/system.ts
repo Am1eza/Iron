@@ -10,7 +10,9 @@ export const auditEntries = pgTable(
   'audit_entries',
   {
     id: text('id').primaryKey(),
-    actorId: text('actor_id').references(() => users.id), // null = system job
+    // The audit trail must survive even a deleted actor's account — set
+    // null (keep the entry), never cascade (never lose the record).
+    actorId: text('actor_id').references(() => users.id, { onDelete: 'set null' }), // null = system job
     action: text('action').notNull(), // "price.update" | "lead.status" | ...
     entityType: text('entity_type').notNull(),
     entityId: text('entity_id').notNull(),
@@ -21,6 +23,13 @@ export const auditEntries = pgTable(
   (t) => [
     index('audit_entries_entity_idx').on(t.entityType, t.entityId),
     index('audit_entries_actor_at_idx').on(t.actorId, t.at),
+    // Backs the keyset-pagination `WHERE (at, id) < (cursorAt, cursorId)
+    // ORDER BY at DESC, id DESC` in auditRepo.listAudit — also covers the
+    // unfiltered "list everything, newest first" admin default, which
+    // neither index above serves (both are prefixed by a specific
+    // entity/actor). An append-only, ever-growing table with no index on
+    // its own ordering column was doing a full scan + sort on every load.
+    index('audit_entries_at_id_idx').on(t.at, t.id),
   ],
 );
 
@@ -41,7 +50,7 @@ export const aiConversations = pgTable(
   'ai_conversations',
   {
     id: text('id').primaryKey(),
-    userId: text('user_id').references(() => users.id),
+    userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
     summary: text('summary'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -55,9 +64,10 @@ export const aiMessages = pgTable(
   'ai_messages',
   {
     id: text('id').primaryKey(),
+    // Structural child of the conversation — goes with it.
     conversationId: text('conversation_id')
       .notNull()
-      .references(() => aiConversations.id),
+      .references(() => aiConversations.id, { onDelete: 'cascade' }),
     role: text('role', { enum: ['user', 'assistant'] }).notNull(),
     content: text('content').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

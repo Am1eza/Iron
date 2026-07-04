@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
-import { updateWarehouseItem, InvalidStatusTransitionError } from '@/lib/server/repos/ordersRepo';
+import { updateWarehouseItem, softDeleteWarehouseItem, InvalidStatusTransitionError } from '@/lib/server/repos/ordersRepo';
 import { finiteNumber } from '@/lib/validation/utils';
 
 const payload = z.object({
@@ -34,4 +34,19 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }
   return NextResponse.json({ item });
 }
 
+/** DELETE /api/admin/warehouse/{id} — remove a mistakenly-created or
+ *  duplicate entry from the working set without losing the record. */
+async function DELETEImpl(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const guard = requireDb();
+  if (guard) return guard;
+  const auth = await requireApiPermission(req, 'leads:write');
+  if ('response' in auth) return auth.response;
+  const { id } = await ctx.params;
+  const item = await softDeleteWarehouseItem(id);
+  if (!item) return NextResponse.json({ error: 'not_found', message: 'کالا یافت نشد.' }, { status: 404 });
+  await audit(auth.session.id, 'warehouse.delete', { type: 'warehouseItem', id }, null, null);
+  return NextResponse.json({ ok: true });
+}
+
 export const PATCH = withApiErrorHandling(PATCHImpl);
+export const DELETE = withApiErrorHandling(DELETEImpl);
