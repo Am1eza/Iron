@@ -1,13 +1,64 @@
 /**
- * Lightweight per-IP rate limiter for public POST endpoints (leads, contact,
- * cooperation, track lookups). In-process sliding window — sufficient for the
- * single-container deployment; swap for a shared store if web scales out
- * (OTP limits are already DB-backed separately).
+ * Per-IP rate limiter for public endpoints (leads, contact, cooperation,
+ * OTP, AI chat, search, track lookups). Two layers, combined:
+ *
+ * 1. Cloudflare's native Rate Limiting binding (`env.RL_<SCOPE>`, configured
+ *    in wrangler.jsonc's `ratelimits`) — cross-isolate counters shared by
+ *    `namespace_id`, so this is the AUTHORITATIVE check on the Workers
+ *    deploy. Only supports fixed 10s/60s windows (Cloudflare's limit), so
+ *    it only covers the scopes whose window is <= 60s.
+ * 2. An in-process sliding window (the original implementation) — correct
+ *    and sufficient on its own for the single-container Docker/Node deploy,
+ *    and used as a best-effort supplement on Workers for the few >60s
+ *    windows (ai-chat, otp-verify, otp-request) that the binding can't
+ *    express directly. Those three routes also have their own DB-backed
+ *    controls beneath this (OTP attempt-lock/resend-cooldown in
+ *    lib/auth/service.ts; ai-chat's one-lead-per-conversation cap) — this
+ *    layer is defense in depth for them, not the sole guard.
+ *
+ * Why both layers instead of just the binding: the binding is intentionally
+ * "eventually consistent, not an accurate accounting system" per Cloudflare's
+ * own docs, and isn't available at all outside Workers — see
+ * https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/
  */
 import { NextResponse, type NextRequest } from 'next/server';
+import { getCloudflareContext } from '@opennextjs/cloudflare';
 
 const windows = new Map<string, number[]>();
 let lastSweep = Date.now();
+
+/** Maps a `rateLimit()` scope to its wrangler.jsonc binding name, for the
+ *  scopes whose window fits Cloudflare's binding (<=60s). Scopes not listed
+ *  here (ai-chat, otp-verify, otp-request — all >60s windows) rely solely
+ *  on the in-process layer below. */
+const BINDING_BY_SCOPE: Record<string, string> = {
+  track: 'RL_TRACK',
+  contact: 'RL_CONTACT',
+  leads: 'RL_LEADS',
+  tools: 'RL_TOOLS',
+  proforma: 'RL_PROFORMA',
+  cooperation: 'RL_COOPERATION',
+  search: 'RL_SEARCH',
+};
+
+/** `true`/`false` from the binding, or `null` when unavailable (not on
+ *  Workers, or no binding configured for this scope) — `null` means "defer
+ *  to the in-process check only". */
+async function nativeLimited(scope: string, key: string): Promise<boolean | null> {
+  const bindingName = BINDING_BY_SCOPE[scope];
+  if (!bindingName) return null;
+  try {
+    const { env } = getCloudflareContext();
+    const binding = (
+      env as unknown as Record<string, { limit?: (o: { key: string }) => Promise<{ success: boolean }> }>
+    )[bindingName];
+    if (!binding?.limit) return null;
+    const { success } = await binding.limit({ key });
+    return !success;
+  } catch {
+    return null; // not running on Workers (e.g. Node/Docker) — no Cloudflare context
+  }
+}
 
 /**
  * Client IP for rate-limit bucketing. Two supported deployment topologies,
@@ -53,29 +104,38 @@ function clientIp(req: NextRequest): string {
   return req.headers.get('x-real-ip') ?? 'local';
 }
 
+function limitedResponse(windowMs: number): NextResponse {
+  return NextResponse.json(
+    { error: 'rate_limited', message: 'درخواست‌ها بیش از حد است. کمی بعد دوباره تلاش کنید.' },
+    { status: 429, headers: { 'Retry-After': String(Math.ceil(windowMs / 1000)) } },
+  );
+}
+
 /** Returns a 429 response when over the limit, else null. */
-export function rateLimit(
+export async function rateLimit(
   req: NextRequest,
   scope: string,
   { limit = 10, windowMs = 60_000 }: { limit?: number; windowMs?: number } = {},
-): NextResponse | null {
+): Promise<NextResponse | null> {
+  const ip = clientIp(req);
+  const key = `${scope}:${ip}`;
+
+  const native = await nativeLimited(scope, key);
+  if (native === true) return limitedResponse(windowMs);
+
   const now = Date.now();
   // Periodic sweep so the map never grows unbounded.
   if (now - lastSweep > 5 * 60_000) {
     lastSweep = now;
-    for (const [key, hits] of windows) {
+    for (const [k, hits] of windows) {
       const alive = hits.filter((t) => now - t < 10 * 60_000);
-      if (alive.length === 0) windows.delete(key);
-      else windows.set(key, alive);
+      if (alive.length === 0) windows.delete(k);
+      else windows.set(k, alive);
     }
   }
-  const key = `${scope}:${clientIp(req)}`;
   const hits = (windows.get(key) ?? []).filter((t) => now - t < windowMs);
   if (hits.length >= limit) {
-    return NextResponse.json(
-      { error: 'rate_limited', message: 'درخواست‌ها بیش از حد است. کمی بعد دوباره تلاش کنید.' },
-      { status: 429, headers: { 'Retry-After': String(Math.ceil(windowMs / 1000)) } },
-    );
+    return limitedResponse(windowMs);
   }
   hits.push(now);
   windows.set(key, hits);

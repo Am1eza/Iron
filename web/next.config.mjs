@@ -47,22 +47,21 @@ const nextConfig = {
               // security headers to origin/Worker responses either — both
               // must come from the app itself.
               //
-              // Content-Security-Policy is deliberately NOT set here yet: the
-              // app has legitimate inline <script> tags (ThemeScript's FOUC
-              // guard, per-page JSON-LD with per-request dynamic content), so
-              // a correct CSP needs per-request nonces wired through
-              // middleware — a larger, separately-tested change, not a
-              // same-breath addition to this static header list.
+              // This is also the ONLY place these headers are set — a
+              // previous version duplicated a subset in middleware.ts, which
+              // silently drifted (X-Frame-Options: DENY here vs SAMEORIGIN
+              // there). One source of truth now; middleware only does
+              // auth-gating.
               source: '/:path*',
               headers: [
                 // Stops a response served without an explicit Content-Type
                 // (or a wrong one) from being sniffed/executed as something
                 // else (e.g. an uploaded/user-influenced response as HTML/JS).
                 { key: 'X-Content-Type-Options', value: 'nosniff' },
-                // No legacy browser needs X-Frame-Options given the CSP gap
-                // above isn't providing frame-ancestors yet — DENY covers
-                // clickjacking on this single-tenant app (nothing here is
-                // meant to be iframed, including by ahantime.com itself).
+                // Legacy fallback for browsers that don't honor the CSP
+                // `frame-ancestors 'none'` below — DENY covers clickjacking
+                // on this single-tenant app (nothing here is meant to be
+                // iframed, including by ahantime.com itself).
                 { key: 'X-Frame-Options', value: 'DENY' },
                 // Full URL leaks to third-party destinations (analytics
                 // scripts, outbound links) only on same-origin navigations;
@@ -88,6 +87,44 @@ const nextConfig = {
                 {
                   key: 'Strict-Transport-Security',
                   value: 'max-age=31536000; includeSubDomains',
+                },
+                // Content-Security-Policy — deliberately nonce-free so pages
+                // keep static rendering/ISR (a nonce-based CSP forces every
+                // route to render dynamically per request — see
+                // https://nextjs.org/docs/app/guides/content-security-policy
+                // — which would undo this app's ISR strategy). That's only
+                // possible because the app has exactly one inline-script
+                // need (ThemeScript's FOUC guard), now served as an external
+                // same-origin file (`/theme-init.js`) instead of inline, so
+                // `script-src 'self'` alone covers it. The per-page JSON-LD
+                // `<script type="application/ld+json">` blocks need no
+                // allowance at all: CSP's script-src only gates elements
+                // whose type is a JavaScript MIME type, and `application/
+                // ld+json` isn't one — browsers treat it as inert data, not
+                // a script to execute or block (confirmed against MDN's
+                // CSP docs and Google's strict-CSP guide; there is no
+                // per-block nonce/hash mechanism for this that wouldn't
+                // itself force dynamic rendering). style-src keeps
+                // 'unsafe-inline' because React's `style={{...}}` prop
+                // compiles to inline `style="…"` attributes throughout the
+                // app (used in ~40 files) — a much lower-severity CSP
+                // relaxation than script-src, since it can't execute
+                // arbitrary JS on its own.
+                {
+                  key: 'Content-Security-Policy',
+                  value: [
+                    "default-src 'self'",
+                    "script-src 'self'",
+                    "style-src 'self' 'unsafe-inline'",
+                    "img-src 'self' data:",
+                    "font-src 'self'",
+                    "connect-src 'self'",
+                    "object-src 'none'",
+                    "base-uri 'self'",
+                    "form-action 'self'",
+                    "frame-ancestors 'none'",
+                    'upgrade-insecure-requests',
+                  ].join('; '),
                 },
               ],
             },

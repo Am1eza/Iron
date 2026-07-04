@@ -19,6 +19,7 @@
  * gates callers and `getDb()` throws a Persian-safe error the handlers turn
  * into a 503.
  */
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { after } from 'next/server';
 import { getCloudflareContext } from '@opennextjs/cloudflare';
 import { Pool } from 'pg';
@@ -31,6 +32,28 @@ const globalForDb = globalThis as unknown as { __ahantimeDb?: { pool: Pool; db: 
 
 /** Per-request Pool cache for Workers — see the module doc comment above. */
 const workersRequestDb = new WeakMap<object, { pool: Pool; db: Db }>();
+
+/**
+ * Explicit override, checked before the Cloudflare-context/Node.js
+ * auto-detection below. Exists for callers that run OUTSIDE both a Next.js
+ * request AND `next/server`'s `after()` (which itself requires an active
+ * Next.js request lifecycle) — currently just the Cloudflare Cron Trigger
+ * path (`jobs/cronRunner.ts`), which is a raw Workers `scheduled()`
+ * invocation with no Next.js request to hang either mechanism off of. See
+ * `runWithScopedDb`.
+ */
+const dbOverride = new AsyncLocalStorage<{ db: Db; pool: Pool | null }>();
+
+/**
+ * Run `fn` with `db`/`pool` as what `getDb()`/`getPool()`/`hasDb()` return,
+ * regardless of runtime. The caller owns `pool`'s lifecycle (open before
+ * calling this, close after it resolves) — this does not try to reuse the
+ * Cloudflare-context-based per-request caching above, which depends on
+ * `next/server`'s `after()` and doesn't apply outside a Next.js request.
+ */
+export function runWithScopedDb<T>(db: Db, pool: Pool | null, fn: () => Promise<T>): Promise<T> {
+  return dbOverride.run({ db, pool }, fn);
+}
 
 /**
  * Resolves the live Postgres connection string. On Cloudflare Workers with a
@@ -63,13 +86,17 @@ function tryGetCloudflareContext(): ReturnType<typeof getCloudflareContext> | nu
 }
 
 export function hasDb(): boolean {
+  if (dbOverride.getStore()) return true;
   if (globalForDb.__ahantimeDb) return true;
   const cf = tryGetCloudflareContext();
-  if (cf) return Boolean(resolveConnectionString(cf.env as Record<string, unknown>));
+  if (cf) return Boolean(resolveConnectionString(cf.env as unknown as Record<string, unknown>));
   return Boolean(process.env.DATABASE_URL);
 }
 
 export function getDb(): Db {
+  const scoped = dbOverride.getStore();
+  if (scoped) return scoped.db;
+
   if (globalForDb.__ahantimeDb) return globalForDb.__ahantimeDb.db;
 
   const cf = tryGetCloudflareContext();
@@ -77,7 +104,7 @@ export function getDb(): Db {
     const ctxKey = cf.ctx as object;
     const cached = workersRequestDb.get(ctxKey);
     if (cached) return cached.db;
-    const url = resolveConnectionString(cf.env as Record<string, unknown>);
+    const url = resolveConnectionString(cf.env as unknown as Record<string, unknown>);
     if (!url) throw new Error('DATABASE_URL is not configured');
     // max: 5 — this Pool lives for one request only; it just needs enough
     // headroom for a handful of concurrent queries within that request; it
@@ -113,6 +140,8 @@ export function getDb(): Db {
  * runs as its own long-lived Node.js process, never on Workers).
  */
 export function getPool(): Pool | null {
+  const scoped = dbOverride.getStore();
+  if (scoped) return scoped.pool;
   return globalForDb.__ahantimeDb?.pool ?? null;
 }
 

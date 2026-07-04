@@ -62,7 +62,7 @@ export async function sendOtpSms(mobile: string, code: string): Promise<SmsResul
       return { ok: false };
     }
     // sms.ir returns { status, message, data } — status 1 means accepted.
-    const body: { status?: number } | null = await res.json().catch(() => null);
+    const body = (await res.json().catch(() => null)) as { status?: number } | null;
     if (body && typeof body.status === 'number' && body.status !== 1) {
       reportError(new Error(`sms.ir status ${body.status}`), { scope: 'sms' });
       return { ok: false };

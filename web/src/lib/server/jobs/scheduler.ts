@@ -27,7 +27,9 @@ export type Job = {
 const timers: ReturnType<typeof setInterval>[] = [];
 let started = false;
 
-async function runExclusive(job: Job): Promise<void> {
+/** Exported for the Cloudflare Cron Trigger entrypoint (cronRunner.ts),
+ *  which has no `setInterval` scheduler of its own to call this from. */
+export async function runExclusive(job: Job): Promise<void> {
   if (!hasDb()) return;
   const pool = getPool();
   if (!pool) {

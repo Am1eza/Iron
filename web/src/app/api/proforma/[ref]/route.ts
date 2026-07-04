@@ -9,7 +9,7 @@ import { rateLimit } from '@/lib/server/utils/rateLimit';
  * entropy (see refs.ts), and this endpoint is throttled as defense in depth.
  */
 async function GETImpl(req: NextRequest, ctx: { params: Promise<{ ref: string }> }) {
-  const limited = rateLimit(req, 'proforma', { limit: 20, windowMs: 60_000 });
+  const limited = await rateLimit(req, 'proforma', { limit: 20, windowMs: 60_000 });
   if (limited) return limited;
   const guard = requireDb();
   if (guard) return guard;

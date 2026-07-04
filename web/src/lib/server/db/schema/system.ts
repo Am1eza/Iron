@@ -93,3 +93,20 @@ export const smsLog = pgTable(
   },
   (t) => [index('sms_log_to_idx').on(t.to)],
 );
+
+/** Idempotency-Key support (Stripe/IETF-style header convention) for
+ *  financially-meaningful writes — پیش‌فاکتور/سفارش issuance — so a client
+ *  retry (network blip, admin double-click, duplicate webhook) can't create
+ *  a second proforma/order/SMS. See lib/server/utils/idempotency.ts. */
+export const idempotencyKeys = pgTable(
+  'idempotency_keys',
+  {
+    key: text('key').primaryKey(), // `${route}:${client-or-fallback key}`
+    route: text('route').notNull(),
+    status: text('status', { enum: ['pending', 'done'] }).notNull().default('pending'),
+    responseStatus: integer('response_status'),
+    responseBody: jsonb('response_body'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('idempotency_keys_created_idx').on(t.createdAt)],
+);
