@@ -1,6 +1,6 @@
 name: Deploy preview to GitHub Pages
 
-# Builds the Poladin web app (in web/) as a static export and publishes it to
+# Builds the Ahantime web app (in web/) as a static export and publishes it to
 # GitHub Pages. Server-only routes (/api, the authed /account area) are excluded
 # from the static build; the app stays full-SSR for `next dev` / `next start`.
 

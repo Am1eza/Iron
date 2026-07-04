@@ -1,9 +1,9 @@
 {
-  "name": "poladin-web",
+  "name": "ahantime-web",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Poladin — smart steel marketplace (website). Layer 4 frontend.",
+  "description": "Ahantime — smart steel marketplace (website). Layer 4 frontend.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

@@ -48,10 +48,10 @@ export function ExportMenu({ rows, title }: { rows: PriceRow[]; title: string })
       <style>
         table{border-collapse:collapse;font-family:Tahoma,'B Nazanin',sans-serif;}
         .brand{font-size:20px;font-weight:800;color:#171C22;}
-        .brand .a{color:#0F8A63;}
+        .brand .a{color:#178261;}
         .meta{color:#64707E;font-size:12px;}
         .foot{color:#97A2B0;font-size:11px;}
-        th{background:#0F8A63;color:#FFFFFF;font-weight:700;border:1px solid #0B6B4F;padding:8px 10px;text-align:right;}
+        th{background:#178261;color:#FFFFFF;font-weight:700;border:1px solid #12644B;padding:8px 10px;text-align:right;}
         td{border:1px solid #E5E9F0;padding:6px 10px;text-align:right;font-size:12px;color:#171C22;mso-number-format:'\\@';}
         tr.even td{background:#F4F7FA;}
       </style></head><body>
@@ -87,7 +87,7 @@ export function ExportMenu({ rows, title }: { rows: PriceRow[]; title: string })
       <style>
         body{font-family:Tahoma,sans-serif;color:#171C22;padding:24px;}
         .bar{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #171C22;padding-bottom:12px;margin-bottom:16px;}
-        .brand{font-size:22px;font-weight:800;} .brand span{color:#0F8A63;}
+        .brand{font-size:22px;font-weight:800;} .brand span{color:#178261;}
         .meta{color:#64707E;font-size:13px;}
         table{width:100%;border-collapse:collapse;font-size:13px;}
         th,td{border:1px solid #E5E9F0;padding:8px 10px;text-align:right;}
@@ -130,7 +130,7 @@ export function ExportMenu({ rows, title }: { rows: PriceRow[]; title: string })
     ctx.fillStyle = '#171C22';
     ctx.font = '800 26px Tahoma';
     ctx.fillText('آهن‌تایم', width - padX, 40);
-    ctx.fillStyle = '#0F8A63';
+    ctx.fillStyle = '#178261';
     ctx.fillRect(width - padX - 150, 56, 150, 3);
     ctx.fillStyle = '#64707E';
     ctx.font = '14px Tahoma';
