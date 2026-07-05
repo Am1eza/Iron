@@ -124,6 +124,14 @@ export async function rateLimit(
   scope: string,
   { limit = 10, windowMs = 60_000 }: { limit?: number; windowMs?: number } = {},
 ): Promise<NextResponse | null> {
+  // e2e drives many logins (across specs, plus toPass retries for
+  // hydration races — see e2e/auth.spec.ts) through this same loopback IP
+  // within minutes, well past otp-request's 8-per-5-min production cap —
+  // unlike the per-mobile/DB-backed OTP controls, that's not something the
+  // suite is meant to exercise. Only playwright.config.ts's webServer sets
+  // this; never set it outside e2e.
+  if (process.env.DISABLE_RATE_LIMIT_FOR_TESTS === 'true') return null;
+
   const ip = clientIp(req);
   const key = `${scope}:${ip}`;
 

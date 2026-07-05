@@ -100,6 +100,80 @@ git pull
 docker compose up -d --build
 ```
 
+## Automatic deploys via GitHub Actions
+
+`.github/workflows/deploy.yml` implements a **build-once-deploy-many**
+pipeline on every push to `main` (also triggerable manually via
+**Actions → Deploy to production server → Run workflow**):
+
+1. **`build`** compiles the Next.js image *once*, in CI (never on the
+   server), and pushes it to GHCR tagged with the commit SHA, plus a
+   provenance attestation (verifiable proof of which workflow run/commit
+   produced it).
+2. **`deploy`** SSHes in, backs up the database, points `docker-compose.yml`
+   at the new tag, pulls it, and swaps the `web` container. It then polls
+   `/api/health` for up to 2 minutes — if the new container never turns
+   healthy, it **automatically rolls back** `.env`'s `WEB_IMAGE` to the
+   previous tag and re-deploys that, then fails the job (so a bad deploy
+   never gets silently left running, and never gets silently left broken
+   either).
+
+This is **not** zero-downtime (see the comment at the top of
+`deploy.yml`) — recreating a single `web` container has a brief gap while
+Caddy's upstream restarts. True zero-downtime needs two upstreams behind
+Caddy (blue/green) or a Swarm/Kubernetes cluster; out of scope for this
+single-VPS target today.
+
+### One-time setup
+
+1. **Generate a dedicated deploy key** (on your own machine, not the server):
+   ```bash
+   ssh-keygen -t ed25519 -C "github-actions-deploy" -f deploy_key -N ""
+   ```
+2. **Authorize the public half on the server:**
+   ```bash
+   ssh root@<server-ip> "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys" < deploy_key.pub
+   ```
+3. **Pin the server's host key** (protects against a MITM silently
+   swapping in a different host the one time this workflow first connects):
+   ```bash
+   ssh-keyscan -t ed25519 <server-ip> | ssh-keygen -lf - | awk '{print $2}'
+   ```
+4. **Add repo secrets** (Settings → Secrets and variables → Actions →
+   New repository secret):
+   - `DEPLOY_HOST` — the server IP/hostname
+   - `DEPLOY_USER` — the SSH user (e.g. `root`)
+   - `DEPLOY_SSH_KEY` — the **private** key contents (`cat deploy_key`)
+   - `DEPLOY_HOST_FINGERPRINT` — the fingerprint from step 3 (optional but
+     recommended)
+   - `DEPLOY_PATH` — optional, defaults to `/opt/ahantime`
+   - `DEPLOY_PORT` — optional, defaults to `22`
+5. Delete `deploy_key`/`deploy_key.pub` from your machine once the secret is
+   saved (the private key only needs to live in GitHub Secrets).
+6. **Set the `production` environment's protection rules** (Settings →
+   Environments → production) if you want a required human approval before
+   every deploy runs — the workflow already targets this environment, so
+   any rule added there applies immediately with no workflow change.
+7. The very first run still needs the server to have cloned the repo once
+   (`git clone https://github.com/Am1eza/Iron.git /opt/ahantime`) with a
+   working `.env` already in place — see **"4. Configure secrets"** near the
+   top of this doc (`cp .env.example .env` + `SESSION_SECRET`/
+   `POSTGRES_PASSWORD`/`SMSIR_*`). After that, this workflow only ever
+   updates `.env`'s `WEB_IMAGE` line; it never touches the rest of it.
+
+### Rolling back manually
+
+Trigger the workflow manually (**Actions → Deploy to production server →
+Run workflow**) with **image_tag** set to a previous commit SHA that was
+built before — the `build` job is skipped and `deploy` re-runs the same
+health-gated swap against that tag.
+
+Never put a plaintext password in a secret or commit it anywhere — key-based
+auth is what lets this workflow log in non-interactively without one. If a
+server password was ever shared in chat, a ticket, or a commit, rotate it
+(`passwd` on the server) since it should be considered compromised the moment
+it leaves your terminal.
+
 ---
 
 ## Notes & troubleshooting
