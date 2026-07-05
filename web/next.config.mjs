@@ -181,7 +181,11 @@ export default withNextIntl(nextConfig);
 // Cloudflare (OpenNext) dev binding support. No-op outside `next dev`, and
 // only loads the adapter when it's installed, so the GitHub Pages static
 // export build (which doesn't need it) is unaffected.
-if (!isExport) {
+// Also skipped for the standalone Docker/VPS build: initOpenNextCloudflareForDev()
+// spawns Cloudflare's `workerd`, a glibc binary that fails with ENOENT on the
+// node:20-alpine (musl) build image and aborts `next build`. The Docker path
+// doesn't use Cloudflare bindings, so this is safe to skip there.
+if (!isExport && !isStandalone) {
   try {
     const { initOpenNextCloudflareForDev } = await import('@opennextjs/cloudflare');
     initOpenNextCloudflareForDev();
