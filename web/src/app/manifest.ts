@@ -10,8 +10,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: 'مشاور هوش مصنوعی، قیمت‌های شفاف و لحظه‌ای و زمان تحویل مشخص. اول مشورت، بعد خرید.',
     start_url: '/',
     display: 'standalone',
-    background_color: '#171C22',
-    theme_color: '#171C22',
+    background_color: '#F4F7FA',
+    theme_color: '#F4F7FA',
     lang: 'fa',
     dir: 'rtl',
     icons: [
