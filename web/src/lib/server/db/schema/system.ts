@@ -91,6 +91,28 @@ export const aiUsage = pgTable(
   (t) => [index('ai_usage_created_idx').on(t.createdAt)],
 );
 
+/** User feedback (👍/👎 + optional reason) on one assistant answer. The raw
+ *  signal for the continuous-improvement loop: admins review it, curate
+ *  "golden" corrections, and those get retrieved into future grounded context.
+ *  Loose id columns (no FK) so an anonymous signal is never lost to a persist
+ *  race or a later conversation prune. */
+export const AI_FEEDBACK_RATINGS = ['up', 'down'] as const;
+export const aiFeedback = pgTable(
+  'ai_feedback',
+  {
+    id: text('id').primaryKey(),
+    conversationId: text('conversation_id'),
+    messageId: text('message_id'),
+    rating: text('rating', { enum: AI_FEEDBACK_RATINGS }).notNull(),
+    reason: text('reason'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('ai_feedback_message_idx').on(t.messageId),
+    index('ai_feedback_created_idx').on(t.createdAt),
+  ],
+);
+
 export const smsLog = pgTable(
   'sms_log',
   {

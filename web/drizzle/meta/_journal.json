@@ -57,6 +57,13 @@
       "when": 1783192081281,
       "tag": "0007_typical_the_santerians",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1783286952046,
+      "tag": "0008_new_dazzler",
+      "breakpoints": true
     }
   ]
 }

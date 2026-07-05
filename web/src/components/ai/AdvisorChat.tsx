@@ -35,6 +35,10 @@ export type Msg = {
   chips?: string[];
   estimate?: Estimate;
   split?: SplitAnswer;
+  /** Server answer id (from the stream's `done` frame) — present only on
+   *  committed live AI answers, enables 👍/👎 feedback. */
+  dbMessageId?: string;
+  conversationId?: string;
 };
 
 /** The opening greeting — shared so it can be rendered server-side (crawlable
@@ -64,7 +68,7 @@ type ServerEvent =
   | { type: 'tool'; name: string }
   | { type: 'lead'; ref?: string; total?: number }
   | { type: 'chips'; chips: string[] }
-  | { type: 'done' }
+  | { type: 'done'; messageId?: string }
   | { type: 'error'; message: string };
 
 async function* readSse(body: ReadableStream<Uint8Array>): AsyncGenerator<ServerEvent> {
@@ -214,6 +218,50 @@ function aiReply(text: string, ctx: { purpose: string | null }): { msgs: Msg[]; 
  * — otherwise every row would see a "changed" prop on every render
  * regardless of whether its own message changed.
  */
+/** 👍/👎 on a committed AI answer. Fire-and-forget POST to /api/ai/feedback;
+ *  optimistic + one-shot (disabled after a choice). Feeds the admin review loop. */
+function FeedbackButtons({ messageId, conversationId }: { messageId: string; conversationId?: string }) {
+  const [sent, setSent] = useState<'up' | 'down' | null>(null);
+  const submit = (rating: 'up' | 'down') => {
+    if (sent) return;
+    setSent(rating);
+    void fetch('/api/ai/feedback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messageId, conversationId, rating }),
+    }).catch(() => {
+      /* best-effort — keep the optimistic UI even if the beacon fails */
+    });
+  };
+  return (
+    <div className={styles.feedback} role="group" aria-label="این پاسخ چطور بود؟">
+      <button
+        type="button"
+        className={styles.feedbackBtn}
+        data-active={sent === 'up' ? '' : undefined}
+        aria-pressed={sent === 'up'}
+        aria-label="پاسخ مفید بود"
+        disabled={sent !== null}
+        onClick={() => submit('up')}
+      >
+        👍
+      </button>
+      <button
+        type="button"
+        className={styles.feedbackBtn}
+        data-active={sent === 'down' ? '' : undefined}
+        aria-pressed={sent === 'down'}
+        aria-label="پاسخ مفید نبود"
+        disabled={sent !== null}
+        onClick={() => submit('down')}
+      >
+        👎
+      </button>
+      {sent && <span className={styles.feedbackThanks}>ممنون از بازخوردتان</span>}
+    </div>
+  );
+}
+
 const MessageBubble = memo(function MessageBubble({
   message: m,
   onPick,
@@ -250,6 +298,9 @@ const MessageBubble = memo(function MessageBubble({
               <QuickReply key={c} label={c} onPick={onPick} />
             ))}
           </div>
+        )}
+        {m.role === 'ai' && m.dbMessageId && (
+          <FeedbackButtons messageId={m.dbMessageId} conversationId={m.conversationId} />
         )}
       </div>
     </div>
@@ -351,6 +402,7 @@ export function AdvisorChat({
     let streamedText = '';
     let opened = false;
     let chipsBuf: string[] | undefined;
+    let dbMessageId: string | undefined;
     // The server always emits 'lead' (during tool execution) strictly BEFORE
     // any 'token' (the buffered, sanitized final text) — so it's held and
     // appended after the model's own prose instead of rendering it first.
@@ -397,6 +449,8 @@ export function AdvisorChat({
         } else if (ev.type === 'chips') {
           chipsBuf = ev.chips;
           if (opened) patchPreview((m) => ({ ...m, chips: ev.chips }));
+        } else if (ev.type === 'done') {
+          dbMessageId = ev.messageId;
         } else if (ev.type === 'error') {
           throw new Error(ev.message);
         }
@@ -408,7 +462,10 @@ export function AdvisorChat({
       // Streaming is done — clear the presentational preview and commit the
       // FINISHED message into the live region in one shot (one announcement).
       setStreamPreview(null);
-      setMessages((all) => [...all, { id: aiId, role: 'ai', text: streamedText, chips: chipsBuf }]);
+      setMessages((all) => [
+        ...all,
+        { id: aiId, role: 'ai', text: streamedText, chips: chipsBuf, dbMessageId, conversationId: conversationIdRef.current },
+      ]);
     } catch (e) {
       // Permanent downgrade ONLY when the server says no relay exists; every
       // transient failure (timeout, 429, network blip) retries next turn.

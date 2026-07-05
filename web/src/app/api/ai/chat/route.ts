@@ -187,13 +187,16 @@ async function POSTImpl(req: NextRequest) {
                 : [];
         if (chips.length > 0) send({ type: 'chips', chips });
 
-        send({ type: 'done' });
+        // Deterministic id for THIS assistant answer, announced in `done` so the
+        // client can attach 👍/👎 feedback to it (persisted below under the same id).
+        const answerId = ulid();
+        send({ type: 'done', messageId: answerId });
 
         // Turn persistence + rolling-summary refresh — fire-and-forget AFTER
         // the stream is complete; a failure can never break the answer.
         if (convId) {
           const lastUser = [...parsed.data.messages].reverse().find((m) => m.role === 'user');
-          void persistTurn(convId, lastUser?.content ?? null, result.text).catch(() => {
+          void persistTurn(convId, lastUser?.content ?? null, result.text, undefined, answerId).catch(() => {
             /* persistence must never surface an error */
           });
         }
