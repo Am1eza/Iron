@@ -1,0 +1,207 @@
+name: Deploy to production server
+
+# Build-once-deploy-many pipeline (see docker-compose.yml's comment on the
+# `web` service): a single image is built and pushed to GHCR here, then the
+# server only ever `docker compose pull`s that exact, already-tested tag —
+# it never compiles Next.js itself. The deploy step is health-gated: it
+# polls /api/health after the swap and automatically rolls back to the
+# previous image if the new one never becomes healthy.
+#
+# NOT zero-downtime: this is a single-VPS Docker Compose stack, not a
+# swarm/Kubernetes cluster, so recreating the `web` container has a brief
+# (sub-second to a few seconds) gap while Caddy's upstream restarts. Real
+# zero-downtime (blue/green with two upstreams behind Caddy, or moving to
+# Swarm/Kubernetes) is deliberately out of scope for this deploy target —
+# documented here rather than faked with a fragile two-container hack that
+# would fail the same health-gate it's supposed to protect.
+#
+# Required repo secrets (Settings → Secrets and variables → Actions):
+#   DEPLOY_HOST            server IP or hostname
+#   DEPLOY_USER            SSH user (e.g. root)
+#   DEPLOY_SSH_KEY         private key authorized on the server (never a
+#                          password — see DEPLOY.md's "Automatic deploys")
+#   DEPLOY_PORT            optional, SSH port (default 22)
+#   DEPLOY_PATH            optional, repo path on the server (default
+#                          /opt/ahantime)
+#   DEPLOY_HOST_FINGERPRINT  optional but recommended — the server's SSH
+#                          host key fingerprint (`ssh-keyscan -t ed25519
+#                          <host> | ssh-keygen -lf -`), pinned here so the
+#                          Action verifies it instead of trust-on-first-use
+#                          blindly accepting whatever key answers on the day
+#                          this workflow happens to run.
+# Optional repo variables (Settings → Secrets and variables → Actions →
+# Variables — plain, not secret, since NEXT_PUBLIC_* ships to every client
+# bundle anyway):
+#   NEXT_PUBLIC_SITE_URL, NEXT_PUBLIC_API_MODE (defaults below match
+#   production: https://ahantime.com / live)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Existing image tag to (re)deploy instead of building a new one — e.g. for a manual rollback'
+        required: false
+        type: string
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+# Deny-by-default; each job grants only what it needs.
+permissions: {}
+
+env:
+  IMAGE: ghcr.io/am1eza/iron-web
+
+jobs:
+  build:
+    if: ${{ github.event.inputs.image_tag == '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+      id-token: write     # for build provenance attestation
+      attestations: write
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: tag
+        run: echo "tag=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ./web
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ steps.tag.outputs.tag }}
+            ${{ env.IMAGE }}:latest
+          build-args: |
+            NEXT_PUBLIC_SITE_URL=${{ vars.NEXT_PUBLIC_SITE_URL || 'https://ahantime.com' }}
+            NEXT_PUBLIC_API_MODE=${{ vars.NEXT_PUBLIC_API_MODE || 'live' }}
+            NEXT_PUBLIC_DEPLOY_REGION=ir-docker
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # SLSA-style provenance for the pushed image — lets anyone verify it
+      # was built by this exact workflow run from this exact commit, not
+      # hand-pushed by someone with a stolen registry token.
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+  deploy:
+    needs: [build]
+    if: ${{ always() && !cancelled() && (needs.build.result == 'success' || github.event.inputs.image_tag != '') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    permissions:
+      contents: read
+    steps:
+      - name: Deploy over SSH (health-gated, auto-rollback)
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          TARGET_TAG: ${{ github.event.inputs.image_tag || needs.build.outputs.tag }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_ACTOR: ${{ github.actor }}
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          fingerprint: ${{ secrets.DEPLOY_HOST_FINGERPRINT }}
+          envs: TARGET_TAG,GHCR_TOKEN,GHCR_ACTOR
+          script_stop: true
+          script: |
+            set -euo pipefail
+            APP_DIR="${{ secrets.DEPLOY_PATH || '/opt/ahantime' }}"
+            IMAGE="ghcr.io/am1eza/iron-web"
+            cd "$APP_DIR"
+
+            # Repo checkout still tracks docker-compose.yml/Caddyfile/migration
+            # files and any non-image config — only the app *image* is now
+            # pre-built, not the code checkout itself.
+            git fetch origin main
+            git checkout main
+            git reset --hard origin/main
+
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_ACTOR" --password-stdin
+
+            PREV_TAG="$(grep -oP '^WEB_IMAGE=\K.*' .env 2>/dev/null || true)"
+            NEW_IMAGE="${IMAGE}:${TARGET_TAG}"
+            echo "Deploying ${NEW_IMAGE} (previous: ${PREV_TAG:-none})"
+
+            docker pull "$NEW_IMAGE"
+
+            if grep -q '^WEB_IMAGE=' .env 2>/dev/null; then
+              sed -i "s#^WEB_IMAGE=.*#WEB_IMAGE=${NEW_IMAGE}#" .env
+            else
+              echo "WEB_IMAGE=${NEW_IMAGE}" >> .env
+            fi
+
+            # `db` must already be running for the backup below — bring the
+            # rest of the stack up first (harmless no-op if it's already up).
+            docker compose up -d db caddy
+
+            # DB backup right before the swap — cheap insurance against a
+            # migration in the new image going wrong (entrypoint runs
+            # migrations automatically on container start; see DEPLOY.md).
+            # Checked explicitly (not `|| true` on the whole pipeline) so a
+            # failed backup is loud, not a silently-empty .sql.gz — without
+            # `pipefail`, `cmd | gzip || true` would swallow cmd's failure
+            # since only gzip's own exit code is checked.
+            mkdir -p backups
+            BACKUP_FILE="backups/pre-deploy-$(date -u +%Y%m%dT%H%M%SZ).sql.gz"
+            if docker compose exec -T db pg_dump -U ahantime ahantime | gzip > "$BACKUP_FILE"; then
+              echo "Backup written: $BACKUP_FILE"
+            else
+              echo "::warning::pre-deploy backup failed — continuing deploy without one"
+              rm -f "$BACKUP_FILE"
+            fi
+            find backups -name '*.sql.gz' -mtime +14 -delete || true
+
+            docker compose up -d web
+
+            # Health gate: the new container must answer 200 on /api/health
+            # before this counts as a success. No curl/wget in the runner
+            # image (see docker-compose.yml's healthcheck comment) — use
+            # Node's built-in fetch the same way the container healthcheck
+            # does.
+            ok=false
+            for i in $(seq 1 24); do
+              if docker compose exec -T web node -e \
+                "fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+              then
+                ok=true
+                break
+              fi
+              sleep 5
+            done
+
+            if [ "$ok" != "true" ]; then
+              echo "Health check failed after deploy — rolling back to ${PREV_TAG:-<none, nothing to roll back to>}"
+              if [ -n "$PREV_TAG" ]; then
+                sed -i "s#^WEB_IMAGE=.*#WEB_IMAGE=${PREV_TAG}#" .env
+                docker compose up -d web
+              fi
+              exit 1
+            fi
+
+            echo "Deploy succeeded: ${NEW_IMAGE}"
+            docker image prune -f --filter "until=72h" || true

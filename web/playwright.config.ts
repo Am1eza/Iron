@@ -74,6 +74,9 @@ export default defineConfig({
         SMSIR_API_KEY: '',
         SMSIR_TEMPLATE_ID: '',
         SEED_ON_START: 'false',
+        // See rateLimit.ts — the suite's login volume (multiple specs plus
+        // toPass retries) legitimately exceeds otp-request's production cap.
+        DISABLE_RATE_LIMIT_FOR_TESTS: 'true',
       },
     },
   ],
