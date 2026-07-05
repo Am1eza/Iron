@@ -24,5 +24,10 @@ ahantime.com, www.ahantime.com {
 		-x-nextjs-stale-time
 	}
 
+	# Content-hashed build assets + self-hosted fonts never change under a given
+	# URL — cache them hard so repeat views over Iran latency are instant.
+	@immutable path /_next/static/* /fonts/*
+	header @immutable Cache-Control "public, max-age=31536000, immutable"
+
 	reverse_proxy web:3000
 }

@@ -3,12 +3,18 @@ import { hasDb } from '@/lib/server/db/client';
 import { listMarketValues } from '@/lib/server/repos/marketRepo';
 import { marketValues as fixtureValues } from '@/lib/mock/fixtures';
 import { withApiErrorHandling } from '@/lib/server/utils/apiGuard';
+import { cacheGetJson, cacheSetJson } from '@/lib/server/redis';
+
+const MARKET_CACHE_KEY = 'market:values';
 
 /** GET /api/market — ticker values (tgju FX/gold/ounce + admin billet).
- *  Served from the DB (the poll job keeps it fresh); fixture fallback keeps
- *  dev without a DB working. */
+ *  Redis read-through (30s) offloads the sitewide 60s ticker poll from the DB;
+ *  the poll job refreshes the underlying data, so bounded 30s staleness is fine.
+ *  Falls straight through to the DB when Redis is unavailable. */
 async function GETImpl() {
-  const values = hasDb() ? await listMarketValues() : fixtureValues;
+  const cached = await cacheGetJson<Awaited<ReturnType<typeof listMarketValues>>>(MARKET_CACHE_KEY);
+  const values = cached ?? (hasDb() ? await listMarketValues() : fixtureValues);
+  if (!cached && hasDb()) void cacheSetJson(MARKET_CACHE_KEY, values, 30);
   // Public, non-personalized ticker data polled sitewide every 60s. A short
   // shared cache (with SWR) lets the browser/any edge cache absorb the polling
   // instead of hitting the origin+DB on every tick, while staying fresh enough
