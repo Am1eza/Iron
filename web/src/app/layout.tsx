@@ -50,7 +50,10 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
-  themeColor: '#171C22',
+  // Light-theme page background (--neutral-50): the site is light-only for
+  // visitors (see public/theme-init.js), so browser chrome matches — was the
+  // dark gunmetal #171C22.
+  themeColor: '#F4F7FA',
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

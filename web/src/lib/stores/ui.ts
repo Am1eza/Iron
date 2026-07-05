@@ -69,7 +69,16 @@ export const useUiStore = create<UiState>()(
     }),
     {
       name: 'ahantime-ui',
-      version: 1,
+      // v2: one-time reset of theme to 'light'. Under v1 the pre-paint
+      // theme-init.js seeded first-time visitors from the OS
+      // `prefers-color-scheme`, so dark-OS users had theme:'dark' persisted
+      // without ever choosing it. The site is light-only for visitors now
+      // (see public/theme-init.js), so migrate that stale guess away.
+      version: 2,
+      migrate: (persisted) => {
+        const s = (persisted ?? {}) as Partial<UiState>;
+        return { ...s, theme: 'light' as Theme };
+      },
       storage: createJSONStorage(() => localStorage),
       skipHydration: true,
       // only persist preferences, not ephemeral UI

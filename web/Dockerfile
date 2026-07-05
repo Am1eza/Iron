@@ -30,9 +30,12 @@ RUN pnpm build
 # Bundle the DB/job scripts (migrate + seed + jobs) so the runner needs no
 # dev deps. esbuild resolves the "@/" tsconfig alias; pg stays external
 # (traced into the standalone node_modules via the app's own imports).
-RUN npx esbuild scripts/migrate.mjs --bundle --platform=node --format=esm --outfile=scripts-dist/migrate.mjs --external:pg \
- && npx esbuild scripts/seed.ts --bundle --platform=node --format=esm --outfile=scripts-dist/seed.mjs --external:pg \
- && npx esbuild scripts/jobs.ts --bundle --platform=node --format=esm --outfile=scripts-dist/jobs.mjs --external:pg
+# esbuild is only a transitive dep (via tsx), so pnpm exposes no top-level
+# `esbuild` bin and `npx esbuild` fails with "not found". Run it via pnpm dlx,
+# which fetches esbuild from the npm registry (reachable even where Docker Hub is blocked).
+RUN pnpm dlx esbuild scripts/migrate.mjs --bundle --platform=node --format=esm --outfile=scripts-dist/migrate.mjs --external:pg \
+ && pnpm dlx esbuild scripts/seed.ts --bundle --platform=node --format=esm --outfile=scripts-dist/seed.mjs --external:pg \
+ && pnpm dlx esbuild scripts/jobs.ts --bundle --platform=node --format=esm --outfile=scripts-dist/jobs.mjs --external:pg --banner:js='import{fileURLToPath as _f}from"url";import{dirname as _d}from"path";const __filename=_f(import.meta.url),__dirname=_d(__filename);'
 
 # ---- 3. runner --------------------------------------------------------------
 FROM node:20-alpine AS runner

@@ -27,7 +27,13 @@ export const publicEnv = publicSchema.parse({
 const serverSchema = z
   .object({
     DEEPSEEK_API_KEY: z.string().optional(),
-    DEEPSEEK_BASE_URL: z.string().url().optional(),
+    // docker-compose passes unset optional vars as empty strings (`${VAR:-}`),
+    // and `''` fails `.url()` even though the var is semantically absent —
+    // which aborted boot with «پیکربندی محیط نامعتبر است». Normalize '' → undefined.
+    DEEPSEEK_BASE_URL: z.preprocess(
+      (v) => (v === '' ? undefined : v),
+      z.string().url().optional(),
+    ),
     DEEPSEEK_MODEL: z.string().default('deepseek-chat'),
     SMSIR_API_KEY: z.string().optional(),
     SMSIR_TEMPLATE_ID: z.string().optional(),
