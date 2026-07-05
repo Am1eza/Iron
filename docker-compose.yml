@@ -5,6 +5,14 @@
 # Usage:  cp .env.example .env && edit .env   then   docker compose up -d --build
 services:
   web:
+    # `image:` + `build:` together is Compose's "build once, deploy many"
+    # pattern: CI builds and pushes this exact tag to GHCR once (see
+    # .github/workflows/deploy.yml), and `docker compose pull && up -d` on
+    # the server only ever pulls that pre-built layer — the server never
+    # spends its own CPU/RAM compiling Next.js. `build:` stays here purely
+    # for local dev (`docker compose up -d --build` still works without any
+    # of this) and as a manual fallback if the registry is ever unreachable.
+    image: ${WEB_IMAGE:-ghcr.io/am1eza/iron-web:local}
     build:
       context: ./web
       dockerfile: Dockerfile
