@@ -100,6 +100,36 @@ git pull
 docker compose up -d --build
 ```
 
+## Automatic deploys via GitHub Actions
+
+`.github/workflows/deploy.yml` re-deploys the stack over SSH on every push to
+`main` (and can be triggered manually via **Actions → Deploy to production
+server → Run workflow**). Set these one-time up:
+
+1. **Generate a dedicated deploy key** (on your own machine, not the server):
+   ```bash
+   ssh-keygen -t ed25519 -C "github-actions-deploy" -f deploy_key -N ""
+   ```
+2. **Authorize the public half on the server:**
+   ```bash
+   ssh root@<server-ip> "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys" < deploy_key.pub
+   ```
+3. **Add repo secrets** (Settings → Secrets and variables → Actions →
+   New repository secret):
+   - `DEPLOY_HOST` — the server IP/hostname
+   - `DEPLOY_USER` — the SSH user (e.g. `root`)
+   - `DEPLOY_SSH_KEY` — the **private** key contents (`cat deploy_key`)
+   - `DEPLOY_PATH` — optional, defaults to `/opt/ahantime`
+   - `DEPLOY_PORT` — optional, defaults to `22`
+4. Delete `deploy_key`/`deploy_key.pub` from your machine once the secret is
+   saved (the private key only needs to live in GitHub Secrets).
+
+Never put a plaintext password in a secret or commit it anywhere — key-based
+auth is what lets this workflow log in non-interactively without one. If a
+server password was ever shared in chat, a ticket, or a commit, rotate it
+(`passwd` on the server) since it should be considered compromised the moment
+it leaves your terminal.
+
 ---
 
 ## Notes & troubleshooting
