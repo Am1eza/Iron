@@ -29,7 +29,7 @@ const nextConfig = {
   // `dist/index.js`, breaking the Cloudflare Workers build with "Could not
   // resolve pg-cloudflare" (reproduced in CI; see @opennextjs/cloudflare's
   // dist/cli/build/utils/workerd.js).
-  serverExternalPackages: ['pg', 'pg-cloudflare'],
+  serverExternalPackages: ['pg', 'pg-cloudflare', 'ioredis'],
   // `date-fns-jalali` is imported (named imports only) across format/validation/
   // server utils; this keeps only the modules actually used in the bundle
   // instead of Next's default whole-package handling for non-`esm`-optimized

@@ -27,6 +27,7 @@
  */
 import { NextResponse, type NextRequest } from 'next/server';
 import { getCloudflareContext } from '@opennextjs/cloudflare';
+import { redisRateCheck } from '@/lib/server/redis';
 
 const windows = new Map<string, number[]>();
 let lastSweep = Date.now();
@@ -137,6 +138,14 @@ export async function rateLimit(
 
   const native = await nativeLimited(scope, key);
   if (native === true) return limitedResponse(windowMs);
+
+  // Redis layer — AUTHORITATIVE on the Docker/Node deploy (shared across
+  // restarts and replicas, unlike the in-process window below). Returns null
+  // when Redis isn't configured/available, in which case we fall through to
+  // the in-process window as before.
+  const viaRedis = await redisRateCheck(key, limit, windowMs);
+  if (viaRedis === true) return limitedResponse(windowMs);
+  if (viaRedis === false) return null;
 
   const now = Date.now();
   // Periodic sweep so the map never grows unbounded.
