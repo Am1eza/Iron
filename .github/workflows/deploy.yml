@@ -129,7 +129,7 @@ jobs:
           envs: TARGET_TAG,GHCR_TOKEN,GHCR_ACTOR
           script_stop: true
           script: |
-            set -e
+            set -euo pipefail
             APP_DIR="${{ secrets.DEPLOY_PATH || '/opt/ahantime' }}"
             IMAGE="ghcr.io/am1eza/iron-web"
             cd "$APP_DIR"
@@ -155,15 +155,27 @@ jobs:
               echo "WEB_IMAGE=${NEW_IMAGE}" >> .env
             fi
 
+            # `db` must already be running for the backup below — bring the
+            # rest of the stack up first (harmless no-op if it's already up).
+            docker compose up -d db caddy
+
             # DB backup right before the swap — cheap insurance against a
             # migration in the new image going wrong (entrypoint runs
             # migrations automatically on container start; see DEPLOY.md).
+            # Checked explicitly (not `|| true` on the whole pipeline) so a
+            # failed backup is loud, not a silently-empty .sql.gz — without
+            # `pipefail`, `cmd | gzip || true` would swallow cmd's failure
+            # since only gzip's own exit code is checked.
             mkdir -p backups
-            docker compose exec -T db pg_dump -U ahantime ahantime \
-              | gzip > "backups/pre-deploy-$(date -u +%Y%m%dT%H%M%SZ).sql.gz" || true
+            BACKUP_FILE="backups/pre-deploy-$(date -u +%Y%m%dT%H%M%SZ).sql.gz"
+            if docker compose exec -T db pg_dump -U ahantime ahantime | gzip > "$BACKUP_FILE"; then
+              echo "Backup written: $BACKUP_FILE"
+            else
+              echo "::warning::pre-deploy backup failed — continuing deploy without one"
+              rm -f "$BACKUP_FILE"
+            fi
             find backups -name '*.sql.gz' -mtime +14 -delete || true
 
-            docker compose up -d db caddy
             docker compose up -d web
 
             # Health gate: the new container must answer 200 on /api/health

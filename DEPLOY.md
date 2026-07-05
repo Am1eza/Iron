@@ -156,8 +156,10 @@ single-VPS target today.
    any rule added there applies immediately with no workflow change.
 7. The very first run still needs the server to have cloned the repo once
    (`git clone https://github.com/Am1eza/Iron.git /opt/ahantime`) with a
-   working `.env` per steps 3–4 above — after that, the workflow keeps it
-   updated.
+   working `.env` already in place — see **"4. Configure secrets"** near the
+   top of this doc (`cp .env.example .env` + `SESSION_SECRET`/
+   `POSTGRES_PASSWORD`/`SMSIR_*`). After that, this workflow only ever
+   updates `.env`'s `WEB_IMAGE` line; it never touches the rest of it.
 
 ### Rolling back manually
 
