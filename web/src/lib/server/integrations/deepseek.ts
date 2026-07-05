@@ -65,8 +65,9 @@ function postCompletion(
       temperature: 0.3,
       // Advisor replies are short Persian answers (system prompt: "کوتاه و
       // کاربردی") — cap per-call generation so a request's cost is bounded
-      // by call count × this, not by an unbounded model response.
-      max_tokens: 1000,
+      // by call count × this. Raised 1000→2000: the multi-factory compare
+      // answers were being silently truncated mid-sentence at 1000.
+      max_tokens: 2000,
     }),
     signal,
   });

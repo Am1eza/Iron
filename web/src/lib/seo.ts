@@ -155,6 +155,10 @@ export function productJsonLd(p: {
       price: p.price * 10,
       priceCurrency: 'IRR',
       availability: `https://schema.org/${p.available === false ? 'OutOfStock' : 'InStock'}`,
+      // Steel prices move daily; give the offer a short validity window so
+      // Google doesn't flag a missing/expired priceValidUntil (which can
+      // suppress the merchant rich result).
+      priceValidUntil: new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10),
       url: new URL(p.url, SITE_URL).toString(),
       seller: { '@type': 'Organization', name: BRAND },
     },

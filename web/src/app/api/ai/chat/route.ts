@@ -82,7 +82,11 @@ async function POSTImpl(req: NextRequest) {
   const body: unknown = await req.json().catch(() => null);
   const parsed = payload.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: 'invalid', message: 'درخواست نامعتبر است.' }, { status: 400 });
+    // Match the app-wide validation envelope ({error:'validation', fields}).
+    return NextResponse.json(
+      { error: 'validation', message: 'درخواست نامعتبر است.', fields: parsed.error.flatten().fieldErrors },
+      { status: 400 },
+    );
   }
 
   // Bare-greeting short-circuit: an opening «سلام» gets the canned intro +

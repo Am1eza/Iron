@@ -80,6 +80,28 @@ services:
       - no-new-privileges:true
     mem_limit: 1536m
     pids_limit: 512
+    # Tuned for the 1.5GB container / 4-vCPU host (was running on stock defaults:
+    # 128MB shared_buffers, spinning-disk cost model). SSD + modern sizing.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=384MB
+      - -c
+      - effective_cache_size=1GB
+      - -c
+      - maintenance_work_mem=96MB
+      - -c
+      - work_mem=8MB
+      - -c
+      - random_page_cost=1.1
+      - -c
+      - effective_io_concurrency=200
+      - -c
+      - checkpoint_completion_target=0.9
+      - -c
+      - wal_buffers=16MB
+      - -c
+      - max_connections=100
     environment:
       POSTGRES_DB: ahantime
       POSTGRES_USER: ahantime
