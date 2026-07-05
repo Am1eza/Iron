@@ -14,7 +14,10 @@ const importPayload = z.object({
         detail: z.string().trim().max(500).optional(),
         note: z.string().trim().max(1000).optional(),
         createdAt: z.string().datetime().optional(),
-        status: z.enum(['submitted', 'reviewing', 'contacted', 'quoted']).optional(),
+        // NOTE: `status` is intentionally NOT accepted from the client. This is
+        // a localStorage migration endpoint; letting the caller set
+        // 'quoted'/'contacted' would let a user fabricate a favorable status on
+        // their own records. All imported rows use the server default.
       }),
     )
     .max(100),
@@ -39,7 +42,6 @@ async function POSTImpl(req: NextRequest) {
       detail: r.detail,
       note: r.note,
       createdAt: r.createdAt ? new Date(r.createdAt) : undefined,
-      status: r.status,
     });
     if (inserted) imported++;
   }

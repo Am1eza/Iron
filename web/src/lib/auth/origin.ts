@@ -7,8 +7,14 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 export function assertSameOrigin(req: NextRequest): NextResponse | null {
   const origin = req.headers.get('origin') ?? req.headers.get('referer');
-  // Some same-origin GET/no-CORS cases omit Origin; only block clear mismatches.
-  if (!origin) return null;
+  const method = req.method.toUpperCase();
+  const stateChanging = method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS';
+  if (!origin) {
+    // Browsers ALWAYS send Origin on state-changing fetches (POST/PUT/PATCH/
+    // DELETE), so a missing header on those is treated as suspicious and
+    // blocked (fail closed). Safe read methods stay lenient.
+    return stateChanging ? forbidden() : null;
+  }
 
   let originHost: string;
   try {

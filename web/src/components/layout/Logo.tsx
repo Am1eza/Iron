@@ -17,7 +17,10 @@ export function Logo({ compact = false, light = false }: { compact?: boolean; li
       className={`${styles.logo} ${light ? styles.light : ''}`}
       aria-label="آهن‌تایم — خانه"
     >
-      <Image src={logoMark} alt="" className={styles.mark} priority unoptimized={false} />
+      {/* Rendered ~36px tall (~66px wide). `sizes` pins the preloaded srcset
+          candidate to that size instead of Next's default 100vw, which was
+          preloading a ~1920px variant of a 640×350 asset on the critical path. */}
+      <Image src={logoMark} alt="" className={styles.mark} sizes="66px" priority unoptimized={false} />
       {!compact && (
         <span className={styles.word}>
           <span className={styles.wordmark}>آهن‌تایم</span>

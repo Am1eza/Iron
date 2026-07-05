@@ -4,5 +4,25 @@
 # DNS A record pointing at this server.
 ahantime.com, www.ahantime.com {
 	encode zstd gzip
+
+	# Cap request bodies at the edge so oversized uploads are rejected before
+	# they reach Next.js (the app also sets client_max_body_size in nginx-land
+	# equivalents; this is the outer guard).
+	request_body {
+		max_size 20MB
+	}
+
+	header {
+		# Edge HSTS backstop: still sent even if Next.js is down/misroutes and
+		# can't emit its own header. (No `preload` — that's a one-way commitment
+		# the operator should opt into deliberately.)
+		Strict-Transport-Security "max-age=63072000; includeSubDomains"
+		# Don't leak framework/cache internals to clients.
+		-X-Powered-By
+		-x-nextjs-cache
+		-x-nextjs-prerender
+		-x-nextjs-stale-time
+	}
+
 	reverse_proxy web:3000
 }
