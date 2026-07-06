@@ -33,6 +33,7 @@ const ADMIN_ALL: Permission[] = [
   'users:manage',
   'settings:write',
   'audit:read',
+  'ai:review',
   'admin:access',
 ];
 
@@ -72,6 +73,7 @@ export const ADMIN_PATH_PERMISSIONS: Array<[prefix: string, permission: Permissi
   ['/admin/users', 'users:manage'],
   ['/admin/settings', 'settings:write'],
   ['/admin/audit', 'audit:read'],
+  ['/admin/ai', 'ai:review'],
 ];
 
 /** The permission required for an admin path, or undefined for the dashboard root. */

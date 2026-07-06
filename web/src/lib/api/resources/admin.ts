@@ -193,4 +193,28 @@ export const adminApi = {
       nextCursor: string | null;
     }>(`/api/admin/audit?${qs}`);
   },
+
+  /* AI advisor review — continuous-improvement loop */
+  aiFeedback: (params: { rating?: 'up' | 'down'; cursor?: string } = {}) => {
+    const qs = new URLSearchParams();
+    if (params.rating) qs.set('rating', params.rating);
+    if (params.cursor) qs.set('cursor', params.cursor);
+    return http.get<{
+      entries: Array<{
+        id: string;
+        rating: 'up' | 'down';
+        reason: string | null;
+        createdAt: string;
+        conversationId: string | null;
+        messageId: string | null;
+        answerText: string | null;
+      }>;
+      nextCursor: string | null;
+      summary: { up: number; down: number; last7dDown: number };
+    }>(`/api/admin/ai/feedback?${qs}`);
+  },
+  aiConversation: (id: string) =>
+    http.get<{ messages: Array<{ id: string; role: 'user' | 'assistant'; content: string; createdAt: string }> }>(
+      `/api/admin/ai/conversations/${id}`,
+    ),
 };

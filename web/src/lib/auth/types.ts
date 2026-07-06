@@ -21,6 +21,7 @@ export type Permission =
   | 'users:manage'
   | 'settings:write'
   | 'audit:read'
+  | 'ai:review'
   | 'admin:access';
 
 export interface AuthUser {

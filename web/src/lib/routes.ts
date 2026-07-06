@@ -60,6 +60,7 @@ export const routes = {
     users: () => '/admin/users',
     settings: () => '/admin/settings',
     audit: () => '/admin/audit',
+    ai: () => '/admin/ai',
   },
 } as const;
 

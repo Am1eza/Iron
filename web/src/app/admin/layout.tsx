@@ -25,6 +25,7 @@ const NAV: Array<{ href: string; label: string }> = [
   { href: routes.admin.users(), label: 'کاربران' },
   { href: routes.admin.settings(), label: 'تنظیمات' },
   { href: routes.admin.audit(), label: 'رویدادها' },
+  { href: routes.admin.ai(), label: 'دستیار هوشمند' },
 ];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {

@@ -46,7 +46,7 @@ export function DashboardTiles() {
     s.aiToday !== undefined && {
       label: 'هوش مصنوعی امروز',
       value: s.aiToday.promptTokens + s.aiToday.completionTokens,
-      href: routes.admin.leads(),
+      href: routes.admin.ai(),
       tone: s.aiToday.violations > 0 ? ('bad' as const) : undefined,
       hint: `${toPersianDigits(s.aiToday.violations)} تخطی عددی · کش ${toPersianDigits(Math.round(s.aiToday.cacheHitRate * 100))}٪`,
     },

@@ -50,7 +50,7 @@ async function GETImpl(req: NextRequest) {
     count(db.select({ n: sql<number>`count(*)::int` }).from(users).where(gte(users.createdAt, dayAgo))));
   add('draftArticles', 'content:write', () =>
     count(db.select({ n: sql<number>`count(*)::int` }).from(articles).where(and(eq(articles.status, 'draft')))));
-  add('aiToday', 'settings:write', () =>
+  add('aiToday', 'ai:review', () =>
     db
       .select({
         promptTokens: sql<number>`coalesce(sum(${aiUsage.promptTokens}), 0)::int`,
