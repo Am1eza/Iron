@@ -3,7 +3,7 @@
  * pages are server-gated). Thin typed wrappers over /api/admin/**.
  */
 import { http } from '../http';
-import type { PriceRow, LineItem, Order, WarehouseItem, Article, MarketValue } from '@/lib/types/domain';
+import type { PriceRow, LineItem, Order, WarehouseItem, Article, MarketValue, SeoMeta } from '@/lib/types/domain';
 
 /** Every field is scoped to the caller's permissions server-side — a field is
  * simply absent if the current role can't see that domain (e.g. a content
@@ -140,8 +140,10 @@ export const adminApi = {
   article: (id: string) => http.get<{ article: ArticleFull }>(`/api/admin/articles/${id}`),
   createArticle: (input: { slug: string; type: 'blog' | 'news'; title: string; excerpt?: string; bodyMd?: string }) =>
     http.post<{ article: ArticleFull }>('/api/admin/articles', input),
-  updateArticle: (id: string, patch: Partial<{ slug: string; title: string; excerpt: string | null; bodyMd: string; publishAt: string | null; status: 'draft' }>) =>
-    http.patch<{ article: ArticleFull }>(`/api/admin/articles/${id}`, patch),
+  updateArticle: (
+    id: string,
+    patch: Partial<{ slug: string; title: string; excerpt: string | null; bodyMd: string; publishAt: string | null; status: 'draft'; coverUrl: string | null; seo: SeoMeta | null }>,
+  ) => http.patch<{ article: ArticleFull }>(`/api/admin/articles/${id}`, patch),
   publishArticle: (id: string, publishAt?: string) =>
     http.post<{ article: ArticleFull }>(`/api/admin/articles/${id}/publish`, publishAt ? { publishAt } : {}),
 

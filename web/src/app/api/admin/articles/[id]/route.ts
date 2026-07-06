@@ -21,7 +21,18 @@ const patchPayload = z.object({
   title: z.string().trim().min(1).max(200).optional(),
   excerpt: z.string().trim().max(500).nullable().optional(),
   bodyMd: z.string().max(100_000).optional(),
-  coverUrl: z.string().url().nullable().optional(),
+  coverUrl: z.preprocess((v) => (v === '' ? null : v), z.string().url().nullable().optional()),
+  // Editor SEO overrides. Empty url fields → undefined so a blank input never
+  // fails .url() (forms send '' for "unset").
+  seo: z
+    .object({
+      title: z.string().trim().max(70).optional(),
+      description: z.string().trim().max(200).optional(),
+      canonical: z.preprocess((v) => (v === '' ? undefined : v), z.string().url().optional()),
+      ogImage: z.preprocess((v) => (v === '' ? undefined : v), z.string().url().optional()),
+    })
+    .nullable()
+    .optional(),
   // Only 'draft' — moving DOWN in privilege (cancel/revert a scheduled
   // publish) is a safe content:write operation. Scheduling or publishing
   // is content:publish's job (POST .../publish, which also stamps

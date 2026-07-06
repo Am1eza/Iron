@@ -163,6 +163,8 @@ function ArticleEditor({ id, onDone }: { id: string; onDone: () => void }) {
         slug: value?.slug,
         excerpt: value?.excerpt ?? null,
         bodyMd: value?.bodyMd,
+        coverUrl: value?.coverUrl ?? null,
+        seo: value?.seo ?? null,
       }),
     onSuccess: () => {
       toast.success('ذخیره شد.');
@@ -190,6 +192,24 @@ function ArticleEditor({ id, onDone }: { id: string; onDone: () => void }) {
           <TextInput label="عنوان" value={value.title ?? ''} onChange={(e) => setDraft({ ...draft, title: e.target.value })} />
           <TextInput label="نشانی (slug)" dir="ltr" value={value.slug ?? ''} onChange={(e) => setDraft({ ...draft, slug: e.target.value })} />
           <Textarea label="خلاصه" rows={2} value={value.excerpt ?? ''} onChange={(e) => setDraft({ ...draft, excerpt: e.target.value })} />
+          <TextInput
+            label="نشانی تصویر کاور (URL)"
+            dir="ltr"
+            placeholder="https://…"
+            value={value.coverUrl ?? ''}
+            onChange={(e) => setDraft({ ...draft, coverUrl: e.target.value })}
+          />
+          <TextInput
+            label="عنوان سئو (اختیاری — پیش‌فرض: عنوان مقاله)"
+            value={value.seo?.title ?? ''}
+            onChange={(e) => setDraft({ ...draft, seo: { ...value.seo, title: e.target.value } })}
+          />
+          <Textarea
+            label="توضیحات سئو (اختیاری — پیش‌فرض: خلاصه)"
+            rows={2}
+            value={value.seo?.description ?? ''}
+            onChange={(e) => setDraft({ ...draft, seo: { ...value.seo, description: e.target.value } })}
+          />
           <Textarea
             label="متن (Markdown)"
             rows={14}
