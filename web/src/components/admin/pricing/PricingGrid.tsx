@@ -11,10 +11,50 @@ import { CATEGORY_SUBS } from '@/lib/data/nav';
 import { normalizeDigits, toPersianDigits, formatJalali } from '@/lib/utils/format';
 import { useToast } from '@/lib/hooks/useToast';
 import { ApiError } from '@/lib/api/errors';
-import { Badge, Button, EmptyState, MovementBadge, TableSkeleton } from '@/components/ui';
+import { Badge, Button, EmptyState, Modal, MovementBadge, TableSkeleton } from '@/components/ui';
 import ui from '../adminUi.module.css';
 
 type Draft = { price?: string; deliveryTime?: string };
+
+type PasteRow = { id: string; slug: string; name: string; size?: string };
+
+/** Parse pasted "key<sep>price" lines (tab, comma, or 2+ spaces) and match each
+ *  key against a row's slug / name / size (normalized). Returns the drafts to
+ *  apply plus the keys that matched nothing, for a review-before-save preview. */
+function matchPastedPrices(
+  text: string,
+  rows: PasteRow[],
+): { matched: Array<{ id: string; price: string }>; unmatched: string[] } {
+  const norm = (s: string) => normalizeDigits(s).trim().toLowerCase().replace(/\s+/g, ' ');
+  const bySlug = new Map(rows.map((r) => [norm(r.slug), r.id]));
+  const byName = new Map(rows.map((r) => [norm(r.name), r.id]));
+  const bySize = new Map<string, string | null>();
+  for (const r of rows) {
+    if (!r.size) continue;
+    const k = norm(r.size);
+    bySize.set(k, bySize.has(k) ? null : r.id); // null = ambiguous (skip)
+  }
+  const matched: Array<{ id: string; price: string }> = [];
+  const unmatched: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of text.split('\n')) {
+    const line = raw.trim();
+    if (!line) continue;
+    const parts = line.split(/\t|,|\s{2,}/).map((p) => p.trim()).filter(Boolean);
+    if (parts.length < 2) continue;
+    const price = normalizeDigits(parts[parts.length - 1]!).replace(/[^\d]/g, '');
+    const key = norm(parts.slice(0, -1).join(' '));
+    if (!price) continue;
+    const id = bySlug.get(key) ?? byName.get(key) ?? bySize.get(key) ?? null;
+    if (id && !seen.has(id)) {
+      seen.add(id);
+      matched.push({ id, price });
+    } else {
+      unmatched.push(parts.slice(0, -1).join(' '));
+    }
+  }
+  return { matched, unmatched };
+}
 
 export function PricingGrid() {
   const toast = useToast();
@@ -22,6 +62,8 @@ export function PricingGrid() {
   const [cat, setCat] = useState('rebar');
   const [sub, setSub] = useState('');
   const [drafts, setDrafts] = useState<Map<string, Draft>>(new Map());
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [pasteText, setPasteText] = useState('');
   const tableRef = useRef<HTMLTableElement>(null);
 
   const { data, isLoading, isError, refetch } = useQuery({
@@ -99,6 +141,26 @@ export function PricingGrid() {
     apply();
   };
 
+  const applyPaste = () => {
+    const { matched, unmatched } = matchPastedPrices(pasteText, rows);
+    if (matched.length === 0) {
+      toast.error('هیچ ردیفی تطبیق نخورد. کلید هر خط باید با نام، اسلاگ یا سایز یکی از کالاهای این دسته بخواند.');
+      return;
+    }
+    setDrafts((prev) => {
+      const next = new Map(prev);
+      for (const m of matched) next.set(m.id, { ...next.get(m.id), price: m.price });
+      return next;
+    });
+    toast.success(
+      `${toPersianDigits(matched.length)} قیمت روی جدول پر شد${
+        unmatched.length ? ` · ${toPersianDigits(unmatched.length)} خط بی‌تطبیق` : ''
+      }. بررسی و ذخیره کنید.`,
+    );
+    setPasteText('');
+    setPasteOpen(false);
+  };
+
   return (
     <div>
       <div className={ui.toolbar}>
@@ -133,6 +195,9 @@ export function PricingGrid() {
           ))}
         </select>
         <span className={ui.muted}>{toPersianDigits(rows.length)} کالا</span>
+        <Button size="sm" variant="ghost" onClick={() => setPasteOpen(true)} disabled={rows.length === 0}>
+          چسباندن قیمت‌ها
+        </Button>
       </div>
 
       {isLoading ? (
@@ -251,6 +316,43 @@ export function PricingGrid() {
           </div>
         </div>
       ) : null}
+
+      <Modal
+        open={pasteOpen}
+        onClose={() => setPasteOpen(false)}
+        title="چسباندن دسته‌ای قیمت‌ها"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setPasteOpen(false)}>
+              انصراف
+            </Button>
+            <Button onClick={applyPaste} disabled={!pasteText.trim()}>
+              اعمال روی جدول
+            </Button>
+          </>
+        }
+      >
+        <p className={ui.muted} style={{ marginBlockStart: 0 }}>
+          هر خط: «نام، اسلاگ یا سایز کالا» و سپس قیمت (جداشده با Tab، کاما یا فاصله). فقط جدول پر می‌شود؛
+          سپس ردیف‌های تغییرکرده را بررسی و «ذخیره» کنید.
+        </p>
+        <textarea
+          value={pasteText}
+          onChange={(e) => setPasteText(e.target.value)}
+          rows={10}
+          dir="auto"
+          aria-label="قیمت‌ها برای چسباندن"
+          placeholder={'میلگرد ۱۴\t۲۸۵۰۰۰\nمیلگرد ۱۶، ۲۸۴۵۰۰'}
+          style={{
+            inlineSize: '100%',
+            font: 'var(--t-input)',
+            padding: 'var(--space-3)',
+            border: 'var(--border-hairline) solid var(--color-hairline)',
+            borderRadius: 'var(--radius-sm)',
+            resize: 'vertical',
+          }}
+        />
+      </Modal>
     </div>
   );
 }
