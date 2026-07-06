@@ -17,6 +17,8 @@ import {
   IconButton,
   Skeleton,
   Alert,
+  Modal,
+  Button,
 } from '@/components/ui';
 import {
   PlusIcon,
@@ -47,6 +49,7 @@ function lineEstimate(item: CartItem): number {
  */
 export function CartView() {
   const [mounted, setMounted] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
   useEffect(() => setMounted(true), []);
 
   const items = useCartStore((s) => s.items);
@@ -145,13 +148,33 @@ export function CartView() {
           <button
             type="button"
             className={styles.clearBtn}
-            onClick={() => {
-              if (window.confirm('سبد استعلام خالی شود؟')) clear();
-            }}
+            onClick={() => setConfirmClear(true)}
           >
             <TrashIcon size={16} />
             خالی کردن سبد
           </button>
+          <Modal
+            open={confirmClear}
+            onClose={() => setConfirmClear(false)}
+            title="خالی کردن سبد استعلام"
+            footer={
+              <>
+                <Button variant="ghost" onClick={() => setConfirmClear(false)}>
+                  انصراف
+                </Button>
+                <Button
+                  onClick={() => {
+                    clear();
+                    setConfirmClear(false);
+                  }}
+                >
+                  خالی کن
+                </Button>
+              </>
+            }
+          >
+            <p style={{ margin: 0 }}>همهٔ اقلام از سبد استعلام حذف شوند؟ این کار قابل بازگشت نیست.</p>
+          </Modal>
           <Link href={routes.prices()} className={styles.continueShopping}>
             افزودن محصول دیگر
           </Link>

@@ -52,12 +52,13 @@ export function requireDb(): NextResponse | null {
 
 export async function requireApiUser(
   req: NextRequest,
+  opts?: { strict?: boolean },
 ): Promise<{ session: AuthUser } | { response: NextResponse }> {
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     const origin = assertSameOrigin(req);
     if (origin) return { response: origin };
   }
-  const session = await getSessionVerified();
+  const session = await getSessionVerified(opts);
   if (!session) {
     return {
       response: NextResponse.json(
@@ -73,7 +74,8 @@ export async function requireApiPermission(
   req: NextRequest,
   permission: Permission,
 ): Promise<{ session: AuthUser } | { response: NextResponse }> {
-  const auth = await requireApiUser(req);
+  // strict: staff/permission routes fail closed on a DB outage (no stale-role trust).
+  const auth = await requireApiUser(req, { strict: true });
   if ('response' in auth) return auth;
   if (!can(auth.session.role, permission)) {
     // Hide, don't reveal: admin API answers 404 to non-staff (same as pages).

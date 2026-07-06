@@ -11,11 +11,19 @@ import { sendToSentry } from './sentry';
 // not reach logs/Sentry in the clear just because it isn't "personal" data.
 const REDACT_KEYS = /mobile|phone|code|otp|name|address|token|secret|password|apikey|api_key|authorization|jwt|dsn|cookie/i;
 
+// Value-level scrub: a mobile embedded in an error MESSAGE or under an
+// innocuous key bypasses the key filter (e.g. `new Error('no user for
+// 09121234567')`). `0/(+)98` + 9 digits is distinctive enough not to hit prices.
+const MOBILE_VALUE = /(?:\+?98|0)9\d{9}/g;
+function scrubValue<T>(v: T): T {
+  return typeof v === 'string' ? (v.replace(MOBILE_VALUE, '[redacted-mobile]') as unknown as T) : v;
+}
+
 function redact(context?: Record<string, unknown>): Record<string, unknown> | undefined {
   if (!context) return undefined;
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(context)) {
-    out[k] = REDACT_KEYS.test(k) ? '[redacted]' : v;
+    out[k] = REDACT_KEYS.test(k) ? '[redacted]' : scrubValue(v);
   }
   return out;
 }
@@ -25,7 +33,7 @@ export function reportError(error: unknown, context?: Record<string, unknown>): 
     level: 'error',
     tag: 'ahantime:error',
     name: error instanceof Error ? error.name : 'Unknown',
-    message: error instanceof Error ? error.message : String(error),
+    message: scrubValue(error instanceof Error ? error.message : String(error)),
     stack: error instanceof Error ? error.stack : undefined,
     status: (error as { status?: number } | null)?.status,
     context: redact(context),

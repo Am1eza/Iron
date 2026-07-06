@@ -22,7 +22,9 @@ export async function requirePermission(
   permission: Permission,
   nextPath?: string,
 ): Promise<AuthUser> {
-  const user = await getSessionVerified();
+  // strict: a staff page fails closed on a DB outage rather than trusting a
+  // stale JWT role (mirrors requireApiPermission).
+  const user = await getSessionVerified({ strict: true });
   if (!user) redirect(routes.login(nextPath));
   if (!can(user.role, permission)) notFound();
   return user;

@@ -97,7 +97,7 @@ export const getSession = cache(async (): Promise<AuthUser | null> => {
  * degrades to getSession()'s pre-existing trust window rather than taking
  * down every admin page/route that calls this.
  */
-export const getSessionVerified = cache(async (): Promise<AuthUser | null> => {
+export const getSessionVerified = cache(async (opts?: { strict?: boolean }): Promise<AuthUser | null> => {
   const claims = await resolveClaims();
   if (!claims) return null;
   const fallback: AuthUser = {
@@ -113,6 +113,10 @@ export const getSessionVerified = cache(async (): Promise<AuthUser | null> => {
     return current;
   } catch (err) {
     reportError(err, { scope: 'auth', fn: 'getSessionVerified' });
+    // Permission-critical callers fail CLOSED on a DB outage rather than trust
+    // a possibly-stale JWT role / missed deactivation. Page rendering stays
+    // lenient (availability over the ~15min access-token revocation window).
+    if (opts?.strict) return null;
     return fallback;
   }
 });
