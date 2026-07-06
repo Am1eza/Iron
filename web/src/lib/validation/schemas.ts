@@ -1,21 +1,28 @@
 import { z } from 'zod';
-import { isValidPhoneNumber } from 'libphonenumber-js/min';
 import { normalizeDigits, normalizeMobile } from '@/lib/utils/format';
 import { M } from './messages';
+
+/** E.164 shape: `+` then a country digit and 7–14 more (8–15 total). */
+const E164 = /^\+[1-9]\d{7,14}$/;
 
 /**
  * Accepts the app's canonical stored mobile shape: Iran's existing
  * 09XXXXXXXXX (via normalizeMobile, unchanged — same check every current
- * user/OTP row already passed) OR a full E.164 number for any other
- * country (validated via libphonenumber-js — self-describing from its `+`
- * prefix, no default-country needed here since PhoneField already resolved
- * country + national number into this canonical form before submission).
+ * user/OTP row already passed) OR a full E.164 number for any other country.
+ *
+ * The non-Iran path is validated by E.164 *format* only (not the full
+ * libphonenumber metadata check) on purpose: importing `libphonenumber-js/min`
+ * here dragged ~120KB into the shared client bundle of every page (this schema
+ * module is imported app-wide), for a branch that only non-Iran contact/lead
+ * numbers ever reach — and those are stored, never OTP'd (SMS.ir OTP is
+ * Iran-only, so an international number can never log in regardless). PhoneField
+ * still resolves country + national into canonical E.164 before submit.
  */
 export const mobileSchema = z
   .string()
   .min(1, { message: M.required })
   .superRefine((val, ctx) => {
-    const ok = normalizeMobile(val) !== null || (val.startsWith('+') && isValidPhoneNumber(val));
+    const ok = normalizeMobile(val) !== null || E164.test(val.trim());
     if (!ok) ctx.addIssue({ code: z.ZodIssueCode.custom, message: M.mobile });
   });
 
