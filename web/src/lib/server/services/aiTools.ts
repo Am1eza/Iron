@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { searchSkus, findSkuRow, listCategories, listSubCategories, tableRows } from '@/lib/server/repos/catalogRepo';
 import { searchPublishedGuides, type ArticleFull } from '@/lib/server/repos/articlesRepo';
 import { searchCorrections } from '@/lib/server/repos/aiCorrectionsRepo';
+import { redisRateCheck } from '@/lib/server/redis';
 import { estimateProject } from '@/lib/server/services/estimate.service';
 import { createLead } from '@/lib/server/services/leads.service';
 import { computeBulkSplit } from '@/lib/utils/bulkSplit';
@@ -383,6 +384,18 @@ export async function runTool(
       case 'createLead': {
         const parsed = leadArgs.safeParse(args);
         if (!parsed.success) return { error: 'اطلاعات ناقص است — موبایل و اقلام را کامل بپرس.' };
+        // Per-MOBILE cap on AI-driven lead creation (each sends a real SMS).
+        // The pipeline's per-conversation MAX_LEAD_CALLS can be dodged by a
+        // scripted client rotating conversationId; this Redis-backed cap keys
+        // on the actual SMS recipient instead. Fail-open when Redis is down —
+        // the per-conversation cap and chat rate limit still stand beneath it.
+        const overMobileCap = await redisRateCheck(`ai-lead:${parsed.data.mobile}`, 3, 60 * 60_000);
+        if (overMobileCap === true) {
+          return {
+            error:
+              'برای این شماره در یک ساعت اخیر چند درخواست ثبت شده. کمی بعد دوباره تلاش کنید یا با پشتیبانی تماس بگیرید.',
+          };
+        }
         const result = await createLead(
           {
             contact: { name: parsed.data.name, mobile: parsed.data.mobile },

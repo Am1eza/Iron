@@ -93,13 +93,18 @@ export async function findLead(id: string): Promise<LeadRow | null> {
   return rows[0] ?? null;
 }
 
-export async function leadsForUser(userId: string, mobile: string) {
-  return getDb()
+export async function leadsForUser(userId: string, mobile: string, page = 1, pageSize = 50) {
+  const size = Math.min(Math.max(pageSize, 1), 100);
+  const p = Math.max(page, 1);
+  // limit+1: one extra row signals hasMore without a count(*) scan.
+  const rows = await getDb()
     .select()
     .from(leads)
     .where(and(or(eq(leads.userId, userId), eq(leads.contactMobile, mobile)), isNull(leads.deletedAt)))
     .orderBy(desc(leads.createdAt))
-    .limit(100);
+    .limit(size + 1)
+    .offset((p - 1) * size);
+  return { rows: rows.slice(0, size), hasMore: rows.length > size };
 }
 
 /** Soft-delete — archives a spam/duplicate/test lead out of admin views

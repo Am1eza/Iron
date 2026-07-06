@@ -49,5 +49,23 @@ export const cleanupJob: Job = {
     await db.execute(sql`
       DELETE FROM idempotency_keys WHERE created_at < now() - interval '7 days'
     `);
+
+    // ---- Append-only table retention (conservative; adjust per policy) ----
+    // sms_log: delivery-debugging window — 90 days is far past any dispute
+    // window for an OTP/notification text.
+    await db.execute(sql`DELETE FROM sms_log WHERE at < now() - interval '90 days'`);
+    // AI conversations (messages cascade via FK): the review/curation loop
+    // works on recent answers; 90 days keeps /admin/ai relevant. Curated
+    // corrections (ai_corrections) are permanent and carry the distilled
+    // value forward, so nothing learned is lost by pruning raw threads.
+    await db.execute(sql`DELETE FROM ai_conversations WHERE updated_at < now() - interval '90 days'`);
+    // Per-request cost telemetry + raw feedback signals: two quarters for
+    // trend analysis, then drop.
+    await db.execute(sql`DELETE FROM ai_usage WHERE created_at < now() - interval '180 days'`);
+    await db.execute(sql`DELETE FROM ai_feedback WHERE created_at < now() - interval '180 days'`);
+    // audit_entries: accountability trail — keep a full year (deliberately the
+    // longest window here; do NOT shorten without an operator decision).
+    await db.execute(sql`DELETE FROM audit_entries WHERE at < now() - interval '365 days'`);
+    // contact_messages are business correspondence — never auto-deleted.
   },
 };

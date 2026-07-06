@@ -29,7 +29,8 @@ async function GETImpl(req: NextRequest) {
     favoritesForUser(session.id),
     alertsForUser(session.id),
     clubStatus(session.id),
-    leadsForUser(session.id, session.mobile),
+    // Export wants everything in one go — request the max page size.
+    leadsForUser(session.id, session.mobile, 1, 100).then((r) => r.rows),
     ordersForUser(session.id),
     warehouseForUser(session.id),
     requestsForUser(session.id),

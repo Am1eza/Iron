@@ -9,7 +9,10 @@ async function GETImpl(req: NextRequest) {
   const auth = await requireApiUser(req);
   if ('response' in auth) return auth.response;
 
-  const rows = await leadsForUser(auth.session.id, auth.session.mobile);
+  // ?page= — 50/page; `hasMore` tells the client to keep paging (was a hard
+  // silent 100-row cap with no way past it).
+  const page = Math.max(Number(req.nextUrl.searchParams.get('page') ?? '1') || 1, 1);
+  const { rows, hasMore } = await leadsForUser(auth.session.id, auth.session.mobile, page);
   const leads = await Promise.all(
     rows.map(async (l) => {
       const [items, proformas] = await Promise.all([leadItemsOf(l.id), proformasOfLead(l.id)]);
@@ -26,7 +29,7 @@ async function GETImpl(req: NextRequest) {
       };
     }),
   );
-  return NextResponse.json({ leads }, { headers: { 'Cache-Control': 'no-store' } });
+  return NextResponse.json({ leads, page, hasMore }, { headers: { 'Cache-Control': 'no-store' } });
 }
 
 export const GET = withApiErrorHandling(GETImpl);
