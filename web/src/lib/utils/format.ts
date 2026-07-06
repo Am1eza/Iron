@@ -29,7 +29,9 @@ export function normalizeDigits(input: string): string {
  * (e.g. already-formatted numbers with separators).
  */
 export function localizeDigits(input: string | number, locale: string): string {
-  return locale === 'fa' ? toPersianDigits(input) : normalizeDigits(String(input));
+  // Non-fa: also swap the Persian thousands separator (٬) for the Latin comma
+  // so a fa-formatted composite value renders natively in en/ar/zh.
+  return locale === 'fa' ? toPersianDigits(input) : normalizeDigits(String(input)).replace(/٬/g, ',');
 }
 
 /** Format an integer Toman value with thousands separators + Persian digits + unit. */
