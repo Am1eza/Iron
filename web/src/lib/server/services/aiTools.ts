@@ -7,6 +7,7 @@
 import { z } from 'zod';
 import { searchSkus, findSkuRow, listCategories, listSubCategories, tableRows } from '@/lib/server/repos/catalogRepo';
 import { searchPublishedGuides, type ArticleFull } from '@/lib/server/repos/articlesRepo';
+import { searchCorrections } from '@/lib/server/repos/aiCorrectionsRepo';
 import { estimateProject } from '@/lib/server/services/estimate.service';
 import { createLead } from '@/lib/server/services/leads.service';
 import { computeBulkSplit } from '@/lib/utils/bulkSplit';
@@ -361,12 +362,23 @@ export async function runTool(
       case 'searchGuides': {
         const q = String(args.query ?? '').trim();
         if (!q) return { error: 'query لازم است.' };
+        // Curated corrections (admin-vetted golden answers) are retrieved first
+        // and marked as authoritative — this is how admin feedback improves the
+        // advisor over time. Fail-safe: searchCorrections returns [] on error,
+        // so a live answer never depends on it.
+        const corrections = await searchCorrections(q, 2);
         const hits = await searchPublishedGuides(q, 3);
-        if (hits.length === 0)
+        const results = [
+          ...corrections.map((c) => ({
+            title: 'پاسخ تأییدشدهٔ کارشناسان آهن‌تایم',
+            slug: 'curated',
+            excerpt: c.answer,
+          })),
+          ...hits.map((a) => ({ title: a.title, slug: a.slug, excerpt: guideExcerpt(a, q) })),
+        ];
+        if (results.length === 0)
           return { results: [], note: 'راهنمای مرتبطی در آهن‌تایم منتشر نشده — صادقانه بگو راهنمایی برای این موضوع نداریم.' };
-        return {
-          results: hits.map((a) => ({ title: a.title, slug: a.slug, excerpt: guideExcerpt(a, q) })),
-        };
+        return { results };
       }
       case 'createLead': {
         const parsed = leadArgs.safeParse(args);

@@ -64,6 +64,13 @@
       "when": 1783286952046,
       "tag": "0008_new_dazzler",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1783324470329,
+      "tag": "0009_glossy_the_hood",
+      "breakpoints": true
     }
   ]
 }

@@ -219,4 +219,19 @@ export const adminApi = {
     http.get<{ messages: Array<{ id: string; role: 'user' | 'assistant'; content: string; createdAt: string }> }>(
       `/api/admin/ai/conversations/${id}`,
     ),
+  aiCorrections: () =>
+    http.get<{
+      corrections: Array<{
+        id: string;
+        question: string;
+        answer: string;
+        sourceMessageId: string | null;
+        isActive: boolean;
+        createdAt: string;
+      }>;
+    }>('/api/admin/ai/corrections'),
+  createCorrection: (input: { question: string; answer: string; sourceMessageId?: string }) =>
+    http.post<{ correction: unknown }>('/api/admin/ai/corrections', input),
+  setCorrectionActive: (id: string, isActive: boolean) =>
+    http.patch<{ ok: true }>(`/api/admin/ai/corrections/${id}`, { isActive }),
 };

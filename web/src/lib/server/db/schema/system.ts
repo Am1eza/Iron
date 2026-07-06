@@ -3,7 +3,8 @@
  * log (also how dev-mode SMS stays visible without a provider key), and the
  * AI-advisor usage log (per-request token cost + grounding violations).
  */
-import { index, integer, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
+import { boolean, index, integer, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { users } from './auth';
 
 export const auditEntries = pgTable(
@@ -110,6 +111,27 @@ export const aiFeedback = pgTable(
   (t) => [
     index('ai_feedback_message_idx').on(t.messageId),
     index('ai_feedback_created_idx').on(t.createdAt),
+  ],
+);
+
+/** Curated "golden" answers, promoted by admins from flagged conversations.
+ *  Retrieved (trgm over the question) into the advisor's grounded context via
+ *  the searchGuides tool, so vetted corrections improve future answers without
+ *  any model training — the payoff of the feedback loop. */
+export const aiCorrections = pgTable(
+  'ai_corrections',
+  {
+    id: text('id').primaryKey(),
+    question: text('question').notNull(),
+    answer: text('answer').notNull(),
+    sourceMessageId: text('source_message_id'),
+    isActive: boolean('is_active').notNull().default(true),
+    createdBy: text('created_by'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('ai_corrections_active_idx').on(t.isActive),
+    index('ai_corrections_question_trgm_idx').using('gin', sql`${t.question} gin_trgm_ops`),
   ],
 );
 

@@ -1,12 +1,17 @@
 'use client';
-/** AI advisor review — flagged answers (👍/👎) with full conversation context.
- *  Increment 1 of the continuous-improvement loop: read-only review today;
- *  "promote to correction/eval" is the next increment (see docs/roadmap). */
+/** AI advisor review + curation — the continuous-improvement loop.
+ *  - Review flagged answers (👍/👎) with full conversation context.
+ *  - Promote a flagged answer into a curated "golden" correction, which the
+ *    advisor then retrieves into its grounded context (searchGuides) so future
+ *    similar questions get the vetted answer. This is how it improves over time. */
 import { useState } from 'react';
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api/resources/admin';
 import { formatJalali } from '@/lib/utils/format';
-import { Badge, Button, Chip, EmptyState, TableSkeleton } from '@/components/ui';
+import { useToast } from '@/lib/hooks/useToast';
+import { ApiError } from '@/lib/api/errors';
+import { Badge, Button, Chip, EmptyState, Modal, Switch, TableSkeleton } from '@/components/ui';
+import { TextInput, Textarea } from '@/components/forms/fields';
 import ui from '../adminUi.module.css';
 
 const RATING_FILTERS = [
@@ -15,9 +20,12 @@ const RATING_FILTERS = [
   { id: 'up' as const, label: '👍 مفید' },
 ];
 
+type PromoteTarget = { messageId: string | null; answer: string } | null;
+
 export function AiReview() {
   const [rating, setRating] = useState<'' | 'up' | 'down'>('down');
   const [openConversation, setOpenConversation] = useState<string | null>(null);
+  const [promote, setPromote] = useState<PromoteTarget>(null);
 
   const { data, isLoading, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: ['admin', 'ai-feedback', rating],
@@ -81,7 +89,7 @@ export function AiReview() {
               <th scope="col">امتیاز</th>
               <th scope="col">پاسخ</th>
               <th scope="col">دلیل</th>
-              <th scope="col">مکالمه</th>
+              <th scope="col">اقدام</th>
             </tr>
           </thead>
           <tbody>
@@ -96,17 +104,24 @@ export function AiReview() {
                 <td className={ui.textCell}>{e.answerText ?? <span className={ui.muted}>پاک‌شده</span>}</td>
                 <td className={ui.muted}>{e.reason ?? '—'}</td>
                 <td>
-                  {e.conversationId ? (
+                  <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+                    {e.conversationId && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setOpenConversation((cur) => (cur === e.conversationId ? null : e.conversationId!))}
+                      >
+                        {openConversation === e.conversationId ? 'بستن' : 'گفتگو'}
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => setOpenConversation((cur) => (cur === e.conversationId ? null : e.conversationId!))}
+                      onClick={() => setPromote({ messageId: e.messageId, answer: e.answerText ?? '' })}
                     >
-                      {openConversation === e.conversationId ? 'بستن' : 'نمایش گفتگو'}
+                      ثبت پاسخ درست
                     </Button>
-                  ) : (
-                    '—'
-                  )}
+                  </div>
                   {openConversation === e.conversationId && e.conversationId && (
                     <ConversationThread conversationId={e.conversationId} />
                   )}
@@ -123,6 +138,12 @@ export function AiReview() {
             {isFetchingNextPage ? 'در حال بارگذاری…' : 'نمایش موارد قدیمی‌تر'}
           </Button>
         </div>
+      )}
+
+      <CorrectionsLibrary />
+
+      {promote && (
+        <PromoteModal target={promote} onClose={() => setPromote(null)} />
       )}
     </div>
   );
@@ -144,6 +165,120 @@ function ConversationThread({ conversationId }: { conversationId: string }) {
           <strong>{m.role === 'user' ? 'کاربر' : 'دستیار'}:</strong> {m.content}
         </p>
       ))}
+    </div>
+  );
+}
+
+function PromoteModal({ target, onClose }: { target: NonNullable<PromoteTarget>; onClose: () => void }) {
+  const toast = useToast();
+  const qc = useQueryClient();
+  const [question, setQuestion] = useState('');
+  const [answer, setAnswer] = useState(target.answer);
+
+  const save = useMutation({
+    mutationFn: () =>
+      adminApi.createCorrection({
+        question: question.trim(),
+        answer: answer.trim(),
+        sourceMessageId: target.messageId ?? undefined,
+      }),
+    onSuccess: () => {
+      toast.success('پاسخ تأییدشده ثبت شد؛ دستیار از این پس آن را در نظر می‌گیرد.');
+      void qc.invalidateQueries({ queryKey: ['admin', 'ai-corrections'] });
+      onClose();
+    },
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : 'ثبت ناموفق بود.'),
+  });
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title="ثبت پاسخ تأییدشده (Golden)"
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            انصراف
+          </Button>
+          <Button onClick={() => save.mutate()} loading={save.isPending} disabled={question.trim().length < 3 || answer.trim().length < 3}>
+            ثبت
+          </Button>
+        </>
+      }
+    >
+      <p className={ui.muted} style={{ marginBlockStart: 0 }}>
+        سؤال/موضوع را با کلیدواژه‌های اصلی بنویسید و پاسخ درست را ویرایش کنید. دستیار این پاسخ را برای سؤال‌های مشابه بازیابی می‌کند.
+      </p>
+      <div style={{ display: 'grid', gap: 'var(--space-3)' }}>
+        <TextInput
+          label="سؤال / موضوع (کلیدواژه‌ها)"
+          value={question}
+          onChange={(e) => setQuestion(e.target.value)}
+          placeholder="مثلاً: فرق گرید A2 و A3 میلگرد"
+        />
+        <Textarea label="پاسخ تأییدشده" rows={6} value={answer} onChange={(e) => setAnswer(e.target.value)} />
+      </div>
+    </Modal>
+  );
+}
+
+function CorrectionsLibrary() {
+  const toast = useToast();
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const { data, isLoading } = useQuery({
+    queryKey: ['admin', 'ai-corrections'],
+    queryFn: () => adminApi.aiCorrections(),
+    enabled: open,
+  });
+  const toggle = useMutation({
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) => adminApi.setCorrectionActive(id, isActive),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['admin', 'ai-corrections'] });
+    },
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : 'تغییر وضعیت ناموفق بود.'),
+  });
+  const corrections = data?.corrections ?? [];
+
+  return (
+    <div style={{ marginBlockStart: 'var(--space-8)' }}>
+      <div className={ui.toolbar}>
+        <Button size="sm" variant="ghost" onClick={() => setOpen((v) => !v)}>
+          {open ? 'بستن کتابخانهٔ پاسخ‌های تأییدشده' : `کتابخانهٔ پاسخ‌های تأییدشده${corrections.length ? ` (${corrections.length})` : ''}`}
+        </Button>
+      </div>
+      {open &&
+        (isLoading ? (
+          <TableSkeleton rows={3} cols={2} />
+        ) : corrections.length === 0 ? (
+          <EmptyState size="section" headline="هنوز پاسخ تأییدشده‌ای ثبت نشده" body="از دکمهٔ «ثبت پاسخ درست» روی بازخوردها استفاده کنید." />
+        ) : (
+          <table className={ui.table}>
+            <caption className="visually-hidden">کتابخانهٔ پاسخ‌های تأییدشدهٔ دستیار</caption>
+            <thead>
+              <tr>
+                <th scope="col">سؤال</th>
+                <th scope="col">پاسخ</th>
+                <th scope="col">فعال</th>
+              </tr>
+            </thead>
+            <tbody>
+              {corrections.map((c) => (
+                <tr key={c.id}>
+                  <td className={ui.textCell}>{c.question}</td>
+                  <td className={ui.textCell}>{c.answer}</td>
+                  <td>
+                    <Switch
+                      checked={c.isActive}
+                      onChange={(v) => toggle.mutate({ id: c.id, isActive: v })}
+                      label="فعال"
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ))}
     </div>
   );
 }
