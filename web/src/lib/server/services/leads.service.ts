@@ -73,14 +73,19 @@ async function priceItems(
     .leftJoin(currentPrices, eq(currentPrices.skuId, skus.id))
     .where(inArray(skus.id, ids));
   const bySku = new Map(rows.map((r) => [r.sku.id, r] as const));
-  // Slug fallback: cart items created from mock-era rows carry slug ids.
+  // Slug fallback: cart items created from mock-era rows carry slug ids. Only
+  // query the ids that DIDN'T resolve by SKU id — skip the extra round-trip
+  // entirely in the common case where every id matched.
   const bySlug = new Map(rows.map((r) => [r.sku.slug, r] as const));
-  const slugRows = await db
-    .select({ sku: skus, price: currentPrices })
-    .from(skus)
-    .leftJoin(currentPrices, eq(currentPrices.skuId, skus.id))
-    .where(inArray(skus.slug, ids));
-  for (const r of slugRows) bySlug.set(r.sku.slug, r);
+  const unresolved = ids.filter((id) => !bySku.has(id));
+  if (unresolved.length > 0) {
+    const slugRows = await db
+      .select({ sku: skus, price: currentPrices })
+      .from(skus)
+      .leftJoin(currentPrices, eq(currentPrices.skuId, skus.id))
+      .where(inArray(skus.slug, unresolved));
+    for (const r of slugRows) bySlug.set(r.sku.slug, r);
+  }
 
   const freshness = await getPriceFreshness();
 

@@ -334,6 +334,8 @@ export function AdvisorChat({
   const useServer = useRef(API_MODE !== 'mock');
   const transcriptRef = useRef<{ role: 'user' | 'ai'; text: string }[]>([]);
   const busyRef = useRef(false);
+  // Lets the user stop an in-flight answer (WCAG/UX — no forced wait).
+  const abortRef = useRef<AbortController | null>(null);
   // Server-issued conversation id ({type:'conversation'} frame) — echoed on
   // later turns so the server keeps persistence + rolling-summary continuity.
   const conversationIdRef = useRef<string | undefined>(undefined);
@@ -429,7 +431,12 @@ export function AdvisorChat({
         .filter((m) => m.text.trim())
         .slice(-10)
         .map((m) => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.text }));
-      const res = await api.ai.chatStream(transcript, { conversationId: conversationIdRef.current });
+      const controller = new AbortController();
+      abortRef.current = controller;
+      const res = await api.ai.chatStream(transcript, {
+        conversationId: conversationIdRef.current,
+        signal: controller.signal,
+      });
       if (!res.body) throw new Error('no-body');
       for await (const ev of readSse(res.body)) {
         if (ev.type === 'conversation') {
@@ -467,6 +474,21 @@ export function AdvisorChat({
         { id: aiId, role: 'ai', text: streamedText, chips: chipsBuf, dbMessageId, conversationId: conversationIdRef.current },
       ]);
     } catch (e) {
+      const aborted =
+        abortRef.current?.signal.aborted || (e instanceof DOMException && e.name === 'AbortError');
+      if (aborted) {
+        // User pressed stop — keep whatever streamed so far, no fallback, no error.
+        setTyping(false);
+        setStreamPreview(null);
+        if (streamedText.trim()) {
+          transcriptRef.current.push({ role: 'ai', text: streamedText });
+          setMessages((all) => [
+            ...all,
+            { id: aiId, role: 'ai', text: streamedText, chips: chipsBuf, dbMessageId, conversationId: conversationIdRef.current },
+          ]);
+        }
+        return;
+      }
       // Permanent downgrade ONLY when the server says no relay exists; every
       // transient failure (timeout, 429, network blip) retries next turn.
       if (isApiError(e) && e.status === 503) useServer.current = false;
@@ -474,6 +496,7 @@ export function AdvisorChat({
       if (opened) setStreamPreview(null);
       sendLocal(text);
     } finally {
+      abortRef.current = null;
       busyRef.current = false;
       setBusy(false);
     }
@@ -598,9 +621,22 @@ export function AdvisorChat({
             <MicIcon size={20} />
           </button>
         )}
-        <button type="submit" className={styles.send} aria-label="ارسال" disabled={busy}>
-          <ChevronStartIcon size={20} className="icon--rtl" />
-        </button>
+        {busy ? (
+          <button
+            type="button"
+            className={styles.send}
+            aria-label="توقف پاسخ"
+            onClick={() => abortRef.current?.abort()}
+          >
+            <span aria-hidden="true" style={{ fontSize: 14 }}>
+              ⏹
+            </span>
+          </button>
+        ) : (
+          <button type="submit" className={styles.send} aria-label="ارسال">
+            <ChevronStartIcon size={20} className="icon--rtl" />
+          </button>
+        )}
       </form>
       <p className={styles.disclaimer}>
         پاسخ‌ها بر پایهٔ قیمت‌های واقعی است؛ آهن‌تایم هرگز عدد ساختگی نمی‌سازد.
