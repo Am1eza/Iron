@@ -2,6 +2,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useCartStore } from '@/lib/stores/cart';
 import { useToast } from '@/lib/hooks/useToast';
 import { useAuth } from '@/lib/hooks/useAuth';
@@ -49,7 +50,9 @@ const PriceTableRow = memo(function PriceTableRow({
   return (
     <tr>
       <th scope="row" className={styles.name}>
-        {r.name}
+        <Link href={routes.sku(r.categoryId, r.subCategoryId, r.slug)} className={styles.nameLink}>
+          {r.name}
+        </Link>
       </th>
       <td>{r.size ? toPersianDigits(r.size) : '—'}</td>
       <td className={styles.muted}>{r.factory ?? '—'}</td>
@@ -108,7 +111,9 @@ const PriceTableCard = memo(function PriceTableCard({
   return (
     <li className={styles.card}>
       <div className={styles.cardTop}>
-        <span className={styles.cardName}>{r.name}</span>
+        <Link href={routes.sku(r.categoryId, r.subCategoryId, r.slug)} className={styles.cardName}>
+          {r.name}
+        </Link>
         <IconButton
           size="sm"
           label="علاقه‌مندی"

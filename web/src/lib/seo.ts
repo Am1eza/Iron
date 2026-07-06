@@ -171,10 +171,12 @@ export function articleJsonLd(a: {
   publishedAt?: string;
   updatedAt?: string;
   image?: string;
+  /** 'NewsArticle' for /news (timely reporting), 'Article' for evergreen /blog. */
+  type?: 'Article' | 'NewsArticle';
 }) {
   return {
     '@context': 'https://schema.org',
-    '@type': 'Article',
+    '@type': a.type ?? 'Article',
     headline: a.title,
     datePublished: a.publishedAt,
     dateModified: a.updatedAt ?? a.publishedAt,

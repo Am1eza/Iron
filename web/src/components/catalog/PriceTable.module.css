@@ -134,6 +134,14 @@
   color: var(--color-text-strong);
   white-space: nowrap;
 }
+/* Crawlable SKU link (SEO): each product name is a real <a href> to its page. */
+.nameLink {
+  color: inherit;
+  text-decoration: none;
+}
+.nameLink:hover {
+  text-decoration: underline;
+}
 .muted {
   color: var(--color-text-muted);
 }

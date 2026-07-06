@@ -28,25 +28,39 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const categories = (await getCategories()).filter((c) => c.isActive);
 
-  const categoryEntries: MetadataRoute.Sitemap = categories.map((c) => ({
+  // Sub-category + SKU pages — the bulk of the site's indexable, revenue-relevant
+  // content. One getRows() call per category (not per sub-category) — rows are
+  // then grouped locally by subCategoryId to avoid N sequential DB round-trips.
+  const categoryRows = await Promise.all(categories.map((c) => getRows(c.slug)));
+
+  // Real freshness for category/sub-category pages: the newest price update
+  // among their SKUs, not build time (which misrepresented hourly-changing
+  // pages as all edited at deploy).
+  const latestUpdate = (rows: Array<{ current: { updatedAt?: string | Date | null } }>): Date => {
+    let max = 0;
+    for (const r of rows) {
+      const t = r.current.updatedAt ? new Date(r.current.updatedAt).getTime() : 0;
+      if (t > max) max = t;
+    }
+    return max > 0 ? new Date(max) : now;
+  };
+
+  const categoryEntries: MetadataRoute.Sitemap = categories.map((c, i) => ({
     url: new URL(routes.category(c.slug), SITE_URL).toString(),
-    lastModified: now,
+    lastModified: latestUpdate(categoryRows[i] ?? []),
     changeFrequency: 'hourly',
     priority: 0.8,
   }));
 
-  // Sub-category + SKU pages — the bulk of the site's indexable, revenue-relevant
-  // content. One getRows() call per category (not per sub-category) — rows are
-  // then grouped locally by subCategoryId to avoid N sequential DB round-trips.
   const subCategoryEntries: MetadataRoute.Sitemap = [];
   const skuEntries: MetadataRoute.Sitemap = [];
-  const categoryRows = await Promise.all(categories.map((c) => getRows(c.slug)));
   categories.forEach((cat, i) => {
     const rows = categoryRows[i] ?? [];
+    const catLatest = latestUpdate(rows);
     for (const sub of CATEGORY_SUBS[cat.slug] ?? []) {
       subCategoryEntries.push({
         url: new URL(routes.subCategory(cat.slug, sub.slug), SITE_URL).toString(),
-        lastModified: now,
+        lastModified: catLatest,
         changeFrequency: 'hourly',
         priority: 0.75,
       });

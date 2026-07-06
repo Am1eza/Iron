@@ -68,8 +68,29 @@
   animation: none;
 }
 .viewport:hover .track,
-.viewport:focus-within .track {
+.viewport:focus-within .track,
+.viewport[data-paused] .track {
   animation-play-state: paused;
+}
+
+/* Persistent pause/play control (WCAG 2.2.2 Pause, Stop, Hide). */
+.pause {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  margin-inline: var(--space-1);
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 0.75rem;
+  line-height: 1;
+}
+.pause:hover {
+  color: var(--color-text);
 }
 
 /* RTL: content flows right→left, so translate toward the inline-end (positive X). */

@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import { ChevronDownIcon } from '@/components/primitives/icons';
 import styles from './Header.module.css';
@@ -26,6 +26,7 @@ export function NavDropdown({
   active?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const panelId = useId();
   const ref = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -79,6 +80,8 @@ export function NavDropdown({
         className={styles.navTrigger}
         data-active={active ? '' : undefined}
         aria-expanded={open}
+        aria-haspopup="menu"
+        aria-controls={open ? panelId : undefined}
         onClick={() => setOpen((v) => !v)}
       >
         {label}
@@ -86,6 +89,7 @@ export function NavDropdown({
       </button>
       {open && (
         <div
+          id={panelId}
           className={mega ? styles.mega : styles.dropdown}
           onMouseEnter={openNow}
           onMouseLeave={closeSoon}

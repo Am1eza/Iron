@@ -107,9 +107,9 @@ export function LoginForm() {
 
   return (
     <div className="stack" style={{ maxInlineSize: 360 }}>
-      {error ? (
+      {error || (step === 'code' && otpError) ? (
         <FormStatus variant="error" id={step === 'code' ? 'otp-error' : undefined}>
-          {error}
+          {error ?? 'کد تأیید باید ۵ رقم باشد.'}
         </FormStatus>
       ) : null}
 

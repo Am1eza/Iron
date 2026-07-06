@@ -1,4 +1,5 @@
 'use client';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useMarket } from '@/lib/hooks/useMarket';
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion';
@@ -17,6 +18,7 @@ import styles from './Ticker.module.css';
 export function Ticker() {
   const { data, isError } = useMarket();
   const reduced = useReducedMotion();
+  const [paused, setPaused] = useState(false);
   const values = data?.values?.length ? data.values : fallbackValues;
 
   // Duplicate the set so the marquee loops seamlessly (the second copy is decorative).
@@ -27,7 +29,22 @@ export function Ticker() {
       <span className={styles.tag} aria-hidden="true">
         نبض بازار
       </span>
-      <div className={styles.viewport} data-reduced={reduced ? '' : undefined}>
+      {!reduced && (
+        <button
+          type="button"
+          className={styles.pause}
+          aria-pressed={paused}
+          aria-label={paused ? 'ادامهٔ حرکت نوار قیمت‌ها' : 'توقف حرکت نوار قیمت‌ها'}
+          onClick={() => setPaused((p) => !p)}
+        >
+          <span aria-hidden="true">{paused ? '▶' : '⏸'}</span>
+        </button>
+      )}
+      <div
+        className={styles.viewport}
+        data-reduced={reduced ? '' : undefined}
+        data-paused={!reduced && paused ? '' : undefined}
+      >
         <ul className={`${styles.track} tnum`}>
           {items.map((v, i) => (
             <TickerItem key={`${v.key}-${i}`} v={v} decorative={!reduced && i >= values.length} />

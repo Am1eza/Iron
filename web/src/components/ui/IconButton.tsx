@@ -17,7 +17,8 @@ export type IconButtonProps = Omit<
   active?: boolean;
 };
 
-/** Icon button (A1 · icon variant). Always 40–44px hit area; mandatory `label`. */
+/** Icon button (A1 · icon variant). Hit area: sm 36px, md 40px, lg 44px — all
+ *  clear WCAG 2.5.8 AA (24px min); mandatory `label`. */
 export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(function IconButton(
   { label, icon, variant = 'ghost', size = 'md', active, className, ...rest },
   ref,

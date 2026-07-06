@@ -58,6 +58,7 @@ export default async function NewsArticlePage({ params }: Params) {
       <BreadcrumbJsonLd items={crumbs} />
       <JsonLd
         data={articleJsonLd({
+          type: 'NewsArticle',
           title: article.title,
           url: routes.news(article.slug),
           publishedAt: article.publishAt,
