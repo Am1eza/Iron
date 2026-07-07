@@ -16,7 +16,7 @@ describe('sendToSentry', () => {
     global.fetch = fetchSpy as unknown as typeof fetch;
     const { sendToSentry } = await import('./sentry');
 
-    sendToSentry(new Error('boom'));
+    sendToSentry('Error', 'boom', undefined);
 
     expect(fetchSpy).not.toHaveBeenCalled();
   });
@@ -27,7 +27,7 @@ describe('sendToSentry', () => {
     global.fetch = fetchSpy as unknown as typeof fetch;
     const { sendToSentry } = await import('./sentry');
 
-    sendToSentry(new Error('boom'), { scope: 'test' });
+    sendToSentry('Error', 'boom', 'Error: boom\n    at foo', { scope: 'test' });
     // fire-and-forget: give the microtask a tick before asserting.
     await Promise.resolve();
 
@@ -51,7 +51,40 @@ describe('sendToSentry', () => {
     global.fetch = fetchSpy as unknown as typeof fetch;
     const { sendToSentry } = await import('./sentry');
 
-    expect(() => sendToSentry(new Error('boom'))).not.toThrow();
+    expect(() => sendToSentry('Error', 'boom', undefined)).not.toThrow();
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('reportError PII scrubbing (regression: mobile must not leak to logs/Sentry)', () => {
+  const originalFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = originalFetch;
+    vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+  });
+
+  it('scrubs a mobile embedded in the error MESSAGE and STACK from the log line and Sentry', async () => {
+    vi.resetModules();
+    vi.stubEnv('SENTRY_DSN', 'https://abc123@o1.ingest.sentry.io/9');
+    const fetchSpy = vi.fn().mockResolvedValue({ ok: true });
+    global.fetch = fetchSpy as unknown as typeof fetch;
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { reportError } = await import('./report');
+
+    const err = new Error('no user for 09121234567');
+    reportError(err, { note: 'ref for +989887776655' });
+    await Promise.resolve();
+
+    // Log line: neither message nor stack may contain the raw 11-digit mobile.
+    const logged = errSpy.mock.calls[0]![0] as string;
+    expect(logged).not.toMatch(/09121234567/);
+    expect(logged).not.toMatch(/989887776655/);
+    expect(logged).toContain('[redacted-mobile]');
+
+    // Sentry event value (message + stack) must also be scrubbed.
+    const body = fetchSpy.mock.calls[0]![1].body as string;
+    expect(body).not.toMatch(/09121234567/);
+    expect(body).not.toMatch(/989887776655/);
   });
 });

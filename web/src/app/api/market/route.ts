@@ -1,11 +1,9 @@
 import { NextResponse } from 'next/server';
 import { hasDb } from '@/lib/server/db/client';
-import { listMarketValues } from '@/lib/server/repos/marketRepo';
+import { listMarketValues, MARKET_CACHE_KEY } from '@/lib/server/repos/marketRepo';
 import { marketValues as fixtureValues } from '@/lib/mock/fixtures';
 import { withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { cacheGetJson, cacheSetJson } from '@/lib/server/redis';
-
-const MARKET_CACHE_KEY = 'market:values';
 
 /** GET /api/market — ticker values (tgju FX/gold/ounce + admin billet).
  *  Redis read-through (30s) offloads the sitewide 60s ticker poll from the DB;

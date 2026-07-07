@@ -4,6 +4,7 @@
  * Client: console now, sendBeacon('/api/log') later. NEVER expose to the user; redact PII.
  */
 import { sendToSentry } from './sentry';
+import { scrubMobile } from './scrub';
 
 // Covers both PII (mobile/name/address/...) and credential-shaped keys
 // (token/secret/password/authorization/...) — a future call site passing
@@ -11,32 +12,27 @@ import { sendToSentry } from './sentry';
 // not reach logs/Sentry in the clear just because it isn't "personal" data.
 const REDACT_KEYS = /mobile|phone|code|otp|name|address|token|secret|password|apikey|api_key|authorization|jwt|dsn|cookie/i;
 
-// Value-level scrub: a mobile embedded in an error MESSAGE or under an
-// innocuous key bypasses the key filter (e.g. `new Error('no user for
-// 09121234567')`). `0/(+)98` + 9 digits is distinctive enough not to hit prices.
-const MOBILE_VALUE = /(?:\+?98|0)9\d{9}/g;
-function scrubValue<T>(v: T): T {
-  return typeof v === 'string' ? (v.replace(MOBILE_VALUE, '[redacted-mobile]') as unknown as T) : v;
-}
-
 function redact(context?: Record<string, unknown>): Record<string, unknown> | undefined {
   if (!context) return undefined;
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(context)) {
-    out[k] = REDACT_KEYS.test(k) ? '[redacted]' : scrubValue(v);
+    out[k] = REDACT_KEYS.test(k) ? '[redacted]' : scrubMobile(v);
   }
   return out;
 }
 
 export function reportError(error: unknown, context?: Record<string, unknown>): void {
+  const scrubbedContext = redact(context);
   const payload = {
     level: 'error',
     tag: 'ahantime:error',
     name: error instanceof Error ? error.name : 'Unknown',
-    message: scrubValue(error instanceof Error ? error.message : String(error)),
-    stack: error instanceof Error ? error.stack : undefined,
+    message: scrubMobile(error instanceof Error ? error.message : String(error)),
+    // The stack tail always repeats `Error: <message>` — scrub it too, or the
+    // mobile the message field just redacted leaks in the same log line.
+    stack: scrubMobile(error instanceof Error ? error.stack : undefined),
     status: (error as { status?: number } | null)?.status,
-    context: redact(context),
+    context: scrubbedContext,
     at: new Date().toISOString(),
   };
   // One JSON object per line (not util.inspect's multi-line pretty-print of
@@ -46,6 +42,8 @@ export function reportError(error: unknown, context?: Record<string, unknown>): 
   // structured in the first place.
   // eslint-disable-next-line no-console
   console.error(JSON.stringify(payload));
-  sendToSentry(error, payload.context);
+  // Pass the SCRUBBED message/stack to Sentry too — it builds its event value
+  // from these, and the raw error object would otherwise re-leak the mobile.
+  sendToSentry(payload.name, payload.message, payload.stack, scrubbedContext);
   // TODO: client-side alerting — navigator.sendBeacon('/api/log', JSON.stringify(payload)).
 }

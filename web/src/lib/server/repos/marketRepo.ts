@@ -2,8 +2,14 @@
 import { and, asc, eq, gte } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { getDb } from '@/lib/server/db/client';
+import { cacheDel } from '@/lib/server/redis';
 import { marketValues, marketPoints } from '@/lib/server/db/schema';
 import type { MarketKey, MarketValue } from '@/lib/types/domain';
+
+/** Read-through cache key for the public ticker (GET /api/market). Owned here,
+ *  next to the writers, so every mutation invalidates it — an admin override or
+ *  tgju poll is reflected on the next request instead of after ≤30s of stale TTL. */
+export const MARKET_CACHE_KEY = 'market:values';
 
 type Row = typeof marketValues.$inferSelect;
 
@@ -68,12 +74,17 @@ export async function upsertMarketValue(input: {
   if (!prev || prev.value !== input.value) {
     await db.insert(marketPoints).values({ id: ulid(), key: input.key, value: input.value, at: now });
   }
+  // Invalidate the ticker read-through cache so the new value is visible on the
+  // next GET instead of trailing the ≤30s TTL. Best-effort (no-op without Redis).
+  await cacheDel(MARKET_CACHE_KEY);
   return toDto({ ...row, movementPct: row.movementPct } as Row);
 }
 
 /** Flag all tgju-sourced rows stale (outage) — last-known values keep serving. */
 export async function flagTgjuStale(): Promise<void> {
   await getDb().update(marketValues).set({ isStale: true }).where(eq(marketValues.source, 'tgju'));
+  // The served payload's isStale flips — drop the cache so the outage shows promptly.
+  await cacheDel(MARKET_CACHE_KEY);
 }
 
 const RANGE_DAYS: Record<string, number> = { '7d': 7, '30d': 30, '90d': 90, '1y': 365 };

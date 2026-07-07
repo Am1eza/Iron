@@ -22,13 +22,17 @@ async function POSTImpl(req: NextRequest) {
   if (!v.ok) return v.response;
 
   // Idempotency: a double-submit (double-click, network retry) of the SAME
-  // request must not create a second lead + پیش‌فاکتور + SMS. Keyed on the
-  // contact mobile + exact item set so genuinely different requests aren't
-  // deduped, but an identical resubmit replays the first response.
+  // request must not create a second lead + پیش‌فاکتور + SMS. Keyed on contact
+  // mobile + exact item set + a 2-minute time bucket. The bucket is CRUCIAL:
+  // without it a `done` row lives 24h, so a buyer legitimately re-requesting the
+  // identical cart hours later (fresh quote in a volatile market) would be
+  // silently replayed — no new lead/proforma/SMS. With it, only near-simultaneous
+  // resubmits collide; a deliberate re-request minutes later goes through.
+  const bucket = Math.floor(Date.now() / 120_000);
   const dedupeKey = `${v.data.contact.mobile}:${v.data.items
     .map((i) => `${i.skuId}x${i.qty}`)
     .sort()
-    .join(',')}`;
+    .join(',')}:${bucket}`;
 
   try {
     return await withIdempotency(req, 'leads', dedupeKey, async () => {

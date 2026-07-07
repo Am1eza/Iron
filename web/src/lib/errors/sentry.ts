@@ -43,7 +43,17 @@ function ingestUrl(): string | null {
   return cachedIngestUrl;
 }
 
-export function sendToSentry(error: unknown, context?: Record<string, unknown>): void {
+/**
+ * Report a pre-SCRUBBED error to Sentry. Callers (report.ts) pass the already
+ * PII-scrubbed name/message/stack/context — this never sees the raw error, so a
+ * mobile in the message or stack can't leak into ingestion.
+ */
+export function sendToSentry(
+  name: string,
+  message: string,
+  stack: string | undefined,
+  context?: Record<string, unknown>,
+): void {
   const url = ingestUrl();
   if (!url) return;
 
@@ -58,16 +68,11 @@ export function sendToSentry(error: unknown, context?: Record<string, unknown>):
     exception: {
       values: [
         {
-          type: error instanceof Error ? error.name : 'Error',
-          // Raw stack included as the message tail rather than parsed into
-          // Sentry's structured frame format — correct grouping/alerting
-          // without a fragile hand-rolled stack-trace parser.
-          value:
-            error instanceof Error
-              ? error.stack
-                ? `${error.message}\n\n${error.stack}`
-                : error.message
-              : String(error),
+          type: name,
+          // Stack included as the message tail rather than parsed into Sentry's
+          // structured frame format — correct grouping/alerting without a
+          // fragile hand-rolled parser. Already scrubbed by the caller.
+          value: stack ? `${message}\n\n${stack}` : message,
         },
       ],
     },
