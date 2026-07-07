@@ -1,0 +1,129 @@
+/* Rendered-markdown content inside an advisor chat bubble. Everything keys
+   off the site's design tokens so the advisor's tables/lists read as native
+   ahantime UI, not "AI output pasted into a bubble". */
+
+.md {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-inline-size: 0;
+}
+
+.md p {
+  margin: 0;
+}
+
+.heading {
+  font-weight: 700;
+  color: var(--color-text-strong);
+  margin-block-start: var(--space-1);
+}
+
+.hr {
+  border: 0;
+  border-block-start: var(--border-hairline) solid var(--color-hairline);
+  margin-block: var(--space-1);
+}
+
+/* ===== blockquote — the advisor's "next step" callout ===== */
+.quote {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-inline-start: 3px solid var(--color-accent);
+  background: var(--color-accent-tint);
+  border-radius: var(--radius-xs);
+  color: var(--color-text-strong);
+}
+
+/* ===== lists ===== */
+.list {
+  margin: 0;
+  padding-inline-start: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.list li::marker {
+  color: var(--color-accent);
+}
+/* Ordered-list numerals in Persian, matching the rest of the site's digits. */
+ol.list {
+  list-style-type: persian;
+}
+
+/* ===== inline code — sizes/grades like `A3` or `14×2`. Forced LTR: code
+   rendering RTL is the single most common bidi bug in RTL chat UIs. ===== */
+.code {
+  font: var(--t-data);
+  font-size: 0.85em;
+  background: var(--color-surface-sunken);
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-xs);
+  padding: 0 var(--space-1);
+  white-space: nowrap;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+/* ===== tables — the advisor's comparisons must read like the site's own
+   price tables: hairline borders, muted header, zebra rows, tabular digits.
+   Wide tables scroll inside the bubble; the page never scrolls sideways. ===== */
+.tableWrap {
+  overflow-x: auto;
+  max-inline-size: 100%;
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  /* momentum scroll on iOS; thin scrollbar elsewhere */
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.table {
+  border-collapse: collapse;
+  inline-size: 100%;
+  min-inline-size: max-content;
+  font: var(--t-body-sm);
+}
+
+.table th {
+  font: var(--t-caption);
+  font-weight: 700;
+  color: var(--color-text-muted);
+  background: var(--color-surface-sunken);
+  text-align: start;
+  padding: var(--space-2) var(--space-3);
+  border-block-end: var(--border-hairline) solid var(--color-hairline);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: var(--space-2) var(--space-3);
+  border-block-end: var(--border-hairline) solid var(--color-hairline);
+  color: var(--color-text);
+  vertical-align: top;
+}
+
+.table tr:last-child td {
+  border-block-end: none;
+}
+
+.table tbody tr:nth-child(even) td {
+  background: color-mix(in srgb, var(--color-surface-sunken) 55%, transparent);
+}
+
+/* Numeric cells (price/weight/size): tabular-lining digits, end-aligned like
+   the site's own price tables, isolated so «۱۲٬۵۰۰ تومان» never
+   bidi-scrambles next to Persian text. */
+.table td:global(.tnum) {
+  font: var(--t-data);
+  color: var(--color-text-strong);
+  white-space: nowrap;
+  text-align: end;
+  unicode-bidi: isolate;
+}
+
+.md strong {
+  font-weight: 700;
+  color: var(--color-text-strong);
+}

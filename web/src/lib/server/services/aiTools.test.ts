@@ -1,7 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { runTool } from './aiTools';
 
-type WeightResult = { unitWeightKg: number; totalWeightKg: number };
+type WeightResult = {
+  unitWeightKg: number;
+  totalWeightKg: number;
+  piecesForTargetTons?: number;
+  targetTons?: number;
+};
 type ErrorResult = { error: string };
 
 async function calcWeight(args: Record<string, unknown>): Promise<WeightResult | ErrorResult> {
@@ -12,6 +17,13 @@ describe('calcWeight — full 7-category coverage', () => {
   it('rebar (pre-existing, default 12m branch length unchanged)', async () => {
     const r = (await calcWeight({ shape: 'rebar', diameterMm: 14, qty: 1 })) as WeightResult;
     expect(r.unitWeightKg).toBeCloseTo(14.52, 1); // 14²/162 × 12
+  });
+
+  it('targetTons: «۲۰ تن میلگرد ۱۴ چند شاخه؟» — grounded piece count, no model arithmetic', async () => {
+    const r = (await calcWeight({ shape: 'rebar', diameterMm: 14, qty: 1, targetTons: 20 })) as WeightResult;
+    // 20_000 kg ÷ (14²/162 × 12 ≈ 14.52 kg) → ceil = 1378 branches
+    expect(r.piecesForTargetTons).toBe(Math.ceil(20_000 / ((14 * 14) / 162) / 12));
+    expect(r.targetTons).toBe(20);
   });
 
   it('wire: round-rod physics identical to rebar, length required (no default)', async () => {

@@ -9,6 +9,7 @@ import { CATEGORY_ALIASES, PURPOSE_CHIPS } from '@/lib/data/aiTaxonomy';
 import { computeBulkSplit, type BulkSplit } from '@/components/catalog/BulkQuote';
 import { SparkIcon, ChevronStartIcon, CheckCircleIcon, MicIcon } from '@/components/primitives/icons';
 import { getSpeechRecognition, type SpeechRecognitionLike } from '@/lib/utils/speech';
+import { ChatMarkdown } from './ChatMarkdown';
 import styles from './AdvisorChat.module.css';
 
 /** Average میلگرد price from the seeded catalog — grounded, never an invented number. */
@@ -285,9 +286,15 @@ const MessageBubble = memo(function MessageBubble({
         {m.text && (
           <div className={`${styles.bubble} ${m.role === 'user' ? styles.user : styles.ai}`}>
             <span className="visually-hidden">{m.role === 'user' ? 'شما' : 'آهن‌تایم'}: </span>
-            {m.text.split('\n').map((line, i) => (
-              <p key={i}>{line}</p>
-            ))}
+            {m.role === 'ai' ? (
+              // Advisor replies carry markdown (tables/lists/bold) — rendered
+              // through the safe subset renderer, never as raw asterisks. The
+              // aria-hidden streaming preview (`hidden`) additionally repairs
+              // half-open syntax so the tail never flashes as literal `**`.
+              <ChatMarkdown text={m.text} streaming={hidden} />
+            ) : (
+              m.text.split('\n').map((line, i) => <p key={i}>{line}</p>)
+            )}
           </div>
         )}
         {m.estimate && <EstimateCard est={m.estimate} />}
@@ -425,6 +432,38 @@ export function AdvisorChat({
       if (!opened) open({ text: t });
       else patchPreview((m) => ({ ...m, text: t }));
     };
+    // Paint the preview at most every ~80ms (reading speed), not per token —
+    // per-token setState re-parses the growing markdown dozens of times a
+    // second for churn nobody can read.
+    let lastPaint = 0;
+    let paintTimer: number | null = null;
+    const paint = () => {
+      lastPaint = Date.now();
+      const t = streamedText;
+      if (!opened) open({ text: t });
+      else patchPreview((m) => ({ ...m, text: t }));
+    };
+    const schedulePaint = () => {
+      const since = Date.now() - lastPaint;
+      if (since >= 80) {
+        if (paintTimer !== null) {
+          window.clearTimeout(paintTimer);
+          paintTimer = null;
+        }
+        paint();
+      } else if (paintTimer === null) {
+        paintTimer = window.setTimeout(() => {
+          paintTimer = null;
+          paint();
+        }, 80 - since);
+      }
+    };
+    const stopPaint = () => {
+      if (paintTimer !== null) {
+        window.clearTimeout(paintTimer);
+        paintTimer = null;
+      }
+    };
     try {
       // Only recent non-empty turns travel (server re-validates) — bounded payload.
       const transcript = transcriptRef.current
@@ -443,11 +482,7 @@ export function AdvisorChat({
           conversationIdRef.current = ev.id;
         } else if (ev.type === 'token') {
           streamedText += ev.text;
-          if (!opened) open({ text: ev.text });
-          else {
-            const t = streamedText;
-            patchPreview((m) => ({ ...m, text: t }));
-          }
+          schedulePaint();
         } else if (ev.type === 'lead') {
           if (ev.ref) {
             const amount = ev.total ? ` — مبلغ ${formatToman(ev.total)}` : '';
@@ -463,6 +498,7 @@ export function AdvisorChat({
         }
         // 'tool' frames just keep the typing indicator honest — nothing to render.
       }
+      stopPaint(); // the commit below carries the full text — no late repaint
       if (leadLine) appendLine(leadLine);
       if (!opened) throw new Error('empty');
       if (streamedText.trim()) transcriptRef.current.push({ role: 'ai', text: streamedText });
@@ -474,6 +510,7 @@ export function AdvisorChat({
         { id: aiId, role: 'ai', text: streamedText, chips: chipsBuf, dbMessageId, conversationId: conversationIdRef.current },
       ]);
     } catch (e) {
+      stopPaint();
       const aborted =
         abortRef.current?.signal.aborted || (e instanceof DOMException && e.name === 'AbortError');
       if (aborted) {

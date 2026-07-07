@@ -48,6 +48,11 @@ export async function seedDatabase(db: Db, opts: SeedOptions = {}): Promise<void
   // Only fall back to it outside production; in production, require an
   // explicit DEV_ADMIN_MOBILE or skip seeding the admin account entirely.
   const adminMobile = process.env.DEV_ADMIN_MOBILE ?? (process.env.NODE_ENV === 'production' ? null : '09120000000');
+  // Whether the 'u-admin' row exists decides what currentPrices.updatedBy may
+  // reference below — in production without DEV_ADMIN_MOBILE there is no such
+  // user, and 'u-admin' would violate the FK (exactly how the first prod
+  // force-reseed failed).
+  const adminSeeded = adminMobile !== null;
   if (!adminMobile) {
     log('skipped dev admin seed: DEV_ADMIN_MOBILE is not set in production');
   } else {
@@ -137,7 +142,7 @@ export async function seedDatabase(db: Db, opts: SeedOptions = {}): Promise<void
             movementPct: cur.movementPct,
             movementDir: cur.movementDir,
             updatedAt: new Date(),
-            updatedBy: 'u-admin',
+            updatedBy: adminSeeded ? 'u-admin' : null,
             isStale: false,
           })
           .onConflictDoUpdate({
