@@ -2,6 +2,7 @@
 import { forwardRef, useImperativeHandle, useRef } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { normalizeDigits, localizeDigits } from '@/lib/utils/format';
+import { CONSTANTS } from '@/lib/config/constants';
 import type { AppLocale } from '@/i18n/config';
 import styles from './otp.module.css';
 
@@ -21,7 +22,7 @@ export const OtpInput = forwardRef<OtpInputHandle, {
   error?: boolean;
   label?: string;
 }>(function OtpInput(
-  { length = 5, value, onChange, error, label },
+  { length = CONSTANTS.OTP_LENGTH, value, onChange, error, label },
   ref,
 ) {
   const t = useTranslations('auth');

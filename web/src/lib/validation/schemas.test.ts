@@ -18,11 +18,12 @@ describe('mobileSchema', () => {
 });
 
 describe('otpCodeSchema', () => {
-  it('accepts a 5-digit code', () => {
-    expect(otpCodeSchema.safeParse('12345').success).toBe(true);
+  it('accepts a 6-digit code', () => {
+    expect(otpCodeSchema.safeParse('123456').success).toBe(true);
   });
   it('rejects the wrong length', () => {
     expect(otpCodeSchema.safeParse('123').success).toBe(false);
+    expect(otpCodeSchema.safeParse('12345').success).toBe(false);
   });
 });
 

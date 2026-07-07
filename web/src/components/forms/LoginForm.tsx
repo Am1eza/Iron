@@ -7,6 +7,7 @@ import { formsApi } from '@/lib/api/forms';
 import { useAuthStore } from '@/lib/stores/auth';
 import { canAccessAdmin } from '@/lib/auth/roles';
 import { normalizeDigits, localizeDigits } from '@/lib/utils/format';
+import { CONSTANTS } from '@/lib/config/constants';
 import { parsePhone, DEFAULT_PHONE_COUNTRY, type CountryCode } from '@/lib/utils/phone';
 import type { AppLocale } from '@/i18n/config';
 import { TextInput } from './fields';
@@ -82,7 +83,7 @@ export function LoginForm() {
   const verify = async () => {
     setOtpError(false);
     setError(null);
-    if (normalizeDigits(code).length !== 5) {
+    if (normalizeDigits(code).length !== CONSTANTS.OTP_LENGTH) {
       setOtpError(true);
       otpRef.current?.focus();
       return;
@@ -109,7 +110,7 @@ export function LoginForm() {
     <div className="stack" style={{ maxInlineSize: 360 }}>
       {error || (step === 'code' && otpError) ? (
         <FormStatus variant="error" id={step === 'code' ? 'otp-error' : undefined}>
-          {error ?? 'کد تأیید باید ۵ رقم باشد.'}
+          {error ?? 'کد تأیید باید ۶ رقم باشد.'}
         </FormStatus>
       ) : null}
 

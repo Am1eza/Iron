@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { normalizeDigits, normalizeMobile } from '@/lib/utils/format';
+import { CONSTANTS } from '@/lib/config/constants';
 import { M } from './messages';
 
 /** E.164 shape: `+` then a country digit and 7–14 more (8–15 total). */
@@ -26,8 +27,9 @@ export const mobileSchema = z
     if (!ok) ctx.addIssue({ code: z.ZodIssueCode.custom, message: M.mobile });
   });
 
+const OTP_RE = new RegExp(`^\\d{${CONSTANTS.OTP_LENGTH}}$`);
 export const otpCodeSchema = z.string().superRefine((val, ctx) => {
-  if (!/^\d{5}$/.test(normalizeDigits(val))) {
+  if (!OTP_RE.test(normalizeDigits(val))) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: M.otp });
   }
 });
