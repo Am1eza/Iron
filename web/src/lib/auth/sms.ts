@@ -56,6 +56,9 @@ export async function sendOtpSms(mobile: string, code: string): Promise<SmsResul
         TemplateId: Number(templateId),
         Parameters: [{ Name: 'Code', Value: code }],
       }),
+      // Bound the external call — a slow/hung SMS.ir must not stall the login
+      // request (the OTP is already stored, so failing fast lets the user retry).
+      signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) {
       reportError(new Error(`sms.ir ${res.status}`), { scope: 'sms' });
