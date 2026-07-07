@@ -53,6 +53,7 @@ services:
       SMSIR_TEMPLATE_ID: ${SMSIR_TEMPLATE_ID:?set SMSIR_TEMPLATE_ID in .env (OTP verify template on the SMS.ir panel)}
       SMSIR_LINE_NUMBER: ${SMSIR_LINE_NUMBER:-}   # optional — پیش‌فاکتور/alert texts dev-log if unset
       SMSIR_TEMPLATE_PARAM: ${SMSIR_TEMPLATE_PARAM:-}  # verify-template placeholder name (default OTP — must match #…# in the panel template)
+      OTP_FALLBACK_AFTER_MS: ${OTP_FALLBACK_AFTER_MS:-}  # delivery-watchdog delay before 2nd-route resend (default 60000; 0 disables)
       # Fully optional integrations (dev fallbacks / last-known values apply when blank)
       TGJU_BASE_URL: ${TGJU_BASE_URL:-}
       TGJU_API_KEY: ${TGJU_API_KEY:-}
