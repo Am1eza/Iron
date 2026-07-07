@@ -10,6 +10,7 @@ import { computeBulkSplit, type BulkSplit } from '@/components/catalog/BulkQuote
 import { SparkIcon, ChevronStartIcon, CheckCircleIcon, MicIcon } from '@/components/primitives/icons';
 import { getSpeechRecognition, type SpeechRecognitionLike } from '@/lib/utils/speech';
 import { ChatMarkdown } from './ChatMarkdown';
+import { loadChat, saveChat, clearChat } from '@/lib/ai/chatStorage';
 import styles from './AdvisorChat.module.css';
 
 /** Average میلگرد price from the seeded catalog — grounded, never an invented number. */
@@ -557,11 +558,32 @@ export function AdvisorChat({
   sendRef.current = send;
   const stableSend = useCallback((text: string) => sendRef.current(text), []);
 
+  // Start a fresh thread — clears the persisted client copy and the server
+  // conversation id so the next message opens a new conversation row.
+  const resetChat = () => {
+    clearChat();
+    conversationIdRef.current = undefined;
+    transcriptRef.current = [];
+    purposeRef.current = null;
+    setStreamPreview(null);
+    setMessages([{ id: uid(), role: 'ai', text: GREETING_TEXT, chips: PURPOSE_CHIPS }]);
+  };
+
   // First load: greet (unless the server already rendered it — see
   // `initialMessages`), then auto-send the question from the home search (if any).
   useEffect(() => {
     if (started.current) return;
     started.current = true;
+    // Restore a persisted conversation so leaving/reloading the page doesn't
+    // erase the chat (the server persists it too; this is the client view).
+    const saved = loadChat();
+    if (saved && saved.messages.length > 0) {
+      setMessages(saved.messages);
+      conversationIdRef.current = saved.conversationId;
+      transcriptRef.current = saved.transcript ?? [];
+      if (initialQuestion) window.setTimeout(() => send(initialQuestion), 500);
+      return;
+    }
     if (!initialMessages) {
       setMessages([
         {
@@ -580,6 +602,18 @@ export function AdvisorChat({
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages, typing]);
 
+  // Persist the committed transcript + conversation id (survives navigation /
+  // reload). saveChat skips an empty thread, so the greeting seed is a no-op.
+  useEffect(() => {
+    if (!started.current) return;
+    saveChat({
+      messages,
+      conversationId: conversationIdRef.current,
+      transcript: transcriptRef.current,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages]);
+
   return (
     <div className={styles.wrap}>
       <header className={styles.head}>
@@ -592,6 +626,9 @@ export function AdvisorChat({
             <span className={styles.live} /> آنلاین · معمولاً سریع پاسخ می‌دهد
           </p>
         </div>
+        <button type="button" className={styles.newChat} onClick={resetChat}>
+          گفتگوی جدید
+        </button>
       </header>
 
       <div className={styles.scroll} ref={scrollRef}>

@@ -50,6 +50,7 @@ export const routes = {
   // Admin
   admin: {
     dashboard: () => '/admin',
+    desk: () => '/admin/desk',
     pricing: () => '/admin/pricing',
     catalog: () => '/admin/catalog',
     leads: () => '/admin/leads',

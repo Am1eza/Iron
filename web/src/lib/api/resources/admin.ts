@@ -98,6 +98,28 @@ export interface SeoStatsRes {
   automated: Array<{ label: string; ok: true }>;
 }
 
+export interface DeskLead {
+  id: string;
+  ref: string;
+  contactName?: string;
+  contactMobile: string;
+  status: string;
+  source: string;
+  createdAt: string;
+  callbackAt?: string;
+}
+export interface DeskRes {
+  stats: { assigned: number; active: number; won: number; lost: number; conversionPct: number | null };
+  active: DeskLead[];
+  callbacks: DeskLead[];
+}
+export interface StaffMember {
+  id: string;
+  name?: string;
+  mobile: string;
+  role: string;
+}
+
 export interface PendingVerificationRow {
   userId: string;
   mobile: string;
@@ -152,6 +174,8 @@ export const adminApi = {
     http.patch<{ lead: AdminLead }>(`/api/admin/leads/${id}`, patch),
   addLeadNote: (id: string, text: string) => http.post<{ note: unknown }>(`/api/admin/leads/${id}/notes`, { text }),
   issueProforma: (id: string) => http.post<{ proforma: AdminProforma }>(`/api/admin/leads/${id}/proforma`, {}),
+  myDesk: () => http.get<DeskRes>('/api/admin/my/desk'),
+  staff: () => http.get<{ staff: StaffMember[] }>('/api/admin/staff'),
   convertToOrder: (id: string) => http.post<{ order: Order }>(`/api/admin/leads/${id}/order`, {}),
 
   /* requests + contact */

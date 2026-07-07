@@ -16,6 +16,7 @@ export const metadata: Metadata = { robots: { index: false, follow: false } };
 // requirePermission() call can never drift apart.
 const NAV: Array<{ href: string; label: string }> = [
   { href: routes.admin.dashboard(), label: 'داشبورد' },
+  { href: routes.admin.desk(), label: 'میز کار من' },
   { href: routes.admin.marketing(), label: 'بازاریابی' },
   { href: routes.admin.seo(), label: 'سئو' },
   { href: routes.admin.pricing(), label: 'قیمت‌گذاری' },

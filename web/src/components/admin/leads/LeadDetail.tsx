@@ -6,6 +6,9 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api/resources/admin';
+import { useAuthStore } from '@/lib/stores/auth';
+import { ROLE_LABEL } from '@/lib/auth/roles';
+import type { Role } from '@/lib/auth/types';
 import { formatJalali, formatToman, toPersianDigits } from '@/lib/utils/format';
 import { useToast } from '@/lib/hooks/useToast';
 import { ApiError } from '@/lib/api/errors';
@@ -58,6 +61,27 @@ export function LeadDetail({ id }: { id: string }) {
       invalidate();
     },
     onError: (e) => onError(e, 'تبدیل به سفارش ناموفق بود.'),
+  });
+
+  const currentUser = useAuthStore((st) => st.user);
+  const { data: staffData } = useQuery({ queryKey: ['admin', 'staff'], queryFn: () => adminApi.staff() });
+  const staff = staffData?.staff ?? [];
+  const assign = useMutation({
+    mutationFn: (assigneeId: string | null) => adminApi.updateLead(id, { assigneeId }),
+    onSuccess: () => {
+      invalidate();
+      void qc.invalidateQueries({ queryKey: ['admin', 'my', 'desk'] });
+    },
+    onError: (e) => onError(e, 'واگذاری ناموفق بود.'),
+  });
+  const setCallback = useMutation({
+    mutationFn: (callbackAt: string | null) => adminApi.updateLead(id, { callbackAt }),
+    onSuccess: () => {
+      toast.success('زمان تماس ثبت شد.');
+      invalidate();
+      void qc.invalidateQueries({ queryKey: ['admin', 'my', 'desk'] });
+    },
+    onError: (e) => onError(e, 'ثبت زمان تماس ناموفق بود.'),
   });
 
   if (isLoading || !data) {
@@ -129,6 +153,40 @@ export function LeadDetail({ id }: { id: string }) {
             <Button size="sm" variant="secondary" onClick={() => convert.mutate()} loading={convert.isPending}>
               تبدیل به سفارش
             </Button>
+          </div>
+
+          <h2 style={{ marginBlockStart: 'var(--space-4)' }}>واگذاری و پیگیری</h2>
+          <div className={ui.toolbar} style={{ alignItems: 'center' }}>
+            {currentUser && lead.assigneeId !== currentUser.id ? (
+              <Button size="sm" onClick={() => assign.mutate(currentUser.id)} loading={assign.isPending}>
+                سرنخ من
+              </Button>
+            ) : null}
+            <select
+              className={ui.select}
+              aria-label="کارشناس مسئول"
+              value={lead.assigneeId ?? ''}
+              onChange={(e) => assign.mutate(e.target.value || null)}
+            >
+              <option value="">— بدون کارشناس —</option>
+              {staff.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {(m.name ?? m.mobile) + ' · ' + ROLE_LABEL[m.role as Role]}
+                </option>
+              ))}
+            </select>
+            <label className={ui.muted} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+              زمان تماس:
+              <input
+                type="date"
+                className={ui.textCell}
+                aria-label="زمان تماس بعدی"
+                defaultValue={lead.callbackAt ? lead.callbackAt.slice(0, 10) : ''}
+                onChange={(e) =>
+                  setCallback.mutate(e.target.value ? new Date(e.target.value).toISOString() : null)
+                }
+              />
+            </label>
           </div>
         </div>
 

@@ -10,15 +10,18 @@ import { useToast } from '@/lib/hooks/useToast';
 import { api } from '@/lib/api';
 import { API_MODE } from '@/lib/api/config';
 import { ApiError } from '@/lib/api/errors';
+import type { CreateLeadResult } from '@/lib/server/services/leads.service';
 import { formatToman, toPersianDigits } from '@/lib/utils/format';
 import { Textarea } from '@/components/forms/fields';
 import { Button, EmptyState } from '@/components/ui';
+import { CheckCircleIcon, DownloadIcon } from '@/components/primitives/icons';
 import styles from './RequestFlow.module.css';
 
 /**
- * The signed-in request flow — no contact fields (the profile already has
- * them): review the inquiry basket, add an optional note, submit. The request
- * is filed under /account/requests and the basket is cleared.
+ * The signed-in request flow — review the inquiry basket, add an optional note,
+ * submit. On success the user gets an explicit confirmation that the request
+ * reached the SALES TEAM, plus (when priced) a one-tap link to download the
+ * branded پیش‌فاکتور PDF. The lead lands on the sales panel immediately.
  */
 export function RequestFlow() {
   const router = useRouter();
@@ -29,6 +32,55 @@ export function RequestFlow() {
   const user = useAuthStore((s) => s.user);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState<CreateLeadResult | null>(null);
+
+  // ===== success confirmation =====
+  if (done) {
+    return (
+      <div className={styles.success} role="status">
+        <span className={styles.successIcon} aria-hidden="true">
+          <CheckCircleIcon size={40} />
+        </span>
+        <h2 className={styles.successTitle}>درخواست شما به تیم فروش ارسال شد</h2>
+        <p className={styles.successLead}>
+          کارشناسان فروش آهن‌تایم درخواست شما را دریافت کردند و برای نهایی‌کردن قیمت و شرایط تحویل با شما
+          تماس می‌گیرند.
+        </p>
+        <p className={`${styles.successRef} tnum`}>
+          کد پیگیری: <bdi>{done.ref}</bdi>
+        </p>
+        {done.proformaRef ? (
+          <div className={styles.successProforma}>
+            <p className="tnum">
+              پیش‌فاکتور شما صادر شد
+              {done.total ? <> — مبلغ {formatToman(done.total)}</> : null}
+            </p>
+            <Link
+              href={`/proforma/${encodeURIComponent(done.proformaRef)}`}
+              className={styles.pdfBtn}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <DownloadIcon size={18} aria-hidden="true" />
+              دانلود پیش‌فاکتور (PDF)
+            </Link>
+          </div>
+        ) : (
+          <p className={styles.successNote}>
+            برخی اقلام نیاز به استعلام قیمت دارند؛ کارشناس فروش پیش‌فاکتور نهایی را برایتان ارسال می‌کند.
+          </p>
+        )}
+        <div className={styles.successActions}>
+          <Link href={routes.account('requests')} className={styles.trackLink}>
+            پیگیری درخواست‌های من
+          </Link>
+          <Link href={routes.prices()} className={styles.editLink}>
+            ادامهٔ خرید
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   if (items.length === 0) {
     return (
@@ -46,12 +98,8 @@ export function RequestFlow() {
       items.length === 1
         ? `پیش‌فاکتور ${items[0]!.name}`
         : `پیش‌فاکتور ${toPersianDigits(items.length)} قلم کالا`;
-    const detail = items
-      .map((i) => `${i.name} × ${toPersianDigits(i.qty)}`)
-      .join(' · ');
+    const detail = items.map((i) => `${i.name} × ${toPersianDigits(i.qty)}`).join(' · ');
 
-    // Live: the server creates the lead, issues the پیش‌فاکتور, SMSes the ref
-    // and mirrors it into the account inbox. Mock: local store only.
     if (API_MODE === 'live' && user) {
       setBusy(true);
       try {
@@ -63,8 +111,7 @@ export function RequestFlow() {
           note: note.trim() || undefined,
         });
         clear();
-        toast.success(`درخواست ثبت شد؛ شمارهٔ پیگیری: ${result.ref}`);
-        router.push(routes.account('requests'));
+        setDone(result);
       } catch (err) {
         toast.error(err instanceof ApiError ? err.message : 'ثبت درخواست ناموفق بود. دوباره تلاش کنید.');
       } finally {
@@ -111,7 +158,8 @@ export function RequestFlow() {
       </div>
 
       <p className={styles.note}>
-        پس از ثبت، کارشناس برای نهایی‌کردن قیمت و شرایط تحویل تماس می‌گیرد. پرداخت آنلاین نداریم.
+        پس از ثبت، درخواست شما مستقیم به تیم فروش می‌رود و کارشناس برای نهایی‌کردن قیمت و شرایط تحویل تماس
+        می‌گیرد. پرداخت آنلاین نداریم.
       </p>
     </div>
   );

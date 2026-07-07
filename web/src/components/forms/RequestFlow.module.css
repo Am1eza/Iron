@@ -55,3 +55,83 @@
   font: var(--t-caption);
   color: var(--color-text-muted);
 }
+
+/* ===== success confirmation ("sent to sales team") ===== */
+.success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-3);
+  padding: var(--space-8) var(--space-5);
+}
+.successIcon {
+  display: grid;
+  place-items: center;
+  inline-size: 64px;
+  block-size: 64px;
+  border-radius: var(--radius-circle);
+  background: var(--color-accent-tint);
+  color: var(--color-accent);
+}
+.successTitle {
+  font: var(--t-h3);
+  color: var(--color-text-strong);
+  margin: 0;
+}
+.successLead {
+  max-inline-size: 44ch;
+  font: var(--t-body-sm);
+  color: var(--color-text-muted);
+  margin: 0;
+}
+.successRef {
+  font: var(--t-label);
+  color: var(--color-text-strong);
+}
+.successProforma {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  inline-size: 100%;
+  max-inline-size: 360px;
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+}
+.pdfBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-5);
+  border-radius: var(--radius-md);
+  background: var(--color-action);
+  color: var(--color-on-action);
+  font: var(--t-button);
+  text-decoration: none;
+}
+.pdfBtn:hover {
+  background: var(--color-action-hover);
+  text-decoration: none;
+}
+.successNote {
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+  max-inline-size: 40ch;
+  margin: 0;
+}
+.successActions {
+  display: flex;
+  gap: var(--space-4);
+  margin-block-start: var(--space-2);
+}
+.trackLink {
+  color: var(--color-accent-text);
+  font: var(--t-label);
+  text-decoration: none;
+}
+.trackLink:hover {
+  text-decoration: underline;
+}

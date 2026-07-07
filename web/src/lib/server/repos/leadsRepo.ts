@@ -2,7 +2,7 @@
  * Leads + proformas — the conversion spine's persistence. Lead items snapshot
  * name/price at creation; issued proformas freeze lines as jsonb.
  */
-import { and, desc, eq, ilike, isNull, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, ilike, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { getDb, type DbOrTx } from '@/lib/server/db/client';
 import { leads, leadItems, leadNotes, proformas } from '@/lib/server/db/schema';
@@ -255,4 +255,50 @@ export async function cancelProforma(ref: string): Promise<ProformaRow | null> {
     .where(and(eq(proformas.ref, ref), eq(proformas.status, 'active')))
     .returning();
   return rows[0] ?? null;
+}
+
+
+/**
+ * A sales rep's personal workspace («میز کار من») — scoped strictly to leads
+ * assigned to THEM: quick stats (assigned / active / won / conversion), their
+ * active queue, and their upcoming callbacks. Everything filters on
+ * `assigneeId`, so a rep only ever sees their own book of business.
+ */
+export async function assigneeDesk(assigneeId: string) {
+  const db = getDb();
+  const base = and(eq(leads.assigneeId, assigneeId), isNull(leads.deletedAt));
+  const [statRows, active, callbacks] = await Promise.all([
+    db
+      .select({ status: leads.status, n: sql<number>`count(*)::int` })
+      .from(leads)
+      .where(base)
+      .groupBy(leads.status),
+    db
+      .select()
+      .from(leads)
+      .where(and(base, inArray(leads.status, ['new', 'contacted'])))
+      .orderBy(desc(leads.createdAt))
+      .limit(50),
+    db
+      .select()
+      .from(leads)
+      .where(and(base, isNotNull(leads.callbackAt)))
+      .orderBy(asc(leads.callbackAt))
+      .limit(30),
+  ]);
+  const counts: Record<string, number> = {};
+  for (const r of statRows) counts[r.status] = Number(r.n);
+  const won = counts.won ?? 0;
+  const decided = won + (counts.lost ?? 0);
+  return {
+    stats: {
+      assigned: Object.values(counts).reduce((a, b) => a + b, 0),
+      active: (counts.new ?? 0) + (counts.contacted ?? 0),
+      won,
+      lost: counts.lost ?? 0,
+      conversionPct: decided > 0 ? Math.round((won / decided) * 1000) / 10 : null,
+    },
+    active,
+    callbacks,
+  };
 }

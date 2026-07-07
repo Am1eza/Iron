@@ -64,6 +64,7 @@ export function canAccessAdmin(role: Role | undefined | null): boolean {
  * with the matching entry below as defense-in-depth.
  */
 export const ADMIN_PATH_PERMISSIONS: Array<[prefix: string, permission: Permission]> = [
+  ['/admin/desk', 'leads:read'],
   ['/admin/pricing', 'pricing:write'],
   ['/admin/marketing', 'leads:read'],
   ['/admin/seo', 'content:write'],
