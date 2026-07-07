@@ -90,8 +90,16 @@ export async function ensureConversation(
 export function buildChatMessages(
   clientMessages: ReadonlyArray<{ role: 'user' | 'assistant'; content: string }>,
   summary?: string | null,
+  domainFacts?: string | null,
 ): ChatMessage[] {
   const messages: ChatMessage[] = [{ role: 'system', content: AI_SYSTEM_PROMPT }];
+  // Stable, NON-NUMERIC catalog overview — sits right after the byte-identical
+  // prompt so it EXTENDS the DeepSeek cache prefix (it barely changes), letting
+  // the model answer "what do you sell?" without a tool round. Numbers still
+  // come only from tools (grounding). Absent in unit tests → summary stays at [1].
+  if (domainFacts && domainFacts.trim()) {
+    messages.push({ role: 'system', content: domainFacts.trim() });
+  }
   if (summary && summary.trim()) {
     messages.push({ role: 'system', content: `خلاصهٔ گفتگو تا اینجا: ${summary.trim()}` });
   }

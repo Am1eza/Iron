@@ -7,6 +7,7 @@ import { aiEnabled } from '@/lib/server/integrations/deepseek';
 import { numbersInText } from '@/lib/server/ai/grounding';
 import { runAdvisorPipeline } from '@/lib/server/ai/pipeline';
 import { buildChatMessages, ensureConversation, persistTurn } from '@/lib/server/ai/conversation';
+import { getDomainFacts } from '@/lib/server/ai/domainFacts';
 import { isBareGreeting, GREETING_REPLY } from '@/lib/server/ai/greeting';
 import { CHIP, PURPOSE_CHIPS } from '@/lib/data/aiTaxonomy';
 import { reportError } from '@/lib/errors/report';
@@ -155,10 +156,12 @@ async function POSTImpl(req: NextRequest) {
         }
 
         // AI_SYSTEM_PROMPT stays the byte-identical FIRST message (DeepSeek
-        // cache prefix); the rolling summary rides AFTER it. GROUNDING: the
-        // summary is context only — its numbers are never added to the
-        // ledger or userNumbers, so it can't license new claims.
-        const messages = buildChatMessages(parsed.data.messages, summary);
+        // cache prefix); a stable non-numeric catalog overview rides right after
+        // it (extends the cache), then the rolling summary. GROUNDING: both are
+        // context only — no numbers, never added to the ledger/userNumbers, so
+        // they can't license a claim.
+        const domainFacts = await getDomainFacts().catch(() => '');
+        const messages = buildChatMessages(parsed.data.messages, summary, domainFacts);
 
         const result = await runAdvisorPipeline({
           messages,
