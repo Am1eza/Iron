@@ -5,7 +5,7 @@
  * the user's inbox. One entry point for the table/cart/AI/tool sources.
  */
 import { eq, inArray } from 'drizzle-orm';
-import { getDb } from '@/lib/server/db/client';
+import { getDb, type DbOrTx } from '@/lib/server/db/client';
 import { skus, currentPrices } from '@/lib/server/db/schema';
 import type { AuthUser } from '@/lib/auth/types';
 import type { LineItem, PriceUnit } from '@/lib/types/domain';
@@ -123,25 +123,6 @@ export async function createLead(
   const ref = await nextRef('PF');
   const verified = Boolean(session && session.mobile === input.contact.mobile);
 
-  const lead = await insertLead({
-    ref,
-    userId: session?.id,
-    contactName: input.contact.name ?? session?.name,
-    contactMobile: input.contact.mobile,
-    contactVerified: verified,
-    source: asSource(input.source),
-    context: {
-      ...(input.context ?? {}),
-      ...(input.note ? { note: input.note } : {}),
-      estimate: {
-        totalWeightKg: lines.reduce((s, l) => s + (l.weightKg ?? 0), 0) || undefined,
-        totalPrice: lines.reduce((s, l) => s + (l.lineTotal ?? 0), 0) || undefined,
-      },
-    },
-    channelPref: input.channel === 'whatsapp' ? 'whatsapp' : (input.channel ?? 'sms'),
-    items: lines,
-  });
-
   const items = lines.map((l) => ({
     name: l.name,
     qty: l.qty,
@@ -152,46 +133,99 @@ export async function createLead(
   }));
   const totalWeightKg = lines.reduce((s, l) => s + (l.weightKg ?? 0), 0) || undefined;
 
+  // Precompute the proforma financials OUTSIDE the transaction: getVatRate/
+  // getHolidays/getSetting each borrow their own pool connection, and doing
+  // that INSIDE the transaction (which holds one connection) deadlocks on a
+  // single-connection backend. A fresh lead has no prior proforma, so its ref
+  // is just `ref` (no proformasOfLead lookup needed).
+  let proformaData:
+    | { subtotal: number; vatRate: number; vatAmount: number; total: number; validUntil: Date }
+    | null = null;
+  if (allPriced && lines.length > 0) {
+    const [vatRate, holidays, hour] = await Promise.all([
+      getVatRate(),
+      getHolidays(),
+      getSetting<number>('QUOTE_VALIDITY_HOUR', 11),
+    ]);
+    const subtotal = lines.reduce((s, l) => s + (l.lineTotal ?? 0), 0);
+    const vatAmount = Math.round(subtotal * vatRate);
+    proformaData = { subtotal, vatRate, vatAmount, total: subtotal + vatAmount, validUntil: quoteValidUntil(new Date(), holidays, hour) };
+  }
+
+  // ALL DB writes (lead + items + proforma + account-inbox mirror) run in ONE
+  // transaction (WRITES ONLY — every read is done above): a partial failure
+  // rolls back to nothing rather than orphaning a lead without its proforma/
+  // inbox row. The SMS is sent AFTER commit — an external side effect can't be
+  // rolled back, so it must never fire for a request that didn't fully persist.
   let result: CreateLeadResult = { ref, items, totalWeightKg };
   let validUntilDate: Date | undefined;
 
-  // Auto-issue the proforma when every line has a live price.
-  if (allPriced && lines.length > 0) {
-    const proforma = await issueProforma(lead, lines);
-    validUntilDate = proforma.validUntil;
-    result = {
-      ref,
-      proformaRef: proforma.ref,
-      validUntil: proforma.validUntil.toISOString(),
-      total: proforma.total,
-      items,
-      totalWeightKg,
-    };
-  }
+  await getDb().transaction(async (tx) => {
+    const lead = await insertLead(
+      {
+        ref,
+        userId: session?.id,
+        contactName: input.contact.name ?? session?.name,
+        contactMobile: input.contact.mobile,
+        contactVerified: verified,
+        source: asSource(input.source),
+        context: {
+          ...(input.context ?? {}),
+          ...(input.note ? { note: input.note } : {}),
+          estimate: {
+            totalWeightKg,
+            totalPrice: lines.reduce((s, l) => s + (l.lineTotal ?? 0), 0) || undefined,
+          },
+        },
+        channelPref: input.channel === 'whatsapp' ? 'whatsapp' : (input.channel ?? 'sms'),
+        items: lines,
+      },
+      tx,
+    );
 
-  // SMS the reference (dev: logged) — a priced proforma with total+validity,
-  // or a plain "request received, sales will follow up" when unpriced.
+    if (proformaData) {
+      const proforma = await insertProforma({ leadId: lead.id, ref, lines, ...proformaData }, tx);
+      validUntilDate = proforma.validUntil;
+      result = {
+        ref,
+        proformaRef: proforma.ref,
+        validUntil: proforma.validUntil.toISOString(),
+        total: proforma.total,
+        items,
+        totalWeightKg,
+      };
+    }
+
+    // Mirror into the account inbox so /account/requests shows it immediately.
+    if (session) {
+      await insertRequest(
+        {
+          userId: session.id,
+          ref,
+          type: 'proforma',
+          title:
+            lines.length > 0
+              ? lines.map((l) => l.name).slice(0, 2).join('، ') + (lines.length > 2 ? ' و…' : '')
+              : 'درخواست پیش‌فاکتور',
+          detail: lines.length > 0 ? `${lines.length} قلم` : undefined,
+          note: input.note,
+          leadId: lead.id,
+          status: result.proformaRef ? 'quoted' : 'submitted',
+        },
+        tx,
+      );
+    }
+  });
+
+  // AFTER commit — the record is durable, so now it's safe to text the ref:
+  // a priced proforma with total+validity, or a plain "request received".
   await sendSms(input.contact.mobile, proformaSmsText(ref, result.total, validUntilDate), 'proforma');
-
-  // Mirror into the account inbox so /account/requests shows it immediately.
-  if (session) {
-    await insertRequest({
-      userId: session.id,
-      ref,
-      type: 'proforma',
-      title: lines.length > 0 ? lines.map((l) => l.name).slice(0, 2).join('، ') + (lines.length > 2 ? ' و…' : '') : 'درخواست پیش‌فاکتور',
-      detail: lines.length > 0 ? `${lines.length} قلم` : undefined,
-      note: input.note,
-      leadId: lead.id,
-      status: result.proformaRef ? 'quoted' : 'submitted',
-    });
-  }
 
   return result;
 }
 
 /** Issue (or re-issue) a proforma for a lead from its priced lines. */
-export async function issueProforma(lead: LeadRow, lines: LineItem[]) {
+export async function issueProforma(lead: LeadRow, lines: LineItem[], dbh?: DbOrTx) {
   const [vatRate, holidays, hour] = await Promise.all([
     getVatRate(),
     getHolidays(),
@@ -202,9 +236,9 @@ export async function issueProforma(lead: LeadRow, lines: LineItem[]) {
   const total = subtotal + vatAmount;
   const validUntil = quoteValidUntil(new Date(), holidays, hour);
   // First issue reuses the lead's human ref; re-issues get a fresh one.
-  const existing = await proformasOfLead(lead.id);
+  const existing = await proformasOfLead(lead.id, dbh);
   const ref = existing.length === 0 ? lead.ref : await nextRef('PF');
-  return insertProforma({ leadId: lead.id, ref, lines, subtotal, vatRate, vatAmount, total, validUntil });
+  return insertProforma({ leadId: lead.id, ref, lines, subtotal, vatRate, vatAmount, total, validUntil }, dbh);
 }
 
 

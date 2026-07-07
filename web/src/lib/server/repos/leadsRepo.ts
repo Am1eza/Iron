@@ -4,7 +4,7 @@
  */
 import { and, desc, eq, ilike, isNull, or, sql } from 'drizzle-orm';
 import { ulid } from 'ulid';
-import { getDb } from '@/lib/server/db/client';
+import { getDb, type DbOrTx } from '@/lib/server/db/client';
 import { leads, leadItems, leadNotes, proformas } from '@/lib/server/db/schema';
 import type { LineItem } from '@/lib/types/domain';
 
@@ -35,10 +35,13 @@ export async function insertLead(input: {
   context?: LeadRow['context'];
   channelPref?: LeadRow['channelPref'];
   items: Array<Omit<LineItem, 'skuId'> & { skuId?: string }>;
-}): Promise<LeadRow> {
-  const db = getDb();
-  return db.transaction(async (tx) => {
-    const inserted = await tx
+}, dbh?: DbOrTx): Promise<LeadRow> {
+  // Lead + items must be atomic. When a caller already opened a transaction
+  // (createLead's outer tx), run directly on it — do NOT open a nested
+  // transaction/savepoint (pglite/tests deadlock on nesting). Standalone
+  // callers get their own transaction.
+  const write = async (h: DbOrTx): Promise<LeadRow> => {
+    const inserted = await h
       .insert(leads)
       .values({
         id: ulid(),
@@ -55,7 +58,7 @@ export async function insertLead(input: {
       .returning();
     const lead = inserted[0]!;
     if (input.items.length > 0) {
-      await tx.insert(leadItems).values(
+      await h.insert(leadItems).values(
         input.items.map((item, i) => ({
           id: ulid(),
           leadId: lead.id,
@@ -71,7 +74,8 @@ export async function insertLead(input: {
       );
     }
     return lead;
-  });
+  };
+  return dbh ? write(dbh) : getDb().transaction(write);
 }
 
 export async function leadItemsOf(leadId: string): Promise<LeadItemRow[]> {
@@ -204,8 +208,8 @@ export async function insertProforma(input: {
   vatAmount: number;
   total: number;
   validUntil: Date;
-}): Promise<ProformaRow> {
-  const rows = await getDb()
+}, dbh: DbOrTx = getDb()): Promise<ProformaRow> {
+  const rows = await dbh
     .insert(proformas)
     .values({ id: ulid(), status: 'active', ...input })
     .returning();
@@ -224,8 +228,8 @@ export async function findProformaByRef(ref: string): Promise<ProformaRow | null
   return p;
 }
 
-export async function proformasOfLead(leadId: string): Promise<ProformaRow[]> {
-  return getDb()
+export async function proformasOfLead(leadId: string, dbh: DbOrTx = getDb()): Promise<ProformaRow[]> {
+  return dbh
     .select()
     .from(proformas)
     .where(eq(proformas.leadId, leadId))

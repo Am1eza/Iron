@@ -27,6 +27,9 @@ import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from './schema';
 
 export type Db = NodePgDatabase<typeof schema>;
+/** The pooled db OR an open transaction — repo writes accept either so a caller
+ *  can run several of them inside one `db.transaction()` (all-or-nothing). */
+export type DbOrTx = Db | Parameters<Parameters<Db['transaction']>[0]>[0];
 
 const globalForDb = globalThis as unknown as { __ahantimeDb?: { pool: Pool; db: Db } };
 

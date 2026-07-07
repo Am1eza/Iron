@@ -1,7 +1,7 @@
 /** The per-user requests inbox («درخواست‌های من») — server home of the old localStorage store. */
 import { desc, eq, sql, and } from 'drizzle-orm';
 import { ulid } from 'ulid';
-import { getDb } from '@/lib/server/db/client';
+import { getDb, type DbOrTx } from '@/lib/server/db/client';
 import { userRequests } from '@/lib/server/db/schema';
 
 export type UserRequestRow = typeof userRequests.$inferSelect;
@@ -50,8 +50,8 @@ export async function insertRequest(input: {
   leadId?: string;
   createdAt?: Date;
   status?: UserRequestRow['status'];
-}): Promise<UserRequestDto | null> {
-  const rows = await getDb()
+}, dbh: DbOrTx = getDb()): Promise<UserRequestDto | null> {
+  const rows = await dbh
     .insert(userRequests)
     .values({
       id: ulid(),
