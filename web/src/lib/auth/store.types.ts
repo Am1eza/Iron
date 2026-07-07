@@ -20,9 +20,19 @@ export type OtpRecord = {
 
 export type RateRecord = { sends: number[]; lockedUntil?: number };
 
-export type UserPatch = Partial<Pick<AuthUser, 'name' | 'role' | 'mobile'>> & {
+export type UserPatch = Partial<Pick<AuthUser, 'name' | 'firstName' | 'lastName' | 'role' | 'mobile'>> & {
   isActive?: boolean;
   lastSeenAt?: string;
+};
+
+export type CreateUserInput = {
+  mobile: string;
+  name?: string;
+  firstName?: string;
+  lastName?: string;
+  role?: Role;
+  inviteCode?: string; // this user's own generated code (store generates if omitted)
+  referredBy?: string; // referrer's user id
 };
 
 export type ListUsersQuery = { role?: Role; q?: string; page?: number; perPage?: number };
@@ -30,7 +40,7 @@ export type ListUsersQuery = { role?: Role; q?: string; page?: number; perPage?:
 export interface AuthStore {
   userByMobile(mobile: string): Promise<AuthUser | null>;
   userById(id: string): Promise<AuthUser | null>;
-  createUser(input: { mobile: string; name?: string; role?: Role }): Promise<AuthUser>;
+  createUser(input: CreateUserInput): Promise<AuthUser>;
   updateUser(id: string, patch: UserPatch): Promise<AuthUser | null>;
   listUsers(query?: ListUsersQuery): Promise<{ users: (AuthUser & { isActive?: boolean })[]; total: number }>;
 

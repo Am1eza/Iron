@@ -105,9 +105,19 @@ export async function requestOtp(
 }
 
 /* ------------------------------ verify OTP ----------------------------- */
+/** Registration fields applied only on FIRST login (account creation). The
+ *  client holds these across the whole login flow, so they ride in on verify
+ *  rather than needing extra columns on the OTP record. */
+export interface RegistrationInput {
+  firstName?: string;
+  lastName?: string;
+  inviteCode?: string;
+}
+
 export async function verifyOtp(
   mobile: string,
   code: string,
+  reg?: RegistrationInput,
 ): Promise<{ user: AuthUser; tokens: IssuedTokens; isNew: boolean }> {
   // Claim an attempt atomically BEFORE checking the code — a plain
   // read-then-write (getOtp + setOtp) lets concurrent verify requests for the
@@ -152,7 +162,30 @@ export async function verifyOtp(
   // Login or register (first OTP for a new mobile creates the account).
   const existing = await userByMobile(mobile);
   const isNew = !existing;
-  let user = existing ?? (await createUser({ mobile, name: record.name }));
+  let user = existing;
+  if (!user) {
+    // Resolve an optional invite code to a referrer (no self-referral). Lazy
+    // import keeps the service importable without the server-repo graph in
+    // mock mode; resolveReferrer is a no-op there (no DB → no match).
+    let referredBy: string | undefined;
+    if (reg?.inviteCode?.trim()) {
+      try {
+        const { resolveReferrer } = await import('@/lib/server/repos/verificationRepo');
+        referredBy = (await resolveReferrer(reg.inviteCode, mobile)) ?? undefined;
+      } catch {
+        /* invite is best-effort — never block registration on it */
+      }
+    }
+    const firstName = reg?.firstName?.trim() || undefined;
+    const lastName = reg?.lastName?.trim() || undefined;
+    user = await createUser({
+      mobile,
+      name: [firstName, lastName].filter(Boolean).join(' ').trim() || record.name,
+      firstName,
+      lastName,
+      referredBy,
+    });
+  }
 
   // Admin allowlist sync (both directions): an allowlisted mobile receives
   // the admin role on login; a mobile no longer listed loses it. Lazy import

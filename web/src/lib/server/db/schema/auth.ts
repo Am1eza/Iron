@@ -18,6 +18,8 @@ import {
 
 export const ROLES = ['customer', 'operator', 'sales', 'content', 'catalog', 'admin'] as const;
 export const CLUB_TIERS = ['iron', 'steel', 'poolad'] as const;
+/** Progressive identity-verification status per level (self-attested → admin review). */
+export const VERIFY_STATUSES = ['none', 'pending', 'approved', 'rejected'] as const;
 
 /** Buyers + staff in one table; `role` drives RBAC (matches AuthUser). */
 export const users = pgTable(
@@ -25,7 +27,11 @@ export const users = pgTable(
   {
     id: text('id').primaryKey(),
     mobile: text('mobile').notNull().unique(),
+    // `name` is the display name (kept for back-compat + admin/proforma use);
+    // firstName/lastName are the structured fields captured at registration.
     name: text('name'),
+    firstName: text('first_name'),
+    lastName: text('last_name'),
     role: text('role', { enum: ROLES }).notNull().default('customer'),
     isActive: boolean('is_active').notNull().default(true),
     // Bumped whenever role/isActive changes (see store.pg.ts#updateUser).
@@ -34,10 +40,35 @@ export const users = pgTable(
     // staff member's already-issued token stops working immediately instead
     // of staying valid until its natural (default 15min) expiry.
     tokenVersion: integer('token_version').notNull().default(0),
+
+    /* ---- progressive identity verification (level 1 = phone/OTP, always) ---- */
+    // Level 2 — personal: کد ملی (10-digit national ID), self-attested then
+    // admin-approved. verificationLevel is DERIVED (see verificationRepo), not
+    // stored, so the two status columns are the single source of truth.
+    nationalId: text('national_id'),
+    idVerifyStatus: text('id_verify_status', { enum: VERIFY_STATUSES }).notNull().default('none'),
+    // Level 3 — business (KYB): شناسه ملی (11-digit legal-entity id), کد اقتصادی
+    // (12-digit tax code), company name. Self-attested then admin-approved.
+    companyName: text('company_name'),
+    companyNationalId: text('company_national_id'),
+    economicCode: text('economic_code'),
+    bizVerifyStatus: text('biz_verify_status', { enum: VERIFY_STATUSES }).notNull().default('none'),
+
+    /* ---- referral / invite ---- */
+    // Each user's own shareable code; a new user may enter someone else's at
+    // registration → referredBy. Feeds club points on a qualified referral.
+    inviteCode: text('invite_code').unique(),
+    referredBy: text('referred_by'),
+
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
   },
-  (t) => [check('users_role_check', sql`${t.role} IN ('customer','operator','sales','content','catalog','admin')`)],
+  (t) => [
+    check('users_role_check', sql`${t.role} IN ('customer','operator','sales','content','catalog','admin')`),
+    index('users_id_verify_idx').on(t.idVerifyStatus),
+    index('users_biz_verify_idx').on(t.bizVerifyStatus),
+    index('users_referred_by_idx').on(t.referredBy),
+  ],
 );
 
 /** Rotating opaque refresh tokens, stored hashed. Epoch-ms expiry like the memory store. */

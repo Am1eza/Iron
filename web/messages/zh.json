@@ -71,8 +71,8 @@
   "auth": {
     "mobileLabel": "手机号码",
     "mobileHelper": "验证码将通过短信发送到该号码。",
-    "nameLabel": "姓名（可选）",
-    "nameHelper": "如果这是您首次登录，请输入您的姓名。",
+    "nameLabel": "全名",
+    "nameHelper": "请输入您的名字和姓氏。",
     "getCode": "获取验证码",
     "codeSentTo": "6 位验证码已发送至 {mobile}。",
     "devCode": "开发环境测试验证码：{code}",
@@ -84,13 +84,21 @@
     "wrongCode": "验证码错误。",
     "otpLabel": "短信验证码",
     "otpDigit": "第 {n} 位",
-    "deliveryHint": "短信可能需要几分钟才能送达；验证码 10 分钟内有效，重新发送后旧验证码仍然可用。"
+    "deliveryHint": "短信可能需要几分钟才能送达；验证码 10 分钟内有效，重新发送后旧验证码仍然可用。",
+    "firstNameLabel": "名字",
+    "lastNameLabel": "姓氏",
+    "inviteCodeLabel": "邀请码（可选）",
+    "inviteCodeHelper": "如果朋友给了您邀请码，请在此输入。",
+    "title": "登录或注册",
+    "subtitle": "用手机号几秒内登录。",
+    "verifyTitle": "验证您的号码"
   },
   "phone": {
     "country": "国家/地区",
     "searchCountry": "搜索国家/地区…",
     "invalid": "请输入有效的手机号码。",
-    "otpCountryUnsupported": "短信验证目前仅支持伊朗手机号码（+98）。请使用伊朗号码，或联系我们寻求帮助。"
+    "otpCountryUnsupported": "短信验证目前仅支持伊朗手机号码（+98）。请使用伊朗号码，或联系我们寻求帮助。",
+    "noCountry": "未找到国家"
   },
   "metadata": {
     "title": "Ahan Time — 智能钢铁市场",

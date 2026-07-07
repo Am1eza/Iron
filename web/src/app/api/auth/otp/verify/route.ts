@@ -32,7 +32,11 @@ async function POSTImpl(req: NextRequest) {
   }
 
   try {
-    const { user, tokens, isNew } = await verifyOtp(mobile, normalizeDigits(v.data.code));
+    const { user, tokens, isNew } = await verifyOtp(mobile, normalizeDigits(v.data.code), {
+      firstName: v.data.firstName,
+      lastName: v.data.lastName,
+      inviteCode: v.data.inviteCode,
+    });
     await setSessionCookies(tokens);
     return NextResponse.json({ user: publicUser(user), isNew });
   } catch (err) {

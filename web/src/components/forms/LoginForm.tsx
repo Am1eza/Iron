@@ -15,6 +15,7 @@ import { PhoneField } from './PhoneField';
 import { OtpInput, type OtpInputHandle } from './OtpInput';
 import { FormStatus } from './FormStatus';
 import { Button } from '@/components/primitives/Button';
+import styles from './LoginForm.module.css';
 
 export function LoginForm() {
   const router = useRouter();
@@ -27,8 +28,11 @@ export function LoginForm() {
   const [step, setStep] = useState<'mobile' | 'code'>('mobile');
   const [country, setCountry] = useState<CountryCode>(DEFAULT_PHONE_COUNTRY);
   const [national, setNational] = useState('');
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
   const [mobileError, setMobileError] = useState<string | undefined>(undefined);
+  const [nameError, setNameError] = useState<string | undefined>(undefined);
   const [mobile, setMobile] = useState(''); // normalized value once sent
   const [code, setCode] = useState('');
   const [otpError, setOtpError] = useState(false);
@@ -37,7 +41,6 @@ export function LoginForm() {
   const [verifying, setVerifying] = useState(false);
   const [resendIn, setResendIn] = useState(0);
   const [devCode, setDevCode] = useState<string | null>(null);
-  const [regName, setRegName] = useState<string | undefined>(undefined);
   const otpRef = useRef<OtpInputHandle>(null);
 
   useEffect(() => {
@@ -46,19 +49,16 @@ export function LoginForm() {
     return () => clearTimeout(timer);
   }, [resendIn]);
 
-  // Move focus to the first OTP box whenever the step changes to 'code' so
-  // screen reader users land on the field they need to fill next.
   useEffect(() => {
     if (step === 'code') otpRef.current?.focus();
   }, [step]);
 
-  const sendOtp = async (m: string, submittedName?: string) => {
+  const sendOtp = async (m: string) => {
     setError(null);
     try {
-      const cleanName = submittedName?.trim() || regName;
-      const res = await formsApi.requestOtp(m, cleanName);
+      const displayName = `${firstName.trim()} ${lastName.trim()}`.trim() || undefined;
+      const res = await formsApi.requestOtp(m, displayName);
       setMobile(m);
-      setRegName(cleanName);
       setStep('code');
       setResendIn(60);
       setDevCode(res.devCode ?? null);
@@ -75,8 +75,15 @@ export function LoginForm() {
       return;
     }
     setMobileError(undefined);
+    // Name is REQUIRED for registration — enforced before the OTP is even sent
+    // (an unknown mobile becomes a new account on verify).
+    if (!firstName.trim() || !lastName.trim()) {
+      setNameError(t('nameHelper'));
+      return;
+    }
+    setNameError(undefined);
     setSubmitting(true);
-    await sendOtp(parsed.normalized, name);
+    await sendOtp(parsed.normalized);
     setSubmitting(false);
   };
 
@@ -90,13 +97,14 @@ export function LoginForm() {
     }
     setVerifying(true);
     try {
-      const { user } = await formsApi.verifyOtp(mobile, code);
+      const { user } = await formsApi.verifyOtp(mobile, code, {
+        firstName: firstName.trim() || undefined,
+        lastName: lastName.trim() || undefined,
+        inviteCode: inviteCode.trim() || undefined,
+      });
       setUser(user);
-      // Staff roles land in the admin panel, not the customer account page —
-      // unless a specific `next` was already requested (e.g. a staff member
-      // deep-linked to a particular /admin/* page before being sent to login).
       router.push(next ?? (canAccessAdmin(user.role) ? routes.admin.dashboard() : routes.account()));
-      router.refresh(); // let server components re-read the new session cookie
+      router.refresh();
     } catch (e) {
       setOtpError(true);
       setError(e instanceof Error ? e.message : t('wrongCode'));
@@ -107,7 +115,16 @@ export function LoginForm() {
   };
 
   return (
-    <div className="stack" style={{ maxInlineSize: 360 }}>
+    <div className={styles.card}>
+      <div className={styles.head}>
+        <h1 className={styles.title}>{step === 'mobile' ? t('title') : t('verifyTitle')}</h1>
+        <p className={styles.subtitle}>
+          {step === 'mobile'
+            ? t('subtitle')
+            : t('codeSentTo', { mobile: localizeDigits(mobile, locale) })}
+        </p>
+      </div>
+
       {error || (step === 'code' && otpError) ? (
         <FormStatus variant="error" id={step === 'code' ? 'otp-error' : undefined}>
           {error ?? 'کد تأیید باید ۶ رقم باشد.'}
@@ -115,7 +132,7 @@ export function LoginForm() {
       ) : null}
 
       {step === 'mobile' ? (
-        <form onSubmit={handleMobileSubmit} noValidate>
+        <form className={styles.form} onSubmit={handleMobileSubmit} noValidate>
           <PhoneField
             label={t('mobileLabel')}
             required
@@ -129,59 +146,65 @@ export function LoginForm() {
               if (mobileError) setMobileError(undefined);
             }}
           />
+          <div className={styles.nameRow}>
+            <TextInput
+              label={t('firstNameLabel')}
+              type="text"
+              required
+              autoComplete="given-name"
+              error={nameError}
+              value={firstName}
+              onChange={(e) => {
+                setFirstName(e.target.value);
+                if (nameError) setNameError(undefined);
+              }}
+            />
+            <TextInput
+              label={t('lastNameLabel')}
+              type="text"
+              required
+              autoComplete="family-name"
+              value={lastName}
+              onChange={(e) => {
+                setLastName(e.target.value);
+                if (nameError) setNameError(undefined);
+              }}
+            />
+          </div>
           <TextInput
-            label={t('nameLabel')}
+            label={t('inviteCodeLabel')}
             type="text"
-            autoComplete="name"
-            helper={t('nameHelper')}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
+            autoComplete="off"
+            helper={t('inviteCodeHelper')}
+            value={inviteCode}
+            onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
           />
           <Button type="submit" fullWidth loading={submitting}>
             {t('getCode')}
           </Button>
         </form>
       ) : (
-        <div className="stack">
-          <p
-            role="status"
-            style={{ font: 'var(--t-body-sm)', color: 'var(--color-text-muted)' }}
-          >
-            {t('codeSentTo', { mobile: localizeDigits(mobile, locale) })}
-          </p>
+        <div className={styles.form}>
           {devCode ? (
-            <p
-              style={{ font: 'var(--t-caption)', color: 'var(--color-action-text)' }}
-              role="status"
-            >
+            <p className={styles.devCode} role="status">
               {t('devCode', { code: localizeDigits(devCode, locale) })}
             </p>
           ) : null}
           <OtpInput ref={otpRef} value={code} onChange={setCode} error={otpError} label={t('otpLabel')} />
-          <p style={{ font: 'var(--t-caption)', color: 'var(--color-text-muted)' }}>
-            {t('deliveryHint')}
-          </p>
+          <p className={styles.hint}>{t('deliveryHint')}</p>
           <Button onClick={verify} fullWidth loading={verifying}>
             {t('verifyAndLogin')}
           </Button>
-          <div className="cluster" style={{ justifyContent: 'space-between' }}>
-            <button
-              type="button"
-              onClick={() => setStep('mobile')}
-              style={{ background: 'none', border: 0, color: 'var(--color-accent-text)', cursor: 'pointer' }}
-            >
+          <div className={styles.actions}>
+            <button type="button" className={styles.linkBtn} onClick={() => setStep('mobile')}>
               {t('changeNumber')}
             </button>
             <button
               type="button"
+              className={styles.linkBtn}
               disabled={resendIn > 0}
+              data-muted={resendIn > 0 ? '' : undefined}
               onClick={() => sendOtp(mobile)}
-              style={{
-                background: 'none',
-                border: 0,
-                color: resendIn > 0 ? 'var(--color-text-muted)' : 'var(--color-accent-text)',
-                cursor: resendIn > 0 ? 'default' : 'pointer',
-              }}
             >
               {resendIn > 0
                 ? t('resendIn', { seconds: localizeDigits(resendIn, locale) })

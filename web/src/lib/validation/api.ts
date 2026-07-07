@@ -8,11 +8,24 @@ const priceUnit = z.enum(['kg', 'branch', 'sheet', 'meter']);
 
 export const otpRequestPayload = z.object({
   mobile: mobileSchema,
-  // Optional name captured at first request → used to register a new account.
+  // Optional display name captured at first request → personalizes the "code
+  // sent" copy. Structured registration fields ride in on verify (below).
   name: z.string().trim().min(1).max(60).optional(),
 });
-export const otpVerifyPayload = z.object({ mobile: mobileSchema, code: otpCodeSchema });
-export const profileUpdatePayload = z.object({ name: z.string().trim().min(1).max(60) });
+export const otpVerifyPayload = z.object({
+  mobile: mobileSchema,
+  code: otpCodeSchema,
+  // Registration fields — applied ONLY when this OTP creates a new account.
+  // Required-name is enforced client-side before the OTP is even requested;
+  // here they stay optional so a returning user's verify (no reg) is valid.
+  firstName: z.string().trim().min(1).max(40).optional(),
+  lastName: z.string().trim().min(1).max(40).optional(),
+  inviteCode: z.string().trim().max(16).optional(),
+});
+export const profileUpdatePayload = z.object({
+  firstName: z.string().trim().min(1).max(40),
+  lastName: z.string().trim().min(1).max(40),
+});
 
 export const leadPayload = z.object({
   contact: z.object({ name: z.string().max(60).optional(), mobile: mobileSchema }),

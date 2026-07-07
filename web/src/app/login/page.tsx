@@ -6,18 +6,13 @@ import { LoginForm } from '@/components/forms/LoginForm';
 export const metadata: Metadata = buildMetadata({ title: 'ورود', noindex: true });
 
 export default function LoginPage() {
+  // The form is a self-contained card with its own title/subtitle — the page is
+  // just a centered stage for it (no duplicate heading, no mixed fonts).
   return (
-    <div className="container" style={{ paddingBlock: 'var(--space-16)', maxInlineSize: 480 }}>
-      <h1>ورود به آهن‌تایم</h1>
-      <p
-        style={{
-          font: 'var(--t-body-sm)',
-          color: 'var(--color-text-muted)',
-          margin: 'var(--space-3) 0 var(--space-6)',
-        }}
-      >
-        با شمارهٔ موبایل و کد پیامکی وارد شوید.
-      </p>
+    <div
+      className="container"
+      style={{ display: 'flex', justifyContent: 'center', paddingBlock: 'var(--space-16)' }}
+    >
       <Suspense>
         <LoginForm />
       </Suspense>

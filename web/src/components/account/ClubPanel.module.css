@@ -1,0 +1,267 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+/* ===== non-member join state ===== */
+.joinWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  text-align: center;
+  padding: var(--space-6) var(--space-4);
+}
+.joinMedal {
+  display: grid;
+  place-items: center;
+  inline-size: 56px;
+  block-size: 56px;
+  border-radius: var(--radius-circle);
+  background: var(--color-accent-tint);
+  color: var(--color-accent);
+}
+.joinTitle {
+  font: var(--t-h4);
+  color: var(--color-text-strong);
+}
+.joinLead {
+  max-inline-size: 42ch;
+  font: var(--t-body-sm);
+  color: var(--color-text-muted);
+}
+.ladderPreview {
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--space-2);
+  font: var(--t-body-sm);
+  color: var(--color-text);
+}
+.ladderPreview strong {
+  color: var(--color-text-strong);
+}
+
+/* ===== hero: tier + points ===== */
+.hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-sunken);
+  border: var(--border-hairline) solid var(--color-hairline);
+}
+.identity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+.medal {
+  display: grid;
+  place-items: center;
+  inline-size: 52px;
+  block-size: 52px;
+  border-radius: var(--radius-circle);
+  color: #fff;
+  flex: none;
+}
+/* tier-tinted medals (iron/steel/poolad) */
+.medal_iron {
+  background: linear-gradient(135deg, var(--neutral-400), var(--neutral-600));
+}
+.medal_steel {
+  background: linear-gradient(135deg, var(--cobalt-300), var(--cobalt-600));
+}
+.medal_poolad {
+  background: linear-gradient(135deg, var(--amber-300), var(--amber-600));
+}
+.tierEyebrow {
+  display: block;
+  font: var(--t-overline);
+  color: var(--color-text-muted);
+}
+.tierName {
+  font: var(--t-h3);
+  color: var(--color-text-strong);
+  margin: 0;
+}
+.tierTagline {
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+  margin: 0;
+}
+.points {
+  text-align: center;
+}
+.pointsValue {
+  display: block;
+  font: var(--t-price-hero);
+  color: var(--color-accent-text);
+  line-height: 1;
+}
+.pointsLabel {
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}
+
+/* ===== goal-gradient progress ===== */
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.progressHead {
+  font: var(--t-body-sm);
+  color: var(--color-text);
+}
+.progressHead strong {
+  color: var(--color-text-strong);
+}
+.track {
+  block-size: 12px;
+  border-radius: var(--radius-pill);
+  background: var(--chart-track);
+  overflow: hidden;
+}
+.fill {
+  block-size: 100%;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(90deg, var(--color-accent), var(--emerald-400));
+  transition: inline-size var(--dur-slow) var(--ease-standard);
+}
+.topNote {
+  font: var(--t-body-sm);
+  color: var(--color-text-muted);
+}
+
+/* ===== points breakdown ===== */
+.breakdownTitle {
+  font: var(--t-h4);
+  color: var(--color-text-strong);
+  margin: 0 0 var(--space-3);
+}
+.breakdownList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+.breakdownRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-sunken);
+  font: var(--t-body-sm);
+  color: var(--color-text-muted);
+}
+.breakdownRow[data-has] {
+  color: var(--color-text);
+}
+.breakdownLabel {
+  color: inherit;
+}
+.breakdownCount {
+  color: var(--color-text-muted);
+}
+.breakdownPoints {
+  font-weight: 700;
+  color: var(--color-accent-text);
+}
+
+/* ===== ladder + perks ===== */
+.ladder {
+  display: grid;
+  gap: var(--space-3);
+}
+.ladderTier {
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+}
+.ladderActive {
+  border-color: var(--color-accent);
+  background: var(--color-accent-tint);
+}
+.ladderHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-block-end: var(--space-3);
+}
+.ladderName {
+  font: var(--t-h4);
+  color: var(--color-text-strong);
+}
+.perks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+.perks li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  font: var(--t-body-sm);
+  color: var(--color-text);
+}
+.perkIcon {
+  color: var(--color-accent);
+  flex: none;
+  margin-block-start: 2px;
+}
+
+/* ===== invite code ===== */
+.invite {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  border: var(--border-hairline) dashed var(--color-accent);
+  background: var(--color-accent-tint);
+}
+.inviteLabel {
+  display: block;
+  font: var(--t-label);
+  color: var(--color-text-strong);
+}
+.inviteHint {
+  margin: 2px 0 0;
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+  max-inline-size: 40ch;
+}
+.inviteCode {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-sm);
+  border: var(--border-hairline) solid var(--color-accent);
+  background: var(--color-surface);
+  cursor: pointer;
+}
+.inviteValue {
+  font: var(--t-data);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--color-text-strong);
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+.inviteCopy {
+  font: var(--t-caption);
+  color: var(--color-accent-text);
+}

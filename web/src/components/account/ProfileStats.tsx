@@ -1,40 +1,42 @@
-'use client';
 import Link from 'next/link';
 import { routes } from '@/lib/routes';
-import { useRequestsStore } from '@/lib/stores/requests';
-import { getOrders } from '@/lib/mock/orders';
-import { getWarehouseItems } from '@/lib/mock/warehouse';
 import { toPersianDigits } from '@/lib/utils/format';
 import styles from './ProfileStats.module.css';
 
 /**
- * Profile overview tiles — live counts that deep-link into their tabs, so the
- * profile reads as the user's control room, not a settings page.
+ * Profile overview tiles — REAL per-user counts (open requests, in-transit
+ * orders, stored consignments) that deep-link into their tabs, so the profile
+ * reads as the user's control room. Server component fed by getProfileCounts()
+ * (was a client component importing @/lib/mock directly, which shipped demo
+ * numbers to production).
  */
-export function ProfileStats() {
-  const requestCount = useRequestsStore((s) => s.requests.length);
-  const orders = getOrders();
-  const inTransit = orders.filter((o) => o.status !== 'delivered').length;
-  const warehouseCount = getWarehouseItems().length;
-
+export function ProfileStats({
+  openRequests,
+  activeOrders,
+  warehouseItems,
+}: {
+  openRequests: number;
+  activeOrders: number;
+  warehouseItems: number;
+}) {
   const tiles = [
     {
       href: routes.account('requests'),
-      value: requestCount,
+      value: openRequests,
       label: 'درخواست فعال',
-      hint: requestCount > 0 ? 'در انتظار پیگیری کارشناس' : 'هنوز درخواستی ندارید',
+      hint: openRequests > 0 ? 'در انتظار پیگیری کارشناس' : 'هنوز درخواستی ندارید',
     },
     {
       href: routes.account('orders'),
-      value: inTransit,
+      value: activeOrders,
       label: 'سفارش در جریان',
-      hint: 'حمل و تحویل را دنبال کنید',
+      hint: activeOrders > 0 ? 'حمل و تحویل را دنبال کنید' : 'سفارش فعالی ندارید',
     },
     {
       href: routes.account('warehouse'),
-      value: warehouseCount,
+      value: warehouseItems,
       label: 'کالای امانی در انبار',
-      hint: 'موجودی انبار مشتریان',
+      hint: warehouseItems > 0 ? 'موجودی انبار مشتریان' : 'کالای امانی ندارید',
     },
   ];
 

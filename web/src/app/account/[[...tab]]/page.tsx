@@ -19,10 +19,15 @@ import {
 } from '@/components/ui';
 import { WarehouseList } from '@/components/account/WarehouseList';
 import { OrderTimeline } from '@/components/account/OrderTimeline';
-import { getOrders, getWarehouseItems } from '@/lib/server/account';
+import { ClubPanel } from '@/components/account/ClubPanel';
+import { ProfileStats } from '@/components/account/ProfileStats';
+import { getOrders, getWarehouseItems, getProfileCounts } from '@/lib/server/account';
+import { clubStatus } from '@/lib/server/repos/clubRepo';
+import { getUserProfile } from '@/lib/server/repos/verificationRepo';
 import { API_MODE } from '@/lib/api/config';
 import { SHIPMENT_STEPS } from '@/lib/types/domain';
 import { formatJalali, toPersianDigits } from '@/lib/utils/format';
+import styles from '../account.module.css';
 
 // Every tab is resolved server-side (the `switch` below already knows which
 // one is active per request), but a static import of all 7 tab components
@@ -39,11 +44,11 @@ const LogoutButton = dynamic(() =>
 const RequestsList = dynamic(() =>
   import('@/components/account/RequestsList').then((m) => m.RequestsList),
 );
-const ProfileStats = dynamic(() =>
-  import('@/components/account/ProfileStats').then((m) => m.ProfileStats),
-);
 const DeliveryCity = dynamic(() =>
   import('@/components/account/DeliveryCity').then((m) => m.DeliveryCity),
+);
+const VerificationCard = dynamic(() =>
+  import('@/components/account/VerificationCard').then((m) => m.VerificationCard),
 );
 const FavoritesList = dynamic(() =>
   import('@/components/account/FavoritesList').then((m) => m.FavoritesList),
@@ -69,7 +74,10 @@ type Params = { params: Promise<{ tab?: string[] }> };
 export default async function AccountPage({ params }: Params) {
   const { tab } = await params;
   const slug = tab?.[0] ? decodeURIComponent(tab[0]) : 'profile';
-  const user = await requireUser(routes.account());
+  // Return to the SAME tab after login (was routes.account(), which dropped the
+  // deep-linked tab — a signed-out visit to /account/club lost the club tab).
+  const backTo = slug === 'profile' ? routes.account() : `/account/${slug}`;
+  const user = await requireUser(backTo);
 
   return (
     <Container>
@@ -93,34 +101,20 @@ export default async function AccountPage({ params }: Params) {
           </Cluster>
 
           {/* Deep-linkable section nav */}
-          <nav aria-label="بخش‌های حساب">
-            <Cluster gap={2}>
-              {TABS.map((t) => {
-                const active = t.slug === slug;
-                return (
-                  <Link
-                    key={t.slug}
-                    href={routes.account(t.slug)}
-                    aria-current={active ? 'page' : undefined}
-                    style={{
-                      display: 'inline-flex',
-                      minBlockSize: 40,
-                      alignItems: 'center',
-                      paddingInline: 'var(--space-4)',
-                      borderRadius: 'var(--radius-pill)',
-                      font: 'var(--t-label)',
-                      textDecoration: 'none',
-                      background: active
-                        ? 'var(--color-accent-tint)'
-                        : 'var(--color-surface-sunken)',
-                      color: active ? 'var(--color-accent-text)' : 'var(--color-text)',
-                    }}
-                  >
-                    {t.label}
-                  </Link>
-                );
-              })}
-            </Cluster>
+          <nav aria-label="بخش‌های حساب" className={styles.nav}>
+            {TABS.map((t) => {
+              const active = t.slug === slug;
+              return (
+                <Link
+                  key={t.slug}
+                  href={routes.account(t.slug)}
+                  aria-current={active ? 'page' : undefined}
+                  className={`${styles.tab} ${active ? styles.tabActive : ''}`}
+                >
+                  {t.label}
+                </Link>
+              );
+            })}
           </nav>
 
           <TabContent slug={slug} userId={user.id} />
@@ -229,28 +223,58 @@ async function TabContent({ slug, userId }: { slug: string; userId: string }) {
           )}
         </Card>
       );
-    case 'club':
+    case 'club': {
+      // Live: the real member panel (tier, points, progress, perks, invite) —
+      // fed by clubStatus() server-side, so NO client fetch to 401 and no
+      // "please log in again" loop. Dev/mock (no DB): a static CTA.
+      if (API_MODE !== 'live') {
+        return (
+          <Card>
+            <EmptyState
+              size="section"
+              headline="باشگاه آهن‌تایم"
+              body="با عضویت، قیمت ویژه، تحویل اولویت‌دار و مشاور اختصاصی بگیرید."
+              primary={{ label: 'مشاهدهٔ باشگاه', href: routes.club() }}
+            />
+          </Card>
+        );
+      }
+      const [status, profile] = await Promise.all([clubStatus(userId), getUserProfile(userId)]);
       return (
         <Card>
-          <EmptyState
-            size="section"
-            headline="باشگاه آهن‌تایم"
-            body="با عضویت، قیمت ویژه، تحویل اولویت‌دار و مشاور اختصاصی بگیرید."
-            primary={{ label: 'عضویت در باشگاه', href: routes.club() }}
-          />
+          <ClubPanel status={status} inviteCode={profile?.inviteCode} />
         </Card>
       );
-    default:
+    }
+    default: {
+      // Real overview counts + verification state (live). getProfileCounts and
+      // getUserProfile both no-op-safe in mock mode (counts fall back to
+      // fixtures; profile is null → verification card hidden).
+      const [counts, profile] = await Promise.all([
+        getProfileCounts(userId),
+        API_MODE === 'live' ? getUserProfile(userId) : Promise.resolve(null),
+      ]);
       return (
         <Stack gap={4}>
-          <ProfileStats />
+          <ProfileStats
+            openRequests={counts.openRequests}
+            activeOrders={counts.activeOrders}
+            warehouseItems={counts.warehouseItems}
+          />
+          {profile ? (
+            <VerificationCard
+              level={profile.verificationLevel}
+              idStatus={profile.idVerifyStatus}
+              bizStatus={profile.bizVerifyStatus}
+            />
+          ) : null}
           <DeliveryCity />
           <Card>
             <Stack gap={6}>
               <div>
                 <Heading level={3}>اطلاعات حساب</Heading>
                 <Text color="muted">
-                  نام نمایشی شما در پیش‌فاکتورها و گفتگو با کارشناس استفاده می‌شود.
+                  نام و نام خانوادگی شما در پیش‌فاکتورها و گفتگو با کارشناس استفاده می‌شود.
                 </Text>
               </div>
               <ProfileForm />
@@ -259,5 +283,6 @@ async function TabContent({ slug, userId }: { slug: string; userId: string }) {
           </Card>
         </Stack>
       );
+    }
   }
 }

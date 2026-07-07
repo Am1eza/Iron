@@ -5,12 +5,20 @@
  * functions, so the swap is invisible to them.
  */
 import { hasDb } from '@/lib/server/db/client';
-import type { AuthUser, Role } from './types';
-import type { AuthStore, ListUsersQuery, OtpRecord, RateRecord, RefreshRecord, UserPatch } from './store.types';
+import type { AuthUser } from './types';
+import type {
+  AuthStore,
+  CreateUserInput,
+  ListUsersQuery,
+  OtpRecord,
+  RateRecord,
+  RefreshRecord,
+  UserPatch,
+} from './store.types';
 import { memoryStore } from './store.memory';
 import { pgStore } from './store.pg';
 
-export type { OtpRecord, RateRecord, RefreshRecord, UserPatch, ListUsersQuery };
+export type { CreateUserInput, OtpRecord, RateRecord, RefreshRecord, UserPatch, ListUsersQuery };
 
 /** Resolved per call so tests can swap the DB (pglite) at runtime. */
 function store(): AuthStore {
@@ -24,7 +32,7 @@ export function userByMobile(mobile: string): Promise<AuthUser | null> {
 export function userById(id: string): Promise<AuthUser | null> {
   return store().userById(id);
 }
-export function createUser(input: { mobile: string; name?: string; role?: Role }): Promise<AuthUser> {
+export function createUser(input: CreateUserInput): Promise<AuthUser> {
   return store().createUser(input);
 }
 export function updateUser(id: string, patch: UserPatch): Promise<AuthUser | null> {

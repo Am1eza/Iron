@@ -8,8 +8,9 @@ import { ulid } from 'ulid';
 
 import { getDb } from '@/lib/server/db/client';
 import { users, refreshTokens, otpCodes, otpRateLimits, clubMemberships } from '@/lib/server/db/schema';
-import type { AuthUser, Role } from './types';
-import type { AuthStore, ListUsersQuery, UserPatch } from './store.types';
+import { randomInviteCode } from './crypto';
+import type { AuthUser } from './types';
+import type { AuthStore, CreateUserInput, ListUsersQuery, UserPatch } from './store.types';
 
 type UserRow = typeof users.$inferSelect;
 
@@ -18,6 +19,8 @@ function toAuthUser(row: UserRow, clubTier?: 'iron' | 'steel' | 'poolad' | null)
     id: row.id,
     mobile: row.mobile,
     name: row.name ?? undefined,
+    firstName: row.firstName ?? undefined,
+    lastName: row.lastName ?? undefined,
     role: row.role,
     clubTier: clubTier ?? undefined,
     createdAt: row.createdAt.toISOString(),
@@ -47,14 +50,20 @@ export const pgStore: AuthStore = {
     return userWhere(eq(users.id, id));
   },
 
-  async createUser(input: { mobile: string; name?: string; role?: Role }) {
+  async createUser(input: CreateUserInput) {
     const db = getDb();
+    const composed =
+      input.name ?? ([input.firstName, input.lastName].filter(Boolean).join(' ').trim() || null);
     const row = {
       id: ulid(),
       mobile: input.mobile,
-      name: input.name ?? null,
-      role: input.role ?? ('customer' as Role),
-    };
+      name: composed,
+      firstName: input.firstName ?? null,
+      lastName: input.lastName ?? null,
+      role: input.role ?? 'customer',
+      inviteCode: input.inviteCode ?? randomInviteCode(),
+      referredBy: input.referredBy ?? null,
+    } as const;
     const inserted = await db.insert(users).values(row).returning();
     return toAuthUser(inserted[0]!);
   },
@@ -63,6 +72,8 @@ export const pgStore: AuthStore = {
     const db = getDb();
     const set: Record<string, unknown> = {};
     if (patch.name !== undefined) set.name = patch.name;
+    if (patch.firstName !== undefined) set.firstName = patch.firstName;
+    if (patch.lastName !== undefined) set.lastName = patch.lastName;
     if (patch.mobile !== undefined) set.mobile = patch.mobile;
     if (patch.role !== undefined) set.role = patch.role;
     if (patch.isActive !== undefined) set.isActive = patch.isActive;

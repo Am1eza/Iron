@@ -19,10 +19,16 @@ export const authApi = {
     return http.post('/api/auth/otp/request', { mobile: m, name });
   },
 
-  /** Verify the code → sets session cookies; returns the user + whether new. */
-  async verifyOtp(mobile: string, code: string): Promise<{ user: PublicUser; isNew: boolean }> {
+  /** Verify the code → sets session cookies; returns the user + whether new.
+   *  `reg` carries the registration fields applied only when this OTP creates
+   *  a new account (name required by the form before the code was requested). */
+  async verifyOtp(
+    mobile: string,
+    code: string,
+    reg?: { firstName?: string; lastName?: string; inviteCode?: string },
+  ): Promise<{ user: PublicUser; isNew: boolean }> {
     const m = normalizeMobile(mobile) ?? mobile;
-    return http.post('/api/auth/otp/verify', { mobile: m, code });
+    return http.post('/api/auth/otp/verify', { mobile: m, code, ...reg });
   },
 
   /** Rotate the refresh token → new access token. */
@@ -40,8 +46,8 @@ export const authApi = {
     return http.get('/api/me');
   },
 
-  /** Update the signed-in user's profile. */
-  async updateProfile(name: string): Promise<{ user: PublicUser }> {
-    return http.put('/api/me/profile', { name });
+  /** Update the signed-in user's name (first + last). */
+  async updateProfile(firstName: string, lastName: string): Promise<{ user: PublicUser }> {
+    return http.put('/api/me/profile', { firstName, lastName });
   },
 };

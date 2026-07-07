@@ -15,6 +15,7 @@ export function KpiCard({
   today,
   series,
   hint,
+  className,
   format = (n) => toPersianDigits(n.toLocaleString('en-US')),
 }: {
   label: string;
@@ -23,12 +24,14 @@ export function KpiCard({
   today?: number;
   series?: number[];
   hint?: ReactNode;
+  /** Bento sizing class (e.g. dashboard.hero / .wide) applied to the grid item. */
+  className?: string;
   format?: (n: number) => string;
 }) {
   const up = deltaPct !== null && deltaPct > 0;
   const down = deltaPct !== null && deltaPct < 0;
   return (
-    <div className={ui.tile}>
+    <div className={`${ui.tile} ${className ?? ''}`}>
       <span className={ui.tileLabel}>{label}</span>
       <span className={`${ui.tileValue} tnum`}>{format(value)}</span>
       <span className={ui.tileHint}>

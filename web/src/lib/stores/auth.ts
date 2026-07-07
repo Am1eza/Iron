@@ -5,6 +5,8 @@ export type SessionUser = {
   id: string;
   mobile: string;
   name?: string;
+  firstName?: string;
+  lastName?: string;
   role: Role;
   clubTier?: 'iron' | 'steel' | 'poolad';
 };

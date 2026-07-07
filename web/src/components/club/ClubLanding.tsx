@@ -15,6 +15,7 @@ import {
   Divider,
 } from '@/components/ui';
 import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
+import { CLUB_TIERS_ORDERED } from '@/lib/data/club';
 import {
   TagIcon,
   CheckCircleIcon,
@@ -27,47 +28,9 @@ import {
 } from '@/components/primitives/icons';
 import styles from './ClubLanding.module.css';
 
-/** A membership tier in the customer club, ordered by ascending benefit. */
-type Tier = {
-  key: 'iron' | 'steel' | 'poolad';
-  name: string;
-  tagline: string;
-  perks: string[];
-  /** The standout tier — given a soft amber emphasis. */
-  featured?: boolean;
-};
-
-const TIERS: Tier[] = [
-  {
-    key: 'iron',
-    name: 'آهنی',
-    tagline: 'نقطهٔ شروع هر همکاری',
-    perks: ['دسترسی به قیمت‌های روز و آرشیو نوسان', 'ثبت استعلام و دریافت پیش‌فاکتور', 'پشتیبانی تلفنی کارشناسان'],
-  },
-  {
-    key: 'steel',
-    name: 'فولادی',
-    tagline: 'برای خریدهای منظم و حرفه‌ای',
-    perks: [
-      'تخفیف پلکانی روی حجم خرید',
-      'اولویت در تأمین و تحویل',
-      'هشدار قیمت اختصاصی روی محصولات منتخب',
-      'پیش‌فاکتور سریع‌تر',
-    ],
-    featured: true,
-  },
-  {
-    key: 'poolad',
-    name: 'پولادی',
-    tagline: 'بالاترین سطح وفاداری',
-    perks: [
-      'بیشترین تخفیف پلکانی',
-      'تأمین تضمینی با اولویت کامل',
-      'مشاور اختصاصی و خط ارتباطی مستقیم',
-      'پیشنهادهای ویژهٔ پیش از عرضهٔ عمومی',
-    ],
-  },
-];
+/** Tiers come from the shared metadata (src/lib/data/club.ts) so the landing,
+ *  the in-account panel, and admin all show the exact same perks. */
+const TIERS = CLUB_TIERS_ORDERED;
 
 /** The five core benefits, shown as a calm icon grid. */
 const BENEFITS: { icon: ReactNode; title: string; body: string }[] = [

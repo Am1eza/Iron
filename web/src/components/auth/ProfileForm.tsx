@@ -19,22 +19,24 @@ export function ProfileForm() {
   const toast = useToast();
   const t = useTranslations('profile');
   const tAuth = useTranslations('auth');
-  const tCommon = useTranslations('common');
   const locale = useLocale() as AppLocale;
 
   const { register, handleSubmit, formState, setError } = useForm<ProfileValues>({
     resolver: zodResolver(profileSchema),
-    defaultValues: { name: user?.name ?? '' },
+    defaultValues: {
+      firstName: user?.firstName ?? '',
+      lastName: user?.lastName ?? '',
+    },
   });
 
   const onSubmit = async (values: ProfileValues) => {
     try {
-      const { user: updated } = await api.auth.updateProfile(values.name);
+      const { user: updated } = await api.auth.updateProfile(values.firstName, values.lastName);
       setUser({ ...(user ?? updated), ...updated });
       toast.success(t('updated'));
     } catch (e) {
-      if (isApiError(e) && e.fields?.name) {
-        setError('name', { message: e.fields.name[0] });
+      if (isApiError(e) && e.fields?.firstName) {
+        setError('firstName', { message: e.fields.firstName[0] });
       } else {
         toast.error(e instanceof Error ? e.message : t('updateFailed'));
       }
@@ -42,7 +44,7 @@ export function ProfileForm() {
   };
 
   return (
-    <form className="stack" style={{ maxInlineSize: 360 }} onSubmit={handleSubmit(onSubmit)} noValidate>
+    <form className="stack" style={{ maxInlineSize: 420 }} onSubmit={handleSubmit(onSubmit)} noValidate>
       <TextInput
         id="profile-mobile"
         name="mobile"
@@ -52,12 +54,24 @@ export function ProfileForm() {
         disabled
         dir="ltr"
       />
-      <TextInput
-        label={tCommon('nameLabel')}
-        autoComplete="name"
-        error={formState.errors.name?.message}
-        {...register('name')}
-      />
+      <div className="cluster" style={{ gap: 'var(--space-3)' }}>
+        <div style={{ flex: 1, minInlineSize: 0 }}>
+          <TextInput
+            label={tAuth('firstNameLabel')}
+            autoComplete="given-name"
+            error={formState.errors.firstName?.message}
+            {...register('firstName')}
+          />
+        </div>
+        <div style={{ flex: 1, minInlineSize: 0 }}>
+          <TextInput
+            label={tAuth('lastNameLabel')}
+            autoComplete="family-name"
+            error={formState.errors.lastName?.message}
+            {...register('lastName')}
+          />
+        </div>
+      </div>
       <Button type="submit" loading={formState.isSubmitting}>
         {t('saveChanges')}
       </Button>

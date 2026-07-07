@@ -98,6 +98,17 @@ export interface SeoStatsRes {
   automated: Array<{ label: string; ok: true }>;
 }
 
+export interface PendingVerificationRow {
+  userId: string;
+  mobile: string;
+  name?: string;
+  kind: 'id' | 'biz';
+  nationalId?: string;
+  companyName?: string;
+  companyNationalId?: string;
+  economicCode?: string;
+}
+
 export interface AllowlistEntryRow {
   mobile: string;
   label: string | null;
@@ -225,6 +236,13 @@ export const adminApi = {
   statsOverview: () => http.get<OverviewStatsRes>('/api/admin/stats/overview'),
   statsMarketing: () => http.get<MarketingStatsRes>('/api/admin/stats/marketing'),
   statsSeo: () => http.get<SeoStatsRes>('/api/admin/stats/seo'),
+  statsCohorts: () =>
+    http.get<{ columns: string[]; rows: Array<{ label: string; size: number; cells: (number | null)[] }> }>(
+      '/api/admin/stats/cohorts',
+    ),
+  verifications: () => http.get<{ pending: PendingVerificationRow[] }>('/api/admin/verifications'),
+  reviewVerification: (userId: string, kind: 'id' | 'biz', decision: 'approved' | 'rejected') =>
+    http.patch<{ ok: true; verificationLevel: number }>(`/api/admin/verifications/${userId}`, { kind, decision }),
   allowlist: () =>
     http.get<{ entries: AllowlistEntryRow[] }>('/api/admin/allowlist'),
   addToAllowlist: (mobile: string, label?: string) =>

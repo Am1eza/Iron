@@ -34,6 +34,17 @@ export function randomOtp(length: number): string {
   return out;
 }
 
+/** A short, human-shareable invite code — uppercase, no ambiguous chars
+ *  (0/O, 1/I) so it survives being read aloud or typed from a screenshot. */
+export function randomInviteCode(length = 7): string {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const arr = new Uint8Array(length);
+  crypto.getRandomValues(arr);
+  let out = '';
+  for (let i = 0; i < length; i++) out += alphabet[(arr[i] ?? 0) % alphabet.length];
+  return out;
+}
+
 /** Constant-time string compare (avoids timing oracles on hash/code checks). */
 export function timingSafeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false;

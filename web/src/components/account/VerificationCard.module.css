@@ -1,0 +1,105 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.shield {
+  display: grid;
+  place-items: center;
+  inline-size: 44px;
+  block-size: 44px;
+  border-radius: var(--radius-circle);
+  background: var(--color-accent-tint);
+  color: var(--color-accent);
+  flex: none;
+}
+.title {
+  font: var(--t-h4);
+  color: var(--color-text-strong);
+  margin: 0;
+}
+.currentLevel {
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+  margin: 2px 0 0;
+}
+
+.unlocked {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+.unlocked li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font: var(--t-body-sm);
+  color: var(--color-text);
+}
+.unlockedIcon {
+  color: var(--color-accent);
+  flex: none;
+}
+
+.next {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+  border: var(--border-hairline) solid var(--color-hairline);
+}
+.nextTitle {
+  font: var(--t-label);
+  color: var(--color-text-strong);
+}
+.nextPerks {
+  margin: 0;
+  padding-inline-start: var(--space-5);
+  display: grid;
+  gap: var(--space-1);
+  font: var(--t-body-sm);
+  color: var(--color-text-muted);
+}
+.nextPerks li::marker {
+  color: var(--color-accent);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-block-start: var(--space-2);
+}
+.pending,
+.maxed {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font: var(--t-body-sm);
+  color: var(--color-text-muted);
+  margin: 0;
+}
+.rejected {
+  font: var(--t-caption);
+  color: var(--color-loss-text);
+  margin: 0;
+}
+.error {
+  font: var(--t-caption);
+  color: var(--color-loss-text);
+  margin: 0;
+}

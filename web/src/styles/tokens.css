@@ -54,6 +54,16 @@
   --color-on-panel:#EDF2F6; --color-on-panel-muted:#8D9AA8;
   --color-panel-hairline:rgba(255,255,255,.09);
 
+  /* ===== BI / CHART TOKENS — LIGHT =====
+     Categorical series + status hues + chart chrome. Dashboards consume these
+     instead of hardcoding hex (the SeoDashboard/MarketingDashboard smell).
+     --chart-1 is the brand emerald so the primary series reads as "ours". */
+  --chart-1:var(--emerald-500); --chart-2:var(--cobalt-500); --chart-3:var(--amber-500);
+  --chart-4:#7C5CFC; --chart-5:#0E9AA7; --chart-6:#E0559B;
+  --chart-good:var(--gain-500); --chart-warn:var(--amber-600); --chart-bad:var(--loss-500);
+  --chart-grid:var(--color-hairline); --chart-track:var(--color-surface-sunken);
+  --chart-axis:var(--color-text-muted);
+
   /* ===== TYPOGRAPHY ===== */
   --font-fa:var(--font-vazirmatn),"Segoe UI",Tahoma,system-ui,sans-serif;
   --font-display:var(--font-estedad),var(--font-vazirmatn),"Segoe UI",Tahoma,system-ui,sans-serif;
@@ -63,8 +73,15 @@
   --t-display-num: 800 clamp(1.5rem,1rem + 1.6vw,2.25rem)/1.1 var(--font-display);
   --t-h1: 800 clamp(1.625rem,1.2rem + 1.6vw,2rem)/1.25 var(--font-display);
   --t-h2: 800 clamp(1.375rem,1.1rem + 1vw,1.625rem)/1.3 var(--font-display);
-  --t-h3: 600 1.375rem/1.35 var(--font-fa);
+  /* h1–h3 all ride the display family (Estedad): a heading that switched to
+     Vazirmatn at h3 was the "fonts not uniform" inconsistency on card-heavy
+     pages (login, profile, club). h4 stays Vazirmatn as the body-weight
+     sub-title step. */
+  --t-h3: 700 1.375rem/1.35 var(--font-display);
   --t-h4: 600 1.125rem/1.4 var(--font-fa);
+  /* Small titled labels (admin brand, panel headers) — display family, was
+     referenced by admin.module.css before it existed. */
+  --t-title-sm: 700 1rem/1.4 var(--font-display);
   --t-body-lg: 400 1.125rem/1.8 var(--font-fa);
   --t-body: 400 1rem/1.75 var(--font-fa);
   --t-body-sm: 400 .875rem/1.7 var(--font-fa);
@@ -96,7 +113,7 @@
   --shadow-sm:0 2px 8px rgba(16,22,30,.08);
   --shadow-md:0 8px 24px rgba(16,22,30,.12);
   --shadow-lg:0 16px 48px rgba(16,22,30,.16);
-  --z-base:0; --z-raised:10; --z-sticky:100; --z-fab:150; --z-dropdown:200;
+  --z-base:0; --z-raised:10; --z-sticky:100; --z-bottom-nav:105; --z-fab:150; --z-dropdown:200;
   --z-scrim:300; --z-drawer:350; --z-modal:400; --z-toast:500; --z-tooltip:600;
 
   /* ===== LAYOUT ===== */
@@ -131,6 +148,13 @@
   --color-action:var(--emerald-550); --color-on-action:var(--neutral-0); --color-action-hover:var(--emerald-400); --color-action-press:var(--emerald-600); --color-action-text:var(--emerald-300); --color-focus:var(--emerald-400);
   --color-overlay:rgba(0,0,0,.6);
   --shadow-sm:0 2px 8px rgba(0,0,0,.4); --shadow-md:0 8px 24px rgba(0,0,0,.5); --shadow-lg:0 16px 48px rgba(0,0,0,.6);
+
+  /* Chart hues lift a step in dark so they stay vivid on the dark surface. */
+  --chart-1:var(--emerald-400); --chart-2:var(--cobalt-400); --chart-3:var(--amber-400);
+  --chart-4:#9B82FF; --chart-5:#2FB9C6; --chart-6:#F072AE;
+  --chart-good:var(--gain-500); --chart-warn:var(--amber-400); --chart-bad:var(--loss-400);
+  --chart-grid:rgba(255,255,255,.08); --chart-track:var(--neutral-850);
+  --chart-axis:var(--color-text-muted);
 }
 
 @media (prefers-reduced-motion: reduce){

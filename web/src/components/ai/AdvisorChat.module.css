@@ -404,7 +404,10 @@
 @media (max-width: 767px) {
   .wrap {
     margin-block: 0;
-    block-size: calc(100svh - 60px - 60px);
+    /* Subtract the full top chrome (36px ticker + 60px header) AND the fixed
+       bottom tab bar; the old calc ignored the ticker, so the composer row was
+       pushed ~36px under the bar. */
+    block-size: calc(100svh - 36px - 60px - var(--bottom-bar-h));
     border-radius: 0;
     border-inline: 0;
     max-inline-size: 100%;

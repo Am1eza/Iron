@@ -7,7 +7,9 @@
     position: fixed;
     inset-inline: 0;
     inset-block-end: 0;
-    z-index: var(--z-sticky);
+    /* Own layer above the sticky header (both were --z-sticky, which let dark
+       content bleed at the seam). */
+    z-index: var(--z-bottom-nav);
     display: grid;
     grid-template-columns: repeat(5, 1fr);
     align-items: end;

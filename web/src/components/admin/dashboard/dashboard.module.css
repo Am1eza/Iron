@@ -1,0 +1,86 @@
+/* Dashboard layout helpers — replaces the inline grids/flex that MarketingDashboard
+   and SeoDashboard used, and gives the overview a bento hierarchy. */
+
+.sections {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.sectionGrid {
+  display: grid;
+  gap: var(--space-3);
+  margin-block-start: var(--space-4);
+}
+
+.tileRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-4);
+}
+
+/* ===== Bento KPI grid — size encodes importance ===== */
+.bento {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-4);
+}
+.bento .hero {
+  grid-column: span 2;
+  grid-row: span 2;
+}
+.bento .wide {
+  grid-column: span 2;
+}
+@media (max-width: 900px) {
+  .bento {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .bento .hero {
+    grid-column: span 2;
+    grid-row: auto;
+  }
+  .bento .wide {
+    grid-column: span 2;
+  }
+}
+@media (max-width: 560px) {
+  .bento {
+    grid-template-columns: 1fr;
+  }
+  .bento .hero,
+  .bento .wide {
+    grid-column: span 1;
+  }
+}
+
+/* ===== SEO score header ===== */
+.scoreHead {
+  display: flex;
+  gap: var(--space-6);
+  align-items: center;
+  flex-wrap: wrap;
+}
+.scoreMeters {
+  flex: 1;
+  min-inline-size: 16rem;
+  display: grid;
+  gap: var(--space-3);
+}
+.scoreFacts {
+  display: grid;
+  gap: var(--space-2);
+}
+
+/* small stat tiles inside a marketing section */
+.miniTiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-4);
+}
+
+.autoList {
+  margin: 0;
+  padding-inline-start: var(--space-5);
+  display: grid;
+  gap: var(--space-2);
+}

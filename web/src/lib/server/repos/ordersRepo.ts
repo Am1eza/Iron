@@ -160,6 +160,15 @@ export async function updateOrderStatus(ref: string, status: OrderRow['status'])
     .where(eq(orders.ref, ref))
     .returning();
   if (!rows[0]) return null;
+  // A newly-delivered order changes the buyer's club points → recompute their
+  // tier. Fire-and-forget; a club miss never blocks the shipment update. Only
+  // on the transition INTO delivered, and only when the order has an owner.
+  if (status === 'delivered' && current[0].status !== 'delivered' && rows[0].userId) {
+    const userId = rows[0].userId;
+    void import('@/lib/server/repos/clubRepo')
+      .then((m) => m.recomputeTier(userId))
+      .catch(() => {});
+  }
   return toOrderDto(rows[0], await itemsOf(rows[0].id));
 }
 

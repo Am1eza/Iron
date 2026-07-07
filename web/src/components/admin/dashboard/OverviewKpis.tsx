@@ -6,8 +6,11 @@ import { useQuery } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api/resources/admin';
 import { toPersianDigits, formatToman } from '@/lib/utils/format';
 import { KpiCard } from './KpiCard';
-import ui from '../adminUi.module.css';
+import styles from './dashboard.module.css';
 
+/** Management KPIs in a bento grid — size encodes importance: proforma VALUE is
+ *  the hero (2×2), leads is wide, the rest are 1×1. Complete-period deltas +
+ *  30-day sparklines. Hidden for scoped roles (statsOverview 404s → null). */
 export function OverviewKpis() {
   const { data, isError } = useQuery({
     queryKey: ['admin', 'stats', 'overview'],
@@ -15,22 +18,31 @@ export function OverviewKpis() {
     refetchInterval: 120_000,
     retry: false,
   });
-  if (isError || !data) return null; // scoped roles / transient errors — operational tiles still render below
+  if (isError || !data) return null;
 
   return (
-    <div className={ui.tiles}>
-      <KpiCard label="سرنخ‌های جدید" value={data.leads.current} deltaPct={data.leads.deltaPct} today={data.leads.today} series={data.leads.series} />
+    <div className={styles.bento}>
       <KpiCard
-        label="ارزش پیش‌فاکتورها"
+        className={styles.hero}
+        label="ارزش پیش‌فاکتورها (۷ روز)"
         value={data.proformas.valueCurrent}
         deltaPct={data.proformas.valueDeltaPct}
         series={data.proformas.series}
         format={(n) => formatToman(n)}
         hint={`${toPersianDigits(data.proformas.current)} پیش‌فاکتور در ۷ روز`}
       />
+      <KpiCard
+        className={styles.wide}
+        label="سرنخ‌های جدید"
+        value={data.leads.current}
+        deltaPct={data.leads.deltaPct}
+        today={data.leads.today}
+        series={data.leads.series}
+      />
       <KpiCard label="سفارش‌ها" value={data.orders.current} deltaPct={data.orders.deltaPct} today={data.orders.today} series={data.orders.series} />
       <KpiCard label="کاربران جدید" value={data.newUsers.current} deltaPct={data.newUsers.deltaPct} today={data.newUsers.today} series={data.newUsers.series} />
       <KpiCard
+        className={styles.wide}
         label="گفتگوهای مشاور هوشمند"
         value={data.aiConversations.current}
         deltaPct={data.aiConversations.deltaPct}

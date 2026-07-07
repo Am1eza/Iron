@@ -276,6 +276,88 @@ export async function marketingStats(): Promise<MarketingStats> {
   };
 }
 
+/* ---------------------------- cohort retention ---------------------------- */
+
+export interface CohortRetention {
+  columns: string[]; // "ماه ۰", "ماه ۱", …
+  rows: Array<{ label: string; size: number; cells: (number | null)[] }>;
+}
+
+/**
+ * Signup-cohort retention: rows = the month a user registered (last 6 months),
+ * columns = months since signup, cell = % of that cohort with ≥1 delivered
+ * order in that month-offset. Periods that haven't elapsed yet are null (shown
+ * blank). Reveals whether newer cohorts stick better than older ones.
+ */
+export async function cohortRetention(months = 6): Promise<CohortRetention> {
+  // retained[user,period] and cohort sizes, pivoted in JS.
+  const raw = await rows(sql`
+    WITH cohort AS (
+      SELECT id AS user_id, date_trunc('month', created_at) AS m0
+      FROM users
+      WHERE created_at >= date_trunc('month', now()) - (${months - 1} || ' months')::interval
+    ),
+    retained AS (
+      SELECT c.user_id, c.m0,
+        (extract(year FROM age(date_trunc('month', o.placed_at), c.m0)) * 12
+         + extract(month FROM age(date_trunc('month', o.placed_at), c.m0)))::int AS period
+      FROM cohort c
+      JOIN orders o ON o.user_id = c.user_id AND o.deleted_at IS NULL AND o.status = 'delivered'
+    )
+    SELECT to_char(c.m0, 'YYYY-MM') AS cohort,
+           extract(epoch FROM c.m0)::bigint AS m0_epoch,
+           count(DISTINCT c.user_id)::int AS size,
+           r.period,
+           count(DISTINCT r.user_id)::int AS retained
+    FROM cohort c
+    LEFT JOIN retained r ON r.user_id = c.user_id AND r.period BETWEEN 0 AND ${months - 1}
+    GROUP BY c.m0, r.period
+    ORDER BY c.m0
+  `);
+
+  // Pivot: cohort → { size, epoch, retained[period] }.
+  const byCohort = new Map<string, { epoch: number; size: number; retained: Map<number, number> }>();
+  for (const r of raw) {
+    const key = String(r.cohort);
+    const entry = byCohort.get(key) ?? { epoch: Number(r.m0_epoch), size: Number(r.size), retained: new Map() };
+    entry.size = Number(r.size);
+    if (r.period !== null && r.period !== undefined) entry.retained.set(Number(r.period), Number(r.retained));
+    byCohort.set(key, entry);
+  }
+
+  const columns = Array.from({ length: months }, (_, i) => `ماه ${toFa(i)}`);
+  const nowMonthIdx = (epoch: number) => {
+    const then = new Date(epoch * 1000);
+    const now = new Date();
+    return (now.getFullYear() - then.getFullYear()) * 12 + (now.getMonth() - then.getMonth());
+  };
+  const cohortRows = Array.from(byCohort.values())
+    .sort((a, b) => b.epoch - a.epoch) // newest first
+    .map((e) => {
+      const elapsed = nowMonthIdx(e.epoch);
+      const cells = Array.from({ length: months }, (_, p) => {
+        if (p > elapsed) return null; // period hasn't happened yet
+        const ret = e.retained.get(p) ?? 0;
+        return e.size > 0 ? Math.round((ret / e.size) * 100) : 0;
+      });
+      return { label: jalaliMonthLabel(new Date(e.epoch * 1000)), size: e.size, cells };
+    });
+  return { columns, rows: cohortRows };
+}
+
+function toFa(n: number): string {
+  return String(n).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[Number(d)]!);
+}
+/** Short Jalali «YYYY/MM»-ish label for a cohort month (first-of-month date). */
+function jalaliMonthLabel(d: Date): string {
+  try {
+    const fmt = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { year: 'numeric', month: 'long' });
+    return fmt.format(d);
+  } catch {
+    return `${d.getFullYear()}-${d.getMonth() + 1}`;
+  }
+}
+
 /* --------------------------------- SEO --------------------------------- */
 
 export interface SeoStats {

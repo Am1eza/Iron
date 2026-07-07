@@ -1,7 +1,8 @@
 // @vitest-environment node
 /**
  * P4 integration — alerts fire on crossings (SMS-logged, one-shot), favorites
- * round-trip as PriceRows, club tiers advance with won leads.
+ * round-trip as PriceRows, club tiers advance with the hybrid points model
+ * (delivered orders + profile + verification).
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { eq } from 'drizzle-orm';
@@ -14,7 +15,7 @@ import { createAlert, alertsForUser, claimAlertForTrigger } from '@/lib/server/r
 import { evaluateAlerts } from '@/lib/server/services/alerts.service';
 import { addFavorite, favoritesForUser, removeFavorite } from '@/lib/server/repos/favoritesRepo';
 import { joinClub, clubStatus, recomputeTier } from '@/lib/server/repos/clubRepo';
-import { insertLead, updateLead } from '@/lib/server/repos/leadsRepo';
+import { createOrder, updateOrderStatus, cancelOrder } from '@/lib/server/repos/ordersRepo';
 import { savePrice } from '@/lib/server/services/pricing.service';
 
 let db: Db;
@@ -128,40 +129,51 @@ describe('favorites', () => {
   });
 });
 
-describe('club', () => {
-  it('joins at iron and advances to steel after 3 won leads', async () => {
+describe('club (hybrid points model)', () => {
+  const deliver = async (ref: string) => {
+    await createOrder({ ref, userId: USER, items: [] });
+    // registered → confirmed → loading → in_transit → delivered
+    for (const s of ['confirmed', 'loading', 'in_transit', 'delivered'] as const) {
+      await updateOrderStatus(ref, s);
+    }
+  };
+
+  it('joins at iron and advances to steel once enough points accrue (default steel=5)', async () => {
     await joinClub(USER);
     let status = await clubStatus(USER);
     expect(status.tier).toBe('iron');
+    expect(status.points).toBe(0);
 
-    for (let i = 0; i < 3; i++) {
-      const lead = await insertLead({
-        ref: `LD-WON-${i}`,
-        userId: USER,
-        contactMobile: '09120000000',
-        contactVerified: true,
-        source: 'cart',
-        items: [],
-      });
-      await updateLead(lead.id, { status: 'won' });
-    }
+    // 5 delivered orders = 5 points (order weight 1) → steel threshold.
+    for (let i = 0; i < 5; i++) await deliver(`OR-CLUB-${i}`);
     const tier = await recomputeTier(USER);
     expect(tier).toBe('steel');
     status = await clubStatus(USER);
-    expect(status.wonLeads).toBe(3);
+    expect(status.deliveredOrders).toBe(5);
+    expect(status.points).toBe(5);
     expect(status.nextTier?.tier).toBe('poolad');
   });
 
-  it('downgrades the tier when a won lead is reverted (sales corrects a mistake)', async () => {
-    // Picks up from the prior test's state: USER is 'steel' with 3 won leads.
-    const rows = await db.select().from(schema.leads).where(eq(schema.leads.ref, 'LD-WON-0'));
-    await updateLead(rows[0]!.id, { status: 'lost' });
-
-    const tier = await recomputeTier(USER);
-    expect(tier).toBe('iron'); // 2 won leads < steel's 3-lead threshold
-
+  it('points come from orders + profile + verification (reinforcing systems)', async () => {
+    // Complete the profile (+1) and approve personal identity (+2) → 5+3 = 8.
+    await db.update(schema.users).set({ firstName: 'رضا', lastName: 'کریمی', idVerifyStatus: 'approved' }).where(eq(schema.users.id, USER));
     const status = await clubStatus(USER);
-    expect(status.wonLeads).toBe(2);
+    expect(status.breakdown.fromOrders).toBe(5);
+    expect(status.breakdown.fromProfile).toBe(1);
+    expect(status.breakdown.fromVerification).toBe(2);
+    expect(status.points).toBe(8);
+    expect(status.verificationLevel).toBe(2);
+  });
+
+  it('downgrades when delivered orders are cancelled (points fall below threshold)', async () => {
+    // Revoke the profile + verification bonuses and cancel 4 of the 5 orders →
+    // 1 point, below steel's 5.
+    await db.update(schema.users).set({ firstName: null, lastName: null, idVerifyStatus: 'none' }).where(eq(schema.users.id, USER));
+    for (let i = 0; i < 4; i++) await cancelOrder(`OR-CLUB-${i}`);
+    const tier = await recomputeTier(USER);
+    expect(tier).toBe('iron');
+    const status = await clubStatus(USER);
+    expect(status.deliveredOrders).toBe(1);
     expect(status.tier).toBe('iron');
   });
 });

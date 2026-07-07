@@ -1,24 +1,16 @@
 'use client';
-import { useId, useMemo } from 'react';
-import { useLocale, useTranslations } from 'next-intl';
-import {
-  listPhoneCountries,
-  dialCode,
-  phonePlaceholder,
-  DEFAULT_PHONE_COUNTRY,
-  type CountryCode,
-} from '@/lib/utils/phone';
-import type { AppLocale } from '@/i18n/config';
+import { useId } from 'react';
+import { useTranslations } from 'next-intl';
+import { phonePlaceholder, DEFAULT_PHONE_COUNTRY, type CountryCode } from '@/lib/utils/phone';
 import { Field } from './fields';
 import fieldStyles from './field.module.css';
+import { CountrySelect } from './CountrySelect';
 import styles from './PhoneField.module.css';
 
 /**
- * International phone number input: a country select (dial code + localized
- * country name, defaulting to Iran) beside a national-number field. Country
- * names come from `Intl.DisplayNames` keyed to the active UI locale — no
- * hand-maintained 240-country translation table to keep in sync across
- * fa/en/ar/zh, and it's correct by construction for any future locale too.
+ * International phone number input: a searchable country selector (flag + dial
+ * code trigger, full names in a wide popup — see CountrySelect, which fixes the
+ * old native-`<select>` name-overflow bug) beside an LTR national-number field.
  */
 export function PhoneField({
   label,
@@ -39,41 +31,14 @@ export function PhoneField({
   national: string;
   onNationalChange: (value: string) => void;
 }) {
-  const locale = useLocale() as AppLocale;
   const t = useTranslations('phone');
   const autoId = useId();
   const fid = `phone-${autoId}`;
 
-  const countryNames = useMemo(() => {
-    try {
-      return new Intl.DisplayNames([locale], { type: 'region' });
-    } catch {
-      return null;
-    }
-  }, [locale]);
-
-  const countries = useMemo(() => listPhoneCountries(), []);
-
-  const countryLabel = (c: CountryCode) => {
-    const name = countryNames?.of(c) ?? c;
-    return `${dialCode(c)} ${name}`;
-  };
-
   return (
     <Field label={label} htmlFor={fid} required={required} error={error} helper={helper}>
       <div className={styles.row} dir="ltr">
-        <select
-          className={`${fieldStyles.select} ${styles.countrySelect}`}
-          aria-label={t('country')}
-          value={country}
-          onChange={(e) => onCountryChange(e.target.value as CountryCode)}
-        >
-          {countries.map((c) => (
-            <option key={c} value={c}>
-              {countryLabel(c)}
-            </option>
-          ))}
-        </select>
+        <CountrySelect value={country} onChange={onCountryChange} ariaLabel={t('country')} />
         <input
           id={fid}
           type="tel"

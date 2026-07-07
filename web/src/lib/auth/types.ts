@@ -28,11 +28,31 @@ export interface AuthUser {
   id: string;
   mobile: string;
   name?: string;
+  firstName?: string;
+  lastName?: string;
   role: Role;
   clubTier?: 'iron' | 'steel' | 'poolad';
   createdAt: string;
   /** Revocation counter — see schema/auth.ts. Defaults to 0 for stores/paths that don't track it. */
   tokenVersion?: number;
+}
+
+/** Progressive identity-verification level, derived from the two status columns. */
+export type VerificationLevel = 1 | 2 | 3;
+export type VerifyStatus = 'none' | 'pending' | 'approved' | 'rejected';
+
+/** The full account record (profile page + verification). Superset of AuthUser
+ *  — read on demand, never carried in the JWT (keeps the token minimal/PII-lean). */
+export interface UserProfile extends AuthUser {
+  nationalId?: string;
+  idVerifyStatus: VerifyStatus;
+  companyName?: string;
+  companyNationalId?: string;
+  economicCode?: string;
+  bizVerifyStatus: VerifyStatus;
+  verificationLevel: VerificationLevel;
+  inviteCode?: string;
+  referredBy?: string;
 }
 
 /** The signed JWT payload (kept minimal — no PII beyond the mobile). */

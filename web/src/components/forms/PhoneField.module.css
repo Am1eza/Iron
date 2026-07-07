@@ -1,12 +1,11 @@
 .row {
   display: flex;
   gap: var(--space-2);
-}
-.countrySelect {
-  flex: 0 0 auto;
-  max-inline-size: 40%;
+  align-items: stretch;
 }
 .nationalInput {
   flex: 1 1 auto;
   min-inline-size: 0;
+  direction: ltr;
+  text-align: start;
 }

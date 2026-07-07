@@ -1,6 +1,7 @@
 import { Heading, Text, Stack } from '@/components/ui';
 import { UsersTable } from '@/components/admin/users/UsersTable';
 import { AdminAllowlist } from '@/components/admin/users/AdminAllowlist';
+import { VerificationReview } from '@/components/admin/users/VerificationReview';
 import { requirePermission } from '@/lib/auth/guards';
 import { routes } from '@/lib/routes';
 
@@ -16,6 +17,7 @@ export default async function AdminUsersPage() {
         </Text>
       </div>
       <AdminAllowlist selfMobile={session.mobile} />
+      <VerificationReview />
       <UsersTable />
     </Stack>
   );

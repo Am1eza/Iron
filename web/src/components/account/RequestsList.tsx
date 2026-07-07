@@ -1,22 +1,46 @@
 'use client';
+import { useQuery } from '@tanstack/react-query';
 import { routes } from '@/lib/routes';
-import {
-  useRequestsStore,
-  REQUEST_STEPS,
-  REQUEST_TYPE_LABEL,
-} from '@/lib/stores/requests';
-import { EmptyState } from '@/components/ui';
+import { http } from '@/lib/api/http';
+import { REQUEST_STEPS, REQUEST_TYPE_LABEL, type RequestStatus, type RequestType } from '@/lib/stores/requests';
+import { EmptyState, TableSkeleton } from '@/components/ui';
 import { formatJalali } from '@/lib/utils/format';
 import styles from './RequestsList.module.css';
 
+interface RequestDto {
+  id: string;
+  ref: string;
+  type: RequestType;
+  title: string;
+  detail?: string;
+  status: RequestStatus;
+  createdAt: string;
+}
+
 /**
  * «درخواست‌های من» — every proforma/bulk/warehouse request the user filed, with
- * a 4-step status trail (ثبت شد → بررسی → تماس → پیش‌فاکتور). Reads the local
- * requests store (mock persistence; swaps for the API later).
+ * a 4-step status trail. Reads the REAL server inbox (GET /api/me/requests),
+ * not the old localStorage mock store.
  */
 export function RequestsList() {
-  const requests = useRequestsStore((s) => s.requests);
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ['me', 'requests'],
+    queryFn: () => http.get<{ requests: RequestDto[] }>('/api/me/requests'),
+  });
 
+  if (isLoading) return <TableSkeleton rows={3} />;
+  if (isError) {
+    return (
+      <EmptyState
+        size="section"
+        tone="error"
+        headline="خطا در دریافت درخواست‌ها"
+        primary={{ label: 'تلاش دوباره', onClick: () => refetch() }}
+      />
+    );
+  }
+
+  const requests = data?.requests ?? [];
   if (requests.length === 0) {
     return (
       <EmptyState
@@ -46,7 +70,6 @@ export function RequestsList() {
             </div>
 
             {r.detail && <p className={styles.detail}>{r.detail}</p>}
-            {r.note && <p className={styles.note}>یادداشت شما: {r.note}</p>}
 
             <ol className={styles.steps} aria-label="وضعیت درخواست">
               {REQUEST_STEPS.map((s, i) => (

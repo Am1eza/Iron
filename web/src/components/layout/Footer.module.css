@@ -136,9 +136,11 @@
 @media (max-width: 767px) {
   .footer {
     margin-block-start: var(--space-16);
-    /* leave room for the bottom tab bar — mirrors its exact height (including
-       the safe-area inset) so notched phones never clip the last footer row */
-    padding-block-end: calc(60px + env(safe-area-inset-bottom));
+    /* leave room for the fixed bottom tab bar — the footer is the last in-flow
+       element (outside #main), so it must reserve the bar's exact height
+       (--bottom-bar-h already includes the safe-area inset) or the white bar
+       overlaps the last footer row. */
+    padding-block-end: calc(var(--bottom-bar-h) + var(--space-4));
   }
   .top {
     grid-template-columns: 1fr 1fr;

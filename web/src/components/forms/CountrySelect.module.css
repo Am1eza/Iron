@@ -1,0 +1,106 @@
+.root {
+  position: relative;
+  flex: none;
+}
+
+/* Trigger: fixed width, flag + dial code only — never overflows. */
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  block-size: 100%;
+  min-block-size: 44px;
+  padding-inline: var(--space-3);
+  border: var(--border-hairline) solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-strong);
+  font: var(--t-input);
+  cursor: pointer;
+  direction: ltr;
+  white-space: nowrap;
+  transition: border-color var(--dur-fast) var(--ease-standard);
+}
+.trigger:hover {
+  border-color: var(--color-accent);
+}
+.flag {
+  font-size: 1.15em;
+  line-height: 1;
+}
+.dial {
+  font-variant-numeric: tabular-nums;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+.caret {
+  font-size: 0.7em;
+  color: var(--color-text-muted);
+}
+
+/* Popup: wide, above the field, searchable. */
+.popup {
+  position: absolute;
+  inset-block-start: calc(100% + var(--space-1));
+  inset-inline-start: 0;
+  z-index: var(--z-dropdown);
+  inline-size: min(20rem, 78vw);
+  background: var(--color-surface-raised);
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+.search {
+  inline-size: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: 0;
+  border-block-end: var(--border-hairline) solid var(--color-hairline);
+  background: transparent;
+  color: var(--color-text-strong);
+  font: var(--t-input);
+  outline: none;
+}
+.list {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-1);
+  max-block-size: 15rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font: var(--t-body-sm);
+  color: var(--color-text);
+}
+.optionActive,
+.option[aria-selected='true'] {
+  background: var(--color-accent-tint);
+  color: var(--color-accent-text);
+}
+/* Full country name — the only place it lives; truncate so nothing overflows. */
+.name {
+  flex: 1;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.optionDial {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+.empty {
+  padding: var(--space-4);
+  text-align: center;
+  color: var(--color-text-muted);
+  font: var(--t-body-sm);
+}

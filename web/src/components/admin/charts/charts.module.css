@@ -1,0 +1,129 @@
+/* Reusable admin chart primitives — all colors come from the --chart-* tokens
+   (tokens.css), never hardcoded hex. */
+
+/* ===== Gauge (score ring) ===== */
+.gauge {
+  display: inline-grid;
+  place-items: center;
+}
+.gaugeSvg {
+  transform: rotate(-90deg);
+}
+.gaugeLabel {
+  font: var(--t-h3);
+  fill: var(--color-text-strong);
+}
+.gaugeSub {
+  font: var(--t-caption);
+  fill: var(--color-text-muted);
+}
+
+/* ===== Meter bar (horizontal) ===== */
+.meter {
+  display: grid;
+  grid-template-columns: var(--meter-label, 11rem) 1fr var(--meter-value, 4rem);
+  align-items: center;
+  gap: var(--space-3);
+}
+.meterLabel {
+  font: var(--t-body-sm);
+  color: var(--color-text);
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.meterTrack {
+  block-size: 10px;
+  border-radius: var(--radius-pill);
+  background: var(--chart-track);
+  overflow: hidden;
+}
+.meterFill {
+  block-size: 100%;
+  border-radius: var(--radius-pill);
+  transition: inline-size var(--dur-slow) var(--ease-standard);
+}
+.meterValue {
+  text-align: end;
+  font: var(--t-data);
+  color: var(--color-text-strong);
+}
+
+/* ===== Funnel ===== */
+.funnel {
+  display: grid;
+  gap: var(--space-2);
+}
+.funnelStage {
+  display: grid;
+  grid-template-columns: 10rem 1fr auto;
+  align-items: center;
+  gap: var(--space-3);
+}
+.funnelLabel {
+  font: var(--t-body-sm);
+  color: var(--color-text-muted);
+}
+.funnelBarWrap {
+  background: var(--chart-track);
+  border-radius: var(--radius-sm);
+  block-size: 26px;
+  overflow: hidden;
+}
+.funnelBar {
+  block-size: 100%;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, var(--chart-1), color-mix(in srgb, var(--chart-1) 60%, white));
+  min-inline-size: 2px;
+  transition: inline-size var(--dur-slow) var(--ease-standard);
+}
+.funnelValue {
+  font: var(--t-data);
+  color: var(--color-text-strong);
+  text-align: end;
+  min-inline-size: 3rem;
+}
+.funnelDrop {
+  grid-column: 2 / 3;
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+  padding-inline-start: var(--space-2);
+}
+.funnelDrop strong {
+  color: var(--chart-bad);
+}
+
+/* ===== Heatmap (cohort retention) ===== */
+.heatmapWrap {
+  overflow-x: auto;
+}
+.heatmap {
+  border-collapse: separate;
+  border-spacing: 3px;
+  font: var(--t-caption);
+}
+.heatmap th {
+  font: var(--t-overline);
+  color: var(--color-text-muted);
+  font-weight: 600;
+  padding: var(--space-1) var(--space-2);
+  white-space: nowrap;
+  text-align: center;
+}
+.heatmap th[scope='row'] {
+  text-align: start;
+}
+.heatCell {
+  inline-size: 3rem;
+  block-size: 2rem;
+  border-radius: var(--radius-xs);
+  text-align: center;
+  color: var(--color-text-strong);
+  font-variant-numeric: tabular-nums;
+  vertical-align: middle;
+}
+.heatEmpty {
+  color: var(--color-text-placeholder);
+  background: var(--chart-track);
+}

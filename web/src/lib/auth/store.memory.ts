@@ -2,8 +2,16 @@
  * In-memory auth store — the dev/mock-mode implementation (no DATABASE_URL).
  * Resets per cold start; production uses store.pg.ts behind the same facade.
  */
-import type { AuthUser, Role } from './types';
-import type { AuthStore, OtpRecord, RateRecord, RefreshRecord, UserPatch, ListUsersQuery } from './store.types';
+import type { AuthUser } from './types';
+import type {
+  AuthStore,
+  CreateUserInput,
+  OtpRecord,
+  RateRecord,
+  RefreshRecord,
+  UserPatch,
+  ListUsersQuery,
+} from './store.types';
 
 const usersById = new Map<string, AuthUser>();
 const userIdByMobile = new Map<string, string>();
@@ -45,16 +53,24 @@ export const memoryStore: AuthStore = {
     return usersById.get(id) ?? null;
   },
 
-  async createUser(input: { mobile: string; name?: string; role?: Role }) {
+  async createUser(input: CreateUserInput) {
     const id = `u${Date.now().toString(36)}${++seq}`;
+    const composed =
+      input.name ?? ([input.firstName, input.lastName].filter(Boolean).join(' ').trim() || undefined);
     const user: AuthUser = {
       id,
       mobile: input.mobile,
-      name: input.name,
+      name: composed,
+      firstName: input.firstName,
+      lastName: input.lastName,
       role: input.role ?? 'customer',
       createdAt: new Date().toISOString(),
       tokenVersion: 0,
     };
+    // inviteCode/referredBy are a pg-only concern (verificationRepo); the
+    // dev memory store keeps AuthUser lean and ignores them.
+    void input.inviteCode;
+    void input.referredBy;
     usersById.set(id, user);
     userIdByMobile.set(input.mobile, id);
     return user;

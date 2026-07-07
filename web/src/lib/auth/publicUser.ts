@@ -5,6 +5,8 @@ export interface PublicUser {
   id: string;
   mobile: string;
   name?: string;
+  firstName?: string;
+  lastName?: string;
   role: Role;
   clubTier?: AuthUser['clubTier'];
 }
@@ -14,6 +16,8 @@ export function publicUser(user: AuthUser): PublicUser {
     id: user.id,
     mobile: user.mobile,
     name: user.name,
+    firstName: user.firstName,
+    lastName: user.lastName,
     role: user.role,
     clubTier: user.clubTier,
   };

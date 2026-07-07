@@ -71,8 +71,8 @@
   "auth": {
     "mobileLabel": "Mobile Number",
     "mobileHelper": "We'll text a verification code to this number.",
-    "nameLabel": "Name (optional)",
-    "nameHelper": "If this is your first time signing in, please enter your name.",
+    "nameLabel": "Full name",
+    "nameHelper": "Enter your first and last name.",
     "getCode": "Get Verification Code",
     "codeSentTo": "A 6-digit code was sent to {mobile}.",
     "devCode": "Dev test code (development environment): {code}",
@@ -84,13 +84,21 @@
     "wrongCode": "Incorrect code.",
     "otpLabel": "SMS verification code",
     "otpDigit": "Digit {n}",
-    "deliveryHint": "SMS delivery can take a few minutes; the code stays valid for 10 minutes, and after a resend the previous code still works."
+    "deliveryHint": "SMS delivery can take a few minutes; the code stays valid for 10 minutes, and after a resend the previous code still works.",
+    "firstNameLabel": "First name",
+    "lastNameLabel": "Last name",
+    "inviteCodeLabel": "Invite code (optional)",
+    "inviteCodeHelper": "If a friend gave you an invite code, enter it here.",
+    "title": "Sign in or register",
+    "subtitle": "Sign in with your mobile number in seconds.",
+    "verifyTitle": "Verify your number"
   },
   "phone": {
     "country": "Country",
     "searchCountry": "Search country…",
     "invalid": "Enter a valid mobile number.",
-    "otpCountryUnsupported": "SMS sign-in currently only supports Iranian mobile numbers (+98). Please use an Iranian number, or contact us for help."
+    "otpCountryUnsupported": "SMS sign-in currently only supports Iranian mobile numbers (+98). Please use an Iranian number, or contact us for help.",
+    "noCountry": "No country found"
   },
   "metadata": {
     "title": "Ahan Time — Smart Iron & Steel Marketplace",
