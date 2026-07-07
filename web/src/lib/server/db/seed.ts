@@ -64,14 +64,47 @@ export async function seedDatabase(db: Db, opts: SeedOptions = {}): Promise<void
   }
 
   /* ---------- dev limited-scope staff (RBAC test fixture) ---------- */
+  // Publicly-known fixture mobiles — a staff account under them in production
+  // would be a discoverable staff identity (same reasoning as the dev admin
+  // above). Production instead DEACTIVATES any that an older seed created.
   const contentStaffMobiles = ['09120000001', '09120000002', '09120000003', '09120000004'];
-  for (const [i, mobile] of contentStaffMobiles.entries()) {
-    await db
-      .insert(schema.users)
-      .values({ id: `u-content-staff-${i + 1}`, mobile, name: 'سردبیر محتوا', role: 'content' })
-      .onConflictDoNothing();
+  if (process.env.NODE_ENV === 'production') {
+    for (const [i] of contentStaffMobiles.entries()) {
+      await db
+        .update(schema.users)
+        .set({ isActive: false, role: 'customer', tokenVersion: sql`${schema.users.tokenVersion} + 1` })
+        .where(sql`${schema.users.id} = ${`u-content-staff-${i + 1}`} AND ${schema.users.isActive} = true`);
+    }
+    log('production: dev staff fixtures deactivated (if present)');
+  } else {
+    for (const [i, mobile] of contentStaffMobiles.entries()) {
+      await db
+        .insert(schema.users)
+        .values({ id: `u-content-staff-${i + 1}`, mobile, name: 'سردبیر محتوا', role: 'content' })
+        .onConflictDoNothing();
+    }
+    log(`dev content-role staff ${contentStaffMobiles.join(', ')}`);
   }
-  log(`dev content-role staff ${contentStaffMobiles.join(', ')}`);
+
+  /* ---------- admin allowlist bootstrap (ADMIN_MOBILES env) ---------- */
+  // Comma-separated mobiles that may hold the admin role. Idempotent upsert —
+  // rows added later from /admin/users are never removed here.
+  const adminMobiles = (process.env.ADMIN_MOBILES ?? '')
+    .split(',')
+    .map((m) => m.trim())
+    .filter((m) => /^09\d{9}$/.test(m));
+  for (const mobile of adminMobiles) {
+    await db
+      .insert(schema.adminAllowlist)
+      .values({ mobile, label: 'bootstrap (ADMIN_MOBILES)' })
+      .onConflictDoNothing();
+    // If this mobile already has an account, promote it right away.
+    await db
+      .update(schema.users)
+      .set({ role: 'admin', tokenVersion: sql`${schema.users.tokenVersion} + 1` })
+      .where(sql`${schema.users.mobile} = ${mobile} AND ${schema.users.role} <> 'admin'`);
+  }
+  if (adminMobiles.length > 0) log(`admin allowlist: ${adminMobiles.join(', ')}`);
 
   /* ---------- categories & sub-categories ---------- */
   const subIdBySlug = new Map<string, string>(); // `${catSlug}/${subSlug}` -> id

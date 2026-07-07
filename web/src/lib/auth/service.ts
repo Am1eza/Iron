@@ -133,7 +133,13 @@ export async function verifyOtp(
   // Login or register (first OTP for a new mobile creates the account).
   const existing = await userByMobile(mobile);
   const isNew = !existing;
-  const user = existing ?? (await createUser({ mobile, name: record.name }));
+  let user = existing ?? (await createUser({ mobile, name: record.name }));
+
+  // Admin allowlist sync (both directions): an allowlisted mobile receives
+  // the admin role on login; a mobile no longer listed loses it. Lazy import
+  // keeps this service importable without the server-repo graph in mock mode.
+  const { syncAdminRoleOnLogin } = await import('@/lib/server/repos/adminAllowlistRepo');
+  user = await syncAdminRoleOnLogin(user);
 
   const tokens = await issueTokens(user);
   return { user, tokens, isNew };

@@ -23,6 +23,16 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }
   const before = await userById(id);
   if (!before) return NextResponse.json({ error: 'not_found', message: 'کاربر یافت نشد.' }, { status: 404 });
 
+  // The admin role is governed EXCLUSIVELY by the admin allowlist (tab
+  // «مدیران») — allowing it here would silently be reverted on the target's
+  // next login by the allowlist sync, a confusing half-state.
+  if (v.data.role && (v.data.role === 'admin') !== (before.role === 'admin')) {
+    return NextResponse.json(
+      { error: 'admin_via_allowlist', message: 'نقش «مدیر سیستم» فقط از بخش «مدیران» (فهرست مجاز) تغییر می‌کند.' },
+      { status: 409 },
+    );
+  }
+
   // Never demote/deactivate the last admin (lock-out guard).
   const demoting = (v.data.role && before.role === 'admin' && v.data.role !== 'admin') || v.data.isActive === false;
   if (demoting && before.role === 'admin') {

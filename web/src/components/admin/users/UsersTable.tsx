@@ -94,27 +94,24 @@ export function UsersTable() {
                     {u.name ?? '—'} {u.clubTier ? <Badge tone="accent">{TIER_LABEL[u.clubTier]}</Badge> : null}
                   </td>
                   <td>
-                    <select
-                      className={ui.select}
-                      value={u.role}
-                      onChange={(e) => {
-                        const nextRole = e.target.value;
-                        if (
-                          nextRole === 'admin' &&
-                          !window.confirm(`نقش ${u.mobile} به «${ROLE_LABEL.admin}» تغییر می‌کند و دسترسی کامل می‌گیرد. ادامه؟`)
-                        ) {
-                          return;
-                        }
-                        update.mutate({ id: u.id, patch: { role: nextRole } });
-                      }}
-                      aria-label={`نقش ${u.mobile}`}
-                    >
-                      {ROLES.map((r) => (
-                        <option key={r} value={r}>
-                          {ROLE_LABEL[r]}
-                        </option>
-                      ))}
-                    </select>
+                    {u.role === 'admin' ? (
+                      // Admin role is granted/revoked ONLY via the allowlist
+                      // panel («مدیران») — the server rejects it here anyway.
+                      <Badge tone="success">{ROLE_LABEL.admin}</Badge>
+                    ) : (
+                      <select
+                        className={ui.select}
+                        value={u.role}
+                        onChange={(e) => update.mutate({ id: u.id, patch: { role: e.target.value } })}
+                        aria-label={`نقش ${u.mobile}`}
+                      >
+                        {ROLES.filter((r) => r !== 'admin').map((r) => (
+                          <option key={r} value={r}>
+                            {ROLE_LABEL[r]}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </td>
                   <td>
                     <select

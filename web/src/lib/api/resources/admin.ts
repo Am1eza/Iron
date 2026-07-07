@@ -64,6 +64,50 @@ export interface AdminUserRow {
 
 export type ArticleFull = Article & { bodyMd: string; coverUrl?: string };
 
+export interface KpiRes {
+  current: number;
+  prior: number;
+  deltaPct: number | null;
+  today: number;
+  series: number[];
+}
+export interface OverviewStatsRes {
+  leads: KpiRes;
+  proformas: KpiRes & { valueCurrent: number; valuePrior: number; valueDeltaPct: number | null };
+  orders: KpiRes;
+  newUsers: KpiRes;
+  aiConversations: KpiRes;
+}
+export interface MarketingStatsRes {
+  bySource: Array<{ source: string; leads: number; won: number; proformas: number; wonRate: number | null }>;
+  funnel: { conversations: number; leads: number; proformas: number; orders: number };
+  responseMinutes: { median: number | null; p90: number | null; measured: number };
+  repeatRate: { repeat: number; total: number; rate: number | null };
+  sms: Array<{ kind: string; status: string; n: number }>;
+}
+export interface SeoStatsRes {
+  score: number;
+  published: number;
+  drafts: number;
+  publishedLast30: number;
+  daysSinceLastPublish: number | null;
+  titlePassRate: number;
+  excerptPassRate: number;
+  thinPassRate: number;
+  failing: Array<{ id: string; slug: string; title: string; titleOk: boolean; excerptOk: boolean; thinOk: boolean; words: number }>;
+  automated: Array<{ label: string; ok: true }>;
+}
+
+export interface AllowlistEntryRow {
+  mobile: string;
+  label: string | null;
+  addedBy: string | null;
+  createdAt: string;
+  userId: string | null;
+  userName: string | null;
+  userRole: string | null;
+}
+
 export const adminApi = {
   stats: () => http.get<{ stats: AdminStats }>('/api/admin/stats'),
 
@@ -178,6 +222,15 @@ export const adminApi = {
   },
   updateUser: (id: string, patch: { role?: string; isActive?: boolean; name?: string }) =>
     http.patch<{ user: AdminUserRow }>(`/api/admin/users/${id}`, patch),
+  statsOverview: () => http.get<OverviewStatsRes>('/api/admin/stats/overview'),
+  statsMarketing: () => http.get<MarketingStatsRes>('/api/admin/stats/marketing'),
+  statsSeo: () => http.get<SeoStatsRes>('/api/admin/stats/seo'),
+  allowlist: () =>
+    http.get<{ entries: AllowlistEntryRow[] }>('/api/admin/allowlist'),
+  addToAllowlist: (mobile: string, label?: string) =>
+    http.post<{ entries: AllowlistEntryRow[] }>('/api/admin/allowlist', { mobile, label }),
+  removeFromAllowlist: (mobile: string) =>
+    http.del<{ ok: true }>(`/api/admin/allowlist/${encodeURIComponent(mobile)}`),
   clubMembers: (page = 1) =>
     http.get<{ members: Array<{ id: string; userId: string; mobile: string; name?: string; tier: string; joinedAt: string }>; total: number }>(
       `/api/admin/club/members?page=${page}`,

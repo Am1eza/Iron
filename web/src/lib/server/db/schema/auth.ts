@@ -54,6 +54,20 @@ export const refreshTokens = pgTable(
   (t) => [index('refresh_tokens_user_idx').on(t.userId)],
 );
 
+/**
+ * Admin allowlist — THE source of truth for who may hold the `admin` role.
+ * Login (verifyOtp) auto-promotes an allowlisted mobile to admin; removing a
+ * row demotes that user in the same request (fail-closed: no row → no admin).
+ * Bootstrapped from the ADMIN_MOBILES env at seed time; managed afterwards
+ * from /admin/users. Every change is audited.
+ */
+export const adminAllowlist = pgTable('admin_allowlist', {
+  mobile: text('mobile').primaryKey(), // normalized 09xxxxxxxxx
+  label: text('label'),
+  addedBy: text('added_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 /** One active OTP per mobile (upsert semantics, matches `setOtp`). */
 export const otpCodes = pgTable('otp_codes', {
   mobile: text('mobile').primaryKey(),

@@ -61,6 +61,8 @@ export const routes = {
     settings: () => '/admin/settings',
     audit: () => '/admin/audit',
     ai: () => '/admin/ai',
+    marketing: () => '/admin/marketing',
+    seo: () => '/admin/seo',
   },
 } as const;
 
