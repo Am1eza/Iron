@@ -78,6 +78,13 @@
       "when": 1783435908552,
       "tag": "0010_remarkable_bullseye",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1783443175200,
+      "tag": "0011_curious_vanisher",
+      "breakpoints": true
     }
   ]
 }

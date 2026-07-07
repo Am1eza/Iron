@@ -11,11 +11,16 @@ export const CONSTANTS = {
   /** Beyond this many business days → hide price, show «تماس بگیرید». */
   PRICE_STALE_HIDE_AFTER_DAYS: 2,
 
-  /** OTP */
+  /** OTP.
+   *  TTL: measured SMS delivery latency to Iranian MVNOs (Shatel 0905 via the
+   *  SMS.ir shared verify line) is ~5 minutes — a 120s TTL meant every code
+   *  was expired on arrival. 600s (NIST 800-63B's ceiling for SMS OOB
+   *  secrets) keeps late-delivered codes usable; the 5-attempt cap +
+   *  single-use + 15-min lock keep brute-force off the table. */
   OTP_LENGTH: 6,
-  OTP_TTL_SECONDS: 120,
+  OTP_TTL_SECONDS: 600,
   OTP_RESEND_COOLDOWN_SECONDS: 60,
-  OTP_MAX_RESEND_PER_HOUR: 3,
+  OTP_MAX_RESEND_PER_HOUR: 5,
   OTP_MAX_ATTEMPTS: 5,
   OTP_LOCK_MINUTES: 15,
 

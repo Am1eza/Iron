@@ -126,20 +126,32 @@ export const pgStore: AuthStore = {
 
   async setOtp(mobile, record) {
     const db = getDb();
+    const row = {
+      codeHash: record.hash,
+      expiresAt: record.expiresAt,
+      attempts: record.attempts,
+      name: record.name ?? null,
+      prevHash: record.prevHash ?? null,
+      prevExpiresAt: record.prevExpiresAt ?? null,
+    };
     await db
       .insert(otpCodes)
-      .values({ mobile, codeHash: record.hash, expiresAt: record.expiresAt, attempts: record.attempts, name: record.name ?? null })
-      .onConflictDoUpdate({
-        target: otpCodes.mobile,
-        set: { codeHash: record.hash, expiresAt: record.expiresAt, attempts: record.attempts, name: record.name ?? null },
-      });
+      .values({ mobile, ...row })
+      .onConflictDoUpdate({ target: otpCodes.mobile, set: row });
   },
 
   async getOtp(mobile) {
     const rows = await getDb().select().from(otpCodes).where(eq(otpCodes.mobile, mobile)).limit(1);
     const r = rows[0];
     if (!r) return null;
-    return { hash: r.codeHash, expiresAt: r.expiresAt, attempts: r.attempts, name: r.name ?? undefined };
+    return {
+      hash: r.codeHash,
+      expiresAt: r.expiresAt,
+      attempts: r.attempts,
+      name: r.name ?? undefined,
+      prevHash: r.prevHash ?? undefined,
+      prevExpiresAt: r.prevExpiresAt ?? undefined,
+    };
   },
 
   async clearOtp(mobile) {
@@ -156,10 +168,24 @@ export const pgStore: AuthStore = {
       .update(otpCodes)
       .set({ attempts: sql`${otpCodes.attempts} + 1` })
       .where(eq(otpCodes.mobile, mobile))
-      .returning({ attempts: otpCodes.attempts, hash: otpCodes.codeHash, expiresAt: otpCodes.expiresAt, name: otpCodes.name });
+      .returning({
+        attempts: otpCodes.attempts,
+        hash: otpCodes.codeHash,
+        expiresAt: otpCodes.expiresAt,
+        name: otpCodes.name,
+        prevHash: otpCodes.prevHash,
+        prevExpiresAt: otpCodes.prevExpiresAt,
+      });
     const row = rows[0];
     if (!row) return null;
-    return { hash: row.hash, expiresAt: row.expiresAt, attempts: row.attempts, name: row.name ?? undefined };
+    return {
+      hash: row.hash,
+      expiresAt: row.expiresAt,
+      attempts: row.attempts,
+      name: row.name ?? undefined,
+      prevHash: row.prevHash ?? undefined,
+      prevExpiresAt: row.prevExpiresAt ?? undefined,
+    };
   },
 
   async getRate(mobile) {

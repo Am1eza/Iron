@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest';
 import { requestOtp, verifyOtp, rotateRefresh, logout, AuthError } from './service';
+import { setRate } from './store';
 import { verifyAccessToken } from './jwt';
 
 const wrongCode = (code: string) =>
@@ -45,6 +46,36 @@ describe('OTP auth flow', () => {
     const mobile = '09131000004';
     await requestOtp(mobile);
     await expect(requestOtp(mobile)).rejects.toBeInstanceOf(AuthError);
+  });
+
+  it('a resend keeps the PREVIOUS unexpired code valid (slow-operator SMS delivery)', async () => {
+    const mobile = '09131000014';
+    const { devCode: codeA } = await requestOtp(mobile);
+    // Skip past the resend cooldown without waiting.
+    await setRate(mobile, { sends: [Date.now() - 61_000] });
+    const { devCode: codeB } = await requestOtp(mobile);
+    expect(codeB).not.toBe(codeA);
+
+    // The FIRST code — the SMS that arrives minutes late — still logs in.
+    const { user } = await verifyOtp(mobile, codeA!);
+    expect(user.mobile).toBe(mobile);
+    // Single-use: after success neither code works again.
+    await expect(verifyOtp(mobile, codeB!)).rejects.toBeInstanceOf(AuthError);
+  });
+
+  it('a resend does NOT reset the shared attempt counter (no brute-force via resend)', async () => {
+    const mobile = '09131000015';
+    const { devCode } = await requestOtp(mobile);
+    for (let i = 0; i < 3; i++) {
+      await expect(verifyOtp(mobile, wrongCode(devCode!))).rejects.toBeInstanceOf(AuthError);
+    }
+    await setRate(mobile, { sends: [Date.now() - 61_000] });
+    const { devCode: codeB } = await requestOtp(mobile);
+    // 3 attempts already burned + these 2 push past the 5-attempt cap.
+    await expect(verifyOtp(mobile, wrongCode(codeB!))).rejects.toBeInstanceOf(AuthError);
+    await expect(verifyOtp(mobile, wrongCode(codeB!))).rejects.toBeInstanceOf(AuthError);
+    // Record now cleared + number locked — even the RIGHT code is rejected.
+    await expect(verifyOtp(mobile, codeB!)).rejects.toBeInstanceOf(AuthError);
   });
 
   it('rotates the refresh token (old token becomes invalid)', async () => {

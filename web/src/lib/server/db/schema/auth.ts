@@ -68,13 +68,18 @@ export const adminAllowlist = pgTable('admin_allowlist', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
-/** One active OTP per mobile (upsert semantics, matches `setOtp`). */
+/** One active OTP per mobile (upsert semantics, matches `setOtp`).
+ *  prev_* keep the previous still-unexpired code valid through a resend —
+ *  SMS delivery to Iranian MVNOs can lag ~5 minutes, and without this the
+ *  resend invalidates the code that then arrives. */
 export const otpCodes = pgTable('otp_codes', {
   mobile: text('mobile').primaryKey(),
   codeHash: text('code_hash').notNull(),
   expiresAt: bigint('expires_at', { mode: 'number' }).notNull(),
   attempts: integer('attempts').notNull().default(0),
   name: text('name'),
+  prevHash: text('prev_hash'),
+  prevExpiresAt: bigint('prev_expires_at', { mode: 'number' }),
 });
 
 /** OTP send rate-limiting, mirrors RateRecord `{ sends: number[], lockedUntil? }`. */

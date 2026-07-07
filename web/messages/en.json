@@ -74,7 +74,7 @@
     "nameLabel": "Name (optional)",
     "nameHelper": "If this is your first time signing in, please enter your name.",
     "getCode": "Get Verification Code",
-    "codeSentTo": "A 5-digit code was texted to {mobile}.",
+    "codeSentTo": "A 6-digit code was sent to {mobile}.",
     "devCode": "Dev test code (development environment): {code}",
     "verifyAndLogin": "Verify & Log In",
     "changeNumber": "Change Number",
@@ -83,7 +83,8 @@
     "genericError": "Something went wrong.",
     "wrongCode": "Incorrect code.",
     "otpLabel": "SMS verification code",
-    "otpDigit": "Digit {n}"
+    "otpDigit": "Digit {n}",
+    "deliveryHint": "SMS delivery can take a few minutes; the code stays valid for 10 minutes, and after a resend the previous code still works."
   },
   "phone": {
     "country": "Country",

@@ -11,6 +11,11 @@ export type OtpRecord = {
   expiresAt: number;
   attempts: number;
   name?: string; // captured at request time for first-login registration
+  /** The PREVIOUS still-unexpired code, kept valid through a resend. SMS
+   *  delivery to Iranian MVNOs can lag ~5 minutes; without this, a resend
+   *  invalidates the code that then arrives and the user can never log in. */
+  prevHash?: string;
+  prevExpiresAt?: number;
 };
 
 export type RateRecord = { sends: number[]; lockedUntil?: number };

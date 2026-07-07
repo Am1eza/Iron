@@ -13,6 +13,7 @@ import {
   userById,
   createUser,
   setOtp,
+  getOtp,
   clearOtp,
   incrementOtpAttempts,
   getRate,
@@ -80,11 +81,20 @@ export async function requestOtp(
 
   const code = randomOtp(CONSTANTS.OTP_LENGTH);
   const hash = await sha256(code, pepper());
+  // Resend keeps the PREVIOUS still-unexpired code valid (its own original
+  // expiry). SMS delivery to Iranian MVNOs measures ~5 minutes; without this,
+  // every resend invalidates the code that then arrives, and a user on a slow
+  // operator can never log in. Only the most recent previous code is kept
+  // (window of 2), and the shared 5-attempt cap covers both.
+  const existing = await getOtp(mobile);
+  const prevStillValid = existing && existing.expiresAt > now;
   await setOtp(mobile, {
     hash,
     expiresAt: now + CONSTANTS.OTP_TTL_SECONDS * 1000,
-    attempts: 0,
+    attempts: prevStillValid ? existing.attempts : 0,
     name,
+    prevHash: prevStillValid ? existing.hash : undefined,
+    prevExpiresAt: prevStillValid ? existing.expiresAt : undefined,
   });
   await setRate(mobile, { sends: [...recentSends, now], lockedUntil: rate.lockedUntil });
 
@@ -117,7 +127,16 @@ export async function verifyOtp(
   }
 
   const hash = await sha256(code, pepper());
-  if (!timingSafeEqual(hash, record.hash)) {
+  // Accept the current code OR the previous still-unexpired one (kept across
+  // a resend — see requestOtp). Both share the same attempt counter, so the
+  // brute-force budget is unchanged.
+  const matchesCurrent = timingSafeEqual(hash, record.hash);
+  const matchesPrev =
+    !matchesCurrent &&
+    !!record.prevHash &&
+    (record.prevExpiresAt ?? 0) > Date.now() &&
+    timingSafeEqual(hash, record.prevHash);
+  if (!matchesCurrent && !matchesPrev) {
     const left = CONSTANTS.OTP_MAX_ATTEMPTS - record.attempts;
     throw new AuthError(
       'wrong_code',

@@ -158,6 +158,9 @@ export function LoginForm() {
             </p>
           ) : null}
           <OtpInput ref={otpRef} value={code} onChange={setCode} error={otpError} label={t('otpLabel')} />
+          <p style={{ font: 'var(--t-caption)', color: 'var(--color-text-muted)' }}>
+            {t('deliveryHint')}
+          </p>
           <Button onClick={verify} fullWidth loading={verifying}>
             {t('verifyAndLogin')}
           </Button>
