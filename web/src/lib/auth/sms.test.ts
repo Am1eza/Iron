@@ -66,8 +66,24 @@ describe('sendOtpSms', () => {
     expect(JSON.parse(init.body)).toEqual({
       Mobile: '09120000000',
       TemplateId: 100000,
-      Parameters: [{ Name: 'Code', Value: '12345' }],
+      // The name MUST equal the template placeholder («#OTP#» in template
+      // 577070). Regression guard: 'Code' here once shipped the literal
+      // «#OTP#» to real users.
+      Parameters: [{ name: 'OTP', value: '12345' }],
     });
+  });
+
+  it('SMSIR_TEMPLATE_PARAM overrides the placeholder name for re-registered templates', async () => {
+    vi.stubEnv('SMSIR_API_KEY', 'test-key');
+    vi.stubEnv('SMSIR_TEMPLATE_ID', '100000');
+    vi.stubEnv('SMSIR_TEMPLATE_PARAM', 'Code');
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ status: 1 }) });
+    vi.stubGlobal('fetch', fetchMock);
+    const { sendOtpSms } = await import('./sms');
+
+    await sendOtpSms('09120000000', '12345');
+
+    expect(JSON.parse(fetchMock.mock.calls[0]![1].body).Parameters).toEqual([{ name: 'Code', value: '12345' }]);
   });
 
   it('treats a non-1 status in the response body as a failure', async () => {
