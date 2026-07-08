@@ -1,6 +1,4 @@
 'use client';
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { useMarket } from '@/lib/hooks/useMarket';
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion';
 import { routes } from '@/lib/routes';
@@ -8,44 +6,34 @@ import { formatToman, toPersianDigits, formatMovement } from '@/lib/utils/format
 import type { MarketValue } from '@/lib/types/domain';
 import { marketValues as fallbackValues } from '@/lib/mock/fixtures';
 import styles from './Ticker.module.css';
+import Link from 'next/link';
 
 /**
-* N1 · نبض بازار — the slim moving ribbon at the very top of every page (home
- * included). Polls tgju-backed market values (useMarket, 60s). Desktop: an
- * auto-scroll marquee that pauses on hover/focus (that hover-pause is the
- * WCAG 2.2.2 mechanism — the old on-strip pause button is gone by owner
- * request; it rendered as a broken emoji square on iOS). Mobile and
- * `prefers-reduced-motion`: a static, manually-swipeable strip (no motion →
- * no pause control needed). Never blank: falls back to last-known values.
+ * N1 · نبض بازار — the slim moving ribbon at the very top of every page (home
+ * included). Polls tgju-backed market values (useMarket, 60s). Auto-scroll
+ * marquee on both desktop and mobile, pausing on hover/focus (that hover-pause
+ * is the WCAG 2.2.2 mechanism — there is no on-strip pause button by owner
+ * request; it rendered as a broken emoji square on iOS). Only
+ * `prefers-reduced-motion` degrades to a static, manually-swipeable strip.
+ * Never blank: falls back to last-known values.
  */
 export function Ticker() {
   const { data, isError } = useMarket();
   const reduced = useReducedMotion();
-  // ≤767px → static swipeable strip (matches the CSS breakpoint that also
-  // kills the animation pre-hydration).
-  const [mobile, setMobile] = useState(false);
-  useEffect(() => {
-    const mq = window.matchMedia('(max-width: 767px)');
-    const apply = () => setMobile(mq.matches);
-    apply();
-    mq.addEventListener('change', apply);
-    return () => mq.removeEventListener('change', apply);
-  }, []);
-  const staticStrip = reduced || mobile;
   const values = data?.values?.length ? data.values : fallbackValues;
 
   // Duplicate the set so the marquee loops seamlessly (the second copy is decorative).
-  const items = staticStrip ? values : [...values, ...values];
+  const items = reduced ? values : [...values, ...values];
 
   return (
     <aside className={styles.ticker} aria-label="نبض بازار">
       <span className={styles.tag} aria-hidden="true">
         نبض بازار
       </span>
-      <div className={styles.viewport} data-reduced={staticStrip ? '' : undefined}>
+      <div className={styles.viewport} data-reduced={reduced ? '' : undefined}>
         <ul className={`${styles.track} tnum`}>
           {items.map((v, i) => (
-            <TickerItem key={`${v.key}-${i}`} v={v} decorative={!staticStrip && i >= values.length} />
+            <TickerItem key={`${v.key}-${i}`} v={v} decorative={!reduced && i >= values.length} />
           ))}
         </ul>
       </div>

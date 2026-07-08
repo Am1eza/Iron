@@ -68,8 +68,7 @@
   animation: none;
 }
 .viewport:hover .track,
-.viewport:focus-within .track,
-.viewport[data-paused] .track {
+.viewport:focus-within .track {
   animation-play-state: paused;
 }
 
@@ -157,21 +156,6 @@
 
 @media (max-width: 767px) {
   .tag {
-    display: none;
-  }
-  /* Static, swipeable strip on phones (also covers pre-hydration): no auto
-     motion → no pause control needed, and no chance of edge overflow. */
-  .track {
-    animation: none;
-  }
-  .viewport {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    -webkit-mask-image: none;
-    mask-image: none;
-  }
-  .viewport::-webkit-scrollbar {
     display: none;
   }
 }
