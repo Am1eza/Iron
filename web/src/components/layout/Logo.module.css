@@ -12,8 +12,12 @@
 .mark {
   display: block;
   flex: none;
-  block-size: 36px;
-  inline-size: auto;
+  /* Physical width+height (not logical/auto): iOS Safari mis-derives the box
+     of a replaced element from block-size + inline-size:auto, painting the
+     wordmark over the mark. 640×350 asset → 66×36. */
+  width: 66px;
+  height: 36px;
+  object-fit: contain;
 }
 
 .word {
@@ -43,6 +47,12 @@
 
 @media (max-width: 767px) {
   .tagline {
+    display: none;
+  }
+}
+/* Very small phones: the AT mark alone — the wordmark would overflow. */
+@media (max-width: 399px) {
+  .word {
     display: none;
   }
 }

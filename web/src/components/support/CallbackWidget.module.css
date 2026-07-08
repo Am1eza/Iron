@@ -1,11 +1,11 @@
 .root {
   position: fixed;
   inset-block-end: calc(var(--bottom-bar-h) + var(--space-4));
-  inset-inline-start: var(--space-4);
+  inset-inline-end: var(--space-4);
   z-index: var(--z-fab);
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: flex-end;
   gap: var(--space-3);
 }
 .fab {

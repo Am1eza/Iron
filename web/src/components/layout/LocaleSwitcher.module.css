@@ -26,3 +26,21 @@
   outline-offset: 1px;
   border-radius: var(--radius-sm);
 }
+
+/* Phones: icon-only — the select stays on top (invisible) so tapping the
+   globe still opens the native language picker. Reclaims ~50px of header. */
+@media (max-width: 767px) {
+  .wrap {
+    position: relative;
+    inline-size: 44px;
+    padding-inline: 0;
+    justify-content: center;
+  }
+  .select {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    inline-size: 100%;
+    block-size: 100%;
+  }
+}

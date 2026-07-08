@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useMarket } from '@/lib/hooks/useMarket';
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion';
@@ -10,44 +10,42 @@ import { marketValues as fallbackValues } from '@/lib/mock/fixtures';
 import styles from './Ticker.module.css';
 
 /**
- * N1 · نبض بازار — the slim moving ribbon at the very top of every page (home
- * included). Polls tgju-backed market values (useMarket, 60s). Auto-scroll marquee
- * that pauses on hover/focus and degrades to a static, manually-scrollable strip
- * under `prefers-reduced-motion`. Never blank: falls back to last-known/seed values.
+* N1 · نبض بازار — the slim moving ribbon at the very top of every page (home
+ * included). Polls tgju-backed market values (useMarket, 60s). Desktop: an
+ * auto-scroll marquee that pauses on hover/focus (that hover-pause is the
+ * WCAG 2.2.2 mechanism — the old on-strip pause button is gone by owner
+ * request; it rendered as a broken emoji square on iOS). Mobile and
+ * `prefers-reduced-motion`: a static, manually-swipeable strip (no motion →
+ * no pause control needed). Never blank: falls back to last-known values.
  */
 export function Ticker() {
   const { data, isError } = useMarket();
   const reduced = useReducedMotion();
-  const [paused, setPaused] = useState(false);
+  // ≤767px → static swipeable strip (matches the CSS breakpoint that also
+  // kills the animation pre-hydration).
+  const [mobile, setMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    const apply = () => setMobile(mq.matches);
+    apply();
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  }, []);
+  const staticStrip = reduced || mobile;
   const values = data?.values?.length ? data.values : fallbackValues;
 
   // Duplicate the set so the marquee loops seamlessly (the second copy is decorative).
-  const items = reduced ? values : [...values, ...values];
+  const items = staticStrip ? values : [...values, ...values];
 
   return (
     <aside className={styles.ticker} aria-label="نبض بازار">
       <span className={styles.tag} aria-hidden="true">
         نبض بازار
       </span>
-      {!reduced && (
-        <button
-          type="button"
-          className={styles.pause}
-          aria-pressed={paused}
-          aria-label={paused ? 'ادامهٔ حرکت نوار قیمت‌ها' : 'توقف حرکت نوار قیمت‌ها'}
-          onClick={() => setPaused((p) => !p)}
-        >
-          <span aria-hidden="true">{paused ? '▶' : '⏸'}</span>
-        </button>
-      )}
-      <div
-        className={styles.viewport}
-        data-reduced={reduced ? '' : undefined}
-        data-paused={!reduced && paused ? '' : undefined}
-      >
+      <div className={styles.viewport} data-reduced={staticStrip ? '' : undefined}>
         <ul className={`${styles.track} tnum`}>
           {items.map((v, i) => (
-            <TickerItem key={`${v.key}-${i}`} v={v} decorative={!reduced && i >= values.length} />
+            <TickerItem key={`${v.key}-${i}`} v={v} decorative={!staticStrip && i >= values.length} />
           ))}
         </ul>
       </div>
