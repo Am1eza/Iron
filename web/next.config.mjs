@@ -11,9 +11,18 @@ const basePath = process.env.PAGES_BASE_PATH || '';
 // granted) in production builds. See the CSP header below and
 // https://nextjs.org/docs/app/guides/content-security-policy
 const isDev = process.env.NODE_ENV !== 'production';
+// Google analytics/GTM origins join the CSP only when their ids are present
+// at build time (set GTM_ID/GA4_ID in .env and rebuild). Matomo needs nothing:
+// it is proxied same-origin at /mt/.
+const googleOn = Boolean(process.env.GTM_ID || process.env.GA4_ID);
+const gScript = googleOn ? ' https://www.googletagmanager.com' : '';
+const gConnect = googleOn
+  ? ' https://www.googletagmanager.com https://www.google-analytics.com https://*.google-analytics.com'
+  : '';
+const gImg = googleOn ? ' https://www.google-analytics.com https://www.googletagmanager.com' : '';
 const scriptSrc = isDev
-  ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
-  : "script-src 'self' 'unsafe-inline'";
+  ? `script-src 'self' 'unsafe-inline' 'unsafe-eval'${gScript}`
+  : `script-src 'self' 'unsafe-inline'${gScript}`;
 
 const nextConfig = {
   reactStrictMode: true,
@@ -157,9 +166,9 @@ const nextConfig = {
                     "default-src 'self'",
                     scriptSrc,
                     "style-src 'self' 'unsafe-inline'",
-                    "img-src 'self' data:",
+                    `img-src 'self' data:${gImg}`,
                     "font-src 'self'",
-                    "connect-src 'self'",
+                    `connect-src 'self'${gConnect}`,
                     "object-src 'none'",
                     "base-uri 'self'",
                     "form-action 'self'",

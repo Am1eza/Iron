@@ -12,7 +12,6 @@ import {
   InfoIcon,
   CheckCircleIcon,
   ChevronStartIcon,
-  ExternalIcon,
 } from '@/components/primitives/icons';
 import styles from './MarketBoard.module.css';
 
@@ -43,7 +42,7 @@ function SourceBadge({ source }: { source: MarketValue['source'] }) {
   return (
     <span className={styles.source}>
       <span className={styles.sourceDot} aria-hidden="true" />
-      بازار · tgju
+      نرخ لحظه‌ای بازار
     </span>
   );
 }
@@ -111,8 +110,8 @@ export function MarketBoard() {
         <span className={styles.noteIcon} aria-hidden="true">
           <InfoIcon size={18} />
         </span>
-        نرخ دلار، یورو، طلای ۱۸ و انس جهانی از بازار (tgju) دریافت می‌شود؛ نرخ شمش فولاد به‌صورت
-        کارشناسی توسط تیم آهن‌تایم درج می‌گردد. این ارقام جنبهٔ اطلاع‌رسانی دارد و مبنای معامله نیست.
+        نرخ‌ها لحظه‌ای از بازار دریافت و نرخ شمش فولاد کارشناسی درج می‌شود. این ارقام مبنای معامله
+        نیست.
       </p>
 
       <div className={styles.ctaRow}>
@@ -120,16 +119,6 @@ export function MarketBoard() {
           مشاهدهٔ قیمت آهن‌آلات
           <ChevronStartIcon size={18} className="icon--rtl" />
         </Link>
-        <a
-          href="https://www.tgju.org"
-          target="_blank"
-          rel="noopener noreferrer"
-          className={styles.ctaGhost}
-        >
-          منبع نرخ‌های بازار
-          <span className="visually-hidden"> (در تب جدید باز می‌شود)</span>
-          <ExternalIcon size={16} />
-        </a>
       </div>
     </div>
   );

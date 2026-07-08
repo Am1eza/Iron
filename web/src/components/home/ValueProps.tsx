@@ -51,7 +51,7 @@ export function ValueProps() {
         <div className={styles.head}>
           <p className={styles.eyebrow}>چرا آهن‌تایم</p>
           <h2 id="why-title" className={styles.title}>
-            اول مشورت، بعد خرید.
+            خرید آهن، مطمئن و شفاف
           </h2>
         </div>
 

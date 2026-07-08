@@ -55,7 +55,9 @@ export function buildMetadata(opts: {
 
 /* ---------- JSON-LD builders (inject via <script type="application/ld+json">) ---------- */
 
-export function orgJsonLd() {
+type ContactLike = { address: string; phoneLandline: string; phoneMobile: string };
+
+export function orgJsonLd(contact: ContactLike = CONTACT) {
   return {
     '@context': 'https://schema.org',
     '@type': 'Organization',
@@ -65,7 +67,7 @@ export function orgJsonLd() {
     slogan: 'اول مشورت، بعد خرید',
     contactPoint: {
       '@type': 'ContactPoint',
-      telephone: CONTACT.phoneLandline,
+      telephone: contact.phoneLandline,
       contactType: 'customer service',
       areaServed: 'IR',
       availableLanguage: 'fa',
@@ -74,15 +76,15 @@ export function orgJsonLd() {
   };
 }
 
-export function localBusinessJsonLd() {
+export function localBusinessJsonLd(contact: ContactLike = CONTACT) {
   return {
     '@context': 'https://schema.org',
     '@type': 'LocalBusiness',
     name: BRAND,
     url: SITE_URL,
     image: DEFAULT_OG_IMAGE,
-    telephone: [CONTACT.phoneLandline, CONTACT.phoneMobile],
-    address: { '@type': 'PostalAddress', addressLocality: 'تهران', streetAddress: CONTACT.address },
+    telephone: [contact.phoneLandline, contact.phoneMobile],
+    address: { '@type': 'PostalAddress', addressLocality: 'تهران', streetAddress: contact.address },
     priceRange: '$$',
   };
 }

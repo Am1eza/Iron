@@ -13,6 +13,7 @@ import { ValueProps } from '@/components/home/ValueProps';
 import { Partners } from '@/components/home/Partners';
 import { JsonLd } from '@/components/seo/JsonLd';
 import { buildMetadata, orgJsonLd, localBusinessJsonLd, websiteJsonLd } from '@/lib/seo';
+import { getContact } from '@/lib/server/contact';
 
 export const metadata: Metadata = buildMetadata({
   title: 'آهن‌تایم — بازار هوشمند آهن و فولاد',
@@ -28,6 +29,7 @@ export const metadata: Metadata = buildMetadata({
  * dark factory block (mills & customers). Price data is the visual anchor.
  */
 export default async function HomePage() {
+  const contact = await getContact();
   const categories = await getCategories();
 
   // One data pass: all rows per category (live: DB; mock: generator).
@@ -76,7 +78,7 @@ export default async function HomePage() {
 
   return (
     <>
-      <JsonLd data={[orgJsonLd(), localBusinessJsonLd(), websiteJsonLd()]} />
+      <JsonLd data={[orgJsonLd(contact), localBusinessJsonLd(contact), websiteJsonLd()]} />
       <HeroSearch board={<PriceBoard rows={boardRows} />} />
       <CategoryStage categories={categories} factories={factories} />
       <CompareTeaser slides={compareSlides} />

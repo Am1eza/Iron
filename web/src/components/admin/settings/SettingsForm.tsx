@@ -67,6 +67,21 @@ export function SettingsForm() {
         onSave={(key, value) => save.mutate({ key, value })}
         busy={save.isPending}
       />
+      <SmsAutomationsCard
+        cfg={get('SMS_AUTOMATIONS', { welcome: true, proformaReminder: true, callbackReminder: true })}
+        onSave={(v) => save.mutate({ key: 'SMS_AUTOMATIONS', value: v })}
+        busy={save.isPending}
+      />
+      <ContactSettingsCard
+        contact={get('SITE_CONTACT', {
+          address: 'تهران، اقدسیه، خیابان موحد دانش، نبش بن‌بست نسیم، ساختمان نسیم، پلاک ۱، طبقه چهارم، واحد ۷',
+          phoneLandline: '02126297512',
+          phoneMobile: '09121395954',
+          email: '',
+        })}
+        onSave={(v) => save.mutate({ key: 'SITE_CONTACT', value: v })}
+        busy={save.isPending}
+      />
       <HolidaysCard holidays={get<string[]>('HOLIDAYS', [])} onSave={(v) => save.mutate({ key: 'HOLIDAYS', value: v })} busy={save.isPending} />
       <LogisticsCard
         cfg={get<Logistics>('LOGISTICS', {
@@ -320,6 +335,105 @@ function LogisticsCard({ cfg, onSave, busy }: { cfg: Logistics; onSave: (v: Logi
       <Button size="sm" style={{ marginBlockStart: 'var(--space-2)' }} loading={busy} onClick={submit}>
         ذخیرهٔ لجستیک
       </Button>
+    </Card>
+  );
+}
+
+interface SiteContactValue {
+  address: string;
+  phoneLandline: string;
+  phoneMobile: string;
+  email?: string;
+}
+
+/** اطلاعات تماس سایت — the numbers/address printed in the footer, contact
+ *  page, proforma letterhead and JSON-LD. Editable without a deploy. */
+function ContactSettingsCard({
+  contact,
+  onSave,
+  busy,
+}: {
+  contact: SiteContactValue;
+  onSave: (v: SiteContactValue) => void;
+  busy: boolean;
+}) {
+  const [v, setV] = useState(contact);
+  const [error, setError] = useState<string | undefined>();
+  useEffect(() => {
+    setV(contact);
+    setError(undefined);
+  }, [contact]);
+
+  const submit = () => {
+    const landline = normalizeDigits(v.phoneLandline).replace(/\D/g, '');
+    const mobile = normalizeDigits(v.phoneMobile).replace(/\D/g, '');
+    if (!v.address.trim()) return setError('آدرس را وارد کنید.');
+    if (!/^0\d{9,10}$/.test(landline)) return setError('شمارهٔ ثابت معتبر نیست (مثلاً 02126297512).');
+    if (!/^09\d{9}$/.test(mobile)) return setError('شمارهٔ همراه معتبر نیست (۰۹xxxxxxxxx).');
+    setError(undefined);
+    onSave({ address: v.address.trim(), phoneLandline: landline, phoneMobile: mobile, email: v.email?.trim() || '' });
+  };
+
+  return (
+    <Card>
+      <Heading level={2}>اطلاعات تماس سایت</Heading>
+      <Text color="muted">در فوتر، صفحهٔ تماس، سربرگ پیش‌فاکتور و داده‌های سئو استفاده می‌شود.</Text>
+      <div className={ui.grid2} style={{ marginBlockStart: 'var(--space-3)' }}>
+        <TextInput label="شمارهٔ ثابت" inputMode="tel" dir="ltr" value={v.phoneLandline} onChange={(e) => setV({ ...v, phoneLandline: e.target.value })} />
+        <TextInput label="شمارهٔ همراه" inputMode="tel" dir="ltr" value={v.phoneMobile} onChange={(e) => setV({ ...v, phoneMobile: e.target.value })} />
+        <TextInput label="ایمیل (اختیاری)" type="email" dir="ltr" value={v.email ?? ''} onChange={(e) => setV({ ...v, email: e.target.value })} />
+        <TextInput label="آدرس" value={v.address} onChange={(e) => setV({ ...v, address: e.target.value })} />
+      </div>
+      {error ? <p style={{ font: 'var(--t-caption)', color: 'var(--color-loss-text)', margin: 'var(--space-2) 0 0' }}>{error}</p> : null}
+      <div className={ui.toolbar} style={{ marginBlockStart: 'var(--space-3)' }}>
+        <Button size="sm" loading={busy} onClick={submit}>
+          ذخیرهٔ اطلاعات تماس
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
+interface SmsAutomationsValue {
+  welcome: boolean;
+  proformaReminder: boolean;
+  callbackReminder: boolean;
+}
+
+/** پیامک‌های خودکار — روشن/خاموش‌کردن هر اتوماسیون بدون دیپلوی. */
+function SmsAutomationsCard({
+  cfg,
+  onSave,
+  busy,
+}: {
+  cfg: SmsAutomationsValue;
+  onSave: (v: SmsAutomationsValue) => void;
+  busy: boolean;
+}) {
+  const [v, setV] = useState(cfg);
+  useEffect(() => setV(cfg), [cfg]);
+  const Row = ({ k, label, hint }: { k: keyof SmsAutomationsValue; label: string; hint: string }) => (
+    <label style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-3)', cursor: 'pointer' }}>
+      <input type="checkbox" checked={v[k]} onChange={(e) => setV({ ...v, [k]: e.target.checked })} style={{ marginBlockStart: 6 }} />
+      <span>
+        <span style={{ display: 'block', font: 'var(--t-label)', color: 'var(--color-text-strong)' }}>{label}</span>
+        <span className={ui.muted}>{hint}</span>
+      </span>
+    </label>
+  );
+  return (
+    <Card>
+      <Heading level={2}>پیامک‌های خودکار</Heading>
+      <div style={{ display: 'grid', gap: 'var(--space-3)', marginBlockStart: 'var(--space-3)' }}>
+        <Row k="welcome" label="خوش‌آمدگویی" hint="با اولین ثبت‌نام هر کاربر ارسال می‌شود." />
+        <Row k="proformaReminder" label="یادآوری اعتبار پیش‌فاکتور" hint="۲۴ ساعت قبل از پایان اعتبار، به مشتری (یک‌بار برای هر پیش‌فاکتور)." />
+        <Row k="callbackReminder" label="یادآوری تماس به کارشناس" hint="در زمان تماس ثبت‌شده روی سرنخ، به موبایل کارشناس مسئول." />
+      </div>
+      <div className={ui.toolbar} style={{ marginBlockStart: 'var(--space-3)' }}>
+        <Button size="sm" loading={busy} onClick={() => onSave(v)}>
+          ذخیرهٔ پیامک‌های خودکار
+        </Button>
+      </div>
     </Card>
   );
 }

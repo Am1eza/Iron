@@ -5,6 +5,7 @@ import { requirePermission } from '@/lib/auth/guards';
 import { can, permissionForAdminPath } from '@/lib/auth/roles';
 import { routes } from '@/lib/routes';
 import { AdminNavLinks } from './AdminNavLinks';
+import { AdminAlerts } from '@/components/admin/AdminAlerts';
 import styles from './admin.module.css';
 import logoMark from '../../../public/brand/ahantime-logo.png';
 
@@ -50,6 +51,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         </Link>
         <nav className={styles.nav} aria-label="پنل مدیریت">
           <AdminNavLinks nav={nav} />
+      <AdminAlerts />
         </nav>
         <div className={styles.user}>
           <span>{user.name ?? user.mobile}</span>

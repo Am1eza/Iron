@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
-import { buildMetadata, CONTACT } from '@/lib/seo';
+import { buildMetadata } from '@/lib/seo';
+import { getContact, type SiteContact } from '@/lib/server/contact';
 import { routes } from '@/lib/routes';
 import { Container, Section, Stack, Breadcrumbs, Alert } from '@/components/ui';
 import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
@@ -14,7 +15,7 @@ export const metadata: Metadata = buildMetadata({
   path: routes.privacy(),
 });
 
-const sections: LegalSection[] = [
+const buildSections = (CONTACT: SiteContact): LegalSection[] => [
   {
     id: 'intro',
     title: 'مقدمه',
@@ -120,7 +121,9 @@ const sections: LegalSection[] = [
   },
 ];
 
-export default function PrivacyPage() {
+export default async function PrivacyPage() {
+  const CONTACT = await getContact();
+  const sections = buildSections(CONTACT);
   const crumbs = [
     { label: 'خانه', href: routes.home() },
     { label: 'حریم خصوصی' },

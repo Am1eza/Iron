@@ -47,7 +47,11 @@ function LeadRows({ rows, showCallback }: { rows: DeskLead[]; showCallback?: boo
             </td>
             <td>
               {l.contactName || '—'}
-              <div className={ui.muted}>{toPersianDigits(l.contactMobile)}</div>
+              <div>
+                <a href={`tel:${l.contactMobile}`} className={ui.mono} dir="ltr" style={{ color: 'var(--color-accent-text)' }}>
+                  {toPersianDigits(l.contactMobile)}
+                </a>
+              </div>
             </td>
             <td>{SOURCE_LABEL[l.source] ?? l.source}</td>
             <td>

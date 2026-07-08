@@ -131,7 +131,7 @@ const PriceTableCard = memo(function PriceTableCard({
       </div>
       <div className={styles.cardMeta}>
         <span>کارخانه: {r.factory ?? '—'}</span>
-        {r.size ? <span>سایز {toPersianDigits(r.size)}</span> : null}
+        {/* size intentionally omitted — the product name already ends in it */}
         {r.theoreticalWeightKg ? (
           <span>
             وزن شاخه {toPersianDigits(r.theoreticalWeightKg)} <bdi lang="en">kg</bdi>

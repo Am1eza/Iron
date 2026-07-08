@@ -1,5 +1,6 @@
 import { Heading, Text, Stack } from '@/components/ui';
 import { PricingGrid } from '@/components/admin/pricing/PricingGrid';
+import { ExcelImport } from '@/components/admin/pricing/ExcelImport';
 import { BilletCard } from '@/components/admin/pricing/BilletCard';
 import { requirePermission } from '@/lib/auth/guards';
 import { routes } from '@/lib/routes';
@@ -15,6 +16,7 @@ export default async function AdminPricingPage() {
           قیمت هر کالا را ویرایش و یک‌جا ذخیره کنید؛ نوسان و تاریخچه خودکار ثبت می‌شود.
         </Text>
       </div>
+      <ExcelImport />
       <PricingGrid />
       <BilletCard />
     </Stack>

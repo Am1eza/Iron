@@ -5,10 +5,12 @@ import { AuthHydrator } from '@/lib/providers/AuthHydrator';
 import { ThemeScript } from '@/components/theme/ThemeScript';
 import { getCategories } from '@/lib/data/catalog';
 import { SiteChromeTop, SiteChromeBottom } from '@/components/layout/SiteChrome';
+import { getContact } from '@/lib/server/contact';
 import { RouteAnnouncer } from '@/components/a11y/RouteAnnouncer';
 import { vazirmatn, estedad, inter } from '@/lib/theme/fonts';
 import { LocaleProvider } from '@/i18n/LocaleProvider';
 import { LocaleScript } from '@/i18n/LocaleScript';
+import { Analytics } from '@/components/analytics/Analytics';
 import faMessages from '../../messages/fa.json';
 
 /**
@@ -44,6 +46,8 @@ export const metadata: Metadata = {
     siteName: 'آهن‌تایم',
   },
   robots: { index: true, follow: true },
+  // Google Search Console ownership proof — active only when the env is set.
+  ...(process.env.GSC_VERIFICATION ? { verification: { google: process.env.GSC_VERIFICATION } } : {}),
 };
 
 export const viewport: Viewport = {
@@ -66,6 +70,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // enough since 100% of auth-driven UI already lives behind Zustand's
   // `useAuthStore`, not server-rendered markup.
   const categories = await getCategories();
+  const contact = await getContact();
   return (
     <html
       lang="fa"
@@ -86,8 +91,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <main id="main" tabIndex={-1}>
               {children}
             </main>
-            <SiteChromeBottom categories={categories} />
+            <SiteChromeBottom categories={categories} contact={contact} />
             <RouteAnnouncer />
+            <Analytics />
           </AppProviders>
         </LocaleProvider>
       </body>

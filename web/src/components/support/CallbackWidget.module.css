@@ -1,0 +1,67 @@
+.root {
+  position: fixed;
+  inset-block-end: calc(var(--bottom-bar-h) + var(--space-4));
+  inset-inline-start: var(--space-4);
+  z-index: var(--z-fab);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+.fab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-action);
+  color: var(--color-on-action);
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  font: var(--t-button);
+}
+.fab:hover { background: var(--color-action-hover); }
+.fabLabel {
+  font: var(--t-label);
+}
+@media (max-width: 480px) {
+  .fabLabel { display: none; }
+}
+.panel {
+  inline-size: min(20rem, 82vw);
+  background: var(--color-surface);
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-4);
+}
+.form { display: flex; flex-direction: column; gap: var(--space-2); }
+.head { display: flex; justify-content: space-between; align-items: center; }
+.head strong { font: var(--t-h4); color: var(--color-text-strong); }
+.x { background: none; border: 0; color: var(--color-text-muted); cursor: pointer; font-size: 1rem; }
+.hint { font: var(--t-caption); color: var(--color-text-muted); margin: 0 0 var(--space-1); }
+.input {
+  inline-size: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-hairline) solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font: var(--t-input);
+}
+.err { font: var(--t-caption); color: var(--color-loss-text); margin: 0; }
+.submit {
+  padding: var(--space-2) var(--space-4);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-action);
+  color: var(--color-on-action);
+  font: var(--t-button);
+  cursor: pointer;
+}
+.submit:disabled { opacity: 0.6; cursor: default; }
+.done { display: flex; flex-direction: column; align-items: center; text-align: center; gap: var(--space-2); padding: var(--space-3); }
+.doneIcon { color: var(--color-accent); }
+.doneTitle { font: var(--t-h4); color: var(--color-text-strong); margin: 0; }
+.doneLead { font: var(--t-body-sm); color: var(--color-text-muted); margin: 0; }
+.close { margin-block-start: var(--space-2); background: none; border: 0; color: var(--color-accent-text); cursor: pointer; font: var(--t-label); }

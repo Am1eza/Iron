@@ -38,6 +38,24 @@ async function POSTImpl(req: NextRequest) {
       inviteCode: v.data.inviteCode,
     });
     await setSessionCookies(tokens);
+    // Welcome SMS on first registration — automated, toggleable in settings,
+    // fire-and-forget (never blocks the login response).
+    if (isNew) {
+      void (async () => {
+        const [{ smsAutomationsSetting }, { sendSms }] = await Promise.all([
+          import('@/lib/server/jobs/smsAutomation.job'),
+          import('@/lib/server/integrations/smsir'),
+        ]);
+        const cfg = await smsAutomationsSetting();
+        if (!cfg.welcome) return;
+        const name = user.firstName ? ` ${user.firstName} عزیز` : '';
+        await sendSms(
+          mobile,
+          `آهن‌تایم:${name} خوش آمدید! قیمت لحظه‌ای آهن‌آلات، مشاور هوشمند و پیش‌فاکتور فوری در ahantime.com منتظر شماست.`,
+          'generic',
+        );
+      })().catch(() => {});
+    }
     return NextResponse.json({ user: publicUser(user), isNew });
   } catch (err) {
     return authErrorResponse(err);

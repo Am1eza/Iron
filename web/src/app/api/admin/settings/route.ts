@@ -17,7 +17,28 @@ const KEY_SCHEMAS: Record<string, z.ZodTypeAny> = {
   PRICE_STALE_HIDE_AFTER_DAYS: finiteNumber.int().min(1).max(30),
   QUOTE_VALIDITY_HOUR: finiteNumber.int().min(0).max(23),
   HOLIDAYS: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).max(100),
-  CLUB_TIERS: z.record(z.string(), z.object({ name: z.string(), minLeads: finiteNumber.int().min(0).max(100_000) })),
+  // Hybrid-points club model (clubPoints.ts) — weights + tier thresholds.
+  CLUB_CONFIG: z.object({
+    weights: z.object({
+      order: finiteNumber.min(0).max(1000),
+      profile: finiteNumber.min(0).max(1000),
+      level2: finiteNumber.min(0).max(1000),
+      level3: finiteNumber.min(0).max(1000),
+      referral: finiteNumber.min(0).max(1000),
+    }),
+    tiers: z.record(z.string(), z.object({ name: z.string().max(40), minPoints: finiteNumber.int().min(0).max(1_000_000) })),
+  }),
+  SMS_AUTOMATIONS: z.object({
+    welcome: z.boolean(),
+    proformaReminder: z.boolean(),
+    callbackReminder: z.boolean(),
+  }),
+  SITE_CONTACT: z.object({
+    address: z.string().min(1).max(300),
+    phoneLandline: z.string().min(1).max(20),
+    phoneMobile: z.string().min(1).max(20),
+    email: z.string().email().max(120).optional().or(z.literal('')),
+  }),
   LOGISTICS: z.object({
     originLabel: z.string().max(120),
     freightRatePerTonKm: finiteNumber.positive().max(1_000_000_000),

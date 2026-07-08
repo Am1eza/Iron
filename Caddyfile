@@ -29,5 +29,20 @@ ahantime.com, www.ahantime.com {
 	@immutable path /_next/static/* /fonts/*
 	header @immutable Cache-Control "public, max-age=31536000, immutable"
 
+	# Matomo tracker (same-origin → zero CSP changes): /mt/matomo.js loads the
+	# tracking script, /mt/matomo.php receives hits. Only these two files are
+	# proxied — the admin UI lives on :8443 below.
+	handle /mt/* {
+		uri strip_prefix /mt
+		reverse_proxy matomo:80
+	}
+
 	reverse_proxy web:3000
+}
+
+# Matomo admin console — same certificate, separate port (no extra DNS record
+# needed). Open 8443/tcp in the firewall.
+ahantime.com:8443 {
+	encode zstd gzip
+	reverse_proxy matomo:80
 }

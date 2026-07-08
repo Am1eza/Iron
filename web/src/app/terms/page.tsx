@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
-import { buildMetadata, CONTACT, ORG_NAME } from '@/lib/seo';
+import { buildMetadata, ORG_NAME } from '@/lib/seo';
+import { getContact, type SiteContact } from '@/lib/server/contact';
 import { routes } from '@/lib/routes';
 import { Container, Section, Stack, Breadcrumbs, Alert } from '@/components/ui';
 import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
@@ -14,7 +15,7 @@ export const metadata: Metadata = buildMetadata({
   path: routes.terms(),
 });
 
-const sections: LegalSection[] = [
+const buildSections = (CONTACT: SiteContact): LegalSection[] => [
   {
     id: 'definitions',
     title: 'تعاریف',
@@ -168,7 +169,9 @@ const sections: LegalSection[] = [
   },
 ];
 
-export default function TermsPage() {
+export default async function TermsPage() {
+  const CONTACT = await getContact();
+  const sections = buildSections(CONTACT);
   const crumbs = [
     { label: 'خانه', href: routes.home() },
     { label: 'قوانین و مقررات' },

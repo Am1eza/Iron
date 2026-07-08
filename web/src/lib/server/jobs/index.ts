@@ -6,5 +6,6 @@ import { stalenessJob } from './staleness.job';
 import { proformaExpireJob } from './proformaExpire.job';
 import { alertsJob } from './alerts.job';
 import { publishArticlesJob } from './publishArticles.job';
+import { smsAutomationJob } from './smsAutomation.job';
 
-export const jobs: Job[] = [marketPollJob, stalenessJob, alertsJob, publishArticlesJob, proformaExpireJob, cleanupJob];
+export const jobs: Job[] = [marketPollJob, stalenessJob, alertsJob, publishArticlesJob, proformaExpireJob, smsAutomationJob, cleanupJob];

@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { useTranslations, useLocale } from 'next-intl';
 import { routes } from '@/lib/routes';
 import { FOOTER_COLUMNS, CHANNELS } from '@/lib/data/nav';
-import { CONTACT } from '@/lib/seo';
+import type { SiteContact } from '@/lib/server/contact';
 import { localizeDigits } from '@/lib/utils/format';
 import type { Category } from '@/lib/types/domain';
 import type { AppLocale } from '@/i18n/config';
@@ -13,7 +13,7 @@ import styles from './Footer.module.css';
  * N6 · Footer — grouped link columns (products / tools / company / support /
  * channels) + the trust block (badges, address, click-to-call phones). RTL columns.
  */
-export function Footer({ categories }: { categories: Category[] }) {
+export function Footer({ categories, contact }: { categories: Category[]; contact: SiteContact }) {
   const t = useTranslations('footer');
   const tCommon = useTranslations('common');
   const locale = useLocale() as AppLocale;
@@ -30,7 +30,6 @@ export function Footer({ categories }: { categories: Category[] }) {
         <div className={styles.brandCol}>
           <Logo light />
           <p className={styles.tagline}>{tCommon('tagline')}</p>
-          <p className={styles.blurb}>{t('blurb')}</p>
         </div>
 
         {/* Products column */}
@@ -69,13 +68,13 @@ export function Footer({ categories }: { categories: Category[] }) {
         {/* Contact / trust */}
         <div className={styles.col}>
           <h2 className={styles.colTitle}>{t('contact')}</h2>
-          <address className={styles.address}>{CONTACT.address}</address>
+          <address className={styles.address}>{contact.address}</address>
           <div className={styles.phones}>
-            <a href={`tel:${CONTACT.phoneLandline}`} className={styles.phone} dir="ltr">
-              {localizeDigits(CONTACT.phoneLandline, locale)}
+            <a href={`tel:${contact.phoneLandline}`} className={styles.phone} dir="ltr">
+              {localizeDigits(contact.phoneLandline, locale)}
             </a>
-            <a href={`tel:${CONTACT.phoneMobile}`} className={styles.phone} dir="ltr">
-              {localizeDigits(CONTACT.phoneMobile, locale)}
+            <a href={`tel:${contact.phoneMobile}`} className={styles.phone} dir="ltr">
+              {localizeDigits(contact.phoneMobile, locale)}
             </a>
           </div>
           <ul className={styles.channels} aria-label={t('channels')}>

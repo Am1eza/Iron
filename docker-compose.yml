@@ -23,6 +23,10 @@ services:
         # so a geo-split setup can be verified (curl from Iran vs. abroad and
         # confirm each hit the origin you expect).
         NEXT_PUBLIC_DEPLOY_REGION: ${NEXT_PUBLIC_DEPLOY_REGION:-ir-docker}
+        MATOMO_SITE_ID: ${MATOMO_SITE_ID:-}
+        GTM_ID: ${GTM_ID:-}
+        GA4_ID: ${GA4_ID:-}
+        GSC_VERIFICATION: ${GSC_VERIFICATION:-}
     restart: unless-stopped
     # Hardening: no privilege escalation, drop all Linux caps (the app runs as
     # the non-root `nextjs` user on port 3000 — it needs none), and bound
@@ -54,6 +58,12 @@ services:
       SMSIR_LINE_NUMBER: ${SMSIR_LINE_NUMBER:-}   # optional — پیش‌فاکتور/alert texts dev-log if unset
       SMSIR_TEMPLATE_PARAM: ${SMSIR_TEMPLATE_PARAM:-}  # verify-template placeholder name (default OTP — must match #…# in the panel template)
       OTP_FALLBACK_AFTER_MS: ${OTP_FALLBACK_AFTER_MS:-}  # delivery-watchdog delay before 2nd-route resend (default 60000; 0 disables)
+      # Analytics — each empty until the owner supplies the id (GTM/GA also
+      # need a rebuild for CSP; Matomo + GSC are runtime-only).
+      MATOMO_SITE_ID: ${MATOMO_SITE_ID:-}
+      GTM_ID: ${GTM_ID:-}
+      GA4_ID: ${GA4_ID:-}
+      GSC_VERIFICATION: ${GSC_VERIFICATION:-}
       # Fully optional integrations (dev fallbacks / last-known values apply when blank)
       TGJU_BASE_URL: ${TGJU_BASE_URL:-}
       TGJU_API_KEY: ${TGJU_API_KEY:-}
@@ -154,6 +164,37 @@ services:
       timeout: 3s
       retries: 5
 
+  matomo-db:
+    image: mariadb:11
+    restart: unless-stopped
+    command: --max-allowed-packet=64MB
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MATOMO_DB_ROOT_PASSWORD:?set MATOMO_DB_ROOT_PASSWORD in .env}
+      MARIADB_DATABASE: matomo
+      MARIADB_USER: matomo
+      MARIADB_PASSWORD: ${MATOMO_DB_PASSWORD:?set MATOMO_DB_PASSWORD in .env}
+    volumes:
+      - matomodb:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  matomo:
+    image: matomo:5-apache
+    restart: unless-stopped
+    depends_on:
+      matomo-db:
+        condition: service_healthy
+    environment:
+      MATOMO_DATABASE_HOST: matomo-db
+      MATOMO_DATABASE_DBNAME: matomo
+      MATOMO_DATABASE_USERNAME: matomo
+      MATOMO_DATABASE_PASSWORD: ${MATOMO_DB_PASSWORD}
+    volumes:
+      - matomodata:/var/www/html
+
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
@@ -169,6 +210,7 @@ services:
     ports:
       - "80:80"
       - "443:443"
+      - "8443:8443"   # Matomo admin UI (analytics)
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data      # persists issued certificates across restarts
@@ -178,4 +220,6 @@ volumes:
   caddy_data:
   caddy_config:
   pgdata:
+  matomodb:
+  matomodata:
   redisdata:

@@ -17,11 +17,7 @@ import {
 import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
 import { CLUB_TIERS_ORDERED } from '@/lib/data/club';
 import {
-  TagIcon,
   CheckCircleIcon,
-  BellIcon,
-  UserIcon,
-  SparkIcon,
   StarIcon,
   PhoneIcon,
   ArrowEndIcon,
@@ -32,34 +28,6 @@ import styles from './ClubLanding.module.css';
  *  the in-account panel, and admin all show the exact same perks. */
 const TIERS = CLUB_TIERS_ORDERED;
 
-/** The five core benefits, shown as a calm icon grid. */
-const BENEFITS: { icon: ReactNode; title: string; body: string }[] = [
-  {
-    icon: <TagIcon size={22} />,
-    title: 'تخفیف پلکانی',
-    body: 'هرچه بیشتر خرید کنید، تخفیف بیشتری می‌گیرید؛ پله‌به‌پله و شفاف.',
-  },
-  {
-    icon: <CheckCircleIcon size={22} />,
-    title: 'اولویت در تأمین',
-    body: 'سفارش اعضای باشگاه در صف تأمین و تحویل اولویت می‌گیرد.',
-  },
-  {
-    icon: <BellIcon size={22} />,
-    title: 'هشدار قیمت اختصاصی',
-    body: 'برای محصولات مورد علاقه‌تان، تغییر قیمت را پیش از دیگران بدانید.',
-  },
-  {
-    icon: <UserIcon size={22} />,
-    title: 'مشاور اختصاصی',
-    body: 'یک کارشناس ثابت کنار شماست؛ اول مشورت، بعد خرید.',
-  },
-  {
-    icon: <SparkIcon size={22} />,
-    title: 'پیش‌فاکتور سریع‌تر',
-    body: 'استعلام شما زودتر بررسی و پیش‌فاکتور در کوتاه‌ترین زمان آماده می‌شود.',
-  },
-];
 
 /** «چطور عضو شویم؟» — three sequential steps. */
 const STEPS: { title: string; body: string }[] = [
@@ -164,30 +132,6 @@ export function ClubLanding() {
                         </li>
                       ))}
                     </ul>
-                  </Card>
-                ))}
-              </Grid>
-            </Stack>
-          </section>
-
-          {/* ===== Benefits ===== */}
-          <section aria-labelledby="club-benefits" className={styles.block}>
-            <Stack gap={6}>
-              <div className={styles.blockHead}>
-                <Heading level={2} id="club-benefits">
-                  امتیازهای عضویت
-                </Heading>
-                <Text color="muted">پنج مزیت روشن که خرید آهن و فولاد را برای شما مطمئن‌تر می‌کند.</Text>
-              </div>
-
-              <Grid gap={4} min="240px">
-                {BENEFITS.map((b) => (
-                  <Card key={b.title} as="article" className={styles.benefit}>
-                    <span className={styles.benefitIcon} aria-hidden="true">
-                      {b.icon}
-                    </span>
-                    <h3 className={styles.benefitTitle}>{b.title}</h3>
-                    <p className={styles.benefitBody}>{b.body}</p>
                   </Card>
                 ))}
               </Grid>

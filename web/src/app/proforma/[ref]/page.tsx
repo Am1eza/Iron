@@ -4,7 +4,8 @@ import { buildMetadata } from '@/lib/seo';
 import { API_MODE } from '@/lib/api/config';
 import { hasDb } from '@/lib/server/db/client';
 import { findProformaByRef } from '@/lib/server/repos/leadsRepo';
-import { CONTACT, ORG_NAME } from '@/lib/seo';
+import { ORG_NAME } from '@/lib/seo';
+import { getContact } from '@/lib/server/contact';
 import { formatToman, formatJalali, toPersianDigits } from '@/lib/utils/format';
 import { PrintButton } from './PrintButton';
 import styles from './proforma.module.css';
@@ -22,6 +23,7 @@ export default async function ProformaPage({ params }: Params) {
   const { ref } = await params;
   if (API_MODE !== 'live' || !hasDb()) notFound();
 
+  const CONTACT = await getContact();
   const p = await findProformaByRef(decodeURIComponent(ref).toUpperCase());
   if (!p) notFound();
 

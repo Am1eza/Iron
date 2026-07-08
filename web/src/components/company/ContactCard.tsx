@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { CONTACT } from '@/lib/seo';
+import { getContact } from '@/lib/server/contact';
 import { routes } from '@/lib/routes';
 import { toPersianDigits } from '@/lib/utils/format';
 import { PhoneIcon, HomeIcon, ArrowEndIcon } from '@/components/primitives/icons';
@@ -10,7 +10,8 @@ import styles from './ContactCard.module.css';
  * «تماس» CTA to the contact page. Server component; pulls from CONTACT in seo.
  * Persian digits for display; tel: hrefs stay Latin/ASCII for diallers.
  */
-export function ContactCard() {
+export async function ContactCard() {
+  const CONTACT = await getContact();
   return (
     <div className={styles.card}>
       <div className={styles.body}>

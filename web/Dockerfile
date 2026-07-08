@@ -20,9 +20,19 @@ COPY . .
 ARG NEXT_PUBLIC_SITE_URL=https://ahantime.com
 ARG NEXT_PUBLIC_API_MODE=mock
 ARG NEXT_PUBLIC_DEPLOY_REGION=ir-docker
+# Analytics ids — baked at build (they gate the tracker snippet + CSP origins).
+# Empty by default → zero third-party code until the owner sets them + rebuilds.
+ARG MATOMO_SITE_ID=
+ARG GTM_ID=
+ARG GA4_ID=
+ARG GSC_VERIFICATION=
 ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL \
     NEXT_PUBLIC_API_MODE=$NEXT_PUBLIC_API_MODE \
     NEXT_PUBLIC_DEPLOY_REGION=$NEXT_PUBLIC_DEPLOY_REGION \
+    MATOMO_SITE_ID=$MATOMO_SITE_ID \
+    GTM_ID=$GTM_ID \
+    GA4_ID=$GA4_ID \
+    GSC_VERIFICATION=$GSC_VERIFICATION \
     NEXT_TELEMETRY_DISABLED=1 \
     NODE_ENV=production \
     BUILD_STANDALONE=1

@@ -3,7 +3,9 @@ import { usePathname } from 'next/navigation';
 import { Ticker } from './Ticker';
 import { Header } from './Header';
 import { Footer } from './Footer';
+import type { SiteContact } from '@/lib/server/contact';
 import { BottomTabBar } from './BottomTabBar';
+import { CallbackWidget } from '@/components/support/CallbackWidget';
 // Code-split: the hamburger drawer is only reachable below the 1024px
 // breakpoint (and only once opened), and the arrival popup renders `null`
 // for its own first 12s by design — neither needs to ship in the shared
@@ -31,14 +33,15 @@ export function SiteChromeTop({ categories }: { categories: Category[] }) {
   );
 }
 
-export function SiteChromeBottom({ categories }: { categories: Category[] }) {
+export function SiteChromeBottom({ categories, contact }: { categories: Category[]; contact: SiteContact }) {
   const pathname = usePathname();
   if (pathname?.startsWith('/admin')) return null;
   return (
     <>
-      <Footer categories={categories} />
+      <Footer categories={categories} contact={contact} />
       <BottomTabBar />
       <ArrivalPopup />
+      <CallbackWidget />
     </>
   );
 }
