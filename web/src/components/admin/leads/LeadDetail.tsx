@@ -6,19 +6,69 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api/resources/admin';
+import type { LineItem } from '@/lib/types/domain';
 import { useAuthStore } from '@/lib/stores/auth';
 import { ROLE_LABEL } from '@/lib/auth/roles';
 import type { Role } from '@/lib/auth/types';
-import { formatJalali, formatToman, toPersianDigits } from '@/lib/utils/format';
+import { formatJalali, formatToman, normalizeDigits } from '@/lib/utils/format';
 import { useToast } from '@/lib/hooks/useToast';
 import { ApiError } from '@/lib/api/errors';
 import { Badge, Button, Spinner } from '@/components/ui';
 import ui from '../adminUi.module.css';
 
+/** One editable line item — qty/unitPrice, before proforma issuance (US-19.4). */
+function EditableItemRow({ leadId, item, onSaved }: { leadId: string; item: LineItem & { id: string }; onSaved: () => void }) {
+  const toast = useToast();
+  const [qty, setQty] = useState(String(item.qty));
+  const [price, setPrice] = useState(item.unitPrice ? String(item.unitPrice) : '');
+  const dirty = normalizeDigits(qty) !== String(item.qty) || normalizeDigits(price || '0') !== String(item.unitPrice ?? 0);
+
+  const save = useMutation({
+    mutationFn: () =>
+      adminApi.updateLeadItem(leadId, item.id, {
+        qty: Number(normalizeDigits(qty)),
+        unitPrice: price ? Number(normalizeDigits(price)) : 0,
+      }),
+    onSuccess: () => {
+      toast.success('قلم به‌روزرسانی شد.');
+      onSaved();
+    },
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : 'به‌روزرسانی قلم ناموفق بود.'),
+  });
+
+  return (
+    <li className="tnum" style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', flexWrap: 'wrap' }}>
+      <span style={{ flex: '1 1 auto' }}>{item.name}</span>
+      <input
+        className={ui.numInput}
+        style={{ inlineSize: '5rem' }}
+        inputMode="decimal"
+        value={qty}
+        onChange={(e) => setQty(e.target.value)}
+        aria-label={`تعداد ${item.name}`}
+      />
+      <input
+        className={ui.numInput}
+        inputMode="numeric"
+        value={price}
+        onChange={(e) => setPrice(e.target.value)}
+        aria-label={`قیمت واحد ${item.name}`}
+        placeholder="بدون قیمت"
+      />
+      {dirty ? (
+        <Button size="sm" variant="ghost" onClick={() => save.mutate()} loading={save.isPending}>
+          ذخیره
+        </Button>
+      ) : null}
+    </li>
+  );
+}
+
 export function LeadDetail({ id }: { id: string }) {
   const toast = useToast();
   const qc = useQueryClient();
   const [note, setNote] = useState('');
+  const [discount, setDiscount] = useState('');
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin', 'lead', id],
@@ -47,9 +97,10 @@ export function LeadDetail({ id }: { id: string }) {
     onError: (e) => onError(e, 'ثبت یادداشت ناموفق بود.'),
   });
   const issue = useMutation({
-    mutationFn: () => adminApi.issueProforma(id),
+    mutationFn: () => adminApi.issueProforma(id, discount ? Number(normalizeDigits(discount)) : undefined),
     onSuccess: (res) => {
       toast.success(`پیش‌فاکتور ${res.proforma.ref} صادر و پیامک شد.`);
+      setDiscount('');
       invalidate();
     },
     onError: (e) => onError(e, 'صدور پیش‌فاکتور ناموفق بود.'),
@@ -103,12 +154,9 @@ export function LeadDetail({ id }: { id: string }) {
           {items.length === 0 ? (
             <p className={ui.muted}>بدون قلم کالا.</p>
           ) : (
-            <ul>
-              {items.map((it, i) => (
-                <li key={`${it.skuId}-${i}`} className="tnum">
-                  {it.name} × {toPersianDigits(it.qty)}{' '}
-                  {it.unitPrice ? `— ${formatToman(it.unitPrice, false)} تومان` : '— بدون قیمت'}
-                </li>
+            <ul style={{ display: 'grid', gap: 'var(--space-2)' }}>
+              {items.map((it) => (
+                <EditableItemRow key={it.id} leadId={id} item={it} onSaved={invalidate} />
               ))}
             </ul>
           )}
@@ -147,6 +195,15 @@ export function LeadDetail({ id }: { id: string }) {
                 </Button>
               </>
             ) : null}
+            <input
+              className={ui.numInput}
+              style={{ inlineSize: '8rem' }}
+              inputMode="numeric"
+              placeholder="تخفیف (تومان)"
+              value={discount}
+              onChange={(e) => setDiscount(e.target.value)}
+              aria-label="تخفیف پیش‌فاکتور به تومان"
+            />
             <Button size="sm" variant="secondary" onClick={() => issue.mutate()} loading={issue.isPending}>
               صدور پیش‌فاکتور
             </Button>

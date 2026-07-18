@@ -203,7 +203,10 @@ export const adminApi = {
   updateLead: (id: string, patch: { status?: string; assigneeId?: string | null; callbackAt?: string | null }) =>
     http.patch<{ lead: AdminLead }>(`/api/admin/leads/${id}`, patch),
   addLeadNote: (id: string, text: string) => http.post<{ note: unknown }>(`/api/admin/leads/${id}/notes`, { text }),
-  issueProforma: (id: string) => http.post<{ proforma: AdminProforma }>(`/api/admin/leads/${id}/proforma`, {}),
+  updateLeadItem: (leadId: string, itemId: string, patch: { qty?: number; unitPrice?: number }) =>
+    http.patch<{ item: LineItem & { id: string } }>(`/api/admin/leads/${leadId}/items/${itemId}`, patch),
+  issueProforma: (id: string, discountToman?: number) =>
+    http.post<{ proforma: AdminProforma }>(`/api/admin/leads/${id}/proforma`, discountToman ? { discountToman } : {}),
   myDesk: () => http.get<DeskRes>('/api/admin/my/desk'),
   staff: () => http.get<{ staff: StaffMember[] }>('/api/admin/staff'),
   convertToOrder: (id: string) => http.post<{ order: Order }>(`/api/admin/leads/${id}/order`, {}),
