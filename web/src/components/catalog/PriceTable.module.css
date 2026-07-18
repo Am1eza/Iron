@@ -306,3 +306,28 @@
   background: var(--color-action-press);
   transform: translateY(1px);
 }
+
+/* ===== Compare modal (US-02.9) ===== */
+.compareScroll {
+  overflow-x: auto;
+}
+.compareTable {
+  inline-size: 100%;
+  border-collapse: collapse;
+  min-inline-size: 480px;
+}
+.compareTable th,
+.compareTable td {
+  padding: var(--space-3) var(--space-4);
+  border-block-end: var(--border-hairline) solid var(--color-hairline);
+  text-align: start;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.compareTable th[scope='row'] {
+  color: var(--color-text-muted);
+  font-weight: 600;
+  position: sticky;
+  inset-inline-start: 0;
+  background: var(--color-surface);
+}

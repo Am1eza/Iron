@@ -31,6 +31,9 @@ type RowActions = {
   onAddToCart: (row: PriceRow) => void;
 };
 
+/** US-02.9 — 2 to 4 rows only (a wider compare table stops being scannable). */
+const MAX_COMPARE = 4;
+
 /**
  * One desktop table row. Memoized so toggling a favorite / opening the chart
  * modal / anything else that only affects one row doesn't re-render every
@@ -43,12 +46,22 @@ const PriceTableRow = memo(function PriceTableRow({
   row: r,
   vat,
   isFav,
+  compareChecked,
+  onToggleCompare,
   onToggleFav,
   onChart,
   onAddToCart,
-}: { row: PriceRow; vat: boolean; isFav: boolean } & RowActions) {
+}: { row: PriceRow; vat: boolean; isFav: boolean; compareChecked: boolean; onToggleCompare: (id: string) => void } & RowActions) {
   return (
     <tr>
+      <td>
+        <input
+          type="checkbox"
+          checked={compareChecked}
+          onChange={() => onToggleCompare(r.id)}
+          aria-label={`افزودن ${r.name} به مقایسه`}
+        />
+      </td>
       <th scope="row" className={styles.name}>
         <Link href={routes.sku(r.categoryId, r.subCategoryId, r.slug)} className={styles.nameLink}>
           {r.name}
@@ -227,6 +240,19 @@ export function PriceTable({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
   const [chartFor, setChartFor] = useState<PriceRow | null>(null);
+  const [compareIds, setCompareIds] = useState<Set<string>>(new Set());
+  const [compareOpen, setCompareOpen] = useState(false);
+  const toggleCompare = useCallback((id: string) => {
+    setCompareIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else if (next.size < MAX_COMPARE) {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
   const [factory, setFactoryState] = useState<string | null>(null);
   const setFactory = (next: string | null) => withTransition(() => setFactoryState(next));
   const [size, setSizeState] = useState<string | null>(null);
@@ -333,6 +359,7 @@ export function PriceTable({
   );
 
   const updated = rows[0]?.current.updatedAt;
+  const compareRows = useMemo(() => rows.filter((r) => compareIds.has(r.id)), [rows, compareIds]);
 
   return (
     <div className={styles.wrap}>
@@ -396,9 +423,14 @@ export function PriceTable({
           </label>
           <Switch checked={vat} onChange={setVat} label="با ارزش‌افزوده" />
           <ExportMenu rows={sorted} title={categoryName} />
-          <a href="#compare" className={styles.compareLink}>
-            مقایسهٔ کارخانه‌ها
-          </a>
+          <button
+            type="button"
+            className={styles.compareLink}
+            disabled={compareRows.length < 2}
+            onClick={() => setCompareOpen(true)}
+          >
+            مقایسه {compareRows.length > 0 ? `(${toPersianDigits(compareRows.length)})` : ''}
+          </button>
         </div>
       </div>
 
@@ -424,6 +456,9 @@ export function PriceTable({
           </caption>
           <thead>
             <tr>
+              <th scope="col">
+                <span className="visually-hidden">مقایسه</span>
+              </th>
               <th scope="col">محصول</th>
               <th scope="col" aria-sort={sort === 'size' ? 'ascending' : 'none'}>سایز</th>
               <th scope="col">کارخانه</th>
@@ -458,6 +493,8 @@ export function PriceTable({
                 row={r}
                 vat={vat}
                 isFav={fav.has(r.id)}
+                compareChecked={compareIds.has(r.id)}
+                onToggleCompare={toggleCompare}
                 onToggleFav={toggleFav}
                 onChart={setChartFor}
                 onAddToCart={addToCart}
@@ -504,6 +541,71 @@ export function PriceTable({
         {chartFor ? (
           <PriceChart series={priceSeries(chartFor.slug, chartFor.current.price)} />
         ) : null}
+      </Modal>
+
+      {/* Side-by-side comparison (US-02.9) — 2 to 4 rows */}
+      <Modal open={compareOpen} onClose={() => setCompareOpen(false)} title="مقایسهٔ کالاها">
+        {compareRows.length < 2 ? null : (
+          <div className={styles.compareScroll}>
+            <table className={`${styles.compareTable} tnum`}>
+              <caption className="visually-hidden">مقایسهٔ مشخصات و قیمت کالاهای انتخاب‌شده</caption>
+              <tbody>
+                <tr>
+                  <th scope="row">محصول</th>
+                  {compareRows.map((r) => (
+                    <td key={r.id}>
+                      <Link href={routes.sku(r.categoryId, r.subCategoryId, r.slug)} onClick={() => setCompareOpen(false)}>
+                        {r.name}
+                      </Link>
+                    </td>
+                  ))}
+                </tr>
+                <tr>
+                  <th scope="row">سایز</th>
+                  {compareRows.map((r) => (
+                    <td key={r.id}>{r.size ? toPersianDigits(r.size) : '—'}</td>
+                  ))}
+                </tr>
+                <tr>
+                  <th scope="row">کارخانه</th>
+                  {compareRows.map((r) => (
+                    <td key={r.id}>{r.factory ?? '—'}</td>
+                  ))}
+                </tr>
+                <tr>
+                  <th scope="row">وزن شاخه</th>
+                  {compareRows.map((r) => (
+                    <td key={r.id}>{r.theoreticalWeightKg ? `${toPersianDigits(r.theoreticalWeightKg)} kg` : '—'}</td>
+                  ))}
+                </tr>
+                <tr>
+                  <th scope="row">قیمت (تومان)</th>
+                  {compareRows.map((r) => (
+                    <td key={r.id} className={styles.price}>
+                      {formatToman(withVat(r.current.price, vat), false)}
+                    </td>
+                  ))}
+                </tr>
+                <tr>
+                  <th scope="row">نوسان</th>
+                  {compareRows.map((r) => (
+                    <td key={r.id}>
+                      <MovementBadge dir={r.current.movementDir} pct={r.current.movementPct} />
+                    </td>
+                  ))}
+                </tr>
+                <tr>
+                  <th scope="row">تحویل</th>
+                  {compareRows.map((r) => (
+                    <td key={r.id}>
+                      <DeliveryBadge value={r.current.deliveryTime} />
+                    </td>
+                  ))}
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
       </Modal>
     </div>
   );
