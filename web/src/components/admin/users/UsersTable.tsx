@@ -9,10 +9,12 @@ import { formatJalali, toPersianDigits } from '@/lib/utils/format';
 import { useToast } from '@/lib/hooks/useToast';
 import { ApiError } from '@/lib/api/errors';
 import { Badge, Button, Chip, EmptyState, Heading, Spinner, TableSkeleton, useConfirm } from '@/components/ui';
+import { TextInput } from '@/components/forms/fields';
 import ui from '../adminUi.module.css';
 
 const ROLES: Role[] = ['customer', 'operator', 'sales', 'content', 'catalog', 'admin'];
 const TIER_LABEL: Record<string, string> = { iron: 'آهنی', steel: 'فولادی', poolad: 'پولادی' };
+const INVITABLE_ROLES: Array<'operator' | 'sales' | 'content' | 'catalog'> = ['operator', 'sales', 'content', 'catalog'];
 
 export function UsersTable() {
   const toast = useToast();
@@ -21,6 +23,12 @@ export function UsersTable() {
   const [search, setSearch] = useState('');
   const [q, setQ] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
+  const [inviting, setInviting] = useState(false);
+  const [invite, setInvite] = useState<{ mobile: string; name: string; role: (typeof INVITABLE_ROLES)[number] }>({
+    mobile: '',
+    name: '',
+    role: 'sales',
+  });
 
   useEffect(() => {
     const t = setTimeout(() => setQ(search.trim()), 300);
@@ -39,6 +47,16 @@ export function UsersTable() {
       void qc.invalidateQueries({ queryKey: ['admin', 'users'] });
     },
     onError: (err) => toast.error(err instanceof ApiError ? err.message : 'به‌روزرسانی ناموفق بود.'),
+  });
+  const createStaff = useMutation({
+    mutationFn: () => adminApi.createStaffUser({ mobile: invite.mobile.trim(), name: invite.name.trim() || undefined, role: invite.role }),
+    onSuccess: () => {
+      toast.success('کاربر ستادی ساخته شد؛ با همین موبایل و کد پیامکی وارد می‌شود.');
+      setInviting(false);
+      setInvite({ mobile: '', name: '', role: 'sales' });
+      void qc.invalidateQueries({ queryKey: ['admin', 'users'] });
+    },
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : 'ساخت کاربر ناموفق بود.'),
   });
 
   const users = data?.users ?? [];
@@ -64,7 +82,53 @@ export function UsersTable() {
             onChange={(e) => setSearch(e.target.value)}
             aria-label="جستجوی کاربر"
           />
+          <Button size="sm" variant="secondary" onClick={() => setInviting(!inviting)}>
+            دعوت کاربر ستادی
+          </Button>
         </div>
+
+        {inviting ? (
+          <div className={ui.panel} style={{ marginBlockEnd: 'var(--space-3)' }}>
+            <div className={ui.grid2}>
+              <TextInput
+                label="موبایل"
+                inputMode="numeric"
+                dir="ltr"
+                value={invite.mobile}
+                onChange={(e) => setInvite({ ...invite, mobile: e.target.value })}
+                helper="کاربر با همین شماره و کد پیامکی وارد می‌شود."
+              />
+              <TextInput label="نام (اختیاری)" value={invite.name} onChange={(e) => setInvite({ ...invite, name: e.target.value })} />
+              <div>
+                <label className={ui.muted} htmlFor="invite-role">
+                  نقش
+                </label>
+                <br />
+                <select
+                  id="invite-role"
+                  className={ui.select}
+                  value={invite.role}
+                  onChange={(e) => setInvite({ ...invite, role: e.target.value as typeof invite.role })}
+                >
+                  {INVITABLE_ROLES.map((r) => (
+                    <option key={r} value={r}>
+                      {ROLE_LABEL[r]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className={ui.toolbar} style={{ marginBlockStart: 'var(--space-3)' }}>
+              <Button size="sm" onClick={() => createStaff.mutate()} disabled={!invite.mobile.trim()} loading={createStaff.isPending}>
+                ساخت کاربر
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setInviting(false)}>
+                انصراف
+              </Button>
+            </div>
+          </div>
+        ) : null}
+
         {isLoading ? (
           <TableSkeleton rows={6} cols={5} />
         ) : isError ? (

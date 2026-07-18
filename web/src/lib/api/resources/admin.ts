@@ -377,6 +377,10 @@ export const adminApi = {
   },
   updateUser: (id: string, patch: { role?: string; isActive?: boolean; name?: string }) =>
     http.patch<{ user: AdminUserRow }>(`/api/admin/users/${id}`, patch),
+  /** Direct staff invite (US-21.4) — 'admin' isn't a valid role here; that's
+   *  allowlist-only (server rejects it). */
+  createStaffUser: (input: { mobile: string; name?: string; role: 'operator' | 'sales' | 'content' | 'catalog' }) =>
+    http.post<{ user: AdminUserRow }>('/api/admin/users', input),
   /** Profile + a recent-activity glance (leads/orders/AI usage), US-21.3. */
   userDetail: (id: string) =>
     http.get<{
