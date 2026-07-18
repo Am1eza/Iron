@@ -262,20 +262,33 @@ export async function adminListWarehouse(
   query: { page?: number; perPage?: number; includeDeleted?: boolean } = {},
 ) {
   const db = getDb();
+  const { users } = await import('@/lib/server/db/schema');
   const page = query.page ?? 1;
   const perPage = query.perPage ?? 50;
   const where = query.includeDeleted ? undefined : isNull(warehouseItems.deletedAt);
   const [rows, total] = await Promise.all([
     db
-      .select()
+      .select({ item: warehouseItems, customerMobile: users.mobile, customerName: users.name })
       .from(warehouseItems)
+      .innerJoin(users, eq(warehouseItems.userId, users.id))
       .where(where)
       .orderBy(desc(warehouseItems.storedAt))
       .limit(perPage)
       .offset((page - 1) * perPage),
     db.select({ n: sql<number>`count(*)::int` }).from(warehouseItems).where(where),
   ]);
-  return { items: rows.map((r) => ({ ...toWarehouseDto(r), userId: r.userId })), total: total[0]?.n ?? 0 };
+  return {
+    // US-08.5 — customer mobile/name joined in for the per-customer
+    // settlement report; `userId` stays too (stable grouping key even if a
+    // customer edits their display name).
+    items: rows.map((r) => ({
+      ...toWarehouseDto(r.item),
+      userId: r.item.userId,
+      customerMobile: r.customerMobile,
+      customerName: r.customerName,
+    })),
+    total: total[0]?.n ?? 0,
+  };
 }
 
 /** Soft-delete — remove a mistakenly-created or duplicate warehouse entry

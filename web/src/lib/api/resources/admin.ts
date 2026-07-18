@@ -209,18 +209,25 @@ export const adminApi = {
     http.patch<{ message: unknown }>(`/api/admin/contact-messages/${id}`, { status }),
 
   /* orders */
-  orders: (params: { status?: string; page?: number } = {}) => {
+  orders: (params: { status?: string; page?: number; cancelled?: boolean } = {}) => {
     const qs = new URLSearchParams();
     if (params.status) qs.set('status', params.status);
     if (params.page) qs.set('page', String(params.page));
+    if (params.cancelled) qs.set('cancelled', 'true');
     return http.get<{ orders: Order[]; total: number }>(`/api/admin/orders?${qs}`);
   },
   updateOrderStatus: (ref: string, status: string) =>
     http.patch<{ order: Order }>(`/api/admin/orders/${encodeURIComponent(ref)}`, { status }),
+  updateOrderShipping: (ref: string, patch: { trackingNumber?: string; carrierName?: string }) =>
+    http.patch<{ order: Order }>(`/api/admin/orders/${encodeURIComponent(ref)}`, patch),
+  cancelOrder: (ref: string) => http.del<{ ok: true }>(`/api/admin/orders/${encodeURIComponent(ref)}`),
 
   /* warehouse */
   warehouse: (page = 1) =>
-    http.get<{ items: Array<WarehouseItem & { userId: string }>; total: number }>(`/api/admin/warehouse?page=${page}`),
+    http.get<{
+      items: Array<WarehouseItem & { userId: string; customerMobile: string; customerName: string | null }>;
+      total: number;
+    }>(`/api/admin/warehouse?page=${page}`),
   createWarehouseItem: (input: { mobile: string; product: string; sizeLabel?: string; quantityTons: number; monthlyFeeToman?: number }) =>
     http.post<{ item: WarehouseItem }>('/api/admin/warehouse', input),
   updateWarehouseItem: (id: string, patch: { status?: string; monthlyFeeToman?: number; quantityTons?: number }) =>

@@ -1,21 +1,71 @@
 'use client';
-/** Consignment warehouse — all customers' stock + receive new items. */
-import { useState } from 'react';
+/** Consignment warehouse — all customers' stock + receive new items +
+ *  per-customer settlement report (US-08.5). */
+import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api/resources/admin';
-import { WAREHOUSE_STATUS_LABEL, type WarehouseStatus } from '@/lib/types/domain';
+import { WAREHOUSE_STATUS_LABEL, type WarehouseStatus, type WarehouseItem } from '@/lib/types/domain';
 import { formatJalali, formatToman, normalizeDigits, toPersianDigits } from '@/lib/utils/format';
 import { useToast } from '@/lib/hooks/useToast';
 import { ApiError } from '@/lib/api/errors';
-import { Button, Card, EmptyState, Heading, TableSkeleton } from '@/components/ui';
+import { Button, Card, EmptyState, Heading, TableSkeleton, Tabs, TabPanel } from '@/components/ui';
 import { TextInput } from '@/components/forms/fields';
 import ui from '../adminUi.module.css';
 
 const STATUSES = Object.entries(WAREHOUSE_STATUS_LABEL) as [WarehouseStatus, string][];
 
+type AdminWarehouseItem = WarehouseItem & { userId: string; customerMobile: string; customerName: string | null };
+
+function ItemEditFields({ item }: { item: AdminWarehouseItem }) {
+  const toast = useToast();
+  const qc = useQueryClient();
+  const [qty, setQty] = useState(String(item.quantityTons));
+  const [fee, setFee] = useState(String(item.monthlyFeeToman));
+  const dirty = normalizeDigits(qty) !== String(item.quantityTons) || normalizeDigits(fee) !== String(item.monthlyFeeToman);
+
+  const save = useMutation({
+    mutationFn: () =>
+      adminApi.updateWarehouseItem(item.id, {
+        quantityTons: Number(normalizeDigits(qty)),
+        monthlyFeeToman: Number(normalizeDigits(fee)),
+      }),
+    onSuccess: () => {
+      toast.success('مقدار/هزینه به‌روزرسانی شد.');
+      void qc.invalidateQueries({ queryKey: ['admin', 'warehouse'] });
+    },
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : 'به‌روزرسانی ناموفق بود.'),
+  });
+
+  return (
+    <span style={{ display: 'flex', gap: 'var(--space-1)', alignItems: 'center' }}>
+      <input
+        className={ui.numInput}
+        style={{ inlineSize: '6rem' }}
+        inputMode="decimal"
+        value={qty}
+        onChange={(e) => setQty(e.target.value)}
+        aria-label={`مقدار ${item.ref} (تن)`}
+      />
+      <input
+        className={ui.numInput}
+        inputMode="numeric"
+        value={fee}
+        onChange={(e) => setFee(e.target.value)}
+        aria-label={`هزینهٔ ماهانهٔ ${item.ref}`}
+      />
+      {dirty ? (
+        <Button size="sm" variant="ghost" onClick={() => save.mutate()} loading={save.isPending}>
+          ذخیره
+        </Button>
+      ) : null}
+    </span>
+  );
+}
+
 export function WarehouseManager() {
   const toast = useToast();
   const qc = useQueryClient();
+  const [tab, setTab] = useState('items');
   const [form, setForm] = useState({ mobile: '', product: '', sizeLabel: '', quantityTons: '', monthlyFeeToman: '' });
 
   const { data, isLoading, isError, refetch } = useQuery({
@@ -57,106 +107,174 @@ export function WarehouseManager() {
     onError: (err) => toast.error(err instanceof ApiError ? err.message : 'ثبت کالا ناموفق بود.'),
   });
 
-  const items = data?.items ?? [];
+  const items = useMemo(() => data?.items ?? [], [data]);
   const canCreate =
     /^09\d{9}$/.test(normalizeDigits(form.mobile.trim())) &&
     form.product.trim().length > 0 &&
     Number(normalizeDigits(form.quantityTons)) > 0;
 
+  // US-08.5 — per-customer settlement: sum of monthly fees for stock that's
+  // still actually occupying warehouse space (released items no longer owe
+  // storage fees, so they're excluded from the running total).
+  const settlement = useMemo(() => {
+    const active = items.filter((it) => it.status !== 'released');
+    const byCustomer = new Map<string, { mobile: string; name: string | null; count: number; totalFee: number }>();
+    for (const it of active) {
+      const cur = byCustomer.get(it.userId) ?? { mobile: it.customerMobile, name: it.customerName, count: 0, totalFee: 0 };
+      cur.count += 1;
+      cur.totalFee += it.monthlyFeeToman;
+      byCustomer.set(it.userId, cur);
+    }
+    return [...byCustomer.entries()]
+      .map(([userId, v]) => ({ userId, ...v }))
+      .sort((a, b) => b.totalFee - a.totalFee);
+  }, [items]);
+
   return (
     <div style={{ display: 'grid', gap: 'var(--space-5)' }}>
-      {isLoading ? (
-        <TableSkeleton rows={5} cols={6} />
-      ) : isError ? (
-        <EmptyState
-          size="section"
-          tone="error"
-          headline="بارگذاری انبار ناموفق بود."
-          primary={{ label: 'تلاش دوباره', onClick: () => void refetch() }}
-        />
-      ) : items.length === 0 ? (
-        <EmptyState size="section" headline="انبار خالی است" body="کالای امانی مشتریان اینجا ثبت می‌شود." />
-      ) : (
-        <table className={ui.table}>
-          <caption className="visually-hidden">فهرست کالاهای امانی انبار مشتریان</caption>
-          <thead>
-            <tr>
-              <th scope="col">کد</th>
-              <th scope="col">محصول</th>
-              <th scope="col">مقدار (تن)</th>
-              <th scope="col">هزینهٔ ماهانه</th>
-              <th scope="col">تاریخ ثبت</th>
-              <th scope="col">وضعیت</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((it) => (
-              <tr key={it.id}>
-                <td className="tnum">
-                  <bdi>{it.ref}</bdi>
-                </td>
-                <td>
-                  {it.product}
-                  {it.sizeLabel ? <span className={ui.muted}> · {it.sizeLabel}</span> : null}
-                </td>
-                <td className="tnum">{toPersianDigits(it.quantityTons)}</td>
-                <td className="tnum">{formatToman(it.monthlyFeeToman, false)} تومان</td>
-                <td className="tnum">{formatJalali(it.storedAt)}</td>
-                <td>
-                  <select
-                    className={ui.select}
-                    value={it.status}
-                    onChange={(e) => update.mutate({ id: it.id, status: e.target.value as WarehouseStatus })}
-                    aria-label={`وضعیت ${it.ref}`}
-                  >
-                    {STATUSES.map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+      <Tabs
+        label="بخش‌های انبار"
+        idBase="warehouse"
+        active={tab}
+        onChange={setTab}
+        items={[
+          { id: 'items', label: 'کالاها' },
+          { id: 'settlement', label: 'تسویه‌حساب' },
+        ]}
+      />
 
-      <Card>
-        <Heading level={2}>ثبت کالای جدید</Heading>
-        <div className={ui.grid2} style={{ marginBlockStart: 'var(--space-3)' }}>
-          <TextInput
-            label="موبایل مشتری"
-            inputMode="numeric"
-            dir="ltr"
-            value={form.mobile}
-            onChange={(e) => setForm({ ...form, mobile: e.target.value })}
-            helper="مشتری باید در سایت ثبت‌نام کرده باشد."
-          />
-          <TextInput label="محصول" value={form.product} onChange={(e) => setForm({ ...form, product: e.target.value })} />
-          <TextInput label="سایز (اختیاری)" value={form.sizeLabel} onChange={(e) => setForm({ ...form, sizeLabel: e.target.value })} />
-          <TextInput
-            label="مقدار (تن)"
-            inputMode="decimal"
-            value={form.quantityTons}
-            onChange={(e) => setForm({ ...form, quantityTons: e.target.value })}
-          />
-          <TextInput
-            label="هزینهٔ ماهانه (تومان، اختیاری)"
-            inputMode="numeric"
-            value={form.monthlyFeeToman}
-            onChange={(e) => setForm({ ...form, monthlyFeeToman: e.target.value })}
-          />
+      <TabPanel id="items" active={tab} idBase="warehouse">
+        <div style={{ display: 'grid', gap: 'var(--space-5)' }}>
+          {isLoading ? (
+            <TableSkeleton rows={5} cols={6} />
+          ) : isError ? (
+            <EmptyState
+              size="section"
+              tone="error"
+              headline="بارگذاری انبار ناموفق بود."
+              primary={{ label: 'تلاش دوباره', onClick: () => void refetch() }}
+            />
+          ) : items.length === 0 ? (
+            <EmptyState size="section" headline="انبار خالی است" body="کالای امانی مشتریان اینجا ثبت می‌شود." />
+          ) : (
+            <table className={ui.table}>
+              <caption className="visually-hidden">فهرست کالاهای امانی انبار مشتریان</caption>
+              <thead>
+                <tr>
+                  <th scope="col">کد</th>
+                  <th scope="col">مشتری</th>
+                  <th scope="col">محصول</th>
+                  <th scope="col">مقدار (تن) / هزینهٔ ماهانه</th>
+                  <th scope="col">تاریخ ثبت</th>
+                  <th scope="col">وضعیت</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((it) => (
+                  <tr key={it.id}>
+                    <td className="tnum">
+                      <bdi>{it.ref}</bdi>
+                    </td>
+                    <td className={`tnum ${ui.mono}`}>
+                      {it.customerName ?? '—'}
+                      <div className={ui.muted}>{it.customerMobile}</div>
+                    </td>
+                    <td>
+                      {it.product}
+                      {it.sizeLabel ? <span className={ui.muted}> · {it.sizeLabel}</span> : null}
+                    </td>
+                    <td>
+                      <ItemEditFields item={it} />
+                    </td>
+                    <td className="tnum">{formatJalali(it.storedAt)}</td>
+                    <td>
+                      <select
+                        className={ui.select}
+                        value={it.status}
+                        onChange={(e) => update.mutate({ id: it.id, status: e.target.value as WarehouseStatus })}
+                        aria-label={`وضعیت ${it.ref}`}
+                      >
+                        {STATUSES.map(([value, label]) => (
+                          <option key={value} value={value}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+
+          <Card>
+            <Heading level={2}>ثبت کالای جدید</Heading>
+            <div className={ui.grid2} style={{ marginBlockStart: 'var(--space-3)' }}>
+              <TextInput
+                label="موبایل مشتری"
+                inputMode="numeric"
+                dir="ltr"
+                value={form.mobile}
+                onChange={(e) => setForm({ ...form, mobile: e.target.value })}
+                helper="مشتری باید در سایت ثبت‌نام کرده باشد."
+              />
+              <TextInput label="محصول" value={form.product} onChange={(e) => setForm({ ...form, product: e.target.value })} />
+              <TextInput label="سایز (اختیاری)" value={form.sizeLabel} onChange={(e) => setForm({ ...form, sizeLabel: e.target.value })} />
+              <TextInput
+                label="مقدار (تن)"
+                inputMode="decimal"
+                value={form.quantityTons}
+                onChange={(e) => setForm({ ...form, quantityTons: e.target.value })}
+              />
+              <TextInput
+                label="هزینهٔ ماهانه (تومان، اختیاری)"
+                inputMode="numeric"
+                value={form.monthlyFeeToman}
+                onChange={(e) => setForm({ ...form, monthlyFeeToman: e.target.value })}
+              />
+            </div>
+            <Button
+              style={{ marginBlockStart: 'var(--space-3)' }}
+              onClick={() => create.mutate()}
+              disabled={!canCreate}
+              loading={create.isPending}
+            >
+              ثبت کالا
+            </Button>
+          </Card>
         </div>
-        <Button
-          style={{ marginBlockStart: 'var(--space-3)' }}
-          onClick={() => create.mutate()}
-          disabled={!canCreate}
-          loading={create.isPending}
-        >
-          ثبت کالا
-        </Button>
-      </Card>
+      </TabPanel>
+
+      <TabPanel id="settlement" active={tab} idBase="warehouse">
+        {isLoading ? (
+          <TableSkeleton rows={4} cols={4} />
+        ) : settlement.length === 0 ? (
+          <EmptyState size="section" headline="کالای فعالی نیست" body="پس از ثبت کالای امانی، تسویه‌حساب هر مشتری اینجا جمع می‌شود." />
+        ) : (
+          <table className={ui.table}>
+            <caption className="visually-hidden">گزارش تسویه‌حساب هزینهٔ انبار به تفکیک مشتری</caption>
+            <thead>
+              <tr>
+                <th scope="col">مشتری</th>
+                <th scope="col">تعداد کالای فعال</th>
+                <th scope="col">جمع هزینهٔ ماهانه</th>
+              </tr>
+            </thead>
+            <tbody>
+              {settlement.map((s) => (
+                <tr key={s.userId}>
+                  <td className={`tnum ${ui.mono}`}>
+                    {s.name ?? '—'}
+                    <div className={ui.muted}>{s.mobile}</div>
+                  </td>
+                  <td className="tnum">{toPersianDigits(s.count)}</td>
+                  <td className="tnum">{formatToman(s.totalFee, false)} تومان</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </TabPanel>
     </div>
   );
 }
