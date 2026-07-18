@@ -64,13 +64,13 @@ describe('ensureConversation', () => {
     const id = ulid();
     await db.insert(schema.aiConversations).values({ id, summary: 'خلاصهٔ قبلی' });
     const conv = await ensureConversation(id, null);
-    expect(conv).toEqual({ id, summary: 'خلاصهٔ قبلی' });
+    expect(conv).toEqual({ id, summary: 'خلاصهٔ قبلی', promptVersionId: null });
   });
 
   it('re-creates a client-echoed id that no longer exists', async () => {
     const id = `ghost-${ulid()}`;
     const conv = await ensureConversation(id, null);
-    expect(conv).toEqual({ id, summary: null });
+    expect(conv).toEqual({ id, summary: null, promptVersionId: null });
     const rows = await db
       .select()
       .from(schema.aiConversations)

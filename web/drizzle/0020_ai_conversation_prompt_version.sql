@@ -1,0 +1,1 @@
+ALTER TABLE "ai_conversations" ADD COLUMN "prompt_version_id" text;

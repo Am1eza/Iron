@@ -7,6 +7,7 @@ import { aiEnabled } from '@/lib/server/integrations/deepseek';
 import { numbersInText } from '@/lib/server/ai/grounding';
 import { runAdvisorPipeline } from '@/lib/server/ai/pipeline';
 import { buildChatMessages, ensureConversation, persistTurn } from '@/lib/server/ai/conversation';
+import { getPromptVersions, resolvePromptText } from '@/lib/server/ai/promptVersions';
 import { getDomainFacts } from '@/lib/server/ai/domainFacts';
 import { isBareGreeting, GREETING_REPLY } from '@/lib/server/ai/greeting';
 import { CHIP, PURPOSE_CHIPS } from '@/lib/data/aiTaxonomy';
@@ -146,22 +147,29 @@ async function POSTImpl(req: NextRequest) {
         // frame so the client can echo it on later turns.
         let convId: string | undefined = conversationId;
         let summary: string | null = null;
+        // US-05.5 — [] whenever A/B isn't configured (fewer than 2 entries
+        // in settings), so this whole path is a no-op for every deployment
+        // that hasn't opted in.
+        const promptVersions = await getPromptVersions().catch(() => []);
+        let systemPrompt: string | undefined;
         try {
-          const conv = await ensureConversation(conversationId, session?.id ?? null);
+          const conv = await ensureConversation(conversationId, session?.id ?? null, promptVersions);
           convId = conv.id;
           summary = conv.summary;
+          systemPrompt = resolvePromptText(conv.promptVersionId, promptVersions);
           send({ type: 'conversation', id: conv.id });
         } catch {
           /* persistence must never block the answer */
         }
 
-        // AI_SYSTEM_PROMPT stays the byte-identical FIRST message (DeepSeek
-        // cache prefix); a stable non-numeric catalog overview rides right after
-        // it (extends the cache), then the rolling summary. GROUNDING: both are
-        // context only — no numbers, never added to the ledger/userNumbers, so
-        // they can't license a claim.
+        // The system prompt (baseline, or this conversation's A/B-assigned
+        // version) stays the byte-identical FIRST message (DeepSeek cache
+        // prefix); a stable non-numeric catalog overview rides right after
+        // it (extends the cache), then the rolling summary. GROUNDING: both
+        // are context only — no numbers, never added to the ledger/
+        // userNumbers, so they can't license a claim.
         const domainFacts = await getDomainFacts().catch(() => '');
-        const messages = buildChatMessages(parsed.data.messages, summary, domainFacts);
+        const messages = buildChatMessages(parsed.data.messages, summary, domainFacts, systemPrompt);
 
         const result = await runAdvisorPipeline({
           messages,

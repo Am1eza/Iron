@@ -53,6 +53,12 @@ export const aiConversations = pgTable(
     id: text('id').primaryKey(),
     userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
     summary: text('summary'),
+    // System-prompt A/B (US-05.5) — assigned ONCE at conversation creation
+    // via a stable hash of the conversation id (see promptVersions.ts), so
+    // every turn in the same conversation keeps the same prompt/cache
+    // prefix. Null = created before this feature, or A/B wasn't active
+    // (single prompt in settings.AI_PROMPT_VERSIONS) at creation time.
+    promptVersionId: text('prompt_version_id'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

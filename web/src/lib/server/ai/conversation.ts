@@ -22,6 +22,7 @@ import { getDb } from '@/lib/server/db/client';
 import { aiConversations, aiMessages } from '@/lib/server/db/schema';
 import { streamCompletion, type ChatMessage } from '@/lib/server/integrations/deepseek';
 import { AI_SYSTEM_PROMPT } from '@/lib/server/services/aiTools';
+import { assignPromptVersion, type PromptVersion } from '@/lib/server/ai/promptVersions';
 
 /** Stored-message count past which the older turns collapse into a summary. */
 export const SUMMARY_TRIGGER_COUNT = 12;
@@ -39,6 +40,9 @@ const SUMMARY_SYSTEM_PROMPT =
 export interface ConversationRow {
   id: string;
   summary: string | null;
+  /** US-05.5 — the A/B-assigned system-prompt version, null when A/B is off
+   *  or this conversation predates the feature. */
+  promptVersionId: string | null;
 }
 
 export type StoredMessage = { role: string; content: string };
@@ -60,39 +64,47 @@ export const completeViaRelay: CompleteFn = async (messages) => {
 
 /** Resolve an existing conversation or create a new row (userId from the
  *  session when present). A client-echoed id that no longer exists is
- *  re-created under the same id so its later turns still persist. */
+ *  re-created under the same id so its later turns still persist.
+ *  `versions` (US-05.5) is only consulted for a NEW row — an existing
+ *  conversation keeps whatever version it was already assigned, forever. */
 export async function ensureConversation(
   id: string | undefined,
   userId: string | null,
+  versions: PromptVersion[] = [],
 ): Promise<ConversationRow> {
   const db = getDb();
   if (id) {
     const rows = await db
-      .select({ id: aiConversations.id, summary: aiConversations.summary })
+      .select({ id: aiConversations.id, summary: aiConversations.summary, promptVersionId: aiConversations.promptVersionId })
       .from(aiConversations)
       .where(eq(aiConversations.id, id))
       .limit(1);
     if (rows[0]) return rows[0];
   }
   const newId = id ?? ulid();
+  const promptVersionId = assignPromptVersion(newId, versions);
   await db
     .insert(aiConversations)
-    .values({ id: newId, userId })
+    .values({ id: newId, userId, promptVersionId })
     .onConflictDoNothing();
-  return { id: newId, summary: null };
+  return { id: newId, summary: null, promptVersionId };
 }
 
 /**
- * Build the relay message list for one request. AI_SYSTEM_PROMPT is ALWAYS
- * the byte-identical first message (DeepSeek cache prefix); a non-empty
- * rolling summary rides as a SECOND system message right after it.
+ * Build the relay message list for one request. The (possibly A/B-resolved,
+ * US-05.5) system prompt is ALWAYS the byte-identical first message for a
+ * given version (DeepSeek cache prefix); a non-empty rolling summary rides
+ * as a SECOND system message right after it. `systemPrompt` defaults to the
+ * baseline AI_SYSTEM_PROMPT — every existing caller (evals.test.ts included)
+ * that doesn't pass it keeps behaving exactly as before.
  */
 export function buildChatMessages(
   clientMessages: ReadonlyArray<{ role: 'user' | 'assistant'; content: string }>,
   summary?: string | null,
   domainFacts?: string | null,
+  systemPrompt: string = AI_SYSTEM_PROMPT,
 ): ChatMessage[] {
-  const messages: ChatMessage[] = [{ role: 'system', content: AI_SYSTEM_PROMPT }];
+  const messages: ChatMessage[] = [{ role: 'system', content: systemPrompt }];
   // Stable, NON-NUMERIC catalog overview — sits right after the byte-identical
   // prompt so it EXTENDS the DeepSeek cache prefix (it barely changes), letting
   // the model answer "what do you sell?" without a tool round. Numbers still

@@ -2,9 +2,9 @@
  *  console (US-24.3). Raw token counts only; this app has no sourced
  *  DeepSeek Toman/USD rate anywhere, so a "cost" figure would be a made-up
  *  number dressed as fact — tokens are the real, verifiable metric. */
-import { sql, gte } from 'drizzle-orm';
+import { sql, gte, eq, isNotNull } from 'drizzle-orm';
 import { getDb } from '@/lib/server/db/client';
-import { aiUsage } from '@/lib/server/db/schema';
+import { aiUsage, aiConversations, aiFeedback } from '@/lib/server/db/schema';
 
 export interface AiUsageDay {
   date: string; // YYYY-MM-DD, local server day
@@ -51,4 +51,78 @@ export async function aiUsageDailySeries(days = 14): Promise<AiUsageDay[]> {
     });
   }
   return out;
+}
+
+export interface PromptVersionMetrics {
+  versionId: string;
+  conversationCount: number;
+  promptTokens: number;
+  completionTokens: number;
+  cacheHitTokens: number;
+  feedbackUp: number;
+  feedbackDown: number;
+}
+
+/**
+ * Per-version A/B comparison (US-05.5, AC2) — feedback rate, token usage,
+ * cache-hit ratio, grouped by aiConversations.promptVersionId. Two separate
+ * grouped queries (usage, feedback) merged in JS rather than one JOIN: both
+ * ai_usage and ai_feedback are one-to-many off a conversation, so joining
+ * them together in a single query would fan-out and double-count sums.
+ */
+export async function promptVersionMetrics(): Promise<PromptVersionMetrics[]> {
+  const db = getDb();
+  const [usageRows, feedbackRows, countRows] = await Promise.all([
+    db
+      .select({
+        versionId: aiConversations.promptVersionId,
+        promptTokens: sql<number>`coalesce(sum(${aiUsage.promptTokens}), 0)::int`,
+        completionTokens: sql<number>`coalesce(sum(${aiUsage.completionTokens}), 0)::int`,
+        cacheHitTokens: sql<number>`coalesce(sum(${aiUsage.cacheHitTokens}), 0)::int`,
+      })
+      .from(aiConversations)
+      .innerJoin(aiUsage, eq(aiUsage.conversationId, aiConversations.id))
+      .where(isNotNull(aiConversations.promptVersionId))
+      .groupBy(aiConversations.promptVersionId),
+    db
+      .select({
+        versionId: aiConversations.promptVersionId,
+        rating: aiFeedback.rating,
+        n: sql<number>`count(*)::int`,
+      })
+      .from(aiConversations)
+      .innerJoin(aiFeedback, eq(aiFeedback.conversationId, aiConversations.id))
+      .where(isNotNull(aiConversations.promptVersionId))
+      .groupBy(aiConversations.promptVersionId, aiFeedback.rating),
+    db
+      .select({ versionId: aiConversations.promptVersionId, n: sql<number>`count(*)::int` })
+      .from(aiConversations)
+      .where(isNotNull(aiConversations.promptVersionId))
+      .groupBy(aiConversations.promptVersionId),
+  ]);
+
+  const byVersion = new Map<string, PromptVersionMetrics>();
+  const get = (versionId: string) => {
+    let m = byVersion.get(versionId);
+    if (!m) {
+      m = { versionId, conversationCount: 0, promptTokens: 0, completionTokens: 0, cacheHitTokens: 0, feedbackUp: 0, feedbackDown: 0 };
+      byVersion.set(versionId, m);
+    }
+    return m;
+  };
+  for (const r of countRows) if (r.versionId) get(r.versionId).conversationCount = r.n;
+  for (const r of usageRows) {
+    if (!r.versionId) continue;
+    const m = get(r.versionId);
+    m.promptTokens = r.promptTokens;
+    m.completionTokens = r.completionTokens;
+    m.cacheHitTokens = r.cacheHitTokens;
+  }
+  for (const r of feedbackRows) {
+    if (!r.versionId) continue;
+    const m = get(r.versionId);
+    if (r.rating === 'up') m.feedbackUp = r.n;
+    else if (r.rating === 'down') m.feedbackDown = r.n;
+  }
+  return [...byVersion.values()];
 }

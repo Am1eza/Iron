@@ -523,4 +523,18 @@ export const adminApi = {
     http.post<{ candidate: unknown }>('/api/admin/ai/eval-candidates', input),
   setEvalCandidateStatus: (id: string, status: 'pending' | 'promoted' | 'dismissed') =>
     http.patch<{ candidate: unknown }>(`/api/admin/ai/eval-candidates/${id}`, { status }),
+  /** System-prompt A/B (US-05.5). Versions themselves live in the generic
+   *  settings key AI_PROMPT_VERSIONS (settings()/saveSetting() above). */
+  promptVersionMetrics: () =>
+    http.get<{
+      metrics: Array<{
+        versionId: string;
+        conversationCount: number;
+        promptTokens: number;
+        completionTokens: number;
+        cacheHitTokens: number;
+        feedbackUp: number;
+        feedbackDown: number;
+      }>;
+    }>('/api/admin/ai/prompt-versions/metrics'),
 };

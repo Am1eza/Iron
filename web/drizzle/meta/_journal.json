@@ -141,6 +141,13 @@
       "when": 1784398407666,
       "tag": "0019_ai_eval_candidates",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1784398866659,
+      "tag": "0020_ai_conversation_prompt_version",
+      "breakpoints": true
     }
   ]
 }

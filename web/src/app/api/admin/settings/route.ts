@@ -49,6 +49,20 @@ const KEY_SCHEMAS: Record<string, z.ZodTypeAny> = {
     cities: z.array(z.object({ name: z.string().max(60), km: finiteNumber.min(0).max(100_000) })).max(200),
   }),
   ALERT_MAX_ACTIVE_PER_USER: finiteNumber.int().min(1).max(200),
+  // AI system-prompt A/B testing (US-05.5) — fewer than 2 versions means
+  // A/B is off (see promptVersions.ts); capped at 4 to keep the DeepSeek
+  // cache-prefix fan-out (one prefix per version) bounded.
+  AI_PROMPT_VERSIONS: z.object({
+    versions: z
+      .array(
+        z.object({
+          id: z.string().trim().min(1).max(40),
+          label: z.string().trim().min(1).max(80),
+          prompt: z.string().trim().min(1).max(8000),
+        }),
+      )
+      .max(4),
+  }),
 };
 
 /** GET /api/admin/settings. */
