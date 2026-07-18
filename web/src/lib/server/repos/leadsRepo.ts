@@ -2,7 +2,7 @@
  * Leads + proformas — the conversion spine's persistence. Lead items snapshot
  * name/price at creation; issued proformas freeze lines as jsonb.
  */
-import { and, asc, desc, eq, ilike, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, ilike, inArray, isNotNull, isNull, lte, or, sql } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { getDb, type DbOrTx } from '@/lib/server/db/client';
 import { leads, leadItems, leadNotes, proformas } from '@/lib/server/db/schema';
@@ -159,6 +159,9 @@ export async function adminListLeads(query: {
   status?: LeadRow['status'];
   assigneeId?: string;
   q?: string;
+  /** Inclusive range on createdAt (US-19.3). */
+  from?: Date;
+  to?: Date;
   page?: number;
   perPage?: number;
   /** Show archived (soft-deleted) leads instead of the normal working set. */
@@ -171,6 +174,8 @@ export async function adminListLeads(query: {
   if (!query.includeDeleted) conds.push(isNull(leads.deletedAt));
   if (query.status) conds.push(eq(leads.status, query.status));
   if (query.assigneeId) conds.push(eq(leads.assigneeId, query.assigneeId));
+  if (query.from) conds.push(gte(leads.createdAt, query.from));
+  if (query.to) conds.push(lte(leads.createdAt, query.to));
   if (query.q) {
     conds.push(
       or(
