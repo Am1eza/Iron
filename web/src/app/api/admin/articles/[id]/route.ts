@@ -22,6 +22,7 @@ const patchPayload = z.object({
   excerpt: z.string().trim().max(500).nullable().optional(),
   bodyMd: z.string().max(100_000).optional(),
   coverUrl: z.preprocess((v) => (v === '' ? null : v), z.string().url().nullable().optional()),
+  authorId: z.string().min(1).nullable().optional(),
   // Editor SEO overrides. Empty url fields → undefined so a blank input never
   // fails .url() (forms send '' for "unset").
   seo: z

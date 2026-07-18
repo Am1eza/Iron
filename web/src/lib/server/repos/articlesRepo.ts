@@ -26,11 +26,11 @@ export function toArticleDto(r: Row): Article {
   };
 }
 
-/** Body included — for the article page and the admin editor. */
-export type ArticleFull = Article & { bodyMd: string };
+/** Body (+ byline) included — for the article page and the admin editor. */
+export type ArticleFull = Article & { bodyMd: string; authorId?: string | null };
 
 export function toArticleFull(r: Row): ArticleFull {
-  return { ...toArticleDto(r), bodyMd: r.bodyMd };
+  return { ...toArticleDto(r), bodyMd: r.bodyMd, authorId: r.authorId ?? null };
 }
 
 function publishedCond() {
@@ -198,6 +198,7 @@ export async function updateArticle(
     status: Row['status'];
     publishAt: Date | null;
     approvedBy: string | null;
+    authorId: string | null;
     seo: Row['seo'];
   }>,
 ): Promise<ArticleFull | null> {

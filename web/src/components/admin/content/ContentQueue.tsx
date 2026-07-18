@@ -11,6 +11,7 @@ import { useToast } from '@/lib/hooks/useToast';
 import { ApiError } from '@/lib/api/errors';
 import { Badge, Button, Chip, EmptyState, TableSkeleton, Tabs, TabPanel } from '@/components/ui';
 import { TextInput, Textarea } from '@/components/forms/fields';
+import { ImageUpload } from '../ImageUpload';
 import ui from '../adminUi.module.css';
 
 const STATUS_TABS = [
@@ -151,6 +152,9 @@ function ArticleEditor({ id, onDone }: { id: string; onDone: () => void }) {
   const { data } = useQuery({ queryKey: ['admin', 'article', id], queryFn: () => adminApi.article(id) });
   const article = data?.article;
   const value = { ...article, ...draft } as ArticleFull | undefined;
+  // Bylines are picked from content-editor staff — the only role an article
+  // can meaningfully be credited to.
+  const authors = useQuery({ queryKey: ['admin', 'users', 'authors'], queryFn: () => adminApi.users({ role: 'content' }) });
 
   const invalidate = () => {
     void qc.invalidateQueries({ queryKey: ['admin', 'articles'] });
@@ -164,6 +168,7 @@ function ArticleEditor({ id, onDone }: { id: string; onDone: () => void }) {
         excerpt: value?.excerpt ?? null,
         bodyMd: value?.bodyMd,
         coverUrl: value?.coverUrl ?? null,
+        authorId: value?.authorId ?? null,
         seo: value?.seo ?? null,
       }),
     onSuccess: () => {
@@ -192,13 +197,30 @@ function ArticleEditor({ id, onDone }: { id: string; onDone: () => void }) {
           <TextInput label="عنوان" value={value.title ?? ''} onChange={(e) => setDraft({ ...draft, title: e.target.value })} />
           <TextInput label="نشانی (slug)" dir="ltr" value={value.slug ?? ''} onChange={(e) => setDraft({ ...draft, slug: e.target.value })} />
           <Textarea label="خلاصه" rows={2} value={value.excerpt ?? ''} onChange={(e) => setDraft({ ...draft, excerpt: e.target.value })} />
-          <TextInput
-            label="نشانی تصویر کاور (URL)"
-            dir="ltr"
-            placeholder="https://…"
-            value={value.coverUrl ?? ''}
-            onChange={(e) => setDraft({ ...draft, coverUrl: e.target.value })}
+          <ImageUpload
+            label="تصویر کاور"
+            value={value.coverUrl ?? null}
+            onChange={(url) => setDraft({ ...draft, coverUrl: url ?? '' })}
           />
+          <div>
+            <label className={ui.muted} htmlFor="article-author">
+              نویسنده
+            </label>
+            <br />
+            <select
+              id="article-author"
+              className={ui.select}
+              value={value.authorId ?? ''}
+              onChange={(e) => setDraft({ ...draft, authorId: e.target.value || null })}
+            >
+              <option value="">بدون نویسنده</option>
+              {(authors.data?.users ?? []).map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name ?? u.mobile}
+                </option>
+              ))}
+            </select>
+          </div>
           <TextInput
             label="عنوان سئو (اختیاری — پیش‌فرض: عنوان مقاله)"
             value={value.seo?.title ?? ''}
@@ -209,6 +231,11 @@ function ArticleEditor({ id, onDone }: { id: string; onDone: () => void }) {
             rows={2}
             value={value.seo?.description ?? ''}
             onChange={(e) => setDraft({ ...draft, seo: { ...value.seo, description: e.target.value } })}
+          />
+          <ImageUpload
+            label="تصویر Open Graph (اختیاری — پیش‌فرض: تصویر کاور)"
+            value={value.seo?.ogImage ?? null}
+            onChange={(url) => setDraft({ ...draft, seo: { ...value.seo, ogImage: url ?? undefined } })}
           />
           <Textarea
             label="متن (Markdown)"
