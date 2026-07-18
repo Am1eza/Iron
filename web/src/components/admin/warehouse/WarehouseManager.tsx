@@ -8,7 +8,7 @@ import { WAREHOUSE_STATUS_LABEL, type WarehouseStatus, type WarehouseItem } from
 import { formatJalali, formatToman, normalizeDigits, toPersianDigits } from '@/lib/utils/format';
 import { useToast } from '@/lib/hooks/useToast';
 import { ApiError } from '@/lib/api/errors';
-import { Button, Card, EmptyState, Heading, TableSkeleton, Tabs, TabPanel } from '@/components/ui';
+import { Button, Card, EmptyState, Heading, Spinner, TableSkeleton, Tabs, TabPanel, Text } from '@/components/ui';
 import { TextInput } from '@/components/forms/fields';
 import ui from '../adminUi.module.css';
 
@@ -112,23 +112,6 @@ export function WarehouseManager() {
     /^09\d{9}$/.test(normalizeDigits(form.mobile.trim())) &&
     form.product.trim().length > 0 &&
     Number(normalizeDigits(form.quantityTons)) > 0;
-
-  // US-08.5 — per-customer settlement: sum of monthly fees for stock that's
-  // still actually occupying warehouse space (released items no longer owe
-  // storage fees, so they're excluded from the running total).
-  const settlement = useMemo(() => {
-    const active = items.filter((it) => it.status !== 'released');
-    const byCustomer = new Map<string, { mobile: string; name: string | null; count: number; totalFee: number }>();
-    for (const it of active) {
-      const cur = byCustomer.get(it.userId) ?? { mobile: it.customerMobile, name: it.customerName, count: 0, totalFee: 0 };
-      cur.count += 1;
-      cur.totalFee += it.monthlyFeeToman;
-      byCustomer.set(it.userId, cur);
-    }
-    return [...byCustomer.entries()]
-      .map(([userId, v]) => ({ userId, ...v }))
-      .sort((a, b) => b.totalFee - a.totalFee);
-  }, [items]);
 
   return (
     <div style={{ display: 'grid', gap: 'var(--space-5)' }}>
@@ -246,35 +229,149 @@ export function WarehouseManager() {
       </TabPanel>
 
       <TabPanel id="settlement" active={tab} idBase="warehouse">
-        {isLoading ? (
-          <TableSkeleton rows={4} cols={4} />
-        ) : settlement.length === 0 ? (
-          <EmptyState size="section" headline="کالای فعالی نیست" body="پس از ثبت کالای امانی، تسویه‌حساب هر مشتری اینجا جمع می‌شود." />
-        ) : (
-          <table className={ui.table}>
-            <caption className="visually-hidden">گزارش تسویه‌حساب هزینهٔ انبار به تفکیک مشتری</caption>
-            <thead>
-              <tr>
-                <th scope="col">مشتری</th>
-                <th scope="col">تعداد کالای فعال</th>
-                <th scope="col">جمع هزینهٔ ماهانه</th>
-              </tr>
-            </thead>
-            <tbody>
-              {settlement.map((s) => (
-                <tr key={s.userId}>
-                  <td className={`tnum ${ui.mono}`}>
-                    {s.name ?? '—'}
-                    <div className={ui.muted}>{s.mobile}</div>
-                  </td>
-                  <td className="tnum">{toPersianDigits(s.count)}</td>
-                  <td className="tnum">{formatToman(s.totalFee, false)} تومان</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+        <SettlementPanel items={items} />
       </TabPanel>
     </div>
+  );
+}
+
+/** Per-customer settlement (US-08.5) — backed by the real
+ *  warehouseSettlements ledger: each "ثبت تسویه" freezes a period + the
+ *  item's qty/fee snapshot as a permanent billing record, computed pro-rata
+ *  since the last settlement (or since storedAt if never settled). */
+function SettlementPanel({ items }: { items: AdminWarehouseItem[] }) {
+  const [openCustomer, setOpenCustomer] = useState<string | null>(null);
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ['admin', 'warehouse', 'settlement-customers'],
+    queryFn: () => adminApi.settlementCustomers(),
+  });
+  const customers = data?.customers ?? [];
+
+  return (
+    <div style={{ display: 'grid', gap: 'var(--space-4)' }}>
+      {isLoading ? (
+        <TableSkeleton rows={4} cols={4} />
+      ) : isError ? (
+        <EmptyState
+          size="section"
+          tone="error"
+          headline="بارگذاری تسویه‌حساب ناموفق بود."
+          primary={{ label: 'تلاش دوباره', onClick: () => void refetch() }}
+        />
+      ) : customers.length === 0 ? (
+        <EmptyState size="section" headline="کالای فعالی نیست" body="پس از ثبت کالای امانی، تسویه‌حساب هر مشتری اینجا جمع می‌شود." />
+      ) : (
+        <table className={ui.table}>
+          <caption className="visually-hidden">گزارش تسویه‌حساب هزینهٔ انبار به تفکیک مشتری</caption>
+          <thead>
+            <tr>
+              <th scope="col">مشتری</th>
+              <th scope="col">تعداد کالای فعال</th>
+              <th scope="col">تسویه‌نشدهٔ فعلی</th>
+              <th scope="col">
+                <span className="visually-hidden">عملیات</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {customers.map((c) => (
+              <tr key={c.userId}>
+                <td className={`tnum ${ui.mono}`}>
+                  {c.name ?? '—'}
+                  <div className={ui.muted}>{c.mobile}</div>
+                </td>
+                <td className="tnum">{toPersianDigits(c.activeItemCount)}</td>
+                <td className="tnum">{formatToman(c.totalUnsettledToman, false)} تومان</td>
+                <td>
+                  <Button size="sm" variant="ghost" onClick={() => setOpenCustomer(openCustomer === c.userId ? null : c.userId)}>
+                    {openCustomer === c.userId ? 'بستن' : 'جزئیات'}
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      {openCustomer ? <CustomerSettlementDetail userId={openCustomer} items={items} /> : null}
+    </div>
+  );
+}
+
+function CustomerSettlementDetail({ userId, items }: { userId: string; items: AdminWarehouseItem[] }) {
+  const toast = useToast();
+  const qc = useQueryClient();
+  const { data, isLoading } = useQuery({
+    queryKey: ['admin', 'warehouse', 'settlement', userId],
+    queryFn: () => adminApi.settlementsForCustomer(userId),
+  });
+  const settle = useMutation({
+    mutationFn: (warehouseItemId: string) => adminApi.createSettlement(warehouseItemId),
+    onSuccess: () => {
+      toast.success('تسویه ثبت شد.');
+      void qc.invalidateQueries({ queryKey: ['admin', 'warehouse', 'settlement'] });
+      void qc.invalidateQueries({ queryKey: ['admin', 'warehouse', 'settlement-customers'] });
+    },
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : 'ثبت تسویه ناموفق بود.'),
+  });
+
+  const productLabel = (warehouseItemId: string) => items.find((i) => i.id === warehouseItemId)?.product ?? warehouseItemId;
+
+  if (isLoading || !data) {
+    return (
+      <Card>
+        <Spinner />
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <Heading level={2}>
+        تسویه‌حساب {data.user.name ?? data.user.mobile} <span className={`${ui.muted} tnum`}>{data.user.mobile}</span>
+      </Heading>
+
+      <div style={{ marginBlockStart: 'var(--space-2)' }}>
+        <Text color="muted">مبلغ تسویه‌نشدهٔ هر قلم (از آخرین تسویه یا تاریخ ثبت تا الان)</Text>
+      </div>
+      {data.unsettled.length === 0 ? (
+        <p className={ui.muted}>قلم فعالی نیست.</p>
+      ) : (
+        <ul style={{ display: 'grid', gap: 'var(--space-2)', marginBlockStart: 'var(--space-2)' }}>
+          {data.unsettled.map((u) => (
+            <li key={u.warehouseItemId} className="tnum" style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+              <span style={{ flex: '1 1 auto' }}>
+                {productLabel(u.warehouseItemId)} · {toPersianDigits(Math.round(u.days))} روز
+              </span>
+              <span>{formatToman(u.amountToman, false)} تومان</span>
+              <Button
+                size="sm"
+                variant="secondary"
+                loading={settle.isPending}
+                disabled={u.amountToman <= 0}
+                onClick={() => settle.mutate(u.warehouseItemId)}
+              >
+                ثبت تسویه
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div style={{ marginBlockStart: 'var(--space-4)' }}>
+        <Text color="muted">تاریخچهٔ تسویه‌ها</Text>
+      </div>
+      {data.history.length === 0 ? (
+        <p className={ui.muted}>هنوز تسویه‌ای ثبت نشده.</p>
+      ) : (
+        <ul style={{ marginBlockStart: 'var(--space-2)' }}>
+          {data.history.map((h) => (
+            <li key={h.id} className="tnum">
+              {productLabel(h.warehouseItemId)} · {formatJalali(h.periodFrom)} تا {formatJalali(h.periodTo)} —{' '}
+              {formatToman(h.amountToman, false)} تومان
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
   );
 }

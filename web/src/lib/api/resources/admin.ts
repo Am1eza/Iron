@@ -261,6 +261,40 @@ export const adminApi = {
   updateWarehouseItem: (id: string, patch: { status?: string; monthlyFeeToman?: number; quantityTons?: number }) =>
     http.patch<{ item: WarehouseItem }>(`/api/admin/warehouse/${id}`, patch),
 
+  /* warehouse settlements (US-08.5) — a real per-item billing ledger, not a
+   * point-in-time report: each settlement freezes the period + qty/fee
+   * snapshot it covers. */
+  settlementCustomers: () =>
+    http.get<{ customers: Array<{ userId: string; name: string | null; mobile: string; activeItemCount: number; totalUnsettledToman: number }> }>(
+      '/api/admin/warehouse/settlements/customers',
+    ),
+  settlementsForCustomer: (userId: string) =>
+    http.get<{
+      user: { id: string; name: string | null; mobile: string };
+      unsettled: Array<{
+        warehouseItemId: string;
+        periodFrom: string;
+        periodTo: string;
+        days: number;
+        quantityTons: number;
+        monthlyFeeToman: number;
+        amountToman: number;
+      }>;
+      history: Array<{
+        id: string;
+        warehouseItemId: string;
+        periodFrom: string;
+        periodTo: string;
+        quantityTons: number;
+        monthlyFeeToman: number;
+        amountToman: number;
+        note: string | null;
+        createdAt: string;
+      }>;
+    }>(`/api/admin/warehouse/settlements?userId=${userId}`),
+  createSettlement: (warehouseItemId: string, note?: string) =>
+    http.post<{ settlement: unknown }>('/api/admin/warehouse/settlements', { warehouseItemId, note }),
+
   /* content */
   articles: (params: { status?: string; type?: string } = {}) => {
     const qs = new URLSearchParams();
