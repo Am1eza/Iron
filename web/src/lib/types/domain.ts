@@ -139,6 +139,8 @@ export interface Order {
   items: LineItem[];
   status: ShipmentStatus;
   lastUpdate: string; // ISO
+  trackingNumber?: string;
+  carrierName?: string;
 }
 
 export interface LineItem {

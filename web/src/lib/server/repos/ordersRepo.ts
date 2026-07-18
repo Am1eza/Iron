@@ -46,6 +46,8 @@ function toOrderDto(r: OrderRow, items: LineItem[]): Order {
     items,
     status: r.status,
     lastUpdate: r.lastUpdate.toISOString(),
+    trackingNumber: r.trackingNumber ?? undefined,
+    carrierName: r.carrierName ?? undefined,
   };
 }
 
@@ -183,6 +185,25 @@ export async function updateOrderStatus(ref: string, status: OrderRow['status'])
       .then((m) => m.recomputeTier(userId))
       .catch(() => {});
   }
+  return toOrderDto(rows[0], await itemsOf(rows[0].id));
+}
+
+/** Set/clear carrier tracking info (US-08.4) — independent of the shipment
+ *  `status` stepper, so it can be filled in at any point (e.g. as soon as a
+ *  carrier is booked, before the order actually moves to 'loading'). */
+export async function updateOrderShipping(
+  ref: string,
+  patch: { trackingNumber?: string | null; carrierName?: string | null },
+): Promise<Order | null> {
+  const set: Partial<typeof orders.$inferInsert> = { updatedAt: new Date() };
+  if (patch.trackingNumber !== undefined) set.trackingNumber = patch.trackingNumber;
+  if (patch.carrierName !== undefined) set.carrierName = patch.carrierName;
+  const rows = await getDb()
+    .update(orders)
+    .set(set)
+    .where(and(eq(orders.ref, ref), isNull(orders.deletedAt)))
+    .returning();
+  if (!rows[0]) return null;
   return toOrderDto(rows[0], await itemsOf(rows[0].id));
 }
 

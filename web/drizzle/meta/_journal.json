@@ -99,6 +99,13 @@
       "when": 1784385553770,
       "tag": "0013_sku_image_url",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1784388427945,
+      "tag": "0014_misty_human_torch",
+      "breakpoints": true
     }
   ]
 }

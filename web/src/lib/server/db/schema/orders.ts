@@ -27,6 +27,10 @@ export const orders = pgTable(
     userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
     leadId: text('lead_id').references(() => leads.id, { onDelete: 'set null' }),
     status: text('status', { enum: SHIPMENT_STATUSES }).notNull().default('registered'),
+    // Carrier tracking (US-08.4) — both optional, set once the shipment is
+    // actually booked with a carrier (typically around 'loading'/'in_transit').
+    trackingNumber: text('tracking_number'),
+    carrierName: text('carrier_name'),
     placedAt: timestamp('placed_at', { withTimezone: true }).notNull().defaultNow(),
     lastUpdate: timestamp('last_update', { withTimezone: true }).notNull().defaultNow(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
