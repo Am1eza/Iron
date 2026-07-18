@@ -10,7 +10,7 @@ import { ulid } from 'ulid';
 import { createTestDb } from '@/test/db';
 import * as schema from '@/lib/server/db/schema';
 import type { Db } from '@/lib/server/db/client';
-import { adminListLeads } from './leadsRepo';
+import { adminListLeads, updateLeadItem } from './leadsRepo';
 
 let db: Db;
 let close: () => Promise<void>;
@@ -51,5 +51,47 @@ describe('adminListLeads — from/to date range', () => {
 
     const { leads: toOnly } = await adminListLeads({ q: prefix, to: boundary, perPage: 10 });
     expect(toOnly.map((l) => l.ref).sort()).toEqual([`${prefix}-before`, `${prefix}-boundary`].sort());
+  });
+});
+
+describe('updateLeadItem (US-19.4)', () => {
+  async function insertLeadWithItem() {
+    const leadId = ulid();
+    const itemId = ulid();
+    await db.insert(schema.leads).values({ id: leadId, ref: `ITEM-${leadId}`, contactMobile: '09120000005', source: 'table' });
+    await db.insert(schema.leadItems).values({
+      id: itemId,
+      leadId,
+      name: 'میلگرد ۱۴',
+      qty: 2,
+      unit: 'kg',
+      unitPrice: 50_000,
+      lineTotal: 100_000,
+    });
+    return { leadId, itemId };
+  }
+
+  it('recomputes lineTotal from the resulting qty×unitPrice, not the raw patch', async () => {
+    const { leadId, itemId } = await insertLeadWithItem();
+    const updated = await updateLeadItem(itemId, leadId, { qty: 5 });
+    expect(updated).toMatchObject({ qty: 5, unitPrice: 50_000, lineTotal: 250_000 });
+  });
+
+  it('keeps the current qty when only unitPrice is patched', async () => {
+    const { leadId, itemId } = await insertLeadWithItem();
+    const updated = await updateLeadItem(itemId, leadId, { unitPrice: 60_000 });
+    expect(updated).toMatchObject({ qty: 2, unitPrice: 60_000, lineTotal: 120_000 });
+  });
+
+  it('returns null when the item does not belong to the given leadId (cross-lead guard)', async () => {
+    const { itemId } = await insertLeadWithItem();
+    const otherLeadId = ulid();
+    await db.insert(schema.leads).values({ id: otherLeadId, ref: `OTHER-${otherLeadId}`, contactMobile: '09120000006', source: 'table' });
+    await expect(updateLeadItem(itemId, otherLeadId, { qty: 9 })).resolves.toBeNull();
+  });
+
+  it('returns null for a non-existent item id', async () => {
+    const { leadId } = await insertLeadWithItem();
+    await expect(updateLeadItem(ulid(), leadId, { qty: 1 })).resolves.toBeNull();
   });
 });

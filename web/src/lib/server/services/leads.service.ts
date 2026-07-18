@@ -224,21 +224,34 @@ export async function createLead(
   return result;
 }
 
-/** Issue (or re-issue) a proforma for a lead from its priced lines. */
-export async function issueProforma(lead: LeadRow, lines: LineItem[], dbh?: DbOrTx) {
+/** Issue (or re-issue) a proforma for a lead from its priced lines.
+ *  `discountToman` (US-19.4): a flat Toman amount off `subtotal`, applied
+ *  BEFORE VAT — clamped to [0, subtotal] so it can never go negative or
+ *  exceed the order itself regardless of what the caller passes in. */
+export async function issueProforma(
+  lead: LeadRow,
+  lines: LineItem[],
+  dbh?: DbOrTx,
+  discountToman = 0,
+) {
   const [vatRate, holidays, hour] = await Promise.all([
     getVatRate(),
     getHolidays(),
     getSetting<number>('QUOTE_VALIDITY_HOUR', 11),
   ]);
   const subtotal = lines.reduce((s, l) => s + (l.lineTotal ?? 0), 0);
-  const vatAmount = Math.round(subtotal * vatRate);
-  const total = subtotal + vatAmount;
+  const discount = Math.min(Math.max(discountToman, 0), subtotal);
+  const taxable = subtotal - discount;
+  const vatAmount = Math.round(taxable * vatRate);
+  const total = taxable + vatAmount;
   const validUntil = quoteValidUntil(new Date(), holidays, hour);
   // First issue reuses the lead's human ref; re-issues get a fresh one.
   const existing = await proformasOfLead(lead.id, dbh);
   const ref = existing.length === 0 ? lead.ref : await nextRef('PF');
-  return insertProforma({ leadId: lead.id, ref, lines, subtotal, vatRate, vatAmount, total, validUntil }, dbh);
+  return insertProforma(
+    { leadId: lead.id, ref, lines, subtotal, discountToman: discount, vatRate, vatAmount, total, validUntil },
+    dbh,
+  );
 }
 
 

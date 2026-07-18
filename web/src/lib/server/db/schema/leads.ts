@@ -123,6 +123,11 @@ export const proformas = pgTable(
     ref: text('ref').notNull().unique(),
     lines: jsonb('lines').$type<LineItem[]>().notNull(),
     subtotal: bigint('subtotal', { mode: 'number' }).notNull(),
+    // Flat Toman amount off `subtotal`, applied BEFORE VAT (US-19.4). Kept
+    // separate from `subtotal` (which stays the raw, undiscounted line-item
+    // sum) so the proforma stays auditable — an admin/customer can see both
+    // the original total and what was taken off, not just the net result.
+    discountToman: bigint('discount_toman', { mode: 'number' }).notNull().default(0),
     vatRate: doublePrecision('vat_rate').notNull(),
     vatAmount: bigint('vat_amount', { mode: 'number' }).notNull(),
     total: bigint('total', { mode: 'number' }).notNull(),

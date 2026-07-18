@@ -1,0 +1,1 @@
+ALTER TABLE "proformas" ADD COLUMN "discount_toman" bigint DEFAULT 0 NOT NULL;

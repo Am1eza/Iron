@@ -86,6 +86,37 @@ export async function leadItemsOf(leadId: string): Promise<LeadItemRow[]> {
     .orderBy(leadItems.order);
 }
 
+/** Adjust a lead's line item (qty/unitPrice) before proforma issuance
+ *  (US-19.4) — `lineTotal` is always recomputed server-side from the
+ *  resulting qty×unitPrice, never trusted from the caller, so it can't drift
+ *  from the two numbers that produced it. Only touches fields actually
+ *  passed; omitting a field keeps its current value. `leadId` is required
+ *  and checked in the same query (not just the URL) — otherwise a PATCH
+ *  under one lead's nested route could edit an item belonging to a
+ *  different lead by guessing/reusing an item id. */
+export async function updateLeadItem(
+  id: string,
+  leadId: string,
+  patch: { qty?: number; unitPrice?: number },
+): Promise<LeadItemRow | null> {
+  const db = getDb();
+  const current = await db
+    .select()
+    .from(leadItems)
+    .where(and(eq(leadItems.id, id), eq(leadItems.leadId, leadId)))
+    .limit(1);
+  if (!current[0]) return null;
+  const qty = patch.qty ?? current[0].qty;
+  const unitPrice = patch.unitPrice ?? current[0].unitPrice ?? undefined;
+  const lineTotal = unitPrice !== undefined ? Math.round(qty * unitPrice) : null;
+  const rows = await db
+    .update(leadItems)
+    .set({ qty, unitPrice: unitPrice ?? null, lineTotal })
+    .where(eq(leadItems.id, id))
+    .returning();
+  return rows[0] ?? null;
+}
+
 /** Excludes soft-deleted leads — same "gone means gone" precedent as
  *  catalog's isActive (see catalogRepo's findCategory). */
 export async function findLead(id: string): Promise<LeadRow | null> {
@@ -209,6 +240,7 @@ export async function insertProforma(input: {
   ref: string;
   lines: LineItem[];
   subtotal: number;
+  discountToman?: number;
   vatRate: number;
   vatAmount: number;
   total: number;
