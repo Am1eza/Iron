@@ -7,7 +7,7 @@ import { normalizeDigits } from '@/lib/utils/format';
 import { useToast } from '@/lib/hooks/useToast';
 import { ApiError } from '@/lib/api/errors';
 import { Button, Card, Heading, Text, TableSkeleton, EmptyState } from '@/components/ui';
-import { TextInput, Textarea } from '@/components/forms/fields';
+import { TextInput } from '@/components/forms/fields';
 import ui from '../adminUi.module.css';
 
 interface Logistics {
@@ -192,47 +192,77 @@ function PricingRulesCard({
   );
 }
 
+type HolidayRow = { id: string; date: string };
+const newRowId = () => (typeof crypto !== 'undefined' ? crypto.randomUUID() : String(Math.random()));
+
+/** US-22.2 — structured addable/removable rows instead of a free-text
+ *  textarea (one typo used to silently drop or corrupt every date after it). */
 function HolidaysCard({ holidays, onSave, busy }: { holidays: string[]; onSave: (v: string[]) => void; busy: boolean }) {
-  const [text, setText] = useState(holidays.join('\n'));
-  const [error, setError] = useState<string | undefined>();
+  const [rows, setRows] = useState<HolidayRow[]>(() => holidays.map((date) => ({ id: newRowId(), date })));
+  const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
   useEffect(() => {
-    setText(holidays.join('\n'));
-    setError(undefined);
+    setRows(holidays.map((date) => ({ id: newRowId(), date })));
+    setRowErrors({});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [holidays]);
 
+  const setDate = (id: string, date: string) => setRows((prev) => prev.map((r) => (r.id === id ? { ...r, date } : r)));
+  const removeRow = (id: string) => setRows((prev) => prev.filter((r) => r.id !== id));
+  const addRow = () => setRows((prev) => [...prev, { id: newRowId(), date: '' }]);
+
   const submit = () => {
-    const lines = normalizeDigits(text)
-      .split('\n')
-      .map((l) => l.trim())
-      .filter(Boolean);
-    const invalidCount = lines.filter((l) => !/^\d{4}-\d{2}-\d{2}$/.test(l)).length;
-    if (invalidCount > 0) {
-      setError(`${invalidCount} خط با فرمت نادرست — تاریخ‌ها باید به شکل 1405-01-13 باشند.`);
-      return;
+    const nextErrors: Record<string, string> = {};
+    const dates: string[] = [];
+    for (const r of rows) {
+      const d = normalizeDigits(r.date).trim();
+      if (!d) continue;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+        nextErrors[r.id] = 'فرمت باید 1405-01-13 باشد.';
+        continue;
+      }
+      dates.push(d);
     }
-    setError(undefined);
-    onSave(lines);
+    setRowErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
+    onSave(dates);
   };
 
   return (
     <Card>
       <Heading level={2}>تعطیلات رسمی</Heading>
-      <Text color="muted">هر خط یک تاریخ جلالی به شکل 1405-01-13؛ جمعه‌ها خودکار تعطیل‌اند.</Text>
-      <Textarea
-        label="تاریخ‌ها"
-        rows={5}
-        dir="ltr"
-        value={text}
-        error={error}
-        onChange={(e) => setText(e.target.value)}
-        style={{ fontFamily: 'monospace' }}
-      />
-      <Button size="sm" style={{ marginBlockStart: 'var(--space-2)' }} loading={busy} onClick={submit}>
-        ذخیرهٔ تعطیلات
-      </Button>
+      <Text color="muted">تاریخ جلالی به شکل 1405-01-13؛ جمعه‌ها خودکار تعطیل‌اند.</Text>
+      <div style={{ display: 'grid', gap: 'var(--space-2)', marginBlockStart: 'var(--space-3)' }}>
+        {rows.map((r) => (
+          <div key={r.id} style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-start' }}>
+            <TextInput
+              label="تاریخ"
+              dir="ltr"
+              inputMode="numeric"
+              placeholder="1405-01-13"
+              value={r.date}
+              error={rowErrors[r.id]}
+              onChange={(e) => setDate(r.id, e.target.value)}
+              style={{ fontFamily: 'monospace' }}
+            />
+            <Button size="sm" variant="ghost" onClick={() => removeRow(r.id)} style={{ marginBlockStart: 'var(--space-5)' }}>
+              حذف
+            </Button>
+          </div>
+        ))}
+      </div>
+      <div className={ui.toolbar} style={{ marginBlockStart: 'var(--space-3)' }}>
+        <Button size="sm" variant="secondary" onClick={addRow}>
+          افزودن تاریخ
+        </Button>
+        <Button size="sm" loading={busy} onClick={submit}>
+          ذخیرهٔ تعطیلات
+        </Button>
+      </div>
     </Card>
   );
 }
+
+type CityRow = { id: string; name: string; km: string };
 
 function LogisticsCard({ cfg, onSave, busy }: { cfg: Logistics; onSave: (v: Logistics) => void; busy: boolean }) {
   const [v, setV] = useState({
@@ -242,8 +272,9 @@ function LogisticsCard({ cfg, onSave, busy }: { cfg: Logistics; onSave: (v: Logi
     handling: String(cfg.handlingPerTon),
     insurance: String(cfg.insuranceRate * 100),
     scale: String(cfg.scaleFee),
-    cities: cfg.cities.map((c) => `${c.name},${c.km}`).join('\n'),
   });
+  const [cities, setCities] = useState<CityRow[]>(() => cfg.cities.map((c) => ({ id: newRowId(), name: c.name, km: String(c.km) })));
+  const [cityErrors, setCityErrors] = useState<Record<string, string>>({});
   useEffect(() => {
     setV({
       originLabel: cfg.originLabel,
@@ -252,8 +283,10 @@ function LogisticsCard({ cfg, onSave, busy }: { cfg: Logistics; onSave: (v: Logi
       handling: String(cfg.handlingPerTon),
       insurance: String(cfg.insuranceRate * 100),
       scale: String(cfg.scaleFee),
-      cities: cfg.cities.map((c) => `${c.name},${c.km}`).join('\n'),
     });
+    setCities(cfg.cities.map((c) => ({ id: newRowId(), name: c.name, km: String(c.km) })));
+    setCityErrors({});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cfg]);
 
   const [errors, setErrors] = useState<{
@@ -262,10 +295,14 @@ function LogisticsCard({ cfg, onSave, busy }: { cfg: Logistics; onSave: (v: Logi
     handling?: string;
     insurance?: string;
     scale?: string;
-    cities?: string;
   }>({});
 
   const NON_NEGATIVE_MSG = 'عدد معتبر و نامنفی وارد کنید.';
+
+  const setCityField = (id: string, patch: Partial<CityRow>) =>
+    setCities((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+  const removeCity = (id: string) => setCities((prev) => prev.filter((c) => c.id !== id));
+  const addCity = () => setCities((prev) => [...prev, { id: newRowId(), name: '', km: '' }]);
 
   const submit = () => {
     const nextErrors: typeof errors = {};
@@ -281,27 +318,22 @@ function LogisticsCard({ cfg, onSave, busy }: { cfg: Logistics; onSave: (v: Logi
     const scale = num(v.scale);
     if (!Number.isFinite(scale) || scale < 0) nextErrors.scale = NON_NEGATIVE_MSG;
 
-    const cityLines = normalizeDigits(v.cities)
-      .split('\n')
-      .map((l) => l.trim())
-      .filter(Boolean);
-    const cities: { name: string; km: number }[] = [];
-    let hasInvalidCity = false;
-    for (const l of cityLines) {
-      const [name, km] = l.split(/[,،]/).map((p) => p.trim());
-      const kmNum = Number(km);
-      if (!name || !Number.isFinite(kmNum) || kmNum <= 0) {
-        hasInvalidCity = true;
+    const nextCityErrors: Record<string, string> = {};
+    const cityValues: { name: string; km: number }[] = [];
+    for (const c of cities) {
+      const name = c.name.trim();
+      const km = num(c.km);
+      if (!name && !c.km.trim()) continue; // fully empty row — skip silently
+      if (!name || !Number.isFinite(km) || km <= 0) {
+        nextCityErrors[c.id] = 'نام شهر و فاصله (کیلومتر، عدد مثبت) را کامل وارد کنید.';
         continue;
       }
-      cities.push({ name, km: kmNum });
-    }
-    if (hasInvalidCity) {
-      nextErrors.cities = 'برخی خطوط نامعتبرند — فرمت درست: نام,کیلومتر (مثلاً تهران,120).';
+      cityValues.push({ name, km });
     }
 
     setErrors(nextErrors);
-    if (Object.values(nextErrors).some(Boolean)) return;
+    setCityErrors(nextCityErrors);
+    if (Object.values(nextErrors).some(Boolean) || Object.keys(nextCityErrors).length > 0) return;
 
     onSave({
       originLabel: v.originLabel.trim(),
@@ -310,7 +342,7 @@ function LogisticsCard({ cfg, onSave, busy }: { cfg: Logistics; onSave: (v: Logi
       handlingPerTon: handling,
       insuranceRate: insurance / 100,
       scaleFee: scale,
-      cities,
+      cities: cityValues,
     });
   };
 
@@ -325,16 +357,35 @@ function LogisticsCard({ cfg, onSave, busy }: { cfg: Logistics; onSave: (v: Logi
         <TextInput label="بیمه (٪ ارزش کالا)" inputMode="decimal" value={v.insurance} error={errors.insurance} onChange={(e) => setV({ ...v, insurance: e.target.value })} />
         <TextInput label="باسکول (تومان)" inputMode="numeric" value={v.scale} error={errors.scale} onChange={(e) => setV({ ...v, scale: e.target.value })} />
       </div>
-      <Textarea
-        label="شهرها (هر خط: نام,کیلومتر)"
-        rows={6}
-        value={v.cities}
-        error={errors.cities}
-        onChange={(e) => setV({ ...v, cities: e.target.value })}
-      />
-      <Button size="sm" style={{ marginBlockStart: 'var(--space-2)' }} loading={busy} onClick={submit}>
-        ذخیرهٔ لجستیک
-      </Button>
+
+      <div style={{ marginBlockStart: 'var(--space-3)' }}>
+        <Text color="muted">شهرهای مقصد و فاصله از مبدأ</Text>
+      </div>
+      <div style={{ display: 'grid', gap: 'var(--space-2)', marginBlockStart: 'var(--space-2)' }}>
+        {cities.map((c) => (
+          <div key={c.id} style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-start' }}>
+            <TextInput label="نام شهر" value={c.name} onChange={(e) => setCityField(c.id, { name: e.target.value })} />
+            <TextInput
+              label="فاصله (کیلومتر)"
+              inputMode="numeric"
+              value={c.km}
+              error={cityErrors[c.id]}
+              onChange={(e) => setCityField(c.id, { km: e.target.value })}
+            />
+            <Button size="sm" variant="ghost" onClick={() => removeCity(c.id)} style={{ marginBlockStart: 'var(--space-5)' }}>
+              حذف
+            </Button>
+          </div>
+        ))}
+      </div>
+      <div className={ui.toolbar} style={{ marginBlockStart: 'var(--space-3)' }}>
+        <Button size="sm" variant="secondary" onClick={addCity}>
+          افزودن شهر
+        </Button>
+        <Button size="sm" loading={busy} onClick={submit}>
+          ذخیرهٔ لجستیک
+        </Button>
+      </div>
     </Card>
   );
 }
