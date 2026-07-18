@@ -380,4 +380,8 @@ export const adminApi = {
     http.post<{ correction: unknown }>('/api/admin/ai/corrections', input),
   setCorrectionActive: (id: string, isActive: boolean) =>
     http.patch<{ ok: true }>(`/api/admin/ai/corrections/${id}`, { isActive }),
+  aiUsage: (days = 14) =>
+    http.get<{
+      series: Array<{ date: string; promptTokens: number; completionTokens: number; cacheHitTokens: number; violations: number }>;
+    }>(`/api/admin/ai/usage?days=${days}`),
 };

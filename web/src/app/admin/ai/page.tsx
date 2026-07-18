@@ -1,9 +1,9 @@
 import { Heading, Text, Stack } from '@/components/ui';
-import { AiReview } from '@/components/admin/ai/AiReview';
+import { AiAdminTabs } from '@/components/admin/ai/AiAdminTabs';
 import { requirePermission } from '@/lib/auth/guards';
 import { routes } from '@/lib/routes';
 
-/** /admin/ai — review flagged AI-advisor answers (continuous-improvement loop). */
+/** /admin/ai — review flagged AI-advisor answers + usage console (US-24.3). */
 export default async function AdminAiPage() {
   await requirePermission('ai:review', routes.admin.dashboard());
   return (
@@ -11,10 +11,10 @@ export default async function AdminAiPage() {
       <div>
         <Heading level={1}>دستیار هوشمند</Heading>
         <Text color="muted">
-          بازخورد کاربران روی پاسخ‌های دستیار — پاسخ‌های نامفید را بررسی کنید و گفتگوی کامل را ببینید.
+          بازخورد کاربران روی پاسخ‌های دستیار و مصرف روزانهٔ توکن/نقض گاردریل.
         </Text>
       </div>
-      <AiReview />
+      <AiAdminTabs />
     </Stack>
   );
 }
