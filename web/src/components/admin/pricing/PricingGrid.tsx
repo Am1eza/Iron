@@ -12,7 +12,21 @@ import { normalizeDigits, toPersianDigits, formatJalali } from '@/lib/utils/form
 import { useToast } from '@/lib/hooks/useToast';
 import { ApiError } from '@/lib/api/errors';
 import { Badge, Button, EmptyState, Modal, MovementBadge, TableSkeleton, useConfirm } from '@/components/ui';
+import { Sparkline } from '../dashboard/Sparkline';
 import ui from '../adminUi.module.css';
+
+/** Per-row 30-day price trend (US-17.6) — its own small query so a slow
+ *  history fetch for one SKU never blocks the grid from rendering. */
+function RowSparkline({ slug }: { slug: string }) {
+  const { data } = useQuery({
+    queryKey: ['admin', 'sku-history', slug],
+    queryFn: () => adminApi.skuHistory(slug, '30d'),
+    staleTime: 5 * 60 * 1000,
+  });
+  const series = (data?.points ?? []).map((p) => p.price);
+  if (series.length < 2) return <span className={ui.muted}>—</span>;
+  return <Sparkline data={series} width={64} height={22} />;
+}
 
 type Draft = { price?: string; deliveryTime?: string };
 type GridCol = 'price' | 'delivery';
@@ -227,7 +241,7 @@ export function PricingGrid() {
       </div>
 
       {isLoading ? (
-        <TableSkeleton rows={8} cols={6} />
+        <TableSkeleton rows={8} cols={7} />
       ) : isError ? (
         <EmptyState
           size="section"
@@ -249,6 +263,7 @@ export function PricingGrid() {
                 <th scope="col">قیمت (تومان)</th>
                 <th scope="col">زمان تحویل</th>
                 <th scope="col">نوسان</th>
+                <th scope="col">روند ۳۰روزه</th>
                 <th scope="col">وضعیت</th>
               </tr>
             </thead>
@@ -309,6 +324,9 @@ export function PricingGrid() {
                       ) : (
                         '—'
                       )}
+                    </td>
+                    <td>
+                      <RowSparkline slug={r.slug} />
                     </td>
                     <td>
                       {r.current.priceHidden ? (

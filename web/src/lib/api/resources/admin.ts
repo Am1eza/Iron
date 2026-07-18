@@ -169,6 +169,11 @@ export const adminApi = {
       failed: number;
     }>('/api/admin/pricing', { prices }),
   saveBillet: (value: number) => http.put<{ value: MarketValue }>('/api/admin/market/billet', { value }),
+  /** Public endpoint (no admin gate) — reused here for the pricing-grid row sparkline (US-17.6). */
+  skuHistory: (slug: string, range = '30d') =>
+    http.get<{ points: Array<{ price: number; at: string }> }>(
+      `/api/sku/${encodeURIComponent(slug)}/history?range=${range}`,
+    ),
 
   /* leads / crm */
   leads: (params: { status?: string; q?: string; page?: number } = {}) => {
