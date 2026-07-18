@@ -92,3 +92,39 @@ export const warehouseItems = pgTable(
   },
   (t) => [index('warehouse_items_user_idx').on(t.userId)],
 );
+
+/**
+ * A billing record for one consignment-fee settlement (US-08.5) — real
+ * invoicing, not just a report: each row freezes the period it covers, the
+ * item's quantity/fee AT settlement time (so a later monthlyFeeToman edit
+ * never rewrites history), and the resulting amount. The next settlement's
+ * period starts from this row's `periodTo`, not from `storedAt` again — see
+ * warehouseSettlementsRepo.ts's `unsettledFor`.
+ */
+export const warehouseSettlements = pgTable(
+  'warehouse_settlements',
+  {
+    id: text('id').primaryKey(),
+    warehouseItemId: text('warehouse_item_id')
+      .notNull()
+      .references(() => warehouseItems.id, { onDelete: 'cascade' }),
+    // Denormalized from warehouseItems.userId — lets "every settlement for
+    // this customer" be queried without joining through warehouse_items.
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id),
+    periodFrom: timestamp('period_from', { withTimezone: true }).notNull(),
+    periodTo: timestamp('period_to', { withTimezone: true }).notNull(),
+    quantityTons: doublePrecision('quantity_tons').notNull(),
+    monthlyFeeToman: bigint('monthly_fee_toman', { mode: 'number' }).notNull(),
+    amountToman: bigint('amount_toman', { mode: 'number' }).notNull(),
+    note: text('note'),
+    // Who settled it — preserve the record if that staff account is later removed.
+    actorId: text('actor_id').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('warehouse_settlements_item_idx').on(t.warehouseItemId, t.periodTo),
+    index('warehouse_settlements_user_idx').on(t.userId),
+  ],
+);
