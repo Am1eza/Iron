@@ -126,6 +126,24 @@
   font-variant-numeric: tabular-nums;
 }
 
+.linkButton {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--color-border);
+}
+
+.linkButton:hover,
+.linkButton:focus-visible {
+  color: var(--color-accent, #c97b2e);
+}
+
 .detailsPre {
   direction: ltr;
   text-align: left;

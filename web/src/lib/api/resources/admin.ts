@@ -62,7 +62,7 @@ export interface AdminUserRow {
   createdAt: string;
 }
 
-export type ArticleFull = Article & { bodyMd: string; coverUrl?: string };
+export type ArticleFull = Article & { bodyMd: string; coverUrl?: string; authorId?: string | null };
 
 export interface KpiRes {
   current: number;
@@ -221,17 +221,37 @@ export const adminApi = {
     http.post<{ article: ArticleFull }>('/api/admin/articles', input),
   updateArticle: (
     id: string,
-    patch: Partial<{ slug: string; title: string; excerpt: string | null; bodyMd: string; publishAt: string | null; status: 'draft'; coverUrl: string | null; seo: SeoMeta | null }>,
+    patch: Partial<{
+      slug: string;
+      title: string;
+      excerpt: string | null;
+      bodyMd: string;
+      publishAt: string | null;
+      status: 'draft';
+      coverUrl: string | null;
+      authorId: string | null;
+      seo: SeoMeta | null;
+    }>,
   ) => http.patch<{ article: ArticleFull }>(`/api/admin/articles/${id}`, patch),
   publishArticle: (id: string, publishAt?: string) =>
     http.post<{ article: ArticleFull }>(`/api/admin/articles/${id}/publish`, publishAt ? { publishAt } : {}),
 
   /* catalog */
   categories: () => http.get<{ categories: Array<{ id: string; slug: string; name: string; order: number; isActive: boolean }> }>('/api/admin/catalog/categories'),
+  createCategory: (input: { slug: string; name: string; order?: number }) =>
+    http.post<{ category: unknown }>('/api/admin/catalog/categories', input),
+  updateCategory: (id: string, patch: Partial<{ slug: string; name: string; order: number; isActive: boolean }>) =>
+    http.patch<{ category: unknown }>(`/api/admin/catalog/categories/${id}`, patch),
+  deactivateCategory: (id: string) => http.del<{ ok: true }>(`/api/admin/catalog/categories/${id}`),
   subCategories: (categoryId?: string) =>
     http.get<{ subCategories: Array<{ id: string; categoryId: string; slug: string; name: string; order: number; isActive: boolean }> }>(
       `/api/admin/catalog/subcategories${categoryId ? `?categoryId=${categoryId}` : ''}`,
     ),
+  createSubCategory: (input: { categoryId: string; slug: string; name: string; order?: number }) =>
+    http.post<{ subCategory: unknown }>('/api/admin/catalog/subcategories', input),
+  updateSubCategory: (id: string, patch: Partial<{ slug: string; name: string; order: number; isActive: boolean }>) =>
+    http.patch<{ subCategory: unknown }>(`/api/admin/catalog/subcategories/${id}`, patch),
+  deactivateSubCategory: (id: string) => http.del<{ ok: true }>(`/api/admin/catalog/subcategories/${id}`),
   skus: (params: { categoryId?: string; subCategoryId?: string; q?: string; all?: boolean; page?: number } = {}) => {
     const qs = new URLSearchParams();
     if (params.categoryId) qs.set('categoryId', params.categoryId);
@@ -246,6 +266,8 @@ export const adminApi = {
   createSku: (input: Record<string, unknown>) => http.post<{ sku: unknown }>('/api/admin/catalog/skus', input),
   updateSku: (id: string, patch: Record<string, unknown>) => http.patch<{ sku: unknown }>(`/api/admin/catalog/skus/${id}`, patch),
   deactivateSku: (id: string) => http.del<{ ok: true }>(`/api/admin/catalog/skus/${id}`),
+  /** Shared image upload (article cover, SKU photo) — content:write or catalog:write. */
+  uploadImage: (file: File) => http.upload<{ url: string }>('/api/admin/upload', file),
 
   /* users / club / settings / audit */
   users: (params: { role?: string; q?: string; page?: number } = {}) => {

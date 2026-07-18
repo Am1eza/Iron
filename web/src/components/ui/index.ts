@@ -36,6 +36,7 @@ export { Pagination } from './Pagination';
 export { Alert } from './Alert';
 export { Tooltip } from './Tooltip';
 export { Modal } from './Modal';
+export { useConfirm } from './useConfirm';
 export { EmptyState } from './EmptyState';
 export { emptyPresets } from './emptyPresets';
 
