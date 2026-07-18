@@ -16,6 +16,7 @@ async function GETImpl(req: NextRequest) {
         ? (status as 'submitted')
         : undefined,
     page: Math.max(1, Number(p.get('page') ?? 1) || 1),
+    perPage: p.get('perPage') ? Math.max(1, Number(p.get('perPage')) || 30) : undefined,
   });
   return NextResponse.json(result, { headers: { 'Cache-Control': 'no-store' } });
 }

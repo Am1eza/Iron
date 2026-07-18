@@ -1,21 +1,22 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { desc, eq, sql } from 'drizzle-orm';
 import { requireApiPermission, requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
-import { getDb } from '@/lib/server/db/client';
-import { contactMessages } from '@/lib/server/db/schema';
+import { adminListContactMessages } from '@/lib/server/repos/contactMessagesRepo';
 
-/** GET /api/admin/contact-messages?status= — the contact-form inbox. */
+/** GET /api/admin/contact-messages?status=&page=&perPage= — the contact-form inbox.
+ *  ?page= — was a hard silent limit(100) with no way past it. */
 async function GETImpl(req: NextRequest) {
   const guard = requireDb();
   if (guard) return guard;
   const auth = await requireApiPermission(req, 'leads:read');
   if ('response' in auth) return auth.response;
-  const status = req.nextUrl.searchParams.get('status');
-  const where = status === 'new' || status === 'handled' ? eq(contactMessages.status, status) : undefined;
-  const db = getDb();
-  const rows = await db.select().from(contactMessages).where(where).orderBy(desc(contactMessages.createdAt)).limit(100);
-  const total = await db.select({ n: sql<number>`count(*)::int` }).from(contactMessages).where(where);
-  return NextResponse.json({ messages: rows, total: total[0]?.n ?? 0 }, { headers: { 'Cache-Control': 'no-store' } });
+  const p = req.nextUrl.searchParams;
+  const status = p.get('status');
+  const result = await adminListContactMessages({
+    status: status === 'new' || status === 'handled' ? status : undefined,
+    page: Math.max(1, Number(p.get('page') ?? 1) || 1),
+    perPage: p.get('perPage') ? Math.max(1, Number(p.get('perPage')) || 50) : undefined,
+  });
+  return NextResponse.json(result, { headers: { 'Cache-Control': 'no-store' } });
 }
 
 export const GET = withApiErrorHandling(GETImpl);
