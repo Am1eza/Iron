@@ -6,6 +6,7 @@ import { can, permissionForAdminPath } from '@/lib/auth/roles';
 import { routes } from '@/lib/routes';
 import { AdminNavLinks } from './AdminNavLinks';
 import { AdminAlerts } from '@/components/admin/AdminAlerts';
+import { CommandPalette } from '@/components/admin/CommandPalette';
 import styles from './admin.module.css';
 import logoMark from '../../../public/brand/ahantime-logo.png';
 
@@ -55,6 +56,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       <AdminAlerts />
         </nav>
         <div className={styles.user}>
+          <CommandPalette nav={nav} />
           <span>{user.name ?? user.mobile}</span>
           <Link href={routes.home()} className={styles.exit}>
             خروج به سایت

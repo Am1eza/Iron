@@ -1,0 +1,103 @@
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-pill, 999px);
+  background: transparent;
+  color: var(--color-text-muted);
+  font: var(--t-caption);
+  cursor: pointer;
+}
+.trigger:hover {
+  background: var(--color-surface-sunken, rgba(0, 0, 0, 0.04));
+  color: var(--color-text);
+}
+.trigger kbd {
+  font: inherit;
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-1);
+}
+
+.root {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: var(--space-4);
+  padding-block-start: 12vh;
+  background: var(--color-overlay);
+}
+
+.panel {
+  inline-size: 100%;
+  max-inline-size: 560px;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.input {
+  border: 0;
+  border-block-end: var(--border-hairline) solid var(--color-hairline);
+  padding: var(--space-4);
+  font: var(--t-input);
+  background: transparent;
+  color: var(--color-text);
+}
+.input:focus {
+  outline: none;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-2);
+  max-block-size: 50vh;
+  overflow-y: auto;
+}
+
+.item {
+  inline-size: 100%;
+  text-align: start;
+  padding: var(--space-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text);
+  font: var(--t-label);
+  cursor: pointer;
+}
+.item:hover,
+.item[data-active] {
+  background: var(--color-surface-sunken, rgba(0, 0, 0, 0.04));
+}
+
+.empty {
+  padding: var(--space-4);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.hint {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-2) var(--space-4);
+  border-block-start: var(--border-hairline) solid var(--color-hairline);
+  color: var(--color-text-muted);
+  font: var(--t-caption);
+}
+.hint kbd {
+  font: inherit;
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-1);
+}
