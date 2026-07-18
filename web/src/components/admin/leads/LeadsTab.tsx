@@ -4,9 +4,12 @@ import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { adminApi, type AdminLead } from '@/lib/api/resources/admin';
 import { formatJalali, toPersianDigits } from '@/lib/utils/format';
-import { Badge, Chip, EmptyState, TableSkeleton } from '@/components/ui';
+import { Badge, Button, Chip, EmptyState, TableSkeleton } from '@/components/ui';
 import { LeadDetail } from './LeadDetail';
+import { PagerFooter } from '../PagerFooter';
 import ui from '../adminUi.module.css';
+
+const PER_PAGE = 30;
 
 const STATUS_META: Record<AdminLead['status'], { label: string; tone: 'info' | 'action' | 'gain' | 'loss' }> = {
   new: { label: 'جدید', tone: 'info' },
@@ -37,6 +40,9 @@ export function LeadsTab() {
   const [status, setStatus] = useState('');
   const [search, setSearch] = useState('');
   const [q, setQ] = useState('');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const [page, setPage] = useState(1);
   const [openId, setOpenId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -44,9 +50,20 @@ export function LeadsTab() {
     return () => clearTimeout(t);
   }, [search]);
 
+  // A new filter always jumps back to page 1 — otherwise "صفحهٔ ۵" of the old
+  // (much longer) result set can be past the end of the new, filtered one.
+  useEffect(() => {
+    setPage(1);
+  }, [status, q, from, to]);
+
+  // `to` is a date-only picker; sent as-is it'd mean "up to today's
+  // midnight" and silently exclude every lead created today after 00:00.
+  const toParam = to ? `${to}T23:59:59` : undefined;
+
   const { data, isLoading } = useQuery({
-    queryKey: ['admin', 'leads', status, q],
-    queryFn: () => adminApi.leads({ status: status || undefined, q: q || undefined }),
+    queryKey: ['admin', 'leads', status, q, from, to, page],
+    queryFn: () =>
+      adminApi.leads({ status: status || undefined, q: q || undefined, from: from || undefined, to: toParam, page, perPage: PER_PAGE }),
   });
 
   const leads = data?.leads ?? [];
@@ -67,6 +84,39 @@ export function LeadsTab() {
           onChange={(e) => setSearch(e.target.value)}
           aria-label="جستجوی سرنخ"
         />
+      </div>
+      <div className={ui.toolbar}>
+        <input
+          type="date"
+          className={ui.textCell}
+          value={from}
+          onChange={(e) => setFrom(e.target.value)}
+          aria-label="از تاریخ"
+        />
+        <span className={ui.muted}>تا</span>
+        <input
+          type="date"
+          className={ui.textCell}
+          value={to}
+          onChange={(e) => setTo(e.target.value)}
+          aria-label="تا تاریخ"
+        />
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => {
+            // Content-Disposition: attachment on the response — the browser
+            // downloads it instead of navigating away from the SPA.
+            window.location.href = adminApi.leadsExportUrl({
+              status: status || undefined,
+              q: q || undefined,
+              from: from || undefined,
+              to: toParam,
+            });
+          }}
+        >
+          خروجی اکسل
+        </Button>
       </div>
 
       {isLoading ? (
@@ -102,6 +152,7 @@ export function LeadsTab() {
         </table>
       )}
       {data ? <p className={ui.muted}>{toPersianDigits(data.total)} سرنخ</p> : null}
+      {data ? <PagerFooter page={page} perPage={PER_PAGE} total={data.total} onPage={setPage} /> : null}
     </div>
   );
 }

@@ -176,12 +176,25 @@ export const adminApi = {
     ),
 
   /* leads / crm */
-  leads: (params: { status?: string; q?: string; page?: number } = {}) => {
+  leads: (params: { status?: string; q?: string; page?: number; perPage?: number; from?: string; to?: string } = {}) => {
     const qs = new URLSearchParams();
     if (params.status) qs.set('status', params.status);
     if (params.q) qs.set('q', params.q);
     if (params.page) qs.set('page', String(params.page));
+    if (params.perPage) qs.set('perPage', String(params.perPage));
+    if (params.from) qs.set('from', params.from);
+    if (params.to) qs.set('to', params.to);
     return http.get<{ leads: AdminLead[]; total: number }>(`/api/admin/leads?${qs}`);
+  },
+  /** Not fetched via `http` — the browser navigates straight to this URL to
+   *  download the CSV, same query params as `leads()`. */
+  leadsExportUrl: (params: { status?: string; q?: string; from?: string; to?: string } = {}) => {
+    const qs = new URLSearchParams();
+    if (params.status) qs.set('status', params.status);
+    if (params.q) qs.set('q', params.q);
+    if (params.from) qs.set('from', params.from);
+    if (params.to) qs.set('to', params.to);
+    return `/api/admin/leads/export?${qs}`;
   },
   lead: (id: string) =>
     http.get<{ lead: AdminLead; items: Array<LineItem & { id: string }>; notes: Array<{ id: string; authorId: string; text: string; at: string }>; proformas: AdminProforma[] }>(
@@ -196,15 +209,27 @@ export const adminApi = {
   convertToOrder: (id: string) => http.post<{ order: Order }>(`/api/admin/leads/${id}/order`, {}),
 
   /* requests + contact */
-  requests: (status?: string) =>
-    http.get<{ requests: Array<{ id: string; ref: string; userId: string; type: string; title: string; detail?: string; status: string; createdAt: string }>; total: number }>(
-      `/api/admin/requests${status ? `?status=${status}` : ''}`,
-    ),
+  requests: (params: { status?: string; page?: number; perPage?: number } = {}) => {
+    const qs = new URLSearchParams();
+    if (params.status) qs.set('status', params.status);
+    if (params.page) qs.set('page', String(params.page));
+    if (params.perPage) qs.set('perPage', String(params.perPage));
+    return http.get<{
+      requests: Array<{ id: string; ref: string; userId: string; type: string; title: string; detail?: string; status: string; createdAt: string }>;
+      total: number;
+    }>(`/api/admin/requests?${qs}`);
+  },
   updateRequest: (id: string, status: string) => http.patch<{ request: unknown }>(`/api/admin/requests/${id}`, { status }),
-  contactMessages: (status?: string) =>
-    http.get<{ messages: Array<{ id: string; name: string; mobile: string; message: string; status: string; createdAt: string }>; total: number }>(
-      `/api/admin/contact-messages${status ? `?status=${status}` : ''}`,
-    ),
+  contactMessages: (params: { status?: string; page?: number; perPage?: number } = {}) => {
+    const qs = new URLSearchParams();
+    if (params.status) qs.set('status', params.status);
+    if (params.page) qs.set('page', String(params.page));
+    if (params.perPage) qs.set('perPage', String(params.perPage));
+    return http.get<{
+      messages: Array<{ id: string; name: string; mobile: string; message: string; status: string; createdAt: string }>;
+      total: number;
+    }>(`/api/admin/contact-messages?${qs}`);
+  },
   updateContactMessage: (id: string, status: 'new' | 'handled') =>
     http.patch<{ message: unknown }>(`/api/admin/contact-messages/${id}`, { status }),
 

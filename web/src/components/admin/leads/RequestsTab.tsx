@@ -1,11 +1,15 @@
 'use client';
 /** User-request inbox — advance each request along its 4-step trail. */
+import { useState } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api/resources/admin';
 import { formatJalali, toPersianDigits } from '@/lib/utils/format';
 import { useToast } from '@/lib/hooks/useToast';
 import { EmptyState, TableSkeleton } from '@/components/ui';
+import { PagerFooter } from '../PagerFooter';
 import ui from '../adminUi.module.css';
+
+const PER_PAGE = 30;
 
 const TYPE_LABEL: Record<string, string> = {
   proforma: 'پیش‌فاکتور',
@@ -23,9 +27,10 @@ const STATUSES = [
 export function RequestsTab() {
   const toast = useToast();
   const qc = useQueryClient();
+  const [page, setPage] = useState(1);
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['admin', 'requests'],
-    queryFn: () => adminApi.requests(),
+    queryKey: ['admin', 'requests', page],
+    queryFn: () => adminApi.requests({ page, perPage: PER_PAGE }),
   });
   const update = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) => adminApi.updateRequest(id, status),
@@ -95,6 +100,7 @@ export function RequestsTab() {
         </table>
       )}
       {data ? <p className={ui.muted}>{toPersianDigits(data.total)} درخواست</p> : null}
+      {data ? <PagerFooter page={page} perPage={PER_PAGE} total={data.total} onPage={setPage} /> : null}
     </div>
   );
 }
