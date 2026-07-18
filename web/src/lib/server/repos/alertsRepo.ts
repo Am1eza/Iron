@@ -102,6 +102,34 @@ export async function createAlert(input: {
   });
 }
 
+/** All alerts across every user (admin management page), newest first,
+ *  optionally filtered by status. `limit+1` signals `hasMore`, same
+ *  convention as `ordersForUser`/`requestsForUser`. */
+export async function adminListAlerts(query: {
+  status?: AlertRow['status'];
+  page?: number;
+  perPage?: number;
+}): Promise<{ rows: Array<AlertDto & { mobile: string }>; hasMore: boolean }> {
+  const { users } = await import('@/lib/server/db/schema');
+  const size = Math.min(Math.max(query.perPage ?? 50, 1), 100);
+  const page = Math.max(query.page ?? 1, 1);
+  const where = query.status ? eq(alerts.status, query.status) : undefined;
+  const rows = await getDb()
+    .select({ alert: alerts, mobile: users.mobile, skuName: skus.name, marketLabel: marketValues.label })
+    .from(alerts)
+    .innerJoin(users, eq(alerts.userId, users.id))
+    .leftJoin(skus, eq(alerts.skuId, skus.id))
+    .leftJoin(marketValues, eq(alerts.marketKey, marketValues.key))
+    .where(where)
+    .orderBy(desc(alerts.createdAt))
+    .limit(size + 1)
+    .offset((page - 1) * size);
+  return {
+    rows: rows.slice(0, size).map((r) => ({ ...toAlertDto(r.alert, r.skuName ?? r.marketLabel ?? undefined), mobile: r.mobile })),
+    hasMore: rows.length > size,
+  };
+}
+
 /** User's alerts with display labels (SKU name / market label). */
 export async function alertsForUser(userId: string): Promise<AlertDto[]> {
   const rows = await getDb()

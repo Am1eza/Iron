@@ -3,16 +3,43 @@
  * Content queue — AI drafts → editor approval → publish/schedule. Selecting a
  * row opens the editor (title/slug/excerpt/bodyMd) with a markdown-lite preview.
  */
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { adminApi, type ArticleFull } from '@/lib/api/resources/admin';
 import { formatJalali } from '@/lib/utils/format';
 import { useToast } from '@/lib/hooks/useToast';
 import { ApiError } from '@/lib/api/errors';
-import { Badge, Button, Chip, EmptyState, TableSkeleton, Tabs, TabPanel } from '@/components/ui';
+import { Badge, Button, Chip, EmptyState, TableSkeleton, Tabs, TabPanel, useConfirm } from '@/components/ui';
 import { TextInput, Textarea } from '@/components/forms/fields';
 import { ImageUpload } from '../ImageUpload';
 import ui from '../adminUi.module.css';
+
+/**
+ * Cursor-aware markdown insertion for the toolbar (US-12.4) — replaces the
+ * current selection (or inserts a placeholder) and restores focus/selection
+ * afterward so a second click continues from where the first left off.
+ */
+function wrapSelection(textarea: HTMLTextAreaElement, before: string, after: string, placeholder: string) {
+  const { selectionStart: start, selectionEnd: end, value } = textarea;
+  const selected = value.slice(start, end) || placeholder;
+  const next = value.slice(0, start) + before + selected + after + value.slice(end);
+  return { next, selectStart: start + before.length, selectEnd: start + before.length + selected.length };
+}
+
+/** Prefixes every line touched by the selection (heading/list toolbar buttons). */
+function prefixLines(textarea: HTMLTextAreaElement, prefix: string) {
+  const { selectionStart: start, selectionEnd: end, value } = textarea;
+  const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+  const lineEndIdx = value.indexOf('\n', end);
+  const lineEnd = lineEndIdx === -1 ? value.length : lineEndIdx;
+  const block = value.slice(lineStart, lineEnd);
+  const prefixed = block
+    .split('\n')
+    .map((line) => (line.startsWith(prefix) ? line : `${prefix}${line}`))
+    .join('\n');
+  const next = value.slice(0, lineStart) + prefixed + value.slice(lineEnd);
+  return { next, selectStart: lineStart, selectEnd: lineStart + prefixed.length };
+}
 
 const STATUS_TABS = [
   { id: 'draft', label: 'پیش‌نویس' },
@@ -145,9 +172,22 @@ function NewArticleButton({ onCreated }: { onCreated: (a: ArticleFull) => void }
 function ArticleEditor({ id, onDone }: { id: string; onDone: () => void }) {
   const toast = useToast();
   const qc = useQueryClient();
+  const { confirm, dialog } = useConfirm();
   const [draft, setDraft] = useState<Partial<ArticleFull> | null>(null);
   const [schedule, setSchedule] = useState('');
   const [preview, setPreview] = useState(false);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+
+  const applyMd = (fn: (ta: HTMLTextAreaElement) => { next: string; selectStart: number; selectEnd: number }) => {
+    const ta = bodyRef.current;
+    if (!ta) return;
+    const { next, selectStart, selectEnd } = fn(ta);
+    setDraft((d) => ({ ...d, bodyMd: next }));
+    requestAnimationFrame(() => {
+      ta.focus();
+      ta.setSelectionRange(selectStart, selectEnd);
+    });
+  };
 
   const { data } = useQuery({ queryKey: ['admin', 'article', id], queryFn: () => adminApi.article(id) });
   const article = data?.article;
@@ -186,6 +226,23 @@ function ArticleEditor({ id, onDone }: { id: string; onDone: () => void }) {
       onDone();
     },
     onError: (err) => toast.error(err instanceof ApiError ? err.message : 'انتشار ناموفق بود.'),
+  });
+  const unpublish = useMutation({
+    mutationFn: () => adminApi.updateArticle(id, { status: 'draft' }),
+    onSuccess: () => {
+      toast.success('به پیش‌نویس بازگشت.');
+      invalidate();
+    },
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : 'لغو انتشار ناموفق بود.'),
+  });
+  const remove = useMutation({
+    mutationFn: () => adminApi.deleteArticle(id),
+    onSuccess: () => {
+      toast.success('پیش‌نویس حذف شد.');
+      invalidate();
+      onDone();
+    },
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : 'حذف ناموفق بود.'),
   });
 
   if (!value) return null;
@@ -237,37 +294,88 @@ function ArticleEditor({ id, onDone }: { id: string; onDone: () => void }) {
             value={value.seo?.ogImage ?? null}
             onChange={(url) => setDraft({ ...draft, seo: { ...value.seo, ogImage: url ?? undefined } })}
           />
-          <Textarea
-            label="متن (Markdown)"
-            rows={14}
-            style={{ fontFamily: 'monospace' }}
-            value={value.bodyMd ?? ''}
-            onChange={(e) => setDraft({ ...draft, bodyMd: e.target.value })}
-          />
+          <div>
+            <div className={ui.toolbar} style={{ marginBlockEnd: 'var(--space-1)' }}>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => applyMd((ta) => wrapSelection(ta, '**', '**', 'متن پررنگ'))}
+              >
+                پررنگ
+              </Button>
+              <Button type="button" size="sm" variant="ghost" onClick={() => applyMd((ta) => prefixLines(ta, '## '))}>
+                عنوان
+              </Button>
+              <Button type="button" size="sm" variant="ghost" onClick={() => applyMd((ta) => prefixLines(ta, '- '))}>
+                فهرست
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => applyMd((ta) => wrapSelection(ta, '[', '](https://)', 'متن پیوند'))}
+              >
+                پیوند
+              </Button>
+            </div>
+            <Textarea
+              ref={bodyRef}
+              label="متن (Markdown)"
+              rows={14}
+              style={{ fontFamily: 'monospace' }}
+              value={value.bodyMd ?? ''}
+              onChange={(e) => setDraft({ ...draft, bodyMd: e.target.value })}
+            />
+          </div>
         </div>
         <div>
           <div className={ui.toolbar}>
             <Button size="sm" onClick={() => save.mutate()} loading={save.isPending} disabled={!draft}>
               ذخیره
             </Button>
-            <Button size="sm" variant="secondary" onClick={() => publish.mutate(undefined)} loading={publish.isPending}>
-              انتشار اکنون
-            </Button>
-            <input
-              type="datetime-local"
-              className={ui.textCell}
-              value={schedule}
-              onChange={(e) => setSchedule(e.target.value)}
-              aria-label="زمان انتشار"
-            />
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={!schedule}
-              onClick={() => publish.mutate(new Date(schedule).toISOString())}
-            >
-              زمان‌بندی
-            </Button>
+            {value.status === 'draft' ? (
+              <>
+                <Button size="sm" variant="secondary" onClick={() => publish.mutate(undefined)} loading={publish.isPending}>
+                  انتشار اکنون
+                </Button>
+                <input
+                  type="datetime-local"
+                  className={ui.textCell}
+                  value={schedule}
+                  onChange={(e) => setSchedule(e.target.value)}
+                  aria-label="زمان انتشار"
+                />
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={!schedule}
+                  onClick={() => publish.mutate(new Date(schedule).toISOString())}
+                >
+                  زمان‌بندی
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  loading={remove.isPending}
+                  onClick={() =>
+                    void confirm({
+                      title: 'حذف پیش‌نویس',
+                      body: 'این پیش‌نویس برای همیشه حذف می‌شود. ادامه؟',
+                      confirmLabel: 'حذف کن',
+                    }).then((ok) => {
+                      if (ok) remove.mutate();
+                    })
+                  }
+                >
+                  حذف
+                </Button>
+              </>
+            ) : (
+              <Button size="sm" variant="ghost" onClick={() => unpublish.mutate()} loading={unpublish.isPending}>
+                لغو انتشار
+              </Button>
+            )}
             <Button size="sm" variant="ghost" onClick={() => setPreview(!preview)}>
               {preview ? 'ویرایش' : 'پیش‌نمایش'}
             </Button>
@@ -299,6 +407,7 @@ function ArticleEditor({ id, onDone }: { id: string; onDone: () => void }) {
           )}
         </div>
       </div>
+      {dialog}
     </div>
   );
 }

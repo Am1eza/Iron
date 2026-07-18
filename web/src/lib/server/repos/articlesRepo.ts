@@ -161,6 +161,24 @@ export async function adminGetArticle(id: string): Promise<ArticleFull | null> {
   return rows[0] ? toArticleFull(rows[0]) : null;
 }
 
+/**
+ * Hard-deletes a DRAFT article only (US-12.5) — never published/scheduled:
+ * once an article has been (or is about to be) public, "delete" means
+ * unpublish (PATCH status:'draft'), not erase — the same soft-vs-hard split
+ * the rest of the catalog uses for priced history, just expressed through
+ * status instead of a deletedAt/isActive column (an article never carries
+ * transactional history the way a priced SKU does, so this is deliberately
+ * simpler than a full soft-delete). Returns false if the row doesn't exist
+ * or isn't a draft — the caller turns that into a 400/404.
+ */
+export async function deleteDraftArticle(id: string): Promise<boolean> {
+  const rows = await getDb()
+    .delete(articles)
+    .where(and(eq(articles.id, id), eq(articles.status, 'draft')))
+    .returning({ id: articles.id });
+  return rows.length > 0;
+}
+
 export async function createArticle(input: {
   slug: string;
   type: 'blog' | 'news';

@@ -21,6 +21,7 @@ const NAV: Array<{ href: string; label: string }> = [
   { href: routes.admin.marketing(), label: 'بازاریابی' },
   { href: routes.admin.seo(), label: 'سئو' },
   { href: routes.admin.pricing(), label: 'قیمت‌گذاری' },
+  { href: routes.admin.alerts(), label: 'هشدارهای قیمت' },
   { href: routes.admin.leads(), label: 'سرنخ‌ها' },
   { href: routes.admin.orders(), label: 'سفارش‌ها' },
   { href: routes.admin.warehouse(), label: 'انبار' },

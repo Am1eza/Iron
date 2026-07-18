@@ -64,6 +64,18 @@ export interface AdminUserRow {
 
 export type ArticleFull = Article & { bodyMd: string; coverUrl?: string; authorId?: string | null };
 
+export interface AdminAlertRow {
+  id: string;
+  mobile: string;
+  target: { type: 'sku'; skuId: string; label?: string } | { type: 'market'; key: string; label?: string };
+  op: 'below' | 'above';
+  threshold: number;
+  channel: string;
+  status: 'active' | 'triggered' | 'paused';
+  lastTriggeredAt?: string;
+  createdAt: string;
+}
+
 export interface KpiRes {
   current: number;
   prior: number;
@@ -235,6 +247,8 @@ export const adminApi = {
   ) => http.patch<{ article: ArticleFull }>(`/api/admin/articles/${id}`, patch),
   publishArticle: (id: string, publishAt?: string) =>
     http.post<{ article: ArticleFull }>(`/api/admin/articles/${id}/publish`, publishAt ? { publishAt } : {}),
+  /** Draft only — the server rejects a published/scheduled article (unpublish first). */
+  deleteArticle: (id: string) => http.del<{ ok: true }>(`/api/admin/articles/${id}`),
 
   /* catalog */
   categories: () => http.get<{ categories: Array<{ id: string; slug: string; name: string; order: number; isActive: boolean }> }>('/api/admin/catalog/categories'),
@@ -268,6 +282,16 @@ export const adminApi = {
   deactivateSku: (id: string) => http.del<{ ok: true }>(`/api/admin/catalog/skus/${id}`),
   /** Shared image upload (article cover, SKU photo) — content:write or catalog:write. */
   uploadImage: (file: File) => http.upload<{ url: string }>('/api/admin/upload', file),
+
+  /* price alerts (قیمت‌سنج) — admin management */
+  alerts: (params: { status?: 'active' | 'triggered' | 'paused'; page?: number } = {}) => {
+    const qs = new URLSearchParams();
+    if (params.status) qs.set('status', params.status);
+    if (params.page) qs.set('page', String(params.page));
+    return http.get<{ alerts: AdminAlertRow[]; hasMore: boolean; cap: number }>(`/api/admin/alerts?${qs}`);
+  },
+  updateAlertStatus: (id: string, status: 'active' | 'paused') =>
+    http.patch<{ alert: unknown }>(`/api/admin/alerts/${id}`, { status }),
 
   /* users / club / settings / audit */
   users: (params: { role?: string; q?: string; page?: number } = {}) => {

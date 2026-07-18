@@ -52,6 +52,7 @@ export const routes = {
     dashboard: () => '/admin',
     desk: () => '/admin/desk',
     pricing: () => '/admin/pricing',
+    alerts: () => '/admin/alerts',
     catalog: () => '/admin/catalog',
     leads: () => '/admin/leads',
     warehouse: () => '/admin/warehouse',

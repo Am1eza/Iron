@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
-import { adminGetArticle, updateArticle } from '@/lib/server/repos/articlesRepo';
+import { adminGetArticle, updateArticle, deleteDraftArticle } from '@/lib/server/repos/articlesRepo';
 
 /** GET /api/admin/articles/{id} — full article for the editor. */
 async function GETImpl(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
@@ -65,5 +65,27 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }
   return NextResponse.json({ article });
 }
 
+/** DELETE /api/admin/articles/{id} — draft only (see deleteDraftArticle). A
+ *  published/scheduled article must be unpublished first (PATCH status:'draft'). */
+async function DELETEImpl(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const guard = requireDb();
+  if (guard) return guard;
+  const auth = await requireApiPermission(req, 'content:write');
+  if ('response' in auth) return auth.response;
+  const { id } = await ctx.params;
+  const existing = await adminGetArticle(id);
+  if (!existing) return NextResponse.json({ error: 'not_found', message: 'مقاله یافت نشد.' }, { status: 404 });
+  if (existing.status !== 'draft') {
+    return NextResponse.json(
+      { error: 'not_draft', message: 'فقط پیش‌نویس قابل حذف است — ابتدا انتشار را لغو کنید.' },
+      { status: 400 },
+    );
+  }
+  await deleteDraftArticle(id);
+  await audit(auth.session.id, 'content.delete', { type: 'article', id }, existing, null);
+  return NextResponse.json({ ok: true });
+}
+
 export const GET = withApiErrorHandling(GETImpl);
 export const PATCH = withApiErrorHandling(PATCHImpl);
+export const DELETE = withApiErrorHandling(DELETEImpl);
