@@ -7,8 +7,9 @@ import { API_MODE } from '@/lib/api/config';
 import { hasDb } from '@/lib/server/db/client';
 import type { Category, PriceRow, Article } from '@/lib/types/domain';
 import * as mock from '@/lib/mock/catalogData';
-import { categories as mockCategories } from '@/lib/mock/fixtures';
+import { categories as mockCategories, marketValues as mockMarketValues } from '@/lib/mock/fixtures';
 import * as repo from '@/lib/server/repos/catalogRepo';
+import { getMarketValue } from '@/lib/server/repos/marketRepo';
 import { normalizeDigits } from '@/lib/utils/format';
 import { searchArticles, listPublished, findPublishedBySlug, type ArticleFull } from '@/lib/server/repos/articlesRepo';
 
@@ -37,6 +38,21 @@ export async function findSku(slug: string): Promise<PriceRow | undefined> {
 export async function relatedRows(row: PriceRow, n = 4): Promise<PriceRow[]> {
   if (!live()) return mock.relatedRows(row, n);
   return repo.relatedSkuRows(row.slug, n);
+}
+
+/** The بورس billet reference value (US-03.3) — same per-kg Toman convention
+ *  every SKU price already uses site-wide (see PriceTable's "قیمت‌ها ... برای
+ *  هر کیلوگرم" note), so a SKU's price vs this is a direct ratio, not a
+ *  formula that needs a conversion factor. Null when unset/never entered
+ *  (OP hasn't filled the ticker's billet field yet) — callers must treat
+ *  that as "no comparison available", not zero. */
+export async function getBilletReference(): Promise<{ value: number; updatedAt: string } | null> {
+  if (!live()) {
+    const m = mockMarketValues.find((v) => v.key === 'billet');
+    return m ? { value: m.value, updatedAt: m.updatedAt } : null;
+  }
+  const row = await getMarketValue('billet');
+  return row ? { value: row.value, updatedAt: row.updatedAt.toISOString() } : null;
 }
 
 /** Chart series (number[]) — history values ending at the current price. */

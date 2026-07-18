@@ -44,12 +44,15 @@ export function SkuDetail({
   related: relatedProp,
   series: seriesProp,
   categoryRows,
+  billet,
 }: {
   row: PriceRow;
   /** Server-provided (live mode); mock fallbacks apply when absent. */
   related?: PriceRow[];
   series?: number[];
   categoryRows?: PriceRow[];
+  /** بورس billet reference (US-03.3) — null when OP hasn't entered one yet. */
+  billet?: { value: number; updatedAt: string } | null;
 }) {
   const add = useCartStore((s) => s.add);
   const toast = useToast();
@@ -65,6 +68,10 @@ export function SkuDetail({
   const price = vat
     ? Math.round(row.current.price * (1 + CONSTANTS.VAT_RATE))
     : row.current.price;
+
+  // US-03.3 — compared against the raw (VAT-free) price: billet itself has
+  // no VAT toggle, so the ratio must stay stable regardless of the switch above.
+  const billetDiffPct = billet && billet.value > 0 ? ((row.current.price - billet.value) / billet.value) * 100 : null;
 
   const crumbs = [
     { label: 'خانه', href: routes.home() },
@@ -198,6 +205,15 @@ export function SkuDetail({
               <MovementBadge dir={row.current.movementDir} pct={row.current.movementPct} pill />
               <DeliveryBadge value={row.current.deliveryTime} />
             </div>
+
+            {billetDiffPct !== null ? (
+              <p className={styles.vatNote} style={{ marginBlockStart: 0 }}>
+                {billetDiffPct >= 0
+                  ? `٪${toPersianDigits(Math.abs(billetDiffPct).toFixed(1))} بالاتر از قیمت پایهٔ شمش بورس`
+                  : `٪${toPersianDigits(Math.abs(billetDiffPct).toFixed(1))} پایین‌تر از قیمت پایهٔ شمش بورس`}{' '}
+                <bdi>({formatToman(billet!.value, false)} تومان)</bdi>
+              </p>
+            ) : null}
 
             <div className={styles.vatRow}>
               <Switch checked={vat} onChange={setVat} label="با احتساب ارزش افزوده" />

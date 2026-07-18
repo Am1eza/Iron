@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { buildMetadata, productJsonLd } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { subName, allRows } from '@/lib/mock/catalogData';
-import { findSku, relatedRows, priceSeries, getRows, getCategories } from '@/lib/server/catalog';
+import { findSku, relatedRows, priceSeries, getRows, getCategories, getBilletReference } from '@/lib/server/catalog';
 import { formatToman } from '@/lib/utils/format';
 import { productImage } from '@/lib/data/productImages';
 import { JsonLd, BreadcrumbJsonLd } from '@/components/seo/JsonLd';
@@ -37,11 +37,12 @@ export default async function SkuPage({ params }: Params) {
   const row = await findSku(sku);
   if (!row || row.categoryId !== category || row.subCategoryId !== sub) notFound();
 
-  const [related, series, categoryRows, categories] = await Promise.all([
+  const [related, series, categoryRows, categories, billet] = await Promise.all([
     relatedRows(row),
     priceSeries(row.slug, row.current.price),
     getRows(category),
     getCategories(),
+    getBilletReference(),
   ]);
 
   const catName = categories.find((c) => c.slug === category)?.name ?? category;
@@ -69,7 +70,7 @@ export default async function SkuPage({ params }: Params) {
         })}
       />
       <Section space={10}>
-        <SkuDetail row={row} related={related} series={series} categoryRows={categoryRows} />
+        <SkuDetail row={row} related={related} series={series} categoryRows={categoryRows} billet={billet} />
       </Section>
     </Container>
   );
