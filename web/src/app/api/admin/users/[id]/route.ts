@@ -3,6 +3,45 @@ import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { listUsers, updateUser, userById, revokeAllForUser } from '@/lib/auth/store';
+import { publicUser } from '@/lib/auth/publicUser';
+import { leadsForUser } from '@/lib/server/repos/leadsRepo';
+import { ordersForUser } from '@/lib/server/repos/ordersRepo';
+import { aiUsageSummaryForUser } from '@/lib/server/repos/userActivityRepo';
+
+const DETAIL_PAGE_SIZE = 20;
+
+/** GET /api/admin/users/{id} — profile + a recent-activity snapshot (leads/
+ *  orders/AI usage) for the user-detail tab (US-21.3). Only the first page
+ *  of leads/orders — this is a "recent activity" glance, not a full export
+ *  (use GET /api/me/{leads,orders} pagination or /api/admin/leads for that). */
+async function GETImpl(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const guard = requireDb();
+  if (guard) return guard;
+  const auth = await requireApiPermission(req, 'users:manage');
+  if ('response' in auth) return auth.response;
+  const { id } = await ctx.params;
+
+  const user = await userById(id);
+  if (!user) return NextResponse.json({ error: 'not_found', message: 'کاربر یافت نشد.' }, { status: 404 });
+
+  const [leads, orders, aiUsageSummary] = await Promise.all([
+    leadsForUser(id, user.mobile, 1, DETAIL_PAGE_SIZE),
+    ordersForUser(id, 1, DETAIL_PAGE_SIZE),
+    aiUsageSummaryForUser(id),
+  ]);
+
+  return NextResponse.json(
+    {
+      user: publicUser(user),
+      leads: leads.rows,
+      leadsHasMore: leads.hasMore,
+      orders: orders.rows,
+      ordersHasMore: orders.hasMore,
+      aiUsage: aiUsageSummary,
+    },
+    { headers: { 'Cache-Control': 'no-store' } },
+  );
+}
 
 const payload = z.object({
   role: z.enum(['customer', 'operator', 'sales', 'content', 'catalog', 'admin']).optional(),
@@ -52,4 +91,5 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }
   return NextResponse.json({ user });
 }
 
+export const GET = withApiErrorHandling(GETImpl);
 export const PATCH = withApiErrorHandling(PATCHImpl);

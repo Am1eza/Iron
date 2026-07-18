@@ -135,6 +135,12 @@ export const pgStore: AuthStore = {
     await getDb().delete(refreshTokens).where(eq(refreshTokens.userId, userId));
   },
 
+  async revokeSessionsForUser(userId) {
+    const db = getDb();
+    await db.delete(refreshTokens).where(eq(refreshTokens.userId, userId));
+    await db.update(users).set({ tokenVersion: sql`${users.tokenVersion} + 1` }).where(eq(users.id, userId));
+  },
+
   async setOtp(mobile, record) {
     const db = getDb();
     const row = {

@@ -56,6 +56,11 @@ export function revokeRefresh(hash: string): Promise<void> {
 export function revokeAllForUser(userId: string): Promise<void> {
   return store().revokeAllForUser(userId);
 }
+/** Full session kill (US-21.3 admin "revoke sessions" action) — refresh
+ *  tokens AND tokenVersion, see store.types.ts's AuthStore doc comment. */
+export function revokeSessionsForUser(userId: string): Promise<void> {
+  return store().revokeSessionsForUser(userId);
+}
 
 /* ------------------------------- OTP ------------------------------ */
 export function setOtp(mobile: string, record: OtpRecord): Promise<void> {

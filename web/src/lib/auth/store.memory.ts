@@ -121,6 +121,14 @@ export const memoryStore: AuthStore = {
     }
   },
 
+  async revokeSessionsForUser(userId: string) {
+    for (const [hash, rec] of refreshByHash) {
+      if (rec.userId === userId) refreshByHash.delete(hash);
+    }
+    const user = usersById.get(userId);
+    if (user) usersById.set(userId, { ...user, tokenVersion: (user.tokenVersion ?? 0) + 1 });
+  },
+
   async setOtp(mobile: string, record: OtpRecord) {
     otpByMobile.set(mobile, record);
   },
