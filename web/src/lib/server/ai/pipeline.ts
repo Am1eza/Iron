@@ -34,6 +34,12 @@ export interface PipelineOptions {
   /** The validated client transcript — rides into createLead for sales. */
   clientMessages?: Array<{ role: string; content: string }>;
   signal?: AbortSignal;
+  /** The raw user/request abort, separate from `signal` (which may be a
+   *  merged request-deadline signal) — threaded down to fetchCompletion so a
+   *  shared-deadline timeout doesn't get mistaken for "the user left" and
+   *  wrongly skip the fallback relay (US-25.6). Optional: omitting it just
+   *  reproduces the old behavior. */
+  userSignal?: AbortSignal;
   /** SSE frame emitter ('tool'/'lead' progress frames); omit for tests. */
   send?: (frame: Record<string, unknown>) => void;
   /** Injected relay (defaults to the real DeepSeek stream). */
@@ -52,7 +58,7 @@ export interface PipelineResult {
 }
 
 export async function runAdvisorPipeline(opts: PipelineOptions): Promise<PipelineResult> {
-  const { messages, userNumbers, session, conversationId, clientMessages, signal } = opts;
+  const { messages, userNumbers, session, conversationId, clientMessages, signal, userSignal } = opts;
   const stream = opts.stream ?? streamCompletion;
   const send = opts.send ?? (() => {});
 
@@ -75,6 +81,38 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
   // correction retry) — one aiUsage row per request.
   const usage = { promptTokens: 0, completionTokens: 0, cacheHitTokens: 0 };
 
+  // US-27.5: the relay hit max_tokens mid-answer (finish_reason:'length') —
+  // ask it to continue ONCE rather than hand the user a sentence cut off
+  // mid-word. Scoped OUTSIDE runLoop (like MAX_LEAD_CALLS) so the cap holds
+  // across the correction-retry call too — a truncation-prone answer could
+  // otherwise burn a continuation on every runLoop invocation.
+  let continuedOnce = false;
+  async function continueTruncatedAnswer(partial: string): Promise<string> {
+    messages.push(
+      { role: 'assistant', content: partial },
+      {
+        role: 'user',
+        content:
+          '[یادداشت داخلی سیستم — این را کاربر ننوشته و کاربر آن را نمی‌بیند]: پاسخ قبلی به‌خاطر محدودیت طول مدل وسط جمله قطع شد. دقیقاً از همان نقطه که قطع شده ادامه بده — متن قبلی را تکرار نکن و به این یادداشت یا به قطع‌شدن اشاره‌ای نکن.',
+      },
+    );
+    let extra = '';
+    try {
+      // Tools withheld — this call's only job is finishing the sentence.
+      for await (const ev of stream(messages, [], signal, userSignal)) {
+        if (ev.type === 'token') extra += ev.text;
+        else if (ev.type === 'usage') {
+          usage.promptTokens += ev.usage.promptTokens;
+          usage.completionTokens += ev.usage.completionTokens;
+          usage.cacheHitTokens += ev.usage.cacheHitTokens;
+        }
+      }
+    } catch {
+      /* keep the truncated-but-present partial answer rather than failing the whole request */
+    }
+    return partial + extra;
+  }
+
   /** One model⇄tools loop; returns the buffered final text (never streamed raw).
    *  On the last allowed round tools are WITHHELD so the model must answer
    *  with what it already has — otherwise a model that keeps requesting
@@ -84,9 +122,11 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
       const allowTools = round < maxRounds;
       let pendingCalls: ToolCall[] | null = null;
       let buffered = '';
-      for await (const ev of stream(messages, allowTools ? AI_TOOLS : [], signal)) {
+      let truncated = false;
+      for await (const ev of stream(messages, allowTools ? AI_TOOLS : [], signal, userSignal)) {
         if (ev.type === 'token') buffered += ev.text;
         else if (ev.type === 'tool_calls') pendingCalls = ev.calls;
+        else if (ev.type === 'truncated') truncated = true;
         else if (ev.type === 'usage') {
           // Server-side telemetry only — never forwarded to the client.
           usage.promptTokens += ev.usage.promptTokens;
@@ -94,7 +134,16 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
           usage.cacheHitTokens += ev.usage.cacheHitTokens;
         }
       }
-      if (!pendingCalls || !allowTools) return buffered;
+      if (!pendingCalls || !allowTools) {
+        // Only the FINAL answering round's truncation matters — an
+        // intermediate tool-round's `buffered` text is discarded below
+        // regardless (only `pendingCalls` is used once tools were called).
+        if (truncated && !continuedOnce && buffered.trim()) {
+          continuedOnce = true;
+          buffered = await continueTruncatedAnswer(buffered);
+        }
+        return buffered;
+      }
 
       messages.push({ role: 'assistant', content: null, tool_calls: pendingCalls });
       for (const call of pendingCalls) {

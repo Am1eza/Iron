@@ -32,6 +32,13 @@ export const CONSTANTS = {
 
   /** AI advisor (acceptance-criteria §D) */
   AI_TIMEOUT_MS: 20_000, // AC-D-9: never hang beyond 20s
+  /** Independent, shorter budget for the ONE fallback-relay retry inside
+   *  fetchCompletion — only spent when the primary leg failed/timed out AND
+   *  the user is still there (never on a real user abort). Worst-case total
+   *  for a single completion call becomes AI_TIMEOUT_MS + this, and only on
+   *  the (rare, opt-in — requires FALLBACK_BASE_URL/KEY) path where the
+   *  primary relay is down or hanging. */
+  AI_FALLBACK_TIMEOUT_MS: 8_000,
 
   /** Currency unit label */
   CURRENCY_LABEL: 'تومان',

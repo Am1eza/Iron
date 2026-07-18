@@ -170,6 +170,10 @@ async function POSTImpl(req: NextRequest) {
           conversationId: convId,
           clientMessages: parsed.data.messages,
           signal,
+          // Raw abort — separate from `signal` (merged with the AI_TIMEOUT_MS
+          // deadline) so a shared-deadline timeout doesn't get mistaken for
+          // "the user left" and wrongly skip the DeepSeek fallback (US-25.6).
+          userSignal: req.signal,
           send,
         });
         const { toolsUsed } = result;

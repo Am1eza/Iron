@@ -78,6 +78,22 @@ describe('streamCompletion usage telemetry', () => {
     ]);
     expect(events.some((e) => e.type === 'usage')).toBe(false);
   });
+
+  it('finish_reason "length" (max_tokens hit mid-answer) yields a truncated event (US-27.5)', async () => {
+    const { events } = await collect([
+      JSON.stringify({ choices: [{ delta: { content: 'قیمت میلگرد از کارخانه ذوب‌آهن...' }, finish_reason: 'length' }] }),
+      '[DONE]',
+    ]);
+    expect(events).toContainEqual({ type: 'truncated' });
+  });
+
+  it('a normal "stop" finish never yields a truncated event', async () => {
+    const { events } = await collect([
+      JSON.stringify({ choices: [{ delta: { content: 'باشه' }, finish_reason: 'stop' }] }),
+      '[DONE]',
+    ]);
+    expect(events.some((e) => e.type === 'truncated')).toBe(false);
+  });
 });
 
 describe('fallback relay (FALLBACK_BASE_URL + FALLBACK_API_KEY)', () => {
@@ -89,11 +105,12 @@ describe('fallback relay (FALLBACK_BASE_URL + FALLBACK_API_KEY)', () => {
     vi.stubEnv('DEEPSEEK_BASE_URL', 'https://relay.example.com');
   });
 
-  async function run(fetchMock: ReturnType<typeof vi.fn>) {
+  async function run(fetchMock: ReturnType<typeof vi.fn>, signal?: AbortSignal, userSignal?: AbortSignal) {
     vi.stubGlobal('fetch', fetchMock);
     const { streamCompletion } = await import('./deepseek');
     const events = [];
-    for await (const ev of streamCompletion([{ role: 'user', content: 'سلام' }], [])) events.push(ev);
+    for await (const ev of streamCompletion([{ role: 'user', content: 'سلام' }], [], signal, userSignal))
+      events.push(ev);
     return events;
   }
 
@@ -163,5 +180,59 @@ describe('fallback relay (FALLBACK_BASE_URL + FALLBACK_API_KEY)', () => {
     await run(fetchMock);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock.mock.calls[0]![0]).toBe('https://relay.example.com/chat/completions');
+  });
+
+  // US-25.6: a shared request-deadline `signal` firing must NOT be treated
+  // as "the user left" — only a real `userSignal` abort should skip the
+  // fallback. Before this fix, `signal` was the only abort source the code
+  // knew about, so a primary that hung until the deadline fired never got a
+  // fallback attempt — exactly the case fallback exists for.
+  describe('timeout vs. real user abort (US-25.6)', () => {
+    it('primary aborted by the shared DEADLINE (signal), user still connected (userSignal not aborted) → fallback IS attempted', async () => {
+      stubFallback();
+      const deadline = new AbortController();
+      deadline.abort(); // simulates AI_TIMEOUT_MS firing
+      const userSignal = new AbortController().signal; // user never left
+      const fetchMock = vi
+        .fn()
+        .mockRejectedValueOnce(new DOMException('The operation was aborted.', 'AbortError'))
+        .mockResolvedValueOnce({ ok: true, body: sseBody(['[DONE]']) });
+      const events = await run(fetchMock, deadline.signal, userSignal);
+      expect(events).toEqual([{ type: 'done' }]);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(fetchMock.mock.calls[1]![0]).toBe('https://fallback.example.com/v1/chat/completions');
+    });
+
+    it('a REAL user abort (userSignal aborted) never touches the fallback', async () => {
+      stubFallback();
+      const userSignal = new AbortController();
+      userSignal.abort();
+      const fetchMock = vi.fn().mockRejectedValueOnce(new DOMException('The operation was aborted.', 'AbortError'));
+      await expect(run(fetchMock, userSignal.signal, userSignal.signal)).rejects.toThrow();
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('the fallback leg gets its OWN independent signal, not the already-aborted primary one', async () => {
+      stubFallback();
+      const deadline = new AbortController();
+      deadline.abort();
+      const userSignal = new AbortController().signal;
+      const fetchMock = vi
+        .fn()
+        .mockRejectedValueOnce(new DOMException('The operation was aborted.', 'AbortError'))
+        .mockResolvedValueOnce({ ok: true, body: sseBody(['[DONE]']) });
+      await run(fetchMock, deadline.signal, userSignal);
+      const fallbackSignal = fetchMock.mock.calls[1]![1].signal as AbortSignal | undefined;
+      expect(fallbackSignal?.aborted).toBe(false);
+    });
+
+    it('omitting userSignal reproduces the old behavior (signal.aborted skips the fallback)', async () => {
+      stubFallback();
+      const deadline = new AbortController();
+      deadline.abort();
+      const fetchMock = vi.fn().mockRejectedValueOnce(new DOMException('The operation was aborted.', 'AbortError'));
+      await expect(run(fetchMock, deadline.signal /* no userSignal */)).rejects.toThrow();
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
   });
 });

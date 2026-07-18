@@ -4,6 +4,7 @@
  * Gated behind AI_ENABLED; grounding rule: the model talks, TOOLS decide
  * every number (acceptance-criteria §D).
  */
+import { CONSTANTS } from '@/lib/config/constants';
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
@@ -80,11 +81,27 @@ function postCompletion(
  * No fallback configured → the single attempt's failure surfaces unchanged.
  * aiEnabled() is deliberately untouched — the fallback is an extra leg, not
  * a way to run without the primary DEEPSEEK_* config.
+ *
+ * `signal` bounds the PRIMARY attempt (the caller's merged request-deadline
+ * signal — unchanged behavior). `userSignal`, if given, is the RAW
+ * user/request abort only (no timeout merged in) and is used for two things:
+ *   1. deciding whether to even attempt the fallback — only a genuine user
+ *      abort skips it; `signal` firing because the shared deadline elapsed
+ *      does NOT (that used to be indistinguishable from a user abort, which
+ *      meant a slow/hanging primary — exactly the case fallback exists for —
+ *      silently never got a fallback attempt; US-25.6),
+ *   2. giving the fallback leg its OWN short, independent timeout
+ *      (AI_FALLBACK_TIMEOUT_MS) instead of inheriting a `signal` that may
+ *      already be at (or past) its deadline.
+ * Omitting `userSignal` reproduces the old behavior exactly (falls back to
+ * `signal` for the retry leg) — kept optional for callers/tests that don't
+ * need the distinction.
  */
 async function fetchCompletion(
   messages: ChatMessage[],
   tools: ToolDef[],
   signal?: AbortSignal,
+  userSignal?: AbortSignal,
 ): Promise<Response> {
   const primaryModel = process.env.DEEPSEEK_MODEL ?? 'deepseek-chat';
   const fallbackBase = process.env.FALLBACK_BASE_URL;
@@ -102,11 +119,22 @@ async function fetchCompletion(
       signal,
     );
   } catch (e) {
-    // A user abort is not an outage — never burn the fallback on it.
-    if (!hasFallback || signal?.aborted) throw e;
+    // A REAL user abort is not an outage — never burn the fallback on it.
+    // A shared-deadline timeout firing is NOT the same thing (see doc above).
+    // No distinct userSignal given → fall back to checking `signal` itself,
+    // reproducing the exact old (pre-US-25.6) behavior for any caller that
+    // hasn't been updated to pass one.
+    const abortGate = userSignal ?? signal;
+    if (!hasFallback || abortGate?.aborted) throw e;
   }
   if (res?.ok && res.body) return res;
   if (!hasFallback) throw new Error(`deepseek HTTP ${res?.status}`);
+
+  const fallbackSignal = ((): AbortSignal | undefined => {
+    if (!userSignal) return signal; // no distinct user signal known — old behavior
+    const budget = AbortSignal.timeout(CONSTANTS.AI_FALLBACK_TIMEOUT_MS);
+    return typeof AbortSignal.any === 'function' ? AbortSignal.any([userSignal, budget]) : budget;
+  })();
 
   const retry = await postCompletion(
     fallbackBase!,
@@ -114,24 +142,29 @@ async function fetchCompletion(
     process.env.FALLBACK_MODEL ?? primaryModel,
     messages,
     tools,
-    signal,
+    fallbackSignal,
   );
   if (!retry.ok || !retry.body) throw new Error(`fallback HTTP ${retry.status}`);
   return retry;
 }
 
-/** One streaming completion call. Yields token deltas and collects tool calls. */
+/** One streaming completion call. Yields token deltas and collects tool calls.
+ *  `userSignal`: the raw user/request abort, separate from `signal` (which may
+ *  be a merged request-deadline signal) — see fetchCompletion's doc comment;
+ *  only affects the fallback-relay decision, not the primary attempt. */
 export async function* streamCompletion(
   messages: ChatMessage[],
   tools: ToolDef[],
   signal?: AbortSignal,
+  userSignal?: AbortSignal,
 ): AsyncGenerator<
   | { type: 'token'; text: string }
   | { type: 'tool_calls'; calls: ToolCall[] }
   | { type: 'usage'; usage: CompletionUsage }
+  | { type: 'truncated' }
   | { type: 'done' }
 > {
-  const res = await fetchCompletion(messages, tools, signal);
+  const res = await fetchCompletion(messages, tools, signal, userSignal);
 
   // fetchCompletion only ever returns a response WITH a body (checked on both legs).
   const reader = res.body!.getReader();
@@ -204,6 +237,11 @@ export async function* streamCompletion(
           yield { type: 'tool_calls', calls: [...toolCalls.values()] };
           toolCalls.clear();
         }
+        // The relay hit max_tokens mid-answer (a live truncation bug here
+        // before — see the max_tokens comment in postCompletion). Let the
+        // caller decide whether to ask the model to continue (US-27.5)
+        // instead of silently handing the user a sentence cut off mid-word.
+        if (choice.finish_reason === 'length') yield { type: 'truncated' };
       } catch {
         // skip malformed frame
       }
