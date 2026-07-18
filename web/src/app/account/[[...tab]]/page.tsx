@@ -19,6 +19,7 @@ import {
 } from '@/components/ui';
 import { WarehouseList } from '@/components/account/WarehouseList';
 import { OrderTimeline } from '@/components/account/OrderTimeline';
+import { ReorderButton } from '@/components/account/ReorderButton';
 import { ClubPanel } from '@/components/account/ClubPanel';
 import { ProfileStats } from '@/components/account/ProfileStats';
 import { getOrders, getWarehouseItems, getProfileCounts } from '@/lib/server/account';
@@ -161,10 +162,13 @@ async function TabContent({ slug, userId }: { slug: string; userId: string }) {
                         <Badge tone={o.status === 'delivered' ? 'gain' : 'accent'}>{label}</Badge>
                       </Cluster>
                       <OrderTimeline status={o.status} />
-                      <Text variant="caption" color="muted">
-                        {o.items.map((it) => it.name).join('، ')} ({toPersianDigits(o.items.length)}{' '}
-                        ردیف)
-                      </Text>
+                      <Cluster justify="space-between" align="center">
+                        <Text variant="caption" color="muted">
+                          {o.items.map((it) => it.name).join('، ')} ({toPersianDigits(o.items.length)}{' '}
+                          ردیف)
+                        </Text>
+                        <ReorderButton items={o.items} />
+                      </Cluster>
                     </Stack>
                   </div>
                 );
