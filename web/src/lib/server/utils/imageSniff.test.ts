@@ -7,7 +7,7 @@
  * logic, not `route.ts` itself).
  */
 import { describe, it, expect } from 'vitest';
-import { sniffImageExt } from './route';
+import { sniffImageExt } from './imageSniff';
 
 const JPEG_HEADER = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
 const PNG_HEADER = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
