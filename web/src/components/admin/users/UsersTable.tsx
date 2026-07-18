@@ -8,7 +8,7 @@ import type { Role } from '@/lib/auth/types';
 import { formatJalali, toPersianDigits } from '@/lib/utils/format';
 import { useToast } from '@/lib/hooks/useToast';
 import { ApiError } from '@/lib/api/errors';
-import { Badge, Chip, EmptyState, Heading, TableSkeleton } from '@/components/ui';
+import { Badge, Chip, EmptyState, Heading, TableSkeleton, useConfirm } from '@/components/ui';
 import ui from '../adminUi.module.css';
 
 const ROLES: Role[] = ['customer', 'operator', 'sales', 'content', 'catalog', 'admin'];
@@ -41,6 +41,7 @@ export function UsersTable() {
   });
 
   const users = data?.users ?? [];
+  const { confirm, dialog } = useConfirm();
 
   return (
     <div style={{ display: 'grid', gap: 'var(--space-5)' }}>
@@ -119,7 +120,14 @@ export function UsersTable() {
                       value={u.isActive === false ? 'off' : 'on'}
                       onChange={(e) => {
                         const nextActive = e.target.value === 'on';
-                        if (!nextActive && !window.confirm(`کاربر ${u.mobile} غیرفعال می‌شود و امکان ورود نخواهد داشت. ادامه؟`)) {
+                        if (!nextActive) {
+                          void confirm({
+                            title: 'غیرفعال‌سازی کاربر',
+                            body: `کاربر ${u.mobile} غیرفعال می‌شود و امکان ورود نخواهد داشت. ادامه؟`,
+                            confirmLabel: 'غیرفعال کن',
+                          }).then((ok) => {
+                            if (ok) update.mutate({ id: u.id, patch: { isActive: nextActive } });
+                          });
                           return;
                         }
                         update.mutate({ id: u.id, patch: { isActive: nextActive } });
@@ -140,6 +148,7 @@ export function UsersTable() {
       </div>
 
       <ClubSection />
+      {dialog}
     </div>
   );
 }

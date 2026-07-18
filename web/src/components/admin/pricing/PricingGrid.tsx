@@ -11,10 +11,11 @@ import { CATEGORY_SUBS } from '@/lib/data/nav';
 import { normalizeDigits, toPersianDigits, formatJalali } from '@/lib/utils/format';
 import { useToast } from '@/lib/hooks/useToast';
 import { ApiError } from '@/lib/api/errors';
-import { Badge, Button, EmptyState, Modal, MovementBadge, TableSkeleton } from '@/components/ui';
+import { Badge, Button, EmptyState, Modal, MovementBadge, TableSkeleton, useConfirm } from '@/components/ui';
 import ui from '../adminUi.module.css';
 
 type Draft = { price?: string; deliveryTime?: string };
+type GridCol = 'price' | 'delivery';
 
 type PasteRow = { id: string; slug: string; name: string; size?: string };
 
@@ -65,6 +66,7 @@ export function PricingGrid() {
   const [pasteOpen, setPasteOpen] = useState(false);
   const [pasteText, setPasteText] = useState('');
   const tableRef = useRef<HTMLTableElement>(null);
+  const { confirm, dialog } = useConfirm();
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['admin', 'pricing', cat, sub],
@@ -124,21 +126,45 @@ export function PricingGrid() {
   // makes that lookup O(1).
   const dirtySkuIds = useMemo(() => new Set(dirty.map((x) => x.skuId)), [dirty]);
 
-  const focusNext = (i: number) => {
-    const next = tableRef.current?.querySelector<HTMLInputElement>(`[data-price-index="${i + 1}"]`);
-    next?.focus();
-    next?.select();
+  // Vertical arrow-key navigation (US-17.5): each editable cell is addressed
+  // by (row, column) rather than the old single `data-price-index` sequence,
+  // which only ever covered the price column — the delivery-time column had
+  // no keyboard navigation at all. Left/Right are deliberately left alone:
+  // they're needed for caret movement inside the text value.
+  const focusCell = (row: number, col: GridCol) => {
+    const target = tableRef.current?.querySelector<HTMLInputElement>(`[data-row="${row}"][data-col="${col}"]`);
+    target?.focus();
+    target?.select();
+  };
+
+  const handleCellKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, row: number, col: GridCol) => {
+    if (e.key === 'Enter' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      focusCell(row + 1, col);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      focusCell(row - 1, col);
+    }
   };
 
   // Switching category/sub-category used to clear `drafts` unconditionally
   // — an operator who edited several prices then clicked a filter to
   // double-check something lost all unsaved edits instantly, silently.
   const changeFilter = (apply: () => void) => {
-    if (dirty.length > 0 && !window.confirm(`${dirty.length} قیمت ذخیره‌نشده دارید. با تغییر فیلتر از بین می‌رود — ادامه می‌دهید؟`)) {
+    if (dirty.length === 0) {
+      setDrafts(new Map());
+      apply();
       return;
     }
-    setDrafts(new Map());
-    apply();
+    void confirm({
+      title: 'تغییر فیلتر',
+      body: `${dirty.length} قیمت ذخیره‌نشده دارید. با تغییر فیلتر از بین می‌رود — ادامه می‌دهید؟`,
+      confirmLabel: 'ادامه و ازدست‌دادن تغییرات',
+    }).then((ok) => {
+      if (!ok) return;
+      setDrafts(new Map());
+      apply();
+    });
   };
 
   const applyPaste = () => {
@@ -250,18 +276,14 @@ export function PricingGrid() {
                       <input
                         className={ui.numInput}
                         inputMode="numeric"
-                        data-price-index={i}
+                        data-row={i}
+                        data-col="price"
                         value={d?.price ?? String(r.current.price || '')}
                         onChange={(e) => setDraft(r.id, { price: e.target.value })}
                         onFocus={(e) => e.currentTarget.select()}
                         aria-invalid={isInvalidPrice || undefined}
                         aria-describedby={isInvalidPrice ? priceErrId : undefined}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            focusNext(i);
-                          }
-                        }}
+                        onKeyDown={(e) => handleCellKeyDown(e, i, 'price')}
                         aria-label={`قیمت ${r.name}`}
                       />
                       {isInvalidPrice ? (
@@ -273,8 +295,11 @@ export function PricingGrid() {
                     <td>
                       <input
                         className={ui.textCell}
+                        data-row={i}
+                        data-col="delivery"
                         value={d?.deliveryTime ?? r.current.deliveryTime}
                         onChange={(e) => setDraft(r.id, { deliveryTime: e.target.value })}
+                        onKeyDown={(e) => handleCellKeyDown(e, i, 'delivery')}
                         aria-label={`زمان تحویل ${r.name}`}
                       />
                     </td>
@@ -353,6 +378,7 @@ export function PricingGrid() {
           }}
         />
       </Modal>
+      {dialog}
     </div>
   );
 }
