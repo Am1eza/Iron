@@ -63,6 +63,12 @@ COPY --from=build --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=build --chown=nextjs:nodejs /app/drizzle ./drizzle
 COPY --from=build --chown=nextjs:nodejs /app/scripts-dist ./scripts
 COPY --from=build --chown=nextjs:nodejs /app/docker-entrypoint.sh ./docker-entrypoint.sh
+# Pre-create the uploads mount point owned by nextjs — Docker copies THIS
+# directory's ownership into the named volume the first time it's mounted
+# (compose's `uploads:/app/public/uploads`), so the non-root `nextjs` user
+# can actually write into it (a freshly-created empty named volume defaults
+# to root ownership otherwise).
+RUN mkdir -p public/uploads && chown -R nextjs:nodejs public/uploads
 USER nextjs
 EXPOSE 3000
 # Applies pending migrations (and optionally seeds) before starting server.js.
