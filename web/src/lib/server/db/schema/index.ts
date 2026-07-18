@@ -8,3 +8,4 @@ export * from './leads';
 export * from './orders';
 export * from './content';
 export * from './system';
+export * from './seo';
