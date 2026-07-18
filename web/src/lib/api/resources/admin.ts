@@ -343,6 +343,17 @@ export const adminApi = {
   },
   updateUser: (id: string, patch: { role?: string; isActive?: boolean; name?: string }) =>
     http.patch<{ user: AdminUserRow }>(`/api/admin/users/${id}`, patch),
+  /** Profile + a recent-activity glance (leads/orders/AI usage), US-21.3. */
+  userDetail: (id: string) =>
+    http.get<{
+      user: AdminUserRow;
+      leads: Array<{ id: string; ref: string; status: string; createdAt: string }>;
+      leadsHasMore: boolean;
+      orders: Array<{ id: string; ref: string; status: string; placedAt: string }>;
+      ordersHasMore: boolean;
+      aiUsage: { conversationCount: number; promptTokens: number; completionTokens: number; cacheHitTokens: number };
+    }>(`/api/admin/users/${id}`),
+  revokeUserSessions: (id: string) => http.post<{ ok: true }>(`/api/admin/users/${id}/revoke-sessions`, {}),
   statsOverview: () => http.get<OverviewStatsRes>('/api/admin/stats/overview'),
   statsMarketing: () => http.get<MarketingStatsRes>('/api/admin/stats/marketing'),
   statsSeo: () => http.get<SeoStatsRes>('/api/admin/stats/seo'),

@@ -1,6 +1,6 @@
 'use client';
 /** Users + roles + club tiers — RBAC management with a last-admin guard. */
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api/resources/admin';
 import { ROLE_LABEL } from '@/lib/auth/roles';
@@ -8,7 +8,7 @@ import type { Role } from '@/lib/auth/types';
 import { formatJalali, toPersianDigits } from '@/lib/utils/format';
 import { useToast } from '@/lib/hooks/useToast';
 import { ApiError } from '@/lib/api/errors';
-import { Badge, Chip, EmptyState, Heading, TableSkeleton, useConfirm } from '@/components/ui';
+import { Badge, Button, Chip, EmptyState, Heading, Spinner, TableSkeleton, useConfirm } from '@/components/ui';
 import ui from '../adminUi.module.css';
 
 const ROLES: Role[] = ['customer', 'operator', 'sales', 'content', 'catalog', 'admin'];
@@ -20,6 +20,7 @@ export function UsersTable() {
   const [role, setRole] = useState('');
   const [search, setSearch] = useState('');
   const [q, setQ] = useState('');
+  const [openId, setOpenId] = useState<string | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => setQ(search.trim()), 300);
@@ -85,11 +86,15 @@ export function UsersTable() {
                 <th scope="col">نقش</th>
                 <th scope="col">وضعیت</th>
                 <th scope="col">عضویت</th>
+                <th scope="col">
+                  <span className="visually-hidden">عملیات</span>
+                </th>
               </tr>
             </thead>
             <tbody>
               {users.map((u) => (
-                <tr key={u.id}>
+                <Fragment key={u.id}>
+                <tr>
                   <td className={`tnum ${ui.mono}`}>{u.mobile}</td>
                   <td>
                     {u.name ?? '—'} {u.clubTier ? <Badge tone="accent">{TIER_LABEL[u.clubTier]}</Badge> : null}
@@ -139,7 +144,20 @@ export function UsersTable() {
                     </select>
                   </td>
                   <td className="tnum">{formatJalali(u.createdAt)}</td>
+                  <td>
+                    <Button size="sm" variant="ghost" onClick={() => setOpenId(openId === u.id ? null : u.id)}>
+                      {openId === u.id ? 'بستن' : 'جزئیات'}
+                    </Button>
+                  </td>
                 </tr>
+                {openId === u.id ? (
+                  <tr>
+                    <td colSpan={6}>
+                      <UserDetail id={u.id} />
+                    </td>
+                  </tr>
+                ) : null}
+                </Fragment>
               ))}
             </tbody>
           </table>
@@ -148,6 +166,97 @@ export function UsersTable() {
       </div>
 
       <ClubSection />
+      {dialog}
+    </div>
+  );
+}
+
+const LEAD_STATUS_LABEL: Record<string, string> = { new: 'جدید', contacted: 'تماس‌گرفته', won: 'موفق', lost: 'ناموفق' };
+const ORDER_STATUS_LABEL: Record<string, string> = {
+  registered: 'ثبت‌شده',
+  confirmed: 'تأییدشده',
+  loading: 'بارگیری',
+  in_transit: 'در حال حمل',
+  delivered: 'تحویل',
+};
+
+/** Per-user detail glance — recent leads/orders + AI usage, with a
+ *  session-revoke button (US-21.3). Row-expand, same pattern as LeadDetail. */
+function UserDetail({ id }: { id: string }) {
+  const toast = useToast();
+  const { confirm, dialog } = useConfirm();
+  const { data, isLoading } = useQuery({ queryKey: ['admin', 'user', id], queryFn: () => adminApi.userDetail(id) });
+
+  const revoke = useMutation({
+    mutationFn: () => adminApi.revokeUserSessions(id),
+    onSuccess: () => toast.success('همهٔ نشست‌های این کاربر قطع شد.'),
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : 'قطع نشست ناموفق بود.'),
+  });
+
+  if (isLoading || !data) {
+    return (
+      <div className={ui.panel}>
+        <Spinner />
+      </div>
+    );
+  }
+
+  return (
+    <div className={ui.panel} onClick={(e) => e.stopPropagation()}>
+      <div className={ui.grid2}>
+        <div>
+          <h2>سرنخ‌های اخیر</h2>
+          {data.leads.length === 0 ? (
+            <p className={ui.muted}>سرنخی ثبت نشده.</p>
+          ) : (
+            <ul>
+              {data.leads.map((l) => (
+                <li key={l.id} className="tnum">
+                  <bdi>{l.ref}</bdi> — {LEAD_STATUS_LABEL[l.status] ?? l.status} · {formatJalali(l.createdAt)}
+                </li>
+              ))}
+              {data.leadsHasMore ? <li className={ui.muted}>و بیشتر…</li> : null}
+            </ul>
+          )}
+          <h2 style={{ marginBlockStart: 'var(--space-3)' }}>سفارش‌های اخیر</h2>
+          {data.orders.length === 0 ? (
+            <p className={ui.muted}>سفارشی ثبت نشده.</p>
+          ) : (
+            <ul>
+              {data.orders.map((o) => (
+                <li key={o.id} className="tnum">
+                  <bdi>{o.ref}</bdi> — {ORDER_STATUS_LABEL[o.status] ?? o.status} · {formatJalali(o.placedAt)}
+                </li>
+              ))}
+              {data.ordersHasMore ? <li className={ui.muted}>و بیشتر…</li> : null}
+            </ul>
+          )}
+        </div>
+        <div>
+          <h2>مصرف دستیار هوشمند</h2>
+          <p className="tnum">
+            {toPersianDigits(data.aiUsage.conversationCount)} گفتگو ·{' '}
+            {toPersianDigits((data.aiUsage.promptTokens + data.aiUsage.completionTokens).toLocaleString('en-US'))} توکن
+          </p>
+          <h2 style={{ marginBlockStart: 'var(--space-3)' }}>نشست‌ها</h2>
+          <Button
+            size="sm"
+            variant="secondary"
+            loading={revoke.isPending}
+            onClick={() =>
+              void confirm({
+                title: 'قطع نشست کاربر',
+                body: 'همهٔ نشست‌های فعال این کاربر بلافاصله قطع می‌شود و باید دوباره وارد شود. ادامه؟',
+                confirmLabel: 'قطع کن',
+              }).then((ok) => {
+                if (ok) revoke.mutate();
+              })
+            }
+          >
+            قطع همهٔ نشست‌ها
+          </Button>
+        </div>
+      </div>
       {dialog}
     </div>
   );
