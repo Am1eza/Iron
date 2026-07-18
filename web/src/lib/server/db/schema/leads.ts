@@ -186,5 +186,9 @@ export const contactMessages = pgTable('contact_messages', {
   mobile: text('mobile').notNull(),
   message: text('message').notNull(),
   status: text('status', { enum: ['new', 'handled'] }).notNull().default('new'),
+  // Reply-in-place (US-19.5) — sent to the customer's mobile via SMS; both
+  // null until a staff member actually replies.
+  reply: text('reply'),
+  repliedAt: timestamp('replied_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });

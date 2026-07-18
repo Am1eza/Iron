@@ -229,12 +229,23 @@ export const adminApi = {
     if (params.page) qs.set('page', String(params.page));
     if (params.perPage) qs.set('perPage', String(params.perPage));
     return http.get<{
-      messages: Array<{ id: string; name: string; mobile: string; message: string; status: string; createdAt: string }>;
+      messages: Array<{
+        id: string;
+        name: string;
+        mobile: string;
+        message: string;
+        status: string;
+        reply: string | null;
+        repliedAt: string | null;
+        createdAt: string;
+      }>;
       total: number;
     }>(`/api/admin/contact-messages?${qs}`);
   },
   updateContactMessage: (id: string, status: 'new' | 'handled') =>
     http.patch<{ message: unknown }>(`/api/admin/contact-messages/${id}`, { status }),
+  replyToContactMessage: (id: string, reply: string) =>
+    http.post<{ message: unknown }>(`/api/admin/contact-messages/${id}/reply`, { reply }),
 
   /* orders */
   orders: (params: { status?: string; page?: number; cancelled?: boolean } = {}) => {

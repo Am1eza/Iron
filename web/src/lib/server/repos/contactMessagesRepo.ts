@@ -29,3 +29,15 @@ export async function adminListContactMessages(query: {
   ]);
   return { messages: rows, total: total[0]?.n ?? 0 };
 }
+
+/** Records a reply and marks the message handled (US-19.5) — the actual SMS
+ *  send happens in the route handler (keeps this repo free of the sms
+ *  integration import, same separation as leads.service.ts). */
+export async function replyToContactMessage(id: string, reply: string): Promise<ContactMessageRow | null> {
+  const rows = await getDb()
+    .update(contactMessages)
+    .set({ reply, repliedAt: new Date(), status: 'handled' })
+    .where(eq(contactMessages.id, id))
+    .returning();
+  return rows[0] ?? null;
+}
