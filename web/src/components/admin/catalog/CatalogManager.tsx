@@ -1,9 +1,9 @@
 'use client';
 /** Catalog manager — categories → subs → SKUs with soft-delete only. */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api/resources/admin';
-import { formatToman } from '@/lib/utils/format';
+import { formatToman, toPersianDigits } from '@/lib/utils/format';
 import { useToast } from '@/lib/hooks/useToast';
 import { ApiError } from '@/lib/api/errors';
 import {
@@ -73,6 +73,15 @@ function SkuManager() {
   const [subCategoryId, setSubCategoryId] = useState('');
   const [editing, setEditing] = useState<SkuRow | null>(null);
   const [creating, setCreating] = useState(false);
+  const [search, setSearch] = useState('');
+  const [q, setQ] = useState('');
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setQ(search.trim()), 300);
+    return () => clearTimeout(t);
+  }, [search]);
 
   const cats = useQuery({ queryKey: ['admin', 'cat', 'categories'], queryFn: adminApi.categories });
   const subs = useQuery({
@@ -81,9 +90,14 @@ function SkuManager() {
     enabled: Boolean(categoryId),
   });
   const skus = useQuery({
-    queryKey: ['admin', 'cat', 'skus', categoryId, subCategoryId],
+    queryKey: ['admin', 'cat', 'skus', categoryId, subCategoryId, q],
     queryFn: () =>
-      adminApi.skus({ categoryId: categoryId || undefined, subCategoryId: subCategoryId || undefined, all: true }),
+      adminApi.skus({
+        categoryId: categoryId || undefined,
+        subCategoryId: subCategoryId || undefined,
+        q: q || undefined,
+        all: true,
+      }),
     enabled: Boolean(categoryId),
   });
 
@@ -138,6 +152,38 @@ function SkuManager() {
     });
   };
 
+  // Selection resets whenever the visible row set changes — a stale
+  // selection surviving a category switch could silently bulk-toggle SKUs
+  // the operator can no longer even see.
+  useEffect(() => {
+    setSelected(new Set());
+  }, [categoryId, subCategoryId, q]);
+
+  const toggleSelected = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const bulkSetActive = async (isActive: boolean) => {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    setBulkBusy(true);
+    const results = await Promise.allSettled(ids.map((id) => adminApi.updateSku(id, { isActive })));
+    setBulkBusy(false);
+    const failed = results.filter((r) => r.status === 'rejected').length;
+    if (failed > 0) {
+      toast.error(`${toPersianDigits(failed)} کالا به‌روزرسانی نشد.`);
+    } else {
+      toast.success(`${toPersianDigits(ids.length)} کالا ${isActive ? 'فعال' : 'غیرفعال'} شد.`);
+    }
+    setSelected(new Set());
+    invalidate();
+  };
+
   if (cats.isError) {
     return (
       <EmptyState
@@ -183,11 +229,39 @@ function SkuManager() {
           ))}
         </select>
         {categoryId ? (
+          <input
+            className={ui.textCell}
+            style={{ inlineSize: '12rem' }}
+            placeholder="جستجو در نام/اسلاگ/سایز…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            aria-label="جستجوی کالا"
+            disabled={!categoryId}
+          />
+        ) : null}
+        {categoryId ? (
           <Button size="sm" variant="secondary" style={{ marginInlineStart: 'auto' }} onClick={() => setCreating(!creating)}>
             کالای جدید
           </Button>
         ) : null}
       </div>
+
+      {selected.size > 0 ? (
+        <div className={ui.stickyBar}>
+          <span>{toPersianDigits(selected.size)} کالا انتخاب شده.</span>
+          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+            <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())} disabled={bulkBusy}>
+              لغو انتخاب
+            </Button>
+            <Button size="sm" variant="ghost" loading={bulkBusy} onClick={() => void bulkSetActive(true)}>
+              فعال‌سازی گروهی
+            </Button>
+            <Button size="sm" loading={bulkBusy} onClick={() => void bulkSetActive(false)}>
+              غیرفعال‌سازی گروهی
+            </Button>
+          </div>
+        </div>
+      ) : null}
 
       {creating && categoryId ? (
         <SkuForm
@@ -214,7 +288,7 @@ function SkuManager() {
       {!categoryId ? (
         <EmptyState size="section" headline="یک دسته انتخاب کنید" body="کالاهای هر دسته اینجا فهرست می‌شود." />
       ) : skus.isLoading ? (
-        <TableSkeleton rows={6} cols={6} />
+        <TableSkeleton rows={6} cols={7} />
       ) : skus.isError ? (
         <EmptyState
           size="section"
@@ -229,6 +303,14 @@ function SkuManager() {
           <caption className="visually-hidden">فهرست کالاهای دستهٔ انتخاب‌شده</caption>
           <thead>
             <tr>
+              <th scope="col">
+                <input
+                  type="checkbox"
+                  aria-label="انتخاب همهٔ کالاهای این فهرست"
+                  checked={rows.length > 0 && selected.size === rows.length}
+                  onChange={(e) => setSelected(e.target.checked ? new Set(rows.map((r) => r.id)) : new Set())}
+                />
+              </th>
               <th scope="col">نام</th>
               <th scope="col">سایز</th>
               <th scope="col">کارخانه</th>
@@ -245,6 +327,14 @@ function SkuManager() {
               const price = priceById.get(r.id);
               return (
                 <tr key={r.id}>
+                  <td>
+                    <input
+                      type="checkbox"
+                      aria-label={`انتخاب ${r.name}`}
+                      checked={selected.has(r.id)}
+                      onChange={() => toggleSelected(r.id)}
+                    />
+                  </td>
                   <td>
                     {r.name}
                     <div className={`${ui.muted} ${ui.mono}`}>{r.slug}</div>
