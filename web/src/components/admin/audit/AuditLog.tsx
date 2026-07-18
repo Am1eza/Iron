@@ -1,9 +1,9 @@
 'use client';
 /** Read-only audit trail — every admin/system write, with before/after diffs. */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api/resources/admin';
-import { formatJalali } from '@/lib/utils/format';
+import { formatJalali, toPersianDigits } from '@/lib/utils/format';
 import { Badge, Button, Chip, EmptyState, TableSkeleton } from '@/components/ui';
 import ui from '../adminUi.module.css';
 
@@ -19,6 +19,25 @@ const ENTITY_FILTERS = [
 
 export function AuditLog() {
   const [entityType, setEntityType] = useState('');
+  const [action, setAction] = useState('');
+  const [actor, setActor] = useState('');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const [actionQ, setActionQ] = useState('');
+  const [actorQ, setActorQ] = useState('');
+
+  useEffect(() => {
+    const t = setTimeout(() => setActionQ(action.trim()), 300);
+    return () => clearTimeout(t);
+  }, [action]);
+  useEffect(() => {
+    const t = setTimeout(() => setActorQ(actor.trim()), 300);
+    return () => clearTimeout(t);
+  }, [actor]);
+
+  // `to` is a date-only picker — sent as-is it means "up to today's
+  // midnight" and silently drops every event from today after 00:00.
+  const toParam = to ? `${to}T23:59:59` : undefined;
 
   // Keyset ("load more") instead of page numbers — the API is now
   // cursor-paginated (see auditRepo.listAudit): an ever-growing append-only
@@ -26,9 +45,16 @@ export function AuditLog() {
   // table scan on every request), so there's no random page access anymore,
   // only "older" via nextCursor.
   const { data, isLoading, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
-    queryKey: ['admin', 'audit', entityType],
+    queryKey: ['admin', 'audit', entityType, actionQ, actorQ, from, to],
     queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
-      adminApi.audit({ entityType: entityType || undefined, cursor: pageParam }),
+      adminApi.audit({
+        entityType: entityType || undefined,
+        action: actionQ || undefined,
+        actor: actorQ || undefined,
+        from: from || undefined,
+        to: toParam,
+        cursor: pageParam,
+      }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
@@ -43,6 +69,41 @@ export function AuditLog() {
             {f.label}
           </Chip>
         ))}
+      </div>
+      <div className={ui.toolbar}>
+        <input
+          className={`${ui.textCell} ${ui.mono}`}
+          dir="ltr"
+          placeholder="فیلتر عملیات (مثلاً catalog.sku.update)"
+          value={action}
+          onChange={(e) => setAction(e.target.value)}
+          aria-label="فیلتر عملیات"
+        />
+        <input
+          className={ui.textCell}
+          placeholder="فیلتر کاربر (نام یا موبایل)"
+          value={actor}
+          onChange={(e) => setActor(e.target.value)}
+          aria-label="فیلتر کاربر"
+        />
+        <input type="date" className={ui.textCell} value={from} onChange={(e) => setFrom(e.target.value)} aria-label="از تاریخ" />
+        <span className={ui.muted}>تا</span>
+        <input type="date" className={ui.textCell} value={to} onChange={(e) => setTo(e.target.value)} aria-label="تا تاریخ" />
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => {
+            window.location.href = adminApi.auditExportUrl({
+              entityType: entityType || undefined,
+              action: actionQ || undefined,
+              actor: actorQ || undefined,
+              from: from || undefined,
+              to: toParam,
+            });
+          }}
+        >
+          خروجی اکسل
+        </Button>
       </div>
 
       {isLoading ? (
@@ -80,7 +141,20 @@ export function AuditLog() {
                 <td>
                   {e.entityType} <span className={`${ui.muted} ${ui.mono}`}>{e.entityId}</span>
                 </td>
-                <td className={ui.mono}>{e.actorId ?? 'سیستم'}</td>
+                <td>
+                  {e.actorName ? (
+                    <>
+                      {e.actorName}
+                      {e.actorMobile ? <div className={`${ui.muted} tnum`}>{toPersianDigits(e.actorMobile)}</div> : null}
+                    </>
+                  ) : e.actorMobile ? (
+                    <span className="tnum">{toPersianDigits(e.actorMobile)}</span>
+                  ) : e.actorId ? (
+                    <span className={ui.mono}>{e.actorId}</span>
+                  ) : (
+                    'سیستم'
+                  )}
+                </td>
                 <td>
                   {e.before || e.after ? (
                     <details>

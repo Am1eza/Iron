@@ -364,14 +364,39 @@ export const adminApi = {
     http.patch<{ member: unknown }>(`/api/admin/club/members/${id}`, { tier }),
   settings: () => http.get<{ settings: Array<{ key: string; value: unknown; updatedAt: string }> }>('/api/admin/settings'),
   saveSetting: (key: string, value: unknown) => http.put<{ ok: true }>('/api/admin/settings', { key, value }),
-  audit: (params: { entityType?: string; cursor?: string } = {}) => {
+  audit: (params: { entityType?: string; action?: string; actor?: string; from?: string; to?: string; cursor?: string } = {}) => {
     const qs = new URLSearchParams();
     if (params.entityType) qs.set('entityType', params.entityType);
+    if (params.action) qs.set('action', params.action);
+    if (params.actor) qs.set('actor', params.actor);
+    if (params.from) qs.set('from', params.from);
+    if (params.to) qs.set('to', params.to);
     if (params.cursor) qs.set('cursor', params.cursor);
     return http.get<{
-      entries: Array<{ id: string; actorId: string | null; action: string; entityType: string; entityId: string; before: unknown; after: unknown; at: string }>;
+      entries: Array<{
+        id: string;
+        actorId: string | null;
+        actorName: string | null;
+        actorMobile: string | null;
+        action: string;
+        entityType: string;
+        entityId: string;
+        before: unknown;
+        after: unknown;
+        at: string;
+      }>;
       nextCursor: string | null;
     }>(`/api/admin/audit?${qs}`);
+  },
+  /** Same query params as `audit()`; browser navigates straight to it. */
+  auditExportUrl: (params: { entityType?: string; action?: string; actor?: string; from?: string; to?: string } = {}) => {
+    const qs = new URLSearchParams();
+    if (params.entityType) qs.set('entityType', params.entityType);
+    if (params.action) qs.set('action', params.action);
+    if (params.actor) qs.set('actor', params.actor);
+    if (params.from) qs.set('from', params.from);
+    if (params.to) qs.set('to', params.to);
+    return `/api/admin/audit/export?${qs}`;
   },
 
   /* AI advisor review — continuous-improvement loop */
