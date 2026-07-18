@@ -13,5 +13,9 @@
 caddy_data/
 caddy_config/
 
+# Pre-deploy DB dumps (deploy.yml's backup step, and manual pre-deploy backups)
+# — full database contents, never belongs in git.
+backups/
+
 # OS / editor
 .DS_Store
