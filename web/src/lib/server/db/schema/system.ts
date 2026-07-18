@@ -135,6 +135,36 @@ export const aiCorrections = pgTable(
   ],
 );
 
+export const AI_EVAL_CANDIDATE_STATUSES = ['pending', 'promoted', 'dismissed'] as const;
+
+/**
+ * Eval-candidate queue (US-05.4, increment 4 of docs/roadmap/ai-advisor-
+ * training.md) — NOT the same thing as literally writing a new scripted
+ * scenario into evals.test.ts. That file plays back a hand-authored,
+ * exact tool-call script against the real pipeline; a production
+ * conversation transcript has no such script, and a running server has
+ * no business mutating its own test source at runtime anyway. What this
+ * table actually is: a reviewable queue a CE/AI engineer works from to
+ * manually author the real scripted scenario, so a bad 👎 conversation
+ * never just evaporates. `status` moves to 'promoted' once someone has
+ * done that (by hand) and 'dismissed' for not-actually-a-bug reports.
+ */
+export const aiEvalCandidates = pgTable(
+  'ai_eval_candidates',
+  {
+    id: text('id').primaryKey(),
+    conversationId: text('conversation_id'),
+    messageId: text('message_id'),
+    question: text('question').notNull(),
+    badAnswer: text('bad_answer').notNull(),
+    note: text('note'),
+    status: text('status', { enum: AI_EVAL_CANDIDATE_STATUSES }).notNull().default('pending'),
+    createdBy: text('created_by'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('ai_eval_candidates_status_idx').on(t.status)],
+);
+
 export const smsLog = pgTable(
   'sms_log',
   {

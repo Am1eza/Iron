@@ -21,11 +21,13 @@ const RATING_FILTERS = [
 ];
 
 type PromoteTarget = { messageId: string | null; answer: string } | null;
+type EvalTarget = { conversationId: string | null; messageId: string | null; answer: string } | null;
 
 export function AiReview() {
   const [rating, setRating] = useState<'' | 'up' | 'down'>('down');
   const [openConversation, setOpenConversation] = useState<string | null>(null);
   const [promote, setPromote] = useState<PromoteTarget>(null);
+  const [evalTarget, setEvalTarget] = useState<EvalTarget>(null);
 
   const { data, isLoading, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: ['admin', 'ai-feedback', rating],
@@ -121,6 +123,17 @@ export function AiReview() {
                     >
                       ثبت پاسخ درست
                     </Button>
+                    {e.rating === 'down' && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() =>
+                          setEvalTarget({ conversationId: e.conversationId, messageId: e.messageId, answer: e.answerText ?? '' })
+                        }
+                      >
+                        علامت‌گذاری برای eval
+                      </Button>
+                    )}
                   </div>
                   {openConversation === e.conversationId && e.conversationId && (
                     <ConversationThread conversationId={e.conversationId} />
@@ -141,10 +154,12 @@ export function AiReview() {
       )}
 
       <CorrectionsLibrary />
+      <EvalCandidatesQueue />
 
       {promote && (
         <PromoteModal target={promote} onClose={() => setPromote(null)} />
       )}
+      {evalTarget && <EvalCandidateModal target={evalTarget} onClose={() => setEvalTarget(null)} />}
     </div>
   );
 }
@@ -273,6 +288,150 @@ function CorrectionsLibrary() {
                       onChange={(v) => toggle.mutate({ id: c.id, isActive: v })}
                       label="فعال"
                     />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ))}
+    </div>
+  );
+}
+
+function EvalCandidateModal({ target, onClose }: { target: NonNullable<EvalTarget>; onClose: () => void }) {
+  const toast = useToast();
+  const qc = useQueryClient();
+  const [question, setQuestion] = useState('');
+  const [note, setNote] = useState('');
+
+  const save = useMutation({
+    mutationFn: () =>
+      adminApi.createEvalCandidate({
+        conversationId: target.conversationId ?? undefined,
+        messageId: target.messageId ?? undefined,
+        question: question.trim(),
+        badAnswer: target.answer,
+        note: note.trim() || undefined,
+      }),
+    onSuccess: () => {
+      toast.success('برای صف بررسی eval ثبت شد.');
+      void qc.invalidateQueries({ queryKey: ['admin', 'ai-eval-candidates'] });
+      onClose();
+    },
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : 'ثبت ناموفق بود.'),
+  });
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title="علامت‌گذاری برای سناریوی eval"
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            انصراف
+          </Button>
+          <Button onClick={() => save.mutate()} loading={save.isPending} disabled={question.trim().length < 3}>
+            ثبت در صف
+          </Button>
+        </>
+      }
+    >
+      <p className={ui.muted} style={{ marginBlockStart: 0 }}>
+        این مکالمه مستقیماً به evals.test.ts اضافه نمی‌شود — به صف زیر می‌رود تا یک مهندس AI سناریوی اسکریپت‌شدهٔ واقعی را
+        دستی بنویسد (سرویس واقعی اسکریپت‌پذیر نیست، فقط این پایپ‌لاین در تست است).
+      </p>
+      <div style={{ display: 'grid', gap: 'var(--space-3)' }}>
+        <TextInput
+          label="سؤال / موضوع"
+          value={question}
+          onChange={(e) => setQuestion(e.target.value)}
+          placeholder="مثلاً: قیمت میلگرد سایز نامعتبر"
+        />
+        <Textarea label="پاسخ نادرست (برای مرجع)" rows={3} value={target.answer} readOnly />
+        <Textarea
+          label="یادداشت — چه چیزی باید رخ می‌داد؟ (اختیاری)"
+          rows={3}
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+        />
+      </div>
+    </Modal>
+  );
+}
+
+const CANDIDATE_STATUS_LABEL: Record<string, string> = { pending: 'در انتظار', promoted: 'اضافه‌شده', dismissed: 'ردشده' };
+
+function EvalCandidatesQueue() {
+  const toast = useToast();
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const { data, isLoading } = useQuery({
+    queryKey: ['admin', 'ai-eval-candidates'],
+    queryFn: () => adminApi.evalCandidates('pending'),
+    enabled: open,
+  });
+  const setStatus = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: 'promoted' | 'dismissed' }) => adminApi.setEvalCandidateStatus(id, status),
+    onSuccess: () => {
+      toast.success('به‌روزرسانی شد.');
+      void qc.invalidateQueries({ queryKey: ['admin', 'ai-eval-candidates'] });
+    },
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : 'به‌روزرسانی ناموفق بود.'),
+  });
+  const candidates = data?.candidates ?? [];
+
+  return (
+    <div style={{ marginBlockStart: 'var(--space-8)' }}>
+      <div className={ui.toolbar}>
+        <Button size="sm" variant="ghost" onClick={() => setOpen((v) => !v)}>
+          {open ? 'بستن صف سناریوهای eval' : `صف سناریوهای eval${candidates.length ? ` (${candidates.length})` : ''}`}
+        </Button>
+      </div>
+      {open &&
+        (isLoading ? (
+          <TableSkeleton rows={3} cols={3} />
+        ) : candidates.length === 0 ? (
+          <EmptyState
+            size="section"
+            headline="صف خالی است"
+            body="از دکمهٔ «علامت‌گذاری برای eval» روی بازخوردهای 👎 استفاده کنید."
+          />
+        ) : (
+          <table className={ui.table}>
+            <caption className="visually-hidden">صف سناریوهای در انتظار تبدیل به eval</caption>
+            <thead>
+              <tr>
+                <th scope="col">سؤال</th>
+                <th scope="col">پاسخ نادرست</th>
+                <th scope="col">یادداشت</th>
+                <th scope="col">تاریخ</th>
+                <th scope="col">
+                  <span className="visually-hidden">عملیات</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {candidates.map((c) => (
+                <tr key={c.id}>
+                  <td className={ui.textCell}>{c.question}</td>
+                  <td className={ui.textCell}>{c.badAnswer}</td>
+                  <td className={ui.textCell}>{c.note ?? '—'}</td>
+                  <td className="tnum">{formatJalali(c.createdAt)}</td>
+                  <td>
+                    <div style={{ display: 'flex', gap: 'var(--space-1)' }}>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setStatus.mutate({ id: c.id, status: 'promoted' })}
+                        loading={setStatus.isPending}
+                      >
+                        {CANDIDATE_STATUS_LABEL.promoted} کردم
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setStatus.mutate({ id: c.id, status: 'dismissed' })}>
+                        رد کن
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}

@@ -504,4 +504,23 @@ export const adminApi = {
     http.get<{
       series: Array<{ date: string; promptTokens: number; completionTokens: number; cacheHitTokens: number; violations: number }>;
     }>(`/api/admin/ai/usage?days=${days}`),
+  /** Eval-candidate queue (US-05.4) — a review queue for manually authoring
+   *  a real evals.test.ts scenario, not an auto-write into the test file. */
+  evalCandidates: (status?: 'pending' | 'promoted' | 'dismissed') =>
+    http.get<{
+      candidates: Array<{
+        id: string;
+        conversationId: string | null;
+        messageId: string | null;
+        question: string;
+        badAnswer: string;
+        note: string | null;
+        status: 'pending' | 'promoted' | 'dismissed';
+        createdAt: string;
+      }>;
+    }>(`/api/admin/ai/eval-candidates${status ? `?status=${status}` : ''}`),
+  createEvalCandidate: (input: { conversationId?: string; messageId?: string; question: string; badAnswer: string; note?: string }) =>
+    http.post<{ candidate: unknown }>('/api/admin/ai/eval-candidates', input),
+  setEvalCandidateStatus: (id: string, status: 'pending' | 'promoted' | 'dismissed') =>
+    http.patch<{ candidate: unknown }>(`/api/admin/ai/eval-candidates/${id}`, { status }),
 };
