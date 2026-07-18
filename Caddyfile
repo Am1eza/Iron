@@ -46,3 +46,29 @@ ahantime.com:8443 {
 	encode zstd gzip
 	reverse_proxy matomo:80
 }
+
+# Admin panel, own subdomain (needs its own DNS A record → this server's IP;
+# Caddy auto-provisions a separate TLS cert for it the same way as above).
+# Same app/container as ahantime.com — middleware.ts rewrites every path here
+# to its /admin/* counterpart (panel.ahantime.com/leads → internally
+# /admin/leads), so this is routing-only, not a second deployment.
+panel.ahantime.com {
+	encode zstd gzip
+
+	request_body {
+		max_size 20MB
+	}
+
+	header {
+		Strict-Transport-Security "max-age=63072000; includeSubDomains"
+		-X-Powered-By
+		-x-nextjs-cache
+		-x-nextjs-prerender
+		-x-nextjs-stale-time
+	}
+
+	@immutable path /_next/static/* /fonts/*
+	header @immutable Cache-Control "public, max-age=31536000, immutable"
+
+	reverse_proxy web:3000
+}
