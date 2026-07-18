@@ -1,0 +1,1 @@
+ALTER TABLE "skus" ADD COLUMN "image_url" text;

@@ -101,6 +101,7 @@ export interface SkuInput {
   factory?: string;
   theoreticalWeightKg?: number;
   unit?: PriceUnit;
+  imageUrl?: string | null;
 }
 
 export async function createSku(input: SkuInput) {

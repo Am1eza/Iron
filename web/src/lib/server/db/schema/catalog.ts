@@ -81,6 +81,7 @@ export const skus = pgTable(
     factory: text('factory'),
     theoreticalWeightKg: doublePrecision('theoretical_weight_kg'),
     unit: text('unit', { enum: PRICE_UNITS }).notNull().default('kg'),
+    imageUrl: text('image_url'),
     isActive: boolean('is_active').notNull().default(true),
     seo: jsonb('seo').$type<SeoMeta>(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

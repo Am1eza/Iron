@@ -14,6 +14,7 @@ const patchPayload = z.object({
   factory: z.string().trim().max(80).optional(),
   theoreticalWeightKg: finiteNumber.positive().max(100_000).optional(),
   unit: z.enum(['kg', 'branch', 'sheet', 'meter']).optional(),
+  imageUrl: z.string().url().max(300).nullable().optional(),
   isActive: z.boolean().optional(),
 });
 

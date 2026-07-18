@@ -105,6 +105,24 @@ export async function httpRequest<T>(path: string, opts: RequestOptions<T> = {})
   }
 }
 
+/** Multipart file upload (admin image upload). No `Content-Type` header —
+ *  the browser sets the multipart boundary itself for a `FormData` body;
+ *  forcing `application/json` (like the JSON path above) would break it. */
+export async function httpUpload<T>(path: string, file: File): Promise<T> {
+  const headers = new Headers();
+  requestHook(headers);
+  const form = new FormData();
+  form.set('file', file);
+  const res = await fetch(path.startsWith('http') ? path : `${BASE_URL}${path}`, {
+    method: 'POST',
+    headers,
+    body: form,
+    credentials: 'include',
+  });
+  if (!res.ok) throw await toApiError(res);
+  return (await res.json()) as T;
+}
+
 /** Streaming POST (AI). Returns the Response; caller reads response.body. */
 export async function httpStream(
   path: string,
@@ -136,4 +154,5 @@ export const http = {
   del: <T>(path: string, opts?: Omit<RequestOptions<T>, 'method' | 'body'>) =>
     httpRequest<T>(path, { ...opts, method: 'DELETE' }),
   stream: httpStream,
+  upload: httpUpload,
 };
