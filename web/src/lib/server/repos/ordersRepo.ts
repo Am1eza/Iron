@@ -88,14 +88,28 @@ export async function findOrderByRef(rawRef: string): Promise<Order | null> {
   return toOrderDto(rows[0], await itemsOf(rows[0].id));
 }
 
-export async function ordersForUser(userId: string): Promise<Order[]> {
+/** Paginated (was a hard `limit(100)` with no way past it — a customer with
+ *  more than 100 shipments silently lost the rest). `limit+1`: one extra row
+ *  signals `hasMore` without a separate `count(*)` scan, same convention as
+ *  `leadsForUser`. Callers that just want a bounded "give me everything
+ *  reasonable" snapshot (the account dashboard, the GDPR export) pass the max
+ *  page size explicitly instead of paging through. */
+export async function ordersForUser(
+  userId: string,
+  page = 1,
+  pageSize = 50,
+): Promise<{ rows: Order[]; hasMore: boolean }> {
+  const size = Math.min(Math.max(pageSize, 1), 100);
+  const p = Math.max(page, 1);
   const rows = await getDb()
     .select()
     .from(orders)
     .where(and(eq(orders.userId, userId), isNull(orders.deletedAt)))
     .orderBy(desc(orders.placedAt))
-    .limit(100);
-  return toOrderDtos(rows);
+    .limit(size + 1)
+    .offset((p - 1) * size);
+  const hasMore = rows.length > size;
+  return { rows: await toOrderDtos(rows.slice(0, size)), hasMore };
 }
 
 /** Cancel/archive an order (mis-registered, duplicate, customer cancelled

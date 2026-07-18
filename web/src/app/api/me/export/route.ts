@@ -31,9 +31,9 @@ async function GETImpl(req: NextRequest) {
     clubStatus(session.id),
     // Export wants everything in one go — request the max page size.
     leadsForUser(session.id, session.mobile, 1, 100).then((r) => r.rows),
-    ordersForUser(session.id),
+    ordersForUser(session.id, 1, 100).then((r) => r.rows),
     warehouseForUser(session.id),
-    requestsForUser(session.id),
+    requestsForUser(session.id, 1, 100).then((r) => r.rows),
   ]);
 
   const leads = await Promise.all(

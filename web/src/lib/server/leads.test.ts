@@ -122,7 +122,7 @@ describe('lead → proforma flow', () => {
 
     // Account inbox mirrored as quoted.
     const inbox = await requestsForUser(user.id);
-    expect(inbox.some((r) => r.ref === result.ref && r.status === 'quoted')).toBe(true);
+    expect(inbox.rows.some((r) => r.ref === result.ref && r.status === 'quoted')).toBe(true);
 
     // Lead row verified (session mobile match).
     const lead = await db.select().from(schema.leads).where(eq(schema.leads.ref, result.ref));

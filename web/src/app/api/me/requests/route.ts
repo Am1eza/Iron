@@ -5,14 +5,17 @@ import { requireApiUser, requireDb, withApiErrorHandling } from '@/lib/server/ut
 import { requestsForUser, insertRequest } from '@/lib/server/repos/requestsRepo';
 import { nextRef } from '@/lib/server/utils/refs';
 
-/** GET /api/me/requests — the account inbox («درخواست‌های من»). */
+/** GET /api/me/requests — the account inbox («درخواست‌های من»).
+ *  ?page= — 50/page; `hasMore` tells the client to keep paging (was a hard
+ *  silent 200-row cap with no way past it). */
 async function GETImpl(req: NextRequest) {
   const guard = requireDb();
   if (guard) return guard;
   const auth = await requireApiUser(req);
   if ('response' in auth) return auth.response;
-  const requests = await requestsForUser(auth.session.id);
-  return NextResponse.json({ requests }, { headers: { 'Cache-Control': 'no-store' } });
+  const page = Math.max(Number(req.nextUrl.searchParams.get('page') ?? '1') || 1, 1);
+  const { rows: requests, hasMore } = await requestsForUser(auth.session.id, page);
+  return NextResponse.json({ requests, page, hasMore }, { headers: { 'Cache-Control': 'no-store' } });
 }
 
 const createPayload = z.object({

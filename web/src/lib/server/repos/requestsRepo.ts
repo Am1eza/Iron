@@ -30,14 +30,24 @@ export function toRequestDto(r: UserRequestRow): UserRequestDto {
   };
 }
 
-export async function requestsForUser(userId: string): Promise<UserRequestDto[]> {
+/** Paginated (was a hard `limit(200)` with no way past it). `limit+1`: one
+ *  extra row signals `hasMore` without a separate `count(*)` scan, same
+ *  convention as `leadsForUser`/`ordersForUser`. */
+export async function requestsForUser(
+  userId: string,
+  page = 1,
+  pageSize = 50,
+): Promise<{ rows: UserRequestDto[]; hasMore: boolean }> {
+  const size = Math.min(Math.max(pageSize, 1), 100);
+  const p = Math.max(page, 1);
   const rows = await getDb()
     .select()
     .from(userRequests)
     .where(eq(userRequests.userId, userId))
     .orderBy(desc(userRequests.createdAt))
-    .limit(200);
-  return rows.map(toRequestDto);
+    .limit(size + 1)
+    .offset((p - 1) * size);
+  return { rows: rows.slice(0, size).map(toRequestDto), hasMore: rows.length > size };
 }
 
 export async function insertRequest(input: {

@@ -14,7 +14,7 @@ const live = () => API_MODE === 'live' && hasDb();
 
 export async function getOrders(userId: string): Promise<Order[]> {
   if (!live()) return mockOrders();
-  return ordersForUser(userId);
+  return (await ordersForUser(userId, 1, 100)).rows;
 }
 
 export async function getWarehouseItems(userId: string): Promise<WarehouseItem[]> {
@@ -40,13 +40,13 @@ export async function getProfileCounts(userId: string): Promise<{
     };
   }
   const [requests, orders, warehouse] = await Promise.all([
-    requestsForUser(userId),
-    ordersForUser(userId),
+    requestsForUser(userId, 1, 100),
+    ordersForUser(userId, 1, 100),
     warehouseForUser(userId),
   ]);
   return {
-    openRequests: requests.filter((r) => r.status !== 'quoted').length,
-    activeOrders: orders.filter((o) => o.status !== 'delivered').length,
+    openRequests: requests.rows.filter((r) => r.status !== 'quoted').length,
+    activeOrders: orders.rows.filter((o) => o.status !== 'delivered').length,
     warehouseItems: warehouse.length,
   };
 }
