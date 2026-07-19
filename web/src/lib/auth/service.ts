@@ -48,7 +48,7 @@ const pepper = () => requiredSecret(process.env.SESSION_SECRET, 'dev-pepper');
 export async function requestOtp(
   mobile: string,
   name?: string,
-): Promise<{ ttl: number; devCode?: string }> {
+): Promise<{ ttl: number; devCode?: string; isNewUser: boolean }> {
   const now = Date.now();
   const rate = await getRate(mobile);
 
@@ -101,7 +101,13 @@ export async function requestOtp(
   const sms = await sendOtpSms(mobile, code);
   if (!sms.ok) throw new AuthError('sms_failed', 'ارسال پیامک ناموفق بود. دوباره تلاش کنید.', 502);
 
-  return { ttl: CONSTANTS.OTP_TTL_SECONDS, devCode: sms.devCode };
+  // Lets the client only ask for a name on a genuinely new account instead
+  // of every login (the LoginForm bug this exists for) — verifyOtp ignores
+  // reg.firstName/lastName entirely for an existing user anyway, so this is
+  // purely a "what should the UI ask for" signal, not a security boundary.
+  const isNewUser = !(await userByMobile(mobile));
+
+  return { ttl: CONSTANTS.OTP_TTL_SECONDS, devCode: sms.devCode, isNewUser };
 }
 
 /* ------------------------------ verify OTP ----------------------------- */

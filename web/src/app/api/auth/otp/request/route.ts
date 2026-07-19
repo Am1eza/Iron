@@ -42,8 +42,8 @@ async function POSTImpl(req: NextRequest) {
   }
 
   try {
-    const { ttl, devCode } = await requestOtp(mobile, v.data.name);
-    return NextResponse.json({ ok: true, ttl, devCode });
+    const { ttl, devCode, isNewUser } = await requestOtp(mobile, v.data.name);
+    return NextResponse.json({ ok: true, ttl, devCode, isNewUser });
   } catch (err) {
     return authErrorResponse(err);
   }

@@ -34,6 +34,10 @@ export function LoginForm() {
   const [mobileError, setMobileError] = useState<string | undefined>(undefined);
   const [nameError, setNameError] = useState<string | undefined>(undefined);
   const [mobile, setMobile] = useState(''); // normalized value once sent
+  // Known only once the OTP is actually requested — an existing account
+  // never needs (and previously was wrongly forced to re-enter) a name;
+  // verifyOtp on the server ignores reg.firstName/lastName for it anyway.
+  const [isNewUser, setIsNewUser] = useState(false);
   const [code, setCode] = useState('');
   const [otpError, setOtpError] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,9 +60,9 @@ export function LoginForm() {
   const sendOtp = async (m: string) => {
     setError(null);
     try {
-      const displayName = `${firstName.trim()} ${lastName.trim()}`.trim() || undefined;
-      const res = await formsApi.requestOtp(m, displayName);
+      const res = await formsApi.requestOtp(m);
       setMobile(m);
+      setIsNewUser(res.isNewUser);
       setStep('code');
       setResendIn(60);
       setDevCode(res.devCode ?? null);
@@ -75,13 +79,6 @@ export function LoginForm() {
       return;
     }
     setMobileError(undefined);
-    // Name is REQUIRED for registration — enforced before the OTP is even sent
-    // (an unknown mobile becomes a new account on verify).
-    if (!firstName.trim() || !lastName.trim()) {
-      setNameError(t('nameHelper'));
-      return;
-    }
-    setNameError(undefined);
     setSubmitting(true);
     await sendOtp(parsed.normalized);
     setSubmitting(false);
@@ -95,6 +92,13 @@ export function LoginForm() {
       otpRef.current?.focus();
       return;
     }
+    // Name is only meaningful (and only asked for) on a genuinely new
+    // account — an existing user skips straight past this.
+    if (isNewUser && (!firstName.trim() || !lastName.trim())) {
+      setNameError(t('nameHelper'));
+      return;
+    }
+    setNameError(undefined);
     setVerifying(true);
     try {
       const { user } = await formsApi.verifyOtp(mobile, code, {
@@ -146,39 +150,6 @@ export function LoginForm() {
               if (mobileError) setMobileError(undefined);
             }}
           />
-          <div className={styles.nameRow}>
-            <TextInput
-              label={t('firstNameLabel')}
-              type="text"
-              required
-              autoComplete="given-name"
-              error={nameError}
-              value={firstName}
-              onChange={(e) => {
-                setFirstName(e.target.value);
-                if (nameError) setNameError(undefined);
-              }}
-            />
-            <TextInput
-              label={t('lastNameLabel')}
-              type="text"
-              required
-              autoComplete="family-name"
-              value={lastName}
-              onChange={(e) => {
-                setLastName(e.target.value);
-                if (nameError) setNameError(undefined);
-              }}
-            />
-          </div>
-          <TextInput
-            label={t('inviteCodeLabel')}
-            type="text"
-            autoComplete="off"
-            helper={t('inviteCodeHelper')}
-            value={inviteCode}
-            onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-          />
           <Button type="submit" fullWidth loading={submitting}>
             {t('getCode')}
           </Button>
@@ -191,6 +162,43 @@ export function LoginForm() {
             </p>
           ) : null}
           <OtpInput ref={otpRef} value={code} onChange={setCode} error={otpError} label={t('otpLabel')} />
+          {isNewUser ? (
+            <>
+              <div className={styles.nameRow}>
+                <TextInput
+                  label={t('firstNameLabel')}
+                  type="text"
+                  required
+                  autoComplete="given-name"
+                  error={nameError}
+                  value={firstName}
+                  onChange={(e) => {
+                    setFirstName(e.target.value);
+                    if (nameError) setNameError(undefined);
+                  }}
+                />
+                <TextInput
+                  label={t('lastNameLabel')}
+                  type="text"
+                  required
+                  autoComplete="family-name"
+                  value={lastName}
+                  onChange={(e) => {
+                    setLastName(e.target.value);
+                    if (nameError) setNameError(undefined);
+                  }}
+                />
+              </div>
+              <TextInput
+                label={t('inviteCodeLabel')}
+                type="text"
+                autoComplete="off"
+                helper={t('inviteCodeHelper')}
+                value={inviteCode}
+                onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+              />
+            </>
+          ) : null}
           <p className={styles.hint}>{t('deliveryHint')}</p>
           <Button onClick={verify} fullWidth loading={verifying}>
             {t('verifyAndLogin')}
