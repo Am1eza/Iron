@@ -91,7 +91,10 @@
     "inviteCodeHelper": "如果朋友给了您邀请码，请在此输入。",
     "title": "登录或注册",
     "subtitle": "用手机号几秒内登录。",
-    "verifyTitle": "验证您的号码"
+    "verifyTitle": "验证您的号码",
+    "registerTitle": "完成注册",
+    "registerSubtitle": "该号码是新的 — 请输入发送到 {mobile} 的验证码并完善您的信息。",
+    "newUserBadge": "新账户"
   },
   "phone": {
     "country": "国家/地区",

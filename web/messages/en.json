@@ -91,7 +91,10 @@
     "inviteCodeHelper": "If a friend gave you an invite code, enter it here.",
     "title": "Sign in or register",
     "subtitle": "Sign in with your mobile number in seconds.",
-    "verifyTitle": "Verify your number"
+    "verifyTitle": "Verify your number",
+    "registerTitle": "Complete your registration",
+    "registerSubtitle": "This number is new — enter the code sent to {mobile} and complete your details.",
+    "newUserBadge": "New account"
   },
   "phone": {
     "country": "Country",

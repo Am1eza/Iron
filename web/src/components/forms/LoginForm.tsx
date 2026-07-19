@@ -15,6 +15,7 @@ import { PhoneField } from './PhoneField';
 import { OtpInput, type OtpInputHandle } from './OtpInput';
 import { FormStatus } from './FormStatus';
 import { Button } from '@/components/primitives/Button';
+import { Badge } from '@/components/ui';
 import styles from './LoginForm.module.css';
 
 export function LoginForm() {
@@ -121,11 +122,20 @@ export function LoginForm() {
   return (
     <div className={styles.card}>
       <div className={styles.head}>
-        <h1 className={styles.title}>{step === 'mobile' ? t('title') : t('verifyTitle')}</h1>
+        <h1 className={styles.title}>
+          {step === 'mobile' ? t('title') : isNewUser ? t('registerTitle') : t('verifyTitle')}
+          {step === 'code' && isNewUser ? (
+            <Badge tone="accent" className={styles.newUserBadge}>
+              {t('newUserBadge')}
+            </Badge>
+          ) : null}
+        </h1>
         <p className={styles.subtitle}>
           {step === 'mobile'
             ? t('subtitle')
-            : t('codeSentTo', { mobile: localizeDigits(mobile, locale) })}
+            : isNewUser
+              ? t('registerSubtitle', { mobile: localizeDigits(mobile, locale) })
+              : t('codeSentTo', { mobile: localizeDigits(mobile, locale) })}
         </p>
       </div>
 

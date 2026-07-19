@@ -91,7 +91,10 @@
     "inviteCodeHelper": "إذا كان لديك رمز دعوة من صديق، أدخله هنا.",
     "title": "تسجيل الدخول أو التسجيل",
     "subtitle": "سجّل الدخول برقم هاتفك في ثوانٍ.",
-    "verifyTitle": "تأكيد رقمك"
+    "verifyTitle": "تأكيد رقمك",
+    "registerTitle": "إكمال التسجيل",
+    "registerSubtitle": "هذا الرقم جديد — أدخل الرمز المُرسَل إلى {mobile} وأكمل بياناتك.",
+    "newUserBadge": "حساب جديد"
   },
   "phone": {
     "country": "الدولة",
