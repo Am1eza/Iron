@@ -2,9 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
-import { categories } from '@/lib/mock/fixtures';
-import { getRows } from '@/lib/mock/catalogData';
-import { searchAll } from '@/lib/server/catalog';
+import { getCategories, getRows, searchAll } from '@/lib/server/catalog';
 import type { PriceRow, Article, Category } from '@/lib/types/domain';
 import { formatToman, toPersianDigits, normalizeDigits } from '@/lib/utils/format';
 import {
@@ -21,7 +19,7 @@ import {
 import { ArticleCard } from '@/components/content/ArticleCard';
 import { CategoryArt } from '@/components/catalog/CategoryArt';
 import { SearchIcon, TagIcon, ChevronStartIcon } from '@/components/primitives/icons';
-import { SearchBox } from '@/components/search/SearchBox';
+import { SearchBar } from '@/components/layout/SearchBar';
 import resultStyles from '@/components/search/SearchResults.module.css';
 
 // noindex'd (thin/duplicate search-results content) — no canonical `path` is
@@ -43,6 +41,13 @@ function norm(input: string): string {
 }
 
 type ProductHit = { row: PriceRow; categoryName: string };
+type CatWithCount = { cat: Category; count: number };
+
+/** Per-category SKU counts, computed server-side (DB in live mode) — never
+ *  from the mock catalog, so counts shown here match what /prices lists. */
+async function withCounts(cats: Category[]): Promise<CatWithCount[]> {
+  return Promise.all(cats.map(async (cat) => ({ cat, count: (await getRows(cat.slug)).length })));
+}
 
 export default async function SearchPage({ searchParams }: Props) {
   const { q: rawQ } = await searchParams;
@@ -54,8 +59,15 @@ export default async function SearchPage({ searchParams }: Props) {
     { label: 'جستجو' },
   ];
 
+  // Category list & counts are always live (DB in live mode), never the mock
+  // catalog — a search page previously sourced these from `@/lib/mock/*`
+  // even in production, so it could show categories/counts an admin had
+  // since renamed, removed, or added.
+  const categories = await getCategories();
+
   // ----- Empty query: prompt + popular categories -----
   if (needle.length === 0) {
+    const popular = await withCounts(categories.filter((c) => c.isActive));
     return (
       <Container>
         <Section space={10}>
@@ -67,7 +79,7 @@ export default async function SearchPage({ searchParams }: Props) {
               headline="چه چیزی را جستجو می‌کنید؟"
               body="نام محصول، سایز، کارخانه یا عنوان مقاله را بنویسید. مثلاً «میلگرد ۱۴» یا «فولاد مبارکه»."
             />
-            <PopularCategories />
+            <PopularCategories items={popular} />
           </Stack>
         </Section>
       </Container>
@@ -87,6 +99,8 @@ export default async function SearchPage({ searchParams }: Props) {
   );
 
   const totalHits = productHits.length + categoryHits.length + articleHits.length;
+  const categoryHitsWithCounts = await withCounts(categoryHits);
+  const popular = totalHits === 0 ? await withCounts(categories.filter((c) => c.isActive)) : [];
 
   return (
     <Container>
@@ -97,7 +111,7 @@ export default async function SearchPage({ searchParams }: Props) {
           {totalHits === 0 ? (
             <>
               <EmptyState size="section" {...emptyPresets.searchNoResults(q)} showAi />
-              <PopularCategories />
+              <PopularCategories items={popular} />
             </>
           ) : (
             <p className={resultStyles.summary}>
@@ -110,7 +124,7 @@ export default async function SearchPage({ searchParams }: Props) {
             <ProductGroup hits={productHits} />
           ) : null}
 
-          {categoryHits.length > 0 ? <CategoryGroup cats={categoryHits} /> : null}
+          {categoryHitsWithCounts.length > 0 ? <CategoryGroup cats={categoryHitsWithCounts} /> : null}
 
           {articleHits.length > 0 ? <ArticleGroup items={articleHits} /> : null}
         </Stack>
@@ -132,7 +146,12 @@ function Header({ crumbs, initial }: { crumbs: { label: string; href?: string }[
         در میان محصولات، دسته‌بندی‌ها و مقالات آهن‌تایم بگردید. اول مشورت، بعد خرید.
       </Text>
       <div className={resultStyles.searchField}>
-        <SearchBox initial={initial} autoFocus={initial.length === 0} />
+        <SearchBar
+          size="lg"
+          initial={initial}
+          autoFocus={initial.length === 0}
+          placeholder="جستجوی محصول، سایز، کارخانه یا مقاله…"
+        />
       </div>
     </div>
   );
@@ -222,7 +241,7 @@ function ProductGroup({ hits }: { hits: ProductHit[] }) {
   );
 }
 
-function CategoryGroup({ cats }: { cats: Category[] }) {
+function CategoryGroup({ cats }: { cats: CatWithCount[] }) {
   const shown = cats.slice(0, GROUP_CAP);
   const truncated = cats.length > GROUP_CAP;
   return (
@@ -235,20 +254,17 @@ function CategoryGroup({ cats }: { cats: Category[] }) {
         moreLabel="همهٔ دسته‌ها"
       />
       <ul className={resultStyles.cats}>
-        {shown.map((cat) => {
-          const count = getRows(cat.slug).length;
-          return (
-            <li key={cat.id}>
-              <Link href={routes.category(cat.slug)} className={resultStyles.catChip}>
-                <span className={resultStyles.catIcon} aria-hidden="true">
-                  <CategoryArt slug={cat.slug} size={28} />
-                </span>
-                <span>{cat.name}</span>
-                <span className={`${resultStyles.catCount} tnum`}>{toPersianDigits(count)}</span>
-              </Link>
-            </li>
-          );
-        })}
+        {shown.map(({ cat, count }) => (
+          <li key={cat.id}>
+            <Link href={routes.category(cat.slug)} className={resultStyles.catChip}>
+              <span className={resultStyles.catIcon} aria-hidden="true">
+                <CategoryArt slug={cat.slug} size={28} />
+              </span>
+              <span>{cat.name}</span>
+              <span className={`${resultStyles.catCount} tnum`}>{toPersianDigits(count)}</span>
+            </Link>
+          </li>
+        ))}
       </ul>
     </section>
   );
@@ -275,29 +291,24 @@ function ArticleGroup({ items }: { items: Article[] }) {
   );
 }
 
-function PopularCategories() {
+function PopularCategories({ items }: { items: CatWithCount[] }) {
   return (
     <div className={resultStyles.popular}>
       <p className={resultStyles.popularTitle}>
         <TagIcon size={14} aria-hidden="true" /> دسته‌بندی‌های پرجستجو
       </p>
       <ul className={resultStyles.cats}>
-        {categories
-          .filter((c) => c.isActive)
-          .map((cat) => {
-            const count = getRows(cat.slug).length;
-            return (
-              <li key={cat.id}>
-                <Link href={routes.category(cat.slug)} className={resultStyles.catChip}>
-                  <span className={resultStyles.catIcon} aria-hidden="true">
-                    <CategoryArt slug={cat.slug} size={28} />
-                  </span>
-                  <span>{cat.name}</span>
-                  <span className={`${resultStyles.catCount} tnum`}>{toPersianDigits(count)}</span>
-                </Link>
-              </li>
-            );
-          })}
+        {items.map(({ cat, count }) => (
+          <li key={cat.id}>
+            <Link href={routes.category(cat.slug)} className={resultStyles.catChip}>
+              <span className={resultStyles.catIcon} aria-hidden="true">
+                <CategoryArt slug={cat.slug} size={28} />
+              </span>
+              <span>{cat.name}</span>
+              <span className={`${resultStyles.catCount} tnum`}>{toPersianDigits(count)}</span>
+            </Link>
+          </li>
+        ))}
       </ul>
     </div>
   );

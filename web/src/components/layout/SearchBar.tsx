@@ -1,5 +1,5 @@
 'use client';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { routes } from '@/lib/routes';
 import { normalizeDigits } from '@/lib/utils/format';
@@ -12,21 +12,31 @@ type Props = {
   placeholder?: string;
   /** Visually-hidden label text for the input. */
   label?: string;
+  /** Pre-fill (controlled) — the /search page passes the current ?q= so the
+   *  field re-syncs when the user navigates between queries e.g. via a
+   *  suggestion chip, without a full remount. */
+  initial?: string;
 };
 
 /**
  * N15 · Search as navigation. Submits to `/جستجو?q=` (digit-normalized so «۱۴» and
- * «14» both match). `lg` is the home/AI variant; `sm` is the header utility variant.
+ * «14» both match). `lg` is the home/AI/search-page variant; `sm` is the header
+ * utility variant.
  */
 export function SearchBar({
   size = 'sm',
   autoFocus = false,
   placeholder = 'جستجوی محصول، سایز، کارخانه…',
   label = 'جستجو در آهن‌تایم',
+  initial = '',
 }: Props) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const [q, setQ] = useState('');
+  const [q, setQ] = useState(initial);
+
+  useEffect(() => {
+    setQ(initial);
+  }, [initial]);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();

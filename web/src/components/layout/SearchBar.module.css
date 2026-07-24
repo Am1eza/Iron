@@ -92,3 +92,13 @@
 .submit:active {
   background: var(--color-action-press);
 }
+
+@media (max-width: 520px) {
+  .lg {
+    padding-inline: var(--space-4) var(--space-2);
+    block-size: 52px;
+  }
+  .lg .submit {
+    padding-inline: var(--space-4);
+  }
+}
