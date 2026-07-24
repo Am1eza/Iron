@@ -1,36 +1,31 @@
 # Missing client logos
 
-17 of 21 logos could not be obtained from a reachable source. **Obtained:**
-Pars Garma (official site), and PGPIC, Azarab, MAPNA Pars (Persian Wikipedia).
+19 of 21 logos are now in place. The 2026-07-24 pass ran from a server inside
+Iran, so the previously geo-blocked official sites were reachable; 15 logos
+were fetched, optimized (webp, max height 96px, q82; one clean SVG) and wired
+into `index.ts`.
 
-## Why these are missing
-The official Iranian sites are geo-blocked from this environment (HTTP `000` /
-`503`), and the companies below have **no Persian Wikipedia page** with a usable
-logo. Per your guidance I searched in Persian (Wikipedia/Wikimedia, which are
-reachable) — these simply aren't available there.
+## Still missing (2)
+
+| Company | Slug | Reason |
+|---------|------|--------|
+| Esfahan Alloy Steel | `esfahan-alloy-steel` | No URL in manifest. Likely official site www.sfae.ir times out even from inside Iran. No fa/en Wikipedia page, no official Aparat channel; directory pages (iranestekhdam, fooladino) only carry factory photos, not a logo. |
+| Faradast Energy Falat | `faradast-energy-falat` | No URL in manifest. Candidate domains (faradastenergy.com, fefalat.com, fef.co.ir) are dead or time out. No Wikipedia page, no official Aparat channel; company registries (rasmio, vlist, parsjahd) show no logo. |
+
+## Notes on obtained logos
+
+- `sina-port-marine.svg` — the site's PNG logo is **white-on-transparent**
+  (invisible on a light surface); the SVG variant used instead is dark blue
+  (#0c3b78) and safe on light backgrounds.
+- `torc.webp` and `pgsoc.webp` came from the companies' **official Aparat
+  channel avatars** (JPEG, opaque white background — they render as small
+  square tiles, not transparent marks). torc.ir and www.pgsoc.ir remained
+  unreachable/behind an ArvanCloud JS challenge even from inside Iran.
+- `pasargad-alloy-steel.webp` (60x56) and `mibic.webp` (68x68) are the largest
+  copies the official sites serve — small but genuine.
+- `dashtestan-cement.webp` is 214x60 (site's own header logo; no larger copy).
 
 ## How to add one
-Drop the official logo into this folder as `<slug>.svg` (preferred) or
-`<slug>.png`, then set `hasLogo: true` for that entry in `index.ts`. The
-carousel upgrades the name chip to the real logo automatically. (Uploading the
-files here also works — I'll optimize + wire them in.)
 
-| # | Company | Slug | Website | Reason |
-|---|---------|------|---------|--------|
-| 1 | Kurdestan Cement | `kordestan-cement` | https://www.kordestancement.com | Site unreachable (000); no Wikipedia logo |
-| 2 | Dashtestan Cement | `dashtestan-cement` | https://dashtestancement.com | Site unreachable (000); no Wikipedia logo |
-| 3 | Hegmatan Cement | `hegmatan-cement` | https://www.hegmatancement.com | Site unreachable (000); no Wikipedia logo |
-| 4 | Parsian Construction Development | `parsian-construction-development` | https://pcdco.org | Site unreachable (000); no Wikipedia logo |
-| 5 | Sina Port & Marine Services Development | `sina-port-marine` | https://spmco.co | Site unreachable (000); no Wikipedia logo |
-| 6 | Persi Iran Gas | `persi-iran-gas` | https://persiirangas.ir | Site unreachable (000); Wikipedia page has no logo file |
-| 7 | Tehran Oil Refining Company | `torc` | https://www.torc.ir | Site unreachable (000); no Wikipedia logo |
-| 8 | MIBIC | `mibic` | https://mibic.ir | Site unreachable (000); no Wikipedia logo |
-| 9 | Pasargad Alloy Steel | `pasargad-alloy-steel` | https://www.pascosteel.com | Site unreachable (000); no Wikipedia logo |
-| 10 | Esfahan Alloy Steel | `esfahan-alloy-steel` | — | No official URL; no Wikipedia logo |
-| 11 | Faradast Energy Falat | `faradast-energy-falat` | — | No official URL; no Wikipedia logo |
-| 15 | Shams Energy | `shams-energy` | https://shams.energy | Site unreachable (000); no Wikipedia logo |
-| 16 | Persian Gulf Star Oil Company | `pgsoc` | https://www.pgsoc.ir | Site unreachable (000); no Wikipedia logo |
-| 18 | Pars Machine Manufacturing | `pars-machine-manufacturing` | https://mspco.ir | Site unreachable (000); no Wikipedia logo |
-| 19 | National Iranian Steel Industries Group | `insig` | https://insig.org | Site unreachable (000); the Wikipedia image was a foundry photo, not a logo |
-| 20 | Karun Agro Industry | `karun-agro-industry` | https://karuncane.com | Site unreachable (000); no Wikipedia logo |
-| 21 | Imam Khomeini Agro Industry | `imam-khomeini-agro-industry` | https://www.ik-sugarcane.ir | Site unreachable (000); no Wikipedia logo |
+Drop the official logo into this folder as `<slug>.svg` (preferred) or
+`<slug>.webp`/`.png`, then set `hasLogo: true` for that entry in `index.ts`.
