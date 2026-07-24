@@ -2,7 +2,7 @@
 /** Admin price-alerts (قیمت‌سنج) management — US-24.5. There was no admin
  *  surface for alerts before this; support could only see/pause them by
  *  going straight to the database. */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api/resources/admin';
 import { formatToman, formatJalali, toPersianDigits } from '@/lib/utils/format';
@@ -24,10 +24,17 @@ export function AlertsPanel() {
   const toast = useToast();
   const qc = useQueryClient();
   const [status, setStatus] = useState<'' | 'active' | 'triggered' | 'paused'>('active');
+  const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    setPage(1);
+  }, [status]);
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['admin', 'alerts', status],
-    queryFn: () => adminApi.alerts({ status: status || undefined }),
+    // Server pages this list — without the page param anything past the
+    // first page was unreachable. The API reports hasMore (no total).
+    queryKey: ['admin', 'alerts', status, page],
+    queryFn: () => adminApi.alerts({ status: status || undefined, page }),
   });
 
   const setAlertStatus = useMutation({
@@ -110,7 +117,8 @@ export function AlertsPanel() {
                       size="sm"
                       variant="ghost"
                       onClick={() => setAlertStatus.mutate({ id: a.id, next: 'paused' })}
-                      loading={setAlertStatus.isPending}
+                      loading={setAlertStatus.isPending && setAlertStatus.variables?.id === a.id}
+                      disabled={setAlertStatus.isPending}
                     >
                       متوقف کن
                     </Button>
@@ -119,7 +127,8 @@ export function AlertsPanel() {
                       size="sm"
                       variant="ghost"
                       onClick={() => setAlertStatus.mutate({ id: a.id, next: 'active' })}
-                      loading={setAlertStatus.isPending}
+                      loading={setAlertStatus.isPending && setAlertStatus.variables?.id === a.id}
+                      disabled={setAlertStatus.isPending}
                     >
                       فعال‌سازی مجدد
                     </Button>
@@ -130,6 +139,17 @@ export function AlertsPanel() {
           </tbody>
         </table></div>
       )}
+      {data && (page > 1 || data.hasMore) ? (
+        <div className={ui.toolbar} style={{ marginBlockStart: 'var(--space-3)' }}>
+          <Button size="sm" variant="ghost" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+            قبلی
+          </Button>
+          <span className={ui.muted}>صفحهٔ {toPersianDigits(page)}</span>
+          <Button size="sm" variant="ghost" disabled={!data.hasMore} onClick={() => setPage((p) => p + 1)}>
+            بعدی
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

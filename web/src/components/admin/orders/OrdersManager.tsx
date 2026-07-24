@@ -1,7 +1,7 @@
 'use client';
 /** Orders — advance each shipment along SHIPMENT_STEPS, set carrier tracking
  *  info, or cancel/archive (US-08.4). Persists via the API. */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api/resources/admin';
 import { SHIPMENT_STEPS } from '@/lib/types/domain';
@@ -11,6 +11,7 @@ import { useToast } from '@/lib/hooks/useToast';
 import { ApiError } from '@/lib/api/errors';
 import { Badge, Button, Card, EmptyState, TableSkeleton, useConfirm } from '@/components/ui';
 import { Chip } from '@/components/ui';
+import { PagerFooter } from '../PagerFooter';
 import ui from '../adminUi.module.css';
 
 function ShippingFields({ order }: { order: Order }) {
@@ -61,10 +62,16 @@ export function OrdersManager() {
   const { confirm, dialog } = useConfirm();
   const [status, setStatus] = useState('');
   const [cancelled, setCancelled] = useState(false);
+  const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    setPage(1);
+  }, [status, cancelled]);
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['admin', 'orders', status, cancelled],
-    queryFn: () => adminApi.orders({ status: status || undefined, cancelled }),
+    // Server pages at 50/page — order #51 was previously unreachable.
+    queryKey: ['admin', 'orders', status, cancelled, page],
+    queryFn: () => adminApi.orders({ status: status || undefined, cancelled, page }),
   });
   const advance = useMutation({
     mutationFn: ({ ref, next }: { ref: string; next: string }) => adminApi.updateOrderStatus(ref, next),
@@ -167,7 +174,8 @@ export function OrdersManager() {
                       size="sm"
                       style={{ marginInlineStart: 'auto' }}
                       onClick={() => advance.mutate({ ref: o.ref, next: next.key })}
-                      loading={advance.isPending}
+                      loading={advance.isPending && advance.variables?.ref === o.ref}
+                      disabled={advance.isPending}
                     >
                       مرحلهٔ بعد: {next.label}
                     </Button>
@@ -197,6 +205,7 @@ export function OrdersManager() {
         </div>
       )}
       {data ? <p className={ui.muted}>{toPersianDigits(data.total)} سفارش</p> : null}
+      {data ? <PagerFooter page={page} perPage={50} total={data.total} onPage={setPage} /> : null}
       {dialog}
     </div>
   );

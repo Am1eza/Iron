@@ -10,6 +10,7 @@ import { useToast } from '@/lib/hooks/useToast';
 import { ApiError } from '@/lib/api/errors';
 import { Badge, Button, Chip, EmptyState, Heading, Spinner, TableSkeleton, useConfirm } from '@/components/ui';
 import { TextInput } from '@/components/forms/fields';
+import { PagerFooter } from '../PagerFooter';
 import ui from '../adminUi.module.css';
 
 const ROLES: Role[] = ['customer', 'operator', 'sales', 'content', 'catalog', 'admin'];
@@ -22,6 +23,7 @@ export function UsersTable() {
   const [role, setRole] = useState('');
   const [search, setSearch] = useState('');
   const [q, setQ] = useState('');
+  const [page, setPage] = useState(1);
   const [openId, setOpenId] = useState<string | null>(null);
   const [inviting, setInviting] = useState(false);
   const [invite, setInvite] = useState<{ mobile: string; name: string; role: (typeof INVITABLE_ROLES)[number] }>({
@@ -35,9 +37,17 @@ export function UsersTable() {
     return () => clearTimeout(t);
   }, [search]);
 
+  // Filter change resets to page 1 (an old page number can be past the end
+  // of the new, shorter result set).
+  useEffect(() => {
+    setPage(1);
+  }, [role, q]);
+
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['admin', 'users', role, q],
-    queryFn: () => adminApi.users({ role: role || undefined, q: q || undefined }),
+    // The server pages at 50/page — without the page param this table simply
+    // could never show user #51.
+    queryKey: ['admin', 'users', role, q, page],
+    queryFn: () => adminApi.users({ role: role || undefined, q: q || undefined, page }),
   });
   const update = useMutation({
     mutationFn: ({ id, patch }: { id: string; patch: { role?: string; isActive?: boolean } }) =>
@@ -239,6 +249,7 @@ export function UsersTable() {
           </table></div>
         )}
         {data ? <p className={ui.muted}>{toPersianDigits(data.total)} کاربر</p> : null}
+        {data ? <PagerFooter page={page} perPage={50} total={data.total} onPage={setPage} /> : null}
       </div>
 
       <ClubSection />

@@ -48,6 +48,15 @@ async function GETImpl(req: NextRequest) {
     count(db.select({ n: sql<number>`count(*)::int` }).from(users)));
   add('newUsers24h', 'users:manage', () =>
     count(db.select({ n: sql<number>`count(*)::int` }).from(users).where(gte(users.createdAt, dayAgo))));
+  // KYC/KYB queue depth — a real daily work queue that was invisible from the
+  // dashboard (only discoverable by scrolling the users page).
+  add('pendingVerifications', 'users:manage', () =>
+    count(
+      db
+        .select({ n: sql<number>`count(*)::int` })
+        .from(users)
+        .where(sql`${users.idVerifyStatus} = 'pending' or ${users.bizVerifyStatus} = 'pending'`),
+    ));
   add('draftArticles', 'content:write', () =>
     count(db.select({ n: sql<number>`count(*)::int` }).from(articles).where(and(eq(articles.status, 'draft')))));
   add('aiToday', 'ai:review', () =>

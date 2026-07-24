@@ -3,7 +3,7 @@
  * Content queue — AI drafts → editor approval → publish/schedule. Selecting a
  * row opens the editor (title/slug/excerpt/bodyMd) with a markdown-lite preview.
  */
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { adminApi, type ArticleFull } from '@/lib/api/resources/admin';
 import { formatJalali } from '@/lib/utils/format';
@@ -190,6 +190,17 @@ function ArticleEditor({ id, onDone }: { id: string; onDone: () => void }) {
     });
   };
 
+  // Unsaved edits must survive an accidental tab close/reload prompt-free
+  // discard (the in-app «ذخیره» button remains the actual save).
+  useEffect(() => {
+    if (!draft) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [draft]);
+
   const { data } = useQuery({ queryKey: ['admin', 'article', id], queryFn: () => adminApi.article(id) });
   const article = data?.article;
   const value = { ...article, ...draft } as ArticleFull | undefined;
@@ -337,7 +348,25 @@ function ArticleEditor({ id, onDone }: { id: string; onDone: () => void }) {
             </Button>
             {value.status === 'draft' ? (
               <>
-                <Button size="sm" variant="secondary" onClick={() => publish.mutate(undefined)} loading={publish.isPending}>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  loading={publish.isPending}
+                  onClick={() =>
+                    // Publishing is public + SEO-affecting — and must never
+                    // silently drop unsaved edits (publish sends the SAVED
+                    // version, not the in-progress draft).
+                    void confirm({
+                      title: 'انتشار مقاله؟',
+                      body: draft
+                        ? 'تغییرات ذخیره‌نشده دارید — اول «ذخیره» را بزنید، وگرنه نسخهٔ قبلی منتشر می‌شود. ادامه می‌دهید؟'
+                        : `«${value.title}» همین حالا در سایت منتشر می‌شود.`,
+                      confirmLabel: 'انتشار',
+                    }).then((ok) => {
+                      if (ok) publish.mutate(undefined);
+                    })
+                  }
+                >
                   انتشار اکنون
                 </Button>
                 <input

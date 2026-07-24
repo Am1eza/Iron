@@ -196,6 +196,25 @@ export async function skuHistory(slug: string, range = '90d'): Promise<PricePoin
   return rows.map((p) => ({ id: p.id, skuId: p.skuId, price: p.price, unit: p.unit, at: p.at.toISOString() }));
 }
 
+/** Batched price history for MANY slugs in ONE query — the admin pricing
+ *  grid's per-row sparklines used to fire one HTTP request per visible row
+ *  (60 rows = 60 requests on every load). Returns slug → ascending prices. */
+export async function skuHistoryBatch(slugs: string[], range = '30d'): Promise<Record<string, number[]>> {
+  if (slugs.length === 0) return {};
+  const days = RANGE_DAYS[range] ?? 30;
+  const db = getDb();
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  const rows = await db
+    .select({ slug: skus.slug, price: pricePoints.price, at: pricePoints.at })
+    .from(pricePoints)
+    .innerJoin(skus, eq(pricePoints.skuId, skus.id))
+    .where(and(inArray(skus.slug, slugs), gte(pricePoints.at, since)))
+    .orderBy(asc(pricePoints.at));
+  const out: Record<string, number[]> = {};
+  for (const r of rows) (out[r.slug] ??= []).push(r.price);
+  return out;
+}
+
 const ZWNJ = '‌';
 
 /** Spaced spellings of compound product words — users type «تیر آهن» while

@@ -60,19 +60,45 @@ export function DashboardTiles() {
     return <p className={ui.muted}>آماری برای نمایش به شما اختصاص نیافته است.</p>;
   }
 
+  // «در انتظار شما» — everything that needs a human RIGHT NOW, in one strip
+  // above the stats (the queues used to live scattered across five pages).
+  // Only non-zero queues render; a clear day shows nothing.
+  const queue = [
+    s.newLeads ? { label: 'سرنخ جدید', n: s.newLeads, href: routes.admin.leads() } : null,
+    s.newMessages ? { label: 'پیام بی‌پاسخ', n: s.newMessages, href: routes.admin.leads() } : null,
+    s.openRequests ? { label: 'درخواست باز', n: s.openRequests, href: routes.admin.leads() } : null,
+    s.pendingVerifications
+      ? { label: 'احراز هویت در انتظار', n: s.pendingVerifications, href: routes.admin.users() }
+      : null,
+    s.stalePrices ? { label: 'قیمت کهنه', n: s.stalePrices, href: `${routes.admin.pricing()}?stale=1` } : null,
+    s.draftArticles ? { label: 'پیش‌نویس محتوا', n: s.draftArticles, href: routes.admin.content() } : null,
+  ].filter((x): x is { label: string; n: number; href: string } => x !== null);
+
   return (
-    <div className={ui.tiles}>
-      {tiles.map((t) => (
-        <Link
-          key={t.label}
-          href={t.href}
-          className={`${ui.tile} ${t.tone === 'good' ? ui.tileGood : ''} ${t.tone === 'bad' ? ui.tileBad : ''}`}
-        >
-          <span className={ui.tileValue}>{toPersianDigits(t.value)}</span>
-          <span className={ui.tileLabel}>{t.label}</span>
-          {t.hint ? <span className={ui.tileHint}>{t.hint}</span> : null}
-        </Link>
-      ))}
-    </div>
+    <>
+      {queue.length > 0 ? (
+        <div className={ui.workQueue} role="region" aria-label="کارهای در انتظار">
+          <span className={ui.workQueueTitle}>در انتظار شما:</span>
+          {queue.map((item) => (
+            <Link key={item.label} href={item.href} className={ui.workQueueItem}>
+              <span className="tnum">{toPersianDigits(item.n)}</span> {item.label}
+            </Link>
+          ))}
+        </div>
+      ) : null}
+      <div className={ui.tiles}>
+        {tiles.map((t) => (
+          <Link
+            key={t.label}
+            href={t.href}
+            className={`${ui.tile} ${t.tone === 'good' ? ui.tileGood : ''} ${t.tone === 'bad' ? ui.tileBad : ''}`}
+          >
+            <span className={ui.tileValue}>{toPersianDigits(t.value)}</span>
+            <span className={ui.tileLabel}>{t.label}</span>
+            {t.hint ? <span className={ui.tileHint}>{t.hint}</span> : null}
+          </Link>
+        ))}
+      </div>
+    </>
   );
 }

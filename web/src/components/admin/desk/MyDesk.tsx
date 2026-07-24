@@ -43,12 +43,10 @@ function LeadRows({ rows, showCallback }: { rows: DeskLead[]; showCallback?: boo
         {rows.map((l) => (
           <tr key={l.id}>
             <td className={ui.mono}>
-              {/* The queue must lead INTO the work — a display-only row forced
-                  the rep to re-find every lead on /admin/leads by hand. */}
-              <Link
-                href={`/admin/leads?q=${encodeURIComponent(l.ref)}`}
-                style={{ color: 'var(--color-accent-text)' }}
-              >
+              {/* The queue must lead INTO the work — straight to the lead's
+                  own page (display-only rows once forced the rep to re-find
+                  every lead on /admin/leads by hand). */}
+              <Link href={`/admin/leads/${encodeURIComponent(l.id)}`} style={{ color: 'var(--color-accent-text)' }}>
                 <bdi>{l.ref}</bdi>
               </Link>
             </td>

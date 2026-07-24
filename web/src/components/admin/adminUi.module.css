@@ -25,6 +25,42 @@
   white-space: nowrap;
 }
 
+/* «در انتظار شما» — the dashboard's unified pending-work strip */
+.workQueue {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-hairline) solid var(--color-accent);
+  background: var(--color-accent-tint);
+  border-radius: var(--radius-md);
+  margin-block-end: var(--space-4);
+}
+.workQueueTitle {
+  font: var(--t-label);
+  font-weight: 700;
+  color: var(--color-text-strong);
+}
+.workQueueItem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  border: var(--border-hairline) solid var(--color-hairline);
+  font: var(--t-body-sm);
+  color: var(--color-text);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.workQueueItem:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent-text);
+  text-decoration: none;
+}
+
 .table {
   inline-size: 100%;
   border-collapse: collapse;

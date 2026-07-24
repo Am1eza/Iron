@@ -17,6 +17,7 @@ export interface AdminStats {
   newMessages?: number;
   totalUsers?: number;
   newUsers24h?: number;
+  pendingVerifications?: number;
   draftArticles?: number;
   aiToday?: { promptTokens: number; completionTokens: number; cacheHitRate: number; violations: number };
 }
@@ -174,6 +175,10 @@ export const adminApi = {
     http.get<{ points: Array<{ price: number; at: string }> }>(
       `/api/sku/${encodeURIComponent(slug)}/history?range=${range}`,
     ),
+  /** Batched history for the pricing grid — ONE request for every visible
+   *  row's sparkline instead of one per row. */
+  skuHistoryBatch: (slugs: string[], range = '30d') =>
+    http.post<{ series: Record<string, number[]> }>('/api/admin/pricing/history', { slugs, range }),
 
   /* leads / crm */
   leads: (params: { status?: string; q?: string; page?: number; perPage?: number; from?: string; to?: string } = {}) => {

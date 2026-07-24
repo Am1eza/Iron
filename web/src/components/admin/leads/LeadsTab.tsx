@@ -1,6 +1,7 @@
 'use client';
 /** Lead list — status filter + search; a row expands into the detail panel. */
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { adminApi, type AdminLead } from '@/lib/api/resources/admin';
@@ -188,7 +189,15 @@ function FragmentRow({
         }}
       >
         <td className="tnum">
-          <bdi>{lead.ref}</bdi>
+          {/* Deep link to the lead's own page (share/bookmark-able); clicking
+              elsewhere on the row still expands inline for quick triage. */}
+          <Link
+            href={`/admin/leads/${encodeURIComponent(lead.id)}`}
+            style={{ color: 'var(--color-accent-text)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <bdi>{lead.ref}</bdi>
+          </Link>
         </td>
         <td>
           {lead.contactName ?? '—'}{' '}

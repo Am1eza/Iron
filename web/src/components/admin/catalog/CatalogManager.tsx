@@ -98,7 +98,10 @@ function SkuManager() {
         q: q || undefined,
         all: true,
       }),
-    enabled: Boolean(categoryId),
+    // A search runs across ALL categories (the API supports q without
+    // categoryId) — "find the SKU named X" must not require already knowing
+    // its category. Browsing without a search still needs a category picked.
+    enabled: Boolean(categoryId) || q.length > 0,
   });
 
   const invalidate = () => void qc.invalidateQueries({ queryKey: ['admin', 'cat', 'skus'] });
@@ -268,10 +271,16 @@ function SkuManager() {
           heading="کالای جدید"
           initial={{ name: '', slug: '', size: '', factory: '', unit: 'kg', theoreticalWeightKg: '', imageUrl: null }}
           busy={create.isPending}
-          onSubmit={(v) =>
+          onSubmit={(v) => {
+            // Never silently file the SKU under the first sub-category — a
+            // quiet miscategorization the admin only discovers later.
+            if (!subCategoryId) {
+              toast.error('اول زیر‌دسته را انتخاب کنید تا کالا در جای درست ثبت شود.');
+              return;
+            }
             create.mutate({
               categoryId,
-              subCategoryId: subCategoryId || (subs.data?.subCategories[0]?.id ?? ''),
+              subCategoryId,
               slug: v.slug,
               name: v.name,
               size: v.size || undefined,
@@ -279,14 +288,18 @@ function SkuManager() {
               unit: v.unit,
               theoreticalWeightKg: v.theoreticalWeightKg ? Number(v.theoreticalWeightKg) : undefined,
               imageUrl: v.imageUrl,
-            })
-          }
+            });
+          }}
           onCancel={() => setCreating(false)}
         />
       ) : null}
 
-      {!categoryId ? (
-        <EmptyState size="section" headline="یک دسته انتخاب کنید" body="کالاهای هر دسته اینجا فهرست می‌شود." />
+      {!categoryId && !q ? (
+        <EmptyState
+          size="section"
+          headline="یک دسته انتخاب کنید یا جستجو کنید"
+          body="کالاهای هر دسته اینجا فهرست می‌شود؛ جستجو در همهٔ دسته‌ها کار می‌کند."
+        />
       ) : skus.isLoading ? (
         <TableSkeleton rows={6} cols={7} />
       ) : skus.isError ? (

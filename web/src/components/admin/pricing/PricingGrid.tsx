@@ -3,7 +3,7 @@
  * The daily pricing grid — keyboard-first bulk price entry. Edited rows are
  * tracked locally; one PUT saves them all (movement/history/audit server-side).
  */
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api/resources/admin';
@@ -14,16 +14,11 @@ import { Badge, Button, Chip, EmptyState, Modal, MovementBadge, TableSkeleton, u
 import { Sparkline } from '../dashboard/Sparkline';
 import ui from '../adminUi.module.css';
 
-/** Per-row 30-day price trend (US-17.6) — its own small query so a slow
- *  history fetch for one SKU never blocks the grid from rendering. */
-function RowSparkline({ slug }: { slug: string }) {
-  const { data } = useQuery({
-    queryKey: ['admin', 'sku-history', slug],
-    queryFn: () => adminApi.skuHistory(slug, '30d'),
-    staleTime: 5 * 60 * 1000,
-  });
-  const series = (data?.points ?? []).map((p) => p.price);
-  if (series.length < 2) return <span className={ui.muted}>—</span>;
+/** Per-row 30-day price trend (US-17.6). Fed by ONE batched query for the
+ *  whole visible grid — the old per-row query fired one HTTP request per SKU
+ *  (a 60-row category = 60 requests on every load). */
+function RowSparkline({ series }: { series: number[] | undefined }) {
+  if (!series || series.length < 2) return <span className={ui.muted}>—</span>;
   return <Sparkline data={series} width={64} height={22} />;
 }
 
@@ -148,6 +143,16 @@ export function PricingGrid() {
     .filter((s) => s.isActive)
     .sort((a, b) => a.order - b.order);
 
+  // One batched request for every visible row's sparkline series.
+  const slugsKey = useMemo(() => allRows.map((r) => r.slug).sort().join(','), [allRows]);
+  const { data: historyData } = useQuery({
+    queryKey: ['admin', 'sku-history-batch', slugsKey],
+    queryFn: () => adminApi.skuHistoryBatch(allRows.map((r) => r.slug)),
+    enabled: allRows.length > 0,
+    staleTime: 5 * 60 * 1000,
+  });
+  const seriesBySlug = historyData?.series;
+
   const setDraft = (skuId: string, patch: Draft) => {
     setDrafts((prev) => {
       const next = new Map(prev);
@@ -174,6 +179,17 @@ export function PricingGrid() {
   // body's `.map` below — O(n²) over the datasheet on every keystroke. A Set
   // makes that lookup O(1).
   const dirtySkuIds = useMemo(() => new Set(dirty.map((x) => x.skuId)), [dirty]);
+
+  // Closing/reloading the tab with unsaved price edits used to lose them
+  // silently — the in-app filter guard never covered the browser itself.
+  useEffect(() => {
+    if (dirty.length === 0) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty.length]);
 
   // Vertical arrow-key navigation (US-17.5): each editable cell is addressed
   // by (row, column) rather than the old single `data-price-index` sequence,
@@ -364,7 +380,7 @@ export function PricingGrid() {
                       )}
                     </td>
                     <td>
-                      <RowSparkline slug={r.slug} />
+                      <RowSparkline series={seriesBySlug?.[r.slug]} />
                     </td>
                     <td>
                       {r.current.priceHidden ? (
