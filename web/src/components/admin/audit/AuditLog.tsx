@@ -5,6 +5,7 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api/resources/admin';
 import { formatJalali, toPersianDigits } from '@/lib/utils/format';
 import { Badge, Button, Chip, EmptyState, TableSkeleton } from '@/components/ui';
+import { JalaliDateField } from '../JalaliDateField';
 import ui from '../adminUi.module.css';
 
 const ENTITY_FILTERS = [
@@ -86,9 +87,9 @@ export function AuditLog() {
           onChange={(e) => setActor(e.target.value)}
           aria-label="فیلتر کاربر"
         />
-        <input type="date" className={ui.textCell} value={from} onChange={(e) => setFrom(e.target.value)} aria-label="از تاریخ" />
+        <JalaliDateField value={from} onChange={setFrom} label="از تاریخ (شمسی)" />
         <span className={ui.muted}>تا</span>
-        <input type="date" className={ui.textCell} value={to} onChange={(e) => setTo(e.target.value)} aria-label="تا تاریخ" />
+        <JalaliDateField value={to} onChange={setTo} label="تا تاریخ (شمسی)" />
         <Button
           size="sm"
           variant="ghost"

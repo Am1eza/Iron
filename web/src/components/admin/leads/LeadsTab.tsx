@@ -6,9 +6,11 @@ import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { adminApi, type AdminLead } from '@/lib/api/resources/admin';
 import { formatJalali, toPersianDigits } from '@/lib/utils/format';
+import { useAuthStore } from '@/lib/stores/auth';
 import { Badge, Button, Chip, EmptyState, TableSkeleton } from '@/components/ui';
 import { LeadDetail } from './LeadDetail';
 import { PagerFooter } from '../PagerFooter';
+import { JalaliDateField } from '../JalaliDateField';
 import ui from '../adminUi.module.css';
 
 const PER_PAGE = 30;
@@ -43,12 +45,19 @@ export function LeadsTab() {
   // here pre-searched by the lead ref.
   const initialQ = useSearchParams().get('q') ?? '';
   const [status, setStatus] = useState('');
+  const [onlyMine, setOnlyMine] = useState(false);
   const [search, setSearch] = useState(initialQ);
   const [q, setQ] = useState(initialQ);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [page, setPage] = useState(1);
   const [openId, setOpenId] = useState<string | null>(null);
+  const currentUser = useAuthStore((st) => st.user);
+
+  // Staff names for the کارشناس column — one small cached list, shared with
+  // LeadDetail's assignment select (same query key).
+  const { data: staffData } = useQuery({ queryKey: ['admin', 'staff'], queryFn: () => adminApi.staff() });
+  const staffName = new Map((staffData?.staff ?? []).map((m) => [m.id, m.name ?? m.mobile] as const));
 
   useEffect(() => {
     const t = setTimeout(() => setQ(search.trim()), 300);
@@ -59,16 +68,25 @@ export function LeadsTab() {
   // (much longer) result set can be past the end of the new, filtered one.
   useEffect(() => {
     setPage(1);
-  }, [status, q, from, to]);
+  }, [status, q, from, to, onlyMine]);
 
   // `to` is a date-only picker; sent as-is it'd mean "up to today's
   // midnight" and silently exclude every lead created today after 00:00.
   const toParam = to ? `${to}T23:59:59` : undefined;
 
+  const assignee = onlyMine && currentUser ? currentUser.id : undefined;
   const { data, isLoading } = useQuery({
-    queryKey: ['admin', 'leads', status, q, from, to, page],
+    queryKey: ['admin', 'leads', status, q, from, to, page, assignee ?? ''],
     queryFn: () =>
-      adminApi.leads({ status: status || undefined, q: q || undefined, from: from || undefined, to: toParam, page, perPage: PER_PAGE }),
+      adminApi.leads({
+        status: status || undefined,
+        assignee,
+        q: q || undefined,
+        from: from || undefined,
+        to: toParam,
+        page,
+        perPage: PER_PAGE,
+      }),
   });
 
   const leads = data?.leads ?? [];
@@ -81,6 +99,11 @@ export function LeadsTab() {
             {f.label}
           </Chip>
         ))}
+        {currentUser ? (
+          <Chip selected={onlyMine} onClick={() => setOnlyMine((v) => !v)}>
+            سرنخ‌های من
+          </Chip>
+        ) : null}
         <input
           className={ui.textCell}
           style={{ inlineSize: '14rem', marginInlineStart: 'auto' }}
@@ -91,21 +114,10 @@ export function LeadsTab() {
         />
       </div>
       <div className={ui.toolbar}>
-        <input
-          type="date"
-          className={ui.textCell}
-          value={from}
-          onChange={(e) => setFrom(e.target.value)}
-          aria-label="از تاریخ"
-        />
+        <span className={ui.muted}>از</span>
+        <JalaliDateField value={from} onChange={setFrom} label="از تاریخ (شمسی)" />
         <span className={ui.muted}>تا</span>
-        <input
-          type="date"
-          className={ui.textCell}
-          value={to}
-          onChange={(e) => setTo(e.target.value)}
-          aria-label="تا تاریخ"
-        />
+        <JalaliDateField value={to} onChange={setTo} label="تا تاریخ (شمسی)" />
         <Button
           size="sm"
           variant="ghost"
@@ -137,6 +149,7 @@ export function LeadsTab() {
               <th scope="col">مشتری</th>
               <th scope="col">منبع</th>
               <th scope="col">وضعیت</th>
+              <th scope="col">کارشناس</th>
               <th scope="col">تاریخ</th>
             </tr>
           </thead>
@@ -148,6 +161,7 @@ export function LeadsTab() {
                   key={l.id}
                   lead={l}
                   meta={meta}
+                  assigneeName={l.assigneeId ? (staffName.get(l.assigneeId) ?? '—') : null}
                   open={openId === l.id}
                   onToggle={() => setOpenId(openId === l.id ? null : l.id)}
                 />
@@ -165,11 +179,13 @@ export function LeadsTab() {
 function FragmentRow({
   lead,
   meta,
+  assigneeName,
   open,
   onToggle,
 }: {
   lead: AdminLead;
   meta: { label: string; tone: 'info' | 'action' | 'gain' | 'loss' };
+  assigneeName: string | null;
   open: boolean;
   onToggle: () => void;
 }) {
@@ -208,11 +224,17 @@ function FragmentRow({
         <td>
           <Badge tone={meta.tone}>{meta.label}</Badge>
         </td>
+        <td>
+          {assigneeName ?? <span className={ui.muted}>—</span>}
+          {lead.callbackAt ? (
+            <div className={`${ui.muted} tnum`}>تماس: {formatJalali(lead.callbackAt)}</div>
+          ) : null}
+        </td>
         <td className="tnum">{formatJalali(lead.createdAt)}</td>
       </tr>
       {open ? (
         <tr>
-          <td colSpan={5}>
+          <td colSpan={6}>
             <LeadDetail id={lead.id} />
           </td>
         </tr>

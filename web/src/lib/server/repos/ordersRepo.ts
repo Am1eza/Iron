@@ -2,7 +2,7 @@
 import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { getDb } from '@/lib/server/db/client';
-import { orders, orderItems, warehouseItems } from '@/lib/server/db/schema';
+import { orders, orderItems, warehouseItems, leads } from '@/lib/server/db/schema';
 import type { LineItem, Order, WarehouseItem } from '@/lib/types/domain';
 import { normalizeDigits } from '@/lib/utils/format';
 
@@ -223,15 +223,27 @@ export async function adminListOrders(query: {
   const where = conds.length ? and(...conds) : undefined;
   const [rows, total] = await Promise.all([
     db
-      .select()
+      // Left-join the source lead: the admin card must show WHOSE order this
+      // is (name + mobile) and link back to the lead — previously the card
+      // carried only ref/dates/items and the operator had to cross-reference
+      // the CRM by hand.
+      .select({ order: orders, leadName: leads.contactName, leadMobile: leads.contactMobile })
       .from(orders)
+      .leftJoin(leads, eq(orders.leadId, leads.id))
       .where(where)
       .orderBy(desc(orders.placedAt))
       .limit(perPage)
       .offset((page - 1) * perPage),
     db.select({ n: sql<number>`count(*)::int` }).from(orders).where(where),
   ]);
-  return { orders: await toOrderDtos(rows), total: total[0]?.n ?? 0 };
+  const dtos = await toOrderDtos(rows.map((r) => r.order));
+  const withCustomer = dtos.map((o, i) => ({
+    ...o,
+    leadId: rows[i]?.order.leadId ?? null,
+    customerName: rows[i]?.leadName ?? null,
+    customerMobile: rows[i]?.leadMobile ?? null,
+  }));
+  return { orders: withCustomer, total: total[0]?.n ?? 0 };
 }
 
 /* ---------------------------- warehouse ---------------------------- */

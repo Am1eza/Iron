@@ -181,9 +181,12 @@ export const adminApi = {
     http.post<{ series: Record<string, number[]> }>('/api/admin/pricing/history', { slugs, range }),
 
   /* leads / crm */
-  leads: (params: { status?: string; q?: string; page?: number; perPage?: number; from?: string; to?: string } = {}) => {
+  leads: (
+    params: { status?: string; assignee?: string; q?: string; page?: number; perPage?: number; from?: string; to?: string } = {},
+  ) => {
     const qs = new URLSearchParams();
     if (params.status) qs.set('status', params.status);
+    if (params.assignee) qs.set('assignee', params.assignee);
     if (params.q) qs.set('q', params.q);
     if (params.page) qs.set('page', String(params.page));
     if (params.perPage) qs.set('perPage', String(params.perPage));
@@ -212,6 +215,29 @@ export const adminApi = {
     http.patch<{ item: LineItem & { id: string } }>(`/api/admin/leads/${leadId}/items/${itemId}`, patch),
   issueProforma: (id: string, discountToman?: number) =>
     http.post<{ proforma: AdminProforma }>(`/api/admin/leads/${id}/proforma`, discountToman ? { discountToman } : {}),
+  /** The proforma register — every issued proforma across all leads. */
+  proformas: (params: { status?: 'active' | 'expired' | 'cancelled'; page?: number } = {}) => {
+    const qs = new URLSearchParams();
+    if (params.status) qs.set('status', params.status);
+    if (params.page) qs.set('page', String(params.page));
+    return http.get<{
+      proformas: Array<{
+        id: string;
+        ref: string;
+        leadId: string;
+        leadRef: string;
+        leadStatus: 'new' | 'contacted' | 'won' | 'lost';
+        contactName: string | null;
+        contactMobile: string;
+        total: number;
+        discountToman: number;
+        validUntil: string;
+        status: 'active' | 'expired' | 'cancelled';
+        createdAt: string;
+      }>;
+      total: number;
+    }>(`/api/admin/proformas?${qs}`);
+  },
   myDesk: () => http.get<DeskRes>('/api/admin/my/desk'),
   staff: () => http.get<{ staff: StaffMember[] }>('/api/admin/staff'),
   convertToOrder: (id: string) => http.post<{ order: Order }>(`/api/admin/leads/${id}/order`, {}),
@@ -258,7 +284,10 @@ export const adminApi = {
     if (params.status) qs.set('status', params.status);
     if (params.page) qs.set('page', String(params.page));
     if (params.cancelled) qs.set('cancelled', 'true');
-    return http.get<{ orders: Order[]; total: number }>(`/api/admin/orders?${qs}`);
+    return http.get<{
+      orders: Array<Order & { leadId: string | null; customerName: string | null; customerMobile: string | null }>;
+      total: number;
+    }>(`/api/admin/orders?${qs}`);
   },
   updateOrderStatus: (ref: string, status: string) =>
     http.patch<{ order: Order }>(`/api/admin/orders/${encodeURIComponent(ref)}`, { status }),

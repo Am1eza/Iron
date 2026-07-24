@@ -2,6 +2,7 @@
 /** Orders — advance each shipment along SHIPMENT_STEPS, set carrier tracking
  *  info, or cancel/archive (US-08.4). Persists via the API. */
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api/resources/admin';
 import { SHIPMENT_STEPS } from '@/lib/types/domain';
@@ -167,6 +168,24 @@ export function OrdersManager() {
                   <Badge tone={o.status === 'delivered' ? 'gain' : 'info'}>
                     {SHIPMENT_STEPS[idx]?.label ?? o.status}
                   </Badge>
+                  {/* Whose order is this? Name + tap-to-call + the source lead
+                      — previously absent, forcing a manual CRM cross-reference. */}
+                  {o.customerName || o.customerMobile ? (
+                    <span className={ui.muted}>
+                      {o.customerName ?? ''}
+                      {o.customerMobile ? (
+                        <>
+                          {' '}
+                          <a href={`tel:${o.customerMobile}`} className="tnum" dir="ltr">
+                            {toPersianDigits(o.customerMobile)}
+                          </a>
+                        </>
+                      ) : null}
+                    </span>
+                  ) : null}
+                  {o.leadId ? (
+                    <Link href={`/admin/leads/${encodeURIComponent(o.leadId)}`}>سرنخ مبدأ</Link>
+                  ) : null}
                   <span className={`${ui.muted} tnum`}>ثبت: {formatJalali(o.placedAt)}</span>
                   <span className={`${ui.muted} tnum`}>آخرین تغییر: {formatJalali(o.lastUpdate)}</span>
                   {!cancelled && next ? (

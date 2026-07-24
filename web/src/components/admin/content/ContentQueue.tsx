@@ -13,6 +13,7 @@ import { Badge, Button, Chip, EmptyState, TableSkeleton, Tabs, TabPanel, useConf
 import { TextInput, Textarea } from '@/components/forms/fields';
 import { ImageUpload } from '../ImageUpload';
 import { MarkdownProse } from '@/components/content/ArticleBody';
+import { JalaliDateField } from '../JalaliDateField';
 import ui from '../adminUi.module.css';
 
 /**
@@ -176,6 +177,7 @@ function ArticleEditor({ id, onDone }: { id: string; onDone: () => void }) {
   const { confirm, dialog } = useConfirm();
   const [draft, setDraft] = useState<Partial<ArticleFull> | null>(null);
   const [schedule, setSchedule] = useState('');
+  const [scheduleTime, setScheduleTime] = useState('09:00');
   const [preview, setPreview] = useState(false);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
 
@@ -369,18 +371,23 @@ function ArticleEditor({ id, onDone }: { id: string; onDone: () => void }) {
                 >
                   انتشار اکنون
                 </Button>
+                {/* Jalali date + local time — replaces the Gregorian
+                    datetime-local picker (a fully-Jalali panel popped a
+                    Gregorian calendar for scheduling). */}
+                <JalaliDateField value={schedule} onChange={setSchedule} label="تاریخ انتشار (شمسی)" />
                 <input
-                  type="datetime-local"
+                  type="time"
                   className={ui.textCell}
-                  value={schedule}
-                  onChange={(e) => setSchedule(e.target.value)}
-                  aria-label="زمان انتشار"
+                  style={{ inlineSize: '6rem' }}
+                  value={scheduleTime}
+                  onChange={(e) => setScheduleTime(e.target.value)}
+                  aria-label="ساعت انتشار"
                 />
                 <Button
                   size="sm"
                   variant="ghost"
                   disabled={!schedule}
-                  onClick={() => publish.mutate(new Date(schedule).toISOString())}
+                  onClick={() => publish.mutate(new Date(`${schedule}T${scheduleTime || '09:00'}:00`).toISOString())}
                 >
                   زمان‌بندی
                 </Button>

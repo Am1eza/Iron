@@ -273,6 +273,55 @@ export async function proformasOfLead(leadId: string, dbh: DbOrTx = getDb()): Pr
     .orderBy(desc(proformas.createdAt));
 }
 
+/** The proforma REGISTER — every issued proforma across all leads, joined
+ *  with the lead's contact info. Before this, proformas were only visible
+ *  one-lead-at-a-time inside the lead expansion; there was no place to see
+ *  what's outstanding, expiring, or already converted. */
+export async function listProformas(query: {
+  status?: 'active' | 'expired' | 'cancelled';
+  page?: number;
+  perPage?: number;
+}) {
+  const db = getDb();
+  const page = query.page ?? 1;
+  const perPage = query.perPage ?? 30;
+  const where = query.status ? eq(proformas.status, query.status) : undefined;
+  const [rows, total] = await Promise.all([
+    db
+      .select({
+        p: proformas,
+        leadRef: leads.ref,
+        contactName: leads.contactName,
+        contactMobile: leads.contactMobile,
+        leadStatus: leads.status,
+      })
+      .from(proformas)
+      .innerJoin(leads, eq(proformas.leadId, leads.id))
+      .where(where)
+      .orderBy(desc(proformas.createdAt))
+      .limit(perPage)
+      .offset((page - 1) * perPage),
+    db.select({ n: sql<number>`count(*)::int` }).from(proformas).where(where),
+  ]);
+  return {
+    proformas: rows.map((r) => ({
+      id: r.p.id,
+      ref: r.p.ref,
+      leadId: r.p.leadId,
+      leadRef: r.leadRef,
+      leadStatus: r.leadStatus,
+      contactName: r.contactName,
+      contactMobile: r.contactMobile,
+      total: r.p.total,
+      discountToman: r.p.discountToman,
+      validUntil: r.p.validUntil.toISOString(),
+      status: r.p.status,
+      createdAt: r.p.createdAt.toISOString(),
+    })),
+    total: total[0]?.n ?? 0,
+  };
+}
+
 export async function expireDueProformas(): Promise<number> {
   const rows = await getDb()
     .update(proformas)

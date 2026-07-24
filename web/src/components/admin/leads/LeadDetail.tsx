@@ -13,7 +13,8 @@ import type { Role } from '@/lib/auth/types';
 import { formatJalali, formatToman, normalizeDigits, toPersianDigits } from '@/lib/utils/format';
 import { useToast } from '@/lib/hooks/useToast';
 import { ApiError } from '@/lib/api/errors';
-import { Badge, Button, Spinner, useConfirm } from '@/components/ui';
+import { Badge, Button, Modal, Spinner, useConfirm } from '@/components/ui';
+import { JalaliDateField } from '../JalaliDateField';
 import ui from '../adminUi.module.css';
 
 /** One editable line item — qty/unitPrice, before proforma issuance (US-19.4). */
@@ -70,6 +71,8 @@ export function LeadDetail({ id }: { id: string }) {
   const { confirm, dialog } = useConfirm();
   const [note, setNote] = useState('');
   const [discount, setDiscount] = useState('');
+  const [lostOpen, setLostOpen] = useState(false);
+  const [lostReason, setLostReason] = useState('');
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin', 'lead', id],
@@ -199,10 +202,29 @@ export function LeadDetail({ id }: { id: string }) {
                 <Button size="sm" onClick={() => setStatus.mutate('won')} loading={setStatus.isPending}>
                   موفق
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => setStatus.mutate('lost')}>
+                <Button size="sm" variant="ghost" onClick={() => setLostOpen(true)}>
                   ناموفق
                 </Button>
               </>
+            ) : null}
+            {lead.status === 'won' || lead.status === 'lost' ? (
+              // Terminal states used to be dead ends — a mistaken «ناموفق» (or a
+              // customer who came back) had no path back into the pipeline.
+              <Button
+                size="sm"
+                variant="ghost"
+                loading={setStatus.isPending}
+                onClick={async () => {
+                  const ok = await confirm({
+                    title: 'بازگشایی سرنخ؟',
+                    body: 'سرنخ به وضعیت «تماس‌گرفته» برمی‌گردد و دوباره در جریان پیگیری قرار می‌گیرد.',
+                    confirmLabel: 'بازگشایی',
+                  });
+                  if (ok) setStatus.mutate('contacted');
+                }}
+              >
+                بازگشایی
+              </Button>
             ) : null}
             <input
               className={ui.numInput}
@@ -268,14 +290,10 @@ export function LeadDetail({ id }: { id: string }) {
             </select>
             <label className={ui.muted} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
               زمان تماس:
-              <input
-                type="date"
-                className={ui.textCell}
-                aria-label="زمان تماس بعدی"
-                defaultValue={lead.callbackAt ? lead.callbackAt.slice(0, 10) : ''}
-                onChange={(e) =>
-                  setCallback.mutate(e.target.value ? new Date(e.target.value).toISOString() : null)
-                }
+              <JalaliDateField
+                value={lead.callbackAt ? lead.callbackAt.slice(0, 10) : ''}
+                onChange={(iso) => setCallback.mutate(iso ? new Date(`${iso}T09:00:00`).toISOString() : null)}
+                label="زمان تماس بعدی (شمسی)"
               />
             </label>
           </div>
@@ -312,6 +330,49 @@ export function LeadDetail({ id }: { id: string }) {
           </Button>
         </div>
       </div>
+      {/* Lost-reason capture — the reason lands in the notes timeline (visible
+          to the whole team + future reporting), then the status flips. */}
+      <Modal
+        open={lostOpen}
+        onClose={() => setLostOpen(false)}
+        title="ثبت سرنخ ناموفق"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setLostOpen(false)}>
+              انصراف
+            </Button>
+            <Button
+              loading={setStatus.isPending || addNote.isPending}
+              onClick={async () => {
+                if (lostReason.trim()) {
+                  await adminApi.addLeadNote(id, `دلیل ناموفق: ${lostReason.trim()}`);
+                }
+                setStatus.mutate('lost');
+                setLostOpen(false);
+                setLostReason('');
+              }}
+            >
+              ثبت ناموفق
+            </Button>
+          </>
+        }
+      >
+        <div className={ui.toolbar}>
+          {['قیمت بالاتر از رقبا', 'خرید از جای دیگر', 'منصرف شد', 'عدم پاسخ‌گویی'].map((r) => (
+            <Button key={r} size="sm" variant={lostReason === r ? 'secondary' : 'ghost'} onClick={() => setLostReason(r)}>
+              {r}
+            </Button>
+          ))}
+        </div>
+        <textarea
+          className={ui.textCell}
+          style={{ inlineSize: '100%', minBlockSize: '4rem', marginBlockStart: 'var(--space-2)' }}
+          placeholder="دلیل (اختیاری، برای گزارش‌گیری تیم)…"
+          value={lostReason}
+          onChange={(e) => setLostReason(e.target.value)}
+          aria-label="دلیل ناموفق شدن سرنخ"
+        />
+      </Modal>
       {dialog}
     </div>
   );
