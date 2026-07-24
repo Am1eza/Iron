@@ -1,11 +1,28 @@
 /* Shared admin UI primitives — tables, toolbars, native selects, panels. */
 
+/* Every admin table MUST live inside .tableWrap: wide tables scroll inside
+   this container instead of dragging the whole page sideways on mobile (the
+   single worst mobile failure mode this panel had). */
+.tableWrap {
+  inline-size: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .toolbar {
   display: flex;
   gap: var(--space-2);
   flex-wrap: wrap;
   align-items: center;
   margin-block-end: var(--space-4);
+}
+
+/* inline action pair/group inside a table cell */
+.rowActions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  white-space: nowrap;
 }
 
 .table {

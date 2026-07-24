@@ -103,7 +103,7 @@ export function ExcelImport() {
           </div>
 
           {changed.length > 0 ? (
-            <table className={ui.table}>
+            <div className={ui.tableWrap}><table className={ui.table}>
               <thead>
                 <tr>
                   <th scope="col">کالا</th>
@@ -122,7 +122,7 @@ export function ExcelImport() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           ) : (
             <Text color="muted">هیچ قیمتی نسبت به حال حاضر تغییر نکرده است.</Text>
           )}

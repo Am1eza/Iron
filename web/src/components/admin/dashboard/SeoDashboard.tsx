@@ -69,7 +69,7 @@ export function SeoDashboard() {
         {data.failing.length === 0 ? (
           <EmptyState size="inline" headline="همهٔ مقاله‌های منتشرشده سالم‌اند 🎉" />
         ) : (
-          <table className={ui.table}>
+          <div className={ui.tableWrap}><table className={ui.table}>
             <thead>
               <tr>
                 <th scope="col">مقاله</th>
@@ -94,7 +94,7 @@ export function SeoDashboard() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
       </section>
 

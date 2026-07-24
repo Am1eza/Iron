@@ -4,13 +4,13 @@
  * tracked locally; one PUT saves them all (movement/history/audit server-side).
  */
 import { useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api/resources/admin';
-import { CATEGORY_SUBS } from '@/lib/data/nav';
 import { normalizeDigits, toPersianDigits, formatJalali } from '@/lib/utils/format';
 import { useToast } from '@/lib/hooks/useToast';
 import { ApiError } from '@/lib/api/errors';
-import { Badge, Button, EmptyState, Modal, MovementBadge, TableSkeleton, useConfirm } from '@/components/ui';
+import { Badge, Button, Chip, EmptyState, Modal, MovementBadge, TableSkeleton, useConfirm } from '@/components/ui';
 import { Sparkline } from '../dashboard/Sparkline';
 import ui from '../adminUi.module.css';
 
@@ -73,8 +73,13 @@ function matchPastedPrices(
 export function PricingGrid() {
   const toast = useToast();
   const qc = useQueryClient();
+  // ?stale=1 → open pre-filtered to stale rows (the dashboard's «قیمت‌های
+  // کهنه» tile deep-links here, so the operator lands ON the work, not
+  // hunting for it).
+  const params = useSearchParams();
   const [cat, setCat] = useState('rebar');
   const [sub, setSub] = useState('');
+  const [onlyStale, setOnlyStale] = useState(params.get('stale') === '1');
   const [drafts, setDrafts] = useState<Map<string, Draft>>(new Map());
   const [pasteOpen, setPasteOpen] = useState(false);
   const [pasteText, setPasteText] = useState('');
@@ -119,8 +124,29 @@ export function PricingGrid() {
       toast.error(err instanceof ApiError ? err.message : 'ذخیرهٔ قیمت‌ها ناموفق بود.'),
   });
 
-  const rows = useMemo(() => data?.rows ?? [], [data]);
-  const subs = CATEGORY_SUBS[cat] ?? [];
+  const allRows = useMemo(() => data?.rows ?? [], [data]);
+  const staleCount = useMemo(
+    () => allRows.filter((r) => r.current.isStale && !r.current.priceHidden).length,
+    [allRows],
+  );
+  const rows = useMemo(
+    () => (onlyStale ? allRows.filter((r) => r.current.isStale && !r.current.priceHidden) : allRows),
+    [allRows, onlyStale],
+  );
+
+  // Live sub-category list for the selected category — NOT the static
+  // CATEGORY_SUBS fixture (which silently misses/mismatches anything an admin
+  // created via the catalog CRUD; the category list above was already live).
+  const catId = categories.find((c) => c.slug === cat)?.id;
+  const { data: subData } = useQuery({
+    queryKey: ['admin', 'subcategories', catId],
+    queryFn: () => adminApi.subCategories(catId),
+    enabled: Boolean(catId),
+    staleTime: 5 * 60 * 1000,
+  });
+  const subs = (subData?.subCategories ?? [])
+    .filter((s) => s.isActive)
+    .sort((a, b) => a.order - b.order);
 
   const setDraft = (skuId: string, patch: Draft) => {
     setDrafts((prev) => {
@@ -243,6 +269,9 @@ export function PricingGrid() {
             <option key={s.slug} value={s.slug}>{s.name}</option>
           ))}
         </select>
+        <Chip selected={onlyStale} onClick={() => setOnlyStale((v) => !v)}>
+          فقط کهنه‌ها{staleCount > 0 ? ` (${toPersianDigits(staleCount)})` : ''}
+        </Chip>
         <span className={ui.muted}>{toPersianDigits(rows.length)} کالا</span>
         <Button size="sm" variant="ghost" onClick={() => setPasteOpen(true)} disabled={rows.length === 0}>
           چسباندن قیمت‌ها
@@ -261,7 +290,7 @@ export function PricingGrid() {
       ) : rows.length === 0 ? (
         <EmptyState size="section" headline="کالایی در این دسته نیست" body="از بخش کاتالوگ کالا اضافه کنید." />
       ) : (
-        <div style={{ overflowX: 'auto' }}>
+        <div className={ui.tableWrap}>
           <table className={ui.table} ref={tableRef}>
             <caption className="visually-hidden">جدول قیمت‌گذاری روزانه کالاها</caption>
             <thead>

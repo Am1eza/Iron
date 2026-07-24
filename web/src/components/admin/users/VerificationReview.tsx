@@ -9,12 +9,14 @@ import { adminApi } from '@/lib/api/resources/admin';
 import { toPersianDigits } from '@/lib/utils/format';
 import { useToast } from '@/lib/hooks/useToast';
 import { ApiError } from '@/lib/api/errors';
-import { Badge, EmptyState, Heading, TableSkeleton, Text } from '@/components/ui';
+import { Badge, EmptyState, Heading, TableSkeleton, Text, useConfirm } from '@/components/ui';
+import { Button } from '@/components/primitives/Button';
 import ui from '../adminUi.module.css';
 
 export function VerificationReview() {
   const toast = useToast();
   const qc = useQueryClient();
+  const { confirm, dialog } = useConfirm();
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['admin', 'verifications'],
     queryFn: () => adminApi.verifications(),
@@ -48,7 +50,7 @@ export function VerificationReview() {
       ) : pending.length === 0 ? (
         <EmptyState size="inline" headline="موردی برای بررسی نیست 🎉" />
       ) : (
-        <table className={ui.table}>
+        <div className={ui.tableWrap}><table className={ui.table}>
           <thead>
             <tr>
               <th>کاربر</th>
@@ -83,30 +85,42 @@ export function VerificationReview() {
                   )}
                 </td>
                 <td>
-                  <span style={{ display: 'inline-flex', gap: 'var(--space-2)' }}>
-                    <button
-                      type="button"
-                      onClick={() => review.mutate({ userId: p.userId, kind: p.kind, decision: 'approved' })}
+                  <span className={ui.rowActions}>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      loading={review.isPending && review.variables?.userId === p.userId && review.variables?.decision === 'approved'}
                       disabled={review.isPending}
-                      style={{ color: 'var(--color-gain-text)', fontWeight: 600 }}
+                      onClick={() => review.mutate({ userId: p.userId, kind: p.kind, decision: 'approved' })}
                     >
                       تأیید
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => review.mutate({ userId: p.userId, kind: p.kind, decision: 'rejected' })}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      loading={review.isPending && review.variables?.userId === p.userId && review.variables?.decision === 'rejected'}
                       disabled={review.isPending}
-                      style={{ color: 'var(--color-loss-text)' }}
+                      onClick={async () => {
+                        // Rejecting KYC is consequential for the user — never one
+                        // accidental click.
+                        const ok = await confirm({
+                          title: 'رد درخواست احراز هویت؟',
+                          body: `درخواست ${p.name ?? toPersianDigits(p.mobile)} رد می‌شود و باید اطلاعات را دوباره ارسال کند.`,
+                          confirmLabel: 'رد درخواست',
+                        });
+                        if (ok) review.mutate({ userId: p.userId, kind: p.kind, decision: 'rejected' });
+                      }}
                     >
                       رد
-                    </button>
+                    </Button>
                   </span>
                 </td>
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       )}
+      {dialog}
     </section>
   );
 }

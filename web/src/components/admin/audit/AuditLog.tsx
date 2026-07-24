@@ -118,7 +118,7 @@ export function AuditLog() {
       ) : entries.length === 0 ? (
         <EmptyState size="section" headline="رویدادی نیست" body="تغییرات ادمین اینجا ثبت می‌شود." />
       ) : (
-        <table className={ui.table}>
+        <div className={ui.tableWrap}><table className={ui.table}>
           <caption className="visually-hidden">فهرست رویدادهای ثبت‌شده در گزارش تغییرات</caption>
           <thead>
             <tr>
@@ -168,7 +168,7 @@ export function AuditLog() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       )}
 
       {hasNextPage && (

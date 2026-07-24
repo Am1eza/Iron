@@ -12,6 +12,7 @@ import { ApiError } from '@/lib/api/errors';
 import { Badge, Button, Chip, EmptyState, TableSkeleton, Tabs, TabPanel, useConfirm } from '@/components/ui';
 import { TextInput, Textarea } from '@/components/forms/fields';
 import { ImageUpload } from '../ImageUpload';
+import { MarkdownProse } from '@/components/content/ArticleBody';
 import ui from '../adminUi.module.css';
 
 /**
@@ -75,7 +76,7 @@ export function ContentQueue() {
             ) : articles.length === 0 ? (
               <EmptyState size="section" headline="مقاله‌ای نیست" body="با «مقالهٔ جدید» شروع کنید." />
             ) : (
-              <table className={ui.table}>
+              <div className={ui.tableWrap}><table className={ui.table}>
                 <caption className="visually-hidden">فهرست مقاله‌های {STATUS_TABS.find((s) => s.id === status)?.label}</caption>
                 <thead>
                   <tr>
@@ -117,7 +118,7 @@ export function ContentQueue() {
                     );
                   })}
                 </tbody>
-              </table>
+              </table></div>
             )}
             {selectedId ? <ArticleEditor key={selectedId} id={selectedId} onDone={() => setSelectedId(null)} /> : null}
           </div>
@@ -382,22 +383,10 @@ function ArticleEditor({ id, onDone }: { id: string; onDone: () => void }) {
           </div>
           {preview ? (
             <div className={ui.panel}>
-              {(value.bodyMd ?? '')
-                .split(/\n{2,}/)
-                .filter(Boolean)
-                .map((chunk, i) =>
-                  chunk.startsWith('## ') ? (
-                    <h3 key={i}>{chunk.slice(3)}</h3>
-                  ) : chunk.trim().startsWith('- ') ? (
-                    <ul key={i}>
-                      {chunk.split('\n').map((l, j) => (
-                        <li key={j}>{l.replace(/^- /, '')}</li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p key={i}>{chunk}</p>
-                  ),
-                )}
+              {/* The exact renderer the published article page uses — a
+                  hand-rolled preview here once dropped bold/links, so what the
+                  editor saw was not what readers got. */}
+              <MarkdownProse md={value.bodyMd ?? ''} />
             </div>
           ) : (
             <p className={ui.muted}>

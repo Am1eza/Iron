@@ -68,7 +68,7 @@ export function AlertsPanel() {
       ) : rows.length === 0 ? (
         <EmptyState size="section" headline="هشداری نیست" body="در این وضعیت هیچ هشدار قیمتی ثبت نشده است." />
       ) : (
-        <table className={ui.table}>
+        <div className={ui.tableWrap}><table className={ui.table}>
           <caption className="visually-hidden">فهرست هشدارهای قیمت کاربران</caption>
           <thead>
             <tr>
@@ -128,7 +128,7 @@ export function AlertsPanel() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       )}
     </div>
   );

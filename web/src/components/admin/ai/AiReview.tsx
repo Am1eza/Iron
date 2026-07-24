@@ -7,7 +7,7 @@
 import { useState } from 'react';
 import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api/resources/admin';
-import { formatJalali } from '@/lib/utils/format';
+import { formatJalali, toPersianDigits } from '@/lib/utils/format';
 import { useToast } from '@/lib/hooks/useToast';
 import { ApiError } from '@/lib/api/errors';
 import { Badge, Button, Chip, EmptyState, Modal, Switch, TableSkeleton } from '@/components/ui';
@@ -45,15 +45,15 @@ export function AiReview() {
       {summary && (
         <div className={ui.tiles} style={{ marginBlockEnd: 'var(--space-5)' }}>
           <div className={ui.tile}>
-            <div className={ui.tileValue}>{summary.up}</div>
+            <div className={`${ui.tileValue} tnum`}>{toPersianDigits(summary.up)}</div>
             <div className={ui.tileLabel}>👍 مفید (کل)</div>
           </div>
           <div className={`${ui.tile} ${summary.down > 0 ? ui.tileBad : ''}`}>
-            <div className={ui.tileValue}>{summary.down}</div>
+            <div className={`${ui.tileValue} tnum`}>{toPersianDigits(summary.down)}</div>
             <div className={ui.tileLabel}>👎 نامفید (کل)</div>
           </div>
           <div className={`${ui.tile} ${summary.last7dDown > 0 ? ui.tileBad : ''}`}>
-            <div className={ui.tileValue}>{summary.last7dDown}</div>
+            <div className={`${ui.tileValue} tnum`}>{toPersianDigits(summary.last7dDown)}</div>
             <div className={ui.tileLabel}>👎 هفت روز اخیر</div>
           </div>
         </div>
@@ -83,7 +83,7 @@ export function AiReview() {
           body="وقتی کاربران روی پاسخ دستیار 👍 یا 👎 بزنند، اینجا نمایش داده می‌شود."
         />
       ) : (
-        <table className={ui.table}>
+        <div className={ui.tableWrap}><table className={ui.table}>
           <caption className="visually-hidden">فهرست بازخوردهای ثبت‌شده روی پاسخ‌های دستیار هوشمند</caption>
           <thead>
             <tr>
@@ -142,7 +142,7 @@ export function AiReview() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       )}
 
       {hasNextPage && (
@@ -268,7 +268,7 @@ function CorrectionsLibrary() {
         ) : corrections.length === 0 ? (
           <EmptyState size="section" headline="هنوز پاسخ تأییدشده‌ای ثبت نشده" body="از دکمهٔ «ثبت پاسخ درست» روی بازخوردها استفاده کنید." />
         ) : (
-          <table className={ui.table}>
+          <div className={ui.tableWrap}><table className={ui.table}>
             <caption className="visually-hidden">کتابخانهٔ پاسخ‌های تأییدشدهٔ دستیار</caption>
             <thead>
               <tr>
@@ -292,7 +292,7 @@ function CorrectionsLibrary() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         ))}
     </div>
   );
@@ -398,7 +398,7 @@ function EvalCandidatesQueue() {
             body="از دکمهٔ «علامت‌گذاری برای eval» روی بازخوردهای 👎 استفاده کنید."
           />
         ) : (
-          <table className={ui.table}>
+          <div className={ui.tableWrap}><table className={ui.table}>
             <caption className="visually-hidden">صف سناریوهای در انتظار تبدیل به eval</caption>
             <thead>
               <tr>
@@ -436,7 +436,7 @@ function EvalCandidatesQueue() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         ))}
     </div>
   );

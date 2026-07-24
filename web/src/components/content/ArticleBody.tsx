@@ -265,36 +265,70 @@ function fallbackBody(article: Article): Block[] {
   ];
 }
 
+/** Inline markdown → React: `**bold**` and `[label](url)`. The admin editor's
+ *  toolbar inserts exactly these two tokens — without this, both the editor
+ *  preview AND the published article showed the literal asterisks/brackets. */
+function renderInline(text: string): ReactNode {
+  const re = /\*\*([^*]+)\*\*|\[([^\]]+)\]\(([^)\s]+)\)/g;
+  const parts: ReactNode[] = [];
+  let last = 0;
+  let k = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text))) {
+    if (m.index > last) parts.push(text.slice(last, m.index));
+    if (m[1] !== undefined) {
+      parts.push(<strong key={`b${k++}`}>{m[1]}</strong>);
+    } else {
+      parts.push(
+        <a key={`a${k++}`} href={m[3]} rel="noopener">
+          {m[2]}
+        </a>,
+      );
+    }
+    last = re.lastIndex;
+  }
+  if (parts.length === 0) return text;
+  if (last < text.length) parts.push(text.slice(last));
+  return parts;
+}
+
 function renderBlock(block: Block, index: number): ReactNode {
   switch (block.kind) {
     case 'h2':
       return (
         <h2 key={index} className={styles.h2}>
-          {block.text}
+          {renderInline(block.text)}
         </h2>
       );
     case 'ul':
       return (
         <ul key={index} className={styles.ul}>
           {block.items.map((item, i) => (
-            <li key={i}>{item}</li>
+            <li key={i}>{renderInline(item)}</li>
           ))}
         </ul>
       );
     case 'quote':
       return (
         <blockquote key={index} className={styles.quote}>
-          {block.text}
+          {renderInline(block.text)}
         </blockquote>
       );
     case 'p':
     default:
       return (
         <p key={index} className={styles.p}>
-          {block.text}
+          {renderInline(block.text)}
         </p>
       );
   }
+}
+
+/** The SAME markdown pipeline the published article uses, as a standalone
+ *  surface — the admin editor preview renders through this so preview and
+ *  production can never drift apart again. */
+export function MarkdownProse({ md }: { md: string }) {
+  return <div className={styles.prose}>{blocksFromMarkdown(md).map(renderBlock)}</div>;
 }
 
 /** Minimal markdown → blocks (paragraphs, ## headings, - lists, > quotes). */

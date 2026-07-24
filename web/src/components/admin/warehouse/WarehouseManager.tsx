@@ -140,7 +140,7 @@ export function WarehouseManager() {
           ) : items.length === 0 ? (
             <EmptyState size="section" headline="انبار خالی است" body="کالای امانی مشتریان اینجا ثبت می‌شود." />
           ) : (
-            <table className={ui.table}>
+            <div className={ui.tableWrap}><table className={ui.table}>
               <caption className="visually-hidden">فهرست کالاهای امانی انبار مشتریان</caption>
               <thead>
                 <tr>
@@ -187,7 +187,7 @@ export function WarehouseManager() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           )}
 
           <Card>
@@ -261,7 +261,7 @@ function SettlementPanel({ items }: { items: AdminWarehouseItem[] }) {
       ) : customers.length === 0 ? (
         <EmptyState size="section" headline="کالای فعالی نیست" body="پس از ثبت کالای امانی، تسویه‌حساب هر مشتری اینجا جمع می‌شود." />
       ) : (
-        <table className={ui.table}>
+        <div className={ui.tableWrap}><table className={ui.table}>
           <caption className="visually-hidden">گزارش تسویه‌حساب هزینهٔ انبار به تفکیک مشتری</caption>
           <thead>
             <tr>
@@ -290,7 +290,7 @@ function SettlementPanel({ items }: { items: AdminWarehouseItem[] }) {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       )}
       {openCustomer ? <CustomerSettlementDetail userId={openCustomer} items={items} /> : null}
     </div>

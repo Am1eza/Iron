@@ -57,7 +57,7 @@ export function RequestsTab() {
       ) : requests.length === 0 ? (
         <EmptyState size="section" headline="درخواستی نیست" body="درخواست‌های کاربران اینجا می‌آید." />
       ) : (
-        <table className={ui.table}>
+        <div className={ui.tableWrap}><table className={ui.table}>
           <caption className="visually-hidden">فهرست درخواست‌های کاربران</caption>
           <thead>
             <tr>
@@ -97,7 +97,7 @@ export function RequestsTab() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       )}
       {data ? <p className={ui.muted}>{toPersianDigits(data.total)} درخواست</p> : null}
       {data ? <PagerFooter page={page} perPage={PER_PAGE} total={data.total} onPage={setPage} /> : null}

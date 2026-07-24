@@ -24,14 +24,18 @@ export function DashboardTiles() {
     s.stalePrices !== undefined && {
       label: 'قیمت‌های کهنه',
       value: s.stalePrices,
-      href: routes.admin.pricing(),
+      // Deep-link INTO the work: the pricing grid opens pre-filtered to the
+      // stale rows instead of dumping the operator on the unfiltered table.
+      href: `${routes.admin.pricing()}?stale=1`,
       tone: s.stalePrices > 0 ? ('bad' as const) : undefined,
     },
     s.newLeads !== undefined && {
       label: 'سرنخ‌های جدید',
       value: s.newLeads,
       href: routes.admin.leads(),
-      tone: s.newLeads > 0 ? ('good' as const) : undefined,
+      // New leads are PENDING WORK — green («good») read as "all fine, nothing
+      // to do", the exact opposite of what the number means.
+      tone: s.newLeads > 0 ? ('bad' as const) : undefined,
     },
     s.openRequests !== undefined && { label: 'درخواست‌های باز', value: s.openRequests, href: routes.admin.leads() },
     s.activeOrders !== undefined && { label: 'سفارش‌های در جریان', value: s.activeOrders, href: routes.admin.orders() },

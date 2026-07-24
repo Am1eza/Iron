@@ -10,10 +10,10 @@ import type { LineItem } from '@/lib/types/domain';
 import { useAuthStore } from '@/lib/stores/auth';
 import { ROLE_LABEL } from '@/lib/auth/roles';
 import type { Role } from '@/lib/auth/types';
-import { formatJalali, formatToman, normalizeDigits } from '@/lib/utils/format';
+import { formatJalali, formatToman, normalizeDigits, toPersianDigits } from '@/lib/utils/format';
 import { useToast } from '@/lib/hooks/useToast';
 import { ApiError } from '@/lib/api/errors';
-import { Badge, Button, Spinner } from '@/components/ui';
+import { Badge, Button, Spinner, useConfirm } from '@/components/ui';
 import ui from '../adminUi.module.css';
 
 /** One editable line item — qty/unitPrice, before proforma issuance (US-19.4). */
@@ -67,6 +67,7 @@ function EditableItemRow({ leadId, item, onSaved }: { leadId: string; item: Line
 export function LeadDetail({ id }: { id: string }) {
   const toast = useToast();
   const qc = useQueryClient();
+  const { confirm, dialog } = useConfirm();
   const [note, setNote] = useState('');
   const [discount, setDiscount] = useState('');
 
@@ -85,7 +86,14 @@ export function LeadDetail({ id }: { id: string }) {
 
   const setStatus = useMutation({
     mutationFn: (status: string) => adminApi.updateLead(id, { status }),
-    onSuccess: invalidate,
+    onSuccess: (_res, status) => {
+      // Acknowledge explicitly — a badge repaint alone reads as "nothing
+      // happened" (every sibling mutation here toasts).
+      toast.success(
+        status === 'won' ? 'سرنخ موفق ثبت شد. 🎉' : status === 'lost' ? 'سرنخ ناموفق ثبت شد.' : 'وضعیت به‌روزرسانی شد.',
+      );
+      invalidate();
+    },
     onError: (e) => onError(e, 'تغییر وضعیت ناموفق بود.'),
   });
   const addNote = useMutation({
@@ -119,7 +127,8 @@ export function LeadDetail({ id }: { id: string }) {
   const staff = staffData?.staff ?? [];
   const assign = useMutation({
     mutationFn: (assigneeId: string | null) => adminApi.updateLead(id, { assigneeId }),
-    onSuccess: () => {
+    onSuccess: (_res, assigneeId) => {
+      toast.success(assigneeId ? 'سرنخ واگذار شد.' : 'واگذاری برداشته شد.');
       invalidate();
       void qc.invalidateQueries({ queryKey: ['admin', 'my', 'desk'] });
     },
@@ -204,10 +213,35 @@ export function LeadDetail({ id }: { id: string }) {
               onChange={(e) => setDiscount(e.target.value)}
               aria-label="تخفیف پیش‌فاکتور به تومان"
             />
-            <Button size="sm" variant="secondary" onClick={() => issue.mutate()} loading={issue.isPending}>
+            <Button
+              size="sm"
+              variant="secondary"
+              loading={issue.isPending}
+              onClick={async () => {
+                // Issuing SMSes the customer immediately — never one stray click.
+                const ok = await confirm({
+                  title: 'صدور پیش‌فاکتور؟',
+                  body: `پیش‌فاکتور برای ${lead.contactName ?? 'مشتری'} صادر و همان لحظه پیامک می‌شود${discount ? ` (با ${toPersianDigits(discount)} تومان تخفیف)` : ''}.`,
+                  confirmLabel: 'صدور و ارسال پیامک',
+                });
+                if (ok) issue.mutate();
+              }}
+            >
               صدور پیش‌فاکتور
             </Button>
-            <Button size="sm" variant="secondary" onClick={() => convert.mutate()} loading={convert.isPending}>
+            <Button
+              size="sm"
+              variant="secondary"
+              loading={convert.isPending}
+              onClick={async () => {
+                const ok = await confirm({
+                  title: 'تبدیل به سفارش؟',
+                  body: 'یک سفارش قابل رهگیری از این سرنخ ساخته می‌شود. این عمل قابل بازگشت نیست.',
+                  confirmLabel: 'ساخت سفارش',
+                });
+                if (ok) convert.mutate();
+              }}
+            >
               تبدیل به سفارش
             </Button>
           </div>
@@ -278,6 +312,7 @@ export function LeadDetail({ id }: { id: string }) {
           </Button>
         </div>
       </div>
+      {dialog}
     </div>
   );
 }

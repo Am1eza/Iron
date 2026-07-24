@@ -299,7 +299,7 @@ function SkuManager() {
       ) : rows.length === 0 ? (
         <EmptyState size="section" headline="کالایی نیست" body="با «کالای جدید» اضافه کنید." />
       ) : (
-        <table className={ui.table}>
+        <div className={ui.tableWrap}><table className={ui.table}>
           <caption className="visually-hidden">فهرست کالاهای دستهٔ انتخاب‌شده</caption>
           <thead>
             <tr>
@@ -364,7 +364,7 @@ function SkuManager() {
               );
             })}
           </tbody>
-        </table>
+        </table></div>
       )}
 
       {editing ? (
@@ -630,7 +630,7 @@ function CategoryManager() {
         ) : categoriesSorted.length === 0 ? (
           <EmptyState size="section" headline="دسته‌ای نیست" body="با «دستهٔ جدید» اضافه کنید." />
         ) : (
-          <table className={ui.table}>
+          <div className={ui.tableWrap}><table className={ui.table}>
             <caption className="visually-hidden">فهرست دسته‌های کاتالوگ</caption>
             <thead>
               <tr>
@@ -694,7 +694,7 @@ function CategoryManager() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
 
         {editingCat ? (
@@ -732,7 +732,7 @@ function CategoryManager() {
           ) : subsSorted.length === 0 ? (
             <EmptyState size="section" headline="زیر‌دسته‌ای نیست" body="با «زیر‌دستهٔ جدید» اضافه کنید." />
           ) : (
-            <table className={ui.table}>
+            <div className={ui.tableWrap}><table className={ui.table}>
               <caption className="visually-hidden">فهرست زیر‌دسته‌های دستهٔ انتخاب‌شده</caption>
               <thead>
                 <tr>
@@ -789,7 +789,7 @@ function CategoryManager() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           )}
 
           {editingSub ? (

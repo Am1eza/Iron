@@ -29,7 +29,7 @@ const SOURCE_LABEL: Record<string, string> = {
 
 function LeadRows({ rows, showCallback }: { rows: DeskLead[]; showCallback?: boolean }) {
   return (
-    <table className={ui.table}>
+    <div className={ui.tableWrap}><table className={ui.table}>
       <thead>
         <tr>
           <th scope="col">کد</th>
@@ -43,7 +43,14 @@ function LeadRows({ rows, showCallback }: { rows: DeskLead[]; showCallback?: boo
         {rows.map((l) => (
           <tr key={l.id}>
             <td className={ui.mono}>
-              <bdi>{l.ref}</bdi>
+              {/* The queue must lead INTO the work — a display-only row forced
+                  the rep to re-find every lead on /admin/leads by hand. */}
+              <Link
+                href={`/admin/leads?q=${encodeURIComponent(l.ref)}`}
+                style={{ color: 'var(--color-accent-text)' }}
+              >
+                <bdi>{l.ref}</bdi>
+              </Link>
             </td>
             <td>
               {l.contactName || '—'}
@@ -65,7 +72,7 @@ function LeadRows({ rows, showCallback }: { rows: DeskLead[]; showCallback?: boo
           </tr>
         ))}
       </tbody>
-    </table>
+    </table></div>
   );
 }
 

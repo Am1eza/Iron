@@ -13,6 +13,7 @@ import { formatJalali, toPersianDigits } from '@/lib/utils/format';
 import { useToast } from '@/lib/hooks/useToast';
 import { ApiError } from '@/lib/api/errors';
 import { Badge, EmptyState, Heading, TableSkeleton, Text } from '@/components/ui';
+import { Button } from '@/components/primitives/Button';
 import ui from '../adminUi.module.css';
 
 export function AdminAllowlist({ selfMobile }: { selfMobile: string }) {
@@ -100,9 +101,9 @@ export function AdminAllowlist({ selfMobile }: { selfMobile: string }) {
           maxLength={60}
           onChange={(e) => setLabel(e.target.value)}
         />
-        <button type="submit" className={ui.primaryBtn ?? undefined} disabled={add.isPending || !mobile.trim()}>
-          {add.isPending ? 'در حال افزودن…' : 'افزودن مدیر'}
-        </button>
+        <Button type="submit" size="sm" loading={add.isPending} disabled={!mobile.trim()}>
+          افزودن مدیر
+        </Button>
       </form>
 
       {isLoading ? (
@@ -117,7 +118,7 @@ export function AdminAllowlist({ selfMobile }: { selfMobile: string }) {
       ) : entries.length === 0 ? (
         <EmptyState size="section" headline="فهرست خالی است" body="با فرم بالا اولین مدیر را اضافه کنید." />
       ) : (
-        <table className={ui.table}>
+        <div className={ui.tableWrap}><table className={ui.table}>
           <thead>
             <tr>
               <th>موبایل</th>
@@ -148,30 +149,30 @@ export function AdminAllowlist({ selfMobile }: { selfMobile: string }) {
                     {isSelf ? (
                       <span className={ui.muted}>شما</span>
                     ) : confirming === e.mobile ? (
-                      <span style={{ display: 'inline-flex', gap: 'var(--space-2)' }}>
-                        <button
-                          type="button"
+                      <span className={ui.rowActions}>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          loading={remove.isPending}
                           onClick={() => remove.mutate(e.mobile)}
-                          disabled={remove.isPending}
-                          style={{ color: 'var(--color-danger, #b91c1c)' }}
                         >
-                          {remove.isPending ? 'در حال حذف…' : 'تأیید حذف'}
-                        </button>
-                        <button type="button" onClick={() => setConfirming(null)}>
+                          تأیید حذف
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setConfirming(null)}>
                           انصراف
-                        </button>
+                        </Button>
                       </span>
                     ) : (
-                      <button type="button" onClick={() => setConfirming(e.mobile)}>
+                      <Button size="sm" variant="ghost" onClick={() => setConfirming(e.mobile)}>
                         حذف
-                      </button>
+                      </Button>
                     )}
                   </td>
                 </tr>
               );
             })}
           </tbody>
-        </table>
+        </table></div>
       )}
     </section>
   );

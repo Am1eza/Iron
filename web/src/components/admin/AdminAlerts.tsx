@@ -40,9 +40,13 @@ export function AdminAlerts() {
   const baseline = useRef<number | null>(null);
 
   useEffect(() => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      void Notification.requestPermission();
-    }
+    // Browsers auto-suppress permission prompts not triggered by a user
+    // gesture — a mount-time request silently never shows for most staff.
+    // Ask on the FIRST pointer interaction instead (once, then detach).
+    if (!('Notification' in window) || Notification.permission !== 'default') return;
+    const ask = () => void Notification.requestPermission();
+    window.addEventListener('pointerdown', ask, { once: true });
+    return () => window.removeEventListener('pointerdown', ask);
   }, []);
 
   const { data } = useQuery({

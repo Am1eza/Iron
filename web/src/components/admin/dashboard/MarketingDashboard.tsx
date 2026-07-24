@@ -83,7 +83,7 @@ export function MarketingDashboard() {
         {bySource.length === 0 ? (
           <EmptyState size="inline" headline="هنوز سرنخی ثبت نشده" />
         ) : (
-          <table className={ui.table}>
+          <div className={ui.tableWrap}><table className={ui.table}>
             <thead>
               <tr>
                 <th scope="col">کانال</th>
@@ -104,7 +104,7 @@ export function MarketingDashboard() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
       </section>
 

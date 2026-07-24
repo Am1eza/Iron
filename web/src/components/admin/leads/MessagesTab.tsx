@@ -124,7 +124,7 @@ export function MessagesTab() {
       ) : messages.length === 0 ? (
         <EmptyState size="section" headline="پیامی نیست" body="پیام‌های فرم تماس اینجا می‌آید." />
       ) : (
-        <table className={ui.table}>
+        <div className={ui.tableWrap}><table className={ui.table}>
           <caption className="visually-hidden">فهرست پیام‌های فرم تماس</caption>
           <thead>
             <tr>
@@ -163,7 +163,7 @@ export function MessagesTab() {
               </Fragment>
             ))}
           </tbody>
-        </table>
+        </table></div>
       )}
       {data ? <p className={ui.muted}>{toPersianDigits(data.total)} پیام</p> : null}
       {data ? <PagerFooter page={page} perPage={PER_PAGE} total={data.total} onPage={setPage} /> : null}

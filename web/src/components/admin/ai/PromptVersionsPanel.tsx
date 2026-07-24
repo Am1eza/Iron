@@ -121,7 +121,7 @@ function MetricsTable() {
   }
 
   return (
-    <table className={ui.table}>
+    <div className={ui.tableWrap}><table className={ui.table}>
       <caption className="visually-hidden">مقایسهٔ نسخه‌های پرامپت</caption>
       <thead>
         <tr>
@@ -149,7 +149,7 @@ function MetricsTable() {
           );
         })}
       </tbody>
-    </table>
+    </table></div>
   );
 }
 

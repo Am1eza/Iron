@@ -64,7 +64,7 @@ export function AiUsageConsole() {
         <Stat label="نقض گاردریل (۱۴ روز)" value={toPersianDigits(totalViolations)} series={series.map((d) => d.violations)} />
       </div>
 
-      <table className={ui.table}>
+      <div className={ui.tableWrap}><table className={ui.table}>
         <caption className="visually-hidden">مصرف روزانهٔ دستیار هوشمند در ۱۴ روز اخیر</caption>
         <thead>
           <tr>
@@ -86,7 +86,7 @@ export function AiUsageConsole() {
             </tr>
           ))}
         </tbody>
-      </table>
+      </table></div>
     </div>
   );
 }

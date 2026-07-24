@@ -60,7 +60,7 @@ export function BilletCard() {
         شمش همیشه دستی ثبت می‌شود؛ بقیه از فید بازار می‌آیند و این‌جا فقط در صورت قطع/کهنگی فید
         override کنید (بروزرسانی بعدی فید روی آن می‌نویسد).
       </Text>
-      <table className={ui.table} style={{ marginBlockStart: 'var(--space-3)' }}>
+      <div className={ui.tableWrap}><table className={ui.table} style={{ marginBlockStart: 'var(--space-3)' }}>
         <caption className="visually-hidden">مقادیر شاخص‌های بازار و ورود دستی</caption>
         <thead>
           <tr>
@@ -120,7 +120,7 @@ export function BilletCard() {
             );
           })}
         </tbody>
-      </table>
+      </table></div>
     </Card>
   );
 }

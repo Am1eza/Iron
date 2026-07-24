@@ -141,7 +141,7 @@ export function UsersTable() {
         ) : users.length === 0 ? (
           <EmptyState size="section" headline="کاربری نیست" body="با این فیلتر کاربری پیدا نشد." />
         ) : (
-          <table className={ui.table}>
+          <div className={ui.tableWrap}><table className={ui.table}>
             <caption className="visually-hidden">فهرست کاربران</caption>
             <thead>
               <tr>
@@ -172,7 +172,19 @@ export function UsersTable() {
                       <select
                         className={ui.select}
                         value={u.role}
-                        onChange={(e) => update.mutate({ id: u.id, patch: { role: e.target.value } })}
+                        onChange={(e) => {
+                          const nextRole = e.target.value;
+                          // Role change revokes the user's existing sessions —
+                          // confirm before firing (the select otherwise commits
+                          // on a single stray change).
+                          void confirm({
+                            title: 'تغییر نقش کاربر؟',
+                            body: `نقش ${u.name ?? toPersianDigits(u.mobile)} به «${ROLE_LABEL[nextRole as Role]}» تغییر می‌کند و نشست‌های فعلی او باطل می‌شود.`,
+                            confirmLabel: 'تغییر نقش',
+                          }).then((ok) => {
+                            if (ok) update.mutate({ id: u.id, patch: { role: nextRole } });
+                          });
+                        }}
                         aria-label={`نقش ${u.mobile}`}
                       >
                         {ROLES.filter((r) => r !== 'admin').map((r) => (
@@ -224,7 +236,7 @@ export function UsersTable() {
                 </Fragment>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
         {data ? <p className={ui.muted}>{toPersianDigits(data.total)} کاربر</p> : null}
       </div>
@@ -356,7 +368,7 @@ function ClubSection() {
       ) : members.length === 0 ? (
         <p className={ui.muted}>هنوز عضوی ندارد.</p>
       ) : (
-        <table className={ui.table}>
+        <div className={ui.tableWrap}><table className={ui.table}>
           <caption className="visually-hidden">فهرست اعضای باشگاه مشتریان</caption>
           <thead>
             <tr>
@@ -387,7 +399,7 @@ function ClubSection() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       )}
     </div>
   );

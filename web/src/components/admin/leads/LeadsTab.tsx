@@ -1,6 +1,7 @@
 'use client';
 /** Lead list — status filter + search; a row expands into the detail panel. */
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { adminApi, type AdminLead } from '@/lib/api/resources/admin';
 import { formatJalali, toPersianDigits } from '@/lib/utils/format';
@@ -37,9 +38,12 @@ const FILTERS = [
 ];
 
 export function LeadsTab() {
+  // ?q= deep-link support — «میز کار من» links a rep's queue rows straight
+  // here pre-searched by the lead ref.
+  const initialQ = useSearchParams().get('q') ?? '';
   const [status, setStatus] = useState('');
-  const [search, setSearch] = useState('');
-  const [q, setQ] = useState('');
+  const [search, setSearch] = useState(initialQ);
+  const [q, setQ] = useState(initialQ);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [page, setPage] = useState(1);
@@ -124,7 +128,7 @@ export function LeadsTab() {
       ) : leads.length === 0 ? (
         <EmptyState size="section" headline="سرنخی نیست" body="با این فیلتر سرنخی ثبت نشده است." />
       ) : (
-        <table className={ui.table}>
+        <div className={ui.tableWrap}><table className={ui.table}>
           <caption className="visually-hidden">فهرست سرنخ‌ها</caption>
           <thead>
             <tr>
@@ -149,7 +153,7 @@ export function LeadsTab() {
               );
             })}
           </tbody>
-        </table>
+        </table></div>
       )}
       {data ? <p className={ui.muted}>{toPersianDigits(data.total)} سرنخ</p> : null}
       {data ? <PagerFooter page={page} perPage={PER_PAGE} total={data.total} onPage={setPage} /> : null}
