@@ -4,7 +4,6 @@
  * throws to the caller in a way that leaks provider details to the client.
  */
 import { reportError } from '@/lib/errors/report';
-import { kavenegarConfigured, sendOtpViaKavenegar } from './kavenegar';
 
 export interface SmsResult {
   ok: boolean;
@@ -13,56 +12,29 @@ export interface SmsResult {
 }
 
 /** Send an OTP code to a mobile. Returns ok even on provider hiccups we retry.
- *
- *  Provider order: Kavenegar (when configured — measured much faster OTP
- *  delivery than the SMS.ir verify line) → SMS.ir verify → dev-log. When
- *  neither is configured we fail loudly in production (see below). */
+ *  SMS.ir is the ONLY OTP provider — an owner decision (a Kavenegar adapter
+ *  was briefly added and removed on their explicit instruction; do not
+ *  reintroduce alternative providers without being asked). */
 export async function sendOtpSms(mobile: string, code: string): Promise<SmsResult> {
   const apiKey = process.env.SMSIR_API_KEY;
   const templateId = process.env.SMSIR_TEMPLATE_ID;
-  const smsirConfigured = Boolean(apiKey && templateId);
-  const kavenegar = kavenegarConfigured();
 
-  // No provider at all in production is a deploy misconfiguration, not a valid
+  // Missing credentials in production is a deploy misconfiguration, not a valid
   // "dev mode" — fail loudly instead of silently claiming an SMS was sent (the
   // caller would otherwise tell every user "a code was texted to you" while
   // nobody can ever receive one).
-  if (!kavenegar && !smsirConfigured && process.env.NODE_ENV === 'production') {
-    reportError(new Error('No OTP provider configured (KAVENEGAR_* or SMSIR_*) in production'), {
+  if ((!apiKey || !templateId) && process.env.NODE_ENV === 'production') {
+    reportError(new Error('SMSIR_API_KEY or SMSIR_TEMPLATE_ID missing in production'), {
       scope: 'sms',
     });
     return { ok: false };
   }
 
   // Dev / unconfigured: log instead of sending; surface the code for local testing.
-  if (!kavenegar && !smsirConfigured) {
+  if (!apiKey || !templateId) {
     // eslint-disable-next-line no-console
     console.info(`[sms:dev] OTP for ${mobile} = ${code}`);
     return { ok: true, devCode: code };
-  }
-
-  // Preferred provider: Kavenegar. On success we're done; on failure, fall
-  // through to SMS.ir as a backup when it's also configured (belt-and-suspenders
-  // — a slow SMS is still better than no SMS), otherwise fail.
-  if (kavenegar) {
-    const k = await sendOtpViaKavenegar(mobile, code);
-    if (k.ok) {
-      await logOtpSend(mobile, true);
-      return { ok: true };
-    }
-    if (!smsirConfigured) {
-      await logOtpSend(mobile, false);
-      return { ok: false };
-    }
-    // else: fall through to the SMS.ir path below.
-  }
-
-  // Unreachable when false (the guards above guarantee smsirConfigured here),
-  // but this narrows apiKey/templateId from `string | undefined` to `string`
-  // for the SMS.ir call below.
-  if (!apiKey || !templateId) {
-    await logOtpSend(mobile, false);
-    return { ok: false };
   }
 
   try {
@@ -130,13 +102,20 @@ export async function sendOtpSms(mobile: string, code: string): Promise<SmsResul
 /* ------------------------- delivery watchdog ------------------------- */
 
 /** How long to wait for a positive delivery report before the fallback path
- *  fires. Tuned against measured SMS.ir DLR behavior: fast routes confirm in
- *  well under a minute; anything later is the multi-minute MVNO path. 0 (or
- *  no SMSIR_LINE_NUMBER to send from) disables the watchdog. */
+ *  fires. 30s (was 60s): measured 2026-07-24, a verify-line send that hasn't
+ *  confirmed within ~30s is riding the multi-minute (or dead) path — waiting
+ *  longer only delays the second line. 0 (or no SMSIR_LINE_NUMBER to send
+ *  from) disables the watchdog. */
 // `||` not `??`: compose passes the var as an EMPTY STRING when unset in
 // .env, and Number('') is 0 — which silently disabled the watchdog once.
 // Empty/undefined → default; an explicit '0' still disables.
-const FALLBACK_AFTER_MS = Number(process.env.OTP_FALLBACK_AFTER_MS || 60_000);
+const FALLBACK_AFTER_MS = Number(process.env.OTP_FALLBACK_AFTER_MS || 30_000);
+
+/** Second-stage re-check delay (after the fallback send): if NEITHER message
+ *  confirmed delivery by then, fire one final verify-line resend of the SAME
+ *  code. Three total attempts across both lines, then stop — the code stays
+ *  valid for OTP_TTL_SECONDS, so a late-arriving SMS still logs the user in. */
+const SECOND_CHECK_AFTER_MS = 120_000;
 
 /** The registered verify template's text, reproduced for the fallback bulk
  *  send — must stay in sync with template 577070 on the SMS.ir panel. */
@@ -175,10 +154,53 @@ export async function checkDeliveryAndFallback(
   return ok ? 'fallback_sent' : 'fallback_failed';
 }
 
+/** One final verify-line resend of the same code — used by the second-stage
+ *  watchdog when both earlier sends are still unconfirmed. Exported for tests. */
+export async function resendVerify(mobile: string, code: string, apiKey: string): Promise<boolean> {
+  const templateId = process.env.SMSIR_TEMPLATE_ID;
+  if (!templateId) return false;
+  try {
+    const paramName = process.env.SMSIR_TEMPLATE_PARAM || 'OTP';
+    const res = await fetch('https://api.sms.ir/v1/send/verify/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'x-api-key': apiKey },
+      body: JSON.stringify({ Mobile: mobile, TemplateId: Number(templateId), Parameters: [{ name: paramName, value: code }] }),
+      signal: AbortSignal.timeout(8000),
+    });
+    const body = (await res.json().catch(() => null)) as { status?: number } | null;
+    return res.ok && (body?.status === undefined || body.status === 1);
+  } catch {
+    return false;
+  }
+}
+
 function scheduleDeliveryWatchdog(mobile: string, code: string, messageId: number, apiKey: string): void {
   if (FALLBACK_AFTER_MS <= 0 || !process.env.SMSIR_LINE_NUMBER) return;
   const timer = setTimeout(() => {
-    void checkDeliveryAndFallback(mobile, code, messageId, apiKey).catch(() => {});
+    void checkDeliveryAndFallback(mobile, code, messageId, apiKey)
+      .then((outcome) => {
+        if (outcome !== 'fallback_sent') return;
+        // Stage 2: both sends are in flight; if the ORIGINAL still has no
+        // delivery confirmation after two more minutes, fire one last
+        // verify-line attempt and stop (3 sends max per request).
+        const second = setTimeout(() => {
+          void (async () => {
+            try {
+              const res = await fetch(`https://api.sms.ir/v1/send/${messageId}`, {
+                headers: { Accept: 'application/json', 'x-api-key': apiKey },
+                signal: AbortSignal.timeout(8000),
+              });
+              const body = (await res.json().catch(() => null)) as { data?: { deliveryState?: number | null } } | null;
+              if (body?.data?.deliveryState === 1) return; // landed after all
+            } catch {
+              /* report unavailable → assume undelivered */
+            }
+            await resendVerify(mobile, code, apiKey);
+          })().catch(() => {});
+        }, SECOND_CHECK_AFTER_MS);
+        (second as { unref?: () => void }).unref?.();
+      })
+      .catch(() => {});
   }, FALLBACK_AFTER_MS);
   // Never hold the process open for a watchdog (graceful shutdown stays fast;
   // a lost watchdog on restart is fine — the user just taps resend).

@@ -84,7 +84,7 @@
     "wrongCode": "验证码错误。",
     "otpLabel": "短信验证码",
     "otpDigit": "第 {n} 位",
-    "deliveryHint": "短信可能需要几分钟才能送达；验证码 10 分钟内有效，重新发送后旧验证码仍然可用。",
+    "deliveryHint": "短信可能需要几分钟才能送达；验证码 15 分钟内有效，重新发送后旧验证码仍然可用。",
     "firstNameLabel": "名字",
     "lastNameLabel": "姓氏",
     "inviteCodeLabel": "邀请码（可选）",

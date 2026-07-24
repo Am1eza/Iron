@@ -18,7 +18,9 @@ export const CONSTANTS = {
    *  secrets) keeps late-delivered codes usable; the 5-attempt cap +
    *  single-use + 15-min lock keep brute-force off the table. */
   OTP_LENGTH: 6,
-  OTP_TTL_SECONDS: 600,
+  // 15 min — SMS.ir handset delivery was MEASURED at up to ~11 minutes
+  // (2026-07-24 delivery reports); the code must outlive the SMS ride.
+  OTP_TTL_SECONDS: 900,
   OTP_RESEND_COOLDOWN_SECONDS: 60,
   OTP_MAX_RESEND_PER_HOUR: 5,
   OTP_MAX_ATTEMPTS: 5,
