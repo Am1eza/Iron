@@ -39,12 +39,8 @@ export { EmptyState } from './EmptyState';
 export { emptyPresets } from './emptyPresets';
 
 // Motion & loading
-export { Reveal } from './Reveal';
 export { Spinner } from './Spinner';
 export { Skeleton, SkeletonText, TableSkeleton } from './Skeleton';
-
-// Theming
-export { ThemeToggle } from './ThemeToggle';
 
 // Re-export the existing primitives so `@/components/ui` is the one door.
 export { Button } from '@/components/primitives/Button';

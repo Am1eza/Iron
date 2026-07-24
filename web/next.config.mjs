@@ -65,15 +65,12 @@ const nextConfig = {
         async headers() {
           return [
             {
-              // Keep admin, personal, and internal-tooling areas out of search
-              // indexes (IA / SEO rules). styleguide is an internal component
-              // reference — not customer-facing, not in sitemap.ts, and never
-              // linked from the site, but with no noindex it would still get
-              // crawled/indexed if ever discovered via an external link. These
-              // paths are intentionally NOT in robots.ts's `disallow` (except
-              // /admin) — see the comment there for why noindex-only (not
-              // Disallow+noindex) is the correct pairing.
-              source: '/:path(admin|account|request|cart|search|login|styleguide)(.*)',
+              // Keep admin, personal, and internal areas out of search indexes
+              // (IA / SEO rules). These paths are intentionally NOT in
+              // robots.ts's `disallow` (except /admin) — see the comment there
+              // for why noindex-only (not Disallow+noindex) is the correct
+              // pairing. (The /styleguide dev kitchen-sink route was removed.)
+              source: '/:path(admin|account|request|cart|search|login)(.*)',
               headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }],
             },
             {
