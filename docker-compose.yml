@@ -58,6 +58,10 @@ services:
       SMSIR_LINE_NUMBER: ${SMSIR_LINE_NUMBER:-}   # optional — پیش‌فاکتور/alert texts dev-log if unset
       SMSIR_TEMPLATE_PARAM: ${SMSIR_TEMPLATE_PARAM:-}  # verify-template placeholder name (default OTP — must match #…# in the panel template)
       OTP_FALLBACK_AFTER_MS: ${OTP_FALLBACK_AFTER_MS:-}  # delivery-watchdog delay before 2nd-route resend (default 60000; 0 disables)
+      # OTP via Kavenegar (PREFERRED when set — faster than SMS.ir's verify
+      # line; SMS.ir stays as backup). Both blank → OTP keeps using SMS.ir.
+      KAVENEGAR_API_KEY: ${KAVENEGAR_API_KEY:-}
+      KAVENEGAR_OTP_TEMPLATE: ${KAVENEGAR_OTP_TEMPLATE:-}
       # Analytics — each empty until the owner supplies the id (GTM/GA also
       # need a rebuild for CSP; Matomo + GSC are runtime-only).
       MATOMO_SITE_ID: ${MATOMO_SITE_ID:-}

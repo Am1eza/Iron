@@ -4,6 +4,7 @@
  * throws to the caller in a way that leaks provider details to the client.
  */
 import { reportError } from '@/lib/errors/report';
+import { kavenegarConfigured, sendOtpViaKavenegar } from './kavenegar';
 
 export interface SmsResult {
   ok: boolean;
@@ -11,27 +12,57 @@ export interface SmsResult {
   devCode?: string;
 }
 
-/** Send an OTP code to a mobile. Returns ok even on provider hiccups we retry. */
+/** Send an OTP code to a mobile. Returns ok even on provider hiccups we retry.
+ *
+ *  Provider order: Kavenegar (when configured — measured much faster OTP
+ *  delivery than the SMS.ir verify line) → SMS.ir verify → dev-log. When
+ *  neither is configured we fail loudly in production (see below). */
 export async function sendOtpSms(mobile: string, code: string): Promise<SmsResult> {
   const apiKey = process.env.SMSIR_API_KEY;
   const templateId = process.env.SMSIR_TEMPLATE_ID;
+  const smsirConfigured = Boolean(apiKey && templateId);
+  const kavenegar = kavenegarConfigured();
 
-  // Missing credentials in production is a deploy misconfiguration, not a valid
+  // No provider at all in production is a deploy misconfiguration, not a valid
   // "dev mode" — fail loudly instead of silently claiming an SMS was sent (the
   // caller would otherwise tell every user "a code was texted to you" while
   // nobody can ever receive one).
-  if ((!apiKey || !templateId) && process.env.NODE_ENV === 'production') {
-    reportError(new Error('SMSIR_API_KEY or SMSIR_TEMPLATE_ID missing in production'), {
+  if (!kavenegar && !smsirConfigured && process.env.NODE_ENV === 'production') {
+    reportError(new Error('No OTP provider configured (KAVENEGAR_* or SMSIR_*) in production'), {
       scope: 'sms',
     });
     return { ok: false };
   }
 
   // Dev / unconfigured: log instead of sending; surface the code for local testing.
-  if (!apiKey || !templateId) {
+  if (!kavenegar && !smsirConfigured) {
     // eslint-disable-next-line no-console
     console.info(`[sms:dev] OTP for ${mobile} = ${code}`);
     return { ok: true, devCode: code };
+  }
+
+  // Preferred provider: Kavenegar. On success we're done; on failure, fall
+  // through to SMS.ir as a backup when it's also configured (belt-and-suspenders
+  // — a slow SMS is still better than no SMS), otherwise fail.
+  if (kavenegar) {
+    const k = await sendOtpViaKavenegar(mobile, code);
+    if (k.ok) {
+      await logOtpSend(mobile, true);
+      return { ok: true };
+    }
+    if (!smsirConfigured) {
+      await logOtpSend(mobile, false);
+      return { ok: false };
+    }
+    // else: fall through to the SMS.ir path below.
+  }
+
+  // Unreachable when false (the guards above guarantee smsirConfigured here),
+  // but this narrows apiKey/templateId from `string | undefined` to `string`
+  // for the SMS.ir call below.
+  if (!apiKey || !templateId) {
+    await logOtpSend(mobile, false);
+    return { ok: false };
   }
 
   try {
