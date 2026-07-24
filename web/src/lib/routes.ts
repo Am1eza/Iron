@@ -35,10 +35,9 @@ export const routes = {
   blog: (slug?: string) => (slug ? `/blog/${enc(slug)}` : '/blog'),
   news: (slug?: string) => (slug ? `/news/${enc(slug)}` : '/news'),
 
-  // Company / cooperation
+  // Company / cooperation ( /why merged into /about — see next.config redirect )
   about: () => '/about',
   contact: () => '/contact',
-  why: () => '/why',
   cooperation: (track?: 'analysis' | 'supply' | 'sell') =>
     track ? `/cooperation/${track}` : '/cooperation',
 
@@ -74,5 +73,5 @@ export const STATIC_INDEXABLE = [
   '/tools/weight', '/tools/project', '/tools/cost',
   '/warehouse',
   '/club', '/blog', '/news', '/cooperation',
-  '/about', '/contact', '/why', '/terms', '/privacy',
+  '/about', '/contact', '/terms', '/privacy',
 ] as const;

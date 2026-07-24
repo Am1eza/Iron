@@ -6,32 +6,73 @@ import { BreadcrumbJsonLd, JsonLd } from '@/components/seo/JsonLd';
 import { PageHero } from '@/components/company/PageHero';
 import { FeatureGrid, type Feature } from '@/components/company/FeatureGrid';
 import { ContactCard } from '@/components/company/ContactCard';
-import { TagIcon, SparkIcon, CheckCircleIcon } from '@/components/primitives/icons';
+import {
+  TagIcon,
+  ClockIcon,
+  SparkIcon,
+  ChartIcon,
+  CheckCircleIcon,
+  PhoneIcon,
+  BankIcon,
+  ShieldIcon,
+} from '@/components/primitives/icons';
 import prose from '@/components/company/Prose.module.css';
 
 export const metadata: Metadata = buildMetadata({
   title: 'درباره ما',
   description:
-    'آهن‌تایم؛ بازار آنلاین قیمت آهن و فولاد با مشاور هوشمند و تأمین مستقیم از کارخانه. اول مشورت، بعد خرید.',
+    'آهن‌تایم؛ بازار آنلاین قیمت آهن و فولاد با مشاور هوشمند و تأمین مستقیم از کارخانه: ارزان‌تر با حذف واسطه، تحویل ۲۴ ساعته، قیمت شفاف و پشتیبانی واقعی. اول مشورت، بعد خرید.',
   path: routes.about(),
 });
 
-const services: Feature[] = [
+/**
+ * The «چرا آهن‌تایم؟» advantages — merged in from the former standalone /why
+ * page (now redirected here): its 8-item grid was a superset of the 3-item
+ * "what we do" list this page used to show, so the two were consolidated into
+ * one company page instead of repeating the same pitch on two URLs.
+ */
+const advantages: Feature[] = [
   {
-    title: 'قیمت شفاف و لحظه‌ای',
-    desc: 'قیمت روز میلگرد، تیرآهن، ورق و دیگر مقاطع فولادی با نوسان، وزن شاخه و زمان تحویل؛ به‌روز و بدون ابهام.',
+    title: 'ارزان‌تر، با حذف واسطه',
+    desc: 'خرید مستقیم از کارخانه زنجیرهٔ دلال‌ها را کوتاه می‌کند؛ همان کالا، با قیمت منصفانه‌تر.',
     icon: <TagIcon size={22} />,
   },
   {
-    title: 'مشاور هوشمند',
-    desc: 'دستیار هوش مصنوعی آهن‌تایم پیش از خرید کنار شماست؛ از انتخاب سایز و گرید تا برآورد وزن و هزینهٔ پروژه.',
+    title: 'سریع‌تر، تحویل ۲۴ ساعته',
+    desc: 'هماهنگی حمل و بارگیری چابک؛ در بیشتر مقاطع پرتقاضا، تحویل در بازهٔ ۲۴ ساعت.',
+    icon: <ClockIcon size={22} />,
+  },
+  {
+    title: 'مشاور هوش مصنوعی',
+    desc: 'دستیار هوشمند آهن‌تایم پیش از خرید پاسخ می‌دهد؛ انتخاب سایز و گرید، برآورد وزن و هزینه.',
     icon: <SparkIcon size={22} />,
     accent: true,
   },
   {
+    title: 'قیمت شفاف و به‌روز',
+    desc: 'قیمت‌ها لحظه‌ای به‌روزرسانی می‌شود و نوسان، وزن شاخه و زمان تحویل کنار هر کالا روشن است.',
+    icon: <ChartIcon size={22} />,
+  },
+  {
     title: 'تأمین مستقیم از کارخانه',
-    desc: 'با حذف واسطه‌ها و خرید مستقیم از کارخانه، قیمت منصفانه‌تر و اصالت کالا را تضمین می‌کنیم.',
+    desc: 'اصالت کالا و کیفیت استاندارد را با تأمین مستقیم از تولیدکننده تضمین می‌کنیم.',
     icon: <CheckCircleIcon size={22} />,
+  },
+  {
+    title: 'پشتیبانی واقعی',
+    desc: 'کارشناسان ما برای نهایی‌سازی پیش‌فاکتور، موجودی و تحویل با شما تماس می‌گیرند؛ انسان واقعی، نه ربات.',
+    icon: <PhoneIcon size={22} />,
+  },
+  {
+    title: 'خرید از بورس کالا',
+    desc: 'تأمین رسمی از بورس کالای ایران؛ قیمت شفاف، فاکتور معتبر و اصالت تضمین‌شدهٔ محصول.',
+    icon: <BankIcon size={22} />,
+  },
+  {
+    title: 'گشایش LC برای مشتریان',
+    desc: 'برای خریدهای عمده اعتبار اسنادی (LC) باز می‌کنیم تا معاملهٔ بزرگ شما امن و بی‌دغدغه باشد.',
+    icon: <ShieldIcon size={22} />,
+    accent: true,
   },
 ];
 
@@ -82,16 +123,16 @@ export default function AboutPage() {
             </div>
           </Stack>
 
-          {/* What we do */}
+          {/* Why us — advantages merged in from the former /why page */}
           <Stack gap={6}>
             <Stack gap={2}>
-              <Heading level={2}>چه کاری انجام می‌دهیم</Heading>
+              <Heading level={2}>چرا آهن‌تایم؟</Heading>
               <Text color="muted">
-                آهن‌تایم سه کار را در کنار هم انجام می‌دهد تا خرید فولاد ساده، مطمئن و
-                به‌صرفه شود.
+                ما واسطه را حذف کردیم، قیمت را شفاف کردیم و مشاوره را پیش از خرید در دسترس
+                گذاشتیم تا شما با خیال راحت تصمیم بگیرید.
               </Text>
             </Stack>
-            <FeatureGrid items={services} />
+            <FeatureGrid items={advantages} />
           </Stack>
 
           {/* How buying works — no online payment */}

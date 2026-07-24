@@ -62,6 +62,11 @@ const nextConfig = {
   ...(isExport
     ? {}
     : {
+        // /why was merged into /about (same value-prop content lived on both);
+        // a permanent redirect preserves any external links + SEO equity.
+        async redirects() {
+          return [{ source: '/why', destination: '/about', permanent: true }];
+        },
         async headers() {
           return [
             {

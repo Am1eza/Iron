@@ -104,9 +104,10 @@ export const SERVICES_NAV: NavLink[] = [
   { label: 'پیگیری سفارش', href: routes.track() },
 ];
 
-/** «شرکت» — company links. Shared by header dropdown, drawer & footer. */
+/** «شرکت» — company links. Shared by header dropdown, drawer & footer.
+ *  «چرا آهن‌تایم» was merged into «درباره ما» (/why → /about redirect), so it's
+ *  no longer a separate entry — the About page now carries the advantages. */
 export const COMPANY_NAV: NavLink[] = [
-  { label: 'چرا آهن‌تایم', href: routes.why() },
   { label: 'درباره ما', href: routes.about() },
   { label: 'همکاری با ما', href: routes.cooperation() },
   { label: 'تماس با ما', href: routes.contact() },
