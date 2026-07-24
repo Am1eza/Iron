@@ -21,7 +21,7 @@ export function PriceBoard({ rows }: { rows: PriceRow[] }) {
           <span className={styles.dot} aria-hidden="true" />
           قیمت لحظه‌ای
         </span>
-        {updated && <span className={styles.date}>{formatJalali(updated)}</span>}
+        {updated && <span className={styles.date}>{formatJalali(updated, 'yyyy/MM/dd — HH:mm')}</span>}
       </header>
 
       <ul className={styles.rows}>

@@ -29,29 +29,26 @@ export function CompareTeaser({ slides }: { slides: CompareSlide[] }) {
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const n = slides.length;
 
-  // Auto-advance like a slideshow; hover pauses, manual selection resets the
-  // clock, reduced-motion disables it entirely.
+  // Auto-advance ONLY until the visitor first interacts — a carousel that
+  // keeps flipping under someone mid-read is an interruption, and hover-pause
+  // never worked on touch. Reduced-motion disables it entirely.
   useEffect(() => {
     if (reduced || n < 2) return;
-    const start = () => {
-      timer.current = setInterval(() => {
-        if (!paused.current && !document.hidden) setActive((v) => (v + 1) % n);
-      }, AUTO_MS);
-    };
-    start();
+    timer.current = setInterval(() => {
+      if (!paused.current && !document.hidden) setActive((v) => (v + 1) % n);
+    }, AUTO_MS);
     return () => {
       if (timer.current) clearInterval(timer.current);
+      timer.current = null;
     };
   }, [reduced, n]);
 
   const pick = (i: number, focusTab = false) => {
     setActive(i);
-    // manual choice restarts the countdown so it doesn't flip right away
+    // A manual choice means the visitor is engaged — stop the slideshow for good.
     if (timer.current) {
       clearInterval(timer.current);
-      timer.current = setInterval(() => {
-        if (!paused.current && !document.hidden) setActive((v) => (v + 1) % n);
-      }, AUTO_MS);
+      timer.current = null;
     }
     if (focusTab) {
       // wait for the newly-active tab's tabIndex=0 to land before moving focus

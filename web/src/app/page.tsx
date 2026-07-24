@@ -14,6 +14,8 @@ import { Partners } from '@/components/home/Partners';
 import { JsonLd } from '@/components/seo/JsonLd';
 import { buildMetadata, orgJsonLd, localBusinessJsonLd, websiteJsonLd } from '@/lib/seo';
 import { getContact } from '@/lib/server/contact';
+import { getSetting } from '@/lib/server/repos/settingsRepo';
+import { HeroVideo } from '@/components/home/HeroVideo';
 
 export const metadata: Metadata = buildMetadata({
   title: 'آهن‌تایم — بازار هوشمند آهن و فولاد',
@@ -23,15 +25,24 @@ export const metadata: Metadata = buildMetadata({
   absoluteTitle: true,
 });
 
+// A price-marketplace homepage must never be frozen at build time — without
+// this the hero board's «لحظه‌ای» prices and freshness stamp were whatever
+// the last DEPLOY happened to capture. 5 minutes matches /prices.
+export const revalidate = 300;
+
 /**
- * Home — the «Steel Terminal». Asymmetric hero (AI search + live price board) →
- * cascade product menu (category → sub-group → factory on hover) → why us →
- * dark factory block (mills & customers). Price data is the visual anchor.
+ * Home — the «Steel Terminal». Asymmetric hero (AI search + live price board,
+ * or the motion-graphic video once the owner supplies it — see SITE_HERO_VIDEO)
+ * → hover-reveal product menu → compare explorer → why us → dark factory block
+ * (mills & customers). Price data is the visual anchor.
  */
 export default async function HomePage() {
   const contact = await getContact();
   const categories = await getCategories();
   const subsMap = await getSubsMap();
+  // Owner-supplied hero motion graphic (admin setting; empty = price board).
+  // The video drops into the exact slot the board occupies — no layout change.
+  const heroVideo = await getSetting<{ url: string }>('SITE_HERO_VIDEO', { url: '' });
 
   // One data pass: all rows per category (live: DB; mock: generator).
   const rowsBySlug = new Map<string, PriceRow[]>();
@@ -80,7 +91,9 @@ export default async function HomePage() {
   return (
     <>
       <JsonLd data={[orgJsonLd(contact), localBusinessJsonLd(contact), websiteJsonLd()]} />
-      <HeroSearch board={<PriceBoard rows={boardRows} />} />
+      <HeroSearch
+        board={heroVideo.url ? <HeroVideo src={heroVideo.url} /> : <PriceBoard rows={boardRows} />}
+      />
       <CategoryStage categories={categories} subs={subsMap} factories={factories} />
       <CompareTeaser slides={compareSlides} />
       <ValueProps />

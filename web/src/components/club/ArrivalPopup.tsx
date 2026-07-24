@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { routes } from '@/lib/routes';
 import { useUiStore } from '@/lib/stores/ui';
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion';
-import { useFocusTrap } from '@/lib/hooks/useFocusTrap';
 import { SparkIcon, CloseIcon, ArrowEndIcon } from '@/components/primitives/icons';
 import styles from './ArrivalPopup.module.css';
 
@@ -19,9 +18,11 @@ const SUPPRESS_MS = 7 * 24 * 60 * 60 * 1000;
  * after ~12s reveals a small card pinned to the bottom-inline-start corner —
  * UNLESS the popup was dismissed within the last 7 days. Date.now() is read only
  * inside effects/handlers (never during render) so there is no hydration mismatch.
- * Accessible: role="dialog" aria-modal="true", Persian aria-label, a real
- * Tab/Shift+Tab focus trap (useFocusTrap — same as Modal.tsx), Esc to dismiss,
- * focus returns to the trigger, subtle entrance disabled under reduced-motion.
+ *
+ * Deliberately NON-modal: this is a promo toast, not a dialog. The previous
+ * aria-modal + focus-trap + scroll-lock version hijacked the page 12 seconds
+ * into reading — a promo must never steal focus or lock scrolling. It is a
+ * `status` complementary region; Esc still dismisses it, but nothing is trapped.
  *
  * NOTE: This component does not mount itself anywhere — the orchestrator mounts it.
  */
@@ -52,27 +53,29 @@ export function ArrivalPopup() {
     dismiss();
   };
 
-  // Dialog-grade focus management: moves focus to the close button on open
-  // (data-autofocus), traps Tab/Shift+Tab within the popup, Esc dismisses,
-  // locks background scroll, and returns focus to the trigger on close.
-  const panelRef = useFocusTrap<HTMLDivElement>(visible, handleDismiss);
+  // Esc dismisses (politeness), but focus is never moved or trapped.
+  useEffect(() => {
+    if (!visible) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') handleDismiss();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
 
   if (!mounted || !visible) return null;
 
   return (
     <div
-      ref={panelRef}
       className={`${styles.root} ${reduced ? '' : styles.animated}`}
-      role="dialog"
-      aria-modal="true"
+      role="status"
       aria-label="دعوت به باشگاه مشتریان آهن‌تایم"
-      tabIndex={-1}
     >
       <button
         type="button"
         className={styles.close}
         aria-label="بستن"
-        data-autofocus
         onClick={handleDismiss}
       >
         <CloseIcon size={18} />

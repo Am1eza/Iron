@@ -11,11 +11,13 @@ import { ChevronStartIcon } from '@/components/primitives/icons';
 import styles from './CategoryStage.module.css';
 
 /**
- * Product menu — directly under the AI hero. A three-level cascade revealed on
- * hover/focus: category (rail) → sub-group → factory/mill. Hover a category to
- * open its sub-groups; hover a sub-group to open its mills. Click a category →
+ * Product menu — directly under the AI hero. Editorial hover-reveal list
+ * (2026 pattern): the rail is PURE oversized type — no thumbnails — and
+ * hovering/focusing a name reveals that category's large product photo in the
+ * flyout panel, with its sub-groups and mills beneath. Click a category →
  * its table; a sub-group → that family; a mill → the sub table filtered by it.
- * On touch screens it degrades to categories with inline sub-group chips.
+ * On touch screens it degrades to big names with inline sub-group chips (no
+ * hover dead-ends). Reduced-motion: the crossfade/slide is disabled.
  */
 type FactoryMap = Record<string, Record<string, string[]>>;
 
@@ -81,6 +83,8 @@ export function CategoryStage({
               const catSubs = subsMap[cat.slug] ?? [];
               return (
                 <li key={cat.id} className={styles.railLi}>
+                  {/* Names ONLY — the photo reveals in the flyout on hover/focus
+                      (editorial hover-reveal; no thumb+name duplication). */}
                   <Link
                     ref={activeCat.slug === cat.slug ? activeRailLinkRef : undefined}
                     href={routes.category(cat.slug)}
@@ -91,15 +95,8 @@ export function CategoryStage({
                     onKeyDown={activeCat.slug === cat.slug ? handleRailKeyDown : undefined}
                     data-event="rail_category_click"
                   >
-                    <span className={styles.railThumb} aria-hidden>
-                      {productImage(cat.slug) ? (
-                        <ProductImage slug={cat.slug} name={cat.name} variant="thumb" />
-                      ) : (
-                        <CategoryArt slug={cat.slug} size={28} />
-                      )}
-                    </span>
                     <span className={styles.railName}>{cat.name}</span>
-                    <ChevronStartIcon size={16} className={`${styles.railChev} icon--rtl`} />
+                    <ChevronStartIcon size={20} className={`${styles.railChev} icon--rtl`} />
                   </Link>
 
                   {/* inline sub-groups — shown on touch/small screens (CSS) */}
@@ -125,6 +122,17 @@ export function CategoryStage({
             re-runs on each category change (no framer-motion). */}
         <div className={styles.flyout}>
             <div key={activeCat.slug} className={styles.panel}>
+              {/* The hover-reveal: the active category's large product photo.
+                  Decorative (the rail name IS the label) — hidden from AT. */}
+              <div className={styles.photo} aria-hidden="true">
+                {productImage(activeCat.slug) ? (
+                  <ProductImage slug={activeCat.slug} name={activeCat.name} variant="full" eager />
+                ) : (
+                  <span className={styles.photoFallback}>
+                    <CategoryArt slug={activeCat.slug} size={72} />
+                  </span>
+                )}
+              </div>
               <div className={styles.cols}>
                 {/* sub-groups */}
                 <div className={styles.col}>

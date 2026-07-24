@@ -49,6 +49,16 @@ const KEY_SCHEMAS: Record<string, z.ZodTypeAny> = {
     cities: z.array(z.object({ name: z.string().max(60), km: finiteNumber.min(0).max(100_000) })).max(200),
   }),
   ALERT_MAX_ACTIVE_PER_USER: finiteNumber.int().min(1).max(200),
+  // Homepage hero motion graphic — a same-origin video path (e.g. an upload
+  // under /uploads/). Empty url = the live price board renders instead.
+  // Same-origin only: an absolute URL here would let a settings write embed
+  // third-party content on the homepage.
+  SITE_HERO_VIDEO: z.object({
+    url: z
+      .string()
+      .max(300)
+      .regex(/^$|^\/(?!\/)/, 'مسیر باید با / شروع شود (فایل روی همین سایت)'),
+  }),
   // AI system-prompt A/B testing (US-05.5) — fewer than 2 versions means
   // A/B is off (see promptVersions.ts); capped at 4 to keep the DeepSeek
   // cache-prefix fan-out (one prefix per version) bounded.

@@ -6,7 +6,7 @@ import { adminApi } from '@/lib/api/resources/admin';
 import { normalizeDigits } from '@/lib/utils/format';
 import { useToast } from '@/lib/hooks/useToast';
 import { ApiError } from '@/lib/api/errors';
-import { Button, Card, Heading, Text, TableSkeleton, EmptyState } from '@/components/ui';
+import { Button, Card, Heading, Stack, Text, TableSkeleton, EmptyState } from '@/components/ui';
 import { TextInput } from '@/components/forms/fields';
 import ui from '../adminUi.module.css';
 
@@ -80,6 +80,11 @@ export function SettingsForm() {
           email: '',
         })}
         onSave={(v) => save.mutate({ key: 'SITE_CONTACT', value: v })}
+        busy={save.isPending}
+      />
+      <HeroVideoCard
+        cfg={get<{ url: string }>('SITE_HERO_VIDEO', { url: '' })}
+        onSave={(v) => save.mutate({ key: 'SITE_HERO_VIDEO', value: v })}
         busy={save.isPending}
       />
       <HolidaysCard holidays={get<string[]>('HOLIDAYS', [])} onSave={(v) => save.mutate({ key: 'HOLIDAYS', value: v })} busy={save.isPending} />
@@ -197,6 +202,67 @@ const newRowId = () => (typeof crypto !== 'undefined' ? crypto.randomUUID() : St
 
 /** US-22.2 — structured addable/removable rows instead of a free-text
  *  textarea (one typo used to silently drop or corrupt every date after it). */
+/** Homepage hero motion graphic — a same-origin video path. Empty = the live
+ *  price board renders in the hero slot instead. */
+function HeroVideoCard({
+  cfg,
+  onSave,
+  busy,
+}: {
+  cfg: { url: string };
+  onSave: (v: { url: string }) => void;
+  busy: boolean;
+}) {
+  const [url, setUrl] = useState(cfg.url);
+  const [err, setErr] = useState<string | undefined>();
+  useEffect(() => {
+    setUrl(cfg.url);
+    setErr(undefined);
+  }, [cfg.url]);
+  const dirty = url.trim() !== cfg.url;
+  return (
+    <Card>
+      <Stack gap={4}>
+        <div>
+          <Heading level={3}>ویدیوی صفحهٔ اصلی</Heading>
+          <Text color="muted">
+            مسیر فایل ویدیوی موشن‌گرافیک (روی همین سایت، مثلاً /uploads/hero.mp4). خالی باشد، تابلوی
+            قیمت زنده نمایش داده می‌شود.
+          </Text>
+        </div>
+        <TextInput
+          label="مسیر ویدیو"
+          dir="ltr"
+          placeholder="/uploads/hero.mp4"
+          value={url}
+          error={err}
+          onChange={(e) => {
+            setUrl(e.target.value);
+            if (err) setErr(undefined);
+          }}
+        />
+        <div>
+          <Button
+            size="sm"
+            disabled={!dirty}
+            loading={busy}
+            onClick={() => {
+              const v = url.trim();
+              if (v && !v.startsWith('/')) {
+                setErr('مسیر باید با / شروع شود (فایل روی همین سایت).');
+                return;
+              }
+              onSave({ url: v });
+            }}
+          >
+            ذخیرهٔ ویدیو
+          </Button>
+        </div>
+      </Stack>
+    </Card>
+  );
+}
+
 function HolidaysCard({ holidays, onSave, busy }: { holidays: string[]; onSave: (v: string[]) => void; busy: boolean }) {
   const [rows, setRows] = useState<HolidayRow[]>(() => holidays.map((date) => ({ id: newRowId(), date })));
   const [rowErrors, setRowErrors] = useState<Record<string, string>>({});

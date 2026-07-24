@@ -1,0 +1,16 @@
+.frame {
+  inline-size: 100%;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--color-surface-inverse, #14181d);
+  box-shadow: var(--shadow-lg);
+  /* mirror the PriceBoard's footprint so swapping video⇄board never shifts
+     the hero layout */
+  aspect-ratio: 4 / 3;
+}
+.video {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+  display: block;
+}

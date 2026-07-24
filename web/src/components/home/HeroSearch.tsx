@@ -59,7 +59,7 @@ export function HeroSearch({ board }: { board?: ReactNode }) {
               aria-label="از مشاور هوشمند آهن‌تایم بپرسید"
               enterKeyHint="send"
             />
-            <button type="submit" className={styles.searchSend}>
+            <button type="submit" className={styles.searchSend} aria-label="بپرس از آهن‌تایم">
               <span className={styles.sendText}>بپرس از آهن‌تایم</span>
               <ChevronStartIcon size={18} className="icon--rtl" />
             </button>
