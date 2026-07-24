@@ -15,6 +15,7 @@ import { JsonLd } from '@/components/seo/JsonLd';
 import { buildMetadata, orgJsonLd, localBusinessJsonLd, websiteJsonLd } from '@/lib/seo';
 import { getContact } from '@/lib/server/contact';
 import { getSetting } from '@/lib/server/repos/settingsRepo';
+import { hasDb } from '@/lib/server/db/client';
 import { HeroVideo } from '@/components/home/HeroVideo';
 
 export const metadata: Metadata = buildMetadata({
@@ -42,7 +43,11 @@ export default async function HomePage() {
   const subsMap = await getSubsMap();
   // Owner-supplied hero motion graphic (admin setting; empty = price board).
   // The video drops into the exact slot the board occupies — no layout change.
-  const heroVideo = await getSetting<{ url: string }>('SITE_HERO_VIDEO', { url: '' });
+  // hasDb guard: build-time prerender (ISR) runs without DATABASE_URL — an
+  // unguarded getSetting broke `next build` on this exact line.
+  const heroVideo = hasDb()
+    ? await getSetting<{ url: string }>('SITE_HERO_VIDEO', { url: '' })
+    : { url: '' };
 
   // One data pass: all rows per category (live: DB; mock: generator).
   const rowsBySlug = new Map<string, PriceRow[]>();
