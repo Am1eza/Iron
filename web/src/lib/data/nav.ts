@@ -6,10 +6,11 @@ import { routes } from '@/lib/routes';
 
 export type NavLink = { label: string; href: string; event?: string };
 
-/** Primary header nav — deliberately minimal (3 essentials). Everything else
- *  lives in the footer + mobile drawer, so the bar stays calm for non-tech users. */
+/** Primary links for the mobile drawer (the only consumer). «قیمت‌ها» was
+ *  dropped as redundant: the drawer already has a «محصولات» accordion into the
+ *  same catalog, and the mobile bottom tab bar keeps a direct قیمت‌ها entry —
+ *  mirrors the desktop header, where the standalone قیمت‌ها link was removed. */
 export const PRIMARY_NAV: NavLink[] = [
-  { label: 'قیمت‌ها', href: routes.prices() },
   { label: 'مشاور هوشمند', href: routes.ai(), event: 'ai_entry' },
   { label: 'تماس', href: routes.contact() },
 ];

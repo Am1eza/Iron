@@ -98,16 +98,11 @@ export function Header({ categories }: { categories: Category[] }) {
         <Logo compact={condensed} />
 
         <nav className={styles.primary} aria-label={t('mainNav')}>
+          {/* «محصولات» mega-menu is the single entry to the price catalog —
+              a standalone «قیمت‌ها» link next to it was redundant (both go to
+              /prices), so it was removed. /prices stays reachable from the
+              homepage board, the mobile bottom tab bar, breadcrumbs and CTAs. */}
           <ProductsMenu categories={categories} />
-
-          <Link
-            href={routes.prices()}
-            className={styles.navLink}
-            data-active={isActive(routes.prices()) ? '' : undefined}
-            aria-current={isActive(routes.prices()) ? 'page' : undefined}
-          >
-            {tNav('prices')}
-          </Link>
 
           <NavDropdown label={tNav('tools')} active={isActive('/tools') || isActive(routes.market())}>
             <ul className={styles.dropdownList}>
