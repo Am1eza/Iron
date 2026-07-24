@@ -6,7 +6,6 @@
 import { useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api/resources/admin';
-import { categories } from '@/lib/mock/fixtures';
 import { CATEGORY_SUBS } from '@/lib/data/nav';
 import { normalizeDigits, toPersianDigits, formatJalali } from '@/lib/utils/format';
 import { useToast } from '@/lib/hooks/useToast';
@@ -81,6 +80,16 @@ export function PricingGrid() {
   const [pasteText, setPasteText] = useState('');
   const tableRef = useRef<HTMLTableElement>(null);
   const { confirm, dialog } = useConfirm();
+
+  // Live category list (not the mock fixture) — the filter dropdown must show
+  // categories an admin created via the catalog CRUD (US-18.2), not just the
+  // fixed seed set.
+  const { data: catData } = useQuery({
+    queryKey: ['admin', 'categories'],
+    queryFn: adminApi.categories,
+    staleTime: 5 * 60 * 1000,
+  });
+  const categories = catData?.categories.filter((c) => c.isActive).sort((a, b) => a.order - b.order) ?? [];
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['admin', 'pricing', cat, sub],

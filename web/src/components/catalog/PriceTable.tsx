@@ -1,6 +1,7 @@
 'use client';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useCartStore } from '@/lib/stores/cart';
@@ -10,7 +11,7 @@ import { CONSTANTS } from '@/lib/config/constants';
 import { routes } from '@/lib/routes';
 import { formatToman, toPersianDigits, formatJalali } from '@/lib/utils/format';
 import { API_MODE } from '@/lib/api/config';
-import { priceSeries } from '@/lib/mock/catalogData';
+import { api } from '@/lib/api';
 import type { PriceRow } from '@/lib/types/domain';
 import type { SubCat } from '@/lib/data/nav';
 import { MovementBadge, DeliveryBadge, Switch, Chip } from '@/components/ui';
@@ -240,6 +241,16 @@ export function PriceTable({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
   const [chartFor, setChartFor] = useState<PriceRow | null>(null);
+  // Real price history (live: DB-backed; mock: the deterministic generator) —
+  // fetched on demand only while the modal is open, not the mock series
+  // unconditionally (which previously ran even in live mode).
+  const { data: chartHistory } = useQuery({
+    queryKey: ['sku-history', chartFor?.slug],
+    queryFn: () => api.catalog.history(chartFor!.slug, chartFor!.current.price),
+    enabled: chartFor !== null,
+    staleTime: 5 * 60 * 1000,
+  });
+  const chartSeries = (chartHistory?.points ?? []).map((p) => p.price);
   const [compareIds, setCompareIds] = useState<Set<string>>(new Set());
   const [compareOpen, setCompareOpen] = useState(false);
   const toggleCompare = useCallback((id: string) => {
@@ -539,7 +550,11 @@ export function PriceTable({
         }
       >
         {chartFor ? (
-          <PriceChart series={priceSeries(chartFor.slug, chartFor.current.price)} />
+          chartSeries.length >= 2 ? (
+            <PriceChart series={chartSeries} />
+          ) : (
+            <p className={styles.muted}>در حال بارگذاری نمودار…</p>
+          )
         ) : null}
       </Modal>
 

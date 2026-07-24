@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { getCategories } from '@/lib/data/catalog';
+import { getRows } from '@/lib/server/catalog';
 import { Container, Section, Stack, Heading, Text, Breadcrumbs } from '@/components/ui';
 import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
 import { CategoryGrid } from '@/components/market/CategoryGrid';
@@ -22,6 +23,8 @@ const crumbs = [{ label: 'خانه', href: routes.home() }, { label: 'قیمت�
 
 export default async function PriceHubPage() {
   const categories = await getCategories();
+  // Same headline row count the previous mock fixture happened to show.
+  const rebarRows = (await getRows('rebar')).slice(0, 6);
   return (
     <Container>
       <BreadcrumbJsonLd items={crumbs} />
@@ -35,7 +38,7 @@ export default async function PriceHubPage() {
             </Text>
           </div>
           <CategoryGrid categories={categories} />
-          <FeaturedPrices />
+          <FeaturedPrices rows={rebarRows} />
         </Stack>
       </Section>
     </Container>

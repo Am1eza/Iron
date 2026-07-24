@@ -1,16 +1,18 @@
 import Link from 'next/link';
 import { routes } from '@/lib/routes';
-import { rebarRows } from '@/lib/mock/fixtures';
 import { formatToman, formatMovement, toPersianDigits } from '@/lib/utils/format';
 import type { PriceRow } from '@/lib/types/domain';
 import { ChevronStartIcon } from '@/components/primitives/icons';
 import styles from './FeaturedPrices.module.css';
 
 /**
- * Home price preview — a compact «Datasheet» taste so Pros see live prices above the
- * fold. Persian numerals + tabular figures; نوسان is color + arrow coded (gain/loss).
+ * /prices hub price preview — a compact «Datasheet» taste so Pros see live prices
+ * above the fold. Persian numerals + tabular figures; نوسان is color + arrow coded
+ * (gain/loss). `rows` is required (server-fetched, live-aware) — a mock default
+ * here previously meant the sole caller (which passed no prop) always rendered
+ * fake rebar rows, even in production.
  */
-export function FeaturedPrices({ rows = rebarRows }: { rows?: PriceRow[] }) {
+export function FeaturedPrices({ rows }: { rows: PriceRow[] }) {
   return (
     <section className={styles.section} aria-labelledby="featured-title">
       <header className={styles.head}>
@@ -69,7 +71,7 @@ export function FeaturedPrices({ rows = rebarRows }: { rows?: PriceRow[] }) {
                   <td className={styles.muted}>{r.current.deliveryTime}</td>
                   <td className={styles.action}>
                     <Link
-                      href={routes.sku('rebar', 'deformed', r.slug)}
+                      href={routes.sku(r.categoryId, r.subCategoryId, r.slug)}
                       className={styles.detail}
                       aria-label={`جزئیات ${r.name}`}
                     >

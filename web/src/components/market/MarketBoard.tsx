@@ -1,10 +1,12 @@
 'use client';
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { routes } from '@/lib/routes';
 import { formatToman, toPersianDigits } from '@/lib/utils/format';
-import { marketValues } from '@/lib/mock/fixtures';
-import { priceSeries } from '@/lib/mock/catalogData';
+import { marketValues as fallbackValues } from '@/lib/mock/fixtures';
+import { marketApi } from '@/lib/api/resources/market';
+import { useMarket } from '@/lib/hooks/useMarket';
 import type { MarketValue } from '@/lib/types/domain';
 import { MovementBadge } from '@/components/ui';
 import { PriceChart } from '@/components/catalog/PriceChart';
@@ -18,8 +20,9 @@ import styles from './MarketBoard.module.css';
 /**
  * تابلوی بازار — the FX / gold / billet board. Five calm cards (دلار، یورو،
  * طلای ۱۸، انس جهانی، شمش فولاد); selecting one reveals its price history below.
- * Billet (شمش) is admin-entered; the rest are tgju-backed. Deterministic data,
- * tabular numerals, RTL. No new Date() at render — freshness is a static label.
+ * Billet (شمش) is admin-entered; the rest are tgju-backed. Values come from
+ * `useMarket()` (the same live-polled hook the header Ticker uses) — a mock
+ * fallback only covers the brief pre-load flash, not live mode itself.
  */
 
 /** Big value: Toman ones via formatToman; ounce (unit دلار) via Persian digits. */
@@ -48,10 +51,21 @@ function SourceBadge({ source }: { source: MarketValue['source'] }) {
 }
 
 export function MarketBoard() {
+  const { data } = useMarket();
+  const marketValues = data?.values?.length ? data.values : fallbackValues;
+
   const first = marketValues[0];
   const [selectedKey, setSelectedKey] = useState<MarketValue['key']>(first?.key ?? 'usd');
 
   const selected = marketValues.find((v) => v.key === selectedKey) ?? first;
+
+  const { data: history } = useQuery({
+    queryKey: ['market', 'history', selected?.key, selected?.value],
+    queryFn: () => marketApi.history(selected!.key, selected!.value),
+    enabled: Boolean(selected),
+    staleTime: 5 * 60 * 1000,
+  });
+  const series = (history?.points ?? []).map((p) => p.value);
 
   return (
     <div className={styles.board}>
@@ -99,10 +113,11 @@ export function MarketBoard() {
             <SourceBadge source={selected.source} />
           </div>
 
-          <PriceChart
-            series={priceSeries('market:' + selected.key, selected.value)}
-            unit={selected.unit === 'تومان' ? 'تومان' : selected.unit}
-          />
+          {series.length >= 2 ? (
+            <PriceChart series={series} unit={selected.unit === 'تومان' ? 'تومان' : selected.unit} />
+          ) : (
+            <p className={styles.detailHint}>در حال بارگذاری نمودار…</p>
+          )}
         </section>
       ) : null}
 
