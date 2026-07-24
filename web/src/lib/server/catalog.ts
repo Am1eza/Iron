@@ -20,6 +20,19 @@ export async function getCategories(): Promise<Category[]> {
   return repo.listCategories();
 }
 
+/** Active sub-categories grouped by category slug — the live source for
+ *  every public taxonomy surface (mega-menu, drawer, home cascade, category
+ *  chips, breadcrumbs, sitemap). Admin-created sub-categories used to be
+ *  invisible site-wide because these surfaces read the static CATEGORY_SUBS
+ *  fixture; that fixture is now only the mock/dev fallback. */
+export async function getSubsMap(): Promise<Record<string, Array<{ slug: string; name: string }>>> {
+  if (!live()) {
+    const { CATEGORY_SUBS } = await import('@/lib/data/nav');
+    return CATEGORY_SUBS;
+  }
+  return repo.listAllSubCategories();
+}
+
 export async function getRows(categorySlug: string): Promise<PriceRow[]> {
   if (!live()) return mock.getRows(categorySlug);
   return repo.tableRows(categorySlug);

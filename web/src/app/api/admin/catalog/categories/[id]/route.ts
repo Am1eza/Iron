@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
@@ -24,6 +25,9 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }
   const category = await updateCategory(id, v.data);
   if (!category) return NextResponse.json({ error: 'not_found', message: 'دسته یافت نشد.' }, { status: 404 });
   await audit(auth.session.id, 'catalog.category.update', { type: 'category', id }, null, v.data);
+  // Taxonomy edits must show up on the public site immediately (nav,
+  // mega-menu, home cascade, /prices) — not after the 5-minute ISR window.
+  revalidatePath('/', 'layout');
   return NextResponse.json({ category });
 }
 
@@ -37,6 +41,7 @@ async function DELETEImpl(req: NextRequest, ctx: { params: Promise<{ id: string 
   const category = await updateCategory(id, { isActive: false });
   if (!category) return NextResponse.json({ error: 'not_found', message: 'دسته یافت نشد.' }, { status: 404 });
   await audit(auth.session.id, 'catalog.category.deactivate', { type: 'category', id });
+  revalidatePath('/', 'layout');
   return NextResponse.json({ ok: true });
 }
 

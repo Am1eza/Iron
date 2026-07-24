@@ -4,7 +4,7 @@ import { buildMetadata, itemListJsonLd } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { categories as mockCategories } from '@/lib/mock/fixtures';
 import { getCategories, getRows } from '@/lib/server/catalog';
-import { CATEGORY_SUBS } from '@/lib/data/nav';
+import { getSubsMap } from '@/lib/data/catalog';
 import { Container, Section, Stack, Breadcrumbs, EmptyState, emptyPresets } from '@/components/ui';
 import { BreadcrumbJsonLd, JsonLd } from '@/components/seo/JsonLd';
 import { PriceTable } from '@/components/catalog/PriceTable';
@@ -41,7 +41,7 @@ export default async function CategoryPage({ params }: Params) {
   if (!cat) notFound();
 
   const rows = await getRows(category);
-  const subs = CATEGORY_SUBS[category] ?? [];
+  const subs = (await getSubsMap())[category] ?? [];
 
   const crumbs = [
     { label: 'خانه', href: routes.home() },
@@ -79,7 +79,7 @@ export default async function CategoryPage({ params }: Params) {
           {rows.length > 0 ? (
             <>
               <PriceTable rows={rows} subs={subs} categoryName={cat.name} />
-              <BulkQuote category={category} categoryName={cat.name} rows={rows} />
+              <BulkQuote category={category} categoryName={cat.name} rows={rows} subs={subs} />
             </>
           ) : (
             <EmptyState size="section" {...emptyPresets.emptyCategory()} />

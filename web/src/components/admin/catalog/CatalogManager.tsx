@@ -567,7 +567,8 @@ function CategoryManager() {
 
   /** Reorder = swap the `order` field with the neighbor — two direct PATCH
    *  calls (not routed through useMutation, so a single reorder produces one
-   *  toast/one invalidate instead of two). */
+   *  toast/one invalidate instead of two). Kept alongside drag & drop as the
+   *  keyboard-accessible path. */
   async function swapOrder(kind: 'category' | 'subCategory', a: { id: string; order: number }, b: { id: string; order: number }) {
     setReordering(true);
     try {
@@ -581,6 +582,45 @@ function CategoryManager() {
         ]);
         invalidateSubs();
       }
+    } catch (err) {
+      onError(err);
+    } finally {
+      setReordering(false);
+    }
+  }
+
+  /** Drag & drop reorder — drop the row anywhere in the list; the whole list
+   *  is re-numbered 1..n and only rows whose `order` actually changed are
+   *  PATCHed (moving 1 item 5 places = a handful of parallel PATCHes, not 10
+   *  sequential swaps like repeated up/down clicks). */
+  const [dragId, setDragId] = useState<string | null>(null);
+  async function dropReorder(
+    kind: 'category' | 'subCategory',
+    list: Array<{ id: string; order: number }>,
+    toIndex: number,
+  ) {
+    const fromIdx = dragId ? list.findIndex((x) => x.id === dragId) : -1;
+    setDragId(null);
+    if (fromIdx < 0 || fromIdx === toIndex) return;
+    const next = [...list];
+    const [moved] = next.splice(fromIdx, 1);
+    next.splice(toIndex, 0, moved!);
+    const changes = next
+      .map((x, i) => ({ id: x.id, from: x.order, to: i + 1 }))
+      .filter((x) => x.from !== x.to);
+    if (changes.length === 0) return;
+    setReordering(true);
+    try {
+      await Promise.all(
+        changes.map((ch) =>
+          kind === 'category'
+            ? adminApi.updateCategory(ch.id, { order: ch.to })
+            : adminApi.updateSubCategory(ch.id, { order: ch.to }),
+        ),
+      );
+      if (kind === 'category') invalidateCats();
+      else invalidateSubs();
+      toast.success('ترتیب ذخیره شد.');
     } catch (err) {
       onError(err);
     } finally {
@@ -657,7 +697,16 @@ function CategoryManager() {
             </thead>
             <tbody>
               {categoriesSorted.map((c, i) => (
-                <tr key={c.id} className={c.id === selectedCatId ? ui.rowDirty : undefined}>
+                <tr
+                  key={c.id}
+                  className={c.id === selectedCatId ? ui.rowDirty : undefined}
+                  draggable={!reordering}
+                  onDragStart={() => setDragId(c.id)}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={() => void dropReorder('category', categoriesSorted, i)}
+                  style={{ cursor: 'grab', opacity: dragId === c.id ? 0.5 : undefined }}
+                  title="برای جابه‌جایی بکشید و رها کنید"
+                >
                   <td>
                     <span style={{ display: 'inline-flex', gap: 2 }}>
                       <IconButton
@@ -759,7 +808,15 @@ function CategoryManager() {
               </thead>
               <tbody>
                 {subsSorted.map((s, i) => (
-                  <tr key={s.id}>
+                  <tr
+                    key={s.id}
+                    draggable={!reordering}
+                    onDragStart={() => setDragId(s.id)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => void dropReorder('subCategory', subsSorted, i)}
+                    style={{ cursor: 'grab', opacity: dragId === s.id ? 0.5 : undefined }}
+                    title="برای جابه‌جایی بکشید و رها کنید"
+                  >
                     <td>
                       <span style={{ display: 'inline-flex', gap: 2 }}>
                         <IconButton

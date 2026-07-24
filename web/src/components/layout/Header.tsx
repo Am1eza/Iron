@@ -6,6 +6,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import { routes } from '@/lib/routes';
 import { TOOLS_NAV, SERVICES_NAV, COMPANY_NAV, SUPPORT_NAV } from '@/lib/data/nav';
 import type { Category } from '@/lib/types/domain';
+import type { SubsMap } from '@/lib/data/catalog';
 import { useUiStore } from '@/lib/stores/ui';
 import { useAuthStore } from '@/lib/stores/auth';
 import { useCartStore, selectCartCount } from '@/lib/stores/cart';
@@ -25,7 +26,7 @@ import styles from './Header.module.css';
  * «محصولات» mega-menu + «ابزارها/خدمات/شرکت» dropdowns; below 1024px it collapses
  * to the hamburger drawer (which mirrors the same destinations).
  */
-export function Header({ categories }: { categories: Category[] }) {
+export function Header({ categories, subs }: { categories: Category[]; subs: SubsMap }) {
   const pathname = usePathname();
   const t = useTranslations('header');
   const tNav = useTranslations('nav');
@@ -102,7 +103,7 @@ export function Header({ categories }: { categories: Category[] }) {
               a standalone «قیمت‌ها» link next to it was redundant (both go to
               /prices), so it was removed. /prices stays reachable from the
               homepage board, the mobile bottom tab bar, breadcrumbs and CTAs. */}
-          <ProductsMenu categories={categories} />
+          <ProductsMenu categories={categories} subs={subs} />
 
           <NavDropdown label={tNav('tools')} active={isActive('/tools') || isActive(routes.market())}>
             <ul className={styles.dropdownList}>

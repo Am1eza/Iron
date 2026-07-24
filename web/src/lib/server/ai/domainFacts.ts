@@ -6,7 +6,7 @@
  * Redis (categories change rarely); falls back to '' if the DB/Redis are down.
  */
 import { listCategories } from '@/lib/server/repos/catalogRepo';
-import { CATEGORY_SUBS } from '@/lib/data/nav';
+import { getSubsMap } from '@/lib/server/catalog';
 import { cacheGetJson, cacheSetJson } from '@/lib/server/redis';
 
 const CACHE_KEY = 'ai:domain-facts';
@@ -19,8 +19,9 @@ export async function getDomainFacts(): Promise<string> {
   let facts = '';
   try {
     const cats = (await listCategories()).filter((c) => c.isActive);
+    const subsMap = await getSubsMap();
     const parts = cats.map((c) => {
-      const subs = (CATEGORY_SUBS[c.slug] ?? []).map((s) => s.name);
+      const subs = (subsMap[c.slug] ?? []).map((s) => s.name);
       return subs.length ? `${c.name} (${subs.join('، ')})` : c.name;
     });
     if (parts.length > 0) {

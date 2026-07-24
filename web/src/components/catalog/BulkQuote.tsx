@@ -9,7 +9,7 @@ import { routes } from '@/lib/routes';
 import { formatToman, toPersianDigits } from '@/lib/utils/format';
 import { getRows } from '@/lib/mock/catalogData';
 import { computeBulkSplit } from '@/lib/utils/bulkSplit';
-import { CATEGORY_SUBS } from '@/lib/data/nav';
+import { CATEGORY_SUBS, type SubCat } from '@/lib/data/nav';
 import { CITIES, ORIGIN_LABEL, cityDistance, estimateLogistics } from '@/lib/data/logistics';
 import { useProfileStore } from '@/lib/stores/profile';
 import { CONSTANTS } from '@/lib/config/constants';
@@ -33,11 +33,14 @@ export function BulkQuote({
   category,
   categoryName,
   rows: rowsProp,
+  subs: subsProp,
   defaultTonnage = 20,
 }: {
   category: string;
   categoryName: string;
   rows?: PriceRow[];
+  /** Live sub-categories (server-provided) — fixture fallback is mock/dev only. */
+  subs?: SubCat[];
   defaultTonnage?: number;
 }) {
   const router = useRouter();
@@ -53,7 +56,8 @@ export function BulkQuote({
   const city = warehouseCity ?? 'تهران';
 
   const allRows = useMemo(() => rowsProp ?? getRows(category), [rowsProp, category]);
-  const subs = CATEGORY_SUBS[category] ?? [];
+  // Live subs come from the server page; the fixture is the mock/dev fallback.
+  const subs = subsProp ?? CATEGORY_SUBS[category] ?? [];
 
   // Size-aware comparison: same sub-family AND same size across mills — an
   // apples-to-apples benchmark instead of category averages.

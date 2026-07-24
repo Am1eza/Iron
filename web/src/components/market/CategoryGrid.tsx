@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { routes } from '@/lib/routes';
-import { CATEGORY_SUBS } from '@/lib/data/nav';
+import type { SubsMap } from '@/lib/data/catalog';
 import type { Category } from '@/lib/types/domain';
 import { CategoryGlyph, ChevronStartIcon } from '@/components/primitives/icons';
 import { ProductImage } from '@/components/catalog/ProductImage';
@@ -8,7 +8,7 @@ import { productImage } from '@/lib/data/productImages';
 import styles from './CategoryGrid.module.css';
 
 /** Home «structured door» — the 7 categories as cards (mirrors the rail/mega-menu). */
-export function CategoryGrid({ categories }: { categories: Category[] }) {
+export function CategoryGrid({ categories, subs }: { categories: Category[]; subs: SubsMap }) {
   return (
     <section className={styles.section} aria-labelledby="cat-grid-title">
       <header className={styles.head}>
@@ -46,7 +46,7 @@ export function CategoryGrid({ categories }: { categories: Category[] }) {
               </span>
               <span className={styles.name}>{cat.name}</span>
               <span className={styles.subs}>
-                {(CATEGORY_SUBS[cat.slug] ?? [])
+                {(subs[cat.slug] ?? [])
                   .slice(0, 3)
                   .map((s) => s.name)
                   .join(' · ')}

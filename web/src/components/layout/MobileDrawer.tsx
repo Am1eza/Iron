@@ -9,10 +9,10 @@ import {
   SERVICES_NAV,
   COMPANY_NAV,
   SUPPORT_NAV,
-  CATEGORY_SUBS,
   CHANNELS,
 } from '@/lib/data/nav';
 import type { Category } from '@/lib/types/domain';
+import type { SubsMap } from '@/lib/data/catalog';
 import { useUiStore } from '@/lib/stores/ui';
 import { useAuthStore } from '@/lib/stores/auth';
 import { CloseIcon, ChevronDownIcon, UserIcon } from '@/components/primitives/icons';
@@ -23,7 +23,7 @@ import styles from './MobileDrawer.module.css';
  * header + footer; «محصولات» is an accordion of categories → sub-categories.
  * `role="dialog"`, focus-trapped, Esc/overlay closes, focus returns to the toggle.
  */
-export function MobileDrawer({ categories }: { categories: Category[] }) {
+export function MobileDrawer({ categories, subs }: { categories: Category[]; subs: SubsMap }) {
   const open = useUiStore((s) => s.drawerOpen);
   const setOpen = useUiStore((s) => s.setDrawerOpen);
   const pathname = usePathname();
@@ -125,7 +125,7 @@ export function MobileDrawer({ categories }: { categories: Category[] }) {
                       {cat.name}
                     </Link>
                     <ul className={styles.subList}>
-                      {(CATEGORY_SUBS[cat.slug] ?? []).map((sub) => (
+                      {(subs[cat.slug] ?? []).map((sub) => (
                         <li key={sub.slug}>
                           <Link
                             href={routes.subCategory(cat.slug, sub.slug)}

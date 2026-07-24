@@ -3,7 +3,7 @@ import './globals.css';
 import { AppProviders } from '@/lib/providers/AppProviders';
 import { AuthHydrator } from '@/lib/providers/AuthHydrator';
 import { ThemeScript } from '@/components/theme/ThemeScript';
-import { getCategories } from '@/lib/data/catalog';
+import { getCategories, getSubsMap } from '@/lib/data/catalog';
 import { SiteChromeTop, SiteChromeBottom } from '@/components/layout/SiteChrome';
 import { getContact } from '@/lib/server/contact';
 import { RouteAnnouncer } from '@/components/a11y/RouteAnnouncer';
@@ -70,6 +70,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // enough since 100% of auth-driven UI already lives behind Zustand's
   // `useAuthStore`, not server-rendered markup.
   const categories = await getCategories();
+  const subs = await getSubsMap();
   const contact = await getContact();
   return (
     <html
@@ -87,7 +88,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <LocaleProvider defaultMessages={faMessages}>
           <AppProviders>
             <AuthHydrator />
-            <SiteChromeTop categories={categories} />
+            <SiteChromeTop categories={categories} subs={subs} />
             <main id="main" tabIndex={-1}>
               {children}
             </main>

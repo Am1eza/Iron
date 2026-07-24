@@ -1,7 +1,7 @@
 import type { MetadataRoute } from 'next';
 import { STATIC_INDEXABLE, routes } from '@/lib/routes';
 import { getCategories, getRows, getArticlesByType } from '@/lib/server/catalog';
-import { CATEGORY_SUBS } from '@/lib/data/nav';
+import { getSubsMap } from '@/lib/server/catalog';
 import { TRACK_ORDER } from '@/components/cooperation/tracks';
 
 // Required for `output: export` (static-only).
@@ -32,6 +32,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // content. One getRows() call per category (not per sub-category) — rows are
   // then grouped locally by subCategoryId to avoid N sequential DB round-trips.
   const categoryRows = await Promise.all(categories.map((c) => getRows(c.slug)));
+  const subsMap = await getSubsMap();
 
   // Real freshness for category/sub-category pages: the newest price update
   // among their SKUs, not build time (which misrepresented hourly-changing
@@ -57,7 +58,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   categories.forEach((cat, i) => {
     const rows = categoryRows[i] ?? [];
     const catLatest = latestUpdate(rows);
-    for (const sub of CATEGORY_SUBS[cat.slug] ?? []) {
+    for (const sub of subsMap[cat.slug] ?? []) {
       subCategoryEntries.push({
         url: new URL(routes.subCategory(cat.slug, sub.slug), SITE_URL).toString(),
         lastModified: catLatest,

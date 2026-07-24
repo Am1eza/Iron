@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
-import { getCategories } from '@/lib/data/catalog';
+import { getCategories, getSubsMap } from '@/lib/data/catalog';
 import { getRows } from '@/lib/server/catalog';
 import { Container, Section, Stack, Heading, Text, Breadcrumbs } from '@/components/ui';
 import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
@@ -23,6 +23,7 @@ const crumbs = [{ label: 'خانه', href: routes.home() }, { label: 'قیمت�
 
 export default async function PriceHubPage() {
   const categories = await getCategories();
+  const subs = await getSubsMap();
   // Same headline row count the previous mock fixture happened to show.
   const rebarRows = (await getRows('rebar')).slice(0, 6);
   return (
@@ -37,7 +38,7 @@ export default async function PriceHubPage() {
               دستهٔ موردنظرت را انتخاب کن تا جدول قیمت لحظه‌ای، نوسان و زمان تحویل را ببینی.
             </Text>
           </div>
-          <CategoryGrid categories={categories} />
+          <CategoryGrid categories={categories} subs={subs} />
           <FeaturedPrices rows={rebarRows} />
         </Stack>
       </Section>

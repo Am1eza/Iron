@@ -12,6 +12,7 @@ import { CallbackWidget } from '@/components/support/CallbackWidget';
 // bundle every visitor downloads (see components/lazy.ts).
 import { MobileDrawer, ArrivalPopup } from '@/components/lazy';
 import type { Category } from '@/lib/types/domain';
+import type { SubsMap } from '@/lib/data/catalog';
 
 /**
  * The public storefront chrome — hidden on `/admin/*`, which has its own
@@ -21,14 +22,14 @@ import type { Category } from '@/lib/types/domain';
  * top/bottom halves so the root layout's single `<main>` stays between them
  * in DOM order.
  */
-export function SiteChromeTop({ categories }: { categories: Category[] }) {
+export function SiteChromeTop({ categories, subs }: { categories: Category[]; subs: SubsMap }) {
   const pathname = usePathname();
   if (pathname?.startsWith('/admin')) return null;
   return (
     <>
       <Ticker />
-      <Header categories={categories} />
-      <MobileDrawer categories={categories} />
+      <Header categories={categories} subs={subs} />
+      <MobileDrawer categories={categories} subs={subs} />
     </>
   );
 }

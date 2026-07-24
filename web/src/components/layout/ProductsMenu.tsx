@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { routes } from '@/lib/routes';
-import { CATEGORY_SUBS } from '@/lib/data/nav';
+import type { SubsMap } from '@/lib/data/catalog';
 import type { Category } from '@/lib/types/domain';
 import { ProductImage } from '@/components/catalog/ProductImage';
 import { CategoryArt } from '@/components/catalog/CategoryArt';
@@ -14,7 +14,7 @@ import styles from './Header.module.css';
  * its sub-groups listed beneath. Reuses the NavDropdown shell. Each category and
  * sub-group is a direct link to its price table.
  */
-export function ProductsMenu({ categories }: { categories: Category[] }) {
+export function ProductsMenu({ categories, subs }: { categories: Category[]; subs: SubsMap }) {
   return (
     <NavDropdown label="محصولات" mega>
       <div className={styles.megaGrid}>
@@ -31,7 +31,7 @@ export function ProductsMenu({ categories }: { categories: Category[] }) {
               {cat.name}
             </Link>
             <ul className={styles.megaSubs}>
-              {(CATEGORY_SUBS[cat.slug] ?? []).map((s) => (
+              {(subs[cat.slug] ?? []).map((s) => (
                 <li key={s.slug}>
                   <Link
                     href={routes.subCategory(cat.slug, s.slug)}

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
-import { getCategories } from '@/lib/data/catalog';
+import { getCategories, getSubsMap } from '@/lib/data/catalog';
 import { getRows } from '@/lib/server/catalog';
-import { CATEGORY_SUBS } from '@/lib/data/nav';
+
 import { routes } from '@/lib/routes';
 import type { PriceRow } from '@/lib/types/domain';
 import { HeroSearch } from '@/components/home/HeroSearch';
@@ -31,6 +31,7 @@ export const metadata: Metadata = buildMetadata({
 export default async function HomePage() {
   const contact = await getContact();
   const categories = await getCategories();
+  const subsMap = await getSubsMap();
 
   // One data pass: all rows per category (live: DB; mock: generator).
   const rowsBySlug = new Map<string, PriceRow[]>();
@@ -48,7 +49,7 @@ export default async function HomePage() {
   for (const cat of categories) {
     const rows = rowsBySlug.get(cat.slug) ?? [];
     factories[cat.slug] = {};
-    for (const s of CATEGORY_SUBS[cat.slug] ?? []) {
+    for (const s of subsMap[cat.slug] ?? []) {
       const subMills = millsOf(rows.filter((r) => r.subCategoryId === s.slug));
       factories[cat.slug]![s.slug] = subMills.length >= 2 ? subMills : millsOf(rows);
     }
@@ -80,7 +81,7 @@ export default async function HomePage() {
     <>
       <JsonLd data={[orgJsonLd(contact), localBusinessJsonLd(contact), websiteJsonLd()]} />
       <HeroSearch board={<PriceBoard rows={boardRows} />} />
-      <CategoryStage categories={categories} factories={factories} />
+      <CategoryStage categories={categories} subs={subsMap} factories={factories} />
       <CompareTeaser slides={compareSlides} />
       <ValueProps />
       <Partners />

@@ -78,6 +78,21 @@ export async function findCategoryBySlug(slug: string): Promise<Category | null>
   return { id: c.id, slug: c.slug, name: c.name, order: c.order, iconId: c.iconId, imageUrl: c.imageUrl ?? undefined, isActive: c.isActive };
 }
 
+/** Every ACTIVE sub-category of every ACTIVE category in ONE query, grouped
+ *  by category slug — feeds the public nav/mega-menu/home cascade so an
+ *  admin-created sub-category appears site-wide without a code change. */
+export async function listAllSubCategories(): Promise<Record<string, Array<{ slug: string; name: string }>>> {
+  const rows = await getDb()
+    .select({ catSlug: categories.slug, slug: subCategories.slug, name: subCategories.name })
+    .from(subCategories)
+    .innerJoin(categories, eq(subCategories.categoryId, categories.id))
+    .where(and(eq(categories.isActive, true), eq(subCategories.isActive, true)))
+    .orderBy(asc(subCategories.order));
+  const out: Record<string, Array<{ slug: string; name: string }>> = {};
+  for (const r of rows) (out[r.catSlug] ??= []).push({ slug: r.slug, name: r.name });
+  return out;
+}
+
 export async function listSubCategories(categorySlug: string): Promise<SubCategory[]> {
   const rows = await getDb()
     .select({ sub: subCategories })

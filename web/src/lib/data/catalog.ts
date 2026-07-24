@@ -5,10 +5,10 @@
  */
 import { cache } from 'react';
 import type { Category } from '@/lib/types/domain';
-import { getCategories as serverCategories } from '@/lib/server/catalog';
+import { getCategories as serverCategories, getSubsMap as serverSubsMap } from '@/lib/server/catalog';
 
 /**
- * The 7 product categories in taxonomy order, active only. Wrapped in React's
+ * The product categories in taxonomy order, active only. Wrapped in React's
  * `cache()` so the root layout (nav/footer chrome) and a page rendered inside it
  * (e.g. home, /prices) share one DB read per request instead of two.
  */
@@ -19,5 +19,17 @@ export const getCategories = cache(async (): Promise<Category[]> => {
   } catch {
     // Chrome must never hard-fail; an empty rail degrades gracefully.
     return [];
+  }
+});
+
+export type SubsMap = Record<string, Array<{ slug: string; name: string }>>;
+
+/** Active sub-categories per category slug (live DB; fixture only in mock/dev).
+ *  Same request-level cache() sharing as getCategories. */
+export const getSubsMap = cache(async (): Promise<SubsMap> => {
+  try {
+    return await serverSubsMap();
+  } catch {
+    return {};
   }
 });

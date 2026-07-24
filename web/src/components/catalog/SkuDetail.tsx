@@ -7,8 +7,9 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import { CONSTANTS } from '@/lib/config/constants';
 import { routes } from '@/lib/routes';
 import { formatToman, toPersianDigits, formatJalali } from '@/lib/utils/format';
-import { priceSeries as mockSeries, relatedRows as mockRelated, subName } from '@/lib/mock/catalogData';
+import { priceSeries as mockSeries, relatedRows as mockRelated, subName as mockSubName } from '@/lib/mock/catalogData';
 import { categories } from '@/lib/mock/fixtures';
+import type { SubCat } from '@/lib/data/nav';
 import type { PriceRow } from '@/lib/types/domain';
 import {
   Breadcrumbs,
@@ -45,6 +46,8 @@ export function SkuDetail({
   series: seriesProp,
   categoryRows,
   billet,
+  subLabel: subLabelProp,
+  categorySubs,
 }: {
   row: PriceRow;
   /** Server-provided (live mode); mock fallbacks apply when absent. */
@@ -53,6 +56,11 @@ export function SkuDetail({
   categoryRows?: PriceRow[];
   /** بورس billet reference (US-03.3) — null when OP hasn't entered one yet. */
   billet?: { value: number; updatedAt: string } | null;
+  /** Live sub-category display name (server-resolved) — the mock fixture is
+   *  only the mock/dev fallback so admin-created subs label correctly. */
+  subLabel?: string;
+  /** Live sub-category list for the category (forwarded to BulkQuote). */
+  categorySubs?: SubCat[];
 }) {
   const add = useCartStore((s) => s.add);
   const toast = useToast();
@@ -62,7 +70,7 @@ export function SkuDetail({
 
   const cat = categories.find((c) => c.slug === row.categoryId);
   const categoryName = cat?.name ?? row.categoryId;
-  const subLabel = subName(row.categoryId, row.subCategoryId);
+  const subLabel = subLabelProp ?? mockSubName(row.categoryId, row.subCategoryId);
   const skuUrl = routes.sku(row.categoryId, row.subCategoryId, row.slug);
 
   const price = vat
@@ -295,7 +303,7 @@ export function SkuDetail({
       </section>
 
       {/* ===== Bulk / per-factory split ===== */}
-      <BulkQuote category={row.categoryId} categoryName={categoryName} rows={categoryRows} />
+      <BulkQuote category={row.categoryId} categoryName={categoryName} rows={categoryRows} subs={categorySubs} />
 
       {/* ===== Related ===== */}
       {related.length > 0 ? (

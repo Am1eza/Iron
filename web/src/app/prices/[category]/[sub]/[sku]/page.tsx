@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { buildMetadata, productJsonLd } from '@/lib/seo';
 import { routes } from '@/lib/routes';
-import { subName, allRows } from '@/lib/mock/catalogData';
-import { findSku, relatedRows, priceSeries, getRows, getCategories, getBilletReference } from '@/lib/server/catalog';
+import { allRows } from '@/lib/mock/catalogData';
+import { findSku, relatedRows, priceSeries, getRows, getCategories, getBilletReference, getSubsMap } from '@/lib/server/catalog';
 import { formatToman } from '@/lib/utils/format';
 import { productImage } from '@/lib/data/productImages';
 import { JsonLd, BreadcrumbJsonLd } from '@/components/seo/JsonLd';
@@ -46,7 +46,8 @@ export default async function SkuPage({ params }: Params) {
   ]);
 
   const catName = categories.find((c) => c.slug === category)?.name ?? category;
-  const subLabel = subName(category, sub) ?? sub;
+  const categorySubs = (await getSubsMap())[category] ?? [];
+  const subLabel = categorySubs.find((x) => x.slug === sub)?.name ?? sub;
   const crumbs = [
     { label: 'خانه', href: routes.home() },
     { label: 'قیمت‌ها', href: routes.prices() },
@@ -70,7 +71,7 @@ export default async function SkuPage({ params }: Params) {
         })}
       />
       <Section space={10}>
-        <SkuDetail row={row} related={related} series={series} categoryRows={categoryRows} billet={billet} />
+        <SkuDetail row={row} related={related} series={series} categoryRows={categoryRows} billet={billet} subLabel={subLabel} categorySubs={categorySubs} />
       </Section>
     </Container>
   );

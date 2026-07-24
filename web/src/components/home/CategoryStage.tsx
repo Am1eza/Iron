@@ -2,7 +2,7 @@
 import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { routes } from '@/lib/routes';
-import { CATEGORY_SUBS } from '@/lib/data/nav';
+import type { SubsMap } from '@/lib/data/catalog';
 import type { Category } from '@/lib/types/domain';
 import { CategoryArt } from '@/components/catalog/CategoryArt';
 import { ProductImage } from '@/components/catalog/ProductImage';
@@ -19,22 +19,25 @@ import styles from './CategoryStage.module.css';
  */
 type FactoryMap = Record<string, Record<string, string[]>>;
 
-const firstSub = (slug: string): string => CATEGORY_SUBS[slug]?.[0]?.slug ?? '';
+
 
 export function CategoryStage({
   categories,
+  subs: subsMap,
   factories,
 }: {
   categories: Category[];
+  subs: SubsMap;
   factories: FactoryMap;
 }) {
+  const firstSub = (slug: string): string => subsMap[slug]?.[0]?.slug ?? '';
   const [activeCat, setActiveCat] = useState<Category | null>(categories[0] ?? null);
   const [activeSub, setActiveSub] = useState<string>(firstSub(categories[0]?.slug ?? ''));
   const activeRailLinkRef = useRef<HTMLAnchorElement | null>(null);
   const firstFlyoutLinkRef = useRef<HTMLAnchorElement | null>(null);
   if (!activeCat) return null;
 
-  const subs = CATEGORY_SUBS[activeCat.slug] ?? [];
+  const subs = subsMap[activeCat.slug] ?? [];
   const mills = factories[activeCat.slug]?.[activeSub] ?? [];
   const activeSubName = subs.find((s) => s.slug === activeSub)?.name ?? '';
 
@@ -75,7 +78,7 @@ export function CategoryStage({
         <nav className={styles.rail} aria-label="دسته‌بندی محصولات">
           <ul className={styles.railList}>
             {categories.map((cat) => {
-              const catSubs = CATEGORY_SUBS[cat.slug] ?? [];
+              const catSubs = subsMap[cat.slug] ?? [];
               return (
                 <li key={cat.id} className={styles.railLi}>
                   <Link

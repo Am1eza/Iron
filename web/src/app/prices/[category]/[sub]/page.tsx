@@ -3,9 +3,9 @@ import { notFound } from 'next/navigation';
 import { buildMetadata, itemListJsonLd } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { categories as mockCategories } from '@/lib/mock/fixtures';
-import { subName } from '@/lib/mock/catalogData';
 import { getCategories, getRows, getSubRows } from '@/lib/server/catalog';
 import { CATEGORY_SUBS } from '@/lib/data/nav';
+import { getSubsMap } from '@/lib/data/catalog';
 import { Container, Section, Stack, Breadcrumbs, EmptyState, emptyPresets } from '@/components/ui';
 import { BreadcrumbJsonLd, JsonLd } from '@/components/seo/JsonLd';
 import { PriceTable } from '@/components/catalog/PriceTable';
@@ -30,7 +30,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { category, sub } = await params;
   const categories = await getCategories();
   const cat = categories.find((c) => c.slug === category);
-  const name = subName(category, sub);
+  const name = ((await getSubsMap())[category] ?? []).find((x) => x.slug === sub)?.name;
   if (!cat || !name) {
     return buildMetadata({ title: 'صفحه پیدا نشد', noindex: true });
   }
@@ -48,8 +48,8 @@ export default async function SubCategoryPage({ params }: Params) {
   const cat = categories.find((c) => c.slug === category);
   if (!cat) notFound();
 
-  const subs = CATEGORY_SUBS[category] ?? [];
-  const name = subName(category, sub);
+  const subs = (await getSubsMap())[category] ?? [];
+  const name = subs.find((x) => x.slug === sub)?.name;
   if (!name) notFound();
 
   const [rows, allRows] = await Promise.all([getSubRows(category, sub), getRows(category)]);
@@ -91,7 +91,7 @@ export default async function SubCategoryPage({ params }: Params) {
           {rows.length > 0 ? (
             <>
               <PriceTable rows={allRows} subs={subs} categoryName={cat.name} initialSub={sub} />
-              <BulkQuote category={category} categoryName={cat.name} rows={allRows} />
+              <BulkQuote category={category} categoryName={cat.name} rows={allRows} subs={subs} />
             </>
           ) : (
             <EmptyState size="section" {...emptyPresets.emptyCategory()} />
