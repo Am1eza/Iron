@@ -99,6 +99,14 @@ export function VerificationCard({
               <Badge tone="stale">در حال بررسی</Badge> اطلاعات شما ثبت شده و کارشناس آن را بررسی می‌کند.
             </p>
           ) : (
+            /* Progressive disclosure: the multi-field form only opens when the
+               user actually decides to upgrade — it used to sit fully expanded
+               and dominate the profile page. Rejected → open by default so the
+               fix-and-resubmit path is one step, not two. */
+            <details className={styles.formDisclosure} open={nextStatus === 'rejected'}>
+            <summary className={styles.formSummary}>
+              تکمیل اطلاعات سطح {toPersianDigits(nextLevel)}
+            </summary>
             <form
               className={styles.form}
               onSubmit={(e) => {
@@ -150,6 +158,7 @@ export function VerificationCard({
                 ثبت برای بررسی
               </Button>
             </form>
+            </details>
           )}
         </div>
       ) : (

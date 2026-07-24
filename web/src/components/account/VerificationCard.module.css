@@ -78,6 +78,20 @@
   color: var(--color-accent);
 }
 
+.formDisclosure {
+  margin: 0;
+}
+.formSummary {
+  cursor: pointer;
+  font: var(--t-label);
+  color: var(--color-accent-text);
+  padding-block: var(--space-1);
+  list-style-position: inside;
+}
+.formSummary:hover {
+  text-decoration: underline;
+}
+
 .form {
   display: flex;
   flex-direction: column;

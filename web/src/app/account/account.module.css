@@ -6,7 +6,79 @@
   flex-wrap: wrap;
 }
 
-/* horizontally-scrollable pill nav (no wrap-jank on mobile) */
+/* ==================== layout: sidebar (desktop) / pills (mobile) ==================== */
+.layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-6);
+  align-items: start;
+}
+.sidebar {
+  display: none;
+}
+.content {
+  min-inline-size: 0;
+}
+
+@media (min-width: 1024px) {
+  .layout {
+    grid-template-columns: 232px minmax(0, 1fr);
+  }
+  .sidebar {
+    display: block;
+    position: sticky;
+    top: var(--space-6);
+  }
+  /* pills are the mobile nav only */
+  .nav {
+    display: none;
+  }
+}
+
+/* ==================== vertical sidebar nav ==================== */
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2);
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+.sideItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-block-size: 42px;
+  padding-inline: var(--space-3);
+  border-radius: var(--radius-sm);
+  font: var(--t-label);
+  color: var(--color-text);
+  text-decoration: none;
+  border-inline-start: 3px solid transparent;
+  transition:
+    background var(--dur-fast) var(--ease-standard),
+    color var(--dur-fast) var(--ease-standard);
+}
+.sideItem:hover {
+  background: var(--color-surface-sunken);
+  text-decoration: none;
+}
+.sideItem svg {
+  flex: none;
+  color: var(--color-text-muted);
+}
+.sideItemActive {
+  background: var(--color-accent-tint);
+  color: var(--color-accent-text);
+  border-inline-start-color: var(--color-accent);
+  font-weight: 700;
+}
+.sideItemActive svg {
+  color: var(--color-accent-text);
+}
+
+/* ==================== horizontally-scrollable pill nav (mobile) ==================== */
 .nav {
   display: flex;
   gap: var(--space-2);
@@ -22,6 +94,7 @@
 .tab {
   display: inline-flex;
   align-items: center;
+  gap: var(--space-2);
   min-block-size: 40px;
   padding-inline: var(--space-4);
   border-radius: var(--radius-pill);
@@ -35,6 +108,9 @@
     background var(--dur-fast) var(--ease-standard),
     color var(--dur-fast) var(--ease-standard);
 }
+.tab svg {
+  flex: none;
+}
 .tab:hover {
   background: var(--color-accent-tint);
   text-decoration: none;
@@ -44,4 +120,13 @@
   color: var(--color-accent-text);
   border-color: var(--color-accent);
   font-weight: 600;
+}
+
+/* ==================== tab chrome ==================== */
+.tabTitle {
+  margin: 0;
+}
+.logoutRow {
+  display: flex;
+  justify-content: flex-start;
 }

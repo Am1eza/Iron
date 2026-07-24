@@ -1,5 +1,3 @@
-import Link from 'next/link';
-import type { ReactNode } from 'react';
 import { routes } from '@/lib/routes';
 import {
   Container,
@@ -20,8 +18,8 @@ import {
   CheckCircleIcon,
   StarIcon,
   PhoneIcon,
-  ArrowEndIcon,
 } from '@/components/primitives/icons';
+import { ClubCtas } from './ClubCtas';
 import styles from './ClubLanding.module.css';
 
 /** Tiers come from the shared metadata (src/lib/data/club.ts) so the landing,
@@ -76,15 +74,11 @@ export function ClubLanding() {
                 همیشگی ما: «اول مشورت، بعد خرید».
               </Text>
             </Stack>
-            <div className={styles.heroCtas}>
-              <Link href={routes.login(routes.club())} className={`${styles.btn} ${styles.btnPrimary}`}>
-                ثبت‌نام / ورود
-                <ArrowEndIcon size={18} aria-hidden="true" />
-              </Link>
-              <Link href={routes.account('club')} className={`${styles.btn} ${styles.btnGhost}`}>
-                حساب من
-              </Link>
-            </div>
+            <ClubCtas
+              wrapClass={styles.heroCtas ?? ''}
+              primaryClass={`${styles.btn} ${styles.btnPrimary}`}
+              ghostClass={`${styles.btn} ${styles.btnGhost}`}
+            />
             <p className={styles.heroHint}>
               <StarIcon size={15} filled aria-hidden="true" />
               عضویت رایگان است و با اولین ثبت‌نام فعال می‌شود.
@@ -173,18 +167,11 @@ export function ClubLanding() {
               <Text color="muted" align="center" className={styles.closingLead}>
                 با یک شماره موبایل عضو می‌شوید و از همان اولین استعلام، باشگاه کنار شماست.
               </Text>
-              <div className={styles.heroCtas}>
-                <Link
-                  href={routes.login(routes.club())}
-                  className={`${styles.btn} ${styles.btnPrimary}`}
-                >
-                  ثبت‌نام / ورود
-                  <ArrowEndIcon size={18} aria-hidden="true" />
-                </Link>
-                <Link href={routes.account('club')} className={`${styles.btn} ${styles.btnGhost}`}>
-                  حساب من
-                </Link>
-              </div>
+              <ClubCtas
+                wrapClass={styles.heroCtas ?? ''}
+                primaryClass={`${styles.btn} ${styles.btnPrimary}`}
+                ghostClass={`${styles.btn} ${styles.btnGhost}`}
+              />
               <p className={styles.closingNote}>
                 <PhoneIcon size={15} aria-hidden="true" />
                 سؤالی دارید؟ کارشناسان ما آمادهٔ راهنمایی شما هستند.
