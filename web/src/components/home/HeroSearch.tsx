@@ -3,6 +3,7 @@ import { useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { routes } from '@/lib/routes';
 import { SparkIcon, ChevronStartIcon } from '@/components/primitives/icons';
+import { toPersianDigits } from '@/lib/utils/format';
 import styles from './HeroSearch.module.css';
 
 /**
@@ -17,7 +18,14 @@ const STARTERS = [
   'ارزان‌ترین تیرآهن کدام است؟',
 ];
 
-export function HeroSearch({ board }: { board?: ReactNode }) {
+export function HeroSearch({
+  board,
+  stats,
+}: {
+  board?: ReactNode;
+  /** REAL numbers computed server-side from the live catalog — trust line. */
+  stats?: { skuCount: number; factoryCount: number };
+}) {
   const router = useRouter();
   const [q, setQ] = useState('');
   const ask = (text: string) => {
@@ -64,6 +72,14 @@ export function HeroSearch({ board }: { board?: ReactNode }) {
               <ChevronStartIcon size={18} className="icon--rtl" />
             </button>
           </form>
+
+          {stats && stats.skuCount > 0 ? (
+            <p className={styles.trust}>
+              <span className="tnum">{toPersianDigits(stats.skuCount)}</span> محصول قیمت‌خورده از{' '}
+              <span className="tnum">{toPersianDigits(stats.factoryCount)}</span> کارخانه — شفاف و
+              به‌روز
+            </p>
+          ) : null}
 
           <ul className={styles.chips} aria-label="نمونه پرسش‌ها">
             {STARTERS.map((s) => (

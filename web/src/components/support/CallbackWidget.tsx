@@ -5,7 +5,7 @@
  * back; it files into the same admin inbox (POST /api/contact) that rings the
  * panel (see AdminAlerts). Zero-friction: no login, one field that matters.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { http } from '@/lib/api/http';
 import { normalizeMobile } from '@/lib/utils/format';
 import { PhoneIcon, CheckCircleIcon } from '@/components/primitives/icons';
@@ -19,6 +19,16 @@ export function CallbackWidget() {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  // Esc closes the panel — parity with every other disclosure in the app.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,22 +75,37 @@ export function CallbackWidget() {
                 </button>
               </div>
               <p className={styles.hint}>شماره‌تان را بگذارید، کارشناس ما تماس می‌گیرد.</p>
-              <input className={styles.input} placeholder="نام" value={name} onChange={(e) => setName(e.target.value)} />
+              {/* placeholder-only inputs have no accessible name — labels via aria */}
+              <input
+                className={styles.input}
+                placeholder="نام"
+                aria-label="نام"
+                autoComplete="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
               <input
                 className={styles.input}
                 dir="ltr"
                 inputMode="tel"
                 placeholder="۰۹xxxxxxxxx"
+                aria-label="شمارهٔ موبایل"
+                autoComplete="tel"
                 value={mobile}
                 onChange={(e) => setMobile(e.target.value)}
               />
               <input
                 className={styles.input}
                 placeholder="موضوع (اختیاری)"
+                aria-label="موضوع (اختیاری)"
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
               />
-              {err ? <p className={styles.err}>{err}</p> : null}
+              {err ? (
+                <p className={styles.err} role="alert">
+                  {err}
+                </p>
+              ) : null}
               <button type="submit" className={styles.submit} disabled={busy}>
                 {busy ? 'در حال ثبت…' : 'درخواست تماس'}
               </button>

@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import Link from 'next/link';
 import { clientLogos, type ClientLogo } from '../../../public/assets/logos/clients';
 import { useIntersectionObserver } from '@/lib/hooks/useIntersectionObserver';
 import { Marquee } from './Marquee';
@@ -78,15 +79,18 @@ export function Partners() {
           ariaLabel="کارخانه‌های تأمین‌کننده"
           speed={36}
           items={FACTORIES.map((name) => (
-            <span key={name} className={styles.mill}>
+            // A real destination behind the hover affordance: site search
+            // matches SKUs by factory name, so each mill opens its products.
+            <Link key={name} href={`/search?q=${encodeURIComponent(name)}`} className={styles.mill}>
               {name}
-            </span>
+            </Link>
           ))}
         />
       </div>
 
       <div className={styles.block} ref={ref}>
         <div className="container">
+          <p className={styles.eyebrow}>اعتماد صنایع بزرگ</p>
           <h2 className={styles.title}>کسانی که به آهن‌تایم اعتماد کرده‌اند</h2>
           <p className={styles.sub}>
             از سیمان و فولاد تا نفت، گاز و پتروشیمی؛ در کنار بزرگان صنعت ایران.

@@ -93,10 +93,17 @@ export default async function HomePage() {
     }))
     .filter((s) => s.lines.length >= 2);
 
+  // REAL trust numbers for the hero (never invented): priced SKUs and
+  // distinct supplying mills, straight from the rows already fetched above.
+  const allRows = [...rowsBySlug.values()].flat();
+  const skuCount = allRows.length;
+  const factoryCount = new Set(allRows.map((r) => r.factory).filter(Boolean)).size;
+
   return (
     <>
       <JsonLd data={[orgJsonLd(contact), localBusinessJsonLd(contact), websiteJsonLd()]} />
       <HeroSearch
+        stats={{ skuCount, factoryCount }}
         board={heroVideo.url ? <HeroVideo src={heroVideo.url} /> : <PriceBoard rows={boardRows} />}
       />
       <CategoryStage categories={categories} subs={subsMap} factories={factories} />

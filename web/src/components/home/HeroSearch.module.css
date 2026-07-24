@@ -158,3 +158,10 @@
     padding-inline: var(--space-4);
   }
 }
+
+/* real-numbers trust line under the search */
+.trust {
+  margin: var(--space-3) 0 0;
+  font: var(--t-body-sm);
+  color: var(--color-text-muted);
+}

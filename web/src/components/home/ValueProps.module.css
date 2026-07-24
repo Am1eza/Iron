@@ -20,117 +20,80 @@
   margin: 0;
 }
 
-/* Asymmetric editorial grid: 2 featured tiles + a column of 4 compact rows. */
-.grid {
+/* ===== the 4-step buying journey ===== */
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: grid;
-  grid-template-columns: 1fr 1fr 1.15fr;
+  grid-template-columns: repeat(4, 1fr);
   gap: var(--space-5);
-  align-items: stretch;
 }
-.featured {
-  display: flex;
-}
-
-.featuredCard {
+.step {
   position: relative;
-  overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  inline-size: 100%;
-  padding: var(--space-8) var(--space-6);
+  gap: var(--space-2);
+  padding: var(--space-6) var(--space-5);
   border-radius: var(--radius-lg);
-  background:
-    radial-gradient(80% 70% at 15% 0%, var(--color-accent-tint) 0%, transparent 60%),
-    var(--color-surface);
   border: var(--border-hairline) solid var(--color-hairline);
+  background: var(--color-surface);
 }
-/* Editorial index mark — fills the tall card's lower space with the brand's own
-   tabular-numeral signature instead of leaving it dead. Decorative only. */
-.featuredIndex {
+/* connector between steps (RTL: the previous step sits to the RIGHT, so the
+   dash extends from this card's inline-start toward it) */
+.step:not(:first-child)::before {
+  content: '';
   position: absolute;
-  inset-block-end: calc(-1 * var(--space-8));
-  inset-inline-end: calc(-1 * var(--space-4));
+  inset-inline-start: 100%;
+  inset-block-start: 50%;
+  inline-size: var(--space-5);
+  border-block-start: 2px dashed var(--color-hairline);
+}
+.stepIndex {
+  position: absolute;
+  inset-inline-end: var(--space-4);
+  inset-block-start: var(--space-3);
   font: var(--t-display-num);
-  font-size: clamp(6rem, 4rem + 6vw, 9rem);
+  font-size: 2.4rem;
   line-height: 1;
   color: var(--color-accent);
-  opacity: 0.07;
+  opacity: 0.14;
+  font-weight: 800;
   pointer-events: none;
   user-select: none;
 }
-.featuredIcon {
+.stepIcon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  inline-size: 52px;
-  block-size: 52px;
+  inline-size: 44px;
+  block-size: 44px;
   border-radius: var(--radius-md);
-  background: var(--color-action);
-  color: var(--color-on-action);
+  background: var(--color-accent-tint);
+  color: var(--color-accent-text);
 }
-.featuredTitle {
-  font: var(--t-h3);
-  font-size: 1.25rem;
-  margin: 0;
+.stepTitle {
+  font: var(--t-h4);
+  font-weight: 700;
+  margin: var(--space-1) 0 0;
 }
-.featuredText {
+.stepText {
   font: var(--t-body-sm);
   color: var(--color-text-muted);
   margin: 0;
   text-wrap: pretty;
 }
 
-.compactCol {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-.row {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  border: var(--border-hairline) solid var(--color-hairline);
-}
-.rowIcon {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  inline-size: 38px;
-  block-size: 38px;
-  border-radius: var(--radius-sm);
-  background: var(--color-accent-tint);
-  color: var(--color-accent-text);
-}
-.rowTitle {
-  font: var(--t-h4);
-  font-size: 1rem;
-  margin: 0 0 2px;
-}
-.rowText {
-  font: var(--t-caption);
-  font-weight: 400;
-  color: var(--color-text-muted);
-  margin: 0;
-}
-
 @media (max-width: 1023px) {
-  .grid {
+  .steps {
     grid-template-columns: 1fr 1fr;
   }
-  .compactCol {
-    grid-column: 1 / -1;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+  .step:not(:first-child)::before {
+    display: none;
   }
 }
-@media (max-width: 640px) {
-  .grid,
-  .compactCol {
+@media (max-width: 560px) {
+  .steps {
     grid-template-columns: 1fr;
   }
 }

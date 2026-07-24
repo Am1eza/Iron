@@ -35,6 +35,7 @@
 /* Mill name chip (supplier strip) — raised gunmetal cells */
 .mill {
   display: inline-flex;
+  text-decoration: none;
   align-items: center;
   justify-content: center;
   min-inline-size: 200px;
@@ -52,6 +53,7 @@
 .mill:hover {
   border-color: var(--emerald-400);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  text-decoration: none;
 }
 
 /* Client logo cell — light surface so real logos read correctly. Sized by its

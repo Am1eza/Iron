@@ -117,10 +117,6 @@
   color: var(--emerald-200);
   text-decoration: none;
 }
-.hint {
-  font: var(--t-micro);
-  color: var(--color-on-panel-muted);
-}
 
 @media (max-width: 520px) {
   .head,
