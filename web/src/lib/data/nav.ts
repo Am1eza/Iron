@@ -12,7 +12,9 @@ export type NavLink = { label: string; href: string; event?: string };
  *  mirrors the desktop header, where the standalone قیمت‌ها link was removed. */
 export const PRIMARY_NAV: NavLink[] = [
   { label: 'مشاور هوشمند', href: routes.ai(), event: 'ai_entry' },
-  { label: 'تماس', href: routes.contact() },
+  // «تماس» removed — COMPANY_NAV already carries «تماس با ما» → routes.contact(),
+  // and the drawer renders both PRIMARY_NAV and COMPANY_NAV, so /contact was
+  // listed twice in one drawer.
 ];
 
 /** «ابزارها ▾» dropdown. */

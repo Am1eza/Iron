@@ -7,8 +7,6 @@
 
 // Layout & spacing
 export { Container, Section, Stack, Cluster, Grid, Divider, Spacer } from './Layout';
-export { Show } from './Show';
-export { VisuallyHidden } from '@/components/a11y/VisuallyHidden';
 
 // Typography
 export { Text, Heading, Overline, Num } from './Typography';
@@ -41,11 +39,9 @@ export { EmptyState } from './EmptyState';
 export { emptyPresets } from './emptyPresets';
 
 // Motion & loading
-export { useSpark } from './Spark';
 export { Reveal } from './Reveal';
 export { Spinner } from './Spinner';
 export { Skeleton, SkeletonText, TableSkeleton } from './Skeleton';
-export { InfiniteScroll } from './InfiniteScroll';
 
 // Theming
 export { ThemeToggle } from './ThemeToggle';
