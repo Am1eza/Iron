@@ -25,12 +25,12 @@ export default function PanelLoginPage() {
           <h1 className={styles.title}>به پنل خوش آمدید</h1>
           <p className={styles.subtitle}>ورود کارشناسان آهن‌تایم</p>
         </div>
-        <Suspense>
+        {/* useSearchParams inside LoginForm bails out of SSR — without a real
+            fallback the card ships with an empty body and the form pops in
+            only after hydration. The skeleton keeps the card's shape. */}
+        <Suspense fallback={<div className={styles.formSkeleton} aria-hidden="true" />}>
           <LoginForm chromeless />
         </Suspense>
-        <a className={styles.siteLink} href="https://ahantime.com">
-          رفتن به سایت آهن‌تایم ←
-        </a>
       </div>
     </div>
   );

@@ -22,9 +22,25 @@ import type { SubsMap } from '@/lib/data/catalog';
  * top/bottom halves so the root layout's single `<main>` stays between them
  * in DOM order.
  */
+/**
+ * On panel.ahantime.com the storefront chrome must NEVER render — but the
+ * pathname check alone can't guarantee that there: middleware rewrites
+ * panel paths to /admin/* (and /login → /panel-login) only INTERNALLY, so
+ * during SSR usePathname reports the rewritten path (chrome correctly
+ * absent from the HTML) while after hydration it reports the browser's
+ * original path (/login, /leads, ...) — React then "recovers" by mounting
+ * the customer ticker/navbar/footer a few seconds into the page. The
+ * hostname check closes that hole: on the client it's authoritative, and
+ * during SSR (no window) the rewritten-pathname check already returns null
+ * for every panel-host page, so both passes agree and nothing flashes in.
+ */
+function onPanelHost(): boolean {
+  return typeof window !== 'undefined' && window.location.hostname === 'panel.ahantime.com';
+}
+
 export function SiteChromeTop({ categories, subs }: { categories: Category[]; subs: SubsMap }) {
   const pathname = usePathname();
-  if (pathname?.startsWith('/admin') || pathname?.startsWith('/panel-login')) return null;
+  if (onPanelHost() || pathname?.startsWith('/admin') || pathname?.startsWith('/panel-login')) return null;
   return (
     <>
       <Ticker />
@@ -36,7 +52,7 @@ export function SiteChromeTop({ categories, subs }: { categories: Category[]; su
 
 export function SiteChromeBottom({ categories, contact }: { categories: Category[]; contact: SiteContact }) {
   const pathname = usePathname();
-  if (pathname?.startsWith('/admin') || pathname?.startsWith('/panel-login')) return null;
+  if (onPanelHost() || pathname?.startsWith('/admin') || pathname?.startsWith('/panel-login')) return null;
   return (
     <>
       <Footer categories={categories} contact={contact} />

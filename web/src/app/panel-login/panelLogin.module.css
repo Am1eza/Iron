@@ -41,11 +41,8 @@
   margin: 0;
 }
 
-.siteLink {
-  text-align: center;
-  font: var(--t-caption);
-  color: var(--color-text-muted);
-}
-.siteLink:hover {
-  color: var(--color-accent-text);
+.formSkeleton {
+  block-size: 132px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
 }
