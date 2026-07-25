@@ -12,7 +12,7 @@ export default async function AdminHelpPage() {
   return (
     <Stack gap={5}>
       <div>
-        <Heading level={1}>راهنمای پنل مدیریت</Heading>
+        <Heading level={1}>راهنمای پنل</Heading>
         <Text color="muted">همه‌چیز دربارهٔ هر بخش و هر فیلد — به زبان ساده.</Text>
       </div>
 

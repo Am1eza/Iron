@@ -18,7 +18,9 @@ import { Button } from '@/components/primitives/Button';
 import { Badge } from '@/components/ui';
 import styles from './LoginForm.module.css';
 
-export function LoginForm() {
+/** `chromeless` — render just the form, no card frame or heading: the panel
+ *  login page (app/panel-login) supplies its own stage, title and framing. */
+export function LoginForm({ chromeless = false }: { chromeless?: boolean } = {}) {
   const router = useRouter();
   const next = useSearchParams().get('next');
   const setUser = useAuthStore((s) => s.setUser);
@@ -111,9 +113,16 @@ export function LoginForm() {
       // The admin panel exists ONLY on panel.ahantime.com — on the public
       // site a staff member is deliberately a normal user (owner decision),
       // so staff land on their account like everyone else. On the panel host,
-      // '/' is the dashboard (host rewrite).
+      // '/' is the dashboard (host rewrite); a NON-staff login there has no
+      // usable destination on that host at all, so send them to their account
+      // on the public site (their session cookie is host-scoped — they'll
+      // sign in there like a normal visitor).
       const onPanelHost = typeof window !== 'undefined' && window.location.hostname === 'panel.ahantime.com';
-      router.push(next ?? (onPanelHost && canAccessAdmin(user.role) ? '/' : routes.account()));
+      if (onPanelHost && !canAccessAdmin(user.role)) {
+        window.location.href = `https://ahantime.com${routes.account()}`;
+        return;
+      }
+      router.push(next ?? (onPanelHost ? '/' : routes.account()));
       router.refresh();
     } catch (e) {
       setOtpError(true);
@@ -125,24 +134,35 @@ export function LoginForm() {
   };
 
   return (
-    <div className={styles.card}>
-      <div className={styles.head}>
-        <h1 className={styles.title}>
-          {step === 'mobile' ? t('title') : isNewUser ? t('registerTitle') : t('verifyTitle')}
-          {step === 'code' && isNewUser ? (
-            <Badge tone="accent" className={styles.newUserBadge}>
-              {t('newUserBadge')}
-            </Badge>
-          ) : null}
-        </h1>
-        <p className={styles.subtitle}>
-          {step === 'mobile'
-            ? t('subtitle')
-            : isNewUser
+    <div className={chromeless ? styles.bare : styles.card}>
+      {chromeless ? (
+        // The page owns the H1; the form only announces the step change.
+        step === 'code' ? (
+          <p className={styles.subtitle} style={{ textAlign: 'center', margin: 0 }} role="status">
+            {isNewUser
               ? t('registerSubtitle', { mobile: localizeDigits(mobile, locale) })
               : t('codeSentTo', { mobile: localizeDigits(mobile, locale) })}
-        </p>
-      </div>
+          </p>
+        ) : null
+      ) : (
+        <div className={styles.head}>
+          <h1 className={styles.title}>
+            {step === 'mobile' ? t('title') : isNewUser ? t('registerTitle') : t('verifyTitle')}
+            {step === 'code' && isNewUser ? (
+              <Badge tone="accent" className={styles.newUserBadge}>
+                {t('newUserBadge')}
+              </Badge>
+            ) : null}
+          </h1>
+          <p className={styles.subtitle}>
+            {step === 'mobile'
+              ? t('subtitle')
+              : isNewUser
+                ? t('registerSubtitle', { mobile: localizeDigits(mobile, locale) })
+                : t('codeSentTo', { mobile: localizeDigits(mobile, locale) })}
+          </p>
+        </div>
+      )}
 
       {error || (step === 'code' && otpError) ? (
         <FormStatus variant="error" id={step === 'code' ? 'otp-error' : undefined}>

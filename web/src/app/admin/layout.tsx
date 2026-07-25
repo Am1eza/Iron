@@ -9,6 +9,7 @@ import { AdminAlerts } from '@/components/admin/AdminAlerts';
 import { CommandPalette } from '@/components/admin/CommandPalette';
 import { LogoutButton } from '@/components/auth/LogoutButton';
 import { AdminThemeToggle } from './AdminThemeToggle';
+import { ExitToSiteLink } from './ExitToSiteLink';
 import styles from './admin.module.css';
 import logoMark from '../../../public/brand/ahantime-logo.png';
 
@@ -90,20 +91,18 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             height={28}
             priority
           />
-          پنل مدیریت
+          پنل آهن‌تایم
         </Link>
         {/* Mobile/tablet: one horizontally-scrollable strip (never a wall of
             wrapped links). Desktop hides this and shows the sidebar instead. */}
-        <nav className={styles.nav} aria-label="پنل مدیریت">
+        <nav className={styles.nav} aria-label="پنل">
           <AdminNavLinks groups={groups} variant="strip" />
         </nav>
         <div className={styles.user}>
           <CommandPalette nav={flatNav} />
           <AdminThemeToggle />
           <span className={styles.userName}>{user.name ?? user.mobile}</span>
-          <Link href={routes.home()} className={styles.exit}>
-            سایت
-          </Link>
+          <ExitToSiteLink className={styles.exit} />
           <LogoutButton redirectTo={routes.home()} />
         </div>
       </header>

@@ -91,7 +91,16 @@ export async function middleware(req: NextRequest) {
   // /admin reachable without the subdomain.
   if (AUTH_ENFORCED && !onPanelHost) {
     const p = req.nextUrl.pathname;
-    if (p === '/admin' || p.startsWith('/admin/') || p === '/api/admin' || p.startsWith('/api/admin/')) {
+    // /panel-login is the panel host's own entrance — on the public host it
+    // is hidden along with everything else panel-shaped.
+    if (
+      p === '/admin' ||
+      p.startsWith('/admin/') ||
+      p === '/api/admin' ||
+      p.startsWith('/api/admin/') ||
+      p === '/panel-login' ||
+      p.startsWith('/panel-login/')
+    ) {
       const url = req.nextUrl.clone();
       url.pathname = '/__admin_denied__';
       return NextResponse.rewrite(url);

@@ -7,7 +7,7 @@
  * for something this cheap to isolate).
  */
 export const PANEL_HOSTNAME = 'panel.ahantime.com';
-const PANEL_PASSTHROUGH_PREFIXES = ['/api', '/login', '/admin', '/_next'];
+const PANEL_PASSTHROUGH_PREFIXES = ['/api', '/admin', '/panel-login', '/_next'];
 
 export interface PanelRoutingDecision {
   /** True when this request should be rewritten to its /admin/* counterpart. */
@@ -28,6 +28,14 @@ function matchesPrefix(pathname: string, prefix: string): boolean {
 
 export function resolvePanelRouting(host: string | null, pathname: string): PanelRoutingDecision {
   const onPanelHost = host === PANEL_HOSTNAME;
+  // The panel host gets its OWN login page — a chrome-free staff entrance
+  // (app/panel-login) instead of the public storefront's /login, which
+  // renders the full customer ticker/navbar/footer around the form. The
+  // browser URL stays panel.ahantime.com/login; only the internal route
+  // differs. (`shouldPrefix` really means "should rewrite" here.)
+  if (onPanelHost && matchesPrefix(pathname, '/login')) {
+    return { shouldPrefix: true, effectivePathname: '/panel-login' };
+  }
   const shouldPrefix = onPanelHost && !PANEL_PASSTHROUGH_PREFIXES.some((p) => matchesPrefix(pathname, p));
   if (!shouldPrefix) return { shouldPrefix: false, effectivePathname: pathname };
   // Root `/` → `/admin` exactly (not `/admin/`, which a rewrite target

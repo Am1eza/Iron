@@ -24,7 +24,7 @@ import type { SubsMap } from '@/lib/data/catalog';
  */
 export function SiteChromeTop({ categories, subs }: { categories: Category[]; subs: SubsMap }) {
   const pathname = usePathname();
-  if (pathname?.startsWith('/admin')) return null;
+  if (pathname?.startsWith('/admin') || pathname?.startsWith('/panel-login')) return null;
   return (
     <>
       <Ticker />
@@ -36,7 +36,7 @@ export function SiteChromeTop({ categories, subs }: { categories: Category[]; su
 
 export function SiteChromeBottom({ categories, contact }: { categories: Category[]; contact: SiteContact }) {
   const pathname = usePathname();
-  if (pathname?.startsWith('/admin')) return null;
+  if (pathname?.startsWith('/admin') || pathname?.startsWith('/panel-login')) return null;
   return (
     <>
       <Footer categories={categories} contact={contact} />

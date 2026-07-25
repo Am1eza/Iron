@@ -84,3 +84,11 @@
   color: var(--color-text-muted);
   cursor: default;
 }
+
+/* Chromeless variant — the hosting page (panel login) provides the card. */
+.bare {
+  inline-size: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}

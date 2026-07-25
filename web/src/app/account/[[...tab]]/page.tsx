@@ -126,7 +126,7 @@ export default async function AccountPage({ params }: Params) {
               <Badge tone="neutral">{ROLE_LABEL[user.role]}</Badge>
               {canAccessAdmin(user.role) ? (
                 <Link href="https://panel.ahantime.com">
-                  <Badge tone="accent">پنل مدیریت</Badge>
+                  <Badge tone="accent">پنل آهن‌تایم</Badge>
                 </Link>
               ) : null}
             </Cluster>

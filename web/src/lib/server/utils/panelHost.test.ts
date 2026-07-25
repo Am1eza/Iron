@@ -27,7 +27,7 @@ describe('resolvePanelRouting', () => {
     });
   });
 
-  it.each(['/api/admin/leads', '/login', '/admin/leads', '/_next/data/x.json'])(
+  it.each(['/api/admin/leads', '/admin/leads', '/panel-login', '/_next/data/x.json'])(
     'leaves a passthrough path %s unprefixed on the panel host',
     (path) => {
       expect(resolvePanelRouting('panel.ahantime.com', path)).toEqual({
@@ -36,6 +36,20 @@ describe('resolvePanelRouting', () => {
       });
     },
   );
+
+  it.each(['/login', '/login/anything'])('rewrites %s to the dedicated panel login on the panel host', (path) => {
+    expect(resolvePanelRouting('panel.ahantime.com', path)).toEqual({
+      shouldPrefix: true,
+      effectivePathname: '/panel-login',
+    });
+  });
+
+  it('leaves /login alone on the public host', () => {
+    expect(resolvePanelRouting('ahantime.com', '/login')).toEqual({
+      shouldPrefix: false,
+      effectivePathname: '/login',
+    });
+  });
 
   it('a path that merely starts with a passthrough word (not the full segment) is still prefixed', () => {
     // '/logintest' is NOT '/login' or a path under it — segment matching

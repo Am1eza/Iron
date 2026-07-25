@@ -1,0 +1,51 @@
+/* Full-viewport staff entrance — gunmetal blueprint stage, one focused card.
+   The stage owns the whole viewport because SiteChrome hides itself on this
+   route (no storefront ticker/navbar/footer around a staff door). */
+.stage {
+  min-block-size: 100svh;
+  display: grid;
+  place-items: center;
+  padding: var(--space-6) var(--page-x);
+}
+
+.card {
+  inline-size: 100%;
+  max-inline-size: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-8) var(--space-6);
+  background: var(--color-surface);
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  text-align: center;
+}
+
+.title {
+  font: var(--t-h2);
+  color: var(--color-text-strong);
+  margin: 0;
+}
+
+.subtitle {
+  font: var(--t-body-sm);
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.siteLink {
+  text-align: center;
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}
+.siteLink:hover {
+  color: var(--color-accent-text);
+}
