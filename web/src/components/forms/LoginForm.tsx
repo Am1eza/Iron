@@ -108,7 +108,12 @@ export function LoginForm() {
         inviteCode: inviteCode.trim() || undefined,
       });
       setUser(user);
-      router.push(next ?? (canAccessAdmin(user.role) ? routes.admin.dashboard() : routes.account()));
+      // The admin panel exists ONLY on panel.ahantime.com — on the public
+      // site a staff member is deliberately a normal user (owner decision),
+      // so staff land on their account like everyone else. On the panel host,
+      // '/' is the dashboard (host rewrite).
+      const onPanelHost = typeof window !== 'undefined' && window.location.hostname === 'panel.ahantime.com';
+      router.push(next ?? (onPanelHost && canAccessAdmin(user.role) ? '/' : routes.account()));
       router.refresh();
     } catch (e) {
       setOtpError(true);

@@ -61,6 +61,7 @@ export const routes = {
     users: () => '/admin/users',
     settings: () => '/admin/settings',
     audit: () => '/admin/audit',
+    help: () => '/admin/help',
     ai: () => '/admin/ai',
     marketing: () => '/admin/marketing',
     seo: () => '/admin/seo',

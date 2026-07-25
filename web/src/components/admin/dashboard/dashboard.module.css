@@ -84,3 +84,73 @@
   display: grid;
   gap: var(--space-2);
 }
+
+/* ===== BI KPI card ===== */
+.kpi {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  border: var(--border-hairline) solid var(--color-hairline);
+  background: var(--color-surface);
+  min-block-size: 150px;
+}
+.kpiHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.kpiLabel {
+  font: var(--t-label);
+  color: var(--color-text-muted);
+}
+.kpiDelta {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  font: var(--t-micro);
+  font-weight: 700;
+  background: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+.kpiDeltaUp {
+  background: color-mix(in srgb, var(--color-gain) 14%, transparent);
+  color: var(--color-gain-text);
+}
+.kpiDeltaDown {
+  background: color-mix(in srgb, var(--color-loss) 12%, transparent);
+  color: var(--color-loss-text);
+}
+.kpiValueRow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+.kpiValue {
+  font: var(--t-display-num);
+  font-size: clamp(1.6rem, 1.2rem + 1vw, 2.2rem);
+  line-height: 1.1;
+  color: var(--color-text-strong);
+}
+/* the unit NEVER rides the display type — small, muted, baseline-aligned */
+.kpiUnit {
+  font: var(--t-body-sm);
+  color: var(--color-text-muted);
+}
+.kpiMeta {
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+  margin: 0;
+}
+.kpiSpark {
+  margin-block-start: auto;
+  opacity: 0.9;
+}
+.kpiSpark svg {
+  inline-size: 100%;
+  block-size: 36px;
+}

@@ -4,7 +4,7 @@
  *  lack it — the API omits nothing partially; it 404s, so we just hide). */
 import { useQuery } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api/resources/admin';
-import { toPersianDigits, formatToman } from '@/lib/utils/format';
+import { toPersianDigits, formatTomanCompact } from '@/lib/utils/format';
 import { KpiCard } from './KpiCard';
 import styles from './dashboard.module.css';
 
@@ -26,10 +26,11 @@ export function OverviewKpis() {
         className={styles.hero}
         label="ارزش پیش‌فاکتورها (۷ روز)"
         value={data.proformas.valueCurrent}
+        unit="تومان"
         deltaPct={data.proformas.valueDeltaPct}
         series={data.proformas.series}
-        format={(n) => formatToman(n)}
-        hint={`${toPersianDigits(data.proformas.current)} پیش‌فاکتور در ۷ روز`}
+        format={formatTomanCompact}
+        hint={`${toPersianDigits(data.proformas.current)} پیش‌فاکتور`}
       />
       <KpiCard
         className={styles.wide}

@@ -21,6 +21,7 @@ import {
 import { ChevronDownIcon } from '@/components/primitives/icons';
 import { TextInput } from '@/components/forms/fields';
 import { ImageUpload } from '../ImageUpload';
+import { slugify } from '@/lib/utils/slugify';
 import ui from '../adminUi.module.css';
 
 type SkuRow = {
@@ -443,10 +444,40 @@ function SkuForm({
     <Card>
       <Heading level={2}>{heading}</Heading>
       <div className={ui.grid2} style={{ marginBlockStart: 'var(--space-3)' }}>
-        <TextInput label="نام" value={v.name} onChange={(e) => setV({ ...v, name: e.target.value })} />
-        <TextInput label="نشانی (slug)" dir="ltr" value={v.slug} onChange={(e) => setV({ ...v, slug: e.target.value })} />
-        <TextInput label="سایز" value={v.size} onChange={(e) => setV({ ...v, size: e.target.value })} />
-        <TextInput label="کارخانه" value={v.factory} onChange={(e) => setV({ ...v, factory: e.target.value })} />
+        <TextInput
+          label="نام"
+          helper="نام کامل کالا، همان‌طور که مشتری در سایت می‌بیند. مثلاً: میلگرد ۱۴ A3 ذوب‌آهن"
+          value={v.name}
+          onChange={(e) => {
+            const name = e.target.value;
+            // Auto-generate the slug while the admin hasn't customized it —
+            // nobody should need to know what a "slug" is.
+            setV((prev) => ({
+              ...prev,
+              name,
+              slug: prev.slug === slugify(prev.name) || prev.slug === '' ? slugify(name) : prev.slug,
+            }));
+          }}
+        />
+        <TextInput
+          label="نشانی اینترنتی (خودکار)"
+          helper="آدرس صفحهٔ کالا در سایت — خودکار از روی نام ساخته می‌شود؛ فقط حروف انگلیسی، عدد و خط تیره. معمولاً لازم نیست دستش بزنید."
+          dir="ltr"
+          value={v.slug}
+          onChange={(e) => setV({ ...v, slug: e.target.value })}
+        />
+        <TextInput
+          label="سایز"
+          helper="فقط عدد سایز. مثلاً میلگرد: ۱۴ · ورق: ۲ · قوطی: ۴۰x۴۰"
+          value={v.size}
+          onChange={(e) => setV({ ...v, size: e.target.value })}
+        />
+        <TextInput
+          label="کارخانه"
+          helper="نام تولیدکننده — در جدول قیمت و مقایسهٔ کارخانه‌ها نمایش داده می‌شود."
+          value={v.factory}
+          onChange={(e) => setV({ ...v, factory: e.target.value })}
+        />
         <div>
           <label className={ui.muted} htmlFor="sku-unit">
             واحد فروش
@@ -461,6 +492,7 @@ function SkuForm({
         </div>
         <TextInput
           label="وزن تئوری (کیلوگرم)"
+          helper="وزن استاندارد یک واحد فروش (مثلاً یک شاخهٔ ۱۲ متری میلگرد ۱۴ ≈ ۱۴٫۵ کیلوگرم). ماشین‌حساب وزن و برآورد هزینهٔ مشتری از همین عدد استفاده می‌کند — اگر نمی‌دانید خالی بگذارید."
           inputMode="decimal"
           value={v.theoreticalWeightKg}
           onChange={(e) => setV({ ...v, theoreticalWeightKg: e.target.value })}
@@ -901,8 +933,26 @@ function CategoryForm({
     <Card>
       <Heading level={3}>{heading}</Heading>
       <div className={ui.grid2} style={{ marginBlockStart: 'var(--space-3)' }}>
-        <TextInput label="نام" value={v.name} onChange={(e) => setV({ ...v, name: e.target.value })} />
-        <TextInput label="نشانی (slug)" dir="ltr" value={v.slug} onChange={(e) => setV({ ...v, slug: e.target.value })} />
+        <TextInput
+          label="نام"
+          helper="نام فارسی — همان‌طور که در منو و سایت دیده می‌شود."
+          value={v.name}
+          onChange={(e) => {
+            const name = e.target.value;
+            setV((prev) => ({
+              ...prev,
+              name,
+              slug: prev.slug === slugify(prev.name) || prev.slug === '' ? slugify(name) : prev.slug,
+            }));
+          }}
+        />
+        <TextInput
+          label="نشانی اینترنتی (خودکار)"
+          helper="آدرس صفحه در سایت — خودکار از روی نام ساخته می‌شود."
+          dir="ltr"
+          value={v.slug}
+          onChange={(e) => setV({ ...v, slug: e.target.value })}
+        />
       </div>
       <div className={ui.toolbar} style={{ marginBlockStart: 'var(--space-3)' }}>
         <Button size="sm" onClick={() => onSubmit(v)} disabled={!v.name || !v.slug} loading={busy}>

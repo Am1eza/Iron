@@ -83,6 +83,21 @@ export async function middleware(req: NextRequest) {
     }
   }
 
+  // The admin panel lives ONLY on panel.ahantime.com. On the public host the
+  // /admin/* pages and /api/admin/* endpoints are a hard 404 — hidden, not
+  // redirected, so the main domain reveals nothing about the panel's
+  // existence and a staff member browsing ahantime.com is just a normal
+  // user. Gated on AUTH_ENFORCED so local dev (localhost, mock mode) keeps
+  // /admin reachable without the subdomain.
+  if (AUTH_ENFORCED && !onPanelHost) {
+    const p = req.nextUrl.pathname;
+    if (p === '/admin' || p.startsWith('/admin/') || p === '/api/admin' || p.startsWith('/api/admin/')) {
+      const url = req.nextUrl.clone();
+      url.pathname = '/__admin_denied__';
+      return NextResponse.rewrite(url);
+    }
+  }
+
   // Admin gating (ASCII path → safe to match here).
   if (AUTH_ENFORCED && effectivePathname.startsWith('/admin')) {
     const token = req.cookies.get(SESSION_COOKIE)?.value;

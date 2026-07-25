@@ -41,6 +41,23 @@ export function formatToman(value: number, withUnit = true): string {
   return withUnit ? `${fa} تومان` : fa;
 }
 
+/** Compact Toman for KPI headlines — «۱٫۲ میلیارد», «۳۴۵ میلیون», plain
+ *  grouped digits below a million. The unit («تومان») is deliberately NOT
+ *  included: BI cards render it separately, small and muted, beside the
+ *  headline number. */
+export function formatTomanCompact(value: number): string {
+  const abs = Math.abs(Math.round(value));
+  const compact = (n: number, divisor: number, word: string): string => {
+    const v = n / divisor;
+    const s = v >= 100 ? String(Math.round(v)) : v.toFixed(1).replace(/\.0$/, '');
+    return `${toPersianDigits(s).replace('.', '٫')} ${word}`;
+  };
+  const sign = value < 0 ? '-' : '';
+  if (abs >= 1_000_000_000) return sign + compact(abs, 1_000_000_000, 'میلیارد');
+  if (abs >= 1_000_000) return sign + compact(abs, 1_000_000, 'میلیون');
+  return sign + formatToman(abs, false);
+}
+
 /** Format نوسان percent with sign + Persian digits (color/arrow handled in UI). */
 export function formatMovement(pct: number | undefined): string {
   if (pct === undefined || Number.isNaN(pct)) return '—';

@@ -125,7 +125,7 @@ export default async function AccountPage({ params }: Params) {
             <Cluster gap={2}>
               <Badge tone="neutral">{ROLE_LABEL[user.role]}</Badge>
               {canAccessAdmin(user.role) ? (
-                <Link href={routes.admin.dashboard()}>
+                <Link href="https://panel.ahantime.com">
                   <Badge tone="accent">پنل مدیریت</Badge>
                 </Link>
               ) : null}

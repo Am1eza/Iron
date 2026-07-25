@@ -58,6 +58,7 @@ const NAV_GROUPS: Array<{
       { href: routes.admin.users(), label: 'کاربران' },
       { href: routes.admin.settings(), label: 'تنظیمات' },
       { href: routes.admin.audit(), label: 'رویدادها' },
+      { href: routes.admin.help(), label: 'راهنما' },
     ],
   },
 ];

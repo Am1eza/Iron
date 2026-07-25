@@ -1,16 +1,19 @@
 import type { ReactNode } from 'react';
 import { toPersianDigits } from '@/lib/utils/format';
 import { Sparkline } from './Sparkline';
-import ui from '../adminUi.module.css';
+import styles from './dashboard.module.css';
 
 /**
- * KPI card: headline number (last 7 FULL days) + delta vs the 7 before +
- * today's partial count + 30-day sparkline. `deltaPct === null` renders
- * «جدید» (prior period was zero — a percent would be ∞/misleading).
+ * BI-grade KPI card: header row (label + delta chip) → headline value with a
+ * SEPARATE, small unit (a giant «تومان» set in the display font was the old
+ * failure mode) → one compact meta line → sparkline anchored to the card's
+ * bottom edge. `deltaPct === null` renders «جدید» (prior period was zero —
+ * a percent would be ∞/misleading).
  */
 export function KpiCard({
   label,
   value,
+  unit,
   deltaPct,
   today,
   series,
@@ -20,6 +23,8 @@ export function KpiCard({
 }: {
   label: string;
   value: number;
+  /** Rendered small + muted beside the big number — never in display type. */
+  unit?: string;
   deltaPct: number | null;
   today?: number;
   series?: number[];
@@ -31,12 +36,11 @@ export function KpiCard({
   const up = deltaPct !== null && deltaPct > 0;
   const down = deltaPct !== null && deltaPct < 0;
   return (
-    <div className={`${ui.tile} ${className ?? ''}`}>
-      <span className={ui.tileLabel}>{label}</span>
-      <span className={`${ui.tileValue} tnum`}>{format(value)}</span>
-      <span className={ui.tileHint}>
+    <div className={`${styles.kpi} ${className ?? ''}`}>
+      <div className={styles.kpiHead}>
+        <span className={styles.kpiLabel}>{label}</span>
         <span
-          className={up ? ui.tileGood : down ? ui.tileBad : undefined}
+          className={`${styles.kpiDelta} ${up ? styles.kpiDeltaUp : ''} ${down ? styles.kpiDeltaDown : ''}`}
           aria-label={
             deltaPct === null
               ? 'دورهٔ قبل صفر بود'
@@ -45,11 +49,28 @@ export function KpiCard({
         >
           {deltaPct === null ? 'جدید' : `${up ? '▲' : down ? '▼' : '＝'} ${toPersianDigits(Math.abs(deltaPct))}٪`}
         </span>
-        {' · ۷ روز کامل'}
-        {today !== undefined ? ` · امروز تا این لحظه: ${toPersianDigits(today)}` : ''}
-      </span>
-      {series && series.length > 1 ? <Sparkline data={series} /> : null}
-      {hint ? <span className={ui.tileHint}>{hint}</span> : null}
+      </div>
+
+      <div className={styles.kpiValueRow}>
+        <span className={`${styles.kpiValue} tnum`}>{format(value)}</span>
+        {unit ? <span className={styles.kpiUnit}>{unit}</span> : null}
+      </div>
+
+      <p className={styles.kpiMeta}>
+        ۷ روز کامل
+        {today !== undefined ? (
+          <>
+            {' · '}امروز: <span className="tnum">{toPersianDigits(today)}</span>
+          </>
+        ) : null}
+        {hint ? <> · {hint}</> : null}
+      </p>
+
+      {series && series.length > 1 ? (
+        <div className={styles.kpiSpark}>
+          <Sparkline data={series} width={220} height={36} />
+        </div>
+      ) : null}
     </div>
   );
 }
