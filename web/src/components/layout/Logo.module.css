@@ -12,12 +12,7 @@
 .mark {
   display: block;
   flex: none;
-  /* Physical width+height (not logical/auto): iOS Safari mis-derives the box
-     of a replaced element from block-size + inline-size:auto, painting the
-     wordmark over the mark. 640×350 asset → 66×36. */
-  width: 66px;
-  height: 36px;
-  object-fit: contain;
+  color: var(--color-brand);
 }
 
 .word {
@@ -38,6 +33,9 @@
 }
 
 /* Light variant — over the dark hero overlay */
+.light .mark {
+  color: #fff;
+}
 .light .wordmark {
   color: var(--color-on-action);
 }

@@ -29,8 +29,7 @@
 .brandMark {
   display: block;
   flex: none;
-  block-size: 28px;
-  inline-size: auto;
+  color: var(--color-brand);
 }
 
 /* ==================== mobile/tablet: one scrollable strip ==================== */

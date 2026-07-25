@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1080" color="#025652">
+  <defs>
+    <!-- The A chevron: small flat apex, straight legs cut horizontally at the base -->
+    <path id="legs" d="M472,20 L528,20 L872,1042 L752,1042 L500,285 L248,1042 L128,1042 Z"/>
+    <!-- crossbar; rolled-flange ends drawn as tucked discs with a spiral notch -->
+    <g id="tbar">
+      <path d="M260,585 H740 V660 H260 Z"/>
+      <circle cx="250" cy="702" r="52"/>
+      <path d="M260,585 Q216,588 204,650 L260,660 Z"/>
+      <circle cx="750" cy="702" r="52"/>
+      <path d="M740,585 Q784,588 796,650 L740,660 Z"/>
+    </g>
+    <!-- stem with concave I-beam foot crossing the ring at the bottom -->
+    <path id="tstem" d="M462,655 H538 V920 C538,962 560,978 606,990 L606,1044 H394 L394,990 C440,978 462,962 462,920 Z"/>
+
+    <mask id="mRing">
+      <rect width="1000" height="1080" fill="#fff"/>
+      <use href="#legs" fill="#000" stroke="#000" stroke-width="36"/>
+      <use href="#tbar" fill="#000" stroke="#000" stroke-width="36"/>
+      <use href="#tstem" fill="#000" stroke="#000" stroke-width="36"/>
+    </mask>
+    <mask id="mLegs">
+      <rect width="1000" height="1080" fill="#fff"/>
+      <use href="#tbar" fill="#000" stroke="#000" stroke-width="36"/>
+      <use href="#tstem" fill="#000" stroke="#000" stroke-width="36"/>
+    </mask>
+    <!-- spiral channel inside each roll, cut out of the bar itself -->
+    <mask id="mBar">
+      <rect width="1000" height="1080" fill="#fff"/>
+      <path d="M296,690 A40,40 0 1 1 250,660" fill="none" stroke="#000" stroke-width="13"/>
+      <path d="M704,690 A40,40 0 1 0 750,660" fill="none" stroke="#000" stroke-width="13"/>
+    </mask>
+  </defs>
+
+  <circle cx="500" cy="530" r="405" fill="none" stroke="currentColor" stroke-width="58" mask="url(#mRing)"/>
+  <use href="#legs" fill="currentColor" mask="url(#mLegs)"/>
+  <use href="#tbar" fill="currentColor" mask="url(#mBar)"/>
+  <use href="#tstem" fill="currentColor"/>
+</svg>

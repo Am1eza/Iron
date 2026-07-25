@@ -57,7 +57,7 @@ export const viewport: Viewport = {
   // Light-theme page background (--neutral-50): the site is light-only for
   // visitors (see public/theme-init.js), so browser chrome matches — was the
   // dark gunmetal #171C22.
-  themeColor: '#F4F7FA',
+  themeColor: '#025652',
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

@@ -22,15 +22,19 @@
   --amber-50:#FFF6EA; --amber-100:#FEEBCE; --amber-200:#FBD49B; --amber-300:#F8BB66;
   --amber-400:#F6A53E; --amber-500:#F5961E; --amber-600:#DB7E0F; --amber-700:#C9740B;
   --amber-800:#A35D0A; --amber-900:#7E480A;
-  /* Brand emerald — "luxury green", pixel-matched to the ahantime_logo.png mark
-     (distinct from the gain/up green below). See §04a Logo in brand-book.md. */
-  --emerald-50:#E8F6F2; --emerald-100:#CDEBE2; --emerald-200:#9DD8C6; --emerald-300:#63C2A5;
-  --emerald-400:#1B9A73; --emerald-500:#178261; --emerald-550:#167D5D; --emerald-600:#12644B; --emerald-700:#0F523D;
-  --emerald-800:#0B4130; --emerald-900:#093124;
+  /* Brand teal — anchored to the AT-circle mark's #025652 (= -700, exact).
+     The whole ramp is the same deep-teal hue (~177°), tightly saturated, so
+     the UI reads sharp and monochromatic around the brand color (distinct
+     from the gain/up green below). Keeps the historical --emerald-* names so
+     every consumer re-tones without churn. */
+  --emerald-50:#E6F4F3; --emerald-100:#C7E8E6; --emerald-200:#94D3CF; --emerald-300:#58BAB4;
+  --emerald-400:#149B93; --emerald-500:#0A7F77; --emerald-550:#067068; --emerald-600:#04635D; --emerald-700:#025652;
+  --emerald-800:#02443F; --emerald-900:#02332F;
   --gain-50:#E9F8EF; --gain-100:#CBEFD8; --gain-500:#15A34A; --gain-600:#128B40; --gain-700:#0E6E33;
   --loss-50:#FDECEB; --loss-100:#FAD2CF; --loss-400:#EA6259; --loss-500:#E0322B; --loss-600:#C42822; --loss-700:#A11F1B;
-  /* Steel — cool gunmetal for the "factory" panels/blocks (distinct from neutral) */
-  --steel-800:#1C242E; --steel-850:#161D26; --steel-900:#111820; --steel-950:#0C1218;
+  /* Steel — gunmetal for the "factory" panels/blocks, tinted toward the brand
+     teal so the dark panels and the mark read as one material */
+  --steel-800:#162A27; --steel-850:#122220; --steel-900:#0E1B1A; --steel-950:#0A1414;
 
   /* ===== SEMANTIC COLOR — LIGHT ===== */
   --color-bg:var(--neutral-50); --color-surface:var(--neutral-0); --color-surface-sunken:var(--neutral-50);
@@ -38,9 +42,11 @@
   --color-hairline:var(--neutral-150); --color-border-strong:var(--neutral-200);
   --color-text:var(--neutral-700); --color-text-strong:var(--neutral-900); --color-text-muted:var(--neutral-500);
   --color-text-placeholder:var(--neutral-400); --color-text-inverse:var(--neutral-0);
+  /* The mark itself — exact brand teal on light surfaces (lifted in dark). */
+  --color-brand:var(--emerald-700);
   --color-accent:var(--emerald-500); --color-accent-text:var(--emerald-700); --color-accent-tint:var(--emerald-50);
-  /* emerald-550, not -500: white text on -500 is 4.77:1, already AA, but -550
-     clears with more margin (5.09:1) for a near-imperceptible shift, applied
+  /* emerald-550, not -500: white text on -500 is 5.2:1, already AA, but -550
+     clears with more margin (6.0:1) for a near-imperceptible shift, applied
      once here so every action button/badge site-wide inherits it.
      --color-accent/-focus deliberately still use -500 — unaffected. */
   --color-action:var(--emerald-550); --color-action-hover:var(--emerald-400); --color-action-press:var(--emerald-600);
@@ -51,7 +57,7 @@
   --color-overlay:rgba(15,19,24,.55);
   /* Gunmetal panel — same in both themes (the "steel terminal" surfaces) */
   --color-panel:var(--steel-900); --color-panel-raised:var(--steel-800);
-  --color-on-panel:#EDF2F6; --color-on-panel-muted:#8D9AA8;
+  --color-on-panel:#EAF2F1; --color-on-panel-muted:#8AA19E;
   --color-panel-hairline:rgba(255,255,255,.09);
 
   /* ===== BI / CHART TOKENS — LIGHT =====
@@ -144,7 +150,8 @@
   --color-surface-inverse:var(--neutral-900); --color-hairline:rgba(255,255,255,.08); --color-border-strong:var(--neutral-700);
   --color-text:var(--neutral-100); --color-text-strong:var(--neutral-0); --color-text-muted:var(--neutral-400);
   --color-text-placeholder:var(--neutral-500);
-  --color-accent:var(--emerald-400); --color-accent-text:var(--emerald-300); --color-accent-tint:rgba(23,130,97,.16);
+  --color-brand:var(--emerald-300);
+  --color-accent:var(--emerald-400); --color-accent-text:var(--emerald-300); --color-accent-tint:rgba(10,127,119,.16);
   --color-action:var(--emerald-550); --color-on-action:var(--neutral-0); --color-action-hover:var(--emerald-400); --color-action-press:var(--emerald-600); --color-action-text:var(--emerald-300); --color-focus:var(--emerald-400);
   --color-overlay:rgba(0,0,0,.6);
   --shadow-sm:0 2px 8px rgba(0,0,0,.4); --shadow-md:0 8px 24px rgba(0,0,0,.5); --shadow-lg:0 16px 48px rgba(0,0,0,.6);
