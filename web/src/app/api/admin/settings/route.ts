@@ -32,6 +32,7 @@ const KEY_SCHEMAS: Record<string, z.ZodTypeAny> = {
     welcome: z.boolean(),
     proformaReminder: z.boolean(),
     callbackReminder: z.boolean(),
+    weeklyReport: z.boolean().default(true),
   }),
   SITE_CONTACT: z.object({
     address: z.string().min(1).max(300),

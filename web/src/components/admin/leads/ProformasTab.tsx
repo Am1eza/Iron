@@ -88,7 +88,15 @@ export function ProformasTab() {
               {rows.map((p) => (
                 <tr key={p.id}>
                   <td className="tnum">
-                    <bdi>{p.ref}</bdi>
+                    <a
+                      href={`https://ahantime.com/proforma/${encodeURIComponent(p.ref)}`}
+                      target="_blank"
+                      rel="noopener"
+                      style={{ color: 'var(--color-accent-text)' }}
+                      title="نسخهٔ چاپی / PDF"
+                    >
+                      <bdi>{p.ref}</bdi>
+                    </a>
                     <div className={`${ui.muted} tnum`}>{formatJalali(p.createdAt)}</div>
                   </td>
                   <td>

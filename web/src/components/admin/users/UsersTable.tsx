@@ -58,6 +58,15 @@ export function UsersTable() {
     },
     onError: (err) => toast.error(err instanceof ApiError ? err.message : 'به‌روزرسانی ناموفق بود.'),
   });
+  const setTier = useMutation({
+    mutationFn: ({ userId, tier }: { userId: string; tier: 'iron' | 'steel' | 'poolad' }) =>
+      adminApi.setClubTier(userId, tier),
+    onSuccess: () => {
+      toast.success('سطح باشگاه به‌روزرسانی شد.');
+      void qc.invalidateQueries({ queryKey: ['admin', 'users'] });
+    },
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : 'تغییر سطح ناموفق بود.'),
+  });
   const createStaff = useMutation({
     mutationFn: () => adminApi.createStaffUser({ mobile: invite.mobile.trim(), name: invite.name.trim() || undefined, role: invite.role }),
     onSuccess: () => {
@@ -171,7 +180,21 @@ export function UsersTable() {
                 <tr>
                   <td className={`tnum ${ui.mono}`}>{u.mobile}</td>
                   <td>
-                    {u.name ?? '—'} {u.clubTier ? <Badge tone="accent">{TIER_LABEL[u.clubTier]}</Badge> : null}
+                    {u.name ?? '—'}{' '}
+                    {u.clubTier ? (
+                      <select
+                        className={ui.select}
+                        value={u.clubTier}
+                        aria-label={`سطح باشگاه ${u.mobile}`}
+                        onChange={(e) => setTier.mutate({ userId: u.id, tier: e.target.value as 'iron' | 'steel' | 'poolad' })}
+                      >
+                        {Object.entries(TIER_LABEL).map(([k, label]) => (
+                          <option key={k} value={k}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                    ) : null}
                   </td>
                   <td>
                     {u.role === 'admin' ? (
@@ -252,7 +275,6 @@ export function UsersTable() {
         {data ? <PagerFooter page={page} perPage={50} total={data.total} onPage={setPage} /> : null}
       </div>
 
-      <ClubSection />
       {dialog}
     </div>
   );
@@ -349,69 +371,3 @@ function UserDetail({ id }: { id: string }) {
   );
 }
 
-function ClubSection() {
-  const toast = useToast();
-  const qc = useQueryClient();
-  const { data, isLoading, isError, refetch } = useQuery({ queryKey: ['admin', 'club'], queryFn: () => adminApi.clubMembers() });
-  const setTier = useMutation({
-    mutationFn: ({ id, tier }: { id: string; tier: 'iron' | 'steel' | 'poolad' }) => adminApi.setClubTier(id, tier),
-    onSuccess: () => {
-      toast.success('سطح باشگاه به‌روزرسانی شد.');
-      void qc.invalidateQueries({ queryKey: ['admin', 'club'] });
-    },
-    onError: () => toast.error('به‌روزرسانی ناموفق بود.'),
-  });
-
-  const members = data?.members ?? [];
-
-  return (
-    <div>
-      <Heading level={2}>باشگاه مشتریان</Heading>
-      {isLoading ? (
-        <TableSkeleton rows={3} cols={4} />
-      ) : isError ? (
-        <EmptyState
-          size="section"
-          tone="error"
-          headline="بارگذاری باشگاه ناموفق بود."
-          primary={{ label: 'تلاش دوباره', onClick: () => void refetch() }}
-        />
-      ) : members.length === 0 ? (
-        <p className={ui.muted}>هنوز عضوی ندارد.</p>
-      ) : (
-        <div className={ui.tableWrap}><table className={ui.table}>
-          <caption className="visually-hidden">فهرست اعضای باشگاه مشتریان</caption>
-          <thead>
-            <tr>
-              <th scope="col">موبایل</th>
-              <th scope="col">نام</th>
-              <th scope="col">سطح</th>
-              <th scope="col">عضویت</th>
-            </tr>
-          </thead>
-          <tbody>
-            {members.map((m) => (
-              <tr key={m.id}>
-                <td className={`tnum ${ui.mono}`}>{m.mobile}</td>
-                <td>{m.name ?? '—'}</td>
-                <td>
-                  <select
-                    className={ui.select}
-                    value={m.tier}
-                    onChange={(e) => setTier.mutate({ id: m.id, tier: e.target.value as 'iron' })}
-                    aria-label={`سطح ${m.mobile}`}
-                  >
-                    <option value="iron">آهنی</option>
-                    <option value="steel">فولادی</option>
-                    <option value="poolad">پولادی</option>
-                  </select>
-                </td>
-                <td className="tnum">{formatJalali(m.joinedAt)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table></div>
-      )}
-    </div>
-  );
-}

@@ -68,7 +68,7 @@ export function SettingsForm() {
         busy={save.isPending}
       />
       <SmsAutomationsCard
-        cfg={get('SMS_AUTOMATIONS', { welcome: true, proformaReminder: true, callbackReminder: true })}
+        cfg={get('SMS_AUTOMATIONS', { welcome: true, proformaReminder: true, callbackReminder: true, weeklyReport: true })}
         onSave={(v) => save.mutate({ key: 'SMS_AUTOMATIONS', value: v })}
         busy={save.isPending}
       />
@@ -515,6 +515,7 @@ interface SmsAutomationsValue {
   welcome: boolean;
   proformaReminder: boolean;
   callbackReminder: boolean;
+  weeklyReport: boolean;
 }
 
 /** پیامک‌های خودکار — روشن/خاموش‌کردن هر اتوماسیون بدون دیپلوی. */
@@ -545,6 +546,7 @@ function SmsAutomationsCard({
         <Row k="welcome" label="خوش‌آمدگویی" hint="با اولین ثبت‌نام هر کاربر ارسال می‌شود." />
         <Row k="proformaReminder" label="یادآوری اعتبار پیش‌فاکتور" hint="۲۴ ساعت قبل از پایان اعتبار، به مشتری (یک‌بار برای هر پیش‌فاکتور)." />
         <Row k="callbackReminder" label="یادآوری تماس به کارشناس" hint="در زمان تماس ثبت‌شده روی سرنخ، به موبایل کارشناس مسئول." />
+        <Row k="weeklyReport" label="گزارش هفتگی مدیر" hint="هر شنبه صبح خلاصهٔ هفته (پیش‌فاکتور، سرنخ، سفارش، کاربر) به موبایل مدیر (شمارهٔ همراهِ «اطلاعات تماس سایت»)." />
       </div>
       <div className={ui.toolbar} style={{ marginBlockStart: 'var(--space-3)' }}>
         <Button size="sm" loading={busy} onClick={() => onSave(v)}>

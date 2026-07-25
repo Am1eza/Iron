@@ -17,7 +17,12 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }
   const { id } = await ctx.params;
   const v = await validateBody(req, payload);
   if (!v.ok) return v.response;
-  const rows = await getDb().update(clubMemberships).set({ tier: v.data.tier }).where(eq(clubMemberships.id, id)).returning();
+  let rows = await getDb().update(clubMemberships).set({ tier: v.data.tier }).where(eq(clubMemberships.id, id)).returning();
+  if (!rows[0]) {
+    // Accept a USER id too — the users table sets tiers inline (the club tab
+    // was merged into it) and only knows user ids, not membership ids.
+    rows = await getDb().update(clubMemberships).set({ tier: v.data.tier }).where(eq(clubMemberships.userId, id)).returning();
+  }
   if (!rows[0]) return NextResponse.json({ error: 'not_found', message: 'عضو یافت نشد.' }, { status: 404 });
   await audit(auth.session.id, 'club.tier', { type: 'clubMembership', id }, null, v.data);
   return NextResponse.json({ member: rows[0] });

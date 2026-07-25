@@ -25,12 +25,15 @@ export interface SmsAutomations {
   welcome: boolean;
   proformaReminder: boolean;
   callbackReminder: boolean;
+  /** گزارش هفتگی مدیر — Saturday-morning summary SMS (weeklyReport.job.ts). */
+  weeklyReport: boolean;
 }
 
 export const DEFAULT_SMS_AUTOMATIONS: SmsAutomations = {
   welcome: true,
   proformaReminder: true,
   callbackReminder: true,
+  weeklyReport: true,
 };
 
 export const smsAutomationsSetting = () =>

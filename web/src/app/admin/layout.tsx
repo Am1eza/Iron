@@ -8,6 +8,7 @@ import { AdminNavLinks } from './AdminNavLinks';
 import { AdminAlerts } from '@/components/admin/AdminAlerts';
 import { CommandPalette } from '@/components/admin/CommandPalette';
 import { LogoutButton } from '@/components/auth/LogoutButton';
+import { AdminThemeToggle } from './AdminThemeToggle';
 import styles from './admin.module.css';
 import logoMark from '../../../public/brand/ahantime-logo.png';
 
@@ -91,6 +92,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         </nav>
         <div className={styles.user}>
           <CommandPalette nav={flatNav} />
+          <AdminThemeToggle />
           <span className={styles.userName}>{user.name ?? user.mobile}</span>
           <Link href={routes.home()} className={styles.exit}>
             سایت

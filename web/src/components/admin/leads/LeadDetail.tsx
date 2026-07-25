@@ -181,7 +181,16 @@ export function LeadDetail({ id }: { id: string }) {
             <ul>
               {proformas.map((p) => (
                 <li key={p.id} className="tnum">
-                  <bdi>{p.ref}</bdi> — {formatToman(p.total, false)} تومان · اعتبار تا{' '}
+                  <a
+                    href={`https://ahantime.com/proforma/${encodeURIComponent(p.ref)}`}
+                    target="_blank"
+                    rel="noopener"
+                    style={{ color: 'var(--color-accent-text)' }}
+                    title="نسخهٔ چاپی / PDF با سربرگ"
+                  >
+                    <bdi>{p.ref}</bdi>
+                  </a>{' '}
+                  — {formatToman(p.total, false)} تومان · اعتبار تا{' '}
                   {formatJalali(p.validUntil)}{' '}
                   <Badge tone={p.status === 'active' ? 'gain' : 'stale'}>
                     {p.status === 'active' ? 'فعال' : 'منقضی'}
