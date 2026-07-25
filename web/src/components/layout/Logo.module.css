@@ -12,7 +12,7 @@
 .mark {
   display: block;
   flex: none;
-  color: var(--color-brand);
+  object-fit: contain;
 }
 
 .word {
@@ -33,9 +33,6 @@
 }
 
 /* Light variant — over the dark hero overlay */
-.light .mark {
-  color: #fff;
-}
 .light .wordmark {
   color: var(--color-on-action);
 }

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Image from 'next/image';
 import Link from 'next/link';
 import { requirePermission } from '@/lib/auth/guards';
 import { can, permissionForAdminPath } from '@/lib/auth/roles';
@@ -8,8 +9,8 @@ import { AdminAlerts } from '@/components/admin/AdminAlerts';
 import { CommandPalette } from '@/components/admin/CommandPalette';
 import { LogoutButton } from '@/components/auth/LogoutButton';
 import { AdminThemeToggle } from './AdminThemeToggle';
-import { BrandMark } from '@/components/layout/BrandMark';
 import styles from './admin.module.css';
+import logoMark from '../../../public/brand/ahantime-logo.png';
 
 /** Admin shell — noindex; server-gated on admin:access (404 for non-staff). */
 export const metadata: Metadata = { robots: { index: false, follow: false } };
@@ -81,7 +82,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       </a>
       <header className={styles.topbar}>
         <Link href={routes.admin.dashboard()} className={styles.brand}>
-          <BrandMark size={28} className={styles.brandMark} />
+          <Image
+            src={logoMark}
+            alt=""
+            className={styles.brandMark}
+            width={Math.round((logoMark.width / logoMark.height) * 28)}
+            height={28}
+            priority
+          />
           پنل مدیریت
         </Link>
         {/* Mobile/tablet: one horizontally-scrollable strip (never a wall of
