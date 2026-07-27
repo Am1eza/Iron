@@ -46,18 +46,18 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: ['date-fns-jalali'],
     /**
-     * Next's default CSS chunking ('loose') INFERS stylesheet ordering and
-     * packs unrelated routes' CSS together toward a 100 KiB cap. Measured on
-     * this app that produced two ~80 KiB / ~57 KiB globs linked from all 17
-     * public routes: the homepage was downloading — render-blocking, ahead of
-     * LCP — the CSS of the admin panel, the account area, catalog tables,
-     * forms and the entire UI kit. 65% of the homepage's 164 KiB of CSS was
-     * for components it never renders. 'strict' only groups stylesheets whose
-     * order is genuinely constrained, so a route links what it actually uses.
-     * The cost is more, smaller stylesheet requests — free over HTTP/2, which
-     * Caddy serves here.
+     * CSS chunking is deliberately left at Next's default ('loose').
+     *
+     * 'strict' looks like the obvious win — it cut the homepage's CSS from
+     * 177 kB to 122 kB raw by no longer shipping the admin panel's, account
+     * area's and UI kit's stylesheets to it. But an A/B of the two builds,
+     * alternating runs on one machine to cancel drift, showed it made first
+     * paint WORSE: median FCP 2607ms vs 1377ms, median LCP 5718ms vs 4193ms.
+     * 'strict' split the page's CSS into 21 render-blocking stylesheets
+     * instead of 6, and on a high-latency mobile connection those extra
+     * round-trips cost far more than the 55 kB they save. Fewer bytes is not
+     * the same as faster. Do not re-enable without re-running that A/B.
      */
-    cssChunking: 'strict',
   },
   // Static export for GitHub Pages (preview). `next start`/dev keep full SSR.
   ...(isExport
