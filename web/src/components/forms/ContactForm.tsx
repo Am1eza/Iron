@@ -10,6 +10,7 @@ import { TextInput, Textarea } from './fields';
 import { PhoneField } from './PhoneField';
 import { FormStatus } from './FormStatus';
 import { Button } from '@/components/primitives/Button';
+import { trackGoal } from '@/lib/analytics/track';
 
 export function ContactForm() {
   const t = useTranslations('auth');
@@ -35,6 +36,7 @@ export function ContactForm() {
     setError(null);
     try {
       await formsApi.submitContact(values);
+      trackGoal('contact', 'contact-form');
       setDone(true);
       reset();
       setNational('');

@@ -12,6 +12,7 @@ import { getSpeechRecognition, type SpeechRecognitionLike } from '@/lib/utils/sp
 import { ChatMarkdown } from './ChatMarkdown';
 import { loadChat, saveChat, clearChat } from '@/lib/ai/chatStorage';
 import styles from './AdvisorChat.module.css';
+import { trackGoal } from '@/lib/analytics/track';
 
 /** Average میلگرد price from the seeded catalog — grounded, never an invented number. */
 const AVG_REBAR_PRICE: number = (() => {
@@ -547,6 +548,9 @@ export function AdvisorChat({
     // Track the stated purpose on BOTH paths so a mid-conversation fallback
     // to the local engine doesn't restart the intent-first questioning.
     purposeRef.current = purposeRef.current ?? detectPurpose(normalizeDigits(text));
+    // Conversion: the FIRST message only — a conversation is the goal, not
+    // each turn of it (transcriptRef is still empty at this point on turn 1).
+    if (transcriptRef.current.length === 0) trackGoal('ai-chat', 'first-message', purposeRef.current ?? 'general');
     transcriptRef.current.push({ role: 'user', text });
     setMessages((m) => [...m, { id: uid(), role: 'user', text }]);
     if (useServer.current) void sendLive(text);

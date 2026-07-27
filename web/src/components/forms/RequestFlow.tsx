@@ -10,6 +10,7 @@ import { useToast } from '@/lib/hooks/useToast';
 import { api } from '@/lib/api';
 import { API_MODE } from '@/lib/api/config';
 import { ApiError } from '@/lib/api/errors';
+import { trackGoal } from '@/lib/analytics/track';
 import type { CreateLeadResult } from '@/lib/server/services/leads.service';
 import { formatToman, toPersianDigits } from '@/lib/utils/format';
 import { Textarea } from '@/components/forms/fields';
@@ -111,6 +112,8 @@ export function RequestFlow() {
           note: note.trim() || undefined,
         });
         clear();
+        // Conversion: this is the moment a visitor became a real sales lead.
+        trackGoal('lead', 'cart-proforma', `${items.length} قلم`);
         setDone(result);
       } catch (err) {
         toast.error(err instanceof ApiError ? err.message : 'ثبت درخواست ناموفق بود. دوباره تلاش کنید.');
