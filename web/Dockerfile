@@ -63,6 +63,9 @@ COPY --from=build --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=build --chown=nextjs:nodejs /app/drizzle ./drizzle
 COPY --from=build --chown=nextjs:nodejs /app/scripts-dist ./scripts
 COPY --from=build --chown=nextjs:nodejs /app/docker-entrypoint.sh ./docker-entrypoint.sh
+# Multi-process wrapper around the standalone server.js — see its header for
+# the measured reason (one Node process = one core = collapsing tail latency).
+COPY --from=build --chown=nextjs:nodejs /app/cluster.mjs ./cluster.mjs
 # Pre-create the uploads mount point owned by nextjs — Docker copies THIS
 # directory's ownership into the named volume the first time it's mounted
 # (compose's `uploads:/app/public/uploads`), so the non-root `nextjs` user

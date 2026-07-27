@@ -44,6 +44,18 @@ services:
         condition: service_healthy
     environment:
       NODE_ENV: production
+      # Multi-core serving (see web/cluster.mjs). Node runs JS on one thread,
+      # so a single process used exactly one of this host's 4 vCPUs — measured
+      # with k6 at 500 concurrent visitors: CPU pinned at ~100% (one core)
+      # while Postgres idled at ~0%, and homepage p99 latency blew out to
+      # ~15s. 3 workers leaves a core for Postgres/Redis/Caddy, which share
+      # this box.
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-3}
+      # Per-process pool — the real draw is WEB_CONCURRENCY × this, PLUS the
+      # separate jobs process (also PG_POOL_MAX). At 3×10 + 10 = 40 against
+      # Postgres's max_connections=100 below, there's ample headroom for
+      # psql/pg_dump/admin sessions during a deploy.
+      PG_POOL_MAX: ${PG_POOL_MAX:-10}
       # REQUIRED — the app refuses to start in production without this.
       SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET in .env (openssl rand -hex 32)}
       NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://ahantime.com}

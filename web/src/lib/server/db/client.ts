@@ -141,11 +141,19 @@ export function getDb(): Db {
   // Node.js (Docker/local/tests): a real long-lived process.
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error('DATABASE_URL is not configured');
-  // max: 15 — one container runs both web traffic and the job scheduler (up
-  // to 6 jobs; each briefly holds a dedicated advisory-lock connection for
-  // its run, see jobs/scheduler.ts), so a bit of headroom above the
-  // previous 10 avoids pool contention between the two.
-  const pool = new Pool({ connectionString: url, max: 15, connectionTimeoutMillis: 5000 });
+  // Default 15 — one process runs both web traffic and (historically) the job
+  // scheduler (up to 6 jobs; each briefly holds a dedicated advisory-lock
+  // connection for its run, see jobs/scheduler.ts), so a bit of headroom above
+  // the previous 10 avoids pool contention between the two.
+  //
+  // PG_POOL_MAX exists because this is now PER PROCESS: cluster.mjs forks
+  // WEB_CONCURRENCY workers and each builds its own Pool, so the real
+  // connection draw is WEB_CONCURRENCY × this (+ the separate jobs process).
+  // That product must stay under Postgres `max_connections` (100 on this
+  // deploy) — docker-compose.yml sets both explicitly. Left at 15 when unset
+  // so single-process runs (tests, local, 1-core hosts) are unchanged.
+  const poolMax = Number(process.env.PG_POOL_MAX) || 15;
+  const pool = new Pool({ connectionString: url, max: poolMax, connectionTimeoutMillis: 5000 });
   globalForDb.__ahantimeDb = { pool, db: drizzle(pool, { schema }) };
   return globalForDb.__ahantimeDb.db;
 }
