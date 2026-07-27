@@ -75,12 +75,20 @@ export async function sendOtpSms(mobile: string, code: string): Promise<SmsResul
       return { ok: false };
     }
     // sms.ir returns { status, message, data } — status 1 means accepted.
+    // A response body that isn't parseable JSON (or has no numeric `status`)
+    // is NOT treated as success — it used to be (the missing-body case fell
+    // through to the success path below), which meant a malformed/empty 2xx
+    // response from sms.ir was silently logged and reported as a code
+    // successfully sent with no visibility into the real outcome.
     const body = (await res.json().catch(() => null)) as {
       status?: number;
       data?: { messageId?: number };
     } | null;
-    if (body && typeof body.status === 'number' && body.status !== 1) {
-      reportError(new Error(`sms.ir status ${body.status}`), { scope: 'sms' });
+    if (typeof body?.status !== 'number' || body.status !== 1) {
+      reportError(
+        new Error(body ? `sms.ir status ${body.status}` : 'sms.ir verify: unparseable response body'),
+        { scope: 'sms' },
+      );
       await logOtpSend(mobile, false);
       return { ok: false };
     }
@@ -167,8 +175,10 @@ export async function resendVerify(mobile: string, code: string, apiKey: string)
       body: JSON.stringify({ Mobile: mobile, TemplateId: Number(templateId), Parameters: [{ name: paramName, value: code }] }),
       signal: AbortSignal.timeout(8000),
     });
+    // Same reasoning as sendOtpSms above — an unparseable body must not read
+    // as success just because the HTTP status was 2xx.
     const body = (await res.json().catch(() => null)) as { status?: number } | null;
-    return res.ok && (body?.status === undefined || body.status === 1);
+    return res.ok && typeof body?.status === 'number' && body.status === 1;
   } catch {
     return false;
   }

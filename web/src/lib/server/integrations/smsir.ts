@@ -77,13 +77,30 @@ export async function sendSms(mobile: string, text: string, kind: SmsKind = 'gen
         if (!r.ok) throw new SmsHttpError(r.status);
         return r;
       },
-      { retries: 1, baseDelayMs: 200, isRetryable: (err) => err instanceof SmsHttpError && err.status >= 500 },
+      {
+        retries: 1,
+        baseDelayMs: 200,
+        // 429 added (US-otp-fix): this endpoint gets called back-to-back with
+        // the Verify send during the delivery-watchdog fallback (see sms.ts),
+        // which is exactly the kind of burst a rate limit reacts to — a 429
+        // used to fail immediately with no retry at all.
+        isRetryable: (err) => err instanceof SmsHttpError && (err.status >= 500 || err.status === 429),
+      },
     );
     // sms.ir returns { status, message, data } — status 1 means accepted.
+    // A response body that isn't parseable JSON is NOT treated as success —
+    // it used to be (the `!body ||` branch), which meant a malformed/empty
+    // response from sms.ir was silently logged and reported as a successful
+    // send with no visibility into the real outcome.
     const body = (await res.json().catch(() => null)) as { status?: number } | null;
-    const ok = !body || typeof body.status !== 'number' || body.status === 1;
+    const ok = typeof body?.status === 'number' && body.status === 1;
     await log(mobile, kind, { text }, ok ? 'sent' : 'failed');
-    if (!ok) reportError(new Error(`sms.ir status ${body!.status}`), { scope: 'sms', kind });
+    if (!ok) {
+      reportError(new Error(body ? `sms.ir status ${body.status}` : 'sms.ir bulk: unparseable response body'), {
+        scope: 'sms',
+        kind,
+      });
+    }
     return { ok };
   } catch (err) {
     reportError(err, { scope: 'sms', kind });

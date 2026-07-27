@@ -156,4 +156,73 @@ describe('sendOtpSms', () => {
 
     expect(await sendOtpSms('09120000000', '12345')).toEqual({ ok: false });
   });
+
+  it('a 2xx response body that fails to parse as JSON is a failure, not a silent success', async () => {
+    // Previously the missing-body case fell through to the success path —
+    // an sms.ir response we genuinely couldn't understand was logged and
+    // reported as a code successfully sent.
+    vi.stubEnv('SMSIR_API_KEY', 'test-key');
+    vi.stubEnv('SMSIR_TEMPLATE_ID', '100000');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => {
+          throw new SyntaxError('Unexpected end of JSON input');
+        },
+      }),
+    );
+    const { sendOtpSms } = await import('./sms');
+
+    expect(await sendOtpSms('09120000000', '12345')).toEqual({ ok: false });
+  });
+});
+
+describe('resendVerify', () => {
+  beforeEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+    vi.resetModules();
+  });
+
+  it('returns true on a real status:1 acceptance', async () => {
+    vi.stubEnv('SMSIR_TEMPLATE_ID', '100000');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ status: 1 }) }));
+    const { resendVerify } = await import('./sms');
+
+    expect(await resendVerify('09120000000', '12345', 'test-key')).toBe(true);
+  });
+
+  it('returns false on a non-1 status', async () => {
+    vi.stubEnv('SMSIR_TEMPLATE_ID', '100000');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ status: 2 }) }));
+    const { resendVerify } = await import('./sms');
+
+    expect(await resendVerify('09120000000', '12345', 'test-key')).toBe(false);
+  });
+
+  it('an unparseable response body is a failure, not a silent success', async () => {
+    vi.stubEnv('SMSIR_TEMPLATE_ID', '100000');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => {
+          throw new SyntaxError('Unexpected end of JSON input');
+        },
+      }),
+    );
+    const { resendVerify } = await import('./sms');
+
+    expect(await resendVerify('09120000000', '12345', 'test-key')).toBe(false);
+  });
+
+  it('no SMSIR_TEMPLATE_ID configured → returns false without calling fetch', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const { resendVerify } = await import('./sms');
+
+    expect(await resendVerify('09120000000', '12345', 'test-key')).toBe(false);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });

@@ -118,6 +118,48 @@ describe('sendSms (bulk)', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it('retries a 429 (rate limit) and succeeds on the next attempt', async () => {
+    // Real evidence for this one: the delivery-watchdog fallback (sms.ts)
+    // calls this endpoint ~30s after the Verify send, in a burst pattern a
+    // rate limiter reacts to — production sms_log showed a 55% failure rate
+    // on exactly this path before 429 was added to the retryable set.
+    vi.useFakeTimers();
+    try {
+      vi.stubEnv('SMSIR_API_KEY', 'test-key');
+      vi.stubEnv('SMSIR_LINE_NUMBER', '3000123456');
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce({ ok: false, status: 429 })
+        .mockResolvedValueOnce({ ok: true, json: async () => ({ status: 1 }) });
+      vi.stubGlobal('fetch', fetchMock);
+      const { sendSms } = await import('./smsir');
+
+      const p = sendSms('09120000000', 'سلام');
+      await vi.runAllTimersAsync();
+      expect(await p).toEqual({ ok: true });
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('a response body that fails to parse as JSON is a failure, not a silent success', async () => {
+    vi.stubEnv('SMSIR_API_KEY', 'test-key');
+    vi.stubEnv('SMSIR_LINE_NUMBER', '3000123456');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => {
+          throw new SyntaxError('Unexpected end of JSON input');
+        },
+      }),
+    );
+    const { sendSms } = await import('./smsir');
+
+    expect(await sendSms('09120000000', 'سلام')).toEqual({ ok: false });
+  });
+
   it('opens the circuit after repeated failures — a later call skips fetch entirely', async () => {
     vi.useFakeTimers();
     try {
