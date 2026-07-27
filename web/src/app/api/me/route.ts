@@ -5,14 +5,23 @@ import { updateUser, revokeAllForUser } from '@/lib/auth/store';
 import { publicUser } from '@/lib/auth/publicUser';
 import { requireApiUser, requireDb, withApiErrorHandling, audit } from '@/lib/server/utils/apiGuard';
 
-/** GET /api/me — the current user (from the access cookie), or 401 if anonymous. */
+/**
+ * GET /api/me — the current user from the access cookie, or `user: null`.
+ *
+ * Anonymous is answered with 200, NOT 401. AuthHydrator calls this on every
+ * page view and virtually all traffic is logged-out, so a 401 meant every
+ * ordinary visitor's browser logged a console error on every page: pure noise
+ * that also failed Lighthouse's "no browser errors" check. Nothing is
+ * protected by the status code here — the payload is either a user or null,
+ * and every real permission boundary has its own guard.
+ */
 async function GETImpl() {
   // getSessionVerified() already re-reads the repo (so name/role/club changes
   // reflect without a new login) as part of its revocation check — no need
   // for a second userById() call here.
   const session = await getSessionVerified();
   if (!session) {
-    return NextResponse.json({ error: 'unauthenticated', message: 'وارد نشده‌اید.' }, { status: 401 });
+    return NextResponse.json({ user: null });
   }
   return NextResponse.json({ user: publicUser(session) });
 }

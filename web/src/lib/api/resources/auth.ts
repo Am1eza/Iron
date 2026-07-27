@@ -43,8 +43,11 @@ export const authApi = {
     return http.post('/api/auth/logout', {});
   },
 
-  /** Current user from the session cookie (401 when anonymous). */
-  async me(): Promise<{ user: PublicUser }> {
+  /** Current user from the session cookie — `user: null` when anonymous.
+   *  Anonymous is the site's NORMAL state (almost all traffic), so it is a
+   *  200, not a 401: a 401 made every guest page view log a browser console
+   *  error, which is both noise and a Lighthouse "best practices" failure. */
+  async me(): Promise<{ user: PublicUser | null }> {
     return http.get('/api/me');
   },
 

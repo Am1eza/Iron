@@ -36,8 +36,11 @@ export function AuthHydrator() {
       .me()
       .then(({ user }) => {
         if (cancelled) return;
-        setUser(user);
-        setAuthenticated(true);
+        setUser(user ?? null);
+        // Only an actual session starts the rotation timer — `user: null` is
+        // the ordinary anonymous answer now (200, not 401), so it must not be
+        // mistaken for "signed in".
+        setAuthenticated(Boolean(user));
       })
       .catch(() => {
         if (!cancelled) setUser(null);

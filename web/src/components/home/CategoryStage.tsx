@@ -126,7 +126,17 @@ export function CategoryStage({
                   Decorative (the rail name IS the label) — hidden from AT. */}
               <div className={styles.photo} aria-hidden="true">
                 {productImage(activeCat.slug) ? (
-                  <ProductImage slug={activeCat.slug} name={activeCat.name} variant="full" eager />
+                  // The flyout is at most ~720px wide (and full-width on the
+                  // mobile layout), so tell the browser that instead of
+                  // letting it assume full-bleed and always fetch the 1200px
+                  // file for a box this size.
+                  <ProductImage
+                    slug={activeCat.slug}
+                    name={activeCat.name}
+                    variant="full"
+                    eager
+                    sizes="(min-width: 1100px) 700px, 100vw"
+                  />
                 ) : (
                   <span className={styles.photoFallback}>
                     <CategoryArt slug={activeCat.slug} size={72} />

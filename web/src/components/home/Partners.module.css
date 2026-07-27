@@ -56,15 +56,20 @@
   text-decoration: none;
 }
 
-/* Client logo cell — light surface so real logos read correctly. Sized by its
-   content (long company names must never overflow the box). */
+/* Client logo cell — light surface so real logos read correctly.
+   FIXED width, not content-sized: each cell swaps its text chip for the real
+   logo the moment the strip scrolls into view, and with an auto width that
+   swap resized the cell — every cell after it slid sideways, which the
+   browser records as a layout shift. Measured against the live site, these
+   cells were the dominant contributor to the homepage's CLS (0.185 on
+   desktop = "needs improvement" in Core Web Vitals, which Google counts
+   toward ranking). A fixed box makes the swap cost nothing. Long company
+   names still fit: .chipName clamps them. */
 .cell {
   display: flex;
   align-items: center;
   justify-content: center;
-  inline-size: auto;
-  min-inline-size: 176px;
-  max-inline-size: 320px;
+  inline-size: 220px;
   block-size: 96px;
   padding: var(--space-4) var(--space-5);
   border-radius: var(--radius-lg);

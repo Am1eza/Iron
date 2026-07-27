@@ -96,7 +96,13 @@ export function Marquee({
       <li
         key={copy + '-' + i}
         className={styles.item}
+        // The extra copies exist only so the loop looks seamless. `inert` —
+        // not aria-hidden alone — is what also takes them out of the tab
+        // order: with aria-hidden only, the links inside stayed focusable,
+        // so a keyboard user could tab into content screen readers are told
+        // doesn't exist (the aria-hidden-focus accessibility failure).
         aria-hidden={copy > 0 ? true : undefined}
+        inert={copy > 0 ? true : undefined}
       >
         {node}
       </li>
