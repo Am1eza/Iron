@@ -31,6 +31,17 @@ export const CONSTANTS = {
 
   /** Session */
   SESSION_TTL_DAYS: 30,
+  /**
+   * Access-token lifetime. Was 15 minutes, which made staff re-login (and pay
+   * for a fresh OTP SMS) after any short break — the refresh token is good for
+   * 30 days, but nothing spent it on a server-side navigation, so an expired
+   * access cookie went straight to the login screen. Now 4 hours, which covers
+   * a work session, and the expiry is recovered silently anyway
+   * (/api/auth/silent). Revocation is NOT weakened by the longer window:
+   * every permission boundary calls getSessionVerified(), which re-checks
+   * users.tokenVersion on each request, and any role/active change bumps it.
+   */
+  ACCESS_TTL_SECONDS: 4 * 60 * 60,
 
   /** AI advisor (acceptance-criteria §D) */
   AI_TIMEOUT_MS: 20_000, // AC-D-9: never hang beyond 20s

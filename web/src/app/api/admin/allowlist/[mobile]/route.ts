@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
-import { allowlistCount, isAllowlisted, removeFromAllowlist } from '@/lib/server/repos/adminAllowlistRepo';
+import { allowlistCount, allowlistedRole, removeFromAllowlist } from '@/lib/server/repos/adminAllowlistRepo';
 import { revokeAllForUser } from '@/lib/auth/store';
 import { normalizeDigits } from '@/lib/utils/format';
 
@@ -25,12 +25,16 @@ async function DELETEImpl(req: NextRequest, ctx: { params: Promise<{ mobile: str
       { status: 409 },
     );
   }
-  if (!(await isAllowlisted(mobile))) {
+  const grantedRole = await allowlistedRole(mobile);
+  if (!grantedRole) {
     return NextResponse.json({ error: 'not_found', message: 'این شماره در فهرست نیست.' }, { status: 404 });
   }
-  if ((await allowlistCount()) <= 1) {
+  // The lock-out guard is about ADMINS specifically: since the registry
+  // gained roles, removing the last sales/content entry is perfectly fine —
+  // only removing the last account that can still manage access is not.
+  if (grantedRole === 'admin' && (await allowlistCount()) <= 1) {
     return NextResponse.json(
-      { error: 'last_admin', message: 'آخرین مدیر را نمی‌توان حذف کرد.' },
+      { error: 'last_admin', message: 'آخرین مدیر سیستم را نمی‌توان حذف کرد.' },
       { status: 409 },
     );
   }

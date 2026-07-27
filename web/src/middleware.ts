@@ -113,7 +113,17 @@ export async function middleware(req: NextRequest) {
     const claims = token ? await verifyAccessToken(token) : null;
     if (!claims) {
       const url = req.nextUrl.clone();
-      url.pathname = '/login';
+      // An expired access cookie is NOT a lost session: the refresh cookie is
+      // good for 30 days, but it's path-scoped to /api/auth so it never
+      // arrives with a page request — middleware can't see it. Bounce through
+      // the silent-refresh route (which does receive it) before ever asking
+      // for a new OTP; that hop is what stopped staff being logged out —
+      // and charged for an SMS — after every short break. `_r=1` marks a
+      // hop already spent, so a genuinely dead session goes to /login instead
+      // of ping-ponging.
+      const spent = req.nextUrl.searchParams.get('_r') === '1';
+      url.pathname = spent ? '/login' : '/api/auth/silent';
+      url.search = '';
       // The ORIGINAL path (not effectivePathname) — on the panel host this
       // must stay unprefixed so the post-login redirect lands back on
       // panel.ahantime.com/leads, not .../admin/leads (which would then get

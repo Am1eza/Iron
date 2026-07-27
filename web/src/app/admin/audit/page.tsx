@@ -9,8 +9,11 @@ export default async function AdminAuditPage() {
   return (
     <Stack gap={5}>
       <div>
-        <Heading level={1}>رویدادها</Heading>
-        <Text color="muted">هر تغییر ادمین با قبل/بعد ثبت می‌شود؛ این فهرست فقط‌خواندنی است.</Text>
+        <Heading level={1}>گزارش فعالیت</Heading>
+        <Text color="muted">
+          هر تغییری که در پنل انجام می‌شود — همراه با اینکه چه کسی، چه زمانی و دقیقاً کدام مقدار را از چه به چه
+          تغییر داده. این گزارش فقط‌خواندنی است و پاک نمی‌شود.
+        </Text>
       </div>
       <AuditLog />
     </Stack>

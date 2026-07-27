@@ -162,6 +162,9 @@ export interface PendingVerificationRow {
 export interface AllowlistEntryRow {
   mobile: string;
   label: string | null;
+  /** The role this mobile is GRANTED (what it becomes at next login) — not
+   *  necessarily what the account holds right now (`userRole`). */
+  role: 'operator' | 'sales' | 'content' | 'catalog' | 'admin';
   addedBy: string | null;
   createdAt: string;
   userId: string | null;
@@ -465,8 +468,10 @@ export const adminApi = {
     http.patch<{ ok: true; verificationLevel: number }>(`/api/admin/verifications/${userId}`, { kind, decision }),
   allowlist: () =>
     http.get<{ entries: AllowlistEntryRow[] }>('/api/admin/allowlist'),
-  addToAllowlist: (mobile: string, label?: string) =>
-    http.post<{ entries: AllowlistEntryRow[] }>('/api/admin/allowlist', { mobile, label }),
+  /** Grant panel access with a role — or change an existing entry's role
+   *  (upsert keyed on the mobile). */
+  addToAllowlist: (mobile: string, role: string, label?: string) =>
+    http.post<{ entries: AllowlistEntryRow[] }>('/api/admin/allowlist', { mobile, role, label }),
   removeFromAllowlist: (mobile: string) =>
     http.del<{ ok: true }>(`/api/admin/allowlist/${encodeURIComponent(mobile)}`),
   clubMembers: (page = 1) =>

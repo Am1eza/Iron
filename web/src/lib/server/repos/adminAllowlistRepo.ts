@@ -1,21 +1,31 @@
 /**
- * Admin allowlist — who may hold the `admin` role (see schema/auth.ts).
+ * Staff access registry — the single list that decides who may enter the panel
+ * and with which role (see schema/auth.ts `admin_allowlist`).
  *
- * The invariant this repo maintains: `users.role = 'admin'` ⇔ the mobile is
- * on the allowlist. Login syncs one direction (promote/demote the user who
- * just verified an OTP); the add/remove mutations sync the other (a removed
- * mobile's user is demoted in the same request, token version bumped so
- * their live session dies immediately).
+ * The invariant this repo maintains: a user holds a STAFF role ⇔ their mobile
+ * is in this table, with exactly the role the row names. Login syncs one
+ * direction (promote/demote/re-role the user who just verified an OTP); the
+ * add/update/remove mutations sync the other (the affected user is changed in
+ * the same request, token version bumped so their live session dies at once).
+ *
+ * Membership is also what lets a number request a panel OTP at all — an
+ * unlisted number never receives a panel login code (see auth/service.ts), so
+ * strangers can neither reach the panel nor burn SMS credit probing it.
  */
 import { eq } from 'drizzle-orm';
 import { getDb, hasDb } from '@/lib/server/db/client';
 import { adminAllowlist, users } from '@/lib/server/db/schema';
 import { updateUser, userByMobile } from '@/lib/auth/store';
-import type { AuthUser } from '@/lib/auth/types';
+import { isStaff } from '@/lib/auth/roles';
+import type { AuthUser, Role } from '@/lib/auth/types';
+
+/** Roles that can be granted through the registry (never 'customer'). */
+export type StaffRole = Exclude<Role, 'customer'>;
 
 export interface AllowlistEntry {
   mobile: string;
   label: string | null;
+  role: StaffRole;
   addedBy: string | null;
   createdAt: string;
   /** Live join: has this mobile ever logged in, and what role do they hold now? */
@@ -30,6 +40,7 @@ export async function listAllowlist(): Promise<AllowlistEntry[]> {
     .select({
       mobile: adminAllowlist.mobile,
       label: adminAllowlist.label,
+      role: adminAllowlist.role,
       addedBy: adminAllowlist.addedBy,
       createdAt: adminAllowlist.createdAt,
       userId: users.id,
@@ -42,43 +53,53 @@ export async function listAllowlist(): Promise<AllowlistEntry[]> {
   return rows.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() }));
 }
 
-export async function isAllowlisted(mobile: string): Promise<boolean> {
+/** The granted role for a mobile, or null when it isn't staff at all. */
+export async function allowlistedRole(mobile: string): Promise<StaffRole | null> {
   const rows = await getDb()
-    .select({ mobile: adminAllowlist.mobile })
+    .select({ role: adminAllowlist.role })
     .from(adminAllowlist)
     .where(eq(adminAllowlist.mobile, mobile))
     .limit(1);
-  return rows.length > 0;
+  return rows[0]?.role ?? null;
 }
 
+export async function isAllowlisted(mobile: string): Promise<boolean> {
+  return (await allowlistedRole(mobile)) !== null;
+}
+
+/** How many entries hold the `admin` role — the last-admin guard reads this. */
 export async function allowlistCount(): Promise<number> {
-  const rows = await getDb().select({ mobile: adminAllowlist.mobile }).from(adminAllowlist);
+  const rows = await getDb()
+    .select({ mobile: adminAllowlist.mobile })
+    .from(adminAllowlist)
+    .where(eq(adminAllowlist.role, 'admin'));
   return rows.length;
 }
 
-/** Add a mobile; if that user already exists, promote them right away. */
+/** Add or re-role a mobile; if that user already exists, apply it right away. */
 export async function addToAllowlist(
   mobile: string,
   label: string | null,
+  role: StaffRole,
   addedBy: string,
 ): Promise<{ promotedUserId: string | null }> {
   await getDb()
     .insert(adminAllowlist)
-    .values({ mobile, label, addedBy })
-    .onConflictDoUpdate({ target: adminAllowlist.mobile, set: { label, addedBy } });
+    .values({ mobile, label, role, addedBy })
+    .onConflictDoUpdate({ target: adminAllowlist.mobile, set: { label, role, addedBy } });
   const existing = await userByMobile(mobile);
-  if (existing && existing.role !== 'admin') {
-    await updateUser(existing.id, { role: 'admin' }); // bumps tokenVersion
+  if (existing && existing.role !== role) {
+    await updateUser(existing.id, { role }); // bumps tokenVersion
     return { promotedUserId: existing.id };
   }
   return { promotedUserId: null };
 }
 
-/** Remove a mobile and demote its user (fail-closed) in the same request. */
+/** Remove a mobile and strip its user's staff role (fail-closed) at once. */
 export async function removeFromAllowlist(mobile: string): Promise<{ demotedUserId: string | null }> {
   await getDb().delete(adminAllowlist).where(eq(adminAllowlist.mobile, mobile));
   const existing = await userByMobile(mobile);
-  if (existing && existing.role === 'admin') {
+  if (existing && isStaff(existing.role)) {
     await updateUser(existing.id, { role: 'customer' }); // bumps tokenVersion → live session dies
     return { demotedUserId: existing.id };
   }
@@ -86,24 +107,27 @@ export async function removeFromAllowlist(mobile: string): Promise<{ demotedUser
 }
 
 /**
- * Login-time sync (called from verifyOtp): the allowlist decides the admin
- * role, in BOTH directions. No-DB (mock/dev memory) mode is a no-op.
+ * Login-time sync (called from verifyOtp): the registry decides the staff
+ * role, in BOTH directions — an unlisted staff account is demoted back to
+ * `customer`, and a listed one is moved onto exactly the role its row names
+ * (so changing a row's role takes effect on their next login even if their
+ * session was never revoked). No-DB (mock/dev memory) mode is a no-op.
  * Best-effort by design — a sync failure must never block a customer login;
  * the permission gates still verify role+tokenVersion server-side.
  */
 export async function syncAdminRoleOnLogin(user: AuthUser): Promise<AuthUser> {
   if (!hasDb()) return user;
   try {
-    const listed = await isAllowlisted(user.mobile);
-    if (listed && user.role !== 'admin') {
-      return (await updateUser(user.id, { role: 'admin' })) ?? user;
+    const granted = await allowlistedRole(user.mobile);
+    if (granted && user.role !== granted) {
+      return (await updateUser(user.id, { role: granted })) ?? user;
     }
-    if (!listed && user.role === 'admin') {
+    if (!granted && isStaff(user.role)) {
       return (await updateUser(user.id, { role: 'customer' })) ?? user;
     }
   } catch {
-    /* fail open for CUSTOMER login, closed for admin: an un-synced admin
-       still passes gates only if their row really has role=admin. */
+    /* fail open for CUSTOMER login, closed for staff: an un-synced staff
+       member still passes gates only if their row really has that role. */
   }
   return user;
 }
@@ -114,7 +138,7 @@ export async function bootstrapAllowlist(mobiles: string[]): Promise<number> {
   for (const mobile of mobiles) {
     await getDb()
       .insert(adminAllowlist)
-      .values({ mobile, label: 'bootstrap (ADMIN_MOBILES)', addedBy: null })
+      .values({ mobile, label: 'bootstrap (ADMIN_MOBILES)', role: 'admin', addedBy: null })
       .onConflictDoNothing();
     const existing = await userByMobile(mobile);
     if (existing && existing.role !== 'admin') await updateUser(existing.id, { role: 'admin' });

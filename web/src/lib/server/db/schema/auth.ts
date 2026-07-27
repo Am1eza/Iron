@@ -95,6 +95,17 @@ export const refreshTokens = pgTable(
 export const adminAllowlist = pgTable('admin_allowlist', {
   mobile: text('mobile').primaryKey(), // normalized 09xxxxxxxxx
   label: text('label'),
+  /**
+   * The staff role this mobile is granted at login. Generalizes what began as
+   * an admins-only list into THE staff access registry: a number that is not
+   * in this table can hold no staff role and cannot request a panel OTP at
+   * all. 'admin' is the default so rows predating this column keep their
+   * historical meaning. (The table name is deliberately unchanged — renaming
+   * a live table buys nothing and breaks concurrent work on this repo.)
+   */
+  role: text('role', { enum: ['operator', 'sales', 'content', 'catalog', 'admin'] })
+    .notNull()
+    .default('admin'),
   addedBy: text('added_by').references(() => users.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });

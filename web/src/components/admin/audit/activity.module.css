@@ -1,0 +1,185 @@
+/* Activity log — a timeline, not a table: every entry is a sentence with the
+   field-level diff underneath. */
+
+.dayGroup {
+  margin-block-start: var(--space-5);
+}
+.dayHead {
+  position: sticky;
+  inset-block-start: 56px; /* under the panel topbar */
+  z-index: var(--z-raised);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding-block: var(--space-2);
+  background: var(--color-surface);
+  font: var(--t-overline);
+  color: var(--color-text-muted);
+}
+.dayHead::after {
+  content: '';
+  flex: 1;
+  block-size: 1px;
+  background: var(--color-hairline);
+}
+.dayCount {
+  font: var(--t-micro);
+  color: var(--color-text-placeholder);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.item {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  transition: background var(--dur-fast) var(--ease-standard);
+}
+.item:hover {
+  background: var(--color-surface-sunken);
+}
+
+.avatar {
+  inline-size: 34px;
+  block-size: 34px;
+  border-radius: var(--radius-circle);
+  display: grid;
+  place-items: center;
+  font: var(--t-caption);
+  font-weight: 700;
+  color: var(--color-text-inverse, #fff);
+  background: var(--chart-2);
+  flex: none;
+}
+/* tone = what KIND of change this was; destructive reads red at a glance */
+.tone_create {
+  background: var(--chart-good);
+}
+.tone_update {
+  background: var(--chart-2);
+}
+.tone_destroy {
+  background: var(--chart-bad);
+}
+.tone_publish {
+  background: var(--chart-4);
+}
+.tone_access {
+  background: var(--chart-3);
+}
+.tone_money {
+  background: var(--chart-1);
+}
+
+.body {
+  min-inline-size: 0;
+}
+.line {
+  margin: 0;
+  font: var(--t-body-sm);
+  color: var(--color-text);
+}
+.who {
+  color: var(--color-text-strong);
+}
+.entity,
+.entityPlain {
+  color: var(--color-accent-text);
+}
+.entityId {
+  color: var(--color-text-muted);
+  font-size: 0.9em;
+}
+.meta {
+  margin: 2px 0 0;
+  font: var(--t-micro);
+  color: var(--color-text-muted);
+}
+.code {
+  font-family: var(--font-latin);
+  font-size: 0.92em;
+  color: var(--color-text-placeholder);
+}
+
+.changes {
+  list-style: none;
+  margin: var(--space-2) 0 0;
+  padding: var(--space-2) var(--space-3);
+  display: grid;
+  gap: 4px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-sunken);
+  border: var(--border-hairline) solid var(--color-hairline);
+}
+.change {
+  display: grid;
+  grid-template-columns: minmax(6rem, auto) minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--space-2);
+  font: var(--t-caption);
+}
+.field {
+  color: var(--color-text-muted);
+}
+.from {
+  color: var(--color-loss-text);
+  text-decoration: line-through;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.arrow {
+  color: var(--color-text-placeholder);
+}
+.to {
+  color: var(--color-gain-text);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.moreFields {
+  font: var(--t-micro);
+  color: var(--color-text-muted);
+}
+
+.raw {
+  margin-block-start: var(--space-2);
+}
+.raw summary {
+  font: var(--t-micro);
+  color: var(--color-text-placeholder);
+  cursor: pointer;
+}
+.raw pre {
+  margin: var(--space-2) 0 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-sunken);
+  overflow-x: auto;
+  font-size: 0.75rem;
+  direction: ltr;
+  text-align: left;
+}
+
+@media (max-width: 700px) {
+  .change {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  .from,
+  .to {
+    white-space: normal;
+  }
+  .arrow {
+    display: none;
+  }
+}

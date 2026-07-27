@@ -1,11 +1,22 @@
 'use client';
-/** Read-only audit trail — every admin/system write, with before/after diffs. */
-import { useEffect, useState } from 'react';
+/**
+ * «گزارش فعالیت» — the read-only trail of every write in the panel, rendered
+ * as a day-grouped timeline of sentences («فلانی مقاله را منتشر کرد») with a
+ * field-level diff under each one.
+ *
+ * It replaced a table whose «جزئیات» column was a raw JSON dump of both
+ * snapshots: technically complete, practically unreadable — on a settings row
+ * that's dozens of unchanged lines hiding the one field that moved. Answering
+ * "who broke the article yesterday" is the entire job here.
+ */
+import { useEffect, useMemo, useState } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api/resources/admin';
 import { formatJalali, toPersianDigits } from '@/lib/utils/format';
-import { Badge, Button, Chip, EmptyState, TableSkeleton } from '@/components/ui';
+import { Button, Chip, EmptyState, TableSkeleton } from '@/components/ui';
 import { JalaliDateField } from '../JalaliDateField';
+import { ActivityItem, type AuditRow } from './ActivityItem';
+import styles from './activity.module.css';
 import ui from '../adminUi.module.css';
 
 const ENTITY_FILTERS = [
@@ -14,9 +25,21 @@ const ENTITY_FILTERS = [
   { id: 'lead', label: 'سرنخ' },
   { id: 'order', label: 'سفارش' },
   { id: 'article', label: 'مقاله' },
-  { id: 'setting', label: 'تنظیم' },
+  { id: 'setting', label: 'تنظیمات' },
   { id: 'user', label: 'کاربر' },
+  { id: 'admin_allowlist', label: 'دسترسی پنل' },
 ];
+
+/** Jalali day key + a human heading («امروز» / «دیروز» / the date). */
+function dayKey(iso: string): string {
+  return formatJalali(iso, 'yyyy/MM/dd');
+}
+function dayHeading(iso: string, todayKey: string, yesterdayKey: string): string {
+  const k = dayKey(iso);
+  if (k === todayKey) return 'امروز';
+  if (k === yesterdayKey) return 'دیروز';
+  return formatJalali(iso, 'EEEE d MMMM yyyy');
+}
 
 export function AuditLog() {
   const [entityType, setEntityType] = useState('');
@@ -60,7 +83,23 @@ export function AuditLog() {
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
 
-  const entries = data?.pages.flatMap((p) => p.entries) ?? [];
+  const entries = (data?.pages.flatMap((p) => p.entries) ?? []) as AuditRow[];
+
+  // Group into Jalali days for the timeline headings. useMemo because the
+  // grouping walks every loaded entry and "load more" keeps appending.
+  const { groups, todayKey, yesterdayKey } = useMemo(() => {
+    const now = new Date();
+    const tKey = dayKey(now.toISOString());
+    const yKey = dayKey(new Date(now.getTime() - 86_400_000).toISOString());
+    const map = new Map<string, AuditRow[]>();
+    for (const e of entries) {
+      const k = dayKey(e.at);
+      const bucket = map.get(k);
+      if (bucket) bucket.push(e);
+      else map.set(k, [e]);
+    }
+    return { groups: Array.from(map.entries()), todayKey: tKey, yesterdayKey: yKey };
+  }, [entries]);
 
   return (
     <div>
@@ -75,7 +114,7 @@ export function AuditLog() {
         <input
           className={`${ui.textCell} ${ui.mono}`}
           dir="ltr"
-          placeholder="فیلتر عملیات (مثلاً catalog.sku.update)"
+          placeholder="فیلتر عملیات (مثلاً content.publish)"
           value={action}
           onChange={(e) => setAction(e.target.value)}
           aria-label="فیلتر عملیات"
@@ -108,7 +147,7 @@ export function AuditLog() {
       </div>
 
       {isLoading ? (
-        <TableSkeleton rows={8} cols={4} />
+        <TableSkeleton rows={8} cols={2} />
       ) : isError ? (
         <EmptyState
           size="section"
@@ -117,59 +156,25 @@ export function AuditLog() {
           primary={{ label: 'تلاش دوباره', onClick: () => void refetch() }}
         />
       ) : entries.length === 0 ? (
-        <EmptyState size="section" headline="رویدادی نیست" body="تغییرات ادمین اینجا ثبت می‌شود." />
+        <EmptyState
+          size="section"
+          headline="رویدادی نیست"
+          body="هر تغییری که کارشناسان در پنل انجام دهند اینجا ثبت می‌شود."
+        />
       ) : (
-        <div className={ui.tableWrap}><table className={ui.table}>
-          <caption className="visually-hidden">فهرست رویدادهای ثبت‌شده در گزارش تغییرات</caption>
-          <thead>
-            <tr>
-              <th scope="col">زمان</th>
-              <th scope="col">عملیات</th>
-              <th scope="col">موجودیت</th>
-              <th scope="col">کاربر</th>
-              <th scope="col">جزئیات</th>
-            </tr>
-          </thead>
-          <tbody>
-            {entries.map((e) => (
-              <tr key={e.id}>
-                <td className="tnum">{formatJalali(e.at)}</td>
-                <td>
-                  <Badge tone="neutral">
-                    <span className={ui.mono}>{e.action}</span>
-                  </Badge>
-                </td>
-                <td>
-                  {e.entityType} <span className={`${ui.muted} ${ui.mono}`}>{e.entityId}</span>
-                </td>
-                <td>
-                  {e.actorName ? (
-                    <>
-                      {e.actorName}
-                      {e.actorMobile ? <div className={`${ui.muted} tnum`}>{toPersianDigits(e.actorMobile)}</div> : null}
-                    </>
-                  ) : e.actorMobile ? (
-                    <span className="tnum">{toPersianDigits(e.actorMobile)}</span>
-                  ) : e.actorId ? (
-                    <span className={ui.mono}>{e.actorId}</span>
-                  ) : (
-                    'سیستم'
-                  )}
-                </td>
-                <td>
-                  {e.before || e.after ? (
-                    <details>
-                      <summary className={ui.muted}>نمایش</summary>
-                      <pre className={ui.detailsPre}>{JSON.stringify({ before: e.before, after: e.after }, null, 2)}</pre>
-                    </details>
-                  ) : (
-                    '—'
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table></div>
+        groups.map(([key, rows]) => (
+          <section key={key} className={styles.dayGroup}>
+            <h2 className={styles.dayHead}>
+              {dayHeading(rows[0]!.at, todayKey, yesterdayKey)}
+              <span className={styles.dayCount}>{toPersianDigits(rows.length)} رویداد</span>
+            </h2>
+            <ul className={styles.list}>
+              {rows.map((e) => (
+                <ActivityItem key={e.id} row={e} />
+              ))}
+            </ul>
+          </section>
+        ))
       )}
 
       {hasNextPage && (

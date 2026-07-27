@@ -1,7 +1,8 @@
 // @vitest-environment node
 /**
- * Admin allowlist — the invariant `role=admin ⇔ mobile allowlisted`, proven
- * against the real pg store (pglite) through the REAL login flow.
+ * Staff access registry — the invariant «a user holds a staff role ⇔ their
+ * mobile is listed, with exactly that row's role», proven against the real pg
+ * store (pglite) through the REAL login flow.
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { createTestDb } from '@/test/db';
@@ -10,6 +11,7 @@ import { userByMobile } from '@/lib/auth/store';
 import {
   addToAllowlist,
   allowlistCount,
+  allowlistedRole,
   bootstrapAllowlist,
   isAllowlisted,
   listAllowlist,
@@ -63,11 +65,35 @@ describe('admin allowlist (pg)', () => {
     expect(before.user.role).toBe('customer');
     const tvBefore = before.user.tokenVersion ?? 0;
 
-    const { promotedUserId } = await addToAllowlist('09135550002', 'مدیر جدید', before.user.id);
+    const { promotedUserId } = await addToAllowlist('09135550002', 'مدیر جدید', 'admin', before.user.id);
     expect(promotedUserId).toBe(before.user.id);
     const after = await userByMobile('09135550002');
     expect(after?.role).toBe('admin');
     expect((after?.tokenVersion ?? 0)).toBeGreaterThan(tvBefore);
+  });
+
+  it('grants the ROLE the row names — not always admin — and re-roles on change', async () => {
+    const u = await login('09135550007');
+    await addToAllowlist('09135550007', 'کارشناس فروش', 'sales', u.user.id);
+    expect((await userByMobile('09135550007'))?.role).toBe('sales');
+
+    // Same mobile, different role: an upsert, applied immediately.
+    await addToAllowlist('09135550007', 'کارشناس فروش', 'content', u.user.id);
+    expect((await userByMobile('09135550007'))?.role).toBe('content');
+  });
+
+  it('a login by an UNLISTED staff account demotes it back to customer', async () => {
+    const u = await login('09135550008');
+    await addToAllowlist('09135550008', null, 'catalog', u.user.id);
+    expect((await userByMobile('09135550008'))?.role).toBe('catalog');
+
+    await removeFromAllowlist('09135550008');
+    expect((await userByMobile('09135550008'))?.role).toBe('customer');
+  });
+
+  it('allowlistedRole reports the grant, and null for a stranger', async () => {
+    expect(await allowlistedRole('09121395954')).toBe('admin');
+    expect(await allowlistedRole('09999999999')).toBeNull();
   });
 
   it('list joins live user state; bootstrap is idempotent and never removes', async () => {
@@ -78,5 +104,21 @@ describe('admin allowlist (pg)', () => {
     const entries = await listAllowlist();
     const e = entries.find((x) => x.mobile === '09121395954');
     expect(e?.userRole).toBe('admin');
+  });
+
+  it('PANEL login is refused (and no OTP issued) for a number outside the registry', async () => {
+    // panelOnly=true is what the OTP route passes when the request arrives on
+    // panel.ahantime.com. A stranger must get a hard error, not a code — this
+    // is both the entry gate and the SMS-cost guard.
+    await expect(requestOtp('09999999901', 'غریبه', true)).rejects.toMatchObject({
+      code: 'not_staff',
+      status: 403,
+    });
+  });
+
+  it('PANEL login proceeds for a listed number', async () => {
+    await bootstrapAllowlist(['09121395954']);
+    const res = await requestOtp('09121395954', undefined, true);
+    expect(res.ttl).toBeGreaterThan(0);
   });
 });

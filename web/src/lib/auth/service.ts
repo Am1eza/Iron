@@ -4,6 +4,8 @@
  * All user-facing errors are Persian; nothing leaks codes/hashes/provider details.
  */
 import { CONSTANTS } from '@/lib/config/constants';
+import { hasDb } from '@/lib/server/db/client';
+import { allowlistedRole } from '@/lib/server/repos/adminAllowlistRepo';
 import type { AuthUser, IssuedTokens } from './types';
 import { sha256, randomToken, randomOtp, timingSafeEqual, requiredSecret } from './crypto';
 import { signAccessToken } from './jwt';
@@ -48,8 +50,28 @@ const pepper = () => requiredSecret(process.env.SESSION_SECRET, 'dev-pepper');
 export async function requestOtp(
   mobile: string,
   name?: string,
+  /** True when the request came from the panel host — see the gate below. */
+  panelOnly = false,
 ): Promise<{ ttl: number; devCode?: string; isNewUser: boolean }> {
   const now = Date.now();
+
+  // Panel login is invitation-only: a number that isn't in the staff access
+  // registry never receives a panel code. This is the real entry gate — the
+  // permission layer would only reject a stranger AFTER a full login — and it
+  // also stops anyone from burning SMS credit on the panel's login form.
+  // Checked BEFORE any rate/OTP state is written, so a rejected stranger
+  // leaves no trace and consumes no quota.
+  if (panelOnly && hasDb()) {
+    const granted = await allowlistedRole(mobile);
+    if (!granted) {
+      throw new AuthError(
+        'not_staff',
+        'این شماره اجازهٔ ورود به پنل را ندارد. برای دریافت دسترسی با مدیر سیستم تماس بگیرید.',
+        403,
+      );
+    }
+  }
+
   const rate = await getRate(mobile);
 
   if (rate.lockedUntil && rate.lockedUntil > now) {
@@ -231,13 +253,16 @@ export async function logout(refreshToken: string | undefined): Promise<void> {
 
 /* ------------------------------- helpers ------------------------------- */
 async function issueTokens(user: AuthUser): Promise<IssuedTokens> {
-  const { token: accessToken, expiresAt: accessExpiresAt } = await signAccessToken({
-    sub: user.id,
-    mobile: user.mobile,
-    role: user.role,
-    name: user.name,
-    tv: user.tokenVersion ?? 0,
-  });
+  const { token: accessToken, expiresAt: accessExpiresAt } = await signAccessToken(
+    {
+      sub: user.id,
+      mobile: user.mobile,
+      role: user.role,
+      name: user.name,
+      tv: user.tokenVersion ?? 0,
+    },
+    CONSTANTS.ACCESS_TTL_SECONDS,
+  );
   const refreshToken = randomToken(32);
   const refreshExpiresAt = Date.now() + CONSTANTS.SESSION_TTL_DAYS * 24 * HOUR;
   const refreshHash = await sha256(refreshToken, pepper());

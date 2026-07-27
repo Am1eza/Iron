@@ -8,6 +8,7 @@ import { authErrorResponse } from '@/lib/auth/apiError';
 import { assertSameOrigin } from '@/lib/auth/origin';
 import { rateLimit } from '@/lib/server/utils/rateLimit';
 import { withApiErrorHandling } from '@/lib/server/utils/apiGuard';
+import { PANEL_HOSTNAME } from '@/lib/server/utils/panelHost';
 
 /**
  * POST /api/auth/otp/request — issue + send an OTP (SMS.ir/dev) to a normalized
@@ -15,6 +16,9 @@ import { withApiErrorHandling } from '@/lib/server/utils/apiGuard';
  * auth service; the IP limit here stops one client from spraying OTP requests
  * across many DIFFERENT mobile numbers (SMS-cost / toll-fraud abuse) which the
  * per-mobile limit alone can't catch.
+ *
+ * On the panel host the service additionally refuses numbers outside the staff
+ * access registry — no code is generated and no SMS is sent.
  */
 async function POSTImpl(req: NextRequest) {
   const origin = assertSameOrigin(req);
@@ -41,8 +45,12 @@ async function POSTImpl(req: NextRequest) {
     );
   }
 
+  // Panel-only gating is derived from the request's own Host header, never
+  // from anything the client can set in the payload.
+  const onPanelHost = req.headers.get('host') === PANEL_HOSTNAME;
+
   try {
-    const { ttl, devCode, isNewUser } = await requestOtp(mobile, v.data.name);
+    const { ttl, devCode, isNewUser } = await requestOtp(mobile, v.data.name, onPanelHost);
     return NextResponse.json({ ok: true, ttl, devCode, isNewUser });
   } catch (err) {
     return authErrorResponse(err);

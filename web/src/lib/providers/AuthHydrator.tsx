@@ -4,8 +4,15 @@ import { useAuthStore } from '@/lib/stores/auth';
 import { api } from '@/lib/api';
 import { useRequestsSync } from '@/lib/hooks/useRequestsSync';
 
-/** Access-token lifetime (15 min) → refresh comfortably before it expires. */
-const REFRESH_INTERVAL_MS = 12 * 60 * 1000;
+/**
+ * Access-token lifetime is 4h (CONSTANTS.ACCESS_TTL_SECONDS) → rotate at 3h,
+ * comfortably ahead of expiry. It used to fire every 12 minutes against a
+ * 15-minute token, which rewrote the refresh-token row ~5×/hour per open tab
+ * for no benefit; an expired cookie is now recovered by /api/auth/silent on
+ * the next navigation anyway, so this interval is belt-and-braces for a tab
+ * left open, not the mechanism sessions depend on.
+ */
+const REFRESH_INTERVAL_MS = 3 * 60 * 60 * 1000;
 
 /**
  * Resolves the signed-in user from the access cookie on the client (`GET /api/me`)
