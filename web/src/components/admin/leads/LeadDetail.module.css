@@ -1,0 +1,416 @@
+/* /admin/leads — the lead detail surface. Layout only; every colour, space,
+   radius and type value comes from tokens.css. Note: `--color-border` does not
+   exist — structural rules use --color-hairline, form controls
+   --color-border-strong. */
+
+.detail {
+  display: grid;
+  gap: var(--space-5);
+}
+
+/* Two columns: the deal (items/money/actions) is the wide one, the log
+   (notes/assignment) the narrow one. minmax(0,…) on both tracks so the items
+   table can scroll inside its own column instead of stretching the grid. */
+.columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+  gap: var(--space-5);
+}
+
+@media (max-width: 60rem) {
+  .columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.col {
+  display: grid;
+  gap: var(--space-5);
+  align-content: start;
+}
+
+/* ---------- identity header ---------- */
+
+/* --color-surface, not the panel's sunken fill: the customer's name and phone
+   are the first thing a rep looks for on a shared link, so this block has to
+   lift off the panel rather than blend into it. */
+.identity {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.identityTop {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.name {
+  margin: 0;
+  font: var(--t-h4);
+  color: var(--color-text-strong);
+}
+
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}
+
+.fact {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-1);
+}
+
+.factValue {
+  color: var(--color-text);
+}
+
+/* Latin digit runs (mobile, ref, timestamps) inside a Persian sentence — the
+   isolate keeps the surrounding RTL run from reordering them. */
+.ltr {
+  direction: ltr;
+  unicode-bidi: isolate;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The first control a rep reaches for. Pill-shaped and 36px tall so it is a
+   real touch target, not a bare inline link buried in a metadata row. */
+.tel {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-block-size: 36px;
+  padding-inline: var(--space-3);
+  border: var(--border-hairline) solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  color: var(--color-accent-text);
+  font: var(--t-body-sm);
+  text-decoration: none;
+}
+
+.tel:hover,
+.tel:focus-visible {
+  background: var(--color-accent-tint);
+}
+
+/* ---------- funnel stepper ---------- */
+
+.stepper {
+  display: flex;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The stage rule is --space-1 (4px) wide on purpose: the border tokens stop at
+   1.5px, which does not read as a progress bar at a glance — and the rule
+   survives Windows high-contrast, where background tints are dropped. */
+.step {
+  flex: 1 1 0;
+  min-inline-size: 5.5rem;
+  display: grid;
+  gap: var(--space-1);
+  align-content: start;
+  padding-block-start: var(--space-2);
+  border-block-start: var(--space-1) solid var(--color-hairline);
+}
+
+.stepDone {
+  border-block-start-color: var(--color-accent);
+}
+
+.stepCurrent {
+  border-block-start-color: var(--color-action);
+}
+
+.stepLost {
+  border-block-start-color: var(--color-loss);
+}
+
+.stepLabel {
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}
+
+.stepDone .stepLabel {
+  color: var(--color-text);
+}
+
+/* Weight, not colour alone, carries "you are here" — colour-blind safe and it
+   still reads when the tint is stripped. */
+.stepCurrent .stepLabel,
+.stepLost .stepLabel {
+  font-weight: 700;
+  color: var(--color-text-strong);
+}
+
+.stepHint {
+  font: var(--t-micro);
+  color: var(--color-text-muted);
+}
+
+@media (max-width: 40rem) {
+  .stepper {
+    flex-wrap: wrap;
+  }
+
+  .step {
+    flex-basis: 40%;
+  }
+}
+
+/* ---------- sections & cards ---------- */
+
+.section {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.h {
+  margin: 0;
+  font: var(--t-title-sm);
+  color: var(--color-text-strong);
+}
+
+.card {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+/* An issued proforma must be unmistakable from across the desk — this edge is
+   the fix for «the button looks like nothing happened». */
+.cardIssued {
+  border-inline-start: var(--space-1) solid var(--color-accent);
+}
+
+.cardStale {
+  border-inline-start: var(--space-1) solid var(--color-border-strong);
+}
+
+.link {
+  color: var(--color-accent-text);
+}
+
+/* ---------- items table ---------- */
+
+/* The items table has 7 columns; it scrolls inside its own column rather than
+   widening the grid and pushing the notes off-screen. */
+.scroller {
+  overflow-x: auto;
+}
+
+.itemName {
+  min-inline-size: 9rem;
+}
+
+.qtyInput {
+  inline-size: 5rem;
+}
+
+.priceInput {
+  inline-size: 8rem;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.dirty {
+  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+}
+
+.rowError {
+  font: var(--t-micro);
+  color: var(--color-loss-text);
+}
+
+/* ---------- money summary ---------- */
+
+.summary {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font: var(--t-body-sm);
+}
+
+.sumRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.sumLabel {
+  color: var(--color-text-muted);
+}
+
+.sumValue {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.sumTotal {
+  margin-block-start: var(--space-1);
+  padding-block-start: var(--space-2);
+  border-block-start: var(--border-hairline) solid var(--color-hairline);
+  font-weight: 700;
+  color: var(--color-text-strong);
+}
+
+.sumHint {
+  margin: 0;
+  font: var(--t-micro);
+  color: var(--color-text-muted);
+}
+
+/* ---------- actions ---------- */
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+/* Full-row so a "why is this off?" line never squeezes between two buttons. */
+.hint {
+  flex-basis: 100%;
+  margin: 0;
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}
+
+.field {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.fieldLabel {
+  font: var(--t-label);
+  color: var(--color-text-muted);
+}
+
+/* ---------- notes ---------- */
+
+.notes {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-block-size: 24rem;
+  overflow-y: auto;
+}
+
+.note {
+  display: grid;
+  gap: var(--space-1);
+  padding-block-end: var(--space-2);
+  border-block-end: var(--border-hairline) solid var(--color-hairline);
+}
+
+.noteMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  font: var(--t-micro);
+  color: var(--color-text-muted);
+}
+
+.noteAuthor {
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.noteText {
+  margin: 0;
+  font: var(--t-body-sm);
+  color: var(--color-text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.noteForm {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+}
+
+.textarea {
+  inline-size: 100%;
+  min-block-size: 5rem;
+  padding: var(--space-2);
+  border: var(--border-hairline) solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: var(--t-body-sm);
+  resize: vertical;
+}
+
+/* ---------- assignment ---------- */
+
+.assign {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+/* ---------- history disclosure ---------- */
+
+.history > summary {
+  cursor: pointer;
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}
+
+.historyList {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding-block-start: var(--space-2);
+  padding-inline: 0;
+  list-style: none;
+  font: var(--t-caption);
+}
+
+.historyRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+/* ---------- loading ---------- */
+
+.loading {
+  display: grid;
+  gap: var(--space-3);
+}

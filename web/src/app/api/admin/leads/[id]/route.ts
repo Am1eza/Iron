@@ -1,9 +1,13 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
+import { eq } from 'drizzle-orm';
 import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { findLead, leadItemsOf, leadNotesOf, proformasOfLead, softDeleteLead, updateLead } from '@/lib/server/repos/leadsRepo';
 import { recomputeTier } from '@/lib/server/repos/clubRepo';
+import { getDb } from '@/lib/server/db/client';
+import { users } from '@/lib/server/db/schema';
+import { ROLES, ROLE_LABEL, can, isStaff } from '@/lib/auth/roles';
 
 /** GET /api/admin/leads/{id} — full lead: items, notes, proformas. */
 async function GETImpl(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
@@ -20,9 +24,55 @@ async function GETImpl(req: NextRequest, ctx: { params: Promise<{ id: string }> 
 
 const patchPayload = z.object({
   status: z.enum(['new', 'contacted', 'won', 'lost']).optional(),
-  assigneeId: z.string().nullable().optional(),
+  // min(1): the picker sends `null` to unassign, never ''. An empty string was
+  // reaching the FK as a literal id and blowing up as a 500.
+  assigneeId: z.string().min(1).nullable().optional(),
   callbackAt: z.string().datetime().nullable().optional(),
 });
+
+/** Roles that may hold a lead — derived, so a permission-table change can't
+ *  leave this check (or its Persian message) behind. */
+const ASSIGNABLE_ROLES = ROLES.filter((r) => isStaff(r) && can(r, 'leads:read'));
+
+/**
+ * `leads.assigneeId` is only FK-constrained, so any existing user id used to
+ * pass: a rep could assign a lead to a CUSTOMER's id and the lead dropped out
+ * of every staff view while still rendering as "assigned", while a stale id
+ * surfaced as an FK-violation 500 instead of a 400. Mirrors the candidate set
+ * of GET /api/admin/staff (active + staff role), tightened to the roles that
+ * actually hold 'leads:read' — an assignee who can't open /admin/leads is the
+ * same silent black hole as a customer.
+ */
+async function rejectUnassignable(assigneeId: string): Promise<NextResponse | null> {
+  const rows = await getDb()
+    .select({ role: users.role, isActive: users.isActive })
+    .from(users)
+    .where(eq(users.id, assigneeId))
+    .limit(1);
+  const target = rows[0];
+  if (!target) {
+    return NextResponse.json(
+      { error: 'assignee_not_found', message: 'کاربر انتخاب‌شده برای واگذاری یافت نشد.' },
+      { status: 400 },
+    );
+  }
+  if (!ASSIGNABLE_ROLES.includes(target.role)) {
+    return NextResponse.json(
+      {
+        error: 'assignee_not_staff',
+        message: `سرنخ فقط به ${ASSIGNABLE_ROLES.map((r) => `«${ROLE_LABEL[r]}»`).join(' یا ')} واگذار می‌شود.`,
+      },
+      { status: 409 },
+    );
+  }
+  if (!target.isActive) {
+    return NextResponse.json(
+      { error: 'assignee_inactive', message: 'این کاربر غیرفعال است و نمی‌توان سرنخ را به او واگذار کرد.' },
+      { status: 409 },
+    );
+  }
+  return null;
+}
 
 /** PATCH /api/admin/leads/{id} — status / assignee / callback. */
 async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
@@ -36,12 +86,24 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }
 
   const before = await findLead(id);
   if (!before) return NextResponse.json({ error: 'not_found', message: 'سرنخ یافت نشد.' }, { status: 404 });
+  if (v.data.assigneeId) {
+    const bad = await rejectUnassignable(v.data.assigneeId);
+    if (bad) return bad;
+  }
   const lead = await updateLead(id, {
     status: v.data.status,
     assigneeId: v.data.assigneeId === undefined ? undefined : v.data.assigneeId,
     callbackAt: v.data.callbackAt === undefined ? undefined : v.data.callbackAt ? new Date(v.data.callbackAt) : null,
   });
-  await audit(auth.session.id, 'lead.update', { type: 'lead', id }, { status: before.status }, v.data);
+  // assigneeId in the before-state too: re-assignment is the field the guard
+  // above protects, so the trail has to show who the lead was taken FROM.
+  await audit(
+    auth.session.id,
+    'lead.update',
+    { type: 'lead', id },
+    { status: before.status, assigneeId: before.assigneeId },
+    v.data,
+  );
   // Recompute on any change into OR out of 'won' — recomputeTier derives
   // the tier fresh from the live won-lead count and downgrades correctly
   // when it's lower than stored, so an admin reverting a mis-marked 'won'
@@ -63,7 +125,15 @@ async function DELETEImpl(req: NextRequest, ctx: { params: Promise<{ id: string 
   const { id } = await ctx.params;
   const lead = await softDeleteLead(id);
   if (!lead) return NextResponse.json({ error: 'not_found', message: 'سرنخ یافت نشد.' }, { status: 404 });
-  await audit(auth.session.id, 'lead.delete', { type: 'lead', id }, null, null);
+  // A bare null/null row couldn't answer "which deal was archived?" — the ref
+  // and status are the only handles a reviewer has once it leaves admin views.
+  await audit(
+    auth.session.id,
+    'lead.delete',
+    { type: 'lead', id },
+    { ref: lead.ref, status: lead.status, assigneeId: lead.assigneeId },
+    null,
+  );
   return NextResponse.json({ ok: true });
 }
 

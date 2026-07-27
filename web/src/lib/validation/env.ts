@@ -55,10 +55,18 @@ const serverSchema = z
   // running `next dev` against a real local Postgres before they've signed
   // up for SMS.ir yet) would contradict that and block a legitimate
   // workflow, so this mirrors sms.ts's own condition instead of just
-  // checking live-mode. Everything else degrades gracefully without
-  // blocking boot at all: SMSIR_LINE_NUMBER (پیش‌فاکتور/alert notices)
-  // falls back to a dev log, tgju falls back to last-known values, and the
-  // AI relay keys are only required once AI_ENABLED is explicitly on.
+  // checking live-mode.
+  //
+  // SMSIR_LINE_NUMBER used to be excluded from that production list on the
+  // theory that a missing free-text sender only degrades UX. It doesn't: the
+  // whole پیش‌فاکتور/سفارش/alert/automation notification surface rides that
+  // one variable, and smsir.ts now fails CLOSED in production when it is
+  // absent — so leaving it optional only moved the failure from a boot error
+  // (loud, one line, before any traffic) to per-send failures nobody reads.
+  // A 2026-07 outage where free-text SMS was dead for days while OTP kept
+  // working (the Verify endpoint needs no line) is exactly what boot-time
+  // validation is for. Only tgju (falls back to last-known values) and the AI
+  // relay keys (gated on AI_ENABLED) still degrade without blocking boot.
   .superRefine((env, ctx) => {
     if (publicEnv.NEXT_PUBLIC_API_MODE === 'live') {
       for (const key of ['DATABASE_URL', 'SESSION_SECRET'] as const) {
@@ -67,7 +75,7 @@ const serverSchema = z
         }
       }
       if (process.env.NODE_ENV === 'production') {
-        for (const key of ['SMSIR_API_KEY', 'SMSIR_TEMPLATE_ID'] as const) {
+        for (const key of ['SMSIR_API_KEY', 'SMSIR_TEMPLATE_ID', 'SMSIR_LINE_NUMBER'] as const) {
           if (!env[key]) {
             ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: `${key} در production الزامی است.` });
           }

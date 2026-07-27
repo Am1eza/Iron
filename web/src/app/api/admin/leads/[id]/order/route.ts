@@ -3,9 +3,24 @@ import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/
 import { withIdempotency } from '@/lib/server/utils/idempotency';
 import { findLead, leadItemsOf, toLineItem, updateLead } from '@/lib/server/repos/leadsRepo';
 import { createOrder } from '@/lib/server/repos/ordersRepo';
+import { orderSmsText } from '@/lib/server/services/leads.service';
+import { sendSms } from '@/lib/server/integrations/smsir';
 import { nextRef } from '@/lib/server/utils/refs';
 
 /** POST /api/admin/leads/{id}/order — convert a won lead into a tracked order.
+ *
+ *  CONTRACT (the /admin/leads UI is built against this):
+ *
+ *  201 { order, smsSent }
+ *    smsSent — the customer was texted their tracking ref. The rep was
+ *              previously told the order was «قابل رهگیری در /track» while
+ *              nothing at all was sent to the customer; now it is sent, and
+ *              whether it LANDED is reported rather than assumed (sms.ir is
+ *              currently 400-ing free-text sends in production). A failed send
+ *              does not fail the conversion — the order exists and is
+ *              trackable — so the UI should say «سفارش ساخته شد؛ ارسال پیامک
+ *              ناموفق بود» and offer a resend, not an error toast.
+ *
  *  Idempotent (see the proforma route's identical rationale) — a retry
  *  can't mint a second order ref for the same lead. */
 async function POSTImpl(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
@@ -23,8 +38,16 @@ async function POSTImpl(req: NextRequest, ctx: { params: Promise<{ id: string }>
     const ref = await nextRef('OR');
     const order = await createOrder({ ref, userId: lead.userId ?? undefined, leadId: id, items });
     await updateLead(id, { status: 'won' });
-    await audit(auth.session.id, 'lead.order', { type: 'lead', id }, null, { orderRef: ref });
-    return { status: 201, body: { order } };
+    // AFTER the order is durable — an SMS is an external side effect that
+    // can't be taken back, so it must never announce a ref that failed to
+    // persist. Its outcome is reported, never fatal (see the contract above).
+    const sms = await sendSms(lead.contactMobile, orderSmsText(ref), 'generic');
+    await audit(auth.session.id, 'lead.order', { type: 'lead', id }, { status: lead.status }, {
+      orderRef: ref,
+      status: 'won',
+      smsSent: sms.ok,
+    });
+    return { status: 201, body: { order, smsSent: sms.ok } };
   });
 }
 

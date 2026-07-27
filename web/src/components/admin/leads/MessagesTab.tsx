@@ -102,7 +102,7 @@ export function MessagesTab() {
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
   const [openId, setOpenId] = useState<string | null>(null);
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['admin', 'contact-messages', page],
     queryFn: () => adminApi.contactMessages({ page, perPage: PER_PAGE }),
   });
@@ -121,7 +121,18 @@ export function MessagesTab() {
   return (
     <div style={{ paddingBlockStart: 'var(--space-4)' }}>
       {isLoading ? (
-        <TableSkeleton rows={5} cols={4} />
+        <TableSkeleton rows={5} cols={4} label="در حال بارگذاری پیام‌ها" />
+      ) : isError ? (
+        // A failed fetch used to fall through to «پیامی نیست» — an unanswered
+        // customer is indistinguishable from an empty inbox, and this inbox
+        // feeds the nav's pending-work badge.
+        <EmptyState
+          size="section"
+          tone="error"
+          headline="بارگذاری پیام‌ها ناموفق بود."
+          body="ارتباط با سرور برقرار نشد. ممکن است پیام رسیدگی‌نشده‌ای دیده نشود."
+          primary={{ label: 'تلاش دوباره', onClick: () => void refetch() }}
+        />
       ) : messages.length === 0 ? (
         <EmptyState size="section" headline="پیامی نیست" body="پیام‌های فرم تماس اینجا می‌آید." />
       ) : (

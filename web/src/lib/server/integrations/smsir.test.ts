@@ -26,6 +26,33 @@ describe('sendSms (bulk)', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('production + missing credentials: fails closed instead of faking a send', async () => {
+    // The outage shape: callers told the rep «پیامک شد» off a {ok:true} that
+    // never touched the network. In production that must be a loud failure.
+    vi.stubEnv('NODE_ENV', 'production');
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const { sendSms } = await import('./smsir');
+
+    const result = await sendSms('09120000000', 'سلام', 'proforma');
+
+    expect(result).toEqual({ ok: false, permanent: true });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('production + API key but NO line number: still fails closed (free-text is dead)', async () => {
+    // The exact asymmetry that hid the outage — OTP rides the verify endpoint
+    // and needs no line, so an API key alone looks "configured".
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('SMSIR_API_KEY', 'test-key');
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const { sendSms } = await import('./smsir');
+
+    expect(await sendSms('09120000000', 'سلام', 'alert')).toEqual({ ok: false, permanent: true });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('live mode calls the exact verified SMS.ir bulk-send API shape', async () => {
     vi.stubEnv('SMSIR_API_KEY', 'test-key');
     vi.stubEnv('SMSIR_LINE_NUMBER', '3000123456');
@@ -56,16 +83,21 @@ describe('sendSms (bulk)', () => {
     });
   });
 
-  it('treats a non-1 status in the response body as a failure', async () => {
+  it('treats a non-1 status in the response body as a failure, keeping its message', async () => {
     vi.stubEnv('SMSIR_API_KEY', 'test-key');
     vi.stubEnv('SMSIR_LINE_NUMBER', '3000123456');
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue({ ok: true, json: async () => ({ status: 2, message: 'rejected' }) }),
     );
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const { sendSms } = await import('./smsir');
 
+    // Not permanent: an envelope-level refusal (credit, moderation) can clear
+    // without a code/config change, unlike a 4xx on the request itself.
     expect(await sendSms('09120000000', 'سلام')).toEqual({ ok: false });
+    expect(errSpy.mock.calls.map((c) => String(c[0])).join('\n')).toContain('rejected');
+    errSpy.mockRestore();
   });
 
   it('treats a non-ok HTTP response as a failure (after exhausting its 1 retry on 5xx)', async () => {
@@ -114,8 +146,104 @@ describe('sendSms (bulk)', () => {
     vi.stubGlobal('fetch', fetchMock);
     const { sendSms } = await import('./smsir');
 
-    expect(await sendSms('09120000000', 'سلام')).toEqual({ ok: false });
+    expect(await sendSms('09120000000', 'سلام')).toEqual({ ok: false, permanent: true });
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports the provider\'s own explanation of a 400, not just the status', async () => {
+    // The production outage verbatim: a wrong SMSIR_LINE_NUMBER 400s every
+    // free-text send, and SMS.ir says exactly why in the body — which used to
+    // be dropped on the floor, leaving only «sms.ir 400» to debug from.
+    vi.stubEnv('SMSIR_API_KEY', 'test-key');
+    vi.stubEnv('SMSIR_LINE_NUMBER', '9999999999');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 400,
+        text: async () => JSON.stringify({ status: 20, message: 'شماره خط ارسال معتبر نیست', data: null }),
+      }),
+    );
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { sendSms } = await import('./smsir');
+
+    expect(await sendSms('09120000000', 'سلام')).toEqual({ ok: false, permanent: true });
+    const logged = errSpy.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(logged).toContain('شماره خط ارسال معتبر نیست');
+    expect(logged).toContain('400');
+    errSpy.mockRestore();
+  });
+
+  it('never leaks the API key or the recipient mobile into the reported error', async () => {
+    vi.stubEnv('SMSIR_API_KEY', 'super-secret-key');
+    vi.stubEnv('SMSIR_LINE_NUMBER', '3000123456');
+    vi.stubGlobal(
+      'fetch',
+      // Worst case: the provider echoes the recipient back at us in the reason.
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 400,
+        text: async () => JSON.stringify({ message: 'mobile 09121234567 is blocked' }),
+      }),
+    );
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { sendSms } = await import('./smsir');
+
+    await sendSms('09121234567', 'سلام');
+    const logged = errSpy.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(logged).not.toContain('super-secret-key');
+    expect(logged).not.toContain('09121234567');
+    expect(logged).toContain('[redacted-mobile]');
+    errSpy.mockRestore();
+  });
+
+  it('falls back to a non-JSON error body (SMS.ir sometimes answers with an HTML page)', async () => {
+    vi.stubEnv('SMSIR_API_KEY', 'test-key');
+    vi.stubEnv('SMSIR_LINE_NUMBER', '3000123456');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: false, status: 403, text: async () => '<html>Forbidden</html>' }),
+    );
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { sendSms } = await import('./smsir');
+
+    expect(await sendSms('09120000000', 'سلام')).toEqual({ ok: false, permanent: true });
+    expect(errSpy.mock.calls.map((c) => String(c[0])).join('\n')).toContain('Forbidden');
+    errSpy.mockRestore();
+  });
+
+  it('a 429 is NOT permanent — the retry loop must keep it', async () => {
+    // permanent:true tells schedulers to stop; a rate limit is precisely the
+    // failure that DOES clear on its own, so it must never carry the flag.
+    vi.useFakeTimers();
+    try {
+      vi.stubEnv('SMSIR_API_KEY', 'test-key');
+      vi.stubEnv('SMSIR_LINE_NUMBER', '3000123456');
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 429, text: async () => 'too many' }));
+      const { sendSms } = await import('./smsir');
+
+      const p = sendSms('09120000000', 'سلام');
+      await vi.runAllTimersAsync();
+      expect(await p).toEqual({ ok: false });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('a 5xx is NOT permanent — the provider may well recover', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.stubEnv('SMSIR_API_KEY', 'test-key');
+      vi.stubEnv('SMSIR_LINE_NUMBER', '3000123456');
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 503, text: async () => 'upstream down' }));
+      const { sendSms } = await import('./smsir');
+
+      const p = sendSms('09120000000', 'سلام');
+      await vi.runAllTimersAsync();
+      expect(await p).toEqual({ ok: false });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('retries a 429 (rate limit) and succeeds on the next attempt', async () => {

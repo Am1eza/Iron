@@ -86,35 +86,107 @@ export async function leadItemsOf(leadId: string): Promise<LeadItemRow[]> {
     .orderBy(leadItems.order);
 }
 
-/** Adjust a lead's line item (qty/unitPrice) before proforma issuance
- *  (US-19.4) — `lineTotal` is always recomputed server-side from the
- *  resulting qty×unitPrice, never trusted from the caller, so it can't drift
- *  from the two numbers that produced it. Only touches fields actually
- *  passed; omitting a field keeps its current value. `leadId` is required
- *  and checked in the same query (not just the URL) — otherwise a PATCH
- *  under one lead's nested route could edit an item belonging to a
- *  different lead by guessing/reusing an item id. */
+/** An issued, still-valid proforma froze this lead's lines as jsonb, so
+ *  editing the lead's items afterwards makes the customer's quote and the
+ *  lead permanently disagree with nothing recording the divergence. Carries
+ *  the blocking `proformaRef` so the route can name it in the 409 and tell
+ *  the rep to cancel + re-issue instead of silently repricing behind the
+ *  customer's back. */
+export class LeadItemLockedError extends Error {
+  readonly proformaRef: string;
+  constructor(proformaRef: string) {
+    super(`lead item locked by active proforma ${proformaRef}`);
+    this.proformaRef = proformaRef;
+  }
+}
+
+/** Units sold as countable pieces — «۳٫۷ شاخه» is a typo, not an order, and
+ *  it propagates straight into the frozen proforma lines and the SMS'd
+ *  total. kg/meter stay fractional (۲٫۵ تن is a real quantity), which is why
+ *  this check lives here and not in the route's schema: only the stored row
+ *  knows the item's unit. */
+const WHOLE_PIECE_UNITS: ReadonlySet<LeadItemRow['unit']> = new Set(['branch', 'sheet']);
+
+/** Rejects a fractional qty on a piece-sold unit; carries the unit so the
+ *  route can name it in Persian («واحد شاخه»). */
+export class WholeUnitQtyError extends Error {
+  readonly unit: LeadItemRow['unit'];
+  constructor(unit: LeadItemRow['unit']) {
+    super(`fractional qty is not allowed for unit ${unit}`);
+    this.unit = unit;
+  }
+}
+
+/** The updated row, plus the two things an auditor needs and the row alone
+ *  can't give: what it looked like BEFORE (the audit entry used to record
+ *  `null` as the before-state of a money field) and the lead's human ref, so
+ *  "which deal was repriced" doesn't need a second lookup. */
+export interface UpdatedLeadItem extends LeadItemRow {
+  before: LeadItemRow;
+  leadRef: string;
+}
+
+/** Adjust a lead's line item (qty/unitPrice) — `lineTotal` is always
+ *  recomputed server-side from the resulting qty×unitPrice, never trusted
+ *  from the caller, so it can't drift from the two numbers that produced it.
+ *  Only touches fields actually passed; omitting a field keeps its current
+ *  value, while an explicit `unitPrice: null` clears it («بدون قیمت»).
+ *  null is NOT the same as 0: 0 is a real (if odd) price that belongs on the
+ *  quote, whereas the old code turned a cleared price box into a 0/0 line
+ *  that the proforma route's truthiness filter then dropped from the
+ *  customer's quote without a word.
+ *
+ *  `leadId` is required and checked in the same query (not just the URL) —
+ *  otherwise a PATCH under one lead's nested route could edit an item
+ *  belonging to a different lead by guessing/reusing an item id.
+ *
+ *  Throws `LeadItemLockedError` when the lead already has an ACTIVE proforma
+ *  (the docstring here used to *claim* "before proforma issuance" while
+ *  nothing enforced it). Expired/cancelled ones don't block — that quote is
+ *  dead, re-pricing for a fresh one is the whole point. Read + guard + write
+ *  share one transaction so a proforma issued mid-edit can't be missed by
+ *  the check and then contradicted by the write. */
 export async function updateLeadItem(
   id: string,
   leadId: string,
-  patch: { qty?: number; unitPrice?: number },
-): Promise<LeadItemRow | null> {
-  const db = getDb();
-  const current = await db
-    .select()
-    .from(leadItems)
-    .where(and(eq(leadItems.id, id), eq(leadItems.leadId, leadId)))
-    .limit(1);
-  if (!current[0]) return null;
-  const qty = patch.qty ?? current[0].qty;
-  const unitPrice = patch.unitPrice ?? current[0].unitPrice ?? undefined;
-  const lineTotal = unitPrice !== undefined ? Math.round(qty * unitPrice) : null;
-  const rows = await db
-    .update(leadItems)
-    .set({ qty, unitPrice: unitPrice ?? null, lineTotal })
-    .where(eq(leadItems.id, id))
-    .returning();
-  return rows[0] ?? null;
+  patch: { qty?: number; unitPrice?: number | null },
+): Promise<UpdatedLeadItem | null> {
+  return getDb().transaction(async (tx) => {
+    const current = await tx
+      .select({ item: leadItems, leadRef: leads.ref })
+      .from(leadItems)
+      .innerJoin(leads, eq(leadItems.leadId, leads.id))
+      .where(and(eq(leadItems.id, id), eq(leadItems.leadId, leadId)))
+      .limit(1);
+    const before = current[0]?.item;
+    if (!before) return null;
+
+    // `validUntil > now` as well as status='active': the expiry sweep runs
+    // every 10 minutes, so a proforma that timed out 9 minutes ago is still
+    // stored 'active' — blocking on it would freeze a lead behind a quote
+    // the customer can no longer accept (findProformaByRef lazily expires
+    // the same way on read).
+    const blocking = await tx
+      .select({ ref: proformas.ref })
+      .from(proformas)
+      .where(and(eq(proformas.leadId, leadId), eq(proformas.status, 'active'), gt(proformas.validUntil, new Date())))
+      .orderBy(desc(proformas.createdAt))
+      .limit(1);
+    if (blocking[0]) throw new LeadItemLockedError(blocking[0].ref);
+
+    const qty = patch.qty ?? before.qty;
+    if (!Number.isInteger(qty) && WHOLE_PIECE_UNITS.has(before.unit)) throw new WholeUnitQtyError(before.unit);
+    // undefined = field not sent (keep what's stored); null = explicitly unpriced.
+    const unitPrice = patch.unitPrice === undefined ? before.unitPrice : patch.unitPrice;
+    const lineTotal = unitPrice === null ? null : Math.round(qty * unitPrice);
+    const rows = await tx
+      .update(leadItems)
+      .set({ qty, unitPrice, lineTotal })
+      .where(eq(leadItems.id, id))
+      .returning();
+    const after = rows[0];
+    return after ? { ...after, before, leadRef: current[0]!.leadRef } : null;
+  });
 }
 
 /** Excludes soft-deleted leads — same "gone means gone" precedent as

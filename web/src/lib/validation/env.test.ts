@@ -58,8 +58,25 @@ describe('getServerEnv — live mode', () => {
     vi.stubEnv('SESSION_SECRET', 'x'.repeat(32));
     vi.stubEnv('SMSIR_API_KEY', 'key');
     vi.stubEnv('SMSIR_TEMPLATE_ID', '123');
+    vi.stubEnv('SMSIR_LINE_NUMBER', '30002108024652');
     const { getServerEnv } = await loadEnv();
     expect(() => getServerEnv()).not.toThrow();
+  });
+
+  it('throws in production when only SMSIR_LINE_NUMBER is missing', async () => {
+    // The regression this guards: the line number used to be optional in
+    // production, so the app booted happily with OTP working (verify endpoint
+    // needs no line) and EVERY free-text send — proformas, order
+    // confirmations, alerts — dead. That outage ran for weeks unnoticed.
+    vi.stubEnv('NEXT_PUBLIC_API_MODE', 'live');
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('DATABASE_URL', 'postgres://u:p@localhost:5432/db');
+    vi.stubEnv('SESSION_SECRET', 'x'.repeat(32));
+    vi.stubEnv('SMSIR_API_KEY', 'key');
+    vi.stubEnv('SMSIR_TEMPLATE_ID', '123');
+    vi.stubEnv('SMSIR_LINE_NUMBER', '');
+    const { getServerEnv } = await loadEnv();
+    expect(() => getServerEnv()).toThrow(/پیکربندی محیط نامعتبر است/);
   });
 
   it('still throws for AI_ENABLED=true without DeepSeek keys, even with the rest set', async () => {
@@ -69,6 +86,7 @@ describe('getServerEnv — live mode', () => {
     vi.stubEnv('SESSION_SECRET', 'x'.repeat(32));
     vi.stubEnv('SMSIR_API_KEY', 'key');
     vi.stubEnv('SMSIR_TEMPLATE_ID', '123');
+    vi.stubEnv('SMSIR_LINE_NUMBER', '30002108024652');
     vi.stubEnv('AI_ENABLED', 'true');
     vi.stubEnv('DEEPSEEK_API_KEY', '');
     vi.stubEnv('DEEPSEEK_BASE_URL', '');

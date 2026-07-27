@@ -1,12 +1,15 @@
 'use client';
 /**
- * Lead detail panel — items, notes, status transitions, پیش‌فاکتور issue and
- * convert-to-order. Every mutation invalidates the CRM queries.
+ * Lead detail — everything a sales rep needs for ONE deal on ONE screen: who
+ * the customer is and how to call them, what they asked for (unit, weight,
+ * money), where the deal stands in the funnel, and the single action that
+ * moves it forward. Every mutation invalidates the CRM queries.
  */
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
-import { adminApi } from '@/lib/api/resources/admin';
-import type { LineItem } from '@/lib/types/domain';
+import { adminApi, type AdminLead, type AdminProforma } from '@/lib/api/resources/admin';
+import { http } from '@/lib/api/http';
+import type { LineItem, Order, PriceUnit } from '@/lib/types/domain';
 import { useAuthStore } from '@/lib/stores/auth';
 import { ROLE_LABEL } from '@/lib/auth/roles';
 import type { Role } from '@/lib/auth/types';
@@ -14,23 +17,174 @@ import { formatToman, normalizeDigits, toPersianDigits } from '@/lib/utils/forma
 import { formatJalali } from '@/lib/utils/jalali';
 import { useToast } from '@/lib/hooks/useToast';
 import { ApiError } from '@/lib/api/errors';
-import { Badge, Button, Modal, Spinner, useConfirm } from '@/components/ui';
+import { routes } from '@/lib/routes';
+import { PhoneIcon } from '@/components/primitives/icons';
+import { Alert, Badge, Button, EmptyState, Modal, Skeleton, useConfirm } from '@/components/ui';
 import { JalaliDateField } from '../JalaliDateField';
 import ui from '../adminUi.module.css';
+import s from './LeadDetail.module.css';
 
-/** One editable line item — qty/unitPrice, before proforma issuance (US-19.4). */
-function EditableItemRow({ leadId, item, onSaved }: { leadId: string; item: LineItem & { id: string }; onSaved: () => void }) {
+/* ------------------------------------------------------------------ *
+ * Route calls made here rather than through `adminApi`
+ *
+ * The three wrappers in `lib/api/resources/admin.ts` predate this sprint's
+ * route contracts and cannot express them: `issueProforma` has no slot for the
+ * `reissue` flag the 409 `proforma_active` gate demands and types the response
+ * as `{ proforma }` alone (losing `smsSent`/`leadStatus`/`supersededRef`),
+ * `convertToOrder` drops `smsSent`, and `updateLeadItem` cannot send
+ * `unitPrice: null` — the route now REJECTS 0 because a stored 0 silently
+ * dropped the line out of the customer's quote. The shapes below are the
+ * routes' own documented contracts; fold them back into `admin.ts` when that
+ * file is next edited.
+ * ------------------------------------------------------------------ */
+
+/** `AdminProforma` is missing the two columns this screen needs: a voided
+ *  quote's `'cancelled'` status and the discount that was taken off. */
+type ProformaView = Omit<AdminProforma, 'status'> & {
+  status: 'active' | 'expired' | 'cancelled';
+  discountToman?: number;
+};
+
+interface IssueProformaRes {
+  proforma: ProformaView;
+  smsSent: boolean;
+  leadStatus: AdminLead['status'];
+  requestSynced: boolean;
+  supersededRef: string | null;
+}
+
+const issueProformaReq = (id: string, body: { discountToman?: number; reissue?: boolean }, idempotencyKey?: string) =>
+  http.post<IssueProformaRes>(`/api/admin/leads/${encodeURIComponent(id)}/proforma`, body, {
+    headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
+  });
+
+/** A fresh idempotency key for every DELIBERATE re-issue — without it the
+ *  confirm dialog does nothing at all, at random.
+ *
+ *  `withIdempotency` keys an un-flagged POST on `${leadId}:${session}:${now/10s}`
+ *  and stores the response WHATEVER its status — including the very 409
+ *  `proforma_active` that opened the confirm. Retrying inside that same 10s
+ *  bucket therefore replays the stored 409 (or a stored 201, showing the OLD
+ *  ref) instead of running: the rep confirms «صدور مجدد», sees the same error,
+ *  and concludes the panel is broken. A caller key is layered ON TOP of that
+ *  scope (`route:fallback:header`), so a new one buys the re-issue its own row.
+ *  Deliberately NOT sent on a first issue — there the 10s bucket is exactly
+ *  what stops a double-click from minting two proformas and two SMS. */
+function newIdempotencyKey(): string {
+  return globalThis.crypto?.randomUUID?.() ?? `reissue-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+const convertToOrderReq = (id: string) =>
+  http.post<{ order: Order; smsSent: boolean }>(`/api/admin/leads/${encodeURIComponent(id)}/order`, {});
+
+const updateLeadItemReq = (leadId: string, itemId: string, patch: { qty?: number; unitPrice?: number | null }) =>
+  http.patch<{ item: LineItem & { id: string } }>(
+    `/api/admin/leads/${encodeURIComponent(leadId)}/items/${encodeURIComponent(itemId)}`,
+    patch,
+  );
+
+/* ------------------------------------------------------------------ */
+
+/** The printable quote lives on the PUBLIC site (`/proforma/[ref]`), while the
+ *  admin panel is served from panel.ahantime.com — so this must be absolute,
+ *  and it must not be the literal production host: hardcoding it pointed every
+ *  staging/preview rep at real customers' live documents. Same env + fallback
+ *  pair `lib/seo.ts` uses. */
+const proformaUrl = (ref: string) =>
+  new URL(`/proforma/${encodeURIComponent(ref)}`, process.env.NEXT_PUBLIC_SITE_URL ?? 'https://ahantime.com').toString();
+
+const UNIT_LABEL: Record<PriceUnit, string> = {
+  kg: 'کیلوگرم',
+  branch: 'شاخه',
+  sheet: 'برگ',
+  meter: 'متر',
+};
+
+/** Mirrors `WHOLE_PIECE_UNITS` in leadsRepo — «۳٫۷ شاخه» is a typo, and the
+ *  server rejects it; catching it here saves the rep a round trip. */
+const WHOLE_PIECE_UNITS: readonly PriceUnit[] = ['branch', 'sheet'];
+
+const SOURCE_LABEL: Record<string, string> = {
+  table: 'جدول قیمت',
+  ai: 'مشاور هوشمند',
+  cart: 'سبد خرید',
+  cooperation: 'همکاری',
+  tool: 'ابزار',
+  warehouse: 'انبار',
+  contact: 'تماس',
+};
+
+const STATUS_META: Record<AdminLead['status'], { label: string; tone: 'info' | 'action' | 'gain' | 'loss' }> = {
+  new: { label: 'جدید', tone: 'info' },
+  contacted: { label: 'تماس‌گرفته', tone: 'action' },
+  won: { label: 'موفق', tone: 'gain' },
+  lost: { label: 'ناموفق', tone: 'loss' },
+};
+
+/** Where the deal actually is — `status` alone can't tell «تماس‌گرفته» from
+ *  «تماس‌گرفته و پیش‌فاکتور در دست مشتری», which is the difference between the
+ *  two most common next actions. */
+type Stage = 'new' | 'contacted' | 'quoted' | 'won' | 'lost';
+
+const STAGE_INDEX: Record<Stage, number> = { new: 0, contacted: 1, quoted: 2, won: 3, lost: 3 };
+
+/** Persian-digit decimal with grouping. `formatToman` rounds to whole Toman,
+ *  so it can't render qty/weight — those are doubles (۲٫۵ تن is a real
+ *  quantity) and rounding them away is exactly the "۱۲ of what?" problem. */
+function formatNum(value: number, maxFrac = 2): string {
+  return toPersianDigits(value.toLocaleString('en-US', { maximumFractionDigits: maxFrac }))
+    .replace(/,/g, '٬')
+    .replace(/\./g, '٫');
+}
+
+/** Same predicate the server uses (`status='active' AND validUntil > now()`):
+ *  expiry is swept lazily, so a row can read 'active' up to 10 minutes after
+ *  it has actually lapsed. */
+function isActiveProforma(p: ProformaView): boolean {
+  return p.status === 'active' && new Date(p.validUntil).getTime() > Date.now();
+}
+
+const PROFORMA_STATUS: Record<ProformaView['status'], { label: string; tone: 'gain' | 'stale' | 'loss' }> = {
+  active: { label: 'فعال', tone: 'gain' },
+  expired: { label: 'منقضی', tone: 'stale' },
+  cancelled: { label: 'باطل‌شده', tone: 'loss' },
+};
+
+/** One editable line item (US-19.4). Frozen once an active proforma exists —
+ *  the quote in the customer's hand and the lead must not drift apart. */
+function EditableItemRow({
+  leadId,
+  item,
+  locked,
+  onSaved,
+}: {
+  leadId: string;
+  item: LineItem & { id: string };
+  locked: boolean;
+  onSaved: () => void;
+}) {
   const toast = useToast();
   const [qty, setQty] = useState(String(item.qty));
-  const [price, setPrice] = useState(item.unitPrice ? String(item.unitPrice) : '');
-  const dirty = normalizeDigits(qty) !== String(item.qty) || normalizeDigits(price || '0') !== String(item.unitPrice ?? 0);
+  // An unpriced item is an EMPTY box, never «۰» — see the null/zero note on
+  // the mutation below.
+  const [price, setPrice] = useState(item.unitPrice != null ? String(item.unitPrice) : '');
+
+  const qtyNum = Number(normalizeDigits(qty));
+  const rawPrice = normalizeDigits(price).trim();
+  const priceNum = rawPrice === '' ? null : Number(rawPrice);
+  const qtyValid =
+    Number.isFinite(qtyNum) && qtyNum > 0 && (!WHOLE_PIECE_UNITS.includes(item.unit) || Number.isInteger(qtyNum));
+  // 0 is rejected by the route on purpose: stored as a price it made
+  // `lineTotal` 0 and the proforma's `filter(i => i.unitPrice)` then dropped
+  // the whole line out of the customer's quote without a word.
+  const priceValid = priceNum === null || (Number.isFinite(priceNum) && Number.isInteger(priceNum) && priceNum > 0);
+  const dirty = qtyNum !== item.qty || priceNum !== (item.unitPrice ?? null);
+  // Live, so the rep sees what the line will cost BEFORE saving — the stored
+  // lineTotal is a lap behind while the boxes are dirty.
+  const lineTotal = qtyValid && priceNum !== null ? Math.round(qtyNum * priceNum) : null;
 
   const save = useMutation({
-    mutationFn: () =>
-      adminApi.updateLeadItem(leadId, item.id, {
-        qty: Number(normalizeDigits(qty)),
-        unitPrice: price ? Number(normalizeDigits(price)) : 0,
-      }),
+    mutationFn: () => updateLeadItemReq(leadId, item.id, { qty: qtyNum, unitPrice: priceNum }),
     onSuccess: () => {
       toast.success('قلم به‌روزرسانی شد.');
       onSaved();
@@ -38,31 +192,66 @@ function EditableItemRow({ leadId, item, onSaved }: { leadId: string; item: Line
     onError: (err) => toast.error(err instanceof ApiError ? err.message : 'به‌روزرسانی قلم ناموفق بود.'),
   });
 
+  const invalidMessage = !qtyValid
+    ? WHOLE_PIECE_UNITS.includes(item.unit)
+      ? `مقدار برای واحد «${UNIT_LABEL[item.unit]}» باید عدد صحیح و بزرگ‌تر از صفر باشد.`
+      : 'مقدار باید بزرگ‌تر از صفر باشد.'
+    : !priceValid
+      ? 'قیمت واحد باید عدد صحیح و بزرگ‌تر از صفر باشد؛ برای «بدون قیمت» کادر را خالی بگذارید.'
+      : null;
+
   return (
-    <li className="tnum" style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', flexWrap: 'wrap' }}>
-      <span style={{ flex: '1 1 auto' }}>{item.name}</span>
-      <input
-        className={ui.numInput}
-        style={{ inlineSize: '5rem' }}
-        inputMode="decimal"
-        value={qty}
-        onChange={(e) => setQty(e.target.value)}
-        aria-label={`تعداد ${item.name}`}
-      />
-      <input
-        className={ui.numInput}
-        inputMode="numeric"
-        value={price}
-        onChange={(e) => setPrice(e.target.value)}
-        aria-label={`قیمت واحد ${item.name}`}
-        placeholder="بدون قیمت"
-      />
-      {dirty ? (
-        <Button size="sm" variant="ghost" onClick={() => save.mutate()} loading={save.isPending}>
-          ذخیره
-        </Button>
+    <>
+      <tr className={dirty && !locked ? s.dirty : undefined}>
+        <td className={s.itemName}>{item.name}</td>
+        <td>{UNIT_LABEL[item.unit]}</td>
+        <td>
+          <input
+            className={`${ui.numInput} ${s.qtyInput}`}
+            inputMode="decimal"
+            value={qty}
+            disabled={locked}
+            aria-invalid={!qtyValid || undefined}
+            onChange={(e) => setQty(e.target.value)}
+            aria-label={`مقدار ${item.name} به ${UNIT_LABEL[item.unit]}`}
+          />
+        </td>
+        <td className={s.num}>{item.weightKg != null ? formatNum(item.weightKg) : '—'}</td>
+        <td>
+          <input
+            className={`${ui.numInput} ${s.priceInput}`}
+            inputMode="numeric"
+            value={price}
+            disabled={locked}
+            aria-invalid={!priceValid || undefined}
+            onChange={(e) => setPrice(e.target.value)}
+            aria-label={`قیمت واحد ${item.name} به تومان`}
+            placeholder="بدون قیمت"
+          />
+        </td>
+        <td className={s.num}>{lineTotal !== null ? formatToman(lineTotal, false) : '—'}</td>
+        <td>
+          {dirty && !locked ? (
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={!qtyValid || !priceValid}
+              loading={save.isPending}
+              onClick={() => save.mutate()}
+            >
+              ذخیره
+            </Button>
+          ) : null}
+        </td>
+      </tr>
+      {dirty && !locked && invalidMessage ? (
+        <tr>
+          <td colSpan={7} className={s.rowError}>
+            {invalidMessage}
+          </td>
+        </tr>
       ) : null}
-    </li>
+    </>
   );
 }
 
@@ -74,18 +263,44 @@ export function LeadDetail({ id }: { id: string }) {
   const [discount, setDiscount] = useState('');
   const [lostOpen, setLostOpen] = useState(false);
   const [lostReason, setLostReason] = useState('');
+  // The SMS outcome has to OUTLIVE the toast: sms.ir is 400-ing free-text
+  // sends in production, and a rep who looks away for ten seconds must still
+  // find out the customer was never told.
+  //
+  // Carries a `seq` purely to key the <Alert>: dismissing one keeps its own
+  // `open:false` state, and because the element stays mounted while the text
+  // is non-null, the NEXT failure would repaint into an invisible banner —
+  // silently losing exactly the warning this state exists to deliver.
+  const [smsAlert, setSmsAlert] = useState<{ seq: number; text: string } | null>(null);
+  const warnSmsFailed = (text: string) => setSmsAlert((prev) => ({ seq: (prev?.seq ?? 0) + 1, text }));
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['admin', 'lead', id],
     queryFn: () => adminApi.lead(id),
+    // A 404 (archived lead, stale deep link) or a 403 is a permanent answer —
+    // retrying it only prolongs the spinner the rep is staring at.
+    retry: (count, err) => !(err instanceof ApiError && err.status < 500) && count < 2,
   });
+
+  const currentUser = useAuthStore((st) => st.user);
+  const { data: staffData } = useQuery({ queryKey: ['admin', 'staff'], queryFn: () => adminApi.staff() });
+  const staff = useMemo(() => staffData?.staff ?? [], [staffData]);
+  // Notes carry only an authorId; on a shared lead «who wrote this?» is the
+  // first question asked, and the staff list is already in cache for the
+  // assignment picker.
+  const staffNameById = useMemo(
+    () => new Map(staff.map((m) => [m.id, m.name?.trim() || toPersianDigits(m.mobile)])),
+    [staff],
+  );
+  const authorName = (authorId: string) =>
+    staffNameById.get(authorId) ?? (authorId === currentUser?.id ? 'شما' : 'کارشناس نامشخص');
 
   const invalidate = () => {
     void qc.invalidateQueries({ queryKey: ['admin', 'lead', id] });
     void qc.invalidateQueries({ queryKey: ['admin', 'leads'] });
     void qc.invalidateQueries({ queryKey: ['admin', 'stats'] });
   };
-  const onError = (err: unknown, fallback: string) =>
+  const showError = (err: unknown, fallback: string) =>
     toast.error(err instanceof ApiError ? err.message : fallback);
 
   const setStatus = useMutation({
@@ -98,7 +313,7 @@ export function LeadDetail({ id }: { id: string }) {
       );
       invalidate();
     },
-    onError: (e) => onError(e, 'تغییر وضعیت ناموفق بود.'),
+    onError: (e) => showError(e, 'تغییر وضعیت ناموفق بود.'),
   });
   const addNote = useMutation({
     mutationFn: (text: string) => adminApi.addLeadNote(id, text),
@@ -106,29 +321,77 @@ export function LeadDetail({ id }: { id: string }) {
       setNote('');
       invalidate();
     },
-    onError: (e) => onError(e, 'ثبت یادداشت ناموفق بود.'),
-  });
-  const issue = useMutation({
-    mutationFn: () => adminApi.issueProforma(id, discount ? Number(normalizeDigits(discount)) : undefined),
-    onSuccess: (res) => {
-      toast.success(`پیش‌فاکتور ${res.proforma.ref} صادر و پیامک شد.`);
-      setDiscount('');
-      invalidate();
-    },
-    onError: (e) => onError(e, 'صدور پیش‌فاکتور ناموفق بود.'),
-  });
-  const convert = useMutation({
-    mutationFn: () => adminApi.convertToOrder(id),
-    onSuccess: (res) => {
-      toast.success(`سفارش ${res.order.ref} ساخته شد (قابل رهگیری در /track).`);
-      invalidate();
-    },
-    onError: (e) => onError(e, 'تبدیل به سفارش ناموفق بود.'),
+    onError: (e) => showError(e, 'ثبت یادداشت ناموفق بود.'),
   });
 
-  const currentUser = useAuthStore((st) => st.user);
-  const { data: staffData } = useQuery({ queryKey: ['admin', 'staff'], queryFn: () => adminApi.staff() });
-  const staff = staffData?.staff ?? [];
+  const parsedDiscount = discount.trim() ? Number(normalizeDigits(discount)) : 0;
+  const discountValid = Number.isFinite(parsedDiscount) && Number.isInteger(parsedDiscount) && parsedDiscount >= 0;
+
+  const issue = useMutation({
+    // Exactly one attempt per click: the key below is minted per mutationFn
+    // call, so an automatic retry would mint a second one and defeat the
+    // server-side de-duplication it is threading through.
+    retry: 0,
+    mutationFn: (vars: { reissue: boolean }) =>
+      issueProformaReq(
+        id,
+        {
+          discountToman: parsedDiscount > 0 ? parsedDiscount : undefined,
+          reissue: vars.reissue || undefined,
+        },
+        vars.reissue ? newIdempotencyKey() : undefined,
+      ),
+    onSuccess: (res) => {
+      setDiscount('');
+      invalidate();
+      const superseded = res.supersededRef ? ` پیش‌فاکتور قبلی ${res.supersededRef} باطل شد.` : '';
+      const head = `پیش‌فاکتور ${res.proforma.ref} به مبلغ ${formatToman(res.proforma.total)} صادر شد.`;
+      if (res.smsSent) {
+        setSmsAlert(null);
+        toast.success(`${head} پیامک برای مشتری ارسال شد.${superseded}`);
+      } else {
+        // Never «صادر و پیامک شد» on faith: the proforma is durably issued
+        // (201, not an error) but the customer has NOT been told.
+        toast.error(`${head} ارسال پیامک ناموفق بود.${superseded}`);
+        warnSmsFailed(
+          `پیش‌فاکتور ${res.proforma.ref} صادر شد، اما پیامک آن به مشتری نرسید. مبلغ و شمارهٔ پیش‌فاکتور را تلفنی اعلام کنید یا لینک آن را دستی بفرستید.`,
+        );
+      }
+    },
+    onError: async (err) => {
+      // The lead already has an outstanding quote (our cache was stale, or a
+      // colleague issued one). Re-issuing is legitimate but must be
+      // deliberate — the server names the ref, we confirm, then retry flagged.
+      if (err instanceof ApiError && err.code === 'proforma_active') {
+        const ok = await confirm({
+          title: 'صدور مجدد پیش‌فاکتور؟',
+          body: err.message,
+          confirmLabel: 'صدور مجدد و ابطال نسخهٔ قبلی',
+        });
+        if (ok) issue.mutate({ reissue: true });
+        return;
+      }
+      showError(err, 'صدور پیش‌فاکتور ناموفق بود.');
+    },
+  });
+
+  const convert = useMutation({
+    mutationFn: () => convertToOrderReq(id),
+    onSuccess: (res) => {
+      invalidate();
+      if (res.smsSent) {
+        setSmsAlert(null);
+        toast.success(`سفارش ${res.order.ref} ساخته شد و کد رهگیری برای مشتری پیامک شد.`);
+      } else {
+        toast.error(`سفارش ${res.order.ref} ساخته شد، اما ارسال پیامک ناموفق بود.`);
+        warnSmsFailed(
+          `سفارش ${res.order.ref} ثبت شد، اما پیامک کد رهگیری به مشتری نرسید. کد را تلفنی به مشتری اعلام کنید.`,
+        );
+      }
+    },
+    onError: (e) => showError(e, 'تبدیل به سفارش ناموفق بود.'),
+  });
+
   const assign = useMutation({
     mutationFn: (assigneeId: string | null) => adminApi.updateLead(id, { assigneeId }),
     onSuccess: (_res, assigneeId) => {
@@ -136,7 +399,7 @@ export function LeadDetail({ id }: { id: string }) {
       invalidate();
       void qc.invalidateQueries({ queryKey: ['admin', 'my', 'desk'] });
     },
-    onError: (e) => onError(e, 'واگذاری ناموفق بود.'),
+    onError: (e) => showError(e, 'واگذاری ناموفق بود.'),
   });
   const setCallback = useMutation({
     mutationFn: (callbackAt: string | null) => adminApi.updateLead(id, { callbackAt }),
@@ -145,201 +408,502 @@ export function LeadDetail({ id }: { id: string }) {
       invalidate();
       void qc.invalidateQueries({ queryKey: ['admin', 'my', 'desk'] });
     },
-    onError: (e) => onError(e, 'ثبت زمان تماس ناموفق بود.'),
+    onError: (e) => showError(e, 'ثبت زمان تماس ناموفق بود.'),
   });
 
-  if (isLoading || !data) {
+  if (isLoading) {
     return (
       <div className={ui.panel}>
-        <Spinner />
+        <div className={s.loading} role="status" aria-label="در حال بارگذاری سرنخ">
+          <Skeleton height="4.5rem" />
+          <Skeleton height="3rem" />
+          <Skeleton height="14rem" />
+        </div>
       </div>
     );
   }
 
-  const { lead, items, notes, proformas } = data;
-  const noteText = (lead.context?.note as string | undefined) ?? '';
+  // `isLoading || !data` used to cover BOTH states, so a failed fetch (404 on a
+  // bad id, offline, 500) left the panel spinning forever with no message and
+  // no way out.
+  if (isError || !data) {
+    const notFound = error instanceof ApiError && error.status === 404;
+    return (
+      <div className={ui.panel}>
+        <EmptyState
+          size="inline"
+          tone="error"
+          headline={notFound ? 'سرنخ یافت نشد' : 'بارگذاری سرنخ ناموفق بود'}
+          body={
+            notFound
+              ? 'این سرنخ حذف یا بایگانی شده است. ممکن است لینک قدیمی باشد.'
+              : error instanceof ApiError
+                ? error.message
+                : 'ارتباط با سرور برقرار نشد. اتصال را بررسی کنید و دوباره تلاش کنید.'
+          }
+          primary={
+            notFound
+              ? { label: 'بازگشت به فهرست سرنخ‌ها', href: routes.admin.leads() }
+              : { label: 'تلاش دوباره', onClick: () => void refetch() }
+          }
+        />
+      </div>
+    );
+  }
+
+  const { lead, items, notes } = data;
+  const proformas: ProformaView[] = data.proformas;
+  const activeProforma = proformas.find(isActiveProforma) ?? null;
+  const latestProforma = proformas[0] ?? null; // proformasOfLead orders desc by createdAt
+  const customerNote = (lead.context?.note as string | undefined) ?? '';
+
+  const stage: Stage =
+    lead.status === 'won' || lead.status === 'lost' ? lead.status : activeProforma ? 'quoted' : lead.status;
+  const stageIndex = STAGE_INDEX[stage];
+
+  const subtotal = items.reduce((sum, it) => sum + (it.lineTotal ?? 0), 0);
+  const totalWeight = items.reduce((sum, it) => sum + (it.weightKg ?? 0), 0);
+  const pricedCount = items.filter((it) => it.unitPrice != null && it.unitPrice > 0).length;
+  const appliedDiscount = discountValid ? Math.min(parsedDiscount, subtotal) : 0;
+  const taxable = subtotal - appliedDiscount;
+
+  const itemsLocked = Boolean(activeProforma);
+  const canIssue = pricedCount > 0 && lead.status !== 'lost';
+  // «تبدیل به سفارش» used to be clickable on a brand-new, never-contacted
+  // lead — an untracked order for a price nobody had quoted.
+  const canConvert = stage === 'quoted' || stage === 'won';
+
+  const steps: Array<{ label: string; hint: string }> = [
+    { label: 'ثبت شد', hint: 'سرنخ جدید' },
+    { label: 'تماس گرفته شد', hint: 'کارشناس تماس گرفت' },
+    { label: 'پیش‌فاکتور صادر شد', hint: 'قیمت به مشتری اعلام شد' },
+    stage === 'lost'
+      ? { label: 'ناموفق', hint: 'معامله از دست رفت' }
+      : { label: 'موفق', hint: 'معامله بسته شد' },
+  ];
 
   return (
     <div className={ui.panel} onClick={(e) => e.stopPropagation()}>
-      <div className={ui.grid2}>
-        <div>
-          <h2>اقلام</h2>
-          {items.length === 0 ? (
-            <p className={ui.muted}>بدون قلم کالا.</p>
-          ) : (
-            <ul style={{ display: 'grid', gap: 'var(--space-2)' }}>
-              {items.map((it) => (
-                <EditableItemRow key={it.id} leadId={id} item={it} onSaved={invalidate} />
-              ))}
-            </ul>
-          )}
-          {noteText ? <p className={ui.muted}>یادداشت مشتری: {noteText}</p> : null}
-
-          <h2 style={{ marginBlockStart: 'var(--space-3)' }}>پیش‌فاکتورها</h2>
-          {proformas.length === 0 ? (
-            <p className={ui.muted}>صادر نشده.</p>
-          ) : (
-            <ul>
-              {proformas.map((p) => (
-                <li key={p.id} className="tnum">
-                  <a
-                    href={`https://ahantime.com/proforma/${encodeURIComponent(p.ref)}`}
-                    target="_blank"
-                    rel="noopener"
-                    style={{ color: 'var(--color-accent-text)' }}
-                    title="نسخهٔ چاپی / PDF با سربرگ"
-                  >
-                    <bdi>{p.ref}</bdi>
-                  </a>{' '}
-                  — {formatToman(p.total, false)} تومان · اعتبار تا{' '}
-                  {formatJalali(p.validUntil)}{' '}
-                  <Badge tone={p.status === 'active' ? 'gain' : 'stale'}>
-                    {p.status === 'active' ? 'فعال' : 'منقضی'}
-                  </Badge>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          <div className={ui.toolbar} style={{ marginBlockStart: 'var(--space-3)' }}>
-            {lead.status === 'new' ? (
-              <Button size="sm" onClick={() => setStatus.mutate('contacted')} loading={setStatus.isPending}>
-                تماس گرفته شد
-              </Button>
+      <div className={s.detail}>
+        {/* Identity — the whole reason this panel exists. Reached from the
+            desk, a notification or a shared link, the rep previously saw items
+            and notes with no name, no phone and no ref. */}
+        <header className={s.identity}>
+          <div className={s.identityTop}>
+            <h2 className={s.name}>{lead.contactName?.trim() || 'مشتری بدون نام'}</h2>
+            <Badge tone={STATUS_META[lead.status].tone}>{STATUS_META[lead.status].label}</Badge>
+            {lead.contactVerified ? <Badge tone="gain">شمارهٔ تأییدشده</Badge> : null}
+            {/* tel: needs the raw Latin digits; the LABEL is Persian. */}
+            <a
+              className={s.tel}
+              href={`tel:${normalizeDigits(lead.contactMobile)}`}
+              aria-label={`تماس با ${lead.contactName?.trim() || 'مشتری'} — شمارهٔ ${toPersianDigits(lead.contactMobile)}`}
+            >
+              <PhoneIcon size={16} />
+              <bdi className={s.ltr}>{toPersianDigits(lead.contactMobile)}</bdi>
+            </a>
+          </div>
+          <div className={s.facts}>
+            <span className={s.fact}>
+              کد سرنخ:
+              <bdi className={`${s.factValue} ${s.ltr}`}>{lead.ref}</bdi>
+            </span>
+            <span className={s.fact}>
+              منبع:
+              <span className={s.factValue}>{SOURCE_LABEL[lead.source] ?? lead.source}</span>
+            </span>
+            {lead.cooperationType ? (
+              <span className={s.fact}>
+                نوع همکاری:
+                <span className={s.factValue}>{lead.cooperationType}</span>
+              </span>
             ) : null}
-            {lead.status === 'contacted' ? (
-              <>
-                <Button size="sm" onClick={() => setStatus.mutate('won')} loading={setStatus.isPending}>
-                  موفق
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => setLostOpen(true)}>
-                  ناموفق
-                </Button>
-              </>
+            <span className={s.fact}>
+              ثبت:
+              <span className={`${s.factValue} ${s.ltr}`}>{formatJalali(lead.createdAt, 'yyyy/MM/dd HH:mm')}</span>
+            </span>
+            {lead.callbackAt ? (
+              <span className={s.fact}>
+                تماس بعدی:
+                <span className={`${s.factValue} ${s.ltr}`}>{formatJalali(lead.callbackAt)}</span>
+              </span>
             ) : null}
-            {lead.status === 'won' || lead.status === 'lost' ? (
-              // Terminal states used to be dead ends — a mistaken «ناموفق» (or a
-              // customer who came back) had no path back into the pipeline.
-              <Button
-                size="sm"
-                variant="ghost"
-                loading={setStatus.isPending}
-                onClick={async () => {
-                  const ok = await confirm({
-                    title: 'بازگشایی سرنخ؟',
-                    body: 'سرنخ به وضعیت «تماس‌گرفته» برمی‌گردد و دوباره در جریان پیگیری قرار می‌گیرد.',
-                    confirmLabel: 'بازگشایی',
-                  });
-                  if (ok) setStatus.mutate('contacted');
-                }}
+          </div>
+        </header>
+
+        {/* Funnel position, driven by real state (status + an unexpired
+            proforma) rather than by which buttons happen to be rendered. */}
+        <ol className={s.stepper} aria-label="مرحلهٔ سرنخ">
+          {steps.map((step, i) => {
+            const done = i < stageIndex;
+            const current = i === stageIndex;
+            const lostEnd = current && stage === 'lost';
+            return (
+              <li
+                key={step.label}
+                className={[s.step, done ? s.stepDone : '', current && !lostEnd ? s.stepCurrent : '', lostEnd ? s.stepLost : '']
+                  .filter(Boolean)
+                  .join(' ')}
+                aria-current={current ? 'step' : undefined}
               >
-                بازگشایی
-              </Button>
-            ) : null}
-            <input
-              className={ui.numInput}
-              style={{ inlineSize: '8rem' }}
-              inputMode="numeric"
-              placeholder="تخفیف (تومان)"
-              value={discount}
-              onChange={(e) => setDiscount(e.target.value)}
-              aria-label="تخفیف پیش‌فاکتور به تومان"
-            />
-            <Button
-              size="sm"
-              variant="secondary"
-              loading={issue.isPending}
-              onClick={async () => {
-                // Issuing SMSes the customer immediately — never one stray click.
-                const ok = await confirm({
-                  title: 'صدور پیش‌فاکتور؟',
-                  body: `پیش‌فاکتور برای ${lead.contactName ?? 'مشتری'} صادر و همان لحظه پیامک می‌شود${discount ? ` (با ${toPersianDigits(discount)} تومان تخفیف)` : ''}.`,
-                  confirmLabel: 'صدور و ارسال پیامک',
-                });
-                if (ok) issue.mutate();
-              }}
-            >
-              صدور پیش‌فاکتور
-            </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              loading={convert.isPending}
-              onClick={async () => {
-                const ok = await confirm({
-                  title: 'تبدیل به سفارش؟',
-                  body: 'یک سفارش قابل رهگیری از این سرنخ ساخته می‌شود. این عمل قابل بازگشت نیست.',
-                  confirmLabel: 'ساخت سفارش',
-                });
-                if (ok) convert.mutate();
-              }}
-            >
-              تبدیل به سفارش
-            </Button>
+                <span className={s.stepLabel}>
+                  {toPersianDigits(i + 1)}. {step.label}
+                </span>
+                <span className={s.stepHint}>{step.hint}</span>
+              </li>
+            );
+          })}
+        </ol>
+
+        {smsAlert ? (
+          <Alert key={smsAlert.seq} tone="warning" title="پیامک به مشتری ارسال نشد" dismissible>
+            {smsAlert.text}
+          </Alert>
+        ) : null}
+
+        <div className={s.columns}>
+          <div className={s.col}>
+            <section className={s.section}>
+              <div className={s.sectionHead}>
+                <h3 className={s.h}>اقلام</h3>
+                {itemsLocked ? <Badge tone="stale">قفل‌شده</Badge> : null}
+              </div>
+              {itemsLocked && activeProforma ? (
+                <p className={s.hint}>
+                  اقلام تا زمانی که پیش‌فاکتور {activeProforma.ref} فعال است قابل ویرایش نیستند؛ برای تغییر قیمت یا
+                  مقدار، «صدور مجدد پیش‌فاکتور» را بزنید.
+                </p>
+              ) : null}
+              {items.length === 0 ? (
+                <p className={ui.muted}>بدون قلم کالا.</p>
+              ) : (
+                <div className={s.scroller}>
+                  <table className={ui.table}>
+                    <thead>
+                      <tr>
+                        <th scope="col">کالا</th>
+                        <th scope="col">واحد</th>
+                        <th scope="col">مقدار</th>
+                        <th scope="col">وزن (کیلوگرم)</th>
+                        <th scope="col">قیمت واحد (تومان)</th>
+                        <th scope="col">مبلغ خط (تومان)</th>
+                        <th scope="col">
+                          <span className="visually-hidden">ذخیره</span>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {items.map((it) => (
+                        <EditableItemRow key={it.id} leadId={id} item={it} locked={itemsLocked} onSaved={invalidate} />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              {customerNote ? <p className={ui.muted}>یادداشت مشتری: {customerNote}</p> : null}
+
+              {/* The rep used to SMS a price to the customer without the amount
+                  ever appearing on screen. */}
+              {items.length > 0 ? (
+                <div className={s.summary}>
+                  <div className={s.sumRow}>
+                    <span className={s.sumLabel}>وزن کل</span>
+                    <span className={s.sumValue}>{formatNum(totalWeight)} کیلوگرم</span>
+                  </div>
+                  <div className={s.sumRow}>
+                    <span className={s.sumLabel}>جمع اقلام</span>
+                    <span className={s.sumValue}>{formatToman(subtotal, false)}</span>
+                  </div>
+                  {appliedDiscount > 0 ? (
+                    <div className={s.sumRow}>
+                      <span className={s.sumLabel}>تخفیف</span>
+                      <span className={s.sumValue}>−{formatToman(appliedDiscount, false)}</span>
+                    </div>
+                  ) : null}
+                  <div className={`${s.sumRow} ${s.sumTotal}`}>
+                    <span>مبلغ پیش از مالیات</span>
+                    <span className={s.sumValue}>{formatToman(taxable, false)} تومان</span>
+                  </div>
+                  <p className={s.sumHint}>
+                    {pricedCount < items.length
+                      ? `${toPersianDigits(items.length - pricedCount)} قلم بدون قیمت است و در پیش‌فاکتور نمی‌آید. `
+                      : ''}
+                    مالیات بر ارزش افزوده و مبلغ نهایی هنگام صدور محاسبه و در کارت پیش‌فاکتور نمایش داده می‌شود.
+                  </p>
+                </div>
+              ) : null}
+            </section>
+
+            <section className={s.section}>
+              <h3 className={s.h}>پیش‌فاکتور</h3>
+              {activeProforma ? (
+                // The state the owner could never see: after issuing, the
+                // screen looked untouched and the rep clicked again.
+                <div className={`${s.card} ${s.cardIssued}`}>
+                  <div className={s.sectionHead}>
+                    <Badge tone="gain">صادر شده</Badge>
+                    <a
+                      className={s.link}
+                      href={proformaUrl(activeProforma.ref)}
+                      target="_blank"
+                      rel="noopener"
+                      title="نسخهٔ چاپی / PDF با سربرگ"
+                    >
+                      <bdi>{activeProforma.ref}</bdi>
+                    </a>
+                  </div>
+                  <div className={s.sumRow}>
+                    <span className={s.sumLabel}>جمع اقلام</span>
+                    <span className={s.sumValue}>{formatToman(activeProforma.subtotal, false)}</span>
+                  </div>
+                  {activeProforma.discountToman ? (
+                    <div className={s.sumRow}>
+                      <span className={s.sumLabel}>تخفیف</span>
+                      <span className={s.sumValue}>−{formatToman(activeProforma.discountToman, false)}</span>
+                    </div>
+                  ) : null}
+                  <div className={s.sumRow}>
+                    <span className={s.sumLabel}>
+                      مالیات بر ارزش افزوده ({formatNum(activeProforma.vatRate * 100, 1)}٪)
+                    </span>
+                    <span className={s.sumValue}>{formatToman(activeProforma.vatAmount, false)}</span>
+                  </div>
+                  <div className={`${s.sumRow} ${s.sumTotal}`}>
+                    <span>مبلغ نهایی</span>
+                    <span className={s.sumValue}>{formatToman(activeProforma.total)}</span>
+                  </div>
+                  <p className={s.sumHint}>
+                    اعتبار تا {formatJalali(activeProforma.validUntil)} · صدور{' '}
+                    {formatJalali(activeProforma.createdAt, 'yyyy/MM/dd HH:mm')}
+                  </p>
+                </div>
+              ) : latestProforma ? (
+                <div className={`${s.card} ${s.cardStale}`}>
+                  <div className={s.sectionHead}>
+                    <Badge tone={PROFORMA_STATUS[latestProforma.status].tone}>
+                      {PROFORMA_STATUS[latestProforma.status].label}
+                    </Badge>
+                    <bdi>{latestProforma.ref}</bdi>
+                  </div>
+                  <p className={s.sumHint}>
+                    پیش‌فاکتور فعالی روی این سرنخ نیست. آخرین نسخه به مبلغ {formatToman(latestProforma.total)} تا{' '}
+                    {formatJalali(latestProforma.validUntil)} اعتبار داشت.
+                  </p>
+                </div>
+              ) : (
+                <p className={ui.muted}>هنوز پیش‌فاکتوری صادر نشده است.</p>
+              )}
+
+              {proformas.length > 1 ? (
+                <details className={s.history}>
+                  <summary>سوابق پیش‌فاکتورها ({toPersianDigits(proformas.length)})</summary>
+                  <ul className={s.historyList}>
+                    {proformas.map((p) => (
+                      <li key={p.id} className={s.historyRow}>
+                        <bdi>{p.ref}</bdi>
+                        <span className={s.num}>{formatToman(p.total)}</span>
+                        <span className={s.sumLabel}>اعتبار تا {formatJalali(p.validUntil)}</span>
+                        <Badge tone={PROFORMA_STATUS[p.status].tone}>{PROFORMA_STATUS[p.status].label}</Badge>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              ) : null}
+            </section>
+
+            <section className={s.section}>
+              <h3 className={s.h}>اقدام بعدی</h3>
+              <div className={s.actions}>
+                {lead.status === 'new' ? (
+                  <Button size="sm" onClick={() => setStatus.mutate('contacted')} loading={setStatus.isPending}>
+                    تماس گرفته شد
+                  </Button>
+                ) : null}
+
+                {lead.status !== 'lost' ? (
+                  <>
+                    <div className={s.field}>
+                      <label className={s.fieldLabel} htmlFor={`discount-${id}`}>
+                        تخفیف (تومان)
+                      </label>
+                      <input
+                        id={`discount-${id}`}
+                        className={ui.numInput}
+                        inputMode="numeric"
+                        placeholder="۰"
+                        value={discount}
+                        disabled={!canIssue}
+                        aria-invalid={!discountValid || undefined}
+                        onChange={(e) => setDiscount(e.target.value)}
+                      />
+                    </div>
+                    <Button
+                      size="sm"
+                      // Primary only where it is genuinely the next step; once
+                      // a quote is out, re-issuing is a deliberate, secondary,
+                      // differently-worded action.
+                      variant={activeProforma ? 'ghost' : stage === 'contacted' ? 'primary' : 'secondary'}
+                      disabled={!canIssue || !discountValid}
+                      loading={issue.isPending}
+                      onClick={async () => {
+                        // Issuing SMSes the customer immediately — never one
+                        // stray click, and never without naming the amount.
+                        const ok = await confirm({
+                          title: activeProforma ? 'صدور مجدد پیش‌فاکتور؟' : 'صدور پیش‌فاکتور؟',
+                          body: activeProforma
+                            ? `پیش‌فاکتور فعلی (${activeProforma.ref}) باطل و نسخهٔ تازه‌ای به مبلغ حدودی ${formatToman(taxable)} (پیش از مالیات) برای ${lead.contactName?.trim() || 'مشتری'} صادر و پیامک می‌شود.`
+                            : `پیش‌فاکتوری به مبلغ ${formatToman(taxable)} (پیش از مالیات) برای ${lead.contactName?.trim() || 'مشتری'} صادر و همان لحظه پیامک می‌شود.`,
+                          confirmLabel: activeProforma ? 'صدور مجدد و ابطال قبلی' : 'صدور و ارسال پیامک',
+                        });
+                        if (ok) issue.mutate({ reissue: Boolean(activeProforma) });
+                      }}
+                    >
+                      {activeProforma ? 'صدور مجدد پیش‌فاکتور' : 'صدور پیش‌فاکتور'}
+                    </Button>
+                  </>
+                ) : null}
+
+                {lead.status === 'contacted' || lead.status === 'new' ? (
+                  <>
+                    <Button size="sm" variant="secondary" onClick={() => setStatus.mutate('won')} loading={setStatus.isPending}>
+                      موفق
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setLostOpen(true)}>
+                      ناموفق
+                    </Button>
+                  </>
+                ) : null}
+
+                {canConvert ? (
+                  <Button
+                    size="sm"
+                    variant={stage === 'quoted' ? 'primary' : 'secondary'}
+                    loading={convert.isPending}
+                    onClick={async () => {
+                      const ok = await confirm({
+                        title: 'تبدیل به سفارش؟',
+                        body: 'یک سفارش قابل رهگیری از این سرنخ ساخته و کد رهگیری برای مشتری پیامک می‌شود. این عمل قابل بازگشت نیست.',
+                        confirmLabel: 'ساخت سفارش',
+                      });
+                      if (ok) convert.mutate();
+                    }}
+                  >
+                    تبدیل به سفارش
+                  </Button>
+                ) : null}
+
+                {lead.status === 'won' || lead.status === 'lost' ? (
+                  // Terminal states used to be dead ends — a mistaken «ناموفق»
+                  // (or a customer who came back) had no path back in.
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    loading={setStatus.isPending}
+                    onClick={async () => {
+                      const ok = await confirm({
+                        title: 'بازگشایی سرنخ؟',
+                        body: 'سرنخ به وضعیت «تماس‌گرفته» برمی‌گردد و دوباره در جریان پیگیری قرار می‌گیرد.',
+                        confirmLabel: 'بازگشایی',
+                      });
+                      if (ok) setStatus.mutate('contacted');
+                    }}
+                  >
+                    بازگشایی
+                  </Button>
+                ) : null}
+
+                {lead.status === 'lost' ? (
+                  <p className={s.hint}>این سرنخ ناموفق ثبت شده است؛ برای ادامهٔ کار ابتدا آن را بازگشایی کنید.</p>
+                ) : !canIssue ? (
+                  <p className={s.hint}>برای صدور پیش‌فاکتور، دست‌کم یک قلم باید قیمت داشته باشد.</p>
+                ) : !canConvert ? (
+                  <p className={s.hint}>«تبدیل به سفارش» پس از صدور پیش‌فاکتور فعال می‌شود.</p>
+                ) : null}
+              </div>
+            </section>
           </div>
 
-          <h2 style={{ marginBlockStart: 'var(--space-4)' }}>واگذاری و پیگیری</h2>
-          <div className={ui.toolbar} style={{ alignItems: 'center' }}>
-            {currentUser && lead.assigneeId !== currentUser.id ? (
-              <Button size="sm" onClick={() => assign.mutate(currentUser.id)} loading={assign.isPending}>
-                سرنخ من
-              </Button>
-            ) : null}
-            <select
-              className={ui.select}
-              aria-label="کارشناس مسئول"
-              value={lead.assigneeId ?? ''}
-              onChange={(e) => assign.mutate(e.target.value || null)}
-            >
-              <option value="">— بدون کارشناس —</option>
-              {staff.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {(m.name ?? m.mobile) + ' · ' + ROLE_LABEL[m.role as Role]}
-                </option>
-              ))}
-            </select>
-            <label className={ui.muted} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-              زمان تماس:
-              <JalaliDateField
-                value={lead.callbackAt ? lead.callbackAt.slice(0, 10) : ''}
-                onChange={(iso) => setCallback.mutate(iso ? new Date(`${iso}T09:00:00`).toISOString() : null)}
-                label="زمان تماس بعدی (شمسی)"
-              />
-            </label>
-          </div>
-        </div>
+          <div className={s.col}>
+            <section className={s.section}>
+              <div className={s.sectionHead}>
+                <h3 className={s.h}>یادداشت‌ها</h3>
+                {isFetching ? <span className={ui.muted}>در حال به‌روزرسانی…</span> : null}
+              </div>
+              {notes.length === 0 ? (
+                <p className={ui.muted}>یادداشتی نیست.</p>
+              ) : (
+                <ul className={s.notes}>
+                  {notes.map((n) => (
+                    <li key={n.id} className={s.note}>
+                      <span className={s.noteMeta}>
+                        <span className={s.noteAuthor}>{authorName(n.authorId)}</span>
+                        <span className={s.ltr}>{formatJalali(n.at, 'yyyy/MM/dd HH:mm')}</span>
+                      </span>
+                      <p className={s.noteText}>{n.text}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div className={s.noteForm}>
+                <textarea
+                  className={s.textarea}
+                  placeholder="یادداشت کارشناس…"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  aria-label="یادداشت جدید"
+                />
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={!note.trim()}
+                  onClick={() => note.trim() && addNote.mutate(note.trim())}
+                  loading={addNote.isPending}
+                >
+                  ثبت یادداشت
+                </Button>
+              </div>
+            </section>
 
-        <div>
-          <h2>یادداشت‌ها</h2>
-          {notes.length === 0 ? (
-            <p className={ui.muted}>یادداشتی نیست.</p>
-          ) : (
-            <ul>
-              {notes.map((n) => (
-                <li key={n.id}>
-                  {n.text} <span className={`${ui.muted} tnum`}>({formatJalali(n.at)})</span>
-                </li>
-              ))}
-            </ul>
-          )}
-          <textarea
-            className={ui.textCell}
-            style={{ inlineSize: '100%', minBlockSize: '5rem', marginBlockStart: 'var(--space-2)' }}
-            placeholder="یادداشت کارشناس…"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            aria-label="یادداشت جدید"
-          />
-          <Button
-            size="sm"
-            style={{ marginBlockStart: 'var(--space-2)' }}
-            onClick={() => note.trim() && addNote.mutate(note.trim())}
-            loading={addNote.isPending}
-          >
-            ثبت یادداشت
-          </Button>
+            <section className={s.section}>
+              <h3 className={s.h}>واگذاری و پیگیری</h3>
+              <div className={s.assign}>
+                {currentUser && lead.assigneeId !== currentUser.id ? (
+                  <Button size="sm" variant="secondary" onClick={() => assign.mutate(currentUser.id)} loading={assign.isPending}>
+                    سرنخ من
+                  </Button>
+                ) : null}
+                <div className={s.field}>
+                  <label className={s.fieldLabel} htmlFor={`assignee-${id}`}>
+                    کارشناس مسئول
+                  </label>
+                  <select
+                    id={`assignee-${id}`}
+                    className={ui.select}
+                    value={lead.assigneeId ?? ''}
+                    onChange={(e) => assign.mutate(e.target.value || null)}
+                  >
+                    <option value="">— بدون کارشناس —</option>
+                    {staff.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {(m.name ?? m.mobile) + ' · ' + ROLE_LABEL[m.role as Role]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className={s.field}>
+                  <span className={s.fieldLabel}>زمان تماس بعدی</span>
+                  <JalaliDateField
+                    value={lead.callbackAt ? lead.callbackAt.slice(0, 10) : ''}
+                    onChange={(iso) => setCallback.mutate(iso ? new Date(`${iso}T09:00:00`).toISOString() : null)}
+                    label="زمان تماس بعدی (شمسی)"
+                  />
+                </div>
+              </div>
+            </section>
+          </div>
         </div>
       </div>
+
       {/* Lost-reason capture — the reason lands in the notes timeline (visible
           to the whole team + future reporting), then the status flips. */}
       <Modal
@@ -375,8 +939,7 @@ export function LeadDetail({ id }: { id: string }) {
           ))}
         </div>
         <textarea
-          className={ui.textCell}
-          style={{ inlineSize: '100%', minBlockSize: '4rem', marginBlockStart: 'var(--space-2)' }}
+          className={s.textarea}
           placeholder="دلیل (اختیاری، برای گزارش‌گیری تیم)…"
           value={lostReason}
           onChange={(e) => setLostReason(e.target.value)}

@@ -4,12 +4,19 @@
  * پیش‌فاکتور when everything is priced → SMS the ref → mirror the request in
  * the user's inbox. One entry point for the table/cart/AI/tool sources.
  */
-import { eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, gt, inArray, ne } from 'drizzle-orm';
 import { getDb, type DbOrTx } from '@/lib/server/db/client';
-import { skus, currentPrices } from '@/lib/server/db/schema';
+import { skus, currentPrices, proformas, userRequests } from '@/lib/server/db/schema';
 import type { AuthUser } from '@/lib/auth/types';
 import type { LineItem, PriceUnit } from '@/lib/types/domain';
-import { insertLead, insertProforma, proformasOfLead, type LeadRow } from '@/lib/server/repos/leadsRepo';
+import {
+  insertLead,
+  insertProforma,
+  proformasOfLead,
+  updateLead,
+  type LeadRow,
+  type ProformaRow,
+} from '@/lib/server/repos/leadsRepo';
 import { insertRequest } from '@/lib/server/repos/requestsRepo';
 import { getVatRate, getHolidays, getSetting } from '@/lib/server/repos/settingsRepo';
 import { nextRef } from '@/lib/server/utils/refs';
@@ -27,6 +34,17 @@ export function proformaSmsText(ref: string, total?: number, validUntil?: Date):
     return `آهن‌تایم: پیش‌فاکتور شما صادر شد. کد پیگیری: ${ref} — مبلغ: ${formatToman(total)} — اعتبار تا ${formatJalali(validUntil)} ساعت ۱۱:۰۰. مشاهده: ${link}`;
   }
   return `آهن‌تایم: درخواست شما با کد پیگیری ${ref} ثبت شد. کارشناسان ما به‌زودی با شما تماس می‌گیرند. پیگیری: ${link}`;
+}
+
+/** Shared order-confirmation SMS text. «تبدیل به سفارش» minted a tracking ref
+ *  and told the rep it was «قابل رهگیری در /track» while the customer was
+ *  never told anything at all — SMS is the only channel here (there is no
+ *  in-app notification system). Links to the public /track lookup rather than
+ *  a per-ref page: /track takes the ref in its own form and needs no login,
+ *  so it works for the guest leads that never had an account. */
+export function orderSmsText(ref: string): string {
+  const link = `${publicEnv.NEXT_PUBLIC_SITE_URL}/track`;
+  return `آهن‌تایم: سفارش شما ثبت شد. کد رهگیری: ${ref} — پیگیری وضعیت ارسال: ${link}`;
 }
 
 export interface CreateLeadInput {
@@ -225,10 +243,90 @@ export async function createLead(
   return result;
 }
 
+/** The ONE quote a lead may have outstanding, or null.
+ *
+ *  `status = 'active'` on its own is NOT enough: expiry is swept lazily (see
+ *  findProformaByRef / expireDueProformas), so a lapsed quote can sit in the
+ *  table marked 'active' for up to ten minutes. Treating that as outstanding
+ *  would block the one re-issue a rep is unambiguously right to make — the
+ *  customer's quote just expired and they called back. */
+export async function activeProformaOfLead(
+  leadId: string,
+  dbh: DbOrTx = getDb(),
+): Promise<ProformaRow | null> {
+  const rows = await dbh
+    .select()
+    .from(proformas)
+    .where(
+      and(eq(proformas.leadId, leadId), eq(proformas.status, 'active'), gt(proformas.validUntil, new Date())),
+    )
+    .orderBy(desc(proformas.createdAt))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+/** Void a lead's still-valid quotes so at most ONE is ever outstanding.
+ *
+ *  Re-issuing used to simply insert a second row: the customer held two live
+ *  quotes with different refs and different totals and no way to know which
+ *  one counted — and smsAutomation's proformaReminders texts EVERY active
+ *  proforma, so 24h before expiry they were reminded of both. Genuinely
+ *  expired rows are deliberately left alone: they belong to the expiry sweep,
+ *  and 'cancelled' would misdescribe them. */
+export async function supersedeActiveProformas(
+  leadId: string,
+  dbh: DbOrTx = getDb(),
+): Promise<string[]> {
+  const rows = await dbh
+    .update(proformas)
+    .set({ status: 'cancelled' })
+    .where(
+      and(eq(proformas.leadId, leadId), eq(proformas.status, 'active'), gt(proformas.validUntil, new Date())),
+    )
+    .returning({ ref: proformas.ref });
+  return rows.map((r) => r.ref);
+}
+
+/** Move the pipeline the way issuing a quote actually moves it.
+ *
+ *  There is no 'quoted' LEAD status (LEAD_STATUSES = new|contacted|won|lost),
+ *  so a quoted lead at minimum leaves 'new' — otherwise it stayed «تماس‌گرفته»/
+ *  «جدید» and was indistinguishable from one where the rep only dialled. The
+ *  MIRRORED user request DOES have 'quoted' (REQUEST_STATUSES), and createLead
+ *  already sets it at creation time; an admin-side issue never did, so the
+ *  customer's /account/requests inbox still read «ثبت شد» after a rep had
+ *  quoted them and the rep had to hand-move a dropdown in another tab. */
+export async function markLeadQuoted(
+  lead: LeadRow,
+): Promise<{ leadStatus: LeadRow['status']; requestSynced: boolean }> {
+  // ONLY 'new' advances. Re-quoting an old deal must not drag a won/lost lead
+  // back into the open pipeline (and back onto the rep's desk queue, which
+  // filters on new|contacted).
+  let leadStatus = lead.status;
+  if (lead.status === 'new') {
+    const updated = await updateLead(lead.id, { status: 'contacted' });
+    leadStatus = updated?.status ?? 'contacted';
+  }
+  // `ne` so the flag reports a real change, not a no-op updatedAt bump. A
+  // guest lead has no mirrored request at all — false, not an error.
+  const synced = await getDb()
+    .update(userRequests)
+    .set({ status: 'quoted', updatedAt: new Date() })
+    .where(and(eq(userRequests.leadId, lead.id), ne(userRequests.status, 'quoted')))
+    .returning({ id: userRequests.id });
+  return { leadStatus, requestSynced: synced.length > 0 };
+}
+
 /** Issue (or re-issue) a proforma for a lead from its priced lines.
  *  `discountToman` (US-19.4): a flat Toman amount off `subtotal`, applied
  *  BEFORE VAT — clamped to [0, subtotal] so it can never go negative or
- *  exceed the order itself regardless of what the caller passes in. */
+ *  exceed the order itself regardless of what the caller passes in.
+ *
+ *  Always supersedes the lead's outstanding quote (see
+ *  supersedeActiveProformas) — the "exactly one active proforma per lead"
+ *  invariant holds no matter which caller issues. Callers that need to TELL
+ *  the rep what was voided should read activeProformaOfLead first; that read
+ *  is also what gates a re-issue behind explicit intent. */
 export async function issueProforma(
   lead: LeadRow,
   lines: LineItem[],
@@ -249,6 +347,9 @@ export async function issueProforma(
   // First issue reuses the lead's human ref; re-issues get a fresh one.
   const existing = await proformasOfLead(lead.id, dbh);
   const ref = existing.length === 0 ? lead.ref : await nextRef('PF');
+  // BEFORE the insert, never after — the predicate matches any active row of
+  // this lead, so voiding afterwards would cancel the quote we just issued.
+  await supersedeActiveProformas(lead.id, dbh);
   return insertProforma(
     { leadId: lead.id, ref, lines, subtotal, discountToman: discount, vatRate, vatAmount, total, validUntil },
     dbh,

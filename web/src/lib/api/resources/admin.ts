@@ -22,6 +22,17 @@ export interface AdminStats {
   aiToday?: { promptTokens: number; completionTokens: number; cacheHitRate: number; violations: number };
 }
 
+/** The lead's `context` jsonb (server type: LeadContext in db/schema/leads.ts).
+ *  `estimate` is spelled out because the CRM list renders it as a column — it
+ *  is the ONLY signal on a list row about what goods the lead is even for, and
+ *  as `Record<string, unknown>` every read of it needed a blind cast. Prices
+ *  are the sum of the line totals at capture time: pre-VAT, and stale the
+ *  moment the market moves. Everything else stays an index signature. */
+export interface AdminLeadContext {
+  estimate?: { totalWeightKg?: number; totalPrice?: number };
+  [key: string]: unknown;
+}
+
 export interface AdminLead {
   id: string;
   ref: string;
@@ -31,7 +42,7 @@ export interface AdminLead {
   contactVerified: boolean;
   source: string;
   cooperationType: string | null;
-  context: Record<string, unknown> | null;
+  context: AdminLeadContext | null;
   channelPref: string;
   status: 'new' | 'contacted' | 'won' | 'lost';
   assigneeId: string | null;
@@ -186,6 +197,12 @@ export interface AllowlistEntryRow {
   userRole: string | null;
 }
 
+/** Mirror of EXPORT_MAX_ROWS in app/api/admin/leads/export/route.ts. The
+ *  server truncates silently — a 6,000-lead range downloads as 5,000 rows with
+ *  no marker in the CSV — so the toolbar has to say it BEFORE the click. Keep
+ *  the two numbers equal. */
+export const LEADS_EXPORT_MAX_ROWS = 5000;
+
 export const adminApi = {
   stats: () => http.get<{ stats: AdminStats }>('/api/admin/stats'),
 
@@ -227,10 +244,17 @@ export const adminApi = {
     return http.get<{ leads: AdminLead[]; total: number }>(`/api/admin/leads?${qs}`);
   },
   /** Not fetched via `http` — the browser navigates straight to this URL to
-   *  download the CSV, same query params as `leads()`. */
-  leadsExportUrl: (params: { status?: string; q?: string; from?: string; to?: string } = {}) => {
+   *  download the CSV, same query params as `leads()`.
+   *
+   *  `assignee` used to be dropped here while `leads()` sent it: with
+   *  «سرنخ‌های من» on, the rep saw their own 12 leads on screen and downloaded
+   *  all 4,000 of everyone's, with nothing in the file saying so. The
+   *  parameter list is deliberately identical to `leads()`' filter half —
+   *  anything the list can filter by, the export must carry. */
+  leadsExportUrl: (params: { status?: string; assignee?: string; q?: string; from?: string; to?: string } = {}) => {
     const qs = new URLSearchParams();
     if (params.status) qs.set('status', params.status);
+    if (params.assignee) qs.set('assignee', params.assignee);
     if (params.q) qs.set('q', params.q);
     if (params.from) qs.set('from', params.from);
     if (params.to) qs.set('to', params.to);
@@ -243,7 +267,11 @@ export const adminApi = {
   updateLead: (id: string, patch: { status?: string; assigneeId?: string | null; callbackAt?: string | null }) =>
     http.patch<{ lead: AdminLead }>(`/api/admin/leads/${id}`, patch),
   addLeadNote: (id: string, text: string) => http.post<{ note: unknown }>(`/api/admin/leads/${id}/notes`, { text }),
-  updateLeadItem: (leadId: string, itemId: string, patch: { qty?: number; unitPrice?: number }) =>
+  /** `unitPrice`: omit = keep, `null` = «بدون قیمت» (stores NULL price AND
+   *  NULL line total), a number = that price. `0` is NOT "unpriced" — the
+   *  route 400s it on purpose, so this type has to be able to say `null` or
+   *  the caller has no way to clear a price at all. */
+  updateLeadItem: (leadId: string, itemId: string, patch: { qty?: number; unitPrice?: number | null }) =>
     http.patch<{ item: LineItem & { id: string } }>(`/api/admin/leads/${leadId}/items/${itemId}`, patch),
   issueProforma: (id: string, discountToman?: number) =>
     http.post<{ proforma: AdminProforma }>(`/api/admin/leads/${id}/proforma`, discountToman ? { discountToman } : {}),
@@ -281,7 +309,21 @@ export const adminApi = {
     if (params.page) qs.set('page', String(params.page));
     if (params.perPage) qs.set('perPage', String(params.perPage));
     return http.get<{
-      requests: Array<{ id: string; ref: string; userId: string; type: string; title: string; detail?: string; status: string; createdAt: string }>;
+      // `leadId` was already on the wire (the repo selects the whole row) but
+      // absent from this type, so the inbox had no way to reach the lead a
+      // request belongs to — and since issuing a proforma now writes this
+      // row's status, the rep needs one click to the thing that wrote it.
+      requests: Array<{
+        id: string;
+        ref: string;
+        userId: string;
+        type: string;
+        title: string;
+        detail?: string;
+        status: string;
+        leadId: string | null;
+        createdAt: string;
+      }>;
       total: number;
     }>(`/api/admin/requests?${qs}`);
   },

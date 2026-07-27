@@ -57,7 +57,7 @@ export function ProformasTab() {
       </div>
 
       {isLoading ? (
-        <TableSkeleton rows={6} cols={6} />
+        <TableSkeleton rows={6} cols={6} label="در حال بارگذاری پیش‌فاکتورها" />
       ) : isError ? (
         <EmptyState
           size="section"

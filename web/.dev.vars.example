@@ -22,9 +22,16 @@ FALLBACK_BASE_URL=
 FALLBACK_API_KEY=
 FALLBACK_MODEL=
 
-# SMS (OTP) — SMS.ir Verify API
+# SMS — SMS.ir. Verify API for OTP, bulk send-to-line for everything else.
 SMSIR_API_KEY=
 SMSIR_TEMPLATE_ID=
+# Sender line for FREE-TEXT sends (پیش‌فاکتور، هشدار قیمت، یادآوری‌ها) — was
+# missing from this file entirely, which is a silent trap: provision from here
+# and OTP works perfectly (the verify endpoint needs no line number) while every
+# notification SMS dies. Must be a line APPROVED on your SMS.ir panel — a wrong
+# value makes api.sms.ir return 400 on every send with no other symptom.
+# Required in production; the app now refuses to boot without it.
+SMSIR_LINE_NUMBER=
 
 # Market data (ticker) — tgju
 TGJU_BASE_URL=
