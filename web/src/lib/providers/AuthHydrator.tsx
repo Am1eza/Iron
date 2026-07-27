@@ -1,7 +1,11 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/lib/stores/auth';
-import { api } from '@/lib/api';
+// Deep import, NOT the `@/lib/api` barrel: the barrel re-exports the market
+// and catalog resources too, which pull the zod validation schemas into this
+// root-layout component — i.e. onto every page's critical path — for an
+// endpoint this file never calls.
+import { authApi } from '@/lib/api/resources/auth';
 import { useRequestsSync } from '@/lib/hooks/useRequestsSync';
 
 /**
@@ -32,7 +36,7 @@ export function AuthHydrator() {
 
   useEffect(() => {
     let cancelled = false;
-    api.auth
+    authApi
       .me()
       .then(({ user }) => {
         if (cancelled) return;
@@ -56,7 +60,7 @@ export function AuthHydrator() {
     let cancelled = false;
     const refresh = async () => {
       try {
-        const { user } = await api.auth.refresh();
+        const { user } = await authApi.refresh();
         if (!cancelled) setUser(user);
       } catch {
         if (!cancelled) setUser(null);

@@ -5,7 +5,7 @@ import { buildMetadata, articleJsonLd } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { articlesByType } from '@/lib/mock/catalogData';
 import { getArticle, getArticlesByType } from '@/lib/server/catalog';
-import { formatJalali } from '@/lib/utils/format';
+import { formatJalali } from '@/lib/utils/jalali';
 import { Container, Section, Stack, Heading, Breadcrumbs, Badge } from '@/components/ui';
 import { SparkIcon, CalendarIcon, ChevronStartIcon } from '@/components/primitives/icons';
 import { BreadcrumbJsonLd, JsonLd } from '@/components/seo/JsonLd';

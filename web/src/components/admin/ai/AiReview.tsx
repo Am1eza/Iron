@@ -7,7 +7,8 @@
 import { useState } from 'react';
 import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api/resources/admin';
-import { formatJalali, toPersianDigits } from '@/lib/utils/format';
+import { toPersianDigits } from '@/lib/utils/format';
+import { formatJalali } from '@/lib/utils/jalali';
 import { useToast } from '@/lib/hooks/useToast';
 import { ApiError } from '@/lib/api/errors';
 import { Badge, Button, Chip, EmptyState, Modal, Switch, TableSkeleton } from '@/components/ui';

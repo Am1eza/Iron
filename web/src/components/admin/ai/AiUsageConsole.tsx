@@ -7,7 +7,8 @@
  */
 import { useQuery } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api/resources/admin';
-import { toPersianDigits, formatJalali } from '@/lib/utils/format';
+import { toPersianDigits } from '@/lib/utils/format';
+import { formatJalali } from '@/lib/utils/jalali';
 import { EmptyState, TableSkeleton } from '@/components/ui';
 import { Sparkline } from '../dashboard/Sparkline';
 import ui from '../adminUi.module.css';

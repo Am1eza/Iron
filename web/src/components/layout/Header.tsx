@@ -56,9 +56,17 @@ export function Header({ categories, subs }: { categories: Category[]; subs: Sub
         requestAnimationFrame(update);
       }
     };
-    update();
+    // Through rAF, not a direct call: reading window.scrollY during hydration
+    // forces a synchronous layout of the entire tree — profiled at ~70ms on a
+    // throttled mobile CPU, on EVERY page, since this header is site-wide.
+    // Deferring by one frame changes nothing visible (the bar only condenses
+    // past 120px of scroll, which can't have happened before the first frame).
+    const first = requestAnimationFrame(update);
     window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
+    return () => {
+      cancelAnimationFrame(first);
+      window.removeEventListener('scroll', onScroll);
+    };
   }, []);
 
   useEffect(() => {

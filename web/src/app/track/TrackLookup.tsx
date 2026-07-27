@@ -7,7 +7,8 @@ import { OrderTimeline } from '@/components/account/OrderTimeline';
 import { findOrder } from '@/lib/mock/orders';
 import { API_MODE } from '@/lib/api/config';
 import { SHIPMENT_STEPS, type Order } from '@/lib/types/domain';
-import { formatJalali, toPersianDigits } from '@/lib/utils/format';
+import { toPersianDigits } from '@/lib/utils/format';
+import { formatJalali } from '@/lib/utils/jalali';
 
 /** Public ref-lookup → renders that order's shipment timeline (mock). */
 export function TrackLookup() {

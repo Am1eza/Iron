@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
-import { formatJalali, toPersianDigits } from '@/lib/utils/format';
+import { toPersianDigits } from '@/lib/utils/format';
+import { formatJalali } from '@/lib/utils/jalali';
 import { routes } from '@/lib/routes';
 import { actionMeta, entityLabel, fieldLabel, diffFields } from './auditVocab';
 import styles from './activity.module.css';

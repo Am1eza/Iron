@@ -51,7 +51,9 @@ export function Marquee({
 
   useEffect(() => {
     if (reduced) return;
-    measure();
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+
     const onResize = () => measure();
     window.addEventListener('resize', onResize);
 
@@ -73,9 +75,39 @@ export function Marquee({
         track.style.transform = `translateX(${phase - per}px)`;
       }
     };
-    raf = requestAnimationFrame(frame);
-    return () => {
+
+    /**
+     * The loop runs ONLY while the strip is on screen. It used to start at
+     * mount and never stop: on the homepage these strips sit ~4300px below
+     * the fold, so the animation burned main-thread time through the entire
+     * hydration window — and then forever — to move something nobody was
+     * looking at. Profiling attributed ~190–230ms per second to it.
+     * `measure()` is also deferred to first visibility: it reads offsetLeft,
+     * which forces a layout, and doing that during hydration is the same
+     * mistake in miniature.
+     */
+    let running = false;
+    const start = () => {
+      if (running) return;
+      running = true;
+      measure();
+      last = 0;
+      raf = requestAnimationFrame(frame);
+    };
+    const stop = () => {
+      if (!running) return;
+      running = false;
       cancelAnimationFrame(raf);
+    };
+    const io = new IntersectionObserver(
+      (entries) => (entries.some((e) => e.isIntersecting) ? start() : stop()),
+      { rootMargin: '200px' },
+    );
+    io.observe(viewport);
+
+    return () => {
+      io.disconnect();
+      stop();
       window.removeEventListener('resize', onResize);
     };
   }, [reduced, speed, n]);

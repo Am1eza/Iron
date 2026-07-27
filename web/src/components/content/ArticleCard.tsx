@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { Article } from '@/lib/types/domain';
 import { routes } from '@/lib/routes';
-import { formatJalali } from '@/lib/utils/format';
+import { formatJalali } from '@/lib/utils/jalali';
 import { Badge } from '@/components/ui';
 import { SparkIcon, CalendarIcon, ChevronStartIcon } from '@/components/primitives/icons';
 import styles from './ArticleCard.module.css';

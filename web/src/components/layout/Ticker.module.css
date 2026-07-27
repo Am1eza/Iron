@@ -22,33 +22,44 @@
   border-inline-end: var(--border-hairline) solid rgba(255, 255, 255, 0.08);
 }
 
+/* The edge fade is drawn as OVERLAYS (::before/::after), not a mask-image.
+   A mask over a permanently-transforming layer defeats cheap compositing: the
+   strip had to be re-rasterized every frame, and CPU profiling attributed
+   ~100–240ms of main-thread work per second to it — on EVERY page, since the
+   ticker is site-wide. Marquee.module.css already uses the overlay pattern
+   for exactly this reason; this brings the ticker in line with it. */
 .viewport {
   position: relative;
   flex: 1 1 auto;
   min-inline-size: 0;
   overflow: hidden;
-  /* fade the leading/trailing edges */
-  -webkit-mask-image: linear-gradient(
-    to left,
-    transparent 0,
-    #000 var(--space-8),
-    #000 calc(100% - var(--space-8)),
-    transparent 100%
-  );
-  mask-image: linear-gradient(
-    to left,
-    transparent 0,
-    #000 var(--space-8),
-    #000 calc(100% - var(--space-8)),
-    transparent 100%
-  );
 }
-/* Reduced motion → no mask trickery, allow manual horizontal scroll */
+.viewport::before,
+.viewport::after {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inline-size: var(--space-8);
+  z-index: 1;
+  pointer-events: none;
+}
+.viewport::before {
+  inset-inline-start: 0;
+  background: linear-gradient(to right, var(--color-surface-inverse), transparent);
+}
+.viewport::after {
+  inset-inline-end: 0;
+  background: linear-gradient(to left, var(--color-surface-inverse), transparent);
+}
+/* Reduced motion → allow manual horizontal scroll (and no fade overlays, so
+   the first/last item is never half-hidden while the user swipes). */
 .viewport[data-reduced] {
   overflow-x: auto;
-  -webkit-mask-image: none;
-  mask-image: none;
   scrollbar-width: none;
+}
+.viewport[data-reduced]::before,
+.viewport[data-reduced]::after {
+  display: none;
 }
 .viewport[data-reduced]::-webkit-scrollbar {
   display: none;
@@ -63,9 +74,13 @@
   padding: 0;
   inline-size: max-content;
   animation: ticker-marquee 48s linear infinite;
+  /* Promote to its own compositor layer so the 48s transform never touches
+     the main thread (paired with dropping the mask above). */
+  will-change: transform;
 }
 .viewport[data-reduced] .track {
   animation: none;
+  will-change: auto;
 }
 .viewport:hover .track,
 .viewport:focus-within .track {

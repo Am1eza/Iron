@@ -12,8 +12,10 @@ export {
   normalizeDigits,
   formatToman,
   formatMovement,
-  formatJalali,
 } from '@/lib/utils/format';
+// Separate module on purpose — re-exporting it from here would pull
+// date-fns-jalali back into every importer of this barrel. See utils/jalali.ts.
+export { formatJalali } from '@/lib/utils/jalali';
 
 /** Translate a shared key; supports `{token}` substitution from `vars`. */
 export function t(key: StringKey, vars?: Record<string, string | number>): string {

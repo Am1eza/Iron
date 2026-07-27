@@ -8,7 +8,8 @@ import {
   type WarehouseItem,
   type WarehouseStatus,
 } from '@/lib/types/domain';
-import { formatToman, formatJalali, toPersianDigits } from '@/lib/utils/format';
+import { formatToman, toPersianDigits } from '@/lib/utils/format';
+import { formatJalali } from '@/lib/utils/jalali';
 
 const STATUS_TONE: Record<WarehouseStatus, 'neutral' | 'info' | 'action' | 'gain'> = {
   pending: 'neutral',

@@ -6,7 +6,8 @@ import { hasDb } from '@/lib/server/db/client';
 import { findProformaByRef } from '@/lib/server/repos/leadsRepo';
 import { ORG_NAME } from '@/lib/seo';
 import { getContact } from '@/lib/server/contact';
-import { formatToman, formatJalali, toPersianDigits } from '@/lib/utils/format';
+import { formatToman, toPersianDigits } from '@/lib/utils/format';
+import { formatJalali } from '@/lib/utils/jalali';
 import { PrintButton } from './PrintButton';
 import styles from './proforma.module.css';
 

@@ -24,20 +24,33 @@
   font-weight: 700;
   color: var(--color-on-panel);
 }
+/* "Live" dot. The pulse ring is a ::after animating transform + opacity — NOT
+   box-shadow. box-shadow is not compositable: it repainted the whole hero
+   panel 60×/s forever, and CPU profiling on a throttled mobile attributed
+   ~300–400 ms of main-thread work PER SECOND to this single 8px dot — the
+   most expensive thing on the homepage, and it never stopped. transform and
+   opacity run on the compositor and cost effectively nothing. */
 .dot {
+  position: relative;
   inline-size: 8px;
   block-size: 8px;
   border-radius: 50%;
   background: var(--emerald-400);
-  box-shadow: 0 0 0 0 rgba(21, 160, 111, 0.55);
+}
+.dot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(21, 160, 111, 0.55);
   animation: board-pulse 2.4s ease-out infinite;
 }
 @keyframes board-pulse {
-  0% { box-shadow: 0 0 0 0 rgba(21, 160, 111, 0.55); }
-  70%, 100% { box-shadow: 0 0 0 7px rgba(21, 160, 111, 0); }
+  0% { transform: scale(1); opacity: 0.55; }
+  70%, 100% { transform: scale(2.75); opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .dot { animation: none; }
+  .dot::after { animation: none; opacity: 0; }
 }
 .date {
   font: var(--t-caption);

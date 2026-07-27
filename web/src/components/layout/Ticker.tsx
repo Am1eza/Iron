@@ -4,7 +4,6 @@ import { useReducedMotion } from '@/lib/hooks/useReducedMotion';
 import { routes } from '@/lib/routes';
 import { formatToman, toPersianDigits, formatMovement } from '@/lib/utils/format';
 import type { MarketValue } from '@/lib/types/domain';
-import { marketValues as fallbackValues } from '@/lib/mock/fixtures';
 import styles from './Ticker.module.css';
 import Link from 'next/link';
 
@@ -15,12 +14,27 @@ import Link from 'next/link';
  * is the WCAG 2.2.2 mechanism — there is no on-strip pause button by owner
  * request; it rendered as a broken emoji square on iOS). Only
  * `prefers-reduced-motion` degrades to a static, manually-swipeable strip.
- * Never blank: falls back to last-known values.
+ * Never blank: falls back to the skeleton below until the first poll lands.
  */
+
+/**
+ * Placeholder rows shown for the ~1 poll it takes real values to arrive. This
+ * used to import the shared mock fixtures module, which dragged 18.7 kB of
+ * sample SKUs, price rows and articles into the bundle of EVERY page for the
+ * sake of five labels. Values are deliberately null/zero — a plausible-looking
+ * fake price at the top of the page would be worse than an obvious placeholder.
+ */
+const PLACEHOLDER: MarketValue[] = [
+  { key: 'usd', label: 'دلار', value: 0, unit: 'تومان', source: 'tgju', movementDir: 'flat', movementPct: 0, updatedAt: '', isStale: true },
+  { key: 'eur', label: 'یورو', value: 0, unit: 'تومان', source: 'tgju', movementDir: 'flat', movementPct: 0, updatedAt: '', isStale: true },
+  { key: 'gold18', label: 'طلای ۱۸', value: 0, unit: 'تومان', source: 'tgju', movementDir: 'flat', movementPct: 0, updatedAt: '', isStale: true },
+  { key: 'ounce', label: 'انس جهانی', value: 0, unit: 'دلار', source: 'tgju', movementDir: 'flat', movementPct: 0, updatedAt: '', isStale: true },
+  { key: 'billet', label: 'شمش فولاد', value: 0, unit: 'تومان', source: 'admin', movementDir: 'flat', movementPct: 0, updatedAt: '', isStale: true },
+];
 export function Ticker() {
   const { data, isError } = useMarket();
   const reduced = useReducedMotion();
-  const values = data?.values?.length ? data.values : fallbackValues;
+  const values = data?.values?.length ? data.values : PLACEHOLDER;
 
   // Duplicate the set so the marquee loops seamlessly (the second copy is decorative).
   const items = reduced ? values : [...values, ...values];

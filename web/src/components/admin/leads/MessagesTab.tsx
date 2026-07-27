@@ -3,7 +3,8 @@
 import { Fragment, useState } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api/resources/admin';
-import { formatJalali, toPersianDigits } from '@/lib/utils/format';
+import { toPersianDigits } from '@/lib/utils/format';
+import { formatJalali } from '@/lib/utils/jalali';
 import { useToast } from '@/lib/hooks/useToast';
 import { ApiError } from '@/lib/api/errors';
 import { Badge, Button, EmptyState, TableSkeleton } from '@/components/ui';

@@ -2,7 +2,6 @@
  * Persian/RTL formatting helpers — digits, Toman, Jalali dates.
  * (typography.md §2/§6 — Persian numerals, Toman, Jalali, bidi.)
  */
-import { format as formatJalaliDate } from 'date-fns-jalali';
 
 const FA_DIGITS = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'] as const;
 
@@ -65,11 +64,10 @@ export function formatMovement(pct: number | undefined): string {
   return `${sign}${toPersianDigits(Math.abs(pct).toFixed(2))}٪`;
 }
 
-/** Jalali date for display, e.g. ۱۴۰۵/۰۴/۰۵ */
-export function formatJalali(date: Date | string, pattern = 'yyyy/MM/dd'): string {
-  const d = typeof date === 'string' ? new Date(date) : date;
-  return toPersianDigits(formatJalaliDate(d, pattern));
-}
+/* formatJalali lives in ./jalali — see that file's header. Keeping the
+   date-fns-jalali import out of this module keeps ~7 kB gz of formatter off
+   every page's shared bundle, since almost every client component imports
+   something from here. */
 
 /** Iranian mobile validation/normalization → 09XXXXXXXXX (or null). */
 export function normalizeMobile(input: string): string | null {

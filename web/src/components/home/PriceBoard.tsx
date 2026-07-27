@@ -1,9 +1,11 @@
 import Link from 'next/link';
 import { routes } from '@/lib/routes';
 import type { PriceRow } from '@/lib/types/domain';
-import { MovementBadge } from '@/components/ui';
+// Deep import — see the note in app/error.tsx. PriceParts has no
+// 'use client', so this stays server-rendered either way.
+import { MovementBadge } from '@/components/ui/PriceParts';
 import { CountUp } from '@/components/ui/CountUp';
-import { formatJalali } from '@/lib/utils/format';
+import { formatJalali } from '@/lib/utils/jalali';
 import styles from './PriceBoard.module.css';
 
 /**

@@ -4,7 +4,7 @@ import { routes } from '@/lib/routes';
 import { http } from '@/lib/api/http';
 import { REQUEST_STEPS, REQUEST_TYPE_LABEL, type RequestStatus, type RequestType } from '@/lib/stores/requests';
 import { EmptyState, TableSkeleton } from '@/components/ui';
-import { formatJalali } from '@/lib/utils/format';
+import { formatJalali } from '@/lib/utils/jalali';
 import styles from './RequestsList.module.css';
 
 interface RequestDto {

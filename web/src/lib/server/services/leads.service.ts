@@ -17,7 +17,8 @@ import { quoteValidUntil } from '@/lib/server/utils/jalali';
 import { sendSms } from '@/lib/server/integrations/smsir';
 import { getPriceFreshness } from '@/lib/server/services/priceFreshness';
 import { publicEnv } from '@/lib/validation/env';
-import { formatJalali, formatToman } from '@/lib/utils/format';
+import { formatToman } from '@/lib/utils/format';
+import { formatJalali } from '@/lib/utils/jalali';
 
 /** Shared proforma-ref SMS text — used on first issue and on admin re-issue. */
 export function proformaSmsText(ref: string, total?: number, validUntil?: Date): string {

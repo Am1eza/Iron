@@ -1,6 +1,7 @@
 'use client';
 import { useId, useState } from 'react';
-import { toPersianDigits, formatTomanCompact, formatJalali } from '@/lib/utils/format';
+import { toPersianDigits, formatTomanCompact } from '@/lib/utils/format';
+import { formatJalali } from '@/lib/utils/jalali';
 import styles from './charts.module.css';
 
 export interface ComboPoint {

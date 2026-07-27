@@ -18,7 +18,8 @@ import { getDb } from '@/lib/server/db/client';
 import { leads, proformas, smsLog, users } from '@/lib/server/db/schema';
 import { getSetting } from '@/lib/server/repos/settingsRepo';
 import { sendSms } from '@/lib/server/integrations/smsir';
-import { formatJalali, formatToman } from '@/lib/utils/format';
+import { formatToman } from '@/lib/utils/format';
+import { formatJalali } from '@/lib/utils/jalali';
 import type { Job } from './scheduler';
 
 export interface SmsAutomations {

@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { routes } from '@/lib/routes';
 import type { Order } from '@/lib/types/domain';
 import { SHIPMENT_STEPS } from '@/lib/types/domain';
-import { formatJalali } from '@/lib/utils/format';
+import { formatJalali } from '@/lib/utils/jalali';
 import { Badge } from '@/components/ui';
 import { ShieldIcon, StarIcon, ChevronStartIcon } from '@/components/primitives/icons';
 import { ProfileStats } from './ProfileStats';

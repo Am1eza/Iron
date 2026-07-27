@@ -1,6 +1,7 @@
 'use client';
 import { useId, useMemo, useState } from 'react';
-import { formatToman, formatJalali, toPersianDigits } from '@/lib/utils/format';
+import { formatToman, toPersianDigits } from '@/lib/utils/format';
+import { formatJalali } from '@/lib/utils/jalali';
 import styles from './PriceChart.module.css';
 
 type Range = 7 | 30 | 90 | 365;

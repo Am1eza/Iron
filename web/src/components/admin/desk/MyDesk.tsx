@@ -7,7 +7,8 @@
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { adminApi, type DeskLead } from '@/lib/api/resources/admin';
-import { toPersianDigits, formatJalali } from '@/lib/utils/format';
+import { toPersianDigits } from '@/lib/utils/format';
+import { formatJalali } from '@/lib/utils/jalali';
 import { EmptyState, Heading, TableSkeleton, Text, Badge } from '@/components/ui';
 import ui from '../adminUi.module.css';
 

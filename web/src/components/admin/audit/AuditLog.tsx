@@ -12,7 +12,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api/resources/admin';
-import { formatJalali, toPersianDigits } from '@/lib/utils/format';
+import { toPersianDigits } from '@/lib/utils/format';
+import { formatJalali } from '@/lib/utils/jalali';
 import { Button, Chip, EmptyState, TableSkeleton } from '@/components/ui';
 import { JalaliDateField } from '../JalaliDateField';
 import { ActivityItem, type AuditRow } from './ActivityItem';

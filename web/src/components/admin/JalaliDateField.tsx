@@ -11,7 +11,8 @@
  */
 import { useState } from 'react';
 import { parse } from 'date-fns-jalali';
-import { normalizeDigits, formatJalali } from '@/lib/utils/format';
+import { normalizeDigits } from '@/lib/utils/format';
+import { formatJalali } from '@/lib/utils/jalali';
 import ui from './adminUi.module.css';
 
 function toIsoDate(d: Date): string {

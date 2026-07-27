@@ -6,7 +6,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { adminApi, type ArticleFull } from '@/lib/api/resources/admin';
-import { formatJalali } from '@/lib/utils/format';
+import { formatJalali } from '@/lib/utils/jalali';
 import { useToast } from '@/lib/hooks/useToast';
 import { ApiError } from '@/lib/api/errors';
 import { Badge, Button, Chip, EmptyState, TableSkeleton, Tabs, TabPanel, useConfirm } from '@/components/ui';

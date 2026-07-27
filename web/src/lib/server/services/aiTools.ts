@@ -15,7 +15,8 @@ import { computeBulkSplit } from '@/lib/utils/bulkSplit';
 import type { AuthUser } from '@/lib/auth/types';
 import type { ToolDef } from '@/lib/server/integrations/deepseek';
 import { finiteNumber } from '@/lib/validation/utils';
-import { formatJalali, normalizeDigits } from '@/lib/utils/format';
+import { normalizeDigits } from '@/lib/utils/format';
+import { formatJalali } from '@/lib/utils/jalali';
 
 export const AI_TOOLS: ToolDef[] = [
   {

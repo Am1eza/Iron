@@ -1,6 +1,7 @@
 'use client';
 import { useToast } from '@/lib/hooks/useToast';
-import { formatToman, formatMovement, toPersianDigits, formatJalali } from '@/lib/utils/format';
+import { formatToman, formatMovement, toPersianDigits } from '@/lib/utils/format';
+import { formatJalali } from '@/lib/utils/jalali';
 import type { PriceRow } from '@/lib/types/domain';
 import { SheetIcon, PrintIcon, ImageIcon } from '@/components/primitives/icons';
 import styles from './ExportMenu.module.css';

@@ -1,6 +1,7 @@
 import type { Order } from '@/lib/types/domain';
 import { SHIPMENT_STEPS } from '@/lib/types/domain';
-import { formatJalali, toPersianDigits } from '@/lib/utils/format';
+import { toPersianDigits } from '@/lib/utils/format';
+import { formatJalali } from '@/lib/utils/jalali';
 import { Badge, EmptyState } from '@/components/ui';
 import { routes } from '@/lib/routes';
 import { OrderTimeline } from './OrderTimeline';
