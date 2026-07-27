@@ -1,37 +1,30 @@
 import Script from 'next/script';
 
 /**
- * Config-driven analytics loaders — each activates ONLY when its env id is
- * set, so the site ships zero third-party code until the owner provides ids:
+ * Config-driven analytics loaders.
  *
- *  - MATOMO_SITE_ID   → self-hosted Matomo (same-origin /mt/ proxy — works
- *                       inside Iran, no CSP change, primary analytics)
- *  - GTM_ID           → Google Tag Manager (needs CSP origins → rebuild)
- *  - GA4_ID           → GA4 gtag (needs CSP origins → rebuild)
+ *  - Matomo   → ALWAYS emits the same <script src="/api/analytics/script">.
+ *               That endpoint decides at request time whether it returns the
+ *               tracker or an empty file. This indirection is not cosmetic:
+ *               nearly every page is prerendered when the image is built, and
+ *               MATOMO_SITE_ID only exists at runtime — reading it here meant
+ *               "no analytics" was baked into the HTML of every static page
+ *               (verified missing on /, /contact, /about, /prices, /market).
+ *               Same-origin, so the strict CSP needs no change.
+ *  - GTM_ID   → Google Tag Manager (needs CSP origins → rebuild anyway, so
+ *  - GA4_ID   → GA4 gtag              the build-time env read is fine here)
  *
- * Server component: ids are read at runtime from the container env.
+ * Server component: the Google ids are read at build/runtime from env.
  */
 export function Analytics() {
-  const matomoSiteId = process.env.MATOMO_SITE_ID;
   const gtmId = process.env.GTM_ID;
   const ga4Id = process.env.GA4_ID;
 
   return (
     <>
-      {matomoSiteId ? (
-        <Script id="matomo" strategy="afterInteractive">
-          {`var _paq = window._paq = window._paq || [];
-_paq.push(['trackPageView']);
-_paq.push(['enableLinkTracking']);
-(function() {
-  var u='/mt/';
-  _paq.push(['setTrackerUrl', u+'matomo.php']);
-  _paq.push(['setSiteId', '${matomoSiteId}']);
-  var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
-  g.async=true; g.src=u+'matomo.js'; s.parentNode.insertBefore(g,s);
-})();`}
-        </Script>
-      ) : null}
+      {/* Always rendered — the endpoint is the switch, not this markup. */}
+      <Script src="/api/analytics/script" strategy="afterInteractive" />
+
 
       {gtmId ? (
         <Script id="gtm" strategy="afterInteractive">
