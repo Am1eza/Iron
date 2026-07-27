@@ -3,6 +3,7 @@
  * requests inbox and contact messages. Proforma lines are a frozen jsonb
  * snapshot so later price changes never drift an issued quote.
  */
+import { sql } from 'drizzle-orm';
 import {
   bigint,
   boolean,
@@ -63,6 +64,24 @@ export const leads = pgTable(
   },
   (t) => [
     index('leads_status_assignee_created_idx').on(t.status, t.assigneeId, t.createdAt),
+    // The rep desk (/admin/desk, polled every 60s per logged-in rep) always
+    // starts from "MY leads": assignee_id = ? … GROUP BY status, and the
+    // active queue assignee_id = ? AND status IN ('new','contacted') ORDER BY
+    // created_at DESC. The status-first index above cannot serve either —
+    // Postgres can't skip a leading column — so both were seq-scanning the
+    // whole leads table. Assignee-first, with status/created_at trailing so
+    // the queue gets its ordering for free.
+    index('leads_assignee_status_created_idx').on(t.assigneeId, t.status, t.createdAt),
+    // Callback queue: assignee_id = ? AND status IN (open) AND callback_at
+    // ≷ now() ORDER BY callback_at. PARTIAL on `callback_at is not null`
+    // because only the small minority of leads with a scheduled call are ever
+    // read here — the index stays a fraction of the table's size.
+    // The predicate is written unqualified on purpose: Postgres rejects a
+    // table-qualified column reference inside a CREATE INDEX … WHERE clause,
+    // and `sql`${t.callbackAt}`` interpolates as "leads"."callback_at".
+    index('leads_assignee_callback_idx')
+      .on(t.assigneeId, t.callbackAt)
+      .where(sql`callback_at is not null`),
     index('leads_user_idx').on(t.userId),
     index('leads_contact_mobile_idx').on(t.contactMobile),
   ],

@@ -2,7 +2,7 @@
  * Leads + proformas — the conversion spine's persistence. Lead items snapshot
  * name/price at creation; issued proformas freeze lines as jsonb.
  */
-import { and, asc, desc, eq, gte, ilike, inArray, isNotNull, isNull, lte, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, gte, ilike, inArray, isNotNull, isNull, lte, or, sql } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { getDb, type DbOrTx } from '@/lib/server/db/client';
 import { leads, leadItems, leadNotes, proformas } from '@/lib/server/db/schema';
@@ -344,47 +344,167 @@ export async function cancelProforma(ref: string): Promise<ProformaRow | null> {
 }
 
 
+/* ------------------------------ rep desk ------------------------------- */
+
+/** Row caps for the desk's three lists. The desk is a working surface, not a
+ *  report, so the caps stay — but they are no longer invisible: every list
+ *  reports its true `total` next to the capped `rows` (see DeskList). */
+export const DESK_ACTIVE_LIMIT = 50;
+export const DESK_CALLBACK_LIMIT = 30;
+
+/** Statuses that still need working. A won/lost lead is off the rep's plate,
+ *  including its leftover `callbackAt`. */
+const DESK_OPEN_STATUSES: Array<LeadRow['status']> = ['new', 'contacted'];
+
+/** Only the columns the desk actually renders. The unprojected `select()`
+ *  this replaces also dragged `context` along — the AI-advisor transcript
+ *  jsonb, kilobytes per lead — for up to 110 rows every 60s per logged-in
+ *  rep, purely so the route's toDesk() could drop it. */
+const deskColumns = {
+  id: leads.id,
+  ref: leads.ref,
+  contactName: leads.contactName,
+  contactMobile: leads.contactMobile,
+  status: leads.status,
+  source: leads.source,
+  createdAt: leads.createdAt,
+  callbackAt: leads.callbackAt,
+};
+
+export type DeskLeadRow = Pick<
+  LeadRow,
+  'id' | 'ref' | 'contactName' | 'contactMobile' | 'status' | 'source' | 'createdAt' | 'callbackAt'
+> & {
+  /** True when `callbackAt` is in the past — i.e. the call was missed.
+   *  Always false when `callbackAt` is null. Decided server-side so every
+   *  row of one response is judged against the same instant. */
+  isOverdue: boolean;
+};
+
+/** A capped list plus the honest numbers behind it. `total` is the real row
+ *  count matching the query, `rows` is at most `limit` of them, and
+ *  `hasMore` says the two disagree — so the UI can render "نمایش ۳۰ از ۸۰"
+ *  instead of silently lying by omission. */
+export interface DeskList {
+  rows: DeskLeadRow[];
+  total: number;
+  hasMore: boolean;
+  limit: number;
+}
+
 /**
  * A sales rep's personal workspace («میز کار من») — scoped strictly to leads
- * assigned to THEM: quick stats (assigned / active / won / conversion), their
- * active queue, and their upcoming callbacks. Everything filters on
- * `assigneeId`, so a rep only ever sees their own book of business.
+ * assigned to THEM. Everything filters on `assigneeId`, so a rep only ever
+ * sees their own book of business.
+ *
+ * CONTRACT (the /admin/desk UI is built against this shape):
+ *
+ *   stats     — counts over ALL of the rep's non-deleted leads, never capped.
+ *   active    — DeskList of open leads ('new'|'contacted'), newest first.
+ *   callbacks — TWO separate DeskLists, each with its own cap:
+ *                 .overdue  callbackAt <= now, MOST RECENTLY missed first
+ *                 .upcoming callbackAt >  now, soonest first
+ *
+ * Why two lists rather than one: the callback query used to be a single
+ * `isNotNull(callbackAt)` ordered `asc`, capped at 30. Past callbacks sort
+ * before future ones, so a rep carrying 30+ overdue calls could never see a
+ * single upcoming one — the "تماس‌های پیش‌رو" panel showed nothing but
+ * history. Splitting the query gives each bucket its own budget; a rep with
+ * 200 missed calls still sees their next 30 scheduled ones. Overdue rows are
+ * still returned (a rep MUST see what they missed) but are now the caller's
+ * to separate and style, and are ordered newest-miss-first because a call
+ * missed yesterday is far more recoverable than one missed in March.
+ *
+ * Every row also carries `isOverdue` so a UI that flattens the two lists (or
+ * shows a warning marker in the active queue) doesn't have to re-derive it
+ * from a clock that has since moved on.
+ *
+ * `createdAt`/`callbackAt` are full timestamps, serialized by the route as
+ * ISO strings — the TIME matters (a 09:00 and an 18:00 callback are not the
+ * same appointment) and the UI must render it, not just the Jalali date.
  */
-export async function assigneeDesk(assigneeId: string) {
+export async function assigneeDesk(assigneeId: string): Promise<{
+  stats: { assigned: number; active: number; won: number; lost: number; conversionPct: number | null };
+  active: DeskList;
+  callbacks: { overdue: DeskList; upcoming: DeskList };
+}> {
   const db = getDb();
+  // One clock for the whole desk: both row queries, the counts and the
+  // per-row isOverdue flag are judged against the SAME instant, so a callback
+  // due right now can't fall into both buckets (or neither) just because two
+  // statements of this Promise.all ran a few milliseconds apart.
+  const now = new Date();
   const base = and(eq(leads.assigneeId, assigneeId), isNull(leads.deletedAt));
-  const [statRows, active, callbacks] = await Promise.all([
+  // A won/lost lead keeps whatever callbackAt it had when it was still being
+  // worked; without this filter the desk kept nagging reps to call back
+  // customers whose deal had already closed.
+  const openCallbacks = and(base, inArray(leads.status, DESK_OPEN_STATUSES), isNotNull(leads.callbackAt));
+
+  const [statRows, activeRows, overdueRows, upcomingRows, callbackCounts] = await Promise.all([
     db
       .select({ status: leads.status, n: sql<number>`count(*)::int` })
       .from(leads)
       .where(base)
       .groupBy(leads.status),
     db
-      .select()
+      .select(deskColumns)
       .from(leads)
-      .where(and(base, inArray(leads.status, ['new', 'contacted'])))
+      .where(and(base, inArray(leads.status, DESK_OPEN_STATUSES)))
       .orderBy(desc(leads.createdAt))
-      .limit(50),
+      .limit(DESK_ACTIVE_LIMIT),
     db
-      .select()
+      .select(deskColumns)
       .from(leads)
-      .where(and(base, isNotNull(leads.callbackAt)))
+      .where(and(openCallbacks, lte(leads.callbackAt, now)))
+      .orderBy(desc(leads.callbackAt))
+      .limit(DESK_CALLBACK_LIMIT),
+    db
+      .select(deskColumns)
+      .from(leads)
+      .where(and(openCallbacks, gt(leads.callbackAt, now)))
       .orderBy(asc(leads.callbackAt))
-      .limit(30),
+      .limit(DESK_CALLBACK_LIMIT),
+    // Both bucket totals in one pass — FILTER beats two more round trips.
+    db
+      .select({
+        overdue: sql<number>`count(*) filter (where ${leads.callbackAt} <= ${now})::int`,
+        upcoming: sql<number>`count(*) filter (where ${leads.callbackAt} > ${now})::int`,
+      })
+      .from(leads)
+      .where(openCallbacks),
   ]);
+
   const counts: Record<string, number> = {};
   for (const r of statRows) counts[r.status] = Number(r.n);
   const won = counts.won ?? 0;
   const decided = won + (counts.lost ?? 0);
+  // Same predicate as the active query, so the stats tile and the table can
+  // never disagree — no extra count(*) needed for it.
+  const activeTotal = (counts.new ?? 0) + (counts.contacted ?? 0);
+
+  const mark = (r: (typeof activeRows)[number]): DeskLeadRow => ({
+    ...r,
+    isOverdue: r.callbackAt !== null && r.callbackAt.getTime() <= now.getTime(),
+  });
+  const list = (rows: typeof activeRows, total: number, limit: number): DeskList => ({
+    rows: rows.map(mark),
+    total,
+    hasMore: total > rows.length,
+    limit,
+  });
+
   return {
     stats: {
       assigned: Object.values(counts).reduce((a, b) => a + b, 0),
-      active: (counts.new ?? 0) + (counts.contacted ?? 0),
+      active: activeTotal,
       won,
       lost: counts.lost ?? 0,
       conversionPct: decided > 0 ? Math.round((won / decided) * 1000) / 10 : null,
     },
-    active,
-    callbacks,
+    active: list(activeRows, activeTotal, DESK_ACTIVE_LIMIT),
+    callbacks: {
+      overdue: list(overdueRows, Number(callbackCounts[0]?.overdue ?? 0), DESK_CALLBACK_LIMIT),
+      upcoming: list(upcomingRows, Number(callbackCounts[0]?.upcoming ?? 0), DESK_CALLBACK_LIMIT),
+    },
   };
 }

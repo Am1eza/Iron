@@ -70,7 +70,7 @@
 .table th,
 .table td {
   padding: var(--space-2) var(--space-3);
-  border-block-end: 1px solid var(--color-border);
+  border-block-end: var(--border-hairline) solid var(--color-hairline);
   text-align: start;
   vertical-align: middle;
 }
@@ -86,22 +86,24 @@
 }
 
 .rowClickable:hover {
-  background: var(--color-surface-sunken, rgba(0, 0, 0, 0.03));
+  background: var(--color-surface-sunken);
 }
 
 .rowDirty {
-  background: color-mix(in srgb, var(--color-accent, #c97b2e) 8%, transparent);
+  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
 }
 
 .rowInvalid {
-  background: color-mix(in srgb, var(--color-loss, #c0392b) 8%, transparent);
+  background: color-mix(in srgb, var(--color-loss) 8%, transparent);
 }
 
+/* Form controls take --color-border-strong (not hairline): that is the
+   site-wide input/chip/button border token (see forms/field.module.css). */
 .select {
   min-block-size: 38px;
   padding: var(--space-1) var(--space-2);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md, 8px);
+  border: var(--border-hairline) solid var(--color-border-strong);
+  border-radius: var(--radius-md);
   background: var(--color-surface);
   color: var(--color-text);
   font: var(--t-body-sm);
@@ -111,8 +113,8 @@
   inline-size: 8.5rem;
   min-block-size: 36px;
   padding: var(--space-1) var(--space-2);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md, 8px);
+  border: var(--border-hairline) solid var(--color-border-strong);
+  border-radius: var(--radius-md);
   font: var(--t-body-sm);
   direction: ltr;
   text-align: end;
@@ -120,15 +122,15 @@
 }
 
 .numInput[aria-invalid='true'] {
-  border-color: var(--color-loss, #c0392b);
+  border-color: var(--color-loss);
 }
 
 .textCell {
   inline-size: 7rem;
   min-block-size: 36px;
   padding: var(--space-1) var(--space-2);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md, 8px);
+  border: var(--border-hairline) solid var(--color-border-strong);
+  border-radius: var(--radius-md);
   font: var(--t-body-sm);
 }
 
@@ -140,19 +142,26 @@
   justify-content: space-between;
   gap: var(--space-3);
   padding: var(--space-3);
-  background: var(--color-surface-raised, var(--color-surface));
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg, 12px);
+  background: var(--color-surface-raised);
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  /* Upward shadow, deliberately not --shadow-sm: this bar is stuck to the
+     bottom, so it must lift off the content above it. */
   box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
   margin-block-start: var(--space-3);
   z-index: 5;
 }
 
+/* Sunken on purpose, NOT an inverted hierarchy: the admin page surface is
+   --color-surface (app/admin/admin.module.css .main), not --color-bg, so a
+   panel recessed below it is the correct "well inside a white page" reading —
+   and it stays a well in dark (surface-sunken sits below surface there too).
+   Don't "fix" this to --color-surface; it would flatten every admin section. */
 .panel {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg, 12px);
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-lg);
   padding: var(--space-4);
-  background: var(--color-surface-sunken, rgba(0, 0, 0, 0.02));
+  background: var(--color-surface-sunken);
   margin-block: var(--space-2);
 }
 
@@ -189,21 +198,21 @@
   cursor: pointer;
   text-decoration: underline;
   text-underline-offset: 3px;
-  text-decoration-color: var(--color-border);
+  text-decoration-color: var(--color-border-strong);
 }
 
 .linkButton:hover,
 .linkButton:focus-visible {
-  color: var(--color-accent, #c97b2e);
+  color: var(--color-accent-text);
 }
 
 .detailsPre {
   direction: ltr;
   text-align: left;
   font-size: 0.75rem;
-  background: var(--color-surface-sunken, rgba(0, 0, 0, 0.04));
+  background: var(--color-surface-sunken);
   padding: var(--space-2);
-  border-radius: var(--radius-md, 8px);
+  border-radius: var(--radius-md);
   overflow-x: auto;
   max-block-size: 280px;
 }
@@ -214,23 +223,46 @@
   gap: var(--space-3);
 }
 
+/* Flex column, not block: every call site (MyDesk, MarketingDashboard, AiReview)
+   hands the tile bare inline <span>s for label/value/hint, and with `display:
+   block` all three ran together on one line and wrapped mid-KPI inside the
+   180px grid column. Flex makes the children stack whatever element type they
+   are and in whatever order they come (AiReview puts the value first, the
+   dashboards put the label first), so no call site has to change. */
 .tile {
-  display: block;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg, 12px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-lg);
   padding: var(--space-4);
   background: var(--color-surface);
   color: var(--color-text);
   text-decoration: none;
 }
 
-.tile:hover {
-  border-color: var(--color-accent, #c97b2e);
+/* Hover affordance only for tiles that are actually links/buttons — the desk
+   and AI tiles are plain <div>s, and lighting their border up made static KPI
+   cards look clickable. */
+.tile[href]:hover,
+.tile[href]:focus-visible,
+button.tile:hover,
+button.tile:focus-visible {
+  border-color: var(--color-accent);
+}
+
+button.tile {
+  cursor: pointer;
+  text-align: start;
+  font: inherit;
 }
 
 .tileValue {
   font-size: 1.8rem;
   font-weight: 800;
+  /* Tight leading: at 1.8rem the inherited 1.75 body line-height added ~2rem of
+     dead space and pushed the hint out of the card. */
+  line-height: 1.2;
   font-variant-numeric: tabular-nums;
 }
 
@@ -242,12 +274,20 @@
   color: var(--color-loss-text);
 }
 
+/* MarketingDashboard also puts .tileBad on a bare <span> inside a hint to flag
+   a non-zero failure count; that span is not a tile, so the descendant rule
+   above can never match it. Colour it here rather than touching the call site. */
+.tileBad:not(.tile) {
+  color: var(--color-loss-text);
+  font-weight: 600;
+}
+
 .tileLabel {
   font: var(--t-body-sm);
   color: var(--color-text-muted);
 }
 
 .tileHint {
-  font: var(--t-caption, var(--t-body-sm));
+  font: var(--t-caption);
   color: var(--color-text-muted);
 }

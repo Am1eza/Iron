@@ -41,10 +41,24 @@ export function SkeletonText({ lines = 3 }: { lines?: number }) {
   );
 }
 
-/** A loading stand-in for the price Datasheet (E1 · loading state). */
-export function TableSkeleton({ rows = 6, cols = 5 }: { rows?: number; cols?: number }) {
+/**
+ * A loading stand-in for any tabular view (E1 · loading state).
+ * `label` is announced by screen readers: it used to be hardcoded to the price
+ * Datasheet's wording, so the leads desk / users / audit tables all told blind
+ * users they were "loading prices". Callers on a non-price table should pass
+ * their own noun; the default stays deliberately generic.
+ */
+export function TableSkeleton({
+  rows = 6,
+  cols = 5,
+  label = 'در حال بارگذاری',
+}: {
+  rows?: number;
+  cols?: number;
+  label?: string;
+}) {
   return (
-    <div className={styles.table} role="status" aria-label="در حال بارگذاری قیمت‌ها">
+    <div className={styles.table} role="status" aria-label={label}>
       <div className={styles.tableHead}>
         {Array.from({ length: cols }).map((_, i) => (
           <Skeleton key={i} variant="text" width="70%" />

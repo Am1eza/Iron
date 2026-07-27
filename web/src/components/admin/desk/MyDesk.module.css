@@ -1,0 +1,216 @@
+/* «میز کار من» — the sales rep's work queue. Page-specific layout only; every
+   colour/space/type value comes from tokens.css. */
+
+.desk {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-3);
+}
+
+.queueHead {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-block-end: var(--space-3);
+}
+
+.groups {
+  display: grid;
+  gap: var(--space-4);
+}
+
+/* One card per urgency bucket. The bucket is carried by a thick inline-start
+   edge rather than by the row background alone: the edge survives Windows
+   high-contrast (where background-color is dropped) and reads identically in
+   dark, and it's the one part of the card that stays visible while the table
+   inside is scrolled sideways on mobile. --space-1 (4px) is used as a width
+   here on purpose — the border tokens stop at 1.5px, which is invisible as an
+   urgency marker. */
+.group {
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-inline-start: var(--space-1) solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.groupOverdue {
+  border-inline-start-color: var(--color-loss);
+}
+
+.groupToday {
+  border-inline-start-color: var(--color-accent);
+}
+
+.groupUpcoming {
+  border-inline-start-color: var(--color-border-strong);
+}
+
+.groupHead {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface-sunken);
+  border-block-end: var(--border-hairline) solid var(--color-hairline);
+}
+
+/* Pushes the hint onto its own line below ~30rem instead of squeezing the
+   heading and the count badge into two characters each. */
+.groupHint {
+  flex: 1 1 14rem;
+}
+
+/* «نمایش ۳۰ از ۸۰» — the server capped this list and we say so. Sits under the
+   table, inside the same card, so it can never be mistaken for a page-level
+   note about a different list. */
+.truncation {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  padding: var(--space-2) var(--space-4);
+  border-block-start: var(--border-hairline) solid var(--color-hairline);
+  background: var(--color-surface-sunken);
+}
+
+.inlineLink {
+  color: var(--color-accent-text);
+  font: var(--t-caption);
+}
+
+/* Status + «عقب‌افتاده» sit in one cell; without the wrapper the two pills
+   collide (Badge is inline-flex with no outer margin by design). */
+.badges {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+}
+
+/* color-mix (not --loss-50) so the tint tracks the theme: --loss-50 is a raw
+   light-mode pink and would glare inside a dark table. */
+.rowOverdue {
+  background: color-mix(in srgb, var(--color-loss) 6%, transparent);
+}
+
+/* A row whose mutation is in flight. Only dimmed — the buttons carry their own
+   `disabled` (which blocks the keyboard path too, unlike pointer-events:none)
+   so the lead link and the tel: link stay usable while a PATCH is on the wire. */
+.rowBusy {
+  opacity: 0.55;
+}
+
+.ref {
+  color: var(--color-accent-text);
+  font-weight: 600;
+  text-decoration: none;
+  direction: ltr;
+  display: inline-block;
+  font-variant-numeric: tabular-nums;
+}
+
+.ref:hover,
+.ref:focus-visible {
+  text-decoration: underline;
+}
+
+.contact {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-inline-size: 9rem;
+}
+
+.contactName {
+  font: var(--t-body-sm);
+  font-weight: 600;
+  color: var(--color-text-strong);
+}
+
+/* The phone number IS the call action — a tel: link, not a decorated string.
+   That's why there is no separate «تماس» button in the actions cell. */
+.phone {
+  direction: ltr;
+  text-align: start;
+  color: var(--color-accent-text);
+  text-decoration: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.phone:hover,
+.phone:focus-visible {
+  text-decoration: underline;
+}
+
+.source {
+  font: var(--t-micro);
+  color: var(--color-text-muted);
+}
+
+.when {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  white-space: nowrap;
+}
+
+.whenMain {
+  font: var(--t-body-sm);
+  font-weight: 600;
+  color: var(--color-text-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.whenNone {
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.whenSub {
+  font: var(--t-micro);
+  color: var(--color-text-muted);
+}
+
+.whenLate {
+  color: var(--color-loss-text);
+  font-weight: 600;
+}
+
+.actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  white-space: nowrap;
+}
+
+/* ---- quick-action dialog ---- */
+
+.sheet {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.sheetSection {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.noteArea {
+  inline-size: 100%;
+  min-block-size: 4.5rem;
+  resize: vertical;
+}

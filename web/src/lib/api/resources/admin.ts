@@ -135,11 +135,25 @@ export interface DeskLead {
   source: string;
   createdAt: string;
   callbackAt?: string;
+  /** Decided server-side against one clock, so every consumer agrees on what
+   *  "late" means regardless of when it rendered. */
+  isOverdue: boolean;
+}
+/** A server-capped list plus the honest numbers behind it: `total` is the real
+ *  match count, so the UI can say "showing 30 of 214" instead of silently
+ *  truncating (see DeskList in leadsRepo). */
+export interface DeskList {
+  rows: DeskLead[];
+  total: number;
+  hasMore: boolean;
+  limit: number;
 }
 export interface DeskRes {
   stats: { assigned: number; active: number; won: number; lost: number; conversionPct: number | null };
-  active: DeskLead[];
-  callbacks: DeskLead[];
+  active: DeskList;
+  /** Split, not one sorted list: overdue callbacks used to fill the whole cap
+   *  and starve upcoming ones entirely for a rep with a backlog. */
+  callbacks: { overdue: DeskList; upcoming: DeskList };
 }
 export interface StaffMember {
   id: string;
