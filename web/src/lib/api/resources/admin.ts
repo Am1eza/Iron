@@ -91,6 +91,21 @@ export interface OverviewStatsRes {
   newUsers: KpiRes;
   aiConversations: KpiRes;
 }
+export interface DashboardStatsRes {
+  range: number;
+  revenue: { current: number; prior: number; deltaPct: number | null; count: number; avgDeal: number };
+  leads: { current: number; prior: number; deltaPct: number | null };
+  orders: { current: number; prior: number; deltaPct: number | null };
+  conversion: { current: number | null; prior: number | null; deltaPts: number | null };
+  trend: Array<{ day: string; value: number; count: number }>;
+  funnel: { conversations: number; leads: number; proformas: number; orders: number };
+  bySource: Array<{ source: string; leads: number; won: number; wonRate: number | null }>;
+  leadStatus: Array<{ status: string; n: number }>;
+  orderStatus: Array<{ status: string; n: number }>;
+  topProducts: Array<{ name: string; qty: number; value: number }>;
+  team: Array<{ id: string; name: string; leads: number; won: number; wonRate: number | null; value: number }>;
+  health: { stalePrices: number; smsFailed24h: number; expiringProformas: number; unassignedLeads: number };
+}
 export interface MarketingStatsRes {
   bySource: Array<{ source: string; leads: number; won: number; proformas: number; wonRate: number | null }>;
   funnel: { conversations: number; leads: number; proformas: number; orders: number };
@@ -438,6 +453,7 @@ export const adminApi = {
     }>(`/api/admin/users/${id}`),
   revokeUserSessions: (id: string) => http.post<{ ok: true }>(`/api/admin/users/${id}/revoke-sessions`, {}),
   statsOverview: () => http.get<OverviewStatsRes>('/api/admin/stats/overview'),
+  statsDashboard: (range: number) => http.get<DashboardStatsRes>(`/api/admin/stats/dashboard?range=${range}`),
   statsMarketing: () => http.get<MarketingStatsRes>('/api/admin/stats/marketing'),
   statsSeo: () => http.get<SeoStatsRes>('/api/admin/stats/seo'),
   statsCohorts: () =>

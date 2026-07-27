@@ -1,17 +1,6 @@
-import { Heading, Text, Stack } from '@/components/ui';
-import { DashboardTiles } from '@/components/admin/dashboard/DashboardTiles';
-import { OverviewKpis } from '@/components/admin/dashboard/OverviewKpis';
+import { BiDashboard } from '@/components/admin/dashboard/BiDashboard';
 
-/** /admin — management KPIs (trend + delta) above the operational tiles. */
+/** /admin — the management console (KPIs, trend, funnel, channels, team). */
 export default function AdminDashboardPage() {
-  return (
-    <Stack gap={5}>
-      <div>
-        <Heading level={1}>داشبورد</Heading>
-        <Text color="muted">روند ۳۰ روزه و مقایسهٔ هفتگی، به‌همراه وضعیت لحظه‌ای عملیات.</Text>
-      </div>
-      <OverviewKpis />
-      <DashboardTiles />
-    </Stack>
-  );
+  return <BiDashboard />;
 }

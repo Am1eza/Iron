@@ -154,3 +154,135 @@
   inline-size: 100%;
   block-size: 36px;
 }
+
+/* ===== Management console (BiDashboard) ===== */
+.dashHead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+.dashTitle {
+  font: var(--t-h1);
+  color: var(--color-text-strong);
+  margin: 0;
+}
+.dashSub {
+  margin: var(--space-1) 0 0;
+  font: var(--t-body-sm);
+  color: var(--color-text-muted);
+}
+.rangeSwitch {
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* action strip — the only place on the page that shouts */
+.actionBar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  border: var(--border-hairline) solid var(--color-hairline);
+  background: var(--color-surface-sunken);
+}
+.actionTitle {
+  font: var(--t-overline);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+.actionItems {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.actionChip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  border: var(--border-hairline) solid var(--color-hairline);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: var(--t-body-sm);
+  text-decoration: none;
+}
+.actionChip:hover {
+  border-color: var(--color-accent);
+  text-decoration: none;
+}
+.actionNum {
+  font-weight: 800;
+  color: var(--color-text-strong);
+}
+.actionUrgent {
+  border-color: color-mix(in srgb, var(--color-loss) 45%, var(--color-hairline));
+  background: color-mix(in srgb, var(--color-loss) 7%, var(--color-surface));
+}
+.actionUrgent .actionNum {
+  color: var(--color-loss-text);
+}
+
+.kpiRow {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+@media (max-width: 1000px) {
+  .kpiRow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 560px) {
+  .kpiRow {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* chart panels */
+.panel {
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  border: var(--border-hairline) solid var(--color-hairline);
+  background: var(--color-surface);
+  min-inline-size: 0;
+}
+.panelHead {
+  margin-block-end: var(--space-4);
+}
+.panelTitle {
+  font: var(--t-h4);
+  color: var(--color-text-strong);
+  margin: 0;
+}
+.panelSub {
+  margin: 2px 0 0;
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}
+.panelNote {
+  margin: var(--space-3) 0 0;
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}
+
+.chartRow2 {
+  display: grid;
+  grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr);
+  gap: var(--space-4);
+}
+.chartRow3 {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-4);
+}
+@media (max-width: 1100px) {
+  .chartRow2,
+  .chartRow3 {
+    grid-template-columns: 1fr;
+  }
+}

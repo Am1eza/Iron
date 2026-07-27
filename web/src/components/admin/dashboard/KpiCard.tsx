@@ -4,51 +4,58 @@ import { Sparkline } from './Sparkline';
 import styles from './dashboard.module.css';
 
 /**
- * BI-grade KPI card: header row (label + delta chip) → headline value with a
- * SEPARATE, small unit (a giant «تومان» set in the display font was the old
- * failure mode) → one compact meta line → sparkline anchored to the card's
- * bottom edge. `deltaPct === null` renders «جدید» (prior period was zero —
- * a percent would be ∞/misleading).
+ * BI KPI card: label + change chip on top, the headline number with a SMALL,
+ * separate unit (a giant «تومان» in display type was the old failure mode),
+ * one meta line, and an optional sparkline pinned to the card's bottom edge.
+ *
+ * `delta` carries its own kind because the two are not interchangeable:
+ *  - 'pct'  — a relative change of a count/amount («۱۲٪ رشد»).
+ *  - 'pts'  — a change of a RATE, in percentage points. Reporting "۱۲٪ → ۱۵٪"
+ *             as "+۲۵٪" is the classic dashboard lie; it is +۳ points.
+ * A null delta value renders «جدید» (the prior window was zero, so a percent
+ * would be infinite).
  */
 export function KpiCard({
   label,
   value,
   unit,
-  deltaPct,
-  today,
+  delta,
+  meta,
   series,
-  hint,
   className,
   format = (n) => toPersianDigits(n.toLocaleString('en-US')),
 }: {
   label: string;
   value: number;
-  /** Rendered small + muted beside the big number — never in display type. */
   unit?: string;
-  deltaPct: number | null;
-  today?: number;
+  delta?: { value: number | null; kind: 'pct' | 'pts' };
+  meta?: ReactNode;
   series?: number[];
-  hint?: ReactNode;
-  /** Bento sizing class (e.g. dashboard.hero / .wide) applied to the grid item. */
   className?: string;
   format?: (n: number) => string;
 }) {
-  const up = deltaPct !== null && deltaPct > 0;
-  const down = deltaPct !== null && deltaPct < 0;
+  const d = delta?.value ?? null;
+  const up = d !== null && d > 0;
+  const down = d !== null && d < 0;
+  const suffix = delta?.kind === 'pts' ? ' واحد' : '٪';
   return (
     <div className={`${styles.kpi} ${className ?? ''}`}>
       <div className={styles.kpiHead}>
         <span className={styles.kpiLabel}>{label}</span>
-        <span
-          className={`${styles.kpiDelta} ${up ? styles.kpiDeltaUp : ''} ${down ? styles.kpiDeltaDown : ''}`}
-          aria-label={
-            deltaPct === null
-              ? 'دورهٔ قبل صفر بود'
-              : `${deltaPct > 0 ? 'رشد' : deltaPct < 0 ? 'افت' : 'بدون تغییر'} ${Math.abs(deltaPct)} درصد نسبت به هفتهٔ قبل`
-          }
-        >
-          {deltaPct === null ? 'جدید' : `${up ? '▲' : down ? '▼' : '＝'} ${toPersianDigits(Math.abs(deltaPct))}٪`}
-        </span>
+        {delta ? (
+          <span
+            className={`${styles.kpiDelta} ${up ? styles.kpiDeltaUp : ''} ${down ? styles.kpiDeltaDown : ''}`}
+            aria-label={
+              d === null
+                ? 'دورهٔ قبل داده‌ای نداشت'
+                : `${d > 0 ? 'رشد' : d < 0 ? 'افت' : 'بدون تغییر'} ${Math.abs(d)}${
+                    delta.kind === 'pts' ? ' واحد درصد' : ' درصد'
+                  } نسبت به دورهٔ قبل`
+            }
+          >
+            {d === null ? 'جدید' : `${up ? '▲' : down ? '▼' : '＝'} ${toPersianDigits(Math.abs(d))}${suffix}`}
+          </span>
+        ) : null}
       </div>
 
       <div className={styles.kpiValueRow}>
@@ -56,19 +63,11 @@ export function KpiCard({
         {unit ? <span className={styles.kpiUnit}>{unit}</span> : null}
       </div>
 
-      <p className={styles.kpiMeta}>
-        ۷ روز کامل
-        {today !== undefined ? (
-          <>
-            {' · '}امروز: <span className="tnum">{toPersianDigits(today)}</span>
-          </>
-        ) : null}
-        {hint ? <> · {hint}</> : null}
-      </p>
+      {meta ? <p className={styles.kpiMeta}>{meta}</p> : null}
 
       {series && series.length > 1 ? (
         <div className={styles.kpiSpark}>
-          <Sparkline data={series} width={220} height={36} />
+          <Sparkline data={series} width={220} height={34} />
         </div>
       ) : null}
     </div>

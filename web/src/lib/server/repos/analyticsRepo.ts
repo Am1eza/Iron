@@ -422,3 +422,224 @@ export async function seoStats(): Promise<SeoStats> {
     ],
   };
 }
+
+/* ------------------------------ dashboard ------------------------------ */
+
+/** Allowed lookback windows for the management dashboard (days). */
+export const DASHBOARD_RANGES = [7, 30, 90] as const;
+export type DashboardRange = (typeof DASHBOARD_RANGES)[number];
+
+export interface DashboardStats {
+  range: DashboardRange;
+  /** Money + volume headline, current window vs the SAME-LENGTH prior one. */
+  revenue: { current: number; prior: number; deltaPct: number | null; count: number; avgDeal: number };
+  leads: { current: number; prior: number; deltaPct: number | null };
+  orders: { current: number; prior: number; deltaPct: number | null };
+  /** Of leads CREATED in the window, share that reached an order (entry cohort). */
+  conversion: { current: number | null; prior: number | null; deltaPts: number | null };
+  /** Daily proforma value + count — the combo chart's spine. */
+  trend: Array<{ day: string; value: number; count: number }>;
+  /** Entry-cohort funnel over the window. */
+  funnel: { conversations: number; leads: number; proformas: number; orders: number };
+  /** Per acquisition channel, quality-first (won-rate, not just volume). */
+  bySource: Array<{ source: string; leads: number; won: number; wonRate: number | null }>;
+  /** Live pipeline composition — ALL open leads, not just this window's. */
+  leadStatus: Array<{ status: string; n: number }>;
+  /** Open orders by shipment stage (operational, live). */
+  orderStatus: Array<{ status: string; n: number }>;
+  /** Best sellers by proforma value in the window (from the frozen line snapshot). */
+  topProducts: Array<{ name: string; qty: number; value: number }>;
+  /** Sales-desk leaderboard for the window. */
+  team: Array<{ id: string; name: string; leads: number; won: number; wonRate: number | null; value: number }>;
+  /** Needs-attention counters that are NOT time-windowed. */
+  health: { stalePrices: number; smsFailed24h: number; expiringProformas: number; unassignedLeads: number };
+}
+
+/** Sum of proforma `total` in [now−daysBack, now−daysBack+len) full days. */
+async function proformaValue(daysBack: number, len: number): Promise<{ sum: number; n: number }> {
+  const end = new Date(todayMidnight().getTime() - (daysBack - len) * DAY_MS);
+  const start = new Date(todayMidnight().getTime() - daysBack * DAY_MS);
+  const r = await rows(sql`
+    SELECT coalesce(sum(total), 0)::bigint AS sum, count(*)::int AS n FROM proformas
+    WHERE created_at >= ${start.toISOString()}::timestamptz AND created_at < ${end.toISOString()}::timestamptz
+  `);
+  return { sum: Number(r[0]?.sum ?? 0), n: Number(r[0]?.n ?? 0) };
+}
+
+/** Lead→order conversion for the cohort of leads created in a window. */
+async function cohortConversion(daysBack: number, len: number): Promise<number | null> {
+  const end = new Date(todayMidnight().getTime() - (daysBack - len) * DAY_MS);
+  const start = new Date(todayMidnight().getTime() - daysBack * DAY_MS);
+  const r = await rows(sql`
+    SELECT count(*)::int AS leads, count(DISTINCT o.lead_id)::int AS converted
+    FROM leads l
+    LEFT JOIN orders o ON o.lead_id = l.id AND o.deleted_at IS NULL
+    WHERE l.created_at >= ${start.toISOString()}::timestamptz
+      AND l.created_at < ${end.toISOString()}::timestamptz
+      AND l.deleted_at IS NULL
+  `);
+  const leads = Number(r[0]?.leads ?? 0);
+  if (leads === 0) return null;
+  return Math.round((Number(r[0]?.converted ?? 0) / leads) * 1000) / 10;
+}
+
+/**
+ * Everything the management dashboard renders, in ONE round trip.
+ *
+ * Window semantics match the rest of this file: the "current" window is the
+ * last `days` COMPLETE days (today excluded from comparisons so a half-done
+ * day never reads as a collapse), compared against the same-length window
+ * immediately before it. `trend` is the exception — it includes today as its
+ * last point, which the chart marks as in-progress.
+ *
+ * Conversion is compared in PERCENTAGE POINTS (deltaPts), not as a percent of
+ * a percent: "۱۲٪ → ۱۵٪" is +۳ points, and reporting that as "+۲۵٪ رشد" is the
+ * classic dashboard lie.
+ */
+export async function dashboardStats(range: DashboardRange): Promise<DashboardStats> {
+  const d = range;
+  const startIso = new Date(todayMidnight().getTime() - d * DAY_MS).toISOString();
+  const endIso = todayMidnight().toISOString();
+  const trendStart = new Date(todayMidnight().getTime() - (d - 1) * DAY_MS).toISOString();
+
+  const [
+    valCur, valPrior,
+    leadsCur, leadsPrior,
+    ordersCur, ordersPrior,
+    convCur, convPrior,
+    trendRows, funnelConv, funnelRest,
+    bySource, leadStatus, orderStatus, topProducts, team,
+    stale, smsFailed, expiring, unassigned,
+  ] = await Promise.all([
+    proformaValue(d, d),
+    proformaValue(d * 2, d),
+    windowCount('leads', 'created_at', d, d, 'AND t.deleted_at IS NULL'),
+    windowCount('leads', 'created_at', d * 2, d, 'AND t.deleted_at IS NULL'),
+    windowCount('orders', 'placed_at', d, d, 'AND t.deleted_at IS NULL'),
+    windowCount('orders', 'placed_at', d * 2, d, 'AND t.deleted_at IS NULL'),
+    cohortConversion(d, d),
+    cohortConversion(d * 2, d),
+    rows(sql`
+      SELECT to_char(g.day, 'YYYY-MM-DD') AS day,
+             coalesce(sum(p.total), 0)::bigint AS value,
+             count(p.*)::int AS count
+      FROM generate_series(${trendStart}::timestamptz, now(), '1 day') AS g(day)
+      LEFT JOIN proformas p ON p.created_at >= g.day AND p.created_at < g.day + interval '1 day'
+      GROUP BY g.day ORDER BY g.day
+    `),
+    rows(sql`
+      SELECT count(*)::int AS n FROM ai_conversations
+      WHERE created_at >= ${startIso}::timestamptz AND created_at < ${endIso}::timestamptz
+    `),
+    rows(sql`
+      SELECT count(*)::int AS leads,
+             count(DISTINCT p.lead_id)::int AS proformas,
+             count(DISTINCT o.lead_id)::int AS orders
+      FROM leads l
+      LEFT JOIN proformas p ON p.lead_id = l.id
+      LEFT JOIN orders o ON o.lead_id = l.id AND o.deleted_at IS NULL
+      WHERE l.created_at >= ${startIso}::timestamptz AND l.created_at < ${endIso}::timestamptz
+        AND l.deleted_at IS NULL
+    `),
+    rows(sql`
+      SELECT source,
+             count(*)::int AS leads,
+             count(*) FILTER (WHERE status = 'won')::int AS won
+      FROM leads
+      WHERE created_at >= ${startIso}::timestamptz AND created_at < ${endIso}::timestamptz
+        AND deleted_at IS NULL
+      GROUP BY source ORDER BY leads DESC
+    `),
+    // Pipeline composition is LIVE (every open lead), not window-scoped: a
+    // manager asking "what's in the pipe right now" must not be shown only
+    // the slice that happened to arrive this month.
+    rows(sql`
+      SELECT status, count(*)::int AS n FROM leads WHERE deleted_at IS NULL GROUP BY status
+    `),
+    rows(sql`
+      SELECT status, count(*)::int AS n FROM orders
+      WHERE deleted_at IS NULL AND status <> 'delivered' GROUP BY status
+    `),
+    rows(sql`
+      SELECT li->>'name' AS name,
+             sum((li->>'qty')::numeric)::float8 AS qty,
+             coalesce(sum((li->>'lineTotal')::numeric), 0)::bigint AS value
+      FROM proformas p, jsonb_array_elements(p.lines) AS li
+      WHERE p.created_at >= ${startIso}::timestamptz AND p.created_at < ${endIso}::timestamptz
+      GROUP BY li->>'name' ORDER BY value DESC NULLS LAST LIMIT 6
+    `),
+    rows(sql`
+      SELECT u.id, coalesce(u.name, u.mobile) AS name,
+             count(l.*)::int AS leads,
+             count(l.*) FILTER (WHERE l.status = 'won')::int AS won,
+             coalesce(sum(pf.total), 0)::bigint AS value
+      FROM users u
+      JOIN leads l ON l.assignee_id = u.id AND l.deleted_at IS NULL
+        AND l.created_at >= ${startIso}::timestamptz AND l.created_at < ${endIso}::timestamptz
+      LEFT JOIN LATERAL (
+        SELECT sum(total) AS total FROM proformas WHERE lead_id = l.id
+      ) pf ON true
+      GROUP BY u.id, u.name, u.mobile ORDER BY value DESC, leads DESC LIMIT 8
+    `),
+    rows(sql`SELECT count(*)::int AS n FROM current_prices WHERE updated_at < now() - interval '24 hours'`),
+    rows(sql`SELECT count(*)::int AS n FROM sms_log WHERE status = 'failed' AND at >= now() - interval '24 hours'`),
+    rows(sql`
+      SELECT count(*)::int AS n FROM proformas
+      WHERE status = 'active' AND valid_until >= now() AND valid_until < now() + interval '3 days'
+    `),
+    rows(sql`
+      SELECT count(*)::int AS n FROM leads
+      WHERE deleted_at IS NULL AND assignee_id IS NULL AND status IN ('new', 'contacted')
+    `),
+  ]);
+
+  const convDeltaPts =
+    convCur === null || convPrior === null ? null : Math.round((convCur - convPrior) * 10) / 10;
+
+  return {
+    range,
+    revenue: {
+      current: valCur.sum,
+      prior: valPrior.sum,
+      deltaPct: pctDelta(valCur.sum, valPrior.sum),
+      count: valCur.n,
+      avgDeal: valCur.n > 0 ? Math.round(valCur.sum / valCur.n) : 0,
+    },
+    leads: { current: leadsCur, prior: leadsPrior, deltaPct: pctDelta(leadsCur, leadsPrior) },
+    orders: { current: ordersCur, prior: ordersPrior, deltaPct: pctDelta(ordersCur, ordersPrior) },
+    conversion: { current: convCur, prior: convPrior, deltaPts: convDeltaPts },
+    trend: trendRows.map((r) => ({ day: String(r.day), value: Number(r.value), count: Number(r.count) })),
+    funnel: {
+      conversations: Number(funnelConv[0]?.n ?? 0),
+      leads: Number(funnelRest[0]?.leads ?? 0),
+      proformas: Number(funnelRest[0]?.proformas ?? 0),
+      orders: Number(funnelRest[0]?.orders ?? 0),
+    },
+    bySource: bySource.map((r) => {
+      const leads = Number(r.leads);
+      const won = Number(r.won);
+      return { source: String(r.source), leads, won, wonRate: leads > 0 ? Math.round((won / leads) * 1000) / 10 : null };
+    }),
+    leadStatus: leadStatus.map((r) => ({ status: String(r.status), n: Number(r.n) })),
+    orderStatus: orderStatus.map((r) => ({ status: String(r.status), n: Number(r.n) })),
+    topProducts: topProducts.map((r) => ({ name: String(r.name ?? '—'), qty: Number(r.qty ?? 0), value: Number(r.value ?? 0) })),
+    team: team.map((r) => {
+      const leads = Number(r.leads);
+      const won = Number(r.won);
+      return {
+        id: String(r.id),
+        name: String(r.name ?? '—'),
+        leads,
+        won,
+        wonRate: leads > 0 ? Math.round((won / leads) * 1000) / 10 : null,
+        value: Number(r.value ?? 0),
+      };
+    }),
+    health: {
+      stalePrices: Number(stale[0]?.n ?? 0),
+      smsFailed24h: Number(smsFailed[0]?.n ?? 0),
+      expiringProformas: Number(expiring[0]?.n ?? 0),
+      unassignedLeads: Number(unassigned[0]?.n ?? 0),
+    },
+  };
+}
