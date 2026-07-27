@@ -19,31 +19,39 @@ import { withApiErrorHandling } from '@/lib/server/utils/apiGuard';
  * an open redirect. A failed rotation clears the session and falls through to
  * the login page carrying the same `next`.
  */
+/**
+ * RELATIVE Location on purpose. `NextResponse.redirect` needs an absolute URL,
+ * and inside a route handler behind the reverse proxy `req.nextUrl` resolves
+ * to the container's own address — this route was verified redirecting to
+ * `https://0.0.0.0:3000/login`, which no browser can follow. A relative
+ * Location (RFC 7231 §7.1.2) is resolved by the browser against the request it
+ * just made, so the user stays on whichever host they were already on
+ * (panel.ahantime.com or the site) with no host detection at all.
+ */
+function redirectTo(path: string): NextResponse {
+  return new NextResponse(null, { status: 307, headers: { Location: path } });
+}
+
 async function GETImpl(req: NextRequest) {
   const raw = req.nextUrl.searchParams.get('next') ?? '/';
   // Only a path — never a scheme/host, and never protocol-relative (`//evil`).
   const next = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/';
-
-  const loginUrl = req.nextUrl.clone();
-  loginUrl.pathname = '/login';
-  loginUrl.search = `?next=${encodeURIComponent(next)}`;
+  const loginPath = `/login?next=${encodeURIComponent(next)}`;
 
   const refreshToken = await getRefreshToken();
-  if (!refreshToken) return NextResponse.redirect(loginUrl);
+  if (!refreshToken) return redirectTo(loginPath);
 
   try {
     const { tokens } = await rotateRefresh(refreshToken);
     await setSessionCookies(tokens);
-    const back = req.nextUrl.clone();
-    back.pathname = next;
-    // Marks this hop as spent: if the fresh cookie somehow doesn't stick,
-    // middleware sees the marker and goes to /login instead of bouncing
-    // through here forever.
-    back.search = '?_r=1';
-    return NextResponse.redirect(back);
+    // `_r=1` marks this hop as spent: if the fresh cookie somehow doesn't
+    // stick, middleware sees the marker and goes to /login instead of
+    // bouncing through here forever.
+    const sep = next.includes('?') ? '&' : '?';
+    return redirectTo(`${next}${sep}_r=1`);
   } catch {
     await clearSessionCookies();
-    return NextResponse.redirect(loginUrl);
+    return redirectTo(loginPath);
   }
 }
 
