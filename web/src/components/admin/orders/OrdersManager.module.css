@@ -1,0 +1,16 @@
+/* Orders list — layout additions on top of adminUi.module.css. */
+
+/* Cancelled order: frozen, not just "another status". Mirrors the muted
+   (not celebratory-red) treatment OrderTimeline.module.css gives a cancelled
+   shipment's dots — sunken + dimmed so a لغوشده card reads as dormant at a
+   glance rather than competing with the active rows above it. */
+.cardCancelled {
+  background: var(--color-surface-sunken);
+  opacity: 0.75;
+}
+
+.hint {
+  margin: 0 0 var(--space-3);
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}

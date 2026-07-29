@@ -18,7 +18,7 @@ import {
   UserIcon,
 } from '@/components/primitives/icons';
 import { WarehouseList } from '@/components/account/WarehouseList';
-import { OrdersList } from '@/components/account/OrdersList';
+import { OrdersListLive } from '@/components/account/OrdersListLive';
 import { ClubPanel } from '@/components/account/ClubPanel';
 import { AccountOverview, type OverviewNudge } from '@/components/account/AccountOverview';
 import { getOrders, getWarehouseItems, getProfileCounts } from '@/lib/server/account';
@@ -177,7 +177,7 @@ async function TabContent({ slug, userId }: { slug: string; userId: string }) {
       return (
         <TabSection title="سفارش‌های من" sub="وضعیت لحظه‌ای حمل بار هر سفارش را اینجا دنبال کنید.">
           <Card>
-            <OrdersList orders={orders} />
+            <OrdersListLive initialOrders={orders} />
           </Card>
         </TabSection>
       );

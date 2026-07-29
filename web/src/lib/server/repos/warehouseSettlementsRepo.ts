@@ -11,7 +11,7 @@
  */
 import { and, desc, eq, isNull } from 'drizzle-orm';
 import { ulid } from 'ulid';
-import { getDb } from '@/lib/server/db/client';
+import { getDb, type DbOrTx } from '@/lib/server/db/client';
 import { warehouseItems, warehouseSettlements, users } from '@/lib/server/db/schema';
 
 export type WarehouseSettlementRow = typeof warehouseSettlements.$inferSelect;
@@ -28,9 +28,14 @@ export interface UnsettledSummary {
   amountToman: number;
 }
 
-/** The most recent settlement for one item, or null if never settled. */
-export async function lastSettlementFor(warehouseItemId: string): Promise<WarehouseSettlementRow | null> {
-  const rows = await getDb()
+/** The most recent settlement for one item, or null if never settled.
+ *  Accepts an optional tx (DbOrTx) so createSettlement can call it INSIDE
+ *  the transaction that locks the item row — see that function's comment. */
+export async function lastSettlementFor(
+  warehouseItemId: string,
+  dbh: DbOrTx = getDb(),
+): Promise<WarehouseSettlementRow | null> {
+  const rows = await dbh
     .select()
     .from(warehouseSettlements)
     .where(eq(warehouseSettlements.warehouseItemId, warehouseItemId))
@@ -76,40 +81,50 @@ export async function createSettlement(
   actorId: string | null,
   opts: { periodTo?: Date; note?: string } = {},
 ): Promise<WarehouseSettlementRow | null> {
-  const db = getDb();
-  const itemRows = await db
-    .select()
-    .from(warehouseItems)
-    .where(and(eq(warehouseItems.id, warehouseItemId), isNull(warehouseItems.deletedAt)))
-    .limit(1);
-  const item = itemRows[0];
-  if (!item) return null;
+  // Read-last-settlement-then-insert used to run as two unguarded queries: two
+  // concurrent settle requests for the same item could both read the same
+  // "last settlement" and both insert a row covering the identical period —
+  // a real double-bill, not a hypothetical one. The whole read+insert now
+  // runs in one transaction with the item row LOCKED (`for('update')`) for
+  // its duration, so a second concurrent call blocks until the first commits
+  // and then sees its settlement as the new `last` — the same period can
+  // never be settled twice.
+  return getDb().transaction(async (tx) => {
+    const itemRows = await tx
+      .select()
+      .from(warehouseItems)
+      .where(and(eq(warehouseItems.id, warehouseItemId), isNull(warehouseItems.deletedAt)))
+      .for('update')
+      .limit(1);
+    const item = itemRows[0];
+    if (!item) return null;
 
-  const last = await lastSettlementFor(warehouseItemId);
-  const periodFrom = last ? last.periodTo : item.storedAt;
-  const periodTo = opts.periodTo ?? new Date();
-  if (periodTo.getTime() <= periodFrom.getTime()) {
-    throw new NothingToSettleError('periodTo must be strictly after the current unsettled period start');
-  }
-  const days = (periodTo.getTime() - periodFrom.getTime()) / MS_PER_DAY;
-  const amountToman = Math.round(item.monthlyFeeToman * (days / 30));
+    const last = await lastSettlementFor(warehouseItemId, tx);
+    const periodFrom = last ? last.periodTo : item.storedAt;
+    const periodTo = opts.periodTo ?? new Date();
+    if (periodTo.getTime() <= periodFrom.getTime()) {
+      throw new NothingToSettleError('periodTo must be strictly after the current unsettled period start');
+    }
+    const days = (periodTo.getTime() - periodFrom.getTime()) / MS_PER_DAY;
+    const amountToman = Math.round(item.monthlyFeeToman * (days / 30));
 
-  const rows = await db
-    .insert(warehouseSettlements)
-    .values({
-      id: ulid(),
-      warehouseItemId,
-      userId: item.userId,
-      periodFrom,
-      periodTo,
-      quantityTons: item.quantityTons,
-      monthlyFeeToman: item.monthlyFeeToman,
-      amountToman,
-      note: opts.note ?? null,
-      actorId,
-    })
-    .returning();
-  return rows[0]!;
+    const rows = await tx
+      .insert(warehouseSettlements)
+      .values({
+        id: ulid(),
+        warehouseItemId,
+        userId: item.userId,
+        periodFrom,
+        periodTo,
+        quantityTons: item.quantityTons,
+        monthlyFeeToman: item.monthlyFeeToman,
+        amountToman,
+        note: opts.note ?? null,
+        actorId,
+      })
+      .returning();
+    return rows[0]!;
+  });
 }
 
 export async function settlementsForUser(userId: string): Promise<WarehouseSettlementRow[]> {

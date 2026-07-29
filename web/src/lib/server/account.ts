@@ -46,7 +46,11 @@ export async function getProfileCounts(userId: string): Promise<{
   ]);
   return {
     openRequests: requests.rows.filter((r) => r.status !== 'quoted').length,
-    activeOrders: orders.rows.filter((o) => o.status !== 'delivered').length,
+    // ordersForUser now includes cancelled orders (W17 — a cancelled order
+    // stays visible in the customer's history instead of vanishing), so
+    // "not delivered" alone is no longer "still in progress": a cancelled
+    // order is neither delivered nor active.
+    activeOrders: orders.rows.filter((o) => o.status !== 'delivered' && !o.cancelled).length,
     warehouseItems: warehouse.length,
   };
 }

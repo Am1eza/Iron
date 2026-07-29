@@ -364,21 +364,37 @@ export const adminApi = {
     http.post<{ message: unknown }>(`/api/admin/contact-messages/${id}/reply`, { reply }),
 
   /* orders */
-  orders: (params: { status?: string; page?: number; cancelled?: boolean } = {}) => {
+  orders: (params: { status?: string; page?: number; cancelled?: boolean; q?: string } = {}) => {
     const qs = new URLSearchParams();
     if (params.status) qs.set('status', params.status);
     if (params.page) qs.set('page', String(params.page));
     if (params.cancelled) qs.set('cancelled', 'true');
+    if (params.q) qs.set('q', params.q);
     return http.get<{
-      orders: Array<Order & { leadId: string | null; customerName: string | null; customerMobile: string | null }>;
+      orders: Array<
+        Order & {
+          leadId: string | null;
+          customerName: string | null;
+          customerMobile: string | null;
+          /** Drives the client-side canActOnAssignedRecord check — see LeadDetail's
+           *  identical pattern (W16/W17): hide a control rather than let the API 403 it. */
+          leadAssigneeId: string | null;
+        }
+      >;
       total: number;
     }>(`/api/admin/orders?${qs}`);
   },
+  /** 403 `order_forbidden` when the actor isn't the source lead's assignee
+   *  and doesn't hold leads:manage (W17) — the UI should hide the control
+   *  pre-emptively (see leadAssigneeId above) rather than rely on this. */
   updateOrderStatus: (ref: string, status: string) =>
-    http.patch<{ order: Order }>(`/api/admin/orders/${encodeURIComponent(ref)}`, { status }),
+    http.patch<{ order: Order; smsSent?: boolean }>(`/api/admin/orders/${encodeURIComponent(ref)}`, { status }),
   updateOrderShipping: (ref: string, patch: { trackingNumber?: string; carrierName?: string }) =>
-    http.patch<{ order: Order }>(`/api/admin/orders/${encodeURIComponent(ref)}`, patch),
-  cancelOrder: (ref: string) => http.del<{ ok: true }>(`/api/admin/orders/${encodeURIComponent(ref)}`),
+    http.patch<{ order: Order; smsSent?: boolean }>(`/api/admin/orders/${encodeURIComponent(ref)}`, patch),
+  /** Requires leads:manage, not leads:write, as of W17 — same tier as
+   *  archiving a lead. A leads:write-only rep gets 404 (apiGuard's
+   *  insufficient-permission convention), so hide this control for them. */
+  cancelOrder: (ref: string) => http.del<{ ok: true; smsSent?: boolean }>(`/api/admin/orders/${encodeURIComponent(ref)}`),
 
   /* warehouse */
   warehouse: (page = 1) =>

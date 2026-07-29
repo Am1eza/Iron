@@ -232,7 +232,7 @@ describe('orders & tracking', () => {
     expect(found?.status).toBe('registered');
 
     const advanced = await updateOrderStatus(ref, 'in_transit');
-    expect(advanced?.status).toBe('in_transit');
+    expect(advanced?.order.status).toBe('in_transit');
   });
 
   it('rejects a backward order-status transition (delivered -> registered)', async () => {

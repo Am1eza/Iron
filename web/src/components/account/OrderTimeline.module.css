@@ -93,6 +93,22 @@
   margin-inline-start: var(--space-2);
 }
 
+/* Cancelled — frozen, not finished: reuse the "done" checkmark (it really
+   did reach this step) but in a muted tone instead of the celebratory gain
+   green, so a cancelled order never LOOKS like a successful one at a glance. */
+.cancelledNote {
+  margin: 0 0 var(--space-2);
+  font: var(--t-caption);
+  color: var(--color-loss-text);
+}
+.cancelled .done .dot {
+  background: var(--color-text-muted);
+  border-color: var(--color-text-muted);
+}
+.cancelled .step:not(:last-child)::before {
+  background: var(--color-hairline);
+}
+
 /* Horizontal layout on wider screens. */
 @media (min-width: 40rem) {
   .timeline {

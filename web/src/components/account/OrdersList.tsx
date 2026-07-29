@@ -40,9 +40,24 @@ export function OrdersList({ orders }: { orders: Order[] }) {
                   ثبت: {formatJalali(o.placedAt)} · به‌روزرسانی: {formatJalali(o.lastUpdate)}
                 </span>
               </div>
-              <Badge tone={o.status === 'delivered' ? 'gain' : 'accent'}>{label}</Badge>
+              {/* Cancelled overrides the shipment badge entirely — showing
+                  both "لغوشده" AND a frozen shipment-stage badge side by side
+                  read as contradictory status at a glance. */}
+              <Badge tone={o.cancelled ? 'loss' : o.status === 'delivered' ? 'gain' : 'accent'}>
+                {o.cancelled ? 'لغوشده' : label}
+              </Badge>
             </div>
-            <OrderTimeline status={o.status} />
+            <OrderTimeline status={o.status} cancelled={o.cancelled} />
+            {!o.cancelled && (o.trackingNumber || o.carrierName) ? (
+              <p className={styles.shipping}>
+                <span className={styles.shippingLabel}>ارسال با {o.carrierName || 'شرکت حمل'}</span>
+                {o.trackingNumber ? (
+                  <bdi className="tnum" dir="ltr">
+                    کد رهگیری: {o.trackingNumber}
+                  </bdi>
+                ) : null}
+              </p>
+            ) : null}
             <div className={styles.foot}>
               <span className={styles.items}>
                 {o.items.map((it) => it.name).join('، ')} ({toPersianDigits(o.items.length)} ردیف)

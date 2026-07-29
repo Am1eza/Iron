@@ -1,5 +1,5 @@
 /** Orders (cargo tracking) + consignment warehouse items. */
-import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, ilike, inArray, isNull, or, sql } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { getDb } from '@/lib/server/db/client';
 import { orders, orderItems, warehouseItems, leads } from '@/lib/server/db/schema';
@@ -48,6 +48,7 @@ function toOrderDto(r: OrderRow, items: LineItem[]): Order {
     lastUpdate: r.lastUpdate.toISOString(),
     trackingNumber: r.trackingNumber ?? undefined,
     carrierName: r.carrierName ?? undefined,
+    cancelled: r.deletedAt !== null,
   };
 }
 
@@ -78,14 +79,14 @@ async function toOrderDtos(rows: OrderRow[]): Promise<Order[]> {
 }
 
 /** Public tracking: ref is the capability (digits normalized, case-insensitive).
- *  Excludes cancelled/archived orders — "gone means gone" for tracking too. */
+ *  INCLUDES cancelled/archived orders — someone tracking by ref already
+ *  placed the order (or was given the ref by someone who did), so "this was
+ *  cancelled" is real, useful information, not a dead end; hiding it used to
+ *  make a legitimately-cancelled order's tracking page look identical to a
+ *  ref that never existed. `Order.cancelled` is what the UI branches on. */
 export async function findOrderByRef(rawRef: string): Promise<Order | null> {
   const ref = normalizeDigits(rawRef.trim()).toUpperCase();
-  const rows = await getDb()
-    .select()
-    .from(orders)
-    .where(and(eq(orders.ref, ref), isNull(orders.deletedAt)))
-    .limit(1);
+  const rows = await getDb().select().from(orders).where(eq(orders.ref, ref)).limit(1);
   if (!rows[0]) return null;
   return toOrderDto(rows[0], await itemsOf(rows[0].id));
 }
@@ -96,6 +97,10 @@ export async function findOrderByRef(rawRef: string): Promise<Order | null> {
  *  `leadsForUser`. Callers that just want a bounded "give me everything
  *  reasonable" snapshot (the account dashboard, the GDPR export) pass the max
  *  page size explicitly instead of paging through. */
+/** A customer's own order history — INCLUDES cancelled ones. Hiding a
+ *  cancelled order used to make it vanish without a trace the moment a rep
+ *  cancelled it; `Order.cancelled` lets the account panel show it with a
+ *  clear "لغوشده" badge instead of pretending it never happened. */
 export async function ordersForUser(
   userId: string,
   page = 1,
@@ -106,7 +111,7 @@ export async function ordersForUser(
   const rows = await getDb()
     .select()
     .from(orders)
-    .where(and(eq(orders.userId, userId), isNull(orders.deletedAt)))
+    .where(eq(orders.userId, userId))
     .orderBy(desc(orders.placedAt))
     .limit(size + 1)
     .offset((p - 1) * size);
@@ -114,16 +119,36 @@ export async function ordersForUser(
   return { rows: await toOrderDtos(rows.slice(0, size)), hasMore };
 }
 
-/** Cancel/archive an order (mis-registered, duplicate, customer cancelled
- *  before shipment) — separate from the shipment `status` stepper, see the
- *  schema column comment. */
+/** Cancel/archive an order — pre-shipment (mis-registered, duplicate,
+ *  customer changed their mind) AND post-delivery (a return): `clubRepo`
+ *  deliberately counts only non-cancelled delivered orders, and
+ *  `engagement.test.ts` exercises exactly this — cancelling a delivered
+ *  order to model a return and confirms it downgrades the customer's club
+ *  tier. An earlier pass here added a precondition blocking cancellation of
+ *  a 'delivered' order on the theory that a completed deal shouldn't be
+ *  undoable; that broke the return flow and its test, so returns are
+ *  unrestricted by status, on purpose, same as before. Separate from the
+ *  shipment `status` stepper — see the schema column comment. */
 export async function cancelOrder(ref: string): Promise<Order | null> {
   const rows = await getDb()
     .update(orders)
-    .set({ deletedAt: new Date(), updatedAt: new Date() })
+    .set({ deletedAt: new Date(), lastUpdate: new Date(), updatedAt: new Date() })
     .where(and(eq(orders.ref, ref), isNull(orders.deletedAt)))
     .returning();
   if (!rows[0]) return null;
+  // Symmetric with updateOrderStatus's delivered-transition recompute: a
+  // return (cancelling a DELIVERED order) removes it from the buyer's
+  // delivered-order count just as surely as advancing INTO delivered added
+  // it, so their club tier needs recomputing here too — this was previously
+  // only exercised by directly calling recomputeTier in a test, never by the
+  // real cancelOrder() call path, so a real return left the tier stale until
+  // something unrelated happened to trigger a recompute.
+  if (rows[0].status === 'delivered' && rows[0].userId) {
+    const userId = rows[0].userId;
+    void import('@/lib/server/repos/clubRepo')
+      .then((m) => m.recomputeTier(userId))
+      .catch(() => {});
+  }
   return toOrderDto(rows[0], await itemsOf(rows[0].id));
 }
 
@@ -161,31 +186,52 @@ export async function createOrder(input: {
   return toOrderDto(order, input.items);
 }
 
-export async function updateOrderStatus(ref: string, status: OrderRow['status']): Promise<Order | null> {
+export async function updateOrderStatus(
+  ref: string,
+  status: OrderRow['status'],
+): Promise<{ order: Order; prevStatus: OrderRow['status'] } | null> {
   const db = getDb();
-  const current = await db
-    .select({ status: orders.status })
-    .from(orders)
-    .where(and(eq(orders.ref, ref), isNull(orders.deletedAt)))
-    .limit(1);
-  if (!current[0]) return null;
-  assertForwardTransition(ORDER_STATUS_ORDER, current[0].status, status);
-  const rows = await db
-    .update(orders)
-    .set({ status, lastUpdate: new Date(), updatedAt: new Date() })
-    .where(eq(orders.ref, ref))
-    .returning();
-  if (!rows[0]) return null;
+  // Read, validate the forward-only transition, and write inside ONE
+  // transaction with the read row locked (`for('update')`) — the previous
+  // plain read-then-write let a concurrent request (this same function, or
+  // cancelOrder) act on a stale read: two overlapping PATCHes could each
+  // pass assertForwardTransition against the same "before" status, or a
+  // cancellation land between the read and the write, leaving `status`
+  // updated on an order that `deletedAt` says is gone. The lock serializes
+  // concurrent callers on the same ref; the write's own `isNull(deletedAt)`
+  // is the belt to the lock's suspenders.
+  const result = await db.transaction(async (tx) => {
+    const current = await tx
+      .select({ status: orders.status })
+      .from(orders)
+      .where(and(eq(orders.ref, ref), isNull(orders.deletedAt)))
+      .for('update')
+      .limit(1);
+    if (!current[0]) return null;
+    assertForwardTransition(ORDER_STATUS_ORDER, current[0].status, status);
+    const rows = await tx
+      .update(orders)
+      .set({ status, lastUpdate: new Date(), updatedAt: new Date() })
+      .where(and(eq(orders.ref, ref), isNull(orders.deletedAt)))
+      .returning();
+    if (!rows[0]) return null;
+    return { row: rows[0], prevStatus: current[0].status };
+  });
+  if (!result) return null;
   // A newly-delivered order changes the buyer's club points → recompute their
   // tier. Fire-and-forget; a club miss never blocks the shipment update. Only
   // on the transition INTO delivered, and only when the order has an owner.
-  if (status === 'delivered' && current[0].status !== 'delivered' && rows[0].userId) {
-    const userId = rows[0].userId;
+  if (status === 'delivered' && result.prevStatus !== 'delivered' && result.row.userId) {
+    const userId = result.row.userId;
     void import('@/lib/server/repos/clubRepo')
       .then((m) => m.recomputeTier(userId))
       .catch(() => {});
   }
-  return toOrderDto(rows[0], await itemsOf(rows[0].id));
+  // `prevStatus` is returned (not just used internally above) so the route
+  // layer can tell a genuine transition from a same-status no-op (a
+  // double-click, a retried request after a timeout) — without it, the
+  // caller has no race-proof way to know whether to fire a customer SMS.
+  return { order: toOrderDto(result.row, await itemsOf(result.row.id)), prevStatus: result.prevStatus };
 }
 
 /** Set/clear carrier tracking info (US-08.4) — independent of the shipment
@@ -195,7 +241,11 @@ export async function updateOrderShipping(
   ref: string,
   patch: { trackingNumber?: string | null; carrierName?: string | null },
 ): Promise<Order | null> {
-  const set: Partial<typeof orders.$inferInsert> = { updatedAt: new Date() };
+  // lastUpdate bumps here too, not just on status changes — a customer
+  // watching "آخرین به‌روزرسانی" should see it move the moment a rep enters a
+  // tracking number, which is real, visible progress even with the shipment
+  // stepper unchanged.
+  const set: Partial<typeof orders.$inferInsert> = { updatedAt: new Date(), lastUpdate: new Date() };
   if (patch.trackingNumber !== undefined) set.trackingNumber = patch.trackingNumber;
   if (patch.carrierName !== undefined) set.carrierName = patch.carrierName;
   const rows = await getDb()
@@ -207,12 +257,44 @@ export async function updateOrderShipping(
   return toOrderDto(rows[0], await itemsOf(rows[0].id));
 }
 
+/** Admin-only ownership lookup — which lead (if any) this order traces back
+ *  to, plus the current mutable fields, for the route layer's authorization
+ *  check (canActOnAssignedRecord against the lead's assigneeId) and its
+ *  audit-log "before" snapshot. Never exposed as a customer-facing DTO.
+ *  Deliberately NOT filtered by deletedAt — the caller decides what an
+ *  already-cancelled order should be allowed to do (today: nothing, since
+ *  every mutator's own isNull(deletedAt) filter still applies). */
+export async function orderOwnership(ref: string): Promise<{
+  id: string;
+  leadId: string | null;
+  userId: string | null;
+  status: OrderRow['status'];
+  trackingNumber: string | null;
+  carrierName: string | null;
+} | null> {
+  const rows = await getDb()
+    .select({
+      id: orders.id,
+      leadId: orders.leadId,
+      userId: orders.userId,
+      status: orders.status,
+      trackingNumber: orders.trackingNumber,
+      carrierName: orders.carrierName,
+    })
+    .from(orders)
+    .where(eq(orders.ref, ref))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
 export async function adminListOrders(query: {
   status?: OrderRow['status'];
   page?: number;
   perPage?: number;
   /** Show cancelled/archived orders instead of the normal working set. */
   includeDeleted?: boolean;
+  /** Matches ref, or the source lead's contact name/mobile. */
+  q?: string;
 }) {
   const db = getDb();
   const page = query.page ?? 1;
@@ -220,21 +302,40 @@ export async function adminListOrders(query: {
   const conds = [];
   if (!query.includeDeleted) conds.push(isNull(orders.deletedAt));
   if (query.status) conds.push(eq(orders.status, query.status));
+  if (query.q) {
+    conds.push(
+      or(
+        ilike(orders.ref, `%${query.q}%`),
+        ilike(leads.contactMobile, `%${query.q}%`),
+        ilike(leads.contactName, `%${query.q}%`),
+      ),
+    );
+  }
   const where = conds.length ? and(...conds) : undefined;
   const [rows, total] = await Promise.all([
     db
       // Left-join the source lead: the admin card must show WHOSE order this
-      // is (name + mobile) and link back to the lead — previously the card
-      // carried only ref/dates/items and the operator had to cross-reference
-      // the CRM by hand.
-      .select({ order: orders, leadName: leads.contactName, leadMobile: leads.contactMobile })
+      // is (name + mobile), link back to the lead, AND (W17) know who is
+      // allowed to act on it — assigneeId drives the client-side
+      // canActOnAssignedRecord check so a non-owning rep never sees a
+      // control the API would 403 anyway.
+      .select({
+        order: orders,
+        leadName: leads.contactName,
+        leadMobile: leads.contactMobile,
+        leadAssigneeId: leads.assigneeId,
+      })
       .from(orders)
       .leftJoin(leads, eq(orders.leadId, leads.id))
       .where(where)
       .orderBy(desc(orders.placedAt))
       .limit(perPage)
       .offset((page - 1) * perPage),
-    db.select({ n: sql<number>`count(*)::int` }).from(orders).where(where),
+    db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(orders)
+      .leftJoin(leads, eq(orders.leadId, leads.id))
+      .where(where),
   ]);
   const dtos = await toOrderDtos(rows.map((r) => r.order));
   const withCustomer = dtos.map((o, i) => ({
@@ -242,6 +343,7 @@ export async function adminListOrders(query: {
     leadId: rows[i]?.order.leadId ?? null,
     customerName: rows[i]?.leadName ?? null,
     customerMobile: rows[i]?.leadMobile ?? null,
+    leadAssigneeId: rows[i]?.leadAssigneeId ?? null,
   }));
   return { orders: withCustomer, total: total[0]?.n ?? 0 };
 }

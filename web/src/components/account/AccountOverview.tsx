@@ -74,11 +74,11 @@ export function AccountOverview({
                 <bdi className="tnum">{lastOrder.ref}</bdi> · {formatJalali(lastOrder.placedAt)}
               </p>
             </div>
-            <Badge tone={lastOrder.status === 'delivered' ? 'gain' : 'accent'}>
-              {SHIPMENT_STEPS.find((s) => s.key === lastOrder.status)?.label ?? ''}
+            <Badge tone={lastOrder.cancelled ? 'loss' : lastOrder.status === 'delivered' ? 'gain' : 'accent'}>
+              {lastOrder.cancelled ? 'لغوشده' : (SHIPMENT_STEPS.find((s) => s.key === lastOrder.status)?.label ?? '')}
             </Badge>
           </div>
-          <OrderTimeline status={lastOrder.status} />
+          <OrderTimeline status={lastOrder.status} cancelled={lastOrder.cancelled} />
           <Link href={routes.account('orders')} className={styles.allLink}>
             همهٔ سفارش‌ها
             <ChevronStartIcon size={14} className="icon--rtl" />

@@ -200,6 +200,21 @@ export async function findLead(id: string): Promise<LeadRow | null> {
   return rows[0] ?? null;
 }
 
+/** Ownership facts only, deliberately IGNORING deletedAt — for cross-domain
+ *  authorization (the orders route's ownership check). A lead archived
+ *  AFTER converting to an order (spam/duplicate cleanup, unrelated to the
+ *  order itself) must not silently reopen that order to every leads:write
+ *  rep just because findLead()'s normal "gone means gone" filter now hides
+ *  it — the order is still very much not gone. */
+export async function leadOwnerInfo(id: string): Promise<{ assigneeId: string | null; contactMobile: string } | null> {
+  const rows = await getDb()
+    .select({ assigneeId: leads.assigneeId, contactMobile: leads.contactMobile })
+    .from(leads)
+    .where(eq(leads.id, id))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
 export async function leadsForUser(userId: string, mobile: string, page = 1, pageSize = 50) {
   const size = Math.min(Math.max(pageSize, 1), 100);
   const p = Math.max(page, 1);

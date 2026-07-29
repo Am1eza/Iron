@@ -26,6 +26,7 @@ import { getPriceFreshness } from '@/lib/server/services/priceFreshness';
 import { publicEnv } from '@/lib/validation/env';
 import { formatToman } from '@/lib/utils/format';
 import { formatJalali } from '@/lib/utils/jalali';
+import { SHIPMENT_STEPS, type ShipmentStatus } from '@/lib/types/domain';
 
 /** Shared proforma-ref SMS text — used on first issue and on admin re-issue.
  *  Also the fallback for proformaSmsNotification() below when no template is
@@ -92,6 +93,75 @@ export function orderSmsNotification(ref: string): { templateEnvVar: string; par
     templateEnvVar: 'SMSIR_TEMPLATE_ID_ORDER_CONFIRMED',
     params: [{ name: 'REF', value: truncateParam(ref) }],
     fallbackText: orderSmsText(ref),
+    kind: 'generic',
+  };
+}
+
+const SHIPMENT_LABEL: Record<ShipmentStatus, string> = Object.fromEntries(
+  SHIPMENT_STEPS.map((s) => [s.key, s.label]),
+) as Record<ShipmentStatus, string>;
+
+/**
+ * Everything the ORDER_CONFIRMED notification above does NOT cover: the
+ * shipment moving past its creation state. `registered` is that creation
+ * state — orderSmsNotification already told the customer about it — so
+ * there is no per-status notification for it (calling this with 'registered'
+ * would be a caller bug, not a state this ever needs to describe).
+ * `delivered` gets a distinct, warmer template (SMSIR_TEMPLATE_ID_ORDER_
+ * DELIVERED) rather than reusing the generic "status changed" wording — it's
+ * the one stage the customer is actually waiting for.
+ */
+export function orderStatusSmsNotification(
+  ref: string,
+  status: Exclude<ShipmentStatus, 'registered'>,
+): { templateEnvVar: string; params: TemplateParam[]; fallbackText: string; kind: 'generic' } {
+  const link = `${publicEnv.NEXT_PUBLIC_SITE_URL}/track`;
+  if (status === 'delivered') {
+    return {
+      templateEnvVar: 'SMSIR_TEMPLATE_ID_ORDER_DELIVERED',
+      params: [{ name: 'REF', value: truncateParam(ref) }],
+      fallbackText: `آهن‌تایم: سفارش ${ref} با موفقیت تحویل داده شد. از خرید شما سپاسگزاریم.`,
+      kind: 'generic',
+    };
+  }
+  const stage = SHIPMENT_LABEL[status];
+  return {
+    templateEnvVar: 'SMSIR_TEMPLATE_ID_ORDER_STATUS',
+    params: [
+      { name: 'REF', value: truncateParam(ref) },
+      { name: 'STAGE', value: truncateParam(stage) },
+    ],
+    fallbackText: `آهن‌تایم: وضعیت سفارش ${ref} به «${stage}» تغییر کرد. پیگیری: ${link}`,
+    kind: 'generic',
+  };
+}
+
+/** Fires only once a real tracking number lands (see the route caller) — a
+ *  carrier name alone, with no tracking number yet, isn't the "you can go
+ *  look this up now" moment this notification exists for. */
+export function orderShippingSmsNotification(
+  ref: string,
+  trackingNumber: string,
+  carrierName: string | null,
+): { templateEnvVar: string; params: TemplateParam[]; fallbackText: string; kind: 'generic' } {
+  const carrier = carrierName?.trim() || 'شرکت حمل';
+  return {
+    templateEnvVar: 'SMSIR_TEMPLATE_ID_ORDER_SHIPPING',
+    params: [
+      { name: 'REF', value: truncateParam(ref) },
+      { name: 'CARRIER', value: truncateParam(carrier) },
+      { name: 'TRACKING', value: truncateParam(trackingNumber) },
+    ],
+    fallbackText: `آهن‌تایم: سفارش ${ref} با ${carrier} ارسال شد. کد رهگیری: ${trackingNumber}`,
+    kind: 'generic',
+  };
+}
+
+export function orderCancelledSmsNotification(ref: string): { templateEnvVar: string; params: TemplateParam[]; fallbackText: string; kind: 'generic' } {
+  return {
+    templateEnvVar: 'SMSIR_TEMPLATE_ID_ORDER_CANCELLED',
+    params: [{ name: 'REF', value: truncateParam(ref) }],
+    fallbackText: `آهن‌تایم: سفارش ${ref} لغو شد. برای اطلاعات بیشتر با پشتیبانی تماس بگیرید.`,
     kind: 'generic',
   };
 }

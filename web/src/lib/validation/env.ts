@@ -51,6 +51,15 @@ const serverSchema = z
     SMSIR_TEMPLATE_ID_PROFORMA_ISSUED: z.string().optional(),
     SMSIR_TEMPLATE_ID_PROFORMA_REMINDER: z.string().optional(),
     SMSIR_TEMPLATE_ID_ORDER_CONFIRMED: z.string().optional(),
+    // Post-creation shipment lifecycle (W17) — ORDER_CONFIRMED above fires
+    // only once, at creation. Everything the shipment does AFTER that
+    // (advancing through confirmed/loading/in_transit, a tracking number
+    // landing, delivery, cancellation) needs its own notification so the
+    // customer hears about it too, not just the rep seeing it in the panel.
+    SMSIR_TEMPLATE_ID_ORDER_STATUS: z.string().optional(),
+    SMSIR_TEMPLATE_ID_ORDER_DELIVERED: z.string().optional(),
+    SMSIR_TEMPLATE_ID_ORDER_SHIPPING: z.string().optional(),
+    SMSIR_TEMPLATE_ID_ORDER_CANCELLED: z.string().optional(),
     SMSIR_TEMPLATE_ID_PRICE_ALERT: z.string().optional(),
     SMSIR_TEMPLATE_ID_CALLBACK_REMINDER: z.string().optional(),
     TGJU_BASE_URL: z.string().optional(),

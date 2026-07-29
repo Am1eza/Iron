@@ -58,6 +58,7 @@ export const ACTION_META: Record<string, ActionMeta> = {
   'media.upload': { verb: 'فایل بارگذاری کرد', tone: 'create' },
 
   'order.status': { verb: 'وضعیت سفارش را تغییر داد', tone: 'update' },
+  'order.shipping': { verb: 'اطلاعات حمل سفارش را ثبت کرد', tone: 'update' },
   'order.cancel': { verb: 'سفارش را لغو کرد', tone: 'destroy' },
   'proforma.cancel': { verb: 'پیش‌فاکتور را باطل کرد', tone: 'destroy' },
 

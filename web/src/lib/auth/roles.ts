@@ -87,6 +87,25 @@ export function canChangeLeadAssignee(
 }
 
 /**
+ * May this actor act on a record currently owned by `assigneeId`?
+ *
+ * A generalization of the ownership half of `canChangeLeadAssignee` for
+ * records that inherit their ownership from a lead rather than carrying an
+ * `assigneeId` of their own — an ORDER traces back to the lead that became
+ * it, so "whose order is this" is really "who does the source lead belong
+ * to". True for a manager (holds `leads:manage`), for an unassigned record
+ * (nobody's toes to step on), or for the actor's own record. False otherwise
+ * — including for a `leads:write`-only actor touching a colleague's record.
+ */
+export function canActOnAssignedRecord(
+  actor: { id: string; role: Role | undefined | null },
+  assigneeId: string | null,
+): boolean {
+  if (can(actor.role, 'leads:manage')) return true;
+  return assigneeId === null || assigneeId === actor.id;
+}
+
+/**
  * Admin sub-path → permission required to view it. Single source of truth
  * shared by the admin nav filter (admin/layout.tsx) and the edge-level
  * `middleware.ts` gate — each admin/*\/page.tsx also calls `requirePermission`

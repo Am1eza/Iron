@@ -176,4 +176,33 @@ describe('club (hybrid points model)', () => {
     expect(status.deliveredOrders).toBe(1);
     expect(status.tier).toBe('iron');
   });
+
+  it('cancelOrder() ALONE (no manual recomputeTier call) downgrades the tier — W17 regression', async () => {
+    // Every test above calls recomputeTier() itself to observe the effect;
+    // that was masking a real bug where the production DELETE route's actual
+    // call path — cancelOrder() — never triggered a recompute at all, so a
+    // real customer return left an inflated tier stale until something
+    // unrelated happened to touch that user. This proves cancelOrder() now
+    // fires it on its own, fire-and-forget, same as updateOrderStatus does
+    // on the delivered transition.
+    //
+    // 1 delivered order survives from the previous test; deliver 4 more
+    // (same steel=5 threshold already established above) to cross back into
+    // steel, then cancel just ONE of the new ones and expect the drop back
+    // to iron to happen WITHOUT calling recomputeTier ourselves.
+    const refs = Array.from({ length: 4 }, (_, i) => `OR-CLUB-REGRESSION-${i}`);
+    for (const ref of refs) await deliver(ref);
+    const before = await recomputeTier(USER);
+    expect(before).toBe('steel');
+    expect((await clubStatus(USER)).deliveredOrders).toBe(5);
+
+    await cancelOrder(refs[0]!); // <-- no recomputeTier() call here, unlike every test above
+    // Fire-and-forget: give the dynamic import + recompute microtask/DB round
+    // trip a moment to land before asserting.
+    await new Promise((r) => setTimeout(r, 200));
+
+    const status = await clubStatus(USER);
+    expect(status.deliveredOrders).toBe(4);
+    expect(status.tier).toBe('iron');
+  });
 });

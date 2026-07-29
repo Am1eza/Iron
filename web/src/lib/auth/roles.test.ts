@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { can, canAccessAdmin, canChangeLeadAssignee } from './roles';
+import { can, canAccessAdmin, canActOnAssignedRecord, canChangeLeadAssignee } from './roles';
 
 describe('RBAC', () => {
   it('admin holds every permission', () => {
@@ -71,5 +71,27 @@ describe('canChangeLeadAssignee', () => {
   it('denies roles with no lead access at all, and an unhydrated session', () => {
     expect(canChangeLeadAssignee({ id: 'c-1', role: 'content' }, null, 'c-1')).toBe(false);
     expect(canChangeLeadAssignee({ id: 'x', role: undefined }, null, 'x')).toBe(false);
+  });
+});
+
+describe('canActOnAssignedRecord', () => {
+  const rep = { id: 'rep-1', role: 'sales' as const };
+  const boss = { id: 'boss-1', role: 'admin' as const };
+
+  it('lets the assignee act on their own record', () => {
+    expect(canActOnAssignedRecord(rep, 'rep-1')).toBe(true);
+  });
+
+  it('lets anyone act on an unassigned record — nobody\'s toes to step on', () => {
+    expect(canActOnAssignedRecord(rep, null)).toBe(true);
+  });
+
+  it('stops a rep acting on a colleague\'s record', () => {
+    expect(canActOnAssignedRecord(rep, 'rep-2')).toBe(false);
+  });
+
+  it('lets a manager act on anyone\'s record', () => {
+    expect(canActOnAssignedRecord(boss, 'rep-2')).toBe(true);
+    expect(canActOnAssignedRecord(boss, null)).toBe(true);
   });
 });

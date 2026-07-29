@@ -141,6 +141,11 @@ export interface Order {
   lastUpdate: string; // ISO
   trackingNumber?: string;
   carrierName?: string;
+  /** Cancelled/archived (US-08.4's soft-delete), independent of `status` — a
+   *  cancelled order KEEPS whatever status it last had (how far it got
+   *  before cancellation), so this flag, not the status stepper, is what
+   *  tells a customer or rep "this one is dead." */
+  cancelled?: boolean;
 }
 
 export interface LineItem {

@@ -50,11 +50,15 @@ const payload = z.object({
 /** POST /api/admin/warehouse/settlements — record a settlement for one
  *  warehouse item (US-08.5): snapshots current qty/fee, computes the amount
  *  owed since the last settlement (or since storedAt if never settled), and
- *  freezes it as a permanent billing record. */
+ *  freezes it as a permanent billing record.
+ *
+ *  `leads:manage` (W17): this mints a real, permanent billing record with no
+ *  way to un-issue it — the same "financial/destructive action" tier as
+ *  cancelling an order or archiving a lead, not day-to-day `leads:write`. */
 async function POSTImpl(req: NextRequest) {
   const guard = requireDb();
   if (guard) return guard;
-  const auth = await requireApiPermission(req, 'leads:write');
+  const auth = await requireApiPermission(req, 'leads:manage');
   if ('response' in auth) return auth.response;
   const v = await validateBody(req, payload);
   if (!v.ok) return v.response;
