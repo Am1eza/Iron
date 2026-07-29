@@ -24,6 +24,7 @@ import { callbackPresets, tomorrowAt9 } from '@/lib/utils/callbackPresets';
 import { useToast } from '@/lib/hooks/useToast';
 import { Badge, Button, EmptyState, Heading, Modal, TableSkeleton, Text } from '@/components/ui';
 import { KpiCard } from '../dashboard/KpiCard';
+import { CallOutcomeModal, type CallOutcomeResult } from '../leads/CallOutcomeModal';
 import ui from '../adminUi.module.css';
 import s from './MyDesk.module.css';
 
@@ -122,6 +123,10 @@ export function MyDesk() {
   const queueHeadingId = useId();
   const [sheetId, setSheetId] = useState<string | null>(null);
   const [note, setNote] = useState('');
+  // The lead a fresh call is being logged against — separate from `sheetId`
+  // so a call started from the row (lead still 'new', no sheet open) and one
+  // started from the sheet (بیشتر → ثبت نتیجهٔ تماس) share one modal.
+  const [callOutcomeLead, setCallOutcomeLead] = useState<DeskLead | null>(null);
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['admin', 'my', 'desk'],
@@ -165,6 +170,37 @@ export function MyDesk() {
       patch: { callbackAt: at ? at.toISOString() : null },
       done: at ? `زمان تماس ${lead.ref} روی ${label} تنظیم شد.` : `زمان تماس ${lead.ref} حذف شد.`,
     });
+
+  // Same hand-off LeadDetail's onCallOutcomeSubmit uses: the note is always
+  // recorded, "declined" defers to the existing lost-reason flow instead of
+  // duplicating a reason-picker, and only a first contact or a chosen
+  // callback time touch lead state.
+  const onCallOutcomeSubmit = (result: CallOutcomeResult) => {
+    const lead = callOutcomeLead;
+    if (!lead) return;
+    setCallOutcomeLead(null);
+    addNote.mutate({ id: lead.id, text: result.note });
+
+    if (result.outcome === 'declined') {
+      // MyDesk's lost-reason flow IS the quick sheet's «بستن سرنخ» section —
+      // clear the note box first so its optional reason field doesn't
+      // duplicate what the call note already says.
+      setNote('');
+      setSheetId(lead.id);
+      return;
+    }
+
+    const patch: { status?: string; callbackAt?: string } = {};
+    if (lead.status === 'new') patch.status = 'contacted';
+    if (result.outcome === 'later' && result.callbackAt) patch.callbackAt = result.callbackAt;
+    if (Object.keys(patch).length > 0) {
+      patchLead.mutate({
+        id: lead.id,
+        patch,
+        done: patch.status ? `${lead.ref} «در تماس» شد.` : `زمان تماس ${lead.ref} تنظیم شد.`,
+      });
+    }
+  };
 
   /**
    * ONE queue out of three server lists.
@@ -334,13 +370,7 @@ export function MyDesk() {
                 key={g.bucket}
                 group={g}
                 busyId={busyId}
-                onContacted={(lead) =>
-                  patchLead.mutate({
-                    id: lead.id,
-                    patch: { status: 'contacted' },
-                    done: `${lead.ref} «در تماس» شد.`,
-                  })
-                }
+                onLogCall={(lead) => setCallOutcomeLead(lead)}
                 onSnooze={(lead) => setCallback(lead, tomorrowAt9(), `فردا ${fa('9:00')}`)}
                 onOpen={(lead) => {
                   setNote('');
@@ -392,6 +422,21 @@ export function MyDesk() {
                   ? ` · تماس فعلی ${describeCallback(sheetLead.callbackAt, now).main}`
                   : ' · بدون زمان تماس'}
               </Text>
+            </div>
+
+            <div className={s.sheetSection}>
+              <Heading level={3}>ثبت تماس</Heading>
+              <div className={s.presets}>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setCallOutcomeLead(sheetLead);
+                    setSheetId(null);
+                  }}
+                >
+                  ثبت نتیجهٔ تماس
+                </Button>
+              </div>
             </div>
 
             <div className={s.sheetSection}>
@@ -486,6 +531,15 @@ export function MyDesk() {
           </div>
         ) : null}
       </Modal>
+
+      <CallOutcomeModal
+        open={callOutcomeLead !== null}
+        onClose={() => setCallOutcomeLead(null)}
+        leadRef={callOutcomeLead?.ref ?? ''}
+        contactName={callOutcomeLead?.contactName}
+        busy={addNote.isPending || patchLead.isPending}
+        onSubmit={onCallOutcomeSubmit}
+      />
     </div>
   );
 }
@@ -495,13 +549,13 @@ export function MyDesk() {
 function QueueSection({
   group,
   busyId,
-  onContacted,
+  onLogCall,
   onSnooze,
   onOpen,
 }: {
   group: QueueGroup;
   busyId: string | undefined;
-  onContacted: (lead: DeskLead) => void;
+  onLogCall: (lead: DeskLead) => void;
   onSnooze: (lead: DeskLead) => void;
   onOpen: (lead: DeskLead) => void;
 }) {
@@ -592,10 +646,10 @@ function QueueSection({
                           size="sm"
                           variant="secondary"
                           disabled={busy}
-                          aria-label={`تماس گرفتم — سرنخ ${lead.ref}`}
-                          onClick={() => onContacted(lead)}
+                          aria-label={`ثبت نتیجهٔ تماس — سرنخ ${lead.ref}`}
+                          onClick={() => onLogCall(lead)}
                         >
-                          تماس گرفتم
+                          ثبت نتیجهٔ تماس
                         </Button>
                       ) : null}
                       {/* One primitive, two meanings: a snooze for a row that
