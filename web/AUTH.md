@@ -17,7 +17,7 @@
 | 55 | **JWT** | `jwt.ts` — HS256 via `jose`, 15-min access token, issuer/audience, signed with `SESSION_SECRET` |
 | 56 | **Refresh Token** | Opaque 32-byte token, **hashed** in store, **single-use rotation** (`rotateRefresh`); silent client refresh every 12 min |
 | 57 | **Role Management** | `Role` = customer + operator/sales/content/catalog/admin (navigation §21); `ROLE_LABEL`, `STAFF_ROLES` |
-| 58 | **Permissions** | `Permission` set + `ROLE_PERMISSIONS` map + `can()` / `canAccessAdmin()`; `<Can>` (UI) + `requirePermission()` (server) |
+| 58 | **Permissions** | `Permission` set + `ROLE_PERMISSIONS` map + `can()` / `canAccessAdmin()`; `requirePermission()` (server) + the same `can()` called directly in client components (below) |
 | 59 | **User Profile** | `/api/me`, `/api/me/profile` (PUT); `<ProfileForm>` + `<LogoutButton>`; real `/حساب` dashboard |
 | 60 | **Security** | hashed OTP/refresh (SHA-256 + pepper), constant-time compare, lockout/rate-limit, httpOnly + Secure + SameSite=Lax cookies, same-origin CSRF check, no secrets/PII in logs |
 
@@ -49,7 +49,29 @@ Browser  ──POST /api/auth/logout ────────▶ revoke refresh 
 | `catalog` | admin · catalog:read/write |
 | `admin` | everything |
 
-Guards: **server** pages use `requireUser()` / `requirePermission()` (guests → OTP login; unauthorized staff routes → 404, hidden not revealed). **Client** UI uses `<Can permission>` and `<Protected>`. The server always enforces; client checks are UX only.
+Guards: **server** pages use `requireUser()` / `requirePermission()` (guests → OTP login; unauthorized staff routes → 404, hidden not revealed), and `middleware.ts` gates `/admin/*` at the edge from `ADMIN_PATH_PERMISSIONS`. The server always enforces; **every client-side check below is UX only** — it decides which controls are worth rendering, never whether an action is allowed.
+
+### Gating client UI
+
+There is **no `<Can>` / `<Protected>` wrapper component**. Client components call the same pure `can(role, permission)` from `lib/auth/roles.ts` that the server guards use, reading the role straight off the auth store:
+
+```tsx
+import { useAuthStore } from '@/lib/stores/auth';
+import { can } from '@/lib/auth/roles';
+
+const role = useAuthStore((s) => s.user?.role);
+if (!can(role, 'leads:read')) return null;
+```
+
+Why a plain function and not a component:
+
+- **Bundle.** `useAuth()` (`lib/hooks/useAuth.ts`) also exposes `.can()` / `.canAccessAdmin()`, but it imports the `@/lib/api` barrel — and with it the zod catalog/market schemas. Anything in the **admin shell** (rendered on every panel page) must therefore use `useAuthStore` + `can()` directly and keep the barrel off that critical path. `useAuth()` stays the right call on public pages that already need `logout` / `refresh` / `isAuthenticated` (`LogoutButton`, `PriceTable`, `SkuDetail`).
+- **Most gates aren't "hide this subtree."** They compute a *value* — `AdminAlerts` turns the role into a polling scope (`'global' | 'desk' | null`), not a visibility flag — or they ask a rule that takes more than a permission string, like `canChangeLeadAssignee(actor, before, next)` in `LeadDetail`, whose result drives several controls at once.
+- **`can()` fails closed** on a missing role, so the first paint while the session hydrates hides staff controls rather than flashing one the user may not be allowed to use.
+
+Rules that both a route handler and the UI need to agree on live in `lib/auth/roles.ts` as pure, id-based functions (`can`, `canAccessAdmin`, `canChangeLeadAssignee`) — the UI asks the *same* function as the API, so a button can never appear that the server would answer 403 to.
+
+Reference call sites: `components/admin/AdminAlerts.tsx`, `components/admin/leads/LeadDetail.tsx`.
 
 ## Security notes
 
@@ -65,7 +87,7 @@ Guards: **server** pages use `requireUser()` / `requirePermission()` (guests →
 ```
 lib/auth/{types,roles,crypto,jwt,store,sms,service,session,guards,origin,apiError,publicUser}.ts
 lib/hooks/useAuth.ts · lib/providers/AuthHydrator.tsx (seed + silent refresh)
-components/auth/{LogoutButton,ProfileForm,Can,Protected}.tsx
+components/auth/{LogoutButton,ProfileForm}.tsx
 app/api/auth/otp/{request,verify}/route.ts · app/api/auth/{refresh,logout}/route.ts
 app/api/me/route.ts · app/api/me/profile/route.ts
 app/حساب/[[...tab]]/page.tsx (guarded dashboard)
