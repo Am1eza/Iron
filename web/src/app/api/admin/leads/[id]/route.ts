@@ -7,7 +7,7 @@ import { findLead, leadItemsOf, leadNotesOf, proformasOfLead, softDeleteLead, up
 import { recomputeTier } from '@/lib/server/repos/clubRepo';
 import { getDb } from '@/lib/server/db/client';
 import { users } from '@/lib/server/db/schema';
-import { ROLES, ROLE_LABEL, can, isStaff } from '@/lib/auth/roles';
+import { ROLES, ROLE_LABEL, can, canChangeLeadAssignee, isStaff } from '@/lib/auth/roles';
 
 /** GET /api/admin/leads/{id} — full lead: items, notes, proformas. */
 async function GETImpl(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
@@ -86,9 +86,23 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }
 
   const before = await findLead(id);
   if (!before) return NextResponse.json({ error: 'not_found', message: 'سرنخ یافت نشد.' }, { status: 404 });
-  if (v.data.assigneeId) {
-    const bad = await rejectUnassignable(v.data.assigneeId);
-    if (bad) return bad;
+  if (v.data.assigneeId !== undefined) {
+    // 403, not the route-level 404: this caller legitimately holds leads:write
+    // and belongs on this endpoint — they are being refused ONE field, and a
+    // «یافت نشد» here would read as a broken panel rather than a rule.
+    if (!canChangeLeadAssignee(auth.session, before.assigneeId, v.data.assigneeId)) {
+      return NextResponse.json(
+        {
+          error: 'assign_forbidden',
+          message: 'واگذاری سرنخ به کارشناس دیگر فقط از عهدهٔ مدیر سیستم برمی‌آید. شما می‌توانید سرنخ بدون کارشناس را برای خودتان بردارید یا سرنخ خودتان را رها کنید.',
+        },
+        { status: 403 },
+      );
+    }
+    if (v.data.assigneeId) {
+      const bad = await rejectUnassignable(v.data.assigneeId);
+      if (bad) return bad;
+    }
   }
   const lead = await updateLead(id, {
     status: v.data.status,
@@ -116,11 +130,16 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }
 /** DELETE /api/admin/leads/{id} — archive (soft-delete) a spam/duplicate/test
  *  lead. Preserves the row (and its audit trail) for compliance — see the
  *  `deletedAt` column comment in the schema; it just drops out of the normal
- *  admin working set. */
+ *  admin working set.
+ *
+ *  `leads:manage`, not `leads:write`: this makes a deal vanish from every
+ *  working view and from the team's numbers. It has no UI at all, so until now
+ *  the only thing standing between a rep and quietly burying a lead they had
+ *  mishandled was not knowing the endpoint existed. */
 async function DELETEImpl(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const guard = requireDb();
   if (guard) return guard;
-  const auth = await requireApiPermission(req, 'leads:write');
+  const auth = await requireApiPermission(req, 'leads:manage');
   if ('response' in auth) return auth.response;
   const { id } = await ctx.params;
   const lead = await softDeleteLead(id);

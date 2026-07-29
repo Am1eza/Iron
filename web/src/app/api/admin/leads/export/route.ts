@@ -1,5 +1,5 @@
 import type { NextRequest } from 'next/server';
-import { requireApiPermission, requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
+import { audit, requireApiPermission, requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { adminListLeads } from '@/lib/server/repos/leadsRepo';
 import { csvResponse } from '@/lib/server/utils/csv';
 import { parseLeadListFilters } from '../filters';
@@ -17,11 +17,21 @@ async function GETImpl(req: NextRequest) {
   const auth = await requireApiPermission(req, 'leads:read');
   if ('response' in auth) return auth.response;
 
-  const { leads } = await adminListLeads({
-    ...parseLeadListFilters(req.nextUrl.searchParams),
-    page: 1,
-    perPage: EXPORT_MAX_ROWS,
-  });
+  const filters = parseLeadListFilters(req.nextUrl.searchParams);
+  const { leads } = await adminListLeads({ ...filters, page: 1, perPage: EXPORT_MAX_ROWS });
+
+  // Every other admin write is audited; this READ walks out of the building
+  // with up to 5000 customers' names and mobile numbers and left no trace at
+  // all — the one action where "who pulled the customer list, and which slice
+  // of it" is the exact question an investigation starts from.
+  await audit(
+    auth.session.id,
+    'lead.export',
+    { type: 'lead', id: 'bulk' },
+    null,
+    { rows: leads.length, capped: leads.length >= EXPORT_MAX_ROWS, filters },
+  );
+
   const rows = leads.map((l) => [
     l.ref,
     l.contactName,

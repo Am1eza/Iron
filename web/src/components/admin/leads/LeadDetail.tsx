@@ -11,7 +11,7 @@ import { adminApi, type AdminLead, type AdminProforma } from '@/lib/api/resource
 import { http } from '@/lib/api/http';
 import type { LineItem, Order, PriceUnit } from '@/lib/types/domain';
 import { useAuthStore } from '@/lib/stores/auth';
-import { ROLE_LABEL } from '@/lib/auth/roles';
+import { ROLE_LABEL, can, canChangeLeadAssignee } from '@/lib/auth/roles';
 import type { Role } from '@/lib/auth/types';
 import { formatToman, normalizeDigits, toPersianDigits } from '@/lib/utils/format';
 import { formatJalali } from '@/lib/utils/jalali';
@@ -472,6 +472,18 @@ export function LeadDetail({ id }: { id: string }) {
 
   const itemsLocked = Boolean(activeProforma);
   const canIssue = pricedCount > 0 && lead.status !== 'lost';
+
+  // Ownership controls, asked of the shared rule rather than re-derived here.
+  // `currentUser` is null while the session hydrates, and `can()` fails closed
+  // on a missing role — so the first paint hides these rather than flashing a
+  // control the rep may not be allowed to use.
+  const canManageLeads = can(currentUser?.role, 'leads:manage');
+  const actorId = currentUser?.id ?? null;
+  const actor = { id: actorId ?? '', role: currentUser?.role };
+  const canClaim =
+    actorId !== null && lead.assigneeId !== actorId && canChangeLeadAssignee(actor, lead.assigneeId, actorId);
+  const canRelease =
+    actorId !== null && lead.assigneeId !== null && canChangeLeadAssignee(actor, lead.assigneeId, null);
 
   // The single place a call's outcome turns into lead state. Declined hands
   // off to the existing lost-reason modal rather than duplicating its
@@ -949,29 +961,48 @@ export function LeadDetail({ id }: { id: string }) {
             <section className={s.section}>
               <h3 className={s.h}>واگذاری و پیگیری</h3>
               <div className={s.assign}>
-                {currentUser && lead.assigneeId !== currentUser.id ? (
-                  <Button size="sm" variant="secondary" onClick={() => assign.mutate(currentUser.id)} loading={assign.isPending}>
+                {/* Who may move ownership is a server rule (canChangeLeadAssignee);
+                    the UI asks that SAME function rather than re-deriving it, so a
+                    button can never appear that the API would answer 403 to. */}
+                {canClaim ? (
+                  <Button size="sm" variant="secondary" onClick={() => assign.mutate(actorId)} loading={assign.isPending}>
                     سرنخ من
                   </Button>
                 ) : null}
-                <div className={s.field}>
-                  <label className={s.fieldLabel} htmlFor={`assignee-${id}`}>
-                    کارشناس مسئول
-                  </label>
-                  <select
-                    id={`assignee-${id}`}
-                    className={ui.select}
-                    value={lead.assigneeId ?? ''}
-                    onChange={(e) => assign.mutate(e.target.value || null)}
-                  >
-                    <option value="">— بدون کارشناس —</option>
-                    {staff.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {(m.name ?? m.mobile) + ' · ' + ROLE_LABEL[m.role as Role]}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {canRelease ? (
+                  <Button size="sm" variant="ghost" onClick={() => assign.mutate(null)} loading={assign.isPending}>
+                    رها کردن سرنخ
+                  </Button>
+                ) : null}
+                {canManageLeads ? (
+                  <div className={s.field}>
+                    <label className={s.fieldLabel} htmlFor={`assignee-${id}`}>
+                      کارشناس مسئول
+                    </label>
+                    <select
+                      id={`assignee-${id}`}
+                      className={ui.select}
+                      value={lead.assigneeId ?? ''}
+                      onChange={(e) => assign.mutate(e.target.value || null)}
+                    >
+                      <option value="">— بدون کارشناس —</option>
+                      {staff.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {(m.name ?? m.mobile) + ' · ' + ROLE_LABEL[m.role as Role]}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <div className={s.field}>
+                    <span className={s.fieldLabel}>کارشناس مسئول</span>
+                    <span className={s.assigneeName}>
+                      {lead.assigneeId
+                        ? (staffNameById.get(lead.assigneeId) ?? 'کارشناس نامشخص')
+                        : '— بدون کارشناس —'}
+                    </span>
+                  </div>
+                )}
                 <div className={s.field}>
                   <span className={s.fieldLabel}>زمان تماس بعدی</span>
                   <JalaliDateField
@@ -980,6 +1011,12 @@ export function LeadDetail({ id }: { id: string }) {
                     label="زمان تماس بعدی (شمسی)"
                   />
                 </div>
+                {!canManageLeads ? (
+                  <p className={s.hint}>
+                    واگذاری سرنخ به کارشناس دیگر فقط از عهدهٔ مدیر سیستم برمی‌آید. شما می‌توانید سرنخ بدون کارشناس را
+                    برای خودتان بردارید یا سرنخ خودتان را رها کنید.
+                  </p>
+                ) : null}
               </div>
             </section>
           </div>

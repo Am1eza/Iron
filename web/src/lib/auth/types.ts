@@ -15,6 +15,7 @@ export type Permission =
   | 'market:write'
   | 'leads:read'
   | 'leads:write'
+  | 'leads:manage'
   | 'content:write'
   | 'content:publish'
   | 'club:manage'

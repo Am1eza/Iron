@@ -52,6 +52,7 @@ export const ACTION_META: Record<string, ActionMeta> = {
   'lead.proforma': { verb: 'پیش‌فاکتور صادر کرد', tone: 'money' },
   'lead.order': { verb: 'از سرنخ سفارش ثبت کرد', tone: 'money' },
   'lead.delete': { verb: 'سرنخ را حذف کرد', tone: 'destroy' },
+  'lead.export': { verb: 'خروجی اکسل سرنخ‌ها را گرفت', tone: 'access' },
 
   'market.billet': { verb: 'قیمت شمش بازار را ثبت کرد', tone: 'money' },
   'media.upload': { verb: 'فایل بارگذاری کرد', tone: 'create' },

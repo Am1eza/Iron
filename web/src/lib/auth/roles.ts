@@ -27,6 +27,7 @@ const ADMIN_ALL: Permission[] = [
   'market:write',
   'leads:read',
   'leads:write',
+  'leads:manage',
   'content:write',
   'content:publish',
   'club:manage',
@@ -55,6 +56,34 @@ export function can(role: Role | undefined | null, permission: Permission): bool
 /** Convenience: can the role enter the admin area at all? */
 export function canAccessAdmin(role: Role | undefined | null): boolean {
   return can(role, 'admin:access');
+}
+
+/**
+ * May this actor move a lead's ownership from `before` to `next`?
+ *
+ * `leads:write` is the DAY-TO-DAY work of whoever holds a lead (call it, price
+ * it, quote it, close it). Deciding WHO holds it is a manager's call, so it
+ * needs `leads:manage`: without this split any «کارشناس فروش» could reassign a
+ * colleague's lead onto themselves the moment it looked like closing, and the
+ * only trace was an audit row nobody reads.
+ *
+ * A rep still owns their own place in the queue, which is the whole point of
+ * «سرنخ من» — so the two self-service moves stay open to `leads:write`:
+ * claiming a lead nobody holds, and handing back one they hold. Everything
+ * else (taking from a colleague, giving to a colleague) is manager-only.
+ *
+ * Pure and id-based so both the route guard and the UI can ask the same
+ * question and never disagree about which buttons should exist.
+ */
+export function canChangeLeadAssignee(
+  actor: { id: string; role: Role | undefined | null },
+  before: string | null,
+  next: string | null,
+): boolean {
+  if (before === next) return true; // no-op: nothing to authorize
+  if (can(actor.role, 'leads:manage')) return true;
+  if (!can(actor.role, 'leads:write')) return false;
+  return (before === null && next === actor.id) || (before === actor.id && next === null);
 }
 
 /**

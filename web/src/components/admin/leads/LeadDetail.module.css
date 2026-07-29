@@ -383,6 +383,15 @@
   gap: var(--space-3);
 }
 
+/* Read-only stand-in for the assignee <select> where the rep may not reassign,
+   so the row keeps its shape between an admin's view and a rep's. */
+.assigneeName {
+  display: block;
+  padding-block: var(--space-2);
+  font: var(--t-label);
+  color: var(--color-text-strong);
+}
+
 /* ---------- history disclosure ---------- */
 
 .history > summary {
