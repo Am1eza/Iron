@@ -1,14 +1,24 @@
 /**
- * SMS.ir bulk send — free-text notifications (پیش‌فاکتور refs, alert
- * crossings), the locked provider (see AUTH.md). OTP uses the separate
- * Verify-template API (`auth/sms.ts`) since a registered template + fixed
- * "Code" placeholder is the right fit for a transactional code; these are
- * fully dynamic composed sentences instead (ref numbers, prices, product
- * names), so the bulk send-to-line endpoint is the right fit — no template
- * to register on the SMS.ir panel. Outside production a missing API key/line
- * still falls back to console + sms_log 'dev_logged'; IN production it fails
- * closed exactly like OTP (`auth/sms.ts`) — see sendSms for the outage that
- * forced that change.
+ * SMS.ir sending — the locked provider (see AUTH.md). Two APIs, two very
+ * different reliability profiles:
+ *
+ *  - `sendTemplate` — the Verify/template API. Rides SMS.ir's own service-
+ *    line pool automatically (no lineNumber, and SMS.ir's own docs name
+ *    "اطلاع‌رسانی وضعیت سفارشات" — order-status notifications — as an
+ *    intended use, not just OTP codes). This is why OTP kept working
+ *    through the 2026-07 line-number outage while everything below did not:
+ *    OTP was already on this path.
+ *  - `sendSms` — free-text bulk send on `SMSIR_LINE_NUMBER`. Content- and
+ *    line-type-sensitive (a wrong/advertising line 400s or silently never
+ *    arrives) and the only option for genuinely unstructured text (a staff
+ *    member's typed reply) that can't be pre-approved as a template.
+ *
+ * `sendNotification` is the seam between the two: pass a template env var
+ * name + params, and it uses the template if the owner has registered and
+ * configured one, falling back to the equivalent free-text send otherwise —
+ * so every notification below upgrades to the template path the moment its
+ * SMSIR_TEMPLATE_ID_* is set, with zero code change and no risk of a message
+ * silently stopping if the env var is ever unset again.
  */
 import { ulid } from 'ulid';
 import { reportError } from '@/lib/errors/report';
@@ -190,4 +200,115 @@ export async function sendSms(mobile: string, text: string, kind: SmsKind = 'gen
     );
     return permanent ? { ok: false, permanent: true } : { ok: false };
   }
+}
+
+/* --------------------------- templated (Verify) --------------------------- */
+
+export interface TemplateParam {
+  /** Must equal the placeholder text between the # signs in the registered
+   *  panel template EXACTLY — see auth/sms.ts's OTP template for the same
+   *  contract. A mismatched name delivers the literal "#NAME#" to the user. */
+  name: string;
+  value: string;
+}
+
+/** SMS.ir caps a Verify template parameter's VALUE at 25 characters — long
+ *  refs/amounts/labels are truncated defensively instead of failing the
+ *  send. `…` is 1 char, so the cut is at max-1. */
+export function truncateParam(value: string, max = 25): string {
+  return value.length > max ? `${value.slice(0, max - 1)}…` : value;
+}
+
+/**
+ * Templated send via SMS.ir's Verify API (POST /v1/send/verify/) — the same
+ * endpoint OTP uses (auth/sms.ts), generalized to any registered template.
+ * No lineNumber: SMS.ir routes these on its own service-line pool.
+ */
+export async function sendTemplate(
+  mobile: string,
+  templateId: string,
+  params: TemplateParam[],
+  kind: SmsKind,
+): Promise<SmsSendResult> {
+  const apiKey = process.env.SMSIR_API_KEY;
+  if (!apiKey) {
+    if (isProd()) {
+      reportError(new Error('SMS.ir template send unconfigured in production: SMSIR_API_KEY missing'), {
+        scope: 'sms',
+        kind,
+      });
+      await log(mobile, kind, { templateId, params, error: 'unconfigured: SMSIR_API_KEY' }, 'failed');
+      return { ok: false, permanent: true };
+    }
+    console.info(`[sms:dev] ${kind} template ${templateId} → ${mobile}: ${JSON.stringify(params)}`);
+    await log(mobile, kind, { templateId, params }, 'dev_logged');
+    return { ok: true };
+  }
+  try {
+    const res = await withResilience(
+      'smsir-verify',
+      async () => {
+        const r = await fetch('https://api.sms.ir/v1/send/verify/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'x-api-key': apiKey },
+          body: JSON.stringify({
+            Mobile: mobile,
+            TemplateId: Number(templateId),
+            Parameters: params.map((p) => ({ name: p.name, value: p.value })),
+          }),
+          signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+        });
+        if (!r.ok) throw new SmsHttpError(r.status, await readProviderMessage(r));
+        return r;
+      },
+      {
+        retries: 1,
+        baseDelayMs: 200,
+        isRetryable: (err) => err instanceof SmsHttpError && (err.status >= 500 || err.status === 429),
+      },
+    );
+    const body = (await res.json().catch(() => null)) as { status?: number; message?: string } | null;
+    const ok = typeof body?.status === 'number' && body.status === 1;
+    if (ok) {
+      await log(mobile, kind, { templateId, params }, 'sent');
+      return { ok: true };
+    }
+    const reason = body
+      ? `sms.ir status ${body.status}${body.message ? `: ${scrubPii(String(body.message)).slice(0, PROVIDER_MESSAGE_MAX)}` : ''}`
+      : 'sms.ir verify: unparseable response body';
+    await log(mobile, kind, { templateId, params, error: reason }, 'failed');
+    reportError(new Error(reason), { scope: 'sms', kind });
+    return { ok: false };
+  } catch (err) {
+    reportError(err, { scope: 'sms', kind });
+    const permanent = isPermanentRejection(err);
+    await log(
+      mobile,
+      kind,
+      { templateId, params, error: err instanceof Error ? scrubPii(err.message) : 'unknown', ...(permanent ? { permanent: true } : {}) },
+      'failed',
+    );
+    return permanent ? { ok: false, permanent: true } : { ok: false };
+  }
+}
+
+export interface NotificationSpec {
+  /** Name of the env var holding this notification's SMS.ir template id
+   *  (e.g. 'SMSIR_TEMPLATE_ID_PROFORMA_ISSUED'). Unset → fallbackText ships
+   *  on the bulk line instead, exactly like today. */
+  templateEnvVar: string;
+  params: TemplateParam[];
+  fallbackText: string;
+  kind: SmsKind;
+}
+
+/**
+ * The seam every customer-facing notification should call through instead of
+ * `sendSms` directly: templated the moment the owner registers + configures
+ * a template, free-text bulk send until then. Nothing regresses either way.
+ */
+export async function sendNotification(mobile: string, spec: NotificationSpec): Promise<SmsSendResult> {
+  const templateId = process.env[spec.templateEnvVar];
+  if (templateId) return sendTemplate(mobile, templateId, spec.params, spec.kind);
+  return sendSms(mobile, spec.fallbackText, spec.kind);
 }

@@ -6,6 +6,7 @@
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { resetCircuitBreakers } from '@/lib/server/utils/resilience';
+import { truncateParam } from './smsir';
 
 describe('sendSms (bulk)', () => {
   beforeEach(() => {
@@ -313,5 +314,144 @@ describe('sendSms (bulk)', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe('truncateParam', () => {
+  it('leaves short values untouched', () => {
+    expect(truncateParam('PF-14050411-0001')).toBe('PF-14050411-0001');
+  });
+
+  it('cuts to the SMS.ir 25-char cap and marks the cut with an ellipsis', () => {
+    const long = 'A'.repeat(40);
+    const out = truncateParam(long);
+    expect(out.length).toBe(25);
+    expect(out.endsWith('…')).toBe(true);
+    expect(out.slice(0, 24)).toBe('A'.repeat(24));
+  });
+});
+
+describe('sendTemplate (Verify API)', () => {
+  beforeEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+    vi.resetModules();
+    resetCircuitBreakers();
+  });
+
+  it('dev/unconfigured: logs and returns ok without calling fetch', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const { sendTemplate } = await import('./smsir');
+
+    const result = await sendTemplate('09120000000', '577777', [{ name: 'REF', value: 'PF-1' }], 'proforma');
+
+    expect(result).toEqual({ ok: true });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('production + missing API key: fails closed instead of faking a send', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const { sendTemplate } = await import('./smsir');
+
+    const result = await sendTemplate('09120000000', '577777', [{ name: 'REF', value: 'PF-1' }], 'proforma');
+
+    expect(result).toEqual({ ok: false, permanent: true });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('calls the Verify endpoint with the exact SMS.ir shape (no lineNumber)', async () => {
+    vi.stubEnv('SMSIR_API_KEY', 'test-key');
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ status: 1, message: 'ok', data: { messageId: 1 } }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const { sendTemplate } = await import('./smsir');
+
+    const result = await sendTemplate(
+      '09120000000',
+      '577777',
+      [
+        { name: 'REF', value: 'PF-14050411-0001' },
+        { name: 'AMOUNT', value: '۷۸۲٬۶۵۰' },
+      ],
+      'proforma',
+    );
+
+    expect(result).toEqual({ ok: true });
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe('https://api.sms.ir/v1/send/verify/');
+    expect(init.headers).toMatchObject({ 'x-api-key': 'test-key' });
+    expect(JSON.parse(init.body)).toEqual({
+      Mobile: '09120000000',
+      TemplateId: 577777,
+      Parameters: [
+        { name: 'REF', value: 'PF-14050411-0001' },
+        { name: 'AMOUNT', value: '۷۸۲٬۶۵۰' },
+      ],
+    });
+  });
+
+  it('a non-1 status in the response body is a failure', async () => {
+    vi.stubEnv('SMSIR_API_KEY', 'test-key');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ status: 2, message: 'rejected' }) }));
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { sendTemplate } = await import('./smsir');
+
+    expect(await sendTemplate('09120000000', '577777', [{ name: 'REF', value: 'PF-1' }], 'proforma')).toEqual({ ok: false });
+    errSpy.mockRestore();
+  });
+});
+
+describe('sendNotification (template-if-configured, else free-text fallback)', () => {
+  beforeEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+    vi.resetModules();
+    resetCircuitBreakers();
+  });
+
+  it('uses the free-text bulk send when the template env var is unset (today\'s behaviour)', async () => {
+    vi.stubEnv('SMSIR_API_KEY', 'test-key');
+    vi.stubEnv('SMSIR_LINE_NUMBER', '3000123456');
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ status: 1 }) });
+    vi.stubGlobal('fetch', fetchMock);
+    const { sendNotification } = await import('./smsir');
+
+    const result = await sendNotification('09120000000', {
+      templateEnvVar: 'SMSIR_TEMPLATE_ID_PROFORMA_ISSUED',
+      params: [{ name: 'REF', value: 'PF-1' }],
+      fallbackText: 'آهن‌تایم: پیش‌فاکتور شما صادر شد.',
+      kind: 'proforma',
+    });
+
+    expect(result).toEqual({ ok: true });
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe('https://api.sms.ir/v1/send/bulk'); // NOT /send/verify/
+    expect(JSON.parse(init.body).MessageText).toBe('آهن‌تایم: پیش‌فاکتور شما صادر شد.');
+  });
+
+  it('switches to the templated Verify send the instant the template env var is set — no other code change', async () => {
+    vi.stubEnv('SMSIR_API_KEY', 'test-key');
+    vi.stubEnv('SMSIR_LINE_NUMBER', '3000123456'); // present but must NOT be used
+    vi.stubEnv('SMSIR_TEMPLATE_ID_PROFORMA_ISSUED', '577777');
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ status: 1 }) });
+    vi.stubGlobal('fetch', fetchMock);
+    const { sendNotification } = await import('./smsir');
+
+    const result = await sendNotification('09120000000', {
+      templateEnvVar: 'SMSIR_TEMPLATE_ID_PROFORMA_ISSUED',
+      params: [{ name: 'REF', value: 'PF-1' }],
+      fallbackText: 'آهن‌تایم: پیش‌فاکتور شما صادر شد.',
+      kind: 'proforma',
+    });
+
+    expect(result).toEqual({ ok: true });
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe('https://api.sms.ir/v1/send/verify/');
+    expect(JSON.parse(init.body).TemplateId).toBe(577777);
   });
 });

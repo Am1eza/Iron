@@ -7,9 +7,9 @@ import {
   activeProformaOfLead,
   issueProforma,
   markLeadQuoted,
-  proformaSmsText,
+  proformaSmsNotification,
 } from '@/lib/server/services/leads.service';
-import { sendSms } from '@/lib/server/integrations/smsir';
+import { sendNotification } from '@/lib/server/integrations/smsir';
 import { formatJalali } from '@/lib/utils/jalali';
 
 // Optional body — a bare POST (no body at all) is the common case and must
@@ -122,10 +122,9 @@ async function POSTImpl(req: NextRequest, ctx: { params: Promise<{ id: string }>
       // The send outcome is REPORTED, never fatal: the proforma is durably
       // issued and viewable at /proforma/{ref}, so a dead SMS gateway must not
       // roll the rep's work back — it must just stop us claiming it landed.
-      const sms = await sendSms(
+      const sms = await sendNotification(
         lead.contactMobile,
-        proformaSmsText(proforma.ref, proforma.total, proforma.validUntil),
-        'proforma',
+        proformaSmsNotification(proforma.ref, proforma.total, proforma.validUntil),
       );
       await audit(
         auth.session.id,

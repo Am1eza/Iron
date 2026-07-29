@@ -17,7 +17,7 @@ import { and, eq, gte, isNotNull, lte, sql } from 'drizzle-orm';
 import { getDb } from '@/lib/server/db/client';
 import { leads, proformas, smsLog, users } from '@/lib/server/db/schema';
 import { getSetting } from '@/lib/server/repos/settingsRepo';
-import { sendSms } from '@/lib/server/integrations/smsir';
+import { sendNotification, truncateParam, type NotificationSpec } from '@/lib/server/integrations/smsir';
 import { formatToman } from '@/lib/utils/format';
 import { formatJalali } from '@/lib/utils/jalali';
 import type { Job } from './scheduler';
@@ -54,17 +54,17 @@ async function alreadySent(dedupKey: string): Promise<boolean> {
  *  logs {text}; we log a second marker row is avoided by passing kind and
  *  relying on its own log — so instead we check-then-send and accept the tiny
  *  race (the 30-min tick is single-flight via runExclusive). */
-async function sendOnce(dedupKey: string, mobile: string, text: string): Promise<void> {
+async function sendOnce(dedupKey: string, mobile: string, spec: NotificationSpec): Promise<void> {
   if (await alreadySent(dedupKey)) return;
-  const { ok } = await sendSms(mobile, text, 'generic');
+  const { ok } = await sendNotification(mobile, spec);
   if (!ok) return; // failed sends may retry next tick
-  // Stamp the marker (sendSms already wrote a row without the key; one tiny
-  // marker row keeps dedup exact without changing sendSms's signature).
+  // Stamp the marker (sendNotification already wrote a row without the key;
+  // one tiny marker row keeps dedup exact without changing its signature).
   const { ulid } = await import('ulid');
   await getDb().insert(smsLog).values({
     id: ulid(),
     to: mobile,
-    kind: 'generic',
+    kind: spec.kind,
     payload: { auto: dedupKey },
     status: 'sent',
   });
@@ -89,7 +89,18 @@ async function proformaReminders(): Promise<void> {
   const site = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://ahantime.com';
   for (const r of rows) {
     const text = `آهن‌تایم: اعتبار پیش‌فاکتور ${r.ref} (${formatToman(r.total)}) تا ${formatJalali(r.validUntil)} است. برای نهایی‌کردن: ${site}/proforma/${r.ref}`;
-    await sendOnce(`pf-reminder:${r.ref}`, r.mobile, text);
+    // Templated the moment SMSIR_TEMPLATE_ID_PROFORMA_REMINDER is set — see
+    // docs/SMS-TEMPLATES.md; falls back to `text` above until then.
+    await sendOnce(`pf-reminder:${r.ref}`, r.mobile, {
+      templateEnvVar: 'SMSIR_TEMPLATE_ID_PROFORMA_REMINDER',
+      params: [
+        { name: 'REF', value: truncateParam(r.ref) },
+        { name: 'AMOUNT', value: truncateParam(formatToman(r.total, false)) },
+        { name: 'EXPIRY', value: truncateParam(formatJalali(r.validUntil)) },
+      ],
+      fallbackText: text,
+      kind: 'proforma',
+    });
   }
 }
 
@@ -123,7 +134,15 @@ async function callbackReminders(): Promise<void> {
   for (const r of rows) {
     const who = r.contactName ? `${r.contactName} (${r.contactMobile})` : r.contactMobile;
     const text = `آهن‌تایم: یادآوری تماس — سرنخ ${r.ref}، ${who}. پنل: /admin/desk`;
-    await sendOnce(`cb-reminder:${r.id}:${r.callbackAt?.toISOString().slice(0, 10)}`, r.repMobile, text);
+    // Internal (staff-to-staff), low-priority — left on the free-text bulk
+    // line rather than a registered template; the env var still exists so it
+    // upgrades for free if one is ever added, same as everything else here.
+    await sendOnce(`cb-reminder:${r.id}:${r.callbackAt?.toISOString().slice(0, 10)}`, r.repMobile, {
+      templateEnvVar: 'SMSIR_TEMPLATE_ID_CALLBACK_REMINDER',
+      params: [{ name: 'REF', value: truncateParam(r.ref) }],
+      fallbackText: text,
+      kind: 'generic',
+    });
   }
 }
 

@@ -12,7 +12,7 @@
  * the SMS, regardless of scheduler-level locking.
  */
 import { activeAlertsWithValues, claimAlertForTrigger } from '@/lib/server/repos/alertsRepo';
-import { sendSms } from '@/lib/server/integrations/smsir';
+import { sendNotification, truncateParam } from '@/lib/server/integrations/smsir';
 import { formatToman } from '@/lib/utils/format';
 
 export async function evaluateAlerts(): Promise<number> {
@@ -28,9 +28,22 @@ export async function evaluateAlerts(): Promise<number> {
     if (!claimed) continue; // another concurrent evaluator already fired this one
 
     const label = r.skuName ?? r.marketLabel ?? 'شاخص';
-    const text = `آهن‌تایم: ${label} به ${formatToman(value, false)} تومان رسید (هدف شما: ${r.alert.op === 'below' ? 'زیر' : 'بالای'} ${formatToman(r.alert.threshold, false)}). ahantime.com`;
+    const dir = r.alert.op === 'below' ? 'زیر' : 'بالای';
+    const text = `آهن‌تایم: ${label} به ${formatToman(value, false)} تومان رسید (هدف شما: ${dir} ${formatToman(r.alert.threshold, false)}). ahantime.com`;
     // Non-SMS channels aren't integrated yet — the send is recorded either way.
-    await sendSms(r.mobile, text, 'alert');
+    // Templated the moment SMSIR_TEMPLATE_ID_PRICE_ALERT is set — see
+    // docs/SMS-TEMPLATES.md; falls back to the free-text `text` above until then.
+    await sendNotification(r.mobile, {
+      templateEnvVar: 'SMSIR_TEMPLATE_ID_PRICE_ALERT',
+      params: [
+        { name: 'LABEL', value: truncateParam(label) },
+        { name: 'VALUE', value: truncateParam(formatToman(value, false)) },
+        { name: 'DIR', value: dir },
+        { name: 'THRESHOLD', value: truncateParam(formatToman(r.alert.threshold, false)) },
+      ],
+      fallbackText: text,
+      kind: 'alert',
+    });
     fired++;
   }
   return fired;

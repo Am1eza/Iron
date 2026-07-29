@@ -21,19 +21,56 @@ import { insertRequest } from '@/lib/server/repos/requestsRepo';
 import { getVatRate, getHolidays, getSetting } from '@/lib/server/repos/settingsRepo';
 import { nextRef } from '@/lib/server/utils/refs';
 import { quoteValidUntil } from '@/lib/server/utils/jalali';
-import { sendSms } from '@/lib/server/integrations/smsir';
+import { sendNotification, truncateParam, type TemplateParam } from '@/lib/server/integrations/smsir';
 import { getPriceFreshness } from '@/lib/server/services/priceFreshness';
 import { publicEnv } from '@/lib/validation/env';
 import { formatToman } from '@/lib/utils/format';
 import { formatJalali } from '@/lib/utils/jalali';
 
-/** Shared proforma-ref SMS text — used on first issue and on admin re-issue. */
+/** Shared proforma-ref SMS text — used on first issue and on admin re-issue.
+ *  Also the fallback for proformaSmsNotification() below when no template is
+ *  configured yet — keep the two in wording-sync. */
 export function proformaSmsText(ref: string, total?: number, validUntil?: Date): string {
   const link = `${publicEnv.NEXT_PUBLIC_SITE_URL}/proforma/${ref}`;
   if (total && validUntil) {
     return `آهن‌تایم: پیش‌فاکتور شما صادر شد. کد پیگیری: ${ref} — مبلغ: ${formatToman(total)} — اعتبار تا ${formatJalali(validUntil)} ساعت ۱۱:۰۰. مشاهده: ${link}`;
   }
   return `آهن‌تایم: درخواست شما با کد پیگیری ${ref} ثبت شد. کارشناسان ما به‌زودی با شما تماس می‌گیرند. پیگیری: ${link}`;
+}
+
+/**
+ * The same message as a NotificationSpec — templated the moment the owner
+ * registers SMSIR_TEMPLATE_ID_PROFORMA_REQUEST / _ISSUED on the SMS.ir panel
+ * (see docs/SMS-TEMPLATES.md for the exact text to submit), free-text bulk
+ * send on the fixed line until then. Two DIFFERENT templates, not one with
+ * optional params — "your request was received" and "here is your priced
+ * quote" are different intents a customer reads differently, and SMS.ir
+ * templates are fixed text around the placeholders, not conditional.
+ */
+export function proformaSmsNotification(
+  ref: string,
+  total?: number,
+  validUntil?: Date,
+): { templateEnvVar: string; params: TemplateParam[]; fallbackText: string; kind: 'proforma' } {
+  const fallbackText = proformaSmsText(ref, total, validUntil);
+  if (total && validUntil) {
+    return {
+      templateEnvVar: 'SMSIR_TEMPLATE_ID_PROFORMA_ISSUED',
+      params: [
+        { name: 'REF', value: truncateParam(ref) },
+        { name: 'AMOUNT', value: truncateParam(formatToman(total, false)) },
+        { name: 'EXPIRY', value: truncateParam(formatJalali(validUntil)) },
+      ],
+      fallbackText,
+      kind: 'proforma',
+    };
+  }
+  return {
+    templateEnvVar: 'SMSIR_TEMPLATE_ID_PROFORMA_REQUEST',
+    params: [{ name: 'REF', value: truncateParam(ref) }],
+    fallbackText,
+    kind: 'proforma',
+  };
 }
 
 /** Shared order-confirmation SMS text. «تبدیل به سفارش» minted a tracking ref
@@ -45,6 +82,18 @@ export function proformaSmsText(ref: string, total?: number, validUntil?: Date):
 export function orderSmsText(ref: string): string {
   const link = `${publicEnv.NEXT_PUBLIC_SITE_URL}/track`;
   return `آهن‌تایم: سفارش شما ثبت شد. کد رهگیری: ${ref} — پیگیری وضعیت ارسال: ${link}`;
+}
+
+/** As a NotificationSpec — see proformaSmsNotification's doc comment. Owner
+ *  registers SMSIR_TEMPLATE_ID_ORDER_CONFIRMED to switch this to the
+ *  templated Verify send; the fallback (free-text bulk) is unchanged. */
+export function orderSmsNotification(ref: string): { templateEnvVar: string; params: TemplateParam[]; fallbackText: string; kind: 'generic' } {
+  return {
+    templateEnvVar: 'SMSIR_TEMPLATE_ID_ORDER_CONFIRMED',
+    params: [{ name: 'REF', value: truncateParam(ref) }],
+    fallbackText: orderSmsText(ref),
+    kind: 'generic',
+  };
 }
 
 export interface CreateLeadInput {
@@ -238,7 +287,7 @@ export async function createLead(
 
   // AFTER commit — the record is durable, so now it's safe to text the ref:
   // a priced proforma with total+validity, or a plain "request received".
-  await sendSms(input.contact.mobile, proformaSmsText(ref, result.total, validUntilDate), 'proforma');
+  await sendNotification(input.contact.mobile, proformaSmsNotification(ref, result.total, validUntilDate));
 
   return result;
 }

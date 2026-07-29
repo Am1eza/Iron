@@ -69,6 +69,15 @@ services:
       SMSIR_TEMPLATE_ID: ${SMSIR_TEMPLATE_ID:?set SMSIR_TEMPLATE_ID in .env (OTP verify template on the SMS.ir panel)}
       SMSIR_LINE_NUMBER: ${SMSIR_LINE_NUMBER:-}   # optional — پیش‌فاکتور/alert texts dev-log if unset
       SMSIR_TEMPLATE_PARAM: ${SMSIR_TEMPLATE_PARAM:-}  # verify-template placeholder name (default OTP — must match #…# in the panel template)
+      # Per-notification Verify template ids (docs/SMS-TEMPLATES.md has the
+      # exact text to register on the panel). Each optional: unset → that ONE
+      # message stays on the free-text bulk line above, nothing else changes.
+      SMSIR_TEMPLATE_ID_PROFORMA_REQUEST: ${SMSIR_TEMPLATE_ID_PROFORMA_REQUEST:-}
+      SMSIR_TEMPLATE_ID_PROFORMA_ISSUED: ${SMSIR_TEMPLATE_ID_PROFORMA_ISSUED:-}
+      SMSIR_TEMPLATE_ID_PROFORMA_REMINDER: ${SMSIR_TEMPLATE_ID_PROFORMA_REMINDER:-}
+      SMSIR_TEMPLATE_ID_ORDER_CONFIRMED: ${SMSIR_TEMPLATE_ID_ORDER_CONFIRMED:-}
+      SMSIR_TEMPLATE_ID_PRICE_ALERT: ${SMSIR_TEMPLATE_ID_PRICE_ALERT:-}
+      SMSIR_TEMPLATE_ID_CALLBACK_REMINDER: ${SMSIR_TEMPLATE_ID_CALLBACK_REMINDER:-}
       OTP_FALLBACK_AFTER_MS: ${OTP_FALLBACK_AFTER_MS:-}  # delivery-watchdog delay before 2nd-route resend (default 30000; 0 disables)
       # Analytics — each empty until the owner supplies the id (GTM/GA also
       # need a rebuild for CSP; Matomo + GSC are runtime-only).

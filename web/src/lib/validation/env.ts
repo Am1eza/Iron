@@ -38,6 +38,21 @@ const serverSchema = z
     SMSIR_API_KEY: z.string().optional(),
     SMSIR_TEMPLATE_ID: z.string().optional(),
     SMSIR_LINE_NUMBER: z.string().optional(),
+    // Verify-API template ids for structured customer notifications — each
+    // is fully optional; sendNotification() (integrations/smsir.ts) falls
+    // back to the free-text bulk send on SMSIR_LINE_NUMBER whenever unset,
+    // so nothing here can regress current behaviour. See docs/SMS-TEMPLATES.md
+    // for the exact template text to register on the SMS.ir panel and get
+    // these ids. Deliberately NOT in the production-required list below —
+    // unlike SMSIR_LINE_NUMBER, going without one of these just means that
+    // ONE message type stays on the (already-required) bulk line, not that
+    // the whole notification surface goes dark.
+    SMSIR_TEMPLATE_ID_PROFORMA_REQUEST: z.string().optional(),
+    SMSIR_TEMPLATE_ID_PROFORMA_ISSUED: z.string().optional(),
+    SMSIR_TEMPLATE_ID_PROFORMA_REMINDER: z.string().optional(),
+    SMSIR_TEMPLATE_ID_ORDER_CONFIRMED: z.string().optional(),
+    SMSIR_TEMPLATE_ID_PRICE_ALERT: z.string().optional(),
+    SMSIR_TEMPLATE_ID_CALLBACK_REMINDER: z.string().optional(),
     TGJU_BASE_URL: z.string().optional(),
     TGJU_API_KEY: z.string().optional(),
     SESSION_SECRET: z.string().optional(),

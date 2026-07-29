@@ -3,8 +3,8 @@ import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/
 import { withIdempotency } from '@/lib/server/utils/idempotency';
 import { findLead, leadItemsOf, toLineItem, updateLead } from '@/lib/server/repos/leadsRepo';
 import { createOrder } from '@/lib/server/repos/ordersRepo';
-import { orderSmsText } from '@/lib/server/services/leads.service';
-import { sendSms } from '@/lib/server/integrations/smsir';
+import { orderSmsNotification } from '@/lib/server/services/leads.service';
+import { sendNotification } from '@/lib/server/integrations/smsir';
 import { nextRef } from '@/lib/server/utils/refs';
 
 /** POST /api/admin/leads/{id}/order — convert a won lead into a tracked order.
@@ -41,7 +41,7 @@ async function POSTImpl(req: NextRequest, ctx: { params: Promise<{ id: string }>
     // AFTER the order is durable — an SMS is an external side effect that
     // can't be taken back, so it must never announce a ref that failed to
     // persist. Its outcome is reported, never fatal (see the contract above).
-    const sms = await sendSms(lead.contactMobile, orderSmsText(ref), 'generic');
+    const sms = await sendNotification(lead.contactMobile, orderSmsNotification(ref));
     await audit(auth.session.id, 'lead.order', { type: 'lead', id }, { status: lead.status }, {
       orderRef: ref,
       status: 'won',
