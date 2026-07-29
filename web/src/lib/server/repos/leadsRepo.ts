@@ -206,9 +206,11 @@ export async function findLead(id: string): Promise<LeadRow | null> {
  *  order itself) must not silently reopen that order to every leads:write
  *  rep just because findLead()'s normal "gone means gone" filter now hides
  *  it — the order is still very much not gone. */
-export async function leadOwnerInfo(id: string): Promise<{ assigneeId: string | null; contactMobile: string } | null> {
+export async function leadOwnerInfo(
+  id: string,
+): Promise<{ assigneeId: string | null; contactMobile: string; contactName: string | null } | null> {
   const rows = await getDb()
-    .select({ assigneeId: leads.assigneeId, contactMobile: leads.contactMobile })
+    .select({ assigneeId: leads.assigneeId, contactMobile: leads.contactMobile, contactName: leads.contactName })
     .from(leads)
     .where(eq(leads.id, id))
     .limit(1);

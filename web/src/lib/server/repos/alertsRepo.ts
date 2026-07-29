@@ -186,6 +186,7 @@ export async function activeAlertsWithValues() {
     .select({
       alert: alerts,
       mobile: users.mobile,
+      name: users.name,
       skuName: skus.name,
       skuPrice: currentPrices.price,
       marketLabel: marketValues.label,

@@ -18,6 +18,7 @@ import { getDb } from '@/lib/server/db/client';
 import { leads, proformas, smsLog, users } from '@/lib/server/db/schema';
 import { getSetting } from '@/lib/server/repos/settingsRepo';
 import { sendNotification, truncateParam, type NotificationSpec } from '@/lib/server/integrations/smsir';
+import { customerNameParam } from '@/lib/server/services/leads.service';
 import { formatToman } from '@/lib/utils/format';
 import { formatJalali } from '@/lib/utils/jalali';
 import type { Job } from './scheduler';
@@ -81,6 +82,7 @@ async function proformaReminders(): Promise<void> {
       total: proformas.total,
       validUntil: proformas.validUntil,
       mobile: leads.contactMobile,
+      contactName: leads.contactName,
     })
     .from(proformas)
     .innerJoin(leads, eq(leads.id, proformas.leadId))
@@ -88,12 +90,14 @@ async function proformaReminders(): Promise<void> {
     .limit(50);
   const site = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://ahantime.com';
   for (const r of rows) {
-    const text = `آهن‌تایم: اعتبار پیش‌فاکتور ${r.ref} (${formatToman(r.total)}) تا ${formatJalali(r.validUntil)} است. برای نهایی‌کردن: ${site}/proforma/${r.ref}`;
+    const who = r.contactName?.trim() || 'مشتری';
+    const text = `آهن‌تایم: ${who} عزیز، اعتبار پیش‌فاکتور ${r.ref} (${formatToman(r.total)}) تا ${formatJalali(r.validUntil)} است. برای نهایی‌کردن: ${site}/proforma/${r.ref}`;
     // Templated the moment SMSIR_TEMPLATE_ID_PROFORMA_REMINDER is set — see
     // docs/SMS-TEMPLATES.md; falls back to `text` above until then.
     await sendOnce(`pf-reminder:${r.ref}`, r.mobile, {
       templateEnvVar: 'SMSIR_TEMPLATE_ID_PROFORMA_REMINDER',
       params: [
+        { name: 'NAME', value: customerNameParam(r.contactName) },
         { name: 'REF', value: truncateParam(r.ref) },
         { name: 'AMOUNT', value: truncateParam(formatToman(r.total, false)) },
         { name: 'EXPIRY', value: truncateParam(formatJalali(r.validUntil)) },
@@ -139,7 +143,14 @@ async function callbackReminders(): Promise<void> {
     // upgrades for free if one is ever added, same as everything else here.
     await sendOnce(`cb-reminder:${r.id}:${r.callbackAt?.toISOString().slice(0, 10)}`, r.repMobile, {
       templateEnvVar: 'SMSIR_TEMPLATE_ID_CALLBACK_REMINDER',
-      params: [{ name: 'REF', value: truncateParam(r.ref) }],
+      // NAME here is the LEAD's name (who the rep is calling), not the rep's
+      // own — SMS.ir's personalization rule wants a name variable in every
+      // template, and this one is genuinely more useful to the rep than a
+      // static «مشتری» filler would be.
+      params: [
+        { name: 'NAME', value: customerNameParam(r.contactName) },
+        { name: 'REF', value: truncateParam(r.ref) },
+      ],
       fallbackText: text,
       kind: 'generic',
     });

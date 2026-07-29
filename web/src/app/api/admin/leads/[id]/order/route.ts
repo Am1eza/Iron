@@ -41,7 +41,7 @@ async function POSTImpl(req: NextRequest, ctx: { params: Promise<{ id: string }>
     // AFTER the order is durable — an SMS is an external side effect that
     // can't be taken back, so it must never announce a ref that failed to
     // persist. Its outcome is reported, never fatal (see the contract above).
-    const sms = await sendNotification(lead.contactMobile, orderSmsNotification(ref));
+    const sms = await sendNotification(lead.contactMobile, orderSmsNotification(ref, lead.contactName));
     await audit(auth.session.id, 'lead.order', { type: 'lead', id }, { status: lead.status }, {
       orderRef: ref,
       status: 'won',

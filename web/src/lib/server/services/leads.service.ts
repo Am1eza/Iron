@@ -28,15 +28,25 @@ import { formatToman } from '@/lib/utils/format';
 import { formatJalali } from '@/lib/utils/jalali';
 import { SHIPMENT_STEPS, type ShipmentStatus } from '@/lib/types/domain';
 
+/** SMS.ir's template-approval policy requires every customer-facing template
+ *  to be personalized with a name variable — a lead/order/alert can have no
+ *  name on file, so every NAME param routes through this instead of the raw
+ *  (possibly empty) contactName/user.name, and «مشتری عزیز،» reads as a
+ *  normal generic greeting rather than a broken blank. */
+export function customerNameParam(name: string | null | undefined): string {
+  return truncateParam(name?.trim() || 'مشتری');
+}
+
 /** Shared proforma-ref SMS text — used on first issue and on admin re-issue.
  *  Also the fallback for proformaSmsNotification() below when no template is
  *  configured yet — keep the two in wording-sync. */
-export function proformaSmsText(ref: string, total?: number, validUntil?: Date): string {
+export function proformaSmsText(ref: string, name: string | null | undefined, total?: number, validUntil?: Date): string {
+  const who = name?.trim() || 'مشتری';
   const link = `${publicEnv.NEXT_PUBLIC_SITE_URL}/proforma/${ref}`;
   if (total && validUntil) {
-    return `آهن‌تایم: پیش‌فاکتور شما صادر شد. کد پیگیری: ${ref} — مبلغ: ${formatToman(total)} — اعتبار تا ${formatJalali(validUntil)} ساعت ۱۱:۰۰. مشاهده: ${link}`;
+    return `آهن‌تایم: ${who} عزیز، پیش‌فاکتور شما صادر شد. کد پیگیری: ${ref} — مبلغ: ${formatToman(total)} — اعتبار تا ${formatJalali(validUntil)} ساعت ۱۱:۰۰. مشاهده: ${link}`;
   }
-  return `آهن‌تایم: درخواست شما با کد پیگیری ${ref} ثبت شد. کارشناسان ما به‌زودی با شما تماس می‌گیرند. پیگیری: ${link}`;
+  return `آهن‌تایم: ${who} عزیز، درخواست شما با کد پیگیری ${ref} ثبت شد. کارشناسان ما به‌زودی با شما تماس می‌گیرند. پیگیری: ${link}`;
 }
 
 /**
@@ -50,14 +60,17 @@ export function proformaSmsText(ref: string, total?: number, validUntil?: Date):
  */
 export function proformaSmsNotification(
   ref: string,
+  name: string | null | undefined,
   total?: number,
   validUntil?: Date,
 ): { templateEnvVar: string; params: TemplateParam[]; fallbackText: string; kind: 'proforma' } {
-  const fallbackText = proformaSmsText(ref, total, validUntil);
+  const fallbackText = proformaSmsText(ref, name, total, validUntil);
+  const NAME = customerNameParam(name);
   if (total && validUntil) {
     return {
       templateEnvVar: 'SMSIR_TEMPLATE_ID_PROFORMA_ISSUED',
       params: [
+        { name: 'NAME', value: NAME },
         { name: 'REF', value: truncateParam(ref) },
         { name: 'AMOUNT', value: truncateParam(formatToman(total, false)) },
         { name: 'EXPIRY', value: truncateParam(formatJalali(validUntil)) },
@@ -68,7 +81,10 @@ export function proformaSmsNotification(
   }
   return {
     templateEnvVar: 'SMSIR_TEMPLATE_ID_PROFORMA_REQUEST',
-    params: [{ name: 'REF', value: truncateParam(ref) }],
+    params: [
+      { name: 'NAME', value: NAME },
+      { name: 'REF', value: truncateParam(ref) },
+    ],
     fallbackText,
     kind: 'proforma',
   };
@@ -80,19 +96,26 @@ export function proformaSmsNotification(
  *  in-app notification system). Links to the public /track lookup rather than
  *  a per-ref page: /track takes the ref in its own form and needs no login,
  *  so it works for the guest leads that never had an account. */
-export function orderSmsText(ref: string): string {
+export function orderSmsText(ref: string, name: string | null | undefined): string {
+  const who = name?.trim() || 'مشتری';
   const link = `${publicEnv.NEXT_PUBLIC_SITE_URL}/track`;
-  return `آهن‌تایم: سفارش شما ثبت شد. کد رهگیری: ${ref} — پیگیری وضعیت ارسال: ${link}`;
+  return `آهن‌تایم: ${who} عزیز، سفارش شما ثبت شد. کد رهگیری: ${ref} — پیگیری وضعیت ارسال: ${link}`;
 }
 
 /** As a NotificationSpec — see proformaSmsNotification's doc comment. Owner
  *  registers SMSIR_TEMPLATE_ID_ORDER_CONFIRMED to switch this to the
  *  templated Verify send; the fallback (free-text bulk) is unchanged. */
-export function orderSmsNotification(ref: string): { templateEnvVar: string; params: TemplateParam[]; fallbackText: string; kind: 'generic' } {
+export function orderSmsNotification(
+  ref: string,
+  name: string | null | undefined,
+): { templateEnvVar: string; params: TemplateParam[]; fallbackText: string; kind: 'generic' } {
   return {
     templateEnvVar: 'SMSIR_TEMPLATE_ID_ORDER_CONFIRMED',
-    params: [{ name: 'REF', value: truncateParam(ref) }],
-    fallbackText: orderSmsText(ref),
+    params: [
+      { name: 'NAME', value: customerNameParam(name) },
+      { name: 'REF', value: truncateParam(ref) },
+    ],
+    fallbackText: orderSmsText(ref, name),
     kind: 'generic',
   };
 }
@@ -113,14 +136,20 @@ const SHIPMENT_LABEL: Record<ShipmentStatus, string> = Object.fromEntries(
  */
 export function orderStatusSmsNotification(
   ref: string,
+  name: string | null | undefined,
   status: Exclude<ShipmentStatus, 'registered'>,
 ): { templateEnvVar: string; params: TemplateParam[]; fallbackText: string; kind: 'generic' } {
+  const who = name?.trim() || 'مشتری';
   const link = `${publicEnv.NEXT_PUBLIC_SITE_URL}/track`;
+  const NAME = customerNameParam(name);
   if (status === 'delivered') {
     return {
       templateEnvVar: 'SMSIR_TEMPLATE_ID_ORDER_DELIVERED',
-      params: [{ name: 'REF', value: truncateParam(ref) }],
-      fallbackText: `آهن‌تایم: سفارش ${ref} با موفقیت تحویل داده شد. از خرید شما سپاسگزاریم.`,
+      params: [
+        { name: 'NAME', value: NAME },
+        { name: 'REF', value: truncateParam(ref) },
+      ],
+      fallbackText: `آهن‌تایم: ${who} عزیز، سفارش ${ref} با موفقیت تحویل داده شد. از خرید شما سپاسگزاریم.`,
       kind: 'generic',
     };
   }
@@ -128,10 +157,11 @@ export function orderStatusSmsNotification(
   return {
     templateEnvVar: 'SMSIR_TEMPLATE_ID_ORDER_STATUS',
     params: [
+      { name: 'NAME', value: NAME },
       { name: 'REF', value: truncateParam(ref) },
       { name: 'STAGE', value: truncateParam(stage) },
     ],
-    fallbackText: `آهن‌تایم: وضعیت سفارش ${ref} به «${stage}» تغییر کرد. پیگیری: ${link}`,
+    fallbackText: `آهن‌تایم: ${who} عزیز، وضعیت سفارش ${ref} به «${stage}» تغییر کرد. پیگیری: ${link}`,
     kind: 'generic',
   };
 }
@@ -141,27 +171,37 @@ export function orderStatusSmsNotification(
  *  look this up now" moment this notification exists for. */
 export function orderShippingSmsNotification(
   ref: string,
+  name: string | null | undefined,
   trackingNumber: string,
   carrierName: string | null,
 ): { templateEnvVar: string; params: TemplateParam[]; fallbackText: string; kind: 'generic' } {
   const carrier = carrierName?.trim() || 'شرکت حمل';
+  const who = name?.trim() || 'مشتری';
   return {
     templateEnvVar: 'SMSIR_TEMPLATE_ID_ORDER_SHIPPING',
     params: [
+      { name: 'NAME', value: customerNameParam(name) },
       { name: 'REF', value: truncateParam(ref) },
       { name: 'CARRIER', value: truncateParam(carrier) },
       { name: 'TRACKING', value: truncateParam(trackingNumber) },
     ],
-    fallbackText: `آهن‌تایم: سفارش ${ref} با ${carrier} ارسال شد. کد رهگیری: ${trackingNumber}`,
+    fallbackText: `آهن‌تایم: ${who} عزیز، سفارش ${ref} با ${carrier} ارسال شد. کد رهگیری: ${trackingNumber}`,
     kind: 'generic',
   };
 }
 
-export function orderCancelledSmsNotification(ref: string): { templateEnvVar: string; params: TemplateParam[]; fallbackText: string; kind: 'generic' } {
+export function orderCancelledSmsNotification(
+  ref: string,
+  name: string | null | undefined,
+): { templateEnvVar: string; params: TemplateParam[]; fallbackText: string; kind: 'generic' } {
+  const who = name?.trim() || 'مشتری';
   return {
     templateEnvVar: 'SMSIR_TEMPLATE_ID_ORDER_CANCELLED',
-    params: [{ name: 'REF', value: truncateParam(ref) }],
-    fallbackText: `آهن‌تایم: سفارش ${ref} لغو شد. برای اطلاعات بیشتر با پشتیبانی تماس بگیرید.`,
+    params: [
+      { name: 'NAME', value: customerNameParam(name) },
+      { name: 'REF', value: truncateParam(ref) },
+    ],
+    fallbackText: `آهن‌تایم: ${who} عزیز، سفارش ${ref} لغو شد. برای اطلاعات بیشتر با پشتیبانی تماس بگیرید.`,
     kind: 'generic',
   };
 }
@@ -357,7 +397,10 @@ export async function createLead(
 
   // AFTER commit — the record is durable, so now it's safe to text the ref:
   // a priced proforma with total+validity, or a plain "request received".
-  await sendNotification(input.contact.mobile, proformaSmsNotification(ref, result.total, validUntilDate));
+  await sendNotification(
+    input.contact.mobile,
+    proformaSmsNotification(ref, input.contact.name, result.total, validUntilDate),
+  );
 
   return result;
 }

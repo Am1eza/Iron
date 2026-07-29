@@ -46,56 +46,75 @@ afterAll(async () => {
 });
 
 describe('proformaSmsText', () => {
-  it('includes the total and Jalali validity when priced', () => {
-    const text = proformaSmsText('PF-14050411-0001-ABCDEF', 782650, new Date('2026-07-04T07:30:00.000Z'));
+  it('includes the customer name, total and Jalali validity when priced', () => {
+    const text = proformaSmsText('PF-14050411-0001-ABCDEF', 'رضا کریمی', 782650, new Date('2026-07-04T07:30:00.000Z'));
+    expect(text).toContain('رضا کریمی عزیز');
     expect(text).toContain('PF-14050411-0001-ABCDEF');
     expect(text).toContain('۷۸۲٬۶۵۰ تومان');
     expect(text).toContain('/proforma/PF-14050411-0001-ABCDEF');
   });
 
   it('falls back to a plain "we received it" message when unpriced', () => {
-    const text = proformaSmsText('PF-14050411-0002-ABCDEF');
+    const text = proformaSmsText('PF-14050411-0002-ABCDEF', 'رضا کریمی');
     expect(text).toContain('PF-14050411-0002-ABCDEF');
     expect(text).toContain('کارشناسان ما');
     expect(text).not.toContain('تومان');
   });
+
+  // SMS.ir's template-approval policy requires a name variable in every
+  // customer-facing template (rejected 3 templates for missing it) — a lead
+  // can have no name on file, so this generic greeting is what actually goes
+  // out instead of a blank "#NAME# عزیز،".
+  it('falls back to «مشتری عزیز» when the lead has no name on file', () => {
+    const text = proformaSmsText('PF-14050411-0002-ABCDEF', null);
+    expect(text).toContain('مشتری عزیز');
+  });
 });
 
 describe('proformaSmsNotification (template + fallback wiring)', () => {
-  it('picks the ISSUED template with REF/AMOUNT/EXPIRY params when priced', () => {
-    const spec = proformaSmsNotification('PF-14050411-0001-ABCDEF', 782650, new Date('2026-07-04T07:30:00.000Z'));
+  it('picks the ISSUED template with NAME/REF/AMOUNT/EXPIRY params when priced', () => {
+    const spec = proformaSmsNotification('PF-14050411-0001-ABCDEF', 'رضا کریمی', 782650, new Date('2026-07-04T07:30:00.000Z'));
     expect(spec.templateEnvVar).toBe('SMSIR_TEMPLATE_ID_PROFORMA_ISSUED');
     expect(spec.params).toEqual([
+      { name: 'NAME', value: 'رضا کریمی' },
       { name: 'REF', value: 'PF-14050411-0001-ABCDEF' },
       { name: 'AMOUNT', value: '۷۸۲٬۶۵۰' },
       { name: 'EXPIRY', value: '۱۴۰۵/۰۴/۱۳' },
     ]);
     // Fallback text must match the exact wording sendSms would have sent —
     // this is what actually ships until the template is registered.
-    expect(spec.fallbackText).toBe(proformaSmsText('PF-14050411-0001-ABCDEF', 782650, new Date('2026-07-04T07:30:00.000Z')));
+    expect(spec.fallbackText).toBe(
+      proformaSmsText('PF-14050411-0001-ABCDEF', 'رضا کریمی', 782650, new Date('2026-07-04T07:30:00.000Z')),
+    );
   });
 
-  it('picks the REQUEST template with only REF when unpriced', () => {
-    const spec = proformaSmsNotification('PF-14050411-0002-ABCDEF');
+  it('picks the REQUEST template with NAME/REF when unpriced', () => {
+    const spec = proformaSmsNotification('PF-14050411-0002-ABCDEF', 'رضا کریمی');
     expect(spec.templateEnvVar).toBe('SMSIR_TEMPLATE_ID_PROFORMA_REQUEST');
-    expect(spec.params).toEqual([{ name: 'REF', value: 'PF-14050411-0002-ABCDEF' }]);
+    expect(spec.params).toEqual([
+      { name: 'NAME', value: 'رضا کریمی' },
+      { name: 'REF', value: 'PF-14050411-0002-ABCDEF' },
+    ]);
   });
 
   it('truncates a param value over SMS.ir\'s 25-character cap instead of failing', () => {
     // A real observed case: a long SKU/market label used as an alert's LABEL
     // param — proforma refs never hit this, but the same truncateParam() path
     // guards every param builder, so cover it once against a >25 char input.
-    const spec = proformaSmsNotification('PF-14050411-0003-VERYLONGREFCODEHERE1234567890');
-    expect(spec.params[0]!.value.length).toBeLessThanOrEqual(25);
-    expect(spec.params[0]!.value.endsWith('…')).toBe(true);
+    const spec = proformaSmsNotification('PF-14050411-0003-VERYLONGREFCODEHERE1234567890', 'رضا کریمی');
+    expect(spec.params[1]!.value.length).toBeLessThanOrEqual(25);
+    expect(spec.params[1]!.value.endsWith('…')).toBe(true);
   });
 });
 
 describe('orderSmsNotification (template + fallback wiring)', () => {
-  it('carries the ref as the sole param, with the existing free-text as fallback', () => {
-    const spec = orderSmsNotification('OR-14050411-0001-ABCDEF');
+  it('carries NAME + REF params, with the existing free-text as fallback', () => {
+    const spec = orderSmsNotification('OR-14050411-0001-ABCDEF', 'رضا کریمی');
     expect(spec.templateEnvVar).toBe('SMSIR_TEMPLATE_ID_ORDER_CONFIRMED');
-    expect(spec.params).toEqual([{ name: 'REF', value: 'OR-14050411-0001-ABCDEF' }]);
+    expect(spec.params).toEqual([
+      { name: 'NAME', value: 'رضا کریمی' },
+      { name: 'REF', value: 'OR-14050411-0001-ABCDEF' },
+    ]);
     expect(spec.fallbackText).toContain('OR-14050411-0001-ABCDEF');
     expect(spec.fallbackText).toContain('/track');
   });

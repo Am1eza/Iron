@@ -124,7 +124,7 @@ async function POSTImpl(req: NextRequest, ctx: { params: Promise<{ id: string }>
       // roll the rep's work back — it must just stop us claiming it landed.
       const sms = await sendNotification(
         lead.contactMobile,
-        proformaSmsNotification(proforma.ref, proforma.total, proforma.validUntil),
+        proformaSmsNotification(proforma.ref, lead.contactName, proforma.total, proforma.validUntil),
       );
       await audit(
         auth.session.id,

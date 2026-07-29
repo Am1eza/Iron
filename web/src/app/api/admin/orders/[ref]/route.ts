@@ -51,13 +51,13 @@ function decodeRefOrNull(raw: string): string | null {
  *  archival, so its ownership shouldn't be either. */
 async function resolveOwnerAndMobile(
   snapshot: { leadId: string | null; userId: string | null },
-): Promise<{ assigneeId: string | null; mobile: string | null }> {
+): Promise<{ assigneeId: string | null; mobile: string | null; name: string | null }> {
   if (snapshot.leadId) {
     const lead = await leadOwnerInfo(snapshot.leadId);
-    if (lead) return { assigneeId: lead.assigneeId, mobile: lead.contactMobile };
+    if (lead) return { assigneeId: lead.assigneeId, mobile: lead.contactMobile, name: lead.contactName };
   }
   const user = snapshot.userId ? await userById(snapshot.userId) : null;
-  return { assigneeId: null, mobile: user?.mobile ?? null };
+  return { assigneeId: null, mobile: user?.mobile ?? null, name: user?.name ?? null };
 }
 
 /** PATCH /api/admin/orders/{ref} — advance the shipment stepper and/or set
@@ -82,7 +82,7 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ ref: string 
   const snapshot = await orderOwnership(decodedRef);
   if (!snapshot) return NextResponse.json({ error: 'not_found', message: 'سفارش یافت نشد.' }, { status: 404 });
 
-  const { assigneeId, mobile } = await resolveOwnerAndMobile(snapshot);
+  const { assigneeId, mobile, name } = await resolveOwnerAndMobile(snapshot);
   if (!canActOnAssignedRecord(auth.session, assigneeId)) {
     return NextResponse.json(
       {
@@ -127,7 +127,7 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ ref: string 
     // assertForwardTransition allows status === prevStatus as a no-op, and
     // without this guard that no-op would still text the customer again.
     if (mobile && status !== 'registered' && status !== prevStatus) {
-      const sms = await sendNotification(mobile, orderStatusSmsNotification(decodedRef, status));
+      const sms = await sendNotification(mobile, orderStatusSmsNotification(decodedRef, name, status));
       smsSent = sms.ok;
     }
   }
@@ -147,7 +147,7 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ ref: string 
     // Only the moment a REAL tracking number lands is "go check this now" —
     // clearing it, or only naming a carrier with no number yet, is not.
     if (mobile && nextTracking && nextTracking !== snapshot.trackingNumber) {
-      const sms = await sendNotification(mobile, orderShippingSmsNotification(decodedRef, nextTracking, nextCarrier ?? null));
+      const sms = await sendNotification(mobile, orderShippingSmsNotification(decodedRef, name, nextTracking, nextCarrier ?? null));
       smsSent = sms.ok;
     }
   }
@@ -188,8 +188,8 @@ async function DELETEImpl(req: NextRequest, ctx: { params: Promise<{ ref: string
     null,
   );
 
-  const { mobile } = await resolveOwnerAndMobile(snapshot);
-  const smsSent = mobile ? (await sendNotification(mobile, orderCancelledSmsNotification(decodedRef))).ok : undefined;
+  const { mobile, name } = await resolveOwnerAndMobile(snapshot);
+  const smsSent = mobile ? (await sendNotification(mobile, orderCancelledSmsNotification(decodedRef, name))).ok : undefined;
 
   return NextResponse.json({ ok: true, smsSent });
 }
