@@ -258,6 +258,41 @@ export async function leadNotesOf(leadId: string) {
     .orderBy(desc(leadNotes.at));
 }
 
+/**
+ * Urgency tier — 0 is most urgent. One coherent CASE feeds both the tier and
+ * the per-tier tiebreak timestamp, instead of two independently-reasoned
+ * expressions that could disagree with each other:
+ *
+ *   0  new                                — never contacted at all
+ *   1  contacted, callback due or overdue  — a promise already broken
+ *   2  contacted, no callback set          — drifting with no plan
+ *   3  contacted, callback still ahead     — has a plan, not yet due
+ *   4  won / lost                          — closed, nothing to do
+ *
+ * Tier 0 breaks ties oldest-`createdAt`-first (the longest-ignored new lead
+ * surfaces first); tier 1 by the most-overdue `callbackAt`; tier 2 by the
+ * stalest `updatedAt`; tier 3 by the soonest upcoming `callbackAt`.
+ * `leads.id` is the final tiebreaker — pagination needs a fully
+ * deterministic order, or two rows sharing a timestamp could drift between
+ * page loads (a lead skipped or duplicated across pages 1 and 2).
+ */
+const URGENCY_TIER = sql`
+  CASE
+    WHEN ${leads.status} = 'new' THEN 0
+    WHEN ${leads.status} = 'contacted' AND ${leads.callbackAt} IS NOT NULL AND ${leads.callbackAt} <= now() THEN 1
+    WHEN ${leads.status} = 'contacted' AND ${leads.callbackAt} IS NULL THEN 2
+    WHEN ${leads.status} = 'contacted' THEN 3
+    ELSE 4
+  END
+`;
+const URGENCY_TIEBREAK = sql`
+  CASE
+    WHEN ${leads.status} = 'new' THEN ${leads.createdAt}
+    WHEN ${leads.status} = 'contacted' AND ${leads.callbackAt} IS NOT NULL THEN ${leads.callbackAt}
+    ELSE ${leads.updatedAt}
+  END
+`;
+
 export async function adminListLeads(query: {
   status?: LeadRow['status'];
   assigneeId?: string;
@@ -269,6 +304,12 @@ export async function adminListLeads(query: {
   perPage?: number;
   /** Show archived (soft-deleted) leads instead of the normal working set. */
   includeDeleted?: boolean;
+  /** 'newest' (default): the original plain most-recent-first order —
+   *  unaffected, so the CSV export and every existing/未来 caller that
+   *  doesn't ask for 'urgency' keeps its exact current behaviour. 'urgency':
+   *  never-contacted first, then overdue/stale/plan, closed last — see
+   *  URGENCY_TIER above. Only the interactive list route opts into it. */
+  sort?: 'urgency' | 'newest';
 }) {
   const db = getDb();
   const page = query.page ?? 1;
@@ -289,12 +330,16 @@ export async function adminListLeads(query: {
     );
   }
   const where = conds.length ? and(...conds) : undefined;
+  const orderBy =
+    query.sort === 'urgency'
+      ? [sql`${URGENCY_TIER} ASC`, sql`${URGENCY_TIEBREAK} ASC`, asc(leads.id)]
+      : [desc(leads.createdAt), asc(leads.id)];
   const [rows, total] = await Promise.all([
     db
       .select()
       .from(leads)
       .where(where)
-      .orderBy(desc(leads.createdAt))
+      .orderBy(...orderBy)
       .limit(perPage)
       .offset((page - 1) * perPage),
     db

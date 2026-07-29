@@ -231,7 +231,17 @@ export const adminApi = {
 
   /* leads / crm */
   leads: (
-    params: { status?: string; assignee?: string; q?: string; page?: number; perPage?: number; from?: string; to?: string } = {},
+    params: {
+      status?: string;
+      assignee?: string;
+      q?: string;
+      page?: number;
+      perPage?: number;
+      from?: string;
+      to?: string;
+      /** Server defaults to 'urgency' when omitted — see the route's doc. */
+      sort?: 'urgency' | 'newest';
+    } = {},
   ) => {
     const qs = new URLSearchParams();
     if (params.status) qs.set('status', params.status);
@@ -241,6 +251,7 @@ export const adminApi = {
     if (params.perPage) qs.set('perPage', String(params.perPage));
     if (params.from) qs.set('from', params.from);
     if (params.to) qs.set('to', params.to);
+    if (params.sort) qs.set('sort', params.sort);
     return http.get<{ leads: AdminLead[]; total: number }>(`/api/admin/leads?${qs}`);
   },
   /** Not fetched via `http` — the browser navigates straight to this URL to

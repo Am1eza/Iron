@@ -54,6 +54,77 @@ describe('adminListLeads — from/to date range', () => {
   });
 });
 
+describe('adminListLeads — urgency sort', () => {
+  async function insertLeadRow(ref: string, patch: Partial<typeof schema.leads.$inferInsert>) {
+    await db.insert(schema.leads).values({
+      id: ulid(),
+      ref,
+      contactMobile: '09120000002',
+      source: 'table',
+      ...patch,
+    });
+  }
+
+  it('orders never-contacted first, then overdue/stale/upcoming, closed last', async () => {
+    const prefix = `URG-${ulid()}`;
+    const now = new Date();
+    const hour = 3_600_000;
+    // Deliberately inserted OUT of the expected order, so a passing test
+    // proves the ORDER BY, not insertion order.
+    await insertLeadRow(`${prefix}-closed`, { status: 'won' });
+    await insertLeadRow(`${prefix}-upcoming`, { status: 'contacted', callbackAt: new Date(now.getTime() + hour) });
+    await insertLeadRow(`${prefix}-new`, { status: 'new' });
+    await insertLeadRow(`${prefix}-stale`, { status: 'contacted', callbackAt: null });
+    await insertLeadRow(`${prefix}-overdue`, { status: 'contacted', callbackAt: new Date(now.getTime() - hour) });
+
+    const { leads } = await adminListLeads({ q: prefix, sort: 'urgency', perPage: 10 });
+    expect(leads.map((l) => l.ref)).toEqual([
+      `${prefix}-new`,
+      `${prefix}-overdue`,
+      `${prefix}-stale`,
+      `${prefix}-upcoming`,
+      `${prefix}-closed`,
+    ]);
+  });
+
+  it('within the never-contacted tier, the longest-ignored lead comes first', async () => {
+    const prefix = `URG2-${ulid()}`;
+    const day = 86_400_000;
+    const now = Date.now();
+    await insertLeadRow(`${prefix}-recent`, { status: 'new', createdAt: new Date(now - day) });
+    await insertLeadRow(`${prefix}-oldest`, { status: 'new', createdAt: new Date(now - 3 * day) });
+    await insertLeadRow(`${prefix}-middle`, { status: 'new', createdAt: new Date(now - 2 * day) });
+
+    const { leads } = await adminListLeads({ q: prefix, sort: 'urgency', perPage: 10 });
+    expect(leads.map((l) => l.ref)).toEqual([`${prefix}-oldest`, `${prefix}-middle`, `${prefix}-recent`]);
+  });
+
+  it('within the overdue tier, the most-overdue callback comes first', async () => {
+    const prefix = `URG3-${ulid()}`;
+    const hour = 3_600_000;
+    const now = Date.now();
+    await insertLeadRow(`${prefix}-just-missed`, { status: 'contacted', callbackAt: new Date(now - hour) });
+    await insertLeadRow(`${prefix}-missed-yesterday`, { status: 'contacted', callbackAt: new Date(now - 26 * hour) });
+
+    const { leads } = await adminListLeads({ q: prefix, sort: 'urgency', perPage: 10 });
+    expect(leads.map((l) => l.ref)).toEqual([`${prefix}-missed-yesterday`, `${prefix}-just-missed`]);
+  });
+
+  it('defaults to newest-first when sort is omitted — the export/legacy callers are unaffected', async () => {
+    const prefix = `URG4-${ulid()}`;
+    const day = 86_400_000;
+    const now = Date.now();
+    // Oldest lead is 'new' (tier 0) — under urgency sort it would come FIRST;
+    // under the default it must stay LAST, proving no accidental urgency
+    // bleed-through when the caller doesn't ask for it.
+    await insertLeadRow(`${prefix}-old-new`, { status: 'new', createdAt: new Date(now - 5 * day) });
+    await insertLeadRow(`${prefix}-recent-won`, { status: 'won', createdAt: new Date(now - day) });
+
+    const { leads } = await adminListLeads({ q: prefix, perPage: 10 });
+    expect(leads.map((l) => l.ref)).toEqual([`${prefix}-recent-won`, `${prefix}-old-new`]);
+  });
+});
+
 describe('updateLeadItem (US-19.4)', () => {
   async function insertLeadWithItem() {
     const leadId = ulid();

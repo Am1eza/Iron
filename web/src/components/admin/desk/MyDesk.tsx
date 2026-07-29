@@ -20,6 +20,7 @@ import { toUserMessage } from '@/lib/api/errors';
 import { routes } from '@/lib/routes';
 import { toPersianDigits } from '@/lib/utils/format';
 import { formatJalali } from '@/lib/utils/jalali';
+import { callbackPresets, tomorrowAt9 } from '@/lib/utils/callbackPresets';
 import { useToast } from '@/lib/hooks/useToast';
 import { Badge, Button, EmptyState, Heading, Modal, TableSkeleton, Text } from '@/components/ui';
 import { KpiCard } from '../dashboard/KpiCard';
@@ -96,29 +97,9 @@ function describeCallback(iso: string, now: Date, isOverdue = false): { main: st
   };
 }
 
-/** Presets for the callback picker. Built from a live clock so «فردا ۹:۰۰»
- *  means tomorrow at 9, whenever the rep happens to click it. */
-function callbackPresets(now: Date): Array<{ label: string; at: Date }> {
-  const at = (dayOffset: number, hour: number) => {
-    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + dayOffset, hour, 0, 0, 0);
-    return d;
-  };
-  const list: Array<{ label: string; at: Date }> = [
-    { label: 'یک ساعت دیگر', at: new Date(now.getTime() + 3_600_000) },
-  ];
-  // Only offer «امروز ۱۶:۰۰» while it is still ahead — a preset that schedules
-  // a callback into the past would land straight in the عقب‌افتاده bucket.
-  if (now.getHours() < 16) list.push({ label: `امروز ${fa('16:00')}`, at: at(0, 16) });
-  list.push({ label: `فردا ${fa('9:00')}`, at: at(1, 9) });
-  list.push({ label: `هفتهٔ آینده، ${fa('9:00')}`, at: at(7, 9) });
-  return list;
-}
-
-/** The one-click snooze offered on every row: tomorrow morning. */
-const tomorrowAt9 = () => {
-  const n = new Date();
-  return new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1, 9, 0, 0, 0);
-};
+// callbackPresets/tomorrowAt9 moved to lib/utils/callbackPresets.ts — shared
+// with the CRM's call-outcome capture so "فردا ۹:۰۰" means the same instant
+// wherever a rep sees the button.
 
 interface QueueRow {
   lead: DeskLead;

@@ -21,6 +21,7 @@ import { routes } from '@/lib/routes';
 import { PhoneIcon } from '@/components/primitives/icons';
 import { Alert, Badge, Button, EmptyState, Modal, Skeleton, useConfirm } from '@/components/ui';
 import { JalaliDateField } from '../JalaliDateField';
+import { CallOutcomeModal, type CallOutcomeResult } from './CallOutcomeModal';
 import ui from '../adminUi.module.css';
 import s from './LeadDetail.module.css';
 
@@ -263,6 +264,7 @@ export function LeadDetail({ id }: { id: string }) {
   const [discount, setDiscount] = useState('');
   const [lostOpen, setLostOpen] = useState(false);
   const [lostReason, setLostReason] = useState('');
+  const [callOutcomeOpen, setCallOutcomeOpen] = useState(false);
   // The SMS outcome has to OUTLIVE the toast: sms.ir is 400-ing free-text
   // sends in production, and a rep who looks away for ten seconds must still
   // find out the customer was never told.
@@ -318,6 +320,7 @@ export function LeadDetail({ id }: { id: string }) {
   const addNote = useMutation({
     mutationFn: (text: string) => adminApi.addLeadNote(id, text),
     onSuccess: () => {
+      toast.success('یادداشت ثبت شد.');
       setNote('');
       invalidate();
     },
@@ -469,9 +472,21 @@ export function LeadDetail({ id }: { id: string }) {
 
   const itemsLocked = Boolean(activeProforma);
   const canIssue = pricedCount > 0 && lead.status !== 'lost';
-  // «تبدیل به سفارش» used to be clickable on a brand-new, never-contacted
-  // lead — an untracked order for a price nobody had quoted.
-  const canConvert = stage === 'quoted' || stage === 'won';
+
+  // The single place a call's outcome turns into lead state. Declined hands
+  // off to the existing lost-reason modal rather than duplicating its
+  // reason-picker — one place asks «چرا نرفت», not two.
+  const onCallOutcomeSubmit = (result: CallOutcomeResult) => {
+    setCallOutcomeOpen(false);
+    addNote.mutate(result.note);
+    if (result.outcome === 'declined') {
+      setLostReason('منصرف شد');
+      setLostOpen(true);
+      return;
+    }
+    if (lead.status === 'new') setStatus.mutate('contacted');
+    if (result.outcome === 'later' && result.callbackAt) setCallback.mutate(result.callbackAt);
+  };
 
   const steps: Array<{ label: string; hint: string }> = [
     { label: 'ثبت شد', hint: 'سرنخ جدید' },
@@ -713,15 +728,79 @@ export function LeadDetail({ id }: { id: string }) {
 
             <section className={s.section}>
               <h3 className={s.h}>اقدام بعدی</h3>
+              {/* One sentence naming where the deal stands, then ONE primary
+                  button for what genuinely moves it forward next — everything
+                  else (log another call, mark won/lost, reissue) is secondary.
+                  Branches on `stage`, not raw `status`: `stage` already folds
+                  in "has an active proforma", which is what actually decides
+                  whether صدور/تبدیل is the next step. */}
               <div className={s.actions}>
-                {lead.status === 'new' ? (
-                  <Button size="sm" onClick={() => setStatus.mutate('contacted')} loading={setStatus.isPending}>
-                    تماس گرفته شد
-                  </Button>
-                ) : null}
-
-                {lead.status !== 'lost' ? (
+                {stage === 'lost' ? (
                   <>
+                    <p className={s.hint}>این سرنخ ناموفق ثبت شده است؛ برای ادامهٔ کار ابتدا آن را بازگشایی کنید.</p>
+                    <Button
+                      size="sm"
+                      loading={setStatus.isPending}
+                      onClick={async () => {
+                        const ok = await confirm({
+                          title: 'بازگشایی سرنخ؟',
+                          body: 'سرنخ به وضعیت «تماس‌گرفته» برمی‌گردد و دوباره در جریان پیگیری قرار می‌گیرد.',
+                          confirmLabel: 'بازگشایی',
+                        });
+                        if (ok) setStatus.mutate('contacted');
+                      }}
+                    >
+                      بازگشایی
+                    </Button>
+                  </>
+                ) : stage === 'won' ? (
+                  <>
+                    <p className={s.hint}>این سرنخ موفق ثبت شده است.</p>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      loading={setStatus.isPending}
+                      onClick={async () => {
+                        const ok = await confirm({
+                          title: 'بازگشایی سرنخ؟',
+                          body: 'سرنخ به وضعیت «تماس‌گرفته» برمی‌گردد و دوباره در جریان پیگیری قرار می‌گیرد.',
+                          confirmLabel: 'بازگشایی',
+                        });
+                        if (ok) setStatus.mutate('contacted');
+                      }}
+                    >
+                      بازگشایی
+                    </Button>
+                  </>
+                ) : stage === 'new' ? (
+                  <>
+                    <p className={s.hint}>این سرنخ هنوز تماس گرفته نشده — همین حالا تماس بگیرید.</p>
+                    <Button size="sm" onClick={() => setCallOutcomeOpen(true)}>
+                      ثبت نتیجهٔ تماس
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={() => setStatus.mutate('won')} loading={setStatus.isPending}>
+                      موفق
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setLostOpen(true)}>
+                      ناموفق
+                    </Button>
+                  </>
+                ) : stage === 'contacted' && !canIssue ? (
+                  <>
+                    <p className={s.hint}>برای صدور پیش‌فاکتور، دست‌کم یک قلم باید قیمت داشته باشد.</p>
+                    <Button size="sm" variant="secondary" onClick={() => setCallOutcomeOpen(true)}>
+                      ثبت تماس دیگر
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={() => setStatus.mutate('won')} loading={setStatus.isPending}>
+                      موفق
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setLostOpen(true)}>
+                      ناموفق
+                    </Button>
+                  </>
+                ) : stage === 'contacted' ? (
+                  <>
+                    <p className={s.hint}>اقلام قیمت‌گذاری شده — برای ادامه، پیش‌فاکتور صادر کنید.</p>
                     <div className={s.field}>
                       <label className={s.fieldLabel} htmlFor={`discount-${id}`}>
                         تخفیف (تومان)
@@ -732,39 +811,30 @@ export function LeadDetail({ id }: { id: string }) {
                         inputMode="numeric"
                         placeholder="۰"
                         value={discount}
-                        disabled={!canIssue}
                         aria-invalid={!discountValid || undefined}
                         onChange={(e) => setDiscount(e.target.value)}
                       />
                     </div>
                     <Button
                       size="sm"
-                      // Primary only where it is genuinely the next step; once
-                      // a quote is out, re-issuing is a deliberate, secondary,
-                      // differently-worded action.
-                      variant={activeProforma ? 'ghost' : stage === 'contacted' ? 'primary' : 'secondary'}
-                      disabled={!canIssue || !discountValid}
+                      disabled={!discountValid}
                       loading={issue.isPending}
                       onClick={async () => {
                         // Issuing SMSes the customer immediately — never one
                         // stray click, and never without naming the amount.
                         const ok = await confirm({
-                          title: activeProforma ? 'صدور مجدد پیش‌فاکتور؟' : 'صدور پیش‌فاکتور؟',
-                          body: activeProforma
-                            ? `پیش‌فاکتور فعلی (${activeProforma.ref}) باطل و نسخهٔ تازه‌ای به مبلغ حدودی ${formatToman(taxable)} (پیش از مالیات) برای ${lead.contactName?.trim() || 'مشتری'} صادر و پیامک می‌شود.`
-                            : `پیش‌فاکتوری به مبلغ ${formatToman(taxable)} (پیش از مالیات) برای ${lead.contactName?.trim() || 'مشتری'} صادر و همان لحظه پیامک می‌شود.`,
-                          confirmLabel: activeProforma ? 'صدور مجدد و ابطال قبلی' : 'صدور و ارسال پیامک',
+                          title: 'صدور پیش‌فاکتور؟',
+                          body: `پیش‌فاکتوری به مبلغ ${formatToman(taxable)} (پیش از مالیات) برای ${lead.contactName?.trim() || 'مشتری'} صادر و همان لحظه پیامک می‌شود.`,
+                          confirmLabel: 'صدور و ارسال پیامک',
                         });
-                        if (ok) issue.mutate({ reissue: Boolean(activeProforma) });
+                        if (ok) issue.mutate({ reissue: false });
                       }}
                     >
-                      {activeProforma ? 'صدور مجدد پیش‌فاکتور' : 'صدور پیش‌فاکتور'}
+                      صدور پیش‌فاکتور
                     </Button>
-                  </>
-                ) : null}
-
-                {lead.status === 'contacted' || lead.status === 'new' ? (
-                  <>
+                    <Button size="sm" variant="secondary" onClick={() => setCallOutcomeOpen(true)}>
+                      ثبت تماس دیگر
+                    </Button>
                     <Button size="sm" variant="secondary" onClick={() => setStatus.mutate('won')} loading={setStatus.isPending}>
                       موفق
                     </Button>
@@ -772,53 +842,65 @@ export function LeadDetail({ id }: { id: string }) {
                       ناموفق
                     </Button>
                   </>
-                ) : null}
-
-                {canConvert ? (
-                  <Button
-                    size="sm"
-                    variant={stage === 'quoted' ? 'primary' : 'secondary'}
-                    loading={convert.isPending}
-                    onClick={async () => {
-                      const ok = await confirm({
-                        title: 'تبدیل به سفارش؟',
-                        body: 'یک سفارش قابل رهگیری از این سرنخ ساخته و کد رهگیری برای مشتری پیامک می‌شود. این عمل قابل بازگشت نیست.',
-                        confirmLabel: 'ساخت سفارش',
-                      });
-                      if (ok) convert.mutate();
-                    }}
-                  >
-                    تبدیل به سفارش
-                  </Button>
-                ) : null}
-
-                {lead.status === 'won' || lead.status === 'lost' ? (
-                  // Terminal states used to be dead ends — a mistaken «ناموفق»
-                  // (or a customer who came back) had no path back in.
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    loading={setStatus.isPending}
-                    onClick={async () => {
-                      const ok = await confirm({
-                        title: 'بازگشایی سرنخ؟',
-                        body: 'سرنخ به وضعیت «تماس‌گرفته» برمی‌گردد و دوباره در جریان پیگیری قرار می‌گیرد.',
-                        confirmLabel: 'بازگشایی',
-                      });
-                      if (ok) setStatus.mutate('contacted');
-                    }}
-                  >
-                    بازگشایی
-                  </Button>
-                ) : null}
-
-                {lead.status === 'lost' ? (
-                  <p className={s.hint}>این سرنخ ناموفق ثبت شده است؛ برای ادامهٔ کار ابتدا آن را بازگشایی کنید.</p>
-                ) : !canIssue ? (
-                  <p className={s.hint}>برای صدور پیش‌فاکتور، دست‌کم یک قلم باید قیمت داشته باشد.</p>
-                ) : !canConvert ? (
-                  <p className={s.hint}>«تبدیل به سفارش» پس از صدور پیش‌فاکتور فعال می‌شود.</p>
-                ) : null}
+                ) : (
+                  // stage === 'quoted'
+                  <>
+                    <p className={s.hint}>پیش‌فاکتور برای مشتری پیامک شده — پس از تأیید مشتری، به سفارش تبدیل کنید.</p>
+                    <Button
+                      size="sm"
+                      loading={convert.isPending}
+                      onClick={async () => {
+                        const ok = await confirm({
+                          title: 'تبدیل به سفارش؟',
+                          body: 'یک سفارش قابل رهگیری از این سرنخ ساخته و کد رهگیری برای مشتری پیامک می‌شود. این عمل قابل بازگشت نیست.',
+                          confirmLabel: 'ساخت سفارش',
+                        });
+                        if (ok) convert.mutate();
+                      }}
+                    >
+                      تبدیل به سفارش
+                    </Button>
+                    <div className={s.field}>
+                      <label className={s.fieldLabel} htmlFor={`discount-${id}`}>
+                        تخفیف مجدد (تومان)
+                      </label>
+                      <input
+                        id={`discount-${id}`}
+                        className={ui.numInput}
+                        inputMode="numeric"
+                        placeholder="۰"
+                        value={discount}
+                        aria-invalid={!discountValid || undefined}
+                        onChange={(e) => setDiscount(e.target.value)}
+                      />
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={!discountValid}
+                      loading={issue.isPending}
+                      onClick={async () => {
+                        const ok = await confirm({
+                          title: 'صدور مجدد پیش‌فاکتور؟',
+                          body: `پیش‌فاکتور فعلی (${activeProforma?.ref}) باطل و نسخهٔ تازه‌ای به مبلغ حدودی ${formatToman(taxable)} (پیش از مالیات) برای ${lead.contactName?.trim() || 'مشتری'} صادر و پیامک می‌شود.`,
+                          confirmLabel: 'صدور مجدد و ابطال قبلی',
+                        });
+                        if (ok) issue.mutate({ reissue: true });
+                      }}
+                    >
+                      صدور مجدد پیش‌فاکتور
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={() => setCallOutcomeOpen(true)}>
+                      ثبت تماس دیگر
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={() => setStatus.mutate('won')} loading={setStatus.isPending}>
+                      موفق
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setLostOpen(true)}>
+                      ناموفق
+                    </Button>
+                  </>
+                )}
               </div>
             </section>
           </div>
@@ -946,6 +1028,15 @@ export function LeadDetail({ id }: { id: string }) {
           aria-label="دلیل ناموفق شدن سرنخ"
         />
       </Modal>
+
+      <CallOutcomeModal
+        open={callOutcomeOpen}
+        onClose={() => setCallOutcomeOpen(false)}
+        leadRef={lead.ref}
+        contactName={lead.contactName}
+        busy={addNote.isPending || setStatus.isPending || setCallback.isPending}
+        onSubmit={onCallOutcomeSubmit}
+      />
       {dialog}
     </div>
   );

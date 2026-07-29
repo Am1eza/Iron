@@ -7,7 +7,9 @@ import { useQuery } from '@tanstack/react-query';
 import { adminApi, LEADS_EXPORT_MAX_ROWS, type AdminLead } from '@/lib/api/resources/admin';
 import { formatTomanCompact, toPersianDigits } from '@/lib/utils/format';
 import { formatJalali } from '@/lib/utils/jalali';
+import { urgencyOf } from '@/lib/utils/leadUrgency';
 import { useAuthStore } from '@/lib/stores/auth';
+import { routes } from '@/lib/routes';
 import { Badge, Button, Chip, EmptyState, TableSkeleton, Text } from '@/components/ui';
 import { LeadDetail } from './LeadDetail';
 import { PagerFooter } from '../PagerFooter';
@@ -84,6 +86,10 @@ export function LeadsTab() {
   // Stored as a flag, not as the rep's user id: «سرنخ‌های من» must mean "mine"
   // for whoever opens the link, and a user id in a shared URL is a leak.
   const onlyMine = params.get('mine') === '1';
+  // Urgency-first is the default a rep actually wants (call the overdue ones
+  // first) — «جدیدترین» is one click away for the rare "what just came in"
+  // check, not the other way around.
+  const sort = params.get('sort') === 'newest' ? 'newest' : 'urgency';
   const q = params.get('q') ?? '';
   const from = params.get('from') ?? '';
   const to = params.get('to') ?? '';
@@ -169,7 +175,7 @@ export function LeadsTab() {
   // URL. Wait instead of fetching the wrong thing.
   const awaitingSession = onlyMine && !currentUser && authStatus === 'loading';
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['admin', 'leads', status, q, from, to, page, assignee ?? ''],
+    queryKey: ['admin', 'leads', status, q, from, to, page, assignee ?? '', sort],
     enabled: !awaitingSession,
     queryFn: () =>
       adminApi.leads({
@@ -180,8 +186,14 @@ export function LeadsTab() {
         to: toParam,
         page,
         perPage: PER_PAGE,
+        sort,
       }),
   });
+
+  // Same query the desk page runs — sharing the key means opening the desk
+  // right after (or this list right after the desk) is an instant repaint,
+  // not a second spinner for numbers the rep just saw.
+  const { data: desk } = useQuery({ queryKey: ['admin', 'my', 'desk'], queryFn: () => adminApi.myDesk() });
 
   const leads = data?.leads ?? [];
   const total = data?.total ?? 0;
@@ -189,6 +201,26 @@ export function LeadsTab() {
 
   return (
     <div style={{ paddingBlockStart: 'var(--space-4)' }}>
+      {/* One-glance handoff to «میز کار من» — the dedicated queue view — so a
+          rep who opens the full leads list doesn't have to also remember that
+          page exists. Only worth a line when there's something to jump to. */}
+      {desk && desk.stats.assigned > 0 ? (
+        <Link
+          href={routes.admin.desk()}
+          className={ui.toolbar}
+          style={{ textDecoration: 'none', alignItems: 'center', cursor: 'pointer' }}
+        >
+          <Text as="span" variant="label" color="strong">
+            میز کار من
+          </Text>
+          <Badge tone="action">{faCount(desk.stats.active)} فعال</Badge>
+          {desk.callbacks.overdue.total > 0 ? (
+            <Badge tone="loss">{faCount(desk.callbacks.overdue.total)} تماس عقب‌افتاده</Badge>
+          ) : null}
+          <span className={ui.muted}>مشاهدهٔ میز کار ←</span>
+        </Link>
+      ) : null}
+
       <div className={ui.toolbar}>
         {FILTERS.map((f) => (
           <Chip key={f.id} selected={status === f.id} onClick={() => setFilter({ status: f.id || null })}>
@@ -204,6 +236,15 @@ export function LeadsTab() {
             سرنخ‌های من
           </Chip>
         ) : null}
+        <span className={ui.muted} style={{ marginInlineStart: 'var(--space-2)' }}>
+          ترتیب:
+        </span>
+        <Chip selected={sort === 'urgency'} onClick={() => setFilter({ sort: null })}>
+          فوری‌ترین
+        </Chip>
+        <Chip selected={sort === 'newest'} onClick={() => setFilter({ sort: 'newest' })}>
+          جدیدترین
+        </Chip>
         <input
           className={ui.textCell}
           style={{ inlineSize: '14rem', marginInlineStart: 'auto' }}
@@ -314,6 +355,7 @@ function FragmentRow({
   onToggle: () => void;
 }) {
   const est = estimateOf(lead);
+  const urgency = urgencyOf(lead, new Date());
   return (
     <>
       <tr
@@ -375,6 +417,11 @@ function FragmentRow({
         <td>{SOURCE_LABEL[lead.source] ?? lead.source}</td>
         <td>
           <Badge tone={meta.tone}>{meta.label}</Badge>
+          {urgency ? (
+            <div className="tnum" style={{ marginBlockStart: 'var(--space-1)' }}>
+              <Badge tone={urgency.tone}>{urgency.label}</Badge>
+            </div>
+          ) : null}
         </td>
         <td>
           {assigneeName ?? <span className={ui.muted}>—</span>}
