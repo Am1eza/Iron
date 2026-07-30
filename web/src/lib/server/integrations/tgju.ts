@@ -1,111 +1,140 @@
 /**
- * tgju.org fetcher — FX/gold/ounce for the نبض بازار ticker. The exact API
- * shape is configured via TGJU_BASE_URL (the deploy points it at tgju's JSON
- * endpoint or a relay). Boundary-validated; any failure returns null so the
- * market service can serve last-known values with isStale=true.
+ * Live market-data fetcher for the نبض بازار ticker (usd/eur/gold18/ounce).
+ * Two INDEPENDENT sources, each degrading gracefully to its own keys being
+ * absent from the result — a global-ounce outage must not take down the
+ * domestic currency/gold feed and vice versa; `market.service.ts` already
+ * only upserts whatever keys come back non-null.
+ *
+ * - usd/eur/gold18 (Rial-denominated): our own self-hosted scraper —
+ *   docker-compose service `tgju` (github.com/BlackIQ/tgju-api, pinned to a
+ *   known commit — see docker-compose.yml) fronting tgju.org, the only
+ *   Iranian market-data source with a public (if unofficial) feed — there is
+ *   no official public API. `TGJU_BASE_URL` points at it; unset (e.g. a
+ *   local dev box without the extra container) skips this source entirely.
+ * - Global gold ounce (USD): gold-api.com — free, keyless, no published
+ *   rate limit, independent of anything Iran-specific. `OUNCE_API_URL`
+ *   overrides the default if that source ever needs to change.
  */
 import { z } from 'zod';
 import { reportError } from '@/lib/errors/report';
 import { withResilience } from '@/lib/server/utils/resilience';
 import type { MarketKey } from '@/lib/types/domain';
 
-/** HTTP errors this module throws internally, tagged with a status so the
- *  resilience layer can tell a transient 5xx/network blip (worth retrying)
- *  from a persistent 4xx (retrying won't fix a bad URL/expired key). */
-class TgjuHttpError extends Error {
+const DEFAULT_OUNCE_API_URL = 'https://api.gold-api.com/price/XAU';
+
+/** HTTP errors thrown internally, tagged with a status so the resilience
+ *  layer can tell a transient 5xx/network blip (worth retrying) from a
+ *  persistent 4xx (retrying won't fix a bad URL). */
+class UpstreamHttpError extends Error {
   constructor(public status: number) {
-    super(`tgju HTTP ${status}`);
+    super(`upstream HTTP ${status}`);
   }
 }
-
-function isRetryableTgjuError(err: unknown): boolean {
-  if (err instanceof TgjuHttpError) return err.status >= 500;
+function isRetryableHttpError(err: unknown): boolean {
+  if (err instanceof UpstreamHttpError) return err.status >= 500;
   return true; // network errors, timeouts, DNS failures, etc.
 }
 
-/** tgju current-rates payload (api.tgju.org/v1/data/sana/json format is a
- *  key→{p: "price", ...} map; a relay may pre-shape it to {usd: number, ...}). */
-const flatSchema = z.record(z.string(), z.union([z.number(), z.string()]));
-
-const TGJU_KEYS: Record<Exclude<MarketKey, 'billet'>, string[]> = {
-  // Accept both tgju's canonical item keys and pre-shaped relay keys.
-  usd: ['usd', 'price_dollar_rl', 'price_dollar_dt'],
-  eur: ['eur', 'price_eur'],
-  gold18: ['gold18', 'geram18'],
-  ounce: ['ounce', 'ons'],
-};
-
-function parseNumber(v: unknown): number | null {
-  if (typeof v === 'number' && Number.isFinite(v)) return v;
-  if (typeof v === 'string') {
-    const n = Number(v.replace(/[,٬\s]/g, ''));
-    return Number.isFinite(n) ? n : null;
-  }
-  if (v && typeof v === 'object' && 'p' in (v as Record<string, unknown>)) {
-    return parseNumber((v as Record<string, unknown>).p);
-  }
-  return null;
+async function fetchJson(url: string, timeoutMs = 5000): Promise<unknown> {
+  const res = await fetch(url, { signal: AbortSignal.timeout(timeoutMs), cache: 'no-store' });
+  if (!res.ok) throw new UpstreamHttpError(res.status);
+  return res.json();
 }
 
-/** Rial→Toman where needed: tgju quotes IRR for currency/gold items. */
-function normalize(key: Exclude<MarketKey, 'billet'>, raw: number): number {
-  if (key === 'ounce') return raw; // USD
-  // Values already in Toman-scale (relay) pass through; IRR gets divided.
-  return raw > 10_000_000 ? Math.round(raw / 10) : Math.round(raw);
+/** tgju-api's shapes, confirmed against its actual source (routers/price.py
+ *  + schemas/price.py) — /currency is a flat array of items; /gold is an
+ *  array of CATEGORIES (one per table on tgju.org's gold-chart page), each
+ *  with its own `prices[]` — geram18 lives in whichever category the page
+ *  currently groups it under, so every category has to be searched. */
+const tgjuItemSchema = z.object({ key: z.string(), price: z.union([z.number(), z.string()]) });
+const currencySchema = z.array(tgjuItemSchema);
+const goldSchema = z.array(z.object({ prices: z.array(tgjuItemSchema) }));
+const ounceSchema = z.object({ price: z.number() });
+
+function parsePrice(v: number | string): number | null {
+  const n = typeof v === 'number' ? v : Number(v.replace(/[,٬\s]/g, ''));
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+/** tgju-api's currency/gold values are always Rial — Toman is always
+ *  Rial / 10, never a magnitude guess: real IRR/USD rial values run around
+ *  1-2 million (comfortably "small"), while gold-per-gram rial values run
+ *  in the hundreds of millions ("large") — a size-based cutoff silently
+ *  breaks on one or the other depending on where the threshold sits. */
+function rialToToman(raw: number): number {
+  return Math.round(raw / 10);
+}
+
+// tgju-api live-scrapes tgju.org on every single request (no caching — see
+// its scrap/tgju.py), so a 5s budget that's plenty for gold-api.com's
+// dedicated endpoint is occasionally too tight here; give this source more
+// room before calling it a failure.
+const TGJU_TIMEOUT_MS = 8000;
+
+async function fetchCurrencyAndGold(base: string, out: Partial<Record<MarketKey, number>>): Promise<void> {
+  try {
+    const body = await withResilience('tgju-currency', () => fetchJson(`${base}/api/price/currency`, TGJU_TIMEOUT_MS), {
+      retries: 2,
+      baseDelayMs: 300,
+      isRetryable: isRetryableHttpError,
+    });
+    const parsed = currencySchema.safeParse(body);
+    if (parsed.success) {
+      for (const item of parsed.data) {
+        const n = parsePrice(item.price);
+        if (n === null) continue;
+        if (item.key === 'price_dollar_rl') out.usd = rialToToman(n);
+        else if (item.key === 'price_eur') out.eur = rialToToman(n);
+      }
+    }
+  } catch (err) {
+    reportError(err, { integration: 'tgju-currency' });
+  }
+
+  try {
+    const body = await withResilience('tgju-gold', () => fetchJson(`${base}/api/price/gold`, TGJU_TIMEOUT_MS), {
+      retries: 2,
+      baseDelayMs: 300,
+      isRetryable: isRetryableHttpError,
+    });
+    const parsed = goldSchema.safeParse(body);
+    if (parsed.success) {
+      const item = parsed.data.flatMap((category) => category.prices).find((p) => p.key === 'geram18');
+      const n = item ? parsePrice(item.price) : null;
+      if (n !== null) out.gold18 = rialToToman(n);
+    }
+  } catch (err) {
+    reportError(err, { integration: 'tgju-gold' });
+  }
+}
+
+async function fetchOunce(out: Partial<Record<MarketKey, number>>): Promise<void> {
+  const url = process.env.OUNCE_API_URL || DEFAULT_OUNCE_API_URL;
+  try {
+    const body = await withResilience('gold-ounce', () => fetchJson(url), {
+      retries: 2,
+      baseDelayMs: 300,
+      isRetryable: isRetryableHttpError,
+    });
+    const parsed = ounceSchema.safeParse(body);
+    if (parsed.success && parsed.data.price > 0) out.ounce = Math.round(parsed.data.price * 100) / 100;
+  } catch (err) {
+    reportError(err, { integration: 'gold-ounce' });
+  }
 }
 
 /**
  * Only ever called from the background market-poll job (see
  * jobs/marketPoll.job.ts), never synchronously in a request path — so the
- * retry/backoff below adds no user-facing latency, just improves the odds
+ * retry/backoff above adds no user-facing latency, just improves the odds
  * a single poll tick survives a momentary blip instead of serving stale
- * values for a full extra interval. 2 retries + a circuit breaker (opens
- * after 3 consecutive failed poll attempts) sit behind the existing
- * try/catch: any thrown error — including CircuitOpenError while the
- * breaker is open — still lands in the same `return null`, so callers'
- * last-known-value/isStale fallback is unchanged.
+ * values for a full extra interval.
  */
 export async function fetchTgju(): Promise<Partial<Record<MarketKey, number>> | null> {
+  const out: Partial<Record<MarketKey, number>> = {};
   const base = process.env.TGJU_BASE_URL;
-  if (!base) return null; // not configured — dev/seed values keep serving
-  const apiKey = process.env.TGJU_API_KEY;
-  try {
-    const json: unknown = await withResilience(
-      'tgju',
-      async () => {
-        const res = await fetch(base, {
-          signal: AbortSignal.timeout(5000),
-          // TGJU_API_KEY is optional — some relays front the public tgju feed
-          // with their own auth; a bare tgju.org JSON endpoint needs none.
-          headers: { accept: 'application/json', ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}) },
-          cache: 'no-store',
-        });
-        if (!res.ok) throw new TgjuHttpError(res.status);
-        return res.json();
-      },
-      { retries: 2, baseDelayMs: 300, isRetryable: isRetryableTgjuError },
-    );
-    // Accept either a flat map or tgju's {current: {...}} envelope.
-    const body = (json && typeof json === 'object' && 'current' in (json as Record<string, unknown>)
-      ? (json as Record<string, unknown>).current
-      : json) as unknown;
-    const parsed = flatSchema.safeParse(body);
-    const map = parsed.success ? parsed.data : (body as Record<string, unknown>);
-    if (!map || typeof map !== 'object') return null;
-
-    const out: Partial<Record<MarketKey, number>> = {};
-    for (const [key, aliases] of Object.entries(TGJU_KEYS) as [Exclude<MarketKey, 'billet'>, string[]][]) {
-      for (const alias of aliases) {
-        const n = parseNumber((map as Record<string, unknown>)[alias]);
-        if (n !== null) {
-          out[key] = normalize(key, n);
-          break;
-        }
-      }
-    }
-    return Object.keys(out).length > 0 ? out : null;
-  } catch (err) {
-    reportError(err, { integration: 'tgju' });
-    return null;
-  }
+  const tasks: Promise<void>[] = [fetchOunce(out)];
+  if (base) tasks.push(fetchCurrencyAndGold(base, out));
+  await Promise.all(tasks);
+  return Object.keys(out).length > 0 ? out : null;
 }

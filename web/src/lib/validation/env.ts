@@ -65,7 +65,7 @@ const serverSchema = z
     // W20 — confirms a customer's «انبار مشتریان» storage request landed.
     SMSIR_TEMPLATE_ID_WAREHOUSE_REQUEST: z.string().optional(),
     TGJU_BASE_URL: z.string().optional(),
-    TGJU_API_KEY: z.string().optional(),
+    OUNCE_API_URL: z.string().optional(),
     SESSION_SECRET: z.string().optional(),
     DATABASE_URL: z.string().optional(),
     AUTH_ENFORCED: z.enum(['true', 'false']).default('false'),
