@@ -25,8 +25,9 @@ import { ApiError } from '@/lib/api/errors';
 import { formatToman, toPersianDigits } from '@/lib/utils/format';
 import { slugify } from '@/lib/utils/slugify';
 import { useToast } from '@/lib/hooks/useToast';
-import { Badge, Button, Chip, EmptyState, Modal, TableSkeleton, useConfirm } from '@/components/ui';
+import { Alert, Badge, Button, Chip, EmptyState, Modal, TableSkeleton, useConfirm } from '@/components/ui';
 import { TextInput } from '@/components/forms/fields';
+import { ImageUpload } from '../ImageUpload';
 import { PagerFooter } from '../PagerFooter';
 import { TaxonomyRail, type RailSelection } from './TaxonomyRail';
 import { SkuDrawer } from './SkuDrawer';
@@ -619,8 +620,14 @@ function NodeModal({
   const [categoryId, setCategoryId] = useState(
     draft.kind === 'sub' ? (draft.row?.categoryId ?? draft.categoryId) : '',
   );
-  const [slugUnlocked, setSlugUnlocked] = useState(!isEdit);
+  const [advanced, setAdvanced] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  // Existing rows are hand-authored: re-deriving a live slug from its name
+  // would break the indexed URL. Only a new node auto-follows the name.
+  const [slugTouched, setSlugTouched] = useState(isEdit);
+  const iconRow = draft.kind === 'category' ? (draft.row as AdminCategory | null) : null;
+  const [iconId, setIconId] = useState(iconRow?.iconId ?? '');
+  const [imageUrl, setImageUrl] = useState<string | null>(iconRow?.imageUrl ?? null);
 
   const slugValid = /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug);
 
@@ -629,8 +636,8 @@ function NodeModal({
     // — the caller just refetches — so the result is deliberately widened.
     mutationFn: async (): Promise<void> => {
       if (draft.kind === 'category') {
-        if (draft.row) await adminApi.updateCategory(draft.row.id, { name, slug });
-        else await adminApi.createCategory({ name, slug });
+        if (draft.row) await adminApi.updateCategory(draft.row.id, { name, slug, iconId, imageUrl });
+        else await adminApi.createCategory({ name, slug, iconId, imageUrl });
         return;
       }
       if (draft.row) await adminApi.updateSubCategory(draft.row.id, { name, slug, categoryId });
@@ -714,33 +721,81 @@ function NodeModal({
             setName(nextName);
             // Only while creating: in edit mode this used to stay armed, so
             // fixing a typo in a name silently changed the public URL.
-            if (!isEdit) setSlug(slugify(nextName));
+            if (!slugTouched) setSlug(slugify(nextName));
           }}
         />
 
-        {!slugUnlocked ? (
-          <div className={s.metaRow}>
-            <span className={s.slugPreview}>/prices/{slug}</span>
-            <Button size="sm" variant="ghost" onClick={() => setSlugUnlocked(true)}>
-              تغییر نشانی
-            </Button>
-          </div>
-        ) : (
-          <TextInput
-            label="نشانی (Slug)"
-            dir="ltr"
-            helper={
-              isEdit
-                ? 'نشانی فعلی در گوگل ثبت شده؛ با تغییر آن انتقال خودکار ساخته می‌شود تا لینک‌های قبلی نشکنند.'
-                : 'فقط حروف کوچک انگلیسی، عدد و خط تیره.'
-            }
-            value={slug}
-            error={fieldErrors.slug ?? (slug && !slugValid ? 'فقط حروف کوچک انگلیسی، عدد و خط تیره.' : undefined)}
-            maxLength={60}
-            onChange={(e) => setSlug(e.target.value)}
-          />
-        )}
+        {/* The URL is derived and shown, never asked for. A duplicate is
+            settled server-side by suffixing, so the admin cannot be handed an
+            error about a concept they have never heard of. */}
+        <div className={s.slugPreview}>نشانی صفحه: /prices/{slug || '…'}</div>
+
+        {draft.kind === 'category' ? (
+          <>
+            <div>
+              <label className={ui.tileLabel} htmlFor="node-icon">
+                آیکون منو
+              </label>
+              <select
+                id="node-icon"
+                className={ui.select}
+                style={{ inlineSize: '100%' }}
+                value={iconId}
+                onChange={(e) => setIconId(e.target.value)}
+              >
+                {CATEGORY_ICONS.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+              <div className={ui.tileHint}>در مگا‌منو و صفحهٔ اول کنار نام دسته دیده می‌شود.</div>
+            </div>
+            <ImageUpload label="تصویر دسته" value={imageUrl} onChange={setImageUrl} />
+          </>
+        ) : null}
+
+        <div>
+          <Button size="sm" variant="ghost" aria-expanded={advanced} onClick={() => setAdvanced((x) => !x)}>
+            {advanced ? 'بستن تنظیمات پیشرفته' : 'تنظیمات پیشرفته'}
+          </Button>
+          {advanced ? (
+            <div style={{ marginBlockStart: 'var(--space-3)' }}>
+              {isEdit ? (
+                <Alert tone="warning">
+                  نشانی فعلی در گوگل ثبت شده؛ با تغییر آن انتقال خودکار از نشانی قدیمی ساخته می‌شود تا لینک‌های قبلی
+                  نشکنند.
+                </Alert>
+              ) : null}
+              <TextInput
+                label="نشانی (Slug)"
+                dir="ltr"
+                helper="خودکار از روی نام ساخته می‌شود؛ فقط اگر دلیل خاصی دارید تغییرش دهید."
+                value={slug}
+                error={fieldErrors.slug ?? (slug && !slugValid ? 'فقط حروف کوچک انگلیسی، عدد و خط تیره.' : undefined)}
+                maxLength={60}
+                onChange={(e) => {
+                  setSlugTouched(true);
+                  setSlug(e.target.value);
+                }}
+              />
+            </div>
+          ) : null}
+        </div>
       </div>
     </Modal>
   );
 }
+
+/** The glyphs `CategoryGlyph` can actually render — anything else falls back
+ *  to a generic shape, so this is a closed list rather than a free text box. */
+const CATEGORY_ICONS: Array<{ id: string; label: string }> = [
+  { id: '', label: 'پیش‌فرض' },
+  { id: 'cat-rebar', label: 'میلگرد' },
+  { id: 'cat-ibeam', label: 'تیرآهن' },
+  { id: 'cat-profile', label: 'پروفیل و قوطی' },
+  { id: 'cat-hot-sheet', label: 'ورق گرم' },
+  { id: 'cat-cold-sheet', label: 'ورق سرد' },
+  { id: 'cat-angle-channel', label: 'نبشی و ناودانی' },
+  { id: 'cat-pipe', label: 'لوله' },
+];

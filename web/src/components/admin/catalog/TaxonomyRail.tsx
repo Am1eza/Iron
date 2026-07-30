@@ -115,6 +115,18 @@ export function TaxonomyRail({
                 <span className={s.nodeName}>{c.name}</span>
                 <span className={s.nodeCount}>{toPersianDigits(c.skuCount)}</span>
               </button>
+              {/* Adding a sub-category was buried in the ⋯ menu, where the
+                  admin never found it. It is the second most common action on
+                  this screen, so it gets an always-visible button. */}
+              <IconButton
+                label={`زیر‌دستهٔ جدید در ${c.name}`}
+                size="sm"
+                icon={<span aria-hidden="true">＋</span>}
+                onClick={() => {
+                  if (!expanded.has(c.id)) onExpand(c.id);
+                  onNewSub(c.id);
+                }}
+              />
               <IconButton
                 label={`گزینه‌های ${c.name}`}
                 size="sm"
@@ -216,7 +228,11 @@ export function TaxonomyRail({
               : null}
             {isOpen && subs.length === 0 ? (
               <div className={`${s.node} ${s.subNode}`}>
-                <span className={ui.tileHint}>زیر‌دسته‌ای نیست</span>
+                {/* A dead end here is what made the admin think sub-categories
+                    could not be created at all. */}
+                <Button size="sm" variant="ghost" onClick={() => onNewSub(c.id)}>
+                  ＋ اولین زیر‌دسته را بسازید
+                </Button>
               </div>
             ) : null}
           </div>

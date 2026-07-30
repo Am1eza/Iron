@@ -686,6 +686,12 @@ export const adminApi = {
     ),
   /** Factory names already in use, for the form's datalist. */
   catalogFactories: () => http.get<{ factories: string[] }>('/api/admin/catalog/factories'),
+  /** Every value already in use for the free-text SKU columns, so the product
+   *  form can offer choices instead of asking the admin to type. */
+  catalogSuggestions: (categoryId?: string) =>
+    http.get<{ factories: string[]; sizes: string[]; grades: string[]; standards: string[] }>(
+      `/api/admin/catalog/suggestions${categoryId ? `?categoryId=${encodeURIComponent(categoryId)}` : ''}`,
+    ),
   /** Shared image upload (article cover, SKU photo) — content:write or catalog:write. */
   uploadImage: (file: File) => http.upload<{ url: string }>('/api/admin/upload', file),
 

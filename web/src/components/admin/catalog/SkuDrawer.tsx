@@ -1,26 +1,31 @@
 'use client';
 /**
- * SKU editor (W24) — a side drawer rather than the old inline card that
- * rendered BELOW the table, so clicking «ویرایش» on row 40 appeared to do
- * nothing. A drawer also keeps the row list readable while typing, which a
- * modal would cover.
+ * SKU editor (W24, auto-fill pass).
  *
- * It owns the fixes the old form structurally could not have:
- *  - it is keyed by SKU id at the call site, so switching edit targets
- *    re-seeds the fields instead of writing row A's values onto row B;
- *  - an emptied box sends `null`, not `undefined`, so a wrong factory can
- *    actually be removed;
- *  - `standard`/`grade` exist at all (both are shown to customers);
- *  - the sub-category is a field, so a mis-filed product can be moved;
- *  - `err.fields` lands on the offending input instead of a generic toast.
+ * The admin is not technical, so the form asks only for the things that are
+ * genuinely their decision — which sub-category, which size, which factory,
+ * which grade — and derives everything else:
+ *
+ *  - the URL is composed from the product's own attributes
+ *    (`rebar-14-a3-zobahan`) and is never presented as an input. It is not a
+ *    transliteration of the Persian name, which would produce unreadable
+ *    Finglish, and the server settles collisions by suffixing rather than
+ *    handing back an error about a concept the admin has never heard of;
+ *  - the display name is composed the way the catalog already reads;
+ *  - theoretical weight comes from the standard d²/162 bar formula;
+ *  - the unit defaults to how that category is actually sold.
+ *
+ * A derived field stays derived until the admin edits it by hand, at which
+ * point it stops being recomputed — so a deliberate override is never
+ * silently undone by a later size change.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useFocusTrap } from '@/lib/hooks/useFocusTrap';
 import { useMutation, useQuery } from '@tanstack/react-query';
+import { useFocusTrap } from '@/lib/hooks/useFocusTrap';
 import { adminApi, type AdminSku, type AdminCategory, type AdminSubCategory } from '@/lib/api/resources/admin';
 import { ApiError } from '@/lib/api/errors';
 import { normalizeDigits } from '@/lib/utils/format';
-import { slugify } from '@/lib/utils/slugify';
+import { composeSkuName, composeSkuSlug, defaultUnitFor, theoreticalWeightFor } from '@/lib/utils/catalogCompose';
 import { useToast } from '@/lib/hooks/useToast';
 import { Alert, Badge, Button, Heading, Text, useConfirm } from '@/components/ui';
 import { TextInput } from '@/components/forms/fields';
@@ -66,6 +71,48 @@ function toValues(sku: AdminSku | null, defaultSubId: string): Values {
 /** '' means "clear this column" (→ null); a value means "set it". */
 const orNull = (v: string): string | null => (v.trim() === '' ? null : v.trim());
 
+/** A datalist-backed text field — the admin picks an existing value instead of
+ *  inventing a second spelling of it. */
+function PickerInput({
+  id,
+  label,
+  helper,
+  value,
+  options,
+  error,
+  maxLength,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  helper?: string;
+  value: string;
+  options: string[];
+  error?: string;
+  maxLength?: number;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <>
+      <TextInput
+        label={label}
+        list={`${id}-options`}
+        helper={helper}
+        value={value}
+        error={error}
+        maxLength={maxLength}
+        autoComplete="off"
+        onChange={(e) => onChange(e.target.value)}
+      />
+      <datalist id={`${id}-options`}>
+        {options.map((o) => (
+          <option key={o} value={o} />
+        ))}
+      </datalist>
+    </>
+  );
+}
+
 export function SkuDrawer({
   sku,
   categories,
@@ -86,32 +133,36 @@ export function SkuDrawer({
   const initial = useMemo(() => toValues(sku, defaultSubId), [sku, defaultSubId]);
   const [v, setV] = useState<Values>(initial);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [slugUnlocked, setSlugUnlocked] = useState(!sku);
-  const firstFieldRef = useRef<HTMLInputElement>(null);
-
+  const [advanced, setAdvanced] = useState(false);
+  const firstFieldRef = useRef<HTMLSelectElement>(null);
   const isEdit = Boolean(sku);
+
+  /**
+   * Which fields the admin has taken over. An EXISTING product counts as fully
+   * hand-authored: re-deriving its name or URL just because someone opened the
+   * form would rewrite live data and break an indexed URL.
+   */
+  const [touched, setTouched] = useState({ name: isEdit, slug: isEdit, weight: isEdit, unit: isEdit });
+
   const dirty = useMemo(() => JSON.stringify(v) !== JSON.stringify(initial), [v, initial]);
   const dirtyRef = useRef(dirty);
   dirtyRef.current = dirty;
 
-  const { data: factoryData } = useQuery({
-    queryKey: ['admin', 'cat', 'factories'],
-    queryFn: adminApi.catalogFactories,
+  const { confirm, dialog } = useConfirm();
+
+  const selectedSub = subs.find((x) => x.id === v.subCategoryId);
+  const parentCategory = categories.find((c) => c.id === selectedSub?.categoryId);
+
+  const { data: suggestions } = useQuery({
+    queryKey: ['admin', 'cat', 'suggestions', parentCategory?.id ?? ''],
+    queryFn: () => adminApi.catalogSuggestions(parentCategory?.id),
     staleTime: 5 * 60 * 1000,
   });
-
-  const { confirm, dialog } = useConfirm();
 
   useEffect(() => {
     firstFieldRef.current?.focus();
   }, []);
 
-  /**
-   * Every exit runs through here. The drawer used to hand Esc, the scrim and
-   * «انصراف» straight to `onClose`, so a half-filled product form was thrown
-   * away by a stray Esc with no prompt — the exact data-loss complaint the
-   * audit raised against the old screen.
-   */
   const requestClose = useCallback(async () => {
     if (!dirtyRef.current) {
       onClose();
@@ -125,17 +176,9 @@ export function SkuDrawer({
     if (ok) onClose();
   }, [confirm, onClose]);
 
-  /**
-   * The trap owns Esc, focus containment and focus restore. A separate window
-   * listener also handled Esc, and because the confirm dialog binds Esc on
-   * `document` (which bubbles to window afterwards), dismissing the confirm
-   * immediately re-opened it — the drawer could only be escaped with a mouse.
-   */
+  /** The trap owns Esc, focus containment and focus restore. */
   const panelRef = useFocusTrap<HTMLDivElement>(true, () => void requestClose());
 
-
-  // Closing or reloading the tab mid-edit lost the form silently — the same
-  // guard PricingGrid carries for its unsaved price drafts.
   useEffect(() => {
     if (!dirty) return;
     const warn = (e: BeforeUnloadEvent) => {
@@ -145,8 +188,34 @@ export function SkuDrawer({
     return () => window.removeEventListener('beforeunload', warn);
   }, [dirty]);
 
-  const set = (patch: Partial<Values>) => {
-    setV((prev) => ({ ...prev, ...patch }));
+  /** Re-derive everything the admin has not taken over. */
+  const applyDerived = (next: Values, t: typeof touched): Values => {
+    const sub = subs.find((x) => x.id === next.subCategoryId);
+    const cat = categories.find((c) => c.id === sub?.categoryId);
+    const out = { ...next };
+    if (!t.name) {
+      out.name = composeSkuName({ subName: sub?.name, size: next.size, grade: next.grade, factory: next.factory });
+    }
+    if (!t.slug && cat) {
+      out.slug = composeSkuSlug({
+        categorySlug: cat.slug,
+        size: next.size,
+        grade: next.grade,
+        factory: next.factory,
+      });
+    }
+    if (!t.weight && cat) {
+      const w = theoreticalWeightFor(cat.slug, next.size);
+      out.theoreticalWeightKg = w != null ? String(w) : '';
+    }
+    if (!t.unit && cat) out.unit = defaultUnitFor(cat.slug);
+    return out;
+  };
+
+  const set = (patch: Partial<Values>, markTouched?: Partial<typeof touched>) => {
+    const nextTouched = markTouched ? { ...touched, ...markTouched } : touched;
+    if (markTouched) setTouched(nextTouched);
+    setV((prev) => applyDerived({ ...prev, ...patch }, nextTouched));
     setFieldErrors((prev) => {
       const next = { ...prev };
       for (const k of Object.keys(patch)) delete next[k];
@@ -154,13 +223,12 @@ export function SkuDrawer({
     });
   };
 
-  // Persian keyboards produce «۱۴٫۵»; Number() of that is NaN, which used to
-  // reach the server as null and come back as an unexplained 400.
+  // Persian keyboards produce «۱۴٫۵»; Number() of that is NaN, which reached
+  // the server as null and came back as an unexplained 400.
   const weightRaw = normalizeDigits(v.theoreticalWeightKg).replace('٫', '.').trim();
   const weightNum = weightRaw === '' ? null : Number(weightRaw);
   const weightValid = weightNum === null || (Number.isFinite(weightNum) && weightNum > 0 && weightNum <= 100_000);
-  const slugValid = /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(v.slug);
-  const canSave = v.name.trim() !== '' && slugValid && weightValid && Boolean(v.subCategoryId);
+  const canSave = v.name.trim() !== '' && Boolean(v.subCategoryId) && Boolean(v.slug) && weightValid;
 
   const save = useMutation({
     mutationFn: () => {
@@ -183,8 +251,6 @@ export function SkuDrawer({
       onSaved();
     },
     onError: (err) => {
-      // The server sends per-field Persian messages; the old form threw them
-      // away and showed «ورودی نامعتبر است.» with no clue which field.
       if (err instanceof ApiError && err.fields) setFieldErrors(err.fields);
       toast.error(err instanceof ApiError ? err.message : 'ذخیره ناموفق بود.');
     },
@@ -202,11 +268,7 @@ export function SkuDrawer({
       .map((c) => ({ categoryId: c.id, categoryName: c.name, subs: byCat.get(c.id)! }));
   }, [subs, categories]);
 
-  const parentCategory = categories.find(
-    (c) => c.id === subs.find((x) => x.id === v.subCategoryId)?.categoryId,
-  );
   const moved = isEdit && sku!.subCategoryId !== v.subCategoryId;
-  const slugChanged = isEdit && sku!.slug !== v.slug;
 
   return (
     <>
@@ -223,55 +285,30 @@ export function SkuDrawer({
           <div className={s.metaRow}>
             {parentCategory ? (
               <Text color="muted">
-                {parentCategory.name} › {subs.find((x) => x.id === v.subCategoryId)?.name ?? '—'}
+                {parentCategory.name} › {selectedSub?.name ?? '—'}
               </Text>
             ) : null}
-            {sku ? (
-              sku.isActive ? (
-                <Badge tone="gain">فعال</Badge>
-              ) : (
-                <Badge tone="stale">غیرفعال</Badge>
-              )
-            ) : null}
+            {sku ? sku.isActive ? <Badge tone="gain">فعال</Badge> : <Badge tone="stale">غیرفعال</Badge> : null}
           </div>
         </div>
 
         <div className={s.drawerBody}>
           <div>
-            <div className={s.groupTitle}>هویت کالا</div>
+            <div className={s.groupTitle}>مشخصات کالا</div>
             <div className={s.fieldGrid}>
-              <TextInput
-                ref={firstFieldRef}
-                label="نام کالا"
-                required
-                helper="همان‌طور که مشتری در سایت می‌بیند. مثلاً: میلگرد ۱۴ آجدار A3 ذوب‌آهن"
-                value={v.name}
-                error={fieldErrors.name}
-                maxLength={160}
-                onChange={(e) => {
-                  const name = e.target.value;
-                  // Auto-slug ONLY while creating. In edit mode the old form
-                  // kept this armed, so fixing a typo in a name silently
-                  // rewrote the slug and 404'd every indexed URL.
-                  set(isEdit ? { name } : { name, slug: slugify(name) });
-                }}
-              />
               <div>
                 <label className={ui.tileLabel} htmlFor="sku-sub">
                   زیر‌دسته
                 </label>
                 <select
                   id="sku-sub"
+                  ref={firstFieldRef}
                   className={ui.select}
                   style={{ inlineSize: '100%' }}
                   value={v.subCategoryId}
                   onChange={(e) => set({ subCategoryId: e.target.value })}
                 >
                   <option value="">انتخاب کنید…</option>
-                  {/* Grouped by category: opened from «همهٔ کالاها» this list is
-                      every sub in the catalog, and sub names alone («ساده»,
-                      «آجدار») repeat across categories — ungrouped they are
-                      genuinely ambiguous. */}
                   {groupedSubs.map((g) => (
                     <optgroup key={g.categoryId} label={g.categoryName}>
                       {g.subs.map((x) => (
@@ -284,30 +321,72 @@ export function SkuDrawer({
                   ))}
                 </select>
                 {moved ? (
-                  <div className={ui.tileHintWarn}>با جابه‌جایی، نشانی صفحهٔ کالا عوض می‌شود (انتقال خودکار ساخته می‌شود).</div>
+                  <div className={ui.tileHintWarn}>
+                    با جابه‌جایی، نشانی صفحهٔ کالا عوض می‌شود (انتقال خودکار ساخته می‌شود).
+                  </div>
                 ) : null}
               </div>
-              <TextInput
-                label="کارخانه"
-                list="factory-options"
-                helper="در جدول قیمت و مقایسهٔ کارخانه‌ها دیده می‌شود. از فهرست انتخاب کنید تا یک کارخانه دو اسم نشود."
-                value={v.factory}
-                error={fieldErrors.factory}
-                maxLength={80}
-                onChange={(e) => set({ factory: e.target.value })}
-              />
-              <datalist id="factory-options">
-                {(factoryData?.factories ?? []).map((f) => (
-                  <option key={f} value={f} />
-                ))}
-              </datalist>
-              <TextInput
+
+              <PickerInput
+                id="sku-size"
                 label="سایز"
-                helper="مثلاً میلگرد: ۱۴ · ورق: ۲ · قوطی: ۴۰×۴۰"
+                helper="از فهرست انتخاب کنید یا سایز تازه بنویسید."
                 value={v.size}
+                options={suggestions?.sizes ?? []}
                 error={fieldErrors.size}
                 maxLength={40}
-                onChange={(e) => set({ size: e.target.value })}
+                onChange={(size) => set({ size })}
+              />
+              <PickerInput
+                id="sku-factory"
+                label="کارخانه"
+                helper="از فهرست انتخاب کنید تا یک کارخانه دو اسم نشود."
+                value={v.factory}
+                options={suggestions?.factories ?? []}
+                error={fieldErrors.factory}
+                maxLength={80}
+                onChange={(factory) => set({ factory })}
+              />
+              <PickerInput
+                id="sku-grade"
+                label="گرید"
+                helper="میلگرد: A1، A2، A3 · ورق: ST37، ST52. در صفحهٔ کالا به مشتری نشان داده می‌شود."
+                value={v.grade}
+                options={suggestions?.grades ?? []}
+                error={fieldErrors.grade}
+                maxLength={40}
+                onChange={(grade) => set({ grade })}
+              />
+            </div>
+          </div>
+
+          {/* Filled in automatically. Shown rather than hidden so the admin can
+              see what will be saved — but nothing here needs touching for a
+              normal product. */}
+          <div>
+            <div className={s.groupTitle}>پرشده به‌صورت خودکار</div>
+            <div className={s.fieldGrid}>
+              <TextInput
+                label="نام کالا"
+                helper={touched.name ? 'دستی ویرایش شده.' : 'از زیر‌دسته، سایز، گرید و کارخانه ساخته می‌شود.'}
+                value={v.name}
+                error={fieldErrors.name}
+                maxLength={160}
+                onChange={(e) => set({ name: e.target.value }, { name: true })}
+              />
+              <TextInput
+                label="وزن تئوری (کیلوگرم)"
+                inputMode="decimal"
+                helper={
+                  touched.weight
+                    ? 'دستی ویرایش شده. ماشین‌حساب وزن مشتری از این عدد استفاده می‌کند.'
+                    : 'برای میلگرد و کلاف از روی سایز حساب می‌شود؛ برای بقیه خالی می‌ماند.'
+                }
+                value={v.theoreticalWeightKg}
+                error={
+                  fieldErrors.theoreticalWeightKg ?? (weightValid ? undefined : 'عدد مثبت وارد کنید یا خالی بگذارید.')
+                }
+                onChange={(e) => set({ theoreticalWeightKg: e.target.value }, { weight: true })}
               />
               <div>
                 <label className={ui.tileLabel} htmlFor="sku-unit-sel">
@@ -318,7 +397,7 @@ export function SkuDrawer({
                   className={ui.select}
                   style={{ inlineSize: '100%' }}
                   value={v.unit}
-                  onChange={(e) => set({ unit: e.target.value as AdminSku['unit'] })}
+                  onChange={(e) => set({ unit: e.target.value as AdminSku['unit'] }, { unit: true })}
                 >
                   {UNITS.map((u) => (
                     <option key={u.v} value={u.v}>
@@ -326,54 +405,38 @@ export function SkuDrawer({
                     </option>
                   ))}
                 </select>
+                <div className={ui.tileHint}>
+                  {touched.unit ? 'دستی انتخاب شده.' : 'بر اساس نوع دسته انتخاب شد.'}
+                </div>
               </div>
+            </div>
+            <div className={s.slugPreview} style={{ marginBlockStart: 'var(--space-2)' }}>
+              نشانی صفحه: /prices/{parentCategory?.slug ?? '…'}/{selectedSub?.slug ?? '…'}/{v.slug || '…'}
             </div>
           </div>
 
           <div>
-            <div className={s.groupTitle}>مشخصات فنی</div>
-            <div className={s.fieldGrid}>
-              <TextInput
-                label="گرید"
-                helper="کیفیت فولاد. میلگرد: A1 ساده، A2/A3 آجدار. ورق: ST37، ST52. در صفحهٔ کالا به مشتری نشان داده می‌شود."
-                value={v.grade}
-                error={fieldErrors.grade}
-                maxLength={40}
-                onChange={(e) => set({ grade: e.target.value })}
-              />
-              <TextInput
-                label="استاندارد"
-                helper="استاندارد تولید، مثلاً ISIRI 3132 یا DIN 1025. اگر نمی‌دانید خالی بگذارید."
-                value={v.standard}
-                error={fieldErrors.standard}
-                maxLength={40}
-                onChange={(e) => set({ standard: e.target.value })}
-              />
-              <TextInput
-                label="وزن تئوری (کیلوگرم)"
-                inputMode="decimal"
-                helper="وزن یک واحد فروش — مثلاً یک شاخهٔ ۱۲ متری میلگرد ۱۴ ≈ ۱۴٫۵ کیلوگرم. ماشین‌حساب وزن و برآورد هزینهٔ مشتری از همین عدد استفاده می‌کند."
-                value={v.theoreticalWeightKg}
-                error={fieldErrors.theoreticalWeightKg ?? (weightValid ? undefined : 'عدد مثبت وارد کنید یا خالی بگذارید.')}
-                onChange={(e) => set({ theoreticalWeightKg: e.target.value })}
-              />
-            </div>
-            <div style={{ marginBlockStart: 'var(--space-3)' }}>
-              <ImageUpload label="تصویر کالا" value={v.imageUrl} onChange={(imageUrl) => set({ imageUrl })} />
-            </div>
+            <ImageUpload label="تصویر کالا" value={v.imageUrl} onChange={(imageUrl) => set({ imageUrl })} />
           </div>
 
+          {/* The fields a normal product never needs, so the form reads as four
+              questions rather than nine. */}
           <div>
-            <div className={s.groupTitle}>نشانی صفحه</div>
-            {!slugUnlocked ? (
-              <div className={s.metaRow}>
-                <span className={s.slugPreview}>/prices/…/{v.slug}</span>
-                <Button size="sm" variant="ghost" onClick={() => setSlugUnlocked(true)}>
-                  تغییر نشانی
-                </Button>
-              </div>
-            ) : (
-              <>
+            <Button size="sm" variant="ghost" aria-expanded={advanced} onClick={() => setAdvanced((x) => !x)}>
+              {advanced ? 'بستن تنظیمات پیشرفته' : 'تنظیمات پیشرفته'}
+            </Button>
+            {advanced ? (
+              <div style={{ marginBlockStart: 'var(--space-3)', display: 'grid', gap: 'var(--space-3)' }}>
+                <PickerInput
+                  id="sku-standard"
+                  label="استاندارد"
+                  helper="مثلاً ISIRI 3132 یا DIN 1025. اگر نمی‌دانید خالی بگذارید."
+                  value={v.standard}
+                  options={suggestions?.standards ?? []}
+                  error={fieldErrors.standard}
+                  maxLength={40}
+                  onChange={(standard) => set({ standard })}
+                />
                 {isEdit ? (
                   <Alert tone="warning">
                     نشانی فعلی در گوگل ثبت شده و ممکن است مشتریان ذخیره‌اش کرده باشند. با تغییر آن، انتقال خودکار از
@@ -381,17 +444,16 @@ export function SkuDrawer({
                   </Alert>
                 ) : null}
                 <TextInput
-                  label="نشانی (Slug)"
+                  label="نشانی صفحه (Slug)"
                   dir="ltr"
-                  helper="فقط حروف کوچک انگلیسی، عدد و خط تیره."
+                  helper="خودکار ساخته می‌شود؛ فقط اگر دلیل خاصی دارید تغییرش دهید."
                   value={v.slug}
-                  error={fieldErrors.slug ?? (v.slug && !slugValid ? 'فقط حروف کوچک انگلیسی، عدد و خط تیره.' : undefined)}
+                  error={fieldErrors.slug}
                   maxLength={120}
-                  onChange={(e) => set({ slug: e.target.value })}
+                  onChange={(e) => set({ slug: e.target.value }, { slug: true })}
                 />
-              </>
-            )}
-            {slugChanged ? <div className={ui.tileHintWarn}>نشانی تغییر کرده است.</div> : null}
+              </div>
+            ) : null}
           </div>
         </div>
 
@@ -409,4 +471,3 @@ export function SkuDrawer({
     </>
   );
 }
-

@@ -76,6 +76,27 @@ function escapeLike(term: string): string {
   return term.replace(/[\\%_]/g, (ch) => `\\${ch}`);
 }
 
+/**
+ * Find a free slug by suffixing -2, -3, …
+ *
+ * The admin is not technical, never types a slug, and must never be shown a
+ * collision error about one: two products legitimately named «میلگرد ۱۴ A3»
+ * in different sub-categories compose to the same slug, and the second save
+ * would otherwise fail with a message the admin cannot act on. Only CREATE
+ * auto-settles — an explicit slug edit still reports the conflict, because
+ * there the value was chosen on purpose.
+ */
+async function freeSlug(base: string, taken: (slug: string) => Promise<boolean>): Promise<string> {
+  if (!(await taken(base))) return base;
+  for (let n = 2; n < 200; n += 1) {
+    const candidate = `${base}-${n}`;
+    if (!(await taken(candidate))) return candidate;
+  }
+  // 200 collisions means something upstream is wrong; let the unique index
+  // speak rather than looping forever.
+  return `${base}-${Date.now()}`;
+}
+
 /* ------------------------------ categories ------------------------------ */
 
 export async function adminListCategories() {
@@ -118,16 +139,14 @@ export async function createCategory(input: {
   iconId?: string;
   imageUrl?: string | null;
 }) {
-  if (await categorySlugTaken(input.slug)) {
-    throw new DuplicateSlugError('slug', 'این نشانی قبلاً برای دستهٔ دیگری استفاده شده است.');
-  }
+  const slug = await freeSlug(input.slug, (c) => categorySlugTaken(c));
   const rows = await asSlugConflict(
     () =>
       getDb()
         .insert(categories)
         .values({
           id: ulid(),
-          slug: input.slug,
+          slug,
           name: input.name,
           order: input.order ?? 99,
           iconId: input.iconId ?? '',
@@ -219,9 +238,7 @@ export async function createSubCategory(input: { categoryId: string; slug: strin
     .where(eq(categories.id, input.categoryId))
     .limit(1);
   if (!parent[0]) throw new InvalidParentError('دستهٔ انتخاب‌شده یافت نشد.');
-  if (await subSlugTaken(input.categoryId, input.slug)) {
-    throw new DuplicateSlugError('slug', 'این نشانی قبلاً در همین دسته استفاده شده است.');
-  }
+  const slug = await freeSlug(input.slug, (c) => subSlugTaken(input.categoryId, c));
   const rows = await asSlugConflict(
     () =>
       getDb()
@@ -229,7 +246,7 @@ export async function createSubCategory(input: { categoryId: string; slug: strin
         .values({
           id: ulid(),
           categoryId: input.categoryId,
-          slug: input.slug,
+          slug,
           name: input.name,
           order: input.order ?? 99,
         })
@@ -356,6 +373,41 @@ export async function distinctFactories(): Promise<string[]> {
   return rows.map((r) => r.factory).filter((f): f is string => Boolean(f));
 }
 
+/**
+ * Every value already in use for the free-text SKU columns, optionally scoped
+ * to one category. The admin is not technical and should be PICKING, not
+ * typing: it stops «ذوب آهن» becoming three spellings, and it means adding the
+ * 12th rebar size is two clicks rather than recalling the house convention.
+ */
+export async function catalogSuggestions(categoryId?: string): Promise<{
+  factories: string[];
+  sizes: string[];
+  grades: string[];
+  standards: string[];
+}> {
+  const db = getDb();
+  const where = categoryId ? eq(skus.categoryId, categoryId) : undefined;
+  const rows = await db
+    .select({
+      factory: skus.factory,
+      size: skus.size,
+      grade: skus.grade,
+      standard: skus.standard,
+    })
+    .from(skus)
+    .where(where);
+  const pick = (get: (r: (typeof rows)[number]) => string | null) =>
+    [...new Set(rows.map(get).filter((v): v is string => Boolean(v && v.trim())))].sort((a, b) =>
+      a.localeCompare(b, 'fa'),
+    );
+  return {
+    factories: pick((r) => r.factory),
+    sizes: pick((r) => r.size),
+    grades: pick((r) => r.grade),
+    standards: pick((r) => r.standard),
+  };
+}
+
 export interface SkuInput {
   subCategoryId: string;
   categoryId?: string;
@@ -392,14 +444,12 @@ async function skuSlugTaken(slug: string, exceptId?: string): Promise<boolean> {
 
 export async function createSku(input: SkuInput) {
   const categoryId = await resolveSkuParent(input.subCategoryId);
-  if (await skuSlugTaken(input.slug)) {
-    throw new DuplicateSlugError('slug', 'این نشانی قبلاً برای کالای دیگری استفاده شده است.');
-  }
+  const slug = await freeSlug(input.slug, (c) => skuSlugTaken(c));
   const rows = await asSlugConflict(
     () =>
       getDb()
         .insert(skus)
-        .values({ ...input, id: ulid(), categoryId, unit: input.unit ?? 'kg' })
+        .values({ ...input, id: ulid(), slug, categoryId, unit: input.unit ?? 'kg' })
         .returning(),
     'این نشانی قبلاً برای کالای دیگری استفاده شده است.',
   );
