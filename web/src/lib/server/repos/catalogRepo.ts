@@ -35,6 +35,7 @@ function toPriceRow(r: JoinedRow, s: { isStale: (d: Date) => boolean; isHidden: 
     factory: r.sku.factory ?? undefined,
     theoreticalWeightKg: r.sku.theoreticalWeightKg ?? undefined,
     unit: r.sku.unit,
+    imageUrl: r.sku.imageUrl ?? undefined,
     isActive: r.sku.isActive,
     current: {
       skuId: r.sku.id,
@@ -141,7 +142,19 @@ export async function findSkuRow(slug: string): Promise<PriceRow | null> {
     .innerJoin(categories, eq(skus.categoryId, categories.id))
     .innerJoin(subCategories, eq(skus.subCategoryId, subCategories.id))
     .leftJoin(currentPrices, eq(currentPrices.skuId, skus.id))
-    .where(and(eq(skus.slug, slug), eq(skus.isActive, true), eq(categories.isActive, true)))
+    // W24 audit fix: `subCategories.isActive` was checked by `tableRows` and
+    // the two sub-listing queries but NOT here — so deactivating a
+    // sub-category left its products as live, crawlable, buyable 200 pages
+    // whose own sub page 404s and whose breadcrumb points at that 404. The
+    // sub join is already here for `subSlug`; the predicate is the fix.
+    .where(
+      and(
+        eq(skus.slug, slug),
+        eq(skus.isActive, true),
+        eq(categories.isActive, true),
+        eq(subCategories.isActive, true),
+      ),
+    )
     .limit(1);
   if (!rows[0]) return null;
   const s = await getPriceFreshness();
@@ -163,7 +176,15 @@ export async function findSkuRowsByIds(ids: string[]): Promise<PriceRow[]> {
     .innerJoin(categories, eq(skus.categoryId, categories.id))
     .innerJoin(subCategories, eq(skus.subCategoryId, subCategories.id))
     .leftJoin(currentPrices, eq(currentPrices.skuId, skus.id))
-    .where(and(inArray(skus.id, ids), eq(skus.isActive, true), eq(categories.isActive, true)));
+    // `subCategories.isActive` — see the note on findSkuRow (W24).
+    .where(
+      and(
+        inArray(skus.id, ids),
+        eq(skus.isActive, true),
+        eq(categories.isActive, true),
+        eq(subCategories.isActive, true),
+      ),
+    );
   const s = await getPriceFreshness();
   const bySkuId = new Map(rows.map((r) => [r.sku.id, toPriceRow(r, s)] as const));
   return ids.map((id) => bySkuId.get(id)).filter((r): r is PriceRow => Boolean(r));
@@ -186,6 +207,9 @@ export async function relatedSkuRows(slug: string, limit = 4): Promise<PriceRow[
         ne(skus.slug, slug),
         eq(skus.isActive, true),
         eq(categories.isActive, true),
+        // W24: cross-sell must not resurface a product whose sub-category
+        // was retired — see the note on findSkuRow.
+        eq(subCategories.isActive, true),
       ),
     )
     .orderBy(asc(skus.name))
@@ -305,7 +329,17 @@ export async function searchSkus(q: string, limit = 20): Promise<PriceRow[]> {
     .innerJoin(categories, eq(skus.categoryId, categories.id))
     .innerJoin(subCategories, eq(skus.subCategoryId, subCategories.id))
     .leftJoin(currentPrices, eq(currentPrices.skuId, skus.id))
-    .where(and(eq(skus.isActive, true), eq(categories.isActive, true), ...perTokenMatch))
+    // `subCategories.isActive` — see the note on findSkuRow (W24). Search was
+    // the loudest leak of the four: a retired sub-category's products kept
+    // ranking in site search and in the AI advisor's getPrice tool.
+    .where(
+      and(
+        eq(skus.isActive, true),
+        eq(categories.isActive, true),
+        eq(subCategories.isActive, true),
+        ...perTokenMatch,
+      ),
+    )
     .orderBy(desc(sql`similarity(${skus.name}, ${trimmed})`))
     .limit(limit);
   const s = await getPriceFreshness();

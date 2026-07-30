@@ -63,6 +63,11 @@ export interface SKU {
   factory?: string;
   theoreticalWeightKg?: number;
   unit: PriceUnit;
+  /** Per-product photo (W24). Until now `skus.image_url` was written by the
+   *  admin form and read by nothing — the public page fell back to a stock
+   *  photo keyed on CATEGORY, so every rebar looked identical and an uploaded
+   *  photo silently went nowhere. */
+  imageUrl?: string;
   isActive: boolean;
 }
 

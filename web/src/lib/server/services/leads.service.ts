@@ -249,7 +249,13 @@ async function priceItems(
     .select({ sku: skus, price: currentPrices })
     .from(skus)
     .leftJoin(currentPrices, eq(currentPrices.skuId, skus.id))
-    .where(inArray(skus.id, ids));
+    // W24 audit fix: without the `isActive` filter a stale cart or a
+    // bookmarked page could resolve a DEACTIVATED product — and since
+    // `createLead` auto-issues a پیش‌فاکتور the moment `allPriced` holds, the
+    // shop could issue a binding quote for a delisted item. An id that no
+    // longer resolves already falls through to `unitPrice: undefined` →
+    // `allPriced = false`, which routes the lead to a human instead.
+    .where(and(inArray(skus.id, ids), eq(skus.isActive, true)));
   const bySku = new Map(rows.map((r) => [r.sku.id, r] as const));
   // Slug fallback: cart items created from mock-era rows carry slug ids. Only
   // query the ids that DIDN'T resolve by SKU id — skip the extra round-trip

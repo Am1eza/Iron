@@ -15,6 +15,70 @@ export type FieldErrors = Record<string, string>;
  */
 export const finiteNumber = z.number().finite();
 
+/**
+ * A URL slug on a server-trust boundary. The admin catalog forms generate
+ * conforming slugs client-side via `slugify()`, but the field stays editable
+ * and the server never enforced a character set — so `ab/../x`, internal
+ * whitespace, RTL-override marks and Persian letters all validated.
+ *
+ * The interesting case is `..`: `encodeURIComponent` (routes.ts) does NOT
+ * escape dots, so a `..` segment survives into `new URL(path, SITE_URL)` in
+ * `seo.ts` and `sitemap.ts`, where URL normalization collapses it — silently
+ * pointing a real revenue page's canonical tag and sitemap entry at the
+ * homepage. Homoglyphs are the other half: two visually identical slugs can
+ * coexist past the unique index.
+ *
+ * Lowercase ASCII, digits, single interior hyphens. `max` varies per entity.
+ */
+export const slugSchema = (max: number) =>
+  z
+    .string()
+    .trim()
+    .min(1)
+    .max(max)
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'نشانی فقط می‌تواند شامل حروف کوچک انگلیسی، عدد و خط تیره باشد.');
+
+/**
+ * An uploaded image reference, normalised to a same-origin PATH.
+ *
+ * `/api/admin/upload` returns a relative `/uploads/<ulid>.<ext>`, but
+ * `ImageUpload` resolves it against `window.location.origin` before sending —
+ * so what actually landed in the column was an absolute URL pinned to whatever
+ * host the admin happened to be on. An image uploaded from the panel host (or
+ * from localhost) is then a broken, cross-origin, CSP-blocked `<img>` for every
+ * visitor of the public site. Storing the path makes it origin-independent.
+ *
+ * Also closes the `z.string().url()` hole: that accepts `javascript:`,
+ * `data:` and `file:` schemes, since it is a `new URL()` try/catch rather than
+ * an http(s) allowlist.
+ */
+export const uploadPathSchema = z
+  .string()
+  .trim()
+  .max(300)
+  .transform((v, ctx) => {
+    if (v.startsWith('/uploads/')) return v;
+    try {
+      const u = new URL(v);
+      if ((u.protocol === 'http:' || u.protocol === 'https:') && u.pathname.startsWith('/uploads/')) {
+        return u.pathname;
+      }
+    } catch {
+      // fall through to the issue below
+    }
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'نشانی تصویر معتبر نیست.' });
+    return z.NEVER;
+  });
+
+/** A patch body must actually change something — every field on these schemas
+ *  is optional, so `{}` parsed fine and reached drizzle's `.set({})`, which
+ *  throws "No values to set" and surfaced as a 500. */
+export function nonEmptyPatch<S extends z.ZodTypeAny>(schema: S) {
+  return schema.refine((v) => v && typeof v === 'object' && Object.keys(v).length > 0, {
+    message: 'هیچ تغییری ارسال نشده است.',
+  });
+}
+
 /** Flatten a ZodError into a { field: firstMessage } map (Persian messages). */
 export function formatZodError(error: z.ZodError): FieldErrors {
   const out: FieldErrors = {};

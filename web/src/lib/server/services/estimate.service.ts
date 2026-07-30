@@ -4,7 +4,7 @@
  * admin-configurable LOGISTICS settings. The AI tools call these too, so
  * every number a user sees has one source.
  */
-import { eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { getDb } from '@/lib/server/db/client';
 import { skus, currentPrices, categories } from '@/lib/server/db/schema';
 import type { LineItem, PriceUnit } from '@/lib/types/domain';
@@ -18,7 +18,10 @@ export async function estimateItems(items: Array<{ skuId: string; qty: number; u
     .select({ sku: skus, price: currentPrices })
     .from(skus)
     .leftJoin(currentPrices, eq(currentPrices.skuId, skus.id))
-    .where(inArray(skus.id, ids));
+    // W24: same `isActive` gate as leads.service.priceItems — an estimate
+    // must never quote a delisted product, least of all via the AI tools
+    // that call this.
+    .where(and(inArray(skus.id, ids), eq(skus.isActive, true)));
   const byId = new Map(rows.map((r) => [r.sku.id, r] as const));
   for (const r of rows) byId.set(r.sku.slug, r);
 

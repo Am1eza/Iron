@@ -24,6 +24,7 @@ export function ProductImage({
   /** The CSS width this image renders at, for the browser's srcset choice.
    *  Defaults to full-bleed; pass the real box width where it is smaller. */
   sizes = '100vw',
+  src: srcOverride,
 }: {
   slug: string;
   name: string;
@@ -31,12 +32,16 @@ export function ProductImage({
   variant?: 'full' | 'thumb';
   className?: string;
   sizes?: string;
+  /** The product's own photo. Wins over the category stock image when set —
+   *  see the note on `SKU.imageUrl`. */
+  src?: string;
 }) {
-  const src = variant === 'thumb' ? productThumb(slug) : productImage(slug);
+  const src = srcOverride ?? (variant === 'thumb' ? productThumb(slug) : productImage(slug));
   if (!src) return null;
   const [w, h] = variant === 'thumb' ? [320, 213] : [1200, 800];
   // Only the full variant has a choice to offer — the thumb IS the small one.
-  const thumb = variant === 'full' ? productThumb(slug) : undefined;
+  // A real product photo has no pre-rendered thumb — only the stock map does.
+  const thumb = !srcOverride && variant === 'full' ? productThumb(slug) : undefined;
   return (
     <img
       src={src}

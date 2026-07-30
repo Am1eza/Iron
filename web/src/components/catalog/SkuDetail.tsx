@@ -203,9 +203,18 @@ export function SkuDetail({
                 </li>
               ) : null}
             </ul>
-            {productImage(row.categoryId) ? (
+            {/* The product's own photo when the admin uploaded one, else the
+                category stock image. Before W24 `row.imageUrl` was written by
+                the panel and read by nobody, so every product in a category
+                showed the same picture. */}
+            {row.imageUrl || productImage(row.categoryId) ? (
               <figure className={styles.heroImage}>
-                <ProductImage slug={row.categoryId} name={categoryName} eager />
+                <ProductImage
+                  slug={row.categoryId}
+                  src={row.imageUrl}
+                  name={row.imageUrl ? row.name : categoryName}
+                  eager
+                />
               </figure>
             ) : null}
           </div>

@@ -1,10 +1,11 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
-import { adminListSubCategories, createSubCategory } from '@/lib/server/repos/catalogAdminRepo';
-import { finiteNumber } from '@/lib/validation/utils';
+import { adminListSubCategoriesWithCounts, createSubCategory } from '@/lib/server/repos/catalogAdminRepo';
+import { catalogErrorResponse, revalidateCatalog } from '@/lib/server/utils/catalogRoute';
+import { finiteNumber, slugSchema } from '@/lib/validation/utils';
+import { normalizePersian } from '@/lib/utils/persianText';
 
 async function GETImpl(req: NextRequest) {
   const guard = requireDb();
@@ -13,15 +14,15 @@ async function GETImpl(req: NextRequest) {
   if ('response' in auth) return auth.response;
   const categoryId = req.nextUrl.searchParams.get('categoryId') ?? undefined;
   return NextResponse.json(
-    { subCategories: await adminListSubCategories(categoryId) },
+    { subCategories: await adminListSubCategoriesWithCounts(categoryId) },
     { headers: { 'Cache-Control': 'no-store' } },
   );
 }
 
 const createPayload = z.object({
   categoryId: z.string().min(1),
-  slug: z.string().trim().min(1).max(60),
-  name: z.string().trim().min(1).max(80),
+  slug: slugSchema(60),
+  name: z.string().trim().min(1).max(80).transform(normalizePersian),
   order: finiteNumber.int().min(0).max(9999).optional(),
 });
 
@@ -32,11 +33,16 @@ async function POSTImpl(req: NextRequest) {
   if ('response' in auth) return auth.response;
   const v = await validateBody(req, createPayload);
   if (!v.ok) return v.response;
-  const subCategory = await createSubCategory(v.data);
-  await audit(auth.session.id, 'catalog.sub.create', { type: 'subCategory', id: subCategory.id }, null, v.data);
-  // Taxonomy edits must show up on the public site immediately (nav,
-  // mega-menu, home cascade, /prices) — not after the 5-minute ISR window.
-  revalidatePath('/', 'layout');
+  let subCategory;
+  try {
+    subCategory = await createSubCategory(v.data);
+  } catch (err) {
+    const mapped = catalogErrorResponse(err);
+    if (mapped) return mapped;
+    throw err;
+  }
+  await audit(auth.session.id, 'catalog.sub.create', { type: 'sub', id: subCategory.id }, null, v.data);
+  revalidateCatalog('taxonomy');
   return NextResponse.json({ subCategory }, { status: 201 });
 }
 

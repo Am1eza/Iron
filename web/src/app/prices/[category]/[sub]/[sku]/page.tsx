@@ -72,7 +72,7 @@ export default async function SkuPage({ params }: Params) {
           priceHidden: row.current.priceHidden,
           available: row.isActive,
           url: routes.sku(row.categoryId, row.subCategoryId, row.slug),
-          image: productImage(row.categoryId),
+          image: row.imageUrl ?? productImage(row.categoryId),
           brand: row.factory,
           sku: row.slug,
         })}

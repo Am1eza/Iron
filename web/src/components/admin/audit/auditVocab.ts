@@ -98,6 +98,10 @@ export const ENTITY_LABEL: Record<string, string> = {
   sku: 'کالا',
   category: 'دسته‌بندی',
   sub: 'زیردسته',
+  // Rows written before W24 used the raw camelCase type, which fell through
+  // to `?? entityType` and printed Latin «subCategory» inside a Persian
+  // sentence. Keep the alias so the existing log reads correctly.
+  subCategory: 'زیردسته',
   lead: 'سرنخ',
   order: 'سفارش',
   proforma: 'پیش‌فاکتور',
