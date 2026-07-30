@@ -100,7 +100,12 @@ export const WAREHOUSE_STATUS_LABEL: Record<WarehouseStatus, string> = {
   pending: 'در انتظار تحویل',
   stored: 'انبارشده',
   selling: 'در حال فروش',
-  released: 'تسویه‌شده',
+  // W20 audit: this used to be «تسویه‌شده» — one letter and one tab away from
+  // «تسویه‌حساب» (the billing tab), so an operator who'd just recorded a
+  // settlement could easily pick this and irreversibly mark still-physical
+  // stock as gone. `released` is about CUSTODY (left the warehouse), never
+  // about billing — the label now says exactly that.
+  released: 'خارج‌شده از انبار',
 };
 
 export interface WarehouseItem {
@@ -110,8 +115,16 @@ export interface WarehouseItem {
   sizeLabel?: string;
   quantityTons: number;
   monthlyFeeToman: number;
-  storedAt: string; // ISO
+  storedAt: string; // ISO — row-creation timestamp, kept for backward compat
+  arrivedAt?: string; // ISO — actual physical intake date (W20)
+  releasedAt?: string; // ISO — stop-clock, stamped when status → released (W20)
+  location?: string;
+  contractRef?: string;
+  insured: boolean;
   status: WarehouseStatus;
+  /** What this item currently owes, computed live — lets «انبار من» show a
+   *  real balance instead of nothing (W20). */
+  unsettledToman?: number;
 }
 
 /* ---------- Order / cargo tracking (request #11) ---------- */

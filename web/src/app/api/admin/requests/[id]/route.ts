@@ -3,8 +3,13 @@ import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { updateRequestStatus } from '@/lib/server/repos/requestsRepo';
+import { REQUEST_STATUSES } from '@/lib/server/db/schema';
 
-const payload = z.object({ status: z.enum(['submitted', 'reviewing', 'contacted', 'quoted']) });
+// W20: 'fulfilled' added for warehouse requests (never reach 'quoted' — no
+// پیش‌فاکتور involved). Enumerated from the schema's own REQUEST_STATUSES
+// instead of a hand-copied literal list, so this route can't silently drift
+// out of sync with it again the way it did when 'fulfilled' was first added.
+const payload = z.object({ status: z.enum(REQUEST_STATUSES) });
 
 /** PATCH /api/admin/requests/{id} — advance the request status trail. */
 async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {

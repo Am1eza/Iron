@@ -14,6 +14,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core';
 import { users } from './auth';
 import { PRICE_UNITS, skus } from './catalog';
@@ -24,7 +25,10 @@ export const LEAD_SOURCES = ['table', 'ai', 'cart', 'cooperation', 'tool', 'ware
 export const LEAD_STATUSES = ['new', 'contacted', 'won', 'lost'] as const;
 export const COOPERATION_TYPES = ['market-analysis', 'supply', 'sell'] as const;
 export const REQUEST_TYPES = ['proforma', 'bulk', 'warehouse'] as const;
-export const REQUEST_STATUSES = ['submitted', 'reviewing', 'contacted', 'quoted'] as const;
+// 'fulfilled' (W20) — the terminal state for a request that was resolved by
+// something OTHER than issuing a پیش‌فاکتور (a warehouse request being
+// stored is the first case; 'quoted' could never legitimately describe it).
+export const REQUEST_STATUSES = ['submitted', 'reviewing', 'contacted', 'quoted', 'fulfilled'] as const;
 
 export interface LeadContext {
   aiConversationId?: string;
@@ -180,7 +184,14 @@ export const userRequests = pgTable(
   'user_requests',
   {
     id: text('id').primaryKey(),
-    ref: text('ref').notNull().unique(),
+    // `ref` is scoped unique PER USER (W20), not globally: the localStorage→
+    // server import path lets the CLIENT propose a ref (see requestsRepo.ts's
+    // insertRequest onConflictDoNothing), and a global unique constraint made
+    // two different customers' locally-minted refs collide — the second
+    // customer's request was silently dropped on import. Per-user scoping
+    // means one customer can never block another's, at the schema level, not
+    // just by convention.
+    ref: text('ref').notNull(),
     // `userId` intentionally has NO onDelete override — same reasoning as
     // lead_notes.authorId: required, and a submitted request is real
     // customer history the app must not silently discard or orphan.
@@ -196,7 +207,10 @@ export const userRequests = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index('user_requests_user_created_idx').on(t.userId, t.createdAt)],
+  (t) => [
+    index('user_requests_user_created_idx').on(t.userId, t.createdAt),
+    uniqueIndex('user_requests_user_ref_uq').on(t.userId, t.ref),
+  ],
 );
 
 export const contactMessages = pgTable('contact_messages', {

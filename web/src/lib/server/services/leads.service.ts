@@ -518,4 +518,98 @@ export async function issueProforma(
   );
 }
 
+/* ---------------------------- warehouse requests (W20) ---------------------------- */
+
+export interface CreateWarehouseRequestInput {
+  product: string;
+  quantityTons: number;
+  duration: string;
+  notes?: string;
+}
+
+export interface CreateWarehouseRequestResult {
+  ref: string; // the lead ref — what the customer's confirmation SMS names
+}
+
+/** Shared warehouse-request SMS text — the fallback for
+ *  warehouseRequestSmsNotification() below when no template is configured. */
+export function warehouseRequestSmsText(ref: string, name: string | null | undefined): string {
+  const who = name?.trim() || 'مشتری';
+  const link = `${publicEnv.NEXT_PUBLIC_SITE_URL}/account/requests`;
+  return `آهن‌تایم: ${who} عزیز، درخواست نگهداری کالای شما ثبت شد. کد پیگیری: ${ref} — کارشناسان به‌زودی تماس می‌گیرند. پیگیری: ${link}`;
+}
+
+export function warehouseRequestSmsNotification(
+  ref: string,
+  name: string | null | undefined,
+): { templateEnvVar: string; params: TemplateParam[]; fallbackText: string; kind: 'generic' } {
+  return {
+    templateEnvVar: 'SMSIR_TEMPLATE_ID_WAREHOUSE_REQUEST',
+    params: [
+      { name: 'NAME', value: customerNameParam(name) },
+      { name: 'REF', value: truncateParam(ref) },
+    ],
+    fallbackText: warehouseRequestSmsText(ref, name),
+    kind: 'generic',
+  };
+}
+
+/**
+ * A customer's «انبار مشتریان» storage ask, wired the same way createLead()
+ * wires a proforma ask (W20) — this was the single biggest gap the audit
+ * found: the public form had never called any API at all, so a request went
+ * nowhere: no lead, no entry in the rep's queue, no SMS, gone the moment the
+ * browser was cleared. This makes it a REAL lead (source='warehouse', so it
+ * lands in the CRM pipeline exactly like every other lead — assignable,
+ * trackable, SMS-able) plus a mirrored row in the customer's own «درخواست‌های
+ * من» inbox, in one transaction, then texts the confirmation after commit —
+ * same ordering discipline as createLead: an SMS is an external side effect
+ * that can't be undone, so it must never announce a ref that failed to
+ * persist.
+ */
+export async function createWarehouseRequest(
+  input: CreateWarehouseRequestInput,
+  session: AuthUser,
+): Promise<CreateWarehouseRequestResult> {
+  const ref = await nextRef('LD');
+
+  await getDb().transaction(async (tx) => {
+    const lead = await insertLead(
+      {
+        ref,
+        userId: session.id,
+        contactName: session.name,
+        contactMobile: session.mobile,
+        contactVerified: true, // the session IS the contact — always verified
+        source: 'warehouse',
+        context: {
+          warehouse: { product: input.product, quantityTons: input.quantityTons, duration: input.duration },
+          ...(input.notes ? { note: input.notes } : {}),
+        },
+        items: [],
+      },
+      tx,
+    );
+
+    await insertRequest(
+      {
+        userId: session.id,
+        ref,
+        type: 'warehouse',
+        title: `نگهداری ${input.product} — ${input.quantityTons} تن`,
+        detail: `مدت نگهداری: ${input.duration}`,
+        note: input.notes,
+        leadId: lead.id,
+      },
+      tx,
+    );
+  });
+
+  // AFTER commit — same rationale as createLead: never text a ref that
+  // didn't durably persist.
+  await sendNotification(session.mobile, warehouseRequestSmsNotification(ref, session.name));
+
+  return { ref };
+}
+
 

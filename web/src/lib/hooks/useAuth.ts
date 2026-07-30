@@ -1,6 +1,7 @@
 'use client';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores/auth';
+import { useRequestsStore } from '@/lib/stores/requests';
 import { api } from '@/lib/api';
 import { can, canAccessAdmin } from '@/lib/auth/roles';
 import type { Permission } from '@/lib/auth/types';
@@ -29,6 +30,14 @@ export function useAuth() {
         await api.auth.logout();
       } finally {
         setUser(null);
+        // W20: this mock-mode request store persists to a single GLOBAL
+        // localStorage key with no per-user namespace. Left uncleared, the
+        // NEXT person to sign in on this browser/device (a shared family
+        // computer, a walk-in kiosk) had their auto-sync (useRequestsSync)
+        // silently import whatever this session queued — under the NEW
+        // user's account. A logout is exactly the boundary where that must
+        // not survive.
+        useRequestsStore.getState().clear();
         router.push(redirectTo);
         router.refresh();
       }

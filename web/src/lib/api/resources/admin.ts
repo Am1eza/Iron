@@ -314,9 +314,10 @@ export const adminApi = {
   convertToOrder: (id: string) => http.post<{ order: Order }>(`/api/admin/leads/${id}/order`, {}),
 
   /* requests + contact */
-  requests: (params: { status?: string; page?: number; perPage?: number } = {}) => {
+  requests: (params: { status?: string; type?: string; page?: number; perPage?: number } = {}) => {
     const qs = new URLSearchParams();
     if (params.status) qs.set('status', params.status);
+    if (params.type) qs.set('type', params.type);
     if (params.page) qs.set('page', String(params.page));
     if (params.perPage) qs.set('perPage', String(params.perPage));
     return http.get<{
@@ -324,6 +325,8 @@ export const adminApi = {
       // absent from this type, so the inbox had no way to reach the lead a
       // request belongs to — and since issuing a proforma now writes this
       // row's status, the rep needs one click to the thing that wrote it.
+      // W20: the repo now joins `users` in, so every row carries the
+      // customer's identity — the inbox no longer forces a separate lookup.
       requests: Array<{
         id: string;
         ref: string;
@@ -334,6 +337,8 @@ export const adminApi = {
         status: string;
         leadId: string | null;
         createdAt: string;
+        customerName: string | null;
+        customerMobile: string;
       }>;
       total: number;
     }>(`/api/admin/requests?${qs}`);
@@ -396,20 +401,63 @@ export const adminApi = {
    *  insufficient-permission convention), so hide this control for them. */
   cancelOrder: (ref: string) => http.del<{ ok: true; smsSent?: boolean }>(`/api/admin/orders/${encodeURIComponent(ref)}`),
 
-  /* warehouse */
-  warehouse: (page = 1) =>
-    http.get<{
+  /* warehouse (W20 — search/filter/pagination, intake details, void/paid) */
+  warehouse: (params: { page?: number; status?: string; q?: string; includeDeleted?: boolean } = {}) => {
+    const qs = new URLSearchParams();
+    if (params.page) qs.set('page', String(params.page));
+    if (params.status) qs.set('status', params.status);
+    if (params.q) qs.set('q', params.q);
+    if (params.includeDeleted) qs.set('includeDeleted', 'true');
+    return http.get<{
       items: Array<WarehouseItem & { userId: string; customerMobile: string; customerName: string | null }>;
       total: number;
-    }>(`/api/admin/warehouse?page=${page}`),
-  createWarehouseItem: (input: { mobile: string; product: string; sizeLabel?: string; quantityTons: number; monthlyFeeToman?: number }) =>
-    http.post<{ item: WarehouseItem }>('/api/admin/warehouse', input),
-  updateWarehouseItem: (id: string, patch: { status?: string; monthlyFeeToman?: number; quantityTons?: number }) =>
-    http.patch<{ item: WarehouseItem }>(`/api/admin/warehouse/${id}`, patch),
+    }>(`/api/admin/warehouse?${qs}`);
+  },
+  createWarehouseItem: (input: {
+    mobile: string;
+    customerName?: string;
+    product: string;
+    sizeLabel?: string;
+    quantityTons: number;
+    monthlyFeeToman?: number;
+    arrivedAt?: string;
+    location?: string;
+    intakeNote?: string;
+    contractRef?: string;
+    insured?: boolean;
+    leadId?: string;
+    requestId?: string;
+  }) =>
+    http.post<{ item: WarehouseItem; customer: { id: string; name: string | null; mobile: string }; registeredNewCustomer: boolean }>(
+      '/api/admin/warehouse',
+      input,
+    ),
+  updateWarehouseItem: (
+    id: string,
+    patch: Partial<{
+      status: string;
+      monthlyFeeToman: number;
+      quantityTons: number;
+      location: string | null;
+      contractRef: string | null;
+      insured: boolean;
+      arrivedAt: string | null;
+      movementNote: string;
+    }>,
+  ) => http.patch<{ item: WarehouseItem }>(`/api/admin/warehouse/${id}`, patch),
+  /** `force`: forfeit and delete even with an unsettled balance — omit to get
+   *  a 409 naming the amount owed first (W20). */
+  deleteWarehouseItem: (id: string, force = false) =>
+    http.del<{ ok: true }>(`/api/admin/warehouse/${id}${force ? '?force=true' : ''}`),
+  warehouseMovements: (warehouseItemId: string) =>
+    http.get<{ movements: Array<{ id: string; kind: string; deltaTons: number; quantityAfterTons: number; note: string | null; createdAt: string }> }>(
+      `/api/admin/warehouse/${warehouseItemId}/movements`,
+    ),
 
-  /* warehouse settlements (US-08.5) — a real per-item billing ledger, not a
-   * point-in-time report: each settlement freezes the period + qty/fee
-   * snapshot it covers. */
+  /* warehouse settlements (US-08.5, hardened W20) — a real per-item billing
+   * ledger, not a point-in-time report: each settlement freezes the period +
+   * qty/fee snapshot it covers; mistakes are corrected with a reversing
+   * entry (void), never edited or deleted. */
   settlementCustomers: () =>
     http.get<{ customers: Array<{ userId: string; name: string | null; mobile: string; activeItemCount: number; totalUnsettledToman: number }> }>(
       '/api/admin/warehouse/settlements/customers',
@@ -435,11 +483,20 @@ export const adminApi = {
         monthlyFeeToman: number;
         amountToman: number;
         note: string | null;
+        actorId: string | null;
+        paidAt: string | null;
+        paymentNote: string | null;
+        voidedAt: string | null;
+        voidsSettlementId: string | null;
         createdAt: string;
       }>;
     }>(`/api/admin/warehouse/settlements?userId=${userId}`),
-  createSettlement: (warehouseItemId: string, note?: string) =>
-    http.post<{ settlement: unknown }>('/api/admin/warehouse/settlements', { warehouseItemId, note }),
+  createSettlement: (warehouseItemId: string, note?: string, periodTo?: string) =>
+    http.post<{ settlement: unknown }>('/api/admin/warehouse/settlements', { warehouseItemId, note, periodTo }),
+  voidSettlement: (id: string, reason?: string) =>
+    http.patch<{ voided: unknown; reversal: unknown }>(`/api/admin/warehouse/settlements/${id}`, { action: 'void', reason }),
+  markSettlementPaid: (id: string, note?: string) =>
+    http.patch<{ settlement: unknown }>(`/api/admin/warehouse/settlements/${id}`, { action: 'paid', note }),
 
   /* content */
   articles: (params: { status?: string; type?: string } = {}) => {

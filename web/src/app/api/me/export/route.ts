@@ -8,6 +8,8 @@ import { clubStatus } from '@/lib/server/repos/clubRepo';
 import { leadsForUser, leadItemsOf, proformasOfLead, toLineItem } from '@/lib/server/repos/leadsRepo';
 import { ordersForUser, warehouseForUser } from '@/lib/server/repos/ordersRepo';
 import { requestsForUser } from '@/lib/server/repos/requestsRepo';
+import { settlementsForUser } from '@/lib/server/repos/warehouseSettlementsRepo';
+import { rateLimit } from '@/lib/server/utils/rateLimit';
 
 /**
  * GET /api/me/export — a GDPR-style data export: every record the account
@@ -18,13 +20,19 @@ import { requestsForUser } from '@/lib/server/repos/requestsRepo';
  * per resource with no HTTP hop.
  */
 async function GETImpl(req: NextRequest) {
+  // W20: this is the most expensive endpoint under /api/me/* (8 parallel
+  // repo calls plus an N+1 loop below over up to 100 leads) and previously
+  // had no rate limit at all, unlike every other write-adjacent public/
+  // authenticated route in the app.
+  const limited = await rateLimit(req, 'me-export', { limit: 5, windowMs: 60_000 });
+  if (limited) return limited;
   const guard = requireDb();
   if (guard) return guard;
   const auth = await requireApiUser(req);
   if ('response' in auth) return auth.response;
   const { session } = auth;
 
-  const [user, favorites, alerts, club, leadRows, orders, warehouseItems, requests] = await Promise.all([
+  const [user, favorites, alerts, club, leadRows, orders, warehouseItems, warehouseSettlements, requests] = await Promise.all([
     userById(session.id),
     favoritesForUser(session.id),
     alertsForUser(session.id),
@@ -33,6 +41,10 @@ async function GETImpl(req: NextRequest) {
     leadsForUser(session.id, session.mobile, 1, 100).then((r) => r.rows),
     ordersForUser(session.id, 1, 100).then((r) => r.rows),
     warehouseForUser(session.id),
+    // W20: was missing entirely — a customer's warehouse billing history is
+    // unambiguously their own personal data (the table exists specifically
+    // so it can be queried per-user) but had no way to obtain it, anywhere.
+    settlementsForUser(session.id),
     requestsForUser(session.id, 1, 100).then((r) => r.rows),
   ]);
 
@@ -63,6 +75,7 @@ async function GETImpl(req: NextRequest) {
       leads,
       orders,
       warehouseItems,
+      warehouseSettlements,
       requests,
     },
     { headers: { 'Cache-Control': 'no-store' } },

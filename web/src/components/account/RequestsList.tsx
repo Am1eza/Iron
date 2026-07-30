@@ -2,7 +2,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { routes } from '@/lib/routes';
 import { http } from '@/lib/api/http';
-import { REQUEST_STEPS, REQUEST_TYPE_LABEL, type RequestStatus, type RequestType } from '@/lib/stores/requests';
+import { stepsForType, REQUEST_TYPE_LABEL, type RequestStatus, type RequestType } from '@/lib/stores/requests';
 import { EmptyState, TableSkeleton } from '@/components/ui';
 import { formatJalali } from '@/lib/utils/jalali';
 import styles from './RequestsList.module.css';
@@ -55,7 +55,8 @@ export function RequestsList() {
   return (
     <ul className={styles.list}>
       {requests.map((r) => {
-        const stepIndex = REQUEST_STEPS.findIndex((s) => s.key === r.status);
+        const steps = stepsForType(r.type);
+        const stepIndex = steps.findIndex((s) => s.key === r.status);
         return (
           <li key={r.id} className={styles.item}>
             <div className={styles.top}>
@@ -72,7 +73,7 @@ export function RequestsList() {
             {r.detail && <p className={styles.detail}>{r.detail}</p>}
 
             <ol className={styles.steps} aria-label="وضعیت درخواست">
-              {REQUEST_STEPS.map((s, i) => (
+              {steps.map((s, i) => (
                 <li
                   key={s.key}
                   className={styles.step}

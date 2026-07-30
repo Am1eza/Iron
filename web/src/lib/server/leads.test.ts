@@ -270,6 +270,7 @@ describe('orders & tracking', () => {
       userId: user.id,
       product: 'ورق سیاه',
       quantityTons: 5,
+      actorId: null,
     });
     await updateWarehouseItem(item.id, { status: 'released' });
     await expect(updateWarehouseItem(item.id, { status: 'stored' })).rejects.toThrow(InvalidStatusTransitionError);

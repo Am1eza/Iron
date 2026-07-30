@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { TextInput, Textarea, Field } from '@/components/forms/fields';
 import { FormStatus } from '@/components/forms/FormStatus';
@@ -9,7 +10,11 @@ import { useToast } from '@/lib/hooks/useToast';
 import { useAuthStore } from '@/lib/stores/auth';
 import { useRequestsStore } from '@/lib/stores/requests';
 import { routes } from '@/lib/routes';
-import { toPersianDigits } from '@/lib/utils/format';
+import { api } from '@/lib/api';
+import { API_MODE } from '@/lib/api/config';
+import { ApiError } from '@/lib/api/errors';
+import { trackGoal } from '@/lib/analytics/track';
+import { normalizeDigits, toPersianDigits } from '@/lib/utils/format';
 import fieldStyles from '@/components/forms/field.module.css';
 
 type WarehouseFormValues = {
@@ -36,13 +41,17 @@ const DURATIONS = ['۱ تا ۳ ماه', '۳ تا ۶ ماه', '۶ تا ۱۲ ما�
 /**
  * «انبار مشتریان» request — profile-centric: guests are asked to sign in first
  * (no name/mobile fields; the account already has them). Submitting files a
- * request in /account/requests where its status is tracked.
+ * REAL lead (W20 — this used to be entirely mock: a 400ms fake delay then a
+ * localStorage write with no server call at all, so the request reached no
+ * one and vanished on a browser clear) and sends the user to
+ * /account/requests where its status is tracked.
  */
 export function WarehouseForm() {
+  const router = useRouter();
   const toast = useToast();
   const status = useAuthStore((s) => s.status);
   const addRequest = useRequestsStore((s) => s.add);
-  const [done, setDone] = useState(false);
+  const [done, setDone] = useState<string | null>(null); // holds the ref once submitted
   const { register, handleSubmit, reset, formState } = useForm<WarehouseFormValues>({
     defaultValues: { product: '', duration: '' },
   });
@@ -59,23 +68,55 @@ export function WarehouseForm() {
   }
 
   const onSubmit = async (values: WarehouseFormValues) => {
-    await new Promise((r) => setTimeout(r, 400)); // mock latency
-    addRequest({
+    const quantityTons = Number(normalizeDigits(values.quantityTons));
+
+    if (API_MODE === 'live') {
+      try {
+        const result = await api.warehouseRequests.submit({
+          product: values.product,
+          quantityTons,
+          duration: values.duration,
+          notes: values.notes?.trim() || undefined,
+        });
+        // Conversion: a visitor became a real warehouse lead in the CRM.
+        trackGoal('lead', 'warehouse-request', values.product);
+        setDone(result.ref);
+        reset();
+      } catch (err) {
+        toast.error(err instanceof ApiError ? err.message : 'ثبت درخواست ناموفق بود. دوباره تلاش کنید.');
+      }
+      return;
+    }
+
+    // Mock/demo mode only — no server round trip to fail, so no try/catch.
+    const created = addRequest({
       type: 'warehouse',
-      title: `نگهداری ${values.product} — ${toPersianDigits(values.quantityTons)} تن`,
+      title: `نگهداری ${values.product} — ${toPersianDigits(quantityTons)} تن`,
       detail: `مدت نگهداری: ${values.duration}`,
       note: values.notes?.trim() || undefined,
     });
-    setDone(true);
+    setDone(created.ref);
     reset();
-    toast.success('درخواست نگهداری ثبت شد؛ وضعیت آن در پروفایل شماست.');
   };
 
   if (done) {
     return (
       <FormStatus variant="success">
-        درخواست نگهداری کالای شما ثبت شد و کارشناس برای هماهنگی تحویل و قرارداد تماس می‌گیرد.{' '}
-        <Link href={routes.account('requests')}>پیگیری در پروفایل</Link>
+        درخواست نگهداری کالای شما ثبت شد (کد پیگیری: <bdi className="tnum">{done}</bdi>) و کارشناس برای هماهنگی تحویل
+        و قرارداد تماس می‌گیرد.{' '}
+        <Link
+          href={routes.account('requests')}
+          onClick={(e) => {
+            // Client-side transition so the /account/requests query, seeded
+            // from the server, actually refetches this fresh request instead
+            // of showing whatever was cached before submission.
+            e.preventDefault();
+            router.push(routes.account('requests'));
+            router.refresh();
+          }}
+        >
+          پیگیری در پروفایل
+        </Link>
       </FormStatus>
     );
   }
@@ -114,9 +155,9 @@ export function WarehouseForm() {
         error={formState.errors.quantityTons?.message}
         {...register('quantityTons', {
           required: 'مقدار را وارد کنید.',
-          validate: (v) =>
-            Number(v.replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0))) > 0 ||
-            'مقدار باید بزرگ‌تر از صفر باشد.',
+          // W20: was a hand-rolled Persian-digit-only replace that rejected
+          // valid Arabic-Indic input (٠-٩) — normalizeDigits handles both.
+          validate: (v) => Number(normalizeDigits(v)) > 0 || 'مقدار باید بزرگ‌تر از صفر باشد.',
         })}
       />
 

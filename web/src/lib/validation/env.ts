@@ -62,6 +62,8 @@ const serverSchema = z
     SMSIR_TEMPLATE_ID_ORDER_CANCELLED: z.string().optional(),
     SMSIR_TEMPLATE_ID_PRICE_ALERT: z.string().optional(),
     SMSIR_TEMPLATE_ID_CALLBACK_REMINDER: z.string().optional(),
+    // W20 — confirms a customer's «انبار مشتریان» storage request landed.
+    SMSIR_TEMPLATE_ID_WAREHOUSE_REQUEST: z.string().optional(),
     TGJU_BASE_URL: z.string().optional(),
     TGJU_API_KEY: z.string().optional(),
     SESSION_SECRET: z.string().optional(),

@@ -11,8 +11,15 @@ const ITEMS: WarehouseItem[] = [
     product: 'میلگرد آجدار',
     sizeLabel: 'سایز ۱۶',
     quantityTons: 24,
-    monthlyFeeToman: 1_800_000,
+    // W20 — a RATE per ton/month, not a flat per-item fee (the demo values
+    // used to be the flat total itself; kept the same real-world monthly
+    // cost by dividing through the old tonnage).
+    monthlyFeeToman: 75_000,
     storedAt: '2026-04-12T08:00:00.000Z',
+    arrivedAt: '2026-04-12T08:00:00.000Z',
+    location: 'سالن ۱ — ردیف ۳',
+    contractRef: 'QR-1042',
+    insured: true,
     status: 'stored',
   },
   {
@@ -21,8 +28,11 @@ const ITEMS: WarehouseItem[] = [
     product: 'ورق سیاه',
     sizeLabel: 'ضخامت ۶ میل',
     quantityTons: 12,
-    monthlyFeeToman: 1_100_000,
+    monthlyFeeToman: 90_000,
     storedAt: '2026-05-03T08:00:00.000Z',
+    arrivedAt: '2026-05-04T08:00:00.000Z',
+    location: 'سالن ۲ — ردیف ۱',
+    insured: true,
     status: 'selling',
   },
   {
@@ -31,8 +41,9 @@ const ITEMS: WarehouseItem[] = [
     product: 'تیرآهن',
     sizeLabel: 'سایز ۱۸',
     quantityTons: 9,
-    monthlyFeeToman: 850_000,
+    monthlyFeeToman: 95_000,
     storedAt: '2026-05-21T08:00:00.000Z',
+    insured: false,
     status: 'pending',
   },
   {
@@ -41,8 +52,11 @@ const ITEMS: WarehouseItem[] = [
     product: 'نبشی',
     sizeLabel: '۱۰۰×۱۰۰',
     quantityTons: 6,
-    monthlyFeeToman: 600_000,
+    monthlyFeeToman: 100_000,
     storedAt: '2026-03-08T08:00:00.000Z',
+    arrivedAt: '2026-03-09T08:00:00.000Z',
+    releasedAt: '2026-06-01T08:00:00.000Z',
+    insured: true,
     status: 'released',
   },
 ];

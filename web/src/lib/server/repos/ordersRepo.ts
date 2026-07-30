@@ -1,13 +1,24 @@
 /** Orders (cargo tracking) + consignment warehouse items. */
 import { and, desc, eq, ilike, inArray, isNull, or, sql } from 'drizzle-orm';
 import { ulid } from 'ulid';
-import { getDb } from '@/lib/server/db/client';
-import { orders, orderItems, warehouseItems, leads } from '@/lib/server/db/schema';
+import { getDb, type DbOrTx } from '@/lib/server/db/client';
+import { orders, orderItems, warehouseItems, warehouseMovements, leads } from '@/lib/server/db/schema';
 import type { LineItem, Order, WarehouseItem } from '@/lib/types/domain';
 import { normalizeDigits } from '@/lib/utils/format';
+import { unsettledFor } from '@/lib/server/repos/warehouseSettlementsRepo';
 
 type OrderRow = typeof orders.$inferSelect;
 type WarehouseRow = typeof warehouseItems.$inferSelect;
+type WarehouseMovementRow = typeof warehouseMovements.$inferSelect;
+
+/** A soft-delete or a force-delete was refused because the item still has an
+ *  unsettled balance — the caller must settle it (or explicitly force,
+ *  forfeiting the balance) before the record can be archived. */
+export class UnsettledBalanceError extends Error {
+  constructor(public amountToman: number) {
+    super(`این کالا ${amountToman.toLocaleString('en-US')} تومان بدهیِ تسویه‌نشده دارد.`);
+  }
+}
 
 /** Thrown by updateOrderStatus/updateWarehouseItem on a backward transition. */
 export class InvalidStatusTransitionError extends Error {}
@@ -359,8 +370,22 @@ function toWarehouseDto(r: WarehouseRow): WarehouseItem {
     quantityTons: r.quantityTons,
     monthlyFeeToman: r.monthlyFeeToman,
     storedAt: r.storedAt.toISOString(),
+    arrivedAt: r.arrivedAt?.toISOString(),
+    releasedAt: r.releasedAt?.toISOString(),
+    location: r.location ?? undefined,
+    contractRef: r.contractRef ?? undefined,
+    insured: r.insured,
     status: r.status,
   };
+}
+
+/** Attach each item's live unsettled balance (W20) — one query per item, same
+ *  N+1 tradeoff customerSettlementOverview already accepts for this small a
+ *  domain (see its own doc comment); a customer's own list and one admin page
+ *  are both bounded (≤100, ≤50) so this stays cheap. */
+async function withBalances(items: WarehouseItem[], rows: WarehouseRow[]): Promise<WarehouseItem[]> {
+  const balances = await Promise.all(rows.map((r) => unsettledFor(r)));
+  return items.map((item, i) => ({ ...item, unsettledToman: balances[i]!.amountToman }));
 }
 
 export async function warehouseForUser(userId: string): Promise<WarehouseItem[]> {
@@ -369,17 +394,31 @@ export async function warehouseForUser(userId: string): Promise<WarehouseItem[]>
     .from(warehouseItems)
     .where(and(eq(warehouseItems.userId, userId), isNull(warehouseItems.deletedAt)))
     .orderBy(desc(warehouseItems.storedAt));
-  return rows.map(toWarehouseDto);
+  return withBalances(rows.map(toWarehouseDto), rows);
 }
 
 export async function adminListWarehouse(
-  query: { page?: number; perPage?: number; includeDeleted?: boolean } = {},
+  query: { page?: number; perPage?: number; includeDeleted?: boolean; status?: WarehouseRow['status']; q?: string } = {},
 ) {
   const db = getDb();
   const { users } = await import('@/lib/server/db/schema');
   const page = query.page ?? 1;
   const perPage = query.perPage ?? 50;
-  const where = query.includeDeleted ? undefined : isNull(warehouseItems.deletedAt);
+  const conds = [];
+  if (!query.includeDeleted) conds.push(isNull(warehouseItems.deletedAt));
+  if (query.status) conds.push(eq(warehouseItems.status, query.status));
+  if (query.q?.trim()) {
+    const q = `%${query.q.trim()}%`;
+    conds.push(
+      or(
+        ilike(warehouseItems.ref, q),
+        ilike(warehouseItems.product, q),
+        ilike(users.name, q),
+        ilike(users.mobile, q),
+      ),
+    );
+  }
+  const where = conds.length ? and(...conds) : undefined;
   const [rows, total] = await Promise.all([
     db
       .select({ item: warehouseItems, customerMobile: users.mobile, customerName: users.name })
@@ -389,31 +428,93 @@ export async function adminListWarehouse(
       .orderBy(desc(warehouseItems.storedAt))
       .limit(perPage)
       .offset((page - 1) * perPage),
-    db.select({ n: sql<number>`count(*)::int` }).from(warehouseItems).where(where),
+    db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(warehouseItems)
+      .innerJoin(users, eq(warehouseItems.userId, users.id))
+      .where(where),
   ]);
+  const dtos = await withBalances(
+    rows.map((r) => toWarehouseDto(r.item)),
+    rows.map((r) => r.item),
+  );
   return {
     // US-08.5 — customer mobile/name joined in for the per-customer
     // settlement report; `userId` stays too (stable grouping key even if a
     // customer edits their display name).
-    items: rows.map((r) => ({
-      ...toWarehouseDto(r.item),
-      userId: r.item.userId,
-      customerMobile: r.customerMobile,
-      customerName: r.customerName,
+    items: dtos.map((dto, i) => ({
+      ...dto,
+      userId: rows[i]!.item.userId,
+      customerMobile: rows[i]!.customerMobile,
+      customerName: rows[i]!.customerName,
     })),
     total: total[0]?.n ?? 0,
   };
 }
 
 /** Soft-delete — remove a mistakenly-created or duplicate warehouse entry
- *  from the working set without losing the record. */
-export async function softDeleteWarehouseItem(id: string): Promise<WarehouseItem | null> {
-  const rows = await getDb()
+ *  from the working set without losing the record. Refuses when the item
+ *  still has an unsettled balance (W20) unless `force` is set — a silent
+ *  delete used to make a real, owed amount vanish from every view with no
+ *  warning; `force` exists for the legitimate "customer stopped paying,
+ *  remove it anyway" case, and is deliberately still logged with the
+ *  forfeited amount by the caller (see the route's audit call). */
+export async function softDeleteWarehouseItem(
+  id: string,
+  opts: { force?: boolean } = {},
+): Promise<WarehouseRow | null> {
+  const db = getDb();
+  const current = await db
+    .select()
+    .from(warehouseItems)
+    .where(and(eq(warehouseItems.id, id), isNull(warehouseItems.deletedAt)))
+    .limit(1);
+  if (!current[0]) return null;
+  if (!opts.force) {
+    const balance = await unsettledFor(current[0]);
+    if (balance.amountToman > 0) throw new UnsettledBalanceError(balance.amountToman);
+  }
+  const rows = await db
     .update(warehouseItems)
     .set({ deletedAt: new Date(), updatedAt: new Date() })
     .where(and(eq(warehouseItems.id, id), isNull(warehouseItems.deletedAt)))
     .returning();
-  return rows[0] ? toWarehouseDto(rows[0]) : null;
+  return rows[0] ?? null;
+}
+
+async function recordMovement(
+  tx: DbOrTx,
+  warehouseItemId: string,
+  kind: (typeof warehouseMovements.$inferInsert)['kind'],
+  deltaTons: number,
+  quantityAfterTons: number,
+  actorId: string | null,
+  note?: string,
+): Promise<void> {
+  await tx.insert(warehouseMovements).values({
+    id: ulid(),
+    warehouseItemId,
+    kind,
+    deltaTons,
+    quantityAfterTons,
+    actorId,
+    note: note ?? null,
+  });
+}
+
+export async function warehouseMovementsForItem(warehouseItemId: string): Promise<WarehouseMovementRow[]> {
+  return getDb()
+    .select()
+    .from(warehouseMovements)
+    .where(eq(warehouseMovements.warehouseItemId, warehouseItemId))
+    .orderBy(desc(warehouseMovements.createdAt));
+}
+
+/** Lets the movements route tell "real item, no history yet" (200, empty
+ *  array) apart from "no such item" (404) instead of both looking identical. */
+export async function warehouseItemExists(warehouseItemId: string): Promise<boolean> {
+  const rows = await getDb().select({ id: warehouseItems.id }).from(warehouseItems).where(eq(warehouseItems.id, warehouseItemId)).limit(1);
+  return rows.length > 0;
 }
 
 export async function createWarehouseItem(input: {
@@ -423,40 +524,92 @@ export async function createWarehouseItem(input: {
   sizeLabel?: string;
   quantityTons: number;
   monthlyFeeToman?: number;
+  arrivedAt?: Date;
+  location?: string;
+  receivedBy?: string;
+  intakeNote?: string;
+  contractRef?: string;
+  insured?: boolean;
+  leadId?: string;
+  requestId?: string;
+  actorId: string | null;
 }): Promise<WarehouseItem> {
-  const rows = await getDb()
-    .insert(warehouseItems)
-    .values({
-      id: ulid(),
-      ref: input.ref,
-      userId: input.userId,
-      product: input.product,
-      sizeLabel: input.sizeLabel ?? null,
-      quantityTons: input.quantityTons,
-      monthlyFeeToman: input.monthlyFeeToman ?? 0,
-    })
-    .returning();
-  return toWarehouseDto(rows[0]!);
+  const db = getDb();
+  const row = await db.transaction(async (tx) => {
+    const inserted = await tx
+      .insert(warehouseItems)
+      .values({
+        id: ulid(),
+        ref: input.ref,
+        userId: input.userId,
+        product: input.product,
+        sizeLabel: input.sizeLabel ?? null,
+        quantityTons: input.quantityTons,
+        monthlyFeeToman: input.monthlyFeeToman ?? 0,
+        arrivedAt: input.arrivedAt ?? null,
+        location: input.location ?? null,
+        receivedBy: input.receivedBy ?? null,
+        intakeNote: input.intakeNote ?? null,
+        contractRef: input.contractRef ?? null,
+        insured: input.insured ?? false,
+        leadId: input.leadId ?? null,
+        requestId: input.requestId ?? null,
+      })
+      .returning();
+    const item = inserted[0]!;
+    await recordMovement(tx, item.id, 'receipt', input.quantityTons, input.quantityTons, input.actorId);
+    return item;
+  });
+  return toWarehouseDto(row);
 }
 
 export async function updateWarehouseItem(
   id: string,
-  patch: Partial<{ status: WarehouseRow['status']; monthlyFeeToman: number; quantityTons: number }>,
-): Promise<WarehouseItem | null> {
+  patch: Partial<{
+    status: WarehouseRow['status'];
+    monthlyFeeToman: number;
+    quantityTons: number;
+    location: string | null;
+    contractRef: string | null;
+    insured: boolean;
+    arrivedAt: Date | null;
+  }>,
+  actorId: string | null = null,
+  movementNote?: string,
+): Promise<{ before: WarehouseRow; after: WarehouseRow } | null> {
   const db = getDb();
-  if (patch.status) {
-    const current = await db
-      .select({ status: warehouseItems.status })
+  const result = await db.transaction(async (tx) => {
+    // Row-locked read-modify-write (W20) — was an unlocked read outside any
+    // transaction, the exact TOCTOU the orders equivalent was already fixed
+    // for: two concurrent PATCHes could each pass the forward-transition
+    // check against the same stale "before" status.
+    const current = await tx
+      .select()
       .from(warehouseItems)
       .where(and(eq(warehouseItems.id, id), isNull(warehouseItems.deletedAt)))
+      .for('update')
       .limit(1);
     if (!current[0]) return null;
-    assertForwardTransition(WAREHOUSE_STATUS_ORDER, current[0].status, patch.status);
-  }
-  const rows = await db
-    .update(warehouseItems)
-    .set({ ...patch, updatedAt: new Date() })
-    .where(and(eq(warehouseItems.id, id), isNull(warehouseItems.deletedAt)))
-    .returning();
-  return rows[0] ? toWarehouseDto(rows[0]) : null;
+    const before = current[0];
+    if (patch.status) assertForwardTransition(WAREHOUSE_STATUS_ORDER, before.status, patch.status);
+
+    const set: Partial<typeof warehouseItems.$inferInsert> = { ...patch, updatedAt: new Date() };
+    // Stop-clock (W20): stamp the instant custody actually ends, once, so
+    // accrual has something to clamp against instead of running forever.
+    if (patch.status === 'released' && !before.releasedAt) set.releasedAt = new Date();
+
+    const rows = await tx
+      .update(warehouseItems)
+      .set(set)
+      .where(and(eq(warehouseItems.id, id), isNull(warehouseItems.deletedAt)))
+      .returning();
+    const after = rows[0]!;
+
+    if (patch.quantityTons !== undefined && patch.quantityTons !== before.quantityTons) {
+      const delta = patch.quantityTons - before.quantityTons;
+      await recordMovement(tx, id, delta < 0 ? 'release' : 'adjustment', delta, patch.quantityTons, actorId, movementNote);
+    }
+    return { before, after };
+  });
+  return result;
 }

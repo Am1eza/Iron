@@ -4,6 +4,7 @@
  */
 import {
   bigint,
+  boolean,
   doublePrecision,
   index,
   pgTable,
@@ -12,7 +13,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { users } from './auth';
 import { PRICE_UNITS, skus } from './catalog';
-import { leads } from './leads';
+import { leads, userRequests } from './leads';
 
 export const SHIPMENT_STATUSES = ['registered', 'confirmed', 'loading', 'in_transit', 'delivered'] as const;
 export const WAREHOUSE_STATUSES = ['pending', 'stored', 'selling', 'released'] as const;
@@ -78,10 +79,38 @@ export const warehouseItems = pgTable(
     userId: text('user_id')
       .notNull()
       .references(() => users.id),
+    // Provenance — which request/lead actually asked for this (W20). Nullable:
+    // items created before this column existed, or entered directly by staff
+    // with no customer-filed request behind them, have neither.
+    requestId: text('request_id').references(() => userRequests.id, { onDelete: 'set null' }),
+    leadId: text('lead_id').references(() => leads.id, { onDelete: 'set null' }),
     product: text('product').notNull(),
     sizeLabel: text('size_label'),
     quantityTons: doublePrecision('quantity_tons').notNull(),
     monthlyFeeToman: bigint('monthly_fee_toman', { mode: 'number' }).notNull().default(0),
+    // `storedAt` (existing) is unavoidably "the moment this row was inserted" —
+    // it defaults on create and nothing ever let it be anything else. `arrivedAt`
+    // (W20) is the actual physical-intake date: settable at creation, editable
+    // later by a manager. Billing reads `arrivedAt ?? storedAt` so pre-W20 rows
+    // keep behaving exactly as before. See warehouseSettlementsRepo.ts.
+    arrivedAt: timestamp('arrived_at', { withTimezone: true }),
+    // Stop-clock (W20): stamped once, the instant status transitions into
+    // 'released' — accrual clamps to this instead of running forever against
+    // stock that has physically left the warehouse.
+    releasedAt: timestamp('released_at', { withTimezone: true }),
+    // Where in the physical warehouse this sits — free text (bay/rack), not a
+    // structured location table; this is a small operation, not a WMS.
+    location: text('location'),
+    // Who did the physical intake, and any note about it — the closest this
+    // schema gets to an intake record without building document/photo upload
+    // infrastructure (descoped, see W20 audit report).
+    receivedBy: text('received_by').references(() => users.id, { onDelete: 'set null' }),
+    intakeNote: text('intake_note'),
+    // The public page sells «قرارداد نگهداری» and «بیمهٔ کامل» as headline
+    // guarantees; these record that they exist for a given item without
+    // building a document-management system.
+    contractRef: text('contract_ref'),
+    insured: boolean('insured').notNull().default(false),
     storedAt: timestamp('stored_at', { withTimezone: true }).notNull().defaultNow(),
     status: text('status', { enum: WAREHOUSE_STATUSES }).notNull().default('pending'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -91,6 +120,36 @@ export const warehouseItems = pgTable(
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
   },
   (t) => [index('warehouse_items_user_idx').on(t.userId)],
+);
+
+/**
+ * Append-only movement log (W20) — the source of truth for "how much is
+ * actually here", instead of trusting a single mutable `quantityTons` scalar
+ * with no history. Every quantity change on a warehouse item (intake,
+ * partial/full release, a manual correction) inserts one row here; the item's
+ * own `quantityTons` stays as a fast-read cache of the running total, kept in
+ * sync by the repo layer, never edited independently of a movement.
+ */
+export const WAREHOUSE_MOVEMENT_KINDS = ['receipt', 'release', 'adjustment'] as const;
+
+export const warehouseMovements = pgTable(
+  'warehouse_movements',
+  {
+    id: text('id').primaryKey(),
+    warehouseItemId: text('warehouse_item_id')
+      .notNull()
+      .references(() => warehouseItems.id, { onDelete: 'cascade' }),
+    kind: text('kind', { enum: WAREHOUSE_MOVEMENT_KINDS }).notNull(),
+    // Signed: positive for intake, negative for a release/reduction.
+    deltaTons: doublePrecision('delta_tons').notNull(),
+    // Snapshot of the running total AFTER this movement — lets the history
+    // list render without recomputing a running sum client-side.
+    quantityAfterTons: doublePrecision('quantity_after_tons').notNull(),
+    note: text('note'),
+    actorId: text('actor_id').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('warehouse_movements_item_idx').on(t.warehouseItemId, t.createdAt)],
 );
 
 /**
@@ -121,6 +180,19 @@ export const warehouseSettlements = pgTable(
     note: text('note'),
     // Who settled it — preserve the record if that staff account is later removed.
     actorId: text('actor_id').references(() => users.id, { onDelete: 'set null' }),
+    // Manual payment tracking (W20) — no gateway integration, just a record
+    // that the money actually came in, kept separate from "billed".
+    paidAt: timestamp('paid_at', { withTimezone: true }),
+    paymentNote: text('payment_note'),
+    // Void as a REVERSING entry, not a delete or edit (W20): a settlement is
+    // an accounting record, so a mistake gets a negative-amount row pointing
+    // back at the original rather than rewriting history. `voidedAt` on the
+    // ORIGINAL marks it superseded; `voidsSettlementId` on the REVERSING row
+    // points at what it corrects. Deliberately not a DB-level self-FK — one
+    // soft link the repo layer always sets consistently, not worth the
+    // lazy-reference ceremony a self-referencing constraint needs here.
+    voidedAt: timestamp('voided_at', { withTimezone: true }),
+    voidsSettlementId: text('voids_settlement_id'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [

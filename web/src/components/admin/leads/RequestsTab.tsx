@@ -1,13 +1,13 @@
 'use client';
 /** User-request inbox — advance each request along its 4-step trail. */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api/resources/admin';
 import { toPersianDigits } from '@/lib/utils/format';
 import { formatJalali } from '@/lib/utils/jalali';
 import { useToast } from '@/lib/hooks/useToast';
-import { Badge, EmptyState, TableSkeleton, Text, useConfirm } from '@/components/ui';
+import { Badge, Chip, EmptyState, TableSkeleton, Text, useConfirm } from '@/components/ui';
 import { PagerFooter } from '../PagerFooter';
 import ui from '../adminUi.module.css';
 
@@ -19,11 +19,19 @@ const TYPE_LABEL: Record<string, string> = {
   warehouse: 'انبار مشتریان',
 };
 
+// Mirrors REQUEST_TYPES (src/lib/server/db/schema/leads.ts) — kept as a
+// local literal list rather than importing the drizzle schema module into
+// this client component, same as STATUSES below mirrors REQUEST_STATUSES.
+const TYPES = ['proforma', 'bulk', 'warehouse'] as const;
+
 const STATUSES = [
   { value: 'submitted', label: 'ثبت شد' },
   { value: 'reviewing', label: 'در حال بررسی' },
   { value: 'contacted', label: 'تماس کارشناس' },
   { value: 'quoted', label: 'پیش‌فاکتور صادر شد' },
+  // W20: terminal state for requests resolved WITHOUT a پیش‌فاکتور — a
+  // warehouse storage request can never legitimately reach 'quoted'.
+  { value: 'fulfilled', label: 'انجام‌شده' },
 ];
 
 const STATUS_LABEL = new Map(STATUSES.map((s) => [s.value, s.label] as const));
@@ -32,10 +40,14 @@ export function RequestsTab() {
   const toast = useToast();
   const qc = useQueryClient();
   const { confirm, dialog } = useConfirm();
+  const [type, setType] = useState('');
   const [page, setPage] = useState(1);
+  useEffect(() => {
+    setPage(1);
+  }, [type]);
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['admin', 'requests', page],
-    queryFn: () => adminApi.requests({ page, perPage: PER_PAGE }),
+    queryKey: ['admin', 'requests', page, type],
+    queryFn: () => adminApi.requests({ page, perPage: PER_PAGE, type: type || undefined }),
   });
   const update = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) => adminApi.updateRequest(id, status),
@@ -79,8 +91,20 @@ export function RequestsTab() {
 
   return (
     <div style={{ paddingBlockStart: 'var(--space-4)' }}>
+      {/* Warehouse asks used to be buried among proforma/bulk ones with no
+          way to separate them — this lets a rep view just one type. */}
+      <div className={ui.toolbar}>
+        <Chip selected={type === ''} onClick={() => setType('')}>
+          همه
+        </Chip>
+        {TYPES.map((t) => (
+          <Chip key={t} selected={type === t} onClick={() => setType(t)}>
+            {TYPE_LABEL[t] ?? t}
+          </Chip>
+        ))}
+      </div>
       {isLoading ? (
-        <TableSkeleton rows={5} cols={6} label="در حال بارگذاری درخواست‌ها" />
+        <TableSkeleton rows={5} cols={7} label="در حال بارگذاری درخواست‌ها" />
       ) : isError ? (
         <EmptyState
           size="section"
@@ -102,6 +126,7 @@ export function RequestsTab() {
             <tr>
               <th scope="col">شماره</th>
               <th scope="col">نوع</th>
+              <th scope="col">مشتری</th>
               <th scope="col">عنوان</th>
               <th scope="col">سرنخ</th>
               <th scope="col">تاریخ</th>
@@ -115,6 +140,14 @@ export function RequestsTab() {
                   <bdi>{r.ref}</bdi>
                 </td>
                 <td>{TYPE_LABEL[r.type] ?? r.type}</td>
+                <td>
+                  {r.customerName ?? '—'}
+                  <div className={ui.muted}>
+                    <a href={`tel:${r.customerMobile}`} className="tnum" dir="ltr">
+                      {toPersianDigits(r.customerMobile)}
+                    </a>
+                  </div>
+                </td>
                 <td>
                   {r.title}
                   {r.detail ? <div className={ui.muted}>{r.detail}</div> : null}

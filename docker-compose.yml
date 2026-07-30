@@ -82,6 +82,7 @@ services:
       SMSIR_TEMPLATE_ID_ORDER_CANCELLED: ${SMSIR_TEMPLATE_ID_ORDER_CANCELLED:-}
       SMSIR_TEMPLATE_ID_PRICE_ALERT: ${SMSIR_TEMPLATE_ID_PRICE_ALERT:-}
       SMSIR_TEMPLATE_ID_CALLBACK_REMINDER: ${SMSIR_TEMPLATE_ID_CALLBACK_REMINDER:-}
+      SMSIR_TEMPLATE_ID_WAREHOUSE_REQUEST: ${SMSIR_TEMPLATE_ID_WAREHOUSE_REQUEST:-}
       OTP_FALLBACK_AFTER_MS: ${OTP_FALLBACK_AFTER_MS:-}  # delivery-watchdog delay before 2nd-route resend (default 30000; 0 disables)
       # Analytics — each empty until the owner supplies the id (GTM/GA also
       # need a rebuild for CSP; Matomo + GSC are runtime-only).

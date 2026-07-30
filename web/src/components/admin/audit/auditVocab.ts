@@ -78,6 +78,8 @@ export const ACTION_META: Record<string, ActionMeta> = {
   'warehouse.create': { verb: 'قلم انبار ثبت کرد', tone: 'create' },
   'warehouse.update': { verb: 'قلم انبار را ویرایش کرد', tone: 'update' },
   'warehouse.settle': { verb: 'تسویهٔ انبار انجام داد', tone: 'money' },
+  'warehouse.settle_void': { verb: 'تسویهٔ انبار را باطل کرد', tone: 'destroy' },
+  'warehouse.settle_paid': { verb: 'تسویهٔ انبار را پرداخت‌شده ثبت کرد', tone: 'money' },
   'warehouse.delete': { verb: 'قلم انبار را حذف کرد', tone: 'destroy' },
 
   'pricing.save': { verb: 'قیمت‌ها را ذخیره کرد', tone: 'money' },

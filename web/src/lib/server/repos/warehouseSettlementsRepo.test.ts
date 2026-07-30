@@ -1,6 +1,8 @@
 // @vitest-environment node
-/** Consignment-fee settlements (US-08.5) — pro-rata accrual + the "next
- *  period starts from the last settlement, not from storedAt again" rule. */
+/** Consignment-fee settlements (US-08.5, hardened in W20) — pro-rata
+ *  per-ton accrual, the "next period starts from the last settlement, not
+ *  from arrival again" rule, the pending/stop-clock accrual bounds, and the
+ *  void-as-reversing-entry correction path. */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { ulid } from 'ulid';
 import { eq } from 'drizzle-orm';
@@ -13,7 +15,11 @@ import {
   lastSettlementFor,
   settlementsForUser,
   customerSettlementOverview,
+  voidSettlement,
+  markSettlementPaid,
   NothingToSettleError,
+  ItemPendingError,
+  AlreadyVoidedError,
 } from './warehouseSettlementsRepo';
 
 let db: Db;
@@ -26,7 +32,14 @@ afterAll(async () => {
   await close();
 });
 
-async function seedItem(opts: { userId: string; storedAt: Date; monthlyFeeToman: number }) {
+async function seedItem(opts: {
+  userId: string;
+  storedAt: Date;
+  monthlyFeeToman: number;
+  status?: 'pending' | 'stored' | 'selling' | 'released';
+  arrivedAt?: Date;
+  releasedAt?: Date;
+}) {
   const id = ulid();
   await db.insert(schema.warehouseItems).values({
     id,
@@ -36,6 +49,13 @@ async function seedItem(opts: { userId: string; storedAt: Date; monthlyFeeToman:
     quantityTons: 5,
     monthlyFeeToman: opts.monthlyFeeToman,
     storedAt: opts.storedAt,
+    // Default 'stored': the column itself defaults to 'pending' (not yet
+    // physically arrived), which forces zero accrual (W20) — most of these
+    // tests are exercising the time-based math, not that rule, so they opt
+    // in to 'stored' explicitly rather than inheriting the DB default.
+    status: opts.status ?? 'stored',
+    arrivedAt: opts.arrivedAt,
+    releasedAt: opts.releasedAt,
   });
   const rows = await db.select().from(schema.warehouseItems).where(eq(schema.warehouseItems.id, id));
   return rows[0]!;
@@ -48,10 +68,13 @@ async function seedUser(mobile: string) {
 }
 
 describe('unsettledFor', () => {
-  it('never-settled item accrues from storedAt: 10 days at 300,000/month ≈ 100,000', async () => {
+  // monthlyFeeToman is a RATE per ton (W20); seedItem's fixed 5-ton items use
+  // 1/5th of the pre-W20 flat-fee test values so the expected totals are
+  // unchanged: rate(60,000) × 5 tons × (days/30) === old flat(300,000) × (days/30).
+  it('never-settled item accrues from arrival: 10 days at 60,000/ton/month × 5 tons ≈ 100,000', async () => {
     const userId = await seedUser('09130000001');
     const storedAt = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
-    const item = await seedItem({ userId, storedAt, monthlyFeeToman: 300_000 });
+    const item = await seedItem({ userId, storedAt, monthlyFeeToman: 60_000 });
 
     const summary = await unsettledFor(item);
     expect(summary.amountToman).toBeGreaterThanOrEqual(99_000);
@@ -61,9 +84,32 @@ describe('unsettledFor', () => {
 
   it('a fresh item (stored seconds ago) accrues ~0', async () => {
     const userId = await seedUser('09130000002');
-    const item = await seedItem({ userId, storedAt: new Date(), monthlyFeeToman: 300_000 });
+    const item = await seedItem({ userId, storedAt: new Date(), monthlyFeeToman: 60_000 });
     const summary = await unsettledFor(item);
     expect(summary.amountToman).toBe(0);
+  });
+
+  it('a pending item accrues zero even long after being recorded', async () => {
+    const userId = await seedUser('09130000008');
+    const storedAt = new Date(Date.now() - 40 * 24 * 60 * 60 * 1000);
+    const item = await seedItem({ userId, storedAt, monthlyFeeToman: 60_000, status: 'pending' });
+    const summary = await unsettledFor(item);
+    expect(summary.amountToman).toBe(0);
+  });
+});
+
+describe('stop-clock (releasedAt)', () => {
+  it('accrual stops at releasedAt, not at now', async () => {
+    const userId = await seedUser('09130000010');
+    const storedAt = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const releasedAt = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
+    const item = await seedItem({ userId, storedAt, monthlyFeeToman: 60_000, status: 'released', releasedAt });
+
+    const summary = await unsettledFor(item);
+    // Only the 20 days between storedAt and releasedAt count, not the full 30.
+    expect(summary.amountToman).toBeGreaterThanOrEqual(199_000);
+    expect(summary.amountToman).toBeLessThanOrEqual(201_000);
+    expect(summary.periodTo).toBe(releasedAt.toISOString());
   });
 });
 
@@ -71,20 +117,20 @@ describe('createSettlement', () => {
   it('records a settlement and freezes the qty/fee snapshot', async () => {
     const userId = await seedUser('09130000003');
     const storedAt = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // 30 days ago
-    const item = await seedItem({ userId, storedAt, monthlyFeeToman: 300_000 });
+    const item = await seedItem({ userId, storedAt, monthlyFeeToman: 60_000 });
 
     const settlement = await createSettlement(item.id, null);
     expect(settlement).not.toBeNull();
     expect(settlement!.amountToman).toBeGreaterThanOrEqual(299_000);
     expect(settlement!.amountToman).toBeLessThanOrEqual(301_000);
-    expect(settlement!.monthlyFeeToman).toBe(300_000);
+    expect(settlement!.monthlyFeeToman).toBe(60_000);
     expect(settlement!.quantityTons).toBe(5);
   });
 
-  it('the SECOND settlement periodFrom is the FIRST settlement periodTo, not storedAt again', async () => {
+  it('the SECOND settlement periodFrom is the FIRST settlement periodTo, not arrival again', async () => {
     const userId = await seedUser('09130000004');
     const storedAt = new Date(Date.now() - 20 * 24 * 60 * 60 * 1000);
-    const item = await seedItem({ userId, storedAt, monthlyFeeToman: 300_000 });
+    const item = await seedItem({ userId, storedAt, monthlyFeeToman: 60_000 });
 
     const first = await createSettlement(item.id, null);
     expect(first).not.toBeNull();
@@ -103,10 +149,17 @@ describe('createSettlement', () => {
   it('throws NothingToSettleError when periodTo is not after the unsettled period start', async () => {
     const userId = await seedUser('09130000005');
     const storedAt = new Date();
-    const item = await seedItem({ userId, storedAt, monthlyFeeToman: 300_000 });
+    const item = await seedItem({ userId, storedAt, monthlyFeeToman: 60_000 });
     await expect(
       createSettlement(item.id, null, { periodTo: new Date(storedAt.getTime() - 1000) }),
     ).rejects.toBeInstanceOf(NothingToSettleError);
+  });
+
+  it('throws ItemPendingError for an item that has not physically arrived', async () => {
+    const userId = await seedUser('09130000009');
+    const storedAt = new Date(Date.now() - 40 * 24 * 60 * 60 * 1000);
+    const item = await seedItem({ userId, storedAt, monthlyFeeToman: 60_000, status: 'pending' });
+    await expect(createSettlement(item.id, null)).rejects.toBeInstanceOf(ItemPendingError);
   });
 
   it('returns null for a warehouse item that does not exist', async () => {
@@ -116,7 +169,7 @@ describe('createSettlement', () => {
   it('settlementsForUser returns history newest-first', async () => {
     const userId = await seedUser('09130000006');
     const storedAt = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
-    const item = await seedItem({ userId, storedAt, monthlyFeeToman: 100_000 });
+    const item = await seedItem({ userId, storedAt, monthlyFeeToman: 20_000 });
     await createSettlement(item.id, null);
     await new Promise((r) => setTimeout(r, 5));
     await createSettlement(item.id, null, { periodTo: new Date(Date.now() + 1000) });
@@ -127,12 +180,87 @@ describe('createSettlement', () => {
   });
 });
 
+describe('voidSettlement', () => {
+  it('marks the original voided, inserts a negative reversing entry, and reopens the period', async () => {
+    const userId = await seedUser('09130000011');
+    const storedAt = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const item = await seedItem({ userId, storedAt, monthlyFeeToman: 60_000 });
+    const settlement = await createSettlement(item.id, null);
+    expect(settlement).not.toBeNull();
+
+    const result = await voidSettlement(settlement!.id, null, 'اشتباه ثبت شد');
+    expect(result).not.toBeNull();
+    expect(result!.voided.voidedAt).not.toBeNull();
+    expect(result!.reversal.amountToman).toBe(-settlement!.amountToman);
+    expect(result!.reversal.voidsSettlementId).toBe(settlement!.id);
+
+    // lastSettlementFor skips both the voided original and the reversal — the
+    // period it covered is billable again on the next real settlement.
+    const last = await lastSettlementFor(item.id);
+    expect(last).toBeNull();
+  });
+
+  it('returns null for a settlement that does not exist', async () => {
+    await expect(voidSettlement(ulid(), null)).resolves.toBeNull();
+  });
+
+  it('throws AlreadyVoidedError when voiding twice', async () => {
+    const userId = await seedUser('09130000012');
+    const storedAt = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const item = await seedItem({ userId, storedAt, monthlyFeeToman: 60_000 });
+    const settlement = await createSettlement(item.id, null);
+    await voidSettlement(settlement!.id, null);
+    await expect(voidSettlement(settlement!.id, null)).rejects.toBeInstanceOf(AlreadyVoidedError);
+  });
+
+  it('throws AlreadyVoidedError when voiding a reversing entry itself', async () => {
+    const userId = await seedUser('09130000013');
+    const storedAt = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const item = await seedItem({ userId, storedAt, monthlyFeeToman: 60_000 });
+    const settlement = await createSettlement(item.id, null);
+    const result = await voidSettlement(settlement!.id, null);
+    await expect(voidSettlement(result!.reversal.id, null)).rejects.toBeInstanceOf(AlreadyVoidedError);
+  });
+});
+
+describe('markSettlementPaid', () => {
+  it('stamps paidAt and paymentNote', async () => {
+    const userId = await seedUser('09130000014');
+    const storedAt = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const item = await seedItem({ userId, storedAt, monthlyFeeToman: 60_000 });
+    const settlement = await createSettlement(item.id, null);
+    const paid = await markSettlementPaid(settlement!.id, 'پرداخت نقدی');
+    expect(paid).not.toBeNull();
+    expect(paid!.paidAt).not.toBeNull();
+    expect(paid!.paymentNote).toBe('پرداخت نقدی');
+  });
+
+  it('returns null when already paid', async () => {
+    const userId = await seedUser('09130000015');
+    const storedAt = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const item = await seedItem({ userId, storedAt, monthlyFeeToman: 60_000 });
+    const settlement = await createSettlement(item.id, null);
+    await markSettlementPaid(settlement!.id);
+    await expect(markSettlementPaid(settlement!.id)).resolves.toBeNull();
+  });
+
+  it('returns null for a voided settlement or its reversing entry — never marks either paid', async () => {
+    const userId = await seedUser('09130000016');
+    const storedAt = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const item = await seedItem({ userId, storedAt, monthlyFeeToman: 60_000 });
+    const settlement = await createSettlement(item.id, null);
+    const result = await voidSettlement(settlement!.id, null);
+    await expect(markSettlementPaid(result!.voided.id)).resolves.toBeNull();
+    await expect(markSettlementPaid(result!.reversal.id)).resolves.toBeNull();
+  });
+});
+
 describe('customerSettlementOverview', () => {
   it('sums unsettled amounts across every active item for a customer', async () => {
     const userId = await seedUser('09130000007');
     const storedAt = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    await seedItem({ userId, storedAt, monthlyFeeToman: 300_000 });
-    await seedItem({ userId, storedAt, monthlyFeeToman: 150_000 });
+    await seedItem({ userId, storedAt, monthlyFeeToman: 60_000 });
+    await seedItem({ userId, storedAt, monthlyFeeToman: 30_000 });
 
     const overview = await customerSettlementOverview();
     const mine = overview.find((c) => c.userId === userId);
