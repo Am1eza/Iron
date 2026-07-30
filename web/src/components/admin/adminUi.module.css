@@ -97,6 +97,10 @@
   background: color-mix(in srgb, var(--color-loss) 8%, transparent);
 }
 
+.rowWarn {
+  background: color-mix(in srgb, var(--chart-warn) 10%, transparent);
+}
+
 /* Form controls take --color-border-strong (not hairline): that is the
    site-wide input/chip/button border token (see forms/field.module.css). */
 .select {
@@ -290,4 +294,15 @@ button.tile {
 .tileHint {
   font: var(--t-caption);
   color: var(--color-text-muted);
+}
+
+.tileHintWarn {
+  font: var(--t-caption);
+  color: var(--chart-warn);
+}
+
+.tileHintError {
+  font: var(--t-caption);
+  color: var(--color-loss-text);
+  font-weight: 600;
 }

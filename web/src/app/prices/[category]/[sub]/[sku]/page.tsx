@@ -4,7 +4,7 @@ import { buildMetadata, productJsonLd } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { allRows } from '@/lib/mock/catalogData';
 import { findSku, relatedRows, priceSeries, getRows, getCategories, getBilletReference, getSubsMap } from '@/lib/server/catalog';
-import { formatToman } from '@/lib/utils/format';
+import { formatToman, priceHiddenLabel } from '@/lib/utils/format';
 import { productImage } from '@/lib/data/productImages';
 import { JsonLd, BreadcrumbJsonLd } from '@/components/seo/JsonLd';
 import { Container, Section } from '@/components/ui';
@@ -21,7 +21,10 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   if (!row || row.categoryId !== category || row.subCategoryId !== sub) {
     return buildMetadata({ title: 'محصول پیدا نشد', noindex: true });
   }
-  const price = formatToman(row.current.price);
+  // W23 audit fix: a stale-hidden price is a `0` sentinel (catalogRepo.
+  // toPriceRow) — was rendering literally as "۰ تومان" in the search-result
+  // snippet Google shows for this page.
+  const price = priceHiddenLabel(row.current) ?? formatToman(row.current.price);
   return buildMetadata({
     title: `قیمت روز ${row.name}`,
     description: `قیمت روز ${row.name}${row.factory ? ` کارخانه ${row.factory}` : ''}: ${price} برای هر کیلوگرم، همراه با نوسان، وزن شاخه و زمان تحویل در آهن‌تایم.`,
@@ -63,6 +66,10 @@ export default async function SkuPage({ params }: Params) {
         data={productJsonLd({
           name: row.name,
           price: row.current.price,
+          // W23 audit fix: a stale-hidden price is a `0` sentinel — must
+          // never reach a `price: 0, InStock` structured-data claim (a
+          // known Google Merchant policy violation, and simply false).
+          priceHidden: row.current.priceHidden,
           available: row.isActive,
           url: routes.sku(row.categoryId, row.subCategoryId, row.slug),
           image: productImage(row.categoryId),

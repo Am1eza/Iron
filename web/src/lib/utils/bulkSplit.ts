@@ -27,8 +27,13 @@ export function computeBulkSplit(rows: PriceRow[], tonnage: number): BulkSplit {
   const tons = Number.isFinite(tonnage) && tonnage > 0 ? tonnage : 0;
   const totalKg = tons * 1000;
 
+  // W23 audit fix: a stale-hidden row's `current.price` is a `0` sentinel
+  // (catalogRepo.toPriceRow) — averaging it in with real prices dragged a
+  // factory's representative quote toward zero, making it look artificially
+  // (and wrongly) cheapest. A withheld price contributes no real signal to
+  // "which factory is cheapest," so it's excluded rather than counted as 0.
   const byFactory = new Map<string, { sum: number; count: number }>();
-  for (const r of rows) {
+  for (const r of rows.filter((r) => !r.current.priceHidden)) {
     const f = r.factory ?? 'سایر';
     const acc = byFactory.get(f) ?? { sum: 0, count: 0 };
     acc.sum += r.current.price;

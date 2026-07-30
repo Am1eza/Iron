@@ -51,9 +51,16 @@ export function ExcelImport() {
     }
   };
 
+  const changed = (preview?.matched ?? []).filter((m) => m.currentPrice !== m.newPrice);
+
   const apply = useMutation({
-    mutationFn: () =>
-      adminApi.savePrices((preview?.matched ?? []).map((m) => ({ skuId: m.skuId, price: m.newPrice }))),
+    // W23 review fix: was submitting EVERY matched row, not just the ones the
+    // button claims («ثبت N قیمت»). `savePrice` unconditionally appends a
+    // `price_points` row and an audit entry on every call — re-uploading the
+    // full template (edit one row, leave the rest at their current value)
+    // silently spammed history/audit with no-op saves and reset every
+    // untouched row's staleness clock, hiding genuinely stale prices.
+    mutationFn: () => adminApi.savePrices(changed.map((m) => ({ skuId: m.skuId, price: m.newPrice }))),
     onSuccess: (res) => {
       toast.success(`${toPersianDigits(res.saved)} قیمت ذخیره شد${res.failed ? `؛ ${toPersianDigits(res.failed)} ناموفق` : ''}.`);
       setPreview(null);
@@ -61,8 +68,6 @@ export function ExcelImport() {
     },
     onError: () => toast.error('ذخیرهٔ قیمت‌ها ناموفق بود.'),
   });
-
-  const changed = (preview?.matched ?? []).filter((m) => m.currentPrice !== m.newPrice);
 
   return (
     <section className={ui.panel} aria-labelledby="xlsx-import">

@@ -19,16 +19,26 @@
  * credentials) is reported but left triggered, since retrying an identical
  * rejected send forever is pointless — see revertAlertClaim's doc comment.
  *
- * CORRECTNESS (W22): a stale price/market value (isStale, set by the
- * price-staleness/market-poll jobs when a feed stops updating) is now
- * excluded from evaluation entirely — firing a customer notification off
- * data the app itself doesn't trust was the exact kind of thing that erodes
- * trust in a "we'll reliably tell you" feature.
+ * CORRECTNESS (W22, tightened W23): a stale price/market value is excluded
+ * from evaluation entirely — firing a customer notification off data the
+ * app itself doesn't trust was the exact kind of thing that erodes trust in
+ * a "we'll reliably tell you" feature. Staleness is now computed LIVE via
+ * `getPriceFreshness()` — the same single source of truth every other
+ * price-reading path (catalog, estimates, AI tools) uses — instead of the
+ * persisted `isStale` column, which is only refreshed every 10 minutes by
+ * the staleness job while this evaluator runs every 60 seconds: that gap
+ * left up to ~10 minutes where a price the rest of the app already treated
+ * as stale could still fire an alert. Market-type alerts additionally check
+ * the persisted `marketValues.isStale` flag — `flagTgjuStale()` sets it
+ * during a feed outage WITHOUT bumping `updatedAt` (the last-good value
+ * keeps serving under its original timestamp), which the live day-based
+ * check alone can't see.
  */
 import { activeAlertsWithValues, claimAlertForTrigger, revertAlertClaim } from '@/lib/server/repos/alertsRepo';
 import { sendNotification, truncateParam, type NotificationSpec } from '@/lib/server/integrations/smsir';
 import { reportError } from '@/lib/errors/report';
 import { customerNameParam } from '@/lib/server/services/leads.service';
+import { getPriceFreshness } from '@/lib/server/services/priceFreshness';
 import { formatToman } from '@/lib/utils/format';
 import { publicEnv } from '@/lib/validation/env';
 import { routes } from '@/lib/routes';
@@ -70,11 +80,19 @@ export function alertSmsNotification(
 }
 
 export async function evaluateAlerts(): Promise<number> {
-  const rows = await activeAlertsWithValues();
+  const [rows, freshness] = await Promise.all([activeAlertsWithValues(), getPriceFreshness()]);
   let fired = 0;
   for (const r of rows) {
-    const isStale = r.alert.targetType === 'sku' ? r.skuStale : r.marketStale;
-    if (isStale) continue; // W22: never fire off a feed the app itself has flagged unreliable.
+    const updatedAt = r.alert.targetType === 'sku' ? r.skuUpdatedAt : r.marketUpdatedAt;
+    // No row at all (target deleted, or a market key never polled) —
+    // nothing to evaluate. Otherwise trust the LIVE check over the
+    // persisted column (see the file header comment for why) — EXCEPT
+    // `marketValues.isStale`, which `flagTgjuStale()` sets during a feed
+    // outage without touching `updatedAt`: a same-day-so-far value can go
+    // bad hours after its last real poll, which the day-based live check
+    // alone can't detect. OR it in for market-type alerts only.
+    if (!updatedAt || freshness.isStale(updatedAt)) continue;
+    if (r.alert.targetType === 'market' && r.marketStale) continue;
 
     const value = r.alert.targetType === 'sku' ? r.skuPrice : r.marketValue;
     if (value == null || value <= 0) continue;

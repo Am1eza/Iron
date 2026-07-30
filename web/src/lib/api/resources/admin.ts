@@ -290,9 +290,16 @@ export const adminApi = {
     return `/api/admin/leads/export?${qs}`;
   },
   lead: (id: string) =>
-    http.get<{ lead: AdminLead; items: Array<LineItem & { id: string }>; notes: Array<{ id: string; authorId: string; text: string; at: string }>; proformas: AdminProforma[] }>(
-      `/api/admin/leads/${id}`,
-    ),
+    http.get<{
+      lead: AdminLead;
+      // `currentPrice` (W23): the live catalog price for this item's SKU
+      // right now — compare against `unitPrice` (frozen at lead-creation
+      // time) to see if the price moved since. Null for a custom/no-SKU
+      // line, or a SKU whose price was never entered.
+      items: Array<LineItem & { id: string; currentPrice: number | null }>;
+      notes: Array<{ id: string; authorId: string; text: string; at: string }>;
+      proformas: AdminProforma[];
+    }>(`/api/admin/leads/${id}`),
   updateLead: (id: string, patch: { status?: string; assigneeId?: string | null; callbackAt?: string | null }) =>
     http.patch<{ lead: AdminLead }>(`/api/admin/leads/${id}`, patch),
   addLeadNote: (id: string, text: string) => http.post<{ note: unknown }>(`/api/admin/leads/${id}/notes`, { text }),

@@ -396,10 +396,28 @@ export async function activeAlertsWithValues() {
       skuCategoryId: skus.categoryId,
       skuSubCategoryId: skus.subCategoryId,
       skuPrice: currentPrices.price,
+      // W23 review fix: `isStale` here is a fallback for callers with no
+      // live freshness check handy — `evaluateAlerts()` itself now uses
+      // `skuUpdatedAt`/`marketUpdatedAt` with the SAME live
+      // `getPriceFreshness()` every other price-reading path uses, instead
+      // of this persisted column (only refreshed every 10 minutes by the
+      // staleness job, vs. this evaluator running every 60 seconds — up to
+      // ~10 minutes where this column still says "fresh" after the live
+      // check would already say stale). `marketStale` is the ONE exception —
+      // see its comment below; the evaluator still reads it directly.
       skuStale: currentPrices.isStale,
+      skuUpdatedAt: currentPrices.updatedAt,
       marketLabel: marketValues.label,
       marketValue: marketValues.value,
+      // Review fix: `flagTgjuStale()` (marketRepo.ts) marks a market row
+      // unreliable during a TGJU outage WITHOUT touching `updatedAt` — the
+      // last-good value keeps serving with its original timestamp. A
+      // same-Jalali-day live check alone can't see that flag (the feed can
+      // die hours after a fresh morning poll, same day), so the evaluator
+      // ORs this persisted flag in for market-type alerts instead of relying
+      // on live freshness alone.
       marketStale: marketValues.isStale,
+      marketUpdatedAt: marketValues.updatedAt,
     })
     .from(alerts)
     .innerJoin(users, eq(alerts.userId, users.id))

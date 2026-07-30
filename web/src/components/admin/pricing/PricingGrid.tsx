@@ -4,16 +4,100 @@
  * tracked locally; one PUT saves them all (movement/history/audit server-side).
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api/resources/admin';
 import { normalizeDigits, toPersianDigits } from '@/lib/utils/format';
 import { formatJalali } from '@/lib/utils/jalali';
 import { useToast } from '@/lib/hooks/useToast';
+import { useUnsavedGuard } from '@/lib/hooks/useUnsavedGuard';
 import { ApiError } from '@/lib/api/errors';
 import { Badge, Button, Chip, EmptyState, Modal, MovementBadge, TableSkeleton, useConfirm } from '@/components/ui';
 import { Sparkline } from '../dashboard/Sparkline';
 import ui from '../adminUi.module.css';
+
+/** A same-day price move this big is almost always a fat-fingered digit, not
+ *  a real market swing — steel prices just don't jump this fast. Doesn't
+ *  block saving (it might be genuinely right), just flags the row so the
+ *  operator glances twice before hitting «ذخیره». */
+const FAT_FINGER_THRESHOLD_PCT = 20;
+
+function countDigits(s: string): number {
+  let n = 0;
+  for (const ch of normalizeDigits(s)) if (ch >= '0' && ch <= '9') n++;
+  return n;
+}
+
+/** Digit-grouped price input — shows «۲۸۵٬۰۰۰» while the value underneath
+ *  stays plain digits (what actually gets parsed/saved). A bare 6-7 digit
+ *  Toman price is hard to eyeball for a stray or missing digit ungrouped.
+ *  Caret position is preserved across reformatting by counting DIGITS (not
+ *  characters) to the left of the caret and re-locating that same digit
+ *  count in the reformatted string. */
+function PriceCell({
+  value,
+  onChange,
+  row,
+  ariaInvalid,
+  ariaDescribedby,
+  ariaLabel,
+  onKeyDown,
+}: {
+  value: string;
+  onChange: (raw: string) => void;
+  row: number;
+  ariaInvalid: boolean;
+  ariaDescribedby?: string;
+  ariaLabel: string;
+  onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  const group = (digits: string) => (digits ? toPersianDigits(Number(digits).toLocaleString('en-US')) : '');
+  const display = group(value);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.currentTarget;
+    const caret = input.selectionStart ?? input.value.length;
+    const digitsBeforeCaret = countDigits(input.value.slice(0, caret));
+    const digits = normalizeDigits(input.value).replace(/[^\d]/g, '');
+    onChange(digits);
+    const nextDisplay = group(digits);
+    requestAnimationFrame(() => {
+      const el = ref.current;
+      if (!el) return;
+      let seen = 0;
+      let pos = nextDisplay.length;
+      for (let i = 0; i < nextDisplay.length; i++) {
+        if (/[0-9۰-۹]/.test(nextDisplay[i]!)) {
+          seen++;
+          if (seen === digitsBeforeCaret) {
+            pos = i + 1;
+            break;
+          }
+        }
+      }
+      if (digitsBeforeCaret === 0) pos = 0;
+      el.setSelectionRange(pos, pos);
+    });
+  };
+
+  return (
+    <input
+      ref={ref}
+      className={ui.numInput}
+      inputMode="numeric"
+      data-row={row}
+      data-col="price"
+      value={display}
+      onChange={handleChange}
+      onFocus={(e) => e.currentTarget.select()}
+      aria-invalid={ariaInvalid || undefined}
+      aria-describedby={ariaDescribedby}
+      onKeyDown={onKeyDown}
+      aria-label={ariaLabel}
+    />
+  );
+}
 
 /** Per-row 30-day price trend (US-17.6). Fed by ONE batched query for the
  *  whole visible grid — the old per-row query fired one HTTP request per SKU
@@ -69,6 +153,7 @@ function matchPastedPrices(
 export function PricingGrid() {
   const toast = useToast();
   const qc = useQueryClient();
+  const router = useRouter();
   // ?stale=1 → open pre-filtered to stale rows (the dashboard's «قیمت‌های
   // کهنه» tile deep-links here, so the operator lands ON the work, not
   // hunting for it).
@@ -76,7 +161,10 @@ export function PricingGrid() {
   const [cat, setCat] = useState('rebar');
   const [sub, setSub] = useState('');
   const [onlyStale, setOnlyStale] = useState(params.get('stale') === '1');
+  const [q, setQ] = useState('');
+  const [bulkPct, setBulkPct] = useState('');
   const [drafts, setDrafts] = useState<Map<string, Draft>>(new Map());
+  const [rowErrors, setRowErrors] = useState<Map<string, string>>(new Map());
   const [pasteOpen, setPasteOpen] = useState(false);
   const [pasteText, setPasteText] = useState('');
   const tableRef = useRef<HTMLTableElement>(null);
@@ -107,11 +195,17 @@ export function PricingGrid() {
         toast.success(`${toPersianDigits(res.saved)} قیمت ذخیره شد.`);
       }
       if (res.failed > 0) {
-        const failedIds = new Set(res.results.filter((r) => !r.ok).map((r) => r.skuId));
+        const failed = res.results.filter((r): r is Extract<typeof r, { ok: false }> => !r.ok);
+        // W23 review fix: the toast only ever said "N failed, try again" — the
+        // route's per-row `error` string (route.ts's per-row fault isolation)
+        // was fetched and thrown away. Keeping it per skuId lets the row show
+        // WHY it failed, right where the operator is about to retry it.
         toast.error(`${toPersianDigits(res.failed)} قیمت ذخیره نشد؛ دوباره تلاش کنید.`);
-        setDrafts((prev) => new Map([...prev].filter(([skuId]) => failedIds.has(skuId))));
+        setDrafts((prev) => new Map([...prev].filter(([skuId]) => failed.some((f) => f.skuId === skuId))));
+        setRowErrors(new Map(failed.map((f) => [f.skuId, f.error])));
       } else {
         setDrafts(new Map());
+        setRowErrors(new Map());
       }
       void qc.invalidateQueries({ queryKey: ['admin', 'pricing'] });
       void qc.invalidateQueries({ queryKey: ['admin', 'stats'] });
@@ -121,14 +215,26 @@ export function PricingGrid() {
   });
 
   const allRows = useMemo(() => data?.rows ?? [], [data]);
-  const staleCount = useMemo(
-    () => allRows.filter((r) => r.current.isStale && !r.current.priceHidden).length,
-    [allRows],
-  );
-  const rows = useMemo(
-    () => (onlyStale ? allRows.filter((r) => r.current.isStale && !r.current.priceHidden) : allRows),
-    [allRows, onlyStale],
-  );
+  // W23 review fix (H1): a stale-hidden price («تماس بگیرید») is a stale
+  // price too — it's the row that has been stale the LONGEST, which is why
+  // it got hidden in the first place (see priceFreshness.ts: `isHidden`
+  // implies `isStale`). Excluding it here meant «فقط کهنه‌ها»,  the exact
+  // filter an operator reaches for to find what needs fixing, hid the most
+  // urgent rows from the list.
+  const staleCount = useMemo(() => allRows.filter((r) => r.current.isStale).length, [allRows]);
+  const rows = useMemo(() => {
+    let out = onlyStale ? allRows.filter((r) => r.current.isStale) : allRows;
+    const nq = normalizeDigits(q).trim().toLowerCase();
+    if (nq) {
+      out = out.filter(
+        (r) =>
+          r.name.toLowerCase().includes(nq) ||
+          r.slug.toLowerCase().includes(nq) ||
+          (r.size ?? '').toLowerCase().includes(nq),
+      );
+    }
+    return out;
+  }, [allRows, onlyStale, q]);
 
   // Live sub-category list for the selected category — NOT the static
   // CATEGORY_SUBS fixture (which silently misses/mismatches anything an admin
@@ -160,12 +266,25 @@ export function PricingGrid() {
       next.set(skuId, { ...next.get(skuId), ...patch });
       return next;
     });
+    // A retried row's stale failure reason must not linger once the operator
+    // has actually changed the value it complained about.
+    setRowErrors((prev) => {
+      if (!prev.has(skuId)) return prev;
+      const next = new Map(prev);
+      next.delete(skuId);
+      return next;
+    });
   };
 
   const dirty = useMemo(() => {
     const out: Array<{ skuId: string; price: number; deliveryTime?: string }> = [];
     for (const [skuId, d] of drafts) {
-      const row = rows.find((r) => r.id === skuId);
+      // `allRows`, not the filtered `rows` — the search box and «فقط
+      // کهنه‌ها» are VIEW filters. An edit made before typing a search term
+      // (or before a row scrolled out of the stale-only view) must still be
+      // included in what «ذخیره» submits; it was silently dropped from the
+      // save payload the moment the row fell out of the filtered view.
+      const row = allRows.find((r) => r.id === skuId);
       if (!row) continue;
       const price = d.price !== undefined ? Number(normalizeDigits(d.price)) : row.current.price;
       if (!Number.isFinite(price) || price <= 0) continue;
@@ -175,7 +294,7 @@ export function PricingGrid() {
       if (changed) out.push({ skuId, price, deliveryTime: d.deliveryTime ?? row.current.deliveryTime });
     }
     return out;
-  }, [drafts, rows]);
+  }, [drafts, allRows]);
   // `dirty` alone would need an O(n) `.some()` scan per row inside the table
   // body's `.map` below — O(n²) over the datasheet on every keystroke. A Set
   // makes that lookup O(1).
@@ -191,6 +310,54 @@ export function PricingGrid() {
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
   }, [dirty.length]);
+
+  // Shared "may I navigate away?" prompt — used by the click-interceptor
+  // below AND registered as the global unsaved-guard so navigation that
+  // never goes through an <a> click (the admin Command Palette's
+  // router.push) asks the same question instead of silently discarding
+  // drafts. Resolves true (and clears drafts) only if the operator confirms.
+  const confirmLeave = () =>
+    confirm({
+      title: 'خروج از صفحه',
+      body: `${toPersianDigits(dirty.length)} قیمت ذخیره‌نشده دارید. با خروج از این صفحه از بین می‌رود — ادامه می‌دهید؟`,
+      confirmLabel: 'ادامه و ازدست‌دادن تغییرات',
+    }).then((ok) => {
+      if (ok) setDrafts(new Map());
+      return ok;
+    });
+  useUnsavedGuard(dirty.length > 0, confirmLeave);
+
+  // W23 review fix (#10): `beforeunload` only ever covered leaving the TAB.
+  // Clicking the admin sidebar (a same-app <Link>) is client-side navigation
+  // — no unload event fires, so unsaved edits vanished with zero warning the
+  // moment an operator clicked away to check something. A capture-phase
+  // click listener intercepts any internal <a> navigation while dirty.
+  useEffect(() => {
+    if (dirty.length === 0) return;
+    const handler = (e: MouseEvent) => {
+      // Ctrl/Cmd/Shift-click and middle-click are "open in a new tab/window"
+      // — hijacking those would both break that browser-native behavior AND
+      // navigate the CURRENT tab on confirm, losing the very drafts the
+      // operator was trying to keep by opening elsewhere.
+      if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+      const a = (e.target as HTMLElement)?.closest?.('a[href]') as HTMLAnchorElement | null;
+      if (!a || a.target === '_blank') return;
+      const url = new URL(a.href, window.location.href);
+      if (url.origin !== window.location.origin) return;
+      // Same-page hash jumps (e.g. the admin shell's «پرش به محتوای پنل»
+      // skip-link) must never be treated as "leaving the page" — only the
+      // path/query identify a different page.
+      if (url.pathname + url.search === window.location.pathname + window.location.search) return;
+      e.preventDefault();
+      e.stopPropagation();
+      void confirmLeave().then((ok) => {
+        if (ok) router.push(url.pathname + url.search + url.hash);
+      });
+    };
+    document.addEventListener('click', handler, true);
+    return () => document.removeEventListener('click', handler, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dirty.length, router]);
 
   // Vertical arrow-key navigation (US-17.5): each editable cell is addressed
   // by (row, column) rather than the old single `data-price-index` sequence,
@@ -234,7 +401,10 @@ export function PricingGrid() {
   };
 
   const applyPaste = () => {
-    const { matched, unmatched } = matchPastedPrices(pasteText, rows);
+    // `allRows`, not the filtered `rows` — a search term or «فقط کهنه‌ها»
+    // left on from browsing shouldn't silently drop otherwise-matching
+    // pasted lines out of the category as "unmatched".
+    const { matched, unmatched } = matchPastedPrices(pasteText, allRows);
     if (matched.length === 0) {
       toast.error('هیچ ردیفی تطبیق نخورد. کلید هر خط باید با نام، اسلاگ یا سایز یکی از کالاهای این دسته بخواند.');
       return;
@@ -251,6 +421,44 @@ export function PricingGrid() {
     );
     setPasteText('');
     setPasteOpen(false);
+  };
+
+  // Bulk %-adjustment: shifts every CURRENTLY VISIBLE row (respecting the
+  // search box and «فقط کهنه‌ها») by a percentage — a factory-wide price
+  // bump/cut used to mean re-typing every row by hand. Only fills drafts
+  // (nothing is saved until «ذخیره»), so it's as reversible as any other
+  // edit via «انصراف». Stale-hidden rows have no real baseline (their price
+  // is the `0` withheld-sentinel) and are skipped — `bulkTargetCount` is
+  // what the toolbar button's own count should say, not `rows.length`.
+  const bulkTargetCount = useMemo(() => rows.filter((r) => !r.current.priceHidden).length, [rows]);
+  const applyBulkPct = () => {
+    const pct = Number(normalizeDigits(bulkPct));
+    if (!Number.isFinite(pct) || pct === 0) {
+      toast.error('درصد نامعتبر است.');
+      return;
+    }
+    const targets = rows.filter((r) => !r.current.priceHidden);
+    if (targets.length === 0) {
+      toast.error('کالایی برای اعمال درصد در این نما نیست.');
+      return;
+    }
+    // Review fix: report how many rows actually got a new draft, not
+    // `targets.length` — a row with an existing unparseable draft price is
+    // skipped below, and the toast/button count shouldn't claim otherwise.
+    let applied = 0;
+    setDrafts((prev) => {
+      const next = new Map(prev);
+      for (const r of targets) {
+        const base = prev.get(r.id)?.price !== undefined ? Number(normalizeDigits(prev.get(r.id)!.price!)) : r.current.price;
+        if (!Number.isFinite(base) || base <= 0) continue;
+        const price = String(Math.round(base * (1 + pct / 100)));
+        next.set(r.id, { ...next.get(r.id), price });
+        applied++;
+      }
+      return next;
+    });
+    toast.success(`${toPersianDigits(applied)} قیمت ${pct > 0 ? '+' : ''}${toPersianDigits(pct)}٪ تغییر کرد. بررسی و ذخیره کنید.`);
+    setBulkPct('');
   };
 
   return (
@@ -289,14 +497,36 @@ export function PricingGrid() {
         <Chip selected={onlyStale} onClick={() => setOnlyStale((v) => !v)}>
           فقط کهنه‌ها{staleCount > 0 ? ` (${toPersianDigits(staleCount)})` : ''}
         </Chip>
+        <input
+          className={ui.textCell}
+          style={{ inlineSize: '12rem' }}
+          placeholder="جستجو در نام/اسلاگ/سایز…"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          aria-label="جستجوی کالا"
+        />
         <span className={ui.muted}>{toPersianDigits(rows.length)} کالا</span>
         <Button size="sm" variant="ghost" onClick={() => setPasteOpen(true)} disabled={rows.length === 0}>
           چسباندن قیمت‌ها
         </Button>
+        <div className={ui.toolbar} role="group" aria-label="اعمال درصد روی نمای فعلی">
+          <input
+            className={ui.numInput}
+            style={{ inlineSize: '5.5rem' }}
+            inputMode="numeric"
+            placeholder="٪ مثلاً ۲ یا ۲-"
+            value={bulkPct}
+            onChange={(e) => setBulkPct(e.target.value)}
+            aria-label="درصد تغییر قیمت روی ردیف‌های نمایش‌داده‌شده"
+          />
+          <Button size="sm" variant="ghost" onClick={applyBulkPct} disabled={bulkTargetCount === 0 || !bulkPct.trim()}>
+            اعمال روی {toPersianDigits(bulkTargetCount)} ردیف
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (
-        <TableSkeleton rows={8} cols={7} />
+        <TableSkeleton rows={8} cols={8} />
       ) : isError ? (
         <EmptyState
           size="section"
@@ -304,8 +534,21 @@ export function PricingGrid() {
           headline="بارگذاری جدول قیمت ناموفق بود."
           primary={{ label: 'تلاش دوباره', onClick: () => void refetch() }}
         />
-      ) : rows.length === 0 ? (
+      ) : rows.length === 0 && allRows.length === 0 ? (
         <EmptyState size="section" headline="کالایی در این دسته نیست" body="از بخش کاتالوگ کالا اضافه کنید." />
+      ) : rows.length === 0 ? (
+        <EmptyState
+          size="section"
+          headline="با این فیلتر کالایی پیدا نشد"
+          body="جستجو یا «فقط کهنه‌ها» را پاک کنید."
+          primary={{
+            label: 'پاک‌کردن فیلترها',
+            onClick: () => {
+              setQ('');
+              setOnlyStale(false);
+            },
+          }}
+        />
       ) : (
         <div className={ui.tableWrap}>
           <table className={ui.table} ref={tableRef}>
@@ -333,9 +576,30 @@ export function PricingGrid() {
                 // included it, making it look like a no-op edit.
                 const draftPrice = d?.price !== undefined ? Number(normalizeDigits(d.price)) : undefined;
                 const isInvalidPrice = d?.price !== undefined && (!Number.isFinite(draftPrice) || draftPrice! <= 0);
+                const saveError = rowErrors.get(r.id);
+                // Fat-finger guard: only meaningful when the draft price
+                // actually parses AND the row has a real (non-hidden)
+                // baseline to compare against — a hidden row's `price` is
+                // the `0` withheld-sentinel, which would read as a ±∞% move.
+                const baseline = !r.current.priceHidden && r.current.price > 0 ? r.current.price : null;
+                const movePct =
+                  !isInvalidPrice && draftPrice !== undefined && baseline
+                    ? (Math.abs(draftPrice - baseline) / baseline) * 100
+                    : 0;
+                const isFatFinger = movePct >= FAT_FINGER_THRESHOLD_PCT;
                 const priceErrId = `price-err-${r.id}`;
+                const priceWarnId = `price-warn-${r.id}`;
+                const rowClass = isInvalidPrice
+                  ? ui.rowInvalid
+                  : saveError
+                    ? ui.rowInvalid
+                    : isFatFinger
+                      ? ui.rowWarn
+                      : isDirty
+                        ? ui.rowDirty
+                        : undefined;
                 return (
-                  <tr key={r.id} className={isDirty ? ui.rowDirty : isInvalidPrice ? ui.rowInvalid : undefined}>
+                  <tr key={r.id} className={rowClass}>
                     <td>
                       {r.name}
                       {isDirty ? <span className="visually-hidden"> (ویرایش نشده، ذخیره نشده)</span> : null}
@@ -343,24 +607,25 @@ export function PricingGrid() {
                     <td className="tnum">{r.size ?? '—'}</td>
                     <td>{r.factory ?? '—'}</td>
                     <td>
-                      <input
-                        className={ui.numInput}
-                        inputMode="numeric"
-                        data-row={i}
-                        data-col="price"
+                      <PriceCell
+                        row={i}
                         value={d?.price ?? String(r.current.price || '')}
-                        onChange={(e) => setDraft(r.id, { price: e.target.value })}
-                        onFocus={(e) => e.currentTarget.select()}
-                        aria-invalid={isInvalidPrice || undefined}
-                        aria-describedby={isInvalidPrice ? priceErrId : undefined}
+                        onChange={(raw) => setDraft(r.id, { price: raw })}
+                        ariaInvalid={isInvalidPrice}
+                        ariaDescribedby={isInvalidPrice ? priceErrId : isFatFinger ? priceWarnId : undefined}
+                        ariaLabel={`قیمت ${r.name}`}
                         onKeyDown={(e) => handleCellKeyDown(e, i, 'price')}
-                        aria-label={`قیمت ${r.name}`}
                       />
                       {isInvalidPrice ? (
                         <div id={priceErrId} className={ui.tileHint}>
                           عدد نامعتبر — ذخیره نمی‌شود
                         </div>
+                      ) : isFatFinger ? (
+                        <div id={priceWarnId} className={ui.tileHintWarn}>
+                          {toPersianDigits(Math.round(movePct))}٪ تغییر نسبت به قیمت قبلی
+                        </div>
                       ) : null}
+                      {saveError ? <div className={ui.tileHintError}>{saveError}</div> : null}
                     </td>
                     <td>
                       <input

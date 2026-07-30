@@ -232,6 +232,14 @@
   inline-size: 8rem;
 }
 
+.priceDrift {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--chart-warn);
+  white-space: nowrap;
+}
+
 .num {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;

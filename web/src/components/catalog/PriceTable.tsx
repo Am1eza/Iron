@@ -9,7 +9,7 @@ import { useToast } from '@/lib/hooks/useToast';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { CONSTANTS } from '@/lib/config/constants';
 import { routes } from '@/lib/routes';
-import { formatToman, toPersianDigits } from '@/lib/utils/format';
+import { formatToman, priceHiddenLabel, toPersianDigits } from '@/lib/utils/format';
 import { formatJalali } from '@/lib/utils/jalali';
 import { API_MODE } from '@/lib/api/config';
 import { api } from '@/lib/api';
@@ -82,7 +82,7 @@ const PriceTableRow = memo(function PriceTableRow({
         )}
       </td>
       <td className={`${styles.num} ${styles.price}`}>
-        {formatToman(withVat(r.current.price, vat), false)}
+        {priceHiddenLabel(r.current) ?? formatToman(withVat(r.current.price, vat), false)}
       </td>
       <td className={styles.num}>
         <MovementBadge dir={r.current.movementDir} pct={r.current.movementPct} />
@@ -109,7 +109,12 @@ const PriceTableRow = memo(function PriceTableRow({
             icon={<ChartIcon size={18} />}
             onClick={() => onChart(r)}
           />
-          <button className={styles.addBtn} onClick={() => onAddToCart(r)}>
+          <button
+            className={styles.addBtn}
+            onClick={() => onAddToCart(r)}
+            disabled={r.current.priceHidden}
+            title={r.current.priceHidden ? 'برای این کالا باید تماس بگیرید.' : undefined}
+          >
             <PlusIcon size={16} /> سبد
           </button>
         </div>
@@ -148,7 +153,7 @@ const PriceTableCard = memo(function PriceTableCard({
       </div>
       <div className={styles.cardPrice}>
         <span className={`${styles.price} tnum`}>
-          {formatToman(withVat(r.current.price, vat), false)}
+          {priceHiddenLabel(r.current) ?? formatToman(withVat(r.current.price, vat), false)}
         </span>
         <span className={styles.unit}>تومان / کیلوگرم</span>
         <MovementBadge dir={r.current.movementDir} pct={r.current.movementPct} pill />
@@ -168,7 +173,12 @@ const PriceTableCard = memo(function PriceTableCard({
         <button className={styles.ghostBtn} onClick={() => onChart(r)}>
           <ChartIcon size={16} /> نمودار
         </button>
-        <button className={styles.addBtnFull} onClick={() => onAddToCart(r)}>
+        <button
+          className={styles.addBtnFull}
+          onClick={() => onAddToCart(r)}
+          disabled={r.current.priceHidden}
+          title={r.current.priceHidden ? 'برای این کالا باید تماس بگیرید.' : undefined}
+        >
           <PlusIcon size={16} /> افزودن به سبد استعلام
         </button>
       </div>
@@ -607,7 +617,7 @@ export function PriceTable({
                   <th scope="row">قیمت (تومان)</th>
                   {compareRows.map((r) => (
                     <td key={r.id} className={styles.price}>
-                      {formatToman(withVat(r.current.price, vat), false)}
+                      {priceHiddenLabel(r.current) ?? formatToman(withVat(r.current.price, vat), false)}
                     </td>
                   ))}
                 </tr>

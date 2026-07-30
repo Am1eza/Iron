@@ -1,6 +1,6 @@
 'use client';
 import { useToast } from '@/lib/hooks/useToast';
-import { formatToman, formatMovement, toPersianDigits } from '@/lib/utils/format';
+import { formatToman, formatMovement, priceHiddenLabel, toPersianDigits } from '@/lib/utils/format';
 import { formatJalali } from '@/lib/utils/jalali';
 import type { PriceRow } from '@/lib/types/domain';
 import { SheetIcon, PrintIcon, ImageIcon } from '@/components/primitives/icons';
@@ -19,7 +19,7 @@ function rowCells(r: PriceRow): string[] {
     r.size ? toPersianDigits(r.size) : '—',
     r.factory ?? '—',
     r.theoreticalWeightKg ? toPersianDigits(String(r.theoreticalWeightKg)) : '—',
-    formatToman(r.current.price, false),
+    priceHiddenLabel(r.current) ?? formatToman(r.current.price, false),
     formatMovement(r.current.movementPct),
     r.current.deliveryTime,
   ];

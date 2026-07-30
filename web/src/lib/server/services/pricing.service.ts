@@ -3,9 +3,9 @@
  * AI/admin tools). One transaction: lock row → compute movement → upsert
  * current_prices → append price_points → audit. (acceptance-criteria §B2)
  */
-import { eq, inArray, sql } from 'drizzle-orm';
+import { desc, eq, inArray, sql } from 'drizzle-orm';
 import { ulid } from 'ulid';
-import { getDb } from '@/lib/server/db/client';
+import { getDb, type DbOrTx } from '@/lib/server/db/client';
 import { currentPrices, pricePoints, skus, auditEntries } from '@/lib/server/db/schema';
 import type { PriceUnit } from '@/lib/types/domain';
 import { isSameJalaliDay } from '@/lib/server/utils/jalali';
@@ -25,8 +25,35 @@ export interface SavePriceResult {
   movementDir: 'up' | 'down' | 'flat';
 }
 
+export class InvalidPriceError extends Error {}
+
+/** The most recent `price_points` row for this SKU from a DIFFERENT Jalali
+ *  day than `now` — the correct "yesterday's close" baseline for movement%
+ *  (W23 review fix; see the comment at its call site for why `prev.price`
+ *  alone isn't). 30 rows is comfortably more than any realistic number of
+ *  same-day re-saves; the index is on (sku_id, at) so this stays cheap even
+ *  for a SKU with years of history. */
+async function lastDifferentDayPrice(tx: DbOrTx, skuId: string, now: Date): Promise<number | null> {
+  const rows = await tx
+    .select({ price: pricePoints.price, at: pricePoints.at })
+    .from(pricePoints)
+    .where(eq(pricePoints.skuId, skuId))
+    .orderBy(desc(pricePoints.at))
+    .limit(30);
+  return rows.find((r) => !isSameJalaliDay(r.at, now))?.price ?? null;
+}
+
 /** Save one price (in an existing transaction when part of a bulk save). */
 export async function savePrice(actorId: string, input: SavePriceInput): Promise<SavePriceResult> {
+  // W23 review fix: `bulkPayload` at the route layer is the only validation
+  // this function could previously rely on — this is documented as also
+  // serving "AI/admin tools" as a direct callsite, which wouldn't go through
+  // that route at all. A non-finite/non-positive price must never reach a
+  // customer-facing price table regardless of caller.
+  if (!Number.isFinite(input.price) || input.price <= 0) {
+    throw new InvalidPriceError(`invalid price for ${input.skuId}: ${input.price}`);
+  }
+
   const db = getDb();
   return db.transaction(async (tx) => {
     // A brand-new SKU has no `current_prices` row yet, so `SELECT ... FOR
@@ -45,23 +72,42 @@ export async function savePrice(actorId: string, input: SavePriceInput): Promise
     const prev = prevRows[0] ?? null;
 
     const price = Math.round(input.price);
+    const now = new Date();
     let movementPct: number | null = null;
     let movementDir: 'up' | 'down' | 'flat' = 'flat';
     if (prev && prev.price > 0) {
-      movementPct = Math.round(((price - prev.price) / prev.price) * 10000) / 100;
-      movementDir = movementPct > 0.05 ? 'up' : movementPct < -0.05 ? 'down' : 'flat';
+      // W23 review fix: movement% used to always diff against `prev.price`
+      // (whatever was last saved, even minutes ago) — a same-day correction
+      // (fixing a typo) silently overwrote the real day-over-day نوسان
+      // customers see with the size of the correction itself. When the last
+      // save was ALSO today, walk price_points back to the last save from a
+      // genuinely earlier day and diff against that instead; price_points
+      // itself is unaffected either way (append-only, every save recorded).
+      const baseline = isSameJalaliDay(prev.updatedAt, now) ? await lastDifferentDayPrice(tx, input.skuId, now) : prev.price;
+      if (baseline != null && baseline > 0) {
+        movementPct = Math.round(((price - baseline) / baseline) * 10000) / 100;
+        movementDir = movementPct > 0.05 ? 'up' : movementPct < -0.05 ? 'down' : 'flat';
+      }
     }
 
-    const unit = input.unit ?? prev?.unit ?? sku.unit;
-    const now = new Date();
+    // W23 review fix: `sku.unit` (the catalog's canonical unit) is now
+    // always authoritative unless this call explicitly overrides it —
+    // `prev?.unit` used to win, so correcting a SKU's unit in the catalog
+    // (PATCH /api/admin/catalog/skus/{id}) never propagated to its price
+    // row, and every display/export/estimate kept reading the stale unit
+    // indefinitely (there was no UI path to fix it short of a direct DB
+    // write).
+    const unit = input.unit ?? sku.unit;
+    const deliveryTime = input.deliveryTime ?? prev?.deliveryTime ?? '۲۴ ساعت';
+    const vatIncluded = input.vatIncluded ?? prev?.vatIncluded ?? false;
     await tx
       .insert(currentPrices)
       .values({
         skuId: input.skuId,
         price,
         unit,
-        deliveryTime: input.deliveryTime ?? prev?.deliveryTime ?? '۲۴ ساعت',
-        vatIncluded: input.vatIncluded ?? prev?.vatIncluded ?? false,
+        deliveryTime,
+        vatIncluded,
         movementPct,
         movementDir,
         updatedAt: now,
@@ -70,17 +116,7 @@ export async function savePrice(actorId: string, input: SavePriceInput): Promise
       })
       .onConflictDoUpdate({
         target: currentPrices.skuId,
-        set: {
-          price,
-          unit,
-          deliveryTime: input.deliveryTime ?? prev?.deliveryTime ?? '۲۴ ساعت',
-          vatIncluded: input.vatIncluded ?? prev?.vatIncluded ?? false,
-          movementPct,
-          movementDir,
-          updatedAt: now,
-          updatedBy: actorId,
-          isStale: false,
-        },
+        set: { price, unit, deliveryTime, vatIncluded, movementPct, movementDir, updatedAt: now, updatedBy: actorId, isStale: false },
       });
 
     // Append-only history — every save (spec: HISTORY_RETENTION unlimited).
@@ -92,8 +128,12 @@ export async function savePrice(actorId: string, input: SavePriceInput): Promise
       action: 'price.update',
       entityType: 'sku',
       entityId: input.skuId,
-      before: prev ? { price: prev.price, unit: prev.unit, deliveryTime: prev.deliveryTime } : null,
-      after: { price, unit, deliveryTime: input.deliveryTime ?? prev?.deliveryTime ?? '۲۴ ساعت' },
+      // W23 review fix: `vatIncluded` is a real, saveable field on this same
+      // write — omitting it from the diff meant a VAT-inclusion flip left
+      // zero audit trail even though FIELD_LABEL.vatIncluded already exists
+      // in auditVocab.ts specifically to render it.
+      before: prev ? { price: prev.price, unit: prev.unit, deliveryTime: prev.deliveryTime, vatIncluded: prev.vatIncluded } : null,
+      after: { price, unit, deliveryTime, vatIncluded },
     });
 
     return { skuId: input.skuId, price, movementPct, movementDir };

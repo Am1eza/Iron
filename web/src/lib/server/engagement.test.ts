@@ -173,7 +173,7 @@ describe('alerts', () => {
     expect(fired?.target.label).toBeTruthy();
   });
 
-  it('does NOT fire on a stale price, even past the threshold (W22)', async () => {
+  it('does NOT fire on a stale price, even past the threshold (W22 — staleness is LIVE-checked as of W23, not the persisted column)', async () => {
     const rows = await tableRows('rebar');
     const sku = rows[2]!;
     await createAlert({
@@ -184,11 +184,16 @@ describe('alerts', () => {
       channel: 'sms',
       cap: 100,
     });
-    await db.update(schema.currentPrices).set({ isStale: true }).where(eq(schema.currentPrices.skuId, sku.id));
+    // W23: the evaluator no longer reads `isStale` at all — it computes
+    // staleness live from `updatedAt` via the same getPriceFreshness() every
+    // other price-reading path uses. Backdating updatedAt to yesterday is
+    // what actually exercises that check now.
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    await db.update(schema.currentPrices).set({ updatedAt: yesterday }).where(eq(schema.currentPrices.skuId, sku.id));
     expect(await evaluateAlerts()).toBe(0);
 
-    // Freshening the feed lets it fire.
-    await db.update(schema.currentPrices).set({ isStale: false }).where(eq(schema.currentPrices.skuId, sku.id));
+    // Freshening the feed (a new updatedAt, "today") lets it fire.
+    await db.update(schema.currentPrices).set({ updatedAt: new Date() }).where(eq(schema.currentPrices.skuId, sku.id));
     expect(await evaluateAlerts()).toBe(1);
   });
 

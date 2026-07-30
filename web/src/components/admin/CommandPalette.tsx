@@ -8,6 +8,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { checkUnsavedGuard } from '@/lib/hooks/useUnsavedGuard';
 import styles from './CommandPalette.module.css';
 
 type NavItem = { href: string; label: string };
@@ -31,10 +32,16 @@ export function CommandPalette({ nav }: { nav: NavItem[] }) {
     setActiveIndex(0);
   };
 
+  // W23 review fix: this is a page-level router.push, not an <a> click — the
+  // pricing grid's own unsaved-edits guard (a click-interceptor) never saw
+  // it, so Cmd/Ctrl-K jumping away mid-edit lost drafts with zero warning.
   const go = (item: NavItem | undefined) => {
     if (!item) return;
-    router.push(item.href);
-    close();
+    void checkUnsavedGuard().then((ok) => {
+      if (!ok) return;
+      router.push(item.href);
+      close();
+    });
   };
 
   // Global shortcut: Cmd/Ctrl-K opens it from anywhere in the admin panel; Esc closes.

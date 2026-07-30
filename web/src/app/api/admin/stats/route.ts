@@ -6,6 +6,7 @@ import type { Permission } from '@/lib/auth/types';
 import { getDb } from '@/lib/server/db/client';
 import { currentPrices, leads, userRequests, orders, contactMessages, users, articles, aiUsage } from '@/lib/server/db/schema';
 import { triggeredAlertCount } from '@/lib/server/repos/alertsRepo';
+import { getPriceFreshness } from '@/lib/server/services/priceFreshness';
 
 /**
  * GET /api/admin/stats — the dashboard tiles. Each field is behind its own
@@ -33,10 +34,24 @@ async function GETImpl(req: NextRequest) {
     jobs.push(query().then((v) => { stats[key] = v; }));
   };
 
-  add('stalePrices', 'pricing:write', () =>
-    count(db.select({ n: sql<number>`count(*)::int` }).from(currentPrices).where(eq(currentPrices.isStale, true))));
-  add('freshPrices', 'pricing:write', () =>
-    count(db.select({ n: sql<number>`count(*)::int` }).from(currentPrices).where(eq(currentPrices.isStale, false))));
+  // W23 review fix: this used to count the PERSISTED `isStale` column,
+  // refreshed only every 10 minutes by the staleness cron job. The pricing
+  // grid's own "فقط کهنه‌ها" filter (and the nav badge/dashboard tile this
+  // number feeds, which deep-links straight into that filter via
+  // `?stale=1`) both need to show the SAME number — computed live via
+  // `getPriceFreshness()`, the single source of truth every other
+  // price-reading path in the app already uses, so an operator never lands
+  // on a filtered grid whose count doesn't match what sent them there.
+  add('stalePrices', 'pricing:write', async () => {
+    const freshness = await getPriceFreshness();
+    const rows = await db.select({ updatedAt: currentPrices.updatedAt }).from(currentPrices);
+    return rows.filter((r) => freshness.isStale(r.updatedAt)).length;
+  });
+  add('freshPrices', 'pricing:write', async () => {
+    const freshness = await getPriceFreshness();
+    const rows = await db.select({ updatedAt: currentPrices.updatedAt }).from(currentPrices);
+    return rows.filter((r) => !freshness.isStale(r.updatedAt)).length;
+  });
   add('newLeads', 'leads:read', () =>
     count(db.select({ n: sql<number>`count(*)::int` }).from(leads).where(eq(leads.status, 'new'))));
   add('openRequests', 'leads:read', () =>

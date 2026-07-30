@@ -137,6 +137,13 @@ export function itemListJsonLd(items: { name: string; url: string }[]) {
 export function productJsonLd(p: {
   name: string;
   price: number; // Toman, excl. VAT (see PriceRow.current.price)
+  /** True when the price is a stale-hidden `0` sentinel (PriceRow.current.
+   *  priceHidden — see priceFreshness.ts). W23 audit fix: this used to
+   *  reach Google as `price: 0, availability: InStock` — a false claim and
+   *  a known Merchant Center policy violation. No `offers` block at all is
+   *  the correct representation of "price withheld, ask us" — Product
+   *  schema doesn't require one. */
+  priceHidden?: boolean;
   /** Defaults to true (InStock) when omitted — pass row.isActive explicitly where known. */
   available?: boolean;
   url: string;
@@ -151,19 +158,23 @@ export function productJsonLd(p: {
     ...(p.image ? { image: [new URL(p.image, SITE_URL).toString()] } : {}),
     ...(p.sku ? { sku: p.sku } : {}),
     ...(p.brand ? { brand: { '@type': 'Brand', name: p.brand } } : {}),
-    offers: {
-      '@type': 'Offer',
-      // Toman has no ISO 4217 code; Rial (IRR) is the smallest official unit — 1 Toman = 10 Rial.
-      price: p.price * 10,
-      priceCurrency: 'IRR',
-      availability: `https://schema.org/${p.available === false ? 'OutOfStock' : 'InStock'}`,
-      // Steel prices move daily; give the offer a short validity window so
-      // Google doesn't flag a missing/expired priceValidUntil (which can
-      // suppress the merchant rich result).
-      priceValidUntil: new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10),
-      url: new URL(p.url, SITE_URL).toString(),
-      seller: { '@type': 'Organization', name: BRAND },
-    },
+    ...(p.priceHidden
+      ? {}
+      : {
+          offers: {
+            '@type': 'Offer',
+            // Toman has no ISO 4217 code; Rial (IRR) is the smallest official unit — 1 Toman = 10 Rial.
+            price: p.price * 10,
+            priceCurrency: 'IRR',
+            availability: `https://schema.org/${p.available === false ? 'OutOfStock' : 'InStock'}`,
+            // Steel prices move daily; give the offer a short validity window so
+            // Google doesn't flag a missing/expired priceValidUntil (which can
+            // suppress the merchant rich result).
+            priceValidUntil: new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10),
+            url: new URL(p.url, SITE_URL).toString(),
+            seller: { '@type': 'Organization', name: BRAND },
+          },
+        }),
   };
 }
 

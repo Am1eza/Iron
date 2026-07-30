@@ -82,7 +82,15 @@ export const ACTION_META: Record<string, ActionMeta> = {
   'warehouse.settle_paid': { verb: 'تسویهٔ انبار را پرداخت‌شده ثبت کرد', tone: 'money' },
   'warehouse.delete': { verb: 'قلم انبار را حذف کرد', tone: 'destroy' },
 
-  'pricing.save': { verb: 'قیمت‌ها را ذخیره کرد', tone: 'money' },
+  // W23 review fix: the real action string `savePrice` writes is
+  // `price.update` (see pricing.service.ts / db/schema/system.ts's action
+  // enum) — `'pricing.save'` never matched a single real audit row, so
+  // every price change fell through to the generic `{verb: action, tone:
+  // 'update'}` fallback: the raw English string rendered inline in an
+  // otherwise Persian sentence, AND tagged the generic grey `update` tone
+  // instead of `money` (the tone every other financial action gets, used
+  // by managers filtering the activity feed for money-moving events).
+  'price.update': { verb: 'قیمت کالا را به‌روزرسانی کرد', tone: 'money' },
 };
 
 /** Entity type → Persian noun, for the «روی <چه چیزی>» chip. */

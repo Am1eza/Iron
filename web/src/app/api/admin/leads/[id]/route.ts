@@ -1,12 +1,12 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { findLead, leadItemsOf, leadNotesOf, proformasOfLead, softDeleteLead, updateLead } from '@/lib/server/repos/leadsRepo';
 import { recomputeTier } from '@/lib/server/repos/clubRepo';
 import { getDb } from '@/lib/server/db/client';
-import { users } from '@/lib/server/db/schema';
+import { users, currentPrices } from '@/lib/server/db/schema';
 import { ROLES, ROLE_LABEL, can, canChangeLeadAssignee, isStaff } from '@/lib/auth/roles';
 
 /** GET /api/admin/leads/{id} — full lead: items, notes, proformas. */
@@ -19,7 +19,24 @@ async function GETImpl(req: NextRequest, ctx: { params: Promise<{ id: string }> 
   const lead = await findLead(id);
   if (!lead) return NextResponse.json({ error: 'not_found', message: 'سرنخ یافت نشد.' }, { status: 404 });
   const [items, notes, proformas] = await Promise.all([leadItemsOf(id), leadNotesOf(id), proformasOfLead(id)]);
-  return NextResponse.json({ lead, items, notes, proformas }, { headers: { 'Cache-Control': 'no-store' } });
+  // W23 review fix: a lead's items are priced ONCE at creation
+  // (leads.service.ts's priceItems, called only from createLead) and
+  // issueProforma never re-prices them — it explicitly quotes whatever is
+  // already stored. If the catalog price moved since, a rep issuing the
+  // proforma today has no way to notice without leaving this screen.
+  // Surfacing the current live price alongside each item lets the existing
+  // item-edit flow (US-19.4) double as the "catch it before issuing" step.
+  const skuIds = [...new Set(items.map((it) => it.skuId).filter((x): x is string => Boolean(x)))];
+  const priceRows =
+    skuIds.length > 0
+      ? await getDb().select({ skuId: currentPrices.skuId, price: currentPrices.price }).from(currentPrices).where(inArray(currentPrices.skuId, skuIds))
+      : [];
+  const currentPriceBySku = new Map(priceRows.map((r) => [r.skuId, r.price]));
+  const itemsWithCurrentPrice = items.map((it) => ({
+    ...it,
+    currentPrice: it.skuId ? (currentPriceBySku.get(it.skuId) ?? null) : null,
+  }));
+  return NextResponse.json({ lead, items: itemsWithCurrentPrice, notes, proformas }, { headers: { 'Cache-Control': 'no-store' } });
 }
 
 const patchPayload = z.object({

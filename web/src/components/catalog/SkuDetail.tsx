@@ -6,7 +6,7 @@ import { useToast } from '@/lib/hooks/useToast';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { CONSTANTS } from '@/lib/config/constants';
 import { routes } from '@/lib/routes';
-import { formatToman, toPersianDigits } from '@/lib/utils/format';
+import { formatToman, priceHiddenLabel, toPersianDigits } from '@/lib/utils/format';
 import { formatJalali } from '@/lib/utils/jalali';
 import { priceSeries as mockSeries, relatedRows as mockRelated, subName as mockSubName } from '@/lib/mock/catalogData';
 import { categories } from '@/lib/mock/fixtures';
@@ -75,13 +75,18 @@ export function SkuDetail({
   const subLabel = subLabelProp ?? mockSubName(row.categoryId, row.subCategoryId);
   const skuUrl = routes.sku(row.categoryId, row.subCategoryId, row.slug);
 
+  // W23 audit fix: a stale-hidden price's `row.current.price` is a `0`
+  // sentinel (see catalogRepo.toPriceRow) — must never be formatted as a
+  // real number or fed into the billet-comparison math below.
+  const hiddenLabel = priceHiddenLabel(row.current);
   const price = vat
     ? Math.round(row.current.price * (1 + CONSTANTS.VAT_RATE))
     : row.current.price;
 
   // US-03.3 — compared against the raw (VAT-free) price: billet itself has
   // no VAT toggle, so the ratio must stay stable regardless of the switch above.
-  const billetDiffPct = billet && billet.value > 0 ? ((row.current.price - billet.value) / billet.value) * 100 : null;
+  const billetDiffPct =
+    !hiddenLabel && billet && billet.value > 0 ? ((row.current.price - billet.value) / billet.value) * 100 : null;
 
   const crumbs = [
     { label: 'خانه', href: routes.home() },
@@ -208,8 +213,14 @@ export function SkuDetail({
           <div className={styles.priceBox}>
             <span className={styles.priceLabel}>قیمت هر کیلوگرم</span>
             <div className={styles.priceRow}>
-              <span className={`${styles.priceVal} tnum`}>{formatToman(price, false)}</span>
-              <span className={styles.priceUnit}>تومان</span>
+              {hiddenLabel ? (
+                <span className={`${styles.priceVal} tnum`}>{hiddenLabel}</span>
+              ) : (
+                <>
+                  <span className={`${styles.priceVal} tnum`}>{formatToman(price, false)}</span>
+                  <span className={styles.priceUnit}>تومان</span>
+                </>
+              )}
             </div>
             <div className={styles.priceMeta}>
               <MovementBadge dir={row.current.movementDir} pct={row.current.movementPct} pill />
@@ -239,7 +250,13 @@ export function SkuDetail({
             </p>
 
             <div className={styles.actions}>
-              <Button variant="primary" onClick={addToCart} className={styles.addBtn}>
+              <Button
+                variant="primary"
+                onClick={addToCart}
+                className={styles.addBtn}
+                disabled={Boolean(hiddenLabel)}
+                title={hiddenLabel ? 'برای این کالا باید تماس بگیرید.' : undefined}
+              >
                 <PlusIcon size={18} /> افزودن به سبد استعلام
               </Button>
               <IconButton
@@ -328,8 +345,12 @@ export function SkuDetail({
                   <span className={styles.relName}>{r.name}</span>
                   <span className={styles.relPriceRow}>
                     <span className={`${styles.relPrice} tnum`}>
-                      {formatToman(r.current.price, false)}
-                      <span className={styles.relUnit}> تومان</span>
+                      {priceHiddenLabel(r.current) ?? (
+                        <>
+                          {formatToman(r.current.price, false)}
+                          <span className={styles.relUnit}> تومان</span>
+                        </>
+                      )}
                     </span>
                     <MovementBadge dir={r.current.movementDir} pct={r.current.movementPct} />
                   </span>

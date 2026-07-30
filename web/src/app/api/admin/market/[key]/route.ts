@@ -1,9 +1,11 @@
-import { NextResponse, type NextRequest } from 'next/server';
+import { NextResponse, type NextRequest, after } from 'next/server';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { upsertMarketValue, getMarketValue } from '@/lib/server/repos/marketRepo';
 import { evaluateAlerts } from '@/lib/server/services/alerts.service';
+import { safeRevalidatePath } from '@/lib/server/utils/revalidate';
+import { reportError } from '@/lib/errors/report';
 import { finiteNumber } from '@/lib/validation/utils';
 import type { MarketKey } from '@/lib/types/domain';
 
@@ -55,7 +57,13 @@ async function PUTImpl(req: NextRequest, ctx: { params: Promise<{ key: string }>
     { value: before?.value },
     { value: v.data.value },
   );
-  void evaluateAlerts().catch(() => {});
+  // W23 review fix: see admin/pricing/route.ts's `after()` comment — same
+  // not-guaranteed-to-finish risk on Workers, plus this route swallowed
+  // evaluateAlerts() errors entirely and never revalidated anything (every
+  // SKU detail page shows the billet reference, and /market shows all five).
+  after(() => evaluateAlerts().catch((err) => reportError(err, { route: `admin/market/${marketKey}`, stage: 'evaluateAlerts' })));
+  safeRevalidatePath('/prices', 'layout');
+  safeRevalidatePath('/market', 'page');
   return NextResponse.json({ value: updated });
 }
 

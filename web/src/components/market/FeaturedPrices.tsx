@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { routes } from '@/lib/routes';
-import { formatToman, formatMovement, toPersianDigits } from '@/lib/utils/format';
+import { formatToman, formatMovement, priceHiddenLabel, toPersianDigits } from '@/lib/utils/format';
 import type { PriceRow } from '@/lib/types/domain';
 import { ChevronStartIcon } from '@/components/primitives/icons';
 import styles from './FeaturedPrices.module.css';
@@ -60,7 +60,7 @@ export function FeaturedPrices({ rows }: { rows: PriceRow[] }) {
                   <td>{r.size ? toPersianDigits(r.size) : '—'}</td>
                   <td className={styles.muted}>{r.factory ?? '—'}</td>
                   <td className={`${styles.num} ${styles.price}`}>
-                    {formatToman(r.current.price, false)}
+                    {priceHiddenLabel(r.current) ?? formatToman(r.current.price, false)}
                   </td>
                   <td
                     className={`${styles.num} ${up ? styles.up : down ? styles.down : styles.flat}`}

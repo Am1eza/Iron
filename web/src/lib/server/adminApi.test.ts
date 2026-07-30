@@ -5,6 +5,7 @@
  */
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { NextRequest } from 'next/server';
+import type * as NextServer from 'next/server';
 
 // Route handlers read the session via next/headers cookies(), which needs a
 // request async-context. Back it with a test-scoped variable instead.
@@ -16,6 +17,17 @@ vi.mock('next/headers', () => ({
     delete: () => {},
   }),
 }));
+
+// `after()` (W23: used by the pricing/billet/market routes to fire
+// evaluateAlerts post-response) requires a real Next.js request-scope
+// AsyncLocalStorage that only exists inside the actual dev/prod server —
+// calling a route handler directly, as this file does, has no such scope
+// and `after()` throws. Run the callback immediately instead; these tests
+// only assert on the response/DB state, not on post-response timing.
+vi.mock('next/server', async () => {
+  const actual = await vi.importActual<typeof NextServer>('next/server');
+  return { ...actual, after: (fn: () => void | Promise<void>) => void fn() };
+});
 import { createTestDb } from '@/test/db';
 import { seedDatabase } from '@/lib/server/db/seed';
 import type { Db } from '@/lib/server/db/client';

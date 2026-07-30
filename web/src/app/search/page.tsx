@@ -4,7 +4,7 @@ import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { getCategories, getRows, searchAll } from '@/lib/server/catalog';
 import type { PriceRow, Article, Category } from '@/lib/types/domain';
-import { formatToman, toPersianDigits, normalizeDigits } from '@/lib/utils/format';
+import { formatToman, priceHiddenLabel, toPersianDigits, normalizeDigits } from '@/lib/utils/format';
 import {
   Container,
   Section,
@@ -222,7 +222,7 @@ function ProductGroup({ hits }: { hits: ProductHit[] }) {
               </span>
               <span className={resultStyles.productSide}>
                 <span className={resultStyles.priceCol}>
-                  <span className={resultStyles.price}>{formatToman(row.current.price, false)}</span>
+                  <span className={resultStyles.price}>{priceHiddenLabel(row.current) ?? formatToman(row.current.price, false)}</span>
                   <span className={resultStyles.priceUnit}>تومان / کیلوگرم</span>
                 </span>
                 <MovementBadge dir={row.current.movementDir} pct={row.current.movementPct} />

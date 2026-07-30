@@ -108,6 +108,19 @@ describe('savePrice transaction', () => {
     const sku = rows[0]!;
     const prev = sku.current.price;
 
+    // W23: `savePrice` now diffs against `price_points` history — not the
+    // `current_prices` row directly — whenever that row was already updated
+    // TODAY (a same-day re-edit should diff against yesterday's real price,
+    // not this morning's price; see the baseline comment in
+    // pricing.service.ts). The seed sets every row's `updatedAt` to "now",
+    // which reads as "already updated today" and would pull the baseline
+    // from the seeded random-walk history instead of `prev`. Backdating it
+    // here makes this an unambiguous first-save-of-the-day case, so `prev`
+    // is genuinely yesterday's price and the plain diff below is correct.
+    await db.update(schema.currentPrices)
+      .set({ updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) })
+      .where(eq(schema.currentPrices.skuId, sku.id));
+
     const pointsBefore = await db.select({ n: sql<number>`count(*)::int` })
       .from(schema.pricePoints).where(eq(schema.pricePoints.skuId, sku.id));
 

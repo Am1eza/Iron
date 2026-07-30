@@ -160,7 +160,7 @@ function EditableItemRow({
   onSaved,
 }: {
   leadId: string;
-  item: LineItem & { id: string };
+  item: LineItem & { id: string; currentPrice: number | null };
   locked: boolean;
   onSaved: () => void;
 }) {
@@ -229,6 +229,15 @@ function EditableItemRow({
             aria-label={`قیمت واحد ${item.name} به تومان`}
             placeholder="بدون قیمت"
           />
+          {/* W23: this item's price was frozen at lead-creation time and
+              issueProforma never re-prices it — see the note on GET
+              /api/admin/leads/[id]. Surfacing the live catalog price here, next
+              to the box the rep already uses to fix it, is the whole feature. */}
+          {item.currentPrice != null && item.unitPrice != null && item.currentPrice !== item.unitPrice ? (
+            <span className={s.priceDrift}>
+              قیمت فعلی: {formatToman(item.currentPrice, false)}
+            </span>
+          ) : null}
         </td>
         <td className={s.num}>{lineTotal !== null ? formatToman(lineTotal, false) : '—'}</td>
         <td>

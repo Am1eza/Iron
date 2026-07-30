@@ -6,6 +6,7 @@ import type { PriceRow } from '@/lib/types/domain';
 import { MovementBadge } from '@/components/ui/PriceParts';
 import { CountUp } from '@/components/ui/CountUp';
 import { formatJalali } from '@/lib/utils/jalali';
+import { priceHiddenLabel } from '@/lib/utils/format';
 import styles from './PriceBoard.module.css';
 
 /**
@@ -35,11 +36,17 @@ export function PriceBoard({ rows }: { rows: PriceRow[] }) {
             >
               <span className={styles.name}>{r.name}</span>
               <span className={styles.figures}>
-                <span className={`${styles.price} tnum`}>
-                  <CountUp value={r.current.price} />
-                </span>
-                <span className={styles.unit}>تومان</span>
-                <MovementBadge dir={r.current.movementDir} pct={r.current.movementPct} onPanel />
+                {priceHiddenLabel(r.current) ? (
+                  <span className={`${styles.price} tnum`}>{priceHiddenLabel(r.current)}</span>
+                ) : (
+                  <>
+                    <span className={`${styles.price} tnum`}>
+                      <CountUp value={r.current.price} />
+                    </span>
+                    <span className={styles.unit}>تومان</span>
+                    <MovementBadge dir={r.current.movementDir} pct={r.current.movementPct} onPanel />
+                  </>
+                )}
               </span>
             </Link>
           </li>
