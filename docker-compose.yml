@@ -115,6 +115,16 @@ services:
       - uploads:/app/public/uploads
     expose:
       - "3000"          # internal only — not published to the host
+    # W23 review fix: the host's own DNS (forwarded from Docker's embedded
+    # 127.0.0.11 resolver) failed to resolve gold-api.com (ENOTFOUND) while
+    # resolving api.deepseek.com/api.github.com fine — confirmed via
+    # `docker exec … dns.Resolver` against 1.1.1.1, which resolved it
+    # instantly. Whatever gap the host's configured external resolvers have
+    # for smaller/less-common domains, it's not worth chasing per-domain —
+    # give this container its own reliable public resolvers instead.
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     healthcheck:
       # No curl/wget in the minimal node:alpine runner image — use Node's
       # built-in fetch instead of adding a package just for this.
