@@ -156,7 +156,18 @@ export function SkuDrawer({
     },
   });
 
-  const subsOfSelected = subs;
+  const groupedSubs = useMemo(() => {
+    const byCat = new Map<string, AdminSubCategory[]>();
+    for (const x of subs) {
+      const list = byCat.get(x.categoryId) ?? [];
+      list.push(x);
+      byCat.set(x.categoryId, list);
+    }
+    return categories
+      .filter((c) => byCat.has(c.id))
+      .map((c) => ({ categoryId: c.id, categoryName: c.name, subs: byCat.get(c.id)! }));
+  }, [subs, categories]);
+
   const parentCategory = categories.find(
     (c) => c.id === subs.find((x) => x.id === v.subCategoryId)?.categoryId,
   );
@@ -223,11 +234,19 @@ export function SkuDrawer({
                   onChange={(e) => set({ subCategoryId: e.target.value })}
                 >
                   <option value="">انتخاب کنید…</option>
-                  {subsOfSelected.map((x) => (
-                    <option key={x.id} value={x.id}>
-                      {x.name}
-                      {x.isActive ? '' : ' (غیرفعال)'}
-                    </option>
+                  {/* Grouped by category: opened from «همهٔ کالاها» this list is
+                      every sub in the catalog, and sub names alone («ساده»,
+                      «آجدار») repeat across categories — ungrouped they are
+                      genuinely ambiguous. */}
+                  {groupedSubs.map((g) => (
+                    <optgroup key={g.categoryId} label={g.categoryName}>
+                      {g.subs.map((x) => (
+                        <option key={x.id} value={x.id}>
+                          {x.name}
+                          {x.isActive ? '' : ' (غیرفعال)'}
+                        </option>
+                      ))}
+                    </optgroup>
                   ))}
                 </select>
                 {moved ? (
