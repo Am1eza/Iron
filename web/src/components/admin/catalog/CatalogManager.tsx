@@ -245,19 +245,32 @@ export function CatalogManager() {
   /** Reorder writes the whole neighbourhood in one go and always refetches,
    *  so a partial failure can't leave the rail rendering numbers the DB no
    *  longer has. */
-  const move = async (list: Array<{ id: string; order: number }>, index: number, dir: -1 | 1, kind: 'category' | 'sub') => {
+  const move = async (list: Array<{ id: string; order: number }>, id: string, dir: -1 | 1, kind: 'category' | 'sub') => {
+    // Addressed by id, not index: the rail renders a filtered list when
+    // «نمایش غیرفعال‌ها» is off, so an index into what the admin SEES would
+    // move the wrong row here.
+    const index = list.findIndex((x) => x.id === id);
     const target = index + dir;
-    if (target < 0 || target >= list.length) return;
+    if (index < 0 || target < 0 || target >= list.length) return;
     const next = [...list];
     const [moved] = next.splice(index, 1);
     next.splice(target, 0, moved!);
+    // Only rows whose ORDER actually changes — every PATCH writes an audit
+    // entry and purges the root-layout cache. Comparing order (not position)
+    // also renumbers correctly when existing rows share a value: the old
+    // create path defaulted every new node to 99, so ties are common.
+    const byId = new Map(list.map((x) => [x.id, x.order]));
+    const changed = next
+      .map((x, i) => ({ id: x.id, order: i + 1 }))
+      .filter((x) => byId.get(x.id) !== x.order);
+    if (changed.length === 0) return;
     setReordering(true);
     try {
       await Promise.all(
-        next.map((x, i) =>
+        changed.map((x) =>
           kind === 'category'
-            ? adminApi.updateCategory(x.id, { order: i + 1 })
-            : adminApi.updateSubCategory(x.id, { order: i + 1 }),
+            ? adminApi.updateCategory(x.id, { order: x.order })
+            : adminApi.updateSubCategory(x.id, { order: x.order }),
         ),
       );
       toast.success('ترتیب ذخیره شد.');
@@ -330,8 +343,8 @@ export function CatalogManager() {
             })
             .catch(onError)
         }
-        onMoveCategory={(i, dir) => void move(categories, i, dir, 'category')}
-        onMoveSub={(categoryId, i, dir) => void move(subsByCategory[categoryId] ?? [], i, dir, 'sub')}
+        onMoveCategory={(id, dir) => void move(categories, id, dir, 'category')}
+        onMoveSub={(categoryId, subId, dir) => void move(subsByCategory[categoryId] ?? [], subId, dir, 'sub')}
       />
 
       <div style={{ display: 'grid', gap: 'var(--space-3)' }}>

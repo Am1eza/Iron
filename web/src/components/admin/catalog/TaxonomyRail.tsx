@@ -59,8 +59,8 @@ export function TaxonomyRail({
   onDeactivateSub: (x: AdminSubCategory) => void;
   onReactivateCategory: (c: AdminCategory) => void;
   onReactivateSub: (x: AdminSubCategory) => void;
-  onMoveCategory: (index: number, dir: -1 | 1) => void;
-  onMoveSub: (categoryId: string, index: number, dir: -1 | 1) => void;
+  onMoveCategory: (categoryId: string, dir: -1 | 1) => void;
+  onMoveSub: (categoryId: string, subId: string, dir: -1 | 1) => void;
   busy: boolean;
 }) {
   const [menuFor, setMenuFor] = useState<string | null>(null);
@@ -136,14 +136,14 @@ export function TaxonomyRail({
                   size="sm"
                   disabled={ci === 0 || busy}
                   icon={<ChevronDownIcon size={16} style={{ transform: 'rotate(180deg)' }} />}
-                  onClick={() => onMoveCategory(ci, -1)}
+                  onClick={() => onMoveCategory(c.id, -1)}
                 />
                 <IconButton
                   label={`جابه‌جایی ${c.name} به پایین`}
                   size="sm"
                   disabled={ci === visibleCats.length - 1 || busy}
                   icon={<ChevronDownIcon size={16} />}
-                  onClick={() => onMoveCategory(ci, 1)}
+                  onClick={() => onMoveCategory(c.id, 1)}
                 />
                 {c.isActive ? (
                   <Button size="sm" variant="ghost" onClick={() => onDeactivateCategory(c)}>
@@ -185,14 +185,14 @@ export function TaxonomyRail({
                         size="sm"
                         disabled={si === 0 || busy}
                         icon={<ChevronDownIcon size={14} style={{ transform: 'rotate(180deg)' }} />}
-                        onClick={() => onMoveSub(c.id, si, -1)}
+                        onClick={() => onMoveSub(c.id, x.id, -1)}
                       />
                       <IconButton
                         label={`جابه‌جایی ${x.name} به پایین`}
                         size="sm"
                         disabled={si === subs.length - 1 || busy}
                         icon={<ChevronDownIcon size={14} />}
-                        onClick={() => onMoveSub(c.id, si, 1)}
+                        onClick={() => onMoveSub(c.id, x.id, 1)}
                       />
                       {x.isActive ? (
                         <IconButton
