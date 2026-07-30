@@ -14,14 +14,14 @@
  *  - the sub-category is a field, so a mis-filed product can be moved;
  *  - `err.fields` lands on the offending input instead of a generic toast.
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { adminApi, type AdminSku, type AdminCategory, type AdminSubCategory } from '@/lib/api/resources/admin';
 import { ApiError } from '@/lib/api/errors';
 import { normalizeDigits } from '@/lib/utils/format';
 import { slugify } from '@/lib/utils/slugify';
 import { useToast } from '@/lib/hooks/useToast';
-import { Alert, Badge, Button, Heading, Text } from '@/components/ui';
+import { Alert, Badge, Button, Heading, Text, useConfirm } from '@/components/ui';
 import { TextInput } from '@/components/forms/fields';
 import { ImageUpload } from '../ImageUpload';
 import ui from '../adminUi.module.css';
@@ -91,6 +91,8 @@ export function SkuDrawer({
 
   const isEdit = Boolean(sku);
   const dirty = useMemo(() => JSON.stringify(v) !== JSON.stringify(initial), [v, initial]);
+  const dirtyRef = useRef(dirty);
+  dirtyRef.current = dirty;
 
   const { data: factoryData } = useQuery({
     queryKey: ['admin', 'cat', 'factories'],
@@ -98,18 +100,49 @@ export function SkuDrawer({
     staleTime: 5 * 60 * 1000,
   });
 
+  const { confirm, dialog } = useConfirm();
+
   useEffect(() => {
     firstFieldRef.current?.focus();
   }, []);
 
-  // Esc closes; the browser-close guard lives with the parent's dirty state.
+  /**
+   * Every exit runs through here. The drawer used to hand Esc, the scrim and
+   * «انصراف» straight to `onClose`, so a half-filled product form was thrown
+   * away by a stray Esc with no prompt — the exact data-loss complaint the
+   * audit raised against the old screen.
+   */
+  const requestClose = useCallback(async () => {
+    if (!dirtyRef.current) {
+      onClose();
+      return;
+    }
+    const ok = await confirm({
+      title: 'بستن بدون ذخیره',
+      body: 'تغییرات ذخیره‌نشده از بین می‌رود. ادامه می‌دهید؟',
+      confirmLabel: 'بستن و ازدست‌دادن تغییرات',
+    });
+    if (ok) onClose();
+  }, [confirm, onClose]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') void requestClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [requestClose]);
+
+  // Closing or reloading the tab mid-edit lost the form silently — the same
+  // guard PricingGrid carries for its unsaved price drafts.
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty]);
 
   const set = (patch: Partial<Values>) => {
     setV((prev) => ({ ...prev, ...patch }));
@@ -176,7 +209,7 @@ export function SkuDrawer({
 
   return (
     <>
-      <div className={s.scrim} onClick={onClose} aria-hidden="true" />
+      <div className={s.scrim} onClick={() => void requestClose()} aria-hidden="true" />
       <div
         className={s.drawer}
         role="dialog"
@@ -365,12 +398,13 @@ export function SkuDrawer({
           <Button onClick={() => save.mutate()} disabled={!canSave || (isEdit && !dirty)} loading={save.isPending}>
             ذخیره
           </Button>
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="ghost" onClick={() => void requestClose()}>
             انصراف
           </Button>
           {dirty ? <span className={`${ui.tileHint} ${s.footSpacer}`}>تغییرات ذخیره‌نشده</span> : null}
         </div>
       </div>
+      {dialog}
     </>
   );
 }
