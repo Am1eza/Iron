@@ -9,7 +9,7 @@ import { useToast } from '@/lib/hooks/useToast';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { CONSTANTS } from '@/lib/config/constants';
 import { routes } from '@/lib/routes';
-import { formatToman, priceHiddenLabel, toPersianDigits } from '@/lib/utils/format';
+import { formatToman, priceHiddenLabel, toPersianDigits, normalizeDigits } from '@/lib/utils/format';
 import { formatJalali } from '@/lib/utils/jalali';
 import { API_MODE } from '@/lib/api/config';
 import { api } from '@/lib/api';
@@ -328,7 +328,10 @@ export function PriceTable({
     copy.sort((a, b) => {
       if (sort === 'price') return a.current.price - b.current.price;
       if (sort === 'movement') return (b.current.movementPct ?? 0) - (a.current.movementPct ?? 0);
-      return Number(a.size ?? 0) - Number(b.size ?? 0);
+      // `Number('۱۴')` is NaN — and every stored size is in Persian digits,
+      // so this comparator silently returned NaN for every pair and the
+      // «سایز» sort did nothing at all.
+      return Number(normalizeDigits(a.size ?? '0')) - Number(normalizeDigits(b.size ?? '0'));
     });
     return copy;
   }, [filtered, sort]);

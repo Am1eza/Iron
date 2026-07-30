@@ -15,6 +15,7 @@
  *  - `err.fields` lands on the offending input instead of a generic toast.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useFocusTrap } from '@/lib/hooks/useFocusTrap';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { adminApi, type AdminSku, type AdminCategory, type AdminSubCategory } from '@/lib/api/resources/admin';
 import { ApiError } from '@/lib/api/errors';
@@ -86,7 +87,6 @@ export function SkuDrawer({
   const [v, setV] = useState<Values>(initial);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [slugUnlocked, setSlugUnlocked] = useState(!sku);
-  const panelRef = useRef<HTMLDivElement>(null);
   const firstFieldRef = useRef<HTMLInputElement>(null);
 
   const isEdit = Boolean(sku);
@@ -125,13 +125,14 @@ export function SkuDrawer({
     if (ok) onClose();
   }, [confirm, onClose]);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') void requestClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [requestClose]);
+  /**
+   * The trap owns Esc, focus containment and focus restore. A separate window
+   * listener also handled Esc, and because the confirm dialog binds Esc on
+   * `document` (which bubbles to window afterwards), dismissing the confirm
+   * immediately re-opened it — the drawer could only be escaped with a mouse.
+   */
+  const panelRef = useFocusTrap<HTMLDivElement>(true, () => void requestClose());
+
 
   // Closing or reloading the tab mid-edit lost the form silently — the same
   // guard PricingGrid carries for its unsaved price drafts.

@@ -34,6 +34,7 @@ import {
   favorites,
 } from '@/lib/server/db/schema';
 import type { PriceUnit } from '@/lib/types/domain';
+import { normalizeDigits } from '@/lib/utils/format';
 
 /** A unique-index violation, translated into something a form can render.
  *  `field` names the input the message belongs next to. */
@@ -308,15 +309,23 @@ export async function adminListSkus(query: {
     // «نام/اسلاگ/سایز» — an admin pasting a slug from a customer's broken URL,
     // or typing a size, got «کالایی نیست» for a product that plainly exists.
     // Trigram indexes already back `name` and `factory`.
-    const term = `%${escapeLike(query.q.slice(0, 100))}%`;
+    // Sizes and names are stored with Persian digits, but an admin on a Latin
+    // keyboard types «14» — and slugs are the reverse, always ASCII. Matching
+    // BOTH spellings is what makes one search box cover all six columns.
+    const raw = query.q.slice(0, 100).trim();
+    const asPersian = raw.replace(/[0-9]/g, (d) => String.fromCharCode(d.charCodeAt(0) + 0x06f0 - 0x30));
+    const asLatin = normalizeDigits(raw);
+    const terms = [...new Set([raw, asPersian, asLatin])].map((t) => `%${escapeLike(t)}%`);
     conds.push(
       or(
-        ilike(skus.name, term),
-        ilike(skus.slug, term),
-        ilike(skus.size, term),
-        ilike(skus.factory, term),
-        ilike(skus.grade, term),
-        ilike(skus.standard, term),
+        ...terms.flatMap((term) => [
+          ilike(skus.name, term),
+          ilike(skus.slug, term),
+          ilike(skus.size, term),
+          ilike(skus.factory, term),
+          ilike(skus.grade, term),
+          ilike(skus.standard, term),
+        ]),
       ),
     );
   }

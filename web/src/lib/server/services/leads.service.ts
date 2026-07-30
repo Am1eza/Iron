@@ -267,7 +267,11 @@ async function priceItems(
       .select({ sku: skus, price: currentPrices })
       .from(skus)
       .leftJoin(currentPrices, eq(currentPrices.skuId, skus.id))
-      .where(inArray(skus.slug, unresolved));
+      // The isActive gate has to hold on BOTH lookups: a cart line carrying a
+      // slug id would otherwise resolve a delisted product through this
+      // fallback and get it auto-quoted, which is exactly what the primary
+      // query above was fixed to prevent.
+      .where(and(inArray(skus.slug, unresolved), eq(skus.isActive, true)));
     for (const r of slugRows) bySlug.set(r.sku.slug, r);
   }
 

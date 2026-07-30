@@ -5,6 +5,7 @@ import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/
 import { adminListCategoriesWithCounts, createCategory } from '@/lib/server/repos/catalogAdminRepo';
 import { catalogErrorResponse, revalidateCatalog } from '@/lib/server/utils/catalogRoute';
 import { finiteNumber, slugSchema, uploadPathSchema } from '@/lib/validation/utils';
+import { normalizePersian } from '@/lib/utils/persianText';
 
 async function GETImpl(req: NextRequest) {
   const guard = requireDb();
@@ -21,7 +22,7 @@ async function GETImpl(req: NextRequest) {
 
 const createPayload = z.object({
   slug: slugSchema(60),
-  name: z.string().trim().min(1).max(80),
+  name: z.string().trim().min(1).max(80).transform(normalizePersian),
   order: finiteNumber.int().min(0).max(9999).optional(),
   iconId: z.string().trim().max(60).optional(),
   imageUrl: uploadPathSchema.nullable().optional(),

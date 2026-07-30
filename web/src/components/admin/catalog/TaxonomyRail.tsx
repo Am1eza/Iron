@@ -118,6 +118,7 @@ export function TaxonomyRail({
               <IconButton
                 label={`گزینه‌های ${c.name}`}
                 size="sm"
+                aria-expanded={menuFor === c.id}
                 icon={<span aria-hidden="true">⋯</span>}
                 onClick={() => setMenuFor(menuFor === c.id ? null : c.id)}
               />

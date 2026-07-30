@@ -9,11 +9,12 @@ import {
   revalidateCatalog,
 } from '@/lib/server/utils/catalogRoute';
 import { finiteNumber, nonEmptyPatch, slugSchema } from '@/lib/validation/utils';
+import { normalizePersian } from '@/lib/utils/persianText';
 
 const patchPayload = nonEmptyPatch(
   z.object({
     slug: slugSchema(60).optional(),
-    name: z.string().trim().min(1).max(80).optional(),
+    name: z.string().trim().min(1).max(80).transform(normalizePersian).optional(),
     order: finiteNumber.int().min(0).max(9999).optional(),
     // Moving a sub-category between categories was impossible: a mis-filed
     // sub could only be retired and rebuilt. The repo re-parents its products

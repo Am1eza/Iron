@@ -85,8 +85,10 @@ export function CatalogManager() {
     queryKey: ['admin', 'cat', 'skus', sel.categoryId, sel.subCategoryId, q, status, page],
     queryFn: () =>
       adminApi.skus({
-        categoryId: sel.categoryId || undefined,
-        subCategoryId: sel.subCategoryId || undefined,
+        // While searching, ignore the rail: the badge tells the admin the
+        // search spans every category, so the request has to actually do it.
+        categoryId: q ? undefined : sel.categoryId || undefined,
+        subCategoryId: q ? undefined : sel.subCategoryId || undefined,
         q: q || undefined,
         status: status === 'all' ? undefined : status,
         all: status === 'all',
@@ -116,6 +118,12 @@ export function CatalogManager() {
     setPage(1);
     setSelected(new Set());
   }, [sel.categoryId, sel.subCategoryId, q, status]);
+
+  // Paging away strands the selection off-screen, and the bulk bar would then
+  // act on rows the admin cannot see.
+  useEffect(() => {
+    setSelected(new Set());
+  }, [page]);
 
   const setActive = useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) => adminApi.updateSku(id, { isActive }),
@@ -245,13 +253,28 @@ export function CatalogManager() {
   /** Reorder writes the whole neighbourhood in one go and always refetches,
    *  so a partial failure can't leave the rail rendering numbers the DB no
    *  longer has. */
+  const visibleIds = useMemo(
+    () =>
+      new Set([
+        ...categories.filter((c) => c.isActive).map((c) => c.id),
+        ...Object.values(subsByCategory).flat().filter((x) => x.isActive).map((x) => x.id),
+      ]),
+    [categories, subsByCategory],
+  );
+
   const move = async (list: Array<{ id: string; order: number }>, id: string, dir: -1 | 1, kind: 'category' | 'sub') => {
     // Addressed by id, not index: the rail renders a filtered list when
     // «نمایش غیرفعال‌ها» is off, so an index into what the admin SEES would
     // move the wrong row here.
     const index = list.findIndex((x) => x.id === id);
-    const target = index + dir;
-    if (index < 0 || target < 0 || target >= list.length) return;
+    if (index < 0) return;
+    // Step to the nearest neighbour the admin can actually SEE. With
+    // «نمایش غیرفعال‌ها» off, index ± 1 could swap past a hidden row and
+    // leave the rail visually unchanged while still writing two PATCHes.
+    const isVisible = (x: { id: string }) => showInactive || visibleIds.has(x.id);
+    let target = index + dir;
+    while (target >= 0 && target < list.length && !isVisible(list[target]!)) target += dir;
+    if (target < 0 || target >= list.length) return;
     const next = [...list];
     const [moved] = next.splice(index, 1);
     next.splice(target, 0, moved!);
@@ -290,9 +313,10 @@ export function CatalogManager() {
       return next;
     });
 
-  const subsForDrawer = sel.categoryId
-    ? (subsByCategory[sel.categoryId] ?? [])
-    : Object.values(subsByCategory).flat();
+  // Every sub, always: scoping this to the selected category made the
+  // cross-category move the drawer advertises impossible without first
+  // clicking «همهٔ کالاها». The optgroup grouping keeps the list legible.
+  const subsForDrawer = useMemo(() => Object.values(subsByCategory).flat(), [subsByCategory]);
 
   const inactiveHint = status === 'active' && total > 0;
 
@@ -438,9 +462,12 @@ export function CatalogManager() {
                       <input
                         type="checkbox"
                         aria-label="انتخاب همهٔ کالاهای این صفحه"
-                        checked={rows.length > 0 && selected.size === rows.length}
+                        checked={rows.length > 0 && rows.every((r) => selected.has(r.sku.id))}
                         ref={(el) => {
-                          if (el) el.indeterminate = selected.size > 0 && selected.size < rows.length;
+                          if (el) {
+                            const some = rows.some((r) => selected.has(r.sku.id));
+                            el.indeterminate = some && !rows.every((r) => selected.has(r.sku.id));
+                          }
                         }}
                         onChange={(e) =>
                           setSelected(e.target.checked ? new Set(rows.map((r) => r.sku.id)) : new Set())

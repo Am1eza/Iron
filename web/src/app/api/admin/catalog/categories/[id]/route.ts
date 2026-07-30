@@ -9,11 +9,12 @@ import {
   revalidateCatalog,
 } from '@/lib/server/utils/catalogRoute';
 import { finiteNumber, nonEmptyPatch, slugSchema, uploadPathSchema } from '@/lib/validation/utils';
+import { normalizePersian } from '@/lib/utils/persianText';
 
 const patchPayload = nonEmptyPatch(
   z.object({
     slug: slugSchema(60).optional(),
-    name: z.string().trim().min(1).max(80).optional(),
+    name: z.string().trim().min(1).max(80).transform(normalizePersian).optional(),
     order: finiteNumber.int().min(0).max(9999).optional(),
     iconId: z.string().trim().max(60).optional(),
     // The repo has always accepted `imageUrl`; only this schema blocked it, so

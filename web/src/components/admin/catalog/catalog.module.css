@@ -134,7 +134,10 @@
   position: fixed;
   inset: 0;
   background: color-mix(in srgb, var(--color-text) 45%, transparent);
-  z-index: 60;
+  /* Tokens, not raw numbers: the admin topbar is --z-sticky (100), so a
+     hand-picked 60 painted the nav OVER an aria-modal dialog — and clicking
+     it is client-side navigation, which the beforeunload guard never sees. */
+  z-index: var(--z-scrim);
 }
 
 .drawer {
@@ -143,7 +146,7 @@
   inset-inline-start: 0;
   inline-size: min(620px, 96vw);
   background: var(--color-surface);
-  z-index: 61;
+  z-index: var(--z-drawer);
   display: flex;
   flex-direction: column;
   box-shadow: var(--shadow-lg, 0 0 40px rgb(0 0 0 / 25%));
