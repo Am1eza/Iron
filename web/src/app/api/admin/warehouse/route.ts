@@ -4,6 +4,7 @@ import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { can } from '@/lib/auth/roles';
 import { adminListWarehouse, createWarehouseItem } from '@/lib/server/repos/ordersRepo';
+import { updateRequestStatus } from '@/lib/server/repos/requestsRepo';
 import { userByMobile, createUser } from '@/lib/auth/store';
 import { nextRef } from '@/lib/server/utils/refs';
 import { finiteNumber } from '@/lib/validation/utils';
@@ -103,6 +104,14 @@ async function POSTImpl(req: NextRequest) {
     requestId: v.data.requestId,
     actorId: auth.session.id,
   });
+  // W21: the piece that was missing entirely — a warehouse item created
+  // FROM a request (via the admin intake queue) must close the loop on that
+  // request, or it sits "submitted" forever even after the goods physically
+  // arrived. Best-effort: a bad/stale requestId just no-ops (updateRequestStatus
+  // returns null), it must never fail the intake itself.
+  if (v.data.requestId) {
+    await updateRequestStatus(v.data.requestId, 'fulfilled');
+  }
   await audit(auth.session.id, 'warehouse.create', { type: 'warehouseItem', id: item.id }, null, {
     ...v.data,
     customerId: owner.id,

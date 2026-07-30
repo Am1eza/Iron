@@ -1,8 +1,8 @@
 /** The per-user requests inbox («درخواست‌های من») — server home of the old localStorage store. */
-import { desc, eq, sql, and } from 'drizzle-orm';
+import { desc, eq, ne, sql, and } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { getDb, type DbOrTx } from '@/lib/server/db/client';
-import { userRequests, users } from '@/lib/server/db/schema';
+import { userRequests, users, leads } from '@/lib/server/db/schema';
 
 export type UserRequestRow = typeof userRequests.$inferSelect;
 
@@ -134,4 +134,53 @@ export async function adminListRequests(query: {
     requests: rows.map((r) => ({ ...toRequestDto(r.request), customerName: r.customerName, customerMobile: r.customerMobile })),
     total: total[0]?.n ?? 0,
   };
+}
+
+export interface PendingWarehouseRequestDto {
+  id: string;
+  ref: string;
+  leadId: string | null;
+  customerName: string | null;
+  customerMobile: string;
+  /** From the source lead's context.warehouse (W20 createWarehouseRequest) —
+   *  null for a legacy row with no lead behind it, so the intake queue still
+   *  shows something (customer + note) instead of silently hiding it. */
+  product: string | null;
+  quantityTons: number | null;
+  duration: string | null;
+  note: string | null;
+  createdAt: string;
+}
+
+/** The admin warehouse intake queue (W21): every 'warehouse'-type request
+ *  NOT YET marked 'fulfilled' — the piece that was completely missing before
+ *  this: a customer's submitted request had no visible path into the actual
+ *  intake form, so a rep had to know about it some other way and re-type
+ *  everything by hand. Excludes 'fulfilled' rather than requiring
+ *  'submitted' specifically — a request a rep already started following up
+ *  on (status advanced to 'reviewing'/'contacted') still needs to show up
+ *  here until the goods are actually received. */
+export async function pendingWarehouseRequests(): Promise<PendingWarehouseRequestDto[]> {
+  const rows = await getDb()
+    .select({ request: userRequests, customerName: users.name, customerMobile: users.mobile, leadContext: leads.context })
+    .from(userRequests)
+    .innerJoin(users, eq(userRequests.userId, users.id))
+    .leftJoin(leads, eq(userRequests.leadId, leads.id))
+    .where(and(eq(userRequests.type, 'warehouse'), ne(userRequests.status, 'fulfilled')))
+    .orderBy(desc(userRequests.createdAt));
+  return rows.map((r) => {
+    const wh = r.leadContext?.warehouse;
+    return {
+      id: r.request.id,
+      ref: r.request.ref,
+      leadId: r.request.leadId,
+      customerName: r.customerName,
+      customerMobile: r.customerMobile,
+      product: wh?.product ?? null,
+      quantityTons: wh?.quantityTons ?? null,
+      duration: wh?.duration ?? null,
+      note: r.request.note ?? null,
+      createdAt: r.request.createdAt.toISOString(),
+    };
+  });
 }

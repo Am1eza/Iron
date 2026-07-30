@@ -11,10 +11,16 @@ import { seedDatabase } from '@/lib/server/db/seed';
 import * as schema from '@/lib/server/db/schema';
 import type { Db } from '@/lib/server/db/client';
 import { tableRows } from '@/lib/server/repos/catalogRepo';
-import { createLead, proformaSmsText, proformaSmsNotification, orderSmsNotification } from '@/lib/server/services/leads.service';
+import {
+  createLead,
+  createWarehouseRequest,
+  proformaSmsText,
+  proformaSmsNotification,
+  orderSmsNotification,
+} from '@/lib/server/services/leads.service';
 import { runTool } from '@/lib/server/services/aiTools';
 import { findProformaByRef } from '@/lib/server/repos/leadsRepo';
-import { requestsForUser, insertRequest } from '@/lib/server/repos/requestsRepo';
+import { requestsForUser, insertRequest, pendingWarehouseRequests, updateRequestStatus } from '@/lib/server/repos/requestsRepo';
 import {
   createOrder,
   findOrderByRef,
@@ -283,5 +289,53 @@ describe('requests inbox', () => {
     const dupe = await insertRequest({ userId: user.id, ref: 'RQ-LEGACY-1', type: 'bulk', title: 'خرید عمده' });
     expect(first).not.toBeNull();
     expect(dupe).toBeNull(); // ON CONFLICT DO NOTHING
+  });
+});
+
+describe('createWarehouseRequest (W20/W21 — the public request → admin intake pipeline)', () => {
+  it('creates a real CRM lead (source=warehouse) and a mirrored request row, both carrying the same ref', async () => {
+    const result = await createWarehouseRequest(
+      { product: 'میلگرد آجدار', quantityTons: 12, duration: '۳ ماه', notes: 'تحویل آخر هفته' },
+      user,
+    );
+    expect(result.ref).toMatch(/^LD-/);
+
+    const requests = await requestsForUser(user.id, 1, 100);
+    const mine = requests.rows.find((r) => r.ref === result.ref);
+    expect(mine).toBeDefined();
+    expect(mine!.type).toBe('warehouse');
+    expect(mine!.status).toBe('submitted');
+    expect(mine!.title).toContain('میلگرد آجدار');
+    expect(mine!.title).toContain('12');
+
+    // Confirms the lead behind it actually carries the structured context
+    // (source=warehouse, context.warehouse) — verified end-to-end through
+    // pendingWarehouseRequests() rather than a direct lead lookup, since
+    // that's the exact read path the admin intake queue depends on.
+    const pending = await pendingWarehouseRequests();
+    const row = pending.find((r) => r.ref === result.ref);
+    expect(row).toBeDefined();
+    expect(row!.leadId).not.toBeNull();
+    expect(row!.product).toBe('میلگرد آجدار');
+    expect(row!.quantityTons).toBe(12);
+    expect(row!.duration).toBe('۳ ماه');
+  });
+
+  it('shows up in the admin intake queue with structured product/quantity from the lead context, and disappears once fulfilled', async () => {
+    const result = await createWarehouseRequest({ product: 'ورق سیاه', quantityTons: 7, duration: '۱ ماه' }, user);
+
+    const before = await pendingWarehouseRequests();
+    const row = before.find((r) => r.ref === result.ref);
+    expect(row).toBeDefined();
+    expect(row!.customerMobile).toBe(user.mobile);
+    expect(row!.product).toBe('ورق سیاه');
+    expect(row!.quantityTons).toBe(7);
+
+    // Simulates what POST /api/admin/warehouse does once the goods are
+    // actually received: mark the source request fulfilled.
+    await updateRequestStatus(row!.id, 'fulfilled');
+
+    const after = await pendingWarehouseRequests();
+    expect(after.find((r) => r.ref === result.ref)).toBeUndefined();
   });
 });

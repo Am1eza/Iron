@@ -453,6 +453,24 @@ export const adminApi = {
     http.get<{ movements: Array<{ id: string; kind: string; deltaTons: number; quantityAfterTons: number; note: string | null; createdAt: string }> }>(
       `/api/admin/warehouse/${warehouseItemId}/movements`,
     ),
+  /** The intake queue (W21) — customer-submitted warehouse requests not yet
+   *  received. This is the entry point for the whole flow: a rep works from
+   *  this list into "دریافت به انبار", not the other way around. */
+  pendingWarehouseRequests: () =>
+    http.get<{
+      requests: Array<{
+        id: string;
+        ref: string;
+        leadId: string | null;
+        customerName: string | null;
+        customerMobile: string;
+        product: string | null;
+        quantityTons: number | null;
+        duration: string | null;
+        note: string | null;
+        createdAt: string;
+      }>;
+    }>('/api/admin/warehouse/requests'),
 
   /* warehouse settlements (US-08.5, hardened W20) — a real per-item billing
    * ledger, not a point-in-time report: each settlement freezes the period +

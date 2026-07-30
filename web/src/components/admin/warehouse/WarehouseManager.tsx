@@ -2,7 +2,7 @@
 /** Consignment warehouse — all customers' stock + receive new items +
  *  per-customer settlement report (US-08.5, hardened W20 for per-ton
  *  billing, search/pagination, intake details and a void/paid ledger). */
-import { useEffect, useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api/resources/admin';
 import { WAREHOUSE_STATUS_LABEL, type WarehouseStatus, type WarehouseItem } from '@/lib/types/domain';
@@ -280,6 +280,90 @@ function WarehouseItemRow({
   );
 }
 
+export interface PendingWarehouseRequest {
+  id: string;
+  ref: string;
+  leadId: string | null;
+  customerName: string | null;
+  customerMobile: string;
+  product: string | null;
+  quantityTons: number | null;
+  duration: string | null;
+  note: string | null;
+  createdAt: string;
+}
+
+/** The intake queue (W21) — every customer-submitted warehouse request not
+ *  yet received. This is the fix for the actual gap: a rep used to have no
+ *  way to even SEE that a customer asked to store goods without leaving this
+ *  page for the leads/requests inbox and re-typing everything by hand into
+ *  the plain "ثبت کالای جدید" form below — the two were completely
+ *  disconnected, and a fulfilled request never even got marked as such. */
+function PendingRequestsPanel({
+  requests,
+  isLoading,
+  isError,
+  onRetry,
+  onReceive,
+}: {
+  requests: PendingWarehouseRequest[];
+  isLoading: boolean;
+  isError: boolean;
+  onRetry: () => void;
+  onReceive: (req: PendingWarehouseRequest) => void;
+}) {
+  if (isLoading) return <TableSkeleton rows={3} cols={4} />;
+  if (isError) {
+    return (
+      <EmptyState
+        size="section"
+        tone="error"
+        headline="بارگذاری درخواست‌های انبار ناموفق بود."
+        primary={{ label: 'تلاش دوباره', onClick: onRetry }}
+      />
+    );
+  }
+  if (requests.length === 0) {
+    return (
+      <EmptyState
+        size="section"
+        headline="درخواست در انتظاری نیست"
+        body="وقتی مشتری از صفحهٔ «انبار مشتریان» درخواست نگهداری کالا بدهد، اینجا نشان داده می‌شود تا هنگام رسیدن کالا آن را دریافت کنید."
+      />
+    );
+  }
+  return (
+    <ul style={{ display: 'grid', gap: 'var(--space-3)' }}>
+      {requests.map((r) => (
+        <li key={r.id}>
+          <Card>
+            <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+              <div style={{ flex: '1 1 16rem' }}>
+                <div className="tnum">
+                  <strong>{r.customerName ?? '—'}</strong>{' '}
+                  <a href={`tel:${r.customerMobile}`} dir="ltr" className={ui.muted}>
+                    {toPersianDigits(r.customerMobile)}
+                  </a>
+                </div>
+                <div style={{ marginBlockStart: 'var(--space-1)' }}>
+                  {r.product ?? 'کالا نامشخص'}
+                  {r.quantityTons != null ? <span className="tnum"> · {toPersianDigits(r.quantityTons)} تن</span> : null}
+                  {r.duration ? <span> · مدت نگهداری: {r.duration}</span> : null}
+                </div>
+                {r.note ? <div className={ui.muted}>یادداشت: {r.note}</div> : null}
+                <div className={`${ui.muted} tnum`} style={{ marginBlockStart: 'var(--space-1)' }}>
+                  کد پیگیری {r.ref} · ثبت‌شده {formatJalali(r.createdAt)}
+                </div>
+              </div>
+              <Button onClick={() => onReceive(r)}>دریافت به انبار</Button>
+            </div>
+          </Card>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 const emptyForm = {
   mobile: '',
   customerName: '',
@@ -292,6 +376,8 @@ const emptyForm = {
   contractRef: '',
   insured: false,
   intakeNote: '',
+  leadId: '',
+  requestId: '',
 };
 
 export function WarehouseManager() {
@@ -300,8 +386,36 @@ export function WarehouseManager() {
   const { confirm, dialog } = useConfirm();
   const currentUser = useAuthStore((st) => st.user);
   const canManage = can(currentUser?.role, 'leads:manage');
-  const [tab, setTab] = useState('items');
+  // W21: the intake queue is the default landing tab — this is now the
+  // rep's actual starting point (a request came in → go receive it), not
+  // the raw items table.
+  const [tab, setTab] = useState('requests');
   const [form, setForm] = useState(emptyForm);
+  const [showManualForm, setShowManualForm] = useState(false);
+  const manualFormRef = useRef<HTMLDivElement>(null);
+
+  const pendingRequestsQuery = useQuery({
+    queryKey: ['admin', 'warehouse', 'pending-requests'],
+    queryFn: () => adminApi.pendingWarehouseRequests(),
+  });
+  const pendingRequests = pendingRequestsQuery.data?.requests ?? [];
+
+  const receiveFromRequest = (req: PendingWarehouseRequest) => {
+    setForm({
+      ...emptyForm,
+      mobile: req.customerMobile,
+      customerName: req.customerName ?? '',
+      product: req.product ?? '',
+      quantityTons: req.quantityTons != null ? String(req.quantityTons) : '',
+      leadId: req.leadId ?? '',
+      requestId: req.id,
+    });
+    setShowManualForm(true);
+    setTab('items');
+    // Tab switch unmounts/remounts the panel, so the ref isn't attached yet
+    // on this same tick — wait a frame before scrolling to it.
+    requestAnimationFrame(() => manualFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  };
 
   const [status, setStatus] = useState('');
   const [page, setPage] = useState(1);
@@ -335,6 +449,8 @@ export function WarehouseManager() {
         contractRef: form.contractRef.trim() || undefined,
         insured: form.insured || undefined,
         intakeNote: form.intakeNote.trim() || undefined,
+        leadId: form.leadId || undefined,
+        requestId: form.requestId || undefined,
       }),
     onSuccess: (res) => {
       toast.success(
@@ -343,7 +459,11 @@ export function WarehouseManager() {
           : `کالا با شمارهٔ ${res.item.ref} ثبت شد.`,
       );
       setForm(emptyForm);
+      setShowManualForm(false);
       invalidate();
+      // The item may have just fulfilled a pending request server-side
+      // (POST /api/admin/warehouse auto-marks it) — drop it from the queue.
+      void qc.invalidateQueries({ queryKey: ['admin', 'warehouse', 'pending-requests'] });
     },
     onError: (err) => toast.error(err instanceof ApiError ? err.message : 'ثبت کالا ناموفق بود.'),
   });
@@ -362,10 +482,21 @@ export function WarehouseManager() {
         active={tab}
         onChange={setTab}
         items={[
+          { id: 'requests', label: 'درخواست‌های در انتظار', count: pendingRequests.length },
           { id: 'items', label: 'کالاها' },
           { id: 'settlement', label: 'تسویه‌حساب' },
         ]}
       />
+
+      <TabPanel id="requests" active={tab} idBase="warehouse">
+        <PendingRequestsPanel
+          requests={pendingRequests}
+          isLoading={pendingRequestsQuery.isLoading}
+          isError={pendingRequestsQuery.isError}
+          onRetry={() => void pendingRequestsQuery.refetch()}
+          onReceive={receiveFromRequest}
+        />
+      </TabPanel>
 
       <TabPanel id="items" active={tab} idBase="warehouse">
         <div style={{ display: 'grid', gap: 'var(--space-5)' }}>
@@ -436,8 +567,24 @@ export function WarehouseManager() {
           )}
           {dialog}
 
+          {/* W21: collapsed by default — receiving against a real request
+             (the "درخواست‌های در انتظار" tab) is now the main path; a rep
+             typing a walk-in item from scratch with no request behind it is
+             the rare case, not the default view. Auto-opens (and scrolls
+             here) when "دریافت به انبار" prefills this form. */}
+          <div ref={manualFormRef}>
+            <Button variant="ghost" aria-expanded={showManualForm} onClick={() => setShowManualForm((v) => !v)}>
+              {showManualForm ? 'بستن فرم ثبت دستی' : '+ ثبت دستی کالا (بدون درخواست)'}
+            </Button>
+          </div>
+          {showManualForm ? (
           <Card>
-            <Heading level={2}>ثبت کالای جدید</Heading>
+            <Heading level={2}>{form.requestId ? 'دریافت کالا از درخواست' : 'ثبت کالای جدید'}</Heading>
+            {form.requestId ? (
+              <Text color="muted">
+                این کالا از یک درخواست مشتری پر شده؛ در صورت نیاز مقادیر را قبل از ثبت اصلاح کنید.
+              </Text>
+            ) : null}
             <div className={ui.grid2} style={{ marginBlockStart: 'var(--space-3)' }}>
               <TextInput
                 label="موبایل مشتری"
@@ -518,6 +665,7 @@ export function WarehouseManager() {
               ثبت کالا
             </Button>
           </Card>
+          ) : null}
         </div>
       </TabPanel>
 
