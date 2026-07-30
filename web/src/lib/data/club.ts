@@ -34,7 +34,11 @@ export const CLUB_TIER_META: Record<ClubTierKey, ClubTierMeta> = {
     perks: [
       'تخفیف پلکانی روی حجم خرید',
       'اولویت در تأمین و تحویل',
-      'هشدار قیمت اختصاصی روی محصولات منتخب',
+      // W22: alert creation shipped with a real per-tier cap (see
+      // alertsRepo.ts's DEFAULT_ALERT_TIER_CAPS) — kept qualitative here
+      // instead of hardcoding the live number, since the admin can retune
+      // the actual cap from Settings without this copy drifting out of sync.
+      'هشدار قیمت روی چند محصول هم‌زمان (نه فقط یکی)',
       'پیش‌فاکتور سریع‌تر',
     ],
     featured: true,
@@ -46,6 +50,7 @@ export const CLUB_TIER_META: Record<ClubTierKey, ClubTierMeta> = {
     perks: [
       'بیشترین تخفیف پلکانی',
       'تأمین تضمینی با اولویت کامل',
+      'بیشترین سقف هشدار قیمت در بین همهٔ سطوح',
       'مشاور اختصاصی و خط ارتباطی مستقیم',
       'پیشنهادهای ویژهٔ پیش از عرضهٔ عمومی',
     ],

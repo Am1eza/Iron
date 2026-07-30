@@ -6,6 +6,7 @@ import { safeRevalidatePath } from '@/lib/server/utils/revalidate';
 import { tableRows } from '@/lib/server/repos/catalogRepo';
 import { savePrices } from '@/lib/server/services/pricing.service';
 import { evaluateAlerts } from '@/lib/server/services/alerts.service';
+import { reportError } from '@/lib/errors/report';
 import { finiteNumber } from '@/lib/validation/utils';
 
 /** GET /api/admin/pricing?cat=&sub= — the daily grid (rows incl. stale flags). */
@@ -51,8 +52,11 @@ async function PUTImpl(req: NextRequest) {
 
   const results = await savePrices(auth.session.id, v.data.prices);
   const failed = results.filter((r) => !r.ok);
-  // Fire alert evaluation inline so price alerts react immediately.
-  void evaluateAlerts().catch(() => {});
+  // Fire alert evaluation inline so price alerts react immediately. W22:
+  // was `.catch(() => {})` — a thrown error here (e.g. a DB blip mid-batch)
+  // vanished with zero report, the one call site in the whole codebase that
+  // broke the reportError convention every other error path follows.
+  void evaluateAlerts().catch((err) => reportError(err, { route: 'admin/pricing', stage: 'evaluateAlerts' }));
   // The /prices ISR pages now cache for up to 5 minutes (see [category]/[sub]/[sku]
   // page.tsx `revalidate`) — bust the whole subtree on any successful save so an
   // admin price edit shows up immediately instead of waiting out the window.

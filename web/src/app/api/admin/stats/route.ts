@@ -5,6 +5,7 @@ import { can } from '@/lib/auth/roles';
 import type { Permission } from '@/lib/auth/types';
 import { getDb } from '@/lib/server/db/client';
 import { currentPrices, leads, userRequests, orders, contactMessages, users, articles, aiUsage } from '@/lib/server/db/schema';
+import { triggeredAlertCount } from '@/lib/server/repos/alertsRepo';
 
 /**
  * GET /api/admin/stats — the dashboard tiles. Each field is behind its own
@@ -59,6 +60,10 @@ async function GETImpl(req: NextRequest) {
     ));
   add('draftArticles', 'content:write', () =>
     count(db.select({ n: sql<number>`count(*)::int` }).from(articles).where(and(eq(articles.status, 'draft')))));
+  // Triggered-but-unreviewed price alerts (قیمت‌سنج, W22) — same permission
+  // as the admin alerts page itself, so this only ever appears for the roles
+  // that can actually act on it.
+  add('triggeredAlerts', 'pricing:write', () => triggeredAlertCount());
   add('aiToday', 'ai:review', () =>
     db
       .select({

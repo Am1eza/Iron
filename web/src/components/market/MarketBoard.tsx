@@ -10,6 +10,7 @@ import { useMarket } from '@/lib/hooks/useMarket';
 import type { MarketValue } from '@/lib/types/domain';
 import { MovementBadge } from '@/components/ui';
 import { PriceChart } from '@/components/catalog/PriceChart';
+import { AlertBellButton } from '@/components/alerts/AlertBellButton';
 import {
   InfoIcon,
   CheckCircleIcon,
@@ -75,17 +76,44 @@ export function MarketBoard() {
           const active = v.key === selectedKey;
           return (
             <li key={v.key}>
-              <button
-                type="button"
+              {/* A real <button> would be invalid HTML nesting once the bell
+                  trigger (also a <button>) sits inside it — role="button" on
+                  a div keeps the same keyboard/AT semantics without that. */}
+              <div
                 className={styles.card}
+                role="button"
+                tabIndex={0}
                 data-active={active ? '' : undefined}
                 aria-pressed={active}
                 aria-label={`نمایش نمودار ${v.label}`}
                 onClick={() => setSelectedKey(v.key)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setSelectedKey(v.key);
+                  }
+                }}
               >
                 <span className={styles.cardHead}>
                   <span className={styles.label}>{v.label}</span>
-                  <SourceBadge source={v.source} />
+                  <span className={styles.cardHeadActions}>
+                    <SourceBadge source={v.source} />
+                    {/* Own click target — must not also (de)select the card's
+                        chart. Both click AND keydown are stopped here (W22
+                        review fix): keydown bubbles too, and the outer div's
+                        onKeyDown calls preventDefault() on Enter/Space —
+                        without stopping it here first, focusing the bell
+                        button and pressing Enter/Space would ALSO select the
+                        card, and the preventDefault from the outer handler's
+                        bubble-phase run would suppress the bell button's own
+                        native click, making it unusable from the keyboard. */}
+                    <span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+                      <AlertBellButton
+                        variant="subtle"
+                        target={{ type: 'market', key: v.key, label: v.label, currentValue: v.value }}
+                      />
+                    </span>
+                  </span>
                 </span>
                 <span className={styles.valueRow}>
                   <span className={`${styles.value} tnum`}>{num}</span>
@@ -95,7 +123,7 @@ export function MarketBoard() {
                   <MovementBadge dir={v.movementDir} pct={v.movementPct} pill />
                   <span className={styles.fresh}>به‌روزرسانی لحظه‌ای</span>
                 </span>
-              </button>
+              </div>
             </li>
           );
         })}

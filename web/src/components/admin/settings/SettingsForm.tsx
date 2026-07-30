@@ -63,7 +63,7 @@ export function SettingsForm() {
         vat={get('VAT_RATE', 0.1)}
         hideDays={get('PRICE_STALE_HIDE_AFTER_DAYS', 2)}
         quoteHour={get('QUOTE_VALIDITY_HOUR', 11)}
-        alertCap={get('ALERT_MAX_ACTIVE_PER_USER', 20)}
+        alertCaps={get('ALERT_TIER_CAPS', { base: 2, iron: 2, steel: 6, poolad: 10 })}
         onSave={(key, value) => save.mutate({ key, value })}
         busy={save.isPending}
       />
@@ -109,27 +109,45 @@ function num(v: string): number {
   return Number(normalizeDigits(v));
 }
 
+interface AlertTierCaps {
+  base: number;
+  iron: number;
+  steel: number;
+  poolad: number;
+}
+
 function PricingRulesCard({
   vat,
   hideDays,
   quoteHour,
-  alertCap,
+  alertCaps,
   onSave,
   busy,
 }: {
   vat: number;
   hideDays: number;
   quoteHour: number;
-  alertCap: number;
+  alertCaps: AlertTierCaps;
   onSave: (key: string, value: unknown) => void;
   busy: boolean;
 }) {
-  const [v, setV] = useState({ vat: String(vat * 100), hideDays: String(hideDays), quoteHour: String(quoteHour), alertCap: String(alertCap) });
-  const [errors, setErrors] = useState<{ vat?: string; hideDays?: string; quoteHour?: string; alertCap?: string }>({});
+  const [v, setV] = useState({ vat: String(vat * 100), hideDays: String(hideDays), quoteHour: String(quoteHour) });
+  const [errors, setErrors] = useState<{ vat?: string; hideDays?: string; quoteHour?: string }>({});
+  const [caps, setCaps] = useState({
+    base: String(alertCaps.base),
+    iron: String(alertCaps.iron),
+    steel: String(alertCaps.steel),
+    poolad: String(alertCaps.poolad),
+  });
+  const [capErrors, setCapErrors] = useState<Partial<Record<keyof AlertTierCaps, string>>>({});
   useEffect(() => {
-    setV({ vat: String(vat * 100), hideDays: String(hideDays), quoteHour: String(quoteHour), alertCap: String(alertCap) });
+    setV({ vat: String(vat * 100), hideDays: String(hideDays), quoteHour: String(quoteHour) });
     setErrors({});
-  }, [vat, hideDays, quoteHour, alertCap]);
+  }, [vat, hideDays, quoteHour]);
+  useEffect(() => {
+    setCaps({ base: String(alertCaps.base), iron: String(alertCaps.iron), steel: String(alertCaps.steel), poolad: String(alertCaps.poolad) });
+    setCapErrors({});
+  }, [alertCaps.base, alertCaps.iron, alertCaps.steel, alertCaps.poolad]);
 
   const NON_NEGATIVE_MSG = 'عدد صحیح و نامنفی وارد کنید.';
 
@@ -160,14 +178,20 @@ function PricingRulesCard({
     setErrors((e) => ({ ...e, quoteHour: undefined }));
     onSave('QUOTE_VALIDITY_HOUR', Math.round(n));
   };
-  const saveAlertCap = () => {
-    const n = num(v.alertCap);
-    if (!Number.isFinite(n) || n < 0) {
-      setErrors((e) => ({ ...e, alertCap: NON_NEGATIVE_MSG }));
-      return;
-    }
-    setErrors((e) => ({ ...e, alertCap: undefined }));
-    onSave('ALERT_MAX_ACTIVE_PER_USER', Math.round(n));
+  const saveAlertCaps = () => {
+    const parsed: Partial<AlertTierCaps> = {};
+    const nextErrors: Partial<Record<keyof AlertTierCaps, string>> = {};
+    (Object.keys(caps) as (keyof AlertTierCaps)[]).forEach((key) => {
+      const n = num(caps[key]);
+      if (!Number.isFinite(n) || n < 1) {
+        nextErrors[key] = 'حداقل ۱';
+      } else {
+        parsed[key] = Math.round(n);
+      }
+    });
+    setCapErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
+    onSave('ALERT_TIER_CAPS', parsed as AlertTierCaps);
   };
 
   return (
@@ -177,7 +201,6 @@ function PricingRulesCard({
         <TextInput label="ارزش افزوده (٪)" inputMode="decimal" value={v.vat} error={errors.vat} onChange={(e) => setV({ ...v, vat: e.target.value })} />
         <TextInput label="پنهان‌سازی قیمت پس از (روز کاری)" inputMode="numeric" value={v.hideDays} error={errors.hideDays} onChange={(e) => setV({ ...v, hideDays: e.target.value })} />
         <TextInput label="ساعت اعتبار پیش‌فاکتور (روز کاری بعد)" inputMode="numeric" value={v.quoteHour} error={errors.quoteHour} onChange={(e) => setV({ ...v, quoteHour: e.target.value })} />
-        <TextInput label="سقف هشدار فعال هر کاربر" inputMode="numeric" value={v.alertCap} error={errors.alertCap} onChange={(e) => setV({ ...v, alertCap: e.target.value })} />
       </div>
       <div className={ui.toolbar} style={{ marginBlockStart: 'var(--space-3)' }}>
         <Button size="sm" loading={busy} onClick={saveVat}>
@@ -189,8 +212,34 @@ function PricingRulesCard({
         <Button size="sm" variant="secondary" loading={busy} onClick={saveQuoteHour}>
           ذخیرهٔ ساعت اعتبار
         </Button>
-        <Button size="sm" variant="secondary" loading={busy} onClick={saveAlertCap}>
-          ذخیرهٔ سقف هشدار
+      </div>
+
+      <div style={{ marginBlockStart: 'var(--space-4)' }}>
+        <Text color="muted">سقف هشدار فعال هر کاربر (W22 — بر اساس عضویت باشگاه)</Text>
+      </div>
+      <div className={ui.grid2} style={{ marginBlockStart: 'var(--space-2)' }}>
+        <TextInput
+          label="کاربر عادی / آهنی"
+          inputMode="numeric"
+          value={caps.base}
+          error={capErrors.base}
+          onChange={(e) => setCaps({ ...caps, base: e.target.value })}
+          helper="عضو نشده و تازه‌عضوشده (آهنی) یک سقف مشترک دارند — همان چیزی که صفحهٔ باشگاه وعده داده."
+        />
+        <TextInput label="فولادی" inputMode="numeric" value={caps.steel} error={capErrors.steel} onChange={(e) => setCaps({ ...caps, steel: e.target.value })} />
+        <TextInput label="پولادی" inputMode="numeric" value={caps.poolad} error={capErrors.poolad} onChange={(e) => setCaps({ ...caps, poolad: e.target.value })} />
+        <TextInput
+          label="آهنی (اختیاری، جدا از عادی)"
+          inputMode="numeric"
+          value={caps.iron}
+          error={capErrors.iron}
+          onChange={(e) => setCaps({ ...caps, iron: e.target.value })}
+          helper="فعلاً برابر «کاربر عادی» است؛ اگر بعداً خواستید یک پلهٔ جدا برای آهنی باز کنید، همین‌جا تغییرش دهید."
+        />
+      </div>
+      <div className={ui.toolbar} style={{ marginBlockStart: 'var(--space-3)' }}>
+        <Button size="sm" variant="secondary" loading={busy} onClick={saveAlertCaps}>
+          ذخیرهٔ سقف‌های هشدار
         </Button>
       </div>
     </Card>

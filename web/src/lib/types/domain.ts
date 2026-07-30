@@ -8,6 +8,23 @@ export type MovementDir = 'up' | 'down' | 'flat';
 export type NotifyChannel = 'sms' | 'telegram' | 'whatsapp' | 'eitaa';
 export type MarketKey = 'usd' | 'eur' | 'gold18' | 'ounce' | 'billet';
 
+/** A customer's price alert (قیمت‌سنج) — mirrors AlertDto server-side. */
+export interface Alert {
+  id: string;
+  target: { type: 'sku'; skuId: string; label?: string } | { type: 'market'; key: MarketKey; label?: string };
+  op: 'below' | 'above';
+  threshold: number;
+  channel: NotifyChannel;
+  status: 'active' | 'triggered' | 'paused';
+  lastTriggeredAt?: string;
+  createdAt: string;
+  updatedAt: string;
+  /** Live current SKU price / market value + staleness (W22) — lets the
+   *  customer's own alert list show "how close is this to firing." */
+  currentValue?: number | null;
+  isStale?: boolean;
+}
+
 export interface SeoMeta {
   title?: string;
   description?: string;

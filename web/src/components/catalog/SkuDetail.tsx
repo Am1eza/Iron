@@ -26,6 +26,7 @@ import { PriceChart } from './PriceChart';
 import { BulkQuote } from './BulkQuote';
 import { ProductImage } from './ProductImage';
 import { productImage } from '@/lib/data/productImages';
+import { AlertBellButton } from '@/components/alerts/AlertBellButton';
 import {
   HeartIcon,
   ShareIcon,
@@ -247,6 +248,11 @@ export function SkuDetail({
                 active={faved}
                 icon={<HeartIcon size={20} filled={faved} />}
                 onClick={toggleFav}
+              />
+              <AlertBellButton
+                variant="subtle"
+                size="md"
+                target={{ type: 'sku', skuId: row.id, label: row.name, currentValue: row.current.price }}
               />
               <IconButton
                 variant="subtle"

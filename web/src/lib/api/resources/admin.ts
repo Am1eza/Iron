@@ -19,6 +19,10 @@ export interface AdminStats {
   newUsers24h?: number;
   pendingVerifications?: number;
   draftArticles?: number;
+  /** Alerts sitting in 'triggered' — fired but not yet paused/re-armed by
+   *  anyone (W22). Feeds both the alerts page's summary tile and the nav
+   *  badge. */
+  triggeredAlerts?: number;
   aiToday?: { promptTokens: number; completionTokens: number; cacheHitRate: number; violations: number };
 }
 
@@ -79,6 +83,7 @@ export type ArticleFull = Article & { bodyMd: string; coverUrl?: string; authorI
 export interface AdminAlertRow {
   id: string;
   mobile: string;
+  name: string | null;
   target: { type: 'sku'; skuId: string; label?: string } | { type: 'market'; key: string; label?: string };
   op: 'below' | 'above';
   threshold: number;
@@ -86,6 +91,19 @@ export interface AdminAlertRow {
   status: 'active' | 'triggered' | 'paused';
   lastTriggeredAt?: string;
   createdAt: string;
+  updatedAt: string;
+  /** Current SKU price / market value, and whether that feed is flagged
+   *  stale (W22) — lets ops see how close an alert is to firing, and WHY a
+   *  seemingly-close one hasn't. */
+  currentValue: number | null;
+  isStale: boolean;
+}
+
+export interface AlertTierCaps {
+  base: number;
+  iron: number;
+  steel: number;
+  poolad: number;
 }
 
 export interface KpiRes {
@@ -579,12 +597,15 @@ export const adminApi = {
   uploadImage: (file: File) => http.upload<{ url: string }>('/api/admin/upload', file),
 
   /* price alerts (قیمت‌سنج) — admin management */
-  alerts: (params: { status?: 'active' | 'triggered' | 'paused'; page?: number } = {}) => {
+  alerts: (params: { status?: 'active' | 'triggered' | 'paused'; q?: string; page?: number } = {}) => {
     const qs = new URLSearchParams();
     if (params.status) qs.set('status', params.status);
+    if (params.q) qs.set('q', params.q);
     if (params.page) qs.set('page', String(params.page));
-    return http.get<{ alerts: AdminAlertRow[]; hasMore: boolean; cap: number }>(`/api/admin/alerts?${qs}`);
+    return http.get<{ alerts: AdminAlertRow[]; total: number; caps: AlertTierCaps }>(`/api/admin/alerts?${qs}`);
   },
+  /** Allows re-arming from ANY prior status, including 'triggered' (W22 —
+   *  the API never actually restricted this; only the missing button did). */
   updateAlertStatus: (id: string, status: 'active' | 'paused') =>
     http.patch<{ alert: unknown }>(`/api/admin/alerts/${id}`, { status }),
 

@@ -49,7 +49,16 @@ const KEY_SCHEMAS: Record<string, z.ZodTypeAny> = {
     scaleFee: finiteNumber.min(0).max(1e13),
     cities: z.array(z.object({ name: z.string().max(60), km: finiteNumber.min(0).max(100_000) })).max(200),
   }),
-  ALERT_MAX_ACTIVE_PER_USER: finiteNumber.int().min(1).max(200),
+  // W22: per-tier active-alert cap — replaces the old flat
+  // ALERT_MAX_ACTIVE_PER_USER (one number for everyone). `base` covers both
+  // a non-member and the zero-effort `iron` tier on purpose — see
+  // alertsRepo.ts's DEFAULT_ALERT_TIER_CAPS doc comment.
+  ALERT_TIER_CAPS: z.object({
+    base: finiteNumber.int().min(1).max(200),
+    iron: finiteNumber.int().min(1).max(200),
+    steel: finiteNumber.int().min(1).max(200),
+    poolad: finiteNumber.int().min(1).max(200),
+  }),
   // Homepage hero motion graphic — a same-origin video path (e.g. an upload
   // under /uploads/). Empty url = the live price board renders instead.
   // Same-origin only: an absolute URL here would let a settings write embed

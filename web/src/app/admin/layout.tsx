@@ -25,7 +25,7 @@ export const metadata: Metadata = { robots: { index: false, follow: false } };
 // carries newLeads+newMessages+openRequests from the live stats poll.
 const NAV_GROUPS: Array<{
   title: string | null;
-  items: Array<{ href: string; label: string; badge?: 'inbound' }>;
+  items: Array<{ href: string; label: string; badge?: 'inbound' | 'alerts' }>;
 }> = [
   {
     title: null,
@@ -40,7 +40,7 @@ const NAV_GROUPS: Array<{
       { href: routes.admin.leads(), label: 'سرنخ‌ها', badge: 'inbound' },
       { href: routes.admin.orders(), label: 'سفارش‌ها' },
       { href: routes.admin.warehouse(), label: 'انبار' },
-      { href: routes.admin.alerts(), label: 'هشدارهای قیمت' },
+      { href: routes.admin.alerts(), label: 'هشدارهای قیمت', badge: 'alerts' },
     ],
   },
   {

@@ -11,7 +11,21 @@ import { seedDatabase } from '@/lib/server/db/seed';
 import * as schema from '@/lib/server/db/schema';
 import type { Db } from '@/lib/server/db/client';
 import { tableRows } from '@/lib/server/repos/catalogRepo';
-import { createAlert, alertsForUser, claimAlertForTrigger } from '@/lib/server/repos/alertsRepo';
+import { ulid } from 'ulid';
+import {
+  createAlert,
+  alertsForUser,
+  claimAlertForTrigger,
+  revertAlertClaim,
+  reactivateAlert,
+  updateAlertStatus,
+  deleteAlert,
+  findAlert,
+  alertCapForTier,
+  DEFAULT_ALERT_TIER_CAPS,
+  AlertTargetNotFoundError,
+  AlertCapExceededError,
+} from '@/lib/server/repos/alertsRepo';
 import { evaluateAlerts } from '@/lib/server/services/alerts.service';
 import { addFavorite, favoritesForUser, removeFavorite } from '@/lib/server/repos/favoritesRepo';
 import { joinClub, clubStatus, recomputeTier } from '@/lib/server/repos/clubRepo';
@@ -21,6 +35,12 @@ import { savePrice } from '@/lib/server/services/pricing.service';
 let db: Db;
 let close: () => Promise<void>;
 const USER = 'u-admin';
+
+async function seedUser(mobile: string): Promise<string> {
+  const id = ulid();
+  await db.insert(schema.users).values({ id, mobile });
+  return id;
+}
 
 beforeAll(async () => {
   ({ db, close } = await createTestDb());
@@ -40,6 +60,7 @@ describe('alerts', () => {
       op: 'below',
       threshold: sku.current.price - 5000, // not crossed yet
       channel: 'sms',
+      cap: 100,
     });
 
     expect(await evaluateAlerts()).toBe(0);
@@ -70,6 +91,7 @@ describe('alerts', () => {
       op: 'above' as const,
       threshold: sku.current.price + 5000,
       channel: 'sms' as const,
+      cap: 100,
     };
 
     const first = await createAlert(spec);
@@ -96,6 +118,7 @@ describe('alerts', () => {
       op: 'below',
       threshold: sku.current.price + 1000,
       channel: 'sms',
+      cap: 100,
     });
 
     // Simulate two evaluators racing to claim the same crossing concurrently.
@@ -109,6 +132,275 @@ describe('alerts', () => {
 
     // Already triggered — a third claim attempt also loses.
     expect(await claimAlertForTrigger(created.alert.id)).toBeNull();
+  });
+
+  it('fires an ABOVE-direction alert (only below was previously covered)', async () => {
+    const rows = await tableRows('rebar');
+    const sku = rows[1]!;
+    await createAlert({
+      userId: USER,
+      target: { type: 'sku', skuId: sku.id },
+      op: 'above',
+      threshold: sku.current.price + 5000,
+      channel: 'sms',
+      cap: 100,
+    });
+    expect(await evaluateAlerts()).toBe(0); // not crossed yet
+
+    await savePrice(USER, { skuId: sku.id, price: sku.current.price + 6000 });
+    expect(await evaluateAlerts()).toBe(1);
+
+    const mine = await alertsForUser(USER);
+    const fired = mine.find((a) => a.target.type === 'sku' && a.target.skuId === sku.id && a.op === 'above');
+    expect(fired?.status).toBe('triggered');
+  });
+
+  it('fires a MARKET-type alert (the marketValue join path was previously untested)', async () => {
+    await db.update(schema.marketValues).set({ value: 500_000, isStale: false }).where(eq(schema.marketValues.key, 'usd'));
+    await createAlert({
+      userId: USER,
+      target: { type: 'market', key: 'usd' },
+      op: 'below',
+      threshold: 550_000,
+      channel: 'sms',
+      cap: 100,
+    });
+    expect(await evaluateAlerts()).toBe(1);
+
+    const mine = await alertsForUser(USER);
+    const fired = mine.find((a) => a.target.type === 'market' && a.target.key === 'usd');
+    expect(fired?.status).toBe('triggered');
+    expect(fired?.target.label).toBeTruthy();
+  });
+
+  it('does NOT fire on a stale price, even past the threshold (W22)', async () => {
+    const rows = await tableRows('rebar');
+    const sku = rows[2]!;
+    await createAlert({
+      userId: USER,
+      target: { type: 'sku', skuId: sku.id },
+      op: 'below',
+      threshold: sku.current.price + 1, // already crossed
+      channel: 'sms',
+      cap: 100,
+    });
+    await db.update(schema.currentPrices).set({ isStale: true }).where(eq(schema.currentPrices.skuId, sku.id));
+    expect(await evaluateAlerts()).toBe(0);
+
+    // Freshening the feed lets it fire.
+    await db.update(schema.currentPrices).set({ isStale: false }).where(eq(schema.currentPrices.skuId, sku.id));
+    expect(await evaluateAlerts()).toBe(1);
+  });
+
+  it('revertAlertClaim un-claims a triggered alert back to active (W22 — SMS-failure recovery)', async () => {
+    const rows = await tableRows('rebar');
+    const sku = rows[3]!;
+    const created = await createAlert({
+      userId: USER,
+      target: { type: 'sku', skuId: sku.id },
+      op: 'below',
+      threshold: sku.current.price + 1000,
+      channel: 'sms',
+      cap: 100,
+    });
+    const claimed = await claimAlertForTrigger(created.alert.id);
+    expect(claimed?.status).toBe('triggered');
+
+    await revertAlertClaim(created.alert.id);
+    const mine = await alertsForUser(USER);
+    const reverted = mine.find((a) => a.id === created.alert.id);
+    expect(reverted?.status).toBe('active');
+    expect(reverted?.lastTriggeredAt).toBeUndefined();
+
+    // Un-reverts nothing if the alert isn't actually 'triggered' (CAS safety)
+    // — calling it again on an already-active alert is a no-op.
+    await revertAlertClaim(created.alert.id);
+    const stillActive = (await alertsForUser(USER)).find((a) => a.id === created.alert.id);
+    expect(stillActive?.status).toBe('active');
+  });
+
+  it('rejects creating an alert on a SKU that does not exist (W22 — was a raw FK-violation 500)', async () => {
+    await expect(
+      createAlert({
+        userId: USER,
+        target: { type: 'sku', skuId: 'sku-does-not-exist' },
+        op: 'below',
+        threshold: 100_000,
+        channel: 'sms',
+        cap: 100,
+      }),
+    ).rejects.toBeInstanceOf(AlertTargetNotFoundError);
+  });
+
+  it('soft-deletes: findAlert/alertsForUser stop seeing it, the row survives (W22 — was a hard DELETE)', async () => {
+    const rows = await tableRows('rebar');
+    const sku = rows[4]!;
+    const created = await createAlert({
+      userId: USER,
+      target: { type: 'sku', skuId: sku.id },
+      op: 'below',
+      threshold: sku.current.price + 1000,
+      channel: 'sms',
+      cap: 100,
+    });
+    await deleteAlert(created.alert.id);
+
+    expect(await findAlert(created.alert.id)).toBeNull();
+    expect((await alertsForUser(USER)).find((a) => a.id === created.alert.id)).toBeUndefined();
+
+    const raw = await db.select().from(schema.alerts).where(eq(schema.alerts.id, created.alert.id));
+    expect(raw).toHaveLength(1);
+    expect(raw[0]!.deletedAt).not.toBeNull();
+  });
+
+  it('per-tier caps: base/iron share one cap, steel and poolad get more (W22 — owner\'s call)', async () => {
+    expect(await alertCapForTier(undefined)).toBe(DEFAULT_ALERT_TIER_CAPS.base);
+    expect(await alertCapForTier('iron')).toBe(DEFAULT_ALERT_TIER_CAPS.iron);
+    expect(await alertCapForTier('steel')).toBe(DEFAULT_ALERT_TIER_CAPS.steel);
+    expect(await alertCapForTier('poolad')).toBe(DEFAULT_ALERT_TIER_CAPS.poolad);
+    expect(await alertCapForTier(undefined)).toBe(await alertCapForTier('iron'));
+    expect(await alertCapForTier('steel')).toBeGreaterThan(await alertCapForTier(undefined));
+    expect(await alertCapForTier('poolad')).toBeGreaterThan(await alertCapForTier('steel'));
+  });
+
+  it('createAlert throws AlertCapExceededError once the cap is reached — a MERGE never consumes a slot (W22 review fix)', async () => {
+    const userId = await seedUser('09130000101');
+    const rows = await tableRows('rebar');
+    const first = await createAlert({
+      userId,
+      target: { type: 'sku', skuId: rows[0]!.id },
+      op: 'below',
+      threshold: rows[0]!.current.price - 1000,
+      channel: 'sms',
+      cap: 2,
+    });
+    await createAlert({
+      userId,
+      target: { type: 'sku', skuId: rows[1]!.id },
+      op: 'below',
+      threshold: rows[1]!.current.price - 1000,
+      channel: 'sms',
+      cap: 2,
+    });
+    // At cap (2) — a third, genuinely NEW target is rejected.
+    await expect(
+      createAlert({
+        userId,
+        target: { type: 'sku', skuId: rows[2]!.id },
+        op: 'below',
+        threshold: rows[2]!.current.price - 1000,
+        channel: 'sms',
+        cap: 2,
+      }),
+    ).rejects.toBeInstanceOf(AlertCapExceededError);
+
+    // Re-submitting the FIRST alert's exact spec merges instead of counting
+    // as a new one — a merge must never be blocked by the cap.
+    const merged = await createAlert({
+      userId,
+      target: { type: 'sku', skuId: rows[0]!.id },
+      op: 'below',
+      threshold: rows[0]!.current.price - 1000,
+      channel: 'sms',
+      cap: 2,
+    });
+    expect(merged.merged).toBe(true);
+    expect(merged.alert.id).toBe(first.alert.id);
+  });
+
+  it('reactivateAlert enforces the cap atomically, closing the pause→create→reactivate bypass (W22 review fix)', async () => {
+    const userId = await seedUser('09130000102');
+    const rows = await tableRows('ibeam');
+    const a = await createAlert({
+      userId,
+      target: { type: 'sku', skuId: rows[0]!.id },
+      op: 'below',
+      threshold: rows[0]!.current.price - 1000,
+      channel: 'sms',
+      cap: 2,
+    });
+    const b = await createAlert({
+      userId,
+      target: { type: 'sku', skuId: rows[1]!.id },
+      op: 'below',
+      threshold: rows[1]!.current.price - 1000,
+      channel: 'sms',
+      cap: 2,
+    });
+    // Pause A to "free up" a slot, fill it with a third alert, then try to
+    // reactivate A — exactly the bypass the audit flagged: without this
+    // fix, the user would end up with 3 active alerts on a cap of 2.
+    await updateAlertStatus(a.alert.id, 'paused');
+    const c = await createAlert({
+      userId,
+      target: { type: 'sku', skuId: rows[2]!.id },
+      op: 'below',
+      threshold: rows[2]!.current.price - 1000,
+      channel: 'sms',
+      cap: 2,
+    });
+    expect(c.merged).toBe(false);
+
+    await expect(reactivateAlert(a.alert.id, userId, 2)).rejects.toBeInstanceOf(AlertCapExceededError);
+
+    // Still exactly 2 active alerts (B and C), not 3.
+    const mine = await alertsForUser(userId);
+    const active = mine.filter((x) => x.status === 'active').map((x) => x.id).sort();
+    expect(active).toEqual([b.alert.id, c.alert.id].sort());
+
+    // Pausing B first genuinely frees a slot — reactivating A now succeeds.
+    await updateAlertStatus(b.alert.id, 'paused');
+    const reactivated = await reactivateAlert(a.alert.id, userId, 2);
+    expect(reactivated?.status).toBe('active');
+  });
+
+  it('the DB-level partial unique indexes reject a duplicate active alert inserted outside the app layer (W22 review fix — the original single-index design silently enforced nothing)', async () => {
+    const userId = await seedUser('09130000103');
+    const rows = await tableRows('rebar');
+    const sku = rows[0]!;
+
+    await db.insert(schema.alerts).values({
+      id: ulid(),
+      userId,
+      targetType: 'sku',
+      skuId: sku.id,
+      op: 'below',
+      threshold: 12345,
+      status: 'active',
+    });
+    await expect(
+      db.insert(schema.alerts).values({
+        id: ulid(),
+        userId,
+        targetType: 'sku',
+        skuId: sku.id,
+        op: 'below',
+        threshold: 12345,
+        status: 'active',
+      }),
+    ).rejects.toThrow();
+
+    // Same guarantee for the market-type partial index.
+    await db.insert(schema.alerts).values({
+      id: ulid(),
+      userId,
+      targetType: 'market',
+      marketKey: 'eur',
+      op: 'above',
+      threshold: 999,
+      status: 'active',
+    });
+    await expect(
+      db.insert(schema.alerts).values({
+        id: ulid(),
+        userId,
+        targetType: 'market',
+        marketKey: 'eur',
+        op: 'above',
+        threshold: 999,
+        status: 'active',
+      }),
+    ).rejects.toThrow();
   });
 });
 

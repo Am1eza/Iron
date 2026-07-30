@@ -280,7 +280,7 @@ export async function seedDatabase(db: Db, opts: SeedOptions = {}): Promise<void
       scaleFee: SCALE_FEE,
       cities: CITIES,
     },
-    ALERT_MAX_ACTIVE_PER_USER: 20,
+    ALERT_TIER_CAPS: { base: 2, iron: 2, steel: 6, poolad: 10 },
   };
   for (const [key, value] of Object.entries(settingsSeed)) {
     await db

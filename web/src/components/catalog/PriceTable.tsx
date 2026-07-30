@@ -19,6 +19,7 @@ import { MovementBadge, DeliveryBadge, Switch, Chip } from '@/components/ui';
 import { IconButton } from '@/components/ui';
 import { Modal, PriceChart } from '@/components/lazy';
 import { ExportMenu } from './ExportMenu';
+import { AlertBellButton } from '@/components/alerts/AlertBellButton';
 import { HeartIcon, ChartIcon, PlusIcon, SortIcon } from '@/components/primitives/icons';
 import styles from './PriceTable.module.css';
 
@@ -99,6 +100,9 @@ const PriceTableRow = memo(function PriceTableRow({
             icon={<HeartIcon size={18} filled={isFav} />}
             onClick={() => onToggleFav(r.id)}
           />
+          <AlertBellButton
+            target={{ type: 'sku', skuId: r.id, label: r.name, currentValue: r.current.price }}
+          />
           <IconButton
             size="sm"
             label="نمودار قیمت"
@@ -129,13 +133,18 @@ const PriceTableCard = memo(function PriceTableCard({
         <Link href={routes.sku(r.categoryId, r.subCategoryId, r.slug)} className={styles.cardName}>
           {r.name}
         </Link>
-        <IconButton
-          size="sm"
-          label="علاقه‌مندی"
-          active={isFav}
-          icon={<HeartIcon size={18} filled={isFav} />}
-          onClick={() => onToggleFav(r.id)}
-        />
+        <div className={styles.cardTopActions}>
+          <AlertBellButton
+            target={{ type: 'sku', skuId: r.id, label: r.name, currentValue: r.current.price }}
+          />
+          <IconButton
+            size="sm"
+            label="علاقه‌مندی"
+            active={isFav}
+            icon={<HeartIcon size={18} filled={isFav} />}
+            onClick={() => onToggleFav(r.id)}
+          />
+        </div>
       </div>
       <div className={styles.cardPrice}>
         <span className={`${styles.price} tnum`}>

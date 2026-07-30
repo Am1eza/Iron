@@ -9,7 +9,7 @@ import styles from './admin.module.css';
 export type NavGroup = {
   /** null title = ungrouped top items (dashboard, my desk). */
   title: string | null;
-  items: Array<{ href: string; label: string; badge?: 'inbound' }>;
+  items: Array<{ href: string; label: string; badge?: 'inbound' | 'alerts' }>;
 };
 
 /**
@@ -27,14 +27,15 @@ export function AdminNavLinks({ groups, variant }: { groups: NavGroup[]; variant
     refetchInterval: 20_000,
   });
   const s = data?.stats;
-  const badgeCount = (kind?: 'inbound'): number => {
+  const badgeCount = (kind?: 'inbound' | 'alerts'): number => {
     if (!kind || !s) return 0;
+    if (kind === 'alerts') return s.triggeredAlerts ?? 0;
     // Everything that lands on the leads page's three tabs: fresh leads,
     // unhandled contact messages, open (un-quoted) requests.
     return (s.newLeads ?? 0) + (s.newMessages ?? 0) + (s.openRequests ?? 0);
   };
 
-  const renderItem = (item: { href: string; label: string; badge?: 'inbound' }) => {
+  const renderItem = (item: { href: string; label: string; badge?: 'inbound' | 'alerts' }) => {
     const active =
       item.href === '/admin'
         ? pathname === '/admin'

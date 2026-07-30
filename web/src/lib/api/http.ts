@@ -41,15 +41,20 @@ async function toApiError(res: Response): Promise<ApiError> {
   let message = 'خطایی رخ داد. دوباره تلاش کنید.';
   let fields: Record<string, string> | undefined;
   let code: string | undefined;
+  let details: Record<string, unknown> | undefined;
   try {
-    const body = (await res.json()) as { message?: string; fields?: Record<string, string>; error?: string };
+    const body = (await res.json()) as { message?: string; fields?: Record<string, string>; error?: string } & Record<
+      string,
+      unknown
+    >;
     if (body?.message) message = body.message;
     fields = body?.fields;
     code = body?.error;
+    details = body;
   } catch {
     /* keep the friendly default */
   }
-  return new ApiError(res.status, message, { fields, code });
+  return new ApiError(res.status, message, { fields, code, details });
 }
 
 function buildInit<T>(opts: RequestOptions<T>): RequestInit & { headers: Headers } {

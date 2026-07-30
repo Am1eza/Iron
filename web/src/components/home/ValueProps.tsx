@@ -1,4 +1,4 @@
-import { SparkIcon, TagIcon, BankIcon, BellIcon } from '@/components/primitives/icons';
+import { SparkIcon, TagIcon, BankIcon, CalendarIcon } from '@/components/primitives/icons';
 import { toPersianDigits } from '@/lib/utils/format';
 import styles from './ValueProps.module.css';
 
@@ -27,7 +27,10 @@ const STEPS = [
     text: 'تأمین رسمی از بورس کالا و کارخانه؛ برای خریدهای عمده، گشایش اعتبار اسنادی (LC) تا معاملهٔ بزرگ امن بماند.',
   },
   {
-    Icon: BellIcon,
+    // W22: was BellIcon — a bell on the homepage that had nothing to do with
+    // price alerts (the real bell-worthy feature) just muddied that icon's
+    // meaning everywhere else it's used for alerts.
+    Icon: CalendarIcon,
     title: 'تحویل زمان‌بندی‌شده',
     text: 'زمان تحویل هر کالا از قبل اعلام می‌شود و کارشناس انسانی تا لحظهٔ تخلیهٔ بار کنار شماست.',
   },

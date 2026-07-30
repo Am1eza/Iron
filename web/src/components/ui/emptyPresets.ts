@@ -71,12 +71,13 @@ export const emptyPresets = {
     showAi: true,
   }),
 
-  /** Account — alerts empty. No alert-creation UI exists yet anywhere in the
-   *  app (the feature's trigger point was never built), so this points at
-   *  browsing prices instead of a dead self-link. */
+  /** Account — alerts empty. Creation now lives on the bell (🔔) trigger next
+   *  to every price row (PriceTable), the SKU page hero and the market board
+   *  — not a dead self-link back here anymore (W22 fixed the actual gap; this
+   *  CTA just routes to a surface that now has the control on it). */
   alertsEmpty: (): Preset => ({
     headline: 'هشداری ندارید',
-    body: 'برای هر محصول یا دلار/طلا هشدار بگذارید تا خبرتان کنیم.',
+    body: 'روی آیکن 🔔 کنار هر محصول یا شاخص بازار بزنید تا با رسیدن قیمت به حد دلخواه، پیامک بگیرید.',
     primary: { label: 'مشاهدهٔ قیمت‌ها', href: routes.prices() },
   }),
 

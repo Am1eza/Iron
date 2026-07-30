@@ -1,0 +1,27 @@
+.live {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 0;
+  font: var(--t-body-sm);
+  color: var(--color-text);
+}
+.liveLabel {
+  color: var(--color-text-muted);
+}
+.distanceMuted {
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}
+.staleNote {
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-2);
+  margin: var(--space-4) 0 0;
+  flex-wrap: wrap;
+}

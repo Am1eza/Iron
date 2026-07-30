@@ -45,8 +45,8 @@ export const UserIcon = (p: IconProps) => (
     <path d="M4 20c0-3.5 3.6-6 8-6s8 2.5 8 6" />
   </Svg>
 );
-export const BellIcon = (p: IconProps) => (
-  <Svg {...p}>
+export const BellIcon = ({ filled, ...p }: IconProps & { filled?: boolean }) => (
+  <Svg {...p} fill={filled ? 'currentColor' : 'none'}>
     <path d="M6 9a6 6 0 1112 0c0 5 2 6 2 6H4s2-1 2-6z" />
     <path d="M10 20a2 2 0 004 0" />
   </Svg>
