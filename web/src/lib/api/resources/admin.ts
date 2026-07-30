@@ -221,6 +221,61 @@ export interface AllowlistEntryRow {
  *  the two numbers equal. */
 export const LEADS_EXPORT_MAX_ROWS = 5000;
 
+export interface AdminCategory {
+  id: string;
+  slug: string;
+  name: string;
+  order: number;
+  iconId: string;
+  imageUrl: string | null;
+  isActive: boolean;
+  /** Active descendants — the confirm dialog states these before hiding. */
+  subCount: number;
+  skuCount: number;
+}
+
+export interface AdminSubCategory {
+  id: string;
+  categoryId: string;
+  slug: string;
+  name: string;
+  order: number;
+  isActive: boolean;
+  skuCount: number;
+}
+
+export interface AdminSku {
+  id: string;
+  subCategoryId: string;
+  categoryId: string;
+  slug: string;
+  name: string;
+  standard: string | null;
+  size: string | null;
+  grade: string | null;
+  factory: string | null;
+  theoreticalWeightKg: number | null;
+  unit: 'kg' | 'branch' | 'sheet' | 'meter';
+  imageUrl: string | null;
+  isActive: boolean;
+}
+
+/** Nullable, not optional: `undefined` is "leave alone", `null` is "clear it".
+ *  Sending undefined for an emptied box is what used to make the field
+ *  un-clearable while still reporting success. */
+export interface AdminSkuInput {
+  subCategoryId: string;
+  slug: string;
+  name: string;
+  standard?: string | null;
+  size?: string | null;
+  grade?: string | null;
+  factory?: string | null;
+  theoreticalWeightKg?: number | null;
+  unit?: 'kg' | 'branch' | 'sheet' | 'meter';
+  imageUrl?: string | null;
+}
+
 export const adminApi = {
   stats: () => http.get<{ stats: AdminStats }>('/api/admin/stats'),
 
@@ -571,35 +626,66 @@ export const adminApi = {
   deleteArticle: (id: string) => http.del<{ ok: true }>(`/api/admin/articles/${id}`),
 
   /* catalog */
-  categories: () => http.get<{ categories: Array<{ id: string; slug: string; name: string; order: number; isActive: boolean }> }>('/api/admin/catalog/categories'),
-  createCategory: (input: { slug: string; name: string; order?: number }) =>
-    http.post<{ category: unknown }>('/api/admin/catalog/categories', input),
-  updateCategory: (id: string, patch: Partial<{ slug: string; name: string; order: number; isActive: boolean }>) =>
-    http.patch<{ category: unknown }>(`/api/admin/catalog/categories/${id}`, patch),
+  /* catalog — see components/admin/catalog. `iconId`/`imageUrl` and the
+     counts were all missing from these types, which is part of why the panel
+     could never edit them. */
+  categories: () =>
+    http.get<{ categories: AdminCategory[] }>('/api/admin/catalog/categories'),
+  createCategory: (input: { slug: string; name: string; order?: number; iconId?: string; imageUrl?: string | null }) =>
+    http.post<{ category: AdminCategory }>('/api/admin/catalog/categories', input),
+  updateCategory: (
+    id: string,
+    patch: Partial<{ slug: string; name: string; order: number; iconId: string; imageUrl: string | null; isActive: boolean }>,
+  ) => http.patch<{ category: AdminCategory }>(`/api/admin/catalog/categories/${id}`, patch),
   deactivateCategory: (id: string) => http.del<{ ok: true }>(`/api/admin/catalog/categories/${id}`),
+
   subCategories: (categoryId?: string) =>
-    http.get<{ subCategories: Array<{ id: string; categoryId: string; slug: string; name: string; order: number; isActive: boolean }> }>(
-      `/api/admin/catalog/subcategories${categoryId ? `?categoryId=${categoryId}` : ''}`,
+    http.get<{ subCategories: AdminSubCategory[] }>(
+      `/api/admin/catalog/subcategories${categoryId ? `?categoryId=${encodeURIComponent(categoryId)}` : ''}`,
     ),
   createSubCategory: (input: { categoryId: string; slug: string; name: string; order?: number }) =>
-    http.post<{ subCategory: unknown }>('/api/admin/catalog/subcategories', input),
-  updateSubCategory: (id: string, patch: Partial<{ slug: string; name: string; order: number; isActive: boolean }>) =>
-    http.patch<{ subCategory: unknown }>(`/api/admin/catalog/subcategories/${id}`, patch),
+    http.post<{ subCategory: AdminSubCategory }>('/api/admin/catalog/subcategories', input),
+  /** `categoryId` moves the sub to another category — the server re-parents
+   *  its products in the same call so the two can't drift apart. */
+  updateSubCategory: (
+    id: string,
+    patch: Partial<{ slug: string; name: string; order: number; categoryId: string; isActive: boolean }>,
+  ) => http.patch<{ subCategory: AdminSubCategory }>(`/api/admin/catalog/subcategories/${id}`, patch),
   deactivateSubCategory: (id: string) => http.del<{ ok: true }>(`/api/admin/catalog/subcategories/${id}`),
-  skus: (params: { categoryId?: string; subCategoryId?: string; q?: string; all?: boolean; page?: number } = {}) => {
+
+  skus: (params: {
+    categoryId?: string;
+    subCategoryId?: string;
+    q?: string;
+    status?: 'active' | 'inactive';
+    all?: boolean;
+    page?: number;
+  } = {}) => {
     const qs = new URLSearchParams();
     if (params.categoryId) qs.set('categoryId', params.categoryId);
     if (params.subCategoryId) qs.set('subCategoryId', params.subCategoryId);
     if (params.q) qs.set('q', params.q);
+    if (params.status) qs.set('status', params.status);
     if (params.all) qs.set('all', 'true');
     if (params.page) qs.set('page', String(params.page));
-    return http.get<{ rows: Array<{ sku: Record<string, unknown>; price: Record<string, unknown> | null }>; total: number }>(
-      `/api/admin/catalog/skus?${qs}`,
-    );
+    return http.get<{
+      rows: Array<{ sku: AdminSku; price: { price: number; updatedAt: string } | null }>;
+      total: number;
+      page: number;
+      perPage: number;
+    }>(`/api/admin/catalog/skus?${qs}`);
   },
-  createSku: (input: Record<string, unknown>) => http.post<{ sku: unknown }>('/api/admin/catalog/skus', input),
-  updateSku: (id: string, patch: Record<string, unknown>) => http.patch<{ sku: unknown }>(`/api/admin/catalog/skus/${id}`, patch),
+  createSku: (input: AdminSkuInput) => http.post<{ sku: AdminSku }>('/api/admin/catalog/skus', input),
+  updateSku: (id: string, patch: Partial<AdminSkuInput> & { isActive?: boolean }) =>
+    http.patch<{ sku: AdminSku }>(`/api/admin/catalog/skus/${id}`, patch),
   deactivateSku: (id: string) => http.del<{ ok: true }>(`/api/admin/catalog/skus/${id}`),
+  /** What retiring this product would disturb — drives the confirm dialog. */
+  skuImpact: (id: string) =>
+    http.get<{ openLeads: number; openOrders: number; activeAlerts: number; favorites: number; hasPrice: boolean }>(
+      `/api/admin/catalog/skus/${id}/impact`,
+    ),
+  /** Factory names already in use, for the form's datalist. */
+  catalogFactories: () => http.get<{ factories: string[] }>('/api/admin/catalog/factories'),
   /** Shared image upload (article cover, SKU photo) — content:write or catalog:write. */
   uploadImage: (file: File) => http.upload<{ url: string }>('/api/admin/upload', file),
 

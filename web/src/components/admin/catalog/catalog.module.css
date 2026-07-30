@@ -1,0 +1,221 @@
+/* Catalog manager (W24) — a persistent taxonomy rail beside a paginated SKU
+   index, replacing the two tabs that hid each other. Logical properties
+   throughout; the rail sits at the inline start, which is the RIGHT in RTL. */
+
+.shell {
+  display: grid;
+  grid-template-columns: minmax(240px, 280px) 1fr;
+  gap: var(--space-4);
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .shell {
+    grid-template-columns: 1fr;
+  }
+  .rail {
+    position: static;
+    max-block-size: none;
+  }
+}
+
+.rail {
+  position: sticky;
+  inset-block-start: var(--space-3);
+  max-block-size: calc(100vh - var(--space-6));
+  overflow-y: auto;
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  padding: var(--space-2);
+}
+
+.railHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border-block-end: var(--border-hairline) solid var(--color-hairline);
+  margin-block-end: var(--space-2);
+}
+
+.railTitle {
+  font: var(--t-body-sm);
+  font-weight: 600;
+  margin-inline-end: auto;
+}
+
+.node {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  inline-size: 100%;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  min-block-size: 34px;
+}
+
+.node:hover {
+  background: var(--color-surface-sunken);
+}
+
+.nodeOn {
+  background: var(--color-accent-tint);
+}
+
+.nodeOn:hover {
+  background: var(--color-accent-tint);
+}
+
+/* The node label is the filter control — a button, so it is keyboard
+   reachable and announces its pressed state. */
+.nodeLabel {
+  flex: 1;
+  min-inline-size: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: none;
+  border: 0;
+  padding: 0;
+  font: var(--t-body-sm);
+  color: var(--color-text);
+  text-align: start;
+  cursor: pointer;
+}
+
+.nodeName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nodeCount {
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.nodeInactive .nodeName {
+  color: var(--color-text-muted);
+  text-decoration: line-through;
+}
+
+.subNode {
+  padding-inline-start: var(--space-5);
+}
+
+.twisty {
+  background: none;
+  border: 0;
+  padding: 2px;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.twisty[aria-expanded='true'] svg {
+  transform: rotate(180deg);
+}
+
+.railFoot {
+  margin-block-start: var(--space-2);
+  padding: var(--space-2);
+  border-block-start: var(--border-hairline) solid var(--color-hairline);
+  display: grid;
+  gap: var(--space-2);
+}
+
+/* ---------------------------- drawer editor ---------------------------- */
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, var(--color-text) 45%, transparent);
+  z-index: 60;
+}
+
+.drawer {
+  position: fixed;
+  inset-block: 0;
+  inset-inline-start: 0;
+  inline-size: min(620px, 96vw);
+  background: var(--color-surface);
+  z-index: 61;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-lg, 0 0 40px rgb(0 0 0 / 25%));
+}
+
+.drawerHead {
+  padding: var(--space-4);
+  border-block-end: var(--border-hairline) solid var(--color-hairline);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.drawerBody {
+  padding: var(--space-4);
+  overflow-y: auto;
+  flex: 1;
+  display: grid;
+  gap: var(--space-4);
+  align-content: start;
+}
+
+.drawerFoot {
+  padding: var(--space-3) var(--space-4);
+  border-block-start: var(--border-hairline) solid var(--color-hairline);
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.footSpacer {
+  margin-inline-start: auto;
+}
+
+.fieldGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-3);
+}
+
+.groupTitle {
+  font: var(--t-body-sm);
+  font-weight: 600;
+  margin-block-end: var(--space-2);
+}
+
+.metaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.slugPreview {
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+  direction: ltr;
+  text-align: start;
+  word-break: break-all;
+}
+
+/* Product names mix Persian with Latin tokens (IPE 160, ST37). `dir="auto"`
+   would flip whole cells to LTR on those, so the direction is stated and the
+   run isolated instead. */
+.nameCell {
+  direction: rtl;
+  unicode-bidi: isolate;
+}
+
+.thumb {
+  inline-size: 34px;
+  block-size: 34px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: var(--border-hairline) solid var(--color-hairline);
+}
