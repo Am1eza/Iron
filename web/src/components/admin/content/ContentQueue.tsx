@@ -18,6 +18,7 @@ import { useFocusTrap } from '@/lib/hooks/useFocusTrap';
 import { useUnsavedGuard } from '@/lib/hooks/useUnsavedGuard';
 import { formatJalali } from '@/lib/utils/jalali';
 import { articleSlugify } from '@/lib/utils/articleSlug';
+import { MAX_ARTICLE_TAGS, normalizeArticleTags } from '@/lib/utils/articleTags';
 import { useToast } from '@/lib/hooks/useToast';
 import { ApiError } from '@/lib/api/errors';
 import { Alert, Badge, Button, Chip, EmptyState, Switch, TableSkeleton, Tabs, TabPanel, useConfirm } from '@/components/ui';
@@ -351,6 +352,7 @@ type Values = {
   bodyMd: string;
   coverUrl: string | null;
   authorId: string | null;
+  tags: string[];
   seoTitle: string;
   seoDescription: string;
   seoCanonical: string;
@@ -366,6 +368,7 @@ function emptyValues(defaultType: 'blog' | 'news'): Values {
     bodyMd: '',
     coverUrl: null,
     authorId: null,
+    tags: [],
     seoTitle: '',
     seoDescription: '',
     seoCanonical: '',
@@ -382,11 +385,84 @@ function fromArticle(a: ArticleFull): Values {
     bodyMd: a.bodyMd ?? '',
     coverUrl: a.coverUrl ?? null,
     authorId: a.authorId ?? null,
+    tags: a.tags ?? [],
     seoTitle: a.seo?.title ?? '',
     seoDescription: a.seo?.description ?? '',
     seoCanonical: a.seo?.canonical ?? '',
     seoOgImage: a.seo?.ogImage ?? '',
   };
+}
+
+/**
+ * Free-text tag chips. Enter or a comma commits what's typed; a pasted
+ * «میلگرد, تیرآهن» commits both at once.
+ *
+ * Every commit runs the SAME `normalizeArticleTags` the API route's zod
+ * transform runs, so the chips shown are exactly what will be stored — typing
+ * the Arabic-ي spelling of a tag already on the article visibly does nothing
+ * instead of appearing to add a second, identical-looking chip that the server
+ * would then silently drop.
+ *
+ * No autocomplete endpoint in v1 — free text is enough to start accumulating
+ * tags, and the public /blog/tag/[tag] route they'd feed is deliberately out
+ * of scope until it has an SEO story.
+ */
+function TagField({ value, onChange }: { value: string[]; onChange: (tags: string[]) => void }) {
+  const [draft, setDraft] = useState('');
+  const atLimit = value.length >= MAX_ARTICLE_TAGS;
+
+  const commit = (raw: string) => {
+    const next = normalizeArticleTags([...value, ...raw.split(',')]);
+    setDraft('');
+    // Reference-compare: committing a duplicate produces an equal list, and
+    // firing onChange with it would mark the form dirty for no change.
+    if (next.length !== value.length || next.some((t, i) => t !== value[i])) onChange(next);
+  };
+
+  return (
+    <div>
+      {value.length > 0 ? (
+        <div className={s.tagChips} aria-label="برچسب‌های ثبت‌شده">
+          {value.map((tag) => (
+            <Chip key={tag} onRemove={() => onChange(value.filter((t) => t !== tag))}>
+              {tag}
+            </Chip>
+          ))}
+        </div>
+      ) : null}
+      <TextInput
+        id="article-tags"
+        label="برچسب‌ها"
+        value={draft}
+        maxLength={40}
+        disabled={atLimit}
+        helper={
+          atLimit
+            ? `حداکثر ${toPersianDigitsSafe(MAX_ARTICLE_TAGS)} برچسب.`
+            : 'با Enter یا «،» ثبت می‌شود.'
+        }
+        onChange={(e) => {
+          const next = e.target.value;
+          // A comma anywhere (typed or pasted) is a commit, not a character.
+          if (next.includes(',') || next.includes('،')) commit(next.replace(/،/g, ','));
+          else setDraft(next);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            // The drawer has a primary save button; Enter here must add a tag,
+            // not submit the article.
+            e.preventDefault();
+            commit(draft);
+          } else if (e.key === 'Backspace' && draft === '' && value.length > 0) {
+            onChange(value.slice(0, -1));
+          }
+        }}
+        // A tag typed but not committed before clicking Save would otherwise be
+        // silently discarded — the editor sees it in the box and assumes it saved.
+        onBlur={() => commit(draft)}
+      />
+    </div>
+  );
 }
 
 function ArticleDrawer({
@@ -571,6 +647,7 @@ function ArticleDrawer({
         title: v.title.trim(),
         excerpt: v.excerpt.trim() || undefined,
         bodyMd: v.bodyMd,
+        tags: v.tags,
       }),
     onSuccess: (res) => {
       toast.success('پیش‌نویس ساخته شد؛ ادامه بدهید.');
@@ -592,6 +669,7 @@ function ArticleDrawer({
         bodyMd: v.bodyMd,
         coverUrl: v.coverUrl,
         authorId: v.authorId,
+        tags: v.tags,
         seo: seoPatch(),
       }),
     onSuccess: () => {
@@ -913,6 +991,7 @@ function ArticleDrawer({
                 ) : null}
               </div>
               <ImageUpload label="تصویر کاور" value={v.coverUrl} onChange={(url) => set({ coverUrl: url })} />
+              <TagField value={v.tags} onChange={(tags) => set({ tags })} />
             </div>
 
             {/* Everything below is for a non-technical admin's rare/one-time

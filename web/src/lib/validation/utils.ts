@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ARTICLE_SLUG_PATTERN } from '@/lib/utils/articleSlug';
+import { MAX_ARTICLE_TAGS, normalizeArticleTags } from '@/lib/utils/articleTags';
 
 export type FieldErrors = Record<string, string>;
 
@@ -115,6 +116,26 @@ export const uploadPathSchema = z
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'نشانی تصویر معتبر نیست.' });
     return z.NEVER;
   });
+
+/**
+ * Article tags, normalised at the boundary.
+ *
+ * The `.transform` is the point of this schema, not a nicety: without it
+ * «میلگرد» typed on an Arabic keyboard (ي, U+064A) and «میلگرد» typed on a
+ * Persian one (ی, U+06CC) are two different rows in the jsonb array that look
+ * identical in the panel, which is exactly the failure already documented for
+ * SKU factory names. Running it here means it holds for every writer of these
+ * endpoints, present and future — see `normalizeArticleTags`.
+ *
+ * The `.max()` is the pre-normalisation ceiling (a client sending 50 tags is
+ * misbehaving and should hear about it); `normalizeArticleTags` independently
+ * caps the stored result after de-duplication.
+ */
+export const articleTagsSchema = z
+  .array(z.string().trim().min(1).max(40))
+  .max(MAX_ARTICLE_TAGS)
+  .transform(normalizeArticleTags)
+  .optional();
 
 /** A patch body must actually change something — every field on these schemas
  *  is optional, so `{}` parsed fine and reached drizzle's `.set({})`, which

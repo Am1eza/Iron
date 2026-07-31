@@ -158,6 +158,14 @@
   font-weight: 600;
 }
 
+/* Committed tag chips, above the input that adds them. */
+.tagChips {
+  display: flex;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+  margin-block-end: var(--space-2);
+}
+
 .mdToolbar {
   display: flex;
   gap: var(--space-1);

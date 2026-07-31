@@ -5,7 +5,7 @@ import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/
 import { adminGetArticle, updateArticle, deleteDraftArticle } from '@/lib/server/repos/articlesRepo';
 import { DuplicateArticleSlugError } from '@/lib/server/repos/articlesRepo';
 import { safeRevalidatePath } from '@/lib/server/utils/revalidate';
-import { articleSlugSchema, uploadPathSchema } from '@/lib/validation/utils';
+import { articleSlugSchema, articleTagsSchema, uploadPathSchema } from '@/lib/validation/utils';
 import { createRedirect, RedirectLoopError } from '@/lib/server/repos/redirectsRepo';
 import { reportError } from '@/lib/errors/report';
 import { routes } from '@/lib/routes';
@@ -77,6 +77,7 @@ const patchPayload = z.object({
   bodyMd: z.string().max(100_000).optional(),
   coverUrl: z.preprocess((v) => (v === '' ? null : v), uploadPathSchema.nullable().optional()),
   authorId: z.string().min(1).nullable().optional(),
+  tags: articleTagsSchema,
   // Editor SEO overrides. Empty url fields → undefined so a blank input never
   // fails .url() (forms send '' for "unset").
   seo: z

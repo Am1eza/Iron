@@ -30,6 +30,13 @@ export const articles = pgTable(
     publishAt: timestamp('publish_at', { withTimezone: true }),
     relatedSkuIds: jsonb('related_sku_ids').$type<string[]>(),
     relatedCategoryIds: jsonb('related_category_ids').$type<string[]>(),
+    // Editorial labels. A flat `string[]` rather than a join table for the same
+    // reason as the two columns above: a tag has no attributes, no ordering and
+    // no per-tag metadata, so a join table would buy only cheap renaming at the
+    // cost of a repo, a migration and an N+1 on every list read. Nullable with
+    // no default — `null` and `[]` both mean untagged, and `toArticleDto`
+    // normalises both to `[]` so no consumer ever has to know the difference.
+    tags: jsonb('tags').$type<string[]>(),
     seo: jsonb('seo').$type<SeoMeta>(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -44,6 +51,12 @@ export const articles = pgTable(
     index('articles_title_trgm_idx').using('gin', sql`${t.title} gin_trgm_ops`),
     index('articles_excerpt_trgm_idx').using('gin', sql`${t.excerpt} gin_trgm_ops`),
     index('articles_body_trgm_idx').using('gin', sql`${t.bodyMd} gin_trgm_ops`),
+    // `jsonb_path_ops` rather than the default `jsonb_ops`: containment
+    // (`tags @> '["میلگرد"]'`) is the only query this index will ever serve,
+    // and jsonb_path_ops indexes just the hashed path+value, making it both
+    // smaller and faster for exactly that. It cannot serve key-existence
+    // (`?`) queries — which a `string[]` column has no use for anyway.
+    index('articles_tags_idx').using('gin', sql`${t.tags} jsonb_path_ops`),
   ],
 );
 

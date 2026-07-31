@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
-import { articleSlugSchema } from '@/lib/validation/utils';
+import { articleSlugSchema, articleTagsSchema } from '@/lib/validation/utils';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { adminListArticles, createArticle } from '@/lib/server/repos/articlesRepo';
 import { DuplicateArticleSlugError } from '@/lib/server/repos/articlesRepo';
@@ -32,6 +32,7 @@ const createPayload = z.object({
   title: z.string().trim().min(1).max(200),
   excerpt: z.string().trim().max(500).optional(),
   bodyMd: z.string().max(100_000).optional(),
+  tags: articleTagsSchema,
 });
 
 /** POST /api/admin/articles — create a draft. */

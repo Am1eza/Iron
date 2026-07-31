@@ -221,5 +221,9 @@ export interface Article {
    *  Optional: the mock catalog has no such field, and articleJsonLd falls
    *  back to `datePublished` when it's absent. */
   updatedAt?: string;
+  /** Editorial labels. Always an array on live reads — `toArticleDto`
+   *  normalises the column's `null` (untagged) to `[]`, so no consumer has to
+   *  branch on the difference. Optional only because the mock catalog omits it. */
+  tags?: string[];
   seo?: SeoMeta;
 }

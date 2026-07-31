@@ -25,6 +25,12 @@ export function toArticleDto(r: Row): Article {
     // notNull + defaultNow in the schema, so no null branch. Every PATCH
     // stamps it — including SEO-only edits, which is what the column means.
     updatedAt: r.updatedAt.toISOString(),
+    // The column is nullable with no default, so an article written before the
+    // tags migration reads back `null` while one saved with the chip input
+    // cleared reads back `[]` — the same thing, "untagged". Collapsing them
+    // here means no caller ever writes `article.tags?.length` and no caller
+    // ever gets it wrong.
+    tags: r.tags ?? [],
     seo: r.seo ?? undefined,
   };
 }
@@ -235,6 +241,7 @@ export async function createArticle(input: {
   bodyMd?: string;
   source?: 'ai' | 'human';
   authorId?: string;
+  tags?: string[];
 }): Promise<ArticleFull> {
   const rows = await asSlugConflict(() =>
     getDb()
@@ -248,6 +255,7 @@ export async function createArticle(input: {
       bodyMd: input.bodyMd ?? '',
       source: input.source ?? 'human',
       authorId: input.authorId ?? null,
+      tags: input.tags ?? null,
       status: 'draft',
     })
     .returning(),
@@ -270,6 +278,7 @@ export async function updateArticle(
     publishAt: Date | null;
     approvedBy: string | null;
     authorId: string | null;
+    tags: string[];
     seo: Row['seo'];
   }>,
 ): Promise<ArticleFull | null> {
