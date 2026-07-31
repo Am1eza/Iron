@@ -1,0 +1,57 @@
+{
+  "extends": ["stylelint-config-standard"],
+  "plugins": ["stylelint-declaration-strict-value", "stylelint-use-logical"],
+  "rules": {
+    "csstools/use-logical": [true, { "severity": "error" }],
+    "scale-unlimited/declaration-strict-value": [
+      ["/color$/", "background-color", "fill", "stroke"],
+      {
+        "ignoreValues": [
+          "transparent",
+          "currentColor",
+          "inherit",
+          "none",
+          "initial",
+          "unset",
+          "0"
+        ],
+        "disableFix": true
+      }
+    ],
+    "declaration-property-value-disallowed-list": {
+      "/.*/": ["/var\\(--[a-z0-9-]+,\\s*#[0-9a-fA-F]{3,8}\\)/"]
+    },
+
+    "custom-property-pattern": null,
+    "selector-class-pattern": null,
+    "no-descending-specificity": null,
+
+    "selector-pseudo-class-no-unknown": [
+      true,
+      { "ignorePseudoClasses": ["global", "local"] }
+    ],
+
+    "rule-empty-line-before": null,
+    "comment-empty-line-before": null,
+    "at-rule-empty-line-before": null,
+    "declaration-block-single-line-max-declarations": null,
+    "declaration-block-no-redundant-longhand-properties": null,
+    "media-feature-range-notation": null,
+    "alpha-value-notation": null,
+    "color-function-notation": null,
+    "color-hex-length": null,
+    "value-keyword-case": null,
+    "property-no-vendor-prefix": null,
+    "import-notation": null
+  },
+  "ignoreFiles": ["**/node_modules/**", ".next/**", "public/**"],
+  "overrides": [
+    {
+      "files": ["src/styles/tokens.css"],
+      "rules": {
+        "scale-unlimited/declaration-strict-value": null,
+        "csstools/use-logical": null
+      }
+    }
+  ]
+}

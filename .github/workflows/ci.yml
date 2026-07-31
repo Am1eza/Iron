@@ -46,6 +46,9 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      - name: Lint CSS (design tokens + RTL logical properties)
+        run: pnpm lint:css
+
       - name: Typecheck
         run: pnpm typecheck
 
