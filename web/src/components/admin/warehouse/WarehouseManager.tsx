@@ -13,6 +13,7 @@ import { ApiError } from '@/lib/api/errors';
 import { useAuthStore } from '@/lib/stores/auth';
 import { can } from '@/lib/auth/roles';
 import {
+  Alert,
   Badge,
   Button,
   Card,
@@ -689,7 +690,9 @@ function SettlementPanel({ items, canManage }: { items: AdminWarehouseItem[]; ca
     queryFn: () => adminApi.settlementCustomers(),
   });
   const customers = data?.customers ?? [];
-  const totalUnsettled = customers.reduce((sum, c) => sum + c.totalUnsettledToman, 0);
+  // The server's own sum across every active item — NOT a reduce over the
+  // rows on screen, which would silently become "total of what loaded".
+  const totalUnsettled = data?.grandTotalUnsettledToman ?? 0;
 
   return (
     <div style={{ display: 'grid', gap: 'var(--space-4)' }}>
@@ -704,6 +707,13 @@ function SettlementPanel({ items, canManage }: { items: AdminWarehouseItem[]; ca
         </Card>
       ) : null}
 
+      {data?.truncated ? (
+        <Alert tone="warning" title="فهرست ناقص است">
+          تعداد کالاهای فعال از سقف نمایش گذشته است؛ ارقام این صفحه فقط بخشی از انبار را پوشش می‌دهد و مجموع
+          واقعی بیشتر است. برای گزارش کامل با تیم فنی تماس بگیرید.
+        </Alert>
+      ) : null}
+
       {isLoading ? (
         <TableSkeleton rows={4} cols={4} />
       ) : isError ? (
@@ -716,7 +726,9 @@ function SettlementPanel({ items, canManage }: { items: AdminWarehouseItem[]; ca
       ) : customers.length === 0 ? (
         <EmptyState size="section" headline="کالای فعالی نیست" body="پس از ثبت کالای امانی، تسویه‌حساب هر مشتری اینجا جمع می‌شود." />
       ) : (
-        <div className={ui.tableWrap}>
+        <div>
+          <Text color="muted">{toPersianDigits(customers.length)} مشتری</Text>
+          <div className={ui.tableWrap}>
           <table className={ui.table}>
             <caption className="visually-hidden">گزارش تسویه‌حساب هزینهٔ انبار به تفکیک مشتری</caption>
             <thead>
@@ -760,6 +772,7 @@ function SettlementPanel({ items, canManage }: { items: AdminWarehouseItem[]; ca
               })}
             </tbody>
           </table>
+          </div>
         </div>
       )}
       {openCustomer ? (
@@ -784,9 +797,10 @@ function CustomerSettlementDetail({
   const qc = useQueryClient();
   const { confirm, dialog } = useConfirm();
   const [notes, setNotes] = useState<Record<string, string>>({});
+  const [historyPage, setHistoryPage] = useState(1);
   const { data, isLoading } = useQuery({
-    queryKey: ['admin', 'warehouse', 'settlement', userId],
-    queryFn: () => adminApi.settlementsForCustomer(userId),
+    queryKey: ['admin', 'warehouse', 'settlement', userId, historyPage],
+    queryFn: () => adminApi.settlementsForCustomer(userId, historyPage),
   });
 
   const invalidate = () => {
@@ -901,7 +915,7 @@ function CustomerSettlementDetail({
       )}
 
       <div style={{ marginBlockStart: 'var(--space-4)' }}>
-        <Text color="muted">تاریخچهٔ تسویه‌ها</Text>
+        <Text color="muted">تاریخچهٔ تسویه‌ها ({toPersianDigits(data.historyTotal)} رکورد)</Text>
       </div>
       {data.history.length === 0 ? (
         <p className={ui.muted}>هنوز تسویه‌ای ثبت نشده.</p>
@@ -929,7 +943,16 @@ function CustomerSettlementDetail({
                   {formatJalali(h.periodFrom)} تا {formatJalali(h.periodTo)} — {formatToman(h.amountToman)}
                   {h.note ? <span className={ui.muted}> · {h.note}</span> : null}
                 </span>
-                {isReversal ? <Badge tone="stale">اصلاحی</Badge> : null}
+                {isReversal ? (
+                  <>
+                    {/* Name the row this entry corrects. Paging can put a
+                        reversal and its original on different pages, and an
+                        unlabelled «اصلاحی» there reads as an unrelated
+                        outstanding charge. */}
+                    <span className={ui.muted}>اصلاحِ {shortSettlementRef(h.voidsSettlementId)}</span>
+                    <Badge tone="stale">اصلاحی</Badge>
+                  </>
+                ) : null}
                 {isVoided ? <Badge tone="loss">باطل‌شده</Badge> : null}
                 {h.paidAt ? <Badge tone="gain">پرداخت‌شده</Badge> : null}
                 {canManage && !isReversal && !isVoided ? (
@@ -949,7 +972,20 @@ function CustomerSettlementDetail({
           })}
         </ul>
       )}
+      <PagerFooter
+        page={data.historyPage}
+        perPage={data.historyPerPage}
+        total={data.historyTotal}
+        onPage={setHistoryPage}
+      />
       {dialog}
     </Card>
   );
+}
+
+/** Settlements have no human `ref` column — the id is a ULID. Its tail is
+ *  short, unique in practice and stable, which is all a reversal row needs to
+ *  point at the entry it corrects across a page boundary. */
+function shortSettlementRef(settlementId: string | null): string {
+  return settlementId ? `#${settlementId.slice(-6)}` : '—';
 }

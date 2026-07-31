@@ -14,6 +14,7 @@ import {
   createSettlement,
   lastSettlementFor,
   settlementsForUser,
+  settlementsPageForUser,
   customerSettlementOverview,
   voidSettlement,
   markSettlementPaid,
@@ -340,8 +341,8 @@ describe('customerSettlementOverview', () => {
     await seedItem({ userId, storedAt, monthlyFeeToman: 60_000 });
     await seedItem({ userId, storedAt, monthlyFeeToman: 30_000 });
 
-    const overview = await customerSettlementOverview();
-    const mine = overview.find((c) => c.userId === userId);
+    const { customers } = await customerSettlementOverview();
+    const mine = customers.find((c) => c.userId === userId);
     expect(mine).toBeDefined();
     expect(mine!.activeItemCount).toBe(2);
     expect(mine!.totalUnsettledToman).toBeGreaterThanOrEqual(449_000);
@@ -349,9 +350,52 @@ describe('customerSettlementOverview', () => {
   });
 
   it('is sorted by unsettled amount, largest first', async () => {
-    const overview = await customerSettlementOverview();
-    for (let i = 1; i < overview.length; i++) {
-      expect(overview[i - 1]!.totalUnsettledToman).toBeGreaterThanOrEqual(overview[i]!.totalUnsettledToman);
+    const { customers } = await customerSettlementOverview();
+    for (let i = 1; i < customers.length; i++) {
+      expect(customers[i - 1]!.totalUnsettledToman).toBeGreaterThanOrEqual(customers[i]!.totalUnsettledToman);
     }
+  });
+
+  it('grandTotalUnsettledToman equals the sum of the per-customer totals', async () => {
+    // The headline figure has to be the server's own sum over the same
+    // numbers the rows show — if these ever diverge, the admin is reading a
+    // total for a set that is not the one on screen.
+    const { customers, grandTotalUnsettledToman, truncated } = await customerSettlementOverview();
+    expect(customers.length).toBeGreaterThan(0);
+    expect(grandTotalUnsettledToman).toBe(customers.reduce((sum, c) => sum + c.totalUnsettledToman, 0));
+    // Nowhere near the 2000-item cap in this fixture.
+    expect(truncated).toBe(false);
+  });
+});
+
+describe('settlementsPageForUser (admin ledger paging)', () => {
+  it('pages newest-first with an exact total, and leaves settlementsForUser complete', async () => {
+    const userId = await seedUser('09130000021');
+    const storedAt = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
+    const item = await seedItem({ userId, storedAt, monthlyFeeToman: 60_000 });
+    // Five settlements with strictly increasing periodTo — the ordering key.
+    for (let i = 5; i >= 1; i--) {
+      await createSettlement(item.id, null, { periodTo: new Date(Date.now() - i * 24 * 60 * 60 * 1000) });
+    }
+
+    const p1 = await settlementsPageForUser(userId, 1, 2);
+    expect(p1.total).toBe(5);
+    expect(p1.page).toBe(1);
+    expect(p1.perPage).toBe(2);
+    expect(p1.rows).toHaveLength(2);
+
+    const p2 = await settlementsPageForUser(userId, 2, 2);
+    expect(p2.total).toBe(5);
+    expect(p2.rows).toHaveLength(2);
+    // Page 2 continues strictly below page 1 — newest-first is preserved
+    // across the boundary, with no overlap.
+    expect(p1.rows[1]!.periodTo.getTime()).toBeGreaterThanOrEqual(p2.rows[0]!.periodTo.getTime());
+    expect(new Set([...p1.rows, ...p2.rows].map((r) => r.id)).size).toBe(4);
+
+    const p3 = await settlementsPageForUser(userId, 3, 2);
+    expect(p3.rows).toHaveLength(1); // remainder
+
+    // The unpaged sibling is untouched: /api/me/export still gets all of it.
+    expect(await settlementsForUser(userId)).toHaveLength(5);
   });
 });

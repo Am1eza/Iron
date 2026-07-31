@@ -4,7 +4,7 @@
  *  - Promote a flagged answer into a curated "golden" correction, which the
  *    advisor then retrieves into its grounded context (searchGuides) so future
  *    similar questions get the vetted answer. This is how it improves over time. */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api/resources/admin';
 import { toPersianDigits } from '@/lib/utils/format';
@@ -13,6 +13,7 @@ import { useToast } from '@/lib/hooks/useToast';
 import { ApiError } from '@/lib/api/errors';
 import { Badge, Button, Chip, EmptyState, Modal, Switch, TableSkeleton } from '@/components/ui';
 import { TextInput, Textarea } from '@/components/forms/fields';
+import { PagerFooter } from '../PagerFooter';
 import ui from '../adminUi.module.css';
 
 const RATING_FILTERS = [
@@ -242,9 +243,10 @@ function CorrectionsLibrary() {
   const toast = useToast();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [page, setPage] = useState(1);
   const { data, isLoading } = useQuery({
-    queryKey: ['admin', 'ai-corrections'],
-    queryFn: () => adminApi.aiCorrections(),
+    queryKey: ['admin', 'ai-corrections', page],
+    queryFn: () => adminApi.aiCorrections(page),
     enabled: open,
   });
   const toggle = useMutation({
@@ -255,12 +257,30 @@ function CorrectionsLibrary() {
     onError: (err) => toast.error(err instanceof ApiError ? err.message : 'تغییر وضعیت ناموفق بود.'),
   });
   const corrections = data?.corrections ?? [];
+  const total = data?.total ?? 0;
+  const perPage = data?.perPage ?? 50;
+
+  // Closing the panel resets the page — both queries are `enabled: open`, so
+  // without this, re-opening lands on a stale page 3 of a list the admin last
+  // looked at minutes ago.
+  useEffect(() => {
+    if (!open) setPage(1);
+  }, [open]);
+
+  // Deactivating rows never shrinks this list, but a smaller perPage from the
+  // server (or a deletion elsewhere) can leave `page` past the last page —
+  // that's a permanently empty table whose only escape is «قبلی».
+  // PagerFooter does not self-correct.
+  const pageCount = Math.max(1, Math.ceil(total / perPage));
+  useEffect(() => {
+    if (data && page > pageCount) setPage(pageCount);
+  }, [data, page, pageCount]);
 
   return (
     <div style={{ marginBlockStart: 'var(--space-8)' }}>
       <div className={ui.toolbar}>
         <Button size="sm" variant="ghost" onClick={() => setOpen((v) => !v)}>
-          {open ? 'بستن کتابخانهٔ پاسخ‌های تأییدشده' : `کتابخانهٔ پاسخ‌های تأییدشده${corrections.length ? ` (${corrections.length})` : ''}`}
+          {open ? 'بستن کتابخانهٔ پاسخ‌های تأییدشده' : `کتابخانهٔ پاسخ‌های تأییدشده${total ? ` (${total})` : ''}`}
         </Button>
       </div>
       {open &&
@@ -269,6 +289,8 @@ function CorrectionsLibrary() {
         ) : corrections.length === 0 ? (
           <EmptyState size="section" headline="هنوز پاسخ تأییدشده‌ای ثبت نشده" body="از دکمهٔ «ثبت پاسخ درست» روی بازخوردها استفاده کنید." />
         ) : (
+          <>
+          <p className={ui.muted}>{toPersianDigits(total)} پاسخ تأییدشده</p>
           <div className={ui.tableWrap}><table className={ui.table}>
             <caption className="visually-hidden">کتابخانهٔ پاسخ‌های تأییدشدهٔ دستیار</caption>
             <thead>
@@ -294,6 +316,8 @@ function CorrectionsLibrary() {
               ))}
             </tbody>
           </table></div>
+          <PagerFooter page={page} perPage={perPage} total={total} onPage={setPage} />
+          </>
         ))}
     </div>
   );
@@ -367,9 +391,10 @@ function EvalCandidatesQueue() {
   const toast = useToast();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [page, setPage] = useState(1);
   const { data, isLoading } = useQuery({
-    queryKey: ['admin', 'ai-eval-candidates'],
-    queryFn: () => adminApi.evalCandidates('pending'),
+    queryKey: ['admin', 'ai-eval-candidates', page],
+    queryFn: () => adminApi.evalCandidates('pending', page),
     enabled: open,
   });
   const setStatus = useMutation({
@@ -381,12 +406,29 @@ function EvalCandidatesQueue() {
     onError: (err) => toast.error(err instanceof ApiError ? err.message : 'به‌روزرسانی ناموفق بود.'),
   });
   const candidates = data?.candidates ?? [];
+  const total = data?.total ?? 0;
+  const perPage = data?.perPage ?? 50;
+
+  // The query is `enabled: open`; without this reset, re-opening the queue
+  // lands on a stale page number.
+  useEffect(() => {
+    if (!open) setPage(1);
+  }, [open]);
+
+  // Promoting/dismissing moves a row out of `pending`, so the list shrinks
+  // under the admin — after the refetch `page` can sit past the last page and
+  // the table is permanently empty with only «قبلی» to escape. PagerFooter
+  // does not self-correct this.
+  const pageCount = Math.max(1, Math.ceil(total / perPage));
+  useEffect(() => {
+    if (data && page > pageCount) setPage(pageCount);
+  }, [data, page, pageCount]);
 
   return (
     <div style={{ marginBlockStart: 'var(--space-8)' }}>
       <div className={ui.toolbar}>
         <Button size="sm" variant="ghost" onClick={() => setOpen((v) => !v)}>
-          {open ? 'بستن صف سناریوهای eval' : `صف سناریوهای eval${candidates.length ? ` (${candidates.length})` : ''}`}
+          {open ? 'بستن صف سناریوهای eval' : `صف سناریوهای eval${total ? ` (${total})` : ''}`}
         </Button>
       </div>
       {open &&
@@ -399,6 +441,8 @@ function EvalCandidatesQueue() {
             body="از دکمهٔ «علامت‌گذاری برای eval» روی بازخوردهای 👎 استفاده کنید."
           />
         ) : (
+          <>
+          <p className={ui.muted}>{toPersianDigits(total)} مورد در صف</p>
           <div className={ui.tableWrap}><table className={ui.table}>
             <caption className="visually-hidden">صف سناریوهای در انتظار تبدیل به eval</caption>
             <thead>
@@ -438,6 +482,8 @@ function EvalCandidatesQueue() {
               ))}
             </tbody>
           </table></div>
+          <PagerFooter page={page} perPage={perPage} total={total} onPage={setPage} />
+          </>
         ))}
     </div>
   );

@@ -27,7 +27,7 @@
  * reversing entries when anchoring the next period, so voiding a settlement
  * genuinely reopens that period for real billing again.
  */
-import { and, desc, eq, isNull } from 'drizzle-orm';
+import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { getDb, type DbOrTx } from '@/lib/server/db/client';
 import { warehouseItems, warehouseSettlements, users } from '@/lib/server/db/schema';
@@ -259,12 +259,52 @@ export async function markSettlementPaid(
   return rows[0] ?? null;
 }
 
+/** A customer's COMPLETE settlement ledger — deliberately unpaged, and it
+ *  must stay that way. Its callers are the ones that need all of it:
+ *  GET /api/me/export (the customer's personal-data export, which is a legal
+ *  obligation and would be quietly falsified by a LIMIT) and
+ *  GET /api/me/warehouse/settlements. The admin screen, which does want
+ *  pages, uses settlementsPageForUser below instead. */
 export async function settlementsForUser(userId: string): Promise<WarehouseSettlementRow[]> {
   return getDb()
     .select()
     .from(warehouseSettlements)
     .where(eq(warehouseSettlements.userId, userId))
     .orderBy(desc(warehouseSettlements.periodTo));
+}
+
+/** One page of a customer's settlement ledger, for the admin screen — a
+ *  SIBLING of settlementsForUser, never a replacement: that one is shared
+ *  with the personal-data export and must keep returning everything.
+ *
+ *  OFFSET, not a cursor. The tempting argument is "an append-only ledger's
+ *  cursor never shifts", but the ordering key is periodTo — the billing
+ *  period's end, not insert time — so a correction settling an older period
+ *  sorts into the MIDDLE of the list, not onto the end. The stability the
+ *  cursor argument depends on simply isn't there. Offset also yields a real
+ *  total and the ability to jump pages, which reconciliation needs. */
+export async function settlementsPageForUser(
+  userId: string,
+  page = 1,
+  perPage = 50,
+): Promise<{ rows: WarehouseSettlementRow[]; total: number; page: number; perPage: number }> {
+  const db = getDb();
+  const safePage = Math.max(1, Math.trunc(page) || 1);
+  const safePerPage = Math.max(1, Math.trunc(perPage) || 50);
+  const where = eq(warehouseSettlements.userId, userId);
+  const [rows, counted] = await Promise.all([
+    db
+      .select()
+      .from(warehouseSettlements)
+      .where(where)
+      // `id` breaks ties so offset paging is deterministic when several
+      // settlements share a periodTo.
+      .orderBy(desc(warehouseSettlements.periodTo), desc(warehouseSettlements.id))
+      .limit(safePerPage)
+      .offset((safePage - 1) * safePerPage),
+    db.select({ n: sql<number>`count(*)`.mapWith(Number) }).from(warehouseSettlements).where(where),
+  ]);
+  return { rows, total: counted[0]?.n ?? 0, page: safePage, perPage: safePerPage };
 }
 
 export interface CustomerSettlementOverview {
@@ -275,23 +315,64 @@ export interface CustomerSettlementOverview {
   totalUnsettledToman: number;
 }
 
+export interface CustomerSettlementOverviewResult {
+  customers: CustomerSettlementOverview[];
+  /** Sum of every customer's totalUnsettledToman, computed here where the
+   *  per-item numbers are already in hand. The headline figure is then
+   *  authoritative rather than "the sum of whatever the client happened to
+   *  have loaded". */
+  grandTotalUnsettledToman: number;
+  /** True when the active-item count exceeded ITEM_CAP and the numbers above
+   *  therefore cover only part of the warehouse. Surfaced to the admin — a
+   *  silently truncated money figure is worse than no figure. */
+  truncated: boolean;
+}
+
+/** The point past which the docstring's "the number of consignment customers
+ *  is small" has stopped being true. Beyond this the in-memory aggregation
+ *  needs to become a SQL GROUP BY; until then, say so out loud instead of
+ *  timing out. */
+const ITEM_CAP = 2000;
+
 /** One row per customer with at least one active (non-deleted) warehouse
  *  item, plus their total currently-unsettled amount across all of them —
  *  the admin's "who do I need to settle with" starting point. In-memory
- *  aggregation over adminListWarehouse's rows rather than a SQL GROUP BY:
- *  the number of consignment customers is small, and the per-item unsettled
- *  calc already needs one query per item's last settlement either way. */
-export async function customerSettlementOverview(): Promise<CustomerSettlementOverview[]> {
+ *  aggregation rather than a SQL GROUP BY: the number of consignment
+ *  customers is small, and the per-item unsettled calc already needs one
+ *  query per item's last settlement either way.
+ *
+ *  Those per-item queries are issued as ONE BATCH (Promise.all), not
+ *  serially. They are independent of each other — nothing about item N's
+ *  last settlement informs item N+1's — so awaiting them in a loop bought
+ *  nothing and cost n sequential round-trips, making page latency
+ *  n × RTT instead of ~1 × RTT. Same queries, same semantics, same results;
+ *  only the waiting is gone.
+ *
+ *  Note that pagination would NOT have helped here: the expensive work is
+ *  the per-item fan-out, and a LIMIT/OFFSET on the OUTPUT would slice the
+ *  array after all of it had already happened — identical latency and DB
+ *  load, less information on screen. */
+export async function customerSettlementOverview(): Promise<CustomerSettlementOverviewResult> {
   const db = getDb();
-  const items = await db
+  const rawItems = await db
     .select({ item: warehouseItems, name: users.name, mobile: users.mobile })
     .from(warehouseItems)
     .innerJoin(users, eq(warehouseItems.userId, users.id))
-    .where(isNull(warehouseItems.deletedAt));
+    .where(isNull(warehouseItems.deletedAt))
+    // Deterministic order so the capped subset is stable between reloads.
+    .orderBy(warehouseItems.id)
+    .limit(ITEM_CAP + 1);
+
+  const truncated = rawItems.length > ITEM_CAP;
+  const items = truncated ? rawItems.slice(0, ITEM_CAP) : rawItems;
+
+  const summaries = await Promise.all(items.map((row) => unsettledFor(row.item)));
 
   const byUser = new Map<string, CustomerSettlementOverview>();
-  for (const row of items) {
-    const summary = await unsettledFor(row.item);
+  let grandTotalUnsettledToman = 0;
+  items.forEach((row, i) => {
+    const summary = summaries[i]!;
+    grandTotalUnsettledToman += summary.amountToman;
     const existing = byUser.get(row.item.userId);
     if (existing) {
       existing.activeItemCount += 1;
@@ -305,6 +386,11 @@ export async function customerSettlementOverview(): Promise<CustomerSettlementOv
         totalUnsettledToman: summary.amountToman,
       });
     }
-  }
-  return [...byUser.values()].sort((a, b) => b.totalUnsettledToman - a.totalUnsettledToman);
+  });
+
+  return {
+    customers: [...byUser.values()].sort((a, b) => b.totalUnsettledToman - a.totalUnsettledToman),
+    grandTotalUnsettledToman,
+    truncated,
+  };
 }

@@ -564,11 +564,19 @@ export const adminApi = {
    * ledger, not a point-in-time report: each settlement freezes the period +
    * qty/fee snapshot it covers; mistakes are corrected with a reversing
    * entry (void), never edited or deleted. */
+  /** `grandTotalUnsettledToman` is the server's own sum over every active
+   *  item — authoritative, unlike a client-side reduce over the rows that
+   *  happened to load. `truncated` means the item cap was hit and the figures
+   *  cover only part of the warehouse. */
   settlementCustomers: () =>
-    http.get<{ customers: Array<{ userId: string; name: string | null; mobile: string; activeItemCount: number; totalUnsettledToman: number }> }>(
-      '/api/admin/warehouse/settlements/customers',
-    ),
-  settlementsForCustomer: (userId: string) =>
+    http.get<{
+      customers: Array<{ userId: string; name: string | null; mobile: string; activeItemCount: number; totalUnsettledToman: number }>;
+      grandTotalUnsettledToman: number;
+      truncated: boolean;
+    }>('/api/admin/warehouse/settlements/customers'),
+  /** `history` stays a plain array (additive paging fields alongside it), so
+   *  this stayed source-compatible for existing readers. */
+  settlementsForCustomer: (userId: string, historyPage = 1) =>
     http.get<{
       user: { id: string; name: string | null; mobile: string };
       unsettled: Array<{
@@ -596,7 +604,10 @@ export const adminApi = {
         voidsSettlementId: string | null;
         createdAt: string;
       }>;
-    }>(`/api/admin/warehouse/settlements?userId=${userId}`),
+      historyTotal: number;
+      historyPage: number;
+      historyPerPage: number;
+    }>(`/api/admin/warehouse/settlements?userId=${userId}&historyPage=${historyPage}`),
   createSettlement: (warehouseItemId: string, note?: string, periodTo?: string) =>
     http.post<{ settlement: unknown }>('/api/admin/warehouse/settlements', { warehouseItemId, note, periodTo }),
   voidSettlement: (id: string, reason?: string) =>
@@ -765,7 +776,12 @@ export const adminApi = {
     http.get<{ columns: string[]; rows: Array<{ label: string; size: number; cells: (number | null)[] }> }>(
       '/api/admin/stats/cohorts',
     ),
-  verifications: () => http.get<{ pending: PendingVerificationRow[] }>('/api/admin/verifications'),
+  /** `total` counts review ITEMS, not users — a user with both a personal and
+   *  a business submission pending is two of them. */
+  verifications: (page = 1) =>
+    http.get<{ pending: PendingVerificationRow[]; total: number; page: number; perPage: number }>(
+      `/api/admin/verifications?page=${page}`,
+    ),
   reviewVerification: (userId: string, kind: 'id' | 'biz', decision: 'approved' | 'rejected') =>
     http.patch<{ ok: true; verificationLevel: number }>(`/api/admin/verifications/${userId}`, { kind, decision }),
   allowlist: () =>
@@ -842,7 +858,7 @@ export const adminApi = {
     http.get<{ messages: Array<{ id: string; role: 'user' | 'assistant'; content: string; createdAt: string }> }>(
       `/api/admin/ai/conversations/${id}`,
     ),
-  aiCorrections: () =>
+  aiCorrections: (page = 1) =>
     http.get<{
       corrections: Array<{
         id: string;
@@ -852,7 +868,10 @@ export const adminApi = {
         isActive: boolean;
         createdAt: string;
       }>;
-    }>('/api/admin/ai/corrections'),
+      total: number;
+      page: number;
+      perPage: number;
+    }>(`/api/admin/ai/corrections?page=${page}`),
   createCorrection: (input: { question: string; answer: string; sourceMessageId?: string }) =>
     http.post<{ correction: unknown }>('/api/admin/ai/corrections', input),
   setCorrectionActive: (id: string, isActive: boolean) =>
@@ -863,7 +882,7 @@ export const adminApi = {
     }>(`/api/admin/ai/usage?days=${days}`),
   /** Eval-candidate queue (US-05.4) — a review queue for manually authoring
    *  a real evals.test.ts scenario, not an auto-write into the test file. */
-  evalCandidates: (status?: 'pending' | 'promoted' | 'dismissed') =>
+  evalCandidates: (status?: 'pending' | 'promoted' | 'dismissed', page = 1) =>
     http.get<{
       candidates: Array<{
         id: string;
@@ -875,7 +894,10 @@ export const adminApi = {
         status: 'pending' | 'promoted' | 'dismissed';
         createdAt: string;
       }>;
-    }>(`/api/admin/ai/eval-candidates${status ? `?status=${status}` : ''}`),
+      total: number;
+      page: number;
+      perPage: number;
+    }>(`/api/admin/ai/eval-candidates?page=${page}${status ? `&status=${status}` : ''}`),
   createEvalCandidate: (input: { conversationId?: string; messageId?: string; question: string; badAnswer: string; note?: string }) =>
     http.post<{ candidate: unknown }>('/api/admin/ai/eval-candidates', input),
   setEvalCandidateStatus: (id: string, status: 'pending' | 'promoted' | 'dismissed') =>

@@ -5,7 +5,7 @@ import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/
 import { warehouseForUser } from '@/lib/server/repos/ordersRepo';
 import {
   unsettledFor,
-  settlementsForUser,
+  settlementsPageForUser,
   createSettlement,
   NothingToSettleError,
   ItemPendingError,
@@ -35,8 +35,16 @@ async function GETImpl(req: NextRequest) {
   // No status filter: a 'released' item can still have an unsettled final
   // stretch owed — it stops accruing NEW fees on its own (the stop-clock),
   // but that final stretch still needs settling, so it stays in this list.
-  const [items, history] = await Promise.all([warehouseForUser(userId), settlementsForUser(userId)]);
-  if (items.length === 0 && history.length === 0) {
+  // settlementsPageForUser, NOT settlementsForUser: this screen wants pages,
+  // but that function is shared with the customer's personal-data export
+  // (GET /api/me/export), which must stay complete. See both docstrings.
+  const p = req.nextUrl.searchParams;
+  const historyPage = Math.max(1, Number(p.get('historyPage') ?? 1) || 1);
+  const [items, history] = await Promise.all([
+    warehouseForUser(userId),
+    settlementsPageForUser(userId, historyPage),
+  ]);
+  if (items.length === 0 && history.total === 0) {
     return NextResponse.json({ error: 'not_found', message: 'کاربر یا سابقهٔ انباری یافت نشد.' }, { status: 404 });
   }
   const { users } = await import('@/lib/server/db/schema');
@@ -50,8 +58,17 @@ async function GETImpl(req: NextRequest) {
     .where(and(eq(warehouseItems.userId, userId), isNull(warehouseItems.deletedAt)));
   const unsettled = await Promise.all(rawItems.map((r) => unsettledFor(r)));
 
+  // Additive shape: `history` stays a plain array, so every existing reader
+  // of it keeps working; the paging facts ride alongside it.
   return NextResponse.json(
-    { user, unsettled, history },
+    {
+      user,
+      unsettled,
+      history: history.rows,
+      historyTotal: history.total,
+      historyPage: history.page,
+      historyPerPage: history.perPage,
+    },
     { headers: { 'Cache-Control': 'no-store' } },
   );
 }
