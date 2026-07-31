@@ -3,7 +3,7 @@
  * Content queue — AI drafts → editor approval → publish/schedule. Selecting a
  * row opens the editor (title/slug/excerpt/bodyMd) with a markdown-lite preview.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { adminApi, type ArticleFull } from '@/lib/api/resources/admin';
 import { formatJalali } from '@/lib/utils/jalali';
@@ -14,6 +14,7 @@ import { TextInput, Textarea } from '@/components/forms/fields';
 import { ImageUpload } from '../ImageUpload';
 import { MarkdownProse } from '@/components/content/ArticleBody';
 import { JalaliDateField } from '../JalaliDateField';
+import { useUnsavedGuard } from '@/lib/hooks/useUnsavedGuard';
 import ui from '../adminUi.module.css';
 
 /**
@@ -53,6 +54,48 @@ export function ContentQueue() {
   const [status, setStatus] = useState('draft');
   const [type, setType] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const { confirm, dialog: leaveDialog } = useConfirm();
+  /**
+   * Dirtiness lives HERE, not in ArticleEditor.
+   *
+   * The editor is keyed by `selectedId`, which is what stops article A's text
+   * being written onto article B — but it also means the editor unmounts the
+   * instant the selection changes, so it can never guard its own exit. An
+   * afternoon of prose used to disappear on a stray row click, a tab switch,
+   * or a sidebar link, with no prompt at all.
+   */
+  const dirtyRef = useRef(false);
+
+  const confirmLeave = useCallback(
+    () =>
+      confirm({
+        title: 'رهاکردن ویرایش؟',
+        body: 'متن ذخیره‌نشدهٔ این مقاله از بین می‌رود. ادامه می‌دهید؟',
+        confirmLabel: 'رهاکن و ادامه بده',
+      }),
+    [confirm],
+  );
+
+  /** Every path that unmounts the editor routes through here. */
+  const guarded = useCallback(
+    (apply: () => void) => {
+      if (!dirtyRef.current) {
+        apply();
+        return;
+      }
+      void confirmLeave().then((ok) => {
+        if (ok) {
+          dirtyRef.current = false;
+          apply();
+        }
+      });
+    },
+    [confirmLeave],
+  );
+
+  // The admin Command Palette and sidebar navigate with router.push(), which
+  // no beforeunload can see — this is the hook that exists for exactly that.
+  useUnsavedGuard(true, () => (dirtyRef.current ? confirmLeave() : Promise.resolve(true)));
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin', 'articles', status, type],
@@ -62,7 +105,8 @@ export function ContentQueue() {
 
   return (
     <div>
-      <Tabs items={STATUS_TABS} active={status} onChange={(s) => { setStatus(s); setSelectedId(null); }} label="وضعیت محتوا" idBase="content" />
+      {leaveDialog}
+      <Tabs items={STATUS_TABS} active={status} onChange={(s) => guarded(() => { setStatus(s); setSelectedId(null); })} label="وضعیت محتوا" idBase="content" />
       {STATUS_TABS.map((t) => (
         <TabPanel key={t.id} id={t.id} active={status} idBase="content">
           <div style={{ paddingBlockStart: 'var(--space-4)' }}>
@@ -90,7 +134,7 @@ export function ContentQueue() {
                 <tbody>
                   {articles.map((a) => {
                     const isOpen = selectedId === a.id;
-                    const toggle = () => setSelectedId(isOpen ? null : a.id);
+                    const toggle = () => guarded(() => setSelectedId(isOpen ? null : a.id));
                     return (
                     <tr
                       key={a.id}
@@ -121,7 +165,19 @@ export function ContentQueue() {
                 </tbody>
               </table></div>
             )}
-            {selectedId ? <ArticleEditor key={selectedId} id={selectedId} onDone={() => setSelectedId(null)} /> : null}
+            {selectedId ? (
+              <ArticleEditor
+                key={selectedId}
+                id={selectedId}
+                onDone={() => {
+                  dirtyRef.current = false;
+                  setSelectedId(null);
+                }}
+                onDirtyChange={(d) => {
+                  dirtyRef.current = d;
+                }}
+              />
+            ) : null}
           </div>
         </TabPanel>
       ))}
@@ -171,11 +227,25 @@ function NewArticleButton({ onCreated }: { onCreated: (a: ArticleFull) => void }
   );
 }
 
-function ArticleEditor({ id, onDone }: { id: string; onDone: () => void }) {
+function ArticleEditor({
+  id,
+  onDone,
+  onDirtyChange,
+}: {
+  id: string;
+  onDone: () => void;
+  onDirtyChange: (dirty: boolean) => void;
+}) {
   const toast = useToast();
   const qc = useQueryClient();
   const { confirm, dialog } = useConfirm();
   const [draft, setDraft] = useState<Partial<ArticleFull> | null>(null);
+
+  // The parent owns the navigation guards; it only needs to know IF there is
+  // unsaved text, never what it is.
+  useEffect(() => {
+    onDirtyChange(Boolean(draft));
+  }, [draft, onDirtyChange]);
   const [schedule, setSchedule] = useState('');
   const [scheduleTime, setScheduleTime] = useState('09:00');
   const [preview, setPreview] = useState(false);
@@ -387,7 +457,31 @@ function ArticleEditor({ id, onDone }: { id: string; onDone: () => void }) {
                   size="sm"
                   variant="ghost"
                   disabled={!schedule}
-                  onClick={() => publish.mutate(new Date(`${schedule}T${scheduleTime || '09:00'}:00`).toISOString())}
+                  loading={publish.isPending}
+                  onClick={() => {
+                    // The publish endpoint treats a past date as "publish now",
+                    // and this button used to fire straight into it with no
+                    // confirm, no pending state and no warning about unsaved
+                    // text — then closed the panel, taking the draft with it.
+                    const at = new Date(`${schedule}T${scheduleTime || '09:00'}:00`);
+                    if (Number.isNaN(at.getTime())) {
+                      toast.error('تاریخ یا ساعت انتشار معتبر نیست.');
+                      return;
+                    }
+                    if (at.getTime() <= Date.now()) {
+                      toast.error('زمان انتشار باید در آینده باشد؛ برای انتشار فوری از «انتشار اکنون» استفاده کنید.');
+                      return;
+                    }
+                    void confirm({
+                      title: 'زمان‌بندی انتشار؟',
+                      body: draft
+                        ? 'تغییرات ذخیره‌نشده دارید — اول «ذخیره» را بزنید، وگرنه نسخهٔ قبلی زمان‌بندی می‌شود. ادامه می‌دهید؟'
+                        : `«${value.title}» در ${formatJalali(at)} به‌صورت خودکار منتشر می‌شود.`,
+                      confirmLabel: 'زمان‌بندی',
+                    }).then((ok) => {
+                      if (ok) publish.mutate(at.toISOString());
+                    });
+                  }}
                 >
                   زمان‌بندی
                 </Button>
@@ -409,7 +503,23 @@ function ArticleEditor({ id, onDone }: { id: string; onDone: () => void }) {
                 </Button>
               </>
             ) : (
-              <Button size="sm" variant="ghost" onClick={() => unpublish.mutate()} loading={unpublish.isPending}>
+              <Button
+                size="sm"
+                variant="ghost"
+                loading={unpublish.isPending}
+                onClick={() =>
+                  // Publishing asks for confirmation; taking a live, indexed
+                  // page back down did not — despite being the destructive
+                  // half of the pair.
+                  void confirm({
+                    title: 'لغو انتشار؟',
+                    body: `«${value.title}» از سایت برداشته می‌شود و نشانی‌اش دیگر باز نمی‌شود. اگر گوگل آن را ثبت کرده باشد، نتیجه‌اش هم از دسترس خارج می‌شود. مقاله به پیش‌نویس برمی‌گردد و هر زمان می‌توانید دوباره منتشرش کنید.`,
+                    confirmLabel: 'لغو انتشار',
+                  }).then((ok) => {
+                    if (ok) unpublish.mutate();
+                  })
+                }
+              >
                 لغو انتشار
               </Button>
             )}

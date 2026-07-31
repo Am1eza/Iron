@@ -4,12 +4,19 @@ import { getCategories, getRows, getAllPublishedArticles } from '@/lib/server/ca
 import { getSubsMap } from '@/lib/server/catalog';
 import { TRACK_ORDER } from '@/components/cooperation/tracks';
 
-// `force-static` is required by `output: export` (the static preview build),
-// but under the real `standalone` deploy it froze the sitemap at build time —
-// so every article published after a deploy was never submitted to Google, and
-// deleted ones stayed listed. Articles reach readers ONLY through search until
-// the nav entry lands, which made this the second half of the discovery gap.
-export const dynamic = process.env.EXPORT === '1' ? 'force-static' : 'auto';
+/**
+ * `force-static` used to be pinned here for `output: export` (the static
+ * preview build), but under the real `standalone` deploy it froze the sitemap
+ * at build time — so an article published after a deploy was never submitted
+ * to Google and a deleted one stayed listed. Since articles reached readers
+ * only through search, that was half the discovery gap on its own.
+ *
+ * `revalidate` alone gets both: the export build still prerenders this once
+ * (there is no server to revalidate against, so the window is simply moot),
+ * while the standalone deploy refreshes it hourly. These exports must be
+ * statically analysable literals — a ternary here fails the build with
+ * "Invalid segment configuration export detected".
+ */
 export const revalidate = 3600;
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://ahantime.com';
