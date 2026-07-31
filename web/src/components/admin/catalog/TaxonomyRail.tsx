@@ -13,7 +13,14 @@ import { useState } from 'react';
 import type { AdminCategory, AdminSubCategory } from '@/lib/api/resources/admin';
 import { toPersianDigits } from '@/lib/utils/format';
 import { Badge, Button, IconButton, Switch } from '@/components/ui';
-import { ChevronDownIcon } from '@/components/primitives/icons';
+import {
+  ChevronDownIcon,
+  CloseIcon,
+  EditIcon,
+  MoreIcon,
+  PlusIcon,
+  RefreshIcon,
+} from '@/components/primitives/icons';
 import ui from '../adminUi.module.css';
 import s from './catalog.module.css';
 
@@ -121,17 +128,34 @@ export function TaxonomyRail({
               <IconButton
                 label={`زیر‌دستهٔ جدید در ${c.name}`}
                 size="sm"
-                icon={<span aria-hidden="true">＋</span>}
+                icon={<PlusIcon size={16} />}
                 onClick={() => {
                   if (!expanded.has(c.id)) onExpand(c.id);
                   onNewSub(c.id);
                 }}
               />
+              {/* Reordering hid in the ⋯ menu while sub-categories carried the
+                  same two buttons on the row — the asymmetry is why the admin
+                  reported that categories «cannot be reordered». */}
+              <IconButton
+                label={`جابه‌جایی ${c.name} به بالا`}
+                size="sm"
+                disabled={ci === 0 || busy}
+                icon={<ChevronDownIcon size={16} style={{ transform: 'rotate(180deg)' }} />}
+                onClick={() => onMoveCategory(c.id, -1)}
+              />
+              <IconButton
+                label={`جابه‌جایی ${c.name} به پایین`}
+                size="sm"
+                disabled={ci === visibleCats.length - 1 || busy}
+                icon={<ChevronDownIcon size={16} />}
+                onClick={() => onMoveCategory(c.id, 1)}
+              />
               <IconButton
                 label={`گزینه‌های ${c.name}`}
                 size="sm"
                 aria-expanded={menuFor === c.id}
-                icon={<span aria-hidden="true">⋯</span>}
+                icon={<MoreIcon size={16} />}
                 onClick={() => setMenuFor(menuFor === c.id ? null : c.id)}
               />
             </div>
@@ -144,20 +168,6 @@ export function TaxonomyRail({
                 <Button size="sm" variant="ghost" onClick={() => onNewSub(c.id)}>
                   زیر‌دستهٔ جدید
                 </Button>
-                <IconButton
-                  label={`جابه‌جایی ${c.name} به بالا`}
-                  size="sm"
-                  disabled={ci === 0 || busy}
-                  icon={<ChevronDownIcon size={16} style={{ transform: 'rotate(180deg)' }} />}
-                  onClick={() => onMoveCategory(c.id, -1)}
-                />
-                <IconButton
-                  label={`جابه‌جایی ${c.name} به پایین`}
-                  size="sm"
-                  disabled={ci === visibleCats.length - 1 || busy}
-                  icon={<ChevronDownIcon size={16} />}
-                  onClick={() => onMoveCategory(c.id, 1)}
-                />
                 {c.isActive ? (
                   <Button size="sm" variant="ghost" onClick={() => onDeactivateCategory(c)}>
                     غیرفعال‌سازی
@@ -190,7 +200,7 @@ export function TaxonomyRail({
                       <IconButton
                         label={`ویرایش ${x.name}`}
                         size="sm"
-                        icon={<span aria-hidden="true">✎</span>}
+                        icon={<EditIcon size={14} />}
                         onClick={() => onEditSub(x)}
                       />
                       <IconButton
@@ -211,14 +221,14 @@ export function TaxonomyRail({
                         <IconButton
                           label={`غیرفعال‌سازی ${x.name}`}
                           size="sm"
-                          icon={<span aria-hidden="true">×</span>}
+                          icon={<CloseIcon size={14} />}
                           onClick={() => onDeactivateSub(x)}
                         />
                       ) : (
                         <IconButton
                           label={`فعال‌سازی ${x.name}`}
                           size="sm"
-                          icon={<span aria-hidden="true">↺</span>}
+                          icon={<RefreshIcon size={14} />}
                           onClick={() => onReactivateSub(x)}
                         />
                       )}
@@ -231,7 +241,8 @@ export function TaxonomyRail({
                 {/* A dead end here is what made the admin think sub-categories
                     could not be created at all. */}
                 <Button size="sm" variant="ghost" onClick={() => onNewSub(c.id)}>
-                  ＋ اولین زیر‌دسته را بسازید
+                  <PlusIcon size={14} />
+                  اولین زیر‌دسته را بسازید
                 </Button>
               </div>
             ) : null}

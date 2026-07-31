@@ -391,3 +391,11 @@ export const MoonIcon = (p: IconProps) => (
     <path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11Z" />
   </Svg>
 );
+
+/** Overflow menu (⋯). Dots as a round-capped path — three <circle>s at 14px
+    render too faint next to the stroked icons beside them. */
+export const MoreIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M5 12h.01M12 12h.01M19 12h.01" />
+  </Svg>
+);
