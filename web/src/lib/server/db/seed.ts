@@ -68,12 +68,22 @@ export async function seedDatabase(db: Db, opts: SeedOptions = {}): Promise<void
   // would be a discoverable staff identity (same reasoning as the dev admin
   // above). Production instead DEACTIVATES any that an older seed created.
   const contentStaffMobiles = ['09120000001', '09120000002', '09120000003', '09120000004'];
+  // A `sales` fixture too (W26): the command-palette RBAC spec needs a role
+  // that MAY see leads but may NOT see users, which no existing fixture
+  // covered — `content` sees neither, and `admin` sees both.
+  const salesStaff = [{ id: 'u-sales-staff-1', mobile: '09120000005', name: 'کارشناس فروش' }] as const;
   if (process.env.NODE_ENV === 'production') {
     for (const [i] of contentStaffMobiles.entries()) {
       await db
         .update(schema.users)
         .set({ isActive: false, role: 'customer', tokenVersion: sql`${schema.users.tokenVersion} + 1` })
         .where(sql`${schema.users.id} = ${`u-content-staff-${i + 1}`} AND ${schema.users.isActive} = true`);
+    }
+    for (const s of salesStaff) {
+      await db
+        .update(schema.users)
+        .set({ isActive: false, role: 'customer', tokenVersion: sql`${schema.users.tokenVersion} + 1` })
+        .where(sql`${schema.users.id} = ${s.id} AND ${schema.users.isActive} = true`);
     }
     log('production: dev staff fixtures deactivated (if present)');
   } else {
@@ -83,7 +93,29 @@ export async function seedDatabase(db: Db, opts: SeedOptions = {}): Promise<void
         .values({ id: `u-content-staff-${i + 1}`, mobile, name: 'سردبیر محتوا', role: 'content' })
         .onConflictDoNothing();
     }
+    for (const s of salesStaff) {
+      await db
+        .insert(schema.users)
+        .values({ id: s.id, mobile: s.mobile, name: s.name, role: 'sales' })
+        .onConflictDoNothing();
+    }
     log(`dev content-role staff ${contentStaffMobiles.join(', ')}`);
+    log(`dev sales-role staff ${salesStaff.map((s) => s.mobile).join(', ')}`);
+
+    // One lead, so "a `sales` role finds leads / a `content` role does not"
+    // is testable at all — nothing else in this seeder creates one.
+    await db
+      .insert(schema.leads)
+      .values({
+        id: 'lead-fixture-1',
+        ref: 'LD-FIXTURE-1',
+        contactName: 'مشتری آزمایشی',
+        contactMobile: '09123334455',
+        source: 'contact',
+        status: 'new',
+      })
+      .onConflictDoNothing();
+    log('lead fixture 09123334455');
   }
 
   /* ---------- admin allowlist bootstrap (ADMIN_MOBILES env) ---------- */

@@ -31,10 +31,16 @@ test('OTP login: request code, verify with the dev code, land on account', async
     await expect(devCodeStatus).toBeVisible({ timeout: 3000 });
   }).toPass({ timeout: 30_000 });
   const text = await devCodeStatus.textContent();
-  const code = text?.match(/[۰-۹0-9]{5}/)?.[0];
+  // SIX digits — CONSTANTS.OTP_LENGTH. This read `{5}`, which still MATCHES a
+  // six-digit code (just the first five characters of it), so the drift after
+  // the 5→6 change failed silently: five boxes filled, the sixth empty, and
+  // every auth-dependent spec died on «کد تأیید باید ۶ رقم باشد» at the submit
+  // rather than at this line. `expect(code).toBeTruthy()` below cannot catch
+  // that — a truncated match is still truthy — so the length is pinned here.
+  const code = text?.match(/[۰-۹0-9]{6}/)?.[0];
   expect(code).toBeTruthy();
 
-  // OtpInput is 5 separate single-digit boxes with auto-advance-on-type —
+  // OtpInput is 6 separate single-digit boxes with auto-advance-on-type —
   // pressSequentially dispatches real keyboard events, so focus correctly
   // follows the auto-advance between digits (a plain .fill() would not).
   await page.getByRole('group', { name: 'کد تأیید پیامک‌شده' }).locator('input').first().pressSequentially(code!);
