@@ -218,7 +218,10 @@ export async function relatedSkuRows(slug: string, limit = 4): Promise<PriceRow[
   return rows.map((r) => toPriceRow(r, s));
 }
 
-const RANGE_DAYS: Record<string, number> = { '7d': 7, '30d': 30, '90d': 90, '1y': 365 };
+/** Exported so routes can VALIDATE `range` against the exact same set the
+ *  repo falls back on — a route that invented its own list would silently
+ *  drift from `skuHistory`'s `?? 90` default. */
+export const RANGE_DAYS: Record<string, number> = { '7d': 7, '30d': 30, '90d': 90, '1y': 365 };
 
 /** Price history for the chart. `range` ∈ 7d|30d|90d|1y (default 90d). */
 export async function skuHistory(slug: string, range = '90d'): Promise<PricePoint[]> {

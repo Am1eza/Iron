@@ -14,7 +14,18 @@ import { useUnsavedGuard } from '@/lib/hooks/useUnsavedGuard';
 import { ApiError } from '@/lib/api/errors';
 import { Badge, Button, Chip, EmptyState, Modal, MovementBadge, TableSkeleton, useConfirm } from '@/components/ui';
 import { Sparkline } from '../dashboard/Sparkline';
+import { PriceHistoryChart } from '../charts/PriceHistoryChart';
 import ui from '../adminUi.module.css';
+
+/** Drilldown ranges, in the order an operator scans them. Must stay a subset
+ *  of the repo's RANGE_DAYS (catalogRepo.ts) — the route validates against it
+ *  and silently falls back to 90d for anything else. */
+const HISTORY_RANGES: Array<{ id: string; label: string }> = [
+  { id: '7d', label: '۷ روز' },
+  { id: '30d', label: '۳۰ روز' },
+  { id: '90d', label: '۹۰ روز' },
+  { id: '1y', label: '۱ سال' },
+];
 
 /** A same-day price move this big is almost always a fat-fingered digit, not
  *  a real market swing — steel prices just don't jump this fast. Doesn't
@@ -167,6 +178,11 @@ export function PricingGrid() {
   const [rowErrors, setRowErrors] = useState<Map<string, string>>(new Map());
   const [pasteOpen, setPasteOpen] = useState(false);
   const [pasteText, setPasteText] = useState('');
+  // Per-SKU price-history drilldown. The row sparkline used to be
+  // `aria-hidden` decoration reachable by nobody — it is now the button that
+  // opens the full series.
+  const [historyFor, setHistoryFor] = useState<{ slug: string; name: string } | null>(null);
+  const [historyRange, setHistoryRange] = useState('90d');
   const tableRef = useRef<HTMLTableElement>(null);
   const { confirm, dialog } = useConfirm();
 
@@ -259,6 +275,20 @@ export function PricingGrid() {
     staleTime: 5 * 60 * 1000,
   });
   const seriesBySlug = historyData?.series;
+
+  // Drilldown series — admin-gated and `no-store`, unlike the public
+  // sku-history endpoint the sparklines are happy with. Fetched only while
+  // the modal is open, refetched per range.
+  const {
+    data: drilldown,
+    isLoading: drilldownLoading,
+    isError: drilldownError,
+    refetch: refetchDrilldown,
+  } = useQuery({
+    queryKey: ['admin', 'pricing', 'history', historyFor?.slug ?? '', historyRange],
+    queryFn: () => adminApi.skuHistoryAdmin(historyFor!.slug, historyRange),
+    enabled: Boolean(historyFor),
+  });
 
   const setDraft = (skuId: string, patch: Draft) => {
     setDrafts((prev) => {
@@ -646,7 +676,17 @@ export function PricingGrid() {
                       )}
                     </td>
                     <td>
-                      <RowSparkline series={seriesBySlug?.[r.slug]} />
+                      <button
+                        type="button"
+                        className={ui.sparkButton}
+                        aria-label={`تاریخچهٔ قیمت ${r.name}`}
+                        onClick={() => {
+                          setHistoryRange('90d');
+                          setHistoryFor({ slug: r.slug, name: r.name });
+                        }}
+                      >
+                        <RowSparkline series={seriesBySlug?.[r.slug]} />
+                      </button>
                     </td>
                     <td>
                       {r.current.priceHidden ? (
@@ -716,6 +756,37 @@ export function PricingGrid() {
           }}
         />
       </Modal>
+      {/* Per-SKU drilldown. Modal locks body scroll while open — that is
+          harmless for the sticky save bar above, which is `position: sticky`
+          INSIDE the (now non-scrolling) page flow, not a fixed overlay: it
+          simply stays where it was rendered, and the Modal's own scrim sits
+          above it. Nothing about the save state is touched by opening this. */}
+      <Modal
+        open={historyFor !== null}
+        onClose={() => setHistoryFor(null)}
+        title={`تاریخچهٔ قیمت — ${historyFor?.name ?? ''}`}
+      >
+        <div className={ui.toolbar} role="group" aria-label="بازهٔ زمانی نمودار">
+          {HISTORY_RANGES.map((r) => (
+            <Chip key={r.id} selected={historyRange === r.id} onClick={() => setHistoryRange(r.id)}>
+              {r.label}
+            </Chip>
+          ))}
+        </div>
+        {drilldownLoading ? (
+          <TableSkeleton rows={4} cols={1} />
+        ) : drilldownError ? (
+          <EmptyState
+            size="inline"
+            tone="error"
+            headline="بارگذاری تاریخچهٔ قیمت ناموفق بود."
+            primary={{ label: 'تلاش دوباره', onClick: () => void refetchDrilldown() }}
+          />
+        ) : (
+          <PriceHistoryChart points={drilldown?.points ?? []} range={historyRange} />
+        )}
+      </Modal>
+
       {dialog}
     </div>
   );
