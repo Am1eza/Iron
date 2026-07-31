@@ -4,14 +4,21 @@ import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { createCorrection, listCorrections } from '@/lib/server/repos/aiCorrectionsRepo';
 
-/** GET /api/admin/ai/corrections — the curated correction library. */
+/** GET /api/admin/ai/corrections?page=&perPage= — the curated correction
+ *  library. The `corrections` key is kept (rather than renamed to `rows`) so
+ *  adding pagination stays additive for existing clients. */
 async function GETImpl(req: NextRequest) {
   const guard = requireDb();
   if (guard) return guard;
   const auth = await requireApiPermission(req, 'ai:review');
   if ('response' in auth) return auth.response;
+  const p = req.nextUrl.searchParams;
+  const { rows, total, page, perPage } = await listCorrections({
+    page: Math.max(1, Number(p.get('page') ?? 1) || 1),
+    perPage: p.get('perPage') ? Math.max(1, Number(p.get('perPage')) || 50) : undefined,
+  });
   return NextResponse.json(
-    { corrections: await listCorrections() },
+    { corrections: rows, total, page, perPage },
     { headers: { 'Cache-Control': 'no-store' } },
   );
 }

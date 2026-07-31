@@ -27,12 +27,32 @@ export async function createCorrection(input: {
   return row!;
 }
 
-export async function listCorrections(limit = 100): Promise<AiCorrectionRow[]> {
-  return getDb()
-    .select()
-    .from(aiCorrections)
-    .orderBy(desc(aiCorrections.createdAt))
-    .limit(Math.min(Math.max(limit, 1), 200));
+/** Paged correction library. The library only grows — it's the advisor's
+ *  improvement mechanism — so the caller gets `total` too, otherwise a capped
+ *  page reads as a complete count. */
+export async function listCorrections(query: { page?: number; perPage?: number } = {}): Promise<{
+  rows: AiCorrectionRow[];
+  total: number;
+  page: number;
+  perPage: number;
+}> {
+  const db = getDb();
+  // `Number('1e400')` is Infinity, which reached OFFSET and made Postgres
+  // reject the statement as a bigint syntax error → 500.
+  const rawPage = Number.isFinite(query.page) ? (query.page as number) : 1;
+  const page = Math.min(100_000, Math.max(1, Math.floor(rawPage)));
+  const rawPerPage = Number.isFinite(query.perPage) ? (query.perPage as number) : 50;
+  const perPage = Math.min(200, Math.max(1, Math.floor(rawPerPage)));
+  const [rows, total] = await Promise.all([
+    db
+      .select()
+      .from(aiCorrections)
+      .orderBy(desc(aiCorrections.createdAt))
+      .limit(perPage)
+      .offset((page - 1) * perPage),
+    db.select({ n: sql<number>`count(*)::int` }).from(aiCorrections),
+  ]);
+  return { rows, total: total[0]?.n ?? 0, page, perPage };
 }
 
 export async function setCorrectionActive(id: string, isActive: boolean): Promise<void> {

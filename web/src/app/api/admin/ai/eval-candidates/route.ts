@@ -6,16 +6,22 @@ import { createEvalCandidate, listEvalCandidates, type AiEvalCandidateStatus } f
 
 const STATUSES = ['pending', 'promoted', 'dismissed'] as const;
 
-/** GET /api/admin/ai/eval-candidates?status= — the review queue (US-05.4). */
+/** GET /api/admin/ai/eval-candidates?status=&page=&perPage= — the review queue
+ *  (US-05.4). The `candidates` key is kept so pagination stays additive. */
 async function GETImpl(req: NextRequest) {
   const guard = requireDb();
   if (guard) return guard;
   const auth = await requireApiPermission(req, 'ai:review');
   if ('response' in auth) return auth.response;
-  const status = req.nextUrl.searchParams.get('status');
+  const p = req.nextUrl.searchParams;
+  const status = p.get('status');
   const validStatus = (STATUSES as readonly string[]).includes(status ?? '') ? (status as AiEvalCandidateStatus) : undefined;
+  const { rows, total, page, perPage } = await listEvalCandidates(validStatus, {
+    page: Math.max(1, Number(p.get('page') ?? 1) || 1),
+    perPage: p.get('perPage') ? Math.max(1, Number(p.get('perPage')) || 50) : undefined,
+  });
   return NextResponse.json(
-    { candidates: await listEvalCandidates(validStatus) },
+    { candidates: rows, total, page, perPage },
     { headers: { 'Cache-Control': 'no-store' } },
   );
 }
