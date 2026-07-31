@@ -9,6 +9,7 @@ import {
   SERVICES_NAV,
   COMPANY_NAV,
   SUPPORT_NAV,
+  CONTENT_NAV,
   CHANNELS,
 } from '@/lib/data/nav';
 import type { Category } from '@/lib/types/domain';
@@ -169,6 +170,10 @@ export function MobileDrawer({ categories, subs }: { categories: Category[]; sub
 
           {/* Services / Company / Support — same sets as the header & footer */}
           {[
+            // Content first: on mobile the drawer is the ONLY path to an
+            // article — the bottom tab bar is full and correctly prioritises
+            // prices, the AI advisor and the cart.
+            { title: 'مقالات', links: CONTENT_NAV },
             { title: 'خدمات', links: SERVICES_NAV },
             { title: 'شرکت', links: COMPANY_NAV },
             { title: 'پشتیبانی', links: SUPPORT_NAV },

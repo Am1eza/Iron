@@ -4,8 +4,13 @@ import { getCategories, getRows, getArticlesByType } from '@/lib/server/catalog'
 import { getSubsMap } from '@/lib/server/catalog';
 import { TRACK_ORDER } from '@/components/cooperation/tracks';
 
-// Required for `output: export` (static-only).
-export const dynamic = 'force-static';
+// `force-static` is required by `output: export` (the static preview build),
+// but under the real `standalone` deploy it froze the sitemap at build time —
+// so every article published after a deploy was never submitted to Google, and
+// deleted ones stayed listed. Articles reach readers ONLY through search until
+// the nav entry lands, which made this the second half of the discovery gap.
+export const dynamic = process.env.EXPORT === '1' ? 'force-static' : 'auto';
+export const revalidate = 3600;
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://ahantime.com';
 

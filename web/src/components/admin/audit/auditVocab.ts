@@ -44,6 +44,10 @@ export const ACTION_META: Record<string, ActionMeta> = {
   'content.create': { verb: 'مقالهٔ جدید ساخت', tone: 'create' },
   'content.update': { verb: 'مقاله را ویرایش کرد', tone: 'update' },
   'content.publish': { verb: 'مقاله را منتشر کرد', tone: 'publish' },
+  // Taking live content off the public site is destructive, not an edit —
+  // previously it was audited as a plain `content.update`, indistinguishable
+  // from fixing a typo.
+  'content.unpublish': { verb: 'انتشار مقاله را لغو کرد', tone: 'destroy' },
   'content.delete': { verb: 'مقاله را حذف کرد', tone: 'destroy' },
 
   'lead.update': { verb: 'سرنخ را به‌روزرسانی کرد', tone: 'update' },

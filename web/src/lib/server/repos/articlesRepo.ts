@@ -40,6 +40,31 @@ function publishedCond() {
   );
 }
 
+/** A slug collision, translated into something the editor's form can show.
+ *  `articles.slug` is unique GLOBALLY — across blog and news both — so reusing
+ *  a news slug for a blog post collides, which is easy to do by accident. */
+export class DuplicateArticleSlugError extends Error {
+  readonly field = 'slug' as const;
+  constructor() {
+    super('این نشانی قبلاً برای مقالهٔ دیگری استفاده شده است.');
+    this.name = 'DuplicateArticleSlugError';
+  }
+}
+
+/** Postgres unique_violation — node-postgres puts the SQLSTATE on `.code`. */
+function isUniqueViolation(err: unknown): boolean {
+  return typeof err === 'object' && err !== null && (err as { code?: string }).code === '23505';
+}
+
+async function asSlugConflict<T>(run: () => Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } catch (err) {
+    if (isUniqueViolation(err)) throw new DuplicateArticleSlugError();
+    throw err;
+  }
+}
+
 export async function listPublished(type: 'blog' | 'news', page = 1, perPage = 20) {
   const db = getDb();
   const where = and(eq(articles.type, type), publishedCond());
@@ -188,7 +213,8 @@ export async function createArticle(input: {
   source?: 'ai' | 'human';
   authorId?: string;
 }): Promise<ArticleFull> {
-  const rows = await getDb()
+  const rows = await asSlugConflict(() =>
+    getDb()
     .insert(articles)
     .values({
       id: ulid(),
@@ -201,7 +227,8 @@ export async function createArticle(input: {
       authorId: input.authorId ?? null,
       status: 'draft',
     })
-    .returning();
+    .returning(),
+  );
   return toArticleFull(rows[0]!);
 }
 
@@ -220,11 +247,13 @@ export async function updateArticle(
     seo: Row['seo'];
   }>,
 ): Promise<ArticleFull | null> {
-  const rows = await getDb()
-    .update(articles)
-    .set({ ...patch, updatedAt: new Date() })
-    .where(eq(articles.id, id))
-    .returning();
+  const rows = await asSlugConflict(() =>
+    getDb()
+      .update(articles)
+      .set({ ...patch, updatedAt: new Date() })
+      .where(eq(articles.id, id))
+      .returning(),
+  );
   return rows[0] ? toArticleFull(rows[0]) : null;
 }
 

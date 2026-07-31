@@ -1,8 +1,10 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
+import { slugSchema } from '@/lib/validation/utils';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { adminListArticles, createArticle } from '@/lib/server/repos/articlesRepo';
+import { DuplicateArticleSlugError } from '@/lib/server/repos/articlesRepo';
 
 /** GET /api/admin/articles?status=&type= — all articles for the content queue. */
 async function GETImpl(req: NextRequest) {
@@ -22,7 +24,7 @@ async function GETImpl(req: NextRequest) {
 }
 
 const createPayload = z.object({
-  slug: z.string().trim().min(1).max(120),
+  slug: slugSchema(120),
   type: z.enum(['blog', 'news']),
   title: z.string().trim().min(1).max(200),
   excerpt: z.string().trim().max(500).optional(),
@@ -38,7 +40,20 @@ async function POSTImpl(req: NextRequest) {
   if ('response' in auth) return auth.response;
   const v = await validateBody(req, createPayload);
   if (!v.ok) return v.response;
-  const article = await createArticle({ ...v.data, authorId: auth.session.id });
+  let article;
+  try {
+    article = await createArticle({ ...v.data, authorId: auth.session.id });
+  } catch (err) {
+    // A collision used to escape as a raw 23505 -> generic 500, so the editor
+    // retried the same slug forever with no idea what was wrong.
+    if (err instanceof DuplicateArticleSlugError) {
+      return NextResponse.json(
+        { error: 'duplicate_slug', message: err.message, fields: { slug: err.message } },
+        { status: 409 },
+      );
+    }
+    throw err;
+  }
   await audit(auth.session.id, 'content.create', { type: 'article', id: article.id }, null, { slug: article.slug });
   return NextResponse.json({ article }, { status: 201 });
 }

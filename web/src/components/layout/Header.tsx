@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import { routes } from '@/lib/routes';
-import { TOOLS_NAV, SERVICES_NAV, COMPANY_NAV, SUPPORT_NAV } from '@/lib/data/nav';
+import { TOOLS_NAV, SERVICES_NAV, COMPANY_NAV, SUPPORT_NAV, CONTENT_NAV } from '@/lib/data/nav';
 import type { Category } from '@/lib/types/domain';
 import type { SubsMap } from '@/lib/data/catalog';
 import { useUiStore } from '@/lib/stores/ui';
@@ -116,6 +116,22 @@ export function Header({ categories, subs }: { categories: Category[]; subs: Sub
           <NavDropdown label={tNav('tools')} active={isActive('/tools') || isActive(routes.market())}>
             <ul className={styles.dropdownList}>
               {TOOLS_NAV.map((item) => (
+                <li key={item.href}>
+                  <Link href={item.href} className={styles.dropdownItem}>
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </NavDropdown>
+
+          {/* Articles had no entry point anywhere on the public site — they
+              existed only in the sitemap. Placed straight after the tools menu
+              so the editorial hub sits beside the calculators buyers already
+              come for. */}
+          <NavDropdown label={tNav('content')} active={isActive(routes.blog()) || isActive(routes.news())}>
+            <ul className={styles.dropdownList}>
+              {CONTENT_NAV.map((item) => (
                 <li key={item.href}>
                   <Link href={item.href} className={styles.dropdownItem}>
                     {item.label}

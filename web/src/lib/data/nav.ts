@@ -124,8 +124,26 @@ export const SUPPORT_NAV: NavLink[] = [
  * the header dropdowns and the mobile drawer consume, so every surface stays in
  * sync from one source of truth.
  */
+/**
+ * «مقالات و تحلیل بازار» — the content hub.
+ *
+ * The site published articles at /blog and /news for months with NOTHING
+ * linking to them: not the header, not the footer, not the mobile drawer. They
+ * reached the sitemap and therefore Google, but no visitor browsing the site
+ * could ever arrive at one. Header, Footer and MobileDrawer all render from
+ * these arrays, so this single addition lights up all three surfaces.
+ *
+ * Labelled «مقالات» rather than «مجله»: the latter is the consumer-retail
+ * convention and reads wrong to contractors and traders.
+ */
+export const CONTENT_NAV: NavLink[] = [
+  { label: 'تحلیل و آموزش', href: routes.blog() },
+  { label: 'اخبار بازار', href: routes.news() },
+];
+
 export const FOOTER_COLUMNS: { title: string; links: NavLink[] }[] = [
   { title: 'ابزارها', links: TOOLS_NAV },
+  { title: 'مقالات', links: CONTENT_NAV },
   { title: 'خدمات', links: SERVICES_NAV },
   { title: 'شرکت', links: COMPANY_NAV },
   { title: 'پشتیبانی', links: SUPPORT_NAV },
