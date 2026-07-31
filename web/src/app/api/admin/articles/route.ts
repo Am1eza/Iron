@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
-import { slugSchema } from '@/lib/validation/utils';
+import { articleSlugSchema } from '@/lib/validation/utils';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { adminListArticles, createArticle } from '@/lib/server/repos/articlesRepo';
 import { DuplicateArticleSlugError } from '@/lib/server/repos/articlesRepo';
@@ -27,7 +27,7 @@ async function GETImpl(req: NextRequest) {
 }
 
 const createPayload = z.object({
-  slug: slugSchema(120),
+  slug: articleSlugSchema(120),
   type: z.enum(['blog', 'news']),
   title: z.string().trim().min(1).max(200),
   excerpt: z.string().trim().max(500).optional(),

@@ -444,7 +444,7 @@ export function SkuDrawer({
                   </Alert>
                 ) : null}
                 <TextInput
-                  label="نشانی صفحه (Slug)"
+                  label="نشانی صفحه"
                   dir="ltr"
                   helper="خودکار ساخته می‌شود؛ فقط اگر دلیل خاصی دارید تغییرش دهید."
                   value={v.slug}

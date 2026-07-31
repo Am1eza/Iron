@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ARTICLE_SLUG_PATTERN } from '@/lib/utils/articleSlug';
 
 export type FieldErrors = Record<string, string>;
 
@@ -37,6 +38,29 @@ export const slugSchema = (max: number) =>
     .min(1)
     .max(max)
     .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'نشانی فقط می‌تواند شامل حروف کوچک انگلیسی، عدد و خط تیره باشد.');
+
+/**
+ * A URL slug for an ARTICLE — unlike `slugSchema` above, this allows Persian
+ * letters/digits too (see `articleSlug.ts` for why: a blog/news title has no
+ * ASCII-composable facets to build a Latin slug from, so the admin's only
+ * realistic input is Persian text, and forcing it through the ASCII-only
+ * pattern either rejects every real title or invites Finglish garbage).
+ *
+ * Same `..`/homoglyph/RTL-override threat model as `slugSchema` — the
+ * allowlist has no dot, and `ARTICLE_SLUG_PATTERN` is an explicit letter/digit
+ * list (not a Unicode block range — that would also admit Arabic punctuation
+ * like «؟»), so control, punctuation and bidi-override characters fail closed.
+ * Deliberately a hard `.regex()` reject, not a silent re-derive: client and
+ * server must produce byte-identical slugs, never two different "corrected"
+ * versions of the same input.
+ */
+export const articleSlugSchema = (max: number) =>
+  z
+    .string()
+    .trim()
+    .min(1)
+    .max(max)
+    .regex(ARTICLE_SLUG_PATTERN, 'نشانی فقط می‌تواند شامل حروف فارسی یا انگلیسی، عدد و خط تیره باشد.');
 
 /**
  * An uploaded image reference, normalised to a same-origin PATH.

@@ -40,7 +40,7 @@ describe('vocabulary', () => {
   it('labels entities and fields, passing unknown keys through', () => {
     expect(entityLabel('sku')).toBe('کالا');
     expect(entityLabel('mystery')).toBe('mystery');
-    expect(fieldLabel('slug')).toBe('نشانی (Slug)');
+    expect(fieldLabel('slug')).toBe('نشانی صفحه');
     expect(fieldLabel('zzz')).toBe('zzz');
   });
 });

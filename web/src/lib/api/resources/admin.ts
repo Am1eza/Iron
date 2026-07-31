@@ -80,6 +80,15 @@ export interface AdminUserRow {
 
 export type ArticleFull = Article & { bodyMd: string; coverUrl?: string; authorId?: string | null };
 
+export interface AdminRedirect {
+  id: string;
+  fromPath: string;
+  toPath: string;
+  permanent: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AdminAlertRow {
   id: string;
   mobile: string;
@@ -629,6 +638,18 @@ export const adminApi = {
     http.post<{ article: ArticleFull }>(`/api/admin/articles/${id}/publish`, publishAt ? { publishAt } : {}),
   /** Draft only — the server rejects a published/scheduled article (unpublish first). */
   deleteArticle: (id: string) => http.del<{ ok: true }>(`/api/admin/articles/${id}`),
+
+  /* redirects (US-14.3) — old-path → new-path, enforced from middleware.ts.
+   * No server-side filter exists, so the article drawer's "is this URL
+   * already redirected?" check filters this full list client-side; the
+   * table is small enough (site-wide redirect count, not per-article) that
+   * this costs nothing in practice. */
+  redirects: () => http.get<{ redirects: AdminRedirect[] }>('/api/admin/seo/redirects'),
+  createRedirect: (input: { fromPath: string; toPath: string; permanent?: boolean }) =>
+    http.post<{ redirect: AdminRedirect }>('/api/admin/seo/redirects', input),
+  updateRedirect: (id: string, patch: { toPath?: string; permanent?: boolean }) =>
+    http.patch<{ redirect: AdminRedirect }>(`/api/admin/seo/redirects/${id}`, patch),
+  deleteRedirect: (id: string) => http.del<{ ok: true }>(`/api/admin/seo/redirects/${id}`),
 
   /* catalog */
   /* catalog — see components/admin/catalog. `iconId`/`imageUrl` and the

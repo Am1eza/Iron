@@ -13,14 +13,14 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
-import { adminApi, type ArticleFull } from '@/lib/api/resources/admin';
+import { adminApi, type ArticleFull, type AdminRedirect } from '@/lib/api/resources/admin';
 import { useFocusTrap } from '@/lib/hooks/useFocusTrap';
 import { useUnsavedGuard } from '@/lib/hooks/useUnsavedGuard';
 import { formatJalali } from '@/lib/utils/jalali';
-import { slugify } from '@/lib/utils/slugify';
+import { articleSlugify } from '@/lib/utils/articleSlug';
 import { useToast } from '@/lib/hooks/useToast';
 import { ApiError } from '@/lib/api/errors';
-import { Alert, Badge, Button, Chip, EmptyState, TableSkeleton, Tabs, TabPanel, useConfirm } from '@/components/ui';
+import { Alert, Badge, Button, Chip, EmptyState, Switch, TableSkeleton, Tabs, TabPanel, useConfirm } from '@/components/ui';
 import { TextInput, Textarea } from '@/components/forms/fields';
 import { ImageUpload } from '../ImageUpload';
 import { MarkdownProse } from '@/components/content/ArticleBody';
@@ -82,6 +82,24 @@ const STATUS_BADGE: Record<string, { label: string; tone: 'stale' | 'info' | 'ga
   scheduled: { label: 'زمان‌بندی‌شده', tone: 'info' },
   published: { label: 'منتشرشده', tone: 'gain' },
 };
+
+/** Same path an article's own live URL resolves to — used both for the
+ *  "مشاهده در سایت" link and as the `fromPath` a redirect-away needs to key
+ *  on, so the two never drift apart. */
+function articlePath(type: 'blog' | 'news', slug: string): string {
+  return type === 'news' ? routes.news(slug) : routes.blog(slug);
+}
+
+/** Common redirect destinations an admin might want without typing a path by
+ *  hand. "آدرس دلخواه" (custom) is handled separately, not listed here. */
+const REDIRECT_PRESETS: Array<{ id: string; label: string; path: string }> = [
+  { id: 'home', label: 'صفحهٔ اصلی', path: '/' },
+  { id: 'prices', label: 'فهرست قیمت‌ها', path: '/prices' },
+  { id: 'blog', label: 'وبلاگ', path: '/blog' },
+  { id: 'news', label: 'اخبار', path: '/news' },
+];
+
+const SITE_HOST = 'ahantime.com';
 
 export function ContentQueue() {
   const [status, setStatus] = useState('draft');
@@ -420,11 +438,10 @@ function ArticleDrawer({
 
   /** Slug auto-derives from the title only on CREATE, and only until the admin
    *  edits it by hand — mirrors the SKU drawer's pattern. On an existing
-   *  article the slug is frozen behind an explicit unlock, because leaving the
-   *  old auto-slug rule armed in edit mode is exactly what silently rewrote a
-   *  category's URL earlier in this audit. */
+   *  article it starts frozen too (`!isCreate`): the URL control itself now
+   *  lives inside the collapsed «تنظیمات پیشرفته» section, so simply opening
+   *  that panel to look around can never retype a live, indexed URL. */
   const [slugTouched, setSlugTouched] = useState(!isCreate);
-  const [slugUnlocked, setSlugUnlocked] = useState(isCreate);
 
   const dirty = useMemo(() => JSON.stringify(v) !== JSON.stringify(initial), [v, initial]);
   const dirtyRef = useRef(dirty);
@@ -445,7 +462,7 @@ function ArticleDrawer({
   const set = (patch: Partial<Values>) => {
     setV((prev) => {
       const next = { ...prev, ...patch };
-      if (patch.title !== undefined && !slugTouched) next.slug = slugify(patch.title);
+      if (patch.title !== undefined && !slugTouched) next.slug = articleSlugify(patch.title);
       return next;
     });
     setFieldErrors((prev) => {
@@ -471,6 +488,69 @@ function ArticleDrawer({
   const { data: authorsData } = useQuery({
     queryKey: ['admin', 'users', 'authors'],
     queryFn: () => adminApi.users({ role: 'content' }),
+  });
+
+  /**
+   * Redirect-away (new, per explicit request): send this article's own
+   * address somewhere else on the site. Only meaningful once the article has
+   * a real saved address — `articlePath(article.type, article.slug)`, not the
+   * in-progress `v.type`/`v.slug`, so an unsaved title/type edit can't be
+   * mistaken for the page a visitor would actually land on.
+   *
+   * No server-side filter exists on the redirects list (see admin.ts), so
+   * this fetches the whole table and finds the one match client-side — fine
+   * at site-wide-redirect-count scale, only fetched once "تنظیمات پیشرفته"
+   * is opened on a saved article.
+   */
+  const currentPath = article ? articlePath(article.type, article.slug) : null;
+  const { data: redirectsData } = useQuery({
+    queryKey: ['admin', 'redirects'],
+    queryFn: () => adminApi.redirects(),
+    enabled: !isCreate && advanced,
+  });
+  const existingRedirect: AdminRedirect | undefined = useMemo(
+    () => (currentPath ? redirectsData?.redirects.find((r) => r.fromPath === currentPath) : undefined),
+    [redirectsData, currentPath],
+  );
+
+  const [redirectOn, setRedirectOn] = useState(false);
+  const [redirectPresetId, setRedirectPresetId] = useState<string>(REDIRECT_PRESETS[0]!.id);
+  const [redirectCustomPath, setRedirectCustomPath] = useState('');
+  const redirectSeeded = useRef(false);
+  useEffect(() => {
+    if (!redirectsData || redirectSeeded.current) return;
+    redirectSeeded.current = true;
+    if (!existingRedirect) return;
+    setRedirectOn(true);
+    const preset = REDIRECT_PRESETS.find((p) => p.path === existingRedirect.toPath);
+    if (preset) {
+      setRedirectPresetId(preset.id);
+    } else {
+      setRedirectPresetId('custom');
+      setRedirectCustomPath(existingRedirect.toPath);
+    }
+  }, [redirectsData, existingRedirect]);
+
+  const redirectTargetPath =
+    redirectPresetId === 'custom' ? redirectCustomPath.trim() : REDIRECT_PRESETS.find((p) => p.id === redirectPresetId)?.path ?? '';
+  const redirectCustomValid = redirectPresetId !== 'custom' || /^\/[^\s]*$/.test(redirectCustomPath.trim());
+  const redirectDirty =
+    redirectOn !== Boolean(existingRedirect) || (redirectOn && Boolean(existingRedirect) && redirectTargetPath !== existingRedirect?.toPath);
+
+  const redirectMutation = useMutation({
+    mutationFn: async () => {
+      if (!redirectOn) {
+        if (existingRedirect) await adminApi.deleteRedirect(existingRedirect.id);
+        return;
+      }
+      if (existingRedirect) await adminApi.updateRedirect(existingRedirect.id, { toPath: redirectTargetPath });
+      else await adminApi.createRedirect({ fromPath: currentPath!, toPath: redirectTargetPath });
+    },
+    onSuccess: () => {
+      toast.success(redirectOn ? 'هدایت ذخیره شد؛ تا حدود یک دقیقه روی سایت اعمال می‌شود.' : 'هدایت غیرفعال شد.');
+      void qc.invalidateQueries({ queryKey: ['admin', 'redirects'] });
+    },
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : 'ذخیرهٔ هدایت ناموفق بود.'),
   });
 
   const seoPatch = () => {
@@ -561,7 +641,7 @@ function ArticleDrawer({
   };
 
   const status = article?.status ?? 'draft';
-  const liveUrl = article && status !== 'draft' ? (article.type === 'news' ? routes.news(article.slug) : routes.blog(article.slug)) : null;
+  const liveUrl = article && status !== 'draft' ? articlePath(article.type, article.slug) : null;
 
   if (!isCreate && isLoading) {
     return (
@@ -618,6 +698,10 @@ function ArticleDrawer({
             ) : null}
             {fieldErrors.title ? <span className={ui.tileHintError}>{fieldErrors.title}</span> : null}
           </div>
+          {/* Read-only — editing lives in «تنظیمات پیشرفته» below. Always
+              visible so the admin sees what the page's own address will be
+              without hunting for it, but nothing here invites a click. */}
+          <span className={s.slugPreview}>{articlePath(v.type, v.slug || '…')}</span>
         </div>
 
         <div className={s.drawerBody}>
@@ -828,27 +912,29 @@ function ArticleDrawer({
                   <div className={ui.tileHintWarn}>نشانی صفحه عوض می‌شود؛ انتقال خودکار از نشانی قبلی ساخته می‌شود.</div>
                 ) : null}
               </div>
+              <ImageUpload label="تصویر کاور" value={v.coverUrl} onChange={(url) => set({ coverUrl: url })} />
+            </div>
 
-              {!slugUnlocked ? (
-                <div className={s.metaRow}>
-                  <span className={s.slugPreview}>
-                    /{v.type === 'news' ? 'news' : 'blog'}/{v.slug || '…'}
-                  </span>
-                  <Button size="sm" variant="ghost" onClick={() => setSlugUnlocked(true)}>
-                    تغییر نشانی
-                  </Button>
-                </div>
-              ) : (
+            {/* Everything below is for a non-technical admin's rare/one-time
+                decisions — the URL, who wrote it, sending readers elsewhere,
+                and how it looks in a Google result — so it starts collapsed
+                and out of the way of just writing an article. */}
+            <div className={s.sideCard}>
+              <Button size="sm" variant="ghost" aria-expanded={advanced} onClick={() => setAdvanced((x) => !x)}>
+                {advanced ? 'بستن تنظیمات پیشرفته' : 'تنظیمات پیشرفته'}
+              </Button>
+              {advanced ? (
                 <>
                   {!isCreate ? (
                     <Alert tone="warning">
-                      نشانی فعلی ممکن است در گوگل ثبت شده باشد. با تغییر آن، انتقال خودکار از نشانی قدیمی ساخته می‌شود.
+                      نشانی فعلی ممکن است در گوگل ثبت و توسط مشتریان ذخیره شده باشد. با تغییر آن، انتقالی خودکار از
+                      نشانی قدیمی به جدید ساخته می‌شود تا لینک‌های قبلی نشکنند.
                     </Alert>
                   ) : null}
                   <TextInput
-                    label="نشانی (Slug)"
+                    label="نشانی صفحه"
                     dir="ltr"
-                    helper="فقط حروف کوچک انگلیسی، عدد و خط تیره."
+                    helper="خودکار از روی عنوان ساخته می‌شود؛ فقط اگر دلیل خاصی دارید تغییرش دهید."
                     value={v.slug}
                     error={fieldErrors.slug}
                     maxLength={120}
@@ -857,58 +943,134 @@ function ArticleDrawer({
                       set({ slug: e.target.value });
                     }}
                   />
-                </>
-              )}
 
-              <ImageUpload label="تصویر کاور" value={v.coverUrl} onChange={(url) => set({ coverUrl: url })} />
+                  <div>
+                    <label className={ui.tileLabel} htmlFor="article-author">
+                      نویسنده
+                    </label>
+                    <select
+                      id="article-author"
+                      className={ui.select}
+                      style={{ inlineSize: '100%' }}
+                      value={v.authorId ?? ''}
+                      onChange={(e) => set({ authorId: e.target.value || null })}
+                    >
+                      <option value="">من (پیش‌فرض)</option>
+                      {(authorsData?.users ?? []).map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.name ?? u.mobile}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-              <div>
-                <label className={ui.tileLabel} htmlFor="article-author">
-                  نویسنده
-                </label>
-                <select
-                  id="article-author"
-                  className={ui.select}
-                  style={{ inlineSize: '100%' }}
-                  value={v.authorId ?? ''}
-                  onChange={(e) => set({ authorId: e.target.value || null })}
-                >
-                  <option value="">بدون نویسنده</option>
-                  {(authorsData?.users ?? []).map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.name ?? u.mobile}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+                  <div>
+                    <div className={s.sideCardTitle}>هدایت این صفحه به آدرس دیگر</div>
+                    {isCreate || !currentPath ? (
+                      <div className={ui.tileHint}>برای هدایت این صفحه به جای دیگر، ابتدا یک‌بار مقاله را ذخیره کنید.</div>
+                    ) : (
+                      <>
+                        <Switch
+                          checked={redirectOn}
+                          onChange={setRedirectOn}
+                          label="بازدیدکننده‌های این صفحه به آدرس دیگری در سایت هدایت شوند"
+                        />
+                        {redirectOn ? (
+                          <>
+                            <div>
+                              <label className={ui.tileLabel} htmlFor="redirect-target">
+                                مقصد
+                              </label>
+                              <select
+                                id="redirect-target"
+                                className={ui.select}
+                                style={{ inlineSize: '100%' }}
+                                value={redirectPresetId}
+                                onChange={(e) => setRedirectPresetId(e.target.value)}
+                              >
+                                {REDIRECT_PRESETS.map((p) => (
+                                  <option key={p.id} value={p.id}>
+                                    {p.label}
+                                  </option>
+                                ))}
+                                <option value="custom">آدرس دلخواه…</option>
+                              </select>
+                            </div>
+                            {redirectPresetId === 'custom' ? (
+                              <TextInput
+                                label="آدرس دلخواه"
+                                dir="ltr"
+                                helper="باید با / شروع شود، مثلاً /blog/یک-مقالهٔ-دیگر"
+                                value={redirectCustomPath}
+                                error={redirectCustomPath && !redirectCustomValid ? 'آدرس باید با / شروع شود.' : undefined}
+                                maxLength={300}
+                                onChange={(e) => setRedirectCustomPath(e.target.value)}
+                              />
+                            ) : null}
+                            {status === 'published' ? (
+                              <Alert tone="warning">
+                                این مقاله هم‌اکنون در سایت منتشر است. با ذخیرهٔ این هدایت، نشانی فعلی‌اش دیگر برای
+                                بازدیدکننده باز نمی‌شود و مستقیم به مقصد بالا می‌رود — با اینکه وضعیت آن در این پنل
+                                همچنان «منتشرشده» باقی می‌ماند. اعمال‌شدن روی سایت تا حدود یک دقیقه طول می‌کشد.
+                              </Alert>
+                            ) : null}
+                          </>
+                        ) : null}
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          loading={redirectMutation.isPending}
+                          disabled={!redirectDirty || (redirectOn && (!redirectTargetPath || !redirectCustomValid))}
+                          onClick={() => redirectMutation.mutate()}
+                        >
+                          {redirectOn ? 'ذخیرهٔ هدایت' : 'غیرفعال‌کردن هدایت'}
+                        </Button>
+                      </>
+                    )}
+                  </div>
 
-            <div className={s.sideCard}>
-              <Button size="sm" variant="ghost" aria-expanded={advanced} onClick={() => setAdvanced((x) => !x)}>
-                {advanced ? 'بستن تنظیمات سئو' : 'تنظیمات سئو (اختیاری)'}
-              </Button>
-              {advanced ? (
-                <>
-                  <TextInput
-                    label="عنوان سئو"
-                    helper="پیش‌فرض: عنوان مقاله."
-                    value={v.seoTitle}
-                    maxLength={70}
-                    onChange={(e) => set({ seoTitle: e.target.value })}
-                  />
-                  <Textarea
-                    label="توضیحات سئو"
-                    rows={2}
-                    helper="پیش‌فرض: خلاصه."
-                    value={v.seoDescription}
-                    maxLength={200}
-                    onChange={(e) => set({ seoDescription: e.target.value })}
-                  />
-                  <ImageUpload
-                    label="تصویر Open Graph"
-                    value={v.seoOgImage || null}
-                    onChange={(url) => set({ seoOgImage: url ?? '' })}
-                  />
+                  <div>
+                    <div className={s.sideCardTitle}>نمایش در نتیجهٔ جستجوی گوگل</div>
+                    <div className={s.googlePreview}>
+                      <div className={s.googlePreviewUrl}>
+                        {SITE_HOST}
+                        {articlePath(v.type, v.slug || '…')}
+                      </div>
+                      <div className={s.googlePreviewTitle}>{v.seoTitle.trim() || v.title.trim() || 'عنوان مقاله'}</div>
+                      <div className={s.googlePreviewDesc}>
+                        {v.seoDescription.trim() || v.excerpt.trim() || 'برای این مقاله توضیحی ثبت نشده؛ گوگل خودش بخشی از متن را نشان می‌دهد.'}
+                      </div>
+                    </div>
+                    <TextInput
+                      label="عنوان در نتیجهٔ گوگل"
+                      helper="پیش‌فرض: عنوان مقاله."
+                      value={v.seoTitle}
+                      maxLength={70}
+                      onChange={(e) => set({ seoTitle: e.target.value })}
+                    />
+                    <Textarea
+                      label="توضیح در نتیجهٔ گوگل"
+                      rows={2}
+                      helper="پیش‌فرض: خلاصه."
+                      value={v.seoDescription}
+                      maxLength={200}
+                      onChange={(e) => set({ seoDescription: e.target.value })}
+                    />
+                    <ImageUpload
+                      label="تصویر پیش‌نمایش هنگام اشتراک‌گذاری"
+                      value={v.seoOgImage || null}
+                      onChange={(url) => set({ seoOgImage: url ?? '' })}
+                    />
+                    <TextInput
+                      label="آدرس اصلی جایگزین (به‌ندرت لازم است)"
+                      dir="ltr"
+                      helper="فقط وقتی همین متن جای دیگری از سایت هم هست و می‌خواهید گوگل آن صفحه را اصلی بداند."
+                      value={v.seoCanonical}
+                      error={v.seoCanonical && !/^\//.test(v.seoCanonical.trim()) ? 'باید با / شروع شود.' : undefined}
+                      maxLength={300}
+                      onChange={(e) => set({ seoCanonical: e.target.value })}
+                    />
+                  </div>
                 </>
               ) : null}
             </div>

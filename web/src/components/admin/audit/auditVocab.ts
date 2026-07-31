@@ -130,7 +130,7 @@ export const ENTITY_LABEL: Record<string, string> = {
 export const FIELD_LABEL: Record<string, string> = {
   name: 'نام',
   title: 'عنوان',
-  slug: 'نشانی (Slug)',
+  slug: 'نشانی صفحه',
   price: 'قیمت',
   unitPrice: 'قیمت واحد',
   total: 'مبلغ کل',

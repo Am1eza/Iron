@@ -5,7 +5,7 @@ import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/
 import { adminGetArticle, updateArticle, deleteDraftArticle } from '@/lib/server/repos/articlesRepo';
 import { DuplicateArticleSlugError } from '@/lib/server/repos/articlesRepo';
 import { safeRevalidatePath } from '@/lib/server/utils/revalidate';
-import { slugSchema, uploadPathSchema } from '@/lib/validation/utils';
+import { articleSlugSchema, uploadPathSchema } from '@/lib/validation/utils';
 import { createRedirect, RedirectLoopError } from '@/lib/server/repos/redirectsRepo';
 import { reportError } from '@/lib/errors/report';
 import { routes } from '@/lib/routes';
@@ -67,7 +67,7 @@ async function GETImpl(req: NextRequest, ctx: { params: Promise<{ id: string }> 
 }
 
 const patchPayload = z.object({
-  slug: slugSchema(120).optional(),
+  slug: articleSlugSchema(120).optional(),
   // A misfiled post used to need delete+recreate to move between blog and
   // news — and DELETE refuses anything already published, so once live it
   // was permanently stuck under the wrong section.

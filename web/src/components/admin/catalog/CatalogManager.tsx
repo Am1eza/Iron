@@ -768,7 +768,7 @@ function NodeModal({
                 </Alert>
               ) : null}
               <TextInput
-                label="نشانی (Slug)"
+                label="نشانی صفحه"
                 dir="ltr"
                 helper="خودکار از روی نام ساخته می‌شود؛ فقط اگر دلیل خاصی دارید تغییرش دهید."
                 value={slug}

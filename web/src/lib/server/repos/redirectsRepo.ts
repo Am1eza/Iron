@@ -1,7 +1,8 @@
 /** URL redirect management (US-14.3) — old-path → new-path 301/302-style
  *  redirects, configured by an admin instead of a code deploy. Enforced at
- *  request time from `src/app/not-found.tsx` (only genuinely unmatched
- *  paths reach it — zero risk of shadowing a working route). */
+ *  request time from `middleware.ts`, on every public-host request — this
+ *  takes priority over a real route match, not just 404 fallback, since a
+ *  redirect aimed at a still-live page's own URL must actually win. */
 import { eq } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { getDb } from '@/lib/server/db/client';
