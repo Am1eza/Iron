@@ -330,6 +330,18 @@ export function LeadDetail({ id }: { id: string }) {
     retry: (count, err) => !(err instanceof ApiError && err.status < 500) && count < 2,
   });
 
+  // Duplicate detection — exact normalised mobile only, within a recency
+  // window (see findDuplicateLeads). Deliberately surfaced HERE and nowhere
+  // else: a dedicated «duplicates» screen would invite bulk merging, which is
+  // exactly the wrong ergonomic for an operation with no undo. A failure is
+  // silent — the alert simply doesn't render — because a broken hint must
+  // never block a rep from working the lead.
+  const { data: dupData } = useQuery({
+    queryKey: ['admin', 'lead', id, 'duplicates'],
+    queryFn: () => adminApi.leadDuplicates(id),
+    retry: (count, err) => !(err instanceof ApiError && err.status < 500) && count < 2,
+  });
+
   const currentUser = useAuthStore((st) => st.user);
   const { data: staffData } = useQuery({ queryKey: ['admin', 'staff'], queryFn: () => adminApi.staff() });
   const staff = useMemo(() => staffData?.staff ?? [], [staffData]);
@@ -350,6 +362,25 @@ export function LeadDetail({ id }: { id: string }) {
   };
   const showError = (err: unknown, fallback: string) =>
     toast.error(err instanceof ApiError ? err.message : fallback);
+
+  const merge = useMutation({
+    // Exactly one attempt: the server keys idempotency on
+    // (winner, loser, actor) with no time bucket, but an automatic client
+    // retry of an irreversible operation is not a behaviour worth having at
+    // all — a refusal is thrown server-side and releases the claim, so a
+    // deliberate second click still works.
+    retry: 0,
+    mutationFn: (loserId: string) => adminApi.mergeLead(id, loserId),
+    onSuccess: (res) => {
+      toast.success(
+        `سرنخ ${res.loser.ref} در ${res.winner.ref} ادغام و بایگانی شد — ${toPersianDigits(res.moved.items)} قلم کالا، ${toPersianDigits(res.moved.notes)} یادداشت و ${toPersianDigits(res.moved.proformas)} پیش‌فاکتور منتقل شد.`,
+      );
+      invalidate();
+      void qc.invalidateQueries({ queryKey: ['admin', 'lead', id, 'duplicates'] });
+      void qc.invalidateQueries({ queryKey: ['admin', 'my', 'desk'] });
+    },
+    onError: (e) => showError(e, 'ادغام سرنخ‌ها ناموفق بود.'),
+  });
 
   const setStatus = useMutation({
     mutationFn: (status: string) => adminApi.updateLead(id, { status }),
@@ -548,6 +579,47 @@ export function LeadDetail({ id }: { id: string }) {
     if (result.outcome === 'later' && result.callbackAt) setCallback.mutate(result.callbackAt);
   };
 
+  /* ---------------- duplicate leads ---------------- */
+
+  const duplicates = dupData?.candidates ?? [];
+  const dupWindowDays = dupData?.windowDays ?? 30;
+  // Same predicate on both halves of the precondition the server enforces:
+  // the merge is refused when EITHER lead carries an active proforma.
+  const subjectBlockedByProforma = Boolean(activeProforma) || (dupData?.subjectHasActiveProforma ?? false);
+  const staffLabel = (assigneeId: string | null) =>
+    assigneeId ? (staffNameById.get(assigneeId) ?? 'کارشناس نامشخص') : 'بدون کارشناس';
+
+  /** Follows the codebase's own standard for a destructive confirm (see
+   *  CatalogManager's «Deactivation states its blast radius first»): name every
+   *  row that moves, name the archive, name the other rep whose desk this lead
+   *  is currently on, and say plainly that there is no undo. Nothing about
+   *  `assigneeId`, `status`, `callbackAt` or `context` is merged — the winner
+   *  keeps its own — so the dialog reports the loser's assignee rather than
+   *  silently taking a lead off someone's desk. */
+  const askMerge = async (c: (typeof duplicates)[number]) => {
+    const ok = await confirm({
+      title: `ادغام سرنخ ${c.ref} در ${lead.ref}؟`,
+      body: (
+        <div className={s.dupConfirm}>
+          <span>
+            {toPersianDigits(c.itemCount)} قلم کالا، {toPersianDigits(c.noteCount)} یادداشت و{' '}
+            {toPersianDigits(c.proformaCount)} پیش‌فاکتور به <bdi>{lead.ref}</bdi> منتقل می‌شود و{' '}
+            <bdi>{c.ref}</bdi> بایگانی خواهد شد.
+          </span>
+          {c.assigneeId !== lead.assigneeId ? (
+            <span>
+              سرنخ <bdi>{c.ref}</bdi> روی میز «{staffLabel(c.assigneeId)}» است. کارشناس مسئول این سرنخ («
+              {staffLabel(lead.assigneeId)}») تغییر نمی‌کند — در صورت نیاز خودتان به همکارتان اطلاع دهید.
+            </span>
+          ) : null}
+          <span className={s.dupWarn}>این عمل قابل بازگشت نیست؛ هیچ راهی برای جداکردن دوبارهٔ این دو سرنخ نیست.</span>
+        </div>
+      ),
+      confirmLabel: 'ادغام و بایگانی',
+    });
+    if (ok) merge.mutate(c.id);
+  };
+
   const steps: Array<{ label: string; hint: string }> = [
     { label: 'ثبت شد', hint: 'سرنخ جدید' },
     { label: 'تماس گرفته شد', hint: 'کارشناس تماس گرفت' },
@@ -605,6 +677,59 @@ export function LeadDetail({ id }: { id: string }) {
             ) : null}
           </div>
         </header>
+
+        {/* Possible duplicate of this same customer — an inline warning on the
+            lead itself, never a bulk «duplicates» screen. Matching is EXACT on
+            the normalised mobile: no fuzzy name matching, because one false
+            positive acted on merges two real customers' order trails and there
+            is no undo. */}
+        {duplicates.length > 0 ? (
+          <Alert tone="warning" title="احتمال سرنخ تکراری">
+            <p>
+              {toPersianDigits(duplicates.length)} سرنخ دیگر از همین شماره، با فاصلهٔ کمتر از{' '}
+              {toPersianDigits(dupWindowDays)} روز نسبت به این سرنخ، ثبت شده است. پیش از ادغام، هر دو را باز کنید و
+              مطمئن شوید یک خرید هستند نه دو سفارش جدا.
+            </p>
+            <ul className={s.dupList}>
+              {duplicates.map((c) => {
+                const blocked = subjectBlockedByProforma || c.hasActiveProforma;
+                return (
+                  <li key={c.id} className={s.dupRow}>
+                    <a className={s.link} href={`${routes.admin.leads()}/${encodeURIComponent(c.id)}`}>
+                      <bdi>{c.ref}</bdi>
+                    </a>
+                    <Badge tone={STATUS_META[c.status].tone}>{STATUS_META[c.status].label}</Badge>
+                    <span className={`${s.dupMeta} ${s.ltr}`}>{formatJalali(c.createdAt, 'yyyy/MM/dd HH:mm')}</span>
+                    <span className={s.dupMeta}>
+                      {toPersianDigits(c.itemCount)} قلم · {staffLabel(c.assigneeId)}
+                    </span>
+                    {canManageLeads ? (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        disabled={blocked}
+                        loading={merge.isPending}
+                        onClick={() => void askMerge(c)}
+                      >
+                        ادغام در این سرنخ
+                      </Button>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+            {canManageLeads ? (
+              (subjectBlockedByProforma || duplicates.some((c) => c.hasActiveProforma)) ? (
+                <p className={s.dupMeta}>
+                  تا وقتی روی یکی از این سرنخ‌ها پیش‌فاکتور فعال هست، ادغام ممکن نیست — ممکن است همین حالا در دست مشتری
+                  باشد. ابتدا آن پیش‌فاکتور را باطل کنید یا بگذارید منقضی شود.
+                </p>
+              ) : null
+            ) : (
+              <p className={s.dupMeta}>ادغام سرنخ‌های تکراری فقط از عهدهٔ مدیر برمی‌آید.</p>
+            )}
+          </Alert>
+        ) : null}
 
         {/* Funnel position, driven by real state (status + an unexpired
             proforma) rather than by which buttons happen to be rendered. */}

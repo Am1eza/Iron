@@ -377,6 +377,36 @@ export const adminApi = {
   updateLead: (id: string, patch: { status?: string; assigneeId?: string | null; callbackAt?: string | null }) =>
     http.patch<{ lead: AdminLead }>(`/api/admin/leads/${id}`, patch),
   addLeadNote: (id: string, text: string) => http.post<{ note: unknown }>(`/api/admin/leads/${id}/notes`, { text }),
+  /** Other live leads sharing this one's NORMALISED mobile, within
+   *  `windowDays` of its own `createdAt` (exact match only — never fuzzy).
+   *  `leads:read`. */
+  leadDuplicates: (id: string) =>
+    http.get<{
+      windowDays: number;
+      subjectHasActiveProforma: boolean;
+      candidates: Array<{
+        id: string;
+        ref: string;
+        status: AdminLead['status'];
+        assigneeId: string | null;
+        contactName: string | null;
+        createdAt: string;
+        itemCount: number;
+        noteCount: number;
+        proformaCount: number;
+        hasActiveProforma: boolean;
+      }>;
+    }>(`/api/admin/leads/${id}/duplicates`),
+  /** Fold `loserId` into `id`: children move, the loser is archived. THERE IS
+   *  NO UNDO. Requires `leads:manage`, and the server re-checks the shared
+   *  mobile and the no-active-proforma precondition from the locked rows — the
+   *  client sends nothing but two ids. */
+  mergeLead: (id: string, loserId: string) =>
+    http.post<{
+      winner: { id: string; ref: string };
+      loser: { id: string; ref: string };
+      moved: { items: number; notes: number; proformas: number; requests: number };
+    }>(`/api/admin/leads/${id}/merge`, { loserId }),
   /** `unitPrice`: omit = keep, `null` = «بدون قیمت» (stores NULL price AND
    *  NULL line total), a number = that price. `0` is NOT "unpriced" — the
    *  route 400s it on purpose, so this type has to be able to say `null` or

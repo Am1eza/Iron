@@ -56,6 +56,11 @@ export const ACTION_META: Record<string, ActionMeta> = {
   'lead.proforma': { verb: 'پیش‌فاکتور صادر کرد', tone: 'money' },
   'lead.order': { verb: 'از سرنخ سفارش ثبت کرد', tone: 'money' },
   'lead.delete': { verb: 'سرنخ را حذف کرد', tone: 'destroy' },
+  // A merge writes TWO rows, one keyed on each lead, so the entity filter
+  // finds it starting from EITHER side — hence two verbs, each phrased from
+  // the point of view of the lead the reader is standing on.
+  'lead.merge': { verb: 'سرنخ تکراری را در این سرنخ ادغام کرد', tone: 'destroy' },
+  'lead.merged_into': { verb: 'این سرنخ را در سرنخ دیگری ادغام و بایگانی کرد', tone: 'destroy' },
   'lead.export': { verb: 'خروجی اکسل سرنخ‌ها را گرفت', tone: 'access' },
 
   'market.billet': { verb: 'قیمت شمش بازار را ثبت کرد', tone: 'money' },
@@ -156,6 +161,19 @@ export const FIELD_LABEL: Record<string, string> = {
   carrierName: 'شرکت حمل',
   imageUrl: 'تصویر',
   order: 'ترتیب',
+  // Lead merge — the `before` payload is the only record of what moved where,
+  // and reversing a merge by hand means reading it row by row.
+  loserId: 'شناسهٔ سرنخ تکراری',
+  loserRef: 'کد سرنخ تکراری',
+  loserStatus: 'وضعیت سرنخ تکراری',
+  loserAssigneeId: 'کارشناس سرنخ تکراری',
+  loserCreatedAt: 'زمان ثبت سرنخ تکراری',
+  winnerId: 'شناسهٔ سرنخ مقصد',
+  winnerRef: 'کد سرنخ مقصد',
+  movedItemIds: 'اقلام منتقل‌شده',
+  movedNoteIds: 'یادداشت‌های منتقل‌شده',
+  movedProformaIds: 'پیش‌فاکتورهای منتقل‌شده',
+  movedRequestIds: 'درخواست‌های منتقل‌شده',
 };
 
 export function actionMeta(action: string): ActionMeta {

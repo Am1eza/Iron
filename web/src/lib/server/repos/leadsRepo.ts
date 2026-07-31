@@ -2,10 +2,11 @@
  * Leads + proformas — the conversion spine's persistence. Lead items snapshot
  * name/price at creation; issued proformas freeze lines as jsonb.
  */
-import { and, asc, desc, eq, gt, gte, ilike, inArray, isNotNull, isNull, lte, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, gte, ilike, inArray, isNotNull, isNull, lte, ne, or, sql } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { getDb, type DbOrTx } from '@/lib/server/db/client';
-import { leads, leadItems, leadNotes, proformas } from '@/lib/server/db/schema';
+import { leads, leadItems, leadNotes, proformas, userRequests } from '@/lib/server/db/schema';
+import { normalizeDigits, normalizeMobile, toPersianDigits } from '@/lib/utils/format';
 import type { LineItem } from '@/lib/types/domain';
 
 export type LeadRow = typeof leads.$inferSelect;
@@ -641,4 +642,409 @@ export async function assigneeDesk(assigneeId: string): Promise<{
       upcoming: list(upcomingRows, Number(callbackCounts[0]?.upcoming ?? 0), DESK_CALLBACK_LIMIT),
     },
   };
+}
+
+/* --------------------- duplicate detection & merge --------------------- */
+
+/**
+ * The ONE identity key two leads are compared on. `leads.contactMobile` is the
+ * only identifying column on the table (`userId` is nullable — guest leads are
+ * first-class — `contactName` is nullable, and there is no company name and no
+ * email at all), so everything below hangs off this function.
+ *
+ * It must be applied on BOTH sides of every comparison, because the stored
+ * value is NOT guaranteed canonical: `mobileSchema` (validation/schemas.ts)
+ * only *validates* — it has no `.transform()` — so `createLead` writes through
+ * whatever the client posted. «۰۹۱۲۱۲۳۴۵۶۷», «+989121234567» and «0912 123
+ * 4567» all pass validation and all land in the column verbatim, and all three
+ * are the same customer.
+ *
+ * `normalizeMobile` is Iran-only by design (it returns null for anything that
+ * isn't 09XXXXXXXXX after digit folding). Non-Iran numbers are stored as E.164
+ * by PhoneField, so they fall back to a digit-folded, punctuation-stripped form
+ * — same idea, no Iran-specific prefix rewriting.
+ */
+export function normalizedMobileKey(raw: string): string {
+  return normalizeMobile(raw) ?? normalizeDigits(raw).replace(/[^\d+]/g, '');
+}
+
+/**
+ * The exact stored spellings that are all the SAME number as `raw`, used as an
+ * index-served `IN (…)` pre-filter on `leads_contact_mobile_idx`.
+ *
+ * This is deliberately a WIDENING filter, never the decision: every row it
+ * returns is re-checked in JS with `normalizedMobileKey` on both sides. A
+ * functional-expression equality (`translate(contact_mobile, …) = …`) would be
+ * exhaustive but could not use the btree index, turning a seq scan of the whole
+ * leads table into the cost of opening any lead's detail page. The variants
+ * below cover every form the write paths can actually produce (canonical,
+ * E.164, 0098/98 prefixed, Persian digits) plus the subject's own raw stored
+ * string, so an identically-typed pair matches even in a spelling not listed
+ * here. A miss costs a rep thirty seconds; a seq scan costs every page view.
+ */
+function mobileMatchVariants(raw: string): string[] {
+  const key = normalizedMobileKey(raw);
+  const variants = new Set<string>([raw.trim(), key]);
+  if (/^09\d{9}$/.test(key)) {
+    const national = key.slice(1); // 9XXXXXXXXX
+    variants.add(`+98${national}`);
+    variants.add(`0098${national}`);
+    variants.add(`98${national}`);
+    variants.add(toPersianDigits(key));
+  }
+  return [...variants].filter((v) => v.length > 0);
+}
+
+/** Default recency window for duplicate detection, in days — see
+ *  `findDuplicateLeads`. */
+export const DUPLICATE_WINDOW_DAYS = 30;
+
+export interface DuplicateLeadCandidate {
+  id: string;
+  ref: string;
+  status: LeadRow['status'];
+  assigneeId: string | null;
+  contactName: string | null;
+  createdAt: Date;
+  itemCount: number;
+  noteCount: number;
+  proformaCount: number;
+  /** Same predicate the merge guard uses — lets the UI refuse up front instead
+   *  of letting the rep discover the block only after confirming. */
+  hasActiveProforma: boolean;
+}
+
+export interface DuplicateLeadsResult {
+  windowDays: number;
+  /** The SUBJECT lead's own active-proforma state — the merge is refused when
+   *  EITHER side has one, so the alert needs both halves of that answer. */
+  subjectHasActiveProforma: boolean;
+  candidates: DuplicateLeadCandidate[];
+}
+
+/**
+ * Other live leads carrying the SAME normalised mobile as `leadId`, within
+ * `withinDays` of that lead's own `createdAt`.
+ *
+ * Exact normalised mobile only — nothing fuzzy, ever. Levenshtein over Persian
+ * names (ZWNJ, ی/ك variance) produces false positives, and one false positive
+ * that a rep acts on merges two real customers' commercial history with no undo
+ * button. The cost asymmetry is total.
+ *
+ * The window is measured as the GAP BETWEEN THE TWO LEADS, not "the last 30
+ * days from now": two orders from the same number eight months apart are two
+ * genuine purchases, and that is a fact about the pair, not about today's date.
+ * A "now − 30d" window would also go blind on both leads of a real duplicate
+ * pair the moment the pair is 31 days old, which is exactly when someone
+ * finally opens the older one.
+ */
+export async function findDuplicateLeads(
+  leadId: string,
+  withinDays = DUPLICATE_WINDOW_DAYS,
+): Promise<DuplicateLeadsResult> {
+  const db = getDb();
+  const empty: DuplicateLeadsResult = { windowDays: withinDays, subjectHasActiveProforma: false, candidates: [] };
+  const subjectRows = await db
+    .select({ id: leads.id, contactMobile: leads.contactMobile, createdAt: leads.createdAt })
+    .from(leads)
+    .where(and(eq(leads.id, leadId), isNull(leads.deletedAt)))
+    .limit(1);
+  const subject = subjectRows[0];
+  if (!subject) return empty;
+
+  const subjectKey = normalizedMobileKey(subject.contactMobile);
+  if (!subjectKey) return empty;
+
+  const windowMs = withinDays * 24 * 60 * 60 * 1000;
+  const from = new Date(subject.createdAt.getTime() - windowMs);
+  const to = new Date(subject.createdAt.getTime() + windowMs);
+
+  const rows = await db
+    .select({
+      id: leads.id,
+      ref: leads.ref,
+      status: leads.status,
+      assigneeId: leads.assigneeId,
+      contactName: leads.contactName,
+      contactMobile: leads.contactMobile,
+      createdAt: leads.createdAt,
+      // `leads.id` is written out LITERALLY, not interpolated as `${leads.id}`:
+      // inside a select-field expression drizzle renders a Column as a bare
+      // `"id"`, which a correlated subquery then resolves against its OWN from
+      // list (`lead_items.id`) instead of the outer lead. The result is not an
+      // error — it is a silent, always-zero count. Caught by the
+      // findDuplicateLeads count assertions in leadsRepo.merge.test.ts.
+      itemCount: sql<number>`(select count(*)::int from lead_items li where li.lead_id = leads.id)`,
+      noteCount: sql<number>`(select count(*)::int from lead_notes ln where ln.lead_id = leads.id)`,
+      proformaCount: sql<number>`(select count(*)::int from proformas pf where pf.lead_id = leads.id)`,
+      hasActiveProforma: sql<boolean>`exists (select 1 from proformas pa where pa.lead_id = leads.id and pa.status = 'active' and pa.valid_until > now())`,
+    })
+    .from(leads)
+    .where(
+      and(
+        inArray(leads.contactMobile, mobileMatchVariants(subject.contactMobile)),
+        ne(leads.id, subject.id),
+        isNull(leads.deletedAt),
+        gte(leads.createdAt, from),
+        lte(leads.createdAt, to),
+      ),
+    )
+    .orderBy(desc(leads.createdAt))
+    .limit(20);
+
+  const subjectActive = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(proformas)
+    .where(and(eq(proformas.leadId, subject.id), eq(proformas.status, 'active'), gt(proformas.validUntil, new Date())));
+
+  return {
+    windowDays: withinDays,
+    subjectHasActiveProforma: Number(subjectActive[0]?.n ?? 0) > 0,
+    // The SQL `IN (…)` above is only a pre-filter; the normalised key on both
+    // sides is what actually decides. Never trust the widening filter.
+    candidates: rows
+      .filter((r) => normalizedMobileKey(r.contactMobile) === subjectKey)
+      // `contactMobile` is deliberately NOT re-exported: the alert already
+      // shows the number once, on the lead the rep is looking at.
+      .map((r) => ({
+        id: r.id,
+        ref: r.ref,
+        status: r.status,
+        assigneeId: r.assigneeId,
+        contactName: r.contactName,
+        createdAt: r.createdAt,
+        itemCount: Number(r.itemCount),
+        noteCount: Number(r.noteCount),
+        proformaCount: Number(r.proformaCount),
+        hasActiveProforma: Boolean(r.hasActiveProforma),
+      })),
+  };
+}
+
+/** Refused: a lead cannot be merged into itself. */
+export class LeadMergeSelfError extends Error {
+  constructor() {
+    super('cannot merge a lead into itself');
+  }
+}
+
+/** Refused: one side is missing or already archived (soft-deleted). */
+export class LeadMergeMissingError extends Error {
+  readonly side: 'winner' | 'loser';
+  constructor(side: 'winner' | 'loser') {
+    super(`merge ${side} lead not found or already archived`);
+    this.side = side;
+  }
+}
+
+/** Refused: the two leads are not the same customer. Re-checked SERVER-side
+ *  from the two locked rows — never trusted from the client, which only ever
+ *  sends ids. */
+export class LeadMergeMobileMismatchError extends Error {
+  constructor() {
+    super('leads do not share a normalised contact mobile');
+  }
+}
+
+/**
+ * Refused: an ACTIVE proforma exists on one of the two leads.
+ *
+ * This is a hard precondition, not a warning. `issueProforma` maintains the
+ * invariant "exactly one active proforma per lead" via `supersedeActiveProformas`,
+ * and `updateLeadItem` throws `LeadItemLockedError` when an active proforma
+ * exists so line items cannot drift under an issued quote. Re-parenting a
+ * proforma row would leave the survivor with TWO active proformas — silently
+ * breaking an invariant the item-edit lock, the expiry sweep and the public
+ * `/proforma/{ref}` page all depend on. We never auto-supersede: the customer
+ * may be holding that quote right now.
+ */
+export class LeadMergeProformaActiveError extends Error {
+  readonly side: 'winner' | 'loser';
+  readonly proformaRef: string;
+  constructor(side: 'winner' | 'loser', proformaRef: string) {
+    super(`lead ${side} has an active proforma ${proformaRef}`);
+    this.side = side;
+    this.proformaRef = proformaRef;
+  }
+}
+
+export interface LeadMergeResult {
+  winner: LeadRow;
+  loser: LeadRow;
+  /** Everything a human needs to reverse this merge BY HAND — the route puts
+   *  it in both audit entries' `before` payload. */
+  movedItemIds: string[];
+  movedNoteIds: string[];
+  movedProformaIds: string[];
+  movedRequestIds: string[];
+}
+
+/**
+ * Fold `loserId` into `winnerId`. THE ONLY IRREVERSIBLE OPERATION IN THE ADMIN
+ * PANEL — there is no undo button, so every step below is a refusal looking for
+ * a reason.
+ *
+ * One transaction, in this order:
+ *   1. lock BOTH lead rows FOR UPDATE, ascending by id (deadlock avoidance —
+ *      two reps merging the same pair in opposite directions would otherwise
+ *      each hold the row the other needs)
+ *   2. refuse a self-merge
+ *   3. refuse unless BOTH rows exist and BOTH have deletedAt IS NULL
+ *   4. refuse unless the NORMALISED mobiles are equal (server-side, from the
+ *      locked rows)
+ *   5. refuse if EITHER side has an active proforma (see the error class)
+ *   6. move lead_items (offsetting `order` past the winner's max so the two
+ *      sequences don't interleave into an arbitrary display order)
+ *   7. move lead_notes
+ *   8. move proformas
+ *   9. move user_requests.leadId
+ *  10. soft-delete the loser
+ *
+ * SOFT-delete, never hard: `lead_items`, `lead_notes` and `proformas` are all
+ * `onDelete: 'cascade'`, so a DELETE would destroy historical proformas whose
+ * `ref` a customer may still hold an SMS link to — 404-ing a document already
+ * sent. `leads.deletedAt` exists precisely for this; its schema comment names
+ * "duplicate" explicitly.
+ *
+ * `user_requests.leadId` is `ON DELETE SET NULL`, but we soft-delete, so that
+ * FK action never fires. Step 9's explicit UPDATE is what actually moves the
+ * customer's `/account/requests` row onto the surviving lead.
+ *
+ * Deliberately NOT merged: `assigneeId`, `status`, `callbackAt`, `context`.
+ * The winner keeps its own — silent reassignment takes a lead off someone's
+ * desk without telling them. The confirm dialog names the loser's assignee
+ * instead. The only write to the winner's own columns is an append of the
+ * loser's ref to `context.mergedFrom`.
+ */
+export async function mergeLeads(winnerId: string, loserId: string, actorId: string): Promise<LeadMergeResult> {
+  return getDb().transaction(async (tx) => {
+    // 1 — lock both rows, ascending id order. Two statements rather than one
+    // `IN (…) ORDER BY id FOR UPDATE`, so the lock order is the statement
+    // order and does not depend on how the planner happens to place LockRows.
+    const lockOrder = [...new Set([winnerId, loserId])].sort();
+    const locked = new Map<string, LeadRow>();
+    for (const id of lockOrder) {
+      const rows = await tx.select().from(leads).where(eq(leads.id, id)).limit(1).for('update');
+      if (rows[0]) locked.set(id, rows[0]);
+    }
+
+    // 2 — self-merge
+    if (winnerId === loserId) throw new LeadMergeSelfError();
+
+    // 3 — both present, neither archived
+    const winner = locked.get(winnerId);
+    const loser = locked.get(loserId);
+    if (!winner || winner.deletedAt !== null) throw new LeadMergeMissingError('winner');
+    if (!loser || loser.deletedAt !== null) throw new LeadMergeMissingError('loser');
+
+    // 4 — same customer, decided from the locked rows
+    if (normalizedMobileKey(winner.contactMobile) !== normalizedMobileKey(loser.contactMobile)) {
+      throw new LeadMergeMobileMismatchError();
+    }
+
+    // 5 — no active proforma on EITHER side. `validUntil > now()` as well as
+    // status='active', mirroring updateLeadItem: the expiry sweep runs every
+    // 10 minutes, so a lapsed quote can still read 'active' for a while and
+    // must not block a merge the customer can no longer act on.
+    const blocking = await tx
+      .select({ leadId: proformas.leadId, ref: proformas.ref })
+      .from(proformas)
+      .where(
+        and(
+          inArray(proformas.leadId, [winnerId, loserId]),
+          eq(proformas.status, 'active'),
+          gt(proformas.validUntil, new Date()),
+        ),
+      )
+      .orderBy(desc(proformas.createdAt))
+      .limit(1);
+    if (blocking[0]) {
+      throw new LeadMergeProformaActiveError(blocking[0].leadId === winnerId ? 'winner' : 'loser', blocking[0].ref);
+    }
+
+    // 6 — items. Offset past the winner's highest `order` so the survivor's
+    // lines read as "the winner's list, then the loser's", not two interleaved
+    // sequences both starting at 0.
+    const maxOrder = await tx
+      .select({ m: sql<number | null>`max(${leadItems.order})` })
+      .from(leadItems)
+      .where(eq(leadItems.leadId, winnerId));
+    const offset = (maxOrder[0]?.m ?? -1) + 1;
+    const movedItems = await tx
+      .update(leadItems)
+      .set({ leadId: winnerId, order: sql`${leadItems.order} + ${offset}` })
+      .where(eq(leadItems.leadId, loserId))
+      .returning({ id: leadItems.id });
+
+    // 7 — notes
+    const movedNotes = await tx
+      .update(leadNotes)
+      .set({ leadId: winnerId })
+      .where(eq(leadNotes.leadId, loserId))
+      .returning({ id: leadNotes.id });
+
+    // 8 — proformas (all expired/cancelled by guard 5; the customer's SMS
+    // links keep resolving because the rows themselves are never deleted)
+    const movedProformas = await tx
+      .update(proformas)
+      .set({ leadId: winnerId })
+      .where(eq(proformas.leadId, loserId))
+      .returning({ id: proformas.id });
+
+    // 9 — the customer's own «درخواست‌های من» rows
+    const movedRequests = await tx
+      .update(userRequests)
+      .set({ leadId: winnerId, updatedAt: new Date() })
+      .where(eq(userRequests.leadId, loserId))
+      .returning({ id: userRequests.id });
+
+    // 10 — archive the loser. NOT a DELETE: see the function doc.
+    const now = new Date();
+    const loserRows = await tx
+      .update(leads)
+      .set({ deletedAt: now, updatedAt: now })
+      .where(and(eq(leads.id, loserId), isNull(leads.deletedAt)))
+      .returning();
+    const archivedLoser = loserRows[0];
+    // Unreachable while the row is held FOR UPDATE — but a merge that silently
+    // left the duplicate alive after moving its children is the one outcome
+    // worse than refusing, so it aborts the whole transaction rather than
+    // trusting the lock.
+    if (!archivedLoser) throw new LeadMergeMissingError('loser');
+
+    const prevMergedFrom = Array.isArray(winner.context?.mergedFrom)
+      ? (winner.context.mergedFrom as unknown[]).filter((v): v is string => typeof v === 'string')
+      : [];
+    const winnerRows = await tx
+      .update(leads)
+      .set({
+        context: { ...(winner.context ?? {}), mergedFrom: [...prevMergedFrom, loser.ref] },
+        updatedAt: now,
+      })
+      .where(eq(leads.id, winnerId))
+      .returning();
+
+    // The rep who opens the survivor tomorrow has to be able to see why it
+    // suddenly has six line items. Inserted AFTER the note move, so it is not
+    // itself part of `movedNoteIds`, and inside the transaction so a rollback
+    // takes it with everything else.
+    await tx.insert(leadNotes).values({
+      id: ulid(),
+      leadId: winnerId,
+      authorId: actorId,
+      text:
+        `سرنخ ${loser.ref} به‌عنوان تکراری در این سرنخ ادغام شد — ` +
+        `${toPersianDigits(movedItems.length)} قلم کالا، ${toPersianDigits(movedNotes.length)} یادداشت و ` +
+        `${toPersianDigits(movedProformas.length)} پیش‌فاکتور منتقل شد.`,
+    });
+
+    return {
+      winner: winnerRows[0] ?? winner,
+      loser: archivedLoser,
+      movedItemIds: movedItems.map((r) => r.id),
+      movedNoteIds: movedNotes.map((r) => r.id),
+      movedProformaIds: movedProformas.map((r) => r.id),
+      movedRequestIds: movedRequests.map((r) => r.id),
+    };
+  });
 }
