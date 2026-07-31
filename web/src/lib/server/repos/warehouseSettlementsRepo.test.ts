@@ -146,6 +146,30 @@ describe('createSettlement', () => {
     expect(last?.id).toBe(second!.id);
   });
 
+  it('pro-rates the second period from the previous settlement periodTo, not from arrival', async () => {
+    // The item has been in the warehouse 40 days, but 20 of them are already
+    // billed. Re-measuring from arrival is the double-bill this test exists
+    // to catch: 30 days of fee for 10 days of storage.
+    const userId = await seedUser('09130000017');
+    const day = 24 * 60 * 60 * 1000;
+    const storedAt = new Date(Date.now() - 50 * day); // paperwork date…
+    const arrivedAt = new Date(Date.now() - 40 * day); // …physical arrival is what bills
+    const item = await seedItem({ userId, storedAt, arrivedAt, monthlyFeeToman: 60_000 });
+
+    const first = await createSettlement(item.id, null, { periodTo: new Date(Date.now() - 20 * day) });
+    // Billing starts at arrival, NOT at the earlier storedAt paperwork date.
+    expect(first!.periodFrom.toISOString()).toBe(arrivedAt.toISOString());
+    // 20 days × 60,000/ton/month × 5 tons ÷ 30 = 200,000.
+    expect(first!.amountToman).toBe(200_000);
+
+    const second = await createSettlement(item.id, null, { periodTo: new Date(Date.now() - 10 * day) });
+    expect(second!.periodFrom.getTime()).toBe(first!.periodTo.getTime());
+    // The 10 days SINCE the last settlement — not the 30 since arrival.
+    expect(second!.amountToman).toBe(100_000);
+    expect(second!.amountToman).not.toBe(300_000);
+    expect(Number.isInteger(second!.amountToman)).toBe(true);
+  });
+
   it('throws NothingToSettleError when periodTo is not after the unsettled period start', async () => {
     const userId = await seedUser('09130000005');
     const storedAt = new Date();
@@ -200,6 +224,39 @@ describe('voidSettlement', () => {
     expect(last).toBeNull();
   });
 
+  it('never deletes: the original row survives, flagged, and the pair nets to exactly zero', async () => {
+    // A void is a reversing ENTRY. If the original row could vanish, the
+    // customer's invoice history would silently rewrite itself — and nothing
+    // would say a correction ever happened.
+    const userId = await seedUser('09130000018');
+    const storedAt = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const item = await seedItem({ userId, storedAt, monthlyFeeToman: 60_000 });
+    const settlement = await createSettlement(item.id, null);
+
+    const result = await voidSettlement(settlement!.id, null, 'اشتباه ثبت شد');
+
+    const stored = await db
+      .select()
+      .from(schema.warehouseSettlements)
+      .where(eq(schema.warehouseSettlements.id, settlement!.id));
+    expect(stored).toHaveLength(1);
+    expect(stored[0]!.voidedAt).not.toBeNull();
+    // The original AMOUNT is untouched — only the void flag was added.
+    expect(stored[0]!.amountToman).toBe(settlement!.amountToman);
+
+    const reversal = await db
+      .select()
+      .from(schema.warehouseSettlements)
+      .where(eq(schema.warehouseSettlements.voidsSettlementId, settlement!.id));
+    expect(reversal).toHaveLength(1);
+    expect(reversal[0]!.id).toBe(result!.reversal.id);
+    // The books balance to the Toman: original + reversal === 0, exactly.
+    expect(stored[0]!.amountToman + reversal[0]!.amountToman).toBe(0);
+    expect(Number.isInteger(reversal[0]!.amountToman)).toBe(true);
+    // Both rows remain in the customer's history — nothing was removed.
+    expect(await settlementsForUser(userId)).toHaveLength(2);
+  });
+
   it('returns null for a settlement that does not exist', async () => {
     await expect(voidSettlement(ulid(), null)).resolves.toBeNull();
   });
@@ -252,6 +309,27 @@ describe('markSettlementPaid', () => {
     const result = await voidSettlement(settlement!.id, null);
     await expect(markSettlementPaid(result!.voided.id)).resolves.toBeNull();
     await expect(markSettlementPaid(result!.reversal.id)).resolves.toBeNull();
+  });
+
+  it('the refusal is enforced in the WHERE clause, not by the UI — no row is touched', async () => {
+    // The threat model the docstring names is a direct API call, which never
+    // passes through the admin screen that hides these buttons. A null return
+    // is not enough: the rows themselves must come back unstamped.
+    const userId = await seedUser('09130000019');
+    const storedAt = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const item = await seedItem({ userId, storedAt, monthlyFeeToman: 60_000 });
+    const settlement = await createSettlement(item.id, null);
+    const result = await voidSettlement(settlement!.id, null);
+
+    await markSettlementPaid(result!.voided.id, 'پرداخت جعلی');
+    await markSettlementPaid(result!.reversal.id, 'پرداخت جعلی');
+
+    const rows = await settlementsForUser(userId);
+    expect(rows).toHaveLength(2);
+    for (const row of rows) {
+      expect(row.paidAt).toBeNull();
+      expect(row.paymentNote).toBeNull();
+    }
   });
 });
 

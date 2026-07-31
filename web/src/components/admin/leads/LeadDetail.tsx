@@ -138,6 +138,43 @@ function formatNum(value: number, maxFrac = 2): string {
     .replace(/\./g, '٫');
 }
 
+/** The proforma money math, in ONE place, mirroring `issueProforma`
+ *  (leads.service.ts) line for line:
+ *
+ *      subtotal  = Σ lineTotal of the PRICED lines
+ *      discount  = clamp(discountToman, 0, subtotal)
+ *      taxable   = subtotal − discount
+ *      vatAmount = round(taxable × vatRate)
+ *      total     = taxable + vatAmount
+ *
+ *  It used to be four inline expressions in the render body, which is how the
+ *  preview a rep reads off the screen and the numbers the customer's document
+ *  actually carries drift apart. The sum is over lines with a real unit price
+ *  only — the server issues from `items.filter(i => i.unitPrice)`, so an
+ *  unpriced line («قلم بدون قیمت») must not inflate the on-screen subtotal
+ *  either. Everything is integer Toman; nothing here introduces a fraction.
+ *
+ *  `vatRate` defaults to 0 because this screen has no VAT rate before
+ *  issuance (the server reads it from settings at issue time) — hence the
+ *  preview stops at «مبلغ پیش از مالیات». Callers that DO know the rate get
+ *  the same numbers the server will store. */
+export function proformaTotals(
+  items: ReadonlyArray<{ unitPrice?: number | null; lineTotal?: number | null }>,
+  discountToman: number,
+  vatRate = 0,
+): { subtotal: number; discount: number; taxable: number; vatAmount: number; total: number } {
+  const subtotal = items.reduce(
+    (sum, it) => (it.unitPrice != null && it.unitPrice > 0 ? sum + (it.lineTotal ?? 0) : sum),
+    0,
+  );
+  const requested = Number.isFinite(discountToman) ? discountToman : 0;
+  const discount = Math.min(Math.max(requested, 0), subtotal);
+  const taxable = subtotal - discount;
+  const vatAmount = Math.round(taxable * vatRate);
+  const total = taxable + vatAmount;
+  return { subtotal, discount, taxable, vatAmount, total };
+}
+
 /** Same predicate the server uses (`status='active' AND validUntil > now()`):
  *  expiry is swept lazily, so a row can read 'active' up to 10 minutes after
  *  it has actually lapsed. */
@@ -473,11 +510,13 @@ export function LeadDetail({ id }: { id: string }) {
     lead.status === 'won' || lead.status === 'lost' ? lead.status : activeProforma ? 'quoted' : lead.status;
   const stageIndex = STAGE_INDEX[stage];
 
-  const subtotal = items.reduce((sum, it) => sum + (it.lineTotal ?? 0), 0);
   const totalWeight = items.reduce((sum, it) => sum + (it.weightKg ?? 0), 0);
   const pricedCount = items.filter((it) => it.unitPrice != null && it.unitPrice > 0).length;
-  const appliedDiscount = discountValid ? Math.min(parsedDiscount, subtotal) : 0;
-  const taxable = subtotal - appliedDiscount;
+  const {
+    subtotal,
+    discount: appliedDiscount,
+    taxable,
+  } = proformaTotals(items, discountValid ? parsedDiscount : 0);
 
   const itemsLocked = Boolean(activeProforma);
   const canIssue = pricedCount > 0 && lead.status !== 'lost';

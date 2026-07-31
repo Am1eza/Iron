@@ -110,12 +110,12 @@ function RowSparkline({ series }: { series: number[] | undefined }) {
 type Draft = { price?: string; deliveryTime?: string };
 type GridCol = 'price' | 'delivery';
 
-type PasteRow = { id: string; slug: string; name: string; size?: string };
+export type PasteRow = { id: string; slug: string; name: string; size?: string };
 
 /** Parse pasted "key<sep>price" lines (tab, comma, or 2+ spaces) and match each
  *  key against a row's slug / name / size (normalized). Returns the drafts to
  *  apply plus the keys that matched nothing, for a review-before-save preview. */
-function matchPastedPrices(
+export function matchPastedPrices(
   text: string,
   rows: PasteRow[],
 ): { matched: Array<{ id: string; price: string }>; unmatched: string[] } {
