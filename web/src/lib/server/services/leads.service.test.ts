@@ -47,6 +47,21 @@ describe('issueProforma — discount (US-19.4)', () => {
     expect(proforma.total).toBe(900_000 + expectedVat);
   });
 
+  // The customer-facing /proforma/[ref] sheet prints these fields verbatim, so
+  // they must reconcile on paper. Before US-19.4's display fix the page showed
+  // only subtotal/vat/total, which do NOT add up once a discount exists — a
+  // buyer's accountant reading the sheet saw an arithmetic error. This pins the
+  // exact identity the page now renders.
+  it('keeps the printed identity subtotal − discount + vat === total', async () => {
+    const lead = await seedLead();
+    const proforma = await issueProforma(lead, LINES, undefined, 250_000);
+    expect(proforma.subtotal - proforma.discountToman + proforma.vatAmount).toBe(proforma.total);
+    // and the printed VAT percentage must be true of the printed taxable base,
+    // not of the subtotal — that's why the sheet shows «مبلغ مشمول مالیات».
+    const taxable = proforma.subtotal - proforma.discountToman;
+    expect(proforma.vatAmount).toBe(Math.round(taxable * proforma.vatRate));
+  });
+
   it('clamps a discount larger than the subtotal down to the subtotal (taxable never negative)', async () => {
     const lead = await seedLead();
     const proforma = await issueProforma(

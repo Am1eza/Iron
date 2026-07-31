@@ -24,6 +24,9 @@ async function GETImpl(req: NextRequest, ctx: { params: Promise<{ ref: string }>
         ref: p.ref,
         lines: p.lines,
         subtotal: p.subtotal,
+        // Applied before VAT — without it a consumer cannot reconcile
+        // subtotal/vatAmount/total. See the totals block on /proforma/[ref].
+        discountToman: p.discountToman,
         vatRate: p.vatRate,
         vatAmount: p.vatAmount,
         total: p.total,

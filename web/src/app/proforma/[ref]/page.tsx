@@ -104,6 +104,22 @@ export default async function ProformaPage({ params }: Params) {
             <dt>جمع کل</dt>
             <dd>{formatToman(p.subtotal, false)} تومان</dd>
           </div>
+          {/* Discount is applied BEFORE VAT (see issueProforma in leads.service.ts),
+              so hiding it made the three printed numbers fail to reconcile and the
+              VAT percentage read as wrong against the printed base. Both rows are
+              omitted at zero discount so the common case is unchanged. */}
+          {p.discountToman > 0 ? (
+            <>
+              <div>
+                <dt>تخفیف</dt>
+                <dd>−{formatToman(p.discountToman, false)} تومان</dd>
+              </div>
+              <div>
+                <dt>مبلغ مشمول مالیات</dt>
+                <dd>{formatToman(p.subtotal - p.discountToman, false)} تومان</dd>
+              </div>
+            </>
+          ) : null}
           <div>
             <dt>ارزش افزوده ({toPersianDigits(Math.round(p.vatRate * 100))}٪)</dt>
             <dd>{formatToman(p.vatAmount, false)} تومان</dd>
