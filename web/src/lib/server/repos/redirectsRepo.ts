@@ -37,6 +37,41 @@ export async function adminListRedirects(): Promise<RedirectRow[]> {
 
 export class RedirectLoopError extends Error {}
 
+/** How many hops `wouldLoop` follows before giving up and treating the chain
+ *  as suspicious. A legitimate redirect chain this long doesn't happen in
+ *  practice (each hop is a manual admin action); a chain this long is far
+ *  more likely to be a cycle a human made by accident across several edits. */
+const MAX_REDIRECT_CHAIN_HOPS = 10;
+
+/**
+ * Would starting a chain at `start` and following each redirect's `toPath`
+ * ever loop — either back to `origin` (the fromPath this would-be redirect
+ * belongs to) or into any other cycle along the way?
+ *
+ * The original version of this check only ever looked one hop ahead (does
+ * `toPath` have a redirect straight back to `fromPath`?), which caught the
+ * common accidental A⇄B swap but not a 3+-hop cycle built up over several
+ * separate edits (A→B, then B→C, then C→A — each individual edit looked
+ * fine in isolation). At request time `middleware.ts` only ever resolves
+ * ONE hop per request — so a stored cycle doesn't crash the server, but a
+ * real visitor's browser follows the chain across successive requests and
+ * hits its own redirect-loop limit (`ERR_TOO_MANY_REDIRECTS`) on a real
+ * public path. This walks the whole chain up front so the loop can never be
+ * saved in the first place.
+ */
+async function wouldLoop(origin: string, start: string): Promise<boolean> {
+  const seen = new Set<string>();
+  let current = start;
+  for (let hop = 0; hop < MAX_REDIRECT_CHAIN_HOPS; hop++) {
+    if (current === origin || seen.has(current)) return true;
+    seen.add(current);
+    const next = await findRedirect(current);
+    if (!next) return false;
+    current = normalizePath(next.toPath);
+  }
+  return true; // chain didn't resolve within the hop budget — treat as a loop
+}
+
 export async function createRedirect(input: {
   fromPath: string;
   toPath: string;
@@ -44,15 +79,8 @@ export async function createRedirect(input: {
 }): Promise<RedirectRow> {
   const fromPath = normalizePath(input.fromPath);
   const toPath = normalizePath(input.toPath);
-  if (fromPath === toPath) {
-    throw new RedirectLoopError('مقصد نمی‌تواند همان مبدأ باشد.');
-  }
-  // Catches the immediate 2-hop case (A→B while B→A already exists) — not
-  // exhaustive cycle detection across longer chains, but the cheap, common
-  // mistake this guards against costs one extra indexed lookup.
-  const reverse = await findRedirect(toPath);
-  if (reverse && normalizePath(reverse.toPath) === fromPath) {
-    throw new RedirectLoopError('این مسیر یک حلقهٔ ریدایرکت با مسیر مقصد می‌سازد.');
+  if (await wouldLoop(fromPath, toPath)) {
+    throw new RedirectLoopError('این مسیر یک حلقهٔ ریدایرکت می‌سازد (مستقیم یا از چند مسیر واسط).');
   }
   const rows = await getDb()
     .insert(redirects)
@@ -66,7 +94,19 @@ export async function updateRedirect(
   patch: { toPath?: string; permanent?: boolean },
 ): Promise<RedirectRow | null> {
   const set: Partial<typeof redirects.$inferInsert> = { updatedAt: new Date() };
-  if (patch.toPath !== undefined) set.toPath = normalizePath(patch.toPath);
+  if (patch.toPath !== undefined) {
+    // The create path has always rejected a loop — this one silently didn't:
+    // PATCHing an existing redirect's destination back onto its own source
+    // (or onto a chain that eventually leads back to it) saved cleanly, no
+    // different from hand-editing the row in the database.
+    const existing = await getDb().select().from(redirects).where(eq(redirects.id, id)).limit(1);
+    const fromPath = existing[0]?.fromPath;
+    const toPath = normalizePath(patch.toPath);
+    if (fromPath !== undefined && (await wouldLoop(fromPath, toPath))) {
+      throw new RedirectLoopError('این مسیر یک حلقهٔ ریدایرکت می‌سازد (مستقیم یا از چند مسیر واسط).');
+    }
+    set.toPath = toPath;
+  }
   if (patch.permanent !== undefined) set.permanent = patch.permanent;
   const rows = await getDb().update(redirects).set(set).where(eq(redirects.id, id)).returning();
   return rows[0] ?? null;

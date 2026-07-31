@@ -28,22 +28,63 @@ export interface SeoArticleCheck {
   id: string;
   slug: string;
   title: string;
+  /** Needed to build the correct `/blog/{slug}` vs `/news/{slug}` link — a
+   *  single hardcoded `/guides/{slug}` link used to 404 for every article,
+   *  every time, since no such route has ever existed on this site. */
+  type: 'blog' | 'news';
   titleOk: boolean;
   excerptOk: boolean;
   thinOk: boolean;
   words: number;
 }
 
+/**
+ * Strips Markdown syntax before counting "words" — raw source markup
+ * (headings, `**`/`*` emphasis, link/image syntax, table pipes, list/quote
+ * markers) is never part of what a reader actually reads as prose, and
+ * counting it inflates the depth check materially: a realistic formatted
+ * article (heading + bold + two links + an image + a pricing table + a
+ * list) counted ~34% higher unstripped than its true reader-visible word
+ * count in a spot check — enough to let genuinely thin content read as
+ * `thinOk: true`, hiding it from the "needs work" list this page exists to
+ * produce.
+ */
+function stripMarkdownForWordCount(md: string): string {
+  return md
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ') // images — not read as prose, drop entirely
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1') // links — keep the visible text only
+    .replace(/^#{1,6}\s+/gm, '') // headings
+    .replace(/^>\s?/gm, '') // blockquote markers
+    .replace(/^\s*[-*+]\s+/gm, '') // unordered list markers
+    .replace(/^\s*\d+\.\s+/gm, '') // ordered list markers
+    .replace(/^\|?-{2,}\|?[-|\s]*$/gm, '') // table header-separator rows
+    .replace(/\|/g, ' ') // remaining table pipes
+    .replace(/\*\*([^*]+)\*\*/g, '$1') // bold
+    .replace(/\*([^*]+)\*/g, '$1') // italic
+    .replace(/`([^`]+)`/g, '$1'); // inline code
+}
+
 /** Per-article on-page checks (industry-standard bounds). */
-export function checkArticleSeo(a: { id: string; slug: string; title: string; excerpt: string | null; bodyMd: string }): SeoArticleCheck {
-  const words = a.bodyMd.trim() ? a.bodyMd.trim().split(/\s+/).length : 0;
+export function checkArticleSeo(a: {
+  id: string;
+  slug: string;
+  title: string;
+  type: 'blog' | 'news';
+  excerpt: string | null;
+  bodyMd: string;
+}): SeoArticleCheck {
+  const stripped = stripMarkdownForWordCount(a.bodyMd).trim();
+  const words = stripped ? stripped.split(/\s+/).length : 0;
   const titleLen = a.title.trim().length;
   const excerptLen = (a.excerpt ?? '').trim().length;
   return {
     id: a.id,
     slug: a.slug,
     title: a.title,
-    // Persian titles run denser than Latin — 20–65 chars is the practical band.
+    type: a.type,
+    // Persian titles run denser than Latin — 20–65 chars is the practical
+    // band this codebase uses; not independently validated against Persian
+    // SERP pixel-width data, treat as a working heuristic, not a proven bound.
     titleOk: titleLen >= 20 && titleLen <= 65,
     excerptOk: excerptLen >= 70 && excerptLen <= 160,
     thinOk: words >= 300,
@@ -369,14 +410,19 @@ export interface SeoStats {
   titlePassRate: number;
   excerptPassRate: number;
   thinPassRate: number;
-  failing: SeoArticleCheck[]; // published articles failing ≥1 check (worst first)
-  /** Guarantees enforced by code at render time — shown as automated passes. */
+  failing: SeoArticleCheck[]; // published articles failing ≥1 check (worst first), capped — see failingTotal
+  /** The true count before the `failing` list is capped to 30 — without
+   *  this the UI had no way to tell "showing everything" from "showing 30 of
+   *  200 and silently hiding the rest." */
+  failingTotal: number;
+  /** Static architecture facts, not a live per-request check — see the
+   *  `automated` block's own doc comment below for why. */
   automated: Array<{ label: string; ok: true }>;
 }
 
 export async function seoStats(): Promise<SeoStats> {
   const [arts, counts, lastPub] = await Promise.all([
-    rows(sql`SELECT id, slug, title, excerpt, body_md AS "bodyMd" FROM articles WHERE status = 'published'`),
+    rows(sql`SELECT id, slug, title, type, excerpt, body_md AS "bodyMd" FROM articles WHERE status = 'published'`),
     rows(sql`
       SELECT
         count(*) FILTER (WHERE status = 'published')::int AS published,
@@ -388,7 +434,7 @@ export async function seoStats(): Promise<SeoStats> {
   ]);
 
   const checks = arts.map((a) =>
-    checkArticleSeo(a as { id: string; slug: string; title: string; excerpt: string | null; bodyMd: string }),
+    checkArticleSeo(a as { id: string; slug: string; title: string; type: 'blog' | 'news'; excerpt: string | null; bodyMd: string }),
   );
   const n = checks.length || 1;
   const rate = (pass: (c: SeoArticleCheck) => boolean) => checks.filter(pass).length / n;
@@ -401,6 +447,10 @@ export async function seoStats(): Promise<SeoStats> {
   const c = counts[0] ?? {};
   const publishedLast30 = Number(c.pub30 ?? 0);
 
+  const failingSorted = checks
+    .filter((x) => !x.titleOk || !x.excerptOk || !x.thinOk)
+    .sort((a, b) => Number(a.thinOk) - Number(b.thinOk) || a.words - b.words);
+
   return {
     score: computeSeoScore({ titlePassRate, excerptPassRate, thinPassRate, publishedLast30, daysSinceLastPublish }),
     published: Number(c.published ?? 0),
@@ -410,10 +460,13 @@ export async function seoStats(): Promise<SeoStats> {
     titlePassRate: Math.round(titlePassRate * 100),
     excerptPassRate: Math.round(excerptPassRate * 100),
     thinPassRate: Math.round(thinPassRate * 100),
-    failing: checks
-      .filter((x) => !x.titleOk || !x.excerptOk || !x.thinOk)
-      .sort((a, b) => Number(a.thinOk) - Number(b.thinOk) || a.words - b.words)
-      .slice(0, 30),
+    failing: failingSorted.slice(0, 30),
+    failingTotal: failingSorted.length,
+    // NOT a live check — these are architecture facts about how this app is
+    // built (true as of this writing, verified by reading the actual
+    // sitemap/JSON-LD/ISR code), not something recomputed per request. A
+    // future regression in any of these would keep showing ✓ here forever;
+    // the UI copy says so explicitly rather than claiming "enforced".
     automated: [
       { label: 'نقشهٔ سایت (sitemap.xml) خودکار از دیتابیس تولید می‌شود', ok: true },
       { label: 'دادهٔ ساخت‌یافتهٔ Product/Offer برای همهٔ صفحات محصول', ok: true },

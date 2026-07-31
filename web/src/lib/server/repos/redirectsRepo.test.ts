@@ -69,6 +69,18 @@ describe('createRedirect / findRedirect', () => {
     await createRedirect({ fromPath: b, toPath: a });
     await expect(createRedirect({ fromPath: a, toPath: b })).rejects.toBeInstanceOf(RedirectLoopError);
   });
+
+  it('rejects a 3-hop loop built up across separate edits (A→B, B→C, then C→A)', async () => {
+    // Each of the first two creates is fine in isolation — the loop only
+    // exists once the third edge closes the cycle, which is exactly the
+    // case a one-hop-only check misses.
+    const a = `/chain-a-${ulid()}`;
+    const b = `/chain-b-${ulid()}`;
+    const c = `/chain-c-${ulid()}`;
+    await createRedirect({ fromPath: a, toPath: b });
+    await createRedirect({ fromPath: b, toPath: c });
+    await expect(createRedirect({ fromPath: c, toPath: a })).rejects.toBeInstanceOf(RedirectLoopError);
+  });
 });
 
 describe('updateRedirect / deleteRedirect', () => {
@@ -85,6 +97,28 @@ describe('updateRedirect / deleteRedirect', () => {
 
   it('returns null when updating a non-existent redirect', async () => {
     await expect(updateRedirect(ulid(), { toPath: '/x' })).resolves.toBeNull();
+  });
+
+  it('rejects PATCHing a redirect\'s destination back onto its own source — the create-time guard used to be the only one', async () => {
+    const from = `/upd-self-${ulid()}`;
+    const created = await createRedirect({ fromPath: from, toPath: '/elsewhere' });
+    await expect(updateRedirect(created.id, { toPath: from })).rejects.toBeInstanceOf(RedirectLoopError);
+  });
+
+  it('rejects PATCHing a redirect onto a destination that already chains back to its own source', async () => {
+    const a = `/upd-chain-a-${ulid()}`;
+    const b = `/upd-chain-b-${ulid()}`;
+    const created = await createRedirect({ fromPath: a, toPath: '/temp-safe' });
+    await createRedirect({ fromPath: b, toPath: a }); // b → a
+    // Now pointing `a`'s own redirect at `b` would close a → b → a.
+    await expect(updateRedirect(created.id, { toPath: b })).rejects.toBeInstanceOf(RedirectLoopError);
+  });
+
+  it('a permanent-only patch (no toPath change) never runs the loop check', async () => {
+    const from = `/upd-flag-${ulid()}`;
+    const created = await createRedirect({ fromPath: from, toPath: '/dest' });
+    const patched = await updateRedirect(created.id, { permanent: false });
+    expect(patched).toMatchObject({ toPath: '/dest', permanent: false });
   });
 
   it('deleteRedirect removes it — findRedirect no longer matches', async () => {

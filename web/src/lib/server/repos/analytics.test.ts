@@ -15,7 +15,14 @@ describe('pctDelta (complete-period comparison)', () => {
 });
 
 describe('checkArticleSeo', () => {
-  const base = { id: 'a1', slug: 's', title: 'راهنمای کامل خرید میلگرد A3', excerpt: null as string | null, bodyMd: '' };
+  const base = {
+    id: 'a1',
+    slug: 's',
+    title: 'راهنمای کامل خرید میلگرد A3',
+    type: 'blog' as const,
+    excerpt: null as string | null,
+    bodyMd: '',
+  };
   it('title band 20–65 chars', () => {
     expect(checkArticleSeo({ ...base, title: 'کوتاه' }).titleOk).toBe(false);
     expect(checkArticleSeo(base).titleOk).toBe(true);
@@ -26,11 +33,34 @@ describe('checkArticleSeo', () => {
     expect(checkArticleSeo({ ...base, excerpt: 'م'.repeat(100) }).excerptOk).toBe(true);
     expect(checkArticleSeo({ ...base, excerpt: 'م'.repeat(200) }).excerptOk).toBe(false);
   });
-  it('thin content < 300 words', () => {
+  it('thin content < 300 words (plain text, no markdown to strip)', () => {
     expect(checkArticleSeo({ ...base, bodyMd: 'کلمه '.repeat(299) }).thinOk).toBe(false);
     const ok = checkArticleSeo({ ...base, bodyMd: 'کلمه '.repeat(300) });
     expect(ok.thinOk).toBe(true);
     expect(ok.words).toBe(300);
+  });
+  it('carries the article type through — needed to link to /blog/{slug} vs /news/{slug}, not a dead /guides/{slug}', () => {
+    expect(checkArticleSeo({ ...base, type: 'news' }).type).toBe('news');
+    expect(checkArticleSeo(base).type).toBe('blog');
+  });
+  it('does not count markdown syntax as words — a heading/bold/link/image/table stripped down to 4 real words must not pass as 300+', () => {
+    const md = [
+      '## عنوان زیربخش',
+      '',
+      'این **متن پررنگ** و این [یک پیوند](https://ahantime.com/prices/rebar/long-path) است.',
+      '',
+      '![نمودار قیمت](https://ahantime.com/uploads/chart.png)',
+      '',
+      '| سایز | وزن | قیمت |',
+      '| --- | --- | --- |',
+      '| ۱۴ | ۱٫۲۱ | ۱۰۰۰۰ |',
+    ].join('\n');
+    const { words } = checkArticleSeo({ ...base, bodyMd: md });
+    // Reader-visible text is roughly: «عنوان زیربخش این متن پررنگ و این یک
+    // پیوند است. سایز وزن قیمت ۱۴ ۱٫۲۱ ۱۰۰۰۰» — nowhere near 300, and the
+    // naive (unstripped) split would additionally count the long URL and
+    // every bare `|`/`---` table token as extra "words".
+    expect(words).toBeLessThan(20);
   });
 });
 

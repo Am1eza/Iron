@@ -63,6 +63,28 @@ export const articleSlugSchema = (max: number) =>
     .regex(ARTICLE_SLUG_PATTERN, 'نشانی فقط می‌تواند شامل حروف فارسی یا انگلیسی، عدد و خط تیره باشد.');
 
 /**
+ * An internal site path on a server-trust boundary — used for redirect
+ * from/to paths. `middleware.ts` only ever mutates `.pathname` on a cloned
+ * same-origin `URL`, so an absolute/protocol-relative value here can never
+ * actually produce a cross-origin redirect (verified: setting `.pathname` to
+ * `https://evil.com/x` or `//evil.com/x` yields `ahantime.com/https://evil.
+ * com/x` — the host is structurally locked by the sink). This check exists
+ * anyway as defense-in-depth and basic hygiene: `redirectsRepo.normalizePath`
+ * doesn't reject a scheme either, so without this a value like
+ * `https://evil.com/phish` would silently store as the nonsensical path
+ * `/https://evil.com/phish` rather than being rejected as the input error it is.
+ */
+export const internalPathSchema = (max: number) =>
+  z
+    .string()
+    .trim()
+    .min(1)
+    .max(max)
+    .refine((v) => !/^\/\//.test(v) && !/:\/\//.test(v), {
+      message: 'باید یک مسیر داخلی سایت باشد، نه یک آدرس کامل یا خارجی.',
+    });
+
+/**
  * An uploaded image reference, normalised to a same-origin PATH.
  *
  * `/api/admin/upload` returns a relative `/uploads/<ulid>.<ext>`, but

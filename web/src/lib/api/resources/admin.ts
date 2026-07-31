@@ -160,7 +160,20 @@ export interface SeoStatsRes {
   titlePassRate: number;
   excerptPassRate: number;
   thinPassRate: number;
-  failing: Array<{ id: string; slug: string; title: string; titleOk: boolean; excerptOk: boolean; thinOk: boolean; words: number }>;
+  failing: Array<{
+    id: string;
+    slug: string;
+    title: string;
+    type: 'blog' | 'news';
+    titleOk: boolean;
+    excerptOk: boolean;
+    thinOk: boolean;
+    words: number;
+  }>;
+  /** True count before `failing` is capped to 30 — compare against
+   *  `failing.length` to show "N more not shown" instead of silently
+   *  understating how much work is left. */
+  failingTotal: number;
   automated: Array<{ label: string; ok: true }>;
 }
 

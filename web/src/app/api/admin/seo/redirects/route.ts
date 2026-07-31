@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { adminListRedirects, createRedirect, findRedirect, RedirectLoopError } from '@/lib/server/repos/redirectsRepo';
+import { internalPathSchema } from '@/lib/validation/utils';
 
 /** GET /api/admin/seo/redirects — every configured redirect. */
 async function GETImpl(req: NextRequest) {
@@ -15,8 +16,8 @@ async function GETImpl(req: NextRequest) {
 }
 
 const payload = z.object({
-  fromPath: z.string().trim().min(1).max(500),
-  toPath: z.string().trim().min(1).max(500),
+  fromPath: internalPathSchema(500),
+  toPath: internalPathSchema(500),
   permanent: z.boolean().optional(),
 });
 
