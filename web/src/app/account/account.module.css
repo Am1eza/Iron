@@ -27,7 +27,7 @@
   .sidebar {
     display: block;
     position: sticky;
-    top: var(--space-6);
+    inset-block-start: var(--space-6);
   }
   /* pills are the mobile nav only */
   .nav {

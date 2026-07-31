@@ -75,7 +75,7 @@
   padding-inline: var(--space-1);
   border-radius: var(--radius-pill);
   background: var(--color-loss);
-  color: var(--color-text-inverse, #fff);
+  color: var(--color-text-inverse);
   font: var(--t-micro);
   font-weight: 700;
 }

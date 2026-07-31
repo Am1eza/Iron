@@ -212,7 +212,9 @@
 
 .detailsPre {
   direction: ltr;
-  text-align: left;
+  /* `start` is equivalent to `left` here: this rule sets `direction: ltr` on
+     the same element, so the inline start edge IS the left edge. */
+  text-align: start;
   font-size: 0.75rem;
   background: var(--color-surface-sunken);
   padding: var(--space-2);

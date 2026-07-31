@@ -55,7 +55,7 @@
   place-items: center;
   font: var(--t-caption);
   font-weight: 700;
-  color: var(--color-text-inverse, #fff);
+  color: var(--color-text-inverse);
   background: var(--chart-2);
   flex: none;
 }
@@ -167,7 +167,9 @@
   overflow-x: auto;
   font-size: 0.75rem;
   direction: ltr;
-  text-align: left;
+  /* `start` is equivalent to `left` here: this rule sets `direction: ltr` on
+     the same element (raw JSON dump), so inline start IS the left edge. */
+  text-align: start;
 }
 
 @media (max-width: 700px) {

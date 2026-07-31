@@ -67,7 +67,7 @@
   inline-size: 52px;
   block-size: 52px;
   border-radius: var(--radius-circle);
-  color: #fff;
+  color: var(--color-text-inverse);
   flex: none;
 }
 /* tier-tinted medals (iron/steel/poolad) */

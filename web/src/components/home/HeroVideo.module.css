@@ -2,7 +2,7 @@
   inline-size: 100%;
   border-radius: var(--radius-lg);
   overflow: hidden;
-  background: var(--color-surface-inverse, #14181d);
+  background: var(--color-surface-inverse);
   box-shadow: var(--shadow-lg);
   /* mirror the PriceBoard's footprint so swapping video⇄board never shifts
      the hero layout */

@@ -143,10 +143,19 @@
   font-size: 0.625rem;
   line-height: 1;
 }
+/* The ticker bar is always dark (see `.flat` above, which is white-on-dark in
+   both themes), so it needs the LIGHT end of the gain/loss ramps for contrast.
+   The token set has no such step: --color-gain resolves to --gain-500 (#15A34A)
+   and --color-loss to --loss-500 (#E0322B), both of which are mid-tones that
+   read muddy on this dark bar. Until --gain-400/--loss-300 exist in tokens.css
+   these stay literal — swapping them for the current tokens would visibly
+   darken the live ticker. */
 .up {
+  /* stylelint-disable-next-line scale-unlimited/declaration-strict-value -- no light-step gain token exists; see comment above */
   color: #4ade80;
 }
 .down {
+  /* stylelint-disable-next-line scale-unlimited/declaration-strict-value -- no light-step loss token exists; see comment above */
   color: #f87171;
 }
 .flat {
