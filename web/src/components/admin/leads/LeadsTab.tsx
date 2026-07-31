@@ -140,22 +140,14 @@ export function LeadsTab() {
     return () => clearTimeout(t);
   }, [search, setFilter]);
 
-  // JalaliDateField seeds its Jalali text once (it renders the ISO the caller
-  // gave it at mount and owns the box after that), so a Back that restores a
-  // date filter would leave the boxes blank beside a visibly filtered list.
-  // Remount them on exactly that case: the generation bumps only when the URL
-  // holds a date we did not just emit, so it never fires mid-typing and never
-  // rewrites a half-typed «۱۴۰۴/۵/» under the caret.
-  const emittedDates = useRef({ from, to });
-  const [dateKey, setDateKey] = useState(0);
-  useEffect(() => {
-    if (emittedDates.current.from !== from || emittedDates.current.to !== to) {
-      emittedDates.current = { from, to };
-      setDateKey((k) => k + 1);
-    }
-  }, [from, to]);
+  // This used to remount both JalaliDateFields via `key={`from-${dateKey}`}`
+  // because the field seeded its Jalali text once and never re-read `value`,
+  // so a Back that restored a date filter left the boxes blank beside a
+  // visibly filtered list. JalaliDateField now does that reconciliation
+  // itself (it tracks the last ISO it emitted and re-derives only when the
+  // incoming prop differs), which fixes the other five call sites too — none
+  // of which had this workaround. Remounting here would only mask it.
   const onDate = (which: 'from' | 'to') => (iso: string) => {
-    emittedDates.current = { ...emittedDates.current, [which]: iso };
     setFilter({ [which]: iso || null });
   };
 
@@ -256,9 +248,9 @@ export function LeadsTab() {
       </div>
       <div className={ui.toolbar}>
         <span className={ui.muted}>از</span>
-        <JalaliDateField key={`from-${dateKey}`} value={from} onChange={onDate('from')} label="از تاریخ (شمسی)" />
+        <JalaliDateField value={from} onChange={onDate('from')} label="از تاریخ (شمسی)" />
         <span className={ui.muted}>تا</span>
-        <JalaliDateField key={`to-${dateKey}`} value={to} onChange={onDate('to')} label="تا تاریخ (شمسی)" />
+        <JalaliDateField value={to} onChange={onDate('to')} label="تا تاریخ (شمسی)" />
         <Button
           size="sm"
           variant="ghost"

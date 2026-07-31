@@ -9,14 +9,25 @@ const FOCUSABLE =
  *  - moves focus into the container ([data-autofocus] first, else the container),
  *  - cycles Tab/Shift+Tab within it,
  *  - calls `onEscape` on Esc,
- *  - locks body scroll,
+ *  - locks body scroll (opt out with `{ lockScroll: false }`),
  *  - restores focus to the previously-focused element on deactivate.
  * Returns the container ref to spread onto the dialog element.
+ *
+ * `lockScroll` defaults to true because every original caller (Modal,
+ * SkuDrawer, sheets) IS modal: content behind a scrim must not scroll. An
+ * INLINE popover — a date picker anchored to its input, `aria-modal="false"`
+ * — is the opposite case: it covers nothing, so freezing the page behind it
+ * is a bug, not a feature. Those callers pass `{ lockScroll: false }`.
  */
 export function useFocusTrap<T extends HTMLElement = HTMLDivElement>(
   active: boolean,
   onEscape?: () => void,
+  options?: { lockScroll?: boolean },
 ) {
+  // Read into a primitive: `options` is an object literal at every call site,
+  // so putting it in the dep array would re-run (and re-focus) the trap on
+  // every single render.
+  const lockScroll = options?.lockScroll ?? true;
   const ref = useRef<T | null>(null);
   const lastFocused = useRef<HTMLElement | null>(null);
 
@@ -27,7 +38,7 @@ export function useFocusTrap<T extends HTMLElement = HTMLDivElement>(
 
     lastFocused.current = document.activeElement as HTMLElement;
     const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    if (lockScroll) document.body.style.overflow = 'hidden';
 
     const focusFirst = () => {
       const target =
@@ -67,10 +78,10 @@ export function useFocusTrap<T extends HTMLElement = HTMLDivElement>(
     document.addEventListener('keydown', onKeyDown);
     return () => {
       document.removeEventListener('keydown', onKeyDown);
-      document.body.style.overflow = prevOverflow;
+      if (lockScroll) document.body.style.overflow = prevOverflow;
       lastFocused.current?.focus?.();
     };
-  }, [active, onEscape]);
+  }, [active, onEscape, lockScroll]);
 
   return ref;
 }

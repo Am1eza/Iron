@@ -308,3 +308,116 @@ button.tile {
   color: var(--color-loss-text);
   font-weight: 600;
 }
+
+/* Price-history drilldown trigger — the row sparkline is decorative
+   (aria-hidden) SVG, so the button around it carries the whole affordance and
+   the accessible name. Styled as a bare target, not a chrome-y button, so the
+   datasheet stays a datasheet. */
+.sparkButton {
+  display: block;
+  padding: var(--space-1);
+  border: var(--border-hairline) solid transparent;
+  border-radius: var(--radius-sm);
+  background: none;
+  cursor: pointer;
+  color: inherit;
+}
+.sparkButton:hover {
+  background: var(--color-surface-sunken);
+  border-color: var(--color-hairline);
+}
+.sparkButton:focus-visible {
+  outline: var(--border-focus) solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+/* ===== Jalali date field + calendar popover ===== */
+.dateFieldWrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* Anchored to the field, not a portal: it is a non-modal popover, so it
+   scrolls and stacks with its own toolbar. */
+.calendarPop {
+  position: absolute;
+  inset-block-start: calc(100% + var(--space-1));
+  inset-inline-start: 0;
+  z-index: var(--z-dropdown);
+  inline-size: 17rem;
+  padding: var(--space-2);
+  background: var(--color-surface-raised);
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
+.calendarHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-block-end: var(--space-2);
+}
+.calendarTitle {
+  font: var(--t-body-sm);
+  color: var(--color-text-strong);
+}
+
+.calendarGrid {
+  display: grid;
+  gap: var(--space-1);
+}
+/* The calendar grid flows RTL — unlike a time-axis chart, a month is read in
+   the reading direction of the page. */
+.calendarRow,
+.calendarDays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  direction: rtl;
+}
+.calendarHeadCell {
+  text-align: center;
+  font: var(--t-micro);
+  color: var(--color-text-muted);
+  padding-block: var(--space-1);
+}
+.calendarBlank {
+  display: block;
+}
+.calendarDay {
+  min-block-size: 30px;
+  padding: 0;
+  border: var(--border-hairline) solid transparent;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text);
+  font: var(--t-body-sm);
+  cursor: pointer;
+}
+.calendarDay:hover {
+  background: var(--color-surface-sunken);
+}
+.calendarDay:focus-visible {
+  outline: var(--border-focus) solid var(--color-focus);
+  outline-offset: 1px;
+}
+/* Fridays are the Iranian weekend — dimmed, never disabled (all six call
+   sites are filters/schedulers where a Friday is a valid date). */
+.calendarDayOff {
+  color: var(--color-text-muted);
+}
+.calendarDayToday {
+  border-color: var(--color-accent);
+}
+.calendarDaySelected {
+  background: var(--color-action);
+  color: var(--color-on-action);
+  font-weight: 600;
+}
+.calendarDaySelected:hover {
+  background: var(--color-action-hover);
+}
