@@ -4,6 +4,10 @@
  */
 import { http } from '../http';
 import type { PriceRow, PricePoint, LineItem, Order, WarehouseItem, Article, MarketValue, SeoMeta } from '@/lib/types/domain';
+// The command-palette wire contract lives beside the permission predicate
+// that shapes it, so the route and this client cannot drift apart.
+export type { AdminSearchHit } from '@/lib/auth/adminSearch';
+import type { AdminSearchHit } from '@/lib/auth/adminSearch';
 
 /** Every field is scoped to the caller's permissions server-side — a field is
  * simply absent if the current role can't see that domain (e.g. a content
@@ -783,6 +787,19 @@ export const adminApi = {
       aiUsage: { conversationCount: number; promptTokens: number; completionTokens: number; cacheHitTokens: number };
     }>(`/api/admin/users/${id}`),
   revokeUserSessions: (id: string) => http.post<{ ok: true }>(`/api/admin/users/${id}/revoke-sessions`, {}),
+
+  /* command palette — cross-entity jump (W26) */
+  /** Rows are scoped PER ENTITY TYPE server-side (see lib/auth/adminSearch.ts):
+   *  a kind the caller can't see is simply absent, never an empty group. The
+   *  `signal` comes from react-query's queryFn context, so closing the palette
+   *  aborts the in-flight request instead of resolving into a closed UI. */
+  search: (q: string, signal?: AbortSignal) =>
+    http.get<{ results: AdminSearchHit[] }>(`/api/admin/search?q=${encodeURIComponent(q)}`, {
+      signal,
+      // A per-keystroke lookup that the next keystroke replaces — one attempt,
+      // no backoff retries piling up behind a fast typist.
+      retries: 0,
+    }),
   statsDashboard: (range: number) => http.get<DashboardStatsRes>(`/api/admin/stats/dashboard?range=${range}`),
   statsMarketing: () => http.get<MarketingStatsRes>('/api/admin/stats/marketing'),
   statsSeo: () => http.get<SeoStatsRes>('/api/admin/stats/seo'),

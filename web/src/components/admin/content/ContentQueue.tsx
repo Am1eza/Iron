@@ -20,6 +20,7 @@ import { formatJalali } from '@/lib/utils/jalali';
 import { articleSlugify } from '@/lib/utils/articleSlug';
 import { MAX_ARTICLE_TAGS, normalizeArticleTags } from '@/lib/utils/articleTags';
 import { useToast } from '@/lib/hooks/useToast';
+import { useDeepLinkQuery } from '@/lib/hooks/useDeepLinkQuery';
 import { ApiError } from '@/lib/api/errors';
 import { Alert, Badge, Button, Chip, EmptyState, Switch, TableSkeleton, Tabs, TabPanel, useConfirm } from '@/components/ui';
 import { TextInput, Textarea } from '@/components/forms/fields';
@@ -119,6 +120,17 @@ export function ContentQueue() {
     const t = setTimeout(() => setQ(search.trim()), 300);
     return () => clearTimeout(t);
   }, [search]);
+
+  // `/admin/content?q=slug&status=published` from the command palette. The
+  // status tab has to move with it — there is no "all" tab, so a published
+  // article deep-linked onto the default «پیش‌نویس» tab shows nothing at all.
+  useDeepLinkQuery((deepQ, param) => {
+    setSearch(deepQ);
+    setQ(deepQ);
+    const deepStatus = param('status');
+    if (deepStatus && STATUS_TABS.some((t) => t.id === deepStatus)) setStatus(deepStatus);
+    setType('');
+  });
 
   useEffect(() => {
     setPage(1);

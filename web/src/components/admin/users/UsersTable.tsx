@@ -8,6 +8,7 @@ import type { Role } from '@/lib/auth/types';
 import { toPersianDigits } from '@/lib/utils/format';
 import { formatJalali } from '@/lib/utils/jalali';
 import { useToast } from '@/lib/hooks/useToast';
+import { useDeepLinkQuery } from '@/lib/hooks/useDeepLinkQuery';
 import { ApiError } from '@/lib/api/errors';
 import { Badge, Button, Chip, EmptyState, Heading, Spinner, TableSkeleton, useConfirm } from '@/components/ui';
 import { TextInput } from '@/components/forms/fields';
@@ -37,6 +38,16 @@ export function UsersTable() {
     const t = setTimeout(() => setQ(search.trim()), 300);
     return () => clearTimeout(t);
   }, [search]);
+
+  // `/admin/users?q=09…` from the command palette. Sets the committed term
+  // too, not just the box, so the filtered list is one render away rather
+  // than waiting out the 300ms debounce above.
+  useDeepLinkQuery((deepQ) => {
+    setSearch(deepQ);
+    setQ(deepQ);
+    // A deep link is always a fresh search — never page 7 of the old one.
+    setRole('');
+  });
 
   // Filter change resets to page 1 (an old page number can be past the end
   // of the new, shorter result set).

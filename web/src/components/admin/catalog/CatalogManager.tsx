@@ -25,6 +25,7 @@ import { ApiError } from '@/lib/api/errors';
 import { formatToman, toPersianDigits } from '@/lib/utils/format';
 import { slugify } from '@/lib/utils/slugify';
 import { useToast } from '@/lib/hooks/useToast';
+import { useDeepLinkQuery } from '@/lib/hooks/useDeepLinkQuery';
 import { Alert, Badge, Button, Chip, EmptyState, Modal, TableSkeleton, useConfirm } from '@/components/ui';
 import { TextInput } from '@/components/forms/fields';
 import { ImageUpload } from '../ImageUpload';
@@ -62,6 +63,18 @@ export function CatalogManager() {
     const t = setTimeout(() => setQ(search.trim()), 300);
     return () => clearTimeout(t);
   }, [search]);
+
+  // `/admin/catalog?q=slug` from the command palette. Sets the committed term
+  // too, not just the box, so the filtered list is one render away rather
+  // than waiting out the 300ms debounce above. The rail is already ignored
+  // while a search is active (see the skus query), so the hit is reachable
+  // whatever category it sits in; `status` is forced back to the default
+  // because the palette only ever offers ACTIVE products.
+  useDeepLinkQuery((deepQ) => {
+    setSearch(deepQ);
+    setQ(deepQ);
+    setStatus('active');
+  });
 
   const onError = (err: unknown) => toast.error(err instanceof ApiError ? err.message : 'عملیات ناموفق بود.');
 
