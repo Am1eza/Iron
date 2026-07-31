@@ -28,12 +28,22 @@ function toMarkdown(blocks: Block[]): string {
   return blocks
     .map((b) => {
       switch (b.kind) {
-        case 'h2':
-          return `## ${b.text}`;
         case 'ul':
           return b.items.map((i) => `- ${i}`).join('\n');
+        case 'h3':
+          return `### ${b.text}`;
+        case 'ol':
+          return b.items.map((i, n) => `${n + 1}. ${i}`).join('\n');
+        case 'table':
+          return [
+            `| ${b.head.join(' | ')} |`,
+            `| ${b.head.map(() => '---').join(' | ')} |`,
+            ...b.rows.map((r) => `| ${r.join(' | ')} |`),
+          ].join('\n');
         case 'quote':
           return `> ${b.text}`;
+        case 'h2':
+          return `## ${b.text}`;
         default:
           return b.text;
       }

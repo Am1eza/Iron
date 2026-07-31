@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next';
 import { STATIC_INDEXABLE, routes } from '@/lib/routes';
-import { getCategories, getRows, getArticlesByType } from '@/lib/server/catalog';
+import { getCategories, getRows, getAllPublishedArticles } from '@/lib/server/catalog';
 import { getSubsMap } from '@/lib/server/catalog';
 import { TRACK_ORDER } from '@/components/cooperation/tracks';
 
@@ -82,8 +82,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   });
 
   const [blogArticles, newsArticles] = await Promise.all([
-    getArticlesByType('blog'),
-    getArticlesByType('news'),
+    getAllPublishedArticles('blog'),
+    getAllPublishedArticles('news'),
   ]);
 
   const blogEntries: MetadataRoute.Sitemap = blogArticles.map((a) => ({

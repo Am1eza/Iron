@@ -102,6 +102,41 @@ export async function getArticlesByType(type: 'blog' | 'news'): Promise<Article[
   return articles;
 }
 
+/**
+ * Paged variant for the public index and the sitemap.
+ *
+ * `getArticlesByType` silently returns only `listPublished`'s first page of 20
+ * and throws away the `total` it is handed — so from the 21st published
+ * article onward the oldest ones vanished from /blog AND from the sitemap,
+ * with no pager, no 404 and no hint that anything had been cut. Latent at
+ * seven articles, certain to bite.
+ */
+export async function getArticlesPage(
+  type: 'blog' | 'news',
+  page = 1,
+  perPage = 12,
+): Promise<{ articles: Article[]; total: number }> {
+  if (!live()) {
+    const all = mock.articlesByType(type);
+    return { articles: all.slice((page - 1) * perPage, page * perPage), total: all.length };
+  }
+  return listPublished(type, page, perPage);
+}
+
+/** Every published slug of a type, for the sitemap — which must never be a
+ *  single page of results. */
+export async function getAllPublishedArticles(type: 'blog' | 'news'): Promise<Article[]> {
+  if (!live()) return mock.articlesByType(type);
+  const perPage = 200;
+  const out: Article[] = [];
+  for (let page = 1; page <= 50; page += 1) {
+    const { articles } = await listPublished(type, page, perPage);
+    out.push(...articles);
+    if (articles.length < perPage) break;
+  }
+  return out;
+}
+
 export async function getArticle(slug: string): Promise<ArticleFull | Article | undefined> {
   if (!live()) return mock.findArticle(slug);
   return (await findPublishedBySlug(slug)) ?? undefined;

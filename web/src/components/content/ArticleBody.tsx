@@ -48,6 +48,22 @@ function fallbackBody(article: Article): Block[] {
 /** Inline markdown → React: `**bold**` and `[label](url)`. The admin editor's
  *  toolbar inserts exactly these two tokens — without this, both the editor
  *  preview AND the published article showed the literal asterisks/brackets. */
+/**
+ * Only schemes that can't execute. `renderInline` builds an <a href> straight
+ * from `[label](url)`, and while React 19 does neutralise `javascript:` at the
+ * DOM layer, relying on a framework internal as the only control is the wrong
+ * posture for a field that editors (and, in future, generated drafts) fill in.
+ * Anything else renders as plain text rather than a link.
+ */
+function safeHref(url: string): string | null {
+  return /^(https?:\/\/|\/|#|mailto:|tel:)/i.test(url.trim()) ? url.trim() : null;
+}
+
+/** External links get noreferrer + nofollow; internal ones stay clean. */
+function isExternal(url: string): boolean {
+  return /^https?:\/\//i.test(url);
+}
+
 function renderInline(text: string): ReactNode {
   const re = /\*\*([^*]+)\*\*|\[([^\]]+)\]\(([^)\s]+)\)/g;
   const parts: ReactNode[] = [];
@@ -59,11 +75,22 @@ function renderInline(text: string): ReactNode {
     if (m[1] !== undefined) {
       parts.push(<strong key={`b${k++}`}>{m[1]}</strong>);
     } else {
-      parts.push(
-        <a key={`a${k++}`} href={m[3]} rel="noopener">
-          {m[2]}
-        </a>,
-      );
+      const href = safeHref(m[3]!);
+      if (href) {
+        parts.push(
+          <a
+            key={`a${k++}`}
+            href={href}
+            rel={isExternal(href) ? 'noopener noreferrer nofollow' : 'noopener'}
+          >
+            {m[2]}
+          </a>,
+        );
+      } else {
+        // A rejected scheme still shows its label — dropping the text silently
+        // would make the sentence read as if a word were missing.
+        parts.push(<span key={`a${k++}`}>{m[2]}</span>);
+      }
     }
     last = re.lastIndex;
   }
@@ -87,6 +114,45 @@ function renderBlock(block: Block, index: number): ReactNode {
             <li key={i}>{renderInline(item)}</li>
           ))}
         </ul>
+      );
+    case 'h3':
+      return (
+        <h3 key={index} className={styles.h3}>
+          {renderInline(block.text)}
+        </h3>
+      );
+    case 'ol':
+      return (
+        <ol key={index} className={styles.ol}>
+          {block.items.map((item, i) => (
+            <li key={i}>{renderInline(item)}</li>
+          ))}
+        </ol>
+      );
+    case 'table':
+      return (
+        <div key={index} className={styles.tableWrap}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                {block.head.map((h, i) => (
+                  <th key={i} scope="col">
+                    {renderInline(h)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {block.rows.map((row, r) => (
+                <tr key={r}>
+                  {row.map((cell, c) => (
+                    <td key={c}>{renderInline(cell)}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       );
     case 'quote':
       return (
@@ -118,8 +184,23 @@ function blocksFromMarkdown(md: string): Block[] {
   for (const chunk of chunks) {
     const lines = chunk.split('\n').map((l) => l.trim()).filter(Boolean);
     if (lines.length === 0) continue;
-    if (lines.every((l) => l.startsWith('- ') || l.startsWith('* '))) {
+    // GFM pipe table: a header row, a |---|---| separator, then body rows.
+    if (lines.length >= 2 && lines[0]!.includes('|') && /^\|?[\s:|-]+\|[\s:|-]*$/.test(lines[1]!)) {
+      const cells = (l: string) =>
+        l.replace(/^\||\|$/g, '').split('|').map((c) => c.trim());
+      blocks.push({
+        kind: 'table',
+        head: cells(lines[0]!),
+        rows: lines.slice(2).map(cells),
+      });
+    } else if (lines.every((l) => l.startsWith('- ') || l.startsWith('* '))) {
       blocks.push({ kind: 'ul', items: lines.map((l) => l.slice(2).trim()) });
+    } else if (lines.every((l) => /^\d+[.)]\s/.test(l))) {
+      blocks.push({ kind: 'ol', items: lines.map((l) => l.replace(/^\d+[.)]\s*/, '').trim()) });
+    } else if (lines[0]!.startsWith('### ')) {
+      blocks.push({ kind: 'h3', text: lines[0]!.slice(4).trim() });
+      const rest = lines.slice(1).join(' ').trim();
+      if (rest) blocks.push({ kind: 'p', text: rest });
     } else if (lines[0]!.startsWith('## ')) {
       blocks.push({ kind: 'h2', text: lines[0]!.slice(3).trim() });
       const rest = lines.slice(1).join(' ').trim();

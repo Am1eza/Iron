@@ -15,8 +15,14 @@
 export type Block =
   | { kind: 'p'; text: string }
   | { kind: 'h2'; text: string }
+  | { kind: 'h3'; text: string }
   | { kind: 'ul'; items: string[] }
-  | { kind: 'quote'; text: string };
+  | { kind: 'ol'; items: string[] }
+  | { kind: 'quote'; text: string }
+  /** GFM pipe table. The flagship evergreen article is «جدول وزن مقاطع
+   *  فولادی» — a weight table — which the renderer previously could not
+   *  express at all. */
+  | { kind: 'table'; head: string[]; rows: string[][] };
 
 /**
  * Per-article hand-written bodies (real prose, on-topic).

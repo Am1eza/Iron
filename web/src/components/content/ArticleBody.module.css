@@ -46,3 +46,64 @@
   font-weight: 500;
   color: var(--color-text-strong);
 }
+
+/* h3 / ordered lists / tables (W25). The renderer previously understood only
+   p, h2, ul and quote — so «جدول وزن مقاطع فولادی», the flagship evergreen
+   article, literally could not render the table it is named after. */
+.h3 {
+  font: var(--t-h4, var(--t-body-lg));
+  font-weight: 700;
+  color: var(--color-text-strong);
+  margin: 0;
+  margin-block-start: var(--space-2);
+}
+
+.ol {
+  margin: 0;
+  padding-inline-start: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.ol li {
+  font: var(--t-body);
+  color: var(--color-text);
+  padding-inline-start: var(--space-1);
+}
+.ol li::marker {
+  color: var(--color-accent);
+  font-weight: 700;
+}
+
+/* Wide tables scroll inside their own box so the article body never scrolls
+   sideways on a phone. */
+.tableWrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  font: var(--t-body-sm);
+  /* Steel sizes and weights are columns of digits — line them up. */
+  font-variant-numeric: tabular-nums;
+}
+
+.table th,
+.table td {
+  padding: var(--space-2) var(--space-3);
+  border-block-end: var(--border-hairline) solid var(--color-hairline);
+  text-align: start;
+}
+
+.table th {
+  color: var(--color-text-strong);
+  font-weight: 700;
+  background: var(--color-surface-sunken);
+  white-space: nowrap;
+}
+
+.table tbody tr:last-child td {
+  border-block-end: 0;
+}
