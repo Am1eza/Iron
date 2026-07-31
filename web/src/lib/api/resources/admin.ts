@@ -3,7 +3,7 @@
  * pages are server-gated). Thin typed wrappers over /api/admin/**.
  */
 import { http } from '../http';
-import type { PriceRow, LineItem, Order, WarehouseItem, Article, MarketValue, SeoMeta } from '@/lib/types/domain';
+import type { PriceRow, PricePoint, LineItem, Order, WarehouseItem, Article, MarketValue, SeoMeta } from '@/lib/types/domain';
 
 /** Every field is scoped to the caller's permissions server-side — a field is
  * simply absent if the current role can't see that domain (e.g. a content
@@ -309,6 +309,13 @@ export const adminApi = {
    *  row's sparkline instead of one per row. */
   skuHistoryBatch: (slugs: string[], range = '30d') =>
     http.post<{ series: Record<string, number[]> }>('/api/admin/pricing/history', { slugs, range }),
+  /** Admin-gated, `no-store` per-SKU drilldown — the public `skuHistory`
+   *  above is edge-cached for 5 minutes, which is exactly wrong right after
+   *  an operator corrects a price. */
+  skuHistoryAdmin: (slug: string, range = '90d') =>
+    http.get<{ points: PricePoint[]; range: string }>(
+      `/api/admin/pricing/history/${encodeURIComponent(slug)}?range=${encodeURIComponent(range)}`,
+    ),
 
   /* leads / crm */
   leads: (
@@ -625,8 +632,14 @@ export const adminApi = {
     return http.get<{ articles: ArticleFull[]; total: number }>(`/api/admin/articles?${qs}`);
   },
   article: (id: string) => http.get<{ article: ArticleFull }>(`/api/admin/articles/${id}`),
-  createArticle: (input: { slug: string; type: 'blog' | 'news'; title: string; excerpt?: string; bodyMd?: string }) =>
-    http.post<{ article: ArticleFull }>('/api/admin/articles', input),
+  createArticle: (input: {
+    slug: string;
+    type: 'blog' | 'news';
+    title: string;
+    excerpt?: string;
+    bodyMd?: string;
+    tags?: string[];
+  }) => http.post<{ article: ArticleFull }>('/api/admin/articles', input),
   updateArticle: (
     id: string,
     patch: Partial<{
@@ -641,6 +654,7 @@ export const adminApi = {
       status: 'draft';
       coverUrl: string | null;
       authorId: string | null;
+      tags: string[];
       seo: SeoMeta | null;
     }>,
   ) => http.patch<{ article: ArticleFull }>(`/api/admin/articles/${id}`, patch),
