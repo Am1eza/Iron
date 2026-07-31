@@ -107,3 +107,13 @@
 .table tbody tr:last-child td {
   border-block-end: 0;
 }
+
+/* Inline images embedded in the body (W25) — the renderer previously had no
+   way to place a picture anywhere except the single cover slot. */
+.img {
+  display: block;
+  max-inline-size: 100%;
+  block-size: auto;
+  border-radius: var(--radius-md);
+  margin-block-start: var(--space-2);
+}

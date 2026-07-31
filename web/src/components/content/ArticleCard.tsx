@@ -2,14 +2,13 @@ import Link from 'next/link';
 import type { Article } from '@/lib/types/domain';
 import { routes } from '@/lib/routes';
 import { formatJalali } from '@/lib/utils/jalali';
-import { Badge } from '@/components/ui';
-import { SparkIcon, CalendarIcon, ChevronStartIcon } from '@/components/primitives/icons';
+import { CalendarIcon, ChevronStartIcon } from '@/components/primitives/icons';
 import styles from './ArticleCard.module.css';
 
 /**
  * Content card for the وبلاگ / اخبار lists. Renders title, excerpt, the Jalali
  * publish date, and — when the article is AI-assisted — a calm cobalt
- * «هوش مصنوعی» badge. The whole card is a link to the article page.
+ * The whole card is a link to the article page.
  */
 export function ArticleCard({ article }: { article: Article }) {
   const href = article.type === 'news' ? routes.news(article.slug) : routes.blog(article.slug);
@@ -31,11 +30,6 @@ export function ArticleCard({ article }: { article: Article }) {
         ) : null}
         <div className={styles.top}>
           <span className={styles.kicker}>{kicker}</span>
-          {article.source === 'ai' ? (
-            <Badge tone="accent" icon={<SparkIcon size={13} />}>
-              هوش مصنوعی
-            </Badge>
-          ) : null}
         </div>
 
         <h3 className={styles.title}>{article.title}</h3>

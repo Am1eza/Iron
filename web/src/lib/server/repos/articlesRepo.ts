@@ -160,13 +160,33 @@ export async function recentPublished(limit = 4): Promise<Article[]> {
 
 /* --------------------------- admin (content) --------------------------- */
 
-export async function adminListArticles(query: { status?: Row['status']; type?: Row['type']; page?: number; perPage?: number }) {
+/** `%` and `_` are ILIKE wildcards — a literal search for a title containing
+ *  either would otherwise match far more than intended. */
+function escapeLike(term: string): string {
+  return term.replace(/[\\%_]/g, (ch) => `\\${ch}`);
+}
+
+export async function adminListArticles(query: {
+  status?: Row['status'];
+  type?: Row['type'];
+  q?: string;
+  page?: number;
+  perPage?: number;
+}) {
   const db = getDb();
-  const page = query.page ?? 1;
-  const perPage = query.perPage ?? 50;
+  const page = Math.min(100_000, Math.max(1, Math.floor(Number.isFinite(query.page) ? (query.page as number) : 1)));
+  const perPage = Math.min(100, Math.max(1, Math.floor(query.perPage ?? 50)));
   const conds = [];
   if (query.status) conds.push(eq(articles.status, query.status));
   if (query.type) conds.push(eq(articles.type, query.type));
+  if (query.q) {
+    // Covers the whole point of "find any article easily": the admin might
+    // remember a phrase from the body, not just the title or slug.
+    const term = `%${escapeLike(query.q.trim().slice(0, 100))}%`;
+    conds.push(
+      or(ilike(articles.title, term), ilike(articles.slug, term), ilike(articles.excerpt, term), ilike(articles.bodyMd, term)),
+    );
+  }
   const where = conds.length ? and(...conds) : undefined;
   const [rows, total] = await Promise.all([
     db
@@ -236,6 +256,9 @@ export async function updateArticle(
   id: string,
   patch: Partial<{
     slug: string;
+    // Moving a misfiled post between blog and news used to require deleting
+    // and recreating it — and DELETE refuses anything already published.
+    type: 'blog' | 'news';
     title: string;
     excerpt: string | null;
     bodyMd: string;

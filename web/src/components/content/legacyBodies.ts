@@ -22,7 +22,11 @@ export type Block =
   /** GFM pipe table. The flagship evergreen article is «جدول وزن مقاطع
    *  فولادی» — a weight table — which the renderer previously could not
    *  express at all. */
-  | { kind: 'table'; head: string[]; rows: string[][] };
+  | { kind: 'table'; head: string[]; rows: string[][] }
+  /** A standalone `![alt](url)` line — the renderer had no way to embed a
+   *  picture inside a body at all, image or otherwise, so an editor's only
+   *  option for illustrating an article was the single cover slot. */
+  | { kind: 'img'; src: string; alt: string };
 
 /**
  * Per-article hand-written bodies (real prose, on-topic).

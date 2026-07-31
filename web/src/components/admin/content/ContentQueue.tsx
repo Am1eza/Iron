@@ -1,25 +1,38 @@
 'use client';
 /**
- * Content queue — AI drafts → editor approval → publish/schedule. Selecting a
- * row opens the editor (title/slug/excerpt/bodyMd) with a markdown-lite preview.
+ * Content queue (W25 rebuild) — a searchable, paginated article list beside a
+ * wide editor drawer, so the admin can find, write and publish anything with
+ * the least possible friction.
+ *
+ * The old screen had no search and no pagination past 50 rows, appended the
+ * editor inline below the whole table (opening row 40 scrolled nothing into
+ * view), and its "زمان‌بندی" button had no confirm, no pending state and no
+ * unsaved-edit warning — writing 900 words, picking a date, and clicking it
+ * lost the lot. All of that is fixed here; see the inline comments at each
+ * specific defect for what changed and why.
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { adminApi, type ArticleFull } from '@/lib/api/resources/admin';
+import { useFocusTrap } from '@/lib/hooks/useFocusTrap';
+import { useUnsavedGuard } from '@/lib/hooks/useUnsavedGuard';
 import { formatJalali } from '@/lib/utils/jalali';
+import { slugify } from '@/lib/utils/slugify';
 import { useToast } from '@/lib/hooks/useToast';
 import { ApiError } from '@/lib/api/errors';
-import { Badge, Button, Chip, EmptyState, TableSkeleton, Tabs, TabPanel, useConfirm } from '@/components/ui';
+import { Alert, Badge, Button, Chip, EmptyState, TableSkeleton, Tabs, TabPanel, useConfirm } from '@/components/ui';
 import { TextInput, Textarea } from '@/components/forms/fields';
 import { ImageUpload } from '../ImageUpload';
 import { MarkdownProse } from '@/components/content/ArticleBody';
 import { JalaliDateField } from '../JalaliDateField';
-import { useUnsavedGuard } from '@/lib/hooks/useUnsavedGuard';
+import { PagerFooter } from '../PagerFooter';
+import { routes } from '@/lib/routes';
 import ui from '../adminUi.module.css';
+import s from './content.module.css';
 
 /**
- * Cursor-aware markdown insertion for the toolbar (US-12.4) — replaces the
- * current selection (or inserts a placeholder) and restores focus/selection
+ * Cursor-aware markdown insertion for the toolbar — replaces the current
+ * selection (or inserts a placeholder) and restores focus/selection
  * afterward so a second click continues from where the first left off.
  */
 function wrapSelection(textarea: HTMLTextAreaElement, before: string, after: string, placeholder: string) {
@@ -44,22 +57,59 @@ function prefixLines(textarea: HTMLTextAreaElement, prefix: string) {
   return { next, selectStart: lineStart, selectEnd: lineStart + prefixed.length };
 }
 
+/** Inserts a block on its own line (image, quote-of-one) at the caret. */
+function insertBlock(textarea: HTMLTextAreaElement, text: string) {
+  const { selectionStart: start, value } = textarea;
+  const needsLeadingBreak = start > 0 && value[start - 1] !== '\n';
+  const insert = `${needsLeadingBreak ? '\n\n' : ''}${text}\n\n`;
+  const next = value.slice(0, start) + insert + value.slice(start);
+  const pos = start + insert.length;
+  return { next, selectStart: pos, selectEnd: pos };
+}
+
+/** Matches `adminListArticles`'s server-side default — the admin list
+ *  route doesn't accept a client-supplied perPage. */
+const PER_PAGE = 50;
+
 const STATUS_TABS = [
   { id: 'draft', label: 'پیش‌نویس' },
   { id: 'scheduled', label: 'زمان‌بندی‌شده' },
   { id: 'published', label: 'منتشرشده' },
 ];
 
+const STATUS_BADGE: Record<string, { label: string; tone: 'stale' | 'info' | 'gain' }> = {
+  draft: { label: 'پیش‌نویس', tone: 'stale' },
+  scheduled: { label: 'زمان‌بندی‌شده', tone: 'info' },
+  published: { label: 'منتشرشده', tone: 'gain' },
+};
+
 export function ContentQueue() {
   const [status, setStatus] = useState('draft');
   const [type, setType] = useState('');
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [q, setQ] = useState('');
+  const [page, setPage] = useState(1);
+  // null = closed; 'new' = create; an id = edit. One flag instead of two
+  // booleans, so the drawer can never be "both creating and editing" at once.
+  const [drawerId, setDrawerId] = useState<string | 'new' | null>(null);
   const { confirm, dialog: leaveDialog } = useConfirm();
+  const toast = useToast();
+  const qc = useQueryClient();
+
+  useEffect(() => {
+    const t = setTimeout(() => setQ(search.trim()), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [status, type, q]);
+
   /**
-   * Dirtiness lives HERE, not in ArticleEditor.
+   * Dirtiness lives HERE, not in the drawer.
    *
-   * The editor is keyed by `selectedId`, which is what stops article A's text
-   * being written onto article B — but it also means the editor unmounts the
+   * The drawer is keyed by `drawerId`, which is what stops article A's text
+   * being written onto article B — but it also means the drawer unmounts the
    * instant the selection changes, so it can never guard its own exit. An
    * afternoon of prose used to disappear on a stray row click, a tab switch,
    * or a sidebar link, with no prompt at all.
@@ -76,7 +126,10 @@ export function ContentQueue() {
     [confirm],
   );
 
-  /** Every path that unmounts the editor routes through here. */
+  /** Every path that closes or switches the drawer routes through here —
+   *  including the drawer's own Esc / scrim-click / «انصراف», via `onRequestClose`
+   *  below, so there is exactly one confirm implementation, not two that could
+   *  drift or double-fire. */
   const guarded = useCallback(
     (apply: () => void) => {
       if (!dirtyRef.current) {
@@ -97,452 +150,799 @@ export function ContentQueue() {
   // no beforeunload can see — this is the hook that exists for exactly that.
   useUnsavedGuard(true, () => (dirtyRef.current ? confirmLeave() : Promise.resolve(true)));
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['admin', 'articles', status, type],
-    queryFn: () => adminApi.articles({ status, type: type || undefined }),
+  const { data, isLoading, isError, refetch, isFetching } = useQuery({
+    queryKey: ['admin', 'articles', status, type, q, page],
+    queryFn: () => adminApi.articles({ status, type: type || undefined, q: q || undefined, page }),
   });
   const articles = data?.articles ?? [];
+  const total = data?.total ?? 0;
+
+  const openEdit = (id: string) => guarded(() => setDrawerId(id));
+  const openCreate = () => guarded(() => setDrawerId('new'));
+  const closeDrawer = () => {
+    dirtyRef.current = false;
+    setDrawerId(null);
+  };
+  const requestCloseDrawer = () => guarded(closeDrawer);
+
+  const invalidateList = () => {
+    void qc.invalidateQueries({ queryKey: ['admin', 'articles'] });
+    // The sidebar's «محتوا» badge and the dashboard's «پیش‌نویس محتوا» tile
+    // both read this key; the old screen never invalidated it, so both kept
+    // showing a stale count after every create/publish/delete.
+    void qc.invalidateQueries({ queryKey: ['admin', 'stats'] });
+  };
 
   return (
     <div>
       {leaveDialog}
-      <Tabs items={STATUS_TABS} active={status} onChange={(s) => guarded(() => { setStatus(s); setSelectedId(null); })} label="وضعیت محتوا" idBase="content" />
+      {/* Status/type/search only ever change what the LIST shows — the drawer
+          is an independent overlay now, not content pushed inline below the
+          table, so none of these can discard an open article's unsaved edits.
+          Guarding them anyway would pop a "رهاکردن ویرایش؟" confirm for an
+          action that discards nothing. */}
+      <Tabs
+        items={STATUS_TABS}
+        active={status}
+        onChange={setStatus}
+        label="وضعیت محتوا"
+        idBase="content"
+      />
       {STATUS_TABS.map((t) => (
         <TabPanel key={t.id} id={t.id} active={status} idBase="content">
           <div style={{ paddingBlockStart: 'var(--space-4)' }}>
-            <div className={ui.toolbar}>
-              <Chip selected={type === ''} onClick={() => setType('')}>همه</Chip>
-              <Chip selected={type === 'blog'} onClick={() => setType('blog')}>وبلاگ</Chip>
-              <Chip selected={type === 'news'} onClick={() => setType('news')}>خبر</Chip>
-              <NewArticleButton onCreated={(a) => setSelectedId(a.id)} />
+            <div className={s.toolbar}>
+              <div className={s.searchBox}>
+                <input
+                  type="search"
+                  className={`${ui.textCell} ${s.searchInput}`}
+                  placeholder="جستجو در عنوان، نشانی، خلاصه و متن…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  aria-label="جستجوی مقاله"
+                />
+              </div>
+              <Chip selected={type === ''} onClick={() => setType('')}>
+                همه
+              </Chip>
+              <Chip selected={type === 'blog'} onClick={() => setType('blog')}>
+                وبلاگ
+              </Chip>
+              <Chip selected={type === 'news'} onClick={() => setType('news')}>
+                خبر
+              </Chip>
+              <span className={s.countBadge}>
+                {toPersianDigitsSafe(total)} مقاله{isFetching ? ' · در حال به‌روزرسانی…' : ''}
+              </span>
+              <Button size="sm" variant="secondary" style={{ marginInlineStart: 'auto' }} onClick={openCreate}>
+                مقالهٔ جدید
+              </Button>
             </div>
+
             {isLoading ? (
-              <TableSkeleton rows={4} cols={4} />
-            ) : articles.length === 0 ? (
-              <EmptyState size="section" headline="مقاله‌ای نیست" body="با «مقالهٔ جدید» شروع کنید." />
-            ) : (
-              <div className={ui.tableWrap}><table className={ui.table}>
-                <caption className="visually-hidden">فهرست مقاله‌های {STATUS_TABS.find((s) => s.id === status)?.label}</caption>
-                <thead>
-                  <tr>
-                    <th scope="col">عنوان</th>
-                    <th scope="col">نوع</th>
-                    <th scope="col">منبع</th>
-                    <th scope="col">انتشار</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {articles.map((a) => {
-                    const isOpen = selectedId === a.id;
-                    const toggle = () => guarded(() => setSelectedId(isOpen ? null : a.id));
-                    return (
-                    <tr
-                      key={a.id}
-                      className={ui.rowClickable}
-                      onClick={toggle}
-                      tabIndex={0}
-                      role="button"
-                      aria-expanded={isOpen}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          toggle();
-                        }
-                      }}
-                    >
-                      <td>
-                        {a.title}
-                        <div className={`${ui.muted} ${ui.mono}`}>{a.slug}</div>
-                      </td>
-                      <td>{a.type === 'blog' ? 'وبلاگ' : 'خبر'}</td>
-                      <td>
-                        {a.source === 'ai' ? <Badge tone="accent">هوش مصنوعی</Badge> : <Badge tone="neutral">تحریریه</Badge>}
-                      </td>
-                      <td className="tnum">{a.publishAt ? formatJalali(a.publishAt) : '—'}</td>
-                    </tr>
-                    );
-                  })}
-                </tbody>
-              </table></div>
-            )}
-            {selectedId ? (
-              <ArticleEditor
-                key={selectedId}
-                id={selectedId}
-                onDone={() => {
-                  dirtyRef.current = false;
-                  setSelectedId(null);
-                }}
-                onDirtyChange={(d) => {
-                  dirtyRef.current = d;
-                }}
+              <TableSkeleton rows={6} cols={5} />
+            ) : isError ? (
+              <EmptyState
+                size="section"
+                tone="error"
+                headline="بارگذاری مقاله‌ها ناموفق بود."
+                primary={{ label: 'تلاش دوباره', onClick: () => void refetch() }}
               />
-            ) : null}
+            ) : articles.length === 0 ? (
+              <EmptyState
+                size="section"
+                headline={q ? `مقاله‌ای با «${q}» پیدا نشد` : 'مقاله‌ای نیست'}
+                body={q ? 'شاید در وضعیت یا نوع دیگری باشد.' : 'با «مقالهٔ جدید» شروع کنید.'}
+                primary={q ? { label: 'پاک‌کردن جستجو', onClick: () => setSearch('') } : { label: 'مقالهٔ جدید', onClick: openCreate }}
+              />
+            ) : (
+              <>
+                <div className={ui.tableWrap}>
+                  <table className={ui.table}>
+                    <caption className="visually-hidden">
+                      فهرست مقاله‌های {STATUS_TABS.find((x) => x.id === status)?.label}
+                    </caption>
+                    <thead>
+                      <tr>
+                        <th scope="col">عنوان</th>
+                        <th scope="col">نوع</th>
+                        <th scope="col">وضعیت</th>
+                        <th scope="col">{status === 'draft' ? 'آخرین ویرایش' : 'انتشار'}</th>
+                        <th scope="col">
+                          <span className="visually-hidden">عملیات</span>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {articles.map((a) => {
+                        const st = STATUS_BADGE[a.status] ?? STATUS_BADGE.draft!;
+                        return (
+                          <tr key={a.id}>
+                            <td className={s.titleCell}>
+                              <strong>{a.title}</strong>
+                              <span className={s.slugLine}>/{a.type === 'news' ? 'news' : 'blog'}/{a.slug}</span>
+                            </td>
+                            <td>{a.type === 'blog' ? 'وبلاگ' : 'خبر'}</td>
+                            <td>
+                              <Badge tone={st.tone}>{st.label}</Badge>
+                            </td>
+                            <td className="tnum">{a.publishAt ? formatJalali(a.publishAt) : '—'}</td>
+                            <td>
+                              <Button size="sm" variant="ghost" onClick={() => openEdit(a.id)}>
+                                ویرایش
+                              </Button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <PagerFooter page={page} perPage={PER_PAGE} total={total} onPage={setPage} />
+              </>
+            )}
           </div>
         </TabPanel>
       ))}
+
+      {drawerId ? (
+        <ArticleDrawer
+          key={drawerId}
+          id={drawerId === 'new' ? null : drawerId}
+          defaultType={type === 'news' ? 'news' : 'blog'}
+          onRequestClose={requestCloseDrawer}
+          onDirtyChange={(d) => {
+            dirtyRef.current = d;
+          }}
+          onSaved={() => {
+            invalidateList();
+          }}
+          onCreated={(newId, created) => {
+            // Stay open, switch to edit mode on the row we just made — the
+            // admin keeps writing without a close/reopen round-trip, and the
+            // freshly-created data seeds the query cache so there's no
+            // loading flash back to an empty form.
+            qc.setQueryData(['admin', 'article', newId], { article: created });
+            dirtyRef.current = false;
+            setDrawerId(newId);
+            invalidateList();
+          }}
+          onDeleted={() => {
+            dirtyRef.current = false;
+            setDrawerId(null);
+            invalidateList();
+            toast.success('پیش‌نویس حذف شد.');
+          }}
+        />
+      ) : null}
     </div>
   );
 }
 
-function NewArticleButton({ onCreated }: { onCreated: (a: ArticleFull) => void }) {
-  const toast = useToast();
-  const qc = useQueryClient();
-  const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ slug: '', title: '', type: 'blog' as 'blog' | 'news' });
-
-  const create = useMutation({
-    mutationFn: () => adminApi.createArticle(form),
-    onSuccess: (res) => {
-      toast.success('پیش‌نویس ساخته شد.');
-      setOpen(false);
-      void qc.invalidateQueries({ queryKey: ['admin', 'articles'] });
-      onCreated(res.article);
-    },
-    onError: (err) => toast.error(err instanceof ApiError ? err.message : 'ساخت مقاله ناموفق بود.'),
-  });
-
-  if (!open) {
-    return (
-      <Button size="sm" variant="secondary" style={{ marginInlineStart: 'auto' }} onClick={() => setOpen(true)}>
-        مقالهٔ جدید
-      </Button>
-    );
-  }
-  return (
-    <span className={ui.toolbar} style={{ marginInlineStart: 'auto' }}>
-      <input className={ui.textCell} style={{ inlineSize: '12rem' }} placeholder="عنوان" aria-label="عنوان" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-      <input className={`${ui.textCell} ${ui.mono}`} style={{ inlineSize: '10rem' }} placeholder="slug-latin" aria-label="نشانی (slug)" dir="ltr" value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} />
-      <select className={ui.select} value={form.type} aria-label="نوع مقاله" onChange={(e) => setForm({ ...form, type: e.target.value as 'blog' | 'news' })}>
-        <option value="blog">وبلاگ</option>
-        <option value="news">خبر</option>
-      </select>
-      <Button size="sm" onClick={() => create.mutate()} disabled={!form.slug || !form.title} loading={create.isPending}>
-        ساخت
-      </Button>
-      <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
-        انصراف
-      </Button>
-    </span>
-  );
+/** `toPersianDigits` on a possibly-undefined total during the very first
+ *  render, without a null check at every call site. */
+function toPersianDigitsSafe(n: number): string {
+  return new Intl.NumberFormat('fa-IR').format(n);
 }
 
-function ArticleEditor({
+type Values = {
+  title: string;
+  slug: string;
+  type: 'blog' | 'news';
+  excerpt: string;
+  bodyMd: string;
+  coverUrl: string | null;
+  authorId: string | null;
+  seoTitle: string;
+  seoDescription: string;
+  seoCanonical: string;
+  seoOgImage: string;
+};
+
+function emptyValues(defaultType: 'blog' | 'news'): Values {
+  return {
+    title: '',
+    slug: '',
+    type: defaultType,
+    excerpt: '',
+    bodyMd: '',
+    coverUrl: null,
+    authorId: null,
+    seoTitle: '',
+    seoDescription: '',
+    seoCanonical: '',
+    seoOgImage: '',
+  };
+}
+
+function fromArticle(a: ArticleFull): Values {
+  return {
+    title: a.title,
+    slug: a.slug,
+    type: a.type,
+    excerpt: a.excerpt ?? '',
+    bodyMd: a.bodyMd ?? '',
+    coverUrl: a.coverUrl ?? null,
+    authorId: a.authorId ?? null,
+    seoTitle: a.seo?.title ?? '',
+    seoDescription: a.seo?.description ?? '',
+    seoCanonical: a.seo?.canonical ?? '',
+    seoOgImage: a.seo?.ogImage ?? '',
+  };
+}
+
+function ArticleDrawer({
   id,
-  onDone,
+  defaultType,
+  onRequestClose,
   onDirtyChange,
+  onSaved,
+  onCreated,
+  onDeleted,
 }: {
-  id: string;
-  onDone: () => void;
+  /** null = creating a new article. */
+  id: string | null;
+  defaultType: 'blog' | 'news';
+  onRequestClose: () => void;
   onDirtyChange: (dirty: boolean) => void;
+  onSaved: () => void;
+  onCreated: (id: string, article: ArticleFull) => void;
+  onDeleted: () => void;
 }) {
   const toast = useToast();
-  const qc = useQueryClient();
+  const isCreate = id === null;
   const { confirm, dialog } = useConfirm();
-  const [draft, setDraft] = useState<Partial<ArticleFull> | null>(null);
-
-  // The parent owns the navigation guards; it only needs to know IF there is
-  // unsaved text, never what it is.
-  useEffect(() => {
-    onDirtyChange(Boolean(draft));
-  }, [draft, onDirtyChange]);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const [preview, setPreview] = useState(false);
+  const [advanced, setAdvanced] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [schedule, setSchedule] = useState('');
   const [scheduleTime, setScheduleTime] = useState('09:00');
-  const [preview, setPreview] = useState(false);
-  const bodyRef = useRef<HTMLTextAreaElement>(null);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['admin', 'article', id],
+    queryFn: () => adminApi.article(id!),
+    enabled: !isCreate,
+  });
+  const article = data?.article;
+
+  const initial = useMemo(() => (article ? fromArticle(article) : emptyValues(defaultType)), [article, defaultType]);
+  const [v, setV] = useState<Values>(initial);
+  // Re-seed once the fetch for an existing article lands — `initial` starts as
+  // `emptyValues` for one render while the query is in flight.
+  const seeded = useRef(false);
+  useEffect(() => {
+    if (article && !seeded.current) {
+      setV(fromArticle(article));
+      seeded.current = true;
+    }
+  }, [article]);
+
+  /** Slug auto-derives from the title only on CREATE, and only until the admin
+   *  edits it by hand — mirrors the SKU drawer's pattern. On an existing
+   *  article the slug is frozen behind an explicit unlock, because leaving the
+   *  old auto-slug rule armed in edit mode is exactly what silently rewrote a
+   *  category's URL earlier in this audit. */
+  const [slugTouched, setSlugTouched] = useState(!isCreate);
+  const [slugUnlocked, setSlugUnlocked] = useState(isCreate);
+
+  const dirty = useMemo(() => JSON.stringify(v) !== JSON.stringify(initial), [v, initial]);
+  const dirtyRef = useRef(dirty);
+  dirtyRef.current = dirty;
+  useEffect(() => {
+    onDirtyChange(dirty);
+  }, [dirty, onDirtyChange]);
+
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty]);
+
+  const panelRef = useFocusTrap<HTMLDivElement>(true, onRequestClose);
+
+  const set = (patch: Partial<Values>) => {
+    setV((prev) => {
+      const next = { ...prev, ...patch };
+      if (patch.title !== undefined && !slugTouched) next.slug = slugify(patch.title);
+      return next;
+    });
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      for (const k of Object.keys(patch)) delete next[k];
+      return next;
+    });
+  };
 
   const applyMd = (fn: (ta: HTMLTextAreaElement) => { next: string; selectStart: number; selectEnd: number }) => {
     const ta = bodyRef.current;
     if (!ta) return;
     const { next, selectStart, selectEnd } = fn(ta);
-    setDraft((d) => ({ ...d, bodyMd: next }));
+    set({ bodyMd: next });
     requestAnimationFrame(() => {
       ta.focus();
       ta.setSelectionRange(selectStart, selectEnd);
     });
   };
 
-  // Unsaved edits must survive an accidental tab close/reload prompt-free
-  // discard (the in-app «ذخیره» button remains the actual save).
-  useEffect(() => {
-    if (!draft) return;
-    const warn = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
+  const qc = useQueryClient();
+
+  const { data: authorsData } = useQuery({
+    queryKey: ['admin', 'users', 'authors'],
+    queryFn: () => adminApi.users({ role: 'content' }),
+  });
+
+  const seoPatch = () => {
+    const seo = {
+      title: v.seoTitle.trim() || undefined,
+      description: v.seoDescription.trim() || undefined,
+      canonical: v.seoCanonical.trim() || undefined,
+      ogImage: v.seoOgImage.trim() || undefined,
     };
-    window.addEventListener('beforeunload', warn);
-    return () => window.removeEventListener('beforeunload', warn);
-  }, [draft]);
-
-  const { data } = useQuery({ queryKey: ['admin', 'article', id], queryFn: () => adminApi.article(id) });
-  const article = data?.article;
-  const value = { ...article, ...draft } as ArticleFull | undefined;
-  // Bylines are picked from content-editor staff — the only role an article
-  // can meaningfully be credited to.
-  const authors = useQuery({ queryKey: ['admin', 'users', 'authors'], queryFn: () => adminApi.users({ role: 'content' }) });
-
-  const invalidate = () => {
-    void qc.invalidateQueries({ queryKey: ['admin', 'articles'] });
-    void qc.invalidateQueries({ queryKey: ['admin', 'article', id] });
+    return Object.values(seo).some(Boolean) ? seo : null;
   };
+
+  const create = useMutation({
+    mutationFn: () =>
+      adminApi.createArticle({
+        slug: v.slug,
+        type: v.type,
+        title: v.title.trim(),
+        excerpt: v.excerpt.trim() || undefined,
+        bodyMd: v.bodyMd,
+      }),
+    onSuccess: (res) => {
+      toast.success('پیش‌نویس ساخته شد؛ ادامه بدهید.');
+      onCreated(res.article.id, res.article);
+    },
+    onError: (err) => {
+      if (err instanceof ApiError && err.fields) setFieldErrors(err.fields);
+      toast.error(err instanceof ApiError ? err.message : 'ساخت مقاله ناموفق بود.');
+    },
+  });
+
   const save = useMutation({
     mutationFn: () =>
-      adminApi.updateArticle(id, {
-        title: value?.title,
-        slug: value?.slug,
-        excerpt: value?.excerpt ?? null,
-        bodyMd: value?.bodyMd,
-        coverUrl: value?.coverUrl ?? null,
-        authorId: value?.authorId ?? null,
-        seo: value?.seo ?? null,
+      adminApi.updateArticle(id!, {
+        title: v.title.trim(),
+        slug: v.slug,
+        type: v.type,
+        excerpt: v.excerpt.trim() || null,
+        bodyMd: v.bodyMd,
+        coverUrl: v.coverUrl,
+        authorId: v.authorId,
+        seo: seoPatch(),
       }),
     onSuccess: () => {
       toast.success('ذخیره شد.');
-      setDraft(null);
-      invalidate();
+      seeded.current = false;
+      void qc.invalidateQueries({ queryKey: ['admin', 'article', id] });
+      onSaved();
     },
-    onError: (err) => toast.error(err instanceof ApiError ? err.message : 'ذخیره ناموفق بود.'),
+    onError: (err) => {
+      if (err instanceof ApiError && err.fields) setFieldErrors(err.fields);
+      toast.error(err instanceof ApiError ? err.message : 'ذخیره ناموفق بود.');
+    },
   });
+
   const publish = useMutation({
-    mutationFn: (publishAt?: string) => adminApi.publishArticle(id, publishAt),
+    mutationFn: (publishAt?: string) => adminApi.publishArticle(id!, publishAt),
     onSuccess: (res) => {
       toast.success(res.article.status === 'published' ? 'منتشر شد.' : 'زمان‌بندی شد.');
-      invalidate();
-      onDone();
+      void qc.invalidateQueries({ queryKey: ['admin', 'article', id] });
+      onSaved();
     },
     onError: (err) => toast.error(err instanceof ApiError ? err.message : 'انتشار ناموفق بود.'),
   });
+
   const unpublish = useMutation({
-    mutationFn: () => adminApi.updateArticle(id, { status: 'draft' }),
+    mutationFn: () => adminApi.updateArticle(id!, { status: 'draft' }),
     onSuccess: () => {
       toast.success('به پیش‌نویس بازگشت.');
-      invalidate();
+      void qc.invalidateQueries({ queryKey: ['admin', 'article', id] });
+      onSaved();
     },
     onError: (err) => toast.error(err instanceof ApiError ? err.message : 'لغو انتشار ناموفق بود.'),
   });
+
   const remove = useMutation({
-    mutationFn: () => adminApi.deleteArticle(id),
-    onSuccess: () => {
-      toast.success('پیش‌نویس حذف شد.');
-      invalidate();
-      onDone();
-    },
+    mutationFn: () => adminApi.deleteArticle(id!),
+    onSuccess: () => onDeleted(),
     onError: (err) => toast.error(err instanceof ApiError ? err.message : 'حذف ناموفق بود.'),
   });
 
-  if (!value) return null;
+  const canSave = v.title.trim() !== '' && v.slug.trim() !== '';
+  const busy = isCreate ? create.isPending : save.isPending;
 
-  return (
-    <div className={ui.panel}>
-      <div className={ui.grid2}>
-        <div style={{ display: 'grid', gap: 'var(--space-3)' }}>
-          <TextInput label="عنوان" value={value.title ?? ''} onChange={(e) => setDraft({ ...draft, title: e.target.value })} />
-          <TextInput label="نشانی (slug)" dir="ltr" value={value.slug ?? ''} onChange={(e) => setDraft({ ...draft, slug: e.target.value })} />
-          <Textarea label="خلاصه" rows={2} value={value.excerpt ?? ''} onChange={(e) => setDraft({ ...draft, excerpt: e.target.value })} />
-          <ImageUpload
-            label="تصویر کاور"
-            value={value.coverUrl ?? null}
-            onChange={(url) => setDraft({ ...draft, coverUrl: url ?? '' })}
-          />
-          <div>
-            <label className={ui.muted} htmlFor="article-author">
-              نویسنده
-            </label>
-            <br />
-            <select
-              id="article-author"
-              className={ui.select}
-              value={value.authorId ?? ''}
-              onChange={(e) => setDraft({ ...draft, authorId: e.target.value || null })}
-            >
-              <option value="">بدون نویسنده</option>
-              {(authors.data?.users ?? []).map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name ?? u.mobile}
-                </option>
-              ))}
-            </select>
-          </div>
-          <TextInput
-            label="عنوان سئو (اختیاری — پیش‌فرض: عنوان مقاله)"
-            value={value.seo?.title ?? ''}
-            onChange={(e) => setDraft({ ...draft, seo: { ...value.seo, title: e.target.value } })}
-          />
-          <Textarea
-            label="توضیحات سئو (اختیاری — پیش‌فرض: خلاصه)"
-            rows={2}
-            value={value.seo?.description ?? ''}
-            onChange={(e) => setDraft({ ...draft, seo: { ...value.seo, description: e.target.value } })}
-          />
-          <ImageUpload
-            label="تصویر Open Graph (اختیاری — پیش‌فرض: تصویر کاور)"
-            value={value.seo?.ogImage ?? null}
-            onChange={(url) => setDraft({ ...draft, seo: { ...value.seo, ogImage: url ?? undefined } })}
-          />
-          <div>
-            <div className={ui.toolbar} style={{ marginBlockEnd: 'var(--space-1)' }}>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                onClick={() => applyMd((ta) => wrapSelection(ta, '**', '**', 'متن پررنگ'))}
-              >
-                پررنگ
-              </Button>
-              <Button type="button" size="sm" variant="ghost" onClick={() => applyMd((ta) => prefixLines(ta, '## '))}>
-                عنوان
-              </Button>
-              <Button type="button" size="sm" variant="ghost" onClick={() => applyMd((ta) => prefixLines(ta, '- '))}>
-                فهرست
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                onClick={() => applyMd((ta) => wrapSelection(ta, '[', '](https://)', 'متن پیوند'))}
-              >
-                پیوند
-              </Button>
-            </div>
-            <Textarea
-              ref={bodyRef}
-              label="متن (Markdown)"
-              rows={14}
-              style={{ fontFamily: 'monospace' }}
-              value={value.bodyMd ?? ''}
-              onChange={(e) => setDraft({ ...draft, bodyMd: e.target.value })}
-            />
+  const doSave = () => {
+    if (isCreate) create.mutate();
+    else save.mutate();
+  };
+
+  const status = article?.status ?? 'draft';
+  const liveUrl = article && status !== 'draft' ? (article.type === 'news' ? routes.news(article.slug) : routes.blog(article.slug)) : null;
+
+  if (!isCreate && isLoading) {
+    return (
+      <>
+        <div className={s.scrim} onClick={onRequestClose} aria-hidden="true" />
+        <div className={s.drawer} role="dialog" aria-modal="true" aria-label="در حال بارگذاری مقاله">
+          <div className={s.drawerBody}>
+            <TableSkeleton rows={6} cols={1} />
           </div>
         </div>
-        <div>
-          <div className={ui.toolbar}>
-            <Button size="sm" onClick={() => save.mutate()} loading={save.isPending} disabled={!draft}>
-              ذخیره
-            </Button>
-            {value.status === 'draft' ? (
-              <>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  loading={publish.isPending}
-                  onClick={() =>
-                    // Publishing is public + SEO-affecting — and must never
-                    // silently drop unsaved edits (publish sends the SAVED
-                    // version, not the in-progress draft).
-                    void confirm({
-                      title: 'انتشار مقاله؟',
-                      body: draft
-                        ? 'تغییرات ذخیره‌نشده دارید — اول «ذخیره» را بزنید، وگرنه نسخهٔ قبلی منتشر می‌شود. ادامه می‌دهید؟'
-                        : `«${value.title}» همین حالا در سایت منتشر می‌شود.`,
-                      confirmLabel: 'انتشار',
-                    }).then((ok) => {
-                      if (ok) publish.mutate(undefined);
-                    })
-                  }
-                >
-                  انتشار اکنون
-                </Button>
-                {/* Jalali date + local time — replaces the Gregorian
-                    datetime-local picker (a fully-Jalali panel popped a
-                    Gregorian calendar for scheduling). */}
-                <JalaliDateField value={schedule} onChange={setSchedule} label="تاریخ انتشار (شمسی)" />
-                <input
-                  type="time"
-                  className={ui.textCell}
-                  style={{ inlineSize: '6rem' }}
-                  value={scheduleTime}
-                  onChange={(e) => setScheduleTime(e.target.value)}
-                  aria-label="ساعت انتشار"
-                />
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  disabled={!schedule}
-                  loading={publish.isPending}
-                  onClick={() => {
-                    // The publish endpoint treats a past date as "publish now",
-                    // and this button used to fire straight into it with no
-                    // confirm, no pending state and no warning about unsaved
-                    // text — then closed the panel, taking the draft with it.
-                    const at = new Date(`${schedule}T${scheduleTime || '09:00'}:00`);
-                    if (Number.isNaN(at.getTime())) {
-                      toast.error('تاریخ یا ساعت انتشار معتبر نیست.');
-                      return;
-                    }
-                    if (at.getTime() <= Date.now()) {
-                      toast.error('زمان انتشار باید در آینده باشد؛ برای انتشار فوری از «انتشار اکنون» استفاده کنید.');
-                      return;
-                    }
-                    void confirm({
-                      title: 'زمان‌بندی انتشار؟',
-                      body: draft
-                        ? 'تغییرات ذخیره‌نشده دارید — اول «ذخیره» را بزنید، وگرنه نسخهٔ قبلی زمان‌بندی می‌شود. ادامه می‌دهید؟'
-                        : `«${value.title}» در ${formatJalali(at)} به‌صورت خودکار منتشر می‌شود.`,
-                      confirmLabel: 'زمان‌بندی',
-                    }).then((ok) => {
-                      if (ok) publish.mutate(at.toISOString());
-                    });
-                  }}
-                >
-                  زمان‌بندی
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  loading={remove.isPending}
-                  onClick={() =>
-                    void confirm({
-                      title: 'حذف پیش‌نویس',
-                      body: 'این پیش‌نویس برای همیشه حذف می‌شود. ادامه؟',
-                      confirmLabel: 'حذف کن',
-                    }).then((ok) => {
-                      if (ok) remove.mutate();
-                    })
-                  }
-                >
-                  حذف
-                </Button>
-              </>
-            ) : (
-              <Button
-                size="sm"
-                variant="ghost"
-                loading={unpublish.isPending}
-                onClick={() =>
-                  // Publishing asks for confirmation; taking a live, indexed
-                  // page back down did not — despite being the destructive
-                  // half of the pair.
-                  void confirm({
-                    title: 'لغو انتشار؟',
-                    body: `«${value.title}» از سایت برداشته می‌شود و نشانی‌اش دیگر باز نمی‌شود. اگر گوگل آن را ثبت کرده باشد، نتیجه‌اش هم از دسترس خارج می‌شود. مقاله به پیش‌نویس برمی‌گردد و هر زمان می‌توانید دوباره منتشرش کنید.`,
-                    confirmLabel: 'لغو انتشار',
-                  }).then((ok) => {
-                    if (ok) unpublish.mutate();
-                  })
-                }
-              >
-                لغو انتشار
-              </Button>
-            )}
-            <Button size="sm" variant="ghost" onClick={() => setPreview(!preview)}>
-              {preview ? 'ویرایش' : 'پیش‌نمایش'}
+      </>
+    );
+  }
+
+  if (!isCreate && !isLoading && !article) {
+    return (
+      <>
+        <div className={s.scrim} onClick={onRequestClose} aria-hidden="true" />
+        <div className={s.drawer} role="dialog" aria-modal="true" aria-label="مقاله یافت نشد">
+          <div className={s.drawerBody}>
+            <EmptyState size="section" tone="error" headline="این مقاله یافت نشد." body="ممکن است حذف شده باشد." />
+          </div>
+          <div className={s.drawerFoot}>
+            <Button variant="ghost" onClick={onRequestClose}>
+              بستن
             </Button>
           </div>
-          {preview ? (
-            <div className={ui.panel}>
-              {/* The exact renderer the published article page uses — a
-                  hand-rolled preview here once dropped bold/links, so what the
-                  editor saw was not what readers got. */}
-              <MarkdownProse md={value.bodyMd ?? ''} />
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <div className={s.scrim} onClick={onRequestClose} aria-hidden="true" />
+      <div className={s.drawer} role="dialog" aria-modal="true" aria-label={isCreate ? 'مقالهٔ جدید' : `ویرایش ${v.title}`} ref={panelRef}>
+        <div className={s.drawerHead}>
+          <div className={s.titleRow}>
+            <input
+              className={s.titleInput}
+              placeholder="عنوان مقاله…"
+              value={v.title}
+              onChange={(e) => set({ title: e.target.value })}
+              aria-label="عنوان"
+              autoFocus
+            />
+          </div>
+          <div className={s.metaRow}>
+            <Badge tone={STATUS_BADGE[status]?.tone ?? 'stale'}>{STATUS_BADGE[status]?.label ?? status}</Badge>
+            {liveUrl ? (
+              <a className={s.viewLive} href={liveUrl} target="_blank" rel="noreferrer">
+                مشاهده در سایت ↗
+              </a>
+            ) : null}
+            {fieldErrors.title ? <span className={ui.tileHintError}>{fieldErrors.title}</span> : null}
+          </div>
+        </div>
+
+        <div className={s.drawerBody}>
+          <div className={s.main}>
+            <Textarea
+              label="خلاصه"
+              rows={2}
+              helper="در کارت لیست مقاله‌ها و به‌عنوان توضیح پیش‌فرض سئو استفاده می‌شود."
+              value={v.excerpt}
+              error={fieldErrors.excerpt}
+              maxLength={500}
+              onChange={(e) => set({ excerpt: e.target.value })}
+            />
+
+            <div className={s.metaRow} style={{ justifyContent: 'space-between' }}>
+              <div className={s.mdToolbar}>
+                <Button type="button" size="sm" variant="ghost" onClick={() => applyMd((ta) => wrapSelection(ta, '**', '**', 'متن پررنگ'))}>
+                  پررنگ
+                </Button>
+                <Button type="button" size="sm" variant="ghost" onClick={() => applyMd((ta) => wrapSelection(ta, '*', '*', 'متن مورب'))}>
+                  مورب
+                </Button>
+                <Button type="button" size="sm" variant="ghost" onClick={() => applyMd((ta) => prefixLines(ta, '## '))}>
+                  عنوان
+                </Button>
+                <Button type="button" size="sm" variant="ghost" onClick={() => applyMd((ta) => prefixLines(ta, '### '))}>
+                  زیرعنوان
+                </Button>
+                <Button type="button" size="sm" variant="ghost" onClick={() => applyMd((ta) => prefixLines(ta, '- '))}>
+                  فهرست
+                </Button>
+                <Button type="button" size="sm" variant="ghost" onClick={() => applyMd((ta) => prefixLines(ta, '1. '))}>
+                  فهرست شماره‌دار
+                </Button>
+                <Button type="button" size="sm" variant="ghost" onClick={() => applyMd((ta) => prefixLines(ta, '> '))}>
+                  نقل‌قول
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => applyMd((ta) => wrapSelection(ta, '[', '](https://)', 'متن پیوند'))}
+                >
+                  پیوند
+                </Button>
+              </div>
+              <Button type="button" size="sm" variant="ghost" onClick={() => setPreview((x) => !x)}>
+                {preview ? 'ویرایش متن' : 'پیش‌نمایش'}
+              </Button>
             </div>
-          ) : (
-            <p className={ui.muted}>
-              وضعیت: {value.status === 'draft' ? 'پیش‌نویس' : value.status === 'scheduled' ? 'زمان‌بندی‌شده' : 'منتشرشده'}
-              {value.publishAt ? ` · انتشار: ${formatJalali(value.publishAt)}` : ''}
-            </p>
-          )}
+
+            {preview ? (
+              <div className={s.preview}>
+                {/* The exact renderer the published article page uses — a
+                    hand-rolled preview here once dropped bold/links, so what
+                    the editor saw was not what readers got. */}
+                <MarkdownProse md={v.bodyMd} />
+              </div>
+            ) : (
+              <Textarea
+                ref={bodyRef}
+                label="متن (Markdown)"
+                style={{
+                  fontFamily: 'ui-monospace, monospace',
+                  minBlockSize: 420,
+                  resize: 'vertical',
+                  direction: 'rtl',
+                  unicodeBidi: 'isolate',
+                }}
+                value={v.bodyMd}
+                error={fieldErrors.bodyMd}
+                onChange={(e) => set({ bodyMd: e.target.value })}
+              />
+            )}
+
+            <ImagePicker
+              label="افزودن تصویر داخل متن"
+              onInsert={(url) => applyMd((ta) => insertBlock(ta, `![](${url})`))}
+            />
+          </div>
+
+          <div className={s.side}>
+            <div className={s.sideCard}>
+              <div className={s.sideCardTitle}>انتشار</div>
+              <Button size="sm" onClick={doSave} loading={busy} disabled={!canSave || (!isCreate && !dirty)}>
+                {isCreate ? 'ذخیرهٔ پیش‌نویس' : 'ذخیره'}
+              </Button>
+              {!isCreate && status === 'draft' ? (
+                <>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    loading={publish.isPending}
+                    onClick={() =>
+                      // Publishing is public + SEO-affecting — and must never
+                      // silently drop unsaved edits (publish sends the SAVED
+                      // version, not the in-progress draft).
+                      void confirm({
+                        title: 'انتشار مقاله؟',
+                        body: dirty
+                          ? 'تغییرات ذخیره‌نشده دارید — اول «ذخیره» را بزنید، وگرنه نسخهٔ قبلی منتشر می‌شود. ادامه می‌دهید؟'
+                          : `«${v.title}» همین حالا در سایت منتشر می‌شود و در نقشهٔ سایت و جستجوی گوگل هم ظاهر می‌شود.`,
+                        confirmLabel: 'انتشار',
+                      }).then((ok) => {
+                        if (ok) publish.mutate(undefined);
+                      })
+                    }
+                  >
+                    انتشار اکنون
+                  </Button>
+                  <div className={s.scheduleRow}>
+                    <JalaliDateField value={schedule} onChange={setSchedule} label="تاریخ انتشار (شمسی)" />
+                    <input
+                      type="time"
+                      className={ui.textCell}
+                      style={{ inlineSize: '6rem' }}
+                      value={scheduleTime}
+                      onChange={(e) => setScheduleTime(e.target.value)}
+                      aria-label="ساعت انتشار"
+                    />
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={!schedule}
+                    loading={publish.isPending}
+                    onClick={() => {
+                      const at = new Date(`${schedule}T${scheduleTime || '09:00'}:00`);
+                      if (Number.isNaN(at.getTime())) {
+                        toast.error('تاریخ یا ساعت انتشار معتبر نیست.');
+                        return;
+                      }
+                      if (at.getTime() <= Date.now()) {
+                        toast.error('زمان انتشار باید در آینده باشد؛ برای انتشار فوری از «انتشار اکنون» استفاده کنید.');
+                        return;
+                      }
+                      void confirm({
+                        title: 'زمان‌بندی انتشار؟',
+                        body: dirty
+                          ? 'تغییرات ذخیره‌نشده دارید — اول «ذخیره» را بزنید، وگرنه نسخهٔ قبلی زمان‌بندی می‌شود. ادامه می‌دهید؟'
+                          : `«${v.title}» در ${formatJalali(at)} به‌صورت خودکار منتشر می‌شود.`,
+                        confirmLabel: 'زمان‌بندی',
+                      }).then((ok) => {
+                        if (ok) publish.mutate(at.toISOString());
+                      });
+                    }}
+                  >
+                    زمان‌بندی
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    loading={remove.isPending}
+                    onClick={() =>
+                      void confirm({
+                        title: 'حذف پیش‌نویس',
+                        body: 'این پیش‌نویس برای همیشه حذف می‌شود. ادامه؟',
+                        confirmLabel: 'حذف کن',
+                      }).then((ok) => {
+                        if (ok) remove.mutate();
+                      })
+                    }
+                  >
+                    حذف پیش‌نویس
+                  </Button>
+                </>
+              ) : null}
+              {!isCreate && status !== 'draft' ? (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  loading={unpublish.isPending}
+                  onClick={() =>
+                    // Publishing asks for confirmation; taking a live, indexed
+                    // page back down did not — despite being the destructive
+                    // half of the pair.
+                    void confirm({
+                      title: 'لغو انتشار؟',
+                      body: `«${v.title}» از سایت برداشته می‌شود و نشانی‌اش دیگر باز نمی‌شود. اگر گوگل آن را ثبت کرده باشد، نتیجه‌اش هم از دسترس خارج می‌شود. مقاله به پیش‌نویس برمی‌گردد و هر زمان می‌توانید دوباره منتشرش کنید.`,
+                      confirmLabel: 'لغو انتشار',
+                    }).then((ok) => {
+                      if (ok) unpublish.mutate();
+                    })
+                  }
+                >
+                  لغو انتشار
+                </Button>
+              ) : null}
+            </div>
+
+            <div className={s.sideCard}>
+              <div className={s.sideCardTitle}>مشخصات</div>
+              <div>
+                <label className={ui.tileLabel} htmlFor="article-type">
+                  نوع
+                </label>
+                <select
+                  id="article-type"
+                  className={ui.select}
+                  style={{ inlineSize: '100%' }}
+                  value={v.type}
+                  onChange={(e) => set({ type: e.target.value as 'blog' | 'news' })}
+                >
+                  <option value="blog">وبلاگ</option>
+                  <option value="news">خبر</option>
+                </select>
+                {!isCreate && article && v.type !== article.type ? (
+                  <div className={ui.tileHintWarn}>نشانی صفحه عوض می‌شود؛ انتقال خودکار از نشانی قبلی ساخته می‌شود.</div>
+                ) : null}
+              </div>
+
+              {!slugUnlocked ? (
+                <div className={s.metaRow}>
+                  <span className={s.slugPreview}>
+                    /{v.type === 'news' ? 'news' : 'blog'}/{v.slug || '…'}
+                  </span>
+                  <Button size="sm" variant="ghost" onClick={() => setSlugUnlocked(true)}>
+                    تغییر نشانی
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  {!isCreate ? (
+                    <Alert tone="warning">
+                      نشانی فعلی ممکن است در گوگل ثبت شده باشد. با تغییر آن، انتقال خودکار از نشانی قدیمی ساخته می‌شود.
+                    </Alert>
+                  ) : null}
+                  <TextInput
+                    label="نشانی (Slug)"
+                    dir="ltr"
+                    helper="فقط حروف کوچک انگلیسی، عدد و خط تیره."
+                    value={v.slug}
+                    error={fieldErrors.slug}
+                    maxLength={120}
+                    onChange={(e) => {
+                      setSlugTouched(true);
+                      set({ slug: e.target.value });
+                    }}
+                  />
+                </>
+              )}
+
+              <ImageUpload label="تصویر کاور" value={v.coverUrl} onChange={(url) => set({ coverUrl: url })} />
+
+              <div>
+                <label className={ui.tileLabel} htmlFor="article-author">
+                  نویسنده
+                </label>
+                <select
+                  id="article-author"
+                  className={ui.select}
+                  style={{ inlineSize: '100%' }}
+                  value={v.authorId ?? ''}
+                  onChange={(e) => set({ authorId: e.target.value || null })}
+                >
+                  <option value="">بدون نویسنده</option>
+                  {(authorsData?.users ?? []).map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name ?? u.mobile}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className={s.sideCard}>
+              <Button size="sm" variant="ghost" aria-expanded={advanced} onClick={() => setAdvanced((x) => !x)}>
+                {advanced ? 'بستن تنظیمات سئو' : 'تنظیمات سئو (اختیاری)'}
+              </Button>
+              {advanced ? (
+                <>
+                  <TextInput
+                    label="عنوان سئو"
+                    helper="پیش‌فرض: عنوان مقاله."
+                    value={v.seoTitle}
+                    maxLength={70}
+                    onChange={(e) => set({ seoTitle: e.target.value })}
+                  />
+                  <Textarea
+                    label="توضیحات سئو"
+                    rows={2}
+                    helper="پیش‌فرض: خلاصه."
+                    value={v.seoDescription}
+                    maxLength={200}
+                    onChange={(e) => set({ seoDescription: e.target.value })}
+                  />
+                  <ImageUpload
+                    label="تصویر Open Graph"
+                    value={v.seoOgImage || null}
+                    onChange={(url) => set({ seoOgImage: url ?? '' })}
+                  />
+                </>
+              ) : null}
+            </div>
+          </div>
+        </div>
+
+        <div className={s.drawerFoot}>
+          <Button onClick={doSave} loading={busy} disabled={!canSave || (!isCreate && !dirty)}>
+            {isCreate ? 'ذخیرهٔ پیش‌نویس' : 'ذخیره'}
+          </Button>
+          <Button variant="ghost" onClick={onRequestClose}>
+            بستن
+          </Button>
+          {dirty ? <span className={`${ui.tileHint} ${s.footSpacer}`}>تغییرات ذخیره‌نشده</span> : null}
         </div>
       </div>
       {dialog}
-    </div>
+    </>
+  );
+}
+
+/** A thin wrapper over ImageUpload that reports the uploaded URL once and
+ *  resets — the body toolbar inserts it as markdown rather than holding it as
+ *  a persistent field. */
+function ImagePicker({ label, onInsert }: { label: string; onInsert: (url: string) => void }) {
+  const [value, setValue] = useState<string | null>(null);
+  return (
+    <ImageUpload
+      label={label}
+      value={value}
+      onChange={(url) => {
+        setValue(null);
+        if (url) onInsert(url);
+      }}
+    />
   );
 }

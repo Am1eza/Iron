@@ -44,6 +44,8 @@ function toMarkdown(blocks: Block[]): string {
           return `> ${b.text}`;
         case 'h2':
           return `## ${b.text}`;
+        case 'img':
+          return `![${b.alt}](${b.src})`;
         default:
           return b.text;
       }

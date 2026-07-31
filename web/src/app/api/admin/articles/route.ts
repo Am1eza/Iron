@@ -6,7 +6,7 @@ import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/
 import { adminListArticles, createArticle } from '@/lib/server/repos/articlesRepo';
 import { DuplicateArticleSlugError } from '@/lib/server/repos/articlesRepo';
 
-/** GET /api/admin/articles?status=&type= — all articles for the content queue. */
+/** GET /api/admin/articles?status=&type=&q=&page= — the content queue list. */
 async function GETImpl(req: NextRequest) {
   const guard = requireDb();
   if (guard) return guard;
@@ -18,7 +18,10 @@ async function GETImpl(req: NextRequest) {
   const result = await adminListArticles({
     status: status && ['draft', 'scheduled', 'published'].includes(status) ? (status as 'draft') : undefined,
     type: type === 'blog' || type === 'news' ? type : undefined,
-    page: Math.max(1, Number(p.get('page') ?? 1) || 1),
+    q: p.get('q') ?? undefined,
+    // Number('1e30') is a real finite number that overflows OFFSET; the repo
+    // clamps it, this just parses.
+    page: Number(p.get('page') ?? 1),
   });
   return NextResponse.json(result, { headers: { 'Cache-Control': 'no-store' } });
 }
@@ -29,7 +32,6 @@ const createPayload = z.object({
   title: z.string().trim().min(1).max(200),
   excerpt: z.string().trim().max(500).optional(),
   bodyMd: z.string().max(100_000).optional(),
-  source: z.enum(['ai', 'human']).optional(),
 });
 
 /** POST /api/admin/articles — create a draft. */

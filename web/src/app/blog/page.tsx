@@ -12,7 +12,6 @@ import {
   Breadcrumbs,
   Badge,
   EmptyState, Pagination } from '@/components/ui';
-import { SparkIcon } from '@/components/primitives/icons';
 import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
 import { ArticleCard } from '@/components/content/ArticleCard';
 import styles from './blog.module.css';
@@ -59,16 +58,6 @@ export default async function BlogPage({
               بعد خرید.
             </Text>
           </div>
-
-          <p className={styles.aiNote}>
-            <span className={styles.aiBadge}>
-              <Badge tone="accent" icon={<SparkIcon size={13} />}>
-                هوش مصنوعی
-              </Badge>
-            </span>
-            بخشی از مطالب با کمک هوش مصنوعی و بر پایهٔ داده‌های روزانهٔ بازار تهیه می‌شود و پیش از
-            انتشار، بازبینی کارشناسی دارد.
-          </p>
 
           {articles.length > 0 ? (
             <div>

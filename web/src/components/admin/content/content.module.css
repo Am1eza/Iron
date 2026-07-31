@@ -1,0 +1,198 @@
+/* Content editor (W25) — wide, because long-form writing needs real room; a
+   620px SKU-form-sized drawer would make every paragraph a scroll. Same
+   scrim/z-index tokens and structural classes as the catalog drawer, so a
+   future dark-mode or motion change updates one convention, not two. */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-block-end: var(--space-3);
+}
+
+.searchBox {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-inline-size: 220px;
+  flex: 1;
+}
+
+.searchInput {
+  inline-size: 100%;
+}
+
+.countBadge {
+  color: var(--color-text-muted);
+  font: var(--t-body-sm);
+  white-space: nowrap;
+}
+
+.titleCell {
+  max-inline-size: 32rem;
+}
+
+.titleCell strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.slugLine {
+  display: block;
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+  direction: ltr;
+  text-align: start;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------------------------- drawer editor ---------------------------- */
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, var(--color-text) 45%, transparent);
+  z-index: var(--z-scrim);
+}
+
+.drawer {
+  position: fixed;
+  inset-block: 0;
+  inset-inline-start: 0;
+  inline-size: min(1180px, 98vw);
+  background: var(--color-surface);
+  z-index: var(--z-drawer);
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-lg, 0 0 40px rgb(0 0 0 / 25%));
+}
+
+.drawerHead {
+  padding: var(--space-4);
+  border-block-end: var(--border-hairline) solid var(--color-hairline);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.titleRow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.titleInput {
+  font: var(--t-h3);
+  font-weight: 700;
+  border: 0;
+  background: none;
+  padding: 0;
+  flex: 1;
+  min-inline-size: 240px;
+  color: var(--color-text-strong);
+}
+.titleInput:focus-visible {
+  outline: var(--border-focus) solid var(--color-focus);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.metaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.slugPreview {
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+  direction: ltr;
+  text-align: start;
+  word-break: break-all;
+}
+
+.drawerBody {
+  padding: var(--space-4);
+  overflow-y: auto;
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr minmax(280px, 320px);
+  gap: var(--space-5);
+  align-content: start;
+}
+
+@media (max-width: 860px) {
+  .drawerBody {
+    grid-template-columns: 1fr;
+  }
+}
+
+.main {
+  display: grid;
+  gap: var(--space-3);
+  min-inline-size: 0;
+}
+
+.side {
+  display: grid;
+  gap: var(--space-4);
+  align-content: start;
+}
+
+.sideCard {
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.sideCardTitle {
+  font: var(--t-body-sm);
+  font-weight: 600;
+}
+
+.mdToolbar {
+  display: flex;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+}
+
+.preview {
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  min-block-size: 420px;
+  overflow-y: auto;
+}
+
+.drawerFoot {
+  padding: var(--space-3) var(--space-4);
+  border-block-start: var(--border-hairline) solid var(--color-hairline);
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.footSpacer {
+  margin-inline-start: auto;
+}
+
+.scheduleRow {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.viewLive {
+  color: var(--color-accent-text);
+  font: var(--t-body-sm);
+}

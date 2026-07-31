@@ -10,7 +10,7 @@ export default async function AdminContentPage() {
     <Stack gap={5}>
       <div>
         <Heading level={1}>محتوا</Heading>
-        <Text color="muted">پیش‌نویس‌های هوش مصنوعی پس از بازبینی سردبیر منتشر می‌شوند.</Text>
+        <Text color="muted">مقاله بنویسید یا ویرایش کنید، پیش‌نمایش بگیرید و منتشر یا زمان‌بندی کنید.</Text>
       </div>
       <ContentQueue />
     </Stack>

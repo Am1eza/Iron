@@ -65,7 +65,10 @@ function isExternal(url: string): boolean {
 }
 
 function renderInline(text: string): ReactNode {
-  const re = /\*\*([^*]+)\*\*|\[([^\]]+)\]\(([^)\s]+)\)/g;
+  // Bold before italic: `**x**` must not be read as `*` + `*x*` + `*`. The
+  // italic branch's negative lookahead/lookbehind keeps it from firing inside
+  // an already-consumed `**...**` run.
+  const re = /\*\*([^*]+)\*\*|(?<!\*)\*([^*]+)\*(?!\*)|\[([^\]]+)\]\(([^)\s]+)\)/g;
   const parts: ReactNode[] = [];
   let last = 0;
   let k = 0;
@@ -74,8 +77,10 @@ function renderInline(text: string): ReactNode {
     if (m.index > last) parts.push(text.slice(last, m.index));
     if (m[1] !== undefined) {
       parts.push(<strong key={`b${k++}`}>{m[1]}</strong>);
+    } else if (m[2] !== undefined) {
+      parts.push(<em key={`i${k++}`}>{m[2]}</em>);
     } else {
-      const href = safeHref(m[3]!);
+      const href = safeHref(m[4]!);
       if (href) {
         parts.push(
           <a
@@ -83,13 +88,13 @@ function renderInline(text: string): ReactNode {
             href={href}
             rel={isExternal(href) ? 'noopener noreferrer nofollow' : 'noopener'}
           >
-            {m[2]}
+            {m[3]}
           </a>,
         );
       } else {
         // A rejected scheme still shows its label — dropping the text silently
         // would make the sentence read as if a word were missing.
-        parts.push(<span key={`a${k++}`}>{m[2]}</span>);
+        parts.push(<span key={`a${k++}`}>{m[3]}</span>);
       }
     }
     last = re.lastIndex;
@@ -154,6 +159,11 @@ function renderBlock(block: Block, index: number): ReactNode {
           </table>
         </div>
       );
+    case 'img':
+      return (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img key={index} className={styles.img} src={block.src} alt={block.alt} loading="lazy" />
+      );
     case 'quote':
       return (
         <blockquote key={index} className={styles.quote}>
@@ -184,6 +194,18 @@ function blocksFromMarkdown(md: string): Block[] {
   for (const chunk of chunks) {
     const lines = chunk.split('\n').map((l) => l.trim()).filter(Boolean);
     if (lines.length === 0) continue;
+    // A lone `![alt](url)` line is a standalone image, not a paragraph — the
+    // renderer previously had no way to embed a picture in the body at all.
+    if (lines.length === 1) {
+      const img = /^!\[([^\]]*)\]\(([^)\s]+)\)$/.exec(lines[0]!);
+      if (img) {
+        const src = safeHref(img[2]!);
+        if (src) {
+          blocks.push({ kind: 'img', src, alt: img[1] ?? '' });
+          continue;
+        }
+      }
+    }
     // GFM pipe table: a header row, a |---|---| separator, then body rows.
     if (lines.length >= 2 && lines[0]!.includes('|') && /^\|?[\s:|-]+\|[\s:|-]*$/.test(lines[1]!)) {
       const cells = (l: string) =>

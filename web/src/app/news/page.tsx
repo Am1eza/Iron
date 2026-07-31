@@ -12,7 +12,6 @@ import {
   Breadcrumbs,
   Badge,
   EmptyState, Pagination } from '@/components/ui';
-import { SparkIcon } from '@/components/primitives/icons';
 import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
 import { ArticleCard } from '@/components/content/ArticleCard';
 import styles from './news.module.css';
@@ -59,16 +58,6 @@ export default async function NewsPage({
               باشید.
             </Text>
           </div>
-
-          <p className={styles.aiNote}>
-            <span className={styles.aiBadge}>
-              <Badge tone="accent" icon={<SparkIcon size={13} />}>
-                هوش مصنوعی
-              </Badge>
-            </span>
-            گزیدهٔ اخبار به‌صورت روزانه و با کمک هوش مصنوعی از داده‌های بازار تهیه و پیش از انتشار
-            بازبینی می‌شود.
-          </p>
 
           {articles.length > 0 ? (
             <div>

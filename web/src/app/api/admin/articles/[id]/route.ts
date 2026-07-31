@@ -6,6 +6,13 @@ import { adminGetArticle, updateArticle, deleteDraftArticle } from '@/lib/server
 import { DuplicateArticleSlugError } from '@/lib/server/repos/articlesRepo';
 import { safeRevalidatePath } from '@/lib/server/utils/revalidate';
 import { slugSchema, uploadPathSchema } from '@/lib/validation/utils';
+import { createRedirect, RedirectLoopError } from '@/lib/server/repos/redirectsRepo';
+import { reportError } from '@/lib/errors/report';
+import { routes } from '@/lib/routes';
+
+function articlePath(type: 'blog' | 'news', slug: string): string {
+  return type === 'news' ? routes.news(slug) : routes.blog(slug);
+}
 
 /**
  * Bust the public caches an article write can affect. /blog and /news declare
@@ -13,14 +20,38 @@ import { slugSchema, uploadPathSchema } from '@/lib/validation/utils';
  * readable and indexable at its public URL for another ten minutes while the
  * panel already showed it as a draft — the worst case being a factual
  * correction or a retraction of market news.
+ *
+ * Takes the PREVIOUS {type, slug} too, not just an old slug string: moving an
+ * article from blog to news moves its public URL under a different base
+ * entirely (`/blog/x` → `/news/x`), and revalidating the new base against the
+ * old slug (what a slug-only signature would do) purges the wrong page.
  */
-function revalidateArticle(type: 'blog' | 'news', slug: string, oldSlug?: string): void {
-  const base = type === 'news' ? '/news' : '/blog';
-  safeRevalidatePath(base, 'layout');
-  safeRevalidatePath(`${base}/${slug}`);
-  if (oldSlug && oldSlug !== slug) safeRevalidatePath(`${base}/${oldSlug}`);
+function revalidateArticle(next: { type: 'blog' | 'news'; slug: string }, prev?: { type: 'blog' | 'news'; slug: string }): void {
+  const nextBase = next.type === 'news' ? '/news' : '/blog';
+  safeRevalidatePath(nextBase, 'layout');
+  safeRevalidatePath(`${nextBase}/${next.slug}`);
+  if (prev && (prev.type !== next.type || prev.slug !== next.slug)) {
+    const prevBase = prev.type === 'news' ? '/news' : '/blog';
+    safeRevalidatePath(prevBase, 'layout');
+    safeRevalidatePath(`${prevBase}/${prev.slug}`);
+  }
   // The sitemap is a route like any other; a publish/retract must reach Google.
   safeRevalidatePath('/sitemap.xml');
+}
+
+/**
+ * Preserve the old URL when a slug or type change moves it. Best-effort: the
+ * article write is already committed, and a failed redirect must never turn a
+ * successful save into an error the editor has to act on.
+ */
+async function redirectArticleUrl(from: string, to: string): Promise<void> {
+  if (from === to) return;
+  try {
+    await createRedirect({ fromPath: from, toPath: to, permanent: true });
+  } catch (err) {
+    if (err instanceof RedirectLoopError) return;
+    reportError(err, { stage: 'articles.redirectArticleUrl', from, to });
+  }
 }
 
 /** GET /api/admin/articles/{id} — full article for the editor. */
@@ -37,6 +68,10 @@ async function GETImpl(req: NextRequest, ctx: { params: Promise<{ id: string }> 
 
 const patchPayload = z.object({
   slug: slugSchema(120).optional(),
+  // A misfiled post used to need delete+recreate to move between blog and
+  // news — and DELETE refuses anything already published, so once live it
+  // was permanently stuck under the wrong section.
+  type: z.enum(['blog', 'news']).optional(),
   title: z.string().trim().min(1).max(200).optional(),
   excerpt: z.string().trim().max(500).nullable().optional(),
   bodyMd: z.string().max(100_000).optional(),
@@ -108,7 +143,13 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }
     before,
     article,
   );
-  revalidateArticle(article.type, article.slug, before.slug);
+  revalidateArticle({ type: article.type, slug: article.slug }, { type: before.type, slug: before.slug });
+  // A slug or type change moves the public URL. Only articles that were ever
+  // live need a redirect — a draft never had one to preserve.
+  const urlMoved = (v.data.slug && v.data.slug !== before.slug) || (v.data.type && v.data.type !== before.type);
+  if (urlMoved && before.status !== 'draft') {
+    await redirectArticleUrl(articlePath(before.type, before.slug), articlePath(article.type, article.slug));
+  }
   return NextResponse.json({ article });
 }
 
@@ -130,7 +171,7 @@ async function DELETEImpl(req: NextRequest, ctx: { params: Promise<{ id: string 
   }
   await deleteDraftArticle(id);
   await audit(auth.session.id, 'content.delete', { type: 'article', id }, existing, null);
-  revalidateArticle(existing.type, existing.slug);
+  revalidateArticle({ type: existing.type, slug: existing.slug });
   return NextResponse.json({ ok: true });
 }
 

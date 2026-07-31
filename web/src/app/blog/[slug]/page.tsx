@@ -7,7 +7,7 @@ import { articlesByType } from '@/lib/mock/catalogData';
 import { getArticle, getArticlesByType } from '@/lib/server/catalog';
 import { formatJalali } from '@/lib/utils/jalali';
 import { Container, Section, Stack, Heading, Breadcrumbs, Badge } from '@/components/ui';
-import { SparkIcon, CalendarIcon, ChevronStartIcon } from '@/components/primitives/icons';
+import { CalendarIcon, ChevronStartIcon } from '@/components/primitives/icons';
 import { BreadcrumbJsonLd, JsonLd } from '@/components/seo/JsonLd';
 import { ArticleBody } from '@/components/content/ArticleBody';
 import { ArticleCard } from '@/components/content/ArticleCard';
@@ -93,13 +93,7 @@ export default async function BlogArticlePage({ params }: Params) {
                     </time>
                   </span>
                 ) : null}
-                {article.source === 'ai' ? (
-                  <Badge tone="accent" icon={<SparkIcon size={13} />}>
-                    تهیه‌شده با هوش مصنوعی
-                  </Badge>
-                ) : (
-                  <Badge tone="neutral">تحریریهٔ آهن‌تایم</Badge>
-                )}
+                <Badge tone="neutral">تحریریهٔ آهن‌تایم</Badge>
               </div>
             </header>
 

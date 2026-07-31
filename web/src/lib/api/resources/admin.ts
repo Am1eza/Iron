@@ -597,10 +597,12 @@ export const adminApi = {
     http.patch<{ settlement: unknown }>(`/api/admin/warehouse/settlements/${id}`, { action: 'paid', note }),
 
   /* content */
-  articles: (params: { status?: string; type?: string } = {}) => {
+  articles: (params: { status?: string; type?: string; q?: string; page?: number } = {}) => {
     const qs = new URLSearchParams();
     if (params.status) qs.set('status', params.status);
     if (params.type) qs.set('type', params.type);
+    if (params.q) qs.set('q', params.q);
+    if (params.page) qs.set('page', String(params.page));
     return http.get<{ articles: ArticleFull[]; total: number }>(`/api/admin/articles?${qs}`);
   },
   article: (id: string) => http.get<{ article: ArticleFull }>(`/api/admin/articles/${id}`),
@@ -610,6 +612,9 @@ export const adminApi = {
     id: string,
     patch: Partial<{
       slug: string;
+      // Moving a misfiled post between blog and news used to require
+      // delete+recreate, and DELETE refuses anything already published.
+      type: 'blog' | 'news';
       title: string;
       excerpt: string | null;
       bodyMd: string;
