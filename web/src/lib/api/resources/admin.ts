@@ -115,20 +115,6 @@ export interface AlertTierCaps {
   poolad: number;
 }
 
-export interface KpiRes {
-  current: number;
-  prior: number;
-  deltaPct: number | null;
-  today: number;
-  series: number[];
-}
-export interface OverviewStatsRes {
-  leads: KpiRes;
-  proformas: KpiRes & { valueCurrent: number; valuePrior: number; valueDeltaPct: number | null };
-  orders: KpiRes;
-  newUsers: KpiRes;
-  aiConversations: KpiRes;
-}
 export interface DashboardStatsRes {
   range: number;
   revenue: { current: number; prior: number; deltaPct: number | null; count: number; avgDeal: number };
@@ -772,7 +758,6 @@ export const adminApi = {
       aiUsage: { conversationCount: number; promptTokens: number; completionTokens: number; cacheHitTokens: number };
     }>(`/api/admin/users/${id}`),
   revokeUserSessions: (id: string) => http.post<{ ok: true }>(`/api/admin/users/${id}/revoke-sessions`, {}),
-  statsOverview: () => http.get<OverviewStatsRes>('/api/admin/stats/overview'),
   statsDashboard: (range: number) => http.get<DashboardStatsRes>(`/api/admin/stats/dashboard?range=${range}`),
   statsMarketing: () => http.get<MarketingStatsRes>('/api/admin/stats/marketing'),
   statsSeo: () => http.get<SeoStatsRes>('/api/admin/stats/seo'),
