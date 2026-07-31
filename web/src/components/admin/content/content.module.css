@@ -203,7 +203,7 @@
   border: var(--border-hairline) solid var(--color-hairline);
   border-radius: var(--radius-md);
   padding: var(--space-3);
-  background: var(--color-surface-2, color-mix(in srgb, var(--color-surface) 96%, var(--color-text)));
+  background: var(--color-surface-sunken);
   display: grid;
   gap: 2px;
   margin-block-end: var(--space-2);
@@ -211,10 +211,16 @@
 
 .googlePreviewUrl {
   font: var(--t-caption);
-  color: var(--color-success-text, #1a7a4c);
+  color: var(--color-gain-text);
   direction: ltr;
   text-align: start;
   word-break: break-all;
+}
+/* --color-gain-text is tuned for a fixed-light tint and drops below WCAG AA on
+   a themed dark surface — same caveat PriceParts.module.css documents. Bare
+   green on a dark surface uses --color-gain there; mirror that idiom here. */
+:root[data-theme='dark'] .googlePreviewUrl {
+  color: var(--color-gain);
 }
 
 .googlePreviewTitle {
