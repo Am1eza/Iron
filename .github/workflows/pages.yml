@@ -53,7 +53,7 @@ jobs:
       - name: Post-process export (.nojekyll)
         run: node scripts/pages-postbuild.mjs
 
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
 
       - uses: actions/upload-pages-artifact@v3
         with:
