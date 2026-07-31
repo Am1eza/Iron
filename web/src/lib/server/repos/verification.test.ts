@@ -1,12 +1,20 @@
+// @vitest-environment node
 /** Pure-function units for progressive verification — the parts an auditor
- *  checks: Iranian ID validity, level derivation, and points mapping. */
-import { describe, it, expect } from 'vitest';
+ *  checks: Iranian ID validity, level derivation, and points mapping — plus
+ *  the review-queue pagination, which needs a real DB (hence the node
+ *  environment; none of the pure units touch the DOM). */
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { ulid } from 'ulid';
+import { createTestDb } from '@/test/db';
+import * as schema from '@/lib/server/db/schema';
+import type { Db } from '@/lib/server/db/client';
 import {
   isValidNationalId,
   isValidCompanyNationalId,
   isValidEconomicCode,
   deriveVerificationLevel,
   isProfileComplete,
+  listPendingVerifications,
   LEVEL_INFO,
 } from './verificationRepo';
 
@@ -67,5 +75,73 @@ describe('isProfileComplete', () => {
     expect(isProfileComplete({ firstName: 'رضا', lastName: 'محمدی' })).toBe(true);
     expect(isProfileComplete({ firstName: 'رضا', lastName: undefined })).toBe(false);
     expect(isProfileComplete({ firstName: '  ', lastName: 'محمدی' })).toBe(false);
+  });
+});
+
+describe('listPendingVerifications (paged review queue)', () => {
+  let db: Db;
+  let close: () => Promise<void>;
+
+  beforeAll(async () => {
+    ({ db, close } = await createTestDb());
+  }, 120_000);
+  afterAll(async () => {
+    await close();
+  });
+
+  async function seedUser(mobile: string, idStatus: string, bizStatus: string) {
+    const id = ulid();
+    await db.insert(schema.users).values({
+      id,
+      mobile,
+      idVerifyStatus: idStatus as 'pending' | 'none',
+      bizVerifyStatus: bizStatus as 'pending' | 'none',
+      nationalId: '1234567891',
+      companyName: 'فولاد نمونه',
+      companyNationalId: '10101234567',
+      economicCode: '411111111111',
+    });
+    return id;
+  }
+
+  it('counts REVIEW ITEMS, not users: one user with both pending is two rows', async () => {
+    // The trap the UNION ALL exists to close: the old JS fan-out meant the
+    // users row count and the emitted item count disagreed, so any `total`
+    // derived from the users query was short by exactly this user.
+    const both = await seedUser('09120000101', 'pending', 'pending');
+    await seedUser('09120000102', 'pending', 'none');
+    await seedUser('09120000103', 'none', 'pending');
+    await seedUser('09120000104', 'none', 'none'); // nothing to review
+
+    const all = await listPendingVerifications(1, 100);
+    expect(all.total).toBe(4); // 2 for `both` + 1 + 1 — not 3 users
+    expect(all.pending).toHaveLength(all.total);
+
+    const mine = all.pending.filter((p) => p.userId === both);
+    expect(mine.map((p) => p.kind).sort()).toEqual(['biz', 'id']);
+    // The DTO shape per kind is unchanged: id rows carry the national id,
+    // biz rows carry the company trio and nothing else.
+    expect(mine.find((p) => p.kind === 'id')!.nationalId).toBe('1234567891');
+    expect(mine.find((p) => p.kind === 'id')!.companyName).toBeUndefined();
+    expect(mine.find((p) => p.kind === 'biz')!.companyNationalId).toBe('10101234567');
+    expect(mine.find((p) => p.kind === 'biz')!.nationalId).toBeUndefined();
+  });
+
+  it('pages exactly: every page is full until the last, and the pages reassemble the total', async () => {
+    const total = (await listPendingVerifications(1, 100)).total;
+    expect(total).toBe(4);
+
+    const p1 = await listPendingVerifications(1, 3);
+    const p2 = await listPendingVerifications(2, 3);
+    expect(p1.pending).toHaveLength(3);
+    expect(p2.pending).toHaveLength(1);
+    expect(p1.total).toBe(total);
+    expect(p2.total).toBe(total);
+    expect(p2.page).toBe(2);
+    expect(p2.perPage).toBe(3);
+
+    // No overlap and no gaps across the page boundary.
+    const keys = [...p1.pending, ...p2.pending].map((p) => `${p.userId}:${p.kind}`);
+    expect(new Set(keys).size).toBe(total);
   });
 });

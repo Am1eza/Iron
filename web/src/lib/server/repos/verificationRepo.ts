@@ -9,7 +9,8 @@
  * The pure functions (validators, level derivation, unlock map) are exported
  * and unit-tested; nothing here throws to the request path.
  */
-import { and, eq, isNotNull, or } from 'drizzle-orm';
+import { and, eq, isNotNull, or, sql } from 'drizzle-orm';
+import { unionAll } from 'drizzle-orm/pg-core';
 import { getDb } from '@/lib/server/db/client';
 import { users, clubMemberships } from '@/lib/server/db/schema';
 import { randomInviteCode } from '@/lib/auth/crypto';
@@ -209,31 +210,106 @@ export interface PendingVerification {
   economicCode?: string;
 }
 
-/** All submissions awaiting admin review (level 2 and level 3), newest first. */
-export async function listPendingVerifications(): Promise<PendingVerification[]> {
-  const rows = await getDb()
-    .select()
+export interface PendingVerificationPage {
+  pending: PendingVerification[];
+  total: number;
+  page: number;
+  perPage: number;
+}
+
+/** One page of the submissions awaiting admin review (level 2 and level 3),
+ *  oldest first — a FIFO queue, so the longest-waiting applicant is next.
+ *
+ *  ONE SQL ROW = ONE REVIEW ITEM. This used to select every user whose id OR
+ *  biz status was pending and fan each row out in JS, so a user with BOTH
+ *  pending emitted two output rows and `rows.length !== out.length`. A
+ *  LIMIT/OFFSET on that users query would have produced pages of inconsistent
+ *  size and a `total` short by however many users have both pending. UNION
+ *  ALL of the two pending conditions makes the SQL row set itself the review
+ *  queue, so LIMIT/OFFSET and the count are both exact.
+ *
+ *  `total` is the sum of the two branch counts, which is by definition
+ *  count(*) over the same UNION ALL — the branches are predicates on
+ *  different columns, each index-backed (users_id_verify_idx /
+ *  users_biz_verify_idx). */
+export async function listPendingVerifications(page = 1, perPage = 30): Promise<PendingVerificationPage> {
+  const db = getDb();
+  const safePage = Math.max(1, Math.trunc(page) || 1);
+  const safePerPage = Math.max(1, Math.trunc(perPage) || 30);
+
+  const idPending = eq(users.idVerifyStatus, 'pending');
+  const bizPending = eq(users.bizVerifyStatus, 'pending');
+
+  const idBranch = db
+    .select({
+      userId: users.id,
+      mobile: users.mobile,
+      name: users.name,
+      kind: sql<VerifyKind>`'id'`.as('kind'),
+      nationalId: users.nationalId,
+      companyName: sql<string | null>`null::text`.as('company_name'),
+      companyNationalId: sql<string | null>`null::text`.as('company_national_id'),
+      economicCode: sql<string | null>`null::text`.as('economic_code'),
+      createdAt: users.createdAt,
+    })
     .from(users)
-    .where(or(eq(users.idVerifyStatus, 'pending'), eq(users.bizVerifyStatus, 'pending')))
-    .orderBy(users.createdAt);
-  const out: PendingVerification[] = [];
-  for (const r of rows) {
-    if (r.idVerifyStatus === 'pending') {
-      out.push({ userId: r.id, mobile: r.mobile, name: r.name ?? undefined, kind: 'id', nationalId: r.nationalId ?? undefined });
-    }
-    if (r.bizVerifyStatus === 'pending') {
-      out.push({
-        userId: r.id,
-        mobile: r.mobile,
-        name: r.name ?? undefined,
-        kind: 'biz',
-        companyName: r.companyName ?? undefined,
-        companyNationalId: r.companyNationalId ?? undefined,
-        economicCode: r.economicCode ?? undefined,
-      });
-    }
-  }
-  return out;
+    .where(idPending);
+
+  const bizBranch = db
+    .select({
+      userId: users.id,
+      mobile: users.mobile,
+      name: users.name,
+      kind: sql<VerifyKind>`'biz'`.as('kind'),
+      nationalId: sql<string | null>`null::text`.as('national_id'),
+      companyName: users.companyName,
+      companyNationalId: users.companyNationalId,
+      economicCode: users.economicCode,
+      createdAt: users.createdAt,
+    })
+    .from(users)
+    .where(bizPending);
+
+  // ORDER BY references the UNION's OUTPUT column names (taken from the first
+  // branch), never "users"."…" — a qualified name is not legal in a set
+  // operation's ORDER BY. `id, kind` is the tiebreak that keeps offset paging
+  // deterministic when several users share a created_at.
+  const [rows, counts] = await Promise.all([
+    unionAll(idBranch, bizBranch)
+      .orderBy(sql`created_at`, sql`id`, sql`kind`)
+      .limit(safePerPage)
+      .offset((safePage - 1) * safePerPage),
+    db
+      .select({
+        idCount: sql<number>`count(*) filter (where ${idPending})`.mapWith(Number),
+        bizCount: sql<number>`count(*) filter (where ${bizPending})`.mapWith(Number),
+      })
+      .from(users)
+      .where(or(idPending, bizPending)),
+  ]);
+
+  const pending: PendingVerification[] = rows.map((r) =>
+    r.kind === 'id'
+      ? {
+          userId: r.userId,
+          mobile: r.mobile,
+          name: r.name ?? undefined,
+          kind: 'id' as const,
+          nationalId: r.nationalId ?? undefined,
+        }
+      : {
+          userId: r.userId,
+          mobile: r.mobile,
+          name: r.name ?? undefined,
+          kind: 'biz' as const,
+          companyName: r.companyName ?? undefined,
+          companyNationalId: r.companyNationalId ?? undefined,
+          economicCode: r.economicCode ?? undefined,
+        },
+  );
+
+  const total = (counts[0]?.idCount ?? 0) + (counts[0]?.bizCount ?? 0);
+  return { pending, total, page: safePage, perPage: safePerPage };
 }
 
 /** Count qualified referrals for a user (referees who reached ≥ level 2). Used

@@ -4,6 +4,7 @@
  * and level-3 (business) submissions; approve/reject bumps the user's derived
  * verification level (which can raise their club tier) and is audited.
  */
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api/resources/admin';
 import { toPersianDigits } from '@/lib/utils/format';
@@ -11,15 +12,17 @@ import { useToast } from '@/lib/hooks/useToast';
 import { ApiError } from '@/lib/api/errors';
 import { Badge, EmptyState, Heading, TableSkeleton, Text, useConfirm } from '@/components/ui';
 import { Button } from '@/components/primitives/Button';
+import { PagerFooter } from '../PagerFooter';
 import ui from '../adminUi.module.css';
 
 export function VerificationReview() {
   const toast = useToast();
   const qc = useQueryClient();
   const { confirm, dialog } = useConfirm();
+  const [page, setPage] = useState(1);
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['admin', 'verifications'],
-    queryFn: () => adminApi.verifications(),
+    queryKey: ['admin', 'verifications', page],
+    queryFn: () => adminApi.verifications(page),
   });
 
   const review = useMutation({
@@ -34,12 +37,15 @@ export function VerificationReview() {
   });
 
   const pending = data?.pending ?? [];
+  // The whole queue, not this page — the badge is the "is there work waiting?"
+  // signal, so showing pending.length would silently cap it at perPage forever.
+  const total = data?.total ?? 0;
 
   return (
     <section className={ui.panel} aria-labelledby="verif-heading">
       <Heading level={2} id="verif-heading">
         احراز هویت — در انتظار بررسی
-        {pending.length > 0 ? <Badge tone="loss">{toPersianDigits(pending.length)}</Badge> : null}
+        {total > 0 ? <Badge tone="loss">{toPersianDigits(total)}</Badge> : null}
       </Heading>
       <Text color="muted">مدارک ارسالی کاربران را بررسی و تأیید یا رد کنید. تأیید، سطح کاربر و امتیاز باشگاه را ارتقا می‌دهد.</Text>
 
@@ -120,6 +126,9 @@ export function VerificationReview() {
           </tbody>
         </table></div>
       )}
+      {!isLoading && !isError && data ? (
+        <PagerFooter page={data.page} perPage={data.perPage} total={total} onPage={setPage} />
+      ) : null}
       {dialog}
     </section>
   );
