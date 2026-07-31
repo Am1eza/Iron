@@ -16,12 +16,27 @@ import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
 import { ArticleCard } from '@/components/content/ArticleCard';
 import styles from './news.module.css';
 
-export const metadata: Metadata = buildMetadata({
+const base = buildMetadata({
   title: 'اخبار بازار آهن و فولاد',
   description:
     'تازه‌ترین اخبار بازار آهن و فولاد؛ تولید، عرضه و نرخ شمش به‌روزرسانی‌شده برای خرید آگاهانه.',
   path: routes.news(),
 });
+
+/**
+ * Section-scoped, not site-wide — see the same comment in blog/page.tsx. The
+ * news feed is deliberately the only one advertised here: a market-news
+ * subscriber has not asked for evergreen buying guides.
+ */
+export const metadata: Metadata = {
+  ...base,
+  alternates: {
+    ...base.alternates,
+    types: {
+      'application/rss+xml': [{ url: '/news/rss.xml', title: 'اخبار بازار آهن و فولاد' }],
+    },
+  },
+};
 
 // New/edited articles publish infrequently; a 10-minute window keeps the list
 // fresh without hitting Postgres on every request.

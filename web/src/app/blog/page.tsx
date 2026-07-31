@@ -16,12 +16,28 @@ import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
 import { ArticleCard } from '@/components/content/ArticleCard';
 import styles from './blog.module.css';
 
-export const metadata: Metadata = buildMetadata({
+const base = buildMetadata({
   title: 'وبلاگ آهن‌تایم',
   description:
     'راهنمای خرید، تحلیل بازار و آموزش آهن و فولاد. مطالب کاربردی برای پیمانکاران و سازندگان.',
   path: routes.blog(),
 });
+
+/**
+ * The RSS `<link rel="alternate">` lives HERE and not in the root layout: a
+ * site-wide alternate would advertise the blog feed as the feed for
+ * /prices/rebar and every product page, which is simply false. Merged onto
+ * `buildMetadata`'s result so the canonical it computed survives.
+ */
+export const metadata: Metadata = {
+  ...base,
+  alternates: {
+    ...base.alternates,
+    types: {
+      'application/rss+xml': [{ url: '/blog/rss.xml', title: 'وبلاگ آهن‌تایم' }],
+    },
+  },
+};
 
 // New/edited articles publish infrequently; a 10-minute window keeps the list
 // fresh without hitting Postgres on every request.
