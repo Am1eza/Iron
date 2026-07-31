@@ -47,6 +47,19 @@ ahantime.com:8443 {
 	reverse_proxy matomo:80
 }
 
+# GlitchTip — error tracking + uptime monitoring. Same certificate, separate
+# port, exactly like Matomo above (no extra DNS record needed). GlitchTip has
+# its own login; registration is closed and accounts are provisioned from the
+# CLI, because this host has no SMTP to deliver a password reset.
+# Open 9443/tcp in the firewall.
+ahantime.com:9443 {
+	encode zstd gzip
+	request_body {
+		max_size 10MB
+	}
+	reverse_proxy glitchtip-web:8000
+}
+
 # Admin panel, own subdomain (needs its own DNS A record → this server's IP;
 # Caddy auto-provisions a separate TLS cert for it the same way as above).
 # Same app/container as ahantime.com — middleware.ts rewrites every path here

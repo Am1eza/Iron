@@ -290,10 +290,124 @@ services:
       - "80:80"
       - "443:443"
       - "8443:8443"   # Matomo admin UI (analytics)
+      - "9443:9443"   # GlitchTip (errors + uptime)
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data      # persists issued certificates across restarts
       - caddy_config:/config
+
+  # ---------------------------------------------------------------------------
+  # GlitchTip — self-hosted, Sentry-protocol-compatible error tracking.
+  # The app has shipped a hand-rolled Sentry envelope reporter since day one
+  # (web/src/lib/errors/sentry.ts, 77 call sites); it no-ops whenever SENTRY_DSN
+  # is unset, which it always was. Pointing that DSN here turns it on with zero
+  # code change. Exposed on :9443 of the existing certificate, same trick as
+  # Matomo on :8443 — no extra DNS record needed.
+  # ---------------------------------------------------------------------------
+  glitchtip-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    # Deliberately NOT the app's postgres: error payloads are a different data
+    # domain with a different retention policy, and the nightly app backup must
+    # not balloon with event rows.
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 512m
+    pids_limit: 256
+    environment:
+      POSTGRES_USER: glitchtip
+      POSTGRES_DB: glitchtip
+      POSTGRES_PASSWORD: ${GLITCHTIP_DB_PASSWORD:?set GLITCHTIP_DB_PASSWORD in .env}
+    volumes:
+      - glitchtipdb:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U glitchtip -d glitchtip"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  glitchtip-redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 128m
+    pids_limit: 128
+    # Its own instance on purpose. The app's redis runs allkeys-lru because it
+    # is a cache; this one is a Celery BROKER, and evicting a broker key loses
+    # queued work silently. noeviction makes a full queue fail loudly instead.
+    command:
+      - redis-server
+      - --maxmemory
+      - 96mb
+      - --maxmemory-policy
+      - noeviction
+      - --save
+      - ""
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  glitchtip-web:
+    image: glitchtip/glitchtip:latest
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 900m
+    pids_limit: 512
+    depends_on:
+      glitchtip-db:
+        condition: service_healthy
+      glitchtip-redis:
+        condition: service_healthy
+    environment: &glitchtip_env
+      DATABASE_URL: postgres://glitchtip:${GLITCHTIP_DB_PASSWORD}@glitchtip-db:5432/glitchtip
+      REDIS_URL: redis://glitchtip-redis:6379/0
+      SECRET_KEY: ${GLITCHTIP_SECRET_KEY:?set GLITCHTIP_SECRET_KEY in .env}
+      PORT: "8000"
+      GLITCHTIP_DOMAIN: https://ahantime.com:9443
+      ALLOWED_HOSTS: ${GLITCHTIP_ALLOWED_HOSTS:-ahantime.com,glitchtip-web,localhost}
+      # No SMTP exists on this host, so invitations/password resets cannot be
+      # delivered. Registration stays CLOSED — the account is provisioned from
+      # the CLI instead. Do not flip this on without re-reading that sentence.
+      ENABLE_USER_REGISTRATION: "false"
+      ENABLE_ORGANIZATION_CREATION: "false"
+      # Events are diagnostics, not records: cap the retention so this database
+      # cannot grow without bound on a box that also serves the site.
+      GLITCHTIP_MAX_EVENT_LIFE_DAYS: "90"
+      CELERY_WORKER_AUTOSCALE: "1,2"
+    volumes:
+      - glitchtipdata:/code/uploads
+    expose:
+      - "8000"
+
+  glitchtip-worker:
+    image: glitchtip/glitchtip:latest
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 600m
+    pids_limit: 512
+    command: ./bin/run-celery-with-beat.sh
+    depends_on:
+      glitchtip-db:
+        condition: service_healthy
+      glitchtip-redis:
+        condition: service_healthy
+    environment: *glitchtip_env
+    volumes:
+      - glitchtipdata:/code/uploads
+
+  glitchtip-migrate:
+    image: glitchtip/glitchtip:latest
+    restart: "no"
+    command: ./bin/run-migrate.sh
+    depends_on:
+      glitchtip-db:
+        condition: service_healthy
+    environment: *glitchtip_env
 
 volumes:
   caddy_data:
@@ -303,3 +417,5 @@ volumes:
   matomodata:
   redisdata:
   uploads:
+  glitchtipdb:
+  glitchtipdata:
