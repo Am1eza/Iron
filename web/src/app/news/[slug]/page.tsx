@@ -62,6 +62,7 @@ export default async function NewsArticlePage({ params }: Params) {
           title: article.title,
           url: routes.news(article.slug),
           publishedAt: article.publishAt,
+          updatedAt: article.updatedAt,
           image: article.seo?.ogImage ?? article.coverUrl,
         })}
       />

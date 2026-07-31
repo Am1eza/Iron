@@ -61,6 +61,7 @@ export default async function BlogArticlePage({ params }: Params) {
           title: article.title,
           url: routes.blog(article.slug),
           publishedAt: article.publishAt,
+          updatedAt: article.updatedAt,
           image: article.seo?.ogImage ?? article.coverUrl,
         })}
       />

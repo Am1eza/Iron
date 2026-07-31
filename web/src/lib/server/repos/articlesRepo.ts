@@ -22,6 +22,9 @@ export function toArticleDto(r: Row): Article {
     status: r.status,
     source: r.source,
     publishAt: r.publishAt?.toISOString(),
+    // notNull + defaultNow in the schema, so no null branch. Every PATCH
+    // stamps it — including SEO-only edits, which is what the column means.
+    updatedAt: r.updatedAt.toISOString(),
     seo: r.seo ?? undefined,
   };
 }

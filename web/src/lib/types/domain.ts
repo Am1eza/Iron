@@ -217,5 +217,9 @@ export interface Article {
   status: 'draft' | 'scheduled' | 'published';
   source: 'ai' | 'human';
   publishAt?: string;
+  /** Last edit — feeds Article JSON-LD `dateModified` and the RSS feeds.
+   *  Optional: the mock catalog has no such field, and articleJsonLd falls
+   *  back to `datePublished` when it's absent. */
+  updatedAt?: string;
   seo?: SeoMeta;
 }
