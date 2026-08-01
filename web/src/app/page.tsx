@@ -104,7 +104,13 @@ export default async function HomePage() {
       <JsonLd data={[orgJsonLd(contact), localBusinessJsonLd(contact), websiteJsonLd()]} />
       <HeroSearch
         stats={{ skuCount, factoryCount }}
-        board={heroVideo.url ? <HeroVideo src={heroVideo.url} /> : <PriceBoard rows={boardRows} />}
+        board={
+          heroVideo.url ? (
+            <HeroVideo src={heroVideo.url} fallback={<PriceBoard rows={boardRows} />} />
+          ) : (
+            <PriceBoard rows={boardRows} />
+          )
+        }
       />
       <CategoryStage categories={categories} subs={subsMap} factories={factories} />
       <CompareTeaser slides={compareSlides} />
