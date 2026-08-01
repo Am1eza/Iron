@@ -183,6 +183,13 @@
       "when": 1785519609125,
       "tag": "0025_ambiguous_alex_power",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1785574278280,
+      "tag": "0026_motionless_star_brand",
+      "breakpoints": true
     }
   ]
 }

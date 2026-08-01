@@ -11,6 +11,7 @@ import { vazirmatn, estedad, inter } from '@/lib/theme/fonts';
 import { LocaleProvider } from '@/i18n/LocaleProvider';
 import { LocaleScript } from '@/i18n/LocaleScript';
 import { Analytics } from '@/components/analytics/Analytics';
+import { AttributionCapture } from '@/components/analytics/AttributionCapture';
 import faMessages from '../../messages/fa.json';
 
 /**
@@ -95,6 +96,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <SiteChromeBottom categories={categories} contact={contact} />
             <RouteAnnouncer />
             <Analytics />
+            <AttributionCapture />
           </AppProviders>
         </LocaleProvider>
       </body>

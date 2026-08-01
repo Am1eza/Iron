@@ -62,6 +62,21 @@ export const leads = pgTable(
     status: text('status', { enum: LEAD_STATUSES }).notNull().default('new'),
     assigneeId: text('assignee_id').references(() => users.id, { onDelete: 'set null' }),
     callbackAt: timestamp('callback_at', { withTimezone: true }),
+    // FIRST-TOUCH marketing attribution (W28). Deliberately NOT the same
+    // thing as `source` above: `source` is which widget on our own site
+    // created the lead ('table', 'cart', 'ai', …) and says nothing about
+    // where the visitor came from — a Google search, an Instagram ad and a
+    // direct visit all collapse into 'table'. Without these columns the
+    // owner cannot answer "did the money I spent on that campaign produce a
+    // won deal", which is the one question a marketing dashboard exists for.
+    // Nullable throughout: direct traffic, and every lead created before
+    // this migration, legitimately has no campaign.
+    utmSource: text('utm_source'),
+    utmMedium: text('utm_medium'),
+    utmCampaign: text('utm_campaign'),
+    /** `document.referrer` at landing — covers the common untagged inbound
+     *  link that carries no UTM at all. */
+    landingReferrer: text('landing_referrer'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     // Soft-delete (archive a spam/duplicate/test lead out of admin views
@@ -93,6 +108,16 @@ export const leads = pgTable(
       .where(sql`callback_at is not null`),
     index('leads_user_idx').on(t.userId),
     index('leads_contact_mobile_idx').on(t.contactMobile),
+    // The campaign report groups by utm_campaign over a date window; PARTIAL
+    // because only tagged traffic is ever read here, so the index stays a
+    // small fraction of the table (most leads are direct/untagged).
+    index('leads_utm_campaign_created_idx')
+      .on(t.utmCampaign, t.createdAt)
+      .where(sql`utm_campaign is not null`),
+    // Every marketing/dashboard aggregate windows on created_at alone; none
+    // of the composite indexes above can serve that (Postgres cannot skip a
+    // leading column), so they were all seq-scanning the leads table.
+    index('leads_created_idx').on(t.createdAt),
   ],
 );
 

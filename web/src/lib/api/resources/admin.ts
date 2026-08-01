@@ -134,12 +134,50 @@ export interface DashboardStatsRes {
   team: Array<{ id: string; name: string; leads: number; won: number; wonRate: number | null; value: number }>;
   health: { stalePrices: number; smsFailed24h: number; expiringProformas: number; unassignedLeads: number };
 }
+/** One row of either attribution breakdown — entry form or campaign. Same
+ *  columns and same per-lead meaning, so one table renders both. */
+export interface AttributionRow {
+  key: string;
+  leads: number;
+  /** Leads that reached a proforma, NOT the number of proformas. */
+  withProforma: number;
+  won: number;
+  wonRate: number | null;
+  /** Toman booked on won leads — counts alone can't tell ten small deals
+   *  from one large one. */
+  wonToman: number;
+}
+
 export interface MarketingStatsRes {
-  bySource: Array<{ source: string; leads: number; won: number; proformas: number; wonRate: number | null }>;
-  funnel: { conversations: number; leads: number; proformas: number; orders: number };
+  range: number;
+  /** Which on-site form produced the lead — NOT a marketing channel. */
+  byEntryForm: AttributionRow[];
+  /** First-touch campaign attribution (W28). */
+  byCampaign: AttributionRow[];
+  untaggedLeads: number;
+  /** Starts at the lead: AI conversations are not an upstream stage of it. */
+  funnel: { leads: number; proformas: number; orders: number };
+  aiConversations: number;
   responseMinutes: { median: number | null; p90: number | null; measured: number };
   repeatRate: { repeat: number; total: number; rate: number | null };
   sms: Array<{ kind: string; status: string; n: number }>;
+  /** Standing call list — deliberately not windowed by `range`. */
+  dormant: Array<{
+    userId: string;
+    name: string | null;
+    mobile: string;
+    lastOrderAt: string;
+    daysSince: number;
+    ordersTotal: number;
+    lifetimeToman: number;
+  }>;
+  /** From Matomo. Null when unconfigured or unreachable — render without it. */
+  traffic: {
+    visits: number;
+    uniqueVisitors: number;
+    bounceRatePct: number | null;
+    byReferrerType: Array<{ label: string; visits: number }>;
+  } | null;
 }
 export interface SeoStatsRes {
   score: number;
@@ -831,7 +869,9 @@ export const adminApi = {
       retries: 0,
     }),
   statsDashboard: (range: number) => http.get<DashboardStatsRes>(`/api/admin/stats/dashboard?range=${range}`),
-  statsMarketing: () => http.get<MarketingStatsRes>('/api/admin/stats/marketing'),
+  /** `range` windows every number on the page at once (7/30/90); the server
+   *  allowlists it and falls back to 30. */
+  statsMarketing: (range = 30) => http.get<MarketingStatsRes>(`/api/admin/stats/marketing?range=${range}`),
   statsSeo: () => http.get<SeoStatsRes>('/api/admin/stats/seo'),
   statsCohorts: () =>
     http.get<{ columns: string[]; rows: Array<{ label: string; size: number; cells: (number | null)[] }> }>(

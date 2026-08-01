@@ -8,6 +8,7 @@ import { createLead } from '@/lib/server/services/leads.service';
 import { rateLimit } from '@/lib/server/utils/rateLimit';
 import { withIdempotency } from '@/lib/server/utils/idempotency';
 import { reportError } from '@/lib/errors/report';
+import { ATTRIBUTION_COOKIE, parseAttributionCookie } from '@/lib/utils/attribution';
 
 /** POST /api/leads — request → پیش‌فاکتور + SMS + CRM lead (UX-flow F6). */
 async function POSTImpl(req: NextRequest) {
@@ -44,6 +45,10 @@ async function POSTImpl(req: NextRequest) {
           channel: v.data.channel,
           source: v.data.source,
           note: v.data.note,
+          // Read from the visitor's own cookie, never from the request body:
+          // campaign credit decides where ad budget goes, so a caller must
+          // not be able to hand us whichever attribution it wants recorded.
+          attribution: parseAttributionCookie(req.cookies.get(ATTRIBUTION_COOKIE)?.value),
         },
         session,
       );

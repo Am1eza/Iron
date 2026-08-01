@@ -8,6 +8,7 @@ import { insertLead } from '@/lib/server/repos/leadsRepo';
 import { nextRef } from '@/lib/server/utils/refs';
 import { reportError } from '@/lib/errors/report';
 import { rateLimit } from '@/lib/server/utils/rateLimit';
+import { ATTRIBUTION_COOKIE, parseAttributionCookie } from '@/lib/utils/attribution';
 
 const TRACK_TYPE = { analysis: 'market-analysis', supply: 'supply', sell: 'sell' } as const;
 
@@ -35,6 +36,8 @@ async function POSTImpl(req: NextRequest) {
       source: 'cooperation',
       cooperationType: TRACK_TYPE[v.data.track],
       context: { company: v.data.company, product: v.data.product, message: v.data.message },
+      // Cookie-only, same reasoning as /api/leads — never body-supplied.
+      attribution: parseAttributionCookie(req.cookies.get(ATTRIBUTION_COOKIE)?.value),
       items: [],
     });
     return NextResponse.json({ ok: true, ref }, { status: 201 });

@@ -211,44 +211,108 @@ export async function overviewStats(): Promise<OverviewStats> {
 
 /* ------------------------------- marketing ------------------------------- */
 
+/** Windows the whole marketing screen. One switch drives every query so no
+ *  two panels can silently disagree about what "recently" means. */
+export const MARKETING_RANGES = [7, 30, 90] as const;
+export type MarketingRange = (typeof MARKETING_RANGES)[number];
+
+/** Row shape shared by the entry-form and campaign breakdowns — same columns,
+ *  same meaning, so the UI renders both through one table component. */
+export interface AttributionRow {
+  key: string;
+  leads: number;
+  /** Leads that reached a proforma — NOT the proforma count. A lead with 3
+   *  proformas counts once, which is what a per-lead funnel rate needs. */
+  withProforma: number;
+  won: number;
+  wonRate: number | null;
+  /** Toman actually booked: the sum of proforma totals on WON leads. Counts
+   *  alone can't distinguish ten small deals from one large one, which is the
+   *  distinction the owner is actually making when allocating spend. */
+  wonToman: number;
+}
+
 export interface MarketingStats {
-  /** Per-source over the last 90 full days, quality first: won-rate matters more than volume. */
-  bySource: Array<{ source: string; leads: number; won: number; proformas: number; wonRate: number | null }>;
-  /** Entry-cohort funnel over the last 30 FULL days. */
-  funnel: { conversations: number; leads: number; proformas: number; orders: number };
-  /** Speed-to-lead (minutes) over the last 30 full days: median + p90 of
-   *  lead.created_at → first staff touch (audit entry or note on that lead). */
+  range: MarketingRange;
+  /** Which on-site form produced the lead — NOT a marketing channel (a Google
+   *  visitor and an Instagram visitor both submit the same price table). See
+   *  `byCampaign` for real acquisition attribution. */
+  byEntryForm: AttributionRow[];
+  /** First-touch campaign attribution (W28). Empty until tagged traffic
+   *  arrives; `untagged` carries everything with no campaign so the owner can
+   *  see what share of business is unattributed rather than assuming zero. */
+  byCampaign: AttributionRow[];
+  untaggedLeads: number;
+  /** Entry-cohort funnel over the window. Deliberately starts at the lead:
+   *  AI conversations are NOT an upstream stage of it (no linkage exists),
+   *  so showing them as one fabricated a drop-off that meant nothing. */
+  funnel: { leads: number; proformas: number; orders: number };
+  /** Context, shown beside the funnel rather than inside it. */
+  aiConversations: number;
+  /** Speed-to-lead (minutes): median + p90 of lead.created_at → first staff
+   *  touch (audit entry or note on that lead). */
   responseMinutes: { median: number | null; p90: number | null; measured: number };
-  /** Among users with ≥1 lead in 90d, share with ≥2 (repeat engagement). */
+  /** Among users with ≥1 lead in the window, share with ≥2. */
   repeatRate: { repeat: number; total: number; rate: number | null };
   sms: Array<{ kind: string; status: string; n: number }>;
 }
 
-export async function marketingStats(): Promise<MarketingStats> {
-  const [bySource, funnelConv, funnelRest, resp, repeat, sms] = await Promise.all([
+export async function marketingStats(range: MarketingRange = 30): Promise<MarketingStats> {
+  // ONE window for the whole screen. Previously the funnel used 30 days while
+  // the channel table used 90 and the SMS tile used 30-plus-today, so the
+  // numbers on one page could not be reconciled against each other.
+  // Bound as a parameter, never inlined. `range` is a narrow union and the
+  // route validates it against MARKETING_RANGES, but a windowing value that
+  // reaches SQL as raw text is exactly what a later refactor widens without
+  // noticing.
+  const days = sql`${range}::int`;
+
+  // Shared by both attribution breakdowns. Every aggregate is per-LEAD via
+  // EXISTS — never a LEFT JOIN, which multiplied a lead by its proforma/order
+  // count and inflated these headline numbers (see the W28 fan-out tests).
+  // `wonToman` sums proforma totals only on WON leads, so it answers "what did
+  // this actually bring in", not "what did we quote".
+  const attributionCols = sql`
+    count(*)::int AS leads,
+    count(*) FILTER (WHERE EXISTS (SELECT 1 FROM proformas p WHERE p.lead_id = l.id))::int AS with_proforma,
+    count(*) FILTER (WHERE l.status = 'won')::int AS won,
+    coalesce(sum(
+      CASE WHEN l.status = 'won'
+        THEN (SELECT coalesce(sum(p2.total), 0) FROM proformas p2 WHERE p2.lead_id = l.id AND p2.status <> 'cancelled')
+        ELSE 0 END
+    ), 0)::bigint AS won_toman
+  `;
+  const inWindow = sql`l.created_at >= now()::date - ${days} AND l.created_at < now()::date AND l.deleted_at IS NULL`;
+
+  const [byEntryForm, byCampaign, untagged, aiConv, funnelRest, resp, repeat, sms] = await Promise.all([
     rows(sql`
-      SELECT l.source,
-             count(*)::int AS leads,
-             count(*) FILTER (WHERE l.status = 'won')::int AS won,
-             count(DISTINCT p.lead_id)::int AS proformas
-      FROM leads l
-      LEFT JOIN proformas p ON p.lead_id = l.id
-      WHERE l.created_at >= now()::date - 90 AND l.deleted_at IS NULL
+      SELECT l.source AS key, ${attributionCols}
+      FROM leads l WHERE ${inWindow}
       GROUP BY l.source ORDER BY leads DESC
+    `),
+    // First-touch campaign attribution (W28). Until this existed there was no
+    // way to tie ad spend to a closed deal at all.
+    rows(sql`
+      SELECT l.utm_campaign AS key, ${attributionCols}
+      FROM leads l WHERE ${inWindow} AND l.utm_campaign IS NOT NULL
+      GROUP BY l.utm_campaign ORDER BY leads DESC LIMIT 50
+    `),
+    rows(sql`
+      SELECT count(*)::int AS n FROM leads l WHERE ${inWindow} AND l.utm_campaign IS NULL
     `),
     rows(sql`
       SELECT count(*)::int AS n FROM ai_conversations
-      WHERE created_at >= now()::date - 30 AND created_at < now()::date
+      WHERE created_at >= now()::date - ${days} AND created_at < now()::date
     `),
+    // Starts at the lead: an AI conversation is not an upstream funnel stage
+    // (nothing links one to a lead), so including it rendered a confident
+    // drop-off percentage between two unrelated populations.
     rows(sql`
       SELECT
         count(*)::int AS leads,
-        count(DISTINCT p.lead_id)::int AS proformas,
-        count(DISTINCT o.lead_id)::int AS orders
-      FROM leads l
-      LEFT JOIN proformas p ON p.lead_id = l.id
-      LEFT JOIN orders o ON o.lead_id = l.id AND o.deleted_at IS NULL
-      WHERE l.created_at >= now()::date - 30 AND l.created_at < now()::date AND l.deleted_at IS NULL
+        count(*) FILTER (WHERE EXISTS (SELECT 1 FROM proformas p WHERE p.lead_id = l.id))::int AS proformas,
+        count(*) FILTER (WHERE EXISTS (SELECT 1 FROM orders o WHERE o.lead_id = l.id AND o.deleted_at IS NULL))::int AS orders
+      FROM leads l WHERE ${inWindow}
     `),
     rows(sql`
       WITH first_touch AS (
@@ -257,8 +321,7 @@ export async function marketingStats(): Promise<MarketingStats> {
                  (SELECT min(a.at) FROM audit_entries a WHERE a.entity_type = 'lead' AND a.entity_id = l.id AND a.at > l.created_at),
                  (SELECT min(n.at) FROM lead_notes n WHERE n.lead_id = l.id)
                ) AS touched_at
-        FROM leads l
-        WHERE l.created_at >= now()::date - 30 AND l.created_at < now()::date AND l.deleted_at IS NULL
+        FROM leads l WHERE ${inWindow}
       )
       SELECT
         percentile_cont(0.5) WITHIN GROUP (ORDER BY extract(epoch FROM touched_at - created_at) / 60) AS median,
@@ -268,17 +331,31 @@ export async function marketingStats(): Promise<MarketingStats> {
     `),
     rows(sql`
       WITH per_user AS (
-        SELECT user_id, count(*)::int AS n FROM leads
-        WHERE created_at >= now()::date - 90 AND user_id IS NOT NULL AND deleted_at IS NULL
+        SELECT user_id, count(*)::int AS n FROM leads l
+        WHERE ${inWindow} AND user_id IS NOT NULL
         GROUP BY user_id
       )
       SELECT count(*)::int AS total, count(*) FILTER (WHERE n >= 2)::int AS repeat FROM per_user
     `),
     rows(sql`
       SELECT kind, status, count(*)::int AS n FROM sms_log
-      WHERE at >= now()::date - 30 GROUP BY kind, status ORDER BY kind, status
+      WHERE at >= now()::date - ${days} AND at < now()::date
+      GROUP BY kind, status ORDER BY kind, status
     `),
   ]);
+
+  const toRow = (r: Row): AttributionRow => {
+    const leads = Number(r.leads);
+    const won = Number(r.won);
+    return {
+      key: String(r.key),
+      leads,
+      withProforma: Number(r.with_proforma),
+      won,
+      wonRate: leads > 0 ? Math.round((won / leads) * 1000) / 10 : null,
+      wonToman: Number(r.won_toman ?? 0),
+    };
+  };
 
   const f = funnelRest[0] ?? {};
   const rp = repeat[0] ?? {};
@@ -286,19 +363,12 @@ export async function marketingStats(): Promise<MarketingStats> {
   const repeatN = Number(rp.repeat ?? 0);
   const round1 = (v: unknown) => (v === null || v === undefined ? null : Math.round(Number(v) * 10) / 10);
   return {
-    bySource: bySource.map((r) => {
-      const leadsN = Number(r.leads);
-      const wonN = Number(r.won);
-      return {
-        source: String(r.source),
-        leads: leadsN,
-        won: wonN,
-        proformas: Number(r.proformas),
-        wonRate: leadsN > 0 ? Math.round((wonN / leadsN) * 1000) / 10 : null,
-      };
-    }),
+    range,
+    byEntryForm: byEntryForm.map(toRow),
+    byCampaign: byCampaign.map(toRow),
+    untaggedLeads: Number(untagged[0]?.n ?? 0),
+    aiConversations: Number(aiConv[0]?.n ?? 0),
     funnel: {
-      conversations: Number(funnelConv[0]?.n ?? 0),
       leads: Number(f.leads ?? 0),
       proformas: Number(f.proformas ?? 0),
       orders: Number(f.orders ?? 0),
@@ -317,6 +387,61 @@ export async function marketingStats(): Promise<MarketingStats> {
   };
 }
 
+/* --------------------------- dormant customers --------------------------- */
+
+export interface DormantCustomer {
+  userId: string;
+  name: string | null;
+  mobile: string;
+  lastOrderAt: string;
+  daysSince: number;
+  ordersTotal: number;
+  lifetimeToman: number;
+}
+
+/**
+ * Customers who bought before but have gone quiet (W28) — the replacement for
+ * a signup-cohort retention heatmap on the marketing page.
+ *
+ * A retention grid answers "does month-3 usage hold up", which is the right
+ * question for a subscription product and the wrong one for steel: purchases
+ * here are large, irregular and months apart, so a 0% month is normal rather
+ * than a problem, and there is no lever the owner can pull in response. This
+ * returns the same underlying signal as something he can act on this
+ * afternoon — a call list, ordered by how much the customer is worth.
+ */
+export async function dormantCustomers(sinceDays = 90, limit = 50): Promise<DormantCustomer[]> {
+  const r = await rows(sql`
+    SELECT u.id AS user_id, u.name, u.mobile,
+           max(o.placed_at) AS last_order_at,
+           count(*)::int AS orders_total,
+           coalesce(sum(
+             (SELECT coalesce(sum(p.total), 0) FROM proformas p
+              WHERE p.lead_id = o.lead_id AND p.status <> 'cancelled')
+           ), 0)::bigint AS lifetime_toman
+    FROM orders o
+    JOIN users u ON u.id = o.user_id
+    WHERE o.deleted_at IS NULL AND u.role = 'customer'
+    GROUP BY u.id, u.name, u.mobile
+    HAVING max(o.placed_at) < now() - ${sinceDays}::int * interval '1 day'
+    ORDER BY lifetime_toman DESC, last_order_at ASC
+    LIMIT ${limit}::int
+  `);
+  const now = Date.now();
+  return r.map((x) => {
+    const last = new Date(String(x.last_order_at));
+    return {
+      userId: String(x.user_id),
+      name: (x.name as string | null) ?? null,
+      mobile: String(x.mobile),
+      lastOrderAt: last.toISOString(),
+      daysSince: Math.floor((now - last.getTime()) / DAY_MS),
+      ordersTotal: Number(x.orders_total),
+      lifetimeToman: Number(x.lifetime_toman ?? 0),
+    };
+  });
+}
+
 /* ---------------------------- cohort retention ---------------------------- */
 
 export interface CohortRetention {
@@ -332,6 +457,16 @@ export interface CohortRetention {
  */
 export async function cohortRetention(months = 6): Promise<CohortRetention> {
   // retained[user,period] and cohort sizes, pivoted in JS.
+  //
+  // `size` comes from its OWN per-cohort aggregate (`sizes`), never from the
+  // grouped rows: with `GROUP BY m0, period`, a non-null period group only
+  // contains users retained in THAT period, so `count(DISTINCT c.user_id)`
+  // silently equalled `retained` rather than the cohort total, and the JS
+  // pivot below kept whichever group Postgres happened to emit last (row
+  // order was never specified). Measured on production: a real 8-user cohort
+  // emitted size=1 and size=7 on separate rows and never 8 — so every
+  // percentage in the heatmap was wrong, non-deterministically, and a cohort
+  // whose retained-group landed last would render 1/1 = 100٪.
   const raw = await rows(sql`
     WITH cohort AS (
       SELECT id AS user_id, date_trunc('month', created_at) AS m0
@@ -344,15 +479,19 @@ export async function cohortRetention(months = 6): Promise<CohortRetention> {
          + extract(month FROM age(date_trunc('month', o.placed_at), c.m0)))::int AS period
       FROM cohort c
       JOIN orders o ON o.user_id = c.user_id AND o.deleted_at IS NULL AND o.status = 'delivered'
+    ),
+    sizes AS (
+      SELECT m0, count(*)::int AS size FROM cohort GROUP BY m0
     )
     SELECT to_char(c.m0, 'YYYY-MM') AS cohort,
            extract(epoch FROM c.m0)::bigint AS m0_epoch,
-           count(DISTINCT c.user_id)::int AS size,
+           s.size,
            r.period,
            count(DISTINCT r.user_id)::int AS retained
     FROM cohort c
+    JOIN sizes s ON s.m0 = c.m0
     LEFT JOIN retained r ON r.user_id = c.user_id AND r.period BETWEEN 0 AND ${months - 1}
-    GROUP BY c.m0, r.period
+    GROUP BY c.m0, s.size, r.period
     ORDER BY c.m0
   `);
 
@@ -523,10 +662,16 @@ async function proformaValue(daysBack: number, len: number): Promise<{ sum: numb
 async function cohortConversion(daysBack: number, len: number): Promise<number | null> {
   const end = new Date(todayMidnight().getTime() - (daysBack - len) * DAY_MS);
   const start = new Date(todayMidnight().getTime() - daysBack * DAY_MS);
+  // Fan-out free: the LEFT JOIN inflated the `leads` DENOMINATOR by each
+  // lead's order count, so this KPI (and its period-over-period delta)
+  // systematically UNDER-reported conversion — the one direction nobody
+  // questions, which is exactly why it survived.
   const r = await rows(sql`
-    SELECT count(*)::int AS leads, count(DISTINCT o.lead_id)::int AS converted
+    SELECT count(*)::int AS leads,
+           count(*) FILTER (WHERE EXISTS (
+             SELECT 1 FROM orders o WHERE o.lead_id = l.id AND o.deleted_at IS NULL
+           ))::int AS converted
     FROM leads l
-    LEFT JOIN orders o ON o.lead_id = l.id AND o.deleted_at IS NULL
     WHERE l.created_at >= ${start.toISOString()}::timestamptz
       AND l.created_at < ${end.toISOString()}::timestamptz
       AND l.deleted_at IS NULL
@@ -584,13 +729,14 @@ export async function dashboardStats(range: DashboardRange): Promise<DashboardSt
       SELECT count(*)::int AS n FROM ai_conversations
       WHERE created_at >= ${startIso}::timestamptz AND created_at < ${endIso}::timestamptz
     `),
+    // Fan-out free (see marketingStats' funnel for the full account) — this
+    // is the SAME bug on the management dashboard's «قیف فروش», which
+    // reported 10 leads against a true 2 on production.
     rows(sql`
       SELECT count(*)::int AS leads,
-             count(DISTINCT p.lead_id)::int AS proformas,
-             count(DISTINCT o.lead_id)::int AS orders
+             count(*) FILTER (WHERE EXISTS (SELECT 1 FROM proformas p WHERE p.lead_id = l.id))::int AS proformas,
+             count(*) FILTER (WHERE EXISTS (SELECT 1 FROM orders o WHERE o.lead_id = l.id AND o.deleted_at IS NULL))::int AS orders
       FROM leads l
-      LEFT JOIN proformas p ON p.lead_id = l.id
-      LEFT JOIN orders o ON o.lead_id = l.id AND o.deleted_at IS NULL
       WHERE l.created_at >= ${startIso}::timestamptz AND l.created_at < ${endIso}::timestamptz
         AND l.deleted_at IS NULL
     `),

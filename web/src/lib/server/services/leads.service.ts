@@ -27,6 +27,7 @@ import { publicEnv } from '@/lib/validation/env';
 import { formatToman } from '@/lib/utils/format';
 import { formatJalali } from '@/lib/utils/jalali';
 import { SHIPMENT_STEPS, type ShipmentStatus } from '@/lib/types/domain';
+import type { Attribution } from '@/lib/utils/attribution';
 
 /** SMS.ir's template-approval policy requires every customer-facing template
  *  to be personalized with a name variable — a lead/order/alert can have no
@@ -212,6 +213,10 @@ export interface CreateLeadInput {
   channel?: 'sms' | 'whatsapp' | 'telegram' | 'eitaa';
   source?: string;
   note?: string;
+  /** First-touch campaign attribution (W28), read from the visitor's cookie
+   *  by the route handler — deliberately NOT accepted from the request body,
+   *  so a caller cannot forge which campaign gets credit for a deal. */
+  attribution?: Attribution | null;
   context?: {
     aiConversationId?: string;
     sourcePage?: string;
@@ -366,6 +371,7 @@ export async function createLead(
           },
         },
         channelPref: input.channel === 'whatsapp' ? 'whatsapp' : (input.channel ?? 'sms'),
+        attribution: input.attribution ?? null,
         items: lines,
       },
       tx,

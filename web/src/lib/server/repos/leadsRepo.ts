@@ -8,6 +8,7 @@ import { getDb, type DbOrTx } from '@/lib/server/db/client';
 import { leads, leadItems, leadNotes, proformas, userRequests } from '@/lib/server/db/schema';
 import { normalizeDigits, normalizeMobile, toPersianDigits } from '@/lib/utils/format';
 import type { LineItem } from '@/lib/types/domain';
+import type { Attribution } from '@/lib/utils/attribution';
 
 export type LeadRow = typeof leads.$inferSelect;
 export type LeadItemRow = typeof leadItems.$inferSelect;
@@ -35,6 +36,9 @@ export async function insertLead(input: {
   cooperationType?: LeadRow['cooperationType'];
   context?: LeadRow['context'];
   channelPref?: LeadRow['channelPref'];
+  /** First-touch campaign attribution, read from the visitor's cookie by the
+   *  route handler (W28). Null for direct traffic and staff-created leads. */
+  attribution?: Attribution | null;
   items: Array<Omit<LineItem, 'skuId'> & { skuId?: string }>;
 }, dbh?: DbOrTx): Promise<LeadRow> {
   // Lead + items must be atomic. When a caller already opened a transaction
@@ -55,6 +59,10 @@ export async function insertLead(input: {
         cooperationType: input.cooperationType ?? null,
         context: input.context ?? null,
         channelPref: input.channelPref ?? 'sms',
+        utmSource: input.attribution?.utmSource ?? null,
+        utmMedium: input.attribution?.utmMedium ?? null,
+        utmCampaign: input.attribution?.utmCampaign ?? null,
+        landingReferrer: input.attribution?.landingReferrer ?? null,
       })
       .returning();
     const lead = inserted[0]!;
