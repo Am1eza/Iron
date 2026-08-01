@@ -13,27 +13,25 @@ const SKIP_BREAKPOINT = '(max-width: 767px)';
  *  desktop. */
 const LIGHT_SOURCE_BREAKPOINT = '(max-width: 1023px)';
 
-type NetworkInformation = { saveData?: boolean; effectiveType?: string };
-
-/** Network Information API — Chrome/Android only (absent on Safari/Firefox);
- *  where it's unsupported we simply can't know, so we don't penalize those
- *  visitors for a signal we don't have. */
-function hasConstrainedConnection(): boolean {
-  const conn = (navigator as Navigator & { connection?: NetworkInformation }).connection;
-  if (!conn) return false;
-  if (conn.saveData) return true;
-  return conn.effectiveType === 'slow-2g' || conn.effectiveType === '2g' || conn.effectiveType === '3g';
-}
-
 /** Deliberately a one-shot check, not the reactive `useMediaQuery` hook used
  *  elsewhere: this decides ONCE whether to start the video at all, so
  *  resizing a desktop window narrower mid-session doesn't tear down (or a
  *  narrow-to-wide resize suddenly start) a multi-hundred-KB download the
- *  visitor never asked for. */
+ *  visitor never asked for.
+ *
+ * Deliberately does NOT check `navigator.connection` (Network Information
+ * API) — a first version of this did, and it was wrong to: the API is
+ * commonly spoofed or blocked outright by privacy-focused browsers and
+ * extensions (Brave, several ad/tracker blockers) specifically to reduce
+ * fingerprinting surface, which means it can report a fast connection as
+ * `slow-2g`/`3g` for reasons having nothing to do with actual speed. That
+ * silently killed the video for ordinary desktop visitors — including the
+ * site owner testing on their own connection — for a bandwidth saving that
+ * was never the point on desktop anyway (the mobile check below is what
+ * actually matters for data cost). */
 function videoIsWorthIt(): boolean {
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
   if (window.matchMedia(SKIP_BREAKPOINT).matches) return false;
-  if (hasConstrainedConnection()) return false;
   return true;
 }
 
@@ -44,8 +42,7 @@ function videoIsWorthIt(): boolean {
  * `fallback` (the real PriceBoard, server-rendered) is what's shown FIRST,
  * always — on every device, with JS or without. Only once mounted do we
  * decide, client-side, whether THIS visitor should upgrade to video: not on
- * a narrow viewport, not with reduced-motion set, not on a metered/slow
- * connection (Network Information API where available). This is why the
+ * a narrow viewport, not with reduced-motion set. This is why the
  * server-rendered HTML and the pre-effect client render are IDENTICAL
  * (both show `fallback`) — no hydration mismatch, and disqualified visitors
  * never request a single byte of video.

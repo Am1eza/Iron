@@ -54,20 +54,17 @@ describe('HeroVideo — fallback-first upgrade (W: hero video performance)', () 
     expect(document.querySelector('video')).not.toBeInTheDocument();
   });
 
-  it('never mounts the video on a save-data connection', async () => {
+  it('upgrades to video regardless of navigator.connection — regression test for a real bug', async () => {
+    // An earlier version gated on the Network Information API and treated a
+    // reported save-data/slow-2g/3g as "skip the video". That API is
+    // routinely spoofed or blocked by privacy-focused browsers/extensions
+    // (Brave, several blockers) to resist fingerprinting — so it silently
+    // hid the video for ordinary desktop visitors, including the site owner
+    // on a normal connection. Confirmed live on production before this fix.
     mockMatchMedia([]);
-    (window.navigator as Nav).connection = { saveData: true };
+    (window.navigator as Nav).connection = { saveData: true, effectiveType: '3g' };
     render(<HeroVideo src="/media/hero.mp4" fallback={<div data-testid="board">تابلوی قیمت</div>} />);
-    await new Promise((r) => setTimeout(r, 10));
-    expect(document.querySelector('video')).not.toBeInTheDocument();
-  });
-
-  it('never mounts the video on a 2g/3g connection', async () => {
-    mockMatchMedia([]);
-    (window.navigator as Nav).connection = { effectiveType: '3g' };
-    render(<HeroVideo src="/media/hero.mp4" fallback={<div data-testid="board">تابلوی قیمت</div>} />);
-    await new Promise((r) => setTimeout(r, 10));
-    expect(document.querySelector('video')).not.toBeInTheDocument();
+    await waitFor(() => expect(document.querySelector('video')).toBeInTheDocument());
   });
 
   it('derives sibling source/poster paths from `src` by stripping .mp4, in the documented fallback order', async () => {
