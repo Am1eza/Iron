@@ -5,7 +5,7 @@ import { getDb, type DbOrTx } from '@/lib/server/db/client';
 import { orders, orderItems, warehouseItems, warehouseMovements, leads } from '@/lib/server/db/schema';
 import type { LineItem, Order, WarehouseItem } from '@/lib/types/domain';
 import { normalizeDigits } from '@/lib/utils/format';
-import { unsettledFor } from '@/lib/server/repos/warehouseSettlementsRepo';
+import { unsettledFor, unsettledForMany } from '@/lib/server/repos/warehouseSettlementsRepo';
 
 type OrderRow = typeof orders.$inferSelect;
 type WarehouseRow = typeof warehouseItems.$inferSelect;
@@ -384,12 +384,13 @@ function toWarehouseDto(r: WarehouseRow): WarehouseItem {
   };
 }
 
-/** Attach each item's live unsettled balance (W20) — one query per item, same
- *  N+1 tradeoff customerSettlementOverview already accepts for this small a
- *  domain (see its own doc comment); a customer's own list and one admin page
- *  are both bounded (≤100, ≤50) so this stays cheap. */
+/** Attach each item's live unsettled balance (W20) in a single query.
+ *  This was one query per item behind an unbounded Promise.all; even bounded
+ *  at ≤100 rows that is 100 concurrent queries against a 10-connection pool,
+ *  which is pool starvation for every other request on the worker, not just a
+ *  slow page of its own. */
 async function withBalances(items: WarehouseItem[], rows: WarehouseRow[]): Promise<WarehouseItem[]> {
-  const balances = await Promise.all(rows.map((r) => unsettledFor(r)));
+  const balances = await unsettledForMany(rows);
   return items.map((item, i) => ({ ...item, unsettledToman: balances[i]!.amountToman }));
 }
 

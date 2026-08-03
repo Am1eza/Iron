@@ -11,6 +11,8 @@ import * as schema from '@/lib/server/db/schema';
 import type { Db } from '@/lib/server/db/client';
 import {
   unsettledFor,
+  unsettledForMany,
+  lastSettlementForMany,
   createSettlement,
   lastSettlementFor,
   settlementsForUser,
@@ -397,5 +399,59 @@ describe('settlementsPageForUser (admin ledger paging)', () => {
 
     // The unpaged sibling is untouched: /api/me/export still gets all of it.
     expect(await settlementsForUser(userId)).toHaveLength(5);
+  });
+});
+
+/** The settlement screen and the customer's own warehouse list used to call
+ *  unsettledFor once per item inside an unbounded Promise.all — pool
+ *  starvation, not just a slow page. unsettledForMany replaces that with one
+ *  DISTINCT ON query, so what it computes must stay identical. */
+describe('unsettledForMany', () => {
+  it('matches unsettledFor item by item, across every accrual state', async () => {
+    const userId = await seedUser('09130000099');
+    const daysAgo = (n: number) => new Date(Date.now() - n * 24 * 60 * 60 * 1000);
+
+    const neverSettled = await seedItem({ userId, storedAt: daysAgo(10), monthlyFeeToman: 60_000 });
+    const pending = await seedItem({
+      userId,
+      storedAt: daysAgo(10),
+      monthlyFeeToman: 60_000,
+      status: 'pending',
+    });
+    const released = await seedItem({
+      userId,
+      storedAt: daysAgo(30),
+      monthlyFeeToman: 60_000,
+      status: 'released',
+      releasedAt: daysAgo(5),
+    });
+    const settled = await seedItem({ userId, storedAt: daysAgo(20), monthlyFeeToman: 60_000 });
+    await createSettlement(settled.id, null, { periodTo: daysAgo(6) });
+
+    const items = [neverSettled, pending, released, settled];
+    const batched = await unsettledForMany(items);
+    const oneByOne = await Promise.all(items.map((i) => unsettledFor(i)));
+
+    expect(batched).toHaveLength(items.length);
+    batched.forEach((summary, i) => {
+      expect(summary.warehouseItemId).toBe(items[i]!.id);
+      expect(summary.amountToman).toBe(oneByOne[i]!.amountToman);
+      expect(summary.days).toBeCloseTo(oneByOne[i]!.days, 1);
+      // periodFrom is only comparable where it is anchored to stored data. A
+      // pending item's period is [now, now], so the two calls legitimately
+      // differ by however long they took — that is the point of the batched
+      // version evaluating every row against ONE `now`.
+      if (items[i]!.status !== 'pending') {
+        expect(summary.periodFrom).toBe(oneByOne[i]!.periodFrom);
+      }
+    });
+    // the settled item anchors on its settlement, not on arrival again
+    expect(batched[3]!.days).toBeLessThan(batched[0]!.days);
+    expect(batched[1]!.amountToman).toBe(0); // pending accrues nothing
+  });
+
+  it('is a no-op on an empty list and issues no query', async () => {
+    expect(await unsettledForMany([])).toEqual([]);
+    expect(await lastSettlementForMany([])).toEqual(new Map());
   });
 });

@@ -4,7 +4,7 @@ import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { warehouseForUser } from '@/lib/server/repos/ordersRepo';
 import {
-  unsettledFor,
+  unsettledForMany,
   settlementsPageForUser,
   createSettlement,
   NothingToSettleError,
@@ -56,7 +56,7 @@ async function GETImpl(req: NextRequest) {
     .select()
     .from(warehouseItems)
     .where(and(eq(warehouseItems.userId, userId), isNull(warehouseItems.deletedAt)));
-  const unsettled = await Promise.all(rawItems.map((r) => unsettledFor(r)));
+  const unsettled = await unsettledForMany(rawItems);
 
   // Additive shape: `history` stays a plain array, so every existing reader
   // of it keeps working; the paging facts ride alongside it.

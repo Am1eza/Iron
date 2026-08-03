@@ -27,7 +27,7 @@
  * reversing entries when anchoring the next period, so voiding a settlement
  * genuinely reopens that period for real billing again.
  */
-import { and, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { getDb, type DbOrTx } from '@/lib/server/db/client';
 import { warehouseItems, warehouseSettlements, users } from '@/lib/server/db/schema';
@@ -73,6 +73,36 @@ export async function lastSettlementFor(
   return rows[0] ?? null;
 }
 
+/** lastSettlementFor for a whole set of items, in ONE query.
+ *
+ *  The customer settlement screen used to call lastSettlementFor per item
+ *  inside an unbounded Promise.all — every item a customer has ever stored
+ *  became a concurrent query against a 10-connection pool, so a large enough
+ *  customer did not merely render slowly, it starved the pool and stalled
+ *  unrelated requests on the same worker.
+ *
+ *  DISTINCT ON (warehouse_item_id) ... ORDER BY warehouse_item_id, period_to
+ *  DESC is the Postgres idiom for "latest row per group" and applies exactly
+ *  the same voided/reversing filters as the single-item version. */
+export async function lastSettlementForMany(
+  warehouseItemIds: readonly string[],
+  dbh: DbOrTx = getDb(),
+): Promise<Map<string, WarehouseSettlementRow>> {
+  if (warehouseItemIds.length === 0) return new Map();
+  const rows = await dbh
+    .selectDistinctOn([warehouseSettlements.warehouseItemId])
+    .from(warehouseSettlements)
+    .where(
+      and(
+        inArray(warehouseSettlements.warehouseItemId, [...warehouseItemIds]),
+        isNull(warehouseSettlements.voidedAt),
+        isNull(warehouseSettlements.voidsSettlementId),
+      ),
+    )
+    .orderBy(warehouseSettlements.warehouseItemId, desc(warehouseSettlements.periodTo));
+  return new Map(rows.map((r) => [r.warehouseItemId, r]));
+}
+
 /** The instant billing must stop counting for this item — custody ended
  *  (`releasedAt`) if it ever will, otherwise "now". Shared by the read path
  *  (unsettledFor) and the write path (createSettlement) so what an operator
@@ -81,12 +111,14 @@ function stopClock(item: Pick<WarehouseItemForBilling, 'releasedAt'>, now: Date)
   return item.releasedAt && item.releasedAt.getTime() < now.getTime() ? item.releasedAt : now;
 }
 
-/** What's owed for this item RIGHT NOW, from its last settlement (or
- *  physical arrival if never settled) through the stop-clock. Read-only —
- *  does not create a settlement row. A 'pending' item (not yet physically
- *  received) always reads zero: nothing has started accruing yet. */
-export async function unsettledFor(item: WarehouseItemForBilling): Promise<UnsettledSummary> {
-  const now = new Date();
+/** The billing arithmetic, with the last settlement already resolved. Pure —
+ *  the single-item and batched read paths both go through here so they can
+ *  never drift into quoting a customer two different amounts. */
+function summarizeUnsettled(
+  item: WarehouseItemForBilling,
+  last: WarehouseSettlementRow | null,
+  now: Date,
+): UnsettledSummary {
   if (item.status === 'pending') {
     return {
       warehouseItemId: item.id,
@@ -98,7 +130,6 @@ export async function unsettledFor(item: WarehouseItemForBilling): Promise<Unset
       amountToman: 0,
     };
   }
-  const last = await lastSettlementFor(item.id);
   const periodFrom = last ? last.periodTo : (item.arrivedAt ?? item.storedAt);
   const periodTo = stopClock(item, now);
   const days = Math.max(0, (periodTo.getTime() - periodFrom.getTime()) / MS_PER_DAY);
@@ -112,6 +143,29 @@ export async function unsettledFor(item: WarehouseItemForBilling): Promise<Unset
     monthlyFeeToman: item.monthlyFeeToman,
     amountToman,
   };
+}
+
+/** What's owed for this item RIGHT NOW, from its last settlement (or
+ *  physical arrival if never settled) through the stop-clock. Read-only —
+ *  does not create a settlement row. A 'pending' item (not yet physically
+ *  received) always reads zero: nothing has started accruing yet. */
+export async function unsettledFor(item: WarehouseItemForBilling): Promise<UnsettledSummary> {
+  const now = new Date();
+  if (item.status === 'pending') return summarizeUnsettled(item, null, now);
+  return summarizeUnsettled(item, await lastSettlementFor(item.id), now);
+}
+
+/** unsettledFor across many items with ONE settlement query instead of one
+ *  per item. Also evaluates every item against a SINGLE `now`, so a slow page
+ *  can no longer hand back rows whose periods end at slightly different
+ *  instants. */
+export async function unsettledForMany(
+  items: readonly WarehouseItemForBilling[],
+): Promise<UnsettledSummary[]> {
+  const now = new Date();
+  const billableIds = items.filter((i) => i.status !== 'pending').map((i) => i.id);
+  const lastByItem = await lastSettlementForMany(billableIds);
+  return items.map((item) => summarizeUnsettled(item, lastByItem.get(item.id) ?? null, now));
 }
 
 export class NothingToSettleError extends Error {}
