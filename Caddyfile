@@ -32,9 +32,23 @@ ahantime.com, www.ahantime.com {
 	# Matomo tracker (same-origin → zero CSP changes): /mt/matomo.js loads the
 	# tracking script, /mt/matomo.php receives hits. Only these two files are
 	# proxied — the admin UI lives on :8443 below.
+	#
+	# This was a bare `handle /mt/*` for a while, which is a PREFIX match, not
+	# the two-file allowlist the comment above claimed. Every Matomo module,
+	# login form, API endpoint and the CoreUpdater was therefore reachable on
+	# the customer-facing origin — same-origin with the app's session cookies
+	# and inside `CSP 'self'`. Verified live:
+	#   /mt/index.php?module=CoreUpdater → Matomo's unauthenticated update page.
+	# Keep this an explicit allowlist: anything not named here must 404.
 	handle /mt/* {
-		uri strip_prefix /mt
-		reverse_proxy matomo:80
+		@tracker path /mt/matomo.js /mt/matomo.php
+		handle @tracker {
+			uri strip_prefix /mt
+			reverse_proxy matomo:80
+		}
+		handle {
+			respond 404
+		}
 	}
 
 	reverse_proxy web:3000

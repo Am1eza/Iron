@@ -203,7 +203,16 @@ Always run a full `next build` in Docker before pushing.
 
 - **GlitchTip** (error tracking) on port **9443** — there is **no wildcard DNS**, so don't
   assume a subdomain resolves.
-- **Matomo** for analytics (self-hosted, with MarketingCampaignsReporting).
+- **Matomo** for analytics (self-hosted, with MarketingCampaignsReporting). Only
+  `/mt/matomo.js` and `/mt/matomo.php` are proxied on the public origin; everything else
+  under `/mt/*` is a deliberate 404. The admin console is the `:8443` host, not `/mt/`.
+- **Editing `Caddyfile` does NOT reach Caddy.** It is bind-mounted as a *single file*, so
+  any editor that writes-then-renames gives the host path a new inode while the container
+  keeps the old one — `caddy reload` then reports `config is unchanged` and you can spend
+  a long time debugging a fix that was never loaded. Confirm with
+  `docker exec ahantime-caddy-1 grep <your-change> /etc/caddy/Caddyfile`; if it is absent,
+  `docker compose up -d --force-recreate caddy` (≈2s edge blip). Always
+  `caddy validate` first — a bad config takes the whole site down.
 - **restic** backups via `ops/ahantime-db-backup.sh`.
 - **OTP delivery slowness is provider-side (SMS.ir)**, not a code bug. There is a 2-stage
   watchdog. Do not "fix" it by swapping providers.
