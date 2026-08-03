@@ -34,7 +34,7 @@
     "ioredis": "^5.11.1",
     "jose": "^5.9.6",
     "libphonenumber-js": "^1.13.8",
-    "next": "^15.1.0",
+    "next": "^15.5.21",
     "next-intl": "^4.13.1",
     "pg": "^8.22.0",
     "react": "^19.0.0",
@@ -62,7 +62,7 @@
     "autoprefixer": "^10.4.20",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9.13.0",
-    "eslint-config-next": "^15.1.0",
+    "eslint-config-next": "^15.5.21",
     "jsdom": "^25.0.1",
     "postcss": "^8.4.47",
     "prettier": "^3.3.3",
@@ -80,8 +80,12 @@
   },
   "packageManager": "pnpm@9.12.0",
   "pnpm": {
+    "//": "Transitive-only pins. Each line is a package we do NOT depend on directly, so it can only be raised here. Re-check these against `pnpm audit --prod` when bumping deps — a stale floor here looks like a fix while pinning the project ON the vulnerable range, which is exactly what happened to postcss (was >=8.5.10, advisory had moved to <=8.5.22).",
     "overrides": {
-      "postcss": ">=8.5.10"
+      "postcss": ">=8.5.23",
+      "brace-expansion": ">=5.0.9",
+      "sharp": ">=0.35.0",
+      "uuid": ">=11.1.1"
     }
   }
 }
