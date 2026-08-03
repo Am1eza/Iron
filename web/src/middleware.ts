@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { resolveAuthEnforced } from '@/lib/auth/authEnforced';
 import { verifyAccessToken } from '@/lib/auth/jwt';
 import { can, permissionForAdminPath } from '@/lib/auth/roles';
 import { hasDb } from '@/lib/server/db/client';
@@ -35,7 +36,10 @@ import { resolvePanelRouting, PANEL_HOSTNAME } from '@/lib/server/utils/panelHos
 export const runtime = 'nodejs';
 
 const SESSION_COOKIE = 'ahantime_at'; // access-token cookie (lib/auth/session)
-const AUTH_ENFORCED = process.env.AUTH_ENFORCED === 'true'; // off in dev/mock by default
+
+// Fails CLOSED — see resolveAuthEnforced for why. Local dev must set
+// AUTH_ENFORCED=false explicitly to reach /admin without the panel subdomain.
+const AUTH_ENFORCED = resolveAuthEnforced(process.env);
 
 // panel.ahantime.com is the SAME app/container as ahantime.com — Caddy just
 // proxies both hostnames to it (see Caddyfile). Every path on this host maps

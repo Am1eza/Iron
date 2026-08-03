@@ -68,7 +68,9 @@ const serverSchema = z
     OUNCE_API_URL: z.string().optional(),
     SESSION_SECRET: z.string().optional(),
     DATABASE_URL: z.string().optional(),
-    AUTH_ENFORCED: z.enum(['true', 'false']).default('false'),
+    // Defaults to enforced. A security gate must not turn itself off just
+    // because a deployment target forgot to set it — see middleware.ts.
+    AUTH_ENFORCED: z.enum(['true', 'false']).default('true'),
     AI_ENABLED: z.enum(['true', 'false']).default('false'),
     SEED_ON_START: z.enum(['true', 'false']).default('false'),
   })

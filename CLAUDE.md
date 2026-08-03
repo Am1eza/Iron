@@ -84,7 +84,11 @@ the spec states the intent — but verify against code before assuming either is
   because the Docker deploy is one long-lived Node process. **Not valid on Workers.**
 - **The admin panel lives only on `panel.ahantime.com`.** On the public host, `/admin/*`,
   `/api/admin/*` and `/panel-login` are rewritten to a hard 404 — hidden, not redirected.
-  Gated on `AUTH_ENFORCED=true` so local dev keeps `/admin` reachable.
+  Gated on `AUTH_ENFORCED`, which **fails closed**: enforced unless explicitly set to
+  `false`, and always enforced under `NODE_ENV=production`. Local dev must set
+  `AUTH_ENFORCED=false` to reach `/admin` without the panel subdomain. It used to
+  default to off, which is how the Cloudflare Workers target — where the variable was
+  never set — served the real admin shell unauthenticated on `*.workers.dev`.
 - **`notFound()` returns HTTP 200** in this Next version when thrown inside an already-matched
   route. That's why unauthorized admin access is handled by a **rewrite to `/__admin_denied__`**
   in middleware rather than by `notFound()` alone.
