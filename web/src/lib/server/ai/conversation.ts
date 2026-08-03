@@ -16,7 +16,7 @@
  * CACHE NOTE: AI_SYSTEM_PROMPT must remain the byte-identical FIRST message
  * (it is the DeepSeek prompt-cache prefix); the summary goes AFTER it.
  */
-import { asc, eq, sql } from 'drizzle-orm';
+import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { getDb } from '@/lib/server/db/client';
 import { aiConversations, aiMessages } from '@/lib/server/db/schema';
@@ -74,11 +74,26 @@ export async function ensureConversation(
 ): Promise<ConversationRow> {
   const db = getDb();
   if (id) {
+    // Scope by owner. `id` arrives straight from the request body, and the
+    // row's `summary` is injected into the model context as «خلاصهٔ گفتگو تا
+    // اینجا…» — so resolving it unscoped let anyone holding another user's
+    // conversation id (it is echoed to the client, persists in the browser,
+    // and survives on shared devices) prompt the model to read back that
+    // buyer's requirements, and write their own turns into the victim's row.
+    // An anonymous caller may only attach to a row that is itself anonymous.
     const rows = await db
       .select({ id: aiConversations.id, summary: aiConversations.summary, promptVersionId: aiConversations.promptVersionId })
       .from(aiConversations)
-      .where(eq(aiConversations.id, id))
+      .where(
+        and(
+          eq(aiConversations.id, id),
+          userId ? eq(aiConversations.userId, userId) : isNull(aiConversations.userId),
+        ),
+      )
       .limit(1);
+    // A miss falls through to the insert below, which is `onConflictDoNothing`
+    // — so a mismatched id neither leaks the row nor clobbers it; the caller
+    // simply continues without summary continuity.
     if (rows[0]) return rows[0];
   }
   const newId = id ?? ulid();

@@ -76,3 +76,22 @@ export const STATIC_INDEXABLE = [
   '/club', '/blog', '/news', '/cooperation',
   '/about', '/contact', '/terms', '/privacy',
 ] as const;
+
+/**
+ * Sanitize a `?next=` value into a same-site path, or null if it is not one.
+ *
+ * Rejects absolute URLs, protocol-relative `//evil.com`, AND backslash forms
+ * like `/\evil.com` — the WHATWG URL spec requires browsers to normalise `\`
+ * to `/` in the authority position, so `Location: /\evil.com` resolves to
+ * `https://evil.com`. A `startsWith('//')` check alone does not catch that.
+ *
+ * Shared so the login form and the silent-refresh route cannot drift apart:
+ * both consume a `next` that middleware wrote, and an open redirect on either
+ * lands a victim off-site immediately after a genuine, successful login on the
+ * real domain — which is exactly what makes it credible.
+ */
+export function safeNextPath(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  if (raw.includes('\\')) return null;
+  return /^\/(?![/\\])/.test(raw) ? raw : null;
+}

@@ -27,10 +27,20 @@ export function randomToken(bytes = 32): string {
 
 /** A numeric OTP of the given length (uniform; leading zeros allowed). */
 export function randomOtp(length: number): string {
-  const arr = new Uint8Array(length);
-  crypto.getRandomValues(arr);
+  // Rejection-sample: 256 is not a multiple of 10, so a plain `% 10` makes
+  // digits 0-5 land 26/256 of the time and 6-9 only 25/256. Discarding bytes
+  // >= 250 leaves exactly 25 values per digit, i.e. genuinely uniform — which
+  // is what this function's contract has always claimed.
   let out = '';
-  for (let i = 0; i < length; i++) out += String((arr[i] ?? 0) % 10);
+  while (out.length < length) {
+    const arr = new Uint8Array(length - out.length);
+    crypto.getRandomValues(arr);
+    for (const b of arr) {
+      if (b >= 250) continue;
+      out += String(b % 10);
+      if (out.length === length) break;
+    }
+  }
   return out;
 }
 

@@ -40,6 +40,13 @@ export async function verifyAccessToken(token: string): Promise<AccessTokenClaim
     const { payload } = await jwtVerify(token, getSecret(), {
       issuer: ISSUER,
       audience: AUDIENCE,
+      // Pin the algorithm. jose already refuses asymmetric algs for a
+      // Uint8Array key and has never implemented `alg: none`, so the classic
+      // confusion attacks are closed by the library — but without this an
+      // HS384/HS512 token also verifies, and the invariant is invisible to
+      // anyone who later swaps the key type. All tokens in circulation are
+      // HS256 (signAccessToken), so nothing is invalidated.
+      algorithms: ['HS256'],
     });
     if (!payload.sub || typeof payload.role !== 'string') return null;
     return {

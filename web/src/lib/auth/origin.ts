@@ -23,9 +23,14 @@ export function assertSameOrigin(req: NextRequest): NextResponse | null {
     return forbidden();
   }
   const host = req.headers.get('host');
-  if (host && originHost !== host) return forbidden();
+  // Fail CLOSED on a missing Host: skipping the comparison when it is absent
+  // meant any Origin was accepted. Not reachable through Caddy (HTTP/1.1
+  // requires Host, HTTP/2 synthesises it from :authority) but this primitive
+  // guards every mutating auth route and must not have a lenient branch.
+  if (!host || originHost !== host) return forbidden();
   return null;
 }
+
 
 function forbidden(): NextResponse {
   return NextResponse.json(

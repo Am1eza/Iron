@@ -15,6 +15,7 @@ import { PhoneField } from './PhoneField';
 import { OtpInput, type OtpInputHandle } from './OtpInput';
 import { FormStatus } from './FormStatus';
 import { Button } from '@/components/primitives/Button';
+import { safeNextPath } from '@/lib/routes';
 import { Badge } from '@/components/ui';
 import styles from './LoginForm.module.css';
 
@@ -22,7 +23,12 @@ import styles from './LoginForm.module.css';
  *  login page (app/panel-login) supplies its own stage, title and framing. */
 export function LoginForm({ chromeless = false }: { chromeless?: boolean } = {}) {
   const router = useRouter();
-  const next = useSearchParams().get('next');
+  // Sanitize at the consumer, not just the producer: middleware and
+  // /api/auth/silent both write a same-site path here, but nothing stopped a
+  // hand-crafted /login?next=https://evil.com. router.push() performs a real
+  // cross-origin navigation for an absolute URL, so the victim would complete
+  // a genuine OTP login on the real domain and land on an attacker's clone.
+  const next = safeNextPath(useSearchParams().get('next'));
   const setUser = useAuthStore((s) => s.setUser);
   const t = useTranslations('auth');
   const tPhone = useTranslations('phone');

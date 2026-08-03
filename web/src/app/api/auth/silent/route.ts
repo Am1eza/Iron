@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { rotateRefresh } from '@/lib/auth/service';
 import { getRefreshToken, setSessionCookies, clearSessionCookies } from '@/lib/auth/session';
+import { safeNextPath } from '@/lib/routes';
 import { withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 
 /**
@@ -33,9 +34,12 @@ function redirectTo(path: string): NextResponse {
 }
 
 async function GETImpl(req: NextRequest) {
-  const raw = req.nextUrl.searchParams.get('next') ?? '/';
-  // Only a path — never a scheme/host, and never protocol-relative (`//evil`).
-  const next = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/';
+  // Only a path — never a scheme/host, never protocol-relative (`//evil`), and
+  // never a backslash form (`/\evil.com`, which browsers normalise to `//`).
+  // See safeNextPath's docblock; this route runs right after a successful
+  // refresh-token rotation, so an open redirect here is a phishing hop that
+  // both starts and ends inside a legitimate authentication flow.
+  const next = safeNextPath(req.nextUrl.searchParams.get('next')) ?? '/';
   const loginPath = `/login?next=${encodeURIComponent(next)}`;
 
   const refreshToken = await getRefreshToken();
