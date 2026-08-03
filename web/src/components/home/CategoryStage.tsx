@@ -55,10 +55,18 @@ export function CategoryStage({
   // entirely. Redirect focus explicitly so keyboard order follows the logical
   // (not DOM) order: rail item → that item's flyout → next rail item.
   const handleRailKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Tab' && !e.shiftKey && firstFlyoutLinkRef.current) {
-      e.preventDefault();
-      firstFlyoutLinkRef.current.focus();
-    }
+    if (e.key !== 'Tab' || e.shiftKey) return;
+    const target = firstFlyoutLinkRef.current;
+    // The flyout is `display: none` below 1024px (CategoryStage.module.css).
+    // focus() on a non-rendered node is a no-op, but preventDefault() had
+    // already cancelled the Tab — so on every tablet and narrowed desktop
+    // window a keyboard user reaching this rail was trapped with no way
+    // forward to the rest of the page. offsetParent is null exactly when the
+    // element (or an ancestor) is display:none, so this bails before
+    // swallowing the keystroke.
+    if (!target || target.offsetParent === null) return;
+    e.preventDefault();
+    target.focus();
   };
   const handleFlyoutFirstKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Tab' && e.shiftKey) {

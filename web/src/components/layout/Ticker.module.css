@@ -17,7 +17,11 @@
   padding-inline: var(--space-4) var(--space-3);
   font: var(--t-overline);
   letter-spacing: 0;
-  color: var(--color-action);
+  /* The ticker bar is permanently dark (--color-surface-inverse), so the
+     mid-ramp --color-action (#067068) composited over it gives 2.65:1 —
+     failing WCAG 1.4.3 for 12px/600 text. Use the light end of the same hue,
+     exactly as .itemStale two rules below already does: 7.2:1. */
+  color: var(--emerald-300);
   background: rgba(15, 138, 99, 0.08);
   border-inline-end: var(--border-hairline) solid rgba(255, 255, 255, 0.08);
 }

@@ -82,6 +82,11 @@ export function CompareTeaser({ slides }: { slides: CompareSlide[] }) {
       aria-labelledby="compare-teaser-title"
       onMouseEnter={() => (paused.current = true)}
       onMouseLeave={() => (paused.current = false)}
+      // Keyboard users have no hover: without these the panel swapped itself
+      // out every 6s while they were reading it (WCAG 2.2.2). Mirrors
+      // Marquee.tsx, which already pairs focus with mouse.
+      onFocusCapture={() => (paused.current = true)}
+      onBlurCapture={() => (paused.current = false)}
     >
       <div className={`container ${styles.grid}`}>
         <div className={styles.copy}>

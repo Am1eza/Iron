@@ -57,7 +57,15 @@ export function sendToSentry(
   const url = ingestUrl();
   if (!url) return;
 
-  const eventId = crypto.randomUUID().replace(/-/g, '');
+  // Guard the METHOD, not the container. `crypto` exists on every target;
+  // `randomUUID` needs Safari 15.4+/Chrome 92+ AND a secure context. This runs
+  // inside the client error boundary, so a missing method threw *inside* the
+  // handler for an error — React cannot recover from that, and the user got a
+  // blank screen instead of the Persian retry page. Same class of mistake as
+  // the navigator.connection bug removed in 2ce7c10.
+  const eventId = (
+    globalThis.crypto?.randomUUID?.() ?? `${Date.now()}${Math.random().toString(16).slice(2)}`
+  ).replace(/-/g, '');
   const sentAt = new Date().toISOString();
   const event = {
     event_id: eventId,
