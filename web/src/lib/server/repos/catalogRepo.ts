@@ -133,6 +133,27 @@ export async function tableRows(categorySlug: string, subSlug?: string): Promise
   return rows.map((r) => toPriceRow(r, s));
 }
 
+/** Active SKU counts for every category, keyed by category slug, in ONE
+ *  query.
+ *
+ *  The search page needed nothing but `.length` per category, and got it by
+ *  calling tableRows() once per category — every SKU row, every joined price,
+ *  and a getPriceFreshness() round trip each time, all to be thrown away. At
+ *  14 categories that is 14 full price-table reads per render, and the page
+ *  did it twice. Counting in the database is the whole fix; the same
+ *  active-category/active-sub/active-SKU predicates apply so the numbers stay
+ *  identical to what /prices lists. */
+export async function skuCountsByCategory(): Promise<Map<string, number>> {
+  const rows = await getDb()
+    .select({ slug: categories.slug, count: sql<number>`count(*)::int` })
+    .from(skus)
+    .innerJoin(categories, eq(skus.categoryId, categories.id))
+    .innerJoin(subCategories, eq(skus.subCategoryId, subCategories.id))
+    .where(and(eq(categories.isActive, true), eq(skus.isActive, true), eq(subCategories.isActive, true)))
+    .groupBy(categories.slug);
+  return new Map(rows.map((r) => [r.slug, r.count]));
+}
+
 /** One SKU by slug (active), with its table row shape. */
 export async function findSkuRow(slug: string): Promise<PriceRow | null> {
   const db = getDb();

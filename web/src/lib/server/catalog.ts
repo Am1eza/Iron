@@ -38,6 +38,18 @@ export async function getRows(categorySlug: string): Promise<PriceRow[]> {
   return repo.tableRows(categorySlug);
 }
 
+/** Active SKU count per category slug, in one query in live mode. Callers
+ *  that only need counts must use this rather than measuring getRows(). */
+export async function getSkuCounts(categorySlugs: readonly string[]): Promise<Map<string, number>> {
+  if (!live()) {
+    const entries = await Promise.all(
+      categorySlugs.map(async (slug) => [slug, (await mock.getRows(slug)).length] as const),
+    );
+    return new Map(entries);
+  }
+  return repo.skuCountsByCategory();
+}
+
 export async function getSubRows(categorySlug: string, subSlug: string): Promise<PriceRow[]> {
   if (!live()) return mock.getSubRows(categorySlug, subSlug);
   return repo.tableRows(categorySlug, subSlug);

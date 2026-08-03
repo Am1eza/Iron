@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { requireApiUser, requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
-import { leadsForUser, leadItemsOf, proformasOfLead, toLineItem } from '@/lib/server/repos/leadsRepo';
+import { leadsForUser, leadItemsOfMany, proformasOfLeads, toLineItem } from '@/lib/server/repos/leadsRepo';
 
 /** GET /api/me/leads — the signed-in user's leads (by account or verified mobile). */
 async function GETImpl(req: NextRequest) {
@@ -13,22 +13,28 @@ async function GETImpl(req: NextRequest) {
   // silent 100-row cap with no way past it).
   const page = Math.max(Number(req.nextUrl.searchParams.get('page') ?? '1') || 1, 1);
   const { rows, hasMore } = await leadsForUser(auth.session.id, auth.session.mobile, page);
-  const leads = await Promise.all(
-    rows.map(async (l) => {
-      const [items, proformas] = await Promise.all([leadItemsOf(l.id), proformasOfLead(l.id)]);
-      return {
-        id: l.id,
-        ref: l.ref,
-        contact: { name: l.contactName ?? undefined, mobile: l.contactMobile, verified: l.contactVerified },
-        source: l.source,
-        items: items.map(toLineItem),
-        channelPref: l.channelPref,
-        status: l.status,
-        createdAt: l.createdAt.toISOString(),
-        proformaRefs: proformas.map((p) => p.ref),
-      };
-    }),
-  );
+  // Two queries for the whole page, not two per lead: at 50 rows a page this
+  // was 100 concurrent queries against a 10-connection pool.
+  const leadIds = rows.map((l) => l.id);
+  const [itemsByLead, proformasByLead] = await Promise.all([
+    leadItemsOfMany(leadIds),
+    proformasOfLeads(leadIds),
+  ]);
+  const leads = rows.map((l) => {
+    const items = itemsByLead.get(l.id) ?? [];
+    const proformas = proformasByLead.get(l.id) ?? [];
+    return {
+      id: l.id,
+      ref: l.ref,
+      contact: { name: l.contactName ?? undefined, mobile: l.contactMobile, verified: l.contactVerified },
+      source: l.source,
+      items: items.map(toLineItem),
+      channelPref: l.channelPref,
+      status: l.status,
+      createdAt: l.createdAt.toISOString(),
+      proformaRefs: proformas.map((p) => p.ref),
+    };
+  });
   return NextResponse.json({ leads, page, hasMore }, { headers: { 'Cache-Control': 'no-store' } });
 }
 

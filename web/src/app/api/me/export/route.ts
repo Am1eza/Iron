@@ -5,7 +5,7 @@ import { publicUser } from '@/lib/auth/publicUser';
 import { favoritesForUser } from '@/lib/server/repos/favoritesRepo';
 import { alertsForUser } from '@/lib/server/repos/alertsRepo';
 import { clubStatus } from '@/lib/server/repos/clubRepo';
-import { leadsForUser, leadItemsOf, proformasOfLead, toLineItem } from '@/lib/server/repos/leadsRepo';
+import { leadsForUser, leadItemsOfMany, proformasOfLeads, toLineItem } from '@/lib/server/repos/leadsRepo';
 import { ordersForUser, warehouseForUser } from '@/lib/server/repos/ordersRepo';
 import { requestsForUser } from '@/lib/server/repos/requestsRepo';
 import { settlementsForUser } from '@/lib/server/repos/warehouseSettlementsRepo';
@@ -48,22 +48,25 @@ async function GETImpl(req: NextRequest) {
     requestsForUser(session.id, 1, 100).then((r) => r.rows),
   ]);
 
-  const leads = await Promise.all(
-    leadRows.map(async (l) => {
-      const [items, proformas] = await Promise.all([leadItemsOf(l.id), proformasOfLead(l.id)]);
-      return {
-        id: l.id,
-        ref: l.ref,
-        contact: { name: l.contactName ?? undefined, mobile: l.contactMobile, verified: l.contactVerified },
-        source: l.source,
-        items: items.map(toLineItem),
-        channelPref: l.channelPref,
-        status: l.status,
-        createdAt: l.createdAt.toISOString(),
-        proformaRefs: proformas.map((p) => p.ref),
-      };
-    }),
-  );
+  // Two queries for the whole export rather than two per lead — this endpoint
+  // is unbounded by design (it must return everything the user has), so the
+  // per-lead version scaled directly with how long the customer has been here.
+  const leadIds = leadRows.map((l) => l.id);
+  const [itemsByLead, proformasByLead] = await Promise.all([
+    leadItemsOfMany(leadIds),
+    proformasOfLeads(leadIds),
+  ]);
+  const leads = leadRows.map((l) => ({
+    id: l.id,
+    ref: l.ref,
+    contact: { name: l.contactName ?? undefined, mobile: l.contactMobile, verified: l.contactVerified },
+    source: l.source,
+    items: (itemsByLead.get(l.id) ?? []).map(toLineItem),
+    channelPref: l.channelPref,
+    status: l.status,
+    createdAt: l.createdAt.toISOString(),
+    proformaRefs: (proformasByLead.get(l.id) ?? []).map((p) => p.ref),
+  }));
 
   return NextResponse.json(
     {

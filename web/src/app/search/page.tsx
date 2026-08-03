@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
-import { getCategories, getRows, searchAll } from '@/lib/server/catalog';
+import { getCategories, getSkuCounts, searchAll } from '@/lib/server/catalog';
 import type { PriceRow, Article, Category } from '@/lib/types/domain';
 import { formatToman, priceHiddenLabel, toPersianDigits, normalizeDigits } from '@/lib/utils/format';
 import {
@@ -44,9 +44,13 @@ type ProductHit = { row: PriceRow; categoryName: string };
 type CatWithCount = { cat: Category; count: number };
 
 /** Per-category SKU counts, computed server-side (DB in live mode) — never
- *  from the mock catalog, so counts shown here match what /prices lists. */
+ *  from the mock catalog, so counts shown here match what /prices lists.
+ *  One grouped COUNT, not one full price-table read per category: this used
+ *  to fetch every SKU and its joined price for all 14 categories purely to
+ *  measure `.length`, and the page does it on two different branches. */
 async function withCounts(cats: Category[]): Promise<CatWithCount[]> {
-  return Promise.all(cats.map(async (cat) => ({ cat, count: (await getRows(cat.slug)).length })));
+  const counts = await getSkuCounts(cats.map((c) => c.slug));
+  return cats.map((cat) => ({ cat, count: counts.get(cat.slug) ?? 0 }));
 }
 
 export default async function SearchPage({ searchParams }: Props) {

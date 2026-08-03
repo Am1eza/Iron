@@ -95,6 +95,27 @@ export async function leadItemsOf(leadId: string): Promise<LeadItemRow[]> {
     .orderBy(leadItems.order);
 }
 
+/** leadItemsOf for a page of leads, in one query.
+ *  Listing endpoints ran leadItemsOf + proformasOfLead per lead, so a 50-row
+ *  page issued 100 concurrent queries against a 10-connection pool. Returns a
+ *  Map so callers keep their per-lead shape; leads with no items are simply
+ *  absent, which callers read as an empty list. */
+export async function leadItemsOfMany(leadIds: readonly string[]): Promise<Map<string, LeadItemRow[]>> {
+  if (leadIds.length === 0) return new Map();
+  const rows = await getDb()
+    .select()
+    .from(leadItems)
+    .where(inArray(leadItems.leadId, [...leadIds]))
+    .orderBy(leadItems.order);
+  const byLead = new Map<string, LeadItemRow[]>();
+  for (const row of rows) {
+    const list = byLead.get(row.leadId);
+    if (list) list.push(row);
+    else byLead.set(row.leadId, [row]);
+  }
+  return byLead;
+}
+
 /** An issued, still-valid proforma froze this lead's lines as jsonb, so
  *  editing the lead's items afterwards makes the customer's quote and the
  *  lead permanently disagree with nothing recording the divergence. Carries
@@ -422,6 +443,24 @@ export async function proformasOfLead(leadId: string, dbh: DbOrTx = getDb()): Pr
     .from(proformas)
     .where(eq(proformas.leadId, leadId))
     .orderBy(desc(proformas.createdAt));
+}
+
+/** proformasOfLead for a page of leads, in one query — see leadItemsOfMany.
+ *  Newest-first ordering is preserved within each lead's list. */
+export async function proformasOfLeads(leadIds: readonly string[]): Promise<Map<string, ProformaRow[]>> {
+  if (leadIds.length === 0) return new Map();
+  const rows = await getDb()
+    .select()
+    .from(proformas)
+    .where(inArray(proformas.leadId, [...leadIds]))
+    .orderBy(desc(proformas.createdAt));
+  const byLead = new Map<string, ProformaRow[]>();
+  for (const row of rows) {
+    const list = byLead.get(row.leadId);
+    if (list) list.push(row);
+    else byLead.set(row.leadId, [row]);
+  }
+  return byLead;
 }
 
 /** The proforma REGISTER — every issued proforma across all leads, joined
