@@ -99,9 +99,26 @@ async function nativeLimited(scope: string, key: string): Promise<boolean | null
  * are fully spoofable — `TRUST_PROXY=false` disables per-IP granularity in
  * that case rather than silently trusting attacker input.
  */
+/** `true` only when actually executing on Cloudflare Workers. Same probe as
+ *  `nativeLimited` above: `getCloudflareContext()` throws outside a Worker. */
+function onCloudflareWorkers(): boolean {
+  try {
+    return Boolean(getCloudflareContext()?.env);
+  } catch {
+    return false;
+  }
+}
+
 function clientIp(req: NextRequest): string {
   if (process.env.TRUST_PROXY === 'false') return 'untrusted-proxy';
-  const cfIp = req.headers.get('cf-connecting-ip');
+  // `CF-Connecting-IP` is only unspoofable on topology 1, where Cloudflare's
+  // own edge sets it before the Worker runs. On topology 2 (Docker/Caddy) the
+  // Caddyfile has no `header_up -CF-Connecting-IP`, so a client-supplied value
+  // arrives verbatim — trusting it there handed any caller a fresh rate-limit
+  // bucket per request just by varying one header, which nullified every
+  // per-IP limit including the ones metering paid SMS.ir sends and DeepSeek
+  // calls. Gate it on the runtime rather than reading it unconditionally.
+  const cfIp = onCloudflareWorkers() ? req.headers.get('cf-connecting-ip') : null;
   if (cfIp) return cfIp;
   const xff = req.headers.get('x-forwarded-for');
   if (xff) {
@@ -130,8 +147,18 @@ export async function rateLimit(
   // within minutes, well past otp-request's 8-per-5-min production cap —
   // unlike the per-mobile/DB-backed OTP controls, that's not something the
   // suite is meant to exercise. Only playwright.config.ts's webServer sets
-  // this; never set it outside e2e.
-  if (process.env.DISABLE_RATE_LIMIT_FOR_TESTS === 'true') return null;
+  // this; never set it outside e2e. The NODE_ENV guard makes that an
+  // enforced invariant rather than a convention held up by this comment —
+  // the flag short-circuits EVERY scope including otp-request, so leaking it
+  // into a production env file would uncap SMS.ir sends billed to the owner.
+  // Playwright's webServer does not run with NODE_ENV=production, so e2e is
+  // unaffected.
+  if (
+    process.env.NODE_ENV !== 'production' &&
+    process.env.DISABLE_RATE_LIMIT_FOR_TESTS === 'true'
+  ) {
+    return null;
+  }
 
   const ip = clientIp(req);
   const key = `${scope}:${ip}`;
