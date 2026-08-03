@@ -2,7 +2,12 @@
 # Nightly Postgres backup for ahantime. Keeps 14 daily dumps, gzipped.
 set -euo pipefail
 BACKUP_DIR=/var/backups/ahantime
+# These dumps are a full pg_dump of production — every lead, customer mobile,
+# order and proforma. The default umask left them 0644, world-readable to any
+# non-root user or any process that gets a foothold on the host.
+umask 077
 mkdir -p "$BACKUP_DIR"
+chmod 700 "$BACKUP_DIR"
 cd /opt/ahantime
 TS=$(date +%F_%H%M)
 TMP="$BACKUP_DIR/.ahantime-$TS.sql.gz.partial"

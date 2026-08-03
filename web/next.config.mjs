@@ -92,6 +92,18 @@ const nextConfig = {
               headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }],
             },
             {
+              // The rule above keys off the INCOMING path, which misses the
+              // panel host entirely: middleware rewrites panel.ahantime.com/leads
+              // to /admin/leads internally, so the request path is /leads and
+              // never matches. Every admin route on the subdomain was therefore
+              // indexable — defeating the "hidden, not redirected" posture that
+              // middleware.ts goes to some trouble to establish. Match on the
+              // host instead.
+              source: '/:path*',
+              has: [{ type: 'host', value: 'panel.ahantime.com' }],
+              headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }],
+            },
+            {
               // Sitewide baseline security headers. Neither deployment path
               // adds these on its own: the Caddyfile (Docker path) only
               // terminates TLS + reverse-proxies (no header injection), and
@@ -191,6 +203,15 @@ const nextConfig = {
                     'upgrade-insecure-requests',
                   ].join('; '),
                 },
+                // Without COOP a cross-origin opener keeps a window reference
+                // to authenticated panel pages (XS-Leaks, popup attacks);
+                // without CORP those responses can be embedded as subresources
+                // by other origins. frame-ancestors 'none' already blocks
+                // framing, so this is defence in depth. COEP is deliberately
+                // NOT set — it would break the `data:` images img-src allows
+                // and needs its own e2e pass.
+                { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+                { key: 'Cross-Origin-Resource-Policy', value: 'same-origin' },
               ],
             },
           ];

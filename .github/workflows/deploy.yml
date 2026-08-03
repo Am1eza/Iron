@@ -166,7 +166,14 @@ jobs:
             # failed backup is loud, not a silently-empty .sql.gz — without
             # `pipefail`, `cmd | gzip || true` would swallow cmd's failure
             # since only gzip's own exit code is checked.
+            # umask BEFORE the redirect: these dumps are a full pg_dump of
+            # production — every lead, customer mobile, order and proforma —
+            # and the default umask left them 0644, readable by any non-root
+            # user or any process that gets a foothold on the host. A one-off
+            # chmod would not hold, since every deploy recreates them.
+            umask 077
             mkdir -p backups
+            chmod 700 backups
             BACKUP_FILE="backups/pre-deploy-$(date -u +%Y%m%dT%H%M%SZ).sql.gz"
             if docker compose exec -T db pg_dump -U ahantime ahantime | gzip > "$BACKUP_FILE"; then
               echo "Backup written: $BACKUP_FILE"
