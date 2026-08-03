@@ -1,5 +1,9 @@
 # Ahantime — Phase 5 · Authentication
 
+> **Numbers in this document are load-bearing and were wrong until 2026-08-03.**
+> `src/lib/config/constants.ts` is the source of truth for OTP length/TTL, token
+> lifetimes and rate limits — check it before trusting any figure quoted here.
+
 **Status:** ✅ Implemented end-to-end (passwordless mobile + OTP, JWT access + rotating refresh, RBAC, profile, security). The earlier TODO stubs in `api/auth/*` are now real.
 
 **Locked product decision:** auth is **mobile number + OTP** (no passwords), SMS via **SMS.ir**. "Register" and "Login" are the same flow — the first verified OTP for a new mobile creates the account (with an optional name).
@@ -12,10 +16,10 @@
 |---|------|----------------|
 | 51 | **Login** | OTP flow (`LoginForm` → `/api/auth/otp/*`); returning users log in on verify |
 | 52 | **Register** | Same flow; first OTP for a new mobile creates the account (optional name captured at request) |
-| 53 | **OTP** | `service.requestOtp/verifyOtp`: 5-digit code, 120s TTL, hashed at rest, attempts + lockout, resend cooldown, per-hour cap; SMS.ir (dev logs the code) |
+| 53 | **OTP** | `service.requestOtp/verifyOtp`: **6**-digit code, **900s** TTL, hashed at rest, attempts + lockout, resend cooldown, per-hour cap; SMS.ir (dev logs the code) |
 | 54 | **Session** | httpOnly cookies — access JWT (`ahantime_at`, path `/`) + refresh (`ahantime_rt`, path `/api/auth`); `getSession()` server helper |
-| 55 | **JWT** | `jwt.ts` — HS256 via `jose`, 15-min access token, issuer/audience, signed with `SESSION_SECRET` |
-| 56 | **Refresh Token** | Opaque 32-byte token, **hashed** in store, **single-use rotation** (`rotateRefresh`); silent client refresh every 12 min |
+| 55 | **JWT** | `jwt.ts` — HS256 (pinned via `algorithms`) via `jose`, **4-hour** access token, issuer/audience, signed with `SESSION_SECRET` |
+| 56 | **Refresh Token** | Opaque 32-byte token, **hashed** in store, **single-use rotation** (`rotateRefresh`, but **no reuse detection** — see below); silent client refresh every **3 hours** |
 | 57 | **Role Management** | `Role` = customer + operator/sales/content/catalog/admin (navigation §21); `ROLE_LABEL`, `STAFF_ROLES` |
 | 58 | **Permissions** | `Permission` set + `ROLE_PERMISSIONS` map + `can()` / `canAccessAdmin()`; `requirePermission()` (server) + the same `can()` called directly in client components (below) |
 | 59 | **User Profile** | `/api/me`, `/api/me/profile` (PUT); `<ProfileForm>` + `<LogoutButton>`; real `/حساب` dashboard |
@@ -34,8 +38,8 @@ Browser (every 12m) ─POST /api/auth/refresh▶ rotate refresh (single-use) →
 Browser  ──POST /api/auth/logout ────────▶ revoke refresh + clear cookies
 ```
 
-- **Data layer** (`lib/auth/store.ts`) is an in-memory implementation behind repository functions — the same mock⇄live seam as the API layer. Swap for a DB (`DATABASE_URL`) in production; nothing else changes. A dev admin (`DEV_ADMIN_MOBILE`, default `09120000000`) is seeded so the admin area is reachable locally.
-- **Crypto is real** (`lib/auth/crypto.ts` Web Crypto; `jose` JWT) — only persistence is in-memory for now.
+- **Data layer** (`lib/auth/store.ts`) selects at runtime: `hasDb() ? pgStore : memoryStore`. The Postgres-backed store (`store.pg.ts`) has been live in production for weeks; the in-memory one is the no-DATABASE_URL fallback for local work. A dev admin (`DEV_ADMIN_MOBILE`, default `09120000000`) is seeded so the admin area is reachable locally.
+- **Crypto is real** (`lib/auth/crypto.ts` Web Crypto; `jose` JWT).
 - **No mock branch** in the client `authApi`: auth always hits the in-app route handlers, so the full flow works even in `NEXT_PUBLIC_API_MODE=mock` (the dev SMS surfaces the code as `devCode`, shown in `LoginForm`).
 
 ## Roles & permissions (RBAC)
@@ -76,7 +80,7 @@ Reference call sites: `components/admin/AdminAlerts.tsx`, `components/admin/lead
 ## Security notes
 
 - OTP and refresh tokens are **never stored in clear** (SHA-256 + `SESSION_SECRET` pepper); comparisons are constant-time.
-- Brute-force: ≤5 verify attempts, then a 15-min lockout; resend cooldown 60s; ≤3 sends/hour.
+- Brute-force: ≤5 verify attempts, then a 15-min lockout; resend cooldown 60s; ≤**5** sends/hour.
 - Cookies: `httpOnly` (no JS access), `Secure` in production, `SameSite=Lax`; refresh token scoped to `/api/auth`.
 - CSRF: `SameSite=Lax` + an explicit same-origin Origin/Referer check on every mutating auth route.
 - Refresh **rotation** makes stolen refresh tokens single-use; reuse fails and clears the session.
@@ -95,6 +99,13 @@ tests: lib/auth/{roles,service}.test.ts
 ```
 Modified: `stores/auth.ts` (+role, loading status), `api/resources/auth.ts` (real endpoints), `forms.ts`, `LoginForm.tsx` (name + dev hint), `layout.tsx` (server session → AuthHydrator), `middleware.ts` (cookie name), `validation/{api,schemas}.ts`, `package.json` (jose), `.env.example`.
 
-> **To go live:** set `SESSION_SECRET`, `SMSIR_API_KEY`/`SMSIR_TEMPLATE_ID`, `AUTH_ENFORCED=true`, and replace `lib/auth/store.ts` with a DB-backed repo (users, refresh tokens, OTP, rate-limits). The interfaces stay identical.
+> **Already live.** `SESSION_SECRET`, `SMSIR_API_KEY`/`SMSIR_TEMPLATE_ID` and `AUTH_ENFORCED=true` are set in production, and the DB-backed store (`store.pg.ts`) is what actually runs. Do **not** re-implement it.
+
+> **Known gap (2026-08-03 audit):** refresh rotation is single-use, but there is
+> no **reuse detection** — a presented-but-already-rotated token is indistinguishable
+> from one that never existed (both 401), so a stolen refresh token yields a silent
+> parallel session that re-logging in does not evict. Closing it needs a
+> `previous_hash`/`family_id` column and a migration; flagged NEEDS-HUMAN-REVIEW
+> because the fix mass-invalidates sessions and a bad heuristic would log out staff.
 
 *Ahantime — اول مشورت، بعد خرید.*

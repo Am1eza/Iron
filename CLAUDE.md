@@ -91,9 +91,14 @@ the spec states the intent — but verify against code before assuming either is
 - **Security headers are set in `next.config.mjs`'s `headers()` and NOWHERE ELSE.** They were
   once duplicated in middleware, which is how `X-Frame-Options` drifted to two conflicting
   values. Do not reintroduce a second source.
-- **Persian route segments** (`قیمت/`, `حساب/`…) are real. Encoded-path matchers are
-  unreliable, so auth gating for Persian paths is enforced at the route/layout level,
-  not in the middleware matcher.
+- **URL segments are ASCII** (`/prices`, `/account`) — Next's App Router does not reliably
+  match non-ASCII folder segments, so the Persian-slug plan was abandoned. `src/lib/routes.ts`
+  is the single source for every in-app URL; never hardcode a path. Persian appears in labels
+  and content only. Verified: `find src/app -type d` has zero non-ASCII entries, and live
+  `/قیمت` → 404 while `/prices` → 200.
+  > `web/ROUTING.md` still documents the abandoned Persian-slug scheme and its entire URL
+  > table 404s. `middleware.ts`'s comment about "Persian-path auth gating" is likewise
+  > vestigial. Do not trust either on this point.
 
 ---
 

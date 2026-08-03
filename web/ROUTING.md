@@ -1,4 +1,13 @@
 # Ahantime Web — Routing
+
+> ## ⚠️ THIS DOCUMENT IS WRONG — verified 2026-08-03
+> It documents Persian URL segments (`/قیمت`, `/حساب`, …). **That plan was
+> abandoned.** Next's App Router does not reliably match non-ASCII folder
+> segments, so every URL is ASCII: `/prices`, `/account`, `/prices/[category]/[sub]/[sku]`.
+> Live check: `/قیمت` → 404, `/prices` → 200; `find src/app -type d` has zero
+> non-ASCII entries. **The entire URL table below 404s.**
+> `src/lib/routes.ts` is the single source of truth for every in-app URL.
+
 ## Layer 4 · Frontend — Document 2 (Routing)
 
 **Version:** 1.0 · 26 June 2026

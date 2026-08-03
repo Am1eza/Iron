@@ -1,4 +1,14 @@
 # Ahantime Web — Frontend Architecture & Project Structure
+
+> ## ⚠️ Partly out of date — verified 2026-08-03
+> - **MSW is not used and is not installed.** Mocking is an `if (API_MODE === 'mock')`
+>   branch inside each `lib/api/resources/*.ts`.
+> - Route segments are **ASCII**, not Persian — see the warning in `ROUTING.md`.
+> - `components/data/`, `components/commerce/` and `src/content/` do not exist.
+>   `PriceTable.tsx` lives in `components/catalog/`; articles are DB-backed.
+> - Layers 5+ (backend, DB, admin, AI) are **built and deployed**, not "planned".
+> The stack table, the server/client split and the styling conventions are still accurate.
+
 ## Layer 4 · Frontend — Document 1 (Project Structure)
 
 **Version:** 1.0 · 26 June 2026

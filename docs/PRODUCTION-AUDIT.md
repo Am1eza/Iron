@@ -1,5 +1,16 @@
 # Production Audit — آهن‌تایم (ahantime.com)
 
+> ## 📌 SNAPSHOT — 2026-07-05. DO NOT SCOPE WORK FROM THIS FILE.
+> Re-verified against code on 2026-08-03: **11 of 13 backlog items listed here as
+> open are already fixed.** Only two remain genuinely open — the ESLint 9 flat-config
+> migration, and `hreflang` alternates. Everything else (crawlable SKU links, the
+> lead→proforma transaction + idempotency, retention in `cleanup.job.ts`, value-pattern
+> PII scrubbing, `/api/me/*` pagination, `finish_reason` handling, real sitemap
+> `lastmod`, the OTP `aria-describedby`, route-group error boundaries, coverage
+> tooling, the `msw` removal, the `window.confirm` replacement) has shipped.
+> Current findings live in `/opt/ahantime/AUDIT_REPORT.md`.
+
+
 Full multi-domain audit of the live production app (Next.js 15 / React 19 /
 Postgres 16 / Docker on AlmaLinux 9). 10 domains audited against the codebase +
 the live site, grounded in current (2026) best practices. Every finding was
