@@ -1,0 +1,212 @@
+# CLAUDE.md — Ahantime (آهن‌تایم)
+
+Guidance for AI agents working in this repository. Read this before touching code.
+
+---
+
+## 1. What this is
+
+**ahantime.com** — a Persian-first (RTL) smart marketplace for iron & steel in Iran.
+Business model is **lead-gen, not e-commerce**: the site publishes transparent live
+prices, an AI advisor grounded in real data, and a guaranteed delivery-time promise;
+the actual sale is closed by a human over the phone.
+
+> **There is no online payment.** «اول مشورت، بعد خرید.»
+
+Funnel: Magnet → Engage → Capture (پیش‌فاکتور / proforma) → Convert (human call) → Retain.
+
+### Locked product decisions (do not "improve" these)
+| Decision | Value |
+|---|---|
+| Payments | **None online.** Proforma + human close. |
+| Prices | 100% **admin-entered**. No bourse formula. Weight = deterministic formula. |
+| AI | **DeepSeek**, server-side via an **out-of-Iran relay**. Grounded — never invents a number. |
+| Ticker | FX/gold/ounce from **tgju.org**; billet is admin-entered. |
+| Auth | Mobile number + **OTP**. |
+| SMS | **SMS.ir — OWNER-LOCKED.** Never propose another provider. |
+| Hosting | Hybrid — app + DB inside Iran, AI relay outside. |
+| Localization | Persian-first, RTL, Jalali dates, Toman currency. |
+| UI kit | **None.** No Tailwind/MUI/Bootstrap. CSS Modules + `design/tokens.css` only. |
+| CDNs | **None.** Fonts and JS are self-hosted (Iran reachability). |
+
+---
+
+## 2. Repository layout
+
+```
+/opt/ahantime/                 ← repo root AND the live production deploy dir
+├─ docs/ product/ design/ brand/ foundation/   ← Layers 1–3 specs (the source of truth for intent)
+├─ ops/                        ← ahantime-db-backup.sh (restic)
+├─ docker-compose.yml          ← web, db, redis, tgju, matomo(+db), caddy, glitchtip(×5)
+├─ Caddyfile                   ← TLS + host routing (ahantime.com, panel.ahantime.com)
+├─ .env                        ← REAL SECRETS, gitignored. Never read into output or commit.
+├─ DEPLOY.md · GEO-ROUTING.md · README.md
+└─ web/                        ← the Next.js app (everything below is relative to here)
+   ├─ src/app/                 ← App Router · 122 route handlers under src/app/api/
+   ├─ src/components/          ← ~30 domains (admin, ai, catalog, market, forms, primitives…)
+   ├─ src/lib/
+   │  ├─ auth/                 ← jwt, session, guards, roles, sms, store.pg, origin
+   │  ├─ server/               ← db/ (drizzle schema ×11), repos/ (39), services/, jobs/, integrations/
+   │  ├─ validation/ config/ api/ stores/ hooks/ utils/ i18n/
+   ├─ src/middleware.ts        ← admin gating + panel-host rewrite + DB-backed redirects
+   ├─ drizzle/                 ← 27 SQL migrations + meta/_journal.json
+   ├─ e2e/                     ← Playwright
+   └─ next.config.mjs          ← **the single source of truth for security headers**
+```
+
+**Scale:** ~620 TS/TSX files, ~70k LOC, 122 API routes, 79 test files, 27 migrations.
+
+### Layer model (from README.md)
+Layers 1–3 (Vision / Product Design / UI System) are **complete specs** and are the
+authority on intent. Layer 4+ (`web/`) is the build. When code and spec disagree,
+the spec states the intent — but verify against code before assuming either is current.
+
+---
+
+## 3. Stack
+
+- **Next.js 15 App Router** + **React 19**, TypeScript strict
+- **Postgres + Drizzle ORM** (`pg`, not edge-compatible — see `serverExternalPackages`)
+- **Redis** (`ioredis`) — caching, rate limiting
+- **Auth:** `jose` JWT, mobile+OTP, cookie sessions
+- **Forms:** React Hook Form + Zod · **Client state:** Zustand + TanStack Query
+- **i18n:** `next-intl` (`src/i18n`, `messages/`) · `date-fns-jalali`
+- **Tests:** Vitest + Testing Library (unit), Playwright + axe-core (e2e/a11y)
+- **Deploy:** Docker image `ghcr.io/am1eza/iron-web:<sha>` behind Caddy.
+  A secondary Cloudflare Workers target exists (`open-next.config.ts`, `wrangler.jsonc`) —
+  assumptions valid for the Docker target are **not** automatically valid there.
+
+### Architecture notes that bite
+- **Server Components by default.** `"use client"` only for genuine interactivity.
+  Secrets live in route handlers / server only — never in a client bundle.
+- **`middleware.ts` runs on the Node runtime** (`export const runtime = 'nodejs'`) so it
+  can query Postgres for redirects. It caches redirects in a module-level `Map` — valid
+  because the Docker deploy is one long-lived Node process. **Not valid on Workers.**
+- **The admin panel lives only on `panel.ahantime.com`.** On the public host, `/admin/*`,
+  `/api/admin/*` and `/panel-login` are rewritten to a hard 404 — hidden, not redirected.
+  Gated on `AUTH_ENFORCED=true` so local dev keeps `/admin` reachable.
+- **`notFound()` returns HTTP 200** in this Next version when thrown inside an already-matched
+  route. That's why unauthorized admin access is handled by a **rewrite to `/__admin_denied__`**
+  in middleware rather than by `notFound()` alone.
+- **Security headers are set in `next.config.mjs`'s `headers()` and NOWHERE ELSE.** They were
+  once duplicated in middleware, which is how `X-Frame-Options` drifted to two conflicting
+  values. Do not reintroduce a second source.
+- **Persian route segments** (`قیمت/`, `حساب/`…) are real. Encoded-path matchers are
+  unreliable, so auth gating for Persian paths is enforced at the route/layout level,
+  not in the middleware matcher.
+
+---
+
+## 4. Working conventions
+
+### Commits
+Format: `type(US-XX.X): short description` — `type` ∈ `feat|fix|security|backend|chore|docs|perf|test`,
+referencing story ids from `product/epics-user-stories-v2.md`.
+
+### The git index is shared, mutable state
+Multiple agents may work this tree concurrently. **Never `git add -A` or `git add .`.**
+A sibling's `git add` can land between your own two tool calls and a bare `git commit`
+would fold their unrelated work into your commit.
+
+**Commit atomically with explicit paths:**
+```bash
+git commit web/src/foo.ts web/src/foo.test.ts -m "fix(US-12.3): ..."
+```
+This bypasses the index for those files entirely — no race window. Before starting and
+before committing, run `git status --porcelain=v1 -- web` and `git log --oneline -10`.
+
+### The drizzle migration journal is a second collision point
+`web/drizzle/meta/_journal.json` is append-only and shared. If a sibling generated
+migration N but hasn't committed the `.sql`, and you generate N+1, committing the
+journal alone breaks `drizzle-kit migrate` for everyone. Diff it against
+`git show HEAD:web/drizzle/meta/_journal.json` before committing; if it references a
+tag whose `.sql` is untracked, commit that migration's SQL + snapshot too.
+
+### No Node on the host PATH
+There is no local `node`/`npm`/`pnpm`/`npx`. `web/node_modules` **is** installed on disk.
+Run tooling through Docker:
+```bash
+docker run --rm -v /opt/ahantime:/app -w /app/web node:20 sh -c "./node_modules/.bin/tsc --noEmit"
+```
+Swap the binary for `vitest run`, `next lint`, `next build`, `drizzle-kit generate`.
+> **Trap:** use `node:20`, not `node:20-alpine`, for builds.
+
+### Before writing a new file
+Check whether it already exists. A sibling agent (usually BE/DEVOPS for infra-adjacent
+work) may have already built it to a matching contract. Read it fully and adapt rather
+than overwrite.
+
+### Docs can be stale
+`docs/PRODUCTION-AUDIT.md` has listed already-fixed items as open. **Verify every claim
+in any audit/roadmap doc against the actual code** before scoping work off it.
+
+---
+
+## 5. Deploy
+
+Auto-deploy is **broken** — the `deploy` job in `.github/workflows/deploy.yml` fails at
+the SSH step because `DEPLOY_HOST` / `DEPLOY_USER` / `DEPLOY_SSH_KEY` GitHub secrets are
+unset by the owner. Only the **build** job (GHCR image push) matters; verify that one.
+
+Known-red and **not** caused by your change (confirmed across many commits):
+`CI / checks` (prod-dependency audit), `CI / e2e` (Playwright+axe), and
+`Deploy preview to GitHub Pages`. Don't chase them.
+
+**Manual deploy on this host:**
+```bash
+GIT_SSH_COMMAND="ssh -i ~/.ssh/ahantime_deploy -o IdentitiesOnly=yes" git push origin main
+docker pull ghcr.io/am1eza/iron-web:<full-sha>
+docker image inspect ghcr.io/am1eza/iron-web:<full-sha>     # MUST succeed before the next line
+sed -i 's#^WEB_IMAGE=.*#WEB_IMAGE=<image>#' /opt/ahantime/.env
+docker compose up -d web
+```
+Never pipe the pull to `tail` — a masked failure once pointed `.env` at a missing tag.
+
+**Verify (port 3000 is not host-exposed — go through Caddy):**
+```bash
+curl -sk --resolve ahantime.com:443:127.0.0.1        https://ahantime.com/          # 200
+curl -sk --resolve panel.ahantime.com:443:127.0.0.1  https://panel.ahantime.com/    # 307 → login
+curl -sk --resolve ahantime.com:443:127.0.0.1        https://ahantime.com/admin     # 404
+docker exec ahantime-web-1 grep -rl '<a string you just shipped>' .next/
+```
+Always run a full `next build` in Docker before pushing.
+
+---
+
+## 6. Quality gates (definition of done)
+
+- TypeScript **strict**; ESLint (`next/core-web-vitals` + `next/typescript`); Prettier
+- Stylelint enforces **tokens-only** styling and **CSS logical properties** (RTL safety)
+- Vitest unit/component · Playwright e2e · **axe** a11y
+- **WCAG 2.2 AA** (`design/accessibility.md`)
+- Budgets: **LCP < 2.5s · TTFB < 0.8s · CLS < 0.1**
+
+### Styling rules that reviewers enforce
+- Semantic tokens only (`--color-*`, `--t-*`, `--space-*`) — never raw values, never primitives
+- Logical properties only (`margin-inline-start`, not `margin-left`)
+- **One amber action per view.** Cobalt = interactive. Green/red **only** in data.
+- No glassmorphism, no gradients, small radii. It must never look AI-generated.
+- Persian typography: ZWNJ where required, tabular numerals for all data.
+
+---
+
+## 7. Operational context
+
+- **GlitchTip** (error tracking) on port **9443** — there is **no wildcard DNS**, so don't
+  assume a subdomain resolves.
+- **Matomo** for analytics (self-hosted, with MarketingCampaignsReporting).
+- **restic** backups via `ops/ahantime-db-backup.sh`.
+- **OTP delivery slowness is provider-side (SMS.ir)**, not a code bug. There is a 2-stage
+  watchdog. Do not "fix" it by swapping providers.
+
+## 8. Hard stops — never do these unprompted
+
+- Change payment/financial logic (there is no online payment; if that changes, it is a
+  human decision)
+- Delete data, drop tables, or write a destructive migration
+- Anything that logs out or blocks existing users (rotating `JWT_SECRET`/`SESSION_SECRET`,
+  changing cookie names or scope, invalidating sessions)
+- Swap the SMS provider
+- Commit `.env` or echo its contents
+- Add a CDN, web font, or external script (Iran reachability)
+- Introduce a UI framework or component kit
