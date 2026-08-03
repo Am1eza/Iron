@@ -14,6 +14,7 @@ import {
   insertProforma,
   proformasOfLead,
   updateLead,
+  WHOLE_PIECE_UNITS,
   type LeadRow,
   type ProformaRow,
 } from '@/lib/server/repos/leadsRepo';
@@ -244,8 +245,10 @@ function asSource(s?: string): LeadSource {
   return (KNOWN_SOURCES as readonly string[]).includes(s ?? '') ? (s as LeadSource) : 'cart';
 }
 
-/** Resolve items against the catalog and snapshot prices (skip hidden-stale). */
-async function priceItems(
+/** Resolve items against the catalog and snapshot prices (skip hidden-stale).
+ *  Exported for tests — this is the function that decides what a customer is
+ *  quoted, so its rules are pinned directly rather than through createLead. */
+export async function priceItems(
   items: CreateLeadInput['items'],
 ): Promise<{ lines: LineItem[]; allPriced: boolean }> {
   const db = getDb();
@@ -287,10 +290,36 @@ async function priceItems(
     const hit = bySku.get(item.skuId) ?? bySlug.get(item.skuId);
     const price = hit?.price ?? null;
     const hidden = price ? freshness.isHidden(price.updatedAt) : true;
-    const unitPrice = price && !hidden ? price.price : undefined;
+
+    // The UNIT IS THE SKU'S, never the client's. Every other number on this
+    // line is recomputed server-side, but `unit` used to be taken on trust
+    // while `unitPrice` came from the SKU — so the two could describe
+    // different things. A request of {skuId: rebar-14, qty: 100,
+    // unit: 'branch'} against a SKU priced per kg produced
+    // lineTotal = 100 x 42,000 on a proforma that read «۱۰۰ شاخه», when 100
+    // branches of rebar-14 is ~1200kg — roughly 12x under, on a document the
+    // customer keeps and that is sent to them by SMS. The mirrored error
+    // (claiming 'kg' on a per-branch SKU) corrupted weightKg the other way.
+    const unit = hit?.sku.unit ?? item.unit;
+
+    // A disagreement is not something to silently paper over: it means the
+    // client is working from a stale catalog (an admin changed the SKU's unit
+    // after this cart was built) or is forged. Either way the price basis is
+    // not what the customer was shown, so this line does not get an automatic
+    // quote — allPriced=false routes the whole lead to a human, which is the
+    // same path an unpriced or stale-priced item already takes.
+    const unitMismatch = hit != null && item.unit !== hit.sku.unit;
+
+    // Same rule the admin edit path already enforced, now also on create:
+    // «۳٫۷ شاخه» is a typo, not an order. Only here is the SKU's real unit
+    // known, so this could not be expressed in the route's Zod schema.
+    const fractionalPieces = WHOLE_PIECE_UNITS.has(unit) && !Number.isInteger(item.qty);
+
+    const unitPrice = price && !hidden && !unitMismatch && !fractionalPieces ? price.price : undefined;
     if (!unitPrice) allPriced = false;
+
     const weightKg =
-      item.unit === 'kg'
+      unit === 'kg'
         ? item.qty
         : hit?.sku.theoreticalWeightKg
           ? Math.round(hit.sku.theoreticalWeightKg * item.qty * 100) / 100
@@ -299,7 +328,7 @@ async function priceItems(
       skuId: hit?.sku.id ?? item.skuId,
       name: hit?.sku.name ?? item.skuId,
       qty: item.qty,
-      unit: item.unit,
+      unit,
       weightKg,
       unitPrice,
       lineTotal: unitPrice ? Math.round(unitPrice * item.qty) : undefined,

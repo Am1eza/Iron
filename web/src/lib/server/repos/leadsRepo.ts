@@ -112,9 +112,12 @@ export class LeadItemLockedError extends Error {
 /** Units sold as countable pieces — «۳٫۷ شاخه» is a typo, not an order, and
  *  it propagates straight into the frozen proforma lines and the SMS'd
  *  total. kg/meter stay fractional (۲٫۵ تن is a real quantity), which is why
- *  this check lives here and not in the route's schema: only the stored row
- *  knows the item's unit. */
-const WHOLE_PIECE_UNITS: ReadonlySet<LeadItemRow['unit']> = new Set(['branch', 'sheet']);
+ *  this check cannot live in the route's schema: only something that knows
+ *  the item's unit can apply it. That used to mean only the stored row, so
+ *  the check existed on the admin edit path alone and a fractional «شاخه»
+ *  could still be created. leads.service.ts now resolves the SKU's own unit
+ *  while pricing, so it applies the same rule on the create path. */
+export const WHOLE_PIECE_UNITS: ReadonlySet<LeadItemRow['unit']> = new Set(['branch', 'sheet']);
 
 /** Rejects a fractional qty on a piece-sold unit; carries the unit so the
  *  route can name it in Persian («واحد شاخه»). */
