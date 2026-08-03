@@ -15,7 +15,12 @@ export async function adminListContactMessages(query: {
 }): Promise<{ messages: ContactMessageRow[]; total: number }> {
   const db = getDb();
   const page = query.page ?? 1;
-  const perPage = query.perPage ?? 50;
+  // Clamp: the route only floors this (Math.max(1, ...)), so an unbounded
+  // perPage turned a paginated CRM into a one-request dump of every
+  // customer name and mobile. Matches articlesRepo/catalogAdminRepo/
+  // alertsRepo, which already clamp. Done in the repo, not the route, so
+  // internal callers (admin/search) are covered too.
+  const perPage = Math.min(100, Math.max(1, Math.floor(query.perPage ?? 50)));
   const where = query.status ? eq(contactMessages.status, query.status) : undefined;
   const [rows, total] = await Promise.all([
     db

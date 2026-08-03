@@ -339,7 +339,12 @@ export async function adminListLeads(query: {
 }) {
   const db = getDb();
   const page = query.page ?? 1;
-  const perPage = query.perPage ?? 30;
+  // Clamp: the route only floors this (Math.max(1, ...)), so an unbounded
+  // perPage turned a paginated CRM into a one-request dump of every
+  // customer name and mobile. Matches articlesRepo/catalogAdminRepo/
+  // alertsRepo, which already clamp. Done in the repo, not the route, so
+  // internal callers (admin/search) are covered too.
+  const perPage = Math.min(100, Math.max(1, Math.floor(query.perPage ?? 30)));
   const conds = [];
   if (!query.includeDeleted) conds.push(isNull(leads.deletedAt));
   if (query.status) conds.push(eq(leads.status, query.status));
@@ -427,7 +432,12 @@ export async function listProformas(query: {
 }) {
   const db = getDb();
   const page = query.page ?? 1;
-  const perPage = query.perPage ?? 30;
+  // Clamp: the route only floors this (Math.max(1, ...)), so an unbounded
+  // perPage turned a paginated CRM into a one-request dump of every
+  // customer name and mobile. Matches articlesRepo/catalogAdminRepo/
+  // alertsRepo, which already clamp. Done in the repo, not the route, so
+  // internal callers (admin/search) are covered too.
+  const perPage = Math.min(100, Math.max(1, Math.floor(query.perPage ?? 30)));
   const where = query.status ? eq(proformas.status, query.status) : undefined;
   const [rows, total] = await Promise.all([
     db
