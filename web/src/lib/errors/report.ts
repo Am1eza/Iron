@@ -15,13 +15,34 @@ import { scrubPii } from './scrub';
 // key-name-only, same as mobile/otp.
 const REDACT_KEYS = /mobile|phone|code|otp|name|address|token|secret|password|apikey|api_key|authorization|jwt|dsn|cookie|email|nationalid|melli/i;
 
-function redact(context?: Record<string, unknown>): Record<string, unknown> | undefined {
-  if (!context) return undefined;
+/** How deep to walk before giving up. Error context here is shallow by
+ *  convention; this only bounds a pathological or accidentally huge object. */
+const MAX_REDACT_DEPTH = 6;
+
+/** Recursively redact by key name and scrub by value.
+ *
+ *  This used to walk one level only: `scrubPii(v)` returns objects and arrays
+ *  untouched, so a REDACT_KEYS key nested even one level down — the very
+ *  common `{ user: { mobile } }` or `{ payload: { otp } }` — reached both the
+ *  log line and Sentry in the clear. Only top-level keys were ever protected. */
+function redactValue(value: unknown, depth: number, seen: WeakSet<object>): unknown {
+  if (depth > MAX_REDACT_DEPTH) return '[truncated]';
+  if (value === null || typeof value !== 'object') return scrubPii(value);
+  // A cycle would otherwise recurse forever inside a logging path, turning an
+  // error report into a hang.
+  if (seen.has(value)) return '[circular]';
+  seen.add(value);
+  if (Array.isArray(value)) return value.map((item) => redactValue(item, depth + 1, seen));
   const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(context)) {
-    out[k] = REDACT_KEYS.test(k) ? '[redacted]' : scrubPii(v);
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+    out[k] = REDACT_KEYS.test(k) ? '[redacted]' : redactValue(v, depth + 1, seen);
   }
   return out;
+}
+
+function redact(context?: Record<string, unknown>): Record<string, unknown> | undefined {
+  if (!context) return undefined;
+  return redactValue(context, 0, new WeakSet()) as Record<string, unknown>;
 }
 
 export function reportError(error: unknown, context?: Record<string, unknown>): void {
@@ -48,5 +69,43 @@ export function reportError(error: unknown, context?: Record<string, unknown>): 
   // Pass the SCRUBBED message/stack to Sentry too — it builds its event value
   // from these, and the raw error object would otherwise re-leak the mobile.
   sendToSentry(payload.name, payload.message, payload.stack, scrubbedContext);
-  // TODO: client-side alerting — navigator.sendBeacon('/api/log', JSON.stringify(payload)).
+  beaconToServer(payload);
+}
+
+/** In the browser, hand the already-scrubbed report to /api/log so client-side
+ *  failures reach the same error tracker as server ones. sendBeacon survives
+ *  the page being torn down, which is exactly when the interesting errors
+ *  happen; `keepalive` fetch is the fallback for browsers without it.
+ *  Everything here is best-effort and must never throw — this runs on a page
+ *  that is already failing, and a reporting error would replace the real one. */
+function beaconToServer(payload: {
+  name: string;
+  message: string;
+  stack?: string;
+  context?: Record<string, unknown>;
+}): void {
+  if (typeof window === 'undefined') return;
+  // The server already reported it directly; only the client half needs the hop.
+  if (payload.context?.source === 'client') return;
+  try {
+    const body = JSON.stringify({
+      name: payload.name,
+      message: payload.message,
+      stack: payload.stack,
+      url: window.location?.href,
+      userAgent: navigator.userAgent,
+    });
+    if (typeof navigator.sendBeacon === 'function') {
+      navigator.sendBeacon('/api/log', new Blob([body], { type: 'application/json' }));
+      return;
+    }
+    void fetch('/api/log', {
+      method: 'POST',
+      body,
+      headers: { 'content-type': 'application/json' },
+      keepalive: true,
+    }).catch(() => {});
+  } catch {
+    // no-op
+  }
 }

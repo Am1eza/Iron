@@ -72,6 +72,13 @@ export function sendToSentry(
     timestamp: sentAt,
     level: 'error',
     environment: process.env.NODE_ENV ?? 'production',
+    // Without a release, every event in the tracker is undated in the only
+    // sense that matters: you cannot tell whether an error is still happening
+    // on what is deployed now or was fixed three deploys ago, and "regressed
+    // in this release" alerting is impossible. APP_RELEASE is the image tag
+    // (the git sha the deploy pipeline builds from); 'unknown' when unset, so
+    // this stays a no-op in dev rather than inventing a version.
+    release: process.env.APP_RELEASE ?? 'unknown',
     server_name: 'ahantime',
     exception: {
       values: [

@@ -61,6 +61,11 @@ services:
       NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://ahantime.com}
       NEXT_PUBLIC_API_MODE: ${NEXT_PUBLIC_API_MODE:-live}
       AUTH_ENFORCED: ${AUTH_ENFORCED:-true}
+      # Tags every error sent to GlitchTip with the exact image it came from,
+      # so "is this still happening on what is deployed now?" is answerable.
+      # WEB_IMAGE already carries the build's git sha, so this needs no extra
+      # step in the deploy path.
+      APP_RELEASE: ${WEB_IMAGE:-local}
       DATABASE_URL: postgres://ahantime:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/ahantime
       SEED_ON_START: ${SEED_ON_START:-true}   # idempotent — only fills empty tables
       # SMS.ir — REQUIRED with the defaults above (live mode + AUTH_ENFORCED):

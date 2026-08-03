@@ -6,7 +6,12 @@
  * filtering. `0/(+)98` + 9 digits is distinctive enough not to hit prices/refs.
  */
 const MOBILE_VALUE = /(?:\+?98|0)9\d{9}/g;
-const EMAIL_VALUE = /[\w.+-]+@[\w-]+\.[\w.-]+/g;
+// The final label must be ALPHABETIC. Without that anchor this also matched
+// every `package@1.2.3` in a stack trace — every frame under
+// node_modules/.pnpm/ became `[redacted-email]`, so the one thing a stack is
+// for (which package threw) was destroyed on exactly the errors most in need
+// of it. A real address ends in letters; a version ends in digits.
+const EMAIL_VALUE = /[\w.+-]+@[\w-]+(?:\.[\w-]+)*\.[A-Za-z]{2,}/g;
 
 // Deliberately NOT scrubbing a bare 10-digit «کد ملی» pattern here: this app's
 // error context legitimately carries 10-digit Toman prices, project-estimate

@@ -39,6 +39,26 @@ export function getRedis(): Promise<IORedisType | null> {
   return clientPromise;
 }
 
+/** Liveness probe for /api/health. 'not_configured' when there is no Redis
+ *  URL at all (mock/dev), 'up' on a successful PING, 'down' on anything else.
+ *
+ *  Reported, never fatal. Redis is the authority for rate limiting, so when it
+ *  dies after boot every redisRateCheck returns null and the code silently
+ *  falls back to a per-process window — rate limiting gets much weaker with
+ *  nothing anywhere saying so. This makes that visible. It must NOT turn into
+ *  a 503: the app is deliberately built to survive a cache outage, and failing
+ *  the healthcheck would have an orchestrator kill a container that is working. */
+export async function redisHealth(): Promise<'up' | 'down' | 'not_configured'> {
+  if (!process.env.REDIS_URL) return 'not_configured';
+  try {
+    const r = await getRedis();
+    if (!r) return 'down';
+    return (await r.ping()) === 'PONG' ? 'up' : 'down';
+  } catch {
+    return 'down';
+  }
+}
+
 /**
  * Atomic fixed-window rate check. Returns true (over limit) / false (under),
  * or null when Redis is unavailable so the caller uses its own fallback.

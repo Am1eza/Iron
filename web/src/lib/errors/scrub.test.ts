@@ -34,4 +34,17 @@ describe('scrubPii', () => {
     expect(scrubPii(undefined)).toBe(undefined);
     expect(scrubPii(null)).toBe(null);
   });
+  // The email pattern used to match `package@1.2.3`, so every stack frame
+  // under node_modules/.pnpm/ became [redacted-email] — destroying the one
+  // thing a stack trace is for.
+  it('leaves a pnpm store path in a stack trace intact', () => {
+    const frame = 'at Object.<anonymous> (/app/node_modules/.pnpm/@electric-sql+pglite@0.5.3/node_modules/x.js:1:1)';
+    expect(scrubPii(frame)).toBe(frame);
+  });
+
+  it('still redacts a real address next to a version string', () => {
+    expect(scrubPii('next@15.5.22 failed, mail ops@ahantime.com')).toBe(
+      'next@15.5.22 failed, mail [redacted-email]',
+    );
+  });
 });

@@ -9,6 +9,7 @@ import { getDb, type DbOrTx } from '@/lib/server/db/client';
 import { currentPrices, pricePoints, skus, auditEntries } from '@/lib/server/db/schema';
 import type { PriceUnit } from '@/lib/types/domain';
 import { isSameJalaliDay } from '@/lib/server/utils/jalali';
+import { reportError } from '@/lib/errors/report';
 
 export interface SavePriceInput {
   skuId: string;
@@ -26,6 +27,10 @@ export interface SavePriceResult {
 }
 
 export class InvalidPriceError extends Error {}
+
+/** A bulk row naming a SKU that does not exist. Its own class so savePrices
+ *  can answer it specifically instead of matching on message text. */
+export class SkuNotFoundError extends Error {}
 
 /** The most recent `price_points` row for this SKU from a DIFFERENT Jalali
  *  day than `now` — the correct "yesterday's close" baseline for movement%
@@ -66,7 +71,7 @@ export async function savePrice(actorId: string, input: SavePriceInput): Promise
 
     const skuRows = await tx.select().from(skus).where(eq(skus.id, input.skuId)).limit(1);
     const sku = skuRows[0];
-    if (!sku) throw new Error(`SKU not found: ${input.skuId}`);
+    if (!sku) throw new SkuNotFoundError(`SKU not found: ${input.skuId}`);
 
     const prevRows = await tx.select().from(currentPrices).where(eq(currentPrices.skuId, input.skuId));
     const prev = prevRows[0] ?? null;
@@ -171,11 +176,21 @@ export async function savePrices(
       const result = await savePrice(actorId, input);
       out[index] = { ok: true, ...result };
     } catch (err) {
-      out[index] = {
-        ok: false,
-        skuId: input.skuId,
-        error: err instanceof Error ? err.message : 'ذخیره ناموفق بود.',
-      };
+      // Only messages this code wrote itself may reach the client. Returning
+      // err.message verbatim handed the admin UI whatever the failure
+      // happened to be — a Postgres error carries SQL text, column and
+      // constraint names, and a connection failure carries the DSN's host.
+      // Anything unrecognised is reported server-side and answered generically.
+      let error: string;
+      if (err instanceof InvalidPriceError) {
+        error = 'قیمت واردشده معتبر نیست.';
+      } else if (err instanceof SkuNotFoundError) {
+        error = 'کالا یافت نشد.';
+      } else {
+        reportError(err, { scope: 'savePrices', skuId: input.skuId });
+        error = 'ذخیره ناموفق بود.';
+      }
+      out[index] = { ok: false, skuId: input.skuId, error };
     }
   };
   for (let i = 0; i < inputs.length; i += BULK_SAVE_CONCURRENCY) {
