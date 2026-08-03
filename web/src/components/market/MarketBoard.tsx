@@ -5,10 +5,11 @@ import Link from 'next/link';
 import { routes } from '@/lib/routes';
 import { formatToman, toPersianDigits } from '@/lib/utils/format';
 import { marketValues as fallbackValues } from '@/lib/mock/fixtures';
+import { API_MODE } from '@/lib/api/config';
 import { marketApi } from '@/lib/api/resources/market';
 import { useMarket } from '@/lib/hooks/useMarket';
 import type { MarketValue } from '@/lib/types/domain';
-import { MovementBadge } from '@/components/ui';
+import { MovementBadge, EmptyState, emptyPresets } from '@/components/ui';
 import { PriceChart } from '@/components/catalog/PriceChart';
 import { AlertBellButton } from '@/components/alerts/AlertBellButton';
 import {
@@ -52,8 +53,16 @@ function SourceBadge({ source }: { source: MarketValue['source'] }) {
 }
 
 export function MarketBoard() {
-  const { data } = useMarket();
-  const marketValues = data?.values?.length ? data.values : fallbackValues;
+  const { data, isLoading, refetch } = useMarket();
+  // NEVER fall back to mock fixtures in live mode. Those constants carry
+  // `source: 'tgju'` and `isStale: false`, so an empty response painted
+  // invented rates badged as fresh market data — measured against live values
+  // they were off by 2.3x (usd), 4.8x (gold18) and 1.7x (ounce). On a site
+  // whose entire positioning is price transparency that is worse than showing
+  // nothing, and it contradicts ERROR-HANDLING.md, which calls for last-known
+  // values plus a «با تأخیر» badge — never fabricated ones.
+  const marketValues =
+    data?.values?.length ? data.values : API_MODE === 'mock' ? fallbackValues : [];
 
   const first = marketValues[0];
   const [selectedKey, setSelectedKey] = useState<MarketValue['key']>(first?.key ?? 'usd');
@@ -67,6 +76,16 @@ export function MarketBoard() {
     staleTime: 5 * 60 * 1000,
   });
   const series = (history?.points ?? []).map((p) => p.value);
+
+  // No values and nothing in flight means the ticker source is down. Show the
+  // no-dead-ends error state rather than an empty grid (empty-states.md).
+  if (!marketValues.length) {
+    return (
+      <div className={styles.board}>
+        {isLoading ? null : <EmptyState {...emptyPresets.serverError(() => void refetch())} />}
+      </div>
+    );
+  }
 
   return (
     <div className={styles.board}>

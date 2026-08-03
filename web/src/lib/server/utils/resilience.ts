@@ -102,10 +102,21 @@ export async function withResilience<T>(
 
   breaker.consecutiveFailures += 1;
   if (breaker.consecutiveFailures >= failureThreshold) {
+    // Report only on the TRANSITION into open, and keep the failure count out
+    // of the message. Sentry/GlitchTip groups by exception value, so
+    // `... after ${n} consecutive failures` minted a brand-new issue on every
+    // increment: 1,932 of the 1,939 issues in production were three services'
+    // circuit-breaker messages, burying the seven genuinely distinct errors
+    // (including a live DeepSeek HTTP 402) at 0.4% of the list. The count is
+    // still reported — as context, where it does not affect grouping.
+    const wasOpen = breaker.openUntil > Date.now();
     breaker.openUntil = Date.now() + openMs;
-    reportError(new Error(`circuit opening for ${service} after ${breaker.consecutiveFailures} consecutive failures`), {
-      integration: service,
-    });
+    if (!wasOpen) {
+      reportError(new Error(`circuit opening for ${service}`), {
+        integration: service,
+        consecutiveFailures: breaker.consecutiveFailures,
+      });
+    }
   }
   throw lastErr;
 }
