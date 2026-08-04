@@ -1,84 +1,79 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { timingSafeEqual } from '@/lib/auth/crypto';
-import { normalizeMobile } from '@/lib/utils/format';
-import { reportError } from '@/lib/errors/report';
-import { sendSms } from '@/lib/server/integrations/smsir';
 import { withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { admitAlert } from '@/lib/server/alerts/relayThrottle';
+import { sendTelegramHtml, telegramConfig } from '@/lib/server/integrations/telegram';
+import { buildAlertHtml } from '@/lib/server/alerts/alertMessage';
 
 export const runtime = 'nodejs';
 
 /**
- * POST /api/internal/alert-relay — turn a GlitchTip **webhook** into one SMS
- * to the operator (W29, audit area 16).
+ * POST /api/internal/alert-relay — turn a GlitchTip **webhook** into one
+ * Telegram message to the operator (W29, audit area 16).
  *
  * WHY THIS EXISTS. GlitchTip has recorded 1939 issues and has never told
  * anyone: `projectalerts | 0`, `recipients | 0`, `notifications | 0`. Email is
  * not the fix — docker-compose.yml states plainly that there is no SMTP on
  * this host, so an email alert could be defined and still never be delivered.
- * SMS.ir is already wired, already paid for, and already reaches the operator.
+ *
+ * WHY TELEGRAM, NOT SMS. This relay shipped on SMS.ir (6169f7d) and the owner
+ * has since ruled that out: errors must not draw down the SMS balance that OTP
+ * LOGIN depends on. Telegram is free, and a 4096-character message can carry
+ * the title, culprit, level, event count, first/last seen AND a clickable link
+ * to the issue — where a 70-character SMS segment could carry a truncated
+ * exception name and nothing else. **SMS.ir itself is untouched** and remains
+ * the owner-locked channel for OTP and proformas.
  *
  * AUTH. A shared secret in the query string (`?key=…`), not a header:
  * GlitchTip's webhook ProjectAlert lets the owner configure a URL and nothing
  * else — there is no field for a custom header. Compared with a
  * constant-time comparison, and the route refuses to run at all when
  * ALERT_RELAY_SECRET is unset (fail closed — an unset secret must never mean
- * "no auth required" on an endpoint that spends money).
+ * "no auth required" on a publicly reachable endpoint).
  *
- * THROTTLE. See relayThrottle.ts. An error storm is the NORMAL case for this
- * endpoint, and unthrottled it would drain the SMS balance that OTP login
- * depends on. Suppressed alerts are counted and reported in the next message,
- * never silently dropped.
+ * THROTTLE. See relayThrottle.ts, including why the limits are looser than the
+ * SMS ones. An error storm is the NORMAL case for this endpoint. Suppressed
+ * alerts are counted and reported in the next message, never silently dropped.
  *
- * NON-FATAL. Every failure path answers 200/2xx-ish with a reason instead of
- * an error status: this endpoint is called by a monitoring system, and a 500
- * here would produce retries, alerts about the alerter, and noise in the very
- * error tracker it is reading from. The only 4xx is a bad secret.
+ * NON-FATAL. Every failure path answers 2xx with a reason instead of an error
+ * status: this endpoint is called by a monitoring system, and a 500 here would
+ * produce retries, alerts about the alerter, and noise in the very error
+ * tracker it is reading from. The only 4xx is a bad secret. Telegram is a
+ * network dependency that is filtered in Iran and may stop answering at any
+ * time; see integrations/telegram.ts for the timeout / no-retry / report-once
+ * policy that keeps that from becoming an outage of this route.
  *
- * ── OWNER SETUP (must be done once, in the GlitchTip UI) ──────────────────
- *  1. Set ALERT_RELAY_SECRET and ALERT_SMS_TO in .env (see .env.example),
- *     then `docker compose up -d web`.
- *  2. GlitchTip → your organization → the project → Alerts → "Create New Alert".
- *  3. Timespan 1 minute, "Notify when 1 event(s) occur" (the throttle here is
- *     what protects the SMS balance, so keep GlitchTip's own trigger loose).
- *  4. Under "Alert Recipients" choose **Webhook** (NOT Email — there is no
- *     SMTP on this host) and paste:
- *       https://ahantime.com/api/internal/alert-relay?key=<ALERT_RELAY_SECRET>
- *  5. Save, then use GlitchTip's "Send Test Notification" and confirm one SMS
- *     arrives. A second test within ALERT_RELAY_COALESCE_SECONDS is EXPECTED
- *     not to arrive — that is the coalescing working, not a failure.
+ * ── OWNER SETUP (must be done once — the code cannot do it for you) ────────
+ *  A. Telegram, in the app:
+ *     1. Message @BotFather → /newbot → pick a name and a @username.
+ *        BotFather answers with the token: `8123456789:AA…`. That is
+ *        TELEGRAM_BOT_TOKEN. Treat it as a password — anyone holding it can
+ *        post as the bot.
+ *     2. Decide where alerts land. Simplest: open a chat with your new bot and
+ *        press Start (a bot cannot message you until you do). For a team,
+ *        create a group/channel and add the bot as an admin instead.
+ *     3. Get the chat id: send any message in that chat, then open
+ *        https://api.telegram.org/bot<TOKEN>/getUpdates and read
+ *        `result[0].message.chat.id`. Private chats are positive
+ *        (`123456789`), groups/channels negative (`-1001234567890`). That is
+ *        TELEGRAM_ALERT_CHAT_ID.
+ *  B. Put TELEGRAM_BOT_TOKEN, TELEGRAM_ALERT_CHAT_ID and ALERT_RELAY_SECRET
+ *     in .env (see .env.example), then `docker compose up -d web`.
+ *  C. GlitchTip → your organization → the project → Alerts → "Create New Alert"
+ *     → timespan 1 minute, "Notify when 1 event(s) occur" (the throttle here
+ *       is what protects the operator, so keep GlitchTip's trigger loose)
+ *     → Alert Recipients: **Webhook** (NOT Email — there is no SMTP here)
+ *     → URL: https://ahantime.com/api/internal/alert-relay?key=<ALERT_RELAY_SECRET>
+ *     → Save, then "Send Test Notification" and confirm one Telegram message
+ *       arrives. A second test inside ALERT_RELAY_COALESCE_SECONDS is EXPECTED
+ *       not to arrive — that is the coalescing working, not a failure.
  */
-
-/** Everything below is untrusted input from a webhook — parsed defensively.
- *  GlitchTip's generic webhook payload is Slack-shaped
- *  (`{ text, alias, attachments: [{ title, title_link, text }], sections }`)
- *  and has changed shape across versions, so nothing here is required and no
- *  field is trusted to be a string. */
-function summarize(body: unknown): string {
-  const b = (body ?? {}) as Record<string, unknown>;
-  const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : '');
-  const attachments = Array.isArray(b.attachments) ? b.attachments : [];
-  const first = (attachments[0] ?? {}) as Record<string, unknown>;
-  // Title first — it carries the exception type/message, which is the part an
-  // operator can act on. `text` is usually just "GlitchTip Alert".
-  const parts = [str(first.title), str(first.text), str(b.text)].filter(Boolean);
-  const seen = new Set<string>();
-  const unique = parts.filter((p) => !seen.has(p) && seen.add(p));
-  return unique.join(' — ') || 'رویداد جدید';
-}
-
-/** SMS.ir bills per 70-char segment; an error message can be arbitrarily long
- *  and the alert is a nudge to go look, not the log itself. */
-function clamp(text: string, max: number): string {
-  const flat = text.replace(/\s+/g, ' ').trim();
-  return flat.length <= max ? flat : `${flat.slice(0, max - 1)}…`;
-}
 
 async function POSTImpl(req: NextRequest) {
   const secret = process.env.ALERT_RELAY_SECRET;
   if (!secret) {
     // Fail CLOSED. An unset secret is a misconfiguration, and treating it as
-    // "open" would leave an unauthenticated, SMS-spending endpoint exposed.
+    // "open" would leave an unauthenticated relay endpoint exposed.
     return NextResponse.json({ ok: false, reason: 'not_configured' }, { status: 503 });
   }
   // `new URL(req.url)`, not `req.nextUrl`: this handler is also reachable from
@@ -92,13 +87,12 @@ async function POSTImpl(req: NextRequest) {
     return NextResponse.json({ ok: false, reason: 'forbidden' }, { status: 403 });
   }
 
-  const to = normalizeMobile(process.env.ALERT_SMS_TO ?? '');
-  if (!to) {
-    reportError(new Error('alert-relay: ALERT_SMS_TO missing or not an Iranian mobile'), {
-      scope: 'alerts',
-      route: 'internal/alert-relay',
-    });
-    return NextResponse.json({ ok: false, reason: 'no_recipient' }, { status: 503 });
+  // Checked BEFORE the throttle is consumed: with no bot token or chat id
+  // there is nowhere to deliver, and burning a throttle slot on an
+  // undeliverable alert would mute a correctly-configured one later. Answering
+  // `sent: false` is the point — the relay must never imply it delivered.
+  if (!telegramConfig()) {
+    return NextResponse.json({ ok: false, sent: false, reason: 'no_recipient' }, { status: 503 });
   }
 
   const body: unknown = await req.json().catch(() => null);
@@ -109,22 +103,21 @@ async function POSTImpl(req: NextRequest) {
     return NextResponse.json({ ok: true, sent: false, reason: decision.reason, suppressed: decision.suppressed });
   }
 
-  const more = decision.suppressed > 0 ? ` (+${decision.suppressed} مورد دیگر)` : '';
-  const text = clamp(`آهن‌تایم | خطای سرور: ${summarize(body)}${more}`, 300);
-
   try {
-    const res = await sendSms(to, text, 'alert');
-    if (!res.ok) {
-      reportError(new Error('alert-relay: SMS send failed'), {
-        scope: 'alerts',
-        route: 'internal/alert-relay',
-        permanent: res.permanent === true,
-      });
-    }
-    return NextResponse.json({ ok: true, sent: res.ok, suppressed: decision.suppressed });
-  } catch (err) {
-    // Never surface a 5xx to the monitoring system — see the docblock.
-    reportError(err, { scope: 'alerts', route: 'internal/alert-relay' });
+    const res = await sendTelegramHtml(buildAlertHtml(body, decision.suppressed));
+    // A failure is NOT reported here: telegram.ts reports once per transition
+    // into a broken state (92cab87's rule). Reporting per alert would mint a
+    // GlitchTip issue per attempt, and each of those issues webhooks straight
+    // back to this route.
+    return NextResponse.json({
+      ok: true,
+      sent: res.ok,
+      ...(res.ok ? {} : { reason: res.reason, status: res.status }),
+      suppressed: decision.suppressed,
+    });
+  } catch {
+    // sendTelegramHtml is written not to throw; this is the belt to its
+    // braces. Never surface a 5xx to the monitoring system — see the docblock.
     return NextResponse.json({ ok: true, sent: false, reason: 'send_error' });
   }
 }

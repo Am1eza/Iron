@@ -1,34 +1,46 @@
 // @vitest-environment node
 /**
- * GlitchTip → SMS alert relay (W29, audit area 16).
+ * GlitchTip → Telegram alert relay (W29, audit area 16).
  *
- * The property that matters most here is NOT "an alert produces an SMS" — it
- * is that an error STORM does not produce an SMS storm. GlitchTip has 1939
- * issues on record; unthrottled, this endpoint would drain the SMS balance
- * that OTP login depends on and lock everyone out of the site while trying to
- * report that the site is broken.
+ * Three properties matter more than "an alert produces a message":
+ *
+ *  1. An error STORM must not become a message storm. GlitchTip has 1939
+ *     issues on record and a bad deploy produces hundreds of events a minute.
+ *  2. Telegram is FILTERED IN IRAN. Every way it can fail — 4xx, 5xx, a
+ *     connection that hangs until the timeout — must leave this route
+ *     answering fast, answering 2xx, and NOT minting a fresh GlitchTip issue
+ *     per attempt (which would webhook straight back here).
+ *  3. The message is built from an untrusted webhook payload and sent with
+ *     `parse_mode: HTML`. An unescaped `<` in a stack trace makes Telegram
+ *     reject the whole message with a 400 — the alert is silently lost at
+ *     exactly the moment it was needed.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-// `vi.mock` is hoisted above the imports, so the spy has to be created inside
-// the factory and read back afterwards rather than closed over.
-vi.mock('@/lib/server/integrations/smsir', () => ({
-  sendSms: vi.fn(async () => ({ ok: true })),
-}));
-
-import { sendSms as sendSmsReal } from '@/lib/server/integrations/smsir';
 import { POST } from './route';
-
-const sendSms = vi.mocked(sendSmsReal);
+import { buildAlertHtml } from '@/lib/server/alerts/alertMessage';
 import { resetAlertThrottle } from '@/lib/server/alerts/relayThrottle';
+import { resetCircuitBreakers } from '@/lib/server/utils/resilience';
+import { TELEGRAM_MAX_MESSAGE_CHARS } from '@/lib/server/integrations/telegram';
 
 const SECRET = 'relay-secret-for-tests';
-const OPERATOR = '09121234567';
+const TOKEN = '8123456789:AA-test-token';
+const CHAT_ID = '-1001234567890';
+
+const fetchMock = vi.fn();
+
+function ok(): Response {
+  return { ok: true, status: 200, json: async () => ({ ok: true, result: {} }) } as unknown as Response;
+}
+function httpError(status: number, description = 'Bad Request'): Response {
+  return { ok: false, status, json: async () => ({ ok: false, description }) } as unknown as Response;
+}
 
 function post(key: string | null, body: unknown = { text: 'GlitchTip Alert' }) {
-  const url = key === null
-    ? 'https://ahantime.com/api/internal/alert-relay'
-    : `https://ahantime.com/api/internal/alert-relay?key=${encodeURIComponent(key)}`;
+  const url =
+    key === null
+      ? 'https://ahantime.com/api/internal/alert-relay'
+      : `https://ahantime.com/api/internal/alert-relay?key=${encodeURIComponent(key)}`;
   return POST(
     new Request(url, {
       method: 'POST',
@@ -38,22 +50,36 @@ function post(key: string | null, body: unknown = { text: 'GlitchTip Alert' }) {
   );
 }
 
+/** The JSON body posted to api.telegram.org on call `i`. */
+function sentPayload(i = 0): { chat_id: string; text: string; parse_mode: string } {
+  const init = fetchMock.mock.calls[i]![1] as { body: string };
+  return JSON.parse(init.body);
+}
+
 beforeEach(() => {
   resetAlertThrottle();
-  sendSms.mockClear();
-  sendSms.mockImplementation(async () => ({ ok: true }));
+  resetCircuitBreakers();
+  fetchMock.mockReset();
+  fetchMock.mockImplementation(async () => ok());
+  vi.stubGlobal('fetch', fetchMock);
+  // reportError writes one structured JSON line per report; silence it and
+  // count it (the "does not spam the tracker" test reads this).
+  vi.spyOn(console, 'error').mockImplementation(() => {});
   process.env.ALERT_RELAY_SECRET = SECRET;
-  process.env.ALERT_SMS_TO = OPERATOR;
-  // Coalescing off by default in these tests so the HOURLY cap is what is
-  // being measured; the coalesce window has its own cases below.
+  process.env.TELEGRAM_BOT_TOKEN = TOKEN;
+  process.env.TELEGRAM_ALERT_CHAT_ID = CHAT_ID;
+  // Coalescing off by default so the HOURLY cap is what is being measured; the
+  // coalesce window has its own cases below.
   process.env.ALERT_RELAY_COALESCE_SECONDS = '0';
-  delete process.env.ALERT_RELAY_MAX_SMS_PER_HOUR;
+  delete process.env.ALERT_RELAY_MAX_PER_HOUR;
 });
 afterEach(() => {
   delete process.env.ALERT_RELAY_SECRET;
-  delete process.env.ALERT_SMS_TO;
+  delete process.env.TELEGRAM_BOT_TOKEN;
+  delete process.env.TELEGRAM_ALERT_CHAT_ID;
   delete process.env.ALERT_RELAY_COALESCE_SECONDS;
-  delete process.env.ALERT_RELAY_MAX_SMS_PER_HOUR;
+  delete process.env.ALERT_RELAY_MAX_PER_HOUR;
+  vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
 
@@ -61,18 +87,18 @@ describe('auth', () => {
   it('403s a wrong secret and sends nothing', async () => {
     const res = await post('wrong-secret');
     expect(res.status).toBe(403);
-    expect(sendSms).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('403s a missing key', async () => {
     expect((await post(null)).status).toBe(403);
-    expect(sendSms).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('403s a correct PREFIX of the secret (no length/prefix oracle)', async () => {
     expect((await post(SECRET.slice(0, -1))).status).toBe(403);
     expect((await post(`${SECRET}x`)).status).toBe(403);
-    expect(sendSms).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('fails CLOSED when no secret is configured — never open', async () => {
@@ -80,108 +106,282 @@ describe('auth', () => {
     const res = await post('anything');
     expect(res.status).toBe(503);
     expect(await res.json()).toMatchObject({ reason: 'not_configured' });
-    expect(sendSms).not.toHaveBeenCalled();
-  });
-
-  it('refuses to send without a valid recipient', async () => {
-    process.env.ALERT_SMS_TO = 'not-a-mobile';
-    const res = await post(SECRET);
-    expect(await res.json()).toMatchObject({ reason: 'no_recipient' });
-    expect(sendSms).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
 
-describe('throttling — an error storm must not become an SMS storm', () => {
-  it('caps at ALERT_RELAY_MAX_SMS_PER_HOUR however many alerts arrive', async () => {
-    process.env.ALERT_RELAY_MAX_SMS_PER_HOUR = '4';
+describe('delivery', () => {
+  it('posts one HTML message to the Bot API sendMessage endpoint', async () => {
+    const res = await post(SECRET, {
+      attachments: [{ title: 'ValueError: relay HTTP 402', title_link: 'https://ahantime.com:9443/issues/7' }],
+    });
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ ok: true, sent: true });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe(`https://api.telegram.org/bot${TOKEN}/sendMessage`);
+    expect((init as { method: string }).method).toBe('POST');
+
+    const payload = sentPayload();
+    expect(payload.chat_id).toBe(CHAT_ID);
+    expect(payload.parse_mode).toBe('HTML');
+    expect(payload.text).toContain('relay HTTP 402');
+    expect(payload.text).toContain('https://ahantime.com:9443/issues/7');
+  });
+
+  it('sets an abort signal — Telegram may hang rather than refuse from Iran', async () => {
+    await post(SECRET);
+    const init = fetchMock.mock.calls[0]![1] as { signal?: AbortSignal };
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it('carries the rich context an SMS segment could not: level, count, first/last seen, link', async () => {
+    await post(SECRET, {
+      text: 'GlitchTip Alert',
+      attachments: [
+        {
+          title: 'TypeError: cannot read x of undefined',
+          title_link: 'https://ahantime.com:9443/ahantime/issues/42',
+          text: 'src/app/api/prices/route.ts',
+          fields: [
+            { title: 'Project', value: 'ahantime' },
+            { title: 'Level', value: 'error' },
+            { title: 'Count', value: 137 },
+            { title: 'First Seen', value: '2026-08-01T09:00:00Z' },
+            { title: 'Last Seen', value: '2026-08-04T06:00:00Z' },
+          ],
+        },
+      ],
+    });
+    const { text } = sentPayload();
+    for (const fragment of [
+      'cannot read x of undefined',
+      'src/app/api/prices/route.ts',
+      'ahantime',
+      'error',
+      '137',
+      '2026-08-01T09:00:00Z',
+      '2026-08-04T06:00:00Z',
+      'https://ahantime.com:9443/ahantime/issues/42',
+    ]) {
+      expect(text).toContain(fragment);
+    }
+  });
+
+  it('refuses to send — and never claims it sent — with no bot token or chat id', async () => {
+    for (const missing of ['TELEGRAM_BOT_TOKEN', 'TELEGRAM_ALERT_CHAT_ID'] as const) {
+      resetAlertThrottle();
+      fetchMock.mockClear();
+      const saved = process.env[missing];
+      delete process.env[missing];
+
+      const res = await post(SECRET);
+      expect(res.status).toBe(503);
+      expect(await res.json()).toMatchObject({ ok: false, sent: false, reason: 'no_recipient' });
+      expect(fetchMock).not.toHaveBeenCalled();
+
+      process.env[missing] = saved;
+    }
+  });
+
+  it('an unconfigured relay does not burn a throttle slot', async () => {
+    delete process.env.TELEGRAM_BOT_TOKEN;
+    for (let i = 0; i < 5; i++) await post(SECRET);
+    process.env.TELEGRAM_BOT_TOKEN = TOKEN;
+
+    expect(await (await post(SECRET)).json()).toMatchObject({ sent: true });
+  });
+});
+
+describe('escaping — an unescaped stack trace silently kills the alert', () => {
+  it('escapes &, < and > everywhere payload text is interpolated', async () => {
+    await post(SECRET, {
+      attachments: [
+        {
+          title: 'TypeError: <script>alert(1)</script> & "quotes" in <Foo bar={a>b}>',
+          text: 'at <anonymous> (a&b.ts)',
+        },
+      ],
+    });
+    const { text } = sentPayload();
+
+    expect(text).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
+    expect(text).toContain('&amp;');
+    expect(text).toContain('at &lt;anonymous&gt; (a&amp;b.ts)');
+    // No raw payload-derived tag survived.
+    expect(text).not.toContain('<script>');
+    expect(text).not.toContain('<Foo');
+    // …while the scaffolding this module wrote itself is still real markup.
+    expect(text).toContain('<b>');
+  });
+
+  it('never double-escapes an ampersand', () => {
+    const html = buildAlertHtml({ attachments: [{ title: 'a & b' }] }, 0);
+    expect(html).toContain('a &amp; b');
+    expect(html).not.toContain('&amp;amp;');
+  });
+
+  it('escapes the issue link inside the href attribute', () => {
+    const html = buildAlertHtml(
+      { attachments: [{ title: 'x', title_link: 'https://ahantime.com:9443/issues/?a=1&b=2' }] },
+      0,
+    );
+    expect(html).toContain('href="https://ahantime.com:9443/issues/?a=1&amp;b=2"');
+  });
+
+  it('drops a non-http link rather than relaying it into the operator\'s client', () => {
+    const html = buildAlertHtml({ attachments: [{ title: 'x', title_link: 'javascript:alert(1)' }] }, 0);
+    expect(html).not.toContain('javascript:');
+    expect(html).not.toContain('<a href');
+  });
+});
+
+describe('size — Telegram 400s on anything over 4096 chars', () => {
+  it('truncates a giant stack trace well inside the limit', async () => {
+    await post(SECRET, { attachments: [{ title: 'x'.repeat(50_000), text: 'y'.repeat(50_000) }] });
+    const { text } = sentPayload();
+    expect(text.length).toBeLessThan(TELEGRAM_MAX_MESSAGE_CHARS);
+    expect(text).toContain('…');
+  });
+
+  it('truncation never leaves a half-written HTML entity behind', async () => {
+    // All-ampersand text is the adversarial case: every char escapes to five.
+    await post(SECRET, { attachments: [{ title: '&'.repeat(50_000) }] });
+    const { text } = sentPayload();
+    expect(text.length).toBeLessThan(TELEGRAM_MAX_MESSAGE_CHARS);
+    expect(/&[#a-zA-Z0-9]*$/.test(text)).toBe(false);
+    // Every `&` that made it in is a complete `&amp;`.
+    expect(text.split('&').length - 1).toBe(text.split('&amp;').length - 1);
+  });
+
+  it('survives a payload of an entirely unexpected shape', async () => {
+    for (const body of [null, [], 'a string', { attachments: 'not-an-array' }, { attachments: [null] }, {}]) {
+      resetAlertThrottle();
+      fetchMock.mockClear();
+      const res = await post(SECRET, body);
+      expect(res.status).toBe(200);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    }
+  });
+});
+
+describe('throttling — an error storm must not become a message storm', () => {
+  it('caps at ALERT_RELAY_MAX_PER_HOUR however many alerts arrive', async () => {
+    process.env.ALERT_RELAY_MAX_PER_HOUR = '4';
     for (let i = 0; i < 200; i++) await post(SECRET);
-    expect(sendSms).toHaveBeenCalledTimes(4);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 
-  it('defaults to a small cap even with nothing configured', async () => {
-    for (let i = 0; i < 50; i++) await post(SECRET);
-    expect(sendSms.mock.calls.length).toBeLessThanOrEqual(4);
-    expect(sendSms.mock.calls.length).toBeGreaterThan(0);
+  it('defaults to a hard ceiling even with nothing configured', async () => {
+    for (let i = 0; i < 500; i++) await post(SECRET);
+    expect(fetchMock.mock.calls.length).toBeLessThanOrEqual(20);
+    expect(fetchMock.mock.calls.length).toBeGreaterThan(0);
   });
 
-  it('coalesces inside the window — one SMS, and the rest are counted not lost', async () => {
-    process.env.ALERT_RELAY_COALESCE_SECONDS = '300';
+  it('coalesces inside the window — one message, and the rest are counted not lost', async () => {
+    process.env.ALERT_RELAY_COALESCE_SECONDS = '60';
     await post(SECRET);
     for (let i = 0; i < 12; i++) await post(SECRET);
-    expect(sendSms).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
 
     const last = await post(SECRET);
     expect(await last.json()).toMatchObject({ sent: false, reason: 'coalesced', suppressed: 13 });
   });
 
   it('reports the suppressed count in the NEXT message that does go out', async () => {
-    process.env.ALERT_RELAY_COALESCE_SECONDS = '300';
+    process.env.ALERT_RELAY_COALESCE_SECONDS = '60';
     const t0 = Date.now();
     await post(SECRET); // sends
     for (let i = 0; i < 7; i++) await post(SECRET); // coalesced
 
-    // The window rolls.
-    vi.spyOn(Date, 'now').mockReturnValue(t0 + 301_000);
+    vi.spyOn(Date, 'now').mockReturnValue(t0 + 61_000);
     await post(SECRET);
 
-    expect(sendSms).toHaveBeenCalledTimes(2);
-    expect(sendSms.mock.calls[1]![1]).toContain('+7');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(sentPayload(1).text).toContain('+7');
   });
 
-  it('the hourly window rolls — alerting resumes after an hour, it is not a permanent mute', async () => {
-    process.env.ALERT_RELAY_MAX_SMS_PER_HOUR = '2';
+  it('the hourly window rolls — it is a ceiling, not a permanent mute', async () => {
+    process.env.ALERT_RELAY_MAX_PER_HOUR = '2';
     const t0 = Date.now();
     for (let i = 0; i < 10; i++) await post(SECRET);
-    expect(sendSms).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
 
     vi.spyOn(Date, 'now').mockReturnValue(t0 + 61 * 60_000);
     await post(SECRET);
-    expect(sendSms).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 });
 
-describe('message', () => {
-  it('leads with the attachment title — the actionable part', async () => {
-    await post(SECRET, {
-      text: 'GlitchTip Alert',
-      attachments: [{ title: 'ValueError: deepseek HTTP 402', text: 'ahantime · production' }],
-    });
-    const [mobile, text, kind] = sendSms.mock.calls[0]!;
-    expect(mobile).toBe(OPERATOR);
-    expect(kind).toBe('alert');
-    expect(text).toContain('deepseek HTTP 402');
-  });
-
-  it('never lets a webhook dictate an unbounded SMS length', async () => {
-    await post(SECRET, { attachments: [{ title: 'x'.repeat(5000) }] });
-    expect((sendSms.mock.calls[0]![1] as string).length).toBeLessThanOrEqual(300);
-  });
-
-  it('survives a payload of an entirely unexpected shape', async () => {
-    for (const body of [null, [], 'a string', { attachments: 'not-an-array' }, { attachments: [null] }, {}]) {
-      resetAlertThrottle();
-      sendSms.mockClear();
-      const res = await post(SECRET, body);
-      expect(res.status).toBe(200);
-      expect(sendSms).toHaveBeenCalledTimes(1);
-    }
-  });
-});
-
-describe('non-fatal', () => {
-  it('a failed SMS is still a 200 — a 5xx here would make the monitor retry and alert about the alerter', async () => {
-    sendSms.mockImplementation(async () => ({ ok: false, permanent: true }));
+describe('non-fatal — Telegram is an untrusted network dependency', () => {
+  it('a 400 (bad token / malformed HTML) is still a 200 with sent:false', async () => {
+    fetchMock.mockImplementation(async () => httpError(400, "can't parse entities"));
     const res = await post(SECRET);
     expect(res.status).toBe(200);
-    expect(await res.json()).toMatchObject({ ok: true, sent: false });
+    expect(await res.json()).toMatchObject({ ok: true, sent: false, reason: 'http_error', status: 400 });
   });
 
-  it('a THROWING sms integration is still a 200', async () => {
-    sendSms.mockImplementation(async () => {
-      throw new Error('provider exploded');
+  it('a 401 (revoked token) is still a 200', async () => {
+    fetchMock.mockImplementation(async () => httpError(401, 'Unauthorized'));
+    expect((await post(SECRET)).status).toBe(200);
+  });
+
+  it('a 5xx is still a 200 — a 5xx here would make the monitor retry and alert about the alerter', async () => {
+    fetchMock.mockImplementation(async () => httpError(502, 'Bad Gateway'));
+    const res = await post(SECRET);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ ok: true, sent: false, status: 502 });
+  });
+
+  it('a timeout is still a fast 200 — a blocked route must not hold the handler open', async () => {
+    fetchMock.mockImplementation(async () => {
+      const err = new Error('The operation was aborted due to timeout');
+      err.name = 'TimeoutError';
+      throw err;
     });
     const res = await post(SECRET);
     expect(res.status).toBe(200);
-    expect(await res.json()).toMatchObject({ sent: false, reason: 'send_error' });
+    expect(await res.json()).toMatchObject({ ok: true, sent: false, reason: 'network_error' });
+  });
+
+  it('NEVER retries — one attempt per alert, or a filtered host costs N timeouts', async () => {
+    fetchMock.mockImplementation(async () => {
+      throw new Error('ECONNRESET');
+    });
+    await post(SECRET);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports a Telegram outage ONCE, not once per alert — the report is itself an alert', async () => {
+    fetchMock.mockImplementation(async () => {
+      throw new Error('ETIMEDOUT');
+    });
+    const errorSpy = vi.mocked(console.error);
+
+    for (let i = 0; i < 10; i++) await post(SECRET);
+
+    // withResilience opens the circuit on the second consecutive failure and
+    // reports exactly once on that transition (92cab87). Without this rule
+    // each report becomes a GlitchTip issue that webhooks back into this very
+    // route.
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+    // …and while the circuit is open no further network calls are made at all.
+    expect(fetchMock.mock.calls.length).toBeLessThan(10);
+  });
+
+  it('recovers on its own once Telegram answers again', async () => {
+    process.env.ALERT_RELAY_MAX_PER_HOUR = '100';
+    const t0 = Date.now();
+    fetchMock.mockImplementation(async () => {
+      throw new Error('ETIMEDOUT');
+    });
+    await post(SECRET);
+    await post(SECRET); // circuit opens here
+
+    vi.spyOn(Date, 'now').mockReturnValue(t0 + 121_000); // the breaker cools down
+    fetchMock.mockImplementation(async () => ok());
+    expect(await (await post(SECRET)).json()).toMatchObject({ sent: true });
   });
 });
