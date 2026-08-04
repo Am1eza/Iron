@@ -6,7 +6,11 @@
 
 .top {
   display: grid;
-  grid-template-columns: 1.6fr repeat(5, 1fr);
+  /* brand + products + FOOTER_COLUMNS (lib/data/nav.ts) + contact — keep this
+     column count in sync with that array length or the last columns wrap
+     onto an orphan row. */
+  grid-template-columns: 1.6fr repeat(7, 1fr);
+  align-items: start;
   gap: var(--space-8) var(--space-6);
   padding-block: var(--space-16) var(--space-12);
 }
