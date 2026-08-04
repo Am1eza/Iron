@@ -40,7 +40,13 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Remove server-only routes (unsupported by static export)
-        run: rm -rf src/app/api src/app/account
+        # sitemap.ts is `dynamic = 'force-dynamic'` and `output: export` rejects
+        # that outright. Deleting it here is the right answer rather than a
+        # workaround: this job builds with NEXT_PUBLIC_API_MODE=mock, so the only
+        # sitemap it could produce would list fixture URLs — which is the exact
+        # failure the force-dynamic exists to prevent (see src/app/sitemap.ts).
+        # A preview of mock data should not publish a sitemap at all.
+        run: rm -rf src/app/api src/app/account src/app/sitemap.ts
 
       - name: Build static export
         run: pnpm build
