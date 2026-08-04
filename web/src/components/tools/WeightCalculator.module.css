@@ -89,7 +89,7 @@
   font: var(--t-input);
   color: var(--color-text-strong);
   background: var(--color-surface);
-  border: var(--border-hairline) solid var(--color-border-strong);
+  border: var(--border-hairline) solid var(--color-field-border);
   border-radius: var(--radius-sm);
   padding: var(--space-3) var(--space-4);
   min-block-size: 48px;

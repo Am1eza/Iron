@@ -14,7 +14,6 @@
    literal text needing 4.5:1, so it uses the same text-safe token as .error
    below rather than the borderline-on-tinted-surfaces --color-loss. */
 .req { color: var(--color-loss-text); }
-:root[data-theme='dark'] .req { color: var(--loss-400); }
 
 .input,
 .select,
@@ -22,14 +21,14 @@
   font: var(--t-input);
   color: var(--color-text-strong);
   background: var(--color-surface);
-  border: var(--border-hairline) solid var(--color-hairline);
+  border: var(--border-hairline) solid var(--color-field-border);
   border-radius: var(--radius-xs);
   padding: var(--space-3) var(--space-4);
   inline-size: 100%;
 }
 .input:hover,
 .select:hover,
-.textarea:hover { border-color: var(--color-border-strong); }
+.textarea:hover { border-color: var(--color-text-muted); }
 .input:focus-visible,
 .select:focus-visible,
 .textarea:focus-visible {
@@ -43,7 +42,6 @@
 
 .helper { font: var(--t-caption); color: var(--color-text-muted); }
 .error { font: var(--t-caption); color: var(--color-loss-text); }
-:root[data-theme='dark'] .error { color: var(--loss-400); }
 
 .radios { display: flex; flex-wrap: wrap; gap: var(--space-4); }
 .radio { display: inline-flex; align-items: center; gap: var(--space-2); cursor: pointer; }

@@ -33,7 +33,7 @@
   min-inline-size: 12rem;
   block-size: 44px;
   padding-inline: var(--space-3);
-  border: var(--border-hairline) solid var(--color-border-strong);
+  border: var(--border-hairline) solid var(--color-field-border);
   border-radius: var(--radius-sm);
   background: var(--color-surface);
   color: var(--color-text-strong);

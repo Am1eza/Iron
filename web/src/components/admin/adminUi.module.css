@@ -106,7 +106,7 @@
 .select {
   min-block-size: 38px;
   padding: var(--space-1) var(--space-2);
-  border: var(--border-hairline) solid var(--color-border-strong);
+  border: var(--border-hairline) solid var(--color-field-border);
   border-radius: var(--radius-md);
   background: var(--color-surface);
   color: var(--color-text);
@@ -117,7 +117,7 @@
   inline-size: 8.5rem;
   min-block-size: 36px;
   padding: var(--space-1) var(--space-2);
-  border: var(--border-hairline) solid var(--color-border-strong);
+  border: var(--border-hairline) solid var(--color-field-border);
   border-radius: var(--radius-md);
   font: var(--t-body-sm);
   direction: ltr;

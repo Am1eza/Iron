@@ -14,6 +14,10 @@
   /* ===== PRIMITIVES ===== */
   --neutral-0:#FFFFFF; --neutral-25:#FAFBFD; --neutral-50:#F4F7FA; --neutral-100:#ECF0F5;
   --neutral-150:#E5E9F0; --neutral-200:#D6DDE7; --neutral-300:#BFC8D4; --neutral-400:#97A2B0;
+  /* -450 exists for exactly one job: the lightest steel that still clears the
+     3:1 non-text contrast floor (WCAG 1.4.11) against white. -400 is 2.59:1
+     and -500 is 5.05:1 (visually heavy for a 1px field outline). */
+  --neutral-450:#838E9C;
   --neutral-500:#64707E; --neutral-600:#4A5562; --neutral-700:#2B333D; --neutral-800:#20272F;
   --neutral-850:#1B2128; --neutral-900:#171C22; --neutral-950:#11151A;
   --cobalt-50:#EEF3FF; --cobalt-100:#DCE6FF; --cobalt-200:#B9CDFF; --cobalt-300:#8FAEFF;
@@ -30,7 +34,7 @@
   --emerald-50:#E6F4F3; --emerald-100:#C7E8E6; --emerald-200:#94D3CF; --emerald-300:#58BAB4;
   --emerald-400:#149B93; --emerald-500:#0A7F77; --emerald-550:#067068; --emerald-600:#04635D; --emerald-700:#025652;
   --emerald-800:#02443F; --emerald-900:#02332F;
-  --gain-50:#E9F8EF; --gain-100:#CBEFD8; --gain-500:#15A34A; --gain-600:#128B40; --gain-700:#0E6E33;
+  --gain-50:#E9F8EF; --gain-100:#CBEFD8; --gain-400:#4ADE80; --gain-500:#15A34A; --gain-600:#128B40; --gain-700:#0E6E33;
   --loss-50:#FDECEB; --loss-100:#FAD2CF; --loss-400:#EA6259; --loss-500:#E0322B; --loss-600:#C42822; --loss-700:#A11F1B;
   /* Steel — gunmetal for the "factory" panels/blocks, tinted toward the brand
      teal so the dark panels and the mark read as one material */
@@ -40,6 +44,13 @@
   --color-bg:var(--neutral-50); --color-surface:var(--neutral-0); --color-surface-sunken:var(--neutral-50);
   --color-surface-raised:var(--neutral-0); --color-surface-inverse:var(--neutral-900);
   --color-hairline:var(--neutral-150); --color-border-strong:var(--neutral-200);
+  /* WCAG 2.2 · 1.4.11 Non-text Contrast. A text input's border IS its only
+     boundary — there is no fill or underline behind it — so it is a UI
+     component boundary needing 3:1, not decoration. --color-hairline
+     (#E5E9F0) gives 1.22:1 and --color-border-strong (#D6DDE7) 1.37:1 on
+     white: at low vision the login and request forms read as blank
+     whitespace. This token is the ONLY border every form control draws. */
+  --color-field-border:var(--neutral-450);
   --color-text:var(--neutral-700); --color-text-strong:var(--neutral-900); --color-text-muted:var(--neutral-500);
   --color-text-placeholder:var(--neutral-400); --color-text-inverse:var(--neutral-0);
   /* The mark itself — exact brand teal on light surfaces (lifted in dark). */
@@ -148,12 +159,21 @@
   /* mirrors the light theme's sunken===bg relationship (both neutral-50 there) */
   --color-surface-sunken:var(--neutral-950);
   --color-surface-inverse:var(--neutral-900); --color-hairline:rgba(255,255,255,.08); --color-border-strong:var(--neutral-700);
+  /* -400 is 6.6:1 on --color-surface and 5.8:1 on --color-surface-raised;
+     -450/-500 drop to ~3:1 on the raised surface, too close to the floor. */
+  --color-field-border:var(--neutral-400);
   --color-text:var(--neutral-100); --color-text-strong:var(--neutral-0); --color-text-muted:var(--neutral-400);
   --color-text-placeholder:var(--neutral-500);
   --color-brand:var(--emerald-300);
   --color-accent:var(--emerald-400); --color-accent-text:var(--emerald-300); --color-accent-tint:rgba(10,127,119,.16);
   --color-action:var(--emerald-550); --color-on-action:var(--neutral-0); --color-action-hover:var(--emerald-400); --color-action-press:var(--emerald-600); --color-action-text:var(--emerald-300); --color-focus:var(--emerald-400);
   --color-overlay:rgba(0,0,0,.6);
+  /* WCAG 1.4.3. The -text steps are tuned for a WHITE surface and were never
+     overridden here: --gain-700 lands at 2.69:1 and --loss-600 at 2.99:1 on
+     --color-surface, so every price movement in dark mode was unreadable.
+     The light steps give 9.8:1 / 5.2:1. --color-gain/--color-loss (graphical,
+     3:1) already pass at 5.2:1 / 3.8:1 and stay put. */
+  --color-gain-text:var(--gain-400); --color-loss-text:var(--loss-400);
   --shadow-sm:0 2px 8px rgba(0,0,0,.4); --shadow-md:0 8px 24px rgba(0,0,0,.5); --shadow-lg:0 16px 48px rgba(0,0,0,.6);
 
   /* Chart hues lift a step in dark so they stay vivid on the dark surface. */

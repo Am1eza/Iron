@@ -147,20 +147,18 @@
   font-size: 0.625rem;
   line-height: 1;
 }
-/* The ticker bar is always dark (see `.flat` above, which is white-on-dark in
-   both themes), so it needs the LIGHT end of the gain/loss ramps for contrast.
-   The token set has no such step: --color-gain resolves to --gain-500 (#15A34A)
-   and --color-loss to --loss-500 (#E0322B), both of which are mid-tones that
-   read muddy on this dark bar. Until --gain-400/--loss-300 exist in tokens.css
-   these stay literal — swapping them for the current tokens would visibly
-   darken the live ticker. */
+/* The ticker bar is always dark (see `.flat` below, which is white-on-dark in
+   both themes), so it needs the LIGHT end of the gain/loss ramps for contrast:
+   --color-gain-text/--color-loss-text are tuned for the LIGHT theme's white
+   surface and read at ~2.7:1 here. The primitives are used directly (as
+   --emerald-300 already is above) because this strip is dark irrespective of
+   the theme, so no theme-scoped semantic token can be correct for it.
+   --gain-400 was added to tokens.css as this exact literal (#4ADE80). */
 .up {
-  /* stylelint-disable-next-line scale-unlimited/declaration-strict-value -- no light-step gain token exists; see comment above */
-  color: #4ade80;
+  color: var(--gain-400);
 }
 .down {
-  /* stylelint-disable-next-line scale-unlimited/declaration-strict-value -- no light-step loss token exists; see comment above */
-  color: #f87171;
+  color: var(--loss-400);
 }
 .flat {
   color: rgba(255, 255, 255, 0.55);

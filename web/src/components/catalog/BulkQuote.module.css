@@ -57,7 +57,7 @@
   max-inline-size: 100%;
   block-size: 44px;
   padding-inline: var(--space-4);
-  border: var(--border-hairline) solid var(--color-border-strong);
+  border: var(--border-hairline) solid var(--color-field-border);
   border-radius: var(--radius-sm);
   background: var(--color-surface);
   color: var(--color-text-strong);
@@ -184,7 +184,7 @@
   max-inline-size: 100%;
   block-size: 44px;
   padding-inline: var(--space-3);
-  border: var(--border-hairline) solid var(--color-border-strong);
+  border: var(--border-hairline) solid var(--color-field-border);
   border-radius: var(--radius-sm);
   background: var(--color-surface);
   color: var(--color-text-strong);

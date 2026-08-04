@@ -4,7 +4,7 @@
   gap: var(--space-2);
   inline-size: 100%;
   background: var(--color-surface);
-  border: var(--border-hairline) solid var(--color-border-strong);
+  border: var(--border-hairline) solid var(--color-field-border);
   border-radius: var(--radius-pill);
   transition: border-color var(--dur-fast) var(--ease-standard),
     box-shadow var(--dur-fast) var(--ease-standard);
