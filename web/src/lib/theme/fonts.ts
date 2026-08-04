@@ -22,11 +22,19 @@ export const vazirmatn = localFont({
   preload: true,
 });
 
+// Not wired into any font stack (tokens.css) or the root layout's className
+// as of this comment — WebKit fails to render this font's GPOS mark
+// (dot) attachment at every weight, dropping dots from letters like ق/ش/ز
+// (turning them into ف/س/ر). Confirmed with an isolated static-instanced TTF
+// too, so it's a bug in the font file's GPOS tables vs. WebKit's renderer,
+// not something CSS/font-loading options can work around. Exported here in
+// case a future, non-broken Estedad build replaces the file — don't re-add
+// it to --font-display without re-testing in WebKit first.
 export const estedad = localFont({
   src: '../../../public/fonts/Estedad.var.woff2',
   variable: '--font-estedad',
   display: 'swap',
-  preload: true,
+  preload: false,
 });
 
 export const inter = localFont({

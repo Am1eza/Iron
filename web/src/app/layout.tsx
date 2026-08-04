@@ -7,7 +7,7 @@ import { getCategories, getSubsMap } from '@/lib/data/catalog';
 import { SiteChromeTop, SiteChromeBottom } from '@/components/layout/SiteChrome';
 import { getContact } from '@/lib/server/contact';
 import { RouteAnnouncer } from '@/components/a11y/RouteAnnouncer';
-import { vazirmatn, estedad, inter } from '@/lib/theme/fonts';
+import { vazirmatn, inter } from '@/lib/theme/fonts';
 import { LocaleProvider } from '@/i18n/LocaleProvider';
 import { LocaleScript } from '@/i18n/LocaleScript';
 import { Analytics } from '@/components/analytics/Analytics';
@@ -17,9 +17,15 @@ import faMessages from '../../messages/fa.json';
 /**
  * Root layout — the RTL, Persian-first shell.
  * <html lang="fa" dir="rtl"> + design tokens (via globals.css).
- * Fonts are self-hosted via `next/font/local` (lib/theme/fonts.ts); Estedad and
- * Vazirmatn preload automatically, and tokens.css consumes their `--font-*`
- * CSS variables (see the `className` below).
+ * Fonts are self-hosted via `next/font/local` (lib/theme/fonts.ts); Vazirmatn
+ * preloads automatically, and tokens.css consumes its `--font-*` CSS variable
+ * (see the `className` below). Estedad is exported from fonts.ts but no
+ * longer wired into any font stack — WebKit fails to render its GPOS
+ * mark-attachment (dot) positioning at every weight (confirmed via isolated
+ * static + variable instances, both broken, cmap/glyf data intact), silently
+ * dropping dots and turning e.g. ق into ف, ش into س. Chromium/Firefox render
+ * the same bytes correctly, so this is a WebKit font-engine bug, not
+ * something fixable from our CSS/loading code.
  *
  * Multi-language (fa default; en/ar/zh via the header's language switcher)
  * is deliberately layered in client-side (`LocaleProvider`/`LocaleScript`)
@@ -78,7 +84,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       lang="fa"
       dir="rtl"
       suppressHydrationWarning
-      className={`${vazirmatn.variable} ${estedad.variable} ${inter.variable}`}
+      className={`${vazirmatn.variable} ${inter.variable}`}
     >
       <body>
         <ThemeScript />

@@ -83,17 +83,25 @@
 
   /* ===== TYPOGRAPHY ===== */
   --font-fa:var(--font-vazirmatn),"Segoe UI",Tahoma,system-ui,sans-serif;
-  --font-display:var(--font-estedad),var(--font-vazirmatn),"Segoe UI",Tahoma,system-ui,sans-serif;
+  /* Estedad dropped from this stack: it renders correctly in Chromium/Firefox
+     but WebKit fails to place its dot glyphs via GPOS mark-attachment at
+     every weight, turning ق into ف, ش into س, ز into ر — a bug in the font
+     file itself (confirmed with an isolated static-instanced TTF too), not
+     something --font-fa/next-font options can route around. Vazirmatn is
+     confirmed correct in both engines up to weight 900, so it now carries
+     the display family alone rather than only being the WebKit-only fallback. */
+  --font-display:var(--font-vazirmatn),"Segoe UI",Tahoma,system-ui,sans-serif;
   --font-num:var(--font-vazirmatn),"Segoe UI",Tahoma,sans-serif;
   --font-latin:var(--font-inter),system-ui,"Segoe UI",Roboto,Arial,sans-serif;
   --t-display: 900 clamp(2rem,1.2rem + 3vw,3.25rem)/1.15 var(--font-display);
   --t-display-num: 800 clamp(1.5rem,1rem + 1.6vw,2.25rem)/1.1 var(--font-display);
   --t-h1: 800 clamp(1.625rem,1.2rem + 1.6vw,2rem)/1.25 var(--font-display);
   --t-h2: 800 clamp(1.375rem,1.1rem + 1vw,1.625rem)/1.3 var(--font-display);
-  /* h1–h3 all ride the display family (Estedad): a heading that switched to
-     Vazirmatn at h3 was the "fonts not uniform" inconsistency on card-heavy
-     pages (login, profile, club). h4 stays Vazirmatn as the body-weight
-     sub-title step. */
+  /* h1–h3 all ride the display family (Vazirmatn, see --font-display above):
+     a heading that switched families at h3 was the "fonts not uniform"
+     inconsistency on card-heavy pages (login, profile, club). h4 stays on
+     --font-fa as the body-weight sub-title step — same family as --font-display
+     now, but kept as a separate token since callers reference it by role. */
   --t-h3: 700 1.375rem/1.35 var(--font-display);
   --t-h4: 600 1.125rem/1.4 var(--font-fa);
   /* Small titled labels (admin brand, panel headers) — display family, was
