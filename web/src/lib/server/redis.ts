@@ -93,6 +93,32 @@ export async function cacheGetJson<T>(key: string): Promise<T | null> {
   }
 }
 
+/**
+ * Spread a cache TTL so synchronised expiries can't stampede the DB.
+ *
+ * Every read-through cache here is populated by whichever request happens to
+ * miss first, which means all the traffic that arrives in that same instant
+ * gets an IDENTICAL expiry timestamp. They then all expire together, and the
+ * whole burst misses together and hits Postgres together — a thundering herd
+ * that repeats on a fixed period forever. The sitewide 60s ticker poll is the
+ * worst case: it is genuinely synchronised across every open tab, so its 30s
+ * cache expires for everyone at once, twice a minute.
+ *
+ * Jitter is DOWNWARD ONLY (`[base·(1−spread), base]`). Each of these caches
+ * documents a staleness bound that other code reasons about ("bounded 30s
+ * staleness is fine", "categories change rarely"); jittering upward would
+ * quietly exceed the bound the comment promises, while jittering downward
+ * only ever makes the data fresher. The cost is a slightly lower hit rate,
+ * which is exactly what buys the de-synchronisation.
+ *
+ * Never returns less than 1 second — a sub-second TTL on a 1s base would make
+ * the cache useless rather than merely less effective.
+ */
+export function jitterTtl(baseSeconds: number, spread = 0.2): number {
+  const jittered = baseSeconds * (1 - Math.random() * spread);
+  return Math.max(1, Math.round(jittered));
+}
+
 /** Cache set with a TTL (seconds). No-op without Redis. */
 export async function cacheSetJson(key: string, value: unknown, ttlSeconds: number): Promise<void> {
   const r = await getRedis();

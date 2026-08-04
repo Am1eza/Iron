@@ -7,7 +7,7 @@
  */
 import { listCategories } from '@/lib/server/repos/catalogRepo';
 import { getSubsMap } from '@/lib/server/catalog';
-import { cacheGetJson, cacheSetJson } from '@/lib/server/redis';
+import { cacheGetJson, cacheSetJson, jitterTtl } from '@/lib/server/redis';
 
 const CACHE_KEY = 'ai:domain-facts';
 const TTL_SECONDS = 600;
@@ -33,6 +33,6 @@ export async function getDomainFacts(): Promise<string> {
   } catch {
     facts = '';
   }
-  if (facts) await cacheSetJson(CACHE_KEY, facts, TTL_SECONDS);
+  if (facts) await cacheSetJson(CACHE_KEY, facts, jitterTtl(TTL_SECONDS));
   return facts;
 }

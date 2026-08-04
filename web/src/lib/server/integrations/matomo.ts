@@ -19,7 +19,7 @@
  * revenue numbers; they must never take the page down with them.
  */
 import { reportError } from '@/lib/errors/report';
-import { cacheGetJson, cacheSetJson } from '@/lib/server/redis';
+import { cacheGetJson, cacheSetJson, jitterTtl } from '@/lib/server/redis';
 
 export interface MatomoSummary {
   visits: number;
@@ -97,7 +97,7 @@ export async function matomoSummary(days: number): Promise<MatomoSummary | null>
   if (cached) return cached;
 
   const fresh = await fetchMatomoSummary(days);
-  if (fresh) await cacheSetJson(cacheKey, fresh, CACHE_TTL_SECONDS);
+  if (fresh) await cacheSetJson(cacheKey, fresh, jitterTtl(CACHE_TTL_SECONDS));
   return fresh;
 }
 
