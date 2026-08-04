@@ -21,9 +21,21 @@ type JoinedRow = {
   subSlug: string;
 };
 
-function toPriceRow(r: JoinedRow, s: { isStale: (d: Date) => boolean; isHidden: (d: Date) => boolean }): PriceRow {
+/**
+ * `withhold: false` keeps the numbers on the row even when the price is
+ * stale-hidden. That is ONLY ever correct for the admin pricing grid: hiding
+ * a price the operator is being asked to REPLACE is the exact inverse of what
+ * the rule is for. `priceHidden`/`isStale` are reported truthfully either
+ * way, so the panel can still badge the row «مخفی».
+ */
+function toPriceRow(
+  r: JoinedRow,
+  s: { isStale: (d: Date) => boolean; isHidden: (d: Date) => boolean },
+  withhold = true,
+): PriceRow {
   const p = r.price;
   const hidden = p ? s.isHidden(p.updatedAt) : true;
+  const withheld = hidden && withhold;
   return {
     id: r.sku.id,
     subCategoryId: r.subSlug,
@@ -41,12 +53,12 @@ function toPriceRow(r: JoinedRow, s: { isStale: (d: Date) => boolean; isHidden: 
     current: {
       skuId: r.sku.id,
       // Hidden-stale prices are not exposed (UI shows «تماس بگیرید»).
-      price: p && !hidden ? p.price : 0,
+      price: p && !withheld ? p.price : 0,
       unit: p?.unit ?? r.sku.unit,
-      deliveryTime: p && !hidden ? p.deliveryTime : '',
+      deliveryTime: p && !withheld ? p.deliveryTime : '',
       vatIncluded: p?.vatIncluded ?? false,
-      movementPct: p && !hidden ? (p.movementPct ?? undefined) : undefined,
-      movementDir: p && !hidden ? p.movementDir : 'flat',
+      movementPct: p && !withheld ? (p.movementPct ?? undefined) : undefined,
+      movementDir: p && !withheld ? p.movementDir : 'flat',
       updatedAt: (p?.updatedAt ?? r.sku.updatedAt).toISOString(),
       isStale: p ? s.isStale(p.updatedAt) : true,
       priceHidden: hidden,
@@ -112,8 +124,13 @@ export async function listSubCategories(categorySlug: string): Promise<SubCatego
   }));
 }
 
-/** Price table rows for a category (optionally one sub-category). */
-export async function tableRows(categorySlug: string, subSlug?: string): Promise<PriceRow[]> {
+/** Price table rows for a category (optionally one sub-category).
+ *  `forAdmin` keeps stale-hidden numbers on the row — see `toPriceRow`. */
+export async function tableRows(
+  categorySlug: string,
+  subSlug?: string,
+  opts?: { forAdmin?: boolean },
+): Promise<PriceRow[]> {
   const db = getDb();
   const conds = [
     eq(categories.slug, categorySlug),
@@ -131,7 +148,34 @@ export async function tableRows(categorySlug: string, subSlug?: string): Promise
     .where(and(...conds))
     .orderBy(asc(subCategories.order), asc(skus.name));
   const s = await getPriceFreshness();
-  return rows.map((r) => toPriceRow(r, s));
+  return rows.map((r) => toPriceRow(r, s, !opts?.forAdmin));
+}
+
+/**
+ * Active SKUs that the public site cannot show because their sub-category
+ * (or category) was deactivated underneath them — the half-finished taxonomy
+ * migration that left 167 of 240 products unreachable.
+ *
+ * Every public read filters on `is_active` at all three levels, so these
+ * products simply vanish: they are absent from /prices, absent from the
+ * pricing grid, and — until this count existed — absent from anything in the
+ * panel that could have told the admin they were gone. Scoped to one category
+ * when `categorySlug` is given, so the pricing grid can explain its own empty
+ * table instead of claiming the category holds no products.
+ */
+export async function countSkusHiddenByTaxonomy(categorySlug?: string): Promise<number> {
+  const conds = [
+    eq(skus.isActive, true),
+    or(eq(subCategories.isActive, false), eq(categories.isActive, false))!,
+  ];
+  if (categorySlug) conds.push(eq(categories.slug, categorySlug));
+  const rows = await getDb()
+    .select({ n: sql<number>`count(*)::int` })
+    .from(skus)
+    .innerJoin(categories, eq(skus.categoryId, categories.id))
+    .innerJoin(subCategories, eq(skus.subCategoryId, subCategories.id))
+    .where(and(...conds));
+  return rows[0]?.n ?? 0;
 }
 
 /** Active SKU counts for every category, keyed by category slug, in ONE

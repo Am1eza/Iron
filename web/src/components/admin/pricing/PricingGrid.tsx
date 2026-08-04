@@ -9,10 +9,11 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api/resources/admin';
 import { normalizeDigits, toPersianDigits } from '@/lib/utils/format';
 import { formatJalali } from '@/lib/utils/jalali';
+import { routes } from '@/lib/routes';
 import { useToast } from '@/lib/hooks/useToast';
 import { useUnsavedGuard } from '@/lib/hooks/useUnsavedGuard';
 import { ApiError } from '@/lib/api/errors';
-import { Badge, Button, Chip, EmptyState, Modal, MovementBadge, TableSkeleton, useConfirm } from '@/components/ui';
+import { Alert, Badge, Button, Chip, EmptyState, Modal, MovementBadge, TableSkeleton, useConfirm } from '@/components/ui';
 import { Sparkline } from '../dashboard/Sparkline';
 import { PriceHistoryChart } from '../charts/PriceHistoryChart';
 import ui from '../adminUi.module.css';
@@ -32,6 +33,24 @@ const HISTORY_RANGES: Array<{ id: string; label: string }> = [
  *  block saving (it might be genuinely right), just flags the row so the
  *  operator glances twice before hitting «ذخیره». */
 const FAT_FINGER_THRESHOLD_PCT = 20;
+
+/**
+ * Parse the bulk %-adjust box, tolerating how a minus sign actually lands in
+ * an RTL field.
+ *
+ * `Number(normalizeDigits(x))` alone rejected «۲-» — which is precisely what
+ * this input's own placeholder («٪ مثلاً ۲ یا ۲-») tells the operator to type,
+ * and what you get typing the digit before the sign in an RTL box. The screen
+ * answered its own worked example with «درصد نامعتبر است». Also accepts the
+ * real minus U+2212 and «٪», which come along for the ride from a paste.
+ */
+export function parseBulkPct(input: string): number | null {
+  const s = normalizeDigits(input).replace(/[−–—]/g, '-').replace(/[٪%\s,،]/g, '');
+  // A trailing sign is the RTL case; a leading one is the ordinary case.
+  const normalized = /^\d+(\.\d+)?[-+]$/.test(s) ? s.slice(-1) + s.slice(0, -1) : s;
+  const n = Number(normalized);
+  return Number.isFinite(n) && n !== 0 ? n : null;
+}
 
 function countDigits(s: string): number {
   let n = 0;
@@ -231,6 +250,10 @@ export function PricingGrid() {
   });
 
   const allRows = useMemo(() => data?.rows ?? [], [data]);
+  /** Active products of this category that no public page — and therefore no
+   *  row below — can show, because their sub-category was deactivated
+   *  underneath them. */
+  const hiddenByTaxonomy = data?.hiddenByTaxonomy ?? 0;
   // W23 review fix (H1): a stale-hidden price («تماس بگیرید») is a stale
   // price too — it's the row that has been stale the LONGEST, which is why
   // it got hidden in the first place (see priceFreshness.ts: `isHidden`
@@ -253,7 +276,7 @@ export function PricingGrid() {
   }, [allRows, onlyStale, q]);
 
   // Live sub-category list for the selected category — NOT the static
-  // CATEGORY_SUBS fixture (which silently misses/mismatches anything an admin
+  // MOCK_CATEGORY_SUBS fixture (which silently misses/mismatches anything an admin
   // created via the catalog CRUD; the category list above was already live).
   const catId = categories.find((c) => c.slug === cat)?.id;
   const { data: subData } = useQuery({
@@ -317,6 +340,11 @@ export function PricingGrid() {
       const row = allRows.find((r) => r.id === skuId);
       if (!row) continue;
       const price = d.price !== undefined ? Number(normalizeDigits(d.price)) : row.current.price;
+      // A row still has to carry a positive price to be saveable (the write
+      // path rejects anything else) — but a delivery-time-only edit on a
+      // not-yet-priced product used to be dropped here in complete silence:
+      // no dirty highlight, no row error, no mention in the save bar. It is
+      // now surfaced as `deliveryBlocked` below.
       if (!Number.isFinite(price) || price <= 0) continue;
       const changed =
         (d.price !== undefined && price !== row.current.price) ||
@@ -457,17 +485,22 @@ export function PricingGrid() {
   // search box and «فقط کهنه‌ها») by a percentage — a factory-wide price
   // bump/cut used to mean re-typing every row by hand. Only fills drafts
   // (nothing is saved until «ذخیره»), so it's as reversible as any other
-  // edit via «انصراف». Stale-hidden rows have no real baseline (their price
-  // is the `0` withheld-sentinel) and are skipped — `bulkTargetCount` is
-  // what the toolbar button's own count should say, not `rows.length`.
-  const bulkTargetCount = useMemo(() => rows.filter((r) => !r.current.priceHidden).length, [rows]);
+  // edit via «انصراف».
+  //
+  // The target test is `price > 0`, NOT `!priceHidden`. Hidden used to imply
+  // a `0` withheld-sentinel, so skipping those rows was right — but the admin
+  // read no longer withholds, and once every price in the catalog aged past
+  // the hide threshold (which is where production actually was) that test
+  // matched EVERY row and disabled the feature outright: «اعمال روی ۰ ردیف».
+  // A row with genuinely no price yet still has nothing to scale.
+  const bulkTargetCount = useMemo(() => rows.filter((r) => r.current.price > 0).length, [rows]);
   const applyBulkPct = () => {
-    const pct = Number(normalizeDigits(bulkPct));
-    if (!Number.isFinite(pct) || pct === 0) {
-      toast.error('درصد نامعتبر است.');
+    const pct = parseBulkPct(bulkPct);
+    if (pct === null) {
+      toast.error('درصد نامعتبر است. مثلاً ۲ برای افزایش و -۲ برای کاهش.');
       return;
     }
-    const targets = rows.filter((r) => !r.current.priceHidden);
+    const targets = rows.filter((r) => r.current.price > 0);
     if (targets.length === 0) {
       toast.error('کالایی برای اعمال درصد در این نما نیست.');
       return;
@@ -544,7 +577,7 @@ export function PricingGrid() {
             className={ui.numInput}
             style={{ inlineSize: '5.5rem' }}
             inputMode="numeric"
-            placeholder="٪ مثلاً ۲ یا ۲-"
+            placeholder="٪ مثلاً ۲ یا -۲"
             value={bulkPct}
             onChange={(e) => setBulkPct(e.target.value)}
             aria-label="درصد تغییر قیمت روی ردیف‌های نمایش‌داده‌شده"
@@ -554,6 +587,14 @@ export function PricingGrid() {
           </Button>
         </div>
       </div>
+
+      {hiddenByTaxonomy > 0 && allRows.length > 0 ? (
+        <Alert tone="warning">
+          ‏{toPersianDigits(hiddenByTaxonomy)} کالای فعال این دسته در این جدول نیست چون زیر‌دسته‌شان غیرفعال است — نه
+          قیمتشان را می‌توانید اینجا ویرایش کنید و نه روی سایت دیده می‌شوند.{' '}
+          <a href={routes.admin.catalog()}>در کاتالوگ ببینید و درستش کنید</a>.
+        </Alert>
+      ) : null}
 
       {isLoading ? (
         <TableSkeleton rows={8} cols={8} />
@@ -565,7 +606,22 @@ export function PricingGrid() {
           primary={{ label: 'تلاش دوباره', onClick: () => void refetch() }}
         />
       ) : rows.length === 0 && allRows.length === 0 ? (
-        <EmptyState size="section" headline="کالایی در این دسته نیست" body="از بخش کاتالوگ کالا اضافه کنید." />
+        hiddenByTaxonomy > 0 ? (
+          // NOT «کالایی در این دسته نیست». Production had 40 products in
+          // «پروفیل» and this table showed none of them, because their
+          // sub-categories had been retired underneath them — and the empty
+          // state's advice was to go and add products, i.e. to create
+          // duplicates of the ones already there.
+          <EmptyState
+            size="section"
+            tone="error"
+            headline={`${toPersianDigits(hiddenByTaxonomy)} کالای این دسته روی سایت دیده نمی‌شود`}
+            body="زیر‌دستهٔ این کالاها غیرفعال است، پس نه در سایت و نه در این جدول نمایش داده می‌شوند. در «کاتالوگ» یا زیر‌دسته را دوباره فعال کنید یا کالاها را به زیر‌دستهٔ فعال منتقل کنید."
+            primary={{ label: 'رفتن به کاتالوگ', href: routes.admin.catalog() }}
+          />
+        ) : (
+          <EmptyState size="section" headline="کالایی در این دسته نیست" body="از بخش کاتالوگ کالا اضافه کنید." />
+        )
       ) : rows.length === 0 ? (
         <EmptyState
           size="section"
@@ -607,11 +663,20 @@ export function PricingGrid() {
                 const draftPrice = d?.price !== undefined ? Number(normalizeDigits(d.price)) : undefined;
                 const isInvalidPrice = d?.price !== undefined && (!Number.isFinite(draftPrice) || draftPrice! <= 0);
                 const saveError = rowErrors.get(r.id);
+                // A delivery-time edit on a row that has no saveable price is
+                // excluded from `dirty` — say so instead of eating it.
+                const effectivePrice = draftPrice ?? r.current.price;
+                const deliveryBlocked =
+                  d?.deliveryTime !== undefined &&
+                  d.deliveryTime !== r.current.deliveryTime &&
+                  !(Number.isFinite(effectivePrice) && effectivePrice > 0);
                 // Fat-finger guard: only meaningful when the draft price
-                // actually parses AND the row has a real (non-hidden)
-                // baseline to compare against — a hidden row's `price` is
-                // the `0` withheld-sentinel, which would read as a ±∞% move.
-                const baseline = !r.current.priceHidden && r.current.price > 0 ? r.current.price : null;
+                // actually parses AND the row has a real baseline to compare
+                // against. `price > 0` is the whole test — a stale-hidden
+                // row now carries its real previous price (see the admin
+                // read), and excluding it here meant the guard was off for
+                // exactly the rows most likely to be retyped from scratch.
+                const baseline = r.current.price > 0 ? r.current.price : null;
                 const movePct =
                   !isInvalidPrice && draftPrice !== undefined && baseline
                     ? (Math.abs(draftPrice - baseline) / baseline) * 100
@@ -619,6 +684,7 @@ export function PricingGrid() {
                 const isFatFinger = movePct >= FAT_FINGER_THRESHOLD_PCT;
                 const priceErrId = `price-err-${r.id}`;
                 const priceWarnId = `price-warn-${r.id}`;
+                const deliveryErrId = `delivery-err-${r.id}`;
                 const rowClass = isInvalidPrice
                   ? ui.rowInvalid
                   : saveError
@@ -666,7 +732,14 @@ export function PricingGrid() {
                         onChange={(e) => setDraft(r.id, { deliveryTime: e.target.value })}
                         onKeyDown={(e) => handleCellKeyDown(e, i, 'delivery')}
                         aria-label={`زمان تحویل ${r.name}`}
+                        aria-invalid={deliveryBlocked || undefined}
+                        aria-describedby={deliveryBlocked ? deliveryErrId : undefined}
                       />
+                      {deliveryBlocked ? (
+                        <div id={deliveryErrId} className={ui.tileHintWarn}>
+                          اول قیمت این کالا را وارد کنید — زمان تحویل به‌تنهایی ذخیره نمی‌شود.
+                        </div>
+                      ) : null}
                     </td>
                     <td>
                       {r.current.movementPct != null ? (

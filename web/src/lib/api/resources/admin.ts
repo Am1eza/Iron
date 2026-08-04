@@ -331,7 +331,13 @@ export const adminApi = {
 
   /* pricing */
   pricingGrid: (cat: string, sub?: string) =>
-    http.get<{ rows: PriceRow[] }>(`/api/admin/pricing?cat=${encodeURIComponent(cat)}${sub ? `&sub=${encodeURIComponent(sub)}` : ''}`),
+    // `hiddenByTaxonomy` = active products of this category that no public
+    // page (and no row below) can show, because their sub-category was
+    // deactivated underneath them. The grid surfaces it rather than
+    // presenting an empty table as "this category has no products".
+    http.get<{ rows: PriceRow[]; hiddenByTaxonomy: number }>(
+      `/api/admin/pricing?cat=${encodeURIComponent(cat)}${sub ? `&sub=${encodeURIComponent(sub)}` : ''}`,
+    ),
   savePrices: (prices: Array<{ skuId: string; price: number; deliveryTime?: string; vatIncluded?: boolean }>) =>
     http.put<{
       results: Array<
@@ -780,6 +786,9 @@ export const adminApi = {
     subCategoryId?: string;
     q?: string;
     status?: 'active' | 'inactive';
+    /** 'hidden' → only products the public site cannot reach because a parent
+     *  taxonomy node is deactivated. */
+    visibility?: 'hidden';
     all?: boolean;
     page?: number;
   } = {}) => {
@@ -788,11 +797,23 @@ export const adminApi = {
     if (params.subCategoryId) qs.set('subCategoryId', params.subCategoryId);
     if (params.q) qs.set('q', params.q);
     if (params.status) qs.set('status', params.status);
+    if (params.visibility) qs.set('visibility', params.visibility);
     if (params.all) qs.set('all', 'true');
     if (params.page) qs.set('page', String(params.page));
     return http.get<{
-      rows: Array<{ sku: AdminSku; price: { price: number; updatedAt: string } | null }>;
+      rows: Array<{
+        sku: AdminSku;
+        price: { price: number; updatedAt: string } | null;
+        /** All three levels active — what actually decides whether a customer
+         *  can reach this product. `sku.isActive` alone never did. */
+        visibleOnSite: boolean;
+        hiddenReason: 'sub' | 'category' | null;
+        subName: string;
+      }>;
       total: number;
+      /** Catalog-wide count of active products stranded on a deactivated
+       *  sub-category/category — independent of the filters above. */
+      hiddenTotal: number;
       page: number;
       perPage: number;
     }>(`/api/admin/catalog/skus?${qs}`);

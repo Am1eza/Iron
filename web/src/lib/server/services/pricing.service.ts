@@ -103,7 +103,15 @@ export async function savePrice(actorId: string, input: SavePriceInput): Promise
     // indefinitely (there was no UI path to fix it short of a direct DB
     // write).
     const unit = input.unit ?? sku.unit;
-    const deliveryTime = input.deliveryTime ?? prev?.deliveryTime ?? '۲۴ ساعت';
+    // An EMPTY deliveryTime means "no opinion", never "erase the promise".
+    // `?? prev` alone only covered undefined, and the admin grid submits this
+    // field on every dirty row — reading it back from a row whose price was
+    // stale-HIDDEN, where the public DTO withholds it as `''`. So a routine
+    // daily price save silently overwrote «۴۸ ساعت» with an empty string on
+    // every row it touched, wiping the delivery-time promise the whole
+    // product is built on. Guarded here rather than at the route because this
+    // function is documented as also serving AI/admin tools directly.
+    const deliveryTime = input.deliveryTime?.trim() || prev?.deliveryTime || '۲۴ ساعت';
     const vatIncluded = input.vatIncluded ?? prev?.vatIncluded ?? false;
     await tx
       .insert(currentPrices)

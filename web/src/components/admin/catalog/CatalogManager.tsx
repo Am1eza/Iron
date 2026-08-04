@@ -52,6 +52,10 @@ export function CatalogManager() {
   const [search, setSearch] = useState('');
   const [q, setQ] = useState('');
   const [status, setStatus] = useState<'active' | 'inactive' | 'all'>('active');
+  // «نامرئی در سایت» — products whose own flag says active but whose
+  // sub-category (or category) is retired underneath them. Without this the
+  // panel had no way to even ASK the question, let alone answer it.
+  const [onlyHidden, setOnlyHidden] = useState(false);
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -96,15 +100,18 @@ export function CatalogManager() {
   }, [allSubs.data]);
 
   const skus = useQuery({
-    queryKey: ['admin', 'cat', 'skus', sel.categoryId, sel.subCategoryId, q, status, page],
+    queryKey: ['admin', 'cat', 'skus', sel.categoryId, sel.subCategoryId, q, status, onlyHidden, page],
     queryFn: () =>
       adminApi.skus({
         // While searching, ignore the rail: the badge tells the admin the
         // search spans every category, so the request has to actually do it.
-        categoryId: q ? undefined : sel.categoryId || undefined,
-        subCategoryId: q ? undefined : sel.subCategoryId || undefined,
+        // The «نامرئی در سایت» filter does the same, and for the same reason:
+        // the whole point is to find them wherever they are stranded.
+        categoryId: q || onlyHidden ? undefined : sel.categoryId || undefined,
+        subCategoryId: q || onlyHidden ? undefined : sel.subCategoryId || undefined,
         q: q || undefined,
         status: status === 'all' ? undefined : status,
+        visibility: onlyHidden ? 'hidden' : undefined,
         all: status === 'all',
         page,
       }),
@@ -113,6 +120,7 @@ export function CatalogManager() {
   const rows = skus.data?.rows ?? [];
   const total = skus.data?.total ?? 0;
   const perPage = skus.data?.perPage ?? 50;
+  const hiddenTotal = skus.data?.hiddenTotal ?? 0;
 
   const invalidateAll = () => {
     void qc.invalidateQueries({ queryKey: ['admin', 'cat'] });
@@ -131,7 +139,7 @@ export function CatalogManager() {
   useEffect(() => {
     setPage(1);
     setSelected(new Set());
-  }, [sel.categoryId, sel.subCategoryId, q, status]);
+  }, [sel.categoryId, sel.subCategoryId, q, status, onlyHidden]);
 
   // Paging away strands the selection off-screen, and the bulk bar would then
   // act on rows the admin cannot see.
@@ -405,6 +413,11 @@ export function CatalogManager() {
           <Chip selected={status === 'all'} onClick={() => setStatus('all')}>
             همه
           </Chip>
+          {hiddenTotal > 0 ? (
+            <Chip selected={onlyHidden} onClick={() => setOnlyHidden((v) => !v)}>
+              نامرئی در سایت ({toPersianDigits(hiddenTotal)})
+            </Chip>
+          ) : null}
           <span className={ui.muted}>
             {toPersianDigits(total)} کالا
             {skus.isFetching ? ' · در حال به‌روزرسانی…' : ''}
@@ -418,6 +431,28 @@ export function CatalogManager() {
             کالای جدید
           </Button>
         </div>
+
+        {/* The single most consequential fact about this catalog, stated
+            without being asked: these products look active in the panel and
+            do not exist as far as any customer is concerned. */}
+        {hiddenTotal > 0 && !onlyHidden ? (
+          <Alert tone="warning">
+            ‏{toPersianDigits(hiddenTotal)} کالای فعال روی سایت دیده نمی‌شود، چون زیر‌دسته یا دستهٔ آن‌ها غیرفعال است.
+            قیمتشان را هم نمی‌توانید در «قیمت‌گذاری» ویرایش کنید.{' '}
+            <button type="button" className={ui.linkButton} onClick={() => setOnlyHidden(true)}>
+              نمایش این {toPersianDigits(hiddenTotal)} کالا
+            </button>
+          </Alert>
+        ) : null}
+
+        {onlyHidden ? (
+          <div className={ui.toolbar}>
+            <Badge tone="stale">فقط کالاهای نامرئی در سایت — در همهٔ دسته‌ها</Badge>
+            <Button size="sm" variant="ghost" onClick={() => setOnlyHidden(false)}>
+              برگشت به فهرست عادی
+            </Button>
+          </div>
+        ) : null}
 
         {q ? (
           <div className={ui.toolbar}>
@@ -501,7 +536,7 @@ export function CatalogManager() {
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map(({ sku: r, price }) => (
+                  {rows.map(({ sku: r, price, visibleOnSite, hiddenReason, subName }) => (
                     <tr key={r.id}>
                       <td>
                         <input
@@ -536,7 +571,25 @@ export function CatalogManager() {
                       <td>{UNIT_LABEL[r.unit] ?? r.unit}</td>
                       <td className="tnum">{price ? `${formatToman(price.price, false)} تومان` : '—'}</td>
                       <td>
-                        {r.isActive ? <Badge tone="gain">فعال</Badge> : <Badge tone="stale">غیرفعال</Badge>}
+                        {/* «فعال» used to be the whole story here, and it was
+                            a lie for 167 products: the flag was on, and the
+                            product was unreachable on the site because its
+                            sub-category had been retired. Say which. */}
+                        {!r.isActive ? (
+                          <Badge tone="stale">غیرفعال</Badge>
+                        ) : visibleOnSite ? (
+                          <Badge tone="gain">فعال</Badge>
+                        ) : (
+                          <Badge tone="loss">نامرئی در سایت</Badge>
+                        )}
+                        {r.isActive && !visibleOnSite ? (
+                          <div className={ui.tileHintWarn}>
+                            {hiddenReason === 'category'
+                              ? 'دستهٔ این کالا غیرفعال است.'
+                              : `زیر‌دستهٔ «${subName}» غیرفعال است.`}{' '}
+                            با «ویرایش» می‌توانید کالا را به زیر‌دستهٔ فعال منتقل کنید.
+                          </div>
+                        ) : null}
                         {r.isActive && !price ? <div className={ui.tileHintWarn}>بدون قیمت</div> : null}
                       </td>
                       <td>

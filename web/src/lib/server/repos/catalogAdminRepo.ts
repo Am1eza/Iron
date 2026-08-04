@@ -301,6 +301,9 @@ export async function adminListSkus(query: {
   q?: string;
   includeInactive?: boolean;
   status?: 'active' | 'inactive';
+  /** 'hidden' → only products the public site cannot show because their
+   *  sub-category or category is deactivated underneath them. */
+  visibility?: 'hidden';
   page?: number;
   perPage?: number;
 }) {
@@ -341,19 +344,74 @@ export async function adminListSkus(query: {
       ),
     );
   }
+  // A product is only reachable on the public site when all THREE levels are
+  // active — every read path filters on `is_active` at category, sub-category
+  // and SKU. The panel used to report the SKU's own flag alone, so a product
+  // stranded on a retired sub-category showed a green «فعال» badge while
+  // nothing on the site could reach it. That is how 167 of 240 products went
+  // missing for weeks without the panel ever saying a word.
+  if (query.visibility === 'hidden') {
+    conds.push(or(eq(subCategories.isActive, false), eq(categories.isActive, false))!);
+  }
   const where = conds.length ? and(...conds) : undefined;
-  const [rows, total] = await Promise.all([
+  const [rows, total, hiddenTotal] = await Promise.all([
     db
-      .select({ sku: skus, price: currentPrices })
+      .select({
+        sku: skus,
+        price: currentPrices,
+        subActive: subCategories.isActive,
+        categoryActive: categories.isActive,
+        subName: subCategories.name,
+      })
       .from(skus)
+      .innerJoin(subCategories, eq(subCategories.id, skus.subCategoryId))
+      .innerJoin(categories, eq(categories.id, skus.categoryId))
       .leftJoin(currentPrices, eq(currentPrices.skuId, skus.id))
       .where(where)
       .orderBy(asc(skus.name))
       .limit(perPage)
       .offset((page - 1) * perPage),
-    db.select({ n: sql<number>`count(*)::int` }).from(skus).where(where),
+    db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(skus)
+      .innerJoin(subCategories, eq(subCategories.id, skus.subCategoryId))
+      .innerJoin(categories, eq(categories.id, skus.categoryId))
+      .where(where),
+    // Catalog-wide, deliberately ignoring every other filter: this is the
+    // number that has to be visible on the screen at all times, because an
+    // admin has no reason to click a filter for a problem nobody told them
+    // they have.
+    db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(skus)
+      .innerJoin(subCategories, eq(subCategories.id, skus.subCategoryId))
+      .innerJoin(categories, eq(categories.id, skus.categoryId))
+      .where(
+        and(
+          eq(skus.isActive, true),
+          or(eq(subCategories.isActive, false), eq(categories.isActive, false)),
+        ),
+      ),
   ]);
-  return { rows, total: total[0]?.n ?? 0, page, perPage };
+  return {
+    rows: rows.map(({ sku, price, subActive, categoryActive, subName }) => ({
+      sku,
+      price,
+      visibleOnSite: sku.isActive && subActive && categoryActive,
+      hiddenReason: !sku.isActive
+        ? null
+        : !categoryActive
+          ? ('category' as const)
+          : !subActive
+            ? ('sub' as const)
+            : null,
+      subName,
+    })),
+    total: total[0]?.n ?? 0,
+    hiddenTotal: hiddenTotal[0]?.n ?? 0,
+    page,
+    perPage,
+  };
 }
 
 /** Distinct factory names already in use — feeds the form's datalist so the

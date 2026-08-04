@@ -11,7 +11,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { PriceRow } from '@/lib/types/domain';
-import { matchPastedPrices, PricingGrid, type PasteRow } from './PricingGrid';
+import { matchPastedPrices, parseBulkPct, PricingGrid, type PasteRow } from './PricingGrid';
 
 const rows: PasteRow[] = [
   { id: 'a', slug: 'rebar-14-esfahan', name: 'میلگرد ۱۴ اصفهان', size: '۱۴' },
@@ -91,6 +91,35 @@ describe('matchPastedPrices', () => {
   });
 });
 
+describe('parseBulkPct', () => {
+  it('accepts the trailing minus this input tells the operator to type', () => {
+    // The placeholder's own worked example was «۲-», and `Number('2-')` is
+    // NaN — so the screen answered its own instructions with «درصد نامعتبر
+    // است». A digit typed before the sign is the ordinary RTL case.
+    expect(parseBulkPct('۲-')).toBe(-2);
+    expect(parseBulkPct('2-')).toBe(-2);
+    expect(parseBulkPct('۲+')).toBe(2);
+  });
+
+  it('still reads the ordinary leading-sign forms', () => {
+    expect(parseBulkPct('۲')).toBe(2);
+    expect(parseBulkPct('-۲')).toBe(-2);
+    expect(parseBulkPct('۱٫۵'.replace('٫', '.'))).toBe(1.5);
+  });
+
+  it('tolerates a stray ٪, spaces and a real minus sign', () => {
+    expect(parseBulkPct(' ۲٪ ')).toBe(2);
+    expect(parseBulkPct('−۳')).toBe(-3); // U+2212
+  });
+
+  it('rejects what is genuinely not a percentage', () => {
+    expect(parseBulkPct('')).toBeNull();
+    expect(parseBulkPct('۰')).toBeNull(); // a 0% move is a no-op, not an edit
+    expect(parseBulkPct('abc')).toBeNull();
+    expect(parseBulkPct('۲-۳')).toBeNull();
+  });
+});
+
 /* ------------------------------ mounted grid ------------------------------ */
 
 vi.mock('next/navigation', () => ({
@@ -112,7 +141,7 @@ vi.mock('@/lib/api/resources/admin', () => ({
   },
 }));
 
-function priceRow(id: string, name: string, price: number): PriceRow {
+function priceRow(id: string, name: string, price: number, over: Partial<PriceRow['current']> = {}): PriceRow {
   return {
     id,
     subCategoryId: 'sub1',
@@ -131,6 +160,7 @@ function priceRow(id: string, name: string, price: number): PriceRow {
       movementDir: 'flat',
       updatedAt: new Date().toISOString(),
       isStale: false,
+      ...over,
     },
   };
 }
@@ -202,5 +232,77 @@ describe('PricingGrid dirty tracking', () => {
     renderGrid();
     await typePrice(user, 'قیمت میلگرد ۱۴', '300000');
     expect(screen.queryByText(/قیمت تغییر کرده است\./)).not.toBeInTheDocument();
+  });
+});
+
+/* ------------------------- stale-HIDDEN rows (W30) ------------------------ */
+
+/**
+ * The state production was actually in: every price older than
+ * PRICE_STALE_HIDE_AFTER_DAYS, so `priceHidden` on every row. The admin read
+ * now delivers the real number anyway (see the route's `forAdmin` flag and
+ * catalogRepo's `toPriceRow`) — these pin the three things that broke while
+ * it did not.
+ */
+describe('PricingGrid with stale-hidden rows', () => {
+  const hidden = { priceHidden: true, isStale: true, deliveryTime: '۴۸ ساعت' };
+
+  beforeEach(() => {
+    pricingGrid.mockResolvedValue({
+      rows: [priceRow('r14', 'میلگرد ۱۴', 300_000, hidden), priceRow('r16', 'میلگرد ۱۶', 310_000, hidden)],
+      hiddenByTaxonomy: 0,
+    });
+  });
+
+  it('shows the previous price the operator is being asked to replace', async () => {
+    renderGrid();
+    // The whole job is "yesterday was ۳۰۰,۰۰۰, today it is ۳۰۲,۰۰۰". An empty
+    // cell makes that impossible, and empty is what the grid rendered.
+    expect(await screen.findByLabelText('قیمت میلگرد ۱۴')).toHaveValue('۳۰۰,۰۰۰');
+    expect(await screen.findByLabelText('زمان تحویل میلگرد ۱۴')).toHaveValue('۴۸ ساعت');
+  });
+
+  it('keeps the bulk %-adjust usable instead of targeting zero rows', async () => {
+    renderGrid();
+    // Was «اعمال روی ۰ ردیف», disabled — the feature switched itself off at
+    // precisely the moment a whole-catalog price refresh was needed.
+    expect(await screen.findByRole('button', { name: 'اعمال روی ۲ ردیف' })).toBeInTheDocument();
+  });
+
+  it('still runs the fat-finger guard against the hidden baseline', async () => {
+    const user = userEvent.setup();
+    renderGrid();
+    await typePrice(user, 'قیمت میلگرد ۱۴', '375000'); // +۲۵٪
+    expect(await screen.findByText('۲۵٪ تغییر نسبت به قیمت قبلی')).toBeInTheDocument();
+  });
+});
+
+describe('PricingGrid delivery-time-only edits', () => {
+  it('warns instead of silently discarding one on a row with no price', async () => {
+    const user = userEvent.setup();
+    pricingGrid.mockResolvedValue({
+      rows: [priceRow('r14', 'میلگرد ۱۴', 0, { priceHidden: true, isStale: true, deliveryTime: '' })],
+      hiddenByTaxonomy: 0,
+    });
+    renderGrid();
+    const cell = await screen.findByLabelText('زمان تحویل میلگرد ۱۴');
+    await user.type(cell, 'فوری');
+    // The save payload requires a positive price, so this edit genuinely
+    // cannot be saved — but it used to vanish with no dirty highlight, no
+    // row error and no mention in the save bar.
+    expect(await screen.findByText(/اول قیمت این کالا را وارد کنید/)).toBeInTheDocument();
+    expect(screen.queryByText(/قیمت تغییر کرده است\./)).not.toBeInTheDocument();
+  });
+});
+
+describe('PricingGrid — products stranded on a deactivated sub-category', () => {
+  it('does not tell the admin an empty category has no products', async () => {
+    pricingGrid.mockResolvedValue({ rows: [], hiddenByTaxonomy: 40 });
+    renderGrid();
+    // The old empty state said «کالایی در این دسته نیست · از بخش کاتالوگ کالا
+    // اضافه کنید» for a category holding 40 real products — advice whose only
+    // possible outcome is 40 duplicates.
+    expect(await screen.findByText('۴۰ کالای این دسته روی سایت دیده نمی‌شود')).toBeInTheDocument();
+    expect(screen.queryByText('کالایی در این دسته نیست')).not.toBeInTheDocument();
   });
 });
