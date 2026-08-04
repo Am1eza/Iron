@@ -5,6 +5,32 @@
  * every number (acceptance-criteria §D).
  */
 import { CONSTANTS } from '@/lib/config/constants';
+import { reportError } from '@/lib/errors/report';
+import {
+  noteUpstreamFailure,
+  noteUpstreamOk,
+  reasonForStatus,
+  isPermanentReason,
+  type UpstreamReason,
+} from '@/lib/server/ai/upstreamState';
+
+/**
+ * The relay refused the request — as opposed to the request itself being bad.
+ * Distinct from a plain Error so the route can degrade the USER gracefully
+ * (Persian message + the human path) instead of surfacing a raw error frame,
+ * which is what production has been doing while the relay sits at HTTP 402.
+ */
+export class AiUnavailableError extends Error {
+  constructor(
+    public reason: UpstreamReason,
+    public status?: number,
+  ) {
+    // No status in the message: GlitchTip groups by exception value, so
+    // embedding a varying number here would mint a fresh issue per status.
+    super(`ai relay unavailable (${reason})`);
+    this.name = 'AiUnavailableError';
+  }
+}
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
@@ -127,8 +153,29 @@ async function fetchCompletion(
     const abortGate = userSignal ?? signal;
     if (!hasFallback || abortGate?.aborted) throw e;
   }
-  if (res?.ok && res.body) return res;
-  if (!hasFallback) throw new Error(`deepseek HTTP ${res?.status}`);
+  if (res?.ok && res.body) {
+    noteUpstreamOk();
+    return res;
+  }
+
+  // Classify the refusal ONCE, here, so every caller degrades identically.
+  const reason = reasonForStatus(res?.status);
+  const transition = noteUpstreamFailure(reason);
+  if (transition) {
+    // Exactly once per state transition — the same rule the circuit breaker
+    // uses (utils/resilience.ts). Per-request reporting is what buried the
+    // real issues under 1,932 duplicates.
+    reportError(new AiUnavailableError(reason, res?.status), {
+      integration: 'deepseek',
+      status: res?.status,
+      reason,
+    });
+  }
+  // A 402 (credit exhausted) or 401/403 (bad or revoked key) is refused at the
+  // ACCOUNT level. The fallback relay is configured by the same owner against
+  // the same provider, so a second leg cannot fix it — it only spends another
+  // round trip on a request that will fail identically.
+  if (!hasFallback || isPermanentReason(reason)) throw new AiUnavailableError(reason, res?.status);
 
   const fallbackSignal = ((): AbortSignal | undefined => {
     if (!userSignal) return signal; // no distinct user signal known — old behavior
@@ -144,7 +191,18 @@ async function fetchCompletion(
     tools,
     fallbackSignal,
   );
-  if (!retry.ok || !retry.body) throw new Error(`fallback HTTP ${retry.status}`);
+  if (!retry.ok || !retry.body) {
+    const retryReason = reasonForStatus(retry.status);
+    if (noteUpstreamFailure(retryReason)) {
+      reportError(new AiUnavailableError(retryReason, retry.status), {
+        integration: 'deepseek-fallback',
+        status: retry.status,
+        reason: retryReason,
+      });
+    }
+    throw new AiUnavailableError(retryReason, retry.status);
+  }
+  noteUpstreamOk();
   return retry;
 }
 

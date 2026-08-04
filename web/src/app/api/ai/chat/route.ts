@@ -3,7 +3,9 @@ import { z } from 'zod';
 import { getSession } from '@/lib/auth/session';
 import { assertSameOrigin } from '@/lib/auth/origin';
 import { requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
-import { aiEnabled } from '@/lib/server/integrations/deepseek';
+import { aiEnabled, AiUnavailableError } from '@/lib/server/integrations/deepseek';
+import { budgetExhausted } from '@/lib/server/ai/budget';
+import { upstreamUnavailable } from '@/lib/server/ai/upstreamState';
 import { numbersInText } from '@/lib/server/ai/grounding';
 import { runAdvisorPipeline } from '@/lib/server/ai/pipeline';
 import { buildChatMessages, ensureConversation, persistTurn } from '@/lib/server/ai/conversation';
@@ -32,6 +34,22 @@ const payload = z.object({
     .max(40),
   conversationId: z.string().max(64).optional(),
 });
+
+/**
+ * ONE message for every "the AI cannot answer right now" case — relay down,
+ * credit exhausted, key revoked, daily budget spent, feature switched off.
+ * It never says which: the visitor cannot act on the difference, and it points
+ * at what they CAN do instead. The funnel closes on a human call, so the
+ * fallback is the human path, not an apology.
+ */
+const AI_UNAVAILABLE_MESSAGE =
+  'دستیار هوشمند موقتاً در دسترس نیست. قیمت‌های لحظه‌ای و ابزارها در دسترس‌اند، و کارشناسان ما پاسخگوی شما هستند — درخواست مشاوره ثبت کنید تا تماس بگیریم.';
+
+/** 503 so AdvisorChat switches to the local grounded engine for the session
+ *  (see its `e.status === 503` branch) instead of showing an error. */
+function unavailable(): NextResponse {
+  return NextResponse.json({ error: 'ai_unavailable', message: AI_UNAVAILABLE_MESSAGE }, { status: 503 });
+}
 
 const SSE_HEADERS = {
   'Content-Type': 'text/event-stream; charset=utf-8',
@@ -100,13 +118,29 @@ async function POSTImpl(req: NextRequest) {
   }
 
   if (!aiEnabled()) {
-    return NextResponse.json(
-      { error: 'ai_disabled', message: 'دستیار هوشمند موقتاً در دسترس نیست. از جدول قیمت‌ها و ابزارها استفاده کنید.' },
-      { status: 503 },
-    );
+    return unavailable();
   }
   const guard = requireDb();
   if (guard) return guard;
+
+  // Both of these run BEFORE the stream opens, and both answer 503 with the
+  // same envelope as `ai_disabled` — which the client already handles by
+  // switching permanently to the local grounded engine for the session
+  // (AdvisorChat: `e.status === 503 → useServer.current = false`). So the
+  // visitor never sees a raw error and is never cut off mid-conversation:
+  // they get an answer from the local engine and the human path, which is
+  // what this business closes on anyway («اول مشورت، بعد خرید»).
+  //
+  // 1) The relay is already known to be refusing work (HTTP 402 credit
+  //    exhausted, 401 revoked key, 429). Short-circuiting here is also what
+  //    honours "never retry a 402": the first one costs a round trip, the
+  //    rest of the cooldown costs none.
+  const refusing = upstreamUnavailable();
+  if (refusing) return unavailable();
+
+  // 2) The daily token budget (audit area 29). `ai_usage` recorded tokens for
+  //    months and nothing ever read them to enforce anything.
+  if (await budgetExhausted()) return unavailable();
 
   const session = await getSession();
   const conversationId = parsed.data.conversationId;
@@ -233,8 +267,17 @@ async function POSTImpl(req: NextRequest) {
           });
       } catch (err) {
         if (!req.signal.aborted) {
-          reportError(err, { route: 'ai/chat' });
-          send({ type: 'error', message: 'دستیار هوشمند با خطا مواجه شد. دوباره تلاش کنید.' });
+          // An upstream refusal is NOT an application error: it is already
+          // classified and reported once per state transition inside the
+          // deepseek client, so reporting it again here would restore exactly
+          // the per-request noise this removes. The user gets the human-path
+          // message; the client falls back to the local grounded engine.
+          if (err instanceof AiUnavailableError) {
+            send({ type: 'error', message: AI_UNAVAILABLE_MESSAGE });
+          } else {
+            reportError(err, { route: 'ai/chat' });
+            send({ type: 'error', message: 'دستیار هوشمند با خطا مواجه شد. دوباره تلاش کنید.' });
+          }
         }
       } finally {
         if (!closed) {
