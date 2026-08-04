@@ -5,6 +5,7 @@
  * (stream_options.include_usage) and the final choices-less usage chunk must
  * surface as a server-side 'usage' event with numbers defaulted to 0.
  */
+import { DEFAULT_AI_MODEL } from './aiRelayConfig';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 function sseBody(frames: string[]): ReadableStream<Uint8Array> {
@@ -20,7 +21,7 @@ function sseBody(frames: string[]): ReadableStream<Uint8Array> {
 async function collect(frames: string[]) {
   const fetchMock = vi.fn().mockResolvedValue({ ok: true, body: sseBody(frames) });
   vi.stubGlobal('fetch', fetchMock);
-  const { streamCompletion } = await import('./deepseek');
+  const { streamCompletion } = await import('./aiRelay');
   const events = [];
   for await (const ev of streamCompletion([{ role: 'user', content: 'سلام' }], [])) events.push(ev);
   return { events, fetchMock };
@@ -40,6 +41,42 @@ describe('streamCompletion usage telemetry', () => {
     const [url, init] = fetchMock.mock.calls[0]!;
     expect(url).toBe('https://relay.example.com/chat/completions');
     expect(JSON.parse(init.body)).toMatchObject({ stream: true, stream_options: { include_usage: true } });
+  });
+
+  it('caps reasoning on EVERY call, by default', async () => {
+    // The current model is a reasoning model: unconstrained it spent ~95% of
+    // its tokens thinking (1878 reasoning deltas vs 88 content deltas for one
+    // short greeting) and could not finish a tool round trip inside
+    // AI_TIMEOUT_MS — every production answer ended in a 20s timeout. Nothing
+    // has to be configured for the cap to apply.
+    const { fetchMock } = await collect(['[DONE]']);
+    expect(JSON.parse(fetchMock.mock.calls[0]![1].body).reasoning_effort).toBe('low');
+  });
+
+  it('honours an explicit AI_REASONING_EFFORT', async () => {
+    vi.stubEnv('AI_REASONING_EFFORT', 'none');
+    const { fetchMock } = await collect(['[DONE]']);
+    expect(JSON.parse(fetchMock.mock.calls[0]![1].body).reasoning_effort).toBe('none');
+  });
+
+  it('omits the field entirely when configured off — a provider may reject an unknown key', async () => {
+    vi.stubEnv('AI_REASONING_EFFORT', 'off');
+    const { fetchMock } = await collect(['[DONE]']);
+    expect(JSON.parse(fetchMock.mock.calls[0]![1].body)).not.toHaveProperty('reasoning_effort');
+  });
+
+  it('the legacy DEEPSEEK_* names still reach the wire (the live .env still uses them)', async () => {
+    const { fetchMock } = await collect(['[DONE]']);
+    expect(fetchMock.mock.calls[0]![0]).toBe('https://relay.example.com/chat/completions');
+    expect(fetchMock.mock.calls[0]![1].headers.authorization).toBe('Bearer test-key');
+  });
+
+  it('the modern AI_* names take precedence', async () => {
+    vi.stubEnv('AI_BASE_URL', 'https://ai.parspack.example/v1');
+    vi.stubEnv('AI_API_KEY', 'modern-key');
+    const { fetchMock } = await collect(['[DONE]']);
+    expect(fetchMock.mock.calls[0]![0]).toBe('https://ai.parspack.example/v1/chat/completions');
+    expect(fetchMock.mock.calls[0]![1].headers.authorization).toBe('Bearer modern-key');
   });
 
   it('parses the final choices-less usage chunk (DeepSeek cache split) into a usage event', async () => {
@@ -107,7 +144,7 @@ describe('fallback relay (FALLBACK_BASE_URL + FALLBACK_API_KEY)', () => {
 
   async function run(fetchMock: ReturnType<typeof vi.fn>, signal?: AbortSignal, userSignal?: AbortSignal) {
     vi.stubGlobal('fetch', fetchMock);
-    const { streamCompletion } = await import('./deepseek');
+    const { streamCompletion } = await import('./aiRelay');
     const events = [];
     for await (const ev of streamCompletion([{ role: 'user', content: 'سلام' }], [], signal, userSignal))
       events.push(ev);
@@ -148,7 +185,7 @@ describe('fallback relay (FALLBACK_BASE_URL + FALLBACK_API_KEY)', () => {
       .mockResolvedValueOnce({ ok: true, body: sseBody(['[DONE]']) });
     const events = await run(fetchMock);
     expect(events).toEqual([{ type: 'done' }]);
-    expect(JSON.parse(fetchMock.mock.calls[1]![1].body).model).toBe('deepseek-chat');
+    expect(JSON.parse(fetchMock.mock.calls[1]![1].body).model).toBe(DEFAULT_AI_MODEL);
   });
 
   it('both legs fail → throws (never a silent empty stream)', async () => {

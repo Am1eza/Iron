@@ -12,7 +12,7 @@ import { ulid } from 'ulid';
 import { createTestDb } from '@/test/db';
 import * as schema from '@/lib/server/db/schema';
 import type { Db } from '@/lib/server/db/client';
-import type { ChatMessage } from '@/lib/server/integrations/deepseek';
+import type { ChatMessage } from '@/lib/server/integrations/aiRelay';
 import { AI_SYSTEM_PROMPT } from '@/lib/server/services/aiTools';
 import { GroundingLedger, sanitizeGrounded } from '@/lib/server/ai/grounding';
 import {

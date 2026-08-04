@@ -15,7 +15,7 @@ import {
   streamCompletion,
   type ChatMessage,
   type ToolCall,
-} from '@/lib/server/integrations/deepseek';
+} from '@/lib/server/integrations/aiRelay';
 import { AI_TOOLS, runTool } from '@/lib/server/services/aiTools';
 import { GroundingLedger, sanitizeGrounded } from './grounding';
 

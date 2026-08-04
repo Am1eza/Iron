@@ -1,11 +1,28 @@
 /**
- * DeepSeek relay client — OpenAI-compatible chat completions through the
- * out-of-Iran relay (DEEPSEEK_BASE_URL). Streaming SSE with tool-calling.
- * Gated behind AI_ENABLED; grounding rule: the model talks, TOOLS decide
- * every number (acceptance-criteria §D).
+ * AI relay client — OpenAI-compatible chat completions through the out-of-Iran
+ * relay (AI_BASE_URL). Streaming SSE with tool-calling. Gated behind
+ * AI_ENABLED; grounding rule: the model talks, TOOLS decide every number
+ * (acceptance-criteria §D).
+ *
+ * Provider-NEUTRAL by name and by config (see aiRelayConfig.ts). This file was
+ * `deepseek.ts` and every variable in it was `DEEPSEEK_*` until the owner
+ * moved the site to Parspack AI Studio — a rename that touched a dozen files
+ * purely because the module had been named after a vendor. It is not named
+ * after one any more. Anything genuinely provider-specific (currently: the
+ * reasoning-effort cap the Nemotron model needs) lives in aiRelayConfig.ts
+ * behind an env var, not hardcoded here.
  */
 import { CONSTANTS } from '@/lib/config/constants';
 import { reportError } from '@/lib/errors/report';
+import {
+  aiApiKey,
+  aiBaseUrl,
+  aiModel,
+  aiFallbackApiKey,
+  aiFallbackBaseUrl,
+  aiFallbackModel,
+  reasoningEffort,
+} from './aiRelayConfig';
 import {
   noteUpstreamFailure,
   noteUpstreamOk,
@@ -51,11 +68,7 @@ export interface ToolDef {
 }
 
 export function aiEnabled(): boolean {
-  return (
-    process.env.AI_ENABLED === 'true' &&
-    Boolean(process.env.DEEPSEEK_API_KEY) &&
-    Boolean(process.env.DEEPSEEK_BASE_URL)
-  );
+  return process.env.AI_ENABLED === 'true' && Boolean(aiApiKey()) && Boolean(aiBaseUrl());
 }
 
 /** Token accounting from the stream's final usage chunk (server-side telemetry
@@ -75,6 +88,7 @@ function postCompletion(
   tools: ToolDef[],
   signal?: AbortSignal,
 ): Promise<Response> {
+  const effort = reasoningEffort();
   return fetch(`${base.replace(/\/$/, '')}/chat/completions`, {
     method: 'POST',
     headers: {
@@ -89,6 +103,12 @@ function postCompletion(
       // Ask for the final usage chunk (prompt/completion/cache tokens) so
       // per-request cost is measurable — the chunk stays server-side.
       stream_options: { include_usage: true },
+      // Cap the model's private reasoning. Omitted entirely when configured
+      // `off` so a provider that rejects unknown fields is not broken by it.
+      // See aiRelayConfig.ts#reasoningEffort for the measurements — without
+      // this, a tool round trip cannot finish inside AI_TIMEOUT_MS and every
+      // answer ended in a 20s timeout.
+      ...(effort ? { reasoning_effort: effort } : {}),
       temperature: 0.3,
       // Advisor replies are short Persian answers (system prompt: "کوتاه و
       // کاربردی") — cap per-call generation so a request's cost is bounded
@@ -101,12 +121,13 @@ function postCompletion(
 }
 
 /**
- * Availability: when FALLBACK_BASE_URL + FALLBACK_API_KEY are set, a primary
+ * Availability: when AI_FALLBACK_BASE_URL + AI_FALLBACK_API_KEY are set (the
+ * legacy FALLBACK_* names still work), a primary
  * relay failure (fetch throw or non-2xx) retries the SAME request ONCE
- * against the fallback relay (FALLBACK_MODEL, default: the primary model).
+ * against the fallback relay (AI_FALLBACK_MODEL, default: the primary model).
  * No fallback configured → the single attempt's failure surfaces unchanged.
  * aiEnabled() is deliberately untouched — the fallback is an extra leg, not
- * a way to run without the primary DEEPSEEK_* config.
+ * a way to run without the primary relay config.
  *
  * `signal` bounds the PRIMARY attempt (the caller's merged request-deadline
  * signal — unchanged behavior). `userSignal`, if given, is the RAW
@@ -129,16 +150,16 @@ async function fetchCompletion(
   signal?: AbortSignal,
   userSignal?: AbortSignal,
 ): Promise<Response> {
-  const primaryModel = process.env.DEEPSEEK_MODEL ?? 'deepseek-chat';
-  const fallbackBase = process.env.FALLBACK_BASE_URL;
-  const fallbackKey = process.env.FALLBACK_API_KEY;
+  const primaryModel = aiModel();
+  const fallbackBase = aiFallbackBaseUrl();
+  const fallbackKey = aiFallbackApiKey();
   const hasFallback = Boolean(fallbackBase && fallbackKey);
 
   let res: Response | null = null;
   try {
     res = await postCompletion(
-      process.env.DEEPSEEK_BASE_URL!,
-      process.env.DEEPSEEK_API_KEY!,
+      aiBaseUrl()!,
+      aiApiKey()!,
       primaryModel,
       messages,
       tools,
@@ -166,7 +187,7 @@ async function fetchCompletion(
     // uses (utils/resilience.ts). Per-request reporting is what buried the
     // real issues under 1,932 duplicates.
     reportError(new AiUnavailableError(reason, res?.status), {
-      integration: 'deepseek',
+      integration: 'ai-relay',
       status: res?.status,
       reason,
     });
@@ -186,7 +207,7 @@ async function fetchCompletion(
   const retry = await postCompletion(
     fallbackBase!,
     fallbackKey!,
-    process.env.FALLBACK_MODEL ?? primaryModel,
+    aiFallbackModel(),
     messages,
     tools,
     fallbackSignal,
@@ -195,7 +216,7 @@ async function fetchCompletion(
     const retryReason = reasonForStatus(retry.status);
     if (noteUpstreamFailure(retryReason)) {
       reportError(new AiUnavailableError(retryReason, retry.status), {
-        integration: 'deepseek-fallback',
+        integration: 'ai-relay-fallback',
         status: retry.status,
         reason: retryReason,
       });

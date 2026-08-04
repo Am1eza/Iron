@@ -394,25 +394,62 @@ export async function searchSkus(q: string, limit = 20): Promise<PriceRow[]> {
       }),
     ),
   );
-  const rows = await db
-    .select({ sku: skus, price: currentPrices, catSlug: categories.slug, subSlug: subCategories.slug })
-    .from(skus)
-    .innerJoin(categories, eq(skus.categoryId, categories.id))
-    .innerJoin(subCategories, eq(skus.subCategoryId, subCategories.id))
-    .leftJoin(currentPrices, eq(currentPrices.skuId, skus.id))
-    // `subCategories.isActive` — see the note on findSkuRow (W24). Search was
-    // the loudest leak of the four: a retired sub-category's products kept
-    // ranking in site search and in the AI advisor's getPrice tool.
-    .where(
-      and(
-        eq(skus.isActive, true),
-        eq(categories.isActive, true),
-        eq(subCategories.isActive, true),
-        ...perTokenMatch,
+  const run = (conds: ReturnType<typeof or>[]) =>
+    db
+      .select({ sku: skus, price: currentPrices, catSlug: categories.slug, subSlug: subCategories.slug })
+      .from(skus)
+      .innerJoin(categories, eq(skus.categoryId, categories.id))
+      .innerJoin(subCategories, eq(skus.subCategoryId, subCategories.id))
+      .leftJoin(currentPrices, eq(currentPrices.skuId, skus.id))
+      // `subCategories.isActive` — see the note on findSkuRow (W24). Search was
+      // the loudest leak of the four: a retired sub-category's products kept
+      // ranking in site search and in the AI advisor's getPrice tool.
+      .where(
+        and(
+          eq(skus.isActive, true),
+          eq(categories.isActive, true),
+          eq(subCategories.isActive, true),
+          ...conds,
+        ),
+      )
+      .orderBy(desc(sql`similarity(${skus.name}, ${trimmed})`))
+      .limit(limit);
+
+  let rows = await run(perTokenMatch);
+  // MISSPELLING FALLBACK — only when the exact match found NOTHING.
+  //
+  // Every variant above is an EXACT substring match, so a single wrong letter
+  // returns zero rows. That went from theoretical to routine when the AI
+  // provider changed: the current model garbles tool arguments slightly and
+  // was observed asking getPrice for «میلیگرد» (stored: «میلگرد»), which
+  // silently produced "we have no such product" instead of a price. Real users
+  // mistype too, on a phone, in Persian, about a word with a ZWNJ in it.
+  //
+  // `word_similarity(token, name)` (pg_trgm) scores the best-matching WORD-ish
+  // run inside the name rather than the whole string, so one token still
+  // matches a long generated SKU name. The threshold is MEASURED, not guessed:
+  // on «میلگرد آجدار A3 ۱۴», word_similarity scores «میلگرد» 1.00, the
+  // observed misspelling «میلیگرد» 0.50, the truncation «میلگر» 0.83, and an
+  // unrelated product word 0.00. 0.45 sits in the gap — wide enough for a
+  // wrong or missing letter, and nowhere near matching a different product.
+  //
+  // Deliberately a SECOND query, not a widened first one: this can only turn
+  // an empty result into a non-empty one. A query that already matched keeps
+  // exactly the rows and the ordering it had, so /search — which shares this
+  // function — is unchanged for every query that worked before.
+  if (rows.length === 0) {
+    const perTokenFuzzy = tokens.map((token) =>
+      or(
+        ...tokenVariants(token).flatMap((variant) => {
+          const term = likeContains(variant);
+          return [ilike(skus.name, term), ilike(skus.factory, term), ilike(skus.size, term), ilike(categories.name, term)];
+        }),
+        sql`word_similarity(${token}, ${skus.name}) >= 0.45`,
+        sql`word_similarity(${token}, ${categories.name}) >= 0.45`,
       ),
-    )
-    .orderBy(desc(sql`similarity(${skus.name}, ${trimmed})`))
-    .limit(limit);
+    );
+    rows = await run(perTokenFuzzy);
+  }
   const s = await getPriceFreshness();
   return rows.map((r) => toPriceRow(r, s));
 }

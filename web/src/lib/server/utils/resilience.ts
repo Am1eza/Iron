@@ -6,7 +6,7 @@
  *
  * Deliberately NOT wired into the DeepSeek AI relay: that call streams an
  * SSE response and already has its own resilience story (a one-shot
- * fallback relay + abort timeouts, see integrations/deepseek.ts) — retrying
+ * fallback relay + abort timeouts, see integrations/aiRelay.ts) — retrying
  * a partially-streamed completion is a different, riskier problem (partial
  * output, double token billing) than retrying an idempotent JSON fetch, and
  * bolting a generic wrapper on top would fight that existing design rather

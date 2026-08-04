@@ -22,7 +22,7 @@
  */
 export type ReuseMode = 'off' | 'detect' | 'enforce';
 
-export function reuseMode(env: NodeJS.ProcessEnv = process.env): ReuseMode {
+export function reuseMode(env: Partial<NodeJS.ProcessEnv> = process.env): ReuseMode {
   const raw = env.REFRESH_REUSE_DETECTION?.trim().toLowerCase();
   return raw === 'enforce' || raw === 'off' ? raw : 'detect';
 }
@@ -43,7 +43,7 @@ export const DEFAULT_REUSE_GRACE_SECONDS = 60;
  * to know the victim's refresh happened, let alone land inside a one-minute
  * window of it.
  */
-export function reuseGraceMs(env: NodeJS.ProcessEnv = process.env): number {
+export function reuseGraceMs(env: Partial<NodeJS.ProcessEnv> = process.env): number {
   const raw = Number(env.REFRESH_REUSE_GRACE_SECONDS);
   const seconds = Number.isFinite(raw) && raw >= 0 ? raw : DEFAULT_REUSE_GRACE_SECONDS;
   return seconds * 1000;

@@ -17,7 +17,7 @@ import { createTestDb } from '@/test/db';
 import { seedDatabase } from '@/lib/server/db/seed';
 import * as schema from '@/lib/server/db/schema';
 import type { Db } from '@/lib/server/db/client';
-import type { ChatMessage, ToolCall } from '@/lib/server/integrations/deepseek';
+import type { ChatMessage, ToolCall } from '@/lib/server/integrations/aiRelay';
 import { tableRows } from '@/lib/server/repos/catalogRepo';
 import {
   runAdvisorPipeline,

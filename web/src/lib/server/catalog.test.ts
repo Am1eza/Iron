@@ -74,6 +74,28 @@ describe('catalog reads', () => {
     expect(hits).toHaveLength(0);
   });
 
+  it('tolerates a misspelled product word («میلیگرد») instead of answering "no such product"', async () => {
+    // Every other variant is an EXACT substring match, so one wrong letter
+    // returned zero rows. That became routine when the AI provider changed:
+    // the current model garbles tool arguments slightly and was seen calling
+    // getPrice with «میلیگرد». Real users mistype too — on a phone, in
+    // Persian, on a word with a ZWNJ in it.
+    const hits = await searchSkus('میلیگرد ۱۴');
+    expect(hits.length).toBeGreaterThan(0);
+    expect(hits.every((r) => r.name.includes('میلگرد'))).toBe(true);
+  });
+
+  it('the fuzzy fallback does not loosen a query that already matched', async () => {
+    // It runs ONLY on an empty result, so an exact query keeps exactly the
+    // rows (and the ordering) it had — /search shares this function.
+    const exact = await searchSkus('میلگرد ۱۴');
+    expect(exact.every((r) => r.name.includes('میلگرد') && r.name.includes('۱۴'))).toBe(true);
+  });
+
+  it('still returns nothing for a genuine non-product, rather than fuzzing into anything', async () => {
+    expect(await searchSkus('هلیکوپتر')).toHaveLength(0);
+  });
+
   it('matches Latin digits against the Persian-digit sizes and merges spaced compounds («تیر آهن 14»)', async () => {
     // The DB stores sizes/names with PERSIAN digits («تیرآهن … ۱۴») and the
     // compound word joined — a natural query uses Latin 14 and a space.

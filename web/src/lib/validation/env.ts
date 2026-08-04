@@ -26,15 +26,30 @@ export const publicEnv = publicSchema.parse({
 /* ---- Server-only — validated lazily on the server ---- */
 const serverSchema = z
   .object({
+    // AI relay. Provider-NEUTRAL names (the site moved off DeepSeek to
+    // Parspack AI Studio; naming env vars after a vendor is what made that a
+    // forty-file change). The DEEPSEEK_* names are still accepted so a live
+    // .env keeps booting until the owner migrates it — see
+    // integrations/aiRelayConfig.ts, which resolves the pair the same way.
+    AI_API_KEY: z.string().optional(),
     DEEPSEEK_API_KEY: z.string().optional(),
     // docker-compose passes unset optional vars as empty strings (`${VAR:-}`),
     // and `''` fails `.url()` even though the var is semantically absent —
     // which aborted boot with «پیکربندی محیط نامعتبر است». Normalize '' → undefined.
+    AI_BASE_URL: z.preprocess((v) => (v === '' ? undefined : v), z.string().url().optional()),
     DEEPSEEK_BASE_URL: z.preprocess(
       (v) => (v === '' ? undefined : v),
       z.string().url().optional(),
     ),
-    DEEPSEEK_MODEL: z.string().default('deepseek-chat'),
+    // No default here: the real default lives in aiRelayConfig.ts#aiModel, so
+    // there is exactly one place that decides which model is used.
+    AI_MODEL: z.string().optional(),
+    DEEPSEEK_MODEL: z.string().optional(),
+    // How much private reasoning the model may spend. See
+    // aiRelayConfig.ts#reasoningEffort — unconstrained, the current model
+    // burns ~95% of its tokens thinking and blows the AI_TIMEOUT_MS budget on
+    // any tool round trip. 'off' omits the parameter entirely.
+    AI_REASONING_EFFORT: z.enum(['none', 'low', 'medium', 'high', 'off']).optional(),
     SMSIR_API_KEY: z.string().optional(),
     SMSIR_TEMPLATE_ID: z.string().optional(),
     SMSIR_LINE_NUMBER: z.string().optional(),
@@ -111,9 +126,19 @@ const serverSchema = z
       }
     }
     if (env.AI_ENABLED === 'true') {
-      for (const key of ['DEEPSEEK_API_KEY', 'DEEPSEEK_BASE_URL'] as const) {
-        if (!env[key]) {
-          ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: `${key} برای فعال‌سازی دستیار هوشمند الزامی است.` });
+      // EITHER spelling satisfies the requirement — a deployment that has only
+      // migrated half its variable names must still boot.
+      const pairs = [
+        ['AI_API_KEY', 'DEEPSEEK_API_KEY'],
+        ['AI_BASE_URL', 'DEEPSEEK_BASE_URL'],
+      ] as const;
+      for (const [modern, legacy] of pairs) {
+        if (!env[modern] && !env[legacy]) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: [modern],
+            message: `${modern} برای فعال‌سازی دستیار هوشمند الزامی است.`,
+          });
         }
       }
     }

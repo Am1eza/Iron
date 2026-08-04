@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { getSession } from '@/lib/auth/session';
 import { assertSameOrigin } from '@/lib/auth/origin';
 import { requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
-import { aiEnabled, AiUnavailableError } from '@/lib/server/integrations/deepseek';
+import { aiEnabled, AiUnavailableError } from '@/lib/server/integrations/aiRelay';
 import { budgetExhausted } from '@/lib/server/ai/budget';
 import { upstreamUnavailable } from '@/lib/server/ai/upstreamState';
 import { numbersInText } from '@/lib/server/ai/grounding';
@@ -269,7 +269,7 @@ async function POSTImpl(req: NextRequest) {
         if (!req.signal.aborted) {
           // An upstream refusal is NOT an application error: it is already
           // classified and reported once per state transition inside the
-          // deepseek client, so reporting it again here would restore exactly
+          // AI relay client, so reporting it again here would restore exactly
           // the per-request noise this removes. The user gets the human-path
           // message; the client falls back to the local grounded engine.
           if (err instanceof AiUnavailableError) {

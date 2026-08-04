@@ -17,7 +17,7 @@ import { computeBulkSplit } from '@/lib/utils/bulkSplit';
 // the endpoint must not be able to disagree (they had already diverged).
 import { unitWeightKg } from '@/lib/utils/weight';
 import type { AuthUser } from '@/lib/auth/types';
-import type { ToolDef } from '@/lib/server/integrations/deepseek';
+import type { ToolDef } from '@/lib/server/integrations/aiRelay';
 import { finiteNumber } from '@/lib/validation/utils';
 import { normalizeDigits } from '@/lib/utils/format';
 import { formatJalali } from '@/lib/utils/jalali';

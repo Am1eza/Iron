@@ -20,7 +20,7 @@ Funnel: Magnet → Engage → Capture (پیش‌فاکتور / proforma) → Con
 |---|---|
 | Payments | **None online.** Proforma + human close. |
 | Prices | 100% **admin-entered**. No bourse formula. Weight = deterministic formula. |
-| AI | **DeepSeek**, server-side via an **out-of-Iran relay**. Grounded — never invents a number. |
+| AI | **Parspack AI Studio** (`nvidia/nemotron-3-nano-omni-30b-a3b-reasoning`), server-side via an **out-of-Iran relay**. Grounded — never invents a number. Was DeepSeek until 1405/05; the owner changed provider when that relay hit a permanent HTTP 402. Env vars are provider-neutral (`AI_BASE_URL`/`AI_API_KEY`/`AI_MODEL`, legacy `DEEPSEEK_*` still accepted) — see `web/src/lib/server/integrations/aiRelayConfig.ts`. It is a REASONING model: `AI_REASONING_EFFORT` must stay capped or every tool round trip times out. |
 | Ticker | FX/gold/ounce from **tgju.org**; billet is admin-entered. |
 | Auth | Mobile number + **OTP**. |
 | SMS | **SMS.ir — OWNER-LOCKED.** Never propose another provider. |

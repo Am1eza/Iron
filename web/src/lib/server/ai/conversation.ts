@@ -20,7 +20,7 @@ import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { getDb } from '@/lib/server/db/client';
 import { aiConversations, aiMessages } from '@/lib/server/db/schema';
-import { streamCompletion, type ChatMessage } from '@/lib/server/integrations/deepseek';
+import { streamCompletion, type ChatMessage } from '@/lib/server/integrations/aiRelay';
 import { AI_SYSTEM_PROMPT } from '@/lib/server/services/aiTools';
 import { assignPromptVersion, type PromptVersion } from '@/lib/server/ai/promptVersions';
 
