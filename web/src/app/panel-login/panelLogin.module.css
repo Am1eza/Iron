@@ -2,6 +2,7 @@
    The stage owns the whole viewport because SiteChrome hides itself on this
    route (no storefront ticker/navbar/footer around a staff door). */
 .stage {
+  min-block-size: 100vh;
   min-block-size: 100svh;
   display: grid;
   place-items: center;

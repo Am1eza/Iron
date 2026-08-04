@@ -109,6 +109,11 @@ ol.list {
 }
 
 .table tbody tr:nth-child(even) td {
+  /* Fallback FIRST — see Header.module.css: pre-2023 browsers drop the
+     color-mix declaration entirely, which here would lose the zebra striping
+     that makes a price table in an AI answer readable. The flat sunken
+     surface is the same hue, just not softened. */
+  background: var(--color-surface-sunken);
   background: color-mix(in srgb, var(--color-surface-sunken) 55%, transparent);
 }
 

@@ -1,4 +1,5 @@
 .page {
+  min-block-size: 100vh;
   min-block-size: 100svh;
   background: var(--color-bg);
   padding-block: var(--space-6);

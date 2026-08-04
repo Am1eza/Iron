@@ -150,9 +150,42 @@
   --ease-emphasized:cubic-bezier(.2,0,0,1);
 }
 
-@media (min-width:768px){ :root{ --page-x:1.5rem; } }
-@media (min-width:1024px){ :root{ --page-x:2rem; } }
-@media (max-width:767px){ :root{ --bottom-bar-h:calc(60px + env(safe-area-inset-bottom)); } }
+/* ---------------------------------------------------------------------------
+   BREAKPOINTS — the canonical scale. Read this before adding a @media rule.
+
+   CSS custom properties CANNOT be used inside a @media prelude (`@media
+   (min-width: var(--bp-md))` is invalid), and this project has no
+   postcss-custom-media plugin — postcss.config.mjs runs autoprefixer and
+   nothing else. So there is no way to make these literal tokens; this comment
+   block is the single source of truth instead, and reviewers should treat a
+   new value that is not on this list the same way they treat a raw colour.
+
+     640px  — phone / small-tablet content tweaks (max-width only; there is no
+              complementary min-width rule anywhere, so it is a one-sided
+              "make it narrower" hook)
+     768px  — the mobile↔tablet line. ALWAYS paired: min-width: 768px against
+              max-width: 767px. Also where the bottom tab bar and the hero
+              video appear/disappear (see HeroVideo.tsx's SKIP_BREAKPOINT).
+     900px  — admin-only two-column↔one-column. Paired as
+              min-width: 900px / max-width: 899px.
+     1024px — the tablet↔desktop line. Paired as
+              min-width: 1024px / max-width: 1023px.
+
+   Two rules that matter more than tidiness:
+   1. NEVER merge an `n`px and an `n-1`px value without checking for its
+      partner. 899/900 and 767/768 and 1023/1024 are deliberate
+      non-overlapping pairs — collapsing one side makes both rules apply at
+      that exact width.
+   2. A handful of rem-denominated breakpoints survive (32rem/40rem/60rem in
+      the admin and account CSS). They were left alone ON PURPOSE: a rem media
+      query scales with the visitor's own browser font-size setting and a px
+      one does not, so "unifying" them in either direction changes the layout
+      for people who have enlarged their default text. That is a deliberate
+      accessibility trade, not an oversight — see the W29 audit note.
+   --------------------------------------------------------------------------- */
+@media (min-width: 768px) { :root{ --page-x:1.5rem; } }
+@media (min-width: 1024px) { :root{ --page-x:2rem; } }
+@media (max-width: 767px) { :root{ --bottom-bar-h:calc(60px + env(safe-area-inset-bottom)); } }
 
 :root[data-theme="dark"]{
   --color-bg:var(--neutral-950); --color-surface:var(--neutral-900); --color-surface-raised:var(--neutral-800);

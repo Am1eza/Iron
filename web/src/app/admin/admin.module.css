@@ -1,4 +1,5 @@
 .shell {
+  min-block-size: 100vh;
   min-block-size: 100svh;
   background: var(--color-surface);
   display: flex;
@@ -122,6 +123,7 @@
     position: sticky;
     /* below the sticky topbar */
     inset-block-start: 56px;
+    max-block-size: calc(100vh - 56px);
     max-block-size: calc(100svh - 56px);
     overflow-y: auto;
     border-inline-end: var(--border-hairline) solid var(--color-hairline);

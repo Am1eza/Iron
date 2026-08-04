@@ -23,6 +23,7 @@
   position: sticky;
   inset-block-start: var(--space-3);
   max-block-size: calc(100vh - var(--space-6));
+  max-block-size: calc(100dvh - var(--space-6));
   overflow-y: auto;
   border: var(--border-hairline) solid var(--color-hairline);
   border-radius: var(--radius-md);

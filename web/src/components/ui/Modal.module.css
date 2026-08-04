@@ -26,6 +26,7 @@
   position: relative;
   inline-size: 100%;
   max-inline-size: var(--container-narrow);
+  max-block-size: calc(100vh - var(--space-8));
   max-block-size: calc(100svh - var(--space-8));
   display: flex;
   flex-direction: column;

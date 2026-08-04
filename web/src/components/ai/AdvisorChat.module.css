@@ -5,6 +5,7 @@
   max-inline-size: 760px;
   margin-inline: auto;
   margin-block: var(--space-6) var(--space-8);
+  block-size: min(78vh, 760px);
   block-size: min(78svh, 760px);
   background: var(--color-surface);
   border: var(--border-hairline) solid var(--color-hairline);
@@ -407,6 +408,7 @@
     /* Subtract the full top chrome (36px ticker + 60px header) AND the fixed
        bottom tab bar; the old calc ignored the ticker, so the composer row was
        pushed ~36px under the bar. */
+    block-size: calc(100vh - 36px - 60px - var(--bottom-bar-h));
     block-size: calc(100svh - 36px - 60px - var(--bottom-bar-h));
     border-radius: 0;
     border-inline: 0;

@@ -2,6 +2,12 @@
   position: sticky;
   inset-block-start: 0;
   z-index: var(--z-sticky);
+  /* Fallback FIRST: color-mix needs Chrome/Safari 111+ (2023), and Iran has a
+     long tail of older Android WebViews. Without this the whole declaration is
+     invalid there and the sticky header gets NO background at all — page
+     content scrolls straight through the nav. The opaque surface is the same
+     colour, just without the 6% see-through. */
+  background: var(--color-surface);
   background: color-mix(in srgb, var(--color-surface) 94%, transparent);
   backdrop-filter: blur(6px);
   border-block-end: var(--border-hairline) solid var(--color-hairline);
