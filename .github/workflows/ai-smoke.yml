@@ -8,7 +8,18 @@ name: AI advisor nightly smoke
 #                        short-circuit works even while the relay is off)
 #   2. price ask       → HTTP 200 stream that reaches {"type":"done"},
 #                        OR the documented 503 {"error":"ai_disabled"}
-#   3. invalid payload → HTTP 400 {"error":"invalid"} (route validation alive)
+#   3. invalid payload → HTTP 400 {"error":"validation"} (route validation alive)
+#
+# Every request sends `Origin: $BASE_URL`. /api/ai/chat is behind the app's
+# same-origin guard (src/lib/auth/origin), so a POST without an Origin header
+# is rejected 403 {"error":"forbidden"} before any of the above can be
+# evaluated. The old Workers preview did not enforce this, which is one more
+# way the canary was testing something that was not production.
+#
+# Failure output is deliberately verbose: a red X that only says
+# `test "$code" = "200"` tells the on-call nothing at 06:00. Each canary dumps
+# the status line, the response headers and the full body on failure, and says
+# in words which of the three contracts broke.
 
 on:
   schedule:
@@ -23,48 +34,126 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
-      BASE_URL: https://ahantime.giminesap.workers.dev
+      # PRODUCTION. This used to point at https://ahantime.giminesap.workers.dev
+      # — a Cloudflare Workers preview with no database attached — so the
+      # "nightly production canary" described above had never once touched
+      # production. Every canary that could pass there was passing on
+      # fixtures: the greeting short-circuit needs no DB at all, the price ask
+      # fell through to the documented `ai_disabled` 503, and the invalid
+      # payload is pure route validation. A dead DB, a dead relay or a dead
+      # site would all have gone unnoticed while this workflow stayed green.
+      #
+      # Expect this to be noisier now, and expect some of that noise to be
+      # real. That is the point of a canary.
+      BASE_URL: https://ahantime.com
 
     steps:
-      - name: 'Canary 1: greeting short-circuit streams token + done frames'
+      - name: 'Preflight: production is reachable at all'
         run: |
           set -euo pipefail
-          code=$(curl -sS -m 30 -o /tmp/greeting.out -w '%{http_code}' \
-            -H 'Content-Type: application/json' -H 'Accept: text/event-stream' \
-            -d '{"messages":[{"role":"user","content":"سلام"}]}' \
-            "$BASE_URL/api/ai/chat")
-          echo "HTTP $code"; head -c 800 /tmp/greeting.out; echo
-          test "$code" = "200"
-          grep -q '"type":"token"' /tmp/greeting.out
-          grep -q '"type":"done"' /tmp/greeting.out
-
-      - name: 'Canary 2: price ask streams to done, or the documented 503 ai_disabled'
-        run: |
-          set -euo pipefail
-          code=$(curl -sS -m 90 -o /tmp/price.out -w '%{http_code}' \
-            -H 'Content-Type: application/json' -H 'Accept: text/event-stream' \
-            -d '{"messages":[{"role":"user","content":"قیمت میلگرد ۱۴ چنده؟"}]}' \
-            "$BASE_URL/api/ai/chat")
-          echo "HTTP $code"; head -c 800 /tmp/price.out; echo
-          if test "$code" = "200"; then
-            # A 200 stream must complete: an {"type":"error"} frame without a
-            # final done (relay blew up mid-request) fails the canary.
-            grep -q '"type":"done"' /tmp/price.out
-          elif test "$code" = "503"; then
-            # The ONLY tolerated 5xx: the relay switch is deliberately off.
-            jq -e '.error == "ai_disabled"' /tmp/price.out
-          else
-            echo "unexpected HTTP $code" >&2
+          # Separates "the AI route is broken" from "the whole site is down",
+          # which are very different pages and very different on-call actions.
+          code=$(curl -sS -m 20 -o /tmp/health.out -w '%{http_code}' "$BASE_URL/api/health" || echo 000)
+          echo "GET $BASE_URL/api/health -> HTTP $code"
+          cat /tmp/health.out; echo
+          if [ "$code" != "200" ]; then
+            echo "::error title=Production unreachable::$BASE_URL/api/health returned HTTP $code. The site itself is down or Caddy is not routing — the AI canaries below are not the story. Check the ahantime-uptime systemd timer on the host (journalctl -u ahantime-uptime) and docker compose ps."
             exit 1
           fi
 
-      - name: 'Canary 3: invalid payload rejected with 400'
+      - name: 'Canary 1: greeting short-circuit streams token + done frames'
         run: |
           set -euo pipefail
-          code=$(curl -sS -m 30 -o /tmp/bad.out -w '%{http_code}' \
+          code=$(curl -sS -m 30 -D /tmp/greeting.hdr -o /tmp/greeting.out -w '%{http_code}' \
+            -H 'Content-Type: application/json' -H 'Accept: text/event-stream' \
+            -H "Origin: $BASE_URL" \
+            -d '{"messages":[{"role":"user","content":"سلام"}]}' \
+            "$BASE_URL/api/ai/chat")
+          echo "HTTP $code"; cat /tmp/greeting.hdr; head -c 2000 /tmp/greeting.out; echo
+
+          fail() {
+            echo "::error title=AI canary 1 (greeting) failed::$1"
+            echo "--- request: POST $BASE_URL/api/ai/chat  {messages:[{role:user,content:سلام}]}"
+            echo "--- status: HTTP $code"
+            echo "--- response headers ---"; cat /tmp/greeting.hdr
+            echo "--- response body (2KB) ---"; head -c 2000 /tmp/greeting.out; echo
+            exit 1
+          }
+
+          if [ "$code" = "403" ]; then
+            fail "HTTP 403 — the same-origin guard rejected the canary. Either the Origin header is no longer accepted for $BASE_URL, or ALLOWED_ORIGINS changed on the server. This is a canary-config problem, not an AI outage."
+          fi
+          [ "$code" = "200" ] || fail "expected HTTP 200, got $code. The greeting path needs no relay and no DB, so a non-200 here means the route itself is broken."
+          grep -q '"type":"token"' /tmp/greeting.out || fail "HTTP 200 but no {\"type\":\"token\"} frame — the SSE stream opened and produced no content. Greeting short-circuit is broken."
+          grep -q '"type":"done"' /tmp/greeting.out || fail "HTTP 200 with token frames but no {\"type\":\"done\"} — the stream never terminated cleanly (relay timeout, or the route threw mid-stream)."
+
+      - name: 'Canary 2: price ask streams to done, or the documented 503 ai_disabled'
+        if: always()
+        run: |
+          set -euo pipefail
+          code=$(curl -sS -m 90 -D /tmp/price.hdr -o /tmp/price.out -w '%{http_code}' \
+            -H 'Content-Type: application/json' -H 'Accept: text/event-stream' \
+            -H "Origin: $BASE_URL" \
+            -d '{"messages":[{"role":"user","content":"قیمت میلگرد ۱۴ چنده؟"}]}' \
+            "$BASE_URL/api/ai/chat")
+          echo "HTTP $code"; cat /tmp/price.hdr; head -c 2000 /tmp/price.out; echo
+
+          fail() {
+            echo "::error title=AI canary 2 (grounded price ask) failed::$1"
+            echo "--- request: POST $BASE_URL/api/ai/chat  {messages:[{role:user,content:قیمت میلگرد ۱۴ چنده؟}]}"
+            echo "--- status: HTTP $code"
+            echo "--- response headers ---"; cat /tmp/price.hdr
+            echo "--- response body (2KB) ---"; head -c 2000 /tmp/price.out; echo
+            echo "--- triage: this canary is the only automated check that the FULL grounded path works end to end: route -> Postgres price lookup -> out-of-Iran DeepSeek relay -> SSE stream. An {\"type\":\"error\"} frame with no {\"type\":\"done\"} almost always means the relay is unreachable or returned non-200; check the relay first, then GlitchTip on :9443 for the server-side exception."
+            exit 1
+          }
+
+          if test "$code" = "200"; then
+            # A 200 stream must COMPLETE. An {"type":"error"} frame without a
+            # final done means the relay blew up mid-request — the user saw a
+            # broken answer, so this is a failure even though HTTP said 200.
+            if grep -q '"type":"done"' /tmp/price.out; then
+              echo "ok: stream reached done"
+            elif grep -q '"type":"error"' /tmp/price.out; then
+              fail "HTTP 200 but the stream emitted an error frame and never reached done — the AI advisor is answering real users with 'دستیار هوشمند با خطا مواجه شد'."
+            else
+              fail "HTTP 200 but the stream contains neither a done frame nor an error frame — it was cut off mid-flight (timeout or upstream reset)."
+            fi
+          elif test "$code" = "503"; then
+            # The ONLY tolerated 5xx: the relay switch is deliberately off.
+            jq -e '.error == "ai_disabled"' /tmp/price.out >/dev/null \
+              || fail "HTTP 503 but not the documented {\"error\":\"ai_disabled\"} shutoff — this is an unplanned server error, not a deliberate switch-off."
+            echo "ok: relay deliberately disabled (ai_disabled)"
+          elif test "$code" = "403"; then
+            fail "HTTP 403 — same-origin guard rejected the canary (see canary 1's note)."
+          else
+            fail "unexpected HTTP $code — neither a completed stream nor the documented ai_disabled 503."
+          fi
+
+      - name: 'Canary 3: invalid payload rejected with 400'
+        if: always()
+        run: |
+          set -euo pipefail
+          code=$(curl -sS -m 30 -D /tmp/bad.hdr -o /tmp/bad.out -w '%{http_code}' \
             -H 'Content-Type: application/json' \
+            -H "Origin: $BASE_URL" \
             -d '{"messages":[]}' \
             "$BASE_URL/api/ai/chat")
-          echo "HTTP $code"; cat /tmp/bad.out; echo
-          test "$code" = "400"
-          jq -e '.error == "invalid"' /tmp/bad.out
+          echo "HTTP $code"; cat /tmp/bad.hdr; cat /tmp/bad.out; echo
+
+          fail() {
+            echo "::error title=AI canary 3 (input validation) failed::$1"
+            echo "--- request: POST $BASE_URL/api/ai/chat  {messages:[]}"
+            echo "--- status: HTTP $code"
+            echo "--- response headers ---"; cat /tmp/bad.hdr
+            echo "--- response body ---"; cat /tmp/bad.out; echo
+            exit 1
+          }
+
+          [ "$code" = "400" ] || fail "expected HTTP 400 for an empty messages array, got $code. If this is 200 the route is accepting unvalidated input; if 5xx it is crashing on it instead of rejecting it."
+          # Production returns {"error":"validation", fields:{...}} from the Zod
+          # layer. This assertion used to demand "invalid", a shape only the
+          # mock preview ever produced — so it could never have passed against
+          # the real app.
+          jq -e '.error == "validation"' /tmp/bad.out >/dev/null \
+            || fail "HTTP 400 but the error code is not \"validation\" — the Zod rejection path changed shape; update this assertion deliberately rather than loosening it."
