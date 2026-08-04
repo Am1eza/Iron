@@ -8,6 +8,7 @@
  * server on its own.
  */
 import type { Msg } from '@/components/ai/AdvisorChat';
+import { safeLocalStorage, readJson, writeJson } from '@/lib/utils/safeStorage';
 
 const KEY = 'ahantime-ai-chat-v1';
 const TTL_MS = 3 * 24 * 60 * 60 * 1000; // 3 days — stale threads are dropped
@@ -20,40 +21,22 @@ export interface StoredChat {
 }
 
 export function loadChat(): StoredChat | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const raw = window.localStorage.getItem(KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as StoredChat;
-    if (!parsed?.savedAt || Date.now() - parsed.savedAt > TTL_MS) {
-      window.localStorage.removeItem(KEY);
-      return null;
-    }
-    if (!Array.isArray(parsed.messages)) return null;
-    return parsed;
-  } catch {
+  const parsed = readJson<StoredChat | null>(KEY, null);
+  if (!parsed?.savedAt || Date.now() - parsed.savedAt > TTL_MS) {
+    if (parsed) safeLocalStorage.removeItem(KEY);
     return null;
   }
+  if (!Array.isArray(parsed.messages)) return null;
+  return parsed;
 }
 
 export function saveChat(chat: Omit<StoredChat, 'savedAt'>): void {
-  if (typeof window === 'undefined') return;
-  try {
-    // Never persist an empty thread (nothing to restore) — keeps the "new chat"
-    // reset clean and avoids clobbering a real thread with a transient blank.
-    if (chat.messages.length === 0) return;
-    const payload: StoredChat = { ...chat, savedAt: Date.now() };
-    window.localStorage.setItem(KEY, JSON.stringify(payload));
-  } catch {
-    /* quota / private mode — persistence is best-effort */
-  }
+  // Never persist an empty thread (nothing to restore) — keeps the "new chat"
+  // reset clean and avoids clobbering a real thread with a transient blank.
+  if (chat.messages.length === 0) return;
+  writeJson(KEY, { ...chat, savedAt: Date.now() } satisfies StoredChat);
 }
 
 export function clearChat(): void {
-  if (typeof window === 'undefined') return;
-  try {
-    window.localStorage.removeItem(KEY);
-  } catch {
-    /* noop */
-  }
+  safeLocalStorage.removeItem(KEY);
 }

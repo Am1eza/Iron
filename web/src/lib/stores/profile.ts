@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { safeLocalStorage } from '@/lib/utils/safeStorage';
 
 /**
  * Buyer profile preferences (mock persistence via localStorage). The warehouse
@@ -34,7 +35,7 @@ export const useProfileStore = create<ProfileState>()(
         }
         return persisted as ProfileState;
       },
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => safeLocalStorage),
       // Read localStorage during the hydrating render and the server (which
       // has none) and the client disagree about the selected city — a React
       // hydration mismatch on every page that shows it. Rehydrated after

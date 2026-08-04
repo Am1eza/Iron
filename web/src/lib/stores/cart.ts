@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { safeLocalStorage } from '@/lib/utils/safeStorage';
 import type { PriceUnit } from '@/lib/types/domain';
 
 export type CartItem = {
@@ -45,7 +46,7 @@ export const useCartStore = create<CartState>()(
     {
       name: 'ahantime-cart',
       version: 1,
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => safeLocalStorage),
       skipHydration: true, // rehydrated by <StoreHydrator/> → no SSR mismatch
     },
   ),

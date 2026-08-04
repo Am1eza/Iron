@@ -87,6 +87,12 @@ export function Header({ categories, subs }: { categories: Category[]; subs: Sub
     return () => document.removeEventListener('keydown', onKey);
   }, [searchOpen]);
 
+  // WCAG 2.2 · 4.1.2 / 2.4.8 Location. The nav marked the current section with
+  // a `data-active` attribute only — a purely visual signal. A screen-reader
+  // user got no indication of where in the site they were, on any of the four
+  // dropdown menus. `aria-current="page"` is the programmatic half of what
+  // `data-active` already says visually; the AI link had it and nothing else
+  // did.
   const isActive = (href: string) =>
     href === routes.home() ? pathname === '/' : pathname.startsWith(href);
 
@@ -117,7 +123,11 @@ export function Header({ categories, subs }: { categories: Category[]; subs: Sub
             <ul className={styles.dropdownList}>
               {TOOLS_NAV.map((item) => (
                 <li key={item.href}>
-                  <Link href={item.href} className={styles.dropdownItem}>
+                  <Link
+                    href={item.href}
+                    className={styles.dropdownItem}
+                    aria-current={isActive(item.href) ? 'page' : undefined}
+                  >
                     {item.label}
                   </Link>
                 </li>
@@ -133,7 +143,11 @@ export function Header({ categories, subs }: { categories: Category[]; subs: Sub
             <ul className={styles.dropdownList}>
               {CONTENT_NAV.map((item) => (
                 <li key={item.href}>
-                  <Link href={item.href} className={styles.dropdownItem}>
+                  <Link
+                    href={item.href}
+                    className={styles.dropdownItem}
+                    aria-current={isActive(item.href) ? 'page' : undefined}
+                  >
                     {item.label}
                   </Link>
                 </li>
@@ -145,7 +159,11 @@ export function Header({ categories, subs }: { categories: Category[]; subs: Sub
             <ul className={styles.dropdownList}>
               {SERVICES_NAV.map((s) => (
                 <li key={s.href}>
-                  <Link href={s.href} className={styles.dropdownItem}>
+                  <Link
+                    href={s.href}
+                    className={styles.dropdownItem}
+                    aria-current={isActive(s.href) ? 'page' : undefined}
+                  >
                     {s.label}
                   </Link>
                 </li>
@@ -168,7 +186,11 @@ export function Header({ categories, subs }: { categories: Category[]; subs: Sub
             <ul className={styles.dropdownList}>
               {COMPANY_NAV.map((c) => (
                 <li key={c.href}>
-                  <Link href={c.href} className={styles.dropdownItem}>
+                  <Link
+                    href={c.href}
+                    className={styles.dropdownItem}
+                    aria-current={isActive(c.href) ? 'page' : undefined}
+                  >
                     {c.label}
                   </Link>
                 </li>
@@ -176,7 +198,11 @@ export function Header({ categories, subs }: { categories: Category[]; subs: Sub
               <li className={styles.dropdownDivider} aria-hidden="true" />
               {SUPPORT_NAV.map((c) => (
                 <li key={c.href}>
-                  <Link href={c.href} className={styles.dropdownItem}>
+                  <Link
+                    href={c.href}
+                    className={styles.dropdownItem}
+                    aria-current={isActive(c.href) ? 'page' : undefined}
+                  >
                     {c.label}
                   </Link>
                 </li>

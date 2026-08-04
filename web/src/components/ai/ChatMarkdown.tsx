@@ -243,7 +243,16 @@ export function ChatMarkdown({ text, streaming }: { text: string; streaming?: bo
             );
           case 'table':
             return (
-              <div key={key} className={styles.tableWrap}>
+              // WCAG 2.1.1 — same reasoning as the article body's tables:
+              // a scroll container that only a mouse or finger can reach hides
+              // its overflowing columns from keyboard users entirely.
+              <div
+                key={key}
+                className={styles.tableWrap}
+                role="region"
+                aria-label="جدول پاسخ مشاور"
+                tabIndex={0}
+              >
                 <table className={styles.table}>
                   <thead>
                     <tr>

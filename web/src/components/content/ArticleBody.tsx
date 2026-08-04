@@ -66,9 +66,15 @@ function isExternal(url: string): boolean {
 
 function renderInline(text: string): ReactNode {
   // Bold before italic: `**x**` must not be read as `*` + `*x*` + `*`. The
-  // italic branch's negative lookahead/lookbehind keeps it from firing inside
-  // an already-consumed `**...**` run.
-  const re = /\*\*([^*]+)\*\*|(?<!\*)\*([^*]+)\*(?!\*)|\[([^\]]+)\]\(([^)\s]+)\)/g;
+  // italic branch must also not fire on a `*` that follows another `*`.
+  //
+  // That guard used to be a lookbehind, `(?<!\*)`. Lookbehind is unsupported
+  // in Safari before 16.4, and an unsupported group is a SYNTAX error — the
+  // whole script chunk fails to parse, so this did not degrade to unformatted
+  // text, it blanked every article page on those browsers. Expressed instead
+  // as a captured preceding character (empty at the start of the string),
+  // which is re-emitted as text below so nothing is swallowed.
+  const re = /\*\*([^*]+)\*\*|(^|[^*])\*([^*]+)\*(?!\*)|\[([^\]]+)\]\(([^)\s]+)\)/g;
   const parts: ReactNode[] = [];
   let last = 0;
   let k = 0;
@@ -77,10 +83,13 @@ function renderInline(text: string): ReactNode {
     if (m.index > last) parts.push(text.slice(last, m.index));
     if (m[1] !== undefined) {
       parts.push(<strong key={`b${k++}`}>{m[1]}</strong>);
-    } else if (m[2] !== undefined) {
-      parts.push(<em key={`i${k++}`}>{m[2]}</em>);
+    } else if (m[3] !== undefined) {
+      // m[2] is the character the italic run had to be preceded by; it is part
+      // of the match only so it can be tested, so it goes straight back out.
+      if (m[2]) parts.push(m[2]);
+      parts.push(<em key={`i${k++}`}>{m[3]}</em>);
     } else {
-      const href = safeHref(m[4]!);
+      const href = safeHref(m[5]!);
       if (href) {
         parts.push(
           <a
@@ -88,13 +97,13 @@ function renderInline(text: string): ReactNode {
             href={href}
             rel={isExternal(href) ? 'noopener noreferrer nofollow' : 'noopener'}
           >
-            {m[3]}
+            {m[4]}
           </a>,
         );
       } else {
         // A rejected scheme still shows its label — dropping the text silently
         // would make the sentence read as if a word were missing.
-        parts.push(<span key={`a${k++}`}>{m[3]}</span>);
+        parts.push(<span key={`a${k++}`}>{m[4]}</span>);
       }
     }
     last = re.lastIndex;
@@ -136,7 +145,17 @@ function renderBlock(block: Block, index: number): ReactNode {
       );
     case 'table':
       return (
-        <div key={index} className={styles.tableWrap}>
+        // WCAG 2.1.1 Keyboard: a region that scrolls must be reachable by
+        // keyboard, or a keyboard-only user can never see the columns past
+        // the fold. tabindex="0" makes it focusable and role+name mean the
+        // focus stop announces itself instead of being a silent empty stop.
+        <div
+          key={index}
+          className={styles.tableWrap}
+          role="region"
+          aria-label="جدول مطلب"
+          tabIndex={0}
+        >
           <table className={styles.table}>
             <thead>
               <tr>

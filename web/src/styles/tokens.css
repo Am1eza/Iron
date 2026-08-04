@@ -203,7 +203,12 @@ html{font:var(--t-body);color:var(--color-text);background:var(--color-bg);lette
      this replaced html[dir="rtl"]{text-align:right}, the only physical
      direction property left in the stylesheet. */
   text-align:start;}
-body{margin:0;min-block-size:100svh;}
+/* `vh` first, `svh` second: svh needs Chrome 108 / Safari 15.4, and on an
+   older Android WebView — of which Iran has a long tail — the svh declaration
+   is dropped and the body would be left with NO minimum height at all, so a
+   short page's footer floats mid-screen. The vh value is the pre-2022
+   behaviour, which is the right thing to degrade to. */
+body{margin:0;min-block-size:100vh;min-block-size:100svh;}
 h1{font:var(--t-h1);color:var(--color-text-strong);margin:0;text-wrap:balance;}
 h2{font:var(--t-h2);color:var(--color-text-strong);margin:0;text-wrap:balance;}
 h3{font:var(--t-h3);color:var(--color-text-strong);margin:0;}
@@ -216,7 +221,17 @@ img{max-inline-size:100%;height:auto;}
 .tnum,.price-cell,.ticker,.cell-num,.price-hero{font-feature-settings:"tnum" 1,"lnum" 1;}
 .price-hero{font:var(--t-price-hero);color:var(--color-text-strong);}
 
-.container{max-inline-size:var(--container-max);margin-inline:auto;padding-inline:var(--page-x);
+.container{max-inline-size:var(--container-max);margin-inline:auto;
+  /* Horizontal safe-area insets. The bottom inset was handled (--bottom-bar-h)
+     but the left/right ones never were: on a notched phone held in LANDSCAPE
+     the notch and the home indicator's rounded corners eat into the viewport,
+     and content sat under them — the first or last character of a price row
+     clipped by the bezel. `env()` is 0 on every non-notched device and in
+     every browser that does not support it, so this is inert elsewhere.
+     Both physical insets are folded into ONE symmetric max(): env() has no
+     logical form, and picking left-for-start would be wrong in RTL, which is
+     this site's default direction. */
+  padding-inline:max(var(--page-x),env(safe-area-inset-left),env(safe-area-inset-right));
   /* One long URL or Latin part number in an article, an AI reply or an
      admin-entered product name otherwise forces horizontal page scroll at
      320px (WCAG 1.4.10 Reflow). AI output is untrusted-length by definition. */

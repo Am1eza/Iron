@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { safeLocalStorage } from '@/lib/utils/safeStorage';
 
 export type Theme = 'light' | 'dark';
 export type Toast = {
@@ -79,7 +80,7 @@ export const useUiStore = create<UiState>()(
         const s = (persisted ?? {}) as Partial<UiState>;
         return { ...s, theme: 'light' as Theme };
       },
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => safeLocalStorage),
       skipHydration: true,
       // only persist preferences, not ephemeral UI
       partialize: (s) => ({

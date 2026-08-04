@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { safeLocalStorage } from '@/lib/utils/safeStorage';
 
 /**
  * The user's request inbox — every «دریافت پیش‌فاکتور» / bulk / warehouse ask
@@ -121,7 +122,7 @@ export const useRequestsStore = create<RequestsState>()(
         }
         return persisted as RequestsState;
       },
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => safeLocalStorage),
       // Without this, the store read localStorage during the render that React
       // hydrates against the server HTML — the server has no localStorage, so
       // any component showing a request count rendered one number on the

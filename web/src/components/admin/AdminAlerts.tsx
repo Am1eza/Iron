@@ -23,6 +23,7 @@ import { adminApi } from '@/lib/api/resources/admin';
 import { useAuthStore } from '@/lib/stores/auth';
 import { can } from '@/lib/auth/roles';
 import { toPersianDigits } from '@/lib/utils/format';
+import { safeLocalStorage } from '@/lib/utils/safeStorage';
 import { BellIcon } from '@/components/primitives/icons';
 import { IconButton } from '@/components/ui';
 
@@ -33,20 +34,12 @@ const MUTE_KEY = 'ahantime.alerts.muted';
 const ASKED_KEY = 'ahantime.alerts.asked';
 
 /** localStorage throws in Safari private mode / with cookies blocked, and an
- *  alert bell is never worth taking the panel down for. */
+ *  alert bell is never worth taking the panel down for — see lib/utils/safeStorage. */
 function readFlag(key: string): boolean {
-  try {
-    return window.localStorage.getItem(key) === '1';
-  } catch {
-    return false;
-  }
+  return safeLocalStorage.getItem(key) === '1';
 }
 function writeFlag(key: string, value: boolean): void {
-  try {
-    window.localStorage.setItem(key, value ? '1' : '0');
-  } catch {
-    /* non-persistent this session — the in-memory state still holds */
-  }
+  safeLocalStorage.setItem(key, value ? '1' : '0');
 }
 
 function ring() {

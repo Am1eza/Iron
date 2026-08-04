@@ -11,6 +11,20 @@ describe('MarkdownProse — inline formatting (W25)', () => {
     expect(em.tagName).toBe('EM');
   });
 
+  it('does not italicise a lone `*` left inside an unbalanced bold run', () => {
+    // Locks the behaviour of the ES5-compatible `(^|[^*])` guard that replaced
+    // the `(?<!\*)` lookbehind (lookbehind is a SYNTAX error in Safari < 16.4,
+    // which blanked the whole article page rather than degrading).
+    render(<MarkdownProse md="متن **الف*ب** پایان" />);
+    expect(document.querySelector('em')).toBeNull();
+  });
+
+  it('keeps the character before an italic run instead of eating it', () => {
+    render(<MarkdownProse md="الف*ب* پایان" />);
+    expect(document.querySelector('em')).toHaveTextContent('ب');
+    expect(screen.getByText(/الف/)).toBeInTheDocument();
+  });
+
   it('links an http(s) href and marks external links noreferrer/nofollow', () => {
     render(<MarkdownProse md="[قیمت میلگرد](https://ahantime.com/prices/rebar)" />);
     const a = screen.getByRole('link', { name: 'قیمت میلگرد' });

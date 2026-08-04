@@ -12,6 +12,16 @@
   box-shadow: var(--shadow-sm);
 }
 
+/* Suspense fallback for the whole card (app/login/page.tsx) — sized to the
+   real mobile step (heading + subtitle + phone field + button) so the swap to
+   the hydrated form costs no layout shift. No shimmer animation: it would be
+   motion under prefers-reduced-motion for a box that lives ~200ms. */
+.skeleton {
+  block-size: 268px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+}
+
 .head {
   display: flex;
   flex-direction: column;
