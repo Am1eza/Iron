@@ -83,12 +83,33 @@ fi
 # interrupt (restic repositories are append-only until prune completes).
 # --tag is matched per-snapshot, so each tag needs its own forget call; a single
 # call would leave the untagged-for-that-run snapshots unpruned forever.
-restic forget --tag ahantime-db --host ahantime \
-  --keep-daily 14 --keep-weekly 8 >/dev/null || \
-  echo "restic: forget failed for ahantime-db (backup itself succeeded)" >&2
-restic forget --tag ahantime-uploads --host ahantime \
-  --keep-daily 14 --keep-weekly 8 --prune >/dev/null || \
-  echo "restic: forget/prune failed for ahantime-uploads (backup itself succeeded)" >&2
+#
+# --group-by is the whole ballgame here and was the bug: restic's DEFAULT
+# grouping is `host,paths`, and every db dump is backed up under a UNIQUE path
+# because the filename carries a timestamp (ahantime-2026-08-04_0301.sql.gz).
+# So each snapshot landed in a group of its own, `--keep-daily 14` kept the one
+# snapshot in every group, and restic dutifully reported "keep 1 / remove 0"
+# for each — forever. Retention was never applied to a single snapshot since
+# the off-site copy was introduced, and because the whole thing was `|| echo`
+# it also could never fail the run. Group by tag+host so all dumps for a tag
+# are one timeline and the daily/weekly policy actually bites.
+#
+# These are NOT `|| echo` any more. A retention policy that silently stops
+# applying is exactly the failure mode this script already learned the hard way
+# (see the freshness check below); an unpruned repository grows without bound
+# until the disk fills and then the *backup* starts failing. Loud, non-zero,
+# visible to `systemctl status` and `OnFailure=`.
+forget_failed=0
+if ! restic forget --tag ahantime-db --host ahantime \
+      --group-by tag,host --keep-daily 14 --keep-weekly 8 --prune >/dev/null; then
+  echo "restic: forget/prune FAILED for ahantime-db — retention is NOT being applied" >&2
+  forget_failed=1
+fi
+if ! restic forget --tag ahantime-uploads --host ahantime \
+      --group-by tag,host --keep-daily 14 --keep-weekly 8 --prune >/dev/null; then
+  echo "restic: forget/prune FAILED for ahantime-uploads — retention is NOT being applied" >&2
+  forget_failed=1
+fi
 
 # Assert the copy we just took is actually IN the repository. Without this the
 # script's own success message is the only evidence, and for three nights that
@@ -106,3 +127,12 @@ if [ "$NEWEST" != "$(date +%F)" ]; then
 fi
 
 echo "restic: off-site copy ok ($(restic snapshots --tag ahantime-db --json 2>/dev/null | grep -o '"id"' | wc -l) db snapshots, newest $NEWEST)"
+
+# The dump landed and is verifiably in the repository — that part is fine and
+# has already been reported above. But exit non-zero anyway if retention did
+# not run, so the unit goes red and OnFailure= fires. Reported last so the
+# operator sees "backup ok, retention broken" rather than a bare failure.
+if [ "$forget_failed" -ne 0 ]; then
+  echo "restic: backup succeeded but RETENTION FAILED — repository will grow unbounded" >&2
+  exit 1
+fi
