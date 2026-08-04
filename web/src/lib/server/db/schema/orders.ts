@@ -43,7 +43,14 @@ export const orders = pgTable(
     // avoids touching that logic at all). Null = active.
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
   },
-  (t) => [index('orders_user_idx').on(t.userId)],
+  (t) => [
+    index('orders_user_idx').on(t.userId),
+    // FK with no covering index (W29) — the `leads` ON DELETE SET NULL.
+    index('orders_lead_idx').on(t.leadId),
+    // Both the admin order list (`ORDER BY placed_at DESC`, ordersRepo:126)
+    // and the analytics orders KPI window on `placed_at`, which had no index.
+    index('orders_placed_at_idx').on(t.placedAt),
+  ],
 );
 
 export const orderItems = pgTable(
@@ -64,7 +71,11 @@ export const orderItems = pgTable(
     unitPrice: bigint('unit_price', { mode: 'number' }),
     lineTotal: bigint('line_total', { mode: 'number' }),
   },
-  (t) => [index('order_items_order_idx').on(t.orderId)],
+  (t) => [
+    index('order_items_order_idx').on(t.orderId),
+    // FK with no covering index (W29) — the `skus` ON DELETE SET NULL.
+    index('order_items_sku_idx').on(t.skuId),
+  ],
 );
 
 export const warehouseItems = pgTable(
@@ -119,7 +130,16 @@ export const warehouseItems = pgTable(
     // forward-only stepper untouched.
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
   },
-  (t) => [index('warehouse_items_user_idx').on(t.userId)],
+  (t) => [
+    index('warehouse_items_user_idx').on(t.userId),
+    // Three FKs with no covering index (W29) — request/lead ON DELETE SET
+    // NULL, received_by ON DELETE SET NULL.
+    index('warehouse_items_request_idx').on(t.requestId),
+    index('warehouse_items_lead_idx').on(t.leadId),
+    index('warehouse_items_received_by_idx').on(t.receivedBy),
+    // Admin warehouse list: `ORDER BY stored_at DESC` (ordersRepo:402/439).
+    index('warehouse_items_stored_at_idx').on(t.storedAt),
+  ],
 );
 
 /**
@@ -149,7 +169,11 @@ export const warehouseMovements = pgTable(
     actorId: text('actor_id').references(() => users.id, { onDelete: 'set null' }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index('warehouse_movements_item_idx').on(t.warehouseItemId, t.createdAt)],
+  (t) => [
+    index('warehouse_movements_item_idx').on(t.warehouseItemId, t.createdAt),
+    // FK with no covering index (W29) — `users` ON DELETE SET NULL.
+    index('warehouse_movements_actor_idx').on(t.actorId),
+  ],
 );
 
 /**
@@ -198,5 +222,7 @@ export const warehouseSettlements = pgTable(
   (t) => [
     index('warehouse_settlements_item_idx').on(t.warehouseItemId, t.periodTo),
     index('warehouse_settlements_user_idx').on(t.userId),
+    // FK with no covering index (W29) — `users` ON DELETE SET NULL.
+    index('warehouse_settlements_actor_idx').on(t.actorId),
   ],
 );

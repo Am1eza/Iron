@@ -57,6 +57,12 @@ export const articles = pgTable(
     // smaller and faster for exactly that. It cannot serve key-existence
     // (`?`) queries — which a `string[]` column has no use for anyway.
     index('articles_tags_idx').using('gin', sql`${t.tags} jsonb_path_ops`),
+    // FKs with no covering index (W29) — both `users` ON DELETE SET NULL.
+    index('articles_author_idx').on(t.authorId),
+    index('articles_approved_by_idx').on(t.approvedBy),
+    // The admin article list sorts by `updated_at DESC` (articlesRepo:205);
+    // no index above is prefixed by it, so it was a full scan + sort.
+    index('articles_updated_idx').on(t.updatedAt),
   ],
 );
 

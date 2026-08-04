@@ -31,7 +31,13 @@ export const favorites = pgTable(
       .references(() => skus.id, { onDelete: 'cascade' }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [uniqueIndex('favorites_user_sku_uq').on(t.userId, t.skuId)],
+  (t) => [
+    uniqueIndex('favorites_user_sku_uq').on(t.userId, t.skuId),
+    // The composite above already covers `user_id` (leading column), but NOT
+    // `sku_id` — so the ON DELETE CASCADE from `skus` seq-scanned this table
+    // on every product deletion (W29).
+    index('favorites_sku_idx').on(t.skuId),
+  ],
 );
 
 export const alerts = pgTable(
@@ -67,6 +73,8 @@ export const alerts = pgTable(
     // filters by status ACROSS every user, which the composite can't serve.
     index('alerts_status_idx').on(t.status),
     index('alerts_user_status_idx').on(t.userId, t.status),
+    // FK with no covering index (W29) — the `skus` ON DELETE CASCADE above.
+    index('alerts_sku_idx').on(t.skuId),
     // Defense in depth (W22): the actual dedup guarantee is the per-user
     // advisory lock + check-then-insert in createAlert(), but nothing before
     // this stopped some OTHER write path (a script, a future admin bulk

@@ -17,23 +17,29 @@ import { users } from './auth';
 
 export const MOVEMENT_DIRS = ['up', 'down', 'flat'] as const;
 
-export const currentPrices = pgTable('current_prices', {
-  // 1:1 denormalized read row — no reason to keep it once its sku is gone.
-  skuId: text('sku_id')
-    .primaryKey()
-    .references(() => skus.id, { onDelete: 'cascade' }),
-  price: bigint('price', { mode: 'number' }).notNull(), // Toman, excl. VAT
-  unit: text('unit', { enum: PRICE_UNITS }).notNull(),
-  deliveryTime: text('delivery_time').notNull().default('۲۴ ساعت'),
-  vatIncluded: boolean('vat_included').notNull().default(false),
-  movementPct: doublePrecision('movement_pct'),
-  movementDir: text('movement_dir', { enum: MOVEMENT_DIRS }).notNull().default('flat'),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-  // Nullable already — preserve the price row's history, just drop the
-  // reference to a since-deleted staff account.
-  updatedBy: text('updated_by').references(() => users.id, { onDelete: 'set null' }),
-  isStale: boolean('is_stale').notNull().default(false),
-});
+export const currentPrices = pgTable(
+  'current_prices',
+  {
+    // 1:1 denormalized read row — no reason to keep it once its sku is gone.
+    skuId: text('sku_id')
+      .primaryKey()
+      .references(() => skus.id, { onDelete: 'cascade' }),
+    price: bigint('price', { mode: 'number' }).notNull(), // Toman, excl. VAT
+    unit: text('unit', { enum: PRICE_UNITS }).notNull(),
+    deliveryTime: text('delivery_time').notNull().default('۲۴ ساعت'),
+    vatIncluded: boolean('vat_included').notNull().default(false),
+    movementPct: doublePrecision('movement_pct'),
+    movementDir: text('movement_dir', { enum: MOVEMENT_DIRS }).notNull().default('flat'),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    // Nullable already — preserve the price row's history, just drop the
+    // reference to a since-deleted staff account.
+    updatedBy: text('updated_by').references(() => users.id, { onDelete: 'set null' }),
+    isStale: boolean('is_stale').notNull().default(false),
+  },
+  // FK with no covering index (W29) — one row per SKU, so deleting a staff
+  // account scanned the entire price table.
+  (t) => [index('current_prices_updated_by_idx').on(t.updatedBy)],
+);
 
 export const pricePoints = pgTable(
   'price_points',

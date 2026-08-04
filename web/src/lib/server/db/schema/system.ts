@@ -62,7 +62,12 @@ export const aiConversations = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index('ai_conversations_user_idx').on(t.userId)],
+  (t) => [
+    index('ai_conversations_user_idx').on(t.userId),
+    // Analytics KPI/daily-series windows on `created_at` alone; the user-first
+    // index above cannot serve it (W29).
+    index('ai_conversations_created_idx').on(t.createdAt),
+  ],
 );
 
 /** One persisted chat turn (user or assistant — only the SANITIZED assistant
@@ -181,7 +186,14 @@ export const smsLog = pgTable(
     status: text('status', { enum: SMS_STATUSES }).notNull(),
     at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index('sms_log_to_idx').on(t.to)],
+  (t) => [
+    index('sms_log_to_idx').on(t.to),
+    // The fastest-growing table in the schema, and the ONLY column its hourly
+    // retention sweep touches (`DELETE FROM sms_log WHERE at < now() - 90d`,
+    // cleanup.job.ts) was unindexed — a full scan every hour, forever. Also
+    // backs the analytics SMS breakdown, which windows on `at` (W29).
+    index('sms_log_at_idx').on(t.at),
+  ],
 );
 
 /** Idempotency-Key support (Stripe/IETF-style header convention) for

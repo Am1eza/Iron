@@ -141,7 +141,11 @@ export const leadItems = pgTable(
     lineTotal: bigint('line_total', { mode: 'number' }),
     order: integer('order').notNull().default(0),
   },
-  (t) => [index('lead_items_lead_idx').on(t.leadId)],
+  (t) => [
+    index('lead_items_lead_idx').on(t.leadId),
+    // FK with no covering index (W29) — the `skus` ON DELETE SET NULL.
+    index('lead_items_sku_idx').on(t.skuId),
+  ],
 );
 
 export const leadNotes = pgTable(
@@ -162,7 +166,12 @@ export const leadNotes = pgTable(
     text: text('text').notNull(),
     at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index('lead_notes_lead_idx').on(t.leadId)],
+  (t) => [
+    index('lead_notes_lead_idx').on(t.leadId),
+    // FK with no covering index (W29). This one is RESTRICT, so the scan runs
+    // on every attempt to delete a staff account, not just successful ones.
+    index('lead_notes_author_idx').on(t.authorId),
+  ],
 );
 
 export const proformas = pgTable(
@@ -200,6 +209,10 @@ export const proformas = pgTable(
     // valid_until < now()), run every 10 minutes and growing with every
     // issued proforma — was previously unindexed.
     index('proformas_status_valid_idx').on(t.status, t.validUntil),
+    // The analytics dashboard windows proforma count AND summed value on
+    // `created_at` alone (analyticsRepo overviewStats/proformaValue); neither
+    // index above is prefixed by it (W29).
+    index('proformas_created_idx').on(t.createdAt),
   ],
 );
 
@@ -240,18 +253,29 @@ export const userRequests = pgTable(
   (t) => [
     index('user_requests_user_created_idx').on(t.userId, t.createdAt),
     uniqueIndex('user_requests_user_ref_uq').on(t.userId, t.ref),
+    // FK with no covering index (W29) — the `leads` ON DELETE SET NULL.
+    index('user_requests_lead_idx').on(t.leadId),
+    // The ADMIN requests list orders by `created_at DESC` across ALL users
+    // (requestsRepo:130) — the user-first composite above cannot serve it.
+    index('user_requests_created_idx').on(t.createdAt),
   ],
 );
 
-export const contactMessages = pgTable('contact_messages', {
-  id: text('id').primaryKey(),
-  name: text('name').notNull(),
-  mobile: text('mobile').notNull(),
-  message: text('message').notNull(),
-  status: text('status', { enum: ['new', 'handled'] }).notNull().default('new'),
-  // Reply-in-place (US-19.5) — sent to the customer's mobile via SMS; both
-  // null until a staff member actually replies.
-  reply: text('reply'),
-  repliedAt: timestamp('replied_at', { withTimezone: true }),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
+export const contactMessages = pgTable(
+  'contact_messages',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    mobile: text('mobile').notNull(),
+    message: text('message').notNull(),
+    status: text('status', { enum: ['new', 'handled'] }).notNull().default('new'),
+    // Reply-in-place (US-19.5) — sent to the customer's mobile via SMS; both
+    // null until a staff member actually replies.
+    reply: text('reply'),
+    repliedAt: timestamp('replied_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  // The admin inbox is a single `ORDER BY created_at DESC` list and this table
+  // had no index at all beyond its pkey (W29).
+  (t) => [index('contact_messages_created_idx').on(t.createdAt)],
+);
