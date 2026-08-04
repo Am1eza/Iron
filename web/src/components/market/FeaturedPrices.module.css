@@ -120,3 +120,71 @@
   font: var(--t-caption);
   color: var(--color-text-muted);
 }
+
+/* ===== Mobile cards (WCAG 1.4.10 Reflow) ===== */
+.cards {
+  display: none;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.card {
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.cardLink {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  color: var(--color-text-strong);
+  text-decoration: none;
+  /* WCAG 2.5.8 — the whole title row is the target, not just the chevron. */
+  min-block-size: 24px;
+}
+.cardName {
+  font: var(--t-h4);
+  color: var(--color-text-strong);
+}
+.cardPrice {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+}
+.cardMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+  font: var(--t-body-sm);
+  color: var(--color-text-muted);
+}
+.cardMeta div {
+  display: flex;
+  gap: var(--space-1);
+}
+.cardMeta dt::after {
+  content: ':';
+}
+.cardMeta dd {
+  margin: 0;
+  color: var(--color-text);
+}
+
+@media (max-width: 767px) {
+  .tableWrap {
+    display: none;
+  }
+  .cards {
+    display: flex;
+  }
+}
