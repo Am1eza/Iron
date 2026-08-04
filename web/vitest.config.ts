@@ -19,6 +19,21 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
+    // Pin the timezone. Jalali conversion is timezone-dependent, so
+    // `isSameJalaliDay` (which decides the "yesterday's close" baseline for
+    // every price-movement %) and every formatJalali assertion silently
+    // depended on whatever TZ the machine running the suite happened to have —
+    // green on CI, red on a developer's laptop, for reasons that have nothing
+    // to do with the code.
+    //
+    // UTC, not Asia/Tehran, because UTC is what the PRODUCTION container
+    // actually runs (`docker exec ahantime-web-1 date` → UTC; TZ is unset in
+    // docker-compose.yml). Pinning the tests to the real deploy's timezone
+    // means a Jalali test that passes here is a statement about production.
+    // NOTE for a human: that also means production rolls a Jalali day over at
+    // 03:30 Tehran time, not midnight. That is a product decision about price
+    // baselines, not something to "fix" in the test config.
+    env: { TZ: 'UTC' },
     setupFiles: ['./vitest.setup.ts'],
     css: false,
     include: ['src/**/*.{test,spec}.{ts,tsx}'],

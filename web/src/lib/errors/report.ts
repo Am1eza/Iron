@@ -1,9 +1,13 @@
 /**
- * Centralized error reporting. Server: structured log + Sentry (once
- * SENTRY_DSN is set — see lib/errors/sentry.ts, a no-op until then).
- * Client: console now, sendBeacon('/api/log') later. NEVER expose to the user; redact PII.
+ * Centralized error reporting, isomorphic by design.
+ *  - Server: structured JSON log line + Sentry (lib/errors/sentry.ts, a no-op
+ *    until SENTRY_DSN is set). That module is loaded ONLY on the server, via a
+ *    dynamic import inside a `typeof window` branch — see sendToSentry's call
+ *    site for why a static import was wrong.
+ *  - Client: the same log line, plus a sendBeacon hop to /api/log so browser
+ *    failures reach the same tracker.
+ * NEVER expose any of this to the user; redact PII first.
  */
-import { sendToSentry } from './sentry';
 import { scrubPii } from './scrub';
 
 // Covers both PII (mobile/name/address/nationalId/email/...) and
@@ -68,7 +72,24 @@ export function reportError(error: unknown, context?: Record<string, unknown>): 
   console.error(JSON.stringify(payload));
   // Pass the SCRUBBED message/stack to Sentry too — it builds its event value
   // from these, and the raw error object would otherwise re-leak the mobile.
-  sendToSentry(payload.name, payload.message, payload.stack, scrubbedContext);
+  //
+  // SERVER ONLY, and imported dynamically inside this branch on purpose.
+  // `./sentry` is a server module — it reads the non-public SENTRY_DSN and
+  // posts straight to the ingestion endpoint — but a plain top-level import
+  // put it in the CLIENT bundle: `grep -rl sentry_key .next/static/chunks`
+  // found the envelope builder in six chunks, including app/layout. There it
+  // was pure dead weight (Next replaces a non-NEXT_PUBLIC_ env with undefined,
+  // so `ingestUrl()` always returned null and every call was a no-op) and a
+  // standing invitation for a later change to make the DSN public "so client
+  // errors work too". Next's bundler substitutes `typeof window` per target,
+  // so this branch — and the import inside it — is eliminated from the client
+  // build entirely. Client-side errors take the /api/log hop below instead,
+  // which is what that endpoint exists for.
+  if (typeof window === 'undefined') {
+    void import('./sentry')
+      .then((m) => m.sendToSentry(payload.name, payload.message, payload.stack, scrubbedContext))
+      .catch(() => {});
+  }
   beaconToServer(payload);
 }
 

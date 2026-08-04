@@ -95,7 +95,15 @@ export function HeroVideo({ src, fallback }: { src: string; fallback: ReactNode 
         muted
         loop
         playsInline
-        preload="auto"
+        /* `metadata`, not `auto`. 7e3dbf6 already moved the mount itself past
+           `window.load`, so this is off the LCP path — but `auto` explicitly
+           asks the browser to buffer the ENTIRE file (up to 936 KB for the
+           desktop WebM) as fast as it can, competing with the fetches a
+           visitor's first interaction triggers. `metadata` lets autoplay pull
+           only what it needs to start and then stream, which is what a muted
+           background loop wants; autoplay still works, since the spec has
+           autoplay override the preload hint once playback is requested. */
+        preload="metadata"
         disablePictureInPicture
       >
         <source media={LIGHT_SOURCE_BREAKPOINT} src={`${base}-mobile.webm`} type="video/webm" />

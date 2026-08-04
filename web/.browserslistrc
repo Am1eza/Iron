@@ -1,0 +1,34 @@
+# The support target, stated once, instead of two tools each guessing.
+#
+# Unset, this repo had TWO different targets at the same time: Next's SWC
+# default for JS (chrome 64 / edge 79 / firefox 67 / opera 51 / safari 12) and
+# autoprefixer's own default for CSS — `> 0.5%, last 2 versions, Firefox ESR,
+# not dead`, a GLOBAL usage-share query. Iran's browser mix is not the global
+# one, so the CSS was being prefixed for a population this site does not have
+# while the JS was compiled for a different one entirely, and nobody reading
+# the repo could tell what was actually supported.
+#
+# The versions below are deliberately IDENTICAL to Next's SWC default, plus
+# the mobile entries it does not name. That is the point: it makes the target
+# explicit and gives autoprefixer the right question to answer, without
+# silently moving the JS target and shipping a fatter bundle to everyone — a
+# browserslist file is a place to write a decision down, not to make a new one
+# by accident.
+#
+# Iran-specific reasoning behind keeping the floor this low: a long tail of
+# old Android WebViews is real here. That tail is handled in the CSS itself —
+# `svh` and `color-mix` now carry explicit fallbacks — rather than by asking
+# the compiler to downlevel everything for everyone.
+# Opera Mini's proxy mode cannot run this app at all (its JS execution budget
+# is a few hundred milliseconds), so targeting it would cost every other
+# visitor bytes for nothing.
+chrome >= 64
+edge >= 79
+firefox >= 67
+opera >= 51
+safari >= 12
+ios_saf >= 12
+and_chr >= 64
+samsung >= 9
+not dead
+not op_mini all
