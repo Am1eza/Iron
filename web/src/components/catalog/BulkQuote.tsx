@@ -9,7 +9,7 @@ import { routes } from '@/lib/routes';
 import { formatToman, toPersianDigits } from '@/lib/utils/format';
 import { getRows } from '@/lib/mock/catalogData';
 import { computeBulkSplit } from '@/lib/utils/bulkSplit';
-import { CATEGORY_SUBS, type SubCat } from '@/lib/data/nav';
+import { MOCK_CATEGORY_SUBS, type SubCat } from '@/lib/data/nav';
 import { CITIES, ORIGIN_LABEL, cityDistance, estimateLogistics } from '@/lib/data/logistics';
 import { useProfileStore } from '@/lib/stores/profile';
 import { CONSTANTS } from '@/lib/config/constants';
@@ -57,7 +57,7 @@ export function BulkQuote({
 
   const allRows = useMemo(() => rowsProp ?? getRows(category), [rowsProp, category]);
   // Live subs come from the server page; the fixture is the mock/dev fallback.
-  const subs = subsProp ?? CATEGORY_SUBS[category] ?? [];
+  const subs = subsProp ?? MOCK_CATEGORY_SUBS[category] ?? [];
 
   // Size-aware comparison: same sub-family AND same size across mills — an
   // apples-to-apples benchmark instead of category averages.

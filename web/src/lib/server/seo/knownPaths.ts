@@ -72,8 +72,23 @@ export const STATIC_DYNAMIC_PATHS: readonly string[] = [
   ...COOPERATION_TRACKS.map((t) => `/cooperation/${t}`),
 ];
 
+/**
+ * Static routes that *live inside* a guarded prefix and are therefore matched
+ * by the patterns above even though no dynamic segment ever serves them.
+ *
+ * `/blog/rss.xml` matches `/^\/blog\/[^/]+$/`, is obviously not a published
+ * article slug, and was consequently hard-404'd on the live site — taking both
+ * feeds down while `/blog` and `/news` kept advertising them via
+ * `<link rel="alternate" type="application/rss+xml">`. Next's own router
+ * prefers the literal segment over `[slug]`, so these must be excluded here to
+ * match. Anything added under a guarded prefix as a real file route belongs in
+ * this list.
+ */
+const STATIC_UNDER_GUARDED_PREFIX: readonly string[] = ['/blog/rss.xml', '/news/rss.xml'];
+
 /** Is this pathname served by a DB-backed dynamic route we can validate? */
 export function isGuardedPath(pathname: string): boolean {
+  if (STATIC_UNDER_GUARDED_PREFIX.includes(pathname)) return false;
   return GUARDED_PATTERNS.some((re) => re.test(pathname));
 }
 

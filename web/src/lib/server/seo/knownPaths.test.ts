@@ -72,6 +72,19 @@ describe('shouldNotFound', () => {
     expect(shouldNotFound('/prices/a/b/c/d', known)).toBe(false);
     expect(isGuardedPath('/prices/a/b/c/d')).toBe(false);
   });
+
+  // Regression: `/blog/rss.xml` matches /^\/blog\/[^/]+$/ and is obviously not
+  // a published article slug, so the guard hard-404'd both feeds on the live
+  // site while /blog and /news kept advertising them via
+  // <link rel="alternate" type="application/rss+xml">. Real file routes win
+  // over [slug] in Next's router; this guard has to agree.
+  it('never 404s a real static route that sits under a guarded prefix', () => {
+    for (const feed of ['/blog/rss.xml', '/news/rss.xml']) {
+      expect(isGuardedPath(feed)).toBe(false);
+      expect(shouldNotFound(feed, known)).toBe(false);
+      expect(shouldNotFound(feed, new Set<string>())).toBe(false);
+    }
+  });
 });
 
 describe('code-defined families (/tools, /cooperation)', () => {

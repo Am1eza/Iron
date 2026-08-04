@@ -25,18 +25,41 @@ export const TOOLS_NAV: NavLink[] = [
   { label: 'طلا و ارز', href: routes.market() },
 ];
 
-/**
- * Representative sub-categories per category slug — drives the mega-menu columns
- * and the drawer accordion until the live taxonomy is wired. Slugs are ASCII (URL);
- * names stay Persian (display). (data-model taxonomy.)
- */
+/** A sub-category as the UI consumes it. Slugs are ASCII (URL), names Persian
+ *  (display). Structural type only — says nothing about where the data is from. */
 export type SubCat = { slug: string; name: string };
+
 /**
- * Benchmarked against the major Iranian price sites (ahanonline/ahanprice/
- * foolad24 class) — the canonical sub-families each lists per category. The 7
- * top-level categories are fixed; only the sub-taxonomy is enriched.
+ * ⚠️ MOCK/SEED FIXTURE — **NOT** the live taxonomy. Do not read this to answer
+ * "what sub-categories does this site have?"
+ *
+ * It began as the taxonomy (benchmarked against ahanonline/ahanprice/foolad24)
+ * and drove the mega-menu "until the live taxonomy is wired". The live taxonomy
+ * has since been wired — into `sub_categories` — and the two have diverged in
+ * both directions: this map has 7 top-level slugs, the database has 14 active
+ * ones (`sheet` here is `is_active = false` there), and its sub-slugs are the
+ * superseded English set. It was never resynced because nothing failed loudly
+ * when it drifted.
+ *
+ * What still legitimately reads it, and why that is safe:
+ *
+ *  - `lib/mock/catalogData.ts` — generates the fixture catalog. It IS the mock.
+ *  - `lib/server/db/seed.ts`   — bootstraps an empty dev/test database. A seed
+ *                                is a starting point, not a mirror of prod.
+ *  - `lib/server/catalog.ts`   — the `getSubsMap()` answer in mock mode only,
+ *                                behind `isLiveCatalog()`.
+ *  - `components/catalog/BulkQuote.tsx` — client fallback when the server page
+ *                                did not pass `subs`; degraded UI, never SEO.
+ *
+ * What must NEVER read it: anything published to a crawler or shown as fact —
+ * `sitemap.ts`, the RSS feeds, `generateStaticParams`. Those all go through
+ * `isLiveCatalog()` / `shouldPrerenderMockParams()` now, and
+ * `app/sitemap.test.ts` fails if a fixture slug ever reaches the sitemap again. The `MOCK_` prefix exists so a future call site has to opt in on
+ * purpose: it used to be called plain `CATEGORY_SUBS` and sat here next to the
+ * real navigation constants, which is precisely how it ended up in the sitemap
+ * Google was being served.
  */
-export const CATEGORY_SUBS: Record<string, SubCat[]> = {
+export const MOCK_CATEGORY_SUBS: Record<string, SubCat[]> = {
   rebar: [
     { slug: 'deformed', name: 'آجدار A3' },
     { slug: 'deformed-a2', name: 'آجدار A2' },

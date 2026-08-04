@@ -15,6 +15,23 @@ import { searchArticles, listPublished, findPublishedBySlug, type ArticleFull } 
 
 const live = () => API_MODE === 'live' && hasDb();
 
+/**
+ * Is this seam answering from the real database, or from the mock fixtures?
+ *
+ * Every `get*` below silently substitutes fixture data when the answer is
+ * `false`. That is the right behaviour for a page (a preview build should
+ * still render something) and a *catastrophic* one for anything published to a
+ * search engine: a sitemap or a feed built from fixtures advertises URLs that
+ * do not exist and omits every URL that does.
+ *
+ * Machine-readable, crawler-facing routes MUST therefore check this and emit
+ * nothing catalog-shaped rather than emit fabrications. Exported so those
+ * routes state the dependency explicitly instead of trusting the seam.
+ */
+export function isLiveCatalog(): boolean {
+  return live();
+}
+
 export async function getCategories(): Promise<Category[]> {
   if (!live()) return mockCategories.filter((c) => c.isActive);
   return repo.listCategories();
@@ -23,12 +40,12 @@ export async function getCategories(): Promise<Category[]> {
 /** Active sub-categories grouped by category slug — the live source for
  *  every public taxonomy surface (mega-menu, drawer, home cascade, category
  *  chips, breadcrumbs, sitemap). Admin-created sub-categories used to be
- *  invisible site-wide because these surfaces read the static CATEGORY_SUBS
+ *  invisible site-wide because these surfaces read the static MOCK_CATEGORY_SUBS
  *  fixture; that fixture is now only the mock/dev fallback. */
 export async function getSubsMap(): Promise<Record<string, Array<{ slug: string; name: string }>>> {
   if (!live()) {
-    const { CATEGORY_SUBS } = await import('@/lib/data/nav');
-    return CATEGORY_SUBS;
+    const { MOCK_CATEGORY_SUBS } = await import('@/lib/data/nav');
+    return MOCK_CATEGORY_SUBS;
   }
   return repo.listAllSubCategories();
 }

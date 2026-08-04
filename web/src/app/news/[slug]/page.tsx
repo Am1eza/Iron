@@ -5,6 +5,7 @@ import { buildMetadata, articleJsonLd } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { articlesByType } from '@/lib/mock/catalogData';
 import { getArticle, getArticlesByType } from '@/lib/server/catalog';
+import { shouldPrerenderMockParams } from '@/lib/server/seo/prerenderParams';
 import { formatJalali } from '@/lib/utils/jalali';
 import { Container, Section, Stack, Heading, Breadcrumbs, Badge } from '@/components/ui';
 import { CalendarIcon, ChevronStartIcon } from '@/components/primitives/icons';
@@ -18,7 +19,9 @@ type Params = { params: Promise<{ slug: string }> };
 // Matches the /news list's cadence.
 export const revalidate = 600;
 
+/** Fixture-derived — gated. See `lib/server/seo/prerenderParams.ts`. */
 export function generateStaticParams() {
+  if (!shouldPrerenderMockParams()) return [];
   return articlesByType('news').map((a) => ({ slug: a.slug }));
 }
 

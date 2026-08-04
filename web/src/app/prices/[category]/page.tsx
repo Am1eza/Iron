@@ -5,6 +5,7 @@ import { routes } from '@/lib/routes';
 import { categories as mockCategories } from '@/lib/mock/fixtures';
 import { getCategories, getRows } from '@/lib/server/catalog';
 import { getSubsMap } from '@/lib/data/catalog';
+import { shouldPrerenderMockParams } from '@/lib/server/seo/prerenderParams';
 import { Container, Section, Stack, Breadcrumbs, EmptyState, emptyPresets } from '@/components/ui';
 import { BreadcrumbJsonLd, JsonLd } from '@/components/seo/JsonLd';
 import { PriceTable } from '@/components/catalog/PriceTable';
@@ -17,7 +18,9 @@ type Params = { params: Promise<{ category: string }> };
 // matching the [sub] and [sku] pages one level down.
 export const revalidate = 300;
 
+/** Fixture-derived — gated. See `lib/server/seo/prerenderParams.ts`. */
 export function generateStaticParams() {
+  if (!shouldPrerenderMockParams()) return [];
   return mockCategories.filter((c) => c.isActive).map((c) => ({ category: c.slug }));
 }
 

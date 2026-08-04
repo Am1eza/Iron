@@ -4,8 +4,9 @@ import { buildMetadata, itemListJsonLd } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { categories as mockCategories } from '@/lib/mock/fixtures';
 import { getCategories, getRows, getSubRows } from '@/lib/server/catalog';
-import { CATEGORY_SUBS } from '@/lib/data/nav';
+import { MOCK_CATEGORY_SUBS } from '@/lib/data/nav';
 import { getSubsMap } from '@/lib/data/catalog';
+import { shouldPrerenderMockParams } from '@/lib/server/seo/prerenderParams';
 import { Container, Section, Stack, Breadcrumbs, EmptyState, emptyPresets } from '@/components/ui';
 import { BreadcrumbJsonLd, JsonLd } from '@/components/seo/JsonLd';
 import { PriceTable } from '@/components/catalog/PriceTable';
@@ -19,11 +20,17 @@ type Params = {
 // Prices change intraday (admin-entered) → revalidate often (ROUTING.md §6).
 export const revalidate = 300;
 
-/** Pre-render the real (category, sub) pairs; unknown combos 404 on demand. */
+/**
+ * Fixture-derived — gated. See `lib/server/seo/prerenderParams.ts`. These pairs
+ * come from `MOCK_CATEGORY_SUBS`, which is a mock/seed fixture and no longer matches
+ * the live taxonomy in either direction, so prerendering from it baked pages
+ * for sub-categories that do not exist and none for the ones that do.
+ */
 export function generateStaticParams() {
+  if (!shouldPrerenderMockParams()) return [];
   return mockCategories
     .filter((c) => c.isActive)
-    .flatMap((c) => (CATEGORY_SUBS[c.slug] ?? []).map((s) => ({ category: c.slug, sub: s.slug })));
+    .flatMap((c) => (MOCK_CATEGORY_SUBS[c.slug] ?? []).map((s) => ({ category: c.slug, sub: s.slug })));
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {

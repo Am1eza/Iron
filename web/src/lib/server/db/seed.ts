@@ -15,7 +15,7 @@ import { ulid } from 'ulid';
 import * as schema from './schema';
 import type { Db } from './client';
 import { categories as categoryFixtures, marketValues } from '@/lib/mock/fixtures';
-import { CATEGORY_SUBS } from '@/lib/data/nav';
+import { MOCK_CATEGORY_SUBS } from '@/lib/data/nav';
 import { rowsByCategory, priceSeries, articles as articleFixtures } from '@/lib/mock/catalogData';
 import {
   FREIGHT_RATE_PER_TON_KM,
@@ -178,7 +178,7 @@ export async function seedDatabase(db: Db, opts: SeedOptions = {}): Promise<void
         target: schema.categories.slug,
         set: { name: c.name, order: c.order, iconId: c.iconId },
       });
-    const subs = CATEGORY_SUBS[c.slug] ?? [];
+    const subs = MOCK_CATEGORY_SUBS[c.slug] ?? [];
     let order = 0;
     for (const s of subs) {
       const id = `${c.id}-${s.slug}`;

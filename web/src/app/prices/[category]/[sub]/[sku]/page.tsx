@@ -6,6 +6,7 @@ import { allRows } from '@/lib/mock/catalogData';
 import { findSku, relatedRows, priceSeries, getRows, getCategories, getBilletReference, getSubsMap } from '@/lib/server/catalog';
 import { formatToman, priceHiddenLabel } from '@/lib/utils/format';
 import { productImage } from '@/lib/data/productImages';
+import { shouldPrerenderMockParams } from '@/lib/server/seo/prerenderParams';
 import { JsonLd, BreadcrumbJsonLd } from '@/components/seo/JsonLd';
 import { Container, Section } from '@/components/ui';
 import { SkuDetail } from '@/components/catalog/SkuDetail';
@@ -84,6 +85,13 @@ export default async function SkuPage({ params }: Params) {
   );
 }
 
+/**
+ * Fixture-derived — gated. See `lib/server/seo/prerenderParams.ts`. `allRows`
+ * is mock data: baking these produced 243 SKU pages of invented prices in the
+ * image, which stale-while-revalidate then served to the first visitor after
+ * every deploy.
+ */
 export function generateStaticParams() {
+  if (!shouldPrerenderMockParams()) return [];
   return allRows.map((r) => ({ category: r.categoryId, sub: r.subCategoryId, sku: r.slug }));
 }

@@ -1,6 +1,6 @@
 import { routes } from '@/lib/routes';
 import { ORG_NAME } from '@/lib/seo';
-import { getAllPublishedArticles } from '@/lib/server/catalog';
+import { getAllPublishedArticles, isLiveCatalog } from '@/lib/server/catalog';
 import { buildRssFeed, RSS_HEADERS, RSS_ITEM_LIMIT } from '@/lib/server/rss';
 
 /**
@@ -16,9 +16,16 @@ import { buildRssFeed, RSS_HEADERS, RSS_ITEM_LIMIT } from '@/lib/server/rss';
 export const revalidate = 600;
 
 export async function GET(): Promise<Response> {
+  // Same rule as the sitemap (see `app/sitemap.ts`): this route is prerendered
+  // at build time, where there is no DATABASE_URL and the catalog seam answers
+  // from `lib/mock`. A feed of fixture articles points subscribers at URLs
+  // that 404, so an empty feed is the only honest answer without a database.
+  //
   // Bounded: `getAllPublishedArticles` pages up to 50×200, which is the right
   // answer for a sitemap and very much the wrong one for a feed.
-  const articles = (await getAllPublishedArticles('blog')).slice(0, RSS_ITEM_LIMIT);
+  const articles = isLiveCatalog()
+    ? (await getAllPublishedArticles('blog')).slice(0, RSS_ITEM_LIMIT)
+    : [];
   const xml = buildRssFeed({
     title: `وبلاگ ${ORG_NAME}`,
     description: 'راهنمای خرید، تحلیل بازار و آموزش آهن و فولاد.',

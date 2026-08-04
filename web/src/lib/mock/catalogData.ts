@@ -7,7 +7,7 @@
  */
 import type { Article, MovementDir, PriceRow } from '@/lib/types/domain';
 import { categories } from './fixtures';
-import { CATEGORY_SUBS, type SubCat } from '@/lib/data/nav';
+import { MOCK_CATEGORY_SUBS, type SubCat } from '@/lib/data/nav';
 
 /* ---- seeded PRNG (stable across SSR/CSR) ---- */
 function lcg(seed: number) {
@@ -80,7 +80,7 @@ function rowsFor(categorySlug: string): PriceRow[] {
   const factories = FACTORIES[categorySlug] ?? ['کارخانه'];
   const base = BASE_PRICE[categorySlug] ?? 33000;
   const catName = categories.find((c) => c.slug === categorySlug)?.name ?? categorySlug;
-  const subs: SubCat[] = CATEGORY_SUBS[categorySlug] ?? [{ slug: 'general', name: catName }];
+  const subs: SubCat[] = MOCK_CATEGORY_SUBS[categorySlug] ?? [{ slug: 'general', name: catName }];
   const rows: PriceRow[] = [];
   let i = 0;
 
@@ -170,7 +170,7 @@ export function getFactories(categorySlug: string, subSlug?: string): string[] {
 
 /** Display name for a sub-category slug (or undefined if unknown). */
 export function subName(categorySlug: string, subSlug: string): string | undefined {
-  return (CATEGORY_SUBS[categorySlug] ?? []).find((s) => s.slug === subSlug)?.name;
+  return (MOCK_CATEGORY_SUBS[categorySlug] ?? []).find((s) => s.slug === subSlug)?.name;
 }
 
 /** A few related SKUs (same category, different sub or size) for cross-sell. */
