@@ -16,12 +16,85 @@ ahantime.com, www.ahantime.com {
 		# Edge HSTS backstop: still sent even if Next.js is down/misroutes and
 		# can't emit its own header. (No `preload` — that's a one-way commitment
 		# the operator should opt into deliberately.)
-		Strict-Transport-Security "max-age=63072000; includeSubDomains"
+		#
+		# The `?` prefix means "default value" — Caddy sets this ONLY when the
+		# upstream response does not already carry the header. That matters:
+		# web/next.config.mjs is the documented single source of truth for
+		# security headers (see CLAUDE.md §3) and sets max-age=31536000, but
+		# this used to be an unconditional `Strict-Transport-Security` set to
+		# max-age=63072000, which REPLACED the app's value on every response.
+		# Two sources of truth, and the one the code documented was the one
+		# that never reached a browser. With `?` the app's header always wins
+		# and this line only fills in when the app could not answer at all
+		# (502/503 from the branded error page below, for instance). The value
+		# is kept identical to next.config.mjs's so the two can never disagree
+		# even in that fallback case — change it THERE first, then mirror here.
+		?Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		# Don't leak framework/cache internals to clients.
 		-X-Powered-By
 		-x-nextjs-cache
 		-x-nextjs-prerender
 		-x-nextjs-stale-time
+	}
+
+	# Branded outage page. Without this, every upstream failure served Caddy's
+	# raw default body — a bare English "502 Bad Gateway" on a white page, in
+	# LTR, with no indication it is ahantime at all. That is what a customer
+	# saw during the container swap of every deploy.
+	#
+	# Deliberately fully self-contained: when this page renders, the app is by
+	# definition unreachable, so it cannot reference /fonts/*, /_next/static/*
+	# or design/tokens.css — all of those are served BY the dead upstream and
+	# would render a broken page. Colors are the tokens' literal values
+	# (neutral/amber/cobalt from design/tokens.css) and the type stack is the
+	# OS Persian fallback chain. No CDN, no external font (Iran reachability).
+	handle_errors 502 503 504 {
+		header Content-Type "text/html; charset=utf-8"
+		header Cache-Control "no-store"
+		# Tell well-behaved clients and crawlers this is temporary, so an
+		# outage does not get a page deindexed.
+		header Retry-After "60"
+		respond <<HTML
+			<!doctype html>
+			<html lang="fa" dir="rtl">
+			<head>
+			<meta charset="utf-8">
+			<meta name="viewport" content="width=device-width, initial-scale=1">
+			<meta name="robots" content="noindex">
+			<title>آهن‌تایم — در دسترس نیست</title>
+			<style>
+			:root{--bg:#F4F7FA;--surface:#FFFFFF;--text:#2B333D;--strong:#171C22;--muted:#64707E;--line:#E5E9F0;--amber:#F5961E;--cobalt:#1F54E0}
+			@media (prefers-color-scheme:dark){:root{--bg:#11151A;--surface:#171C22;--text:#D6DDE7;--strong:#FFFFFF;--muted:#97A2B0;--line:rgba(255,255,255,.08);--cobalt:#5C87FF}}
+			*{box-sizing:border-box}
+			html,body{margin:0;padding:0;height:100%}
+			body{background:var(--bg);color:var(--text);font-family:Estedad,Vazirmatn,"IRANSans","Segoe UI",Tahoma,system-ui,sans-serif;line-height:1.7;display:flex;align-items:center;justify-content:center;padding:24px}
+			main{background:var(--surface);border:1px solid var(--line);border-radius:8px;max-width:34rem;width:100%;padding:40px 32px;text-align:center}
+			.mark{display:inline-block;inline-size:44px;block-size:4px;background:var(--amber);border-radius:2px;margin-block-end:24px}
+			h1{font-size:1.5rem;line-height:1.4;margin:0 0 12px;color:var(--strong);font-weight:700}
+			p{margin:0 0 12px;font-size:1rem}
+			.muted{color:var(--muted);font-size:.875rem}
+			.tel{display:inline-block;margin-block-start:20px;padding-block:10px;padding-inline:20px;border:1px solid var(--line);border-radius:6px;color:var(--cobalt);text-decoration:none;font-weight:600;font-variant-numeric:tabular-nums}
+			.tel:hover{border-color:var(--cobalt)}
+			.code{margin-block-start:28px;padding-block-start:16px;border-block-start:1px solid var(--line);color:var(--muted);font-size:.75rem;font-variant-numeric:tabular-nums}
+			</style>
+			</head>
+			<body>
+			<main>
+			<span class="mark" aria-hidden="true"></span>
+			<h1>سایت آهن‌تایم موقتاً در دسترس نیست</h1>
+			<p>در حال رفع مشکل هستیم. لطفاً چند دقیقه دیگر دوباره تلاش کنید.</p>
+			<p class="muted">قیمت‌ها و سفارش‌های شما محفوظ است؛ این یک اختلال موقت در سرویس است.</p>
+			<!-- Landline from web/src/lib/seo.ts's contact block — the same
+			     number the footer and the JSON-LD Organization publish. The
+			     whole point of this page is that the phone funnel still works
+			     while the site does not (the sale is closed by a human call
+			     anyway), so keep it in sync if seo.ts changes. -->
+			<a class="tel" href="tel:02126297512" dir="ltr">۰۲۱–۲۶۲۹۷۵۱۲</a>
+			<p class="code">کد خطا: {http.error.status_code} · {http.error.status_text}</p>
+			</main>
+			</body>
+			</html>
+			HTML {http.error.status_code}
 	}
 
 	# Content-hashed build assets + self-hosted fonts never change under a given
@@ -58,6 +131,39 @@ ahantime.com, www.ahantime.com {
 # needed). Open 8443/tcp in the firewall.
 ahantime.com:8443 {
 	encode zstd gzip
+
+	# This console sent ZERO security headers and volunteered its exact stack
+	# in every response:
+	#   Server: Apache/2.4.67 (Debian)
+	#   X-Powered-By: PHP/8.4.23
+	# — a free CVE-matching shortcut for anyone port-scanning 8443, on the one
+	# host that holds the full analytics dataset. Matomo does not emit these
+	# headers itself, so they have to be added here at the edge; there is no
+	# next.config.mjs in this path (that file is the single source of truth for
+	# the *app's* headers, and the app is not what answers on this port).
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		# SAMEORIGIN, not DENY: Matomo's own UI frames itself (widget previews,
+		# the segment editor, the embedded report iframes), so DENY breaks the
+		# console it is meant to protect. SAMEORIGIN still blocks third-party
+		# framing, which is the actual clickjacking risk here.
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+		# An operator console has no business being indexed even if it somehow
+		# became crawlable. Matomo already sets this; make it unconditional.
+		X-Robots-Tag "noindex, nofollow"
+		# Version banners.
+		-Server
+		-X-Powered-By
+	}
+
+	# No CSP here on purpose: Matomo's UI relies heavily on inline scripts and
+	# eval'd templates, and a policy loose enough to keep it working
+	# ('unsafe-inline' 'unsafe-eval') would buy nothing. The real control for
+	# this surface is network reach — see the firewall note in the report.
+
 	reverse_proxy matomo:80
 }
 
@@ -87,7 +193,10 @@ panel.ahantime.com {
 	}
 
 	header {
-		Strict-Transport-Security "max-age=63072000; includeSubDomains"
+		# Same "default only, never override the app" treatment as the public
+		# host above — next.config.mjs owns this value; this is only a backstop
+		# for responses the app never produced.
+		?Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		-X-Powered-By
 		-x-nextjs-cache
 		-x-nextjs-prerender
@@ -96,6 +205,12 @@ panel.ahantime.com {
 
 	@immutable path /_next/static/* /fonts/*
 	header @immutable Cache-Control "public, max-age=31536000, immutable"
+
+	handle_errors 502 503 504 {
+		header Content-Type "text/plain; charset=utf-8"
+		header Cache-Control "no-store"
+		respond "پنل مدیریت موقتاً در دسترس نیست. (Error {http.error.status_code})" {http.error.status_code}
+	}
 
 	reverse_proxy web:3000
 }
