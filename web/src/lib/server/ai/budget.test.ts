@@ -157,3 +157,24 @@ describe('upstream refusal state', () => {
     expect(noteUpstreamFailure('credit')).toBe(true);
   });
 });
+
+describe('slow-answer reporting is throttled, and never disables the advisor', () => {
+  it('reports at most once per ten minutes', async () => {
+    const { noteSlowTimeout, resetSlowTimeoutState } = await import('./upstreamState');
+    resetSlowTimeoutState();
+    const t0 = Date.now();
+    expect(noteSlowTimeout(t0)).toBe(true);
+    for (let i = 0; i < 200; i++) expect(noteSlowTimeout(t0 + i * 100)).toBe(false);
+    expect(noteSlowTimeout(t0 + 11 * 60_000)).toBe(true);
+  });
+
+  it('a slow answer does NOT put the relay into the unavailable cooldown', async () => {
+    // One user's 48-second answer must not take the advisor away from
+    // everyone else — the relay is up, this request was just slow.
+    const { noteSlowTimeout, upstreamUnavailable, resetSlowTimeoutState, resetUpstreamState } = await import('./upstreamState');
+    resetSlowTimeoutState();
+    resetUpstreamState();
+    noteSlowTimeout();
+    expect(upstreamUnavailable()).toBeNull();
+  });
+});

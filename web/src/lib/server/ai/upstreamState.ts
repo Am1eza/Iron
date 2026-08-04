@@ -74,3 +74,27 @@ export function noteUpstreamOk(): void {
 export function resetUpstreamState(): void {
   current = null;
 }
+
+/* ------------------------------- timeouts -------------------------------- */
+/**
+ * A request that ran past AI_TIMEOUT_MS is NOT the relay refusing work — the
+ * relay is up, this one answer was slow — so it must not put the advisor into
+ * the cooldown above and take it away from everyone else. It still needs to
+ * reach the operator, but at most occasionally: measured latency on the
+ * current reasoning model is wildly variable (6.8s / 48.8s / 6.7s on three
+ * identical requests), so per-request reporting would be pure noise of exactly
+ * the kind that buried the real issues under 1,932 duplicates.
+ */
+const TIMEOUT_REPORT_EVERY_MS = 10 * 60_000;
+let lastTimeoutReport = 0;
+
+/** True at most once per 10 minutes — the caller's cue to report. */
+export function noteSlowTimeout(now = Date.now()): boolean {
+  if (now - lastTimeoutReport < TIMEOUT_REPORT_EVERY_MS) return false;
+  lastTimeoutReport = now;
+  return true;
+}
+
+export function resetSlowTimeoutState(): void {
+  lastTimeoutReport = 0;
+}

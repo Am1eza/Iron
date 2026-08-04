@@ -5,7 +5,7 @@ import { assertSameOrigin } from '@/lib/auth/origin';
 import { requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { aiEnabled, AiUnavailableError } from '@/lib/server/integrations/aiRelay';
 import { budgetExhausted } from '@/lib/server/ai/budget';
-import { upstreamUnavailable } from '@/lib/server/ai/upstreamState';
+import { upstreamUnavailable, noteSlowTimeout } from '@/lib/server/ai/upstreamState';
 import { numbersInText } from '@/lib/server/ai/grounding';
 import { runAdvisorPipeline } from '@/lib/server/ai/pipeline';
 import { buildChatMessages, ensureConversation, persistTurn } from '@/lib/server/ai/conversation';
@@ -44,6 +44,17 @@ const payload = z.object({
  */
 const AI_UNAVAILABLE_MESSAGE =
   'دستیار هوشمند موقتاً در دسترس نیست. قیمت‌های لحظه‌ای و ابزارها در دسترس‌اند، و کارشناسان ما پاسخگوی شما هستند — درخواست مشاوره ثبت کنید تا تماس بگیریم.';
+
+/** The AI_TIMEOUT_MS deadline firing, as opposed to a real failure. Matched by
+ *  NAME, not identity: it is raised by `AbortSignal.timeout` inside the
+ *  platform, and `AbortSignal.any` re-wraps it, so there is no constructor to
+ *  compare against. `AbortError` is included because that is what the merged
+ *  signal surfaces on some paths — the caller has already established that the
+ *  USER did not abort (req.signal.aborted is false) before reaching here. */
+function isDeadlineTimeout(err: unknown): boolean {
+  const name = (err as { name?: unknown } | null)?.name;
+  return name === 'TimeoutError' || name === 'AbortError';
+}
 
 /** 503 so AdvisorChat switches to the local grounded engine for the session
  *  (see its `e.status === 503` branch) instead of showing an error. */
@@ -273,6 +284,20 @@ async function POSTImpl(req: NextRequest) {
           // the per-request noise this removes. The user gets the human-path
           // message; the client falls back to the local grounded engine.
           if (err instanceof AiUnavailableError) {
+            send({ type: 'error', message: AI_UNAVAILABLE_MESSAGE });
+          } else if (isDeadlineTimeout(err)) {
+            // The relay is UP — this one answer just ran past the deadline.
+            // The current model's latency is wildly variable (6.8s / 48.8s /
+            // 6.7s on three identical measured requests), so this is a normal
+            // tail event, not an outage: the user gets the human path and the
+            // client falls back to the local grounded engine, and the operator
+            // hears about it at most once every ten minutes rather than once
+            // per request. Deliberately NOT routed through the upstream
+            // cooldown — one slow answer must not take the advisor away from
+            // everyone else.
+            if (noteSlowTimeout()) {
+              reportError(err, { route: 'ai/chat', reason: 'deadline_timeout', budgetMs: CONSTANTS.AI_TIMEOUT_MS });
+            }
             send({ type: 'error', message: AI_UNAVAILABLE_MESSAGE });
           } else {
             reportError(err, { route: 'ai/chat' });

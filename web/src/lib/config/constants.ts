@@ -2,6 +2,13 @@
  * Business-rule constants — from product/acceptance-criteria.md §1.4.
  * These are the app-side defaults; in production they come from admin Settings.
  */
+/** A positive integer of milliseconds from env, or the default. A typo must
+ *  never silently become 0 (an instantly-aborting request). */
+function envMs(key: string, fallback: number): number {
+  const raw = Number(process.env[key]?.trim());
+  return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : fallback;
+}
+
 export const CONSTANTS = {
   /** VAT rate (ارزش افزوده) — 10% */
   VAT_RATE: 0.1,
@@ -69,8 +76,30 @@ export const CONSTANTS = {
    */
   ACCESS_TTL_SECONDS: 4 * 60 * 60,
 
-  /** AI advisor (acceptance-criteria §D) */
-  AI_TIMEOUT_MS: 20_000, // AC-D-9: never hang beyond 20s
+  /**
+   * AI advisor deadline (acceptance-criteria §D).
+   *
+   * AC-D-9 said "never hang beyond 20s", and 20s was right for the model this
+   * was written against. It is not right for the one the owner moved to: that
+   * model reasons before it answers, and a price question costs TWO relay
+   * round trips (model → tool → model). Measured on the live endpoint with
+   * the real Persian system prompt, three identical requests: 6.8s, 48.8s,
+   * 6.7s. The median is comfortable; the tail is not, and it is the model's,
+   * not something this code can shorten (reasoning is already capped — see
+   * aiRelayConfig.ts, and dropping it to `none` stops tool calling entirely,
+   * which breaks grounding).
+   *
+   * So 20s did not protect anyone: it guaranteed an error on every
+   * tool-using question — which is every price question, i.e. the product.
+   * 45s covers the great majority of that distribution. The AC's intent is
+   * "never hang forever", and three things still honour it: this hard
+   * deadline, the user's own Stop button (AdvisorChat aborts in flight), and
+   * — new — a timeout now degrades to the SAME graceful human-path message as
+   * any other AI outage instead of a raw error frame, with the client falling
+   * back to the local grounded engine. Env-tunable so the owner can retune
+   * from measurements without a rebuild.
+   */
+  AI_TIMEOUT_MS: envMs('AI_TIMEOUT_MS', 45_000),
   /** Independent, shorter budget for the ONE fallback-relay retry inside
    *  fetchCompletion — only spent when the primary leg failed/timed out AND
    *  the user is still there (never on a real user abort). Worst-case total
