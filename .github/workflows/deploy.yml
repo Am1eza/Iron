@@ -138,6 +138,37 @@ jobs:
             # files and any non-image config — only the app *image* is now
             # pre-built, not the code checkout itself.
             git fetch origin main
+
+            # `git reset --hard` is unrecoverable for anything not committed,
+            # and on THIS host the repo directory is also the live deploy
+            # directory (see CLAUDE.md §2) — operators and agents routinely
+            # have work in progress in it. A hotfix applied by hand at 2am, a
+            # Caddyfile tweak mid-debug, an in-flight compose change: a deploy
+            # firing at the wrong moment silently destroyed all of it with no
+            # copy anywhere.
+            #
+            # Stash modifications to TRACKED files only, and leave the stash in
+            # the list rather than popping it back: re-applying unknown local
+            # edits on top of the commit we are about to deploy is how you ship
+            # something nobody reviewed. The operator recovers it deliberately
+            # with `git stash list` / `git stash apply <ref>`.
+            #
+            # Deliberately NO `-u`/`--include-untracked`. `git reset --hard`
+            # only ever reverts tracked files — untracked and ignored files
+            # survive it untouched — so stashing them protects nothing while
+            # adding a way to MOVE files that must not move. `.env` lives in
+            # this directory and holds every production secret including
+            # WEB_IMAGE, which the lines below read and rewrite; if it were
+            # ever unignored (or `-a` were used), `git stash push -u` would
+            # sweep it away mid-deploy and take the site down with it.
+            if ! git diff --quiet HEAD --; then
+              STASH_MSG="pre-deploy autostash $(date -u +%Y-%m-%dT%H:%M:%SZ) (deploy ${TARGET_TAG})"
+              echo "::warning::Uncommitted server-side changes found in $APP_DIR — stashing before reset. Recover with: git stash list; git stash apply <ref>"
+              git status --porcelain
+              git stash push -m "$STASH_MSG"
+              echo "Stashed as: $STASH_MSG — NOT reapplied; recover deliberately."
+            fi
+
             git checkout main
             git reset --hard origin/main
 
