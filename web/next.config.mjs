@@ -67,6 +67,20 @@ const nextConfig = {
       : {}),
   images: {
     formats: ['image/avif', 'image/webp'],
+    // The optimizer's cache TTL is `max(minimumCacheTTL, upstream max-age)`.
+    // Next serves `public/` files with `max-age=0`, so with the default
+    // minimumCacheTTL of 60 every optimized product image expired after 60
+    // SECONDS — verified live: `/_next/image?url=/products/rebar.webp` came
+    // back `max-age=60, must-revalidate` while the build-hashed logo (which
+    // comes from `_next/static`, already immutable) got `immutable`. Same
+    // component, same optimizer, opposite caching, purely because of where
+    // the source file lives.
+    //
+    // 7 days, matching the Caddyfile's `@media` rule for the same files —
+    // the two are the browser-facing and optimizer-facing halves of one fix.
+    // Not longer: these sources are not content-hashed, so this also bounds
+    // how long a replaced product photo stays served from the optimizer.
+    minimumCacheTTL: 604800,
     ...(isExport ? { unoptimized: true } : {}),
   },
   // Persian-first, RTL is handled in <html dir="rtl" lang="fa"> (root layout),

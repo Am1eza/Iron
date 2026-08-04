@@ -27,7 +27,18 @@ export function Logo({ compact = false, light = false }: { compact?: boolean; li
         className={styles.mark}
         width={MARK_W}
         height={MARK_H}
-        sizes={`${MARK_W}px`}
+        /* No `sizes` on purpose. Passing one (even the correct `38px`) makes
+         * next/image treat this as a responsive image and emit the FULL
+         * candidate list — 16 entries from 16w to 3840w — with `src` set to
+         * the 3840w encode as the no-srcSet fallback. Real browsers all
+         * support srcSet and picked a small candidate, so this was never
+         * broken; it just meant the header logo advertised a 3840px encode
+         * (19 KB, 324ms to generate) that nothing should ever fetch, and
+         * kept 16 variants warm in the optimizer cache.
+         *
+         * Dropping `sizes` on a fixed width/height image makes next/image
+         * emit exactly the 1x and 2x encodes and point `src` at the 2x —
+         * which is all a 38px-tall logo can ever need. */
         priority
       />
       {!compact && (

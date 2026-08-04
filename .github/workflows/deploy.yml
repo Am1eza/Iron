@@ -190,6 +190,25 @@ jobs:
             # rest of the stack up first (harmless no-op if it's already up).
             docker compose up -d db caddy
 
+            # Push the Caddyfile's current contents into the RUNNING Caddy.
+            #
+            # `up -d caddy` above does NOT do this. The Caddyfile arrives via a
+            # read-only bind mount (`./Caddyfile:/etc/caddy/Caddyfile:ro`), so
+            # editing it changes nothing in the service's compose definition —
+            # Compose sees an identical spec, leaves the container alone, and
+            # Caddy keeps serving the config it parsed at boot. Every Caddyfile
+            # change merged since this pipeline was written therefore deployed
+            # its file but never its effect, silently, with the workflow still
+            # reporting success. Found while shipping the `@media` cache rule.
+            #
+            # `caddy reload` is a graceful in-process swap, not a restart: no
+            # dropped connections and no re-issuing of TLS certs. It validates
+            # the config first and keeps the old one on failure, so a syntax
+            # error leaves the site up — but it exits non-zero, which fails the
+            # deploy loudly here instead of leaving a half-applied edge config.
+            docker compose exec -T caddy \
+              caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
+
             # DB backup right before the swap — cheap insurance against a
             # migration in the new image going wrong (entrypoint runs
             # migrations automatically on container start; see DEPLOY.md).

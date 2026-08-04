@@ -118,6 +118,20 @@ services:
       # comment on `image:`/`build:` above), so anything written at runtime
       # under `public/` needs its own named volume or it's lost on redeploy.
       - uploads:/app/public/uploads
+      # Next's on-demand image optimizer writes every encode it produces here.
+      # Without this volume the cache lived only inside the container, so every
+      # `docker compose up -d` — i.e. every single deploy — threw away all of
+      # it and the next visitor paid full re-encode cost on every image. Caught
+      # it at 52 KB total, 24 minutes after a restart, which is the whole cache
+      # for the whole site: proof it had just been wiped rather than warmed.
+      #
+      # Safe to persist across releases: optimizer entries are keyed by source
+      # URL + width + quality + content hash, and the ISR entries that share
+      # this directory are keyed by build ID, so a new build cannot read a
+      # previous build's stale pages. Docker seeds an empty named volume from
+      # the image, preserving the `nextjs:nodejs` ownership the app needs to
+      # write as a non-root user.
+      - nextcache:/app/.next/cache
     expose:
       - "3000"          # internal only — not published to the host
     # W23 review fix: the host's own DNS (forwarded from Docker's embedded
@@ -452,5 +466,6 @@ volumes:
   matomodata:
   redisdata:
   uploads:
+  nextcache:
   glitchtipdb:
   glitchtipdata:

@@ -102,6 +102,29 @@ ahantime.com, www.ahantime.com {
 	@immutable path /_next/static/* /fonts/*
 	header @immutable Cache-Control "public, max-age=31536000, immutable"
 
+	# Product photos and the hero motion-graphic. Next serves everything under
+	# `public/` with `Cache-Control: public, max-age=0`, which means a browser
+	# re-validates EVERY one of these on EVERY page view — 14 product images
+	# plus a 935 KB video, each costing a full round-trip before the picture
+	# appears. Measured on this box: the files themselves are served in ~25ms
+	# at ~29 MB/s, so the bytes were never the problem; the per-view RTT was.
+	#
+	# Deliberately NOT `immutable` like the block above, and not a year:
+	# these filenames are NOT content-hashed (`/products/rebar.webp` keeps its
+	# name when the owner replaces the photo), so a long immutable cache would
+	# strand the old image in every visitor's browser with no way to bust it
+	# short of renaming the file. 7 days removes the per-view round-trip —
+	# which is the entire symptom — while bounding how long a replaced photo
+	# can linger. `stale-while-revalidate` lets the refresh happen in the
+	# background so even the expiry visit doesn't wait on it.
+	#
+	# NOTE: this header does not reach Next's image optimizer. `/_next/image`
+	# reads these files internally, never through Caddy, so it never sees this
+	# value — its own floor is `images.minimumCacheTTL` in web/next.config.mjs,
+	# which is set alongside this. Change both together or they will drift.
+	@media path /products/* /media/*
+	header @media Cache-Control "public, max-age=604800, stale-while-revalidate=86400"
+
 	# Matomo tracker (same-origin → zero CSP changes): /mt/matomo.js loads the
 	# tracking script, /mt/matomo.php receives hits. Only these two files are
 	# proxied — the admin UI lives on :8443 below.
