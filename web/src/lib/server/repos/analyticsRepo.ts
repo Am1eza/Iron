@@ -128,29 +128,67 @@ async function rows(query: ReturnType<typeof sql>): Promise<Row[]> {
   return Array.isArray(res) ? res : (res.rows ?? []);
 }
 
+/**
+ * The ONLY identifiers that may ever reach `sql.raw` in this file.
+ *
+ * `dailySeries`/`windowCount` have to interpolate a table name and a date
+ * column as SQL IDENTIFIERS — those cannot be bound as parameters, so they go
+ * through `sql.raw`. Previously all three fragments (`table`, `dateCol` and a
+ * free-form `extraWhere` SQL string) were plain `string` parameters with
+ * defaults. Every caller passed a hardcoded literal, so nothing was injectable
+ * in practice — but the SIGNATURE invited a caller to pass a request value,
+ * and `extraWhere` in particular accepted arbitrary SQL text by design. That
+ * is a SQL-injection hole waiting for the next feature that wants to filter a
+ * KPI "by whatever the dashboard asked for".
+ *
+ * Closing it structurally rather than by convention: callers now name a SOURCE,
+ * and the table/column/soft-delete predicate are looked up here. `KpiSource` is
+ * a closed union of the five keys below, so passing anything else — including
+ * any `string` — is a compile error, and no caller-supplied text can reach
+ * `sql.raw` at all. The free-form `extraWhere` parameter is deleted outright;
+ * the only predicate any caller ever needed was the soft-delete filter, which
+ * is now a boolean flag rendering a FIXED fragment.
+ */
+const KPI_SOURCES = {
+  leads: { table: 'leads', dateCol: 'created_at', softDeleted: true },
+  orders: { table: 'orders', dateCol: 'placed_at', softDeleted: true },
+  users: { table: 'users', dateCol: 'created_at', softDeleted: false },
+  ai_conversations: { table: 'ai_conversations', dateCol: 'created_at', softDeleted: false },
+  proformas: { table: 'proformas', dateCol: 'created_at', softDeleted: false },
+} as const satisfies Record<string, { table: string; dateCol: string; softDeleted: boolean }>;
+
+type KpiSource = keyof typeof KPI_SOURCES;
+
+/** Fixed, caller-independent soft-delete predicate for a source. */
+function notDeleted(source: KpiSource) {
+  return KPI_SOURCES[source].softDeleted ? sql` AND t.deleted_at IS NULL` : sql``;
+}
+
 /** Daily counts for the last `days` days INCLUDING today (partial last point). */
-async function dailySeries(table: string, dateCol: string, days: number, extraWhere = ''): Promise<number[]> {
+async function dailySeries(source: KpiSource, days: number): Promise<number[]> {
+  const { table, dateCol } = KPI_SOURCES[source];
   const start = new Date(todayMidnight().getTime() - (days - 1) * DAY_MS);
   const r = await rows(sql`
     SELECT d.day::date AS day, count(t.*)::int AS n
     FROM generate_series(${start.toISOString()}::timestamptz, now(), '1 day') AS d(day)
     LEFT JOIN ${sql.raw(table)} t
       ON t.${sql.raw(dateCol)} >= d.day AND t.${sql.raw(dateCol)} < d.day + interval '1 day'
-      ${sql.raw(extraWhere)}
+      ${notDeleted(source)}
     GROUP BY d.day ORDER BY d.day
   `);
   return r.map((x) => Number(x.n));
 }
 
 /** Count in [todayMidnight−daysBack, todayMidnight−daysBack+len). */
-async function windowCount(table: string, dateCol: string, daysBack: number, len: number, extraWhere = ''): Promise<number> {
+async function windowCount(source: KpiSource, daysBack: number, len: number): Promise<number> {
+  const { table, dateCol } = KPI_SOURCES[source];
   const end = new Date(todayMidnight().getTime() - (daysBack - len) * DAY_MS);
   const start = new Date(todayMidnight().getTime() - daysBack * DAY_MS);
   const r = await rows(sql`
     SELECT count(*)::int AS n FROM ${sql.raw(table)} t
     WHERE t.${sql.raw(dateCol)} >= ${start.toISOString()}::timestamptz
       AND t.${sql.raw(dateCol)} < ${end.toISOString()}::timestamptz
-      ${sql.raw(extraWhere)}
+      ${notDeleted(source)}
   `);
   return Number(r[0]?.n ?? 0);
 }
@@ -163,13 +201,13 @@ export interface Kpi {
   series: number[]; // last 30 days incl today
 }
 
-async function kpi(table: string, dateCol: string, extraWhere = ''): Promise<Kpi> {
+async function kpi(source: KpiSource): Promise<Kpi> {
   const [current, prior, today, series] = await Promise.all([
-    windowCount(table, dateCol, 7, 7, extraWhere),
-    windowCount(table, dateCol, 14, 7, extraWhere),
+    windowCount(source, 7, 7),
+    windowCount(source, 14, 7),
     // daysBack=0,len=1 → [todayMidnight, todayMidnight+1d): today's partial count.
-    windowCount(table, dateCol, 0, 1, extraWhere),
-    dailySeries(table, dateCol, 30, extraWhere),
+    windowCount(source, 0, 1),
+    dailySeries(source, 30),
   ]);
   return { current, prior, deltaPct: pctDelta(current, prior), today, series };
 }
@@ -186,11 +224,11 @@ export interface OverviewStats {
 
 export async function overviewStats(): Promise<OverviewStats> {
   const [leadsK, ordersK, usersK, aiK, profK, profValues] = await Promise.all([
-    kpi('leads', 'created_at', 'AND t.deleted_at IS NULL'),
-    kpi('orders', 'placed_at', 'AND t.deleted_at IS NULL'),
-    kpi('users', 'created_at'),
-    kpi('ai_conversations', 'created_at'),
-    kpi('proformas', 'created_at'),
+    kpi('leads'),
+    kpi('orders'),
+    kpi('users'),
+    kpi('ai_conversations'),
+    kpi('proformas'),
     rows(sql`
       SELECT
         coalesce(sum(total) FILTER (WHERE created_at >= now()::date - 7 AND created_at < now()::date), 0)::bigint AS cur,
@@ -711,10 +749,10 @@ export async function dashboardStats(range: DashboardRange): Promise<DashboardSt
   ] = await Promise.all([
     proformaValue(d, d),
     proformaValue(d * 2, d),
-    windowCount('leads', 'created_at', d, d, 'AND t.deleted_at IS NULL'),
-    windowCount('leads', 'created_at', d * 2, d, 'AND t.deleted_at IS NULL'),
-    windowCount('orders', 'placed_at', d, d, 'AND t.deleted_at IS NULL'),
-    windowCount('orders', 'placed_at', d * 2, d, 'AND t.deleted_at IS NULL'),
+    windowCount('leads', d, d),
+    windowCount('leads', d * 2, d),
+    windowCount('orders', d, d),
+    windowCount('orders', d * 2, d),
     cohortConversion(d, d),
     cohortConversion(d * 2, d),
     rows(sql`
