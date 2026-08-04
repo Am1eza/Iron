@@ -50,8 +50,10 @@ async function POSTImpl(req: NextRequest) {
   const onPanelHost = req.headers.get('host') === PANEL_HOSTNAME;
 
   try {
-    const { ttl, devCode, isNewUser } = await requestOtp(mobile, v.data.name, onPanelHost);
-    return NextResponse.json({ ok: true, ttl, devCode, isNewUser });
+    // No `isNewUser` in this response — see requestOtp. It told any anonymous
+    // caller whether a phone number already had an account here.
+    const { ttl, devCode } = await requestOtp(mobile, v.data.name, onPanelHost);
+    return NextResponse.json({ ok: true, ttl, devCode });
   } catch (err) {
     return authErrorResponse(err);
   }

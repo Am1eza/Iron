@@ -95,7 +95,9 @@
     "verifyTitle": "تأیید شماره",
     "registerTitle": "تکمیل ثبت‌نام",
     "registerSubtitle": "این شماره تازه است — کد {mobile} را وارد و مشخصات‌تان را تکمیل کنید.",
-    "newUserBadge": "ثبت‌نام"
+    "newUserBadge": "ثبت‌نام",
+    "registerNameSubtitle": "حساب شما ساخته شد. برای تکمیل ثبت‌نام، نام و نام خانوادگی‌تان را وارد کنید.",
+    "completeRegistration": "تکمیل ثبت‌نام"
   },
   "phone": {
     "country": "کشور",

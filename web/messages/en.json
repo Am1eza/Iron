@@ -95,7 +95,9 @@
     "verifyTitle": "Verify your number",
     "registerTitle": "Complete your registration",
     "registerSubtitle": "This number is new — enter the code sent to {mobile} and complete your details.",
-    "newUserBadge": "New account"
+    "newUserBadge": "New account",
+    "registerNameSubtitle": "Your account is ready. Enter your first and last name to finish signing up.",
+    "completeRegistration": "Finish signing up"
   },
   "phone": {
     "country": "Country",

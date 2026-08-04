@@ -10,12 +10,13 @@ import type { PublicUser } from '@/lib/auth/publicUser';
  */
 export const authApi = {
   /** Request an OTP. `name` is used to register a new account on first login.
-   *  `isNewUser` tells the client whether to even ask for a name — an
-   *  existing account ignores it entirely on verify anyway. */
+   *  Deliberately says NOTHING about whether the number already has an account
+   *  (W29): that was free user enumeration. Whether to ask for a name is
+   *  decided from `verifyOtp`'s `isNew`, after a correct code. */
   async requestOtp(
     mobile: string,
     name?: string,
-  ): Promise<{ ok: true; ttl: number; devCode?: string; isNewUser: boolean }> {
+  ): Promise<{ ok: true; ttl: number; devCode?: string }> {
     const m = normalizeMobile(mobile);
     if (!m) throw new ApiError(400, 'شمارهٔ موبایل نامعتبر است.');
     return http.post('/api/auth/otp/request', { mobile: m, name });

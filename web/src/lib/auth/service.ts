@@ -56,25 +56,8 @@ export async function requestOtp(
   name?: string,
   /** True when the request came from the panel host — see the gate below. */
   panelOnly = false,
-): Promise<{ ttl: number; devCode?: string; isNewUser: boolean }> {
+): Promise<{ ttl: number; devCode?: string }> {
   const now = Date.now();
-
-  // Panel login is invitation-only: a number that isn't in the staff access
-  // registry never receives a panel code. This is the real entry gate — the
-  // permission layer would only reject a stranger AFTER a full login — and it
-  // also stops anyone from burning SMS credit on the panel's login form.
-  // Checked BEFORE any rate/OTP state is written, so a rejected stranger
-  // leaves no trace and consumes no quota.
-  if (panelOnly && hasDb()) {
-    const granted = await allowlistedRole(mobile);
-    if (!granted) {
-      throw new AuthError(
-        'not_staff',
-        'این شماره اجازهٔ ورود به پنل را ندارد. برای دریافت دسترسی با مدیر سیستم تماس بگیرید.',
-        403,
-      );
-    }
-  }
 
   const rate = await getRate(mobile);
 
@@ -105,6 +88,41 @@ export async function requestOtp(
     throw new AuthError('too_many', 'تعداد درخواست‌ها زیاد است. بعداً تلاش کنید.', 429, 3600);
   }
 
+  // Panel login is invitation-only: a number that isn't in the staff access
+  // registry never receives a panel code. This is the real entry gate — the
+  // permission layer would only reject a stranger AFTER a full login — and it
+  // also stops anyone from burning SMS credit on the panel's login form.
+  //
+  // W29 (audit area 2): this used to run BEFORE any rate/OTP state was
+  // written, which made the distinct `403 not_staff` (vs `200`) a free,
+  // unlimited, trace-free oracle for "is this number staff?" on
+  // panel.ahantime.com. The 403 itself is a deliberate UX choice — a staff
+  // member who mistypes their number is told so instead of waiting for an SMS
+  // that will never arrive — so it is kept, but probing is now neither free
+  // nor silent: the attempt is charged to the per-mobile hourly budget before
+  // the throw, and it is reported. Charging is cheap for the honest case: the
+  // budget is per MOBILE, so what a mistyping staff member burns is the quota
+  // of the wrong number they typed, never their own.
+  if (panelOnly && hasDb()) {
+    const granted = await allowlistedRole(mobile);
+    if (!granted) {
+      await setRate(mobile, { sends: [...recentSends, now], lockedUntil: rate.lockedUntil });
+      reportError(new Error('panel_otp_not_staff'), {
+        scope: 'auth',
+        fn: 'requestOtp',
+        // `mobile` is redacted by name in lib/errors/report.ts — the report
+        // says a probe happened and how many, never who was probed.
+        mobile,
+        recentAttempts: recentSends.length + 1,
+      });
+      throw new AuthError(
+        'not_staff',
+        'این شماره اجازهٔ ورود به پنل را ندارد. برای دریافت دسترسی با مدیر سیستم تماس بگیرید.',
+        403,
+      );
+    }
+  }
+
   const code = randomOtp(CONSTANTS.OTP_LENGTH);
   const hash = await sha256(code, pepper());
   // Resend keeps the PREVIOUS still-unexpired code valid (its own original
@@ -127,13 +145,14 @@ export async function requestOtp(
   const sms = await sendOtpSms(mobile, code);
   if (!sms.ok) throw new AuthError('sms_failed', 'ارسال پیامک ناموفق بود. دوباره تلاش کنید.', 502);
 
-  // Lets the client only ask for a name on a genuinely new account instead
-  // of every login (the LoginForm bug this exists for) — verifyOtp ignores
-  // reg.firstName/lastName entirely for an existing user anyway, so this is
-  // purely a "what should the UI ask for" signal, not a security boundary.
-  const isNewUser = !(await userByMobile(mobile));
-
-  return { ttl: CONSTANTS.OTP_TTL_SECONDS, devCode: sms.devCode, isNewUser };
+  // W29 (audit area 2): `isNewUser` used to be returned here so the login form
+  // could ask a new account for a name without pestering returning users. It
+  // was also a plain user-enumeration oracle on the PUBLIC site — anyone could
+  // learn whether a phone number has an account here, with no login and no
+  // proof of anything. The UI need is now met from the VERIFY response's
+  // `isNew`, which costs a correct one-time code to obtain: the form collects
+  // the name after the code is verified, not before. Do not add it back.
+  return { ttl: CONSTANTS.OTP_TTL_SECONDS, devCode: sms.devCode };
 }
 
 /* ------------------------------ verify OTP ----------------------------- */

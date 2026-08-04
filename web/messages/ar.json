@@ -95,7 +95,9 @@
     "verifyTitle": "تأكيد رقمك",
     "registerTitle": "إكمال التسجيل",
     "registerSubtitle": "هذا الرقم جديد — أدخل الرمز المُرسَل إلى {mobile} وأكمل بياناتك.",
-    "newUserBadge": "حساب جديد"
+    "newUserBadge": "حساب جديد",
+    "registerNameSubtitle": "تم إنشاء حسابك. أدخل اسمك الأول واسم العائلة لإكمال التسجيل.",
+    "completeRegistration": "إكمال التسجيل"
   },
   "phone": {
     "country": "الدولة",

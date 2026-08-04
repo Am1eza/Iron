@@ -95,7 +95,9 @@
     "verifyTitle": "验证您的号码",
     "registerTitle": "完成注册",
     "registerSubtitle": "该号码是新的 — 请输入发送到 {mobile} 的验证码并完善您的信息。",
-    "newUserBadge": "新账户"
+    "newUserBadge": "新账户",
+    "registerNameSubtitle": "账户已创建。请输入您的姓名以完成注册。",
+    "completeRegistration": "完成注册"
   },
   "phone": {
     "country": "国家/地区",
