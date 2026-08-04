@@ -251,6 +251,10 @@ services:
   matomo-db:
     image: mariadb:11
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 768m
+    pids_limit: 512
     command: --max-allowed-packet=64MB
     environment:
       MARIADB_ROOT_PASSWORD: ${MATOMO_DB_ROOT_PASSWORD:?set MATOMO_DB_ROOT_PASSWORD in .env}
@@ -268,6 +272,14 @@ services:
   matomo:
     image: matomo:5-apache
     restart: unless-stopped
+    # The only service reachable from TWO public paths (the :8443 console and,
+    # for two allowlisted tracker files, the customer origin), and the last one
+    # here still running unbounded. Matches the limits every other service in
+    # this file already carries.
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 768m
+    pids_limit: 256
     depends_on:
       matomo-db:
         condition: service_healthy
@@ -377,7 +389,14 @@ services:
       # No SMTP exists on this host, so invitations/password resets cannot be
       # delivered. Registration stays CLOSED — the account is provisioned from
       # the CLI instead. Do not flip this on without re-reading that sentence.
-      ENABLE_USER_REGISTRATION: "true"
+      #
+      # This said "true" while the comment said CLOSED, and :9443 is reachable
+      # from the internet, so /register was open to anyone. users_user was also
+      # EMPTY, which means the first stranger to find the port would have been
+      # the first account inside the error tracker. Creating the account does
+      # not need this flag — `manage.py createsuperuser` works regardless:
+      #   docker compose exec glitchtip-web ./manage.py createsuperuser
+      ENABLE_USER_REGISTRATION: "false"
       ENABLE_ORGANIZATION_CREATION: "false"
       # Events are diagnostics, not records: cap the retention so this database
       # cannot grow without bound on a box that also serves the site.
