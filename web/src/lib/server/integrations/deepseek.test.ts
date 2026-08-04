@@ -157,14 +157,52 @@ describe('fallback relay (FALLBACK_BASE_URL + FALLBACK_API_KEY)', () => {
       .fn()
       .mockResolvedValueOnce({ ok: false, status: 500, body: null })
       .mockResolvedValueOnce({ ok: false, status: 502, body: null });
-    await expect(run(fetchMock)).rejects.toThrow('fallback HTTP 502');
+    // W29: the thrown type is now AiUnavailableError with a classified
+    // `reason`, so the route can degrade the user gracefully instead of
+    // surfacing a raw error frame. The status is deliberately NOT in the
+    // message — GlitchTip groups by exception value, and a varying number
+    // there minted a fresh issue per status.
+    await expect(run(fetchMock)).rejects.toMatchObject({
+      name: 'AiUnavailableError',
+      reason: 'upstream',
+      status: 502,
+    });
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it('no fallback configured → exactly one attempt, original error surfaces', async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 500, body: null });
-    await expect(run(fetchMock)).rejects.toThrow('deepseek HTTP 500');
+    await expect(run(fetchMock)).rejects.toMatchObject({
+      name: 'AiUnavailableError',
+      reason: 'upstream',
+      status: 500,
+    });
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    [402, 'credit'],
+    [401, 'auth'],
+    [403, 'auth'],
+  ])('a %i is refused at the ACCOUNT level — the fallback leg is not even attempted', async (status, reason) => {
+    // The relay is answering 402 (credit exhausted) in production. The
+    // fallback relay is configured by the same owner against the same
+    // provider, so a second leg cannot fix credit or a revoked key — it only
+    // spends another round trip on a request that will fail identically.
+    stubFallback();
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status, body: null });
+    await expect(run(fetchMock)).rejects.toMatchObject({ name: 'AiUnavailableError', reason });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('a 429 IS retried on the fallback — rate limiting is per-relay, not per-account', async () => {
+    stubFallback();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false, status: 429, body: null })
+      .mockResolvedValueOnce({ ok: true, body: sseBody(['[DONE]']) });
+    await run(fetchMock);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it('FALLBACK_BASE_URL without FALLBACK_API_KEY is ignored (single attempt)', async () => {
