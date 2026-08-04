@@ -134,6 +134,29 @@ export function itemListJsonLd(items: { name: string; url: string }[]) {
   };
 }
 
+/**
+ * Product schema for a SKU page.
+ *
+ * This site has **no online payment** (CLAUDE.md §1): the price is published,
+ * but the transaction is closed by a human on the phone against a proforma.
+ * The offer therefore describes an offline sale:
+ *
+ *  - `availability` is `InStoreOnly` for a live SKU — "offered only at the
+ *    seller's physical location", which is literally true here — never
+ *    `InStock`, which asserts an online-purchasable item. Claiming
+ *    `InStock` on a page with no buy button is the textbook
+ *    "structured data mismatch" that gets merchant rich results stripped
+ *    site-wide.
+ *  - `availability` is **omitted entirely** when the caller does not know the
+ *    state. It used to default to `InStock` for anything that was not exactly
+ *    `false` — including `undefined` — so a missing value became a positive
+ *    stock claim.
+ *  - `businessFunction` is GoodRelations `Sell`, and `priceSpecification`
+ *    carries `valueAddedTaxIncluded: false`, because every published price on
+ *    this site is per-kilogram and excludes VAT (see PriceRow.current.price).
+ *    Without that flag the bare `price` reads as a VAT-inclusive final price
+ *    and mismatches the invoice the buyer is eventually given.
+ */
 export function productJsonLd(p: {
   name: string;
   price: number; // Toman, excl. VAT (see PriceRow.current.price)
@@ -144,13 +167,21 @@ export function productJsonLd(p: {
    *  the correct representation of "price withheld, ask us" — Product
    *  schema doesn't require one. */
   priceHidden?: boolean;
-  /** Defaults to true (InStock) when omitted — pass row.isActive explicitly where known. */
+  /** Tri-state on purpose. `true` → InStoreOnly, `false` → OutOfStock,
+   *  `undefined` → no availability claim at all. Never defaulted. */
   available?: boolean;
   url: string;
   image?: string;
   brand?: string;
   sku?: string;
 }) {
+  const offerUrl = new URL(p.url, SITE_URL).toString();
+  const availability =
+    p.available === true
+      ? 'https://schema.org/InStoreOnly'
+      : p.available === false
+        ? 'https://schema.org/OutOfStock'
+        : undefined;
   return {
     '@context': 'https://schema.org',
     '@type': 'Product',
@@ -166,12 +197,21 @@ export function productJsonLd(p: {
             // Toman has no ISO 4217 code; Rial (IRR) is the smallest official unit — 1 Toman = 10 Rial.
             price: p.price * 10,
             priceCurrency: 'IRR',
-            availability: `https://schema.org/${p.available === false ? 'OutOfStock' : 'InStock'}`,
+            priceSpecification: {
+              '@type': 'UnitPriceSpecification',
+              price: p.price * 10,
+              priceCurrency: 'IRR',
+              valueAddedTaxIncluded: false,
+              unitCode: 'KGM', // UN/CEFACT: kilogram — prices are per-kg
+            },
+            // GoodRelations: this offer is a sale, concluded offline.
+            businessFunction: 'http://purl.org/goodrelations/v1#Sell',
+            ...(availability ? { availability } : {}),
             // Steel prices move daily; give the offer a short validity window so
             // Google doesn't flag a missing/expired priceValidUntil (which can
             // suppress the merchant rich result).
             priceValidUntil: new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10),
-            url: new URL(p.url, SITE_URL).toString(),
+            url: offerUrl,
             seller: { '@type': 'Organization', name: BRAND },
           },
         }),
