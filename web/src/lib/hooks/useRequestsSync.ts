@@ -22,6 +22,15 @@ export function useRequestsSync(): void {
 
     (async () => {
       try {
+        // The store is skipHydration now, and React runs sibling effects in
+        // document order — so this effect can fire before <StoreHydrator/>'s.
+        // Reading an unhydrated store here would see an empty inbox and push
+        // NOTHING to the server, losing every locally-filed request on the
+        // first authenticated visit. Rehydrating is idempotent, so just make
+        // sure it has happened rather than depending on mount order.
+        if (!useRequestsStore.persist.hasHydrated()) {
+          await useRequestsStore.persist.rehydrate();
+        }
         const local = useRequestsStore.getState().requests;
         let skipped: string[] = [];
         if (local.length > 0) {

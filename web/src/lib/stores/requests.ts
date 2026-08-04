@@ -101,7 +101,33 @@ export const useRequestsStore = create<RequestsState>()(
     }),
     {
       name: 'ahantime-requests',
+      // v1 is the FIRST version this store has ever declared. Under the
+      // implicit v0 it wrote `{"state":{...},"version":0}`, so every existing
+      // visitor's saved request list is a v0 payload sitting in localStorage
+      // right now. Bumping the version WITHOUT a migrate would make zustand
+      // log a warning and return undefined — silently wiping that list for
+      // every current user, which for this store means losing the record of a
+      // پیش‌فاکتور they filed. `migrate` therefore ships in the same change
+      // and carries v0 forward unchanged: the shape did not change, only the
+      // fact that it is now numbered. See requests.test.ts.
+      version: 1,
+      migrate: (persisted, fromVersion) => {
+        if (fromVersion === 0) {
+          const s = (persisted ?? {}) as Partial<RequestsState>;
+          // Defensive: a hand-edited or truncated payload must degrade to an
+          // empty inbox, never to `requests: undefined` (which would throw on
+          // the first `.length`).
+          return { ...s, requests: Array.isArray(s.requests) ? s.requests : [] };
+        }
+        return persisted as RequestsState;
+      },
       storage: createJSONStorage(() => localStorage),
+      // Without this, the store read localStorage during the render that React
+      // hydrates against the server HTML — the server has no localStorage, so
+      // any component showing a request count rendered one number on the
+      // server and a different one on the client. Rehydrated after mount by
+      // <StoreHydrator/> instead, exactly like the cart and ui stores.
+      skipHydration: true,
     },
   ),
 );
