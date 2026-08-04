@@ -12,6 +12,10 @@ import { redisRateCheck } from '@/lib/server/redis';
 import { estimateProject } from '@/lib/server/services/estimate.service';
 import { createLead } from '@/lib/server/services/leads.service';
 import { computeBulkSplit } from '@/lib/utils/bulkSplit';
+// The ONE weight formula table — shared with POST /api/tools/weight and the
+// وزن‌سنج UI. These numbers become پیش‌فاکتور line weights, so the advisor and
+// the endpoint must not be able to disagree (they had already diverged).
+import { unitWeightKg } from '@/lib/utils/weight';
 import type { AuthUser } from '@/lib/auth/types';
 import type { ToolDef } from '@/lib/server/integrations/deepseek';
 import { finiteNumber } from '@/lib/validation/utils';
@@ -36,16 +40,19 @@ export const AI_TOOLS: ToolDef[] = [
     function: {
       name: 'calcWeight',
       description:
-        'وزن تئوری مقاطع فولادی را دقیق محاسبه می‌کند — همهٔ ۷ دستهٔ سایت: میلگرد، ورق، لوله، قوطی/پروفیل، سیم و مفتول، نبشی، تیرآهن، ناودانی.',
+        'وزن تئوری مقاطع فولادی را دقیق محاسبه می‌کند — همهٔ ۷ دستهٔ سایت: میلگرد، ورق، لوله، قوطی/پروفیل، سیم و مفتول، نبشی، تسمه، تیرآهن، ناودانی.',
       parameters: {
         type: 'object',
         properties: {
-          shape: { type: 'string', enum: ['rebar', 'plate', 'pipe', 'box', 'wire', 'angle', 'ibeam', 'channel'] },
+          shape: {
+            type: 'string',
+            enum: ['rebar', 'plate', 'pipe', 'box', 'wire', 'angle', 'flat', 'ibeam', 'channel'],
+          },
           diameterMm: { type: 'number', description: 'میلگرد/سیم: قطر (mm)' },
           thicknessMm: { type: 'number', description: 'ورق/لوله/قوطی/نبشی: ضخامت (mm)' },
           widthM: { type: 'number', description: 'ورق: عرض (m)' },
           lengthM: { type: 'number', description: 'طول شاخه/محصول (m) — برای میلگرد اختیاری (پیش‌فرض ۱۲)، بقیه الزامی' },
-          widthMm: { type: 'number', description: 'قوطی: عرض مقطع (mm)' },
+          widthMm: { type: 'number', description: 'قوطی/تسمه: عرض مقطع (mm)' },
           heightMm: { type: 'number', description: 'قوطی: ارتفاع مقطع (mm)' },
           outerDiameterMm: { type: 'number', description: 'لوله: قطر خارجی (mm)' },
           legMm: { type: 'number', description: 'نبشی: طول بال (mm)، مثلاً نبشی ۵۰×۵۰ → legMm=50' },
@@ -133,26 +140,6 @@ export const AI_TOOLS: ToolDef[] = [
   },
 ];
 
-const STEEL_DENSITY = 7.85;
-
-/**
- * Standard EN 10025-1/2 weight-per-meter (kg/m), keyed by the market size
- * number used in Iran (تیرآهن ۱۴ = IPE140, ناودانی ۱۰ = UNP100 — the number
- * IS the profile height in cm, matching `lib/data/nav.ts` catalog sizes).
- * Sourced from published mill tables, not a geometric approximation (I-beam
- * and channel flanges taper — no reliable closed-form exists) — a size
- * missing here (e.g. ناودانی ۳–۶, below UNP80) returns null rather than a
- * guessed number.
- */
-const IBEAM_KG_PER_M: Record<string, number> = {
-  '12': 10.6, '14': 13.1, '16': 16.1, '18': 19.2, '20': 22.8,
-  '22': 26.7, '24': 31.3, '27': 36.8, '30': 43.0,
-};
-const CHANNEL_KG_PER_M: Record<string, number> = {
-  '8': 8.82, '10': 10.8, '12': 13.6, '14': 16.3, '16': 19.2,
-  '18': 22.4, '20': 25.7, '22': 30.0, '24': 33.8,
-};
-
 const leadArgs = z.object({
   mobile: z.string().regex(/^09\d{9}$/),
   name: z.string().max(60).optional(),
@@ -173,7 +160,10 @@ const leadArgs = z.object({
 // no other gate). Both need the same finite+bounded validation as the public
 // HTTP endpoints backing the identical formulas (tools/weight, tools/estimate).
 const calcWeightArgs = z.object({
-  shape: z.enum(['rebar', 'plate', 'pipe', 'box', 'wire', 'angle', 'ibeam', 'channel']),
+  // 'flat' (تسمه) is a DIFFERENT section from 'angle' — the وزن‌سنج page has
+  // always quoted it and the advisor could not, which is exactly the kind of
+  // gap that made a customer get two answers. Both now read lib/utils/weight.
+  shape: z.enum(['rebar', 'plate', 'pipe', 'box', 'wire', 'angle', 'flat', 'ibeam', 'channel']),
   qty: finiteNumber.positive().max(100_000),
   // «X تن چند شاخه می‌شود؟» — the inverse ask. Grounded here so the branch
   // count comes from a tool instead of model arithmetic (which the AC-D-3
@@ -253,43 +243,6 @@ async function resolveSubCategory(categorySlug: string, query: string): Promise<
   return hit?.slug;
 }
 
-function weight(shape: string, a: z.infer<typeof calcWeightArgs>): number | null {
-  switch (shape) {
-    case 'rebar':
-      return a.diameterMm ? ((a.diameterMm * a.diameterMm) / 162) * (a.lengthM ?? 12) : null;
-    case 'plate':
-      return a.thicknessMm && a.widthM && a.lengthM ? a.thicknessMm * a.widthM * a.lengthM * STEEL_DENSITY : null;
-    case 'pipe':
-      return a.outerDiameterMm && a.thicknessMm
-        ? (a.outerDiameterMm - a.thicknessMm) * a.thicknessMm * 0.02466 * (a.lengthM ?? 6)
-        : null;
-    case 'box':
-      return a.widthMm && a.heightMm && a.thicknessMm
-        ? (((a.widthMm + a.heightMm) * 2) / 1000) * a.thicknessMm * STEEL_DENSITY * (a.lengthM ?? 6)
-        : null;
-    // Round rod — identical physics to rebar, no default length (wire is
-    // sold by coil, not a standard branch length; the model must ask).
-    case 'wire':
-      return a.diameterMm && a.lengthM ? ((a.diameterMm * a.diameterMm) / 162) * a.lengthM : null;
-    // Equal-leg angle: Area(mm²) = t·(2a−t) — the standard steel-industry
-    // approximation (ignores the small fillet radius, ~1-2% under actual).
-    case 'angle':
-      return a.legMm && a.thicknessMm && a.lengthM
-        ? a.thicknessMm * (2 * a.legMm - a.thicknessMm) * (STEEL_DENSITY / 1000) * a.lengthM
-        : null;
-    case 'ibeam': {
-      const kgPerM = a.sizeCode ? IBEAM_KG_PER_M[String(Math.round(a.sizeCode))] : undefined;
-      return kgPerM && a.lengthM ? kgPerM * a.lengthM : null;
-    }
-    case 'channel': {
-      const kgPerM = a.sizeCode ? CHANNEL_KG_PER_M[String(Math.round(a.sizeCode))] : undefined;
-      return kgPerM && a.lengthM ? kgPerM * a.lengthM : null;
-    }
-    default:
-      return null;
-  }
-}
-
 // Transcript cap persisted into a lead's context: enough turns for sales to
 // reconstruct the negotiation without letting a 40-turn chat bloat the jsonb.
 const TRANSCRIPT_MAX_MESSAGES = 12;
@@ -332,7 +285,7 @@ export async function runTool(
       case 'calcWeight': {
         const parsed = calcWeightArgs.safeParse(args);
         if (!parsed.success) return { error: 'ورودی ناقص است — ابعاد لازم را بپرس.' };
-        const unitKg = weight(parsed.data.shape, parsed.data);
+        const unitKg = unitWeightKg(parsed.data.shape, parsed.data);
         if (!unitKg) return { error: 'ورودی ناقص است — ابعاد لازم را بپرس.' };
         const result: Record<string, number> = {
           unitWeightKg: Math.round(unitKg * 100) / 100,

@@ -4,6 +4,7 @@ import { useCartStore } from '@/lib/stores/cart';
 import { useToast } from '@/lib/hooks/useToast';
 import { routes } from '@/lib/routes';
 import { toPersianDigits, normalizeDigits } from '@/lib/utils/format';
+import { unitWeightKg } from '@/lib/utils/weight';
 import { Card, Stack, Cluster, Text, Alert } from '@/components/ui';
 import { Button } from '@/components/ui';
 import { PlusIcon, CheckCircleIcon } from '@/components/primitives/icons';
@@ -14,6 +15,12 @@ import styles from './WeightCalculator.module.css';
  * Steel density 7.85 g/cm³. All math is deterministic; inputs accept Persian
  * digits and are normalized before parsing. The exact formula used is always
  * shown so the result is auditable.
+ *
+ * The arithmetic itself lives in `lib/utils/weight.ts` — the SAME module the
+ * وزن‌سنج API route and the AI advisor's calcWeight tool call. This page used
+ * to carry its own copy, which is how the site could quote a customer one
+ * weight here and a different one in chat. What stays local is presentation:
+ * which fields to ask for, and the Persian formula string shown underneath.
  */
 
 type Profile = 'rebar' | 'plate' | 'pipe' | 'flat';
@@ -40,8 +47,6 @@ type ProfileSpec = {
   pieceWord: string; // شاخه | برگ
 };
 
-const STEEL_DENSITY = 7.85; // g/cm³
-
 const PROFILES: ProfileSpec[] = [
   {
     key: 'rebar',
@@ -53,12 +58,7 @@ const PROFILES: ProfileSpec[] = [
       { key: 'd', label: 'قطر', unit: 'میلی‌متر', placeholder: 'مثلاً ۱۴' },
       { key: 'len', label: 'طول هر شاخه', unit: 'متر', placeholder: 'مثلاً ۱۲' },
     ],
-    perPiece: (v) => {
-      const d = v.d;
-      const len = v.len;
-      if (!d || !len) return null;
-      return ((d * d) / 162) * len;
-    },
+    perPiece: (v) => unitWeightKg('rebar', { diameterMm: v.d, lengthM: v.len }),
     formula: (v) => `(قطر² ÷ ۱۶۲) = (${toPersianDigits(v.d || 0)}² ÷ ۱۶۲)`,
   },
   {
@@ -72,13 +72,7 @@ const PROFILES: ProfileSpec[] = [
       { key: 'w', label: 'عرض', unit: 'متر', placeholder: 'مثلاً ۱٫۲۵' },
       { key: 't', label: 'ضخامت', unit: 'میلی‌متر', placeholder: 'مثلاً ۳' },
     ],
-    perPiece: (v) => {
-      const len = v.len;
-      const w = v.w;
-      const t = v.t;
-      if (!len || !w || !t) return null;
-      return len * w * t * STEEL_DENSITY;
-    },
+    perPiece: (v) => unitWeightKg('plate', { lengthM: v.len, widthM: v.w, thicknessMm: v.t }),
     formula: (v) =>
       `طول × عرض × ضخامت × ۷٫۸۵ = ${toPersianDigits(v.len || 0)} × ${toPersianDigits(v.w || 0)} × ${toPersianDigits(v.t || 0)} × ۷٫۸۵`,
   },
@@ -93,14 +87,8 @@ const PROFILES: ProfileSpec[] = [
       { key: 't', label: 'ضخامت جداره', unit: 'میلی‌متر', placeholder: 'مثلاً ۳' },
       { key: 'len', label: 'طول هر شاخه', unit: 'متر', placeholder: 'مثلاً ۶' },
     ],
-    perPiece: (v) => {
-      const od = v.od;
-      const t = v.t;
-      const len = v.len;
-      if (!od || !t || !len) return null;
-      if (t >= od) return null;
-      return (od - t) * t * 0.02466 * len;
-    },
+    perPiece: (v) =>
+      unitWeightKg('pipe', { outerDiameterMm: v.od, thicknessMm: v.t, lengthM: v.len }),
     formula: (v) =>
       `(قطر خارجی − ضخامت) × ضخامت × ۰٫۰۲۴۶۶ = (${toPersianDigits(v.od || 0)} − ${toPersianDigits(v.t || 0)}) × ${toPersianDigits(v.t || 0)} × ۰٫۰۲۴۶۶`,
   },
@@ -115,13 +103,7 @@ const PROFILES: ProfileSpec[] = [
       { key: 't', label: 'ضخامت', unit: 'میلی‌متر', placeholder: 'مثلاً ۴' },
       { key: 'len', label: 'طول هر شاخه', unit: 'متر', placeholder: 'مثلاً ۶' },
     ],
-    perPiece: (v) => {
-      const w = v.w;
-      const t = v.t;
-      const len = v.len;
-      if (!w || !t || !len) return null;
-      return w * t * 0.00785 * len;
-    },
+    perPiece: (v) => unitWeightKg('flat', { widthMm: v.w, thicknessMm: v.t, lengthM: v.len }),
     formula: (v) =>
       `عرض × ضخامت × ۰٫۰۰۷۸۵ = ${toPersianDigits(v.w || 0)} × ${toPersianDigits(v.t || 0)} × ۰٫۰۰۷۸۵`,
   },

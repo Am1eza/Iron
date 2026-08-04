@@ -9,6 +9,7 @@
  */
 import { normalizeDigits } from './format';
 import { slugify } from './slugify';
+import { unitWeightKg } from './weight';
 
 /**
  * Latin slugs for the factories that actually exist in this market.
@@ -129,8 +130,15 @@ export function theoreticalWeightFor(categorySlug: string, size?: string): numbe
   if (categorySlug !== 'rebar' && categorySlug !== 'wire') return null;
   const d = Number(normalizeDigits(size).replace(/[^\d.]/g, ''));
   if (!Number.isFinite(d) || d <= 0) return null;
-  const perMetre = (d * d) / 162;
-  const branch = categorySlug === 'rebar' ? perMetre * 12 : perMetre;
+  // Same shared formula table as the وزن‌سنج, the API and the AI advisor —
+  // an admin-facing default that disagreed with the customer-facing
+  // calculator is exactly what this consolidation exists to prevent.
+  // rebar = one standard 12 m branch; wire is priced per metre.
+  const branch = unitWeightKg(categorySlug === 'rebar' ? 'rebar' : 'wire', {
+    diameterMm: d,
+    lengthM: categorySlug === 'rebar' ? 12 : 1,
+  });
+  if (branch === null) return null;
   return Math.round(branch * 10) / 10 || null;
 }
 
