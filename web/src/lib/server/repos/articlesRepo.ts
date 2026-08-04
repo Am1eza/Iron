@@ -91,6 +91,20 @@ export async function listPublished(type: 'blog' | 'news', page = 1, perPage = 2
   return { articles: rows.map(toArticleDto), total: total[0]?.n ?? 0 };
 }
 
+/**
+ * `/blog/{slug}` and `/news/{slug}` for every article the public can actually
+ * read — same `publishedCond()` the detail page uses, so a draft or a
+ * scheduled-but-not-yet-due article is (correctly) not in the list and its URL
+ * 404s. Slug-only, no body: this is read from middleware on a 60s cache.
+ */
+export async function publishedArticlePaths(): Promise<string[]> {
+  const rows = await getDb()
+    .select({ slug: articles.slug, type: articles.type })
+    .from(articles)
+    .where(publishedCond());
+  return rows.map((r) => `/${r.type}/${r.slug}`);
+}
+
 export async function findPublishedBySlug(slug: string): Promise<ArticleFull | null> {
   const rows = await getDb()
     .select()

@@ -155,6 +155,52 @@ export async function skuCountsByCategory(): Promise<Map<string, number>> {
   return new Map(rows.map((r) => [r.slug, r.count]));
 }
 
+/**
+ * Every catalog URL that may legitimately answer 200, as pathnames.
+ *
+ * Three cheap slug-only queries (no price join, no freshness round trip) —
+ * this runs from middleware, cached in-process, so it must stay light.
+ *
+ * The predicates are deliberately identical to the ones the pages themselves
+ * apply, because a mismatch in EITHER direction is a bug: looser and the ghost
+ * 200s survive, stricter and a live SKU gets hard-404'd. Concretely:
+ *   - `/prices/{cat}` mirrors `listCategories` (active category);
+ *   - `/prices/{cat}/{sub}` mirrors `listAllSubCategories` (active sub of an
+ *     active category);
+ *   - `/prices/{cat}/{sub}/{sku}` mirrors `findSkuRow` — active SKU, active
+ *     sub, active category — and is keyed on the SKU's OWN category/sub, so a
+ *     SKU requested under some other category's path stays a 404 exactly as
+ *     the page intends (it is the duplicate-content guard in the [sku] page).
+ */
+export async function publicCatalogPaths(): Promise<string[]> {
+  const db = getDb();
+  const [cats, subs, sku] = await Promise.all([
+    db.select({ slug: categories.slug }).from(categories).where(eq(categories.isActive, true)),
+    db
+      .select({ cat: categories.slug, sub: subCategories.slug })
+      .from(subCategories)
+      .innerJoin(categories, eq(subCategories.categoryId, categories.id))
+      .where(and(eq(categories.isActive, true), eq(subCategories.isActive, true))),
+    db
+      .select({ cat: categories.slug, sub: subCategories.slug, sku: skus.slug })
+      .from(skus)
+      .innerJoin(categories, eq(skus.categoryId, categories.id))
+      .innerJoin(subCategories, eq(skus.subCategoryId, subCategories.id))
+      .where(
+        and(
+          eq(skus.isActive, true),
+          eq(categories.isActive, true),
+          eq(subCategories.isActive, true),
+        ),
+      ),
+  ]);
+  return [
+    ...cats.map((c) => `/prices/${c.slug}`),
+    ...subs.map((s) => `/prices/${s.cat}/${s.sub}`),
+    ...sku.map((s) => `/prices/${s.cat}/${s.sub}/${s.sku}`),
+  ];
+}
+
 /** One SKU by slug (active), with its table row shape. */
 export async function findSkuRow(slug: string): Promise<PriceRow | null> {
   const db = getDb();

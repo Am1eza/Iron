@@ -22,6 +22,15 @@ export function generateStaticParams() {
   return TRACK_ORDER.map((track) => ({ track }));
 }
 
+/**
+ * `TRACK_ORDER` is the complete, code-defined set of cooperation tracks —
+ * nothing can add one at runtime — so an unknown track is not a page and
+ * Next's router should answer 404 itself. Without this, `/cooperation/anything`
+ * replied 200 (the `notFound()` below does not set the status in this Next
+ * version) and was cached as a Soft 404.
+ */
+export const dynamicParams = false;
+
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { track } = await params;
   if (!isTrackKey(track)) {

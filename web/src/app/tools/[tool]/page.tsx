@@ -36,6 +36,16 @@ export function generateStaticParams() {
   return TOOL_SLUGS.map((tool) => ({ tool }));
 }
 
+/**
+ * The tool set is defined right here in code — there is no data source that
+ * could add one at runtime — so anything outside `TOOL_SLUGS` is not a page
+ * and Next's router should say so itself. Without this, `/tools/anything`
+ * answered HTTP 200 (the `notFound()` below does not set the status in this
+ * Next version) and got cached as a Soft 404. No DB lookup needed for these,
+ * unlike the catalog routes, which are guarded from middleware instead.
+ */
+export const dynamicParams = false;
+
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { tool } = await params;
   if (!isToolSlug(tool)) {

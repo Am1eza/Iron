@@ -4,6 +4,9 @@ import { verifyAccessToken } from '@/lib/auth/jwt';
 import { can, permissionForAdminPath } from '@/lib/auth/roles';
 import { hasDb } from '@/lib/server/db/client';
 import { adminListRedirects, normalizePath } from '@/lib/server/repos/redirectsRepo';
+import { publicCatalogPaths } from '@/lib/server/repos/catalogRepo';
+import { publishedArticlePaths } from '@/lib/server/repos/articlesRepo';
+import { hasGuardedPrefix, shouldNotFound } from '@/lib/server/seo/knownPaths';
 import { resolvePanelRouting, PANEL_HOSTNAME } from '@/lib/server/utils/panelHost';
 
 /**
@@ -70,6 +73,32 @@ async function refreshRedirectCacheIfStale(): Promise<void> {
   }
 }
 
+/**
+ * Live catalog/article URLs, for turning an unknown slug into a REAL 404
+ * (see lib/server/seo/knownPaths.ts for the full why). Same in-process,
+ * TTL'd cache shape as `redirectCache` above and valid for the same reason
+ * (one long-lived Node process). Empty = "not loaded" and never blocks a
+ * request, so a DB hiccup or a cold start degrades to the previous
+ * soft-404-200 behaviour rather than to a dead catalog.
+ */
+let knownPathCache: Set<string> = new Set();
+let knownPathsLoadedAt = 0;
+const KNOWN_PATHS_TTL_MS = 60_000;
+
+async function refreshKnownPathsIfStale(): Promise<void> {
+  if (Date.now() - knownPathsLoadedAt < KNOWN_PATHS_TTL_MS) return;
+  knownPathsLoadedAt = Date.now(); // before the await — see refreshRedirectCacheIfStale
+  if (!hasDb()) return;
+  try {
+    const [catalog, articles] = await Promise.all([publicCatalogPaths(), publishedArticlePaths()]);
+    knownPathCache = new Set([...catalog, ...articles]);
+  } catch {
+    // Keep whatever was already loaded. Never empty the set on failure: an
+    // empty set means "unknown" and is fail-open, but replacing a good set
+    // with an empty one would also throw away a working guard for no reason.
+  }
+}
+
 export async function middleware(req: NextRequest) {
   const onPanelHost = req.headers.get('host') === PANEL_HOSTNAME;
   const { shouldPrefix, effectivePathname } = resolvePanelRouting(req.headers.get('host'), req.nextUrl.pathname);
@@ -84,6 +113,27 @@ export async function middleware(req: NextRequest) {
       url.pathname = redirectMatch.toPath;
       url.search = ''; // the configured target is a complete destination, not a query passthrough
       return NextResponse.redirect(url, redirectMatch.permanent ? 308 : 307);
+    }
+
+    // A slug that exists in no table must answer a REAL 404, not a cached
+    // ghost 200. Deliberately AFTER the redirect lookup: a retired slug that
+    // an admin has mapped to its replacement must still redirect, not 404 —
+    // that is the whole point of the redirect table, and checking 404 first
+    // would silently disable it for every renamed URL.
+    //
+    // `notFound()` in these routes replies 200 in this Next version (see
+    // knownPaths.ts for the measurement), and `revalidate = 300` then caches
+    // the ghost behind a ~365-day stale-while-revalidate window. Rewriting to
+    // a path that matches no route makes Next's own router produce the 404 —
+    // the same technique `/__admin_denied__` below already relies on.
+    if (hasGuardedPrefix(req.nextUrl.pathname)) {
+      await refreshKnownPathsIfStale();
+      if (shouldNotFound(req.nextUrl.pathname, knownPathCache)) {
+        const url = req.nextUrl.clone();
+        url.pathname = '/__not_found__';
+        url.search = '';
+        return NextResponse.rewrite(url);
+      }
     }
   }
 
