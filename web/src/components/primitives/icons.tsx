@@ -295,6 +295,20 @@ export const ClockIcon = (p: IconProps) => (
     <path d="M12 7v5l3 2" />
   </Svg>
 );
+/* Pause/Play for the ticker's WCAG 2.2.2 control. Drawn as SVG paths, never
+   as the ⏸/▶ emoji characters — those render as a tofu box on iOS Safari,
+   which is why the earlier attempt at this control was rejected. Filled
+   (not stroked) so they stay legible at the 16px the 36px-tall strip allows. */
+export const PauseIcon = (p: IconProps) => (
+  <Svg {...p} fill="currentColor" stroke="none">
+    <path d="M8 5h3v14H8zM13 5h3v14h-3z" />
+  </Svg>
+);
+export const PlayIcon = (p: IconProps) => (
+  <Svg {...p} fill="currentColor" stroke="none">
+    <path d="M8 5l11 7-11 7z" />
+  </Svg>
+);
 export const PlusIcon = (p: IconProps) => (
   <Svg {...p}>
     <path d="M12 5v14M5 12h14" />

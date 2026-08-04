@@ -87,8 +87,33 @@
   will-change: auto;
 }
 .viewport:hover .track,
-.viewport:focus-within .track {
+.viewport:focus-within .track,
+/* WCAG 2.2.2 — the explicit toggle. Hover/focus-within is a convenience for
+   pointer and keyboard users; this is the mechanism touch users get. */
+.viewport[data-paused] .track {
   animation-play-state: paused;
+}
+
+/* Sits at the inline-end of the bar, same 36px height as the strip, so it
+   clears the 24×24 target minimum (WCAG 2.5.8) without changing the bar. */
+.pause {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  inline-size: 36px;
+  block-size: 36px;
+  padding: 0;
+  border: 0;
+  border-inline-start: var(--border-hairline) solid rgba(255, 255, 255, 0.08);
+  background: none;
+  color: rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-standard);
+}
+.pause:hover,
+.pause[data-paused] {
+  color: var(--color-text-inverse);
 }
 
 /* RTL: content flows right→left, so translate toward the inline-end (positive X). */
