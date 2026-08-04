@@ -24,11 +24,24 @@ name: Deploy to production server
 #   DEPLOY_PATH            optional, repo path on the server (default
 #                          /opt/ahantime)
 #   DEPLOY_HOST_FINGERPRINT  optional but recommended — the server's SSH
-#                          host key fingerprint (`ssh-keyscan -t ed25519
-#                          <host> | ssh-keygen -lf -`), pinned here so the
-#                          Action verifies it instead of trust-on-first-use
-#                          blindly accepting whatever key answers on the day
-#                          this workflow happens to run.
+#                          host key fingerprint, pinned here so the Action
+#                          verifies it instead of trust-on-first-use blindly
+#                          accepting whatever key answers on the day this
+#                          workflow happens to run.
+#                          IMPORTANT: this must match whichever host-key
+#                          algorithm the Go ssh client (easyssh/golang.org/
+#                          x/crypto/ssh, used by appleboy/ssh-action) actually
+#                          negotiates, not necessarily ed25519. It picks
+#                          from the server's HostKeyAlgorithms order (see
+#                          `sshd -T | grep hostkeyalgorithms`), which on
+#                          this host puts ecdsa-sha2-nistp256 first. Verified
+#                          2026-08-04: `ssh-keyscan -t ecdsa <host> |
+#                          ssh-keygen -lf -` is what actually matched; the
+#                          real ed25519 fingerprint failed with "host key
+#                          fingerprint mismatch" even though it was the
+#                          server's genuine ed25519 key. If this ever needs
+#                          rotating again, do not assume ed25519 — check
+#                          which algorithm actually connects first.
 # Optional repo variables (Settings → Secrets and variables → Actions →
 # Variables — plain, not secret, since NEXT_PUBLIC_* ships to every client
 # bundle anyway):
