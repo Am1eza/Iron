@@ -33,6 +33,25 @@ async function main() {
   await seedDatabase(db, { log: (m) => console.log(`[e2e-db] ${m}`) });
   console.log('[e2e-db] seeded.');
 
+  // The seeder gives the dev admin a `users` row with role `admin` but NO
+  // `admin_allowlist` row — and adminAllowlistRepo's invariant is "a user
+  // holds a staff role ⇔ their mobile is in this table", enforced in both
+  // directions by `syncAdminRoleOnLogin`. So the seeded admin cannot even
+  // request a panel OTP («این شماره اجازهٔ ورود به پنل را ندارد»), and would
+  // be demoted to `customer` if it could. The content/sales fixtures each got
+  // their grant when the RBAC suite needed one; the admin never did, because
+  // no spec had used it — admin-pricing-catalog.spec.ts is the first, and
+  // `admin` is the only role holding both pricing:write and catalog:write.
+  //
+  // Granted HERE rather than in seed.ts on purpose: this is a test-harness
+  // concern, and seed.ts's dev branch is shared with local development.
+  const adminMobile = process.env.DEV_ADMIN_MOBILE ?? '09120000000';
+  await db
+    .insert(schema.adminAllowlist)
+    .values({ mobile: adminMobile, label: 'e2e admin fixture', role: 'admin' })
+    .onConflictDoNothing();
+  console.log(`[e2e-db] panel grant for ${adminMobile}.`);
+
   // maxConnections defaults to 1 (no real concurrency) — the app's own
   // pg.Pool opens several connections at once (e.g. the market ticker and
   // the page's own catalog query firing together), and with the default,
