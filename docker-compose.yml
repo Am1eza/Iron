@@ -128,9 +128,16 @@ services:
       # Safe to persist across releases: optimizer entries are keyed by source
       # URL + width + quality + content hash, and the ISR entries that share
       # this directory are keyed by build ID, so a new build cannot read a
-      # previous build's stale pages. Docker seeds an empty named volume from
-      # the image, preserving the `nextjs:nodejs` ownership the app needs to
-      # write as a non-root user.
+      # previous build's stale pages.
+      #
+      # Docker seeds an empty named volume from the image path — INCLUDING its
+      # ownership — but only when that path exists in the image. `.next/cache`
+      # is created by Next at runtime, so it does not, and the volume came up
+      # root-owned while the app runs as non-root `nextjs`: every write failed
+      # with EACCES and the cache stayed empty. web/Dockerfile now pre-creates
+      # and chowns it, exactly as it already did for `uploads`. A volume
+      # created BEFORE that Dockerfile change keeps its root ownership and
+      # needs the one-time repair recorded there.
       - nextcache:/app/.next/cache
     expose:
       - "3000"          # internal only — not published to the host

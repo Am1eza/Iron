@@ -190,24 +190,47 @@ jobs:
             # rest of the stack up first (harmless no-op if it's already up).
             docker compose up -d db caddy
 
-            # Push the Caddyfile's current contents into the RUNNING Caddy.
+            # Get the Caddyfile's current contents into the RUNNING Caddy.
             #
-            # `up -d caddy` above does NOT do this. The Caddyfile arrives via a
-            # read-only bind mount (`./Caddyfile:/etc/caddy/Caddyfile:ro`), so
-            # editing it changes nothing in the service's compose definition —
-            # Compose sees an identical spec, leaves the container alone, and
-            # Caddy keeps serving the config it parsed at boot. Every Caddyfile
-            # change merged since this pipeline was written therefore deployed
-            # its file but never its effect, silently, with the workflow still
-            # reporting success. Found while shipping the `@media` cache rule.
+            # `up -d caddy` above does NOT do this, and neither does a plain
+            # `caddy reload`. Two separate reasons, both needed to understand
+            # why this is a force-recreate:
             #
-            # `caddy reload` is a graceful in-process swap, not a restart: no
-            # dropped connections and no re-issuing of TLS certs. It validates
-            # the config first and keeps the old one on failure, so a syntax
-            # error leaves the site up — but it exits non-zero, which fails the
-            # deploy loudly here instead of leaving a half-applied edge config.
-            docker compose exec -T caddy \
-              caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
+            #  1. The Caddyfile arrives via a read-only bind mount
+            #     (`./Caddyfile:/etc/caddy/Caddyfile:ro`), so editing it leaves
+            #     the service's compose spec identical — Compose sees no change
+            #     and leaves the container alone, still serving the config it
+            #     parsed at boot.
+            #  2. Bind-mounting a single FILE pins the mount to that file's
+            #     INODE. `git reset --hard` above does not edit in place; it
+            #     writes a new file and renames it over the old one, which is a
+            #     new inode. The container therefore keeps reading the file it
+            #     was started with — the pre-deploy contents — no matter what
+            #     the host path now says. Verified directly on the server: the
+            #     host Caddyfile had the new block, `grep` inside the container
+            #     did not, and `caddy reload` dutifully re-read the stale copy
+            #     and reported success.
+            #
+            # So every Caddyfile change merged since this pipeline was written
+            # deployed its file but never its effect, silently, with the
+            # workflow still reporting success. `--force-recreate` rebuilds the
+            # container so the mount re-resolves to the current inode. It costs
+            # the same brief blip this deploy already documents as non-zero-
+            # downtime, and TLS certs survive it (they live in the `caddy_data`
+            # volume, not the container).
+            #
+            # Validate BEFORE recreating: a syntax error caught here fails the
+            # deploy with the old container still happily serving, instead of
+            # taking the edge down and leaving it down.
+            #
+            # Done in a THROWAWAY container, not `compose exec` on the running
+            # one — exec would hit reason (2) above and validate the very stale
+            # copy this step exists to replace, passing while the real file is
+            # broken. A fresh `docker run` mounts the host path now, so it sees
+            # the current inode. Image tag tracks the `caddy` service's.
+            docker run --rm -v "$APP_DIR/Caddyfile:/etc/caddy/Caddyfile:ro" \
+              caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+            docker compose up -d --force-recreate caddy
 
             # DB backup right before the swap — cheap insurance against a
             # migration in the new image going wrong (entrypoint runs

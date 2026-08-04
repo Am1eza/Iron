@@ -99,8 +99,18 @@ ahantime.com, www.ahantime.com {
 
 	# Content-hashed build assets + self-hosted fonts never change under a given
 	# URL — cache them hard so repeat views over Iran latency are instant.
+	#
+	# The `>` prefix means "set, deferring until the response is written", i.e.
+	# REPLACE whatever the upstream sent. A bare `header ... Cache-Control` does
+	# NOT do that on a reverse-proxied response — it appends, and the client
+	# receives two Cache-Control headers. This rule shipped without the `>` for
+	# a long time and nobody noticed, because Next also sends `immutable` for
+	# `_next/static`: both copies agreed, so the duplicate was invisible.
+	# The @sitemedia rule below overrides a DISAGREEING upstream value, where
+	# the same omission means the browser honours Next's `max-age=0` and the
+	# whole rule silently does nothing. Verified live before/after.
 	@immutable path /_next/static/* /fonts/*
-	header @immutable Cache-Control "public, max-age=31536000, immutable"
+	header @immutable >Cache-Control "public, max-age=31536000, immutable"
 
 	# Product photos and the hero motion-graphic. Next serves everything under
 	# `public/` with `Cache-Control: public, max-age=0`, which means a browser
@@ -122,8 +132,11 @@ ahantime.com, www.ahantime.com {
 	# reads these files internally, never through Caddy, so it never sees this
 	# value — its own floor is `images.minimumCacheTTL` in web/next.config.mjs,
 	# which is set alongside this. Change both together or they will drift.
-	@media path /products/* /media/*
-	header @media Cache-Control "public, max-age=604800, stale-while-revalidate=86400"
+	# Named `@sitemedia`, not `@media`: the branded error page above embeds a
+	# CSS `@media (prefers-color-scheme:dark)` rule, and having the two read
+	# identically in one file is a trap for the next person grepping it.
+	@sitemedia path /products/* /media/*
+	header @sitemedia >Cache-Control "public, max-age=604800, stale-while-revalidate=86400"
 
 	# Matomo tracker (same-origin → zero CSP changes): /mt/matomo.js loads the
 	# tracking script, /mt/matomo.php receives hits. Only these two files are
@@ -227,7 +240,7 @@ panel.ahantime.com {
 	}
 
 	@immutable path /_next/static/* /fonts/*
-	header @immutable Cache-Control "public, max-age=31536000, immutable"
+	header @immutable >Cache-Control "public, max-age=31536000, immutable"
 
 	handle_errors 502 503 504 {
 		header Content-Type "text/plain; charset=utf-8"

@@ -72,6 +72,18 @@ COPY --from=build --chown=nextjs:nodejs /app/cluster.mjs ./cluster.mjs
 # can actually write into it (a freshly-created empty named volume defaults
 # to root ownership otherwise).
 RUN mkdir -p public/uploads && chown -R nextjs:nodejs public/uploads
+# Same trick, same reason, for the image-optimizer / ISR cache that
+# `nextcache:/app/.next/cache` now persists across deploys. This directory is
+# NOT part of the standalone output — Next creates it at runtime — so without
+# this line the named volume is seeded from a path that does not exist in the
+# image, Docker falls back to a fresh root-owned directory, and the non-root
+# `nextjs` user gets "Permission denied" on every write. Confirmed the hard
+# way on the server: the volume mounted as root:root, every optimizer write
+# failed, and the cache this volume exists to preserve stayed empty. Had to be
+# repaired by hand with `docker run --rm -v ahantime_nextcache:/c alpine
+# chown -R 100:101 /c` — that is a one-time repair for the volume that already
+# exists, and this line is what stops it recurring on any fresh environment.
+RUN mkdir -p .next/cache && chown -R nextjs:nodejs .next/cache
 USER nextjs
 EXPOSE 3000
 # Applies pending migrations (and optionally seeds) before starting server.js.
