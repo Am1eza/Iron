@@ -1,0 +1,14 @@
+[Unit]
+Description=Probe ahantime production health every 2 minutes
+
+[Timer]
+# Start 2 min after boot so the stack has a chance to come up first, then
+# every 2 min. No RandomizedDelaySec: for a monitor, jitter only widens the
+# worst-case detection window.
+OnBootSec=2min
+OnUnitActiveSec=2min
+AccuracySec=10s
+Unit=ahantime-uptime.service
+
+[Install]
+WantedBy=timers.target

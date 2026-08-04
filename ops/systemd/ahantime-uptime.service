@@ -1,0 +1,28 @@
+# Install on the host (the units live here in git; systemd needs them in /etc):
+#
+#   install -m 0700 /opt/ahantime/ops/ahantime-uptime-check.sh /usr/local/sbin/
+#   install -m 0644 /opt/ahantime/ops/systemd/ahantime-uptime.{service,timer} \
+#           /etc/systemd/system/
+#   systemctl daemon-reload && systemctl enable --now ahantime-uptime.timer
+#
+# Same pattern as ahantime-backup.{service,timer}. Check it with:
+#   systemctl list-timers ahantime-uptime.timer
+#   journalctl -u ahantime-uptime.service -f
+#   systemctl list-units --failed          <- the alert surface
+# Re-run the two `install` lines after any edit to the script or the units;
+# editing the copy in /opt/ahantime alone does NOT reach systemd.
+
+[Unit]
+Description=ahantime production uptime probe (https://ahantime.com/api/health via Caddy)
+Documentation=file:/opt/ahantime/ops/ahantime-uptime-check.sh
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/ahantime-uptime-check.sh
+# The script performs its own escalation; a non-zero exit means "still down
+# after the ladder ran", which is what makes this unit show up in
+# `systemctl list-units --failed`. That failed state IS the alert surface —
+# there is no SMTP or external monitoring SaaS on this host by policy.
+TimeoutStartSec=180
