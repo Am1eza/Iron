@@ -45,16 +45,24 @@ async function originalThin() {
 
 /**
  * A spread of ticker history: several keys, several quarter-hour buckets,
- * multiple points per bucket, some straddling the 48h cutoff, and one bucket
- * that the cutoff cuts through (the case the bounding has to get right).
+ * multiple points per bucket, some straddling the 48h cutoff, and a group that
+ * is inside the full-resolution window on the first pass but crosses out of it
+ * on the second (the case the bounding has to get right).
+ *
+ * Anchored to a QUARTER-HOUR BOUNDARY rather than to raw `Date.now()`. The
+ * bucket a row lands in is `floor(minute/15)` of an absolute wall-clock time,
+ * so with an unaligned anchor whether two rows minutes apart share a bucket
+ * depends on what time the suite happens to run — which made the fixture
+ * silently stop exercising the incremental case on some runs.
  */
 function fixture() {
-  const now = Date.now();
+  const QUARTER = 15 * MIN;
+  const anchor = Math.floor(Date.now() / QUARTER) * QUARTER;
   const rows: Array<{ id: string; key: 'usd' | 'gold18' | 'billet'; value: number; at: Date }> = [];
   let n = 0;
   const add = (key: 'usd' | 'gold18' | 'billet', agoMs: number) => {
     n++;
-    rows.push({ id: ulid(), key, value: 1000 + n, at: new Date(now - agoMs) });
+    rows.push({ id: ulid(), key, value: 1000 + n, at: new Date(anchor - agoMs) });
   };
   for (const key of ['usd', 'gold18', 'billet'] as const) {
     // Well past the cutoff — dense, several points inside single buckets.
@@ -69,6 +77,11 @@ function fixture() {
     add(key, 48 * HOUR + 2 * MIN);
     add(key, 48 * HOUR + 5 * MIN);
     add(key, 48 * HOUR - 2 * MIN);
+    // ~47h30m old: comfortably INSIDE the full-resolution window on the first
+    // pass (so untouched), and comfortably outside it after the clock advances
+    // an hour — the rows that make the bounded second pass have real work to
+    // do. All four share one quarter-hour because the anchor is aligned.
+    for (const m of [1, 2, 3, 4]) add(key, 47 * HOUR + 30 * MIN - m * MIN);
     // Inside the 48h full-resolution window — must never be touched.
     for (const m of [10, 11, 12, 600, 601]) add(key, m * MIN);
   }
