@@ -306,8 +306,19 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "8443:8443"   # Matomo admin UI (analytics)
-      - "9443:9443"   # GlitchTip (errors + uptime)
+      # Operator-only consoles — bound to LOOPBACK, deliberately not public.
+      #
+      # Do NOT "fix" this by opening the firewall: a published Docker port
+      # inserts its own DNAT rule into the nat table and BYPASSES firewalld
+      # entirely, so `firewall-cmd --remove-port=9443/tcp` closes nothing while
+      # looking like it did. The bind address is the only control that works.
+      #
+      # Reach them over an SSH tunnel:
+      #   ssh -L 8443:127.0.0.1:8443 -L 9443:127.0.0.1:9443 root@<host>
+      # then open https://ahantime.com:8443 / :9443 locally (the certificate is
+      # issued for ahantime.com, so use that hostname, not localhost).
+      - "127.0.0.1:8443:8443"   # Matomo admin UI (analytics)
+      - "127.0.0.1:9443:9443"   # GlitchTip (errors + uptime)
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data      # persists issued certificates across restarts
