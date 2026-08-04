@@ -36,6 +36,7 @@
  *  2. Only the guarded families are checked at all. Anything else — every
  *     static page, every API route, the admin tree — is never consulted here.
  */
+import { TOOL_SLUGS, COOPERATION_TRACKS } from '@/lib/routes';
 
 /**
  * URL families served by a dynamic segment whose slug set lives in the
@@ -50,6 +51,25 @@ const GUARDED_PATTERNS: readonly RegExp[] = [
   /^\/prices\/[^/]+\/[^/]+\/[^/]+$/, //      /prices/[category]/[sub]/[sku]
   /^\/blog\/[^/]+$/,
   /^\/news\/[^/]+$/,
+  /^\/tools\/[^/]+$/,
+  /^\/cooperation\/[^/]+$/,
+];
+
+/**
+ * `/tools/[tool]` and `/cooperation/[track]` are dynamic segments over a set
+ * that is fixed in code — no data source can add one at runtime — so their
+ * valid URLs are known without a query and are ALWAYS part of the guard, even
+ * when the database-backed half has not loaded.
+ *
+ * `dynamicParams = false` would also produce a genuine 404 for these, and was
+ * tried first, but Next raises an internal `NoFallbackError` for every miss and
+ * `instrumentation.ts`'s `onRequestError` forwards it to GlitchTip — turning
+ * any bot walking `/tools/<junk>` into an error-report flood. Same 404, no
+ * fabricated errors, and 404 handling stays in one place.
+ */
+export const STATIC_DYNAMIC_PATHS: readonly string[] = [
+  ...TOOL_SLUGS.map((t) => `/tools/${t}`),
+  ...COOPERATION_TRACKS.map((t) => `/cooperation/${t}`),
 ];
 
 /** Is this pathname served by a DB-backed dynamic route we can validate? */
@@ -64,7 +84,13 @@ export function isGuardedPath(pathname: string): boolean {
  * catalog entirely for the ~everything else — a homepage or an API request
  * must never wait on a catalog query just to be told it isn't a SKU.
  */
-export const GUARDED_PREFIXES = ['/prices/', '/blog/', '/news/'] as const;
+export const GUARDED_PREFIXES = [
+  '/prices/',
+  '/blog/',
+  '/news/',
+  '/tools/',
+  '/cooperation/',
+] as const;
 
 export function hasGuardedPrefix(pathname: string): boolean {
   return GUARDED_PREFIXES.some((prefix) => pathname.startsWith(prefix));
@@ -90,16 +116,38 @@ export function normalizeKnownPath(pathname: string): string {
   return p.length > 1 ? p.replace(/\/+$/, '') : p;
 }
 
+/** Which family a guarded path belongs to — code-defined or database-backed. */
+function isStaticFamily(pathname: string): boolean {
+  return pathname.startsWith('/tools/') || pathname.startsWith('/cooperation/');
+}
+
 /**
  * Should this request be turned into a real 404?
  *
- * @param known Every valid dynamic path. **Empty means "not loaded"** and is
- *              always treated as "don't touch this request" — see the fail-open
- *              note above.
+ * @param known    Valid paths from the database (catalog + articles).
+ *                 **Empty means "not loaded"** and is always treated as
+ *                 "don't touch this request" — see the fail-open note above.
+ *                 The code-defined families are judged without it.
+ * @param opts.redirectsLoaded Whether the redirect table has been read
+ *                 successfully at least once this process. When it has not,
+ *                 DB-backed paths are left alone: middleware checks redirects
+ *                 first, so 404ing here while that lookup is cold would turn a
+ *                 renamed URL's 308 into a 404 for the length of the cache
+ *                 window — losing exactly the ranking the redirect exists to
+ *                 preserve. Observed for real on a cold process, hence the
+ *                 flag. Code-defined families never had that dependency.
  */
-export function shouldNotFound(pathname: string, known: ReadonlySet<string>): boolean {
-  if (known.size === 0) return false;
+export function shouldNotFound(
+  pathname: string,
+  known: ReadonlySet<string>,
+  opts: { redirectsLoaded?: boolean } = {},
+): boolean {
   const p = normalizeKnownPath(pathname);
   if (!isGuardedPath(p)) return false;
+
+  if (isStaticFamily(p)) return !STATIC_DYNAMIC_PATHS.includes(p);
+
+  if (known.size === 0) return false;
+  if (opts.redirectsLoaded === false) return false;
   return !known.has(p);
 }

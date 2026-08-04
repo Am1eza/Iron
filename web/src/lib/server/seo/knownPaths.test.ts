@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { hasGuardedPrefix, isGuardedPath, normalizeKnownPath, shouldNotFound } from './knownPaths';
+import {
+  STATIC_DYNAMIC_PATHS,
+  hasGuardedPrefix,
+  isGuardedPath,
+  normalizeKnownPath,
+  shouldNotFound,
+} from './knownPaths';
+import { TRACK_ORDER } from '@/components/cooperation/tracks';
 
 const known = new Set([
   '/prices/rebar',
@@ -67,11 +74,48 @@ describe('shouldNotFound', () => {
   });
 });
 
+describe('code-defined families (/tools, /cooperation)', () => {
+  it('404s an unknown slug even with NO database data loaded', () => {
+    // These sets cannot change at runtime, so they never depend on a query
+    // and never need the fail-open escape hatch.
+    expect(shouldNotFound('/tools/nope', new Set())).toBe(true);
+    expect(shouldNotFound('/cooperation/nope', new Set())).toBe(true);
+  });
+
+  it('leaves every real tool and track alone', () => {
+    for (const p of STATIC_DYNAMIC_PATHS) expect(shouldNotFound(p, new Set())).toBe(false);
+  });
+
+  it('stays in step with the cooperation page’s own TRACK_ORDER', () => {
+    // The page and the guard read from two places; if they ever drift, the
+    // guard would 404 a live track. Assert them equal instead of hoping.
+    expect(TRACK_ORDER.map((t) => `/cooperation/${t}`).sort()).toEqual(
+      STATIC_DYNAMIC_PATHS.filter((p) => p.startsWith('/cooperation/')).slice().sort(),
+    );
+  });
+});
+
+describe('cold redirect cache', () => {
+  it('does not 404 a DB-backed path before the redirect table has loaded', () => {
+    // Middleware checks redirects FIRST. 404ing here while that lookup is
+    // still cold would turn a renamed URL's 308 into a 404 — observed on a
+    // cold process during verification, which is why the flag exists.
+    expect(shouldNotFound('/prices/old-renamed-slug', known, { redirectsLoaded: false })).toBe(false);
+    expect(shouldNotFound('/prices/old-renamed-slug', known, { redirectsLoaded: true })).toBe(true);
+  });
+
+  it('still guards the code-defined families while redirects are cold', () => {
+    expect(shouldNotFound('/tools/nope', new Set(), { redirectsLoaded: false })).toBe(true);
+  });
+});
+
 describe('hasGuardedPrefix', () => {
   it('is the cheap gate that keeps non-catalog traffic off the catalog query', () => {
     expect(hasGuardedPrefix('/prices/rebar')).toBe(true);
     expect(hasGuardedPrefix('/blog/x')).toBe(true);
     expect(hasGuardedPrefix('/news/x')).toBe(true);
+    expect(hasGuardedPrefix('/tools/weight')).toBe(true);
+    expect(hasGuardedPrefix('/cooperation/supply')).toBe(true);
     expect(hasGuardedPrefix('/')).toBe(false);
     expect(hasGuardedPrefix('/prices')).toBe(false);
     expect(hasGuardedPrefix('/api/ai/chat')).toBe(false);

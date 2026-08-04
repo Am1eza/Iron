@@ -6,6 +6,19 @@
  */
 const enc = (s: string) => encodeURIComponent(s);
 
+/**
+ * The two dynamic segments whose slug set is fixed in code rather than in the
+ * database. Exported so `lib/server/seo/knownPaths.ts` can enumerate their
+ * valid URLs (an unknown one must be a real 404, not a cached ghost 200)
+ * without importing a page module into middleware. `tracks.tsx`'s TRACK_ORDER
+ * and the tool page's own record are asserted equal to these in
+ * knownPaths.test.ts, so the two can't drift apart silently.
+ */
+export const TOOL_SLUGS = ['weight', 'project', 'cost'] as const;
+export const COOPERATION_TRACKS = ['analysis', 'supply', 'sell'] as const;
+export type ToolSlugName = (typeof TOOL_SLUGS)[number];
+export type CooperationTrackName = (typeof COOPERATION_TRACKS)[number];
+
 export const routes = {
   home: () => '/',
 
@@ -18,7 +31,7 @@ export const routes = {
   // Core
   ai: () => '/ai',
   market: () => '/market',
-  tool: (t: 'weight' | 'project' | 'cost') => `/tools/${t}`,
+  tool: (t: ToolSlugName) => `/tools/${t}`,
 
   // Engagement / account
   cart: () => '/cart',
@@ -38,7 +51,7 @@ export const routes = {
   // Company / cooperation ( /why merged into /about — see next.config redirect )
   about: () => '/about',
   contact: () => '/contact',
-  cooperation: (track?: 'analysis' | 'supply' | 'sell') =>
+  cooperation: (track?: CooperationTrackName) =>
     track ? `/cooperation/${track}` : '/cooperation',
 
   // Utility / legal

@@ -7,7 +7,7 @@ import { adminListRedirects, normalizePath } from '@/lib/server/repos/redirectsR
 import { publicCatalogPaths } from '@/lib/server/repos/catalogRepo';
 import { publishedArticlePaths } from '@/lib/server/repos/articlesRepo';
 import { hasGuardedPrefix, shouldNotFound } from '@/lib/server/seo/knownPaths';
-import { resolvePanelRouting, PANEL_HOSTNAME } from '@/lib/server/utils/panelHost';
+import { resolvePanelRouting, isPanelHost } from '@/lib/server/utils/panelHost';
 
 /**
  * Middleware — admin auth gating, admin-configured URL redirects (US-14.3),
@@ -56,6 +56,9 @@ const AUTH_ENFORCED = resolveAuthEnforced(process.env);
 
 let redirectCache = new Map<string, { toPath: string; permanent: boolean }>();
 let cacheLoadedAt = 0;
+// Has the redirect table been read successfully at least once in this process?
+// The 404 guard below refuses to act until it has — see knownPaths.ts.
+let redirectsEverLoaded = false;
 const REDIRECT_CACHE_TTL_MS = 60_000;
 
 async function refreshRedirectCacheIfStale(): Promise<void> {
@@ -67,6 +70,7 @@ async function refreshRedirectCacheIfStale(): Promise<void> {
   try {
     const rows = await adminListRedirects();
     redirectCache = new Map(rows.map((r) => [r.fromPath, { toPath: r.toPath, permanent: r.permanent }]));
+    redirectsEverLoaded = true;
   } catch {
     // A DB hiccup must never break normal traffic — keep serving whatever
     // (possibly stale, possibly still-empty) cache was already loaded.
@@ -100,7 +104,9 @@ async function refreshKnownPathsIfStale(): Promise<void> {
 }
 
 export async function middleware(req: NextRequest) {
-  const onPanelHost = req.headers.get('host') === PANEL_HOSTNAME;
+  // One predicate, shared with resolvePanelRouting — a raw `===` here and a
+  // normalized match there would let the two disagree about the same request.
+  const onPanelHost = isPanelHost(req.headers.get('host'));
   const { shouldPrefix, effectivePathname } = resolvePanelRouting(req.headers.get('host'), req.nextUrl.pathname);
 
   // Redirects (US-14.3) are a public-site SEO concern — never checked on the
@@ -128,7 +134,7 @@ export async function middleware(req: NextRequest) {
     // the same technique `/__admin_denied__` below already relies on.
     if (hasGuardedPrefix(req.nextUrl.pathname)) {
       await refreshKnownPathsIfStale();
-      if (shouldNotFound(req.nextUrl.pathname, knownPathCache)) {
+      if (shouldNotFound(req.nextUrl.pathname, knownPathCache, { redirectsLoaded: redirectsEverLoaded })) {
         const url = req.nextUrl.clone();
         url.pathname = '/__not_found__';
         url.search = '';
