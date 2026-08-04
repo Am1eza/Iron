@@ -79,10 +79,17 @@
   font: var(--t-body-sm);
   color: var(--color-text);
 }
-.optionActive,
-.option[aria-selected='true'] {
+/* The keyboard/pointer HIGHLIGHT (aria-selected + aria-activedescendant). */
+.optionActive {
   background: var(--color-accent-tint);
   color: var(--color-accent-text);
+}
+/* The country actually in use — a different fact from the highlight, so it
+   gets its own affordance (and a visually-hidden «انتخاب‌شده» in the markup)
+   rather than sharing the highlight's styling as it used to. */
+.option[data-current] {
+  font-weight: 700;
+  color: var(--color-text-strong);
 }
 /* Full country name — the only place it lives; truncate so nothing overflows. */
 .name {
@@ -101,6 +108,17 @@
 .empty {
   padding: var(--space-4);
   text-align: center;
+  color: var(--color-text-muted);
+  font: var(--t-body-sm);
+}
+/* Occupies exactly the height a full country list will (`.list`'s
+   max-block-size), so the popup does not resize under the user's finger when
+   the lazily-loaded metadata chunk lands. */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  block-size: 15rem;
   color: var(--color-text-muted);
   font: var(--t-body-sm);
 }
