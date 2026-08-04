@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { timingSafeEqual } from '@/lib/auth/crypto';
 import { withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { admitAlert } from '@/lib/server/alerts/relayThrottle';
-import { sendTelegramHtml, telegramConfig } from '@/lib/server/integrations/telegram';
+import { sendTelegramHtml, telegramApiBase, telegramConfig } from '@/lib/server/integrations/telegram';
 import { buildAlertHtml } from '@/lib/server/alerts/alertMessage';
 
 export const runtime = 'nodejs';
@@ -59,6 +59,13 @@ export const runtime = 'nodejs';
  *        TELEGRAM_ALERT_CHAT_ID.
  *  B. Put TELEGRAM_BOT_TOKEN, TELEGRAM_ALERT_CHAT_ID and ALERT_RELAY_SECRET
  *     in .env (see .env.example), then `docker compose up -d web`.
+ *  B2. FROM IRAN, ALSO SET TELEGRAM_API_BASE. api.telegram.org is blocked at
+ *     the national level from this server (it resolves to the filtering
+ *     address 10.10.34.36 and TCP 443 is refused), so a direct call can never
+ *     succeed — set the base to the owner's out-of-Iran Cloudflare Worker
+ *     forwarder instead. See integrations/telegram.ts for the measurements and
+ *     for why the bot token being handed to that hop is a deliberate,
+ *     bounded trade.
  *  C. GlitchTip → your organization → the project → Alerts → "Create New Alert"
  *     → timespan 1 minute, "Notify when 1 event(s) occur" (the throttle here
  *       is what protects the operator, so keep GlitchTip's trigger loose)
@@ -87,10 +94,15 @@ async function POSTImpl(req: NextRequest) {
     return NextResponse.json({ ok: false, reason: 'forbidden' }, { status: 403 });
   }
 
-  // Checked BEFORE the throttle is consumed: with no bot token or chat id
-  // there is nowhere to deliver, and burning a throttle slot on an
-  // undeliverable alert would mute a correctly-configured one later. Answering
-  // `sent: false` is the point — the relay must never imply it delivered.
+  // Checked BEFORE the throttle is consumed: with no bot token, no chat id or
+  // a malformed TELEGRAM_API_BASE there is nowhere to deliver, and burning a
+  // throttle slot on an undeliverable alert would mute a correctly-configured
+  // one later. Answering `sent: false` is the point — the relay must never
+  // imply it delivered. The two reasons are distinct because the fixes are:
+  // one is a missing value, the other is a typo in a value that is present.
+  if (!telegramApiBase()) {
+    return NextResponse.json({ ok: false, sent: false, reason: 'bad_api_base' }, { status: 503 });
+  }
   if (!telegramConfig()) {
     return NextResponse.json({ ok: false, sent: false, reason: 'no_recipient' }, { status: 503 });
   }

@@ -22,9 +22,12 @@ import { buildAlertHtml } from '@/lib/server/alerts/alertMessage';
 import { resetAlertThrottle } from '@/lib/server/alerts/relayThrottle';
 import { resetCircuitBreakers } from '@/lib/server/utils/resilience';
 import { TELEGRAM_MAX_MESSAGE_CHARS } from '@/lib/server/integrations/telegram';
+import { scrubPii } from '@/lib/errors/scrub';
 
 const SECRET = 'relay-secret-for-tests';
-const TOKEN = '8123456789:AA-test-token';
+// Shaped like a real BotFather token (`<bot-id>:<35-char secret>`) on purpose —
+// the token-leak tests below assert that redaction recognises this shape.
+const TOKEN = '8123456789:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw';
 const CHAT_ID = '-1001234567890';
 
 const fetchMock = vi.fn();
@@ -72,6 +75,7 @@ beforeEach(() => {
   // coalesce window has its own cases below.
   process.env.ALERT_RELAY_COALESCE_SECONDS = '0';
   delete process.env.ALERT_RELAY_MAX_PER_HOUR;
+  delete process.env.TELEGRAM_API_BASE;
 });
 afterEach(() => {
   delete process.env.ALERT_RELAY_SECRET;
@@ -79,6 +83,7 @@ afterEach(() => {
   delete process.env.TELEGRAM_ALERT_CHAT_ID;
   delete process.env.ALERT_RELAY_COALESCE_SECONDS;
   delete process.env.ALERT_RELAY_MAX_PER_HOUR;
+  delete process.env.TELEGRAM_API_BASE;
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -192,6 +197,97 @@ describe('delivery', () => {
     process.env.TELEGRAM_BOT_TOKEN = TOKEN;
 
     expect(await (await post(SECRET)).json()).toMatchObject({ sent: true });
+  });
+});
+
+describe('TELEGRAM_API_BASE — api.telegram.org is blocked at the Iranian national level', () => {
+  it('defaults to api.telegram.org when unset, so nothing changes off a filtered network', async () => {
+    await post(SECRET);
+    expect(fetchMock.mock.calls[0]![0]).toBe(`https://api.telegram.org/bot${TOKEN}/sendMessage`);
+  });
+
+  it('uses an overridden base verbatim — the out-of-Iran forwarder hop', async () => {
+    process.env.TELEGRAM_API_BASE = 'https://ahantime.giminesap.workers.dev';
+    await post(SECRET);
+    expect(fetchMock.mock.calls[0]![0]).toBe(
+      `https://ahantime.giminesap.workers.dev/bot${TOKEN}/sendMessage`,
+    );
+  });
+
+  it('trims a trailing slash rather than emitting a double slash before /bot', async () => {
+    process.env.TELEGRAM_API_BASE = 'https://relay.example.workers.dev///';
+    await post(SECRET);
+    expect(fetchMock.mock.calls[0]![0]).toBe(`https://relay.example.workers.dev/bot${TOKEN}/sendMessage`);
+  });
+
+  it('keeps a path prefix on the base — a forwarder may live under a route', async () => {
+    process.env.TELEGRAM_API_BASE = 'https://relay.example.workers.dev/tg/';
+    await post(SECRET);
+    expect(fetchMock.mock.calls[0]![0]).toBe(`https://relay.example.workers.dev/tg/bot${TOKEN}/sendMessage`);
+  });
+
+  it('fails CLOSED on a base that is not an http(s) URL — never falls back to the blocked default', async () => {
+    for (const bad of ['api.telegram.org', 'tg://relay', 'file:///etc/passwd', 'not a url']) {
+      resetAlertThrottle();
+      fetchMock.mockClear();
+      process.env.TELEGRAM_API_BASE = bad;
+
+      const res = await post(SECRET);
+      expect(res.status).toBe(503);
+      expect(await res.json()).toMatchObject({ ok: false, sent: false, reason: 'bad_api_base' });
+      expect(fetchMock).not.toHaveBeenCalled();
+    }
+  });
+});
+
+describe('the bot token is a bearer credential in a URL path — it must never be logged', () => {
+  /** Simulates the common failure shape: a fetch implementation (or a proxy in
+   *  front of the forwarder) that puts the full request URL in its error. */
+  function failWithUrlInMessage() {
+    fetchMock.mockImplementation(async (url: string) => {
+      throw new Error(`request to ${url} failed, reason: ECONNRESET`);
+    });
+  }
+
+  it('does not leak the token when a send fails against an overridden base', async () => {
+    process.env.TELEGRAM_API_BASE = 'https://ahantime.giminesap.workers.dev';
+    failWithUrlInMessage();
+
+    // Two failures: the second is the transition that actually reports.
+    await post(SECRET);
+    await post(SECRET);
+
+    const logged = vi.mocked(console.error).mock.calls.flat().map(String).join('\n');
+    expect(logged).not.toContain(TOKEN);
+    expect(logged).not.toContain(TOKEN.split(':')[1]);
+    // The reported error is the breaker's own message, which never carried a URL.
+    expect(logged).toContain('circuit opening for telegram');
+  });
+
+  it('redacts a token embedded in a URL path even when an error message carries the URL', async () => {
+    const url = `https://ahantime.giminesap.workers.dev/bot${TOKEN}/sendMessage`;
+    const scrubbed = scrubPii(`request to ${url} failed`);
+    expect(scrubbed).not.toContain(TOKEN);
+    expect(scrubbed).not.toContain(TOKEN.split(':')[1]);
+    expect(scrubbed).toBe('request to https://ahantime.giminesap.workers.dev/bot[redacted-token]/sendMessage failed');
+  });
+
+  it('redacts a token whose bot id also matches the mobile pattern (scrubber ordering)', () => {
+    const trap = `09123456789:${'A'.repeat(34)}`;
+    const scrubbed = scrubPii(`GET /bot${trap}/sendMessage`);
+    expect(scrubbed).toBe('GET /bot[redacted-token]/sendMessage');
+  });
+
+  it('does not redact ordinary `label: value` text or a Toman price', () => {
+    expect(scrubPii('total: 1234567890 تومان')).toBe('total: 1234567890 تومان');
+    expect(scrubPii('at Object.<anonymous> (file.ts:12:34)')).toBe('at Object.<anonymous> (file.ts:12:34)');
+  });
+
+  it('never puts the token in the relay JSON response', async () => {
+    process.env.TELEGRAM_API_BASE = 'https://ahantime.giminesap.workers.dev';
+    fetchMock.mockImplementation(async () => httpError(401, `Unauthorized for bot${TOKEN}`));
+    const res = await post(SECRET);
+    expect(JSON.stringify(await res.json())).not.toContain(TOKEN.split(':')[1]);
   });
 });
 

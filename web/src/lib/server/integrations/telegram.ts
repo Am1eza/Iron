@@ -8,10 +8,35 @@
  * message be 4096 characters with formatting. (SMS.ir itself is untouched and
  * still owner-locked — it keeps doing OTP and proformas.)
  *
- * THIS IS AN UNTRUSTED NETWORK DEPENDENCY. api.telegram.org resolves and
- * answers from this server today, but Telegram is filtered in Iran and that
- * can change without notice. So this module is written to fail fast and stay
- * quiet:
+ * api.telegram.org IS BLOCKED AT THE IRANIAN NATIONAL LEVEL. Measured from
+ * this server, not assumed: `getent hosts api.telegram.org` answers
+ * 10.10.34.36 — the filtering address — plus 2001:4188:2:600:10:10:34:36 on
+ * v6; TCP 443 to the v4 address is refused outright, v6 times out, and
+ * `curl .../getMe` gives HTTP 000 after 10s. api.github.com and
+ * registry.npmjs.org both answer 200 from the same shell, so this is
+ * Telegram-specific censorship rather than a network fault. A direct call can
+ * therefore NEVER succeed here.
+ *
+ * That is what TELEGRAM_API_BASE is for: point it at an out-of-Iran forwarder
+ * (the owner's Cloudflare Worker) that re-issues the request to Telegram. It
+ * defaults to https://api.telegram.org so nothing changes for a deployment
+ * that is not behind a filter. **Do not "simplify" this back to a hardcoded
+ * host** — that silently breaks the entire alert chain in production, and the
+ * failure is invisible because a broken alerter cannot alert about itself.
+ *
+ * THE TOKEN IS A BEARER CREDENTIAL AND IT TRAVELS IN THE URL PATH, because
+ * that is the only shape Telegram's API accepts. Two consequences:
+ *  - Overriding the base hands the token to whatever host is configured. Only
+ *    point it at a hop the owner controls.
+ *  - The URL must never reach a log line, an error message or a GlitchTip
+ *    event. Nothing here interpolates the URL into an error, and scrub.ts
+ *    additionally redacts a bot-token-shaped value out of ANY reported string
+ *    — a failing `fetch` implementation that puts the request URL in its
+ *    message would otherwise publish the credential to the error tracker.
+ *
+ * THIS IS AN UNTRUSTED NETWORK DEPENDENCY. Even through the forwarder, one
+ * more hop is one more thing that can be down or itself get filtered. So this
+ * module is written to fail fast and stay quiet:
  *
  *  - Explicit `AbortSignal.timeout` on the fetch. An alerting call must never
  *    hold a route handler open waiting on a blocked TCP connection.
@@ -29,6 +54,7 @@
  * Nothing here throws to its caller by design — `sendTelegramHtml` resolves to
  * a result object. The relay treats every failure as non-fatal.
  */
+import { scrubPii } from '@/lib/errors/scrub';
 import { withResilience } from '@/lib/server/utils/resilience';
 
 /** Telegram's hard limit for `sendMessage.text`. Over it the API answers 400
@@ -42,20 +68,51 @@ export const MESSAGE_BUDGET = 3800;
  *  quickly, and a blocked route to Telegram fails by hanging, not by RST. */
 const FETCH_TIMEOUT_MS = 6000;
 
+/** Telegram's own host. Correct everywhere that is not behind a filter, and
+ *  the default so an unconfigured deployment behaves exactly as before. */
+export const DEFAULT_TELEGRAM_API_BASE = 'https://api.telegram.org';
+
 export interface TelegramConfig {
   token: string;
   chatId: string;
+  /** Already validated and stripped of any trailing slash. */
+  apiBase: string;
 }
 
 /**
- * Config comes from the environment and there is no fallback. If either half
- * is missing the caller must report "not delivered" — never pretend.
+ * Resolve TELEGRAM_API_BASE. Returns null when the value is set but is not an
+ * http(s) URL — FAIL CLOSED: a typo'd or non-http base (`api.telegram.org`
+ * with no scheme, a `file:`/`tg:` URL, a hostname pasted with a stray space)
+ * must stop the send with a clear reason, never silently fall back to the
+ * default that is known not to work here.
+ *
+ * The trailing slash is trimmed rather than rejected: `https://host/` and
+ * `https://host` are the same hop, and a double slash before `/bot…` is the
+ * kind of thing that produces a 404 nobody can explain.
+ */
+export function telegramApiBase(env: Partial<NodeJS.ProcessEnv> = process.env): string | null {
+  const raw = (env.TELEGRAM_API_BASE ?? '').trim();
+  if (!raw) return DEFAULT_TELEGRAM_API_BASE;
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    return null;
+  }
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return null;
+  return raw.replace(/\/+$/, '');
+}
+
+/**
+ * Config comes from the environment and there is no fallback. If any part is
+ * missing or invalid the caller must report "not delivered" — never pretend.
  */
 export function telegramConfig(env: Partial<NodeJS.ProcessEnv> = process.env): TelegramConfig | null {
   const token = (env.TELEGRAM_BOT_TOKEN ?? '').trim();
   const chatId = (env.TELEGRAM_ALERT_CHAT_ID ?? '').trim();
-  if (!token || !chatId) return null;
-  return { token, chatId };
+  const apiBase = telegramApiBase(env);
+  if (!token || !chatId || !apiBase) return null;
+  return { token, chatId, apiBase };
 }
 
 /**
@@ -91,7 +148,7 @@ export interface TelegramResult {
   ok: boolean;
   status?: number;
   /** Machine-readable failure cause for the relay's JSON response. */
-  reason?: 'not_configured' | 'http_error' | 'network_error' | 'api_error';
+  reason?: 'not_configured' | 'bad_api_base' | 'http_error' | 'network_error' | 'api_error';
 }
 
 class TelegramHttpError extends Error {
@@ -109,7 +166,10 @@ async function readDescription(res: Response): Promise<string | undefined> {
     if (typeof res.json !== 'function') return undefined;
     const body: unknown = await res.json();
     const d = (body as { description?: unknown } | null)?.description;
-    return typeof d === 'string' ? d.slice(0, DESCRIPTION_MAX) : undefined;
+    // Scrubbed: with TELEGRAM_API_BASE overridden this body comes from the
+    // forwarder, not from Telegram, and a forwarder that echoes the upstream
+    // URL it just called would hand the bot token back for us to log.
+    return typeof d === 'string' ? scrubPii(d.slice(0, DESCRIPTION_MAX)) : undefined;
   } catch {
     return undefined;
   }
@@ -127,7 +187,7 @@ export async function sendTelegramHtml(
   env: Partial<NodeJS.ProcessEnv> = process.env,
 ): Promise<TelegramResult> {
   const cfg = telegramConfig(env);
-  if (!cfg) return { ok: false, reason: 'not_configured' };
+  if (!cfg) return { ok: false, reason: telegramApiBase(env) ? 'not_configured' : 'bad_api_base' };
 
   const body = JSON.stringify({
     chat_id: cfg.chatId,
@@ -142,7 +202,9 @@ export async function sendTelegramHtml(
     return await withResilience(
       'telegram',
       async () => {
-        const res = await fetch(`https://api.telegram.org/bot${cfg.token}/sendMessage`, {
+        // The token sits in the path because Telegram's API takes it nowhere
+        // else. It is never logged: no error raised below carries this string.
+        const res = await fetch(`${cfg.apiBase}/bot${cfg.token}/sendMessage`, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body,
