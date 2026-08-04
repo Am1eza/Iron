@@ -49,7 +49,7 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }
   if (v.data.slug && v.data.slug !== result.before.slug) {
     await redirectTaxonomySlugChange('subCategory', id, result.before.slug, v.data.slug);
   }
-  revalidateCatalog('taxonomy');
+  await revalidateCatalog('taxonomy');
   return NextResponse.json({ subCategory: result.after });
 }
 
@@ -68,7 +68,7 @@ async function DELETEImpl(req: NextRequest, ctx: { params: Promise<{ id: string 
     { name: result.before.name, slug: result.before.slug, isActive: result.before.isActive },
     { isActive: false },
   );
-  revalidateCatalog('taxonomy');
+  await revalidateCatalog('taxonomy');
   return NextResponse.json({ ok: true });
 }
 

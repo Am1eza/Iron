@@ -42,7 +42,7 @@ async function POSTImpl(req: NextRequest) {
     throw err;
   }
   await audit(auth.session.id, 'catalog.sub.create', { type: 'sub', id: subCategory.id }, null, v.data);
-  revalidateCatalog('taxonomy');
+  await revalidateCatalog('taxonomy');
   return NextResponse.json({ subCategory }, { status: 201 });
 }
 

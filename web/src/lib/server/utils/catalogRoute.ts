@@ -21,6 +21,7 @@ import { routes } from '@/lib/routes';
 import { DuplicateSlugError, InvalidParentError } from '@/lib/server/repos/catalogAdminRepo';
 import { createRedirect, RedirectLoopError } from '@/lib/server/repos/redirectsRepo';
 import { safeRevalidatePath } from '@/lib/server/utils/revalidate';
+import { invalidateDomainFacts } from '@/lib/server/ai/domainFacts';
 import { reportError } from '@/lib/errors/report';
 
 /**
@@ -46,11 +47,37 @@ export function catalogErrorResponse(err: unknown): NextResponse | null {
  * table, sub and SKU pages (all `revalidate = 300`); `/` covers the home
  * cascade. `taxonomy` additionally purges the root layout, which is what the
  * nav and mega-menu render from — the expensive one, so SKU writes skip it.
+ *
+ * `taxonomy` ALSO drops the AI advisor's `ai:domain-facts` Redis entry, which
+ * had no invalidation at all: its 600s TTL was the only thing that ever
+ * refreshed it, so for up to ten minutes after a category change the advisor
+ * was grounded on the old catalog shape and would deny a live product line
+ * exists (or offer a retired one) — see domainFacts.ts. SKU writes are
+ * deliberately excluded: those facts carry category/sub-category names only,
+ * so a product edit cannot change them and must not pay for the round trip.
+ *
+ * Async because that invalidation is I/O. It is awaited rather than
+ * fire-and-forget because a bare floating promise is not guaranteed to run to
+ * completion on this app's Workers target (same reasoning as the `after()`
+ * usage in the pricing route). Best-effort throughout — the write is already
+ * committed and a cache miss must never fail it.
  */
-export function revalidateCatalog(scope: 'sku' | 'taxonomy'): void {
+export async function revalidateCatalog(scope: 'sku' | 'taxonomy'): Promise<void> {
   safeRevalidatePath('/prices', 'layout');
   safeRevalidatePath('/', 'page');
-  if (scope === 'taxonomy') safeRevalidatePath('/', 'layout');
+  if (scope === 'taxonomy') {
+    safeRevalidatePath('/', 'layout');
+    try {
+      await invalidateDomainFacts();
+    } catch (err) {
+      // `cacheDel` already swallows Redis errors, so this only fires on
+      // something genuinely unexpected — and even then the category WAS
+      // saved. Failing the admin's write (which they would retry, hitting the
+      // unique-slug index) to report a stale cache entry is strictly worse
+      // than falling back to the 600s TTL.
+      reportError(err, { stage: 'catalog.invalidateDomainFacts' });
+    }
+  }
 }
 
 /**

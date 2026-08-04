@@ -82,7 +82,7 @@ async function POSTImpl(req: NextRequest) {
   // The SKU routes used to revalidate NOTHING while the taxonomy routes
   // revalidated the world — a new product stayed invisible for the full
   // 5-minute ISR window.
-  revalidateCatalog('sku');
+  await revalidateCatalog('sku');
   return NextResponse.json({ sku }, { status: 201 });
 }
 

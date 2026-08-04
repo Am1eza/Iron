@@ -46,7 +46,7 @@ async function POSTImpl(req: NextRequest) {
   await audit(auth.session.id, 'catalog.category.create', { type: 'category', id: category.id }, null, v.data);
   // Taxonomy edits must show up on the public site immediately (nav,
   // mega-menu, home cascade, /prices) — not after the 5-minute ISR window.
-  revalidateCatalog('taxonomy');
+  await revalidateCatalog('taxonomy');
   return NextResponse.json({ category }, { status: 201 });
 }
 

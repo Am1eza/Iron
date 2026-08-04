@@ -90,7 +90,7 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }
     ]);
     if (from && to) await redirectOnSlugChange(from, to);
   }
-  revalidateCatalog('sku');
+  await revalidateCatalog('sku');
   return NextResponse.json({ sku: result.after });
 }
 
@@ -112,7 +112,7 @@ async function DELETEImpl(req: NextRequest, ctx: { params: Promise<{ id: string 
   );
   // Without this the product kept serving a 200 page at a live price for the
   // full ISR window after being delisted.
-  revalidateCatalog('sku');
+  await revalidateCatalog('sku');
   return NextResponse.json({ ok: true });
 }
 

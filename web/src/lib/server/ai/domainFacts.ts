@@ -7,7 +7,7 @@
  */
 import { listCategories } from '@/lib/server/repos/catalogRepo';
 import { getSubsMap } from '@/lib/server/catalog';
-import { cacheGetJson, cacheSetJson, jitterTtl } from '@/lib/server/redis';
+import { cacheDel, cacheGetJson, cacheSetJson, jitterTtl } from '@/lib/server/redis';
 
 const CACHE_KEY = 'ai:domain-facts';
 const TTL_SECONDS = 600;
@@ -36,3 +36,27 @@ export async function getDomainFacts(): Promise<string> {
   if (facts) await cacheSetJson(CACHE_KEY, facts, jitterTtl(TTL_SECONDS));
   return facts;
 }
+
+/**
+ * Drop the cached facts after a taxonomy write.
+ *
+ * The TTL alone was the only invalidation, so for up to ten minutes after an
+ * admin added, renamed or retired a category/sub-category the advisor kept
+ * being told the OLD catalog shape. That is worse here than ordinary cache
+ * lag, because these facts are the advisor's grounding for what this business
+ * sells: it would confidently tell a customer a live product line does not
+ * exist, or offer one that was just retired, and — since the string is
+ * injected as a system message — it has no way to notice the contradiction
+ * with what its tools return. «هرگز عدد نساز» is enforced for numbers; the
+ * domain shape had no equivalent guard.
+ *
+ * Best-effort by design (no-op without Redis, never throws): the taxonomy
+ * write is already committed and must not be failed by a cache miss. Worst
+ * case on failure is the pre-existing TTL behaviour.
+ */
+export async function invalidateDomainFacts(): Promise<void> {
+  await cacheDel(CACHE_KEY);
+}
+
+/** Exposed for tests — the key both `getDomainFacts` and the invalidation use. */
+export const DOMAIN_FACTS_CACHE_KEY = CACHE_KEY;
