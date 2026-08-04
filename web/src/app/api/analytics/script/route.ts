@@ -27,6 +27,17 @@ export function GET() {
   const body = siteId
     ? `(function(){
   var _paq = window._paq = window._paq || [];
+  // Cookie-less tracking. MUST be pushed before trackPageView — Matomo reads
+  // it while building the first request, so a later push would still have set
+  // (and sent) the _pk_id/_pk_ses cookies for that page view. With no cookie
+  // stored on the device there is no persistent identifier and therefore no
+  // consent banner requirement; the tracker is also self-hosted and proxied
+  // same-origin (/mt/), so nothing leaves this domain either way.
+  _paq.push(['disableCookies']);
+  // IP anonymisation itself is server-side (Matomo PrivacyManager,
+  // anonymize_ip — configured on the matomo container, not from here).
+  // Honour the browser's Do Not Track signal instead of overriding it.
+  _paq.push(['setDoNotTrack', true]);
   _paq.push(['trackPageView']);
   _paq.push(['enableLinkTracking']);
   var u = '/mt/';
