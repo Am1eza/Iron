@@ -8,7 +8,7 @@ import { authErrorResponse } from '@/lib/auth/apiError';
 import { assertSameOrigin } from '@/lib/auth/origin';
 import { rateLimit } from '@/lib/server/utils/rateLimit';
 import { withApiErrorHandling } from '@/lib/server/utils/apiGuard';
-import { PANEL_HOSTNAME } from '@/lib/server/utils/panelHost';
+import { isPanelHost } from '@/lib/server/utils/panelHost';
 
 /**
  * POST /api/auth/otp/request — issue + send an OTP (SMS.ir/dev) to a normalized
@@ -47,7 +47,7 @@ async function POSTImpl(req: NextRequest) {
 
   // Panel-only gating is derived from the request's own Host header, never
   // from anything the client can set in the payload.
-  const onPanelHost = req.headers.get('host') === PANEL_HOSTNAME;
+  const onPanelHost = isPanelHost(req.headers.get('host'));
 
   try {
     // No `isNewUser` in this response — see requestOtp. It told any anonymous

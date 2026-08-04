@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import { existsSync } from 'node:fs';
 
 /**
  * E2E config — drives the real live-mode app (actual API routes, actual
@@ -10,7 +11,22 @@ import { defineConfig, devices } from '@playwright/test';
  */
 const DB_PORT = 55433;
 const APP_PORT = 3100;
-const BASE_URL = `http://127.0.0.1:${APP_PORT}`;
+export const BASE_URL = `http://127.0.0.1:${APP_PORT}`;
+/**
+ * The admin area is reachable ONLY on the panel hostname (middleware hard-404s
+ * /admin/* everywhere else), so any spec that exercises RBAC has to arrive with
+ * that Host header. `Origin`/`Host` are forbidden headers — Playwright cannot
+ * set them for a navigation — so the browser genuinely resolves the real
+ * hostname and Chromium's own resolver is pointed at the loopback server.
+ * That also keeps `assertSameOrigin` honest: the page's origin and the request
+ * host are the same string, exactly as in production.
+ * See e2e/admin-rbac.spec.ts and lib/server/utils/panelHost.ts.
+ */
+export const PANEL_BASE_URL = `http://panel.ahantime.com:${APP_PORT}`;
+
+const pinnedChromium = process.env.PLAYWRIGHT_BROWSERS_PATH
+  ? `${process.env.PLAYWRIGHT_BROWSERS_PATH}/chromium`
+  : null;
 
 export default defineConfig({
   testDir: './e2e',
@@ -54,7 +70,13 @@ export default defineConfig({
     {
       command: `next dev -p ${APP_PORT}`,
       url: `${BASE_URL}/api/health`,
-      timeout: 60_000,
+      // A COLD `next dev` has to compile the route before it can answer, and
+      // /api/health pulls in the whole db/redis graph. 60s was enough on a
+      // warm machine and not on a loaded one — the failure ("Timed out waiting
+      // 60000ms from config.webServer") looks like a broken server rather than
+      // a slow first compile, so it is worth the headroom. Only a ceiling: a
+      // healthy start still returns in seconds.
+      timeout: 180_000,
       reuseExistingServer: false,
       stdout: 'pipe',
       stderr: 'pipe',
@@ -94,9 +116,20 @@ export default defineConfig({
         // instead of the version-numbered path Playwright resolves by
         // default. Harmless outside this environment: undefined falls
         // through to Playwright's normal resolution.
-        launchOptions: process.env.PLAYWRIGHT_BROWSERS_PATH
-          ? { executablePath: `${process.env.PLAYWRIGHT_BROWSERS_PATH}/chromium` }
-          : {},
+        launchOptions: {
+          // panel.ahantime.com has no DNS entry here (and the real one points
+          // at production) — resolve it to the loopback dev server instead of
+          // faking the Host header, which a browser will not let us do.
+          args: [`--host-resolver-rules=MAP panel.ahantime.com 127.0.0.1`],
+          // …but only when that symlink is really there. The official
+          // `mcr.microsoft.com/playwright` image ALSO sets
+          // PLAYWRIGHT_BROWSERS_PATH, and lays the browser down as
+          // `chromium-<build>` with no bare `chromium` alias — so testing the
+          // variable alone pointed every launch at a non-existent path and
+          // failed all six specs with "executable doesn't exist" before a
+          // single assertion ran. Check the file, not the env var.
+          ...(pinnedChromium && existsSync(pinnedChromium) ? { executablePath: pinnedChromium } : {}),
+        },
       },
     },
   ],

@@ -9,7 +9,7 @@
  * Re-running upserts by slug/key — it never duplicates and never overwrites
  * admin-edited prices unless `force` is set.
  */
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { ulid } from 'ulid';
 
 import * as schema from './schema';
@@ -85,7 +85,15 @@ export async function seedDatabase(db: Db, opts: SeedOptions = {}): Promise<void
         .set({ isActive: false, role: 'customer', tokenVersion: sql`${schema.users.tokenVersion} + 1` })
         .where(sql`${schema.users.id} = ${s.id} AND ${schema.users.isActive} = true`);
     }
-    log('production: dev staff fixtures deactivated (if present)');
+    // And revoke their registry grant. A row here is a live grant: the mobile
+    // may request a panel OTP and is re-promoted to that role on login, which
+    // would undo the deactivation above for a set of PUBLICLY KNOWN numbers.
+    // Scoped to exactly these five fixture mobiles, and only under
+    // NODE_ENV=production — this removes a credential, never user data.
+    for (const mobile of [...contentStaffMobiles, ...salesStaff.map((s) => s.mobile)]) {
+      await db.delete(schema.adminAllowlist).where(eq(schema.adminAllowlist.mobile, mobile));
+    }
+    log('production: dev staff fixtures deactivated + de-allowlisted (if present)');
   } else {
     for (const [i, mobile] of contentStaffMobiles.entries()) {
       await db
@@ -97,6 +105,28 @@ export async function seedDatabase(db: Db, opts: SeedOptions = {}): Promise<void
       await db
         .insert(schema.users)
         .values({ id: s.id, mobile: s.mobile, name: s.name, role: 'sales' })
+        .onConflictDoNothing();
+    }
+    // The registry rows for those fixtures. THE INVARIANT (adminAllowlistRepo)
+    // is "a user holds a staff role ⇔ their mobile is in this table", and
+    // `syncAdminRoleOnLogin` enforces it in both directions — so without these
+    // rows every fixture above was demoted to `customer` the first time it
+    // logged in, and on the panel host it could not even request an OTP
+    // (`403 not_staff`). That was a SECOND blocker under the e2e RBAC suite,
+    // hidden behind the panel-host one (W29): fixing the host comparison alone
+    // would only have moved the failure. Same dev-only branch as the users
+    // above, and the production branch below deactivates the accounts, so no
+    // fixture staff identity is created on a live deployment.
+    for (const [i, mobile] of contentStaffMobiles.entries()) {
+      await db
+        .insert(schema.adminAllowlist)
+        .values({ mobile, label: `dev content fixture ${i + 1}`, role: 'content' })
+        .onConflictDoNothing();
+    }
+    for (const s of salesStaff) {
+      await db
+        .insert(schema.adminAllowlist)
+        .values({ mobile: s.mobile, label: 'dev sales fixture', role: 'sales' })
         .onConflictDoNothing();
     }
     log(`dev content-role staff ${contentStaffMobiles.join(', ')}`);

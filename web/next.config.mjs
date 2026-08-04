@@ -200,7 +200,18 @@ const nextConfig = {
                     "base-uri 'self'",
                     "form-action 'self'",
                     "frame-ancestors 'none'",
-                    'upgrade-insecure-requests',
+                    // Production only. Over plain HTTP this directive makes the
+                    // browser rewrite every subresource URL to https://, which
+                    // a `next dev` server cannot answer — every script, style
+                    // and font dies with ERR_SSL_PROTOCOL_ERROR and the page
+                    // never hydrates. Chrome exempts localhost/127.0.0.1, so
+                    // ordinary local dev never noticed; the e2e RBAC suite,
+                    // which must drive the real `panel.ahantime.com` hostname
+                    // to reach the admin area at all, is not exempt and was
+                    // silently served a dead page. Dropping it in dev changes
+                    // NOTHING about the deployed headers — production builds
+                    // with NODE_ENV=production and still emits it.
+                    ...(isDev ? [] : ['upgrade-insecure-requests']),
                   ].join('; '),
                 },
                 // Without COOP a cross-origin opener keeps a window reference
