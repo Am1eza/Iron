@@ -35,6 +35,7 @@ import {
 } from '@/lib/server/db/schema';
 import type { PriceUnit } from '@/lib/types/domain';
 import { normalizeDigits } from '@/lib/utils/format';
+import { likeContains } from '@/lib/server/utils/likeEscape';
 
 /** A unique-index violation, translated into something a form can render.
  *  `field` names the input the message belongs next to. */
@@ -68,12 +69,6 @@ async function asSlugConflict<T>(run: () => Promise<T>, message: string): Promis
     if (isUniqueViolation(err)) throw new DuplicateSlugError('slug', message);
     throw err;
   }
-}
-
-/** `%` and `_` are ILIKE wildcards — an admin searching the literal size
- *  `40_40` must not match `40x40`. */
-function escapeLike(term: string): string {
-  return term.replace(/[\\%_]/g, (ch) => `\\${ch}`);
 }
 
 /**
@@ -332,7 +327,7 @@ export async function adminListSkus(query: {
     const raw = query.q.slice(0, 100).trim();
     const asPersian = raw.replace(/[0-9]/g, (d) => String.fromCharCode(d.charCodeAt(0) + 0x06f0 - 0x30));
     const asLatin = normalizeDigits(raw);
-    const terms = [...new Set([raw, asPersian, asLatin])].map((t) => `%${escapeLike(t)}%`);
+    const terms = [...new Set([raw, asPersian, asLatin])].map(likeContains);
     conds.push(
       or(
         ...terms.flatMap((term) => [

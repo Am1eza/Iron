@@ -9,6 +9,7 @@ import { leads, leadItems, leadNotes, proformas, userRequests } from '@/lib/serv
 import { normalizeDigits, normalizeMobile, toPersianDigits } from '@/lib/utils/format';
 import type { LineItem } from '@/lib/types/domain';
 import type { Attribution } from '@/lib/utils/attribution';
+import { likeContains } from '@/lib/server/utils/likeEscape';
 
 export type LeadRow = typeof leads.$inferSelect;
 export type LeadItemRow = typeof leadItems.$inferSelect;
@@ -376,13 +377,8 @@ export async function adminListLeads(query: {
   if (query.from) conds.push(gte(leads.createdAt, query.from));
   if (query.to) conds.push(lte(leads.createdAt, query.to));
   if (query.q) {
-    conds.push(
-      or(
-        ilike(leads.ref, `%${query.q}%`),
-        ilike(leads.contactMobile, `%${query.q}%`),
-        ilike(leads.contactName, `%${query.q}%`),
-      ),
-    );
+    const q = likeContains(query.q);
+    conds.push(or(ilike(leads.ref, q), ilike(leads.contactMobile, q), ilike(leads.contactName, q)));
   }
   const where = conds.length ? and(...conds) : undefined;
   const orderBy =

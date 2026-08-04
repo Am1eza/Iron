@@ -8,6 +8,7 @@ import { getDb } from '@/lib/server/db/client';
 import { articles } from '@/lib/server/db/schema';
 import type { Article } from '@/lib/types/domain';
 import { normalizeDigits, toPersianDigits } from '@/lib/utils/format';
+import { likeContains } from '@/lib/server/utils/likeEscape';
 
 type Row = typeof articles.$inferSelect;
 
@@ -100,7 +101,7 @@ export async function findPublishedBySlug(slug: string): Promise<ArticleFull | n
 }
 
 export async function searchArticles(q: string, limit = 10): Promise<Article[]> {
-  const term = `%${q.trim()}%`;
+  const term = likeContains(q.trim());
   const rows = await getDb()
     .select()
     .from(articles)
@@ -131,7 +132,7 @@ export async function searchPublishedGuides(q: string, limit = 3): Promise<Artic
   const anyToken = or(
     ...tokens.flatMap((token) =>
       variantsOf(token).flatMap((v) => {
-        const term = `%${v}%`;
+        const term = likeContains(v);
         return [ilike(articles.title, term), ilike(articles.excerpt, term), ilike(articles.bodyMd, term)];
       }),
     ),
@@ -169,12 +170,6 @@ export async function recentPublished(limit = 4): Promise<Article[]> {
 
 /* --------------------------- admin (content) --------------------------- */
 
-/** `%` and `_` are ILIKE wildcards — a literal search for a title containing
- *  either would otherwise match far more than intended. */
-function escapeLike(term: string): string {
-  return term.replace(/[\\%_]/g, (ch) => `\\${ch}`);
-}
-
 export async function adminListArticles(query: {
   status?: Row['status'];
   type?: Row['type'];
@@ -191,7 +186,7 @@ export async function adminListArticles(query: {
   if (query.q) {
     // Covers the whole point of "find any article easily": the admin might
     // remember a phrase from the body, not just the title or slug.
-    const term = `%${escapeLike(query.q.trim().slice(0, 100))}%`;
+    const term = likeContains(query.q.trim().slice(0, 100));
     conds.push(
       or(ilike(articles.title, term), ilike(articles.slug, term), ilike(articles.excerpt, term), ilike(articles.bodyMd, term)),
     );

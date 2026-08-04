@@ -5,6 +5,7 @@ import { ulid } from 'ulid';
 import { getDb } from '@/lib/server/db/client';
 import { aiCorrections } from '@/lib/server/db/schema';
 import { normalizeDigits, toPersianDigits } from '@/lib/utils/format';
+import { likeContains } from '@/lib/server/utils/likeEscape';
 
 export type AiCorrectionRow = typeof aiCorrections.$inferSelect;
 
@@ -77,7 +78,7 @@ export async function searchCorrections(
     const anyToken = or(
       ...tokens.flatMap((token) =>
         variantsOf(token).flatMap((v) => {
-          const term = `%${v}%`;
+          const term = likeContains(v);
           return [ilike(aiCorrections.question, term), ilike(aiCorrections.answer, term)];
         }),
       ),

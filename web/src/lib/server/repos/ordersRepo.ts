@@ -6,6 +6,7 @@ import { orders, orderItems, warehouseItems, warehouseMovements, leads } from '@
 import type { LineItem, Order, WarehouseItem } from '@/lib/types/domain';
 import { normalizeDigits } from '@/lib/utils/format';
 import { unsettledFor, unsettledForMany } from '@/lib/server/repos/warehouseSettlementsRepo';
+import { likeContains } from '@/lib/server/utils/likeEscape';
 
 type OrderRow = typeof orders.$inferSelect;
 type WarehouseRow = typeof warehouseItems.$inferSelect;
@@ -319,13 +320,8 @@ export async function adminListOrders(query: {
   if (!query.includeDeleted) conds.push(isNull(orders.deletedAt));
   if (query.status) conds.push(eq(orders.status, query.status));
   if (query.q) {
-    conds.push(
-      or(
-        ilike(orders.ref, `%${query.q}%`),
-        ilike(leads.contactMobile, `%${query.q}%`),
-        ilike(leads.contactName, `%${query.q}%`),
-      ),
-    );
+    const q = likeContains(query.q);
+    conds.push(or(ilike(orders.ref, q), ilike(leads.contactMobile, q), ilike(leads.contactName, q)));
   }
   const where = conds.length ? and(...conds) : undefined;
   const [rows, total] = await Promise.all([
@@ -419,7 +415,7 @@ export async function adminListWarehouse(
   if (!query.includeDeleted) conds.push(isNull(warehouseItems.deletedAt));
   if (query.status) conds.push(eq(warehouseItems.status, query.status));
   if (query.q?.trim()) {
-    const q = `%${query.q.trim()}%`;
+    const q = likeContains(query.q.trim());
     conds.push(
       or(
         ilike(warehouseItems.ref, q),

@@ -5,6 +5,7 @@ import { getDb, type DbOrTx } from '@/lib/server/db/client';
 import { alerts, skus, currentPrices, marketValues } from '@/lib/server/db/schema';
 import { getSetting } from './settingsRepo';
 import type { MarketKey, NotifyChannel } from '@/lib/types/domain';
+import { likeContains } from '@/lib/server/utils/likeEscape';
 
 export type AlertRow = typeof alerts.$inferSelect;
 
@@ -235,7 +236,7 @@ export async function adminListAlerts(query: {
   const conds = [isNull(alerts.deletedAt)];
   if (query.status) conds.push(eq(alerts.status, query.status));
   if (query.q?.trim()) {
-    const like = `%${query.q.trim()}%`;
+    const like = likeContains(query.q.trim());
     conds.push(or(ilike(users.mobile, like), ilike(users.name, like), ilike(skus.name, like), ilike(marketValues.label, like))!);
   }
   const where = and(...conds);

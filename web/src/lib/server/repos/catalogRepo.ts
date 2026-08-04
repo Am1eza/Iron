@@ -10,6 +10,7 @@ import { categories, subCategories, skus, currentPrices, pricePoints } from '@/l
 import type { Category, SubCategory, PriceRow, PricePoint } from '@/lib/types/domain';
 import { getPriceFreshness } from '@/lib/server/services/priceFreshness';
 import { normalizeDigits, toPersianDigits } from '@/lib/utils/format';
+import { likeContains } from '@/lib/server/utils/likeEscape';
 
 /* ------------------------------ mapping ------------------------------ */
 
@@ -342,7 +343,7 @@ export async function searchSkus(q: string, limit = 20): Promise<PriceRow[]> {
   const perTokenMatch = tokens.map((token) =>
     or(
       ...tokenVariants(token).flatMap((variant) => {
-        const term = `%${variant}%`;
+        const term = likeContains(variant);
         return [ilike(skus.name, term), ilike(skus.factory, term), ilike(skus.size, term), ilike(categories.name, term)];
       }),
     ),
