@@ -77,6 +77,17 @@ export interface TelegramConfig {
   chatId: string;
   /** Already validated and stripped of any trailing slash. */
   apiBase: string;
+  /**
+   * Shared secret proving to the FORWARDER that this request is ours.
+   *
+   * Empty when talking to Telegram directly — Telegram neither wants nor
+   * understands it. It exists because a forwarder that accepts anyone's request
+   * is an open proxy sitting in front of a bot token, so ours demands this and
+   * answers 403 without it. Getting this wrong is invisible from the outside:
+   * every alert 403s at the hop and nothing is ever delivered, while the app
+   * reports only a generic http_error.
+   */
+  forwardSecret: string;
 }
 
 /**
@@ -112,7 +123,8 @@ export function telegramConfig(env: Partial<NodeJS.ProcessEnv> = process.env): T
   const chatId = (env.TELEGRAM_ALERT_CHAT_ID ?? '').trim();
   const apiBase = telegramApiBase(env);
   if (!token || !chatId || !apiBase) return null;
-  return { token, chatId, apiBase };
+  const forwardSecret = (env.TELEGRAM_FORWARD_SECRET ?? '').trim();
+  return { token, chatId, apiBase, forwardSecret };
 }
 
 /**
@@ -206,7 +218,15 @@ export async function sendTelegramHtml(
         // else. It is never logged: no error raised below carries this string.
         const res = await fetch(`${cfg.apiBase}/bot${cfg.token}/sendMessage`, {
           method: 'POST',
-          headers: { 'content-type': 'application/json' },
+          headers: {
+            'content-type': 'application/json',
+            // Sent as a HEADER, never as a ?key= query parameter: the query
+            // string is the part of a URL that ends up in access logs and
+            // Referer headers, and this secret guards a hop that holds a bot
+            // token. Omitted entirely when unset so a direct-to-Telegram
+            // deployment sends exactly what it sent before.
+            ...(cfg.forwardSecret ? { 'x-forward-secret': cfg.forwardSecret } : {}),
+          },
           body,
           signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
         });
