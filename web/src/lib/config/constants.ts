@@ -40,6 +40,32 @@ export const CONSTANTS = {
    * (/api/auth/silent). Revocation is NOT weakened by the longer window:
    * every permission boundary calls getSessionVerified(), which re-checks
    * users.tokenVersion on each request, and any role/active change bumps it.
+   *
+   * W29 (audit area 2) — DELIBERATELY LEFT AT 4 HOURS, and this is the record
+   * of why, so nobody re-opens it without the missing piece.
+   *
+   * The audit's finding was not that 4h is wrong; it is that every comment in
+   * the codebase reasoned about 15 minutes while the value was 16x that. Those
+   * comments are now corrected (session.ts, store.types.ts, schema/auth.ts)
+   * rather than the number, because shortening the TTL moves load onto the
+   * REFRESH path — and the refresh path is what logged staff out once already,
+   * at the cost of an OTP SMS per recovery.
+   *
+   * The refresh path only just gained reuse detection, and it shipped in
+   * `detect` mode (report, revoke nothing — see auth/refreshPolicy.ts) because
+   * enforcement is an owner decision. Cutting the TTL now would multiply
+   * traffic through a rotation path whose new enforcement behaviour has not
+   * been observed in production for a single day.
+   *
+   * THE ORDER, for whoever picks this up:
+   *   1. run with REFRESH_REUSE_DETECTION=detect until a week of logs shows
+   *      zero `refresh_token_reuse` reports;
+   *   2. switch to `enforce` and watch for the same period;
+   *   3. only then move this to 30-60 minutes — NOT straight to 15. 30-60min
+   *      already cuts the JWT-only revocation window by 4-8x, which is where
+   *      almost all of the benefit is, while keeping silent-refresh traffic
+   *      (and therefore the blast radius of any refresh bug) far below what
+   *      15 minutes would produce.
    */
   ACCESS_TTL_SECONDS: 4 * 60 * 60,
 

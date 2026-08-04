@@ -39,7 +39,10 @@ export const users = pgTable(
     // Embedded in the access-token JWT (`tv` claim) and compared against this
     // column on every permission-gated request, so a demoted/deactivated
     // staff member's already-issued token stops working immediately instead
-    // of staying valid until its natural (default 15min) expiry.
+    // of staying valid until its natural expiry — which is 4 HOURS
+    // (CONSTANTS.ACCESS_TTL_SECONDS), not the 15 minutes this comment used to
+    // claim. The gap between those two numbers is exactly why this column is
+    // load-bearing rather than a nicety.
     tokenVersion: integer('token_version').notNull().default(0),
 
     /* ---- progressive identity verification (level 1 = phone/OTP, always) ---- */

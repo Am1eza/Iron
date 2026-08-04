@@ -83,8 +83,9 @@ export interface AuthStore {
    *  clears refresh tokens (revokeAllForUser's effect) AND bumps
    *  tokenVersion so an already-issued access token is rejected on its very
    *  next request too — revokeAllForUser alone only stops future refreshes;
-   *  the still-live ~15min access token keeps working until it naturally
-   *  expires. Distinct from updateUser's role/isActive-triggered bump: this
+   *  the still-live access token (4 hours — CONSTANTS.ACCESS_TTL_SECONDS,
+   *  not the 15 minutes this comment used to say) keeps working until it
+   *  naturally expires. Distinct from updateUser's role/isActive bump: this
    *  fires on demand with no other field change. */
   revokeSessionsForUser(userId: string): Promise<void>;
 
