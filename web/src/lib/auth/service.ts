@@ -23,8 +23,12 @@ import {
   clearRate,
   saveRefresh,
   findRefresh,
+  claimRefresh,
   revokeRefresh,
+  revokeFamily,
 } from './store';
+import { reuseMode, reuseGraceMs } from './refreshPolicy';
+import { reportError } from '@/lib/errors/report';
 
 export class AuthError extends Error {
   constructor(
@@ -226,33 +230,120 @@ export async function verifyOtp(
 }
 
 /* ----------------------------- refresh flow ---------------------------- */
+const invalidRefresh = () =>
+  new AuthError('invalid_refresh', 'نشست نامعتبر است. دوباره وارد شوید.', 401);
+
+/**
+ * Rotate a refresh token, with token-family reuse detection (W29, area 2).
+ *
+ * ── The race this is designed around ──────────────────────────────────────
+ * Middleware bounces an expired access cookie through /api/auth/silent, and
+ * the browser can very easily fire that twice with the SAME refresh cookie —
+ * two tabs restored together, a link prefetch alongside the click, a user
+ * double-submitting. Neither request has seen the other's `Set-Cookie` yet, so
+ * both legitimately present token T. A naive "T was already spent ⇒ theft"
+ * rule reads that as an attack and kills the session of a real staff member —
+ * the exact failure the audit warned about, and the one that costs an SMS.
+ *
+ * Three mechanisms, in order, make that safe:
+ *
+ *  1. The spend is ONE atomic conditional write (`claimRefresh`), not a
+ *     read-then-write. Of N concurrent rotations of T exactly one is the
+ *     claimer. Without this, two requests could both read T as unspent and
+ *     both proceed — which would ALSO mean a genuine reuse could ride in
+ *     alongside a legitimate rotation undetected.
+ *  2. The losers of that claim are not errors. Inside a grace window
+ *     (REFRESH_REUSE_GRACE_SECONDS, default 60s) a second presentation of a
+ *     just-spent token is served normally: it mints a SIBLING token in the
+ *     same family rather than re-rotating the parent. Two live siblings is
+ *     fine — they belong to one browser, whichever `Set-Cookie` lands last
+ *     wins, and the orphan simply expires. Re-issuing the identical token is
+ *     not an option: only its hash is stored, by design.
+ *  3. Only OUTSIDE that window is a spent token treated as reuse, and even
+ *     then the revocation is gated behind REFRESH_REUSE_DETECTION, which
+ *     defaults to report-only. See refreshPolicy.ts.
+ *
+ * A token that was never issued (or has expired, or was logged out) still
+ * gets a plain 401 and touches nobody's family — an attacker must not be able
+ * to log a user out by POSTing garbage.
+ */
 export async function rotateRefresh(
   refreshToken: string,
 ): Promise<{ user: AuthUser; tokens: IssuedTokens }> {
   const hash = await sha256(refreshToken, pepper());
-  const record = await findRefresh(hash);
-  if (!record) throw new AuthError('invalid_refresh', 'نشست نامعتبر است. دوباره وارد شوید.', 401);
+  const now = Date.now();
 
-  const user = await userById(record.userId);
-  if (!user) {
-    await revokeRefresh(hash);
-    throw new AuthError('invalid_refresh', 'نشست نامعتبر است. دوباره وارد شوید.', 401);
+  // Fast path: claim the token. Exactly one concurrent caller can win this.
+  const claimed = await claimRefresh(hash, now);
+  if (claimed) {
+    const user = await userById(claimed.userId);
+    if (!user) {
+      await revokeRefresh(hash);
+      throw invalidRefresh();
+    }
+    return { user, tokens: await issueTokens(user, familyOf(hash, claimed), hash) };
   }
 
-  // Rotate: the old refresh token is single-use.
-  await revokeRefresh(hash);
-  const tokens = await issueTokens(user);
-  return { user, tokens };
+  // Nothing to claim: unknown hash, expired, already spent, or logged out.
+  const record = await findRefresh(hash);
+  if (!record || record.rotatedAt === undefined) throw invalidRefresh();
+
+  const spentAgo = now - record.rotatedAt;
+  if (spentAgo <= reuseGraceMs()) {
+    // Case 2 — the client racing itself. Mint a sibling; do not re-rotate the
+    // parent (it is already spent) and do not report anything.
+    const user = await userById(record.userId);
+    if (!user) throw invalidRefresh();
+    return { user, tokens: await issueTokens(user, familyOf(hash, record), hash) };
+  }
+
+  // Case 3 — a token spent long ago is being presented again. Either the
+  // token leaked, or a client is holding a stale cookie far past its
+  // rotation. Report it either way; act on it only when enforcing.
+  const mode = reuseMode();
+  const family = familyOf(hash, record);
+  if (mode !== 'off') {
+    reportError(new Error('refresh_token_reuse'), {
+      scope: 'auth',
+      fn: 'rotateRefresh',
+      userId: record.userId,
+      // Hashes, never the token itself — this goes to an error tracker.
+      familyId: family,
+      spentAgoMs: spentAgo,
+      enforced: mode === 'enforce',
+    });
+  }
+  if (mode === 'enforce') await revokeFamily(family);
+  throw invalidRefresh();
 }
 
+/** The lineage a token belongs to. A row issued before the family columns
+ *  existed has no `familyId`; it is its own root, named by its own hash. */
+function familyOf(hash: string, record: { familyId?: string }): string {
+  return record.familyId ?? hash;
+}
+
+/**
+ * Logout revokes the whole family, not just the presented token. The grace
+ * window above can leave a short-lived sibling alive; revoking one token
+ * would leave that sibling as a working session the user believes they ended.
+ */
 export async function logout(refreshToken: string | undefined): Promise<void> {
   if (!refreshToken) return;
   const hash = await sha256(refreshToken, pepper());
+  const record = await findRefresh(hash);
+  await revokeFamily(record ? familyOf(hash, record) : hash);
   await revokeRefresh(hash);
 }
 
 /* ------------------------------- helpers ------------------------------- */
-async function issueTokens(user: AuthUser): Promise<IssuedTokens> {
+/** `familyId`/`parentHash` are omitted only for a fresh login, which starts a
+ *  new lineage named after the token it mints. */
+async function issueTokens(
+  user: AuthUser,
+  familyId?: string,
+  parentHash?: string,
+): Promise<IssuedTokens> {
   const { token: accessToken, expiresAt: accessExpiresAt } = await signAccessToken(
     {
       sub: user.id,
@@ -266,7 +357,14 @@ async function issueTokens(user: AuthUser): Promise<IssuedTokens> {
   const refreshToken = randomToken(32);
   const refreshExpiresAt = Date.now() + CONSTANTS.SESSION_TTL_DAYS * 24 * HOUR;
   const refreshHash = await sha256(refreshToken, pepper());
-  await saveRefresh(refreshHash, { userId: user.id, expiresAt: refreshExpiresAt });
+  await saveRefresh(refreshHash, {
+    userId: user.id,
+    expiresAt: refreshExpiresAt,
+    // A login with no parent IS the root of its own family, so the root row
+    // carries a familyId too and revokeFamily() sweeps it like any child.
+    familyId: familyId ?? refreshHash,
+    parentHash,
+  });
   return { accessToken, accessExpiresAt, refreshToken, refreshExpiresAt };
 }
 

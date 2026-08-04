@@ -98,7 +98,7 @@ export const memoryStore: AuthStore = {
   },
 
   async saveRefresh(hash: string, record: RefreshRecord) {
-    refreshByHash.set(hash, record);
+    refreshByHash.set(hash, { ...record });
   },
 
   async findRefresh(hash: string) {
@@ -108,11 +108,30 @@ export const memoryStore: AuthStore = {
       refreshByHash.delete(hash);
       return null;
     }
-    return rec;
+    // Rotated rows included on purpose — see store.types.ts#findRefresh.
+    return { ...rec };
+  },
+
+  async claimRefresh(hash: string, rotatedAt: number) {
+    const rec = refreshByHash.get(hash);
+    // No await between the read and the write, so this whole check-and-set
+    // runs in one turn of the event loop — the single-process equivalent of
+    // store.pg.ts's conditional UPDATE...RETURNING.
+    if (!rec || rec.rotatedAt !== undefined || rec.expiresAt <= rotatedAt) return null;
+    rec.rotatedAt = rotatedAt;
+    return { ...rec };
   },
 
   async revokeRefresh(hash: string) {
     refreshByHash.delete(hash);
+  },
+
+  async revokeFamily(familyId: string) {
+    for (const [hash, rec] of refreshByHash) {
+      // `hash === familyId` covers a pre-migration root row (no familyId) —
+      // see store.pg.ts#revokeFamily.
+      if (rec.familyId === familyId || hash === familyId) refreshByHash.delete(hash);
+    }
   },
 
   async revokeAllForUser(userId: string) {

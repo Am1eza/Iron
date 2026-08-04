@@ -34,7 +34,15 @@ describe('OTP auth flow (pg store)', () => {
 
     const rotated = await rotateRefresh(tokens.refreshToken);
     expect(rotated.tokens.refreshToken).not.toBe(tokens.refreshToken);
-    await expect(rotateRefresh(tokens.refreshToken)).rejects.toBeInstanceOf(AuthError);
+    // W29: only PAST the grace window is a spent token an error — inside it,
+    // a re-presentation is the client racing itself. Family/reuse behaviour
+    // has its own suite in refreshReuse.test.ts.
+    process.env.REFRESH_REUSE_GRACE_SECONDS = '0';
+    try {
+      await expect(rotateRefresh(tokens.refreshToken)).rejects.toBeInstanceOf(AuthError);
+    } finally {
+      delete process.env.REFRESH_REUSE_GRACE_SECONDS;
+    }
 
     await logout(rotated.tokens.refreshToken);
     await expect(rotateRefresh(rotated.tokens.refreshToken)).rejects.toBeInstanceOf(AuthError);

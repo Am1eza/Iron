@@ -5,6 +5,7 @@
  */
 import { sql } from 'drizzle-orm';
 import {
+  type AnyPgColumn,
   bigint,
   boolean,
   check,
@@ -58,7 +59,13 @@ export const users = pgTable(
     // Each user's own shareable code; a new user may enter someone else's at
     // registration → referredBy. Feeds club points on a qualified referral.
     inviteCode: text('invite_code').unique(),
-    referredBy: text('referred_by'),
+    // Self-FK (W29): this was the ONE user-id column in the schema with no
+    // referential integrity — nothing stopped a deleted referrer from leaving
+    // a dangling id here, and the club-points path reads it. `set null` (not
+    // cascade): losing the referrer must never delete the referred account.
+    // The lazy `(): AnyPgColumn =>` form is required for a self-reference —
+    // `users` is not yet initialised at the point this callback is declared.
+    referredBy: text('referred_by').references((): AnyPgColumn => users.id, { onDelete: 'set null' }),
 
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
@@ -68,10 +75,30 @@ export const users = pgTable(
     index('users_id_verify_idx').on(t.idVerifyStatus),
     index('users_biz_verify_idx').on(t.bizVerifyStatus),
     index('users_referred_by_idx').on(t.referredBy),
+    // Analytics cohort/KPI windows (`WHERE created_at >= …`) over the whole
+    // users table — no index on the column they window on (W29).
+    index('users_created_idx').on(t.createdAt),
   ],
 );
 
-/** Rotating opaque refresh tokens, stored hashed. Epoch-ms expiry like the memory store. */
+/**
+ * Rotating opaque refresh tokens, stored hashed. Epoch-ms expiry like the
+ * memory store.
+ *
+ * TOKEN FAMILIES (W29, audit area 2). A rotated token used to be DELETED, so a
+ * presented-but-already-spent token and a token that never existed were the
+ * same 401 — reuse of a stolen token was undetectable, and the victim's own
+ * re-login did not evict the thief. Rotation now KEEPS the row and stamps
+ * `rotatedAt`; every descendant carries the root's `familyId`, so presenting a
+ * spent token identifies the whole lineage to kill.
+ *
+ * All three columns are NULLABLE on purpose: the migration is additive and
+ * every session that predates it keeps working (a NULL `familyId` simply means
+ * "this token is its own family root" — see auth/service.ts#rotateRefresh).
+ * Rows are no longer removed at rotation, only at expiry (cleanupExpired), so
+ * the reuse window is the token's full lifetime rather than "until the next
+ * rotation".
+ */
 export const refreshTokens = pgTable(
   'refresh_tokens',
   {
@@ -81,8 +108,18 @@ export const refreshTokens = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     expiresAt: bigint('expires_at', { mode: 'number' }).notNull(),
+    /** Root token hash of this lineage — the unit that reuse detection kills. */
+    familyId: text('family_id'),
+    /** The token this one was minted from (forensics; not read by the guard). */
+    parentHash: text('parent_hash'),
+    /** Epoch ms this token was spent. NULL = still live/unrotated. */
+    rotatedAt: bigint('rotated_at', { mode: 'number' }),
   },
-  (t) => [index('refresh_tokens_user_idx').on(t.userId)],
+  (t) => [
+    index('refresh_tokens_user_idx').on(t.userId),
+    // revokeFamily() is on the hot path of a detected reuse — never a scan.
+    index('refresh_tokens_family_idx').on(t.familyId),
+  ],
 );
 
 /**
@@ -92,23 +129,29 @@ export const refreshTokens = pgTable(
  * Bootstrapped from the ADMIN_MOBILES env at seed time; managed afterwards
  * from /admin/users. Every change is audited.
  */
-export const adminAllowlist = pgTable('admin_allowlist', {
-  mobile: text('mobile').primaryKey(), // normalized 09xxxxxxxxx
-  label: text('label'),
-  /**
-   * The staff role this mobile is granted at login. Generalizes what began as
-   * an admins-only list into THE staff access registry: a number that is not
-   * in this table can hold no staff role and cannot request a panel OTP at
-   * all. 'admin' is the default so rows predating this column keep their
-   * historical meaning. (The table name is deliberately unchanged — renaming
-   * a live table buys nothing and breaks concurrent work on this repo.)
-   */
-  role: text('role', { enum: ['operator', 'sales', 'content', 'catalog', 'admin'] })
-    .notNull()
-    .default('admin'),
-  addedBy: text('added_by').references(() => users.id, { onDelete: 'set null' }),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
+export const adminAllowlist = pgTable(
+  'admin_allowlist',
+  {
+    mobile: text('mobile').primaryKey(), // normalized 09xxxxxxxxx
+    label: text('label'),
+    /**
+     * The staff role this mobile is granted at login. Generalizes what began as
+     * an admins-only list into THE staff access registry: a number that is not
+     * in this table can hold no staff role and cannot request a panel OTP at
+     * all. 'admin' is the default so rows predating this column keep their
+     * historical meaning. (The table name is deliberately unchanged — renaming
+     * a live table buys nothing and breaks concurrent work on this repo.)
+     */
+    role: text('role', { enum: ['operator', 'sales', 'content', 'catalog', 'admin'] })
+      .notNull()
+      .default('admin'),
+    addedBy: text('added_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  // FK with no covering index (W29): every DELETE/UPDATE on `users` must scan
+  // this table to enforce the ON DELETE SET NULL.
+  (t) => [index('admin_allowlist_added_by_idx').on(t.addedBy)],
+);
 
 /** One active OTP per mobile (upsert semantics, matches `setOtp`).
  *  prev_* keep the previous still-unexpired code valid through a resend —

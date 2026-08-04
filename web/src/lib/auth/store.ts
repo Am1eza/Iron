@@ -49,8 +49,16 @@ export function saveRefresh(hash: string, record: RefreshRecord): Promise<void> 
 export function findRefresh(hash: string): Promise<RefreshRecord | null> {
   return store().findRefresh(hash);
 }
+/** Atomically spend a token — see store.types.ts#claimRefresh. */
+export function claimRefresh(hash: string, rotatedAt: number): Promise<RefreshRecord | null> {
+  return store().claimRefresh(hash, rotatedAt);
+}
 export function revokeRefresh(hash: string): Promise<void> {
   return store().revokeRefresh(hash);
+}
+/** Kill a whole rotation lineage (reuse detected, or logout). */
+export function revokeFamily(familyId: string): Promise<void> {
+  return store().revokeFamily(familyId);
 }
 /** Revoke every refresh token for a user (logout-all / role change). */
 export function revokeAllForUser(userId: string): Promise<void> {

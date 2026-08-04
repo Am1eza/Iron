@@ -78,7 +78,7 @@ describe('OTP auth flow', () => {
     await expect(verifyOtp(mobile, codeB!)).rejects.toBeInstanceOf(AuthError);
   });
 
-  it('rotates the refresh token (old token becomes invalid)', async () => {
+  it('rotates the refresh token (old token becomes invalid once past the grace window)', async () => {
     const mobile = '09131000005';
     const { devCode } = await requestOtp(mobile);
     const { tokens } = await verifyOtp(mobile, devCode!);
@@ -86,8 +86,16 @@ describe('OTP auth flow', () => {
     const rotated = await rotateRefresh(tokens.refreshToken);
     expect(rotated.tokens.refreshToken).not.toBe(tokens.refreshToken);
 
-    // Reusing the old (rotated-out) refresh token must fail.
-    await expect(rotateRefresh(tokens.refreshToken)).rejects.toBeInstanceOf(AuthError);
+    // W29: a token re-presented IMMEDIATELY after rotation is the silent-
+    // refresh timer racing itself, not reuse — it is served (see
+    // service.ts#rotateRefresh). This assertion used to run with no window at
+    // all, which is precisely the double-fire that would log staff out.
+    process.env.REFRESH_REUSE_GRACE_SECONDS = '0';
+    try {
+      await expect(rotateRefresh(tokens.refreshToken)).rejects.toBeInstanceOf(AuthError);
+    } finally {
+      delete process.env.REFRESH_REUSE_GRACE_SECONDS;
+    }
 
     // Logout revokes the current refresh token.
     await logout(rotated.tokens.refreshToken);

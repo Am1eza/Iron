@@ -4,7 +4,22 @@
  */
 import type { AuthUser, Role } from './types';
 
-export type RefreshRecord = { userId: string; expiresAt: number };
+/**
+ * One refresh token row. `familyId`/`parentHash`/`rotatedAt` implement reuse
+ * detection (W29) and are all optional: rows issued before the feature landed
+ * have none of them and are treated as their own single-token family, so no
+ * existing session is invalidated by the upgrade.
+ */
+export type RefreshRecord = {
+  userId: string;
+  expiresAt: number;
+  /** Root token hash of the rotation lineage. */
+  familyId?: string;
+  /** The token this one replaced. */
+  parentHash?: string;
+  /** Epoch ms this token was spent by a rotation. Undefined = still live. */
+  rotatedAt?: number;
+};
 
 export type OtpRecord = {
   hash: string;
@@ -45,8 +60,24 @@ export interface AuthStore {
   listUsers(query?: ListUsersQuery): Promise<{ users: (AuthUser & { isActive?: boolean })[]; total: number }>;
 
   saveRefresh(hash: string, record: RefreshRecord): Promise<void>;
+  /**
+   * Read a token row WITHOUT spending it. Returns already-rotated rows too
+   * (that is the whole point — `rotatedAt` is what distinguishes "spent" from
+   * "never existed"), and still returns null for an unknown or expired hash.
+   */
   findRefresh(hash: string): Promise<RefreshRecord | null>;
+  /**
+   * ATOMICALLY spend a token: stamp `rotatedAt` if and only if it is still
+   * NULL and the row is unexpired, returning the row that was claimed (null
+   * if there was nothing to claim). Must be one statement — a read-then-write
+   * would let two concurrent silent-refreshes both believe they were the sole
+   * rotator, and, worse, let a genuine reuse slip through as a normal
+   * rotation. See auth/service.ts#rotateRefresh for the race analysis.
+   */
+  claimRefresh(hash: string, rotatedAt: number): Promise<RefreshRecord | null>;
   revokeRefresh(hash: string): Promise<void>;
+  /** Kill an entire rotation lineage (reuse detected / logout). */
+  revokeFamily(familyId: string): Promise<void>;
   revokeAllForUser(userId: string): Promise<void>;
   /** Full session kill for an admin "revoke sessions" action (US-21.3):
    *  clears refresh tokens (revokeAllForUser's effect) AND bumps

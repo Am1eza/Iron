@@ -112,7 +112,13 @@ export const pgStore: AuthStore = {
 
   async saveRefresh(hash, record) {
     const db = getDb();
-    await db.insert(refreshTokens).values({ tokenHash: hash, userId: record.userId, expiresAt: record.expiresAt });
+    await db.insert(refreshTokens).values({
+      tokenHash: hash,
+      userId: record.userId,
+      expiresAt: record.expiresAt,
+      familyId: record.familyId ?? null,
+      parentHash: record.parentHash ?? null,
+    });
   },
 
   async findRefresh(hash) {
@@ -124,11 +130,56 @@ export const pgStore: AuthStore = {
       await db.delete(refreshTokens).where(eq(refreshTokens.tokenHash, hash));
       return null;
     }
-    return { userId: rec.userId, expiresAt: rec.expiresAt };
+    // Deliberately NOT filtered on rotatedAt — a spent row is exactly what the
+    // caller needs to see to tell reuse apart from a token that never existed.
+    return {
+      userId: rec.userId,
+      expiresAt: rec.expiresAt,
+      familyId: rec.familyId ?? undefined,
+      parentHash: rec.parentHash ?? undefined,
+      rotatedAt: rec.rotatedAt ?? undefined,
+    };
+  },
+
+  async claimRefresh(hash, rotatedAt) {
+    // One conditional UPDATE...RETURNING. Postgres serializes concurrent
+    // updates of the same row, so of two simultaneous rotations of the same
+    // token exactly one gets a row back; the loser gets zero rows and falls
+    // into the grace-window branch instead of being mistaken for a rotation.
+    const rows = await getDb()
+      .update(refreshTokens)
+      .set({ rotatedAt })
+      .where(
+        and(
+          eq(refreshTokens.tokenHash, hash),
+          sql`${refreshTokens.rotatedAt} IS NULL`,
+          sql`${refreshTokens.expiresAt} > ${rotatedAt}`,
+        ),
+      )
+      .returning();
+    const rec = rows[0];
+    if (!rec) return null;
+    return {
+      userId: rec.userId,
+      expiresAt: rec.expiresAt,
+      familyId: rec.familyId ?? undefined,
+      parentHash: rec.parentHash ?? undefined,
+      rotatedAt: rec.rotatedAt ?? undefined,
+    };
   },
 
   async revokeRefresh(hash) {
     await getDb().delete(refreshTokens).where(eq(refreshTokens.tokenHash, hash));
+  },
+
+  async revokeFamily(familyId) {
+    // `tokenHash` is matched too: a session that predates the family columns
+    // has family_id NULL, and rotateRefresh names such a lineage after the
+    // token's own hash — without this the pre-migration root would survive
+    // the very revocation it triggered.
+    await getDb()
+      .delete(refreshTokens)
+      .where(or(eq(refreshTokens.familyId, familyId), eq(refreshTokens.tokenHash, familyId)));
   },
 
   async revokeAllForUser(userId) {
