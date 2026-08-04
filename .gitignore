@@ -19,3 +19,4 @@ backups/
 
 # OS / editor
 .DS_Store
+web/.pw-shot.mjs
