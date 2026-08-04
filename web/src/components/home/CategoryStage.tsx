@@ -1,5 +1,5 @@
 'use client';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { routes } from '@/lib/routes';
 import type { SubsMap } from '@/lib/data/catalog';
@@ -37,6 +37,16 @@ export function CategoryStage({
   const [activeSub, setActiveSub] = useState<string>(firstSub(categories[0]?.slug ?? ''));
   const activeRailLinkRef = useRef<HTMLAnchorElement | null>(null);
   const firstFlyoutLinkRef = useRef<HTMLAnchorElement | null>(null);
+  // WebKit never runs the .panel-in keyframe animation on the panel that's
+  // present in the initial server-rendered/hydrated markup — it stays stuck
+  // at the 0% keyframe (opacity:0) forever, hiding the whole flyout on first
+  // paint. Confirmed: a panel inserted later (e.g. on hover, after mount)
+  // animates fine in WebKit too, so the animation class is withheld until
+  // after mount and only applied once the user actually switches category.
+  const [canAnimate, setCanAnimate] = useState(false);
+  useEffect(() => {
+    setCanAnimate(true);
+  }, []);
   if (!activeCat) return null;
 
   const subs = subsMap[activeCat.slug] ?? [];
@@ -129,7 +139,10 @@ export function CategoryStage({
         {/* Columns 2 & 3 — cascade flyout (desktop). Keyed so the CSS fade/slide
             re-runs on each category change (no framer-motion). */}
         <div className={styles.flyout}>
-            <div key={activeCat.slug} className={styles.panel}>
+            <div
+              key={activeCat.slug}
+              className={canAnimate ? `${styles.panel} ${styles.panelAnimate}` : styles.panel}
+            >
               {/* The hover-reveal: the active category's large product photo.
                   Decorative (the rail name IS the label) — hidden from AT. */}
               <div className={styles.photo} aria-hidden="true">

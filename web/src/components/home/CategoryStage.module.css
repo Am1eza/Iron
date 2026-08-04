@@ -98,6 +98,12 @@
   border: var(--border-hairline) solid var(--color-hairline);
   background: var(--color-surface);
   box-shadow: var(--shadow-md);
+}
+/* Applied only after mount (see CategoryStage.tsx) — a panel present in the
+   initial server-rendered markup never runs this keyframe in WebKit (stuck
+   at the 0% frame, opacity:0), so the very first paint renders unanimated
+   instead of invisible. Panels swapped in later (category switch) get it. */
+.panelAnimate {
   animation: panel-in var(--dur-slow) var(--ease-emphasized);
 }
 @keyframes panel-in {
