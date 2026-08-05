@@ -143,3 +143,47 @@ describe('normalizeKnownPath', () => {
     expect(normalizeKnownPath('/prices/rebar//')).toBe('/prices/rebar');
   });
 });
+
+describe('shouldNotFound — the %2F guard bypass (security regression)', () => {
+  // `%2F` decodes to `/`, so the decoded form `/blog/aaa/bbb` matched no
+  // guarded pattern and the guard declined to act. The request then fell
+  // through to `/blog/[slug]`, where `notFound()` replies HTTP 200 and the
+  // route's `revalidate` caches the ghost behind a ~365-day
+  // stale-while-revalidate window — unlimited attacker-minted cacheable
+  // pages, two Postgres reads and a full render each.
+  it('404s a slug that splits itself into two segments with %2F', () => {
+    expect(shouldNotFound('/blog/aaa%2Fbbb', known)).toBe(true);
+    expect(shouldNotFound('/blog/aaa%2fbbb', known)).toBe(true);
+    expect(shouldNotFound('/news/x%2Fy', known)).toBe(true);
+    expect(shouldNotFound('/prices/x%2Fy', known)).toBe(true);
+    expect(shouldNotFound('/blog/%2e%2e%2f%2e%2e%2fetc%2fpasswd', known)).toBe(true);
+  });
+
+  it('404s the same shape for the code-defined families', () => {
+    expect(shouldNotFound('/tools/x%2Fy', known)).toBe(true);
+    expect(shouldNotFound('/cooperation/x%2Fy', known)).toBe(true);
+  });
+
+  it('still lets a legitimately encoded known path through', () => {
+    // `%2F` between real segments of a path that EXISTS must not 404 — the
+    // decoded form is what `known` holds.
+    expect(shouldNotFound('/prices/rebar%2Fdeformed', known)).toBe(false);
+    expect(shouldNotFound('/prices/rebar/deformed', known)).toBe(false);
+    expect(shouldNotFound('/blog/what-is-a3', known)).toBe(false);
+  });
+
+  it('still lets the RSS feeds through', () => {
+    expect(shouldNotFound('/blog/rss.xml', known)).toBe(false);
+    expect(shouldNotFound('/news/rss.xml', known)).toBe(false);
+  });
+
+  it('still fails open when the catalog has not loaded', () => {
+    expect(shouldNotFound('/blog/aaa%2Fbbb', new Set())).toBe(false);
+    expect(shouldNotFound('/blog/aaa%2Fbbb', known, { redirectsLoaded: false })).toBe(false);
+  });
+
+  it('leaves the paginated index routes alone (two segments, not a slug)', () => {
+    expect(shouldNotFound('/blog/page/2', known)).toBe(false);
+    expect(shouldNotFound('/news/page/2', known)).toBe(false);
+  });
+});

@@ -121,6 +121,10 @@ export function hasGuardedPrefix(pathname: string): boolean {
  * two different strings. A malformed escape (`%zz`) cannot be decoded and is
  * left as-is — it will simply not be found, which is the right answer.
  */
+function trimTrailingSlashes(p: string): string {
+  return p.length > 1 ? p.replace(/\/+$/, '') : p;
+}
+
 export function normalizeKnownPath(pathname: string): string {
   let p = pathname;
   try {
@@ -128,7 +132,7 @@ export function normalizeKnownPath(pathname: string): string {
   } catch {
     /* malformed escape sequence — judge the raw form */
   }
-  return p.length > 1 ? p.replace(/\/+$/, '') : p;
+  return trimTrailingSlashes(p);
 }
 
 /** Which family a guarded path belongs to — code-defined or database-backed. */
@@ -157,12 +161,27 @@ export function shouldNotFound(
   known: ReadonlySet<string>,
   opts: { redirectsLoaded?: boolean } = {},
 ): boolean {
+  // Judge BOTH forms. Decoding first was a bypass: `%2F` decodes to `/`, so
+  // `/blog/aaa%2Fbbb` became the two-segment `/blog/aaa/bbb`, which matches no
+  // guarded pattern — `isGuardedPath` returned false, the guard declined, and
+  // the request fell through to `/blog/[slug]` where `notFound()` replies 200
+  // and is then ISR-cached behind a ~365-day stale-while-revalidate window.
+  // That is unlimited attacker-minted cacheable ghost pages, each costing two
+  // Postgres reads and a full render — exactly what this module exists to
+  // prevent. Splitting one slug into two segments must not argue a request out
+  // of the guard: Next's router would have 404'd a genuine `/blog/a/b` itself.
+  const raw = trimTrailingSlashes(pathname);
   const p = normalizeKnownPath(pathname);
-  if (!isGuardedPath(p)) return false;
+  if (!isGuardedPath(p) && !isGuardedPath(raw)) return false;
 
-  if (isStaticFamily(p)) return !STATIC_DYNAMIC_PATHS.includes(p);
+  if (isStaticFamily(p) || isStaticFamily(raw)) {
+    return !STATIC_DYNAMIC_PATHS.includes(p) && !STATIC_DYNAMIC_PATHS.includes(raw);
+  }
 
   if (known.size === 0) return false;
   if (opts.redirectsLoaded === false) return false;
-  return !known.has(p);
+  // `known` holds decoded paths, so the raw form can only match when it
+  // carried no escapes at all — checking it costs nothing and cannot 404 a
+  // path that is genuinely known.
+  return !known.has(p) && !known.has(raw);
 }
