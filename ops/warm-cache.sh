@@ -24,6 +24,17 @@
 # to fix a window that lasts one request. Absorbing that one request with a
 # curl is the cheaper trade, and this script is that curl.
 #
+# WORKER COUNT MATTERS: cluster.mjs (web/) forks WEB_CONCURRENCY Node worker
+# processes that share one listening socket; each worker keeps its OWN
+# in-memory ISR cache, and the primary hands off connections to whichever
+# worker is free, not round-robin-per-path. "1 request triggers regen, 2nd
+# benefits" is only true for a single process. With WEB_CONCURRENCY=5, two
+# probes have no guarantee of even landing on the same worker twice, let
+# alone touching all five — so a visitor can still get the stale fixture from
+# an unwarmed worker after this script reports success. Probe each path
+# enough times to make it statistically certain every worker answered at
+# least once (WEB_CONCURRENCY + a safety margin), not a fixed two passes.
+#
 # It is a warm-up, not a health check — it must never fail a deploy. Every
 # probe is best-effort and the script always exits 0.
 
@@ -31,6 +42,10 @@ set -u
 
 BASE="${WARM_BASE:-https://ahantime.com}"
 RESOLVE="${WARM_RESOLVE:-ahantime.com:443:127.0.0.1}"
+WORKERS="${WEB_CONCURRENCY:-3}"
+# Requests aren't guaranteed evenly distributed across workers, so probe well
+# past the worker count rather than exactly matching it.
+ROUNDS=$((WORKERS + 3))
 
 # The pages that are prerendered AND read the catalog. Ordered by how likely a
 # human is to land on them first.
@@ -46,25 +61,40 @@ probe() { # path -> http code
   curl -sk --resolve "$RESOLVE" -o /dev/null -w '%{http_code}' --max-time 20 "${BASE}${1}" 2>/dev/null || echo "000"
 }
 
-echo "warm-cache: priming ISR against ${BASE}"
+echo "warm-cache: priming ISR against ${BASE} (${WORKERS} workers, ${ROUNDS} rounds/path)"
 
-# Pass 1 absorbs the stale copy and triggers regeneration; pass 2 confirms what
-# a real visitor will now get. Two passes is the whole point — one is exactly
-# the case that leaves the next person with the fixture page.
+# Round 1 absorbs the stale copy and triggers regeneration on whichever worker
+# answers; each further round has a chance of landing on a still-unwarmed
+# worker and triggering its regeneration too. ROUNDS is sized off the worker
+# count, not a fixed two passes — see WORKER COUNT MATTERS above.
 for p in "${PATHS[@]}"; do
-  first=$(probe "$p")
-  sleep 2
-  second=$(probe "$p")
-  printf 'warm-cache: %-8s %s -> %s\n' "$p" "$first" "$second"
+  codes=""
+  for i in $(seq 1 "$ROUNDS"); do
+    codes="${codes}$(probe "$p") "
+    sleep 1
+  done
+  printf 'warm-cache: %-8s %s\n' "$p" "$codes"
 done
 
 # A cheap correctness assertion rather than a blind warm-up: /prices/sheet is
 # the canonical fixture-only URL. If it still appears on the homepage after
-# warming, the regeneration did not happen and someone should look.
-if curl -sk --resolve "$RESOLVE" --max-time 20 "${BASE}/" 2>/dev/null | grep -q '/prices/sheet'; then
-  echo "warm-cache: WARNING homepage still links /prices/sheet — ISR did not regenerate"
-else
+# warming, the regeneration did not happen and someone should look. Retry a
+# few times with a short backoff before declaring failure — a single check
+# can itself land on a worker that hasn't caught up yet.
+ok=0
+for i in 1 2 3; do
+  if curl -sk --resolve "$RESOLVE" --max-time 20 "${BASE}/" 2>/dev/null | grep -q '/prices/sheet'; then
+    sleep 2
+  else
+    ok=1
+    break
+  fi
+done
+
+if [ "$ok" -eq 1 ]; then
   echo "warm-cache: ok, homepage is serving the live catalog"
+else
+  echo "warm-cache: WARNING homepage still links /prices/sheet after ${ROUNDS} rounds — ISR did not regenerate on all workers"
 fi
 
 exit 0
