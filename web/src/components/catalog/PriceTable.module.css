@@ -179,9 +179,14 @@
   padding: var(--space-2) var(--space-3);
   min-block-size: 36px;
 }
-.addBtn:hover,
-.addBtnFull:hover {
+.addBtn:hover:not(:disabled),
+.addBtnFull:hover:not(:disabled) {
   background: var(--color-action-hover);
+}
+.addBtn:disabled,
+.addBtnFull:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
 }
 
 /* ===== Mobile cards ===== */
@@ -308,7 +313,7 @@
   }
 }
 
-.addBtnFull:active {
+.addBtnFull:active:not(:disabled) {
   background: var(--color-action-press);
   transform: translateY(1px);
 }
