@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { productJsonLd } from './seo';
+import { productJsonLd } from './index';
 
 type Offer = {
   availability?: string;
