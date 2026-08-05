@@ -6,6 +6,7 @@ import { sql } from 'drizzle-orm';
 import { boolean, index, integer, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
 import { users } from './auth';
 import type { SeoMeta } from '@/lib/types/domain';
+import type { RichDoc } from '@/lib/content/richDoc';
 
 export const ARTICLE_TYPES = ['blog', 'news'] as const;
 export const ARTICLE_STATUSES = ['draft', 'scheduled', 'published'] as const;
@@ -19,7 +20,26 @@ export const articles = pgTable(
     type: text('type', { enum: ARTICLE_TYPES }).notNull(),
     title: text('title').notNull(),
     excerpt: text('excerpt'),
+    /**
+     * DERIVED from `bodyJson` on every write (`articlesRepo.updateArticle` →
+     * `docToMarkdown`). Kept as a real column, not computed on read, because
+     * three things query it directly and one of them is a GIN trigram index:
+     * the content queue's body search, `searchPublishedGuides` (the AI
+     * advisor's grounding) and `analyticsRepo.seoStats`' word count. It is
+     * also the disaster-recovery copy — a row whose `body_json` is lost still
+     * renders through the legacy markdown path.
+     */
     bodyMd: text('body_md').notNull().default(''),
+    /**
+     * The structured article body (US-12.4) — ProseMirror/Tiptap document
+     * JSON, validated against `richDocSchema` at the API boundary so no node
+     * type outside that whitelist can ever be stored. Nullable: a row written
+     * before the structured editor shipped has `null` here and renders by
+     * parsing `body_md`, which is what makes the migration a no-op rather than
+     * a flag day. Not indexed — nothing queries INTO the body; the searchable
+     * projection is `body_md` above.
+     */
+    bodyJson: jsonb('body_json').$type<RichDoc>(),
     coverUrl: text('cover_url'),
     status: text('status', { enum: ARTICLE_STATUSES }).notNull().default('draft'),
     source: text('source', { enum: ARTICLE_SOURCES }).notNull().default('human'),

@@ -1,0 +1,166 @@
+.prose {
+  max-inline-size: var(--container-prose);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.p {
+  font: var(--t-body-lg);
+  color: var(--color-text);
+  margin: 0;
+  text-align: justify;
+  text-justify: inter-word;
+}
+
+.h2 {
+  font: var(--t-h3);
+  color: var(--color-text-strong);
+  margin: 0;
+  margin-block-start: var(--space-3);
+}
+
+.ul {
+  margin: 0;
+  padding-inline-start: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.ul li {
+  font: var(--t-body);
+  color: var(--color-text);
+  padding-inline-start: var(--space-1);
+}
+.ul li::marker {
+  color: var(--color-accent);
+}
+
+.quote {
+  margin: 0;
+  padding: var(--space-4) var(--space-5);
+  border-inline-start: var(--border-strong) solid var(--color-accent);
+  background: var(--color-surface-sunken);
+  border-radius: var(--radius-sm);
+  font: var(--t-body-lg);
+  font-weight: 500;
+  color: var(--color-text-strong);
+}
+
+/* h3 / ordered lists / tables (W25). The renderer previously understood only
+   p, h2, ul and quote — so «جدول وزن مقاطع فولادی», the flagship evergreen
+   article, literally could not render the table it is named after. */
+.h3 {
+  font: var(--t-h4, var(--t-body-lg));
+  font-weight: 700;
+  color: var(--color-text-strong);
+  margin: 0;
+  margin-block-start: var(--space-2);
+}
+
+.ol {
+  margin: 0;
+  padding-inline-start: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.ol li {
+  font: var(--t-body);
+  color: var(--color-text);
+  padding-inline-start: var(--space-1);
+}
+.ol li::marker {
+  color: var(--color-accent);
+  font-weight: 700;
+}
+
+/* Wide tables scroll inside their own box so the article body never scrolls
+   sideways on a phone. */
+.tableWrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  font: var(--t-body-sm);
+  /* Steel sizes and weights are columns of digits — line them up. */
+  font-variant-numeric: tabular-nums;
+}
+
+.table th,
+.table td {
+  padding: var(--space-2) var(--space-3);
+  border-block-end: var(--border-hairline) solid var(--color-hairline);
+  text-align: start;
+}
+
+.table th {
+  color: var(--color-text-strong);
+  font-weight: 700;
+  background: var(--color-surface-sunken);
+  white-space: nowrap;
+}
+
+.table tbody tr:last-child td {
+  border-block-end: 0;
+}
+
+/* Inline images embedded in the body (W25) — the renderer previously had no
+   way to place a picture anywhere except the single cover slot. */
+.img {
+  display: block;
+  max-inline-size: 100%;
+  block-size: auto;
+  border-radius: var(--radius-md);
+  margin-block-start: var(--space-2);
+}
+
+/* ---- structured-body additions (US-12.4) ------------------------------- */
+
+/* A quote is a <blockquote> of paragraphs now, not a single text run — the
+   margin reset keeps it looking identical to the old single-line version. */
+.quote p {
+  margin: 0;
+}
+.quote p + p {
+  margin-block-start: var(--space-2);
+}
+
+/* A cell can hold more than one paragraph; they read as lines, not as blocks
+   with prose spacing between them. */
+.cellLine {
+  display: block;
+}
+
+.imgWrap {
+  display: block;
+}
+
+.figure {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.caption {
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.rule {
+  border: 0;
+  border-block-start: var(--border-hairline) solid var(--color-hairline);
+  inline-size: 100%;
+  margin-block: var(--space-2);
+}
+
+/* A `- ` list nested in a quote or a cell must not inherit the prose gap. */
+.ul ul,
+.ol ol {
+  margin-block-start: var(--space-2);
+}

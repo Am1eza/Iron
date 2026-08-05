@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
 import { articleSlugSchema, articleTagsSchema } from '@/lib/validation/utils';
+import { richDocSchema } from '@/lib/content/richDoc';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { adminListArticles, createArticle } from '@/lib/server/repos/articlesRepo';
 import { DuplicateArticleSlugError } from '@/lib/server/repos/articlesRepo';
@@ -31,7 +32,11 @@ const createPayload = z.object({
   type: z.enum(['blog', 'news']),
   title: z.string().trim().min(1).max(200),
   excerpt: z.string().trim().max(500).optional(),
+  // Legacy/plain-text creation path (seeds, scripts). `bodyMd` is DERIVED from
+  // `bodyJson` in the repo whenever the latter is present, so the two can
+  // never disagree — see `articlesRepo.withDerivedBody`.
   bodyMd: z.string().max(100_000).optional(),
+  bodyJson: richDocSchema.optional(),
   tags: articleTagsSchema,
 });
 

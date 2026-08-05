@@ -71,3 +71,53 @@ describe('public reads', () => {
     expect(await findPublishedBySlug(article.slug)).toBeNull();
   });
 });
+
+describe('body_md is derived from body_json, never authored (US-12.4)', () => {
+  it('writes a markdown mirror whenever a structured body is saved', async () => {
+    // Site search, the AI advisor's `searchGuides` grounding and the SEO
+    // word count all read `body_md`. If the derivation lived in the route
+    // handler instead of the repo, any other writer — a job, an AI drafter —
+    // would silently store a body that none of those three can see.
+    const article = await createArticle({
+      slug: `derived-${Date.now()}`,
+      type: 'blog',
+      title: 'تست',
+      bodyJson: {
+        type: 'doc',
+        content: [
+          { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'عنوان بخش' }] },
+          { type: 'paragraph', content: [{ type: 'text', text: 'متن آزمایشی' }] },
+        ],
+      },
+    });
+    expect(article.bodyMd).toBe('## عنوان بخش\n\nمتن آزمایشی');
+
+    const updated = await updateArticle(article.id, {
+      bodyJson: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'متن تازه' }] }] },
+    });
+    expect(updated?.bodyMd).toBe('متن تازه');
+    expect(updated?.bodyJson?.content).toHaveLength(1);
+  });
+
+  it('clears the mirror when the body is emptied, rather than leaving stale prose behind', async () => {
+    const article = await createArticle({
+      slug: `cleared-${Date.now()}`,
+      type: 'blog',
+      title: 'تست',
+      bodyJson: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'قبلی' }] }] },
+    });
+    const updated = await updateArticle(article.id, { bodyJson: { type: 'doc', content: [] } });
+    expect(updated?.bodyMd).toBe('');
+  });
+
+  it('leaves an explicit markdown-only write alone (the legacy path)', async () => {
+    const article = await createArticle({
+      slug: `legacy-${Date.now()}`,
+      type: 'blog',
+      title: 'تست',
+      bodyMd: '## دستی',
+    });
+    expect(article.bodyMd).toBe('## دستی');
+    expect(article.bodyJson).toBeNull();
+  });
+});

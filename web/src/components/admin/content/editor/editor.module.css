@@ -1,0 +1,656 @@
+/* Article body editor (US-12.4).
+   Everything here is admin-only; the public article page shares NONE of this
+   stylesheet — it renders through `content/RichContent.module.css`. What the
+   two do share is the design tokens, which is why the writing surface below
+   looks like the published page without importing its CSS. */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-inline-size: 0;
+}
+
+/* ------------------------------- toolbar -------------------------------- */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+  padding: var(--space-2);
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+  /* The drawer body scrolls; a writer 900 words down must not have to scroll
+     back up to make a word bold. */
+  position: sticky;
+  inset-block-start: 0;
+  z-index: var(--z-raised);
+}
+
+.group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+}
+
+.sep {
+  inline-size: 1px;
+  block-size: 1.5rem;
+  background: var(--color-hairline);
+  margin-inline: var(--space-1);
+}
+
+.spacer {
+  margin-inline-start: auto;
+}
+
+.toolBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border: var(--border-hairline) solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text);
+  font: var(--t-caption);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard);
+}
+
+.toolBtn:hover:not(:disabled) {
+  background: var(--color-surface);
+  border-color: var(--color-hairline);
+}
+
+.toolBtn:disabled {
+  color: var(--color-text-placeholder);
+  cursor: not-allowed;
+}
+
+/* Pressed state is a filled chip, not just a tint: at the 13px caption size a
+   background tint alone is easy to miss, and "is bold currently on?" is the
+   question this control exists to answer. */
+.toolBtn[aria-pressed='true'] {
+  background: var(--color-accent-tint);
+  border-color: var(--color-accent);
+  color: var(--color-accent-text);
+}
+
+.contextBar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+  padding: var(--space-1) var(--space-2);
+  border: var(--border-hairline) solid var(--color-accent);
+  border-radius: var(--radius-md);
+  background: var(--color-accent-tint);
+}
+
+.contextLabel {
+  font: var(--t-caption);
+  font-weight: 700;
+  color: var(--color-accent-text);
+  margin-inline-end: var(--space-1);
+}
+
+/* --------------------------- writing surface ---------------------------- */
+
+.surfaceWrap {
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  min-block-size: 460px;
+}
+
+.surface {
+  padding: var(--space-5);
+  min-block-size: 460px;
+  outline: none;
+  /* Deliberately the reading measure, not the drawer width: a writer composing
+     at 1100px per line cannot judge paragraph length, and every article on the
+     site is read at --container-prose. */
+  max-inline-size: var(--container-prose);
+  margin-inline: auto;
+  font: var(--t-body-lg);
+  color: var(--color-text);
+}
+
+.surface:focus-visible {
+  outline: none;
+}
+
+.surfaceWrap:focus-within {
+  border-color: var(--color-focus);
+  box-shadow: 0 0 0 var(--border-focus) var(--color-accent-tint);
+}
+
+.surface > * + * {
+  margin-block-start: var(--space-5);
+}
+
+.surface p {
+  margin: 0;
+  text-align: justify;
+  text-justify: inter-word;
+}
+
+.surface h2 {
+  font: var(--t-h3);
+  color: var(--color-text-strong);
+  margin: 0;
+}
+
+.surface h3 {
+  font: var(--t-h4);
+  font-weight: 700;
+  color: var(--color-text-strong);
+  margin: 0;
+}
+
+.surface ul,
+.surface ol {
+  margin: 0;
+  padding-inline-start: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.surface li p {
+  margin: 0;
+  text-align: start;
+}
+
+.surface li::marker {
+  color: var(--color-accent);
+}
+
+.surface blockquote {
+  margin: 0;
+  padding: var(--space-4) var(--space-5);
+  border-inline-start: var(--border-strong) solid var(--color-accent);
+  background: var(--color-surface-sunken);
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  color: var(--color-text-strong);
+}
+
+.surface blockquote p {
+  text-align: start;
+}
+
+.surface a {
+  color: var(--color-accent-text);
+  text-decoration: underline;
+}
+
+.surface hr {
+  border: 0;
+  border-block-start: var(--border-hairline) solid var(--color-border-strong);
+}
+
+/* Tables inside the editor. `table-layout: fixed` is what makes ProseMirror's
+   column-resize handles behave; without it the browser re-flows every column
+   as soon as a cell's text changes and the handles jump around. */
+.surface table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  overflow: hidden;
+  font: var(--t-body-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.surface table td,
+.surface table th {
+  border: var(--border-hairline) solid var(--color-border-strong);
+  padding: var(--space-2) var(--space-3);
+  vertical-align: top;
+  text-align: start;
+  position: relative;
+  min-inline-size: 3rem;
+}
+
+.surface table th {
+  background: var(--color-surface-sunken);
+  font-weight: 700;
+  color: var(--color-text-strong);
+}
+
+.surface table p {
+  margin: 0;
+  text-align: start;
+}
+
+/* ProseMirror's own class names — the cell the caret is in, and the drag
+   handle between columns. */
+.surface :global(.selectedCell)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--color-accent-tint);
+  pointer-events: none;
+}
+
+.surface :global(.column-resize-handle) {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: -2px;
+  inline-size: 4px;
+  background: var(--color-accent);
+  pointer-events: none;
+}
+
+.surface :global(.ProseMirror-gapcursor)::after {
+  border-block-start-color: var(--color-text);
+}
+
+/* Tiptap's Placeholder extension marks the empty node it applies to. */
+.surface :global(p.is-editor-empty:first-child)::before,
+.surface :global(.is-empty)::before {
+  content: attr(data-placeholder);
+  color: var(--color-text-placeholder);
+  float: inline-start;
+  block-size: 0;
+  pointer-events: none;
+}
+
+.status {
+  margin: 0;
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+  text-align: end;
+}
+
+.loading {
+  padding: var(--space-8);
+  text-align: center;
+  font: var(--t-body-sm);
+  color: var(--color-text-muted);
+  border: var(--border-hairline) dashed var(--color-hairline);
+  border-radius: var(--radius-md);
+}
+
+/* ------------------------------ image node ------------------------------ */
+
+.imageNode {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: var(--border-hairline) solid transparent;
+  border-radius: var(--radius-md);
+}
+
+.imageNode[data-selected] {
+  border-color: var(--color-accent);
+  background: var(--color-accent-tint);
+}
+
+.imageNodeImg {
+  display: block;
+  max-inline-size: 100%;
+  block-size: auto;
+  border-radius: var(--radius-md);
+  margin-inline: auto;
+}
+
+.imageNodeCaption {
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.imageNodeBar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+/* The alt-text status is the whole point of this bar. Warning tone, but with
+   a word — never colour alone (WCAG 1.4.1). */
+.altWarn {
+  font: var(--t-caption);
+  font-weight: 700;
+  color: var(--color-action-text);
+  background: var(--amber-50);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-pill);
+}
+
+.altOk {
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}
+
+:root[data-theme='dark'] .altWarn {
+  color: var(--amber-300);
+  background: rgba(245, 150, 30, 0.14);
+}
+
+/* ------------------------------ chart node ------------------------------ */
+
+.chartNode {
+  margin: 0;
+  padding: var(--space-3);
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.chartNode[data-selected] {
+  border-color: var(--color-accent);
+}
+
+.chartNodeHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.chartNodeKicker {
+  font: var(--t-overline);
+  color: var(--color-text-muted);
+}
+
+.kindToggle {
+  display: inline-flex;
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--color-surface);
+}
+
+.kindBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  font: var(--t-caption);
+  cursor: pointer;
+}
+
+.kindBtn[aria-pressed='true'] {
+  background: var(--color-accent-tint);
+  color: var(--color-accent-text);
+  font-weight: 700;
+}
+
+.chartNodeGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .chartNodeGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.chartNodeForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-inline-size: 0;
+}
+
+.chartNodePreview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-inline-size: 0;
+}
+
+.previewKicker {
+  font: var(--t-overline);
+  color: var(--color-text-muted);
+}
+
+.dataGridWrap {
+  overflow-x: auto;
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.dataGrid {
+  inline-size: 100%;
+  border-collapse: collapse;
+  font: var(--t-caption);
+}
+
+.dataGrid th,
+.dataGrid td {
+  padding: var(--space-1);
+  border-block-end: var(--border-hairline) solid var(--color-hairline);
+  text-align: start;
+  vertical-align: middle;
+}
+
+.dataGrid thead th {
+  background: var(--color-surface-sunken);
+  color: var(--color-text-strong);
+}
+
+.seriesHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* Matches the plot's series order exactly — a writer editing "سری دوم" can
+   see which line on the preview they are changing. */
+.seriesSwatch {
+  inline-size: 12px;
+  block-size: 12px;
+  border-radius: var(--radius-xs);
+  flex: none;
+  background: var(--chart-1);
+}
+.seriesSwatch[data-series='1'] {
+  background: var(--chart-2);
+}
+.seriesSwatch[data-series='2'] {
+  background: var(--chart-3);
+}
+
+.miniBtn {
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  border: var(--border-hairline) solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  line-height: 1;
+  font-size: 1.1rem;
+}
+
+.miniBtn:hover {
+  background: var(--loss-50);
+  color: var(--color-loss-text);
+  border-color: var(--color-hairline);
+}
+
+.chartNodeActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+/* ------------------------- shared form controls ------------------------- */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-inline-size: 0;
+  flex: 1;
+}
+
+.fieldRow {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.fieldLabel {
+  font: var(--t-label);
+  color: var(--color-text-strong);
+}
+
+.input {
+  inline-size: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-hairline) solid var(--color-field-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: var(--t-input);
+}
+
+.input:focus-visible {
+  outline: var(--border-focus) solid var(--color-focus);
+  outline-offset: 1px;
+}
+
+.input:disabled {
+  background: var(--color-surface-sunken);
+  color: var(--color-text-placeholder);
+}
+
+.numInput {
+  font-variant-numeric: tabular-nums;
+  min-inline-size: 5rem;
+}
+
+.hint {
+  display: block;
+  font: var(--t-micro);
+  color: var(--color-text-muted);
+}
+
+.errorHint {
+  font: var(--t-micro);
+  color: var(--color-loss-text);
+}
+
+.checkboxRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  font: var(--t-body-sm);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.checkboxRow input {
+  margin-block-start: 0.3em;
+  flex: none;
+}
+
+.presetRow {
+  display: flex;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+  margin-block-start: var(--space-1);
+}
+
+.dialogBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.dialogPreview {
+  display: block;
+  max-inline-size: 100%;
+  max-block-size: 220px;
+  block-size: auto;
+  margin-inline: auto;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+}
+
+/* ---------------------------- table picker ------------------------------ */
+
+.pickerWrap {
+  position: relative;
+}
+
+.popover {
+  position: absolute;
+  inset-block-start: calc(100% + var(--space-1));
+  inset-inline-start: 0;
+  z-index: var(--z-dropdown);
+  inline-size: 17rem;
+  padding: var(--space-3);
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.grid {
+  display: grid;
+  /* 6 columns; the first cell of the first row is the RIGHTMOST one because
+     the panel is RTL and `grid` follows the writing direction. */
+  grid-template-columns: repeat(6, 1fr);
+  gap: 3px;
+}
+
+.gridCell {
+  aspect-ratio: 1;
+  border: var(--border-hairline) solid var(--color-border-strong);
+  border-radius: 2px;
+  background: var(--color-surface);
+  cursor: pointer;
+}
+
+.gridCell[data-on] {
+  background: var(--color-accent-tint);
+  border-color: var(--color-accent);
+}
+
+.gridReadout {
+  margin: 0;
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.popoverPrimary {
+  inline-size: 100%;
+  padding: var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--color-action);
+  color: var(--color-on-action);
+  font: var(--t-button);
+  cursor: pointer;
+}
+
+.popoverPrimary:hover {
+  background: var(--color-action-hover);
+}

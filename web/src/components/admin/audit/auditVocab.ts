@@ -204,10 +204,24 @@ export interface FieldChange {
  * compared by JSON identity, which is right for the scalars and small
  * arrays these snapshots hold.
  */
+/** Keys that never belong in a human-facing diff: either a raw structured
+ *  blob a manager can't read (and can't act on even if they could — nobody is
+ *  going to hand-reconstruct a document tree from a diff row), or a value
+ *  that's fully represented by a sibling key already in `FIELD_LABEL`. Body
+ *  content is the first case here — `bodyJson` and `bodyMd` change together
+ *  on every article edit (`bodyMd` is DERIVED from `bodyJson`, see
+ *  `articlesRepo.ts`), so showing both would both dump raw JSON into the log
+ *  AND double-count the one real change as two, pushing other genuine changes
+ *  (tags, SEO fields) past the "و N تغییر دیگر" cutoff more often than they
+ *  should. `bodyMd`'s existing, already-Persian-labelled diff row is enough. */
+const DIFF_SKIP_KEYS = new Set(['bodyJson']);
+
 export function diffFields(before: unknown, after: unknown): FieldChange[] {
   const b = isRecord(before) ? before : {};
   const a = isRecord(after) ? after : {};
-  const keys = Array.from(new Set([...Object.keys(b), ...Object.keys(a)]));
+  const keys = Array.from(new Set([...Object.keys(b), ...Object.keys(a)])).filter(
+    (key) => !DIFF_SKIP_KEYS.has(key),
+  );
   const changes: FieldChange[] = [];
   for (const key of keys) {
     const bv = b[key];

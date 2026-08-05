@@ -1,0 +1,134 @@
+/* The `chart` article block (US-12.4). Chrome is quiet; the plot is the only
+   thing carrying colour. Shared verbatim by the public article page and the
+   admin editor's live node preview — one stylesheet, so the two cannot drift. */
+
+.figure {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.title {
+  font: var(--t-body);
+  font-weight: 700;
+  color: var(--color-text-strong);
+}
+
+.unit {
+  font: var(--t-caption);
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font: var(--t-caption);
+  /* Identity is carried by the swatch beside the label, never by tinting the
+     label itself — coloured body text is the fastest way to fail contrast. */
+  color: var(--color-text);
+}
+
+.legendSwatch {
+  inline-size: 20px;
+  block-size: 12px;
+  flex: none;
+}
+
+.plotWrap {
+  inline-size: 100%;
+  /* The viewBox is fixed at 720×320; letting it scale keeps the axis type
+     proportional instead of stretching it the way preserveAspectRatio="none"
+     would. */
+  container-type: inline-size;
+}
+
+.svg {
+  inline-size: 100%;
+  block-size: auto;
+  display: block;
+  font-variant-numeric: tabular-nums;
+}
+
+.axisText {
+  fill: var(--chart-axis);
+  font-family: var(--font-num);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.empty {
+  margin: 0;
+  padding-block: var(--space-6);
+  text-align: center;
+  font: var(--t-body-sm);
+  color: var(--color-text-muted);
+}
+
+.source {
+  margin: 0;
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}
+
+.dataToggle {
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}
+
+.dataToggle > summary {
+  cursor: pointer;
+  padding-block: var(--space-1);
+  color: var(--color-accent-text);
+}
+
+.tableScroll {
+  overflow-x: auto;
+  margin-block-start: var(--space-2);
+}
+
+.dataTable {
+  inline-size: 100%;
+  border-collapse: collapse;
+  font: var(--t-body-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+}
+
+.dataTable th,
+.dataTable td {
+  padding: var(--space-1) var(--space-3);
+  border-block-end: var(--border-hairline) solid var(--color-hairline);
+  text-align: start;
+  white-space: nowrap;
+}
+
+.dataTable thead th {
+  color: var(--color-text-strong);
+  font-weight: 700;
+}
+
+.dataTable tbody th {
+  font-weight: 500;
+}
+
+/* NOTE on Windows high-contrast / forced-colors mode: the OS replaces every
+   `fill`/`stroke` in the SVG with its own palette, so the three series become
+   the same colour. Nothing here can prevent that — which is exactly why each
+   series ALSO carries a dash pattern (line) or a hatch texture (bar) and why
+   the legend swatch repeats it. Identity survives; no override needed. */
