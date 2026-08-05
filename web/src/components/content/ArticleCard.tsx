@@ -6,9 +6,18 @@ import { CalendarIcon, ChevronStartIcon } from '@/components/primitives/icons';
 import styles from './ArticleCard.module.css';
 
 /**
- * Content card for the وبلاگ / اخبار lists. Renders title, excerpt, the Jalali
- * publish date, and — when the article is AI-assisted — a calm cobalt
- * The whole card is a link to the article page.
+ * Content card for the وبلاگ / اخبار lists — title, excerpt, Jalali date.
+ *
+ * The link is on the TITLE, stretched over the whole card by a `::after`
+ * overlay, rather than wrapping the card. Wrapping it concatenated kicker +
+ * title + excerpt + date into one accessible name with no separators, so a
+ * screen-reader user tabbing the grid heard ~35 running-together words per
+ * card before reaching the next one:
+ *
+ *   «مقالهپیش‌بینی قیمت میلگرد در تیرماه ۱۴۰۵بررسی عوامل مؤثر…۱۴۰۵/۰۴/۰۵ادامه مطلب»
+ *
+ * The name is now the title alone; the rest stays readable as sibling text and
+ * the entire card is still clickable for mouse and touch.
  */
 export function ArticleCard({ article }: { article: Article }) {
   const href = article.type === 'news' ? routes.news(article.slug) : routes.blog(article.slug);
@@ -16,7 +25,7 @@ export function ArticleCard({ article }: { article: Article }) {
 
   return (
     <li className={styles.item}>
-      <Link href={href} className={styles.card}>
+      <article className={styles.card}>
         {article.coverUrl ? (
           <img
             src={article.coverUrl}
@@ -32,7 +41,11 @@ export function ArticleCard({ article }: { article: Article }) {
           <span className={styles.kicker}>{kicker}</span>
         </div>
 
-        <h3 className={styles.title}>{article.title}</h3>
+        <h3 className={styles.title}>
+          <Link href={href} className={styles.titleLink}>
+            {article.title}
+          </Link>
+        </h3>
 
         {article.excerpt ? <p className={styles.excerpt}>{article.excerpt}</p> : null}
 
@@ -52,7 +65,7 @@ export function ArticleCard({ article }: { article: Article }) {
             <ChevronStartIcon size={14} className="icon--rtl" />
           </span>
         </div>
-      </Link>
+      </article>
     </li>
   );
 }

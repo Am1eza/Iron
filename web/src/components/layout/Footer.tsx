@@ -32,9 +32,16 @@ export function Footer({ categories, contact }: { categories: Category[]; contac
           <p className={styles.tagline}>{tCommon('tagline')}</p>
         </div>
 
+        {/* Column titles are <p>, deliberately NOT headings. As <h2> they put
+            SEVEN footer entries into every page's heading outline — one of
+            them «مقالات», competing semantically with the actual content
+            section — so a screen-reader user skimming by heading got 7 footer
+            items against 2 real ones on /blog. The grouping is already carried
+            correctly by <nav aria-label>, which is what does the real
+            accessibility work here; the heading semantics added nothing. */}
         {/* Products column */}
         <nav className={styles.col} aria-label={t('products')}>
-          <h2 className={styles.colTitle}>{t('products')}</h2>
+          <p className={styles.colTitle}>{t('products')}</p>
           <ul className={styles.links}>
             {categories.map((c) => (
               <li key={c.id}>
@@ -52,7 +59,7 @@ export function Footer({ categories, contact }: { categories: Category[]; contac
             shell, not every data source). */}
         {FOOTER_COLUMNS.map((group) => (
           <nav key={group.title} className={styles.col} aria-label={group.title}>
-            <h2 className={styles.colTitle}>{group.title}</h2>
+            <p className={styles.colTitle}>{group.title}</p>
             <ul className={styles.links}>
               {group.links.map((l) => (
                 <li key={l.href + l.label}>
@@ -67,7 +74,7 @@ export function Footer({ categories, contact }: { categories: Category[]; contac
 
         {/* Contact / trust */}
         <div className={styles.col}>
-          <h2 className={styles.colTitle}>{t('contact')}</h2>
+          <p className={styles.colTitle}>{t('contact')}</p>
           <address className={styles.address}>{contact.address}</address>
           <div className={styles.phones}>
             <a href={`tel:${contact.phoneLandline}`} className={styles.phone} dir="ltr">
