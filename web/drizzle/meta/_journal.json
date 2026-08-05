@@ -204,6 +204,13 @@
       "when": 1785817554089,
       "tag": "0028_refresh_token_families",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1785941801317,
+      "tag": "0029_article_body_json",
+      "breakpoints": true
     }
   ]
 }

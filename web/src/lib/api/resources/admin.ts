@@ -8,6 +8,7 @@ import type { PriceRow, PricePoint, LineItem, Order, WarehouseItem, Article, Mar
 // that shapes it, so the route and this client cannot drift apart.
 export type { AdminSearchHit } from '@/lib/auth/adminSearch';
 import type { AdminSearchHit } from '@/lib/auth/adminSearch';
+import type { RichDoc } from '@/lib/content/richDoc';
 
 /** Every field is scoped to the caller's permissions server-side — a field is
  * simply absent if the current role can't see that domain (e.g. a content
@@ -82,7 +83,14 @@ export interface AdminUserRow {
   createdAt: string;
 }
 
-export type ArticleFull = Article & { bodyMd: string; coverUrl?: string; authorId?: string | null };
+export type ArticleFull = Article & {
+  /** Derived from `bodyJson` server-side — read-only as far as the panel is
+   *  concerned. See `lib/content/docToMarkdown`. */
+  bodyMd: string;
+  bodyJson: RichDoc | null;
+  coverUrl?: string;
+  authorId?: string | null;
+};
 
 export interface AdminRedirect {
   id: string;
@@ -715,7 +723,7 @@ export const adminApi = {
     type: 'blog' | 'news';
     title: string;
     excerpt?: string;
-    bodyMd?: string;
+    bodyJson?: RichDoc;
     tags?: string[];
   }) => http.post<{ article: ArticleFull }>('/api/admin/articles', input),
   updateArticle: (
@@ -727,7 +735,7 @@ export const adminApi = {
       type: 'blog' | 'news';
       title: string;
       excerpt: string | null;
-      bodyMd: string;
+      bodyJson: RichDoc;
       publishAt: string | null;
       status: 'draft';
       coverUrl: string | null;

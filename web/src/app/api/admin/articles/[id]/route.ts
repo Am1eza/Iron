@@ -6,6 +6,7 @@ import { adminGetArticle, updateArticle, deleteDraftArticle } from '@/lib/server
 import { DuplicateArticleSlugError } from '@/lib/server/repos/articlesRepo';
 import { safeRevalidatePath } from '@/lib/server/utils/revalidate';
 import { articleSlugSchema, articleTagsSchema, uploadPathSchema } from '@/lib/validation/utils';
+import { richDocSchema } from '@/lib/content/richDoc';
 import { createRedirect, RedirectLoopError } from '@/lib/server/repos/redirectsRepo';
 import { reportError } from '@/lib/errors/report';
 import { routes } from '@/lib/routes';
@@ -74,7 +75,13 @@ const patchPayload = z.object({
   type: z.enum(['blog', 'news']).optional(),
   title: z.string().trim().min(1).max(200).optional(),
   excerpt: z.string().trim().max(500).nullable().optional(),
+  // The structured body (US-12.4). `bodyMd` stays accepted for a caller that
+  // has only markdown, but the repo DERIVES it from `bodyJson` whenever this
+  // field is present, so a client cannot send a body and a mismatched search
+  // projection for it. Every node type/attribute outside `richDocSchema`'s
+  // whitelist is a 400 here, not a silent pass-through to the renderer.
   bodyMd: z.string().max(100_000).optional(),
+  bodyJson: richDocSchema.nullable().optional(),
   coverUrl: z.preprocess((v) => (v === '' ? null : v), uploadPathSchema.nullable().optional()),
   authorId: z.string().min(1).nullable().optional(),
   tags: articleTagsSchema,

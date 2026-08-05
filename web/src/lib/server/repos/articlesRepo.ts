@@ -7,6 +7,8 @@ import { ulid } from 'ulid';
 import { getDb } from '@/lib/server/db/client';
 import { articles } from '@/lib/server/db/schema';
 import type { Article } from '@/lib/types/domain';
+import type { RichDoc } from '@/lib/content/richDoc';
+import { docToMarkdown } from '@/lib/content/docToMarkdown';
 import { normalizeDigits, toPersianDigits } from '@/lib/utils/format';
 import { likeContains } from '@/lib/server/utils/likeEscape';
 
@@ -37,10 +39,28 @@ export function toArticleDto(r: Row): Article {
 }
 
 /** Body (+ byline) included — for the article page and the admin editor. */
-export type ArticleFull = Article & { bodyMd: string; authorId?: string | null };
+export type ArticleFull = Article & { bodyMd: string; bodyJson: RichDoc | null; authorId?: string | null };
 
 export function toArticleFull(r: Row): ArticleFull {
-  return { ...toArticleDto(r), bodyMd: r.bodyMd, authorId: r.authorId ?? null };
+  return { ...toArticleDto(r), bodyMd: r.bodyMd, bodyJson: r.bodyJson ?? null, authorId: r.authorId ?? null };
+}
+
+/**
+ * `body_md` is DERIVED, never authored (US-12.4).
+ *
+ * The derivation lives here rather than in the route handler on purpose: the
+ * two columns going out of sync would mean an article that reads one way to a
+ * visitor and another way to site search, the AI advisor and the SEO report.
+ * Putting it at the only two write paths makes that impossible for any future
+ * caller, including a background job or an AI draft generator that has never
+ * heard of `docToMarkdown`.
+ *
+ * An explicit `bodyMd` in the patch is still honoured when no `bodyJson`
+ * accompanies it — that is the legacy/never-opened-in-the-editor path.
+ */
+function withDerivedBody<T extends { bodyJson?: RichDoc | null; bodyMd?: string }>(patch: T): T {
+  if (patch.bodyJson === undefined) return patch;
+  return { ...patch, bodyMd: patch.bodyJson ? docToMarkdown(patch.bodyJson) : '' };
 }
 
 function publishedCond() {
@@ -248,10 +268,12 @@ export async function createArticle(input: {
   title: string;
   excerpt?: string;
   bodyMd?: string;
+  bodyJson?: RichDoc | null;
   source?: 'ai' | 'human';
   authorId?: string;
   tags?: string[];
 }): Promise<ArticleFull> {
+  const body = withDerivedBody({ bodyJson: input.bodyJson, bodyMd: input.bodyMd });
   const rows = await asSlugConflict(() =>
     getDb()
     .insert(articles)
@@ -261,7 +283,8 @@ export async function createArticle(input: {
       type: input.type,
       title: input.title,
       excerpt: input.excerpt ?? null,
-      bodyMd: input.bodyMd ?? '',
+      bodyMd: body.bodyMd ?? '',
+      bodyJson: body.bodyJson ?? null,
       source: input.source ?? 'human',
       authorId: input.authorId ?? null,
       tags: input.tags ?? null,
@@ -282,6 +305,7 @@ export async function updateArticle(
     title: string;
     excerpt: string | null;
     bodyMd: string;
+    bodyJson: RichDoc | null;
     coverUrl: string | null;
     status: Row['status'];
     publishAt: Date | null;
@@ -294,7 +318,7 @@ export async function updateArticle(
   const rows = await asSlugConflict(() =>
     getDb()
       .update(articles)
-      .set({ ...patch, updatedAt: new Date() })
+      .set({ ...withDerivedBody(patch), updatedAt: new Date() })
       .where(eq(articles.id, id))
       .returning(),
   );

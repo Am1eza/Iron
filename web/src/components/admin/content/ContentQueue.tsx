@@ -25,49 +25,16 @@ import { ApiError } from '@/lib/api/errors';
 import { Alert, Badge, Button, Chip, EmptyState, Switch, TableSkeleton, Tabs, TabPanel, useConfirm } from '@/components/ui';
 import { TextInput, Textarea } from '@/components/forms/fields';
 import { ImageUpload } from '../ImageUpload';
-import { MarkdownProse } from '@/components/content/ArticleBody';
+import { RichTextEditor } from './editor/RichTextEditor';
+import { EditorErrorBoundary } from './editor/EditorErrorBoundary';
+import { RichContent } from '@/components/content/RichContent';
+import { markdownToDoc } from '@/lib/content/markdownToDoc';
+import { EMPTY_DOC, countImagesMissingAlt, docFingerprint, type RichDoc } from '@/lib/content/richDoc';
 import { JalaliDateField } from '../JalaliDateField';
 import { PagerFooter } from '../PagerFooter';
 import { routes } from '@/lib/routes';
 import ui from '../adminUi.module.css';
 import s from './content.module.css';
-
-/**
- * Cursor-aware markdown insertion for the toolbar — replaces the current
- * selection (or inserts a placeholder) and restores focus/selection
- * afterward so a second click continues from where the first left off.
- */
-function wrapSelection(textarea: HTMLTextAreaElement, before: string, after: string, placeholder: string) {
-  const { selectionStart: start, selectionEnd: end, value } = textarea;
-  const selected = value.slice(start, end) || placeholder;
-  const next = value.slice(0, start) + before + selected + after + value.slice(end);
-  return { next, selectStart: start + before.length, selectEnd: start + before.length + selected.length };
-}
-
-/** Prefixes every line touched by the selection (heading/list toolbar buttons). */
-function prefixLines(textarea: HTMLTextAreaElement, prefix: string) {
-  const { selectionStart: start, selectionEnd: end, value } = textarea;
-  const lineStart = value.lastIndexOf('\n', start - 1) + 1;
-  const lineEndIdx = value.indexOf('\n', end);
-  const lineEnd = lineEndIdx === -1 ? value.length : lineEndIdx;
-  const block = value.slice(lineStart, lineEnd);
-  const prefixed = block
-    .split('\n')
-    .map((line) => (line.startsWith(prefix) ? line : `${prefix}${line}`))
-    .join('\n');
-  const next = value.slice(0, lineStart) + prefixed + value.slice(lineEnd);
-  return { next, selectStart: lineStart, selectEnd: lineStart + prefixed.length };
-}
-
-/** Inserts a block on its own line (image, quote-of-one) at the caret. */
-function insertBlock(textarea: HTMLTextAreaElement, text: string) {
-  const { selectionStart: start, value } = textarea;
-  const needsLeadingBreak = start > 0 && value[start - 1] !== '\n';
-  const insert = `${needsLeadingBreak ? '\n\n' : ''}${text}\n\n`;
-  const next = value.slice(0, start) + insert + value.slice(start);
-  const pos = start + insert.length;
-  return { next, selectStart: pos, selectEnd: pos };
-}
 
 /** Matches `adminListArticles`'s server-side default — the admin list
  *  route doesn't accept a client-supplied perPage. */
@@ -112,6 +79,23 @@ export function ContentQueue() {
   // null = closed; 'new' = create; an id = edit. One flag instead of two
   // booleans, so the drawer can never be "both creating and editing" at once.
   const [drawerId, setDrawerId] = useState<string | 'new' | null>(null);
+  /**
+   * The drawer's REACT KEY — deliberately a separate value from `drawerId`.
+   *
+   * `drawerId` also has to change the instant a brand-new draft is first
+   * saved (`'new'` → the real id `onCreated` hands back), so the rest of the
+   * panel can address it by id — the URL preview, the redirect tab, publish.
+   * If that same value were the `key`, saving a draft for the first time
+   * would remount `ArticleDrawer` right after its very first save and throw
+   * away Tiptap's undo/redo stack and caret position — exactly the kind of
+   * "an afternoon of work quietly worse for no reason" bug this rebuild
+   * otherwise went out of its way to fix (see the comment below on
+   * `dirtyRef`). Bumping this ONLY in `openEdit`/`openCreate` — i.e. only when
+   * the admin explicitly opens a (possibly different) article — keeps the
+   * "article A's text can never land on article B" guarantee for the case
+   * that actually needs it, without paying for it on every save.
+   */
+  const [drawerInstanceKey, setDrawerInstanceKey] = useState(0);
   const { confirm, dialog: leaveDialog } = useConfirm();
   const toast = useToast();
   const qc = useQueryClient();
@@ -188,8 +172,14 @@ export function ContentQueue() {
   const articles = data?.articles ?? [];
   const total = data?.total ?? 0;
 
-  const openEdit = (id: string) => guarded(() => setDrawerId(id));
-  const openCreate = () => guarded(() => setDrawerId('new'));
+  const openEdit = (id: string) => guarded(() => {
+    setDrawerId(id);
+    setDrawerInstanceKey((k) => k + 1);
+  });
+  const openCreate = () => guarded(() => {
+    setDrawerId('new');
+    setDrawerInstanceKey((k) => k + 1);
+  });
   const closeDrawer = () => {
     dirtyRef.current = false;
     setDrawerId(null);
@@ -318,7 +308,7 @@ export function ContentQueue() {
 
       {drawerId ? (
         <ArticleDrawer
-          key={drawerId}
+          key={drawerInstanceKey}
           id={drawerId === 'new' ? null : drawerId}
           defaultType={type === 'news' ? 'news' : 'blog'}
           onRequestClose={requestCloseDrawer}
@@ -361,7 +351,7 @@ type Values = {
   slug: string;
   type: 'blog' | 'news';
   excerpt: string;
-  bodyMd: string;
+  bodyJson: RichDoc;
   coverUrl: string | null;
   authorId: string | null;
   tags: string[];
@@ -377,7 +367,7 @@ function emptyValues(defaultType: 'blog' | 'news'): Values {
     slug: '',
     type: defaultType,
     excerpt: '',
-    bodyMd: '',
+    bodyJson: EMPTY_DOC,
     coverUrl: null,
     authorId: null,
     tags: [],
@@ -394,7 +384,14 @@ function fromArticle(a: ArticleFull): Values {
     slug: a.slug,
     type: a.type,
     excerpt: a.excerpt ?? '',
-    bodyMd: a.bodyMd ?? '',
+    // A row written before the structured editor shipped has no `bodyJson`;
+    // seeding it from the SAME markdown parser the public page falls back to
+    // means opening an old article shows exactly what a reader sees, and the
+    // first save simply persists that reading rather than reformatting it.
+    // Deliberately NOT `articleDoc()`: that helper's last resort is the
+    // curated `BODIES` mock, and writing mock prose into a real row on save
+    // is precisely the class of bug this file already carries a warning about.
+    bodyJson: a.bodyJson ?? (a.bodyMd?.trim() ? markdownToDoc(a.bodyMd) : EMPTY_DOC),
     coverUrl: a.coverUrl ?? null,
     authorId: a.authorId ?? null,
     tags: a.tags ?? [],
@@ -498,7 +495,6 @@ function ArticleDrawer({
   const toast = useToast();
   const isCreate = id === null;
   const { confirm, dialog } = useConfirm();
-  const bodyRef = useRef<HTMLTextAreaElement>(null);
   const [preview, setPreview] = useState(false);
   const [advanced, setAdvanced] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -530,8 +526,36 @@ function ArticleDrawer({
    *  lives inside the collapsed «تنظیمات پیشرفته» section, so simply opening
    *  that panel to look around can never retype a live, indexed URL. */
   const [slugTouched, setSlugTouched] = useState(!isCreate);
+  // `ArticleDrawer` no longer remounts the instant a first save turns `id`
+  // from `null` into a real one (see `drawerInstanceKey` in the parent) — so
+  // this has to freeze the slug explicitly on that same transition instead of
+  // getting it for free from `useState`'s initializer re-running.
+  const wasCreateRef = useRef(isCreate);
+  useEffect(() => {
+    if (wasCreateRef.current && !isCreate) setSlugTouched(true);
+    wasCreateRef.current = isCreate;
+  }, [isCreate]);
 
-  const dirty = useMemo(() => JSON.stringify(v) !== JSON.stringify(initial), [v, initial]);
+  /**
+   * The body is compared SEPARATELY from every other field.
+   *
+   * Two reasons it cannot ride along in the whole-object compare. First, the
+   * editor normalises the document as it loads it (ProseMirror materialises
+   * attribute defaults), so the shape that comes out is legitimately not the
+   * shape that went in — the baseline has to be whatever the editor settled
+   * on, which is what `onReady` reports. Second, `body_json` is a `jsonb`
+   * column and Postgres rewrites object key order, so the saved document reads
+   * back byte-different; `docFingerprint` compares content, not spelling.
+   */
+  const bodyBaselineRef = useRef<string | null>(null);
+  const dirty = useMemo(() => {
+    // Blanking the body on both sides compares "everything except the body"
+    // without listing the fields, so a new one added later is covered too.
+    if (JSON.stringify({ ...v, bodyJson: null }) !== JSON.stringify({ ...initial, bodyJson: null })) return true;
+    // Until the editor has reported its baseline there is nothing to compare
+    // against, and "unknown" must not read as "dirty".
+    return bodyBaselineRef.current !== null && docFingerprint(v.bodyJson) !== bodyBaselineRef.current;
+  }, [v, initial]);
   const dirtyRef = useRef(dirty);
   dirtyRef.current = dirty;
   useEffect(() => {
@@ -557,17 +581,6 @@ function ArticleDrawer({
       const next = { ...prev };
       for (const k of Object.keys(patch)) delete next[k];
       return next;
-    });
-  };
-
-  const applyMd = (fn: (ta: HTMLTextAreaElement) => { next: string; selectStart: number; selectEnd: number }) => {
-    const ta = bodyRef.current;
-    if (!ta) return;
-    const { next, selectStart, selectEnd } = fn(ta);
-    set({ bodyMd: next });
-    requestAnimationFrame(() => {
-      ta.focus();
-      ta.setSelectionRange(selectStart, selectEnd);
     });
   };
 
@@ -658,11 +671,12 @@ function ArticleDrawer({
         type: v.type,
         title: v.title.trim(),
         excerpt: v.excerpt.trim() || undefined,
-        bodyMd: v.bodyMd,
+        bodyJson: v.bodyJson,
         tags: v.tags,
       }),
     onSuccess: (res) => {
       toast.success('پیش‌نویس ساخته شد؛ ادامه بدهید.');
+      bodyBaselineRef.current = docFingerprint(res.article.bodyJson ?? v.bodyJson);
       onCreated(res.article.id, res.article);
     },
     onError: (err) => {
@@ -678,14 +692,18 @@ function ArticleDrawer({
         slug: v.slug,
         type: v.type,
         excerpt: v.excerpt.trim() || null,
-        bodyMd: v.bodyMd,
+        bodyJson: v.bodyJson,
         coverUrl: v.coverUrl,
         authorId: v.authorId,
         tags: v.tags,
         seo: seoPatch(),
       }),
-    onSuccess: () => {
+    onSuccess: (res) => {
       toast.success('ذخیره شد.');
+      // The SERVER's copy is the new baseline, not the one just sent: it has
+      // been through the same zod schema, so anything the schema normalised
+      // (a trimmed alt, a padded chart series) is now what "unchanged" means.
+      bodyBaselineRef.current = docFingerprint(res.article.bodyJson ?? v.bodyJson);
       seeded.current = false;
       void qc.invalidateQueries({ queryKey: ['admin', 'article', id] });
       onSaved();
@@ -721,6 +739,22 @@ function ArticleDrawer({
     onSuccess: () => onDeleted(),
     onError: (err) => toast.error(err instanceof ApiError ? err.message : 'حذف ناموفق بود.'),
   });
+
+  const missingAlt = useMemo(() => countImagesMissingAlt(v.bodyJson), [v.bodyJson]);
+
+  /** The server can reject the body itself — too long overall, or one block
+   *  shaped wrong (`richDocSchema`'s `superRefine`) — and `formatZodError`
+   *  keys that under `bodyJson` or a dotted path into it (`bodyJson.content.12…`
+   *  for an issue inside a specific block), never the bare key every OTHER
+   *  field error uses. Without this, that rejection surfaced as nothing more
+   *  than a generic "ورودی نامعتبر است." toast with zero indication the body
+   *  was the cause — for an editor who has no way to see the document's
+   *  serialized size, that is an unsavable article with no visible reason. */
+  const bodyErrorKey = useMemo(
+    () => Object.keys(fieldErrors).find((k) => k === 'bodyJson' || k.startsWith('bodyJson.')),
+    [fieldErrors],
+  );
+  const bodyError = bodyErrorKey ? fieldErrors[bodyErrorKey] : undefined;
 
   const canSave = v.title.trim() !== '' && v.slug.trim() !== '';
   const busy = isCreate ? create.isPending : save.isPending;
@@ -806,76 +840,61 @@ function ArticleDrawer({
               onChange={(e) => set({ excerpt: e.target.value })}
             />
 
-            <div className={s.metaRow} style={{ justifyContent: 'space-between' }}>
-              <div className={s.mdToolbar}>
-                <Button type="button" size="sm" variant="ghost" onClick={() => applyMd((ta) => wrapSelection(ta, '**', '**', 'متن پررنگ'))}>
-                  پررنگ
-                </Button>
-                <Button type="button" size="sm" variant="ghost" onClick={() => applyMd((ta) => wrapSelection(ta, '*', '*', 'متن مورب'))}>
-                  مورب
-                </Button>
-                <Button type="button" size="sm" variant="ghost" onClick={() => applyMd((ta) => prefixLines(ta, '## '))}>
-                  عنوان
-                </Button>
-                <Button type="button" size="sm" variant="ghost" onClick={() => applyMd((ta) => prefixLines(ta, '### '))}>
-                  زیرعنوان
-                </Button>
-                <Button type="button" size="sm" variant="ghost" onClick={() => applyMd((ta) => prefixLines(ta, '- '))}>
-                  فهرست
-                </Button>
-                <Button type="button" size="sm" variant="ghost" onClick={() => applyMd((ta) => prefixLines(ta, '1. '))}>
-                  فهرست شماره‌دار
-                </Button>
-                <Button type="button" size="sm" variant="ghost" onClick={() => applyMd((ta) => prefixLines(ta, '> '))}>
-                  نقل‌قول
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => applyMd((ta) => wrapSelection(ta, '[', '](https://)', 'متن پیوند'))}
-                >
-                  پیوند
-                </Button>
-              </div>
+            <div className={s.bodyHead}>
+              <span className={ui.tileLabel}>متن مقاله</span>
               <Button type="button" size="sm" variant="ghost" onClick={() => setPreview((x) => !x)}>
-                {preview ? 'ویرایش متن' : 'پیش‌نمایش'}
+                {preview ? 'بازگشت به ویرایش' : 'پیش‌نمایش صفحهٔ منتشرشده'}
               </Button>
+            </div>
+            {bodyError ? <Alert tone="error">{bodyError}</Alert> : null}
+
+            {/* The editor is never UNMOUNTED to show the preview — doing that
+                would throw away undo history and the caret position every time
+                someone glanced at the result. */}
+            <div hidden={preview}>
+              <EditorErrorBoundary onClose={onRequestClose}>
+                <RichTextEditor
+                  initialDoc={initial.bodyJson}
+                  onChange={(doc) => set({ bodyJson: doc })}
+                  onReady={(doc) => {
+                    // ProseMirror fills in attribute defaults the stored JSON
+                    // never carried, so the document that comes back out is
+                    // legitimately not byte-identical to the one that went in.
+                    // Without adopting it as the baseline, merely OPENING an
+                    // article showed «تغییرات ذخیره‌نشده» and armed the
+                    // "discard your edits?" prompt on the way out.
+                    bodyBaselineRef.current = docFingerprint(doc);
+                    setV((prev) => ({ ...prev, bodyJson: doc }));
+                  }}
+                />
+              </EditorErrorBoundary>
             </div>
 
             {preview ? (
               <div className={s.preview}>
-                {/* The exact renderer the published article page uses — a
-                    hand-rolled preview here once dropped bold/links, so what
-                    the editor saw was not what readers got. */}
-                <MarkdownProse md={v.bodyMd} />
+                {/* Literally the component the published page renders. A
+                    hand-rolled preview here once dropped bold and links, so
+                    what the editor saw was not what readers got. */}
+                <RichContent doc={v.bodyJson} />
               </div>
-            ) : (
-              <Textarea
-                ref={bodyRef}
-                label="متن (Markdown)"
-                style={{
-                  fontFamily: 'ui-monospace, monospace',
-                  minBlockSize: 420,
-                  resize: 'vertical',
-                  direction: 'rtl',
-                  unicodeBidi: 'isolate',
-                }}
-                value={v.bodyMd}
-                error={fieldErrors.bodyMd}
-                onChange={(e) => set({ bodyMd: e.target.value })}
-              />
-            )}
-
-            <ImagePicker
-              label="افزودن تصویر داخل متن"
-              onInsert={(url) => applyMd((ta) => insertBlock(ta, `![](${url})`))}
-            />
+            ) : null}
           </div>
 
           <div className={s.side}>
             <div className={s.sideCard}>
               <div className={s.sideCardTitle}>انتشار</div>
+              {/* The old editor could not attach alt text at all, so every
+                  image already on the site has none. Saying so HERE, next to
+                  the publish button, is what turns that from an invisible
+                  SEO/accessibility debt into a two-click fix. Informational,
+                  never blocking: an editor with a deadline must still be able
+                  to publish. */}
+              {missingAlt > 0 ? (
+                <Alert tone="warning">
+                  {toPersianDigitsSafe(missingAlt)} تصویر در متن، توضیح (متن جایگزین) ندارد. روی تصویر در متن کلیک
+                  کنید و «افزودن متن جایگزین» را بزنید — هم برای گوگل مهم است، هم برای کسانی که تصویر را نمی‌بینند.
+                </Alert>
+              ) : null}
               <Button size="sm" onClick={doSave} loading={busy} disabled={!canSave || (!isCreate && !dirty)}>
                 {isCreate ? 'ذخیرهٔ پیش‌نویس' : 'ذخیره'}
               </Button>
@@ -1180,22 +1199,5 @@ function ArticleDrawer({
       </div>
       {dialog}
     </>
-  );
-}
-
-/** A thin wrapper over ImageUpload that reports the uploaded URL once and
- *  resets — the body toolbar inserts it as markdown rather than holding it as
- *  a persistent field. */
-function ImagePicker({ label, onInsert }: { label: string; onInsert: (url: string) => void }) {
-  const [value, setValue] = useState<string | null>(null);
-  return (
-    <ImageUpload
-      label={label}
-      value={value}
-      onChange={(url) => {
-        setValue(null);
-        if (url) onInsert(url);
-      }}
-    />
   );
 }

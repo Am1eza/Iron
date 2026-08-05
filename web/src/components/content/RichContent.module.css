@@ -117,3 +117,50 @@
   border-radius: var(--radius-md);
   margin-block-start: var(--space-2);
 }
+
+/* ---- structured-body additions (US-12.4) ------------------------------- */
+
+/* A quote is a <blockquote> of paragraphs now, not a single text run — the
+   margin reset keeps it looking identical to the old single-line version. */
+.quote p {
+  margin: 0;
+}
+.quote p + p {
+  margin-block-start: var(--space-2);
+}
+
+/* A cell can hold more than one paragraph; they read as lines, not as blocks
+   with prose spacing between them. */
+.cellLine {
+  display: block;
+}
+
+.imgWrap {
+  display: block;
+}
+
+.figure {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.caption {
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.rule {
+  border: 0;
+  border-block-start: var(--border-hairline) solid var(--color-hairline);
+  inline-size: 100%;
+  margin-block: var(--space-2);
+}
+
+/* A `- ` list nested in a quote or a cell must not inherit the prose gap. */
+.ul ul,
+.ol ol {
+  margin-block-start: var(--space-2);
+}

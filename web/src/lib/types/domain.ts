@@ -3,6 +3,8 @@
  * Money is integer Toman. Dates are ISO-8601 strings (Jalali only at display).
  */
 
+import type { RichDoc } from '@/lib/content/richDoc';
+
 export type PriceUnit = 'kg' | 'branch' | 'sheet' | 'meter'; // کیلوگرم/شاخه/برگ/متر
 export type MovementDir = 'up' | 'down' | 'flat';
 export type NotifyChannel = 'sms' | 'telegram' | 'whatsapp' | 'eitaa';
@@ -210,8 +212,16 @@ export interface Article {
   type: 'blog' | 'news';
   title: string;
   excerpt?: string;
-  /** Markdown body — present on live article-detail reads. */
+  /**
+   * DERIVED markdown mirror of `bodyJson` — present on live article-detail
+   * reads. Still the column full-text search, the AI advisor's guide grounding
+   * and the SEO word count run against; no longer what an editor types.
+   */
   bodyMd?: string;
+  /** Structured body (US-12.4) — the source of truth for rendering. `null` on
+   *  a row written before the structured editor shipped, which falls back to
+   *  parsing `bodyMd`. See `components/content/ArticleBody`. */
+  bodyJson?: RichDoc | null;
   /** Cover/hero image — used for the list thumbnail, OG image and Article JSON-LD. */
   coverUrl?: string;
   status: 'draft' | 'scheduled' | 'published';
