@@ -1,6 +1,8 @@
+import { Suspense } from 'react';
 import { Heading, Text, Stack } from '@/components/ui';
 import { SeoDashboard } from '@/components/admin/dashboard/SeoDashboard';
 import { RedirectsManager } from '@/components/admin/dashboard/RedirectsManager';
+import { SearchConsoleConnection } from '@/components/admin/dashboard/SearchConsoleConnection';
 import { requirePermission } from '@/lib/auth/guards';
 import { routes } from '@/lib/routes';
 
@@ -25,6 +27,13 @@ export default async function AdminSeoPage() {
         </Text>
       </div>
       <SeoDashboard />
+      {/* Reads `?searchConsole=…` (the OAuth callback's outcome) via
+          `useSearchParams`, which Next requires to sit under a Suspense
+          boundary — without one the whole route is forced out of static
+          rendering at build time. */}
+      <Suspense fallback={null}>
+        <SearchConsoleConnection />
+      </Suspense>
       <RedirectsManager />
     </Stack>
   );

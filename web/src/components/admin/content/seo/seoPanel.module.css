@@ -1,0 +1,188 @@
+/* On-page SEO checklist + Search Console panel in the article drawer (US-14.4).
+   Tokens only, logical properties only — the drawer is RTL and these sit
+   inside `.sideCard`, so nothing here sets its own border or background. */
+
+.summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.summaryCounts {
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+  margin-inline-start: auto;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-2);
+  align-items: start;
+}
+
+/* The overall headline pill. Deliberately NOT `<Badge>`: Badge's `stale` tone
+   is mapped to the same red as `loss`, so "nothing to check yet" rendered as
+   a failure, and its `warning` tone pairs `--color-action-text` with a tint
+   that is not redefined for dark mode, landing at ~3.4:1 there. Both are
+   documented traps — Alert.module.css carries the same warning — so this
+   reuses ALERT's vetted tint/ink pairs instead. */
+.overall {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding-inline: var(--space-2);
+  padding-block: 2px;
+  border-radius: var(--radius-pill);
+  font: var(--t-caption);
+  font-weight: 600;
+}
+
+/* The traffic light. Colour is never the only signal: each dot carries a
+   distinct glyph (✓ / ! / ✕ / –) AND a visually-hidden Persian status word,
+   so the row reads correctly in greyscale, under any colour-vision
+   deficiency, and to a screen reader.
+
+   Tint + dark ink, not saturated fill + white: `--color-gain` (#15A34A) under
+   white text is 3.30:1, which fails AA for a 12px bold glyph, and the same
+   pairing is the full-strength "DATA ONLY" primitive the token file reserves
+   for market movement. These are the exact pairs Alert.module.css uses for
+   its success/warning/error tones, including its note on why the amber ink is
+   pinned rather than taken from --color-action-text. */
+.dot {
+  inline-size: 18px;
+  block-size: 18px;
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font: var(--t-micro);
+  font-weight: 700;
+  line-height: 1;
+  margin-block-start: 2px;
+  flex: none;
+}
+
+.good {
+  background: var(--gain-50);
+  color: var(--color-gain-text);
+}
+.warn {
+  background: var(--amber-50);
+  /* --amber-50 has no dark-mode variant by design (fixed light tint, like
+     --gain-50/--loss-50) — pin the ink to the light-appropriate value rather
+     than --color-action-text, which flips much lighter in dark mode and falls
+     to ~2:1 against this background. Mirrors Alert.module.css's `.warning`. */
+  color: var(--emerald-700);
+}
+.bad {
+  background: var(--loss-50);
+  color: var(--color-loss-text);
+}
+.idle {
+  background: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+  border: var(--border-hairline) solid var(--color-hairline);
+}
+
+.itemLabel {
+  font: var(--t-body-sm);
+  font-weight: 600;
+  color: var(--color-text-strong);
+}
+
+.itemMessage {
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}
+
+/* An error line that is not signalled by colour alone — it carries its own
+   «⚠» glyph and a visually-hidden «خطا» in the markup. */
+.errorLine {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+  font: var(--t-caption);
+  color: var(--color-loss-text);
+  margin-block-start: var(--space-2);
+}
+:root[data-theme='dark'] .errorLine {
+  /* --color-loss-text is tuned for a light surface; the bare loss token is
+     what the dark theme uses elsewhere (see PriceParts.module.css). */
+  color: var(--color-loss);
+}
+
+/* The focus-keyword row: input, then the two research shortcuts under it. */
+.toolRow {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  align-items: center;
+  margin-block-start: var(--space-1);
+}
+
+.toolLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font: var(--t-body-sm);
+  color: var(--color-accent-text);
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+}
+
+.toolLink:hover {
+  border-color: var(--color-border-strong);
+}
+
+.toolHint {
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}
+
+/* ---------------------------- Search Console ---------------------------- */
+
+.metricsTable {
+  inline-size: 100%;
+  border-collapse: collapse;
+  font: var(--t-caption);
+}
+
+.metricsTable th,
+.metricsTable td {
+  padding: var(--space-1) var(--space-1);
+  border-block-end: var(--border-hairline) solid var(--color-hairline);
+  text-align: start;
+}
+
+.metricsTable th {
+  color: var(--color-text-muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Query text can be long; numbers must never wrap or lose their alignment. */
+.queryCell {
+  inline-size: 55%;
+  word-break: break-word;
+}
+
+.numCell {
+  text-align: start;
+  white-space: nowrap;
+}
+
+.asOf {
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}
