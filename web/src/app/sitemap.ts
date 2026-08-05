@@ -139,14 +139,22 @@ async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
 
   const blogEntries: MetadataRoute.Sitemap = blogArticles.map((a) => ({
     url: new URL(routes.blog(a.slug), SITE_URL).toString(),
-    lastModified: a.publishAt ? new Date(a.publishAt) : now,
+    // `updatedAt` first: with `publishAt` alone, editing a published article
+    // produced NO recrawl signal at all — the sitemap entry simply did not
+    // move. Every PATCH stamps `updatedAt`, including SEO-only edits, which
+    // is what the column means; the SKU entries above already use it.
+    lastModified: new Date(a.updatedAt ?? a.publishAt ?? now),
     changeFrequency: 'monthly',
     priority: 0.6,
   }));
 
   const newsEntries: MetadataRoute.Sitemap = newsArticles.map((a) => ({
     url: new URL(routes.news(a.slug), SITE_URL).toString(),
-    lastModified: a.publishAt ? new Date(a.publishAt) : now,
+    // `updatedAt` first: with `publishAt` alone, editing a published article
+    // produced NO recrawl signal at all — the sitemap entry simply did not
+    // move. Every PATCH stamps `updatedAt`, including SEO-only edits, which
+    // is what the column means; the SKU entries above already use it.
+    lastModified: new Date(a.updatedAt ?? a.publishAt ?? now),
     changeFrequency: 'daily',
     priority: 0.6,
   }));

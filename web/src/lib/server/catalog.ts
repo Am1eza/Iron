@@ -11,7 +11,13 @@ import { categories as mockCategories, marketValues as mockMarketValues } from '
 import * as repo from '@/lib/server/repos/catalogRepo';
 import { getMarketValue } from '@/lib/server/repos/marketRepo';
 import { normalizeDigits } from '@/lib/utils/format';
-import { searchArticles, listPublished, findPublishedBySlug, type ArticleFull } from '@/lib/server/repos/articlesRepo';
+import {
+  searchArticles,
+  listPublished,
+  relatedArticles,
+  findPublishedBySlug,
+  type ArticleFull,
+} from '@/lib/server/repos/articlesRepo';
 
 const live = () => API_MODE === 'live' && hasDb();
 
@@ -150,6 +156,21 @@ export async function getArticlesPage(
     return { articles: all.slice((page - 1) * perPage, page * perPage), total: all.length };
   }
   return listPublished(type, page, perPage);
+}
+
+/** The 3 cards under an article. One projected query — see `relatedArticles`. */
+export async function getRelatedArticles(
+  type: 'blog' | 'news',
+  excludeSlug: string,
+  limit = 3,
+): Promise<Article[]> {
+  if (!live()) {
+    return mock
+      .articlesByType(type)
+      .filter((a) => a.slug !== excludeSlug)
+      .slice(0, limit);
+  }
+  return relatedArticles(type, excludeSlug, limit);
 }
 
 /** Every published slug of a type, for the sitemap — which must never be a

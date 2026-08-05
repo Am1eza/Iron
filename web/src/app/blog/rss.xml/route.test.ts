@@ -1,6 +1,6 @@
 /**
  * Same defect class as `app/sitemap.test.ts`: both feeds are prerendered at
- * build time, where `isLiveCatalog()` is false and `getAllPublishedArticles`
+ * build time, where `isLiveCatalog()` is false and the catalog seam
  * answers from `lib/mock`. A feed of fixture articles points every subscriber
  * at URLs that do not exist, and the deploy restores that body from the image
  * on every container recreate.
@@ -9,10 +9,13 @@
  * and a second file would only drift.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { RSS_ITEM_LIMIT } from '@/lib/server/rss';
 
 const catalog = vi.hoisted(() => ({
   isLiveCatalog: vi.fn(() => false),
-  getAllPublishedArticles: vi.fn(),
+  // The feed asks for page 1 of the paged query, not for every published
+  // article — it used to fetch up to 50x200 rows and then `.slice(0, 50)`.
+  getArticlesPage: vi.fn(),
 }));
 
 vi.mock('@/lib/server/catalog', () => catalog);
@@ -29,7 +32,7 @@ async function load(feed: 'blog' | 'news') {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  catalog.getAllPublishedArticles.mockResolvedValue(FIXTURES);
+  catalog.getArticlesPage.mockResolvedValue({ articles: FIXTURES, total: FIXTURES.length });
 });
 
 describe.each(['blog', 'news'] as const)('/%s/rss.xml', (feed) => {
@@ -50,7 +53,7 @@ describe.each(['blog', 'news'] as const)('/%s/rss.xml', (feed) => {
 
     await load(feed);
 
-    expect(catalog.getAllPublishedArticles).not.toHaveBeenCalled();
+    expect(catalog.getArticlesPage).not.toHaveBeenCalled();
   });
 
   it('emits the real articles when the catalog is live', async () => {
@@ -59,6 +62,6 @@ describe.each(['blog', 'news'] as const)('/%s/rss.xml', (feed) => {
     const xml = await (await load(feed)).text();
 
     expect(xml).toContain('choosing-rebar-grade');
-    expect(catalog.getAllPublishedArticles).toHaveBeenCalledWith(feed);
+    expect(catalog.getArticlesPage).toHaveBeenCalledWith(feed, 1, RSS_ITEM_LIMIT);
   });
 });

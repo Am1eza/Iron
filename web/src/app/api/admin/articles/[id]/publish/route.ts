@@ -8,7 +8,11 @@ import {
   withApiErrorHandling,
 } from '@/lib/server/utils/apiGuard';
 import { updateArticle } from '@/lib/server/repos/articlesRepo';
-import { safeRevalidatePath } from '@/lib/server/utils/revalidate';
+import {
+  safeRevalidatePath,
+  revalidateArticleSection,
+  revalidateArticleUrl,
+} from '@/lib/server/utils/revalidate';
 
 const payload = z.object({ publishAt: z.string().datetime().optional() });
 
@@ -37,8 +41,13 @@ async function POSTImpl(req: NextRequest, ctx: { params: Promise<{ id: string }>
   // Bust the ISR cache for the list + detail page immediately (not scheduled —
   // an editor approving/publishing now expects it live right away).
   if (!future) {
-    const base = article.type === 'news' ? '/news' : '/blog';
-    safeRevalidatePath(base, 'layout');
+    // The article's own URL matters as much as the list: a crawler or the
+    // editor previewing a pre-announced link can have cached this route's
+    // `notFound()` for its revalidate window, so without this the article can
+    // 404 for minutes after going live.
+    revalidateArticleSection(article.type);
+    revalidateArticleUrl(article.type, article.slug);
+    safeRevalidatePath('/sitemap.xml');
   }
   return NextResponse.json({ article });
 }
