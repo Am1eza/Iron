@@ -744,8 +744,13 @@ function QuickReply({ label, onPick }: { label: string; onPick: (t: string) => v
       </Link>
     );
   if (label === 'قیمت ورق')
+    // 'sheet' is the retired slug (is_active = false; see FOOTER's split into
+    // varagh-garm/varagh-sard/varagh-steel). 'varagh-garm' is the closest live
+    // equivalent for a generic «ورق» ask — the mock bulk-quote engine above
+    // still keys its internal split calc on the old 'sheet' slug, which is
+    // fine (self-contained mock lookup); only this deep link must resolve.
     return (
-      <Link href={routes.category('sheet')} className={styles.chip}>
+      <Link href={routes.category('varagh-garm')} className={styles.chip}>
         {label}
       </Link>
     );
