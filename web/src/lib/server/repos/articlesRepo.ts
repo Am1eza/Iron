@@ -6,7 +6,7 @@ import { and, desc, eq, ilike, isNull, isNotNull, lte, or, sql } from 'drizzle-o
 import { ulid } from 'ulid';
 import { getDb } from '@/lib/server/db/client';
 import { articles } from '@/lib/server/db/schema';
-import type { Article } from '@/lib/types/domain';
+import type { Article, SeoMeta } from '@/lib/types/domain';
 import type { RichDoc } from '@/lib/content/richDoc';
 import { docToMarkdown } from '@/lib/content/docToMarkdown';
 import { normalizeDigits, toPersianDigits } from '@/lib/utils/format';
@@ -272,6 +272,9 @@ export async function createArticle(input: {
   source?: 'ai' | 'human';
   authorId?: string;
   tags?: string[];
+  /** SEO overrides + focus keyword (US-14.4). Optional: seeds and the AI
+   *  draft path create articles with none. */
+  seo?: SeoMeta | null;
 }): Promise<ArticleFull> {
   const body = withDerivedBody({ bodyJson: input.bodyJson, bodyMd: input.bodyMd });
   const rows = await asSlugConflict(() =>
@@ -288,6 +291,7 @@ export async function createArticle(input: {
       source: input.source ?? 'human',
       authorId: input.authorId ?? null,
       tags: input.tags ?? null,
+      seo: input.seo ?? null,
       status: 'draft',
     })
     .returning(),

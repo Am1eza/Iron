@@ -5,7 +5,7 @@ import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/
 import { adminGetArticle, updateArticle, deleteDraftArticle } from '@/lib/server/repos/articlesRepo';
 import { DuplicateArticleSlugError } from '@/lib/server/repos/articlesRepo';
 import { safeRevalidatePath } from '@/lib/server/utils/revalidate';
-import { articleSlugSchema, articleTagsSchema, uploadPathSchema } from '@/lib/validation/utils';
+import { articleSeoSchema, articleSlugSchema, articleTagsSchema, uploadPathSchema } from '@/lib/validation/utils';
 import { richDocSchema } from '@/lib/content/richDoc';
 import { createRedirect, RedirectLoopError } from '@/lib/server/repos/redirectsRepo';
 import { reportError } from '@/lib/errors/report';
@@ -85,20 +85,9 @@ const patchPayload = z.object({
   coverUrl: z.preprocess((v) => (v === '' ? null : v), uploadPathSchema.nullable().optional()),
   authorId: z.string().min(1).nullable().optional(),
   tags: articleTagsSchema,
-  // Editor SEO overrides. Empty url fields → undefined so a blank input never
-  // fails .url() (forms send '' for "unset").
-  seo: z
-    .object({
-      title: z.string().trim().max(70).optional(),
-      description: z.string().trim().max(200).optional(),
-      canonical: z.preprocess(
-        (v) => (v === '' ? undefined : v),
-        z.string().regex(/^\//, 'نشانی متعارف باید یک مسیر داخلی باشد (با / شروع شود).').max(300).optional(),
-      ),
-      ogImage: z.preprocess((v) => (v === '' ? undefined : v), uploadPathSchema.optional()),
-    })
-    .nullable()
-    .optional(),
+  // Editor SEO overrides, including the focus keyword the on-page checklist
+  // keys off. Shared with the create route — see `articleSeoSchema`.
+  seo: articleSeoSchema,
   // Only 'draft' — moving DOWN in privilege (cancel/revert a scheduled
   // publish) is a safe content:write operation. Scheduling or publishing
   // is content:publish's job (POST .../publish, which also stamps

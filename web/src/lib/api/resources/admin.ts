@@ -101,6 +101,46 @@ export interface AdminRedirect {
   updatedAt: string;
 }
 
+/** Search Console connection state (US-14.4). Carries no token — see the
+ *  route's doc comment; `searchConsoleStatus()` selects displayable fields. */
+export interface SearchConsoleStatusDto {
+  /** Server has the Google Cloud credentials. False = feature hidden. */
+  configured: boolean;
+  /** Someone has completed the OAuth consent. */
+  connected: boolean;
+  siteUrl: string | null;
+  lastSyncAt: string | null;
+  lastError: string | null;
+  siteUrlMismatch: boolean;
+}
+
+/** What the per-article metrics endpoint returns — deliberately NARROWER than
+ *  `SearchConsoleStatusDto`: that one carries the server's `GSC_SITE_URL`, and
+ *  the article panel is `content:write` while the connection screen is
+ *  `settings:write`. */
+export interface SearchConsolePanelStatusDto {
+  configured: boolean;
+  connected: boolean;
+  lastError: string | null;
+}
+
+export interface SearchConsoleQueryRow {
+  query: string;
+  clicks: number;
+  impressions: number;
+  /** 0–1, not a percentage — the UI formats it. */
+  ctr: number;
+  position: number;
+}
+
+export interface SearchConsoleMetricsDto {
+  path: string;
+  rows: SearchConsoleQueryRow[];
+  periodStart: string | null;
+  periodEnd: string | null;
+  fetchedAt: string | null;
+}
+
 export interface AdminAlertRow {
   id: string;
   mobile: string;
@@ -725,6 +765,8 @@ export const adminApi = {
     excerpt?: string;
     bodyJson?: RichDoc;
     tags?: string[];
+    /** Accepted on create since US-14.4 — see `articleSeoSchema`. */
+    seo?: SeoMeta | null;
   }) => http.post<{ article: ArticleFull }>('/api/admin/articles', input),
   updateArticle: (
     id: string,
@@ -760,6 +802,21 @@ export const adminApi = {
   updateRedirect: (id: string, patch: { toPath?: string; permanent?: boolean }) =>
     http.patch<{ redirect: AdminRedirect }>(`/api/admin/seo/redirects/${id}`, patch),
   deleteRedirect: (id: string) => http.del<{ ok: true }>(`/api/admin/seo/redirects/${id}`),
+
+  /* search console (US-14.4) — every one of these answers honestly when the
+   * feature is unconfigured (`status.configured === false`), so the callers
+   * hide their UI instead of showing an empty table that reads as "zero". */
+  searchConsoleStatus: () => http.get<{ status: SearchConsoleStatusDto }>('/api/admin/seo/search-console'),
+  /** Returns the Google consent URL for the panel to open in a new tab —
+   *  a full-page navigation here would discard an in-progress article. */
+  connectSearchConsole: () => http.post<{ authUrl: string }>('/api/admin/seo/search-console/connect', {}),
+  disconnectSearchConsole: () => http.del<{ ok: true }>('/api/admin/seo/search-console'),
+  searchConsoleMetrics: (path: string) =>
+    http.get<{ status: SearchConsolePanelStatusDto; metrics: SearchConsoleMetricsDto | null }>(
+      `/api/admin/seo/search-console/metrics?path=${encodeURIComponent(path)}`,
+    ),
+  refreshSearchConsoleMetrics: (path: string) =>
+    http.post<{ metrics: SearchConsoleMetricsDto }>('/api/admin/seo/search-console/metrics', { path }),
 
   /* catalog */
   /* catalog — see components/admin/catalog. `iconId`/`imageUrl` and the
