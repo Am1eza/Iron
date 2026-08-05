@@ -5,7 +5,7 @@ import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/
 import { adminGetArticle, updateArticle, deleteDraftArticle } from '@/lib/server/repos/articlesRepo';
 import { DuplicateArticleSlugError } from '@/lib/server/repos/articlesRepo';
 import { safeRevalidatePath } from '@/lib/server/utils/revalidate';
-import { articleSlugSchema, articleTagsSchema, uploadPathSchema } from '@/lib/validation/utils';
+import { articleSlugSchema, articleTagsSchema, uploadPathSchema, internalPathSchema } from '@/lib/validation/utils';
 import { richDocSchema } from '@/lib/content/richDoc';
 import { createRedirect, RedirectLoopError } from '@/lib/server/repos/redirectsRepo';
 import { reportError } from '@/lib/errors/report';
@@ -91,9 +91,19 @@ const patchPayload = z.object({
     .object({
       title: z.string().trim().max(70).optional(),
       description: z.string().trim().max(200).optional(),
+      // `/^\//` only asserted "starts with a slash" — which `//evil.com` and
+      // `/\evil.com` both do, and both resolve to `https://evil.com/` in
+      // `buildMetadata`'s `new URL(path, SITE_URL)`. That published an
+      // attacker-controlled `<link rel="canonical">` and `og:url` on the
+      // article: a silent, durable ranking/traffic hijack that leaves the page
+      // rendering perfectly. Use the shared parser-based schema — the same one
+      // `ogImage`'s sibling `uploadPathSchema` already models — and keep the
+      // leading-slash requirement for the editor-facing error message.
       canonical: z.preprocess(
         (v) => (v === '' ? undefined : v),
-        z.string().regex(/^\//, 'نشانی متعارف باید یک مسیر داخلی باشد (با / شروع شود).').max(300).optional(),
+        internalPathSchema(300)
+          .refine((v) => v.startsWith('/'), 'نشانی متعارف باید یک مسیر داخلی باشد (با / شروع شود).')
+          .optional(),
       ),
       ogImage: z.preprocess((v) => (v === '' ? undefined : v), uploadPathSchema.optional()),
     })

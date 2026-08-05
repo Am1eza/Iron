@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { finiteNumber, formatZodError } from './utils';
+import { finiteNumber, formatZodError, internalPathSchema } from './utils';
 import { z } from 'zod';
 
 describe('finiteNumber', () => {
@@ -48,5 +48,33 @@ describe('formatZodError', () => {
     if (r.success) throw new Error('expected failure');
     const errors = formatZodError(r.error);
     expect(Object.keys(errors)).toEqual(['mobile']);
+  });
+});
+
+describe('internalPathSchema — off-site values (security regression)', () => {
+  const s = internalPathSchema(300);
+  const ok = (v: string) => s.safeParse(v).success;
+
+  it('rejects every string that resolves to a third-party origin', () => {
+    // All of these start with a slash — which is all `/^\//` ever checked —
+    // and all of them resolve to https://evil.com/ in a browser.
+    for (const bad of ['//evil.com', '/\\evil.com', '/\\/evil.com', '/\t/evil.com', '/\r\n/evil.com']) {
+      expect(new URL(bad, 'https://ahantime.com').origin).not.toBe('https://ahantime.com');
+      expect(ok(bad)).toBe(false);
+    }
+  });
+
+  it('rejects an absolute URL of any scheme', () => {
+    for (const bad of ['https://evil.com/x', 'HTTP://evil.com/x', 'javascript:alert(1)', 'data:text/html,x']) {
+      expect(ok(bad)).toBe(false);
+    }
+  });
+
+  it('still accepts real internal paths, including the un-slashed form', () => {
+    // `redirectsRepo.normalizePath` adds the leading slash, so this shape has
+    // to keep validating or the redirect form regresses.
+    for (const good of ['/prices/rebar', 'prices/rebar', '/blog/x?a=1#b', '/blog/راهنما', '/']) {
+      expect(ok(good)).toBe(true);
+    }
   });
 });

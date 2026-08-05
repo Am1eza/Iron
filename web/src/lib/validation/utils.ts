@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { ARTICLE_SLUG_PATTERN } from '@/lib/utils/articleSlug';
 import { MAX_ARTICLE_TAGS, normalizeArticleTags } from '@/lib/utils/articleTags';
+import { isInternalPathValue } from '@/lib/utils/url';
 
 export type FieldErrors = Record<string, string>;
 
@@ -74,6 +75,14 @@ export const articleSlugSchema = (max: number) =>
  * doesn't reject a scheme either, so without this a value like
  * `https://evil.com/phish` would silently store as the nonsensical path
  * `/https://evil.com/phish` rather than being rejected as the input error it is.
+ *
+ * It is NOT only defense-in-depth any more: `articles.seo.canonical` uses this
+ * schema, and that value goes straight into `<link rel="canonical">` and
+ * `og:url` via `buildMetadata`, where an off-site value is a silent, durable
+ * SEO hijack. The check is therefore parser-based (`isInternalPathValue`)
+ * rather than the two regexes it used to be — `//evil.com` was caught by
+ * those, `/\evil.com` and `/<TAB>/evil.com` were not, and all three resolve to
+ * `https://evil.com/`. See `lib/utils/url.ts`.
  */
 export const internalPathSchema = (max: number) =>
   z
@@ -81,7 +90,7 @@ export const internalPathSchema = (max: number) =>
     .trim()
     .min(1)
     .max(max)
-    .refine((v) => !/^\/\//.test(v) && !/:\/\//.test(v), {
+    .refine(isInternalPathValue, {
       message: 'باید یک مسیر داخلی سایت باشد، نه یک آدرس کامل یا خارجی.',
     });
 
