@@ -225,6 +225,15 @@
 }
 
 /* ===== «محصولات» mega-menu ===== */
+/* The panel's own top offset varies with scroll position — at the very top of
+   the page it sits below the price ticker (~110px down), while the sticky
+   condensed header shrinks that to ~61px. 140px is sized for the worst case
+   (unscrolled), so there's always a margin of breathing room at the bottom of
+   the viewport rather than the panel touching the edge. With 12 category
+   columns wrapped over 3 rows the panel's natural height (~1225px) blew past
+   any real screen — it used to rely on scrolling the WHOLE PAGE while hover
+   was held to reach the last rows, which no one does, so the bottom
+   categories were effectively invisible. It now scrolls internally instead. */
 .mega {
   position: absolute;
   inset-block-start: calc(100% + var(--space-1));
@@ -232,11 +241,28 @@
   max-inline-size: var(--container-max);
   margin-inline: auto;
   padding: var(--space-5);
-  background: var(--color-surface-raised);
   border: var(--border-hairline) solid var(--color-hairline);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
   z-index: var(--z-dropdown);
+  max-block-size: min(calc(100vh - 140px), 720px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  /* Scroll shadows with no extra markup (Roman Komarov's technique): two
+     opaque gradients scroll WITH the content and hide themselves once the
+     top/bottom edge is reached, two fixed radial shadows behind them stay put
+     and only show through once there's more to scroll. RTL-safe since it's a
+     purely vertical (block-axis) effect. */
+  background-image:
+    linear-gradient(var(--color-surface-raised) 30%, rgba(255, 255, 255, 0)),
+    linear-gradient(rgba(255, 255, 255, 0), var(--color-surface-raised) 70%) bottom,
+    radial-gradient(farthest-side at 50% 0, rgba(0, 0, 0, 0.16), rgba(0, 0, 0, 0)),
+    radial-gradient(farthest-side at 50% 100%, rgba(0, 0, 0, 0.16), rgba(0, 0, 0, 0)) bottom;
+  background-repeat: no-repeat;
+  background-color: var(--color-surface-raised);
+  background-size: 100% 40px, 100% 40px, 100% 14px, 100% 14px;
+  background-attachment: local, local, scroll, scroll;
 }
 .megaGrid {
   display: grid;
