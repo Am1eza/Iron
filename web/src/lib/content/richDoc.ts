@@ -23,6 +23,7 @@
  * bytes of editor runtime.
  */
 import { z } from 'zod';
+import { SITE_ORIGIN, URL_CONFUSABLES, resolveUrl } from '@/lib/utils/url';
 
 /* ------------------------------- limits -------------------------------- */
 
@@ -118,29 +119,59 @@ export type RichDoc = { type: 'doc'; content?: BlockNode[] };
 /* ------------------------------- helpers ------------------------------- */
 
 /**
- * Only schemes that can't execute. Kept here (moved from ArticleBody) because
+ * Only schemes that can't execute, and only same-origin values for anything
+ * that claims to be site-relative. Kept here (moved from ArticleBody) because
  * BOTH the renderer and the write-side validator need exactly one answer to
  * "is this href safe" — two copies is how one of them drifts.
  *
  * React 19 does neutralise `javascript:` at the DOM layer, but relying on a
  * framework internal as the only control is the wrong posture for a field an
  * editor (and, in future, a generated draft) fills in.
+ *
+ * This used to be a pair of regexes. A regex cannot decide this question:
+ * `/\evil.com`, `/\/evil.com` and `/<TAB>/evil.com` all start with a single
+ * slash and all resolve to `https://evil.com/`, so they were classified as
+ * INTERNAL — rendered without `nofollow`/`noreferrer` while navigating
+ * off-site. See `lib/utils/url.ts` for the full parser semantics; the realistic
+ * source of such a string is not a human editor but the AI drafting path this
+ * field already anticipates.
  */
 export function safeHref(url: string): string | null {
   const v = url.trim();
-  // A LEADING `//` is scheme-relative — the browser resolves it against
-  // whatever protocol the page loaded over, i.e. it IS an external URL. The
-  // single-slash alternative below must not also match it, or an editor could
-  // enter `//evil.example/x` and have it treated as an internal path: no
-  // `nofollow`/`noreferrer`, and `isExternal` (below) would not catch it
-  // either since it only tests for `http(s)://`.
-  if (/^\/\//.test(v)) return null;
-  return /^(https?:\/\/|\/|#|mailto:|tel:)/i.test(v) ? v : null;
+  if (!v) return null;
+  // Never normalise these away — a legitimate href has no reason to contain
+  // a backslash or a control character, and rewriting the editor's input is
+  // how a "sanitiser" becomes its own bypass.
+  if (URL_CONFUSABLES.test(v)) return null;
+  if (v.startsWith('#')) return v; // same-document fragment, no authority
+  if (/^(mailto:|tel:)/i.test(v)) return v; // no authority to confuse
+  const absolute = /^https?:/i.test(v);
+  // Same allowlist shape as before: an absolute http(s) URL, or a path.
+  if (!absolute && !v.startsWith('/')) return null;
+  const u = resolveUrl(v);
+  if (!u) return null;
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+  // Site-relative input must have STAYED site-relative once resolved.
+  if (!absolute && u.origin !== SITE_ORIGIN) return null;
+  return v;
 }
 
-/** External links get noreferrer + nofollow; internal ones stay clean. */
+/**
+ * External links get noreferrer + nofollow; internal ones stay clean.
+ *
+ * Resolved, not pattern-matched — which additionally catches the userinfo
+ * form (`https://ahantime.com@evil.com/`), whose origin is `evil.com`.
+ */
 export function isExternal(url: string): boolean {
-  return /^https?:\/\//i.test(url);
+  const v = url.trim();
+  if (!v || v.startsWith('#')) return false;
+  if (/^(mailto:|tel:)/i.test(v)) return false;
+  // Unreachable for anything `safeHref` passed; fail toward nofollow anyway.
+  if (URL_CONFUSABLES.test(v)) return true;
+  const u = resolveUrl(v);
+  if (!u) return false;
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return false;
+  return u.origin !== SITE_ORIGIN;
 }
 
 /**
@@ -155,21 +186,25 @@ export function isExternal(url: string): boolean {
 export function normalizeImageSrc(raw: string): string | null {
   const v = raw.trim();
   if (!v) return null;
-  // Same scheme-relative gap as `safeHref` above — `new URL('//evil.example/x')`
-  // throws with no base, which used to fall into the site-relative branch below
-  // and pass `startsWith('/')`.
-  if (v.startsWith('//')) return null;
-  if (v.startsWith('/uploads/')) return v;
-  try {
-    const u = new URL(v);
-    if (u.protocol === 'http:' || u.protocol === 'https:') {
-      return u.pathname.startsWith('/uploads/') ? u.pathname : v;
-    }
-    return null;
-  } catch {
-    // Not absolute — a site-relative path is fine, anything else is not.
-    return v.startsWith('/') ? v : null;
+  // Same parser-confusion class as `safeHref` above: `/\evil.com/x.png` used
+  // to be stored verbatim as a "site-relative" source. `img-src 'self' data:`
+  // is what bounds the damage today — that CSP directive is load-bearing for
+  // this decision, and this check is the layer that must not depend on it.
+  if (URL_CONFUSABLES.test(v)) return null;
+  const absolute = /^https?:/i.test(v);
+  if (!absolute && !v.startsWith('/')) return null;
+  const u = resolveUrl(v);
+  if (!u) return null;
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+  if (!absolute) {
+    // Site-relative input must have STAYED site-relative once resolved.
+    return u.origin === SITE_ORIGIN ? v : null;
   }
+  // An absolute upload URL is folded to its path so the stored value is
+  // origin-independent — deliberately regardless of host, because the host it
+  // actually carries is whichever one the admin was on (panel.ahantime.com,
+  // or localhost in dev). See the docstring; `uploadPathSchema` does the same.
+  return u.pathname.startsWith('/uploads/') ? u.pathname : v;
 }
 
 /* ------------------------------ validation ----------------------------- */
