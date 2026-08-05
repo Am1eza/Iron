@@ -20,3 +20,8 @@ backups/
 # OS / editor
 .DS_Store
 web/.pw-shot.mjs
+web/.a11y-check.mjs
+web/.console-check.mjs
+web/.local-preview-webkit.mjs
+web/.pw-shot-browser.mjs
+web/.pw-shot-wait.mjs
