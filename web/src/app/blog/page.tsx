@@ -1,106 +1,26 @@
 import type { Metadata } from 'next';
-import { buildMetadata } from '@/lib/seo';
-import { routes } from '@/lib/routes';
-import { getArticlesPage } from '@/lib/server/catalog';
-import {
-  Container,
-  Section,
-  Stack,
-  Heading,
-  Text,
-  Overline,
-  Breadcrumbs,
-  Badge,
-  EmptyState, Pagination } from '@/components/ui';
-import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
-import { ArticleCard } from '@/components/content/ArticleCard';
-import styles from './blog.module.css';
+import { ArticleIndex, indexMetadata } from '@/components/content/ArticleIndex';
 
-const base = buildMetadata({
-  title: 'وبلاگ آهن‌تایم',
-  description:
-    'راهنمای خرید، تحلیل بازار و آموزش آهن و فولاد. مطالب کاربردی برای پیمانکاران و سازندگان.',
-  path: routes.blog(),
-});
+export const metadata: Metadata = indexMetadata('blog', 1);
 
 /**
- * The RSS `<link rel="alternate">` lives HERE and not in the root layout: a
- * site-wide alternate would advertise the blog feed as the feed for
- * /prices/rebar and every product page, which is simply false. Merged onto
- * `buildMetadata`'s result so the canonical it computed survives.
+ * This route is now GENUINELY incrementally-regenerated, which it was not
+ * before: it declared `revalidate = 600` and then `await`ed `searchParams` to
+ * read `?page=`, and reading `searchParams` in a Server Component opts the
+ * whole route into dynamic rendering in Next 15 — making the export inert.
+ * Live, the page answered `Cache-Control: private, no-cache, no-store` and was
+ * absent from `.next/prerender-manifest.json`; every visit re-rendered and
+ * issued two queries against `articles`. Measured at concurrency 20, that was
+ * 45.6 rps / p95 405 ms against 143.7 rps / p95 83 ms for the ISR'd article
+ * page — a 3.1x throughput gap on the same box for content that changes a few
+ * times a week, and no fallback at all if Postgres blinks.
+ *
+ * The page number therefore lives in the path (`/blog/page/2`), not in a
+ * query string. See `routes.blogPage` and `components/content/ArticleIndex`.
+ * Legacy `?page=N` links are 308'd to the path form by middleware.
  */
-export const metadata: Metadata = {
-  ...base,
-  alternates: {
-    ...base.alternates,
-    types: {
-      'application/rss+xml': [{ url: '/blog/rss.xml', title: 'وبلاگ آهن‌تایم' }],
-    },
-  },
-};
-
-// New/edited articles publish infrequently; a 10-minute window keeps the list
-// fresh without hitting Postgres on every request.
 export const revalidate = 600;
 
-const PER_PAGE = 12;
-
-export default async function BlogPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ page?: string }>;
-}) {
-  // The list used to render page 1 of 20 as if it were the whole archive, so
-  // the oldest posts silently vanished once this section passed 20 articles.
-  const { page: pageParam } = await searchParams;
-  const page = Math.max(1, Number(pageParam) || 1);
-  const { articles, total } = await getArticlesPage('blog', page, PER_PAGE);
-  const pageCount = Math.max(1, Math.ceil(total / PER_PAGE));
-  const crumbs = [{ label: 'خانه', href: routes.home() }, { label: 'وبلاگ' }];
-
-  return (
-    <Container>
-      <BreadcrumbJsonLd items={crumbs} />
-      <Section space={10}>
-        <Stack gap={6}>
-          <div>
-            <Breadcrumbs items={crumbs} />
-            <Overline>محتوای آموزشی</Overline>
-            <Heading level={1} id="blog-title">
-              وبلاگ آهن‌تایم
-            </Heading>
-            <Text color="muted">
-              راهنمای خرید، تحلیل بازار و آموزش آهن‌آلات؛ نوشته‌شده برای کسانی که اول مشورت می‌کنند،
-              بعد خرید.
-            </Text>
-          </div>
-
-          {articles.length > 0 ? (
-            <div>
-              <Heading level={2} id="blog-list-title">
-                همهٔ مطالب
-              </Heading>
-              <ul className={styles.grid} aria-labelledby="blog-list-title">
-                {articles.map((article) => (
-                  <ArticleCard key={article.id} article={article} />
-                ))}
-              </ul>
-              <Pagination
-                page={page}
-                pageCount={pageCount}
-                hrefFor={(p) => (p === 1 ? routes.blog() : `${routes.blog()}?page=${p}`)}
-              />
-            </div>
-          ) : (
-            <EmptyState
-              size="section"
-              headline="هنوز مطلبی منتشر نشده است"
-              body="به‌زودی نخستین مقاله‌های آهن‌تایم اینجا منتشر می‌شوند."
-              showAi
-            />
-          )}
-        </Stack>
-      </Section>
-    </Container>
-  );
+export default async function BlogPage() {
+  return <ArticleIndex type="blog" page={1} />;
 }

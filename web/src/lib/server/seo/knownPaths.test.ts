@@ -16,6 +16,8 @@ const known = new Set([
   '/prices/pipe/gas',
   '/blog/what-is-a3',
   '/news/market-update',
+  // The archive pages that exist — see `publishedArticlePaths`.
+  '/blog/page/2',
 ]);
 
 describe('shouldNotFound', () => {
@@ -182,8 +184,19 @@ describe('shouldNotFound — the %2F guard bypass (security regression)', () => 
     expect(shouldNotFound('/blog/aaa%2Fbbb', known, { redirectsLoaded: false })).toBe(false);
   });
 
-  it('leaves the paginated index routes alone (two segments, not a slug)', () => {
+  it('serves an archive page that exists and hard-404s one that does not', () => {
+    // `/blog?page=999` used to answer 200 with "هنوز مطلبی منتشر نشده است" —
+    // factually false, indexable, and with no pager on screen to get back.
+    // `notFound()` and `redirect()` BOTH reply 200 from inside the matched
+    // route in this Next version, so the guard is the only honest answer.
     expect(shouldNotFound('/blog/page/2', known)).toBe(false);
-    expect(shouldNotFound('/news/page/2', known)).toBe(false);
+    expect(shouldNotFound('/blog/page/3', known)).toBe(true);
+    expect(shouldNotFound('/news/page/2', known)).toBe(true);
+    expect(shouldNotFound('/blog/page/abc', known)).toBe(true);
+    expect(shouldNotFound('/blog/page/2%2F3', known)).toBe(true);
+  });
+
+  it('still fails open on the archive pages when the catalog is cold', () => {
+    expect(shouldNotFound('/blog/page/999', new Set())).toBe(false);
   });
 });

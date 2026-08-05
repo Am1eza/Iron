@@ -49,6 +49,13 @@ ROUNDS=$((WORKERS + 3))
 
 # The pages that are prerendered AND read the catalog. Ordered by how likely a
 # human is to land on them first.
+#
+# /blog and /news were listed here while being fully DYNAMIC — they declared
+# `revalidate = 600` and then read `searchParams`, which opts the whole route
+# out of ISR in Next 15, so 2×ROUNDS requests per deploy warmed nothing and the
+# success line was false confidence. Their page number now lives in the path
+# (`/blog/page/2`), so both are genuinely prerendered and these entries do what
+# this comment always claimed.
 PATHS=(
   "/"
   "/prices"

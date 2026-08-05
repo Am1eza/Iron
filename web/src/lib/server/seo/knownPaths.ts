@@ -51,6 +51,14 @@ const GUARDED_PATTERNS: readonly RegExp[] = [
   /^\/prices\/[^/]+\/[^/]+\/[^/]+$/, //      /prices/[category]/[sub]/[sku]
   /^\/blog\/[^/]+$/,
   /^\/news\/[^/]+$/,
+  // The paginated archive. `/blog/page/999` renders and is then ISR-cached
+  // under its own key, and neither `notFound()` nor `redirect()` produces a
+  // real status code from inside an already-matched route in this Next version
+  // (both reply 200 — measured), so the ONLY way to answer honestly is the
+  // same middleware rewrite every other unknown slug uses. `known` therefore
+  // carries `/blog/page/2 ... /blog/page/<last>`; see `publishedArticlePaths`.
+  /^\/blog\/page\/[^/]+$/,
+  /^\/news\/page\/[^/]+$/,
   /^\/tools\/[^/]+$/,
   /^\/cooperation\/[^/]+$/,
 ];

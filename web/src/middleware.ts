@@ -7,6 +7,7 @@ import { adminListRedirects, normalizePath } from '@/lib/server/repos/redirectsR
 import { publicCatalogPaths } from '@/lib/server/repos/catalogRepo';
 import { publishedArticlePaths } from '@/lib/server/repos/articlesRepo';
 import { hasGuardedPrefix, shouldNotFound } from '@/lib/server/seo/knownPaths';
+import { archiveRedirect } from '@/lib/content/archivePaging';
 import { resolvePanelRouting, isPanelHost } from '@/lib/server/utils/panelHost';
 
 /**
@@ -112,6 +113,20 @@ export async function middleware(req: NextRequest) {
   // Redirects (US-14.3) are a public-site SEO concern — never checked on the
   // panel host, where every path is already spoken for by the admin rewrite.
   if (!onPanelHost) {
+    // Legacy `/blog?page=N` → `/blog/page/N`. The archive's page number moved
+    // into the path so the route could be genuinely ISR'd (reading
+    // `searchParams` in a Server Component makes the whole route dynamic in
+    // Next 15, which is why `revalidate = 600` there was dead code). Anything
+    // already linked or indexed with the old query form keeps working, and
+    // 308 tells Google the move is permanent.
+    const legacy = archiveRedirect(req.nextUrl.pathname, req.nextUrl.searchParams.get('page'));
+    if (legacy) {
+      const url = req.nextUrl.clone();
+      url.pathname = legacy;
+      url.search = '';
+      return NextResponse.redirect(url, 308);
+    }
+
     await refreshRedirectCacheIfStale();
     const redirectMatch = redirectCache.get(normalizePath(req.nextUrl.pathname));
     if (redirectMatch) {
