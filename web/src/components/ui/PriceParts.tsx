@@ -4,6 +4,26 @@ import { ClockIcon, CheckIcon } from '@/components/primitives/icons';
 import styles from './PriceParts.module.css';
 
 /**
+ * E5 · «بهترین قیمت» badge — a STATUS signal (which factory currently wins a
+ * size comparison), not decoration. Per this codebase's own accessibility
+ * pattern (see DeliveryBadge's `guaranteed` variant, MovementBadge's arrow):
+ * icon + visible Persian label, on the same gain/success token those already
+ * use — never a bare color/background as the only signal. Never render this
+ * on a stale/hidden-price row; the caller (PriceTable's by-size view) is
+ * responsible for excluding those before picking a "best".
+ */
+export function BestPriceBadge() {
+  return (
+    <span className={styles.bestPrice}>
+      <span className={styles.bestPriceIcon} aria-hidden="true">
+        <CheckIcon size={14} />
+      </span>
+      بهترین قیمت
+    </span>
+  );
+}
+
+/**
  * E3 · نوسان indicator — movement %, ALWAYS pairing color with an arrow + sign
  * (color-blind safe). `pill` tints it for emphasis.
  */

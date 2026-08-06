@@ -87,3 +87,22 @@
 .guaranteed .deliveryIcon {
   color: var(--color-gain);
 }
+
+/* ===== بهترین قیمت ===== */
+.bestPrice {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 3px var(--space-2);
+  border-radius: var(--radius-pill);
+  border: var(--border-hairline) solid var(--gain-100);
+  background: var(--gain-50);
+  color: var(--color-gain-text);
+  font: var(--t-caption);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.bestPriceIcon {
+  display: inline-flex;
+  color: var(--color-gain);
+}

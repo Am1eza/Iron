@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { MovementBadge, PriceTag, DeliveryBadge } from './PriceParts';
+import { MovementBadge, PriceTag, DeliveryBadge, BestPriceBadge } from './PriceParts';
 
 describe('MovementBadge', () => {
   it('renders an up arrow + signed percent for a gain', () => {
@@ -27,5 +27,12 @@ describe('DeliveryBadge', () => {
   it('shows the delivery time value', () => {
     render(<DeliveryBadge value="۲۴ ساعت" />);
     expect(screen.getByText('۲۴ ساعت')).toBeInTheDocument();
+  });
+});
+
+describe('BestPriceBadge', () => {
+  it('always carries a visible Persian text label, not color alone', () => {
+    render(<BestPriceBadge />);
+    expect(screen.getByText('بهترین قیمت')).toBeInTheDocument();
   });
 });
