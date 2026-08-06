@@ -225,6 +225,13 @@
       "when": 1785971134676,
       "tag": "0031_search_console_auth",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1786035586895,
+      "tag": "0032_add_subcategory_group_label",
+      "breakpoints": true
     }
   ]
 }

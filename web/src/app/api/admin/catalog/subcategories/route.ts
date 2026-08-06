@@ -23,6 +23,17 @@ const createPayload = z.object({
   categoryId: z.string().min(1),
   slug: slugSchema(60),
   name: z.string().trim().min(1).max(80).transform(normalizePersian),
+  // Display-only cluster label (not a real hierarchy level, see catalog.ts).
+  // Empty string means "no group" — normalized to null so it matches an
+  // untouched subcategory rather than becoming a spurious "" group.
+  groupLabel: z
+    .string()
+    .trim()
+    .max(80)
+    .transform(normalizePersian)
+    .transform((v) => v || null)
+    .nullable()
+    .optional(),
   order: finiteNumber.int().min(0).max(9999).optional(),
 });
 

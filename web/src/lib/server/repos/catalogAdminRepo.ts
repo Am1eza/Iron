@@ -226,7 +226,13 @@ async function subSlugTaken(categoryId: string, slug: string, exceptId?: string)
   return Boolean(hit && hit.id !== exceptId);
 }
 
-export async function createSubCategory(input: { categoryId: string; slug: string; name: string; order?: number }) {
+export async function createSubCategory(input: {
+  categoryId: string;
+  slug: string;
+  name: string;
+  groupLabel?: string | null;
+  order?: number;
+}) {
   const parent = await getDb()
     .select({ id: categories.id })
     .from(categories)
@@ -243,6 +249,7 @@ export async function createSubCategory(input: { categoryId: string; slug: strin
           categoryId: input.categoryId,
           slug,
           name: input.name,
+          groupLabel: input.groupLabel?.trim() || null,
           order: input.order ?? 99,
         })
         .returning(),
@@ -253,7 +260,14 @@ export async function createSubCategory(input: { categoryId: string; slug: strin
 
 export async function updateSubCategory(
   id: string,
-  patch: Partial<{ slug: string; name: string; order: number; isActive: boolean; categoryId: string }>,
+  patch: Partial<{
+    slug: string;
+    name: string;
+    groupLabel: string | null;
+    order: number;
+    isActive: boolean;
+    categoryId: string;
+  }>,
 ) {
   const db = getDb();
   const prevRows = await db.select().from(subCategories).where(eq(subCategories.id, id)).limit(1);
@@ -437,6 +451,7 @@ export async function catalogSuggestions(categoryId?: string): Promise<{
   sizes: string[];
   grades: string[];
   standards: string[];
+  groupLabels: string[];
 }> {
   const db = getDb();
   const where = categoryId ? eq(skus.categoryId, categoryId) : undefined;
@@ -453,11 +468,21 @@ export async function catalogSuggestions(categoryId?: string): Promise<{
     [...new Set(rows.map(get).filter((v): v is string => Boolean(v && v.trim())))].sort((a, b) =>
       a.localeCompare(b, 'fa'),
     );
+  // groupLabel lives on subCategories, not skus — same "let them pick, not
+  // type" rationale as factory above: a free-text cluster label is only
+  // useful if «ورق رنگی» stays one string, not three near-identical spellings
+  // silently splitting the group.
+  const groupWhere = categoryId ? eq(subCategories.categoryId, categoryId) : undefined;
+  const groupRows = await db.select({ groupLabel: subCategories.groupLabel }).from(subCategories).where(groupWhere);
+  const groupLabels = [
+    ...new Set(groupRows.map((r) => r.groupLabel).filter((v): v is string => Boolean(v && v.trim()))),
+  ].sort((a, b) => a.localeCompare(b, 'fa'));
   return {
     factories: pick((r) => r.factory),
     sizes: pick((r) => r.size),
     grades: pick((r) => r.grade),
     standards: pick((r) => r.standard),
+    groupLabels,
   };
 }
 

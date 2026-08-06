@@ -56,6 +56,17 @@ export const subCategories = pgTable(
       .references(() => categories.id, { onDelete: 'cascade' }),
     slug: text('slug').notNull(),
     name: text('name').notNull(),
+    // Purely a display-time cluster label, NOT a real hierarchy level — the
+    // model above is a hard two-level Category → SubCategory, and stays that
+    // way (both the URL structure `/prices/[category]/[sub]/[sku]` and every
+    // catalog query assume exactly two levels). When set, subcategories that
+    // share the same groupLabel within one category render under a shared
+    // heading in nav/breadcrumbs/admin (e.g. "ورق رنگی داخلی" and "ورق رنگی
+    // خارجی" both tagged "ورق رنگی") without needing a schema/route
+    // migration for a genuine third level. Null means "no grouping, list
+    // standalone" — the existing, unaffected default for every subcategory
+    // that predates this field.
+    groupLabel: text('group_label'),
     order: integer('order').notNull().default(0),
     isActive: boolean('is_active').notNull().default(true),
     seo: jsonb('seo').$type<SeoMeta>(),

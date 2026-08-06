@@ -7,6 +7,7 @@ import { cache } from 'react';
 import { API_MODE } from '@/lib/api/config';
 import { hasDb } from '@/lib/server/db/client';
 import type { Category, PriceRow, Article } from '@/lib/types/domain';
+import type { SubCat } from '@/lib/data/nav';
 import * as mock from '@/lib/mock/catalogData';
 import { categories as mockCategories, marketValues as mockMarketValues } from '@/lib/mock/fixtures';
 import * as repo from '@/lib/server/repos/catalogRepo';
@@ -49,7 +50,7 @@ export async function getCategories(): Promise<Category[]> {
  *  chips, breadcrumbs, sitemap). Admin-created sub-categories used to be
  *  invisible site-wide because these surfaces read the static MOCK_CATEGORY_SUBS
  *  fixture; that fixture is now only the mock/dev fallback. */
-export async function getSubsMap(): Promise<Record<string, Array<{ slug: string; name: string }>>> {
+export async function getSubsMap(): Promise<Record<string, SubCat[]>> {
   if (!live()) {
     const { MOCK_CATEGORY_SUBS } = await import('@/lib/data/nav');
     return MOCK_CATEGORY_SUBS;

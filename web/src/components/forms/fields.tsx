@@ -108,6 +108,56 @@ export const Textarea = forwardRef<HTMLTextAreaElement, AreaProps>(function Text
   );
 });
 
+/**
+ * Free-text field backed by a native `<input list>` + `<datalist>` of
+ * existing values — lets an admin pick from what's already in use instead of
+ * retyping, which is the only way a value like a factory name or a
+ * subcategory group label stays one consistent string instead of silently
+ * splitting into near-identical spellings across records. Originally lived
+ * only in SkuDrawer for factory/size/grade; moved here so the catalog
+ * taxonomy form (subcategory `groupLabel`) can reuse the exact same pattern
+ * instead of re-implementing it.
+ */
+export function PickerInput({
+  id,
+  label,
+  helper,
+  value,
+  options,
+  error,
+  maxLength,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  helper?: string;
+  value: string;
+  options: string[];
+  error?: string;
+  maxLength?: number;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <>
+      <TextInput
+        label={label}
+        list={`${id}-options`}
+        helper={helper}
+        value={value}
+        error={error}
+        maxLength={maxLength}
+        autoComplete="off"
+        onChange={(e) => onChange(e.target.value)}
+      />
+      <datalist id={`${id}-options`}>
+        {options.map((o) => (
+          <option key={o} value={o} />
+        ))}
+      </datalist>
+    </>
+  );
+}
+
 export function RadioGroup({
   label,
   options,
