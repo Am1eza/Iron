@@ -271,6 +271,21 @@ jobs:
 
             docker compose up -d web
 
+            # The image is built without DATABASE_URL (see page.tsx's hasDb()
+            # guard) so any static prerender that reads a DB-backed setting —
+            # today that's the homepage reading SITE_HERO_VIDEO — bakes in
+            # whatever hasDb()===false falls back to, e.g. the price-table
+            # fallback instead of the configured hero video. That page uses
+            # `revalidate = 300`, so it DOES self-correct once a real request
+            # triggers ISR regeneration with the container's actual runtime
+            # DB access — but that leaves a real window, up to 5 minutes,
+            # where every visitor to `/` sees the wrong render, on EVERY
+            # deploy. Confirmed live on 2026-08-06. Deleting the stale
+            # pre-rendered files forces the very next request to do a full
+            # fresh render instead of waiting on traffic to trigger it.
+            docker compose exec -T web sh -c \
+              "rm -f .next/server/app/index.html .next/server/app/index.rsc .next/server/app/index.meta" || true
+
             # Health gate: the new container must answer 200 on /api/health
             # before this counts as a success. No curl/wget in the runner
             # image (see docker-compose.yml's healthcheck comment) — use
