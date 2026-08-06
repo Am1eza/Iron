@@ -53,32 +53,42 @@ export const HeadingIcon = (p: IconProps) => (
   </Svg>
 );
 
+/** H2. The subscript is the same "2" the ordered-list glyph draws, so the two
+    read as one hand; the old floating tick read as "H." rather than "H₂". */
 export const SubheadingIcon = (p: IconProps) => (
   <Svg {...p}>
-    <path d="M6 7v10M14 7v10M6 12h8" />
-    <path d="M18 14v3" />
+    <path d="M5 6v12M12.5 6v12M5 12h7.5" />
+    <path d="M16.2 15.4c0-1 .8-1.7 1.8-1.7s1.7.7 1.7 1.6c0 1.6-3.5 2.3-3.5 4.4h3.6" />
   </Svg>
 );
 
+/* The three list/quote glyphs depict Persian text: markers on the inline-start
+   (the RIGHT), lines ragged on the left. They used to be drawn left-to-right,
+   so they showed a shape of text this editor never produces. These are not
+   flagged `.icon--rtl` — the whole editor is RTL, so they are drawn RTL. */
 export const BulletListIcon = (p: IconProps) => (
   <Svg {...p}>
-    <path d="M9 6h11M9 12h11M9 18h11" />
-    <circle cx="4.5" cy="6" r="1.2" fill="currentColor" stroke="none" />
-    <circle cx="4.5" cy="12" r="1.2" fill="currentColor" stroke="none" />
-    <circle cx="4.5" cy="18" r="1.2" fill="currentColor" stroke="none" />
+    <path d="M15 6H4M15 12H4M15 18H4" />
+    <circle cx="19.5" cy="6" r="1.2" fill="currentColor" stroke="none" />
+    <circle cx="19.5" cy="12" r="1.2" fill="currentColor" stroke="none" />
+    <circle cx="19.5" cy="18" r="1.2" fill="currentColor" stroke="none" />
   </Svg>
 );
 
 export const OrderedListIcon = (p: IconProps) => (
   <Svg {...p}>
-    <path d="M10 6h10M10 12h10M10 18h10" />
-    <path d="M4 5.5 5.2 5v3.2M3.6 15.2c0-.7.6-1.2 1.3-1.2s1.2.5 1.2 1.1c0 1.1-2.5 1.6-2.5 3.1h2.6" />
+    <path d="M14 6H4M14 12H4M14 18H4" />
+    <path d="M17.6 5.5 18.8 5v3.2M17.2 15.2c0-.7.6-1.2 1.3-1.2s1.2.5 1.2 1.1c0 1.1-2.5 1.6-2.5 3.1h2.6" />
   </Svg>
 );
 
+/** Blockquote drawn as what it produces: a rule on the inline-start (right, in
+    Persian) with indented lines. The old pair of hooked squares rendered as the
+    digits "55". */
 export const QuoteIcon = (p: IconProps) => (
   <Svg {...p}>
-    <path d="M9 7H5v5h4v-1c0 2.5-1 3.7-2.6 4.4M19 7h-4v5h4v-1c0 2.5-1 3.7-2.6 4.4" />
+    <path d="M19.5 6.5v11" />
+    <path d="M16.5 9h-9M16.5 12.5h-9M16.5 16h-5" />
   </Svg>
 );
 
@@ -99,10 +109,11 @@ export const TableIcon = (p: IconProps) => (
 
 export const ChartBarIcon = (p: IconProps) => (
   <Svg {...p}>
-    <path d="M4 20V4" />
-    <path d="M4 20h16" />
-    <rect x="7" y="12" width="3.2" height="5" rx="1" />
-    <rect x="13" y="8" width="3.2" height="9" rx="1" />
+    <path d="M4.5 4v15.5h15.5" />
+    {/* Bars sit on the axis. They used to stop at y=17 with the axis at y=20,
+        so both floated three units above the baseline. */}
+    <rect x="8" y="11" width="3.4" height="8.5" rx=".8" />
+    <rect x="14" y="7.5" width="3.4" height="12" rx=".8" />
   </Svg>
 );
 
@@ -142,31 +153,39 @@ export const RedoIcon = (p: IconProps) => (
   </Svg>
 );
 
+/* The four table-edit glyphs share one sentence: "here is the table, and here
+   is the row/column being added or removed". Previously the table was a lone
+   pill, which read as a battery next to a plus. Columns grow toward the
+   inline-start (left, in Persian), matching where a new column lands. */
 export const RowPlusIcon = (p: IconProps) => (
   <Svg {...p}>
-    <rect x="3.5" y="4" width="17" height="6" rx="1.5" />
-    <path d="M12 14v6M9 17h6" />
+    <rect x="3.5" y="3.5" width="17" height="9" rx="1.5" />
+    <path d="M3.5 8h17" />
+    <path d="M12 15v5.5M9.2 17.75h5.6" />
   </Svg>
 );
 
 export const ColumnPlusIcon = (p: IconProps) => (
   <Svg {...p}>
-    <rect x="14" y="3.5" width="6" height="17" rx="1.5" />
-    <path d="M7 9v6M4 12h6" />
+    <rect x="11.5" y="3.5" width="9" height="17" rx="1.5" />
+    <path d="M16 3.5v17" />
+    <path d="M6 9.2v5.6M3.2 12h5.6" />
   </Svg>
 );
 
 export const RowMinusIcon = (p: IconProps) => (
   <Svg {...p}>
-    <rect x="3.5" y="4" width="17" height="6" rx="1.5" />
-    <path d="M9 17h6" />
+    <rect x="3.5" y="3.5" width="17" height="9" rx="1.5" />
+    <path d="M3.5 8h17" />
+    <path d="M9.2 17.75h5.6" />
   </Svg>
 );
 
 export const ColumnMinusIcon = (p: IconProps) => (
   <Svg {...p}>
-    <rect x="14" y="3.5" width="6" height="17" rx="1.5" />
-    <path d="M4 12h6" />
+    <rect x="11.5" y="3.5" width="9" height="17" rx="1.5" />
+    <path d="M16 3.5v17" />
+    <path d="M3.2 12h5.6" />
   </Svg>
 );
 

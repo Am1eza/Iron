@@ -9,7 +9,7 @@ import { ContactCard } from '@/components/company/ContactCard';
 import {
   TagIcon,
   ClockIcon,
-  SparkIcon,
+  AiMarkIcon,
   ChartIcon,
   CheckCircleIcon,
   PhoneIcon,
@@ -45,7 +45,7 @@ const advantages: Feature[] = [
   {
     title: 'مشاور هوش مصنوعی',
     desc: 'دستیار هوشمند آهن‌تایم پیش از خرید پاسخ می‌دهد؛ انتخاب سایز و گرید، برآورد وزن و هزینه.',
-    icon: <SparkIcon size={22} />,
+    icon: <AiMarkIcon size={22} />,
     accent: true,
   },
   {

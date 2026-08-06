@@ -2,7 +2,7 @@
 import { useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { routes } from '@/lib/routes';
-import { SparkIcon, ChevronStartIcon } from '@/components/primitives/icons';
+import { AiMarkIcon, ChevronStartIcon } from '@/components/primitives/icons';
 import { toPersianDigits } from '@/lib/utils/format';
 import styles from './HeroSearch.module.css';
 
@@ -57,7 +57,7 @@ export function HeroSearch({
             data-event="ai_entry"
           >
             <span className={styles.searchIcon} aria-hidden>
-              <SparkIcon size={22} />
+              <AiMarkIcon size={22} />
             </span>
             <input
               className={styles.searchInput}

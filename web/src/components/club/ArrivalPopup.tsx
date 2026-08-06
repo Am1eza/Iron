@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { routes } from '@/lib/routes';
 import { useUiStore } from '@/lib/stores/ui';
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion';
-import { SparkIcon, CloseIcon, ArrowEndIcon } from '@/components/primitives/icons';
+import { AiMarkIcon, CloseIcon, ArrowEndIcon } from '@/components/primitives/icons';
 import styles from './ArrivalPopup.module.css';
 
 /** Delay before the invitation appears (ms). */
@@ -83,7 +83,7 @@ export function ArrivalPopup() {
 
       <div className={styles.body}>
         <span className={styles.icon} aria-hidden="true">
-          <SparkIcon size={20} />
+          <AiMarkIcon size={20} />
         </span>
         <div className={styles.text}>
           <p className={styles.title}>محصول‌ها و قیمت‌های تازه رسید</p>

@@ -124,7 +124,7 @@ The 7 product categories are drawn as **structural silhouettes / cross-sections*
 ### 5.5 AI
 | Icon | id | Use | M? |
 |---|---|---|---|
-| Ahantime spark | `spark` | the AI mark (4-point amber spark) | – |
+| Ahantime advisor mark | `ai-mark` | the AI mark — a consult bubble with the I-beam cross-section knocked out of it, drawn from the logo. Filled, not monoline, so it survives 14px and the amber orb. (Superseded the 4-point spark, which was the generic AI-product sparkle.) | – |
 | Microphone | `mic` | voice input | – |
 | Send | `send` | submit message | **✓** (points to writing dir) |
 

@@ -7,7 +7,7 @@ import { normalizeDigits, toPersianDigits, formatToman } from '@/lib/utils/forma
 import { getRows } from '@/lib/mock/catalogData';
 import { CATEGORY_ALIASES, PURPOSE_CHIPS } from '@/lib/data/aiTaxonomy';
 import { computeBulkSplit, type BulkSplit } from '@/components/catalog/BulkQuote';
-import { SparkIcon, ChevronStartIcon, CheckCircleIcon, MicIcon } from '@/components/primitives/icons';
+import { AiMarkIcon, ChevronStartIcon, CheckCircleIcon, MicIcon } from '@/components/primitives/icons';
 import { getSpeechRecognition, type SpeechRecognitionLike } from '@/lib/utils/speech';
 import { ChatMarkdown } from './ChatMarkdown';
 import { loadChat, saveChat, clearChat } from '@/lib/ai/chatStorage';
@@ -281,7 +281,7 @@ const MessageBubble = memo(function MessageBubble({
     >
       {m.role === 'ai' && (
         <span className={styles.bubbleAvatar} aria-hidden>
-          <SparkIcon size={14} />
+          <AiMarkIcon size={14} />
         </span>
       )}
       <div className={styles.bubbleWrap}>
@@ -622,7 +622,7 @@ export function AdvisorChat({
     <div className={styles.wrap}>
       <header className={styles.head}>
         <span className={styles.avatar} aria-hidden>
-          <SparkIcon size={20} />
+          <AiMarkIcon size={20} />
         </span>
         <div className={styles.headText}>
           <h1 className={styles.headName}>مشاور هوشمند آهن‌تایم</h1>
@@ -649,7 +649,7 @@ export function AdvisorChat({
           {typing && (
             <div className={`${styles.row} ${styles.rowAi}`} aria-hidden="true">
               <span className={styles.bubbleAvatar} aria-hidden>
-                <SparkIcon size={14} />
+                <AiMarkIcon size={14} />
               </span>
               <div className={`${styles.bubble} ${styles.ai} ${styles.typing}`}>
                 <span />
