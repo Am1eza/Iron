@@ -15,6 +15,17 @@
   align-items: center;
   gap: var(--space-1);
 }
+/* WCAG 2.2 SC 2.5.8 (Target Size, Minimum, AA): measured at 390px these were
+   23x21 and 29x21 CSS px. The spacing exception does not apply — the crumbs
+   sit in a row with a 4px gap — so the target itself has to be at least 24px
+   tall. Padding rather than a fixed height so the text position is unchanged. */
+.link,
+.current {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 24px;
+  padding-block: var(--space-1);
+}
 .link {
   font: var(--t-caption);
   color: var(--color-text-muted);

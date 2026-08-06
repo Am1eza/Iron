@@ -4,8 +4,12 @@ import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { adminGetArticle, updateArticle, deleteDraftArticle } from '@/lib/server/repos/articlesRepo';
 import { DuplicateArticleSlugError } from '@/lib/server/repos/articlesRepo';
-import { safeRevalidatePath } from '@/lib/server/utils/revalidate';
-import { articleSlugSchema, articleTagsSchema, uploadPathSchema } from '@/lib/validation/utils';
+import {
+  safeRevalidatePath,
+  revalidateArticleSection,
+  revalidateArticleUrl,
+} from '@/lib/server/utils/revalidate';
+import { articleSlugSchema, articleTagsSchema, uploadPathSchema, internalPathSchema } from '@/lib/validation/utils';
 import { richDocSchema } from '@/lib/content/richDoc';
 import { createRedirect, RedirectLoopError } from '@/lib/server/repos/redirectsRepo';
 import { reportError } from '@/lib/errors/report';
@@ -28,13 +32,11 @@ function articlePath(type: 'blog' | 'news', slug: string): string {
  * old slug (what a slug-only signature would do) purges the wrong page.
  */
 function revalidateArticle(next: { type: 'blog' | 'news'; slug: string }, prev?: { type: 'blog' | 'news'; slug: string }): void {
-  const nextBase = next.type === 'news' ? '/news' : '/blog';
-  safeRevalidatePath(nextBase, 'layout');
-  safeRevalidatePath(`${nextBase}/${next.slug}`);
+  revalidateArticleSection(next.type);
+  revalidateArticleUrl(next.type, next.slug);
   if (prev && (prev.type !== next.type || prev.slug !== next.slug)) {
-    const prevBase = prev.type === 'news' ? '/news' : '/blog';
-    safeRevalidatePath(prevBase, 'layout');
-    safeRevalidatePath(`${prevBase}/${prev.slug}`);
+    revalidateArticleSection(prev.type);
+    revalidateArticleUrl(prev.type, prev.slug);
   }
   // The sitemap is a route like any other; a publish/retract must reach Google.
   safeRevalidatePath('/sitemap.xml');
@@ -91,9 +93,19 @@ const patchPayload = z.object({
     .object({
       title: z.string().trim().max(70).optional(),
       description: z.string().trim().max(200).optional(),
+      // `/^\//` only asserted "starts with a slash" — which `//evil.com` and
+      // `/\evil.com` both do, and both resolve to `https://evil.com/` in
+      // `buildMetadata`'s `new URL(path, SITE_URL)`. That published an
+      // attacker-controlled `<link rel="canonical">` and `og:url` on the
+      // article: a silent, durable ranking/traffic hijack that leaves the page
+      // rendering perfectly. Use the shared parser-based schema — the same one
+      // `ogImage`'s sibling `uploadPathSchema` already models — and keep the
+      // leading-slash requirement for the editor-facing error message.
       canonical: z.preprocess(
         (v) => (v === '' ? undefined : v),
-        z.string().regex(/^\//, 'نشانی متعارف باید یک مسیر داخلی باشد (با / شروع شود).').max(300).optional(),
+        internalPathSchema(300)
+          .refine((v) => v.startsWith('/'), 'نشانی متعارف باید یک مسیر داخلی باشد (با / شروع شود).')
+          .optional(),
       ),
       ogImage: z.preprocess((v) => (v === '' ? undefined : v), uploadPathSchema.optional()),
     })

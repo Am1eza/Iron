@@ -40,11 +40,21 @@ describe('MarkdownProse — inline formatting (W25)', () => {
   });
 
   it('links an http(s) href and marks external links noreferrer/nofollow', () => {
+    render(<MarkdownProse md="[سایت دیگر](https://example.com/prices/rebar)" />);
+    const a = screen.getByRole('link', { name: 'سایت دیگر' });
+    expect(a).toHaveAttribute('href', 'https://example.com/prices/rebar');
+    expect(a.getAttribute('rel')).toContain('noreferrer');
+    expect(a.getAttribute('rel')).toContain('nofollow');
+  });
+
+  // `isExternal` used to be `/^https?:\/\//` — which called our OWN absolute
+  // URLs external and nofollow'd away our own internal link equity. It now
+  // resolves and compares origins.
+  it('treats an absolute URL back to this site as internal', () => {
     render(<MarkdownProse md="[قیمت میلگرد](https://ahantime.com/prices/rebar)" />);
     const a = screen.getByRole('link', { name: 'قیمت میلگرد' });
     expect(a).toHaveAttribute('href', 'https://ahantime.com/prices/rebar');
-    expect(a.getAttribute('rel')).toContain('noreferrer');
-    expect(a.getAttribute('rel')).toContain('nofollow');
+    expect(a.getAttribute('rel')).not.toContain('nofollow');
   });
 
   it('keeps a relative link clean (no nofollow on our own pages)', () => {

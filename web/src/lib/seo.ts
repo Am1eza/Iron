@@ -3,8 +3,17 @@
  */
 import type { Metadata } from 'next';
 import { CHANNELS } from '@/lib/data/nav';
+import { SITE_ORIGIN } from '@/lib/utils/url';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://ahantime.com';
+/** Resolve against SITE_URL without throwing on a malformed admin value. */
+function safeResolve(path: string): URL | undefined {
+  try {
+    return new URL(path, SITE_URL);
+  } catch {
+    return undefined;
+  }
+}
 const BRAND = 'آهن‌تایم';
 /** Default social-preview image — static app/opengraph-image.png (1200×630). */
 const DEFAULT_OG_IMAGE = new URL('/opengraph-image.png', SITE_URL).toString();
@@ -26,8 +35,22 @@ export function buildMetadata(opts: {
   /** Homepage only: `title` is already the full brand title — skip the root
    *  layout's `%s | آهن‌تایم` template instead of double-appending the brand. */
   absoluteTitle?: boolean;
+  /** `article` on blog/news detail pages — see `articleOpenGraph` below. */
+  openGraphType?: 'website' | 'article';
+  /** ISO strings; emitted as `article:published_time` / `article:modified_time`. */
+  publishedTime?: string;
+  modifiedTime?: string;
 }): Metadata {
-  const canonical = opts.path ? new URL(opts.path, SITE_URL).toString() : undefined;
+  // The origin assertion is the backstop that makes an off-site canonical
+  // impossible REGARDLESS of which caller got validation wrong. `opts.path`
+  // is admin-controlled on article pages (`seo.canonical`), and a value like
+  // `//evil.com` or `/\evil.com` resolves to `https://evil.com/` here — which
+  // is then published as this article's canonical AND its `og:url`. Dropping
+  // the canonical entirely is the right failure: a missing canonical costs a
+  // little SEO, a wrong one hands the ranking to someone else.
+  const resolved = opts.path ? safeResolve(opts.path) : undefined;
+  const canonical =
+    resolved && resolved.origin === SITE_ORIGIN ? resolved.toString() : undefined;
   const ogImage = opts.ogImage ? new URL(opts.ogImage, SITE_URL).toString() : DEFAULT_OG_IMAGE;
   const socialTitle = opts.absoluteTitle ? opts.title : `${opts.title} | ${BRAND}`;
   return {
@@ -42,7 +65,16 @@ export function buildMetadata(opts: {
       images: [ogImage],
       siteName: BRAND,
       locale: 'fa_IR',
-      type: 'website',
+      // Telegram/WhatsApp/LinkedIn card parsers read OG, not JSON-LD — an
+      // article shared into a steel-trading group rendered as a generic
+      // website card with no date. The JSON-LD was already correct.
+      ...(opts.openGraphType === 'article'
+        ? {
+            type: 'article' as const,
+            publishedTime: opts.publishedTime,
+            modifiedTime: opts.modifiedTime,
+          }
+        : { type: 'website' as const }),
     },
     twitter: {
       card: 'summary_large_image',

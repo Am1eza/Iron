@@ -1,6 +1,6 @@
 import { routes } from '@/lib/routes';
 import { ORG_NAME } from '@/lib/seo';
-import { getAllPublishedArticles, isLiveCatalog } from '@/lib/server/catalog';
+import { getArticlesPage, isLiveCatalog } from '@/lib/server/catalog';
 import { buildRssFeed, RSS_HEADERS, RSS_ITEM_LIMIT } from '@/lib/server/rss';
 
 /**
@@ -20,11 +20,13 @@ export async function GET(): Promise<Response> {
   // from `lib/mock`. A feed of fixture articles points subscribers at URLs
   // that 404, so an empty feed is the only honest answer without a database.
   //
-  // Bounded: `getAllPublishedArticles` pages up to 50×200, which is the right
-  // answer for a sitemap and very much the wrong one for a feed.
-  const articles = isLiveCatalog()
-    ? (await getAllPublishedArticles('news')).slice(0, RSS_ITEM_LIMIT)
-    : [];
+  // Bounded AT THE QUERY, not after it: this used to call
+  // `getAllPublishedArticles` — up to 50x200 fully-hydrated rows, bodies
+  // included — and then `.slice(0, 50)` the result. The feed is
+  // `ORDER BY publish_at DESC LIMIT 50`, which is precisely page 1.
+  const { articles } = isLiveCatalog()
+    ? await getArticlesPage('news', 1, RSS_ITEM_LIMIT)
+    : { articles: [] };
   const xml = buildRssFeed({
     title: `اخبار بازار آهن و فولاد | ${ORG_NAME}`,
     description: 'تازه‌ترین اخبار بازار آهن و فولاد؛ تولید، عرضه و نرخ شمش.',

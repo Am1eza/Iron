@@ -47,6 +47,16 @@ export const routes = {
   // Content
   blog: (slug?: string) => (slug ? `/blog/${enc(slug)}` : '/blog'),
   news: (slug?: string) => (slug ? `/news/${enc(slug)}` : '/news'),
+  /**
+   * Archive page N. The page number lives in the PATH, not in `?page=`,
+   * because reading `searchParams` in a Server Component opts the whole route
+   * into dynamic rendering in Next 15 — which is why `/blog` and `/news`
+   * declared `revalidate = 600` and were nonetheless re-rendered, with two
+   * Postgres queries, on literally every visit. Page 1 is always the bare
+   * `/blog` so there is exactly one URL for it.
+   */
+  blogPage: (n: number) => (n <= 1 ? '/blog' : `/blog/page/${n}`),
+  newsPage: (n: number) => (n <= 1 ? '/news' : `/news/page/${n}`),
 
   // Company / cooperation ( /why merged into /about — see next.config redirect )
   about: () => '/about',

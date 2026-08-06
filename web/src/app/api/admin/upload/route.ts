@@ -4,6 +4,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { ulid } from 'ulid';
 import { can } from '@/lib/auth/roles';
 import { requireApiUser, requireDb, withApiErrorHandling, audit } from '@/lib/server/utils/apiGuard';
+import { rateLimit } from '@/lib/server/utils/rateLimit';
 import { sniffImageExt } from '@/lib/server/utils/imageSniff';
 
 export const runtime = 'nodejs';
@@ -31,6 +32,12 @@ async function POSTImpl(req: NextRequest) {
   if (!can(session.role, 'content:write') && !can(session.role, 'catalog:write')) {
     return NextResponse.json({ error: 'not_found', message: 'یافت نشد.' }, { status: 404 });
   }
+  // Auth and validation were already right; what was missing was any bound on
+  // HOW MANY times a legitimate (or compromised) holder may call this. Uploads
+  // land in a Docker volume on the same host as Postgres, at 5 MB a call, with
+  // no orphan cleanup. 30/min is far above real editorial use.
+  const limited = await rateLimit(req, 'upload', { limit: 30, windowMs: 60_000 });
+  if (limited) return limited;
 
   const form = await req.formData().catch(() => null);
   const file = form?.get('file');

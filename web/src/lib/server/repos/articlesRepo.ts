@@ -2,7 +2,7 @@
  * Articles — blog/news with the AI-draft → editor approval gate.
  * Public reads only expose published items whose publishAt has passed.
  */
-import { and, desc, eq, ilike, isNull, isNotNull, lte, or, sql } from 'drizzle-orm';
+import { and, desc, eq, ilike, isNull, isNotNull, lte, ne, or, sql } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { getDb } from '@/lib/server/db/client';
 import { articles } from '@/lib/server/db/schema';
@@ -11,10 +11,20 @@ import type { RichDoc } from '@/lib/content/richDoc';
 import { docToMarkdown } from '@/lib/content/docToMarkdown';
 import { normalizeDigits, toPersianDigits } from '@/lib/utils/format';
 import { likeContains } from '@/lib/server/utils/likeEscape';
+import { PER_PAGE } from '@/lib/content/archivePaging';
 
 type Row = typeof articles.$inferSelect;
 
-export function toArticleDto(r: Row): Article {
+/** The columns `toArticleDto` reads — see `LIST_COLUMNS` for the projection
+ *  that produces exactly these. Typed rather than cast so that adding a field
+ *  to the DTO is a compile error here, not a silent `undefined` on list rows. */
+export type ArticleListRow = Pick<
+  Row,
+  | 'id' | 'slug' | 'type' | 'title' | 'excerpt' | 'coverUrl'
+  | 'status' | 'source' | 'publishAt' | 'updatedAt' | 'tags' | 'seo'
+>;
+
+export function toArticleDto(r: ArticleListRow): Article {
   return {
     id: r.id,
     slug: r.slug,
@@ -95,12 +105,36 @@ async function asSlugConflict<T>(run: () => Promise<T>): Promise<T> {
   }
 }
 
+/**
+ * The columns `toArticleDto` actually reads. `db.select()` with no projection
+ * pulled `body_md` AND `body_json` — the full ProseMirror document — out of
+ * Postgres to render cards that show a title, an excerpt and a date, and then
+ * discarded ~99% of it. Invisible at 7 short articles; the sitemap and RSS
+ * paths page up to 50x200 rows through this, so at a few hundred articles with
+ * real editor content (images, tables, chart nodes) it is megabytes per call,
+ * once per worker per memo window.
+ */
+const LIST_COLUMNS = {
+  id: articles.id,
+  slug: articles.slug,
+  type: articles.type,
+  title: articles.title,
+  excerpt: articles.excerpt,
+  coverUrl: articles.coverUrl,
+  status: articles.status,
+  source: articles.source,
+  publishAt: articles.publishAt,
+  updatedAt: articles.updatedAt,
+  tags: articles.tags,
+  seo: articles.seo,
+} as const;
+
 export async function listPublished(type: 'blog' | 'news', page = 1, perPage = 20) {
   const db = getDb();
   const where = and(eq(articles.type, type), publishedCond());
   const [rows, total] = await Promise.all([
     db
-      .select()
+      .select(LIST_COLUMNS)
       .from(articles)
       .where(where)
       .orderBy(desc(articles.publishAt))
@@ -112,17 +146,62 @@ export async function listPublished(type: 'blog' | 'news', page = 1, perPage = 2
 }
 
 /**
- * `/blog/{slug}` and `/news/{slug}` for every article the public can actually
- * read — same `publishedCond()` the detail page uses, so a draft or a
- * scheduled-but-not-yet-due article is (correctly) not in the list and its URL
- * 404s. Slug-only, no body: this is read from middleware on a 60s cache.
+ * The "مطالب مرتبط" strip under an article.
+ *
+ * The page used to call `getArticlesByType()`, which runs `listPublished` —
+ * i.e. TWO queries returning twenty fully-hydrated rows (bodies included) —
+ * and then `.filter().slice(0, 3)` them down to three title-only cards, while
+ * throwing away the `count(*)` it had just paid for. One projected query, three
+ * skinny rows.
+ *
+ * "Related" here is recency, exactly as before: making it genuinely related
+ * (shared category / tag overlap, both already in the schema) is a product
+ * change, not a performance fix, and is deliberately out of scope here.
  */
-export async function publishedArticlePaths(): Promise<string[]> {
+export async function relatedArticles(
+  type: 'blog' | 'news',
+  excludeSlug: string,
+  limit = 3,
+): Promise<Article[]> {
+  const rows = await getDb()
+    .select(LIST_COLUMNS)
+    .from(articles)
+    .where(and(eq(articles.type, type), ne(articles.slug, excludeSlug), publishedCond()))
+    .orderBy(desc(articles.publishAt))
+    .limit(limit);
+  return rows.map(toArticleDto);
+}
+
+/**
+ * Every public URL under /blog and /news that may legitimately answer 200 —
+ * i.e. the middleware 404 guard's allowlist for these two families, which is
+ * the ONLY caller and the reason for the name. Two kinds of URL:
+ *
+ *  - `/blog/{slug}` and `/news/{slug}` for every article the public can
+ *    actually read, using the same `publishedCond()` the detail page uses, so
+ *    a draft or a scheduled-but-not-yet-due article is (correctly) absent and
+ *    its URL 404s;
+ *  - the archive pages that exist, `/blog/page/2 ... /blog/page/<last>`.
+ *
+ * NOT an article list. Anything that wants article URLs alone (a sitemap, a
+ * feed) must not read this — it would silently publish pagination URLs.
+ * Slug-only, no body: read from middleware on a 60s cache.
+ */
+export async function publishedGuardPaths(): Promise<string[]> {
   const rows = await getDb()
     .select({ slug: articles.slug, type: articles.type })
     .from(articles)
     .where(publishedCond());
-  return rows.map((r) => `/${r.type}/${r.slug}`);
+  const paths = rows.map((r) => `/${r.type}/${r.slug}`);
+  // The archive pages that actually exist, so `/blog/page/999` can be answered
+  // with a genuine 404 by the middleware guard instead of a cacheable 200
+  // that claims the blog is empty. Page 1 is `/blog` and is a static route,
+  // so the list starts at 2.
+  for (const type of ['blog', 'news'] as const) {
+    const pageCount = Math.ceil(rows.filter((r) => r.type === type).length / PER_PAGE);
+    for (let n = 2; n <= pageCount; n += 1) paths.push(`/${type}/page/${n}`);
+  }
+  return paths;
 }
 
 export async function findPublishedBySlug(slug: string): Promise<ArticleFull | null> {
@@ -332,11 +411,18 @@ export async function updateArticle(
  * an article that skipped that endpoint, even if some other write path
  * manages to set status='scheduled' directly in the future.
  */
-export async function publishDueArticles(): Promise<number> {
+export async function publishDueArticles(): Promise<{ type: 'blog' | 'news'; slug: string }[]> {
+  // Returns WHAT was published, not just how many: /blog and /news are now
+  // genuinely ISR-cached, so the caller has to purge their caches or a
+  // scheduled article waits up to 10 minutes to appear. Its own detail URL is
+  // the sharper edge — anyone (a crawler following a pre-announced link, the
+  // editor previewing) who hits it before the publish time caches a
+  // `notFound()` for that route's revalidate window, so the article can 404
+  // for minutes AFTER it goes live.
   const rows = await getDb()
     .update(articles)
     .set({ status: 'published', updatedAt: new Date() })
     .where(and(eq(articles.status, 'scheduled'), lte(articles.publishAt, new Date()), isNotNull(articles.approvedBy)))
-    .returning({ id: articles.id });
-  return rows.length;
+    .returning({ type: articles.type, slug: articles.slug });
+  return rows;
 }

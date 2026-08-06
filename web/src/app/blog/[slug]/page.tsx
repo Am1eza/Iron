@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { buildMetadata, articleJsonLd } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { articlesByType } from '@/lib/mock/catalogData';
-import { getArticle, getArticlesByType } from '@/lib/server/catalog';
+import { getArticle, getRelatedArticles } from '@/lib/server/catalog';
 import { shouldPrerenderMockParams } from '@/lib/server/seo/prerenderParams';
 import { formatJalali } from '@/lib/utils/jalali';
 import { Container, Section, Stack, Heading, Breadcrumbs, Badge } from '@/components/ui';
@@ -38,17 +38,24 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     description: seo?.description ?? article.excerpt,
     path: seo?.canonical ?? routes.blog(article.slug),
     ogImage: seo?.ogImage ?? article.coverUrl,
+    // Telegram/WhatsApp/LinkedIn read OG, not JSON-LD (which was already
+    // correct here) — every article shared into a steel-trading group
+    // rendered as a generic, dateless website card.
+    openGraphType: 'article',
+    publishedTime: article.publishAt,
+    modifiedTime: article.updatedAt,
   });
 }
 
 export default async function BlogArticlePage({ params }: Params) {
   const { slug } = await params;
   // Independent reads — the related list only needs the static 'blog' type,
-  // not the resolved article — so fetch both concurrently.
-  const [article, allBlog] = await Promise.all([getArticle(slug), getArticlesByType('blog')]);
+  // not the resolved article — so fetch both concurrently. The related query
+  // is now a single projected `LIMIT 3` (see `relatedArticles`): this used to
+  // run TWO queries and hydrate twenty full rows, bodies included, plus a
+  // `count(*)` it discarded, to render three title-only cards.
+  const [article, related] = await Promise.all([getArticle(slug), getRelatedArticles('blog', slug)]);
   if (!article || article.type !== 'blog') notFound();
-
-  const related = allBlog.filter((a) => a.slug !== article.slug).slice(0, 3);
 
   const crumbs = [
     { label: 'خانه', href: routes.home() },
