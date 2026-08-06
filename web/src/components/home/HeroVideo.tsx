@@ -1,84 +1,40 @@
-'use client';
-import { useEffect, useState, type ReactNode } from 'react';
 import styles from './HeroVideo.module.css';
 
-/** Matches HeroSearch.module.css's own tablet breakpoint, where the board
- *  slot is already shrunk — the lighter `-mobile` encode is sized for that
- *  range (tablet AND phone), not full desktop. This used to also be the
- *  point below which video was skipped outright in favour of the price-board
- *  fallback; the owner wants the video consistently, on every device, so
- *  phones now get this same lighter encode instead of losing the video. */
+/** Matches HeroSearch.module.css's own tablet breakpoint — the lighter
+ *  `-mobile` encode is sized for that range (tablet AND phone), not full
+ *  desktop. */
 const LIGHT_SOURCE_BREAKPOINT = '(max-width: 1023px)';
-
-/** Deliberately does NOT check `navigator.connection` (Network Information
- * API) — a first version of this did, and it was wrong to: the API is
- * commonly spoofed or blocked outright by privacy-focused browsers and
- * extensions (Brave, several ad/tracker blockers) specifically to reduce
- * fingerprinting surface, which means it can report a fast connection as
- * `slow-2g`/`3g` for reasons having nothing to do with actual speed. That
- * silently killed the video for ordinary desktop visitors — including the
- * site owner testing on their own connection.
- *
- * The one thing this still declines for is `prefers-reduced-motion` — that
- * is not a bandwidth heuristic but an explicit, OS-level accessibility
- * signal from a visitor who gets real physical symptoms (nausea, vertigo)
- * from autoplaying motion; it stays even though every other gate here was
- * removed so the owner gets the video consistently on every device. */
-function videoIsWorthIt(): boolean {
-  return !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-}
 
 /**
  * The hero motion-graphic slot — drops into the exact position the PriceBoard
  * occupies when the owner sets SITE_HERO_VIDEO in admin settings.
  *
- * `fallback` (the real PriceBoard, server-rendered) is what's shown FIRST,
- * always — on every device, with JS or without. Only once mounted do we
- * decide, client-side, whether THIS visitor should upgrade to video: every
- * viewport qualifies now (phones use the lighter `-mobile` encode below),
- * the only disqualifier left is `prefers-reduced-motion`. This is why the
- * server-rendered HTML and the pre-effect client render are IDENTICAL
- * (both show `fallback`) — no hydration mismatch, and a reduced-motion
- * visitor never requests a single byte of video.
+ * Server-rendered directly and unconditionally, on every device — no
+ * client-side "show the price table first, upgrade to video once mounted"
+ * step. That upgrade-later approach used to cause a real, visible flash of
+ * the table (1-5s on an ordinary connection) before the video took over,
+ * and on an iOS home-screen web app it sometimes never upgraded at all.
+ * Confirmed live by the owner on desktop, mobile browser, and an iOS
+ * add-to-home-screen build; the fix is to not have an upgrade step — this
+ * component IS the video, from the very first byte of HTML. `poster` is
+ * what actually paints instantly while the video data streams in, so
+ * there's still no blank flash even before playback starts.
  *
- * For visitors who DO qualify, mounting the `<video>` is itself deferred to
- * just after `window.load`, so it never competes with the page's own
- * critical-path resources — the fallback board is what visitors actually
- * see (and what LCP measures) for that first moment regardless of tier.
+ * This is also why `prefers-reduced-motion` is no longer checked here: that
+ * gate fell back to the same table, which the owner explicitly asked to
+ * remove after seeing it happen. A future motion-sensitive-visitor control
+ * should be a visible pause/mute affordance, not a silent server-side swap
+ * back to a table.
  *
  * Multiple `<source>`s, in order: a lighter/smaller-resolution encode for
- * the tablet range (matches HeroSearch's own 1023px breakpoint) before the
- * full-size one, and WebM (VP9, meaningfully smaller) before MP4 (H.264,
- * universal fallback) within each. Filenames are derived from `src` by
- * convention (see public/media/README.md) — if the optional variants or the
- * poster are missing, the browser just falls through to the one file that's
- * guaranteed to exist (`src` itself), no error.
+ * the tablet+phone range (matches HeroSearch's own 1023px breakpoint)
+ * before the full-size one, and WebM (VP9, meaningfully smaller) before MP4
+ * (H.264, universal fallback) within each. Filenames are derived from `src`
+ * by convention (see public/media/README.md) — if the optional variants or
+ * the poster are missing, the browser just falls through to the one file
+ * that's guaranteed to exist (`src` itself), no error.
  */
-export function HeroVideo({ src, fallback }: { src: string; fallback: ReactNode }) {
-  const [showVideo, setShowVideo] = useState(false);
-
-  useEffect(() => {
-    if (!videoIsWorthIt()) return;
-    let cancelled = false;
-    const upgrade = () => {
-      if (!cancelled) setShowVideo(true);
-    };
-    if (document.readyState === 'complete') {
-      const id = window.setTimeout(upgrade, 0);
-      return () => {
-        cancelled = true;
-        window.clearTimeout(id);
-      };
-    }
-    window.addEventListener('load', upgrade, { once: true });
-    return () => {
-      cancelled = true;
-      window.removeEventListener('load', upgrade);
-    };
-  }, []);
-
-  if (!showVideo) return <>{fallback}</>;
-
+export function HeroVideo({ src }: { src: string }) {
   const base = src.replace(/\.mp4$/, '');
   return (
     <div className={styles.frame} aria-hidden="true">
@@ -89,14 +45,13 @@ export function HeroVideo({ src, fallback }: { src: string; fallback: ReactNode 
         muted
         loop
         playsInline
-        /* `metadata`, not `auto`. 7e3dbf6 already moved the mount itself past
-           `window.load`, so this is off the LCP path — but `auto` explicitly
-           asks the browser to buffer the ENTIRE file (up to 936 KB for the
-           desktop WebM) as fast as it can, competing with the fetches a
-           visitor's first interaction triggers. `metadata` lets autoplay pull
-           only what it needs to start and then stream, which is what a muted
-           background loop wants; autoplay still works, since the spec has
-           autoplay override the preload hint once playback is requested. */
+        /* `metadata`, not `auto`: `auto` explicitly asks the browser to
+           buffer the ENTIRE file (up to 936 KB for the desktop WebM) as fast
+           as it can, competing with the rest of the hero's own critical-path
+           resources. `metadata` lets autoplay pull only what it needs to
+           start and then stream, which is what a muted background loop
+           wants; autoplay still works, since the spec has autoplay override
+           the preload hint once playback is requested. */
         preload="metadata"
         disablePictureInPicture
       >

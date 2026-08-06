@@ -105,11 +105,7 @@ export default async function HomePage() {
       <HeroSearch
         stats={{ skuCount, factoryCount }}
         board={
-          heroVideo.url ? (
-            <HeroVideo src={heroVideo.url} fallback={<PriceBoard rows={boardRows} />} />
-          ) : (
-            <PriceBoard rows={boardRows} />
-          )
+          heroVideo.url ? <HeroVideo src={heroVideo.url} /> : <PriceBoard rows={boardRows} />
         }
       />
       <CategoryStage categories={categories} subs={subsMap} factories={factories} />
