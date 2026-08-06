@@ -27,7 +27,7 @@ import { slugify } from '@/lib/utils/slugify';
 import { useToast } from '@/lib/hooks/useToast';
 import { useDeepLinkQuery } from '@/lib/hooks/useDeepLinkQuery';
 import { Alert, Badge, Button, Chip, EmptyState, Modal, TableSkeleton, useConfirm } from '@/components/ui';
-import { TextInput } from '@/components/forms/fields';
+import { TextInput, PickerInput } from '@/components/forms/fields';
 import { ImageUpload } from '../ImageUpload';
 import { PagerFooter } from '../PagerFooter';
 import { TaxonomyRail, type RailSelection } from './TaxonomyRail';
@@ -694,6 +694,19 @@ function NodeModal({
   const iconRow = draft.kind === 'category' ? (draft.row as AdminCategory | null) : null;
   const [iconId, setIconId] = useState(iconRow?.iconId ?? '');
   const [imageUrl, setImageUrl] = useState<string | null>(iconRow?.imageUrl ?? null);
+  const subRow = draft.kind === 'sub' ? (draft.row as AdminSubCategory | null) : null;
+  const [groupLabel, setGroupLabel] = useState(subRow?.groupLabel ?? '');
+
+  // Existing group labels within the selected parent category — same "pick,
+  // don't retype" rationale as SkuDrawer's factory/size/grade pickers: a
+  // free-text cluster key is only useful if «ورق رنگی» stays one string, not
+  // silently-splitting near-duplicates.
+  const { data: suggestions } = useQuery({
+    queryKey: ['admin', 'cat', 'suggestions', draft.kind === 'sub' ? categoryId : ''],
+    queryFn: () => adminApi.catalogSuggestions(categoryId),
+    enabled: draft.kind === 'sub' && Boolean(categoryId),
+    staleTime: 5 * 60 * 1000,
+  });
 
   const slugValid = /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug);
 
@@ -706,8 +719,8 @@ function NodeModal({
         else await adminApi.createCategory({ name, slug, iconId, imageUrl });
         return;
       }
-      if (draft.row) await adminApi.updateSubCategory(draft.row.id, { name, slug, categoryId });
-      else await adminApi.createSubCategory({ categoryId, name, slug });
+      if (draft.row) await adminApi.updateSubCategory(draft.row.id, { name, slug, categoryId, groupLabel });
+      else await adminApi.createSubCategory({ categoryId, name, slug, groupLabel });
     },
     onSuccess: () => {
       toast.success('ذخیره شد.');
@@ -773,6 +786,22 @@ function NodeModal({
               </div>
             ) : null}
           </div>
+        ) : null}
+
+        {draft.kind === 'sub' ? (
+          <PickerInput
+            id="node-group"
+            label="گروه نمایشی (اختیاری)"
+            helper={
+              'برای دسته‌بندی چند زیر‌دسته زیر یک سرتیتر مشترک، مثلاً «ورق رنگی داخلی» و «ورق رنگی خارجی» ' +
+              'هر دو گروه «ورق رنگی» — این یک زیر‌دستهٔ واقعی نمی‌سازد، فقط ظاهر منو و پنل را گروه می‌کند.'
+            }
+            value={groupLabel}
+            options={suggestions?.groupLabels ?? []}
+            error={fieldErrors.groupLabel}
+            maxLength={80}
+            onChange={setGroupLabel}
+          />
         ) : null}
 
         <TextInput

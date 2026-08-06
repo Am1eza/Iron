@@ -28,7 +28,7 @@ import { normalizeDigits } from '@/lib/utils/format';
 import { composeSkuName, composeSkuSlug, defaultUnitFor, theoreticalWeightFor } from '@/lib/utils/catalogCompose';
 import { useToast } from '@/lib/hooks/useToast';
 import { Alert, Badge, Button, Heading, Text, useConfirm } from '@/components/ui';
-import { TextInput } from '@/components/forms/fields';
+import { TextInput, PickerInput } from '@/components/forms/fields';
 import { ImageUpload } from '../ImageUpload';
 import ui from '../adminUi.module.css';
 import s from './catalog.module.css';
@@ -70,48 +70,6 @@ function toValues(sku: AdminSku | null, defaultSubId: string): Values {
 
 /** '' means "clear this column" (→ null); a value means "set it". */
 const orNull = (v: string): string | null => (v.trim() === '' ? null : v.trim());
-
-/** A datalist-backed text field — the admin picks an existing value instead of
- *  inventing a second spelling of it. */
-function PickerInput({
-  id,
-  label,
-  helper,
-  value,
-  options,
-  error,
-  maxLength,
-  onChange,
-}: {
-  id: string;
-  label: string;
-  helper?: string;
-  value: string;
-  options: string[];
-  error?: string;
-  maxLength?: number;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <>
-      <TextInput
-        label={label}
-        list={`${id}-options`}
-        helper={helper}
-        value={value}
-        error={error}
-        maxLength={maxLength}
-        autoComplete="off"
-        onChange={(e) => onChange(e.target.value)}
-      />
-      <datalist id={`${id}-options`}>
-        {options.map((o) => (
-          <option key={o} value={o} />
-        ))}
-      </datalist>
-    </>
-  );
-}
 
 export function SkuDrawer({
   sku,

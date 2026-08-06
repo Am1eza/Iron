@@ -337,6 +337,8 @@ export interface AdminSubCategory {
   categoryId: string;
   slug: string;
   name: string;
+  /** Display-only cluster label, not a real hierarchy level — see catalog.ts. Null = no grouping. */
+  groupLabel: string | null;
   order: number;
   isActive: boolean;
   skuCount: number;
@@ -836,13 +838,25 @@ export const adminApi = {
     http.get<{ subCategories: AdminSubCategory[] }>(
       `/api/admin/catalog/subcategories${categoryId ? `?categoryId=${encodeURIComponent(categoryId)}` : ''}`,
     ),
-  createSubCategory: (input: { categoryId: string; slug: string; name: string; order?: number }) =>
-    http.post<{ subCategory: AdminSubCategory }>('/api/admin/catalog/subcategories', input),
+  createSubCategory: (input: {
+    categoryId: string;
+    slug: string;
+    name: string;
+    groupLabel?: string | null;
+    order?: number;
+  }) => http.post<{ subCategory: AdminSubCategory }>('/api/admin/catalog/subcategories', input),
   /** `categoryId` moves the sub to another category — the server re-parents
    *  its products in the same call so the two can't drift apart. */
   updateSubCategory: (
     id: string,
-    patch: Partial<{ slug: string; name: string; order: number; categoryId: string; isActive: boolean }>,
+    patch: Partial<{
+      slug: string;
+      name: string;
+      groupLabel: string | null;
+      order: number;
+      categoryId: string;
+      isActive: boolean;
+    }>,
   ) => http.patch<{ subCategory: AdminSubCategory }>(`/api/admin/catalog/subcategories/${id}`, patch),
   deactivateSubCategory: (id: string) => http.del<{ ok: true }>(`/api/admin/catalog/subcategories/${id}`),
 
@@ -897,7 +911,7 @@ export const adminApi = {
   /** Every value already in use for the free-text SKU columns, so the product
    *  form can offer choices instead of asking the admin to type. */
   catalogSuggestions: (categoryId?: string) =>
-    http.get<{ factories: string[]; sizes: string[]; grades: string[]; standards: string[] }>(
+    http.get<{ factories: string[]; sizes: string[]; grades: string[]; standards: string[]; groupLabels: string[] }>(
       `/api/admin/catalog/suggestions${categoryId ? `?categoryId=${encodeURIComponent(categoryId)}` : ''}`,
     ),
   /** Shared image upload (article cover, SKU photo) — content:write or catalog:write. */

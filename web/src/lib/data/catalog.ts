@@ -5,6 +5,7 @@
  */
 import { cache } from 'react';
 import type { Category } from '@/lib/types/domain';
+import type { SubCat } from '@/lib/data/nav';
 import { getCategories as serverCategories, getSubsMap as serverSubsMap } from '@/lib/server/catalog';
 
 /**
@@ -22,7 +23,7 @@ export const getCategories = cache(async (): Promise<Category[]> => {
   }
 });
 
-export type SubsMap = Record<string, Array<{ slug: string; name: string }>>;
+export type SubsMap = Record<string, SubCat[]>;
 
 /** Active sub-categories per category slug (live DB; fixture only in mock/dev).
  *  Same request-level cache() sharing as getCategories. */

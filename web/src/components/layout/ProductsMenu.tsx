@@ -6,6 +6,7 @@ import type { Category } from '@/lib/types/domain';
 import { ProductImage } from '@/components/catalog/ProductImage';
 import { CategoryArt } from '@/components/catalog/CategoryArt';
 import { productImage } from '@/lib/data/productImages';
+import { groupByLabel } from '@/lib/utils/catalogGroups';
 import { NavDropdown } from './NavDropdown';
 import styles from './Header.module.css';
 
@@ -31,14 +32,18 @@ export function ProductsMenu({ categories, subs }: { categories: Category[]; sub
               {cat.name}
             </Link>
             <ul className={styles.megaSubs}>
-              {(subs[cat.slug] ?? []).map((s) => (
-                <li key={s.slug}>
-                  <Link
-                    href={routes.subCategory(cat.slug, s.slug)}
-                    className={styles.megaSub}
-                  >
-                    {s.name}
-                  </Link>
+              {groupByLabel(subs[cat.slug] ?? []).map((group) => (
+                <li key={group.label ?? `_solo_${group.items[0]!.slug}`}>
+                  {group.label ? <div className={styles.megaSubGroupHeading}>{group.label}</div> : null}
+                  <ul className={group.label ? `${styles.megaSubs} ${styles.megaSubGrouped}` : styles.megaSubs}>
+                    {group.items.map((s) => (
+                      <li key={s.slug}>
+                        <Link href={routes.subCategory(cat.slug, s.slug)} className={styles.megaSub}>
+                          {s.name}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
                 </li>
               ))}
             </ul>
