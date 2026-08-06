@@ -175,6 +175,15 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+  margin-block-end: var(--space-2);
+}
+/* Purely a visual cluster heading above a `.colList` group that shares a
+ * groupLabel — not a link, not a real taxonomy level (see catalogGroups.ts). */
+.subGroupHeading {
+  font: var(--t-caption);
+  font-weight: 600;
+  color: var(--color-text-muted);
+  margin: 0 0 var(--space-1);
 }
 .subItem {
   display: flex;
@@ -296,6 +305,14 @@
     list-style: none;
     margin: var(--space-1) 0 0;
     padding: 0;
+  }
+  /* Purely a visual cluster heading above an `.inlineSubs` chip row that
+   * shares a groupLabel — not a link, not a real taxonomy level. */
+  .inlineSubGroupHeading {
+    margin: var(--space-2) 0 0;
+    font: var(--t-caption);
+    font-weight: 600;
+    color: var(--color-text-muted);
   }
   /* ≥44px tap targets — these chips are the primary mobile path into the
      catalog (were ~30px). */

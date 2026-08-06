@@ -7,6 +7,7 @@ import type { Category } from '@/lib/types/domain';
 import { CategoryArt } from '@/components/catalog/CategoryArt';
 import { ProductImage } from '@/components/catalog/ProductImage';
 import { productImage } from '@/lib/data/productImages';
+import { groupByLabel } from '@/lib/utils/catalogGroups';
 import { ChevronStartIcon } from '@/components/primitives/icons';
 import styles from './CategoryStage.module.css';
 
@@ -50,6 +51,14 @@ export function CategoryStage({
   if (!activeCat) return null;
 
   const subs = subsMap[activeCat.slug] ?? [];
+  // Clusters subcategories sharing a `groupLabel` (e.g. «لوله مانیسمان
+  // داخلی»/«لوله مانیسمان خارجی» both tagged «مانیسمان») under one heading,
+  // same as the admin taxonomy rail / navbar mega-menu / mobile drawer — see
+  // lib/utils/catalogGroups.ts. Without this, a newly-added grouped
+  // subcategory (freshly created, so it sorts to the end by `order`) doesn't
+  // visually surface anywhere near the sibling it's meant to be grouped with.
+  const subGroups = groupByLabel(subs);
+  const firstSubSlug = subGroups[0]?.items[0]?.slug;
   const mills = factories[activeCat.slug]?.[activeSub] ?? [];
   const activeSubName = subs.find((s) => s.slug === activeSub)?.name ?? '';
 
@@ -126,18 +135,25 @@ export function CategoryStage({
                   </Link>
 
                   {/* inline sub-groups — shown on touch/small screens (CSS) */}
-                  <ul className={styles.inlineSubs}>
-                    {catSubs.map((s) => (
-                      <li key={s.slug}>
-                        <Link
-                          href={routes.subCategory(cat.slug, s.slug)}
-                          className={styles.inlineSub}
-                        >
-                          {s.name}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
+                  {groupByLabel(catSubs).map((group) => (
+                    <div key={group.label ?? `_solo_${group.items[0]!.slug}`}>
+                      {group.label ? (
+                        <p className={styles.inlineSubGroupHeading}>{group.label}</p>
+                      ) : null}
+                      <ul className={styles.inlineSubs}>
+                        {group.items.map((s) => (
+                          <li key={s.slug}>
+                            <Link
+                              href={routes.subCategory(cat.slug, s.slug)}
+                              className={styles.inlineSub}
+                            >
+                              {s.name}
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
                 </li>
               );
             })}
@@ -176,24 +192,31 @@ export function CategoryStage({
                 {/* sub-groups */}
                 <div className={styles.col}>
                   <p className={styles.colLabel}>زیرشاخه‌های {activeCat.name}</p>
-                  <ul className={styles.colList}>
-                    {subs.map((s, i) => (
-                      <li key={s.slug}>
-                        <Link
-                          ref={i === 0 ? firstFlyoutLinkRef : undefined}
-                          href={routes.subCategory(activeCat.slug, s.slug)}
-                          className={styles.subItem}
-                          data-active={activeSub === s.slug ? '' : undefined}
-                          onMouseEnter={() => setActiveSub(s.slug)}
-                          onFocus={() => setActiveSub(s.slug)}
-                          onKeyDown={i === 0 ? handleFlyoutFirstKeyDown : undefined}
-                        >
-                          <span>{s.name}</span>
-                          <ChevronStartIcon size={14} className={`${styles.subChev} icon--rtl`} />
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
+                  {subGroups.map((group) => (
+                    <div key={group.label ?? `_solo_${group.items[0]!.slug}`}>
+                      {group.label ? (
+                        <p className={styles.subGroupHeading}>{group.label}</p>
+                      ) : null}
+                      <ul className={styles.colList}>
+                        {group.items.map((s) => (
+                          <li key={s.slug}>
+                            <Link
+                              ref={s.slug === firstSubSlug ? firstFlyoutLinkRef : undefined}
+                              href={routes.subCategory(activeCat.slug, s.slug)}
+                              className={styles.subItem}
+                              data-active={activeSub === s.slug ? '' : undefined}
+                              onMouseEnter={() => setActiveSub(s.slug)}
+                              onFocus={() => setActiveSub(s.slug)}
+                              onKeyDown={s.slug === firstSubSlug ? handleFlyoutFirstKeyDown : undefined}
+                            >
+                              <span>{s.name}</span>
+                              <ChevronStartIcon size={14} className={`${styles.subChev} icon--rtl`} />
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
                 </div>
 
                 {/* factories of the active sub-group */}
