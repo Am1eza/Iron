@@ -1,4 +1,4 @@
-import { SparkIcon, TagIcon, BankIcon, CalendarIcon } from '@/components/primitives/icons';
+import { AiMarkIcon, TagIcon, BankIcon, CalendarIcon } from '@/components/primitives/icons';
 import { toPersianDigits } from '@/lib/utils/format';
 import styles from './ValueProps.module.css';
 
@@ -12,7 +12,7 @@ import styles from './ValueProps.module.css';
  */
 const STEPS = [
   {
-    Icon: SparkIcon,
+    Icon: AiMarkIcon,
     title: 'مشورت، رایگان',
     text: 'به مشاور هوشمند بگویید برای چه کاری می‌خواهید — مقدار، وزن و هزینهٔ پروژه بر پایهٔ قیمت‌های واقعی حساب می‌شود.',
   },

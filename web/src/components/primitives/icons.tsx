@@ -47,27 +47,36 @@ export const UserIcon = (p: IconProps) => (
 );
 export const BellIcon = ({ filled, ...p }: IconProps & { filled?: boolean }) => (
   <Svg {...p} fill={filled ? 'currentColor' : 'none'}>
-    <path d="M6 9a6 6 0 1112 0c0 5 2 6 2 6H4s2-1 2-6z" />
-    <path d="M10 20a2 2 0 004 0" />
+    {/* Flared bell with a straight rim. The old body was a lopsided lump once
+        `filled`, because its shoulders and rim were drawn asymmetrically. */}
+    <path d="M6.8 10a5.2 5.2 0 0 1 10.4 0c0 2.9.6 4.4 1.4 5.4a.9.9 0 0 1-.7 1.5H6.1a.9.9 0 0 1-.7-1.5c.8-1 1.4-2.5 1.4-5.4z" />
+    <path d="M10.1 19.6a2.1 2.1 0 0 0 3.8 0" />
   </Svg>
 );
 export const CartIcon = (p: IconProps) => (
   <Svg {...p}>
-    <path d="M3 4h2l2.2 11.2a1 1 0 001 .8h8.6a1 1 0 001-.8L20 8H6" />
-    <circle cx="9" cy="20" r="1.4" />
-    <circle cx="17" cy="20" r="1.4" />
+    {/* Handle and basket are separate subpaths so the basket closes; the old
+        single path left the top-left corner open and the sides unequal. */}
+    <path d="M2.8 4h2.4l1.2 4.5" />
+    <path d="M6.4 8.5h13.8l-1.9 6.4a1.6 1.6 0 0 1-1.5 1.1H9.9a1.6 1.6 0 0 1-1.6-1.2z" />
+    <circle cx="10.6" cy="19.4" r="1.4" />
+    <circle cx="16.4" cy="19.4" r="1.4" />
   </Svg>
 );
 export const HomeIcon = (p: IconProps) => (
   <Svg {...p}>
-    <path d="M4 11l8-6 8 6" />
-    <path d="M6 10v9h12v-9" />
+    {/* One closed pentagon: the old roof line and wall tops were 0.5 apart,
+        which notched both eaves. Door added so it reads as a house at 22px. */}
+    <path d="M3.6 10.8 12 4.2l8.4 6.6V19a1.2 1.2 0 0 1-1.2 1.2H4.8A1.2 1.2 0 0 1 3.6 19z" />
+    <path d="M9.5 20.2v-4.9a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v4.9" />
   </Svg>
 );
+/** Price tag (قیمت‌ها). Was a bare rhombus with an off-centre dot, which read
+    as a diamond/lozenge, not a tag. */
 export const TagIcon = (p: IconProps) => (
   <Svg {...p}>
-    <path d="M3 12l9-9 9 9-9 9z" />
-    <circle cx="9" cy="9" r="1.3" />
+    <path d="M11.5 3.5h8a1 1 0 0 1 1 1v8a2 2 0 0 1-.6 1.4l-6.5 6.5a2 2 0 0 1-2.8 0l-7-7a2 2 0 0 1 0-2.8l6.5-6.5a2 2 0 0 1 1.4-.6z" />
+    <circle cx="16.4" cy="7.6" r="1.5" />
   </Svg>
 );
 export const ChevronDownIcon = (p: IconProps) => (
@@ -81,9 +90,23 @@ export const ChevronStartIcon = (p: IconProps) => (
     <path d="M15 6l-6 6 6 6" />
   </Svg>
 );
-export const SparkIcon = (p: IconProps) => (
+/**
+ * The آهن‌تایم advisor mark — a consult bubble with the I-beam cross-section
+ * (the logo mark, iconography.md §4) knocked out of it. Replaces the former
+ * 4-point "spark", which was the generic AI-product sparkle every chat tool
+ * ships and read as stock rather than as this brand.
+ *
+ * Filled (not stroked) on purpose: it renders at 14px inside chat rows and
+ * at 24px inside the bottom bar's amber orb, and an outlined composite closes
+ * up below ~18px. `fillRule="evenodd"` is what makes the beam a hole, so the
+ * mark inherits `currentColor` on light, dark and amber surfaces alike.
+ */
+export const AiMarkIcon = (p: IconProps) => (
   <Svg {...p} stroke="none" fill="currentColor">
-    <path d="M12 3c.4 5 1 6 6 6.5-5 .5-5.6 1.5-6 6.5-.4-5-1-6-6-6.5 5-.5 5.6-1.5 6-6.5z" />
+    <path
+      fillRule="evenodd"
+      d="M7.4 4.2h9.2A3.4 3.4 0 0 1 20 7.6v6.6a3.4 3.4 0 0 1-3.4 3.4h-.9v3.4a.6.6 0 0 1-1 .47l-5-3.87H7.4A3.4 3.4 0 0 1 4 14.2V7.6a3.4 3.4 0 0 1 3.4-3.4zM8.6 7.8h6.8v1.4h-2.6v3.4h2.6v1.4H8.6v-1.4h2.6V9.2H8.6z"
+    />
   </Svg>
 );
 
@@ -109,46 +132,64 @@ export function CategoryGlyph({ iconId, size = 28 }: { iconId: string; size?: nu
         </svg>
       );
     case 'cat-rebar':
+      // Ribbed rod (آجدار): a centred round-ended bar with rib ticks across it.
+      // The old glyph was a bare line at x=8 with ticks hanging off one side,
+      // leaving the right half of the box empty.
       return (
         <svg {...common}>
-          <path d="M8 4v16" />
-          <path d="M8 7l4-2M8 12l4-2M8 17l4-2" />
+          <rect x="9.2" y="3.5" width="5.6" height="17" rx="2.8" />
+          <path d="M9.4 8.6 14.6 6.4M9.4 13.1 14.6 10.9M9.4 17.6 14.6 15.4" />
         </svg>
       );
     case 'cat-profile':
+      // Hollow square tube in slight isometric with an open end (iconography
+      // §4). Square-in-a-square read as a generic frame, not as a section.
       return (
         <svg {...common}>
-          <rect x="5" y="5" width="14" height="14" rx="1.5" />
-          <rect x="8.5" y="8.5" width="7" height="7" rx="1" />
+          <rect x="4.5" y="9" width="10.5" height="10.5" rx="1" />
+          <rect x="7.8" y="12.3" width="3.9" height="3.9" rx=".6" />
+          <path d="M4.5 9 8 5.5h10.5V16L15 19.5M15 9l3.5-3.5" />
         </svg>
       );
     case 'cat-hot-sheet':
+      // Flat plate with visible thickness, isometric and symmetric about x=12.
+      // The old pair of paths left a stray line floating off the plate.
       return (
         <svg {...common}>
-          <path d="M4 9l13-3 3 3-13 3z" />
-          <path d="M7 12v3l13-3" />
+          <path d="M12 6.7 21 10.2l-9 3.5-9-3.5z" />
+          <path d="M3 10.2v2.9l9 3.5 9-3.5v-2.9M12 13.7v2.9" />
         </svg>
       );
     case 'cat-cold-sheet':
+      // Coil (کلاف): a roll whose end face carries a spiral — that spiral is
+      // what separates it from `cat-pipe`. The old glyph was two unconnected
+      // ellipses of different sizes and read as a keyhole.
       return (
         <svg {...common}>
-          <ellipse cx="9" cy="12" rx="5" ry="7" />
-          <path d="M9 5h7M9 19h7" />
-          <ellipse cx="16" cy="12" rx="2" ry="3" />
+          <ellipse cx="8" cy="12" rx="4" ry="7.8" />
+          <path d="M8 4.2h7.5a4 7.8 0 0 1 0 15.6H8" />
+          <path d="M8 6.6a2.9 5.5 0 0 1 0 11 1.9 3.6 0 0 1 0-7.2 1 1.9 0 0 1 0 3.8" />
         </svg>
       );
     case 'cat-angle-channel':
+      // The pair the category actually covers: an L-angle section beside a
+      // U-channel section, both drawn with wall thickness so they read as
+      // rolled sections rather than as letters. The old glyph showed only the
+      // angle, and its two paths overlapped into a single flat L.
       return (
         <svg {...common}>
-          <path d="M7 4v13h10" />
-          <path d="M7 4h3v13" />
+          <path d="M4.2 5h2.9v11.1H11V19H4.2z" />
+          <path d="M13 5h2.9v11.1h1.9V5h2.9v14H13z" />
         </svg>
       );
     case 'cat-pipe':
+      // Cylinder with an elliptical bore (annulus end). The bore is what makes
+      // it a pipe rather than a solid bar.
       return (
         <svg {...common}>
-          <ellipse cx="8" cy="12" rx="3" ry="7" />
-          <path d="M8 5h8a3 7 0 010 14H8" />
+          <ellipse cx="7.5" cy="12" rx="3" ry="7" />
+          <ellipse cx="7.5" cy="12" rx="1.3" ry="3.2" />
+          <path d="M7.5 5h9a3 7 0 0 1 0 14h-9" />
         </svg>
       );
     default:
@@ -193,9 +234,12 @@ export const DownloadIcon = (p: IconProps) => (
 );
 export const PrintIcon = (p: IconProps) => (
   <Svg {...p}>
-    <path d="M7 9V4h10v5" />
-    <path d="M6 18H5a2 2 0 01-2-2v-3a2 2 0 012-2h14a2 2 0 012 2v3a2 2 0 01-2 2h-1" />
-    <rect x="7" y="15" width="10" height="6" rx="1" />
+    {/* The body's bottom edge is broken exactly where the output tray meets it,
+        so tray and chassis no longer cross each other with fill:none. */}
+    <path d="M7 8.5V4.2h10v4.3" />
+    <path d="M7 17.5H5.2A2.2 2.2 0 0 1 3 15.3v-4.6a2.2 2.2 0 0 1 2.2-2.2h13.6a2.2 2.2 0 0 1 2.2 2.2v4.6a2.2 2.2 0 0 1-2.2 2.2H17" />
+    <path d="M7 14.2h10v5.6H7z" />
+    <path d="M17.6 11.5h.01" />
   </Svg>
 );
 export const SheetIcon = (p: IconProps) => (
@@ -221,7 +265,9 @@ export const ChartIcon = (p: IconProps) => (
 );
 export const HeartIcon = ({ filled, ...p }: IconProps & { filled?: boolean }) => (
   <Svg {...p} fill={filled ? 'currentColor' : 'none'}>
-    <path d="M12 20s-7-4.5-9.2-8.4C1.2 8.5 2.6 5 6 5c2 0 3.2 1.3 4 2.5C10.8 6.3 12 5 14 5c3.4 0 4.8 3.5 3.2 6.6C19 15.5 12 20 12 20z" />
+    {/* Every control point on the right mirrors its partner around x=12; the
+        previous path did not, which put a visible kink in the right lobe. */}
+    <path d="M12 20.3C12 20.3 3 15 3 9.4 3 6.6 5.1 4.5 7.7 4.5c1.9 0 3.5 1.1 4.3 2.7.8-1.6 2.4-2.7 4.3-2.7 2.6 0 4.7 2.1 4.7 4.9 0 5.6-9 10.9-9 10.9z" />
   </Svg>
 );
 export const StarIcon = ({ filled, ...p }: IconProps & { filled?: boolean }) => (
@@ -251,8 +297,10 @@ export const PhoneIcon = (p: IconProps) => (
 );
 export const WhatsappIcon = (p: IconProps) => (
   <Svg {...p}>
-    <path d="M12 3a9 9 0 00-7.7 13.6L3 21l4.5-1.2A9 9 0 1012 3z" />
-    <path d="M8.5 8.5c-.3 1 0 2.2 1 3.4s2.2 1.9 3.4 2.1c.7.1 1.3-.4 1.5-1l-1.6-1-1 .7c-.6-.3-1.2-.9-1.6-1.6l.7-1-1-1.6z" />
+    <path d="M12 3.2a8.8 8.8 0 0 0-7.6 13.2l-1.2 4.4 4.5-1.2A8.8 8.8 0 1 0 12 3.2z" />
+    {/* Handset redrawn as one closed receiver; the old inner path was a cluster
+        of 0.7-unit strokes that turned to mud below 20px. */}
+    <path d="M9.3 8.2a1 1 0 0 1 1-.5l1.1.2.5 2.2-1 .9a5.6 5.6 0 0 0 2.1 2.1l.9-1 2.2.5.2 1.1a1 1 0 0 1-.5 1c-3.1 1.3-7.9-3.5-6.5-6.5z" />
   </Svg>
 );
 export const TelegramIcon = (p: IconProps) => (
@@ -355,16 +403,18 @@ export const RefreshIcon = (p: IconProps) => (
 );
 export const OfflineIcon = (p: IconProps) => (
   <Svg {...p}>
-    <path d="M5 12.5a10 10 0 0114 0M8.5 16a5 5 0 017 0M12 19.5h.01" />
-    <path d="M3 3l18 18" />
+    <path d="M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M12 19.5h.01" />
+    {/* Slash trimmed to the arcs' own bounding box — it used to run corner to
+        corner and dangle in empty space at both ends. */}
+    <path d="M6.5 9 17.5 20" />
   </Svg>
 );
 /** Exchange / bourse — a columned institution (بورس کالا). */
 export const BankIcon = (p: IconProps) => (
   <Svg {...p}>
     <path d="M4 9l8-5 8 5" />
-    <path d="M5 9v8M10 9v8M14 9v8M19 9v8" />
-    <path d="M3 20h18" />
+    <path d="M5 9.5v7.5M9.7 9.5v7.5M14.3 9.5v7.5M19 9.5v7.5" />
+    <path d="M3 20h18M4 17h16" />
   </Svg>
 );
 /** Letter of credit / guarantee — a document with a seal (LC). */

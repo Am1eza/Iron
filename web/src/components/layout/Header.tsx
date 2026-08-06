@@ -17,7 +17,7 @@ import { SearchBar } from './SearchBar';
 import { NavDropdown } from './NavDropdown';
 import { ProductsMenu } from '@/components/lazy';
 import { LocaleSwitcher } from './LocaleSwitcher';
-import { MenuIcon, SearchIcon, UserIcon, CartIcon, SparkIcon } from '@/components/primitives/icons';
+import { MenuIcon, SearchIcon, UserIcon, CartIcon, AiMarkIcon } from '@/components/primitives/icons';
 import styles from './Header.module.css';
 
 /**
@@ -178,7 +178,7 @@ export function Header({ categories, subs }: { categories: Category[]; subs: Sub
             aria-current={isActive(routes.ai()) ? 'page' : undefined}
             data-event="ai_entry"
           >
-            <SparkIcon size={16} />
+            <AiMarkIcon size={16} />
             {t('smartAdvisor')}
           </Link>
 

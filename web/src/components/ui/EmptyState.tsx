@@ -2,7 +2,7 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import Link from 'next/link';
 import { routes } from '@/lib/routes';
-import { IBeamGlyph, SparkIcon } from '@/components/primitives/icons';
+import { IBeamGlyph, AiMarkIcon } from '@/components/primitives/icons';
 import styles from './EmptyState.module.css';
 
 type CtaAction = { label: string; href?: string; onClick?: () => void };
@@ -67,7 +67,7 @@ export function EmptyState({
           {secondary ? <Cta action={secondary} variant="ghost" /> : null}
           {showAi ? (
             <Link href={routes.ai()} className={styles.ai} data-event="ai_entry">
-              <SparkIcon size={16} />
+              <AiMarkIcon size={16} />
               پرسش از آهن‌تایم
             </Link>
           ) : null}
