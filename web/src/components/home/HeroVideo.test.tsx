@@ -47,11 +47,11 @@ describe('HeroVideo — fallback-first upgrade (W: hero video performance)', () 
     expect(screen.getByTestId('board')).toBeInTheDocument();
   });
 
-  it('never mounts the video under the mobile breakpoint — served the board instead, not a smaller video', async () => {
-    mockMatchMedia(['(max-width: 767px)']);
+  it('still upgrades to video at mobile widths — the owner wants it on every device, not just desktop', async () => {
+    mockMatchMedia(['(max-width: 1023px)']);
     render(<HeroVideo src="/media/hero.mp4" fallback={<div data-testid="board">تابلوی قیمت</div>} />);
-    await new Promise((r) => setTimeout(r, 10));
-    expect(document.querySelector('video')).not.toBeInTheDocument();
+    await waitFor(() => expect(document.querySelector('video')).toBeInTheDocument());
+    expect(screen.queryByTestId('board')).not.toBeInTheDocument();
   });
 
   it('upgrades to video regardless of navigator.connection — regression test for a real bug', async () => {

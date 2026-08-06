@@ -2,37 +2,30 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import styles from './HeroVideo.module.css';
 
-/** Below this, `fallback` (the live price board) renders instead — never the
- *  video. The board's own layout already shrinks the slot at this exact
- *  breakpoint (HeroSearch.module.css), so a visitor here was always going to
- *  see a cramped video; skipping it outright saves the download entirely
- *  rather than just serving a smaller file. */
-const SKIP_BREAKPOINT = '(max-width: 767px)';
 /** Matches HeroSearch.module.css's own tablet breakpoint, where the board
- *  slot is already shrunk — the lighter encode is sized for that, not full
- *  desktop. */
+ *  slot is already shrunk — the lighter `-mobile` encode is sized for that
+ *  range (tablet AND phone), not full desktop. This used to also be the
+ *  point below which video was skipped outright in favour of the price-board
+ *  fallback; the owner wants the video consistently, on every device, so
+ *  phones now get this same lighter encode instead of losing the video. */
 const LIGHT_SOURCE_BREAKPOINT = '(max-width: 1023px)';
 
-/** Deliberately a one-shot check, not the reactive `useMediaQuery` hook used
- *  elsewhere: this decides ONCE whether to start the video at all, so
- *  resizing a desktop window narrower mid-session doesn't tear down (or a
- *  narrow-to-wide resize suddenly start) a multi-hundred-KB download the
- *  visitor never asked for.
- *
- * Deliberately does NOT check `navigator.connection` (Network Information
+/** Deliberately does NOT check `navigator.connection` (Network Information
  * API) — a first version of this did, and it was wrong to: the API is
  * commonly spoofed or blocked outright by privacy-focused browsers and
  * extensions (Brave, several ad/tracker blockers) specifically to reduce
  * fingerprinting surface, which means it can report a fast connection as
  * `slow-2g`/`3g` for reasons having nothing to do with actual speed. That
  * silently killed the video for ordinary desktop visitors — including the
- * site owner testing on their own connection — for a bandwidth saving that
- * was never the point on desktop anyway (the mobile check below is what
- * actually matters for data cost). */
+ * site owner testing on their own connection.
+ *
+ * The one thing this still declines for is `prefers-reduced-motion` — that
+ * is not a bandwidth heuristic but an explicit, OS-level accessibility
+ * signal from a visitor who gets real physical symptoms (nausea, vertigo)
+ * from autoplaying motion; it stays even though every other gate here was
+ * removed so the owner gets the video consistently on every device. */
 function videoIsWorthIt(): boolean {
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
-  if (window.matchMedia(SKIP_BREAKPOINT).matches) return false;
-  return true;
+  return !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
 /**
@@ -41,11 +34,12 @@ function videoIsWorthIt(): boolean {
  *
  * `fallback` (the real PriceBoard, server-rendered) is what's shown FIRST,
  * always — on every device, with JS or without. Only once mounted do we
- * decide, client-side, whether THIS visitor should upgrade to video: not on
- * a narrow viewport, not with reduced-motion set. This is why the
+ * decide, client-side, whether THIS visitor should upgrade to video: every
+ * viewport qualifies now (phones use the lighter `-mobile` encode below),
+ * the only disqualifier left is `prefers-reduced-motion`. This is why the
  * server-rendered HTML and the pre-effect client render are IDENTICAL
- * (both show `fallback`) — no hydration mismatch, and disqualified visitors
- * never request a single byte of video.
+ * (both show `fallback`) — no hydration mismatch, and a reduced-motion
+ * visitor never requests a single byte of video.
  *
  * For visitors who DO qualify, mounting the `<video>` is itself deferred to
  * just after `window.load`, so it never competes with the page's own
