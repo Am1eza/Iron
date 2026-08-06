@@ -16,3 +16,29 @@ export function safeRevalidatePath(path: string, type?: 'layout' | 'page'): void
     // page(s) simply fall back to their `revalidate` window instead.
   }
 }
+
+export function articleSectionBase(type: 'blog' | 'news'): string {
+  return type === 'news' ? '/news' : '/blog';
+}
+
+/**
+ * Every cached surface that lists a section's articles.
+ *
+ * `/blog` and `/news` are now genuinely ISR'd, so publishing an article no
+ * longer shows up by accident: before, the index was uncached and therefore
+ * always current, which is why nothing ever called this from the scheduled
+ * publish job. `${base}/page/[n]` purges every paginated archive page at once
+ * — the route pattern, not one URL. The feed carries its own 10-minute window
+ * and is included for the same reason.
+ */
+export function revalidateArticleSection(type: 'blog' | 'news'): void {
+  const base = articleSectionBase(type);
+  safeRevalidatePath(base, 'layout');
+  safeRevalidatePath(`${base}/page/[n]`, 'page');
+  safeRevalidatePath(`${base}/rss.xml`);
+}
+
+/** The article's own public URL. */
+export function revalidateArticleUrl(type: 'blog' | 'news', slug: string): void {
+  safeRevalidatePath(`${articleSectionBase(type)}/${slug}`);
+}

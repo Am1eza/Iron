@@ -138,6 +138,23 @@ ahantime.com, www.ahantime.com {
 	@sitemedia path /products/* /media/*
 	header @sitemedia >Cache-Control "public, max-age=604800, stale-while-revalidate=86400"
 
+	# Editor-uploaded images (article covers, in-body pictures, SKU photos).
+	# These were missing from both rules above and would therefore have been
+	# served with Next's `public, max-age=0` — i.e. re-validated on every page
+	# view, the exact symptom @sitemedia exists to fix, for the images on the
+	# most-read pages on the site.
+	#
+	# `immutable` and not the weaker 7 days, unlike @sitemedia: the filename
+	# here is `${ulid()}.${ext}`, generated server-side per upload and NEVER
+	# reused (web/src/app/api/admin/upload/route.ts). Replacing an article's
+	# picture uploads a new file at a new URL, so there is nothing to bust —
+	# the same content-addressed property `_next/static` has.
+	#
+	# Latent when written: `public/uploads` was still empty. Deliberately
+	# landed before the first upload rather than after.
+	@uploads path /uploads/*
+	header @uploads >Cache-Control "public, max-age=31536000, immutable"
+
 	# Matomo tracker (same-origin → zero CSP changes): /mt/matomo.js loads the
 	# tracking script, /mt/matomo.php receives hits. Only these two files are
 	# proxied — the admin UI lives on :8443 below.

@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation';
 import { routes } from '@/lib/routes';
 import { useCartStore, selectCartCount } from '@/lib/stores/cart';
 import { toPersianDigits } from '@/lib/utils/format';
-import { HomeIcon, TagIcon, SparkIcon, CartIcon, UserIcon } from '@/components/primitives/icons';
+import { HomeIcon, TagIcon, AiMarkIcon, CartIcon, UserIcon } from '@/components/primitives/icons';
 import styles from './BottomTabBar.module.css';
 
 /**
@@ -36,7 +36,7 @@ export function BottomTabBar() {
         data-event="ai_entry"
       >
         <span className={styles.aiOrb}>
-          <SparkIcon size={24} />
+          <AiMarkIcon size={24} />
         </span>
         <span className={styles.aiLabel}>آهن‌تایم</span>
       </Link>

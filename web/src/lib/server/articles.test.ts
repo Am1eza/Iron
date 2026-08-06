@@ -32,7 +32,7 @@ describe('publish approval gate', () => {
       // reach without ever going through the approval endpoint.
     });
     const published = await publishDueArticles();
-    expect(published).toBe(0);
+    expect(published).toHaveLength(0);
 
     const live = await findPublishedBySlug(article.slug);
     expect(live).toBeNull();
@@ -46,7 +46,8 @@ describe('publish approval gate', () => {
       approvedBy: 'u-admin',
     });
     const published = await publishDueArticles();
-    expect(published).toBeGreaterThanOrEqual(1);
+    expect(published.length).toBeGreaterThanOrEqual(1);
+    expect(published).toContainEqual({ type: 'blog', slug: article.slug });
 
     const live = await findPublishedBySlug(article.slug);
     expect(live?.status).toBe('published');

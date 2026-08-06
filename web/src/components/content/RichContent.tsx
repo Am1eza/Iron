@@ -122,7 +122,7 @@ function renderTable(node: Extract<BlockNode, { type: 'table' }>, key: string): 
 
 /* -------------------------------- blocks ------------------------------- */
 
-function renderBlock(node: BlockNode, index: number): ReactNode {
+function renderBlock(node: BlockNode, index: number, eagerImage = false): ReactNode {
   const key = `b${index}`;
   switch (node.type) {
     case 'heading':
@@ -177,7 +177,11 @@ function renderBlock(node: BlockNode, index: number): ReactNode {
           className={styles.img}
           src={src}
           alt={alt}
-          loading="lazy"
+          // The FIRST body image is very often the LCP element on an article
+          // that opens with a picture; lazy-loading it is a self-inflicted
+          // delay against the LCP < 2.5s budget. Every later one stays lazy.
+          loading={eagerImage ? 'eager' : 'lazy'}
+          fetchPriority={eagerImage ? 'high' : undefined}
           decoding="async"
           {...(width && height
             ? { width, height, style: { aspectRatio: `${width} / ${height}` } }
@@ -221,9 +225,11 @@ function renderBlock(node: BlockNode, index: number): ReactNode {
 }
 
 export function RichContent({ doc, className }: { doc: RichDoc; className?: string }) {
+  const blocks = doc.content ?? [];
+  const firstImageIndex = blocks.findIndex((b) => b.type === 'image');
   return (
     <div className={className ? `${styles.prose} ${className}` : styles.prose}>
-      {(doc.content ?? []).map(renderBlock)}
+      {blocks.map((node, i) => renderBlock(node, i, i === firstImageIndex))}
     </div>
   );
 }

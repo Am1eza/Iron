@@ -98,10 +98,14 @@ const nextConfig = {
           return [
             {
               // Keep admin, personal, and internal areas out of search indexes
-              // (IA / SEO rules). These paths are intentionally NOT in
-              // robots.ts's `disallow` (except /admin) — see the comment there
-              // for why noindex-only (not Disallow+noindex) is the correct
-              // pairing. (The /styleguide dev kitchen-sink route was removed.)
+              // (IA / SEO rules). None of these paths is in robots.ts's
+              // `disallow` — see the comment there for why noindex-only (not
+              // Disallow+noindex) is the correct pairing. `/admin` used to be
+              // the exception and no longer is, which makes the host-matched
+              // rule BELOW the only thing keeping panel.ahantime.com out of
+              // the index: robots.txt is byte-identical on both hosts and now
+              // says `Allow: /`. Treat that rule as load-bearing.
+              // (The /styleguide dev kitchen-sink route was removed.)
               source: '/:path(admin|account|request|cart|search|login)(.*)',
               headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }],
             },
@@ -196,9 +200,16 @@ const nextConfig = {
                 // mitigates since the app renders no user-authored HTML.
                 //
                 // The per-page JSON-LD `<script type="application/ld+json">`
-                // blocks are unaffected regardless: CSP's script-src only
-                // gates JavaScript-MIME-type scripts, and application/ld+json
-                // is inert data. style-src keeps 'unsafe-inline' for React's
+                // blocks are unaffected — but NOT for the reason this comment
+                // used to give. `script-src` is evaluated against `<script>`
+                // ELEMENTS regardless of their `type`, and strict CSPs have
+                // historically blocked JSON-LD blocks in Chrome; the reason
+                // they survive here is simply that 'unsafe-inline' is present.
+                // If script-src is ever tightened, `components/seo/JsonLd.tsx`
+                // needs the nonce/hash too or structured data silently
+                // disappears from every page.
+                //
+                // style-src keeps 'unsafe-inline' for React's
                 // `style={{...}}` prop (compiled to inline style attributes
                 // across ~40 files).
                 {

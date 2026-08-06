@@ -5,7 +5,7 @@ import { getRows } from '@/lib/mock/catalogData';
 import { routes } from '@/lib/routes';
 import { toPersianDigits, normalizeDigits, formatToman } from '@/lib/utils/format';
 import { Card, Stack, Cluster, Text, Alert, Grid } from '@/components/ui';
-import { SparkIcon, ArrowEndIcon } from '@/components/primitives/icons';
+import { AiMarkIcon, ArrowEndIcon } from '@/components/primitives/icons';
 import styles from './ProjectEstimator.module.css';
 
 /**
@@ -158,7 +158,7 @@ export function ProjectEstimator() {
             </Stack>
           ) : (
             <div className={styles.placeholder}>
-              <SparkIcon size={28} />
+              <AiMarkIcon size={28} />
               <Text variant="body-sm" color="muted" align="center">
                 زیربنا و تعداد طبقات را وارد کنید تا برآورد میلگرد، بتن و هزینه نمایش
                 داده شود.
@@ -182,7 +182,7 @@ export function ProjectEstimator() {
           </p>
           <Cluster gap={3}>
             <Link href={routes.ai()} className={styles.ctaPrimary} data-event="ai_entry">
-              <SparkIcon size={18} /> گفتگو با مشاور هوشمند
+              <AiMarkIcon size={18} /> گفتگو با مشاور هوشمند
             </Link>
             <Link href={routes.request()} className={styles.ctaSecondary}>
               ثبت درخواست استعلام <ArrowEndIcon size={18} />

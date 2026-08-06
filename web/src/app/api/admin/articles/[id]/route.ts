@@ -4,7 +4,11 @@ import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { adminGetArticle, updateArticle, deleteDraftArticle } from '@/lib/server/repos/articlesRepo';
 import { DuplicateArticleSlugError } from '@/lib/server/repos/articlesRepo';
-import { safeRevalidatePath } from '@/lib/server/utils/revalidate';
+import {
+  safeRevalidatePath,
+  revalidateArticleSection,
+  revalidateArticleUrl,
+} from '@/lib/server/utils/revalidate';
 import { articleSeoSchema, articleSlugSchema, articleTagsSchema, uploadPathSchema } from '@/lib/validation/utils';
 import { richDocSchema } from '@/lib/content/richDoc';
 import { createRedirect, RedirectLoopError } from '@/lib/server/repos/redirectsRepo';
@@ -28,13 +32,11 @@ function articlePath(type: 'blog' | 'news', slug: string): string {
  * old slug (what a slug-only signature would do) purges the wrong page.
  */
 function revalidateArticle(next: { type: 'blog' | 'news'; slug: string }, prev?: { type: 'blog' | 'news'; slug: string }): void {
-  const nextBase = next.type === 'news' ? '/news' : '/blog';
-  safeRevalidatePath(nextBase, 'layout');
-  safeRevalidatePath(`${nextBase}/${next.slug}`);
+  revalidateArticleSection(next.type);
+  revalidateArticleUrl(next.type, next.slug);
   if (prev && (prev.type !== next.type || prev.slug !== next.slug)) {
-    const prevBase = prev.type === 'news' ? '/news' : '/blog';
-    safeRevalidatePath(prevBase, 'layout');
-    safeRevalidatePath(`${prevBase}/${prev.slug}`);
+    revalidateArticleSection(prev.type);
+    revalidateArticleUrl(prev.type, prev.slug);
   }
   // The sitemap is a route like any other; a publish/retract must reach Google.
   safeRevalidatePath('/sitemap.xml');
@@ -86,7 +88,9 @@ const patchPayload = z.object({
   authorId: z.string().min(1).nullable().optional(),
   tags: articleTagsSchema,
   // Editor SEO overrides, including the focus keyword the on-page checklist
-  // keys off. Shared with the create route — see `articleSeoSchema`.
+  // keys off. Shared with the create route. canonical is validated by
+  // internalPathSchema (parser-based, not a startswith-slash regex) inside
+  // articleSeoSchema itself — see lib/validation/utils.ts.
   seo: articleSeoSchema,
   // Only 'draft' — moving DOWN in privilege (cancel/revert a scheduled
   // publish) is a safe content:write operation. Scheduling or publishing
