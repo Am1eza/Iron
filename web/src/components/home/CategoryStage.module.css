@@ -57,6 +57,18 @@
   padding-inline-start: var(--space-3);
   text-decoration: none;
 }
+/* Desktop: hidden — the rail is deliberately pure type (see comment above),
+   the photo reveal carries the visual weight. Shown only in the ≤1023px
+   layout below, where the flyout (and its photo) is display:none. */
+.railIcon {
+  display: none;
+  flex: none;
+  color: var(--color-text-muted);
+}
+.railItem:hover .railIcon,
+.railItem[data-active] .railIcon {
+  color: var(--color-accent);
+}
 .railName {
   flex: 1 1 auto;
   font: var(--t-h3);
@@ -269,6 +281,9 @@
   }
   .railChev {
     opacity: 1;
+  }
+  .railIcon {
+    display: inline-flex;
   }
   .railLi {
     border-block-end: var(--border-hairline) solid var(--color-hairline);

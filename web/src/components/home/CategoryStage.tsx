@@ -113,6 +113,14 @@ export function CategoryStage({
                     onKeyDown={activeCat.slug === cat.slug ? handleRailKeyDown : undefined}
                     data-event="rail_category_click"
                   >
+                    {/* Mobile-only (CSS-gated, see .railIcon) — the desktop
+                        rail is deliberately pure type with the photo reveal
+                        doing the visual work; below 1024px that flyout is
+                        display:none, so the rail item is the ONLY visual
+                        affordance and was reading as a plain text list. */}
+                    <span className={styles.railIcon} aria-hidden="true">
+                      <CategoryArt slug={cat.slug} size={22} />
+                    </span>
                     <span className={styles.railName}>{cat.name}</span>
                     <ChevronStartIcon size={20} className={`${styles.railChev} icon--rtl`} />
                   </Link>
