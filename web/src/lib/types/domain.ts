@@ -32,6 +32,14 @@ export interface SeoMeta {
   description?: string;
   canonical?: string;
   ogImage?: string;
+  /** The phrase this article is written to rank for (US-14.4) — supplied by
+   *  the writer, never inferred. Everything downstream (the on-page SEO
+   *  checklist, the keywordchi/Trends deep-link buttons) keys off this exact
+   *  string; it is deliberately part of the existing `seo` jsonb blob rather
+   *  than a new column, since it is schema-free metadata of the same shape
+   *  as `title`/`description` above, not something any index or repo query
+   *  needs to reach into. */
+  focusKeyword?: string;
 }
 
 export interface Category {

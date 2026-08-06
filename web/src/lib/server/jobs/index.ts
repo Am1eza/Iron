@@ -8,6 +8,7 @@ import { alertsJob } from './alerts.job';
 import { publishArticlesJob } from './publishArticles.job';
 import { smsAutomationJob } from './smsAutomation.job';
 import { weeklyReportJob } from './weeklyReport.job';
+import { searchConsoleRefreshJob } from './searchConsoleRefresh.job';
 
 export const jobs: Job[] = [marketPollJob, stalenessJob, alertsJob, publishArticlesJob, proformaExpireJob, smsAutomationJob,
-  weeklyReportJob, cleanupJob];
+  weeklyReportJob, searchConsoleRefreshJob, cleanupJob];

@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
-import { articleSlugSchema, articleTagsSchema } from '@/lib/validation/utils';
+import { articleSeoSchema, articleSlugSchema, articleTagsSchema } from '@/lib/validation/utils';
 import { richDocSchema } from '@/lib/content/richDoc';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { adminListArticles, createArticle } from '@/lib/server/repos/articlesRepo';
@@ -38,6 +38,11 @@ const createPayload = z.object({
   bodyMd: z.string().max(100_000).optional(),
   bodyJson: richDocSchema.optional(),
   tags: articleTagsSchema,
+  // Accepted on CREATE too (US-14.4). Without this the drawer's SEO fields —
+  // including the focus keyword — were stripped by zod on the very first save
+  // and then blanked on screen by the post-create reseed, with a success
+  // toast and no dirty flag to hint that anything had been lost.
+  seo: articleSeoSchema,
 });
 
 /** POST /api/admin/articles — create a draft. */

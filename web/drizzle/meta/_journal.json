@@ -211,6 +211,20 @@
       "when": 1785941801317,
       "tag": "0029_article_body_json",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1785959933073,
+      "tag": "0030_search_console_metrics",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1785971134676,
+      "tag": "0031_search_console_auth",
+      "breakpoints": true
     }
   ]
 }

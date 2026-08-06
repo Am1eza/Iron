@@ -9,7 +9,7 @@ import {
   revalidateArticleSection,
   revalidateArticleUrl,
 } from '@/lib/server/utils/revalidate';
-import { articleSlugSchema, articleTagsSchema, uploadPathSchema, internalPathSchema } from '@/lib/validation/utils';
+import { articleSeoSchema, articleSlugSchema, articleTagsSchema, uploadPathSchema } from '@/lib/validation/utils';
 import { richDocSchema } from '@/lib/content/richDoc';
 import { createRedirect, RedirectLoopError } from '@/lib/server/repos/redirectsRepo';
 import { reportError } from '@/lib/errors/report';
@@ -87,30 +87,11 @@ const patchPayload = z.object({
   coverUrl: z.preprocess((v) => (v === '' ? null : v), uploadPathSchema.nullable().optional()),
   authorId: z.string().min(1).nullable().optional(),
   tags: articleTagsSchema,
-  // Editor SEO overrides. Empty url fields → undefined so a blank input never
-  // fails .url() (forms send '' for "unset").
-  seo: z
-    .object({
-      title: z.string().trim().max(70).optional(),
-      description: z.string().trim().max(200).optional(),
-      // `/^\//` only asserted "starts with a slash" — which `//evil.com` and
-      // `/\evil.com` both do, and both resolve to `https://evil.com/` in
-      // `buildMetadata`'s `new URL(path, SITE_URL)`. That published an
-      // attacker-controlled `<link rel="canonical">` and `og:url` on the
-      // article: a silent, durable ranking/traffic hijack that leaves the page
-      // rendering perfectly. Use the shared parser-based schema — the same one
-      // `ogImage`'s sibling `uploadPathSchema` already models — and keep the
-      // leading-slash requirement for the editor-facing error message.
-      canonical: z.preprocess(
-        (v) => (v === '' ? undefined : v),
-        internalPathSchema(300)
-          .refine((v) => v.startsWith('/'), 'نشانی متعارف باید یک مسیر داخلی باشد (با / شروع شود).')
-          .optional(),
-      ),
-      ogImage: z.preprocess((v) => (v === '' ? undefined : v), uploadPathSchema.optional()),
-    })
-    .nullable()
-    .optional(),
+  // Editor SEO overrides, including the focus keyword the on-page checklist
+  // keys off. Shared with the create route. canonical is validated by
+  // internalPathSchema (parser-based, not a startswith-slash regex) inside
+  // articleSeoSchema itself — see lib/validation/utils.ts.
+  seo: articleSeoSchema,
   // Only 'draft' — moving DOWN in privilege (cancel/revert a scheduled
   // publish) is a safe content:write operation. Scheduling or publishing
   // is content:publish's job (POST .../publish, which also stamps

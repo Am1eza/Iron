@@ -95,6 +95,28 @@ services:
       GTM_ID: ${GTM_ID:-}
       GA4_ID: ${GA4_ID:-}
       GSC_VERIFICATION: ${GSC_VERIFICATION:-}
+      # Google Search Console API (US-14.4) — the per-article "what is this
+      # page ranking for" panel. Distinct from GSC_VERIFICATION above, which
+      # is only the ownership meta tag. All blank in production: the OAuth
+      # client has to be created by the owner in Google Cloud, and until these
+      # three are set `isSearchConsoleConfigured()` is false, the daily refresh
+      # job no-ops and no Search Console UI renders anywhere.
+      GSC_CLIENT_ID: ${GSC_CLIENT_ID:-}
+      GSC_CLIENT_SECRET: ${GSC_CLIENT_SECRET:-}
+      # The property EXACTLY as Search Console spells it: `sc-domain:ahantime.com`
+      # for a Domain property, or `https://ahantime.com/` (with the trailing
+      # slash) for a URL-prefix one. Google matches this literally.
+      GSC_SITE_URL: ${GSC_SITE_URL:-}
+      # Only if the callback lives somewhere other than the panel host default.
+      GSC_REDIRECT_URI: ${GSC_REDIRECT_URI:-}
+      # Relay overrides, same shape as AI_BASE_URL. Google is directly
+      # reachable from this host today (measured: accounts/oauth2/searchconsole
+      # all answer in well under a second), so these stay empty — they exist so
+      # that if Google is ever filtered, pointing at an out-of-Iran proxy is an
+      # .env edit rather than a code change.
+      GSC_AUTH_BASE_URL: ${GSC_AUTH_BASE_URL:-}
+      GSC_TOKEN_BASE_URL: ${GSC_TOKEN_BASE_URL:-}
+      GSC_API_BASE_URL: ${GSC_API_BASE_URL:-}
       # Fully optional integrations (dev fallbacks / last-known values apply when blank).
       # TGJU_BASE_URL defaults to the self-hosted `tgju` service below —
       # override only to point at a different relay. OUNCE_API_URL has its

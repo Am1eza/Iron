@@ -30,6 +30,9 @@ import { EditorErrorBoundary } from './editor/EditorErrorBoundary';
 import { RichContent } from '@/components/content/RichContent';
 import { markdownToDoc } from '@/lib/content/markdownToDoc';
 import { EMPTY_DOC, countImagesMissingAlt, docFingerprint, type RichDoc } from '@/lib/content/richDoc';
+import { SeoChecklist } from './seo/SeoChecklist';
+import { KeywordToolLinks } from './seo/KeywordToolLinks';
+import { ArticleSearchConsole } from './seo/ArticleSearchConsole';
 import { JalaliDateField } from '../JalaliDateField';
 import { PagerFooter } from '../PagerFooter';
 import { routes } from '@/lib/routes';
@@ -359,6 +362,9 @@ type Values = {
   seoDescription: string;
   seoCanonical: string;
   seoOgImage: string;
+  /** The phrase this article is written to rank for (US-14.4). Everything in
+   *  the SEO checklist keys off it; it is never inferred from the text. */
+  seoFocusKeyword: string;
 };
 
 function emptyValues(defaultType: 'blog' | 'news'): Values {
@@ -375,6 +381,7 @@ function emptyValues(defaultType: 'blog' | 'news'): Values {
     seoDescription: '',
     seoCanonical: '',
     seoOgImage: '',
+    seoFocusKeyword: '',
   };
 }
 
@@ -399,6 +406,7 @@ function fromArticle(a: ArticleFull): Values {
     seoDescription: a.seo?.description ?? '',
     seoCanonical: a.seo?.canonical ?? '',
     seoOgImage: a.seo?.ogImage ?? '',
+    seoFocusKeyword: a.seo?.focusKeyword ?? '',
   };
 }
 
@@ -660,6 +668,7 @@ function ArticleDrawer({
       description: v.seoDescription.trim() || undefined,
       canonical: v.seoCanonical.trim() || undefined,
       ogImage: v.seoOgImage.trim() || undefined,
+      focusKeyword: v.seoFocusKeyword.trim() || undefined,
     };
     return Object.values(seo).some(Boolean) ? seo : null;
   };
@@ -673,6 +682,11 @@ function ArticleDrawer({
         excerpt: v.excerpt.trim() || undefined,
         bodyJson: v.bodyJson,
         tags: v.tags,
+        // Sent on CREATE as well as on save. It used not to be, and the
+        // reseed below then overwrote the drawer's SEO inputs with the
+        // server's empty ones — a focus keyword typed before the first save
+        // vanished silently, with a success toast and no unsaved-changes flag.
+        seo: seoPatch(),
       }),
     onSuccess: (res) => {
       toast.success('پیش‌نویس ساخته شد؛ ادامه بدهید.');
@@ -1024,6 +1038,59 @@ function ArticleDrawer({
               <ImageUpload label="تصویر کاور" value={v.coverUrl} onChange={(url) => set({ coverUrl: url })} />
               <TagField value={v.tags} onChange={(tags) => set({ tags })} />
             </div>
+
+            {/* On-page SEO (US-14.4). Deliberately NOT inside «تنظیمات
+                پیشرفته»: unlike the canonical URL or the OG image, this is
+                meant to be read while writing, and a checklist nobody opens
+                is a checklist nobody follows. It updates on every keystroke —
+                see SeoChecklist for why there is no live region. */}
+            <div className={s.sideCard}>
+              <div className={s.sideCardTitle}>سئوی این مقاله</div>
+              <TextInput
+                label="کلیدواژهٔ هدف"
+                helper="عبارتی که می‌خواهید این مقاله با آن در گوگل پیدا شود، مثلاً «قیمت میلگرد اصفهان»."
+                value={v.seoFocusKeyword}
+                maxLength={100}
+                // `set()` clears errors keyed by the PATCH field name it was
+                // given, which for this input is `seoFocusKeyword` — a server
+                // error filed under the dotted zod path would otherwise stick
+                // under the box for the rest of the drawer session no matter
+                // what the writer typed. Clear it explicitly here.
+                error={fieldErrors['seo.focusKeyword']}
+                onChange={(e) => {
+                  setFieldErrors((prev) => {
+                    if (!prev['seo.focusKeyword']) return prev;
+                    const next = { ...prev };
+                    delete next['seo.focusKeyword'];
+                    return next;
+                  });
+                  set({ seoFocusKeyword: e.target.value });
+                }}
+              />
+              <KeywordToolLinks keyword={v.seoFocusKeyword} />
+              <SeoChecklist
+                title={v.title}
+                seoTitle={v.seoTitle}
+                seoDescription={v.seoDescription}
+                excerpt={v.excerpt}
+                slug={v.slug}
+                focusKeyword={v.seoFocusKeyword}
+                doc={v.bodyJson}
+              />
+            </div>
+
+            {/* Real Google numbers for this page — renders nothing at all
+                until the owner has connected Search Console (US-14.4). */}
+            {!isCreate && article && status === 'published' ? (
+              // The card chrome is passed IN rather than wrapped around, so an
+              // unconfigured/unconnected panel renders nothing at all instead
+              // of an empty bordered box.
+              <ArticleSearchConsole
+                className={s.sideCard}
+                path={articlePath(article.type, article.slug)}
+                published
+              />
+            ) : null}
 
             {/* Everything below is for a non-technical admin's rare/one-time
                 decisions — the URL, who wrote it, sending readers elsewhere,

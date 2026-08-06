@@ -146,6 +146,80 @@ export const articleTagsSchema = z
   .transform(normalizeArticleTags)
   .optional();
 
+/**
+ * A path that provably cannot leave this site's own origin.
+ *
+ * Stricter than `internalPathSchema` above and used where the value becomes a
+ * cache key or part of an outbound request — `internalPathSchema` is a list of
+ * prohibitions, and lists of prohibitions leak. Concretely: the WHATWG URL
+ * parser treats a BACKSLASH as a slash for special schemes, so `/\evil.com`
+ * satisfies "starts with /, no //, no ://" and then resolves to
+ * `https://evil.com/`. Proving the property by construction — resolve it, and
+ * require the result to be same-origin, path-only and byte-identical to the
+ * input — has no equivalent gap, and the round-trip requirement additionally
+ * stops `/blog/x`, `/blog/x/` and `/a/../blog/x` from becoming three cache
+ * keys for one page.
+ *
+ * `base` defaults to the site origin; it is a parameter only so tests can pin
+ * it without touching the environment.
+ */
+export function sitePathSchema(base: string = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://ahantime.com', max = 300) {
+  const origin = new URL(base).origin;
+  return z
+    .string()
+    .trim()
+    .min(1)
+    .max(max)
+    .refine(
+      (v) => {
+        if (!v.startsWith('/') || /[?#\s]/.test(v)) return false;
+        let resolved: URL;
+        try {
+          resolved = new URL(v, origin);
+        } catch {
+          return false;
+        }
+        return resolved.origin === origin && resolved.pathname === v && !resolved.search && !resolved.hash;
+      },
+      { message: 'مسیر صفحه معتبر نیست.' },
+    );
+}
+
+/**
+ * An article's `seo` jsonb blob — the editor's Google-result overrides plus
+ * the focus keyword the on-page checklist keys off (US-14.4).
+ *
+ * Shared by BOTH article routes rather than declared in each. It used to live
+ * only on PATCH, which is why creating an article silently threw away every
+ * SEO field the writer had filled in: the drawer sent them, `createPayload`
+ * had no key for them, zod stripped them, and the post-create reseed then
+ * blanked the inputs on screen with a success toast — no error, no dirty
+ * flag, no way to tell it had happened.
+ *
+ * Empty strings become `undefined` so a blank input is "unset" rather than a
+ * stored empty value; the keyword trims first, so «   » is a blank too.
+ */
+export const articleSeoSchema = z
+  .object({
+    title: z.string().trim().max(70).optional(),
+    description: z.string().trim().max(200).optional(),
+    // internalPathSchema is parser-based (isInternalPathValue), not a
+    // startswith-slash regex: a startswith check alone lets //evil.com and
+    // /\evil.com through, and both resolve to https://evil.com/ in
+    // buildMetadata, publishing an attacker-controlled canonical/og:url.
+    canonical: z.preprocess(
+      (v) => (v === '' ? undefined : v),
+      internalPathSchema(300).optional(),
+    ),
+    ogImage: z.preprocess((v) => (v === '' ? undefined : v), uploadPathSchema.optional()),
+    focusKeyword: z.preprocess(
+      (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
+      z.string().trim().max(100).optional(),
+    ),
+  })
+  .nullable()
+  .optional();
+
 /** A patch body must actually change something — every field on these schemas
  *  is optional, so `{}` parsed fine and reached drizzle's `.set({})`, which
  *  throws "No values to set" and surfaced as a 500. */
