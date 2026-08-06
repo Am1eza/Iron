@@ -19,8 +19,10 @@ export const publishArticlesJob: Job = {
     // purge one worker of five. The honest bound is therefore the routes' own
     // `revalidate = 600`: a SCHEDULED article appears within ten minutes,
     // exactly like the RSS feeds and the sitemap memo already behave. An
-    // editor publishing from the panel is unaffected — that path runs inside a
-    // request and revalidates synchronously.
+    // editor publishing from the panel is better off but not exempt — that
+    // path runs inside a request, so its `revalidatePath` purges the worker
+    // that handled the request; the other WEB_CONCURRENCY-1 workers still
+    // serve their own copy until it expires.
     //
     // Making this instant needs a shared (Redis-backed) Next cache handler, so
     // that one purge reaches every worker. That is a deployment change, not a

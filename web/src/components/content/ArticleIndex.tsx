@@ -1,4 +1,3 @@
-import { cache } from 'react';
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { buildMetadata } from '@/lib/seo';
@@ -51,9 +50,6 @@ export const INDEX_COPY: Record<'blog' | 'news', Copy> = {
   },
 };
 
-/** Deduped so `generateMetadata` and the page body share one query per render. */
-const loadPage = cache((type: 'blog' | 'news', page: number) => getArticlesPage(type, page, PER_PAGE));
-
 const META: Record<'blog' | 'news', { title: string; description: string; feed: string }> = {
   blog: {
     title: 'وبلاگ آهن‌تایم',
@@ -99,16 +95,21 @@ export function indexMetadata(type: 'blog' | 'news', page: number): Metadata {
 
 export async function ArticleIndex({ type, page }: { type: 'blog' | 'news'; page: number }) {
   const copy = INDEX_COPY[type];
-  const { articles, total } = await loadPage(type, page);
+  const { articles, total } = await getArticlesPage(type, page, PER_PAGE);
   const pageCount = Math.max(1, Math.ceil(total / PER_PAGE));
 
-  // Out of range used to render page 1's "هنوز مطلبی منتشر نشده است" empty
-  // state at HTTP 200 with no pager on screen — telling the visitor the
-  // publication does not exist, offering no way back, and handing crawlers an
-  // unbounded soft-404 space. Send the reader to real content instead. A
-  // redirect is also the only response here that is not a cacheable 200:
-  // `notFound()` replies 200 inside an already-matched route in this Next
-  // version (see lib/server/seo/knownPaths.ts).
+  // FALLBACK ONLY — the primary answer for an out-of-range page is a genuine
+  // 404 from the middleware guard, which knows the real page count
+  // (`publishedGuardPaths` publishes /blog/page/2..N). This branch is
+  // reachable only while that guard is failing open: a cold process, or a DB
+  // blip that left `known` empty. It cannot itself produce a real status code
+  // — `redirect()` inside an already-matched route replies 200 with a
+  // client-side hop in this Next version, exactly like `notFound()` does
+  // (measured) — so it is a courtesy, not the control.
+  //
+  // What it replaces either way: page 1's "هنوز مطلبی منتشر نشده است" empty
+  // state, rendered at 200 with no pager on screen, telling the visitor the
+  // publication does not exist and offering no way back.
   if (page > pageCount) redirect(archiveHref(type, pageCount));
 
   const crumbs = [{ label: 'خانه', href: routes.home() }, { label: copy.crumb }];

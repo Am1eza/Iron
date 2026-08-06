@@ -56,7 +56,7 @@ const GUARDED_PATTERNS: readonly RegExp[] = [
   // real status code from inside an already-matched route in this Next version
   // (both reply 200 — measured), so the ONLY way to answer honestly is the
   // same middleware rewrite every other unknown slug uses. `known` therefore
-  // carries `/blog/page/2 ... /blog/page/<last>`; see `publishedArticlePaths`.
+  // carries `/blog/page/2 ... /blog/page/<last>`; see `publishedGuardPaths`.
   /^\/blog\/page\/[^/]+$/,
   /^\/news\/page\/[^/]+$/,
   /^\/tools\/[^/]+$/,
@@ -96,6 +96,14 @@ const STATIC_UNDER_GUARDED_PREFIX: readonly string[] = ['/blog/rss.xml', '/news/
 
 /** Is this pathname served by a DB-backed dynamic route we can validate? */
 export function isGuardedPath(pathname: string): boolean {
+  // Exact spelling only, deliberately. Because `shouldNotFound` also judges
+  // the RAW pathname (see there), an encoded spelling of one of these —
+  // `/blog/rss%2Exml` — is guarded and 404s. That is the better outcome, not a
+  // gap: measured against production, that URL currently returns **500**
+  // ("Invariant app-page handler received invalid cache entry APP_ROUTE" from
+  // Next's own router, reported to GlitchTip), so guarding it converts an
+  // unauthenticated 500-on-demand into a clean 404. The canonical spelling,
+  // which is the only one anything links, is untouched.
   if (STATIC_UNDER_GUARDED_PREFIX.includes(pathname)) return false;
   return GUARDED_PATTERNS.some((re) => re.test(pathname));
 }

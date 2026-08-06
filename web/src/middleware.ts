@@ -5,9 +5,9 @@ import { can, permissionForAdminPath } from '@/lib/auth/roles';
 import { hasDb } from '@/lib/server/db/client';
 import { adminListRedirects, normalizePath } from '@/lib/server/repos/redirectsRepo';
 import { publicCatalogPaths } from '@/lib/server/repos/catalogRepo';
-import { publishedArticlePaths } from '@/lib/server/repos/articlesRepo';
+import { publishedGuardPaths } from '@/lib/server/repos/articlesRepo';
 import { hasGuardedPrefix, shouldNotFound } from '@/lib/server/seo/knownPaths';
-import { archiveRedirect } from '@/lib/content/archivePaging';
+import { archiveIndexFallback, archiveRedirect } from '@/lib/content/archivePaging';
 import { resolvePanelRouting, isPanelHost } from '@/lib/server/utils/panelHost';
 
 /**
@@ -95,7 +95,7 @@ async function refreshKnownPathsIfStale(): Promise<void> {
   knownPathsLoadedAt = Date.now(); // before the await — see refreshRedirectCacheIfStale
   if (!hasDb()) return;
   try {
-    const [catalog, articles] = await Promise.all([publicCatalogPaths(), publishedArticlePaths()]);
+    const [catalog, articles] = await Promise.all([publicCatalogPaths(), publishedGuardPaths()]);
     knownPathCache = new Set([...catalog, ...articles]);
   } catch {
     // Keep whatever was already loaded. Never empty the set on failure: an
@@ -113,20 +113,6 @@ export async function middleware(req: NextRequest) {
   // Redirects (US-14.3) are a public-site SEO concern — never checked on the
   // panel host, where every path is already spoken for by the admin rewrite.
   if (!onPanelHost) {
-    // Legacy `/blog?page=N` → `/blog/page/N`. The archive's page number moved
-    // into the path so the route could be genuinely ISR'd (reading
-    // `searchParams` in a Server Component makes the whole route dynamic in
-    // Next 15, which is why `revalidate = 600` there was dead code). Anything
-    // already linked or indexed with the old query form keeps working, and
-    // 308 tells Google the move is permanent.
-    const legacy = archiveRedirect(req.nextUrl.pathname, req.nextUrl.searchParams.get('page'));
-    if (legacy) {
-      const url = req.nextUrl.clone();
-      url.pathname = legacy;
-      url.search = '';
-      return NextResponse.redirect(url, 308);
-    }
-
     await refreshRedirectCacheIfStale();
     const redirectMatch = redirectCache.get(normalizePath(req.nextUrl.pathname));
     if (redirectMatch) {
@@ -134,6 +120,26 @@ export async function middleware(req: NextRequest) {
       url.pathname = redirectMatch.toPath;
       url.search = ''; // the configured target is a complete destination, not a query passthrough
       return NextResponse.redirect(url, redirectMatch.permanent ? 308 : 307);
+    }
+
+    // Legacy `/blog?page=N` → `/blog/page/N`. The archive's page number moved
+    // into the path so the route could be genuinely ISR'd (reading
+    // `searchParams` in a Server Component makes the whole route dynamic in
+    // Next 15, which is why `revalidate = 600` there was dead code). Anything
+    // already linked or indexed with the old query form keeps working, and 308
+    // tells Google the move is permanent.
+    //
+    // AFTER the redirect table, deliberately: an admin-configured row for
+    // /blog or /news is an explicit editorial decision and must win over this
+    // structural rewrite, exactly as it wins over the 404 guard below.
+    const archive = archiveRedirect(req.nextUrl.pathname, req.nextUrl.searchParams.get('page'));
+    if (archive) {
+      const url = req.nextUrl.clone();
+      url.pathname = archive.pathname;
+      // Only `page` is consumed — `url.search = ''` here would permanently
+      // strip `utm_*`/`gclid` from every newsletter and ad link into /blog.
+      url.searchParams.delete('page');
+      return NextResponse.redirect(url, archive.permanent ? 308 : 307);
     }
 
     // A slug that exists in no table must answer a REAL 404, not a cached
@@ -151,6 +157,18 @@ export async function middleware(req: NextRequest) {
       await refreshKnownPathsIfStale();
       if (shouldNotFound(req.nextUrl.pathname, knownPathCache, { redirectsLoaded: redirectsEverLoaded })) {
         const url = req.nextUrl.clone();
+        // An archive page that does not exist is not a fabricated URL — it is
+        // a real position in a list that shrank, or one that has not entered
+        // the 60s-cached `known` set yet. Send the reader to the section
+        // rather than to a tombstone, and temporarily, because page N may
+        // exist again next week. Without this an indexed `/blog?page=2` would
+        // 308 into a hard 404, which is a worse signal than either endpoint.
+        const fallback = archiveIndexFallback(url.pathname);
+        if (fallback) {
+          url.pathname = fallback;
+          url.searchParams.delete('page');
+          return NextResponse.redirect(url, 307);
+        }
         url.pathname = '/__not_found__';
         url.search = '';
         return NextResponse.rewrite(url);

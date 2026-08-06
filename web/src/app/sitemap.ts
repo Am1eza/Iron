@@ -143,6 +143,9 @@ async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
     // produced NO recrawl signal at all — the sitemap entry simply did not
     // move. Every PATCH stamps `updatedAt`, including SEO-only edits, which
     // is what the column means; the SKU entries above already use it.
+    // `updatedAt` first — `publishAt` alone meant editing a published article
+    // produced no recrawl signal at all. The fallbacks are for the type, not
+    // for live data: `toArticleDto` always sets it (notNull column).
     lastModified: new Date(a.updatedAt ?? a.publishAt ?? now),
     changeFrequency: 'monthly',
     priority: 0.6,
@@ -154,6 +157,9 @@ async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
     // produced NO recrawl signal at all — the sitemap entry simply did not
     // move. Every PATCH stamps `updatedAt`, including SEO-only edits, which
     // is what the column means; the SKU entries above already use it.
+    // `updatedAt` first — `publishAt` alone meant editing a published article
+    // produced no recrawl signal at all. The fallbacks are for the type, not
+    // for live data: `toArticleDto` always sets it (notNull column).
     lastModified: new Date(a.updatedAt ?? a.publishAt ?? now),
     changeFrequency: 'daily',
     priority: 0.6,

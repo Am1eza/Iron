@@ -98,10 +98,14 @@ const nextConfig = {
           return [
             {
               // Keep admin, personal, and internal areas out of search indexes
-              // (IA / SEO rules). These paths are intentionally NOT in
-              // robots.ts's `disallow` (except /admin) — see the comment there
-              // for why noindex-only (not Disallow+noindex) is the correct
-              // pairing. (The /styleguide dev kitchen-sink route was removed.)
+              // (IA / SEO rules). None of these paths is in robots.ts's
+              // `disallow` — see the comment there for why noindex-only (not
+              // Disallow+noindex) is the correct pairing. `/admin` used to be
+              // the exception and no longer is, which makes the host-matched
+              // rule BELOW the only thing keeping panel.ahantime.com out of
+              // the index: robots.txt is byte-identical on both hosts and now
+              // says `Allow: /`. Treat that rule as load-bearing.
+              // (The /styleguide dev kitchen-sink route was removed.)
               source: '/:path(admin|account|request|cart|search|login)(.*)',
               headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }],
             },

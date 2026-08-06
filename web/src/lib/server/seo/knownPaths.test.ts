@@ -16,7 +16,7 @@ const known = new Set([
   '/prices/pipe/gas',
   '/blog/what-is-a3',
   '/news/market-update',
-  // The archive pages that exist — see `publishedArticlePaths`.
+  // The archive pages that exist — see `publishedGuardPaths`.
   '/blog/page/2',
 ]);
 
@@ -177,6 +177,17 @@ describe('shouldNotFound — the %2F guard bypass (security regression)', () => 
   it('still lets the RSS feeds through', () => {
     expect(shouldNotFound('/blog/rss.xml', known)).toBe(false);
     expect(shouldNotFound('/news/rss.xml', known)).toBe(false);
+    expect(shouldNotFound('/blog/rss.xml/', known)).toBe(false);
+  });
+
+  it('404s an ENCODED spelling of a feed — which today is a 500', () => {
+    // Only the canonical spelling is exempt. `/blog/rss%2Exml` reaches
+    // `/blog/[slug]` and returns HTTP 500 from Next's own router (verified
+    // against production: "Invariant app-page handler received invalid cache
+    // entry APP_ROUTE", reported to GlitchTip). Guarding it turns an
+    // unauthenticated 500-on-demand into a clean 404. Nothing links it.
+    expect(shouldNotFound('/blog/rss%2Exml', known)).toBe(true);
+    expect(shouldNotFound('/news/rss%2exml', known)).toBe(true);
   });
 
   it('still fails open when the catalog has not loaded', () => {

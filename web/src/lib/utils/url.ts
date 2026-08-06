@@ -66,5 +66,12 @@ export function isInternalPathValue(value: string): boolean {
   if (URL_CONFUSABLES.test(v)) return false;
   if (hasScheme(v)) return false;
   const u = resolveUrl(v.startsWith('/') ? v : `/${v}`);
-  return !!u && u.origin === SITE_ORIGIN;
+  if (!u || u.origin !== SITE_ORIGIN) return false;
+  // `//evil.com:80@ahantime.com/` genuinely resolves to this origin — the
+  // parser reads `evil.com:80` as userinfo — so the origin check passes and
+  // there is no hijack. It is still rejected: the address bar reads
+  // "evil.com:80@ahantime.com", which is the confusable half of the same
+  // trick `isExternal` already has to defend against from the other side, and
+  // no legitimate internal path has credentials in it.
+  return !u.username && !u.password;
 }

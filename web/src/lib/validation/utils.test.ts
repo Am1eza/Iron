@@ -70,6 +70,17 @@ describe('internalPathSchema — off-site values (security regression)', () => {
     }
   });
 
+  it('rejects a same-origin URL that carries userinfo', () => {
+    // `//evil.com:80@ahantime.com/` really does resolve to this origin — the
+    // parser reads `evil.com:80` as userinfo — so there is no hijack, but the
+    // address bar reads "evil.com:80@ahantime.com".
+    expect(new URL('//evil.com:80@ahantime.com/', 'https://ahantime.com').origin).toBe(
+      'https://ahantime.com',
+    );
+    expect(ok('//evil.com:80@ahantime.com/')).toBe(false);
+    expect(ok('//user:pw@ahantime.com/blog')).toBe(false);
+  });
+
   it('still accepts real internal paths, including the un-slashed form', () => {
     // `redirectsRepo.normalizePath` adds the leading slash, so this shape has
     // to keep validating or the redirect form regresses.

@@ -111,8 +111,9 @@ export const RSS_HEADERS = {
   'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=1200',
 } as const;
 
-/** A feed is a fixed-size window, never an archive: `getAllPublishedArticles`
- *  will happily page to 10,000 rows, and serving that as one XML document on
- *  every cache miss is a self-inflicted outage. Readers only ever show the
- *  newest handful anyway. */
+/** A feed is a fixed-size window, never an archive: serving the whole archive
+ *  as one XML document on every cache miss is a self-inflicted outage, and
+ *  readers only ever show the newest handful anyway. Both feed routes pass
+ *  this as the page size, so it now bounds the QUERY — they used to page the
+ *  whole archive out of Postgres and slice afterwards. */
 export const RSS_ITEM_LIMIT = 50;

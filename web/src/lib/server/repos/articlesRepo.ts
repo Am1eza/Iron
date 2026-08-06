@@ -15,7 +15,16 @@ import { PER_PAGE } from '@/lib/content/archivePaging';
 
 type Row = typeof articles.$inferSelect;
 
-export function toArticleDto(r: Row): Article {
+/** The columns `toArticleDto` reads — see `LIST_COLUMNS` for the projection
+ *  that produces exactly these. Typed rather than cast so that adding a field
+ *  to the DTO is a compile error here, not a silent `undefined` on list rows. */
+export type ArticleListRow = Pick<
+  Row,
+  | 'id' | 'slug' | 'type' | 'title' | 'excerpt' | 'coverUrl'
+  | 'status' | 'source' | 'publishAt' | 'updatedAt' | 'tags' | 'seo'
+>;
+
+export function toArticleDto(r: ArticleListRow): Article {
   return {
     id: r.id,
     slug: r.slug,
@@ -120,13 +129,6 @@ const LIST_COLUMNS = {
   seo: articles.seo,
 } as const;
 
-type ListRow = { [K in keyof typeof LIST_COLUMNS]: Row[K] };
-
-/** `toArticleDto` reads exactly these columns — see LIST_COLUMNS. */
-function listRowToDto(r: ListRow): Article {
-  return toArticleDto(r as Row);
-}
-
 export async function listPublished(type: 'blog' | 'news', page = 1, perPage = 20) {
   const db = getDb();
   const where = and(eq(articles.type, type), publishedCond());
@@ -140,7 +142,7 @@ export async function listPublished(type: 'blog' | 'news', page = 1, perPage = 2
       .offset((page - 1) * perPage),
     db.select({ n: sql<number>`count(*)::int` }).from(articles).where(where),
   ]);
-  return { articles: rows.map(listRowToDto), total: total[0]?.n ?? 0 };
+  return { articles: rows.map(toArticleDto), total: total[0]?.n ?? 0 };
 }
 
 /**
@@ -167,16 +169,25 @@ export async function relatedArticles(
     .where(and(eq(articles.type, type), ne(articles.slug, excludeSlug), publishedCond()))
     .orderBy(desc(articles.publishAt))
     .limit(limit);
-  return rows.map(listRowToDto);
+  return rows.map(toArticleDto);
 }
 
 /**
- * `/blog/{slug}` and `/news/{slug}` for every article the public can actually
- * read — same `publishedCond()` the detail page uses, so a draft or a
- * scheduled-but-not-yet-due article is (correctly) not in the list and its URL
- * 404s. Slug-only, no body: this is read from middleware on a 60s cache.
+ * Every public URL under /blog and /news that may legitimately answer 200 —
+ * i.e. the middleware 404 guard's allowlist for these two families, which is
+ * the ONLY caller and the reason for the name. Two kinds of URL:
+ *
+ *  - `/blog/{slug}` and `/news/{slug}` for every article the public can
+ *    actually read, using the same `publishedCond()` the detail page uses, so
+ *    a draft or a scheduled-but-not-yet-due article is (correctly) absent and
+ *    its URL 404s;
+ *  - the archive pages that exist, `/blog/page/2 ... /blog/page/<last>`.
+ *
+ * NOT an article list. Anything that wants article URLs alone (a sitemap, a
+ * feed) must not read this — it would silently publish pagination URLs.
+ * Slug-only, no body: read from middleware on a 60s cache.
  */
-export async function publishedArticlePaths(): Promise<string[]> {
+export async function publishedGuardPaths(): Promise<string[]> {
   const rows = await getDb()
     .select({ slug: articles.slug, type: articles.type })
     .from(articles)

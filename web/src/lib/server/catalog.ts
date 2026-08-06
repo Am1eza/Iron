@@ -3,6 +3,7 @@
  * used from the mock module, switching mock⇄live invisibly. Live mode calls
  * the repos directly (no HTTP round-trip inside the same app).
  */
+import { cache } from 'react';
 import { API_MODE } from '@/lib/api/config';
 import { hasDb } from '@/lib/server/db/client';
 import type { Category, PriceRow, Article } from '@/lib/types/domain';
@@ -131,20 +132,14 @@ export async function searchAll(q: string): Promise<{ skus: PriceRow[]; articles
 
 /* ------------------------------ articles ------------------------------ */
 
-export async function getArticlesByType(type: 'blog' | 'news'): Promise<Article[]> {
-  if (!live()) return mock.articlesByType(type);
-  const { articles } = await listPublished(type);
-  return articles;
-}
-
 /**
- * Paged variant for the public index and the sitemap.
+ * The public index and the sitemap.
  *
- * `getArticlesByType` silently returns only `listPublished`'s first page of 20
- * and throws away the `total` it is handed — so from the 21st published
- * article onward the oldest ones vanished from /blog AND from the sitemap,
- * with no pager, no 404 and no hint that anything had been cut. Latent at
- * seven articles, certain to bite.
+ * There used to be a `getArticlesByType` beside this that silently returned
+ * only `listPublished`'s first page of 20 and threw away the `total` it was
+ * handed — so from the 21st published article onward the oldest ones vanished
+ * from /blog AND from the sitemap, with no pager, no 404 and no hint that
+ * anything had been cut. Its last two callers moved to `getRelatedArticles`.
  */
 export async function getArticlesPage(
   type: 'blog' | 'news',
@@ -187,7 +182,16 @@ export async function getAllPublishedArticles(type: 'blog' | 'news'): Promise<Ar
   return out;
 }
 
-export async function getArticle(slug: string): Promise<ArticleFull | Article | undefined> {
-  if (!live()) return mock.findArticle(slug);
-  return (await findPublishedBySlug(slug)) ?? undefined;
-}
+/**
+ * Request-deduped: `/blog/[slug]` and `/news/[slug]` each call this from BOTH
+ * `generateMetadata` and the page body, which was two identical
+ * `findPublishedBySlug` queries per render (measured: 3 scans on `articles`
+ * per cold article render, of which one was pure duplication). `cache()` is
+ * per-request, so it changes nothing about ISR or about two different readers.
+ */
+export const getArticle = cache(
+  async (slug: string): Promise<ArticleFull | Article | undefined> => {
+    if (!live()) return mock.findArticle(slug);
+    return (await findPublishedBySlug(slug)) ?? undefined;
+  },
+);

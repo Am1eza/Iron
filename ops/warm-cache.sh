@@ -45,7 +45,19 @@ RESOLVE="${WARM_RESOLVE:-ahantime.com:443:127.0.0.1}"
 WORKERS="${WEB_CONCURRENCY:-3}"
 # Requests aren't guaranteed evenly distributed across workers, so probe well
 # past the worker count rather than exactly matching it.
-ROUNDS=$((WORKERS + 3))
+#
+# WORKERS+3 was nowhere near enough, and the arithmetic is worth writing down
+# because the old value looked reasonable. The primary hands each connection to
+# whichever worker is free, so N probes landing on all W workers is the
+# onto-function probability W!·S(N,W)/W^N — at W=5, N=8 that is 126000/390625 ≈
+# **0.32**. And each worker needs TWO hits, not one: the first serves the stale
+# build-time copy and only schedules the regeneration. So roughly two thirds of
+# deploys left at least one worker serving a build-time page. 3x the worker
+# count plus margin puts full two-hit coverage well above 0.99. The pause
+# between probes is shortened to compensate, so the whole script still runs in
+# about a minute (7 paths x 18 rounds x 0.5s at WEB_CONCURRENCY=5).
+ROUNDS=$((WORKERS * 3 + 3))
+PROBE_PAUSE="${WARM_PAUSE:-0.5}"
 
 # The pages that are prerendered AND read the catalog. Ordered by how likely a
 # human is to land on them first.
@@ -56,12 +68,20 @@ ROUNDS=$((WORKERS + 3))
 # success line was false confidence. Their page number now lives in the path
 # (`/blog/page/2`), so both are genuinely prerendered and these entries do what
 # this comment always claimed.
+#
+# The feeds are here for a specific reason: they carry `revalidate = 600` like
+# the pages, and their build-time artifact is an EMPTY feed (the build has no
+# DATABASE_URL, so `isLiveCatalog()` is false and the routes correctly emit no
+# items rather than fixture items). An unwarmed worker therefore serves a
+# subscriber a feed with zero entries.
 PATHS=(
   "/"
   "/prices"
   "/market"
   "/blog"
   "/news"
+  "/blog/rss.xml"
+  "/news/rss.xml"
 )
 
 probe() { # path -> http code
@@ -78,7 +98,7 @@ for p in "${PATHS[@]}"; do
   codes=""
   for i in $(seq 1 "$ROUNDS"); do
     codes="${codes}$(probe "$p") "
-    sleep 1
+    sleep "$PROBE_PAUSE"
   done
   printf 'warm-cache: %-8s %s\n' "$p" "$codes"
 done

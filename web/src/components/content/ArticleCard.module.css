@@ -26,7 +26,6 @@
   border-color: var(--color-border-strong);
   box-shadow: var(--shadow-sm);
   transform: translateY(-2px);
-  text-decoration: none;
 }
 /* The card is no longer the focusable element — the title link inside it is —
    so the focus affordance has to follow the link out. */
