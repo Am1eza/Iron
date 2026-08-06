@@ -15,14 +15,21 @@ test('homepage loads and shows the site identity', async ({ page }) => {
 test('category price table renders real seeded rows from the live DB', async ({ page }) => {
   await page.goto('/prices/rebar');
   // The page also renders a BulkQuote comparison <table> further down —
-  // the price table (PriceTable) is the first one in the DOM.
+  // the price table (PriceTable) is the first one in the DOM: the "by size"
+  // quick-compare table, defaulted to whichever size has the most factory
+  // coverage (see PriceTable.tsx's `bestCoverageSize`). Since the redesign
+  // (was: one flat table with every size × every factory, always >5 rows),
+  // the first table now only ever holds one size's rows, so the row count
+  // legitimately depends on live seed data rather than being a large,
+  // structure-independent number — assert ">1" (a real multi-factory
+  // comparison, not a degenerate single-row one) instead of the old ">5".
   const table = page.getByRole('table').first();
   await expect(table).toBeVisible();
   // Seed data (db/seed.ts) always includes میلگرد (rebar) rows for this category.
   await expect(table.getByText('میلگرد').first()).toBeVisible();
   const rows = table.locator('tbody tr');
   await expect(rows.first()).toBeVisible();
-  expect(await rows.count()).toBeGreaterThan(5);
+  expect(await rows.count()).toBeGreaterThan(1);
 });
 
 test('SKU detail page shows a live price, reached via the chart modal', async ({ page }) => {

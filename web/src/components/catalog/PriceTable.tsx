@@ -515,16 +515,35 @@ export function PriceTable({
       ),
     [subFiltered],
   );
-  // Seeded from `sizeOptions` directly (a lazy initializer, not an effect) so
-  // the very FIRST render — server-side included — already shows a real
-  // comparison instead of an empty "برای این سایز کالایی ثبت نشده است."
-  // that only fills in after a client-side effect runs. `sizeOptions` only
-  // depends on props (`rows`/`sub`), never `window`/`document`, so this
-  // produces byte-identical output on the server and the pre-hydration
-  // client render — no hydration mismatch, unlike the `?factory=` deep link
-  // below, which genuinely does need `window.location` and therefore does
-  // need a `useEffect`.
-  const [bySize, setBySizeState] = useState<string | null>(() => sizeOptions[0] ?? null);
+  // The size with the most factory coverage — this is what the "by size"
+  // view should default to, NOT just the numerically-smallest size. The
+  // whole point of that view is a side-by-side factory comparison; landing
+  // on a size only one or two factories carry defeats it and reads as
+  // broken on first load, even though every number shown would still be
+  // accurate. (Found via a real curl against seeded data, not by
+  // inspection: the smallest rebar size had exactly one factory row.)
+  const bestCoverageSize = useMemo(() => {
+    if (sizeOptions.length === 0) return null;
+    const counts = new Map<string, number>();
+    for (const r of subFiltered) {
+      if (!r.size) continue;
+      counts.set(r.size, (counts.get(r.size) ?? 0) + 1);
+    }
+    return sizeOptions.reduce(
+      (best, s) => ((counts.get(s) ?? 0) > (counts.get(best) ?? 0) ? s : best),
+      sizeOptions[0]!,
+    );
+  }, [subFiltered, sizeOptions]);
+  // Seeded from `bestCoverageSize` directly (a lazy initializer, not an
+  // effect) so the very FIRST render — server-side included — already shows
+  // a real comparison instead of an empty "برای این سایز کالایی ثبت نشده
+  // است." that only fills in after a client-side effect runs.
+  // `bestCoverageSize` only depends on props (`rows`/`sub`), never
+  // `window`/`document`, so this produces byte-identical output on the
+  // server and the pre-hydration client render — no hydration mismatch,
+  // unlike the `?factory=` deep link below, which genuinely does need
+  // `window.location` and therefore does need a `useEffect`.
+  const [bySize, setBySizeState] = useState<string | null>(() => bestCoverageSize);
   const setBySize = (next: string | null) => withTransition(() => setBySizeState(next));
   // Re-sync when the AVAILABLE sizes change post-mount (switching ساده↔آجدار
   // sub-category), which the lazy initializer above can't react to on its
@@ -534,8 +553,8 @@ export function PriceTable({
       setBySizeState(null);
       return;
     }
-    setBySizeState((current) => (current && sizeOptions.includes(current) ? current : sizeOptions[0]!));
-  }, [sizeOptions]);
+    setBySizeState((current) => (current && sizeOptions.includes(current) ? current : bestCoverageSize));
+  }, [sizeOptions, bestCoverageSize]);
 
   // «بر اساس سایز» rows — see `orderBySizeRows`'s docstring for why hidden
   // prices can't just be sorted by their raw stored value.
