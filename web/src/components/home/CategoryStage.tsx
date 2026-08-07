@@ -1,12 +1,12 @@
 'use client';
-import { Fragment, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { routes } from '@/lib/routes';
 import type { SubsMap } from '@/lib/data/catalog';
 import type { Category } from '@/lib/types/domain';
 import { CategoryArt } from '@/components/catalog/CategoryArt';
 import { ProductImage } from '@/components/catalog/ProductImage';
-import { productImage } from '@/lib/data/productImages';
+import { productImage, productThumb } from '@/lib/data/productImages';
 import { groupByLabel } from '@/lib/utils/catalogGroups';
 import { ChevronStartIcon } from '@/components/primitives/icons';
 import styles from './CategoryStage.module.css';
@@ -17,8 +17,9 @@ import styles from './CategoryStage.module.css';
  * hovering/focusing a name reveals that category's large product photo in the
  * flyout panel, with its sub-groups and mills beneath. Click a category →
  * its table; a sub-group → that family; a mill → the sub table filtered by it.
- * On touch screens it degrades to big names with inline sub-group chips (no
- * hover dead-ends). Reduced-motion: the crossfade/slide is disabled.
+ * On touch screens it degrades to a big-name list with a small round photo
+ * avatar per row (no sub-group chips — tapping a row goes straight to that
+ * category's table, which lists every sub-group itself).
  */
 type FactoryMap = Record<string, Record<string, string[]>>;
 
@@ -107,7 +108,7 @@ export function CategoryStage({
         <nav className={styles.rail} aria-label="دسته‌بندی محصولات">
           <ul className={styles.railList}>
             {categories.map((cat) => {
-              const catSubs = subsMap[cat.slug] ?? [];
+              const hasPhoto = Boolean(productThumb(cat.slug));
               return (
                 <li key={cat.id} className={styles.railLi}>
                   {/* Names ONLY — the photo reveals in the flyout on hover/focus
@@ -122,47 +123,24 @@ export function CategoryStage({
                     onKeyDown={activeCat.slug === cat.slug ? handleRailKeyDown : undefined}
                     data-event="rail_category_click"
                   >
-                    {/* Mobile-only (CSS-gated, see .railIcon) — the desktop
+                    {/* Mobile-only (CSS-gated, see .railAvatar) — the desktop
                         rail is deliberately pure type with the photo reveal
                         doing the visual work; below 1024px that flyout is
-                        display:none, so the rail item is the ONLY visual
-                        affordance and was reading as a plain text list. */}
-                    <span className={styles.railIcon} aria-hidden="true">
-                      <CategoryArt slug={cat.slug} size={22} />
+                        display:none, so a small round product-photo avatar
+                        gives the rail item a visual affordance of its own.
+                        Categories with no real product photo yet (see
+                        productImages.ts) fall back to the CategoryArt
+                        illustration, centered in the same circle. */}
+                    <span className={styles.railAvatar} aria-hidden="true">
+                      {hasPhoto ? (
+                        <ProductImage slug={cat.slug} name={cat.name} variant="thumb" sizes="40px" />
+                      ) : (
+                        <CategoryArt slug={cat.slug} size={20} />
+                      )}
                     </span>
                     <span className={styles.railName}>{cat.name}</span>
                     <ChevronStartIcon size={20} className={`${styles.railChev} icon--rtl`} />
                   </Link>
-
-                  {/* inline sub-groups — shown on touch/small screens (CSS).
-                      ONE shared <ul> for every item (grouped or not) so the
-                      flex-wrap chip layout still flows normally — splitting
-                      into one <ul> per group (including a fresh one for
-                      every ungrouped singleton) broke wrapping entirely: each
-                      single-item list rendered on its own line instead of
-                      packing chips side by side. A labeled cluster's heading
-                      is an inline <li> that forces its own line via
-                      `.inlineSubGroupHeading { flex-basis: 100% }`, not a
-                      separate list. */}
-                  <ul className={styles.inlineSubs}>
-                    {groupByLabel(catSubs).map((group) => (
-                      <Fragment key={group.label ?? `_solo_${group.items[0]!.slug}`}>
-                        {group.label ? (
-                          <li className={styles.inlineSubGroupHeading}>{group.label}</li>
-                        ) : null}
-                        {group.items.map((s) => (
-                          <li key={s.slug}>
-                            <Link
-                              href={routes.subCategory(cat.slug, s.slug)}
-                              className={styles.inlineSub}
-                            >
-                              {s.name}
-                            </Link>
-                          </li>
-                        ))}
-                      </Fragment>
-                    ))}
-                  </ul>
                 </li>
               );
             })}

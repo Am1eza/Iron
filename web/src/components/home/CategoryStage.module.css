@@ -60,13 +60,23 @@
 /* Desktop: hidden — the rail is deliberately pure type (see comment above),
    the photo reveal carries the visual weight. Shown only in the ≤1023px
    layout below, where the flyout (and its photo) is display:none. */
-.railIcon {
+.railAvatar {
   display: none;
   flex: none;
+  align-items: center;
+  justify-content: center;
+  inline-size: 40px;
+  block-size: 40px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--color-surface-sunken);
+  box-shadow: 0 0 0 1.5px var(--color-hairline);
   color: var(--color-text-muted);
+  transition: box-shadow var(--dur-base) var(--ease-standard);
 }
-.railItem:hover .railIcon,
-.railItem[data-active] .railIcon {
+.railItem:hover .railAvatar,
+.railItem[data-active] .railAvatar {
+  box-shadow: 0 0 0 2px var(--color-accent);
   color: var(--color-accent);
 }
 .railName {
@@ -253,12 +263,7 @@
   transform: translateY(1px);
 }
 
-/* inline sub-groups — hidden on desktop, shown on touch/small screens */
-.inlineSubs {
-  display: none;
-}
-
-/* ===== Responsive: big type list + inline chips (no hover dead-ends) ===== */
+/* ===== Responsive: big type list + round photo avatar per row ===== */
 @media (max-width: 1023px) {
   .section {
     padding-block: var(--space-16);
@@ -291,52 +296,11 @@
   .railChev {
     opacity: 1;
   }
-  .railIcon {
+  .railAvatar {
     display: inline-flex;
   }
   .railLi {
     border-block-end: var(--border-hairline) solid var(--color-hairline);
-    padding-block-end: var(--space-3);
-  }
-  .inlineSubs {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-2);
-    list-style: none;
-    margin: var(--space-1) 0 0;
-    padding: 0;
-  }
-  /* Purely a visual cluster heading inside the `.inlineSubs` flex-wrap chip
-   * row for items that share a groupLabel — not a link, not a real taxonomy
-   * level. `flex-basis: 100%` forces it (and everything after it) onto a
-   * fresh line within the SAME flex container, so it doesn't need its own
-   * wrapping <ul> (that broke wrapping for every other chip — see the
-   * comment at the call site in CategoryStage.tsx). */
-  .inlineSubGroupHeading {
-    flex-basis: 100%;
-    margin: var(--space-2) 0 0;
-    font: var(--t-caption);
-    font-weight: 600;
-    color: var(--color-text-muted);
-  }
-  /* ≥44px tap targets — these chips are the primary mobile path into the
-     catalog (were ~30px). */
-  .inlineSub {
-    display: inline-flex;
-    align-items: center;
-    min-block-size: 44px;
-    padding: var(--space-1) var(--space-4);
-    border-radius: var(--radius-pill);
-    background: var(--color-surface-sunken);
-    border: var(--border-hairline) solid var(--color-hairline);
-    color: var(--color-text);
-    font: var(--t-body-sm);
-    text-decoration: none;
-  }
-  .inlineSub:active {
-    background: var(--color-accent-tint);
-    border-color: var(--color-accent);
-    color: var(--color-accent-text);
   }
 }
 @media (prefers-reduced-motion: reduce) {
