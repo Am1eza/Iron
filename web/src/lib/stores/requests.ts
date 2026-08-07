@@ -9,7 +9,7 @@ import { safeLocalStorage } from '@/lib/utils/safeStorage';
  * require login first, then file the request and send the user to
  * /account/requests where its status lives.
  */
-export type RequestType = 'proforma' | 'bulk' | 'warehouse';
+export type RequestType = 'proforma' | 'bulk' | 'warehouse' | 'cutToSize';
 // 'fulfilled' (W20) — a warehouse request never gets a پیش‌فاکتور, so 'quoted'
 // could never legitimately describe its terminal state; without a status that
 // fits, every stored-goods request stayed "open" forever. See stepsForType().
@@ -39,6 +39,7 @@ export const REQUEST_TYPE_LABEL: Record<RequestType, string> = {
   proforma: 'پیش‌فاکتور',
   bulk: 'خرید عمده',
   warehouse: 'انبار مشتریان',
+  cutToSize: 'کالا با ابعاد درخواستی',
 };
 
 export type UserRequest = {
