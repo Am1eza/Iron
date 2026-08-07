@@ -14,6 +14,7 @@ import {
 } from '@/lib/data/nav';
 import type { Category } from '@/lib/types/domain';
 import type { SubsMap } from '@/lib/data/catalog';
+import { groupByLabel } from '@/lib/utils/catalogGroups';
 import { useUiStore } from '@/lib/stores/ui';
 import { useAuthStore } from '@/lib/stores/auth';
 import { CloseIcon, ChevronDownIcon, UserIcon } from '@/components/primitives/icons';
@@ -125,18 +126,22 @@ export function MobileDrawer({ categories, subs }: { categories: Category[]; sub
                     <Link href={routes.category(cat.slug)} className={styles.catLink}>
                       {cat.name}
                     </Link>
-                    <ul className={styles.subList}>
-                      {(subs[cat.slug] ?? []).map((sub) => (
-                        <li key={sub.slug}>
-                          <Link
-                            href={routes.subCategory(cat.slug, sub.slug)}
-                            className={styles.subLink}
-                          >
-                            {sub.name}
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
+                    {groupByLabel(subs[cat.slug] ?? []).map((subGroup) => (
+                      <div key={subGroup.label ?? `_solo_${subGroup.items[0]!.slug}`}>
+                        {subGroup.label ? (
+                          <div className={styles.subGroupHeading}>{subGroup.label}</div>
+                        ) : null}
+                        <ul className={styles.subList}>
+                          {subGroup.items.map((sub) => (
+                            <li key={sub.slug}>
+                              <Link href={routes.subCategory(cat.slug, sub.slug)} className={styles.subLink}>
+                                {sub.name}
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
                   </li>
                 ))}
               </ul>

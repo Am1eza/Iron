@@ -325,6 +325,18 @@
   text-decoration: none;
 }
 
+/* Purely a visual cluster heading for subcategories sharing a groupLabel —
+ * not a link, not a real taxonomy level (see catalogGroups.ts). */
+.megaSubGroupHeading {
+  padding: var(--space-1) var(--space-2) 0;
+  font: var(--t-caption);
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+.megaSubGrouped {
+  padding-inline-start: var(--space-3);
+}
+
 /* ===== Utility nav ===== */
 .utility {
   display: flex;

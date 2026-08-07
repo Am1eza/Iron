@@ -15,6 +15,16 @@ const patchPayload = nonEmptyPatch(
   z.object({
     slug: slugSchema(60).optional(),
     name: z.string().trim().min(1).max(80).transform(normalizePersian).optional(),
+    // Display-only cluster label (not a real hierarchy level, see catalog.ts).
+    // Empty string clears the group (normalized to null, same as create).
+    groupLabel: z
+      .string()
+      .trim()
+      .max(80)
+      .transform(normalizePersian)
+      .transform((v) => v || null)
+      .nullable()
+      .optional(),
     order: finiteNumber.int().min(0).max(9999).optional(),
     // Moving a sub-category between categories was impossible: a mis-filed
     // sub could only be retired and rebuilt. The repo re-parents its products

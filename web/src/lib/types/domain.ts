@@ -57,6 +57,8 @@ export interface SubCategory {
   categoryId: string;
   slug: string;
   name: string;
+  /** Display-only cluster label, not a real hierarchy level — see server/db/schema/catalog.ts. */
+  groupLabel: string | null;
   order: number;
   isActive: boolean;
 }

@@ -1,0 +1,1 @@
+ALTER TABLE "sub_categories" ADD COLUMN "group_label" text;

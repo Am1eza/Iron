@@ -165,6 +165,16 @@
   text-decoration: none;
 }
 
+/* Purely a visual cluster heading above a `.subList` chip row that shares a
+ * groupLabel — not a link, not a real taxonomy level (see catalogGroups.ts). */
+.subGroupHeading {
+  padding-inline-start: var(--space-5);
+  margin-block-end: var(--space-1);
+  font: var(--t-caption);
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
 .foot {
   padding: var(--space-4) var(--space-3) 0;
 }

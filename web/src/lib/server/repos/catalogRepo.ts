@@ -95,15 +95,22 @@ export async function findCategoryBySlug(slug: string): Promise<Category | null>
 /** Every ACTIVE sub-category of every ACTIVE category in ONE query, grouped
  *  by category slug — feeds the public nav/mega-menu/home cascade so an
  *  admin-created sub-category appears site-wide without a code change. */
-export async function listAllSubCategories(): Promise<Record<string, Array<{ slug: string; name: string }>>> {
+export async function listAllSubCategories(): Promise<
+  Record<string, Array<{ slug: string; name: string; groupLabel: string | null }>>
+> {
   const rows = await getDb()
-    .select({ catSlug: categories.slug, slug: subCategories.slug, name: subCategories.name })
+    .select({
+      catSlug: categories.slug,
+      slug: subCategories.slug,
+      name: subCategories.name,
+      groupLabel: subCategories.groupLabel,
+    })
     .from(subCategories)
     .innerJoin(categories, eq(subCategories.categoryId, categories.id))
     .where(and(eq(categories.isActive, true), eq(subCategories.isActive, true)))
     .orderBy(asc(subCategories.order));
-  const out: Record<string, Array<{ slug: string; name: string }>> = {};
-  for (const r of rows) (out[r.catSlug] ??= []).push({ slug: r.slug, name: r.name });
+  const out: Record<string, Array<{ slug: string; name: string; groupLabel: string | null }>> = {};
+  for (const r of rows) (out[r.catSlug] ??= []).push({ slug: r.slug, name: r.name, groupLabel: r.groupLabel });
   return out;
 }
 
@@ -119,6 +126,7 @@ export async function listSubCategories(categorySlug: string): Promise<SubCatego
     categoryId: sub.categoryId,
     slug: sub.slug,
     name: sub.name,
+    groupLabel: sub.groupLabel,
     order: sub.order,
     isActive: sub.isActive,
   }));

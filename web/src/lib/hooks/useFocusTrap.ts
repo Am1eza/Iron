@@ -30,6 +30,17 @@ export function useFocusTrap<T extends HTMLElement = HTMLDivElement>(
   const lockScroll = options?.lockScroll ?? true;
   const ref = useRef<T | null>(null);
   const lastFocused = useRef<HTMLElement | null>(null);
+  // Same problem as `options` above, but worse in practice: callers routinely
+  // pass an inline arrow (`() => doThing()`), which is a fresh function
+  // identity on every render — including every keystroke in any field inside
+  // the trap, since typing sets state and re-renders the caller. With
+  // `onEscape` in the effect's deps, that reran the WHOLE setup effect below
+  // (including `focusFirst()`) on every keystroke, silently stealing focus
+  // back to the first focusable element while the admin was mid-type. Keeping
+  // the latest callback in a ref lets the keydown handler always call the
+  // current one without the setup effect depending on its identity at all.
+  const onEscapeRef = useRef(onEscape);
+  onEscapeRef.current = onEscape;
 
   useEffect(() => {
     if (!active) return;
@@ -51,7 +62,7 @@ export function useFocusTrap<T extends HTMLElement = HTMLDivElement>(
 
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        onEscape?.();
+        onEscapeRef.current?.();
         return;
       }
       if (e.key !== 'Tab') return;
@@ -81,7 +92,10 @@ export function useFocusTrap<T extends HTMLElement = HTMLDivElement>(
       if (lockScroll) document.body.style.overflow = prevOverflow;
       lastFocused.current?.focus?.();
     };
-  }, [active, onEscape, lockScroll]);
+    // `onEscape` intentionally excluded — see `onEscapeRef` above. Depending
+    // on it here is exactly what caused the focus-stealing bug.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, lockScroll]);
 
   return ref;
 }

@@ -12,6 +12,7 @@
 import { useState } from 'react';
 import type { AdminCategory, AdminSubCategory } from '@/lib/api/resources/admin';
 import { toPersianDigits } from '@/lib/utils/format';
+import { groupByLabel } from '@/lib/utils/catalogGroups';
 import { Badge, Button, IconButton, Switch } from '@/components/ui';
 import {
   ChevronDownIcon,
@@ -181,60 +182,69 @@ export function TaxonomyRail({
             ) : null}
 
             {isOpen
-              ? subs.map((x, si) => {
-                  const subSelected = selection.subCategoryId === x.id;
-                  return (
-                    <div
-                      key={x.id}
-                      className={`${s.node} ${s.subNode} ${subSelected ? s.nodeOn : ''} ${x.isActive ? '' : s.nodeInactive}`}
-                    >
-                      <button
-                        type="button"
-                        className={s.nodeLabel}
-                        aria-pressed={subSelected}
-                        onClick={() => onSelect({ categoryId: c.id, subCategoryId: x.id })}
-                      >
-                        <span className={s.nodeName}>{x.name}</span>
-                        <span className={s.nodeCount}>{toPersianDigits(x.skuCount)}</span>
-                      </button>
-                      <IconButton
-                        label={`ویرایش ${x.name}`}
-                        size="sm"
-                        icon={<EditIcon size={14} />}
-                        onClick={() => onEditSub(x)}
-                      />
-                      <IconButton
-                        label={`جابه‌جایی ${x.name} به بالا`}
-                        size="sm"
-                        disabled={si === 0 || busy}
-                        icon={<ChevronDownIcon size={14} style={{ transform: 'rotate(180deg)' }} />}
-                        onClick={() => onMoveSub(c.id, x.id, -1)}
-                      />
-                      <IconButton
-                        label={`جابه‌جایی ${x.name} به پایین`}
-                        size="sm"
-                        disabled={si === subs.length - 1 || busy}
-                        icon={<ChevronDownIcon size={14} />}
-                        onClick={() => onMoveSub(c.id, x.id, 1)}
-                      />
-                      {x.isActive ? (
-                        <IconButton
-                          label={`غیرفعال‌سازی ${x.name}`}
-                          size="sm"
-                          icon={<CloseIcon size={14} />}
-                          onClick={() => onDeactivateSub(x)}
-                        />
-                      ) : (
-                        <IconButton
-                          label={`فعال‌سازی ${x.name}`}
-                          size="sm"
-                          icon={<RefreshIcon size={14} />}
-                          onClick={() => onReactivateSub(x)}
-                        />
-                      )}
-                    </div>
-                  );
-                })
+              ? groupByLabel(subs).map((group) => (
+                  <div key={group.label ?? `_solo_${group.items[0]!.id}`}>
+                    {group.label ? <div className={s.subGroupHeader}>{group.label}</div> : null}
+                    {group.items.map((x) => {
+                      const subSelected = selection.subCategoryId === x.id;
+                      // Real position in the unsorted list, NOT this cluster's
+                      // local index — move-up/down operates on `order` across
+                      // the whole category, independent of display grouping.
+                      const flatIndex = subs.indexOf(x);
+                      return (
+                        <div
+                          key={x.id}
+                          className={`${s.node} ${s.subNode} ${subSelected ? s.nodeOn : ''} ${x.isActive ? '' : s.nodeInactive}`}
+                        >
+                          <button
+                            type="button"
+                            className={s.nodeLabel}
+                            aria-pressed={subSelected}
+                            onClick={() => onSelect({ categoryId: c.id, subCategoryId: x.id })}
+                          >
+                            <span className={s.nodeName}>{x.name}</span>
+                            <span className={s.nodeCount}>{toPersianDigits(x.skuCount)}</span>
+                          </button>
+                          <IconButton
+                            label={`ویرایش ${x.name}`}
+                            size="sm"
+                            icon={<EditIcon size={14} />}
+                            onClick={() => onEditSub(x)}
+                          />
+                          <IconButton
+                            label={`جابه‌جایی ${x.name} به بالا`}
+                            size="sm"
+                            disabled={flatIndex === 0 || busy}
+                            icon={<ChevronDownIcon size={14} style={{ transform: 'rotate(180deg)' }} />}
+                            onClick={() => onMoveSub(c.id, x.id, -1)}
+                          />
+                          <IconButton
+                            label={`جابه‌جایی ${x.name} به پایین`}
+                            size="sm"
+                            disabled={flatIndex === subs.length - 1 || busy}
+                            icon={<ChevronDownIcon size={14} />}
+                            onClick={() => onMoveSub(c.id, x.id, 1)}
+                          />
+                          {x.isActive ? (
+                            <IconButton
+                              label={`غیرفعال‌سازی ${x.name}`}
+                              size="sm"
+                              icon={<CloseIcon size={14} />}
+                              onClick={() => onDeactivateSub(x)}
+                            />
+                          ) : (
+                            <IconButton
+                              label={`فعال‌سازی ${x.name}`}
+                              size="sm"
+                              icon={<RefreshIcon size={14} />}
+                              onClick={() => onReactivateSub(x)}
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))
               : null}
             {isOpen && subs.length === 0 ? (
               <div className={`${s.node} ${s.subNode}`}>

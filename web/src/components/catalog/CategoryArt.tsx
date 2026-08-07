@@ -46,6 +46,14 @@ export function CategoryArt({ slug, size = 64 }: Props) {
           <path d="M12 17h40" stroke={A} strokeWidth="3" strokeLinecap="round" />
         </svg>
       );
+    // Three real category slugs (hot/cold/steel sheet) share this artwork —
+    // same rationale as rebar's sub-grades sharing one icon: the SHAPE is the
+    // same product family, sub-type is conveyed by the row's own label text.
+    // 'sheet' itself isn't a real category slug in this codebase (kept as an
+    // alias so any future/mock caller using the generic name still resolves).
+    case 'varagh-garm':
+    case 'varagh-sard':
+    case 'varagh-steel':
     case 'sheet': // stacked plates
       return (
         <svg {...common}>
@@ -77,6 +85,57 @@ export function CategoryArt({ slug, size = 64 }: Props) {
             <path d="M18 30c14-6 28 0 28 8s-14 10-28 6" opacity="0.8" />
           </g>
           <circle cx="46" cy="24" r="3" fill={A} />
+        </svg>
+      );
+    case 'steel': // billet — hexagonal bar stock cross-section
+      return (
+        <svg {...common}>
+          <path d="M32 8l20 12v24L32 56 12 44V20z" fill="currentColor" />
+          <path
+            d="M32 8v24M32 32l20-12M32 32L12 20"
+            stroke={A}
+            strokeWidth="2.4"
+            strokeLinecap="round"
+            opacity="0.9"
+          />
+        </svg>
+      );
+    case 'shiralat-sanati': // gate valve — pipe stubs + body + handwheel
+      return (
+        <svg {...common}>
+          <rect x="6" y="28" width="16" height="8" rx="2" fill="currentColor" />
+          <rect x="42" y="28" width="16" height="8" rx="2" fill="currentColor" />
+          <rect x="24" y="24" width="16" height="16" rx="3" fill="currentColor" />
+          <rect x="29" y="20" width="6" height="6" fill={A} />
+          <circle cx="32" cy="14" r="9" fill="none" stroke={A} strokeWidth="3.2" />
+          <path d="M32 5v4M32 19v4M23 14h4M37 14h4" stroke={A} strokeWidth="3" strokeLinecap="round" />
+        </svg>
+      );
+    case 'etesalat-felezi': // pipe elbow fitting
+      return (
+        <svg {...common}>
+          <path d="M14 50V26a12 12 0 0112-12h24" fill="none" stroke="currentColor" strokeWidth="12" strokeLinecap="round" />
+          <path d="M14 50V26a12 12 0 0112-12h24" fill="none" stroke={A} strokeWidth="3" strokeLinecap="round" opacity="0.9" />
+        </svg>
+      );
+    case 'flanj-va-etesalat': // flange ring — bolt holes at N/E/S/W
+      return (
+        <svg {...common}>
+          <circle cx="32" cy="32" r="22" fill="currentColor" />
+          <circle cx="32" cy="32" r="10" fill="#0a0d11" />
+          <circle cx="32" cy="12" r="3.2" fill={A} />
+          <circle cx="32" cy="52" r="3.2" fill={A} />
+          <circle cx="12" cy="32" r="3.2" fill={A} />
+          <circle cx="52" cy="32" r="3.2" fill={A} />
+        </svg>
+      );
+    case 'felezat-rangi': // non-ferrous metals — stacked ingots, echoes rebar's opacity-tiered bundle
+      return (
+        <svg {...common}>
+          <rect x="10" y="36" width="30" height="10" rx="5" fill="currentColor" opacity="0.55" transform="rotate(-8 25 41)" />
+          <rect x="16" y="24" width="30" height="10" rx="5" fill="currentColor" opacity="0.8" transform="rotate(-8 31 29)" />
+          <rect x="22" y="12" width="30" height="10" rx="5" fill="currentColor" transform="rotate(-8 37 17)" />
+          <circle cx="49" cy="15" r="3" fill={A} />
         </svg>
       );
     default:
