@@ -9,7 +9,13 @@ import {
   revalidateArticleSection,
   revalidateArticleUrl,
 } from '@/lib/server/utils/revalidate';
-import { articleSeoSchema, articleSlugSchema, articleTagsSchema, uploadPathSchema } from '@/lib/validation/utils';
+import {
+  articleSeoSchema,
+  articleSlugSchema,
+  articleTagsSchema,
+  articleCategoryIdsSchema,
+  uploadPathSchema,
+} from '@/lib/validation/utils';
 import { richDocSchema } from '@/lib/content/richDoc';
 import { createRedirect, RedirectLoopError } from '@/lib/server/repos/redirectsRepo';
 import { reportError } from '@/lib/errors/report';
@@ -87,6 +93,7 @@ const patchPayload = z.object({
   coverUrl: z.preprocess((v) => (v === '' ? null : v), uploadPathSchema.nullable().optional()),
   authorId: z.string().min(1).nullable().optional(),
   tags: articleTagsSchema,
+  relatedCategoryIds: articleCategoryIdsSchema,
   // Editor SEO overrides, including the focus keyword the on-page checklist
   // keys off. Shared with the create route. canonical is validated by
   // internalPathSchema (parser-based, not a startswith-slash regex) inside

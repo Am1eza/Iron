@@ -767,6 +767,7 @@ export const adminApi = {
     excerpt?: string;
     bodyJson?: RichDoc;
     tags?: string[];
+    relatedCategoryIds?: string[];
     /** Accepted on create since US-14.4 — see `articleSeoSchema`. */
     seo?: SeoMeta | null;
   }) => http.post<{ article: ArticleFull }>('/api/admin/articles', input),
@@ -785,6 +786,7 @@ export const adminApi = {
       coverUrl: string | null;
       authorId: string | null;
       tags: string[];
+      relatedCategoryIds: string[];
       seo: SeoMeta | null;
     }>,
   ) => http.patch<{ article: ArticleFull }>(`/api/admin/articles/${id}`, patch),

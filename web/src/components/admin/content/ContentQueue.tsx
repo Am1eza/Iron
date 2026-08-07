@@ -358,6 +358,7 @@ type Values = {
   coverUrl: string | null;
   authorId: string | null;
   tags: string[];
+  categoryIds: string[];
   seoTitle: string;
   seoDescription: string;
   seoCanonical: string;
@@ -377,6 +378,7 @@ function emptyValues(defaultType: 'blog' | 'news'): Values {
     coverUrl: null,
     authorId: null,
     tags: [],
+    categoryIds: [],
     seoTitle: '',
     seoDescription: '',
     seoCanonical: '',
@@ -402,6 +404,7 @@ function fromArticle(a: ArticleFull): Values {
     coverUrl: a.coverUrl ?? null,
     authorId: a.authorId ?? null,
     tags: a.tags ?? [],
+    categoryIds: a.relatedCategoryIds ?? [],
     seoTitle: a.seo?.title ?? '',
     seoDescription: a.seo?.description ?? '',
     seoCanonical: a.seo?.canonical ?? '',
@@ -478,6 +481,44 @@ function TagField({ value, onChange }: { value: string[]; onChange: (tags: strin
         // silently discarded — the editor sees it in the box and assumes it saved.
         onBlur={() => commit(draft)}
       />
+    </div>
+  );
+}
+
+/**
+ * Category picker (US-14.5) — toggle chips over the REAL catalog category
+ * list, not free text: unlike `TagField` above, this feeds a real public
+ * page (`/blog/category/[slug]`), so an inconsistent spelling here would
+ * split one topic into two dead-end pages instead of just looking untidy in
+ * the panel. The category list is small and fixed (14 rows today), so a
+ * flat toggle-chip cluster needs no search/autocomplete the way tags would.
+ */
+function CategoryField({ value, onChange }: { value: string[]; onChange: (ids: string[]) => void }) {
+  const { data } = useQuery({
+    queryKey: ['admin', 'categories', 'picker'],
+    queryFn: () => adminApi.categories(),
+    staleTime: 5 * 60_000,
+  });
+  const categories = data?.categories ?? [];
+
+  const toggle = (id: string) => {
+    onChange(value.includes(id) ? value.filter((c) => c !== id) : [...value, id]);
+  };
+
+  return (
+    <div>
+      <span className={ui.tileLabel}>دسته‌بندی محصول</span>
+      {categories.length > 0 ? (
+        <div className={s.tagChips} aria-label="دسته‌های مقاله">
+          {categories.map((c) => (
+            <Chip key={c.id} selected={value.includes(c.id)} onClick={() => toggle(c.id)}>
+              {c.name}
+            </Chip>
+          ))}
+        </div>
+      ) : (
+        <div className={ui.tileHint}>در حال بارگذاری دسته‌ها…</div>
+      )}
     </div>
   );
 }
@@ -682,6 +723,7 @@ function ArticleDrawer({
         excerpt: v.excerpt.trim() || undefined,
         bodyJson: v.bodyJson,
         tags: v.tags,
+        relatedCategoryIds: v.categoryIds,
         // Sent on CREATE as well as on save. It used not to be, and the
         // reseed below then overwrote the drawer's SEO inputs with the
         // server's empty ones — a focus keyword typed before the first save
@@ -710,6 +752,7 @@ function ArticleDrawer({
         coverUrl: v.coverUrl,
         authorId: v.authorId,
         tags: v.tags,
+        relatedCategoryIds: v.categoryIds,
         seo: seoPatch(),
       }),
     onSuccess: (res) => {
@@ -1037,6 +1080,7 @@ function ArticleDrawer({
               </div>
               <ImageUpload label="تصویر کاور" value={v.coverUrl} onChange={(url) => set({ coverUrl: url })} />
               <TagField value={v.tags} onChange={(tags) => set({ tags })} />
+              <CategoryField value={v.categoryIds} onChange={(categoryIds) => set({ categoryIds })} />
             </div>
 
             {/* On-page SEO (US-14.4). Deliberately NOT inside «تنظیمات

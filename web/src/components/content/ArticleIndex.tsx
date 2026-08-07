@@ -3,10 +3,11 @@ import { redirect } from 'next/navigation';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { PER_PAGE, archiveHref } from '@/lib/content/archivePaging';
-import { getArticlesPage } from '@/lib/server/catalog';
+import { getArticlesPage, getBlogCategoryRailItems } from '@/lib/server/catalog';
 import { Container, Section, Stack, Heading, Text, Overline, Breadcrumbs, EmptyState, Pagination } from '@/components/ui';
 import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
 import { ArticleCard } from '@/components/content/ArticleCard';
+import { CategoryRail } from '@/components/content/CategoryRail';
 import styles from './ArticleIndex.module.css';
 
 /**
@@ -95,7 +96,15 @@ export function indexMetadata(type: 'blog' | 'news', page: number): Metadata {
 
 export async function ArticleIndex({ type, page }: { type: 'blog' | 'news'; page: number }) {
   const copy = INDEX_COPY[type];
-  const { articles, total } = await getArticlesPage(type, page, PER_PAGE);
+  // Category rail only on /blog, deliberately: a category is a product topic
+  // (میلگرد, ورق, …), and /news is a single reverse-chronological feed of
+  // market updates that a reader expects to just scroll, not filter. The
+  // category pages themselves still surface both types together — see
+  // `listPublishedByCategory`.
+  const [{ articles, total }, railItems] = await Promise.all([
+    getArticlesPage(type, page, PER_PAGE),
+    type === 'blog' ? getBlogCategoryRailItems() : Promise.resolve([]),
+  ]);
   const pageCount = Math.max(1, Math.ceil(total / PER_PAGE));
 
   // FALLBACK ONLY — the primary answer for an out-of-range page is a genuine
@@ -127,6 +136,8 @@ export async function ArticleIndex({ type, page }: { type: 'blog' | 'news'; page
             </Heading>
             <Text color="muted">{copy.lede}</Text>
           </div>
+
+          {type === 'blog' ? <CategoryRail items={railItems} /> : null}
 
           {articles.length > 0 ? (
             <div>

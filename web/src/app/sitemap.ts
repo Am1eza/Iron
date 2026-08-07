@@ -1,6 +1,12 @@
 import type { MetadataRoute } from 'next';
 import { STATIC_INDEXABLE, routes } from '@/lib/routes';
-import { getCategories, getRows, getAllPublishedArticles, isLiveCatalog } from '@/lib/server/catalog';
+import {
+  getCategories,
+  getRows,
+  getAllPublishedArticles,
+  getCategoryArticleCounts,
+  isLiveCatalog,
+} from '@/lib/server/catalog';
 import { getSubsMap } from '@/lib/server/catalog';
 import { TRACK_ORDER } from '@/components/cooperation/tracks';
 
@@ -132,10 +138,25 @@ async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
     }
   });
 
-  const [blogArticles, newsArticles] = await Promise.all([
+  const [blogArticles, newsArticles, categoryArticleCounts] = await Promise.all([
     getAllPublishedArticles('blog'),
     getAllPublishedArticles('news'),
+    getCategoryArticleCounts(),
   ]);
+
+  // Only categories that currently have at least one article (US-14.5) — an
+  // empty /blog/category/[slug] is a real, non-404 page (see knownPaths.ts),
+  // but publishing it to Google is a thin/duplicate-content page with
+  // nothing of its own to rank on, exactly what this file's own history
+  // (the comment above, on the fixture-vs-live incident) says to avoid.
+  const blogCategoryEntries: MetadataRoute.Sitemap = categories
+    .filter((c) => (categoryArticleCounts[c.id] ?? 0) > 0)
+    .map((c) => ({
+      url: new URL(routes.blogCategory(c.slug), SITE_URL).toString(),
+      lastModified: now,
+      changeFrequency: 'weekly',
+      priority: 0.6,
+    }));
 
   const blogEntries: MetadataRoute.Sitemap = blogArticles.map((a) => ({
     url: new URL(routes.blog(a.slug), SITE_URL).toString(),
@@ -173,5 +194,6 @@ async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
     ...skuEntries,
     ...blogEntries,
     ...newsEntries,
+    ...blogCategoryEntries,
   ];
 }

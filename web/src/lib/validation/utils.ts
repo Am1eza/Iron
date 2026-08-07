@@ -147,6 +147,15 @@ export const articleTagsSchema = z
   .optional();
 
 /**
+ * Catalog category ids an article is filed under (US-14.5) — always real
+ * `categories.id` values picked from a closed list in the editor, never free
+ * text, so unlike `articleTagsSchema` there is no normalization/dedup step:
+ * a stale or unknown id simply matches nothing when a public page filters by
+ * it, which is a harmless no-op rather than something worth rejecting here.
+ */
+export const articleCategoryIdsSchema = z.array(z.string().min(1).max(60)).max(20).optional();
+
+/**
  * A path that provably cannot leave this site's own origin.
  *
  * Stricter than `internalPathSchema` above and used where the value becomes a

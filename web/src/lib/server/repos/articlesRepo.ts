@@ -6,6 +6,7 @@ import { and, desc, eq, ilike, isNull, isNotNull, lte, ne, or, sql } from 'drizz
 import { ulid } from 'ulid';
 import { getDb } from '@/lib/server/db/client';
 import { articles } from '@/lib/server/db/schema';
+import { listCategories } from '@/lib/server/repos/catalogRepo';
 import type { Article, SeoMeta } from '@/lib/types/domain';
 import type { RichDoc } from '@/lib/content/richDoc';
 import { docToMarkdown } from '@/lib/content/docToMarkdown';
@@ -21,7 +22,7 @@ type Row = typeof articles.$inferSelect;
 export type ArticleListRow = Pick<
   Row,
   | 'id' | 'slug' | 'type' | 'title' | 'excerpt' | 'coverUrl'
-  | 'status' | 'source' | 'publishAt' | 'updatedAt' | 'tags' | 'seo'
+  | 'status' | 'source' | 'publishAt' | 'updatedAt' | 'tags' | 'relatedCategoryIds' | 'seo'
 >;
 
 export function toArticleDto(r: ArticleListRow): Article {
@@ -44,6 +45,7 @@ export function toArticleDto(r: ArticleListRow): Article {
     // here means no caller ever writes `article.tags?.length` and no caller
     // ever gets it wrong.
     tags: r.tags ?? [],
+    relatedCategoryIds: r.relatedCategoryIds ?? [],
     seo: r.seo ?? undefined,
   };
 }
@@ -126,6 +128,7 @@ const LIST_COLUMNS = {
   publishAt: articles.publishAt,
   updatedAt: articles.updatedAt,
   tags: articles.tags,
+  relatedCategoryIds: articles.relatedCategoryIds,
   seo: articles.seo,
 } as const;
 
@@ -143,6 +146,55 @@ export async function listPublished(type: 'blog' | 'news', page = 1, perPage = 2
     db.select({ n: sql<number>`count(*)::int` }).from(articles).where(where),
   ]);
   return { articles: rows.map(toArticleDto), total: total[0]?.n ?? 0 };
+}
+
+/**
+ * Articles filed under a given catalog category (US-14.5) — the
+ * `/blog/category/[slug]` page. Deliberately NOT scoped to `type`: a category
+ * like میلگرد is just as real a topic for a news item as for a how-to guide,
+ * and splitting the two would mean a reader following «مقالات میلگرد» misses
+ * a market-news piece filed under the exact same category. jsonb containment
+ * (`@>`) is the same operator the `articles_tags_idx` GIN index already
+ * exists to serve efficiently for `tags`.
+ */
+export async function listPublishedByCategory(categoryId: string, page = 1, perPage = 20) {
+  const db = getDb();
+  const containsCategory = sql`${articles.relatedCategoryIds} @> ${JSON.stringify([categoryId])}::jsonb`;
+  const where = and(publishedCond(), containsCategory);
+  const [rows, total] = await Promise.all([
+    db
+      .select(LIST_COLUMNS)
+      .from(articles)
+      .where(where)
+      .orderBy(desc(articles.publishAt))
+      .limit(perPage)
+      .offset((page - 1) * perPage),
+    db.select({ n: sql<number>`count(*)::int` }).from(articles).where(where),
+  ]);
+  return { articles: rows.map(toArticleDto), total: total[0]?.n ?? 0 };
+}
+
+/**
+ * Published-article count per category id — what the rail widget uses to
+ * decide which category tiles to show at all (a category with zero articles
+ * is never rendered, so a reader can never land on a dead end) and to print
+ * next to each tile's name. One aggregate query via
+ * `jsonb_array_elements_text`, not N `listPublishedByCategory` calls.
+ */
+export async function categoryArticleCounts(): Promise<Record<string, number>> {
+  // db.execute()'s result shape differs by driver (a plain array on some,
+  // `{rows: [...]}` on others — pg vs. the pglite test harness) — same
+  // defensive unwrap analyticsRepo.ts's `rows()` helper already uses.
+  const res = (await getDb().execute(sql`
+    select cat_id, count(*)::int as n
+    from ${articles}, jsonb_array_elements_text(${articles.relatedCategoryIds}) as cat_id
+    where ${publishedCond()}
+    group by cat_id
+  `)) as unknown as { rows?: { cat_id: string; n: number }[] } | { cat_id: string; n: number }[];
+  const rows = Array.isArray(res) ? res : (res.rows ?? []);
+  const out: Record<string, number> = {};
+  for (const r of rows) out[r.cat_id] = r.n;
+  return out;
 }
 
 /**
@@ -201,6 +253,13 @@ export async function publishedGuardPaths(): Promise<string[]> {
     const pageCount = Math.ceil(rows.filter((r) => r.type === type).length / PER_PAGE);
     for (let n = 2; n <= pageCount; n += 1) paths.push(`/${type}/page/${n}`);
   }
+  // Every ACTIVE category is a real page under /blog/category/*, whether or
+  // not it currently has an article — the rail hides an empty category from
+  // navigation, but a category that genuinely exists (میلگرد) still answers
+  // with a real (empty-state) page, not a 404. Only its non-existence (a
+  // deactivated or made-up slug) should 404.
+  const cats = await listCategories();
+  for (const c of cats) paths.push(`/blog/category/${c.slug}`);
   return paths;
 }
 
@@ -351,6 +410,7 @@ export async function createArticle(input: {
   source?: 'ai' | 'human';
   authorId?: string;
   tags?: string[];
+  relatedCategoryIds?: string[];
   /** SEO overrides + focus keyword (US-14.4). Optional: seeds and the AI
    *  draft path create articles with none. */
   seo?: SeoMeta | null;
@@ -370,6 +430,7 @@ export async function createArticle(input: {
       source: input.source ?? 'human',
       authorId: input.authorId ?? null,
       tags: input.tags ?? null,
+      relatedCategoryIds: input.relatedCategoryIds ?? null,
       seo: input.seo ?? null,
       status: 'draft',
     })
@@ -395,6 +456,7 @@ export async function updateArticle(
     approvedBy: string | null;
     authorId: string | null;
     tags: string[];
+    relatedCategoryIds: string[];
     seo: Row['seo'];
   }>,
 ): Promise<ArticleFull | null> {

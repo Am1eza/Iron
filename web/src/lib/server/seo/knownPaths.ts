@@ -51,6 +51,10 @@ const GUARDED_PATTERNS: readonly RegExp[] = [
   /^\/prices\/[^/]+\/[^/]+\/[^/]+$/, //      /prices/[category]/[sub]/[sku]
   /^\/blog\/[^/]+$/,
   /^\/news\/[^/]+$/,
+  // /blog/category/[slug] (US-14.5) — a literal segment Next's router
+  // matches before /blog/[slug], so a slug of literally "category" can never
+  // collide with it; still its own pattern since it is a second depth level.
+  /^\/blog\/category\/[^/]+$/,
   // The paginated archive. `/blog/page/999` renders and is then ISR-cached
   // under its own key, and neither `notFound()` nor `redirect()` produces a
   // real status code from inside an already-matched route in this Next version

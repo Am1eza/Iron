@@ -60,6 +60,10 @@ export const routes = {
    */
   blogPage: (n: number) => (n <= 1 ? '/blog' : `/blog/page/${n}`),
   newsPage: (n: number) => (n <= 1 ? '/news' : `/news/page/${n}`),
+  /** «مقالات بر اساس محصول» — browse blog + news together by catalog
+   *  category (US-14.5). Lives under /blog (not a third top-level section)
+   *  since it is a filtered view of the same content, not a new one. */
+  blogCategory: (categorySlug: string) => `/blog/category/${enc(categorySlug)}`,
 
   // Company / cooperation ( /why merged into /about — see next.config redirect )
   about: () => '/about',

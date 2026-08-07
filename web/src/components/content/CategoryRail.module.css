@@ -1,0 +1,105 @@
+.label {
+  font: var(--t-label);
+  color: var(--color-text-strong);
+  margin: 0 0 var(--space-3);
+}
+
+.rail {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 var(--space-2);
+  display: flex;
+  gap: var(--space-3);
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+}
+
+.item {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+}
+
+/* Photos are always visible on every breakpoint, deliberately unlike the
+   homepage's CategoryStage rail (photo-on-hover, avatar-on-mobile) — the
+   job here is a reader scanning topics on a phone while reading an article,
+   not a desktop mega-menu, and a hover-only affordance is invisible on
+   touch (the exact bug fixed site-wide for that homepage rail earlier). */
+.tile {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  inline-size: 152px;
+  block-size: 116px;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background-color: var(--color-surface-sunken);
+  background-size: cover;
+  background-position: center;
+  box-shadow: var(--shadow-sm);
+  text-decoration: none;
+  transition:
+    box-shadow var(--dur-fast) var(--ease-standard),
+    transform var(--dur-fast) var(--ease-standard);
+}
+.tile:hover {
+  box-shadow: var(--shadow-md);
+  text-decoration: none;
+}
+.tile:active {
+  transform: scale(0.98);
+}
+.tile[data-active] {
+  box-shadow:
+    0 0 0 2px var(--color-surface),
+    0 0 0 4px var(--color-accent);
+}
+
+/* A category that has articles but no photo yet (see CategoryRail.tsx) —
+   the brand panel color, not an empty gray box, so a missing photo reads as
+   "not photographed yet" rather than "broken". */
+.tileFallback {
+  background-color: var(--color-panel);
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(255, 255, 255, 0.045) 0 1px,
+    transparent 1px 22px
+  ),
+  repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.045) 0 1px, transparent 1px 22px);
+}
+
+.scrim {
+  position: absolute;
+  inset: 0;
+  /* Steel-950 rather than plain black — the gradient reads as the same
+     gunmetal the site's own dark panels use (--color-panel), not a generic
+     photo-card overlay. */
+  background: linear-gradient(180deg, rgba(10, 20, 20, 0) 40%, rgba(10, 20, 20, 0.82) 100%);
+}
+
+.text {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-inverse);
+  inline-size: 100%;
+}
+
+.name {
+  font: var(--t-label);
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.count {
+  font: var(--t-micro);
+  opacity: 0.85;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile {
+    transition: none;
+  }
+}
