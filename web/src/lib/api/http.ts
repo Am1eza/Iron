@@ -1,5 +1,5 @@
 import { ApiError } from './errors';
-import { BASE_URL, DEFAULT_GET_RETRIES, DEFAULT_TIMEOUT_MS } from './config';
+import { BASE_URL, DEFAULT_GET_RETRIES, DEFAULT_TIMEOUT_MS, UPLOAD_TIMEOUT_MS } from './config';
 
 type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
@@ -138,17 +138,31 @@ export async function httpRequest<T>(path: string, opts: RequestOptions<T> = {})
  *  the browser sets the multipart boundary itself for a `FormData` body;
  *  forcing `application/json` (like the JSON path above) would break it. */
 export async function httpUpload<T>(path: string, file: File): Promise<T> {
-  const doUpload = () => {
+  const doUpload = async (): Promise<Response> => {
     const headers = new Headers();
     requestHook(headers);
     const form = new FormData();
     form.set('file', file);
-    return fetch(path.startsWith('http') ? path : `${BASE_URL}${path}`, {
-      method: 'POST',
-      headers,
-      body: form,
-      credentials: 'include',
-    });
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), UPLOAD_TIMEOUT_MS);
+    try {
+      return await fetch(path.startsWith('http') ? path : `${BASE_URL}${path}`, {
+        method: 'POST',
+        headers,
+        body: form,
+        credentials: 'include',
+        signal: ctrl.signal,
+      });
+    } catch {
+      // A raw fetch failure here (dropped connection mid-upload, aborted
+      // timeout) never reaches the server — nothing to log server-side —
+      // and previously propagated as a bare, unhandled exception instead of
+      // the same friendly ApiError every other request path already gives a
+      // flaky connection (real risk on this deployment's network).
+      throw new ApiError(0, 'ارتباط با سرور برقرار نشد. اتصال اینترنت را بررسی کنید.');
+    } finally {
+      clearTimeout(timer);
+    }
   };
   let res = await doUpload();
   const hook = res.status === 401 ? recoveryHookFor(path) : null;
