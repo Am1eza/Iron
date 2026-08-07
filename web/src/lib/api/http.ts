@@ -22,6 +22,24 @@ export function setRequestHook(hook: RequestHook) {
   requestHook = hook;
 }
 
+/**
+ * 401 recovery — registered by AuthHydrator while a session is active. The
+ * access token is short-lived and normally rotated by a background timer,
+ * but a hidden/backgrounded tab can have that timer throttled or suspended
+ * by the browser past the token's real expiry, so a request can genuinely
+ * hit a stale cookie. Returning `true` means the caller may retry once with
+ * the (now fresh) cookie. Never consulted for `/api/auth/*` itself, so a
+ * real refresh failure can't recursively try to "fix" itself.
+ */
+type UnauthorizedHook = () => Promise<boolean>;
+let unauthorizedHook: UnauthorizedHook | null = null;
+export function setUnauthorizedHook(hook: UnauthorizedHook | null) {
+  unauthorizedHook = hook;
+}
+function recoveryHookFor(path: string): UnauthorizedHook | null {
+  return path.startsWith('/api/auth/') ? null : unauthorizedHook;
+}
+
 /* ---- helpers ---- */
 const backoff = (n: number) => new Promise((r) => setTimeout(r, Math.min(2 ** n * 200, 2000)));
 
@@ -79,6 +97,7 @@ export async function httpRequest<T>(path: string, opts: RequestOptions<T> = {})
   const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
   let attempt = 0;
+  let authRetried = false;
   for (;;) {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), timeoutMs);
@@ -91,6 +110,11 @@ export async function httpRequest<T>(path: string, opts: RequestOptions<T> = {})
           attempt++;
           await backoff(attempt);
           continue;
+        }
+        const hook = res.status === 401 && !authRetried ? recoveryHookFor(path) : null;
+        if (hook) {
+          authRetried = true;
+          if (await hook()) continue;
         }
         throw await toApiError(res);
       }
@@ -114,16 +138,23 @@ export async function httpRequest<T>(path: string, opts: RequestOptions<T> = {})
  *  the browser sets the multipart boundary itself for a `FormData` body;
  *  forcing `application/json` (like the JSON path above) would break it. */
 export async function httpUpload<T>(path: string, file: File): Promise<T> {
-  const headers = new Headers();
-  requestHook(headers);
-  const form = new FormData();
-  form.set('file', file);
-  const res = await fetch(path.startsWith('http') ? path : `${BASE_URL}${path}`, {
-    method: 'POST',
-    headers,
-    body: form,
-    credentials: 'include',
-  });
+  const doUpload = () => {
+    const headers = new Headers();
+    requestHook(headers);
+    const form = new FormData();
+    form.set('file', file);
+    return fetch(path.startsWith('http') ? path : `${BASE_URL}${path}`, {
+      method: 'POST',
+      headers,
+      body: form,
+      credentials: 'include',
+    });
+  };
+  let res = await doUpload();
+  const hook = res.status === 401 ? recoveryHookFor(path) : null;
+  if (hook && (await hook())) {
+    res = await doUpload();
+  }
   if (!res.ok) throw await toApiError(res);
   return (await res.json()) as T;
 }
