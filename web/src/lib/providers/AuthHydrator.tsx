@@ -6,15 +6,18 @@ import { useAuthStore } from '@/lib/stores/auth';
 // root-layout component — i.e. onto every page's critical path — for an
 // endpoint this file never calls.
 import { authApi } from '@/lib/api/resources/auth';
+import { setUnauthorizedHook } from '@/lib/api/http';
+import { recoverSession } from '@/lib/auth/clientRefresh';
 import { useRequestsSync } from '@/lib/hooks/useRequestsSync';
 
 /**
  * Access-token lifetime is 4h (CONSTANTS.ACCESS_TTL_SECONDS) → rotate at 3h,
  * comfortably ahead of expiry. It used to fire every 12 minutes against a
  * 15-minute token, which rewrote the refresh-token row ~5×/hour per open tab
- * for no benefit; an expired cookie is now recovered by /api/auth/silent on
- * the next navigation anyway, so this interval is belt-and-braces for a tab
- * left open, not the mechanism sessions depend on.
+ * for no benefit. This interval is belt-and-braces for a tab left open — the
+ * mechanism sessions actually depend on is the `setUnauthorizedHook` retry
+ * below, since a hidden/backgrounded tab can have this very timer throttled
+ * or suspended by the browser past the token's real expiry.
  */
 const REFRESH_INTERVAL_MS = 3 * 60 * 60 * 1000;
 
@@ -57,22 +60,15 @@ export function AuthHydrator() {
   useEffect(() => {
     if (!authenticated) return;
 
-    let cancelled = false;
-    const refresh = async () => {
-      try {
-        const { user } = await authApi.refresh();
-        if (!cancelled) setUser(user);
-      } catch {
-        if (!cancelled) setUser(null);
-      }
-    };
-
-    const interval = setInterval(refresh, REFRESH_INTERVAL_MS);
+    setUnauthorizedHook(recoverSession);
+    const interval = setInterval(() => {
+      void recoverSession();
+    }, REFRESH_INTERVAL_MS);
     return () => {
-      cancelled = true;
       clearInterval(interval);
+      setUnauthorizedHook(null);
     };
-  }, [authenticated, setUser]);
+  }, [authenticated]);
 
   return null;
 }
