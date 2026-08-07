@@ -33,6 +33,7 @@ import { ApiError } from '@/lib/api/errors';
 import { useToast } from '@/lib/hooks/useToast';
 import { sanitizeDoc, type RichDoc } from '@/lib/content/richDoc';
 import { toPersianDigits } from '@/lib/utils/format';
+import { compressImageForUpload } from '@/lib/utils/compressImage';
 import { ArticleImage, type ImageEditRequest } from './extensions/ArticleImage';
 import { ChartBlock } from './extensions/ChartBlock';
 import { ImageDetailsDialog } from './ImageDetailsDialog';
@@ -178,7 +179,7 @@ export function RichTextEditor({
       uploadingRef.current = true;
       setUploading(true);
       try {
-        const { url } = await adminApi.uploadImage(file);
+        const { url } = await adminApi.uploadImage(await compressImageForUpload(file));
         const dims = await measureImage(url);
         applyImageRef.current = null;
         setPendingImage({

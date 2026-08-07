@@ -5,6 +5,7 @@
 import { useId, useRef, useState } from 'react';
 import { adminApi } from '@/lib/api/resources/admin';
 import { ApiError } from '@/lib/api/errors';
+import { compressImageForUpload } from '@/lib/utils/compressImage';
 import { Button } from '@/components/ui';
 import styles from './ImageUpload.module.css';
 
@@ -38,7 +39,7 @@ export function ImageUpload({
     }
     setBusy(true);
     try {
-      const { url } = await adminApi.uploadImage(file);
+      const { url } = await adminApi.uploadImage(await compressImageForUpload(file));
       // The server returns a same-origin relative path (`/uploads/...`); a
       // few consumers (article `coverUrl`/`seo.ogImage`) validate as a full
       // URL server-side, and Open Graph image tags require an absolute URL
