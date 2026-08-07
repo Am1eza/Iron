@@ -11,7 +11,7 @@ import { searchCorrections } from '@/lib/server/repos/aiCorrectionsRepo';
 import { redisRateCheck } from '@/lib/server/redis';
 import { estimateProject } from '@/lib/server/services/estimate.service';
 import { createLead } from '@/lib/server/services/leads.service';
-import { computeBulkSplit } from '@/lib/utils/bulkSplit';
+import { computeBulkSplit, pickBestGroup } from '@/lib/utils/bulkSplit';
 // The ONE weight formula table — shared with POST /api/tools/weight and the
 // وزن‌سنج UI. These numbers become پیش‌فاکتور line weights, so the advisor and
 // the endpoint must not be able to disagree (they had already diverged).
@@ -85,12 +85,13 @@ export const AI_TOOLS: ToolDef[] = [
     function: {
       name: 'compareFactories',
       description:
-        'سیگنیچر آهن‌تایم: یک تناژ مشخص از یک محصول را بین همهٔ کارخانه‌ها مقایسه می‌کند و ارزان‌ترین را پیدا می‌کند — برای «۲۰ تن میلگرد از کجا ارزون‌تره؟».',
+        'سیگنیچر آهن‌تایم: یک تناژ مشخص از یک محصول را بین همهٔ کارخانه‌ها مقایسه می‌کند و ارزان‌ترین را پیدا می‌کند — برای «۲۰ تن میلگرد از کجا ارزون‌تره؟». اگر sub ندهی، خودش پرتکرارترین زیرشاخه (گرید) را انتخاب می‌کند و در subCategory خروجی برمی‌گرداند — همیشه همان را در پاسخ بگو. اگر size هم بدهی، مقایسه دقیقاً روی همان سایز محدود می‌شود.',
       parameters: {
         type: 'object',
         properties: {
           category: { type: 'string', description: 'مثلاً «میلگرد» یا slug دسته (rebar)' },
           sub: { type: 'string', description: 'زیردسته (اختیاری)، مثلاً «آجدار A3»' },
+          size: { type: 'string', description: 'سایز دقیق (اختیاری) — بدون این، مقایسه بین سایزهای مختلف قاطی می‌شود' },
           tonnage: { type: 'number', description: 'تناژ (تن)' },
         },
         required: ['category', 'tonnage'],
@@ -190,6 +191,7 @@ const estimateProjectArgs = z.object({
 const compareFactoriesArgs = z.object({
   category: z.string().trim().min(1).max(60),
   sub: z.string().trim().max(60).optional(),
+  size: z.string().trim().max(60).optional(),
   tonnage: finiteNumber.positive().max(100_000),
 });
 
@@ -309,11 +311,35 @@ export async function runTool(
         if (!parsed.success) return { error: 'دسته‌بندی محصول و تناژ لازم است.' };
         const category = await resolveCategory(parsed.data.category);
         if (!category) return { error: 'این دسته‌بندی شناخته نشد.' };
-        const subSlug = parsed.data.sub ? await resolveSubCategory(category.slug, parsed.data.sub) : undefined;
-        const rows = await tableRows(category.slug, subSlug);
+        const explicitSub = parsed.data.sub ? await resolveSubCategory(category.slug, parsed.data.sub) : undefined;
+        const explicitSize = parsed.data.size?.trim() || undefined;
+
+        const allRows = await tableRows(category.slug, explicitSub);
+        let usedSub = explicitSub;
+        const usedSize = explicitSize;
+        let scoped = explicitSize ? allRows.filter((r) => r.size === explicitSize) : allRows;
+
+        // Comparing a factory's price across entirely different sub-categories
+        // (e.g. میلگرد «ساده» blended with «آجدار A3») blends non-equivalent
+        // products into a misleading "cheapest" — if the model didn't pin
+        // down a sub-category (most callers won't), narrow to the single
+        // most-comparable one (most factories quoting it) instead of
+        // averaging over the whole category. Deliberately NOT also narrowed
+        // to one exact size: real data showed a single exact size is often
+        // quoted by only one mill, which would collapse "compare factories"
+        // to one factory almost every time — different sizes of the same
+        // grade/sub-category are still a fair comparison.
+        if (!explicitSub) {
+          const group = pickBestGroup(scoped);
+          if (group?.subCategoryId) {
+            usedSub = group.subCategoryId;
+            scoped = scoped.filter((r) => r.subCategoryId === usedSub);
+          }
+        }
+
         // A hidden/stale price is stored as 0 (toPriceRow's contract) — never
         // let a row with no real price win as "cheapest" by default.
-        const priced = rows.filter((r) => !r.current.priceHidden && r.current.price > 0);
+        const priced = scoped.filter((r) => !r.current.priceHidden && r.current.price > 0);
         if (priced.length === 0) return { error: 'قیمتی برای این محصول ثبت نشده؛ کارشناس اعلام می‌کند.' };
         const split = computeBulkSplit(priced, parsed.data.tonnage);
         if (!split.cheapest) return { error: 'قیمتی برای این محصول ثبت نشده؛ کارشناس اعلام می‌کند.' };
@@ -323,12 +349,23 @@ export async function runTool(
         const runnerUp = split.lines
           .filter((l) => l.factory !== split.cheapest!.factory)
           .sort((a, b) => a.lineToman - b.lineToman)[0];
+        const usedSubName = usedSub
+          ? (await listSubCategories(category.slug)).find((s) => s.slug === usedSub)?.name
+          : undefined;
         return {
           category: category.name,
+          // Which exact product this comparison is for — state this in the
+          // reply, especially when the model didn't ask the user for a size
+          // (compareFactories picked the most-quoted one automatically).
+          subCategory: usedSubName,
+          size: usedSize,
           tonnage: split.tonnage,
           cheapestFactory: split.cheapest.factory,
           cheapestPricePerKg: split.cheapest.pricePerKg,
           cheapestTotalToman: split.cheapest.lineToman,
+          // How many priced rows backed this average — 1 (maybe stale) row
+          // and 20 fresh ones shouldn't read as equally confident.
+          cheapestRowCount: split.cheapest.rowCount,
           ...(runnerUp
             ? { savingsVsNextToman: runnerUp.lineToman - split.cheapest.lineToman }
             : {}),
@@ -336,6 +373,7 @@ export async function runTool(
             factory: l.factory,
             pricePerKg: l.pricePerKg,
             totalToman: l.lineToman,
+            rowCount: l.rowCount,
           })),
         };
       }
@@ -416,7 +454,7 @@ export const AI_SYSTEM_PROMPT = `تو «مشاور هوشمند آهن‌تای�
 == روش مشاوره (مثل یک کارشناس واقعی) ==
 6) اول تشخیص، بعد نسخه: اگر کاربر فقط پرسید «قیمت چنده؟» بدون مشخصات، با یک سؤال کوتاه بپرس برای چه کاری می‌خواهد و هنوز قیمت نده؛ پرسش دقیق (محصول + سایز) را مستقیم جواب بده. در هر نوبت حداکثر ۱–۲ سؤال بپرس؛ بازجویی نکن.
 7) محاسبه را شفاف نشان بده تا مشتری بفهمد عدد از کجا آمده: مبنا را اعلام کن (شاخهٔ ۱۲ متری، وزن تئوری) و از فیلدهای unitWeightKg/totalWeightKg خروجی ابزار به شکل «هر شاخه X کیلوگرم؛ N شاخه می‌شود Y کیلوگرم» استفاده کن. مفروضات را همیشه بگو. هیچ حساب سرانگشتی نکن — حتی تقسیم و ضرب ساده (مثل «چند شاخه می‌شود») را از ابزار بگیر: برای تبدیل تناژ به تعداد شاخه، calcWeight را با targetTons صدا بزن و فیلد piecesForTargetTons را بگو.
-8) حرکت امضای کارشناس: مقایسه‌ها را به «قیمت هر کیلوگرم» برگردان تا منصفانه شوند — قیمت شاخه‌ایِ ارزان‌تر گاهی به‌خاطر وزن کمتر است، نه ارزانی واقعی. برای تناژ عمده («۲۰ تن میلگرد از کجا ارزون‌تره؟») حتماً compareFactories را صدا بزن و تفکیک کارخانه‌ها را نشان بده — این قابلیت سیگنیچر آهن‌تایم است. اختلاف/تفاضل قیمت‌ها را هرگز خودت حساب نکن؛ صرفهٔ نسبت به گزینهٔ بعدی را از فیلد savingsVsNextToman همان خروجی بگو.
+8) حرکت امضای کارشناس: مقایسه‌ها را به «قیمت هر کیلوگرم» برگردان تا منصفانه شوند — قیمت شاخه‌ایِ ارزان‌تر گاهی به‌خاطر وزن کمتر است، نه ارزانی واقعی. برای تناژ عمده («۲۰ تن میلگرد از کجا ارزون‌تره؟») حتماً compareFactories را صدا بزن و تفکیک کارخانه‌ها را نشان بده — این قابلیت سیگنیچر آهن‌تایم است. اگر کاربر زیرشاخه/گرید دقیق را نگفت، خودِ ابزار پرتکرارترین زیرشاخه را انتخاب می‌کند و در فیلد subCategory برمی‌گرداند — همیشه همان را در پاسخ بگو («این مقایسه برای گریدِ X است؛ برای گرید دیگر بگو تا دوباره چک کنم») تا مشتری فکر نکند این عدد برای هر گریدی معتبر است. اگر کاربر سایز مشخصی هم گفت، همان را در پارامتر size بده تا مقایسه دقیقاً روی آن سایز محدود شود. اختلاف/تفاضل قیمت‌ها را هرگز خودت حساب نکن؛ صرفهٔ نسبت به گزینهٔ بعدی را از فیلد savingsVsNextToman همان خروجی بگو، و اگر تعداد ردیف قیمتیِ ارزان‌ترین گزینه (cheapestRowCount) فقط ۱ بود، صادقانه بگو این قیمت فقط از یک منبع است.
 9) دید هزینهٔ کامل بده: یادآوری کن هزینهٔ نهایی فقط قیمت کالا نیست (حمل، ارزش افزوده، شرایط تسویه) و عدد دقیق این‌ها را کارشناس در پیش‌فاکتور اعلام می‌کند. تناژ بالا معمولاً از کارخانه به‌صرفه‌تر است و خرید خرد/ترکیبی از بنگاه — اگر تناژ کاربر معلوم است، همین را در توصیه لحاظ کن.
 10) صادق باش، نه بله‌قربان‌گو: اگر انتخاب کاربر برای کاربردش مناسب نیست (مثلاً گرید نامناسب برای خاموت یا اسکلت)، محترمانه و مستدل بگو و جایگزین پیشنهاد بده. دربارهٔ آیندهٔ قیمت هرگز پیش‌بینی قطعی نده؛ فقط بگو بازار نوسان دارد و قیمت پیش‌فاکتور همان روز معتبر است.
 11) برای سؤال‌های دانشی (مثل «فرق A2 و A3؟») ابزار searchGuides را صدا بزن، پاسخ را بر پایهٔ همان متن بده و منبع را ذکر کن: «طبق راهنمای آهن‌تایم» + عنوان مقاله. اگر راهنمای مرتبطی پیدا نشد، صادقانه بگو برای این موضوع راهنمایی نداریم و پیشنهاد گفتگو با کارشناس بده.

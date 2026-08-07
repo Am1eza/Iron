@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeBulkSplit } from './bulkSplit';
+import { computeBulkSplit, pickBestGroup } from './bulkSplit';
 import type { PriceRow } from '@/lib/types/domain';
 
 function row(overrides: Partial<PriceRow> & { factory: string; price: number; unit: PriceRow['unit'] }): PriceRow {
@@ -79,5 +79,50 @@ describe('computeBulkSplit', () => {
     ];
     const split = computeBulkSplit(rows, 1);
     expect(split.cheapest?.factory).toBe('B');
+  });
+});
+
+describe('pickBestGroup', () => {
+  it('picks the sub-category quoted by the most distinct factories', () => {
+    const rows = [
+      // 'rare': only one factory across all its sizes
+      row({ factory: 'A', price: 100, unit: 'kg', subCategoryId: 'rare', size: '12' }),
+      // 'common': three different factories — the more useful, more
+      // comparable group, even though each factory only quotes one size
+      // (real catalog data confirmed this is the normal shape — see
+      // aiToolsCompareFactories.test.ts — so grouping must NOT also require
+      // an exact size match or it would collapse to one factory almost
+      // every time).
+      row({ factory: 'A', price: 100, unit: 'kg', subCategoryId: 'common', size: '10' }),
+      row({ factory: 'B', price: 110, unit: 'kg', subCategoryId: 'common', size: '14' }),
+      row({ factory: 'C', price: 120, unit: 'kg', subCategoryId: 'common', size: '25' }),
+    ];
+    expect(pickBestGroup(rows)).toEqual({ subCategoryId: 'common' });
+  });
+
+  it('breaks a tie in factory count by row count', () => {
+    const rows = [
+      row({ factory: 'A', price: 100, unit: 'kg', subCategoryId: 'x' }),
+      row({ factory: 'B', price: 100, unit: 'kg', subCategoryId: 'x' }),
+      row({ factory: 'A', price: 100, unit: 'kg', subCategoryId: 'y', size: '20' }),
+      row({ factory: 'A', price: 100, unit: 'kg', subCategoryId: 'y', size: '22' }), // same factory, 2nd row
+      row({ factory: 'B', price: 100, unit: 'kg', subCategoryId: 'y', size: '24' }),
+    ];
+    // Both groups have 2 distinct factories; 'y' has 3 rows vs 'x''s 2.
+    expect(pickBestGroup(rows)).toEqual({ subCategoryId: 'y' });
+  });
+
+  it('ignores hidden/stale rows when scoring groups', () => {
+    const hiddenCurrent = { skuId: 'sku', price: 0, unit: 'kg' as const, deliveryTime: '', vatIncluded: false, movementDir: 'flat' as const, updatedAt: new Date().toISOString(), isStale: true, priceHidden: true };
+    const rows = [
+      row({ factory: 'A', price: 100, unit: 'kg', subCategoryId: 'x', current: hiddenCurrent }),
+      row({ factory: 'B', price: 100, unit: 'kg', subCategoryId: 'x', current: hiddenCurrent }),
+      row({ factory: 'A', price: 100, unit: 'kg', subCategoryId: 'y' }),
+    ];
+    expect(pickBestGroup(rows)).toEqual({ subCategoryId: 'y' });
+  });
+
+  it('returns null for empty input', () => {
+    expect(pickBestGroup([])).toBeNull();
   });
 });

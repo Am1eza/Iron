@@ -149,6 +149,14 @@
 .factoryName {
   margin-inline-end: var(--space-2);
 }
+/* How many priced rows backed this factory's average — a single (maybe
+ * stale) row and 20 fresh ones shouldn't look equally confident. */
+.rowCount {
+  display: block;
+  font: var(--t-caption);
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
 .lineCost {
   font: var(--t-price-cell);
   color: var(--color-text-strong);

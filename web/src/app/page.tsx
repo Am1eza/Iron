@@ -8,7 +8,7 @@ import { HeroSearch } from '@/components/home/HeroSearch';
 import { PriceBoard } from '@/components/home/PriceBoard';
 import { CategoryStage } from '@/components/home/CategoryStage';
 import { CompareTeaser, type CompareSlide } from '@/components/home/CompareTeaser';
-import { computeBulkSplit } from '@/lib/utils/bulkSplit';
+import { computeBulkSplit, pickBestGroup } from '@/lib/utils/bulkSplit';
 import { ValueProps } from '@/components/home/ValueProps';
 import { Partners } from '@/components/home/Partners';
 import { JsonLd } from '@/components/seo/JsonLd';
@@ -80,17 +80,25 @@ export default async function HomePage() {
     .filter((r): r is PriceRow => Boolean(r));
 
   // Per-category mill comparison (top 4 mills each) for the compare explorer —
-  // slide-by-slide across ALL products, computed server-side.
+  // slide-by-slide across ALL products, computed server-side. Narrowed to the
+  // single most-quoted sub-category first — blending a mill's price across
+  // entirely different sub-categories in the category would average
+  // non-equivalent products into a misleading "who's cheapest".
   const compareSlides: CompareSlide[] = categories
-    .map((cat) => ({
-      slug: cat.slug,
-      name: cat.name,
-      lines: computeBulkSplit(rowsBySlug.get(cat.slug) ?? [], 1).lines.slice(0, 4).map((l) => ({
-        factory: l.factory,
-        pricePerKg: l.pricePerKg,
-        best: l.best,
-      })),
-    }))
+    .map((cat) => {
+      const rows = rowsBySlug.get(cat.slug) ?? [];
+      const group = pickBestGroup(rows);
+      const scoped = group ? rows.filter((r) => r.subCategoryId === group.subCategoryId) : rows;
+      return {
+        slug: cat.slug,
+        name: cat.name,
+        lines: computeBulkSplit(scoped, 1).lines.slice(0, 4).map((l) => ({
+          factory: l.factory,
+          pricePerKg: l.pricePerKg,
+          best: l.best,
+        })),
+      };
+    })
     .filter((s) => s.lines.length >= 2);
 
   // REAL trust numbers for the hero (never invented): priced SKUs and

@@ -15,14 +15,18 @@ import * as schema from '@/lib/server/db/schema';
 import type { Db } from '@/lib/server/db/client';
 import { tableRows } from '@/lib/server/repos/catalogRepo';
 import { runTool } from '@/lib/server/services/aiTools';
+import { pickBestGroup } from '@/lib/utils/bulkSplit';
 
 type CompareResult = {
   category: string;
+  subCategory?: string;
+  size?: string;
   tonnage: number;
   cheapestFactory: string;
   cheapestPricePerKg: number;
   cheapestTotalToman: number;
-  factories: { factory: string; pricePerKg: number; totalToman: number }[];
+  cheapestRowCount: number;
+  factories: { factory: string; pricePerKg: number; totalToman: number; rowCount: number }[];
 };
 type ErrorResult = { error: string };
 
@@ -38,10 +42,20 @@ afterAll(async () => {
 });
 
 describe('compareFactories tool', () => {
-  it('resolves a free-text Persian category name and finds the real cheapest factory', async () => {
+  it('resolves a free-text Persian category name and finds the real cheapest factory within the auto-picked sub-category', async () => {
     const rows = await tableRows('rebar');
+    // Averaging a factory's price across entirely different sub-categories
+    // (e.g. «ساده» blended with «آجدار A3») would blend non-equivalent
+    // products into a misleading "cheapest" — the tool auto-narrows to the
+    // single most-quoted sub-category when the caller doesn't pin one down,
+    // so the expected value must be computed the same way, not by averaging
+    // over every rebar row. NOT also narrowed by exact size — real seeded
+    // data confirmed a single exact size is usually quoted by only one
+    // mill, which would collapse this to one factory almost every time.
+    const group = pickBestGroup(rows);
+    const scoped = group ? rows.filter((r) => r.subCategoryId === group.subCategoryId) : rows;
     const byFactory = new Map<string, number[]>();
-    for (const r of rows) if (r.factory) byFactory.get(r.factory)?.push(r.current.price) ?? byFactory.set(r.factory, [r.current.price]);
+    for (const r of scoped) if (r.factory) byFactory.get(r.factory)?.push(r.current.price) ?? byFactory.set(r.factory, [r.current.price]);
     const expectedCheapest = [...byFactory.entries()]
       .map(([f, prices]) => [f, prices.reduce((s, p) => s + p, 0) / prices.length] as const)
       .sort((a, b) => a[1] - b[1])[0]![0];
@@ -52,11 +66,27 @@ describe('compareFactories tool', () => {
     expect(r.cheapestFactory).toBe(expectedCheapest);
     expect(r.cheapestTotalToman).toBe(Math.round(r.cheapestPricePerKg * 20_000));
     expect(r.factories.length).toBeGreaterThan(1);
+    // The tool must report exactly which sub-category it compared, so the
+    // model can tell the user (rather than imply this holds for any grade).
+    expect(r.subCategory).toBeTruthy();
+    expect(r.size).toBeUndefined();
+    expect(r.cheapestRowCount).toBeGreaterThan(0);
+    for (const f of r.factories) expect(f.rowCount).toBeGreaterThan(0);
   });
 
   it('resolves the bare slug too, and an optional sub-category narrows the rows', async () => {
     const r = (await runTool('compareFactories', { category: 'rebar', sub: 'ساده', tonnage: 5 }, null)) as CompareResult;
     expect(r.cheapestFactory).toBeTruthy();
+    expect(r.subCategory).toBeTruthy();
+  });
+
+  it('an explicit size pins the comparison to exactly that size', async () => {
+    const rows = await tableRows('rebar');
+    const sizes = [...new Set(rows.map((r) => r.size).filter((s): s is string => Boolean(s)))];
+    const otherSize = sizes[0];
+    if (!otherSize) return;
+    const r = (await runTool('compareFactories', { category: 'rebar', size: otherSize, tonnage: 5 }, null)) as CompareResult;
+    expect(r.size).toBe(otherSize);
   });
 
   it('an unknown category name errors rather than silently comparing the wrong product', async () => {
