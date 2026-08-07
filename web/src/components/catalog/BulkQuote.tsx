@@ -1,5 +1,5 @@
 'use client';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/lib/hooks/useToast';
 import { useCartStore } from '@/lib/stores/cart';
@@ -8,7 +8,7 @@ import { useRequireAuth } from '@/lib/hooks/useRequireAuth';
 import { routes } from '@/lib/routes';
 import { formatToman, toPersianDigits } from '@/lib/utils/format';
 import { getRows } from '@/lib/mock/catalogData';
-import { computeBulkSplit } from '@/lib/utils/bulkSplit';
+import { computeBulkSplit, pickBestGroup } from '@/lib/utils/bulkSplit';
 import { MOCK_CATEGORY_SUBS, type SubCat } from '@/lib/data/nav';
 import { DEFAULT_LOGISTICS_CONFIG, cityDistance, estimateLogistics, type LogisticsConfig } from '@/lib/data/logistics';
 import { useProfileStore } from '@/lib/stores/profile';
@@ -64,6 +64,23 @@ export function BulkQuote({
   // Live subs come from the server page; the fixture is the mock/dev fallback.
   const subs = subsProp ?? MOCK_CATEGORY_SUBS[category] ?? [];
 
+  // Averaging a mill's price across entirely different sub-categories (e.g.
+  // میلگرد «ساده» blended with «آجدار A3») blends non-equivalent products
+  // into a misleading "cheapest" — so instead of opening on the unfiltered
+  // (blended) view, default to the single most-quoted sub-category the
+  // moment rows are available. The user can still pick «همه» explicitly for
+  // the broader, averaged view. Deliberately doesn't also auto-pick a size:
+  // real data showed one exact size is often quoted by only one mill, which
+  // would collapse the comparison to a single factory almost every time.
+  const [autoPicked, setAutoPicked] = useState(false);
+  useEffect(() => {
+    if (autoPicked || allRows.length === 0) return;
+    const group = pickBestGroup(allRows);
+    if (group?.subCategoryId) setSub(group.subCategoryId);
+    setAutoPicked(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allRows, autoPicked]);
+
   // Size-aware comparison: same sub-family AND same size across mills — an
   // apples-to-apples benchmark instead of category averages.
   const subRows = useMemo(
@@ -83,7 +100,13 @@ export function BulkQuote({
   if (allRows.length === 0) return null;
 
   const most = split.lines[split.lines.length - 1] ?? null;
-  const savings =
+  const runnerUp = split.lines.find((l) => l.factory !== split.cheapest?.factory) ?? null;
+  // Two DIFFERENT numbers, kept explicitly distinct (and distinctly worded
+  // below) so they never get conflated: how much you save vs the very next
+  // option — the AI advisor quotes this exact same figure — and the wider
+  // gap to the priciest option, for full context.
+  const savingsVsNext = split.cheapest && runnerUp ? runnerUp.lineToman - split.cheapest.lineToman : 0;
+  const savingsVsMax =
     split.cheapest && most && most.factory !== split.cheapest.factory
       ? most.lineToman - split.cheapest.lineToman
       : 0;
@@ -137,7 +160,7 @@ export function BulkQuote({
             }}
             aria-label="زیرشاخهٔ محصول"
           >
-            <option value="">همه</option>
+            <option value="">همه (میانگین)</option>
             {subs.map((s) => (
               <option key={s.slug} value={s.slug}>
                 {s.name}
@@ -154,7 +177,7 @@ export function BulkQuote({
             onChange={(e) => setSize(e.target.value)}
             aria-label="سایز محصول"
           >
-            <option value="">همه سایزها</option>
+            <option value="">همه سایزها (میانگین)</option>
             {sizes.map((s) => (
               <option key={s} value={s}>
                 {s}
@@ -242,6 +265,9 @@ export function BulkQuote({
                   <th scope="row" className={styles.factoryCell}>
                     <span className={styles.factoryName}>{l.factory}</span>
                     {l.best ? <span className={styles.bestTag}>ارزان‌ترین</span> : null}
+                    <span className={styles.rowCount}>
+                      بر اساس {toPersianDigits(l.rowCount)} قیمت
+                    </span>
                   </th>
                   <td className={styles.num}>{formatToman(l.pricePerKg, false)}</td>
                   <td className={`${styles.num} ${l.best ? styles.deltaBest : styles.delta}`}>
@@ -262,12 +288,20 @@ export function BulkQuote({
             پیشنهاد: تأمین از کارخانهٔ <strong>{split.cheapest.factory}</strong> با قیمت{' '}
             <strong className="tnum">{formatToman(split.cheapest.pricePerKg, false)}</strong> تومان
             بر کیلوگرم؛ هزینهٔ تقریبی کل{' '}
-            <strong className="tnum">{formatToman(split.cheapest.lineToman)}</strong>.
-            {savings > 0 ? (
+            <strong className="tnum">{formatToman(split.cheapest.lineToman)}</strong>
+            {split.cheapest.rowCount === 1 ? ' (بر اساس فقط یک قیمت ثبت‌شده)' : ''}.
+            {savingsVsNext > 0 ? (
               <>
                 {' '}
-                این انتخاب نسبت به گران‌ترین کارخانه حدود{' '}
-                <strong className="tnum">{formatToman(savings)}</strong> صرفه‌جویی دارد.
+                نسبت به گزینهٔ بعدی حدود{' '}
+                <strong className="tnum">{formatToman(savingsVsNext)}</strong> صرفه‌جویی دارد.
+              </>
+            ) : null}
+            {savingsVsMax > savingsVsNext ? (
+              <>
+                {' '}
+                (نسبت به گران‌ترین گزینه، تفاوت تا{' '}
+                <strong className="tnum">{formatToman(savingsVsMax)}</strong> تومان است.)
               </>
             ) : null}
           </span>
@@ -342,8 +376,8 @@ export function BulkQuote({
       </div>
 
       <p className={styles.note}>
-        قیمت‌ها میانگین نرخ روز هر کارخانه‌اند و تخمینی محسوب می‌شوند؛ نرخ نهایی پس از تماس کارشناس
-        اعلام می‌شود. پرداخت آنلاین نداریم.
+        قیمت‌ها میانگین نرخ روز هر کارخانه‌اند و تخمینی محسوب می‌شوند؛ نرخ نهایی و موجودی برای این
+        تناژ را کارشناس هنگام تماس تأیید می‌کند. پرداخت آنلاین نداریم.
       </p>
     </section>
   );

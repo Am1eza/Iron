@@ -7,6 +7,7 @@ import { normalizeDigits, toPersianDigits, formatToman } from '@/lib/utils/forma
 import { getRows } from '@/lib/mock/catalogData';
 import { CATEGORY_ALIASES, PURPOSE_CHIPS } from '@/lib/data/aiTaxonomy';
 import { computeBulkSplit, type BulkSplit } from '@/components/catalog/BulkQuote';
+import { pickBestGroup } from '@/lib/utils/bulkSplit';
 import { AiMarkIcon, ChevronStartIcon, CheckCircleIcon, MicIcon } from '@/components/primitives/icons';
 import { getSpeechRecognition, type SpeechRecognitionLike } from '@/lib/utils/speech';
 import { ChatMarkdown } from './ChatMarkdown';
@@ -123,10 +124,16 @@ function aiReply(text: string, ctx: { purpose: string | null }): { msgs: Msg[]; 
   const t = normalizeDigits(text);
   const purpose = ctx.purpose ?? detectPurpose(t);
 
-  // Bulk tonnage ask, e.g. «۲۰ تن میلگرد» → per-factory price split.
+  // Bulk tonnage ask, e.g. «۲۰ تن میلگرد» → per-factory price split. Narrowed
+  // to the single most-quoted sub-category first — blending a mill's price
+  // across entirely different sub-categories would average non-equivalent
+  // products into a misleading "cheapest" (see lib/utils/bulkSplit.ts).
   const bulk = detectBulk(t);
   if (bulk) {
-    const split = computeBulkSplit(getRows(bulk.slug), bulk.tonnage);
+    const bulkRows = getRows(bulk.slug);
+    const bulkGroup = pickBestGroup(bulkRows);
+    const bulkScoped = bulkGroup ? bulkRows.filter((r) => r.subCategoryId === bulkGroup.subCategoryId) : bulkRows;
+    const split = computeBulkSplit(bulkScoped, bulk.tonnage);
     if (split.cheapest) {
       return {
         purpose,

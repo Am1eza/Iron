@@ -1,5 +1,41 @@
 import type { PriceRow } from '@/lib/types/domain';
 
+export type ProductGroup = { subCategoryId?: string };
+
+/**
+ * Picks the single most-comparable sub-category among `rows` — the one with
+ * the most distinct factories quoting it (ties broken by row count).
+ * "Which factory is cheapest" only means something within ONE real product
+ * line: blending a factory's price across entirely different sub-categories
+ * (e.g. all of «ورق سرد» — روغنی + رنگی + گالوانیزه — at once, or میلگرد
+ * «ساده» blended with «آجدار A3») averages non-equivalent products into a
+ * misleading number. Callers that don't have an explicit sub-category from
+ * the user narrow to this group first. Deliberately does NOT also narrow by
+ * exact size — real catalog data confirmed (aiToolsCompareFactories.test.ts)
+ * that a single exact size is very often quoted by only one mill, which
+ * would make "compare factories" collapse to one factory almost every time;
+ * different sizes of the SAME grade are still a defensible comparison.
+ * Returns null for empty input.
+ */
+export function pickBestGroup(rows: PriceRow[]): ProductGroup | null {
+  const groups = new Map<string, { subCategoryId?: string; factories: Set<string>; rowCount: number }>();
+  for (const r of rows) {
+    if (r.current.priceHidden) continue;
+    const key = r.subCategoryId ?? '';
+    const g = groups.get(key) ?? { subCategoryId: r.subCategoryId, factories: new Set<string>(), rowCount: 0 };
+    if (r.factory) g.factories.add(r.factory);
+    g.rowCount += 1;
+    groups.set(key, g);
+  }
+  let best: { subCategoryId?: string; factories: Set<string>; rowCount: number } | undefined;
+  for (const g of groups.values()) {
+    if (!best || g.factories.size > best.factories.size || (g.factories.size === best.factories.size && g.rowCount > best.rowCount)) {
+      best = g;
+    }
+  }
+  return best ? { subCategoryId: best.subCategoryId } : null;
+}
+
 /** One factory's line in a bulk split: its representative per-kg price + line cost. */
 export type FactoryLine = {
   factory: string;
