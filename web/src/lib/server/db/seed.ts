@@ -18,8 +18,7 @@ import { categories as categoryFixtures, marketValues } from '@/lib/mock/fixture
 import { MOCK_CATEGORY_SUBS } from '@/lib/data/nav';
 import { rowsByCategory, priceSeries, articles as articleFixtures } from '@/lib/mock/catalogData';
 import {
-  FREIGHT_RATE_PER_TON_KM,
-  FREIGHT_MIN_TRIP,
+  DEFAULT_FREIGHT_TABLE,
   HANDLING_PER_TON,
   INSURANCE_RATE,
   SCALE_FEE,
@@ -335,8 +334,7 @@ export async function seedDatabase(db: Db, opts: SeedOptions = {}): Promise<void
     },
     LOGISTICS: {
       originLabel: ORIGIN_LABEL,
-      freightRatePerTonKm: FREIGHT_RATE_PER_TON_KM,
-      freightMinTrip: FREIGHT_MIN_TRIP,
+      freightTable: DEFAULT_FREIGHT_TABLE,
       handlingPerTon: HANDLING_PER_TON,
       insuranceRate: INSURANCE_RATE,
       scaleFee: SCALE_FEE,
