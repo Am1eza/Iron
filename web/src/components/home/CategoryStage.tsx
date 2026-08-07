@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { routes } from '@/lib/routes';
 import type { SubsMap } from '@/lib/data/catalog';
@@ -134,13 +134,22 @@ export function CategoryStage({
                     <ChevronStartIcon size={20} className={`${styles.railChev} icon--rtl`} />
                   </Link>
 
-                  {/* inline sub-groups — shown on touch/small screens (CSS) */}
-                  {groupByLabel(catSubs).map((group) => (
-                    <div key={group.label ?? `_solo_${group.items[0]!.slug}`}>
-                      {group.label ? (
-                        <p className={styles.inlineSubGroupHeading}>{group.label}</p>
-                      ) : null}
-                      <ul className={styles.inlineSubs}>
+                  {/* inline sub-groups — shown on touch/small screens (CSS).
+                      ONE shared <ul> for every item (grouped or not) so the
+                      flex-wrap chip layout still flows normally — splitting
+                      into one <ul> per group (including a fresh one for
+                      every ungrouped singleton) broke wrapping entirely: each
+                      single-item list rendered on its own line instead of
+                      packing chips side by side. A labeled cluster's heading
+                      is an inline <li> that forces its own line via
+                      `.inlineSubGroupHeading { flex-basis: 100% }`, not a
+                      separate list. */}
+                  <ul className={styles.inlineSubs}>
+                    {groupByLabel(catSubs).map((group) => (
+                      <Fragment key={group.label ?? `_solo_${group.items[0]!.slug}`}>
+                        {group.label ? (
+                          <li className={styles.inlineSubGroupHeading}>{group.label}</li>
+                        ) : null}
                         {group.items.map((s) => (
                           <li key={s.slug}>
                             <Link
@@ -151,9 +160,9 @@ export function CategoryStage({
                             </Link>
                           </li>
                         ))}
-                      </ul>
-                    </div>
-                  ))}
+                      </Fragment>
+                    ))}
+                  </ul>
                 </li>
               );
             })}

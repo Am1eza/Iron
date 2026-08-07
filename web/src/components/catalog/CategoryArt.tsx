@@ -1,7 +1,8 @@
 /**
- * Category artwork — bold, recognizable steel-section illustrations shown when the
- * rail item is hovered (the «text → image» swap). currentColor for the body + an
- * amber accent line, so they sit on any surface. Decorative (aria-hidden).
+ * Category artwork — compact outline icons (uniform stroke weight,
+ * currentColor body + a small brand-teal accent) so they read clean at the
+ * 22px mobile rail size and stay legible larger in the desktop flyout
+ * fallback. Decorative (aria-hidden).
  */
 type Props = { slug: string; size?: number };
 
@@ -17,33 +18,26 @@ export function CategoryArt({ slug, size = 64 }: Props) {
   const A = '#0A7F77'; // brand teal accent
 
   switch (slug) {
-    case 'rebar': // ribbed bars (bundle)
+    case 'rebar': // ribbed bar — outline segment with horizontal rib ticks
       return (
         <svg {...common}>
-          <rect x="14" y="10" width="9" height="44" rx="4.5" fill="currentColor" />
-          <rect x="28" y="10" width="9" height="44" rx="4.5" fill="currentColor" opacity="0.85" />
-          <rect x="42" y="10" width="9" height="44" rx="4.5" fill="currentColor" opacity="0.7" />
-          <g stroke={A} strokeWidth="2.4" strokeLinecap="round">
-            <path d="M13 18l11-4M13 30l11-4M13 42l11-4" />
+          <rect x="24" y="8" width="16" height="48" rx="8" stroke="currentColor" strokeWidth="5" />
+          <g stroke={A} strokeWidth="4" strokeLinecap="round">
+            <path d="M18 18h28M18 28h28M18 38h28M18 48h28" />
           </g>
         </svg>
       );
     case 'ibeam': // I-beam cross-section
       return (
         <svg {...common}>
-          <path
-            d="M12 12h40v8H37v24h15v8H12v-8h15V20H12z"
-            fill="currentColor"
-          />
-          <rect x="29" y="20" width="6" height="24" fill={A} opacity="0.9" />
+          <path d="M14 12h36M14 52h36M32 12v40" stroke="currentColor" strokeWidth="6" strokeLinecap="round" />
         </svg>
       );
-    case 'profile': // square hollow tube
+    case 'profile': // hollow square tube — concentric outline squares
       return (
         <svg {...common}>
-          <rect x="12" y="12" width="40" height="40" rx="5" fill="currentColor" />
-          <rect x="22" y="22" width="20" height="20" rx="3" fill="#0a0d11" />
-          <path d="M12 17h40" stroke={A} strokeWidth="3" strokeLinecap="round" />
+          <rect x="12" y="12" width="40" height="40" rx="6" stroke="currentColor" strokeWidth="5" />
+          <rect x="24" y="24" width="16" height="16" rx="3" stroke="currentColor" strokeWidth="4" opacity="0.55" />
         </svg>
       );
     // Three real category slugs (hot/cold/steel sheet) share this artwork —
@@ -57,91 +51,79 @@ export function CategoryArt({ slug, size = 64 }: Props) {
     case 'sheet': // stacked plates
       return (
         <svg {...common}>
-          <path d="M8 24l24-9 24 9-24 9z" fill="currentColor" />
-          <path d="M8 33l24 9 24-9" stroke="currentColor" strokeWidth="4" opacity="0.7" fill="none" strokeLinejoin="round" />
-          <path d="M8 41l24 9 24-9" stroke={A} strokeWidth="3.4" opacity="0.95" fill="none" strokeLinejoin="round" />
+          <path d="M8 24l24-9 24 9-24 9z" stroke="currentColor" strokeWidth="4.5" strokeLinejoin="round" />
+          <path d="M8 33l24 9 24-9" stroke="currentColor" strokeWidth="4.5" opacity="0.7" strokeLinejoin="round" strokeLinecap="round" />
+          <path d="M8 41l24 9 24-9" stroke={A} strokeWidth="4" opacity="0.95" strokeLinejoin="round" strokeLinecap="round" />
         </svg>
       );
-    case 'angle-channel': // L angle + U channel
+    case 'angle-channel': // L angle bracket
       return (
         <svg {...common}>
-          <path d="M14 10h8v34h18v8H14z" fill="currentColor" />
-          <path d="M40 10h10v8h-2v22h2v8H40z" fill={A} opacity="0.9" />
+          <path d="M16 10v36h32" stroke="currentColor" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
+          <circle cx="42" cy="16" r="3" fill={A} stroke="none" />
         </svg>
       );
     case 'pipe': // tube ring
       return (
         <svg {...common}>
-          <circle cx="32" cy="32" r="22" fill="currentColor" />
-          <circle cx="32" cy="32" r="11" fill="#0a0d11" />
-          <path d="M32 10a22 22 0 0119 11" stroke={A} strokeWidth="3.2" strokeLinecap="round" fill="none" />
+          <circle cx="32" cy="32" r="20" stroke="currentColor" strokeWidth="6" />
+          <circle cx="32" cy="32" r="9" stroke="currentColor" strokeWidth="4" opacity="0.55" />
         </svg>
       );
-    case 'wire': // coil / spiral
+    case 'wire': // coil
       return (
         <svg {...common}>
-          <g stroke="currentColor" strokeWidth="5" strokeLinecap="round" fill="none">
-            <path d="M18 16c14-6 28 0 28 8s-14 10-28 6" />
-            <path d="M18 30c14-6 28 0 28 8s-14 10-28 6" opacity="0.8" />
+          <g stroke="currentColor" strokeWidth="5" strokeLinecap="round">
+            <path d="M16 18c14-7 30 0 30 9s-16 9-30 2" />
+            <path d="M16 32c14-7 30 0 30 9s-16 9-30 2" opacity="0.6" />
           </g>
-          <circle cx="46" cy="24" r="3" fill={A} />
         </svg>
       );
     case 'steel': // billet — hexagonal bar stock cross-section
       return (
         <svg {...common}>
-          <path d="M32 8l20 12v24L32 56 12 44V20z" fill="currentColor" />
-          <path
-            d="M32 8v24M32 32l20-12M32 32L12 20"
-            stroke={A}
-            strokeWidth="2.4"
-            strokeLinecap="round"
-            opacity="0.9"
-          />
+          <path d="M32 8l20 12v24L32 56 12 44V20z" stroke="currentColor" strokeWidth="5" strokeLinejoin="round" />
+          <path d="M32 8v24M32 32l20-12M32 32L12 20" stroke={A} strokeWidth="3" strokeLinecap="round" opacity="0.7" />
         </svg>
       );
-    case 'shiralat-sanati': // gate valve — pipe stubs + body + handwheel
+    case 'shiralat-sanati': // gate valve — bowtie (P&ID convention) + handwheel
       return (
         <svg {...common}>
-          <rect x="6" y="28" width="16" height="8" rx="2" fill="currentColor" />
-          <rect x="42" y="28" width="16" height="8" rx="2" fill="currentColor" />
-          <rect x="24" y="24" width="16" height="16" rx="3" fill="currentColor" />
-          <rect x="29" y="20" width="6" height="6" fill={A} />
-          <circle cx="32" cy="14" r="9" fill="none" stroke={A} strokeWidth="3.2" />
-          <path d="M32 5v4M32 19v4M23 14h4M37 14h4" stroke={A} strokeWidth="3" strokeLinecap="round" />
+          <path d="M8 18l22 14-22 14zM56 18L34 32l22 14z" fill="currentColor" stroke="none" />
+          <circle cx="32" cy="10" r="5" stroke={A} strokeWidth="4" />
+          <path d="M32 15v6" stroke={A} strokeWidth="4" strokeLinecap="round" />
         </svg>
       );
     case 'etesalat-felezi': // pipe elbow fitting
       return (
         <svg {...common}>
-          <path d="M14 50V26a12 12 0 0112-12h24" fill="none" stroke="currentColor" strokeWidth="12" strokeLinecap="round" />
-          <path d="M14 50V26a12 12 0 0112-12h24" fill="none" stroke={A} strokeWidth="3" strokeLinecap="round" opacity="0.9" />
+          <path d="M16 52V28a12 12 0 0112-12h24" stroke="currentColor" strokeWidth="9" strokeLinecap="round" />
+          <circle cx="28" cy="28" r="3" fill={A} stroke="none" />
         </svg>
       );
     case 'flanj-va-etesalat': // flange ring — bolt holes at N/E/S/W
       return (
         <svg {...common}>
-          <circle cx="32" cy="32" r="22" fill="currentColor" />
-          <circle cx="32" cy="32" r="10" fill="#0a0d11" />
-          <circle cx="32" cy="12" r="3.2" fill={A} />
-          <circle cx="32" cy="52" r="3.2" fill={A} />
-          <circle cx="12" cy="32" r="3.2" fill={A} />
-          <circle cx="52" cy="32" r="3.2" fill={A} />
+          <circle cx="32" cy="32" r="17" stroke="currentColor" strokeWidth="6" />
+          <circle cx="32" cy="9" r="4.5" fill={A} stroke="none" />
+          <circle cx="32" cy="55" r="4.5" fill={A} stroke="none" />
+          <circle cx="9" cy="32" r="4.5" fill={A} stroke="none" />
+          <circle cx="55" cy="32" r="4.5" fill={A} stroke="none" />
         </svg>
       );
-    case 'felezat-rangi': // non-ferrous metals — stacked ingots, echoes rebar's opacity-tiered bundle
+    case 'felezat-rangi': // non-ferrous metals — stacked ingots
       return (
         <svg {...common}>
-          <rect x="10" y="36" width="30" height="10" rx="5" fill="currentColor" opacity="0.55" transform="rotate(-8 25 41)" />
-          <rect x="16" y="24" width="30" height="10" rx="5" fill="currentColor" opacity="0.8" transform="rotate(-8 31 29)" />
-          <rect x="22" y="12" width="30" height="10" rx="5" fill="currentColor" transform="rotate(-8 37 17)" />
-          <circle cx="49" cy="15" r="3" fill={A} />
+          <rect x="10" y="38" width="28" height="9" rx="4.5" stroke="currentColor" strokeWidth="4" transform="rotate(-8 24 42)" />
+          <rect x="16" y="26" width="28" height="9" rx="4.5" stroke="currentColor" strokeWidth="4" opacity="0.75" transform="rotate(-8 30 30)" />
+          <rect x="22" y="14" width="28" height="9" rx="4.5" stroke="currentColor" strokeWidth="4" opacity="0.5" transform="rotate(-8 36 18)" />
+          <circle cx="49" cy="15" r="3.4" fill={A} stroke="none" />
         </svg>
       );
     default:
       return (
         <svg {...common}>
-          <circle cx="32" cy="32" r="20" fill="currentColor" />
+          <circle cx="32" cy="32" r="20" stroke="currentColor" strokeWidth="5" />
         </svg>
       );
   }
