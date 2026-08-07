@@ -29,6 +29,7 @@ const catalog = vi.hoisted(() => ({
   getRows: vi.fn(),
   getSubsMap: vi.fn(),
   getAllPublishedArticles: vi.fn(),
+  getCategoryArticleCounts: vi.fn(),
 }));
 
 vi.mock('@/lib/server/catalog', () => catalog);
@@ -56,6 +57,7 @@ function useMockCatalog() {
   catalog.getAllPublishedArticles.mockResolvedValue([
     { slug: 'fixture-article', publishAt: '2026-01-01T00:00:00.000Z' },
   ]);
+  catalog.getCategoryArticleCounts.mockResolvedValue({});
 }
 
 async function loadSitemap() {
@@ -121,6 +123,7 @@ describe('sitemap · the mock path can never produce catalog URLs', () => {
     expect(catalog.getRows).not.toHaveBeenCalled();
     expect(catalog.getSubsMap).not.toHaveBeenCalled();
     expect(catalog.getAllPublishedArticles).not.toHaveBeenCalled();
+    expect(catalog.getCategoryArticleCounts).not.toHaveBeenCalled();
   });
 });
 
@@ -141,6 +144,7 @@ describe('sitemap · the live path', () => {
       },
     ]);
     catalog.getAllPublishedArticles.mockResolvedValue([]);
+    catalog.getCategoryArticleCounts.mockResolvedValue({});
   });
 
   it('emits the database taxonomy and skips inactive categories', async () => {
@@ -152,6 +156,43 @@ describe('sitemap · the live path', () => {
     expect(got).toContain('/prices/varagh-garm/st37');
     expect(got).toContain('/prices/varagh-garm/st37/varagh-garm-st37-2mm');
     expect(got).not.toContain('/prices/sheet');
+  });
+});
+
+describe('sitemap · /blog/category/* entries (US-14.5)', () => {
+  beforeEach(() => {
+    catalog.isLiveCatalog.mockReturnValue(true);
+    catalog.getCategories.mockResolvedValue([
+      { id: 'cat-rebar', slug: 'rebar', name: 'میلگرد', order: 0, isActive: true },
+      { id: 'cat-pipe', slug: 'pipe', name: 'لوله', order: 1, isActive: true },
+    ]);
+    catalog.getSubsMap.mockResolvedValue({});
+    catalog.getRows.mockResolvedValue([]);
+    catalog.getAllPublishedArticles.mockResolvedValue([]);
+  });
+
+  it('includes a category page only when it has at least one published article', async () => {
+    catalog.getCategoryArticleCounts.mockResolvedValue({ 'cat-rebar': 5 });
+    const { default: sitemap } = await loadSitemap();
+
+    const got = paths(await sitemap());
+
+    expect(got).toContain(routes.blogCategory('rebar'));
+    // لوله has zero counted articles — a thin/empty page must not be
+    // advertised to Google even though the category itself is real and
+    // active (see knownPaths.ts — it still answers a real 200, just isn't
+    // in the sitemap).
+    expect(got).not.toContain(routes.blogCategory('pipe'));
+  });
+
+  it('advertises no category pages at all when nothing has been categorised yet', async () => {
+    catalog.getCategoryArticleCounts.mockResolvedValue({});
+    const { default: sitemap } = await loadSitemap();
+
+    const got = paths(await sitemap());
+
+    expect(got).not.toContain(routes.blogCategory('rebar'));
+    expect(got).not.toContain(routes.blogCategory('pipe'));
   });
 });
 

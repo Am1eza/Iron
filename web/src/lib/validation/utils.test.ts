@@ -1,6 +1,36 @@
 import { describe, it, expect } from 'vitest';
-import { finiteNumber, formatZodError, internalPathSchema } from './utils';
+import { finiteNumber, formatZodError, internalPathSchema, articleCategoryIdsSchema } from './utils';
 import { z } from 'zod';
+
+describe('articleCategoryIdsSchema', () => {
+  it('accepts a normal set of category ids, unchanged and undeduplicated', () => {
+    // Unlike articleTagsSchema, this is not free text — a real category
+    // picker can never emit the same id twice, so there is no dedup step to
+    // (correctly) collapse it if it somehow did.
+    const res = articleCategoryIdsSchema.safeParse(['cat-rebar', 'cat-ibeam']);
+    expect(res.success).toBe(true);
+    if (res.success) expect(res.data).toEqual(['cat-rebar', 'cat-ibeam']);
+  });
+
+  it('is optional — an uncategorised article omits the field entirely', () => {
+    expect(articleCategoryIdsSchema.safeParse(undefined).success).toBe(true);
+  });
+
+  it('accepts an empty array (every category removed from an article)', () => {
+    const res = articleCategoryIdsSchema.safeParse([]);
+    expect(res.success).toBe(true);
+    if (res.success) expect(res.data).toEqual([]);
+  });
+
+  it('rejects an empty-string id', () => {
+    expect(articleCategoryIdsSchema.safeParse(['']).success).toBe(false);
+  });
+
+  it('rejects more than 20 ids — a misbehaving client, not a real editorial choice', () => {
+    const many = Array.from({ length: 21 }, (_, i) => `cat-${i}`);
+    expect(articleCategoryIdsSchema.safeParse(many).success).toBe(false);
+  });
+});
 
 describe('finiteNumber', () => {
   it('accepts ordinary finite numbers', () => {

@@ -16,6 +16,8 @@ import { normalizeDigits } from '@/lib/utils/format';
 import {
   searchArticles,
   listPublished,
+  listPublishedByCategory,
+  categoryArticleCounts,
   relatedArticles,
   findPublishedBySlug,
   type ArticleFull,
@@ -152,6 +154,49 @@ export async function getArticlesPage(
     return { articles: all.slice((page - 1) * perPage, page * perPage), total: all.length };
   }
   return listPublished(type, page, perPage);
+}
+
+/** Articles filed under a catalog category — /blog/category/[slug]. Mock mode
+ *  has no category associations on its fixtures, so it answers empty rather
+ *  than guessing; the page's own empty-state already covers "no articles". */
+export async function getArticlesPageByCategory(
+  categoryId: string,
+  page = 1,
+  perPage = 20,
+): Promise<{ articles: Article[]; total: number }> {
+  if (!live()) return { articles: [], total: 0 };
+  return listPublishedByCategory(categoryId, page, perPage);
+}
+
+/** Published-article count per category id — the rail widget's source for
+ *  which category tiles to show and what count to print on each. */
+export async function getCategoryArticleCounts(): Promise<Record<string, number>> {
+  if (!live()) return {};
+  return categoryArticleCounts();
+}
+
+export type CategoryRailItem = {
+  slug: string;
+  name: string;
+  /** `null` when the category has articles but no photo set yet in the admin
+   *  catalog form — `CategoryRail` renders a brand-tinted fallback tile
+   *  rather than skipping it. */
+  imageUrl: string | null;
+  count: number;
+};
+
+/**
+ * The category rail's actual data — every active category that has at least
+ * one published article, ordered the same way the rest of the site orders
+ * categories (`categories.order`, the admin-editable taxonomy order), never
+ * by count: a rail that reshuffles itself every time an article gets
+ * published would be disorienting to a reader browsing it repeatedly.
+ */
+export async function getBlogCategoryRailItems(): Promise<CategoryRailItem[]> {
+  const [cats, counts] = await Promise.all([getCategories(), getCategoryArticleCounts()]);
+  return cats
+    .map((c) => ({ slug: c.slug, name: c.name, imageUrl: c.imageUrl ?? null, count: counts[c.id] ?? 0 }))
+    .filter((c) => c.count > 0);
 }
 
 /** The 3 cards under an article. One projected query — see `relatedArticles`. */

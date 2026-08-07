@@ -245,5 +245,9 @@ export interface Article {
    *  normalises the column's `null` (untagged) to `[]`, so no consumer has to
    *  branch on the difference. Optional only because the mock catalog omits it. */
   tags?: string[];
+  /** Catalog category ids this article is filed under (US-14.5) — same
+   *  normalisation story as `tags` above: `null` and `[]` both mean
+   *  uncategorised, and `toArticleDto` collapses both to `[]`. */
+  relatedCategoryIds?: string[];
   seo?: SeoMeta;
 }
