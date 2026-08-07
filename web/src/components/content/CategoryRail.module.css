@@ -29,8 +29,8 @@
   position: relative;
   display: flex;
   align-items: flex-end;
-  inline-size: 152px;
-  block-size: 116px;
+  inline-size: 176px;
+  block-size: 138px;
   border-radius: var(--radius-lg);
   overflow: hidden;
   background-color: var(--color-surface-sunken);
@@ -44,6 +44,7 @@
 }
 .tile:hover {
   box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
   text-decoration: none;
 }
 .tile:active {
@@ -73,8 +74,15 @@
   inset: 0;
   /* Steel-950 rather than plain black — the gradient reads as the same
      gunmetal the site's own dark panels use (--color-panel), not a generic
-     photo-card overlay. */
-  background: linear-gradient(180deg, rgba(10, 20, 20, 0) 40%, rgba(10, 20, 20, 0.82) 100%);
+     photo-card overlay. Starts earlier (25%) and lands darker (0.9) than the
+     first pass — the name/count text color itself was already correct
+     (white, plain CSS, no cascade conflict), but against some photos' bright
+     bottom-edge content a thin/late scrim wasn't enough contrast on its own.
+     The `text-shadow` below on `.name`/`.count` is the other half of that
+     robustness fix. (The actually-broken legibility bug was the category
+     hero's <h1> — an inline style on `Heading` silently beating the CSS
+     color rule; fixed at the call site in page.tsx.) */
+  background: linear-gradient(180deg, rgba(10, 20, 20, 0) 25%, rgba(10, 20, 20, 0.9) 100%);
 }
 
 .text {
@@ -82,20 +90,21 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-3);
   color: var(--color-text-inverse);
   inline-size: 100%;
 }
 
 .name {
-  font: var(--t-label);
-  font-weight: 700;
+  font: var(--t-title-sm);
   line-height: 1.3;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
 }
 
 .count {
   font: var(--t-micro);
   opacity: 0.85;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
 @media (prefers-reduced-motion: reduce) {

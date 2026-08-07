@@ -20,7 +20,7 @@
 .heroScrim {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(10, 20, 20, 0.05) 0%, rgba(10, 20, 20, 0.82) 100%);
+  background: linear-gradient(180deg, rgba(10, 20, 20, 0.1) 0%, rgba(10, 20, 20, 0.88) 100%);
 }
 
 .heroContent {
@@ -28,8 +28,14 @@
   padding: var(--space-6);
   color: var(--color-text-inverse);
 }
+/* `Heading` sets its own inline color (defaults to the dark `strong` token),
+   which always wins over this class — the `color="inverse"` prop on the call
+   site is the real fix. `text-shadow` is the part that actually lands here:
+   a robustness backstop so the title stays legible even over a bright patch
+   of a category photo, independent of scrim strength. */
 .heroContent :global(h1) {
   color: var(--color-text-inverse);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
 }
 
 .heroKicker {
@@ -37,6 +43,7 @@
   font: var(--t-overline);
   opacity: 0.85;
   margin-block-end: var(--space-1);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
 .grid {

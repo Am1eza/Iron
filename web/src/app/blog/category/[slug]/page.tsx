@@ -59,7 +59,7 @@ export default async function BlogCategoryPage({ params }: Params) {
             <span className={styles.heroScrim} aria-hidden="true" />
             <div className={styles.heroContent}>
               <span className={styles.heroKicker}>دستهٔ محصول</span>
-              <Heading level={1}>{`مقالات ${cat.name}`}</Heading>
+              <Heading level={1} color="inverse">{`مقالات ${cat.name}`}</Heading>
             </div>
           </div>
 
