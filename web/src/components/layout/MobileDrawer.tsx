@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { routes } from '@/lib/routes';
@@ -126,12 +126,20 @@ export function MobileDrawer({ categories, subs }: { categories: Category[]; sub
                     <Link href={routes.category(cat.slug)} className={styles.catLink}>
                       {cat.name}
                     </Link>
-                    {groupByLabel(subs[cat.slug] ?? []).map((subGroup) => (
-                      <div key={subGroup.label ?? `_solo_${subGroup.items[0]!.slug}`}>
-                        {subGroup.label ? (
-                          <div className={styles.subGroupHeading}>{subGroup.label}</div>
-                        ) : null}
-                        <ul className={styles.subList}>
+                    {/* ONE shared <ul> for every subcategory (grouped or
+                        not) — `.subList` is a flex-wrap chip row, and
+                        splitting it into one <ul> per group (including a
+                        fresh one for every ungrouped singleton) broke
+                        wrapping: each single-chip list rendered on its own
+                        line instead of packing side by side. A labeled
+                        cluster's heading is an inline <li> that forces its
+                        own line via `.subGroupHeading { flex-basis: 100% }`. */}
+                    <ul className={styles.subList}>
+                      {groupByLabel(subs[cat.slug] ?? []).map((subGroup) => (
+                        <Fragment key={subGroup.label ?? `_solo_${subGroup.items[0]!.slug}`}>
+                          {subGroup.label ? (
+                            <li className={styles.subGroupHeading}>{subGroup.label}</li>
+                          ) : null}
                           {subGroup.items.map((sub) => (
                             <li key={sub.slug}>
                               <Link href={routes.subCategory(cat.slug, sub.slug)} className={styles.subLink}>
@@ -139,9 +147,9 @@ export function MobileDrawer({ categories, subs }: { categories: Category[]; sub
                               </Link>
                             </li>
                           ))}
-                        </ul>
-                      </div>
-                    ))}
+                        </Fragment>
+                      ))}
+                    </ul>
                   </li>
                 ))}
               </ul>

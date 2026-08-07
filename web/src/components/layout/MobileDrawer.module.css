@@ -165,9 +165,12 @@
   text-decoration: none;
 }
 
-/* Purely a visual cluster heading above a `.subList` chip row that shares a
- * groupLabel — not a link, not a real taxonomy level (see catalogGroups.ts). */
+/* Purely a visual cluster heading inside the `.subList` flex-wrap chip row
+ * for items that share a groupLabel — not a link, not a real taxonomy level
+ * (see catalogGroups.ts). `flex-basis: 100%` forces it onto its own line
+ * within the same flex container instead of needing a separate <ul>. */
 .subGroupHeading {
+  flex-basis: 100%;
   padding-inline-start: var(--space-5);
   margin-block-end: var(--space-1);
   font: var(--t-caption);

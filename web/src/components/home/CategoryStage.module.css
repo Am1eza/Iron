@@ -306,9 +306,14 @@
     margin: var(--space-1) 0 0;
     padding: 0;
   }
-  /* Purely a visual cluster heading above an `.inlineSubs` chip row that
-   * shares a groupLabel — not a link, not a real taxonomy level. */
+  /* Purely a visual cluster heading inside the `.inlineSubs` flex-wrap chip
+   * row for items that share a groupLabel — not a link, not a real taxonomy
+   * level. `flex-basis: 100%` forces it (and everything after it) onto a
+   * fresh line within the SAME flex container, so it doesn't need its own
+   * wrapping <ul> (that broke wrapping for every other chip — see the
+   * comment at the call site in CategoryStage.tsx). */
   .inlineSubGroupHeading {
+    flex-basis: 100%;
     margin: var(--space-2) 0 0;
     font: var(--t-caption);
     font-weight: 600;
