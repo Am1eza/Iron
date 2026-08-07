@@ -6,14 +6,11 @@ import { can } from '@/lib/auth/roles';
 import { requireApiUser, requireDb, withApiErrorHandling, audit } from '@/lib/server/utils/apiGuard';
 import { rateLimit } from '@/lib/server/utils/rateLimit';
 import { sniffImageExt } from '@/lib/server/utils/imageSniff';
+import { uploadDir } from '@/lib/server/utils/uploadStorage';
 
 export const runtime = 'nodejs';
 
 const MAX_BYTES = 5 * 1024 * 1024; // 5MB — same cap as admin/pricing/import.
-
-function uploadDir(): string {
-  return path.join(process.cwd(), process.env.UPLOAD_DIR ?? 'public/uploads');
-}
 
 /**
  * POST /api/admin/upload — shared image upload for the admin panel (article
@@ -64,6 +61,9 @@ async function POSTImpl(req: NextRequest) {
   await fs.mkdir(dir, { recursive: true });
   await fs.writeFile(path.join(dir, filename), buf);
 
+  // Served back by app/uploads/[filename]/route.ts, NOT Next's static
+  // public/ handling — see that file for why a runtime-written file can't
+  // rely on the framework's own public-asset serving.
   const url = `/uploads/${filename}`;
   await audit(session.id, 'media.upload', { type: 'media', id: filename }, undefined, {
     url,
