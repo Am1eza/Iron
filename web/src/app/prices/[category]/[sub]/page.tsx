@@ -6,6 +6,8 @@ import { categories as mockCategories } from '@/lib/mock/fixtures';
 import { getCategories, getRows, getSubRows } from '@/lib/server/catalog';
 import { MOCK_CATEGORY_SUBS } from '@/lib/data/nav';
 import { getSubsMap } from '@/lib/data/catalog';
+import { getSetting } from '@/lib/server/repos/settingsRepo';
+import { DEFAULT_LOGISTICS_CONFIG, type LogisticsConfig } from '@/lib/data/logistics';
 import { shouldPrerenderMockParams } from '@/lib/server/seo/prerenderParams';
 import { Container, Section, Stack, Breadcrumbs, EmptyState, emptyPresets } from '@/components/ui';
 import { BreadcrumbJsonLd, JsonLd } from '@/components/seo/JsonLd';
@@ -59,7 +61,11 @@ export default async function SubCategoryPage({ params }: Params) {
   const name = subs.find((x) => x.slug === sub)?.name;
   if (!name) notFound();
 
-  const [rows, allRows] = await Promise.all([getSubRows(category, sub), getRows(category)]);
+  const [rows, allRows, logisticsConfig] = await Promise.all([
+    getSubRows(category, sub),
+    getRows(category),
+    getSetting<LogisticsConfig>('LOGISTICS', DEFAULT_LOGISTICS_CONFIG),
+  ]);
 
   const crumbs = [
     { label: 'خانه', href: routes.home() },
@@ -98,7 +104,7 @@ export default async function SubCategoryPage({ params }: Params) {
           {rows.length > 0 ? (
             <>
               <PriceTable rows={allRows} subs={subs} categoryName={cat.name} initialSub={sub} />
-              <BulkQuote category={category} categoryName={cat.name} rows={allRows} subs={subs} />
+              <BulkQuote category={category} categoryName={cat.name} rows={allRows} subs={subs} logisticsConfig={logisticsConfig} />
             </>
           ) : (
             <EmptyState size="section" {...emptyPresets.emptyCategory()} />

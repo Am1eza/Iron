@@ -8,12 +8,21 @@ import { useToast } from '@/lib/hooks/useToast';
 import { ApiError } from '@/lib/api/errors';
 import { Button, Card, Heading, Stack, Text, TableSkeleton, EmptyState } from '@/components/ui';
 import { TextInput } from '@/components/forms/fields';
+import { DEFAULT_FREIGHT_TABLE } from '@/lib/data/logistics';
 import ui from '../adminUi.module.css';
 
 interface Logistics {
   originLabel: string;
-  freightRatePerTonKm: number;
-  freightMinTrip: number;
+  /** Distance-bracket freight rate (Toman/ton at each km anchor), linearly
+   *  interpolated between anchors — see lib/data/logistics.ts for why this
+   *  replaced a single flat Toman/km rate. */
+  freightTable: { km: number; perTon: number }[];
+  /** Pre-upgrade flat-rate fields — a settings row saved before the freight
+   *  table existed has these instead; kept only so `estimateLogistics` can
+   *  still fall back to the old formula for it. This form no longer edits
+   *  them directly. */
+  freightRatePerTonKm?: number;
+  freightMinTrip?: number;
   handlingPerTon: number;
   insuranceRate: number;
   scaleFee: number;
@@ -91,8 +100,7 @@ export function SettingsForm() {
       <LogisticsCard
         cfg={get<Logistics>('LOGISTICS', {
           originLabel: 'انبار شادآباد تهران',
-          freightRatePerTonKm: 1100,
-          freightMinTrip: 2500000,
+          freightTable: DEFAULT_FREIGHT_TABLE,
           handlingPerTon: 150000,
           insuranceRate: 0.0025,
           scaleFee: 75000,
@@ -378,35 +386,39 @@ function HolidaysCard({ holidays, onSave, busy }: { holidays: string[]; onSave: 
 }
 
 type CityRow = { id: string; name: string; km: string };
+type FreightRow = { id: string; km: string; perTon: string };
+
+const freightTableOrDefault = (t: { km: number; perTon: number }[] | undefined) =>
+  t && t.length > 0 ? t : DEFAULT_FREIGHT_TABLE;
 
 function LogisticsCard({ cfg, onSave, busy }: { cfg: Logistics; onSave: (v: Logistics) => void; busy: boolean }) {
   const [v, setV] = useState({
     originLabel: cfg.originLabel,
-    rate: String(cfg.freightRatePerTonKm),
-    minTrip: String(cfg.freightMinTrip),
     handling: String(cfg.handlingPerTon),
     insurance: String(cfg.insuranceRate * 100),
     scale: String(cfg.scaleFee),
   });
   const [cities, setCities] = useState<CityRow[]>(() => cfg.cities.map((c) => ({ id: newRowId(), name: c.name, km: String(c.km) })));
   const [cityErrors, setCityErrors] = useState<Record<string, string>>({});
+  const [freight, setFreight] = useState<FreightRow[]>(() =>
+    freightTableOrDefault(cfg.freightTable).map((f) => ({ id: newRowId(), km: String(f.km), perTon: String(f.perTon) })),
+  );
+  const [freightErrors, setFreightErrors] = useState<Record<string, string>>({});
   useEffect(() => {
     setV({
       originLabel: cfg.originLabel,
-      rate: String(cfg.freightRatePerTonKm),
-      minTrip: String(cfg.freightMinTrip),
       handling: String(cfg.handlingPerTon),
       insurance: String(cfg.insuranceRate * 100),
       scale: String(cfg.scaleFee),
     });
     setCities(cfg.cities.map((c) => ({ id: newRowId(), name: c.name, km: String(c.km) })));
     setCityErrors({});
+    setFreight(freightTableOrDefault(cfg.freightTable).map((f) => ({ id: newRowId(), km: String(f.km), perTon: String(f.perTon) })));
+    setFreightErrors({});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cfg]);
 
   const [errors, setErrors] = useState<{
-    rate?: string;
-    minTrip?: string;
     handling?: string;
     insurance?: string;
     scale?: string;
@@ -419,13 +431,14 @@ function LogisticsCard({ cfg, onSave, busy }: { cfg: Logistics; onSave: (v: Logi
   const removeCity = (id: string) => setCities((prev) => prev.filter((c) => c.id !== id));
   const addCity = () => setCities((prev) => [...prev, { id: newRowId(), name: '', km: '' }]);
 
+  const setFreightField = (id: string, patch: Partial<FreightRow>) =>
+    setFreight((prev) => prev.map((f) => (f.id === id ? { ...f, ...patch } : f)));
+  const removeFreight = (id: string) => setFreight((prev) => prev.filter((f) => f.id !== id));
+  const addFreight = () => setFreight((prev) => [...prev, { id: newRowId(), km: '', perTon: '' }]);
+
   const submit = () => {
     const nextErrors: typeof errors = {};
 
-    const rate = num(v.rate);
-    if (!Number.isFinite(rate) || rate < 0) nextErrors.rate = NON_NEGATIVE_MSG;
-    const minTrip = num(v.minTrip);
-    if (!Number.isFinite(minTrip) || minTrip < 0) nextErrors.minTrip = NON_NEGATIVE_MSG;
     const handling = num(v.handling);
     if (!Number.isFinite(handling) || handling < 0) nextErrors.handling = NON_NEGATIVE_MSG;
     const insurance = num(v.insurance);
@@ -446,14 +459,35 @@ function LogisticsCard({ cfg, onSave, busy }: { cfg: Logistics; onSave: (v: Logi
       cityValues.push({ name, km });
     }
 
+    const nextFreightErrors: Record<string, string> = {};
+    const freightValues: { km: number; perTon: number }[] = [];
+    for (const f of freight) {
+      const km = num(f.km);
+      const perTon = num(f.perTon);
+      if (!f.km.trim() && !f.perTon.trim()) continue; // fully empty row — skip silently
+      if (!Number.isFinite(km) || km <= 0 || !Number.isFinite(perTon) || perTon <= 0) {
+        nextFreightErrors[f.id] = 'فاصله و نرخ (هر دو عدد مثبت) را کامل وارد کنید.';
+        continue;
+      }
+      freightValues.push({ km, perTon });
+    }
+    freightValues.sort((a, b) => a.km - b.km);
+
     setErrors(nextErrors);
     setCityErrors(nextCityErrors);
-    if (Object.values(nextErrors).some(Boolean) || Object.keys(nextCityErrors).length > 0) return;
+    setFreightErrors(nextFreightErrors);
+    if (
+      Object.values(nextErrors).some(Boolean) ||
+      Object.keys(nextCityErrors).length > 0 ||
+      Object.keys(nextFreightErrors).length > 0
+    )
+      return;
 
     onSave({
       originLabel: v.originLabel.trim(),
-      freightRatePerTonKm: rate,
-      freightMinTrip: minTrip,
+      // Every row was cleared — fall back to the real 1405 default rather
+      // than save a config with no freight rate at all.
+      freightTable: freightValues.length > 0 ? freightValues : DEFAULT_FREIGHT_TABLE,
       handlingPerTon: handling,
       insuranceRate: insurance / 100,
       scaleFee: scale,
@@ -466,14 +500,46 @@ function LogisticsCard({ cfg, onSave, busy }: { cfg: Logistics; onSave: (v: Logi
       <Heading level={2}>لجستیک و هزینهٔ حمل</Heading>
       <div className={ui.grid2} style={{ marginBlockStart: 'var(--space-3)' }}>
         <TextInput label="مبدأ بارگیری" value={v.originLabel} onChange={(e) => setV({ ...v, originLabel: e.target.value })} />
-        <TextInput label="نرخ حمل (تومان/تن‌کیلومتر)" inputMode="numeric" value={v.rate} error={errors.rate} onChange={(e) => setV({ ...v, rate: e.target.value })} />
-        <TextInput label="حداقل کرایهٔ سرویس (تومان)" inputMode="numeric" value={v.minTrip} error={errors.minTrip} onChange={(e) => setV({ ...v, minTrip: e.target.value })} />
         <TextInput label="بارگیری/تخلیه (تومان/تن)" inputMode="numeric" value={v.handling} error={errors.handling} onChange={(e) => setV({ ...v, handling: e.target.value })} />
         <TextInput label="بیمه (٪ ارزش کالا)" inputMode="decimal" value={v.insurance} error={errors.insurance} onChange={(e) => setV({ ...v, insurance: e.target.value })} />
         <TextInput label="باسکول (تومان)" inputMode="numeric" value={v.scale} error={errors.scale} onChange={(e) => setV({ ...v, scale: e.target.value })} />
       </div>
 
       <div style={{ marginBlockStart: 'var(--space-3)' }}>
+        <Text color="muted">
+          نرخ حمل بر اساس فاصله — بین ردیف‌ها به‌صورت خطی درون‌یابی می‌شود (نرخ واقعی
+          سازمان راهداری، تن/کیلومتر تخت نیست و با فاصله کاهش می‌یابد)
+        </Text>
+      </div>
+      <div style={{ display: 'grid', gap: 'var(--space-2)', marginBlockStart: 'var(--space-2)' }}>
+        {freight.map((f) => (
+          <div key={f.id} style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-start' }}>
+            <TextInput
+              label="فاصله (کیلومتر)"
+              inputMode="numeric"
+              value={f.km}
+              error={freightErrors[f.id]}
+              onChange={(e) => setFreightField(f.id, { km: e.target.value })}
+            />
+            <TextInput
+              label="نرخ (تومان/تن)"
+              inputMode="numeric"
+              value={f.perTon}
+              onChange={(e) => setFreightField(f.id, { perTon: e.target.value })}
+            />
+            <Button size="sm" variant="ghost" onClick={() => removeFreight(f.id)} style={{ marginBlockStart: 'var(--space-5)' }}>
+              حذف
+            </Button>
+          </div>
+        ))}
+      </div>
+      <div className={ui.toolbar} style={{ marginBlockStart: 'var(--space-2)' }}>
+        <Button size="sm" variant="secondary" onClick={addFreight}>
+          افزودن ردیف نرخ
+        </Button>
+      </div>
+
+      <div style={{ marginBlockStart: 'var(--space-4)' }}>
         <Text color="muted">شهرهای مقصد و فاصله از مبدأ</Text>
       </div>
       <div style={{ display: 'grid', gap: 'var(--space-2)', marginBlockStart: 'var(--space-2)' }}>

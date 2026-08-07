@@ -12,6 +12,7 @@ import { priceSeries as mockSeries, relatedRows as mockRelated, subName as mockS
 import { categories } from '@/lib/mock/fixtures';
 import type { SubCat } from '@/lib/data/nav';
 import type { PriceRow } from '@/lib/types/domain';
+import type { LogisticsConfig } from '@/lib/data/logistics';
 import {
   Breadcrumbs,
   Stack,
@@ -50,6 +51,7 @@ export function SkuDetail({
   billet,
   subLabel: subLabelProp,
   categorySubs,
+  logisticsConfig,
 }: {
   row: PriceRow;
   /** Server-provided (live mode); mock fallbacks apply when absent. */
@@ -63,6 +65,8 @@ export function SkuDetail({
   subLabel?: string;
   /** Live sub-category list for the category (forwarded to BulkQuote). */
   categorySubs?: SubCat[];
+  /** Admin-configurable freight/insurance rates (forwarded to BulkQuote). */
+  logisticsConfig?: LogisticsConfig;
 }) {
   const add = useCartStore((s) => s.add);
   const toast = useToast();
@@ -336,7 +340,7 @@ export function SkuDetail({
       </section>
 
       {/* ===== Bulk / per-factory split ===== */}
-      <BulkQuote category={row.categoryId} categoryName={categoryName} rows={categoryRows} subs={categorySubs} />
+      <BulkQuote category={row.categoryId} categoryName={categoryName} rows={categoryRows} subs={categorySubs} logisticsConfig={logisticsConfig} />
 
       {/* ===== Related ===== */}
       {related.length > 0 ? (

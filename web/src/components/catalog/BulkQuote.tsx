@@ -10,7 +10,7 @@ import { formatToman, toPersianDigits } from '@/lib/utils/format';
 import { getRows } from '@/lib/mock/catalogData';
 import { computeBulkSplit } from '@/lib/utils/bulkSplit';
 import { MOCK_CATEGORY_SUBS, type SubCat } from '@/lib/data/nav';
-import { CITIES, ORIGIN_LABEL, cityDistance, estimateLogistics } from '@/lib/data/logistics';
+import { DEFAULT_LOGISTICS_CONFIG, cityDistance, estimateLogistics, type LogisticsConfig } from '@/lib/data/logistics';
 import { useProfileStore } from '@/lib/stores/profile';
 import { CONSTANTS } from '@/lib/config/constants';
 import type { PriceRow } from '@/lib/types/domain';
@@ -35,6 +35,7 @@ export function BulkQuote({
   rows: rowsProp,
   subs: subsProp,
   defaultTonnage = 20,
+  logisticsConfig = DEFAULT_LOGISTICS_CONFIG,
 }: {
   category: string;
   categoryName: string;
@@ -42,6 +43,10 @@ export function BulkQuote({
   /** Live sub-categories (server-provided) — fixture fallback is mock/dev only. */
   subs?: SubCat[];
   defaultTonnage?: number;
+  /** Admin-configurable freight/insurance/handling rates + city list, fetched
+   *  server-side from `settings.LOGISTICS` and passed down — falls back to
+   *  the same defaults `landedCost` uses when a caller doesn't have it yet. */
+  logisticsConfig?: LogisticsConfig;
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -84,9 +89,9 @@ export function BulkQuote({
       : 0;
 
   // Landed cost from the Shadabad warehouse to the buyer's city.
-  const km = cityDistance(city) ?? 15;
+  const km = cityDistance(city, logisticsConfig.cities) ?? 15;
   const landed = split.cheapest
-    ? estimateLogistics(split.tonnage, km, split.cheapest.lineToman, CONSTANTS.VAT_RATE)
+    ? estimateLogistics(split.tonnage, km, split.cheapest.lineToman, CONSTANTS.VAT_RATE, logisticsConfig)
     : null;
 
   const addToInquiry = () => {
@@ -183,7 +188,7 @@ export function BulkQuote({
             onChange={(e) => setWarehouseCity(e.target.value)}
             aria-label="شهر مقصد تحویل"
           >
-            {CITIES.map((c) => (
+            {logisticsConfig.cities.map((c) => (
               <option key={c.name} value={c.name}>
                 {c.name}
               </option>
@@ -275,7 +280,7 @@ export function BulkQuote({
         <div className={styles.landed}>
           <h3 className={styles.landedTitle}>
             قیمت تمام‌شده تا {city}
-            <span className={styles.landedOrigin}>ارسال از {ORIGIN_LABEL}</span>
+            <span className={styles.landedOrigin}>ارسال از {logisticsConfig.originLabel}</span>
           </h3>
           <dl className={styles.landedGrid}>
             <div className={styles.landedRow}>

@@ -10,6 +10,7 @@ import { skus, currentPrices, categories } from '@/lib/server/db/schema';
 import type { LineItem, PriceUnit } from '@/lib/types/domain';
 import { getSetting, getVatRate } from '@/lib/server/repos/settingsRepo';
 import { getPriceFreshness } from '@/lib/server/services/priceFreshness';
+import { estimateLogistics, DEFAULT_LOGISTICS_CONFIG, type LogisticsConfig } from '@/lib/data/logistics';
 
 export async function estimateItems(items: Array<{ skuId: string; qty: number; unit: PriceUnit }>) {
   const db = getDb();
@@ -96,36 +97,16 @@ export async function estimateProject(areaM2: number, floors: number) {
   };
 }
 
-interface LogisticsSettings {
-  originLabel: string;
-  freightRatePerTonKm: number;
-  freightMinTrip: number;
-  handlingPerTon: number;
-  insuranceRate: number;
-  scaleFee: number;
-  cities: { name: string; km: number }[];
-}
-
-const LOGISTICS_FALLBACK: LogisticsSettings = {
-  originLabel: 'انبار شادآباد تهران',
-  freightRatePerTonKm: 1100,
-  freightMinTrip: 2_500_000,
-  handlingPerTon: 150_000,
-  insuranceRate: 0.0025,
-  scaleFee: 75_000,
-  cities: [{ name: 'تهران', km: 15 }],
-};
-
+/** Shared with `BulkQuote`/`SkuDetail` (client, config passed as a prop from
+ *  the server page) — see lib/data/logistics.ts for the freight model and
+ *  why it used to be a second, separately-hardcoded copy of this exact
+ *  formula that an admin's saved settings never actually reached. */
 export async function landedCost(tons: number, city: string, goodsToman: number) {
   const [cfg, vatRate] = await Promise.all([
-    getSetting<LogisticsSettings>('LOGISTICS', LOGISTICS_FALLBACK),
+    getSetting<LogisticsConfig>('LOGISTICS', DEFAULT_LOGISTICS_CONFIG),
     getVatRate(),
   ]);
   const km = cfg.cities.find((c) => c.name === city.trim())?.km ?? 150;
-  const freight = Math.round(Math.max(cfg.freightMinTrip, tons * km * cfg.freightRatePerTonKm));
-  const handling = Math.round(tons * cfg.handlingPerTon);
-  const insurance = Math.round(goodsToman * cfg.insuranceRate);
-  const vat = Math.round(goodsToman * vatRate);
-  const total = goodsToman + freight + handling + insurance + cfg.scaleFee + vat;
-  return { freight, handling, insurance, scale: cfg.scaleFee, vat, total, km, origin: cfg.originLabel };
+  const estimate = estimateLogistics(tons, km, goodsToman, vatRate, cfg);
+  return { ...estimate, km, origin: cfg.originLabel };
 }
