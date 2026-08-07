@@ -272,19 +272,31 @@ jobs:
             docker compose up -d web
 
             # The image is built without DATABASE_URL (see page.tsx's hasDb()
-            # guard) so any static prerender that reads a DB-backed setting —
-            # today that's the homepage reading SITE_HERO_VIDEO — bakes in
-            # whatever hasDb()===false falls back to, e.g. the price-table
-            # fallback instead of the configured hero video. That page uses
-            # `revalidate = 300`, so it DOES self-correct once a real request
-            # triggers ISR regeneration with the container's actual runtime
-            # DB access — but that leaves a real window, up to 5 minutes,
-            # where every visitor to `/` sees the wrong render, on EVERY
-            # deploy. Confirmed live on 2026-08-06. Deleting the stale
-            # pre-rendered files forces the very next request to do a full
-            # fresh render instead of waiting on traffic to trigger it.
+            # guard) so any static prerender that reads DB-backed content
+            # bakes in whatever hasDb()===false falls back to — the homepage
+            # got the price-table fallback instead of the configured hero
+            # video (confirmed live 2026-08-06). Every page listed here uses
+            # a real `revalidate` window, so it DOES self-correct once a
+            # request triggers ISR regeneration with the container's actual
+            # runtime DB access — but that leaves a real window (minutes)
+            # where every visitor sees the stale/fallback render, on EVERY
+            # deploy. Deleting the stale pre-rendered files forces the very
+            # next request to do a full fresh render instead of waiting on
+            # traffic to trigger it.
+            #
+            # /blog and /news are here for the same reason as the homepage,
+            # confirmed live 2026-08-07: shipping the article-category rail
+            # (US-14.5) — a real DB read on those two pages that CI's
+            # DB-less build could not know about — served the pre-rendered,
+            # railless shell for the first several minutes after every
+            # deploy that touches either page, until a manual container
+            # restart forced a fresh render. Any future page added with a
+            # `revalidate` window and a DB-backed render belongs in this
+            # list too — this is a recurring class of bug, not a one-off.
             docker compose exec -T web sh -c \
-              "rm -f .next/server/app/index.html .next/server/app/index.rsc .next/server/app/index.meta" || true
+              "rm -f .next/server/app/index.html .next/server/app/index.rsc .next/server/app/index.meta \
+                     .next/server/app/blog.html .next/server/app/blog.rsc .next/server/app/blog.meta \
+                     .next/server/app/news.html .next/server/app/news.rsc .next/server/app/news.meta" || true
 
             # Health gate: the new container must answer 200 on /api/health
             # before this counts as a success. No curl/wget in the runner
