@@ -139,26 +139,42 @@ export async function ArticleIndex({ type, page }: { type: 'blog' | 'news'; page
 
           {type === 'blog' ? <CategoryRail items={railItems} /> : null}
 
-          {articles.length > 0 ? (
-            <div>
-              <Heading level={2} id={`${type}-list-title`}>
-                {copy.listTitle}
-              </Heading>
-              <ul className={styles.grid} aria-labelledby={`${type}-list-title`}>
-                {articles.map((article) => (
-                  <ArticleCard key={article.id} article={article} />
-                ))}
-              </ul>
-              <Pagination page={page} pageCount={pageCount} hrefFor={(p) => archiveHref(type, p)} />
-            </div>
-          ) : (
-            <EmptyState
-              size="section"
-              headline={copy.emptyHeadline}
-              body={copy.emptyBody}
-              showAi
-            />
-          )}
+          {/* «همهٔ مطالب» — the flat, undifferentiated list — is deliberately
+              blog-only content, dropped per Amir/Kamyar's explicit request
+              (2026-08-08): with the category rail above, a flat firehose
+              right under it read as redundant, and that space is earmarked
+              for a videos/podcast section later. /news keeps it — a single
+              reverse-chronological feed is the whole point of a news page,
+              and it has no category rail of its own to make it feel
+              duplicated.
+              Deliberately NOT ripped out at the route/pagination level
+              (`/blog/page/[n]`, the 404 guard, the sitemap entries) — blog
+              is at 4 articles today, nowhere near PER_PAGE (12), so no
+              `/blog/page/2` exists yet for this to matter. If blog article
+              count ever crosses that threshold, revisit whether a paged
+              archive still makes sense in a category-first model rather
+              than silently re-enabling a hidden list nobody asked to see
+              again. */}
+          {type === 'news' &&
+            (articles.length > 0 ? (
+              <div>
+                <Heading level={2} id={`${type}-list-title`}>
+                  {copy.listTitle}
+                </Heading>
+                <ul className={styles.grid} aria-labelledby={`${type}-list-title`}>
+                  {articles.map((article) => (
+                    <ArticleCard key={article.id} article={article} />
+                  ))}
+                </ul>
+                <Pagination page={page} pageCount={pageCount} hrefFor={(p) => archiveHref(type, p)} />
+              </div>
+            ) : (
+              <EmptyState size="section" headline={copy.emptyHeadline} body={copy.emptyBody} showAi />
+            ))}
+
+          {type === 'blog' && articles.length === 0 ? (
+            <EmptyState size="section" headline={copy.emptyHeadline} body={copy.emptyBody} showAi />
+          ) : null}
         </Stack>
       </Section>
     </Container>
