@@ -318,6 +318,145 @@
   transform: translateY(1px);
 }
 
+/* ===== بر اساس سایز — quick compare ===== */
+.bySizeSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: var(--border-hairline) solid var(--color-accent);
+  border-radius: var(--radius-md);
+  background: var(--color-accent-tint);
+}
+.bySizeHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.bySizeTitle {
+  font: var(--t-h4);
+  color: var(--color-text-strong);
+  margin: 0;
+}
+.sizePicker {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font: var(--t-label);
+  color: var(--color-text-muted);
+}
+.bySizeTable thead th {
+  background: var(--color-surface);
+}
+.bySizePriceCell {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.bestRow {
+  background: var(--gain-50);
+}
+.bestRow:hover {
+  background: var(--gain-100);
+}
+
+/* ===== پرش سریع به کارخانه ===== */
+.quickJump {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  overflow-x: auto;
+  padding-block-end: var(--space-1);
+  -webkit-overflow-scrolling: touch;
+}
+.quickJumpChip {
+  flex: none;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  border: var(--border-hairline) solid var(--color-border-strong);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: var(--t-label);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.quickJumpChip:hover {
+  background: var(--color-surface-sunken);
+}
+.quickJumpChip:focus-visible {
+  outline: var(--border-focus) solid var(--color-focus);
+  outline-offset: 1px;
+}
+
+/* ===== بر اساس کارخانه — accordion sections ===== */
+.factoryList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.factorySection {
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+.factorySummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-4);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.factorySummary::-webkit-details-marker {
+  display: none;
+}
+.factorySummary:focus-visible {
+  outline: var(--border-focus) solid var(--color-focus);
+  outline-offset: -2px;
+}
+.factorySummaryMain {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-inline-size: 0;
+}
+.factoryTitle {
+  font: var(--t-h4);
+  color: var(--color-text-strong);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.factoryChevron {
+  flex: none;
+  color: var(--color-text-muted);
+  transition: transform var(--dur-fast) var(--ease-standard);
+}
+.factorySection[open] .factoryChevron {
+  transform: rotate(180deg);
+}
+.factorySummaryMeta {
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+.factoryBody {
+  border-block-start: var(--border-hairline) solid var(--color-hairline);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
 /* ===== Compare modal (US-02.9) ===== */
 .compareScroll {
   overflow-x: auto;

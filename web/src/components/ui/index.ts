@@ -21,7 +21,7 @@ export { Switch } from './Switch';
 export { Avatar, LogoFrame } from './Avatar';
 
 // Domain display
-export { MovementBadge, PriceTag, DeliveryBadge } from './PriceParts';
+export { MovementBadge, PriceTag, DeliveryBadge, BestPriceBadge } from './PriceParts';
 
 // Navigation
 export { Tabs, TabPanel } from './Tabs';
