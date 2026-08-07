@@ -115,4 +115,14 @@ describe('httpUpload — 401 recovery', () => {
     await expect(httpUpload('/api/admin/upload', file)).rejects.toBeInstanceOf(ApiError);
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
+
+  it('turns a raw network failure (dropped connection) into a friendly ApiError instead of an unhandled exception', async () => {
+    global.fetch = vi.fn().mockRejectedValue(new TypeError('Failed to fetch')) as unknown as typeof fetch;
+
+    const file = new File(['x'], 'x.jpg', { type: 'image/jpeg' });
+    const err = await httpUpload('/api/admin/upload', file).catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(ApiError);
+    expect((err as ApiError).message).toBe('ارتباط با سرور برقرار نشد. اتصال اینترنت را بررسی کنید.');
+  });
 });

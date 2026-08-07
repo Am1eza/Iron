@@ -25,3 +25,6 @@ export const BASE_URL = typeof window === 'undefined' ? SITE_URL : '';
 
 export const DEFAULT_TIMEOUT_MS = 15_000;
 export const DEFAULT_GET_RETRIES = 2;
+/** A 5MB image upload over a slow/flaky connection genuinely needs longer
+ *  than the default JSON-request timeout. */
+export const UPLOAD_TIMEOUT_MS = 60_000;
