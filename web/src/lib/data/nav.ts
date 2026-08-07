@@ -123,11 +123,23 @@ export const MOCK_CATEGORY_SUBS: Record<string, SubCat[]> = {
   ],
 };
 
-/** «خدمات» — commercial services. Shared by header dropdown, drawer & footer. */
+/** «انبار مشتریان» — promoted to its own top-level desktop nav item (peer of
+ *  «خدمات»), per the requested header structure. Still grouped under «خدمات»
+ *  in the footer & mobile drawer via SERVICES_NAV_FULL below, so it never
+ *  disappears from those surfaces. */
+export const WAREHOUSE_LINK: NavLink = { label: 'انبار مشتریان', href: routes.warehouse() };
+
+/** «خدمات» dropdown — the desktop header renders exactly these (انبار مشتریان
+ *  is now a separate top-level item, so it's NOT here). */
 export const SERVICES_NAV: NavLink[] = [
-  { label: 'انبار مشتریان', href: routes.warehouse() },
   { label: 'پیگیری سفارش', href: routes.track() },
+  { label: 'کالا با ابعاد درخواستی', href: routes.cutToSize() },
 ];
+
+/** «خدمات» as the footer & mobile drawer show it — the desktop-only split of
+ *  انبار مشتریان into its own top-level item would otherwise drop it from
+ *  those two surfaces, so they render the full set together. */
+export const SERVICES_NAV_FULL: NavLink[] = [WAREHOUSE_LINK, ...SERVICES_NAV];
 
 /** «شرکت» — company links. Shared by header dropdown, drawer & footer.
  *  «چرا آهن‌تایم» was merged into «درباره ما» (/why → /about redirect), so it's
@@ -169,7 +181,9 @@ export const CONTENT_NAV: NavLink[] = [
 export const FOOTER_COLUMNS: { title: string; links: NavLink[] }[] = [
   { title: 'ابزارها', links: TOOLS_NAV },
   { title: 'مقالات', links: CONTENT_NAV },
-  { title: 'خدمات', links: SERVICES_NAV },
+  // Full set (incl. انبار مشتریان) — the footer keeps every service grouped
+  // together even though the desktop navbar splits انبار مشتریان out.
+  { title: 'خدمات', links: SERVICES_NAV_FULL },
   { title: 'شرکت', links: COMPANY_NAV },
   { title: 'پشتیبانی', links: SUPPORT_NAV },
 ];

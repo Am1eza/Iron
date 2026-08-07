@@ -14,6 +14,8 @@ import { tableRows } from '@/lib/server/repos/catalogRepo';
 import {
   createLead,
   createWarehouseRequest,
+  createCutToSizeRequest,
+  cutToSizeRequestSmsText,
   proformaSmsText,
   proformaSmsNotification,
   orderSmsNotification,
@@ -337,5 +339,58 @@ describe('createWarehouseRequest (W20/W21 — the public request → admin intak
 
     const after = await pendingWarehouseRequests();
     expect(after.find((r) => r.ref === result.ref)).toBeUndefined();
+  });
+});
+
+describe('createCutToSizeRequest (کالا با ابعاد درخواستی — public request → CRM lead)', () => {
+  it('creates a real CRM lead (source=cutToSize) and a mirrored request row, both carrying the same ref and the requested dimensions', async () => {
+    const result = await createCutToSizeRequest(
+      {
+        product: 'ورق سیاه',
+        currentDimensions: 'ورق ۶ میل، ۱۲۵۰×۲۵۰۰',
+        requestedDimensions: 'برش به ۱۰۰۰×۲۰۰۰',
+        quantity: '۵۰ برگ',
+        notes: 'لبه‌ها صاف باشد',
+      },
+      user,
+    );
+    expect(result.ref).toMatch(/^LD-/);
+
+    // The customer-facing mirror row.
+    const requests = await requestsForUser(user.id, 1, 100);
+    const mine = requests.rows.find((r) => r.ref === result.ref);
+    expect(mine).toBeDefined();
+    expect(mine!.type).toBe('cutToSize');
+    expect(mine!.status).toBe('submitted');
+    expect(mine!.title).toContain('ورق سیاه');
+    expect(mine!.detail).toContain('۱۰۰۰×۲۰۰۰'); // the whole point of the ask surfaces in the row
+
+    // The CRM lead behind it: source + structured context the rep reads back.
+    const [lead] = await db
+      .select()
+      .from(schema.leads)
+      .where(eq(schema.leads.ref, result.ref));
+    expect(lead).toBeDefined();
+    expect(lead!.source).toBe('cutToSize');
+    expect(lead!.context?.cutToSize?.requestedDimensions).toBe('برش به ۱۰۰۰×۲۰۰۰');
+    expect(lead!.context?.cutToSize?.quantity).toBe('۵۰ برگ');
+    expect(lead!.contactMobile).toBe(user.mobile);
+  });
+
+  it('omits currentDimensions from the context when the customer left it blank', async () => {
+    const result = await createCutToSizeRequest(
+      { product: 'میلگرد', requestedDimensions: 'شاخهٔ ۶ متری', quantity: '۲۰ شاخه' },
+      user,
+    );
+    const [lead] = await db.select().from(schema.leads).where(eq(schema.leads.ref, result.ref));
+    expect(lead!.context?.cutToSize?.currentDimensions).toBeUndefined();
+    expect(lead!.context?.cutToSize?.requestedDimensions).toBe('شاخهٔ ۶ متری');
+  });
+
+  it('cutToSizeRequestSmsText names the customer and the tracking ref', () => {
+    const txt = cutToSizeRequestSmsText('LD-1404-7-abc', 'رضا');
+    expect(txt).toContain('رضا');
+    expect(txt).toContain('LD-1404-7-abc');
+    expect(txt).toContain('ابعاد');
   });
 });

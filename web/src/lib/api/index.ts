@@ -4,7 +4,7 @@ import { authApi } from './resources/auth';
 import { leadsApi } from './resources/leads';
 import { toolsApi } from './resources/tools';
 import { aiApi } from './resources/ai';
-import { contactApi, cooperationApi, warehouseRequestsApi, alertsApi } from './resources/misc';
+import { contactApi, cooperationApi, warehouseRequestsApi, cutToSizeRequestsApi, alertsApi } from './resources/misc';
 import { meApi } from './resources/me';
 
 /** The API client — components/hooks call api.<resource>.<action>(). */
@@ -19,6 +19,7 @@ export const api = {
   contact: contactApi,
   me: meApi,
   warehouseRequests: warehouseRequestsApi,
+  cutToSizeRequests: cutToSizeRequestsApi,
   alerts: alertsApi,
 } as const;
 

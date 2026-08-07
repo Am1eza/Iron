@@ -17,12 +17,13 @@ const TYPE_LABEL: Record<string, string> = {
   proforma: 'پیش‌فاکتور',
   bulk: 'خرید عمده',
   warehouse: 'انبار مشتریان',
+  cutToSize: 'کالا با ابعاد درخواستی',
 };
 
 // Mirrors REQUEST_TYPES (src/lib/server/db/schema/leads.ts) — kept as a
 // local literal list rather than importing the drizzle schema module into
 // this client component, same as STATUSES below mirrors REQUEST_STATUSES.
-const TYPES = ['proforma', 'bulk', 'warehouse'] as const;
+const TYPES = ['proforma', 'bulk', 'warehouse', 'cutToSize'] as const;
 
 const STATUSES = [
   { value: 'submitted', label: 'ثبت شد' },

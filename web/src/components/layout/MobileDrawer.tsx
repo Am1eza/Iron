@@ -6,7 +6,7 @@ import { routes } from '@/lib/routes';
 import {
   PRIMARY_NAV,
   TOOLS_NAV,
-  SERVICES_NAV,
+  SERVICES_NAV_FULL,
   COMPANY_NAV,
   SUPPORT_NAV,
   CONTENT_NAV,
@@ -187,7 +187,7 @@ export function MobileDrawer({ categories, subs }: { categories: Category[]; sub
             // article — the bottom tab bar is full and correctly prioritises
             // prices, the AI advisor and the cart.
             { title: 'مقالات', links: CONTENT_NAV },
-            { title: 'خدمات', links: SERVICES_NAV },
+            { title: 'خدمات', links: SERVICES_NAV_FULL },
             { title: 'شرکت', links: COMPANY_NAV },
             { title: 'پشتیبانی', links: SUPPORT_NAV },
           ].map((group) => (

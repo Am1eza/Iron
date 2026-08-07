@@ -657,4 +657,102 @@ export async function createWarehouseRequest(
   return { ref };
 }
 
+/* ------------------------- cut-to-size requests ------------------------- */
+
+export interface CreateCutToSizeRequestInput {
+  /** The material the customer already has / wants converted. */
+  product: string;
+  /** Its current spec/dimensions (optional — some customers only know the target). */
+  currentDimensions?: string;
+  /** The dimensions they want it cut/converted to — the whole point of the ask. */
+  requestedDimensions: string;
+  /** Free-text quantity (unit varies: برگ / شاخه / تن …), so a plain string. */
+  quantity: string;
+  notes?: string;
+}
+
+export interface CreateCutToSizeRequestResult {
+  ref: string;
+}
+
+/** Shared cut-to-size SMS text — the fallback for cutToSizeRequestSmsNotification()
+ *  below when no template is configured. */
+export function cutToSizeRequestSmsText(ref: string, name: string | null | undefined): string {
+  const who = name?.trim() || 'مشتری';
+  const link = `${publicEnv.NEXT_PUBLIC_SITE_URL}/account/requests`;
+  return `آهن‌تایم: ${who} عزیز، درخواست برش/تبدیل کالا به ابعاد درخواستی شما ثبت شد. کد پیگیری: ${ref} — کارشناسان به‌زودی تماس می‌گیرند. پیگیری: ${link}`;
+}
+
+export function cutToSizeRequestSmsNotification(
+  ref: string,
+  name: string | null | undefined,
+): { templateEnvVar: string; params: TemplateParam[]; fallbackText: string; kind: 'generic' } {
+  return {
+    templateEnvVar: 'SMSIR_TEMPLATE_ID_CUT_TO_SIZE_REQUEST',
+    params: [
+      { name: 'NAME', value: customerNameParam(name) },
+      { name: 'REF', value: truncateParam(ref) },
+    ],
+    fallbackText: cutToSizeRequestSmsText(ref, name),
+    kind: 'generic',
+  };
+}
+
+/**
+ * A customer's «کالا با ابعاد درخواستی» (cut-to-size) ask — wired exactly like
+ * createWarehouseRequest: one transaction that files a REAL lead
+ * (source='cutToSize', so it lands in the CRM pipeline like every other lead)
+ * plus a mirrored row in the customer's own «درخواست‌های من» inbox, then texts
+ * the confirmation strictly AFTER commit (never announce a ref that failed to
+ * persist). Authenticated only — the form gates on login, and a cutting job
+ * needs a real contact to call back.
+ */
+export async function createCutToSizeRequest(
+  input: CreateCutToSizeRequestInput,
+  session: AuthUser,
+): Promise<CreateCutToSizeRequestResult> {
+  const ref = await nextRef('LD');
+
+  await getDb().transaction(async (tx) => {
+    const lead = await insertLead(
+      {
+        ref,
+        userId: session.id,
+        contactName: session.name,
+        contactMobile: session.mobile,
+        contactVerified: true, // the session IS the contact — always verified
+        source: 'cutToSize',
+        context: {
+          cutToSize: {
+            product: input.product,
+            ...(input.currentDimensions ? { currentDimensions: input.currentDimensions } : {}),
+            requestedDimensions: input.requestedDimensions,
+            quantity: input.quantity,
+          },
+          ...(input.notes ? { note: input.notes } : {}),
+        },
+        items: [],
+      },
+      tx,
+    );
+
+    await insertRequest(
+      {
+        userId: session.id,
+        ref,
+        type: 'cutToSize',
+        title: `کالا با ابعاد درخواستی — ${input.product}`,
+        detail: `ابعاد درخواستی: ${input.requestedDimensions} · مقدار: ${input.quantity}${input.currentDimensions ? ` · ابعاد فعلی: ${input.currentDimensions}` : ''}`,
+        note: input.notes,
+        leadId: lead.id,
+      },
+      tx,
+    );
+  });
+
+  await sendNotification(session.mobile, cutToSizeRequestSmsNotification(ref, session.name));
+
+  return { ref };
+}
+
 

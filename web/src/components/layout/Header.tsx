@@ -113,11 +113,30 @@ export function Header({ categories, subs }: { categories: Category[]; subs: Sub
         <Logo compact={condensed} />
 
         <nav className={styles.primary} aria-label={t('mainNav')}>
-          {/* «محصولات» mega-menu is the single entry to the price catalog —
-              a standalone «قیمت‌ها» link next to it was redundant (both go to
-              /prices), so it was removed. /prices stays reachable from the
-              homepage board, the mobile bottom tab bar, breadcrumbs and CTAs. */}
-          <ProductsMenu categories={categories} subs={subs} />
+          {/* Order (per the requested desktop structure): مشاور هوشمند →
+              خانه → ابزارها → انبار مشتریان → خدمات. Leading with the AI
+              advisor also matches the site's «اول مشورت، بعد خرید» slogan
+              (consult first, then browse the catalog). محصولات (catalog),
+              مقالات and شرکت follow after. */}
+          <Link
+            href={routes.ai()}
+            className={styles.aiLink}
+            data-active={isActive(routes.ai()) ? '' : undefined}
+            aria-current={isActive(routes.ai()) ? 'page' : undefined}
+            data-event="ai_entry"
+          >
+            <AiMarkIcon size={16} />
+            {t('smartAdvisor')}
+          </Link>
+
+          <Link
+            href={routes.home()}
+            className={styles.navLink}
+            data-active={isActive(routes.home()) ? '' : undefined}
+            aria-current={isActive(routes.home()) ? 'page' : undefined}
+          >
+            {tNav('home')}
+          </Link>
 
           <NavDropdown label={tNav('tools')} active={isActive('/tools') || isActive(routes.market())}>
             <ul className={styles.dropdownList}>
@@ -135,27 +154,21 @@ export function Header({ categories, subs }: { categories: Category[]; subs: Sub
             </ul>
           </NavDropdown>
 
-          {/* Articles had no entry point anywhere on the public site — they
-              existed only in the sitemap. Placed straight after the tools menu
-              so the editorial hub sits beside the calculators buyers already
-              come for. */}
-          <NavDropdown label={tNav('content')} active={isActive(routes.blog()) || isActive(routes.news())}>
-            <ul className={styles.dropdownList}>
-              {CONTENT_NAV.map((item) => (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    className={styles.dropdownItem}
-                    aria-current={isActive(item.href) ? 'page' : undefined}
-                  >
-                    {item.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </NavDropdown>
+          {/* انبار مشتریان — promoted from inside «خدمات» to its own top-level
+              item (see WAREHOUSE_LINK in lib/data/nav.ts). */}
+          <Link
+            href={routes.warehouse()}
+            className={styles.navLink}
+            data-active={isActive(routes.warehouse()) ? '' : undefined}
+            aria-current={isActive(routes.warehouse()) ? 'page' : undefined}
+          >
+            {tNav('warehouse')}
+          </Link>
 
-          <NavDropdown label={tNav('services')} active={isActive(routes.warehouse()) || isActive(routes.track())}>
+          <NavDropdown
+            label={tNav('services')}
+            active={isActive(routes.track()) || isActive(routes.cutToSize())}
+          >
             <ul className={styles.dropdownList}>
               {SERVICES_NAV.map((s) => (
                 <li key={s.href}>
@@ -171,16 +184,29 @@ export function Header({ categories, subs }: { categories: Category[]; subs: Sub
             </ul>
           </NavDropdown>
 
-          <Link
-            href={routes.ai()}
-            className={styles.aiLink}
-            data-active={isActive(routes.ai()) ? '' : undefined}
-            aria-current={isActive(routes.ai()) ? 'page' : undefined}
-            data-event="ai_entry"
-          >
-            <AiMarkIcon size={16} />
-            {t('smartAdvisor')}
-          </Link>
+          {/* «محصولات» mega-menu is the single entry to the price catalog —
+              a standalone «قیمت‌ها» link next to it was redundant (both go to
+              /prices), so it was removed. /prices stays reachable from the
+              homepage board, the mobile bottom tab bar, breadcrumbs and CTAs. */}
+          <ProductsMenu categories={categories} subs={subs} />
+
+          {/* Articles had no entry point anywhere on the public site — they
+              existed only in the sitemap. */}
+          <NavDropdown label={tNav('content')} active={isActive(routes.blog()) || isActive(routes.news())}>
+            <ul className={styles.dropdownList}>
+              {CONTENT_NAV.map((item) => (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    className={styles.dropdownItem}
+                    aria-current={isActive(item.href) ? 'page' : undefined}
+                  >
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </NavDropdown>
 
           <NavDropdown label={tNav('company')}>
             <ul className={styles.dropdownList}>
