@@ -24,6 +24,19 @@ export const warehouseRequestsApi = {
     http.post<{ ref: string }>('/api/warehouse-requests', payload),
 };
 
+/** «کالا با ابعاد درخواستی» cut-to-size intake — live-only, same rationale as
+ *  warehouseRequestsApi: a real request must become a real CRM lead, not a
+ *  mocked ok. CutToSizeForm branches on API_MODE itself. */
+export const cutToSizeRequestsApi = {
+  submit: (payload: {
+    product: string;
+    currentDimensions?: string;
+    requestedDimensions: string;
+    quantity: string;
+    notes?: string;
+  }) => http.post<{ ref: string }>('/api/cut-to-size-requests', payload),
+};
+
 /** Price alerts (قیمت‌سنج, W22) — live-only, matching warehouseRequestsApi:
  *  an alert is a real DB row with real cap/dedup rules server-side, not
  *  something a mock fallback can meaningfully fake. Before this file, NO

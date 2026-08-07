@@ -21,10 +21,10 @@ import { PRICE_UNITS, skus } from './catalog';
 import { NOTIFY_CHANNELS } from './engagement';
 import type { LineItem } from '@/lib/types/domain';
 
-export const LEAD_SOURCES = ['table', 'ai', 'cart', 'cooperation', 'tool', 'warehouse', 'contact'] as const;
+export const LEAD_SOURCES = ['table', 'ai', 'cart', 'cooperation', 'tool', 'warehouse', 'contact', 'cutToSize'] as const;
 export const LEAD_STATUSES = ['new', 'contacted', 'won', 'lost'] as const;
 export const COOPERATION_TYPES = ['market-analysis', 'supply', 'sell'] as const;
-export const REQUEST_TYPES = ['proforma', 'bulk', 'warehouse'] as const;
+export const REQUEST_TYPES = ['proforma', 'bulk', 'warehouse', 'cutToSize'] as const;
 // 'fulfilled' (W20) — the terminal state for a request that was resolved by
 // something OTHER than issuing a پیش‌فاکتور (a warehouse request being
 // stored is the first case; 'quoted' could never legitimately describe it).
@@ -41,6 +41,15 @@ export interface LeadContext {
    *  admin intake queue can prefill a real value instead of a rep re-typing
    *  it from the request's free-text title. */
   warehouse?: { product: string; quantityTons: number; duration: string };
+  /** Set by createCutToSizeRequest — what the customer wants cut/converted, so
+   *  the admin intake queue can read the ask back structured, not re-parse the
+   *  request's free-text title. */
+  cutToSize?: {
+    product: string;
+    currentDimensions?: string;
+    requestedDimensions: string;
+    quantity: string;
+  };
   [key: string]: unknown;
 }
 
