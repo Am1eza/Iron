@@ -44,6 +44,20 @@ export const leadPayload = z.object({
   note: z.string().trim().max(1000).optional(),
 });
 
+/**
+ * POST /api/tender/price — read-only live estimate for the tender tool. Same
+ * item cap as leadPayload (the whole point is a many-line estimate the user
+ * then submits verbatim through /api/leads). Only skuId+qty: the factory choice
+ * already rode in as which skuId the row selected, and the unit/price/weight are
+ * resolved server-side, never accepted from the client.
+ */
+export const tenderPricePayload = z.object({
+  items: z
+    .array(z.object({ skuId: z.string().min(1).max(120), qty: finiteNumber.positive().max(100_000) }))
+    .min(1, { message: M.required })
+    .max(100),
+});
+
 /* ---------- external/response schemas (parse at the boundary) ---------- */
 export const marketValueSchema = z.object({
   key: z.enum(['usd', 'eur', 'gold18', 'ounce', 'billet']),

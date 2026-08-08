@@ -21,7 +21,7 @@ import { PRICE_UNITS, skus } from './catalog';
 import { NOTIFY_CHANNELS } from './engagement';
 import type { LineItem } from '@/lib/types/domain';
 
-export const LEAD_SOURCES = ['table', 'ai', 'cart', 'cooperation', 'tool', 'warehouse', 'contact', 'cutToSize'] as const;
+export const LEAD_SOURCES = ['table', 'ai', 'cart', 'cooperation', 'tool', 'warehouse', 'contact', 'cutToSize', 'tender'] as const;
 export const LEAD_STATUSES = ['new', 'contacted', 'won', 'lost'] as const;
 export const COOPERATION_TYPES = ['market-analysis', 'supply', 'sell'] as const;
 export const REQUEST_TYPES = ['proforma', 'bulk', 'warehouse', 'cutToSize'] as const;

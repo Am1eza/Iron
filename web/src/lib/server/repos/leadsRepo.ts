@@ -347,6 +347,7 @@ const URGENCY_TIEBREAK = sql`
 export async function adminListLeads(query: {
   status?: LeadRow['status'];
   assigneeId?: string;
+  source?: string;
   q?: string;
   /** Inclusive range on createdAt (US-19.3). */
   from?: Date;
@@ -374,6 +375,7 @@ export async function adminListLeads(query: {
   if (!query.includeDeleted) conds.push(isNull(leads.deletedAt));
   if (query.status) conds.push(eq(leads.status, query.status));
   if (query.assigneeId) conds.push(eq(leads.assigneeId, query.assigneeId));
+  if (query.source) conds.push(eq(leads.source, query.source as LeadRow['source']));
   if (query.from) conds.push(gte(leads.createdAt, query.from));
   if (query.to) conds.push(lte(leads.createdAt, query.to));
   if (query.q) {

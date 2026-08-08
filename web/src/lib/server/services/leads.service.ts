@@ -238,7 +238,7 @@ export interface CreateLeadResult {
   totalWeightKg?: number;
 }
 
-const KNOWN_SOURCES = ['table', 'ai', 'cart', 'cooperation', 'tool', 'warehouse', 'contact'] as const;
+const KNOWN_SOURCES = ['table', 'ai', 'cart', 'cooperation', 'tool', 'warehouse', 'contact', 'cutToSize', 'tender'] as const;
 type LeadSource = (typeof KNOWN_SOURCES)[number];
 
 function asSource(s?: string): LeadSource {

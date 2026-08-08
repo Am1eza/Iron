@@ -1,4 +1,5 @@
 import type { LeadRow } from '@/lib/server/repos/leadsRepo';
+import { LEAD_SOURCES } from '@/lib/server/db/schema/leads';
 
 const LEAD_STATUSES = ['new', 'contacted', 'won', 'lost'] as const;
 
@@ -6,6 +7,7 @@ export interface LeadListFilters {
   status?: LeadRow['status'];
   assigneeId?: string;
   q?: string;
+  source?: string;
   from?: Date;
   to?: Date;
 }
@@ -24,6 +26,7 @@ export function parseLeadListFilters(p: URLSearchParams): LeadListFilters {
   return {
     status: status && (LEAD_STATUSES as readonly string[]).includes(status) ? (status as LeadRow['status']) : undefined,
     assigneeId: p.get('assignee') ?? undefined,
+    source: (LEAD_SOURCES as readonly string[]).includes(p.get('source') ?? '') ? (p.get('source') as string) : undefined,
     q: p.get('q') ?? undefined,
     from: fromDate && !Number.isNaN(fromDate.getTime()) ? fromDate : undefined,
     to: toDate && !Number.isNaN(toDate.getTime()) ? toDate : undefined,
