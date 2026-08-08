@@ -22,6 +22,9 @@
  * factories — same unit, same weight — so there is nothing to normalize, the
  * cross-product per-kg averaging that `computeBulkSplit` needs does not apply.
  */
+import { inArray } from 'drizzle-orm';
+import { getDb } from '@/lib/server/db/client';
+import { skus } from '@/lib/server/db/schema';
 import { tableRows } from '@/lib/server/repos/catalogRepo';
 import { getVatRate } from '@/lib/server/repos/settingsRepo';
 import { priceItems } from '@/lib/server/services/leads.service';
@@ -131,9 +134,22 @@ export interface TenderQuote {
  * grand total, rounded the same way `createLead` rounds them.
  */
 export async function priceTender(items: { skuId: string; qty: number }[]): Promise<TenderQuote> {
-  // priceItems forces the unit to the SKU's own; pass a placeholder unit it
-  // will overwrite. The factory choice already rode in as the skuId.
-  const { lines, allPriced } = await priceItems(items.map((i) => ({ skuId: i.skuId, qty: i.qty, unit: 'kg' })));
+  // Resolve each SKU's REAL unit first and pass it through. priceItems treats a
+  // client unit that disagrees with the SKU's as a stale/forged basis and
+  // refuses to price the line (allPriced=false) — so a hardcoded placeholder
+  // unit would wrongly mark every non-kg product (شاخه/برگ/متر) as «استعلام».
+  // The tender rows only ever carry real SKU ids (from factoryOptionsFor), so
+  // a direct id→unit map is enough; an id that doesn't resolve falls back to a
+  // value priceItems will fail to price anyway.
+  const ids = [...new Set(items.map((i) => i.skuId))];
+  const unitRows = ids.length
+    ? await getDb().select({ id: skus.id, unit: skus.unit }).from(skus).where(inArray(skus.id, ids))
+    : [];
+  const unitById = new Map(unitRows.map((r) => [r.id, r.unit] as const));
+
+  const { lines, allPriced } = await priceItems(
+    items.map((i) => ({ skuId: i.skuId, qty: i.qty, unit: unitById.get(i.skuId) ?? 'kg' })),
+  );
 
   const outLines: TenderLine[] = lines.map((l) => ({
     skuId: l.skuId,
