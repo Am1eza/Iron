@@ -21,6 +21,8 @@ export const LEAD_SOURCE_LABEL: Record<string, string> = {
   tool: 'ابزارها',
   warehouse: 'انبار',
   contact: 'تماس با ما',
+  cutToSize: 'کالا با ابعاد درخواستی',
+  tender: 'برآورد مناقصه',
 };
 
 /** `source` is a DB enum and the service layer coerces unknown values, so a
