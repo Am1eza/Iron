@@ -10,7 +10,7 @@ import { clubStatus, getLetterhead, setLetterhead } from '@/lib/server/repos/clu
  *  (for the account form to prefill). 404s for non-پولادی members — same
  *  hide-don't-reveal convention as admin-only routes: a lower tier has no
  *  legitimate reason to probe whether this endpoint exists. */
-async function GETImpl(req: NextRequest) {
+async function GETImpl() {
   const guard = requireDb();
   if (guard) return guard;
   const session = await getSessionVerified();
