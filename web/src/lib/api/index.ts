@@ -2,6 +2,7 @@ import { marketApi } from './resources/market';
 import { catalogApi } from './resources/catalog';
 import { authApi } from './resources/auth';
 import { leadsApi } from './resources/leads';
+import { tenderApi } from './resources/tender';
 import { toolsApi } from './resources/tools';
 import { aiApi } from './resources/ai';
 import { contactApi, cooperationApi, warehouseRequestsApi, cutToSizeRequestsApi, alertsApi } from './resources/misc';
@@ -13,6 +14,7 @@ export const api = {
   catalog: catalogApi,
   auth: authApi,
   leads: leadsApi,
+  tender: tenderApi,
   tools: toolsApi,
   ai: aiApi,
   cooperation: cooperationApi,
