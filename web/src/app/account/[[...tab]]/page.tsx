@@ -22,7 +22,7 @@ import { OrdersListLive } from '@/components/account/OrdersListLive';
 import { ClubPanel } from '@/components/account/ClubPanel';
 import { AccountOverview, type OverviewNudge } from '@/components/account/AccountOverview';
 import { getOrders, getWarehouseItems, getProfileCounts } from '@/lib/server/account';
-import { clubStatus } from '@/lib/server/repos/clubRepo';
+import { clubStatus, getLetterhead } from '@/lib/server/repos/clubRepo';
 import { getUserProfile } from '@/lib/server/repos/verificationRepo';
 import { API_MODE } from '@/lib/api/config';
 import { toPersianDigits } from '@/lib/utils/format';
@@ -249,10 +249,13 @@ async function TabContent({ slug, userId }: { slug: string; userId: string }) {
         );
       }
       const [status, profile] = await Promise.all([clubStatus(userId), getUserProfile(userId)]);
+      // Only a پولادی member ever sees the form, so skip the extra query for
+      // everyone else.
+      const letterhead = status.tier === 'poolad' ? await getLetterhead(userId) : null;
       return (
         <TabSection title="باشگاه مشتریان">
           <Card>
-            <ClubPanel status={status} inviteCode={profile?.inviteCode} />
+            <ClubPanel status={status} inviteCode={profile?.inviteCode} letterhead={letterhead} />
           </Card>
         </TabSection>
       );
