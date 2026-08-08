@@ -58,6 +58,45 @@ export async function setTier(userId: string, tier: ClubTier): Promise<void> {
     .onConflictDoUpdate({ target: clubMemberships.userId, set: { tier } });
 }
 
+export interface Letterhead {
+  logoUrl: string | null;
+  companyName: string | null;
+  address: string | null;
+  phone: string | null;
+}
+
+/** `null` for a non-member — a letterhead needs a membership row to hang off. */
+export async function getLetterhead(userId: string): Promise<Letterhead | null> {
+  const rows = await getDb()
+    .select({
+      logoUrl: clubMemberships.letterheadLogoUrl,
+      companyName: clubMemberships.letterheadCompanyName,
+      address: clubMemberships.letterheadAddress,
+      phone: clubMemberships.letterheadPhone,
+    })
+    .from(clubMemberships)
+    .where(eq(clubMemberships.userId, userId))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+/** Requires an existing membership row (join the club first) — the caller
+ *  (the API route) is also the one enforcing the پولادی-tier gate, so this
+ *  stays a plain write with no tier check of its own. */
+export async function setLetterhead(userId: string, data: Partial<Letterhead>): Promise<boolean> {
+  const set: Record<string, string | null> = {};
+  if ('logoUrl' in data) set.letterheadLogoUrl = data.logoUrl ?? null;
+  if ('companyName' in data) set.letterheadCompanyName = data.companyName ?? null;
+  if ('address' in data) set.letterheadAddress = data.address ?? null;
+  if ('phone' in data) set.letterheadPhone = data.phone ?? null;
+  const result = await getDb()
+    .update(clubMemberships)
+    .set(set)
+    .where(eq(clubMemberships.userId, userId))
+    .returning({ id: clubMemberships.id });
+  return result.length > 0;
+}
+
 /** Gather the per-user point inputs (delivered orders, profile, verification,
  *  referrals) — the raw material for computePoints. */
 async function pointInputs(userId: string) {
