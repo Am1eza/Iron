@@ -41,6 +41,9 @@ export const routes = {
   /** «کالا با ابعاد درخواستی» — cut-to-size intake: the customer brings their
    *  own stock and we cut/convert it to the dimensions they need. */
   cutToSize: () => '/cut-to-size',
+  /** «برآورد مناقصات» — multi-row estimate: price a whole tender (2–100 items)
+   *  against our own live prices, cheapest factory per line, in one pass. */
+  tender: () => '/tender',
   login: (next?: string) => (next ? `/login?next=${enc(next)}` : '/login'),
   account: (
     tab?: 'favorites' | 'requests' | 'alerts' | 'profile' | 'club' | 'warehouse' | 'orders',
@@ -102,7 +105,7 @@ export const routes = {
 export const STATIC_INDEXABLE = [
   '/', '/prices', '/ai', '/market',
   '/tools/weight', '/tools/project', '/tools/cost',
-  '/warehouse', '/cut-to-size',
+  '/warehouse', '/cut-to-size', '/tender',
   '/club', '/blog', '/news', '/cooperation',
   '/about', '/contact', '/terms', '/privacy',
 ] as const;

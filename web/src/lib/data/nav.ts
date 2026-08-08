@@ -132,6 +132,7 @@ export const WAREHOUSE_LINK: NavLink = { label: 'انبار مشتریان', hre
 /** «خدمات» dropdown — the desktop header renders exactly these (انبار مشتریان
  *  is now a separate top-level item, so it's NOT here). */
 export const SERVICES_NAV: NavLink[] = [
+  { label: 'برآورد مناقصات', href: routes.tender() },
   { label: 'پیگیری سفارش', href: routes.track() },
   { label: 'کالا با ابعاد درخواستی', href: routes.cutToSize() },
 ];
