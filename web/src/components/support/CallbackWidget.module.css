@@ -1,14 +1,8 @@
-.root {
+.fab {
   position: fixed;
   inset-block-end: calc(var(--bottom-bar-h) + var(--space-4));
   inset-inline-end: var(--space-4);
   z-index: var(--z-fab);
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: var(--space-3);
-}
-.fab {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
@@ -20,79 +14,15 @@
   box-shadow: var(--shadow-md);
   cursor: pointer;
   font: var(--t-button);
+  text-decoration: none;
 }
-.fab:hover { background: var(--color-action-hover); }
+.fab:hover {
+  background: var(--color-action-hover);
+  text-decoration: none;
+}
 .fabLabel {
   font: var(--t-label);
 }
 @media (max-width: 480px) {
   .fabLabel { display: none; }
-}
-.panel {
-  inline-size: min(20rem, 82vw);
-  background: var(--color-surface);
-  border: var(--border-hairline) solid var(--color-hairline);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
-  padding: var(--space-4);
-}
-.form { display: flex; flex-direction: column; gap: var(--space-2); }
-.head { display: flex; justify-content: space-between; align-items: center; }
-.head strong { font: var(--t-h4); color: var(--color-text-strong); }
-/* WCAG 2.2 · 2.5.8 Target Size (Minimum, AA). This was a bare glyph with no
-   padding — a ~16px tap target for the DISMISS control of a widget that
-   floats over the page. Missing it hits whatever is underneath. Sized to 32
-   (well past the 24 floor) with the glyph still visually the same size. */
-.x {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: none;
-  inline-size: 32px;
-  block-size: 32px;
-  margin-inline-end: calc(-1 * var(--space-2));
-  background: none;
-  border: 0;
-  border-radius: var(--radius-sm);
-  color: var(--color-text-muted);
-  cursor: pointer;
-  font-size: 1rem;
-}
-.hint { font: var(--t-caption); color: var(--color-text-muted); margin: 0 0 var(--space-1); }
-.input {
-  inline-size: 100%;
-  padding: var(--space-2) var(--space-3);
-  border: var(--border-hairline) solid var(--color-field-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  font: var(--t-input);
-}
-.err { font: var(--t-caption); color: var(--color-loss-text); margin: 0; }
-.submit {
-  padding: var(--space-2) var(--space-4);
-  border: 0;
-  border-radius: var(--radius-md);
-  background: var(--color-action);
-  color: var(--color-on-action);
-  font: var(--t-button);
-  cursor: pointer;
-}
-.submit:disabled { opacity: 0.6; cursor: default; }
-.done { display: flex; flex-direction: column; align-items: center; text-align: center; gap: var(--space-2); padding: var(--space-3); }
-.doneIcon { color: var(--color-accent); }
-.doneTitle { font: var(--t-h4); color: var(--color-text-strong); margin: 0; }
-.doneLead { font: var(--t-body-sm); color: var(--color-text-muted); margin: 0; }
-/* Same criterion: a standalone «بستن» button is not an inline link in a
-   sentence, so the inline exception does not apply — it needs 24px of height
-   of its own, which --t-label's 19.6px line box does not give it. */
-.close {
-  margin-block-start: var(--space-2);
-  min-block-size: 24px;
-  padding-inline: var(--space-2);
-  background: none;
-  border: 0;
-  border-radius: var(--radius-sm);
-  color: var(--color-accent-text);
-  cursor: pointer;
-  font: var(--t-label);
 }
