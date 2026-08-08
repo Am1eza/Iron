@@ -16,7 +16,7 @@ import { reportError } from '@/lib/errors/report';
 async function GETImpl(req: NextRequest) {
   const origin = assertSameOrigin(req);
   if (origin) return origin;
-  const limited = await rateLimit(req, 'leads', { limit: 10 });
+  const limited = await rateLimit(req, 'tender', { limit: 60 });
   if (limited) return limited;
   const guard = requireDb();
   if (guard) return guard;

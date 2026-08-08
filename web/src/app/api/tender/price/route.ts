@@ -11,15 +11,16 @@ import { reportError } from '@/lib/errors/report';
  * POST /api/tender/price — read-only live pricing for the برآورد مناقصات tool.
  * Creates NOTHING: it re-prices a set of rows on every edit so the running
  * total the user sees is the same authoritative figure `priceItems` produces,
- * to the ریال, when they later submit through /api/leads. Same-origin + the
- * shared `leads` rate bucket guard it against being used as a bulk price
- * scraper (a tender is ≤100 items and a person editing a form does not need
- * more than the leads limit of reprices per window).
+ * to the ریال, when they later submit through /api/leads. Same-origin + a
+ * dedicated `tender` rate bucket (more generous than `leads`, since a person
+ * editing a multi-row form re-prices far more often than they submit — and it
+ * must not eat into their actual submit budget) guard it against being used as
+ * a bulk price scraper.
  */
 async function POSTImpl(req: NextRequest) {
   const origin = assertSameOrigin(req);
   if (origin) return origin;
-  const limited = await rateLimit(req, 'leads', { limit: 10 });
+  const limited = await rateLimit(req, 'tender', { limit: 60 });
   if (limited) return limited;
   const guard = requireDb();
   if (guard) return guard;

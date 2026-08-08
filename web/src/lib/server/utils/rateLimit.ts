@@ -40,6 +40,7 @@ const BINDING_BY_SCOPE: Record<string, string> = {
   track: 'RL_TRACK',
   contact: 'RL_CONTACT',
   leads: 'RL_LEADS',
+  tender: 'RL_TENDER',
   tools: 'RL_TOOLS',
   proforma: 'RL_PROFORMA',
   cooperation: 'RL_COOPERATION',
