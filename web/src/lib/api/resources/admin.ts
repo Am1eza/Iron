@@ -421,6 +421,7 @@ export const adminApi = {
       status?: string;
       assignee?: string;
       q?: string;
+      source?: string;
       page?: number;
       perPage?: number;
       from?: string;
@@ -433,6 +434,7 @@ export const adminApi = {
     if (params.status) qs.set('status', params.status);
     if (params.assignee) qs.set('assignee', params.assignee);
     if (params.q) qs.set('q', params.q);
+    if (params.source) qs.set('source', params.source);
     if (params.page) qs.set('page', String(params.page));
     if (params.perPage) qs.set('perPage', String(params.perPage));
     if (params.from) qs.set('from', params.from);

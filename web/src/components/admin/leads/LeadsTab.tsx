@@ -38,7 +38,16 @@ const SOURCE_LABEL: Record<string, string> = {
   tool: 'ابزار',
   warehouse: 'انبار',
   contact: 'تماس',
+  cutToSize: 'برش و تبدیل',
+  tender: 'مناقصه',
 };
+
+/** Source filter options — «همه» plus every real lead source, so staff can
+ *  isolate e.g. مناقصه‌ها (which carry deadlines) from the general queue. */
+const SOURCE_FILTERS: { id: string; label: string }[] = [
+  { id: '', label: 'همهٔ منابع' },
+  ...Object.entries(SOURCE_LABEL).map(([id, label]) => ({ id, label })),
+];
 
 const FILTERS = [
   { id: '', label: 'همه' },
@@ -91,6 +100,7 @@ export function LeadsTab() {
   // check, not the other way around.
   const sort = params.get('sort') === 'newest' ? 'newest' : 'urgency';
   const q = params.get('q') ?? '';
+  const source = params.get('source') ?? '';
   const from = params.get('from') ?? '';
   const to = params.get('to') ?? '';
   const page = Math.max(1, Number(params.get('page')) || 1);
@@ -167,13 +177,14 @@ export function LeadsTab() {
   // URL. Wait instead of fetching the wrong thing.
   const awaitingSession = onlyMine && !currentUser && authStatus === 'loading';
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['admin', 'leads', status, q, from, to, page, assignee ?? '', sort],
+    queryKey: ['admin', 'leads', status, q, source, from, to, page, assignee ?? '', sort],
     enabled: !awaitingSession,
     queryFn: () =>
       adminApi.leads({
         status: status || undefined,
         assignee,
         q: q || undefined,
+        source: source || undefined,
         from: from || undefined,
         to: toParam,
         page,
@@ -237,6 +248,20 @@ export function LeadsTab() {
         <Chip selected={sort === 'newest'} onClick={() => setFilter({ sort: 'newest' })}>
           جدیدترین
         </Chip>
+        <label className={ui.muted} style={{ marginInlineStart: 'var(--space-2)' }}>
+          منبع:{' '}
+          <select
+            value={source}
+            onChange={(e) => setFilter({ source: e.target.value || null })}
+            aria-label="فیلتر منبع"
+          >
+            {SOURCE_FILTERS.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+        </label>
         <input
           className={ui.textCell}
           style={{ inlineSize: '14rem', marginInlineStart: 'auto' }}
