@@ -29,7 +29,6 @@ type Row = {
   loading: boolean;
 };
 
-const UNIT_LABEL: Record<string, string> = { kg: 'کیلوگرم', branch: 'شاخه', sheet: 'برگ', meter: 'متر' };
 
 function emptyRow(): Row {
   return {
