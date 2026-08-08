@@ -1,3 +1,6 @@
+'use client';
+import { useRef, useState } from 'react';
+import { PauseIcon, PlayIcon } from '@/components/primitives/icons';
 import styles from './HeroVideo.module.css';
 
 /** Matches HeroSearch.module.css's own tablet breakpoint — the lighter
@@ -18,13 +21,17 @@ const LIGHT_SOURCE_BREAKPOINT = '(max-width: 1023px)';
  * add-to-home-screen build; the fix is to not have an upgrade step — this
  * component IS the video, from the very first byte of HTML. `poster` is
  * what actually paints instantly while the video data streams in, so
- * there's still no blank flash even before playback starts.
+ * there's still no blank flash even before playback starts. `'use client'`
+ * only gates the pause BUTTON's interactivity below — the `<video>` tag
+ * itself, `autoPlay` included, is still emitted in the server-rendered HTML
+ * exactly as before; the anti-flash guarantee is unchanged.
  *
- * This is also why `prefers-reduced-motion` is no longer checked here: that
- * gate fell back to the same table, which the owner explicitly asked to
- * remove after seeing it happen. A future motion-sensitive-visitor control
- * should be a visible pause/mute affordance, not a silent server-side swap
- * back to a table.
+ * `prefers-reduced-motion` is deliberately NOT used to swap back to a
+ * table — the owner explicitly asked for that swap removed after seeing
+ * the flash it caused. WCAG 2.2.2 (Pause, Stop, Hide) is met the way this
+ * component's own prior version proposed instead: a visible pause/play
+ * control (mirrors the identical pattern in layout/Ticker.tsx), so a
+ * motion-sensitive visitor can stop the loop without losing the video slot.
  *
  * Multiple `<source>`s, in order: a lighter/smaller-resolution encode for
  * the tablet+phone range (matches HeroSearch's own 1023px breakpoint)
@@ -36,15 +43,32 @@ const LIGHT_SOURCE_BREAKPOINT = '(max-width: 1023px)';
  */
 export function HeroVideo({ src }: { src: string }) {
   const base = src.replace(/\.mp4$/, '');
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [paused, setPaused] = useState(false);
+
+  const toggle = () => {
+    const el = videoRef.current;
+    if (!el) return;
+    if (el.paused) {
+      void el.play();
+      setPaused(false);
+    } else {
+      el.pause();
+      setPaused(true);
+    }
+  };
+
   return (
-    <div className={styles.frame} aria-hidden="true">
+    <div className={styles.frame}>
       <video
+        ref={videoRef}
         className={styles.video}
         poster={`${base}-poster.webp`}
         autoPlay
         muted
         loop
         playsInline
+        aria-hidden="true"
         /* `metadata`, not `auto`: `auto` explicitly asks the browser to
            buffer the ENTIRE file (up to 936 KB for the desktop WebM) as fast
            as it can, competing with the rest of the hero's own critical-path
@@ -60,6 +84,20 @@ export function HeroVideo({ src }: { src: string }) {
         <source src={`${base}.webm`} type="video/webm" />
         <source src={src} type="video/mp4" />
       </video>
+      <button
+        type="button"
+        className={styles.pause}
+        onClick={toggle}
+        // Same convention as layout/Ticker.tsx's pause control: the label
+        // states the action and IS the accessible name (not a title tooltip,
+        // which touch users never see); no aria-pressed alongside it, since
+        // a label that already flips between «توقف» and «پخش» would make a
+        // screen reader announce the same fact twice.
+        aria-label={paused ? 'پخش ویدیوی پس‌زمینه' : 'توقف ویدیوی پس‌زمینه'}
+        data-paused={paused ? '' : undefined}
+      >
+        {paused ? <PlayIcon size={16} /> : <PauseIcon size={16} />}
+      </button>
     </div>
   );
 }

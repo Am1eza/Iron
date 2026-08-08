@@ -7,7 +7,7 @@ import { findLead, leadItemsOf, leadNotesOf, proformasOfLead, softDeleteLead, up
 import { recomputeTier } from '@/lib/server/repos/clubRepo';
 import { getDb } from '@/lib/server/db/client';
 import { users, currentPrices } from '@/lib/server/db/schema';
-import { ROLES, ROLE_LABEL, can, canChangeLeadAssignee, isStaff } from '@/lib/auth/roles';
+import { ROLES, ROLE_LABEL, can, canChangeLeadAssignee, canActOnAssignedRecord, isStaff } from '@/lib/auth/roles';
 
 /** GET /api/admin/leads/{id} — full lead: items, notes, proformas. */
 async function GETImpl(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
@@ -120,6 +120,21 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }
       const bad = await rejectUnassignable(v.data.assigneeId);
       if (bad) return bad;
     }
+  }
+  // Re-assignment has its own guard above; status/callbackAt did not — a
+  // `leads:write`-only rep could mark a colleague's lead won/lost or set its
+  // callback with no ownership check at all. Scoped to the lead's owner
+  // BEFORE this request, so claiming an unassigned lead and setting its
+  // status in the same PATCH still works (canActOnAssignedRecord allows
+  // assigneeId===null).
+  if (
+    (v.data.status !== undefined || v.data.callbackAt !== undefined) &&
+    !canActOnAssignedRecord(auth.session, before.assigneeId)
+  ) {
+    return NextResponse.json(
+      { error: 'lead_forbidden', message: 'این سرنخ به کارشناس دیگری واگذار شده؛ فقط او یا مدیر سیستم می‌تواند وضعیت یا زمان تماس آن را تغییر دهد.' },
+      { status: 403 },
+    );
   }
   const lead = await updateLead(id, {
     status: v.data.status,

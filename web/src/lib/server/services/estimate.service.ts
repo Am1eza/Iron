@@ -40,6 +40,12 @@ export async function estimateItems(items: Array<{ skuId: string; qty: number; u
         : hit?.sku.theoreticalWeightKg
           ? Math.round(hit.sku.theoreticalWeightKg * item.qty * 100) / 100
           : undefined;
+    // `unitPrice` is per KILOGRAM, always — see leads.service.ts's
+    // priceItems for the full reasoning (this function duplicates its
+    // weightKg conversion and had the identical bug: charging by raw `qty`
+    // instead of the already-converted `weightKg`). For `unit==='kg'`,
+    // `weightKg === item.qty`, so this is a no-op for today's all-kg catalog.
+    const lineTotal = unitPrice && weightKg != null ? Math.round(unitPrice * weightKg) : undefined;
     return {
       skuId: hit?.sku.id ?? item.skuId,
       name: hit?.sku.name ?? item.skuId,
@@ -47,7 +53,7 @@ export async function estimateItems(items: Array<{ skuId: string; qty: number; u
       unit: item.unit,
       weightKg,
       unitPrice,
-      lineTotal: unitPrice ? Math.round(unitPrice * item.qty) : undefined,
+      lineTotal,
     };
   });
 

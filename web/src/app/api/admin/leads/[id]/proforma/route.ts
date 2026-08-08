@@ -11,6 +11,7 @@ import {
 } from '@/lib/server/services/leads.service';
 import { sendNotification } from '@/lib/server/integrations/smsir';
 import { formatJalali } from '@/lib/utils/jalali';
+import { canActOnAssignedRecord } from '@/lib/auth/roles';
 
 // Optional body — a bare POST (no body at all) is the common case and must
 // keep working exactly as before; `discountToman` (US-19.4) is opt-in. The
@@ -88,6 +89,14 @@ async function POSTImpl(req: NextRequest, ctx: { params: Promise<{ id: string }>
     async () => {
       const lead = await findLead(id);
       if (!lead) return { status: 404, body: { error: 'not_found', message: 'سرنخ یافت نشد.' } };
+      // Ownership-scoped like orders (W16): only the lead's assignee, or a
+      // manager, may issue a customer-facing (SMS'd) proforma from it.
+      if (!canActOnAssignedRecord(auth.session, lead.assigneeId)) {
+        return {
+          status: 403,
+          body: { error: 'lead_forbidden', message: 'این سرنخ به کارشناس دیگری واگذار شده؛ فقط او یا مدیر سیستم می‌تواند پیش‌فاکتور صادر کند.' },
+        };
+      }
 
       const items = (await leadItemsOf(id)).map(toLineItem);
       const priced = items.filter((i) => i.unitPrice);

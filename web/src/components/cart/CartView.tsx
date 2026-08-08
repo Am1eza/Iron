@@ -6,6 +6,7 @@ import {
   selectCartCount,
   selectCartTotalWeight,
   selectCartEstTotal,
+  cartItemWeightKg,
 } from '@/lib/stores/cart';
 import type { CartItem } from '@/lib/stores/cart';
 import type { PriceUnit } from '@/lib/types/domain';
@@ -36,9 +37,9 @@ const UNIT_LABEL: Record<PriceUnit, string> = {
   meter: 'متر',
 };
 
-/** Per-line estimate = unitPrice × (weightKg || 1) × qty (mirrors selectCartEstTotal). */
+/** Per-line estimate = unitPrice (per kg) × the item's real weight (mirrors selectCartEstTotal). */
 function lineEstimate(item: CartItem): number {
-  return (item.unitPrice ?? 0) * (item.weightKg ?? 1) * item.qty;
+  return (item.unitPrice ?? 0) * cartItemWeightKg(item);
 }
 
 /**
@@ -96,7 +97,7 @@ export function CartView() {
                   <p className={styles.rowName}>{item.name}</p>
                   <p className={styles.rowMeta}>
                     واحد: {unit}
-                    {item.weightKg ? (
+                    {item.unit !== 'kg' && item.weightKg ? (
                       <>
                         {' · '}
                         وزن هر واحد: <span className="tnum">{toPersianDigits(item.weightKg)}</span> کیلوگرم
