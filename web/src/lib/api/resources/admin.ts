@@ -744,6 +744,10 @@ export const adminApi = {
       historyTotal: number;
       historyPage: number;
       historyPerPage: number;
+      /** Settlement ids that are their item's current latest (non-voided) —
+       *  the only ones voidSettlement will actually accept; the UI uses this
+       *  to not offer «ابطال» on a row that will just 409. */
+      latestSettlementIds: string[];
     }>(`/api/admin/warehouse/settlements?userId=${userId}&historyPage=${historyPage}`),
   createSettlement: (warehouseItemId: string, note?: string, periodTo?: string) =>
     http.post<{ settlement: unknown }>('/api/admin/warehouse/settlements', { warehouseItemId, note, periodTo }),

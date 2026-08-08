@@ -5,7 +5,7 @@ import { routes } from '@/lib/routes';
 import { categories as mockCategories } from '@/lib/mock/fixtures';
 import { getCategories, getRows } from '@/lib/server/catalog';
 import { getSubsMap } from '@/lib/data/catalog';
-import { getSetting } from '@/lib/server/repos/settingsRepo';
+import { getSetting, getVatRate } from '@/lib/server/repos/settingsRepo';
 import { DEFAULT_LOGISTICS_CONFIG, type LogisticsConfig } from '@/lib/data/logistics';
 import { shouldPrerenderMockParams } from '@/lib/server/seo/prerenderParams';
 import { Container, Section, Stack, Breadcrumbs, EmptyState, emptyPresets } from '@/components/ui';
@@ -47,7 +47,10 @@ export default async function CategoryPage({ params }: Params) {
 
   const rows = await getRows(category);
   const subs = (await getSubsMap())[category] ?? [];
-  const logisticsConfig = await getSetting<LogisticsConfig>('LOGISTICS', DEFAULT_LOGISTICS_CONFIG);
+  const [logisticsConfig, vatRate] = await Promise.all([
+    getSetting<LogisticsConfig>('LOGISTICS', DEFAULT_LOGISTICS_CONFIG),
+    getVatRate(),
+  ]);
 
   const crumbs = [
     { label: 'خانه', href: routes.home() },
@@ -84,8 +87,8 @@ export default async function CategoryPage({ params }: Params) {
 
           {rows.length > 0 ? (
             <>
-              <PriceTable rows={rows} subs={subs} categoryName={cat.name} />
-              <BulkQuote category={category} categoryName={cat.name} rows={rows} subs={subs} logisticsConfig={logisticsConfig} />
+              <PriceTable rows={rows} subs={subs} categoryName={cat.name} vatRate={vatRate} />
+              <BulkQuote category={category} categoryName={cat.name} rows={rows} subs={subs} logisticsConfig={logisticsConfig} vatRate={vatRate} />
             </>
           ) : (
             <EmptyState size="section" {...emptyPresets.emptyCategory()} />

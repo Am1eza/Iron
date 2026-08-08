@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { sql, eq, and, gte } from 'drizzle-orm';
+import { sql, eq, and, gte, isNull } from 'drizzle-orm';
 import { requireApiPermission, requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { can } from '@/lib/auth/roles';
 import type { Permission } from '@/lib/auth/types';
@@ -56,8 +56,18 @@ async function GETImpl(req: NextRequest) {
     count(db.select({ n: sql<number>`count(*)::int` }).from(leads).where(eq(leads.status, 'new'))));
   add('openRequests', 'leads:read', () =>
     count(db.select({ n: sql<number>`count(*)::int` }).from(userRequests).where(eq(userRequests.status, 'submitted'))));
+  // audit-2026-08-08: a cancelled order (`deletedAt` set, per W17 — see
+  // account.ts's identical fix) keeps whatever status it last had rather than
+  // stepping to a terminal one, so "status != delivered" alone counted every
+  // cancelled order as active forever. This tile never converged toward
+  // zero on a store with real cancellations.
   add('activeOrders', 'leads:read', () =>
-    count(db.select({ n: sql<number>`count(*)::int` }).from(orders).where(sql`${orders.status} != 'delivered'`)));
+    count(
+      db
+        .select({ n: sql<number>`count(*)::int` })
+        .from(orders)
+        .where(and(sql`${orders.status} != 'delivered'`, isNull(orders.deletedAt))),
+    ));
   add('newMessages', 'leads:read', () =>
     count(db.select({ n: sql<number>`count(*)::int` }).from(contactMessages).where(eq(contactMessages.status, 'new'))));
   add('totalUsers', 'users:manage', () =>

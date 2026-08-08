@@ -7,6 +7,7 @@ import {
   unsettledForMany,
   settlementsPageForUser,
   createSettlement,
+  lastSettlementForMany,
   NothingToSettleError,
   ItemPendingError,
 } from '@/lib/server/repos/warehouseSettlementsRepo';
@@ -58,6 +59,23 @@ async function GETImpl(req: NextRequest) {
     .where(and(eq(warehouseItems.userId, userId), isNull(warehouseItems.deletedAt)));
   const unsettled = await unsettledForMany(rawItems);
 
+  // audit-2026-08-08: voidSettlement now refuses to void anything but an
+  // item's current latest settlement (voiding an older one silently drops
+  // its period from all future billing — see the repo's own doc comment).
+  // The UI needs to know WHICH history rows that is so it doesn't offer
+  // «ابطال» on a row that will just 409 — and it can't infer that from the
+  // current history PAGE alone (the real latest could be on another page),
+  // so it's resolved here directly. Union of active items + whatever's on
+  // this page covers the button-visibility case completely for active
+  // items; a soft-deleted item's settlement on an unloaded page is the one
+  // narrow gap (button simply won't show), which is fine — the actual
+  // safety net is voidSettlement's own server-side check, not this.
+  const itemIdsForLatestCheck = [
+    ...new Set([...rawItems.map((i) => i.id), ...history.rows.map((h) => h.warehouseItemId)]),
+  ];
+  const latestByItem = await lastSettlementForMany(itemIdsForLatestCheck);
+  const latestSettlementIds = [...latestByItem.values()].map((s) => s.id);
+
   // Additive shape: `history` stays a plain array, so every existing reader
   // of it keeps working; the paging facts ride alongside it.
   return NextResponse.json(
@@ -68,6 +86,7 @@ async function GETImpl(req: NextRequest) {
       historyTotal: history.total,
       historyPage: history.page,
       historyPerPage: history.perPage,
+      latestSettlementIds,
     },
     { headers: { 'Cache-Control': 'no-store' } },
   );

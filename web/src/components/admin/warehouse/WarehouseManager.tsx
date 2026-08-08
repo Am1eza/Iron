@@ -924,6 +924,11 @@ function CustomerSettlementDetail({
           {data.history.map((h) => {
             const isReversal = h.voidsSettlementId !== null;
             const isVoided = h.voidedAt !== null;
+            // audit-2026-08-08: voidSettlement now refuses anything but an
+            // item's current latest settlement (voiding an older one would
+            // silently drop its period from all future billing) — don't
+            // offer a button that will just 409.
+            const isLatest = data.latestSettlementIds.includes(h.id);
             const voiding = voidSettlement.isPending && voidSettlement.variables?.id === h.id;
             const paying = markPaid.isPending && markPaid.variables?.id === h.id;
             return (
@@ -962,9 +967,11 @@ function CustomerSettlementDetail({
                         ثبت پرداخت
                       </Button>
                     ) : null}
-                    <Button size="sm" variant="ghost" loading={voiding} onClick={() => askVoid(h.id)}>
-                      ابطال
-                    </Button>
+                    {isLatest ? (
+                      <Button size="sm" variant="ghost" loading={voiding} onClick={() => askVoid(h.id)}>
+                        ابطال
+                      </Button>
+                    ) : null}
                   </div>
                 ) : null}
               </li>

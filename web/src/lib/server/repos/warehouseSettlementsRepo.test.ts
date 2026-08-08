@@ -23,6 +23,7 @@ import {
   NothingToSettleError,
   ItemPendingError,
   AlreadyVoidedError,
+  NotLatestSettlementError,
 } from './warehouseSettlementsRepo';
 
 let db: Db;
@@ -280,6 +281,37 @@ describe('voidSettlement', () => {
     const settlement = await createSettlement(item.id, null);
     const result = await voidSettlement(settlement!.id, null);
     await expect(voidSettlement(result!.reversal.id, null)).rejects.toBeInstanceOf(AlreadyVoidedError);
+  });
+
+  it('audit-2026-08-08: refuses to void anything but the item\'s current latest settlement', async () => {
+    // Before this fix: lastSettlementFor anchors the next period off
+    // whichever non-voided row has the LATEST periodTo. Voiding an OLDER
+    // settlement while a newer one still stands left the newer one as
+    // "last" regardless — the older settlement's period silently vanished
+    // from all future billing forever. This is the regression guard.
+    const userId = await seedUser('09130000022');
+    const storedAt = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
+    const item = await seedItem({ userId, storedAt, monthlyFeeToman: 60_000 });
+    const mid = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const first = await createSettlement(item.id, null, { periodTo: mid });
+    expect(first).not.toBeNull();
+    const second = await createSettlement(item.id, null); // continues from `mid` to now — the new latest
+    expect(second).not.toBeNull();
+
+    // Voiding the OLDER, non-latest settlement must be refused outright —
+    // not silently accepted with a period quietly lost.
+    await expect(voidSettlement(first!.id, null)).rejects.toBeInstanceOf(NotLatestSettlementError);
+    // The refusal didn't touch anything: still there, still un-voided.
+    const stillActive = await db
+      .select()
+      .from(schema.warehouseSettlements)
+      .where(eq(schema.warehouseSettlements.id, first!.id));
+    expect(stillActive[0]!.voidedAt).toBeNull();
+
+    // The ACTUAL latest settlement can be voided normally.
+    const result = await voidSettlement(second!.id, null);
+    expect(result).not.toBeNull();
+    expect(result!.voided.voidedAt).not.toBeNull();
   });
 });
 

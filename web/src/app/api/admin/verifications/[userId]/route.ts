@@ -26,6 +26,17 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ userId: stri
   if (!profile) return NextResponse.json({ error: 'not_found', message: 'کاربر یافت نشد.' }, { status: 404 });
   // Verification level feeds club points → recompute the tier.
   await recomputeTier(userId).catch(() => {});
+  // audit-2026-08-08: qualifiedReferralCount (verificationRepo.ts) counts a
+  // referral as "qualified" the MOMENT the referee's verification is
+  // approved here — but only the reviewed user's own tier was ever
+  // recomputed. The REFERRER's persisted tier (the field that actually
+  // gates real perks: alert caps, پولادی-tier letterhead) never advanced
+  // from a referral alone; it just happened to look right if the referrer
+  // separately did something else that triggered a recompute. Only on
+  // approval — a rejection doesn't newly qualify anything.
+  if (v.data.decision === 'approved' && profile.referredBy) {
+    await recomputeTier(profile.referredBy).catch(() => {});
+  }
   await audit(
     auth.session.id,
     'verification.review',

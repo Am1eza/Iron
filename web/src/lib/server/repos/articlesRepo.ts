@@ -272,15 +272,49 @@ export async function findPublishedBySlug(slug: string): Promise<ArticleFull | n
   return rows[0] ? toArticleFull(rows[0]) : null;
 }
 
+/**
+ * Public site search (`/api/search`, alongside `catalogRepo.searchSkus`).
+ * audit-2026-08-08: used to `ilike` the WHOLE trimmed query as one contiguous
+ * substring against title/excerpt — a real multi-word query like «قیمت
+ * میلگرد امروز» has to appear verbatim in that exact word order to match
+ * anything, so it matched effectively nothing published after the article's
+ * exact title. It also ordered purely by `publishAt desc`, ignoring how well
+ * a result actually matches the query. Same token-match + pg_trgm-similarity
+ * shape as `searchPublishedGuides` just below (majority-of-tokens filter in
+ * JS, since requiring literally every token — including a stray «و» — is too
+ * strict for a real search box), scoped to Article's list columns.
+ */
 export async function searchArticles(q: string, limit = 10): Promise<Article[]> {
-  const term = likeContains(q.trim());
+  const trimmed = q.trim();
+  const tokens = [...new Set(trimmed.split(/\s+/).filter((t) => t.length >= 2))];
+  if (tokens.length === 0) return [];
+  const variantsOf = (token: string) => [...new Set([token, normalizeDigits(token), toPersianDigits(token)])];
+  const anyToken = or(
+    ...tokens.flatMap((token) =>
+      variantsOf(token).flatMap((v) => {
+        const term = likeContains(v);
+        return [ilike(articles.title, term), ilike(articles.excerpt, term)];
+      }),
+    ),
+  );
   const rows = await getDb()
     .select()
     .from(articles)
-    .where(and(publishedCond(), or(ilike(articles.title, term), ilike(articles.excerpt, term))))
-    .orderBy(desc(articles.publishAt))
-    .limit(limit);
-  return rows.map(toArticleDto);
+    .where(and(publishedCond(), anyToken))
+    .orderBy(desc(sql`similarity(${articles.title}, ${trimmed})`), desc(articles.publishAt))
+    .limit(Math.max(limit * 3, 30));
+  const matchCount = (r: Row) => {
+    const hay = normalizeDigits(`${r.title}\n${r.excerpt ?? ''}`).toLowerCase();
+    return tokens.filter((t) => hay.includes(normalizeDigits(t).toLowerCase())).length;
+  };
+  const threshold = Math.ceil(tokens.length / 2);
+  return rows
+    .map((r) => ({ r, score: matchCount(r) }))
+    .filter(({ score }) => score >= threshold)
+    // Stable sort: majority score first, then the SQL similarity order.
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map(({ r }) => toArticleDto(r));
 }
 
 /**

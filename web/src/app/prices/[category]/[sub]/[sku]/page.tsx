@@ -6,7 +6,7 @@ import { allRows } from '@/lib/mock/catalogData';
 import { findSku, relatedRows, priceSeries, getRows, getCategories, getBilletReference, getSubsMap } from '@/lib/server/catalog';
 import { formatToman, priceHiddenLabel } from '@/lib/utils/format';
 import { productImage } from '@/lib/data/productImages';
-import { getSetting } from '@/lib/server/repos/settingsRepo';
+import { getSetting, getVatRate } from '@/lib/server/repos/settingsRepo';
 import { DEFAULT_LOGISTICS_CONFIG, type LogisticsConfig } from '@/lib/data/logistics';
 import { shouldPrerenderMockParams } from '@/lib/server/seo/prerenderParams';
 import { JsonLd, BreadcrumbJsonLd } from '@/components/seo/JsonLd';
@@ -43,13 +43,14 @@ export default async function SkuPage({ params }: Params) {
   const row = await findSku(sku);
   if (!row || row.categoryId !== category || row.subCategoryId !== sub) notFound();
 
-  const [related, series, categoryRows, categories, billet, logisticsConfig] = await Promise.all([
+  const [related, series, categoryRows, categories, billet, logisticsConfig, vatRate] = await Promise.all([
     relatedRows(row),
     priceSeries(row.slug, row.current.price),
     getRows(category),
     getCategories(),
     getBilletReference(),
     getSetting<LogisticsConfig>('LOGISTICS', DEFAULT_LOGISTICS_CONFIG),
+    getVatRate(),
   ]);
 
   const catName = categories.find((c) => c.slug === category)?.name ?? category;
@@ -82,7 +83,7 @@ export default async function SkuPage({ params }: Params) {
         })}
       />
       <Section space={10}>
-        <SkuDetail row={row} related={related} series={series} categoryRows={categoryRows} billet={billet} subLabel={subLabel} categorySubs={categorySubs} logisticsConfig={logisticsConfig} />
+        <SkuDetail row={row} related={related} series={series} categoryRows={categoryRows} billet={billet} subLabel={subLabel} categorySubs={categorySubs} logisticsConfig={logisticsConfig} vatRate={vatRate} />
       </Section>
     </Container>
   );
