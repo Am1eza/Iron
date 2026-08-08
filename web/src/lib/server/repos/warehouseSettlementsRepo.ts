@@ -240,11 +240,24 @@ export async function createSettlement(
 
 export class AlreadyVoidedError extends Error {}
 
+/** audit-2026-08-08: `lastSettlementFor` anchors the next period off
+ *  whichever NON-VOIDED row has the latest `periodTo` — it has no notion of
+ *  an "interior gap." Voiding anything OTHER than an item's current latest
+ *  settlement leaves the very next settlement anchored at the same later
+ *  `periodTo` it already was, silently and permanently dropping the voided
+ *  row's period from all future billing. `voidSettlement` refuses this case
+ *  rather than quietly losing revenue — see the error's own message. */
+export class NotLatestSettlementError extends Error {}
+
 /** Corrects a wrong settlement WITHOUT rewriting accounting history: marks
  *  the original `voidedAt` and inserts a negative-amount reversing row
  *  pointing back at it. lastSettlementFor() then skips both, so the period
  *  the original covered becomes billable again on the next real settlement —
- *  this is the "void/correction path" the audit found completely missing. */
+ *  this is the "void/correction path" the audit found completely missing.
+ *
+ *  Restricted to the item's CURRENT LATEST settlement (see
+ *  NotLatestSettlementError) — voiding an older one can't reopen its period
+ *  for rebilling, only pretend to. */
 export async function voidSettlement(
   settlementId: string,
   actorId: string | null,
@@ -261,6 +274,28 @@ export async function voidSettlement(
     if (!original) return null;
     if (original.voidedAt) throw new AlreadyVoidedError('این تسویه قبلاً باطل شده است.');
     if (original.voidsSettlementId) throw new AlreadyVoidedError('یک سطرِ اصلاحی را نمی‌توان باطل کرد.');
+
+    // Row-locked (same transaction, same FOR UPDATE guarantee as `original`
+    // itself) so a concurrent createSettlement can't slip a newer row in
+    // between this check and the update below.
+    const newer = await tx
+      .select({ id: warehouseSettlements.id })
+      .from(warehouseSettlements)
+      .where(
+        and(
+          eq(warehouseSettlements.warehouseItemId, original.warehouseItemId),
+          isNull(warehouseSettlements.voidedAt),
+          isNull(warehouseSettlements.voidsSettlementId),
+          sql`${warehouseSettlements.id} != ${original.id}`,
+          sql`${warehouseSettlements.periodTo} >= ${original.periodTo}`,
+        ),
+      )
+      .limit(1);
+    if (newer.length > 0) {
+      throw new NotLatestSettlementError(
+        'فقط آخرین تسویهٔ این قلم قابل ابطال است — تسویه‌های جدیدتری بعد از این ثبت شده‌اند.',
+      );
+    }
 
     const voidedRows = await tx
       .update(warehouseSettlements)
@@ -420,7 +455,12 @@ export async function customerSettlementOverview(): Promise<CustomerSettlementOv
   const truncated = rawItems.length > ITEM_CAP;
   const items = truncated ? rawItems.slice(0, ITEM_CAP) : rawItems;
 
-  const summaries = await Promise.all(items.map((row) => unsettledFor(row.item)));
+  // audit-2026-08-08: this used to be `Promise.all(items.map(unsettledFor))`
+  // — up to ITEM_CAP (2000) concurrent single-item settlement queries against
+  // a pooled connection, the exact pool-starvation pattern `unsettledForMany`
+  // was written to fix (see its own doc comment above), just never wired in
+  // here. Order-preserving: unsettledForMany maps over `items` in place.
+  const summaries = await unsettledForMany(items.map((row) => row.item));
 
   const byUser = new Map<string, CustomerSettlementOverview>();
   let grandTotalUnsettledToman = 0;

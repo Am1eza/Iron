@@ -2,7 +2,12 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
-import { voidSettlement, markSettlementPaid, AlreadyVoidedError } from '@/lib/server/repos/warehouseSettlementsRepo';
+import {
+  voidSettlement,
+  markSettlementPaid,
+  AlreadyVoidedError,
+  NotLatestSettlementError,
+} from '@/lib/server/repos/warehouseSettlementsRepo';
 
 const payload = z.discriminatedUnion('action', [
   z.object({ action: z.literal('void'), reason: z.string().trim().max(500).optional() }),
@@ -33,6 +38,9 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }
     } catch (err) {
       if (err instanceof AlreadyVoidedError) {
         return NextResponse.json({ error: 'already_voided', message: err.message }, { status: 409 });
+      }
+      if (err instanceof NotLatestSettlementError) {
+        return NextResponse.json({ error: 'not_latest_settlement', message: err.message }, { status: 409 });
       }
       throw err;
     }
