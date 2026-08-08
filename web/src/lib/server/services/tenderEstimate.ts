@@ -159,7 +159,14 @@ export async function priceTender(items: { skuId: string; qty: number }[]): Prom
     weightKg: l.weightKg,
     unitPrice: l.unitPrice,
     lineTotal: l.lineTotal,
-    priced: l.unitPrice != null,
+    // Gate on `lineTotal`, not `unitPrice` alone — a non-kg SKU can have a
+    // live `unitPrice` but no `theoreticalWeightKg` on file, leaving
+    // `weightKg`/`lineTotal` undefined even though a price exists. Keying
+    // `priced` on `unitPrice` would show the UI a real price on a row whose
+    // total can't actually be computed (and that `allPriced` correctly
+    // refuses to auto-quote) — same class of bug as leads.service.ts's
+    // `priceItems`, whose `allPriced` this mirrors.
+    priced: l.lineTotal != null,
   }));
 
   const subtotal = outLines.reduce((sum, l) => sum + (l.lineTotal ?? 0), 0);

@@ -44,11 +44,17 @@ beforeAll(async () => {
     sku('rebar-pricey', 's-plain', 'کارخانهٔ الف', '14'),
     sku('rebar-noprice', 's-plain', 'کارخانهٔ ج', '14'),
     sku('rebar-solo', 's-solo', 'کارخانهٔ تنها', '16'),
+    // Priced, but no theoreticalWeightKg on file — weightKg (and therefore
+    // lineTotal) can't be computed even though a live unitPrice exists.
+    // Distinct size ('18') so it doesn't join the 'plain'/'14' group's
+    // exact-match option list in the sorting test above.
+    { ...sku('rebar-noweight', 's-plain', 'کارخانهٔ د', '18'), theoreticalWeightKg: null },
   ]);
   await db.insert(schema.currentPrices).values([
     { skuId: 'rebar-cheap', price: 28_000, unit: 'branch' },
     { skuId: 'rebar-pricey', price: 30_000, unit: 'branch' },
     { skuId: 'rebar-solo', price: 50_000, unit: 'branch' },
+    { skuId: 'rebar-noweight', price: 29_000, unit: 'branch' },
     // rebar-noprice: intentionally no row → «استعلام»
   ]);
 }, 120_000);
@@ -80,7 +86,7 @@ describe('factoryOptionsFor', () => {
 });
 
 describe('priceTender', () => {
-  it('totals day-price × weight over rows, with VAT, using the SKU unit', async () => {
+  it('totals day-price PER KG × real weight over rows, with VAT, using the SKU unit', async () => {
     const q = await priceTender([
       { skuId: 'rebar-cheap', qty: 5 },
       { skuId: 'rebar-pricey', qty: 2 },
@@ -88,10 +94,13 @@ describe('priceTender', () => {
     // A non-kg (branch) product must be priced, not falsely «استعلام».
     expect(q.allPriced).toBe(true);
     const cheap = q.lines[0]!;
-    expect(cheap.weightKg).toBe(50); // 5 × 10kg
-    expect(cheap.unitPrice).toBe(28_000);
-    expect(cheap.lineTotal).toBe(140_000); // 28k × 5
-    expect(q.subtotal).toBe(200_000); // 140k + 60k
+    expect(cheap.weightKg).toBe(50); // 5 branches × 10kg/branch
+    expect(cheap.unitPrice).toBe(28_000); // Toman PER KG, not per branch
+    expect(cheap.lineTotal).toBe(1_400_000); // 28,000/kg × 50kg
+    const pricey = q.lines[1]!;
+    expect(pricey.weightKg).toBe(20); // 2 × 10kg
+    expect(pricey.lineTotal).toBe(600_000); // 30,000/kg × 20kg
+    expect(q.subtotal).toBe(2_000_000); // 1,400,000 + 600,000
     // VAT + grand total are internally consistent with whatever the rate is.
     expect(q.vatAmount).toBe(Math.round(q.subtotal * q.vatRate));
     expect(q.grandTotal).toBe(q.subtotal + q.vatAmount);
@@ -106,7 +115,23 @@ describe('priceTender', () => {
     const noprice = q.lines.find((l) => l.skuId === 'rebar-noprice')!;
     expect(noprice.priced).toBe(false);
     expect(noprice.lineTotal).toBeUndefined();
-    // The priced row still contributes to the subtotal.
-    expect(q.subtotal).toBe(28_000);
+    // The priced row still contributes to the subtotal: 1 branch × 10kg × 28,000/kg.
+    expect(q.subtotal).toBe(280_000);
+  });
+
+  it('a live price with no weight on file must not be silently treated as fully priced', async () => {
+    // Regression guard for the bug this whole fix closes: a non-kg SKU can
+    // have `unitPrice` set but no `theoreticalWeightKg`, leaving `weightKg`
+    // (and therefore `lineTotal`) undefined. `allPriced` must key off
+    // `lineTotal`, not `unitPrice` alone — otherwise a proforma could
+    // auto-issue with a line silently contributing 0 to the total.
+    const q = await priceTender([{ skuId: 'rebar-noweight', qty: 4 }]);
+    const line = q.lines[0]!;
+    expect(line.unitPrice).toBe(29_000);
+    expect(line.weightKg).toBeUndefined();
+    expect(line.lineTotal).toBeUndefined();
+    expect(line.priced).toBe(false);
+    expect(q.allPriced).toBe(false);
+    expect(q.subtotal).toBe(0);
   });
 });

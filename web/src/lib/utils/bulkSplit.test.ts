@@ -43,33 +43,36 @@ describe('computeBulkSplit', () => {
     expect(split.cheapest?.factory).toBe('A');
   });
 
-  it('normalizes a non-kg row (e.g. per-sheet) by theoreticalWeightKg before averaging', () => {
-    // Real production shape: a sheet-unit SKU priced 210,000 Toman/sheet at
-    // 2.1kg/sheet — the true per-kg price is 210000/2.1 = 100,000. Before the
-    // fix this raw 210,000 got averaged in as if it were already per-kg,
-    // making the factory look ~2,100x too expensive (or, mixed with other
-    // rows, silently wrong either direction).
-    const rows = [row({ factory: 'Sheet Co', price: 210_000, unit: 'sheet', theoreticalWeightKg: 2.1 })];
+  it('a non-kg row (e.g. per-sheet) contributes its raw price directly — price is per kg regardless of unit', () => {
+    // `current.price` is ALREADY per-kg for every SKU no matter its `unit` —
+    // `unit` only says what a customer's qty counts in (kg mass vs. whole
+    // sheets/branches/meters), never what the price is denominated in (see
+    // PriceTable's «تومان / کیلوگرم» label, CostCalculator, and
+    // leads.service.ts's priceItems). A prior version of this function
+    // divided a non-kg row's price by theoreticalWeightKg, which was wrong
+    // in the opposite direction — it would have shrunk a real per-kg price
+    // by the weight factor for no reason.
+    const rows = [row({ factory: 'Sheet Co', price: 100_000, unit: 'sheet', theoreticalWeightKg: 2.1 })];
     const split = computeBulkSplit(rows, 1);
     expect(split.cheapest?.pricePerKg).toBe(100_000);
   });
 
-  it('excludes a non-kg row with no theoreticalWeightKg instead of treating its raw price as per-kg', () => {
+  it('includes a non-kg row even with no theoreticalWeightKg on file — no conversion is needed', () => {
     const rows = [
       row({ factory: 'Sheet Co', price: 210_000, unit: 'sheet', theoreticalWeightKg: undefined }),
       row({ factory: 'Kg Co', price: 100_000, unit: 'kg' }),
     ];
     const split = computeBulkSplit(rows, 1);
-    expect(split.lines.map((l) => l.factory)).toEqual(['Kg Co']);
+    expect(split.lines.map((l) => l.factory).sort()).toEqual(['Kg Co', 'Sheet Co']);
   });
 
-  it('a mixed-unit factory (kg row + normalized sheet row) averages the two true per-kg prices, not the raw ones', () => {
+  it('a mixed-unit factory (kg row + sheet row) averages both raw prices — both are already per-kg', () => {
     const rows = [
       row({ factory: 'Mixed', price: 90_000, unit: 'kg' }),
-      row({ factory: 'Mixed', price: 210_000, unit: 'sheet', theoreticalWeightKg: 2.1 }), // → 100,000/kg
+      row({ factory: 'Mixed', price: 110_000, unit: 'sheet', theoreticalWeightKg: 2.1 }),
     ];
     const split = computeBulkSplit(rows, 1);
-    expect(split.cheapest?.pricePerKg).toBe(95_000); // (90,000 + 100,000) / 2
+    expect(split.cheapest?.pricePerKg).toBe(100_000); // (90,000 + 110,000) / 2
   });
 
   it('still excludes a hidden/stale price (stored as 0) — the W23 fix stays intact', () => {

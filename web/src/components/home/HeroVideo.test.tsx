@@ -1,6 +1,12 @@
-import { describe, it, expect } from 'vitest';
-import { render } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, fireEvent } from '@testing-library/react';
 import { HeroVideo } from './HeroVideo';
+
+// jsdom's HTMLMediaElement has no real playback engine — stub play/pause so
+// the component's calls to them don't throw, matching how a real browser's
+// autoplay/click-to-pause actually behaves for these tests' purposes.
+HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined);
+HTMLMediaElement.prototype.pause = vi.fn();
 
 describe('HeroVideo — always renders the video, no fallback/upgrade step (W: no table flash)', () => {
   it('renders a <video> synchronously, on first render — no gating, no wait', () => {
@@ -40,5 +46,34 @@ describe('HeroVideo — always renders the video, no fallback/upgrade step (W: n
     expect(video.loop).toBe(true);
     expect(video.hasAttribute('playsInline') || video.hasAttribute('playsinline')).toBe(true);
     expect(video.autoplay).toBe(true);
+  });
+});
+
+describe('HeroVideo — pause control (WCAG 2.2.2 Pause, Stop, Hide)', () => {
+  it('offers a visible, keyboard-reachable pause control — not hidden by the frame\'s aria-hidden', () => {
+    // Regression: aria-hidden must be on the <video> only, not the wrapping
+    // frame — an aria-hidden ancestor removes this button from the
+    // accessibility tree entirely, which would defeat the whole fix.
+    render(<HeroVideo src="/media/hero.mp4" />);
+    const btn = document.querySelector('button');
+    expect(btn).toBeInTheDocument();
+    expect(btn).not.toHaveAttribute('aria-hidden');
+    expect(btn?.getAttribute('aria-label')).toBe('توقف ویدیوی پس‌زمینه');
+  });
+
+  it('pauses the video and flips the label on click, then resumes on a second click', () => {
+    render(<HeroVideo src="/media/hero.mp4" />);
+    const video = document.querySelector('video') as HTMLVideoElement;
+    const btn = document.querySelector('button') as HTMLButtonElement;
+
+    Object.defineProperty(video, 'paused', { value: false, configurable: true });
+    fireEvent.click(btn);
+    expect(video.pause).toHaveBeenCalled();
+    expect(btn.getAttribute('aria-label')).toBe('پخش ویدیوی پس‌زمینه');
+
+    Object.defineProperty(video, 'paused', { value: true, configurable: true });
+    fireEvent.click(btn);
+    expect(video.play).toHaveBeenCalled();
+    expect(btn.getAttribute('aria-label')).toBe('توقف ویدیوی پس‌زمینه');
   });
 });

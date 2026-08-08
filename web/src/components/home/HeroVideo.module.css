@@ -1,4 +1,5 @@
 .frame {
+  position: relative;
   inline-size: 100%;
   border-radius: var(--radius-lg);
   overflow: hidden;
@@ -13,4 +14,34 @@
   block-size: 100%;
   object-fit: cover;
   display: block;
+}
+
+/* WCAG 2.2.2 (Pause, Stop, Hide) — the video autoplays and loops with no
+   other way to stop it; this is that way. 40px, well past the 24px 2.5.8
+   floor, floated over the frame so it never competes with the hero's own
+   layout. */
+.pause {
+  position: absolute;
+  inset-block-end: var(--space-3);
+  inset-inline-end: var(--space-3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 40px;
+  block-size: 40px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: rgba(10, 20, 20, 0.55);
+  color: var(--color-text-inverse);
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  transition: background var(--dur-fast) var(--ease-standard);
+}
+.pause:hover,
+.pause[data-paused] {
+  background: rgba(10, 20, 20, 0.75);
+}
+.pause:focus-visible {
+  outline: var(--border-focus) solid var(--color-focus);
+  outline-offset: 2px;
 }

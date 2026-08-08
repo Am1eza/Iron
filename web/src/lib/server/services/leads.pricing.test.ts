@@ -100,4 +100,45 @@ describe('priceItems — the unit is the SKU’s, not the client’s', () => {
     expect(allPriced).toBe(false);
     expect(lines[0]!.unitPrice).toBeUndefined();
   });
+
+  it('charges a piece-priced (branch) SKU by real weight, not raw quantity', async () => {
+    // `unitPrice` is per KILOGRAM regardless of `unit` (see PriceTable's
+    // «تومان / کیلوگرم» label) — for a branch SKU, `qty` counts branches, so
+    // lineTotal must be unitPrice × (qty × theoreticalWeightKg), not
+    // unitPrice × qty. This is the audit-2026-08-08 fix: `weightKg` was
+    // already computed correctly here but `lineTotal` ignored it, silently
+    // charging by piece-count as if it were kilograms.
+    const skuId = await seedSku('branch'); // 42,000/kg, 12kg/branch
+    const { lines, allPriced } = await priceItems([{ skuId, qty: 5, unit: 'branch' }]);
+    expect(allPriced).toBe(true);
+    expect(lines[0]!.weightKg).toBe(60); // 5 × 12kg
+    expect(lines[0]!.lineTotal).toBe(60 * PRICE_PER_UNIT); // NOT 5 × 42,000
+  });
+
+  it('does not auto-quote a priced branch SKU with no theoreticalWeightKg on file', async () => {
+    // unitPrice can be set while weightKg (and therefore lineTotal) cannot be
+    // computed — allPriced must key off lineTotal, not unitPrice alone, or a
+    // proforma could auto-issue with a line silently worth 0.
+    const catId = ulid();
+    const subId = ulid();
+    const skuId = ulid();
+    await db.insert(schema.categories).values({ id: catId, slug: `cat-${catId}`, name: 'میلگرد' });
+    await db.insert(schema.subCategories).values({ id: subId, categoryId: catId, slug: `sub-${subId}`, name: 'آجدار' });
+    await db.insert(schema.skus).values({
+      id: skuId,
+      subCategoryId: subId,
+      categoryId: catId,
+      slug: `sku-${skuId}`,
+      name: 'میلگرد بدون وزن',
+      unit: 'branch',
+      theoreticalWeightKg: null,
+    });
+    await db.insert(schema.currentPrices).values({ skuId, price: PRICE_PER_UNIT, unit: 'branch' });
+
+    const { lines, allPriced } = await priceItems([{ skuId, qty: 5, unit: 'branch' }]);
+    expect(lines[0]!.unitPrice).toBe(PRICE_PER_UNIT);
+    expect(lines[0]!.weightKg).toBeUndefined();
+    expect(lines[0]!.lineTotal).toBeUndefined();
+    expect(allPriced).toBe(false);
+  });
 });

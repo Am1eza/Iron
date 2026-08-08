@@ -316,7 +316,6 @@ export async function priceItems(
     const fractionalPieces = WHOLE_PIECE_UNITS.has(unit) && !Number.isInteger(item.qty);
 
     const unitPrice = price && !hidden && !unitMismatch && !fractionalPieces ? price.price : undefined;
-    if (!unitPrice) allPriced = false;
 
     const weightKg =
       unit === 'kg'
@@ -324,6 +323,27 @@ export async function priceItems(
         : hit?.sku.theoreticalWeightKg
           ? Math.round(hit.sku.theoreticalWeightKg * item.qty * 100) / 100
           : undefined;
+
+    // `unitPrice` is per KILOGRAM, always (see PriceTable's «تومان / کیلوگرم»
+    // label and CostCalculator's identical weight-basis math) — `unit` only
+    // says what `qty` COUNTS in (kg mass vs. whole pieces), never what the
+    // price is denominated in. `weightKg` above already converts a piece
+    // count to real kilograms; charging `unitPrice * item.qty` instead of
+    // `unitPrice * weightKg` is exactly the "100 branches ≈ 1200kg, billed as
+    // 100kg" bug the comment two blocks up already warns about — it was
+    // fixed for `weightKg` itself but never applied here. For `unit==='kg'`,
+    // `weightKg === item.qty`, so this is a no-op for every SKU in the
+    // catalog today; it only changes anything once a branch/sheet/meter SKU
+    // gets a real price.
+    const lineTotal = unitPrice && weightKg != null ? Math.round(unitPrice * weightKg) : undefined;
+    // Gate on `lineTotal`, not `unitPrice` alone — a non-kg SKU can have a
+    // live price but no `theoreticalWeightKg` on file, leaving `lineTotal`
+    // undefined even though `unitPrice` is set. Gating on `unitPrice` alone
+    // would have let `allPriced` stay true with a line silently missing its
+    // total, which `Σ(lineTotal ?? 0)` would then have summed as a free 0 —
+    // the same class of undercharge this whole fix exists to close.
+    if (!lineTotal) allPriced = false;
+
     return {
       skuId: hit?.sku.id ?? item.skuId,
       name: hit?.sku.name ?? item.skuId,
@@ -331,7 +351,7 @@ export async function priceItems(
       unit,
       weightKg,
       unitPrice,
-      lineTotal: unitPrice ? Math.round(unitPrice * item.qty) : undefined,
+      lineTotal,
     };
   });
   return { lines, allPriced };
