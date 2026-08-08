@@ -113,4 +113,13 @@ export const clubMemberships = pgTable('club_memberships', {
     .references(() => users.id, { onDelete: 'cascade' }),
   tier: text('tier', { enum: CLUB_TIERS }).notNull().default('iron'),
   joinedAt: timestamp('joined_at', { withTimezone: true }).notNull().defaultNow(),
+  // Custom پیش‌فاکتور letterhead — a پولادی-tier perk (US-tender-letterhead).
+  // All nullable: a member sets these once, from nothing, in their own time;
+  // gating on tier happens at the API/UI layer, not here, so a member who is
+  // later demoted keeps their saved letterhead (just loses the ability to use
+  // it) rather than having it silently wiped.
+  letterheadLogoUrl: text('letterhead_logo_url'),
+  letterheadCompanyName: text('letterhead_company_name'),
+  letterheadAddress: text('letterhead_address'),
+  letterheadPhone: text('letterhead_phone'),
 });
