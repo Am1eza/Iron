@@ -6,6 +6,7 @@ import { createOrder } from '@/lib/server/repos/ordersRepo';
 import { orderSmsNotification } from '@/lib/server/services/leads.service';
 import { sendNotification } from '@/lib/server/integrations/smsir';
 import { nextRef } from '@/lib/server/utils/refs';
+import { canActOnAssignedRecord } from '@/lib/auth/roles';
 
 /** POST /api/admin/leads/{id}/order — convert a won lead into a tracked order.
  *
@@ -33,6 +34,14 @@ async function POSTImpl(req: NextRequest, ctx: { params: Promise<{ id: string }>
   return withIdempotency(req, 'lead.order', `${id}:${auth.session.id}:${Math.floor(Date.now() / 10_000)}`, async () => {
     const lead = await findLead(id);
     if (!lead) return { status: 404, body: { error: 'not_found', message: 'سرنخ یافت نشد.' } };
+    // Ownership-scoped like the order it's about to become (W16): only the
+    // lead's assignee, or a manager, may convert it into a tracked order.
+    if (!canActOnAssignedRecord(auth.session, lead.assigneeId)) {
+      return {
+        status: 403,
+        body: { error: 'lead_forbidden', message: 'این سرنخ به کارشناس دیگری واگذار شده؛ فقط او یا مدیر سیستم می‌تواند آن را به سفارش تبدیل کند.' },
+      };
+    }
 
     const items = (await leadItemsOf(id)).map(toLineItem);
     const ref = await nextRef('OR');

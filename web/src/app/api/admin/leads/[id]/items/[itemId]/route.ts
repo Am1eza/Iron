@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
 import { finiteNumber } from '@/lib/validation/utils';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
-import { updateLeadItem, LeadItemLockedError, WholeUnitQtyError } from '@/lib/server/repos/leadsRepo';
+import { updateLeadItem, findLead, LeadItemLockedError, WholeUnitQtyError } from '@/lib/server/repos/leadsRepo';
+import { canActOnAssignedRecord } from '@/lib/auth/roles';
 import type { PriceUnit } from '@/lib/types/domain';
 
 /** Business ceilings, not type limits. The old schema was `positive()` /
@@ -53,6 +54,20 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string; 
   const auth = await requireApiPermission(req, 'leads:write');
   if ('response' in auth) return auth.response;
   const { id, itemId } = await ctx.params;
+
+  // Ownership-scoped like the proforma/order routes that consume this same
+  // lead (W16): only the lead's assignee, or a manager, may alter money on
+  // its items — a `leads:write`-only colleague gets a clear 403 instead of
+  // silently being able to change qty/unitPrice on anyone's lead.
+  const lead = await findLead(id);
+  if (!lead) return NextResponse.json({ error: 'not_found', message: 'سرنخ یافت نشد.' }, { status: 404 });
+  if (!canActOnAssignedRecord(auth.session, lead.assigneeId)) {
+    return NextResponse.json(
+      { error: 'lead_forbidden', message: 'این سرنخ به کارشناس دیگری واگذار شده؛ فقط او یا مدیر سیستم می‌تواند اقلام آن را تغییر دهد.' },
+      { status: 403 },
+    );
+  }
+
   const v = await validateBody(req, payload);
   if (!v.ok) return v.response;
 
