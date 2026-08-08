@@ -36,6 +36,7 @@ export function BulkQuote({
   subs: subsProp,
   defaultTonnage = 20,
   logisticsConfig = DEFAULT_LOGISTICS_CONFIG,
+  vatRate = CONSTANTS.VAT_RATE,
 }: {
   category: string;
   categoryName: string;
@@ -47,6 +48,11 @@ export function BulkQuote({
    *  server-side from `settings.LOGISTICS` and passed down — falls back to
    *  the same defaults `landedCost` uses when a caller doesn't have it yet. */
   logisticsConfig?: LogisticsConfig;
+  /** Live admin-configured VAT rate (`settings.VAT_RATE`, via `getVatRate()`)
+   *  — server-provided so this stays in sync with `landedCost`, which already
+   *  uses the live rate. Falls back to the static default only for callers
+   *  that don't have it yet. */
+  vatRate?: number;
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -111,10 +117,13 @@ export function BulkQuote({
       ? most.lineToman - split.cheapest.lineToman
       : 0;
 
-  // Landed cost from the Shadabad warehouse to the buyer's city.
-  const km = cityDistance(city, logisticsConfig.cities) ?? 15;
+  // Landed cost from the Shadabad warehouse to the buyer's city. Fallback km
+  // and VAT rate match `landedCost` (estimate.service.ts) exactly — an
+  // unmatched city or a stale VAT constant used to quote a cheaper estimate
+  // here than the server would actually charge.
+  const km = cityDistance(city, logisticsConfig.cities) ?? 150;
   const landed = split.cheapest
-    ? estimateLogistics(split.tonnage, km, split.cheapest.lineToman, CONSTANTS.VAT_RATE, logisticsConfig)
+    ? estimateLogistics(split.tonnage, km, split.cheapest.lineToman, vatRate, logisticsConfig)
     : null;
 
   const addToInquiry = () => {
@@ -334,7 +343,7 @@ export function BulkQuote({
               <dd className="tnum">{formatToman(landed.insurance + landed.scale)}</dd>
             </div>
             <div className={styles.landedRow}>
-              <dt>ارزش افزوده (٪{toPersianDigits(Math.round(CONSTANTS.VAT_RATE * 100))})</dt>
+              <dt>ارزش افزوده (٪{toPersianDigits(Math.round(vatRate * 100))})</dt>
               <dd className="tnum">{formatToman(landed.vat)}</dd>
             </div>
             <div className={`${styles.landedRow} ${styles.landedTotal}`}>

@@ -26,8 +26,8 @@ import styles from './PriceTable.module.css';
 
 type SortKey = 'size' | 'price' | 'movement';
 
-const withVat = (price: number, vat: boolean) =>
-  vat ? Math.round(price * (1 + CONSTANTS.VAT_RATE)) : price;
+const withVat = (price: number, vat: boolean, rate: number = CONSTANTS.VAT_RATE) =>
+  vat ? Math.round(price * (1 + rate)) : price;
 
 /** Shared row comparator — used for the per-factory sections. The by-size
  *  view has its own fixed price-ascending order (with hidden prices pushed
@@ -91,13 +91,14 @@ const MAX_COMPARE = 4;
 const PriceTableRow = memo(function PriceTableRow({
   row: r,
   vat,
+  vatRate,
   isFav,
   compareChecked,
   onToggleCompare,
   onToggleFav,
   onChart,
   onAddToCart,
-}: { row: PriceRow; vat: boolean; isFav: boolean; compareChecked: boolean; onToggleCompare: (id: string) => void } & RowActions) {
+}: { row: PriceRow; vat: boolean; vatRate: number; isFav: boolean; compareChecked: boolean; onToggleCompare: (id: string) => void } & RowActions) {
   return (
     <tr>
       <td>
@@ -125,7 +126,7 @@ const PriceTableRow = memo(function PriceTableRow({
         )}
       </td>
       <td className={`${styles.num} ${styles.price}`}>
-        {priceHiddenLabel(r.current) ?? formatToman(withVat(r.current.price, vat), false)}
+        {priceHiddenLabel(r.current) ?? formatToman(withVat(r.current.price, vat, vatRate), false)}
       </td>
       <td className={styles.num}>
         <MovementBadge dir={r.current.movementDir} pct={r.current.movementPct} />
@@ -170,11 +171,12 @@ const PriceTableRow = memo(function PriceTableRow({
 const PriceTableCard = memo(function PriceTableCard({
   row: r,
   vat,
+  vatRate,
   isFav,
   onToggleFav,
   onChart,
   onAddToCart,
-}: { row: PriceRow; vat: boolean; isFav: boolean } & RowActions) {
+}: { row: PriceRow; vat: boolean; vatRate: number; isFav: boolean } & RowActions) {
   return (
     <li className={styles.card}>
       <div className={styles.cardTop}>
@@ -196,7 +198,7 @@ const PriceTableCard = memo(function PriceTableCard({
       </div>
       <div className={styles.cardPrice}>
         <span className={`${styles.price} tnum`}>
-          {priceHiddenLabel(r.current) ?? formatToman(withVat(r.current.price, vat), false)}
+          {priceHiddenLabel(r.current) ?? formatToman(withVat(r.current.price, vat, vatRate), false)}
         </span>
         <span className={styles.unit}>تومان / کیلوگرم</span>
         <MovementBadge dir={r.current.movementDir} pct={r.current.movementPct} pill />
@@ -240,13 +242,14 @@ const PriceTableCard = memo(function PriceTableCard({
 const BySizeRow = memo(function BySizeRow({
   row: r,
   vat,
+  vatRate,
   isBest,
   isFav,
   history,
   onToggleFav,
   onChart,
   onAddToCart,
-}: { row: PriceRow; vat: boolean; isBest: boolean; isFav: boolean; history?: number[] } & RowActions) {
+}: { row: PriceRow; vat: boolean; vatRate: number; isBest: boolean; isFav: boolean; history?: number[] } & RowActions) {
   return (
     <tr className={isBest ? styles.bestRow : undefined}>
       <th scope="row" className={styles.muted}>
@@ -254,7 +257,7 @@ const BySizeRow = memo(function BySizeRow({
       </th>
       <td className={`${styles.num} ${styles.price}`}>
         <div className={styles.bySizePriceCell}>
-          {priceHiddenLabel(r.current) ?? formatToman(withVat(r.current.price, vat), false)}
+          {priceHiddenLabel(r.current) ?? formatToman(withVat(r.current.price, vat, vatRate), false)}
           {isBest ? <BestPriceBadge /> : null}
         </div>
       </td>
@@ -301,13 +304,14 @@ const BySizeRow = memo(function BySizeRow({
 const BySizeCard = memo(function BySizeCard({
   row: r,
   vat,
+  vatRate,
   isBest,
   isFav,
   history,
   onToggleFav,
   onChart,
   onAddToCart,
-}: { row: PriceRow; vat: boolean; isBest: boolean; isFav: boolean; history?: number[] } & RowActions) {
+}: { row: PriceRow; vat: boolean; vatRate: number; isBest: boolean; isFav: boolean; history?: number[] } & RowActions) {
   return (
     <li className={`${styles.card} ${isBest ? styles.bestRow : ''}`}>
       <div className={styles.cardTop}>
@@ -324,7 +328,7 @@ const BySizeCard = memo(function BySizeCard({
       </div>
       <div className={styles.cardPrice}>
         <span className={`${styles.price} tnum`}>
-          {priceHiddenLabel(r.current) ?? formatToman(withVat(r.current.price, vat), false)}
+          {priceHiddenLabel(r.current) ?? formatToman(withVat(r.current.price, vat, vatRate), false)}
         </span>
         <span className={styles.unit}>تومان / کیلوگرم</span>
         {isBest ? <BestPriceBadge /> : null}
@@ -413,6 +417,7 @@ export function PriceTable({
   sub: subProp,
   onSubChange,
   initialSub = null,
+  vatRate = CONSTANTS.VAT_RATE,
 }: {
   rows: PriceRow[];
   subs: SubCat[];
@@ -424,6 +429,11 @@ export function PriceTable({
   onSubChange?: (sub: string | null) => void;
   /** Initial sub for the uncontrolled case (e.g. deep-link landing). */
   initialSub?: string | null;
+  /** Live admin-configured VAT rate (`settings.VAT_RATE`) — the «با احتساب
+   *  ارزش افزوده» toggle used to always apply the static `CONSTANTS.VAT_RATE`
+   *  default. Falls back to the same default only for callers that don't
+   *  have it yet. */
+  vatRate?: number;
 }) {
   const add = useCartStore((s) => s.add);
   const toast = useToast();
@@ -795,6 +805,7 @@ export function PriceTable({
                       key={r.id}
                       row={r}
                       vat={vat}
+                      vatRate={vatRate}
                       isBest={r.id === bestPriceId}
                       isFav={fav.has(r.id)}
                       history={bySizeHistory.get(r.id)}
@@ -814,6 +825,7 @@ export function PriceTable({
                   key={r.id}
                   row={r}
                   vat={vat}
+                  vatRate={vatRate}
                   isBest={r.id === bestPriceId}
                   isFav={fav.has(r.id)}
                   history={bySizeHistory.get(r.id)}
@@ -863,7 +875,7 @@ export function PriceTable({
                   {cheapest ? (
                     <>
                       {' '}
-                      · از {formatToman(withVat(cheapest.current.price, vat), false)} تومان
+                      · از {formatToman(withVat(cheapest.current.price, vat, vatRate), false)} تومان
                     </>
                   ) : null}
                 </span>
@@ -908,6 +920,7 @@ export function PriceTable({
                           key={r.id}
                           row={r}
                           vat={vat}
+                          vatRate={vatRate}
                           isFav={fav.has(r.id)}
                           compareChecked={compareIds.has(r.id)}
                           onToggleCompare={toggleCompare}
@@ -927,6 +940,7 @@ export function PriceTable({
                       key={r.id}
                       row={r}
                       vat={vat}
+                      vatRate={vatRate}
                       isFav={fav.has(r.id)}
                       onToggleFav={toggleFav}
                       onChart={setChartFor}
@@ -1009,7 +1023,7 @@ export function PriceTable({
                   <th scope="row">قیمت (تومان)</th>
                   {selectedForCompare.map((r) => (
                     <td key={r.id} className={styles.price}>
-                      {priceHiddenLabel(r.current) ?? formatToman(withVat(r.current.price, vat), false)}
+                      {priceHiddenLabel(r.current) ?? formatToman(withVat(r.current.price, vat, vatRate), false)}
                     </td>
                   ))}
                 </tr>

@@ -52,6 +52,7 @@ export function SkuDetail({
   subLabel: subLabelProp,
   categorySubs,
   logisticsConfig,
+  vatRate = CONSTANTS.VAT_RATE,
 }: {
   row: PriceRow;
   /** Server-provided (live mode); mock fallbacks apply when absent. */
@@ -67,6 +68,12 @@ export function SkuDetail({
   categorySubs?: SubCat[];
   /** Admin-configurable freight/insurance rates (forwarded to BulkQuote). */
   logisticsConfig?: LogisticsConfig;
+  /** Live admin-configured VAT rate (`settings.VAT_RATE`) — the hero price's
+   *  «با احتساب ارزش افزوده» toggle used to always apply the static
+   *  `CONSTANTS.VAT_RATE` default regardless of what an admin actually set,
+   *  quoting a wrong VAT-inclusive price the moment the two diverged. Falls
+   *  back to the same default only for callers that don't have it yet. */
+  vatRate?: number;
 }) {
   const add = useCartStore((s) => s.add);
   const toast = useToast();
@@ -84,7 +91,7 @@ export function SkuDetail({
   // real number or fed into the billet-comparison math below.
   const hiddenLabel = priceHiddenLabel(row.current);
   const price = vat
-    ? Math.round(row.current.price * (1 + CONSTANTS.VAT_RATE))
+    ? Math.round(row.current.price * (1 + vatRate))
     : row.current.price;
 
   // US-03.3 — compared against the raw (VAT-free) price: billet itself has
@@ -253,7 +260,7 @@ export function SkuDetail({
               <Switch checked={vat} onChange={setVat} label="با احتساب ارزش افزوده" />
               <span className={styles.vatNote}>
                 {vat
-                  ? `شامل ${toPersianDigits(CONSTANTS.VAT_RATE * 100)}٪ مالیات بر ارزش افزوده`
+                  ? `شامل ${toPersianDigits(vatRate * 100)}٪ مالیات بر ارزش افزوده`
                   : 'بدون احتساب ارزش افزوده'}
               </span>
             </div>
@@ -340,7 +347,7 @@ export function SkuDetail({
       </section>
 
       {/* ===== Bulk / per-factory split ===== */}
-      <BulkQuote category={row.categoryId} categoryName={categoryName} rows={categoryRows} subs={categorySubs} logisticsConfig={logisticsConfig} />
+      <BulkQuote category={row.categoryId} categoryName={categoryName} rows={categoryRows} subs={categorySubs} logisticsConfig={logisticsConfig} vatRate={vatRate} />
 
       {/* ===== Related ===== */}
       {related.length > 0 ? (
