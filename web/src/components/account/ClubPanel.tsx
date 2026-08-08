@@ -1,10 +1,11 @@
 import { toPersianDigits } from '@/lib/utils/format';
 import { CLUB_TIER_META, CLUB_TIERS_ORDERED, type ClubTierKey } from '@/lib/data/club';
-import type { ClubStatus } from '@/lib/server/repos/clubRepo';
+import type { ClubStatus, Letterhead } from '@/lib/server/repos/clubRepo';
 import { Badge } from '@/components/ui';
 import { StarIcon, CheckCircleIcon } from '@/components/primitives/icons';
 import { JoinClubButton } from './JoinClubButton';
 import { InviteCode } from './InviteCode';
+import { LetterheadForm } from './LetterheadForm';
 import styles from './ClubPanel.module.css';
 
 /**
@@ -16,7 +17,18 @@ import styles from './ClubPanel.module.css';
  */
 const fa = (n: number) => toPersianDigits(n.toLocaleString('en-US'));
 
-export function ClubPanel({ status, inviteCode }: { status: ClubStatus; inviteCode?: string }) {
+export function ClubPanel({
+  status,
+  inviteCode,
+  letterhead,
+}: {
+  status: ClubStatus;
+  inviteCode?: string;
+  /** Only ever passed for a پولادی member (see the account page's tab
+   *  handler) — its mere presence, not a separate tier check here, is what
+   *  decides whether the letterhead editor renders below. */
+  letterhead?: Letterhead | null;
+}) {
   if (!status.member) {
     return (
       <div className={styles.joinWrap}>
@@ -132,6 +144,8 @@ export function ClubPanel({ status, inviteCode }: { status: ClubStatus; inviteCo
           );
         })}
       </section>
+
+      {letterhead ? <LetterheadForm initial={letterhead} /> : null}
 
       {inviteCode ? <InviteCode code={inviteCode} /> : null}
     </div>
