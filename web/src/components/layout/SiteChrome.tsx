@@ -58,7 +58,7 @@ export function SiteChromeBottom({ categories, contact }: { categories: Category
       <Footer categories={categories} contact={contact} />
       <BottomTabBar />
       <ArrivalPopup />
-      <CallbackWidget />
+      <CallbackWidget phoneLandline={contact.phoneLandline} />
     </>
   );
 }
