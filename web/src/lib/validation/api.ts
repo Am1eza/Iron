@@ -27,6 +27,19 @@ export const profileUpdatePayload = z.object({
   lastName: z.string().trim().min(1).max(40),
 });
 
+/**
+ * PUT /api/me/letterhead — پولادی-tier custom پیش‌فاکتور letterhead. All
+ * fields optional and independently clearable (empty string → null) so a
+ * member can fill this in gradually rather than all-at-once; the route still
+ * requires at least logoUrl + companyName before treating it as "usable" on a
+ * proforma (see isLetterheadUsable in components/proforma).
+ */
+export const letterheadUpdatePayload = z.object({
+  companyName: z.string().trim().max(80).optional(),
+  address: z.string().trim().max(300).optional(),
+  phone: z.string().trim().max(20).optional(),
+});
+
 export const leadPayload = z.object({
   contact: z.object({ name: z.string().max(60).optional(), mobile: mobileSchema }),
   items: z
