@@ -72,7 +72,7 @@ export function formatTomanCompact(value: number): string {
 
 /** Format نوسان percent with sign + Persian digits (color/arrow handled in UI). */
 export function formatMovement(pct: number | undefined): string {
-  if (pct === undefined || Number.isNaN(pct)) return '—';
+  if (pct === undefined || Number.isNaN(pct)) return '';
   const sign = pct > 0 ? '+' : pct < 0 ? '−' : '';
   return `${sign}${toPersianDigits(Math.abs(pct).toFixed(2))}٪`;
 }

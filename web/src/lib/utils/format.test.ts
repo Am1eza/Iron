@@ -41,8 +41,8 @@ describe('formatMovement', () => {
   it('uses a minus sign (U+2212) for losses', () => {
     expect(formatMovement(-0.3)).toBe('−۰.۳۰٪');
   });
-  it('renders a dash for undefined', () => {
-    expect(formatMovement(undefined)).toBe('—');
+  it('renders an empty string for undefined (no dash — the badge shows nothing)', () => {
+    expect(formatMovement(undefined)).toBe('');
   });
 });
 

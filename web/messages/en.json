@@ -68,7 +68,7 @@
     "badgeRegistered": "Business Registered",
     "badgeUnion": "Iron Sellers Union Member",
     "blurb": "The smart iron & steel marketplace: an AI advisor, transparent live pricing, and clear delivery times.",
-    "rights": "© {year} Ahan Time — All rights reserved."
+    "rights": "© {year} Ahan Time. All rights reserved."
   },
   "auth": {
     "mobileLabel": "Mobile Number",
@@ -95,7 +95,7 @@
     "subtitle": "Sign in with your mobile number in seconds.",
     "verifyTitle": "Verify your number",
     "registerTitle": "Complete your registration",
-    "registerSubtitle": "This number is new — enter the code sent to {mobile} and complete your details.",
+    "registerSubtitle": "This number is new; enter the code sent to {mobile} and complete your details.",
     "newUserBadge": "New account",
     "registerNameSubtitle": "Your account is ready. Enter your first and last name to finish signing up.",
     "completeRegistration": "Finish signing up"
@@ -108,7 +108,7 @@
     "noCountry": "No country found"
   },
   "metadata": {
-    "title": "Ahan Time — Smart Iron & Steel Marketplace",
+    "title": "Ahan Time: Smart Iron & Steel Marketplace",
     "description": "Ahan Time, the smart iron & steel marketplace: an AI advisor, transparent real-time pricing, and clear delivery times. Consult first, then buy."
   },
   "contact": {

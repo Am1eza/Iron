@@ -41,7 +41,7 @@ export function MovementBadge({
    *  below WCAG AA against a permanently-dark background. */
   onPanel?: boolean;
 }) {
-  const arrow = dir === 'up' ? '▲' : dir === 'down' ? '▼' : '—';
+  const arrow = dir === 'up' ? '▲' : dir === 'down' ? '▼' : '';
   const cls = dir === 'up' ? styles.up : dir === 'down' ? styles.down : styles.flat;
   const label = dir === 'up' ? 'افزایش' : dir === 'down' ? 'کاهش' : 'بدون تغییر';
   return (
