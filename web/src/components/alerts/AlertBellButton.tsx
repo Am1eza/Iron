@@ -131,7 +131,7 @@ export function AlertBellButton({
       void qc.invalidateQueries({ queryKey: queryKeys.myAlerts() });
       setOpen(false);
       if (merged) {
-        toast.success(`این هشدار از قبل برای شما فعال است — «${target.label}».`, {
+        toast.success(`این هشدار از قبل برای شما فعال است: «${target.label}».`, {
           label: 'مشاهده در حساب من',
           href: routes.account('alerts'),
         });
@@ -169,7 +169,7 @@ export function AlertBellButton({
     create.mutate(values);
   };
 
-  const bellLabel = activeAlert ? 'هشدار قیمت فعال — مدیریت' : 'ثبت هشدار قیمت';
+  const bellLabel = activeAlert ? 'هشدار قیمت فعال؛ مدیریت' : 'ثبت هشدار قیمت';
 
   return (
     <>
@@ -203,7 +203,7 @@ export function AlertBellButton({
             </p>
             {activeAlert ? (
               <p className={styles.hint}>
-                این هشدار از قبل فعال است. اگر مقدار زیر را تغییر دهید و ثبت کنید، یک هشدار جداگانه اضافه می‌شود — برای
+                این هشدار از قبل فعال است. اگر مقدار زیر را تغییر دهید و ثبت کنید، یک هشدار جداگانه اضافه می‌شود؛ برای
                 جایگزینی، اول همین هشدار را حذف کنید.
               </p>
             ) : null}

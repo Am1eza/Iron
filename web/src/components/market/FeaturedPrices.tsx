@@ -57,8 +57,8 @@ export function FeaturedPrices({ rows }: { rows: PriceRow[] }) {
                   <th scope="row" className={styles.name}>
                     {r.name}
                   </th>
-                  <td>{r.size ? toPersianDigits(r.size) : '—'}</td>
-                  <td className={styles.muted}>{r.factory ?? '—'}</td>
+                  <td>{r.size ? toPersianDigits(r.size) : 'نامشخص'}</td>
+                  <td className={styles.muted}>{r.factory ?? 'نامشخص'}</td>
                   <td className={`${styles.num} ${styles.price}`}>
                     {priceHiddenLabel(r.current) ?? formatToman(r.current.price, false)}
                   </td>
@@ -119,11 +119,11 @@ export function FeaturedPrices({ rows }: { rows: PriceRow[] }) {
               <dl className={styles.cardMeta}>
                 <div>
                   <dt>سایز</dt>
-                  <dd className="tnum">{r.size ? toPersianDigits(r.size) : '—'}</dd>
+                  <dd className="tnum">{r.size ? toPersianDigits(r.size) : 'نامشخص'}</dd>
                 </div>
                 <div>
                   <dt>کارخانه</dt>
-                  <dd>{r.factory ?? '—'}</dd>
+                  <dd>{r.factory ?? 'نامشخص'}</dd>
                 </div>
                 <div>
                   <dt>زمان تحویل</dt>

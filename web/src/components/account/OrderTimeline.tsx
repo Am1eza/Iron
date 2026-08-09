@@ -31,10 +31,10 @@ export function OrderTimeline({ status, cancelled = false }: { status: ShipmentS
 
   return (
     <>
-      {cancelled ? <p className={styles.cancelledNote}>این سفارش لغو شد — تا مرحلهٔ «{currentLabel}» پیش رفته بود.</p> : null}
+      {cancelled ? <p className={styles.cancelledNote}>این سفارش لغو شد؛ تا مرحلهٔ «{currentLabel}» پیش رفته بود.</p> : null}
       <ol
         className={`${styles.timeline} ${cancelled ? styles.cancelled : ''}`}
-        aria-label={cancelled ? `سفارش لغوشده — تا مرحلهٔ ${currentLabel}` : `وضعیت سفارش: ${currentLabel}`}
+        aria-label={cancelled ? `سفارش لغوشده: تا مرحلهٔ ${currentLabel}` : `وضعیت سفارش: ${currentLabel}`}
       >
         {SHIPMENT_STEPS.map((step, i) => {
           const state = i < currentIndex ? 'done' : i === currentIndex ? (cancelled ? 'done' : 'current') : 'future';

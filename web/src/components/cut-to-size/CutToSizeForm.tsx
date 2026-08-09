@@ -90,7 +90,7 @@ export function CutToSizeForm() {
     // Mock/demo mode only — no server round trip to fail, so no try/catch.
     const created = addRequest({
       type: 'cutToSize',
-      title: `کالا با ابعاد درخواستی — ${values.product}`,
+      title: `کالا با ابعاد درخواستی: ${values.product}`,
       detail: `ابعاد درخواستی: ${clean.requestedDimensions} · مقدار: ${clean.quantity}`,
       note: clean.notes,
     });

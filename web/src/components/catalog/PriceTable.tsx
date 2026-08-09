@@ -114,15 +114,15 @@ const PriceTableRow = memo(function PriceTableRow({
           {r.name}
         </Link>
       </th>
-      <td>{r.size ? toPersianDigits(r.size) : '—'}</td>
-      <td className={styles.muted}>{r.factory ?? '—'}</td>
+      <td>{r.size ? toPersianDigits(r.size) : 'نامشخص'}</td>
+      <td className={styles.muted}>{r.factory ?? 'نامشخص'}</td>
       <td className={styles.num}>
         {r.theoreticalWeightKg ? (
           <>
             {toPersianDigits(r.theoreticalWeightKg)} <bdi lang="en">kg</bdi>
           </>
         ) : (
-          '—'
+          'نامشخص'
         )}
       </td>
       <td className={`${styles.num} ${styles.price}`}>
@@ -204,7 +204,7 @@ const PriceTableCard = memo(function PriceTableCard({
         <MovementBadge dir={r.current.movementDir} pct={r.current.movementPct} pill />
       </div>
       <div className={styles.cardMeta}>
-        <span>کارخانه: {r.factory ?? '—'}</span>
+        <span>کارخانه: {r.factory ?? 'نامشخص'}</span>
         {/* size intentionally omitted — the product name already ends in it */}
         {r.theoreticalWeightKg ? (
           <span>
@@ -253,7 +253,7 @@ const BySizeRow = memo(function BySizeRow({
   return (
     <tr className={isBest ? styles.bestRow : undefined}>
       <th scope="row" className={styles.muted}>
-        {r.factory ?? '—'}
+        {r.factory ?? 'نامشخص'}
       </th>
       <td className={`${styles.num} ${styles.price}`}>
         <div className={styles.bySizePriceCell}>
@@ -315,7 +315,7 @@ const BySizeCard = memo(function BySizeCard({
   return (
     <li className={`${styles.card} ${isBest ? styles.bestRow : ''}`}>
       <div className={styles.cardTop}>
-        <span className={styles.cardName}>{r.factory ?? '—'}</span>
+        <span className={styles.cardName}>{r.factory ?? 'نامشخص'}</span>
         <div className={styles.cardTopActions}>
           <IconButton
             size="sm"
@@ -1004,19 +1004,19 @@ export function PriceTable({
                 <tr>
                   <th scope="row">سایز</th>
                   {selectedForCompare.map((r) => (
-                    <td key={r.id}>{r.size ? toPersianDigits(r.size) : '—'}</td>
+                    <td key={r.id}>{r.size ? toPersianDigits(r.size) : 'نامشخص'}</td>
                   ))}
                 </tr>
                 <tr>
                   <th scope="row">کارخانه</th>
                   {selectedForCompare.map((r) => (
-                    <td key={r.id}>{r.factory ?? '—'}</td>
+                    <td key={r.id}>{r.factory ?? 'نامشخص'}</td>
                   ))}
                 </tr>
                 <tr>
                   <th scope="row">وزن شاخه</th>
                   {selectedForCompare.map((r) => (
-                    <td key={r.id}>{r.theoreticalWeightKg ? `${toPersianDigits(r.theoreticalWeightKg)} kg` : '—'}</td>
+                    <td key={r.id}>{r.theoreticalWeightKg ? `${toPersianDigits(r.theoreticalWeightKg)} kg` : 'نامشخص'}</td>
                   ))}
                 </tr>
                 <tr>

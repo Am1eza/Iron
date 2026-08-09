@@ -80,7 +80,7 @@ const META: Record<'blog' | 'news', { title: string; description: string; feed: 
 export function indexMetadata(type: 'blog' | 'news', page: number): Metadata {
   const m = META[type];
   const base = buildMetadata({
-    title: page > 1 ? `${m.title} — صفحهٔ ${page}` : m.title,
+    title: page > 1 ? `${m.title}، صفحهٔ ${page}` : m.title,
     description: m.description,
     path: archiveHref(type, page),
   });

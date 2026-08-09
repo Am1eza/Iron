@@ -38,13 +38,13 @@ export function ClubPanel({
         <h3 className={styles.joinTitle}>به باشگاه مشتریان آهن‌تایم بپیوندید</h3>
         <p className={styles.joinLead}>
           عضویت رایگان است. با هر سفارش، تکمیل پروفایل و احراز هویت، امتیاز می‌گیرید و سطح‌تان بالا
-          می‌رود — از تخفیف پلکانی تا مشاور اختصاصی.
+          می‌رود؛ از تخفیف پلکانی تا مشاور اختصاصی.
         </p>
         <JoinClubButton />
         <ul className={styles.ladderPreview}>
           {CLUB_TIERS_ORDERED.map((t) => (
             <li key={t.key}>
-              <strong>{t.name}</strong> — {t.tagline}
+              <strong>{t.name}</strong>: {t.tagline}
             </li>
           ))}
         </ul>
@@ -90,7 +90,7 @@ export function ClubPanel({
                 </>
               ) : (
                 <>
-                  <strong className="tnum">{fa(status.points)}</strong> امتیاز جمع کرده‌اید — در مسیر{' '}
+                  <strong className="tnum">{fa(status.points)}</strong> امتیاز جمع کرده‌اید، در مسیر{' '}
                   <strong>{next.tierName}</strong>
                 </>
               )}
@@ -103,7 +103,7 @@ export function ClubPanel({
       ) : (
         <section className={styles.progress}>
           <Badge tone="action">بالاترین سطح باشگاه</Badge>
-          <span className={styles.topNote}>به بالاترین سطح رسیده‌اید — از همهٔ مزایا بهره‌مندید.</span>
+          <span className={styles.topNote}>به بالاترین سطح رسیده‌اید؛ از همهٔ مزایا بهره‌مندید.</span>
         </section>
       )}
 
@@ -171,7 +171,7 @@ function BreakdownRow({
         {count !== undefined ? <span className={styles.breakdownCount}> ({toPersianDigits(count)})</span> : null}
       </span>
       <span className={`${styles.breakdownPoints} tnum`}>
-        {points > 0 ? `+${toPersianDigits(points)}` : done ? '✓' : '—'}
+        {points > 0 ? `+${toPersianDigits(points)}` : done ? '✓' : '۰'}
       </span>
     </li>
   );

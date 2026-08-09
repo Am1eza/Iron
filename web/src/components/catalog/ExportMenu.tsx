@@ -16,9 +16,9 @@ const COLS = ['محصول', 'سایز', 'کارخانه', 'وزن شاخه (kg)'
 function rowCells(r: PriceRow): string[] {
   return [
     r.name,
-    r.size ? toPersianDigits(r.size) : '—',
-    r.factory ?? '—',
-    r.theoreticalWeightKg ? toPersianDigits(String(r.theoreticalWeightKg)) : '—',
+    r.size ? toPersianDigits(r.size) : 'نامشخص',
+    r.factory ?? 'نامشخص',
+    r.theoreticalWeightKg ? toPersianDigits(String(r.theoreticalWeightKg)) : 'نامشخص',
     priceHiddenLabel(r.current) ?? formatToman(r.current.price, false),
     formatMovement(r.current.movementPct),
     r.current.deliveryTime,
@@ -84,7 +84,7 @@ export function ExportMenu({ rows, title }: { rows: PriceRow[]; title: string })
     const body = rows
       .map((r) => `<tr>${rowCells(r).map((c) => `<td>${c}</td>`).join('')}</tr>`)
       .join('');
-    win.document.write(`<!doctype html><html dir="rtl" lang="fa"><head><meta charset="utf-8"><title>${title} — آهن‌تایم</title>
+    win.document.write(`<!doctype html><html dir="rtl" lang="fa"><head><meta charset="utf-8"><title>${title}، آهن‌تایم</title>
       <style>
         body{font-family:Tahoma,sans-serif;color:#171C22;padding:24px;}
         .bar{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #171C22;padding-bottom:12px;margin-bottom:16px;}

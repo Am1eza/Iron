@@ -31,7 +31,7 @@ export function BottomTabBar() {
       <Link
         href={routes.ai()}
         className={styles.ai}
-        aria-label="آهن‌تایم — مشاور هوشمند"
+        aria-label="آهن‌تایم، مشاور هوشمند"
         aria-current={isActive(routes.ai()) ? 'page' : undefined}
         data-event="ai_entry"
       >

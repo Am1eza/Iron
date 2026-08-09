@@ -109,7 +109,7 @@ export function AlertsList() {
                 <bdi className="tnum">{formatAlertValue(a.currentValue, a.target)}</bdi>
                 {dist ? (
                   dist.crossed ? (
-                    <Badge tone="warning">به شرط هشدار رسیده — به‌زودی پیامک می‌گیرید</Badge>
+                    <Badge tone="warning">به شرط هشدار رسیده؛ به‌زودی پیامک می‌گیرید</Badge>
                   ) : dist.near ? (
                     <Badge tone="warning">٪{toPersianDigits(dist.pct.toFixed(1))} فاصله تا رسیدن</Badge>
                   ) : (

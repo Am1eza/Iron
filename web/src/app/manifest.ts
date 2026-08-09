@@ -5,7 +5,7 @@ export const dynamic = 'force-static';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'آهن‌تایم — بازار هوشمند آهن و فولاد',
+    name: 'آهن‌تایم، بازار هوشمند آهن و فولاد',
     short_name: 'آهن‌تایم',
     description: 'مشاور هوش مصنوعی، قیمت‌های شفاف و لحظه‌ای و زمان تحویل مشخص. اول مشورت، بعد خرید.',
     start_url: '/',

@@ -5,7 +5,7 @@ import { AdvisorChat, GREETING_TEXT } from '@/components/ai/AdvisorChat';
 import { PURPOSE_CHIPS } from '@/lib/data/aiTaxonomy';
 
 export const metadata: Metadata = buildMetadata({
-  title: 'مشاور هوشمند آهن‌تایم — اول مشورت، بعد خرید',
+  title: 'مشاور هوشمند آهن‌تایم: اول مشورت، بعد خرید',
   description: 'از آهن‌تایم بپرسید؛ اول می‌پرسد برای چه کاری، بعد مقدار، وزن و هزینهٔ پروژه را حساب می‌کند.',
   path: routes.ai(),
 });

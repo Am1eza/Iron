@@ -91,7 +91,7 @@ export function WarehouseForm() {
     // Mock/demo mode only — no server round trip to fail, so no try/catch.
     const created = addRequest({
       type: 'warehouse',
-      title: `نگهداری ${values.product} — ${toPersianDigits(quantityTons)} تن`,
+      title: `نگهداری ${values.product}، ${toPersianDigits(quantityTons)} تن`,
       detail: `مدت نگهداری: ${values.duration}`,
       note: values.notes?.trim() || undefined,
     });

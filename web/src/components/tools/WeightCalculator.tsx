@@ -136,7 +136,7 @@ const PLATE_TABLE: ReferenceTable = {
 
 const PIPE_STANDARD_THICKNESS_MM = 2;
 const PIPE_TABLE: ReferenceTable = perMeterTable(
-  `قطر خارجی (mm) — ضخامت ${toPersianDigits(PIPE_STANDARD_THICKNESS_MM)}mm`,
+  `قطر خارجی (mm)، ضخامت ${toPersianDigits(PIPE_STANDARD_THICKNESS_MM)}mm`,
   6,
   [21.3, 26.7, 33.4, 42.2, 48.3, 60.3, 73, 88.9, 114.3],
   (od) => (od - PIPE_STANDARD_THICKNESS_MM) * PIPE_STANDARD_THICKNESS_MM * 0.02466,
@@ -489,7 +489,7 @@ export function WeightCalculator() {
                   </>
                 ) : (
                   <span className={styles.empty}>
-                    {invalidGeometry ? 'ابعاد واردشده برای این مقطع معتبر نیست.' : '— مقادیر را وارد کنید'}
+                    {invalidGeometry ? 'ابعاد واردشده برای این مقطع معتبر نیست.' : 'مقادیر را وارد کنید'}
                   </span>
                 )}
               </p>
@@ -508,7 +508,7 @@ export function WeightCalculator() {
                     <span className={styles.valueUnit}>کیلوگرم</span>
                   </>
                 ) : (
-                  <span className={styles.empty}>—</span>
+                  <span className={styles.empty}>بدون مقدار</span>
                 )}
               </p>
               {total !== null && total >= 1000 ? (

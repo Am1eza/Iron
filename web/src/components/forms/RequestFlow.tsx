@@ -54,7 +54,7 @@ export function RequestFlow() {
           <div className={styles.successProforma}>
             <p className="tnum">
               پیش‌فاکتور شما صادر شد
-              {done.total ? <> — مبلغ {formatToman(done.total)}</> : null}
+              {done.total ? <>، مبلغ {formatToman(done.total)}</> : null}
             </p>
             <Link
               href={`/proforma/${encodeURIComponent(done.proformaRef)}`}

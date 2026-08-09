@@ -494,7 +494,7 @@ export function AdvisorChat({
           schedulePaint();
         } else if (ev.type === 'lead') {
           if (ev.ref) {
-            const amount = ev.total ? ` — مبلغ ${formatToman(ev.total)}` : '';
+            const amount = ev.total ? `، مبلغ ${formatToman(ev.total)}` : '';
             leadLine = `درخواستت ثبت شد؛ کد پیگیری: ${toPersianDigits(ev.ref)}${amount}`;
           }
         } else if (ev.type === 'chips') {

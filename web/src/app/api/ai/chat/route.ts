@@ -43,7 +43,7 @@ const payload = z.object({
  * fallback is the human path, not an apology.
  */
 const AI_UNAVAILABLE_MESSAGE =
-  'دستیار هوشمند موقتاً در دسترس نیست. قیمت‌های لحظه‌ای و ابزارها در دسترس‌اند، و کارشناسان ما پاسخگوی شما هستند — درخواست مشاوره ثبت کنید تا تماس بگیریم.';
+  'دستیار هوشمند موقتاً در دسترس نیست. قیمت‌های لحظه‌ای و ابزارها در دسترس‌اند، و کارشناسان ما پاسخگوی شما هستند؛ درخواست مشاوره ثبت کنید تا تماس بگیریم.';
 
 /** The AI_TIMEOUT_MS deadline firing, as opposed to a real failure. Matched by
  *  NAME, not identity: it is raised by `AbortSignal.timeout` inside the

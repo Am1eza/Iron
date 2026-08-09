@@ -164,17 +164,17 @@ export function SkuDetail({
   };
 
   const specs: { label: string; value: string }[] = [
-    { label: 'سایز', value: row.size ? toPersianDigits(row.size) : '—' },
+    { label: 'سایز', value: row.size ? toPersianDigits(row.size) : 'نامشخص' },
     {
       label: row.categoryId === 'rebar' ? 'گرید' : 'گرید / استاندارد',
-      value: row.grade ?? row.standard ?? '—',
+      value: row.grade ?? row.standard ?? 'نامشخص',
     },
-    { label: 'کارخانه', value: row.factory ?? '—' },
+    { label: 'کارخانه', value: row.factory ?? 'نامشخص' },
     {
       label: 'وزن شاخه',
       value: row.theoreticalWeightKg
         ? `${toPersianDigits(row.theoreticalWeightKg)} کیلوگرم`
-        : '—',
+        : 'نامشخص',
     },
     { label: 'واحد فروش', value: 'کیلوگرم' },
     { label: 'زمان تحویل', value: toPersianDigits(row.current.deliveryTime) },

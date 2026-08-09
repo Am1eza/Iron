@@ -131,7 +131,7 @@ export function BulkQuote({
     if (!best) return;
     add({
       skuId: `bulk-${category}-${best.factory}`,
-      name: `${categoryName} عمده — کارخانهٔ ${best.factory}`,
+      name: `${categoryName} عمده، کارخانهٔ ${best.factory}`,
       qty: split.totalKg,
       unit: 'kg',
       unitPrice: best.pricePerKg,
@@ -367,7 +367,7 @@ export function BulkQuote({
               const best = split.cheapest;
               addRequest({
                 type: 'bulk',
-                title: `پیش‌فاکتور ${categoryName} عمده — ${toPersianDigits(split.tonnage)} تن`,
+                title: `پیش‌فاکتور ${categoryName} عمده، ${toPersianDigits(split.tonnage)} تن`,
                 detail: best
                   ? `پیشنهاد سیستم: کارخانهٔ ${best.factory} · ${formatToman(best.pricePerKg, false)} تومان بر کیلوگرم`
                   : undefined,

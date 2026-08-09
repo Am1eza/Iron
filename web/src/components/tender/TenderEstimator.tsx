@@ -199,7 +199,7 @@ export function TenderEstimator({
         </p>
         {done.proformaRef ? (
           <div className={styles.successProforma}>
-            <p className="tnum">پیش‌فاکتور شما صادر شد{done.total ? <> — مبلغ {formatToman(done.total)}</> : null}</p>
+            <p className="tnum">پیش‌فاکتور شما صادر شد{done.total ? <>، مبلغ {formatToman(done.total)}</> : null}</p>
             <Link
               href={`/proforma/${encodeURIComponent(done.proformaRef)}`}
               className={styles.pdfBtn}
@@ -288,7 +288,7 @@ export function TenderEstimator({
                         ))}
                       </select>
                     ) : (
-                      <span className={styles.dash}>—</span>
+                      <span className={styles.dash}>نامشخص</span>
                     )}
                   </td>
                   <td data-label="کارخانه">
@@ -303,12 +303,12 @@ export function TenderEstimator({
                           <option key={f.skuId} value={f.skuId}>
                             {f.factory}
                             {f.unitPrice == null ? ' (استعلام)' : ''}
-                            {f.cheapest ? ' — ارزان‌ترین' : ''}
+                            {f.cheapest ? '، ارزان‌ترین' : ''}
                           </option>
                         ))}
                       </select>
                     ) : (
-                      <span className={styles.dash}>{row.loading ? '…' : '—'}</span>
+                      <span className={styles.dash}>{row.loading ? '…' : 'نامشخص'}</span>
                     )}
                   </td>
                   <td data-label="مقدار">
@@ -322,13 +322,13 @@ export function TenderEstimator({
                     />
                   </td>
                   <td data-label="وزن" className="tnum">
-                    {line?.weightKg != null ? `${toPersianDigits(line.weightKg)} کیلوگرم` : <span className={styles.dash}>—</span>}
+                    {line?.weightKg != null ? `${toPersianDigits(line.weightKg)} کیلوگرم` : <span className={styles.dash}>نامشخص</span>}
                   </td>
                   <td data-label="قیمت واحد" className="tnum">
                     {line?.priced ? formatToman(line.unitPrice!, false) : <span className={styles.quote}>استعلام</span>}
                   </td>
                   <td data-label="جمع ردیف" className="tnum">
-                    {line?.priced ? formatToman(line.lineTotal!, false) : <span className={styles.dash}>—</span>}
+                    {line?.priced ? formatToman(line.lineTotal!, false) : <span className={styles.dash}>نامشخص</span>}
                   </td>
                   <td>
                     <button
@@ -360,15 +360,15 @@ export function TenderEstimator({
         <dl className={styles.totals}>
           <div>
             <dt>جمع کل (بدون مالیات)</dt>
-            <dd className="tnum">{quote ? formatToman(quote.subtotal) : '—'}</dd>
+            <dd className="tnum">{quote ? formatToman(quote.subtotal) : 'نامشخص'}</dd>
           </div>
           <div>
             <dt>مالیات بر ارزش افزوده{quote ? ` (${toPersianDigits(Math.round(quote.vatRate * 100))}٪)` : ''}</dt>
-            <dd className="tnum">{quote ? formatToman(quote.vatAmount) : '—'}</dd>
+            <dd className="tnum">{quote ? formatToman(quote.vatAmount) : 'نامشخص'}</dd>
           </div>
           <div className={styles.grand}>
             <dt>مبلغ نهایی</dt>
-            <dd className="tnum">{quote ? formatToman(quote.grandTotal) : '—'}</dd>
+            <dd className="tnum">{quote ? formatToman(quote.grandTotal) : 'نامشخص'}</dd>
           </div>
         </dl>
         {quote && !quote.allPriced ? (
