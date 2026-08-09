@@ -5,6 +5,7 @@ import { routes } from '@/lib/routes';
 import { Container, Section, Stack, Heading, Text, Breadcrumbs } from '@/components/ui';
 import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
 import { ToolRenderer, type ToolSlug } from '@/components/tools/ToolRenderer';
+import { ProjectEstimatorGuide } from '@/components/tools/ProjectEstimatorGuide';
 
 const TOOLS: Record<ToolSlug, { title: string; intro: string }> = {
   weight: {
@@ -74,6 +75,8 @@ export default async function ToolPage({ params }: Params) {
           </Stack>
 
           <ToolRenderer tool={tool} />
+
+          {tool === 'project' ? <ProjectEstimatorGuide /> : null}
         </Stack>
       </Section>
     </Container>

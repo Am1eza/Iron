@@ -272,3 +272,19 @@ export function articleJsonLd(a: {
     publisher: { '@type': 'Organization', name: BRAND, logo: { '@type': 'ImageObject', url: LOGO_URL } },
   };
 }
+
+/** FAQPage schema — the standard structured-data surface answer engines (Google's
+ *  "People also ask", AI Overviews, voice assistants) extract self-contained
+ *  Q&A pairs from. Each `answer` must stand alone (no "as shown above") since
+ *  it is quoted out of page context by the consumer, not rendered in place. */
+export function faqJsonLd(items: { question: string; answer: string }[]) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: items.map((it) => ({
+      '@type': 'Question',
+      name: it.question,
+      acceptedAnswer: { '@type': 'Answer', text: it.answer },
+    })),
+  };
+}
