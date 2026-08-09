@@ -4,7 +4,7 @@ import { useCartStore } from '@/lib/stores/cart';
 import { useToast } from '@/lib/hooks/useToast';
 import { routes } from '@/lib/routes';
 import { toPersianDigits, normalizeDigits } from '@/lib/utils/format';
-import { unitWeightKg, IBEAM_KG_PER_M, CHANNEL_KG_PER_M } from '@/lib/utils/weight';
+import { unitWeightKg, IBEAM_KG_PER_M, CHANNEL_KG_PER_M, ANGLE_KG_PER_M } from '@/lib/utils/weight';
 import { Card, Stack, Cluster, Text, Alert } from '@/components/ui';
 import { Button } from '@/components/ui';
 import { PlusIcon, CheckCircleIcon, ChevronDownIcon } from '@/components/primitives/icons';
@@ -20,18 +20,21 @@ import styles from './WeightCalculator.module.css';
  * وزن‌سنج API route and the AI advisor's calcWeight tool call. This page used
  * to carry its own copy, which is how the site could quote a customer one
  * weight here and a different one in chat. What stays local is presentation:
- * which fields to ask for, and the Persian formula string shown underneath.
+ * which fields to ask for, the Persian formula string shown underneath, and
+ * (audit-2026-08-09) a static reference table per profile — see
+ * `REFERENCE_TABLES` below.
  *
- * audit-2026-08-09: this used to have one combined «نبشی/تسمه» tab whose hint
- * claimed to cover BOTH a flat bar and an equal-leg angle, but only ever ran
- * the flat-bar formula — an angle iron (two legs) weighs roughly double a
- * flat bar of the same "width"/leg and thickness, so a customer using this
- * for a real نبشی quote got a number ~47% under what they'd actually be
- * charged. Split into two honest tabs, «تسمه» and «نبشی», each calling its
- * own already-correct formula in `weight.ts`. Also added «تیرآهن»/«ناودانی»
- * (mill-table lookups, already supported by `weight.ts`/the AI advisor but
- * never exposed here) so a customer can self-serve for every catalog family
- * this site actually sells, not just four of seven.
+ * audit-2026-08-08/09: this used to have one combined «نبشی/تسمه» tab whose
+ * hint claimed to cover BOTH a flat bar and an equal-leg angle, but only ever
+ * ran the flat-bar formula — split into two honest tabs. Added «تیرآهن»/
+ * «ناودانی» (mill-table lookups, already supported by `weight.ts`/the AI
+ * advisor but never exposed here). Then cross-checked every shape against
+ * مرکزآهن's published جدول‌وزن pages (Amir's explicit request) — تیرآهن/
+ * ناودانی's tables and نبشی's standard sizes were updated in `weight.ts` to
+ * match their published numbers exactly; «نبشی» switched from free-dimension
+ * input to a catalog-size select (like ibeam/channel), since the geometric
+ * approximation drifted up to ~5% for larger legs — bigger than a customer
+ * comparing against the bazaar reference should see.
  */
 
 type Profile = 'rebar' | 'plate' | 'pipe' | 'flat' | 'angle' | 'ibeam' | 'channel';
@@ -41,10 +44,18 @@ type Field = {
   label: string;
   unit: string;
   placeholder: string;
-  /** 'select' for mill-table sizes (ibeam/channel) — a free-text mm/m value
-   *  has no meaning there, only the published size codes do. */
+  /** 'select' for mill-table sizes (ibeam/channel/angle) — a free-text mm/m
+   *  value has no meaning there, only the published size codes do. */
   type?: 'text' | 'select';
   options?: { value: string; label: string }[];
+};
+
+/** Fully generic — plate's real published table (t/w/L/weight-per-sheet, no
+ *  "per meter" column since a sheet isn't a length-sold product) needs a
+ *  different shape from the bar/profile shapes, so this doesn't force one. */
+type ReferenceTable = {
+  headers: string[];
+  rows: string[][];
 };
 
 type ProfileSpec = {
@@ -62,6 +73,10 @@ type ProfileSpec = {
    *  absolute (plate). */
   perMeter: boolean;
   pieceWord: string; // شاخه | برگ
+  /** Static published-size reference table shown under the calculator,
+   *  matching مرکزآهن's own جدول‌وزن pages — Amir's explicit request
+   *  (2026-08-09) after a page-by-page formula comparison against them. */
+  referenceTable?: ReferenceTable;
 };
 
 const sizeOptions = (table: Readonly<Record<string, number>>) =>
@@ -69,6 +84,99 @@ const sizeOptions = (table: Readonly<Record<string, number>>) =>
     .map(Number)
     .sort((a, b) => a - b)
     .map((n) => ({ value: String(n), label: toPersianDigits(n) }));
+
+/** Standard thickness that ships with each published نبشی leg size — display
+ *  only (the live calc reads the weight straight from `ANGLE_KG_PER_M`). */
+const ANGLE_STANDARD_THICKNESS_MM: Readonly<Record<string, number>> = {
+  '30': 3, '40': 4, '50': 5, '60': 6, '70': 7, '80': 8, '100': 10, '120': 12,
+};
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/** Common shape for every bar/profile table: size label, weight/metre, weight
+ *  for one standard branch. Plate (sold by the sheet, not the metre) builds
+ *  its own table below instead of using this helper. */
+function perMeterTable(
+  sizeHeader: string,
+  branchM: number,
+  sizes: number[],
+  perMFor: (size: number) => number,
+  labelFor: (size: number) => string = (s) => toPersianDigits(s),
+): ReferenceTable {
+  return {
+    headers: [sizeHeader, 'وزن هر متر (kg)', `وزن شاخه ${toPersianDigits(branchM)} متری (kg)`],
+    rows: sizes.map((s) => {
+      const perM = round2(perMFor(s));
+      return [labelFor(s), faNum(perM), faNum(round2(perM * branchM))];
+    }),
+  };
+}
+
+const REBAR_TABLE: ReferenceTable = perMeterTable(
+  'قطر (mm)',
+  12,
+  [8, 10, 12, 14, 16, 18, 20, 22, 25, 28, 32],
+  (d) => (d * d) / 162,
+);
+
+const PLATE_STANDARD_WIDTH_M = 1.5;
+const PLATE_STANDARD_LENGTH_M = 6;
+const PLATE_TABLE: ReferenceTable = {
+  headers: ['ضخامت (mm)', 'عرض (m)', 'طول (m)', 'وزن هر برگ (kg)'],
+  rows: [3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30].map((t) => {
+    const w = round2(t * PLATE_STANDARD_WIDTH_M * PLATE_STANDARD_LENGTH_M * 7.85);
+    return [
+      toPersianDigits(t),
+      toPersianDigits(PLATE_STANDARD_WIDTH_M),
+      toPersianDigits(PLATE_STANDARD_LENGTH_M),
+      faNum(w),
+    ];
+  }),
+};
+
+const PIPE_STANDARD_THICKNESS_MM = 2;
+const PIPE_TABLE: ReferenceTable = perMeterTable(
+  `قطر خارجی (mm) — ضخامت ${toPersianDigits(PIPE_STANDARD_THICKNESS_MM)}mm`,
+  6,
+  [21.3, 26.7, 33.4, 42.2, 48.3, 60.3, 73, 88.9, 114.3],
+  (od) => (od - PIPE_STANDARD_THICKNESS_MM) * PIPE_STANDARD_THICKNESS_MM * 0.02466,
+);
+
+const FLAT_SIZES: [number, number][] = [
+  [20, 3], [25, 3], [30, 3], [40, 4], [40, 5], [50, 5], [50, 6], [60, 6], [80, 8], [100, 10],
+];
+const FLAT_TABLE: ReferenceTable = {
+  headers: ['عرض × ضخامت (mm)', 'وزن هر متر (kg)', 'وزن شاخه ۶ متری (kg)'],
+  rows: FLAT_SIZES.map(([w, t]) => {
+    const perM = round2(w * t * 0.00785);
+    return [`${toPersianDigits(w)}×${toPersianDigits(t)}`, faNum(perM), faNum(round2(perM * 6))];
+  }),
+};
+
+const ANGLE_TABLE: ReferenceTable = perMeterTable(
+  'سایز (نبشی L×L×t)',
+  6,
+  Object.keys(ANGLE_KG_PER_M).map(Number).sort((a, b) => a - b),
+  (leg) => ANGLE_KG_PER_M[String(leg)]!,
+  (leg) => {
+    const t = ANGLE_STANDARD_THICKNESS_MM[String(leg)] ?? 0;
+    return `L${toPersianDigits(leg)}×${toPersianDigits(leg)}×${toPersianDigits(t)}`;
+  },
+);
+
+const IBEAM_TABLE: ReferenceTable = perMeterTable(
+  'سایز',
+  12,
+  Object.keys(IBEAM_KG_PER_M).map(Number).sort((a, b) => a - b),
+  (size) => IBEAM_KG_PER_M[String(size)]!,
+);
+
+const CHANNEL_TABLE: ReferenceTable = perMeterTable(
+  'سایز',
+  6,
+  Object.keys(CHANNEL_KG_PER_M).map(Number).sort((a, b) => a - b),
+  (size) => CHANNEL_KG_PER_M[String(size)]!,
+);
 
 const PROFILES: ProfileSpec[] = [
   {
@@ -83,6 +191,7 @@ const PROFILES: ProfileSpec[] = [
     ],
     perPiece: (v) => unitWeightKg('rebar', { diameterMm: v.d, lengthM: v.len }),
     formula: (v) => `(قطر² ÷ ۱۶۲) = (${toPersianDigits(v.d || 0)}² ÷ ۱۶۲)`,
+    referenceTable: REBAR_TABLE,
   },
   {
     key: 'plate',
@@ -98,6 +207,7 @@ const PROFILES: ProfileSpec[] = [
     perPiece: (v) => unitWeightKg('plate', { lengthM: v.len, widthM: v.w, thicknessMm: v.t }),
     formula: (v) =>
       `طول × عرض × ضخامت × ۷٫۸۵ = ${toPersianDigits(v.len || 0)} × ${toPersianDigits(v.w || 0)} × ${toPersianDigits(v.t || 0)} × ۷٫۸۵`,
+    referenceTable: PLATE_TABLE,
   },
   {
     key: 'pipe',
@@ -114,6 +224,7 @@ const PROFILES: ProfileSpec[] = [
       unitWeightKg('pipe', { outerDiameterMm: v.od, thicknessMm: v.t, lengthM: v.len }),
     formula: (v) =>
       `(قطر خارجی − ضخامت) × ضخامت × ۰٫۰۲۴۶۶ = (${toPersianDigits(v.od || 0)} − ${toPersianDigits(v.t || 0)}) × ${toPersianDigits(v.t || 0)} × ۰٫۰۲۴۶۶`,
+    referenceTable: PIPE_TABLE,
   },
   {
     key: 'flat',
@@ -129,21 +240,32 @@ const PROFILES: ProfileSpec[] = [
     perPiece: (v) => unitWeightKg('flat', { widthMm: v.w, thicknessMm: v.t, lengthM: v.len }),
     formula: (v) =>
       `عرض × ضخامت × ۰٫۰۰۷۸۵ = ${toPersianDigits(v.w || 0)} × ${toPersianDigits(v.t || 0)} × ۰٫۰۰۷۸۵`,
+    referenceTable: FLAT_TABLE,
   },
   {
     key: 'angle',
     label: 'نبشی',
-    hint: 'وزن هر متر نبشی با بال‌های مساوی بر اساس طول بال و ضخامت.',
+    hint: 'وزن نبشی با بال‌های مساوی، بر اساس جدول سایزهای استاندارد بازار.',
     perMeter: true,
     pieceWord: 'شاخه',
     fields: [
-      { key: 'leg', label: 'طول بال', unit: 'میلی‌متر', placeholder: 'مثلاً ۴۰' },
-      { key: 't', label: 'ضخامت', unit: 'میلی‌متر', placeholder: 'مثلاً ۴' },
+      {
+        key: 'size',
+        label: 'سایز (طول بال)',
+        unit: '',
+        placeholder: '',
+        type: 'select',
+        options: sizeOptions(ANGLE_KG_PER_M),
+      },
       { key: 'len', label: 'طول هر شاخه', unit: 'متر', placeholder: 'مثلاً ۶' },
     ],
-    perPiece: (v) => unitWeightKg('angle', { legMm: v.leg, thicknessMm: v.t, lengthM: v.len }),
-    formula: (v) =>
-      `ضخامت × (۲ × بال − ضخامت) × ۰٫۰۰۷۸۵ = ${toPersianDigits(v.t || 0)} × (۲ × ${toPersianDigits(v.leg || 0)} − ${toPersianDigits(v.t || 0)}) × ۰٫۰۰۷۸۵`,
+    perPiece: (v) => unitWeightKg('angle', { sizeCode: v.size, lengthM: v.len }),
+    formula: (v) => {
+      const kgPerM = ANGLE_KG_PER_M[String(Math.round(v.size || 0))];
+      const t = ANGLE_STANDARD_THICKNESS_MM[String(Math.round(v.size || 0))] ?? 0;
+      return `طبق جدول استاندارد (نبشی L${toPersianDigits(v.size || 0)}×${toPersianDigits(v.size || 0)}×${toPersianDigits(t)}) = ${toPersianDigits(kgPerM ?? 0)}`;
+    },
+    referenceTable: ANGLE_TABLE,
   },
   {
     key: 'ibeam',
@@ -167,6 +289,7 @@ const PROFILES: ProfileSpec[] = [
       const kgPerM = IBEAM_KG_PER_M[String(Math.round(v.size || 0))];
       return `طبق جدول کارخانه (تیرآهن ${toPersianDigits(v.size || 0)}) = ${toPersianDigits(kgPerM ?? 0)}`;
     },
+    referenceTable: IBEAM_TABLE,
   },
   {
     key: 'channel',
@@ -190,6 +313,7 @@ const PROFILES: ProfileSpec[] = [
       const kgPerM = CHANNEL_KG_PER_M[String(Math.round(v.size || 0))];
       return `طبق جدول کارخانه (ناودانی ${toPersianDigits(v.size || 0)}) = ${toPersianDigits(kgPerM ?? 0)}`;
     },
+    referenceTable: CHANNEL_TABLE,
   },
 ];
 
@@ -415,6 +539,39 @@ export function WeightCalculator() {
           </Stack>
         </Card>
       </div>
+
+      {/* Reference table — published standard sizes at a glance, same idea as
+          مرکزآهن's own جدول‌وزن pages (Amir, 2026-08-09), so a customer can
+          sanity-check a result without filling in the form for every size. */}
+      {profile.referenceTable ? (
+        <Card className={styles.tableCard}>
+          <Stack gap={3}>
+            <Text variant="overline" color="muted" as="p">
+              جدول وزن استاندارد {profile.label}
+            </Text>
+            <div className={styles.tableScroll}>
+              <table className={`${styles.refTable} tnum`}>
+                <thead>
+                  <tr>
+                    {profile.referenceTable.headers.map((h) => (
+                      <th key={h}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {profile.referenceTable.rows.map((row, i) => (
+                    <tr key={i}>
+                      {row.map((cell, j) => (
+                        <td key={j}>{cell}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Stack>
+        </Card>
+      ) : null}
 
       <Alert tone="info">
         <Cluster gap={2} align="center">

@@ -21,6 +21,31 @@
  * INVARIANT: every formula below is byte-for-byte the arithmetic that was
  * already shipping, so no number that has ever been quoted changes. New
  * shapes are additive only. `weight.test.ts` pins each one.
+ *
+ * audit-2026-08-09: Amir asked for a rigorous page-by-page comparison against
+ * مرکزآهن's published جدول‌وزن pages (a well-known Iranian bazaar reference)
+ * for every shape this site's وزن‌سنج exposes. Findings, applied below:
+ *  - میلگرد/ورق: their published formula is byte-identical to ours — no change.
+ *  - `IBEAM_KG_PER_M`/`CHANNEL_KG_PER_M` were consistently ~2% above their
+ *    "استاندارد/اشتال" (DIN/Stahl-standard) reference table — updated to match
+ *    their exact published numbers (also added تیرآهن ۸/۱۰, missing before).
+ *    Note ناودانی is genuinely sold in multiple weight classes in the real
+ *    Iranian market (فوق‌سبک/سبک/نیمه‌سنگین/سنگین/کارخانه‌ای) — this table is
+ *    deliberately the «استاندارد» tier (مرکزآهن's own words: "در حالت
+ *    استاندارد، اعداد جدول اشتال ملاک اصلی محاسبه و مقایسه محسوب می‌شوند"),
+ *    matching what this table already represented before this pass.
+ *  - `angle` (نبشی)'s geometric approximation (ignores the corner fillet
+ *    radius) was accurate to ~1.3% for small legs but drifted to a consistent
+ *    ~5.1% under their published table for legs ≥60mm — bigger than this
+ *    file used to claim ("~1-2%"). Added `ANGLE_KG_PER_M`, an exact lookup
+ *    for their published standard sizes; `sizeCode` now picks that path,
+ *    while arbitrary leg/thickness combos (a caller with a non-catalog
+ *    dimension) still fall back to the original geometric formula, UNCHANGED.
+ *  - لوله's formula is π×(D−t)×t×ρ — dimensionally EXACT for a pipe wall's
+ *    cross-sectional area, not an approximation — left as-is. Their published
+ *    table increasingly diverges at thicker walls (1.8% → 6.6%), which reads
+ *    as real mill/schedule manufacturing variance a closed-form formula can't
+ *    capture, not an error in either number.
  */
 
 /** Steel density, g/cm³. */
@@ -47,15 +72,32 @@ export type WeightShape =
  * Sourced from published mill tables, not a geometric approximation (I-beam
  * and channel flanges taper — no reliable closed-form exists) — a size
  * missing here (e.g. ناودانی ۳–۶, below UNP80) returns null rather than a
- * guessed number.
+ * guessed number. Cross-checked 2026-08-09 against مرکزآهن's published
+ * جدول‌وزن (استاندارد/اشتال tier for ناودانی) — see the file header.
  */
 export const IBEAM_KG_PER_M: Readonly<Record<string, number>> = {
-  '12': 10.6, '14': 13.1, '16': 16.1, '18': 19.2, '20': 22.8,
-  '22': 26.7, '24': 31.3, '27': 36.8, '30': 43.0,
+  '8': 6.0, '10': 8.1, '12': 10.4, '14': 12.9, '16': 15.8, '18': 18.8,
+  '20': 22.4, '22': 26.2, '24': 30.7, '27': 36.1, '30': 42.2,
 };
 export const CHANNEL_KG_PER_M: Readonly<Record<string, number>> = {
-  '8': 8.82, '10': 10.8, '12': 13.6, '14': 16.3, '16': 19.2,
-  '18': 22.4, '20': 25.7, '22': 30.0, '24': 33.8,
+  '8': 8.82, '10': 10.6, '12': 13.4, '14': 16.0, '16': 18.8,
+  '18': 22.4, '20': 25.3, '22': 29.4, '24': 33.8,
+};
+
+/**
+ * Standard equal-leg نبشی (angle) weight-per-meter (kg/m), keyed by leg
+ * length (mm) — each published leg size ships at one standard thickness
+ * (30mm→3mm, 40mm→4mm, ... 120mm→12mm), so unlike ibeam/channel there is no
+ * separate thickness axis here. Exact published values (مرکزآهن جدول وزن
+ * نبشی, 2026-08-09) — used instead of the geometric `angle` formula below
+ * when a caller has a catalog size (`sizeCode`), since the geometric
+ * approximation (which ignores the corner fillet radius) drifts to ~5% under
+ * these for legs ≥60mm. The geometric formula stays available for any
+ * leg/thickness combo NOT in this table.
+ */
+export const ANGLE_KG_PER_M: Readonly<Record<string, number>> = {
+  '30': 1.36, '40': 2.42, '50': 3.77, '60': 5.66, '70': 7.70,
+  '80': 10.06, '100': 15.72, '120': 22.63,
 };
 
 /**
@@ -132,12 +174,20 @@ export function unitWeightKg(shape: WeightShape, d: WeightDims): number | null {
       return d.widthMm && d.heightMm && d.thicknessMm && len
         ? (((d.widthMm + d.heightMm) * 2) / 1000) * d.thicknessMm * STEEL_DENSITY * len
         : null;
-    // Equal-leg angle: Area(mm²) = t·(2a−t) — the standard steel-industry
-    // approximation (ignores the small fillet radius, ~1-2% under actual).
-    case 'angle':
+    // Equal-leg angle. A catalog leg size (`sizeCode`) uses the exact
+    // published table; otherwise falls back to Area(mm²) = t·(2a−t), the
+    // standard steel-industry approximation (ignores the small fillet
+    // radius — accurate to ~1-2% for small legs, but drifts further for
+    // larger ones, which is exactly why the table above exists).
+    case 'angle': {
+      if (d.sizeCode) {
+        const kgPerM = ANGLE_KG_PER_M[String(Math.round(d.sizeCode))];
+        return kgPerM && len ? kgPerM * len : null;
+      }
       return d.legMm && d.thicknessMm && d.lengthM
         ? d.thicknessMm * (2 * d.legMm - d.thicknessMm) * (STEEL_DENSITY / 1000) * d.lengthM
         : null;
+    }
     // Flat bar (تسمه): w(mm) × t(mm) × 0.00785 kg per metre. A DIFFERENT
     // section from `angle` — kept separate rather than merged, because the
     // وزن‌سنج UI has always quoted this formula under its «نبشی/تسمه» tab and

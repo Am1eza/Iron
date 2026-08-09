@@ -42,14 +42,14 @@ describe('calcWeight — full 7-category coverage', () => {
     expect(r.unitWeightKg).toBeCloseTo(22.37, 1);
   });
 
-  it('ibeam: تیرآهن ۱۴ (IPE140) against the published EN 10025 table', async () => {
+  it('ibeam: تیرآهن ۱۴ (IPE140) against مرکزآهن\'s published جدول وزن', async () => {
     const r = (await calcWeight({ shape: 'ibeam', sizeCode: 14, lengthM: 12, qty: 1 })) as WeightResult;
-    expect(r.unitWeightKg).toBeCloseTo(157.2, 0); // 13.1 kg/m × 12m
+    expect(r.unitWeightKg).toBeCloseTo(154.8, 0); // 12.9 kg/m × 12m
   });
 
-  it('channel: ناودانی ۱۰ (UNP100) against the published EN 10025 table', async () => {
+  it('channel: ناودانی ۱۰ (UNP100) against مرکزآهن\'s published جدول وزن', async () => {
     const r = (await calcWeight({ shape: 'channel', sizeCode: 10, lengthM: 6, qty: 1 })) as WeightResult;
-    expect(r.unitWeightKg).toBeCloseTo(64.8, 1); // 10.8 kg/m × 6m
+    expect(r.unitWeightKg).toBeCloseTo(63.6, 1); // 10.6 kg/m × 6m
   });
 
   it('an ibeam/channel size outside the verified table errors rather than guessing', async () => {

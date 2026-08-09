@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { unitWeightKg, STEEL_DENSITY, IBEAM_KG_PER_M, CHANNEL_KG_PER_M } from './weight';
+import { unitWeightKg, STEEL_DENSITY, IBEAM_KG_PER_M, CHANNEL_KG_PER_M, ANGLE_KG_PER_M } from './weight';
 
 /**
  * These are REGRESSION PINS, not fresh derivations.
@@ -60,6 +60,20 @@ describe('unitWeightKg — pinned to the previously shipping formulas', () => {
       5 * (2 * 50 - 5) * (STEEL_DENSITY / 1000) * 6,
     );
     expect(unitWeightKg('angle', { legMm: 50, thicknessMm: 5 })).toBeNull();
+  });
+
+  // audit-2026-08-09: a catalog leg size uses the exact published table
+  // instead of the geometric approximation (which drifts further from real
+  // نبشی weight as the leg gets bigger — the table exists precisely because
+  // the geometric formula isn't accurate enough at, say, 100mm).
+  it('angle: a catalog sizeCode uses the exact published table, not the geometric approximation', () => {
+    expect(unitWeightKg('angle', { sizeCode: 50, lengthM: 6 })).toBe(ANGLE_KG_PER_M['50']! * 6);
+    expect(unitWeightKg('angle', { sizeCode: 50, lengthM: 6 })).not.toBe(
+      unitWeightKg('angle', { legMm: 50, thicknessMm: 5, lengthM: 6 }),
+    );
+    // ۹۰mm isn't a published size — null, not a guess, same rule as ibeam/channel.
+    expect(unitWeightKg('angle', { sizeCode: 90, lengthM: 6 })).toBeNull();
+    expect(unitWeightKg('angle', { sizeCode: 50 })).toBeNull();
   });
 
   // تسمه — a flat bar, NOT the angle section. The وزن‌سنج page has always
