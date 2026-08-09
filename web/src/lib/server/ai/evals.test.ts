@@ -236,7 +236,7 @@ const SCENARIOS: Scenario[] = [
     },
   },
   {
-    name: 'weight: تیرآهن ۱۴ از جدول استاندارد (۱۳٫۱ kg/m — نه تقریب هندسی)',
+    name: 'weight: تیرآهن ۱۴ از جدول استاندارد (۱۲٫۹ kg/m — نه تقریب هندسی)',
     userMessages: ['وزن ۵ شاخه تیرآهن ۱۴ دوازده متری چقدره؟'],
     rounds: () => [
       { toolCalls: [{ name: 'calcWeight', args: { shape: 'ibeam', sizeCode: 14, lengthM: 12, qty: 5 } }] },
@@ -249,10 +249,10 @@ const SCENARIOS: Scenario[] = [
     ],
     expectations: ({ result, messages }) => {
       const r = lastToolResult<WeightResult>(messages);
-      expect(r.unitWeightKg).toBe(157.2); // 13.1 kg/m × 12 m
-      expect(r.totalWeightKg).toBe(786);
+      expect(r.unitWeightKg).toBe(154.8); // 12.9 kg/m × 12 m
+      expect(r.totalWeightKg).toBe(774);
       expect(result.violationsCaught).toBe(0);
-      expect(result.text).toContain('786');
+      expect(result.text).toContain('774');
     },
   },
   {

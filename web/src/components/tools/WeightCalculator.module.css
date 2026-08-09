@@ -181,3 +181,34 @@
   font-weight: 700;
   color: var(--color-text-strong);
 }
+
+/* ===== Reference table (published standard sizes, مرکزآهن-style) ===== */
+.tableCard {
+  padding: var(--space-5);
+}
+.tableScroll {
+  overflow-x: auto;
+}
+.refTable {
+  inline-size: 100%;
+  border-collapse: collapse;
+  font: var(--t-body-sm);
+  white-space: nowrap;
+}
+.refTable th,
+.refTable td {
+  padding: var(--space-2) var(--space-3);
+  text-align: center;
+  border: var(--border-hairline) solid var(--color-hairline);
+}
+.refTable th {
+  background: var(--color-surface-sunken);
+  color: var(--color-text-strong);
+  font-weight: 600;
+}
+.refTable td {
+  color: var(--color-text-muted);
+}
+.refTable tbody tr:nth-child(even) {
+  background: var(--color-surface-sunken);
+}
