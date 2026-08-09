@@ -1,20 +1,3 @@
-/* ===== Layout ===== */
-.layout {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--space-5);
-  align-items: start;
-}
-@media (min-width: 768px) {
-  .layout {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-.panel,
-.result {
-  block-size: 100%;
-}
-
 /* ===== Inputs ===== */
 .fields {
   display: grid;
@@ -129,6 +112,44 @@
 .segment:focus-visible {
   outline: var(--border-focus) solid var(--color-focus);
   outline-offset: 1px;
+}
+
+/* ===== BOQ line items (one per material, own category+SKU pick) ===== */
+.lineItem {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  background: var(--color-surface-sunken);
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-md);
+}
+.lineItemHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.lineItemFields {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-2);
+}
+@media (min-width: 480px) {
+  .lineItemFields {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.selectSm {
+  min-block-size: 40px;
+  padding-block: var(--space-2);
+  font: var(--t-body-sm);
+}
+.lineItemCost {
+  font: var(--t-label);
+  font-weight: 600;
+  color: var(--color-text-strong);
 }
 
 /* ===== Results ===== */
