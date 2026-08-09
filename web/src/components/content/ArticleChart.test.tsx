@@ -50,7 +50,7 @@ describe('ArticleChart (US-12.4)', () => {
     // dipping to the floor and back.
     const path = container.querySelector('path[stroke-width="2"]')!;
     expect((path.getAttribute('d') ?? '').match(/M /g)).toHaveLength(2);
-    expect(screen.getAllByRole('cell').map((c) => c.textContent)).toContain('—');
+    expect(screen.getAllByRole('cell').map((c) => c.textContent)).toContain('نامشخص');
   });
 
   it('anchors bars to zero — a truncated baseline is how a bar chart lies', () => {
