@@ -62,6 +62,75 @@
   border-color: var(--color-accent);
 }
 
+/* ===== Size select (سوله دهانه — published span table, not free-text) ===== */
+.selectWrap {
+  position: relative;
+  display: block;
+}
+.select {
+  appearance: none;
+  inline-size: 100%;
+  font: var(--t-input);
+  color: var(--color-text-strong);
+  background: var(--color-surface);
+  border: var(--border-hairline) solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  padding-block: var(--space-3);
+  padding-inline: var(--space-4) var(--space-10);
+  min-block-size: 48px;
+  cursor: pointer;
+}
+.select:focus-visible {
+  outline: var(--border-focus) solid var(--color-focus);
+  outline-offset: 1px;
+  border-color: var(--color-accent);
+}
+.selectChevron {
+  position: absolute;
+  inset-inline-end: var(--space-3);
+  inset-block-start: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
+/* ===== Segmented project-type selector ===== */
+.segmented {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  background: var(--color-surface-sunken);
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-md);
+}
+.segment {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: var(--t-label);
+  font-weight: 600;
+  padding: var(--space-2) var(--space-4);
+  min-block-size: 40px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-standard),
+    color var(--dur-fast) var(--ease-standard);
+}
+.segment:hover {
+  color: var(--color-text-strong);
+}
+.segment[data-active] {
+  background: var(--color-surface);
+  color: var(--color-text-strong);
+  box-shadow: var(--shadow-sm);
+}
+.segment:focus-visible {
+  outline: var(--border-focus) solid var(--color-focus);
+  outline-offset: 1px;
+}
+
 /* ===== Results ===== */
 .metric {
   display: flex;
