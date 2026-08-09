@@ -1,7 +1,7 @@
 'use client';
-import { useMemo, useState } from 'react';
-import { categories } from '@/lib/mock/fixtures';
-import { getRows } from '@/lib/mock/catalogData';
+import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/lib/api';
 import { useCartStore } from '@/lib/stores/cart';
 import { useToast } from '@/lib/hooks/useToast';
 import { CONSTANTS } from '@/lib/config/constants';
@@ -16,11 +16,16 @@ import styles from './CostCalculator.module.css';
  * محاسبهٔ هزینه — pick دسته → محصول → مقدار (شاخه یا کیلوگرم) and get a live total
  * with optional ارزش افزوده and the delivery time shown. The configured line can be
  * dropped straight into the inquiry cart. All deterministic; numbers tabular.
+ *
+ * audit-2026-08-08/09: used to compute every total off `@/lib/mock/catalogData`'s
+ * seeded-PRNG fixture prices, unconditionally — regardless of `API_MODE`, in
+ * production, for every visitor, unlike every sibling tool/page which reads
+ * real prices. Now fetches the live category list and per-category rows via
+ * `api.catalog` (same client, same mock/live split every other client-side
+ * catalog read already uses).
  */
 
 type Mode = 'branch' | 'kg';
-
-const ACTIVE_CATEGORIES = categories.filter((c) => c.isActive);
 
 function parse(value: string): number {
   const n = Number(normalizeDigits(value).replace(/[^\d.]/g, ''));
@@ -31,11 +36,37 @@ export function CostCalculator() {
   const add = useCartStore((s) => s.add);
   const toast = useToast();
 
-  const firstCat = ACTIVE_CATEGORIES[0];
-  const [catSlug, setCatSlug] = useState<string>(firstCat?.slug ?? '');
-  const rows = useMemo(() => getRows(catSlug), [catSlug]);
+  const { data: categoriesData } = useQuery({
+    queryKey: ['catalog', 'categories'],
+    queryFn: () => api.catalog.categories(),
+    staleTime: 5 * 60 * 1000,
+  });
+  const activeCategories = useMemo(
+    () => (categoriesData?.categories ?? []).filter((c) => c.isActive),
+    [categoriesData],
+  );
 
-  const [productId, setProductId] = useState<string>(rows[0]?.id ?? '');
+  const [catSlug, setCatSlug] = useState<string>('');
+  // Categories load async — pick the first one the moment the list arrives,
+  // same pattern as BulkQuote's `autoPicked` sub-category default.
+  useEffect(() => {
+    if (!catSlug && activeCategories.length > 0) setCatSlug(activeCategories[0]!.slug);
+  }, [catSlug, activeCategories]);
+
+  const { data: rowsData, isLoading: rowsLoading } = useQuery({
+    queryKey: ['catalog', 'category-rows', catSlug],
+    queryFn: () => api.catalog.category(catSlug),
+    enabled: catSlug.length > 0,
+    staleTime: 60 * 1000,
+  });
+  const rows = useMemo(() => rowsData?.rows ?? [], [rowsData]);
+
+  const [productId, setProductId] = useState<string>('');
+  // Same as above — rows for the selected category arrive async.
+  useEffect(() => {
+    if (rows.length > 0 && !rows.some((r) => r.id === productId)) setProductId(rows[0]!.id);
+  }, [rows, productId]);
+
   const [mode, setMode] = useState<Mode>('branch');
   const [qtyInput, setQtyInput] = useState('1');
   const [vat, setVat] = useState(false);
@@ -47,8 +78,7 @@ export function CostCalculator() {
 
   const onCategoryChange = (slug: string) => {
     setCatSlug(slug);
-    const next = getRows(slug)[0];
-    setProductId(next?.id ?? '');
+    setProductId('');
   };
 
   const qty = mode === 'branch' ? Math.max(1, Math.round(parse(qtyInput)) || 1) : parse(qtyInput);
@@ -95,7 +125,7 @@ export function CostCalculator() {
                 onChange={(e) => onCategoryChange(e.target.value)}
                 aria-label="انتخاب دستهٔ کالا"
               >
-                {ACTIVE_CATEGORIES.map((c) => (
+                {activeCategories.map((c) => (
                   <option key={c.slug} value={c.slug}>
                     {c.name}
                   </option>
@@ -114,7 +144,7 @@ export function CostCalculator() {
                 value={productId}
                 onChange={(e) => setProductId(e.target.value)}
                 aria-label="انتخاب محصول"
-                disabled={rows.length === 0}
+                disabled={rows.length === 0 || rowsLoading}
               >
                 {rows.map((r) => (
                   <option key={r.id} value={r.id}>
@@ -251,7 +281,9 @@ export function CostCalculator() {
         ) : (
           <div className={styles.placeholder}>
             <Text variant="body-sm" color="muted" align="center">
-              دسته و محصول را انتخاب کنید و مقدار را وارد کنید تا هزینه محاسبه شود.
+              {rowsLoading
+                ? 'در حال دریافت قیمت‌های لحظه‌ای…'
+                : 'دسته و محصول را انتخاب کنید و مقدار را وارد کنید تا هزینه محاسبه شود.'}
             </Text>
           </div>
         )}
