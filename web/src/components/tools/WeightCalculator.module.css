@@ -104,6 +104,38 @@
   border-color: var(--color-accent);
 }
 
+/* ===== Size select (تیرآهن/ناودانی — mill-table sizes, not free-text) ===== */
+.selectWrap {
+  position: relative;
+  display: block;
+}
+.select {
+  appearance: none;
+  inline-size: 100%;
+  font: var(--t-input);
+  color: var(--color-text-strong);
+  background: var(--color-surface);
+  border: var(--border-hairline) solid var(--color-field-border);
+  border-radius: var(--radius-sm);
+  padding-block: var(--space-3);
+  padding-inline: var(--space-4) var(--space-10);
+  min-block-size: 48px;
+  cursor: pointer;
+}
+.select:focus-visible {
+  outline: var(--border-focus) solid var(--color-focus);
+  outline-offset: 1px;
+  border-color: var(--color-accent);
+}
+.selectChevron {
+  position: absolute;
+  inset-inline-end: var(--space-3);
+  inset-block-start: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
 /* ===== Result card ===== */
 .value,
 .valueTotal {
