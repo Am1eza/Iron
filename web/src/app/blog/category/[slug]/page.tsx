@@ -24,7 +24,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   if (!cat) return buildMetadata({ title: 'دسته پیدا نشد', noindex: true });
   return buildMetadata({
     title: `مقالات ${cat.name}`,
-    description: `راهنمای خرید، تحلیل بازار و اخبار ${cat.name} — مطالب آهن‌تایم دربارهٔ این محصول.`,
+    description: `راهنمای خرید، تحلیل بازار و اخبار ${cat.name}. مطالب آهن‌تایم دربارهٔ این محصول.`,
     path: routes.blogCategory(slug),
   });
 }

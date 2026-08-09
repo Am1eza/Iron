@@ -41,7 +41,7 @@ import faMessages from '../../messages/fa.json';
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://ahantime.com'),
   title: {
-    default: 'آهن‌تایم — بازار هوشمند آهن و فولاد',
+    default: 'آهن‌تایم، بازار هوشمند آهن و فولاد',
     template: '%s | آهن‌تایم',
   },
   description:

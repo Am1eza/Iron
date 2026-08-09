@@ -19,7 +19,7 @@ export function Logo({ compact = false, light = false }: { compact?: boolean; li
     <Link
       href={routes.home()}
       className={`${styles.logo} ${light ? styles.light : ''}`}
-      aria-label="آهن‌تایم — خانه"
+      aria-label="آهن‌تایم، خانه"
     >
       <Image
         src={logoMark}

@@ -46,7 +46,7 @@ export function proformaSmsText(ref: string, name: string | null | undefined, to
   const who = name?.trim() || 'مشتری';
   const link = `${publicEnv.NEXT_PUBLIC_SITE_URL}/proforma/${ref}`;
   if (total && validUntil) {
-    return `آهن‌تایم: ${who} عزیز، پیش‌فاکتور شما صادر شد. کد پیگیری: ${ref} — مبلغ: ${formatToman(total)} — اعتبار تا ${formatJalali(validUntil)} ساعت ۱۱:۰۰. مشاهده: ${link}`;
+    return `آهن‌تایم: ${who} عزیز، پیش‌فاکتور شما صادر شد. کد پیگیری: ${ref}، مبلغ: ${formatToman(total)}، اعتبار تا ${formatJalali(validUntil)} ساعت ۱۱:۰۰. مشاهده: ${link}`;
   }
   return `آهن‌تایم: ${who} عزیز، درخواست شما با کد پیگیری ${ref} ثبت شد. کارشناسان ما به‌زودی با شما تماس می‌گیرند. پیگیری: ${link}`;
 }
@@ -101,7 +101,7 @@ export function proformaSmsNotification(
 export function orderSmsText(ref: string, name: string | null | undefined): string {
   const who = name?.trim() || 'مشتری';
   const link = `${publicEnv.NEXT_PUBLIC_SITE_URL}/track`;
-  return `آهن‌تایم: ${who} عزیز، سفارش شما ثبت شد. کد رهگیری: ${ref} — پیگیری وضعیت ارسال: ${link}`;
+  return `آهن‌تایم: ${who} عزیز، سفارش شما ثبت شد. کد رهگیری: ${ref}، پیگیری وضعیت ارسال: ${link}`;
 }
 
 /** As a NotificationSpec — see proformaSmsNotification's doc comment. Owner
@@ -601,7 +601,7 @@ export interface CreateWarehouseRequestResult {
 export function warehouseRequestSmsText(ref: string, name: string | null | undefined): string {
   const who = name?.trim() || 'مشتری';
   const link = `${publicEnv.NEXT_PUBLIC_SITE_URL}/account/requests`;
-  return `آهن‌تایم: ${who} عزیز، درخواست نگهداری کالای شما ثبت شد. کد پیگیری: ${ref} — کارشناسان به‌زودی تماس می‌گیرند. پیگیری: ${link}`;
+  return `آهن‌تایم: ${who} عزیز، درخواست نگهداری کالای شما ثبت شد. کد پیگیری: ${ref}. کارشناسان به‌زودی تماس می‌گیرند. پیگیری: ${link}`;
 }
 
 export function warehouseRequestSmsNotification(
@@ -661,7 +661,7 @@ export async function createWarehouseRequest(
         userId: session.id,
         ref,
         type: 'warehouse',
-        title: `نگهداری ${input.product} — ${input.quantityTons} تن`,
+        title: `نگهداری ${input.product}، ${input.quantityTons} تن`,
         detail: `مدت نگهداری: ${input.duration}`,
         note: input.notes,
         leadId: lead.id,
@@ -700,7 +700,7 @@ export interface CreateCutToSizeRequestResult {
 export function cutToSizeRequestSmsText(ref: string, name: string | null | undefined): string {
   const who = name?.trim() || 'مشتری';
   const link = `${publicEnv.NEXT_PUBLIC_SITE_URL}/account/requests`;
-  return `آهن‌تایم: ${who} عزیز، درخواست برش/تبدیل کالا به ابعاد درخواستی شما ثبت شد. کد پیگیری: ${ref} — کارشناسان به‌زودی تماس می‌گیرند. پیگیری: ${link}`;
+  return `آهن‌تایم: ${who} عزیز، درخواست برش/تبدیل کالا به ابعاد درخواستی شما ثبت شد. کد پیگیری: ${ref}. کارشناسان به‌زودی تماس می‌گیرند. پیگیری: ${link}`;
 }
 
 export function cutToSizeRequestSmsNotification(
@@ -761,7 +761,7 @@ export async function createCutToSizeRequest(
         userId: session.id,
         ref,
         type: 'cutToSize',
-        title: `کالا با ابعاد درخواستی — ${input.product}`,
+        title: `کالا با ابعاد درخواستی: ${input.product}`,
         detail: `ابعاد درخواستی: ${input.requestedDimensions} · مقدار: ${input.quantity}${input.currentDimensions ? ` · ابعاد فعلی: ${input.currentDimensions}` : ''}`,
         note: input.notes,
         leadId: lead.id,

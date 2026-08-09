@@ -62,7 +62,7 @@ export default async function ProformaPage({ params }: Params) {
   return (
     <ProformaSheet
       orgName={ORG_NAME}
-      tagline="بازار هوشمند آهن و فولاد — اول مشورت، بعد خرید"
+      tagline="بازار هوشمند آهن و فولاد: اول مشورت، بعد خرید"
       address={CONTACT.address}
       phoneLandline={CONTACT.phoneLandline}
       phoneMobile={CONTACT.phoneMobile}
@@ -107,7 +107,7 @@ export default async function ProformaPage({ params }: Params) {
                       : 'متر'}
               </td>
               <td>{line.unitPrice ? formatToman(line.unitPrice, false) : 'توافقی'}</td>
-              <td>{line.lineTotal ? formatToman(line.lineTotal, false) : '—'}</td>
+              <td>{line.lineTotal ? formatToman(line.lineTotal, false) : 'توافقی'}</td>
             </tr>
           ))}
         </tbody>
@@ -146,7 +146,7 @@ export default async function ProformaPage({ params }: Params) {
 
       <footer className={styles.foot}>
         <p>
-          این پیش‌فاکتور جهت استعلام است و فاکتور رسمی محسوب نمی‌شود. پرداخت آنلاین نداریم — تسویه
+          این پیش‌فاکتور جهت استعلام است و فاکتور رسمی محسوب نمی‌شود. پرداخت آنلاین نداریم؛ تسویه
           پس از هماهنگی با کارشناس فروش انجام می‌شود.
         </p>
         <p className="tnum">

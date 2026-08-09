@@ -66,7 +66,7 @@ export function VerificationCard({
             احراز هویت
           </h3>
           <p className={styles.currentLevel}>
-            سطح فعلی شما: <Badge tone="success">سطح {toPersianDigits(level)} — {LEVEL_INFO[level].name}</Badge>
+            سطح فعلی شما: <Badge tone="success">سطح {toPersianDigits(level)}: {LEVEL_INFO[level].name}</Badge>
           </p>
         </div>
       </div>

@@ -53,7 +53,7 @@ async function POSTImpl(req: NextRequest) {
   const ext = sniffImageExt(buf);
   if (!ext) {
     return NextResponse.json(
-      { error: 'bad_file', message: 'فرمت فایل پشتیبانی نمی‌شود — فقط JPG، PNG یا WebP مجاز است.' },
+      { error: 'bad_file', message: 'فرمت فایل پشتیبانی نمی‌شود؛ فقط JPG، PNG یا WebP مجاز است.' },
       { status: 400 },
     );
   }

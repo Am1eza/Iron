@@ -34,7 +34,7 @@ export function HeroSearch({
   };
 
   return (
-    <section className={styles.hero} aria-label="آهن‌تایم — بازار هوشمند فولاد">
+    <section className={styles.hero} aria-label="آهن‌تایم، بازار هوشمند فولاد">
       <div className={`container ${styles.grid}`}>
         <div className={styles.copy}>
           <h1 className={styles.title}>
@@ -76,7 +76,7 @@ export function HeroSearch({
           {stats && stats.skuCount > 0 ? (
             <p className={styles.trust}>
               <span className="tnum">{toPersianDigits(stats.skuCount)}</span> محصول قیمت‌خورده از{' '}
-              <span className="tnum">{toPersianDigits(stats.factoryCount)}</span> کارخانه — شفاف و
+              <span className="tnum">{toPersianDigits(stats.factoryCount)}</span> کارخانه، شفاف و
               به‌روز
             </p>
           ) : null}

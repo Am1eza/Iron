@@ -200,7 +200,7 @@ async function TabContent({ slug, userId }: { slug: string; userId: string }) {
       );
     case 'favorites':
       return (
-        <TabSection title="علاقه‌مندی‌ها" sub="محصولاتی که نشان کرده‌اید — با قیمت لحظه‌ای.">
+        <TabSection title="علاقه‌مندی‌ها" sub="محصولاتی که نشان کرده‌اید، با قیمت لحظه‌ای.">
           <Card>
             {API_MODE === 'live' ? (
               <FavoritesList />
@@ -214,7 +214,7 @@ async function TabContent({ slug, userId }: { slug: string; userId: string }) {
       return (
         <TabSection
           title="درخواست‌های من"
-          sub="پیش‌فاکتورها، خرید عمده و درخواست‌های انبار — با وضعیت لحظه‌ای هرکدام."
+          sub="پیش‌فاکتورها، خرید عمده و درخواست‌های انبار، با وضعیت لحظه‌ای هرکدام."
         >
           <Card>
             <RequestsList />

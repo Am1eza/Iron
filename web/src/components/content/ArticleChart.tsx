@@ -361,12 +361,12 @@ export function ArticleChart({ attrs, idBase }: { attrs: ChartAttrs; idBase: str
             <tbody>
               {labels.map((label, i) => (
                 <tr key={i}>
-                  <th scope="row">{label || '—'}</th>
+                  <th scope="row">{label || 'نامشخص'}</th>
                   {series.map((s, si) => {
                     const v = s.values[i];
                     return (
                       <td key={si} className="tnum">
-                        {v === null || v === undefined || !Number.isFinite(v) ? '—' : faNumber(v)}
+                        {v === null || v === undefined || !Number.isFinite(v) ? 'نامشخص' : faNumber(v)}
                       </td>
                     );
                   })}

@@ -92,7 +92,7 @@ export function TrackLookup() {
             <Stack gap={1}>
               {order.items.map((it) => (
                 <Text key={it.skuId} variant="body-sm" color="muted">
-                  {it.name} — {toPersianDigits(it.qty)} {unitLabel(it.unit)}
+                  {it.name}: {toPersianDigits(it.qty)} {unitLabel(it.unit)}
                 </Text>
               ))}
             </Stack>

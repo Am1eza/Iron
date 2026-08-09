@@ -19,7 +19,7 @@ import { hasDb } from '@/lib/server/db/client';
 import { HeroVideo } from '@/components/home/HeroVideo';
 
 export const metadata: Metadata = buildMetadata({
-  title: 'آهن‌تایم — بازار هوشمند آهن و فولاد',
+  title: 'آهن‌تایم، بازار هوشمند آهن و فولاد',
   description:
     'آهن‌تایم، بازار هوشمند آهن و فولاد: مشاور هوش مصنوعی، قیمت‌های شفاف و لحظه‌ای و زمان تحویل مشخص. اول مشورت، بعد خرید.',
   path: routes.home(),

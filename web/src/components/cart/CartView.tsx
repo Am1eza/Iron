@@ -197,7 +197,7 @@ export function CartView() {
             <div className={styles.summaryRow}>
               <dt>وزن کل</dt>
               <dd className="tnum">
-                {totalWeight > 0 ? `${toPersianDigits(Math.round(totalWeight))} کیلوگرم` : '—'}
+                {totalWeight > 0 ? `${toPersianDigits(Math.round(totalWeight))} کیلوگرم` : 'نامشخص'}
               </dd>
             </div>
             <div className={`${styles.summaryRow} ${styles.summaryTotalRow}`}>
@@ -209,7 +209,7 @@ export function CartView() {
           </dl>
 
           <p className={styles.estNote}>
-            برآورد تقریبی — قیمت نهایی هنگام تأیید کارشناس
+            برآورد تقریبی؛ قیمت نهایی هنگام تأیید کارشناس
           </p>
 
           <Link href={routes.request()} className={styles.primaryCta} data-event="cart_to_request">
