@@ -1,7 +1,7 @@
 import { API_MODE } from '../config';
 import { http } from '../http';
 import { categories as mockCategories, rebarRows } from '@/lib/mock/fixtures';
-import { priceSeries as mockPriceSeries } from '@/lib/mock/catalogData';
+import { priceSeries as mockPriceSeries, getRows as mockGetRows } from '@/lib/mock/catalogData';
 import type { Category, PriceRow } from '@/lib/types/domain';
 
 const delay = (ms = 120) => new Promise((r) => setTimeout(r, ms));
@@ -29,6 +29,21 @@ export const catalogApi = {
       `/api/categories/${encodeURIComponent(category)}/${encodeURIComponent(sub)}`,
       { signal: opts?.signal, next: { revalidate: 120 } },
     );
+  },
+
+  /** Every row in one category, unfiltered by sub — CostCalculator's product
+   *  picker is a single category dropdown across the whole catalog rather than
+   *  a URL-scoped category+sub like the `/prices` pages, so it needs this
+   *  instead of `table()`. Public endpoint, no admin gate. */
+  async category(slug: string, opts?: { signal?: AbortSignal }): Promise<{ rows: PriceRow[] }> {
+    if (API_MODE === 'mock') {
+      await delay();
+      return { rows: mockGetRows(slug) };
+    }
+    return http.get(`/api/categories/${encodeURIComponent(slug)}`, {
+      signal: opts?.signal,
+      next: { revalidate: 120 },
+    });
   },
 
   /** Price-history chart series for one SKU (PriceTable's «نمودار قیمت» modal
