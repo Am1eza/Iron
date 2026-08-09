@@ -4,10 +4,10 @@ import { useCartStore } from '@/lib/stores/cart';
 import { useToast } from '@/lib/hooks/useToast';
 import { routes } from '@/lib/routes';
 import { toPersianDigits, normalizeDigits } from '@/lib/utils/format';
-import { unitWeightKg } from '@/lib/utils/weight';
+import { unitWeightKg, IBEAM_KG_PER_M, CHANNEL_KG_PER_M } from '@/lib/utils/weight';
 import { Card, Stack, Cluster, Text, Alert } from '@/components/ui';
 import { Button } from '@/components/ui';
-import { PlusIcon, CheckCircleIcon } from '@/components/primitives/icons';
+import { PlusIcon, CheckCircleIcon, ChevronDownIcon } from '@/components/primitives/icons';
 import styles from './WeightCalculator.module.css';
 
 /**
@@ -21,15 +21,30 @@ import styles from './WeightCalculator.module.css';
  * to carry its own copy, which is how the site could quote a customer one
  * weight here and a different one in chat. What stays local is presentation:
  * which fields to ask for, and the Persian formula string shown underneath.
+ *
+ * audit-2026-08-09: this used to have one combined «نبشی/تسمه» tab whose hint
+ * claimed to cover BOTH a flat bar and an equal-leg angle, but only ever ran
+ * the flat-bar formula — an angle iron (two legs) weighs roughly double a
+ * flat bar of the same "width"/leg and thickness, so a customer using this
+ * for a real نبشی quote got a number ~47% under what they'd actually be
+ * charged. Split into two honest tabs, «تسمه» and «نبشی», each calling its
+ * own already-correct formula in `weight.ts`. Also added «تیرآهن»/«ناودانی»
+ * (mill-table lookups, already supported by `weight.ts`/the AI advisor but
+ * never exposed here) so a customer can self-serve for every catalog family
+ * this site actually sells, not just four of seven.
  */
 
-type Profile = 'rebar' | 'plate' | 'pipe' | 'flat';
+type Profile = 'rebar' | 'plate' | 'pipe' | 'flat' | 'angle' | 'ibeam' | 'channel';
 
 type Field = {
   key: string;
   label: string;
   unit: string;
   placeholder: string;
+  /** 'select' for mill-table sizes (ibeam/channel) — a free-text mm/m value
+   *  has no meaning there, only the published size codes do. */
+  type?: 'text' | 'select';
+  options?: { value: string; label: string }[];
 };
 
 type ProfileSpec = {
@@ -38,14 +53,22 @@ type ProfileSpec = {
   /** Persian description of the section. */
   hint: string;
   fields: Field[];
-  /** kg per شاخه/برگ (a single piece) given parsed inputs, or null if incomplete. */
+  /** kg per شاخه (a single piece) given parsed inputs, or null if incomplete
+   *  or geometrically invalid. */
   perPiece: (v: Record<string, number>) => number | null;
   /** Human-readable formula, with the live values substituted in. */
   formula: (v: Record<string, number>) => string;
-  /** Whether the piece result is "per meter" (rebar/pipe/flat) or absolute (plate). */
+  /** Whether the piece result is "per meter" (everything except plate) or
+   *  absolute (plate). */
   perMeter: boolean;
   pieceWord: string; // شاخه | برگ
 };
+
+const sizeOptions = (table: Readonly<Record<string, number>>) =>
+  Object.keys(table)
+    .map(Number)
+    .sort((a, b) => a - b)
+    .map((n) => ({ value: String(n), label: toPersianDigits(n) }));
 
 const PROFILES: ProfileSpec[] = [
   {
@@ -94,8 +117,8 @@ const PROFILES: ProfileSpec[] = [
   },
   {
     key: 'flat',
-    label: 'نبشی/تسمه',
-    hint: 'وزن هر متر تسمه یا نبشی بر اساس عرض و ضخامت مقطع.',
+    label: 'تسمه',
+    hint: 'وزن هر متر تسمه (مقطع تخت مستطیلی) بر اساس عرض و ضخامت.',
     perMeter: true,
     pieceWord: 'شاخه',
     fields: [
@@ -106,6 +129,67 @@ const PROFILES: ProfileSpec[] = [
     perPiece: (v) => unitWeightKg('flat', { widthMm: v.w, thicknessMm: v.t, lengthM: v.len }),
     formula: (v) =>
       `عرض × ضخامت × ۰٫۰۰۷۸۵ = ${toPersianDigits(v.w || 0)} × ${toPersianDigits(v.t || 0)} × ۰٫۰۰۷۸۵`,
+  },
+  {
+    key: 'angle',
+    label: 'نبشی',
+    hint: 'وزن هر متر نبشی با بال‌های مساوی بر اساس طول بال و ضخامت.',
+    perMeter: true,
+    pieceWord: 'شاخه',
+    fields: [
+      { key: 'leg', label: 'طول بال', unit: 'میلی‌متر', placeholder: 'مثلاً ۴۰' },
+      { key: 't', label: 'ضخامت', unit: 'میلی‌متر', placeholder: 'مثلاً ۴' },
+      { key: 'len', label: 'طول هر شاخه', unit: 'متر', placeholder: 'مثلاً ۶' },
+    ],
+    perPiece: (v) => unitWeightKg('angle', { legMm: v.leg, thicknessMm: v.t, lengthM: v.len }),
+    formula: (v) =>
+      `ضخامت × (۲ × بال − ضخامت) × ۰٫۰۰۷۸۵ = ${toPersianDigits(v.t || 0)} × (۲ × ${toPersianDigits(v.leg || 0)} − ${toPersianDigits(v.t || 0)}) × ۰٫۰۰۷۸۵`,
+  },
+  {
+    key: 'ibeam',
+    label: 'تیرآهن',
+    hint: 'وزن هر متر تیرآهن استاندارد، بر اساس جدول وزن کارخانه برای هر سایز بازاری.',
+    perMeter: true,
+    pieceWord: 'شاخه',
+    fields: [
+      {
+        key: 'size',
+        label: 'سایز',
+        unit: '',
+        placeholder: '',
+        type: 'select',
+        options: sizeOptions(IBEAM_KG_PER_M),
+      },
+      { key: 'len', label: 'طول هر شاخه', unit: 'متر', placeholder: 'مثلاً ۱۲' },
+    ],
+    perPiece: (v) => unitWeightKg('ibeam', { sizeCode: v.size, lengthM: v.len }),
+    formula: (v) => {
+      const kgPerM = IBEAM_KG_PER_M[String(Math.round(v.size || 0))];
+      return `طبق جدول کارخانه (تیرآهن ${toPersianDigits(v.size || 0)}) = ${toPersianDigits(kgPerM ?? 0)}`;
+    },
+  },
+  {
+    key: 'channel',
+    label: 'ناودانی',
+    hint: 'وزن هر متر ناودانی استاندارد، بر اساس جدول وزن کارخانه برای هر سایز بازاری.',
+    perMeter: true,
+    pieceWord: 'شاخه',
+    fields: [
+      {
+        key: 'size',
+        label: 'سایز',
+        unit: '',
+        placeholder: '',
+        type: 'select',
+        options: sizeOptions(CHANNEL_KG_PER_M),
+      },
+      { key: 'len', label: 'طول هر شاخه', unit: 'متر', placeholder: 'مثلاً ۶' },
+    ],
+    perPiece: (v) => unitWeightKg('channel', { sizeCode: v.size, lengthM: v.len }),
+    formula: (v) => {
+      const kgPerM = CHANNEL_KG_PER_M[String(Math.round(v.size || 0))];
+      return `طبق جدول کارخانه (ناودانی ${toPersianDigits(v.size || 0)}) = ${toPersianDigits(kgPerM ?? 0)}`;
+    },
   },
 ];
 
@@ -142,6 +226,15 @@ export function WeightCalculator() {
   const perPiece = profile.perPiece(parsed);
   const pieces = Math.max(1, Math.round(parse(count)) || 1);
   const total = perPiece !== null ? perPiece * pieces : null;
+
+  // audit-2026-08-09: distinguishes "hasn't finished typing yet" from "typed
+  // something, but it's geometrically impossible" (e.g. a pipe wall thicker
+  // than its own outer diameter) — these used to share the exact same "enter
+  // values" message even though every field was already filled, which left a
+  // customer who'd made a real data-entry mistake with no idea why nothing
+  // computed.
+  const allFieldsGiven = profile.fields.every((f) => (parsed[f.key] ?? 0) > 0);
+  const invalidGeometry = allFieldsGiven && perPiece === null;
 
   const setField = (key: string, val: string) =>
     setValues((prev) => ({ ...prev, [key]: val }));
@@ -196,23 +289,47 @@ export function WeightCalculator() {
               {profile.hint}
             </Text>
             <div className={styles.fields}>
-              {profile.fields.map((f) => (
-                <label key={f.key} className={styles.field}>
-                  <span className={styles.fieldLabel}>
-                    {f.label}
-                    <span className={styles.fieldUnit}>({f.unit})</span>
-                  </span>
-                  <input
-                    className={`${styles.input} tnum`}
-                    inputMode="decimal"
-                    autoComplete="off"
-                    placeholder={f.placeholder}
-                    value={values[f.key] ?? ''}
-                    onChange={(e) => setField(f.key, e.target.value)}
-                    aria-label={`${f.label} بر حسب ${f.unit}`}
-                  />
-                </label>
-              ))}
+              {profile.fields.map((f) =>
+                f.type === 'select' ? (
+                  <label key={f.key} className={styles.field}>
+                    <span className={styles.fieldLabel}>{f.label}</span>
+                    <div className={styles.selectWrap}>
+                      <select
+                        className={`${styles.select} tnum`}
+                        value={values[f.key] ?? ''}
+                        onChange={(e) => setField(f.key, e.target.value)}
+                        aria-label={f.label}
+                      >
+                        <option value="" disabled>
+                          انتخاب کنید
+                        </option>
+                        {f.options?.map((o) => (
+                          <option key={o.value} value={o.value}>
+                            {o.label}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDownIcon size={18} className={styles.selectChevron} />
+                    </div>
+                  </label>
+                ) : (
+                  <label key={f.key} className={styles.field}>
+                    <span className={styles.fieldLabel}>
+                      {f.label}
+                      <span className={styles.fieldUnit}>({f.unit})</span>
+                    </span>
+                    <input
+                      className={`${styles.input} tnum`}
+                      inputMode="decimal"
+                      autoComplete="off"
+                      placeholder={f.placeholder}
+                      value={values[f.key] ?? ''}
+                      onChange={(e) => setField(f.key, e.target.value)}
+                      aria-label={`${f.label} بر حسب ${f.unit}`}
+                    />
+                  </label>
+                ),
+              )}
               <label className={styles.field}>
                 <span className={styles.fieldLabel}>
                   تعداد {profile.pieceWord}
@@ -247,7 +364,9 @@ export function WeightCalculator() {
                     <span className={styles.valueUnit}>کیلوگرم</span>
                   </>
                 ) : (
-                  <span className={styles.empty}>— مقادیر را وارد کنید</span>
+                  <span className={styles.empty}>
+                    {invalidGeometry ? 'ابعاد واردشده برای این مقطع معتبر نیست.' : '— مقادیر را وارد کنید'}
+                  </span>
                 )}
               </p>
             </div>
