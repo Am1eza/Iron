@@ -149,6 +149,20 @@ export async function toggleHelpfulVote(commentId: string, userId: string): Prom
   return { voted: existing.length === 0, count: rows[0]?.n ?? 0 };
 }
 
+/** Which of `commentIds` this user has already voted "helpful" on
+ *  (US-14.9) — the client-side counterpart to `listApprovedComments`'s
+ *  server-computed `helpfulByMe`, used where a session cookie can't be
+ *  read (an ISR page) so the client asks a Route Handler instead. See
+ *  `/api/comments/my-votes`'s own comment for the full reasoning. */
+export async function myHelpfulVotes(commentIds: string[], userId: string): Promise<string[]> {
+  if (commentIds.length === 0) return [];
+  const rows = await getDb()
+    .select({ commentId: commentHelpfulVotes.commentId })
+    .from(commentHelpfulVotes)
+    .where(and(inArray(commentHelpfulVotes.commentId, commentIds), eq(commentHelpfulVotes.userId, userId)));
+  return rows.map((r) => r.commentId);
+}
+
 /**
  * The moderation queue. Unfiltered ("all") ordering puts every `pending`
  * row first — that is the actual work an admin opening this page has, and

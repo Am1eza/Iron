@@ -12,4 +12,9 @@ export const commentsApi = {
    *  the viewer's own vote. Returns the count AFTER the toggle. */
   toggleHelpful: (commentId: string) =>
     http.post<{ voted: boolean; count: number }>(`/api/comments/${commentId}/helpful`, {}),
+  /** Which of these comment ids the current viewer already voted
+   *  "helpful" on — resolved client-side (see the route's own comment
+   *  for why this can't be server-rendered on an ISR page). */
+  myVotes: (commentIds: string[]) =>
+    http.get<{ ids: string[] }>(`/api/comments/my-votes?ids=${commentIds.map(encodeURIComponent).join(',')}`),
 };
