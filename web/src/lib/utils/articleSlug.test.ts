@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { articleSlugify, ARTICLE_SLUG_PATTERN } from './articleSlug';
+import { articleSlugify, ARTICLE_SLUG_PATTERN, decodeArticleSlugParam } from './articleSlug';
 import { articleSlugSchema } from '@/lib/validation/utils';
 
 describe('articleSlugify', () => {
@@ -75,5 +75,26 @@ describe('articleSlugSchema', () => {
   it('rejects a raw ZWNJ or RTL-override character sneaking straight into the field', () => {
     expect(s.safeParse('می‌شود').success).toBe(false); // raw ZWNJ, not folded
     expect(s.safeParse('راهنما‮آجدار').success).toBe(false); // RTL override
+  });
+});
+
+
+describe('decodeArticleSlugParam', () => {
+  it('decodes a percent-encoded Persian slug back to real Persian text', () => {
+    const slug = articleSlugify('میلگرد چیست؟');
+    expect(decodeArticleSlugParam(encodeURIComponent(slug))).toBe(slug);
+  });
+
+  it('is a no-op on an already-decoded ASCII slug (the common case)', () => {
+    expect(decodeArticleSlugParam('rebar-price-forecast-tir')).toBe('rebar-price-forecast-tir');
+  });
+
+  it('is a no-op on an already-decoded Persian slug — decoding must not double-decode', () => {
+    const slug = articleSlugify('راهنمای وزن میلگرد');
+    expect(decodeArticleSlugParam(slug)).toBe(slug);
+  });
+
+  it('returns the input as-is on a malformed escape instead of throwing', () => {
+    expect(decodeArticleSlugParam('%E0%A4%A')).toBe('%E0%A4%A');
   });
 });

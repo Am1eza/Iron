@@ -6,6 +6,7 @@ import { routes } from '@/lib/routes';
 import { articlesByType } from '@/lib/mock/catalogData';
 import { getArticle, getRelatedArticles } from '@/lib/server/catalog';
 import { shouldPrerenderMockParams } from '@/lib/server/seo/prerenderParams';
+import { decodeArticleSlugParam } from '@/lib/utils/articleSlug';
 import { formatJalali } from '@/lib/utils/jalali';
 import { Container, Section, Stack, Heading, Breadcrumbs, Badge } from '@/components/ui';
 import { CalendarIcon, ChevronStartIcon } from '@/components/primitives/icons';
@@ -26,7 +27,10 @@ export function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
-  const { slug } = await params;
+  const { slug: rawSlug } = await params;
+  // See decodeArticleSlugParam's own comment — params for a non-ASCII
+  // slug arrive still percent-encoded in this Next version.
+  const slug = decodeArticleSlugParam(rawSlug);
   const article = await getArticle(slug);
   if (!article || article.type !== 'blog') {
     return buildMetadata({ title: 'مطلب یافت نشد', noindex: true, path: routes.blog(slug) });
@@ -48,7 +52,8 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 }
 
 export default async function BlogArticlePage({ params }: Params) {
-  const { slug } = await params;
+  const { slug: rawSlug } = await params;
+  const slug = decodeArticleSlugParam(rawSlug);
   // Independent reads — the related list only needs the static 'blog' type,
   // not the resolved article — so fetch both concurrently. The related query
   // is now a single projected `LIMIT 3` (see `relatedArticles`): this used to
