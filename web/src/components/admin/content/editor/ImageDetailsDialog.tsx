@@ -22,11 +22,18 @@ export function ImageDetailsDialog({
   open,
   initial,
   onSubmit,
+  onReplace,
+  replacing,
   onClose,
 }: {
   open: boolean;
   initial: ImageEditRequest | null;
   onSubmit: (next: ImageEditRequest) => void;
+  /** Opens the hidden file input for swapping in a different upload — see
+   *  `RichTextEditor`'s `uploadReplacement`, which updates `initial.src`
+   *  (this dialog's own prop) in place without touching alt/caption. */
+  onReplace: () => void;
+  replacing: boolean;
   onClose: () => void;
 }) {
   const [alt, setAlt] = useState('');
@@ -78,6 +85,9 @@ export function ImageDetailsDialog({
       <div className={s.dialogBody}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={initial.src} alt="" className={s.dialogPreview} />
+        <Button type="button" size="sm" variant="secondary" disabled={replacing} onClick={onReplace}>
+          {replacing ? 'در حال آپلود…' : 'تصویر دیگری انتخاب کنید'}
+        </Button>
 
         <label className={s.field} htmlFor={altId}>
           <span className={s.fieldLabel}>این تصویر چه چیزی را نشان می‌دهد؟</span>

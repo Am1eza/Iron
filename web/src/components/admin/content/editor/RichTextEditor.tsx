@@ -130,7 +130,14 @@ export function RichTextEditor({
 }) {
   const toast = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
+  // A SEPARATE input from `fileRef`: that one always starts a brand-new
+  // insertion (`uploadThenAsk` clears `applyImageRef` and resets alt/
+  // caption). Swapping the picture inside an already-open dialog — new or
+  // editing a placed image — must keep whatever apply-target and alt text
+  // the writer already has; only `src`/`width`/`height` change.
+  const replaceFileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [replacing, setReplacing] = useState(false);
   const [pendingImage, setPendingImage] = useState<ImageEditRequest | null>(null);
   /** Set when an ALREADY-PLACED image is being edited; the node view hands us
    *  the writer-back function so we don't have to hunt for the node position. */
@@ -195,6 +202,41 @@ export function RichTextEditor({
       } finally {
         uploadingRef.current = false;
         setUploading(false);
+      }
+    },
+    [toast],
+  );
+
+  /** Swap the picture inside the dialog that is ALREADY open (US-14.6 —
+   *  "می‌خواستم منظورم این بود که یک عکس دیگر را جابه‌جا کند"). Same
+   *  validation/upload path as `uploadThenAsk`, but updates `pendingImage`
+   *  in place instead of creating a fresh one — `applyImageRef`, and
+   *  whatever alt/caption text is already typed, are left untouched. */
+  const uploadReplacement = useCallback(
+    async (file: File) => {
+      if (uploadingRef.current) {
+        toast.error('یک تصویر در حال آپلود است؛ کمی صبر کنید.');
+        return;
+      }
+      if (!ALLOWED_TYPES.has(file.type)) {
+        toast.error('فقط تصاویر JPG، PNG یا WebP مجاز است.');
+        return;
+      }
+      if (file.size > MAX_BYTES) {
+        toast.error('حجم فایل نباید از ۵ مگابایت بیشتر باشد.');
+        return;
+      }
+      uploadingRef.current = true;
+      setReplacing(true);
+      try {
+        const { url } = await adminApi.uploadImage(await compressImageForUpload(file));
+        const dims = await measureImage(url);
+        setPendingImage((prev) => (prev ? { ...prev, src: url, width: dims?.width ?? null, height: dims?.height ?? null } : prev));
+      } catch (err) {
+        toast.error(err instanceof ApiError ? err.message : 'آپلود ناموفق بود؛ دوباره تلاش کنید.');
+      } finally {
+        uploadingRef.current = false;
+        setReplacing(false);
       }
     },
     [toast],
@@ -544,11 +586,24 @@ export function RichTextEditor({
           if (file) void uploadRef.current(file);
         }}
       />
+      <input
+        ref={replaceFileRef}
+        type="file"
+        accept={ACCEPT}
+        className="visually-hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = '';
+          if (file) void uploadReplacement(file);
+        }}
+      />
 
       <ImageDetailsDialog
         open={pendingImage !== null}
         initial={pendingImage}
         onSubmit={insertImage}
+        onReplace={() => replaceFileRef.current?.click()}
+        replacing={replacing}
         onClose={() => {
           applyImageRef.current = null;
           setPendingImage(null);
