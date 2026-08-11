@@ -172,6 +172,13 @@ export const articleNewsTopicIdsSchema = z.array(z.string().min(1).max(60)).max(
  * is real prose meant to stand alone for an AI/answer-engine consumer
  * (see `lib/seo.faqJsonLd`'s own comment on that), not a meta snippet.
  */
+/**
+ * A reader comment body (US-14.8) — plain text, real bounds (no comment
+ * is a novel), enforced here so the API route and the panel's own
+ * character counter can never silently disagree about the limit.
+ */
+export const commentBodySchema = z.string().trim().min(1).max(1000);
+
 export const articleFaqSchema = z
   .array(
     z.object({

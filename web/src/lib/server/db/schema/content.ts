@@ -11,6 +11,7 @@ import type { RichDoc } from '@/lib/content/richDoc';
 export const ARTICLE_TYPES = ['blog', 'news'] as const;
 export const ARTICLE_STATUSES = ['draft', 'scheduled', 'published'] as const;
 export const ARTICLE_SOURCES = ['ai', 'human'] as const;
+export const COMMENT_STATUSES = ['pending', 'approved', 'rejected'] as const;
 
 export const articles = pgTable(
   'articles',
@@ -99,6 +100,42 @@ export const articles = pgTable(
     // The admin article list sorts by `updated_at DESC` (articlesRepo:205);
     // no index above is prefixed by it, so it was a full scan + sort.
     index('articles_updated_idx').on(t.updatedAt),
+  ],
+);
+
+/**
+ * Reader comments on an article (US-14.8) — moderated: every comment is
+ * born `pending` and is invisible on the public page until an admin/staff
+ * account with `content:write` approves it (`moderateComment` in
+ * `commentsRepo.ts`). A logged-in-only submitter (checked at the API
+ * route, not here) plus this queue is the whole spam defense for a
+ * first version — no anonymous posting, nothing goes live unread.
+ */
+export const articleComments = pgTable(
+  'article_comments',
+  {
+    id: text('id').primaryKey(),
+    articleId: text('article_id')
+      .notNull()
+      .references(() => articles.id, { onDelete: 'cascade' }),
+    // Comments are content, not just a join row — preserve them like
+    // articles.authorId does, just drop the reference to a since-deleted
+    // account rather than deleting the comment itself.
+    userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
+    body: text('body').notNull(),
+    status: text('status', { enum: COMMENT_STATUSES }).notNull().default('pending'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    moderatedBy: text('moderated_by').references(() => users.id, { onDelete: 'set null' }),
+    moderatedAt: timestamp('moderated_at', { withTimezone: true }),
+  },
+  (t) => [
+    // The public page's own read: approved comments for ONE article,
+    // oldest first. The admin queue's own read (status='pending' across
+    // every article) is low-volume by construction — moderation queues
+    // do not grow past what a human clears — so it stays a plain scan.
+    index('article_comments_article_status_idx').on(t.articleId, t.status),
+    index('article_comments_user_idx').on(t.userId),
+    index('article_comments_moderated_by_idx').on(t.moderatedBy),
   ],
 );
 

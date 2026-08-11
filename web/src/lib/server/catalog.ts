@@ -25,6 +25,7 @@ import {
   type ArticleFull,
 } from '@/lib/server/repos/articlesRepo';
 import { NEWS_TOPICS } from '@/lib/data/newsTopics';
+import { listApprovedComments, type PublicComment } from '@/lib/server/repos/commentsRepo';
 
 const live = () => API_MODE === 'live' && hasDb();
 
@@ -219,6 +220,13 @@ export async function getNewsTopicArticleCounts(): Promise<Record<string, number
 }
 
 export type NewsTopicRailItem = { slug: string; name: string; count: number };
+
+/** Approved comments for an article — mock mode has no comment store at
+ *  all, so it answers empty rather than a fabricated thread. */
+export async function getApprovedComments(articleId: string): Promise<PublicComment[]> {
+  if (!live()) return [];
+  return listApprovedComments(articleId);
+}
 
 /**
  * The news-topic rail's actual data — every topic (from the fixed

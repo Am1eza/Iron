@@ -36,6 +36,7 @@ import { KeywordToolLinks } from './seo/KeywordToolLinks';
 import { ArticleSearchConsole } from './seo/ArticleSearchConsole';
 import { JalaliDateField } from '../JalaliDateField';
 import { PagerFooter } from '../PagerFooter';
+import { CommentsModeration } from './CommentsModeration';
 import { routes } from '@/lib/routes';
 import ui from '../adminUi.module.css';
 import s from './content.module.css';
@@ -43,6 +44,14 @@ import s from './content.module.css';
 /** Matches `adminListArticles`'s server-side default — the admin list
  *  route doesn't accept a client-supplied perPage. */
 const PER_PAGE = 50;
+
+/** Top-level switcher (US-14.8) — «نظرات» lives beside the article
+ *  status tabs rather than under a new nav item; see CommentsModeration's
+ *  own comment for why. */
+const SECTION_TABS = [
+  { id: 'articles', label: 'مقاله‌ها' },
+  { id: 'comments', label: 'نظرات' },
+];
 
 const STATUS_TABS = [
   { id: 'draft', label: 'پیش‌نویس' },
@@ -76,6 +85,7 @@ const SITE_HOST = 'ahantime.com';
 
 export function ContentQueue() {
   const [status, setStatus] = useState('draft');
+  const [section, setSection] = useState('articles');
   const [type, setType] = useState('');
   const [search, setSearch] = useState('');
   const [q, setQ] = useState('');
@@ -207,6 +217,19 @@ export function ContentQueue() {
           Guarding them anyway would pop a "رهاکردن ویرایش؟" confirm for an
           action that discards nothing. */}
       <Tabs
+        items={SECTION_TABS}
+        active={section}
+        onChange={setSection}
+        label="بخش محتوا"
+        idBase="content-section"
+      />
+      {section === 'comments' ? (
+        <div style={{ paddingBlockStart: 'var(--space-4)' }}>
+          <CommentsModeration />
+        </div>
+      ) : (
+        <>
+      <Tabs
         items={STATUS_TABS}
         active={status}
         onChange={setStatus}
@@ -309,6 +332,8 @@ export function ContentQueue() {
           </div>
         </TabPanel>
       ))}
+        </>
+      )}
 
       {drawerId ? (
         <ArticleDrawer

@@ -253,6 +253,13 @@
       "when": 1786476738364,
       "tag": "0035_many_shotgun",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1786478604593,
+      "tag": "0036_far_human_robot",
+      "breakpoints": true
     }
   ]
 }
