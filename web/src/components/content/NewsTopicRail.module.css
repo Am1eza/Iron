@@ -17,6 +17,17 @@
   flex: 0 0 auto;
 }
 
+/* `--color-panel` (steel-900, a DARK panel colour in both themes) paired
+   with `--color-text-strong` (near-black in light theme) was invisible by
+   default and only readable on :hover, where the background flipped to
+   `--color-surface-sunken` (near-white in light theme) while the text color
+   never changed — exactly the same class of bug already fixed once for the
+   category hero's <h1> (see blog/category/[slug]/page.module.css's comment):
+   an inline/explicit color must be set for text placed on a dark surface,
+   never left to a token that also has to work on light ones. Fixed by
+   making the chip ALWAYS dark with inverse text — hover lightens to the
+   next panel shade (`--color-panel-raised`) rather than flipping to a light
+   surface, so contrast never inverts. */
 .chip {
   display: inline-flex;
   align-items: center;
@@ -24,15 +35,13 @@
   padding: var(--space-2) var(--space-4);
   border-radius: var(--radius-pill);
   background-color: var(--color-panel);
-  color: var(--color-text-strong);
+  color: var(--color-text-inverse);
   font: var(--t-label);
   text-decoration: none;
-  transition:
-    background-color var(--dur-fast) var(--ease-standard),
-    color var(--dur-fast) var(--ease-standard);
+  transition: background-color var(--dur-fast) var(--ease-standard);
 }
 .chip:hover {
-  background-color: var(--color-surface-sunken);
+  background-color: var(--color-panel-raised);
   text-decoration: none;
 }
 .chip[data-active] {
