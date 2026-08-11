@@ -1,5 +1,4 @@
 import { getApprovedComments } from '@/lib/server/catalog';
-import { getSessionVerified } from '@/lib/auth/session';
 import { Heading } from '@/components/ui';
 import { CommentsSection } from './CommentsSection';
 
@@ -10,15 +9,22 @@ import { CommentsSection } from './CommentsSection';
  * form is the point, and hiding the section until a first comment exists
  * would mean no article could ever get one.
  *
- * Server-fetches with the CURRENT viewer's id (if signed in) so the
- * approved list already carries accurate `helpfulByMe`/verified-buyer
- * data on first paint — see `commentsRepo.listApprovedComments`. Everything
- * interactive (sorting, voting, the submit form, the optimistic pending
- * preview) lives in `CommentsSection`, a client component.
+ * Deliberately does NOT read the current viewer's session here.
+ * `/blog/[slug]` and `/news/[slug]` are ISR pages (`revalidate = 600` —
+ * the SAME rendered HTML is shared across every visitor for up to that
+ * window), and `cookies()`/`headers()` (which `getSessionVerified()` reads
+ * internally) inside a route eligible for that kind of caching throws
+ * `DYNAMIC_SERVER_USAGE` in this Next version — confirmed live: this
+ * exact article 500'd in production the moment this file called it.
+ * `isVerifiedBuyer` is genuinely data-only (a join against `orders`, not
+ * the request) and stays server-computed; `helpfulByMe` is the one
+ * per-VIEWER field, and it is resolved CLIENT-SIDE instead — see
+ * `CommentsSection`'s `myVotes` fetch, the same "session state is a client
+ * hook, never a server cookie read" rule `useAuth()` already follows for
+ * this exact reason.
  */
 export async function ArticleComments({ articleId, slug }: { articleId: string; slug: string }) {
-  const viewer = await getSessionVerified();
-  const comments = await getApprovedComments(articleId, viewer?.id);
+  const comments = await getApprovedComments(articleId);
 
   return (
     <section aria-labelledby="article-comments-title">

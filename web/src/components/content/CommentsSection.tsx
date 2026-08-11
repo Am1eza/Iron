@@ -13,7 +13,7 @@
  * sorting is a derived array, and the pending preview is a SEPARATE local
  * list rendered above it, never merged into it.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { useToast } from '@/lib/hooks/useToast';
@@ -58,6 +58,27 @@ export function CommentsSection({ slug, initialComments }: { slug: string; initi
   }, [comments, sort]);
 
   const totalCount = comments.length + pending.length;
+
+  // `helpfulByMe` can't be server-rendered on this ISR page (see
+  // ArticleComments's comment) — resolved here instead, once, after the
+  // signed-in state settles. Anonymous visitors never fire this at all.
+  useEffect(() => {
+    if (!isAuthenticated || initialComments.length === 0) return;
+    let cancelled = false;
+    void api.comments.myVotes(initialComments.map((c) => c.id)).then((res) => {
+      if (cancelled || res.ids.length === 0) return;
+      const voted = new Set(res.ids);
+      setComments((cs) => cs.map((c) => (voted.has(c.id) ? { ...c, helpfulByMe: true } : c)));
+    });
+    return () => {
+      cancelled = true;
+    };
+    // `initialComments` is this component's own initial prop, fixed for its
+    // lifetime (a genuinely new comment list means a new page navigation,
+    // hence a fresh mount) — only `isAuthenticated` settling is a reason
+    // to re-run this.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
 
   const submit = async () => {
     const trimmed = body.trim();
