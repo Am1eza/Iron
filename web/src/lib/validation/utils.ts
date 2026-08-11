@@ -165,6 +165,24 @@ export const articleCategoryIdsSchema = z.array(z.string().min(1).max(60)).max(2
 export const articleNewsTopicIdsSchema = z.array(z.string().min(1).max(60)).max(10).optional();
 
 /**
+ * Admin-editable per-article FAQ (US-14.7) — free text, unlike the two
+ * pickers above, since a question/answer pair has no closed set to pick
+ * from. Each answer is capped well above the site's other single-field
+ * limits (`articleSeoSchema.description` is 200) because an FAQ answer
+ * is real prose meant to stand alone for an AI/answer-engine consumer
+ * (see `lib/seo.faqJsonLd`'s own comment on that), not a meta snippet.
+ */
+export const articleFaqSchema = z
+  .array(
+    z.object({
+      question: z.string().trim().min(1).max(200),
+      answer: z.string().trim().min(1).max(2000),
+    }),
+  )
+  .max(20)
+  .optional();
+
+/**
  * A path that provably cannot leave this site's own origin.
  *
  * Stricter than `internalPathSchema` above and used where the value becomes a

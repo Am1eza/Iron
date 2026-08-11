@@ -252,5 +252,8 @@ export interface Article {
   /** Market-news topic slugs (اخبار بازار), news-only in practice — see
    *  `lib/data/newsTopics.ts`. Same null/[] normalisation as `tags` above. */
   relatedNewsTopicIds?: string[];
+  /** Admin-editable FAQ (US-14.7). `undefined`/`[]` both mean "no FAQ
+   *  section" — `toArticleDto` normalises the column's `null` to `[]`. */
+  faq?: { question: string; answer: string }[];
   seo?: SeoMeta;
 }

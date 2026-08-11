@@ -60,6 +60,12 @@ export const articles = pgTable(
      * same-shaped topic id by accident.
      */
     relatedNewsTopicIds: jsonb('related_news_topic_ids').$type<string[]>(),
+    /** Admin-editable Q&A (US-14.7) — rendered as a visible FAQ section
+     *  plus a schema.org FAQPage JSON-LD block on every article page
+     *  (blog and news both), the same AEO mechanism already shipped for
+     *  /tools/project (`lib/seo.faqJsonLd`). Nullable/empty means no FAQ
+     *  section renders — never a fabricated placeholder question. */
+    faq: jsonb('faq').$type<{ question: string; answer: string }[]>(),
     // Editorial labels. A flat `string[]` rather than a join table for the same
     // reason as the two columns above: a tag has no attributes, no ordering and
     // no per-tag metadata, so a join table would buy only cheap renaming at the

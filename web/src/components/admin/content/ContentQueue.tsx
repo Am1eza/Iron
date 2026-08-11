@@ -364,6 +364,7 @@ type Values = {
    *  type==='news', but kept on Values unconditionally like categoryIds
    *  is, so switching an article's type never needs a special reset. */
   newsTopicIds: string[];
+  faq: { question: string; answer: string }[];
   seoTitle: string;
   seoDescription: string;
   seoCanonical: string;
@@ -385,6 +386,7 @@ function emptyValues(defaultType: 'blog' | 'news'): Values {
     tags: [],
     categoryIds: [],
     newsTopicIds: [],
+    faq: [],
     seoTitle: '',
     seoDescription: '',
     seoCanonical: '',
@@ -412,6 +414,7 @@ function fromArticle(a: ArticleFull): Values {
     tags: a.tags ?? [],
     categoryIds: a.relatedCategoryIds ?? [],
     newsTopicIds: a.relatedNewsTopicIds ?? [],
+    faq: a.faq ?? [],
     seoTitle: a.seo?.title ?? '',
     seoDescription: a.seo?.description ?? '',
     seoCanonical: a.seo?.canonical ?? '',
@@ -553,6 +556,54 @@ function NewsTopicField({ value, onChange }: { value: string[]; onChange: (slugs
           </Chip>
         ))}
       </div>
+    </div>
+  );
+}
+
+type FaqItem = { question: string; answer: string };
+
+/**
+ * Per-article FAQ (US-14.7) — free-text Q&A pairs, unlike CategoryField/
+ * NewsTopicField above: there is no closed list a question could be
+ * picked from. Rendered on the public page by `ArticleFaq` and emitted
+ * as FAQPage JSON-LD from the SAME array, so the panel and the schema
+ * markup can never show two different sets of questions.
+ */
+function FaqField({ value, onChange }: { value: FaqItem[]; onChange: (items: FaqItem[]) => void }) {
+  const update = (i: number, patch: Partial<FaqItem>) => {
+    onChange(value.map((item, idx) => (idx === i ? { ...item, ...patch } : item)));
+  };
+  const remove = (i: number) => onChange(value.filter((_, idx) => idx !== i));
+  const add = () => onChange([...value, { question: '', answer: '' }]);
+
+  return (
+    <div className={s.faqList}>
+      {value.map((item, i) => (
+        <div key={i} className={s.faqRow}>
+          <TextInput
+            label={`سوال ${toPersianDigitsSafe(i + 1)}`}
+            value={item.question}
+            maxLength={200}
+            onChange={(e) => update(i, { question: e.target.value })}
+          />
+          <Textarea
+            label="پاسخ"
+            value={item.answer}
+            maxLength={2000}
+            rows={3}
+            onChange={(e) => update(i, { answer: e.target.value })}
+          />
+          <Button type="button" size="sm" variant="ghost" onClick={() => remove(i)}>
+            حذف این سوال
+          </Button>
+        </div>
+      ))}
+      <Button type="button" size="sm" variant="secondary" onClick={add} disabled={value.length >= 20}>
+        افزودن سوال
+      </Button>
+      {value.length === 0 ? (
+        <div className={ui.tileHint}>بدون سوال متداول، بخش «سوالات متداول» زیر مقاله نمایش داده نمی‌شود.</div>
+      ) : null}
     </div>
   );
 }
@@ -759,6 +810,7 @@ function ArticleDrawer({
         tags: v.tags,
         relatedCategoryIds: v.categoryIds,
         relatedNewsTopicIds: v.newsTopicIds,
+        faq: v.faq,
         // Sent on CREATE as well as on save. It used not to be, and the
         // reseed below then overwrote the drawer's SEO inputs with the
         // server's empty ones — a focus keyword typed before the first save
@@ -789,6 +841,7 @@ function ArticleDrawer({
         tags: v.tags,
         relatedCategoryIds: v.categoryIds,
         relatedNewsTopicIds: v.newsTopicIds,
+        faq: v.faq,
         seo: seoPatch(),
       }),
     onSuccess: (res) => {
@@ -1163,6 +1216,15 @@ function ArticleDrawer({
                 focusKeyword={v.seoFocusKeyword}
                 doc={v.bodyJson}
               />
+            </div>
+
+            {/* Renders on every article, every category, per Amir's
+                explicit ask — see ArticleFaq's own comment for why this
+                is the single source both the visible list and the
+                FAQPage JSON-LD read from. */}
+            <div className={s.sideCard}>
+              <div className={s.sideCardTitle}>سوالات متداول</div>
+              <FaqField value={v.faq} onChange={(faq) => set({ faq })} />
             </div>
 
             {/* Real Google numbers for this page — renders nothing at all

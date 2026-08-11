@@ -7,6 +7,7 @@ import {
   articleTagsSchema,
   articleCategoryIdsSchema,
   articleNewsTopicIdsSchema,
+  articleFaqSchema,
 } from '@/lib/validation/utils';
 import { richDocSchema } from '@/lib/content/richDoc';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
@@ -46,6 +47,7 @@ const createPayload = z.object({
   tags: articleTagsSchema,
   relatedCategoryIds: articleCategoryIdsSchema,
   relatedNewsTopicIds: articleNewsTopicIdsSchema,
+  faq: articleFaqSchema,
   // Accepted on CREATE too (US-14.4). Without this the drawer's SEO fields —
   // including the focus keyword — were stripped by zod on the very first save
   // and then blanked on screen by the post-create reseed, with a success

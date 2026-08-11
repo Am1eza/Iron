@@ -12,6 +12,7 @@ import { Container, Section, Stack, Heading, Breadcrumbs, Badge } from '@/compon
 import { CalendarIcon, ChevronStartIcon } from '@/components/primitives/icons';
 import { BreadcrumbJsonLd, JsonLd } from '@/components/seo/JsonLd';
 import { ArticleBody } from '@/components/content/ArticleBody';
+import { ArticleFaq } from '@/components/content/ArticleFaq';
 import { ArticleCard } from '@/components/content/ArticleCard';
 import styles from './article.module.css';
 
@@ -116,6 +117,8 @@ export default async function BlogArticlePage({ params }: Params) {
             <div className={styles.body}>
               <ArticleBody article={article} />
             </div>
+
+            <ArticleFaq items={article.faq ?? []} />
 
             <Link href={routes.blog()} className={styles.back}>
               <ChevronStartIcon size={16} className="icon--rtl" />

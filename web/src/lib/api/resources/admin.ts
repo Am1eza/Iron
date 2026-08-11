@@ -775,6 +775,7 @@ export const adminApi = {
     tags?: string[];
     relatedCategoryIds?: string[];
     relatedNewsTopicIds?: string[];
+    faq?: { question: string; answer: string }[];
     /** Accepted on create since US-14.4 — see `articleSeoSchema`. */
     seo?: SeoMeta | null;
   }) => http.post<{ article: ArticleFull }>('/api/admin/articles', input),
@@ -795,6 +796,7 @@ export const adminApi = {
       tags: string[];
       relatedCategoryIds: string[];
       relatedNewsTopicIds: string[];
+      faq: { question: string; answer: string }[];
       seo: SeoMeta | null;
     }>,
   ) => http.patch<{ article: ArticleFull }>(`/api/admin/articles/${id}`, patch),

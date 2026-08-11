@@ -1,0 +1,20 @@
+.faqList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  margin: var(--space-4) 0 0;
+}
+.faqItem {
+  padding-block-end: var(--space-5);
+  border-block-end: var(--border-hairline) solid var(--color-hairline);
+}
+.faqItem:last-child {
+  padding-block-end: 0;
+  border-block-end: none;
+}
+.faqItem dd {
+  margin: var(--space-2) 0 0;
+}
+.faqQuestion {
+  margin: 0;
+}
