@@ -3,7 +3,7 @@
  * and brand/customer logos.
  */
 import { sql } from 'drizzle-orm';
-import { boolean, index, integer, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
+import { boolean, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
 import { users } from './auth';
 import type { SeoMeta } from '@/lib/types/domain';
 import type { RichDoc } from '@/lib/content/richDoc';
@@ -136,6 +136,32 @@ export const articleComments = pgTable(
     index('article_comments_article_status_idx').on(t.articleId, t.status),
     index('article_comments_user_idx').on(t.userId),
     index('article_comments_moderated_by_idx').on(t.moderatedBy),
+  ],
+);
+
+/**
+ * "این نظر مفید بود؟" — one vote per (comment, user) (US-14.9, the
+ * comments-UX redesign). A separate table rather than a counter column
+ * on `articleComments`: the unique (comment_id, user_id) index is what
+ * makes a toggle idempotent (insert-or-delete, never a += that a
+ * double-click could apply twice) and is what lets the page tell THIS
+ * viewer whether they already voted, which a bare count could not.
+ */
+export const commentHelpfulVotes = pgTable(
+  'comment_helpful_votes',
+  {
+    id: text('id').primaryKey(),
+    commentId: text('comment_id')
+      .notNull()
+      .references(() => articleComments.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('comment_helpful_votes_comment_user_idx').on(t.commentId, t.userId),
+    index('comment_helpful_votes_user_idx').on(t.userId),
   ],
 );
 

@@ -14,6 +14,7 @@ import {
   listCommentsForModeration,
   moderateComment,
   pendingCommentCount,
+  toggleHelpfulVote,
 } from './commentsRepo';
 
 let db: Db;
@@ -100,5 +101,71 @@ describe('pendingCommentCount', () => {
     const pendingInAll = all.filter((c) => c.status === 'pending').length;
     expect(count).toBe(pendingInAll);
     expect(count).toBeGreaterThan(0);
+  });
+});
+
+
+describe('listApprovedComments — helpful votes and verified-buyer badge (US-14.9)', () => {
+  it('a user with no orders is not a verified buyer', async () => {
+    const { id } = await createComment({ articleId: ARTICLE_ID, userId: USER_ID, body: 'نظر بدون سفارش' });
+    await moderateComment(id, 'approved', MODERATOR_ID);
+    const approved = await listApprovedComments(ARTICLE_ID);
+    const found = approved.find((c) => c.id === id);
+    expect(found!.isVerifiedBuyer).toBe(false);
+  });
+
+  it('the badge is computed fresh per read, not frozen at comment time: placing an order AFTER commenting still lights it up', async () => {
+    const { id } = await createComment({ articleId: ARTICLE_ID, userId: USER_ID, body: 'نظر قبل از سفارش' });
+    await moderateComment(id, 'approved', MODERATOR_ID);
+
+    const before = await listApprovedComments(ARTICLE_ID);
+    expect(before.find((c) => c.id === id)!.isVerifiedBuyer).toBe(false);
+
+    await db.insert(schema.orders).values({ id: 'order-1', ref: 'ORD-TEST-1', userId: USER_ID });
+
+    const after = await listApprovedComments(ARTICLE_ID);
+    expect(after.find((c) => c.id === id)!.isVerifiedBuyer).toBe(true);
+  });
+
+  it('helpfulByMe is false for an anonymous read and reflects a real vote for a signed-in one', async () => {
+    const { id } = await createComment({ articleId: ARTICLE_ID, userId: USER_ID, body: 'نظر برای رأی' });
+    await moderateComment(id, 'approved', MODERATOR_ID);
+
+    const anonymous = await listApprovedComments(ARTICLE_ID);
+    expect(anonymous.find((c) => c.id === id)!.helpfulByMe).toBe(false);
+
+    await toggleHelpfulVote(id, MODERATOR_ID);
+    const asVoter = await listApprovedComments(ARTICLE_ID, MODERATOR_ID);
+    const voted = asVoter.find((c) => c.id === id)!;
+    expect(voted.helpfulByMe).toBe(true);
+    expect(voted.helpfulCount).toBe(1);
+
+    // A different viewer sees the count but not the "by me" flag.
+    const asOther = await listApprovedComments(ARTICLE_ID, USER_ID);
+    const seenByOther = asOther.find((c) => c.id === id)!;
+    expect(seenByOther.helpfulByMe).toBe(false);
+    expect(seenByOther.helpfulCount).toBe(1);
+  });
+});
+
+describe('toggleHelpfulVote', () => {
+  it('toggles on then off — a second call removes the vote instead of adding a second one', async () => {
+    const { id } = await createComment({ articleId: ARTICLE_ID, userId: USER_ID, body: 'نظر برای تاگل' });
+    await moderateComment(id, 'approved', MODERATOR_ID);
+
+    const first = await toggleHelpfulVote(id, USER_ID);
+    expect(first).toEqual({ voted: true, count: 1 });
+
+    const second = await toggleHelpfulVote(id, USER_ID);
+    expect(second).toEqual({ voted: false, count: 0 });
+  });
+
+  it('two different viewers voting both count', async () => {
+    const { id } = await createComment({ articleId: ARTICLE_ID, userId: USER_ID, body: 'نظر برای دو رأی' });
+    await moderateComment(id, 'approved', MODERATOR_ID);
+
+    await toggleHelpfulVote(id, USER_ID);
+    const result = await toggleHelpfulVote(id, MODERATOR_ID);
+    expect(result).toEqual({ voted: true, count: 2 });
   });
 });

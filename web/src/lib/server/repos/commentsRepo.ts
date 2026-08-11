@@ -3,11 +3,18 @@
  * born `pending`; only `moderateComment('approved', ...)` makes it visible
  * on the public page. See `content.ts`'s `articleComments` for the schema
  * and the full reasoning.
+ *
+ * US-14.9 (the comments-UX redesign) added "این نظر مفید بود؟" voting and
+ * an "خریدار تایید‌شده آهن‌تایم" trust badge — see `listApprovedComments`.
+ * Combined in JS from a few flat queries rather than one wide join: this is
+ * a low-traffic B2B blog (dozens of comments per article, not thousands),
+ * so the extra round trips cost nothing real, and three queries you can
+ * read independently are worth more here than one clever one you can't.
  */
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { getDb } from '@/lib/server/db/client';
-import { articleComments, articles, users } from '@/lib/server/db/schema';
+import { articleComments, articles, users, commentHelpfulVotes, orders } from '@/lib/server/db/schema';
 
 export type CommentStatus = 'pending' | 'approved' | 'rejected';
 
@@ -16,9 +23,23 @@ export type PublicComment = {
   body: string;
   createdAt: string;
   authorName: string | null;
+  /** Has at least one order on file — the "خریدار تایید‌شده آهن‌تایم" badge.
+   *  Computed fresh on every read, not frozen at comment time: a customer's
+   *  first order after commenting should light the badge up on their past
+   *  comments too, the same way a review site would. */
+  isVerifiedBuyer: boolean;
+  helpfulCount: number;
+  /** Only meaningful when the list was fetched for a signed-in viewer;
+   *  `false` for an anonymous visitor, never a tri-state, since anyone
+   *  who cannot vote has definitionally not voted. */
+  helpfulByMe: boolean;
 };
 
-export type AdminComment = PublicComment & {
+export type AdminComment = {
+  id: string;
+  body: string;
+  createdAt: string;
+  authorName: string | null;
   status: CommentStatus;
   articleId: string;
   articleTitle: string;
@@ -39,23 +60,93 @@ export async function createComment(input: {
   return rows[0]!;
 }
 
-/** Approved comments for one article, oldest first — the public page's own
- *  read. A deactivated/deleted commenter's name is dropped (`authorName:
- *  null`), never the comment itself — matching `articles.authorId`'s own
- *  "preserve content, drop the person" pattern. */
-export async function listApprovedComments(articleId: string): Promise<PublicComment[]> {
-  const rows = await getDb()
+/** Approved comments for one article — the public page's own read. A
+ *  deactivated/deleted commenter's name is dropped (`authorName: null`),
+ *  never the comment itself — matching `articles.authorId`'s own "preserve
+ *  content, drop the person" pattern. `viewerId` is the CURRENT visitor
+ *  (from `getSessionVerified()` in the page, not the comment's own author) —
+ *  omit it for an anonymous visitor, in which case every `helpfulByMe` is
+ *  `false`. Default order is oldest-first; "پرمفیدترین" is a client-side
+ *  re-sort of this same array (see `CommentsSection.tsx`), not a second
+ *  query — every row already carries `helpfulCount`. */
+export async function listApprovedComments(articleId: string, viewerId?: string): Promise<PublicComment[]> {
+  const db = getDb();
+  const rows = await db
     .select({
       id: articleComments.id,
       body: articleComments.body,
       createdAt: articleComments.createdAt,
       authorName: users.name,
+      authorId: articleComments.userId,
     })
     .from(articleComments)
     .leftJoin(users, eq(articleComments.userId, users.id))
     .where(and(eq(articleComments.articleId, articleId), eq(articleComments.status, 'approved')))
     .orderBy(articleComments.createdAt);
-  return rows.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() }));
+
+  if (rows.length === 0) return [];
+
+  const commentIds = rows.map((r) => r.id);
+  const authorIds = [...new Set(rows.map((r) => r.authorId).filter((id): id is string => id !== null))];
+
+  const [counts, myVotes, buyerIds] = await Promise.all([
+    db
+      .select({ commentId: commentHelpfulVotes.commentId, n: sql<number>`count(*)::int` })
+      .from(commentHelpfulVotes)
+      .where(inArray(commentHelpfulVotes.commentId, commentIds))
+      .groupBy(commentHelpfulVotes.commentId),
+    viewerId
+      ? db
+          .select({ commentId: commentHelpfulVotes.commentId })
+          .from(commentHelpfulVotes)
+          .where(and(inArray(commentHelpfulVotes.commentId, commentIds), eq(commentHelpfulVotes.userId, viewerId)))
+      : Promise.resolve([]),
+    authorIds.length > 0
+      ? db
+          .select({ userId: orders.userId })
+          .from(orders)
+          .where(inArray(orders.userId, authorIds))
+      : Promise.resolve([]),
+  ]);
+
+  const countByComment = new Map(counts.map((c) => [c.commentId, c.n]));
+  const votedByMe = new Set(myVotes.map((v) => v.commentId));
+  const verifiedAuthors = new Set(buyerIds.map((b) => b.userId).filter((id): id is string => id !== null));
+
+  return rows.map((r) => ({
+    id: r.id,
+    body: r.body,
+    createdAt: r.createdAt.toISOString(),
+    authorName: r.authorName,
+    isVerifiedBuyer: r.authorId !== null && verifiedAuthors.has(r.authorId),
+    helpfulCount: countByComment.get(r.id) ?? 0,
+    helpfulByMe: votedByMe.has(r.id),
+  }));
+}
+
+/** Toggle "این نظر مفید بود؟" for one viewer — insert if absent, delete if
+ *  present, so a double-click can never double-count. Returns the count
+ *  AFTER the toggle so the client can reconcile its optimistic update
+ *  against the real number in one round trip. */
+export async function toggleHelpfulVote(commentId: string, userId: string): Promise<{ voted: boolean; count: number }> {
+  const db = getDb();
+  const existing = await db
+    .select({ id: commentHelpfulVotes.id })
+    .from(commentHelpfulVotes)
+    .where(and(eq(commentHelpfulVotes.commentId, commentId), eq(commentHelpfulVotes.userId, userId)))
+    .limit(1);
+
+  if (existing.length > 0) {
+    await db.delete(commentHelpfulVotes).where(eq(commentHelpfulVotes.id, existing[0]!.id));
+  } else {
+    await db.insert(commentHelpfulVotes).values({ id: ulid(), commentId, userId });
+  }
+
+  const rows = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(commentHelpfulVotes)
+    .where(eq(commentHelpfulVotes.commentId, commentId));
+  return { voted: existing.length === 0, count: rows[0]?.n ?? 0 };
 }
 
 /**

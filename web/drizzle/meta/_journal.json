@@ -260,6 +260,13 @@
       "when": 1786478604593,
       "tag": "0036_far_human_robot",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1786482374588,
+      "tag": "0037_wandering_radioactive_man",
+      "breakpoints": true
     }
   ]
 }
