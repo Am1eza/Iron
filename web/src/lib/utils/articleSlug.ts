@@ -50,3 +50,27 @@ export function articleSlugify(input: string): string {
     .replace(/-+/g, '-')
     .replace(/^-+|-+$/g, '');
 }
+
+/**
+ * Next.js does not reliably URL-decode a non-ASCII dynamic route segment
+ * before handing it to a Server Component's `params` in this version —
+ * confirmed live: `/api/articles/[slug]`'s route handler explicitly calls
+ * `decodeURIComponent` on `ctx.params.slug` and correctly resolves a real
+ * published Persian-slug article, while `/blog/[slug]/page.tsx` (no decode)
+ * received the same request still percent-encoded, queried Postgres for the
+ * literal string "%D9%85%DB%8C...", found nothing, and rendered a genuine
+ * published article as "مطلب یافت نشد". ASCII slugs have no `%` to decode,
+ * which is why this was invisible until the first real Persian one (this
+ * codebase's articles were all English-titled until 2026-08-10).
+ *
+ * A malformed escape is left as-is rather than thrown — the slug will
+ * simply not be found, which is the right answer, matching
+ * `knownPaths.ts`'s `normalizeKnownPath`.
+ */
+export function decodeArticleSlugParam(slug: string): string {
+  try {
+    return decodeURIComponent(slug);
+  } catch {
+    return slug;
+  }
+}
