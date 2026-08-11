@@ -37,6 +37,7 @@
  *     static page, every API route, the admin tree — is never consulted here.
  */
 import { TOOL_SLUGS, COOPERATION_TRACKS } from '@/lib/routes';
+import { NEWS_TOPICS } from '@/lib/data/newsTopics';
 
 /**
  * URL families served by a dynamic segment whose slug set lives in the
@@ -55,6 +56,11 @@ const GUARDED_PATTERNS: readonly RegExp[] = [
   // matches before /blog/[slug], so a slug of literally "category" can never
   // collide with it; still its own pattern since it is a second depth level.
   /^\/blog\/category\/[^/]+$/,
+  // /news/topic/[slug] — fixed, code-defined topics (see below), the
+  // same STATIC_DYNAMIC_PATHS family as /tools and /cooperation, not the
+  // DB-backed one — no `known` dependency, so it can never fail-open-404
+  // even before the catalog has loaded.
+  /^\/news\/topic\/[^/]+$/,
   // The paginated archive. `/blog/page/999` renders and is then ISR-cached
   // under its own key, and neither `notFound()` nor `redirect()` produces a
   // real status code from inside an already-matched route in this Next version
@@ -82,6 +88,7 @@ const GUARDED_PATTERNS: readonly RegExp[] = [
 export const STATIC_DYNAMIC_PATHS: readonly string[] = [
   ...TOOL_SLUGS.map((t) => `/tools/${t}`),
   ...COOPERATION_TRACKS.map((t) => `/cooperation/${t}`),
+  ...NEWS_TOPICS.map((t) => `/news/topic/${t.slug}`),
 ];
 
 /**
@@ -157,7 +164,11 @@ export function normalizeKnownPath(pathname: string): string {
 
 /** Which family a guarded path belongs to — code-defined or database-backed. */
 function isStaticFamily(pathname: string): boolean {
-  return pathname.startsWith('/tools/') || pathname.startsWith('/cooperation/');
+  return (
+    pathname.startsWith('/tools/') ||
+    pathname.startsWith('/cooperation/') ||
+    pathname.startsWith('/news/topic/')
+  );
 }
 
 /**

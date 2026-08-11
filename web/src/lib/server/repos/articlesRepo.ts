@@ -22,7 +22,8 @@ type Row = typeof articles.$inferSelect;
 export type ArticleListRow = Pick<
   Row,
   | 'id' | 'slug' | 'type' | 'title' | 'excerpt' | 'coverUrl'
-  | 'status' | 'source' | 'publishAt' | 'updatedAt' | 'tags' | 'relatedCategoryIds' | 'seo'
+  | 'status' | 'source' | 'publishAt' | 'updatedAt' | 'tags' | 'relatedCategoryIds'
+  | 'relatedNewsTopicIds' | 'seo'
 >;
 
 export function toArticleDto(r: ArticleListRow): Article {
@@ -46,6 +47,7 @@ export function toArticleDto(r: ArticleListRow): Article {
     // ever gets it wrong.
     tags: r.tags ?? [],
     relatedCategoryIds: r.relatedCategoryIds ?? [],
+    relatedNewsTopicIds: r.relatedNewsTopicIds ?? [],
     seo: r.seo ?? undefined,
   };
 }
@@ -129,6 +131,7 @@ const LIST_COLUMNS = {
   updatedAt: articles.updatedAt,
   tags: articles.tags,
   relatedCategoryIds: articles.relatedCategoryIds,
+  relatedNewsTopicIds: articles.relatedNewsTopicIds,
   seo: articles.seo,
 } as const;
 
@@ -194,6 +197,47 @@ export async function categoryArticleCounts(): Promise<Record<string, number>> {
   const rows = Array.isArray(res) ? res : (res.rows ?? []);
   const out: Record<string, number> = {};
   for (const r of rows) out[r.cat_id] = r.n;
+  return out;
+}
+
+/**
+ * Articles filed under a market-news topic (اخبار بازار) — the
+ * `/news/topic/[slug]` page. Unlike `listPublishedByCategory`, this IS
+ * scoped to `type='news'`: topics are a news-only lens (see
+ * `lib/data/newsTopics.ts`), so a blog post accidentally carrying a
+ * leftover topic id must never surface on a news-topic page.
+ */
+export async function listPublishedByNewsTopic(topicSlug: string, page = 1, perPage = 20) {
+  const db = getDb();
+  const containsTopic = sql`${articles.relatedNewsTopicIds} @> ${JSON.stringify([topicSlug])}::jsonb`;
+  const where = and(eq(articles.type, 'news'), publishedCond(), containsTopic);
+  const [rows, total] = await Promise.all([
+    db
+      .select(LIST_COLUMNS)
+      .from(articles)
+      .where(where)
+      .orderBy(desc(articles.publishAt))
+      .limit(perPage)
+      .offset((page - 1) * perPage),
+    db.select({ n: sql<number>`count(*)::int` }).from(articles).where(where),
+  ]);
+  return { articles: rows.map(toArticleDto), total: total[0]?.n ?? 0 };
+}
+
+/**
+ * Published-news count per topic slug — same shape and purpose as
+ * `categoryArticleCounts`, scoped to `type='news'` for the reason above.
+ */
+export async function newsTopicArticleCounts(): Promise<Record<string, number>> {
+  const res = (await getDb().execute(sql`
+    select topic_slug, count(*)::int as n
+    from ${articles}, jsonb_array_elements_text(${articles.relatedNewsTopicIds}) as topic_slug
+    where ${articles.type} = 'news' and ${publishedCond()}
+    group by topic_slug
+  `)) as unknown as { rows?: { topic_slug: string; n: number }[] } | { topic_slug: string; n: number }[];
+  const rows = Array.isArray(res) ? res : (res.rows ?? []);
+  const out: Record<string, number> = {};
+  for (const r of rows) out[r.topic_slug] = r.n;
   return out;
 }
 
@@ -445,6 +489,7 @@ export async function createArticle(input: {
   authorId?: string;
   tags?: string[];
   relatedCategoryIds?: string[];
+  relatedNewsTopicIds?: string[];
   /** SEO overrides + focus keyword (US-14.4). Optional: seeds and the AI
    *  draft path create articles with none. */
   seo?: SeoMeta | null;
@@ -465,6 +510,7 @@ export async function createArticle(input: {
       authorId: input.authorId ?? null,
       tags: input.tags ?? null,
       relatedCategoryIds: input.relatedCategoryIds ?? null,
+      relatedNewsTopicIds: input.relatedNewsTopicIds ?? null,
       seo: input.seo ?? null,
       status: 'draft',
     })
@@ -491,6 +537,7 @@ export async function updateArticle(
     authorId: string | null;
     tags: string[];
     relatedCategoryIds: string[];
+    relatedNewsTopicIds: string[];
     seo: Row['seo'];
   }>,
 ): Promise<ArticleFull | null> {

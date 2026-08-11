@@ -18,6 +18,7 @@ import { useFocusTrap } from '@/lib/hooks/useFocusTrap';
 import { useUnsavedGuard } from '@/lib/hooks/useUnsavedGuard';
 import { formatJalali } from '@/lib/utils/jalali';
 import { articleSlugify } from '@/lib/utils/articleSlug';
+import { NEWS_TOPICS } from '@/lib/data/newsTopics';
 import { MAX_ARTICLE_TAGS, normalizeArticleTags } from '@/lib/utils/articleTags';
 import { useToast } from '@/lib/hooks/useToast';
 import { useDeepLinkQuery } from '@/lib/hooks/useDeepLinkQuery';
@@ -359,6 +360,10 @@ type Values = {
   authorId: string | null;
   tags: string[];
   categoryIds: string[];
+  /** Market-news topic slugs (اخبار بازار) — only meaningful/shown for
+   *  type==='news', but kept on Values unconditionally like categoryIds
+   *  is, so switching an article's type never needs a special reset. */
+  newsTopicIds: string[];
   seoTitle: string;
   seoDescription: string;
   seoCanonical: string;
@@ -379,6 +384,7 @@ function emptyValues(defaultType: 'blog' | 'news'): Values {
     authorId: null,
     tags: [],
     categoryIds: [],
+    newsTopicIds: [],
     seoTitle: '',
     seoDescription: '',
     seoCanonical: '',
@@ -405,6 +411,7 @@ function fromArticle(a: ArticleFull): Values {
     authorId: a.authorId ?? null,
     tags: a.tags ?? [],
     categoryIds: a.relatedCategoryIds ?? [],
+    newsTopicIds: a.relatedNewsTopicIds ?? [],
     seoTitle: a.seo?.title ?? '',
     seoDescription: a.seo?.description ?? '',
     seoCanonical: a.seo?.canonical ?? '',
@@ -519,6 +526,33 @@ function CategoryField({ value, onChange }: { value: string[]; onChange: (ids: s
       ) : (
         <div className={ui.tileHint}>در حال بارگذاری دسته‌ها…</div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Market-news topic picker — same toggle-chip UX and same reasoning as
+ * `CategoryField` above (a closed picker, never free text, so the panic-
+ * prone non-technical admin never types anything), over the fixed
+ * `NEWS_TOPICS` list instead of a query: there is no admin-managed table
+ * to fetch, and there never should be — see `lib/data/newsTopics.ts`.
+ * News-only: shown by the caller only when `v.type === 'news'`.
+ */
+function NewsTopicField({ value, onChange }: { value: string[]; onChange: (slugs: string[]) => void }) {
+  const toggle = (slug: string) => {
+    onChange(value.includes(slug) ? value.filter((s) => s !== slug) : [...value, slug]);
+  };
+
+  return (
+    <div>
+      <span className={ui.tileLabel}>موضوع خبر</span>
+      <div className={s.tagChips} aria-label="موضوعات خبر">
+        {NEWS_TOPICS.map((t) => (
+          <Chip key={t.slug} selected={value.includes(t.slug)} onClick={() => toggle(t.slug)}>
+            {t.name}
+          </Chip>
+        ))}
+      </div>
     </div>
   );
 }
@@ -724,6 +758,7 @@ function ArticleDrawer({
         bodyJson: v.bodyJson,
         tags: v.tags,
         relatedCategoryIds: v.categoryIds,
+        relatedNewsTopicIds: v.newsTopicIds,
         // Sent on CREATE as well as on save. It used not to be, and the
         // reseed below then overwrote the drawer's SEO inputs with the
         // server's empty ones — a focus keyword typed before the first save
@@ -753,6 +788,7 @@ function ArticleDrawer({
         authorId: v.authorId,
         tags: v.tags,
         relatedCategoryIds: v.categoryIds,
+        relatedNewsTopicIds: v.newsTopicIds,
         seo: seoPatch(),
       }),
     onSuccess: (res) => {
@@ -1081,6 +1117,12 @@ function ArticleDrawer({
               <ImageUpload label="تصویر کاور" value={v.coverUrl} onChange={(url) => set({ coverUrl: url })} />
               <TagField value={v.tags} onChange={(tags) => set({ tags })} />
               <CategoryField value={v.categoryIds} onChange={(categoryIds) => set({ categoryIds })} />
+              {v.type === 'news' ? (
+                <NewsTopicField
+                  value={v.newsTopicIds}
+                  onChange={(newsTopicIds) => set({ newsTopicIds })}
+                />
+              ) : null}
             </div>
 
             {/* On-page SEO (US-14.4). Deliberately NOT inside «تنظیمات

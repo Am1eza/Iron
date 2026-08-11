@@ -7,6 +7,7 @@ import {
   shouldNotFound,
 } from './knownPaths';
 import { TRACK_ORDER } from '@/components/cooperation/tracks';
+import { NEWS_TOPICS } from '@/lib/data/newsTopics';
 
 const known = new Set([
   '/prices/rebar',
@@ -89,12 +90,13 @@ describe('shouldNotFound', () => {
   });
 });
 
-describe('code-defined families (/tools, /cooperation)', () => {
+describe('code-defined families (/tools, /cooperation, /news/topic)', () => {
   it('404s an unknown slug even with NO database data loaded', () => {
     // These sets cannot change at runtime, so they never depend on a query
     // and never need the fail-open escape hatch.
     expect(shouldNotFound('/tools/nope', new Set())).toBe(true);
     expect(shouldNotFound('/cooperation/nope', new Set())).toBe(true);
+    expect(shouldNotFound('/news/topic/nope', new Set())).toBe(true);
   });
 
   it('leaves every real tool and track alone', () => {
@@ -106,6 +108,12 @@ describe('code-defined families (/tools, /cooperation)', () => {
     // guard would 404 a live track. Assert them equal instead of hoping.
     expect(TRACK_ORDER.map((t) => `/cooperation/${t}`).sort()).toEqual(
       STATIC_DYNAMIC_PATHS.filter((p) => p.startsWith('/cooperation/')).slice().sort(),
+    );
+  });
+
+  it('stays in step with the fixed NEWS_TOPICS list', () => {
+    expect(NEWS_TOPICS.map((t) => `/news/topic/${t.slug}`).sort()).toEqual(
+      STATIC_DYNAMIC_PATHS.filter((p) => p.startsWith('/news/topic/')).slice().sort(),
     );
   });
 });

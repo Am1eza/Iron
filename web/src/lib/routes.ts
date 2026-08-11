@@ -67,6 +67,10 @@ export const routes = {
    *  category (US-14.5). Lives under /blog (not a third top-level section)
    *  since it is a filtered view of the same content, not a new one. */
   blogCategory: (categorySlug: string) => `/blog/category/${enc(categorySlug)}`,
+  /** `/news/topic/[slug]` (اخبار بازار) — a market-news topic, from the
+   *  fixed `NEWS_TOPICS` list (`lib/data/newsTopics.ts`), not the DB
+   *  `categories` table `blogCategory` above reads. */
+  newsTopic: (topicSlug: string) => `/news/topic/${enc(topicSlug)}`,
 
   // Company / cooperation ( /why merged into /about — see next.config redirect )
   about: () => '/about',

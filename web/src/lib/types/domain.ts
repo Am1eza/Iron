@@ -249,5 +249,8 @@ export interface Article {
    *  normalisation story as `tags` above: `null` and `[]` both mean
    *  uncategorised, and `toArticleDto` collapses both to `[]`. */
   relatedCategoryIds?: string[];
+  /** Market-news topic slugs (اخبار بازار), news-only in practice — see
+   *  `lib/data/newsTopics.ts`. Same null/[] normalisation as `tags` above. */
+  relatedNewsTopicIds?: string[];
   seo?: SeoMeta;
 }

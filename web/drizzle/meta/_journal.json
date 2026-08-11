@@ -239,6 +239,13 @@
       "when": 1786192377049,
       "tag": "0033_tiresome_electro",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1786463688405,
+      "tag": "0034_abnormal_living_lightning",
+      "breakpoints": true
     }
   ]
 }

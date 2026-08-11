@@ -1,0 +1,1 @@
+ALTER TABLE "articles" ADD COLUMN "related_news_topic_ids" jsonb;

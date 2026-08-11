@@ -18,10 +18,13 @@ import {
   listPublished,
   listPublishedByCategory,
   categoryArticleCounts,
+  listPublishedByNewsTopic,
+  newsTopicArticleCounts,
   relatedArticles,
   findPublishedBySlug,
   type ArticleFull,
 } from '@/lib/server/repos/articlesRepo';
+import { NEWS_TOPICS } from '@/lib/data/newsTopics';
 
 const live = () => API_MODE === 'live' && hasDb();
 
@@ -197,6 +200,39 @@ export async function getBlogCategoryRailItems(): Promise<CategoryRailItem[]> {
   return cats
     .map((c) => ({ slug: c.slug, name: c.name, imageUrl: c.imageUrl ?? null, count: counts[c.id] ?? 0 }))
     .filter((c) => c.count > 0);
+}
+
+export async function getArticlesPageByNewsTopic(
+  topicSlug: string,
+  page = 1,
+  perPage = 20,
+): Promise<{ articles: Article[]; total: number }> {
+  if (!live()) return { articles: [], total: 0 };
+  return listPublishedByNewsTopic(topicSlug, page, perPage);
+}
+
+/** Published-news count per topic slug — the news-topic rail's source for
+ *  which topic chips to show and what count to print on each. */
+export async function getNewsTopicArticleCounts(): Promise<Record<string, number>> {
+  if (!live()) return {};
+  return newsTopicArticleCounts();
+}
+
+export type NewsTopicRailItem = { slug: string; name: string; count: number };
+
+/**
+ * The news-topic rail's actual data — every topic (from the fixed
+ * `NEWS_TOPICS` list, not a DB query) that has at least one published news
+ * article, in the taxonomy's own declared order. Same shape and same
+ * `count > 0` filter as `getBlogCategoryRailItems`, for the same reason: a
+ * rail entry a reader could click into and find nothing is worse than not
+ * showing it.
+ */
+export async function getNewsTopicRailItems(): Promise<NewsTopicRailItem[]> {
+  const counts = await getNewsTopicArticleCounts();
+  return NEWS_TOPICS.map((t) => ({ slug: t.slug, name: t.name, count: counts[t.slug] ?? 0 })).filter(
+    (t) => t.count > 0,
+  );
 }
 
 /** The 3 cards under an article. One projected query — see `relatedArticles`. */

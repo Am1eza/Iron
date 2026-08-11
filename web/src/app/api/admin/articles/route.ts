@@ -1,7 +1,13 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
-import { articleSeoSchema, articleSlugSchema, articleTagsSchema, articleCategoryIdsSchema } from '@/lib/validation/utils';
+import {
+  articleSeoSchema,
+  articleSlugSchema,
+  articleTagsSchema,
+  articleCategoryIdsSchema,
+  articleNewsTopicIdsSchema,
+} from '@/lib/validation/utils';
 import { richDocSchema } from '@/lib/content/richDoc';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { adminListArticles, createArticle } from '@/lib/server/repos/articlesRepo';
@@ -39,6 +45,7 @@ const createPayload = z.object({
   bodyJson: richDocSchema.optional(),
   tags: articleTagsSchema,
   relatedCategoryIds: articleCategoryIdsSchema,
+  relatedNewsTopicIds: articleNewsTopicIdsSchema,
   // Accepted on CREATE too (US-14.4). Without this the drawer's SEO fields —
   // including the focus keyword — were stripped by zod on the very first save
   // and then blanked on screen by the post-create reseed, with a success

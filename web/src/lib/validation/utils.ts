@@ -156,6 +156,15 @@ export const articleTagsSchema = z
 export const articleCategoryIdsSchema = z.array(z.string().min(1).max(60)).max(20).optional();
 
 /**
+ * Market-news topic slugs (اخبار بازار) — same reasoning as
+ * `articleCategoryIdsSchema` above (a closed picker, not free text, so no
+ * normalization step), over the fixed `NEWS_TOPICS` list instead of the
+ * DB `categories` table. A stale/unknown slug is a harmless no-op the
+ * same way, so this validates shape only, not membership.
+ */
+export const articleNewsTopicIdsSchema = z.array(z.string().min(1).max(60)).max(10).optional();
+
+/**
  * A path that provably cannot leave this site's own origin.
  *
  * Stricter than `internalPathSchema` above and used where the value becomes a
