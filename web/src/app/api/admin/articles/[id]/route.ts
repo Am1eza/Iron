@@ -14,6 +14,7 @@ import {
   articleSlugSchema,
   articleTagsSchema,
   articleCategoryIdsSchema,
+  articleNewsTopicIdsSchema,
   uploadPathSchema,
 } from '@/lib/validation/utils';
 import { richDocSchema } from '@/lib/content/richDoc';
@@ -94,6 +95,7 @@ const patchPayload = z.object({
   authorId: z.string().min(1).nullable().optional(),
   tags: articleTagsSchema,
   relatedCategoryIds: articleCategoryIdsSchema,
+  relatedNewsTopicIds: articleNewsTopicIdsSchema,
   // Editor SEO overrides, including the focus keyword the on-page checklist
   // keys off. Shared with the create route. canonical is validated by
   // internalPathSchema (parser-based, not a startswith-slash regex) inside

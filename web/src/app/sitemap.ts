@@ -5,10 +5,12 @@ import {
   getRows,
   getAllPublishedArticles,
   getCategoryArticleCounts,
+  getNewsTopicArticleCounts,
   isLiveCatalog,
 } from '@/lib/server/catalog';
 import { getSubsMap } from '@/lib/server/catalog';
 import { TRACK_ORDER } from '@/components/cooperation/tracks';
+import { NEWS_TOPICS } from '@/lib/data/newsTopics';
 
 /**
  * Why this route is dynamic, and why that is not negotiable.
@@ -138,10 +140,11 @@ async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
     }
   });
 
-  const [blogArticles, newsArticles, categoryArticleCounts] = await Promise.all([
+  const [blogArticles, newsArticles, categoryArticleCounts, newsTopicArticleCounts] = await Promise.all([
     getAllPublishedArticles('blog'),
     getAllPublishedArticles('news'),
     getCategoryArticleCounts(),
+    getNewsTopicArticleCounts(),
   ]);
 
   // Only categories that currently have at least one article (US-14.5) — an
@@ -172,6 +175,20 @@ async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }));
 
+  // Same "no thin content" reasoning as blogCategoryEntries above, for the
+  // news-topic rail's own pages — a topic with zero articles today
+  // (e.g. سیاست‌گذاری و مقررات before the first policy story) is a real,
+  // non-404 page (see knownPaths.ts) but not one worth telling Google
+  // about yet.
+  const newsTopicEntries: MetadataRoute.Sitemap = NEWS_TOPICS.filter(
+    (t) => (newsTopicArticleCounts[t.slug] ?? 0) > 0,
+  ).map((t) => ({
+    url: new URL(routes.newsTopic(t.slug), SITE_URL).toString(),
+    lastModified: now,
+    changeFrequency: 'weekly',
+    priority: 0.6,
+  }));
+
   const newsEntries: MetadataRoute.Sitemap = newsArticles.map((a) => ({
     url: new URL(routes.news(a.slug), SITE_URL).toString(),
     // `updatedAt` first: with `publishAt` alone, editing a published article
@@ -195,5 +212,6 @@ async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
     ...blogEntries,
     ...newsEntries,
     ...blogCategoryEntries,
+    ...newsTopicEntries,
   ];
 }

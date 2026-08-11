@@ -50,6 +50,16 @@ export const articles = pgTable(
     publishAt: timestamp('publish_at', { withTimezone: true }),
     relatedSkuIds: jsonb('related_sku_ids').$type<string[]>(),
     relatedCategoryIds: jsonb('related_category_ids').$type<string[]>(),
+    /**
+     * Market-news topic slugs (اخبار بازار), news-only in practice —
+     * see lib/data/newsTopics.ts for the fixed, code-defined taxonomy
+     * these values are validated against. A separate column rather than
+     * reusing relatedCategoryIds: a category is a product
+     * (میلگرد/ورق/…), a topic is a kind of market news (نرخ/تولید/…) —
+     * conflating the two id spaces would let a stale category id match a
+     * same-shaped topic id by accident.
+     */
+    relatedNewsTopicIds: jsonb('related_news_topic_ids').$type<string[]>(),
     // Editorial labels. A flat `string[]` rather than a join table for the same
     // reason as the two columns above: a tag has no attributes, no ordering and
     // no per-tag metadata, so a join table would buy only cheap renaming at the
