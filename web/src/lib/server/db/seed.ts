@@ -302,24 +302,38 @@ export async function seedDatabase(db: Db, opts: SeedOptions = {}): Promise<void
   }
   log('market values');
 
-  /* ---------- articles ---------- */
-  for (const a of articleFixtures) {
-    await db
-      .insert(schema.articles)
-      .values({
-        id: a.id,
-        slug: a.slug,
-        type: a.type,
-        title: a.title,
-        excerpt: a.excerpt,
-        bodyMd: a.excerpt ? `${a.excerpt}\n\n(متن کامل این مقاله به‌زودی تکمیل می‌شود.)` : '',
-        status: a.status,
-        source: a.source,
-        publishAt: a.publishAt ? new Date(a.publishAt) : null,
-      })
-      .onConflictDoNothing();
+  /* ---------- articles ----------
+   * Same emptiness guard as the SKUs block above: `onConflictDoNothing()`
+   * only dedupes AGAINST the fixture ids on a given run, it does not skip
+   * the run itself. Without a guard, every restart with SEED_ON_START=true
+   * (the default — see docker-compose.yml) re-inserted these placeholder
+   * rows the moment an editor deleted them, silently undoing a real
+   * editorial decision on every container restart. Confirmed live: the 7
+   * fixture articles reappeared with fresh `created_at` timestamps right
+   * after an unrelated hotfix deploy restarted the container. */
+  const existingArticles = await db.select({ n: sql<number>`count(*)::int` }).from(schema.articles);
+  const articlesEmpty = (existingArticles[0]?.n ?? 0) === 0;
+  if (!articlesEmpty && !force) {
+    log('Articles already present — skipping fixture articles (force to redo).');
+  } else {
+    for (const a of articleFixtures) {
+      await db
+        .insert(schema.articles)
+        .values({
+          id: a.id,
+          slug: a.slug,
+          type: a.type,
+          title: a.title,
+          excerpt: a.excerpt,
+          bodyMd: a.excerpt ? `${a.excerpt}\n\n(متن کامل این مقاله به‌زودی تکمیل می‌شود.)` : '',
+          status: a.status,
+          source: a.source,
+          publishAt: a.publishAt ? new Date(a.publishAt) : null,
+        })
+        .onConflictDoNothing();
+    }
+    log(`${articleFixtures.length} articles`);
   }
-  log(`${articleFixtures.length} articles`);
 
   /* ---------- settings (admin-configurable business rules) ---------- */
   const settingsSeed: Record<string, unknown> = {
