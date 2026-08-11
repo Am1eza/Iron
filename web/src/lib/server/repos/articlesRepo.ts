@@ -23,7 +23,7 @@ export type ArticleListRow = Pick<
   Row,
   | 'id' | 'slug' | 'type' | 'title' | 'excerpt' | 'coverUrl'
   | 'status' | 'source' | 'publishAt' | 'updatedAt' | 'tags' | 'relatedCategoryIds'
-  | 'relatedNewsTopicIds' | 'seo'
+  | 'relatedNewsTopicIds' | 'faq' | 'seo'
 >;
 
 export function toArticleDto(r: ArticleListRow): Article {
@@ -48,6 +48,7 @@ export function toArticleDto(r: ArticleListRow): Article {
     tags: r.tags ?? [],
     relatedCategoryIds: r.relatedCategoryIds ?? [],
     relatedNewsTopicIds: r.relatedNewsTopicIds ?? [],
+    faq: r.faq ?? [],
     seo: r.seo ?? undefined,
   };
 }
@@ -132,6 +133,7 @@ const LIST_COLUMNS = {
   tags: articles.tags,
   relatedCategoryIds: articles.relatedCategoryIds,
   relatedNewsTopicIds: articles.relatedNewsTopicIds,
+  faq: articles.faq,
   seo: articles.seo,
 } as const;
 
@@ -490,6 +492,7 @@ export async function createArticle(input: {
   tags?: string[];
   relatedCategoryIds?: string[];
   relatedNewsTopicIds?: string[];
+  faq?: { question: string; answer: string }[];
   /** SEO overrides + focus keyword (US-14.4). Optional: seeds and the AI
    *  draft path create articles with none. */
   seo?: SeoMeta | null;
@@ -511,6 +514,7 @@ export async function createArticle(input: {
       tags: input.tags ?? null,
       relatedCategoryIds: input.relatedCategoryIds ?? null,
       relatedNewsTopicIds: input.relatedNewsTopicIds ?? null,
+      faq: input.faq ?? null,
       seo: input.seo ?? null,
       status: 'draft',
     })
@@ -538,6 +542,7 @@ export async function updateArticle(
     tags: string[];
     relatedCategoryIds: string[];
     relatedNewsTopicIds: string[];
+    faq: { question: string; answer: string }[];
     seo: Row['seo'];
   }>,
 ): Promise<ArticleFull | null> {

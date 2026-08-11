@@ -252,3 +252,20 @@
   gap: var(--space-2);
   flex-wrap: wrap;
 }
+
+/* Per-article FAQ editor (US-14.7) — one bordered row per Q&A pair, matching
+   the visual weight of the SEO card's own fields rather than looking like a
+   free-floating list. */
+.faqList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.faqRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-md);
+}
