@@ -8,4 +8,8 @@ export type ArticleComment = { id: string; status: 'pending' | 'approved' | 'rej
 export const commentsApi = {
   create: (slug: string, body: string) =>
     http.post<{ comment: ArticleComment }>(`/api/articles/${encodeURIComponent(slug)}/comments`, { body }),
+  /** "این نظر مفید بود؟" (US-14.9) — a toggle; calling it again removes
+   *  the viewer's own vote. Returns the count AFTER the toggle. */
+  toggleHelpful: (commentId: string) =>
+    http.post<{ voted: boolean; count: number }>(`/api/comments/${commentId}/helpful`, {}),
 };

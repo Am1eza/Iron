@@ -222,10 +222,13 @@ export async function getNewsTopicArticleCounts(): Promise<Record<string, number
 export type NewsTopicRailItem = { slug: string; name: string; count: number };
 
 /** Approved comments for an article — mock mode has no comment store at
- *  all, so it answers empty rather than a fabricated thread. */
-export async function getApprovedComments(articleId: string): Promise<PublicComment[]> {
+ *  all, so it answers empty rather than a fabricated thread. `viewerId`
+ *  is the CURRENT visitor (from `getSessionVerified()` in the page),
+ *  omitted for an anonymous one — see `listApprovedComments`'s own
+ *  comment for what that changes. */
+export async function getApprovedComments(articleId: string, viewerId?: string): Promise<PublicComment[]> {
   if (!live()) return [];
-  return listApprovedComments(articleId);
+  return listApprovedComments(articleId, viewerId);
 }
 
 /**
