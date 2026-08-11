@@ -10,6 +10,22 @@ export type { AdminSearchHit } from '@/lib/auth/adminSearch';
 import type { AdminSearchHit } from '@/lib/auth/adminSearch';
 import type { RichDoc } from '@/lib/content/richDoc';
 
+/** Mirrors `commentsRepo.ts`'s `AdminComment` — the moderation queue's own
+ *  shape, kept here rather than importing server code into the client
+ *  bundle. */
+export type AdminComment = {
+  id: string;
+  body: string;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string;
+  authorName: string | null;
+  authorMobile: string | null;
+  articleId: string;
+  articleTitle: string;
+  articleSlug: string;
+  articleType: 'blog' | 'news';
+};
+
 /** Every field is scoped to the caller's permissions server-side — a field is
  * simply absent if the current role can't see that domain (e.g. a content
  * editor never receives `stalePrices` or `totalUsers`). */
@@ -378,6 +394,16 @@ export interface AdminSkuInput {
 
 export const adminApi = {
   stats: () => http.get<{ stats: AdminStats }>('/api/admin/stats'),
+
+  /* comments moderation (US-14.8) */
+  comments: {
+    list: (status?: 'pending' | 'approved' | 'rejected') =>
+      http.get<{ comments: AdminComment[] }>(
+        `/api/admin/comments${status ? `?status=${status}` : ''}`,
+      ),
+    moderate: (id: string, status: 'approved' | 'rejected') =>
+      http.patch<{ ok: true }>(`/api/admin/comments/${id}`, { status }),
+  },
 
   /* pricing */
   pricingGrid: (cat: string, sub?: string) =>

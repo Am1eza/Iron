@@ -13,6 +13,7 @@ import { CalendarIcon, ChevronStartIcon } from '@/components/primitives/icons';
 import { BreadcrumbJsonLd, JsonLd } from '@/components/seo/JsonLd';
 import { ArticleBody } from '@/components/content/ArticleBody';
 import { ArticleFaq } from '@/components/content/ArticleFaq';
+import { ArticleComments } from '@/components/content/ArticleComments';
 import { ArticleCard } from '@/components/content/ArticleCard';
 import styles from './article.module.css';
 
@@ -119,6 +120,8 @@ export default async function BlogArticlePage({ params }: Params) {
             </div>
 
             <ArticleFaq items={article.faq ?? []} />
+
+            <ArticleComments articleId={article.id} slug={article.slug} />
 
             <Link href={routes.blog()} className={styles.back}>
               <ChevronStartIcon size={16} className="icon--rtl" />
