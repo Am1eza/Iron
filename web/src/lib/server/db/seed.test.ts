@@ -22,7 +22,8 @@ describe('seedDatabase — articles', () => {
       await seedDatabase(db, { log: () => {} });
       const seeded = await db.select().from(schema.articles);
       expect(seeded.length).toBeGreaterThan(0);
-      const [victim] = seeded;
+      const victim = seeded[0];
+      if (!victim) throw new Error('expected at least one seeded article');
 
       await db.delete(schema.articles).where(eq(schema.articles.id, victim.id));
 
