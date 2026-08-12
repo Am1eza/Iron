@@ -1,5 +1,9 @@
 .article {
+  /* See the blog article page's identical rule for why this needs
+   * margin-inline:auto — without it the narrowed column hugs the RTL
+   * inline-start edge (the right) and leaves a blank gutter on the left. */
   max-inline-size: var(--container-prose);
+  margin-inline: auto;
 }
 
 .header {
