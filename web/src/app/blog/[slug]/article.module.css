@@ -1,5 +1,12 @@
 .article {
+  /* Narrower than the page's own 1280px container for readability, but
+   * that narrowing needs its own centering — without margin-inline:auto
+   * a block defaults to its inline-start edge (the right side in this
+   * RTL layout), leaving the whole width difference as dead space on the
+   * left instead of splitting it evenly. Confirmed live: every article
+   * page rendered with a large blank gutter down the left side. */
   max-inline-size: var(--container-prose);
+  margin-inline: auto;
 }
 
 .header {
