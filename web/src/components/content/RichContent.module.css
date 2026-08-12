@@ -90,11 +90,17 @@
    contained card (the site's standard `.card` boundary language, see
    tokens.css) instead of loose, unbounded rows of text — a real
    complaint on the live site: a wrapped multi-line cell with no column
-   dividers and no outer edge looked unformatted rather than tabular. */
+   dividers and no outer edge looked unformatted rather than tabular.
+   `--border-strong`/`--color-border-strong` (not the hairline pair) per a
+   second round of feedback — the hairline read as too faint to register
+   as a grid at a glance. overflow-y:hidden (kept alongside the existing
+   overflow-x:auto scroll) clips the header row's flat top corners to the
+   wrapper's own rounded ones. */
 .tableWrap {
   overflow-x: auto;
+  overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
-  border: var(--border-hairline) solid var(--color-hairline);
+  border: var(--border-strong) solid var(--color-border-strong);
   border-radius: var(--radius-md);
 }
 
@@ -109,8 +115,8 @@
 .table th,
 .table td {
   padding: var(--space-3);
-  border-block-end: var(--border-hairline) solid var(--color-hairline);
-  border-inline-end: var(--border-hairline) solid var(--color-hairline);
+  border-block-end: var(--border-strong) solid var(--color-border-strong);
+  border-inline-end: var(--border-strong) solid var(--color-border-strong);
   text-align: start;
   vertical-align: top;
 }
@@ -119,10 +125,14 @@
   border-inline-end: 0;
 }
 
+/* Brand-tint header, per feedback ("سطر اول‌ها رو سبز کم‌رنگ") —
+   --color-accent-tint is the same soft emerald wash already used for the
+   brand accent elsewhere, not an arbitrary green, so header rows read as
+   intentional/branded rather than a random highlight color. */
 .table th {
-  color: var(--color-text-strong);
+  color: var(--color-accent-text);
   font-weight: 700;
-  background: var(--color-surface-sunken);
+  background: var(--color-accent-tint);
   white-space: nowrap;
 }
 
