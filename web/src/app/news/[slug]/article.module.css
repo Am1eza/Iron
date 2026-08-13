@@ -2,6 +2,11 @@
   /* See the blog article page's identical rule for why this needs
    * margin-inline:auto — without it the narrowed column hugs the RTL
    * inline-start edge (the right) and leaves a blank gutter on the left. */
+  /* inline-size:100% forces the article to the flex line width; without it,
+   * margin-inline:auto cancels flex stretch and the item sizes to its table
+   * min-content (~597px), overflowing a 390px phone even with min-inline-size:0.
+   * With it: min(100%, prose) — 358px on mobile, centered prose width on desktop. */
+  inline-size: 100%;
   max-inline-size: var(--container-prose);
   margin-inline: auto;
   /* The article is a flex item of the page's Stack, so it inherits the flex
