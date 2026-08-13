@@ -11,7 +11,8 @@ import { formatJalali } from '@/lib/utils/jalali';
 import { Container, Section, Stack, Heading, Breadcrumbs, Badge } from '@/components/ui';
 import { CalendarIcon, ChevronStartIcon } from '@/components/primitives/icons';
 import { BreadcrumbJsonLd, JsonLd } from '@/components/seo/JsonLd';
-import { ArticleBody } from '@/components/content/ArticleBody';
+import { ArticleBody, articleDoc } from '@/components/content/ArticleBody';
+import { TableOfContents } from '@/components/content/TableOfContents';
 import { ArticleFaq } from '@/components/content/ArticleFaq';
 import { ArticleComments } from '@/components/content/ArticleComments';
 import { ArticleCard } from '@/components/content/ArticleCard';
@@ -114,6 +115,8 @@ export default async function BlogArticlePage({ params }: Params) {
                 <Badge tone="neutral">تحریریهٔ آهن‌تایم</Badge>
               </div>
             </header>
+
+            <TableOfContents doc={articleDoc(article)} />
 
             <div className={styles.body}>
               <ArticleBody article={article} />

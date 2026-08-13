@@ -4,6 +4,16 @@
    * inline-start edge (the right) and leaves a blank gutter on the left. */
   max-inline-size: var(--container-prose);
   margin-inline: auto;
+  /* The article is a flex item of the page's Stack, so it inherits the flex
+   * default min-inline-size:auto === min-CONTENT. A body table sets its
+   * headers white-space:nowrap, giving the article a min-content width of
+   * ~600px; on a 390px phone that forced the whole column 220px past the
+   * viewport (confirmed live: document scrollWidth 612 vs 390, the page
+   * scrolled sideways and rendered zoomed-out). min-inline-size:0 lets the
+   * flex item shrink to the line, which finally lets `.tableWrap`'s
+   * overflow-x:auto do its job — the wide table scrolls inside its own box
+   * instead of stretching the page. */
+  min-inline-size: 0;
 }
 
 .header {

@@ -126,12 +126,15 @@ function renderBlock(node: BlockNode, index: number, eagerImage = false): ReactN
   const key = `b${index}`;
   switch (node.type) {
     case 'heading':
+      // id === `heading-${index}` is the anchor the TableOfContents links to;
+      // both derive it from the block's position in doc.content, so they stay
+      // in lockstep with no separate slug/id generation to drift.
       return node.attrs.level === 3 ? (
-        <h3 key={key} className={styles.h3}>
+        <h3 key={key} id={`heading-${index}`} className={styles.h3}>
           {renderInline(node.content, key)}
         </h3>
       ) : (
-        <h2 key={key} className={styles.h2}>
+        <h2 key={key} id={`heading-${index}`} className={styles.h2}>
           {renderInline(node.content, key)}
         </h2>
       );
