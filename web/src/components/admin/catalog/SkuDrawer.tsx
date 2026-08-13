@@ -173,7 +173,7 @@ export function SkuDrawer({
     const cat = categories.find((c) => c.id === sub?.categoryId);
     const out = { ...next };
     if (!t.name) {
-      out.name = composeSkuName({ subName: sub?.name, size: next.size, grade: next.grade, factory: next.factory });
+      out.name = composeSkuName({ subName: sub?.name, size: next.size, factory: next.factory });
     }
     if (!t.slug && cat) {
       out.slug = composeSkuSlug({

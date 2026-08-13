@@ -115,6 +115,7 @@ const PriceTableRow = memo(function PriceTableRow({
         </Link>
       </th>
       <td>{r.size ? toPersianDigits(r.size) : 'نامشخص'}</td>
+      <td className={styles.muted}>{r.grade ?? 'نامشخص'}</td>
       <td className={styles.muted}>{r.factory ?? 'نامشخص'}</td>
       <td className={styles.num}>
         {r.theoreticalWeightKg ? (
@@ -205,6 +206,7 @@ const PriceTableCard = memo(function PriceTableCard({
       </div>
       <div className={styles.cardMeta}>
         <span>کارخانه: {r.factory ?? 'نامشخص'}</span>
+        {r.grade ? <span>گرید: {r.grade}</span> : null}
         {/* size intentionally omitted — the product name already ends in it */}
         {r.theoreticalWeightKg ? (
           <span>
@@ -897,6 +899,7 @@ export function PriceTable({
                         <th scope="col" aria-sort={sort === 'size' ? 'ascending' : 'none'}>
                           سایز
                         </th>
+                        <th scope="col">گرید</th>
                         <th scope="col">کارخانه</th>
                         <th scope="col" className={styles.num}>
                           وزن شاخه
