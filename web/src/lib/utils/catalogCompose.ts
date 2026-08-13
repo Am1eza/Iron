@@ -106,14 +106,11 @@ export function composeSkuSlug(input: {
 }
 
 /** The display name a customer sees, composed the way the catalog already
- *  reads: «میلگرد ۱۴ آجدار A3 ذوب‌آهن اصفهان». */
-export function composeSkuName(input: {
-  subName?: string;
-  size?: string;
-  grade?: string;
-  factory?: string;
-}): string {
-  return [input.subName, input.size, input.grade, input.factory]
+ *  reads: «میلگرد آجدار ۱۴ ذوب‌آهن اصفهان». Grade is deliberately excluded —
+ *  it lives in its own column/field so a customer scanning the price table
+ *  can read it without parsing it back out of a sentence. */
+export function composeSkuName(input: { subName?: string; size?: string; factory?: string }): string {
+  return [input.subName, input.size, input.factory]
     .map((p) => p?.trim())
     .filter(Boolean)
     .join(' ');

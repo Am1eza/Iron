@@ -56,13 +56,23 @@ describe('factorySlug', () => {
 
 describe('composeSkuName', () => {
   it('reads the way the catalog already reads', () => {
-    expect(
-      composeSkuName({ subName: 'میلگرد آجدار', size: '۱۴', grade: 'A3', factory: 'ذوب‌آهن اصفهان' }),
-    ).toBe('میلگرد آجدار ۱۴ A3 ذوب‌آهن اصفهان');
+    expect(composeSkuName({ subName: 'میلگرد آجدار', size: '۱۴', factory: 'ذوب‌آهن اصفهان' })).toBe(
+      'میلگرد آجدار ۱۴ ذوب‌آهن اصفهان',
+    );
   });
 
   it('drops absent parts instead of leaving double spaces', () => {
     expect(composeSkuName({ subName: 'ورق سیاه', size: '۲' })).toBe('ورق سیاه ۲');
+  });
+
+  // Grade has its own column/field in every surface that shows it — folding
+  // it into the name too meant a customer had to parse a sentence to find
+  // it, and an admin could see it duplicated (or drift out of sync) between
+  // the two. See catalogAdminRepo's SKU rename backfill for the one-time
+  // migration that stripped it out of names already saved with it baked in.
+  it('never includes grade even when one is given to a caller that forgot the type changed', () => {
+    const withGrade = { subName: 'میلگرد آجدار', size: '۱۴', factory: 'ذوب‌آهن اصفهان', grade: 'A3' };
+    expect(composeSkuName(withGrade)).toBe('میلگرد آجدار ۱۴ ذوب‌آهن اصفهان');
   });
 });
 
