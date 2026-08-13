@@ -12,6 +12,14 @@ import { getPriceFreshness } from '@/lib/server/services/priceFreshness';
 import { normalizeDigits, toPersianDigits } from '@/lib/utils/format';
 import { likeContains } from '@/lib/server/utils/likeEscape';
 
+/** `db.execute(sql...)` returns a plain array under one driver (pglite,
+ *  tests) and `{ rows: [...] }` under another (node-postgres, prod) — same
+ *  ambiguity already handled this way in jobs/cleanup.job.ts. */
+function rowsOf<T>(execResult: unknown): T[] {
+  if (Array.isArray(execResult)) return execResult as T[];
+  return (execResult as { rows?: T[] })?.rows ?? [];
+}
+
 /* ------------------------------ mapping ------------------------------ */
 
 type JoinedRow = {
@@ -92,25 +100,77 @@ export async function findCategoryBySlug(slug: string): Promise<Category | null>
   return { id: c.id, slug: c.slug, name: c.name, order: c.order, iconId: c.iconId, imageUrl: c.imageUrl ?? undefined, isActive: c.isActive };
 }
 
+/**
+ * For every category a SKU is cross-listed INTO (crossListedCategoryIds —
+ * e.g. a sheet-steel product tagged into «استیل»), the distinct real
+ * sub-categories those SKUs actually live under — e.g. «استیل»'s hub page
+ * needs to offer «ورق استیل» as a filter option even though that
+ * sub-category structurally belongs to «ورق», not to «استیل» itself.
+ * `jsonb_array_elements_text` unnests the tag array; the lateral join is
+ * one SKU-row fan-out per tag, cheap at this catalog's size.
+ */
+async function crossListedSubsByCategory(): Promise<
+  Record<string, Array<{ slug: string; name: string; groupLabel: string | null }>>
+> {
+  const db = getDb();
+  const result = await db.execute<{
+    targetCatSlug: string;
+    slug: string;
+    name: string;
+    groupLabel: string | null;
+    subOrder: number;
+  }>(sql`
+    SELECT DISTINCT ON (target_cat.slug, sub.slug)
+      target_cat.slug AS "targetCatSlug",
+      sub.slug AS slug,
+      sub.name AS name,
+      sub.group_label AS "groupLabel",
+      sub."order" AS "subOrder"
+    FROM ${skus} s
+    JOIN ${subCategories} sub ON sub.id = s.sub_category_id AND sub.is_active = true
+    CROSS JOIN LATERAL jsonb_array_elements_text(s.cross_listed_category_ids) AS cl(cat_id)
+    JOIN ${categories} target_cat ON target_cat.id = cl.cat_id AND target_cat.is_active = true
+    WHERE s.is_active = true AND s.cross_listed_category_ids IS NOT NULL
+    ORDER BY target_cat.slug, sub.slug, sub."order"
+  `);
+  const out: Record<string, Array<{ slug: string; name: string; groupLabel: string | null }>> = {};
+  for (const r of rowsOf<{ targetCatSlug: string; slug: string; name: string; groupLabel: string | null }>(result)) {
+    (out[r.targetCatSlug] ??= []).push({ slug: r.slug, name: r.name, groupLabel: r.groupLabel });
+  }
+  return out;
+}
+
 /** Every ACTIVE sub-category of every ACTIVE category in ONE query, grouped
  *  by category slug — feeds the public nav/mega-menu/home cascade so an
- *  admin-created sub-category appears site-wide without a code change. */
+ *  admin-created sub-category appears site-wide without a code change.
+ *  Also folds in cross-listed sub-categories (see crossListedSubsByCategory)
+ *  so a hub category like «استیل» offers real filter options even though it
+ *  owns no sub-categories of its own. */
 export async function listAllSubCategories(): Promise<
   Record<string, Array<{ slug: string; name: string; groupLabel: string | null }>>
 > {
-  const rows = await getDb()
-    .select({
-      catSlug: categories.slug,
-      slug: subCategories.slug,
-      name: subCategories.name,
-      groupLabel: subCategories.groupLabel,
-    })
-    .from(subCategories)
-    .innerJoin(categories, eq(subCategories.categoryId, categories.id))
-    .where(and(eq(categories.isActive, true), eq(subCategories.isActive, true)))
-    .orderBy(asc(subCategories.order));
+  const [rows, crossListed] = await Promise.all([
+    getDb()
+      .select({
+        catSlug: categories.slug,
+        slug: subCategories.slug,
+        name: subCategories.name,
+        groupLabel: subCategories.groupLabel,
+      })
+      .from(subCategories)
+      .innerJoin(categories, eq(subCategories.categoryId, categories.id))
+      .where(and(eq(categories.isActive, true), eq(subCategories.isActive, true)))
+      .orderBy(asc(subCategories.order)),
+    crossListedSubsByCategory(),
+  ]);
   const out: Record<string, Array<{ slug: string; name: string; groupLabel: string | null }>> = {};
   for (const r of rows) (out[r.catSlug] ??= []).push({ slug: r.slug, name: r.name, groupLabel: r.groupLabel });
+  for (const [catSlug, subs] of Object.entries(crossListed)) {
+    const existing = out[catSlug] ?? [];
+    const seen = new Set(existing.map((s) => s.slug));
+    for (const s of subs) if (!seen.has(s.slug)) existing.push(s);
+    out[catSlug] = existing;
+  }
   return out;
 }
 
@@ -140,8 +200,18 @@ export async function tableRows(
   opts?: { forAdmin?: boolean },
 ): Promise<PriceRow[]> {
   const db = getDb();
+  const targetCat = (
+    await db.select({ id: categories.id }).from(categories).where(eq(categories.slug, categorySlug)).limit(1)
+  )[0];
   const conds = [
-    eq(categories.slug, categorySlug),
+    // A row belongs on this category's page either natively (its own
+    // categoryId) or by cross-listing — a SKU tagged into this category
+    // while its real home (and URL) stays wherever it actually lives. See
+    // catalog.ts's crossListedCategoryIds doc comment.
+    or(
+      eq(categories.slug, categorySlug),
+      targetCat ? sql`${skus.crossListedCategoryIds} @> ${JSON.stringify([targetCat.id])}::jsonb` : sql`false`,
+    )!,
     eq(categories.isActive, true),
     eq(skus.isActive, true),
     eq(subCategories.isActive, true),
@@ -197,14 +267,29 @@ export async function countSkusHiddenByTaxonomy(categorySlug?: string): Promise<
  *  active-category/active-sub/active-SKU predicates apply so the numbers stay
  *  identical to what /prices lists. */
 export async function skuCountsByCategory(): Promise<Map<string, number>> {
-  const rows = await getDb()
-    .select({ slug: categories.slug, count: sql<number>`count(*)::int` })
-    .from(skus)
-    .innerJoin(categories, eq(skus.categoryId, categories.id))
-    .innerJoin(subCategories, eq(skus.subCategoryId, subCategories.id))
-    .where(and(eq(categories.isActive, true), eq(skus.isActive, true), eq(subCategories.isActive, true)))
-    .groupBy(categories.slug);
-  return new Map(rows.map((r) => [r.slug, r.count]));
+  const db = getDb();
+  const [rows, crossListedResult] = await Promise.all([
+    db
+      .select({ slug: categories.slug, count: sql<number>`count(*)::int` })
+      .from(skus)
+      .innerJoin(categories, eq(skus.categoryId, categories.id))
+      .innerJoin(subCategories, eq(skus.subCategoryId, subCategories.id))
+      .where(and(eq(categories.isActive, true), eq(skus.isActive, true), eq(subCategories.isActive, true)))
+      .groupBy(categories.slug),
+    db.execute<{ slug: string; count: number }>(sql`
+      SELECT target_cat.slug AS slug, count(*)::int AS count
+      FROM ${skus} s
+      CROSS JOIN LATERAL jsonb_array_elements_text(s.cross_listed_category_ids) AS cl(cat_id)
+      JOIN ${categories} target_cat ON target_cat.id = cl.cat_id AND target_cat.is_active = true
+      WHERE s.is_active = true AND s.cross_listed_category_ids IS NOT NULL
+      GROUP BY target_cat.slug
+    `),
+  ]);
+  const out = new Map(rows.map((r) => [r.slug, r.count]));
+  for (const r of rowsOf<{ slug: string; count: number }>(crossListedResult)) {
+    out.set(r.slug, (out.get(r.slug) ?? 0) + r.count);
+  }
+  return out;
 }
 
 /**

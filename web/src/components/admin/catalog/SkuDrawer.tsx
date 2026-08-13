@@ -72,9 +72,16 @@ type Values = {
   unit: AdminSku['unit'];
   theoreticalWeightKg: string;
   imageUrl: string | null;
+  /** Also list this product under «استیل», without a second row or a second
+   *  URL — its subCategoryId above stays the one thing that decides those.
+   *  See catalog.ts's crossListedCategoryIds doc comment. A plain checkbox
+   *  rather than a general multi-select: «استیل» is the only cross-listing
+   *  target that exists today, and this form already tries to read as few
+   *  questions as possible. */
+  crossListedSteel: boolean;
 };
 
-function toValues(sku: AdminSku | null, defaultSubId: string): Values {
+function toValues(sku: AdminSku | null, defaultSubId: string, steelCategoryId: string | undefined): Values {
   return {
     name: sku?.name ?? '',
     slug: sku?.slug ?? '',
@@ -86,6 +93,7 @@ function toValues(sku: AdminSku | null, defaultSubId: string): Values {
     unit: sku?.unit ?? 'kg',
     theoreticalWeightKg: sku?.theoreticalWeightKg != null ? String(sku.theoreticalWeightKg) : '',
     imageUrl: sku?.imageUrl ?? null,
+    crossListedSteel: Boolean(steelCategoryId && sku?.crossListedCategoryIds?.includes(steelCategoryId)),
   };
 }
 
@@ -109,7 +117,11 @@ export function SkuDrawer({
   onSaved: () => void;
 }) {
   const toast = useToast();
-  const initial = useMemo(() => toValues(sku, defaultSubId), [sku, defaultSubId]);
+  const steelCategory = useMemo(() => categories.find((c) => c.slug === 'steel'), [categories]);
+  const initial = useMemo(
+    () => toValues(sku, defaultSubId, steelCategory?.id),
+    [sku, defaultSubId, steelCategory?.id],
+  );
   const [v, setV] = useState<Values>(initial);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [advanced, setAdvanced] = useState(false);
@@ -222,6 +234,7 @@ export function SkuDrawer({
         unit: v.unit,
         theoreticalWeightKg: weightNum,
         imageUrl: v.imageUrl,
+        crossListedCategoryIds: v.crossListedSteel && steelCategory ? [steelCategory.id] : null,
       };
       return sku ? adminApi.updateSku(sku.id, body) : adminApi.createSku(body);
     },
@@ -434,6 +447,20 @@ export function SkuDrawer({
                   maxLength={120}
                   onChange={(e) => set({ slug: e.target.value }, { slug: true })}
                 />
+                {steelCategory && parentCategory?.slug !== 'steel' ? (
+                  <label style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-start' }}>
+                    <input
+                      type="checkbox"
+                      checked={v.crossListedSteel}
+                      onChange={(e) => set({ crossListedSteel: e.target.checked })}
+                      style={{ marginBlockStart: 4 }}
+                    />
+                    <span>
+                      این کالا از جنس استیل است — همچنین در دستهٔ «استیل» هم نمایش داده شود
+                      <div className={ui.tileHint}>نشانی صفحه همین یکی می‌ماند؛ فقط در فهرست «استیل» هم دیده می‌شود.</div>
+                    </span>
+                  </label>
+                ) : null}
               </div>
             ) : null}
           </div>

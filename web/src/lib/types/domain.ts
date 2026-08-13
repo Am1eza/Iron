@@ -81,6 +81,11 @@ export interface SKU {
    *  photo silently went nowhere. */
   imageUrl?: string;
   isActive: boolean;
+  /** Category IDs this SKU is ALSO listed under, beyond its own home
+   *  (categoryId/subCategoryId, which is what its URL is built from) — e.g.
+   *  a sheet-steel product tagged into the "استیل" hub category too. Never
+   *  a second row, never a second URL. See server/db/schema/catalog.ts. */
+  crossListedCategoryIds?: string[];
 }
 
 export interface CurrentPrice {

@@ -62,6 +62,7 @@ const createPayload = z.object({
   theoreticalWeightKg: finiteNumber.positive().max(100_000).nullable().optional(),
   unit: z.enum(['kg', 'branch', 'sheet', 'meter']).optional(),
   imageUrl: uploadPathSchema.nullable().optional(),
+  crossListedCategoryIds: z.array(z.string().min(1)).max(5).nullable().optional(),
 });
 
 async function POSTImpl(req: NextRequest) {
