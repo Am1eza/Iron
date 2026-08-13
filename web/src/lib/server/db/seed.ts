@@ -168,30 +168,49 @@ export async function seedDatabase(db: Db, opts: SeedOptions = {}): Promise<void
   if (adminMobiles.length > 0) log(`admin allowlist: ${adminMobiles.join(', ')}`);
 
   /* ---------- categories & sub-categories ---------- */
+  // Same "already populated, leave it alone unless force" guard the SKU and
+  // article blocks below already use. Without it, this ran unconditionally
+  // on every boot — harmless for a genuinely fresh database, but on a long-
+  // lived one (this seeder also runs on every container start when
+  // SEED_ON_START is set) it silently reverted any admin rename/reorder of a
+  // category or sub-category back to the hardcoded fixture on the very next
+  // deploy. An admin's actual catalog edits must win over a fixture meant
+  // only to bootstrap an empty database.
   const subIdBySlug = new Map<string, string>(); // `${catSlug}/${subSlug}` -> id
-  for (const c of categoryFixtures) {
-    await db
-      .insert(schema.categories)
-      .values({ id: c.id, slug: c.slug, name: c.name, order: c.order, iconId: c.iconId, isActive: true })
-      .onConflictDoUpdate({
-        target: schema.categories.slug,
-        set: { name: c.name, order: c.order, iconId: c.iconId },
-      });
-    const subs = MOCK_CATEGORY_SUBS[c.slug] ?? [];
-    let order = 0;
-    for (const s of subs) {
-      const id = `${c.id}-${s.slug}`;
+  const catCount = await db.select({ n: sql<number>`count(*)::int` }).from(schema.categories);
+  const categoriesEmpty = (catCount[0]?.n ?? 0) === 0;
+  if (!categoriesEmpty && !force) {
+    log('categories + subs already present — skipping (force to redo).');
+    const existingSubs = await db
+      .select({ catSlug: schema.categories.slug, subSlug: schema.subCategories.slug, id: schema.subCategories.id })
+      .from(schema.subCategories)
+      .innerJoin(schema.categories, eq(schema.subCategories.categoryId, schema.categories.id));
+    for (const s of existingSubs) subIdBySlug.set(`${s.catSlug}/${s.subSlug}`, s.id);
+  } else {
+    for (const c of categoryFixtures) {
       await db
-        .insert(schema.subCategories)
-        .values({ id, categoryId: c.id, slug: s.slug, name: s.name, order: ++order, isActive: true })
+        .insert(schema.categories)
+        .values({ id: c.id, slug: c.slug, name: c.name, order: c.order, iconId: c.iconId, isActive: true })
         .onConflictDoUpdate({
-          target: [schema.subCategories.categoryId, schema.subCategories.slug],
-          set: { name: s.name, order },
+          target: schema.categories.slug,
+          set: { name: c.name, order: c.order, iconId: c.iconId },
         });
-      subIdBySlug.set(`${c.slug}/${s.slug}`, id);
+      const subs = MOCK_CATEGORY_SUBS[c.slug] ?? [];
+      let order = 0;
+      for (const s of subs) {
+        const id = `${c.id}-${s.slug}`;
+        await db
+          .insert(schema.subCategories)
+          .values({ id, categoryId: c.id, slug: s.slug, name: s.name, order: ++order, isActive: true })
+          .onConflictDoUpdate({
+            target: [schema.subCategories.categoryId, schema.subCategories.slug],
+            set: { name: s.name, order },
+          });
+        subIdBySlug.set(`${c.slug}/${s.slug}`, id);
+      }
     }
+    log('categories + subs');
   }
-  log('categories + subs');
 
   /* ---------- SKUs, current prices, history ---------- */
   const existing = await db.select({ n: sql<number>`count(*)::int` }).from(schema.skus);
