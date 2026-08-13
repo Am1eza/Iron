@@ -1,6 +1,7 @@
 import { getApprovedComments } from '@/lib/server/catalog';
-import { Heading } from '@/components/ui';
+import { Heading, Card } from '@/components/ui';
 import { CommentsSection } from './CommentsSection';
+import styles from './ArticleComments.module.css';
 
 /**
  * Reader comments (نظرات کاربران) — US-14.8/US-14.9, on every article page
@@ -8,6 +9,13 @@ import { CommentsSection } from './CommentsSection';
  * as `ArticleFaq`. Always renders, even with zero comments yet: the submit
  * form is the point, and hiding the section until a first comment exists
  * would mean no article could ever get one.
+ *
+ * Wrapped in the same bordered `Card` `ArticleFaq` uses, for the same
+ * reason: unwrapped, this section had no visual boundary from the article
+ * prose above it — just a heading and a hairline-divided list that read as
+ * more of the page, not a distinct module a reader would trust enough to
+ * post in. `CommentsSection`'s own empty-state and login-prompt polish is
+ * the other half of that fix (see its file).
  *
  * Deliberately does NOT read the current viewer's session here.
  * `/blog/[slug]` and `/news/[slug]` are ISR pages (`revalidate = 600` —
@@ -28,10 +36,12 @@ export async function ArticleComments({ articleId, slug }: { articleId: string; 
 
   return (
     <section aria-labelledby="article-comments-title">
-      <Heading level={2} id="article-comments-title">
-        نظرات کاربران
-      </Heading>
-      <CommentsSection slug={slug} initialComments={comments} />
+      <Card className={styles.card}>
+        <Heading level={2} id="article-comments-title">
+          نظرات کاربران
+        </Heading>
+        <CommentsSection slug={slug} initialComments={comments} />
+      </Card>
     </section>
   );
 }

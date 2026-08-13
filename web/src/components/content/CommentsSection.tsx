@@ -14,14 +14,15 @@
  * list rendered above it, never merged into it.
  */
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { useToast } from '@/lib/hooks/useToast';
 import { api } from '@/lib/api';
 import { ApiError } from '@/lib/api/errors';
+import { routes } from '@/lib/routes';
 import { formatJalali } from '@/lib/utils/jalali';
 import { toPersianDigits } from '@/lib/utils/format';
-import { Button, Text, Badge } from '@/components/ui';
+import { Button, Text, Badge, EmptyState } from '@/components/ui';
 import { Textarea } from '@/components/forms/fields';
 import { CommentAvatar } from './CommentAvatar';
 import styles from './CommentsSection.module.css';
@@ -42,6 +43,7 @@ type Sort = 'newest' | 'helpful';
 export function CommentsSection({ slug, initialComments }: { slug: string; initialComments: PublicCommentDto[] }) {
   const { isAuthenticated, isLoading, user } = useAuth();
   const toast = useToast();
+  const router = useRouter();
 
   const [comments, setComments] = useState(initialComments);
   const [sort, setSort] = useState<Sort>('newest');
@@ -152,7 +154,17 @@ export function CommentsSection({ slug, initialComments }: { slug: string; initi
       </div>
 
       {totalCount === 0 ? (
-        <Text color="muted">هنوز نظری ثبت نشده است؛ اولین نفری باشید که نظر می‌دهد.</Text>
+        // Was a single line of muted gray text — the least inviting way to
+        // ask someone to be the first to post. A headline-weight prompt
+        // with the brand glyph (the same `EmptyState` every other empty
+        // list on the site uses, not a one-off) reads as "start the
+        // conversation" instead of "nothing to see here".
+        <EmptyState
+          size="section"
+          headingLevel={3}
+          headline="هنوز نظری ثبت نشده"
+          body="اولین نفری باشید که تجربه‌تان را دربارهٔ این مطلب می‌نویسید."
+        />
       ) : (
         <ul className={styles.list} aria-label="نظرات">
           {pending.map((p) => (
@@ -218,9 +230,21 @@ export function CommentsSection({ slug, initialComments }: { slug: string; initi
           </div>
         </div>
       ) : (
-        <Text color="muted">
-          برای ثبت نظر، <Link href="/login">وارد شوید</Link>.
-        </Text>
+        // Was a muted-gray inline text link — easy to read as decorative
+        // and skip. A filled primary Button is the same visual weight as
+        // the "ثبت نظر" submit button an authenticated reader sees, so the
+        // signed-out state reads as "one step before that", not a dead end.
+        <div className={styles.loginPrompt}>
+          <Text color="muted">برای نوشتن نظر باید وارد حساب کاربری‌تان شوید.</Text>
+          <Button
+            type="button"
+            variant="primary"
+            size="sm"
+            onClick={() => router.push(routes.login(window.location.pathname))}
+          >
+            ورود یا ثبت‌نام
+          </Button>
+        </div>
       )}
     </div>
   );

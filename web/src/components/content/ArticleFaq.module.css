@@ -1,20 +1,54 @@
+.card {
+  margin-block-start: var(--space-8);
+}
+
 .faqList {
   display: flex;
   flex-direction: column;
-  gap: var(--space-5);
-  margin: var(--space-4) 0 0;
+  margin-block-start: var(--space-3);
 }
+
 .faqItem {
-  padding-block-end: var(--space-5);
   border-block-end: var(--border-hairline) solid var(--color-hairline);
 }
 .faqItem:last-child {
-  padding-block-end: 0;
   border-block-end: none;
 }
-.faqItem dd {
-  margin: var(--space-2) 0 0;
+
+.summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-block: var(--space-4);
+  cursor: pointer;
+  /* Cross-browser marker removal: Chrome/Safari use the pseudo-element,
+     Firefox honors list-style on <summary> itself. Needing both is not
+     redundancy — dropping either leaves a native triangle in one engine. */
+  list-style: none;
 }
-.faqQuestion {
+.summary::-webkit-details-marker {
+  display: none;
+}
+
+.question {
   margin: 0;
+  font: var(--t-body-lg);
+  font-weight: 700;
+  color: var(--color-text-strong);
+}
+
+.chevron {
+  flex: 0 0 auto;
+  color: var(--color-text-muted);
+  transition: transform var(--dur-fast) var(--ease-standard);
+}
+/* `.faqItem` IS the <details> element, so `[open]` is a real attribute
+   selector on it, not a class — no JS needed to flip the chevron. */
+.faqItem[open] .chevron {
+  transform: rotate(180deg);
+}
+
+.answer {
+  padding-block-end: var(--space-4);
 }
