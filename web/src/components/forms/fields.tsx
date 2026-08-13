@@ -126,6 +126,7 @@ export function PickerInput({
   options,
   error,
   maxLength,
+  placeholder,
   onChange,
 }: {
   id: string;
@@ -135,6 +136,7 @@ export function PickerInput({
   options: string[];
   error?: string;
   maxLength?: number;
+  placeholder?: string;
   onChange: (v: string) => void;
 }) {
   return (
@@ -146,6 +148,7 @@ export function PickerInput({
         value={value}
         error={error}
         maxLength={maxLength}
+        placeholder={placeholder}
         autoComplete="off"
         onChange={(e) => onChange(e.target.value)}
       />

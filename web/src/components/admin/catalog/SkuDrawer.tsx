@@ -40,6 +40,27 @@ const UNITS: Array<{ v: AdminSku['unit']; label: string }> = [
   { v: 'meter', label: 'متر' },
 ];
 
+/**
+ * Example values shown inside the size field itself (not just the helper
+ * text below it) so it reads as an ordinary typing box on first glance —
+ * an admin who has only ever used closed dropdowns can otherwise miss that
+ * a value outside the suggestion list is accepted too.
+ */
+const SIZE_PLACEHOLDER: Record<string, string> = {
+  rebar: 'مثلاً ۱۴',
+  ibeam: 'مثلاً ۱۴',
+  'angle-channel': 'مثلاً ۱۰',
+  wire: 'مثلاً ۶',
+  pipe: 'مثلاً ۱ اینچ',
+  profile: 'مثلاً ۴۰×۴۰',
+  sheet: 'مثلاً ۲ میلی‌متر',
+  'varagh-garm': 'مثلاً ۲ میلی‌متر',
+  'varagh-sard': 'مثلاً ۰.۷ میلی‌متر',
+  'varagh-steel': 'مثلاً ۱ میلی‌متر',
+};
+const FACTORY_PLACEHOLDER = 'مثلاً ذوب‌آهن اصفهان';
+const GRADE_PLACEHOLDER = 'مثلاً A3';
+
 type Values = {
   name: string;
   slug: string;
@@ -293,6 +314,7 @@ export function SkuDrawer({
                 options={suggestions?.sizes ?? []}
                 error={fieldErrors.size}
                 maxLength={40}
+                placeholder={SIZE_PLACEHOLDER[parentCategory?.slug ?? ''] ?? 'مثلاً ۱۴'}
                 onChange={(size) => set({ size })}
               />
               <PickerInput
@@ -303,6 +325,7 @@ export function SkuDrawer({
                 options={suggestions?.factories ?? []}
                 error={fieldErrors.factory}
                 maxLength={80}
+                placeholder={FACTORY_PLACEHOLDER}
                 onChange={(factory) => set({ factory })}
               />
               <PickerInput
@@ -313,6 +336,7 @@ export function SkuDrawer({
                 options={suggestions?.grades ?? []}
                 error={fieldErrors.grade}
                 maxLength={40}
+                placeholder={GRADE_PLACEHOLDER}
                 onChange={(grade) => set({ grade })}
               />
             </div>
