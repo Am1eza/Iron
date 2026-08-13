@@ -46,7 +46,7 @@ export function CommentsSection({ slug, initialComments }: { slug: string; initi
   const router = useRouter();
 
   const [comments, setComments] = useState(initialComments);
-  const [sort, setSort] = useState<Sort>('newest');
+  const [sort, setSort] = useState<Sort>('helpful');
   const [pending, setPending] = useState<{ id: string; body: string }[]>([]);
   const [body, setBody] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -60,6 +60,10 @@ export function CommentsSection({ slug, initialComments }: { slug: string; initi
   }, [comments, sort]);
 
   const totalCount = comments.length + pending.length;
+  // Baymard's usability research found visitors lean on an aggregate
+  // summary more than on individual comment text to judge whether a
+  // section is trustworthy — showing it costs one line, not a click.
+  const helpfulTotal = useMemo(() => comments.reduce((sum, c) => sum + c.helpfulCount, 0), [comments]);
 
   // `helpfulByMe` can't be server-rendered on this ISR page (see
   // ArticleComments's comment) — resolved here instead, once, after the
@@ -130,6 +134,7 @@ export function CommentsSection({ slug, initialComments }: { slug: string; initi
       <div className={styles.head}>
         <Text variant="label" color="muted">
           {toPersianDigits(totalCount)} نظر
+          {helpfulTotal > 0 ? <> · {toPersianDigits(helpfulTotal)} رأی مفید</> : null}
         </Text>
         {comments.length > 1 ? (
           <div className={styles.sortTabs} role="group" aria-label="ترتیب نظرات">
