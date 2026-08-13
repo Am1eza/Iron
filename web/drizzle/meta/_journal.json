@@ -267,6 +267,13 @@
       "when": 1786482374588,
       "tag": "0037_wandering_radioactive_man",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1786651658663,
+      "tag": "0038_dear_rockslide",
+      "breakpoints": true
     }
   ]
 }

@@ -40,6 +40,7 @@ const patchPayload = nonEmptyPatch(
     theoreticalWeightKg: finiteNumber.positive().max(100_000).nullable().optional(),
     unit: z.enum(['kg', 'branch', 'sheet', 'meter']).optional(),
     imageUrl: uploadPathSchema.nullable().optional(),
+    crossListedCategoryIds: z.array(z.string().min(1)).max(5).nullable().optional(),
     // Moving a product between sub-categories was impossible: a mis-filed SKU
     // could only be retired and rebuilt — and the global unique slug meant the
     // rebuild got a worse URL and orphaned its price history. The repo derives

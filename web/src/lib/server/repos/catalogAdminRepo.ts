@@ -498,6 +498,33 @@ export interface SkuInput {
   theoreticalWeightKg?: number | null;
   unit?: PriceUnit;
   imageUrl?: string | null;
+  /** Additional category IDs this SKU is ALSO listed under — its own
+   *  subCategoryId/categoryId above stays the one thing that decides its URL.
+   *  See catalog.ts's crossListedCategoryIds doc comment. */
+  crossListedCategoryIds?: string[] | null;
+}
+
+/** Silently drops any id that isn't a real, active category rather than
+ *  erroring — the admin UI only ever offers real categories to pick from, so
+ *  a bad id here means stale client state (a category deactivated between
+ *  page load and save), not something worth failing the whole save over.
+ *  Empty result normalises to `null`, matching every other cleared-field
+ *  convention in this file (an empty array and "not cross-listed" must read
+ *  identically to the query in catalogRepo). */
+async function sanitizeCrossListedCategoryIds(
+  ids: string[] | null | undefined,
+  excludeCategoryId: string,
+): Promise<string[] | null> {
+  if (!ids || ids.length === 0) return null;
+  const rows = await getDb()
+    .select({ id: categories.id })
+    .from(categories)
+    .where(and(inArray(categories.id, ids), eq(categories.isActive, true)));
+  // A SKU cross-listed into its own home category would just show up twice
+  // on the one page it already lives on — meaningless, so it's dropped
+  // rather than saved and silently double-rendered.
+  const valid = rows.map((r) => r.id).filter((id) => id !== excludeCategoryId);
+  return valid.length > 0 ? valid : null;
 }
 
 /** A SKU's category is fully determined by its sub-category, so accepting both
@@ -523,11 +550,12 @@ async function skuSlugTaken(slug: string, exceptId?: string): Promise<boolean> {
 export async function createSku(input: SkuInput) {
   const categoryId = await resolveSkuParent(input.subCategoryId);
   const slug = await freeSlug(input.slug, (c) => skuSlugTaken(c));
+  const crossListedCategoryIds = await sanitizeCrossListedCategoryIds(input.crossListedCategoryIds, categoryId);
   const rows = await asSlugConflict(
     () =>
       getDb()
         .insert(skus)
-        .values({ ...input, id: ulid(), slug, categoryId, unit: input.unit ?? 'kg' })
+        .values({ ...input, id: ulid(), slug, categoryId, unit: input.unit ?? 'kg', crossListedCategoryIds })
         .returning(),
     'این نشانی قبلاً برای کالای دیگری استفاده شده است.',
   );
@@ -547,6 +575,15 @@ export async function updateSku(id: string, patch: Partial<SkuInput> & { isActiv
     next.categoryId = await resolveSkuParent(patch.subCategoryId);
   } else {
     delete next.categoryId;
+  }
+  // Only touches the column when the admin actually sent this key — same
+  // "absent key = leave alone, explicit null = clear" rule as every other
+  // nullable field here.
+  if ('crossListedCategoryIds' in patch) {
+    next.crossListedCategoryIds = await sanitizeCrossListedCategoryIds(
+      patch.crossListedCategoryIds,
+      next.categoryId ?? before.categoryId,
+    );
   }
   if (patch.slug && patch.slug !== before.slug && (await skuSlugTaken(patch.slug, id))) {
     throw new DuplicateSlugError('slug', 'این نشانی قبلاً برای کالای دیگری استفاده شده است.');

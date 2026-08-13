@@ -374,6 +374,9 @@ export interface AdminSku {
   unit: 'kg' | 'branch' | 'sheet' | 'meter';
   imageUrl: string | null;
   isActive: boolean;
+  /** Category IDs this product is ALSO listed under, beyond its own home
+   *  above — e.g. a sheet-steel product also shown under «استیل». */
+  crossListedCategoryIds: string[] | null;
 }
 
 /** Nullable, not optional: `undefined` is "leave alone", `null` is "clear it".
@@ -390,6 +393,7 @@ export interface AdminSkuInput {
   theoreticalWeightKg?: number | null;
   unit?: 'kg' | 'branch' | 'sheet' | 'meter';
   imageUrl?: string | null;
+  crossListedCategoryIds?: string[] | null;
 }
 
 export const adminApi = {

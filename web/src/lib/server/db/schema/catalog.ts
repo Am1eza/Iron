@@ -94,6 +94,14 @@ export const skus = pgTable(
     unit: text('unit', { enum: PRICE_UNITS }).notNull().default('kg'),
     imageUrl: text('image_url'),
     isActive: boolean('is_active').notNull().default(true),
+    // A SKU has exactly one home (subCategoryId/categoryId above) — that's
+    // what its URL is built from. This is an ADDITIONAL, non-exclusive tag:
+    // category IDs this SKU should also be listed under (e.g. a sheet-steel
+    // product living under "ورق" also tagged into "استیل"), without a second
+    // row or a second URL. Same jsonb-array-of-ids pattern already used for
+    // articles.relatedCategoryIds — see catalogRepo's crossListedInCategory
+    // for the `@>` containment query this backs.
+    crossListedCategoryIds: jsonb('cross_listed_category_ids').$type<string[]>(),
     seo: jsonb('seo').$type<SeoMeta>(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -111,5 +119,9 @@ export const skus = pgTable(
     // `name` and `factory` are the actual free-text search targets.
     index('skus_name_trgm_idx').using('gin', t.name.op('gin_trgm_ops')),
     index('skus_factory_trgm_idx').using('gin', t.factory.op('gin_trgm_ops')),
+    // Same `jsonb_path_ops` shape as articles_tags_idx — backs the `@>`
+    // containment query crossListedInCategory runs on every load of a hub
+    // category page (e.g. /prices/steel).
+    index('skus_cross_listed_idx').using('gin', sql`${t.crossListedCategoryIds} jsonb_path_ops`),
   ],
 );
