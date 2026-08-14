@@ -31,7 +31,12 @@
    strip had to be re-rasterized every frame, and CPU profiling attributed
    ~100–240ms of main-thread work per second to it — on EVERY page, since the
    ticker is site-wide. Marquee.module.css already uses the overlay pattern
-   for exactly this reason; this brings the ticker in line with it. */
+   for exactly this reason; this brings the ticker in line with it.
+
+   Width is deliberately --space-4 (16px), not the modal-inset-sized
+   --space-8 (32px) this used to be: at 32px the fade covered a large enough
+   share of a short item (e.g. «انس جهانی») that it read as a solid halo
+   over the label instead of a subtle edge fade — reported live 2026-08-14. */
 .viewport {
   position: relative;
   flex: 1 1 auto;
@@ -43,7 +48,7 @@
   content: '';
   position: absolute;
   inset-block: 0;
-  inline-size: var(--space-8);
+  inline-size: var(--space-4);
   z-index: 1;
   pointer-events: none;
 }
@@ -87,33 +92,8 @@
   will-change: auto;
 }
 .viewport:hover .track,
-.viewport:focus-within .track,
-/* WCAG 2.2.2 — the explicit toggle. Hover/focus-within is a convenience for
-   pointer and keyboard users; this is the mechanism touch users get. */
-.viewport[data-paused] .track {
+.viewport:focus-within .track {
   animation-play-state: paused;
-}
-
-/* Sits at the inline-end of the bar, same 36px height as the strip, so it
-   clears the 24×24 target minimum (WCAG 2.5.8) without changing the bar. */
-.pause {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: none;
-  inline-size: 36px;
-  block-size: 36px;
-  padding: 0;
-  border: 0;
-  border-inline-start: var(--border-hairline) solid rgba(255, 255, 255, 0.08);
-  background: none;
-  color: rgba(255, 255, 255, 0.72);
-  cursor: pointer;
-  transition: color var(--dur-fast) var(--ease-standard);
-}
-.pause:hover,
-.pause[data-paused] {
-  color: var(--color-text-inverse);
 }
 
 /* RTL: content flows right→left, so translate toward the inline-end (positive X). */
