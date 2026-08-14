@@ -10,6 +10,7 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import { CONSTANTS } from '@/lib/config/constants';
 import { routes } from '@/lib/routes';
 import { formatToman, priceHiddenLabel, toPersianDigits, normalizeDigits } from '@/lib/utils/format';
+import { sizeLabel } from '@/lib/utils/catalogLabels';
 import { formatJalali } from '@/lib/utils/jalali';
 import { API_MODE } from '@/lib/api/config';
 import { api } from '@/lib/api';
@@ -419,11 +420,18 @@ export function PriceTable({
   sub: subProp,
   onSubChange,
   initialSub = null,
+  categorySlug,
   vatRate = CONSTANTS.VAT_RATE,
 }: {
   rows: PriceRow[];
   subs: SubCat[];
   categoryName: string;
+  /** Slug of the category this table is rendered for. Only used to label the
+   *  `size` column — ورق measures thickness, not size (see catalogLabels).
+   *  Taken from the page's own category rather than a row's, so a page that
+   *  mixes categories (the «استیل» hub, via cross-listing) keeps the generic
+   *  label instead of inheriting whichever row happens to be first. */
+  categorySlug?: string;
   /** Controlled active sub-category slug (or null = همه). When provided with
    *  `onSubChange`, the toolbar filter is driven by the parent and stays in
    *  sync with the sub-group selection band. */
@@ -437,6 +445,7 @@ export function PriceTable({
    *  have it yet. */
   vatRate?: number;
 }) {
+  const sizeCol = sizeLabel(categorySlug);
   const add = useCartStore((s) => s.add);
   const toast = useToast();
   const router = useRouter();
@@ -728,13 +737,13 @@ export function PriceTable({
               className={styles.select}
               aria-label="مرتب‌سازی بخش‌های کارخانه"
             >
-              <option value="size">سایز</option>
+              <option value="size">{sizeCol}</option>
               <option value="price">قیمت</option>
               <option value="movement">نوسان</option>
             </select>
           </label>
           <Switch checked={vat} onChange={setVat} label="با ارزش‌افزوده" />
-          <ExportMenu rows={exportRows} title={categoryName} />
+          <ExportMenu rows={exportRows} title={categoryName} categorySlug={categorySlug} />
           <button
             type="button"
             className={styles.compareLink}
@@ -759,15 +768,15 @@ export function PriceTable({
         <section className={styles.bySizeSection} aria-labelledby="by-size-heading">
           <div className={styles.bySizeHead}>
             <h2 id="by-size-heading" className={styles.bySizeTitle}>
-              مقایسهٔ سریع بر اساس سایز
+              مقایسهٔ سریع بر اساس {sizeCol}
             </h2>
             <label className={styles.sizePicker}>
-              سایز
+              {sizeCol}
               <select
                 value={bySize ?? ''}
                 onChange={(e) => setBySize(e.target.value || null)}
                 className={styles.select}
-                aria-label="انتخاب سایز برای مقایسه"
+                aria-label={`انتخاب ${sizeCol} برای مقایسه`}
               >
                 {sizeOptions.map((s) => (
                   <option key={s} value={s}>
@@ -778,10 +787,10 @@ export function PriceTable({
             </label>
           </div>
           {bySizeRows.length > 0 ? (
-            <div className={styles.tableScroll} role="region" aria-label="مقایسهٔ کارخانه‌ها برای این سایز" tabIndex={0}>
+            <div className={styles.tableScroll} role="region" aria-label={`مقایسهٔ کارخانه‌ها برای این ${sizeCol}`} tabIndex={0}>
               <table className={`${styles.table} ${styles.bySizeTable} tnum`}>
                 <caption className="visually-hidden">
-                  مقایسهٔ قیمت {categoryName} سایز {toPersianDigits(bySize ?? '')} بین کارخانه‌ها
+                  مقایسهٔ قیمت {categoryName} {sizeCol} {toPersianDigits(bySize ?? '')} بین کارخانه‌ها
                 </caption>
                 <thead>
                   <tr>
@@ -838,7 +847,7 @@ export function PriceTable({
               ))}
             </ul>
           ) : (
-            <p className={styles.muted}>برای این سایز کالایی ثبت نشده است.</p>
+            <p className={styles.muted}>برای این {sizeCol} کالایی ثبت نشده است.</p>
           )}
         </section>
       )}
@@ -873,7 +882,7 @@ export function PriceTable({
                   </h2>
                 </span>
                 <span className={styles.factorySummaryMeta}>
-                  {toPersianDigits(list.length)} سایز
+                  {toPersianDigits(list.length)} {sizeCol}
                   {cheapest ? (
                     <>
                       {' '}
@@ -897,7 +906,7 @@ export function PriceTable({
                         </th>
                         <th scope="col">محصول</th>
                         <th scope="col" aria-sort={sort === 'size' ? 'ascending' : 'none'}>
-                          سایز
+                          {sizeCol}
                         </th>
                         <th scope="col">گرید</th>
                         <th scope="col">کارخانه</th>
@@ -1005,7 +1014,7 @@ export function PriceTable({
                   ))}
                 </tr>
                 <tr>
-                  <th scope="row">سایز</th>
+                  <th scope="row">{sizeCol}</th>
                   {selectedForCompare.map((r) => (
                     <td key={r.id}>{r.size ? toPersianDigits(r.size) : 'نامشخص'}</td>
                   ))}

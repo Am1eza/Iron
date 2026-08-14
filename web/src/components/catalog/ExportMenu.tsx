@@ -2,6 +2,7 @@
 import { useToast } from '@/lib/hooks/useToast';
 import { formatToman, formatMovement, priceHiddenLabel, toPersianDigits } from '@/lib/utils/format';
 import { formatJalali } from '@/lib/utils/jalali';
+import { sizeLabel } from '@/lib/utils/catalogLabels';
 import type { PriceRow } from '@/lib/types/domain';
 import { SheetIcon, PrintIcon, ImageIcon } from '@/components/primitives/icons';
 import styles from './ExportMenu.module.css';
@@ -11,7 +12,18 @@ import styles from './ExportMenu.module.css';
  * clean branded sheet), and Image-with-logo (PNG via canvas). All client-side,
  * no dependency. The branded header carries «آهن‌تایم» + the date.
  */
-const COLS = ['محصول', 'سایز', 'کارخانه', 'وزن شاخه (kg)', 'قیمت (تومان)', 'نوسان', 'زمان تحویل'];
+const cols = (categorySlug?: string) => [
+  'محصول',
+  // ورق is measured by thickness, not size — same rule the on-screen table
+  // follows (see catalogLabels), so an exported file matches what the buyer
+  // was looking at when they clicked «اکسل».
+  sizeLabel(categorySlug),
+  'کارخانه',
+  'وزن شاخه (kg)',
+  'قیمت (تومان)',
+  'نوسان',
+  'زمان تحویل',
+];
 
 function rowCells(r: PriceRow): string[] {
   return [
@@ -25,9 +37,19 @@ function rowCells(r: PriceRow): string[] {
   ];
 }
 
-export function ExportMenu({ rows, title }: { rows: PriceRow[]; title: string }) {
+export function ExportMenu({
+  rows,
+  title,
+  categorySlug,
+}: {
+  rows: PriceRow[];
+  title: string;
+  /** Category the exported table belongs to — labels the size column only. */
+  categorySlug?: string;
+}) {
   const toast = useToast();
   const today = formatJalali(new Date());
+  const COLS = cols(categorySlug);
 
   // Branded spreadsheet — a styled HTML table saved as .xls (Excel opens it with
   // the branding + RTL intact). Header carries «آهن‌تایم» + the date; green header

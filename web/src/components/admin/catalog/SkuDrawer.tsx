@@ -26,6 +26,7 @@ import { adminApi, type AdminSku, type AdminCategory, type AdminSubCategory } fr
 import { ApiError } from '@/lib/api/errors';
 import { normalizeDigits } from '@/lib/utils/format';
 import { composeSkuName, composeSkuSlug, defaultUnitFor, theoreticalWeightFor } from '@/lib/utils/catalogCompose';
+import { sizeLabel } from '@/lib/utils/catalogLabels';
 import { useToast } from '@/lib/hooks/useToast';
 import { Alert, Badge, Button, Heading, Text, useConfirm } from '@/components/ui';
 import { TextInput, PickerInput } from '@/components/forms/fields';
@@ -143,6 +144,10 @@ export function SkuDrawer({
 
   const selectedSub = subs.find((x) => x.id === v.subCategoryId);
   const parentCategory = categories.find((c) => c.id === selectedSub?.categoryId);
+  // ورق products are described by thickness, not size — the admin sees the
+  // word the trade actually uses for whichever category they're filing this
+  // product under (see catalogLabels). The stored column is unchanged.
+  const sizeCol = sizeLabel(parentCategory?.slug);
 
   const { data: suggestions } = useQuery({
     queryKey: ['admin', 'cat', 'suggestions', parentCategory?.id ?? ''],
@@ -321,8 +326,8 @@ export function SkuDrawer({
 
               <PickerInput
                 id="sku-size"
-                label="سایز"
-                helper="از فهرست انتخاب کنید یا سایز تازه بنویسید."
+                label={sizeCol}
+                helper={`از فهرست انتخاب کنید یا ${sizeCol} تازه بنویسید.`}
                 value={v.size}
                 options={suggestions?.sizes ?? []}
                 error={fieldErrors.size}
@@ -363,7 +368,7 @@ export function SkuDrawer({
             <div className={s.fieldGrid}>
               <TextInput
                 label="نام کالا"
-                helper={touched.name ? 'دستی ویرایش شده.' : 'از زیر‌دسته، سایز، گرید و کارخانه ساخته می‌شود.'}
+                helper={touched.name ? 'دستی ویرایش شده.' : `از زیر‌دسته، ${sizeCol}، گرید و کارخانه ساخته می‌شود.`}
                 value={v.name}
                 error={fieldErrors.name}
                 maxLength={160}
