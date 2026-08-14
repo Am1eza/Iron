@@ -11,6 +11,7 @@ import { CONSTANTS } from '@/lib/config/constants';
 import { routes } from '@/lib/routes';
 import { formatToman, priceHiddenLabel, toPersianDigits, normalizeDigits } from '@/lib/utils/format';
 import { sizeLabel, usesDimensions, DIMENSIONS_LABEL } from '@/lib/utils/catalogLabels';
+import { groupByLabel } from '@/lib/utils/catalogGroups';
 import { formatJalali } from '@/lib/utils/jalali';
 import { API_MODE } from '@/lib/api/config';
 import { api } from '@/lib/api';
@@ -477,6 +478,7 @@ export function PriceTable({
   vatRate?: number;
 }) {
   const sizeCol = sizeLabel(categorySlug);
+  const subGroups = useMemo(() => groupByLabel(subs), [subs]);
   // ورق only. Driven by the PAGE's category for the same reason `sizeCol` is:
   // a mixed list (the «استیل» hub, via cross-listing) must not grow an «ابعاد»
   // column just because one sheet row wandered into it.
@@ -751,16 +753,45 @@ export function PriceTable({
           <Chip variant="filter" selected={sub === null} onClick={() => setSub(null)}>
             همه
           </Chip>
-          {subs.map((s) => (
-            <Chip
-              key={s.slug}
-              variant="filter"
-              selected={sub === s.slug}
-              onClick={() => setSub(sub === s.slug ? null : s.slug)}
-            >
-              {s.name}
-            </Chip>
-          ))}
+          {/* Sub-categories sharing a `groupLabel` cluster under one heading —
+              same treatment the mega-menu, mobile drawer, home stage and admin
+              taxonomy rail already give them (lib/utils/catalogGroups.ts). This
+              filter bar was the last place that still rendered the flat list,
+              so «لوله مانیسمان داخلی»/«لوله مانیسمان خارجی» showed up as two
+              unrelated chips instead of one «مانیسمان» group with two options.
+              A sub with a null groupLabel is its own singleton cluster and is
+              rendered as a bare chip — byte-identical to before — so the many
+              ungrouped sub-categories are untouched. */}
+          {subGroups.map((group) =>
+            group.label ? (
+              <div key={`g_${group.label}`} className={styles.subGroup} role="group" aria-label={group.label}>
+                <span className={styles.subGroupHeading}>{group.label}</span>
+                <div className={styles.subGroupChips}>
+                  {group.items.map((s) => (
+                    <Chip
+                      key={s.slug}
+                      variant="filter"
+                      selected={sub === s.slug}
+                      onClick={() => setSub(sub === s.slug ? null : s.slug)}
+                    >
+                      {s.name}
+                    </Chip>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              group.items.map((s) => (
+                <Chip
+                  key={s.slug}
+                  variant="filter"
+                  selected={sub === s.slug}
+                  onClick={() => setSub(sub === s.slug ? null : s.slug)}
+                >
+                  {s.name}
+                </Chip>
+              ))
+            ),
+          )}
         </div>
         <div className={styles.tools}>
           <label className={styles.sort}>
