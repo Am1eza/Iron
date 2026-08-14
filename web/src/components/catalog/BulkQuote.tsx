@@ -7,6 +7,7 @@ import { useRequestsStore } from '@/lib/stores/requests';
 import { useRequireAuth } from '@/lib/hooks/useRequireAuth';
 import { routes } from '@/lib/routes';
 import { formatToman, toPersianDigits } from '@/lib/utils/format';
+import { sizeLabel } from '@/lib/utils/catalogLabels';
 import { getRows } from '@/lib/mock/catalogData';
 import { computeBulkSplit, pickBestGroup } from '@/lib/utils/bulkSplit';
 import { MOCK_CATEGORY_SUBS, type SubCat } from '@/lib/data/nav';
@@ -54,6 +55,8 @@ export function BulkQuote({
    *  that don't have it yet. */
   vatRate?: number;
 }) {
+  // ورق is measured by thickness — «ضخامت», not «سایز» (see catalogLabels).
+  const sizeCol = sizeLabel(category);
   const router = useRouter();
   const toast = useToast();
   const add = useCartStore((s) => s.add);
@@ -179,14 +182,14 @@ export function BulkQuote({
         </label>
 
         <label className={styles.field}>
-          <span className={styles.fieldLabel}>سایز</span>
+          <span className={styles.fieldLabel}>{sizeCol}</span>
           <select
             className={styles.select}
             value={size}
             onChange={(e) => setSize(e.target.value)}
-            aria-label="سایز محصول"
+            aria-label={`${sizeCol} محصول`}
           >
-            <option value="">همه سایزها (میانگین)</option>
+            <option value="">همهٔ {sizeCol}‌ها (میانگین)</option>
             {sizes.map((s) => (
               <option key={s} value={s}>
                 {s}
@@ -247,7 +250,7 @@ export function BulkQuote({
       {size && (
         <p className={styles.exactNote}>
           مقایسهٔ دقیق: فقط کارخانه‌هایی که «{subs.find((s) => s.slug === sub)?.name ?? categoryName}{' '}
-          سایز {size}» دارند.
+          {sizeCol} {size}» دارند.
         </p>
       )}
 
@@ -316,7 +319,7 @@ export function BulkQuote({
           </span>
         </p>
       ) : (
-        <p className={styles.suggest}>برای این انتخاب، ردیفی در جدول قیمت نیست؛ زیرشاخه یا سایز دیگری را امتحان کنید.</p>
+        <p className={styles.suggest}>برای این انتخاب، ردیفی در جدول قیمت نیست؛ زیرشاخه یا {sizeCol} دیگری را امتحان کنید.</p>
       )}
 
       {landed && split.cheapest ? (

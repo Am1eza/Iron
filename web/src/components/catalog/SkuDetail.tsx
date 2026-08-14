@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import { CONSTANTS } from '@/lib/config/constants';
 import { routes } from '@/lib/routes';
 import { formatToman, priceHiddenLabel, toPersianDigits } from '@/lib/utils/format';
+import { sizeLabel } from '@/lib/utils/catalogLabels';
 import { formatJalali } from '@/lib/utils/jalali';
 import { priceSeries as mockSeries, relatedRows as mockRelated, subName as mockSubName } from '@/lib/mock/catalogData';
 import { categories } from '@/lib/mock/fixtures';
@@ -163,8 +164,12 @@ export function SkuDetail({
     toast.info('امکان اشتراک‌گذاری در این مرورگر نیست.');
   };
 
+  // ورق is sold by thickness, so its `size` column is labelled «ضخامت» —
+  // every other category keeps «سایز» (see catalogLabels).
+  const sizeCol = sizeLabel(row.categoryId);
+
   const specs: { label: string; value: string }[] = [
-    { label: 'سایز', value: row.size ? toPersianDigits(row.size) : 'نامشخص' },
+    { label: sizeCol, value: row.size ? toPersianDigits(row.size) : 'نامشخص' },
     {
       label: row.categoryId === 'rebar' ? 'گرید' : 'گرید / استاندارد',
       value: row.grade ?? row.standard ?? 'نامشخص',
@@ -200,7 +205,7 @@ export function SkuDetail({
             <ul className={styles.attrs}>
               {row.size ? (
                 <li>
-                  سایز <strong className="tnum">{toPersianDigits(row.size)}</strong>
+                  {sizeCol} <strong className="tnum">{toPersianDigits(row.size)}</strong>
                 </li>
               ) : null}
               {row.grade || row.standard ? <li>گرید {row.grade ?? row.standard}</li> : null}

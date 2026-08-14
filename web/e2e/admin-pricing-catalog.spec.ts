@@ -251,7 +251,10 @@ test('creating a product from the drawer lands it in the catalog and in pricing'
   // one field the form insists on, and everything else is derived from it.
   const subSelect = drawer.locator('#sku-sub');
   await subSelect.selectOption({ index: 1 });
-  await drawer.getByLabel('سایز').fill('۹۹');
+  // Either label: this field is «ضخامت» under ورق and «سایز» everywhere else
+  // (see catalogLabels), and the sub-category above is picked by index, so
+  // which of the two words it carries isn't knowable here.
+  await drawer.getByLabel(/سایز|ضخامت/).fill('۹۹');
   await drawer.getByLabel('کارخانه').fill('کارخانهٔ آزمایشی');
 
   // Name and URL derive themselves — the admin should never be asked for a slug.

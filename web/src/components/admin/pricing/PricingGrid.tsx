@@ -9,6 +9,7 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api/resources/admin';
 import { normalizeDigits, toPersianDigits } from '@/lib/utils/format';
 import { formatJalali } from '@/lib/utils/jalali';
+import { sizeLabel } from '@/lib/utils/catalogLabels';
 import { routes } from '@/lib/routes';
 import { useToast } from '@/lib/hooks/useToast';
 import { useUnsavedGuard } from '@/lib/hooks/useUnsavedGuard';
@@ -189,6 +190,10 @@ export function PricingGrid() {
   // hunting for it).
   const params = useSearchParams();
   const [cat, setCat] = useState('rebar');
+  // The grid is always scoped to exactly one category, so its `size` column
+  // can carry that category's own word for it — «ضخامت» for ورق (see
+  // catalogLabels).
+  const sizeCol = sizeLabel(cat);
   const [sub, setSub] = useState('');
   const [onlyStale, setOnlyStale] = useState(params.get('stale') === '1');
   const [q, setQ] = useState('');
@@ -464,7 +469,7 @@ export function PricingGrid() {
     // pasted lines out of the category as "unmatched".
     const { matched, unmatched } = matchPastedPrices(pasteText, allRows);
     if (matched.length === 0) {
-      toast.error('هیچ ردیفی تطبیق نخورد. کلید هر خط باید با نام، اسلاگ یا سایز یکی از کالاهای این دسته بخواند.');
+      toast.error(`هیچ ردیفی تطبیق نخورد. کلید هر خط باید با نام، اسلاگ یا ${sizeCol} یکی از کالاهای این دسته بخواند.`);
       return;
     }
     setDrafts((prev) => {
@@ -563,7 +568,7 @@ export function PricingGrid() {
         <input
           className={ui.textCell}
           style={{ inlineSize: '12rem' }}
-          placeholder="جستجو در نام/اسلاگ/سایز…"
+          placeholder={`جستجو در نام/اسلاگ/${sizeCol}…`}
           value={q}
           onChange={(e) => setQ(e.target.value)}
           aria-label="جستجوی کالا"
@@ -642,7 +647,7 @@ export function PricingGrid() {
             <thead>
               <tr>
                 <th scope="col">کالا</th>
-                <th scope="col">سایز</th>
+                <th scope="col">{sizeCol}</th>
                 <th scope="col">کارخانه</th>
                 <th scope="col">قیمت (تومان)</th>
                 <th scope="col">زمان تحویل</th>
@@ -809,7 +814,7 @@ export function PricingGrid() {
         }
       >
         <p className={ui.muted} style={{ marginBlockStart: 0 }}>
-          هر خط: «نام، اسلاگ یا سایز کالا» و سپس قیمت (جداشده با Tab، کاما یا فاصله). فقط جدول پر می‌شود؛
+          هر خط: «نام، اسلاگ یا {sizeCol} کالا» و سپس قیمت (جداشده با Tab، کاما یا فاصله). فقط جدول پر می‌شود؛
           سپس ردیف‌های تغییرکرده را بررسی و «ذخیره» کنید.
         </p>
         <textarea

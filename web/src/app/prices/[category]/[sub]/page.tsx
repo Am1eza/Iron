@@ -104,7 +104,7 @@ export default async function SubCategoryPage({ params }: Params) {
 
           {rows.length > 0 ? (
             <>
-              <PriceTable rows={allRows} subs={subs} categoryName={cat.name} initialSub={sub} vatRate={vatRate} />
+              <PriceTable rows={allRows} subs={subs} categoryName={cat.name} categorySlug={category} initialSub={sub} vatRate={vatRate} />
               <BulkQuote category={category} categoryName={cat.name} rows={allRows} subs={subs} logisticsConfig={logisticsConfig} vatRate={vatRate} />
             </>
           ) : (

@@ -87,7 +87,7 @@ export default async function CategoryPage({ params }: Params) {
 
           {rows.length > 0 ? (
             <>
-              <PriceTable rows={rows} subs={subs} categoryName={cat.name} vatRate={vatRate} />
+              <PriceTable rows={rows} subs={subs} categoryName={cat.name} categorySlug={category} vatRate={vatRate} />
               <BulkQuote category={category} categoryName={cat.name} rows={rows} subs={subs} logisticsConfig={logisticsConfig} vatRate={vatRate} />
             </>
           ) : (
