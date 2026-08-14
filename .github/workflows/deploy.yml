@@ -293,10 +293,17 @@ jobs:
             # restart forced a fresh render. Any future page added with a
             # `revalidate` window and a DB-backed render belongs in this
             # list too — this is a recurring class of bug, not a one-off.
+            #
+            # /market joined 2026-08-14: its own "مطالعهٔ بیشتر" related-
+            # article read hit the exact same DB-less-build fallback (empty
+            # section) on the deploy that added it, confirmed live before
+            # this line was added — the class of bug this comment already
+            # predicted.
             docker compose exec -T web sh -c \
               "rm -f .next/server/app/index.html .next/server/app/index.rsc .next/server/app/index.meta \
                      .next/server/app/blog.html .next/server/app/blog.rsc .next/server/app/blog.meta \
-                     .next/server/app/news.html .next/server/app/news.rsc .next/server/app/news.meta" || true
+                     .next/server/app/news.html .next/server/app/news.rsc .next/server/app/news.meta \
+                     .next/server/app/market.html .next/server/app/market.rsc .next/server/app/market.meta" || true
 
             # Health gate: the new container must answer 200 on /api/health
             # before this counts as a success. No curl/wget in the runner
