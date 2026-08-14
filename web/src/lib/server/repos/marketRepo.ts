@@ -1,5 +1,5 @@
 /** Market values + history (نبض بازار). */
-import { and, asc, eq, gte } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, lte } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { getDb } from '@/lib/server/db/client';
 import { cacheDel } from '@/lib/server/redis';
@@ -10,6 +10,15 @@ import type { MarketKey, MarketValue } from '@/lib/types/domain';
  *  next to the writers, so every mutation invalidates it — an admin override or
  *  tgju poll is reflected on the next request instead of after ≤30s of stale TTL. */
 export const MARKET_CACHE_KEY = 'market:values';
+
+/** Movement is a day-over-day comparison, not tick-to-tick — the poll job
+ *  runs every 60s (see jobs/marketPoll.job.ts) and usd/eur/gold18 routinely
+ *  sit unchanged for many consecutive polls, so comparing against the
+ *  immediately-prior stored value made the ticker read 0.00% almost always
+ *  for those three, even on days tgju itself shows a real multi-percent
+ *  move. ounce/billet only ever looked "correct" by coincidence (ounce
+ *  ticks more often; billet is stale from an admin edit weeks ago). */
+const MOVEMENT_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 type Row = typeof marketValues.$inferSelect;
 
@@ -38,7 +47,33 @@ export async function getMarketValue(key: MarketKey) {
   return rows[0] ?? null;
 }
 
-/** Upsert a value: computes movement vs the stored one, appends history. */
+/** The value in effect ~24h ago: the most recent history point at or before
+ *  that instant. marketPoints only inserts on an actual change (see below),
+ *  so this correctly reflects "whatever it last changed to before the
+ *  window" rather than requiring a point to exist exactly on the boundary.
+ *  Falls back to the OLDEST known point when all history is younger than
+ *  24h (a key that started being tracked recently) so a real, if partial,
+ *  movement still shows instead of silently going flat. */
+async function referenceValue(key: MarketKey, since: Date): Promise<number | null> {
+  const db = getDb();
+  const before = await db
+    .select({ value: marketPoints.value })
+    .from(marketPoints)
+    .where(and(eq(marketPoints.key, key), lte(marketPoints.at, since)))
+    .orderBy(desc(marketPoints.at))
+    .limit(1);
+  if (before[0]) return before[0].value;
+
+  const earliest = await db
+    .select({ value: marketPoints.value })
+    .from(marketPoints)
+    .where(eq(marketPoints.key, key))
+    .orderBy(asc(marketPoints.at))
+    .limit(1);
+  return earliest[0]?.value ?? null;
+}
+
+/** Upsert a value: computes movement vs ~24h ago, appends history. */
 export async function upsertMarketValue(input: {
   key: MarketKey;
   value: number;
@@ -48,13 +83,16 @@ export async function upsertMarketValue(input: {
 }): Promise<MarketValue> {
   const db = getDb();
   const prev = await getMarketValue(input.key);
+  const now = new Date();
+
+  const ref = await referenceValue(input.key, new Date(now.getTime() - MOVEMENT_WINDOW_MS));
   let movementPct: number | null = null;
   let movementDir: 'up' | 'down' | 'flat' = 'flat';
-  if (prev && prev.value > 0) {
-    movementPct = Math.round(((input.value - prev.value) / prev.value) * 10000) / 100;
+  if (ref && ref > 0) {
+    movementPct = Math.round(((input.value - ref) / ref) * 10000) / 100;
     movementDir = movementPct > 0.005 ? 'up' : movementPct < -0.005 ? 'down' : 'flat';
   }
-  const now = new Date();
+
   const row = {
     key: input.key,
     label: input.label ?? prev?.label ?? input.key,
