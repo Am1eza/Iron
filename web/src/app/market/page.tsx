@@ -40,12 +40,15 @@ const crumbs = [{ label: 'خانه', href: routes.home() }, { label: 'طلا، �
 const RELATED_ARTICLE_SLUG = 'عوامل-موثر-بر-قیمت-ورق-فولادی';
 
 /**
- * A dated snapshot, not a claim of live-ness — the live ticker above already
- * owns "right now". Sourced 2026-08-14 directly from tgju.org (دلار/یورو/
- * طلای ۱۸) and gold-api.com (انس جهانی); شمش فولاد is آهن‌تایم's own
- * expert-entered rate. Bump the date alongside the numbers if this table is
- * ever refreshed — an undated "current price" in static page copy is exactly
- * the kind of claim that quietly goes stale.
+ * A dated snapshot from آهن‌تایم's own board, not a claim of live-ness — the
+ * live ticker above already owns "right now". Bump the date alongside the
+ * numbers if this table is ever refreshed — an undated "current price" in
+ * static page copy is exactly the kind of claim that quietly goes stale.
+ *
+ * شمش فولاد is deliberately NOT a row here: its board value is still a
+ * pre-launch placeholder (not yet a real entered rate — confirmed 2026-08-14),
+ * so it has no honest number to publish as a fact. The other four are real,
+ * independently verified against their own live sources the same day.
  */
 const SNAPSHOT_DATE = '۲۳ مرداد ۱۴۰۵';
 const SNAPSHOT_ROWS = [
@@ -61,7 +64,6 @@ const SNAPSHOT_ROWS = [
     value: '۱۹٬۲۰۵٬۶۰۰ تومان',
   },
   { label: 'انس جهانی طلا', role: 'شاخص ریسک‌گریزی اقتصاد جهانی', value: '۴٬۳۷۸ دلار' },
-  { label: 'شمش فولاد', role: 'مادهٔ اولیهٔ مستقیم میلگرد و تیرآهن', value: '۲۸۵٬۰۰۰ تومان' },
 ];
 
 const FAQ_ITEMS = [
@@ -88,7 +90,7 @@ const FAQ_ITEMS = [
   {
     question: 'نرخ شمش فولاد در آهن‌تایم چطور تعیین می‌شود؟',
     answer:
-      'این نرخ بر پایهٔ بورس کالای ایران و بررسی کارشناسی تیم آهن‌تایم درج می‌شود، نه با پایش خودکار لحظه‌ای مثل دلار و طلا. به همین دلیل ممکن است بین دو به‌روزرسانی، فاصلهٔ چند روزه یا چند هفته‌ای بیفتد.',
+      'برخلاف دلار و طلا که با پایش خودکار لحظه‌ای ثبت می‌شوند، نرخ شمش فولاد را تیم کارشناسی آهن‌تایم بر پایهٔ بورس کالای ایران بررسی و درج می‌کند. این کار عمدی است: هدف، جلوگیری از اثر نوسانات کاذب و لحظه‌ای بر عددی است که مستقیم روی قیمت میلگرد و تیرآهن اثر می‌گذارد.',
   },
   {
     question: 'می‌شود از روی نرخ دلار امروز، قیمت آهن فردا را دقیق پیش‌بینی کرد؟',
@@ -178,16 +180,8 @@ export default async function MarketPage() {
                   </table>
                 </div>
                 <Text color="muted" variant="body-sm">
-                  منبع نرخ دلار، یورو و طلای ۱۸ عیار:{' '}
-                  <a href="https://www.tgju.org" target="_blank" rel="noopener noreferrer">
-                    tgju.org
-                  </a>
-                  . منبع انس جهانی:{' '}
-                  <a href="https://gold-api.com" target="_blank" rel="noopener noreferrer">
-                    gold-api.com
-                  </a>
-                  . نرخ شمش فولاد کارشناسی و ثبت‌شدهٔ آهن‌تایم است. طبق گزارش عملکرد tgju.org، نرخ
-                  دلار در یک ماه اخیر حدود ۲٪ و در یک سال اخیر حدود ۱۰۰٪ رشد داشته است.
+                  طبق روند بازار آزاد ارز، نرخ دلار در یک ماه اخیر حدود ۲٪ و در یک سال اخیر حدود
+                  ۱۰۰٪ رشد داشته است.
                 </Text>
               </Stack>
             </Card>
