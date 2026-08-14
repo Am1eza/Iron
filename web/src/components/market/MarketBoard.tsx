@@ -118,7 +118,6 @@ export function MarketBoard() {
                 </span>
                 <span className={styles.moveRow}>
                   <MovementBadge dir={v.movementDir} pct={v.movementPct} pill />
-                  <span className={styles.fresh}>به‌روزرسانی لحظه‌ای</span>
                 </span>
               </button>
               <span className={styles.bellSlot}>

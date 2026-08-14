@@ -1,0 +1,32 @@
+.explainer {
+  padding-block-start: var(--space-8);
+  border-block-start: var(--border-hairline) solid var(--color-hairline);
+}
+
+.related {
+  margin-block-start: var(--space-4);
+}
+.relatedTitle {
+  font: var(--t-h3);
+  color: var(--color-text-strong);
+  margin: 0 0 var(--space-5);
+}
+.relatedGrid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4);
+}
+
+@media (max-width: 1023px) {
+  .relatedGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 640px) {
+  .relatedGrid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -34,7 +34,13 @@ export function PriceChart({ series, unit = 'تومان' }: { series: number[]; 
   const x = (i: number) => w - pad - i * stepX;
 
   const line = data.map((v, i) => `${i === 0 ? 'M' : 'L'} ${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(' ');
-  const area = `${line} L ${x(0).toFixed(1)} ${h - pad} L ${x(data.length - 1).toFixed(1)} ${h - pad} Z`;
+  // Close the fill straight DOWN from the last plotted point to the baseline,
+  // then straight back along the baseline to under the first point. The
+  // previous order (down to under the FIRST point, then across to under the
+  // LAST) drew a diagonal spanning the full chart width instead of a vertical
+  // drop, which rendered as a triangular wedge slicing across the actual
+  // jagged line rather than a fill that hugs it.
+  const area = `${line} L ${x(data.length - 1).toFixed(1)} ${h - pad} L ${x(0).toFixed(1)} ${h - pad} Z`;
 
   const first = data[0]!;
   const last = data[data.length - 1]!;
