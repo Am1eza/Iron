@@ -89,10 +89,14 @@
   gap: var(--space-2);
   flex-wrap: wrap;
 }
+/* Same --t-price-hero token every other "big price" on the site uses (SkuDetail's
+   own hero price, PriceParts' PriceTag size="hero") — this used to shrink it to a
+   hand-picked 1.625rem that matched neither that token nor PriceChart's OWN "now"
+   value a few rows below it (1.75rem there) on this exact page. Two different
+   almost-but-not-quite sizes for the same "highlighted price" concept, on the same
+   page, is exactly what read as inconsistent. */
 .value {
   font: var(--t-price-hero);
-  font-size: 1.625rem;
-  line-height: 1.1;
   color: var(--color-text-strong);
   font-variant-numeric: tabular-nums;
 }
@@ -104,13 +108,7 @@
 .moveRow {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--space-2);
-  flex-wrap: wrap;
-}
-.fresh {
-  font: var(--t-micro);
-  color: var(--color-text-muted);
 }
 
 /* ===== Source badge ===== */
@@ -237,9 +235,6 @@
   .bellSlot {
     inset-block-start: var(--space-4);
     inset-inline-end: var(--space-4);
-  }
-  .value {
-    font-size: 1.5rem;
   }
   .cta,
   .ctaGhost {

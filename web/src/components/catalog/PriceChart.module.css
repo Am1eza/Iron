@@ -15,9 +15,11 @@
   align-items: baseline;
   gap: var(--space-2);
 }
+/* Same --t-price-hero token MarketBoard's own selected-card value now uses
+   (see MarketBoard.module.css's comment) — this used to hardcode 1.75rem, a
+   third size for the same "highlighted price" concept on the same page. */
 .nowVal {
   font: var(--t-price-hero);
-  font-size: 1.75rem;
   color: var(--color-text-strong);
 }
 .nowUnit {
