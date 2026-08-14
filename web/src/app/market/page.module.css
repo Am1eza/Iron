@@ -1,6 +1,77 @@
+/* `Card` already supplies the border/radius/background; this just gives the
+   section some breathing room above it, same as the old bare-div version
+   had via a top border rule, minus the border itself (the card's own
+   hairline border does that job now). */
 .explainer {
-  padding-block-start: var(--space-8);
-  border-block-start: var(--border-hairline) solid var(--color-hairline);
+  margin-block-start: var(--space-4);
+}
+
+/* Same bullet-list look RichContent.module.css uses for lists inside an
+   article body (accent-colored marker, generous line gap). */
+.chainList {
+  margin: 0;
+  padding-inline-start: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.chainList li {
+  font: var(--t-body);
+  color: var(--color-text);
+  padding-inline-start: var(--space-1);
+}
+.chainList li::marker {
+  color: var(--color-accent);
+}
+
+/* Same table look RichContent.module.css uses for markdown tables inside an
+   article body — brand-tint header row, zebra body rows, tabular numerals —
+   so a table on /market reads as the SAME kind of table as one inside a
+   /blog post, not a one-off. */
+.tableScroll {
+  overflow-x: auto;
+}
+.table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  font: var(--t-body-sm);
+  font-variant-numeric: tabular-nums;
+}
+.tableCaption {
+  text-align: start;
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+  margin-block-end: var(--space-3);
+  caption-side: top;
+}
+.table th,
+.table td {
+  padding: var(--space-3);
+  border-block-end: var(--border-strong) solid var(--color-border-strong);
+  border-inline-end: var(--border-strong) solid var(--color-border-strong);
+  text-align: start;
+  vertical-align: top;
+  white-space: nowrap;
+}
+.table th:last-child,
+.table td:last-child {
+  border-inline-end: 0;
+}
+.table thead th {
+  color: var(--color-accent-text);
+  font-weight: 700;
+  background: var(--color-accent-tint);
+}
+.table tbody th {
+  font-weight: 700;
+  color: var(--color-text-strong);
+}
+.table tbody tr:nth-child(even) {
+  background: var(--color-surface-sunken);
+}
+.table tbody tr:last-child td,
+.table tbody tr:last-child th {
+  border-block-end: 0;
 }
 
 .related {

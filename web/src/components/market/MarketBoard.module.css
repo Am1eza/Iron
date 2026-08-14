@@ -26,8 +26,15 @@
   text-align: start;
   padding: var(--space-5);
   padding-inline-end: calc(var(--space-5) + 36px + var(--space-2));
+  /* --radius-md, not --radius-lg: this is a compact selector card, the same
+     role as ui/Card ("F10 · Card — white paper, hairline, --radius-md") and
+     content/ArticleCard, both of which already use --radius-md. --radius-lg
+     is reserved for bigger page-section shells elsewhere (e.g. this file's
+     own .detail chart panel) — using it here made these 5 cards visibly
+     rounder than every other card-shaped thing on the site, including the
+     "مطالعهٔ بیشتر" ArticleCard a few rows below them on this exact page. */
   border: var(--border-hairline) solid var(--color-hairline);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   background: var(--color-surface);
   box-shadow: var(--shadow-none);
   font: inherit;
