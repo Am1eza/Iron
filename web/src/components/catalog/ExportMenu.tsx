@@ -2,7 +2,7 @@
 import { useToast } from '@/lib/hooks/useToast';
 import { formatToman, formatMovement, priceHiddenLabel, toPersianDigits } from '@/lib/utils/format';
 import { formatJalali } from '@/lib/utils/jalali';
-import { sizeLabel } from '@/lib/utils/catalogLabels';
+import { sizeLabel, usesDimensions, DIMENSIONS_LABEL } from '@/lib/utils/catalogLabels';
 import type { PriceRow } from '@/lib/types/domain';
 import { SheetIcon, PrintIcon, ImageIcon } from '@/components/primitives/icons';
 import styles from './ExportMenu.module.css';
@@ -12,12 +12,16 @@ import styles from './ExportMenu.module.css';
  * clean branded sheet), and Image-with-logo (PNG via canvas). All client-side,
  * no dependency. The branded header carries «آهن‌تایم» + the date.
  */
-const cols = (categorySlug?: string) => [
+export const cols = (categorySlug?: string) => [
   'محصول',
   // ورق is measured by thickness, not size — same rule the on-screen table
   // follows (see catalogLabels), so an exported file matches what the buyer
   // was looking at when they clicked «اکسل».
   sizeLabel(categorySlug),
+  // …and for ورق the thickness alone doesn't identify a plate, so «ابعاد»
+  // rides along. Every other category has no such column on screen and gets
+  // none in the file either.
+  ...(usesDimensions(categorySlug) ? [DIMENSIONS_LABEL] : []),
   'کارخانه',
   'وزن شاخه (kg)',
   'قیمت (تومان)',
@@ -25,10 +29,13 @@ const cols = (categorySlug?: string) => [
   'زمان تحویل',
 ];
 
-function rowCells(r: PriceRow): string[] {
+/** `withDimensions` MUST be the same flag `cols()` was built with — the cells
+ *  are positional, so a mismatch would shift every column after the size. */
+export function rowCells(r: PriceRow, withDimensions = false): string[] {
   return [
     r.name,
     r.size ? toPersianDigits(r.size) : 'نامشخص',
+    ...(withDimensions ? [r.dimensions ? toPersianDigits(r.dimensions) : 'نامشخص'] : []),
     r.factory ?? 'نامشخص',
     r.theoreticalWeightKg ? toPersianDigits(String(r.theoreticalWeightKg)) : 'نامشخص',
     priceHiddenLabel(r.current) ?? formatToman(r.current.price, false),
@@ -49,7 +56,9 @@ export function ExportMenu({
 }) {
   const toast = useToast();
   const today = formatJalali(new Date());
+  const showDimensions = usesDimensions(categorySlug);
   const COLS = cols(categorySlug);
+  const cells = (r: PriceRow) => rowCells(r, showDimensions);
 
   // Branded spreadsheet — a styled HTML table saved as .xls (Excel opens it with
   // the branding + RTL intact). Header carries «آهن‌تایم» + the date; green header
@@ -60,7 +69,7 @@ export function ExportMenu({
     const body = rows
       .map(
         (r, i) =>
-          `<tr class="${i % 2 ? 'even' : ''}">${rowCells(r)
+          `<tr class="${i % 2 ? 'even' : ''}">${cells(r)
             .map((c) => `<td>${c}</td>`)
             .join('')}</tr>`,
       )
@@ -104,7 +113,7 @@ export function ExportMenu({
     }
     const head = `<tr>${COLS.map((c) => `<th>${c}</th>`).join('')}</tr>`;
     const body = rows
-      .map((r) => `<tr>${rowCells(r).map((c) => `<td>${c}</td>`).join('')}</tr>`)
+      .map((r) => `<tr>${cells(r).map((c) => `<td>${c}</td>`).join('')}</tr>`)
       .join('');
     win.document.write(`<!doctype html><html dir="rtl" lang="fa"><head><meta charset="utf-8"><title>${title}، آهن‌تایم</title>
       <style>
@@ -131,7 +140,12 @@ export function ExportMenu({
     const rowH = 38;
     const headerH = 110;
     const footerH = 44;
-    const colW = [260, 80, 140, 120, 150, 110, 130];
+    // One width per entry of `COLS`, in the same order — the «ابعاد» column is
+    // only present for ورق, and a missing width here would silently stack
+    // every later column on top of the previous one.
+    const colW = showDimensions
+      ? [260, 80, 120, 140, 120, 150, 110, 130]
+      : [260, 80, 140, 120, 150, 110, 130];
     const width = colW.reduce((a, b) => a + b, 0) + padX * 2;
     const visible = rows.slice(0, 24);
     const height = headerH + (visible.length + 1) * rowH + footerH;
@@ -181,7 +195,7 @@ export function ExportMenu({
       ctx.fillStyle = '#2B333D';
       ctx.font = '13px Tahoma';
       let x2 = width - padX - 10;
-      rowCells(r).forEach((cell, i) => {
+      cells(r).forEach((cell, i) => {
         ctx.fillText(cell, x2, yy + rowH / 2);
         x2 -= colW[i]!;
       });

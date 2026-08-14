@@ -26,7 +26,7 @@ import { adminApi, type AdminSku, type AdminCategory, type AdminSubCategory } fr
 import { ApiError } from '@/lib/api/errors';
 import { normalizeDigits } from '@/lib/utils/format';
 import { composeSkuName, composeSkuSlug, defaultUnitFor, theoreticalWeightFor } from '@/lib/utils/catalogCompose';
-import { sizeLabel } from '@/lib/utils/catalogLabels';
+import { sizeLabel, usesDimensions, DIMENSIONS_LABEL } from '@/lib/utils/catalogLabels';
 import { useToast } from '@/lib/hooks/useToast';
 import { Alert, Badge, Button, Heading, Text, useConfirm } from '@/components/ui';
 import { TextInput, PickerInput } from '@/components/forms/fields';
@@ -61,6 +61,7 @@ const SIZE_PLACEHOLDER: Record<string, string> = {
 };
 const FACTORY_PLACEHOLDER = 'مثلاً ذوب‌آهن اصفهان';
 const GRADE_PLACEHOLDER = 'مثلاً A3';
+const DIMENSIONS_PLACEHOLDER = 'مثلاً ۱۰۰۰×۲۰۰۰';
 
 type Values = {
   name: string;
@@ -69,6 +70,10 @@ type Values = {
   size: string;
   factory: string;
   grade: string;
+  /** ورق only — the plate's width×length. The field is not even rendered for
+   *  other categories, but the value is still round-tripped so moving a SKU
+   *  between categories never silently drops it. */
+  dimensions: string;
   standard: string;
   unit: AdminSku['unit'];
   theoreticalWeightKg: string;
@@ -90,6 +95,7 @@ function toValues(sku: AdminSku | null, defaultSubId: string, steelCategoryId: s
     size: sku?.size ?? '',
     factory: sku?.factory ?? '',
     grade: sku?.grade ?? '',
+    dimensions: sku?.dimensions ?? '',
     standard: sku?.standard ?? '',
     unit: sku?.unit ?? 'kg',
     theoreticalWeightKg: sku?.theoreticalWeightKg != null ? String(sku.theoreticalWeightKg) : '',
@@ -148,6 +154,7 @@ export function SkuDrawer({
   // word the trade actually uses for whichever category they're filing this
   // product under (see catalogLabels). The stored column is unchanged.
   const sizeCol = sizeLabel(parentCategory?.slug);
+  const showDimensions = usesDimensions(parentCategory?.slug);
 
   const { data: suggestions } = useQuery({
     queryKey: ['admin', 'cat', 'suggestions', parentCategory?.id ?? ''],
@@ -235,6 +242,7 @@ export function SkuDrawer({
         size: orNull(v.size),
         factory: orNull(v.factory),
         grade: orNull(v.grade),
+        dimensions: orNull(v.dimensions),
         standard: orNull(v.standard),
         unit: v.unit,
         theoreticalWeightKg: weightNum,
@@ -335,6 +343,23 @@ export function SkuDrawer({
                 placeholder={SIZE_PLACEHOLDER[parentCategory?.slug ?? ''] ?? 'مثلاً ۱۴'}
                 onChange={(size) => set({ size })}
               />
+              {/* ورق only. A plate has three dimensions and `size` above holds
+                  just the thickness — «ابعاد» is the width×length. Asking
+                  میلگرد/تیرآهن/… for it would be a meaningless extra box, so
+                  the field simply isn't rendered there. */}
+              {showDimensions ? (
+                <PickerInput
+                  id="sku-dimensions"
+                  label={DIMENSIONS_LABEL}
+                  helper="عرض×طول ورق. اختیاری — اگر نمی‌دانید خالی بگذارید."
+                  value={v.dimensions}
+                  options={suggestions?.dimensions ?? []}
+                  error={fieldErrors.dimensions}
+                  maxLength={40}
+                  placeholder={DIMENSIONS_PLACEHOLDER}
+                  onChange={(dimensions) => set({ dimensions })}
+                />
+              ) : null}
               <PickerInput
                 id="sku-factory"
                 label="کارخانه"
