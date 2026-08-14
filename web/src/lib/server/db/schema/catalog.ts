@@ -89,6 +89,15 @@ export const skus = pgTable(
     standard: text('standard'),
     size: text('size'),
     grade: text('grade'),
+    // Sheet dimensions — the width×length of the plate, e.g. «۱۰۰۰×۲۰۰۰».
+    // Only ورق has this: `size` already carries a sheet's THICKNESS (which is
+    // why the UI labels it «ضخامت» there), and the plate's other two
+    // dimensions had nowhere to live. They were being smuggled into `grade`
+    // by at least one product before #123 gave grade its own column and that
+    // SKU's grade had to be cleared by hand. Nullable and stays null for
+    // every existing row — nothing is backfilled, and no other category is
+    // asked to fill it in.
+    dimensions: text('dimensions'),
     factory: text('factory'),
     theoreticalWeightKg: doublePrecision('theoretical_weight_kg'),
     unit: text('unit', { enum: PRICE_UNITS }).notNull().default('kg'),

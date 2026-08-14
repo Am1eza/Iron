@@ -58,6 +58,16 @@ const createPayload = z.object({
     .optional()
     .transform((v) => (v ? normalizeSizeText(v) : v === '' ? null : v)),
   grade: optionalPersianText(40),
+  // ورق only (the admin form offers it for no other category). Runs through
+  // normalizeSizeText like `size` does, so «1000x2000», «1000*2000» and
+  // «۱۰۰۰ × ۲۰۰۰» all land as «۱۰۰۰×۲۰۰۰» instead of three lookalike values.
+  dimensions: z
+    .string()
+    .trim()
+    .max(40)
+    .nullable()
+    .optional()
+    .transform((v) => (v ? normalizeSizeText(v) : v === '' ? null : v)),
   factory: optionalPersianText(80),
   theoreticalWeightKg: finiteNumber.positive().max(100_000).nullable().optional(),
   unit: z.enum(['kg', 'branch', 'sheet', 'meter']).optional(),

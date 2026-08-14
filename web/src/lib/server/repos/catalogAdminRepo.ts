@@ -450,6 +450,9 @@ export async function catalogSuggestions(categoryId?: string): Promise<{
   factories: string[];
   sizes: string[];
   grades: string[];
+  /** ورق plate dimensions already in use. Empty for every other category,
+   *  which simply has none. */
+  dimensions: string[];
   standards: string[];
   groupLabels: string[];
 }> {
@@ -460,6 +463,7 @@ export async function catalogSuggestions(categoryId?: string): Promise<{
       factory: skus.factory,
       size: skus.size,
       grade: skus.grade,
+      dimensions: skus.dimensions,
       standard: skus.standard,
     })
     .from(skus)
@@ -481,6 +485,7 @@ export async function catalogSuggestions(categoryId?: string): Promise<{
     factories: pick((r) => r.factory),
     sizes: pick((r) => r.size),
     grades: pick((r) => r.grade),
+    dimensions: pick((r) => r.dimensions),
     standards: pick((r) => r.standard),
     groupLabels,
   };
@@ -494,6 +499,10 @@ export interface SkuInput {
   standard?: string | null;
   size?: string | null;
   grade?: string | null;
+  /** ورق only — plate width×length. Same nullable "absent key leaves the
+   *  column alone, explicit null clears it" rule as every other optional
+   *  field here. See server/db/schema/catalog.ts. */
+  dimensions?: string | null;
   factory?: string | null;
   theoreticalWeightKg?: number | null;
   unit?: PriceUnit;

@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import { CONSTANTS } from '@/lib/config/constants';
 import { routes } from '@/lib/routes';
 import { formatToman, priceHiddenLabel, toPersianDigits } from '@/lib/utils/format';
-import { sizeLabel } from '@/lib/utils/catalogLabels';
+import { sizeLabel, DIMENSIONS_LABEL } from '@/lib/utils/catalogLabels';
 import { formatJalali } from '@/lib/utils/jalali';
 import { priceSeries as mockSeries, relatedRows as mockRelated, subName as mockSubName } from '@/lib/mock/catalogData';
 import { categories } from '@/lib/mock/fixtures';
@@ -170,6 +170,11 @@ export function SkuDetail({
 
   const specs: { label: string; value: string }[] = [
     { label: sizeCol, value: row.size ? toPersianDigits(row.size) : 'نامشخص' },
+    // ورق only, and only once someone has filled it in. Unlike the rows below
+    // there is deliberately no «نامشخص» placeholder: most sheet SKUs have no
+    // dimensions recorded yet, and a spec table full of «نامشخص» reads as a
+    // broken page rather than an unanswered question.
+    ...(row.dimensions ? [{ label: DIMENSIONS_LABEL, value: toPersianDigits(row.dimensions) }] : []),
     {
       label: row.categoryId === 'rebar' ? 'گرید' : 'گرید / استاندارد',
       value: row.grade ?? row.standard ?? 'نامشخص',
@@ -206,6 +211,11 @@ export function SkuDetail({
               {row.size ? (
                 <li>
                   {sizeCol} <strong className="tnum">{toPersianDigits(row.size)}</strong>
+                </li>
+              ) : null}
+              {row.dimensions ? (
+                <li>
+                  {DIMENSIONS_LABEL} <strong className="tnum">{toPersianDigits(row.dimensions)}</strong>
                 </li>
               ) : null}
               {row.grade || row.standard ? <li>گرید {row.grade ?? row.standard}</li> : null}

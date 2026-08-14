@@ -10,7 +10,7 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import { CONSTANTS } from '@/lib/config/constants';
 import { routes } from '@/lib/routes';
 import { formatToman, priceHiddenLabel, toPersianDigits, normalizeDigits } from '@/lib/utils/format';
-import { sizeLabel } from '@/lib/utils/catalogLabels';
+import { sizeLabel, usesDimensions, DIMENSIONS_LABEL } from '@/lib/utils/catalogLabels';
 import { formatJalali } from '@/lib/utils/jalali';
 import { API_MODE } from '@/lib/api/config';
 import { api } from '@/lib/api';
@@ -99,7 +99,18 @@ const PriceTableRow = memo(function PriceTableRow({
   onToggleFav,
   onChart,
   onAddToCart,
-}: { row: PriceRow; vat: boolean; vatRate: number; isFav: boolean; compareChecked: boolean; onToggleCompare: (id: string) => void } & RowActions) {
+  showDimensions,
+}: {
+  row: PriceRow;
+  vat: boolean;
+  vatRate: number;
+  isFav: boolean;
+  compareChecked: boolean;
+  onToggleCompare: (id: string) => void;
+  /** ورق only — must stay in lockstep with the matching `<th>` in the header,
+   *  which is driven by the same flag. */
+  showDimensions: boolean;
+} & RowActions) {
   return (
     <tr>
       <td>
@@ -116,6 +127,9 @@ const PriceTableRow = memo(function PriceTableRow({
         </Link>
       </th>
       <td>{r.size ? toPersianDigits(r.size) : 'نامشخص'}</td>
+      {showDimensions ? (
+        <td className={styles.muted}>{r.dimensions ? toPersianDigits(r.dimensions) : 'نامشخص'}</td>
+      ) : null}
       <td className={styles.muted}>{r.grade ?? 'نامشخص'}</td>
       <td className={styles.muted}>{r.factory ?? 'نامشخص'}</td>
       <td className={styles.num}>
@@ -178,7 +192,15 @@ const PriceTableCard = memo(function PriceTableCard({
   onToggleFav,
   onChart,
   onAddToCart,
-}: { row: PriceRow; vat: boolean; vatRate: number; isFav: boolean } & RowActions) {
+  showDimensions,
+}: {
+  row: PriceRow;
+  vat: boolean;
+  vatRate: number;
+  isFav: boolean;
+  /** ورق only — same flag the desktop header/rows use. */
+  showDimensions: boolean;
+} & RowActions) {
   return (
     <li className={styles.card}>
       <div className={styles.cardTop}>
@@ -209,6 +231,15 @@ const PriceTableCard = memo(function PriceTableCard({
         <span>کارخانه: {r.factory ?? 'نامشخص'}</span>
         {r.grade ? <span>گرید: {r.grade}</span> : null}
         {/* size intentionally omitted — the product name already ends in it */}
+        {/* ابعاد is NOT in the name, so unlike size it has to be shown here or
+            a phone user never sees it at all. Only when it's actually filled
+            in — the card is a compact summary, not a spec sheet, and a «نامشخص»
+            line would be pure noise on the majority of plates today. */}
+        {showDimensions && r.dimensions ? (
+          <span>
+            {DIMENSIONS_LABEL}: <bdi className="tnum">{toPersianDigits(r.dimensions)}</bdi>
+          </span>
+        ) : null}
         {r.theoreticalWeightKg ? (
           <span>
             وزن شاخه {toPersianDigits(r.theoreticalWeightKg)} <bdi lang="en">kg</bdi>
@@ -446,6 +477,10 @@ export function PriceTable({
   vatRate?: number;
 }) {
   const sizeCol = sizeLabel(categorySlug);
+  // ورق only. Driven by the PAGE's category for the same reason `sizeCol` is:
+  // a mixed list (the «استیل» hub, via cross-listing) must not grow an «ابعاد»
+  // column just because one sheet row wandered into it.
+  const showDimensions = usesDimensions(categorySlug);
   const add = useCartStore((s) => s.add);
   const toast = useToast();
   const router = useRouter();
@@ -908,6 +943,10 @@ export function PriceTable({
                         <th scope="col" aria-sort={sort === 'size' ? 'ascending' : 'none'}>
                           {sizeCol}
                         </th>
+                        {/* ورق only — and deliberately NOT sortable: «۱۰۰۰×۲۰۰۰»
+                            is a pair, not a number, so there is no ordering the
+                            `size`/price/movement comparator could honour. */}
+                        {showDimensions ? <th scope="col">{DIMENSIONS_LABEL}</th> : null}
                         <th scope="col">گرید</th>
                         <th scope="col">کارخانه</th>
                         <th scope="col" className={styles.num}>
@@ -936,6 +975,7 @@ export function PriceTable({
                           isFav={fav.has(r.id)}
                           compareChecked={compareIds.has(r.id)}
                           onToggleCompare={toggleCompare}
+                          showDimensions={showDimensions}
                           onToggleFav={toggleFav}
                           onChart={setChartFor}
                           onAddToCart={addToCart}
@@ -954,6 +994,7 @@ export function PriceTable({
                       vat={vat}
                       vatRate={vatRate}
                       isFav={fav.has(r.id)}
+                      showDimensions={showDimensions}
                       onToggleFav={toggleFav}
                       onChart={setChartFor}
                       onAddToCart={addToCart}
@@ -1019,6 +1060,16 @@ export function PriceTable({
                     <td key={r.id}>{r.size ? toPersianDigits(r.size) : 'نامشخص'}</td>
                   ))}
                 </tr>
+                {/* ورق only — the whole point of comparing two plates is often
+                    that they differ here and nowhere else. */}
+                {showDimensions ? (
+                  <tr>
+                    <th scope="row">{DIMENSIONS_LABEL}</th>
+                    {selectedForCompare.map((r) => (
+                      <td key={r.id}>{r.dimensions ? toPersianDigits(r.dimensions) : 'نامشخص'}</td>
+                    ))}
+                  </tr>
+                ) : null}
                 <tr>
                   <th scope="row">کارخانه</th>
                   {selectedForCompare.map((r) => (

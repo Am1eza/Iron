@@ -19,12 +19,26 @@
 /** Categories whose `size` column holds a thickness. Only ورق today. */
 const THICKNESS_CATEGORIES = new Set(['sheet']);
 
+/** Categories that additionally carry a width×length. Only ورق today — a
+ *  plate has three dimensions and `size` only holds the thickness. */
+const DIMENSIONS_CATEGORIES = new Set(['sheet']);
+
 export const SIZE_LABEL = 'سایز';
 export const THICKNESS_LABEL = 'ضخامت';
+export const DIMENSIONS_LABEL = 'ابعاد';
 
 /** True when this category measures its products by thickness. */
 export function usesThickness(categorySlug: string | null | undefined): boolean {
   return Boolean(categorySlug && THICKNESS_CATEGORIES.has(categorySlug));
+}
+
+/**
+ * True when this category has a meaningful «ابعاد» (width×length) alongside
+ * its thickness. Drives whether the column/field is OFFERED at all — every
+ * other category never sees it, in the admin form or on the public table.
+ */
+export function usesDimensions(categorySlug: string | null | undefined): boolean {
+  return Boolean(categorySlug && DIMENSIONS_CATEGORIES.has(categorySlug));
 }
 
 /** «ضخامت» for ورق, «سایز» everywhere else (including unknown/mixed lists). */

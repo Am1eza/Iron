@@ -72,6 +72,11 @@ export interface SKU {
   standard?: string;
   size?: string;
   grade?: string;
+  /** ورق only — the plate's width×length, e.g. «۱۰۰۰×۲۰۰۰». For a sheet,
+   *  `size` is the THICKNESS; this is the other two dimensions. Undefined for
+   *  every other category and for sheets nobody has filled it in for yet.
+   *  See server/db/schema/catalog.ts. */
+  dimensions?: string;
   factory?: string;
   theoreticalWeightKg?: number;
   unit: PriceUnit;

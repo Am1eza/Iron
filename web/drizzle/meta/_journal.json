@@ -274,6 +274,13 @@
       "when": 1786651658663,
       "tag": "0038_dear_rockslide",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1786666418686,
+      "tag": "0039_sku_dimensions",
+      "breakpoints": true
     }
   ]
 }

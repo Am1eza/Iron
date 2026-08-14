@@ -369,6 +369,9 @@ export interface AdminSku {
   standard: string | null;
   size: string | null;
   grade: string | null;
+  /** ورق only — plate width×length, e.g. «۱۰۰۰×۲۰۰۰». Null for every other
+   *  category and for sheets not filled in yet. */
+  dimensions: string | null;
   factory: string | null;
   theoreticalWeightKg: number | null;
   unit: 'kg' | 'branch' | 'sheet' | 'meter';
@@ -389,6 +392,7 @@ export interface AdminSkuInput {
   standard?: string | null;
   size?: string | null;
   grade?: string | null;
+  dimensions?: string | null;
   factory?: string | null;
   theoreticalWeightKg?: number | null;
   unit?: 'kg' | 'branch' | 'sheet' | 'meter';
@@ -953,7 +957,14 @@ export const adminApi = {
   /** Every value already in use for the free-text SKU columns, so the product
    *  form can offer choices instead of asking the admin to type. */
   catalogSuggestions: (categoryId?: string) =>
-    http.get<{ factories: string[]; sizes: string[]; grades: string[]; standards: string[]; groupLabels: string[] }>(
+    http.get<{
+      factories: string[];
+      sizes: string[];
+      grades: string[];
+      dimensions: string[];
+      standards: string[];
+      groupLabels: string[];
+    }>(
       `/api/admin/catalog/suggestions${categoryId ? `?categoryId=${encodeURIComponent(categoryId)}` : ''}`,
     ),
   /** Shared image upload (article cover, SKU photo) — content:write or catalog:write. */
