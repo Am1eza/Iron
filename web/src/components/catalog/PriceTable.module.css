@@ -15,6 +15,29 @@
 .subs {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* A `groupLabel` cluster (e.g. «مانیسمان» → داخلی/خارجی) — one flex item
+   holding a muted caption heading over its own chips, so the group reads as a
+   unit inside the same wrapping chip row. Same caption/muted treatment the
+   mega-menu (.megaSubGroupHeading) and home stage (.subGroupHeading) use. */
+.subGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-inline-start: var(--space-2);
+  border-inline-start: var(--border-hairline) solid var(--color-hairline);
+}
+.subGroupHeading {
+  font: var(--t-caption);
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+.subGroupChips {
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2);
 }
 .compareLink {
