@@ -89,14 +89,18 @@
   gap: var(--space-2);
   flex-wrap: wrap;
 }
-/* Same --t-price-hero token every other "big price" on the site uses (SkuDetail's
-   own hero price, PriceParts' PriceTag size="hero") — this used to shrink it to a
-   hand-picked 1.625rem that matched neither that token nor PriceChart's OWN "now"
-   value a few rows below it (1.75rem there) on this exact page. Two different
-   almost-but-not-quite sizes for the same "highlighted price" concept, on the same
-   page, is exactly what read as inconsistent. */
+/* --t-price-cell — the SAME token PriceParts' PriceTag uses for its documented
+   "tables/cards" size (its own comment: "size='hero' for SKU pages; 'cell'
+   (default) for tables/cards"). This grid of 5 narrow cards is exactly that
+   context. It previously hand-rolled its own 1.625rem, which not only drifted
+   from the rest of the site but doesn't even show up as a real hero size once
+   fixed to the token — --t-price-hero's real clamp (2–2.5rem) overflowed an
+   8-digit طلای ۱۸ value straight out of a ~220px card into its neighbour when
+   tried here. The detail panel below (PriceChart's .nowVal) has a full-width
+   row to itself and correctly uses --t-price-hero; a tight card and a
+   full-width headline are different, legitimate sizes, not a mismatch. */
 .value {
-  font: var(--t-price-hero);
+  font: var(--t-price-cell);
   color: var(--color-text-strong);
   font-variant-numeric: tabular-nums;
 }
