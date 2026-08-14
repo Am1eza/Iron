@@ -36,6 +36,15 @@ const patchPayload = nonEmptyPatch(
       .optional()
       .transform((v) => (v ? normalizeSizeText(v) : v === '' ? null : v)),
     grade: optionalPersianText(40),
+    // ورق only — see the create route. Nullable like the rest, so clearing the
+    // box actually clears the column instead of silently leaving it.
+    dimensions: z
+      .string()
+      .trim()
+      .max(40)
+      .nullable()
+      .optional()
+      .transform((v) => (v ? normalizeSizeText(v) : v === '' ? null : v)),
     factory: optionalPersianText(80),
     theoreticalWeightKg: finiteNumber.positive().max(100_000).nullable().optional(),
     unit: z.enum(['kg', 'branch', 'sheet', 'meter']).optional(),

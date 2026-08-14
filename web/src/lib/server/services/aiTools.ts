@@ -272,6 +272,12 @@ export async function runTool(
             name: r.name,
             factory: r.factory,
             size: r.size,
+            // ورق only, and only when it's been filled in — for a plate `size`
+            // is the thickness alone, so without this the advisor has no
+            // grounded way to answer «چه ابعادی؟» and must not guess. Omitted
+            // rather than sent as null so it adds nothing to the prompt for
+            // the categories that will never have it.
+            ...(r.dimensions ? { dimensions: r.dimensions } : {}),
             unit: r.current.unit,
             // Hidden/stale → no number; the model must offer a کارشناس callback.
             price: r.current.priceHidden ? null : r.current.price,

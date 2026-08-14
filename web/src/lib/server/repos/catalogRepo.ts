@@ -53,6 +53,7 @@ function toPriceRow(
     standard: r.sku.standard ?? undefined,
     size: r.sku.size ?? undefined,
     grade: r.sku.grade ?? undefined,
+    dimensions: r.sku.dimensions ?? undefined,
     factory: r.sku.factory ?? undefined,
     theoreticalWeightKg: r.sku.theoreticalWeightKg ?? undefined,
     unit: r.sku.unit,
