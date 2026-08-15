@@ -12,11 +12,7 @@ import type { MarketValue } from '@/lib/types/domain';
 import { MovementBadge, EmptyState, emptyPresets } from '@/components/ui';
 import { PriceChart } from '@/components/catalog/PriceChart';
 import { AlertBellButton } from '@/components/alerts/AlertBellButton';
-import {
-  InfoIcon,
-  CheckCircleIcon,
-  ChevronStartIcon,
-} from '@/components/primitives/icons';
+import { InfoIcon, ChevronStartIcon } from '@/components/primitives/icons';
 import styles from './MarketBoard.module.css';
 
 /**
@@ -36,13 +32,11 @@ function formatValue(v: MarketValue): { num: string; unit: string } {
 }
 
 function SourceBadge({ source }: { source: MarketValue['source'] }) {
+  // Admin-entered values (شمش فولاد) show no source badge at all — the
+  // «درج‌شده توسط آهن‌تایم» label was internal plumbing detail, not
+  // something a visitor needs to see on every card.
   if (source === 'admin') {
-    return (
-      <span className={`${styles.source} ${styles.sourceAdmin}`}>
-        <CheckCircleIcon size={13} />
-        درج‌شده توسط آهن‌تایم
-      </span>
-    );
+    return null;
   }
   return (
     <span className={styles.source}>
