@@ -73,11 +73,17 @@
   }
 }
 
+/* Column, not row: at this card width, دلار/یورو/طلای ۱۸ fit next to the
+   «نرخ لحظه‌ای بازار» badge on one line, but انس جهانی and شمش فولاد do not
+   — that forced only those two labels to wrap onto a second line, breaking
+   the label alignment across the row (Amir, 2026-08-15: هم‌راستا, one line
+   each). Stacking label above badge for every card removes the room
+   constraint entirely, so no label can ever wrap regardless of its length. */
 .cardHead {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
 }
 .bellSlot {
   position: absolute;
@@ -89,6 +95,7 @@
   font: var(--t-label);
   font-weight: 600;
   color: var(--color-text-strong);
+  white-space: nowrap;
 }
 
 .valueRow {
