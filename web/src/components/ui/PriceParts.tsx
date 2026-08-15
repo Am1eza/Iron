@@ -44,11 +44,17 @@ export function MovementBadge({
   const arrow = dir === 'up' ? '▲' : dir === 'down' ? '▼' : '';
   const cls = dir === 'up' ? styles.up : dir === 'down' ? styles.down : styles.flat;
   const label = dir === 'up' ? 'افزایش' : dir === 'down' ? 'کاهش' : 'بدون تغییر';
+  const text = formatMovement(pct);
+  // No numeric pct (no history to compute a real % from, e.g. the market
+  // board's admin-entered شمش فولاد placeholder) previously left this pill
+  // visually empty — the label only existed in a visually-hidden span for
+  // screen readers, so sighted users saw a blank pill that also collapsed in
+  // height next to its siblings. Show the word itself instead of nothing.
   return (
     <span className={`${styles.move} ${cls} ${pill ? styles.movePill : ''} ${onPanel ? styles.onPanel : ''} tnum`}>
       <span aria-hidden="true">{arrow}</span>
-      <span className="visually-hidden">{label} </span>
-      {formatMovement(pct)}
+      <span className={text ? 'visually-hidden' : undefined}>{label} </span>
+      {text}
     </span>
   );
 }
