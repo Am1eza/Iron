@@ -27,9 +27,6 @@
 
 .card {
   flex: 1;
-  /* Anchor for [data-active]::before below — it's positioned absolutely so
-     selecting a card can't change its box height relative to its siblings. */
-  position: relative;
   inline-size: 100%;
   display: flex;
   flex-direction: column;
@@ -68,28 +65,6 @@
 .card[data-active] {
   border-color: var(--color-action);
   box-shadow: var(--shadow-sm);
-}
-/* The active accent lives on `.card` itself (not just `[data-active]`) so it
-   can fade in/out with a transition instead of snapping into existence —
-   and centered with inset-inline + margin-inline:auto (RTL-safe) rather than
-   pinned to the top-left padding corner, which read as glued to the card's
-   own border. Absolute, not in-flow, for the same equal-height reason as
-   before: a decorative accent must never add to the card's box height. */
-.card::before {
-  content: '';
-  position: absolute;
-  inset-block-start: var(--space-3);
-  inset-inline: 0;
-  margin-inline: auto;
-  block-size: 4px;
-  inline-size: var(--space-8);
-  border-radius: var(--radius-pill);
-  background: var(--color-action);
-  opacity: 0;
-  transition: opacity var(--dur-fast) var(--ease-standard);
-}
-.card[data-active]::before {
-  opacity: 1;
 }
 
 @media (prefers-reduced-motion: no-preference) {

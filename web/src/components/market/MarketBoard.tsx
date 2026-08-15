@@ -31,13 +31,14 @@ function formatValue(v: MarketValue): { num: string; unit: string } {
   return { num: toPersianDigits(v.value.toLocaleString('en-US').replace(/,/g, '٬')), unit: v.unit };
 }
 
-function SourceBadge({ source }: { source: MarketValue['source'] }) {
-  // Admin-entered values (شمش فولاد) show no source badge at all — the
-  // «درج‌شده توسط آهن‌تایم» label was internal plumbing detail, not
-  // something a visitor needs to see on every card.
-  if (source === 'admin') {
-    return null;
-  }
+/** Same badge on every card regardless of `source` — a deliberate choice
+ * (Amir, 2026-08-15): all 5 card headers must line up on an identical row,
+ * label-then-badge, with no per-card structural difference. شمش فولاد's
+ * value itself is still admin-entered (currently a placeholder, and even
+ * once real, updated per Iran Mercantile Exchange auction cadence, not
+ * every 60s like the other four) — this label is a uniform visual category,
+ * not a claim that every card's *number* refreshes live. */
+function SourceBadge() {
   return (
     <span className={styles.source}>
       <span className={styles.sourceDot} aria-hidden="true" />
@@ -104,7 +105,7 @@ export function MarketBoard() {
               >
                 <span className={styles.cardHead}>
                   <span className={styles.label}>{v.label}</span>
-                  <SourceBadge source={v.source} />
+                  <SourceBadge />
                 </span>
                 <span className={styles.valueRow}>
                   <span className={`${styles.value} tnum`}>{num}</span>
@@ -134,7 +135,7 @@ export function MarketBoard() {
                 روند تقریبی قیمت در بازه‌های هفته تا یک‌سال اخیر.
               </p>
             </div>
-            <SourceBadge source={selected.source} />
+            <SourceBadge />
           </div>
 
           {series.length >= 2 ? (
