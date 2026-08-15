@@ -13,6 +13,13 @@ describe('MovementBadge', () => {
     render(<MovementBadge dir="down" pct={-0.3} />);
     expect(screen.getByText(/کاهش/)).toBeInTheDocument();
   });
+
+  it('shows the بدون تغییر label visibly (not just to screen readers) when there is no pct to compute', () => {
+    render(<MovementBadge dir="flat" pill />);
+    const label = screen.getByText(/بدون تغییر/);
+    expect(label).toBeInTheDocument();
+    expect(label.className).not.toMatch(/visually-hidden/);
+  });
 });
 
 describe('PriceTag', () => {
