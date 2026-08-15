@@ -69,20 +69,27 @@
   border-color: var(--color-action);
   box-shadow: var(--shadow-sm);
 }
-.card[data-active]::before {
-  /* Absolute, not in-flow: this used to be `display: block` inside the flex
-     column, so it added its own height (+gap) to the card box — a card grew
-     a few pixels the moment you clicked it, throwing off the row's equal
-     height. It's purely a decorative top accent, so it can sit on top of the
-     card's own top padding without taking layout space. */
+/* The active accent lives on `.card` itself (not just `[data-active]`) so it
+   can fade in/out with a transition instead of snapping into existence —
+   and centered with inset-inline + margin-inline:auto (RTL-safe) rather than
+   pinned to the top-left padding corner, which read as glued to the card's
+   own border. Absolute, not in-flow, for the same equal-height reason as
+   before: a decorative accent must never add to the card's box height. */
+.card::before {
   content: '';
   position: absolute;
-  inset-block-start: 0;
-  inset-inline-start: var(--space-5);
-  block-size: 3px;
+  inset-block-start: var(--space-3);
+  inset-inline: 0;
+  margin-inline: auto;
+  block-size: 4px;
   inline-size: var(--space-8);
   border-radius: var(--radius-pill);
   background: var(--color-action);
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-standard);
+}
+.card[data-active]::before {
+  opacity: 1;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -156,9 +163,6 @@
   block-size: 6px;
   border-radius: var(--radius-circle);
   background: var(--color-accent);
-}
-.sourceAdmin {
-  color: var(--color-action-text);
 }
 
 /* ===== Detail panel ===== */
@@ -261,9 +265,6 @@
   .card {
     padding: var(--space-4);
     padding-inline-end: calc(var(--space-4) + 36px + var(--space-2));
-  }
-  .card[data-active]::before {
-    inset-inline-start: var(--space-4);
   }
   .bellSlot {
     inset-block-start: var(--space-4);
