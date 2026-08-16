@@ -143,7 +143,11 @@ describe('AdvisorChat — live-turn failure is visible, not silent', () => {
     const retry = await screen.findByRole('button', { name: /تلاش دوباره/ }, { timeout: 3000 });
     await user.click(retry);
 
-    expect(await screen.findByText(/۳۴٬۸۵۰ تومان بر کیلوگرم/, {}, { timeout: 3000 })).toBeInTheDocument();
+    // The price now renders as its own highlighted <strong> (ChatMarkdown's
+    // price-run emphasis), so it and the rest of the sentence are separate
+    // text nodes — checked separately rather than as one merged string.
+    expect(await screen.findByText('۳۴٬۸۵۰ تومان', {}, { timeout: 3000 })).toBeInTheDocument();
+    expect(screen.getByText(/بر کیلوگرم است/)).toBeInTheDocument();
     // The notice, and the answer it hung under, are gone — not duplicated.
     await waitFor(() => expect(screen.queryByText(/این پاسخ نسخهٔ محلی است/)).not.toBeInTheDocument());
     // The user's own message is untouched.

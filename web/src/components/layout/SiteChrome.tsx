@@ -53,12 +53,20 @@ export function SiteChromeTop({ categories, subs }: { categories: Category[]; su
 export function SiteChromeBottom({ categories, contact }: { categories: Category[]; contact: SiteContact }) {
   const pathname = usePathname();
   if (onPanelHost() || pathname?.startsWith('/admin') || pathname?.startsWith('/panel-login')) return null;
+  // /ai's own composer is fixed to the same bottom-inline-end corner as this
+  // FAB — on mobile they occupied the exact same pixel box, and the FAB won
+  // the stacking order, silently swallowing every tap meant for the chat's
+  // send button. The advisor page is itself a live "talk to us" channel, so
+  // dropping a second, redundant call CTA there fixes the collision at its
+  // root instead of nudging z-index/offsets against a composer this widget
+  // has no knowledge of.
+  const hideCallback = pathname?.startsWith('/ai');
   return (
     <>
       <Footer categories={categories} contact={contact} />
       <BottomTabBar />
       <ArrivalPopup />
-      <CallbackWidget phoneLandline={contact.phoneLandline} />
+      {!hideCallback && <CallbackWidget phoneLandline={contact.phoneLandline} />}
     </>
   );
 }

@@ -19,7 +19,17 @@ import styles from './ChatMarkdown.module.css';
 
 /* ---------------- inline: **bold** · *italic* · `code` ---------------- */
 
-const INLINE = /(\*\*[^*]+\*\*|\*[^*\s][^*]*\*|`[^`]+`)/g;
+/** A bare Toman amount («۱۲٬۵۰۰ تومان» / «12,500 تومان») — digit-script
+ *  agnostic since the live relay emits Latin-digit `toLocaleString` numbers
+ *  while the offline fallback's `formatToman` already writes Persian ones. */
+const PRICE_SRC = String.raw`[\d۰-۹]{1,3}(?:[,٬][\d۰-۹]{3})*(?:[.٫][\d۰-۹]+)?\s*تومان`;
+const INLINE = new RegExp(`(\\*\\*[^*]+\\*\\*|\\*[^*\\s][^*]*\\*|\`[^\`]+\`|${PRICE_SRC})`, 'g');
+/** True for a segment the INLINE split already isolated as a price run —
+ *  re-checking the boundary (not re-matching PRICE_SRC) is enough since the
+ *  split only ever produces whole matches in this capture group. */
+function isPriceRun(s: string): boolean {
+  return /^[\d۰-۹]/.test(s) && /تومان$/.test(s);
+}
 /** Latin runs (grades/standards like ST37, A3, IPE14) inside Persian text —
  *  bidi-isolated so their digits/punctuation never reorder in the RTL line
  *  (W3C alreq: the classic «10-20 renders as 20-10» failure). */
@@ -48,6 +58,20 @@ function renderInline(text: string, keyBase: string): ReactNode[] {
       );
     if (part.startsWith('*') && part.endsWith('*') && part.length > 2)
       return <em key={key}>{faText(part.slice(1, -1), key)}</em>;
+    // The one number a visitor actually came for shouldn't blend into the
+    // rest of the sentence — same accent already used for chips/callouts,
+    // not a new color, so it reads as "the site's own emphasis", not a
+    // random highlight.
+    if (isPriceRun(part))
+      // The live relay writes Latin-comma thousands separators
+      // (`toLocaleString('en-US')`); every OTHER price on the site (ticker,
+      // tables, formatToman) uses «٬» — swap it so a chat price doesn't
+      // read as the one place on ahantime.com with the wrong punctuation.
+      return (
+        <strong key={key} className={styles.price}>
+          {faText(part.replace(/,/g, '٬'), key)}
+        </strong>
+      );
     return <Fragment key={key}>{faText(part, key)}</Fragment>;
   });
 }
