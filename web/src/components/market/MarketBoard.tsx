@@ -74,7 +74,12 @@ export function MarketBoard() {
     enabled: Boolean(selected),
     staleTime: 5 * 60 * 1000,
   });
-  const series = (history?.points ?? []).map((p) => p.value);
+  const points = history?.points ?? [];
+  const series = points.map((p) => p.value);
+  // Real per-point timestamps for the chart's data-table fallback: the series
+  // is one point per day but with gaps (non-trading days), so the chart must
+  // NOT reconstruct dates by assuming consecutive days.
+  const chartDates = points.map((p) => p.at);
 
   // No values and nothing in flight means the ticker source is down. Show the
   // no-dead-ends error state rather than an empty grid (empty-states.md).
@@ -143,7 +148,11 @@ export function MarketBoard() {
           </div>
 
           {series.length >= 2 ? (
-            <PriceChart series={series} unit={selected.unit === 'تومان' ? 'تومان' : selected.unit} />
+            <PriceChart
+              series={series}
+              dates={chartDates}
+              unit={selected.unit === 'تومان' ? 'تومان' : selected.unit}
+            />
           ) : (
             <p className={styles.detailHint}>در حال بارگذاری نمودار…</p>
           )}
