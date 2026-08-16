@@ -1,5 +1,5 @@
 /**
- * Remembers that the DeepSeek relay is refusing work, so the app stops paying
+ * Remembers that the AI relay is refusing work, so the app stops paying
  * for round trips it already knows will fail — and so the operator is told
  * ONCE per state transition rather than once per request.
  *

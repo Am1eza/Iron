@@ -14,7 +14,7 @@
  * the tool again (AC-D-3 stays intact).
  *
  * CACHE NOTE: AI_SYSTEM_PROMPT must remain the byte-identical FIRST message
- * (it is the DeepSeek prompt-cache prefix); the summary goes AFTER it.
+ * (it is the relay's prompt-cache prefix); the summary goes AFTER it.
  */
 import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 import { ulid } from 'ulid';
@@ -108,7 +108,7 @@ export async function ensureConversation(
 /**
  * Build the relay message list for one request. The (possibly A/B-resolved,
  * US-05.5) system prompt is ALWAYS the byte-identical first message for a
- * given version (DeepSeek cache prefix); a non-empty rolling summary rides
+ * given version (the relay's prompt-cache prefix); a non-empty rolling summary rides
  * as a SECOND system message right after it. `systemPrompt` defaults to the
  * baseline AI_SYSTEM_PROMPT — every existing caller (evals.test.ts included)
  * that doesn't pass it keeps behaving exactly as before.
@@ -121,7 +121,7 @@ export function buildChatMessages(
 ): ChatMessage[] {
   const messages: ChatMessage[] = [{ role: 'system', content: systemPrompt }];
   // Stable, NON-NUMERIC catalog overview — sits right after the byte-identical
-  // prompt so it EXTENDS the DeepSeek cache prefix (it barely changes), letting
+  // prompt so it EXTENDS the relay's cache prefix (it barely changes), letting
   // the model answer "what do you sell?" without a tool round. Numbers still
   // come only from tools (grounding). Absent in unit tests → summary stays at [1].
   if (domainFacts && domainFacts.trim()) {

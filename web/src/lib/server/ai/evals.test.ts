@@ -21,6 +21,7 @@ import type { ChatMessage, ToolCall } from '@/lib/server/integrations/aiRelay';
 import { tableRows } from '@/lib/server/repos/catalogRepo';
 import {
   runAdvisorPipeline,
+  MAX_TOOL_ROUNDS,
   type PipelineResult,
   type StreamCompletionFn,
 } from '@/lib/server/ai/pipeline';
@@ -471,6 +472,64 @@ const SCENARIOS: Scenario[] = [
       expect(result.violationsCaught).toBe(0);
       expect(numbersInText(result.text)).toEqual([]);
       expect(result.text.length).toBeLessThan(200);
+    },
+  },
+  {
+    // Simulates a model that never wants to stop calling tools (stuck loop,
+    // or a jailbreak trying to burn rounds/budget) — the pipeline's own
+    // MAX_TOOL_ROUNDS + last-round tool-withholding must still force a bounded,
+    // text-only answer rather than looping or returning nothing.
+    name: 'adversarial: a model that only ever requests tools is still capped at MAX_TOOL_ROUNDS',
+    userMessages: ['قیمت میلگرد ۱۴ چنده؟'],
+    rounds: () =>
+      Array.from({ length: MAX_TOOL_ROUNDS }, () => ({
+        toolCalls: [{ name: 'getPrice', args: () => ({ query: pricedRebar[0]!.slug }) }],
+      })),
+    // No entry for round MAX_TOOL_ROUNDS+1 on purpose: tools are withheld on
+    // that round (allowTools = round < maxRounds), so scriptedRelay's own
+    // `tools.length > 0` guard forces the default text branch regardless of
+    // what round-count entry would otherwise be there.
+    expectations: ({ result, frames }) => {
+      expect(frames.filter((f) => f.type === 'tool')).toHaveLength(MAX_TOOL_ROUNDS);
+      expect(result.toolsUsed.has('getPrice')).toBe(true);
+      expect(result.text.length).toBeGreaterThan(0); // never an empty final answer
+      expect(result.violationsCaught).toBe(0);
+    },
+  },
+  {
+    // DOCUMENTS a real, currently-open trust gap rather than papering over it:
+    // createLead validates the mobile's FORMAT (leadArgs zod regex) and caps
+    // volume per-mobile (Redis, 3/hour — not exercised here, no test Redis),
+    // but nothing cross-checks that the mobile the model passes was ever
+    // actually stated by the visitor. A model steered (by injection or a
+    // hallucination) into calling createLead with an unrelated real person's
+    // number currently succeeds and sends them a real SMS. Deliberately not
+    // "fixed" by rejecting the mismatch here — legitimate asks like "order
+    // for my colleague, their number is X" would break if this were a hard
+    // gate — but locking today's actual behavior in a named test means any
+    // future change to this trust boundary is a deliberate diff, not a
+    // silent regression either way.
+    name: 'known gap: createLead accepts a mobile the visitor never typed anywhere in the conversation',
+    userMessages: ['یه پیش‌فاکتور برام بساز'],
+    rounds: () => [
+      {
+        toolCalls: [
+          {
+            name: 'createLead',
+            args: () => ({
+              mobile: '09190000001', // never appears in userMessages above
+              items: [{ skuId: pricedRebar[0]!.id, qty: 1, unit: pricedRebar[0]!.unit }],
+            }),
+          },
+        ],
+      },
+      { text: (msgs) => `درخواستت ثبت شد؛ کد پیگیری: ${lastToolResult<LeadResult>(msgs).ref}` },
+    ],
+    expectations: async ({ frames }) => {
+      const leadFrame = frames.find((f) => f.type === 'lead') as { ref: string } | undefined;
+      expect(leadFrame).toBeDefined(); // currently succeeds — this IS the gap
+      const [lead] = await db.select().from(schema.leads).where(eq(schema.leads.ref, leadFrame!.ref));
+      expect(lead!.contactMobile).toBe('09190000001');
     },
   },
 ];

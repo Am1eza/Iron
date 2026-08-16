@@ -1,6 +1,6 @@
 /**
- * ChatMarkdown — a tiny, SAFE renderer for the markdown subset the advisor
- * (DeepSeek) actually emits: GFM tables, bullet/numbered lists, headings,
+ * ChatMarkdown — a tiny, SAFE renderer for the markdown subset
+ * the advisor actually emits: GFM tables, bullet/numbered lists, headings,
  * bold/italic, inline code and horizontal rules. Hand-rolled on purpose:
  *
  *  - Output is React elements only (never dangerouslySetInnerHTML) — the

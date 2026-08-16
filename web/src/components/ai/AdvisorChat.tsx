@@ -5,6 +5,7 @@ import { routes } from '@/lib/routes';
 import { api, API_MODE, isApiError } from '@/lib/api';
 import { normalizeDigits, toPersianDigits, formatToman } from '@/lib/utils/format';
 import { getRows } from '@/lib/mock/catalogData';
+import type { PriceRow } from '@/lib/types/domain';
 import { CATEGORY_ALIASES, PURPOSE_CHIPS } from '@/lib/data/aiTaxonomy';
 import { computeBulkSplit, type BulkSplit } from '@/components/catalog/BulkQuote';
 import { pickBestGroup } from '@/lib/utils/bulkSplit';
@@ -25,8 +26,8 @@ const AVG_REBAR_PRICE: number = (() => {
 /**
  * مشاور هوشمند آهن‌تایم — the intent-first advisor. It greets, asks *what you need*
  * before quoting, then helps estimate amount/weight/cost like an expert friend,
- * always offering next steps. In live mode it streams from /api/ai/chat (DeepSeek
- * relay, server-grounded); this local rule engine stays as the zero-cost fallback
+ * always offering next steps. In live mode it streams from /api/ai/chat (relay,
+ * server-grounded); this local rule engine stays as the zero-cost fallback
  * for mock mode and relay outages, so the advisor never dead-ends.
  */
 
@@ -63,6 +64,45 @@ function detectBulk(t: string): { tonnage: number; slug: string; name: string } 
   const cat = CATEGORY_ALIASES.find((c) => c.re.test(t));
   if (!cat) return null;
   return { tonnage, slug: cat.slug, name: cat.name };
+}
+
+/** Normalize a user-typed dimension separator («x», «X», «*») to the «×» the
+ *  mock catalog's SIZES table uses, and strip stray whitespace. */
+function normalizeSizeToken(raw: string): string {
+  return raw.replace(/[xX*]/g, '×').replace(/\s+/g, '');
+}
+
+/** Every size-shaped substring the text could contain, most specific first
+ *  (dimension pairs and inch fractions before a bare number) — tried in order
+ *  against the category's real size set so «۴۰×۴۰» isn't reduced to «۴۰». */
+function extractSizeCandidates(t: string): string[] {
+  const out: string[] = [];
+  for (const m of t.matchAll(/[۰-۹]+\s*[×xX*]\s*[۰-۹]+/g)) out.push(normalizeSizeToken(m[0]));
+  for (const m of t.matchAll(/[۰-۹]+(?:\/[۰-۹]+)?\s*اینچ/g)) out.push(m[0].replace(/\s+/g, ' ').trim());
+  for (const m of t.matchAll(/[۰-۹]+(?:\.[۰-۹]+)?/g)) out.push(m[0]);
+  return out;
+}
+
+/**
+ * A single, specific SKU — «میلگرد ۱۴ راد همدان چنده» rather than a bare
+ * category — resolved from the mock catalog (see the BASE_PRICE freshness
+ * note in catalogData.ts). Deliberately conservative: answers ONLY when the
+ * user named both a factory AND a size AND exactly one row matches both, so
+ * the offline engine never guesses a specific number for an ambiguous ask —
+ * an ambiguous or partial match falls through to the normal purpose flow
+ * instead of a confident-looking wrong price.
+ */
+function detectSpecificSku(t: string): PriceRow | null {
+  const cat = CATEGORY_ALIASES.find((c) => c.re.test(t));
+  if (!cat) return null;
+  const rows = getRows(cat.slug);
+  const factory = rows.find((r) => r.factory && t.includes(r.factory))?.factory;
+  if (!factory) return null;
+  const sizeSet = new Set(rows.map((r) => r.size).filter((s): s is string => Boolean(s)));
+  const size = extractSizeCandidates(t).find((c) => sizeSet.has(c));
+  if (!size) return null;
+  const matches = rows.filter((r) => r.factory === factory && r.size === size);
+  return matches.length === 1 ? matches[0]! : null;
 }
 
 let seq = 0;
@@ -233,6 +273,24 @@ function aiReply(text: string, ctx: { purpose: string | null }): { msgs: Msg[]; 
         ],
       };
     }
+  }
+
+  // A specific, named SKU («میلگرد ۱۴ راد همدان») outranks the generic
+  // purpose flow below — that flow can only ask "which product?" back, which
+  // is a dead end when the user already named one.
+  const specific = detectSpecificSku(t);
+  if (specific) {
+    return {
+      purpose,
+      msgs: [
+        {
+          id: uid(),
+          role: 'ai',
+          text: `${specific.name} (${specific.factory}) طبق آخرین به‌روزرسانی حدود ${formatToman(specific.current.price)} است. این عدد تخمینی است و ممکن است لحظه‌ای نباشد؛ برای نرخ دقیق «دریافت پیش‌فاکتور» را بزن.`,
+          chips: ['دریافت پیش‌فاکتور', 'همهٔ قیمت‌ها'],
+        },
+      ],
+    };
   }
 
   // Did they give an area (and maybe floors)?
@@ -487,7 +545,7 @@ export function AdvisorChat({
   const purposeRef = useRef<string | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const started = useRef(false);
-  // Live DeepSeek advisor when configured; the local grounded engine remains the
+  // Live relay advisor when configured; the local grounded engine remains the
   // zero-cost fallback — per turn for transient errors, permanently only when the
   // server says it has no relay at all (503 ai_unconfigured). No dead-ends (AC-D-9).
   const useServer = useRef(API_MODE !== 'mock');

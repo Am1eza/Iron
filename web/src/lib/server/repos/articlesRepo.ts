@@ -364,16 +364,44 @@ export async function searchArticles(q: string, limit = 10): Promise<Article[]> 
 }
 
 /**
+ * Domain synonym groups for guide-search recall — Postgres has no Persian
+ * text-search dictionary/stemmer (only 'simple'/'english'/etc.), so neither
+ * `to_tsvector` nor pg_trgm similarity closes a paraphrase gap on their own:
+ * both are lexical, and «نرخ میلگرد» vs a guide titled «قیمت میلگرد» share
+ * zero trigrams-of-consequence on the differing word. This is the cheap,
+ * dependency-free fix for that specific gap — real embedding/vector search
+ * is the fuller answer but adds an external API + cost, so it's out of scope
+ * here. Symmetric: every member of a group is a synonym of every other. Kept
+ * to the handful of paraphrase pairs that actually recur in real advisor
+ * questions, not a general thesaurus.
+ */
+const SYNONYM_GROUPS: string[][] = [
+  ['قیمت', 'نرخ', 'تعرفه', 'بها'],
+  ['وزن', 'سنگینی'],
+  ['محاسبه', 'حساب'],
+  ['خرید', 'تهیه'],
+  ['فرق', 'تفاوت'],
+  ['انتخاب', 'گزینش'],
+  ['کیفیت', 'مرغوبیت'],
+  ['مقاومت', 'استحکام'],
+];
+const SYNONYMS: Record<string, string[]> = {};
+for (const group of SYNONYM_GROUPS) {
+  for (const word of group) SYNONYMS[word] = group.filter((w) => w !== word);
+}
+
+/**
  * AI advisor's guide search (searchGuides tool) — same ilike/pg_trgm approach
  * as catalogRepo.searchSkus, but over PUBLISHED articles only and including
  * the body (a knowledge question's keywords often live in the prose, not the
- * title). Tokens are matched with OR in SQL (each token against title/excerpt
- * /body in Persian AND Latin digit spellings) and the MAJORITY-match filter
- * runs in JS: «فرق A2 و A3» must find the grade guide via A2+A3 even though
- * «فرق» appears nowhere, while a query whose tokens mostly match nothing
- * returns [] so the model can honestly say no guide exists — a token-AND gate
- * (searchSkus' shape) had exactly that false-negative on the canonical
- * question. pg_trgm similarity on the title stays the SQL-side ranking.
+ * title). Tokens are matched with OR in SQL (each token AND its SYNONYM_GROUPS
+ * partners, each in Persian AND Latin digit spellings, against title/excerpt
+ * /body) and the MAJORITY-match filter runs in JS: «فرق A2 و A3» must find the
+ * grade guide via A2+A3 even though «فرق» appears nowhere, while a query whose
+ * tokens mostly match nothing returns [] so the model can honestly say no
+ * guide exists — a token-AND gate (searchSkus' shape) had exactly that
+ * false-negative on the canonical question. pg_trgm similarity on the title
+ * stays the SQL-side ranking.
  */
 export async function searchPublishedGuides(q: string, limit = 3): Promise<ArticleFull[]> {
   const trimmed = q.trim();
@@ -381,12 +409,15 @@ export async function searchPublishedGuides(q: string, limit = 3): Promise<Artic
   const tokens = [...new Set(trimmed.split(/\s+/).filter((t) => t.length >= 2))];
   if (tokens.length === 0) return [];
   const variantsOf = (token: string) => [...new Set([token, normalizeDigits(token), toPersianDigits(token)])];
+  const synonymsOf = (token: string) => SYNONYMS[normalizeDigits(token)] ?? [];
   const anyToken = or(
     ...tokens.flatMap((token) =>
-      variantsOf(token).flatMap((v) => {
-        const term = likeContains(v);
-        return [ilike(articles.title, term), ilike(articles.excerpt, term), ilike(articles.bodyMd, term)];
-      }),
+      [token, ...synonymsOf(token)].flatMap((word) =>
+        variantsOf(word).flatMap((v) => {
+          const term = likeContains(v);
+          return [ilike(articles.title, term), ilike(articles.excerpt, term), ilike(articles.bodyMd, term)];
+        }),
+      ),
     ),
   );
   const rows = await getDb()
@@ -397,7 +428,10 @@ export async function searchPublishedGuides(q: string, limit = 3): Promise<Artic
     .limit(24);
   const matchCount = (r: Row) => {
     const hay = normalizeDigits(`${r.title}\n${r.excerpt ?? ''}\n${r.bodyMd}`).toLowerCase();
-    return tokens.filter((t) => hay.includes(normalizeDigits(t).toLowerCase())).length;
+    return tokens.filter((t) => {
+      const words = [t, ...synonymsOf(t)];
+      return words.some((w) => hay.includes(normalizeDigits(w).toLowerCase()));
+    }).length;
   };
   const threshold = Math.ceil(tokens.length / 2);
   return rows

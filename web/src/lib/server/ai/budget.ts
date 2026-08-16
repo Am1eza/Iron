@@ -1,5 +1,5 @@
 /**
- * Daily token budget for the DeepSeek relay (W29, audit area 29).
+ * Daily token budget for the AI relay (W29, audit area 29).
  *
  * `ai_usage` has recorded every completion's token counts since the feature
  * shipped and NOTHING has ever read it to enforce anything — the table was
