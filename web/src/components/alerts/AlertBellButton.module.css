@@ -8,13 +8,18 @@
   font: var(--t-caption);
   color: var(--color-text-muted);
 }
+/* Wraps the buttons INSIDE Modal's footer prop (Modal.module.css's .footer
+   is a row flex, for the normal case of two normal-width buttons side by
+   side -- see e.g. CartView's confirm dialog). This modal's two buttons are
+   deliberately full-width and stacked (also nicer on the mobile
+   bottom-sheet treatment), so this is the footer row's one child, with its
+   own column layout inside. */
 .actions {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  margin-block-start: var(--space-2);
+  inline-size: 100%;
 }
-
 .limit {
   display: flex;
   flex-direction: column;

@@ -19,13 +19,7 @@ import { alertsApi } from '@/lib/api/resources/misc';
 import { ApiError } from '@/lib/api/errors';
 import { routes } from '@/lib/routes';
 import { normalizeDigits, formatToman } from '@/lib/utils/format';
-import {
-  findActiveAlert,
-  formatAlertValue,
-  defaultThreshold,
-  capLimitCopy,
-  type ClubTier,
-} from '@/lib/utils/alerts';
+import { findActiveAlert, formatAlertValue, defaultThreshold, capLimitCopy } from '@/lib/utils/alerts';
 import type { MarketKey } from '@/lib/types/domain';
 import { IconButton, Modal, Button } from '@/components/ui';
 import { Field, RadioGroup } from '@/components/forms/fields';
@@ -170,6 +164,16 @@ export function AlertBellButton({
   };
 
   const bellLabel = activeAlert ? 'هشدار قیمت فعال؛ مدیریت' : 'ثبت هشدار قیمت';
+  // Real bug (Amir, 2026-08-16, screenshotted): the submit button sat inside
+  // Modal's plain `.body`, which only has horizontal padding — every OTHER
+  // Modal consumer in this codebase (useConfirm, CartView, PriceTable,
+  // LeadDetail, LinkDialog, ImageDetailsDialog) puts its action buttons in
+  // Modal's `footer` prop instead, which carries the correct block padding.
+  // This was the one place that didn't, so the button sat flush against the
+  // modal's bottom edge. Computing the limit-cap copy here (not inside a
+  // separate LimitNotice component) so its headline/body can live in the
+  // Modal body while its buttons live in the footer, same split as the form.
+  const limitCopy = limit ? capLimitCopy(limit.cap, user?.clubTier, target.label) : null;
 
   return (
     <>
@@ -183,18 +187,59 @@ export function AlertBellButton({
         className={className}
       />
 
-      <Modal open={open} onClose={() => setOpen(false)} title={activeAlert ? 'مدیریت هشدار قیمت' : 'هشدار قیمت جدید'}>
-        {limit ? (
-          <LimitNotice
-            cap={limit.cap}
-            tier={user?.clubTier}
-            targetLabel={target.label}
-            onClose={() => setOpen(false)}
-            onNavigate={(href) => {
-              setOpen(false);
-              router.push(href);
-            }}
-          />
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        title={activeAlert ? 'مدیریت هشدار قیمت' : 'هشدار قیمت جدید'}
+        footer={
+          limitCopy ? (
+            <div className={styles.actions}>
+              {limitCopy.cta ? (
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setOpen(false);
+                    router.push(limitCopy.cta!.href);
+                  }}
+                  fullWidth
+                >
+                  {limitCopy.cta.label}
+                </Button>
+              ) : null}
+              <Button type="button" variant="ghost" onClick={() => setOpen(false)} fullWidth>
+                بستن
+              </Button>
+            </div>
+          ) : (
+            <div className={styles.actions}>
+              {/* type="button", not "submit": this button now lives in Modal's
+                  footer, a DOM sibling of the <form> below (not nested inside
+                  it), so native form submission wouldn't reach it — trigger
+                  react-hook-form's handler directly instead. Enter-to-submit
+                  from inside the form still works via the form's own onSubmit. */}
+              <Button type="button" onClick={handleSubmit(onSubmit)} loading={create.isPending} fullWidth>
+                {activeAlert ? 'ثبت به‌عنوان هشدار جدید' : 'ثبت هشدار'}
+              </Button>
+              {activeAlert ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  loading={removeExisting.isPending}
+                  onClick={() => removeExisting.mutate(activeAlert.id)}
+                  fullWidth
+                >
+                  حذف این هشدار
+                </Button>
+              ) : null}
+            </div>
+          )
+        }
+      >
+        {limitCopy ? (
+          <div className={styles.limit}>
+            <p className={styles.limitHeadline}>{limitCopy.headline}</p>
+            <p className={styles.limitBody}>{limitCopy.body}</p>
+          </div>
         ) : (
           <form onSubmit={handleSubmit(onSubmit)} noValidate>
             <p className={styles.current}>
@@ -239,58 +284,9 @@ export function AlertBellButton({
                 پیش‌فرض ۵٪ {op === 'below' ? 'کمتر از' : 'بیشتر از'} قیمت فعلی است؛ می‌توانید عددش را تغییر دهید.
               </p>
             ) : null}
-
-            <div className={styles.actions}>
-              <Button type="submit" loading={create.isPending} fullWidth>
-                {activeAlert ? 'ثبت به‌عنوان هشدار جدید' : 'ثبت هشدار'}
-              </Button>
-              {activeAlert ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  loading={removeExisting.isPending}
-                  onClick={() => removeExisting.mutate(activeAlert.id)}
-                  fullWidth
-                >
-                  حذف این هشدار
-                </Button>
-              ) : null}
-            </div>
           </form>
         )}
       </Modal>
     </>
-  );
-}
-
-function LimitNotice({
-  cap,
-  tier,
-  targetLabel,
-  onClose,
-  onNavigate,
-}: {
-  cap: number;
-  tier: ClubTier | undefined;
-  targetLabel: string;
-  onClose: () => void;
-  onNavigate: (href: string) => void;
-}) {
-  const copy = capLimitCopy(cap, tier, targetLabel);
-  return (
-    <div className={styles.limit}>
-      <p className={styles.limitHeadline}>{copy.headline}</p>
-      <p className={styles.limitBody}>{copy.body}</p>
-      <div className={styles.actions}>
-        {copy.cta ? (
-          <Button type="button" onClick={() => onNavigate(copy.cta!.href)} fullWidth>
-            {copy.cta.label}
-          </Button>
-        ) : null}
-        <Button type="button" variant="ghost" onClick={onClose} fullWidth>
-          بستن
-        </Button>
-      </div>
-    </div>
   );
 }
