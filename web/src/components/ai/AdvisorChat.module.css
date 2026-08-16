@@ -39,27 +39,6 @@
   margin: 0;
   color: var(--color-text-strong);
 }
-.headStatus {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font: var(--t-caption);
-  color: var(--color-text-muted);
-  margin: 2px 0 0;
-}
-.live {
-  inline-size: 7px;
-  block-size: 7px;
-  border-radius: 50%;
-  background: var(--color-gain);
-  box-shadow: 0 0 0 0 rgba(21, 163, 74, 0.5);
-  animation: pulse 2.4s ease-out infinite;
-}
-@keyframes pulse {
-  0% { box-shadow: 0 0 0 0 rgba(21, 163, 74, 0.5); }
-  70%, 100% { box-shadow: 0 0 0 7px rgba(21, 163, 74, 0); }
-}
-
 /* ===== Thread ===== */
 .scroll {
   flex: 1 1 auto;
@@ -415,7 +394,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .live, .typing span, .micOn { animation: none; }
+  .typing span, .micOn { animation: none; }
 }
 @media (max-width: 767px) {
   .wrap {
