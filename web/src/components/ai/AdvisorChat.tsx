@@ -228,10 +228,12 @@ const PROGRESS_DEFAULT = 'در حال نوشتن…';
 const SLOW_HINT_MS = 12_000;
 const SLOW_HINT = 'کمی طول می‌کشد؛ ممنون از صبرت.';
 /** No frame at all for this long means the connection is hung rather than
- *  slow: the server's own deadline is AI_TIMEOUT_MS (45s) and it always
- *  answers with an `error` frame, so past that + margin nothing is coming.
- *  Without this the composer stayed disabled forever behind a dead socket. */
-const STALL_TIMEOUT_MS = 70_000;
+ *  slow: the server's own deadline is AI_TIMEOUT_MS (90s as of 2026-08-16 —
+ *  the createLead flow needs 2-4 relay round trips, not the 2 the old 45s
+ *  budget was tuned for) and it always answers with an `error` frame, so
+ *  past that + margin nothing is coming. Without this the composer stayed
+ *  disabled forever behind a dead socket. */
+const STALL_TIMEOUT_MS = 115_000;
 
 function detectPurpose(t: string): 'building' | 'industrial' | 'trade' | 'price' | null {
   if (/خانه|خونه|ساختمان|مسکونی|سقف|طبقه|ویلا|بنا/.test(t)) return 'building';
