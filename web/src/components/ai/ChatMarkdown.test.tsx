@@ -74,6 +74,22 @@ describe('ChatMarkdown rendering', () => {
     expect(screen.queryByText(/\*\*/)).toBeNull();
   });
 
+  it('highlights a bare (non-bold) Toman amount as its own <strong>, not just plain text', () => {
+    render(<ChatMarkdown text="قیمت میلگرد امروز 34,850 تومان است" />);
+    const el = screen.getByText('۳۴٬۸۵۰ تومان');
+    expect(el.tagName).toBe('STRONG');
+  });
+
+  it('highlights a Persian-digit Toman amount too (offline fallback path)', () => {
+    render(<ChatMarkdown text="حدود ۴۲٬۰۰۰ تومان می‌شود" />);
+    expect(screen.getByText('۴۲٬۰۰۰ تومان').tagName).toBe('STRONG');
+  });
+
+  it('does not touch a number with no تومان unit (e.g. a size or weight)', () => {
+    render(<ChatMarkdown text="سایز 14 و وزن 774 کیلوگرم" />);
+    expect(screen.getByText(/سایز ۱۴ و وزن ۷۷۴ کیلوگرم/).tagName).not.toBe('STRONG');
+  });
+
   it('renders a table element with Persian digits in cells', () => {
     const md = ['| کارخانه | قیمت |', '|---|---|', '| ذوب‌آهن | 12500 |'].join('\n');
     render(<ChatMarkdown text={md} />);

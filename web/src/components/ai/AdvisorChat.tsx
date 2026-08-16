@@ -1088,12 +1088,19 @@ export function AdvisorChat({
 }
 
 function QuickReply({ label, onPick }: { label: string; onPick: (t: string) => void }) {
-  // Some chips deep-link instead of chatting.
+  // Some chips deep-link instead of chatting. «دریافت پیش‌فاکتور» is
+  // deliberately NOT one of them: it used to jump straight to /request,
+  // which reads the sitewide inquiry basket — not this conversation — so a
+  // visitor who'd just asked about one specific SKU landed on a form about
+  // whatever (if anything) happened to already be in their basket, with no
+  // mention of what they came here to ask about. Sending it as a normal
+  // chat turn instead keeps the createLead tool call in THIS conversation,
+  // grounded in the exact item/size/factory just discussed.
   if (label === 'دریافت پیش‌فاکتور')
     return (
-      <Link href={routes.request()} className={`${styles.chip} ${styles.chipCta}`}>
+      <button type="button" className={`${styles.chip} ${styles.chipCta}`} onClick={() => onPick(label)}>
         {label}
-      </Link>
+      </button>
     );
   if (label === 'قیمت میلگرد' || label === 'قیمت میلگرد امروز')
     return (

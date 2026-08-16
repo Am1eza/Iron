@@ -23,10 +23,15 @@ export const CHIP = {
   weighTool: 'وزن دقیق را حساب کن',
 } as const;
 
-/** Opening intent-first purpose chips. */
+/**
+ * Opening starter chips — real, common visitor questions, each written to
+ * land on a DIFFERENT tool (getPrice / calcWeight / compareFactories /
+ * estimateProject) so clicking one is also a first taste of what the
+ * advisor can actually do, not just a lead-qualification funnel step.
+ */
 export const PURPOSE_CHIPS = [
-  'ساختمان مسکونی',
-  'سوله یا سازهٔ صنعتی',
-  'بازرگانی و فروش',
-  'فقط می‌خواهم قیمت ببینم',
+  'قیمت میلگرد امروز چقدره؟',
+  'وزن دقیق یه شاخه تیرآهن ۱۴ رو حساب کن',
+  '۲۰ تن میلگرد از کدوم کارخونه ارزون‌تره؟',
+  'برای یه ساختمان ۱۰۰ متری دو طبقه چقدر آهن لازمه؟',
 ];

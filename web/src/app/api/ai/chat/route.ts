@@ -237,12 +237,19 @@ async function POSTImpl(req: NextRequest) {
         }
 
         // Contextual follow-up chips (AC-D-7) — deterministic, zero model tokens.
+        // The starter chips only make sense when the visitor hasn't already
+        // told us what they want — including via one of the starter chips
+        // itself: without `alreadyAsked`, clicking one echoed the same set
+        // right back under the model's clarifying follow-up, as if the click
+        // had never registered.
+        const lastUserMessage = [...parsed.data.messages].reverse().find((m) => m.role === 'user')?.content?.trim();
+        const alreadyAsked = lastUserMessage ? (PURPOSE_CHIPS as readonly string[]).includes(lastUserMessage) : false;
         const chips =
           toolsUsed.has('estimateProject') || toolsUsed.has('createLead')
             ? [CHIP.proforma, CHIP.weighTool]
             : toolsUsed.has('getPrice') || toolsUsed.has('calcWeight')
               ? [CHIP.proforma, CHIP.allPrices]
-              : parsed.data.messages.filter((m) => m.role === 'user').length <= 1
+              : parsed.data.messages.filter((m) => m.role === 'user').length <= 1 && !alreadyAsked
                 ? [...PURPOSE_CHIPS]
                 : [];
         if (chips.length > 0) send({ type: 'chips', chips });

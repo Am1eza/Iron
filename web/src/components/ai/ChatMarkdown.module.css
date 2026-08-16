@@ -132,3 +132,10 @@ ol.list {
   font-weight: 700;
   color: var(--color-text-strong);
 }
+
+/* A bare Toman amount in prose — the accent color already used for chips
+   and the blockquote's "next step" callout, so the one number a visitor
+   scans for stands out without introducing a new color to the bubble. */
+.price {
+  color: var(--color-accent-text);
+}

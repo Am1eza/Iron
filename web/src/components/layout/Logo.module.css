@@ -10,6 +10,13 @@
      (38px) and the two-line wordmark fit inside 44px, and align-items keeps
      them centred, so the swap is now invisible. */
   block-size: 44px;
+  /* `.inner` is a flex row with no width reservation for any one child, so
+     around ~1024–1280px (full desktop nav still showing, not enough room
+     for everything) the browser was shrinking THIS one below its natural
+     width and wrapping «بازار هوشمند فولاد» onto a 3rd line, which then
+     overflowed the fixed 44px box upward into the ticker bar above it. The
+     wordmark is the one piece of text on this row that must never wrap. */
+  flex-shrink: 0;
 }
 .logo:hover {
   text-decoration: none;
@@ -31,11 +38,13 @@
   font-weight: 800;
   color: var(--color-text-strong);
   letter-spacing: 0;
+  white-space: nowrap;
 }
 .tagline {
   font: var(--t-micro);
   color: var(--color-text-muted);
   margin-block-start: 2px;
+  white-space: nowrap;
 }
 
 /* Light variant — over the dark hero overlay */
