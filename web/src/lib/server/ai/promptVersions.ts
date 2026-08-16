@@ -1,7 +1,7 @@
 /**
  * System-prompt versioning + A/B assignment (US-05.5).
  *
- * CACHE NOTE: DeepSeek caches on the byte-identical prefix of the message
+ * CACHE NOTE: the relay caches on the byte-identical prefix of the message
  * list (see conversation.ts's CACHE NOTE). A/B testing necessarily trades
  * ONE shared cache prefix for up to N per-version prefixes — each version's
  * text must itself stay byte-identical across requests, which it does here

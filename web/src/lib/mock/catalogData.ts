@@ -27,9 +27,21 @@ function hash(str: string) {
 }
 
 /**
- * Mills, sizes and base prices benchmarked against the major Iranian price
- * sites (mid-1404 era). Most-quoted mills first; sizes are the ranges actually
- * sold (rebar 8–32, IPE 12–30, sheet 0.5–40mm, قوطی تا ۱۴۰×۱۴۰ …).
+ * Mills, sizes and base prices. Most-quoted mills first; sizes are the ranges
+ * actually sold (rebar 8–32, IPE 12–30, sheet 0.5–40mm, قوطی تا ۱۴۰×۱۴۰ …).
+ *
+ * BASE_PRICE is a static snapshot, not a live feed — it's benchmarked against
+ * `current_prices` category averages as of the date in UPDATED_AT below and
+ * then hand-frozen. It backs two different consumers with two different risk
+ * profiles: harmless in mock/dev mode (never shown to a real visitor), but
+ * ALSO the number the AI advisor's client-side offline fallback quotes to a
+ * real visitor when the live relay times out or errors (AdvisorChat's
+ * `aiReply`). That second use has no automatic refresh — re-run the query
+ * below and update these 7 numbers + UPDATED_AT periodically so the fallback
+ * doesn't silently drift from the real market:
+ *   SELECT c.slug, ROUND(AVG(cp.price)) FROM current_prices cp
+ *   JOIN skus s ON s.id = cp.sku_id JOIN categories c ON c.id = s.category_id
+ *   GROUP BY c.slug ORDER BY c.slug;
  */
 const FACTORIES: Record<string, string[]> = {
   rebar: ['ذوب‌آهن اصفهان', 'فولاد کویر کاشان', 'فولاد میانه', 'فولاد نیشابور', 'ظفر بناب', 'فولاد شاهرود', 'آریان فولاد', 'امیرکبیر خزر', 'سیادن ابهر', 'راد همدان'],
@@ -50,16 +62,16 @@ const SIZES: Record<string, string[]> = {
   wire: ['۱.۵', '۲.۵', '۳', '۴', '۵.۵', '۶.۵', '۸', '۱۰', '۱۲'],
 };
 const BASE_PRICE: Record<string, number> = {
-  rebar: 35000,
-  ibeam: 38500,
-  profile: 44500,
-  sheet: 43000,
-  'angle-channel': 36000,
-  pipe: 48000,
-  wire: 39500,
+  rebar: 36000,
+  ibeam: 39100,
+  profile: 45800,
+  sheet: 43900,
+  'angle-channel': 36250,
+  pipe: 49150,
+  wire: 39650,
 };
 const DELIVERY = ['۲۴ ساعت', '۴۸ ساعت', '۷۲ ساعت', 'تحویل فوری'];
-const UPDATED_AT = '2026-06-27T08:00:00.000Z';
+const UPDATED_AT = '2026-08-16T00:00:00.000Z';
 
 function faToInt(s: string): number {
   const m = s.replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).match(/\d+/);

@@ -2,7 +2,7 @@
  * Bare-greeting short-circuit for the AI advisor — a conversation that is
  * nothing but «سلام» costs zero relay calls and zero DB reads: the route
  * answers with a canned introduction + the opening purpose chips instead of
- * waking DeepSeek. Pure matcher, unit-tested.
+ * waking the relay. Pure matcher, unit-tested.
  */
 import { normalizeDigits } from '@/lib/utils/format';
 

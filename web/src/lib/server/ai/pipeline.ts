@@ -42,7 +42,7 @@ export interface PipelineOptions {
   userSignal?: AbortSignal;
   /** SSE frame emitter ('tool'/'lead' progress frames); omit for tests. */
   send?: (frame: Record<string, unknown>) => void;
-  /** Injected relay (defaults to the real DeepSeek stream). */
+  /** Injected relay (defaults to the real streamCompletion relay). */
   stream?: StreamCompletionFn;
 }
 
@@ -68,7 +68,7 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
 
   // createLead sends a real SMS per call and, unlike POST /api/leads, isn't
   // gated by that route's own rate limiter — it's invoked here as a plain
-  // service function. DeepSeek can request several tool calls per round
+  // service function. The relay can request several tool calls per round
   // across up to MAX_TOOL_ROUNDS (plus a correction retry), so without a cap
   // a single ai-chat request could be steered into an SMS-bombing run
   // against arbitrary numbers. Scoped OUTSIDE runLoop so the cap holds

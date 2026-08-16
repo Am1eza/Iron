@@ -197,7 +197,7 @@ describe('buildChatMessages', () => {
     { role: 'user' as const, content: 'ساختمان ۲ طبقه' },
   ];
 
-  it('keeps AI_SYSTEM_PROMPT as the byte-identical FIRST message (DeepSeek cache prefix)', () => {
+  it('keeps AI_SYSTEM_PROMPT as the byte-identical FIRST message (relay prompt-cache prefix)', () => {
     const withSummary = buildChatMessages(turns, 'کاربر دنبال میلگرد ساختمانی است.');
     const withoutSummary = buildChatMessages(turns, null);
     expect(withSummary[0]).toEqual({ role: 'system', content: AI_SYSTEM_PROMPT });

@@ -286,7 +286,7 @@ export async function* streamCompletion(
         const choice = json.choices?.[0];
         if (!choice) {
           // With stream_options.include_usage the FINAL chunk carries no
-          // choices — only the request's token accounting (DeepSeek adds the
+          // choices — only the request's token accounting (the relay adds the
           // prompt_cache_hit/miss split on top of the OpenAI shape).
           if (json.usage) {
             yield {
