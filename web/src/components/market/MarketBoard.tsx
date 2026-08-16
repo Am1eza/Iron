@@ -12,7 +12,7 @@ import type { MarketValue } from '@/lib/types/domain';
 import { MovementBadge, EmptyState, emptyPresets } from '@/components/ui';
 import { PriceChart } from '@/components/catalog/PriceChart';
 import { AlertBellButton } from '@/components/alerts/AlertBellButton';
-import { InfoIcon, ChevronStartIcon } from '@/components/primitives/icons';
+import { ChevronStartIcon } from '@/components/primitives/icons';
 import styles from './MarketBoard.module.css';
 
 /**
@@ -66,7 +66,11 @@ export function MarketBoard() {
 
   const { data: history } = useQuery({
     queryKey: ['market', 'history', selected?.key, selected?.value],
-    queryFn: () => marketApi.history(selected!.key, selected!.value),
+    // '1y' — PriceChart owns its own week/month/3-month/year tabs and slices
+    // this client-side; fetching only the server's 30d default made the
+    // 3-month/year tabs literally incapable of showing more than a month,
+    // no matter which tab was selected.
+    queryFn: () => marketApi.history(selected!.key, selected!.value, '1y'),
     enabled: Boolean(selected),
     staleTime: 5 * 60 * 1000,
   });
@@ -146,13 +150,6 @@ export function MarketBoard() {
         </section>
       ) : null}
 
-      <p className={styles.note}>
-        <span className={styles.noteIcon} aria-hidden="true">
-          <InfoIcon size={18} />
-        </span>
-        نرخ‌ها لحظه‌ای از بازار دریافت و نرخ شمش فولاد کارشناسی درج می‌شود. این ارقام مبنای معامله
-        نیست.
-      </p>
 
       <div className={styles.ctaRow}>
         <Link href={routes.prices()} className={styles.cta}>

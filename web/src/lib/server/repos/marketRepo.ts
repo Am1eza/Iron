@@ -127,6 +127,26 @@ export async function flagTgjuStale(): Promise<void> {
 
 const RANGE_DAYS: Record<string, number> = { '7d': 7, '30d': 30, '90d': 90, '1y': 365 };
 
+/** Tehran-local calendar-day key (YYYY-MM-DD Gregorian, just used for
+ *  grouping — not a Jalali conversion) so a point taken at 23:50 and one at
+ *  00:10 local time never land in the same bucket just because they're both
+ *  "today" in UTC. */
+const dayKeyFormatter = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Asia/Tehran',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
+const dayKey = (d: Date) => dayKeyFormatter.format(d);
+
+/** PriceChart (the only consumer) treats every returned point as exactly one
+ * calendar day — it walks backwards from "today" one day per array index to
+ * label the data table, and spaces the x-axis assuming uniform daily steps.
+ * The poll job stores a raw row every ~60s (more often for ounce), so without
+ * this aggregation a "week" of raw rows could be a single afternoon and the
+ * data-table dates were flatly wrong. Collapse to one point per Tehran-local
+ * day (the last value recorded that day, i.e. a daily close) so the contract
+ * PriceChart already assumes actually holds. */
 export async function marketHistory(key: MarketKey, range = '30d') {
   const days = RANGE_DAYS[range] ?? 30;
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
@@ -135,5 +155,12 @@ export async function marketHistory(key: MarketKey, range = '30d') {
     .from(marketPoints)
     .where(and(eq(marketPoints.key, key), gte(marketPoints.at, since)))
     .orderBy(asc(marketPoints.at));
-  return rows.map((p) => ({ id: p.id, key: p.key, value: p.value, at: p.at.toISOString() }));
+
+  const byDay = new Map<string, (typeof rows)[number]>();
+  for (const row of rows) {
+    byDay.set(dayKey(row.at), row); // later rows in the (ascending) order win → last value of the day
+  }
+  return [...byDay.values()]
+    .sort((a, b) => a.at.getTime() - b.at.getTime())
+    .map((p) => ({ id: p.id, key: p.key, value: p.value, at: p.at.toISOString() }));
 }
