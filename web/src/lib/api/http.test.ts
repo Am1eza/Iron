@@ -126,3 +126,55 @@ describe('httpUpload — 401 recovery', () => {
     expect((err as ApiError).message).toBe('ارتباط با سرور برقرار نشد. اتصال اینترنت را بررسی کنید.');
   });
 });
+
+/**
+ * `Retry-After` is the ONLY place the real wait is stated — the 429 JSON body
+ * from `rateLimit()` says «کمی بعد» without a duration — so the AI advisor's
+ * rate-limit notice has nothing to count down without this.
+ */
+describe('toApiError — Retry-After', () => {
+  const originalFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  const rateLimited = (retryAfter?: string): Response =>
+    ({
+      ok: false,
+      status: 429,
+      headers: { get: (h: string) => (h.toLowerCase() === 'retry-after' ? (retryAfter ?? null) : null) },
+      json: async () => ({ error: 'rate_limited', message: 'درخواست‌ها بیش از حد است. کمی بعد دوباره تلاش کنید.' }),
+    }) as unknown as Response;
+
+  it('exposes delta-seconds from the header', async () => {
+    global.fetch = vi.fn().mockResolvedValue(rateLimited('300')) as unknown as typeof fetch;
+    const err = (await httpRequest('/api/ai/chat', { method: 'POST' }).catch((e: unknown) => e)) as ApiError;
+    expect(err).toBeInstanceOf(ApiError);
+    expect(err.status).toBe(429);
+    expect(err.code).toBe('rate_limited');
+    expect(err.retryAfterSeconds).toBe(300);
+  });
+
+  it('is undefined when the header is absent', async () => {
+    global.fetch = vi.fn().mockResolvedValue(rateLimited()) as unknown as typeof fetch;
+    const err = (await httpRequest('/api/ai/chat', { method: 'POST' }).catch((e: unknown) => e)) as ApiError;
+    expect(err.retryAfterSeconds).toBeUndefined();
+  });
+
+  it('ignores a malformed (HTTP-date) value rather than guessing', async () => {
+    global.fetch = vi
+      .fn()
+      .mockResolvedValue(rateLimited('Wed, 21 Oct 2026 07:28:00 GMT')) as unknown as typeof fetch;
+    const err = (await httpRequest('/api/ai/chat', { method: 'POST' }).catch((e: unknown) => e)) as ApiError;
+    expect(err.retryAfterSeconds).toBeUndefined();
+  });
+
+  it('survives a Response double with no headers at all', async () => {
+    global.fetch = vi
+      .fn()
+      .mockResolvedValue({ ok: false, status: 500, json: async () => ({}) } as Response) as unknown as typeof fetch;
+    const err = (await httpRequest('/api/ai/chat', { method: 'POST' }).catch((e: unknown) => e)) as ApiError;
+    expect(err).toBeInstanceOf(ApiError);
+    expect(err.status).toBe(500);
+  });
+});

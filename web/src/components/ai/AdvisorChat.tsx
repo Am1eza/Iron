@@ -43,6 +43,9 @@ export type Msg = {
    *  committed live AI answers, enables 👍/👎 feedback. */
   dbMessageId?: string;
   conversationId?: string;
+  /** Set only on a turn where the LIVE advisor failed — carries why, and the
+   *  text to replay. Absent on every normal answer, so nothing is shown. */
+  notice?: TurnNotice;
 };
 
 /** The opening greeting — shared so it can be rendered server-side (crawlable
@@ -79,24 +82,106 @@ async function* readSse(body: ReadableStream<Uint8Array>): AsyncGenerator<Server
   const reader = body.getReader();
   const dec = new TextDecoder();
   let buf = '';
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buf += dec.decode(value, { stream: true });
-    let idx: number;
-    while ((idx = buf.indexOf('\n\n')) !== -1) {
-      const frame = buf.slice(0, idx);
-      buf = buf.slice(idx + 2);
-      const line = frame.split('\n').find((l) => l.startsWith('data: '));
-      if (!line) continue;
-      try {
-        yield JSON.parse(line.slice(6)) as ServerEvent;
-      } catch {
-        /* skip malformed frame */
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let idx: number;
+      while ((idx = buf.indexOf('\n\n')) !== -1) {
+        const frame = buf.slice(0, idx);
+        buf = buf.slice(idx + 2);
+        const line = frame.split('\n').find((l) => l.startsWith('data: '));
+        if (!line) continue;
+        try {
+          yield JSON.parse(line.slice(6)) as ServerEvent;
+        } catch {
+          /* skip malformed frame */
+        }
       }
     }
+  } finally {
+    // The consumer leaves this loop early on an `error` frame (it throws) and
+    // on abort — for-await then calls the generator's `return()`, which lands
+    // here. Without this the reader stayed locked and the response body was
+    // never released, holding the connection open for a request that is
+    // already over.
+    reader.cancel().catch(() => {});
   }
 }
+
+/** An `{type:'error'}` SSE frame — i.e. the server reached us and explained
+ *  itself. Distinct from a transport failure so the two can be told apart:
+ *  a plain `Error` here used to be indistinguishable from `fetch` throwing. */
+class StreamErrorFrame extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'StreamErrorFrame';
+  }
+}
+
+/* ---- turn-level failure reporting ---- */
+/**
+ * Why a live turn didn't produce a live answer. The advisor NEVER dead-ends
+ * (the local grounded engine always answers), but silently swapping in a
+ * lesser answer taught the visitor nothing: every message the server writes
+ * for these cases — including the one it goes out of its way to phrase around
+ * the human path — was being discarded by the client and shown nowhere.
+ *
+ * These are deliberately NOT alarming and NOT modal: a small line under the
+ * one affected reply, phrased as a state, not an apology. `rate_limited` is
+ * the only kind that states a wait, because it is the only kind where waiting
+ * is what actually fixes it and the server tells us how long (Retry-After).
+ */
+type NoticeKind = 'fallback' | 'rate_limited' | 'offline' | 'dropped';
+
+export type TurnNotice = {
+  kind: NoticeKind;
+  /** The user text that produced this turn — replayed by «تلاش دوباره». */
+  retryOf: string;
+  /** Epoch ms before which a retry is pointless (rate limit only). */
+  retryAfterMs?: number;
+};
+
+const NOTICE_TEXT: Record<NoticeKind, string> = {
+  // The relay is down/over budget/timed out. The visitor cannot act on which,
+  // so this says what they CAN see: this answer came from the offline engine.
+  fallback: 'این پاسخ نسخهٔ محلی است؛ دستیار هوشمند در دسترس نبود.',
+  rate_limited: 'پیام‌ها پشت‌سرهم ارسال شد. کمی صبر کن و دوباره بفرست.',
+  offline: 'اتصال اینترنت قطع بود؛ این پاسخ نسخهٔ محلی است.',
+  // A genuine mid-stream drop — the partial answer above is REAL model output,
+  // so it is kept rather than thrown away and replaced by a lesser one.
+  dropped: 'پاسخ ناتمام ماند؛ اتصال وسط دریافت قطع شد.',
+};
+
+/** Tool frames are the ONLY progress signal during the wait — measured live at
+ *  2–45s between the request and the first token, because every number is
+ *  validated server-side before ANY text is allowed out (grounding, AC-D-3),
+ *  so the text necessarily arrives as one burst at the end. They used to be
+ *  read and thrown away, leaving a bare three-dot indicator for the whole
+ *  wait. Naming the actual work is honest and makes a long wait legible. */
+const TOOL_PROGRESS: Record<string, string> = {
+  getPrice: 'در حال بررسی قیمت‌های امروز…',
+  calcWeight: 'در حال محاسبهٔ وزن…',
+  estimateProject: 'در حال برآورد پروژه…',
+  createLead: 'در حال ثبت درخواست…',
+  compareFactories: 'در حال مقایسهٔ کارخانه‌ها…',
+  searchGuides: 'در حال مرور راهنماها…',
+};
+const PROGRESS_DEFAULT = 'در حال نوشتن…';
+/** After this long with no answer, say so. A 45s server deadline is a normal
+ *  tail event on this reasoning model (measured 6.8s / 48.8s / 6.7s on three
+ *  identical requests), and unexplained silence reads as "broken". Shown
+ *  ALONGSIDE the tool label rather than replacing it — which tool is running
+ *  is the more useful fact, and a frozen-looking label is exactly the thing
+ *  this reassurance exists to answer. */
+const SLOW_HINT_MS = 12_000;
+const SLOW_HINT = 'کمی طول می‌کشد؛ ممنون از صبرت.';
+/** No frame at all for this long means the connection is hung rather than
+ *  slow: the server's own deadline is AI_TIMEOUT_MS (45s) and it always
+ *  answers with an `error` frame, so past that + margin nothing is coming.
+ *  Without this the composer stayed disabled forever behind a dead socket. */
+const STALL_TIMEOUT_MS = 70_000;
 
 function detectPurpose(t: string): 'building' | 'industrial' | 'trade' | 'price' | null {
   if (/خانه|خونه|ساختمان|مسکونی|سقف|طبقه|ویلا|بنا/.test(t)) return 'building';
@@ -272,13 +357,60 @@ function FeedbackButtons({ messageId, conversationId }: { messageId: string; con
   );
 }
 
+/**
+ * The one-line "this turn didn't come from the live advisor" note, plus its
+ * retry. Deliberately quiet: no icon-heavy alert, no colour that reads as
+ * danger — the visitor DID get an answer, and the business's real fallback
+ * (a human) is already one chip away.
+ *
+ * Not a live region: it is committed together with the message the role="log"
+ * thread announces, so it is read as part of that one announcement instead of
+ * interrupting with a second one.
+ */
+function TurnNoticeRow({ notice, onRetry }: { notice: TurnNotice; onRetry: () => void }) {
+  // Rate limits are the only case with a real wait to count down. Ticks once a
+  // second only while a wait is actually pending, then stops.
+  const [now, setNow] = useState(() => Date.now());
+  const waitMs = notice.retryAfterMs ? notice.retryAfterMs - now : 0;
+  const waiting = waitMs > 0;
+  useEffect(() => {
+    if (!notice.retryAfterMs) return;
+    const t = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(t);
+  }, [notice.retryAfterMs]);
+
+  const secs = Math.ceil(waitMs / 1000);
+  return (
+    <div className={styles.notice} data-kind={notice.kind}>
+      <span className={styles.noticeText}>
+        {NOTICE_TEXT[notice.kind]}
+        {waiting && ` (${toPersianDigits(secs)} ثانیه)`}
+      </span>
+      <button
+        type="button"
+        className={styles.noticeRetry}
+        onClick={onRetry}
+        disabled={waiting}
+        // The countdown is decoration; the label carries the state for AT.
+        aria-label={
+          waiting ? `تلاش دوباره، ${toPersianDigits(secs)} ثانیه دیگر` : 'تلاش دوباره برای پاسخ هوشمند'
+        }
+      >
+        {notice.kind === 'dropped' ? 'ادامه بده' : 'تلاش دوباره'}
+      </button>
+    </div>
+  );
+}
+
 const MessageBubble = memo(function MessageBubble({
   message: m,
   onPick,
+  onRetry,
   hidden,
 }: {
   message: Msg;
   onPick: (text: string) => void;
+  onRetry: (m: Msg) => void;
   hidden?: boolean;
 }) {
   return (
@@ -315,6 +447,7 @@ const MessageBubble = memo(function MessageBubble({
             ))}
           </div>
         )}
+        {m.notice && !hidden && <TurnNoticeRow notice={m.notice} onRetry={() => onRetry(m)} />}
         {m.role === 'ai' && m.dbMessageId && (
           <FeedbackButtons messageId={m.dbMessageId} conversationId={m.conversationId} />
         )}
@@ -339,6 +472,16 @@ export function AdvisorChat({
   // role="log" region below actually announces (accessibility.md §7).
   const [streamPreview, setStreamPreview] = useState<Msg | null>(null);
   const [typing, setTyping] = useState(false);
+  // What the advisor is actually doing right now, driven by the server's
+  // `tool` frames (see TOOL_PROGRESS) — the wait is 2–45s and used to be
+  // three anonymous dots for all of it.
+  const [progress, setProgress] = useState<string>(PROGRESS_DEFAULT);
+  const [slow, setSlow] = useState(false);
+  // navigator.onLine is only a link-layer signal (a captive portal still reads
+  // "online"), so it is used to PREVENT a send that is certain to fail and to
+  // auto-recover — never as proof that a request will succeed. Seeded true for
+  // SSR/first paint so the composer is never disabled before hydration.
+  const [online, setOnline] = useState(true);
   const [busy, setBusy] = useState(false);
   const [input, setInput] = useState('');
   const purposeRef = useRef<string | null>(null);
@@ -352,6 +495,10 @@ export function AdvisorChat({
   const busyRef = useRef(false);
   // Lets the user stop an in-flight answer (WCAG/UX — no forced wait).
   const abortRef = useRef<AbortController | null>(null);
+  // The stall watchdog aborts through the SAME controller as the stop button,
+  // so this marks which one fired — otherwise a hung connection would be
+  // treated as "the user pressed stop" and silently produce no answer at all.
+  const stalledRef = useRef(false);
   // Server-issued conversation id ({type:'conversation'} frame) — echoed on
   // later turns so the server keeps persistence + rolling-summary continuity.
   const conversationIdRef = useRef<string | undefined>(undefined);
@@ -365,6 +512,21 @@ export function AdvisorChat({
   useEffect(() => {
     setVoiceSupported(getSpeechRecognition() !== null);
     return () => recognitionRef.current?.abort();
+  }, []);
+
+  // Connectivity. Read AFTER mount (SSR has no navigator) and then follow the
+  // events — recovery is instant, so a visitor who steps into a lift does not
+  // have to work out for themselves that the composer works again.
+  useEffect(() => {
+    setOnline(navigator.onLine);
+    const up = () => setOnline(true);
+    const down = () => setOnline(false);
+    window.addEventListener('online', up);
+    window.addEventListener('offline', down);
+    return () => {
+      window.removeEventListener('online', up);
+      window.removeEventListener('offline', down);
+    };
   }, []);
 
   const toggleVoice = () => {
@@ -397,26 +559,51 @@ export function AdvisorChat({
     }
   };
 
-  const pushAi = (msgs: Msg[]) => {
+  const pushAi = (msgs: Msg[], notice?: TurnNotice) => {
     setTyping(true);
     window.setTimeout(() => {
       setTyping(false);
       msgs.forEach((m) => m.text && transcriptRef.current.push({ role: 'ai', text: m.text }));
-      setMessages((m) => [...m, ...msgs]);
+      // The note rides on the LAST message of the turn so it reads as a
+      // footnote to the answer rather than a header above it.
+      setMessages((m) => [
+        ...m,
+        ...msgs.map((msg, i) => (notice && i === msgs.length - 1 ? { ...msg, notice } : msg)),
+      ]);
     }, 650);
   };
 
-  const sendLocal = (text: string) => {
+  const sendLocal = (text: string, notice?: TurnNotice) => {
     const { msgs, purpose } = aiReply(text, { purpose: purposeRef.current });
     purposeRef.current = purpose;
-    pushAi(msgs);
+    pushAi(msgs, notice);
   };
 
   const sendLive = async (text: string) => {
     busyRef.current = true;
     setBusy(true);
     setTyping(true);
+    setProgress(PROGRESS_DEFAULT);
+    setSlow(false);
     const aiId = uid();
+    // Escalate the wait copy once, and only if the answer really is slow.
+    const slowHint = window.setTimeout(() => setSlow(true), SLOW_HINT_MS);
+    // Watchdog: a hung connection produces no frames and no error, so nothing
+    // else would ever resolve this turn. Rearmed on every frame received.
+    let stall: number | null = null;
+    const armStall = () => {
+      if (stall !== null) window.clearTimeout(stall);
+      stall = window.setTimeout(() => {
+        stalledRef.current = true;
+        abortRef.current?.abort();
+      }, STALL_TIMEOUT_MS);
+    };
+    const clearTimers = () => {
+      window.clearTimeout(slowHint);
+      if (stall !== null) window.clearTimeout(stall);
+      stall = null;
+    };
+    stalledRef.current = false;
     let streamedText = '';
     let opened = false;
     let chipsBuf: string[] | undefined;
@@ -486,8 +673,14 @@ export function AdvisorChat({
         signal: controller.signal,
       });
       if (!res.body) throw new Error('no-body');
+      armStall();
       for await (const ev of readSse(res.body)) {
-        if (ev.type === 'conversation') {
+        armStall();
+        if (ev.type === 'tool') {
+          // Name the work in flight instead of discarding the frame.
+          const label = TOOL_PROGRESS[ev.name];
+          if (label) setProgress(label);
+        } else if (ev.type === 'conversation') {
           conversationIdRef.current = ev.id;
         } else if (ev.type === 'token') {
           streamedText += ev.text;
@@ -503,10 +696,13 @@ export function AdvisorChat({
         } else if (ev.type === 'done') {
           dbMessageId = ev.messageId;
         } else if (ev.type === 'error') {
-          throw new Error(ev.message);
+          // Carries the server's own Persian copy (relay down / over budget /
+          // past the AI_TIMEOUT_MS deadline). Tagged so the catch below can
+          // tell it apart from a transport failure.
+          throw new StreamErrorFrame(ev.message);
         }
-        // 'tool' frames just keep the typing indicator honest — nothing to render.
       }
+      clearTimers();
       stopPaint(); // the commit below carries the full text — no late repaint
       if (leadLine) appendLine(leadLine);
       if (!opened) throw new Error('empty');
@@ -519,9 +715,13 @@ export function AdvisorChat({
         { id: aiId, role: 'ai', text: streamedText, chips: chipsBuf, dbMessageId, conversationId: conversationIdRef.current },
       ]);
     } catch (e) {
+      clearTimers();
       stopPaint();
+      const stalled = stalledRef.current;
+      stalledRef.current = false;
       const aborted =
-        abortRef.current?.signal.aborted || (e instanceof DOMException && e.name === 'AbortError');
+        !stalled &&
+        (abortRef.current?.signal.aborted || (e instanceof DOMException && e.name === 'AbortError'));
       if (aborted) {
         // User pressed stop — keep whatever streamed so far, no fallback, no error.
         setTyping(false);
@@ -539,8 +739,50 @@ export function AdvisorChat({
       // transient failure (timeout, 429, network blip) retries next turn.
       if (isApiError(e) && e.status === 503) useServer.current = false;
       setTyping(false);
+
+      // Classify. `StreamErrorFrame` means the SERVER answered and explained
+      // itself (relay down / deadline) — the transport was fine. Anything that
+      // is neither that nor an ApiError got here from fetch/read throwing,
+      // i.e. the connection itself failed.
+      const serverSpoke = e instanceof StreamErrorFrame || isApiError(e);
+      const rateLimited = isApiError(e) && e.status === 429;
+      const offline = typeof navigator !== 'undefined' && !navigator.onLine;
+      const transportFailed = stalled || (!serverSpoke && !(e instanceof Error && e.message === 'empty'));
+
+      const notice: TurnNotice = {
+        kind: rateLimited
+          ? 'rate_limited'
+          : offline
+            ? 'offline'
+            : transportFailed && streamedText.trim()
+              ? 'dropped'
+              : transportFailed
+                ? 'offline'
+                : 'fallback',
+        retryOf: text,
+        ...(rateLimited && isApiError(e) && e.retryAfterSeconds
+          ? // The server states the real wait in Retry-After (300s here); the
+            // JSON body only says «کمی بعد». Cap the countdown so a large
+            // server-side window can't present as an unusable dead button.
+            { retryAfterMs: Date.now() + Math.min(e.retryAfterSeconds, 60) * 1000 }
+          : {}),
+      };
+
+      // A genuine mid-stream drop that already delivered real model output:
+      // KEEP it (same reasoning as the user-abort path directly above) rather
+      // than discarding real text and answering with the lesser local engine.
+      if (notice.kind === 'dropped') {
+        setStreamPreview(null);
+        transcriptRef.current.push({ role: 'ai', text: streamedText });
+        setMessages((all) => [
+          ...all,
+          { id: aiId, role: 'ai', text: streamedText, chips: chipsBuf, conversationId: conversationIdRef.current, notice },
+        ]);
+        return;
+      }
+
       if (opened) setStreamPreview(null);
-      sendLocal(text);
+      sendLocal(text, notice);
     } finally {
       abortRef.current = null;
       busyRef.current = false;
@@ -563,11 +805,35 @@ export function AdvisorChat({
     if (useServer.current) void sendLive(text);
     else sendLocal(text);
   };
-  // Stable wrapper so `MessageBubble`'s `onPick` prop never changes reference
-  // (see MessageBubble's docstring) — `send` itself is recreated every render.
+  /**
+   * Replay the turn that fell back, live this time. The failed answer is
+   * REMOVED (both from the thread and from the transcript the server sees) so
+   * a retry replaces it rather than stacking a second answer to one question —
+   * and so the local engine's wording never becomes context the model then
+   * builds on. The user's own message stays; it is not re-sent as a new turn.
+   */
+  const retryTurn = (failed: Msg) => {
+    if (busyRef.current || !failed.notice) return;
+    const text = failed.notice.retryOf;
+    // Drop the failed answer from the model-visible transcript. It is the last
+    // 'ai' entry, and only ever one entry (pushAi pushes each message's text).
+    const lastAi = transcriptRef.current.map((t) => t.role).lastIndexOf('ai');
+    if (lastAi !== -1) transcriptRef.current.splice(lastAi, 1);
+    setMessages((all) => all.filter((m) => m.id !== failed.id));
+    // `useServer` may have been switched off permanently by a 503; a retry is
+    // an explicit request for the live advisor, so give it one more chance.
+    useServer.current = API_MODE !== 'mock';
+    void sendLive(text);
+  };
+
+  // Stable wrappers so `MessageBubble`'s props never change reference (see
+  // MessageBubble's docstring) — both are recreated every render.
   const sendRef = useRef(send);
   sendRef.current = send;
   const stableSend = useCallback((text: string) => sendRef.current(text), []);
+  const retryRef = useRef(retryTurn);
+  retryRef.current = retryTurn;
+  const stableRetry = useCallback((m: Msg) => retryRef.current(m), []);
 
   // Start a fresh thread — clears the persisted client copy and the server
   // conversation id so the next message opens a new conversation row.
@@ -645,34 +911,55 @@ export function AdvisorChat({
       <div className={styles.scroll} ref={scrollRef}>
         <div className={styles.thread} role="log" aria-live="polite" aria-atomic="false" aria-relevant="additions">
           {messages.map((m) => (
-            <MessageBubble key={m.id} message={m} onPick={stableSend} />
+            <MessageBubble key={m.id} message={m} onPick={stableSend} onRetry={stableRetry} />
           ))}
 
           {/* Presentational-only: the token-by-token streaming animation. Marked
               aria-hidden so it is never announced; the finished text lands in
               `messages` above (and is announced once) when the stream ends. */}
-          {streamPreview && <MessageBubble message={streamPreview} onPick={stableSend} hidden />}
+          {streamPreview && (
+            <MessageBubble message={streamPreview} onPick={stableSend} onRetry={stableRetry} hidden />
+          )}
 
           {typing && (
             <div className={`${styles.row} ${styles.rowAi}`} aria-hidden="true">
               <span className={styles.bubbleAvatar} aria-hidden>
                 <AiMarkIcon size={14} />
               </span>
-              <div className={`${styles.bubble} ${styles.ai} ${styles.typing}`}>
-                <span />
-                <span />
-                <span />
+              <div className={`${styles.bubble} ${styles.ai} ${styles.typingRow}`}>
+                <span className={styles.typing}>
+                  <span />
+                  <span />
+                  <span />
+                </span>
+                {/* What the advisor is actually doing (server `tool` frames). */}
+                <span className={styles.progressText}>
+                  {progress}
+                  {slow && <span className={styles.progressSlow}>{SLOW_HINT}</span>}
+                </span>
               </div>
             </div>
           )}
         </div>
 
         {typing && (
+          // Announces the same state the sighted user reads. Changes at most a
+          // few times per turn (tool switch, then the one slow-hint), so it
+          // stays informative without becoming chatter.
           <span className="visually-hidden" role="status">
-            در حال نوشتن…
+            {slow ? `${progress} ${SLOW_HINT}` : progress}
           </span>
         )}
       </div>
+
+      {!online && (
+        // Unmissable but not dramatic, and it sits directly above the control
+        // it explains. role="status" (not "alert") — losing signal is a state,
+        // not an emergency, and this must not steal focus mid-conversation.
+        <p className={styles.offlineBar} role="status">
+          اتصال اینترنت قطع است؛ به‌محض وصل‌شدن دوباره می‌توانی پیام بفرستی.
+        </p>
+      )}
 
       <form
         className={styles.composer}
@@ -689,10 +976,16 @@ export function AdvisorChat({
           className={styles.input}
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={busy ? 'در حال پاسخ…' : 'بنویس… مثلاً: یه خونهٔ ۱۰۰ متری دو طبقه می‌سازم'}
+          placeholder={
+            !online
+              ? 'اتصال اینترنت قطع است…'
+              : busy
+                ? 'در حال پاسخ…'
+                : 'بنویس… مثلاً: یه خونهٔ ۱۰۰ متری دو طبقه می‌سازم'
+          }
           enterKeyHint="send"
           maxLength={1000}
-          disabled={busy}
+          disabled={busy || !online}
         />
         {voiceSupported && (
           <button
@@ -701,7 +994,7 @@ export function AdvisorChat({
             onClick={toggleVoice}
             aria-label={listening ? 'توقف ورودی صوتی' : 'ورودی صوتی'}
             aria-pressed={listening}
-            disabled={busy}
+            disabled={busy || !online}
           >
             <MicIcon size={20} />
           </button>
@@ -718,7 +1011,7 @@ export function AdvisorChat({
             </span>
           </button>
         ) : (
-          <button type="submit" className={styles.send} aria-label="ارسال">
+          <button type="submit" className={styles.send} aria-label="ارسال" disabled={!online}>
             <ChevronStartIcon size={20} className="icon--rtl" />
           </button>
         )}

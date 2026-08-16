@@ -9,11 +9,21 @@ export class ApiError extends Error {
    *  cover (e.g. the alerts-limit 409's `cap`). Undefined when the body
    *  wasn't JSON or had no extra fields. */
   details?: Record<string, unknown>;
+  /** Parsed `Retry-After` (seconds) when the response carried one — 429s from
+   *  `rateLimit()` always do, and it is the ONLY place the real wait is
+   *  stated (the JSON body says «کمی بعد» without a duration). Undefined when
+   *  the header was absent or not a plain delta-seconds value. */
+  retryAfterSeconds?: number;
 
   constructor(
     status: number,
     message: string,
-    opts?: { code?: string; fields?: Record<string, string>; details?: Record<string, unknown> },
+    opts?: {
+      code?: string;
+      fields?: Record<string, string>;
+      details?: Record<string, unknown>;
+      retryAfterSeconds?: number;
+    },
   ) {
     super(message);
     this.name = 'ApiError';
@@ -21,6 +31,7 @@ export class ApiError extends Error {
     this.code = opts?.code;
     this.fields = opts?.fields;
     this.details = opts?.details;
+    this.retryAfterSeconds = opts?.retryAfterSeconds;
   }
 }
 
