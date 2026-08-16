@@ -82,6 +82,21 @@ export function PriceChart({
   // SVG <title> can hydrate-mismatch, so we render one text node per element.
   const titleText = `نمودار قیمت در ${rangeLabel}؛ از ${fmtVal(first)} ${unit} به ${fmtVal(last)} ${unit}`;
   const deltaText = `${up ? '▲' : '▼'} ${toPersianDigits(Math.abs(Number(pct)).toString())}٪`;
+  // The <svg> stretches non-uniformly to fill its container width
+  // (preserveAspectRatio="none", so x-scale and y-scale differ — the
+  // container is typically ~2x the viewBox width). A <circle> drawn in
+  // that same coordinate space inherits the distortion and renders as an
+  // ellipse, not a dot. Percentages of the container box are isotropic
+  // (real CSS pixels), so the "latest point" marker is a plain HTML dot
+  // positioned by percentage instead of SVG geometry.
+  // Physical left/top, NOT inset-inline-start/block-start: this percentage
+  // is measured against the <svg>'s own internal coordinate space, which is
+  // always plain left-to-right regardless of page direction (x() above
+  // already does the RTL time-axis flip manually, in that same physical
+  // space) — inset-inline-start would mirror to the wrong edge on this RTL
+  // page.
+  const markerLeftPct = (x(data.length - 1) / w) * 100;
+  const markerTopPct = (y(last) / h) * 100;
 
   return (
     <div className={styles.wrap}>
@@ -111,24 +126,30 @@ export function PriceChart({
         </div>
       </div>
 
-      <svg
-        className={styles.svg}
-        viewBox={`0 0 ${w} ${h}`}
-        preserveAspectRatio="none"
-        role="img"
-        aria-labelledby={id}
-      >
-        <title id={id}>{titleText}</title>
-        <defs>
-          <linearGradient id={`grad-${id}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor={up ? 'var(--color-gain)' : 'var(--color-loss)'} stopOpacity="0.18" />
-            <stop offset="1" stopColor={up ? 'var(--color-gain)' : 'var(--color-loss)'} stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        <path d={area} fill={`url(#grad-${id})`} />
-        <path d={line} fill="none" stroke={up ? 'var(--color-gain)' : 'var(--color-loss)'} strokeWidth="2" vectorEffect="non-scaling-stroke" />
-        <circle cx={x(data.length - 1)} cy={y(last)} r="3.5" fill={up ? 'var(--color-gain)' : 'var(--color-loss)'} />
-      </svg>
+      <div className={styles.svgWrap}>
+        <svg
+          className={styles.svg}
+          viewBox={`0 0 ${w} ${h}`}
+          preserveAspectRatio="none"
+          role="img"
+          aria-labelledby={id}
+        >
+          <title id={id}>{titleText}</title>
+          <defs>
+            <linearGradient id={`grad-${id}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor={up ? 'var(--color-gain)' : 'var(--color-loss)'} stopOpacity="0.18" />
+              <stop offset="1" stopColor={up ? 'var(--color-gain)' : 'var(--color-loss)'} stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          <path d={area} fill={`url(#grad-${id})`} />
+          <path d={line} fill="none" stroke={up ? 'var(--color-gain)' : 'var(--color-loss)'} strokeWidth="2" vectorEffect="non-scaling-stroke" />
+        </svg>
+        <span
+          className={`${styles.marker} ${up ? styles.up : styles.down}`}
+          style={{ left: `${markerLeftPct}%`, top: `${markerTopPct}%` }}
+          aria-hidden="true"
+        />
+      </div>
 
       <div className={styles.axis}>
         <span>{fmtVal(min)}</span>

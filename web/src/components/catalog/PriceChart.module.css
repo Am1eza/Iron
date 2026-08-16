@@ -68,10 +68,35 @@
   box-shadow: var(--shadow-sm);
 }
 
+.svgWrap {
+  position: relative;
+}
 .svg {
   inline-size: 100%;
   block-size: 220px;
   display: block;
+}
+/* The "latest point" dot lives OUTSIDE the <svg>'s own coordinate space —
+   see PriceChart.tsx's comment on markerLeftPct/markerTopPct. Positioned by
+   percentage of this wrapper's real (isotropic) pixel box, so it is always a
+   true circle regardless of how non-uniformly the SVG itself is stretched.
+   The surface-colored ring is the standard "latest value" chart-dot
+   treatment (see e.g. Google Finance) — it separates the dot from the line/
+   fill it sits on top of instead of just floating on the stroke. */
+.marker {
+  position: absolute;
+  inline-size: 8px;
+  block-size: 8px;
+  border-radius: var(--radius-circle);
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 3px var(--color-surface);
+  pointer-events: none;
+}
+.marker.up {
+  background: var(--color-gain);
+}
+.marker.down {
+  background: var(--color-loss);
 }
 .axis {
   display: flex;
