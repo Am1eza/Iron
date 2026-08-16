@@ -12,7 +12,7 @@ import { buildChatMessages, ensureConversation, persistTurn } from '@/lib/server
 import { getPromptVersions, resolvePromptText } from '@/lib/server/ai/promptVersions';
 import { getDomainFacts } from '@/lib/server/ai/domainFacts';
 import { isBareGreeting, GREETING_REPLY } from '@/lib/server/ai/greeting';
-import { CHIP, PURPOSE_CHIPS } from '@/lib/data/aiTaxonomy';
+import { selectFollowUpChips, PURPOSE_CHIPS } from '@/lib/data/aiTaxonomy';
 import { reportError } from '@/lib/errors/report';
 import { rateLimit } from '@/lib/server/utils/rateLimit';
 import { CONSTANTS } from '@/lib/config/constants';
@@ -96,7 +96,7 @@ function sseGreetingResponse(): Response {
  * CONTINUITY: each request resolves/creates an ai_conversations row, announces
  * its id in a {type:'conversation'} frame, persists the turn, and injects the
  * rolling summary as a SECOND system message (AI_SYSTEM_PROMPT stays the
- * byte-identical first message — it is the DeepSeek cache prefix).
+ * byte-identical first message — it is the relay's prompt-cache prefix).
  * SSE frames: data: {type:'conversation'|'token'|'tool'|'lead'|'chips'|'done'|'error', ...}
  */
 async function POSTImpl(req: NextRequest) {
@@ -236,22 +236,10 @@ async function POSTImpl(req: NextRequest) {
           send({ type: 'token', text: result.text.slice(i, i + 120) });
         }
 
-        // Contextual follow-up chips (AC-D-7) — deterministic, zero model tokens.
-        // The starter chips only make sense when the visitor hasn't already
-        // told us what they want — including via one of the starter chips
-        // itself: without `alreadyAsked`, clicking one echoed the same set
-        // right back under the model's clarifying follow-up, as if the click
-        // had never registered.
+        // Contextual follow-up chips (AC-D-7) — see selectFollowUpChips above.
         const lastUserMessage = [...parsed.data.messages].reverse().find((m) => m.role === 'user')?.content?.trim();
-        const alreadyAsked = lastUserMessage ? (PURPOSE_CHIPS as readonly string[]).includes(lastUserMessage) : false;
-        const chips =
-          toolsUsed.has('estimateProject') || toolsUsed.has('createLead')
-            ? [CHIP.proforma, CHIP.weighTool]
-            : toolsUsed.has('getPrice') || toolsUsed.has('calcWeight')
-              ? [CHIP.proforma, CHIP.allPrices]
-              : parsed.data.messages.filter((m) => m.role === 'user').length <= 1 && !alreadyAsked
-                ? [...PURPOSE_CHIPS]
-                : [];
+        const userMessageCount = parsed.data.messages.filter((m) => m.role === 'user').length;
+        const chips = selectFollowUpChips(toolsUsed, userMessageCount, lastUserMessage);
         if (chips.length > 0) send({ type: 'chips', chips });
 
         // Deterministic id for THIS assistant answer, announced in `done` so the
