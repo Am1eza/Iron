@@ -72,7 +72,20 @@ async function toApiError(res: Response): Promise<ApiError> {
   } catch {
     /* keep the friendly default */
   }
-  return new ApiError(res.status, message, { fields, code, details });
+  return new ApiError(res.status, message, { fields, code, details, retryAfterSeconds: retryAfter(res) });
+}
+
+/** `Retry-After` as whole seconds. Only the delta-seconds form is honoured —
+ *  the HTTP-date form is legal but nothing in this app emits it, and guessing
+ *  at a malformed value would be worse than having no countdown at all. */
+function retryAfter(res: Response): number | undefined {
+  // `res.headers` is guaranteed by the platform but NOT by every hand-rolled
+  // test double of a Response — and a missing countdown must never be what
+  // turns an error response into a thrown TypeError inside the error path.
+  const raw = res.headers?.get('retry-after');
+  if (!raw) return undefined;
+  const secs = Number(raw.trim());
+  return Number.isFinite(secs) && secs >= 0 ? Math.ceil(secs) : undefined;
 }
 
 function buildInit<T>(opts: RequestOptions<T>): RequestInit & { headers: Headers } {
