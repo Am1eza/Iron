@@ -85,9 +85,20 @@
   align-items: flex-start;
   gap: var(--space-1);
 }
+/* No z-index: a real bug (Amir, 2026-08-16, screenshotted) — this bell sits
+   inside a form-less <li>/<span> chain with no stacking context of its own,
+   so "z-index: 1" here was being compared against the price-alert Modal's
+   z-index (--z-modal: 400, a page-level fixed overlay) in some ancestor's
+   shared context, and kept winning regardless of how high the modal's
+   z-index went — verified live: bumping the modal to z-index 999999 did NOT
+   stop three of the five market-board bells from painting on top of the
+   open modal's form fields. Removing this z-index (confirmed live) fixes
+   it outright and loses nothing: bellSlot is position:absolute while .card
+   is position:static, and CSS always paints positioned elements above
+   static ones regardless of z-index — this bell never needed z-index:1 to
+   sit above its own card in the first place. */
 .bellSlot {
   position: absolute;
-  z-index: 1;
   inset-block-start: var(--space-5);
   inset-inline-end: var(--space-5);
 }
