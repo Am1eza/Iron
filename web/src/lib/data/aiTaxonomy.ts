@@ -28,10 +28,19 @@ export const CHIP = {
  * land on a DIFFERENT tool (getPrice / calcWeight / compareFactories /
  * estimateProject) so clicking one is also a first taste of what the
  * advisor can actually do, not just a lead-qualification funnel step.
+ *
+ * The weight-calc chip deliberately asks about میلگرد (rebar), not تیرآهن
+ * (I-beam): calcWeight's ibeam/channel path needs the model to pick
+ * sizeCode over diameterMm (a distinct catalog-lookup parameterization from
+ * the other 7 shapes) and live-tested more than once as unreliable even
+ * after tightening the tool schema/prompt — see the calcWeight-shape-
+ * confusion audit note. رebar's plain d²/162×length path doesn't have that
+ * failure mode, so it's the safer capability to put in front of every new
+ * visitor until ibeam/channel's reliability is separately fixed.
  */
 export const PURPOSE_CHIPS = [
   'قیمت میلگرد امروز چقدره؟',
-  'وزن دقیق یه شاخه تیرآهن ۱۴ رو حساب کن',
+  'وزن دقیق یه شاخه میلگرد ۱۴ به طول ۱۲ متر رو حساب کن',
   '۲۰ تن میلگرد از کدوم کارخونه ارزون‌تره؟',
   'برای یه ساختمان ۱۰۰ متری دو طبقه چقدر آهن لازمه؟',
 ];
