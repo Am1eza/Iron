@@ -1,5 +1,5 @@
 'use client';
-import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, memo, useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { routes } from '@/lib/routes';
 import { api, API_MODE, isApiError } from '@/lib/api';
@@ -190,11 +190,15 @@ export type TurnNotice = {
 };
 
 const NOTICE_TEXT: Record<NoticeKind, string> = {
-  // The relay is down/over budget/timed out. The visitor cannot act on which,
-  // so this says what they CAN see: this answer came from the offline engine.
-  fallback: 'این پاسخ نسخهٔ محلی است؛ دستیار هوشمند در دسترس نبود.',
+  // No answer at all — never a lesser one standing in for the real advisor.
+  // The rule-based local engine used to fill this slot; a visitor arguing
+  // with it, or getting a subtly different bot mid-conversation with zero
+  // warning on the SECOND message onward, is a worse experience than an
+  // honest "try again" (owner decision — the advisor is ONE thing or it
+  // says so, never a quietly swapped-in impostor).
+  fallback: 'دستیار هوشمند موقتاً در دسترس نیست. چند لحظهٔ دیگر دوباره امتحان کن یا با کارشناس تماس بگیر.',
   rate_limited: 'پیام‌ها پشت‌سرهم ارسال شد. کمی صبر کن و دوباره بفرست.',
-  offline: 'اتصال اینترنت قطع بود؛ این پاسخ نسخهٔ محلی است.',
+  offline: 'اتصال اینترنت قطع است. وقتی وصل شدی دوباره امتحان کن.',
   // A genuine mid-stream drop — the partial answer above is REAL model output,
   // so it is kept rather than thrown away and replaced by a lesser one.
   dropped: 'پاسخ ناتمام ماند؛ اتصال وسط دریافت قطع شد.',
@@ -506,8 +510,17 @@ const MessageBubble = memo(function MessageBubble({
         {m.split && <SplitCard answer={m.split} />}
         {m.chips && (
           <div className={styles.chips}>
-            {m.chips.map((c) => (
-              <QuickReply key={c} label={c} onPick={onPick} />
+            {/* CSS `gap` is purely visual — it inserts no character, so
+             *  selecting/copying two adjacent chips (a real thing a visitor
+             *  does with a price answer to paste elsewhere) glued their
+             *  labels together with no space between. A literal space text
+             *  node between chips is copy-visible without changing the
+             *  flex-gap layout at all. */}
+            {m.chips.map((c, i) => (
+              <Fragment key={c}>
+                {i > 0 && ' '}
+                <QuickReply label={c} onPick={onPick} />
+              </Fragment>
             ))}
           </div>
         )}
@@ -551,9 +564,11 @@ export function AdvisorChat({
   const purposeRef = useRef<string | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const started = useRef(false);
-  // Live relay advisor when configured; the local grounded engine remains the
-  // zero-cost fallback — per turn for transient errors, permanently only when the
-  // server says it has no relay at all (503 ai_unconfigured). No dead-ends (AC-D-9).
+  // Live relay advisor when configured. The local grounded engine (aiReply)
+  // stays ONLY as the mock-mode/dev-preview experience — never a production
+  // stand-in for a live failure (owner decision: one advisor, not a real one
+  // that quietly degrades to a lesser impostor with no consistent warning).
+  // A relay failure means an honest "unavailable" notice, not a fake answer.
   const useServer = useRef(API_MODE !== 'mock');
   const transcriptRef = useRef<{ role: 'user' | 'ai'; text: string }[]>([]);
   const busyRef = useRef(false);
@@ -635,6 +650,15 @@ export function AdvisorChat({
         ...msgs.map((msg, i) => (notice && i === msgs.length - 1 ? { ...msg, notice } : msg)),
       ]);
     }, 650);
+  };
+
+  /** A live turn failed and there is no real answer to show — the notice
+   *  IS the whole message (no text/chips/estimate), never a fabricated
+   *  stand-in. Nothing is added to transcriptRef: no real content happened,
+   *  so there is nothing for a later retry to remove or for the model to
+   *  ever see as context. */
+  const pushNotice = (notice: TurnNotice) => {
+    setMessages((m) => [...m, { id: uid(), role: 'ai', notice }]);
   };
 
   const sendLocal = (text: string, notice?: TurnNotice) => {
@@ -834,7 +858,7 @@ export function AdvisorChat({
 
       // A genuine mid-stream drop that already delivered real model output:
       // KEEP it (same reasoning as the user-abort path directly above) rather
-      // than discarding real text and answering with the lesser local engine.
+      // than discarding real text and answering with a fabricated stand-in.
       if (notice.kind === 'dropped') {
         setStreamPreview(null);
         transcriptRef.current.push({ role: 'ai', text: streamedText });
@@ -845,8 +869,9 @@ export function AdvisorChat({
         return;
       }
 
+      // Every other failure kind: no real answer exists, so none is shown.
       if (opened) setStreamPreview(null);
-      sendLocal(text, notice);
+      pushNotice(notice);
     } finally {
       abortRef.current = null;
       busyRef.current = false;
@@ -867,7 +892,14 @@ export function AdvisorChat({
     transcriptRef.current.push({ role: 'user', text });
     setMessages((m) => [...m, { id: uid(), role: 'user', text }]);
     if (useServer.current) void sendLive(text);
-    else sendLocal(text);
+    // Mock mode is the one legitimate use of the local engine — no live
+    // relay exists there at all, by design, not by failure. A permanent
+    // downgrade mid-conversation (503 → useServer switched off above) is a
+    // real failure instead, and gets the same honest notice every OTHER
+    // failure gets — not a fake answer that quietly loses its own warning
+    // label from the second message onward.
+    else if (API_MODE === 'mock') sendLocal(text);
+    else pushNotice({ kind: 'fallback', retryOf: text });
   };
   /**
    * Replay the turn that fell back, live this time. The failed answer is
@@ -879,10 +911,14 @@ export function AdvisorChat({
   const retryTurn = (failed: Msg) => {
     if (busyRef.current || !failed.notice) return;
     const text = failed.notice.retryOf;
-    // Drop the failed answer from the model-visible transcript. It is the last
-    // 'ai' entry, and only ever one entry (pushAi pushes each message's text).
-    const lastAi = transcriptRef.current.map((t) => t.role).lastIndexOf('ai');
-    if (lastAi !== -1) transcriptRef.current.splice(lastAi, 1);
+    // Drop the failed answer from the model-visible transcript — but ONLY
+    // when there was one: a notice-only failure (no real answer, the normal
+    // case now) never touched transcriptRef, so there is nothing to remove;
+    // splicing anyway would delete an unrelated, genuinely real prior turn.
+    if (failed.text) {
+      const lastAi = transcriptRef.current.map((t) => t.role).lastIndexOf('ai');
+      if (lastAi !== -1) transcriptRef.current.splice(lastAi, 1);
+    }
     setMessages((all) => all.filter((m) => m.id !== failed.id));
     // `useServer` may have been switched off permanently by a 503; a retry is
     // an explicit request for the live advisor, so give it one more chance.
@@ -963,9 +999,6 @@ export function AdvisorChat({
         </span>
         <div className={styles.headText}>
           <h1 className={styles.headName}>مشاور هوشمند آهن‌تایم</h1>
-          <p className={styles.headStatus}>
-            <span className={styles.live} /> آنلاین · معمولاً سریع پاسخ می‌دهد
-          </p>
         </div>
         <button type="button" className={styles.newChat} onClick={resetChat}>
           گفتگوی جدید

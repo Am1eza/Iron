@@ -1,12 +1,12 @@
 /**
  * AdvisorChat — what the visitor is told when the LIVE advisor fails.
  *
- * The advisor never dead-ends: a failed turn is still answered by the local
- * grounded engine. What these cover is that the failure is no longer INVISIBLE
- * — every one of these paths used to drop the server's own message on the
- * floor and swap in a local answer with nothing to distinguish it, so a
- * rate-limited visitor and a visitor talking to a healthy relay saw literally
- * the same thing.
+ * Owner decision: the advisor is ONE thing, not a real one that quietly
+ * degrades to a rule-based impostor with no live model behind it. A failed
+ * turn gets an honest "temporarily unavailable" notice and nothing else —
+ * never a fabricated answer standing in for the real one. The one exception
+ * is a genuine mid-stream drop: that partial text is REAL model output, so
+ * it is kept rather than discarded.
  *
  * Frame timing note (measured against the live relay, not assumed): the server
  * buffers the whole answer for grounding validation and then emits it in one
@@ -19,8 +19,6 @@ import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AdvisorChat } from './AdvisorChat';
 import { ApiError } from '@/lib/api/errors';
-import { getRows } from '@/lib/mock/catalogData';
-import { formatToman } from '@/lib/utils/format';
 
 // Only the three bindings AdvisorChat actually consumes — mocked explicitly
 // rather than spread over the real module, so pulling in `@/lib/api` (and its
@@ -74,7 +72,7 @@ const setOnline = (v: boolean) => {
   Object.defineProperty(navigator, 'onLine', { value: v, configurable: true });
 };
 
-describe('AdvisorChat — live-turn failure is visible, not silent', () => {
+describe('AdvisorChat — live-turn failure is visible, and never a fabricated answer', () => {
   beforeEach(() => {
     localStorage.clear();
     chatStream.mockReset();
@@ -92,16 +90,22 @@ describe('AdvisorChat — live-turn failure is visible, not silent', () => {
     return user;
   };
 
-  it('labels the reply when the relay is unavailable, instead of passing a local answer off as the advisor', async () => {
+  it('shows an honest unavailable notice when the relay fails — no fabricated answer stands in for it', async () => {
     chatStream.mockResolvedValue(
       sseResponse([{ type: 'error', message: 'دستیار هوشمند موقتاً در دسترس نیست.' }]),
     );
     await ask();
-    expect(await screen.findByText(/این پاسخ نسخهٔ محلی است/, {}, { timeout: 3000 })).toBeInTheDocument();
+    expect(
+      await screen.findByText(/دستیار هوشمند موقتاً در دسترس نیست/, {}, { timeout: 3000 }),
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /تلاش دوباره/ })).toBeEnabled();
+    // The old rule-based engine used to answer "میلگرد ۱۶" questions with a
+    // clarifying prompt of its own — that text must never appear now, since
+    // no local engine runs on this path at all anymore.
+    expect(screen.queryByText(/قیمت کدام محصول را می‌خواهی/)).not.toBeInTheDocument();
   });
 
-  it('distinguishes a rate limit and counts down the server-stated wait', async () => {
+  it('distinguishes a rate limit and counts down the server-stated wait — still no fabricated answer', async () => {
     chatStream.mockRejectedValue(
       new ApiError(429, 'درخواست‌ها بیش از حد است. کمی بعد دوباره تلاش کنید.', {
         code: 'rate_limited',
@@ -112,9 +116,10 @@ describe('AdvisorChat — live-turn failure is visible, not silent', () => {
     expect(await screen.findByText(/پیام‌ها پشت‌سرهم ارسال شد/, {}, { timeout: 3000 })).toBeInTheDocument();
     // Waiting is what fixes THIS one, so retry stays disabled until it can work.
     expect(screen.getByRole('button', { name: /تلاش دوباره/ })).toBeDisabled();
+    expect(screen.queryByText(/قیمت کدام محصول را می‌خواهی/)).not.toBeInTheDocument();
   });
 
-  it('keeps real partial output when the connection drops mid-stream, rather than replacing it with a local answer', async () => {
+  it('keeps real partial output when the connection drops mid-stream — this IS real model text, so it is kept', async () => {
     chatStream.mockResolvedValue(
       droppedMidStream([
         { type: 'conversation', id: 'c1' },
@@ -123,14 +128,11 @@ describe('AdvisorChat — live-turn failure is visible, not silent', () => {
     );
     await ask();
     expect(await screen.findByText(/پاسخ ناتمام ماند/, {}, { timeout: 3000 })).toBeInTheDocument();
-    // The real model text survives...
     expect(screen.getByText(/قیمت میلگرد ۱۶ امروز/)).toBeInTheDocument();
-    // ...and the lesser local engine did NOT overwrite it.
-    expect(screen.queryByText(/قیمت کدام محصول را می‌خواهی/)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /تلاش دوباره/ })).toHaveTextContent('ادامه بده');
   });
 
-  it('retries the failed turn live and replaces the fallback answer rather than stacking a second one', async () => {
+  it('retries the failed turn live and replaces the notice with the real answer, not stacking a second one', async () => {
     chatStream
       .mockResolvedValueOnce(sseResponse([{ type: 'error', message: 'موقتاً در دسترس نیست.' }]))
       .mockResolvedValueOnce(
@@ -143,13 +145,13 @@ describe('AdvisorChat — live-turn failure is visible, not silent', () => {
     const retry = await screen.findByRole('button', { name: /تلاش دوباره/ }, { timeout: 3000 });
     await user.click(retry);
 
-    // The price now renders as its own highlighted <strong> (ChatMarkdown's
+    // The price renders as its own highlighted <strong> (ChatMarkdown's
     // price-run emphasis), so it and the rest of the sentence are separate
     // text nodes — checked separately rather than as one merged string.
     expect(await screen.findByText('۳۴٬۸۵۰ تومان', {}, { timeout: 3000 })).toBeInTheDocument();
     expect(screen.getByText(/بر کیلوگرم است/)).toBeInTheDocument();
-    // The notice, and the answer it hung under, are gone — not duplicated.
-    await waitFor(() => expect(screen.queryByText(/این پاسخ نسخهٔ محلی است/)).not.toBeInTheDocument());
+    // The notice is gone — not left stacked above the real answer.
+    await waitFor(() => expect(screen.queryByText(/موقتاً در دسترس نیست/)).not.toBeInTheDocument());
     // The user's own message is untouched.
     expect(screen.getByText('قیمت میلگرد ۱۶ چند است؟')).toBeInTheDocument();
   });
@@ -201,19 +203,40 @@ describe('AdvisorChat — live-turn failure is visible, not silent', () => {
     expect(screen.queryByText(/اتصال اینترنت قطع است/)).not.toBeInTheDocument();
   });
 
-  it('answers a named factory+size ask with a real priced answer during an outage, not the generic "which product?" prompt', async () => {
-    chatStream.mockResolvedValue(
-      sseResponse([{ type: 'error', message: 'دستیار هوشمند موقتاً در دسترس نیست.' }]),
+  it('keeps showing the honest notice on a SECOND message too after a permanent downgrade — never silently switches to a fake answer', async () => {
+    // A 503 (ai_unconfigured) permanently switches useServer off — the bug
+    // this covers: every send() after that used to call the local engine
+    // directly with no notice attached at all, so message #2 in the same
+    // session looked like a completely normal, unlabeled answer.
+    chatStream.mockRejectedValue(
+      new ApiError(503, 'دستیار هوشمند در دسترس نیست.', { code: 'ai_unconfigured' }),
     );
-    // Pulled from the same mock catalog the fallback engine itself reads —
-    // guaranteed to be a real, resolvable factory+size row, not a guess.
-    const row = getRows('rebar')[0]!;
-    const priceText = formatToman(row.current.price);
-    await ask(`میلگرد ${row.size} ${row.factory} چنده؟`);
-    expect(await screen.findByText(/این پاسخ نسخهٔ محلی است/, {}, { timeout: 3000 })).toBeInTheDocument();
-    expect(
-      await screen.findByText((content) => content.includes(priceText), {}, { timeout: 3000 }),
-    ).toBeInTheDocument();
+    const user = await ask('قیمت میلگرد ۱۶ چند است؟');
+    await screen.findByText(/دستیار هوشمند موقتاً در دسترس نیست/, {}, { timeout: 3000 });
+
+    const input = screen.getByLabelText('پیام به مشاور هوشمند');
+    await user.type(input, 'قیمت تیرآهن چند است؟{Enter}');
+
+    const notices = await screen.findAllByText(/دستیار هوشمند موقتاً در دسترس نیست/, {}, { timeout: 3000 });
+    expect(notices.length).toBe(2);
     expect(screen.queryByText(/قیمت کدام محصول را می‌خواهی/)).not.toBeInTheDocument();
+  });
+
+  it('separates adjacent quick-reply chips with a real, copyable space — not just CSS gap', async () => {
+    chatStream.mockResolvedValue(
+      sseResponse([
+        { type: 'token', text: 'وزن یک شاخه ۱۵۴.۸ کیلوگرم می‌شود.' },
+        { type: 'chips', chips: ['دریافت پیش‌فاکتور', 'همهٔ قیمت‌ها'] },
+        { type: 'done', messageId: 'm1' },
+      ]),
+    );
+    await ask('وزن تیرآهن ۱۴ دوازده متری چقدره؟');
+    const first = await screen.findByRole('button', { name: 'دریافت پیش‌فاکتور' }, { timeout: 3000 });
+    const second = screen.getByRole('link', { name: 'همهٔ قیمت‌ها' });
+    // Both chips share one flex row (`.chips`); the space text node between
+    // them is a sibling of both, not a property of either — reading the
+    // row's own textContent is what a copy/paste selection would produce.
+    expect(first.parentElement).toBe(second.parentElement);
+    expect(first.parentElement!.textContent).toBe('دریافت پیش‌فاکتور همهٔ قیمت‌ها');
   });
 });
