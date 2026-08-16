@@ -43,7 +43,8 @@ export function PriceChart({
   const max = Math.max(...data);
   const span = Math.max(1, max - min);
   const stepX = (w - pad * 2) / Math.max(1, data.length - 1);
-  const y = (val: number) => h - pad - ((val - min) / span) * (h - pad * 2);
+  const y = (val: number) =>
+    max === min ? h / 2 : h - pad - ((val - min) / span) * (h - pad * 2);
   // RTL: newest on the LEFT → reverse x so time reads right→left.
   const x = (i: number) => w - pad - i * stepX;
 
@@ -56,6 +57,14 @@ export function PriceChart({
   // jagged line rather than a fill that hugs it.
   const area = `${line} L ${x(data.length - 1).toFixed(1)} ${h - pad} L ${x(0).toFixed(1)} ${h - pad} Z`;
 
+  // Unit-aware value formatting: formatToman() rounds and always appends
+  // «تومان», which is wrong for the انس جهانی ticker (unit دلار, and it
+  // carries a decimal). Toman values stay integer-rounded; a non-Toman
+  // unit keeps up to one decimal and its own unit label.
+  const fmtVal = (v: number) =>
+    unit === 'تومان'
+      ? formatToman(v, false)
+      : toPersianDigits(v.toLocaleString('en-US', { maximumFractionDigits: 1 })).replace(/,/g, '٬');
   const first = data[0]!;
   const last = data[data.length - 1]!;
   const up = last >= first;
@@ -71,14 +80,14 @@ export function PriceChart({
   };
   // Build text as single strings — interleaved text/expression nodes inside an
   // SVG <title> can hydrate-mismatch, so we render one text node per element.
-  const titleText = `نمودار قیمت در ${rangeLabel}؛ از ${formatToman(first)} به ${formatToman(last)}`;
+  const titleText = `نمودار قیمت در ${rangeLabel}؛ از ${fmtVal(first)} ${unit} به ${fmtVal(last)} ${unit}`;
   const deltaText = `${up ? '▲' : '▼'} ${toPersianDigits(Math.abs(Number(pct)).toString())}٪`;
 
   return (
     <div className={styles.wrap}>
       <div className={styles.headRow}>
         <div className={styles.now}>
-          <span className={`${styles.nowVal} tnum`}>{formatToman(last, false)}</span>
+          <span className={`${styles.nowVal} tnum`}>{fmtVal(last)}</span>
           <span className={styles.nowUnit}>{unit}</span>
           <span className={`${styles.delta} ${up ? styles.up : styles.down} tnum`}>{deltaText}</span>
           {/* the daily movement badge elsewhere on the page uses the same up/down
@@ -122,9 +131,9 @@ export function PriceChart({
       </svg>
 
       <div className={styles.axis}>
-        <span>{formatToman(min, false)}</span>
+        <span>{fmtVal(min)}</span>
         <span>کمینه / بیشینه</span>
-        <span>{formatToman(max, false)}</span>
+        <span>{fmtVal(max)}</span>
       </div>
 
       {/* Text/table alternative to the SVG (WCAG 1.1.1) — the trend summary in
@@ -145,7 +154,7 @@ export function PriceChart({
               {data.map((v, i) => (
                 <tr key={i}>
                   <td>{dateData?.[i] ? formatJalali(new Date(dateData[i]!)) : formatJalali(dateFor(i))}</td>
-                  <td>{formatToman(v)}</td>
+                  <td>{`${fmtVal(v)} ${unit}`}</td>
                 </tr>
               ))}
             </tbody>
