@@ -17,10 +17,24 @@ const RANGES: { v: Range; label: string }[] = [
  * visually-hidden summary + table fallback. Gain/loss tinted by net change.
  * No dependency; the path is built from the (deterministic) series.
  */
-export function PriceChart({ series, unit = 'تومان' }: { series: number[]; unit?: string }) {
+export function PriceChart({
+  series,
+  dates,
+  unit = 'تومان',
+}: {
+  series: number[];
+  /** Real ISO timestamp per point, aligned with `series`. When present the
+   *  data-table uses these instead of reconstructing dates by assuming one
+   *  consecutive day per index — which is wrong for a daily series that skips
+   *  non-trading days (the market board's case). Omitted by the SKU/catalog
+   *  callers, which fall back to the reconstruction. */
+  dates?: string[];
+  unit?: string;
+}) {
   const [range, setRange] = useState<Range>(30);
   const id = useId();
   const data = useMemo(() => series.slice(-range), [series, range]);
+  const dateData = useMemo(() => dates?.slice(-range), [dates, range]);
 
   const w = 640;
   const h = 220;
@@ -130,7 +144,7 @@ export function PriceChart({ series, unit = 'تومان' }: { series: number[]; 
             <tbody>
               {data.map((v, i) => (
                 <tr key={i}>
-                  <td>{formatJalali(dateFor(i))}</td>
+                  <td>{dateData?.[i] ? formatJalali(new Date(dateData[i]!)) : formatJalali(dateFor(i))}</td>
                   <td>{formatToman(v)}</td>
                 </tr>
               ))}

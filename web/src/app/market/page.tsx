@@ -40,30 +40,19 @@ const crumbs = [{ label: 'خانه', href: routes.home() }, { label: 'طلا، �
 const RELATED_ARTICLE_SLUG = 'عوامل-موثر-بر-قیمت-ورق-فولادی';
 
 /**
- * A dated snapshot from آهن‌تایم's own board, not a claim of live-ness — the
- * live ticker above already owns "right now". Bump the date alongside the
- * numbers if this table is ever refreshed — an undated "current price" in
- * static page copy is exactly the kind of claim that quietly goes stale.
- *
- * شمش فولاد is deliberately NOT a row here: its board value is still a
- * pre-launch placeholder (not yet a real entered rate — confirmed 2026-08-14),
- * so it has no honest number to publish as a fact. The other four are real,
- * independently verified against their own live sources the same day.
+ * The ROLE each market variable plays in the finished-آهن price — timeless
+ * explanatory content, deliberately NOT dated price numbers. Live rates live
+ * in the board above (نبض بازار); this table exists so the *why* is
+ * self-contained and extractable, and can never quietly go stale or drift
+ * away from the live board. شمش فولاد is included now that it carries a real
+ * entered rate (2026-08-16), as the most direct driver of میلگرد/تیرآهن.
  */
-const SNAPSHOT_DATE = '۲۳ مرداد ۱۴۰۵';
-const SNAPSHOT_ROWS = [
-  { label: 'دلار', role: 'هزینهٔ دلاریِ سنگ‌آهن و قراضهٔ وارداتی', value: '۱۸۷٬۸۰۰ تومان' },
-  {
-    label: 'یورو',
-    role: 'اثر غیرمستقیم، عمدتاً ماشین‌آلات و مواد اولیهٔ اروپایی',
-    value: '۲۱۶٬۷۶۰ تومان',
-  },
-  {
-    label: 'طلای ۱۸ عیار',
-    role: 'بازتاب داخلیِ قیمت جهانی طلا و نرخ دلار',
-    value: '۱۹٬۲۰۵٬۶۰۰ تومان',
-  },
-  { label: 'انس جهانی طلا', role: 'شاخص ریسک‌گریزی اقتصاد جهانی', value: '۴٬۳۷۸ دلار' },
+const ROLE_ROWS = [
+  { label: 'دلار', role: 'هزینهٔ دلاریِ سنگ‌آهن و قراضهٔ وارداتیِ کارخانه‌ها' },
+  { label: 'یورو', role: 'اثر غیرمستقیم، عمدتاً ماشین‌آلات و مواد اولیهٔ اروپایی' },
+  { label: 'طلای ۱۸ عیار', role: 'بازتاب داخلیِ قیمت جهانی طلا و نرخ دلار' },
+  { label: 'انس جهانی طلا', role: 'شاخص ریسک‌گریزی و تورم در اقتصاد جهانی' },
+  { label: 'شمش فولاد', role: 'مادهٔ اولیهٔ اصلی و مستقیم‌ترین محرک قیمت میلگرد و تیرآهن' },
 ];
 
 const FAQ_ITEMS = [
@@ -158,31 +147,25 @@ export default async function MarketPage() {
                 <div className={styles.tableScroll}>
                   <table className={styles.table}>
                     <caption className={styles.tableCaption}>
-                      نرخ چهار متغیری که قیمت آهن را جابه‌جا می‌کنند، در {SNAPSHOT_DATE} (برای نرخ
-                      زندهٔ همین لحظه، تابلوی بالای همین صفحه را ببینید)
+                      نقش هر متغیر در قیمت آهن‌آلات (نرخ زندهٔ همین لحظه را در تابلوی بالای همین صفحه
+                      ببینید)
                     </caption>
                     <thead>
                       <tr>
                         <th scope="col">متغیر</th>
                         <th scope="col">نقش در قیمت آهن</th>
-                        <th scope="col">نرخ در {SNAPSHOT_DATE}</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {SNAPSHOT_ROWS.map((row) => (
+                      {ROLE_ROWS.map((row) => (
                         <tr key={row.label}>
                           <th scope="row">{row.label}</th>
                           <td>{row.role}</td>
-                          <td className="tnum">{row.value}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
-                <Text color="muted" variant="body-sm">
-                  طبق روند بازار آزاد ارز، نرخ دلار در یک ماه اخیر حدود ۲٪ و در یک سال اخیر حدود
-                  ۱۰۰٪ رشد داشته است.
-                </Text>
               </Stack>
             </Card>
           </section>
