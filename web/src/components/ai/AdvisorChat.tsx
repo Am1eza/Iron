@@ -74,12 +74,15 @@ function normalizeSizeToken(raw: string): string {
 
 /** Every size-shaped substring the text could contain, most specific first
  *  (dimension pairs and inch fractions before a bare number) — tried in order
- *  against the category's real size set so «۴۰×۴۰» isn't reduced to «۴۰». */
+ *  against the category's real size set so «۴۰×۴۰» isn't reduced to «۴۰».
+ *  `t` arrives ALREADY digit-normalized (aiReply's `normalizeDigits(text)`
+ *  runs before this is ever called) — Latin digits only, hence [0-9] here,
+ *  not the Persian range the mock catalog's own SIZES table is written in. */
 function extractSizeCandidates(t: string): string[] {
   const out: string[] = [];
-  for (const m of t.matchAll(/[۰-۹]+\s*[×xX*]\s*[۰-۹]+/g)) out.push(normalizeSizeToken(m[0]));
-  for (const m of t.matchAll(/[۰-۹]+(?:\/[۰-۹]+)?\s*اینچ/g)) out.push(m[0].replace(/\s+/g, ' ').trim());
-  for (const m of t.matchAll(/[۰-۹]+(?:\.[۰-۹]+)?/g)) out.push(m[0]);
+  for (const m of t.matchAll(/[0-9]+\s*[×xX*]\s*[0-9]+/g)) out.push(normalizeSizeToken(m[0]));
+  for (const m of t.matchAll(/[0-9]+(?:\/[0-9]+)?\s*اینچ/g)) out.push(m[0].replace(/\s+/g, ' ').trim());
+  for (const m of t.matchAll(/[0-9]+(?:\.[0-9]+)?/g)) out.push(m[0]);
   return out;
 }
 
@@ -98,10 +101,13 @@ function detectSpecificSku(t: string): PriceRow | null {
   const rows = getRows(cat.slug);
   const factory = rows.find((r) => r.factory && t.includes(r.factory))?.factory;
   if (!factory) return null;
-  const sizeSet = new Set(rows.map((r) => r.size).filter((s): s is string => Boolean(s)));
-  const size = extractSizeCandidates(t).find((c) => sizeSet.has(c));
+  // Rows carry Persian-digit sizes («۱۴») straight from SIZES — normalize
+  // to compare against the already-Latin-digit `t`.
+  const sizeOf = new Map(rows.map((r) => [r, r.size ? normalizeDigits(r.size) : null] as const));
+  const candidates = extractSizeCandidates(t);
+  const size = candidates.find((c) => [...sizeOf.values()].includes(c));
   if (!size) return null;
-  const matches = rows.filter((r) => r.factory === factory && r.size === size);
+  const matches = rows.filter((r) => r.factory === factory && sizeOf.get(r) === size);
   return matches.length === 1 ? matches[0]! : null;
 }
 

@@ -19,6 +19,8 @@ import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AdvisorChat } from './AdvisorChat';
 import { ApiError } from '@/lib/api/errors';
+import { getRows } from '@/lib/mock/catalogData';
+import { formatToman } from '@/lib/utils/format';
 
 // Only the three bindings AdvisorChat actually consumes — mocked explicitly
 // rather than spread over the real module, so pulling in `@/lib/api` (and its
@@ -193,5 +195,21 @@ describe('AdvisorChat — live-turn failure is visible, not silent', () => {
     });
     await waitFor(() => expect(input).toBeEnabled());
     expect(screen.queryByText(/اتصال اینترنت قطع است/)).not.toBeInTheDocument();
+  });
+
+  it('answers a named factory+size ask with a real priced answer during an outage, not the generic "which product?" prompt', async () => {
+    chatStream.mockResolvedValue(
+      sseResponse([{ type: 'error', message: 'دستیار هوشمند موقتاً در دسترس نیست.' }]),
+    );
+    // Pulled from the same mock catalog the fallback engine itself reads —
+    // guaranteed to be a real, resolvable factory+size row, not a guess.
+    const row = getRows('rebar')[0]!;
+    const priceText = formatToman(row.current.price);
+    await ask(`میلگرد ${row.size} ${row.factory} چنده؟`);
+    expect(await screen.findByText(/این پاسخ نسخهٔ محلی است/, {}, { timeout: 3000 })).toBeInTheDocument();
+    expect(
+      await screen.findByText((content) => content.includes(priceText), {}, { timeout: 3000 }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/قیمت کدام محصول را می‌خواهی/)).not.toBeInTheDocument();
   });
 });
