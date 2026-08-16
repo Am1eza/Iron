@@ -139,7 +139,22 @@
   border-end-end-radius: var(--radius-xs);
 }
 
-/* typing dots */
+/* typing dots + the "what am I doing" label they sit next to */
+.typingRow {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+.progressText {
+  font: var(--t-body-sm);
+  color: var(--color-text-muted);
+}
+/* "still working" reassurance, under the tool label rather than replacing it. */
+.progressSlow {
+  display: block;
+  font: var(--t-micro);
+  color: var(--color-text-placeholder);
+}
 .typing {
   display: inline-flex;
   gap: 4px;
@@ -450,6 +465,65 @@
 .feedbackThanks {
   font: var(--t-micro);
   color: var(--color-text-muted);
+}
+
+/* ===== Turn notice — "this answer didn't come from the live advisor" =====
+   Deliberately quiet. No red: the visitor DID get an answer, and per the
+   design system red/green are reserved for DATA, never for chrome. Reads as a
+   footnote to the reply it hangs under, not as an alert above it. */
+.notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-block-start: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-sunken);
+}
+.noticeText {
+  font: var(--t-micro);
+  color: var(--color-text-muted);
+}
+.noticeRetry {
+  margin-inline-start: auto;
+  flex: none;
+  padding: 2px var(--space-3);
+  border: var(--border-hairline) solid var(--color-accent-tint);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-accent-text);
+  font: var(--t-micro);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background var(--dur-fast) var(--ease-standard),
+    border-color var(--dur-fast) var(--ease-standard);
+}
+.noticeRetry:hover:not(:disabled) {
+  background: var(--color-accent-tint);
+  border-color: var(--color-accent);
+}
+.noticeRetry:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* Offline notice — sits directly above the composer it disables. */
+.offlineBar {
+  padding: var(--space-2) var(--space-4);
+  border-block-start: var(--border-hairline) solid var(--color-hairline);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+  font: var(--t-body-sm);
+  text-align: center;
+}
+
+.send:disabled,
+.input:disabled {
+  opacity: 0.55;
+  cursor: default;
 }
 
 /* "New chat" reset — pushed to the header's inline-end. */
