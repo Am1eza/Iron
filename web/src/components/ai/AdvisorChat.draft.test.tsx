@@ -115,7 +115,7 @@ describe('AdvisorChat — proforma confirmation card', () => {
       mobile: '09121234567',
       role: 'customer',
     });
-    confirmLead.mockRejectedValue(new ApiError(410, 'این خلاصه منقضی شده؛ دوباره از مشاور پیش‌فاکتور بخواهید.'));
+    confirmLead.mockRejectedValue(new ApiError(410, 'این خلاصه منقضی شده؛ دوباره از مشاور پیش‌فاکتور بخواه.'));
 
     const user = await askForProforma();
     await user.click(
