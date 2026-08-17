@@ -36,7 +36,9 @@ describe('runAdvisorPipeline — truncated finish_reason continuation (US-27.5)'
       stream,
     });
     expect(call).toBe(2);
-    expect(result.text).toBe('برای انتخاب محصول مناسب، اول باید بدانم برای چه کاری آهن لازم دارید.');
+    // «دارید» → «داری» on the way out: the register safety net runs on the
+    // stitched text, so this also pins that the two features compose.
+    expect(result.text).toBe('برای انتخاب محصول مناسب، اول باید بدانم برای چه کاری آهن لازم داری.');
   });
 
   it('never continues more than once even if the continuation itself is also truncated', async () => {
@@ -131,5 +133,24 @@ describe('runAdvisorPipeline — a leaked scratchpad never reaches the visitor',
     });
     expect(call).toBe(1);
     expect(result.text).toContain('خاموت');
+  });
+});
+
+describe('runAdvisorPipeline — the register safety net runs on the final text', () => {
+  it('rewrites a formal answer the model produced anyway', async () => {
+    const stream: StreamCompletionFn = async function* () {
+      yield { type: 'token', text: 'اگر عجله دارید، می‌توانید همین حالا ثبت کنید.' };
+      yield { type: 'done' };
+    };
+    const result = await runAdvisorPipeline({
+      messages: baseMessages(),
+      userNumbers: new Set(),
+      session: null,
+      stream,
+    });
+    // The two mechanical forms convert; the imperative «ثبت کنید» is left to
+    // the prompt on purpose (see informalVoice.ts).
+    expect(result.text).toContain('اگر عجله داری، می‌توانی');
+    expect(result.text).toContain('ثبت کنید');
   });
 });
