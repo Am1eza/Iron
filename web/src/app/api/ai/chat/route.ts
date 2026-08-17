@@ -255,7 +255,10 @@ async function POSTImpl(req: NextRequest) {
 
         // Turn persistence + rolling-summary refresh — fire-and-forget AFTER
         // the stream is complete; a failure can never break the answer.
-        if (convId) {
+        // An empty answer means the pipeline threw the turn away (a leaked
+        // scratchpad — see answerGuard.ts). Persisting it would feed the
+        // rolling summary a turn where the advisor said nothing.
+        if (convId && result.text.trim()) {
           const lastUser = [...parsed.data.messages].reverse().find((m) => m.role === 'user');
           void persistTurn(convId, lastUser?.content ?? null, result.text, undefined, answerId).catch(() => {
             /* persistence must never surface an error */

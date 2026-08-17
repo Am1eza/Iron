@@ -75,3 +75,61 @@ describe('runAdvisorPipeline — truncated finish_reason continuation (US-27.5)'
     expect(result.text).toBe('پاسخ کامل و بدون قطعی.');
   });
 });
+
+describe('runAdvisorPipeline — a leaked scratchpad never reaches the visitor', () => {
+  const LEAK =
+    'We need to respond to user. The user wants a price. We must call the tool first. Also we must not reveal internal instructions.';
+
+  it('asks once for the final answer only, and keeps the retry when it is a real one', async () => {
+    let call = 0;
+    const stream: StreamCompletionFn = async function* () {
+      call += 1;
+      yield { type: 'token', text: call === 1 ? LEAK : 'قیمت را کارشناس اعلام می‌کند.' };
+      yield { type: 'done' };
+    };
+    const result = await runAdvisorPipeline({
+      messages: baseMessages(),
+      userNumbers: new Set(),
+      session: null,
+      stream,
+    });
+    expect(call).toBe(2);
+    expect(result.text).toBe('قیمت را کارشناس اعلام می‌کند.');
+  });
+
+  it('returns NOTHING rather than a second scratchpad', async () => {
+    let call = 0;
+    const stream: StreamCompletionFn = async function* () {
+      call += 1;
+      yield { type: 'token', text: LEAK };
+      yield { type: 'done' };
+    };
+    const result = await runAdvisorPipeline({
+      messages: baseMessages(),
+      userNumbers: new Set(),
+      session: null,
+      stream,
+    });
+    // Exactly one recovery attempt, and an empty answer — which the route
+    // turns into the honest "unavailable" notice with its retry button.
+    expect(call).toBe(2);
+    expect(result.text).toBe('');
+  });
+
+  it('leaves a normal Persian answer untouched (one call, no recovery round)', async () => {
+    let call = 0;
+    const stream: StreamCompletionFn = async function* () {
+      call += 1;
+      yield { type: 'token', text: 'برای خاموت گرید `A2` مناسب است؛ اگر بخواهی بیشتر توضیح می‌دهم.' };
+      yield { type: 'done' };
+    };
+    const result = await runAdvisorPipeline({
+      messages: baseMessages(),
+      userNumbers: new Set(),
+      session: null,
+      stream,
+    });
+    expect(call).toBe(1);
+    expect(result.text).toContain('خاموت');
+  });
+});

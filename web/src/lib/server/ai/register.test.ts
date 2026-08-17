@@ -46,20 +46,36 @@ describe('the advisor speaks in one register (تو), everywhere it speaks', () =
 });
 
 describe('AI_VOICE_REMINDER — the same rule, last, next to the conversation', () => {
-  it('lists the substitutions rather than restating the principle', () => {
-    for (const pair of ['«شما» بنویس «تو»', '«کنید» بنویس «کن»', '«بفرمایید» بنویس «بگو»'])
-      expect(AI_VOICE_REMINDER).toContain(pair);
+  it('shows the right and wrong forms side by side, rather than restating the principle', () => {
+    for (const right of ['تو', 'می‌خواهی', 'بگو', 'را', 'می‌کند', 'به تو'])
+      expect(AI_VOICE_REMINDER.split('نادرست')[0]).toContain(right);
+    for (const wrong of ['شما', 'می‌خواهید', 'بفرمایید', 'رو', 'می‌کنه', 'بهت'])
+      expect(AI_VOICE_REMINDER.split('نادرست')[1]).toContain(wrong);
   });
 
   it('covers the two situations that actually produced the slip', () => {
     // The closing CTA, and a formal user (or the model's own earlier formal
     // answer) sitting in the thread.
     expect(AI_VOICE_REMINDER).toContain('جملهٔ آخر');
-    expect(AI_VOICE_REMINDER).toContain('اگر کاربر رسمی نوشت');
+    expect(AI_VOICE_REMINDER).toContain('حتی اگر کاربر رسمی نوشته باشد');
+  });
+
+  it('asks for written تو, not spoken تو', () => {
+    // The first live run after the reminder shipped swung the other way:
+    // «رو», «می‌کنه», «اگه», «بهت» — تو, but spoken.
+    expect(AI_VOICE_REMINDER).toContain('نوشتاری');
+  });
+
+  it('tells the model not to narrate the rule it is following', () => {
+    // The leak that reached production was 60 lines of the model weighing
+    // THIS reminder out loud, in English, in the chat bubble.
+    expect(AI_VOICE_REMINDER).toContain('دربارهٔ خودِ این قاعده توضیح نده');
   });
 
   it('stays short — a reminder, not a second rulebook', () => {
-    expect(AI_VOICE_REMINDER.length).toBeLessThan(500);
+    // Length is not cosmetic here: the longer this got, the more of it the
+    // model deliberated about in front of the customer.
+    expect(AI_VOICE_REMINDER.length).toBeLessThan(450);
   });
 });
 
@@ -89,6 +105,15 @@ describe('AI_SYSTEM_PROMPT — the تو rule the model is held to', () => {
     expect(AI_SYSTEM_PROMPT).toContain('صمیمیِ حرفه‌ای');
     for (const word of ['داداش', 'عزیزم', 'جانم']) expect(AI_SYSTEM_PROMPT).toContain(word);
     expect(AI_SYSTEM_PROMPT).toContain('شکسته‌نویسی');
+    // Named forms, not just the category: «شکسته‌نویسی» alone did not stop
+    // «شهر تحویل رو بگو … کارشناس بهت اعلام می‌کنه» from shipping live.
+    for (const spoken of ['«رو» به‌جای «را»', '«می‌کنه» به‌جای «می‌کند»', '«بهت» به‌جای «به تو»'])
+      expect(AI_SYSTEM_PROMPT).toContain(spoken);
+  });
+
+  it('forbids narrating the reasoning at all (rule 23)', () => {
+    expect(AI_SYSTEM_PROMPT).toContain('فقط متن نهاییِ پاسخ را بنویس');
+    expect(AI_SYSTEM_PROMPT).toContain('هرگز فرایند فکر کردن');
   });
 
   // A live check against the deployed prompt showed the model honouring تو in
