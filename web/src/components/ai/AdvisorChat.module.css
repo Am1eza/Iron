@@ -453,28 +453,51 @@ button.estCta:disabled {
   gap: var(--space-2);
   margin-block-start: var(--space-2);
 }
+/* 32px box with a 44px hit area (::before) — the glyph stays a quiet footnote
+   under the answer while the tap target matches every other control in this
+   component (.send/.mic/.input are all 48px). The old 31×29px box was the
+   smallest thing on the page and the hardest to hit on a phone. */
 .feedbackBtn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 32px;
+  block-size: 32px;
   border: var(--border-hairline) solid var(--color-hairline);
   background: var(--color-surface);
   border-radius: var(--radius-pill);
-  padding: 2px 10px;
-  font-size: 0.95rem;
-  line-height: 1.5;
+  padding: 0;
+  color: var(--color-text-muted);
   cursor: pointer;
-  opacity: 0.65;
   transition:
-    opacity var(--dur-fast) var(--ease-standard),
+    color var(--dur-fast) var(--ease-standard),
+    background var(--dur-fast) var(--ease-standard),
     border-color var(--dur-fast) var(--ease-standard);
 }
+.feedbackBtn::before {
+  content: '';
+  position: absolute;
+  inset-block: -6px;
+  inset-inline: -6px;
+}
 .feedbackBtn:hover:not(:disabled) {
-  opacity: 1;
+  color: var(--color-accent-text);
+  border-color: var(--color-accent);
+  background: var(--color-accent-tint);
 }
 .feedbackBtn[data-active] {
-  opacity: 1;
+  color: var(--color-accent-text);
   border-color: var(--color-accent);
+  background: var(--color-accent-tint);
 }
+/* Once a choice is made both are disabled; fading only the UNCHOSEN one keeps
+   which way the visitor voted legible. */
 .feedbackBtn:disabled {
   cursor: default;
+}
+.feedbackBtn:disabled:not([data-active]) {
+  opacity: 0.45;
 }
 .feedbackThanks {
   font: var(--t-micro);
