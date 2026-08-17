@@ -60,13 +60,21 @@ export function SiteChromeBottom({ categories, contact }: { categories: Category
   // dropping a second, redundant call CTA there fixes the collision at its
   // root instead of nudging z-index/offsets against a composer this widget
   // has no knowledge of.
-  const hideCallback = pathname?.startsWith('/ai');
+  // The club promo lands in that same bottom corner and has the same problem,
+  // only worse: it fires on a 12s timer — almost exactly the advisor's own
+  // slow-answer threshold (SLOW_HINT_MS) — so it reliably appears WHILE the
+  // visitor is waiting for a price, and covers the answer as it arrives. At
+  // 375px it covers the composer, the send button and the bottom third of the
+  // conversation outright, so the page cannot be used until the × is found.
+  // A promo interrupting the one page that is itself the conversation is the
+  // same redundancy the callback FAB was removed for.
+  const onAdvisor = pathname?.startsWith('/ai');
   return (
     <>
       <Footer categories={categories} contact={contact} />
       <BottomTabBar />
-      <ArrivalPopup />
-      {!hideCallback && <CallbackWidget phoneLandline={contact.phoneLandline} />}
+      {!onAdvisor && <ArrivalPopup />}
+      {!onAdvisor && <CallbackWidget phoneLandline={contact.phoneLandline} />}
     </>
   );
 }
