@@ -1,3 +1,11 @@
+/* The header is ALWAYS opaque. It used to go transparent over the home page's
+   dark cinematic hero (`.header[data-overlay]`), but that hero was deliberately
+   abandoned in e51cf77 — "the dark/cinematic look read as a game, not a
+   trustworthy iron & steel pricing site" — and Header.tsx has set only
+   `data-condensed` ever since. The ~13 orphaned overlay blocks (plus the
+   `.fxLink` and `.themeToggle` classes, whose consumers are likewise gone) are
+   removed rather than kept "in case": reviving them means reviving a brand
+   direction the owner rejected. */
 .header {
   position: sticky;
   inset-block-start: 0;
@@ -13,45 +21,6 @@
   border-block-end: var(--border-hairline) solid var(--color-hairline);
   transition: background var(--dur-base) var(--ease-standard),
     border-color var(--dur-base) var(--ease-standard);
-}
-
-/* ===== Transparent overlay over the dark home hero ===== */
-.header[data-overlay] {
-  background: transparent;
-  backdrop-filter: none;
-  border-color: transparent;
-}
-.header[data-overlay] .navLink,
-.header[data-overlay] .navTrigger,
-.header[data-overlay] .fxLink {
-  color: rgba(255, 255, 255, 0.82);
-}
-.header[data-overlay] .navLink:hover,
-.header[data-overlay] .navTrigger:hover,
-.header[data-overlay] .fxLink:hover {
-  color: var(--color-text-inverse);
-}
-.header[data-overlay] .iconBtn,
-.header[data-overlay] .menuBtn {
-  color: var(--color-text-inverse);
-}
-.header[data-overlay] .iconBtn:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-.header[data-overlay] .loginBtn {
-  color: var(--color-text-inverse);
-  border-color: rgba(255, 255, 255, 0.3);
-}
-.header[data-overlay] .loginBtn:hover {
-  border-color: var(--color-text-inverse);
-}
-.header[data-overlay] .accountBtn {
-  background: rgba(255, 255, 255, 0.12);
-  color: var(--color-text-inverse);
-}
-.header[data-overlay] .themeToggle {
-  opacity: 0;
-  pointer-events: none;
 }
 
 .inner {
@@ -345,19 +314,6 @@
   margin-inline-start: auto;
 }
 
-.fxLink {
-  font: var(--t-label);
-  color: var(--color-text);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-sm);
-  text-decoration: none;
-  white-space: nowrap;
-}
-.fxLink:hover {
-  color: var(--color-accent);
-  text-decoration: none;
-}
-
 .iconBtn {
   display: inline-flex;
   align-items: center;
@@ -444,9 +400,7 @@
   .menuBtn {
     display: inline-flex;
   }
-  .fxLink,
-  .accountName,
-  .themeToggle {
+  .accountName {
     display: none;
   }
 }

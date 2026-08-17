@@ -1,6 +1,8 @@
 # Ahantime — Phase 3 · UI Engineering
 
-**Status:** ✅ Built. A real, reusable component library under `web/src/components/ui/`, exported from one barrel (`@/components/ui`) and validated by a live style guide at **`/styleguide`** (noindex).
+**Status:** ✅ Built. A real, reusable component library under `web/src/components/ui/`, exported from one barrel (`@/components/ui`).
+
+> **Doc accuracy note (2026-08-17).** Parts of this file described the kit as first delivered, not as it stands. The `/styleguide` kitchen-sink page, `ThemeToggle`, `Reveal`, the `useSpark` hook file and `lib/theme/tokens.ts` were all removed during later passes and no longer exist; the claims below have been corrected to match the code. **There is no public theme toggle — dark mode is reachable only inside `/admin` (`app/admin/AdminThemeToggle.tsx`).**
 **Spec source:** `design/components.md` (A–H, ~56 components), `design/color-system.md`, `design/typography.md`, `design/spacing-system.md`, `design/iconography.md`, `design/motion-design.md`, `design/empty-states.md`.
 
 This phase turns the design system *documents* + *tokens* into **engineered, importable React components** — the kit every feature screen (catalog, AI, commerce, admin) will assemble from. Token-only, RTL-native, WCAG 2.2 AA, reduced-motion aware.
@@ -11,14 +13,14 @@ This phase turns the design system *documents* + *tokens* into **engineered, imp
 
 | # | Item | Deliverable |
 |---|---|---|
-| 21 | **Design System** | `components/ui/index.ts` barrel + `/styleguide` kitchen-sink + this doc |
-| 22 | **Color Tokens** | `ThemeToggle` (light/dark via `:root[data-theme]`), `lib/theme/tokens.ts` (JS/canvas bridge), swatch reference |
+| 21 | **Design System** | `components/ui/index.ts` barrel + this doc |
+| 22 | **Color Tokens** | light/dark via `:root[data-theme]` in `design/tokens.css`; the toggle is admin-only (`app/admin/AdminThemeToggle.tsx`) |
 | 23 | **Typography** | `Text` · `Heading` · `Overline` · `Num` (bound to `--t-*` tokens; tabular numerals) |
 | 24 | **Grid System** | `Container` · `Section` · `Stack` · `Cluster` · `Grid` (auto-fit) · `Divider` |
 | 25 | **Spacing** | `Spacer` + every layout prop maps to the 4px `--space-N` scale (no off-grid values) |
 | 26 | **Components** | `Button`* · `IconButton` · `Badge`/`CountBadge` · `Chip` · `Card` · `Switch` · `Avatar`/`LogoFrame` · `Tabs`/`TabPanel` · `Breadcrumbs` · `Pagination` · `Alert` · `Tooltip` · `Modal` · `MovementBadge` · `PriceTag` · `DeliveryBadge` |
 | 27 | **Icons** | Extended `primitives/icons.tsx` (+~30 icons: filter, sort, download, print, sheet, chart, heart, star, share, phone, whatsapp, telegram, check, info, warning, calendar, clock, plus/minus, trash, edit, external, copy, refresh, offline) + `IBeamGlyph` |
-| 28 | **Animations** | `useSpark` (the signature pulse) · `Reveal` (on-scroll fade/slide) — all reduced-motion gated |
+| 28 | **Animations** | the signature amber Spark, now inlined in `primitives/Button.tsx` — reduced-motion gated |
 | 29 | **Loading States** | `Spinner` · `Skeleton`/`SkeletonText`/`TableSkeleton` (shimmer, static under reduced-motion) |
 | 30 | **Empty States** | `EmptyState` (full/section/inline; a11y live region + focus) + `emptyPresets` (exact copy from `empty-states.md §5`) |
 
@@ -50,15 +52,15 @@ import { Card, Stack, Heading, PriceTag, MovementBadge, Button } from '@/compone
 </Card>
 ```
 
-Server vs client: layout/typography/Badge/Card/Breadcrumbs/Pagination/PriceParts/Avatar/Spinner/Skeleton are **Server-Component-safe** (no hooks). Interactive pieces (`Button`, `Chip`, `IconButton`, `Switch`, `Tabs`, `Alert`, `Tooltip`, `Modal`, `EmptyState`, `Reveal`, `ThemeToggle`) are client components and render fine across the boundary.
+Server vs client: layout/typography/Badge/Card/Breadcrumbs/Pagination/PriceParts/Avatar/Spinner/Skeleton are **Server-Component-safe** (no hooks). Interactive pieces (`Button`, `Chip`, `IconButton`, `Switch`, `Tabs`, `Alert`, `Tooltip`, `Modal`, `EmptyState`) are client components and render fine across the boundary.
 
 ## Wired into the app
 
 - `app/not-found.tsx` → `EmptyState` + `emptyPresets.notFound()`.
 - `app/error.tsx` → `EmptyState` + `emptyPresets.serverError(reset)` + `reportError`.
 - `app/loading.tsx` → `Skeleton` + `TableSkeleton` (anti-flash).
-- `Header` utility nav → `ThemeToggle` (dark mode reachable in the real UI).
-- `/styleguide` → renders the whole kit (colors, type, buttons, badges, chips, price parts, tabs, breadcrumbs, pagination, alerts, tooltip, modal, loading, empty states, reveal) and toggles theme.
+- `Header` utility nav → `LocaleSwitcher` + account/login actions. **No theme toggle:** the public site is light-only; `AdminThemeToggle` lives in the `/admin` shell.
+- `admin/layout.tsx` → `AdminThemeToggle` (the one place dark mode is reachable).
 
 ## Files added (Phase 3)
 
@@ -82,15 +84,10 @@ web/src/components/ui/
   Modal.{tsx,module.css}
   EmptyState.{tsx,module.css}
   emptyPresets.ts
-  Spark.tsx                    useSpark hook
-  Reveal.{tsx,module.css}
   Spinner.{tsx,module.css}
   Skeleton.{tsx,module.css}    Skeleton/SkeletonText/TableSkeleton
-  ThemeToggle.{tsx,module.css}
-web/src/lib/theme/tokens.ts    JS/canvas token bridge + chart palette
-web/src/app/styleguide/        page.tsx (noindex) + StyleGuide.tsx + styleguide.module.css
 ```
-Modified: `primitives/icons.tsx` (+~30 icons + IBeamGlyph), `app/{not-found,error,loading}.tsx`, `Header` (ThemeToggle).
+Modified: `primitives/icons.tsx` (+~30 icons + IBeamGlyph), `app/{not-found,error,loading}.tsx`.
 
 > **Next phase:** assemble these primitives into the **feature screens** — the price Datasheet (E1) behind the rail, the AI conversation view (F1/F2), and the request→پیش‌فاکتور commerce flow (F3/F4/F7).
 
