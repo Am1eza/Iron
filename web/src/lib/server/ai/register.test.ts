@@ -13,7 +13,7 @@
  * greeting or error line would put شما right back next to a تو answer.
  */
 import { describe, it, expect } from 'vitest';
-import { AI_SYSTEM_PROMPT } from '@/lib/server/services/aiTools';
+import { AI_SYSTEM_PROMPT, AI_VOICE_REMINDER } from '@/lib/server/services/aiTools';
 import { GREETING_REPLY } from './greeting';
 import { AI_UNAVAILABLE_MESSAGE, AI_ERROR_MESSAGE, LEAD_CONFIRM_MESSAGES } from './messages';
 import { formalMarkersIn } from '@/test/persianRegister';
@@ -45,6 +45,24 @@ describe('the advisor speaks in one register (تو), everywhere it speaks', () =
   });
 });
 
+describe('AI_VOICE_REMINDER — the same rule, last, next to the conversation', () => {
+  it('lists the substitutions rather than restating the principle', () => {
+    for (const pair of ['«شما» بنویس «تو»', '«کنید» بنویس «کن»', '«بفرمایید» بنویس «بگو»'])
+      expect(AI_VOICE_REMINDER).toContain(pair);
+  });
+
+  it('covers the two situations that actually produced the slip', () => {
+    // The closing CTA, and a formal user (or the model's own earlier formal
+    // answer) sitting in the thread.
+    expect(AI_VOICE_REMINDER).toContain('جملهٔ آخر');
+    expect(AI_VOICE_REMINDER).toContain('اگر کاربر رسمی نوشت');
+  });
+
+  it('stays short — a reminder, not a second rulebook', () => {
+    expect(AI_VOICE_REMINDER.length).toBeLessThan(500);
+  });
+});
+
 describe('AI_SYSTEM_PROMPT — the تو rule the model is held to', () => {
   it('states the rule, in both directions', () => {
     expect(AI_SYSTEM_PROMPT).toContain('با کاربر همیشه با «تو» حرف بزن، نه با «شما»');
@@ -71,6 +89,22 @@ describe('AI_SYSTEM_PROMPT — the تو rule the model is held to', () => {
     expect(AI_SYSTEM_PROMPT).toContain('صمیمیِ حرفه‌ای');
     for (const word of ['داداش', 'عزیزم', 'جانم']) expect(AI_SYSTEM_PROMPT).toContain(word);
     expect(AI_SYSTEM_PROMPT).toContain('شکسته‌نویسی');
+  });
+
+  // A live check against the deployed prompt showed the model honouring تو in
+  // one clause and closing the same answer with «لطفاً درخواست را ثبت کنید».
+  // The rule now appears in three places at three different distances from the
+  // answer: the persona line, the next-step rule, and a reminder injected as
+  // the last system message (see conversation.ts).
+  it('states the register in the persona line, not only in rule 21', () => {
+    const persona = AI_SYSTEM_PROMPT.split('==')[0]!;
+    expect(persona).toContain('دوم‌شخص مفرد');
+    expect(persona).toContain('هرگز «شما» و «کنید»');
+  });
+
+  it('repeats it on the closing next-step sentence, where it was seen slipping', () => {
+    expect(AI_SYSTEM_PROMPT).toContain('همین جملهٔ آخر هم دوم‌شخص مفرد است');
+    expect(AI_SYSTEM_PROMPT).toContain('نه «ثبت کنید»');
   });
 
   it('does not disturb the grounding and payment rules it sits after', () => {

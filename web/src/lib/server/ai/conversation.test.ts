@@ -13,7 +13,7 @@ import { createTestDb } from '@/test/db';
 import * as schema from '@/lib/server/db/schema';
 import type { Db } from '@/lib/server/db/client';
 import type { ChatMessage } from '@/lib/server/integrations/aiRelay';
-import { AI_SYSTEM_PROMPT } from '@/lib/server/services/aiTools';
+import { AI_SYSTEM_PROMPT, AI_VOICE_REMINDER } from '@/lib/server/services/aiTools';
 import { GroundingLedger, sanitizeGrounded } from '@/lib/server/ai/grounding';
 import {
   buildChatMessages,
@@ -212,13 +212,23 @@ describe('buildChatMessages', () => {
       role: 'system',
       content: 'خلاصهٔ گفتگو تا اینجا: کاربر دنبال میلگرد ساختمانی است.',
     });
-    expect(messages.slice(2)).toEqual(turns);
+    expect(messages.slice(3)).toEqual(turns);
+  });
+
+  // Rules 21-22 sit at the end of a 22-rule prompt and the model was observed
+  // slipping back into شما mid-answer; the reminder is restated here, last,
+  // adjacent to the turns. It is always present — hence the +2 below.
+  it('closes the system block with the register reminder, immediately before the turns', () => {
+    const messages = buildChatMessages(turns, 'کاربر دنبال میلگرد ساختمانی است.');
+    const lastSystem = messages.filter((m) => m.role === 'system').at(-1);
+    expect(lastSystem).toEqual({ role: 'system', content: AI_VOICE_REMINDER });
+    expect(messages.at(-turns.length - 1)).toEqual({ role: 'system', content: AI_VOICE_REMINDER });
   });
 
   it('omits the summary message when null/empty', () => {
-    expect(buildChatMessages(turns, null)).toHaveLength(turns.length + 1);
-    expect(buildChatMessages(turns, '  ')).toHaveLength(turns.length + 1);
-    expect(buildChatMessages(turns, null).filter((m) => m.role === 'system')).toHaveLength(1);
+    expect(buildChatMessages(turns, null)).toHaveLength(turns.length + 2);
+    expect(buildChatMessages(turns, '  ')).toHaveLength(turns.length + 2);
+    expect(buildChatMessages(turns, null).filter((m) => m.role === 'system')).toHaveLength(2);
   });
 
   // The advisor used to ask a SIGNED-IN customer for the name and mobile the
@@ -235,12 +245,12 @@ describe('buildChatMessages', () => {
     const messages = buildChatMessages(turns, 'کاربر دنبال میلگرد ساختمانی است.', null, undefined, identity);
     expect(messages[0]).toEqual({ role: 'system', content: AI_SYSTEM_PROMPT });
     expect(messages[2]).toEqual({ role: 'system', content: identity });
-    expect(messages.slice(3)).toEqual(turns);
+    expect(messages.slice(4)).toEqual(turns);
   });
 
   it('adds nothing for a guest — their path is the login button on the card', () => {
     expect(identityFact(null)).toBeNull();
-    expect(buildChatMessages(turns, null, null, undefined, null)).toHaveLength(turns.length + 1);
+    expect(buildChatMessages(turns, null, null, undefined, null)).toHaveLength(turns.length + 2);
   });
 
   it('GROUNDING: a number that only exists in the summary still gets censored', () => {
