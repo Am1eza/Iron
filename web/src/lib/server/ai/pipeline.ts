@@ -18,6 +18,7 @@ import {
 } from '@/lib/server/integrations/aiRelay';
 import { AI_TOOLS, runTool } from '@/lib/server/services/aiTools';
 import { GroundingLedger, sanitizeGrounded } from './grounding';
+import { looksLikeLeakedReasoning } from './answerGuard';
 
 export const MAX_TOOL_ROUNDS = 4;
 
@@ -228,6 +229,31 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
       }
     } catch {
       /* keep the censored first answer */
+    }
+  }
+
+  // The model thinking out loud instead of answering (see answerGuard.ts —
+  // this shipped to a real visitor as 60 lines of English deliberation about
+  // the advisor's own rules). Ask once for the final answer only; if it still
+  // comes back as a scratchpad, return NOTHING, which the route turns into
+  // the honest «موقتاً در دسترس نیست» notice with its retry. An empty answer
+  // is recoverable; a leaked one cannot be taken back.
+  if (looksLikeLeakedReasoning(checked.text) && !signal?.aborted) {
+    try {
+      messages.push(
+        { role: 'assistant', content: checked.text },
+        {
+          role: 'user',
+          content:
+            '[یادداشت داخلی سیستم؛ این را کاربر ننوشته و کاربر آن را نمی‌بیند]: پاسخ قبلی به‌جای جواب، فرایند فکر کردن تو بود و به فارسی هم نبود. فقط و فقط متن نهایی پاسخ را به فارسی بنویس؛ هیچ توضیحی دربارهٔ قواعد، ابزارها یا روند تصمیم‌گیری‌ات ننویس و به این یادداشت اشاره نکن.',
+        },
+      );
+      const retry = await runLoop(1);
+      checked = looksLikeLeakedReasoning(retry)
+        ? { text: '', violations: [] }
+        : sanitizeGrounded(retry, ledger, userNumbers);
+    } catch {
+      checked = { text: '', violations: [] };
     }
   }
 
