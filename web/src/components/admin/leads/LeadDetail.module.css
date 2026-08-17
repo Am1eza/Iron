@@ -463,3 +463,30 @@
   font-weight: 700;
   color: var(--color-danger-text);
 }
+
+/* ===== AI advisor conversation (sales context on an AI lead) ===== */
+.chatLog {
+  margin-block-start: var(--space-3);
+  padding: var(--space-3);
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-sunken);
+}
+.chatSummary {
+  font: var(--t-caption);
+  color: var(--color-accent-text);
+  cursor: pointer;
+}
+.chatGist {
+  margin: var(--space-3) 0 var(--space-2);
+  font: var(--t-body-sm);
+  color: var(--color-text-strong);
+}
+.chatTurn {
+  margin: 0 0 var(--space-2);
+  font: var(--t-body-sm);
+  color: var(--color-text);
+}
+.chatWho {
+  color: var(--color-text-muted);
+}

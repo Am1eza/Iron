@@ -8,9 +8,9 @@ import { z } from 'zod';
 import { searchSkus, findSkuRow, listCategories, listSubCategories, tableRows } from '@/lib/server/repos/catalogRepo';
 import { searchPublishedGuides, type ArticleFull } from '@/lib/server/repos/articlesRepo';
 import { searchCorrections } from '@/lib/server/repos/aiCorrectionsRepo';
-import { redisRateCheck } from '@/lib/server/redis';
 import { estimateProject } from '@/lib/server/services/estimate.service';
-import { createLead } from '@/lib/server/services/leads.service';
+import { priceItems } from '@/lib/server/services/leads.service';
+import { putDraft } from '@/lib/server/ai/leadDraft';
 import { computeBulkSplit, pickBestGroup } from '@/lib/utils/bulkSplit';
 // The ONE weight formula table — shared with POST /api/tools/weight and the
 // وزن‌سنج UI. These numbers become پیش‌فاکتور line weights, so the advisor and
@@ -122,14 +122,12 @@ export const AI_TOOLS: ToolDef[] = [
   {
     type: 'function',
     function: {
-      name: 'createLead',
+      name: 'prepareProforma',
       description:
-        'وقتی کاربر آماده است پیش‌فاکتور بگیرد: با موبایل و اقلام، درخواست ثبت می‌کند و شمارهٔ پیگیری برمی‌گرداند.',
+        'وقتی کاربر آمادهٔ پیش‌فاکتور است: خلاصهٔ اقلام را با قیمت و وزن روز آماده می‌کند و کارت تأیید را زیر پیام تو به کاربر نشان می‌دهد. این ابزار درخواست را ثبت نمی‌کند؛ ثبت نهایی با دکمهٔ تأیید خودِ کاربر انجام می‌شود. هرگز نام یا شمارهٔ موبایل نپرس؛ اگر کاربر وارد حساب نشده باشد، دکمهٔ ورود در همان کارت نمایش داده می‌شود.',
       parameters: {
         type: 'object',
         properties: {
-          mobile: { type: 'string', description: 'موبایل ۰۹xxxxxxxxx' },
-          name: { type: 'string' },
           items: {
             type: 'array',
             items: {
@@ -143,15 +141,13 @@ export const AI_TOOLS: ToolDef[] = [
             },
           },
         },
-        required: ['mobile', 'items'],
+        required: ['items'],
       },
     },
   },
 ];
 
-const leadArgs = z.object({
-  mobile: z.string().regex(/^09\d{9}$/),
-  name: z.string().max(60).optional(),
+const draftArgs = z.object({
   items: z
     .array(
       z.object({
@@ -255,8 +251,20 @@ async function resolveSubCategory(categorySlug: string, query: string): Promise<
 
 // Transcript cap persisted into a lead's context: enough turns for sales to
 // reconstruct the negotiation without letting a 40-turn chat bloat the jsonb.
-const TRANSCRIPT_MAX_MESSAGES = 12;
-const TRANSCRIPT_MAX_CHARS = 500;
+// The rep reads this to open the call, so a truncated-mid-sentence answer is
+// worse than useless — 1000 chars covers a normal advisor reply whole.
+const TRANSCRIPT_MAX_MESSAGES = 20;
+const TRANSCRIPT_MAX_CHARS = 1000;
+
+/** The chat as sales will read it — capped, oldest turns dropped first. */
+export function capTranscript(
+  transcript: Array<{ role: string; content: string }> | undefined,
+): Array<{ role: string; content: string }> | undefined {
+  if (!transcript || transcript.length === 0) return undefined;
+  return transcript
+    .slice(-TRANSCRIPT_MAX_MESSAGES)
+    .map((m) => ({ role: m.role, content: m.content.slice(0, TRANSCRIPT_MAX_CHARS) }));
+}
 
 /** Execute one tool call; ALWAYS returns a JSON-safe result (errors as text). */
 export async function runTool(
@@ -265,6 +273,9 @@ export async function runTool(
   session: AuthUser | null,
   conversationId?: string,
   transcript?: Array<{ role: string; content: string }>,
+  /** Emitted when prepareProforma builds a draft — the pipeline forwards it to
+   *  the client as a `leadDraft` SSE frame (the confirmation card). */
+  onDraft?: (draft: Record<string, unknown>) => void,
 ): Promise<unknown> {
   try {
     switch (name) {
@@ -412,41 +423,56 @@ export async function runTool(
           return { results: [], note: 'راهنمای مرتبطی در آهن‌تایم منتشر نشده؛ صادقانه بگو راهنمایی برای این موضوع نداریم.' };
         return { results };
       }
-      case 'createLead': {
-        const parsed = leadArgs.safeParse(args);
-        if (!parsed.success) return { error: 'اطلاعات ناقص است؛ موبایل و اقلام را کامل بپرس.' };
-        // Per-MOBILE cap on AI-driven lead creation (each sends a real SMS).
-        // The pipeline's per-conversation MAX_LEAD_CALLS can be dodged by a
-        // scripted client rotating conversationId; this Redis-backed cap keys
-        // on the actual SMS recipient instead. Fail-open when Redis is down —
-        // the per-conversation cap and chat rate limit still stand beneath it.
-        const overMobileCap = await redisRateCheck(`ai-lead:${parsed.data.mobile}`, 3, 60 * 60_000);
-        if (overMobileCap === true) {
-          return {
-            error:
-              'برای این شماره در یک ساعت اخیر چند درخواست ثبت شده. کمی بعد دوباره تلاش کنید یا با پشتیبانی تماس بگیرید.',
-          };
+      case 'prepareProforma': {
+        const parsed = draftArgs.safeParse(args);
+        if (!parsed.success) return { error: 'اقلام ناقص است؛ محصول، مقدار و واحد را کامل بپرس.' };
+        // Prices the lines with the SAME function createLead uses, so the card
+        // the visitor confirms and the lead the rep receives cannot disagree.
+        const { lines, allPriced } = await priceItems(parsed.data.items);
+        // An unresolved skuId comes back as a line whose `name` IS the raw id
+        // (priceItems' fallback) — showing that to the customer as a product
+        // name would be nonsense, so send the model back for a real product.
+        if (lines.length === 0 || lines.every((l) => l.name === l.skuId)) {
+          return { error: 'این اقلام در کاتالوگ پیدا نشد؛ اول با استعلام قیمت محصول دقیق را پیدا کن.' };
         }
-        const result = await createLead(
-          {
-            contact: { name: parsed.data.name, mobile: parsed.data.mobile },
-            items: parsed.data.items,
-            source: 'ai',
-            context: {
-              aiConversationId: conversationId,
-              // Sales sees the whole chat that led to this lead (capped).
-              ...(transcript && transcript.length > 0
-                ? {
-                    transcript: transcript
-                      .slice(-TRANSCRIPT_MAX_MESSAGES)
-                      .map((m) => ({ role: m.role, content: m.content.slice(0, TRANSCRIPT_MAX_CHARS) })),
-                  }
-                : {}),
-            },
-          },
-          session,
-        );
-        return result;
+        const draft = await putDraft({
+          items: parsed.data.items,
+          conversationId,
+          userId: session?.id,
+          transcript: capTranscript(transcript),
+        });
+        const totalWeightKg = lines.reduce((s, l) => s + (l.weightKg ?? 0), 0) || undefined;
+        const total = allPriced ? lines.reduce((s, l) => s + (l.lineTotal ?? 0), 0) || undefined : undefined;
+        const card = {
+          draftId: draft.id,
+          items: lines.map((l) => ({
+            name: l.name,
+            qty: l.qty,
+            unit: l.unit,
+            weightKg: l.weightKg,
+            unitPrice: l.unitPrice,
+            lineTotal: l.lineTotal,
+          })),
+          totalWeightKg,
+          total,
+          allPriced,
+          signedIn: Boolean(session),
+        };
+        onDraft?.(card);
+        // What the MODEL is told — deliberately not the numbers a second time
+        // (the card carries them), and explicitly that nothing is filed yet.
+        return {
+          status: 'awaiting_user_confirmation',
+          draftId: draft.id,
+          itemCount: lines.length,
+          totalWeightKg,
+          total,
+          allPriced,
+          signedIn: Boolean(session),
+          note: session
+            ? 'کارت خلاصهٔ درخواست زیر پیام تو به کاربر نشان داده شد. فقط بگو خلاصه را ببیند و دکمهٔ «تأیید و ثبت درخواست» را بزند. نام و موبایل از حساب کاربری‌اش برداشته می‌شود؛ نپرس.'
+            : 'کارت خلاصهٔ درخواست همراه دکمهٔ «ورود به حساب کاربری» زیر پیام تو نشان داده شد. فقط بگو برای ثبت نهایی از همان کارت وارد حساب شود. هرگز نام یا شمارهٔ موبایل را در متن نپرس.',
+        };
       }
       default:
         return { error: `ابزار ناشناخته: ${name}` };
@@ -462,7 +488,8 @@ export const AI_SYSTEM_PROMPT = `تو «مشاور هوشمند آهن‌تای�
 1) هیچ قیمت، وزن یا عددی را از خودت نساز. هر عدد فقط از خروجی ابزارها (getPrice, calcWeight, estimateProject, compareFactories) می‌آید. حتی وزن‌های «بدیهی» را هم با calcWeight حساب کن.
 2) اگر ابزار قیمت null برگرداند، هیچ عددی نگو؛ بگو قیمت توسط کارشناس اعلام می‌شود و پیشنهاد ثبت درخواست بده؛ هرگز حدس نزن. اگر قیمت عدد دارد ولی isStale=true است، حتماً همان قیمت را همراه تاریخش بگو («آخرین قیمت ثبت‌شده: X تومان در تاریخ Y»؛ Y همان updatedAtJalali خروجی ابزار) و اضافه کن که قیمت به‌روز را کارشناس تأیید می‌کند؛ قیمت تاریخ‌دار را هرگز از کاربر دریغ نکن.
 3) عدد را همیشه با رقم بنویس، نه با حروف؛ اعداد با جداکنندهٔ هزارگان و همیشه با واحد (تومان، کیلوگرم، شاخه). قبل از پاسخ، معقول بودن عدد را چک کن: اگر نتیجه نامعقول بود (مثلاً وزن یک شاخه میلگرد چند صد کیلو، یا وزن یک شاخه تیرآهن/ناودانی زیر ۶ کیلوگرم — سبک‌ترین سایز واقعی تیرآهن هم به این کمی نمی‌رسد)، shape/sizeCode/diameterMm ورودی calcWeight را دوباره چک کن (نشانهٔ کلاسیک این خطا: برای «تیرآهن ۱۴» به‌جای shape=ibeam و sizeCode=14 اشتباهاً shape=rebar یا wire با diameterMm=14 صدا زده شده) و ابزار را با ورودی درست دوباره صدا بزن.
-4) وقتی کاربر آمادهٔ خرید/پیش‌فاکتور است، با ابزار createLead درخواست را ثبت کن. در تأییدیه، شمارهٔ پیگیری را دقیقاً همان‌طور که ابزار برگردانده (بدون تغییر) بنویس، و وزن/مبلغ کل را از فیلدهای items/totalWeightKg/total همان خروجی بگو؛ هرگز خودت وزن یا مبلغ را از روی مقدار کاربر (مثلاً «۲ تن») محاسبه نکن.
+4) وقتی کاربر آمادهٔ خرید/پیش‌فاکتور است، ابزار prepareProforma را با اقلام صدا بزن. این ابزار درخواست را ثبت نمی‌کند: یک کارت خلاصهٔ اقلام با دکمهٔ تأیید زیر پیام تو به کاربر نشان داده می‌شود و ثبت نهایی با فشردن همان دکمه توسط کاربر انجام می‌شود. پس هرگز نگو «درخواستت ثبت شد» و هرگز کد پیگیری نساز؛ فقط بگو خلاصه را ببیند و دکمه را بزند. وزن/مبلغ کل را در متن تکرار نکن یا اگر گفتی، دقیقاً از فیلدهای totalWeightKg/total همان خروجی بگو؛ هرگز خودت وزن یا مبلغ را از روی مقدار کاربر (مثلاً «۲ تن») محاسبه نکن.
+4-الف) نام و شمارهٔ موبایل را هرگز از کاربر نپرس. اگر کاربر وارد حساب شده باشد، این اطلاعات از پروفایلش برداشته می‌شود؛ اگر نشده باشد، دکمهٔ «ورود به حساب کاربری» در همان کارت به او نشان داده می‌شود. فقط چیزهای واقعاً لازم و ناقص (محصول، سایز، مقدار، شهر تحویل، زمان نیاز) را بپرس.
 5) اگر کاربر خودش قیمتی گفت، آن را تأیید یا رد نکن؛ قیمت معتبر را از ابزار بگیر و همان را بگو.
 
 == روش مشاوره (مثل یک کارشناس واقعی) ==
@@ -480,5 +507,5 @@ export const AI_SYSTEM_PROMPT = `تو «مشاور هوشمند آهن‌تای�
 15) جدول Markdown فقط وقتی ۳ مورد یا بیشتر مقایسه می‌کنی (کارخانه‌ها، سایزها، اقلام) با ستون‌های کم و روشن (مثلاً: کارخانه | قیمت هر کیلو | جمع)؛ برای ۱–۲ مورد متن ساده بنویس. لیست هم فقط برای ۳ مورد به بالا.
 16) در هر پاسخ حداکثر ۱–۲ عدد کلیدی را **پررنگ** کن؛ هرگز جملهٔ کامل را پررنگ نکن و در پاسخ کوتاه تیتر نگذار. گرید و کدهای فنی لاتین (مثل A3، ST37، IPE14) را داخل \`بک‌تیک\` بنویس.
 17) هر پاسخ را با دقیقاً یک قدم بعدی مشخص تمام کن (ثبت درخواست پیش‌فاکتور، اعلام سایز، یا دیدن جدول قیمت)؛ نه چند پیشنهاد هم‌زمان.
-18) نام ابزارهای داخلی (createLead، getPrice، compareFactories و…) را هرگز در متن پاسخ نیاور؛ به‌جایش بگو «ثبت درخواست» یا «استعلام قیمت». اسم کارخانه‌ها را فقط از خروجی ابزارها بگو، نه از حافظهٔ خودت.
+18) نام ابزارهای داخلی (prepareProforma، getPrice، compareFactories و…) را هرگز در متن پاسخ نیاور؛ به‌جایش بگو «ثبت درخواست» یا «استعلام قیمت». اسم کارخانه‌ها را فقط از خروجی ابزارها بگو، نه از حافظهٔ خودت.
 19) نقطه‌گذاری کاملاً انسانی و فارسی باشد. هرگز از خط تیرهٔ بلند («—») استفاده نکن؛ به‌جایش ویرگول «،»، نقطه‌ویرگول «؛»، دونقطه «:» یا نقطه به کار ببر. متن باید طبیعی و مثل نوشتهٔ یک کارشناس فارسی‌زبان باشد، نه ماشینی.`;

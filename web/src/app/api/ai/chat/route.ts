@@ -8,7 +8,7 @@ import { budgetExhausted } from '@/lib/server/ai/budget';
 import { upstreamUnavailable, noteSlowTimeout } from '@/lib/server/ai/upstreamState';
 import { numbersInText } from '@/lib/server/ai/grounding';
 import { runAdvisorPipeline } from '@/lib/server/ai/pipeline';
-import { buildChatMessages, ensureConversation, persistTurn } from '@/lib/server/ai/conversation';
+import { buildChatMessages, ensureConversation, identityFact, persistTurn } from '@/lib/server/ai/conversation';
 import { getPromptVersions, resolvePromptText } from '@/lib/server/ai/promptVersions';
 import { getDomainFacts } from '@/lib/server/ai/domainFacts';
 import { isBareGreeting, GREETING_REPLY } from '@/lib/server/ai/greeting';
@@ -90,14 +90,14 @@ function sseGreetingResponse(): Response {
 /**
  * POST /api/ai/chat — the server-side AI advisor (DeepSeek via the relay).
  * GROUNDING (acceptance-criteria §D): the model talks; TOOLS decide every
- * number (getPrice/calcWeight/estimateProject/createLead) — the model⇄tools
+ * number (getPrice/calcWeight/estimateProject/prepareProforma) — the model⇄tools
  * loop + AC-D-3 validator gate live in `runAdvisorPipeline` (shared with the
  * eval harness); only sanitized text is streamed.
  * CONTINUITY: each request resolves/creates an ai_conversations row, announces
  * its id in a {type:'conversation'} frame, persists the turn, and injects the
  * rolling summary as a SECOND system message (AI_SYSTEM_PROMPT stays the
  * byte-identical first message — it is the relay's prompt-cache prefix).
- * SSE frames: data: {type:'conversation'|'token'|'tool'|'lead'|'chips'|'done'|'error', ...}
+ * SSE frames: data: {type:'conversation'|'token'|'tool'|'leadDraft'|'chips'|'done'|'error', ...}
  */
 async function POSTImpl(req: NextRequest) {
   const origin = assertSameOrigin(req);
@@ -214,7 +214,13 @@ async function POSTImpl(req: NextRequest) {
         // are context only — no numbers, never added to the ledger/
         // userNumbers, so they can't license a claim.
         const domainFacts = await getDomainFacts().catch(() => '');
-        const messages = buildChatMessages(parsed.data.messages, summary, domainFacts, systemPrompt);
+        const messages = buildChatMessages(
+          parsed.data.messages,
+          summary,
+          domainFacts,
+          systemPrompt,
+          identityFact(session),
+        );
 
         const result = await runAdvisorPipeline({
           messages,

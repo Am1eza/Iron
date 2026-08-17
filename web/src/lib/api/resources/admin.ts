@@ -55,6 +55,10 @@ export interface AdminStats {
  *  moment the market moves. Everything else stays an index signature. */
 export interface AdminLeadContext {
   estimate?: { totalWeightKg?: number; totalPrice?: number };
+  /** The AI-advisor chat behind an `ai` lead — read by LeadDetail so the rep
+   *  opens the call already knowing what was discussed. */
+  aiSummary?: string;
+  transcript?: Array<{ role: string; content: string }>;
   [key: string]: unknown;
 }
 

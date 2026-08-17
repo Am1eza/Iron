@@ -20,7 +20,8 @@ import {
   proformaSmsNotification,
   orderSmsNotification,
 } from '@/lib/server/services/leads.service';
-import { runTool } from '@/lib/server/services/aiTools';
+import { runTool, capTranscript } from '@/lib/server/services/aiTools';
+import { getDraft, consumeDraft } from '@/lib/server/ai/leadDraft';
 import { findProformaByRef } from '@/lib/server/repos/leadsRepo';
 import { requestsForUser, insertRequest, pendingWarehouseRequests, updateRequestStatus } from '@/lib/server/repos/requestsRepo';
 import {
@@ -215,33 +216,55 @@ describe('lead → proforma flow', () => {
     expect(result.items![0]!.unitPrice).toBeUndefined();
   });
 
-  it('AI createLead persists the chat transcript into the lead context (capped) for sales', async () => {
+  it('prepareProforma files NOTHING — it prepares a priced draft for the user to confirm', async () => {
     const rows = await tableRows('rebar');
     const sku = rows[0]!;
-    // 14 turns, the newest one oversized — expect the last 12, sliced to 500.
-    const transcript = Array.from({ length: 13 }, (_, i) => ({
+    const before = await db.select().from(schema.leads);
+
+    const emitted: Record<string, unknown>[] = [];
+    const result = (await runTool(
+      'prepareProforma',
+      { items: [{ skuId: sku.id, qty: 2, unit: sku.unit }] },
+      null,
+      'conv-draft-1',
+      [{ role: 'user', content: 'دو شاخه میلگرد می‌خوام' }],
+      (d) => emitted.push(d),
+    )) as { status: string; draftId: string; signedIn: boolean };
+
+    // No lead, no proforma, no SMS: the visitor has not confirmed anything yet.
+    expect(result.status).toBe('awaiting_user_confirmation');
+    expect(await db.select().from(schema.leads)).toHaveLength(before.length);
+
+    // The card the client renders — priced line items, straight from priceItems.
+    expect(emitted).toHaveLength(1);
+    const card = emitted[0] as { draftId: string; items: Array<{ name: string; qty: number }>; signedIn: boolean };
+    expect(card.draftId).toBe(result.draftId);
+    expect(card.items).toHaveLength(1);
+    expect(card.items[0]!.qty).toBe(2);
+    expect(card.signedIn).toBe(false);
+
+    // The draft the confirm route will consume carries the chat for sales.
+    const draft = await getDraft(result.draftId);
+    expect(draft?.conversationId).toBe('conv-draft-1');
+    expect(draft?.items).toEqual([{ skuId: sku.id, qty: 2, unit: sku.unit }]);
+    expect(draft?.transcript).toEqual([{ role: 'user', content: 'دو شاخه میلگرد می‌خوام' }]);
+    // Single-use — a replayed confirm must not mint a second lead.
+    expect(await consumeDraft(result.draftId)).not.toBeNull();
+    expect(await getDraft(result.draftId)).toBeNull();
+  });
+
+  it('the transcript handed to sales is capped (20 newest turns, 1000 chars each)', () => {
+    const transcript = Array.from({ length: 25 }, (_, i) => ({
       role: i % 2 === 0 ? 'user' : 'assistant',
       content: `پیام شمارهٔ ${i}`,
     }));
-    transcript.push({ role: 'user', content: 'ب'.repeat(700) });
+    transcript.push({ role: 'user', content: 'ب'.repeat(1500) });
 
-    const result = (await runTool(
-      'createLead',
-      { mobile: '09123334455', items: [{ skuId: sku.id, qty: 2, unit: sku.unit }] },
-      null,
-      'conv-transcript-1',
-      transcript,
-    )) as { ref: string };
-    expect(result.ref).toMatch(/^PF-/);
-
-    const lead = (await db.select().from(schema.leads).where(eq(schema.leads.ref, result.ref)))[0]!;
-    expect(lead.source).toBe('ai');
-    expect(lead.context?.aiConversationId).toBe('conv-transcript-1');
-    const saved = lead.context?.transcript as Array<{ role: string; content: string }>;
-    expect(saved).toHaveLength(12);
-    expect(saved[0]).toEqual({ role: 'user', content: 'پیام شمارهٔ 2' });
-    expect(saved[11]!.role).toBe('user');
-    expect(saved[11]!.content).toHaveLength(500);
+    const capped = capTranscript(transcript)!;
+    expect(capped).toHaveLength(20);
+    expect(capped[0]).toEqual({ role: 'user', content: 'پیام شمارهٔ 6' });
+    expect(capped[19]!.content).toHaveLength(1000);
+    expect(capTranscript([])).toBeUndefined();
   });
 });
 

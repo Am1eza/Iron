@@ -188,6 +188,37 @@ const PROFORMA_STATUS: Record<ProformaView['status'], { label: string; tone: 'ga
   cancelled: { label: 'باطل‌شده', tone: 'loss' },
 };
 
+/**
+ * The advisor conversation behind an AI lead — the whole reason the rep can
+ * open the call knowing what was already discussed. It has been persisted into
+ * `lead.context` since the AI funnel shipped and was never rendered anywhere,
+ * so every AI lead reached the desk with no context at all. Collapsed by
+ * default (a long chat must not push the money panel off the screen).
+ */
+function AdvisorChatContext({
+  summary,
+  transcript,
+}: {
+  summary?: string;
+  transcript?: Array<{ role: string; content: string }>;
+}) {
+  if (!summary && (!transcript || transcript.length === 0)) return null;
+  return (
+    <details className={s.chatLog}>
+      <summary className={s.chatSummary}>
+        گفتگوی مشتری با مشاور هوشمند
+        {transcript && transcript.length > 0 ? ` (${toPersianDigits(transcript.length)} پیام)` : ''}
+      </summary>
+      {summary ? <p className={s.chatGist}>خلاصهٔ گفتگو: {summary}</p> : null}
+      {transcript?.map((m, i) => (
+        <p key={i} className={s.chatTurn}>
+          <span className={s.chatWho}>{m.role === 'user' ? 'مشتری' : 'مشاور'}:</span> {m.content}
+        </p>
+      ))}
+    </details>
+  );
+}
+
 /** One editable line item (US-19.4). Frozen once an active proforma exists —
  *  the quote in the customer's hand and the lead must not drift apart. */
 function EditableItemRow({
@@ -801,6 +832,8 @@ export function LeadDetail({ id }: { id: string }) {
                 </div>
               )}
               {customerNote ? <p className={ui.muted}>یادداشت مشتری: {customerNote}</p> : null}
+
+              <AdvisorChatContext summary={lead.context?.aiSummary} transcript={lead.context?.transcript} />
 
               {/* The rep used to SMS a price to the customer without the amount
                   ever appearing on screen. */}

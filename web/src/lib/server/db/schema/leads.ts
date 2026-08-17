@@ -36,6 +36,9 @@ export interface LeadContext {
   estimate?: { totalWeightKg?: number; totalPrice?: number };
   /** AI-advisor chat that led to this lead (capped upstream) — sales context. */
   transcript?: Array<{ role: string; content: string }>;
+  /** The advisor's own rolling summary of the OLDER turns of that chat — what
+   *  the rep reads first before the verbatim transcript below it. */
+  aiSummary?: string;
   /** Set by createWarehouseRequest (W20) — what the customer actually asked
    *  to store, read back by requestsRepo.pendingWarehouseRequests() so the
    *  admin intake queue can prefill a real value instead of a rep re-typing

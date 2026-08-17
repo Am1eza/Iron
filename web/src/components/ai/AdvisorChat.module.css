@@ -258,6 +258,41 @@
   text-decoration: none;
 }
 .estGhost:hover { background: var(--color-accent-tint); text-decoration: none; }
+/* .estCta is shared by the draft card's CONFIRM control, which is a real
+ * <button> (it posts, it doesn't navigate) — reset the UA button chrome so
+ * the two render identically. */
+button.estCta {
+  border: 0;
+  cursor: pointer;
+  font-family: inherit;
+}
+button.estCta:disabled {
+  opacity: 0.6;
+  cursor: default;
+  transform: none;
+}
+
+/* ===== Proforma draft (confirmation) card ===== */
+.draftDone {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4) 0;
+  color: var(--color-accent-text);
+  font: var(--t-body-sm);
+}
+.draftNote {
+  margin: 0;
+  padding: var(--space-2) var(--space-4) 0;
+  color: var(--color-text-muted);
+  font: var(--t-caption);
+}
+.draftError {
+  margin: 0;
+  padding: var(--space-2) var(--space-4) 0;
+  color: var(--color-loss-text);
+  font: var(--t-caption);
+}
 
 /* ===== Factory-split card (bulk tonnage) ===== */
 .splitList {

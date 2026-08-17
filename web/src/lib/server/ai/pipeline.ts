@@ -66,16 +66,15 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
   const ledger = new GroundingLedger();
   const toolsUsed = new Set<string>();
 
-  // createLead sends a real SMS per call and, unlike POST /api/leads, isn't
-  // gated by that route's own rate limiter — it's invoked here as a plain
-  // service function. The relay can request several tool calls per round
-  // across up to MAX_TOOL_ROUNDS (plus a correction retry), so without a cap
-  // a single ai-chat request could be steered into an SMS-bombing run
-  // against arbitrary numbers. Scoped OUTSIDE runLoop so the cap holds
-  // across the correction-retry call too — one lead per conversation covers
-  // the real use case (a visitor's own proforma).
-  let leadCalls = 0;
-  const MAX_LEAD_CALLS = 1;
+  // prepareProforma no longer files a lead (no SMS until the visitor presses
+  // the confirm button — see ai/leadDraft.ts), but it does price every line
+  // against the catalog, and the relay can request several tool calls per
+  // round across MAX_TOOL_ROUNDS plus a correction retry. Cap it so one
+  // ai-chat request can't be steered into an unbounded pricing loop, and so
+  // the visitor is never shown a stack of competing confirmation cards.
+  // Scoped OUTSIDE runLoop so the cap holds across the correction retry too.
+  let draftCalls = 0;
+  const MAX_DRAFT_CALLS = 2;
 
   // Token cost accumulated across ALL completion rounds (tool rounds + the
   // correction retry) — one aiUsage row per request.
@@ -155,19 +154,21 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
         }
         send({ type: 'tool', name: call.function.name });
         let result: unknown;
-        if (call.function.name === 'createLead' && leadCalls >= MAX_LEAD_CALLS) {
-          result = { error: 'در هر گفتگو فقط یک درخواست ثبت می‌شود. برای مورد بعدی با کارشناس تماس بگیرید.' };
+        if (call.function.name === 'prepareProforma' && draftCalls >= MAX_DRAFT_CALLS) {
+          result = { error: 'خلاصهٔ درخواست همین حالا به کاربر نشان داده شده؛ فقط بگو آن را تأیید کند.' };
         } else {
-          // The validated request messages ride along so createLead can
-          // persist the chat transcript into the lead for sales.
-          result = await runTool(call.function.name, args, session, conversationId, clientMessages);
-          if (call.function.name === 'createLead') leadCalls++;
+          // The validated request messages ride along so the draft carries the
+          // chat transcript into the lead for sales on confirm.
+          result = await runTool(call.function.name, args, session, conversationId, clientMessages, (draft) =>
+            // The confirmation card — emitted DURING tool execution, i.e.
+            // strictly before this turn's text, exactly like the old `lead`
+            // frame, so the client can attach it to the committed message.
+            send({ type: 'leadDraft', ...draft }),
+          );
+          if (call.function.name === 'prepareProforma') draftCalls++;
         }
         toolsUsed.add(call.function.name);
         ledger.addFromJson(result); // every tool number becomes quotable
-        if (call.function.name === 'createLead' && result && typeof result === 'object' && 'ref' in result) {
-          send({ type: 'lead', ...(result as Record<string, unknown>) });
-        }
         messages.push({
           role: 'tool',
           tool_call_id: call.id,

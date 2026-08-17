@@ -60,7 +60,11 @@ export function selectFollowUpChips(
   userMessageCount: number,
   lastUserMessage: string | undefined,
 ): string[] {
-  if (toolsUsed.has('estimateProject') || toolsUsed.has('createLead')) return [CHIP.proforma, CHIP.weighTool];
+  // The confirmation card IS this turn's next step (item list + «تأیید و ثبت
+  // درخواست», or the login button for a guest) — a «دریافت پیش‌فاکتور» chip
+  // next to it would offer the same action twice, in two different places.
+  if (toolsUsed.has('prepareProforma')) return [];
+  if (toolsUsed.has('estimateProject')) return [CHIP.proforma, CHIP.weighTool];
   if (toolsUsed.has('getPrice') || toolsUsed.has('calcWeight') || toolsUsed.has('compareFactories'))
     return [CHIP.proforma, CHIP.allPrices];
   // searchGuides answered a knowledge question, not a pricing one — neither
