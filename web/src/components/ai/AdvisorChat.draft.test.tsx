@@ -75,8 +75,7 @@ describe('AdvisorChat — proforma confirmation card', () => {
       id: 'u1',
       mobile: '09121234567',
       name: 'رضا کریمی',
-      role: 'user',
-      createdAt: new Date(0).toISOString(),
+      role: 'customer',
     });
     confirmLead.mockResolvedValue({ ref: 'PF-14050526-0001-ABCDEF', proformaRef: 'PF-14050526-0001-ABCDEF', total: 6_000_000 });
 
@@ -114,8 +113,7 @@ describe('AdvisorChat — proforma confirmation card', () => {
     useAuthStore.getState().setUser({
       id: 'u1',
       mobile: '09121234567',
-      role: 'user',
-      createdAt: new Date(0).toISOString(),
+      role: 'customer',
     });
     confirmLead.mockRejectedValue(new ApiError(410, 'این خلاصه منقضی شده؛ دوباره از مشاور پیش‌فاکتور بخواهید.'));
 
