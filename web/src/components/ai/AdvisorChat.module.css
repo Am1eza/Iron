@@ -491,11 +491,14 @@ button.estCta:disabled {
     margin-block: 0;
     /* Subtract the full top chrome (36px ticker + 60px header) AND the fixed
        bottom tab bar; the old calc ignored the ticker, so the composer row was
-       pushed ~36px under the bar. */
+       pushed ~36px under the bar. Sized so that once the panel is scrolled to,
+       it fills exactly one screen: header, thread and composer all at once. */
     block-size: calc(100vh - 36px - 60px - var(--bottom-bar-h));
     block-size: calc(100svh - 36px - 60px - var(--bottom-bar-h));
-    border-radius: 0;
-    border-inline: 0;
+    /* The radius/borders used to be stripped here because the panel WAS the
+       mobile page and ran edge to edge. It is now a card inside /ai's page
+       container, so a square, side-borderless block sitting 16px in from each
+       edge read as a cut-off card. Keep the card. */
     max-inline-size: 100%;
   }
   .disclaimer { display: none; }

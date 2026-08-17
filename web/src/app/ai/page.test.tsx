@@ -45,11 +45,23 @@ describe('/ai — the page around the advisor', () => {
     expect(screen.getByRole('region', { name: 'مشاور هوشمند آهن‌تایم' })).toBeInTheDocument();
   });
 
-  it('opens with a lede that states what the advisor does and that no payment happens here', async () => {
+  it('opens with a short lede that states what the advisor does', async () => {
     await renderPage();
     const lede = screen.getByText(/بر پایهٔ همان قیمت‌هایی جواب می‌دهد/);
     expect(lede.textContent).toContain('هیچ عددی از خودش نمی‌سازد');
-    expect(lede.textContent).toContain('پرداخت آنلاینی در کار نیست');
+    // Length is load-bearing, not style: at 375px a lede line is ~37px of the
+    // one screen the visitor has before the composer, and the first version
+    // ran to 345 characters (7 lines, 259px). Five lines is the ceiling.
+    expect((lede.textContent ?? '').length).toBeLessThan(280);
+  });
+
+  it('still states the no-online-payment fact, in the strip below the chat', async () => {
+    await renderPage();
+    const section = screen.getByRole('region', {
+      name: 'این مشاور چه کاری می‌کند که یک چت عمومی نمی‌کند؟',
+    });
+    expect(section.textContent).toContain('پرداخت آنلاینی هم در کار نیست');
+    expect(section.textContent).toContain('کارشناس برای نهایی‌کردن قیمت و زمان تحویل تماس می‌گیرد');
   });
 
   it('describes the three capabilities that are real tools, and links to the pages behind them', async () => {

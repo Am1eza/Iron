@@ -76,12 +76,15 @@ export default async function AiPage({ searchParams }: Search) {
             <Breadcrumbs items={crumbs} />
             <Overline>اول مشورت، بعد خرید</Overline>
             <Heading level={1}>مشاور هوشمند خرید آهن و فولاد</Heading>
+            {/* Two sentences, not four. At 375px every line of lede is ~37px
+                of the one screen the visitor has, and the composer is what
+                they came for: the first version pushed it ~400px past the
+                fold. The payment fact moved down to the capability strip. */}
             <Text color="muted" variant="body-lg">
-              مشاور آهن‌تایم بر پایهٔ همان قیمت‌هایی جواب می‌دهد که در جدول‌های سایت می‌بینی و هیچ
+              مشاور آهن‌تایم بر پایهٔ همان قیمت‌هایی جواب می‌دهد که در جدول‌های سایت می‌بینی؛ هیچ
               عددی از خودش نمی‌سازد. بگو چه محصولی و برای چه کاری می‌خواهی تا قیمت روز، وزن دقیق
-              مقاطع و ارزان‌ترین کارخانه برای تناژت را حساب کند. پرداخت آنلاینی در کار نیست؛ در
-              پایان می‌توانی درخواست پیش‌فاکتور بدهی تا کارشناس برای نهایی‌کردن قیمت و زمان تحویل
-              تماس بگیرد.
+              مقاطع و ارزان‌ترین کارخانه برای تناژت را حساب کند و در پایان، اگر خواستی، پیش‌فاکتور
+              هم بگیری.
             </Text>
           </Stack>
 
