@@ -36,6 +36,10 @@ export function isBareGreeting(text: string): boolean {
   return GREETINGS.has(cleaned);
 }
 
-/** Canned advisor introduction streamed instead of a model round. */
+/** Canned advisor introduction streamed instead of a model round. Written in
+ *  the SAME تو-voice the model is instructed to use (AI_SYSTEM_PROMPT rule 21)
+ *  and that GREETING_TEXT in the UI already used — this reply is the first
+ *  thing a visitor who types «سلام» ever reads, so it sets the register for
+ *  the whole conversation. */
 export const GREETING_REPLY =
-  'سلام! من مشاور هوشمند آهن‌تایم هستم. قیمت روز آهن‌آلات، وزن دقیق مقاطع و برآورد مصالح پروژه را از دیتابیس می‌گویم و اگر آماده بودید، درخواست پیش‌فاکتور هم ثبت می‌کنم. بفرمایید برای چه کاری آهن می‌خواهید؟';
+  'سلام! من مشاور هوشمند آهن‌تایمم. قیمت روز آهن‌آلات، وزن دقیق مقاطع و برآورد مصالح پروژه را از دیتابیس می‌گویم و اگر آماده بودی، درخواست پیش‌فاکتور را هم همین‌جا ثبت می‌کنم. بگو آهن را برای چه کاری می‌خواهی؟';

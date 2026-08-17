@@ -7,6 +7,8 @@ import { rateLimit } from '@/lib/server/utils/rateLimit';
 import { consumeDraft } from '@/lib/server/ai/leadDraft';
 import { conversationForSales } from '@/lib/server/ai/conversation';
 import { createLead } from '@/lib/server/services/leads.service';
+// Rendered inside the chat thread, so they speak in the advisor's register.
+import { LEAD_CONFIRM_MESSAGES } from '@/lib/server/ai/messages';
 
 export const runtime = 'nodejs';
 
@@ -41,13 +43,13 @@ async function POSTImpl(req: NextRequest) {
     // The client turns this into the «ورود به حساب کاربری» state on the card
     // rather than an error toast — the draft is still waiting.
     return NextResponse.json(
-      { error: 'auth_required', message: 'برای ثبت درخواست، وارد حساب کاربری شوید.' },
+      { error: 'auth_required', message: LEAD_CONFIRM_MESSAGES.authRequired },
       { status: 401 },
     );
   }
   if (!session.mobile) {
     return NextResponse.json(
-      { error: 'no_mobile', message: 'شمارهٔ موبایل حساب شما ثبت نشده؛ با پشتیبانی تماس بگیرید.' },
+      { error: 'no_mobile', message: LEAD_CONFIRM_MESSAGES.noMobile },
       { status: 400 },
     );
   }
@@ -57,7 +59,7 @@ async function POSTImpl(req: NextRequest) {
   const draft = await consumeDraft(parsed.data.draftId);
   if (!draft) {
     return NextResponse.json(
-      { error: 'draft_expired', message: 'این خلاصه منقضی شده؛ دوباره از مشاور پیش‌فاکتور بخواهید.' },
+      { error: 'draft_expired', message: LEAD_CONFIRM_MESSAGES.draftExpired },
       { status: 410 },
     );
   }
@@ -65,7 +67,7 @@ async function POSTImpl(req: NextRequest) {
   // confirm. One prepared anonymously belongs to whoever signs in from that
   // chat — that is the login-then-continue flow itself.
   if (draft.userId && draft.userId !== session.id) {
-    return NextResponse.json({ error: 'forbidden', message: 'این درخواست متعلق به حساب دیگری است.' }, { status: 403 });
+    return NextResponse.json({ error: 'forbidden', message: LEAD_CONFIRM_MESSAGES.forbidden }, { status: 403 });
   }
 
   // Sales context: the WHOLE stored chat + the advisor's rolling summary,

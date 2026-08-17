@@ -468,7 +468,7 @@ function FeedbackButtons({ messageId, conversationId }: { messageId: string; con
       >
         <ThumbDownIcon size={16} />
       </button>
-      {sent && <span className={styles.feedbackThanks}>ممنون از بازخوردتان</span>}
+      {sent && <span className={styles.feedbackThanks}>ممنون از بازخوردت</span>}
     </div>
   );
 }
@@ -1340,7 +1340,7 @@ function ProformaDraftCard({
           </span>
         </div>
         <p className={styles.draftNote}>
-          کارشناس فروش برای نهایی‌کردن قیمت و زمان تحویل با شما تماس می‌گیرد.
+          کارشناس فروش برای نهایی‌کردن قیمت و زمان تحویل با تو تماس می‌گیرد.
         </p>
         <div className={styles.estActions}>
           {draft.proformaRef ? (
@@ -1397,7 +1397,7 @@ function ProformaDraftCard({
       )}
       {!draft.allPriced && (
         <p className={styles.draftNote}>
-          قیمت بعضی اقلام را کارشناس اعلام می‌کند؛ درخواست شما مستقیم به تیم فروش می‌رود.
+          قیمت بعضی اقلام را کارشناس اعلام می‌کند؛ درخواستت مستقیم به تیم فروش می‌رود.
         </p>
       )}
       {error && (

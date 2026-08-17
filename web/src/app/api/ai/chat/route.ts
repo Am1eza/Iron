@@ -12,6 +12,9 @@ import { buildChatMessages, ensureConversation, identityFact, persistTurn } from
 import { getPromptVersions, resolvePromptText } from '@/lib/server/ai/promptVersions';
 import { getDomainFacts } from '@/lib/server/ai/domainFacts';
 import { isBareGreeting, GREETING_REPLY } from '@/lib/server/ai/greeting';
+// The advisor's own user-facing copy (see ai/messages.ts): one register,
+// one home, and testable, which a const inside a route file cannot be.
+import { AI_UNAVAILABLE_MESSAGE, AI_ERROR_MESSAGE } from '@/lib/server/ai/messages';
 import { selectFollowUpChips, PURPOSE_CHIPS } from '@/lib/data/aiTaxonomy';
 import { reportError } from '@/lib/errors/report';
 import { rateLimit } from '@/lib/server/utils/rateLimit';
@@ -34,16 +37,6 @@ const payload = z.object({
     .max(40),
   conversationId: z.string().max(64).optional(),
 });
-
-/**
- * ONE message for every "the AI cannot answer right now" case — relay down,
- * credit exhausted, key revoked, daily budget spent, feature switched off.
- * It never says which: the visitor cannot act on the difference, and it points
- * at what they CAN do instead. The funnel closes on a human call, so the
- * fallback is the human path, not an apology.
- */
-const AI_UNAVAILABLE_MESSAGE =
-  'دستیار هوشمند موقتاً در دسترس نیست. قیمت‌های لحظه‌ای و ابزارها در دسترس‌اند، و کارشناسان ما پاسخگوی شما هستند؛ درخواست مشاوره ثبت کنید تا تماس بگیریم.';
 
 /** The AI_TIMEOUT_MS deadline firing, as opposed to a real failure. Matched by
  *  NAME, not identity: it is raised by `AbortSignal.timeout` inside the
@@ -302,7 +295,7 @@ async function POSTImpl(req: NextRequest) {
             send({ type: 'error', message: AI_UNAVAILABLE_MESSAGE });
           } else {
             reportError(err, { route: 'ai/chat' });
-            send({ type: 'error', message: 'دستیار هوشمند با خطا مواجه شد. دوباره تلاش کنید.' });
+            send({ type: 'error', message: AI_ERROR_MESSAGE });
           }
         }
       } finally {
