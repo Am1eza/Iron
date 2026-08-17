@@ -18,6 +18,7 @@ import { GroundingLedger, sanitizeGrounded } from '@/lib/server/ai/grounding';
 import {
   buildChatMessages,
   ensureConversation,
+  identityFact,
   maybeRefreshSummary,
   persistTurn,
   summarizeMessages,
@@ -218,6 +219,28 @@ describe('buildChatMessages', () => {
     expect(buildChatMessages(turns, null)).toHaveLength(turns.length + 1);
     expect(buildChatMessages(turns, '  ')).toHaveLength(turns.length + 1);
     expect(buildChatMessages(turns, null).filter((m) => m.role === 'system')).toHaveLength(1);
+  });
+
+  // The advisor used to ask a SIGNED-IN customer for the name and mobile the
+  // site already had on file. It is told them instead — after the cache-prefix
+  // messages, never inside them.
+  it('appends the signed-in visitor as a system fact, after the prompt and summary', () => {
+    const identity = identityFact({ name: 'رضا کریمی', mobile: '09121234567' });
+    expect(identity).toContain('رضا کریمی');
+    expect(identity).toContain('هرگز نام یا شمارهٔ موبایل را از او نپرس');
+    // The number itself is never put in front of the model — it is not in the
+    // grounding ledger, so quoting it would be censored anyway.
+    expect(identity).not.toContain('09121234567');
+
+    const messages = buildChatMessages(turns, 'کاربر دنبال میلگرد ساختمانی است.', null, undefined, identity);
+    expect(messages[0]).toEqual({ role: 'system', content: AI_SYSTEM_PROMPT });
+    expect(messages[2]).toEqual({ role: 'system', content: identity });
+    expect(messages.slice(3)).toEqual(turns);
+  });
+
+  it('adds nothing for a guest — their path is the login button on the card', () => {
+    expect(identityFact(null)).toBeNull();
+    expect(buildChatMessages(turns, null, null, undefined, null)).toHaveLength(turns.length + 1);
   });
 
   it('GROUNDING: a number that only exists in the summary still gets censored', () => {

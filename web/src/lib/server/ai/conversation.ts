@@ -118,6 +118,8 @@ export function buildChatMessages(
   summary?: string | null,
   domainFacts?: string | null,
   systemPrompt: string = AI_SYSTEM_PROMPT,
+  /** Who the visitor is, when signed in — see identityFact(). */
+  identity?: string | null,
 ): ChatMessage[] {
   const messages: ChatMessage[] = [{ role: 'system', content: systemPrompt }];
   // Stable, NON-NUMERIC catalog overview — sits right after the byte-identical
@@ -129,6 +131,13 @@ export function buildChatMessages(
   }
   if (summary && summary.trim()) {
     messages.push({ role: 'system', content: `خلاصهٔ گفتگو تا اینجا: ${summary.trim()}` });
+  }
+  // Signed-in visitor: the advisor used to ask a logged-in customer for the
+  // name and mobile the site already had on file. It is told them here, and
+  // told not to ask (and not to read the number back — the digits are not in
+  // the grounding ledger, so echoing them would be censored anyway).
+  if (identity && identity.trim()) {
+    messages.push({ role: 'system', content: identity.trim() });
   }
   for (const m of clientMessages) messages.push({ role: m.role, content: m.content });
   return messages;
@@ -196,6 +205,58 @@ export async function persistTurn(
     .set({ updatedAt: new Date() })
     .where(eq(aiConversations.id, conversationId));
   await maybeRefreshSummary(conversationId, complete);
+}
+
+/** The signed-in visitor, as a system fact for the advisor. Null for guests —
+ *  their path is the login button on the confirmation card, not a question. */
+export function identityFact(user: { name?: string; mobile: string } | null): string | null {
+  if (!user) return null;
+  const who = user.name?.trim();
+  return (
+    `کاربر وارد حساب کاربری شده است${who ? ` و نامش «${who}» است` : ''}؛ شمارهٔ موبایلش هم در حساب او ثبت است. ` +
+    'هرگز نام یا شمارهٔ موبایل را از او نپرس و شماره را در متن پاسخ ننویس؛ هنگام ثبت درخواست، این اطلاعات خودکار از حسابش برداشته می‌شود.'
+  );
+}
+
+/** Longest chat a rep will ever be handed verbatim (oldest turns drop first);
+ *  anything older is already folded into the rolling `summary`. */
+const SALES_TRANSCRIPT_MAX_MESSAGES = 30;
+const SALES_TRANSCRIPT_MAX_CHARS = 1000;
+
+/**
+ * The advisor conversation as the SALES rep should read it: the rolling
+ * summary (the older turns, already condensed by the model) plus the stored
+ * turns verbatim. Read from the DB rather than from what the client happened
+ * to resend, so the rep gets the WHOLE chat — the client only ever ships the
+ * last 10 turns, which is why an AI lead's saved context used to start
+ * mid-negotiation. Never throws: sales context must not fail a lead.
+ */
+export async function conversationForSales(
+  conversationId: string,
+): Promise<{ summary: string | null; transcript: StoredMessage[] }> {
+  try {
+    const db = getDb();
+    const [conv, rows] = await Promise.all([
+      db
+        .select({ summary: aiConversations.summary })
+        .from(aiConversations)
+        .where(eq(aiConversations.id, conversationId))
+        .limit(1),
+      db
+        .select({ role: aiMessages.role, content: aiMessages.content })
+        .from(aiMessages)
+        .where(eq(aiMessages.conversationId, conversationId))
+        .orderBy(asc(aiMessages.createdAt), asc(aiMessages.id)),
+    ]);
+    return {
+      summary: conv[0]?.summary ?? null,
+      transcript: rows
+        .slice(-SALES_TRANSCRIPT_MAX_MESSAGES)
+        .map((m) => ({ role: m.role, content: m.content.slice(0, SALES_TRANSCRIPT_MAX_CHARS) })),
+    };
+  } catch {
+    return { summary: null, transcript: [] };
+  }
 }
 
 /** Refresh the rolling summary when the stored history is long enough. */

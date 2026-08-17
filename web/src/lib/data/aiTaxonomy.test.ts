@@ -20,13 +20,18 @@ describe('selectFollowUpChips', () => {
     }
   });
 
-  it('offers proforma + weigh-tool after estimateProject/createLead', () => {
-    for (const tool of ['estimateProject', 'createLead']) {
-      expect(selectFollowUpChips(new Set([tool]), 1, 'یه خونه می‌سازم')).toEqual([
-        CHIP.proforma,
-        CHIP.weighTool,
-      ]);
-    }
+  it('offers proforma + weigh-tool after estimateProject', () => {
+    expect(selectFollowUpChips(new Set(['estimateProject']), 1, 'یه خونه می‌سازم')).toEqual([
+      CHIP.proforma,
+      CHIP.weighTool,
+    ]);
+  });
+
+  // The confirmation card rendered by that same turn already carries the one
+  // next step (confirm, or sign in) — a chip beside it duplicates the action.
+  it('offers no chips after prepareProforma — the confirmation card IS the next step', () => {
+    expect(selectFollowUpChips(new Set(['prepareProforma']), 2, 'پیش‌فاکتور می‌خوام')).toEqual([]);
+    expect(selectFollowUpChips(new Set(['getPrice', 'prepareProforma']), 2, 'پیش‌فاکتور می‌خوام')).toEqual([]);
   });
 
   it('offers no chips after searchGuides — a knowledge answer, not a pricing one', () => {

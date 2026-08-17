@@ -20,4 +20,19 @@ export const aiApi = {
       { signal: opts?.signal },
     );
   },
+
+  /** «تأیید و ثبت درخواست» on the advisor's summary card — the ONLY path that
+   *  turns an AI conversation into a real lead + پیش‌فاکتور + SMS. 401 means
+   *  the visitor must sign in first; the draft stays valid meanwhile. */
+  async confirmLead(draftId: string): Promise<{
+    ref: string;
+    proformaRef?: string;
+    total?: number;
+    validUntil?: string;
+  }> {
+    if (API_MODE === 'mock') {
+      throw new ApiError(501, 'دستیار هوشمند در بخش بعدی فعال می‌شود.');
+    }
+    return http.post('/api/ai/lead/confirm', { draftId });
+  },
 };
