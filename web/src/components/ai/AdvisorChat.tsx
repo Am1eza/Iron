@@ -518,9 +518,17 @@ const MessageBubble = memo(function MessageBubble({
   onDraftConfirmed: (messageId: string, patch: Partial<LeadDraftView>) => void;
   hidden?: boolean;
 }) {
+  // Speech bubbles want the ragged 86% edge so the thread reads as a
+  // conversation. Chips and data cards are not speech — they're navigation
+  // and a price summary — and that cap plus the avatar column squeezed the
+  // confirm card to ~250px inside a 375px screen, which is what broke its
+  // line items and CTA row. Those rows take the full width on mobile.
+  const wide = Boolean(m.estimate || m.draft || m.split || m.chips);
   return (
     <div
-      className={`${styles.row} ${styles.rowIn} ${m.role === 'user' ? styles.rowUser : styles.rowAi}`}
+      className={`${styles.row} ${styles.rowIn} ${m.role === 'user' ? styles.rowUser : styles.rowAi}${
+        wide ? ` ${styles.rowWide}` : ''
+      }`}
       aria-hidden={hidden || undefined}
     >
       {m.role === 'ai' && (
