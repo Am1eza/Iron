@@ -1,7 +1,6 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { routes } from '@/lib/routes';
 import { useCartStore } from '@/lib/stores/cart';
 import { useRequestsStore } from '@/lib/stores/requests';
@@ -25,12 +24,12 @@ import styles from './RequestFlow.module.css';
  * branded پیش‌فاکتور PDF. The lead lands on the sales panel immediately.
  */
 export function RequestFlow() {
-  const router = useRouter();
   const toast = useToast();
   const items = useCartStore((s) => s.items);
   const clear = useCartStore((s) => s.clear);
   const addRequest = useRequestsStore((s) => s.add);
   const user = useAuthStore((s) => s.user);
+  const authStatus = useAuthStore((s) => s.status);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<CreateLeadResult | null>(null);
@@ -101,7 +100,16 @@ export function RequestFlow() {
         : `پیش‌فاکتور ${toPersianDigits(items.length)} قلم کالا`;
     const detail = items.map((i) => `${i.name} × ${toPersianDigits(i.qty)}`).join(' · ');
 
-    if (API_MODE === 'live' && user) {
+    // Never fall through to the local-only store while signed in: that path
+    // writes to browser storage ONLY and the sales team never sees the lead,
+    // yet the UI used to claim the request was filed. It is reachable in the
+    // mock API mode alone, and only for a visitor we know is anonymous — the
+    // real submit button is not rendered for them at all (see below).
+    if (API_MODE === 'live') {
+      if (!user) {
+        toast.error('برای ثبت درخواست ابتدا وارد حساب کاربری شوید.');
+        return;
+      }
       setBusy(true);
       try {
         const result = await api.leads.create({
@@ -123,10 +131,10 @@ export function RequestFlow() {
       return;
     }
 
+    // Mock API mode (local development only — production is always live).
     addRequest({ type: 'proforma', title, detail, note: note.trim() || undefined });
     clear();
     toast.success('درخواست ثبت شد؛ وضعیت آن در پروفایل شماست.');
-    router.push(routes.account('requests'));
   };
 
   return (
@@ -152,13 +160,28 @@ export function RequestFlow() {
       />
 
       <div className={styles.actions}>
-        <Button onClick={submit} disabled={busy} loading={busy}>
-          {busy ? 'در حال ثبت…' : 'ثبت درخواست پیش‌فاکتور'}
-        </Button>
+        {authStatus === 'anonymous' ? (
+          // Same pattern as the advisor's پیش‌فاکتور card: a visitor we know is
+          // signed out gets the login CTA, not a submit button that would file
+          // nothing. The cart survives the round trip, so they come straight back.
+          <Link href={routes.login(routes.request())} className={styles.loginBtn}>
+            ورود به حساب کاربری
+          </Link>
+        ) : (
+          <Button onClick={submit} disabled={busy || authStatus === 'loading'} loading={busy}>
+            {busy ? 'در حال ثبت…' : 'ثبت درخواست پیش‌فاکتور'}
+          </Button>
+        )}
         <Link href={routes.cart()} className={styles.editLink}>
           ویرایش سبد
         </Link>
       </div>
+
+      {authStatus === 'anonymous' && (
+        <p className={styles.note}>
+          بعد از ورود به همین صفحه برمی‌گردید؛ نام و شمارهٔ تماس از حساب شما برداشته می‌شود.
+        </p>
+      )}
 
       <p className={styles.note}>
         پس از ثبت، درخواست شما مستقیم به تیم فروش می‌رود و کارشناس برای نهایی‌کردن قیمت و شرایط تحویل تماس

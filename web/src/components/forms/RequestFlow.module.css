@@ -101,6 +101,9 @@
   border-radius: var(--radius-md);
   background: var(--color-surface-sunken);
 }
+/* The signed-out CTA in the actions row — same weight as the submit button it
+   replaces, so the flow reads identically whether or not you are logged in. */
+.loginBtn,
 .pdfBtn {
   display: inline-flex;
   align-items: center;
@@ -112,6 +115,7 @@
   font: var(--t-button);
   text-decoration: none;
 }
+.loginBtn:hover,
 .pdfBtn:hover {
   background: var(--color-action-hover);
   text-decoration: none;
