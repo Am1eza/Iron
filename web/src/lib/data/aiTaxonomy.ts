@@ -59,7 +59,15 @@ export function selectFollowUpChips(
   toolsUsed: ReadonlySet<string>,
   userMessageCount: number,
   lastUserMessage: string | undefined,
+  /** Options of an unresolved «کدام کارخانه؟» this turn ended on (see the
+   *  pipeline's choiceChips). They ARE the next step, so they outrank every
+   *  generic follow-up below. */
+  choiceOptions?: readonly string[],
 ): string[] {
+  // A pending choice beats everything: the visitor was just asked a question,
+  // and these are its answers. Tapping one sends that product name as the
+  // next message, which is the same path typing it has always taken.
+  if (choiceOptions && choiceOptions.length > 0) return [...choiceOptions];
   // The confirmation card IS this turn's next step (item list + «تأیید و ثبت
   // درخواست», or the login button for a guest) — a «دریافت پیش‌فاکتور» chip
   // next to it would offer the same action twice, in two different places.

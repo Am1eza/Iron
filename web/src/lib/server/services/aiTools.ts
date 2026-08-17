@@ -314,6 +314,30 @@ export function capTranscript(
     .map((m) => ({ role: m.role, content: m.content.slice(0, TRANSCRIPT_MAX_CHARS) }));
 }
 
+/** At most this many options become chips. resolveProduct already caps its
+ *  search at 5 rows, so this is a belt-and-braces bound on a row of buttons
+ *  the visitor has to read at 375px. */
+const MAX_CHOICE_CHIPS = 5;
+
+/**
+ * The tappable version of «کدام کارخانه؟».
+ *
+ * ONE ambiguous line only: two products' options in a single chip row would
+ * not say which product each chip belongs to, and tapping one would answer a
+ * question the visitor was never asked. With several ambiguous lines the
+ * model falls back to asking in prose, exactly as it did before.
+ *
+ * The labels are the catalog's own product names, which is precisely what
+ * resolveProduct matches on the next round trip — a tap and a typed name
+ * take the identical path.
+ */
+export function chipsForChoice(ambiguous: ReadonlyArray<{ product: string; options: string[] }>): string[] {
+  if (ambiguous.length !== 1) return [];
+  const options = ambiguous[0]!.options.map((o) => o.trim()).filter(Boolean);
+  // Deduped: chip labels are React keys in the thread (AdvisorChat's chip row).
+  return [...new Set(options)].slice(0, MAX_CHOICE_CHIPS);
+}
+
 /** Execute one tool call; ALWAYS returns a JSON-safe result (errors as text). */
 export async function runTool(
   name: string,
@@ -501,12 +525,19 @@ export async function runTool(
         }
 
         // Ambiguity is a question for a HUMAN, phrased in human terms —
-        // «کدام کارخانه؟», never «کد محصول را بده».
+        // «کدام کارخانه؟», never «کد محصول را بده». The options also become
+        // real tappable chips under the answer (see choiceChips below), so
+        // the visitor can answer with one tap instead of retyping a mill's
+        // name; typing it still works exactly as before.
         if (ambiguous.length > 0) {
+          const choiceChips = chipsForChoice(ambiguous);
           return {
             status: 'needs_choice',
             ambiguous,
-            note: 'این محصول‌ها چند گزینه دارند. فقط با نام فارسی بپرس کدام‌یک را می‌خواهد (مثلاً کدام کارخانه یا کدام سایز) و بعد دوباره همین ابزار را صدا بزن. هرگز از کاربر کد یا شناسه نخواه.',
+            choiceChips,
+            note: choiceChips.length
+              ? 'این محصول چند گزینه دارد. گزینه‌ها همین حالا به شکل دکمه‌های قابل‌لمس زیر پیام تو به کاربر نشان داده می‌شوند، پس فهرستشان را در متن تکرار نکن و شماره‌گذاری نکن. فقط یک سؤال کوتاه فارسی بپرس (مثلاً «از کدام کارخانه می‌خواهی؟») و بگو یکی از گزینه‌های زیر را بزند یا نامش را بنویسد. بعد از انتخاب او، دوباره همین ابزار را صدا بزن. هرگز از کاربر کد یا شناسه نخواه.'
+              : 'این محصول‌ها چند گزینه دارند. فقط با نام فارسی بپرس کدام‌یک را می‌خواهد (مثلاً کدام کارخانه یا کدام سایز) و بعد دوباره همین ابزار را صدا بزن. هرگز از کاربر کد یا شناسه نخواه.',
           };
         }
         if (notFound.length > 0 || resolved.length === 0) {
@@ -579,7 +610,7 @@ export const AI_SYSTEM_PROMPT = `تو «مشاور هوشمند آهن‌تای�
 3) عدد را همیشه با رقم بنویس، نه با حروف؛ اعداد با جداکنندهٔ هزارگان و همیشه با واحد (تومان، کیلوگرم، شاخه). قبل از پاسخ، معقول بودن عدد را چک کن: اگر نتیجه نامعقول بود (مثلاً وزن یک شاخه میلگرد چند صد کیلو، یا وزن یک شاخه تیرآهن/ناودانی زیر ۶ کیلوگرم — سبک‌ترین سایز واقعی تیرآهن هم به این کمی نمی‌رسد)، shape/sizeCode/diameterMm ورودی calcWeight را دوباره چک کن (نشانهٔ کلاسیک این خطا: برای «تیرآهن ۱۴» به‌جای shape=ibeam و sizeCode=14 اشتباهاً shape=rebar یا wire با diameterMm=14 صدا زده شده) و ابزار را با ورودی درست دوباره صدا بزن.
 4) وقتی کاربر آمادهٔ خرید/پیش‌فاکتور است، ابزار prepareProforma را با اقلام صدا بزن. این ابزار درخواست را ثبت نمی‌کند: یک کارت خلاصهٔ اقلام با دکمهٔ تأیید زیر پیام تو به کاربر نشان داده می‌شود و ثبت نهایی با فشردن همان دکمه توسط کاربر انجام می‌شود. پس هرگز نگو «درخواستت ثبت شد» و هرگز کد پیگیری نساز؛ فقط بگو خلاصه را ببیند و دکمه را بزند. اسم دکمه را از خودت نساز: دکمهٔ کارت دقیقاً «تأیید و ثبت درخواست» نام دارد (و برای کاربری که وارد حساب نشده، «ورود به حساب کاربری»)؛ اگر به دکمه اشاره می‌کنی، فقط همین دو نام را به کار ببر.
 4-پ) هرگز از پرداخت حرف نزن. در آهن‌تایم پرداخت آنلاین وجود ندارد و هیچ مرحلهٔ پرداختی در این گفتگو یا بعد از تأیید کارت پیش نمی‌آید؛ جمله‌هایی مثل «پرداخت پس از تأیید انجام می‌شود» یا «فاکتور را پرداخت کنید» ممنوع است. بعد از ثبت درخواست، تنها چیزی که اتفاق می‌افتد این است: کارشناس فروش تماس می‌گیرد و قیمت و زمان تحویل را نهایی می‌کند. شرایط تسویه هم فقط با همین جمله بیان می‌شود که کارشناس اعلامش می‌کند؛ خودت هیچ روش یا زمان‌بندی پرداختی توصیف نکن. وزن/مبلغ کل را در متن تکرار نکن یا اگر گفتی، دقیقاً از فیلدهای totalWeightKg/total همان خروجی بگو؛ هرگز خودت وزن یا مبلغ را از روی مقدار کاربر (مثلاً «۲ تن») محاسبه نکن.
-4-الف) هرگز از کاربر کد، شناسه یا هر مقدار فنیِ داخلی سیستم (skuId و مانند آن) نخواه؛ کاربر چنین چیزی ندارد و پرسیدنش او را گیج می‌کند. برای ثبت پیش‌فاکتور کافی است نام محصول را با همان کلمات خود کاربر در فیلد product بگذاری (مثلاً «میلگرد ۱۴ آجدار A3»)؛ پیدا کردن محصول در کاتالوگ کار ابزار است، نه کار کاربر. اگر ابزار گفت چند گزینه وجود دارد (needs_choice)، فقط با نام فارسی بپرس کدام‌یک را می‌خواهد (مثلاً «از کدام کارخانه؟») و بعد دوباره ابزار را صدا بزن.
+4-الف) هرگز از کاربر کد، شناسه یا هر مقدار فنیِ داخلی سیستم (skuId و مانند آن) نخواه؛ کاربر چنین چیزی ندارد و پرسیدنش او را گیج می‌کند. برای ثبت پیش‌فاکتور کافی است نام محصول را با همان کلمات خود کاربر در فیلد product بگذاری (مثلاً «میلگرد ۱۴ آجدار A3»)؛ پیدا کردن محصول در کاتالوگ کار ابزار است، نه کار کاربر. اگر ابزار گفت چند گزینه وجود دارد (needs_choice)، گزینه‌ها همان لحظه به شکل دکمه‌های قابل‌لمس زیر پیام تو به کاربر نشان داده می‌شوند؛ پس فهرست شماره‌دار یا جدول ننویس و نام گزینه‌ها را در متن تکرار نکن. فقط یک سؤال کوتاه بپرس (مثلاً «از کدام کارخانه می‌خواهی؟») و اضافه کن که می‌تواند یکی از گزینه‌های زیر را بزند یا نامش را بنویسد. بعد از انتخاب او، دوباره ابزار را صدا بزن.
 4-ب) نام و شمارهٔ موبایل را هرگز از کاربر نپرس. اگر کاربر وارد حساب شده باشد، این اطلاعات از پروفایلش برداشته می‌شود؛ اگر نشده باشد، دکمهٔ «ورود به حساب کاربری» در همان کارت به او نشان داده می‌شود. فقط چیزهای واقعاً لازم و ناقص (محصول، سایز، مقدار، شهر تحویل، زمان نیاز) را بپرس.
 5) اگر کاربر خودش قیمتی گفت، آن را تأیید یا رد نکن؛ قیمت معتبر را از ابزار بگیر و همان را بگو.
 
