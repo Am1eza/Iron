@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { buildMetadata, productJsonLd } from './index';
+import { buildMetadata, orgJsonLd, productJsonLd } from './index';
+import { CHANNELS } from '@/lib/data/nav';
 
 type Offer = {
   availability?: string;
@@ -93,5 +94,41 @@ describe('buildMetadata — canonical/og:url can never leave this origin', () =>
     expect((buildMetadata({ title: 'x', path: '/blog' }).openGraph as { type?: string }).type).toBe(
       'website',
     );
+  });
+});
+
+describe('buildMetadata — hreflang', () => {
+  const langsOf = (m: ReturnType<typeof buildMetadata>) =>
+    (m.alternates as { languages?: Record<string, string> } | undefined)?.languages;
+
+  it('declares one self-referential fa alternate matching the canonical', () => {
+    const m = buildMetadata({ title: 'x', path: '/prices' });
+    expect(langsOf(m)).toEqual({ fa: 'https://ahantime.com/prices' });
+  });
+
+  it('never declares en/ar/zh alternates — no such URLs exist (client-side i18n only)', () => {
+    const langs = langsOf(buildMetadata({ title: 'x', path: '/prices' })) ?? {};
+    expect(Object.keys(langs)).toEqual(['fa']);
+    expect(langs).not.toHaveProperty('x-default');
+  });
+
+  it('emits no alternates block at all when the canonical was rejected', () => {
+    // Same failure mode as the canonical: a rejected path must not produce a
+    // dangling hreflang pointing anywhere.
+    expect(buildMetadata({ title: 'x', path: '//evil.com' }).alternates).toBeUndefined();
+  });
+});
+
+describe('orgJsonLd — sameAs is an identity claim, not a link list', () => {
+  it('asserts no social profile while none is owner-verified', () => {
+    // Regression: the spec's four placeholder handles (t.me/ahantime etc.)
+    // were published to Google as this business's real accounts.
+    expect(orgJsonLd()).not.toHaveProperty('sameAs');
+  });
+
+  it('publishes only channels explicitly marked verified', () => {
+    const verified = CHANNELS.filter((c) => c.verified);
+    const sameAs = (orgJsonLd() as { sameAs?: string[] }).sameAs ?? [];
+    expect(sameAs).toEqual(verified.map((c) => c.href));
   });
 });

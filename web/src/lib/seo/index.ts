@@ -2,7 +2,7 @@
  * SEO helpers — metadata patterns (IA §7) + schema.org JSON-LD.
  */
 import type { Metadata } from 'next';
-import { CHANNELS } from '@/lib/data/nav';
+import { VERIFIED_CHANNELS } from '@/lib/data/nav';
 import { SITE_ORIGIN } from '@/lib/utils/url';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://ahantime.com';
@@ -56,7 +56,16 @@ export function buildMetadata(opts: {
   return {
     title: opts.absoluteTitle ? { absolute: opts.title } : opts.title,
     description: opts.description,
-    alternates: canonical ? { canonical } : undefined,
+    // `languages` is SELF-REFERENTIAL ON PURPOSE. Every URL on this site
+    // serves Persian; en/ar/zh exist only as a client-side chrome
+    // translation over that same URL (see i18n/LocaleProvider — cookie-based
+    // by deliberate choice, so ISR isn't broken), so there is no second
+    // indexable per-locale URL to point a real hreflang cluster at.
+    // Declaring `fa` for the canonical states the one true fact; declaring
+    // `en`/`ar`/`zh` — or an `x-default` implying a chooser page — would
+    // claim alternates that do not exist as URLs, which Google reports as an
+    // hreflang error and which no return-tag could ever confirm.
+    alternates: canonical ? { canonical, languages: { fa: canonical } } : undefined,
     robots: opts.noindex ? { index: false, follow: false } : undefined,
     openGraph: {
       title: socialTitle,
@@ -104,7 +113,14 @@ export function orgJsonLd(contact: ContactLike = CONTACT) {
       areaServed: 'IR',
       availableLanguage: 'fa',
     },
-    sameAs: CHANNELS.map((c) => c.href),
+    // Only owner-verified profiles — `sameAs` is an identity claim, and the
+    // spec's placeholder handles were being asserted to Google as this
+    // business's real accounts. Omitted entirely while none are verified;
+    // a missing sameAs costs nothing, a wrong one can attach the knowledge
+    // panel to someone else's profile. See nav.ts's VERIFIED_CHANNELS.
+    ...(VERIFIED_CHANNELS.length > 0
+      ? { sameAs: VERIFIED_CHANNELS.map((c) => c.href) }
+      : {}),
   };
 }
 
