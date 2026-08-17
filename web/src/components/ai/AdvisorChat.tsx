@@ -1070,13 +1070,19 @@ export function AdvisorChat({
   }, [messages]);
 
   return (
-    <div className={styles.wrap}>
+    // A labelled region, not the page's <h1>: /ai now has a real page header
+    // above this panel (app/ai/page.tsx), and the widget's own title used to
+    // BE the page's only h1, shrunk to --t-h4 inside a chrome bar. The name
+    // still labels the panel for assistive tech, via aria-labelledby.
+    <section className={styles.wrap} aria-labelledby="advisor-panel-title">
       <header className={styles.head}>
         <span className={styles.avatar} aria-hidden>
           <AiMarkIcon size={20} />
         </span>
         <div className={styles.headText}>
-          <h1 className={styles.headName}>مشاور هوشمند آهن‌تایم</h1>
+          <p id="advisor-panel-title" className={styles.headName}>
+            مشاور هوشمند آهن‌تایم
+          </p>
         </div>
         <button type="button" className={styles.newChat} onClick={resetChat}>
           گفتگوی جدید
@@ -1208,7 +1214,7 @@ export function AdvisorChat({
       <p className={styles.disclaimer}>
         پاسخ‌ها بر پایهٔ قیمت‌های واقعی است؛ آهن‌تایم هرگز عدد ساختگی نمی‌سازد.
       </p>
-    </div>
+    </section>
   );
 }
 
