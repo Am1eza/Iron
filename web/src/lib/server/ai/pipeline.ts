@@ -19,6 +19,7 @@ import {
 import { AI_TOOLS, runTool } from '@/lib/server/services/aiTools';
 import { GroundingLedger, sanitizeGrounded } from './grounding';
 import { looksLikeLeakedReasoning } from './answerGuard';
+import { toInformalSecondPerson } from './informalVoice';
 
 export const MAX_TOOL_ROUNDS = 4;
 
@@ -257,5 +258,17 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
     }
   }
 
-  return { text: checked.text, violationsCaught, choiceChips, toolsUsed, usage, ledger };
+  // Register safety net, LAST: the prompt asks for تو in four places and this
+  // model still answers «می‌بینید … هستید … می‌خواهید» on some turns. Only the
+  // forms where plural→singular is pure morphology are rewritten (see
+  // informalVoice.ts); grammar changes, content does not, so it cannot move a
+  // number past the validator that already ran above.
+  return {
+    text: toInformalSecondPerson(checked.text),
+    violationsCaught,
+    choiceChips,
+    toolsUsed,
+    usage,
+    ledger,
+  };
 }
