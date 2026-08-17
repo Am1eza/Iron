@@ -20,7 +20,7 @@ import {
   proformaSmsNotification,
   orderSmsNotification,
 } from '@/lib/server/services/leads.service';
-import { runTool, capTranscript } from '@/lib/server/services/aiTools';
+import { runTool, capTranscript, AI_SYSTEM_PROMPT, AI_TOOLS } from '@/lib/server/services/aiTools';
 import { getDraft, consumeDraft } from '@/lib/server/ai/leadDraft';
 import { findProformaByRef } from '@/lib/server/repos/leadsRepo';
 import { requestsForUser, insertRequest, pendingWarehouseRequests, updateRequestStatus } from '@/lib/server/repos/requestsRepo';
@@ -251,6 +251,66 @@ describe('lead → proforma flow', () => {
     // Single-use — a replayed confirm must not mint a second lead.
     expect(await consumeDraft(result.draftId)).not.toBeNull();
     expect(await getDraft(result.draftId)).toBeNull();
+  });
+
+  /**
+   * LIVE BUG (owner, signed in, ahantime.com/ai): asked for «۳ تن میلگرد ۱۴,
+   * تحویل تهران» and the advisor answered by asking HIM for the internal id —
+   * «لطفاً کد商品 (skuId) محصول را به من بدهید» — Chinese character and all
+   * (an undescribed `skuId` field left the multilingual model to invent both
+   * the concept and the word for it). The customer has no such code. The tool
+   * must resolve the product from the words the customer actually used.
+   */
+  it('resolves the product from plain Persian — the customer is never asked for an id', async () => {
+    const rows = await tableRows('rebar');
+    const sku = rows[0]!;
+    const emitted: Record<string, unknown>[] = [];
+
+    // Exactly what the model can know from «۳ تن میلگرد ۱۴»: a product NAME
+    // and a tonnage. No skuId anywhere — none was ever quoted in the chat.
+    const result = (await runTool(
+      'prepareProforma',
+      { items: [{ product: sku.name, qty: 3000, unit: 'kg' }] },
+      null,
+      'conv-resolve-1',
+      undefined,
+      (d) => emitted.push(d),
+    )) as { status?: string; draftId?: string; error?: string };
+
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe('awaiting_user_confirmation');
+    expect(emitted).toHaveLength(1);
+    const card = emitted[0] as { items: Array<{ name: string; qty: number }> };
+    // A REAL catalog product name on the card, not the raw string echoed back.
+    expect(card.items[0]!.name).toBe(sku.name);
+    expect(card.items[0]!.qty).toBe(3000);
+    const draft = await getDraft(result.draftId!);
+    expect(draft?.items[0]!.skuId).toBe(sku.id);
+  });
+
+  it('an unknown product asks for the product in words, never for a code', async () => {
+    const result = (await runTool(
+      'prepareProforma',
+      { items: [{ product: 'یک چیز کاملاً نامربوط ۹۹۹', qty: 1, unit: 'kg' }] },
+      null,
+    )) as { error?: string };
+    expect(result.error).toContain('پیدا نشد');
+    expect(result.error).toContain('هرگز از کاربر کد یا شناسه نخواه');
+  });
+
+  it('rejects a line with neither a product name nor an id, instead of filing nonsense', async () => {
+    const result = (await runTool('prepareProforma', { items: [{ qty: 2, unit: 'kg' }] }, null)) as {
+      error?: string;
+    };
+    expect(result.error).toContain('نام محصول');
+  });
+
+  // The prompt path the model reads must not itself contain a non-Persian
+  // word it can copy — this is what «کد商品» looked like from the inside.
+  it('no CJK character exists anywhere in the tool schemas or the system prompt', () => {
+    const cjk = /[　-〿㐀-䶿一-鿿＀-￯]/;
+    expect(cjk.test(AI_SYSTEM_PROMPT)).toBe(false);
+    expect(cjk.test(JSON.stringify(AI_TOOLS))).toBe(false);
   });
 
   it('the transcript handed to sales is capped (20 newest turns, 1000 chars each)', () => {

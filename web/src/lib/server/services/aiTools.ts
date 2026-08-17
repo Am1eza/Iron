@@ -10,7 +10,7 @@ import { searchPublishedGuides, type ArticleFull } from '@/lib/server/repos/arti
 import { searchCorrections } from '@/lib/server/repos/aiCorrectionsRepo';
 import { estimateProject } from '@/lib/server/services/estimate.service';
 import { priceItems } from '@/lib/server/services/leads.service';
-import { putDraft } from '@/lib/server/ai/leadDraft';
+import { putDraft, type DraftItem } from '@/lib/server/ai/leadDraft';
 import { computeBulkSplit, pickBestGroup } from '@/lib/utils/bulkSplit';
 // The ONE weight formula table — shared with POST /api/tools/weight and the
 // وزن‌سنج UI. These numbers become پیش‌فاکتور line weights, so the advisor and
@@ -124,7 +124,7 @@ export const AI_TOOLS: ToolDef[] = [
     function: {
       name: 'prepareProforma',
       description:
-        'وقتی کاربر آمادهٔ پیش‌فاکتور است: خلاصهٔ اقلام را با قیمت و وزن روز آماده می‌کند و کارت تأیید را زیر پیام تو به کاربر نشان می‌دهد. این ابزار درخواست را ثبت نمی‌کند؛ ثبت نهایی با دکمهٔ تأیید خودِ کاربر انجام می‌شود. هرگز نام یا شمارهٔ موبایل نپرس؛ اگر کاربر وارد حساب نشده باشد، دکمهٔ ورود در همان کارت نمایش داده می‌شود.',
+        'وقتی کاربر آمادهٔ پیش‌فاکتور است: خلاصهٔ اقلام را با قیمت و وزن روز آماده می‌کند و کارت تأیید را زیر پیام تو به کاربر نشان می‌دهد. این ابزار درخواست را ثبت نمی‌کند؛ ثبت نهایی با دکمهٔ تأیید خودِ کاربر انجام می‌شود. برای هر قلم کافی است نام محصول را با همان کلماتی که کاربر گفته در product بنویسی (مثلاً «میلگرد ۱۴ آجدار A3»)؛ خود ابزار محصول را در کاتالوگ پیدا می‌کند. هرگز از کاربر کد، شناسه، نام یا شمارهٔ موبایل نپرس؛ اگر کاربر وارد حساب نشده باشد، دکمهٔ ورود در همان کارت نمایش داده می‌شود.',
       parameters: {
         type: 'object',
         properties: {
@@ -133,11 +133,24 @@ export const AI_TOOLS: ToolDef[] = [
             items: {
               type: 'object',
               properties: {
-                skuId: { type: 'string' },
-                qty: { type: 'number' },
-                unit: { type: 'string', enum: ['kg', 'branch', 'sheet', 'meter'] },
+                product: {
+                  type: 'string',
+                  description:
+                    'نام محصول به فارسی، همان‌طور که کاربر گفته یا در گفتگو مشخص شده؛ هر چه کامل‌تر بهتر (محصول + سایز + گرید + کارخانه اگر معلوم است)، مثلاً «میلگرد ۱۴ آجدار A3 ذوب‌آهن». ابزار خودش این نام را به محصول کاتالوگ تبدیل می‌کند. هرگز از کاربر کد یا شناسهٔ محصول نپرس؛ کاربر چنین کدی ندارد.',
+                },
+                skuId: {
+                  type: 'string',
+                  description:
+                    'اختیاری و فقط وقتی که در همین گفتگو از خروجی getPrice فیلد skuId را گرفته‌ای؛ آن مقدار را بدون تغییر بگذار. اگر نداری این فیلد را خالی بگذار و فقط product را پر کن. این شناسهٔ داخلی سیستم است و هرگز نباید از کاربر پرسیده یا به او نشان داده شود.',
+                },
+                qty: {
+                  type: 'number',
+                  description:
+                    'مقدار، در همان واحدی که در unit می‌گذاری. برای تناژ، واحد را kg بگذار و مقدار را به کیلوگرم بده (مثلاً «۳ تن» یعنی qty=3000 و unit=kg).',
+                },
+                unit: { type: 'string', enum: ['kg', 'branch', 'sheet', 'meter'], description: 'واحد qty' },
               },
-              required: ['skuId', 'qty', 'unit'],
+              required: ['qty', 'unit'],
             },
           },
         },
@@ -150,11 +163,20 @@ export const AI_TOOLS: ToolDef[] = [
 const draftArgs = z.object({
   items: z
     .array(
-      z.object({
-        skuId: z.string().max(120),
-        qty: finiteNumber.positive().max(100_000),
-        unit: z.enum(['kg', 'branch', 'sheet', 'meter']),
-      }),
+      z
+        .object({
+          // EITHER is enough. `product` is the normal path: the visitor says
+          // «۳ تن میلگرد ۱۴» and the model passes those words straight
+          // through — it does not have, and must never ask for, an internal
+          // id. `skuId` is the shortcut for when getPrice already returned one.
+          product: z.string().trim().min(1).max(120).optional(),
+          skuId: z.string().max(120).optional(),
+          qty: finiteNumber.positive().max(100_000),
+          unit: z.enum(['kg', 'branch', 'sheet', 'meter']),
+        })
+        .refine((i) => Boolean(i.product?.trim() || i.skuId?.trim()), {
+          message: 'product یا skuId لازم است',
+        }),
     )
     .min(1)
     .max(100),
@@ -255,6 +277,32 @@ async function resolveSubCategory(categorySlug: string, query: string): Promise<
 // worse than useless — 1000 chars covers a normal advisor reply whole.
 const TRANSCRIPT_MAX_MESSAGES = 20;
 const TRANSCRIPT_MAX_CHARS = 1000;
+
+/**
+ * Free text («میلگرد ۱۴ آجدار A3 ذوب‌آهن») → one catalog SKU, using the SAME
+ * lookup getPrice runs, so a product the advisor could quote is always a
+ * product it can also put on a پیش‌فاکتور.
+ *
+ * Returns 'many' rather than silently picking the first hit: which factory
+ * you buy from is a real decision with a real price difference, and guessing
+ * it would put the wrong mill on a document the customer keeps. The caller
+ * turns that into a plain Persian question — never a request for an id.
+ */
+async function resolveProduct(
+  query: string,
+): Promise<{ kind: 'one'; skuId: string } | { kind: 'many'; options: string[] } | { kind: 'none' }> {
+  const direct = await findSkuRow(query);
+  if (direct) return { kind: 'one', skuId: direct.id };
+  const rows = await searchSkus(query, 5);
+  if (rows.length === 0) return { kind: 'none' };
+  if (rows.length === 1) return { kind: 'one', skuId: rows[0]!.id };
+  // One product quoted by one mill can legitimately appear once per size/
+  // grade row; if every hit is the same NAME, they are the same product and
+  // there is nothing for the customer to choose between.
+  const names = [...new Set(rows.map((r) => r.name))];
+  if (names.length === 1) return { kind: 'one', skuId: rows[0]!.id };
+  return { kind: 'many', options: names };
+}
 
 /** The chat as sales will read it — capped, oldest turns dropped first. */
 export function capTranscript(
@@ -425,18 +473,59 @@ export async function runTool(
       }
       case 'prepareProforma': {
         const parsed = draftArgs.safeParse(args);
-        if (!parsed.success) return { error: 'اقلام ناقص است؛ محصول، مقدار و واحد را کامل بپرس.' };
+        if (!parsed.success) return { error: 'اقلام ناقص است؛ نام محصول، مقدار و واحد را کامل بده.' };
+
+        // Resolve every line to a REAL catalog product from the words the
+        // visitor used. This is the tool's job, not the customer's: they do
+        // not have an internal id and being asked for one is nonsense to
+        // them (a live report: the advisor asked a buyer for «کد商品», having
+        // improvised both the concept and, being a multilingual model, the
+        // word for it out of an undescribed `skuId` field).
+        const resolved: DraftItem[] = [];
+        const notFound: string[] = [];
+        const ambiguous: Array<{ product: string; options: string[] }> = [];
+        for (const item of parsed.data.items) {
+          if (item.skuId?.trim()) {
+            resolved.push({ skuId: item.skuId.trim(), qty: item.qty, unit: item.unit });
+            continue;
+          }
+          const query = item.product!.trim();
+          const match = await resolveProduct(query);
+          if (match.kind === 'one') {
+            resolved.push({ skuId: match.skuId, qty: item.qty, unit: item.unit });
+          } else if (match.kind === 'many') {
+            ambiguous.push({ product: query, options: match.options });
+          } else {
+            notFound.push(query);
+          }
+        }
+
+        // Ambiguity is a question for a HUMAN, phrased in human terms —
+        // «کدام کارخانه؟», never «کد محصول را بده».
+        if (ambiguous.length > 0) {
+          return {
+            status: 'needs_choice',
+            ambiguous,
+            note: 'این محصول‌ها چند گزینه دارند. فقط با نام فارسی بپرس کدام‌یک را می‌خواهد (مثلاً کدام کارخانه یا کدام سایز) و بعد دوباره همین ابزار را صدا بزن. هرگز از کاربر کد یا شناسه نخواه.',
+          };
+        }
+        if (notFound.length > 0 || resolved.length === 0) {
+          return {
+            error: `این محصول در کاتالوگ پیدا نشد: ${notFound.join('، ')}. با نام فارسی بپرس دقیقاً چه محصول و سایزی می‌خواهد؛ هرگز از کاربر کد یا شناسه نخواه.`,
+          };
+        }
+
         // Prices the lines with the SAME function createLead uses, so the card
         // the visitor confirms and the lead the rep receives cannot disagree.
-        const { lines, allPriced } = await priceItems(parsed.data.items);
+        const { lines, allPriced } = await priceItems(resolved);
         // An unresolved skuId comes back as a line whose `name` IS the raw id
         // (priceItems' fallback) — showing that to the customer as a product
         // name would be nonsense, so send the model back for a real product.
         if (lines.length === 0 || lines.every((l) => l.name === l.skuId)) {
-          return { error: 'این اقلام در کاتالوگ پیدا نشد؛ اول با استعلام قیمت محصول دقیق را پیدا کن.' };
+          return { error: 'این اقلام در کاتالوگ پیدا نشد؛ با نام فارسی بپرس چه محصولی می‌خواهد.' };
         }
         const draft = await putDraft({
-          items: parsed.data.items,
+          items: resolved,
           conversationId,
           userId: session?.id,
           transcript: capTranscript(transcript),
@@ -489,7 +578,8 @@ export const AI_SYSTEM_PROMPT = `تو «مشاور هوشمند آهن‌تای�
 2) اگر ابزار قیمت null برگرداند، هیچ عددی نگو؛ بگو قیمت توسط کارشناس اعلام می‌شود و پیشنهاد ثبت درخواست بده؛ هرگز حدس نزن. اگر قیمت عدد دارد ولی isStale=true است، حتماً همان قیمت را همراه تاریخش بگو («آخرین قیمت ثبت‌شده: X تومان در تاریخ Y»؛ Y همان updatedAtJalali خروجی ابزار) و اضافه کن که قیمت به‌روز را کارشناس تأیید می‌کند؛ قیمت تاریخ‌دار را هرگز از کاربر دریغ نکن.
 3) عدد را همیشه با رقم بنویس، نه با حروف؛ اعداد با جداکنندهٔ هزارگان و همیشه با واحد (تومان، کیلوگرم، شاخه). قبل از پاسخ، معقول بودن عدد را چک کن: اگر نتیجه نامعقول بود (مثلاً وزن یک شاخه میلگرد چند صد کیلو، یا وزن یک شاخه تیرآهن/ناودانی زیر ۶ کیلوگرم — سبک‌ترین سایز واقعی تیرآهن هم به این کمی نمی‌رسد)، shape/sizeCode/diameterMm ورودی calcWeight را دوباره چک کن (نشانهٔ کلاسیک این خطا: برای «تیرآهن ۱۴» به‌جای shape=ibeam و sizeCode=14 اشتباهاً shape=rebar یا wire با diameterMm=14 صدا زده شده) و ابزار را با ورودی درست دوباره صدا بزن.
 4) وقتی کاربر آمادهٔ خرید/پیش‌فاکتور است، ابزار prepareProforma را با اقلام صدا بزن. این ابزار درخواست را ثبت نمی‌کند: یک کارت خلاصهٔ اقلام با دکمهٔ تأیید زیر پیام تو به کاربر نشان داده می‌شود و ثبت نهایی با فشردن همان دکمه توسط کاربر انجام می‌شود. پس هرگز نگو «درخواستت ثبت شد» و هرگز کد پیگیری نساز؛ فقط بگو خلاصه را ببیند و دکمه را بزند. وزن/مبلغ کل را در متن تکرار نکن یا اگر گفتی، دقیقاً از فیلدهای totalWeightKg/total همان خروجی بگو؛ هرگز خودت وزن یا مبلغ را از روی مقدار کاربر (مثلاً «۲ تن») محاسبه نکن.
-4-الف) نام و شمارهٔ موبایل را هرگز از کاربر نپرس. اگر کاربر وارد حساب شده باشد، این اطلاعات از پروفایلش برداشته می‌شود؛ اگر نشده باشد، دکمهٔ «ورود به حساب کاربری» در همان کارت به او نشان داده می‌شود. فقط چیزهای واقعاً لازم و ناقص (محصول، سایز، مقدار، شهر تحویل، زمان نیاز) را بپرس.
+4-الف) هرگز از کاربر کد، شناسه یا هر مقدار فنیِ داخلی سیستم (skuId و مانند آن) نخواه؛ کاربر چنین چیزی ندارد و پرسیدنش او را گیج می‌کند. برای ثبت پیش‌فاکتور کافی است نام محصول را با همان کلمات خود کاربر در فیلد product بگذاری (مثلاً «میلگرد ۱۴ آجدار A3»)؛ پیدا کردن محصول در کاتالوگ کار ابزار است، نه کار کاربر. اگر ابزار گفت چند گزینه وجود دارد (needs_choice)، فقط با نام فارسی بپرس کدام‌یک را می‌خواهد (مثلاً «از کدام کارخانه؟») و بعد دوباره ابزار را صدا بزن.
+4-ب) نام و شمارهٔ موبایل را هرگز از کاربر نپرس. اگر کاربر وارد حساب شده باشد، این اطلاعات از پروفایلش برداشته می‌شود؛ اگر نشده باشد، دکمهٔ «ورود به حساب کاربری» در همان کارت به او نشان داده می‌شود. فقط چیزهای واقعاً لازم و ناقص (محصول، سایز، مقدار، شهر تحویل، زمان نیاز) را بپرس.
 5) اگر کاربر خودش قیمتی گفت، آن را تأیید یا رد نکن؛ قیمت معتبر را از ابزار بگیر و همان را بگو.
 
 == روش مشاوره (مثل یک کارشناس واقعی) ==
@@ -508,4 +598,5 @@ export const AI_SYSTEM_PROMPT = `تو «مشاور هوشمند آهن‌تای�
 16) در هر پاسخ حداکثر ۱–۲ عدد کلیدی را **پررنگ** کن؛ هرگز جملهٔ کامل را پررنگ نکن و در پاسخ کوتاه تیتر نگذار. گرید و کدهای فنی لاتین (مثل A3، ST37، IPE14) را داخل \`بک‌تیک\` بنویس.
 17) هر پاسخ را با دقیقاً یک قدم بعدی مشخص تمام کن (ثبت درخواست پیش‌فاکتور، اعلام سایز، یا دیدن جدول قیمت)؛ نه چند پیشنهاد هم‌زمان.
 18) نام ابزارهای داخلی (prepareProforma، getPrice، compareFactories و…) را هرگز در متن پاسخ نیاور؛ به‌جایش بگو «ثبت درخواست» یا «استعلام قیمت». اسم کارخانه‌ها را فقط از خروجی ابزارها بگو، نه از حافظهٔ خودت.
-19) نقطه‌گذاری کاملاً انسانی و فارسی باشد. هرگز از خط تیرهٔ بلند («—») استفاده نکن؛ به‌جایش ویرگول «،»، نقطه‌ویرگول «؛»، دونقطه «:» یا نقطه به کار ببر. متن باید طبیعی و مثل نوشتهٔ یک کارشناس فارسی‌زبان باشد، نه ماشینی.`;
+19) نقطه‌گذاری کاملاً انسانی و فارسی باشد. هرگز از خط تیرهٔ بلند («—») استفاده نکن؛ به‌جایش ویرگول «،»، نقطه‌ویرگول «؛»، دونقطه «:» یا نقطه به کار ببر. متن باید طبیعی و مثل نوشتهٔ یک کارشناس فارسی‌زبان باشد، نه ماشینی.
+20) پاسخ فقط و فقط فارسی باشد. هیچ واژه یا حرفی از زبان‌های دیگر (چینی، روسی، انگلیسیِ غیرفنی و…) در متن نیاور؛ تنها استثنا کدهای فنی لاتینِ رایج بازار است (مثل A3، ST37، IPE14) که داخل بک‌تیک نوشته می‌شوند. اگر واژهٔ فارسیِ چیزی را نمی‌دانی، جمله را طور دیگری بنویس؛ هرگز واژهٔ زبان دیگری را جایگزین نکن.`;
