@@ -1,6 +1,9 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/query/keys';
+import { http } from '@/lib/api/http';
 import { useCartStore } from '@/lib/stores/cart';
 import { useToast } from '@/lib/hooks/useToast';
 import { useAuth } from '@/lib/hooks/useAuth';
@@ -80,7 +83,20 @@ export function SkuDetail({
   const toast = useToast();
   const { isAuthenticated } = useAuth();
   const [vat, setVat] = useState(false);
-  const [faved, setFaved] = useState(false);
+  const qc = useQueryClient();
+
+  // The real favorites list, shared by cache key with /account's FavoritesList
+  // so the two can never disagree. Only fetched for a signed-in visitor — a
+  // guest's heart is a login prompt, not a state. This is what makes the
+  // starred state SURVIVE a reload; it used to be a local useState(false) that
+  // showed a success toast and persisted nothing at all.
+  const { data: favData } = useQuery({
+    queryKey: queryKeys.myFavorites(),
+    queryFn: () => http.get<{ favorites: PriceRow[] }>('/api/me/favorites'),
+    enabled: isAuthenticated,
+    staleTime: 30_000,
+  });
+  const faved = (favData?.favorites ?? []).some((f) => f.id === row.id);
 
   const cat = categories.find((c) => c.slug === row.categoryId);
   const categoryName = cat?.name ?? row.categoryId;
@@ -125,6 +141,18 @@ export function SkuDetail({
     });
   };
 
+  const favMutation = useMutation({
+    mutationFn: (next: boolean) =>
+      next
+        ? http.post(`/api/me/favorites`, { skuId: row.id })
+        : http.del(`/api/me/favorites/${encodeURIComponent(row.id)}`),
+    onSuccess: (_res, next) => {
+      qc.invalidateQueries({ queryKey: queryKeys.myFavorites() });
+      toast.success(next ? 'به علاقه‌مندی‌ها اضافه شد.' : 'از علاقه‌مندی‌ها حذف شد.');
+    },
+    onError: () => toast.error('ذخیرهٔ علاقه‌مندی انجام نشد. دوباره تلاش کنید.'),
+  });
+
   const toggleFav = () => {
     if (!isAuthenticated) {
       toast.info('برای ذخیرهٔ علاقه‌مندی‌ها وارد شوید.', {
@@ -133,8 +161,7 @@ export function SkuDetail({
       });
       return;
     }
-    setFaved((v) => !v);
-    toast.success(faved ? 'از علاقه‌مندی‌ها حذف شد.' : 'به علاقه‌مندی‌ها اضافه شد.');
+    favMutation.mutate(!faved);
   };
 
   const share = async () => {
@@ -300,6 +327,7 @@ export function SkuDetail({
                 active={faved}
                 icon={<HeartIcon size={20} filled={faved} />}
                 onClick={toggleFav}
+                disabled={favMutation.isPending}
               />
               <AlertBellButton
                 variant="subtle"
