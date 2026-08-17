@@ -58,8 +58,16 @@ describe('AI_VOICE_REMINDER — the same rule, last, next to the conversation', 
     expect(AI_VOICE_REMINDER).toContain('اگر کاربر رسمی نوشت');
   });
 
+  // The first live run after the reminder shipped swung the other way: «رو»,
+  // «می‌کنه», «اگه», «بهت» — تو, but spoken. Both halves have to be in the
+  // reminder, or fixing one register breaks the other.
+  it('asks for written تو, not spoken تو', () => {
+    for (const pair of ['«را» بنویس نه «رو»', '«می‌کند» نه «می‌کنه»', '«به تو» نه «بهت»'])
+      expect(AI_VOICE_REMINDER).toContain(pair);
+  });
+
   it('stays short — a reminder, not a second rulebook', () => {
-    expect(AI_VOICE_REMINDER.length).toBeLessThan(500);
+    expect(AI_VOICE_REMINDER.length).toBeLessThan(800);
   });
 });
 
@@ -89,6 +97,10 @@ describe('AI_SYSTEM_PROMPT — the تو rule the model is held to', () => {
     expect(AI_SYSTEM_PROMPT).toContain('صمیمیِ حرفه‌ای');
     for (const word of ['داداش', 'عزیزم', 'جانم']) expect(AI_SYSTEM_PROMPT).toContain(word);
     expect(AI_SYSTEM_PROMPT).toContain('شکسته‌نویسی');
+    // Named forms, not just the category: «شکسته‌نویسی» alone did not stop
+    // «شهر تحویل رو بگو … کارشناس بهت اعلام می‌کنه» from shipping live.
+    for (const spoken of ['«رو» به‌جای «را»', '«می‌کنه» به‌جای «می‌کند»', '«بهت» به‌جای «به تو»'])
+      expect(AI_SYSTEM_PROMPT).toContain(spoken);
   });
 
   // A live check against the deployed prompt showed the model honouring تو in
