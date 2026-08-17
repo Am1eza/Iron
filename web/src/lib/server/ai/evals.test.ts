@@ -437,6 +437,64 @@ const SCENARIOS: Scenario[] = [
     },
   },
   {
+    // PR-C: «کدام کارخانه؟» used to be a prose list the visitor had to retype.
+    // The tool now hands the options out as chips; the model is told (rule
+    // 4-الف) not to repeat them in the text.
+    name: 'an ambiguous product becomes a tappable choice, not a list to retype',
+    userMessages: ['برام پیش‌فاکتور میلگرد بگیر'],
+    rounds: () => [
+      {
+        toolCalls: [
+          // Free text broad enough to match several DIFFERENT product names —
+          // the exact shape resolveProduct answers with `many`.
+          { name: 'prepareProforma', args: () => ({ items: [{ product: 'میلگرد', qty: 3, unit: 'kg' }] }) },
+        ],
+      },
+      { text: 'از کدام کارخانه می‌خواهی؟ یکی از گزینه‌های زیر را بزن یا نامش را بنویس.' },
+    ],
+    expectations: ({ result, frames, messages }) => {
+      const tool = lastToolResult<{ status: string; choiceChips: string[]; ambiguous: unknown[] }>(messages);
+      expect(tool.status).toBe('needs_choice');
+      // The chips ARE catalog product names, which is what the next
+      // prepareProforma round resolves against — a tap and a typed name take
+      // the same path.
+      expect(tool.choiceChips.length).toBeGreaterThan(1);
+      expect(tool.choiceChips.length).toBeLessThanOrEqual(5);
+      expect(new Set(tool.choiceChips).size).toBe(tool.choiceChips.length);
+      expect(result.choiceChips).toEqual(tool.choiceChips);
+      // Nothing was drafted, so no card competes with the question.
+      expect(frames.find((f) => f.type === 'leadDraft')).toBeUndefined();
+      expect(result.violationsCaught).toBe(0);
+    },
+  },
+  {
+    // The other half of the contract: once the visitor has answered, the
+    // question is over. A stale «کدام کارخانه؟» row next to a confirmation
+    // card would offer to re-answer a question that no longer exists.
+    name: 'a resolved draft clears the pending choice',
+    userMessages: ['میلگرد ۱۴ ذوب‌آهن', 'همون رو ثبت کن'],
+    rounds: () => [
+      {
+        toolCalls: [
+          { name: 'prepareProforma', args: () => ({ items: [{ product: 'میلگرد', qty: 3, unit: 'kg' }] }) },
+        ],
+      },
+      {
+        toolCalls: [
+          {
+            name: 'prepareProforma',
+            args: () => ({ items: [{ skuId: pricedRebar[0]!.id, qty: 3, unit: pricedRebar[0]!.unit }] }),
+          },
+        ],
+      },
+      { text: 'خلاصهٔ درخواستت آماده است؛ دکمهٔ تأیید و ثبت درخواست را بزن.' },
+    ],
+    expectations: ({ result, frames }) => {
+      expect(frames.find((f) => f.type === 'leadDraft')).toBeDefined();
+      expect(result.choiceChips).toEqual([]);
+    },
+  },
+  {
     name: 'off-topic: short polite redirect, no tools, no numbers',
     userMessages: ['نتیجهٔ بازی دیشب چی شد؟'],
     rounds: () => [

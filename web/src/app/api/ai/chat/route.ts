@@ -238,7 +238,14 @@ async function POSTImpl(req: NextRequest) {
         // Contextual follow-up chips (AC-D-7) — see selectFollowUpChips above.
         const lastUserMessage = [...parsed.data.messages].reverse().find((m) => m.role === 'user')?.content?.trim();
         const userMessageCount = parsed.data.messages.filter((m) => m.role === 'user').length;
-        const chips = selectFollowUpChips(toolsUsed, userMessageCount, lastUserMessage);
+        const chips = selectFollowUpChips(
+          toolsUsed,
+          userMessageCount,
+          lastUserMessage,
+          // «کدام کارخانه؟» as buttons rather than a prose list the visitor
+          // has to retype (audit proposal PR-C).
+          result.choiceChips,
+        );
         if (chips.length > 0) send({ type: 'chips', chips });
 
         // Deterministic id for THIS assistant answer, announced in `done` so the

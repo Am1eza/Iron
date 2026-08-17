@@ -51,6 +51,15 @@ export interface PipelineResult {
   text: string;
   /** FIRST pass's violation count: a clean retry still means the model tried. */
   violationsCaught: number;
+  /**
+   * The options of a `needs_choice` the turn ended on — «کدام کارخانه؟» as
+   * tappable chips instead of a prose list the visitor has to retype (the
+   * route hands them to selectFollowUpChips). Empty unless the LAST
+   * prepareProforma of the turn came back ambiguous: a draft that resolved
+   * afterwards means the question is answered and the confirmation card is
+   * the next step.
+   */
+  choiceChips: string[];
   toolsUsed: Set<string>;
   usage: { promptTokens: number; completionTokens: number; cacheHitTokens: number };
   /** Exposed so callers/tests can re-verify the final text independently. */
@@ -65,6 +74,10 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
   // AC-D-3 state: every tool-returned number becomes quotable.
   const ledger = new GroundingLedger();
   const toolsUsed = new Set<string>();
+  // Options from the turn's last unresolved prepareProforma (see
+  // PipelineResult.choiceChips). Reset by a later resolved draft so a stale
+  // «کدام کارخانه؟» row can never outlive its own question.
+  let choiceChips: string[] = [];
 
   // prepareProforma no longer files a lead (no SMS until the visitor presses
   // the confirm button — see ai/leadDraft.ts), but it does price every line
@@ -165,7 +178,16 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
             // frame, so the client can attach it to the committed message.
             send({ type: 'leadDraft', ...draft }),
           );
-          if (call.function.name === 'prepareProforma') draftCalls++;
+          if (call.function.name === 'prepareProforma') {
+            draftCalls++;
+            // The tool decides WHETHER a choice is chip-able (one ambiguous
+            // line, deduped, capped — see chipsForChoice); the pipeline only
+            // carries the answer out to the route.
+            const choice = (result as { status?: string; choiceChips?: unknown })?.status === 'needs_choice'
+              ? (result as { choiceChips?: unknown }).choiceChips
+              : [];
+            choiceChips = Array.isArray(choice) ? choice.filter((c): c is string => typeof c === 'string') : [];
+          }
         }
         toolsUsed.add(call.function.name);
         ledger.addFromJson(result); // every tool number becomes quotable
@@ -209,5 +231,5 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
     }
   }
 
-  return { text: checked.text, violationsCaught, toolsUsed, usage, ledger };
+  return { text: checked.text, violationsCaught, choiceChips, toolsUsed, usage, ledger };
 }

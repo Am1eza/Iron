@@ -38,6 +38,27 @@ describe('selectFollowUpChips', () => {
     expect(selectFollowUpChips(new Set(['searchGuides']), 1, 'فرق A2 و A3 چیه؟')).toEqual([]);
   });
 
+  // PR-C: when the advisor asks «کدام کارخانه؟», the answers are the chips.
+  // Anything else on that turn would be a chip for a question nobody asked.
+  it('offers the pending choice as chips, ahead of every generic follow-up', () => {
+    const options = ['میلگرد آجدار ۱۶ فایکو', 'میلگرد آجدار ۱۶ ذوب‌آهن اصفهان'];
+    expect(
+      selectFollowUpChips(new Set(['prepareProforma']), 2, 'پیش‌فاکتور میلگرد ۱۶', options),
+    ).toEqual(options);
+    // Even on a turn that would otherwise have produced the pricing pair.
+    expect(
+      selectFollowUpChips(new Set(['getPrice', 'prepareProforma']), 2, 'میلگرد ۱۶', options),
+    ).toEqual(options);
+  });
+
+  it('falls back to the normal chips when there is no pending choice', () => {
+    expect(selectFollowUpChips(new Set(['prepareProforma']), 2, 'پیش‌فاکتور', [])).toEqual([]);
+    expect(selectFollowUpChips(new Set(['getPrice']), 2, 'قیمت میلگرد', undefined)).toEqual([
+      CHIP.proforma,
+      CHIP.allPrices,
+    ]);
+  });
+
   it('shows the starter chips on a genuinely unanswered first turn (no tool used)', () => {
     expect(selectFollowUpChips(new Set(), 1, 'سلام')).toEqual([...PURPOSE_CHIPS]);
   });
