@@ -69,6 +69,19 @@ export async function getRows(categorySlug: string): Promise<PriceRow[]> {
   return repo.tableRows(categorySlug);
 }
 
+/** One headline PriceRow per active category, in category (taxonomy) order —
+ *  the /prices hub's multi-category live summary. See
+ *  catalogRepo.headlineRowPerCategory for what "headline" means. */
+export async function getHeadlineRows(): Promise<PriceRow[]> {
+  if (!live()) {
+    const rows = await Promise.all(
+      mockCategories.filter((c) => c.isActive).map(async (c) => (await mock.getRows(c.slug))[0]),
+    );
+    return rows.filter((r): r is PriceRow => Boolean(r));
+  }
+  return repo.headlineRowPerCategory();
+}
+
 /** Active SKU count per category slug, in one query in live mode. Callers
  *  that only need counts must use this rather than measuring getRows(). */
 export async function getSkuCounts(categorySlugs: readonly string[]): Promise<Map<string, number>> {
