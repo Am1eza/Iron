@@ -21,7 +21,7 @@ import { ulid } from 'ulid';
 import { getDb } from '@/lib/server/db/client';
 import { aiConversations, aiMessages } from '@/lib/server/db/schema';
 import { streamCompletion, type ChatMessage } from '@/lib/server/integrations/aiRelay';
-import { AI_SYSTEM_PROMPT } from '@/lib/server/services/aiTools';
+import { AI_SYSTEM_PROMPT, AI_VOICE_REMINDER } from '@/lib/server/services/aiTools';
 import { assignPromptVersion, type PromptVersion } from '@/lib/server/ai/promptVersions';
 
 /** Stored-message count past which the older turns collapse into a summary. */
@@ -139,6 +139,12 @@ export function buildChatMessages(
   if (identity && identity.trim()) {
     messages.push({ role: 'system', content: identity.trim() });
   }
+  // Register, restated LAST — right before the visitor's own turns. The rule
+  // itself is in AI_SYSTEM_PROMPT (21-22), but that is the far end of a
+  // 22-rule prompt: live testing showed the model keeping تو for a clause and
+  // then closing with «لطفاً درخواست را ثبت کنید». This costs ~60 tokens, sits
+  // after the cache-prefix messages, and is a reminder, not a second rulebook.
+  messages.push({ role: 'system', content: AI_VOICE_REMINDER });
   for (const m of clientMessages) messages.push({ role: m.role, content: m.content });
   return messages;
 }
