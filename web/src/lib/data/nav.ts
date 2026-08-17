@@ -189,10 +189,31 @@ export const FOOTER_COLUMNS: { title: string; links: NavLink[] }[] = [
   { title: 'پشتیبانی', links: SUPPORT_NAV },
 ];
 
-/** Social / messaging channels (navigation.md §7.5) — hrefs are placeholders. */
-export const CHANNELS: NavLink[] = [
+/**
+ * Social / messaging channels (navigation.md §7.5).
+ *
+ * `verified: true` means "the owner has confirmed this account exists and is
+ * ours". Everything else is still the placeholder handle the spec sketched.
+ * The distinction is not cosmetic: these hrefs feed the Organization
+ * JSON-LD's `sameAs`, which is an *identity claim* — it tells Google "these
+ * profiles are this business". Asserting an unverified handle either points
+ * the knowledge panel at a 404 or, worse, at somebody else's account with a
+ * similar name. So `sameAs` reads VERIFIED_CHANNELS only, and is omitted
+ * entirely while that list is empty; the footer/drawer keep rendering the
+ * full list (a visible dead link is an obvious, fixable UI bug — a wrong
+ * identity claim to a search engine is neither).
+ *
+ * To publish one: confirm the account, add `verified: true` here. No other
+ * change is needed.
+ */
+export type Channel = NavLink & { verified?: boolean };
+
+export const CHANNELS: Channel[] = [
   { label: 'تلگرام', href: 'https://t.me/ahantime' },
   { label: 'ایتا', href: 'https://eitaa.com/ahantime' },
   { label: 'اینستاگرام', href: 'https://instagram.com/ahantime' },
   { label: 'واتساپ', href: 'https://wa.me/989121395954' },
 ];
+
+/** The subset safe to assert as this organization's identity (see above). */
+export const VERIFIED_CHANNELS: Channel[] = CHANNELS.filter((c) => c.verified);
