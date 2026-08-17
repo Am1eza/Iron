@@ -1,0 +1,212 @@
+.section {
+  padding-block: var(--space-8) var(--space-4);
+}
+.head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-block-end: var(--space-6);
+}
+.eyebrow {
+  font: var(--t-overline);
+  color: var(--color-accent-text);
+  margin: 0 0 var(--space-1);
+}
+.title {
+  font: var(--t-h2);
+  margin: 0;
+}
+
+.tableWrap {
+  overflow-x: auto;
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+.tableWrap:focus-visible {
+  outline: var(--border-focus) solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  min-inline-size: 720px;
+}
+.caption {
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+  text-align: start;
+  padding: var(--space-3) var(--space-4);
+  border-block-end: var(--border-hairline) solid var(--color-hairline);
+}
+.table thead th {
+  font: var(--t-thead);
+  color: var(--color-text-muted);
+  text-align: start;
+  padding: var(--space-3) var(--space-4);
+  border-block-end: var(--border-hairline) solid var(--color-hairline);
+  white-space: nowrap;
+  background: var(--color-surface-sunken);
+}
+.table tbody td,
+.table tbody th {
+  padding: var(--space-3) var(--space-4);
+  border-block-end: var(--border-hairline) solid var(--color-hairline);
+  font: var(--t-data);
+  color: var(--color-text);
+  text-align: start;
+  vertical-align: middle;
+}
+.table tbody tr:last-child td,
+.table tbody tr:last-child th {
+  border-block-end: 0;
+}
+.table tbody tr:hover {
+  background: var(--color-surface-sunken);
+}
+
+.name {
+  font-weight: 600;
+  color: var(--color-text-strong);
+  white-space: nowrap;
+}
+.catLink,
+.skuLink {
+  color: inherit;
+  text-decoration: none;
+}
+.catLink:hover,
+.skuLink:hover {
+  color: var(--color-accent-text);
+  text-decoration: underline;
+}
+.muted {
+  color: var(--color-text-muted);
+}
+.num {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+.price {
+  font: var(--t-price-cell);
+  color: var(--color-text-strong);
+}
+.up {
+  color: var(--color-gain-text);
+}
+.down {
+  color: var(--color-loss-text);
+}
+.flat {
+  color: var(--color-text-muted);
+}
+
+.action {
+  inline-size: 44px;
+  text-align: center;
+}
+.detail {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 32px;
+  block-size: 32px;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+}
+.detail:hover {
+  background: var(--color-accent-tint);
+  color: var(--color-accent);
+}
+
+.note {
+  margin: var(--space-3) 0 0;
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}
+
+/* ===== Mobile cards (WCAG 1.4.10 Reflow) ===== */
+.cards {
+  display: none;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.card {
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.cardCat {
+  font: var(--t-overline);
+  color: var(--color-text-muted);
+  margin: 0;
+}
+.cardLink {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  color: var(--color-text-strong);
+  text-decoration: none;
+  min-block-size: 24px;
+}
+.cardName {
+  font: var(--t-h4);
+  color: var(--color-text-strong);
+}
+.cardPrice {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+}
+.cardMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+  font: var(--t-body-sm);
+  color: var(--color-text-muted);
+}
+.cardMeta div {
+  display: flex;
+  gap: var(--space-1);
+}
+.cardMeta dt::after {
+  content: ':';
+}
+.cardMeta dd {
+  margin: 0;
+  color: var(--color-text);
+}
+.cardAll {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font: var(--t-label);
+  color: var(--color-accent-text);
+  text-decoration: none;
+  min-block-size: 24px;
+}
+.cardAll:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 767px) {
+  .tableWrap {
+    display: none;
+  }
+  .cards {
+    display: flex;
+  }
+}

@@ -231,6 +231,57 @@ export async function tableRows(
 }
 
 /**
+ * ONE headline SKU per active category — the row the /prices hub publishes as
+ * that category's representative live price.
+ *
+ * "Headline" = the most recently repriced SKU whose price is still fresh
+ * enough to publish. That is the closest proxy this schema has for
+ * "most-quoted": the operator reprices what people are actually asking about,
+ * so the SKU touched last is the one the market is moving on. A category
+ * whose every price has gone stale-hidden contributes its newest row anyway,
+ * with the price withheld — the hub then shows «تماس بگیرید» rather than
+ * dropping the category out of the summary entirely.
+ *
+ * Done as a single DISTINCT ON query on purpose: the obvious implementation
+ * (tableRows() once per category) is 14 full price-table reads per render,
+ * the exact mistake skuCountsByCategory() below documents.
+ */
+export async function headlineRowPerCategory(): Promise<PriceRow[]> {
+  const db = getDb();
+  const rows = await db
+    .selectDistinctOn([categories.slug], {
+      sku: skus,
+      price: currentPrices,
+      catSlug: categories.slug,
+      subSlug: subCategories.slug,
+      catOrder: categories.order,
+    })
+    .from(skus)
+    .innerJoin(categories, eq(skus.categoryId, categories.id))
+    .innerJoin(subCategories, eq(skus.subCategoryId, subCategories.id))
+    .leftJoin(currentPrices, eq(currentPrices.skuId, skus.id))
+    // DISTINCT ON requires the distinct expression to lead ORDER BY; the real
+    // "which row wins" ordering is everything after it.
+    .orderBy(
+      asc(categories.slug),
+      sql`${currentPrices.updatedAt} DESC NULLS LAST`,
+      asc(subCategories.order),
+      asc(skus.name),
+    )
+    .where(
+      and(
+        eq(categories.isActive, true),
+        eq(subCategories.isActive, true),
+        eq(skus.isActive, true),
+      ),
+    );
+  const s = await getPriceFreshness();
+  return rows
+    .sort((a, b) => a.catOrder - b.catOrder)
+    .map(({ catOrder: _catOrder, ...r }) => toPriceRow(r, s));
+}
+
+/**
  * Active SKUs that the public site cannot show because their sub-category
  * (or category) was deactivated underneath them — the half-finished taxonomy
  * migration that left 167 of 240 products unreachable.
