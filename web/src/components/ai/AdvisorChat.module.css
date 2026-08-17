@@ -4,7 +4,9 @@
   inline-size: 100%;
   max-inline-size: 760px;
   margin-inline: auto;
-  margin-block: var(--space-6) var(--space-8);
+  /* No own block margin: the panel now sits inside the /ai page's Stack (page
+     header above, capability strip + FAQ below), which owns the rhythm. */
+  margin-block: 0;
   block-size: min(78vh, 760px);
   block-size: min(78svh, 760px);
   background: var(--color-surface);
