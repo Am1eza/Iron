@@ -128,11 +128,16 @@
   font: var(--t-body-sm);
   color: var(--color-text-muted);
 }
-/* "still working" reassurance, under the tool label rather than replacing it. */
+/* "still working" reassurance, under the tool label rather than replacing it.
+   --color-text-muted, NOT --color-text-placeholder: placeholder is neutral-400
+   (#97A2B0), which on the white bubble is 2.59:1 and fails AA for this
+   --t-micro text. This copy exists to reassure someone through a 12-90s wait,
+   so it was the one line on the page that must not be the hardest to read.
+   Muted is 5.05:1, and matches .progressText directly above it. */
 .progressSlow {
   display: block;
   font: var(--t-micro);
-  color: var(--color-text-placeholder);
+  color: var(--color-text-muted);
 }
 .typing {
   display: inline-flex;
@@ -211,13 +216,24 @@
   margin: 0;
   padding: var(--space-2) var(--space-4);
 }
+/* `gap` is load-bearing, not decoration: space-between alone let a long
+   product name and its quantity («میلگرد آجدار ۱۶ فایکو» / «۵,۰۰۰ کیلوگرم»)
+   run flush into each other at mobile card width and read as one string.
+   align-items: baseline keeps the two sides on one type baseline when the
+   name wraps to a second line. */
 .estItems li {
   display: flex;
+  align-items: baseline;
   justify-content: space-between;
+  gap: var(--space-3);
   padding-block: var(--space-2);
   font: var(--t-data);
   color: var(--color-text);
   border-block-end: var(--border-hairline) solid var(--color-hairline);
+}
+/* The quantity/price side never wraps or shrinks — the name gives way first. */
+.estItems li > :last-child {
+  flex: none;
 }
 .estItems li:last-child { border-block-end: 0; }
 .estTotals {
@@ -229,15 +245,30 @@
 }
 .estLabel { display: block; font: var(--t-caption); color: var(--color-text-muted); }
 .estValue { display: block; font: var(--t-price-cell); color: var(--color-text-strong); margin-block-start: 2px; }
+/* Two side-by-side buttons only survive while both labels fit on one line.
+   They didn't: inside a card capped at 360px, inside a row capped at 86%, at
+   375px each button got ~118px and «ورود به حساب کاربری» broke across THREE
+   lines — the primary control of the whole funnel, mangled at the width most
+   of the traffic uses. Below 30rem of card they stack instead, primary first,
+   each full width. `flex-wrap` on the container plus a sane basis does this
+   without a media query, so it responds to the CARD's width rather than the
+   viewport's (the card is also narrower inside a bubble than outside one). */
 .estActions {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2);
   padding: var(--space-3) var(--space-4) var(--space-4);
 }
+.estCta,
+.estGhost {
+  flex: 1 1 11rem;
+}
 .estCta {
-  flex: 1;
   text-align: center;
   min-block-size: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: var(--space-3);
   border-radius: var(--radius-sm);
   background: var(--color-action);
@@ -248,8 +279,11 @@
 .estCta:hover { background: var(--color-action-hover); text-decoration: none; }
 .estCta:active { background: var(--color-action-press); transform: translateY(1px); }
 .estGhost {
-  flex: 1;
   text-align: center;
+  min-block-size: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: var(--space-3);
   border-radius: var(--radius-sm);
   border: var(--border-hairline) solid var(--color-hairline);
@@ -432,6 +466,25 @@ button.estCta:disabled {
   .typing span, .micOn { animation: none; }
 }
 @media (max-width: 767px) {
+  /* Speech bubbles want a ragged edge so the thread reads as a conversation.
+     Chips and data cards are not speech — they're navigation and a price
+     summary — and the 86% cap plus the 26px avatar column squeezed the
+     confirm card to ~250px inside a 375px screen, with ~90px of dead margin
+     beside it. That squeeze is what broke the line items and the CTA row.
+     Give the non-speech rows the full width; bubbles keep the 86%. */
+  .rowWide {
+    max-inline-size: 100%;
+    inline-size: 100%;
+  }
+  .estimate {
+    inline-size: 100%;
+  }
+  /* «مشاور هوشمند آهن‌تایم» broke across two lines at 375px, pushing the
+     header taller and crowding «گفتگوی جدید» beside it. --t-title-sm is the
+     next step down that is still a heading weight. */
+  .headName {
+    font: var(--t-title-sm);
+  }
   .wrap {
     margin-block: 0;
     /* Subtract the full top chrome (36px ticker + 60px header) AND the fixed
