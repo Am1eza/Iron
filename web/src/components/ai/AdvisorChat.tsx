@@ -9,7 +9,15 @@ import type { PriceRow } from '@/lib/types/domain';
 import { CATEGORY_ALIASES, PURPOSE_CHIPS } from '@/lib/data/aiTaxonomy';
 import { computeBulkSplit, type BulkSplit } from '@/components/catalog/BulkQuote';
 import { pickBestGroup } from '@/lib/utils/bulkSplit';
-import { AiMarkIcon, ChevronStartIcon, CheckCircleIcon, MicIcon } from '@/components/primitives/icons';
+import {
+  AiMarkIcon,
+  CheckCircleIcon,
+  MicIcon,
+  SendIcon,
+  StopIcon,
+  ThumbDownIcon,
+  ThumbUpIcon,
+} from '@/components/primitives/icons';
 import { getSpeechRecognition, type SpeechRecognitionLike } from '@/lib/utils/speech';
 import { ChatMarkdown } from './ChatMarkdown';
 import { loadChat, saveChat, clearChat } from '@/lib/ai/chatStorage';
@@ -416,8 +424,13 @@ function aiReply(text: string, ctx: { purpose: string | null }): { msgs: Msg[]; 
  * — otherwise every row would see a "changed" prop on every render
  * regardless of whether its own message changed.
  */
-/** 👍/👎 on a committed AI answer. Fire-and-forget POST to /api/ai/feedback;
- *  optimistic + one-shot (disabled after a choice). Feeds the admin review loop. */
+/** Helpful / not-helpful on a committed AI answer. Fire-and-forget POST to
+ *  /api/ai/feedback; optimistic + one-shot (disabled after a choice). Feeds
+ *  the admin review loop.
+ *
+ *  Drawn with the icon set, NOT with 👍/👎: production self-hosts its fonts
+ *  and ships no emoji font (no CDN — Iran reachability), so the emoji had no
+ *  glyph and rendered as an empty box under every single answer. */
 function FeedbackButtons({ messageId, conversationId }: { messageId: string; conversationId?: string }) {
   const [sent, setSent] = useState<'up' | 'down' | null>(null);
   const submit = (rating: 'up' | 'down') => {
@@ -442,7 +455,7 @@ function FeedbackButtons({ messageId, conversationId }: { messageId: string; con
         disabled={sent !== null}
         onClick={() => submit('up')}
       >
-        👍
+        <ThumbUpIcon size={16} />
       </button>
       <button
         type="button"
@@ -453,7 +466,7 @@ function FeedbackButtons({ messageId, conversationId }: { messageId: string; con
         disabled={sent !== null}
         onClick={() => submit('down')}
       >
-        👎
+        <ThumbDownIcon size={16} />
       </button>
       {sent && <span className={styles.feedbackThanks}>ممنون از بازخوردتان</span>}
     </div>
@@ -1172,13 +1185,15 @@ export function AdvisorChat({
             aria-label="توقف پاسخ"
             onClick={() => abortRef.current?.abort()}
           >
-            <span aria-hidden="true" style={{ fontSize: 14 }}>
-              ⏹
-            </span>
+            <StopIcon size={18} />
           </button>
         ) : (
+          // A paper plane, not the old ChevronStartIcon + `.icon--rtl`: that
+          // flipped under [dir=rtl] to point at the inline-START, i.e. "back"
+          // in a Persian layout, and a bare chevron is the same glyph this
+          // icon set uses for "previous" elsewhere.
           <button type="submit" className={styles.send} aria-label="ارسال" disabled={!online}>
-            <ChevronStartIcon size={20} className="icon--rtl" />
+            <SendIcon size={20} />
           </button>
         )}
       </form>

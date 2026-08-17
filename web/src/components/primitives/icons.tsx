@@ -290,6 +290,41 @@ export const MicIcon = (p: IconProps) => (
     <path d="M12 18v2.5" />
   </Svg>
 );
+/**
+ * Composer controls. These replace literal emoji/dingbat characters that had
+ * no glyph in production: the site self-hosts its fonts and ships no CDN and
+ * no emoji font (Iran reachability, a locked decision), so `⏹` and `👍`/`👎`
+ * rendered as empty tofu boxes on every advisor answer.
+ *
+ * The paper plane also settles a direction question a chevron can't: the send
+ * control used ChevronStartIcon + `.icon--rtl`, which under [dir=rtl] flips to
+ * point at the inline-START — the "back" direction in Persian. A plane reads
+ * as "send" without depending on which way the layout runs, so it needs no
+ * mirroring at all.
+ */
+export const SendIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M21 3L10.5 13.5" />
+    <path d="M21 3l-6.5 18-4-8-8-4L21 3z" />
+  </Svg>
+);
+export const StopIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="6.5" y="6.5" width="11" height="11" rx="2" fill="currentColor" stroke="none" />
+  </Svg>
+);
+export const ThumbUpIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M7 10.5v9H4.5a1 1 0 01-1-1v-7a1 1 0 011-1H7z" />
+    <path d="M7 10.5l4-7a2.2 2.2 0 013 2v3.5h4.3a1.8 1.8 0 011.75 2.2l-1.3 6a1.8 1.8 0 01-1.75 1.3H7" />
+  </Svg>
+);
+export const ThumbDownIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M7 13.5v-9H4.5a1 1 0 00-1 1v7a1 1 0 001 1H7z" />
+    <path d="M7 13.5l4 7a2.2 2.2 0 003-2v-3.5h4.3a1.8 1.8 0 001.75-2.2l-1.3-6A1.8 1.8 0 0017 4.5H7" />
+  </Svg>
+);
 export const PhoneIcon = (p: IconProps) => (
   <Svg {...p}>
     <path d="M5 4h3l1.5 4-2 1.5a12 12 0 005 5l1.5-2 4 1.5v3a2 2 0 01-2 2A15 15 0 013 6a2 2 0 012-2z" />
