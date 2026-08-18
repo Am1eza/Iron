@@ -10,7 +10,11 @@
  * prevents.
  */
 import { describe, it, expect } from 'vitest';
-import { collapseImmediateRepeat, looksLikeLeakedReasoning } from './answerGuard';
+import {
+  collapseImmediateRepeat,
+  looksLikeLeakedReasoning,
+  stripFalseProcessClaims,
+} from './answerGuard';
 
 const LEAKED = `We need to respond to user. The user wants to proceed with a proforma for ۳ tons of ۱۶mm rebar, but the system says product not found with that exact name. We need to ask user to specify product name more precisely, using Persian name. Also we must follow style: use "تو" etc. Also we must not reveal internal tool calls.`;
 
@@ -110,5 +114,144 @@ describe('collapseImmediateRepeat', () => {
   it('handles empty and single-word text', () => {
     expect(collapseImmediateRepeat('')).toBe('');
     expect(collapseImmediateRepeat('سلام')).toBe('سلام');
+  });
+});
+
+/**
+ * stripFalseProcessClaims — every POSITIVE case below is a verbatim sentence
+ * this advisor put in front of a real visitor (recovered from `ai_messages` on
+ * production, 2026-08-18), and every NEGATIVE case is a sentence the system
+ * prompt either allows or outright requires. The negatives are the point: an
+ * answer that correctly says there is no online payment, or quotes the real
+ * button name, or gives rule 2's «آخرین قیمت ثبت‌شده …», must come through
+ * untouched.
+ */
+describe('stripFalseProcessClaims — the claims that reached a customer', () => {
+  it('drops «قبل از پرداخت» and keeps the true warning next to it', () => {
+    expect(
+      stripFalseProcessClaims(
+        '⚠️ **نکته مهم:** قیمت نهایی محصولات فولادی بسته به شرایط بازار و تاریخ تحویل (تهران) ممکن است تغییر کند. قبل از پرداخت، قیمت‌ها را دوباره چک کنید.',
+      ),
+    ).toBe(
+      '⚠️ **نکته مهم:** قیمت نهایی محصولات فولادی بسته به شرایط بازار و تاریخ تحویل (تهران) ممکن است تغییر کند.',
+    );
+  });
+
+  it('drops «پرداخت … انجام خواهد شد», markdown wrapper and all', () => {
+    expect(
+      stripFalseProcessClaims('*نکته: پرداخت و ارسال فاکتور پس از تأیید نهایی انجام خواهد شد.*'),
+    ).toBe('');
+  });
+
+  it('drops «به ثبت رسیده است» and keeps the summary under it', () => {
+    const answer =
+      'درخواست تو برای پیش‌فاکتور ۲۰ شاخه میلگرد ۱۴ آجدار A3 ابهر با طول ۱۲ متر به ثبت رسیده است.\n**خلاصهٔ کارت پیش‌فاکتور:**\n- **وزن کل:** ۲۹۰.۳۷ کیلوگرم';
+    expect(stripFalseProcessClaims(answer)).toBe(
+      '**خلاصهٔ کارت پیش‌فاکتور:**\n- **وزن کل:** ۲۹۰.۳۷ کیلوگرم',
+    );
+  });
+
+  it('drops the credential warning and keeps the true login step', () => {
+    expect(
+      stripFalseProcessClaims(
+        'برای تأیید نهایی، فقط باید وارد حساب کاربری شوید. نام کاربری یا رمز عبور را در اینجا ننویسید — کارت مربوطه در پایین پیام تو نمایش داده شده است.',
+      ),
+    ).toBe('برای تأیید نهایی، فقط باید وارد حساب کاربری شوید.');
+  });
+
+  it('drops «ثبت شد», the tracking code it invented, and the later reference to it', () => {
+    const answer =
+      'درخواست شما ثبت شد. شمارهٔ پیگیری: **PF-14050525-0002-J8CG8H**\n\nمحصول: میلگرد آجدار ۱۴ ابهر، تناژ ۵ تن\n\nکارشناس فروش با شمارهٔ پیگیری بالا تماس خواهد گرفت.';
+    expect(stripFalseProcessClaims(answer)).toBe('محصول: میلگرد آجدار ۱۴ ابهر، تناژ ۵ تن');
+  });
+
+  it('drops a payment step even when it hands the call to the expert', () => {
+    // The کارشناس exemption below must not launder a payment step.
+    expect(stripFalseProcessClaims('بعد از پرداخت، کارشناس فروش با تو تماس می‌گیرد.')).toBe('');
+  });
+
+  it('drops invented bank details', () => {
+    expect(
+      stripFalseProcessClaims('مبلغ را به شماره کارت ۶۰۳۷-۹۹۷۵ واریز کن تا سفارش نهایی شود.'),
+    ).toBe('');
+  });
+});
+
+describe('stripFalseProcessClaims — what must survive', () => {
+  it('keeps the answer that says there is no online payment', () => {
+    // The locked product fact, and the FAQ on /ai says it in these words.
+    const truths = [
+      'در آهن‌تایم پرداخت آنلاین وجود ندارد؛ فروش با پیش‌فاکتور و تماس کارشناس نهایی می‌شود.',
+      'پرداخت آنلاین نداریم.',
+      'هیچ مرحلهٔ پرداختی در این گفتگو پیش نمی‌آید.',
+      'برای ورود رمز عبور لازم نیست؛ یک کد پیامکی برایت می‌آید.',
+    ];
+    for (const t of truths) expect(stripFalseProcessClaims(t)).toBe(t);
+  });
+
+  it('keeps rule 4-پ’s settlement sentence', () => {
+    const t =
+      'اگر پیش‌فاکتور رسمی می‌خواهی، درخواست را ثبت می‌کنم تا کارشناس با قیمت لحظه و شرایط تسویه/حمل تماس بگیرد.';
+    expect(stripFalseProcessClaims(t)).toBe(t);
+  });
+
+  it('keeps the two real button names and the tap that files the request', () => {
+    const t =
+      'برای ثبت نهایی وارد حساب کاربری شو؛ بعد از ورود دکمهٔ «تأیید و ثبت درخواست» فعال می‌شود و می‌توانی آن را بزنی. با زدن آن دکمه، درخواستت ثبت خواهد شد.';
+    expect(stripFalseProcessClaims(t)).toBe(t);
+  });
+
+  it('keeps rule 2’s price sentences, which are the ثبت‌شده false positive', () => {
+    const truths = [
+      'آخرین قیمت ثبت‌شده: ۴۲٬۵۰۰ تومان در تاریخ ۱۴۰۵/۰۵/۲۴؛ قیمت به‌روز را کارشناس تأیید می‌کند.',
+      'قیمت‌های روز برای میلگرد ۱۶ از کارخانه‌های مختلف در سیستم ثبت شده، اما قیمت فعلی موجود نیست.',
+      'قیمت میلگرد ۱۴ ذوب‌آهن در سیستم امروز ثبت نشده است.',
+      'برای ثبت درخواست پیش‌فاکتور، لطفاً شهر تحویل را بگو.',
+    ];
+    for (const t of truths) expect(stripFalseProcessClaims(t)).toBe(t);
+  });
+
+  it('keeps the guide’s product-traceability fact', () => {
+    // «کد رهگیری» here is a mill's authenticity code, not an order number —
+    // this exact answer is in production and must not lose a bullet.
+    const t = '- ✅ **کد رهگیری یکتا** — قابل استعلام و پیگیری';
+    expect(stripFalseProcessClaims(t)).toBe(t);
+  });
+
+  it('keeps ordinary answers, including a price table and a weight', () => {
+    const answers = [
+      'قیمت امروز میلگرد ۱۶ ذوب‌آهن اصفهان ۴۲٬۵۰۰ تومان بر کیلوگرم است. اگر بخواهی، پیش‌فاکتور را همین‌جا آماده می‌کنم.',
+      'میلگرد ۱۴ آجدار A3 ابهر – ۲۰ شاخه (۱۲ متری)\nوزن کل: **۲۹۰.۳۷ کیلوگرم**',
+      '| کارخانه | قیمت هر کیلو |\n| --- | --- |\n| ذوب‌آهن | ۴۲٬۵۰۰ |',
+      'در راهنمای آهن‌تایم به تفاوت گرید A2 و A3 پرداخته شده است.',
+    ];
+    for (const a of answers) expect(stripFalseProcessClaims(a)).toBe(a);
+  });
+
+  it('is quiet on empty text', () => {
+    expect(stripFalseProcessClaims('')).toBe('');
+    expect(stripFalseProcessClaims('   \n ')).toBe('   \n ');
+  });
+});
+
+describe('stripFalseProcessClaims — the near misses', () => {
+  it('does not read a word merely ENDING in «نه» as a denial of payment', () => {
+    // «هزینه» / «ماهانه» end in «نه»; without a word boundary on the denial
+    // markers these read as «no payment» and the claim walks straight through.
+    expect(stripFalseProcessClaims('هزینه پرداخت را ماهانه واریز کن.')).toBe('');
+    expect(stripFalseProcessClaims('ماهانه پرداخت کن تا تخفیف بگیری.')).toBe('');
+  });
+
+  it('separates the filing NOUN from the filing CLAIM', () => {
+    // «ثبت شدنِ درخواست» is a noun phrase about a future event…
+    const noun = 'برای ثبت شدن درخواست، دکمهٔ زیر پیام را بزن.';
+    expect(stripFalseProcessClaims(noun)).toBe(noun);
+    // …«ثبت شدند» is a claim that it already happened.
+    expect(stripFalseProcessClaims('هر دو درخواست تو ثبت شدند.')).toBe('');
+  });
+
+  it('keeps a سفارش sentence whose only verb is future', () => {
+    const t = 'با زدن دکمه، سفارش تو ثبت خواهد شد و کارشناس تماس می‌گیرد.';
+    expect(stripFalseProcessClaims(t)).toBe(t);
   });
 });

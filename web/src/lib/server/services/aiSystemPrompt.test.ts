@@ -31,6 +31,16 @@ describe('AI_SYSTEM_PROMPT — house rules observed broken in production', () =>
     expect(AI_SYSTEM_PROMPT).toContain('ورود به حساب کاربری');
   });
 
+  it('says out loud that this site has no password or username', () => {
+    // Added 2026-08-18: the advisor invented a whole credential step for a
+    // real visitor («نام کاربری یا رمز عبور را در اینجا ننویسید»). Unlike the
+    // payment and filing claims, this one broke no rule — there was no rule.
+    // Login is mobile+OTP; answerGuard.stripFalseProcessClaims is the floor
+    // under this, and this is the rule it is a floor under.
+    expect(AI_SYSTEM_PROMPT).toContain('کد پیامکی یکبارمصرف');
+    expect(AI_SYSTEM_PROMPT).toContain('هرگز از رمز یا نام کاربری حرف نزن');
+  });
+
   it('requires Persian guillemets rather than ASCII quotes', () => {
     expect(AI_SYSTEM_PROMPT).toContain('گیومهٔ فارسی');
   });
