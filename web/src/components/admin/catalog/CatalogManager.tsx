@@ -32,6 +32,7 @@ import { ImageUpload } from '../ImageUpload';
 import { PagerFooter } from '../PagerFooter';
 import { TaxonomyRail, type RailSelection } from './TaxonomyRail';
 import { SkuDrawer } from './SkuDrawer';
+import { FactoryOrderPanel } from './FactoryOrderPanel';
 import ui from '../adminUi.module.css';
 import s from './catalog.module.css';
 
@@ -341,6 +342,7 @@ export function CatalogManager() {
   const subsForDrawer = useMemo(() => Object.values(subsByCategory).flat(), [subsByCategory]);
 
   const inactiveHint = status === 'active' && total > 0;
+  const selectedCategory = categories.find((c) => c.id === sel.categoryId) ?? null;
 
   if (cats.isError) {
     return (
@@ -431,6 +433,18 @@ export function CatalogManager() {
             کالای جدید
           </Button>
         </div>
+
+        {/* Factory display order for the selected category (US-18.2). Lives
+            here rather than in the rail because factories are not a taxonomy
+            node — there is nothing to expand, select or file products under,
+            and a category can carry eighteen of them. Collapsed by default so
+            it costs the product index one line; hidden entirely under «همهٔ
+            کالاها», where "which category's factories?" has no answer. A
+            sub-category selection still shows it: the order is per CATEGORY,
+            and that is what the header says. */}
+        {selectedCategory ? (
+          <FactoryOrderPanel categoryId={selectedCategory.id} categoryName={selectedCategory.name} />
+        ) : null}
 
         {/* The single most consequential fact about this catalog, stated
             without being asked: these products look active in the panel and
