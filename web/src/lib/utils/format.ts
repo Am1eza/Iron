@@ -2,6 +2,7 @@
  * Persian/RTL formatting helpers — digits, Toman, Jalali dates.
  * (typography.md §2/§6 — Persian numerals, Toman, Jalali, bidi.)
  */
+import { CONSTANTS } from '@/lib/config/constants';
 
 const FA_DIGITS = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'] as const;
 
@@ -38,6 +39,19 @@ export function formatToman(value: number, withUnit = true): string {
   const grouped = Math.round(value).toLocaleString('en-US'); // 32,450
   const fa = toPersianDigits(grouped).replace(/,/g, '٬'); // Persian thousands sep
   return withUnit ? `${fa} تومان` : fa;
+}
+
+/**
+ * The «با ارزش‌افزوده» display transform. Lives here, next to `formatToman`,
+ * because both the on-screen price cells (`PriceTable`) and the Excel / print /
+ * image exports (`ExportMenu`) have to apply the SAME rounding — and PriceTable
+ * imports ExportMenu, so it cannot own the helper without a cycle.
+ *
+ * `rate` is the admin-configured `settings.VAT_RATE`; callers that don't have it
+ * fall back to the static default.
+ */
+export function withVat(price: number, vat: boolean, rate: number = CONSTANTS.VAT_RATE): number {
+  return vat ? Math.round(price * (1 + rate)) : price;
 }
 
 /**

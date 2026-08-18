@@ -1,11 +1,25 @@
 'use client';
 import { useToast } from '@/lib/hooks/useToast';
-import { formatToman, formatMovement, priceHiddenLabel, toPersianDigits } from '@/lib/utils/format';
+import {
+  formatToman,
+  formatMovement,
+  priceHiddenLabel,
+  toPersianDigits,
+  withVat,
+} from '@/lib/utils/format';
 import { formatJalali } from '@/lib/utils/jalali';
 import { sizeLabel, usesDimensions, DIMENSIONS_LABEL } from '@/lib/utils/catalogLabels';
+import { CONSTANTS } from '@/lib/config/constants';
 import type { PriceRow } from '@/lib/types/domain';
 import { SheetIcon, PrintIcon, ImageIcon } from '@/components/primitives/icons';
 import styles from './ExportMenu.module.css';
+
+/** The xls and print outputs are built by string-concatenating into HTML, and
+ *  every value in them (product name, factory, category) is admin-entered DB
+ *  content. Escaping keeps a stray `<` in a product name from silently eating
+ *  the rest of a customer's spreadsheet row. */
+const esc = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 /**
  * E5 · Table exports — Excel (CSV, UTF-8 BOM so Excel reads Persian), Print (a
@@ -30,15 +44,27 @@ export const cols = (categorySlug?: string) => [
 ];
 
 /** `withDimensions` MUST be the same flag `cols()` was built with — the cells
- *  are positional, so a mismatch would shift every column after the size. */
-export function rowCells(r: PriceRow, withDimensions = false): string[] {
+ *  are positional, so a mismatch would shift every column after the size.
+ *
+ *  `vat` mirrors the «با ارزش‌افزوده» toggle the buyer had switched on when they
+ *  clicked export. It used to be ignored entirely: the file always carried the
+ *  bare price, so a buyer looking at VAT-inclusive numbers on screen downloaded
+ *  different ones. The column header is deliberately NOT relabelled — the image
+ *  export lays its columns out on a fixed pixel grid — so the VAT state is
+ *  spelled out in the sheet's subtitle line instead (see `vatNote`). */
+export function rowCells(
+  r: PriceRow,
+  withDimensions = false,
+  vat = false,
+  vatRate: number = CONSTANTS.VAT_RATE,
+): string[] {
   return [
     r.name,
     r.size ? toPersianDigits(r.size) : 'نامشخص',
     ...(withDimensions ? [r.dimensions ? toPersianDigits(r.dimensions) : 'نامشخص'] : []),
     r.factory ?? 'نامشخص',
     r.theoreticalWeightKg ? toPersianDigits(String(r.theoreticalWeightKg)) : 'نامشخص',
-    priceHiddenLabel(r.current) ?? formatToman(r.current.price, false),
+    priceHiddenLabel(r.current) ?? formatToman(withVat(r.current.price, vat, vatRate), false),
     formatMovement(r.current.movementPct),
     r.current.deliveryTime,
   ];
@@ -48,35 +74,53 @@ export function ExportMenu({
   rows,
   title,
   categorySlug,
+  vat = false,
+  vatRate = CONSTANTS.VAT_RATE,
+  compact = false,
+  scopeLabel,
 }: {
   rows: PriceRow[];
   title: string;
   /** Category the exported table belongs to — labels the size column only. */
   categorySlug?: string;
+  /** Whether the buyer is currently viewing VAT-inclusive prices. The export
+   *  follows the screen; see `rowCells`. */
+  vat?: boolean;
+  vatRate?: number;
+  /** Secondary presentation for the per-factory instances inside each
+   *  accordion section, so they don't compete with the page-wide toolbar. */
+  compact?: boolean;
+  /** Distinguishes the accessible name when several menus share a page — a
+   *  screen-reader user tabbing a rebar page otherwise hears «خروجی جدول» nine
+   *  times with nothing to tell the factories apart. */
+  scopeLabel?: string;
 }) {
   const toast = useToast();
   const today = formatJalali(new Date());
   const showDimensions = usesDimensions(categorySlug);
   const COLS = cols(categorySlug);
-  const cells = (r: PriceRow) => rowCells(r, showDimensions);
+  const cells = (r: PriceRow) => rowCells(r, showDimensions, vat, vatRate);
+  // Spelled out on the sheet itself so a downloaded file is unambiguous about
+  // which of the two numbers it carries once it leaves the browser.
+  const vatNote = vat ? ' · با ارزش‌افزوده' : '';
 
   // Branded spreadsheet — a styled HTML table saved as .xls (Excel opens it with
   // the branding + RTL intact). Header carries «آهن‌تایم» + the date; green header
   // row, zebra rows. No dependency; for a true .xlsx with an embedded raster logo,
   // swap in exceljs later.
   const exportXls = () => {
-    const head = `<tr>${COLS.map((c) => `<th>${c}</th>`).join('')}</tr>`;
+    const head = `<tr>${COLS.map((c) => `<th>${esc(c)}</th>`).join('')}</tr>`;
     const body = rows
       .map(
         (r, i) =>
           `<tr class="${i % 2 ? 'even' : ''}">${cells(r)
-            .map((c) => `<td>${c}</td>`)
+            .map((c) => `<td>${esc(c)}</td>`)
             .join('')}</tr>`,
       )
       .join('');
     const cols = COLS.length;
     const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8">
-      <!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>قیمت ${title}</x:Name><x:WorksheetOptions><x:DisplayRightToLeft/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
+      <!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>قیمت ${esc(title)}</x:Name><x:WorksheetOptions><x:DisplayRightToLeft/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
       <style>
         table{border-collapse:collapse;font-family:Tahoma,'B Nazanin',sans-serif;}
         .brand{font-size:20px;font-weight:800;color:#171C22;}
@@ -89,7 +133,7 @@ export function ExportMenu({
       </style></head><body>
       <table dir="rtl" border="0">
         <tr><td colspan="${cols}" style="border:none;padding:6px 0 0;"><span class="brand">آهن‌<span class="a">تایم</span></span></td></tr>
-        <tr><td colspan="${cols}" style="border:none;padding:2px 0 12px;"><span class="meta">قیمت روز ${title} · ${today}</span></td></tr>
+        <tr><td colspan="${cols}" style="border:none;padding:2px 0 12px;"><span class="meta">قیمت روز ${esc(title)} · ${today}${vatNote}</span></td></tr>
         <thead>${head}</thead>
         <tbody>${body}</tbody>
         <tr><td colspan="${cols}" style="border:none;padding-top:12px;"><span class="foot">ahantime.com · اول مشورت، بعد خرید</span></td></tr>
@@ -111,11 +155,11 @@ export function ExportMenu({
       toast.error('اجازهٔ باز کردن پنجرهٔ چاپ داده نشد؛ مسدودکنندهٔ پاپ‌آپ را بررسی کنید.');
       return;
     }
-    const head = `<tr>${COLS.map((c) => `<th>${c}</th>`).join('')}</tr>`;
+    const head = `<tr>${COLS.map((c) => `<th>${esc(c)}</th>`).join('')}</tr>`;
     const body = rows
-      .map((r) => `<tr>${cells(r).map((c) => `<td>${c}</td>`).join('')}</tr>`)
+      .map((r) => `<tr>${cells(r).map((c) => `<td>${esc(c)}</td>`).join('')}</tr>`)
       .join('');
-    win.document.write(`<!doctype html><html dir="rtl" lang="fa"><head><meta charset="utf-8"><title>${title}، آهن‌تایم</title>
+    win.document.write(`<!doctype html><html dir="rtl" lang="fa"><head><meta charset="utf-8"><title>${esc(title)}، آهن‌تایم</title>
       <style>
         body{font-family:Tahoma,sans-serif;color:#171C22;padding:24px;}
         .bar{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #171C22;padding-bottom:12px;margin-bottom:16px;}
@@ -126,7 +170,7 @@ export function ExportMenu({
         th{background:#F4F7FA;} tr:nth-child(even) td{background:#FAFBFD;}
         .foot{margin-top:16px;color:#97A2B0;font-size:12px;text-align:center;}
       </style></head><body>
-      <div class="bar"><div class="brand">آهن‌<span>تایم</span></div><div class="meta">قیمت روز ${title} · ${today}</div></div>
+      <div class="bar"><div class="brand">آهن‌<span>تایم</span></div><div class="meta">قیمت روز ${esc(title)} · ${today}${vatNote}</div></div>
       <table><thead>${head}</thead><tbody>${body}</tbody></table>
       <div class="foot">ahantime.com · اول مشورت، بعد خرید</div>
       </body></html>`);
@@ -171,7 +215,7 @@ export function ExportMenu({
     ctx.fillRect(width - padX - 150, 56, 150, 3);
     ctx.fillStyle = '#64707E';
     ctx.font = '14px Tahoma';
-    ctx.fillText(`قیمت روز ${title} · ${today}`, width - padX, 78);
+    ctx.fillText(`قیمت روز ${title} · ${today}${vatNote}`, width - padX, 78);
 
     // column header
     let yy = headerH;
