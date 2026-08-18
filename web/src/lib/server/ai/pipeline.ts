@@ -17,6 +17,7 @@ import {
   type ToolCall,
 } from '@/lib/server/integrations/aiRelay';
 import { AI_TOOLS, runTool } from '@/lib/server/services/aiTools';
+import type { EstimateFacts } from '@/lib/data/aiTaxonomy';
 import { GroundingLedger, sanitizeGrounded } from './grounding';
 import { collapseImmediateRepeat, looksLikeLeakedReasoning } from './answerGuard';
 import { toInformalSecondPerson } from './informalVoice';
@@ -62,6 +63,9 @@ export interface PipelineResult {
    * the next step.
    */
   choiceChips: string[];
+  /** What this turn's project estimate found, for the follow-up chips (see
+   *  aiTaxonomy.EstimateFacts). Undefined unless estimateProject ran. */
+  estimate?: EstimateFacts;
   toolsUsed: Set<string>;
   usage: { promptTokens: number; completionTokens: number; cacheHitTokens: number };
   /** Exposed so callers/tests can re-verify the final text independently. */
@@ -80,6 +84,9 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
   // PipelineResult.choiceChips). Reset by a later resolved draft so a stale
   // «کدام کارخانه؟» row can never outlive its own question.
   let choiceChips: string[] = [];
+  // The last project estimate of the turn — the follow-up chips key on what
+  // it actually found, not merely on the fact that it ran.
+  let estimate: EstimateFacts | undefined;
 
   // prepareProforma no longer files a lead (no SMS until the visitor presses
   // the confirm button — see ai/leadDraft.ts), but it does price every line
@@ -190,6 +197,20 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
               : [];
             choiceChips = Array.isArray(choice) ? choice.filter((c): c is string => typeof c === 'string') : [];
           }
+          if (call.function.name === 'estimateProject') {
+            const r = result as {
+              areaBasis?: string;
+              lines?: Array<{ product?: string; lineToman?: number }>;
+            } | null;
+            const lines = Array.isArray(r?.lines) ? r.lines : [];
+            estimate = lines.length
+              ? {
+                  hasOrderableLines: lines.some((l) => Boolean(l.product)),
+                  hasPrices: lines.every((l) => typeof l.lineToman === 'number'),
+                  assumedTotalArea: r?.areaBasis === 'total',
+                }
+              : undefined;
+          }
         }
         toolsUsed.add(call.function.name);
         ledger.addFromJson(result); // every tool number becomes quotable
@@ -272,6 +293,7 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
     text: collapseImmediateRepeat(toInformalSecondPerson(checked.text)),
     violationsCaught,
     choiceChips,
+    estimate,
     toolsUsed,
     usage,
     ledger,

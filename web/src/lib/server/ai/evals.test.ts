@@ -32,6 +32,7 @@ import {
   UNGROUNDED_REPLACEMENT,
 } from '@/lib/server/ai/grounding';
 import type { PriceRow } from '@/lib/types/domain';
+import { selectFollowUpChips, CHIP } from '@/lib/data/aiTaxonomy';
 
 let db: Db;
 let close: () => Promise<void>;
@@ -145,6 +146,13 @@ type CompareResult = {
   factories: Array<{ factory: string; pricePerKg: number; totalToman: number }>;
 };
 type WeightResult = { unitWeightKg: number; totalWeightKg: number };
+type EstimateResult = {
+  totalAreaM2: number;
+  rebarKg: number;
+  rebarKgLow: number;
+  rebarKgHigh: number;
+  lines: Array<{ component: string; sizeMm: number; kg: number; product?: string }>;
+};
 type DraftResult = { draftId: string; total?: number; totalWeightKg?: number };
 
 interface Scenario {
@@ -587,6 +595,56 @@ const SCENARIOS: Scenario[] = [
         .from(schema.leads)
         .where(eq(schema.leads.contactMobile, '09190000001'));
       expect(bombed[0]!.n).toBe(0);
+    },
+  },
+  {
+    // The question the owner actually asked production on 2026-08-18, and the
+    // answer that came back: «برای ساخت یک خانه ۵۰۰ متر ۶ طبقه‌ای نیاز به ۹۶
+    // تن آهن داری» — 500 × 6 × 32, i.e. the stated زیربنا silently read as a
+    // per-floor footprint, quoted with no assumption and no product.
+    name: 'a building question becomes a shopping list, on the area the visitor actually named',
+    userMessages: [
+      'میخوام یه خونه با زیربنای ۵۰۰ متر که ۶ طبقه ای هست و هر طبقه ۴ واحد داره بسازم بهم بگو به چه چیزایی نیاز دارم',
+    ],
+    rounds: () => [
+      { toolCalls: [{ name: 'estimateProject', args: { areaM2: 500, floors: 6 } }] },
+      {
+        text: (msgs) => {
+          const r = lastToolResult<EstimateResult>(msgs);
+          const lines = r.lines
+            .map((l) => `${l.kg.toLocaleString('en-US')} کیلوگرم میلگرد ${l.sizeMm} برای ${l.component}`)
+            .join('؛ ');
+          return `با فرض اینکه ۵۰۰ متر مربع کل زیربناست، بین ${r.rebarKgLow.toLocaleString('en-US')} تا ${r.rebarKgHigh.toLocaleString('en-US')} کیلوگرم میلگرد لازم داری: ${lines}. این برآورد تجربی است و سایز دقیق را نقشهٔ محاسب سازه تعیین می‌کند. بگو تا همه را پیش‌فاکتور کنم.`;
+        },
+      },
+    ],
+    expectations: ({ result, messages }) => {
+      const r = lastToolResult<EstimateResult>(messages);
+      // The area the visitor named is the TOTAL, and the answer is nowhere
+      // near the 96 tonnes that reading it as per-floor produced.
+      expect(r.totalAreaM2).toBe(500);
+      expect(r.rebarKg / r.totalAreaM2).toBeLessThan(80);
+      expect(r.rebarKg).toBeLessThan(96_000);
+      // …and it is a list of real, orderable products, not one abstract total.
+      expect(r.lines.length).toBeGreaterThan(1);
+      // Seeded sub-categories stock a random slice of the size range, so not
+      // every diameter resolves here (production stocks all four). What must
+      // hold is that the answer is a list of buyable things, not one total.
+      expect(r.lines.filter((l) => l.product).length).toBeGreaterThan(1);
+      // The chips this turn ends on are the ones the route will render.
+      expect(result.estimate).toEqual({
+        hasOrderableLines: true,
+        hasPrices: expect.any(Boolean),
+        assumedTotalArea: true,
+      });
+      expect(selectFollowUpChips(result.toolsUsed, 1, undefined, result.choiceChips, result.estimate)).toEqual([
+        CHIP.proformaAll,
+        CHIP.perFloorArea,
+      ]);
+      // Every tonnage in the answer came from the tool.
+      expect(result.violationsCaught).toBe(0);
+      expect(result.text).not.toContain(UNGROUNDED_REPLACEMENT);
+      expect(result.text).toContain('محاسب سازه');
     },
   },
 ];

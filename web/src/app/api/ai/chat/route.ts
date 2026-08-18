@@ -245,6 +245,9 @@ async function POSTImpl(req: NextRequest) {
           // «کدام کارخانه؟» as buttons rather than a prose list the visitor
           // has to retype (audit proposal PR-C).
           result.choiceChips,
+          // What the project estimate actually found — an itemised estimate
+          // gets «همهٔ این اقلام را پیش‌فاکتور کن», not a generic weight tool.
+          result.estimate,
         );
         if (chips.length > 0) send({ type: 'chips', chips });
 
