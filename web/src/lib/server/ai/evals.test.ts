@@ -468,6 +468,32 @@ const SCENARIOS: Scenario[] = [
     },
   },
   {
+    // The reason PR-C's chips almost never fired in production: the model
+    // sends the grade the customer said («… A3»), searchSkus ANDs every
+    // token, and no catalog row contains a grade code — so the whole query
+    // resolved to `none` and the visitor got «پیدا نکردم» instead of a
+    // choice. resolveProduct now retries once without the tokens the catalog
+    // provably cannot match. (The seeded catalog does contain «A3», so the
+    // unknown token here is a grade it has never heard of — same mechanism.)
+    name: 'an unknown grade token does not swallow the whole product',
+    userMessages: ['۳ تن میلگرد ST37 پیش‌فاکتور کن'],
+    rounds: () => [
+      {
+        toolCalls: [
+          { name: 'prepareProforma', args: () => ({ items: [{ product: 'میلگرد ST37', qty: 3000, unit: 'kg' }] }) },
+        ],
+      },
+      { text: 'از کدام کارخانه می‌خواهی؟ یکی از گزینه‌های زیر را بزن یا نامش را بنویس.' },
+    ],
+    expectations: ({ result, messages }) => {
+      const tool = lastToolResult<{ status: string; choiceChips: string[] }>(messages);
+      expect(tool.status).toBe('needs_choice');
+      expect(tool.choiceChips.length).toBeGreaterThan(1);
+      expect(result.choiceChips).toEqual(tool.choiceChips);
+      expect(tool.choiceChips.every((c) => c.includes('میلگرد'))).toBe(true);
+    },
+  },
+  {
     // The other half of the contract: once the visitor has answered, the
     // question is over. A stale «کدام کارخانه؟» row next to a confirmation
     // card would offer to re-answer a question that no longer exists.

@@ -555,6 +555,67 @@ function tokenVariants(token: string): string[] {
   return [...variants];
 }
 
+/** The whitespace tokens of a query, after the compound-word merge that
+ *  searchSkus does — exported shape so callers tokenize exactly as search
+ *  does rather than re-implementing it. */
+function tokenizeQuery(q: string): string[] {
+  let trimmed = q.trim();
+  for (const [a, b, joined] of COMPOUND_WORDS) {
+    trimmed = trimmed.replace(new RegExp(`${a}[\\s${ZWNJ}]+${b}`, 'g'), joined);
+  }
+  return trimmed.split(/\s+/).filter(Boolean);
+}
+
+/** The ILIKE clause searchSkus applies to ONE token, across every column. */
+function tokenMatchCondition(token: string) {
+  return or(
+    ...tokenVariants(token).flatMap((variant) => {
+      const term = likeContains(variant);
+      return [ilike(skus.name, term), ilike(skus.factory, term), ilike(skus.size, term), ilike(categories.name, term)];
+    }),
+  );
+}
+
+/**
+ * The tokens of `q` that match NOTHING in the active catalog, on their own.
+ *
+ * searchSkus ANDs its tokens, so one such token turns an otherwise perfect
+ * query into zero rows. The live case: grade codes. «A3» is a real thing a
+ * customer says and a real thing the advisor repeats back, but it appears in
+ * zero SKU names, factories, sizes or category names — the catalog encodes
+ * the grade as the sub-category «میلگرد آجدار». So «میلگرد ۱۴ آجدار A3»
+ * resolved to `none` while «میلگرد ۱۴ آجدار» resolves to 18 rows.
+ *
+ * Deliberately NOT wired into searchSkus itself: dropping words silently
+ * would change /search's meaning for every query. It is a decision the
+ * CALLER makes — see resolveProduct, which retries once without them.
+ */
+export async function unmatchedQueryTokens(q: string): Promise<string[]> {
+  const tokens = tokenizeQuery(q);
+  if (tokens.length === 0) return [];
+  const db = getDb();
+  const results = await Promise.all(
+    tokens.map(async (token) => {
+      const hit = await db
+        .select({ one: sql<number>`1` })
+        .from(skus)
+        .innerJoin(categories, eq(skus.categoryId, categories.id))
+        .innerJoin(subCategories, eq(skus.subCategoryId, subCategories.id))
+        .where(
+          and(
+            eq(skus.isActive, true),
+            eq(categories.isActive, true),
+            eq(subCategories.isActive, true),
+            tokenMatchCondition(token),
+          ),
+        )
+        .limit(1);
+      return hit.length === 0 ? token : null;
+    }),
+  );
+  return results.filter((t): t is string => t !== null);
+}
+
 /**
  * Word-AND search over SKUs (name/factory/size) — powers /search and the AI
  * getPrice tool. Matches per WHITESPACE-SEPARATED TOKEN rather than the
@@ -575,14 +636,7 @@ export async function searchSkus(q: string, limit = 20): Promise<PriceRow[]> {
   const tokens = trimmed.split(/\s+/).filter(Boolean);
   if (tokens.length === 0) return [];
   const db = getDb();
-  const perTokenMatch = tokens.map((token) =>
-    or(
-      ...tokenVariants(token).flatMap((variant) => {
-        const term = likeContains(variant);
-        return [ilike(skus.name, term), ilike(skus.factory, term), ilike(skus.size, term), ilike(categories.name, term)];
-      }),
-    ),
-  );
+  const perTokenMatch = tokens.map((token) => tokenMatchCondition(token));
   const run = (conds: ReturnType<typeof or>[]) =>
     db
       .select({ sku: skus, price: currentPrices, catSlug: categories.slug, subSlug: subCategories.slug })
