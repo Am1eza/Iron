@@ -579,7 +579,7 @@ export function CatalogManager() {
                           </span>
                         </div>
                       </td>
-                      <td className="tnum">{r.size ?? '—'}</td>
+                      <td className="tnum">{r.size ? toPersianDigits(r.size) : '—'}</td>
                       <td>{r.factory ?? '—'}</td>
                       <td>{r.grade ?? r.standard ?? '—'}</td>
                       <td>{UNIT_LABEL[r.unit] ?? r.unit}</td>

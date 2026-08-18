@@ -705,7 +705,7 @@ export function PricingGrid() {
                       {r.name}
                       {isDirty ? <span className="visually-hidden"> (ویرایش نشده، ذخیره نشده)</span> : null}
                     </td>
-                    <td className="tnum">{r.size ?? '—'}</td>
+                    <td className="tnum">{r.size ? toPersianDigits(r.size) : '—'}</td>
                     <td>{r.factory ?? '—'}</td>
                     <td>
                       <PriceCell
