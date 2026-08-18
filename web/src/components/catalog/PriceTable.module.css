@@ -434,6 +434,28 @@
   gap: var(--space-3);
 }
 
+/* This section's own VAT toggle + export menu, sitting between the summary and
+   the table it acts on. Deliberately the quietest row in the section: no
+   surface of its own, caption type, muted text — the factory name and the
+   price column stay the loudest things here. `space-between` puts the toggle
+   at the reading edge and the exports at the far edge, mirroring the page-wide
+   toolbar's arrangement so the two read as the same control at two scales. */
+.factoryTools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  padding-block-end: var(--space-1);
+}
+@media (max-width: 420px) {
+  /* Narrow phones: the two clusters stop fighting for one line and stack,
+     toggle first. `space-between` on a wrapped column would push them apart. */
+  .factoryTools {
+    justify-content: flex-start;
+  }
+}
+
 /* ===== Compare modal (US-02.9) ===== */
 .compareScroll {
   overflow-x: auto;

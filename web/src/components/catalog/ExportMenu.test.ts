@@ -71,3 +71,36 @@ describe('ExportMenu columns — ورق carries ابعاد, nothing else does', 
     expect(rowCells(row({ dimensions: '۱۰۰۰×۲۰۰۰' }), false)).toHaveLength(cols('rebar').length);
   });
 });
+
+/**
+ * The exported file used to carry the bare price unconditionally, so a buyer
+ * looking at «با ارزش‌افزوده» prices on screen downloaded a different number
+ * than the one they had just been quoted — and nothing in the file said which
+ * of the two it was. These pin the export to the toggle.
+ */
+describe('ExportMenu prices — the file follows the on-screen VAT toggle', () => {
+  const priceOf = (cells: string[]) => cells[cols('rebar').indexOf('قیمت (تومان)')];
+
+  it('writes the bare price when the toggle is off', () => {
+    expect(priceOf(rowCells(row(), false, false))).toBe('۵۰۰٬۰۰۰');
+  });
+
+  it('writes the VAT-inclusive price when the toggle is on', () => {
+    expect(priceOf(rowCells(row(), false, true))).toBe('۵۵۰٬۰۰۰');
+  });
+
+  it('honours the admin-configured rate rather than the static default', () => {
+    expect(priceOf(rowCells(row(), false, true, 0.09))).toBe('۵۴۵٬۰۰۰');
+  });
+
+  it('defaults to the bare price, so the existing call sites are unchanged', () => {
+    expect(priceOf(rowCells(row(), false))).toBe(priceOf(rowCells(row(), false, false)));
+  });
+
+  it('leaves a stale-hidden price as «تماس بگیرید» instead of applying VAT to it', () => {
+    // `priceHiddenLabel` short-circuits before the arithmetic; a hidden price
+    // must not leak a number into the file by way of the VAT branch.
+    const cells = rowCells(row({ current: { priceHidden: true } as never }), false, true);
+    expect(priceOf(cells)).not.toMatch(/[۰-۹]/);
+  });
+});

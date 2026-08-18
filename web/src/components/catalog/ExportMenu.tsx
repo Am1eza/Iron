@@ -263,16 +263,26 @@ export function ExportMenu({
     });
   };
 
+  // The visible button text stays «اکسل»/«چاپ»/«تصویر» — three words the eye
+  // scans instantly — while the accessible name gains the scope. It has to
+  // CONTAIN the visible text, not replace it (WCAG 2.2 §2.5.3 Label in Name),
+  // which is why the factory name is appended rather than substituted.
+  const scoped = (label: string) => (scopeLabel ? `${label} ${scopeLabel}` : undefined);
+  const iconSize = compact ? 16 : 18;
   return (
-    <div className={styles.menu} role="group" aria-label="خروجی جدول">
-      <button type="button" className={styles.btn} onClick={exportXls}>
-        <SheetIcon size={18} /> <span>اکسل</span>
+    <div
+      className={compact ? `${styles.menu} ${styles.compact}` : styles.menu}
+      role="group"
+      aria-label={scopeLabel ? `خروجی جدول ${scopeLabel}` : 'خروجی جدول'}
+    >
+      <button type="button" className={styles.btn} onClick={exportXls} aria-label={scoped('اکسل')}>
+        <SheetIcon size={iconSize} /> <span>اکسل</span>
       </button>
-      <button type="button" className={styles.btn} onClick={print}>
-        <PrintIcon size={18} /> <span>چاپ</span>
+      <button type="button" className={styles.btn} onClick={print} aria-label={scoped('چاپ')}>
+        <PrintIcon size={iconSize} /> <span>چاپ</span>
       </button>
-      <button type="button" className={styles.btn} onClick={exportImage}>
-        <ImageIcon size={18} /> <span>تصویر</span>
+      <button type="button" className={styles.btn} onClick={exportImage} aria-label={scoped('تصویر')}>
+        <ImageIcon size={iconSize} /> <span>تصویر</span>
       </button>
     </div>
   );

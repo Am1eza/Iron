@@ -36,6 +36,31 @@
   color: var(--color-accent-text);
 }
 
+/* ===== compact =====
+   The per-factory copies inside each accordion section. The page-wide toolbar
+   keeps the filled segmented-control look; these drop the enclosing tray and
+   become three quiet outlined chips, so a page with nine factory sections
+   doesn't read as nine competing toolbars. Declared after the base rules so
+   the hover state out-orders `.btn:hover`. */
+.compact {
+  padding: 0;
+  gap: var(--space-2);
+  background: transparent;
+  border-color: transparent;
+}
+.compact .btn {
+  padding: var(--space-1) var(--space-2);
+  min-block-size: 28px;
+  font: var(--t-caption);
+  border: var(--border-hairline) solid var(--color-hairline);
+  background: var(--color-surface);
+}
+.compact .btn:hover {
+  background: var(--color-surface-sunken);
+  color: var(--color-text-strong);
+  box-shadow: none;
+}
+
 @media (max-width: 560px) {
   .btn span {
     position: absolute;
