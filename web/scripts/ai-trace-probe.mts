@@ -54,6 +54,7 @@ for (let i = 0; i < runs; i++) {
           `model=${t.modelChars}`,
           `reasoning=${t.reasoningChars}`,
           `trunc=${t.truncated}`,
+          `finish=${t.finishReason ?? 'none'}`,
           `cont=${t.continued}`,
           `grounded=${t.groundedChars}`,
           `corr=${t.correctionRan}/${t.correctionUsed}`,

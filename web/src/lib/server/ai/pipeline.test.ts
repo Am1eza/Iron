@@ -219,8 +219,10 @@ describe('runAdvisorPipeline — the model answering with nothing', () => {
         };
         yield { type: 'done' };
       } else if (call === 2) {
-        // The whole failure, reproduced: reasoning happened, no answer came.
+        // The whole failure, reproduced: the model deliberated, decided it was
+        // finished ('stop', not 'length'), and wrote nothing.
         yield { type: 'reasoning', chars: 271 };
+        yield { type: 'finish', reason: 'stop' };
         yield { type: 'done' };
       } else {
         yield { type: 'token', text: 'قیمت این محصول را کارشناس اعلام می‌کند.' };

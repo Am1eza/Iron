@@ -59,6 +59,13 @@ export interface AnswerTrace {
   reasoningChars: number;
   /** The relay hit max_tokens mid-answer (finish_reason 'length'). */
   truncated: boolean;
+  /**
+   * Why the ANSWERING round ended: 'stop' (the model chose to end), 'length',
+   * or `null` when the stream simply closed without saying. On a turn that
+   * produced no text this is the difference between a model that declined to
+   * write and a relay that gave up mid-generation.
+   */
+  finishReason: string | null;
   /** …and the pipeline asked it to finish the sentence. */
   continued: boolean;
   /** Length after the grounding validator and before the leak guard;
@@ -175,6 +182,7 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
     modelChars: 0,
     reasoningChars: 0,
     truncated: false,
+    finishReason: null,
     continued: false,
     groundedChars: 0,
     correctionRan: false,
@@ -233,12 +241,14 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
       let pendingCalls: ToolCall[] | null = null;
       let buffered = '';
       let truncated = false;
+      let finishReason: string | null = null;
       trace.rounds++;
       for await (const ev of stream(messages, allowTools ? AI_TOOLS : [], signal, userSignal)) {
         if (ev.type === 'token') buffered += ev.text;
         else if (ev.type === 'reasoning') trace.reasoningChars += ev.chars;
         else if (ev.type === 'tool_calls') pendingCalls = ev.calls;
         else if (ev.type === 'truncated') truncated = true;
+        else if (ev.type === 'finish') finishReason = ev.reason;
         else if (ev.type === 'usage') {
           // Server-side telemetry only — never forwarded to the client.
           usage.promptTokens += ev.usage.promptTokens;
@@ -251,6 +261,7 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
         // intermediate tool-round's `buffered` text is discarded below
         // regardless (only `pendingCalls` is used once tools were called).
         if (truncated) trace.truncated = true;
+        trace.finishReason = finishReason;
         if (truncated && !continuedOnce && buffered.trim()) {
           continuedOnce = true;
           trace.continued = true;
