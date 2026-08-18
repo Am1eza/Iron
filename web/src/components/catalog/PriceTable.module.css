@@ -341,52 +341,6 @@
   transform: translateY(1px);
 }
 
-/* ===== بر اساس سایز — quick compare ===== */
-.bySizeSection {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  border: var(--border-hairline) solid var(--color-accent);
-  border-radius: var(--radius-md);
-  background: var(--color-accent-tint);
-}
-.bySizeHead {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-}
-.bySizeTitle {
-  font: var(--t-h4);
-  color: var(--color-text-strong);
-  margin: 0;
-}
-.sizePicker {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  font: var(--t-label);
-  color: var(--color-text-muted);
-}
-.bySizeTable thead th {
-  background: var(--color-surface);
-}
-.bySizePriceCell {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-.bestRow {
-  background: var(--gain-50);
-}
-.bestRow:hover {
-  background: var(--gain-100);
-}
-
 /* ===== پرش سریع به کارخانه ===== */
 .quickJump {
   display: flex;

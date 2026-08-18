@@ -9,8 +9,14 @@ import styles from './PriceParts.module.css';
  * pattern (see DeliveryBadge's `guaranteed` variant, MovementBadge's arrow):
  * icon + visible Persian label, on the same gain/success token those already
  * use — never a bare color/background as the only signal. Never render this
- * on a stale/hidden-price row; the caller (PriceTable's by-size view) is
- * responsible for excluding those before picking a "best".
+ * on a stale/hidden-price row; the caller is responsible for excluding those
+ * before picking a "best".
+ *
+ * Currently unrendered: its only caller was PriceTable's «مقایسهٔ سریع بر
+ * اساس سایز» panel, removed on the owner's instruction (1405/05). Kept as a
+ * kit primitive (like `PriceTag`) rather than deleted — `BulkQuote`'s
+ * «مقایسهٔ کارخانه‌ها» crowns its own winner with a `.bestRow` tint today and
+ * is the obvious next caller.
  */
 export function BestPriceBadge() {
   return (
