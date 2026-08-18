@@ -6,7 +6,7 @@
  */
 import { and, asc, desc, eq, gte, ilike, inArray, ne, or, sql } from 'drizzle-orm';
 import { getDb } from '@/lib/server/db/client';
-import { categories, subCategories, skus, currentPrices, pricePoints } from '@/lib/server/db/schema';
+import { categories, subCategories, skus, currentPrices, pricePoints, factoryOrder } from '@/lib/server/db/schema';
 import type { Category, SubCategory, PriceRow, PricePoint } from '@/lib/types/domain';
 import { getPriceFreshness } from '@/lib/server/services/priceFreshness';
 import { normalizeDigits, toPersianDigits } from '@/lib/utils/format';
@@ -229,6 +229,25 @@ export async function gradesByCategory(): Promise<Record<string, string[]>> {
   }
   for (const cat of Object.keys(out)) out[cat] = [...new Set(out[cat])].sort();
   return out;
+}
+
+/**
+ * The admin's chosen factory order for one category, best-first, as plain
+ * names (US-18.2). Empty when the admin has never arranged this category —
+ * which every caller must treat as "sort the way you sorted before", not as
+ * "no factories".
+ *
+ * Matched by slug rather than id so the price pages, which only ever hold a
+ * slug, don't need a second round trip to resolve the category.
+ */
+export async function factoryOrderForCategory(categorySlug: string): Promise<string[]> {
+  const rows = await getDb()
+    .select({ factory: factoryOrder.factory })
+    .from(factoryOrder)
+    .innerJoin(categories, eq(factoryOrder.categoryId, categories.id))
+    .where(eq(categories.slug, categorySlug))
+    .orderBy(asc(factoryOrder.order), asc(factoryOrder.factory));
+  return rows.map((r) => r.factory);
 }
 
 /** Price table rows for a category (optionally one sub-category).

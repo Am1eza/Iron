@@ -25,6 +25,7 @@ import {
   categories,
   subCategories,
   skus,
+  factoryOrder,
   currentPrices,
   leadItems,
   leads,
@@ -678,5 +679,103 @@ export async function reorderTaxonomy(
       else await tx.update(subCategories).set({ order: it.order }).where(eq(subCategories.id, it.id));
     }
     return items.length;
+  });
+}
+
+/* --------------------------- factory ordering --------------------------- */
+
+export interface AdminFactoryOrderRow {
+  factory: string;
+  /** 1-based position when the admin has placed it; null when it has never
+   *  been ordered and therefore falls into the price-sorted tail on the
+   *  public page. */
+  order: number | null;
+  /** Active SKUs of this category carrying that factory name. Zero means the
+   *  row is a leftover: the factory was ordered once and every product of it
+   *  has since been renamed or retired. Shown rather than hidden so the admin
+   *  can see (and by reordering, clear) the stale entry. */
+  skuCount: number;
+}
+
+/**
+ * The factory list for one category's price page, in the order the public
+ * site will render it.
+ *
+ * The union of two sets, because either alone is wrong: the DISTINCT factories
+ * of the category's active SKUs (the only rows a customer can actually see)
+ * plus any stored order row (so a stale entry is visible instead of silently
+ * steering a sort nobody can find). Ordered rows first by `order`, then the
+ * never-ordered ones alphabetically — the admin panel is a list to arrange,
+ * not a price table, so it does NOT mirror the public page's cheapest-first
+ * tie-break.
+ */
+export async function factoriesForCategory(categoryId: string): Promise<AdminFactoryOrderRow[]> {
+  const db = getDb();
+  const [skuRows, orderRows] = await Promise.all([
+    db
+      .select({ factory: skus.factory, n: sql<number>`count(*)::int` })
+      .from(skus)
+      .where(
+        and(
+          eq(skus.categoryId, categoryId),
+          eq(skus.isActive, true),
+          sql`${skus.factory} is not null and ${skus.factory} <> ''`,
+        ),
+      )
+      .groupBy(skus.factory),
+    db
+      .select({ factory: factoryOrder.factory, order: factoryOrder.order })
+      .from(factoryOrder)
+      .where(eq(factoryOrder.categoryId, categoryId)),
+  ]);
+  const counts = new Map<string, number>();
+  for (const r of skuRows) if (r.factory) counts.set(r.factory, r.n);
+  const orders = new Map(orderRows.map((r) => [r.factory, r.order]));
+  const names = new Set([...counts.keys(), ...orders.keys()]);
+  return [...names]
+    .map((factory) => ({
+      factory,
+      order: orders.get(factory) ?? null,
+      skuCount: counts.get(factory) ?? 0,
+    }))
+    .sort((a, b) => {
+      if (a.order !== null && b.order !== null) return a.order - b.order;
+      if (a.order !== null) return -1;
+      if (b.order !== null) return 1;
+      return a.factory.localeCompare(b.factory, 'fa');
+    });
+}
+
+/**
+ * Replace one category's whole factory order in a single transaction.
+ *
+ * Replace, not upsert: the panel always submits the complete visible list, so
+ * a name missing from `factories` is one the admin deliberately dropped (or a
+ * stale row they just cleared), and leaving it behind would keep steering a
+ * sort that no longer appears anywhere in the UI. Scoped strictly to this
+ * category — no other category's rows are touched.
+ *
+ * One transaction for the same reason `reorderTaxonomy` is: two admins
+ * arranging the same category must not interleave into an order neither of
+ * them chose.
+ */
+export async function setFactoryOrder(categoryId: string, factories: string[]): Promise<number> {
+  const db = getDb();
+  // De-duplicate defensively: the unique index would reject a repeat anyway,
+  // and a 23505 here is not a duplicate-SLUG error the forms know how to show.
+  const clean = [...new Set(factories.map((f) => f.trim()).filter((f) => f !== ''))];
+  return db.transaction(async (tx) => {
+    await tx.delete(factoryOrder).where(eq(factoryOrder.categoryId, categoryId));
+    if (clean.length > 0) {
+      await tx.insert(factoryOrder).values(
+        clean.map((factory, i) => ({
+          id: ulid(),
+          categoryId,
+          factory,
+          order: i + 1,
+        })),
+      );
+    }
+    return clean.length;
   });
 }

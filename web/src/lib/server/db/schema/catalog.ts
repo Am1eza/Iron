@@ -134,3 +134,44 @@ export const skus = pgTable(
     index('skus_cross_listed_idx').using('gin', sql`${t.crossListedCategoryIds} jsonb_path_ops`),
   ],
 );
+
+/**
+ * Admin-chosen display order for the «بر اساس کارخانه» sections of a category's
+ * price page (US-18.2, extending the same reordering the taxonomy rail already
+ * gives categories and sub-categories).
+ *
+ * Scoped per CATEGORY on purpose, not globally: which mills matter is a
+ * per-product-line fact. «فولاد مبارکه» leads ورق and does not appear in
+ * میلگرد at all; «فایکو» is mid-pack in میلگرد and top-two in تیرآهن. A single
+ * global list could not express either.
+ *
+ * Keyed by the factory NAME rather than an id, because `skus.factory` is
+ * free text and there is no factories table to point at — introducing one
+ * would mean migrating ~470 free-text values behind the admin's back. The
+ * unique index below is what keeps one row per (category, factory); a factory
+ * renamed on its SKUs simply stops matching and falls back to the unordered
+ * bucket, which is the same "no worse than before" behaviour as never having
+ * been ordered. Rows are NOT required to cover every factory in a category —
+ * anything absent here sorts after everything present (see PriceTable).
+ */
+export const factoryOrder = pgTable(
+  'factory_order',
+  {
+    id: text('id').primaryKey(),
+    categoryId: text('category_id')
+      .notNull()
+      .references(() => categories.id, { onDelete: 'cascade' }),
+    factory: text('factory').notNull(),
+    order: integer('order').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('factory_order_category_factory_uq').on(t.categoryId, t.factory),
+    // The public price page reads one category's whole list on every ISR
+    // regeneration; the unique index above already leads with category_id so
+    // this is the same b-tree, but the read is order-by-order and worth
+    // stating as its own covering index.
+    index('factory_order_category_order_idx').on(t.categoryId, t.order),
+  ],
+);
