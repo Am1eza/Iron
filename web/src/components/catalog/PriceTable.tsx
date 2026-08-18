@@ -9,7 +9,13 @@ import { useToast } from '@/lib/hooks/useToast';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { CONSTANTS } from '@/lib/config/constants';
 import { routes } from '@/lib/routes';
-import { formatToman, priceHiddenLabel, toPersianDigits, normalizeDigits } from '@/lib/utils/format';
+import {
+  formatToman,
+  priceHiddenLabel,
+  toPersianDigits,
+  normalizeDigits,
+  withVat,
+} from '@/lib/utils/format';
 import { sizeLabel, usesDimensions, DIMENSIONS_LABEL } from '@/lib/utils/catalogLabels';
 import { groupByLabel } from '@/lib/utils/catalogGroups';
 import { formatJalali } from '@/lib/utils/jalali';
@@ -26,9 +32,6 @@ import { HeartIcon, ChartIcon, PlusIcon, SortIcon, ChevronDownIcon } from '@/com
 import styles from './PriceTable.module.css';
 
 type SortKey = 'size' | 'price' | 'movement';
-
-const withVat = (price: number, vat: boolean, rate: number = CONSTANTS.VAT_RATE) =>
-  vat ? Math.round(price * (1 + rate)) : price;
 
 /** Shared row comparator — used for the per-factory sections, driven by the
  *  toolbar's `sort` control. */
@@ -305,6 +308,40 @@ export function PriceTable({
   const router = useRouter();
   const { isAuthenticated } = useAuth();
   const [vat, setVat] = useState(false);
+  // Per-factory overrides of the page-wide `vat`, keyed by factory name; a key
+  // that isn't present means "this section follows the toolbar". A sparse map
+  // rather than one independent boolean per section because the common case is
+  // that NOTHING is overridden — a visitor who flips the toolbar switch expects
+  // all nine mills to move, and a seeded-per-section model would leave every
+  // already-mounted section behind.
+  const [vatOverrides, setVatOverrides] = useState<Record<string, boolean>>({});
+  const vatFor = (factory: string) => vatOverrides[factory] ?? vat;
+  // The toolbar switch is a page-wide instruction, so it wipes the overrides
+  // instead of losing to them. Without this, a section toggled ten minutes ago
+  // would silently keep disagreeing with the switch the visitor just flipped,
+  // with nothing on screen to explain why.
+  const setGlobalVat = useCallback((next: boolean) => {
+    setVat(next);
+    setVatOverrides({});
+  }, []);
+  const setFactoryVat = useCallback(
+    (factory: string, next: boolean) => {
+      setVatOverrides((prev) => {
+        // Toggled back to whatever the toolbar says → drop the override rather
+        // than pin the same value, so the next global flip picks this section
+        // up again along with everyone else.
+        if (next === vat) {
+          if (!(factory in prev)) return prev;
+          const rest = { ...prev };
+          delete rest[factory];
+          return rest;
+        }
+        if (prev[factory] === next) return prev;
+        return { ...prev, [factory]: next };
+      });
+    },
+    [vat],
+  );
   const [sort, setSort] = useState<SortKey>('size');
   const [internalSub, setInternalSub] = useState<string | null>(initialSub);
   const controlled = onSubChange !== undefined;
@@ -568,8 +605,20 @@ export function PriceTable({
               <option value="movement">نوسان</option>
             </select>
           </label>
-          <Switch checked={vat} onChange={setVat} label="با ارزش‌افزوده" />
-          <ExportMenu rows={exportRows} title={categoryName} categorySlug={categorySlug} />
+          <Switch checked={vat} onChange={setGlobalVat} label="با ارزش‌افزوده" />
+          {/* Page-wide export — every factory at once, in the page-wide VAT
+              state. A section a visitor has individually overridden is NOT
+              re-resolved here: this file is the "everything" export and its
+              subtitle line spells out which of the two numbers it carries, so
+              a recipient can never be misled. The per-section export below
+              follows that section's own toggle. */}
+          <ExportMenu
+            rows={exportRows}
+            title={categoryName}
+            categorySlug={categorySlug}
+            vat={vat}
+            vatRate={vatRate}
+          />
           <button
             type="button"
             className={styles.compareLink}
@@ -604,6 +653,7 @@ export function PriceTable({
       <div className={styles.factoryList}>
         {byFactory.map(([name, list], i) => {
           const cheapest = list.find((r) => !r.current.priceHidden);
+          const factoryVat = vatFor(name);
           return (
             <details
               key={name}
@@ -623,13 +673,47 @@ export function PriceTable({
                   {cheapest ? (
                     <>
                       {' '}
-                      · از {formatToman(withVat(cheapest.current.price, vat, vatRate), false)} تومان
+                      · از {formatToman(withVat(cheapest.current.price, factoryVat, vatRate), false)}{' '}
+                      تومان
                     </>
                   ) : null}
                 </span>
               </summary>
 
               <div className={styles.factoryBody}>
+                {/* Per-factory controls — the toolbar's VAT toggle and export
+                    menu, scoped to this mill only, the way ahanprice.com scopes
+                    theirs by giving each mill its own page. They live in
+                    `factoryBody`, NOT in `<summary>`: a control inside the
+                    summary would swallow clicks the native <details> toggle
+                    needs, and would land in the tab order between the
+                    disclosure and its own content.
+
+                    Suppressed when there is only one factory — the page-wide
+                    toolbar already covers exactly these rows, and a second
+                    identical pair of controls three lines below the first is
+                    noise. Same rule the quick-jump nav above follows. */}
+                {byFactory.length > 1 ? (
+                  <div className={styles.factoryTools}>
+                    <Switch
+                      size="sm"
+                      checked={factoryVat}
+                      onChange={(next) => setFactoryVat(name, next)}
+                      label="با ارزش‌افزوده"
+                      ariaLabel={`با ارزش‌افزوده — ${name}`}
+                    />
+                    <ExportMenu
+                      rows={list}
+                      title={`${categoryName} ${name}`}
+                      categorySlug={categorySlug}
+                      vat={factoryVat}
+                      vatRate={vatRate}
+                      compact
+                      scopeLabel={name}
+                    />
+                  </div>
+                ) : null}
+
                 {/* Desktop table */}
                 <div className={styles.tableScroll} role="region" aria-label={`قیمت ${categoryName} ${name}`} tabIndex={0}>
                   <table className={`${styles.table} tnum`}>
@@ -672,7 +756,7 @@ export function PriceTable({
                         <PriceTableRow
                           key={r.id}
                           row={r}
-                          vat={vat}
+                          vat={factoryVat}
                           vatRate={vatRate}
                           isFav={fav.has(r.id)}
                           compareChecked={compareIds.has(r.id)}
@@ -693,7 +777,7 @@ export function PriceTable({
                     <PriceTableCard
                       key={r.id}
                       row={r}
-                      vat={vat}
+                      vat={factoryVat}
                       vatRate={vatRate}
                       isFav={fav.has(r.id)}
                       showDimensions={showDimensions}
@@ -739,7 +823,13 @@ export function PriceTable({
 
       {/* Side-by-side comparison (US-02.9) — 2 to 4 rows, spanning every
           factory section at once since `compareIds` is just a Set of ids,
-          independent of which section a checkbox lives in. */}
+          independent of which section a checkbox lives in.
+
+          Prices here use the page-wide `vat`, not any section's override, for
+          the same reason the page-wide export does: the whole point of this
+          table is comparing mills to each other, and per-section VAT states
+          would put two of its columns on different bases with nothing in the
+          row header to say so. */}
       <Modal open={compareOpen} onClose={() => setCompareOpen(false)} title="مقایسهٔ کالاها">
         {selectedForCompare.length < 2 ? null : (
           <div className={styles.compareScroll}>

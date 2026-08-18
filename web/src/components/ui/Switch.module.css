@@ -58,6 +58,37 @@
   color: var(--color-text);
 }
 
+/* ===== size="sm" =====
+   A quieter track for a secondary copy of a control that already exists at
+   full weight elsewhere on the page. Declared after the base rules on purpose:
+   the checked-thumb translation has to out-order the base one, and the RTL/LTR
+   pair below has to out-order `[dir='ltr'] .input:checked + .track .thumb`. */
+.sm {
+  gap: var(--space-2);
+  /* The 18px track alone would be under the 24×24 minimum; the label is part
+     of the same hit area, so the target is padded out here rather than by
+     inflating the track. WCAG 2.2 §2.5.8 Target Size (Minimum). */
+  min-block-size: 24px;
+}
+.sm .track {
+  inline-size: 34px;
+  block-size: 18px;
+}
+.sm .thumb {
+  inline-size: 14px;
+  block-size: 14px;
+}
+.sm .input:checked + .track .thumb {
+  transform: translateX(-16px);
+}
+[dir='ltr'] .sm .input:checked + .track .thumb {
+  transform: translateX(16px);
+}
+.sm .label {
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .track,
   .thumb {

@@ -36,6 +36,31 @@
   color: var(--color-accent-text);
 }
 
+/* ===== compact =====
+   The per-factory copies inside each accordion section. The page-wide toolbar
+   keeps the filled segmented-control look; these drop the enclosing tray and
+   become three quiet outlined chips, so a page with nine factory sections
+   doesn't read as nine competing toolbars. Declared after the base rules so
+   the hover state out-orders `.btn:hover`. */
+.compact {
+  padding: 0;
+  gap: var(--space-2);
+  background: transparent;
+  border-color: transparent;
+}
+.compact .btn {
+  padding: var(--space-1) var(--space-2);
+  min-block-size: 28px;
+  font: var(--t-caption);
+  border: var(--border-hairline) solid var(--color-hairline);
+  background: var(--color-surface);
+}
+.compact .btn:hover {
+  background: var(--color-surface-sunken);
+  color: var(--color-text-strong);
+  box-shadow: none;
+}
+
 @media (max-width: 560px) {
   .btn span {
     position: absolute;
@@ -43,5 +68,13 @@
     block-size: 1px;
     overflow: hidden;
     clip-path: inset(50%);
+  }
+  /* Label gone, so a compact chip collapses to its icon. Squared off and
+     grown past the 28px desktop height — this is the size a thumb has to hit,
+     and a 28×30 sliver is the minimum, not a comfortable target. */
+  .compact .btn {
+    min-block-size: 32px;
+    min-inline-size: 32px;
+    justify-content: center;
   }
 }

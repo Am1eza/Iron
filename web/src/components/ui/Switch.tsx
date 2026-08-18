@@ -12,16 +12,31 @@ export function Switch({
   label,
   hideLabel = false,
   disabled = false,
+  size = 'md',
+  ariaLabel,
 }: {
   checked: boolean;
   onChange: (next: boolean) => void;
   label: string;
   hideLabel?: boolean;
   disabled?: boolean;
+  /** `sm` is a lighter track for a *secondary* copy of a control that already
+   *  exists elsewhere on the page — PriceTable's per-factory VAT toggles sit
+   *  under a page-wide one and must not compete with it. */
+  size?: 'md' | 'sm';
+  /** Overrides the accessible name when the same visible label repeats many
+   *  times on one page (one VAT toggle per factory section), so a screen-reader
+   *  user can tell which section a switch belongs to. MUST still contain
+   *  `label` verbatim — WCAG 2.2 §2.5.3 Label in Name. */
+  ariaLabel?: string;
 }) {
   const id = useId();
   return (
-    <label className={styles.wrap} htmlFor={id} data-disabled={disabled ? '' : undefined}>
+    <label
+      className={size === 'sm' ? `${styles.wrap} ${styles.sm}` : styles.wrap}
+      htmlFor={id}
+      data-disabled={disabled ? '' : undefined}
+    >
       <input
         id={id}
         type="checkbox"
@@ -29,6 +44,7 @@ export function Switch({
         className={styles.input}
         checked={checked}
         disabled={disabled}
+        aria-label={ariaLabel}
         onChange={(e) => onChange(e.target.checked)}
       />
       <span className={styles.track} aria-hidden="true">
