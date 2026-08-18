@@ -5,7 +5,14 @@
  * می‌گیرد», never a guess).
  */
 import { z } from 'zod';
-import { searchSkus, findSkuRow, listCategories, listSubCategories, tableRows } from '@/lib/server/repos/catalogRepo';
+import {
+  searchSkus,
+  findSkuRow,
+  listCategories,
+  listSubCategories,
+  tableRows,
+  unmatchedQueryTokens,
+} from '@/lib/server/repos/catalogRepo';
 import { searchPublishedGuides, type ArticleFull } from '@/lib/server/repos/articlesRepo';
 import { searchCorrections } from '@/lib/server/repos/aiCorrectionsRepo';
 import { estimateProject } from '@/lib/server/services/estimate.service';
@@ -98,7 +105,9 @@ export const AI_TOOLS: ToolDef[] = [
         type: 'object',
         properties: {
           category: { type: 'string', description: 'مثلاً «میلگرد» یا slug دسته (rebar)' },
-          sub: { type: 'string', description: 'زیردسته (اختیاری)، مثلاً «آجدار A3»' },
+          // The example is a real sub-category NAME («میلگرد آجدار»); grade
+          // codes like «A3» are not stored anywhere and never resolve.
+          sub: { type: 'string', description: 'زیردسته (اختیاری) با همان نام کاتالوگ، مثلاً «آجدار» یا «ساده»' },
           size: { type: 'string', description: 'سایز دقیق (اختیاری)؛ بدون این، مقایسه بین سایزهای مختلف قاطی می‌شود' },
           tonnage: { type: 'number', description: 'تناژ (تن)' },
         },
@@ -124,7 +133,7 @@ export const AI_TOOLS: ToolDef[] = [
     function: {
       name: 'prepareProforma',
       description:
-        'وقتی کاربر آمادهٔ پیش‌فاکتور است: خلاصهٔ اقلام را با قیمت و وزن روز آماده می‌کند و کارت تأیید را زیر پیام تو به کاربر نشان می‌دهد. این ابزار درخواست را ثبت نمی‌کند؛ ثبت نهایی با دکمهٔ تأیید خودِ کاربر انجام می‌شود. برای هر قلم کافی است نام محصول را با همان کلماتی که کاربر گفته در product بنویسی (مثلاً «میلگرد ۱۴ آجدار A3»)؛ خود ابزار محصول را در کاتالوگ پیدا می‌کند. هرگز از کاربر کد، شناسه، نام یا شمارهٔ موبایل نپرس؛ اگر کاربر وارد حساب نشده باشد، دکمهٔ ورود در همان کارت نمایش داده می‌شود.',
+        'وقتی کاربر آمادهٔ پیش‌فاکتور است: خلاصهٔ اقلام را با قیمت و وزن روز آماده می‌کند و کارت تأیید را زیر پیام تو به کاربر نشان می‌دهد. این ابزار درخواست را ثبت نمی‌کند؛ ثبت نهایی با دکمهٔ تأیید خودِ کاربر انجام می‌شود. برای هر قلم کافی است نام محصول را با همان کلماتی که کاربر گفته در product بنویسی (مثلاً «میلگرد ۱۴ آجدار»)؛ خود ابزار محصول را در کاتالوگ پیدا می‌کند. هرگز از کاربر کد، شناسه، نام یا شمارهٔ موبایل نپرس؛ اگر کاربر وارد حساب نشده باشد، دکمهٔ ورود در همان کارت نمایش داده می‌شود.',
       parameters: {
         type: 'object',
         properties: {
@@ -136,7 +145,7 @@ export const AI_TOOLS: ToolDef[] = [
                 product: {
                   type: 'string',
                   description:
-                    'نام محصول به فارسی، همان‌طور که کاربر گفته یا در گفتگو مشخص شده؛ هر چه کامل‌تر بهتر (محصول + سایز + گرید + کارخانه اگر معلوم است)، مثلاً «میلگرد ۱۴ آجدار A3 ذوب‌آهن». ابزار خودش این نام را به محصول کاتالوگ تبدیل می‌کند. هرگز از کاربر کد یا شناسهٔ محصول نپرس؛ کاربر چنین کدی ندارد.',
+                    'نام محصول به فارسی، همان‌طور که کاربر گفته یا در گفتگو مشخص شده؛ هر چه کامل‌تر بهتر (محصول + سایز + گرید + کارخانه اگر معلوم است)، مثلاً «میلگرد ۱۴ آجدار ذوب‌آهن». ابزار خودش این نام را به محصول کاتالوگ تبدیل می‌کند. هرگز از کاربر کد یا شناسهٔ محصول نپرس؛ کاربر چنین کدی ندارد.',
                 },
                 skuId: {
                   type: 'string',
@@ -293,7 +302,42 @@ async function resolveProduct(
 ): Promise<{ kind: 'one'; skuId: string } | { kind: 'many'; options: string[] } | { kind: 'none' }> {
   const direct = await findSkuRow(query);
   if (direct) return { kind: 'one', skuId: direct.id };
-  const rows = await searchSkus(query, 5);
+  let rows = await searchSkus(query, 5);
+  if (rows.length === 0) {
+    // RETRY WITHOUT THE WORDS THE CATALOG DOES NOT KNOW.
+    //
+    // searchSkus ANDs its tokens, so one unknown word zeroes the whole query.
+    // In production that word is nearly always a GRADE CODE: «A3» is how every
+    // customer (and this prompt) names rebar, and it appears in zero catalog
+    // rows — the grade lives in the sub-category «میلگرد آجدار», which search
+    // does not read. «میلگرد ۱۴ آجدار A3» therefore came back `none` and the
+    // needs_choice → tappable-chips path could never fire, while the same
+    // query minus «A3» matches one row per mill, which is exactly the choice
+    // the customer should be asked to make.
+    //
+    // Only ever runs after a genuine miss, and only drops tokens PROVEN (by a
+    // query) to match nothing — so it can turn `none` into an answer and can
+    // never change an answer the customer would otherwise have got.
+    const unknown = await unmatchedQueryTokens(query);
+    if (unknown.length > 0) {
+      const kept = query.split(/\s+/).filter((t) => t && !unknown.includes(t));
+      // WHAT IS LEFT MUST STILL BE A WORD, NOT A STRAY SYLLABLE.
+      //
+      // The filter keeps every token that matches SOMETHING, and a two-letter
+      // Persian word matches something by accident: «یک» occurs inside real
+      // catalog names, so for the pure nonsense «یک چیز کاملاً نامربوط ۹۹۹» it
+      // was the single survivor — and on its own it pulled five unrelated
+      // تیرآهن rows, turning a correct `none` into a false product on a
+      // document the customer keeps. So the retry only runs when at least one
+      // survivor is a real word (≥3 chars, ZWNJ not counted). The grade case
+      // this whole retry exists for keeps «میلگرد» (7) and clears it easily;
+      // «یک»/«از»/«۲» can never carry a query by themselves.
+      const ZWNJ = '‌';
+      if (kept.some((t) => t.replaceAll(ZWNJ, '').length >= 3)) {
+        rows = await searchSkus(kept.join(' ').trim(), 5);
+      }
+    }
+  }
   if (rows.length === 0) return { kind: 'none' };
   if (rows.length === 1) return { kind: 'one', skuId: rows[0]!.id };
   // One product quoted by one mill can legitimately appear once per size/
@@ -610,7 +654,7 @@ export const AI_SYSTEM_PROMPT = `تو «مشاور هوشمند آهن‌تای�
 3) عدد را همیشه با رقم بنویس، نه با حروف؛ اعداد با جداکنندهٔ هزارگان و همیشه با واحد (تومان، کیلوگرم، شاخه). قبل از پاسخ، معقول بودن عدد را چک کن: اگر نتیجه نامعقول بود (مثلاً وزن یک شاخه میلگرد چند صد کیلو، یا وزن یک شاخه تیرآهن/ناودانی زیر ۶ کیلوگرم — سبک‌ترین سایز واقعی تیرآهن هم به این کمی نمی‌رسد)، shape/sizeCode/diameterMm ورودی calcWeight را دوباره چک کن (نشانهٔ کلاسیک این خطا: برای «تیرآهن ۱۴» به‌جای shape=ibeam و sizeCode=14 اشتباهاً shape=rebar یا wire با diameterMm=14 صدا زده شده) و ابزار را با ورودی درست دوباره صدا بزن.
 4) وقتی کاربر آمادهٔ خرید/پیش‌فاکتور است، ابزار prepareProforma را با اقلام صدا بزن. این ابزار درخواست را ثبت نمی‌کند: یک کارت خلاصهٔ اقلام با دکمهٔ تأیید زیر پیام تو به کاربر نشان داده می‌شود و ثبت نهایی با فشردن همان دکمه توسط کاربر انجام می‌شود. پس هرگز نگو «درخواستت ثبت شد» و هرگز کد پیگیری نساز؛ فقط بگو خلاصه را ببیند و دکمه را بزند. اسم دکمه را از خودت نساز: دکمهٔ کارت دقیقاً «تأیید و ثبت درخواست» نام دارد (و برای کاربری که وارد حساب نشده، «ورود به حساب کاربری»)؛ اگر به دکمه اشاره می‌کنی، فقط همین دو نام را به کار ببر.
 4-پ) هرگز از پرداخت حرف نزن. در آهن‌تایم پرداخت آنلاین وجود ندارد و هیچ مرحلهٔ پرداختی در این گفتگو یا بعد از تأیید کارت پیش نمی‌آید؛ جمله‌هایی مثل «پرداخت پس از تأیید انجام می‌شود» یا «فاکتور را پرداخت کنید» ممنوع است. بعد از ثبت درخواست، تنها چیزی که اتفاق می‌افتد این است: کارشناس فروش تماس می‌گیرد و قیمت و زمان تحویل را نهایی می‌کند. شرایط تسویه هم فقط با همین جمله بیان می‌شود که کارشناس اعلامش می‌کند؛ خودت هیچ روش یا زمان‌بندی پرداختی توصیف نکن. وزن/مبلغ کل را در متن تکرار نکن یا اگر گفتی، دقیقاً از فیلدهای totalWeightKg/total همان خروجی بگو؛ هرگز خودت وزن یا مبلغ را از روی مقدار کاربر (مثلاً «۲ تن») محاسبه نکن.
-4-الف) هرگز از کاربر کد، شناسه یا هر مقدار فنیِ داخلی سیستم (skuId و مانند آن) نخواه؛ کاربر چنین چیزی ندارد و پرسیدنش او را گیج می‌کند. برای ثبت پیش‌فاکتور کافی است نام محصول را با همان کلمات خود کاربر در فیلد product بگذاری (مثلاً «میلگرد ۱۴ آجدار A3»)؛ پیدا کردن محصول در کاتالوگ کار ابزار است، نه کار کاربر. اگر ابزار گفت چند گزینه وجود دارد (needs_choice)، گزینه‌ها همان لحظه به شکل دکمه‌های قابل‌لمس زیر پیام تو به کاربر نشان داده می‌شوند؛ پس فهرست شماره‌دار یا جدول ننویس و نام گزینه‌ها را در متن تکرار نکن. فقط یک سؤال کوتاه بپرس (مثلاً «از کدام کارخانه می‌خواهی؟») و اضافه کن که می‌تواند یکی از گزینه‌های زیر را بزند یا نامش را بنویسد. بعد از انتخاب او، دوباره ابزار را صدا بزن.
+4-الف) هرگز از کاربر کد، شناسه یا هر مقدار فنیِ داخلی سیستم (skuId و مانند آن) نخواه؛ کاربر چنین چیزی ندارد و پرسیدنش او را گیج می‌کند. برای ثبت پیش‌فاکتور کافی است نام محصول را با همان کلمات خود کاربر در فیلد product بگذاری (مثلاً «میلگرد ۱۴ آجدار»)؛ پیدا کردن محصول در کاتالوگ کار ابزار است، نه کار کاربر. اگر ابزار گفت چند گزینه وجود دارد (needs_choice)، گزینه‌ها همان لحظه به شکل دکمه‌های قابل‌لمس زیر پیام تو به کاربر نشان داده می‌شوند؛ پس فهرست شماره‌دار یا جدول ننویس و نام گزینه‌ها را در متن تکرار نکن. فقط یک سؤال کوتاه بپرس (مثلاً «از کدام کارخانه می‌خواهی؟») و اضافه کن که می‌تواند یکی از گزینه‌های زیر را بزند یا نامش را بنویسد. بعد از انتخاب او، دوباره ابزار را صدا بزن.
 4-ب) نام و شمارهٔ موبایل را هرگز از کاربر نپرس. اگر کاربر وارد حساب شده باشد، این اطلاعات از پروفایلش برداشته می‌شود؛ اگر نشده باشد، دکمهٔ «ورود به حساب کاربری» در همان کارت به او نشان داده می‌شود. فقط چیزهای واقعاً لازم و ناقص (محصول، سایز، مقدار، شهر تحویل، زمان نیاز) را بپرس.
 5) اگر کاربر خودش قیمتی گفت، آن را تأیید یا رد نکن؛ قیمت معتبر را از ابزار بگیر و همان را بگو.
 

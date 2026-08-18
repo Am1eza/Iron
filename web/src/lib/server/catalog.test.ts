@@ -9,7 +9,14 @@ import { createTestDb } from '@/test/db';
 import { seedDatabase } from '@/lib/server/db/seed';
 import * as schema from '@/lib/server/db/schema';
 import type { Db } from '@/lib/server/db/client';
-import { listCategories, tableRows, findSkuRow, skuHistory, searchSkus } from '@/lib/server/repos/catalogRepo';
+import {
+  listCategories,
+  tableRows,
+  findSkuRow,
+  skuHistory,
+  searchSkus,
+  unmatchedQueryTokens,
+} from '@/lib/server/repos/catalogRepo';
 import { savePrice, savePrices, recomputeStaleness } from '@/lib/server/services/pricing.service';
 import { upsertMarketValue, listMarketValues, flagTgjuStale } from '@/lib/server/repos/marketRepo';
 
@@ -72,6 +79,23 @@ describe('catalog reads', () => {
   it('returns nothing when one token has no match anywhere (AND semantics)', async () => {
     const hits = await searchSkus('میلگرد بشقاب‌غیرموجود');
     expect(hits).toHaveLength(0);
+  });
+
+  it('names the tokens the catalog cannot match, and only those', async () => {
+    // The caller's escape hatch out of AND semantics (resolveProduct uses it
+    // to retry without a grade code the catalog does not store). Grades are
+    // the live case: on production, «A3» is in zero SKU names, factories,
+    // sizes or category names — the grade is encoded in the sub-category,
+    // which search does not read. The seeded catalog DOES contain «A3», so
+    // this asserts the mechanism with a token that is unknown in both.
+    expect(await searchSkus('میلگرد ۱۴ ST37')).toHaveLength(0);
+    expect(await unmatchedQueryTokens('میلگرد ۱۴ ST37')).toEqual(['ST37']);
+    // Nothing is dropped from a query every word of which the catalog knows.
+    expect(await unmatchedQueryTokens('میلگرد ۱۴')).toEqual([]);
+    // …including a word only reachable through a spelling variant or the
+    // compound merge, which this shares with searchSkus rather than
+    // re-implementing.
+    expect(await unmatchedQueryTokens('تیر آهن 14')).toEqual([]);
   });
 
   it('tolerates a misspelled product word («میلیگرد») instead of answering "no such product"', async () => {
