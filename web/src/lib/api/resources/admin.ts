@@ -364,6 +364,17 @@ export interface AdminSubCategory {
   skuCount: number;
 }
 
+/** One row of a category's «ترتیب کارخانه‌ها» list (US-18.2). */
+export interface AdminFactoryOrderRow {
+  factory: string;
+  /** 1-based position the admin placed it at; null = never ordered, so the
+   *  public page falls back to its price-derived sort for this one. */
+  order: number | null;
+  /** Active SKUs of this category carrying the name. Zero = a leftover order
+   *  row whose products were all renamed or retired. */
+  skuCount: number;
+}
+
 export interface AdminSku {
   id: string;
   subCategoryId: string;
@@ -958,6 +969,18 @@ export const adminApi = {
     ),
   /** Factory names already in use, for the form's datalist. */
   catalogFactories: () => http.get<{ factories: string[] }>('/api/admin/catalog/factories'),
+
+  /** One category's factories in the order its price page renders them —
+   *  including any never-ordered ones, which the public page appends after
+   *  the arranged block. See AdminFactoryOrderRow. */
+  factoryOrder: (categoryId: string) =>
+    http.get<{ categoryId: string; factories: AdminFactoryOrderRow[] }>(
+      `/api/admin/catalog/factory-order?categoryId=${encodeURIComponent(categoryId)}`,
+    ),
+  /** Replaces the category's whole order — send the COMPLETE list, not a
+   *  delta. A name left out stops being ordered at all. */
+  setFactoryOrder: (categoryId: string, factories: string[]) =>
+    http.put<{ ok: true; count: number }>('/api/admin/catalog/factory-order', { categoryId, factories }),
   /** Every value already in use for the free-text SKU columns, so the product
    *  form can offer choices instead of asking the admin to type. */
   catalogSuggestions: (categoryId?: string) =>

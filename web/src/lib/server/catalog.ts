@@ -94,6 +94,21 @@ export async function getSkuCounts(categorySlugs: readonly string[]): Promise<Ma
   return repo.skuCountsByCategory();
 }
 
+/**
+ * The admin's chosen «بر اساس کارخانه» order for a category (US-18.2), or an
+ * empty list when they have never arranged it.
+ *
+ * No mock fallback on purpose: the fixtures carry no such ordering, and an
+ * invented one would make a preview build disagree with production about
+ * which mill leads the page. Empty means "keep the previous, price-derived
+ * order" everywhere it is consumed, so mock mode simply behaves as it did
+ * before this existed.
+ */
+export async function getFactoryOrder(categorySlug: string): Promise<string[]> {
+  if (!live()) return [];
+  return repo.factoryOrderForCategory(categorySlug);
+}
+
 export async function getSubRows(categorySlug: string, subSlug: string): Promise<PriceRow[]> {
   if (!live()) return mock.getSubRows(categorySlug, subSlug);
   return repo.tableRows(categorySlug, subSlug);
