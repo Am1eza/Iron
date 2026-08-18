@@ -300,7 +300,31 @@ export async function priceItems(
     // branches of rebar-14 is ~1200kg — roughly 12x under, on a document the
     // customer keeps and that is sent to them by SMS. The mirrored error
     // (claiming 'kg' on a per-branch SKU) corrupted weightKg the other way.
-    const unit = hit?.sku.unit ?? item.unit;
+    const skuUnit = hit?.sku.unit ?? item.unit;
+
+    // …EXCEPT that a PIECE COUNT is not a mass claim, and overriding it with
+    // the SKU's 'kg' silently reinterprets it as one. Live case (2026-08-18):
+    // the advisor correctly computed «۲۰ شاخه × ۱۴٫۵۲ کیلوگرم = ۲۹۰٫۳۷
+    // کیلوگرم» and then the confirmation card under it read «وزن کل ۲۰
+    // کیلوگرم» — because `unit` became 'kg', which made `weightKg` fall into
+    // the `item.qty` branch below and take the SHAFT COUNT as kilograms, a
+    // 14.5x understatement on a document the customer keeps.
+    //
+    // «۲۰ شاخه میلگرد ۱۴» is a completely ordinary way to order, so the right
+    // move is to CONVERT, not to overrule: when the SKU is kg-denominated and
+    // carries a theoretical per-piece weight, the piece unit is kept for
+    // display and `weightKg` below derives the real mass from it. This cannot
+    // resurrect the undercharge the comment above describes — `lineTotal` is
+    // `unitPrice × weightKg`, so a (forged or mistaken) piece claim now
+    // produces a HIGHER total, never a lower one — and `unitMismatch` still
+    // withholds the automatic quote either way (see below).
+    const pieceRequest =
+      hit != null &&
+      skuUnit === 'kg' &&
+      WHOLE_PIECE_UNITS.has(item.unit) &&
+      typeof hit.sku.theoreticalWeightKg === 'number' &&
+      hit.sku.theoreticalWeightKg > 0;
+    const unit = pieceRequest ? item.unit : skuUnit;
 
     // A disagreement is not something to silently paper over: it means the
     // client is working from a stale catalog (an admin changed the SKU's unit
@@ -308,6 +332,12 @@ export async function priceItems(
     // not what the customer was shown, so this line does not get an automatic
     // quote — allPriced=false routes the whole lead to a human, which is the
     // same path an unpriced or stale-priced item already takes.
+    //
+    // Deliberately NOT relaxed for `pieceRequest`: the weight is now right,
+    // but whether a piece-counted order gets an automatic binding quote is a
+    // commercial decision, not a bug fix. «۲۰ شاخه» keeps going to a human
+    // with the correct mass on the card, which is this shop's normal close
+    // anyway («اول مشورت، بعد خرید»).
     const unitMismatch = hit != null && item.unit !== hit.sku.unit;
 
     // Same rule the admin edit path already enforced, now also on create:

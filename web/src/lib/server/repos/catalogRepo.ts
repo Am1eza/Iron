@@ -193,6 +193,44 @@ export async function listSubCategories(categorySlug: string): Promise<SubCatego
   }));
 }
 
+/**
+ * The grade codes that ACTUALLY exist in the active catalog, per category
+ * name — e.g. `{ 'میلگرد': ['A2', 'A3'] }`.
+ *
+ * This exists because the advisor invented some. On a live turn (2026-08-18)
+ * it offered a customer «`B400B500` یا `B500B600`» as the grades to choose
+ * from; neither string occurs anywhere in this codebase or this catalog. The
+ * model had no grounded list to draw on — `grade` is a real column that
+ * nothing in the AI path ever read — so it filled the gap from its own
+ * pre-training, which is precisely what rule 1 forbids for numbers and had no
+ * equivalent for vocabulary. Fed into the advisor's domain facts.
+ *
+ * Sorted and deduped so the string is stable (it is cached, and it is part of
+ * the relay's prompt-cache prefix).
+ */
+export async function gradesByCategory(): Promise<Record<string, string[]>> {
+  const rows = await getDb()
+    .selectDistinct({ cat: categories.name, grade: skus.grade })
+    .from(skus)
+    .innerJoin(categories, eq(skus.categoryId, categories.id))
+    .innerJoin(subCategories, eq(skus.subCategoryId, subCategories.id))
+    .where(
+      and(
+        eq(skus.isActive, true),
+        eq(categories.isActive, true),
+        eq(subCategories.isActive, true),
+        sql`${skus.grade} is not null and ${skus.grade} <> ''`,
+      ),
+    );
+  const out: Record<string, string[]> = {};
+  for (const r of rows) {
+    if (!r.grade) continue;
+    (out[r.cat] ??= []).push(r.grade);
+  }
+  for (const cat of Object.keys(out)) out[cat] = [...new Set(out[cat])].sort();
+  return out;
+}
+
 /** Price table rows for a category (optionally one sub-category).
  *  `forAdmin` keeps stale-hidden numbers on the row — see `toPriceRow`. */
 export async function tableRows(
@@ -566,9 +604,25 @@ function tokenizeQuery(q: string): string[] {
   return trimmed.split(/\s+/).filter(Boolean);
 }
 
+/**
+ * A token shaped like a market grade code: 1-3 Latin letters + 1-3 digits
+ * («A3», «A2», «ST52», «ST37»). Deliberately narrow, because `grade` is
+ * matched ONLY for tokens of this shape — see tokenMatchCondition.
+ */
+const GRADE_TOKEN = /^[A-Za-z]{1,3}\d{1,3}$/;
+
 /** The ILIKE clause searchSkus applies to ONE token, across every column. */
 function tokenMatchCondition(token: string) {
+  // GRADE, but only for a token that looks like one. «A3» is how every
+  // customer names structural rebar and it lives in its own column, which
+  // this query did not read — so «میلگرد ۱۴ آجدار A3» matched zero rows and
+  // resolveProduct had to guess its way back by DROPPING the word (see
+  // unmatchedQueryTokens). Reading the column answers the query directly, and
+  // narrowly enough that it cannot widen anything else: a bare size token like
+  // «۳» or «32» is not grade-shaped, so it can never pull in every A3 row.
+  const gradeMatch = GRADE_TOKEN.test(token) ? [ilike(skus.grade, likeContains(token))] : [];
   return or(
+    ...gradeMatch,
     ...tokenVariants(token).flatMap((variant) => {
       const term = likeContains(variant);
       return [ilike(skus.name, term), ilike(skus.factory, term), ilike(skus.size, term), ilike(categories.name, term)];
