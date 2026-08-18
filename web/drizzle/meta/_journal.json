@@ -281,6 +281,13 @@
       "when": 1786666418686,
       "tag": "0039_sku_dimensions",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1787040778674,
+      "tag": "0040_bitter_unicorn",
+      "breakpoints": true
     }
   ]
 }

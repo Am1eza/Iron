@@ -22,11 +22,66 @@ import { GroundingLedger, sanitizeGrounded } from './grounding';
 import {
   collapseImmediateRepeat,
   looksLikeLeakedReasoning,
-  stripFalseProcessClaims,
+  stripFalseProcessClaimsDetailed,
 } from './answerGuard';
 import { toInformalSecondPerson } from './informalVoice';
 
 export const MAX_TOOL_ROUNDS = 4;
+
+/**
+ * What happened to this turn's text between the relay and the customer.
+ *
+ * WHY THIS EXISTS. Two of eight live turns on 2026-08-18 reached a real
+ * visitor with no prose at all. From outside, «the model genuinely said
+ * nothing» and «one of the three post-processors removed everything it wrote»
+ * produce the identical empty bubble, and nothing persisted told them apart:
+ * an empty answer is deliberately NOT written to `ai_messages` (route.ts —
+ * feeding the rolling summary a turn where the advisor said nothing is worse
+ * than losing it), so the one population that needed explaining was the one
+ * with no record. A guard that silently blanked real answers on a tenth of
+ * turns would be a far bigger problem than the false claims it was built to
+ * fix, and that could not be ruled in or out by reading the code.
+ *
+ * So every stage reports its own length, and `emptyAt` names the FIRST stage
+ * after which the text was empty. Lengths, not text: this rides in `ai_usage`,
+ * which is telemetry the operator reads, not a second copy of the transcript.
+ */
+export interface AnswerTrace {
+  /** Completion rounds spent (tool rounds + correction/leak retries). */
+  rounds: number;
+  /** Tool calls actually executed this turn. */
+  toolCalls: number;
+  /** Characters the model wrote as ANSWER text, before any post-processing. */
+  modelChars: number;
+  /** Characters it wrote as private reasoning — never shown, only counted.
+   *  A turn with 0 answer chars and thousands of these is the model spending
+   *  its whole budget thinking, not a guard eating the answer. */
+  reasoningChars: number;
+  /** The relay hit max_tokens mid-answer (finish_reason 'length'). */
+  truncated: boolean;
+  /** …and the pipeline asked it to finish the sentence. */
+  continued: boolean;
+  /** Length after the grounding validator and before the leak guard;
+   *  ai_usage.violations is that validator's first-pass count. */
+  groundedChars: number;
+  /** The correction round ran / its clean result was actually taken. */
+  correctionRan: boolean;
+  correctionUsed: boolean;
+  /** The scratchpad guard fired (and this turn was therefore blanked or retried). */
+  leakFired: boolean;
+  /** Sentences dropped by stripFalseProcessClaims, and what that cost in chars. */
+  claimsRemoved: number;
+  claimsChars: number;
+  /** Characters the stutter-collapser dropped. */
+  repeatChars: number;
+  /** What the customer actually saw. */
+  finalChars: number;
+  /**
+   * The first stage after which the answer was empty — `null` when the visitor
+   * got text. 'model' means nothing was ever there to remove.
+   */
+  emptyAt: 'model' | 'grounding' | 'leak' | 'claims' | 'repeat' | null;
+}
 
 /** Test seam: the eval harness injects a scripted generator with this shape. */
 export type StreamCompletionFn = typeof streamCompletion;
@@ -72,6 +127,8 @@ export interface PipelineResult {
   estimate?: EstimateFacts;
   toolsUsed: Set<string>;
   usage: { promptTokens: number; completionTokens: number; cacheHitTokens: number };
+  /** Per-stage record of what post-processing removed (see AnswerTrace). */
+  trace: AnswerTrace;
   /** Exposed so callers/tests can re-verify the final text independently. */
   ledger: GroundingLedger;
 }
@@ -106,6 +163,26 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
   // correction retry) — one aiUsage row per request.
   const usage = { promptTokens: 0, completionTokens: 0, cacheHitTokens: 0 };
 
+  // Counters the answering rounds fill in; the rest of the trace is assembled
+  // stage by stage at the bottom of this function.
+  const trace: AnswerTrace = {
+    rounds: 0,
+    toolCalls: 0,
+    modelChars: 0,
+    reasoningChars: 0,
+    truncated: false,
+    continued: false,
+    groundedChars: 0,
+    correctionRan: false,
+    correctionUsed: false,
+    leakFired: false,
+    claimsRemoved: 0,
+    claimsChars: 0,
+    repeatChars: 0,
+    finalChars: 0,
+    emptyAt: null,
+  };
+
   // US-27.5: the relay hit max_tokens mid-answer (finish_reason:'length') —
   // ask it to continue ONCE rather than hand the user a sentence cut off
   // mid-word. Scoped OUTSIDE runLoop (like MAX_LEAD_CALLS) so the cap holds
@@ -124,8 +201,10 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
     let extra = '';
     try {
       // Tools withheld — this call's only job is finishing the sentence.
+      trace.rounds++;
       for await (const ev of stream(messages, [], signal, userSignal)) {
         if (ev.type === 'token') extra += ev.text;
+        else if (ev.type === 'reasoning') trace.reasoningChars += ev.chars;
         else if (ev.type === 'usage') {
           usage.promptTokens += ev.usage.promptTokens;
           usage.completionTokens += ev.usage.completionTokens;
@@ -148,8 +227,10 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
       let pendingCalls: ToolCall[] | null = null;
       let buffered = '';
       let truncated = false;
+      trace.rounds++;
       for await (const ev of stream(messages, allowTools ? AI_TOOLS : [], signal, userSignal)) {
         if (ev.type === 'token') buffered += ev.text;
+        else if (ev.type === 'reasoning') trace.reasoningChars += ev.chars;
         else if (ev.type === 'tool_calls') pendingCalls = ev.calls;
         else if (ev.type === 'truncated') truncated = true;
         else if (ev.type === 'usage') {
@@ -163,8 +244,10 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
         // Only the FINAL answering round's truncation matters — an
         // intermediate tool-round's `buffered` text is discarded below
         // regardless (only `pendingCalls` is used once tools were called).
+        if (truncated) trace.truncated = true;
         if (truncated && !continuedOnce && buffered.trim()) {
           continuedOnce = true;
+          trace.continued = true;
           buffered = await continueTruncatedAnswer(buffered);
         }
         return buffered;
@@ -217,6 +300,7 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
           }
         }
         toolsUsed.add(call.function.name);
+        trace.toolCalls++;
         ledger.addFromJson(result); // every tool number becomes quotable
         messages.push({
           role: 'tool',
@@ -228,6 +312,7 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
   };
 
   const final = await runLoop(MAX_TOOL_ROUNDS);
+  trace.modelChars = final.trim().length;
 
   // The validator gate — nothing unvalidated ever reaches the user.
   let checked = sanitizeGrounded(final, ledger, userNumbers);
@@ -235,6 +320,7 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
   // the model tried to invent numbers this request.
   const violationsCaught = checked.violations.length;
   if (checked.violations.length > 0 && !signal?.aborted) {
+    trace.correctionRan = true;
     try {
       messages.push(
         { role: 'assistant', content: final },
@@ -251,12 +337,19 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
       const retry = await runLoop(2);
       if (retry.trim()) {
         const retryChecked = sanitizeGrounded(retry, ledger, userNumbers);
-        if (retryChecked.violations.length === 0) checked = retryChecked;
+        if (retryChecked.violations.length === 0) {
+          checked = retryChecked;
+          trace.correctionUsed = true;
+          // The retry's own text is what the customer is now getting, so it
+          // is what `modelChars` has to describe.
+          trace.modelChars = retry.trim().length;
+        }
       }
     } catch {
       /* keep the censored first answer */
     }
   }
+  trace.groundedChars = checked.text.trim().length;
 
   // The model thinking out loud instead of answering (see answerGuard.ts —
   // this shipped to a real visitor as 60 lines of English deliberation about
@@ -265,6 +358,7 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
   // the honest «موقتاً در دسترس نیست» notice with its retry. An empty answer
   // is recoverable; a leaked one cannot be taken back.
   if (looksLikeLeakedReasoning(checked.text) && !signal?.aborted) {
+    trace.leakFired = true;
     try {
       messages.push(
         { role: 'assistant', content: checked.text },
@@ -301,13 +395,39 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
   // the register rewrite's output would only give it a second set of verb
   // forms to recognise for no gain. Also removal-only, so like the other two
   // it cannot move a number past the validator that already ran.
+  const claims = stripFalseProcessClaimsDetailed(checked.text);
+  trace.claimsRemoved = claims.removed;
+  trace.claimsChars = Math.max(0, checked.text.trim().length - claims.text.trim().length);
+  const informal = toInformalSecondPerson(claims.text);
+  const collapsed = collapseImmediateRepeat(informal);
+  trace.repeatChars = Math.max(0, informal.trim().length - collapsed.trim().length);
+  trace.finalChars = collapsed.trim().length;
+  // The FIRST stage after which there was nothing left. Ordered as the text
+  // flows, so 'model' (the relay wrote no answer at all) can never be confused
+  // with a guard that ate one — the question this whole trace exists to
+  // settle. `leak` covers both of its outcomes: the retry that came back a
+  // scratchpad again and was blanked on purpose, and the one that came back
+  // empty.
+  trace.emptyAt = !trace.modelChars
+    ? 'model'
+    : !trace.groundedChars
+      ? 'grounding'
+      : !checked.text.trim().length
+        ? 'leak'
+        : !claims.text.trim().length
+          ? 'claims'
+          : !trace.finalChars
+            ? 'repeat'
+            : null;
+
   return {
-    text: collapseImmediateRepeat(toInformalSecondPerson(stripFalseProcessClaims(checked.text))),
+    text: collapsed,
     violationsCaught,
     choiceChips,
     estimate,
     toolsUsed,
     usage,
+    trace,
     ledger,
   };
 }

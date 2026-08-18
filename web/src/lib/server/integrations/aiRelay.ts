@@ -238,6 +238,7 @@ export async function* streamCompletion(
   userSignal?: AbortSignal,
 ): AsyncGenerator<
   | { type: 'token'; text: string }
+  | { type: 'reasoning'; chars: number }
   | { type: 'tool_calls'; calls: ToolCall[] }
   | { type: 'usage'; usage: CompletionUsage }
   | { type: 'truncated' }
@@ -272,6 +273,8 @@ export async function* streamCompletion(
           choices?: Array<{
             delta?: {
               content?: string;
+              reasoning?: string;
+              reasoning_content?: string;
               tool_calls?: Array<{ index: number; id?: string; function?: { name?: string; arguments?: string } }>;
             };
             finish_reason?: string | null;
@@ -281,26 +284,41 @@ export async function* streamCompletion(
             completion_tokens?: number;
             prompt_cache_hit_tokens?: number;
             prompt_cache_miss_tokens?: number;
+            prompt_tokens_details?: { cached_tokens?: number } | null;
           } | null;
         };
-        const choice = json.choices?.[0];
-        if (!choice) {
-          // With stream_options.include_usage the FINAL chunk carries no
-          // choices — only the request's token accounting (the relay adds the
-          // prompt_cache_hit/miss split on top of the OpenAI shape).
-          if (json.usage) {
-            yield {
-              type: 'usage',
-              usage: {
-                promptTokens: json.usage.prompt_tokens ?? 0,
-                completionTokens: json.usage.completion_tokens ?? 0,
-                cacheHitTokens: json.usage.prompt_cache_hit_tokens ?? 0,
-              },
-            };
-          }
-          continue;
+        // Token accounting, read BEFORE the choices check and not inside it.
+        // It used to be reachable only on a chunk with NO choices, which is
+        // the shape DeepSeek's relay sent; Parspack puts `usage` on the LAST
+        // chunk, which still carries `choices` — so every ai_usage row this
+        // app has ever written under the current provider recorded 0/0/0
+        // (verified: 175 rows, `max(prompt_tokens) = 0`), which also means
+        // the daily token budget could never trip.
+        if (json.usage) {
+          yield {
+            type: 'usage',
+            usage: {
+              promptTokens: json.usage.prompt_tokens ?? 0,
+              completionTokens: json.usage.completion_tokens ?? 0,
+              // DeepSeek's own field first, then the OpenAI-standard nesting
+              // Parspack uses — the two providers spell the same number
+              // differently and neither is guaranteed present.
+              cacheHitTokens:
+                json.usage.prompt_cache_hit_tokens ?? json.usage.prompt_tokens_details?.cached_tokens ?? 0,
+            },
+          };
         }
+        const choice = json.choices?.[0];
+        if (!choice) continue;
         if (choice.delta?.content) yield { type: 'token', text: choice.delta.content };
+        // The model's private deliberation. NEVER forwarded as text — only its
+        // VOLUME is reported, because "the model spent its whole token budget
+        // thinking and wrote nothing" and "the model answered normally" are
+        // otherwise the same empty string to everything downstream. See
+        // aiRelayConfig#reasoningEffort: this channel routinely carries 5-10×
+        // the characters of the answer itself.
+        const reasoning = choice.delta?.reasoning ?? choice.delta?.reasoning_content;
+        if (reasoning) yield { type: 'reasoning', chars: reasoning.length };
         for (const tc of choice.delta?.tool_calls ?? []) {
           const existing = toolCalls.get(tc.index) ?? {
             id: tc.id ?? `call_${tc.index}`,

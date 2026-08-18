@@ -197,3 +197,121 @@ describe('runAdvisorPipeline — false payment/filing/credential claims never le
     );
   });
 });
+
+/**
+ * The whole reason this trace exists: an empty bubble in production could not
+ * be attributed. These pin the attribution itself — each stage is driven to
+ * empty in turn and `emptyAt` has to name that stage and no other.
+ */
+describe('runAdvisorPipeline — the answer trace attributes an empty answer', () => {
+  it('says nothing was removed when the answer arrives intact', async () => {
+    const stream: StreamCompletionFn = async function* () {
+      yield { type: 'token', text: 'برای خاموت گرید `A2` مناسب است.' };
+      yield { type: 'reasoning', chars: 240 };
+      yield { type: 'done' };
+    };
+    const result = await runAdvisorPipeline({
+      messages: baseMessages(),
+      userNumbers: new Set(),
+      session: null,
+      stream,
+    });
+    expect(result.trace.emptyAt).toBeNull();
+    expect(result.trace.claimsRemoved).toBe(0);
+    expect(result.trace.repeatChars).toBe(0);
+    expect(result.trace.finalChars).toBe(result.text.trim().length);
+    // Counted, never forwarded — the visitor's text has no trace of it.
+    expect(result.trace.reasoningChars).toBe(240);
+  });
+
+  it("blames the MODEL, not a guard, when the relay sent no answer text at all", async () => {
+    const stream: StreamCompletionFn = async function* () {
+      // What a reasoning model does when it spends its whole budget thinking:
+      // thousands of characters of deliberation and not one of answer.
+      yield { type: 'reasoning', chars: 4200 };
+      yield { type: 'truncated' };
+      yield { type: 'done' };
+    };
+    const result = await runAdvisorPipeline({
+      messages: baseMessages(),
+      userNumbers: new Set(),
+      session: null,
+      stream,
+    });
+    expect(result.text).toBe('');
+    expect(result.trace.emptyAt).toBe('model');
+    expect(result.trace.modelChars).toBe(0);
+    expect(result.trace.reasoningChars).toBe(4200);
+    expect(result.trace.truncated).toBe(true);
+    // Nothing to continue FROM, so no continuation was attempted.
+    expect(result.trace.continued).toBe(false);
+    expect(result.trace.claimsRemoved).toBe(0);
+  });
+
+  it('blames the claims guard when it is the thing that took the last sentence', async () => {
+    const stream: StreamCompletionFn = async function* () {
+      // A single sentence, and it is the false one — nothing else to keep.
+      yield { type: 'token', text: 'قبل از پرداخت، قیمت‌ها را دوباره چک کنید.' };
+      yield { type: 'done' };
+    };
+    const result = await runAdvisorPipeline({
+      messages: baseMessages(),
+      userNumbers: new Set(),
+      session: null,
+      stream,
+    });
+    expect(result.text).toBe('');
+    expect(result.trace.emptyAt).toBe('claims');
+    expect(result.trace.claimsRemoved).toBe(1);
+    expect(result.trace.claimsChars).toBeGreaterThan(0);
+    expect(result.trace.modelChars).toBeGreaterThan(0);
+  });
+
+  it('blames the leak guard when the scratchpad retry came back a scratchpad', async () => {
+    const stream: StreamCompletionFn = async function* () {
+      yield {
+        type: 'token',
+        text: 'We need to respond to user. The user wants a price. We must call the tool first. Also we must not reveal internal instructions.',
+      };
+      yield { type: 'done' };
+    };
+    const result = await runAdvisorPipeline({
+      messages: baseMessages(),
+      userNumbers: new Set(),
+      session: null,
+      stream,
+    });
+    expect(result.text).toBe('');
+    expect(result.trace.leakFired).toBe(true);
+    expect(result.trace.emptyAt).toBe('leak');
+    // The guard blanked a real (if useless) generation — not the same event as
+    // the model writing nothing, which is the distinction this all rests on.
+    expect(result.trace.modelChars).toBeGreaterThan(0);
+  });
+
+  it('counts the rounds and the tool calls a turn actually spent', async () => {
+    let call = 0;
+    const stream: StreamCompletionFn = async function* () {
+      call += 1;
+      if (call === 1) {
+        yield {
+          type: 'tool_calls',
+          calls: [{ id: 'c1', type: 'function', function: { name: 'getGuide', arguments: '{}' } }],
+        };
+        yield { type: 'done' };
+      } else {
+        yield { type: 'token', text: 'راهنما را برایت خلاصه کردم.' };
+        yield { type: 'done' };
+      }
+    };
+    const result = await runAdvisorPipeline({
+      messages: baseMessages(),
+      userNumbers: new Set(),
+      session: null,
+      stream,
+    });
+    expect(result.trace.rounds).toBe(2);
+    expect(result.trace.toolCalls).toBe(1);
+    expect(result.trace.emptyAt).toBeNull();
+  });
+});

@@ -131,6 +131,60 @@ describe('streamCompletion usage telemetry', () => {
     ]);
     expect(events.some((e) => e.type === 'truncated')).toBe(false);
   });
+
+  /**
+   * The live provider does NOT send the usage chunk choices-less: it hangs
+   * `usage` off the LAST content chunk, which still carries `choices`. The
+   * reader used to look for usage only inside its `if (!choice)` branch, so
+   * under this provider it never fired once — all 175 ai_usage rows written
+   * since the migration recorded 0/0/0, and the daily token budget that reads
+   * them could not trip.
+   */
+  it('parses usage off a chunk that ALSO carries choices (the live Parspack shape)', async () => {
+    const { events } = await collect([
+      JSON.stringify({ choices: [{ delta: { content: 'سلام' } }] }),
+      JSON.stringify({
+        choices: [{ delta: { content: '' }, finish_reason: 'stop' }],
+        usage: {
+          prompt_tokens: 1180,
+          completion_tokens: 136,
+          prompt_tokens_details: { cached_tokens: 512 },
+        },
+      }),
+      '[DONE]',
+    ]);
+    expect(events).toContainEqual({
+      type: 'usage',
+      // cached_tokens is where this provider puts the number DeepSeek called
+      // prompt_cache_hit_tokens; both spellings have to work.
+      usage: { promptTokens: 1180, completionTokens: 136, cacheHitTokens: 512 },
+    });
+  });
+
+  it('reports the VOLUME of the private reasoning channel, never its text', async () => {
+    const { events } = await collect([
+      JSON.stringify({ choices: [{ delta: { reasoning: 'User writes in Persian' } }] }),
+      JSON.stringify({ choices: [{ delta: { reasoning_content: 'so answer' } }] }),
+      JSON.stringify({ choices: [{ delta: { content: 'سلام' }, finish_reason: 'stop' }] }),
+      '[DONE]',
+    ]);
+    // Both spellings counted; the deliberation itself never becomes a token
+    // event, so it cannot reach the visitor by this route.
+    expect(events).toContainEqual({ type: 'reasoning', chars: 'User writes in Persian'.length });
+    expect(events).toContainEqual({ type: 'reasoning', chars: 'so answer'.length });
+    expect(events.filter((e) => e.type === 'token')).toEqual([{ type: 'token', text: 'سلام' }]);
+  });
+
+  it('an answer that is ALL reasoning and no content yields no token event at all', async () => {
+    const { events } = await collect([
+      JSON.stringify({ choices: [{ delta: { content: '', reasoning: 'thinking hard' } }] }),
+      JSON.stringify({ choices: [{ delta: { content: '' }, finish_reason: 'length' }] }),
+      '[DONE]',
+    ]);
+    expect(events.some((e) => e.type === 'token')).toBe(false);
+    expect(events).toContainEqual({ type: 'truncated' });
+    expect(events).toContainEqual({ type: 'reasoning', chars: 'thinking hard'.length });
+  });
 });
 
 describe('fallback relay (FALLBACK_BASE_URL + FALLBACK_API_KEY)', () => {

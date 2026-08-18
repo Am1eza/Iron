@@ -285,7 +285,7 @@ export function statesSomethingUntrue(sentence: string): boolean {
  *  markers with it — «*» alone is not an answer. */
 const MARKDOWN_NOISE_ONLY = /^[\s*_#>\-–—•·:|]*$/u;
 
-function stripSentencesFromLine(line: string): string {
+function stripSentencesFromLine(line: string, count: { removed: number }): string {
   if (!line.trim()) return line;
   // Odd indices are the inter-sentence gaps, so a kept sentence keeps its
   // spacing exactly. The split needs whitespace after the terminator, which is
@@ -297,6 +297,7 @@ function stripSentencesFromLine(line: string): string {
     const sentence = parts[i] ?? '';
     if (sentence.trim() && statesSomethingUntrue(sentence)) {
       removed = true;
+      count.removed++;
       continue;
     }
     out += sentence + (parts[i + 1] ?? '');
@@ -307,14 +308,30 @@ function stripSentencesFromLine(line: string): string {
 
 /**
  * Drop every sentence that claims a payment step, an already-filed request or
- * a password exists. Returns `text` unchanged when there is nothing to drop,
- * which is the overwhelmingly common case.
+ * a password exists, and report HOW MANY sentences went.
+ *
+ * The count is not decoration. This guard removes text a customer would
+ * otherwise have read, and from outside «the model said nothing» and «the
+ * guard removed everything the model said» are the same empty bubble — a
+ * distinction that stayed unresolvable for a whole round of live testing. The
+ * caller records it per turn (see pipeline.ts's AnswerTrace), which both
+ * settles that question and tells the owner how often the advisor still tries
+ * to invent a checkout, which is worth knowing on its own.
  */
-export function stripFalseProcessClaims(text: string): string {
-  if (!text.trim()) return text;
-  const out = text.split('\n').map(stripSentencesFromLine).join('\n');
-  if (out === text) return text;
+export function stripFalseProcessClaimsDetailed(text: string): { text: string; removed: number } {
+  if (!text.trim()) return { text, removed: 0 };
+  const count = { removed: 0 };
+  const out = text
+    .split('\n')
+    .map((line) => stripSentencesFromLine(line, count))
+    .join('\n');
+  if (out === text) return { text, removed: count.removed };
   // A removed paragraph leaves its blank lines behind; two is a paragraph
   // break, three is a hole where a sentence used to be.
-  return out.replace(/\n{3,}/gu, '\n\n').trim();
+  return { text: out.replace(/\n{3,}/gu, '\n\n').trim(), removed: count.removed };
+}
+
+/** Removal only, for callers that do not need the count. */
+export function stripFalseProcessClaims(text: string): string {
+  return stripFalseProcessClaimsDetailed(text).text;
 }
