@@ -92,6 +92,7 @@ describe('streamCompletion usage telemetry', () => {
     expect(events).toEqual([
       { type: 'token', text: 'سلام! ' },
       { type: 'token', text: 'چه کمکی؟' },
+      { type: 'finish', reason: 'stop' },
       { type: 'usage', usage: { promptTokens: 120, completionTokens: 40, cacheHitTokens: 64 } },
       { type: 'done' },
     ]);

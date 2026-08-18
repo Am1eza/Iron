@@ -242,6 +242,7 @@ export async function* streamCompletion(
   | { type: 'tool_calls'; calls: ToolCall[] }
   | { type: 'usage'; usage: CompletionUsage }
   | { type: 'truncated' }
+  | { type: 'finish'; reason: string }
   | { type: 'done' }
 > {
   const res = await fetchCompletion(messages, tools, signal, userSignal);
@@ -339,6 +340,12 @@ export async function* streamCompletion(
         // caller decide whether to ask the model to continue (US-27.5)
         // instead of silently handing the user a sentence cut off mid-word.
         if (choice.finish_reason === 'length') yield { type: 'truncated' };
+        // WHY the generation ended, for the turns where it ended without
+        // writing anything. 'stop' means the model chose to say nothing;
+        // anything else (or nothing at all, when the stream just closes) is
+        // the relay giving up mid-generation, and the two want different
+        // handling. Recorded in the answer trace, never shown to anyone.
+        if (choice.finish_reason) yield { type: 'finish', reason: choice.finish_reason };
       } catch {
         // skip malformed frame
       }
