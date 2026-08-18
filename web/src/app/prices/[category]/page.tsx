@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { buildMetadata, itemListJsonLd } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { categories as mockCategories } from '@/lib/mock/fixtures';
-import { getCategories, getRows } from '@/lib/server/catalog';
+import { getCategories, getRows, getFactoryOrder } from '@/lib/server/catalog';
 import { getSubsMap } from '@/lib/data/catalog';
 import { getSetting, getVatRate } from '@/lib/server/repos/settingsRepo';
 import { DEFAULT_LOGISTICS_CONFIG, type LogisticsConfig } from '@/lib/data/logistics';
@@ -47,9 +47,13 @@ export default async function CategoryPage({ params }: Params) {
 
   const rows = await getRows(category);
   const subs = (await getSubsMap())[category] ?? [];
-  const [logisticsConfig, vatRate] = await Promise.all([
+  const [logisticsConfig, vatRate, factoryOrder] = await Promise.all([
     getSetting<LogisticsConfig>('LOGISTICS', DEFAULT_LOGISTICS_CONFIG),
     getVatRate(),
+    // Admin-chosen order for the «بر اساس کارخانه» sections (US-18.2). Empty
+    // until the admin arranges this category, which the table reads as "keep
+    // sorting the way you did before".
+    getFactoryOrder(category),
   ]);
 
   const crumbs = [
@@ -87,7 +91,14 @@ export default async function CategoryPage({ params }: Params) {
 
           {rows.length > 0 ? (
             <>
-              <PriceTable rows={rows} subs={subs} categoryName={cat.name} categorySlug={category} vatRate={vatRate} />
+              <PriceTable
+                rows={rows}
+                subs={subs}
+                categoryName={cat.name}
+                categorySlug={category}
+                vatRate={vatRate}
+                factoryOrder={factoryOrder}
+              />
               <BulkQuote category={category} categoryName={cat.name} rows={rows} subs={subs} logisticsConfig={logisticsConfig} vatRate={vatRate} />
             </>
           ) : (

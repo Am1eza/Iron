@@ -234,3 +234,52 @@
   border-radius: var(--radius-sm);
   border: var(--border-hairline) solid var(--color-hairline);
 }
+
+/* ------------------------ factory order (US-18.2) ------------------------ */
+
+.factoryHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.factoryTitle {
+  font: var(--t-body-sm);
+  font-weight: 600;
+}
+
+.factoryBody {
+  display: grid;
+  gap: var(--space-1);
+  margin-block-start: var(--space-3);
+}
+
+/* Same inert cluster heading as .subGroupHeader, without the rail's indent —
+   this list sits in the main column, not under a tree node. */
+.factoryGroupHeader {
+  padding-block: var(--space-2) 2px;
+  font: var(--t-caption);
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.factoryRow {
+  background: var(--color-surface);
+  border: var(--border-hairline) solid var(--color-hairline);
+}
+
+/* The name is the flexible column here. In the rail it inherits that from
+   .nodeLabel (a button wrapper this list has no use for — nothing to filter). */
+.factoryRow .nodeName {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+/* Tabular so the ranks stay a straight column as they pass ۱۰. */
+.factoryRank {
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+  min-inline-size: 1.5rem;
+  flex-shrink: 0;
+}

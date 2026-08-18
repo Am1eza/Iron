@@ -274,6 +274,7 @@ export function PriceTable({
   initialSub = null,
   categorySlug,
   vatRate = CONSTANTS.VAT_RATE,
+  factoryOrder,
 }: {
   rows: PriceRow[];
   subs: SubCat[];
@@ -296,6 +297,12 @@ export function PriceTable({
    *  default. Falls back to the same default only for callers that don't
    *  have it yet. */
   vatRate?: number;
+  /** The admin's chosen order for this category's «بر اساس کارخانه» sections,
+   *  best-first (US-18.2, `factory_order`). Partial and optional by design:
+   *  only the names listed here are placed, everything else keeps the
+   *  cheapest-visible-price order it had before. Empty or absent → the page
+   *  behaves exactly as it did before this existed. */
+  factoryOrder?: string[];
 }) {
   const sizeCol = sizeLabel(categorySlug);
   const subGroups = useMemo(() => groupByLabel(subs), [subs]);
@@ -420,6 +427,13 @@ export function PriceTable({
     [rows, sub],
   );
 
+  /** Admin-placed factories, name → position. Built once per prop change so
+   *  the comparator below stays an O(1) lookup. */
+  const factoryRank = useMemo(
+    () => new Map((factoryOrder ?? []).map((f, i) => [f, i] as const)),
+    [factoryOrder],
+  );
+
   // «بر اساس کارخانه» sections — grouped from the same sub-filtered rows,
   // each group internally sorted by the toolbar's `sort` control (size by
   // default, same comparator the old flat table used).
@@ -432,15 +446,23 @@ export function PriceTable({
       else map.set(key, [r]);
     }
     for (const list of map.values()) list.sort((a, b) => compareRows(a, b, sort));
-    // Cheapest-overall-visible-price factory first, so the first couple of
-    // sections default-open to something actually useful rather than
-    // whatever happened to sort first alphabetically/by insertion order.
-    return [...map.entries()].sort(([, a], [, b]) => {
+    return [...map.entries()].sort(([an, a], [bn, b]) => {
+      // The admin's order wins wherever it has an opinion (US-18.2): the mills
+      // customers ask for by name are not the cheapest ones, and leading with
+      // «whoever is cheapest today» reshuffled the page daily and buried
+      // ذوب‌آهن under mills nobody had heard of.
+      const ar = factoryRank.get(an) ?? Infinity;
+      const br = factoryRank.get(bn) ?? Infinity;
+      if (ar !== br) return ar - br;
+      // Both unplaced (or the admin has arranged nothing at all): cheapest
+      // overall visible price first — the previous behaviour, kept verbatim
+      // so a partly-filled order is never worse than no order. The «سایر»
+      // bucket (rows with no factory) can only ever land here.
       const av = a.find((r) => !r.current.priceHidden)?.current.price ?? Infinity;
       const bv = b.find((r) => !r.current.priceHidden)?.current.price ?? Infinity;
       return av - bv;
     });
-  }, [subFiltered, sort]);
+  }, [subFiltered, sort, factoryRank]);
   const factoryIndex = useMemo(
     () => new Map(byFactory.map(([name], i) => [name, i] as const)),
     [byFactory],
