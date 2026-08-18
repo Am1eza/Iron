@@ -296,6 +296,25 @@ describe('lead → proforma flow', () => {
     )) as { error?: string };
     expect(result.error).toContain('پیدا نشد');
     expect(result.error).toContain('هرگز از کاربر کد یا شناسه نخواه');
+    // …and specifically NOT via the drop-unknown-tokens retry. «یک» is the one
+    // token above the catalog can match (two letters, they occur inside real
+    // product names), and alone it pulled five unrelated تیرآهن rows — a
+    // correct «not found» became a false product. The retry now needs a ≥3
+    // char survivor, which pure nonsense plus a stray «یک» never has.
+    expect(result.error).toContain('یک چیز کاملاً نامربوط ۹۹۹');
+  });
+
+  it('still drops an unknown grade code when a real product word survives with it', async () => {
+    // The other side of that guard: «ST37» is in no catalog row, «میلگرد» is,
+    // and 7 chars clears the survivor test — so this must resolve, not 404.
+    // (Which product/factory it lands on is the resolveProduct contract; all
+    // that matters here is that dropping the grade still happens.)
+    const result = (await runTool(
+      'prepareProforma',
+      { items: [{ product: 'میلگرد ST37', qty: 1, unit: 'kg' }] },
+      null,
+    )) as { error?: string; status?: string };
+    expect(result.error ?? '').not.toContain('پیدا نشد');
   });
 
   it('rejects a line with neither a product name nor an id, instead of filing nonsense', async () => {

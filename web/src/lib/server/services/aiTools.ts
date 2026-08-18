@@ -320,12 +320,22 @@ async function resolveProduct(
     // never change an answer the customer would otherwise have got.
     const unknown = await unmatchedQueryTokens(query);
     if (unknown.length > 0) {
-      const reduced = query
-        .split(/\s+/)
-        .filter((t) => t && !unknown.includes(t))
-        .join(' ')
-        .trim();
-      if (reduced) rows = await searchSkus(reduced, 5);
+      const kept = query.split(/\s+/).filter((t) => t && !unknown.includes(t));
+      // WHAT IS LEFT MUST STILL BE A WORD, NOT A STRAY SYLLABLE.
+      //
+      // The filter keeps every token that matches SOMETHING, and a two-letter
+      // Persian word matches something by accident: «یک» occurs inside real
+      // catalog names, so for the pure nonsense «یک چیز کاملاً نامربوط ۹۹۹» it
+      // was the single survivor — and on its own it pulled five unrelated
+      // تیرآهن rows, turning a correct `none` into a false product on a
+      // document the customer keeps. So the retry only runs when at least one
+      // survivor is a real word (≥3 chars, ZWNJ not counted). The grade case
+      // this whole retry exists for keeps «میلگرد» (7) and clears it easily;
+      // «یک»/«از»/«۲» can never carry a query by themselves.
+      const ZWNJ = '‌';
+      if (kept.some((t) => t.replaceAll(ZWNJ, '').length >= 3)) {
+        rows = await searchSkus(kept.join(' ').trim(), 5);
+      }
     }
   }
   if (rows.length === 0) return { kind: 'none' };
