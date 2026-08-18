@@ -199,6 +199,88 @@ describe('runAdvisorPipeline — false payment/filing/credential claims never le
 });
 
 /**
+ * Measured in production on 2026-08-18 (one turn in nine): the model calls a
+ * tool, gets its result, and then returns an empty completion with
+ * finish_reason 'stop' — not 'length', so not the token budget going on
+ * private reasoning. Every tool had already succeeded and been paid for, and
+ * the visitor got the outage notice anyway.
+ */
+describe('runAdvisorPipeline — the model answering with nothing', () => {
+  it('asks once more, without tools, and uses what comes back', async () => {
+    let call = 0;
+    const seenTools: unknown[] = [];
+    const stream: StreamCompletionFn = async function* (_messages, tools) {
+      call += 1;
+      seenTools.push(tools);
+      if (call === 1) {
+        yield {
+          type: 'tool_calls',
+          calls: [{ id: 'c1', type: 'function', function: { name: 'getPrice', arguments: '{}' } }],
+        };
+        yield { type: 'done' };
+      } else if (call === 2) {
+        // The whole failure, reproduced: reasoning happened, no answer came.
+        yield { type: 'reasoning', chars: 271 };
+        yield { type: 'done' };
+      } else {
+        yield { type: 'token', text: 'قیمت این محصول را کارشناس اعلام می‌کند.' };
+        yield { type: 'done' };
+      }
+    };
+    const result = await runAdvisorPipeline({
+      messages: baseMessages(),
+      userNumbers: new Set(),
+      session: null,
+      stream,
+    });
+    expect(call).toBe(3);
+    // The recovery round must not be able to draw a second confirmation card.
+    expect(seenTools[2]).toEqual([]);
+    expect(result.text).toBe('قیمت این محصول را کارشناس اعلام می‌کند.');
+    expect(result.trace.emptyRetried).toBe(true);
+    expect(result.trace.emptyRetryRescued).toBe(true);
+    expect(result.trace.emptyAt).toBeNull();
+  });
+
+  it('gives up after exactly one more try, and says so in the trace', async () => {
+    let call = 0;
+    const stream: StreamCompletionFn = async function* () {
+      call += 1;
+      yield { type: 'reasoning', chars: 100 };
+      yield { type: 'done' };
+    };
+    const result = await runAdvisorPipeline({
+      messages: baseMessages(),
+      userNumbers: new Set(),
+      session: null,
+      stream,
+    });
+    expect(call).toBe(2);
+    expect(result.text).toBe('');
+    expect(result.trace.emptyRetried).toBe(true);
+    expect(result.trace.emptyRetryRescued).toBe(false);
+    expect(result.trace.emptyAt).toBe('model');
+  });
+
+  it('never fires on an answer that arrived', async () => {
+    let call = 0;
+    const stream: StreamCompletionFn = async function* () {
+      call += 1;
+      yield { type: 'token', text: 'قیمت را کارشناس اعلام می‌کند.' };
+      yield { type: 'done' };
+    };
+    const result = await runAdvisorPipeline({
+      messages: baseMessages(),
+      userNumbers: new Set(),
+      session: null,
+      stream,
+    });
+    expect(call).toBe(1);
+    expect(result.trace.emptyRetried).toBe(false);
+  });
+});
+
+/**
  * The whole reason this trace exists: an empty bubble in production could not
  * be attributed. These pin the attribution itself — each stage is driven to
  * empty in turn and `emptyAt` has to name that stage and no other.
@@ -225,7 +307,9 @@ describe('runAdvisorPipeline — the answer trace attributes an empty answer', (
   });
 
   it("blames the MODEL, not a guard, when the relay sent no answer text at all", async () => {
+    let call = 0;
     const stream: StreamCompletionFn = async function* () {
+      call += 1;
       // What a reasoning model does when it spends its whole budget thinking:
       // thousands of characters of deliberation and not one of answer.
       yield { type: 'reasoning', chars: 4200 };
@@ -241,7 +325,8 @@ describe('runAdvisorPipeline — the answer trace attributes an empty answer', (
     expect(result.text).toBe('');
     expect(result.trace.emptyAt).toBe('model');
     expect(result.trace.modelChars).toBe(0);
-    expect(result.trace.reasoningChars).toBe(4200);
+    // Both the first answering round and the one recovery round (call === 2).
+    expect(result.trace.reasoningChars).toBe(4200 * call);
     expect(result.trace.truncated).toBe(true);
     // Nothing to continue FROM, so no continuation was attempted.
     expect(result.trace.continued).toBe(false);

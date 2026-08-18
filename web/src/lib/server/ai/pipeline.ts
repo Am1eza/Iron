@@ -67,6 +67,10 @@ export interface AnswerTrace {
   /** The correction round ran / its clean result was actually taken. */
   correctionRan: boolean;
   correctionUsed: boolean;
+  /** The model answered with nothing, so it was asked once more, and whether
+   *  that recovered the turn. */
+  emptyRetried: boolean;
+  emptyRetryRescued: boolean;
   /** The scratchpad guard fired (and this turn was therefore blanked or retried). */
   leakFired: boolean;
   /** Sentences dropped by stripFalseProcessClaims, and what that cost in chars. */
@@ -175,6 +179,8 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
     groundedChars: 0,
     correctionRan: false,
     correctionUsed: false,
+    emptyRetried: false,
+    emptyRetryRescued: false,
     leakFired: false,
     claimsRemoved: 0,
     claimsChars: 0,
@@ -311,7 +317,46 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
     }
   };
 
-  const final = await runLoop(MAX_TOOL_ROUNDS);
+  let final = await runLoop(MAX_TOOL_ROUNDS);
+
+  /**
+   * The model answered with NOTHING — measured, not assumed.
+   *
+   * The trace this pipeline now carries settled a question that a whole round
+   * of live testing could not. On 2026-08-18, roughly one turn in ten — in
+   * production and in a scripted replay of the same conversations alike — came
+   * back with `emptyAt: 'model'`: `claimsRemoved: 0`, `repeatChars: 0`,
+   * `leakFired: false`. No guard removed anything. The model called a tool, got
+   * its result, and then produced an empty completion with `finish_reason:
+   * 'stop'` — not 'length', so it is not the token budget going on private
+   * reasoning either. It simply did not write the reply.
+   *
+   * What the visitor got for that was the advisor's outage notice (or, with a
+   * confirmation card on screen, a card with no words above it), on a turn
+   * where every tool had already succeeded and the answer was fully paid for.
+   * Asking once more is strictly better than that, and costs a round trip only
+   * on the turns that would otherwise show nothing at all.
+   *
+   * Tools are WITHHELD: every tool result is already in `messages`, so there is
+   * nothing left to look up — and letting it call `prepareProforma` again on a
+   * turn that already drew a card is the one thing this must not do.
+   */
+  if (!final.trim() && !signal?.aborted) {
+    trace.emptyRetried = true;
+    try {
+      messages.push({
+        role: 'user',
+        content:
+          '[یادداشت داخلی سیستم؛ این را کاربر ننوشته و کاربر آن را نمی‌بیند]: پاسخ قبلی خالی بود و کاربر هیچ متنی ندید. با همان چیزی که از ابزارها گرفته‌ای، همین حالا متن نهایی پاسخ را کوتاه و به فارسی بنویس. به این یادداشت و به خالی بودن پاسخ قبلی هیچ اشاره‌ای نکن.',
+      });
+      // maxRounds 0 → tools withheld on the very first round, i.e. exactly one
+      // more completion and no chance of another tool loop.
+      final = await runLoop(0);
+      trace.emptyRetryRescued = Boolean(final.trim());
+    } catch {
+      /* an empty answer is what the route already knows how to degrade */
+    }
+  }
   trace.modelChars = final.trim().length;
 
   // The validator gate — nothing unvalidated ever reaches the user.
