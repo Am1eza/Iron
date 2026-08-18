@@ -823,7 +823,13 @@ export function PriceTable({
 
       {/* Side-by-side comparison (US-02.9) — 2 to 4 rows, spanning every
           factory section at once since `compareIds` is just a Set of ids,
-          independent of which section a checkbox lives in. */}
+          independent of which section a checkbox lives in.
+
+          Prices here use the page-wide `vat`, not any section's override, for
+          the same reason the page-wide export does: the whole point of this
+          table is comparing mills to each other, and per-section VAT states
+          would put two of its columns on different bases with nothing in the
+          row header to say so. */}
       <Modal open={compareOpen} onClose={() => setCompareOpen(false)} title="مقایسهٔ کالاها">
         {selectedForCompare.length < 2 ? null : (
           <div className={styles.compareScroll}>
