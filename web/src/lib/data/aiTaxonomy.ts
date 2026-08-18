@@ -21,6 +21,15 @@ export const CHIP = {
   proforma: 'دریافت پیش‌فاکتور',
   allPrices: 'همهٔ قیمت‌ها',
   weighTool: 'وزن دقیق را حساب کن',
+  /** After a project estimate: the answer is now an itemised list of real
+   *  products, so the next step is «all of it», not one item. Sent as a chat
+   *  turn (no deep link), which is what puts prepareProforma on the whole
+   *  list inside THIS conversation. */
+  proformaAll: 'همهٔ این اقلام را پیش‌فاکتور کن',
+  /** Also after an estimate: the one input the visitor is most likely to
+   *  want to correct, phrased as the correction itself. */
+  perFloorArea: 'متراژی که گفتم مساحت هر طبقه بود',
+  compareFactories: 'ارزان‌ترین کارخانه را نشانم بده',
 } as const;
 
 /**
@@ -54,7 +63,29 @@ export const PURPOSE_CHIPS = [
  * live bugs in a row with zero coverage (evals.test.ts drives
  * runAdvisorPipeline directly and never touches the route), so it needs to
  * be a plain, unit-testable function regardless.
+ *
+ * It stays deterministic and keyed on TOOLS, not on model output — but a tool
+ * name alone turned out to be too coarse. A project estimate used to offer
+ * «وزن دقیق را حساب کن», a tool the visitor has no use for at that moment
+ * (they have just been handed four tonnages), while the one thing they
+ * obviously want next — all of it on a پیش‌فاکتور — was not on offer at all.
+ * So the estimate branch reads the tool's own RESULT (see EstimateFacts): the
+ * branching is still a plain table, just keyed on what the tool found rather
+ * than only on which tool ran.
  */
+
+/** The few facts about this turn's estimateProject result that change what
+ *  the next step should be. Assembled by the route from the tool output; all
+ *  fields optional so a turn that never estimated simply omits it. */
+export interface EstimateFacts {
+  /** The estimate produced at least one line with a real, orderable product. */
+  hasOrderableLines?: boolean;
+  /** Every line resolved to a live price, so a mill can actually be named. */
+  hasPrices?: boolean;
+  /** The tool had to assume the area was the total across all floors. */
+  assumedTotalArea?: boolean;
+}
+
 export function selectFollowUpChips(
   toolsUsed: ReadonlySet<string>,
   userMessageCount: number,
@@ -63,6 +94,7 @@ export function selectFollowUpChips(
    *  pipeline's choiceChips). They ARE the next step, so they outrank every
    *  generic follow-up below. */
   choiceOptions?: readonly string[],
+  estimate?: EstimateFacts,
 ): string[] {
   // A pending choice beats everything: the visitor was just asked a question,
   // and these are its answers. Tapping one sends that product name as the
@@ -72,7 +104,20 @@ export function selectFollowUpChips(
   // درخواست», or the login button for a guest) — a «دریافت پیش‌فاکتور» chip
   // next to it would offer the same action twice, in two different places.
   if (toolsUsed.has('prepareProforma')) return [];
-  if (toolsUsed.has('estimateProject')) return [CHIP.proforma, CHIP.weighTool];
+  if (toolsUsed.has('estimateProject')) {
+    const chips: string[] = [];
+    // An itemised estimate's next step is the whole list, not one item.
+    chips.push(estimate?.hasOrderableLines ? CHIP.proformaAll : CHIP.proforma);
+    // The assumption the answer just stated out loud is also the likeliest
+    // thing to be wrong, so the correction is one tap rather than a sentence
+    // the visitor has to compose.
+    if (estimate?.assumedTotalArea) chips.push(CHIP.perFloorArea);
+    // No live price means no mill was named; offering the comparison is only
+    // honest when there is something to compare.
+    else if (estimate?.hasPrices) chips.push(CHIP.compareFactories);
+    else chips.push(CHIP.allPrices);
+    return chips;
+  }
   if (toolsUsed.has('getPrice') || toolsUsed.has('calcWeight') || toolsUsed.has('compareFactories'))
     return [CHIP.proforma, CHIP.allPrices];
   // searchGuides answered a knowledge question, not a pricing one — neither

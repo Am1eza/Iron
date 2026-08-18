@@ -20,8 +20,12 @@ const payload = z.union([
       .max(100),
   }),
   z.object({
+    // `areaM2` is the TOTAL built area of every floor («کل زیربنا») unless
+    // `areaBasis` says otherwise — see estimate.service.ts for why the
+    // default flipped.
     areaM2: finiteNumber.positive().max(100000),
     floors: finiteNumber.int().positive().max(50),
+    areaBasis: z.enum(['total', 'perFloor']).optional(),
   }),
 ]);
 
@@ -35,7 +39,9 @@ async function POSTImpl(req: NextRequest) {
   const v = await validateBody(req, payload);
   if (!v.ok) return v.response;
   const result =
-    'items' in v.data ? await estimateItems(v.data.items) : await estimateProject(v.data.areaM2, v.data.floors);
+    'items' in v.data
+      ? await estimateItems(v.data.items)
+      : await estimateProject(v.data.areaM2, v.data.floors, v.data.areaBasis);
   return NextResponse.json(result);
 }
 

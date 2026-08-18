@@ -20,10 +20,48 @@ describe('selectFollowUpChips', () => {
     }
   });
 
-  it('offers proforma + weigh-tool after estimateProject', () => {
+  // The estimate branch is the one place the picker reads the tool's RESULT
+  // and not just its name. It used to offer «وزن دقیق را حساب کن» under a
+  // project estimate — a tool of no use to someone who has just been handed
+  // four tonnages — while the obvious next step, all of it on a پیش‌فاکتور,
+  // was not on offer at all.
+  it('offers the whole itemised list on a پیش‌فاکتور after a project estimate', () => {
+    expect(
+      selectFollowUpChips(new Set(['estimateProject']), 1, 'یه خونه می‌سازم', undefined, {
+        hasOrderableLines: true,
+        assumedTotalArea: true,
+      }),
+    ).toEqual([CHIP.proformaAll, CHIP.perFloorArea]);
+  });
+
+  it('offers the area correction as a tap, because that assumption is the likeliest to be wrong', () => {
+    const chips = selectFollowUpChips(new Set(['estimateProject']), 1, 'زیربنای ۵۰۰ متر، ۶ طبقه', undefined, {
+      hasOrderableLines: true,
+      assumedTotalArea: true,
+    });
+    expect(chips).toContain(CHIP.perFloorArea);
+  });
+
+  it('only offers a factory comparison when there are live prices to compare', () => {
+    const priced = selectFollowUpChips(new Set(['estimateProject']), 1, 'خونه', undefined, {
+      hasOrderableLines: true,
+      hasPrices: true,
+      assumedTotalArea: false,
+    });
+    expect(priced).toEqual([CHIP.proformaAll, CHIP.compareFactories]);
+
+    const unpriced = selectFollowUpChips(new Set(['estimateProject']), 1, 'خونه', undefined, {
+      hasOrderableLines: true,
+      hasPrices: false,
+      assumedTotalArea: false,
+    });
+    expect(unpriced).toEqual([CHIP.proformaAll, CHIP.allPrices]);
+  });
+
+  it('falls back to the plain proforma chip when the estimate produced nothing orderable', () => {
     expect(selectFollowUpChips(new Set(['estimateProject']), 1, 'یه خونه می‌سازم')).toEqual([
       CHIP.proforma,
-      CHIP.weighTool,
+      CHIP.allPrices,
     ]);
   });
 
