@@ -338,9 +338,14 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
    * production and in a scripted replay of the same conversations alike — came
    * back with `emptyAt: 'model'`: `claimsRemoved: 0`, `repeatChars: 0`,
    * `leakFired: false`. No guard removed anything. The model called a tool, got
-   * its result, and then produced an empty completion with `finish_reason:
-   * 'stop'` — not 'length', so it is not the token budget going on private
-   * reasoning either. It simply did not write the reply.
+   * its result, and then wrote no reply.
+   *
+   * It does that in two measured shapes, which is why this is one recovery and
+   * not a special case for either: `finish_reason: 'length'` with nothing
+   * written (the whole token budget went on private reasoning — US-27.5's
+   * continuation correctly declines that, since there is nothing to continue
+   * FROM), and `finish_reason: 'stop'` with nothing written (it simply
+   * declined). The production sample was the second one.
    *
    * What the visitor got for that was the advisor's outage notice (or, with a
    * confirmation card on screen, a card with no words above it), on a turn
