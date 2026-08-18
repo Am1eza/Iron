@@ -99,6 +99,19 @@ export const aiUsage = pgTable(
     completionTokens: integer('completion_tokens').notNull().default(0),
     cacheHitTokens: integer('cache_hit_tokens').notNull().default(0),
     violations: integer('violations').notNull().default(0),
+    /**
+     * Per-stage record of what the answer post-processors removed from this
+     * turn, and whether that left the customer with nothing — see
+     * `AnswerTrace` in ai/pipeline.ts for the shape and the reason.
+     *
+     * It lives HERE and not on `ai_messages` because `ai_messages` cannot see
+     * the population that needed explaining: an empty answer is deliberately
+     * not persisted as a message, while this table gets exactly one row per
+     * /api/ai/chat request whether or not the visitor was shown any text.
+     * Nullable and untyped-by-default so rows written before this column
+     * existed (and any future field added to the trace) stay readable.
+     */
+    answerTrace: jsonb('answer_trace'),
   },
   (t) => [index('ai_usage_created_idx').on(t.createdAt)],
 );

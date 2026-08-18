@@ -279,10 +279,28 @@ async function POSTImpl(req: NextRequest) {
             completionTokens: result.usage.completionTokens,
             cacheHitTokens: result.usage.cacheHitTokens,
             violations: result.violationsCaught,
+            // What each post-processor removed, and whether it left nothing
+            // (ai/pipeline.ts#AnswerTrace). This row is written even when the
+            // answer is empty — which is the whole point, since the empty
+            // ones are exactly the turns `ai_messages` above skips.
+            answerTrace: result.trace,
           })
           .catch(() => {
             /* telemetry must never surface an error */
           });
+
+        // A guard that is supposed to remove a sentence removed the ANSWER.
+        // Both of these are removal-only and additive-claim-scoped, so this
+        // should be unreachable; if it ever is reached, it is the case that
+        // must not sit in a table waiting to be queried. Reported at most as
+        // often as it happens, which by construction is approximately never.
+        if (result.trace.emptyAt === 'claims' || result.trace.emptyAt === 'repeat') {
+          reportError(new Error(`ai answer emptied by ${result.trace.emptyAt} guard`), {
+            route: 'ai/chat',
+            reason: 'guard_emptied_answer',
+            ...result.trace,
+          });
+        }
       } catch (err) {
         if (!req.signal.aborted) {
           // An upstream refusal is NOT an application error: it is already

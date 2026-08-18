@@ -1,0 +1,1 @@
+ALTER TABLE "ai_usage" ADD COLUMN "answer_trace" jsonb;
