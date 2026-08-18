@@ -66,8 +66,41 @@ describe('priceItems — the unit is the SKU’s, not the client’s', () => {
     expect(allPriced).toBe(false);
     expect(lines[0]!.unitPrice).toBeUndefined();
     expect(lines[0]!.lineTotal).toBeUndefined();
-    // and the line is relabelled with the truth, not the client's claim
+  });
+
+  it('reads «۱۰۰ شاخه» of a per-kg SKU as 100 branches, not as 100 kilograms', async () => {
+    // The live report (2026-08-18): the advisor computed «۲۰ شاخه × ۱۴٫۵۲
+    // کیلوگرم = ۲۹۰٫۳۷ کیلوگرم» and the confirmation card under it said «وزن
+    // کل ۲۰ کیلوگرم». Overriding the piece unit with the SKU's 'kg' made the
+    // shaft count BE the mass. The piece unit is kept and converted instead.
+    const skuId = await seedSku('kg'); // 12kg per branch
+    const { lines } = await priceItems([{ skuId, qty: 100, unit: 'branch' }]);
+    expect(lines[0]!.unit).toBe('branch');
+    expect(lines[0]!.weightKg).toBe(1200);
+  });
+
+  it('keeps overruling a claimed unit it cannot convert', async () => {
+    // No theoreticalWeightKg means there is no defensible piece→kg
+    // conversion, so the SKU's own unit still wins (and the line is unpriced).
+    const catId = ulid();
+    const subId = ulid();
+    const skuId = ulid();
+    await db.insert(schema.categories).values({ id: catId, slug: `cat-${catId}`, name: 'میلگرد' });
+    await db.insert(schema.subCategories).values({ id: subId, categoryId: catId, slug: `sub-${subId}`, name: 'آجدار' });
+    await db.insert(schema.skus).values({
+      id: skuId,
+      subCategoryId: subId,
+      categoryId: catId,
+      slug: `sku-${skuId}`,
+      name: 'میلگرد بدون وزن تئوری',
+      unit: 'kg',
+      theoreticalWeightKg: null,
+    });
+    await db.insert(schema.currentPrices).values({ skuId, price: PRICE_PER_UNIT, unit: 'kg' });
+
+    const { lines, allPriced } = await priceItems([{ skuId, qty: 100, unit: 'branch' }]);
     expect(lines[0]!.unit).toBe('kg');
+    expect(allPriced).toBe(false);
   });
 
   it('refuses the mirrored error, which corrupts weight instead of price', async () => {

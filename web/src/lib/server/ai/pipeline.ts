@@ -18,7 +18,7 @@ import {
 } from '@/lib/server/integrations/aiRelay';
 import { AI_TOOLS, runTool } from '@/lib/server/services/aiTools';
 import { GroundingLedger, sanitizeGrounded } from './grounding';
-import { looksLikeLeakedReasoning } from './answerGuard';
+import { collapseImmediateRepeat, looksLikeLeakedReasoning } from './answerGuard';
 import { toInformalSecondPerson } from './informalVoice';
 
 export const MAX_TOOL_ROUNDS = 4;
@@ -263,8 +263,13 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
   // forms where plural→singular is pure morphology are rewritten (see
   // informalVoice.ts); grammar changes, content does not, so it cannot move a
   // number past the validator that already ran above.
+  //
+  // The stutter collapse runs AFTER the register rewrite, not before: the
+  // rewrite can itself make two neighbouring clauses identical («می‌خواهید»
+  // then «می‌خواهی» both become «می‌خواهی»), so this is the only order that
+  // catches that case too. Removal-only — see answerGuard.
   return {
-    text: toInformalSecondPerson(checked.text),
+    text: collapseImmediateRepeat(toInformalSecondPerson(checked.text)),
     violationsCaught,
     choiceChips,
     toolsUsed,

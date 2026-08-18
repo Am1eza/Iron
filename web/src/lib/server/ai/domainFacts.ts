@@ -5,7 +5,7 @@
  * prices/weights — those come only from tools (grounding invariant). Cached in
  * Redis (categories change rarely); falls back to '' if the DB/Redis are down.
  */
-import { listCategories } from '@/lib/server/repos/catalogRepo';
+import { gradesByCategory, listCategories } from '@/lib/server/repos/catalogRepo';
 import { getSubsMap } from '@/lib/server/catalog';
 import { cacheDel, cacheGetJson, cacheSetJson, jitterTtl } from '@/lib/server/redis';
 
@@ -19,7 +19,7 @@ export async function getDomainFacts(): Promise<string> {
   let facts = '';
   try {
     const cats = (await listCategories()).filter((c) => c.isActive);
-    const subsMap = await getSubsMap();
+    const [subsMap, grades] = await Promise.all([getSubsMap(), gradesByCategory()]);
     const parts = cats.map((c) => {
       const subs = (subsMap[c.slug] ?? []).map((s) => s.name);
       return subs.length ? `${c.name} (${subs.join('، ')})` : c.name;
@@ -29,6 +29,20 @@ export async function getDomainFacts(): Promise<string> {
         'دستهٔ محصولات آهن‌تایم (فقط برای آگاهی از دامنه؛ برای هر قیمت، وزن یا زمان تحویل حتماً از ابزارها استفاده کن و هرگز عدد نساز): ' +
         parts.join('؛ ') +
         '.';
+    }
+    // The ONLY grade codes that exist here. Without this the model answered
+    // «چه گریدی می‌خواهی؟ (مثلاً B400B500 یا B500B600)» — two codes that are
+    // in no product, no article and no table on this site. The vocabulary
+    // gets the same treatment the numbers already had: it comes from the
+    // catalog, or it is not said.
+    const gradeParts = Object.entries(grades)
+      .filter(([, list]) => list.length > 0)
+      .map(([cat, list]) => `${cat}: ${list.join('، ')}`);
+    if (gradeParts.length > 0) {
+      facts +=
+        ' گریدهای واقعی و تنها گریدهای مجاز برای نام بردن — ' +
+        gradeParts.join('؛ ') +
+        '. هیچ کد گرید دیگری وجود ندارد؛ اگر گریدی در این فهرست نیست، نامش را نساز و نگو.';
     }
   } catch {
     facts = '';
