@@ -284,9 +284,24 @@ function detectPurpose(t: string): 'building' | 'industrial' | 'trade' | 'price'
   return null;
 }
 
-/** Very rough demo BOM from area×floors — labelled «تخمینی», never a firm quote. */
-function buildEstimate(areaM2: number, floors: number): Estimate {
-  const built = areaM2 * Math.max(1, floors);
+/**
+ * Very rough demo BOM — labelled «تخمینی», never a firm quote, and only ever
+ * reached when the relay is down and this local engine answers instead.
+ *
+ * `areaM2` is the TOTAL built area of all floors, matching how customers use
+ * «زیربنا» and matching estimate.service.ts's `areaBasis: 'total'` default.
+ * This used to multiply by the floor count, i.e. read the same number as one
+ * floor's footprint — the reading that told a visitor «۵۰۰ متر، ۶ طبقه» needed
+ * ۹۶ تن. The kg/m² rates below are unchanged: they were always applied to
+ * total built area, so only the reading of the INPUT moves.
+ *
+ * It stops there. The server's storey-aware ladder and its ±band live behind
+ * a module that imports the database, so sharing them would mean lifting the
+ * whole heuristic out of estimate.service.ts — real work, and not what a
+ * relay-outage fallback is for.
+ */
+function buildEstimate(areaM2: number): Estimate {
+  const built = areaM2;
   const rebarKg = Math.round(built * 22);
   const beamKg = Math.round(built * 14);
   const items = [
@@ -351,14 +366,18 @@ function aiReply(text: string, ctx: { purpose: string | null }): { msgs: Msg[]; 
   const floors = Number(t.match(/(\d{1,2})\s*طبقه/)?.[1] ?? '1');
 
   if ((purpose === 'building' || purpose === 'industrial') && area) {
-    const est = buildEstimate(area, floors || 1);
+    const est = buildEstimate(area);
     return {
       purpose,
       msgs: [
         {
           id: uid(),
           role: 'ai',
-          text: `برای حدود ${toPersianDigits(area)} متر${floors > 1 ? ` و ${toPersianDigits(floors)} طبقه` : ''}، یک برآورد تقریبی آماده کردم. این عددها «تخمینی» است؛ برای قیمت دقیق همین حالا می‌توانم درخواستت را ثبت کنم تا کارشناس نهایی کند.`,
+          // The assumption goes in the FIRST sentence, the same way the server
+          // path states it (aiTools' estimateProject note): an unstated one is
+          // the worst case, because the customer cannot correct what they
+          // cannot see.
+          text: `${floors > 1 ? `با فرض اینکه ${toPersianDigits(area)} متر مربع کل زیربنای همهٔ ${toPersianDigits(floors)} طبقه است، یک` : `برای حدود ${toPersianDigits(area)} متر زیربنا، یک`} برآورد تقریبی آماده کردم. این عددها «تخمینی» است؛ برای قیمت دقیق همین حالا می‌توانم درخواستت را ثبت کنم تا کارشناس نهایی کند.`,
           estimate: est,
           chips: ['دریافت پیش‌فاکتور', 'وزن دقیق را حساب کن', 'قیمت میلگرد امروز'],
         },

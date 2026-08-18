@@ -154,3 +154,46 @@ describe('runAdvisorPipeline — the register safety net runs on the final text'
     expect(result.text).toContain('ثبت کنید');
   });
 });
+
+describe('runAdvisorPipeline — false payment/filing/credential claims never leave', () => {
+  it('drops the offending sentences and keeps the rest of the answer, in one call', async () => {
+    let call = 0;
+    const stream: StreamCompletionFn = async function* () {
+      call += 1;
+      yield {
+        type: 'token',
+        text: 'خلاصهٔ درخواستت پایین همین پیام است. نام کاربری یا رمز عبور را اینجا ننویسید. قبل از پرداخت، قیمت‌ها را دوباره چک کنید.',
+      };
+      yield { type: 'done' };
+    };
+    const result = await runAdvisorPipeline({
+      messages: baseMessages(),
+      userNumbers: new Set(),
+      session: null,
+      stream,
+    });
+    // No recovery round: the answer is salvaged in place rather than re-asked
+    // for, on the one turn that already makes the most relay round trips.
+    expect(call).toBe(1);
+    expect(result.text).toBe('خلاصهٔ درخواستت پایین همین پیام است.');
+  });
+
+  it('leaves the true version of the same facts alone', async () => {
+    const stream: StreamCompletionFn = async function* () {
+      yield {
+        type: 'token',
+        text: 'در آهن‌تایم پرداخت آنلاین نداریم. دکمهٔ «تأیید و ثبت درخواست» را که بزنی، کارشناس تماس می‌گیرد.',
+      };
+      yield { type: 'done' };
+    };
+    const result = await runAdvisorPipeline({
+      messages: baseMessages(),
+      userNumbers: new Set(),
+      session: null,
+      stream,
+    });
+    expect(result.text).toBe(
+      'در آهن‌تایم پرداخت آنلاین نداریم. دکمهٔ «تأیید و ثبت درخواست» را که بزنی، کارشناس تماس می‌گیرد.',
+    );
+  });
+});

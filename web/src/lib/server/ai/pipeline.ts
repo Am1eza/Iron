@@ -19,7 +19,11 @@ import {
 import { AI_TOOLS, runTool } from '@/lib/server/services/aiTools';
 import type { EstimateFacts } from '@/lib/data/aiTaxonomy';
 import { GroundingLedger, sanitizeGrounded } from './grounding';
-import { collapseImmediateRepeat, looksLikeLeakedReasoning } from './answerGuard';
+import {
+  collapseImmediateRepeat,
+  looksLikeLeakedReasoning,
+  stripFalseProcessClaims,
+} from './answerGuard';
 import { toInformalSecondPerson } from './informalVoice';
 
 export const MAX_TOOL_ROUNDS = 4;
@@ -289,8 +293,16 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
   // rewrite can itself make two neighbouring clauses identical («می‌خواهید»
   // then «می‌خواهی» both become «می‌خواهی»), so this is the only order that
   // catches that case too. Removal-only — see answerGuard.
+  //
+  // The false-claim strip runs FIRST of the three, on the model's own words:
+  // it is the one that decides whether a sentence reaches the customer at all
+  // («قبل از پرداخت …» — there is no payment; «به ثبت رسیده است» — only the
+  // visitor's own tap files anything; «رمز عبور» — login is OTP), and reading
+  // the register rewrite's output would only give it a second set of verb
+  // forms to recognise for no gain. Also removal-only, so like the other two
+  // it cannot move a number past the validator that already ran.
   return {
-    text: collapseImmediateRepeat(toInformalSecondPerson(checked.text)),
+    text: collapseImmediateRepeat(toInformalSecondPerson(stripFalseProcessClaims(checked.text))),
     violationsCaught,
     choiceChips,
     estimate,
