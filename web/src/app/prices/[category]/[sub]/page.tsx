@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { buildMetadata, itemListJsonLd } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { categories as mockCategories } from '@/lib/mock/fixtures';
-import { getCategories, getRows, getSubRows } from '@/lib/server/catalog';
+import { getCategories, getRows, getSubRows, getFactoryOrder } from '@/lib/server/catalog';
 import { MOCK_CATEGORY_SUBS } from '@/lib/data/nav';
 import { getSubsMap } from '@/lib/data/catalog';
 import { getSetting, getVatRate } from '@/lib/server/repos/settingsRepo';
@@ -61,11 +61,15 @@ export default async function SubCategoryPage({ params }: Params) {
   const name = subs.find((x) => x.slug === sub)?.name;
   if (!name) notFound();
 
-  const [rows, allRows, logisticsConfig, vatRate] = await Promise.all([
+  const [rows, allRows, logisticsConfig, vatRate, factoryOrder] = await Promise.all([
     getSubRows(category, sub),
     getRows(category),
     getSetting<LogisticsConfig>('LOGISTICS', DEFAULT_LOGISTICS_CONFIG),
     getVatRate(),
+    // Per CATEGORY, not per sub-category — this page renders the category's
+    // whole table filtered to one sub, so it needs the same order the
+    // category page uses (US-18.2).
+    getFactoryOrder(category),
   ]);
 
   const crumbs = [
@@ -104,7 +108,15 @@ export default async function SubCategoryPage({ params }: Params) {
 
           {rows.length > 0 ? (
             <>
-              <PriceTable rows={allRows} subs={subs} categoryName={cat.name} categorySlug={category} initialSub={sub} vatRate={vatRate} />
+              <PriceTable
+                rows={allRows}
+                subs={subs}
+                categoryName={cat.name}
+                categorySlug={category}
+                initialSub={sub}
+                vatRate={vatRate}
+                factoryOrder={factoryOrder}
+              />
               <BulkQuote category={category} categoryName={cat.name} rows={allRows} subs={subs} logisticsConfig={logisticsConfig} vatRate={vatRate} />
             </>
           ) : (
