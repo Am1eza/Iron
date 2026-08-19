@@ -113,6 +113,8 @@ function unitLabel(unit: string): string {
       return 'برگ';
     case 'meter':
       return 'متر';
+    case 'piece':
+      return 'عدد';
     default:
       return '';
   }

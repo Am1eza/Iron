@@ -5,6 +5,7 @@ import { requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { estimateItems, estimateProject } from '@/lib/server/services/estimate.service';
 import { finiteNumber } from '@/lib/validation/utils';
 import { rateLimit } from '@/lib/server/utils/rateLimit';
+import { PRICE_UNIT_VALUES } from '@/lib/types/domain';
 
 const payload = z.union([
   z.object({
@@ -13,7 +14,7 @@ const payload = z.union([
         z.object({
           skuId: z.string().min(1),
           qty: finiteNumber.positive().max(100_000),
-          unit: z.enum(['kg', 'branch', 'sheet', 'meter']),
+          unit: z.enum(PRICE_UNIT_VALUES),
         }),
       )
       .min(1)

@@ -125,3 +125,33 @@ export function gradeColumnCard(
       : row.grade;
   return value ? { label: gradeColumnLabel(categorySlug), value } : null;
 }
+
+/**
+ * What a price on a catalog row is denominated in.
+ *
+ * Per this codebase's long-standing invariant, `current_prices.price` is per
+ * KILOGRAM for kg/branch/sheet/meter alike — the unit only says what `qty`
+ * counts in, and `leads.service.priceItems` converts a piece count to
+ * kilograms before multiplying (see its comments). `piece` is the one unit
+ * that breaks the invariant: a کوپلر is quoted per عدد with no mass anywhere
+ * in the chain, so a `piece` row must never be captioned «تومان / کیلوگرم».
+ */
+export function priceUnitCaption(unit: string | null | undefined): string {
+  return unit === 'piece' ? 'تومان / عدد' : 'تومان / کیلوگرم';
+}
+
+/**
+ * The one price basis every given row shares, or null when they disagree.
+ *
+ * Backs the page-wide «قیمت‌ها … برای هر کیلوگرم است» note: that sentence is
+ * true of every unit except `piece`, so a table mixing the two has to drop it
+ * and let each row caption itself rather than print a blanket claim that is
+ * wrong for some of its rows.
+ */
+export function singlePriceBasis(
+  units: readonly (string | null | undefined)[],
+): 'mass' | 'piece' | null {
+  if (units.length === 0) return 'mass';
+  const distinct = new Set(units.map((u) => (u === 'piece' ? 'piece' : 'mass')));
+  return distinct.size === 1 ? (distinct.has('piece') ? 'piece' : 'mass') : null;
+}

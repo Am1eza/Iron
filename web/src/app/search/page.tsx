@@ -5,6 +5,7 @@ import { routes } from '@/lib/routes';
 import { getCategories, getSkuCounts, searchAll } from '@/lib/server/catalog';
 import type { PriceRow, Article, Category } from '@/lib/types/domain';
 import { formatToman, priceHiddenLabel, toPersianDigits, normalizeDigits } from '@/lib/utils/format';
+import { priceUnitCaption } from '@/lib/utils/catalogLabels';
 import {
   Container,
   Section,
@@ -227,7 +228,7 @@ function ProductGroup({ hits }: { hits: ProductHit[] }) {
               <span className={resultStyles.productSide}>
                 <span className={resultStyles.priceCol}>
                   <span className={resultStyles.price}>{priceHiddenLabel(row.current) ?? formatToman(row.current.price, false)}</span>
-                  <span className={resultStyles.priceUnit}>تومان / کیلوگرم</span>
+                  <span className={resultStyles.priceUnit}>{priceUnitCaption(row.unit)}</span>
                 </span>
                 <MovementBadge dir={row.current.movementDir} pct={row.current.movementPct} />
                 <ChevronStartIcon size={18} className={`${resultStyles.chev} icon--rtl`} />

@@ -33,6 +33,7 @@ import styles from './CartView.module.css';
 const UNIT_LABEL: Record<PriceUnit, string> = {
   kg: 'کیلوگرم',
   branch: 'شاخه',
+  piece: 'عدد',
   sheet: 'برگ',
   meter: 'متر',
 };

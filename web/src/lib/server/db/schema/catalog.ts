@@ -16,7 +16,26 @@ import {
 } from 'drizzle-orm/pg-core';
 import type { SeoMeta } from '@/lib/types/domain';
 
-export const PRICE_UNITS = ['kg', 'branch', 'sheet', 'meter'] as const;
+/**
+ * How a product is counted — re-exported from `lib/types/domain` so the
+ * Drizzle column, every Zod request schema and the client `PriceUnit` type
+ * share one list instead of the two hand-maintained copies they used to be.
+ * The definition lives there because this module cannot be imported from a
+ * client bundle (it pulls in `pg`).
+ *
+ * `piece` («عدد») is why that mattered: کوپلر میلگرد, and fittings generally,
+ * are quoted per piece with no weight to convert through — ahanonline
+ * publishes all 65 coupler rows as «واحد: عدد». See `PRICE_UNIT_VALUES` for
+ * the full reasoning.
+ *
+ * Note this is a Drizzle `text(..., { enum })`, i.e. a TypeScript-level union:
+ * the column is plain `text` in Postgres with no native enum and no CHECK
+ * constraint (verified against the live schema), so adding a member needs no
+ * migration. What it DOES need is every `Record<PriceUnit, …>` map to gain a
+ * key, which the compiler enforces.
+ */
+export { PRICE_UNIT_VALUES as PRICE_UNITS } from '@/lib/types/domain';
+import { PRICE_UNIT_VALUES } from '@/lib/types/domain';
 
 export const categories = pgTable(
   'categories',
@@ -100,7 +119,7 @@ export const skus = pgTable(
     dimensions: text('dimensions'),
     factory: text('factory'),
     theoreticalWeightKg: doublePrecision('theoretical_weight_kg'),
-    unit: text('unit', { enum: PRICE_UNITS }).notNull().default('kg'),
+    unit: text('unit', { enum: PRICE_UNIT_VALUES }).notNull().default('kg'),
     imageUrl: text('image_url'),
     isActive: boolean('is_active').notNull().default(true),
     // A SKU has exactly one home (subCategoryId/categoryId above) — that's

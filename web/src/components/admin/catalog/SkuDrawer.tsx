@@ -39,6 +39,8 @@ const UNITS: Array<{ v: AdminSku['unit']; label: string }> = [
   { v: 'branch', label: 'شاخه' },
   { v: 'sheet', label: 'برگ' },
   { v: 'meter', label: 'متر' },
+  // «عدد» — کوپلر و اتصالات، که وزن شاخه‌ای ندارند و تکی فروخته می‌شوند.
+  { v: 'piece', label: 'عدد' },
 ];
 
 /**
@@ -234,7 +236,8 @@ export function SkuDrawer({
       const w = theoreticalWeightFor(cat.slug, size);
       out.theoreticalWeightKg = w != null ? String(w) : '';
     }
-    if (!t.unit && cat) out.unit = defaultUnitFor(cat.slug);
+    // `sub` too: کوپلر is sold per «عدد» even though میلگرد defaults to «شاخه».
+    if (!t.unit && cat) out.unit = defaultUnitFor(cat.slug, sub?.slug);
     return out;
   };
 

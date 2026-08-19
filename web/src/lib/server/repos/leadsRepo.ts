@@ -139,7 +139,7 @@ export class LeadItemLockedError extends Error {
  *  the check existed on the admin edit path alone and a fractional «شاخه»
  *  could still be created. leads.service.ts now resolves the SKU's own unit
  *  while pricing, so it applies the same rule on the create path. */
-export const WHOLE_PIECE_UNITS: ReadonlySet<LeadItemRow['unit']> = new Set(['branch', 'sheet']);
+export const WHOLE_PIECE_UNITS: ReadonlySet<LeadItemRow['unit']> = new Set(['branch', 'sheet', 'piece']);
 
 /** Rejects a fractional qty on a piece-sold unit; carries the unit so the
  *  route can name it in Persian («واحد شاخه»). */

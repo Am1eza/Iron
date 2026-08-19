@@ -19,6 +19,7 @@ const UNIT_PRICE_MAX = 1_000_000_000;
 const UNIT_LABEL: Record<PriceUnit, string> = {
   kg: 'کیلوگرم',
   branch: 'شاخه',
+  piece: 'عدد',
   sheet: 'برگ',
   meter: 'متر',
 };

@@ -10,6 +10,7 @@
 import { normalizeDigits } from './format';
 import { slugify } from './slugify';
 import { unitWeightKg } from './weight';
+import type { PriceUnit } from '@/lib/types/domain';
 
 /**
  * Latin slugs for the factories that actually exist in this market.
@@ -139,8 +140,17 @@ export function theoreticalWeightFor(categorySlug: string, size?: string): numbe
   return Math.round(branch * 10) / 10 || null;
 }
 
-/** How this category is actually sold, so the admin does not have to know. */
-export function defaultUnitFor(categorySlug: string): 'kg' | 'branch' | 'sheet' | 'meter' {
+/**
+ * Sub-categories sold per PIECE, whatever their category's default is.
+ * کوپلر lives under میلگرد, which defaults to «شاخه» — and «۲۰ شاخه کوپلر» is
+ * both wrong and, because a `branch` price is per kilogram in this codebase,
+ * a pricing error rather than just a wording one.
+ */
+const PIECE_SUBS = new Set(['coupler']);
+
+/** How this product is actually sold, so the admin does not have to know. */
+export function defaultUnitFor(categorySlug: string, subSlug?: string): PriceUnit {
+  if (subSlug && PIECE_SUBS.has(subSlug)) return 'piece';
   switch (categorySlug) {
     case 'rebar':
     case 'ibeam':

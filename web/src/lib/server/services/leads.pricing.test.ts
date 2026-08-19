@@ -175,3 +175,68 @@ describe('priceItems — the unit is the SKU’s, not the client’s', () => {
     expect(allPriced).toBe(false);
   });
 });
+
+/**
+ * `piece` («عدد») is the ONE unit whose price is not per kilogram — a کوپلر is
+ * quoted per piece and has no branch weight at all. Every assertion here is
+ * about that exception holding, because the kg-based path it opts out of is
+ * the same one that produced the 12x undercharge the block above documents.
+ */
+describe('priceItems — the «عدد» (piece) unit', () => {
+  it('charges qty × unitPrice directly, with no weight in the chain', async () => {
+    // Deliberately seeded WITHOUT a theoreticalWeightKg: that is the real
+    // shape of a coupler SKU, and the point is that it prices anyway.
+    const catId = ulid();
+    const subId = ulid();
+    const skuId = ulid();
+    await db.insert(schema.categories).values({ id: catId, slug: `cat-${catId}`, name: 'میلگرد' });
+    await db
+      .insert(schema.subCategories)
+      .values({ id: subId, categoryId: catId, slug: `sub-${subId}`, name: 'کوپلر میلگرد' });
+    await db.insert(schema.skus).values({
+      id: skuId,
+      subCategoryId: subId,
+      categoryId: catId,
+      slug: `sku-${skuId}`,
+      name: 'کوپلر سایز ۲۰ نوع میانی استاندارد',
+      unit: 'piece',
+      theoreticalWeightKg: null,
+    });
+    await db.insert(schema.currentPrices).values({ skuId, price: 86_250, unit: 'piece' });
+
+    const { lines, allPriced } = await priceItems([{ skuId, qty: 20, unit: 'piece' }]);
+    expect(allPriced).toBe(true);
+    expect(lines[0]!.unit).toBe('piece');
+    // No fabricated tonnage on a product that has no mass on file.
+    expect(lines[0]!.weightKg).toBeUndefined();
+    expect(lines[0]!.lineTotal).toBe(20 * 86_250);
+  });
+
+  it('ignores a stored theoreticalWeightKg rather than multiplying by it', async () => {
+    // Guards the regression directly: if a piece SKU ever picks up a weight
+    // (an admin fills the field in, a future backfill writes one), the total
+    // must not silently become 12x what the customer was shown.
+    const skuId = await seedSku('piece'); // 42,000/عدد, and a 12kg weight on file
+    const { lines } = await priceItems([{ skuId, qty: 5, unit: 'piece' }]);
+    expect(lines[0]!.weightKg).toBeUndefined();
+    expect(lines[0]!.lineTotal).toBe(5 * 42_000); // NOT 5 × 12 × 42,000
+  });
+
+  it('rejects a fractional «۳٫۷ عدد» the same way it rejects a fractional شاخه', async () => {
+    const skuId = await seedSku('piece');
+    const { lines, allPriced } = await priceItems([{ skuId, qty: 3.7, unit: 'piece' }]);
+    expect(allPriced).toBe(false);
+    expect(lines[0]!.lineTotal).toBeUndefined();
+  });
+
+  it('does not convert an «عدد» claim against a kg-priced SKU', async () => {
+    // The pieceRequest conversion exists so «۲۰ شاخه میلگرد ۱۴» quotes real
+    // kilograms. It must NOT fire for «عدد»: a piece price is not per kg, so
+    // there is nothing to convert and the mismatch belongs with a human.
+    const skuId = await seedSku('kg'); // 42,000/kg, 12kg on file
+    const { lines, allPriced } = await priceItems([{ skuId, qty: 20, unit: 'piece' }]);
+    expect(allPriced).toBe(false);
+    expect(lines[0]!.unit).toBe('kg'); // the SKU's own unit, not the claim
+    expect(lines[0]!.lineTotal).toBeUndefined();
+  });
+});

@@ -5,7 +5,23 @@
 
 import type { RichDoc } from '@/lib/content/richDoc';
 
-export type PriceUnit = 'kg' | 'branch' | 'sheet' | 'meter'; // کیلوگرم/شاخه/برگ/متر
+/**
+ * کیلوگرم / شاخه / برگ / متر / عدد.
+ *
+ * The single source, deliberately in this browser-safe module rather than in
+ * `server/db/schema/catalog.ts`: the Drizzle column, every Zod request schema
+ * and the client's `PriceUnit` type all need this list, and the schema module
+ * cannot be imported from a client bundle (it pulls in `pg`). `PRICE_UNITS`
+ * there now re-exports this array, so the two can no longer drift — they were
+ * two hand-maintained copies of the same union until `piece` was added.
+ *
+ * `piece` is not just another countable unit: `current_prices.price` is per
+ * KILOGRAM for kg/branch/sheet/meter alike (the unit only says what `qty`
+ * counts in — see `leads.service.priceItems`), while a `piece` price is per
+ * عدد with no mass in the chain. Every kg-based path opts it out explicitly.
+ */
+export const PRICE_UNIT_VALUES = ['kg', 'branch', 'sheet', 'meter', 'piece'] as const;
+export type PriceUnit = (typeof PRICE_UNIT_VALUES)[number];
 export type MovementDir = 'up' | 'down' | 'flat';
 export type NotifyChannel = 'sms' | 'telegram' | 'whatsapp' | 'eitaa';
 export type MarketKey = 'usd' | 'eur' | 'gold18' | 'ounce' | 'billet';

@@ -24,6 +24,8 @@ import {
   gradeColumnCell,
   gradeColumnCard,
   DIMENSIONS_LABEL,
+  priceUnitCaption,
+  singlePriceBasis,
 } from '@/lib/utils/catalogLabels';
 import { factoryFacetSlug } from '@/lib/utils/catalogFacets';
 import { groupByLabel } from '@/lib/utils/catalogGroups';
@@ -256,7 +258,7 @@ const PriceTableCard = memo(function PriceTableCard({
         <span className={`${styles.price} tnum`}>
           {priceHiddenLabel(r.current) ?? formatToman(withVat(r.current.price, vat, vatRate), false)}
         </span>
-        <span className={styles.unit}>تومان / کیلوگرم</span>
+        <span className={styles.unit}>{priceUnitCaption(r.unit)}</span>
         <MovementBadge dir={r.current.movementDir} pct={r.current.movementPct} pill />
       </div>
       <div className={styles.cardMeta}>
@@ -632,6 +634,9 @@ export function PriceTable({
   );
 
   const updated = rows[0]?.current.updatedAt;
+  // `subFiltered`, not `rows`: the note sits under the sub-category filter and
+  // describes what is actually on screen.
+  const priceBasis = useMemo(() => singlePriceBasis(subFiltered.map((r) => r.unit)), [subFiltered]);
   const selectedForCompare = useMemo(() => rows.filter((r) => compareIds.has(r.id)), [rows, compareIds]);
   const exportRows = useMemo(
     () => byFactory.flatMap(([, list]) => list),
@@ -731,7 +736,17 @@ export function PriceTable({
           {toPersianDigits(subFiltered.length)} کالا · {toPersianDigits(byFactory.length)} کارخانه
           {updated ? ` · به‌روزرسانی ${formatJalali(updated)}` : ''}
         </span>
-        <span className={styles.note}>قیمت‌ها به تومان و برای هر کیلوگرم است.</span>
+        {/* Only when every visible row shares one basis. A table mixing
+            kg-priced and عدد-priced products (میلگرد + کوپلر) would otherwise
+            print a blanket «برای هر کیلوگرم» that is wrong for some of its
+            own rows; there, each row's own caption carries it instead. */}
+        {priceBasis ? (
+          <span className={styles.note}>
+            {priceBasis === 'piece'
+              ? 'قیمت‌ها به تومان و برای هر عدد است.'
+              : 'قیمت‌ها به تومان و برای هر کیلوگرم است.'}
+          </span>
+        ) : null}
       </div>
 
       {/* ===== پرش سریع به کارخانه ===== */}

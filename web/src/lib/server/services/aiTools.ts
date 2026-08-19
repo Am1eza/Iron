@@ -28,6 +28,7 @@ import type { ToolDef } from '@/lib/server/integrations/aiRelay';
 import { finiteNumber } from '@/lib/validation/utils';
 import { normalizeDigits, toPersianDigits } from '@/lib/utils/format';
 import { formatJalali } from '@/lib/utils/jalali';
+import { PRICE_UNIT_VALUES } from '@/lib/types/domain';
 
 export const AI_TOOLS: ToolDef[] = [
   {
@@ -171,7 +172,7 @@ export const AI_TOOLS: ToolDef[] = [
                   description:
                     'مقدار، در همان واحدی که در unit می‌گذاری. برای تناژ، واحد را kg بگذار و مقدار را به کیلوگرم بده (مثلاً «۳ تن» یعنی qty=3000 و unit=kg).',
                 },
-                unit: { type: 'string', enum: ['kg', 'branch', 'sheet', 'meter'], description: 'واحد qty' },
+                unit: { type: 'string', enum: [...PRICE_UNIT_VALUES], description: 'واحد qty' },
               },
               required: ['qty', 'unit'],
             },
@@ -195,7 +196,7 @@ const draftArgs = z.object({
           product: z.string().trim().min(1).max(120).optional(),
           skuId: z.string().max(120).optional(),
           qty: finiteNumber.positive().max(100_000),
-          unit: z.enum(['kg', 'branch', 'sheet', 'meter']),
+          unit: z.enum(PRICE_UNIT_VALUES),
         })
         .refine((i) => Boolean(i.product?.trim() || i.skuId?.trim()), {
           message: 'product یا skuId لازم است',

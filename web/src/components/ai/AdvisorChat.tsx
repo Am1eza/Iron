@@ -1299,6 +1299,7 @@ function QuickReply({ label, onPick }: { label: string; onPick: (t: string) => v
 const DRAFT_UNIT_LABEL: Record<string, string> = {
   kg: 'کیلوگرم',
   branch: 'شاخه',
+  piece: 'عدد',
   sheet: 'برگ',
   meter: 'متر',
 };

@@ -37,18 +37,29 @@ export async function estimateItems(items: Array<{ skuId: string; qty: number; u
   const lines: LineItem[] = items.map((item) => {
     const hit = byId.get(item.skuId);
     const unitPrice = hit?.price && !freshness.isHidden(hit.price.updatedAt) ? hit.price.price : undefined;
+    // Mirrors leads.service.priceItems, including its `piece` carve-out: a
+    // کوپلر is quoted per عدد and has no branch weight to convert through.
     const weightKg =
-      item.unit === 'kg'
-        ? item.qty
-        : hit?.sku.theoreticalWeightKg
-          ? Math.round(hit.sku.theoreticalWeightKg * item.qty * 100) / 100
-          : undefined;
+      item.unit === 'piece'
+        ? undefined
+        : item.unit === 'kg'
+          ? item.qty
+          : hit?.sku.theoreticalWeightKg
+            ? Math.round(hit.sku.theoreticalWeightKg * item.qty * 100) / 100
+            : undefined;
     // `unitPrice` is per KILOGRAM, always — see leads.service.ts's
     // priceItems for the full reasoning (this function duplicates its
     // weightKg conversion and had the identical bug: charging by raw `qty`
     // instead of the already-converted `weightKg`). For `unit==='kg'`,
     // `weightKg === item.qty`, so this is a no-op for today's all-kg catalog.
-    const lineTotal = unitPrice && weightKg != null ? Math.round(unitPrice * weightKg) : undefined;
+    const lineTotal =
+      unitPrice == null
+        ? undefined
+        : item.unit === 'piece'
+          ? Math.round(unitPrice * item.qty)
+          : weightKg != null
+            ? Math.round(unitPrice * weightKg)
+            : undefined;
     return {
       skuId: hit?.sku.id ?? item.skuId,
       name: hit?.sku.name ?? item.skuId,
