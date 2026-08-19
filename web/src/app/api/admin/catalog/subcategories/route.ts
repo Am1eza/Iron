@@ -4,7 +4,7 @@ import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { adminListSubCategoriesWithCounts, createSubCategory } from '@/lib/server/repos/catalogAdminRepo';
 import { catalogErrorResponse, revalidateCatalog } from '@/lib/server/utils/catalogRoute';
-import { finiteNumber, slugSchema } from '@/lib/validation/utils';
+import { finiteNumber, subCategorySlugSchema } from '@/lib/validation/utils';
 import { normalizePersian } from '@/lib/utils/persianText';
 
 async function GETImpl(req: NextRequest) {
@@ -21,7 +21,7 @@ async function GETImpl(req: NextRequest) {
 
 const createPayload = z.object({
   categoryId: z.string().min(1),
-  slug: slugSchema(60),
+  slug: subCategorySlugSchema(60),
   name: z.string().trim().min(1).max(80).transform(normalizePersian),
   // Display-only cluster label (not a real hierarchy level, see catalog.ts).
   // Empty string means "no group" — normalized to null so it matches an

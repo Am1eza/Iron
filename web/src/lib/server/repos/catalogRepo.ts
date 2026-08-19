@@ -11,6 +11,7 @@ import type { Category, SubCategory, PriceRow, PricePoint } from '@/lib/types/do
 import { getPriceFreshness } from '@/lib/server/services/priceFreshness';
 import { normalizeDigits, toPersianDigits } from '@/lib/utils/format';
 import { likeContains } from '@/lib/server/utils/likeEscape';
+import { factoryFacetSlug, sizeFacetSlug } from '@/lib/utils/catalogFacets';
 
 /** `db.execute(sql...)` returns a plain array under one driver (pglite,
  *  tests) and `{ rows: [...] }` under another (node-postgres, prod) — same
@@ -417,10 +418,15 @@ export async function skuCountsByCategory(): Promise<Map<string, number>> {
  *     sub, active category — and is keyed on the SKU's OWN category/sub, so a
  *     SKU requested under some other category's path stays a 404 exactly as
  *     the page intends (it is the duplicate-content guard in the [sku] page).
+ *   - `/prices/{cat}/factory/{f}` and `/prices/{cat}/size/{s}` mirror
+ *     `tableRows` — including its cross-listing arm, which is why the fourth
+ *     query is a UNION rather than the same shape as the others. Both live at
+ *     SKU depth, so `GUARDED_PATTERNS`' three-segment rule already covers
+ *     them: omitting them here would hard-404 every one of these pages.
  */
 export async function publicCatalogPaths(): Promise<string[]> {
   const db = getDb();
-  const [cats, subs, sku] = await Promise.all([
+  const [cats, subs, sku, facets] = await Promise.all([
     db.select({ slug: categories.slug }).from(categories).where(eq(categories.isActive, true)),
     db
       .select({ cat: categories.slug, sub: subCategories.slug })
@@ -439,11 +445,40 @@ export async function publicCatalogPaths(): Promise<string[]> {
           eq(subCategories.isActive, true),
         ),
       ),
+    db.execute<{ cat: string; factory: string | null; size: string | null }>(sql`
+      SELECT c.slug AS cat, s.factory, s.size
+      FROM ${skus} s
+      JOIN ${subCategories} sc ON sc.id = s.sub_category_id
+      JOIN ${categories} c ON c.id = s.category_id
+      WHERE s.is_active AND sc.is_active AND c.is_active
+      UNION
+      SELECT tc.slug AS cat, s.factory, s.size
+      FROM ${skus} s
+      CROSS JOIN LATERAL jsonb_array_elements_text(s.cross_listed_category_ids) AS cl(cat_id)
+      JOIN ${categories} tc ON tc.id = cl.cat_id AND tc.is_active
+      JOIN ${subCategories} sc ON sc.id = s.sub_category_id
+      JOIN ${categories} oc ON oc.id = s.category_id
+      WHERE s.is_active AND sc.is_active AND oc.is_active
+        AND s.cross_listed_category_ids IS NOT NULL
+    `),
   ]);
+
+  // Slugs are DERIVED, not stored (see lib/utils/catalogFacets.ts) — the same
+  // two functions the pages resolve their segment with, so the guard and the
+  // page can only ever agree.
+  const facetPaths = new Set<string>();
+  for (const r of rowsOf<{ cat: string; factory: string | null; size: string | null }>(facets)) {
+    const f = r.factory?.trim() ? factoryFacetSlug(r.factory) : '';
+    if (f) facetPaths.add(`/prices/${r.cat}/factory/${f}`);
+    const s = r.size?.trim() ? sizeFacetSlug(r.size) : '';
+    if (s) facetPaths.add(`/prices/${r.cat}/size/${s}`);
+  }
+
   return [
     ...cats.map((c) => `/prices/${c.slug}`),
     ...subs.map((s) => `/prices/${s.cat}/${s.sub}`),
     ...sku.map((s) => `/prices/${s.cat}/${s.sub}/${s.sku}`),
+    ...facetPaths,
   ];
 }
 

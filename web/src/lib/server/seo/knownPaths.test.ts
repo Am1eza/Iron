@@ -19,6 +19,11 @@ const known = new Set([
   '/news/market-update',
   // The archive pages that exist — see `publishedGuardPaths`.
   '/blog/page/2',
+  // Facet landing pages. Same depth as a SKU URL, so the SKU pattern already
+  // guards them — which means an absent entry here is a hard 404, not a
+  // soft one. `publicCatalogPaths` supplies these.
+  '/prices/rebar/factory/abhr',
+  '/prices/rebar/size/14',
 ]);
 
 describe('shouldNotFound', () => {
@@ -30,6 +35,17 @@ describe('shouldNotFound', () => {
     expect(shouldNotFound('/prices/no-such-cat', known)).toBe(true);
     expect(shouldNotFound('/prices/rebar/no-such-sub', known)).toBe(true);
     expect(shouldNotFound('/prices/rebar/deformed/no-such-sku', known)).toBe(true);
+  });
+
+  it('404s an unknown factory/size but not a real one', () => {
+    expect(shouldNotFound('/prices/rebar/factory/abhr', known)).toBe(false);
+    expect(shouldNotFound('/prices/rebar/size/14', known)).toBe(false);
+    // A factory that exists in another category must not answer here.
+    expect(shouldNotFound('/prices/pipe/factory/abhr', known)).toBe(true);
+    expect(shouldNotFound('/prices/rebar/size/999', known)).toBe(true);
+    // The literal segment on its own is a sub-category URL, and there is no
+    // sub-category called `factory` — reserved by subCategorySlugSchema.
+    expect(shouldNotFound('/prices/rebar/factory', known)).toBe(true);
   });
 
   it('404s a real SKU requested under the wrong category/sub', () => {
