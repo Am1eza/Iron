@@ -463,6 +463,36 @@ real table.
 | `/prices/rebar` | 779 × «تماس بگیرید», 0 prices | full price table (میلگرد آجدار ۱۲ ذوب‌آهن اصفهان ۷۸٬۵۴۵ تومان, ۱۴ → ۶۷٬۶۳۶, ۱۶ → ۷۱٬۷۲۷ …) |
 | `/prices/ibeam/tirahan` | «تماس بگیرید» | تیرآهن ۱۴ اهواز ۱۰٬۰۰۰٬۰۰۰ تومان/شاخه; تیرآهن ۱۶ اهواز still «تماس بگیرید» (§4, correctly) |
 | `/prices/steel/pipe`, `/prices/felezat-rangi/copper-pipe` | did not exist as content | real tables |
+| `/prices/angle-channel/val-post` | **308 → `/prices/angle-channel`** | real table, 8 SKUs — see below |
+
+**One redirect had to be removed.** `/prices/angle-channel/val-post` was answering
+a 308 to `/prices/angle-channel`, from a row created 2026-08-14 by an
+empty-sub-category cleanup — back when وال پست genuinely had no products. With 8
+real SKUs in it now, that redirect was hiding the whole sub-category. The row was
+deleted (`redirects`, id `01KZYYZ741GE7R2HNRMY62B4SC`); middleware's redirect
+cache has a 60 s TTL so it took effect without a restart. It is a redirect row,
+not catalog data, and it is trivially reversible:
+
+```sql
+INSERT INTO redirects (id, from_path, to_path, permanent)
+VALUES ('01KZYYZ741GE7R2HNRMY62B4SC', '/prices/angle-channel/val-post',
+        '/prices/angle-channel', true);
+```
+
+Caveat worth knowing: it was a **308 (permanent)**, so any browser that already
+visited that URL between 2026-08-14 and today will keep following it from its own
+cache until that entry expires. Traffic to it was almost certainly nil.
+
+Every other sub-category this run populated was checked for the same problem
+(`scripts/check_redirects.sh`) — none is shadowed by a redirect.
+
+**All 21 populated sub-category pages were then loaded end-to-end**
+(`scripts/check_all_new.sh`) and every one returns 200 with a real price table
+and no empty state: rebar/heat-treated, rebar/stainless, wire/welding-wire,
+wire/wire-rod, sheet/{grating, aluzinc, tin-coated, perforated-black,
+wear-resistant, marine}, pipe/{well-casing, thick-walled}, profile/congress,
+angle-channel/val-post, steel/{pipe, profile, angle, channel},
+felezat-rangi/{copper-pipe, copper-strip, copper-sheet}.
 
 ### 7e. Typecheck
 
