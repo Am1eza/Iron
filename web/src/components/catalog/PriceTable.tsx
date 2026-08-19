@@ -25,6 +25,7 @@ import {
   gradeColumnCard,
   DIMENSIONS_LABEL,
 } from '@/lib/utils/catalogLabels';
+import { factoryFacetSlug } from '@/lib/utils/catalogFacets';
 import { groupByLabel } from '@/lib/utils/catalogGroups';
 import { formatJalali } from '@/lib/utils/jalali';
 import { API_MODE } from '@/lib/api/config';
@@ -50,6 +51,38 @@ function compareRows(a: PriceRow, b: PriceRow, sort: SortKey): number {
   // comparator silently returned NaN for every pair and the «سایز» sort did
   // nothing at all.
   return Number(normalizeDigits(a.size ?? '0')) - Number(normalizeDigits(b.size ?? '0'));
+}
+
+/** No stored factory reads as «نامشخص» in every one of these tables. */
+const UNKNOWN_FACTORY = 'نامشخص';
+
+/**
+ * The factory name, linked to that factory's own price page.
+ *
+ * `/prices/[category]/factory/[factory]` already exists (the per-factory SEO
+ * landing pages), but nothing on a price table pointed at it — a visitor who
+ * had just read «ذوب‌آهن اصفهان» in the کارخانه column had no way to get to
+ * that mill's own page except through the facet rail. The segment is DERIVED
+ * from the free-text `skus.factory` by `factoryFacetSlug`, the same function
+ * `catalogRepo.publicCatalogPaths` and the page itself resolve with, so the
+ * three can only ever agree.
+ *
+ * `categorySlug` is the row's OWN category (`PriceRow.categoryId` carries the
+ * slug — see catalogRepo's DTO note), not the page's: a cross-listed SKU
+ * rendered under `/prices/steel` still lives in `sheet`, and it is the home
+ * category whose facet page is guaranteed to contain it.
+ *
+ * A row with no factory has no page to point at — the route `notFound()`s an
+ * empty facet — so it stays exactly the plain text it was before.
+ */
+function FactoryCell({ categorySlug, factory }: { categorySlug: string; factory?: string | null }) {
+  const name = factory?.trim();
+  if (!name || name === UNKNOWN_FACTORY) return <>{UNKNOWN_FACTORY}</>;
+  return (
+    <Link href={routes.categoryByFactory(categorySlug, factoryFacetSlug(name))} className={styles.nameLink}>
+      {name}
+    </Link>
+  );
 }
 
 type RowActions = {
@@ -120,7 +153,9 @@ const PriceTableRow = memo(function PriceTableRow({
         <td className={styles.muted}>{r.dimensions ? toPersianDigits(r.dimensions) : 'نامشخص'}</td>
       ) : null}
       {showGrade ? <td className={styles.muted}>{gradeColumnCell(categorySlug, r)}</td> : null}
-      <td className={styles.muted}>{r.factory ?? 'نامشخص'}</td>
+      <td className={styles.muted}>
+        <FactoryCell categorySlug={r.categoryId} factory={r.factory} />
+      </td>
       <td className={styles.num}>
         {r.theoreticalWeightKg ? (
           <>
@@ -225,7 +260,9 @@ const PriceTableCard = memo(function PriceTableCard({
         <MovementBadge dir={r.current.movementDir} pct={r.current.movementPct} pill />
       </div>
       <div className={styles.cardMeta}>
-        <span>کارخانه: {r.factory ?? 'نامشخص'}</span>
+        <span>
+          کارخانه: <FactoryCell categorySlug={r.categoryId} factory={r.factory} />
+        </span>
         {grade ? (
           <span>
             {grade.label}: {grade.value}
