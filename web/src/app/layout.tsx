@@ -12,6 +12,7 @@ import { LocaleProvider } from '@/i18n/LocaleProvider';
 import { LocaleScript } from '@/i18n/LocaleScript';
 import { Analytics } from '@/components/analytics/Analytics';
 import { AttributionCapture } from '@/components/analytics/AttributionCapture';
+import { ServiceWorkerRegistrar } from '@/components/pwa/ServiceWorkerRegistrar';
 import faMessages from '../../messages/fa.json';
 
 /**
@@ -103,6 +104,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <RouteAnnouncer />
             <Analytics />
             <AttributionCapture />
+            <ServiceWorkerRegistrar />
           </AppProviders>
         </LocaleProvider>
       </body>
