@@ -16,7 +16,15 @@ import {
   normalizeDigits,
   withVat,
 } from '@/lib/utils/format';
-import { sizeLabel, usesDimensions, DIMENSIONS_LABEL } from '@/lib/utils/catalogLabels';
+import {
+  sizeLabel,
+  usesDimensions,
+  usesGradeColumn,
+  gradeColumnLabel,
+  gradeColumnCell,
+  gradeColumnCard,
+  DIMENSIONS_LABEL,
+} from '@/lib/utils/catalogLabels';
 import { groupByLabel } from '@/lib/utils/catalogGroups';
 import { formatJalali } from '@/lib/utils/jalali';
 import { API_MODE } from '@/lib/api/config';
@@ -72,6 +80,8 @@ const PriceTableRow = memo(function PriceTableRow({
   onChart,
   onAddToCart,
   showDimensions,
+  showGrade,
+  categorySlug,
 }: {
   row: PriceRow;
   vat: boolean;
@@ -82,6 +92,13 @@ const PriceTableRow = memo(function PriceTableRow({
   /** ورق only — must stay in lockstep with the matching `<th>` in the header,
    *  which is driven by the same flag. */
   showDimensions: boolean;
+  /** «گرید»/«استاندارد» — same lockstep rule as `showDimensions`: this cell and
+   *  the header `<th>` are driven by the one flag, so they can never drift out
+   *  of alignment. Off only for the non-هاش تیرآهن pages. */
+  showGrade: boolean;
+  /** Page category — decides whether that column reads `grade` or `standard`
+   *  (see catalogLabels). */
+  categorySlug?: string;
 } & RowActions) {
   return (
     <tr>
@@ -102,7 +119,7 @@ const PriceTableRow = memo(function PriceTableRow({
       {showDimensions ? (
         <td className={styles.muted}>{r.dimensions ? toPersianDigits(r.dimensions) : 'نامشخص'}</td>
       ) : null}
-      <td className={styles.muted}>{r.grade ?? 'نامشخص'}</td>
+      {showGrade ? <td className={styles.muted}>{gradeColumnCell(categorySlug, r)}</td> : null}
       <td className={styles.muted}>{r.factory ?? 'نامشخص'}</td>
       <td className={styles.num}>
         {r.theoreticalWeightKg ? (
@@ -165,6 +182,7 @@ const PriceTableCard = memo(function PriceTableCard({
   onChart,
   onAddToCart,
   showDimensions,
+  categorySlug,
 }: {
   row: PriceRow;
   vat: boolean;
@@ -172,7 +190,14 @@ const PriceTableCard = memo(function PriceTableCard({
   isFav: boolean;
   /** ورق only — same flag the desktop header/rows use. */
   showDimensions: boolean;
+  /** Page category — decides whether the grade line reads `grade` or
+   *  `standard`, and whether it appears at all (see catalogLabels). The card
+   *  needs no `showGrade`: it omits an empty field anyway, and
+   *  `gradeColumnCard` already returns null for every row the desktop column
+   *  would have hidden. */
+  categorySlug?: string;
 } & RowActions) {
+  const grade = gradeColumnCard(categorySlug, r);
   return (
     <li className={styles.card}>
       <div className={styles.cardTop}>
@@ -201,7 +226,11 @@ const PriceTableCard = memo(function PriceTableCard({
       </div>
       <div className={styles.cardMeta}>
         <span>کارخانه: {r.factory ?? 'نامشخص'}</span>
-        {r.grade ? <span>گرید: {r.grade}</span> : null}
+        {grade ? (
+          <span>
+            {grade.label}: {grade.value}
+          </span>
+        ) : null}
         {/* size intentionally omitted — the product name already ends in it */}
         {/* ابعاد is NOT in the name, so unlike size it has to be shown here or
             a phone user never sees it at all. Only when it's actually filled
@@ -353,6 +382,14 @@ export function PriceTable({
   const [internalSub, setInternalSub] = useState<string | null>(initialSub);
   const controlled = onSubChange !== undefined;
   const sub = controlled ? (subProp ?? null) : internalSub;
+  // تیرآهن only. The «گرید» column is empty for every I-beam we sell, so the
+  // owner asked for it gone — except on هاش سبک/هاش سنگین, where it becomes
+  // «استاندارد» (HEA/HEB per DIN 1025, stored in `skus.standard`). Unlike
+  // `showDimensions` this depends on the ACTIVE sub-filter, so it has to be
+  // computed after `sub` is resolved: the mixed «همه» view still shows the
+  // column, because هاش rows are in it.
+  const showGrade = usesGradeColumn(categorySlug, sub);
+  const gradeCol = gradeColumnLabel(categorySlug);
 
   // Filter changes animate via same-document View Transitions where supported
   // (a no-op elsewhere) — the rows crossfade instead of snapping.
@@ -755,7 +792,7 @@ export function PriceTable({
                             is a pair, not a number, so there is no ordering the
                             `size`/price/movement comparator could honour. */}
                         {showDimensions ? <th scope="col">{DIMENSIONS_LABEL}</th> : null}
-                        <th scope="col">گرید</th>
+                        {showGrade ? <th scope="col">{gradeCol}</th> : null}
                         <th scope="col">کارخانه</th>
                         <th scope="col" className={styles.num}>
                           وزن شاخه
@@ -784,6 +821,8 @@ export function PriceTable({
                           compareChecked={compareIds.has(r.id)}
                           onToggleCompare={toggleCompare}
                           showDimensions={showDimensions}
+                          showGrade={showGrade}
+                          categorySlug={categorySlug}
                           onToggleFav={toggleFav}
                           onChart={setChartFor}
                           onAddToCart={addToCart}
@@ -803,6 +842,7 @@ export function PriceTable({
                       vatRate={vatRate}
                       isFav={fav.has(r.id)}
                       showDimensions={showDimensions}
+                      categorySlug={categorySlug}
                       onToggleFav={toggleFav}
                       onChart={setChartFor}
                       onAddToCart={addToCart}
