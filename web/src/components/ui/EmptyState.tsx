@@ -5,7 +5,11 @@ import { routes } from '@/lib/routes';
 import { IBeamGlyph, AiMarkIcon } from '@/components/primitives/icons';
 import styles from './EmptyState.module.css';
 
-type CtaAction = { label: string; href?: string; onClick?: () => void };
+/** `disabled` applies to the button form only — a disabled <a> isn't a thing,
+ *  and no caller needs one. It exists for the error boundaries, which have to
+ *  block retry while offline or while an auto-retry is already pending
+ *  (see lib/errors/chunkRecovery). */
+type CtaAction = { label: string; href?: string; onClick?: () => void; disabled?: boolean };
 
 /**
  * C6 · Empty / zero / error state — the "no dead-ends" component (empty-states.md).
@@ -56,7 +60,11 @@ export function EmptyState({
         </span>
       ) : null}
 
-      <Heading className={styles.headline} ref={headingRef} tabIndex={size === 'full' ? -1 : undefined}>
+      <Heading
+        className={styles.headline}
+        ref={headingRef}
+        tabIndex={size === 'full' ? -1 : undefined}
+      >
         {headline}
       </Heading>
       {body ? <p className={styles.body}>{body}</p> : null}
@@ -87,7 +95,7 @@ function Cta({ action, variant }: { action: CtaAction; variant: 'primary' | 'gho
     );
   }
   return (
-    <button type="button" className={cls} onClick={action.onClick}>
+    <button type="button" className={cls} onClick={action.onClick} disabled={action.disabled}>
       {action.label}
     </button>
   );
