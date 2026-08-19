@@ -3,11 +3,14 @@
  * Global error — catches failures in the ROOT layout itself (rare).
  * Must define its own <html>/<body> (Next.js requirement: this fully
  * replaces the root layout when active, so nothing from layout.tsx —
- * including <head> metadata/viewport — carries over automatically).
- * Styles, the icon, and the font stack are therefore self-contained with
- * literal brand colors and inline SVG: nothing here may depend on another
- * chunk, since a failed chunk is the most common reason this boundary fires
- * at all (see isReloadableError below).
+ * including <head> metadata, viewport, or the font className — carries
+ * over automatically; both are re-applied here by hand). Colors are literal
+ * (not read from tokens.css, which this route doesn't load) but otherwise
+ * match the real design system: the brand mark (`public/brand/`, a static
+ * asset, not a JS/CSS chunk) and the real site font (imported directly from
+ * `lib/theme/fonts`, which gives this route its own independent font chunk —
+ * see the font-loading note below for why that's safe even though a failed
+ * chunk is the most common reason this boundary fires at all).
  *
  * Root cause data (glitchtip + container logs, 2026-08-19): every real hit
  * on this boundary was `ChunkLoadError` from a weak connection failing to
@@ -25,6 +28,17 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { reportError } from '@/lib/errors/report';
+// Same font the rest of the site uses (`lib/theme/fonts`, wired into the
+// real root `layout.tsx` via `vazirmatn.variable`). Importing it here gives
+// THIS route its own font stylesheet + preload, independent of the root
+// layout's chunk — a `next/font/local` face is served as a plain hashed
+// static file, the same trust level as the logo `<img>` below, not tied to
+// the JS chunk that actually failed in the incidents this file was built
+// around. Worst case if the connection is bad enough to also lose this: the
+// browser paints the fallback stack below immediately (`display: 'swap'`
+// is already set on the font object) and swaps in Vazirmatn if it arrives —
+// never a blocked or invisible render.
+import { vazirmatn } from '@/lib/theme/fonts';
 
 const AUTO_RELOAD_KEY = 'ahantime:global-error:auto-reload-at';
 // A fresh failure more than this long after the last auto-reload gets its
@@ -125,7 +139,7 @@ export default function GlobalError({ error, reset }: { error: Error; reset: () 
         : '';
 
   return (
-    <html lang="fa" dir="rtl">
+    <html lang="fa" dir="rtl" className={vazirmatn.variable}>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -140,14 +154,17 @@ export default function GlobalError({ error, reset }: { error: Error; reset: () 
           placeItems: 'center',
           background: 'var(--bg)',
           color: 'var(--heading)',
-          fontFamily: 'Tahoma, system-ui, sans-serif',
+          // Matches tokens.css's real --font-fa stack exactly (that var
+          // itself isn't available here — see the file header) so this page
+          // reads as the same site, not a generic browser error screen.
+          fontFamily: 'var(--font-vazirmatn), "Segoe UI", Tahoma, system-ui, sans-serif',
           padding: 24,
         }}
       >
         <style>{`
-          .ahn-ge{--bg:#F4F7FA;--heading:#171C22;--body:#64707E;--badge:#E3F3F1;--accent:#0A7F77;--accent-hover:#096B64;--accent-contrast:#FFFFFF;--border:#E3E8EE;--ring:#0A7F77}
+          .ahn-ge{--bg:#F4F7FA;--heading:#171C22;--body:#64707E;--accent:#0A7F77;--accent-hover:#096B64;--accent-contrast:#FFFFFF;--border:#E3E8EE;--ring:#0A7F77}
           @media (prefers-color-scheme: dark){
-            .ahn-ge{--bg:#10151A;--heading:#F4F7FA;--body:#9AA5B1;--badge:rgba(18,169,158,.16);--accent:#12A99E;--accent-hover:#17BCAF;--accent-contrast:#08211F;--border:#262E36;--ring:#3FD6C8}
+            .ahn-ge{--bg:#10151A;--heading:#F4F7FA;--body:#9AA5B1;--accent:#12A99E;--accent-hover:#17BCAF;--accent-contrast:#08211F;--border:#262E36;--ring:#3FD6C8}
           }
           .ahn-ge__retry{cursor:pointer;background:var(--accent);color:var(--accent-contrast);transition:background-color .15s ease}
           .ahn-ge__retry:not(:disabled):hover{background:var(--accent-hover)}
@@ -156,33 +173,33 @@ export default function GlobalError({ error, reset }: { error: Error; reset: () 
           @media (prefers-reduced-motion: reduce){.ahn-ge__retry{transition:none}}
         `}</style>
         <div role="alert" style={{ maxWidth: 400, width: '100%' }}>
+          {/* The brand mark (public/brand/icon-192.png) is a fixed dark
+              teal, not a currentColor glyph — it stays readable in dark
+              mode only because the badge behind it is deliberately kept
+              light in BOTH themes, rather than switching to the dark-mode
+              accent like the button/ring above. Verified against the actual
+              PNG: on the app's real dark background it would otherwise be
+              near-invisible (dark mark on near-black). */}
           <div
             aria-hidden="true"
             style={{
-              width: 56,
-              height: 56,
+              width: 64,
+              height: 64,
               margin: '0 auto 20px',
               borderRadius: '50%',
-              background: 'var(--badge)',
+              background: '#FFFFFF',
+              border: '1px solid var(--border)',
+              boxShadow: '0 1px 3px rgba(15, 23, 32, 0.08)',
               display: 'grid',
               placeItems: 'center',
-              color: 'var(--accent)',
             }}
           >
-            <svg
-              width="26"
-              height="26"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="12" cy="12" r="9" />
-              <line x1="12" y1="8" x2="12" y2="13" />
-              <line x1="12" y1="16.5" x2="12" y2="16.51" />
-            </svg>
+            {/* eslint-disable-next-line @next/next/no-img-element --
+                next/image needs the App Router's image-optimizer context
+                that this boundary, per the file header, cannot assume is
+                mounted; a plain <img> against the unoptimized public/ file
+                is the same trust level as everything else on this page. */}
+            <img src="/brand/icon-192.png" alt="" width={40} height={40} />
           </div>
           <h1
             ref={headingRef}
