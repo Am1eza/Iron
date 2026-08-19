@@ -107,6 +107,25 @@ function toValues(sku: AdminSku | null, defaultSubId: string, steelCategoryId: s
 /** '' means "clear this column" (→ null); a value means "set it". */
 const orNull = (v: string): string | null => (v.trim() === '' ? null : v.trim());
 
+/**
+ * Latin-digit normalization for the digit-bearing free-text columns
+ * (size, dimensions, factory, grade, standard, theoretical weight).
+ *
+ * Applied at the point a value is DERIVED FROM or SAVED — never while typing,
+ * so the admin keeps seeing exactly the glyphs their keyboard produced. Same
+ * failure mode as the weight field documented below, but with a longer fuse:
+ * a size typed «۱۴» on a Persian layout used to be stored raw, so the stored
+ * `size`, the auto-derived slug and the weight auto-fill were all keyed on
+ * characters that nothing else in the catalog uses — the customer's weight
+ * lookup came back empty, the URL degraded to `rebar--a3-zobahan`, and every
+ * later string comparison against this SKU's size silently missed.
+ *
+ * «٫» (the Persian decimal separator) collapses to «.» too: it is what a
+ * Persian layout produces for «۰٫۷ میلی‌متر», and `normalizeDigits` only
+ * touches digits.
+ */
+const normText = (v: string): string => normalizeDigits(v).replace(/٫/g, '.');
+
 export function SkuDrawer({
   sku,
   categories,
@@ -196,19 +215,23 @@ export function SkuDrawer({
     const sub = subs.find((x) => x.id === next.subCategoryId);
     const cat = categories.find((c) => c.id === sub?.categoryId);
     const out = { ...next };
+    // Everything derived is derived from the NORMALIZED spelling — see normText.
+    const size = normText(next.size);
+    const factory = normalizeDigits(next.factory);
+    const grade = normalizeDigits(next.grade);
     if (!t.name) {
-      out.name = composeSkuName({ subName: sub?.name, size: next.size, factory: next.factory });
+      out.name = composeSkuName({ subName: sub?.name, size, factory });
     }
     if (!t.slug && cat) {
       out.slug = composeSkuSlug({
         categorySlug: cat.slug,
-        size: next.size,
-        grade: next.grade,
-        factory: next.factory,
+        size,
+        grade,
+        factory,
       });
     }
     if (!t.weight && cat) {
-      const w = theoreticalWeightFor(cat.slug, next.size);
+      const w = theoreticalWeightFor(cat.slug, size);
       out.theoreticalWeightKg = w != null ? String(w) : '';
     }
     if (!t.unit && cat) out.unit = defaultUnitFor(cat.slug);
@@ -228,7 +251,7 @@ export function SkuDrawer({
 
   // Persian keyboards produce «۱۴٫۵»; Number() of that is NaN, which reached
   // the server as null and came back as an unexplained 400.
-  const weightRaw = normalizeDigits(v.theoreticalWeightKg).replace('٫', '.').trim();
+  const weightRaw = normText(v.theoreticalWeightKg).trim();
   const weightNum = weightRaw === '' ? null : Number(weightRaw);
   const weightValid = weightNum === null || (Number.isFinite(weightNum) && weightNum > 0 && weightNum <= 100_000);
   const canSave = v.name.trim() !== '' && Boolean(v.subCategoryId) && Boolean(v.slug) && weightValid;
@@ -239,11 +262,12 @@ export function SkuDrawer({
         subCategoryId: v.subCategoryId,
         slug: v.slug,
         name: v.name.trim(),
-        size: orNull(v.size),
-        factory: orNull(v.factory),
-        grade: orNull(v.grade),
-        dimensions: orNull(v.dimensions),
-        standard: orNull(v.standard),
+        // Normalized here, not on every keystroke — see normText.
+        size: orNull(normText(v.size)),
+        factory: orNull(normalizeDigits(v.factory)),
+        grade: orNull(normalizeDigits(v.grade)),
+        dimensions: orNull(normText(v.dimensions)),
+        standard: orNull(normalizeDigits(v.standard)),
         unit: v.unit,
         theoreticalWeightKg: weightNum,
         imageUrl: v.imageUrl,

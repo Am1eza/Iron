@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { requirePermission } from '@/lib/auth/guards';
 import { can, permissionForAdminPath } from '@/lib/auth/roles';
 import { routes } from '@/lib/routes';
+import { toPersianDigits } from '@/lib/utils/format';
 import { AdminNavLinks } from './AdminNavLinks';
 import { AdminAlerts } from '@/components/admin/AdminAlerts';
 import { CommandPalette } from '@/components/admin/CommandPalette';
@@ -101,7 +102,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <div className={styles.user}>
           <CommandPalette nav={flatNav} />
           <AdminThemeToggle />
-          <span className={styles.userName}>{user.name ?? user.mobile}</span>
+          <span className={styles.userName}>{user.name ?? toPersianDigits(user.mobile)}</span>
           <ExitToSiteLink className={styles.exit} />
           <LogoutButton redirectTo={routes.home()} />
         </div>

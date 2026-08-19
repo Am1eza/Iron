@@ -221,7 +221,7 @@ function WarehouseItemRow({
         </td>
         <td>
           {item.product}
-          {item.sizeLabel ? <span className={ui.muted}> · {item.sizeLabel}</span> : null}
+          {item.sizeLabel ? <span className={ui.muted}> · {toPersianDigits(item.sizeLabel)}</span> : null}
           {item.location ? <div className={ui.muted}>محل: {item.location}</div> : null}
         </td>
         <td>
@@ -442,7 +442,11 @@ export function WarehouseManager() {
         mobile: normalizeDigits(form.mobile.trim()),
         customerName: form.customerName.trim() || undefined,
         product: form.product.trim(),
-        sizeLabel: form.sizeLabel.trim() || undefined,
+        // A size is a digit-bearing string, so it gets the same Latin
+        // normalization the SKU catalog's `size` column gets: stored one way,
+        // it stays findable by the «جستجو: کد، محصول…» box and comparable to
+        // a catalog size, instead of splitting into two spellings of «۱۴».
+        sizeLabel: normalizeDigits(form.sizeLabel).trim() || undefined,
         quantityTons: Number(normalizeDigits(form.quantityTons)),
         monthlyFeeToman: form.monthlyFeeToman ? Number(normalizeDigits(form.monthlyFeeToman)) : undefined,
         arrivedAt: form.arrivedAt ? new Date(`${form.arrivedAt}T12:00:00`).toISOString() : undefined,
@@ -860,7 +864,7 @@ function CustomerSettlementDetail({
   return (
     <Card>
       <Heading level={2}>
-        تسویه‌حساب {data.user.name ?? data.user.mobile}{' '}
+        تسویه‌حساب {data.user.name ?? toPersianDigits(data.user.mobile)}{' '}
         <span className={`${ui.muted} tnum`}>
           <a href={`tel:${data.user.mobile}`} dir="ltr">
             {toPersianDigits(data.user.mobile)}

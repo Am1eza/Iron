@@ -22,6 +22,7 @@
  * sequential `.replace()` calls) is what stops a user-typed `\` from turning
  * into an escape for the metacharacter that follows it.
  */
+import { normalizeDigits, toPersianDigits } from '@/lib/utils/format';
 
 /** Escape LIKE/ILIKE metacharacters so `term` matches literally. */
 export function escapeLike(term: string): string {
@@ -37,4 +38,23 @@ export function escapeLike(term: string): string {
  */
 export function likeContains(term: string): string {
   return `%${escapeLike(term)}%`;
+}
+
+/**
+ * The `%…%` patterns for a search term in BOTH digit spellings, deduped.
+ *
+ * An admin panel search box is typed on whatever keyboard layout the machine
+ * happens to be on. Mobile numbers, order/lead refs and warehouse codes are
+ * stored Latin-only, so a rep on a Persian layout typing «۰۹۱۲…» matched
+ * nothing at all and concluded the customer wasn't in the system — while
+ * product names and sizes are stored the other way round, so normalizing the
+ * term to Latin instead would have broken those. Searching both spellings is
+ * the only answer that covers a mixed column set with one box.
+ *
+ * A term with no digits yields exactly one pattern, so the common case costs
+ * nothing. `catalogAdminRepo` builds the same set inline for its six-column
+ * SKU search; this is that idea, shared.
+ */
+export function likeContainsDigitVariants(term: string): string[] {
+  return [...new Set([term, toPersianDigits(term), normalizeDigits(term)])].map(likeContains);
 }

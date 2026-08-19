@@ -17,7 +17,7 @@
  * actually read in.
  */
 import { useEffect, useRef, useState } from 'react';
-import { toPersianDigits } from '@/lib/utils/format';
+import { normalizeDigits, toPersianDigits } from '@/lib/utils/format';
 import { useFocusTrap } from '@/lib/hooks/useFocusTrap';
 import { TableIcon } from './editorIcons';
 import s from './editor.module.css';
@@ -31,16 +31,25 @@ const MAX_COLS_INPUT = 12;
  *  when the text is a genuinely valid one, so clearing the field to retype
  *  (e.g. "8" → "" → "12") doesn't visibly snap to "1" on the empty middle
  *  step the way `Number(e.target.value) || 1` would on every keystroke. An
- *  invalid or empty value reverts to the last good number on blur instead. */
+ *  invalid or empty value reverts to the last good number on blur instead.
+ *
+ *  Persian digits parse: a writer on a Persian layout types «۱۲», and
+ *  `Number('۱۲')` is NaN — which, with a native `type="number"` box, the
+ *  browser could also refuse to accept as a keystroke at all. The field is a
+ *  plain text input with `inputMode="numeric"` (same as every other numeric
+ *  field in the panel) and normalizes on parse, matching `ChartNodeView`'s
+ *  `parseNumber` in this same directory. The box is rendered back in Persian
+ *  digits on blur so it reads like the «۳ سطر × ۳ ستون» readout above it. */
 function useClampedNumberField(initial: number, min: number, max: number) {
   const [value, setValue] = useState(initial);
-  const [text, setText] = useState(String(initial));
+  const [text, setText] = useState(() => toPersianDigits(initial));
   const onChange = (raw: string) => {
     setText(raw);
-    const n = Number(raw);
-    if (raw.trim() !== '' && Number.isInteger(n) && n >= min && n <= max) setValue(n);
+    const cleaned = normalizeDigits(raw).trim();
+    const n = Number(cleaned);
+    if (cleaned !== '' && Number.isInteger(n) && n >= min && n <= max) setValue(n);
   };
-  const onBlur = () => setText(String(value));
+  const onBlur = () => setText(toPersianDigits(value));
   return { value, text, onChange, onBlur };
 }
 
@@ -130,9 +139,8 @@ export function TableGridPicker({
               <span className={s.fieldLabel}>سطر</span>
               <input
                 className={`${s.input} ${s.numInput}`}
-                type="number"
-                min={1}
-                max={MAX_ROWS_INPUT}
+                type="text"
+                inputMode="numeric"
                 value={rowsField.text}
                 onChange={(e) => rowsField.onChange(e.target.value)}
                 onBlur={rowsField.onBlur}
@@ -142,9 +150,8 @@ export function TableGridPicker({
               <span className={s.fieldLabel}>ستون</span>
               <input
                 className={`${s.input} ${s.numInput}`}
-                type="number"
-                min={1}
-                max={MAX_COLS_INPUT}
+                type="text"
+                inputMode="numeric"
                 value={colsField.text}
                 onChange={(e) => colsField.onChange(e.target.value)}
                 onBlur={colsField.onBlur}

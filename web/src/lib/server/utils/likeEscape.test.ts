@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { escapeLike, likeContains } from './likeEscape';
+import { escapeLike, likeContains, likeContainsDigitVariants } from './likeEscape';
 
 describe('escapeLike', () => {
   it('leaves ordinary text (incl. Persian) untouched', () => {
@@ -49,5 +49,29 @@ describe('likeContains', () => {
     // row. Now the inner metacharacters are literal, so it matches nothing
     // unless a row genuinely contains «%_%».
     expect(likeContains('%_%')).toBe('%\\%\\_\\%%');
+  });
+});
+
+describe('likeContainsDigitVariants', () => {
+  it('returns ONE pattern when the term has no digits — the common case costs nothing', () => {
+    expect(likeContainsDigitVariants('میلگرد')).toEqual(['%میلگرد%']);
+  });
+
+  it('covers both spellings of a Latin-typed mobile', () => {
+    expect(likeContainsDigitVariants('0912')).toEqual(['%0912%', '%۰۹۱۲%']);
+  });
+
+  it('covers both spellings of a Persian-typed mobile — the reported failure', () => {
+    // Typed on a Persian layout; `users.mobile` is stored Latin-only, so
+    // without the Latin variant this search matched nothing at all.
+    expect(likeContainsDigitVariants('۰۹۱۲')).toEqual(['%۰۹۱۲%', '%0912%']);
+  });
+
+  it('normalizes Arabic-Indic digits too (some iOS/Android keyboards emit them)', () => {
+    expect(likeContainsDigitVariants('٠٩١٢')).toEqual(['%٠٩١٢%', '%۰۹۱۲%', '%0912%']);
+  });
+
+  it('still escapes LIKE metacharacters in every variant', () => {
+    expect(likeContainsDigitVariants('40_40')).toEqual(['%40\\_40%', '%۴۰\\_۴۰%']);
   });
 });

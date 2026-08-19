@@ -1,6 +1,7 @@
 'use client';
 import { forwardRef, useId } from 'react';
 import type { UseFormRegisterReturn } from 'react-hook-form';
+import { toPersianDigits } from '@/lib/utils/format';
 import styles from './field.module.css';
 
 function descId(id: string, hasError: boolean, hasHelper: boolean) {
@@ -154,7 +155,15 @@ export function PickerInput({
       />
       <datalist id={`${id}-options`}>
         {options.map((o) => (
-          <option key={o} value={o} />
+          // `value` stays the REAL stored string — it is what the browser
+          // inserts into the box on pick, and what then flows through the same
+          // `onChange` (and therefore the same digit normalization) as manual
+          // typing. The child text is the Persian-digit rendering, so a
+          // numeric suggestion in the dropdown reads like the rest of the
+          // panel instead of being the one place Latin digits show up.
+          <option key={o} value={o}>
+            {toPersianDigits(o)}
+          </option>
         ))}
       </datalist>
     </>

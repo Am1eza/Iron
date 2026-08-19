@@ -6,7 +6,7 @@ import { orders, orderItems, warehouseItems, warehouseMovements, leads } from '@
 import type { LineItem, Order, WarehouseItem } from '@/lib/types/domain';
 import { normalizeDigits } from '@/lib/utils/format';
 import { unsettledFor, unsettledForMany } from '@/lib/server/repos/warehouseSettlementsRepo';
-import { likeContains } from '@/lib/server/utils/likeEscape';
+import { likeContainsDigitVariants } from '@/lib/server/utils/likeEscape';
 
 type OrderRow = typeof orders.$inferSelect;
 type WarehouseRow = typeof warehouseItems.$inferSelect;
@@ -320,8 +320,15 @@ export async function adminListOrders(query: {
   if (!query.includeDeleted) conds.push(isNull(orders.deletedAt));
   if (query.status) conds.push(eq(orders.status, query.status));
   if (query.q) {
-    const q = likeContains(query.q);
-    conds.push(or(ilike(orders.ref, q), ilike(leads.contactMobile, q), ilike(leads.contactName, q)));
+    // Both digit spellings — ref/mobile are Latin-only in the DB, and the
+    // «جستجو: شماره سفارش، نام یا موبایل مشتری…» box is typed on whichever
+    // keyboard layout the rep's machine happens to be on.
+    const terms = likeContainsDigitVariants(query.q);
+    conds.push(
+      or(
+        ...terms.flatMap((q) => [ilike(orders.ref, q), ilike(leads.contactMobile, q), ilike(leads.contactName, q)]),
+      ),
+    );
   }
   const where = conds.length ? and(...conds) : undefined;
   const [rows, total] = await Promise.all([
@@ -415,13 +422,18 @@ export async function adminListWarehouse(
   if (!query.includeDeleted) conds.push(isNull(warehouseItems.deletedAt));
   if (query.status) conds.push(eq(warehouseItems.status, query.status));
   if (query.q?.trim()) {
-    const q = likeContains(query.q.trim());
+    // `ref`/`mobile` are Latin-only but `product` is free Persian text that
+    // may itself carry Persian digits — matching both spellings is what lets
+    // one box cover both column kinds. See likeContainsDigitVariants.
+    const terms = likeContainsDigitVariants(query.q.trim());
     conds.push(
       or(
-        ilike(warehouseItems.ref, q),
-        ilike(warehouseItems.product, q),
-        ilike(users.name, q),
-        ilike(users.mobile, q),
+        ...terms.flatMap((q) => [
+          ilike(warehouseItems.ref, q),
+          ilike(warehouseItems.product, q),
+          ilike(users.name, q),
+          ilike(users.mobile, q),
+        ]),
       ),
     );
   }
