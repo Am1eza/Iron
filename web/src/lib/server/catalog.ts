@@ -14,6 +14,13 @@ import * as repo from '@/lib/server/repos/catalogRepo';
 import { getMarketValue } from '@/lib/server/repos/marketRepo';
 import { normalizeDigits } from '@/lib/utils/format';
 import {
+  factoryFacetSlug,
+  factoryFacets,
+  sizeFacetSlug,
+  sizeFacets,
+  type Facet,
+} from '@/lib/utils/catalogFacets';
+import {
   searchArticles,
   listPublished,
   listPublishedByCategory,
@@ -112,6 +119,42 @@ export async function getFactoryOrder(categorySlug: string): Promise<string[]> {
 export async function getSubRows(categorySlug: string, subSlug: string): Promise<PriceRow[]> {
   if (!live()) return mock.getSubRows(categorySlug, subSlug);
   return repo.tableRows(categorySlug, subSlug);
+}
+
+/* ------------------------- factory / size facets ------------------------- */
+
+/**
+ * The factory and size landing pages' data, all derived from `getRows` rather
+ * than from their own queries.
+ *
+ * Deliberate: `getRows` is the definition of "what this category's price page
+ * shows" — active SKU, active sub, active category, PLUS cross-listed rows
+ * (the «استیل» hub). A separate `WHERE factory = …` query would drift from
+ * that on the first change to any of those predicates, and the failure mode is
+ * the bad one: a landing page listing rows the category page doesn't, or a
+ * sitemap URL whose page 404s. One category is at most ~180 rows, and the
+ * facet pages carry the same `revalidate = 300` as the category page, so the
+ * cost of filtering in JS is not worth a second source of truth.
+ *
+ * The slug is matched against `factoryFacetSlug`/`sizeFacetSlug` of the stored
+ * value, NOT against the stored value itself — `skus.factory` is free text and
+ * has no slug column (there is no facet taxonomy table, by design).
+ */
+export async function getCategoryFacets(
+  categorySlug: string,
+): Promise<{ factories: Facet[]; sizes: Facet[] }> {
+  const rows = await getRows(categorySlug);
+  return { factories: factoryFacets(rows), sizes: sizeFacets(rows) };
+}
+
+export async function getRowsByFactory(categorySlug: string, factorySlug: string): Promise<PriceRow[]> {
+  const rows = await getRows(categorySlug);
+  return rows.filter((r) => r.factory && factoryFacetSlug(r.factory) === factorySlug);
+}
+
+export async function getRowsBySize(categorySlug: string, sizeSlug: string): Promise<PriceRow[]> {
+  const rows = await getRows(categorySlug);
+  return rows.filter((r) => r.size && sizeFacetSlug(r.size) === sizeSlug);
 }
 
 export async function findSku(slug: string): Promise<PriceRow | undefined> {

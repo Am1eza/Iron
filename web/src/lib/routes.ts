@@ -19,6 +19,20 @@ export const COOPERATION_TRACKS = ['analysis', 'supply', 'sell'] as const;
 export type ToolSlugName = (typeof TOOL_SLUGS)[number];
 export type CooperationTrackName = (typeof COOPERATION_TRACKS)[number];
 
+/**
+ * Literal segments that sit where `[sub]` would otherwise be, at the depth
+ * `/prices/[category]/…/[x]`. Next's router prefers a literal segment over a
+ * dynamic one, so a sub-category slugged `factory` would keep its own
+ * `/prices/[cat]/factory` page but lose every `/prices/[cat]/factory/[sku]`
+ * URL underneath it to the factory-landing route. The admin sub-category form
+ * rejects these; `catalogFacets.test.ts` asserts none exist today.
+ *
+ * Declared here rather than in `catalogFacets.ts` so that `routes.ts` stays
+ * import-free — it is pulled into the middleware bundle.
+ */
+export const RESERVED_SUB_SLUGS = ['factory', 'size'] as const;
+export type ReservedSubSlug = (typeof RESERVED_SUB_SLUGS)[number];
+
 export const routes = {
   home: () => '/',
 
@@ -27,6 +41,26 @@ export const routes = {
   category: (cat: string) => `/prices/${enc(cat)}`,
   subCategory: (cat: string, sub: string) => `/prices/${enc(cat)}/${enc(sub)}`,
   sku: (cat: string, sub: string, sku: string) => `/prices/${enc(cat)}/${enc(sub)}/${enc(sku)}`,
+  /**
+   * Per-factory and per-size landing pages — one crawlable URL per
+   * (category × factory) and (category × size), for the narrow queries
+   * («قیمت میلگرد اصفهان», «قیمت میلگرد ۱۴») that a category page cannot rank
+   * for on its own.
+   *
+   * Under a LITERAL segment at SKU depth, not beside `[sub]`, on purpose:
+   * `factory`/`size` are not sub-categories (they are `skus.factory` /
+   * `skus.size` columns — see `lib/utils/catalogFacets.ts`), and a three-segment
+   * `/prices/rebar/abhr` would be indistinguishable from a sub-category URL,
+   * forcing every unknown sub-slug to be probed against the factory list before
+   * it could 404. Next's router prefers the literal segment over `[sub]`, so
+   * these can never be shadowed by a sub-category — the converse (a
+   * sub-category slugged `factory`) is prevented by RESERVED_SUB_SLUGS.
+   *
+   * `factory`/`size` slugs are DERIVED from the stored free-text value, never
+   * stored: `factoryFacetSlug` / `sizeFacetSlug`.
+   */
+  categoryByFactory: (cat: string, factory: string) => `/prices/${enc(cat)}/factory/${enc(factory)}`,
+  categoryBySize: (cat: string, size: string) => `/prices/${enc(cat)}/size/${enc(size)}`,
 
   // Core
   ai: () => '/ai',

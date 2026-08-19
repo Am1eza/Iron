@@ -9,6 +9,7 @@ import {
   isLiveCatalog,
 } from '@/lib/server/catalog';
 import { getSubsMap } from '@/lib/server/catalog';
+import { factoryFacets, sizeFacets } from '@/lib/utils/catalogFacets';
 import { TRACK_ORDER } from '@/components/cooperation/tracks';
 import { NEWS_TOPICS } from '@/lib/data/newsTopics';
 
@@ -119,9 +120,34 @@ async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
 
   const subCategoryEntries: MetadataRoute.Sitemap = [];
   const skuEntries: MetadataRoute.Sitemap = [];
+  // Per-factory and per-size landing pages. Derived from the SAME `rows` the
+  // pages themselves filter, so this can never advertise a URL that 404s —
+  // a facet exists here if and only if at least one active SKU carries it,
+  // which is exactly the condition those pages `notFound()` on. Categories
+  // with no SKUs contribute nothing, so the empty ones never appear.
+  const facetEntries: MetadataRoute.Sitemap = [];
   categories.forEach((cat, i) => {
     const rows = categoryRows[i] ?? [];
     const catLatest = latestUpdate(rows);
+    for (const f of factoryFacets(rows)) {
+      facetEntries.push({
+        url: new URL(routes.categoryByFactory(cat.slug, f.slug), SITE_URL).toString(),
+        lastModified: catLatest,
+        changeFrequency: 'hourly',
+        // Between the sub-category (0.75) and the SKU (0.65): a facet page
+        // aggregates many SKUs, but it is a filtered view of a sub-category
+        // tree rather than a taxonomy node of its own.
+        priority: 0.7,
+      });
+    }
+    for (const s of sizeFacets(rows)) {
+      facetEntries.push({
+        url: new URL(routes.categoryBySize(cat.slug, s.slug), SITE_URL).toString(),
+        lastModified: catLatest,
+        changeFrequency: 'hourly',
+        priority: 0.7,
+      });
+    }
     for (const sub of subsMap[cat.slug] ?? []) {
       subCategoryEntries.push({
         url: new URL(routes.subCategory(cat.slug, sub.slug), SITE_URL).toString(),
@@ -208,6 +234,7 @@ async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
     ...cooperationEntries,
     ...categoryEntries,
     ...subCategoryEntries,
+    ...facetEntries,
     ...skuEntries,
     ...blogEntries,
     ...newsEntries,

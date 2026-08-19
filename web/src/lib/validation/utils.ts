@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { ARTICLE_SLUG_PATTERN } from '@/lib/utils/articleSlug';
 import { MAX_ARTICLE_TAGS, normalizeArticleTags } from '@/lib/utils/articleTags';
 import { isInternalPathValue } from '@/lib/utils/url';
+import { RESERVED_SUB_SLUGS } from '@/lib/routes';
 
 export type FieldErrors = Record<string, string>;
 
@@ -40,6 +41,23 @@ export const slugSchema = (max: number) =>
     .min(1)
     .max(max)
     .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'نشانی فقط می‌تواند شامل حروف کوچک انگلیسی، عدد و خط تیره باشد.');
+
+/**
+ * A SUB-CATEGORY slug. Same rules as `slugSchema`, minus the handful of
+ * literal segments that already have a meaning one level down.
+ *
+ * `/prices/[category]/factory/[factory]` and `/prices/[category]/size/[size]`
+ * are real file routes, and Next's router prefers a literal segment over a
+ * dynamic one — so a sub-category slugged `factory` would keep its own
+ * `/prices/rebar/factory` page but lose every `/prices/rebar/factory/[sku]`
+ * URL beneath it to the factory landing page. Rejecting the name at the point
+ * of entry is the only place that can prevent it; the alternative is silently
+ * broken product URLs discovered months later. See `routes.ts`.
+ */
+export const subCategorySlugSchema = (max: number) =>
+  slugSchema(max).refine((s) => !(RESERVED_SUB_SLUGS as readonly string[]).includes(s), {
+    message: 'این نشانی رزرو شده است و برای زیرشاخه قابل استفاده نیست.',
+  });
 
 /**
  * A URL slug for an ARTICLE — unlike `slugSchema` above, this allows Persian

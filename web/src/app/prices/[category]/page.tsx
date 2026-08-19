@@ -13,6 +13,9 @@ import { BreadcrumbJsonLd, JsonLd } from '@/components/seo/JsonLd';
 import { PriceTable } from '@/components/catalog/PriceTable';
 import { BulkQuote } from '@/components/catalog/BulkQuote';
 import { PriceHeader } from '@/components/catalog/PriceHeader';
+import { FacetRail } from '@/components/catalog/FacetRail';
+import { factoryFacets, sizeFacets } from '@/lib/utils/catalogFacets';
+import { sizeLabel } from '@/lib/utils/catalogLabels';
 
 type Params = { params: Promise<{ category: string }> };
 
@@ -47,6 +50,10 @@ export default async function CategoryPage({ params }: Params) {
 
   const rows = await getRows(category);
   const subs = (await getSubsMap())[category] ?? [];
+  // Built from `rows`, not re-queried — same list the facet landing pages
+  // resolve their own URL against, so a rail link can never point at a page
+  // that 404s.
+  const facets = { factories: factoryFacets(rows), sizes: sizeFacets(rows) };
   const [logisticsConfig, vatRate, factoryOrder] = await Promise.all([
     getSetting<LogisticsConfig>('LOGISTICS', DEFAULT_LOGISTICS_CONFIG),
     getVatRate(),
@@ -100,6 +107,21 @@ export default async function CategoryPage({ params }: Params) {
                 factoryOrder={factoryOrder}
               />
               <BulkQuote category={category} categoryName={cat.name} rows={rows} subs={subs} logisticsConfig={logisticsConfig} vatRate={vatRate} />
+              {/* The internal link graph into the per-factory / per-size
+                  landing pages. Without it those pages are reachable only from
+                  sitemap.xml, which is a discovery hint, not a crawl path. */}
+              <FacetRail
+                id="rail-factories"
+                title={`قیمت ${cat.name} بر اساس کارخانه`}
+                facets={facets.factories}
+                href={(slug) => routes.categoryByFactory(category, slug)}
+              />
+              <FacetRail
+                id="rail-sizes"
+                title={`قیمت ${cat.name} بر اساس ${sizeLabel(category)}`}
+                facets={facets.sizes}
+                href={(slug) => routes.categoryBySize(category, slug)}
+              />
             </>
           ) : (
             <EmptyState size="section" {...emptyPresets.emptyCategory()} />
