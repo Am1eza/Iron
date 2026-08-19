@@ -98,6 +98,20 @@
   background: var(--color-accent-tint);
   text-decoration: none;
 }
+/* Only the button form can be disabled (see CtaAction in EmptyState.tsx). The
+   hover rules above are :hover-only, so they must be neutralised explicitly —
+   a disabled control that still lights up on hover reads as clickable. */
+.cta:disabled,
+.cta:disabled:hover {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.ctaPrimary:disabled:hover {
+  background: var(--color-action);
+}
+.ctaGhost:disabled:hover {
+  background: transparent;
+}
 
 .ai {
   display: inline-flex;

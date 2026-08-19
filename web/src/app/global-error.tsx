@@ -25,9 +25,16 @@
  * and retries again the moment the browser regains connectivity — the three
  * things a person on a bad connection would otherwise have to notice,
  * diagnose, and do by hand.
+ *
+ * That recovery logic now lives in `lib/errors/chunkRecovery` so the route
+ * -segment boundaries (blog, news) hitting the same ChunkLoadError share it
+ * instead of reimplementing it. Only the styling constraints described above
+ * are specific to THIS file; they do not apply to those boundaries, which
+ * render inside the real app tree with tokens.css and the router available.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { reportError } from '@/lib/errors/report';
+import { useChunkRecovery } from '@/lib/errors/chunkRecovery';
 // Same font the rest of the site uses (`lib/theme/fonts`, wired into the
 // real root `layout.tsx` via `vazirmatn.variable`). Importing it here gives
 // THIS route its own font stylesheet + preload, independent of the root
@@ -40,44 +47,9 @@ import { reportError } from '@/lib/errors/report';
 // never a blocked or invisible render.
 import { vazirmatn } from '@/lib/theme/fonts';
 
-const AUTO_RELOAD_KEY = 'ahantime:global-error:auto-reload-at';
-// A fresh failure more than this long after the last auto-reload gets its
-// own attempt; within it, we assume it's the same incident looping and stop
-// reloading automatically — an outage on the server side isn't something a
-// reload fixes, and reloading forever would just thrash the connection.
-const AUTO_RELOAD_WINDOW_MS = 20_000;
-
-function isReloadableError(error: Error): boolean {
-  if (error.name === 'ChunkLoadError') return true;
-  // Browsers phrase a failed fetch differently (Chrome: "Failed to fetch",
-  // Safari: "Load failed", Firefox: "NetworkError when attempting to fetch
-  // resource") — matched loosely since only the underlying cause is shared.
-  return /loading chunk .* failed|failed to fetch|load failed|networkerror/i.test(error.message);
-}
-
-/** sessionStorage can throw in locked-down private-browsing modes — an error
- *  page that itself throws would be the worst possible outcome here. */
-function readAutoReloadGuard(): number {
-  try {
-    return Number(sessionStorage.getItem(AUTO_RELOAD_KEY) ?? 0);
-  } catch {
-    return 0;
-  }
-}
-
-function writeAutoReloadGuard(): void {
-  try {
-    sessionStorage.setItem(AUTO_RELOAD_KEY, String(Date.now()));
-  } catch {
-    // no-op — see readAutoReloadGuard
-  }
-}
-
 export default function GlobalError({ error, reset }: { error: Error; reset: () => void }) {
   const headingRef = useRef<HTMLHeadingElement | null>(null);
-  const reloadable = isReloadableError(error);
-  const [isOnline, setIsOnline] = useState(true);
-  const [autoRetrying, setAutoRetrying] = useState(false);
+  const { disabled, retryLabel, statusText, retry } = useChunkRecovery(error, reset);
 
   useEffect(() => {
     reportError(error, { source: 'global-error' });
@@ -88,55 +60,6 @@ export default function GlobalError({ error, reset }: { error: Error; reset: () 
   useEffect(() => {
     headingRef.current?.focus();
   }, []);
-
-  // Offline state drives the button's disabled/label state below, and —
-  // the specific gap in the original report — retries on its own the
-  // instant connectivity returns, instead of leaving the user to notice and
-  // tap the button themselves.
-  useEffect(() => {
-    setIsOnline(navigator.onLine);
-    const goOnline = () => {
-      setIsOnline(true);
-      if (reloadable) window.location.reload();
-    };
-    const goOffline = () => setIsOnline(false);
-    window.addEventListener('online', goOnline);
-    window.addEventListener('offline', goOffline);
-    return () => {
-      window.removeEventListener('online', goOnline);
-      window.removeEventListener('offline', goOffline);
-    };
-  }, [reloadable]);
-
-  // One silent, guarded auto-retry for the failure class actually observed
-  // in production — most weak-connection chunk failures resolve within a
-  // second or two, so this quietly saves that user a manual tap. Skipped
-  // while offline: reloading with no connection would just fail again
-  // immediately: the `online` listener above already covers that case.
-  useEffect(() => {
-    if (!reloadable || !navigator.onLine) return;
-    if (Date.now() - readAutoReloadGuard() < AUTO_RELOAD_WINDOW_MS) return;
-    setAutoRetrying(true);
-    const t = setTimeout(() => {
-      writeAutoReloadGuard();
-      window.location.reload();
-    }, 1200);
-    return () => clearTimeout(t);
-  }, [reloadable]);
-
-  const disabled = reloadable && (!isOnline || autoRetrying);
-  const retryLabel =
-    reloadable && !isOnline
-      ? 'در انتظار اتصال اینترنت…'
-      : autoRetrying
-        ? 'در حال تلاش خودکار…'
-        : 'تلاش دوباره';
-  const statusText =
-    reloadable && !isOnline
-      ? 'اتصال اینترنت قطع است — به‌محض وصل‌شدن دوباره تلاش می‌کنیم.'
-      : autoRetrying
-        ? 'در حال تلاش خودکار برای اتصال…'
-        : '';
 
   return (
     <html lang="fa" dir="rtl" className={vazirmatn.variable}>
@@ -244,7 +167,7 @@ export default function GlobalError({ error, reset }: { error: Error; reset: () 
             <button
               type="button"
               className="ahn-ge__retry"
-              onClick={() => (reloadable ? window.location.reload() : reset())}
+              onClick={retry}
               disabled={disabled}
               style={{
                 border: 0,
