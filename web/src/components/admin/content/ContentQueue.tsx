@@ -17,6 +17,7 @@ import { adminApi, type ArticleFull, type AdminRedirect } from '@/lib/api/resour
 import { useFocusTrap } from '@/lib/hooks/useFocusTrap';
 import { useUnsavedGuard } from '@/lib/hooks/useUnsavedGuard';
 import { formatJalali } from '@/lib/utils/jalali';
+import { toPersianDigits } from '@/lib/utils/format';
 import { articleSlugify } from '@/lib/utils/articleSlug';
 import { NEWS_TOPICS } from '@/lib/data/newsTopics';
 import { MAX_ARTICLE_TAGS, normalizeArticleTags } from '@/lib/utils/articleTags';
@@ -1308,7 +1309,7 @@ function ArticleDrawer({
                       <option value="">من (پیش‌فرض)</option>
                       {(authorsData?.users ?? []).map((u) => (
                         <option key={u.id} value={u.id}>
-                          {u.name ?? u.mobile}
+                          {u.name ?? toPersianDigits(u.mobile)}
                         </option>
                       ))}
                     </select>

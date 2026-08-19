@@ -2,6 +2,7 @@
  * In-memory auth store — the dev/mock-mode implementation (no DATABASE_URL).
  * Resets per cold start; production uses store.pg.ts behind the same facade.
  */
+import { normalizeDigits, toPersianDigits } from '@/lib/utils/format';
 import type { AuthUser } from './types';
 import type {
   AuthStore,
@@ -90,7 +91,12 @@ export const memoryStore: AuthStore = {
   async listUsers(query: ListUsersQuery = {}) {
     let all = [...usersById.values()];
     if (query.role) all = all.filter((u) => u.role === query.role);
-    if (query.q) all = all.filter((u) => u.mobile.includes(query.q!) || (u.name ?? '').includes(query.q!));
+    if (query.q) {
+      // Mirrors store.pg's both-digit-spellings match so dev/test behaviour
+      // doesn't diverge from production on a Persian-typed mobile search.
+      const terms = [...new Set([query.q, toPersianDigits(query.q), normalizeDigits(query.q)])];
+      all = all.filter((u) => terms.some((t) => u.mobile.includes(t) || (u.name ?? '').includes(t)));
+    }
     const total = all.length;
     const page = query.page ?? 1;
     const perPage = query.perPage ?? 50;

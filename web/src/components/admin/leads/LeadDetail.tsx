@@ -1194,7 +1194,7 @@ export function LeadDetail({ id }: { id: string }) {
                       <option value="">— بدون کارشناس —</option>
                       {staff.map((m) => (
                         <option key={m.id} value={m.id}>
-                          {(m.name ?? m.mobile) + ' · ' + ROLE_LABEL[m.role as Role]}
+                          {(m.name ?? toPersianDigits(m.mobile)) + ' · ' + ROLE_LABEL[m.role as Role]}
                         </option>
                       ))}
                     </select>

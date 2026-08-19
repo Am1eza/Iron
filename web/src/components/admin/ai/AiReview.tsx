@@ -280,7 +280,7 @@ function CorrectionsLibrary() {
     <div style={{ marginBlockStart: 'var(--space-8)' }}>
       <div className={ui.toolbar}>
         <Button size="sm" variant="ghost" onClick={() => setOpen((v) => !v)}>
-          {open ? 'بستن کتابخانهٔ پاسخ‌های تأییدشده' : `کتابخانهٔ پاسخ‌های تأییدشده${total ? ` (${total})` : ''}`}
+          {open ? 'بستن کتابخانهٔ پاسخ‌های تأییدشده' : `کتابخانهٔ پاسخ‌های تأییدشده${total ? ` (${toPersianDigits(total)})` : ''}`}
         </Button>
       </div>
       {open &&
@@ -428,7 +428,7 @@ function EvalCandidatesQueue() {
     <div style={{ marginBlockStart: 'var(--space-8)' }}>
       <div className={ui.toolbar}>
         <Button size="sm" variant="ghost" onClick={() => setOpen((v) => !v)}>
-          {open ? 'بستن صف سناریوهای eval' : `صف سناریوهای eval${total ? ` (${total})` : ''}`}
+          {open ? 'بستن صف سناریوهای eval' : `صف سناریوهای eval${total ? ` (${toPersianDigits(total)})` : ''}`}
         </Button>
       </div>
       {open &&

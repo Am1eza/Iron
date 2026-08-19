@@ -8,6 +8,7 @@ import { ulid } from 'ulid';
 
 import { getDb } from '@/lib/server/db/client';
 import { users, refreshTokens, otpCodes, otpRateLimits, clubMemberships } from '@/lib/server/db/schema';
+import { likeContainsDigitVariants } from '@/lib/server/utils/likeEscape';
 import { randomInviteCode } from './crypto';
 import type { AuthUser } from './types';
 import type { AuthStore, CreateUserInput, ListUsersQuery, UserPatch } from './store.types';
@@ -95,7 +96,14 @@ export const pgStore: AuthStore = {
     const perPage = query.perPage ?? 50;
     const conds = [];
     if (query.role) conds.push(eq(users.role, query.role));
-    if (query.q) conds.push(or(ilike(users.mobile, `%${query.q}%`), ilike(users.name, `%${query.q}%`)));
+    if (query.q) {
+      // `users.mobile` is stored Latin-only, so «۰۹۱۲…» typed on a Persian
+      // layout in the panel's «جستجو: موبایل یا نام…» box matched nothing.
+      // Both spellings are searched; the helper also escapes LIKE
+      // metacharacters, which this call site was missing.
+      const terms = likeContainsDigitVariants(query.q);
+      conds.push(or(...terms.flatMap((q) => [ilike(users.mobile, q), ilike(users.name, q)])));
+    }
     const where = conds.length ? and(...conds) : undefined;
     const [rows, totalRows] = await Promise.all([
       db

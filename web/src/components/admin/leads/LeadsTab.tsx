@@ -164,7 +164,9 @@ export function LeadsTab() {
   // Staff names for the کارشناس column — one small cached list, shared with
   // LeadDetail's assignment select (same query key).
   const { data: staffData } = useQuery({ queryKey: ['admin', 'staff'], queryFn: () => adminApi.staff() });
-  const staffName = new Map((staffData?.staff ?? []).map((m) => [m.id, m.name ?? m.mobile] as const));
+  const staffName = new Map(
+    (staffData?.staff ?? []).map((m) => [m.id, m.name ?? toPersianDigits(m.mobile)] as const),
+  );
 
   // `to` is a date-only picker; sent as-is it'd mean "up to today's
   // midnight" and silently exclude every lead created today after 00:00.

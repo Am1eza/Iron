@@ -454,7 +454,7 @@ export function PricingGrid() {
     }
     void confirm({
       title: 'تغییر فیلتر',
-      body: `${dirty.length} قیمت ذخیره‌نشده دارید. با تغییر فیلتر از بین می‌رود — ادامه می‌دهید؟`,
+      body: `${toPersianDigits(dirty.length)} قیمت ذخیره‌نشده دارید. با تغییر فیلتر از بین می‌رود — ادامه می‌دهید؟`,
       confirmLabel: 'ادامه و ازدست‌دادن تغییرات',
     }).then((ok) => {
       if (!ok) return;

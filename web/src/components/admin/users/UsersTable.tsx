@@ -5,7 +5,7 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api/resources/admin';
 import { ROLE_LABEL } from '@/lib/auth/roles';
 import type { Role } from '@/lib/auth/types';
-import { toPersianDigits } from '@/lib/utils/format';
+import { normalizeDigits, toPersianDigits } from '@/lib/utils/format';
 import { formatJalali } from '@/lib/utils/jalali';
 import { useToast } from '@/lib/hooks/useToast';
 import { useDeepLinkQuery } from '@/lib/hooks/useDeepLinkQuery';
@@ -80,7 +80,18 @@ export function UsersTable() {
     onError: (err) => toast.error(err instanceof ApiError ? err.message : 'تغییر سطح ناموفق بود.'),
   });
   const createStaff = useMutation({
-    mutationFn: () => adminApi.createStaffUser({ mobile: invite.mobile.trim(), name: invite.name.trim() || undefined, role: invite.role }),
+    // Persian-keyboard «۰۹۱۲…» is normalized to Latin before it leaves the
+    // client — same treatment WarehouseManager gives its customer-mobile
+    // field. The route re-normalizes too (`normalizeMobile`), so this is
+    // belt-and-braces rather than a live 400, but it keeps every mobile
+    // entry point in the panel on one rule instead of relying on which
+    // endpoint happens to be forgiving.
+    mutationFn: () =>
+      adminApi.createStaffUser({
+        mobile: normalizeDigits(invite.mobile).trim(),
+        name: invite.name.trim() || undefined,
+        role: invite.role,
+      }),
     onSuccess: () => {
       toast.success('کاربر ستادی ساخته شد؛ با همین موبایل و کد پیامکی وارد می‌شود.');
       setInviting(false);
@@ -190,7 +201,7 @@ export function UsersTable() {
               {users.map((u) => (
                 <Fragment key={u.id}>
                 <tr>
-                  <td className={`tnum ${ui.mono}`}>{u.mobile}</td>
+                  <td className={`tnum ${ui.mono}`}>{toPersianDigits(u.mobile)}</td>
                   <td>
                     {u.name ?? '—'}{' '}
                     {u.clubTier ? (
@@ -249,7 +260,7 @@ export function UsersTable() {
                         if (!nextActive) {
                           void confirm({
                             title: 'غیرفعال‌سازی کاربر',
-                            body: `کاربر ${u.mobile} غیرفعال می‌شود و امکان ورود نخواهد داشت. ادامه؟`,
+                            body: `کاربر ${toPersianDigits(u.mobile)} غیرفعال می‌شود و امکان ورود نخواهد داشت. ادامه؟`,
                             confirmLabel: 'غیرفعال کن',
                           }).then((ok) => {
                             if (ok) update.mutate({ id: u.id, patch: { isActive: nextActive } });
