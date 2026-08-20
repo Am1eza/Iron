@@ -548,11 +548,18 @@ rows are saved in `.claude/audits/catalog-owner-decisions-2026-08-20/` for whoev
   PR [#205](https://github.com/Am1eza/Iron/pull/205).
 - `Workers Builds: ahantime` fails — it also fails on the already-merged #203 and #204, i.e.
   pre-existing red on the secondary Cloudflare target, not caused by this change.
-- One flake worth naming rather than hiding: the post-merge `CI / checks` run on `main` failed on
-  `src/lib/auth/service.test.ts > rotates the refresh token`, a wall-clock grace-window assertion
-  in a file this pass does not touch. It passed on the PR run with the identical tree, passes in
-  isolation here, and **the re-run of that job on `main` came back green** — a flake, not a
-  regression.
+- **`main` is fully green** on `CI / checks` and `CI / e2e` at `60f643e`, the final commit.
+- Two flakes along the way, named rather than hidden — both re-ran green on `main` and both are
+  in code this pass does not touch:
+  - `CI / checks` once failed on `src/lib/auth/service.test.ts > rotates the refresh token`, a
+    wall-clock grace-window assertion. It passed on the PR run with the identical tree and passes
+    in isolation here.
+  - `CI / e2e` once failed on two `admin-pricing-catalog` specs with a generic drizzle
+    `Failed query` — and the *same* run also failed an unrelated `select count(*) from users`
+    query, which is the tell: the e2e Postgres is an in-process pglite served over a local
+    socket, and the socket dropped. Not a missing column («column … does not exist» appears
+    nowhere in the log), and the identical tree passed e2e on PRs #205, #206 and #207 and on
+    `main@4fc302d`.
 
 ### The four scripts — all dry-run, reviewed, applied, re-queried, and idempotent
 
