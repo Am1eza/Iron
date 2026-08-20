@@ -9,7 +9,7 @@
  */
 import { normalizeDigits } from './format';
 import { slugify } from './slugify';
-import { unitWeightKg } from './weight';
+import { unitWeightKg, type WeightShape } from './weight';
 import type { PriceUnit } from '@/lib/types/domain';
 
 /**
@@ -118,24 +118,125 @@ export function composeSkuName(input: { subName?: string; size?: string; factory
 }
 
 /**
- * Theoretical weight of one 12-metre branch, from the standard rebar formula
- * (d²/162 kg per metre). Only meaningful for round bar — rebar and wire — so
- * everything else returns null rather than inventing a number the customer's
- * cost estimate would then be built on.
+ * What physical section a catalog sub-category actually is, and the mill
+ * branch length its «وزن شاخه» is quoted for.
+ *
+ * This table exists because `skus.theoretical_weight_kg` used to be filled in
+ * by ONE formula for the whole catalog — `d²/162 × 12`, the round-bar
+ * formula — applied to whatever number a SKU's `size` string happened to
+ * start with. Correct for میلگرد, and nonsense for everything else: «نبشی ۱۰»
+ * was stored as 7.4 kg (a 6 m L100 is 94 kg), «قوطی ۱۰۰×۱۰۰» as 740.7 kg,
+ * «ورق روغنی ۱» as 0.1 kg, «لوله ۱ اینچ» as 0.1 kg. That number renders as
+ * «وزن شاخه» in the public price table and is multiplied by the quantity in
+ * `leads.service`/`estimate.service` when a piece-counted order is converted
+ * to kilograms, so it is a pricing input, not a label.
+ *
+ * Deliberately keyed on `category/sub-category`, not on category: «نبشی» and
+ * «ناودانی» share the `angle-channel` category and are two different sections
+ * with two different published tables, and `ibeam` holds تیرآهن (IPE), هاش
+ * (HEA/HEB) and لانه‌زنبوری, which are three.
+ *
+ * A line is in this table only when BOTH halves of the number come from
+ * something published rather than assumed — the section table AND the branch
+ * length. A line that is absent gets `null`, which is the honest answer and
+ * the one every consumer already handles («نامشخص» in the table, no weight
+ * row on the card, `allPriced=false` rather than a silent zero). Absences are
+ * therefore not gaps to be filled in later by guessing; each one is listed
+ * with its reason:
+ *
+ * - **ناودانی سبک / سنگین** — these are genuinely separate weight classes from
+ *   the استاندارد/اشتال tier that `CHANNEL_KG_PER_M` holds (see weight.ts's
+ *   header), and the two public tables for them do not agree: مرکزآهن gives
+ *   ناودانی سنگین ۱۴ = 18 kg/m where فولاد ایرانیان gives 16.25 — an 11 %
+ *   spread on a number that would go straight onto a live commercial page.
+ * - **هاش (HEA/HEB), تیرآهن سبک, لانه‌زنبوری** — each a different section from
+ *   IPE, and `IBEAM_KG_PER_M` is the IPE table only.
+ * - **نبشی بال نامساوی, سپری, نبشی لقمه** — no published table in this repo;
+ *   an unequal-leg angle needs both legs and a thickness, سپری is a T
+ *   section, and a لقمه is a spacer with no branch at all.
+ * - **پروفیل / قوطی** — the box formula needs a WALL THICKNESS and the catalog
+ *   stores none: «۴۰×۴۰» is the outside section, and the same section ships
+ *   in 2 mm and 4 mm.
+ * - **ورق** — the plate formula needs width × length. `skus.dimensions` exists
+ *   for exactly this, and is empty on every sheet SKU today.
+ * - **لوله** — the pipe formula needs a wall thickness; «۲ اینچ» is the outside
+ *   diameter only.
+ * - **کلاف / مفتول / توری / سیم** — sold as a coil, which is why `weight.ts`
+ *   deliberately gives the `wire` shape no `DEFAULT_LENGTH_M`. There is no
+ *   «شاخه» to weigh.
  */
-export function theoreticalWeightFor(categorySlug: string, size?: string): number | null {
+type CatalogWeightBasis = {
+  shape: WeightShape;
+  /** Standard mill branch length in metres for THIS product line, sourced. */
+  lengthM: number;
+  /** How to read `skus.size` into the dimension the shape's formula wants. */
+  sizeAs: 'diameterMm' | 'legCm' | 'sizeCode';
+};
+
+const CATALOG_WEIGHT_BASIS: Readonly<Record<string, CatalogWeightBasis>> = {
+  // Round bar, d²/162 kg/m over a 12 m branch — `DEFAULT_LENGTH_M.rebar`, and
+  // the basis every میلگرد row in the catalog is already priced against.
+  'rebar/deformed': { shape: 'rebar', lengthM: 12, sizeAs: 'diameterMm' },
+  'rebar/deformed-a2': { shape: 'rebar', lengthM: 12, sizeAs: 'diameterMm' },
+  'rebar/plain': { shape: 'rebar', lengthM: 12, sizeAs: 'diameterMm' },
+  'rebar/alloy': { shape: 'rebar', lengthM: 12, sizeAs: 'diameterMm' },
+  // NOT `rebar/mylgrd-sadh` (میلگرد ساده), deliberately: ahanonline's own
+  // میلگرد ساده listing quotes «شاخه ۶ متری» for the straight-bar mills and
+  // «کلاف» (coil) for the rest, so this one sub-category mixes a 6 m branch
+  // with a product that has no branch at all. There is no single length that
+  // is right for it, which is exactly the condition for having no entry.
+  // نبشی بال مساوی. `ANGLE_KG_PER_M` is مرکزآهن's exact published table
+  // (audited into weight.ts 2026-08-09) and is keyed in MILLIMETRES of leg,
+  // while the catalog's `size` is the market number in CENTIMETRES («نبشی ۱۰»
+  // = L100) — hence `legCm`. 6 m is the branch length ahanonline's own نبشی
+  // listing quotes almost every row in («حالت: ۶ متری»; ۱۲ متری exists but is
+  // the exception), and the one مرکزآهن's table leads with. Sizes outside the
+  // published table (نبشی ۱۴/۱۶/۱۸) fall through to null rather than to the
+  // geometric approximation, which drifts ~5 % at those legs.
+  'angle-channel/nabshi': { shape: 'angle', lengthM: 6, sizeAs: 'legCm' },
+  'angle-channel/angle': { shape: 'angle', lengthM: 6, sizeAs: 'legCm' },
+  // تیرآهن. `IBEAM_KG_PER_M` is keyed on the market number directly (تیرآهن ۱۴
+  // = IPE140), and 12 m is both the Iranian standard branch and what the 25
+  // existing branch-priced تیرآهن rows already encode — ذوب‌آهن ۱۴ is stored at
+  // 155 kg, which is 12.9 × 12.
+  'ibeam/tirahan': { shape: 'ibeam', lengthM: 12, sizeAs: 'sizeCode' },
+  'ibeam/ipe': { shape: 'ibeam', lengthM: 12, sizeAs: 'sizeCode' },
+};
+
+/** The composition key for a sub-category, as `CATALOG_WEIGHT_BASIS` is keyed. */
+export function weightBasisKey(categorySlug: string, subSlug?: string): string {
+  return `${categorySlug}/${subSlug ?? ''}`;
+}
+
+/**
+ * Theoretical weight of one branch, in kg — or `null` when this product line
+ * has no derivable one. See `CATALOG_WEIGHT_BASIS` above for the per-line
+ * reasoning; the arithmetic itself is always `unitWeightKg`, the same table
+ * the وزن‌سنج, the `/api/tools/weight` endpoint and the AI advisor use, so an
+ * admin-facing default can never disagree with the customer-facing calculator.
+ *
+ * `subSlug` is required to get a non-null answer for anything but the
+ * historical rebar/wire behaviour: the section is a property of the
+ * sub-category, not of the category.
+ */
+export function theoreticalWeightFor(
+  categorySlug: string,
+  size?: string,
+  subSlug?: string,
+): number | null {
   if (!size) return null;
-  if (categorySlug !== 'rebar' && categorySlug !== 'wire') return null;
-  const d = Number(normalizeDigits(size).replace(/[^\d.]/g, ''));
-  if (!Number.isFinite(d) || d <= 0) return null;
-  // Same shared formula table as the وزن‌سنج, the API and the AI advisor —
-  // an admin-facing default that disagreed with the customer-facing
-  // calculator is exactly what this consolidation exists to prevent.
-  // rebar = one standard 12 m branch; wire is priced per metre.
-  const branch = unitWeightKg(categorySlug === 'rebar' ? 'rebar' : 'wire', {
-    diameterMm: d,
-    lengthM: categorySlug === 'rebar' ? 12 : 1,
-  });
+  const basis = CATALOG_WEIGHT_BASIS[weightBasisKey(categorySlug, subSlug)];
+  if (!basis) return null;
+  const n = Number(normalizeDigits(size).replace(/[^\d.]/g, ''));
+  if (!Number.isFinite(n) || n <= 0) return null;
+  const dims =
+    basis.sizeAs === 'diameterMm'
+      ? { diameterMm: n }
+      : basis.sizeAs === 'legCm'
+        ? // ANGLE_KG_PER_M is keyed in mm of leg; the catalog size is in cm.
+          { sizeCode: n * 10 }
+        : { sizeCode: n };
+  const branch = unitWeightKg(basis.shape, { ...dims, lengthM: basis.lengthM });
   if (branch === null) return null;
   return Math.round(branch * 10) / 10 || null;
 }

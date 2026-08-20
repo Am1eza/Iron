@@ -233,7 +233,10 @@ export function SkuDrawer({
       });
     }
     if (!t.weight && cat) {
-      const w = theoreticalWeightFor(cat.slug, size);
+      // `sub` (not just `cat`): the section a weight formula needs is a
+      // property of the sub-category — «نبشی» and «ناودانی» share a category
+      // and are two different published tables.
+      const w = theoreticalWeightFor(cat.slug, size, sub?.slug);
       out.theoreticalWeightKg = w != null ? String(w) : '';
     }
     // `sub` too: کوپلر is sold per «عدد» even though میلگرد defaults to «شاخه».
