@@ -149,7 +149,12 @@
   padding: 0;
 }
 
-/* Entry animation on mount — modern @starting-style, zero JS, degrades to instant. */
+/* Entry animation — modern @starting-style, zero JS, degrades to instant.
+   The simple dropdowns mount on open, so @starting-style fires on mount. The
+   mega panel now stays mounted and only flips `hidden`, so it needs
+   `display` in the transition list with `allow-discrete`: without it the
+   element is already `display: none` when the style change lands and the
+   browser has nothing to animate from. */
 @media (prefers-reduced-motion: no-preference) {
   .dropdown,
   .mega {
@@ -157,9 +162,13 @@
       opacity var(--dur-base) var(--ease-entrance),
       transform var(--dur-base) var(--ease-emphasized);
   }
+  .mega {
+    transition-property: opacity, transform, display;
+    transition-behavior: allow-discrete;
+  }
   @starting-style {
     .dropdown,
-    .mega {
+    .mega:not([hidden]) {
       opacity: 0;
       transform: translateY(-6px);
     }
@@ -194,15 +203,16 @@
 }
 
 /* ===== «محصولات» mega-menu ===== */
-/* The panel's own top offset varies with scroll position — at the very top of
-   the page it sits below the price ticker (~110px down), while the sticky
-   condensed header shrinks that to ~61px. 140px is sized for the worst case
-   (unscrolled), so there's always a margin of breathing room at the bottom of
-   the viewport rather than the panel touching the edge. With 12 category
-   columns wrapped over 3 rows the panel's natural height (~1225px) blew past
-   any real screen — it used to rely on scrolling the WHOLE PAGE while hover
-   was held to reach the last rows, which no one does, so the bottom
-   categories were effectively invisible. It now scrolls internally instead. */
+/* Shell only — the rail/panel layout inside it is ProductsMenu.module.css.
+ *
+ * This used to scroll ITSELF, because the flat-column layout's height was the
+ * height of the tallest category (ورق, 19 items) times however many rows the
+ * nine categories wrapped into. Now the shell is sized by its content and
+ * only the active category's panel scrolls, so the category rail is never
+ * scrolled out of view — the specific failure that hid استیل and فلزات رنگی
+ * from anyone on a laptop. The scroll-shadow background trick that made the
+ * shell's own overflow discoverable went with it; the panel is a plain
+ * scroll container and its scrollbar sits right next to the rail. */
 .mega {
   position: absolute;
   inset-block-start: calc(100% + var(--space-1));
@@ -213,99 +223,16 @@
   border: var(--border-hairline) solid var(--color-hairline);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
+  background: var(--color-surface-raised);
   z-index: var(--z-dropdown);
-  max-block-size: min(calc(100vh - 140px), 720px);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-width: thin;
-  /* Scroll shadows with no extra markup (Roman Komarov's technique): two
-     opaque gradients scroll WITH the content and hide themselves once the
-     top/bottom edge is reached, two fixed radial shadows behind them stay put
-     and only show through once there's more to scroll. RTL-safe since it's a
-     purely vertical (block-axis) effect. */
-  background-image:
-    linear-gradient(var(--color-surface-raised) 30%, rgba(255, 255, 255, 0)),
-    linear-gradient(rgba(255, 255, 255, 0), var(--color-surface-raised) 70%) bottom,
-    radial-gradient(farthest-side at 50% 0, rgba(0, 0, 0, 0.16), rgba(0, 0, 0, 0)),
-    radial-gradient(farthest-side at 50% 100%, rgba(0, 0, 0, 0.16), rgba(0, 0, 0, 0)) bottom;
-  background-repeat: no-repeat;
-  background-color: var(--color-surface-raised);
-  background-size: 100% 40px, 100% 40px, 100% 14px, 100% 14px;
-  background-attachment: local, local, scroll, scroll;
 }
-.megaGrid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: var(--space-5) var(--space-6);
+/* `keepMounted` (NavDropdown) leaves the panel in the DOM and toggles `hidden`
+   so its links stay crawlable. `hidden` is only a UA `display: none`, which
+   `.mega`'s own rules would otherwise not contradict — but be explicit, since
+   a future `display` on `.mega` would silently un-hide the closed menu. */
+.mega[hidden] {
+  display: none;
 }
-.megaCol {
-  min-inline-size: 0;
-}
-.megaHead {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin-block-end: var(--space-2);
-  font: var(--t-h4);
-  font-weight: 700;
-  color: var(--color-text-strong);
-  text-decoration: none;
-}
-.megaHead:hover {
-  color: var(--color-accent);
-  text-decoration: none;
-}
-.megaThumb {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  inline-size: 34px;
-  block-size: 26px;
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  border: var(--border-hairline) solid var(--color-hairline);
-  background: var(--color-surface-sunken);
-  color: var(--color-text-strong);
-}
-.megaThumb > * {
-  inline-size: 100%;
-  block-size: 100%;
-}
-.megaSubs {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.megaSub {
-  display: block;
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
-  color: var(--color-text);
-  font: var(--t-body-sm);
-  text-decoration: none;
-}
-.megaSub:hover {
-  background: var(--color-accent-tint);
-  color: var(--color-accent-text);
-  text-decoration: none;
-}
-
-/* Purely a visual cluster heading for subcategories sharing a groupLabel —
- * not a link, not a real taxonomy level (see catalogGroups.ts). */
-.megaSubGroupHeading {
-  padding: var(--space-1) var(--space-2) 0;
-  font: var(--t-caption);
-  font-weight: 600;
-  color: var(--color-text-muted);
-}
-.megaSubGrouped {
-  padding-inline-start: var(--space-3);
-}
-
 /* ===== Utility nav ===== */
 .utility {
   display: flex;

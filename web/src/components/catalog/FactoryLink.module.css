@@ -1,0 +1,15 @@
+/* Default look for a mill name that is a link: it inherits the surrounding
+   cell's colour and only declares itself on hover/focus. A mill name appears
+   in dense price tables where a coloured link on every row would compete with
+   the price — the number is what the eye is there for. */
+.link {
+  color: inherit;
+  text-decoration: none;
+  border-block-end: var(--border-hairline) dotted var(--color-border-strong);
+}
+.link:hover,
+.link:focus-visible {
+  color: var(--color-accent-text);
+  border-block-end-color: currentColor;
+  text-decoration: none;
+}

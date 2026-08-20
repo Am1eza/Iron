@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { routes } from '@/lib/routes';
 import { formatToman, formatMovement, priceHiddenLabel, toPersianDigits } from '@/lib/utils/format';
 import type { PriceRow } from '@/lib/types/domain';
+import { FactoryLink } from '@/components/catalog/FactoryLink';
 import { ChevronStartIcon } from '@/components/primitives/icons';
 import styles from './FeaturedPrices.module.css';
 
@@ -58,7 +59,9 @@ export function FeaturedPrices({ rows }: { rows: PriceRow[] }) {
                     {r.name}
                   </th>
                   <td>{r.size ? toPersianDigits(r.size) : 'نامشخص'}</td>
-                  <td className={styles.muted}>{r.factory ?? 'نامشخص'}</td>
+                  <td className={styles.muted}>
+                    <FactoryLink categorySlug={r.categoryId} factory={r.factory} />
+                  </td>
                   <td className={`${styles.num} ${styles.price}`}>
                     {priceHiddenLabel(r.current) ?? formatToman(r.current.price, false)}
                   </td>
@@ -123,7 +126,9 @@ export function FeaturedPrices({ rows }: { rows: PriceRow[] }) {
                 </div>
                 <div>
                   <dt>کارخانه</dt>
-                  <dd>{r.factory ?? 'نامشخص'}</dd>
+                  <dd>
+                    <FactoryLink categorySlug={r.categoryId} factory={r.factory} />
+                  </dd>
                 </div>
                 <div>
                   <dt>زمان تحویل</dt>

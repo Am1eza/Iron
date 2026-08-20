@@ -304,3 +304,46 @@ export function faqJsonLd(items: { question: string; answer: string }[]) {
     })),
   };
 }
+
+/**
+ * `ItemList` of `SiteNavigationElement` for the product taxonomy — one entry
+ * per top-level category, each carrying its own sub-categories.
+ *
+ * Why this and not something richer: Google publishes no rich result for
+ * `SiteNavigationElement`, so this earns nothing in classic SERP terms and is
+ * not here pretending to. What it does is state, in a vocabulary crawlers and
+ * answer engines already parse, the one fact a marketplace most needs an
+ * assistant to get right — *what this site sells* — as a named, ordered list
+ * of product lines with a canonical URL each, rather than leaving it to be
+ * inferred from anchor text scattered through a menu.
+ *
+ * It mirrors the rendered mega-menu exactly: same source arrays, same order,
+ * same Persian names, same URLs. That is the condition for it being honest
+ * structured data rather than the invisible-keyword kind — nothing is asserted
+ * here that a visitor cannot see in the menu.
+ */
+export function catalogNavigationJsonLd(
+  categories: readonly { slug: string; name: string }[],
+  subsBySlug: Readonly<Record<string, readonly { slug: string; name: string }[]>>,
+) {
+  if (categories.length === 0) return null;
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: `دسته‌بندی محصولات ${BRAND}`,
+    description:
+      'دسته‌بندی‌های آهن‌آلات و فولادی که آهن‌تایم قیمت روز آن‌ها را منتشر می‌کند و سفارش می‌گیرد.',
+    numberOfItems: categories.length,
+    itemListElement: categories.map((cat, i) => ({
+      '@type': 'SiteNavigationElement',
+      position: i + 1,
+      name: cat.name,
+      url: new URL(`/prices/${cat.slug}`, SITE_URL).toString(),
+      hasPart: (subsBySlug[cat.slug] ?? []).map((sub) => ({
+        '@type': 'SiteNavigationElement',
+        name: sub.name,
+        url: new URL(`/prices/${cat.slug}/${sub.slug}`, SITE_URL).toString(),
+      })),
+    })),
+  };
+}

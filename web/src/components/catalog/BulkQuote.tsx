@@ -11,6 +11,7 @@ import { sizeLabel } from '@/lib/utils/catalogLabels';
 import { getRows } from '@/lib/mock/catalogData';
 import { computeBulkSplit, pickBestGroup } from '@/lib/utils/bulkSplit';
 import { MOCK_CATEGORY_SUBS, type SubCat } from '@/lib/data/nav';
+import { FactoryLink } from './FactoryLink';
 import { DEFAULT_LOGISTICS_CONFIG, cityDistance, estimateLogistics, type LogisticsConfig } from '@/lib/data/logistics';
 import { useProfileStore } from '@/lib/stores/profile';
 import { CONSTANTS } from '@/lib/config/constants';
@@ -275,7 +276,9 @@ export function BulkQuote({
               return (
                 <tr key={l.factory} className={l.best ? styles.bestRow : undefined}>
                   <th scope="row" className={styles.factoryCell}>
-                    <span className={styles.factoryName}>{l.factory}</span>
+                    <span className={styles.factoryName}>
+                      <FactoryLink categorySlug={category} factory={l.factory} />
+                    </span>
                     {l.best ? <span className={styles.bestTag}>ارزان‌ترین</span> : null}
                     <span className={styles.rowCount}>
                       بر اساس {toPersianDigits(l.rowCount)} قیمت

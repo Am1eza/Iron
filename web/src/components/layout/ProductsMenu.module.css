@@ -1,0 +1,293 @@
+/**
+ * «محصولات» mega-menu — rail + one category panel.
+ *
+ * The panel shell itself (position, width, shadow, entry animation) stays in
+ * Header.module.css as `.mega`, because NavDropdown owns it and the simple
+ * dropdowns share that shell's conventions. Everything INSIDE the mega panel
+ * lives here.
+ *
+ * Nothing in this file may depend on how many categories or sub-categories
+ * exist: the rail's height is a function of the category count only, and the
+ * panel's height is a function of ONE category's sub-category count, capped
+ * and scrolled locally. That is the whole point of the layout — the previous
+ * one made the tallest category set the height of the entire menu.
+ */
+
+.layout {
+  display: grid;
+  /* Rail is fixed-width; the panel takes what is left. `minmax(0, 1fr)` (not
+     `1fr`) so a long sub-category name can never push the grid wider than the
+     panel and force the whole menu to overflow. */
+  grid-template-columns: 15rem minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+/* ===== Category rail ===== */
+.rail {
+  border-inline-end: var(--border-hairline) solid var(--color-hairline);
+  padding-inline-end: var(--space-4);
+}
+.railList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.railItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  /* The active marker is a bar on the inline-start edge, drawn as a border
+     that is always present but transparent when inactive — a border that
+     appears on hover would shift every label by 3px as the pointer travels
+     down the rail. */
+  border-inline-start: var(--border-focus) solid transparent;
+  color: var(--color-text);
+  font: var(--t-label);
+  text-decoration: none;
+}
+.railItem:hover,
+.railItem[data-active] {
+  background: var(--color-surface-sunken);
+  border-inline-start-color: var(--color-accent);
+  color: var(--color-text-strong);
+  text-decoration: none;
+}
+.railThumb {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 32px;
+  block-size: 24px;
+  border-radius: var(--radius-xs);
+  overflow: hidden;
+  border: var(--border-hairline) solid var(--color-hairline);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-strong);
+}
+.railThumb > * {
+  inline-size: 100%;
+  block-size: 100%;
+}
+.railName {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+/* Sub-category count. Tabular numerals per the Persian typography rules, and
+   a genuine scanning aid: it tells you before you hover that ورق is a deep
+   category and نبشی و ناودانی is a shallow one. */
+.railCount {
+  flex: none;
+  min-inline-size: 1.5rem;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-xs);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+  font: var(--t-micro);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.railItem:hover .railCount,
+.railItem[data-active] .railCount {
+  background: var(--color-accent-tint);
+  color: var(--color-accent-text);
+}
+.railChev {
+  flex: none;
+  color: var(--color-text-placeholder);
+}
+.railItem:hover .railChev,
+.railItem[data-active] .railChev {
+  color: var(--color-accent);
+}
+
+/* ===== Active category panel ===== */
+.panel {
+  /* A floor, so switching from ورق (19) to نبشی و ناودانی (3) doesn't collapse
+     the menu to a third of its height under the pointer. */
+  min-block-size: 17rem;
+  /* A ceiling with local scroll, so the category that eventually has 80
+     sub-categories scrolls its own pane instead of growing the whole menu off
+     the bottom of the screen — the failure this redesign exists to fix. */
+  max-block-size: min(calc(100vh - 15rem), 34rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  padding-inline-end: var(--space-2);
+}
+.panelHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-block-end: var(--space-4);
+  padding-block-end: var(--space-2);
+  border-block-end: var(--border-hairline) solid var(--color-hairline);
+}
+.panelTitle {
+  margin: 0;
+  font: var(--t-h4);
+  font-weight: 700;
+  color: var(--color-text-strong);
+}
+.panelAll {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-accent-text);
+  font: var(--t-caption);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.panelAll:hover {
+  text-decoration: underline;
+}
+.panelEmpty {
+  margin: 0;
+  color: var(--color-text-muted);
+  font: var(--t-body-sm);
+}
+
+/* Sub-category flow beside the category figure. The figure is fixed-width and
+   comes LAST in the row so the list stays hard against the reading edge; a
+   multi-column flow only ever fills the width it is handed, so bounding that
+   width is what stops a 3-item category reading as scattered orphans across
+   the whole menu. */
+.panelBody {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-6);
+}
+.panelBody > .groups,
+.panelBody > .panelEmpty {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  order: 1;
+}
+.panelArt {
+  order: 2;
+  flex: none;
+  /* Pinned to the far edge. Capping the list's width (below) otherwise leaves
+     the picture stranded mid-panel with dead space beyond it. */
+  margin-inline-start: auto;
+  inline-size: 16rem;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  border: var(--border-hairline) solid var(--color-hairline);
+  background: var(--color-surface-sunken);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.panelArt > * {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+}
+.panelArtFallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: auto;
+  block-size: auto;
+  color: var(--color-text-muted);
+}
+
+/* Multi-column flow. This is what absorbs an uneven catalog: a 3-item
+   category makes one short column, a 19-item one balances into three, and the
+   panel's own width — not the menu's height — is what changes. `break-inside`
+   keeps a labelled group and its children together in one column. */
+.groups {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  column-gap: var(--space-6);
+  columns: 3;
+}
+/* Column count comes from the block count, not from CSS guessing at it: four
+   short blocks spread over three columns read as three orphans, not as a
+   column layout. */
+/* …and bounded, because `columns` always stretches its columns to fill the
+   container: two columns across the full panel put «میلگرد آجدار» and «میلگرد
+   ساده» ~340px apart, which reads as two unrelated lists rather than one
+   two-column list. Three columns need no cap — at that count they fill the
+   space at a sensible measure on their own. */
+.groups[data-cols='1'] {
+  columns: 1;
+  max-inline-size: 16rem;
+}
+.groups[data-cols='2'] {
+  columns: 2;
+  max-inline-size: 32rem;
+}
+.group {
+  break-inside: avoid;
+  margin-block-end: var(--space-1);
+}
+.subList,
+.subListNested {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+/* A labelled group's children sit behind a hairline leader — a technical-
+   drawing bracket rather than a bullet, which is the register this catalogue
+   is read in. It also makes the heading unmistakably a heading, which is the
+   half of the «چهارپهلو» bug that CSS is responsible for. */
+.subListNested {
+  margin-inline-start: var(--space-3);
+  padding-inline-start: var(--space-3);
+  border-inline-start: var(--border-hairline) solid var(--color-hairline);
+}
+.sub {
+  display: block;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  font: var(--t-body-sm);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.sub:hover {
+  background: var(--color-accent-tint);
+  color: var(--color-accent-text);
+  text-decoration: none;
+}
+/* The promoted lead of a group — a link that is also the group's heading. */
+.groupHead {
+  font: var(--t-label);
+  font-weight: 700;
+  color: var(--color-text-strong);
+}
+/* A group label nothing is actually named (مانیسمان) — text, not a link,
+   and styled as an overline so it can never be mistaken for a dead link. */
+.groupLabel {
+  margin: 0;
+  padding: var(--space-2) var(--space-2) var(--space-1);
+  font: var(--t-overline);
+  color: var(--color-text-muted);
+  letter-spacing: 0.02em;
+}
+
+/* Below the desktop breakpoint the whole header nav is replaced by the drawer,
+   so this never renders there — but keep the rail from squeezing if the menu
+   is ever opened mid-resize. */
+@media (max-width: 1180px) {
+  .layout {
+    grid-template-columns: 13rem minmax(0, 1fr);
+  }
+  .groups {
+    columns: 2;
+  }
+}

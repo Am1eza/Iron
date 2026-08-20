@@ -15,7 +15,8 @@ import type { AppLocale } from '@/i18n/config';
 import { Logo } from './Logo';
 import { SearchBar } from './SearchBar';
 import { NavDropdown } from './NavDropdown';
-import { ProductsMenu } from '@/components/lazy';
+// NOT from '@/components/lazy': the mega-menu's links must be in the HTML.
+import { ProductsMenu } from './ProductsMenu';
 import { LocaleSwitcher } from './LocaleSwitcher';
 import { MenuIcon, SearchIcon, UserIcon, CartIcon, AiMarkIcon } from '@/components/primitives/icons';
 import styles from './Header.module.css';

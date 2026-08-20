@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query/keys';
@@ -30,6 +30,7 @@ import {
 import { PriceChart } from './PriceChart';
 import { BulkQuote } from './BulkQuote';
 import { ProductImage } from './ProductImage';
+import { FactoryLink } from './FactoryLink';
 import { productImage } from '@/lib/data/productImages';
 import { AlertBellButton } from '@/components/alerts/AlertBellButton';
 import {
@@ -195,7 +196,10 @@ export function SkuDetail({
   // every other category keeps «سایز» (see catalogLabels).
   const sizeCol = sizeLabel(row.categoryId);
 
-  const specs: { label: string; value: string }[] = [
+  // `value` is a node, not a string, so the کارخانه row can be a link to that
+  // mill's page — the natural next question on a product page is "what else
+  // does this mill make?" and the spec table was a dead end for it.
+  const specs: { label: string; value: ReactNode }[] = [
     { label: sizeCol, value: row.size ? toPersianDigits(row.size) : 'نامشخص' },
     // ورق only, and only once someone has filled it in. Unlike the rows below
     // there is deliberately no «نامشخص» placeholder: most sheet SKUs have no
@@ -206,7 +210,10 @@ export function SkuDetail({
       label: row.categoryId === 'rebar' ? 'گرید' : 'گرید / استاندارد',
       value: row.grade ?? row.standard ?? 'نامشخص',
     },
-    { label: 'کارخانه', value: row.factory ?? 'نامشخص' },
+    {
+      label: 'کارخانه',
+      value: <FactoryLink categorySlug={row.categoryId} factory={row.factory} />,
+    },
     {
       label: 'وزن شاخه',
       value: row.theoreticalWeightKg
@@ -254,7 +261,11 @@ export function SkuDetail({
                 </li>
               ) : null}
               {row.grade || row.standard ? <li>گرید {row.grade ?? row.standard}</li> : null}
-              {row.factory ? <li>کارخانهٔ {row.factory}</li> : null}
+              {row.factory ? (
+                <li>
+                  کارخانهٔ <FactoryLink categorySlug={row.categoryId} factory={row.factory} />
+                </li>
+              ) : null}
               {row.theoreticalWeightKg ? (
                 <li>
                   وزن شاخه{' '}

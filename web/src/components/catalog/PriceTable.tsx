@@ -28,7 +28,7 @@ import {
   priceUnitCaption,
   singlePriceBasis,
 } from '@/lib/utils/catalogLabels';
-import { factoryFacetSlug } from '@/lib/utils/catalogFacets';
+import { FactoryLink } from './FactoryLink';
 import { groupByLabel } from '@/lib/utils/catalogGroups';
 import { formatJalali } from '@/lib/utils/jalali';
 import { API_MODE } from '@/lib/api/config';
@@ -56,36 +56,17 @@ function compareRows(a: PriceRow, b: PriceRow, sort: SortKey): number {
   return Number(normalizeDigits(a.size ?? '0')) - Number(normalizeDigits(b.size ?? '0'));
 }
 
-/** No stored factory reads as «نامشخص» in every one of these tables. */
-const UNKNOWN_FACTORY = 'نامشخص';
-
 /**
  * The factory name, linked to that factory's own price page.
  *
- * `/prices/[category]/factory/[factory]` already exists (the per-factory SEO
- * landing pages), but nothing on a price table pointed at it — a visitor who
- * had just read «ذوب‌آهن اصفهان» in the کارخانه column had no way to get to
- * that mill's own page except through the facet rail. The segment is DERIVED
- * from the free-text `skus.factory` by `factoryFacetSlug`, the same function
- * `catalogRepo.publicCatalogPaths` and the page itself resolve with, so the
- * three can only ever agree.
- *
- * `categorySlug` is the row's OWN category (`PriceRow.categoryId` carries the
- * slug — see catalogRepo's DTO note), not the page's: a cross-listed SKU
- * rendered under `/prices/steel` still lives in `sheet`, and it is the home
- * category whose facet page is guaranteed to contain it.
- *
- * A row with no factory has no page to point at — the route `notFound()`s an
- * empty facet — so it stays exactly the plain text it was before.
+ * The implementation moved to `components/catalog/FactoryLink` so the same
+ * behaviour is available to every other surface that shows a mill name (the
+ * homepage flyout, search, the /prices hub, SkuDetail, BulkQuote); this stays
+ * as the table's local spelling of it, keeping the table's own `.nameLink`
+ * styling. See FactoryLink for why `categorySlug` is the ROW's category.
  */
 function FactoryCell({ categorySlug, factory }: { categorySlug: string; factory?: string | null }) {
-  const name = factory?.trim();
-  if (!name || name === UNKNOWN_FACTORY) return <>{UNKNOWN_FACTORY}</>;
-  return (
-    <Link href={routes.categoryByFactory(categorySlug, factoryFacetSlug(name))} className={styles.nameLink}>
-      {name}
-    </Link>
-  );
+  return <FactoryLink categorySlug={categorySlug} factory={factory} className={styles.nameLink} />;
 }
 
 type RowActions = {

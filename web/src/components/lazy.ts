@@ -5,15 +5,15 @@ import dynamic from 'next/dynamic';
  * Client components that are only needed on interaction (a click, a hamburger
  * open, a chart request) rather than on first paint — deferred with
  * `next/dynamic` so their code isn't in the initial/shared bundle every
- * visitor downloads. All three are client-only UI (no SEO-relevant content),
- * so `ssr: false` costs nothing and skips server-rendering a shell for them.
+ * visitor downloads. These are client-only UI (no SEO-relevant content), so
+ * `ssr: false` costs nothing and skips server-rendering a shell for them.
+ *
+ * «محصولات» (ProductsMenu) used to be listed here and is NOT any more. The
+ * premise above was wrong for it: its panel is the site's whole product
+ * taxonomy, ~90 internal links with Persian product names as anchor text, and
+ * `ssr: false` meant not one of them appeared in any page's HTML. It is now
+ * imported directly by Header and server-rendered. See its own file header.
  */
-
-/** «محصولات» desktop mega-menu — opens on hover/click, never on first paint. */
-export const ProductsMenu = dynamic(
-  () => import('./layout/ProductsMenu').then((m) => m.ProductsMenu),
-  { ssr: false },
-);
 
 /** Mobile hamburger drawer — only reachable below the 1024px breakpoint, and
  *  only once opened; desktop visitors never trigger it. */

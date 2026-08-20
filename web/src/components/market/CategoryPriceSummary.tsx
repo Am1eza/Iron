@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { routes } from '@/lib/routes';
 import { formatToman, formatMovement, priceHiddenLabel, toPersianDigits } from '@/lib/utils/format';
 import type { Category, PriceRow } from '@/lib/types/domain';
+import { FactoryLink } from '@/components/catalog/FactoryLink';
 import { ChevronStartIcon } from '@/components/primitives/icons';
 import styles from './CategoryPriceSummary.module.css';
 
@@ -85,7 +86,9 @@ export function CategoryPriceSummary({
                     </Link>
                   </td>
                   <td>{r.size ? toPersianDigits(r.size) : 'نامشخص'}</td>
-                  <td className={styles.muted}>{r.factory ?? 'نامشخص'}</td>
+                  <td className={styles.muted}>
+                    <FactoryLink categorySlug={r.categoryId} factory={r.factory} />
+                  </td>
                   <td className={`${styles.num} ${styles.price}`}>
                     {priceHiddenLabel(r.current) ?? formatToman(r.current.price, false)}
                   </td>
@@ -147,7 +150,9 @@ export function CategoryPriceSummary({
                 </div>
                 <div>
                   <dt>کارخانه</dt>
-                  <dd>{r.factory ?? 'نامشخص'}</dd>
+                  <dd>
+                    <FactoryLink categorySlug={r.categoryId} factory={r.factory} />
+                  </dd>
                 </div>
                 <div>
                   <dt>زمان تحویل</dt>

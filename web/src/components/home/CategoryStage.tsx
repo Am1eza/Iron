@@ -7,7 +7,8 @@ import type { Category } from '@/lib/types/domain';
 import { CategoryArt } from '@/components/catalog/CategoryArt';
 import { ProductImage } from '@/components/catalog/ProductImage';
 import { productImage, productThumb } from '@/lib/data/productImages';
-import { groupByLabel } from '@/lib/utils/catalogGroups';
+import { groupSubCategories } from '@/lib/utils/catalogGroups';
+import { FactoryLink } from '@/components/catalog/FactoryLink';
 import { ChevronStartIcon } from '@/components/primitives/icons';
 import styles from './CategoryStage.module.css';
 
@@ -58,8 +59,12 @@ export function CategoryStage({
   // lib/utils/catalogGroups.ts. Without this, a newly-added grouped
   // subcategory (freshly created, so it sorts to the end by `order`) doesn't
   // visually surface anywhere near the sibling it's meant to be grouped with.
-  const subGroups = groupByLabel(subs);
-  const firstSubSlug = subGroups[0]?.items[0]?.slug;
+  // …and, where a cluster's label IS the name of one of its own members
+  // («چهارپهلو» over «چهارپهلو» + «چهارپهلو آلیاژی»), promotes that member to
+  // BE the heading instead of rendering a dead caption above an identical
+  // link — see groupSubCategories.
+  const subGroups = groupSubCategories(subs);
+  const firstSubSlug = subGroups[0]?.lead?.slug ?? subGroups[0]?.items[0]?.slug;
   const mills = factories[activeCat.slug]?.[activeSub] ?? [];
   const activeSubName = subs.find((s) => s.slug === activeSub)?.name ?? '';
 
@@ -180,8 +185,23 @@ export function CategoryStage({
                 <div className={styles.col}>
                   <p className={styles.colLabel}>زیرشاخه‌های {activeCat.name}</p>
                   {subGroups.map((group) => (
-                    <div key={group.label ?? `_solo_${group.items[0]!.slug}`}>
-                      {group.label ? (
+                    <div key={group.label ?? `_solo_${(group.lead ?? group.items[0])!.slug}`}>
+                      {group.lead ? (
+                        <Link
+                          ref={group.lead.slug === firstSubSlug ? firstFlyoutLinkRef : undefined}
+                          href={routes.subCategory(activeCat.slug, group.lead.slug)}
+                          className={`${styles.subItem} ${styles.subLead}`}
+                          data-active={activeSub === group.lead.slug ? '' : undefined}
+                          onMouseEnter={() => setActiveSub(group.lead!.slug)}
+                          onFocus={() => setActiveSub(group.lead!.slug)}
+                          onKeyDown={
+                            group.lead.slug === firstSubSlug ? handleFlyoutFirstKeyDown : undefined
+                          }
+                        >
+                          <span>{group.lead.name}</span>
+                          <ChevronStartIcon size={14} className={`${styles.subChev} icon--rtl`} />
+                        </Link>
+                      ) : group.label ? (
                         <p className={styles.subGroupHeading}>{group.label}</p>
                       ) : null}
                       <ul className={styles.colList}>
@@ -211,15 +231,22 @@ export function CategoryStage({
                   <p className={styles.colLabel}>
                     کارخانه‌های {activeSubName}
                   </p>
+                  {/* A mill name goes to that MILL'S page, not to a filtered
+                      view of the sub-category we happen to be standing in.
+                      `?factory=` produced a query-string URL with no page of
+                      its own — nothing canonical, nothing indexable, and a
+                      dead end for anyone whose next question is "what else
+                      does ذوب‌آهن اصفهان roll?". The per-factory landing
+                      pages already exist and every price table already links
+                      to them; this was the one surface that didn't. */}
                   <ul className={styles.colList}>
                     {mills.map((f) => (
                       <li key={f}>
-                        <Link
-                          href={`${routes.subCategory(activeCat.slug, activeSub)}?factory=${encodeURIComponent(f)}`}
+                        <FactoryLink
+                          categorySlug={activeCat.slug}
+                          factory={f}
                           className={styles.factoryItem}
-                        >
-                          {f}
-                        </Link>
+                        />
                       </li>
                     ))}
                   </ul>
