@@ -26,6 +26,16 @@ All 9 top-level categories rendered as simultaneous columns in one
 | استیل | 11 |
 | فلزات رنگی | 12 |
 
+> **These counts are a snapshot, not a spec.** They are what the live taxonomy
+> held on 1405/05/29 while this work was done, and the screenshots below show
+> that state. The catalog is actively being edited: by the time this shipped,
+> کلاف و مفتول had been set `is_active = false` by someone else and فلزات رنگی
+> had gained ناودانی آلومینیوم (#209), so the deployed menu renders **8**
+> categories, not 9. That is the menu working — `getCategories()` filters on
+> `is_active` and the rail is sized by the category *count*, whatever it is.
+> Do not read any number in this document as the current taxonomy; query
+> `categories` / `sub_categories` for that.
+
 A 3-item column next to a 19-item column, wrapped over three rows, gave the
 panel a natural height of ~1,225px. It was capped at 720px with
 `overflow-y: auto` and a scroll-shadow gradient — but at 1440×900 (see
