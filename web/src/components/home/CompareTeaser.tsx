@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { routes } from '@/lib/routes';
 import { formatToman } from '@/lib/utils/format';
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion';
+import { FactoryLink } from '@/components/catalog/FactoryLink';
 import { ChevronStartIcon } from '@/components/primitives/icons';
 import styles from './CompareTeaser.module.css';
 
@@ -136,7 +137,16 @@ export function CompareTeaser({ slides }: { slides: CompareSlide[] }) {
               {slide.lines.map((l) => (
                 <li key={l.factory} className={styles.row} data-best={l.best ? '' : undefined}>
                   <span className={styles.factory}>
-                    {l.factory}
+                    {/* This card is the site's mill-comparison surface — the
+                        one place a visitor is actively weighing mills against
+                        each other — so a mill name here is exactly where the
+                        next click wants to go: that mill's own page in this
+                        category. `slide.slug` is the category slug. */}
+                    <FactoryLink
+                      categorySlug={slide.slug}
+                      factory={l.factory}
+                      className={styles.factoryLink}
+                    />
                     {l.best && <span className={styles.bestTag}>ارزان‌ترین</span>}
                   </span>
                   <span className={styles.figures}>

@@ -107,6 +107,19 @@
 .row + .row {
   border-block-start: 1px solid var(--color-panel-hairline);
 }
+/* On the dark blueprint card the mill link inherits the row's own colour and
+   only declares itself on hover/focus — a coloured link on every row would
+   compete with the prices, which are what this card exists to show. */
+.factoryLink {
+  color: inherit;
+  text-decoration: none;
+  border-block-end: var(--border-hairline) dotted currentColor;
+}
+.factoryLink:hover,
+.factoryLink:focus-visible {
+  color: var(--color-on-panel);
+  text-decoration: none;
+}
 .factory {
   display: inline-flex;
   align-items: center;
