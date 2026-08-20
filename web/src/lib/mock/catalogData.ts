@@ -8,6 +8,7 @@
 import type { Article, MovementDir, PriceRow } from '@/lib/types/domain';
 import { categories } from './fixtures';
 import { MOCK_CATEGORY_SUBS, type SubCat } from '@/lib/data/nav';
+import { theoreticalWeightFor } from '@/lib/utils/catalogCompose';
 
 /* ---- seeded PRNG (stable across SSR/CSR) ---- */
 function lcg(seed: number) {
@@ -73,11 +74,6 @@ const BASE_PRICE: Record<string, number> = {
 const DELIVERY = ['۲۴ ساعت', '۴۸ ساعت', '۷۲ ساعت', 'تحویل فوری'];
 const UPDATED_AT = '2026-08-16T00:00:00.000Z';
 
-function faToInt(s: string): number {
-  const m = s.replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).match(/\d+/);
-  return m ? Number(m[0]) : 10;
-}
-
 /** rebar grade per sub-category (A1 plain, A2/A3 deformed, A4 alloy). */
 function rebarGrade(subSlug: string): string | undefined {
   if (subSlug === 'plain') return 'A1';
@@ -111,7 +107,17 @@ function rowsFor(categorySlug: string): PriceRow[] {
       const price = Math.round((base + subOffset + (rnd() - 0.4) * 4000) / 50) * 50;
       const pct = Math.round((rnd() - 0.45) * 24) / 10; // -1.x..+1.x
       const dir: MovementDir = pct > 0.05 ? 'up' : pct < -0.05 ? 'down' : 'flat';
-      const weight = Math.round((faToInt(size) ** 2 / 162) * 12 * 10) / 10 || 10;
+      // `theoreticalWeightFor` rather than a formula inlined here. This line
+      // used to be `(faToInt(size) ** 2 / 162) * 12` — the ROUND-BAR formula
+      // (on a local `faToInt`, now gone with it), applied to every category,
+      // and `|| 10` on top so a size that parsed
+      // to 0 («ورق آجدار ۰.۷») got a literal 10 kg. `scripts/seed.ts` writes
+      // this straight into `skus.theoretical_weight_kg`, so it is where the
+      // catalog's «نبشی ۱۰ = ۷.۴ kg» / «قوطی ۱۰۰×۱۰۰ = ۷۴۰ kg» came from.
+      // `undefined` is now a legitimate, common answer — most of these lines
+      // have no derivable branch weight, and every consumer already renders
+      // that as «نامشخص».
+      const weight = theoreticalWeightFor(categorySlug, size, sub.slug) ?? undefined;
       const slug = `${categorySlug}-${sub.slug}-${++i}`;
       rows.push({
         id: slug,

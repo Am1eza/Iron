@@ -80,24 +80,69 @@ describe('theoreticalWeightFor', () => {
   it('uses d²/162 × 12m for a rebar branch', () => {
     // 14² / 162 × 12 ≈ 14.5 kg — the number the customer weight calculator
     // and the cost estimate are both built on.
-    expect(theoreticalWeightFor('rebar', '۱۴')).toBeCloseTo(14.5, 1);
-    expect(theoreticalWeightFor('rebar', '۱۶')).toBeCloseTo(19, 0);
+    expect(theoreticalWeightFor('rebar', '۱۴', 'deformed')).toBeCloseTo(14.5, 1);
+    expect(theoreticalWeightFor('rebar', '۱۶', 'deformed')).toBeCloseTo(19, 0);
   });
 
-  it('uses the per-metre figure for wire', () => {
-    expect(theoreticalWeightFor('wire', '۸')).toBeCloseTo(0.4, 1);
+  it('reads نبشی from the published angle table over a 6 m branch, not the round-bar formula', () => {
+    // «نبشی ۱۰» is L100×100×10 = 15.72 kg/m (ANGLE_KG_PER_M, مرکزآهن's
+    // published table) × 6 m = 94.3 kg. The round-bar formula this function
+    // used to reach for said 7.4 kg — a 12.7× understatement that was stored
+    // on the live SKU.
+    expect(theoreticalWeightFor('angle-channel', '۱۰', 'nabshi')).toBeCloseTo(94.3, 1);
+    expect(theoreticalWeightFor('angle-channel', '۶', 'nabshi')).toBeCloseTo(34, 0);
+    // The pre-rename sub slug resolves identically.
+    expect(theoreticalWeightFor('angle-channel', '۱۰', 'angle')).toBeCloseTo(94.3, 1);
   });
 
-  it('refuses to invent a weight for shapes the formula does not describe', () => {
-    // A sheet or a profile has no round-bar diameter; guessing would feed a
-    // wrong tonnage straight into a customer quote.
-    expect(theoreticalWeightFor('sheet', '۲')).toBeNull();
-    expect(theoreticalWeightFor('profile', '۴۰×۴۰')).toBeNull();
+  it('refuses نبشی sizes the published table does not cover rather than approximating', () => {
+    // ANGLE_KG_PER_M stops at a 120 mm leg; the geometric fallback drifts ~5 %
+    // at those sizes, so «نبشی ۱۴/۱۶/۱۸» get no number at all.
+    expect(theoreticalWeightFor('angle-channel', '۱۴', 'nabshi')).toBeNull();
+    expect(theoreticalWeightFor('angle-channel', '۱۸', 'nabshi')).toBeNull();
+  });
+
+  it('reads تیرآهن from the IPE table over a 12 m branch', () => {
+    // 12.9 kg/m × 12 = 154.8 — which is the 155 already stored on «تیرآهن ۱۴
+    // ذوب‌آهن اصفهان», so this path reproduces the catalog's own good data.
+    expect(theoreticalWeightFor('ibeam', '۱۴', 'tirahan')).toBeCloseTo(154.8, 1);
+  });
+
+  it('refuses every sub-category whose section or branch length is not published', () => {
+    // ناودانی سبک/سنگین are separate weight classes from the اشتال tier in
+    // CHANNEL_KG_PER_M and the public tables for them disagree by ~11%.
+    expect(theoreticalWeightFor('angle-channel', '۱۰', 'channel-light')).toBeNull();
+    expect(theoreticalWeightFor('angle-channel', '۱۰', 'channel-heavy')).toBeNull();
+    // هاش is HEA/HEB, not IPE.
+    expect(theoreticalWeightFor('ibeam', '۱۴', 'hash-sabok')).toBeNull();
+    expect(theoreticalWeightFor('ibeam', '۲۰', 'lane-zanburi')).toBeNull();
+    // A box needs a wall thickness and a plate needs width × length; neither
+    // is stored, so guessing would feed a wrong tonnage into a customer quote.
+    expect(theoreticalWeightFor('sheet', '۲', 'black')).toBeNull();
+    expect(theoreticalWeightFor('profile', '۴۰×۴۰', 'box-square')).toBeNull();
+    // A pipe's «۲ اینچ» is the outside diameter only.
+    expect(theoreticalWeightFor('pipe', '۲ اینچ', 'gas')).toBeNull();
+    // کلاف/مفتول are coils — `weight.ts` gives the `wire` shape no default
+    // length for exactly this reason. There is no «شاخه» to weigh.
+    expect(theoreticalWeightFor('wire', '۸', 'coil')).toBeNull();
+  });
+
+  it('refuses میلگرد ساده, whose sub-category mixes a 6 m branch with coil', () => {
+    // ahanonline quotes «شاخه ۶ متری» for the straight-bar mills and «کلاف»
+    // for the rest under one heading — no single length is right for it.
+    expect(theoreticalWeightFor('rebar', '۱۴', 'mylgrd-sadh')).toBeNull();
+  });
+
+  it('returns null when the sub-category is unknown, rather than falling back to a category rule', () => {
+    // The section is a property of the sub-category. Answering from the
+    // category alone is what produced «ناودانی ۱۰ = ۷.۴ kg».
+    expect(theoreticalWeightFor('rebar', '۱۴')).toBeNull();
+    expect(theoreticalWeightFor('angle-channel', '۱۰')).toBeNull();
   });
 
   it('returns null for a missing or unparseable size', () => {
-    expect(theoreticalWeightFor('rebar', '')).toBeNull();
-    expect(theoreticalWeightFor('rebar', 'نامشخص')).toBeNull();
+    expect(theoreticalWeightFor('rebar', '', 'deformed')).toBeNull();
+    expect(theoreticalWeightFor('rebar', 'نامشخص', 'deformed')).toBeNull();
   });
 });
 
