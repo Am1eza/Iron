@@ -525,7 +525,7 @@ rows are saved in `.claude/audits/catalog-owner-decisions-2026-08-20/` for whoev
 |---|---|
 | **تسمه فابریک، 25 SKUs** | §6 — needs a supplier call. Everything research can settle is settled. |
 | **هاش theoretical weights** | مرکزآهن publishes a good per-شاخه weight for all 12 sizes and they match the standard sections. Filling them makes the ten priced هاش rows auto-quotable, which is a commercial decision, not a data fix. One script away if wanted. |
-| **ناودانی آلومینیوم** | 8 live, priced rows at 630,000 on the approved source. Needs a new sub-category; was not in this pass's scope. |
+| **ناودانی آلومینیوم** | **Done 2026-08-20** — the owner said yes; the sub-category was created and all 8 rows loaded. See §9. |
 | **سپری / سیم‌جوش آلومینیوم، 7 استنلس fitting lines** | 8 sub-categories still empty. Genuinely no published table anywhere — needs a supplier, not another scrape. Unchanged from the previous pass. |
 | **لوله مانیسمان خارجی** | Still empty. 42 real imported rows exist, all per-شاخه; converting them needs an ASME B36.10M weight per (size, رده) and doing that arithmetic gives an implied per-kg spanning 175,369 → 299,529 across neighbouring sizes of the same schedule. Unchanged. **The new `price_basis` column now makes a per-شاخه load possible without any conversion at all** — that is a real option the previous pass did not have. |
 | **بوشن مسی / میلگرد مسی** | Still empty; ahanonline publishes no priced rows. |
@@ -613,3 +613,107 @@ old image was unaffected during the window.
 ### Out of scope, untouched as instructed
 
 The products/Navbar mega-menu redesign, and the FAQ / article / comments-under-factory-page work.
+
+---
+
+## 9. Follow-up 2026-08-20 — ناودانی آلومینیوم loaded
+
+§4 found this line live and priced and reported it rather than loading it, because فلزات رنگی had
+no ناودانی sub-category at all and creating a product line was outside that pass's brief. The
+owner approved it. This is that one item and nothing else.
+
+### Re-fetched, not remembered
+
+`markazeahan.com/product-category/aluminum/` was pulled again at **2026-08-20 08:20 UTC** and
+re-parsed. What §4 recorded holds on today's page:
+
+| | |
+|---|---|
+| table | «ناودانی آلومینیوم», dated **۱۴۰۵/۰۵/۲۸** |
+| rows | **8**, every one priced |
+| قیمت | **630,000 تومان/کیلوگرم** — identical across all 8 |
+| کارخانه | **آلومین گستر** |
+| طول | **6 m** |
+| واحد | **کیلوگرم** |
+
+The script re-derives all of that from the fetched JSON rather than taking it on trust: it drops
+any row whose table is not dated ۱۴۰۵/۰۵/۲۸, aborts unless every row's «واحد» reads کیلوگرم, and
+asserts every price inside 400,000–1,200,000 T/kg before it opens a transaction.
+
+### The 8 SKUs
+
+New sub-category `felezat-rangi` / **`aluminum-channel`** — «ناودانی آلومینیوم», order 13.
+
+```
+felezat-rangi-aluminum-channel-10x10   ناودانی آلومینیوم ۱۰×۱۰
+felezat-rangi-aluminum-channel-13x10   ناودانی آلومینیوم ۱۳×۱۰
+felezat-rangi-aluminum-channel-16x16   ناودانی آلومینیوم ۱۶×۱۶
+felezat-rangi-aluminum-channel-20x16   ناودانی آلومینیوم ۲۰×۱۶
+felezat-rangi-aluminum-channel-20x20   ناودانی آلومینیوم ۲۰×۲۰
+felezat-rangi-aluminum-channel-20x30   ناودانی آلومینیوم ۲۰×۳۰
+felezat-rangi-aluminum-channel-20x40   ناودانی آلومینیوم ۲۰×۴۰
+felezat-rangi-aluminum-channel-20x50   ناودانی آلومینیوم ۲۰×۵۰
+```
+
+All: `unit = 'kg'`, `price_basis = 'kg'`, `branch_length_m = 6`, `factory = 'آلومین گستر'`,
+`theoretical_weight_kg = NULL`, price 630,000, تحویل ۲۴ ساعت, VAT not included — plus one
+`price_points` row each, so the line has a history from day one.
+
+### One thing the source is inconsistent about
+
+مرکزآهن states each size twice and in **opposite orders**: the product name reads «ناودانی 20*40
+آلومینیوم» where the «سایز» column reads «40*20». That is true of all 8 rows, so neither column is
+reliably larger-first and picking by "which looks like the conventional spec" would be a guess.
+
+The size is taken from the **product name** — that is the string a buyer sees and searches on the
+source, and it is what `seedAluminium.ts` already parses for نبشی. The «سایز» column is then used
+as an assertion: the script aborts if the two ever stop being exact reversals of each other, since
+at that point they would mean different things and a human has to say which one names the product.
+
+### No theoretical weight — deliberately, again
+
+The «وزن هر شاخه» column still contradicts itself on today's fetch: **ناودانی ۱۳×۱۰ is listed at
+8 kg** against 0.6–1.5 kg for all seven of its siblings. So the column is not used for any row,
+which is the same refusal §4 made for the other 108 aluminium SKUs and the standing rule that a
+weight is written only when the section table and the branch length are *both* trustworthy.
+`branch_length_m = 6` **is** written, because the table states it plainly.
+
+The consequence is the intended one: these 8 rows quote per kilogram and cannot silently
+auto-quote a شاخه.
+
+> The **هاش theoretical-weight fill** — the other §7 loose end — was explicitly out of scope here
+> and is untouched. It changes what auto-quotes to a customer without human review, which is the
+> owner's call to make directly.
+
+### Verified live
+
+Re-queried from the database itself, not from the script's own output — 8 SKUs, 8 `current_prices`
+rows, 8 `price_points`, all `kg`/`kg`, all weights null, all lengths 6.
+
+Through Caddy on the public origin:
+
+```
+200  /prices/felezat-rangi/aluminum-channel                        8 rows, «تومان / کیلوگرم»
+200  /prices/felezat-rangi/aluminum-channel/…-20x40                the SKU page
+200  /prices/felezat-rangi                                         chip list now ends «… ناودانی آلومینیوم»
+```
+
+The category page went **۱۸۰ → ۱۸۸ کالا** and **۷ → ۸ کارخانه** (آلومین گستر is the new one) once
+its 300-second ISR window turned over.
+
+`tsc --noEmit` clean, `next lint` clean, Prettier clean, and the 44 catalog tests
+(`catalogCompose`, `catalogLabels`) pass. No migration, no schema change, no code path touched —
+`felezat-rangi` sub-categories are entirely DB-driven, which is why §4's `aluminum-sheet` and
+`aluminum-profile` needed no code either.
+
+### Noticed, not fixed
+
+`/prices/felezat-rangi/<sub>/<sku>` renders the breadcrumb's category as the raw slug
+**`felezat-rangi`** instead of «فلزات رنگی». Pre-existing — the same on the نبشی آلومینیوم SKU
+pages from §4 — and unrelated to this change, so it is reported rather than folded in.
+
+### Files
+
+- `web/scripts/seedAluminiumChannel.ts` — dry-run by default, `--apply` to write, idempotent.
+- `.claude/audits/aluminium-channel-2026-08-20/` — the page as fetched today, the parser, the
+  extracted 8-row JSON, and the rendered pages checked against it.
