@@ -6,7 +6,7 @@
 import type { RichDoc } from '@/lib/content/richDoc';
 
 /**
- * کیلوگرم / شاخه / برگ / متر / عدد.
+ * کیلوگرم / شاخه / برگ / متر / عدد / متر مربع — WHAT `qty` COUNTS IN.
  *
  * The single source, deliberately in this browser-safe module rather than in
  * `server/db/schema/catalog.ts`: the Drizzle column, every Zod request schema
@@ -15,13 +15,76 @@ import type { RichDoc } from '@/lib/content/richDoc';
  * there now re-exports this array, so the two can no longer drift — they were
  * two hand-maintained copies of the same union until `piece` was added.
  *
- * `piece` is not just another countable unit: `current_prices.price` is per
- * KILOGRAM for kg/branch/sheet/meter alike (the unit only says what `qty`
- * counts in — see `leads.service.priceItems`), while a `piece` price is per
- * عدد with no mass in the chain. Every kg-based path opts it out explicitly.
+ * This says NOTHING about what the price is per — that is `PriceBasis` below,
+ * a separate column. The two used to be conflated in this one field, which is
+ * how 55 rows (وال پست, لوله مسی, ورق پانچ) ended up captioned «۱۶٬۴۹۲٬۳۸۰
+ * تومان / کیلوگرم» on a product whose price is per 15-metre coil.
+ *
+ * `sqm` («متر مربع») is ساندویچ‌پانل's unit: that product is quoted, ordered
+ * and delivered by square metre, and — unlike every other member here — its
+ * quantity is legitimately fractional (۱۲٫۵ متر مربع), so it is deliberately
+ * NOT part of `WHOLE_PIECE_UNITS`.
  */
-export const PRICE_UNIT_VALUES = ['kg', 'branch', 'sheet', 'meter', 'piece'] as const;
+export const PRICE_UNIT_VALUES = ['kg', 'branch', 'sheet', 'meter', 'piece', 'sqm'] as const;
 export type PriceUnit = (typeof PRICE_UNIT_VALUES)[number];
+
+/**
+ * WHAT A STORED PRICE IS DENOMINATED IN — independent of `PriceUnit` above.
+ *
+ * `current_prices.price` was per KILOGRAM for every unit except `piece`, an
+ * invariant carried only in prose (`leads.service.priceItems`) and repeated at
+ * five call sites. It was false for 74 live rows:
+ *
+ *   - 19 تیرآهن rows held a per-شاخه figure and, because تیرآهن is the one
+ *     family that also carries a real `theoreticalWeightKg`, auto-quoted a
+ *     branch at 155× the real price (fixed in the data, #201).
+ *   - 55 more — وال پست (per قطعه), لوله مسی (per کلاف ۱۵ متری), ورق پانچ
+ *     (per برگ) — could not be fixed that way: there is no published weight
+ *     for a copper coil to divide by. They failed safe (null weight ⇒ no
+ *     total ⇒ routed to a human) but were captioned «تومان / کیلوگرم».
+ *
+ * So the denomination is now a column, not an assumption. Members:
+ *
+ * | basis    | the price is per…              | length read from        |
+ * |----------|--------------------------------|-------------------------|
+ * | `kg`     | one kilogram (the default)     | —                       |
+ * | `branch` | one whole شاخه                 | `SKU.branchLengthM`     |
+ * | `coil`   | one whole کلاف / حلقه          | `SKU.branchLengthM`     |
+ * | `sheet`  | one برگ                        | `SKU.dimensions`        |
+ * | `piece`  | one عدد                        | —                       |
+ * | `sqm`    | one متر مربع                   | —                       |
+ *
+ * `branch` and `coil` are two members rather than one because the caption has
+ * to say which («شاخه ۶ متری» vs «کلاف ۱۵ متری») — the arithmetic is the same
+ * and `PRICE_BASIS_COUNTING_UNIT` maps both onto the `branch` unit.
+ *
+ * The length lives on the SKU, not here: it is a property of the product, and
+ * duplicating it per price row would be the second silent assumption this
+ * column exists to remove.
+ */
+export const PRICE_BASIS_VALUES = ['kg', 'branch', 'coil', 'sheet', 'piece', 'sqm'] as const;
+export type PriceBasis = (typeof PRICE_BASIS_VALUES)[number];
+
+/**
+ * For a whole-item basis, the `PriceUnit` a line must count in for
+ * `qty × price` to mean anything. `null` for `kg` — that basis goes through
+ * the mass path (`unitPrice × weightKg`) instead.
+ *
+ * This is what keeps «۲۰ کیلوگرم» of a per-coil product from being multiplied
+ * by the coil price. A line whose unit does not match its basis's counting
+ * unit gets NO total, which sets `allPriced=false` and routes the lead to a
+ * human — the same fail-safe `unitMismatch` already uses.
+ */
+export const PRICE_BASIS_COUNTING_UNIT: Record<PriceBasis, PriceUnit | null> = {
+  kg: null,
+  branch: 'branch',
+  // A کلاف is counted the same way a شاخه is — one whole length — so the unit
+  // stays `branch`; `coil` exists to make the CAPTION honest, not the maths.
+  coil: 'branch',
+  sheet: 'sheet',
+  piece: 'piece',
+  sqm: 'sqm',
+};
 export type MovementDir = 'up' | 'down' | 'flat';
 export type NotifyChannel = 'sms' | 'telegram' | 'whatsapp' | 'eitaa';
 export type MarketKey = 'usd' | 'eur' | 'gold18' | 'ounce' | 'billet';
@@ -96,6 +159,20 @@ export interface SKU {
   factory?: string;
   theoreticalWeightKg?: number;
   unit: PriceUnit;
+  /** What this SKU's price is denominated in — see `PriceBasis`. `kg` for
+   *  every row that predates the column, which is what it always meant. */
+  priceBasis: PriceBasis;
+  /** Length of ONE شاخه / کلاف of this product, in metres.
+   *
+   *  Two jobs, one number: it is what a `branch`/`coil` basis is a length OF
+   *  («تومان / کلاف ۱۵ متری»), and it is the branch length a theoretical
+   *  weight is computed over. Both 6 m and 12 m نبشی/ناودانی are genuinely
+   *  sold, so this had to become per-SKU data rather than the 6 m constant
+   *  `CATALOG_WEIGHT_BASIS` assumed for the whole line.
+   *
+   *  Undefined means "not recorded" — captions drop the length and weight
+   *  composition falls back to the sub-category's documented convention. */
+  branchLengthM?: number;
   /** Per-product photo (W24). Until now `skus.image_url` was written by the
    *  admin form and read by nothing — the public page fell back to a stock
    *  photo keyed on CATEGORY, so every rebar looked identical and an uploaded
@@ -113,6 +190,10 @@ export interface CurrentPrice {
   skuId: string;
   price: number; // Toman, excl. VAT
   unit: PriceUnit;
+  /** What THIS price is per — see `PriceBasis`. Stored on the price row as
+   *  well as the SKU so a historical `price_points` entry stays readable
+   *  after the SKU's denomination is corrected. */
+  priceBasis: PriceBasis;
   deliveryTime: string; // زمان تحویل, e.g. «۲۴ ساعت»
   vatIncluded: boolean;
   movementPct?: number;
@@ -128,6 +209,7 @@ export interface PricePoint {
   skuId: string;
   price: number;
   unit: PriceUnit;
+  priceBasis: PriceBasis;
   at: string;
 }
 

@@ -12,6 +12,7 @@ const pt = (i: number, price: number): PricePoint => ({
   id: `p${i}`,
   skuId: 'sku-1',
   price,
+  priceBasis: 'kg',
   unit: 'kg',
   at: new Date(Date.UTC(2025, 0, 1 + i, 12)).toISOString(),
 });

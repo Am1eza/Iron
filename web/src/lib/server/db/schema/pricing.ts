@@ -12,7 +12,7 @@ import {
   text,
   timestamp,
 } from 'drizzle-orm/pg-core';
-import { PRICE_UNITS, skus } from './catalog';
+import { PRICE_BASES, PRICE_UNITS, skus } from './catalog';
 import { users } from './auth';
 
 export const MOVEMENT_DIRS = ['up', 'down', 'flat'] as const;
@@ -26,6 +26,10 @@ export const currentPrices = pgTable(
       .references(() => skus.id, { onDelete: 'cascade' }),
     price: bigint('price', { mode: 'number' }).notNull(), // Toman, excl. VAT
     unit: text('unit', { enum: PRICE_UNITS }).notNull(),
+    // What `price` is denominated in — see PRICE_BASIS_VALUES. Mirrored from
+    // the SKU at write time the same way `unit` is, so a price row stays
+    // self-describing.
+    priceBasis: text('price_basis', { enum: PRICE_BASES }).notNull().default('kg'),
     deliveryTime: text('delivery_time').notNull().default('۲۴ ساعت'),
     vatIncluded: boolean('vat_included').notNull().default(false),
     movementPct: doublePrecision('movement_pct'),
@@ -51,6 +55,9 @@ export const pricePoints = pgTable(
       .references(() => skus.id, { onDelete: 'cascade' }),
     price: bigint('price', { mode: 'number' }).notNull(),
     unit: text('unit', { enum: PRICE_UNITS }).notNull(),
+    // Frozen with the point: correcting a SKU's denomination later must not
+    // silently re-interpret the history a chart is drawn from.
+    priceBasis: text('price_basis', { enum: PRICE_BASES }).notNull().default('kg'),
     at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('price_points_sku_at_idx').on(t.skuId, t.at)],

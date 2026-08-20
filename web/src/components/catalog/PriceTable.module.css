@@ -176,6 +176,13 @@
   font: var(--t-price-cell);
   color: var(--color-text-strong);
 }
+/* Per-row denomination, shown only when a table mixes bases and the
+   page-wide note had to be dropped (see `showRowBasis`). */
+.rowBasis {
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
 .actionsCol {
   text-align: center;
 }

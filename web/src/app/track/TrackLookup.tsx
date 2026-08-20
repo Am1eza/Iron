@@ -103,6 +103,11 @@ export function TrackLookup() {
   );
 }
 
+/**
+ * Deliberately its own table rather than `PRICE_UNIT_LABEL`: this page renders
+ * `kg` as «تن», which no other surface does. Left as found — changing what a
+ * shipment card says about quantity is a separate question from adding a unit.
+ */
 function unitLabel(unit: string): string {
   switch (unit) {
     case 'kg':
@@ -115,6 +120,8 @@ function unitLabel(unit: string): string {
       return 'متر';
     case 'piece':
       return 'عدد';
+    case 'sqm':
+      return 'متر مربع';
     default:
       return '';
   }

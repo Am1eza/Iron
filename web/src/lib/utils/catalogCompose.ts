@@ -10,7 +10,7 @@
 import { normalizeDigits } from './format';
 import { slugify } from './slugify';
 import { unitWeightKg, type WeightShape } from './weight';
-import type { PriceUnit } from '@/lib/types/domain';
+import type { PriceBasis, PriceUnit } from '@/lib/types/domain';
 
 /**
  * Latin slugs for the factories that actually exist in this market.
@@ -223,6 +223,7 @@ export function theoreticalWeightFor(
   categorySlug: string,
   size?: string,
   subSlug?: string,
+  branchLengthM?: number | null,
 ): number | null {
   if (!size) return null;
   const basis = CATALOG_WEIGHT_BASIS[weightBasisKey(categorySlug, subSlug)];
@@ -236,9 +237,30 @@ export function theoreticalWeightFor(
         ? // ANGLE_KG_PER_M is keyed in mm of leg; the catalog size is in cm.
           { sizeCode: n * 10 }
         : { sizeCode: n };
-  const branch = unitWeightKg(basis.shape, { ...dims, lengthM: basis.lengthM });
+  // The SKU's OWN branch length wins over the line's convention when one is
+  // recorded. نبشی is the case that forced this: مرکزآهن and ahanonline both
+  // sell it in 6 m AND 12 m, and ahanonline's «حالت» column says which per
+  // row — so a per-line constant is right for the rows that do not say and
+  // exactly 2× wrong for the rows that say ۱۲ متری. A non-positive or
+  // non-finite override is ignored rather than trusted.
+  const lengthM =
+    branchLengthM != null && Number.isFinite(branchLengthM) && branchLengthM > 0
+      ? branchLengthM
+      : basis.lengthM;
+  const branch = unitWeightKg(basis.shape, { ...dims, lengthM });
   if (branch === null) return null;
   return Math.round(branch * 10) / 10 || null;
+}
+
+/**
+ * The branch length this product line is assumed to be sold in when the SKU
+ * itself records none — i.e. the documented catalog convention, exposed so the
+ * admin form can prefill «طول شاخه» instead of leaving the operator to guess
+ * and so a script can state what it defaulted to. `null` where the line has no
+ * meaningful branch at all (a coil, a sheet, a کوپلر).
+ */
+export function defaultBranchLengthM(categorySlug: string, subSlug?: string): number | null {
+  return CATALOG_WEIGHT_BASIS[weightBasisKey(categorySlug, subSlug)]?.lengthM ?? null;
 }
 
 /**
@@ -249,9 +271,31 @@ export function theoreticalWeightFor(
  */
 const PIECE_SUBS = new Set(['coupler']);
 
+/** Sub-categories sold by the square metre. ساندویچ‌پانل is quoted, ordered
+ *  and delivered in «متر مربع» on every source that publishes it. */
+const SQM_SUBS = new Set(['sandwich-panel']);
+
+/**
+ * What a NEW SKU in this line should default its `price_basis` to — i.e. what
+ * a price typed into the admin form will be per unless the operator says
+ * otherwise.
+ *
+ * Only the lines where the whole market quotes something other than a
+ * kilogram are listed. Everything else stays `kg`, which is what the catalog
+ * has always meant and what all ~880 other rows are. This is a PREFILL, not a
+ * rule: the column is per-SKU and the form can override it, because وال پست
+ * and لوله مسی are per-item inside sub-categories that are not.
+ */
+export function defaultPriceBasisFor(categorySlug: string, subSlug?: string): PriceBasis {
+  if (subSlug && PIECE_SUBS.has(subSlug)) return 'piece';
+  if (subSlug && SQM_SUBS.has(subSlug)) return 'sqm';
+  return 'kg';
+}
+
 /** How this product is actually sold, so the admin does not have to know. */
 export function defaultUnitFor(categorySlug: string, subSlug?: string): PriceUnit {
   if (subSlug && PIECE_SUBS.has(subSlug)) return 'piece';
+  if (subSlug && SQM_SUBS.has(subSlug)) return 'sqm';
   switch (categorySlug) {
     case 'rebar':
     case 'ibeam':

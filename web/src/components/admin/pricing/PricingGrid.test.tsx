@@ -150,11 +150,13 @@ function priceRow(id: string, name: string, price: number, over: Partial<PriceRo
     name,
     size: name,
     unit: 'kg',
+    priceBasis: 'kg',
     isActive: true,
     current: {
       skuId: id,
       price,
       unit: 'kg',
+      priceBasis: 'kg',
       deliveryTime: '۲۴ ساعت',
       vatIncluded: false,
       movementDir: 'flat',

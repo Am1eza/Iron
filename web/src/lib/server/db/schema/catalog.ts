@@ -37,6 +37,19 @@ import type { SeoMeta } from '@/lib/types/domain';
 export { PRICE_UNIT_VALUES as PRICE_UNITS } from '@/lib/types/domain';
 import { PRICE_UNIT_VALUES } from '@/lib/types/domain';
 
+/**
+ * What a stored price is DENOMINATED in — the companion to `unit` above and
+ * deliberately a separate column, because the two are separate facts. See
+ * `PRICE_BASIS_VALUES` in `lib/types/domain` for the full reasoning and the
+ * 74 live rows that proved they are.
+ *
+ * Same `text(..., { enum })` shape as `unit`, and for the same reason: the
+ * column is plain `text` with no native Postgres enum, so the compiler is the
+ * enforcement and adding a member needs no migration. Adding the COLUMN did.
+ */
+export { PRICE_BASIS_VALUES as PRICE_BASES } from '@/lib/types/domain';
+import { PRICE_BASIS_VALUES } from '@/lib/types/domain';
+
 export const categories = pgTable(
   'categories',
   {
@@ -120,6 +133,18 @@ export const skus = pgTable(
     factory: text('factory'),
     theoreticalWeightKg: doublePrecision('theoretical_weight_kg'),
     unit: text('unit', { enum: PRICE_UNIT_VALUES }).notNull().default('kg'),
+    // What the price on this SKU is per, as opposed to what `unit` counts.
+    // `'kg'` is both the default and what every pre-existing row always
+    // meant, so the backfill is the DEFAULT itself — no data migration, and
+    // no row changes meaning. Only the 55 rows that were never per-kilogram
+    // are moved off it (scripts/setPriceBasis.ts).
+    priceBasis: text('price_basis', { enum: PRICE_BASIS_VALUES }).notNull().default('kg'),
+    // Length of ONE شاخه / کلاف, in metres. Nullable and null everywhere it
+    // is not published: 6 m and 12 m نبشی are both genuinely sold, so a
+    // guessed length is worse than none — `CATALOG_WEIGHT_BASIS` keeps its
+    // documented per-line convention as the fallback and this overrides it
+    // per row. Also the length a `branch`/`coil` price basis refers to.
+    branchLengthM: doublePrecision('branch_length_m'),
     imageUrl: text('image_url'),
     isActive: boolean('is_active').notNull().default(true),
     // A SKU has exactly one home (subCategoryId/categoryId above) — that's

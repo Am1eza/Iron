@@ -11,7 +11,7 @@ import { createTestDb } from '@/test/db';
 import * as schema from '@/lib/server/db/schema';
 import type { Db } from '@/lib/server/db/client';
 import { priceItems } from './leads.service';
-import type { PriceUnit } from '@/lib/types/domain';
+import type { PriceBasis, PriceUnit } from '@/lib/types/domain';
 
 let db: Db;
 let close: () => Promise<void>;
@@ -25,8 +25,10 @@ afterAll(async () => {
 
 const PRICE_PER_UNIT = 42_000;
 
-/** A per-`unit` SKU priced at 42,000 Toman, one branch weighing 12kg. */
-async function seedSku(unit: PriceUnit): Promise<string> {
+/** A per-`unit` SKU priced at 42,000 Toman, one branch weighing 12kg.
+ *  `priceBasis` defaults to `kg`, which is what the whole catalog meant
+ *  before the column existed and what ~880 rows still are. */
+async function seedSku(unit: PriceUnit, priceBasis: PriceBasis = 'kg'): Promise<string> {
   const catId = ulid();
   const subId = ulid();
   const skuId = ulid();
@@ -41,9 +43,10 @@ async function seedSku(unit: PriceUnit): Promise<string> {
     slug: `sku-${skuId}`,
     name: 'میلگرد ۱۴',
     unit,
+    priceBasis,
     theoreticalWeightKg: 12,
   });
-  await db.insert(schema.currentPrices).values({ skuId, price: PRICE_PER_UNIT, unit });
+  await db.insert(schema.currentPrices).values({ skuId, price: PRICE_PER_UNIT, unit, priceBasis });
   return skuId;
 }
 
@@ -200,9 +203,12 @@ describe('priceItems — the «عدد» (piece) unit', () => {
       slug: `sku-${skuId}`,
       name: 'کوپلر سایز ۲۰ نوع میانی استاندارد',
       unit: 'piece',
+      priceBasis: 'piece',
       theoreticalWeightKg: null,
     });
-    await db.insert(schema.currentPrices).values({ skuId, price: 86_250, unit: 'piece' });
+    await db
+      .insert(schema.currentPrices)
+      .values({ skuId, price: 86_250, unit: 'piece', priceBasis: 'piece' });
 
     const { lines, allPriced } = await priceItems([{ skuId, qty: 20, unit: 'piece' }]);
     expect(allPriced).toBe(true);
@@ -216,14 +222,14 @@ describe('priceItems — the «عدد» (piece) unit', () => {
     // Guards the regression directly: if a piece SKU ever picks up a weight
     // (an admin fills the field in, a future backfill writes one), the total
     // must not silently become 12x what the customer was shown.
-    const skuId = await seedSku('piece'); // 42,000/عدد, and a 12kg weight on file
+    const skuId = await seedSku('piece', 'piece'); // 42,000/عدد, and a 12kg weight on file
     const { lines } = await priceItems([{ skuId, qty: 5, unit: 'piece' }]);
     expect(lines[0]!.weightKg).toBeUndefined();
     expect(lines[0]!.lineTotal).toBe(5 * 42_000); // NOT 5 × 12 × 42,000
   });
 
   it('rejects a fractional «۳٫۷ عدد» the same way it rejects a fractional شاخه', async () => {
-    const skuId = await seedSku('piece');
+    const skuId = await seedSku('piece', 'piece');
     const { lines, allPriced } = await priceItems([{ skuId, qty: 3.7, unit: 'piece' }]);
     expect(allPriced).toBe(false);
     expect(lines[0]!.lineTotal).toBeUndefined();
@@ -237,6 +243,70 @@ describe('priceItems — the «عدد» (piece) unit', () => {
     const { lines, allPriced } = await priceItems([{ skuId, qty: 20, unit: 'piece' }]);
     expect(allPriced).toBe(false);
     expect(lines[0]!.unit).toBe('kg'); // the SKU's own unit, not the claim
+    expect(lines[0]!.lineTotal).toBeUndefined();
+  });
+});
+
+/**
+ * One case per member of `PRICE_BASIS_VALUES`.
+ *
+ * Before the column existed, every one of these SKUs asserted a per-kilogram
+ * price. The 19 تیرآهن rows that really held a per-شاخه figure auto-quoted a
+ * branch at 155× (#201); the 55 وال پست / لوله مسی / ورق پانچ rows only
+ * escaped that because their weight was null, so `lineTotal` came out
+ * undefined and the lead went to a human. These assert that the denomination
+ * — not the accident of a missing weight — is what decides the arithmetic.
+ */
+describe('priceItems — one case per price basis', () => {
+  it('kg: charges unitPrice × weight, converting a branch count to kilograms', async () => {
+    const skuId = await seedSku('branch', 'kg'); // 42,000/kg, 12 kg per شاخه
+    const { lines } = await priceItems([{ skuId, qty: 5, unit: 'branch' }]);
+    expect(lines[0]!.weightKg).toBe(60);
+    expect(lines[0]!.lineTotal).toBe(60 * PRICE_PER_UNIT);
+  });
+
+  it('branch: charges unitPrice × qty and puts no mass in the chain (وال پست)', async () => {
+    const skuId = await seedSku('branch', 'branch');
+    const { lines, allPriced } = await priceItems([{ skuId, qty: 5, unit: 'branch' }]);
+    expect(allPriced).toBe(true);
+    // 12 kg is on file and must be ignored: 5 × 12 × 42,000 would be 12× the
+    // real price of five شاخه.
+    expect(lines[0]!.weightKg).toBeUndefined();
+    expect(lines[0]!.lineTotal).toBe(5 * PRICE_PER_UNIT);
+  });
+
+  it('coil: charges per whole کلاف, counted in شاخه (لوله مسی، ۱۵ متری)', async () => {
+    const skuId = await seedSku('branch', 'coil');
+    const { lines, allPriced } = await priceItems([{ skuId, qty: 2, unit: 'branch' }]);
+    expect(allPriced).toBe(true);
+    expect(lines[0]!.weightKg).toBeUndefined();
+    expect(lines[0]!.lineTotal).toBe(2 * PRICE_PER_UNIT);
+  });
+
+  it('sheet: charges per برگ (ورق پانچ)', async () => {
+    const skuId = await seedSku('sheet', 'sheet');
+    const { lines, allPriced } = await priceItems([{ skuId, qty: 3, unit: 'sheet' }]);
+    expect(allPriced).toBe(true);
+    expect(lines[0]!.lineTotal).toBe(3 * PRICE_PER_UNIT);
+  });
+
+  it('sqm: charges per متر مربع and allows a fractional quantity (ساندویچ‌پانل)', async () => {
+    // «۱۲٫۵ متر مربع» is an ordinary order, unlike «۱۲٫۵ عدد» — which is why
+    // `sqm` is deliberately not in WHOLE_PIECE_UNITS.
+    const skuId = await seedSku('sqm', 'sqm');
+    const { lines, allPriced } = await priceItems([{ skuId, qty: 12.5, unit: 'sqm' }]);
+    expect(allPriced).toBe(true);
+    expect(lines[0]!.weightKg).toBeUndefined();
+    expect(lines[0]!.lineTotal).toBe(Math.round(12.5 * PRICE_PER_UNIT));
+  });
+
+  it('refuses to quote a whole-item price against a quantity counted in kilograms', async () => {
+    // «۲۰ کیلوگرم» of a per-coil product is a mismatch, not a conversion —
+    // 20 × the coil price would be roughly 130× the real number. The line gets
+    // no total, which routes the whole lead to a human.
+    const skuId = await seedSku('branch', 'coil');
+    const { lines, allPriced } = await priceItems([{ skuId, qty: 20, unit: 'kg' }]);
+    expect(allPriced).toBe(false);
     expect(lines[0]!.lineTotal).toBeUndefined();
   });
 });

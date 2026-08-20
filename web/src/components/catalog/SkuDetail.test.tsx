@@ -22,11 +22,13 @@ function row(categoryId: string, overrides: Partial<PriceRow> = {}): PriceRow {
     size: '۲',
     factory: 'فولاد مبارکه',
     unit: 'kg',
+    priceBasis: 'kg',
     isActive: true,
     current: {
       skuId: 'sku-1',
       price: 500_000,
       unit: 'kg',
+      priceBasis: 'kg',
       deliveryTime: '۲۴ ساعت',
       vatIncluded: false,
       movementDir: 'flat',

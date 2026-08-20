@@ -70,10 +70,12 @@ export async function factoryOptionsFor(
       factory: r.factory ?? UNKNOWN_FACTORY,
       size: r.size,
       unit: r.unit,
-      // `piece` is explicitly null, not 1: «۱ عدد کوپلر» is not one kilogram,
-      // and the price on that row is per عدد anyway, so there is no kg bridge
-      // to advertise. Consumers already render a null as «وزن نامشخص».
-      weightKgPerUnit: r.unit === 'piece' ? null : r.unit === 'kg' ? 1 : (r.theoreticalWeightKg ?? null),
+      // Explicitly null for every non-kilogram basis, not 1: «۱ عدد کوپلر» is
+      // not one kilogram and «۱ کلاف لوله مسی» is not either — those prices
+      // are per whole item, so there is no kg bridge to advertise. Consumers
+      // already render a null as «وزن نامشخص».
+      weightKgPerUnit:
+        r.priceBasis !== 'kg' ? null : r.unit === 'kg' ? 1 : (r.theoreticalWeightKg ?? null),
       unitPrice: priced ? r.current.price : null,
       cheapest: false,
     };

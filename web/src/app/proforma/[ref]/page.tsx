@@ -10,26 +10,12 @@ import { getSession } from '@/lib/auth/session';
 import { clubStatus, getLetterhead } from '@/lib/server/repos/clubRepo';
 import { isLetterheadUsable } from '@/lib/utils/letterhead';
 import { formatToman, toPersianDigits } from '@/lib/utils/format';
-import type { PriceUnit } from '@/lib/types/domain';
+import { PRICE_UNIT_LABEL } from '@/lib/utils/catalogLabels';
 import { formatJalali } from '@/lib/utils/jalali';
 import { ProformaSheet, type CustomLetterhead } from './ProformaSheet';
 import styles from './proforma.module.css';
 
 export const metadata: Metadata = buildMetadata({ title: 'پیش‌فاکتور', noindex: true });
-
-/**
- * A lookup rather than the nested ternary this used to be: that chain ended in
- * a bare `: 'متر'`, so ANY unit it did not name printed as «متر» — adding
- * «عدد» to `PRICE_UNITS` would have silently labelled every coupler line
- * «متر» on the one document the customer keeps.
- */
-const PROFORMA_UNIT_LABEL: Record<PriceUnit, string> = {
-  kg: 'کیلوگرم',
-  branch: 'شاخه',
-  sheet: 'برگ',
-  meter: 'متر',
-  piece: 'عدد',
-};
 
 type Params = { params: Promise<{ ref: string }> };
 
@@ -113,7 +99,7 @@ export default async function ProformaPage({ params }: Params) {
               <td className={styles.name}>{line.name}</td>
               <td>
                 {toPersianDigits(line.qty)}{' '}
-                {PROFORMA_UNIT_LABEL[line.unit] ?? line.unit}
+                {PRICE_UNIT_LABEL[line.unit] ?? line.unit}
               </td>
               <td>{line.unitPrice ? formatToman(line.unitPrice, false) : 'توافقی'}</td>
               <td>{line.lineTotal ? formatToman(line.lineTotal, false) : 'توافقی'}</td>

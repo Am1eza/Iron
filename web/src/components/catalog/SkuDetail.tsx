@@ -10,7 +10,7 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import { CONSTANTS } from '@/lib/config/constants';
 import { routes } from '@/lib/routes';
 import { formatToman, priceHiddenLabel, toPersianDigits } from '@/lib/utils/format';
-import { sizeLabel, DIMENSIONS_LABEL } from '@/lib/utils/catalogLabels';
+import { priceBasisNoun, sizeLabel, DIMENSIONS_LABEL } from '@/lib/utils/catalogLabels';
 import { formatJalali } from '@/lib/utils/jalali';
 import { priceSeries as mockSeries, relatedRows as mockRelated, subName as mockSubName } from '@/lib/mock/catalogData';
 import { categories } from '@/lib/mock/fixtures';
@@ -213,7 +213,15 @@ export function SkuDetail({
         ? `${toPersianDigits(row.theoreticalWeightKg)} کیلوگرم`
         : 'نامشخص',
     },
-    { label: 'واحد فروش', value: 'کیلوگرم' },
+    // Only when the catalog actually records one — «طول شاخه» is genuinely
+    // 6 m for some نبشی rows and 12 m for others, so a blanket default here
+    // would be the same guess the per-SKU column exists to stop.
+    ...(row.branchLengthM
+      ? [{ label: 'طول شاخه', value: `${toPersianDigits(row.branchLengthM)} متر` }]
+      : []),
+    // Read from the stored denomination, not hard-coded: this said
+    // «کیلوگرم» on a لوله مسی sold by the 15-metre coil.
+    { label: 'واحد فروش', value: priceBasisNoun(row.priceBasis, row.branchLengthM) },
     { label: 'زمان تحویل', value: toPersianDigits(row.current.deliveryTime) },
   ];
 
@@ -273,7 +281,9 @@ export function SkuDetail({
           </div>
 
           <div className={styles.priceBox}>
-            <span className={styles.priceLabel}>قیمت هر کیلوگرم</span>
+            <span className={styles.priceLabel}>
+              قیمت هر {priceBasisNoun(row.priceBasis, row.branchLengthM)}
+            </span>
             <div className={styles.priceRow}>
               {hiddenLabel ? (
                 <span className={`${styles.priceVal} tnum`}>{hiddenLabel}</span>

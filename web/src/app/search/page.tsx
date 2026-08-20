@@ -228,7 +228,7 @@ function ProductGroup({ hits }: { hits: ProductHit[] }) {
               <span className={resultStyles.productSide}>
                 <span className={resultStyles.priceCol}>
                   <span className={resultStyles.price}>{priceHiddenLabel(row.current) ?? formatToman(row.current.price, false)}</span>
-                  <span className={resultStyles.priceUnit}>{priceUnitCaption(row.unit)}</span>
+                  <span className={resultStyles.priceUnit}>{priceUnitCaption(row.priceBasis, row.branchLengthM)}</span>
                 </span>
                 <MovementBadge dir={row.current.movementDir} pct={row.current.movementPct} />
                 <ChevronStartIcon size={18} className={`${resultStyles.chev} icon--rtl`} />
