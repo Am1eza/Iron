@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { unitWeightKg, STEEL_DENSITY, IBEAM_KG_PER_M, CHANNEL_KG_PER_M, ANGLE_KG_PER_M } from './weight';
+import {
+  unitWeightKg,
+  STEEL_DENSITY,
+  IBEAM_KG_PER_M,
+  CHANNEL_KG_PER_M,
+  ANGLE_KG_PER_M,
+  HEA_KG_PER_M,
+  HEB_KG_PER_M,
+} from './weight';
 
 /**
  * These are REGRESSION PINS, not fresh derivations.
@@ -86,6 +94,32 @@ describe('unitWeightKg — pinned to the previously shipping formulas', () => {
     expect(unitWeightKg('flat', { widthMm: 40, thicknessMm: 4, lengthM: 6 })).not.toBe(
       unitWeightKg('angle', { legMm: 40, thicknessMm: 4, lengthM: 6 }),
     );
+  });
+
+  it('hea/heb: the wide-flange tables, which are NOT the IPE one', () => {
+    // These are new shapes, not a changed one — nothing that was ever quoted
+    // moves. What they must never do is answer with the IPE number: a هاش ۱۴
+    // is 24.7 (HEA) or 33.7 (HEB) kg/m where a تیرآهن ۱۴ is 12.9.
+    expect(unitWeightKg('hea', { sizeCode: 14, lengthM: 12 })).toBe(HEA_KG_PER_M['14']! * 12);
+    expect(unitWeightKg('heb', { sizeCode: 14, lengthM: 12 })).toBe(HEB_KG_PER_M['14']! * 12);
+    expect(unitWeightKg('hea', { sizeCode: 14, lengthM: 12 })).not.toBe(
+      unitWeightKg('ibeam', { sizeCode: 14, lengthM: 12 }),
+    );
+    // مرکزآهن's published per-شاخه column, 2026-08-20 — the corroboration the
+    // catalog data was written from, pinned so a table edit has to face it.
+    // …to within 0.2 %, which is the whole agreement this table rests on —
+    // asserted as a RATIO, not to a decimal place, because 998.4 vs 999 is a
+    // rounding difference and 723.6 vs 702 (the HEA ۲۴ row that was withheld)
+    // is not, and only a relative bound tells those two apart.
+    const agrees = (got: number | null, published: number) =>
+      got !== null && Math.abs(got - published) / published < 0.002;
+    expect(agrees(unitWeightKg('hea', { sizeCode: 20, lengthM: 12 }), 508)).toBe(true);
+    expect(agrees(unitWeightKg('heb', { sizeCode: 24, lengthM: 12 }), 999)).toBe(true);
+    // The withheld row, pinned: HEA ۲۴ is exactly the case the bound rejects.
+    expect(agrees(unitWeightKg('hea', { sizeCode: 24, lengthM: 12 }), 702)).toBe(false);
+    // A size outside the table, and a missing length: null, never a guess.
+    expect(unitWeightKg('hea', { sizeCode: 15, lengthM: 12 })).toBeNull();
+    expect(unitWeightKg('heb', { sizeCode: 20 })).toBeNull();
   });
 
   it('ibeam/channel: mill table × length, null for a size not in the table', () => {

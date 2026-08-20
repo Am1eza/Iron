@@ -110,13 +110,27 @@ describe('theoreticalWeightFor', () => {
     expect(theoreticalWeightFor('ibeam', '۱۴', 'tirahan')).toBeCloseTo(154.8, 1);
   });
 
+  it('reads هاش from the HEA/HEB tables, and keeps the two apart', () => {
+    // A هاش ۲۰ is two different beams depending on the series, which is why
+    // the basis table is keyed on the sub-category and not on «ibeam».
+    // 42.3 kg/m × 12 = 507.6 vs 61.3 × 12 = 735.6 — مرکزآهن publishes 508 and
+    // 736 for those same two rows (fetched 2026-08-20).
+    expect(theoreticalWeightFor('ibeam', '۲۰', 'hash-sabok')).toBeCloseTo(507.6, 1);
+    expect(theoreticalWeightFor('ibeam', '۲۰', 'hash-sangin')).toBeCloseTo(735.6, 1);
+    // …and neither is the IPE number for the same market size (22.4 × 12).
+    expect(theoreticalWeightFor('ibeam', '۲۰', 'tirahan')).toBeCloseTo(268.8, 1);
+    // A size outside the published table is still null, never interpolated.
+    expect(theoreticalWeightFor('ibeam', '۱۵', 'hash-sabok')).toBeNull();
+  });
+
   it('refuses every sub-category whose section or branch length is not published', () => {
     // ناودانی سبک/سنگین are separate weight classes from the اشتال tier in
     // CHANNEL_KG_PER_M and the public tables for them disagree by ~11%.
     expect(theoreticalWeightFor('angle-channel', '۱۰', 'channel-light')).toBeNull();
     expect(theoreticalWeightFor('angle-channel', '۱۰', 'channel-heavy')).toBeNull();
-    // هاش is HEA/HEB, not IPE.
-    expect(theoreticalWeightFor('ibeam', '۱۴', 'hash-sabok')).toBeNull();
+    // لانه‌زنبوری is a castellated beam — a different section again, and one
+    // with no table in this repo. (هاش was here too until 2026-08-20; it now
+    // has its own DIN tables and is pinned in the test above.)
     expect(theoreticalWeightFor('ibeam', '۲۰', 'lane-zanburi')).toBeNull();
     // A box needs a wall thickness and a plate needs width × length; neither
     // is stored, so guessing would feed a wrong tonnage into a customer quote.

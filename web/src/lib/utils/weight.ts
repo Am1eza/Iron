@@ -63,7 +63,9 @@ export type WeightShape =
   | 'angle'
   | 'flat'
   | 'ibeam'
-  | 'channel';
+  | 'channel'
+  | 'hea'
+  | 'heb';
 
 /**
  * Standard EN 10025-1/2 weight-per-meter (kg/m), keyed by the market size
@@ -82,6 +84,45 @@ export const IBEAM_KG_PER_M: Readonly<Record<string, number>> = {
 export const CHANNEL_KG_PER_M: Readonly<Record<string, number>> = {
   '8': 8.82, '10': 10.6, '12': 13.4, '14': 16.0, '16': 18.8,
   '18': 22.4, '20': 25.3, '22': 29.4, '24': 33.8,
+};
+
+/**
+ * Wide-flange هاش weight-per-meter (kg/m) — HEA (DIN 1025-3) and HEB
+ * (DIN 1025-2) — keyed, like `IBEAM_KG_PER_M`, on the market size number used
+ * in Iran («هاش ۱۴» = HE140A/HE140B, i.e. the profile height in cm).
+ *
+ * These are SEPARATE tables from `IBEAM_KG_PER_M` on purpose: a هاش is a
+ * wide-flange section, not an IPE, and until this existed
+ * `CATALOG_WEIGHT_BASIS` deliberately gave every هاش row `null` for exactly
+ * that reason («IBEAM_KG_PER_M is the IPE table only»). A HE140B is 33.7 kg/m
+ * where an IPE140 is 12.9 — reusing the IPE table would have been a 2.6×
+ * error on a پیش‌فاکتور, so the sections get their own numbers or none.
+ *
+ * Sourced 2026-08-20 from the DIN 1025-2/-3 nominal section tables and
+ * corroborated row-by-row against مرکزآهن's live هاش listing, which publishes
+ * a «وزن هر شاخه» over a 12 m branch for every size:
+ *
+ *   HEA  14→297  16→365  18→426  20→508   (kg per 12 m; table × 12 = 296.4 /
+ *   HEB  16→512  18→615  20→736  22→858    364.8 / 426.0 / 507.6 / 511.2 /
+ *        24→999                            614.4 / 735.6 / 858.0 / 998.4)
+ *
+ * — nine sizes agreeing to within 0.2 %. The one size where they do NOT agree
+ * is recorded rather than smoothed over: مرکزآهن publishes HEA 24 = 702 kg,
+ * where DIN 1025-3's 60.3 kg/m over 12 m is 723.6 — a 3.0 % gap. The DIN
+ * figure is what this table holds (it is the standard section), and no weight
+ * was written to that SKU in the database, because a 3 % disagreement on a
+ * number that multiplies into a quote is not a rounding difference.
+ *
+ * Only the sizes this catalog actually lists are tabulated. A size absent here
+ * returns null rather than an interpolated guess, exactly as ibeam/channel do.
+ */
+export const HEA_KG_PER_M: Readonly<Record<string, number>> = {
+  '10': 16.7, '12': 19.9, '14': 24.7, '16': 30.4, '18': 35.5,
+  '20': 42.3, '22': 50.5, '24': 60.3, '26': 68.2, '28': 76.4,
+};
+export const HEB_KG_PER_M: Readonly<Record<string, number>> = {
+  '10': 20.4, '12': 26.7, '14': 33.7, '16': 42.6, '18': 51.2,
+  '20': 61.3, '22': 71.5, '24': 83.2, '26': 93.0, '28': 103.0,
 };
 
 /**
@@ -202,6 +243,18 @@ export function unitWeightKg(shape: WeightShape, d: WeightDims): number | null {
     }
     case 'channel': {
       const kgPerM = d.sizeCode ? CHANNEL_KG_PER_M[String(Math.round(d.sizeCode))] : undefined;
+      return kgPerM && d.lengthM ? kgPerM * d.lengthM : null;
+    }
+    // هاش. Same shape of lookup as ibeam/channel and, like them, no
+    // DEFAULT_LENGTH_M — a beam length is never safe to assume, so the caller
+    // supplies it (the catalog's own 12 m convention lives in
+    // `CATALOG_WEIGHT_BASIS`, where it is sourced).
+    case 'hea': {
+      const kgPerM = d.sizeCode ? HEA_KG_PER_M[String(Math.round(d.sizeCode))] : undefined;
+      return kgPerM && d.lengthM ? kgPerM * d.lengthM : null;
+    }
+    case 'heb': {
+      const kgPerM = d.sizeCode ? HEB_KG_PER_M[String(Math.round(d.sizeCode))] : undefined;
       return kgPerM && d.lengthM ? kgPerM * d.lengthM : null;
     }
     default:

@@ -149,8 +149,12 @@ export function composeSkuName(input: { subName?: string; size?: string; factory
  *   header), and the two public tables for them do not agree: مرکزآهن gives
  *   ناودانی سنگین ۱۴ = 18 kg/m where فولاد ایرانیان gives 16.25 — an 11 %
  *   spread on a number that would go straight onto a live commercial page.
- * - **هاش (HEA/HEB), تیرآهن سبک, لانه‌زنبوری** — each a different section from
- *   IPE, and `IBEAM_KG_PER_M` is the IPE table only.
+ * - **تیرآهن سبک, لانه‌زنبوری** — each a different section from IPE, and
+ *   `IBEAM_KG_PER_M` is the IPE table only. (**هاش** was in this list for the
+ *   same reason until 2026-08-20, when `HEA_KG_PER_M`/`HEB_KG_PER_M` were
+ *   added to `weight.ts` from DIN 1025-2/-3 and corroborated against
+ *   مرکزآهن's published per-شاخه column — so the reason no longer holds and
+ *   the two هاش lines are in the table below.)
  * - **نبشی بال نامساوی, سپری, نبشی لقمه** — no published table in this repo;
  *   an unequal-leg angle needs both legs and a thickness, سپری is a T
  *   section, and a لقمه is a spacer with no branch at all.
@@ -201,6 +205,14 @@ const CATALOG_WEIGHT_BASIS: Readonly<Record<string, CatalogWeightBasis>> = {
   // 155 kg, which is 12.9 × 12.
   'ibeam/tirahan': { shape: 'ibeam', lengthM: 12, sizeAs: 'sizeCode' },
   'ibeam/ipe': { shape: 'ibeam', lengthM: 12, sizeAs: 'sizeCode' },
+  // هاش. Two entries, not one, because HEA and HEB are two different sections
+  // at the same market size — a هاش ۲۰ is 508 kg as an HEA and 736 kg as an
+  // HEB — and the sub-category is the only thing that says which. 12 m is the
+  // branch length مرکزآهن's هاش listing quotes EVERY row in («طول ۱۲»), the
+  // same length تیرآهن above already uses, and the one the per-شاخه weights
+  // that corroborate these tables are published over.
+  'ibeam/hash-sabok': { shape: 'hea', lengthM: 12, sizeAs: 'sizeCode' },
+  'ibeam/hash-sangin': { shape: 'heb', lengthM: 12, sizeAs: 'sizeCode' },
 };
 
 /** The composition key for a sub-category, as `CATALOG_WEIGHT_BASIS` is keyed. */
