@@ -27,7 +27,7 @@ import { slugify } from '@/lib/utils/slugify';
 import { useToast } from '@/lib/hooks/useToast';
 import { useDeepLinkQuery } from '@/lib/hooks/useDeepLinkQuery';
 import { Alert, Badge, Button, Chip, EmptyState, Modal, TableSkeleton, useConfirm } from '@/components/ui';
-import { TextInput, PickerInput } from '@/components/forms/fields';
+import { TextInput, Textarea, PickerInput } from '@/components/forms/fields';
 import { ImageUpload } from '../ImageUpload';
 import { PagerFooter } from '../PagerFooter';
 import { TaxonomyRail, type RailSelection } from './TaxonomyRail';
@@ -714,6 +714,8 @@ function NodeModal({
   const iconRow = draft.kind === 'category' ? (draft.row as AdminCategory | null) : null;
   const [iconId, setIconId] = useState(iconRow?.iconId ?? '');
   const [imageUrl, setImageUrl] = useState<string | null>(iconRow?.imageUrl ?? null);
+  // The category's public one-liner, out of and back into `seo.description`.
+  const [description, setDescription] = useState(iconRow?.seo?.description ?? '');
   const subRow = draft.kind === 'sub' ? (draft.row as AdminSubCategory | null) : null;
   const [groupLabel, setGroupLabel] = useState(subRow?.groupLabel ?? '');
 
@@ -735,8 +737,16 @@ function NodeModal({
     // — the caller just refetches — so the result is deliberately widened.
     mutationFn: async (): Promise<void> => {
       if (draft.kind === 'category') {
-        if (draft.row) await adminApi.updateCategory(draft.row.id, { name, slug, iconId, imageUrl });
-        else await adminApi.createCategory({ name, slug, iconId, imageUrl });
+        // The rest of the blob is preserved: `seo` is replaced wholesale by
+        // the API, so sending only `{ description }` would silently drop a
+        // canonical or an OG image someone had set on this category.
+        const trimmed = description.trim();
+        const seo = { ...(iconRow?.seo ?? {}), description: trimmed || undefined };
+        // …and an otherwise-empty blob is stored as NULL rather than as `{}`,
+        // so «no SEO set» stays one state in the column instead of two.
+        const seoValue = Object.values(seo).some((x) => x !== undefined) ? seo : null;
+        if (draft.row) await adminApi.updateCategory(draft.row.id, { name, slug, iconId, imageUrl, seo: seoValue });
+        else await adminApi.createCategory({ name, slug, iconId, imageUrl, seo: seoValue });
         return;
       }
       if (draft.row) await adminApi.updateSubCategory(draft.row.id, { name, slug, categoryId, groupLabel });
@@ -867,6 +877,19 @@ function NodeModal({
               <div className={ui.tileHint}>در مگا‌منو و صفحهٔ اول کنار نام دسته دیده می‌شود.</div>
             </div>
             <ImageUpload label="تصویر دسته" value={imageUrl} onChange={setImageUrl} />
+            {/* One or two lines saying what this دسته is and who buys it.
+                Shown in the mega‌منو زیر نام دسته and published as the
+                category's `description` in the site's structured data, which
+                is what an answer engine reads when someone asks what آهن‌تایم
+                sells. Kept short on purpose — the menu clamps it to one line. */}
+            <Textarea
+              label="توضیح کوتاه دسته"
+              rows={3}
+              maxLength={200}
+              helper={`در مگا‌منو زیر نام دسته و در دادهٔ ساختاریافتهٔ صفحه منتشر می‌شود. بگویید این دسته چیست و به چه کاری می‌آید. ${toPersianDigits(description.trim().length)} از ${toPersianDigits(200)} نویسه.`}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
           </>
         ) : null}
 

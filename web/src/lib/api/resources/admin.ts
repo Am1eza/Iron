@@ -347,6 +347,10 @@ export interface AdminCategory {
   iconId: string;
   imageUrl: string | null;
   isActive: boolean;
+  /** The same `SeoMeta` blob an article carries. Its `description` is the
+   *  category's one-line «چیست و مشتری‌اش کیست», shown in the mega-menu panel
+   *  and emitted in `catalogNavigationJsonLd`. */
+  seo: SeoMeta | null;
   /** Active descendants — the confirm dialog states these before hiding. */
   subCount: number;
   skuCount: number;
@@ -831,7 +835,7 @@ export const adminApi = {
     relatedCategoryIds?: string[];
     relatedNewsTopicIds?: string[];
     faq?: { question: string; answer: string }[];
-    /** Accepted on create since US-14.4 — see `articleSeoSchema`. */
+    /** Accepted on create since US-14.4 — see `seoMetaSchema`. */
     seo?: SeoMeta | null;
   }) => http.post<{ article: ArticleFull }>('/api/admin/articles', input),
   updateArticle: (
@@ -893,11 +897,29 @@ export const adminApi = {
      could never edit them. */
   categories: () =>
     http.get<{ categories: AdminCategory[] }>('/api/admin/catalog/categories'),
-  createCategory: (input: { slug: string; name: string; order?: number; iconId?: string; imageUrl?: string | null }) =>
-    http.post<{ category: AdminCategory }>('/api/admin/catalog/categories', input),
+  createCategory: (input: {
+    slug: string;
+    name: string;
+    order?: number;
+    iconId?: string;
+    imageUrl?: string | null;
+    // Accepted on CREATE as well as patch, deliberately: the article drawer
+    // shipped with `seo` on PATCH only, and the effect was that everything an
+    // editor typed into the SEO fields of a NEW row was silently stripped by
+    // zod and then blanked on screen by a success toast.
+    seo?: SeoMeta | null;
+  }) => http.post<{ category: AdminCategory }>('/api/admin/catalog/categories', input),
   updateCategory: (
     id: string,
-    patch: Partial<{ slug: string; name: string; order: number; iconId: string; imageUrl: string | null; isActive: boolean }>,
+    patch: Partial<{
+      slug: string;
+      name: string;
+      order: number;
+      iconId: string;
+      imageUrl: string | null;
+      isActive: boolean;
+      seo: SeoMeta | null;
+    }>,
   ) => http.patch<{ category: AdminCategory }>(`/api/admin/catalog/categories/${id}`, patch),
   deactivateCategory: (id: string) => http.del<{ ok: true }>(`/api/admin/catalog/categories/${id}`),
 

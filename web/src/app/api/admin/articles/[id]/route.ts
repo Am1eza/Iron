@@ -10,7 +10,7 @@ import {
   revalidateArticleUrl,
 } from '@/lib/server/utils/revalidate';
 import {
-  articleSeoSchema,
+  seoMetaSchema,
   articleSlugSchema,
   articleTagsSchema,
   articleCategoryIdsSchema,
@@ -101,8 +101,8 @@ const patchPayload = z.object({
   // Editor SEO overrides, including the focus keyword the on-page checklist
   // keys off. Shared with the create route. canonical is validated by
   // internalPathSchema (parser-based, not a startswith-slash regex) inside
-  // articleSeoSchema itself — see lib/validation/utils.ts.
-  seo: articleSeoSchema,
+  // seoMetaSchema itself — see lib/validation/utils.ts.
+  seo: seoMetaSchema,
   // Only 'draft' — moving DOWN in privilege (cancel/revert a scheduled
   // publish) is a safe content:write operation. Scheduling or publishing
   // is content:publish's job (POST .../publish, which also stamps

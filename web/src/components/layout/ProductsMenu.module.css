@@ -126,13 +126,31 @@
   padding-inline-end: var(--space-2);
 }
 .panelHead {
+  margin-block-end: var(--space-4);
+  padding-block-end: var(--space-2);
+  border-block-end: var(--border-hairline) solid var(--color-hairline);
+}
+.panelHeadRow {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: var(--space-4);
-  margin-block-end: var(--space-4);
-  padding-block-end: var(--space-2);
-  border-block-end: var(--border-hairline) solid var(--color-hairline);
+}
+/* The category's description. Clamped to TWO lines, and bounded in width:
+   the copy is admin-editable, so the layout has to survive someone writing
+   three sentences. Clamping degrades that by truncating instead of by pushing
+   the sub-category flow down the panel — the menu's whole point is that its
+   height does not depend on what a category contains. */
+.panelLede {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  max-inline-size: 62ch;
+  margin: var(--space-2) 0 0;
+  color: var(--color-text-muted);
+  font: var(--t-caption);
 }
 .panelTitle {
   margin: 0;

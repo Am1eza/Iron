@@ -18,17 +18,21 @@ vi.mock('next/navigation', () => ({ usePathname: () => '/' }));
 vi.mock('@/components/catalog/ProductImage', () => ({ ProductImage: () => null }));
 vi.mock('@/components/catalog/CategoryArt', () => ({ CategoryArt: () => null }));
 
-const cat = (slug: string, name: string, order: number): Category => ({
+const cat = (slug: string, name: string, order: number, description?: string): Category => ({
   id: slug,
   slug,
   name,
   order,
   iconId: '',
   isActive: true,
+  ...(description ? { description } : {}),
 });
 
 const categories = [
-  cat('profile', 'پروفیل و قوطی', 1),
+  cat('profile', 'پروفیل و قوطی', 1, 'قوطی و پروفیل چهارپهلو، مبلی و ستونی — برای سازهٔ سبک.'),
+  // Deliberately without one: the description is admin-authored and a
+  // category that has never been given one must render nothing at all rather
+  // than an empty paragraph or a generated stand-in.
   cat('angle-channel', 'نبشی و ناودانی', 2),
 ];
 
@@ -102,5 +106,15 @@ describe('ProductsMenu', () => {
     // Persian digits, per the localisation rules.
     expect(items[0]!.textContent).toContain('۳');
     expect(items[1]!.textContent).toContain('۱');
+  });
+
+  it('renders the admin-authored category description, and nothing when there is none', () => {
+    render(<ProductsMenu categories={categories} subs={subs} />);
+    // The panels are `hidden` while the menu is closed, so this is a DOM
+    // question — the same reason the link test above queries the DOM directly.
+    const text = [...document.querySelectorAll('p')].map((el) => el.textContent);
+    expect(text).toContain('قوطی و پروفیل چهارپهلو، مبلی و ستونی — برای سازهٔ سبک.');
+    // نبشی و ناودانی's panel exists but contributes no description paragraph.
+    expect(text.filter((t) => t && t.includes('—'))).toHaveLength(1);
   });
 });

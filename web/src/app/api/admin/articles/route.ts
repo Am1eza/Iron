@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
 import {
-  articleSeoSchema,
+  seoMetaSchema,
   articleSlugSchema,
   articleTagsSchema,
   articleCategoryIdsSchema,
@@ -52,7 +52,7 @@ const createPayload = z.object({
   // including the focus keyword — were stripped by zod on the very first save
   // and then blanked on screen by the post-create reseed, with a success
   // toast and no dirty flag to hint that anything had been lost.
-  seo: articleSeoSchema,
+  seo: seoMetaSchema,
 });
 
 /** POST /api/admin/articles — create a draft. */

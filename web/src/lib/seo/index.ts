@@ -323,7 +323,7 @@ export function faqJsonLd(items: { question: string; answer: string }[]) {
  * here that a visitor cannot see in the menu.
  */
 export function catalogNavigationJsonLd(
-  categories: readonly { slug: string; name: string }[],
+  categories: readonly { slug: string; name: string; description?: string }[],
   subsBySlug: Readonly<Record<string, readonly { slug: string; name: string }[]>>,
 ) {
   if (categories.length === 0) return null;
@@ -338,6 +338,13 @@ export function catalogNavigationJsonLd(
       '@type': 'SiteNavigationElement',
       position: i + 1,
       name: cat.name,
+      // The admin-authored line from `categories.seo.description`, when there
+      // is one. This is the half of the taxonomy that says what «نبشی و
+      // ناودانی» actually IS: without it the structured data carries nine
+      // Persian nouns and nothing an answer engine can lift to answer "what
+      // does آهن‌تایم sell in this category". Omitted rather than defaulted —
+      // an invented sentence in schema.org is worse than none.
+      ...(cat.description ? { description: cat.description } : {}),
       url: new URL(`/prices/${cat.slug}`, SITE_URL).toString(),
       hasPart: (subsBySlug[cat.slug] ?? []).map((sub) => ({
         '@type': 'SiteNavigationElement',

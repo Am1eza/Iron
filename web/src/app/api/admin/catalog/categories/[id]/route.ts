@@ -8,7 +8,7 @@ import {
   redirectTaxonomySlugChange,
   revalidateCatalog,
 } from '@/lib/server/utils/catalogRoute';
-import { finiteNumber, nonEmptyPatch, slugSchema, uploadPathSchema } from '@/lib/validation/utils';
+import { finiteNumber, nonEmptyPatch, seoMetaSchema, slugSchema, uploadPathSchema } from '@/lib/validation/utils';
 import { normalizePersian } from '@/lib/utils/persianText';
 
 const patchPayload = nonEmptyPatch(
@@ -22,6 +22,11 @@ const patchPayload = nonEmptyPatch(
     // the repo argument and the public read all existing.
     imageUrl: uploadPathSchema.nullable().optional(),
     isActive: z.boolean().optional(),
+    // The category's `SeoMeta` blob. Its `description` is what the mega-menu
+    // panel and `catalogNavigationJsonLd` publish — catalog copy belongs in
+    // the panel, so the column has to be reachable from it and not only from
+    // a raw DB write.
+    seo: seoMetaSchema,
   }),
 );
 

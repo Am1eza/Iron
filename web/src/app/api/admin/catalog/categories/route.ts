@@ -4,7 +4,7 @@ import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { adminListCategoriesWithCounts, createCategory } from '@/lib/server/repos/catalogAdminRepo';
 import { catalogErrorResponse, revalidateCatalog } from '@/lib/server/utils/catalogRoute';
-import { finiteNumber, slugSchema, uploadPathSchema } from '@/lib/validation/utils';
+import { finiteNumber, seoMetaSchema, slugSchema, uploadPathSchema } from '@/lib/validation/utils';
 import { normalizePersian } from '@/lib/utils/persianText';
 
 async function GETImpl(req: NextRequest) {
@@ -26,6 +26,9 @@ const createPayload = z.object({
   order: finiteNumber.int().min(0).max(9999).optional(),
   iconId: z.string().trim().max(60).optional(),
   imageUrl: uploadPathSchema.nullable().optional(),
+  // On create too, not only on PATCH — see `seoMetaSchema`'s header for the
+  // article bug that came from having it on one and not the other.
+  seo: seoMetaSchema,
 });
 
 async function POSTImpl(req: NextRequest) {

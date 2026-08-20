@@ -129,6 +129,23 @@ export interface Category {
   iconId: string;
   imageUrl?: string;
   isActive: boolean;
+  /**
+   * One or two lines saying what this product line IS and who buys it —
+   * admin-authored, read from `categories.seo.description`.
+   *
+   * Flattened out of the `seo` blob rather than carried as a whole `SeoMeta`
+   * because that is the only field of it the public surfaces use, and a
+   * component that only needs the sentence should not be handed a canonical
+   * URL and an OG image alongside it. It is stored in `seo` (and not in a new
+   * column) for the same reason `focusKeyword` is: it is schema-free page
+   * metadata of exactly that shape, and nothing indexes or queries into it.
+   *
+   * Optional everywhere: a category with no description renders none, in the
+   * menu and in the JSON-LD alike. There is no fallback sentence, because a
+   * generated one would be the keyword-stuffed boilerplate this field exists
+   * to replace.
+   */
+  description?: string;
 }
 
 export interface SubCategory {
