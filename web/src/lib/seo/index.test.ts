@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildMetadata, orgJsonLd, productJsonLd } from './index';
+import { buildMetadata, catalogNavigationJsonLd, orgJsonLd, productJsonLd } from './index';
 import { CHANNELS } from '@/lib/data/nav';
 
 type Offer = {
@@ -130,5 +130,27 @@ describe('orgJsonLd — sameAs is an identity claim, not a link list', () => {
     const verified = CHANNELS.filter((c) => c.verified);
     const sameAs = (orgJsonLd() as { sameAs?: string[] }).sameAs ?? [];
     expect(sameAs).toEqual(verified.map((c) => c.href));
+  });
+});
+
+describe('catalogNavigationJsonLd — the taxonomy an answer engine reads', () => {
+  const subs = { rebar: [{ slug: 'deformed', name: 'میلگرد آجدار' }], pipe: [] };
+
+  it('carries each category’s admin-authored description', () => {
+    // Without this the structured data was nine Persian nouns and nothing
+    // that answers «آهن‌تایم در این دسته چه می‌فروشد؟».
+    const ld = catalogNavigationJsonLd(
+      [{ slug: 'rebar', name: 'میلگرد', description: 'میلگرد آجدار و ساده — قلم اصلی اسکلت بتنی.' }],
+      subs,
+    ) as { itemListElement: { description?: string; hasPart: unknown[] }[] };
+    expect(ld.itemListElement[0]!.description).toBe('میلگرد آجدار و ساده — قلم اصلی اسکلت بتنی.');
+    expect(ld.itemListElement[0]!.hasPart).toHaveLength(1);
+  });
+
+  it('omits the key entirely for a category with none, rather than emitting an empty one', () => {
+    const ld = catalogNavigationJsonLd([{ slug: 'pipe', name: 'لوله' }], subs) as {
+      itemListElement: Record<string, unknown>[];
+    };
+    expect(ld.itemListElement[0]).not.toHaveProperty('description');
   });
 });

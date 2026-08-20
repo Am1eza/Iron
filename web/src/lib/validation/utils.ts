@@ -186,7 +186,7 @@ export const articleNewsTopicIdsSchema = z.array(z.string().min(1).max(60)).max(
  * Admin-editable per-article FAQ (US-14.7) — free text, unlike the two
  * pickers above, since a question/answer pair has no closed set to pick
  * from. Each answer is capped well above the site's other single-field
- * limits (`articleSeoSchema.description` is 200) because an FAQ answer
+ * limits (`seoMetaSchema.description` is 200) because an FAQ answer
  * is real prose meant to stand alone for an AI/answer-engine consumer
  * (see `lib/seo.faqJsonLd`'s own comment on that), not a meta snippet.
  */
@@ -247,8 +247,14 @@ export function sitePathSchema(base: string = process.env.NEXT_PUBLIC_SITE_URL ?
 }
 
 /**
- * An article's `seo` jsonb blob — the editor's Google-result overrides plus
- * the focus keyword the on-page checklist keys off (US-14.4).
+ * A `seo` jsonb blob — the editor's Google-result overrides plus the focus
+ * keyword the on-page checklist keys off (US-14.4).
+ *
+ * Named for `SeoMeta`, not for articles: `articles.seo`, `categories.seo`,
+ * `sub_categories.seo` and `skus.seo` are the same column of the same shape,
+ * and the category route reuses this schema rather than restating four fields
+ * that would then drift. (It was `articleSeoSchema` until 2026-08-20, when
+ * category descriptions became admin-editable.)
  *
  * Shared by BOTH article routes rather than declared in each. It used to live
  * only on PATCH, which is why creating an article silently threw away every
@@ -260,7 +266,7 @@ export function sitePathSchema(base: string = process.env.NEXT_PUBLIC_SITE_URL ?
  * Empty strings become `undefined` so a blank input is "unset" rather than a
  * stored empty value; the keyword trims first, so «   » is a blank too.
  */
-export const articleSeoSchema = z
+export const seoMetaSchema = z
   .object({
     title: z.string().trim().max(70).optional(),
     description: z.string().trim().max(200).optional(),

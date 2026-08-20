@@ -215,17 +215,27 @@ function CategoryPanel({
       onKeyDown={onKeyDown}
     >
       <div className={styles.panelHead}>
-        {/* A real heading, not styled text: the panel is a named section of
-            the navigation and both a screen reader and a parser should be able
-            to tell that «ورق» heads the list of ورق sub-categories. */}
-        <h2 className={styles.panelTitle}>{cat.name}</h2>
-        {/* Descriptive link text — «قیمت روز ورق» says what is on the other
-            side of the click; a generic «مشاهده» says nothing to a reader
-            scanning, and nothing to an answer engine reading anchor text. */}
-        <Link href={routes.category(cat.slug)} className={styles.panelAll}>
-          قیمت روز {cat.name}
-          <ChevronStartIcon size={14} className="icon--rtl" />
-        </Link>
+        <div className={styles.panelHeadRow}>
+          {/* A real heading, not styled text: the panel is a named section of
+              the navigation and both a screen reader and a parser should be
+              able to tell that «ورق» heads the list of ورق sub-categories. */}
+          <h2 className={styles.panelTitle}>{cat.name}</h2>
+          {/* Descriptive link text — «قیمت روز ورق» says what is on the other
+              side of the click; a generic «مشاهده» says nothing to a reader
+              scanning, and nothing to an answer engine reading anchor text. */}
+          <Link href={routes.category(cat.slug)} className={styles.panelAll}>
+            قیمت روز {cat.name}
+            <ChevronStartIcon size={14} className="icon--rtl" />
+          </Link>
+        </div>
+        {/* The admin-authored line for this product line — what it is and who
+            buys it. Deliberately ONE clamped line: it sits above a flow that
+            can be nineteen sub-categories long, and a paragraph here would
+            compete with the list the menu exists to show. The same string
+            goes into `catalogNavigationJsonLd`, so the sentence a reader sees
+            and the one an answer engine lifts are the same sentence. Rendered
+            only when set — there is no generated fallback. */}
+        {cat.description ? <p className={styles.panelLede}>{cat.description}</p> : null}
       </div>
 
       <div className={styles.panelBody}>

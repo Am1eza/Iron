@@ -98,6 +98,10 @@ export async function listCategories(): Promise<Category[]> {
     iconId: c.iconId,
     imageUrl: c.imageUrl ?? undefined,
     isActive: c.isActive,
+    // `|| undefined`, not `?? undefined`: a description saved as an empty
+    // string is "not set", and letting '' through would render an empty
+    // paragraph in the mega-menu and an empty `description` in the JSON-LD.
+    description: c.seo?.description || undefined,
   }));
 }
 
@@ -105,7 +109,16 @@ export async function findCategoryBySlug(slug: string): Promise<Category | null>
   const rows = await getDb().select().from(categories).where(eq(categories.slug, slug)).limit(1);
   const c = rows[0];
   if (!c || !c.isActive) return null;
-  return { id: c.id, slug: c.slug, name: c.name, order: c.order, iconId: c.iconId, imageUrl: c.imageUrl ?? undefined, isActive: c.isActive };
+  return {
+    id: c.id,
+    slug: c.slug,
+    name: c.name,
+    order: c.order,
+    iconId: c.iconId,
+    imageUrl: c.imageUrl ?? undefined,
+    isActive: c.isActive,
+    description: c.seo?.description || undefined,
+  };
 }
 
 /**

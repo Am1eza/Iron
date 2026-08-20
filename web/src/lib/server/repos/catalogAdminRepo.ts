@@ -34,7 +34,7 @@ import {
   alerts,
   favorites,
 } from '@/lib/server/db/schema';
-import type { PriceBasis, PriceUnit } from '@/lib/types/domain';
+import type { PriceBasis, PriceUnit, SeoMeta } from '@/lib/types/domain';
 import { normalizeDigits } from '@/lib/utils/format';
 import { likeContains } from '@/lib/server/utils/likeEscape';
 
@@ -134,6 +134,7 @@ export async function createCategory(input: {
   order?: number;
   iconId?: string;
   imageUrl?: string | null;
+  seo?: SeoMeta | null;
 }) {
   const slug = await freeSlug(input.slug, (c) => categorySlugTaken(c));
   const rows = await asSlugConflict(
@@ -147,6 +148,7 @@ export async function createCategory(input: {
           order: input.order ?? 99,
           iconId: input.iconId ?? '',
           imageUrl: input.imageUrl ?? null,
+          seo: input.seo ?? null,
         })
         .returning(),
     'این نشانی قبلاً برای دستهٔ دیگری استفاده شده است.',
@@ -163,6 +165,9 @@ export async function updateCategory(
     iconId: string;
     imageUrl: string | null;
     isActive: boolean;
+    /** Replaced wholesale, not merged: the panel sends the whole blob it read,
+     *  which is how the article editor already treats this column. */
+    seo: SeoMeta | null;
   }>,
 ) {
   const db = getDb();
