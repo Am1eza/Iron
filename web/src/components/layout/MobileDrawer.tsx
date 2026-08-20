@@ -1,5 +1,5 @@
 'use client';
-import { Fragment, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { routes } from '@/lib/routes';
@@ -14,7 +14,8 @@ import {
 } from '@/lib/data/nav';
 import type { Category } from '@/lib/types/domain';
 import type { SubsMap } from '@/lib/data/catalog';
-import { groupByLabel } from '@/lib/utils/catalogGroups';
+import { groupSubCategories } from '@/lib/utils/catalogGroups';
+import { toPersianDigits } from '@/lib/utils/format';
 import { useUiStore } from '@/lib/stores/ui';
 import { useAuthStore } from '@/lib/stores/auth';
 import { CloseIcon, ChevronDownIcon, UserIcon } from '@/components/primitives/icons';
@@ -34,6 +35,11 @@ export function MobileDrawer({ categories, subs }: { categories: Category[]; sub
   const panelRef = useRef<HTMLDivElement | null>(null);
   const lastFocused = useRef<HTMLElement | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  // Which single category inside «محصولات» is open. One at a time, so the
+  // drawer's length is ~9 rows plus one category's sub-list — not the ~80
+  // chips it used to be, which put فلزات رنگی a couple of thousand pixels of
+  // scrolling below the fold on the audience that is mostly on a phone.
+  const [expandedCat, setExpandedCat] = useState<string | null>(null);
 
   // Close on route change.
   useEffect(() => {
@@ -121,37 +127,83 @@ export function MobileDrawer({ categories, subs }: { categories: Category[]; sub
             </button>
             {expanded === 'products' && (
               <ul id="mobile-drawer-products-panel" className={styles.accordionBody}>
-                {categories.map((cat) => (
-                  <li key={cat.id}>
-                    <Link href={routes.category(cat.slug)} className={styles.catLink}>
-                      {cat.name}
-                    </Link>
-                    {/* ONE shared <ul> for every subcategory (grouped or
-                        not) — `.subList` is a flex-wrap chip row, and
-                        splitting it into one <ul> per group (including a
-                        fresh one for every ungrouped singleton) broke
-                        wrapping: each single-chip list rendered on its own
-                        line instead of packing side by side. A labeled
-                        cluster's heading is an inline <li> that forces its
-                        own line via `.subGroupHeading { flex-basis: 100% }`. */}
-                    <ul className={styles.subList}>
-                      {groupByLabel(subs[cat.slug] ?? []).map((subGroup) => (
-                        <Fragment key={subGroup.label ?? `_solo_${subGroup.items[0]!.slug}`}>
-                          {subGroup.label ? (
-                            <li className={styles.subGroupHeading}>{subGroup.label}</li>
-                          ) : null}
-                          {subGroup.items.map((sub) => (
-                            <li key={sub.slug}>
-                              <Link href={routes.subCategory(cat.slug, sub.slug)} className={styles.subLink}>
-                                {sub.name}
-                              </Link>
+                {categories.map((cat) => {
+                  const catSubs = subs[cat.slug] ?? [];
+                  const isOpen = expandedCat === cat.slug;
+                  const bodyId = `mobile-drawer-cat-${cat.slug}`;
+                  return (
+                    <li key={cat.id}>
+                      {/* Two targets in one row, not one: the NAME goes to the
+                          category's price table, the chevron opens its
+                          sub-categories in place. Collapsing them into a
+                          single control would force a visitor who wants
+                          «همه‌ی ورق» to first expand 19 sub-categories and
+                          then scroll back past them. */}
+                      <div className={styles.catRow}>
+                        <Link href={routes.category(cat.slug)} className={styles.catLink}>
+                          {cat.name}
+                          {catSubs.length > 0 && (
+                            <span className={styles.catCount}>
+                              {toPersianDigits(catSubs.length)}
+                              <span className="visually-hidden"> زیردسته</span>
+                            </span>
+                          )}
+                        </Link>
+                        {catSubs.length > 0 && (
+                          <button
+                            type="button"
+                            className={styles.catToggle}
+                            aria-expanded={isOpen}
+                            aria-controls={bodyId}
+                            aria-label={`زیردسته‌های ${cat.name}`}
+                            onClick={() => setExpandedCat((s) => (s === cat.slug ? null : cat.slug))}
+                          >
+                            <ChevronDownIcon size={18} className={isOpen ? styles.caretOpen : undefined} />
+                          </button>
+                        )}
+                      </div>
+
+                      {isOpen && (
+                        <ul id={bodyId} className={styles.subList}>
+                          {groupSubCategories(catSubs).map((group) => (
+                            <li
+                              key={group.label ?? `_solo_${(group.lead ?? group.items[0])!.slug}`}
+                              className={styles.subGroup}
+                            >
+                              {/* Same rule as the desktop menu: a group named
+                                  after one of its own members is headed by
+                                  that member as a link, so «چهارپهلو» stops
+                                  rendering as a dead caption above an
+                                  identical «چهارپهلو» chip. */}
+                              {group.lead ? (
+                                <Link
+                                  href={routes.subCategory(cat.slug, group.lead.slug)}
+                                  className={`${styles.subLink} ${styles.subLead}`}
+                                >
+                                  {group.lead.name}
+                                </Link>
+                              ) : group.label ? (
+                                <p className={styles.subGroupHeading}>{group.label}</p>
+                              ) : null}
+                              <ul className={group.label ? styles.subNested : styles.subFlat}>
+                                {group.items.map((sub) => (
+                                  <li key={sub.slug}>
+                                    <Link
+                                      href={routes.subCategory(cat.slug, sub.slug)}
+                                      className={styles.subLink}
+                                    >
+                                      {sub.name}
+                                    </Link>
+                                  </li>
+                                ))}
+                              </ul>
                             </li>
                           ))}
-                        </Fragment>
-                      ))}
-                    </ul>
-                  </li>
-                ))}
+                        </ul>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>

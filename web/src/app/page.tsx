@@ -12,7 +12,13 @@ import { computeBulkSplit, pickBestGroup } from '@/lib/utils/bulkSplit';
 import { ValueProps } from '@/components/home/ValueProps';
 import { Partners } from '@/components/home/Partners';
 import { JsonLd } from '@/components/seo/JsonLd';
-import { buildMetadata, orgJsonLd, localBusinessJsonLd, websiteJsonLd } from '@/lib/seo';
+import {
+  buildMetadata,
+  orgJsonLd,
+  localBusinessJsonLd,
+  websiteJsonLd,
+  catalogNavigationJsonLd,
+} from '@/lib/seo';
 import { getContact } from '@/lib/server/contact';
 import { getSetting } from '@/lib/server/repos/settingsRepo';
 import { hasDb } from '@/lib/server/db/client';
@@ -106,10 +112,25 @@ export default async function HomePage() {
   const allRows = [...rowsBySlug.values()].flat();
   const skuCount = allRows.length;
   const factoryCount = new Set(allRows.map((r) => r.factory).filter(Boolean)).size;
+  // Null only when the catalog read failed and the chrome degraded to an empty
+  // rail — there is nothing to describe, so nothing is asserted.
+  const catalogNav = catalogNavigationJsonLd(categories, subsMap);
 
   return (
     <>
-      <JsonLd data={[orgJsonLd(contact), localBusinessJsonLd(contact), websiteJsonLd()]} />
+      {/* The catalog taxonomy as structured data. The homepage and the
+          /prices hub are the two URLs an answer engine actually lands on to
+          work out what this business sells, so that is where it is published
+          — not site-wide, where it would be the same list repeated on every
+          article and tool page. */}
+      <JsonLd
+        data={[
+          orgJsonLd(contact),
+          localBusinessJsonLd(contact),
+          websiteJsonLd(),
+          ...(catalogNav ? [catalogNav] : []),
+        ]}
+      />
       <HeroSearch
         stats={{ skuCount, factoryCount }}
         board={

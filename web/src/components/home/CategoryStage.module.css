@@ -189,11 +189,20 @@
 }
 /* Purely a visual cluster heading above a `.colList` group that shares a
  * groupLabel — not a link, not a real taxonomy level (see catalogGroups.ts). */
+/* A cluster label that names no member of its own (مانیسمان). Set as an
+   overline so it cannot be misread as a link that has stopped working — the
+   case where the label DOES name a member is now a real link (`.subLead`), not
+   a caption, so these two can no longer look alike. */
 .subGroupHeading {
-  font: var(--t-caption);
-  font-weight: 600;
+  font: var(--t-overline);
   color: var(--color-text-muted);
-  margin: 0 0 var(--space-1);
+  margin: var(--space-2) 0 var(--space-1);
+}
+/* The member promoted to head its own cluster — a `.subItem` link, weighted
+   as the heading it now is. */
+.subLead {
+  font-weight: 700;
+  color: var(--color-text-strong);
 }
 .subItem {
   display: flex;

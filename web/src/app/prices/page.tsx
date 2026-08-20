@@ -3,7 +3,7 @@ import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { getCategories, getSubsMap } from '@/lib/data/catalog';
 import { getRows, getHeadlineRows } from '@/lib/server/catalog';
-import { itemListJsonLd } from '@/lib/seo';
+import { itemListJsonLd, catalogNavigationJsonLd } from '@/lib/seo';
 import { Container, Section, Stack, Heading, Text, Breadcrumbs } from '@/components/ui';
 import { BreadcrumbJsonLd, JsonLd } from '@/components/seo/JsonLd';
 import { CategoryGrid } from '@/components/market/CategoryGrid';
@@ -66,9 +66,14 @@ export default async function PriceHubPage() {
   ]);
   // Same headline row count the previous mock fixture happened to show.
   const rebarRows = rebarAll.slice(0, 6);
+  // The catalog taxonomy as structured data — see catalogNavigationJsonLd.
+  // This hub and the homepage are the two URLs an answer engine lands on to
+  // work out what آهن‌تایم sells; it is not published site-wide.
+  const catalogNav = catalogNavigationJsonLd(categories, subs);
   return (
     <Container>
       <BreadcrumbJsonLd items={crumbs} />
+      {catalogNav ? <JsonLd data={catalogNav} /> : null}
       {headlineRows.length > 0 ? (
         <JsonLd
           data={itemListJsonLd(

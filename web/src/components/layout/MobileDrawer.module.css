@@ -141,40 +141,103 @@
   margin: 0 0 var(--space-2);
   padding: 0;
 }
-.subList {
-  list-style: none;
-  margin: 0 0 var(--space-2);
-  padding-inline-start: var(--space-5);
+/* ===== «محصولات» — category row, then that category's sub-categories ===== */
+
+/* The row holds two independent targets: the category link (flexes to fill)
+   and the disclosure button (fixed, 48px, its own tap area). */
+.catRow {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1) var(--space-2);
+  align-items: center;
 }
-.subLink {
+.catRow .catLink {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  justify-content: flex-start;
+  gap: var(--space-2);
+}
+.catCount {
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-xs);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+  font: var(--t-micro);
+  font-variant-numeric: tabular-nums;
+}
+.catToggle {
+  flex: none;
   display: inline-flex;
   align-items: center;
-  min-block-size: 36px;
-  padding-inline: var(--space-3);
-  border-radius: var(--radius-pill);
-  background: var(--color-surface-sunken);
-  font: var(--t-body-sm);
+  justify-content: center;
+  inline-size: 48px;
+  min-block-size: 48px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
   color: var(--color-text-muted);
+  cursor: pointer;
+}
+.catToggle:hover {
+  background: var(--color-surface-sunken);
+  color: var(--color-text-strong);
+}
+
+/* Rows, not chips. A chip row packs tightly, which is the right call for six
+   short labels and the wrong one for «آلوزینک (گالوالوم)» beside «ورق پانچ
+   سیاه»: the wrapping was unpredictable, group headings had to fake their own
+   line break, and nothing lined up to scan down. Rows behind a single leader
+   rule read as one list and give every label a full-width 44px target. */
+.subList {
+  list-style: none;
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  margin-inline-start: var(--space-5);
+  padding-inline-start: var(--space-3);
+  border-inline-start: var(--border-hairline) solid var(--color-hairline);
+}
+.subGroup {
+  margin-block-end: var(--space-1);
+}
+.subFlat,
+.subNested {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+/* A labelled group's children step in one more level, so the heading above
+   them is unambiguously their heading. */
+.subNested {
+  margin-inline-start: var(--space-2);
+  padding-inline-start: var(--space-3);
+  border-inline-start: var(--border-hairline) solid var(--color-hairline);
+}
+.subLink {
+  display: flex;
+  align-items: center;
+  min-block-size: 44px;
+  padding-inline: var(--space-2);
+  border-radius: var(--radius-sm);
+  font: var(--t-body-sm);
+  color: var(--color-text);
   text-decoration: none;
 }
 .subLink:hover {
+  background: var(--color-surface-sunken);
   color: var(--color-accent-text);
   text-decoration: none;
 }
-
-/* Purely a visual cluster heading inside the `.subList` flex-wrap chip row
- * for items that share a groupLabel — not a link, not a real taxonomy level
- * (see catalogGroups.ts). `flex-basis: 100%` forces it onto its own line
- * within the same flex container instead of needing a separate <ul>. */
+/* The member promoted to head its own group (see catalogGroups.ts) — a link,
+   weighted as the heading it is. */
+.subLead {
+  font-weight: 700;
+  color: var(--color-text-strong);
+}
+/* A group label that names no member of its own (مانیسمان) — text, never a
+   link, and set as an overline so it cannot read as a broken one. */
 .subGroupHeading {
-  flex-basis: 100%;
-  padding-inline-start: var(--space-5);
-  margin-block-end: var(--space-1);
-  font: var(--t-caption);
-  font-weight: 600;
+  margin: var(--space-2) 0 var(--space-1);
+  padding-inline: var(--space-2);
+  font: var(--t-overline);
   color: var(--color-text-muted);
 }
 
