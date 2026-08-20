@@ -187,9 +187,12 @@ directly by `Header` (not via `lazy.ts`), and `NavDropdown` gained a
 accessibility tree exactly as unmounting did, while leaving the anchors in the
 document for a parser.
 
-> **Measured on the production build:** distinct `/prices/*` URLs in the
-> homepage HTML went from **33 → 108**. Cost: **13.2KB raw / 1.4KB gzipped**
-> per page.
+> **Measured on the deployed site** (`main@f330abe`): distinct `/prices/*`
+> hrefs in the homepage HTML went from **33 → 99**. The real gain is larger
+> than that ratio suggests: **18 of the old 33 were `?factory=` query variants
+> of one URL** (`/prices/rebar/deformed`), which have no page behind them — so
+> distinct *pages* linked from the homepage went from **15 → 99**.
+> Cost: **13.2KB raw / 1.4KB gzipped** per page.
 
 The simple dropdowns deliberately still mount on open — they duplicate links the
 footer already publishes, so there is nothing to gain.

@@ -153,13 +153,21 @@ in any audit/roadmap doc against the actual code** before scoping work off it.
 
 ## 5. Deploy
 
-Auto-deploy is **broken** — the `deploy` job in `.github/workflows/deploy.yml` fails at
-the SSH step because `DEPLOY_HOST` / `DEPLOY_USER` / `DEPLOY_SSH_KEY` GitHub secrets are
-unset by the owner. Only the **build** job (GHCR image push) matters; verify that one.
+Auto-deploy **works now.** It used to fail at the SSH step because
+`DEPLOY_HOST` / `DEPLOY_USER` / `DEPLOY_SSH_KEY` were unset; the owner has since set them.
+Observed on `main@f330abe` (1405/05/29): merging a PR ran `Deploy to production server`
+→ both `build` and `deploy` green, and `ahantime-web-1` was already running the new tag
+before anyone touched this host. **So check what is deployed before assuming you must
+deploy it** — `docker inspect ahantime-web-1 --format '{{.Config.Image}}'` against
+`git rev-parse origin/main`. The manual recipe below is still correct, and still the
+fallback when the workflow does fail.
 
 Known-red and **not** caused by your change (confirmed across many commits):
-`CI / checks` (prod-dependency audit), `CI / e2e` (Playwright+axe), and
-`Deploy preview to GitHub Pages`. Don't chase them.
+`Deploy preview to GitHub Pages` (a job literally named `build` — do not confuse it with
+the GHCR `build` job in `deploy.yml`, which must be green) and
+`Workers Builds: ahantime` (the secondary Cloudflare target; red on `main` independently
+of any PR). `CI / checks` and `CI / e2e` were long-standing flakes but have been green
+since #208 — treat a failure there as real until proven otherwise.
 
 **Manual deploy on this host:**
 ```bash
