@@ -131,11 +131,13 @@ function rowsFor(categorySlug: string): PriceRow[] {
         factory,
         theoreticalWeightKg: weight,
         unit: 'kg',
+        priceBasis: 'kg',
         isActive: true,
         current: {
           skuId: slug,
           price,
           unit: 'kg',
+          priceBasis: 'kg',
           deliveryTime: DELIVERY[Math.floor(rnd() * DELIVERY.length)]!,
           vatIncluded: false,
           movementPct: pct,

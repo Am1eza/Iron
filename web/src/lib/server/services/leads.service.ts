@@ -26,6 +26,7 @@ import { sendNotification, truncateParam, type TemplateParam } from '@/lib/serve
 import { getPriceFreshness } from '@/lib/server/services/priceFreshness';
 import { publicEnv } from '@/lib/validation/env';
 import { formatToman } from '@/lib/utils/format';
+import { lineTotalToman, lineWeightKg } from '@/lib/utils/priceMath';
 import { formatJalali } from '@/lib/utils/jalali';
 import { SHIPMENT_STEPS, type ShipmentStatus } from '@/lib/types/domain';
 import type { Attribution } from '@/lib/utils/attribution';
@@ -321,6 +322,9 @@ export async function priceItems(
     const pieceRequest =
       hit != null &&
       skuUnit === 'kg' &&
+      // …and the price really is per kilogram. A kg-UNIT row whose price is
+      // denominated per شاخه/کلاف has nothing to convert through.
+      (hit.sku.priceBasis ?? 'kg') === 'kg' &&
       WHOLE_PIECE_UNITS.has(item.unit) &&
       // `piece` is excluded on purpose: it is the one unit whose price is NOT
       // per kilogram (see PRICE_UNITS), so «۲۰ عدد» of a kg-priced SKU is not
@@ -352,45 +356,16 @@ export async function priceItems(
 
     const unitPrice = price && !hidden && !unitMismatch && !fractionalPieces ? price.price : undefined;
 
-    // A `piece` SKU has no weight and needs none — a کوپلر is quoted per عدد,
-    // full stop. Left `undefined` rather than derived, so nothing downstream
-    // can present a fabricated tonnage, and so `totalWeightKg` counts only
-    // material that actually has a mass.
-    const weightKg =
-      unit === 'piece'
-        ? undefined
-        : unit === 'kg'
-          ? item.qty
-          : hit?.sku.theoreticalWeightKg
-            ? Math.round(hit.sku.theoreticalWeightKg * item.qty * 100) / 100
-            : undefined;
-
-    // `unitPrice` is per KILOGRAM, always (see PriceTable's «تومان / کیلوگرم»
-    // label and CostCalculator's identical weight-basis math) — `unit` only
-    // says what `qty` COUNTS in (kg mass vs. whole pieces), never what the
-    // price is denominated in. `weightKg` above already converts a piece
-    // count to real kilograms; charging `unitPrice * item.qty` instead of
-    // `unitPrice * weightKg` is exactly the "100 branches ≈ 1200kg, billed as
-    // 100kg" bug the comment two blocks up already warns about — it was
-    // fixed for `weightKg` itself but never applied here. For `unit==='kg'`,
-    // `weightKg === item.qty`, so this is a no-op for every SKU in the
-    // catalog today; it only changes anything once a branch/sheet/meter SKU
-    // gets a real price.
-    //
-    // `piece` is the single exception and the reason it needed its own member
-    // of PRICE_UNITS rather than reusing `branch`: its price IS per عدد, so
-    // the quantity is already the multiplier and there is no mass in the
-    // chain at all. Routing it through `weightKg` would have left every
-    // coupler line permanently unpriced (`weightKg` is undefined above), which
-    // fails safe but never quotes.
-    const lineTotal =
-      unitPrice == null
-        ? undefined
-        : unit === 'piece'
-          ? Math.round(unitPrice * item.qty)
-          : weightKg != null
-            ? Math.round(unitPrice * weightKg)
-            : undefined;
+    // The denomination is stored, not assumed: `priceMath` owns both halves
+    // of the arithmetic and `estimate.service` calls the same two functions,
+    // so a new basis can no longer be handled correctly in one and wrongly in
+    // the other. A `piece`/`coil`/`sheet`/`sqm` line has no mass on file at
+    // all, which is why `weightKg` is left undefined rather than derived —
+    // nothing downstream can then present a fabricated tonnage, and
+    // `totalWeightKg` counts only material that really has one.
+    const basis = hit?.sku.priceBasis ?? 'kg';
+    const weightKg = lineWeightKg(basis, unit, item.qty, hit?.sku.theoreticalWeightKg);
+    const lineTotal = lineTotalToman(basis, unit, item.qty, weightKg, unitPrice);
     // Gate on `lineTotal`, not `unitPrice` alone — a non-kg SKU can have a
     // live price but no `theoreticalWeightKg` on file, leaving `lineTotal`
     // undefined even though `unitPrice` is set. Gating on `unitPrice` alone

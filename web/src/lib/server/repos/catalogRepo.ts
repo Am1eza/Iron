@@ -58,6 +58,8 @@ function toPriceRow(
     factory: r.sku.factory ?? undefined,
     theoreticalWeightKg: r.sku.theoreticalWeightKg ?? undefined,
     unit: r.sku.unit,
+    priceBasis: r.sku.priceBasis,
+    branchLengthM: r.sku.branchLengthM ?? undefined,
     imageUrl: r.sku.imageUrl ?? undefined,
     isActive: r.sku.isActive,
     current: {
@@ -65,6 +67,10 @@ function toPriceRow(
       // Hidden-stale prices are not exposed (UI shows «تماس بگیرید»).
       price: p && !withheld ? p.price : 0,
       unit: p?.unit ?? r.sku.unit,
+      // The SKU is the authority on the denomination, exactly as it is on the
+      // unit: an admin who corrects a SKU from «per kilogram» to «per کلاف»
+      // must not leave the price row still claiming the old basis.
+      priceBasis: p?.priceBasis ?? r.sku.priceBasis,
       deliveryTime: p && !withheld ? p.deliveryTime : '',
       vatIncluded: p?.vatIncluded ?? false,
       movementPct: p && !withheld ? (p.movementPct ?? undefined) : undefined,
@@ -584,7 +590,14 @@ export async function skuHistory(slug: string, range = '90d'): Promise<PricePoin
     .from(pricePoints)
     .where(and(eq(pricePoints.skuId, skuRows[0].id), gte(pricePoints.at, since)))
     .orderBy(asc(pricePoints.at));
-  return rows.map((p) => ({ id: p.id, skuId: p.skuId, price: p.price, unit: p.unit, at: p.at.toISOString() }));
+  return rows.map((p) => ({
+    id: p.id,
+    skuId: p.skuId,
+    price: p.price,
+    unit: p.unit,
+    priceBasis: p.priceBasis,
+    at: p.at.toISOString(),
+  }));
 }
 
 /** Batched price history for MANY slugs in ONE query — the admin pricing

@@ -24,6 +24,7 @@ import { JalaliDateField } from '../JalaliDateField';
 import { CallOutcomeModal, type CallOutcomeResult } from './CallOutcomeModal';
 import ui from '../adminUi.module.css';
 import s from './LeadDetail.module.css';
+import { PRICE_UNIT_LABEL } from '@/lib/utils/catalogLabels';
 
 /* ------------------------------------------------------------------ *
  * Route calls made here rather than through `adminApi`
@@ -94,13 +95,7 @@ const updateLeadItemReq = (leadId: string, itemId: string, patch: { qty?: number
 const proformaUrl = (ref: string) =>
   new URL(`/proforma/${encodeURIComponent(ref)}`, process.env.NEXT_PUBLIC_SITE_URL ?? 'https://ahantime.com').toString();
 
-const UNIT_LABEL: Record<PriceUnit, string> = {
-  kg: 'کیلوگرم',
-  branch: 'شاخه',
-  piece: 'عدد',
-  sheet: 'برگ',
-  meter: 'متر',
-};
+
 
 /** Mirrors `WHOLE_PIECE_UNITS` in leadsRepo — «۳٫۷ شاخه» is a typo, and the
  *  server rejects it; catching it here saves the rep a round trip. */
@@ -264,7 +259,7 @@ function EditableItemRow({
 
   const invalidMessage = !qtyValid
     ? WHOLE_PIECE_UNITS.includes(item.unit)
-      ? `مقدار برای واحد «${UNIT_LABEL[item.unit]}» باید عدد صحیح و بزرگ‌تر از صفر باشد.`
+      ? `مقدار برای واحد «${PRICE_UNIT_LABEL[item.unit]}» باید عدد صحیح و بزرگ‌تر از صفر باشد.`
       : 'مقدار باید بزرگ‌تر از صفر باشد.'
     : !priceValid
       ? 'قیمت واحد باید عدد صحیح و بزرگ‌تر از صفر باشد؛ برای «بدون قیمت» کادر را خالی بگذارید.'
@@ -274,7 +269,7 @@ function EditableItemRow({
     <>
       <tr className={dirty && !locked ? s.dirty : undefined}>
         <td className={s.itemName}>{item.name}</td>
-        <td>{UNIT_LABEL[item.unit]}</td>
+        <td>{PRICE_UNIT_LABEL[item.unit]}</td>
         <td>
           <input
             className={`${ui.numInput} ${s.qtyInput}`}
@@ -283,7 +278,7 @@ function EditableItemRow({
             disabled={locked}
             aria-invalid={!qtyValid || undefined}
             onChange={(e) => setQty(e.target.value)}
-            aria-label={`مقدار ${item.name} به ${UNIT_LABEL[item.unit]}`}
+            aria-label={`مقدار ${item.name} به ${PRICE_UNIT_LABEL[item.unit]}`}
           />
         </td>
         <td className={s.num}>{item.weightKg != null ? formatNum(item.weightKg) : '—'}</td>

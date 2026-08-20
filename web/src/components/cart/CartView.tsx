@@ -9,7 +9,6 @@ import {
   cartItemWeightKg,
 } from '@/lib/stores/cart';
 import type { CartItem } from '@/lib/stores/cart';
-import type { PriceUnit } from '@/lib/types/domain';
 import { routes } from '@/lib/routes';
 import { formatToman, toPersianDigits } from '@/lib/utils/format';
 import {
@@ -28,15 +27,10 @@ import {
   ArrowEndIcon,
 } from '@/components/primitives/icons';
 import styles from './CartView.module.css';
+import { PRICE_UNIT_LABEL } from '@/lib/utils/catalogLabels';
 
 /** کیلوگرم/شاخه/برگ/متر — display labels for the price unit. */
-const UNIT_LABEL: Record<PriceUnit, string> = {
-  kg: 'کیلوگرم',
-  branch: 'شاخه',
-  piece: 'عدد',
-  sheet: 'برگ',
-  meter: 'متر',
-};
+
 
 /** Per-line estimate = unitPrice (per kg) × the item's real weight (mirrors selectCartEstTotal). */
 function lineEstimate(item: CartItem): number {
@@ -91,7 +85,7 @@ export function CartView() {
         <ul className={styles.list}>
           {items.map((item) => {
             const est = lineEstimate(item);
-            const unit = UNIT_LABEL[item.unit];
+            const unit = PRICE_UNIT_LABEL[item.unit];
             return (
               <li key={item.skuId} className={styles.row}>
                 <div className={styles.rowMain}>

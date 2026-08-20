@@ -12,6 +12,7 @@ import { getSetting, getVatRate } from '@/lib/server/repos/settingsRepo';
 import { getPriceFreshness } from '@/lib/server/services/priceFreshness';
 import { listSubCategories, tableRows } from '@/lib/server/repos/catalogRepo';
 import { computeBulkSplit } from '@/lib/utils/bulkSplit';
+import { lineTotalToman, lineWeightKg } from '@/lib/utils/priceMath';
 import { normalizeDigits, toPersianDigits } from '@/lib/utils/format';
 import { estimateLogistics, DEFAULT_LOGISTICS_CONFIG, type LogisticsConfig } from '@/lib/data/logistics';
 
@@ -37,29 +38,14 @@ export async function estimateItems(items: Array<{ skuId: string; qty: number; u
   const lines: LineItem[] = items.map((item) => {
     const hit = byId.get(item.skuId);
     const unitPrice = hit?.price && !freshness.isHidden(hit.price.updatedAt) ? hit.price.price : undefined;
-    // Mirrors leads.service.priceItems, including its `piece` carve-out: a
-    // کوپلر is quoted per عدد and has no branch weight to convert through.
-    const weightKg =
-      item.unit === 'piece'
-        ? undefined
-        : item.unit === 'kg'
-          ? item.qty
-          : hit?.sku.theoreticalWeightKg
-            ? Math.round(hit.sku.theoreticalWeightKg * item.qty * 100) / 100
-            : undefined;
-    // `unitPrice` is per KILOGRAM, always — see leads.service.ts's
-    // priceItems for the full reasoning (this function duplicates its
-    // weightKg conversion and had the identical bug: charging by raw `qty`
-    // instead of the already-converted `weightKg`). For `unit==='kg'`,
-    // `weightKg === item.qty`, so this is a no-op for today's all-kg catalog.
-    const lineTotal =
-      unitPrice == null
-        ? undefined
-        : item.unit === 'piece'
-          ? Math.round(unitPrice * item.qty)
-          : weightKg != null
-            ? Math.round(unitPrice * weightKg)
-            : undefined;
+    // Same two functions `leads.service.priceItems` calls — this used to be a
+    // hand-copied duplicate of that arithmetic and shipped the identical
+    // qty-vs-weight bug. The SKU is the authority on the denomination; a
+    // request against a SKU whose basis does not match the unit it counts in
+    // gets no total, exactly as it does on the lead path.
+    const basis = hit?.sku.priceBasis ?? 'kg';
+    const weightKg = lineWeightKg(basis, item.unit, item.qty, hit?.sku.theoreticalWeightKg);
+    const lineTotal = lineTotalToman(basis, item.unit, item.qty, weightKg, unitPrice);
     return {
       skuId: hit?.sku.id ?? item.skuId,
       name: hit?.sku.name ?? item.skuId,

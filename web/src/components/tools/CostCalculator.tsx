@@ -11,7 +11,7 @@ import { Card, Stack, Cluster, Text, Switch, DeliveryBadge, MovementBadge } from
 import { Button } from '@/components/ui';
 import { PlusIcon, ChevronDownIcon } from '@/components/primitives/icons';
 import styles from './CostCalculator.module.css';
-import { priceUnitCaption } from '@/lib/utils/catalogLabels';
+import { priceBasisNoun, priceUnitCaption } from '@/lib/utils/catalogLabels';
 
 /**
  * محاسبهٔ هزینه — pick دسته → محصول → مقدار (شاخه یا کیلوگرم) and get a live total
@@ -83,19 +83,23 @@ export function CostCalculator() {
   };
 
   /**
-   * A `piece`-unit product (کوپلر و اتصالات) is quoted per عدد, not per
-   * kilogram, and has no branch weight — so neither of this tool's two modes
-   * applies to it and both would have been wrong: «شاخه» multiplies by
-   * `theoreticalWeightKg`, which is null here, silently producing a total of
-   * zero; «کیلوگرم» would have priced a coupler by mass it does not have.
-   * The mode switch is hidden for these and the whole calculation collapses
-   * to qty x unitPrice.
+   * A product whose price is NOT per kilogram (کوپلر per عدد, لوله مسی per
+   * ۱۵-متری کلاف, ورق پانچ per برگ, ساندویچ‌پانل per متر مربع) has no branch
+   * weight, so neither of this tool's two modes applies and both would have
+   * been wrong: «شاخه» multiplies by `theoreticalWeightKg`, which is null on
+   * every one of them, silently producing a total of zero; «کیلوگرم» would
+   * have priced the item by mass it does not have. The mode switch is hidden
+   * for these and the whole calculation collapses to qty × unitPrice.
    */
-  const isPiece = product?.unit === 'piece';
-  const effectiveMode: Mode | 'piece' = isPiece ? 'piece' : mode;
+  const isWholeItem = (product?.priceBasis ?? 'kg') !== 'kg';
+  const effectiveMode: Mode | 'whole' = isWholeItem ? 'whole' : mode;
+  // «۲٫۵ متر مربع» of ساندویچ‌پانل is an ordinary order; «۲٫۵ عدد» is a typo.
+  const wholeAllowsFraction = product?.unit === 'sqm';
 
   const qty =
-    effectiveMode === 'kg' ? parse(qtyInput) : Math.max(1, Math.round(parse(qtyInput)) || 1);
+    effectiveMode === 'kg' || (effectiveMode === 'whole' && wholeAllowsFraction)
+      ? parse(qtyInput)
+      : Math.max(1, Math.round(parse(qtyInput)) || 1);
   const weightPerUnit = effectiveMode === 'branch' ? product?.theoreticalWeightKg ?? 0 : 1;
   const unitPrice = product?.current.price ?? 0;
 
@@ -106,7 +110,7 @@ export function CostCalculator() {
   // total weight (kg) only meaningful in شاخه mode; null for a piece product,
   // which has no mass on file at all.
   const totalWeight =
-    effectiveMode === 'piece'
+    effectiveMode === 'whole'
       ? null
       : effectiveMode === 'branch'
         ? qty * (product?.theoreticalWeightKg ?? 0)
@@ -122,7 +126,12 @@ export function CostCalculator() {
       qty: Math.max(1, Math.round(qty)), // cart qty is an integer (±1 stepper)
       unit: product.unit,
       unitPrice: product.current.price,
-      weightKg: effectiveMode === 'piece' ? undefined : effectiveMode === 'branch' ? product.theoreticalWeightKg : 1,
+      weightKg:
+        effectiveMode === 'whole'
+          ? undefined
+          : effectiveMode === 'branch'
+            ? product.theoreticalWeightKg
+            : 1,
     });
     toast.success(`${product.name} به سبد استعلام اضافه شد.`, {
       label: 'مشاهده سبد',
@@ -188,8 +197,8 @@ export function CostCalculator() {
                 value={qtyInput}
                 onChange={(e) => setQtyInput(e.target.value)}
                 aria-label={
-                  effectiveMode === 'piece'
-                    ? 'تعداد'
+                  effectiveMode === 'whole'
+                    ? `مقدار به ${priceBasisNoun(product?.priceBasis, product?.branchLengthM)}`
                     : effectiveMode === 'branch'
                       ? 'تعداد شاخه'
                       : 'مقدار به کیلوگرم'
@@ -201,7 +210,7 @@ export function CostCalculator() {
                 className={styles.unitToggle}
                 role="group"
                 aria-label="واحد مقدار"
-                hidden={effectiveMode === 'piece'}
+                hidden={effectiveMode === 'whole'}
               >
                 <button
                   type="button"
@@ -254,7 +263,7 @@ export function CostCalculator() {
                   {formatToman(unitPrice, false)}
                 </span>
                 <Text variant="caption" color="muted">
-                  {priceUnitCaption(product.unit)}
+                  {priceUnitCaption(product.priceBasis, product.branchLengthM)}
                 </Text>
                 <MovementBadge
                   dir={product.current.movementDir}
@@ -270,8 +279,8 @@ export function CostCalculator() {
               <div className={styles.row}>
                 <dt>مقدار</dt>
                 <dd className="tnum">
-                  {effectiveMode === 'piece'
-                    ? `${toPersianDigits(qty)} عدد`
+                  {effectiveMode === 'whole'
+                    ? `${toPersianDigits(qty)} ${priceBasisNoun(product.priceBasis, product.branchLengthM)}`
                     : effectiveMode === 'branch'
                       ? `${toPersianDigits(qty)} شاخه`
                       : `${toPersianDigits(qty)} کیلوگرم`}

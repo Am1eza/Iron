@@ -10,7 +10,7 @@ import { catalogErrorResponse, redirectOnSlugChange, revalidateCatalog } from '@
 import { finiteNumber, nonEmptyPatch, slugSchema, uploadPathSchema } from '@/lib/validation/utils';
 import { normalizePersian, normalizeSizeText } from '@/lib/utils/persianText';
 import { routes } from '@/lib/routes';
-import { PRICE_UNIT_VALUES } from '@/lib/types/domain';
+import { PRICE_BASIS_VALUES, PRICE_UNIT_VALUES } from '@/lib/types/domain';
 
 const optionalPersianText = (max: number) =>
   z
@@ -49,6 +49,13 @@ const patchPayload = nonEmptyPatch(
     factory: optionalPersianText(80),
     theoreticalWeightKg: finiteNumber.positive().max(100_000).nullable().optional(),
     unit: z.enum(PRICE_UNIT_VALUES).optional(),
+    // «مبنای قیمت». Absent leaves the column alone — never sent as null: the
+    // column is NOT NULL with a `'kg'` default and "no basis" is not a state a
+    // priced row is allowed to be in.
+    priceBasis: z.enum(PRICE_BASIS_VALUES).optional(),
+    // «طول شاخه» in metres. 100 m is past any mill branch; a nullable field so
+    // an emptied box really clears it (see the nullable-vs-optional note above).
+    branchLengthM: finiteNumber.positive().max(100).nullable().optional(),
     imageUrl: uploadPathSchema.nullable().optional(),
     crossListedCategoryIds: z.array(z.string().min(1)).max(5).nullable().optional(),
     // Moving a product between sub-categories was impossible: a mis-filed SKU

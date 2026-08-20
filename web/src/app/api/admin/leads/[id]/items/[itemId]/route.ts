@@ -5,7 +5,7 @@ import { finiteNumber } from '@/lib/validation/utils';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { updateLeadItem, findLead, LeadItemLockedError, WholeUnitQtyError } from '@/lib/server/repos/leadsRepo';
 import { canActOnAssignedRecord } from '@/lib/auth/roles';
-import type { PriceUnit } from '@/lib/types/domain';
+import { PRICE_UNIT_LABEL } from '@/lib/utils/catalogLabels';
 
 /** Business ceilings, not type limits. The old schema was `positive()` /
  *  `nonnegative()` with no upper bound at all, so a fat-fingered
@@ -16,13 +16,7 @@ import type { PriceUnit } from '@/lib/types/domain';
 const QTY_MAX = 1_000_000;
 const UNIT_PRICE_MAX = 1_000_000_000;
 
-const UNIT_LABEL: Record<PriceUnit, string> = {
-  kg: 'کیلوگرم',
-  branch: 'شاخه',
-  piece: 'عدد',
-  sheet: 'برگ',
-  meter: 'متر',
-};
+
 
 const payload = z
   .object({
@@ -87,7 +81,7 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string; 
       );
     }
     if (err instanceof WholeUnitQtyError) {
-      const message = `مقدار برای واحد «${UNIT_LABEL[err.unit]}» باید عدد صحیح باشد.`;
+      const message = `مقدار برای واحد «${PRICE_UNIT_LABEL[err.unit]}» باید عدد صحیح باشد.`;
       return NextResponse.json({ error: 'validation', message, fields: { qty: message } }, { status: 400 });
     }
     throw err;

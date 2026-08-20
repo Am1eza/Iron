@@ -24,6 +24,7 @@ import {
   gradeColumnCell,
   gradeColumnCard,
   DIMENSIONS_LABEL,
+  priceBasisNoun,
   priceUnitCaption,
   singlePriceBasis,
 } from '@/lib/utils/catalogLabels';
@@ -117,6 +118,7 @@ const PriceTableRow = memo(function PriceTableRow({
   showDimensions,
   showGrade,
   categorySlug,
+  showRowBasis,
 }: {
   row: PriceRow;
   vat: boolean;
@@ -134,6 +136,12 @@ const PriceTableRow = memo(function PriceTableRow({
   /** Page category — decides whether that column reads `grade` or `standard`
    *  (see catalogLabels). */
   categorySlug?: string;
+  /** True only when the visible rows do NOT share one denomination, so the
+   *  page-wide «قیمت‌ها … برای هر کیلوگرم است» note has been dropped. Without
+   *  this the desktop table of a mixed page (میلگرد + کوپلر) printed bare
+   *  numbers with nothing anywhere saying what they are per — the mobile card
+   *  has always captioned itself. */
+  showRowBasis: boolean;
 } & RowActions) {
   return (
     <tr>
@@ -169,6 +177,12 @@ const PriceTableRow = memo(function PriceTableRow({
       </td>
       <td className={`${styles.num} ${styles.price}`}>
         {priceHiddenLabel(r.current) ?? formatToman(withVat(r.current.price, vat, vatRate), false)}
+        {showRowBasis && !r.current.priceHidden ? (
+          <span className={styles.rowBasis}>
+            {' / '}
+            {priceBasisNoun(r.priceBasis, r.branchLengthM)}
+          </span>
+        ) : null}
       </td>
       <td className={styles.num}>
         <MovementBadge dir={r.current.movementDir} pct={r.current.movementPct} />
@@ -258,7 +272,7 @@ const PriceTableCard = memo(function PriceTableCard({
         <span className={`${styles.price} tnum`}>
           {priceHiddenLabel(r.current) ?? formatToman(withVat(r.current.price, vat, vatRate), false)}
         </span>
-        <span className={styles.unit}>{priceUnitCaption(r.unit)}</span>
+        <span className={styles.unit}>{priceUnitCaption(r.priceBasis, r.branchLengthM)}</span>
         <MovementBadge dir={r.current.movementDir} pct={r.current.movementPct} pill />
       </div>
       <div className={styles.cardMeta}>
@@ -636,7 +650,7 @@ export function PriceTable({
   const updated = rows[0]?.current.updatedAt;
   // `subFiltered`, not `rows`: the note sits under the sub-category filter and
   // describes what is actually on screen.
-  const priceBasis = useMemo(() => singlePriceBasis(subFiltered.map((r) => r.unit)), [subFiltered]);
+  const priceBasis = useMemo(() => singlePriceBasis(subFiltered), [subFiltered]);
   const selectedForCompare = useMemo(() => rows.filter((r) => compareIds.has(r.id)), [rows, compareIds]);
   const exportRows = useMemo(
     () => byFactory.flatMap(([, list]) => list),
@@ -736,15 +750,13 @@ export function PriceTable({
           {toPersianDigits(subFiltered.length)} کالا · {toPersianDigits(byFactory.length)} کارخانه
           {updated ? ` · به‌روزرسانی ${formatJalali(updated)}` : ''}
         </span>
-        {/* Only when every visible row shares one basis. A table mixing
+        {/* Only when every visible row shares one denomination. A table mixing
             kg-priced and عدد-priced products (میلگرد + کوپلر) would otherwise
             print a blanket «برای هر کیلوگرم» that is wrong for some of its
             own rows; there, each row's own caption carries it instead. */}
         {priceBasis ? (
           <span className={styles.note}>
-            {priceBasis === 'piece'
-              ? 'قیمت‌ها به تومان و برای هر عدد است.'
-              : 'قیمت‌ها به تومان و برای هر کیلوگرم است.'}
+            {`قیمت‌ها به تومان و برای هر ${priceBasisNoun(priceBasis.basis, priceBasis.branchLengthM)} است.`}
           </span>
         ) : null}
       </div>
@@ -875,6 +887,7 @@ export function PriceTable({
                           showDimensions={showDimensions}
                           showGrade={showGrade}
                           categorySlug={categorySlug}
+                          showRowBasis={priceBasis === null}
                           onToggleFav={toggleFav}
                           onChart={setChartFor}
                           onAddToCart={addToCart}

@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   composeSkuName,
   composeSkuSlug,
+  defaultBranchLengthM,
+  defaultPriceBasisFor,
   defaultUnitFor,
   factorySlug,
   theoreticalWeightFor,
@@ -157,5 +159,63 @@ describe('defaultUnitFor', () => {
 
   it('falls back to kg for a category the admin invents', () => {
     expect(defaultUnitFor('something-new')).toBe('kg');
+  });
+});
+
+describe('theoreticalWeightFor — the per-SKU branch length', () => {
+  it('uses the sub-category convention when the SKU records no length', () => {
+    // نبشی ۱۰ over the documented 6 m branch — مرکزآهن's published 94.32 kg.
+    expect(theoreticalWeightFor('angle-channel', '۱۰', 'nabshi')).toBeCloseTo(94.3, 1);
+  });
+
+  it('doubles for a SKU explicitly marked ۱۲ متری', () => {
+    // ahanonline's own نبشی listing carries ۱۲ متری rows alongside ۶ متری
+    // ones; a per-line constant is exactly 2× wrong for them.
+    expect(theoreticalWeightFor('angle-channel', '۱۰', 'nabshi', 12)).toBeCloseTo(188.6, 1);
+  });
+
+  it('ignores a zero, negative or non-finite length rather than trusting it', () => {
+    for (const bad of [0, -6, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(theoreticalWeightFor('angle-channel', '۱۰', 'nabshi', bad)).toBeCloseTo(94.3, 1);
+    }
+  });
+
+  it('still returns null for a line with no published table, length or not', () => {
+    expect(theoreticalWeightFor('angle-channel', '۱۰', 'channel-heavy', 6)).toBeNull();
+  });
+});
+
+describe('defaultBranchLengthM', () => {
+  it('reports the documented convention for the lines that have one', () => {
+    expect(defaultBranchLengthM('angle-channel', 'nabshi')).toBe(6);
+    expect(defaultBranchLengthM('ibeam', 'tirahan')).toBe(12);
+    expect(defaultBranchLengthM('rebar', 'deformed')).toBe(12);
+  });
+
+  it('is null for a line with no meaningful branch', () => {
+    expect(defaultBranchLengthM('wire', 'coil')).toBeNull();
+    expect(defaultBranchLengthM('rebar', 'coupler')).toBeNull();
+  });
+});
+
+describe('defaultPriceBasisFor / defaultUnitFor — ساندویچ‌پانل', () => {
+  it('prefills «متر مربع» for ساندویچ‌پانل, both unit and basis', () => {
+    expect(defaultUnitFor('sheet', 'sandwich-panel')).toBe('sqm');
+    expect(defaultPriceBasisFor('sheet', 'sandwich-panel')).toBe('sqm');
+  });
+
+  it('keeps «برگ» and a kilogram basis for every other ورق line', () => {
+    expect(defaultUnitFor('sheet', 'black')).toBe('sheet');
+    expect(defaultPriceBasisFor('sheet', 'black')).toBe('kg');
+  });
+
+  it('prefills «عدد» for کوپلر, both unit and basis', () => {
+    expect(defaultUnitFor('rebar', 'coupler')).toBe('piece');
+    expect(defaultPriceBasisFor('rebar', 'coupler')).toBe('piece');
+  });
+
+  it('defaults everything else to a kilogram basis — the catalog’s 880-row norm', () => {
+    expect(defaultPriceBasisFor('rebar', 'deformed')).toBe('kg');
+    expect(defaultPriceBasisFor('something-new')).toBe('kg');
   });
 });

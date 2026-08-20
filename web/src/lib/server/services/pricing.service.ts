@@ -103,6 +103,12 @@ export async function savePrice(actorId: string, input: SavePriceInput): Promise
     // indefinitely (there was no UI path to fix it short of a direct DB
     // write).
     const unit = input.unit ?? sku.unit;
+    // Same rule, same reason, for the DENOMINATION: the catalog's SKU is
+    // authoritative, so a price typed into the grid is stamped with what that
+    // product is currently sold by. Without this a price row saved before the
+    // SKU was corrected would keep asserting «per kilogram» forever, and
+    // `toPriceRow` prefers the price row's copy.
+    const priceBasis = sku.priceBasis;
     // An EMPTY deliveryTime means "no opinion", never "erase the promise".
     // `?? prev` alone only covered undefined, and the admin grid submits this
     // field on every dirty row — reading it back from a row whose price was
@@ -119,6 +125,7 @@ export async function savePrice(actorId: string, input: SavePriceInput): Promise
         skuId: input.skuId,
         price,
         unit,
+        priceBasis,
         deliveryTime,
         vatIncluded,
         movementPct,
@@ -129,11 +136,11 @@ export async function savePrice(actorId: string, input: SavePriceInput): Promise
       })
       .onConflictDoUpdate({
         target: currentPrices.skuId,
-        set: { price, unit, deliveryTime, vatIncluded, movementPct, movementDir, updatedAt: now, updatedBy: actorId, isStale: false },
+        set: { price, unit, priceBasis, deliveryTime, vatIncluded, movementPct, movementDir, updatedAt: now, updatedBy: actorId, isStale: false },
       });
 
     // Append-only history — every save (spec: HISTORY_RETENTION unlimited).
-    await tx.insert(pricePoints).values({ id: ulid(), skuId: input.skuId, price, unit, at: now });
+    await tx.insert(pricePoints).values({ id: ulid(), skuId: input.skuId, price, unit, priceBasis, at: now });
 
     await tx.insert(auditEntries).values({
       id: ulid(),

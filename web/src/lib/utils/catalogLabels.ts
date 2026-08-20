@@ -21,6 +21,9 @@
  * different stored column (`skus.standard`) entirely.
  */
 
+import type { PriceBasis, PriceUnit } from '@/lib/types/domain';
+import { toPersianDigits } from '@/lib/utils/format';
+
 /** Categories whose `size` column holds a thickness. Only ورق today. */
 const THICKNESS_CATEGORIES = new Set(['sheet']);
 
@@ -59,8 +62,8 @@ export function sizeLabel(categorySlug: string | null | undefined): string {
 }
 
 /** The subset of a price row the grade/standard column reads. Deliberately
- *  structural rather than `PriceRow` so this module keeps its zero imports and
- *  the admin tables can reuse it later without carrying the public DTO. */
+ *  structural rather than `PriceRow` so the admin tables can reuse it without
+ *  carrying the public DTO. */
 type GradeRow = { subCategoryId: string; grade?: string; standard?: string };
 
 /**
@@ -127,31 +130,96 @@ export function gradeColumnCard(
 }
 
 /**
- * What a price on a catalog row is denominated in.
+ * The Persian noun for one `PriceUnit` — what `qty` COUNTS in.
  *
- * Per this codebase's long-standing invariant, `current_prices.price` is per
- * KILOGRAM for kg/branch/sheet/meter alike — the unit only says what `qty`
- * counts in, and `leads.service.priceItems` converts a piece count to
- * kilograms before multiplying (see its comments). `piece` is the one unit
- * that breaks the invariant: a کوپلر is quoted per عدد with no mass anywhere
- * in the chain, so a `piece` row must never be captioned «تومان / کیلوگرم».
+ * This existed as four hand-copied `Record<PriceUnit, string>` literals: the
+ * cart, the admin lead drawer, the admin lead-item route and the پیش‌فاکتور.
+ * Adding «متر مربع» meant editing all four and hoping none was missed — the
+ * same shape of problem that once labelled every coupler line «متر» on a
+ * customer's proforma. One table now, and the `Record` makes the compiler
+ * demand a key for every future member. (`track/TrackLookup` keeps its own
+ * switch on purpose; it renders `kg` as «تن».)
  */
-export function priceUnitCaption(unit: string | null | undefined): string {
-  return unit === 'piece' ? 'تومان / عدد' : 'تومان / کیلوگرم';
+export const PRICE_UNIT_LABEL: Record<PriceUnit, string> = {
+  kg: 'کیلوگرم',
+  branch: 'شاخه',
+  sheet: 'برگ',
+  meter: 'متر',
+  piece: 'عدد',
+  sqm: 'متر مربع',
+};
+
+/**
+ * The Persian noun for one unit of a price basis — «کیلوگرم», «شاخه», … —
+ * without the «تومان /» prefix. One table, so the row caption, the page-wide
+ * note, the spec sheet's «واحد فروش» row and the وزن‌سنج summary cannot drift
+ * into three different words for the same thing.
+ *
+ * Deliberately NOT `PRICE_UNIT_LABEL` above, even though five of six entries
+ * coincide: `meter` is a unit and never a basis, `coil` is a basis and never a
+ * unit, and collapsing them would re-conflate the two facts the `price_basis`
+ * column exists to separate.
+ */
+const PRICE_BASIS_NOUN: Record<PriceBasis, string> = {
+  kg: 'کیلوگرم',
+  branch: 'شاخه',
+  coil: 'کلاف',
+  sheet: 'برگ',
+  piece: 'عدد',
+  sqm: 'متر مربع',
+};
+
+/**
+ * «کلاف ۱۵ متری» — the basis noun, qualified by the branch/coil length when
+ * the catalog records one. A length is only ever appended to a basis that IS
+ * a length of something; «کیلوگرم ۶ متری» is nonsense and cannot be produced
+ * here even if a stray `branchLengthM` is set on a kg-priced row.
+ */
+export function priceBasisNoun(
+  basis: PriceBasis | null | undefined,
+  branchLengthM?: number | null,
+): string {
+  const b: PriceBasis = basis ?? 'kg';
+  const noun = PRICE_BASIS_NOUN[b] ?? PRICE_BASIS_NOUN.kg;
+  if ((b === 'branch' || b === 'coil') && branchLengthM) {
+    return `${noun} ${toPersianDigits(branchLengthM)} متری`;
+  }
+  return noun;
+}
+
+/**
+ * What a price on a catalog row is denominated in — «تومان / کیلوگرم».
+ *
+ * This used to key off `unit` and hard-code the invariant that everything
+ * except `piece` is per kilogram. That was false for 55 live rows: a لوله مسی
+ * whose price is for a whole 15-metre coil rendered «۱۶٬۴۹۲٬۳۸۰ تومان /
+ * کیلوگرم», which to a real buyer reads as a broken site. The denomination is
+ * now a stored column (`PriceBasis`), so this just reads it.
+ */
+export function priceUnitCaption(
+  basis: PriceBasis | null | undefined,
+  branchLengthM?: number | null,
+): string {
+  return `تومان / ${priceBasisNoun(basis, branchLengthM)}`;
 }
 
 /**
  * The one price basis every given row shares, or null when they disagree.
  *
- * Backs the page-wide «قیمت‌ها … برای هر کیلوگرم است» note: that sentence is
- * true of every unit except `piece`, so a table mixing the two has to drop it
- * and let each row caption itself rather than print a blanket claim that is
- * wrong for some of its rows.
+ * Backs the page-wide «قیمت‌ها … برای هر کیلوگرم است» note: a table mixing
+ * kg-priced and عدد-priced products has to drop that sentence and let each
+ * row caption itself rather than print a blanket claim that is wrong for some
+ * of its own rows. Rows agreeing on the basis but not on the length are still
+ * "one basis" — the note then omits the length rather than picking one.
  */
 export function singlePriceBasis(
-  units: readonly (string | null | undefined)[],
-): 'mass' | 'piece' | null {
-  if (units.length === 0) return 'mass';
-  const distinct = new Set(units.map((u) => (u === 'piece' ? 'piece' : 'mass')));
-  return distinct.size === 1 ? (distinct.has('piece') ? 'piece' : 'mass') : null;
+  rows: readonly { priceBasis?: PriceBasis | null; branchLengthM?: number | null }[],
+): { basis: PriceBasis; branchLengthM?: number } | null {
+  if (rows.length === 0) return { basis: 'kg' };
+  const bases = new Set(rows.map((r) => r.priceBasis ?? 'kg'));
+  if (bases.size !== 1) return null;
+  const basis = [...bases][0] as PriceBasis;
+  const lengths = new Set(rows.map((r) => r.branchLengthM ?? null));
+  const only = lengths.size === 1 ? [...lengths][0] : null;
+  return only ? { basis, branchLengthM: only } : { basis };
 }

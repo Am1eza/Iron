@@ -77,7 +77,7 @@ describe('computeBulkSplit', () => {
 
   it('still excludes a hidden/stale price (stored as 0) — the W23 fix stays intact', () => {
     const rows = [
-      row({ factory: 'A', price: 0, unit: 'kg', current: { skuId: 'sku', price: 0, unit: 'kg', deliveryTime: '', vatIncluded: false, movementDir: 'flat', updatedAt: new Date().toISOString(), isStale: true, priceHidden: true } }),
+      row({ factory: 'A', price: 0, unit: 'kg', current: { skuId: 'sku', price: 0, unit: 'kg', priceBasis: 'kg', deliveryTime: '', vatIncluded: false, movementDir: 'flat', updatedAt: new Date().toISOString(), isStale: true, priceHidden: true } }),
       row({ factory: 'B', price: 200, unit: 'kg' }),
     ];
     const split = computeBulkSplit(rows, 1);
@@ -116,7 +116,7 @@ describe('pickBestGroup', () => {
   });
 
   it('ignores hidden/stale rows when scoring groups', () => {
-    const hiddenCurrent = { skuId: 'sku', price: 0, unit: 'kg' as const, deliveryTime: '', vatIncluded: false, movementDir: 'flat' as const, updatedAt: new Date().toISOString(), isStale: true, priceHidden: true };
+    const hiddenCurrent = { skuId: 'sku', price: 0, unit: 'kg' as const, priceBasis: 'kg' as const, deliveryTime: '', vatIncluded: false, movementDir: 'flat' as const, updatedAt: new Date().toISOString(), isStale: true, priceHidden: true };
     const rows = [
       row({ factory: 'A', price: 100, unit: 'kg', subCategoryId: 'x', current: hiddenCurrent }),
       row({ factory: 'B', price: 100, unit: 'kg', subCategoryId: 'x', current: hiddenCurrent }),

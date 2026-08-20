@@ -25,7 +25,13 @@ import { useFocusTrap } from '@/lib/hooks/useFocusTrap';
 import { adminApi, type AdminSku, type AdminCategory, type AdminSubCategory } from '@/lib/api/resources/admin';
 import { ApiError } from '@/lib/api/errors';
 import { normalizeDigits } from '@/lib/utils/format';
-import { composeSkuName, composeSkuSlug, defaultUnitFor, theoreticalWeightFor } from '@/lib/utils/catalogCompose';
+import {
+  composeSkuName,
+  composeSkuSlug,
+  defaultPriceBasisFor,
+  defaultUnitFor,
+  theoreticalWeightFor,
+} from '@/lib/utils/catalogCompose';
 import { sizeLabel, usesDimensions, DIMENSIONS_LABEL } from '@/lib/utils/catalogLabels';
 import { useToast } from '@/lib/hooks/useToast';
 import { Alert, Badge, Button, Heading, Text, useConfirm } from '@/components/ui';
@@ -41,6 +47,26 @@ const UNITS: Array<{ v: AdminSku['unit']; label: string }> = [
   { v: 'meter', label: 'متر' },
   // «عدد» — کوپلر و اتصالات، که وزن شاخه‌ای ندارند و تکی فروخته می‌شوند.
   { v: 'piece', label: 'عدد' },
+  // «متر مربع» — ساندویچ‌پانل، که در همهٔ منابع با متر مربع اعلام می‌شود.
+  { v: 'sqm', label: 'متر مربع' },
+];
+
+/**
+ * «مبنای قیمت» — what the number typed into the pricing grid will be PER.
+ *
+ * Separate from «واحد فروش» above on purpose: those are two different facts
+ * about a product and merging them is what left «۱۶٬۴۹۲٬۳۸۰ تومان / کیلوگرم»
+ * on a copper pipe sold by the 15-metre coil. Almost every SKU is `kg`; the
+ * field is prefilled from the sub-category and only ever needs touching for
+ * the lines that really are quoted per whole item.
+ */
+const PRICE_BASES: Array<{ v: AdminSku['priceBasis']; label: string }> = [
+  { v: 'kg', label: 'هر کیلوگرم' },
+  { v: 'branch', label: 'هر شاخه' },
+  { v: 'coil', label: 'هر کلاف' },
+  { v: 'sheet', label: 'هر برگ' },
+  { v: 'piece', label: 'هر عدد' },
+  { v: 'sqm', label: 'هر متر مربع' },
 ];
 
 /**
@@ -78,6 +104,11 @@ type Values = {
   dimensions: string;
   standard: string;
   unit: AdminSku['unit'];
+  /** What a stored price is per — see PRICE_BASES. */
+  priceBasis: AdminSku['priceBasis'];
+  /** «طول شاخه/کلاف» in metres, free text so «۶» from a Persian keyboard is
+   *  accepted; '' means "not recorded", which is a real and common answer. */
+  branchLengthM: string;
   theoreticalWeightKg: string;
   imageUrl: string | null;
   /** Also list this product under «استیل», without a second row or a second
@@ -100,6 +131,8 @@ function toValues(sku: AdminSku | null, defaultSubId: string, steelCategoryId: s
     dimensions: sku?.dimensions ?? '',
     standard: sku?.standard ?? '',
     unit: sku?.unit ?? 'kg',
+    priceBasis: sku?.priceBasis ?? 'kg',
+    branchLengthM: sku?.branchLengthM != null ? String(sku.branchLengthM) : '',
     theoreticalWeightKg: sku?.theoreticalWeightKg != null ? String(sku.theoreticalWeightKg) : '',
     imageUrl: sku?.imageUrl ?? null,
     crossListedSteel: Boolean(steelCategoryId && sku?.crossListedCategoryIds?.includes(steelCategoryId)),
@@ -108,6 +141,19 @@ function toValues(sku: AdminSku | null, defaultSubId: string, steelCategoryId: s
 
 /** '' means "clear this column" (→ null); a value means "set it". */
 const orNull = (v: string): string | null => (v.trim() === '' ? null : v.trim());
+
+/**
+ * «طول شاخه» as a number, or null when the field is empty or not a usable
+ * length. Null on a bad value rather than NaN so the weight prefill quietly
+ * falls back to the line's documented convention while the operator is still
+ * mid-keystroke; `lengthValid` below is what actually blocks saving.
+ */
+const lengthNumOf = (raw: string): number | null => {
+  const t = normText(raw).trim();
+  if (t === '') return null;
+  const n = Number(t);
+  return Number.isFinite(n) && n > 0 && n <= 100 ? n : null;
+};
 
 /**
  * Latin-digit normalization for the digit-bearing free-text columns
@@ -161,7 +207,13 @@ export function SkuDrawer({
    * hand-authored: re-deriving its name or URL just because someone opened the
    * form would rewrite live data and break an indexed URL.
    */
-  const [touched, setTouched] = useState({ name: isEdit, slug: isEdit, weight: isEdit, unit: isEdit });
+  const [touched, setTouched] = useState({
+    name: isEdit,
+    slug: isEdit,
+    weight: isEdit,
+    unit: isEdit,
+    basis: isEdit,
+  });
 
   const dirty = useMemo(() => JSON.stringify(v) !== JSON.stringify(initial), [v, initial]);
   const dirtyRef = useRef(dirty);
@@ -236,11 +288,14 @@ export function SkuDrawer({
       // `sub` (not just `cat`): the section a weight formula needs is a
       // property of the sub-category — «نبشی» and «ناودانی» share a category
       // and are two different published tables.
-      const w = theoreticalWeightFor(cat.slug, size, sub?.slug);
+      // The SKU's own «طول شاخه» wins over the line's convention — a نبشی
+      // marked ۱۲ متری weighs exactly twice the 6 m default.
+      const w = theoreticalWeightFor(cat.slug, size, sub?.slug, lengthNumOf(next.branchLengthM));
       out.theoreticalWeightKg = w != null ? String(w) : '';
     }
     // `sub` too: کوپلر is sold per «عدد» even though میلگرد defaults to «شاخه».
     if (!t.unit && cat) out.unit = defaultUnitFor(cat.slug, sub?.slug);
+    if (!t.basis && cat) out.priceBasis = defaultPriceBasisFor(cat.slug, sub?.slug);
     return out;
   };
 
@@ -260,7 +315,13 @@ export function SkuDrawer({
   const weightRaw = normText(v.theoreticalWeightKg).trim();
   const weightNum = weightRaw === '' ? null : Number(weightRaw);
   const weightValid = weightNum === null || (Number.isFinite(weightNum) && weightNum > 0 && weightNum <= 100_000);
-  const canSave = v.name.trim() !== '' && Boolean(v.subCategoryId) && Boolean(v.slug) && weightValid;
+  // Same Persian-digit treatment as the weight above. 100 m is far past any
+  // mill branch and 0 is not a length, so both are rejected rather than saved.
+  const lengthRaw = normText(v.branchLengthM).trim();
+  const lengthNum = lengthNumOf(v.branchLengthM);
+  const lengthValid = lengthRaw === '' || lengthNum !== null;
+  const canSave =
+    v.name.trim() !== '' && Boolean(v.subCategoryId) && Boolean(v.slug) && weightValid && lengthValid;
 
   const save = useMutation({
     mutationFn: () => {
@@ -275,6 +336,8 @@ export function SkuDrawer({
         dimensions: orNull(normText(v.dimensions)),
         standard: orNull(normalizeDigits(v.standard)),
         unit: v.unit,
+        priceBasis: v.priceBasis,
+        branchLengthM: lengthNum,
         theoreticalWeightKg: weightNum,
         imageUrl: v.imageUrl,
         crossListedCategoryIds: v.crossListedSteel && steelCategory ? [steelCategory.id] : null,
@@ -464,6 +527,42 @@ export function SkuDrawer({
                   {touched.unit ? 'دستی انتخاب شده.' : 'بر اساس نوع دسته انتخاب شد.'}
                 </div>
               </div>
+              <div>
+                <label className={ui.tileLabel} htmlFor="sku-basis-sel">
+                  مبنای قیمت
+                </label>
+                <select
+                  id="sku-basis-sel"
+                  className={ui.select}
+                  style={{ inlineSize: '100%' }}
+                  value={v.priceBasis}
+                  onChange={(e) =>
+                    set({ priceBasis: e.target.value as AdminSku['priceBasis'] }, { basis: true })
+                  }
+                >
+                  {PRICE_BASES.map((b) => (
+                    <option key={b.v} value={b.v}>
+                      {b.label}
+                    </option>
+                  ))}
+                </select>
+                <div className={ui.tileHint}>
+                  قیمتی که در «قیمت‌گذاری» وارد می‌کنید، به ازای همین مبنا است.
+                </div>
+              </div>
+              <TextInput
+                label="طول شاخه (متر)"
+                name="branchLengthM"
+                inputMode="decimal"
+                placeholder="مثلاً ۶"
+                helper="اختیاری. اگر ثبت شود، وزن شاخه بر همین طول حساب می‌شود."
+                value={v.branchLengthM}
+                error={
+                  fieldErrors.branchLengthM ??
+                  (lengthValid ? undefined : 'عدد مثبت وارد کنید یا خالی بگذارید.')
+                }
+                onChange={(e) => set({ branchLengthM: e.target.value }, { weight: touched.weight })}
+              />
             </div>
             <div className={s.slugPreview} style={{ marginBlockStart: 'var(--space-2)' }}>
               نشانی صفحه: /prices/{parentCategory?.slug ?? '…'}/{selectedSub?.slug ?? '…'}/{v.slug || '…'}

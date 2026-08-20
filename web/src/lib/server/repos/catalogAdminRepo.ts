@@ -34,7 +34,7 @@ import {
   alerts,
   favorites,
 } from '@/lib/server/db/schema';
-import type { PriceUnit } from '@/lib/types/domain';
+import type { PriceBasis, PriceUnit } from '@/lib/types/domain';
 import { normalizeDigits } from '@/lib/utils/format';
 import { likeContains } from '@/lib/server/utils/likeEscape';
 
@@ -507,6 +507,10 @@ export interface SkuInput {
   factory?: string | null;
   theoreticalWeightKg?: number | null;
   unit?: PriceUnit;
+  /** What a stored price is per. Absent = leave alone (the column defaults to
+   *  `'kg'`, which is what every pre-existing row always meant). */
+  priceBasis?: PriceBasis;
+  branchLengthM?: number | null;
   imageUrl?: string | null;
   /** Additional category IDs this SKU is ALSO listed under — its own
    *  subCategoryId/categoryId above stays the one thing that decides its URL.
@@ -614,6 +618,16 @@ export async function updateSku(id: string, patch: Partial<SkuInput> & { isActiv
   // would keep showing the old unit against the new one on the detail page.
   if (patch.unit && patch.unit !== before.unit) {
     await db.update(currentPrices).set({ unit: patch.unit }).where(eq(currentPrices.skuId, id));
+  }
+  // Same reasoning one column over, and it matters more: `toPriceRow` prefers
+  // `current_prices.price_basis`, so correcting a SKU from «per kilogram» to
+  // «per کلاف» without this would leave the public caption still saying
+  // «تومان / کیلوگرم» until somebody happened to re-save the price.
+  if (patch.priceBasis && patch.priceBasis !== before.priceBasis) {
+    await db
+      .update(currentPrices)
+      .set({ priceBasis: patch.priceBasis })
+      .where(eq(currentPrices.skuId, id));
   }
   return { before, after };
 }
