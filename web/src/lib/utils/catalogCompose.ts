@@ -178,8 +178,12 @@ const CATALOG_WEIGHT_BASIS: Readonly<Record<string, CatalogWeightBasis>> = {
   'rebar/deformed': { shape: 'rebar', lengthM: 12, sizeAs: 'diameterMm' },
   'rebar/deformed-a2': { shape: 'rebar', lengthM: 12, sizeAs: 'diameterMm' },
   'rebar/plain': { shape: 'rebar', lengthM: 12, sizeAs: 'diameterMm' },
-  'rebar/mylgrd-sadh': { shape: 'rebar', lengthM: 12, sizeAs: 'diameterMm' },
   'rebar/alloy': { shape: 'rebar', lengthM: 12, sizeAs: 'diameterMm' },
+  // NOT `rebar/mylgrd-sadh` (میلگرد ساده), deliberately: ahanonline's own
+  // میلگرد ساده listing quotes «شاخه ۶ متری» for the straight-bar mills and
+  // «کلاف» (coil) for the rest, so this one sub-category mixes a 6 m branch
+  // with a product that has no branch at all. There is no single length that
+  // is right for it, which is exactly the condition for having no entry.
   // نبشی بال مساوی. `ANGLE_KG_PER_M` is مرکزآهن's exact published table
   // (audited into weight.ts 2026-08-09) and is keyed in MILLIMETRES of leg,
   // while the catalog's `size` is the market number in CENTIMETRES («نبشی ۱۰»

@@ -127,6 +127,12 @@ describe('theoreticalWeightFor', () => {
     expect(theoreticalWeightFor('wire', '۸', 'coil')).toBeNull();
   });
 
+  it('refuses میلگرد ساده, whose sub-category mixes a 6 m branch with coil', () => {
+    // ahanonline quotes «شاخه ۶ متری» for the straight-bar mills and «کلاف»
+    // for the rest under one heading — no single length is right for it.
+    expect(theoreticalWeightFor('rebar', '۱۴', 'mylgrd-sadh')).toBeNull();
+  });
+
   it('returns null when the sub-category is unknown, rather than falling back to a category rule', () => {
     // The section is a property of the sub-category. Answering from the
     // category alone is what produced «ناودانی ۱۰ = ۷.۴ kg».
