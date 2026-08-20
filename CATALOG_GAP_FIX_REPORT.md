@@ -386,6 +386,31 @@ Sample verification against the source site was done by **re-fetching live**, no
 - `web/scripts/fixTheoreticalWeights.ts` · `seedCouplers.ts` · `retireImpossibleSkus.ts` · `fillCatalogGaps.ts` · `fixBranchPricedTirahan.ts` — all dry-run by default, `--apply` to write.
 - `.claude/audits/catalog-gap-fix-2026-08-20/` — the 473-row scrape, its fetchers and its parser.
 
+### Deployed and re-verified live
+
+`main@48eaf81` → `ghcr.io/am1eza/iron-web:48eaf815…`, running in `ahantime-web-1`.
+Checked through Caddy after the container came up:
+
+```
+200  https://ahantime.com/                 (public)
+307  https://panel.ahantime.com/           (→ login)
+404  https://ahantime.com/admin            (hidden on the public host)
+```
+
+| what | evidence on the live site |
+|---|---|
+| «عدد» unit | `/prices/rebar/coupler` renders **65 × «تومان / عدد»** and the page note «قیمت‌ها به تومان و برای هر عدد است.» |
+| تیرآهن fix | `/prices/ibeam/tirahan` serves **۸۹٬۱۵۰ تومان / کیلوگرم**; ۱۳٬۸۱۸٬۱۸۱ is gone |
+| factory links | `/prices/rebar` emits real `/prices/rebar/factory/<slug>` hrefs |
+| چهارپهلو | `/prices/profile/chaharpahlu` renders 14 rows with the «گرید» column carrying نرمال/ترانس |
+| retirements | `/prices/sheet/colored` shows only ۰.۴۸ / ۰.۵ / ۰.۶ mm; `/prices/pipe/scaffold` only ۱½ اینچ |
+| bundle | `تومان / عدد` is present in the container's `.next/` output |
+
+One local-only caveat worth stating rather than hiding: a full `vitest run` on this
+host intermittently times out `seedDatabase — articles` (2 tests) under parallel
+load. They pass in isolation (~10 s each) and passed in CI on every one of the six
+PRs. Unrelated to this work.
+
 ### Out of scope, untouched as instructed
 
 The products/Navbar mega-menu redesign, and the FAQ / article / comments-under-factory-page work. The `feat/price-table-by-factory` worktree was left alone.
