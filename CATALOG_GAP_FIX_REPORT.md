@@ -24,7 +24,7 @@
 | Active SKUs | 686 | **937** |
 | …publishable price (fresh, not stale) | 543 | **840** |
 | Inactive (soft-deleted) SKUs | 44 | 87 |
-| Active sub-categories with zero products | 24 | **16** |
+| Active sub-categories with zero products | 22 | **16** |
 | Active SKUs carrying a `theoretical_weight_kg` | 425 | **228** |
 | Distinct price units in use | 3 | **4** (`kg` 791 · `branch` 79 · `piece` 65 · `sheet` 2) |
 
@@ -42,7 +42,7 @@ Per category, after:
 | کلاف و مفتول | 40 | 25 |
 | نبشی و ناودانی | 37 | 22 |
 
-The drop in "SKUs carrying a weight" from 425 to 228 is the point of §2, not a regression: 197 of those were fabricated numbers and are now honestly null.
+Two notes on reading that table. The drop in "SKUs carrying a weight" from 425 to 228 is the point of §2, not a regression: 197 of those were fabricated and are now honestly null. And the empty-sub-category count moved 22 → 25 → 16 rather than straight down: retiring the fabricated SKUs (§4) *emptied* ورق رنگی, ورق اسیدشویی and لوله اسپیرال, whose only products were the impossible ones, before §5 refilled all three with the real listings.
 
 ---
 
