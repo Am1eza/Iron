@@ -2,9 +2,10 @@ import { z } from 'zod';
 import { mobileSchema, otpCodeSchema } from './schemas';
 import { M } from './messages';
 import { finiteNumber } from './utils';
+import { PRICE_UNIT_VALUES } from '@/lib/types/domain';
 
 /* ---------- request payloads (server re-validates these) ---------- */
-const priceUnit = z.enum(['kg', 'branch', 'sheet', 'meter']);
+const priceUnit = z.enum(PRICE_UNIT_VALUES);
 
 export const otpRequestPayload = z.object({
   mobile: mobileSchema,

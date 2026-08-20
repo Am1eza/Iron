@@ -3,7 +3,7 @@
  * pages are server-gated). Thin typed wrappers over /api/admin/**.
  */
 import { http } from '../http';
-import type { PriceRow, PricePoint, LineItem, Order, WarehouseItem, Article, MarketValue, SeoMeta } from '@/lib/types/domain';
+import type { PriceRow, PricePoint, LineItem, Order, WarehouseItem, Article, MarketValue, SeoMeta, PriceUnit } from '@/lib/types/domain';
 // The command-palette wire contract lives beside the permission predicate
 // that shapes it, so the route and this client cannot drift apart.
 export type { AdminSearchHit } from '@/lib/auth/adminSearch';
@@ -389,7 +389,7 @@ export interface AdminSku {
   dimensions: string | null;
   factory: string | null;
   theoreticalWeightKg: number | null;
-  unit: 'kg' | 'branch' | 'sheet' | 'meter';
+  unit: PriceUnit;
   imageUrl: string | null;
   isActive: boolean;
   /** Category IDs this product is ALSO listed under, beyond its own home
@@ -410,7 +410,7 @@ export interface AdminSkuInput {
   dimensions?: string | null;
   factory?: string | null;
   theoreticalWeightKg?: number | null;
-  unit?: 'kg' | 'branch' | 'sheet' | 'meter';
+  unit?: PriceUnit;
   imageUrl?: string | null;
   crossListedCategoryIds?: string[] | null;
 }

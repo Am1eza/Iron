@@ -97,13 +97,14 @@ const proformaUrl = (ref: string) =>
 const UNIT_LABEL: Record<PriceUnit, string> = {
   kg: 'کیلوگرم',
   branch: 'شاخه',
+  piece: 'عدد',
   sheet: 'برگ',
   meter: 'متر',
 };
 
 /** Mirrors `WHOLE_PIECE_UNITS` in leadsRepo — «۳٫۷ شاخه» is a typo, and the
  *  server rejects it; catching it here saves the rep a round trip. */
-const WHOLE_PIECE_UNITS: readonly PriceUnit[] = ['branch', 'sheet'];
+const WHOLE_PIECE_UNITS: readonly PriceUnit[] = ['branch', 'sheet', 'piece'];
 
 const SOURCE_LABEL: Record<string, string> = {
   table: 'جدول قیمت',

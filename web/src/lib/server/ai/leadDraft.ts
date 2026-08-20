@@ -14,6 +14,7 @@
  */
 import { ulid } from 'ulid';
 import { cacheGetJson, cacheSetJson, cacheDel } from '@/lib/server/redis';
+import type { PriceUnit } from '@/lib/types/domain';
 
 /** Long enough for a login round trip, short enough that a stale price
  *  snapshot is never confirmed hours later (the lead re-prices on confirm). */
@@ -22,7 +23,7 @@ export const DRAFT_TTL_SECONDS = 30 * 60;
 export interface DraftItem {
   skuId: string;
   qty: number;
-  unit: 'kg' | 'branch' | 'sheet' | 'meter';
+  unit: PriceUnit;
 }
 
 export interface LeadDraft {

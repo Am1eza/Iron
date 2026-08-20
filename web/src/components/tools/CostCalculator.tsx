@@ -11,6 +11,7 @@ import { Card, Stack, Cluster, Text, Switch, DeliveryBadge, MovementBadge } from
 import { Button } from '@/components/ui';
 import { PlusIcon, ChevronDownIcon } from '@/components/primitives/icons';
 import styles from './CostCalculator.module.css';
+import { priceUnitCaption } from '@/lib/utils/catalogLabels';
 
 /**
  * محاسبهٔ هزینه — pick دسته → محصول → مقدار (شاخه یا کیلوگرم) and get a live total
@@ -81,16 +82,35 @@ export function CostCalculator() {
     setProductId('');
   };
 
-  const qty = mode === 'branch' ? Math.max(1, Math.round(parse(qtyInput)) || 1) : parse(qtyInput);
-  const weightPerUnit = mode === 'branch' ? product?.theoreticalWeightKg ?? 0 : 1;
+  /**
+   * A `piece`-unit product (کوپلر و اتصالات) is quoted per عدد, not per
+   * kilogram, and has no branch weight — so neither of this tool's two modes
+   * applies to it and both would have been wrong: «شاخه» multiplies by
+   * `theoreticalWeightKg`, which is null here, silently producing a total of
+   * zero; «کیلوگرم» would have priced a coupler by mass it does not have.
+   * The mode switch is hidden for these and the whole calculation collapses
+   * to qty x unitPrice.
+   */
+  const isPiece = product?.unit === 'piece';
+  const effectiveMode: Mode | 'piece' = isPiece ? 'piece' : mode;
+
+  const qty =
+    effectiveMode === 'kg' ? parse(qtyInput) : Math.max(1, Math.round(parse(qtyInput)) || 1);
+  const weightPerUnit = effectiveMode === 'branch' ? product?.theoreticalWeightKg ?? 0 : 1;
   const unitPrice = product?.current.price ?? 0;
 
   const base = qty * weightPerUnit * unitPrice;
   const vatAmount = vat ? Math.round(base * CONSTANTS.VAT_RATE) : 0;
   const total = Math.round(base) + vatAmount;
 
-  // total weight (kg) only meaningful in شاخه mode
-  const totalWeight = mode === 'branch' ? qty * (product?.theoreticalWeightKg ?? 0) : qty;
+  // total weight (kg) only meaningful in شاخه mode; null for a piece product,
+  // which has no mass on file at all.
+  const totalWeight =
+    effectiveMode === 'piece'
+      ? null
+      : effectiveMode === 'branch'
+        ? qty * (product?.theoreticalWeightKg ?? 0)
+        : qty;
 
   const canCompute = Boolean(product) && qty > 0 && unitPrice > 0;
 
@@ -102,7 +122,7 @@ export function CostCalculator() {
       qty: Math.max(1, Math.round(qty)), // cart qty is an integer (±1 stepper)
       unit: product.unit,
       unitPrice: product.current.price,
-      weightKg: mode === 'branch' ? product.theoreticalWeightKg : 1,
+      weightKg: effectiveMode === 'piece' ? undefined : effectiveMode === 'branch' ? product.theoreticalWeightKg : 1,
     });
     toast.success(`${product.name} به سبد استعلام اضافه شد.`, {
       label: 'مشاهده سبد',
@@ -167,9 +187,22 @@ export function CostCalculator() {
                 placeholder="مقدار"
                 value={qtyInput}
                 onChange={(e) => setQtyInput(e.target.value)}
-                aria-label={mode === 'branch' ? 'تعداد شاخه' : 'مقدار به کیلوگرم'}
+                aria-label={
+                  effectiveMode === 'piece'
+                    ? 'تعداد'
+                    : effectiveMode === 'branch'
+                      ? 'تعداد شاخه'
+                      : 'مقدار به کیلوگرم'
+                }
               />
-              <div className={styles.unitToggle} role="group" aria-label="واحد مقدار">
+              {/* No شاخه/کیلوگرم choice for a piece product — «عدد» is the only
+                  unit it is sold in, so the toggle would offer two wrong answers. */}
+              <div
+                className={styles.unitToggle}
+                role="group"
+                aria-label="واحد مقدار"
+                hidden={effectiveMode === 'piece'}
+              >
                 <button
                   type="button"
                   className={styles.unitBtn}
@@ -190,7 +223,7 @@ export function CostCalculator() {
                 </button>
               </div>
             </div>
-            {mode === 'branch' && product?.theoreticalWeightKg ? (
+            {effectiveMode === 'branch' && product?.theoreticalWeightKg ? (
               <Text variant="caption" color="muted">
                 وزن هر شاخه ≈{' '}
                 <span className="tnum">{toPersianDigits(product.theoreticalWeightKg)}</span>{' '}
@@ -221,7 +254,7 @@ export function CostCalculator() {
                   {formatToman(unitPrice, false)}
                 </span>
                 <Text variant="caption" color="muted">
-                  تومان / کیلوگرم
+                  {priceUnitCaption(product.unit)}
                 </Text>
                 <MovementBadge
                   dir={product.current.movementDir}
@@ -237,15 +270,19 @@ export function CostCalculator() {
               <div className={styles.row}>
                 <dt>مقدار</dt>
                 <dd className="tnum">
-                  {mode === 'branch'
-                    ? `${toPersianDigits(qty)} شاخه`
-                    : `${toPersianDigits(qty)} کیلوگرم`}
+                  {effectiveMode === 'piece'
+                    ? `${toPersianDigits(qty)} عدد`
+                    : effectiveMode === 'branch'
+                      ? `${toPersianDigits(qty)} شاخه`
+                      : `${toPersianDigits(qty)} کیلوگرم`}
                 </dd>
               </div>
-              <div className={styles.row}>
-                <dt>وزن کل</dt>
-                <dd className="tnum">{toPersianDigits(Math.round(totalWeight))} کیلوگرم</dd>
-              </div>
+              {totalWeight != null ? (
+                <div className={styles.row}>
+                  <dt>وزن کل</dt>
+                  <dd className="tnum">{toPersianDigits(Math.round(totalWeight))} کیلوگرم</dd>
+                </div>
+              ) : null}
               <div className={styles.row}>
                 <dt>مبلغ کالا</dt>
                 <dd className="tnum">{formatToman(base)}</dd>

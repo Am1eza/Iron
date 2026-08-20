@@ -10,6 +10,7 @@ import { catalogErrorResponse, redirectOnSlugChange, revalidateCatalog } from '@
 import { finiteNumber, nonEmptyPatch, slugSchema, uploadPathSchema } from '@/lib/validation/utils';
 import { normalizePersian, normalizeSizeText } from '@/lib/utils/persianText';
 import { routes } from '@/lib/routes';
+import { PRICE_UNIT_VALUES } from '@/lib/types/domain';
 
 const optionalPersianText = (max: number) =>
   z
@@ -47,7 +48,7 @@ const patchPayload = nonEmptyPatch(
       .transform((v) => (v ? normalizeSizeText(v) : v === '' ? null : v)),
     factory: optionalPersianText(80),
     theoreticalWeightKg: finiteNumber.positive().max(100_000).nullable().optional(),
-    unit: z.enum(['kg', 'branch', 'sheet', 'meter']).optional(),
+    unit: z.enum(PRICE_UNIT_VALUES).optional(),
     imageUrl: uploadPathSchema.nullable().optional(),
     crossListedCategoryIds: z.array(z.string().min(1)).max(5).nullable().optional(),
     // Moving a product between sub-categories was impossible: a mis-filed SKU

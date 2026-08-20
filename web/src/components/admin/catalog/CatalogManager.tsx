@@ -36,7 +36,13 @@ import { FactoryOrderPanel } from './FactoryOrderPanel';
 import ui from '../adminUi.module.css';
 import s from './catalog.module.css';
 
-const UNIT_LABEL: Record<string, string> = { kg: 'کیلوگرم', branch: 'شاخه', sheet: 'برگ', meter: 'متر' };
+const UNIT_LABEL: Record<string, string> = {
+  kg: 'کیلوگرم',
+  branch: 'شاخه',
+  sheet: 'برگ',
+  meter: 'متر',
+  piece: 'عدد',
+};
 
 type NodeDraft =
   | { kind: 'category'; row: AdminCategory | null }

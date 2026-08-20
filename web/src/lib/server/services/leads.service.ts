@@ -322,6 +322,11 @@ export async function priceItems(
       hit != null &&
       skuUnit === 'kg' &&
       WHOLE_PIECE_UNITS.has(item.unit) &&
+      // `piece` is excluded on purpose: it is the one unit whose price is NOT
+      // per kilogram (see PRICE_UNITS), so «۲۰ عدد» of a kg-priced SKU is not
+      // a convertible piece claim, it is a mismatch — and `unitMismatch`
+      // below already routes that to a human.
+      item.unit !== 'piece' &&
       typeof hit.sku.theoreticalWeightKg === 'number' &&
       hit.sku.theoreticalWeightKg > 0;
     const unit = pieceRequest ? item.unit : skuUnit;
@@ -347,12 +352,18 @@ export async function priceItems(
 
     const unitPrice = price && !hidden && !unitMismatch && !fractionalPieces ? price.price : undefined;
 
+    // A `piece` SKU has no weight and needs none — a کوپلر is quoted per عدد,
+    // full stop. Left `undefined` rather than derived, so nothing downstream
+    // can present a fabricated tonnage, and so `totalWeightKg` counts only
+    // material that actually has a mass.
     const weightKg =
-      unit === 'kg'
-        ? item.qty
-        : hit?.sku.theoreticalWeightKg
-          ? Math.round(hit.sku.theoreticalWeightKg * item.qty * 100) / 100
-          : undefined;
+      unit === 'piece'
+        ? undefined
+        : unit === 'kg'
+          ? item.qty
+          : hit?.sku.theoreticalWeightKg
+            ? Math.round(hit.sku.theoreticalWeightKg * item.qty * 100) / 100
+            : undefined;
 
     // `unitPrice` is per KILOGRAM, always (see PriceTable's «تومان / کیلوگرم»
     // label and CostCalculator's identical weight-basis math) — `unit` only
@@ -365,7 +376,21 @@ export async function priceItems(
     // `weightKg === item.qty`, so this is a no-op for every SKU in the
     // catalog today; it only changes anything once a branch/sheet/meter SKU
     // gets a real price.
-    const lineTotal = unitPrice && weightKg != null ? Math.round(unitPrice * weightKg) : undefined;
+    //
+    // `piece` is the single exception and the reason it needed its own member
+    // of PRICE_UNITS rather than reusing `branch`: its price IS per عدد, so
+    // the quantity is already the multiplier and there is no mass in the
+    // chain at all. Routing it through `weightKg` would have left every
+    // coupler line permanently unpriced (`weightKg` is undefined above), which
+    // fails safe but never quotes.
+    const lineTotal =
+      unitPrice == null
+        ? undefined
+        : unit === 'piece'
+          ? Math.round(unitPrice * item.qty)
+          : weightKg != null
+            ? Math.round(unitPrice * weightKg)
+            : undefined;
     // Gate on `lineTotal`, not `unitPrice` alone — a non-kg SKU can have a
     // live price but no `theoreticalWeightKg` on file, leaving `lineTotal`
     // undefined even though `unitPrice` is set. Gating on `unitPrice` alone
