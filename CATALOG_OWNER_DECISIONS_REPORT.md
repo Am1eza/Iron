@@ -578,8 +578,10 @@ it) and asserts its band, `seedAluminium` asserts its band, its date and slug un
 
 ### Deployed and re-verified live
 
-`main@4fc302d` → `ghcr.io/am1eza/iron-web:4fc302d3f5a6e41fee75eac72f599c1edf829fa7`, running in
-`ahantime-web-1` (healthy). The deployed image hash matches `origin/main` exactly.
+`main@39cab1a` → `ghcr.io/am1eza/iron-web:39cab1a154bc2f95e57afb1a58d41eaf551360eb`, running in
+`ahantime-web-1` (healthy). The deployed image hash matches `origin/main` exactly. (The code
+itself shipped one commit earlier as `4fc302d`; `39cab1a` is this report, a root-level markdown
+file with no effect on the bundle, redeployed only so the running hash matches `main`.)
 
 ```
 200  https://ahantime.com/                 (public)
