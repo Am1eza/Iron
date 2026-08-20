@@ -550,8 +550,9 @@ rows are saved in `.claude/audits/catalog-owner-decisions-2026-08-20/` for whoev
   pre-existing red on the secondary Cloudflare target, not caused by this change.
 - One flake worth naming rather than hiding: the post-merge `CI / checks` run on `main` failed on
   `src/lib/auth/service.test.ts > rotates the refresh token`, a wall-clock grace-window assertion
-  in a file this pass does not touch. It passed on the PR run with the identical tree and passes
-  in isolation here; it was re-run on `main`.
+  in a file this pass does not touch. It passed on the PR run with the identical tree, passes in
+  isolation here, and **the re-run of that job on `main` came back green** — a flake, not a
+  regression.
 
 ### The four scripts — all dry-run, reviewed, applied, re-queried, and idempotent
 
