@@ -19,7 +19,8 @@
   background: color-mix(in srgb, var(--color-surface) 94%, transparent);
   backdrop-filter: blur(6px);
   border-block-end: var(--border-hairline) solid var(--color-hairline);
-  transition: background var(--dur-base) var(--ease-standard),
+  transition:
+    background var(--dur-base) var(--ease-standard),
     border-color var(--dur-base) var(--ease-standard);
 }
 
@@ -232,6 +233,13 @@
    a future `display` on `.mega` would silently un-hide the closed menu. */
 .mega[hidden] {
   display: none;
+  /* …and `visibility`, which is NOT in the transition list above, so it lands
+     immediately. `display` is, with `transition-behavior: allow-discrete`, so
+     on close the browser holds `display: block` for the whole `--dur-base`.
+     Nothing sets an opacity or transform exit state, so for those 200ms the
+     dismissed menu is fully painted AND fully tabbable: press Esc, press Tab,
+     and focus lands on the «میلگرد» rail row of the menu that just closed. */
+  visibility: hidden;
 }
 /* ===== Utility nav ===== */
 .utility {

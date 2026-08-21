@@ -124,10 +124,10 @@ describe('ProductsMenu', () => {
       ['colored', 'رنگی', 'ورق‌های روکش‌دار'],
       ['aluzinc', 'آلوزینک (گالوالوم)', 'ورق‌های روکش‌دار'],
       ['tin-coated', 'قلع‌اندود', 'ورق‌های روکش‌دار'],
-      ['alloy', 'آلیاژی', 'ورق‌های آلیاژی و مقاوم'],
-      ['steel', 'ورق استیل', 'ورق‌های آلیاژی و مقاوم'],
-      ['wear-resistant', 'ورق ضد سایش', 'ورق‌های آلیاژی و مقاوم'],
-      ['marine', 'ورق دریایی', 'ورق‌های آلیاژی و مقاوم'],
+      ['alloy', 'آلیاژی', 'ورق‌های آلیاژی و خاص'],
+      ['steel', 'ورق استیل', 'ورق‌های آلیاژی و خاص'],
+      ['wear-resistant', 'ورق ضد سایش', 'ورق‌های آلیاژی و خاص'],
+      ['marine', 'ورق دریایی', 'ورق‌های آلیاژی و خاص'],
       ['deck', 'عرشه فولادی', 'ورق سقف و سوله'],
       ['sandwich-panel', 'ساندویچ پانل', 'ورق سقف و سوله'],
       ['corrugated', 'ورق کرکره', 'ورق سقف و سوله'],
@@ -159,6 +159,21 @@ describe('ProductsMenu', () => {
     expect(columnsFor(24)).toBe('3');
   });
 
+  it('never asks for more columns than there are unbreakable blocks to fill them', () => {
+    // فلزات رنگی: 13 items in two groups → 15 lines, but `break-inside:
+    // avoid` means those two blocks can only ever occupy two columns. Asking
+    // for three left the third empty AND, because data-cols=3 is the one
+    // bucket with no width cap, pushed آلومینیوم and مس a third of a panel
+    // apart.
+    expect(columnsFor(15, 2)).toBe('2');
+    expect(columnsFor(24, 5)).toBe('3');
+    expect(columnsFor(15, 4)).toBe('3');
+    // A single group, however long, is one column.
+    expect(columnsFor(20, 1)).toBe('1');
+    // An ungrouped category is unchanged: every line is its own block.
+    expect(columnsFor(19, 19)).toBe('3');
+  });
+
   it('draws a section glyph beside every sub-category link, hidden from assistive tech', () => {
     render(<ProductsMenu categories={categories} subs={subs} />);
     const links = [...document.querySelectorAll('a[href^="/prices/profile/"]')];
@@ -170,6 +185,29 @@ describe('ProductsMenu', () => {
       // that contributed text would make a screen reader say it twice.
       expect(a.textContent?.trim()).not.toBe('');
     }
+  });
+
+  it('does not let a stray hover swap the panel out from under a keyboard user', async () => {
+    const { default: userEvent } = await import('@testing-library/user-event');
+    const { fireEvent } = await import('@testing-library/react');
+    const user = userEvent.setup();
+    render(<ProductsMenu categories={categories} subs={subs} />);
+    await user.click(screen.getByRole('button', { name: /محصولات/ }));
+
+    // Keyboard user is inside پروفیل's panel…
+    const link = screen.getByRole('link', { name: 'پروفیل Z' });
+    link.focus();
+    expect(document.activeElement).toBe(link);
+
+    // …and the pointer brushes across the نبشی و ناودانی rail row. Swapping
+    // the panel would give پروفیل's `hidden`, which is a display:none, and
+    // the browser would drop focus to <body> with nothing announced.
+    const rail = document.querySelector('nav[aria-label="دسته‌بندی‌های اصلی"]')!;
+    fireEvent.mouseEnter(rail.querySelectorAll('a')[1]!);
+
+    expect(document.activeElement).toBe(link);
+    const panel = document.querySelector('[data-active-panel]') as HTMLElement;
+    expect(within(panel).getByRole('heading', { level: 2 })).toHaveTextContent('پروفیل و قوطی');
   });
 
   it('renders the admin-authored category description, and nothing when there is none', () => {

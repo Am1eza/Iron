@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { flushSync } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { routes } from '@/lib/routes';
@@ -99,8 +100,45 @@ export function ProductsMenu({ categories, subs }: { categories: Category[]; sub
     return [...panel.querySelectorAll<HTMLElement>('a[href]')];
   };
 
-  const onRailKeyDown = (e: KeyboardEvent) => {
-    if (e.key !== 'Tab' || e.shiftKey) return;
+  /**
+   * Pointer-driven panel switching, but never OUT FROM UNDER a keyboard user.
+   *
+   * Swapping `active` gives the old panel `hidden` — a `display: none` — and
+   * the browser then drops focus to `<body>` if it was on one of that panel's
+   * links. A keyboard user who has pinned the menu open and tabbed into ورق's
+   * sub-list is thrown out of the document's flow entirely by a stray
+   * trackpad brush across «تیرآهن», with nothing announced.
+   *
+   * The test is "does this menu currently hold focus" — the trigger lives
+   * outside `layoutRef`, so a mouse user who clicked it to pin the menu open
+   * still gets hover switching.
+   */
+  const hoverSelect = (slug: string) => {
+    if (layoutRef.current?.contains(document.activeElement)) return;
+    setActiveSlug(slug);
+  };
+
+  const onRailKeyDown = (e: KeyboardEvent, index: number) => {
+    if (e.key !== 'Tab') return;
+    if (e.shiftKey) {
+      // Backwards, the layout order is rail(i) → panel(i-1)'s LAST link. Left
+      // native, Shift+Tab went rail(i) → rail(i-1) and there was no keyboard
+      // path back into a panel at all: a user who overshot the last
+      // sub-category of ورق by one Tab could not get back to it.
+      const prev = categories[index - 1];
+      if (!prev) return;
+      // The previous panel is `hidden` until it is the active one, and
+      // focus() on a `display: none` element is a silent no-op — so the swap
+      // has to be flushed to the DOM before the focus call, not queued behind
+      // it.
+      flushSync(() => setActiveSlug(prev.slug));
+      const links = visibleLinks();
+      const last = links[links.length - 1];
+      if (!last) return;
+      e.preventDefault();
+      last.focus();
+      return;
+    }
     const first = visibleLinks()[0];
     if (!first) return;
     e.preventDefault();
@@ -137,7 +175,7 @@ export function ProductsMenu({ categories, subs }: { categories: Category[]; sub
             question an answer engine asks of a marketplace. */}
         <nav className={styles.rail} aria-label="دسته‌بندی‌های اصلی">
           <ul className={styles.railList}>
-            {categories.map((cat) => {
+            {categories.map((cat, i) => {
               const count = subs[cat.slug]?.length ?? 0;
               return (
                 <li key={cat.id}>
@@ -149,9 +187,9 @@ export function ProductsMenu({ categories, subs }: { categories: Category[]; sub
                     className={styles.railItem}
                     data-active={cat.slug === active ? '' : undefined}
                     aria-current={cat.slug === currentSlug ? 'true' : undefined}
-                    onMouseEnter={() => setActiveSlug(cat.slug)}
+                    onMouseEnter={() => hoverSelect(cat.slug)}
                     onFocus={() => setActiveSlug(cat.slug)}
-                    onKeyDown={cat.slug === active ? onRailKeyDown : undefined}
+                    onKeyDown={(e) => onRailKeyDown(e, i)}
                   >
                     <span className={styles.railThumb} aria-hidden="true">
                       {productImage(cat.slug) ? (
@@ -196,10 +234,18 @@ export function ProductsMenu({ categories, subs }: { categories: Category[]; sub
  * grouped list. Kept out of the component so a test can assert the boundaries
  * without rendering a menu.
  */
-export function columnsFor(rows: number): '1' | '2' | '3' {
-  if (rows <= 4) return '1';
-  if (rows <= 9) return '2';
-  return '3';
+export function columnsFor(rows: number, blocks: number = rows): '1' | '2' | '3' {
+  const wanted = rows <= 4 ? 1 : rows <= 9 ? 2 : 3;
+  // …then capped by how many UNBREAKABLE blocks there are to distribute.
+  // `.group` is `break-inside: avoid`, so a category that clusters into two
+  // groups can only ever fill two columns however many lines those groups
+  // hold. Asking for three leaves the third empty and — since `data-cols=3`
+  // is the one bucket with no width cap — spreads the two lists a third of a
+  // panel apart. فلزات رنگی (13 items → 15 lines, but only آلومینیوم and مس
+  // as blocks) is exactly that case. `blocks` defaults to `rows` so an
+  // ungrouped category, where every line IS its own block, is unaffected.
+  const cols = Math.min(wanted, Math.max(1, blocks));
+  return String(cols) as '1' | '2' | '3';
 }
 
 /**
@@ -292,7 +338,7 @@ function CategoryPanel({
             زیردسته‌ای برای {cat.name} ثبت نشده است؛ جدول قیمت این دسته را ببینید.
           </p>
         ) : (
-          <ul className={styles.groups} data-cols={columnsFor(rows)}>
+          <ul className={styles.groups} data-cols={columnsFor(rows, groups.length)}>
             {groups.map((group) => {
               const key = group.label ?? `_solo_${(group.lead ?? group.items[0])!.slug}`;
               return (
@@ -323,27 +369,34 @@ function CategoryPanel({
                     <p className={styles.groupLabel}>{group.label}</p>
                   ) : null}
 
-                  <ul className={group.label ? styles.subListNested : styles.subList}>
-                    {group.items.map((s) => (
-                      <li key={s.slug}>
-                        <Link href={routes.subCategory(cat.slug, s.slug)} className={styles.sub}>
-                          {/* The section drawing for this row. Decorative: the
+                  {/* A labelled group whose ONLY member is named after the
+                      label leaves `items` empty once the lead is promoted.
+                      Not reachable with today's data, but `group_label` is
+                      admin-editable, and an empty <ul> announces as "list, 0
+                      items" and still paints its leader rule. */}
+                  {group.items.length > 0 && (
+                    <ul className={group.label ? styles.subListNested : styles.subList}>
+                      {group.items.map((s) => (
+                        <li key={s.slug}>
+                          <Link href={routes.subCategory(cat.slug, s.slug)} className={styles.sub}>
+                            {/* The section drawing for this row. Decorative: the
                             Persian name beside it is the link's accessible
                             name, and an icon that repeated it would only make
                             a screen reader say everything twice. */}
-                          <span className={styles.subIcon} aria-hidden="true">
-                            <SubCategoryArt
-                              categorySlug={cat.slug}
-                              slug={s.slug}
-                              name={s.name}
-                              size={16}
-                            />
-                          </span>
-                          {s.name}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
+                            <span className={styles.subIcon} aria-hidden="true">
+                              <SubCategoryArt
+                                categorySlug={cat.slug}
+                                slug={s.slug}
+                                name={s.name}
+                                size={16}
+                              />
+                            </span>
+                            {s.name}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </li>
               );
             })}
