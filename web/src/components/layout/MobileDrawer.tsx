@@ -18,7 +18,13 @@ import { groupSubCategories } from '@/lib/utils/catalogGroups';
 import { toPersianDigits } from '@/lib/utils/format';
 import { useUiStore } from '@/lib/stores/ui';
 import { useAuthStore } from '@/lib/stores/auth';
-import { CloseIcon, ChevronDownIcon, UserIcon } from '@/components/primitives/icons';
+import {
+  CloseIcon,
+  ChevronDownIcon,
+  ChevronStartIcon,
+  UserIcon,
+} from '@/components/primitives/icons';
+import { SubCategoryArt } from '@/components/catalog/SubCategoryArt';
 import styles from './MobileDrawer.module.css';
 
 /**
@@ -41,10 +47,30 @@ export function MobileDrawer({ categories, subs }: { categories: Category[]; sub
   // scrolling below the fold on the audience that is mostly on a phone.
   const [expandedCat, setExpandedCat] = useState<string | null>(null);
 
+  /**
+   * Two links in one expanded list point at the same category page — the row
+   * that opened it and the «قیمت روز …» repeat inside it — so when that page
+   * IS the current one, both have to say so. Nothing in the drawer marked the
+   * current page at all before, unlike the header nav.
+   */
+  const onCategoryPage = (slug: string) => pathname === routes.category(slug);
+
   // Close on route change.
   useEffect(() => {
     setOpen(false);
   }, [pathname, setOpen]);
+
+  // Collapse the open category when the drawer closes. The drawer is mounted
+  // permanently (`if (!open) return null` hides it, it does not unmount), so
+  // without this a visitor who expanded ورق and tapped a sub-category reopens
+  // the drawer on the next page with nineteen rows already unfolded and
+  // مقالات/خدمات/شرکت pushed below the fold — the length problem the
+  // one-category-at-a-time rule exists to prevent, just deferred by one
+  // navigation. «محصولات» itself stays open: that one is cheap and it is
+  // where a returning visitor was headed.
+  useEffect(() => {
+    if (!open) setExpandedCat(null);
+  }, [open]);
 
   // Open/close side-effects: scroll lock, focus management, focus trap, Esc.
   useEffect(() => {
@@ -140,7 +166,11 @@ export function MobileDrawer({ categories, subs }: { categories: Category[]; sub
                           «همه‌ی ورق» to first expand 19 sub-categories and
                           then scroll back past them. */}
                       <div className={styles.catRow}>
-                        <Link href={routes.category(cat.slug)} className={styles.catLink}>
+                        <Link
+                          href={routes.category(cat.slug)}
+                          className={styles.catLink}
+                          aria-current={onCategoryPage(cat.slug) ? 'page' : undefined}
+                        >
                           {cat.name}
                           {catSubs.length > 0 && (
                             <span className={styles.catCount}>
@@ -156,15 +186,45 @@ export function MobileDrawer({ categories, subs }: { categories: Category[]; sub
                             aria-expanded={isOpen}
                             aria-controls={bodyId}
                             aria-label={`زیردسته‌های ${cat.name}`}
-                            onClick={() => setExpandedCat((s) => (s === cat.slug ? null : cat.slug))}
+                            onClick={() =>
+                              setExpandedCat((s) => (s === cat.slug ? null : cat.slug))
+                            }
                           >
-                            <ChevronDownIcon size={18} className={isOpen ? styles.caretOpen : undefined} />
+                            <ChevronDownIcon
+                              size={18}
+                              className={isOpen ? styles.caretOpen : undefined}
+                            />
                           </button>
                         )}
                       </div>
 
                       {isOpen && (
                         <ul id={bodyId} className={styles.subList}>
+                          {/* The row that opened this list is also a link to
+                              the category's price table, but once nineteen
+                              sub-categories are expanded under it that row is
+                              scrolled off the top of a phone screen. Repeating
+                              it as the first child keeps «all of ورق»
+                              reachable from inside the list the visitor is
+                              actually looking at, without taking away the
+                              one-tap route the collapsed row gives.
+
+                              Worded «قیمت روز ورق», not «مشاهده همه ورق»: the
+                              mega-menu already renders this exact href with
+                              that label, for the reason its own comment gives
+                              — a generic «مشاهده» says nothing about what is
+                              on the other side of the tap. One destination,
+                              one name, on both surfaces. */}
+                          <li>
+                            <Link
+                              href={routes.category(cat.slug)}
+                              className={`${styles.subLink} ${styles.subAll}`}
+                              aria-current={onCategoryPage(cat.slug) ? 'page' : undefined}
+                            >
+                              قیمت روز {cat.name}
+                              <ChevronStartIcon size={14} className="icon--rtl" />
+                            </Link>
+                          </li>
                           {groupSubCategories(catSubs).map((group) => (
                             <li
                               key={group.label ?? `_solo_${(group.lead ?? group.items[0])!.slug}`}
@@ -179,24 +239,58 @@ export function MobileDrawer({ categories, subs }: { categories: Category[]; sub
                                 <Link
                                   href={routes.subCategory(cat.slug, group.lead.slug)}
                                   className={`${styles.subLink} ${styles.subLead}`}
+                                  aria-current={
+                                    pathname === routes.subCategory(cat.slug, group.lead.slug)
+                                      ? 'page'
+                                      : undefined
+                                  }
                                 >
+                                  <span className={styles.subIcon} aria-hidden="true">
+                                    <SubCategoryArt
+                                      categorySlug={cat.slug}
+                                      slug={group.lead.slug}
+                                      name={group.lead.name}
+                                      size={18}
+                                    />
+                                  </span>
                                   {group.lead.name}
                                 </Link>
                               ) : group.label ? (
                                 <p className={styles.subGroupHeading}>{group.label}</p>
                               ) : null}
-                              <ul className={group.label ? styles.subNested : styles.subFlat}>
-                                {group.items.map((sub) => (
-                                  <li key={sub.slug}>
-                                    <Link
-                                      href={routes.subCategory(cat.slug, sub.slug)}
-                                      className={styles.subLink}
-                                    >
-                                      {sub.name}
-                                    </Link>
-                                  </li>
-                                ))}
-                              </ul>
+                              {/* Empty once a single-member group's lead is
+                                  promoted — see the same guard in
+                                  ProductsMenu. */}
+                              {group.items.length > 0 && (
+                                <ul className={group.label ? styles.subNested : styles.subFlat}>
+                                  {group.items.map((sub) => (
+                                    <li key={sub.slug}>
+                                      <Link
+                                        href={routes.subCategory(cat.slug, sub.slug)}
+                                        className={styles.subLink}
+                                        aria-current={
+                                          pathname === routes.subCategory(cat.slug, sub.slug)
+                                            ? 'page'
+                                            : undefined
+                                        }
+                                      >
+                                        {/* Same decorative section glyph the
+                                          desktop menu draws — one icon system
+                                          across both, not two. */}
+                                        <span className={styles.subIcon} aria-hidden="true">
+                                          <SubCategoryArt
+                                            categorySlug={cat.slug}
+                                            slug={sub.slug}
+                                            name={sub.name}
+                                            size={18}
+                                          />
+                                        </span>
+                                        {sub.name}
+                                      </Link>
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
                             </li>
                           ))}
                         </ul>

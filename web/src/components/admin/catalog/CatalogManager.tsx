@@ -24,9 +24,19 @@ import {
 import { ApiError } from '@/lib/api/errors';
 import { formatToman, toPersianDigits } from '@/lib/utils/format';
 import { slugify } from '@/lib/utils/slugify';
+import { displayOrder } from '@/lib/utils/catalogGroups';
 import { useToast } from '@/lib/hooks/useToast';
 import { useDeepLinkQuery } from '@/lib/hooks/useDeepLinkQuery';
-import { Alert, Badge, Button, Chip, EmptyState, Modal, TableSkeleton, useConfirm } from '@/components/ui';
+import {
+  Alert,
+  Badge,
+  Button,
+  Chip,
+  EmptyState,
+  Modal,
+  TableSkeleton,
+  useConfirm,
+} from '@/components/ui';
 import { TextInput, Textarea, PickerInput } from '@/components/forms/fields';
 import { ImageUpload } from '../ImageUpload';
 import { PagerFooter } from '../PagerFooter';
@@ -87,7 +97,8 @@ export function CatalogManager() {
     setStatus('active');
   });
 
-  const onError = (err: unknown) => toast.error(err instanceof ApiError ? err.message : 'عملیات ناموفق بود.');
+  const onError = (err: unknown) =>
+    toast.error(err instanceof ApiError ? err.message : 'عملیات ناموفق بود.');
 
   const cats = useQuery({ queryKey: ['admin', 'cat', 'categories'], queryFn: adminApi.categories });
   const categories = useMemo(
@@ -97,7 +108,10 @@ export function CatalogManager() {
 
   // All sub-categories in one request — the rail shows every expanded branch
   // at once, so per-category fetching would fire a request per twisty click.
-  const allSubs = useQuery({ queryKey: ['admin', 'cat', 'subs', 'all'], queryFn: () => adminApi.subCategories() });
+  const allSubs = useQuery({
+    queryKey: ['admin', 'cat', 'subs', 'all'],
+    queryFn: () => adminApi.subCategories(),
+  });
   const subsByCategory = useMemo(() => {
     const out: Record<string, AdminSubCategory[]> = {};
     for (const x of [...(allSubs.data?.subCategories ?? [])].sort((a, b) => a.order - b.order)) {
@@ -107,7 +121,17 @@ export function CatalogManager() {
   }, [allSubs.data]);
 
   const skus = useQuery({
-    queryKey: ['admin', 'cat', 'skus', sel.categoryId, sel.subCategoryId, q, status, onlyHidden, page],
+    queryKey: [
+      'admin',
+      'cat',
+      'skus',
+      sel.categoryId,
+      sel.subCategoryId,
+      q,
+      status,
+      onlyHidden,
+      page,
+    ],
     queryFn: () =>
       adminApi.skus({
         // While searching, ignore the rail: the badge tells the admin the
@@ -155,9 +179,12 @@ export function CatalogManager() {
   }, [page]);
 
   const setActive = useMutation({
-    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) => adminApi.updateSku(id, { isActive }),
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
+      adminApi.updateSku(id, { isActive }),
     onSuccess: (_d, vars) => {
-      toast.success(vars.isActive ? 'کالا فعال شد.' : 'کالا غیرفعال شد (تاریخچهٔ قیمت حفظ می‌شود).');
+      toast.success(
+        vars.isActive ? 'کالا فعال شد.' : 'کالا غیرفعال شد (تاریخچهٔ قیمت حفظ می‌شود).',
+      );
       invalidateAll();
     },
     onError,
@@ -176,17 +203,23 @@ export function CatalogManager() {
       title: `غیرفعال‌سازی «${r.name}»`,
       body: (
         <div style={{ display: 'grid', gap: 'var(--space-2)' }}>
-          <span>صفحهٔ این کالا در سایت دیگر باز نمی‌شود و از جدول قیمت‌ها، جستجو و نقشهٔ سایت حذف می‌شود.</span>
+          <span>
+            صفحهٔ این کالا در سایت دیگر باز نمی‌شود و از جدول قیمت‌ها، جستجو و نقشهٔ سایت حذف
+            می‌شود.
+          </span>
           {impact && impact.openLeads > 0 ? (
-            <span>‏{toPersianDigits(impact.openLeads)} سرنخ باز این کالا را در اقلام دارد — پیش‌فاکتورهای صادرشده تغییر نمی‌کنند.</span>
+            <span>
+              ‏{toPersianDigits(impact.openLeads)} سرنخ باز این کالا را در اقلام دارد —
+              پیش‌فاکتورهای صادرشده تغییر نمی‌کنند.
+            </span>
           ) : null}
           {impact && impact.openOrders > 0 ? (
             <span>‏{toPersianDigits(impact.openOrders)} سفارش در جریان این کالا را دارد.</span>
           ) : null}
           {impact && (impact.favorites > 0 || impact.activeAlerts > 0) ? (
             <span>
-              ‏{toPersianDigits(impact.favorites)} کاربر نشانش کرده‌اند و {toPersianDigits(impact.activeAlerts)} هشدار
-              قیمت رویش فعال است.
+              ‏{toPersianDigits(impact.favorites)} کاربر نشانش کرده‌اند و{' '}
+              {toPersianDigits(impact.activeAlerts)} هشدار قیمت رویش فعال است.
             </span>
           ) : null}
           <span>تاریخچهٔ قیمت حفظ می‌شود؛ هر زمان می‌توانید برش گردانید.</span>
@@ -203,14 +236,16 @@ export function CatalogManager() {
       body: (
         <div style={{ display: 'grid', gap: 'var(--space-2)' }}>
           <span>
-            این دسته {toPersianDigits(c.subCount)} زیر‌دسته و {toPersianDigits(c.skuCount)} کالای فعال دارد.
+            این دسته {toPersianDigits(c.subCount)} زیر‌دسته و {toPersianDigits(c.skuCount)} کالای
+            فعال دارد.
           </span>
           {/* The old copy said the products stay untouched. They do in the
               panel — but every one of their public pages 404s, which is the
               opposite of what the admin was told. */}
           <span>
-            با غیرفعال‌شدن دسته، صفحهٔ هر {toPersianDigits(c.skuCount)} کالا در سایت هم بسته می‌شود — نه فقط خود دسته.
-            وضعیت کالاها در پنل تغییر نمی‌کند و با فعال‌کردن دوبارهٔ دسته همه برمی‌گردند.
+            با غیرفعال‌شدن دسته، صفحهٔ هر {toPersianDigits(c.skuCount)} کالا در سایت هم بسته می‌شود
+            — نه فقط خود دسته. وضعیت کالاها در پنل تغییر نمی‌کند و با فعال‌کردن دوبارهٔ دسته همه
+            برمی‌گردند.
           </span>
         </div>
       ),
@@ -234,8 +269,8 @@ export function CatalogManager() {
         <div style={{ display: 'grid', gap: 'var(--space-2)' }}>
           <span>این زیر‌دسته {toPersianDigits(x.skuCount)} کالای فعال دارد.</span>
           <span>
-            صفحهٔ زیر‌دسته و صفحهٔ هر {toPersianDigits(x.skuCount)} کالای آن در سایت بسته می‌شود. وضعیت کالاها در پنل
-            تغییر نمی‌کند.
+            صفحهٔ زیر‌دسته و صفحهٔ هر {toPersianDigits(x.skuCount)} کالای آن در سایت بسته می‌شود.
+            وضعیت کالاها در پنل تغییر نمی‌کند.
           </span>
         </div>
       ),
@@ -271,7 +306,9 @@ export function CatalogManager() {
       // Keep the failures selected so «دوباره تلاش» is one click, instead of
       // reporting a bare count and clearing the selection.
       setSelected(new Set(failedIds));
-      toast.error(`${toPersianDigits(failedIds.length)} کالا به‌روزرسانی نشد؛ همان‌ها انتخاب مانده‌اند.`);
+      toast.error(
+        `${toPersianDigits(failedIds.length)} کالا به‌روزرسانی نشد؛ همان‌ها انتخاب مانده‌اند.`,
+      );
     } else {
       setSelected(new Set());
       toast.success(`${toPersianDigits(ids.length)} کالا ${isActive ? 'فعال' : 'غیرفعال'} شد.`);
@@ -286,12 +323,20 @@ export function CatalogManager() {
     () =>
       new Set([
         ...categories.filter((c) => c.isActive).map((c) => c.id),
-        ...Object.values(subsByCategory).flat().filter((x) => x.isActive).map((x) => x.id),
+        ...Object.values(subsByCategory)
+          .flat()
+          .filter((x) => x.isActive)
+          .map((x) => x.id),
       ]),
     [categories, subsByCategory],
   );
 
-  const move = async (list: Array<{ id: string; order: number }>, id: string, dir: -1 | 1, kind: 'category' | 'sub') => {
+  const move = async (
+    list: Array<{ id: string; order: number }>,
+    id: string,
+    dir: -1 | 1,
+    kind: 'category' | 'sub',
+  ) => {
     // Addressed by id, not index: the rail renders a filtered list when
     // «نمایش غیرفعال‌ها» is off, so an index into what the admin SEES would
     // move the wrong row here.
@@ -398,7 +443,18 @@ export function CatalogManager() {
             .catch(onError)
         }
         onMoveCategory={(id, dir) => void move(categories, id, dir, 'category')}
-        onMoveSub={(categoryId, subId, dir) => void move(subsByCategory[categoryId] ?? [], subId, dir, 'sub')}
+        // Reorder in the order the rail SHOWS, not in raw array order. The
+        // rail renders `groupByLabel` clusters, so once a category carries
+        // group labels the flat neighbour is usually in a different cluster:
+        // swapping ورق's «اسیدشویی» with «گالوانیزه» leaves both clusters'
+        // first members and internal sequences unchanged, i.e. the rail is
+        // byte-identical afterwards and the admin presses the button watching
+        // nothing happen. `move` renumbers `order` over the list it is given,
+        // and re-grouping a display-ordered list reproduces the same display
+        // order, so this is stable rather than fighting the grouping.
+        onMoveSub={(categoryId, subId, dir) =>
+          void move(displayOrder(subsByCategory[categoryId] ?? []), subId, dir, 'sub')
+        }
       />
 
       <div style={{ display: 'grid', gap: 'var(--space-3)' }}>
@@ -449,7 +505,10 @@ export function CatalogManager() {
             sub-category selection still shows it: the order is per CATEGORY,
             and that is what the header says. */}
         {selectedCategory ? (
-          <FactoryOrderPanel categoryId={selectedCategory.id} categoryName={selectedCategory.name} />
+          <FactoryOrderPanel
+            categoryId={selectedCategory.id}
+            categoryName={selectedCategory.name}
+          />
         ) : null}
 
         {/* The single most consequential fact about this catalog, stated
@@ -457,8 +516,8 @@ export function CatalogManager() {
             do not exist as far as any customer is concerned. */}
         {hiddenTotal > 0 && !onlyHidden ? (
           <Alert tone="warning">
-            ‏{toPersianDigits(hiddenTotal)} کالای فعال روی سایت دیده نمی‌شود، چون زیر‌دسته یا دستهٔ آن‌ها غیرفعال است.
-            قیمتشان را هم نمی‌توانید در «قیمت‌گذاری» ویرایش کنید.{' '}
+            ‏{toPersianDigits(hiddenTotal)} کالای فعال روی سایت دیده نمی‌شود، چون زیر‌دسته یا دستهٔ
+            آن‌ها غیرفعال است. قیمتشان را هم نمی‌توانید در «قیمت‌گذاری» ویرایش کنید.{' '}
             <button type="button" className={ui.linkButton} onClick={() => setOnlyHidden(true)}>
               نمایش این {toPersianDigits(hiddenTotal)} کالا
             </button>
@@ -487,10 +546,20 @@ export function CatalogManager() {
           <div className={ui.stickyBar}>
             <span>{toPersianDigits(selected.size)} کالا انتخاب شده.</span>
             <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-              <Button size="sm" variant="ghost" disabled={bulkBusy} onClick={() => setSelected(new Set())}>
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={bulkBusy}
+                onClick={() => setSelected(new Set())}
+              >
                 لغو انتخاب
               </Button>
-              <Button size="sm" variant="ghost" loading={bulkBusy} onClick={() => void bulkSetActive(true)}>
+              <Button
+                size="sm"
+                variant="ghost"
+                loading={bulkBusy}
+                onClick={() => void bulkSetActive(true)}
+              >
                 فعال‌سازی {toPersianDigits(selected.size)} کالا
               </Button>
               <Button size="sm" loading={bulkBusy} onClick={() => void bulkSetActive(false)}>
@@ -513,7 +582,11 @@ export function CatalogManager() {
           <EmptyState
             size="section"
             headline={q ? `کالایی با «${q}» پیدا نشد` : 'کالایی در این نما نیست'}
-            body={q ? 'شاید در نمای دیگری باشد — فیلتر وضعیت را «همه» کنید.' : 'با «کالای جدید» اضافه کنید.'}
+            body={
+              q
+                ? 'شاید در نمای دیگری باشد — فیلتر وضعیت را «همه» کنید.'
+                : 'با «کالای جدید» اضافه کنید.'
+            }
             primary={
               q
                 ? { label: 'پاک‌کردن جستجو', onClick: () => setSearch('') }
@@ -539,7 +612,9 @@ export function CatalogManager() {
                           }
                         }}
                         onChange={(e) =>
-                          setSelected(e.target.checked ? new Set(rows.map((r) => r.sku.id)) : new Set())
+                          setSelected(
+                            e.target.checked ? new Set(rows.map((r) => r.sku.id)) : new Set(),
+                          )
                         }
                       />
                     </th>
@@ -574,7 +649,9 @@ export function CatalogManager() {
                         />
                       </td>
                       <td className={s.nameCell}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                        <div
+                          style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}
+                        >
                           {r.imageUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img src={r.imageUrl} alt="" className={s.thumb} />
@@ -589,7 +666,9 @@ export function CatalogManager() {
                       <td>{r.factory ?? '—'}</td>
                       <td>{r.grade ?? r.standard ?? '—'}</td>
                       <td>{UNIT_LABEL[r.unit] ?? r.unit}</td>
-                      <td className="tnum">{price ? `${formatToman(price.price, false)} تومان` : '—'}</td>
+                      <td className="tnum">
+                        {price ? `${formatToman(price.price, false)} تومان` : '—'}
+                      </td>
                       <td>
                         {/* «فعال» used to be the whole story here, and it was
                             a lie for 167 products: the flag was on, and the
@@ -610,7 +689,9 @@ export function CatalogManager() {
                             با «ویرایش» می‌توانید کالا را به زیر‌دستهٔ فعال منتقل کنید.
                           </div>
                         ) : null}
-                        {r.isActive && !price ? <div className={ui.tileHintWarn}>بدون قیمت</div> : null}
+                        {r.isActive && !price ? (
+                          <div className={ui.tileHintWarn}>بدون قیمت</div>
+                        ) : null}
                       </td>
                       <td>
                         <span style={{ display: 'flex', gap: 'var(--space-1)' }}>
@@ -618,7 +699,11 @@ export function CatalogManager() {
                             ویرایش
                           </Button>
                           {r.isActive ? (
-                            <Button size="sm" variant="ghost" onClick={() => void askDeactivateSku(r)}>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => void askDeactivateSku(r)}
+                            >
                               غیرفعال
                             </Button>
                           ) : (
@@ -745,11 +830,19 @@ function NodeModal({
         // …and an otherwise-empty blob is stored as NULL rather than as `{}`,
         // so «no SEO set» stays one state in the column instead of two.
         const seoValue = Object.values(seo).some((x) => x !== undefined) ? seo : null;
-        if (draft.row) await adminApi.updateCategory(draft.row.id, { name, slug, iconId, imageUrl, seo: seoValue });
+        if (draft.row)
+          await adminApi.updateCategory(draft.row.id, {
+            name,
+            slug,
+            iconId,
+            imageUrl,
+            seo: seoValue,
+          });
         else await adminApi.createCategory({ name, slug, iconId, imageUrl, seo: seoValue });
         return;
       }
-      if (draft.row) await adminApi.updateSubCategory(draft.row.id, { name, slug, categoryId, groupLabel });
+      if (draft.row)
+        await adminApi.updateSubCategory(draft.row.id, { name, slug, categoryId, groupLabel });
       else await adminApi.createSubCategory({ categoryId, name, slug, groupLabel });
     },
     onSuccess: () => {
@@ -894,15 +987,20 @@ function NodeModal({
         ) : null}
 
         <div>
-          <Button size="sm" variant="ghost" aria-expanded={advanced} onClick={() => setAdvanced((x) => !x)}>
+          <Button
+            size="sm"
+            variant="ghost"
+            aria-expanded={advanced}
+            onClick={() => setAdvanced((x) => !x)}
+          >
             {advanced ? 'بستن تنظیمات پیشرفته' : 'تنظیمات پیشرفته'}
           </Button>
           {advanced ? (
             <div style={{ marginBlockStart: 'var(--space-3)' }}>
               {isEdit ? (
                 <Alert tone="warning">
-                  نشانی فعلی در گوگل ثبت شده؛ با تغییر آن انتقال خودکار از نشانی قدیمی ساخته می‌شود تا لینک‌های قبلی
-                  نشکنند.
+                  نشانی فعلی در گوگل ثبت شده؛ با تغییر آن انتقال خودکار از نشانی قدیمی ساخته می‌شود
+                  تا لینک‌های قبلی نشکنند.
                 </Alert>
               ) : null}
               <TextInput
@@ -910,7 +1008,10 @@ function NodeModal({
                 dir="ltr"
                 helper="خودکار از روی نام ساخته می‌شود؛ فقط اگر دلیل خاصی دارید تغییرش دهید."
                 value={slug}
-                error={fieldErrors.slug ?? (slug && !slugValid ? 'فقط حروف کوچک انگلیسی، عدد و خط تیره.' : undefined)}
+                error={
+                  fieldErrors.slug ??
+                  (slug && !slugValid ? 'فقط حروف کوچک انگلیسی، عدد و خط تیره.' : undefined)
+                }
                 maxLength={60}
                 onChange={(e) => {
                   setSlugTouched(true);
