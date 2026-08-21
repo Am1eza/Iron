@@ -98,14 +98,29 @@ describe('ProductsMenu', () => {
     );
   });
 
-  it('shows every top-level category in the rail with its sub-category count', () => {
+  it('shows every top-level category in the rail, and its count to SCREEN READERS only', () => {
     render(<ProductsMenu categories={categories} subs={subs} />);
     const rail = document.querySelector('nav[aria-label="دسته‌بندی‌های اصلی"]') as HTMLElement;
     const items = rail.querySelectorAll('li');
     expect(items).toHaveLength(categories.length);
-    // Persian digits, per the localisation rules.
+    // The count used to be a visible pill beside every row — internal metadata
+    // in a shop window. It still reaches an assistive technology, because
+    // "how much is behind this row" is worth knowing before you open it, but
+    // every element carrying a digit must be visually-hidden: a digit that
+    // renders is the regression this asserts against.
+    for (const item of items) {
+      const painted = [...item.querySelectorAll('*')].filter(
+        (el) =>
+          !el.classList.contains('visually-hidden') &&
+          !el.closest('.visually-hidden') &&
+          [...el.childNodes].some((n) => n.nodeType === 3 && /[۰-۹]/.test(n.textContent ?? '')),
+      );
+      expect(painted).toHaveLength(0);
+    }
+    // Persian digits, per the localisation rules, still in the accessible name.
     expect(items[0]!.textContent).toContain('۳');
     expect(items[1]!.textContent).toContain('۱');
+    expect(items[0]!.querySelector('.visually-hidden')?.textContent).toContain('زیردسته');
   });
 
   it('gives a grouped list columns for the LINES it draws, not for its group count', () => {
@@ -174,16 +189,60 @@ describe('ProductsMenu', () => {
     expect(columnsFor(19, 19)).toBe('3');
   });
 
-  it('draws a section glyph beside every sub-category link, hidden from assistive tech', () => {
+  it('draws a section glyph at GROUP level, hidden from assistive tech', () => {
     render(<ProductsMenu categories={categories} subs={subs} />);
     const links = [...document.querySelectorAll('a[href^="/prices/profile/"]')];
     expect(links).toHaveLength(3);
+    const byHref = Object.fromEntries(links.map((a) => [a.getAttribute('href'), a]));
+
+    // «چهارپهلو» is the member promoted to head its own group — a heading, so
+    // it carries the glyph…
+    expect(
+      byHref['/prices/profile/chaharpahlu']!.querySelector('[aria-hidden="true"]'),
+    ).not.toBeNull();
+    // …and «چهارپهلو آلیاژی», a member of that group, does not. #215 drew one
+    // on all nineteen of ورق's rows, which is texture rather than a scanning
+    // aid; an icon earns its place where it labels a section.
+    expect(
+      byHref['/prices/profile/chaharpahlu-alloy']!.querySelector('[aria-hidden="true"]'),
+    ).toBeNull();
+    // «پروفیل Z» is ungrouped — a one-member group — so it keeps its glyph.
+    // This is what stops a shallow category losing its icons to the rule.
+    expect(
+      byHref['/prices/profile/profil-z']!.querySelector('[aria-hidden="true"]'),
+    ).not.toBeNull();
+
     for (const a of links) {
-      const icon = a.querySelector('[aria-hidden="true"]');
-      expect(icon).not.toBeNull();
       // The Persian label stays the link's whole accessible name — an icon
       // that contributed text would make a screen reader say it twice.
       expect(a.textContent?.trim()).not.toBe('');
+    }
+  });
+
+  it('gives a text group label its own glyph, resolved from a MEMBER not the label', () => {
+    // Every ورق group label contains the word «ورق», and resolution is
+    // name-first — so labelling from the label itself would draw the same
+    // plate glyph over all five groups. The first member is what carries the
+    // distinguishing slug (`sheet/galvanized` → the coated-plate drawing).
+    const sheet = [cat('sheet', 'ورق', 1)];
+    render(
+      <ProductsMenu
+        categories={sheet}
+        subs={{
+          sheet: [
+            { slug: 'galvanized', name: 'گالوانیزه', groupLabel: 'ورق‌های روکش‌دار' },
+            { slug: 'colored', name: 'رنگی', groupLabel: 'ورق‌های روکش‌دار' },
+          ],
+        }}
+      />,
+    );
+    const heading = [...document.querySelectorAll('p')].find((el) =>
+      el.textContent?.includes('ورق‌های روکش‌دار'),
+    )!;
+    expect(heading.querySelector('[aria-hidden="true"] svg')).not.toBeNull();
+    // …and neither member repeats it.
+    for (const a of document.querySelectorAll('a[href^="/prices/sheet/"]')) {
+      expect(a.querySelector('[aria-hidden="true"]')).toBeNull();
     }
   });
 

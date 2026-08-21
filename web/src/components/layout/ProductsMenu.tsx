@@ -199,11 +199,15 @@ export function ProductsMenu({ categories, subs }: { categories: Category[]; sub
                       )}
                     </span>
                     <span className={styles.railName}>{cat.name}</span>
+                    {/* The sub-category count, for screen readers ONLY. It used
+                        to be a visible pill beside every rail row, and it was
+                        internal metadata leaking into the shop: nobody picks
+                        ورق over نبشی because one says ۱۹ and the other ۳. What
+                        it IS still worth is telling a non-sighted user how much
+                        is behind a row before they open it, which is exactly
+                        what `visually-hidden` text is for. */}
                     {count > 0 && (
-                      <span className={styles.railCount}>
-                        {toPersianDigits(count)}
-                        <span className="visually-hidden"> زیردسته</span>
-                      </span>
+                      <span className="visually-hidden">، {toPersianDigits(count)} زیردسته</span>
                     )}
                     <ChevronStartIcon size={14} className={`${styles.railChev} icon--rtl`} />
                   </Link>
@@ -310,21 +314,34 @@ function CategoryPanel({
       </div>
 
       <div className={styles.panelBody}>
-        {/* The category's own product photo. Not decoration for its own sake:
-            a multi-column list only ever fills the width it is given, so a
-            3-sub-category panel spread across the full menu read as scattered
-            orphans. Giving the flow a bounded column and the leftover width a
-            picture makes نبشی و ناودانی and ورق both look like a designed
-            panel, and it is the same hover-reveal the homepage's CategoryStage
-            already does — an established idiom here, not a new one. Decorative:
-            the heading beside it is the label, so it is hidden from AT. */}
+        {/* The category's own product photo — ONE deliberate focal point, not
+            an inset thumbnail beside a denser thing.
+
+            It used to be a fixed 16rem 4:3 card pinned to the far edge, and
+            once #215 turned the list beside it into five headed groups with
+            icons the panel had two competing centres of attention and a hole
+            between them: on نبشی و ناودانی, three links occupied 16rem, the
+            picture another 16rem, and ~470px of the panel was simply empty.
+
+            So the picture takes the leftover width instead of a fixed slice of
+            it, and stretches to the height of the list beside it. On ورق it
+            settles to its ~20rem floor and the nineteen sub-categories get the
+            reading edge; on نبشی و ناودانی it grows into the space the three
+            links do not want and the panel reads as one designed surface at
+            both extremes. The alternative — dropping the photo and letting
+            typography carry the panel, Apple-style — fixes the competition but
+            makes the small-category hole worse, and this catalog's whole
+            problem is that its categories differ in depth by 6×.
+
+            Decorative: the heading beside it is the label, so it is hidden
+            from AT. */}
         <div className={styles.panelArt} aria-hidden="true">
           {productImage(cat.slug) ? (
             <ProductImage
               slug={cat.slug}
               name={cat.name}
               variant="full"
-              sizes="(min-width: 1024px) 260px, 0px"
+              sizes="(min-width: 1024px) 30vw, 0px"
             />
           ) : (
             <span className={styles.panelArtFallback}>
@@ -366,7 +383,27 @@ function CategoryPanel({
                       {group.lead.name}
                     </Link>
                   ) : group.label ? (
-                    <p className={styles.groupLabel}>{group.label}</p>
+                    <p className={styles.groupLabel}>
+                      {/* A group whose label names no member of its own
+                          («ورق‌های روکش‌دار») still gets the group's glyph, so
+                          the five ورق groups read as five marked sections
+                          rather than as five unmarked ones beside two marked
+                          ones. The glyph is resolved from the group's FIRST
+                          MEMBER, not from the label: resolution is name-first,
+                          and every ورق group label contains the word «ورق», so
+                          labels alone would draw the same plate five times.
+                          `sheet/galvanized` resolves to the coated-plate glyph,
+                          `sheet/deck` to the decking one. */}
+                      <span className={styles.subIcon} aria-hidden="true">
+                        <SubCategoryArt
+                          categorySlug={cat.slug}
+                          slug={group.items[0]!.slug}
+                          name={group.items[0]!.name}
+                          size={16}
+                        />
+                      </span>
+                      {group.label}
+                    </p>
                   ) : null}
 
                   {/* A labelled group whose ONLY member is named after the
@@ -379,18 +416,29 @@ function CategoryPanel({
                       {group.items.map((s) => (
                         <li key={s.slug}>
                           <Link href={routes.subCategory(cat.slug, s.slug)} className={styles.sub}>
-                            {/* The section drawing for this row. Decorative: the
-                            Persian name beside it is the link's accessible
-                            name, and an icon that repeated it would only make
-                            a screen reader say everything twice. */}
-                            <span className={styles.subIcon} aria-hidden="true">
-                              <SubCategoryArt
-                                categorySlug={cat.slug}
-                                slug={s.slug}
-                                name={s.name}
-                                size={16}
-                              />
-                            </span>
+                            {/* The section drawing, at GROUP level only.
+                                #215 drew one on every leaf, which at ورق's
+                                nineteen rows stopped being a scanning aid and
+                                became texture — nineteen small marks competing
+                                with the nineteen names they were meant to
+                                serve. An icon earns its place where it labels
+                                a SECTION, so it is drawn on the group head
+                                above (link or label) and, here, only where the
+                                row IS its own section: an ungrouped item is a
+                                one-member group, so «پروفیل Z» and all three
+                                of نبشی و ناودانی keep theirs and lose nothing.
+                                Decorative either way — the Persian name beside
+                                it is the link's whole accessible name. */}
+                            {group.label === null && (
+                              <span className={styles.subIcon} aria-hidden="true">
+                                <SubCategoryArt
+                                  categorySlug={cat.slug}
+                                  slug={s.slug}
+                                  name={s.name}
+                                  size={16}
+                                />
+                              </span>
+                            )}
                             {s.name}
                           </Link>
                         </li>
