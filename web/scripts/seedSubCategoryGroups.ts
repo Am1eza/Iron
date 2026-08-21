@@ -40,16 +40,23 @@
  *   · ورق splits on FINISH and USE, because that is what changes the price and
  *     the supplier: bare hot/cold rolled, coated, alloy/corrosion-resistant,
  *     roof-and-shed forms, and the things fabricated FROM sheet (تسمه،
- *     گریتینگ، پانچ) which are sheet-derived goods rather than sheet.
+ *     گریتینگ، پانچ) which are sheet-derived goods rather than sheet. The
+ *     third group is «آلیاژی و خاص», not «آلیاژی و مقاوم»: «ورق استیل» is
+ *     304L stainless (not an alloy steel) and «ورق دریایی»'s SKUs are graded
+ *     A36, so «مقاوم» would be asserting a property the catalog data does not
+ *     carry.
  *   · فلزات رنگی splits on METAL — آلومینیوم and مس are two different markets
  *     with two different price bases, and the sub-category names already say
  *     which is which, so the heading is doing pure reduction of a 13-row list
  *     to two 8- and 5-row ones.
  *   · استیل splits on FORM, because the grade (۲۰۱/۳۰۴/۳۱۶) is chosen on the
  *     SKU row and the form is what is chosen in the menu.
- *   · لوله splits on how the pipe is MADE and what it carries — seamless,
- *     welded building/industrial pipe, and fluid-transfer line pipe. The
- *     existing «مانیسمان» cluster is left exactly as it is.
+ *   · لوله splits on what the pipe CARRIES — seamless, structural/industrial
+ *     sections, and fluid lines. «گازی» is a fluid line (it is the plumbing
+ *     and gas pipe in this market) and «گوشت‌دار» is a heavy-wall mechanical
+ *     section, so they sit on the sides that reading suggests, not the sides
+ *     their names first suggest. The existing «مانیسمان» cluster is left
+ *     exactly as it is.
  *
  * No label is ever the exact name of one of its own members, which is what
  * `groupSubCategories` turns into a promoted lead link; these are all family
@@ -92,10 +99,10 @@ const GROUPS: Readonly<Record<string, string>> = {
   'sheet/colored': 'ورق‌های روکش‌دار',
   'sheet/aluzinc': 'ورق‌های روکش‌دار',
   'sheet/tin-coated': 'ورق‌های روکش‌دار',
-  'sheet/alloy': 'ورق‌های آلیاژی و مقاوم',
-  'sheet/steel': 'ورق‌های آلیاژی و مقاوم',
-  'sheet/wear-resistant': 'ورق‌های آلیاژی و مقاوم',
-  'sheet/marine': 'ورق‌های آلیاژی و مقاوم',
+  'sheet/alloy': 'ورق‌های آلیاژی و خاص',
+  'sheet/steel': 'ورق‌های آلیاژی و خاص',
+  'sheet/wear-resistant': 'ورق‌های آلیاژی و خاص',
+  'sheet/marine': 'ورق‌های آلیاژی و خاص',
   'sheet/deck': 'ورق سقف و سوله',
   'sheet/sandwich-panel': 'ورق سقف و سوله',
   'sheet/corrugated': 'ورق سقف و سوله',
@@ -133,14 +140,14 @@ const GROUPS: Readonly<Record<string, string>> = {
   'steel/spring': 'اتصالات و قطعات استیل',
 
   // ── لوله (10; «مانیسمان» already set, left untouched) ────────────────────
-  'pipe/gas': 'لوله ساختمانی و صنعتی',
+  'pipe/gas': 'لوله انتقال سیال',
   'pipe/industrial': 'لوله ساختمانی و صنعتی',
   'pipe/scaffold': 'لوله ساختمانی و صنعتی',
   'pipe/furniture': 'لوله ساختمانی و صنعتی',
   'pipe/galvanized': 'لوله انتقال سیال',
   'pipe/spiral': 'لوله انتقال سیال',
   'pipe/well-casing': 'لوله انتقال سیال',
-  'pipe/thick-walled': 'لوله انتقال سیال',
+  'pipe/thick-walled': 'لوله ساختمانی و صنعتی',
 
   // ── کلاف و مفتول (8; category inactive today) ───────────────────────────
   'wire/coil': 'کلاف',
@@ -150,7 +157,7 @@ const GROUPS: Readonly<Record<string, string>> = {
   'wire/tie': 'مفتول و سیم',
   'wire/mesh': 'توری و سیم‌جوش',
   'wire/welding-wire': 'توری و سیم‌جوش',
-  'wire/wire-rod': 'توری و سیم‌جوش',
+  'wire/wire-rod': 'مفتول و سیم',
 };
 
 const pool = new pg.Pool({ connectionString: url, max: 1 });

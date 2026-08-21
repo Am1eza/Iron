@@ -15,7 +15,13 @@
 .subs {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  /* `center` was fine while this row held nineteen equal-height chips and at
+     most one small «مانیسمان» cluster. With ورق's chips clustered into five
+     groups of unequal height it vertically centres blocks against each other,
+     so the group captions no longer share a baseline and the bare «همه» chip
+     floats mid-height. Align to the start: every caption and first chip row
+     then lines up. */
+  align-items: flex-start;
   gap: var(--space-2);
 }
 
@@ -51,7 +57,8 @@
   font: var(--t-label);
   white-space: nowrap;
   text-decoration: none;
-  transition: background var(--dur-fast) var(--ease-standard),
+  transition:
+    background var(--dur-fast) var(--ease-standard),
     color var(--dur-fast) var(--ease-standard);
 }
 .compareLink:hover {
