@@ -12,7 +12,7 @@
 import { useState } from 'react';
 import type { AdminCategory, AdminSubCategory } from '@/lib/api/resources/admin';
 import { toPersianDigits } from '@/lib/utils/format';
-import { groupByLabel } from '@/lib/utils/catalogGroups';
+import { groupByLabel, displayOrder } from '@/lib/utils/catalogGroups';
 import { Badge, Button, IconButton, Switch } from '@/components/ui';
 import {
   ChevronDownIcon,
@@ -101,10 +101,15 @@ export function TaxonomyRail({
       {visibleCats.map((c, ci) => {
         const isOpen = expanded.has(c.id);
         const subs = (subsByCategory[c.id] ?? []).filter((x) => showInactive || x.isActive);
+        // The order the rows are actually painted in, which is what the
+        // move-up/down buttons have to reason about.
+        const shown = displayOrder(subs);
         const selected = selection.categoryId === c.id && !selection.subCategoryId;
         return (
           <div key={c.id}>
-            <div className={`${s.node} ${selected ? s.nodeOn : ''} ${c.isActive ? '' : s.nodeInactive}`}>
+            <div
+              className={`${s.node} ${selected ? s.nodeOn : ''} ${c.isActive ? '' : s.nodeInactive}`}
+            >
               <button
                 type="button"
                 className={s.twisty}
@@ -187,10 +192,13 @@ export function TaxonomyRail({
                     {group.label ? <div className={s.subGroupHeader}>{group.label}</div> : null}
                     {group.items.map((x) => {
                       const subSelected = selection.subCategoryId === x.id;
-                      // Real position in the unsorted list, NOT this cluster's
-                      // local index — move-up/down operates on `order` across
-                      // the whole category, independent of display grouping.
-                      const flatIndex = subs.indexOf(x);
+                      // Position in the order this rail SHOWS — clusters at
+                      // their first member's place, members contiguous — which
+                      // is also the order `onMoveSub` now swaps in. Using the
+                      // raw array index instead disabled the wrong buttons and
+                      // let the admin press an enabled one that provably could
+                      // not change anything they could see.
+                      const flatIndex = shown.indexOf(x);
                       return (
                         <div
                           key={x.id}
@@ -215,13 +223,15 @@ export function TaxonomyRail({
                             label={`جابه‌جایی ${x.name} به بالا`}
                             size="sm"
                             disabled={flatIndex === 0 || busy}
-                            icon={<ChevronDownIcon size={14} style={{ transform: 'rotate(180deg)' }} />}
+                            icon={
+                              <ChevronDownIcon size={14} style={{ transform: 'rotate(180deg)' }} />
+                            }
                             onClick={() => onMoveSub(c.id, x.id, -1)}
                           />
                           <IconButton
                             label={`جابه‌جایی ${x.name} به پایین`}
                             size="sm"
-                            disabled={flatIndex === subs.length - 1 || busy}
+                            disabled={flatIndex === shown.length - 1 || busy}
                             icon={<ChevronDownIcon size={14} />}
                             onClick={() => onMoveSub(c.id, x.id, 1)}
                           />
@@ -261,11 +271,7 @@ export function TaxonomyRail({
       })}
 
       <div className={s.railFoot}>
-        <Switch
-          checked={showInactive}
-          onChange={onShowInactive}
-          label="نمایش غیرفعال‌ها"
-        />
+        <Switch checked={showInactive} onChange={onShowInactive} label="نمایش غیرفعال‌ها" />
         {categories.some((c) => !c.isActive) && !showInactive ? (
           <Badge tone="stale">
             {toPersianDigits(categories.filter((c) => !c.isActive).length)} دستهٔ غیرفعال پنهان است

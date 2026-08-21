@@ -28,6 +28,23 @@ export function groupByLabel<T extends { groupLabel?: string | null }>(
 }
 
 /**
+ * The same items, flattened back out in the order `groupByLabel` will DISPLAY
+ * them — clusters at their first member's position, each cluster's members
+ * contiguous.
+ *
+ * This exists for the admin rail's move-up/move-down. Those swap a row with
+ * its neighbour in the array they are handed, and handing them the raw array
+ * once a category carries group labels means the neighbour is usually in a
+ * different cluster: the swap writes two rows and changes nothing the admin
+ * can see, because neither cluster's first member nor internal sequence moved.
+ * Re-grouping a display-ordered list reproduces the same display order, so
+ * renumbering over this list is stable rather than a fight with the grouping.
+ */
+export function displayOrder<T extends { groupLabel?: string | null }>(items: readonly T[]): T[] {
+  return groupByLabel(items).flatMap((g) => g.items);
+}
+
+/**
  * A `groupByLabel` cluster, refined for DISPLAY as a heading + its members.
  *
  * `groupByLabel` alone produced a visible bug wherever a cluster's label is
