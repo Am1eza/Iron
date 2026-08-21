@@ -234,6 +234,12 @@
   block-size: 1.125rem;
   color: var(--color-text-placeholder);
 }
+/* The glyph travels with its label on hover, exactly as in the desktop menu —
+   without this the label goes accent and the icon stays grey, which is one
+   icon system rendered two ways. */
+.subLink:hover .subIcon {
+  color: currentColor;
+}
 /* «مشاهده همه <دسته>» — the category's own price table, repeated inside its
    expanded list. Set as the accent caption it is so it never reads as one more
    sub-category. */

@@ -8,14 +8,21 @@
  * revealing them never costs the one-tap route to the category's own price
  * table, and that the nested disclosure reports its state to assistive tech.
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, screen, within, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MobileDrawer } from './MobileDrawer';
 import { useUiStore } from '@/lib/stores/ui';
 import type { Category } from '@/lib/types/domain';
 
-vi.mock('next/navigation', () => ({ usePathname: () => '/' }));
+// Hoisted so the mock factory (which vitest lifts above the imports) can read
+// it, and so one test can put the drawer on a real category page.
+const nav = vi.hoisted(() => ({ path: '/' }));
+vi.mock('next/navigation', () => ({ usePathname: () => nav.path }));
+
+afterEach(() => {
+  nav.path = '/';
+});
 
 const cat = (slug: string, name: string, order: number): Category => ({
   id: slug,
@@ -80,7 +87,9 @@ describe('MobileDrawer · products', () => {
     expect(row).toHaveAttribute('href', '/prices/sheet');
     // …and a repeat of it inside the list, because on a phone the row above
     // scrolls out of sight as soon as the list opens.
-    const all = screen.getByRole('link', { name: /مشاهده همه ورق/ });
+    // Named the way the desktop menu names the same destination — «قیمت روز
+    // ورق», not a generic «مشاهده».
+    const all = screen.getByRole('link', { name: /قیمت روز ورق/ });
     expect(all).toHaveAttribute('href', '/prices/sheet');
   });
 
@@ -107,6 +116,42 @@ describe('MobileDrawer · products', () => {
     await user.click(screen.getByRole('button', { name: 'زیردسته‌های میلگرد' }));
     expect(document.querySelector('#mobile-drawer-cat-sheet')).toBeNull();
     expect(document.querySelector('#mobile-drawer-cat-rebar')).not.toBeNull();
+  });
+
+  it('collapses the open category when the drawer closes', async () => {
+    const user = userEvent.setup();
+    await openProducts(user);
+    await user.click(screen.getByRole('button', { name: 'زیردسته‌های ورق' }));
+    expect(document.querySelector('#mobile-drawer-cat-sheet')).not.toBeNull();
+
+    // The drawer is mounted permanently — `if (!open) return null` hides it,
+    // it does not unmount — so without an explicit reset the visitor reopens
+    // it on the next page with nineteen ورق rows still unfolded.
+    act(() => useUiStore.getState().setDrawerOpen(false));
+    act(() => useUiStore.getState().setDrawerOpen(true));
+    await user.click(screen.getByRole('button', { name: 'محصولات' }));
+    expect(document.querySelector('#mobile-drawer-cat-sheet')).toBeNull();
+  });
+
+  it('marks the current page on BOTH links that point at it', async () => {
+    nav.path = '/prices/sheet';
+    const user = userEvent.setup();
+    render(<MobileDrawer categories={categories} subs={subs} />);
+    act(() => useUiStore.getState().setDrawerOpen(true));
+    await user.click(screen.getByRole('button', { name: 'محصولات' }));
+    await user.click(screen.getByRole('button', { name: 'زیردسته‌های ورق' }));
+
+    // Expanding ورق puts two links to `/prices/sheet` in one list. A screen
+    // reader listing them would otherwise announce the page the visitor is
+    // already on, twice, with nothing to say so.
+    const row = screen.getByRole('link', { name: /^ورق/ });
+    const all = screen.getByRole('link', { name: /قیمت روز ورق/ });
+    expect(row).toHaveAttribute('href', '/prices/sheet');
+    expect(all).toHaveAttribute('href', '/prices/sheet');
+    expect(row).toHaveAttribute('aria-current', 'page');
+    expect(all).toHaveAttribute('aria-current', 'page');
+    // A sibling category is not marked.
+    expect(screen.getByRole('link', { name: /^میلگرد/ })).not.toHaveAttribute('aria-current');
   });
 
   it('draws a decorative section glyph beside each sub-category', async () => {
