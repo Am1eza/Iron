@@ -214,12 +214,33 @@
 .subLink {
   display: flex;
   align-items: center;
+  gap: var(--space-2);
   min-block-size: 44px;
   padding-inline: var(--space-2);
   border-radius: var(--radius-sm);
   font: var(--t-body-sm);
   color: var(--color-text);
   text-decoration: none;
+}
+/* The section glyph, same drawing set as the desktop menu at the larger size a
+   thumb-scanned list wants. Muted so a column of them is a rule down the edge
+   of the list rather than a column of competing marks. */
+.subIcon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 1.125rem;
+  block-size: 1.125rem;
+  color: var(--color-text-placeholder);
+}
+/* «مشاهده همه <دسته>» — the category's own price table, repeated inside its
+   expanded list. Set as the accent caption it is so it never reads as one more
+   sub-category. */
+.subAll {
+  gap: var(--space-1);
+  font: var(--t-caption);
+  color: var(--color-accent-text);
 }
 .subLink:hover {
   background: var(--color-surface-sunken);

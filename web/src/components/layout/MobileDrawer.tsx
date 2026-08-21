@@ -18,7 +18,13 @@ import { groupSubCategories } from '@/lib/utils/catalogGroups';
 import { toPersianDigits } from '@/lib/utils/format';
 import { useUiStore } from '@/lib/stores/ui';
 import { useAuthStore } from '@/lib/stores/auth';
-import { CloseIcon, ChevronDownIcon, UserIcon } from '@/components/primitives/icons';
+import {
+  CloseIcon,
+  ChevronDownIcon,
+  ChevronStartIcon,
+  UserIcon,
+} from '@/components/primitives/icons';
+import { SubCategoryArt } from '@/components/catalog/SubCategoryArt';
 import styles from './MobileDrawer.module.css';
 
 /**
@@ -156,15 +162,37 @@ export function MobileDrawer({ categories, subs }: { categories: Category[]; sub
                             aria-expanded={isOpen}
                             aria-controls={bodyId}
                             aria-label={`زیردسته‌های ${cat.name}`}
-                            onClick={() => setExpandedCat((s) => (s === cat.slug ? null : cat.slug))}
+                            onClick={() =>
+                              setExpandedCat((s) => (s === cat.slug ? null : cat.slug))
+                            }
                           >
-                            <ChevronDownIcon size={18} className={isOpen ? styles.caretOpen : undefined} />
+                            <ChevronDownIcon
+                              size={18}
+                              className={isOpen ? styles.caretOpen : undefined}
+                            />
                           </button>
                         )}
                       </div>
 
                       {isOpen && (
                         <ul id={bodyId} className={styles.subList}>
+                          {/* «مشاهده همه ورق» — the row that opened this list
+                              is also a link to the category's price table, but
+                              once nineteen sub-categories are expanded under
+                              it that row is scrolled off the top of a phone
+                              screen. Repeating it as the first child keeps
+                              «all of ورق» reachable from inside the list the
+                              visitor is actually looking at, without taking
+                              away the one-tap route the collapsed row gives. */}
+                          <li>
+                            <Link
+                              href={routes.category(cat.slug)}
+                              className={`${styles.subLink} ${styles.subAll}`}
+                            >
+                              مشاهده همه {cat.name}
+                              <ChevronStartIcon size={14} className="icon--rtl" />
+                            </Link>
+                          </li>
                           {groupSubCategories(catSubs).map((group) => (
                             <li
                               key={group.label ?? `_solo_${(group.lead ?? group.items[0])!.slug}`}
@@ -180,6 +208,14 @@ export function MobileDrawer({ categories, subs }: { categories: Category[]; sub
                                   href={routes.subCategory(cat.slug, group.lead.slug)}
                                   className={`${styles.subLink} ${styles.subLead}`}
                                 >
+                                  <span className={styles.subIcon} aria-hidden="true">
+                                    <SubCategoryArt
+                                      categorySlug={cat.slug}
+                                      slug={group.lead.slug}
+                                      name={group.lead.name}
+                                      size={18}
+                                    />
+                                  </span>
                                   {group.lead.name}
                                 </Link>
                               ) : group.label ? (
@@ -192,6 +228,17 @@ export function MobileDrawer({ categories, subs }: { categories: Category[]; sub
                                       href={routes.subCategory(cat.slug, sub.slug)}
                                       className={styles.subLink}
                                     >
+                                      {/* Same decorative section glyph the
+                                          desktop menu draws — one icon system
+                                          across both, not two. */}
+                                      <span className={styles.subIcon} aria-hidden="true">
+                                        <SubCategoryArt
+                                          categorySlug={cat.slug}
+                                          slug={sub.slug}
+                                          name={sub.name}
+                                          size={18}
+                                        />
+                                      </span>
                                       {sub.name}
                                     </Link>
                                   </li>
