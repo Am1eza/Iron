@@ -421,6 +421,12 @@
   .panelArt {
     display: none;
   }
+  /* …and with no figure to leave room for, the list takes the panel instead of
+     packing to its own content — otherwise a 662px panel carries a 326px list
+     and 336px of nothing. */
+  .panelBody > .groups {
+    flex: 1 1 auto;
+  }
   .groups {
     columns: 2;
   }
