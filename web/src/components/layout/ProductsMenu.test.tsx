@@ -11,7 +11,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
-import { ProductsMenu } from './ProductsMenu';
+import { ProductsMenu, columnsFor } from './ProductsMenu';
 import type { Category } from '@/lib/types/domain';
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/' }));
@@ -106,6 +106,70 @@ describe('ProductsMenu', () => {
     // Persian digits, per the localisation rules.
     expect(items[0]!.textContent).toContain('۳');
     expect(items[1]!.textContent).toContain('۱');
+  });
+
+  it('gives a grouped list columns for the LINES it draws, not for its group count', () => {
+    // The regression this guards: ورق's nineteen sub-categories collapse into
+    // five labelled groups, and the old expression (`groups.length <= 4 ? 1 :
+    // …`) then asked for a two-column layout for twenty-four lines — or, at
+    // four groups, for a SINGLE 16rem column, stacking the whole category down
+    // a panel that caps at 34rem and scrolls. Columns follow the line count.
+    const sheet = [cat('sheet', 'ورق', 1)];
+    const nineteen = [
+      ['black', 'سیاه', 'ورق سیاه و روغنی'],
+      ['oiled', 'روغنی', 'ورق سیاه و روغنی'],
+      ['pickled', 'اسیدشویی', 'ورق سیاه و روغنی'],
+      ['checkered', 'آجدار', 'ورق سیاه و روغنی'],
+      ['galvanized', 'گالوانیزه', 'ورق‌های روکش‌دار'],
+      ['colored', 'رنگی', 'ورق‌های روکش‌دار'],
+      ['aluzinc', 'آلوزینک (گالوالوم)', 'ورق‌های روکش‌دار'],
+      ['tin-coated', 'قلع‌اندود', 'ورق‌های روکش‌دار'],
+      ['alloy', 'آلیاژی', 'ورق‌های آلیاژی و مقاوم'],
+      ['steel', 'ورق استیل', 'ورق‌های آلیاژی و مقاوم'],
+      ['wear-resistant', 'ورق ضد سایش', 'ورق‌های آلیاژی و مقاوم'],
+      ['marine', 'ورق دریایی', 'ورق‌های آلیاژی و مقاوم'],
+      ['deck', 'عرشه فولادی', 'ورق سقف و سوله'],
+      ['sandwich-panel', 'ساندویچ پانل', 'ورق سقف و سوله'],
+      ['corrugated', 'ورق کرکره', 'ورق سقف و سوله'],
+      ['roofing', 'ورق شیروانی', 'ورق سقف و سوله'],
+      ['strip', 'تسمه', 'فرآورده‌های ورق'],
+      ['grating', 'گریتینگ', 'فرآورده‌های ورق'],
+      ['perforated-black', 'ورق پانچ سیاه', 'فرآورده‌های ورق'],
+    ].map(([slug, name, groupLabel]) => ({ slug: slug!, name: name!, groupLabel: groupLabel! }));
+
+    render(<ProductsMenu categories={sheet} subs={{ sheet: nineteen }} />);
+    const flow = document.querySelector('[data-cols]') as HTMLElement;
+    // 19 links + 5 headings = 24 lines.
+    expect(flow.getAttribute('data-cols')).toBe('3');
+    // Every label nothing is named renders as a text heading, never a link.
+    const headings = [...document.querySelectorAll('p')]
+      .map((el) => el.textContent)
+      .filter((t) => t?.startsWith('ورق') || t?.startsWith('فرآورده'));
+    expect(headings).toHaveLength(5);
+    // …and no sub-category was dropped on the way through the grouping.
+    expect([...document.querySelectorAll('a[href^="/prices/sheet/"]')]).toHaveLength(19);
+  });
+
+  it('scales columns with the line count at the documented boundaries', () => {
+    expect(columnsFor(1)).toBe('1');
+    expect(columnsFor(4)).toBe('1');
+    expect(columnsFor(5)).toBe('2');
+    expect(columnsFor(9)).toBe('2');
+    expect(columnsFor(10)).toBe('3');
+    expect(columnsFor(24)).toBe('3');
+  });
+
+  it('draws a section glyph beside every sub-category link, hidden from assistive tech', () => {
+    render(<ProductsMenu categories={categories} subs={subs} />);
+    const links = [...document.querySelectorAll('a[href^="/prices/profile/"]')];
+    expect(links).toHaveLength(3);
+    for (const a of links) {
+      const icon = a.querySelector('[aria-hidden="true"]');
+      expect(icon).not.toBeNull();
+      // The Persian label stays the link's whole accessible name — an icon
+      // that contributed text would make a screen reader say it twice.
+      expect(a.textContent?.trim()).not.toBe('');
+    }
   });
 
   it('renders the admin-authored category description, and nothing when there is none', () => {

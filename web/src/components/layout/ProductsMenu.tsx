@@ -7,6 +7,7 @@ import type { SubsMap } from '@/lib/data/catalog';
 import type { Category } from '@/lib/types/domain';
 import { ProductImage } from '@/components/catalog/ProductImage';
 import { CategoryArt } from '@/components/catalog/CategoryArt';
+import { SubCategoryArt } from '@/components/catalog/SubCategoryArt';
 import { productImage } from '@/lib/data/productImages';
 import { groupSubCategories } from '@/lib/utils/catalogGroups';
 import { toPersianDigits } from '@/lib/utils/format';
@@ -189,6 +190,19 @@ export function ProductsMenu({ categories, subs }: { categories: Category[]; sub
 }
 
 /**
+ * How many columns the sub-category flow gets, from the number of lines it
+ * will draw. Thresholds are unchanged from the pre-grouping version (≤4 → one,
+ * ≤9 → two, else three) — only the number fed into them is now correct for a
+ * grouped list. Kept out of the component so a test can assert the boundaries
+ * without rendering a menu.
+ */
+export function columnsFor(rows: number): '1' | '2' | '3' {
+  if (rows <= 4) return '1';
+  if (rows <= 9) return '2';
+  return '3';
+}
+
+/**
  * One category's pane. Rendered for every category regardless of which is
  * active — `hidden` is what makes it invisible, and `hidden` still leaves the
  * links in the document for a crawler while removing them from the tab order
@@ -206,6 +220,17 @@ function CategoryPanel({
   onKeyDown: (e: KeyboardEvent) => void;
 }) {
   const groups = groupSubCategories(subs);
+  /**
+   * Column count is a function of how many LINES the flow will draw, not of
+   * how many groups it has. Before grouping was populated the two were the
+   * same number and `groups.length` was right by accident; the moment ورق's
+   * nineteen rows collapsed into five labelled groups, that expression asked
+   * for a single 16rem column and stacked twenty-four lines down a panel that
+   * caps at 34rem — the exact "scrolls in a box with no affordance" failure
+   * the rail was built to end. A labelled group costs one line for its own
+   * heading plus one per member; an unlabelled singleton costs one.
+   */
+  const rows = groups.reduce((n, g) => n + g.items.length + (g.label ? 1 : 0), 0);
 
   return (
     <div
@@ -267,45 +292,62 @@ function CategoryPanel({
             زیردسته‌ای برای {cat.name} ثبت نشده است؛ جدول قیمت این دسته را ببینید.
           </p>
         ) : (
-          <ul
-            className={styles.groups}
-            data-cols={groups.length <= 4 ? '1' : groups.length <= 9 ? '2' : '3'}
-          >
-          {groups.map((group) => {
-            const key = group.label ?? `_solo_${(group.lead ?? group.items[0])!.slug}`;
-            return (
-              <li key={key} className={styles.group}>
-                {/* Three shapes, one rule: a group whose label IS one of its
+          <ul className={styles.groups} data-cols={columnsFor(rows)}>
+            {groups.map((group) => {
+              const key = group.label ?? `_solo_${(group.lead ?? group.items[0])!.slug}`;
+              return (
+                <li key={key} className={styles.group}>
+                  {/* Three shapes, one rule: a group whose label IS one of its
                     members is headed by that member as a LINK (چهارپهلو →
                     چهارپهلو آلیاژی); a group whose label is a family name
                     nothing is called (مانیسمان) is headed by that label as
                     text; an ungrouped item is just its own link. What must
                     never happen again is a dead «چهارپهلو» caption sitting on
                     top of a «چهارپهلو» link. */}
-                {group.lead ? (
-                  <Link
-                    href={routes.subCategory(cat.slug, group.lead.slug)}
-                    className={`${styles.sub} ${styles.groupHead}`}
-                  >
-                    {group.lead.name}
-                  </Link>
-                ) : group.label ? (
-                  <p className={styles.groupLabel}>{group.label}</p>
-                ) : null}
+                  {group.lead ? (
+                    <Link
+                      href={routes.subCategory(cat.slug, group.lead.slug)}
+                      className={`${styles.sub} ${styles.groupHead}`}
+                    >
+                      <span className={styles.subIcon} aria-hidden="true">
+                        <SubCategoryArt
+                          categorySlug={cat.slug}
+                          slug={group.lead.slug}
+                          name={group.lead.name}
+                          size={16}
+                        />
+                      </span>
+                      {group.lead.name}
+                    </Link>
+                  ) : group.label ? (
+                    <p className={styles.groupLabel}>{group.label}</p>
+                  ) : null}
 
-                <ul className={group.label ? styles.subListNested : styles.subList}>
-                  {group.items.map((s) => (
-                    <li key={s.slug}>
-                      <Link href={routes.subCategory(cat.slug, s.slug)} className={styles.sub}>
-                        {s.name}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </li>
-            );
-          })}
-        </ul>
+                  <ul className={group.label ? styles.subListNested : styles.subList}>
+                    {group.items.map((s) => (
+                      <li key={s.slug}>
+                        <Link href={routes.subCategory(cat.slug, s.slug)} className={styles.sub}>
+                          {/* The section drawing for this row. Decorative: the
+                            Persian name beside it is the link's accessible
+                            name, and an icon that repeated it would only make
+                            a screen reader say everything twice. */}
+                          <span className={styles.subIcon} aria-hidden="true">
+                            <SubCategoryArt
+                              categorySlug={cat.slug}
+                              slug={s.slug}
+                              name={s.name}
+                              size={16}
+                            />
+                          </span>
+                          {s.name}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              );
+            })}
+          </ul>
         )}
       </div>
     </div>

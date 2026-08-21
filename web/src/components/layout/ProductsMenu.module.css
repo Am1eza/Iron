@@ -269,7 +269,9 @@
   border-inline-start: var(--border-hairline) solid var(--color-hairline);
 }
 .sub {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-sm);
   color: var(--color-text);
@@ -281,6 +283,23 @@
   background: var(--color-accent-tint);
   color: var(--color-accent-text);
   text-decoration: none;
+}
+/* The section glyph. Muted at rest so nineteen of them read as a quiet
+   left-hand rule down the column rather than as nineteen competing marks, and
+   inheriting the row's colour on hover — the icon is a scanning aid for the
+   row, not a second thing to look at. `flex: none` keeps every label starting
+   on the same vertical line whatever the glyph's aspect. */
+.subIcon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 1rem;
+  block-size: 1rem;
+  color: var(--color-text-placeholder);
+}
+.sub:hover .subIcon {
+  color: currentColor;
 }
 /* The promoted lead of a group — a link that is also the group's heading. */
 .groupHead {
