@@ -19,14 +19,20 @@
      `1fr`) so a long sub-category name can never push the grid wider than the
      panel and force the whole menu to overflow. */
   grid-template-columns: 15rem minmax(0, 1fr);
-  gap: var(--space-5);
+  /* The gutter between the rail and the panel is a HIERARCHY device, not
+     leftover space: they are two different kinds of thing (a standing index vs
+     one category's contents) and at --space-5 they read as one dense grid.
+     --space-10 is the widest step the spacing scale offers below the
+     section-level --space-12, and it is what the panel's own inter-zone gap
+     uses too, so the menu has one gutter size rather than three. */
+  gap: var(--space-10);
   align-items: start;
 }
 
 /* ===== Category rail ===== */
 .rail {
   border-inline-end: var(--border-hairline) solid var(--color-hairline);
-  padding-inline-end: var(--space-4);
+  padding-inline-end: var(--space-6);
 }
 .railList {
   list-style: none;
@@ -51,11 +57,18 @@
   font: var(--t-label);
   text-decoration: none;
 }
+/* ONE accent treatment, used identically wherever this menu says "here" or
+   "this one": a --color-accent-tint wash under --color-accent-text type. It is
+   what `.sub:hover` and `.groupHead:hover` already do further down, and the
+   rail now does the same thing instead of its own neutral --color-surface-sunken
+   wash with --color-text-strong type — two different visual languages for the
+   same idea in one component. --color-accent (the saturated -500) stays for
+   the marks that are not type: the active bar and the chevron. */
 .railItem:hover,
 .railItem[data-active] {
-  background: var(--color-surface-sunken);
+  background: var(--color-accent-tint);
   border-inline-start-color: var(--color-accent);
-  color: var(--color-text-strong);
+  color: var(--color-accent-text);
   text-decoration: none;
 }
 .railThumb {
@@ -83,25 +96,11 @@
   white-space: nowrap;
   font-weight: 600;
 }
-/* Sub-category count. Tabular numerals per the Persian typography rules, and
-   a genuine scanning aid: it tells you before you hover that ورق is a deep
-   category and نبشی و ناودانی is a shallow one. */
-.railCount {
-  flex: none;
-  min-inline-size: 1.5rem;
-  padding: 0 var(--space-1);
-  border-radius: var(--radius-xs);
-  background: var(--color-surface-sunken);
-  color: var(--color-text-muted);
-  font: var(--t-micro);
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-}
-.railItem:hover .railCount,
-.railItem[data-active] .railCount {
-  background: var(--color-accent-tint);
-  color: var(--color-accent-text);
-}
+/* `.railCount` — the visible «۱۹» pill — is deliberately gone; the count now
+   ships as visually-hidden text inside the row (see ProductsMenu.tsx). It was
+   internal metadata: no buyer picks a product line by how many sub-categories
+   it holds, and nine numerals down the rail competed with the nine names that
+   are the actual content. */
 .railChev {
   flex: none;
   color: var(--color-text-placeholder);
@@ -115,7 +114,7 @@
 .panel {
   /* A floor, so switching from ورق (19) to نبشی و ناودانی (3) doesn't collapse
      the menu to a third of its height under the pointer. */
-  min-block-size: 17rem;
+  min-block-size: 20rem;
   /* A ceiling with local scroll, so the category that eventually has 80
      sub-categories scrolls its own pane instead of growing the whole menu off
      the bottom of the screen — the failure this redesign exists to fix. */
@@ -126,15 +125,21 @@
   padding-inline-end: var(--space-2);
 }
 .panelHead {
-  margin-block-end: var(--space-4);
-  padding-block-end: var(--space-2);
+  margin-block-end: var(--space-6);
+  padding-block-end: var(--space-4);
   border-block-end: var(--border-hairline) solid var(--color-hairline);
 }
+/* Title and its "see all" link are a PAIR, so they sit next to each other.
+   They used to be `justify-content: space-between` across the panel, which at
+   1280px already pushed «قیمت روز ورق» ~900px away from the «ورق» it belongs
+   to and at --container-wide would have pushed it further: two things at
+   opposite ends of a bar read as two unrelated things. Baseline-aligned, so
+   the --t-caption link sits on the --t-h2 title's baseline rather than on its
+   centre. */
 .panelHeadRow {
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-4);
+  gap: var(--space-5);
 }
 /* The category's description. Clamped to TWO lines, and bounded in width:
    the copy is admin-editable, so the layout has to survive someone writing
@@ -152,10 +157,18 @@
   color: var(--color-text-muted);
   font: var(--t-caption);
 }
+/* THE dominant element of the panel. It was --t-h4 (1.125rem/600) — a step
+   and a half above the .875rem links beneath it, which is not enough to read
+   as a title when five group headings, a lede and a link are all competing in
+   the same 0.75–0.875rem band. --t-h2 is the section-title step the rest of
+   the site uses for "this is what you are looking at" (the homepage's own
+   section headings), it rides the display family, and at 1.375–1.625rem/800 it
+   is unambiguously the first thing the eye lands on. No new size is invented:
+   the whole hierarchy here is now four existing tokens, --t-h2 → --t-caption →
+   --t-body-sm → --t-overline, and nothing shares a band with anything else. */
 .panelTitle {
   margin: 0;
-  font: var(--t-h4);
-  font-weight: 700;
+  font: var(--t-h2);
   color: var(--color-text-strong);
 }
 .panelAll {
@@ -176,33 +189,69 @@
   font: var(--t-body-sm);
 }
 
-/* Sub-category flow beside the category figure. The figure is fixed-width and
-   comes LAST in the row so the list stays hard against the reading edge; a
-   multi-column flow only ever fills the width it is handed, so bounding that
-   width is what stops a 3-item category reading as scattered orphans across
-   the whole menu. */
+/* Sub-category flow beside the category figure. The figure comes LAST in the
+   row so the list stays hard against the reading edge; a multi-column flow only
+   ever fills the width it is handed, so bounding that width is what stops a
+   3-item category reading as scattered orphans across the whole menu.
+
+   `align-items: stretch` (the default, restated by removing `flex-start`) is
+   what lets the figure take the list's full height. `.groups` opts back out
+   with `align-self: start`, so a SHORT list is never stretched into a tall box
+   that `columns` would then rebalance itself across. */
 .panelBody {
   display: flex;
-  align-items: flex-start;
-  gap: var(--space-6);
+  gap: var(--space-10);
 }
+/* The list is sized by its OWN content — `flex: 0 1 auto`, never `1 1 auto`.
+   Growing it is what puts the leftover space INSIDE the list box: on
+   نبشی و ناودانی, whose one column of three links wants ~90px, a grown box was
+   320px of which 230 were empty, and the empty part sat between the list and
+   the figure — a hole in the middle of the panel, which is precisely the
+   failure being fixed. Packed to content instead, the two zones sit together
+   against the reading edge and whatever is left trails off the far end, which
+   is just how a short line ends.
+ 
+   `min-inline-size: 12rem` so a two-item category is still a COLUMN and not a
+   sliver. It is safe against overflow: below 1180px the figure is gone and the
+   list is the only item in the row. */
 .panelBody > .groups,
 .panelBody > .panelEmpty {
-  flex: 1 1 auto;
-  min-inline-size: 0;
+  flex: 0 1 auto;
+  align-self: start;
+  min-inline-size: 12rem;
   order: 1;
 }
+/* The figure takes the width the list does not want, rather than a fixed slice
+   of the panel. `flex: 1 1 20rem` is the whole idea in one line: 20rem is its
+   floor (what ورق's three columns leave it), and it grows from there — on
+   نبشی و ناودانی, whose three links occupy one 16rem column, it absorbs the
+   ~470px that used to be an empty hole in the middle of the panel.
+
+   Height follows the list, floored at 16rem so it is never a strip and capped
+   at 22rem so a landscape studio photo is never cover-cropped into a portrait.
+   No border: a hairline box read as an inset card competing with the list.
+   `--radius-md` is unchanged, and stays small per the design language. */
 .panelArt {
   order: 2;
-  flex: none;
-  /* Pinned to the far edge. Capping the list's width (below) otherwise leaves
-     the picture stranded mid-panel with dead space beyond it. */
-  margin-inline-start: auto;
-  inline-size: 16rem;
-  aspect-ratio: 4 / 3;
+  flex: 1 1 20rem;
+  /* Bounded on BOTH axes. Unbounded, a 3-sub-category panel handed the figure
+     ~750px and the photo's own aspect ratio then made it 420px tall: the menu
+     stopped reading as a menu and started reading as a photo with a caption.
+     40rem is the ceiling that keeps it the panel's largest element without
+     making it the panel's only element, and the leftover becomes gutter
+     between the two zones rather than a hole inside one of them.
+
+     Deliberately NOT pinned to the far edge with `margin-inline-start: auto`,
+     which is what the old fixed-width card did: pinning puts every leftover
+     pixel BETWEEN the list and the figure, i.e. a hole in the middle of the
+     panel. Packed instead, the two zones sit together against the reading edge
+     and the leftover trails off the far end, which is simply how a short line
+     ends. */
+  max-inline-size: 40rem;
+  min-block-size: 16rem;
+  max-block-size: 22rem;
   overflow: hidden;
   border-radius: var(--radius-md);
-  border: var(--border-hairline) solid var(--color-hairline);
   background: var(--color-surface-sunken);
   display: flex;
   align-items: center;
@@ -230,7 +279,7 @@
   list-style: none;
   margin: 0;
   padding: 0;
-  column-gap: var(--space-6);
+  column-gap: var(--space-8);
   columns: 3;
 }
 /* Column count comes from the block count, not from CSS guessing at it: four
@@ -239,19 +288,37 @@
 /* …and bounded, because `columns` always stretches its columns to fill the
    container: two columns across the full panel put «میلگرد آجدار» and «میلگرد
    ساده» ~340px apart, which reads as two unrelated lists rather than one
-   two-column list. Three columns need no cap — at that count they fill the
-   space at a sensible measure on their own. */
+   two-column list.
+ 
+   Every bucket is capped now, three included. It used to be uncapped because
+   the figure beside it was a fixed 16rem and the list could safely take
+   whatever was left; now the figure grows into what the list does not take, so
+   an uncapped three-column flow and a growing figure would just fight. 40rem
+   over three columns is ~13rem a column, which is the same measure the two-
+   column bucket gives — one column width across the whole menu, whatever the
+   category's depth, and ~20rem still left for the figure on the widest panel. */
+/* 20rem, not the old 16rem: the figure beside it is capped now, so a shallow
+   category's two zones have to be a little wider between them to reach across
+   a --container-wide panel without a gap opening up. Still a bounded measure —
+   a single column of four Persian product names does not want 40rem. */
 .groups[data-cols='1'] {
   columns: 1;
-  max-inline-size: 16rem;
+  max-inline-size: 20rem;
 }
 .groups[data-cols='2'] {
   columns: 2;
   max-inline-size: 32rem;
 }
+.groups[data-cols='3'] {
+  max-inline-size: 40rem;
+}
 .group {
   break-inside: avoid;
-  margin-block-end: var(--space-1);
+  /* A group is a section, and sections are separated by space, not by weight
+     (see .groupHead). --space-5 between them against --space-1 inside them is
+     what makes «ورق سقف و سوله» read as a new heading rather than as one more
+     line of the group above it. */
+  margin-block-end: var(--space-5);
 }
 .subList,
 .subListNested {
@@ -301,28 +368,64 @@
 .sub:hover .subIcon {
   color: currentColor;
 }
-/* The promoted lead of a group — a link that is also the group's heading. */
-.groupHead {
-  font: var(--t-label);
-  font-weight: 700;
-  color: var(--color-text-strong);
-}
-/* A group label nothing is actually named (مانیسمان) — text, not a link,
-   and styled as an overline so it can never be mistaken for a dead link. */
+/* The two shapes a group heading takes — a promoted member as a LINK
+   («چهارپهلو») and a family name nothing is called as TEXT («مانیسمان») — are
+   set identically, because they are the same thing in the hierarchy.
+ 
+   That setting is deliberately QUIETER than the links it heads: --t-overline
+   (.75rem/600) against the leaves' --t-body-sm (.875rem/400), muted against
+   --color-text. A heading at 700/--color-text-strong, which is what the lead
+   link used to be, is a second bold band beside the panel title and turns the
+   flow into a wall of competing weights. The label/content inversion — small
+   quiet label over larger normal content — is the ordinary way a list of
+   sections is set, and it leaves --t-h2 as the panel's only loud thing.
+ 
+   NOT distinguished by tracking: `letter-spacing` on Persian breaks the
+   connected script (design/typography.md §41), so the 0.02em that used to sit
+   on .groupLabel is removed rather than raised. Space above (see .group) and
+   size/colour do the work instead. */
+.groupHead,
 .groupLabel {
-  margin: 0;
-  padding: var(--space-2) var(--space-2) var(--space-1);
   font: var(--t-overline);
   color: var(--color-text-muted);
-  letter-spacing: 0.02em;
+}
+.groupLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-1) var(--space-2);
 }
 
-/* Below the desktop breakpoint the whole header nav is replaced by the drawer,
-   so this never renders there — but keep the rail from squeezing if the menu
-   is ever opened mid-resize. */
+/* The nav itself is replaced by the drawer at 1023px (Header.module.css), so
+   the desktop menu only ever lays out between 1024px and up. 1180px is this
+   component's own pre-existing "narrow desktop" line — kept rather than
+   replaced, since it is already the boundary the rail was tuned against.
+ 
+   Between 1024 and 1180 the panel has ~660px to spend after the rail. That is
+   enough for two columns of sub-categories OR for a photograph, not for both:
+   at that width the figure was reduced to a ~150px sliver beside the list,
+   which is exactly the "small inset thumbnail as a competing afterthought"
+   this pass exists to remove. So the figure is dropped there and the list
+   takes the panel — the same call the layout already makes for the drawer,
+   one breakpoint earlier. The wide gutters come in too; --space-10 between
+   zones is a luxury a 660px panel cannot afford. */
 @media (max-width: 1180px) {
   .layout {
-    grid-template-columns: 13rem minmax(0, 1fr);
+    grid-template-columns: 14rem minmax(0, 1fr);
+    gap: var(--space-6);
+  }
+  .panelBody {
+    gap: var(--space-6);
+  }
+  .panelArt {
+    display: none;
+  }
+  /* …and with no figure to leave room for, the list takes the panel instead of
+     packing to its own content — otherwise a 662px panel carries a 326px list
+     and 336px of nothing. */
+  .panelBody > .groups {
+    flex: 1 1 auto;
   }
   .groups {
     columns: 2;

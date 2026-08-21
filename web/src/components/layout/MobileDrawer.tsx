@@ -172,10 +172,15 @@ export function MobileDrawer({ categories, subs }: { categories: Category[]; sub
                           aria-current={onCategoryPage(cat.slug) ? 'page' : undefined}
                         >
                           {cat.name}
+                          {/* Screen-reader only — the visible «۱۹» chip is
+                              gone, for the reason the desktop rail's is (see
+                              ProductsMenu.tsx): it is internal metadata, not
+                              something a buyer chooses on. The count is still
+                              worth announcing before a non-sighted user opens
+                              a row. */}
                           {catSubs.length > 0 && (
-                            <span className={styles.catCount}>
-                              {toPersianDigits(catSubs.length)}
-                              <span className="visually-hidden"> زیردسته</span>
+                            <span className="visually-hidden">
+                              ، {toPersianDigits(catSubs.length)} زیردسته
                             </span>
                           )}
                         </Link>
@@ -256,7 +261,23 @@ export function MobileDrawer({ categories, subs }: { categories: Category[]; sub
                                   {group.lead.name}
                                 </Link>
                               ) : group.label ? (
-                                <p className={styles.subGroupHeading}>{group.label}</p>
+                                <p className={styles.subGroupHeading}>
+                                  {/* Same rule as the desktop menu: the glyph
+                                      marks the GROUP, and it is resolved from
+                                      the group's first member rather than from
+                                      the label, because every ورق group label
+                                      contains the word «ورق» and would draw the
+                                      same plate five times. */}
+                                  <span className={styles.subIcon} aria-hidden="true">
+                                    <SubCategoryArt
+                                      categorySlug={cat.slug}
+                                      slug={group.items[0]!.slug}
+                                      name={group.items[0]!.name}
+                                      size={18}
+                                    />
+                                  </span>
+                                  {group.label}
+                                </p>
                               ) : null}
                               {/* Empty once a single-member group's lead is
                                   promoted — see the same guard in
@@ -275,16 +296,21 @@ export function MobileDrawer({ categories, subs }: { categories: Category[]; sub
                                         }
                                       >
                                         {/* Same decorative section glyph the
-                                          desktop menu draws — one icon system
-                                          across both, not two. */}
-                                        <span className={styles.subIcon} aria-hidden="true">
-                                          <SubCategoryArt
-                                            categorySlug={cat.slug}
-                                            slug={sub.slug}
-                                            name={sub.name}
-                                            size={18}
-                                          />
-                                        </span>
+                                          desktop menu draws, at the same LEVEL
+                                          it draws it: on the group heading, and
+                                          on a leaf only where that leaf is its
+                                          own one-member group. One icon system
+                                          across both surfaces, not two. */}
+                                        {group.label === null && (
+                                          <span className={styles.subIcon} aria-hidden="true">
+                                            <SubCategoryArt
+                                              categorySlug={cat.slug}
+                                              slug={sub.slug}
+                                              name={sub.name}
+                                              size={18}
+                                            />
+                                          </span>
+                                        )}
                                         {sub.name}
                                       </Link>
                                     </li>

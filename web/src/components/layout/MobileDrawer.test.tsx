@@ -154,15 +154,43 @@ describe('MobileDrawer · products', () => {
     expect(screen.getByRole('link', { name: /^میلگرد/ })).not.toHaveAttribute('aria-current');
   });
 
-  it('draws a decorative section glyph beside each sub-category', async () => {
+  it('draws a decorative section glyph on the GROUP heading, not on every leaf', async () => {
     const user = userEvent.setup();
     await openProducts(user);
     await user.click(screen.getByRole('button', { name: 'زیردسته‌های ورق' }));
 
-    const link = screen.getByRole('link', { name: 'گالوانیزه' });
-    expect(link.querySelector('[aria-hidden="true"] svg')).not.toBeNull();
-    // The glyph adds no text, so the link's accessible name is still the
-    // Persian label alone — which is what the assertion above already proves.
-    expect(link.textContent?.trim()).toBe('گالوانیزه');
+    // «ورق‌های روکش‌دار» heads a group and nothing is named after it, so it is
+    // a text heading — and it carries the group's glyph.
+    const heading = screen.getByText('ورق‌های روکش‌دار');
+    expect(heading.querySelector('[aria-hidden="true"] svg')).not.toBeNull();
+
+    // Its member does NOT. One icon per section, not one per row: at ورق's
+    // nineteen rows the per-leaf version was texture, not a scanning aid.
+    const leaf = screen.getByRole('link', { name: 'گالوانیزه' });
+    expect(leaf.querySelector('[aria-hidden="true"] svg')).toBeNull();
+    // The glyph adds no text either way, so the link's accessible name is
+    // still the Persian label alone.
+    expect(leaf.textContent?.trim()).toBe('گالوانیزه');
+
+    // An UNGROUPED sub-category is its own one-member group, so it keeps its
+    // glyph — a shallow category loses nothing to this rule.
+    await user.click(screen.getByRole('button', { name: 'زیردسته‌های میلگرد' }));
+    const solo = screen.getByRole('link', { name: 'میلگرد آجدار' });
+    expect(solo.querySelector('[aria-hidden="true"] svg')).not.toBeNull();
+  });
+
+  it('does not paint the sub-category count anywhere a sighted visitor can see it', async () => {
+    const user = userEvent.setup();
+    await openProducts(user);
+    const row = screen.getByRole('link', { name: /^ورق/ });
+    // Still announced — «ورق، ۳ زیردسته» — but only from visually-hidden text.
+    expect(row.textContent).toContain('۳');
+    for (const el of row.querySelectorAll('*')) {
+      const ownText = [...el.childNodes]
+        .filter((n) => n.nodeType === 3)
+        .map((n) => n.textContent ?? '')
+        .join('');
+      if (/[۰-۹]/.test(ownText)) expect(el).toHaveClass('visually-hidden');
+    }
   });
 });

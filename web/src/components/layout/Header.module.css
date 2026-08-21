@@ -218,9 +218,22 @@
   position: absolute;
   inset-block-start: calc(100% + var(--space-1));
   inset-inline: var(--page-x);
-  max-inline-size: var(--container-max);
+  /* --container-wide (1440px), not --container-max (1280px). This panel is the
+     one surface on the site that is an INDEX rather than a reading column: it
+     carries a nine-row rail, a title block, a photograph and up to
+     twenty-four lines of grouped links at once, and at 1280px those four zones
+     were packed edge to edge with --space-5 between them. --container-wide is
+     the site's existing "this is wider than a text measure" step (the
+     homepage's own Marquee uses it), so the extra 160px comes from a token the
+     design system already has rather than from a number invented here. Below
+     ~1500px it changes nothing — `inset-inline: var(--page-x)` is still what
+     bounds the panel, and it stays flush with the page gutters at every width.
+ 
+     --inset-card (--space-6) is the shell's own padding, per the design
+     system's card inset, instead of the ad-hoc --space-5. */
+  max-inline-size: var(--container-wide);
   margin-inline: auto;
-  padding: var(--space-5);
+  padding: var(--inset-card);
   border: var(--border-hairline) solid var(--color-hairline);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);

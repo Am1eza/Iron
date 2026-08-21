@@ -155,14 +155,9 @@
   justify-content: flex-start;
   gap: var(--space-2);
 }
-.catCount {
-  padding: 0 var(--space-1);
-  border-radius: var(--radius-xs);
-  background: var(--color-surface-sunken);
-  color: var(--color-text-muted);
-  font: var(--t-micro);
-  font-variant-numeric: tabular-nums;
-}
+/* `.catCount` — the visible «۱۹» chip beside each category — is deliberately
+   gone; the count ships as visually-hidden text now (see MobileDrawer.tsx and
+   the matching note in ProductsMenu.module.css). */
 .catToggle {
   flex: none;
   display: inline-flex;
@@ -248,21 +243,33 @@
   font: var(--t-caption);
   color: var(--color-accent-text);
 }
+/* The same one accent treatment the desktop menu now uses everywhere it says
+   "here" — an --color-accent-tint wash under --color-accent-text type. It was a
+   neutral --color-surface-sunken wash under accent type, which is half of the
+   treatment and reads as a different component. */
 .subLink:hover {
-  background: var(--color-surface-sunken);
+  background: var(--color-accent-tint);
   color: var(--color-accent-text);
   text-decoration: none;
 }
-/* The member promoted to head its own group (see catalogGroups.ts) — a link,
-   weighted as the heading it is. */
+/* The two shapes a group heading takes — a promoted member as a LINK
+   («چهارپهلو») and a family name nothing is called as TEXT («مانیسمان») — set
+   identically and QUIETER than the rows they head, matching the desktop menu
+   exactly. The lead link used to be 700/--color-text-strong, i.e. a second
+   bold band inside an already-dense accordion. */
 .subLead {
-  font-weight: 700;
+  /* --t-label (.875rem/500), NOT the desktop menu's --t-overline: this one is a
+     44px thumb target for a real product, and .75rem Persian inside a 44px row
+     reads as a mistake. Dropping 700 → 500 is what stops it competing; the
+     size stays where a tapped link needs it. */
+  font: var(--t-label);
   color: var(--color-text-strong);
 }
-/* A group label that names no member of its own (مانیسمان) — text, never a
-   link, and set as an overline so it cannot read as a broken one. */
 .subGroupHeading {
-  margin: var(--space-2) 0 var(--space-1);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-4) 0 var(--space-1);
   padding-inline: var(--space-2);
   font: var(--t-overline);
   color: var(--color-text-muted);
