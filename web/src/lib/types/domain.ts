@@ -174,6 +174,16 @@ export interface SKU {
    *  See server/db/schema/catalog.ts. */
   dimensions?: string;
   factory?: string;
+  /** Producing city — «اصفهان», «تهران», … — for the پروفیل sub-categories
+   *  whose mill names are withheld (see `catalogLabels.factoryIsMeaningful`).
+   *
+   *  NOT a stored column and NOT sourced data: it is recovered from the city
+   *  embedded in the fabricated factory string, because that is the only
+   *  regional signal this catalog holds and it is the axis ahanonline
+   *  structures its پروفیل pages by. Undefined wherever no city could be
+   *  established, and everywhere `factory` is published — the two are
+   *  alternatives, never both. See `catalogLabels.regionFromFactory`. */
+  region?: string;
   theoreticalWeightKg?: number;
   unit: PriceUnit;
   /** What this SKU's price is denominated in — see `PriceBasis`. `kg` for

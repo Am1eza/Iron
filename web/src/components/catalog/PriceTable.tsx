@@ -1,5 +1,5 @@
 'use client';
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
@@ -19,10 +19,12 @@ import {
 import {
   sizeLabel,
   usesDimensions,
-  usesGradeColumn,
-  gradeColumnLabel,
-  gradeColumnCell,
-  gradeColumnCard,
+  attributeColumns,
+  type AttrColumn,
+  groupModeFor,
+  groupKeyFor,
+  REGION_LABEL,
+  UNKNOWN_VALUE,
   DIMENSIONS_LABEL,
   priceBasisNoun,
   priceUnitCaption,
@@ -79,6 +81,54 @@ type RowActions = {
 const MAX_COMPARE = 4;
 
 /**
+ * The shell around one price table.
+ *
+ * When the rows group into named sections (`labelled`) it is the collapsible
+ * disclosure the owner asked for — «بر اساس کارخانه» for a category with real
+ * mills, «بر اساس محل تولید» for the پروفیل subs whose mill names are
+ * withheld — with a real `<h2>` per section for long-tail SEO, inside a native
+ * `<details>` so it is keyboard-operable and ARIA-correct for free and so a
+ * crawler still sees a collapsed section's full markup.
+ *
+ * Under `none` there is exactly one group and nothing to name it, so the
+ * disclosure would be a heading-less accordion wrapping the entire page
+ * content — an affordance that opens and closes the only thing on screen. It
+ * degrades to a plain container instead: a پروفیل sub whose rows resolve to no
+ * city at all gets one flat table, not a page-sized «نامشخص» section.
+ */
+function SectionShell({
+  labelled,
+  index,
+  name,
+  title,
+  meta,
+  open,
+  children,
+}: {
+  labelled: boolean;
+  index: number;
+  name: string;
+  title: string;
+  meta: ReactNode;
+  open: boolean;
+  children: ReactNode;
+}) {
+  if (!labelled) return <div className={styles.factorySection}>{children}</div>;
+  return (
+    <details key={name} id={`factory-section-${index}`} className={styles.factorySection} open={open}>
+      <summary className={styles.factorySummary}>
+        <span className={styles.factorySummaryMain}>
+          <ChevronDownIcon size={18} className={styles.factoryChevron} />
+          <h2 className={styles.factoryTitle}>{title}</h2>
+        </span>
+        <span className={styles.factorySummaryMeta}>{meta}</span>
+      </summary>
+      {children}
+    </details>
+  );
+}
+
+/**
  * One desktop table row. Memoized so toggling a favorite / opening the chart
  * modal / anything else that only affects one row doesn't re-render every
  * other row too — `isFav` and `vat` are plain primitives (not the parent's
@@ -97,8 +147,9 @@ const PriceTableRow = memo(function PriceTableRow({
   onChart,
   onAddToCart,
   showDimensions,
-  showGrade,
-  categorySlug,
+  attrCols,
+  showFactory,
+  showRegion,
   showRowBasis,
 }: {
   row: PriceRow;
@@ -110,13 +161,19 @@ const PriceTableRow = memo(function PriceTableRow({
   /** ورق only — must stay in lockstep with the matching `<th>` in the header,
    *  which is driven by the same flag. */
   showDimensions: boolean;
-  /** «گرید»/«استاندارد» — same lockstep rule as `showDimensions`: this cell and
-   *  the header `<th>` are driven by the one flag, so they can never drift out
-   *  of alignment. Off only for the non-هاش تیرآهن pages. */
-  showGrade: boolean;
-  /** Page category — decides whether that column reads `grade` or `standard`
-   *  (see catalogLabels). */
-  categorySlug?: string;
+  /** «گرید»/«استاندارد»/«طول شاخه»/… — resolved once for the whole table from
+   *  the page's category and the active sub-filter (see catalogLabels), and
+   *  handed to the header and every row from that ONE array, so a cell can
+   *  never drift out of alignment with the `<th>` above it. */
+  attrCols: readonly AttrColumn[];
+  /** Same lockstep rule for «کارخانه». False when no visible row carries a
+   *  mill name — پروفیل, whose stored ones were fabricated and are suppressed
+   *  at the DTO boundary (see catalogLabels.factoryIsMeaningful). */
+  showFactory: boolean;
+  /** «محل تولید» — the producing city, in the same lockstep. On only when the
+   *  rows carry one but there are no region SECTIONS to put it in the heading
+   *  of, which is the flat-fallback case (see `showRegionColumn`). */
+  showRegion: boolean;
   /** True only when the visible rows do NOT share one denomination, so the
    *  page-wide «قیمت‌ها … برای هر کیلوگرم است» note has been dropped. Without
    *  this the desktop table of a mixed page (میلگرد + کوپلر) printed bare
@@ -143,10 +200,17 @@ const PriceTableRow = memo(function PriceTableRow({
       {showDimensions ? (
         <td className={styles.muted}>{r.dimensions ? toPersianDigits(r.dimensions) : 'نامشخص'}</td>
       ) : null}
-      {showGrade ? <td className={styles.muted}>{gradeColumnCell(categorySlug, r)}</td> : null}
-      <td className={styles.muted}>
-        <FactoryCell categorySlug={r.categoryId} factory={r.factory} />
-      </td>
+      {attrCols.map((c) => (
+        <td key={c.key} className={styles.muted}>
+          {c.cell(r)}
+        </td>
+      ))}
+      {showFactory ? (
+        <td className={styles.muted}>
+          <FactoryCell categorySlug={r.categoryId} factory={r.factory} />
+        </td>
+      ) : null}
+      {showRegion ? <td className={styles.muted}>{r.region ?? UNKNOWN_VALUE}</td> : null}
       <td className={styles.num}>
         {r.theoreticalWeightKg ? (
           <>
@@ -214,7 +278,8 @@ const PriceTableCard = memo(function PriceTableCard({
   onChart,
   onAddToCart,
   showDimensions,
-  categorySlug,
+  attrCols,
+  showRegion,
 }: {
   row: PriceRow;
   vat: boolean;
@@ -222,14 +287,20 @@ const PriceTableCard = memo(function PriceTableCard({
   isFav: boolean;
   /** ورق only — same flag the desktop header/rows use. */
   showDimensions: boolean;
-  /** Page category — decides whether the grade line reads `grade` or
-   *  `standard`, and whether it appears at all (see catalogLabels). The card
-   *  needs no `showGrade`: it omits an empty field anyway, and
-   *  `gradeColumnCard` already returns null for every row the desktop column
-   *  would have hidden. */
-  categorySlug?: string;
+  /** Same columns the desktop table resolved. The card needs no `showFactory`
+   *  or per-column visibility flag: it omits an empty field anyway, and
+   *  `AttrColumn.card` already returns null for every row the desktop column
+   *  would have printed a dash for. */
+  attrCols: readonly AttrColumn[];
+  /** Whether the producing city is this page's story at all — true under both
+   *  region sections and the flat fallback, false when real mills won the
+   *  page. A card must not answer a question the table next to it is not
+   *  asking. */
+  showRegion: boolean;
 } & RowActions) {
-  const grade = gradeColumnCard(categorySlug, r);
+  const attrs = attrCols
+    .map((c) => ({ key: c.key, label: c.label, value: c.card(r) }))
+    .filter((a): a is typeof a & { value: string } => a.value !== null);
   return (
     <li className={styles.card}>
       <div className={styles.cardTop}>
@@ -257,14 +328,25 @@ const PriceTableCard = memo(function PriceTableCard({
         <MovementBadge dir={r.current.movementDir} pct={r.current.movementPct} pill />
       </div>
       <div className={styles.cardMeta}>
-        <span>
-          کارخانه: <FactoryCell categorySlug={r.categoryId} factory={r.factory} />
-        </span>
-        {grade ? (
+        {r.factory ? (
           <span>
-            {grade.label}: {grade.value}
+            کارخانه: <FactoryCell categorySlug={r.categoryId} factory={r.factory} />
+          </span>
+        ) : showRegion && r.region ? (
+          // The section heading carries this on desktop; a card list has no
+          // headings, so on a phone it has to be a line or a پروفیل buyer
+          // never sees where the product comes from at all. Omitted rather
+          // than printed as «نامشخص» when unresolved — the established
+          // convention of this card (see `dimensions` below).
+          <span>
+            {REGION_LABEL}: {r.region}
           </span>
         ) : null}
+        {attrs.map((a) => (
+          <span key={a.key}>
+            {a.label}: {a.value}
+          </span>
+        ))}
         {/* size intentionally omitted — the product name already ends in it */}
         {/* ابعاد is NOT in the name, so unlike size it has to be shown here or
             a phone user never sees it at all. Only when it's actually filled
@@ -416,14 +498,15 @@ export function PriceTable({
   const [internalSub, setInternalSub] = useState<string | null>(initialSub);
   const controlled = onSubChange !== undefined;
   const sub = controlled ? (subProp ?? null) : internalSub;
-  // تیرآهن only. The «گرید» column is empty for every I-beam we sell, so the
-  // owner asked for it gone — except on هاش سبک/هاش سنگین, where it becomes
-  // «استاندارد» (HEA/HEB per DIN 1025, stored in `skus.standard`). Unlike
-  // `showDimensions` this depends on the ACTIVE sub-filter, so it has to be
-  // computed after `sub` is resolved: the mixed «همه» view still shows the
-  // column, because هاش rows are in it.
-  const showGrade = usesGradeColumn(categorySlug, sub);
-  const gradeCol = gradeColumnLabel(categorySlug);
+  // The «گرید»/«استاندارد»/«طول شاخه»/«طول سفارشی»/«آلیاژ» columns. Unlike
+  // `showDimensions` these depend on the ACTIVE sub-filter, so they have to be
+  // computed after `sub` is resolved: تیرآهن's «استاندارد» and پروفیل's per-sub
+  // replacements are both sub-level decisions, while the mixed «همه» view
+  // falls back to the category default (see catalogLabels).
+  //
+  // Memoized because it is handed to every memoized row/card: a fresh array
+  // each render would defeat their `React.memo` entirely.
+  const attrCols = useMemo(() => attributeColumns(categorySlug, sub), [categorySlug, sub]);
 
   // Filter changes animate via same-document View Transitions where supported
   // (a no-op elsewhere) — the rows crossfade instead of snapping.
@@ -498,6 +581,38 @@ export function PriceTable({
     [rows, sub],
   );
 
+  /**
+   * What the rows on screen actually group BY — mill, producing city, or
+   * nothing (see catalogLabels.groupModeFor).
+   *
+   * Data-driven rather than a category/sub allow-list, so it needs no second
+   * opinion about which products have mills: `catalogRepo.toPriceRow` already
+   * withholds the fabricated پروفیل factory names and puts the city recovered
+   * from them in `region` instead, and this simply notices which of the two is
+   * present. `factory` is the long-standing behaviour and is what every
+   * category other than those پروفیل subs still gets, byte for byte.
+   */
+  const groupMode = useMemo(() => groupModeFor(subFiltered), [subFiltered]);
+  /** «کارخانه» — the column, the compare row, the section count. Off exactly
+   *  when no visible row carries a mill name. */
+  const showFactory = groupMode === 'factory';
+  /** What one section is a section OF, for the labels below. Null under
+   *  `none`: there are no sections, and naming a structure the page does not
+   *  have is worse than saying nothing about it. */
+  const sectionNoun = groupMode === 'factory' ? 'کارخانه' : groupMode === 'region' ? REGION_LABEL : null;
+  /**
+   * «محل تولید» as a COLUMN rather than as section headings.
+   *
+   * Only in the flat-fallback case: too few rows resolved to a city to justify
+   * sectioning the page by one, but the ones that did still know where they
+   * come from, and dropping the fact entirely would lose real information for
+   * no reason. Under `region` the headings already say it and a column would
+   * repeat every heading on every row; under `factory` the rows have no region
+   * at all — the DTO publishes one or the other, never both.
+   */
+  const showRegionColumn = groupMode === 'none' && subFiltered.some((r) => r.region);
+  const sortLabel = sectionNoun ? `مرتب‌سازی بخش‌های ${sectionNoun}` : 'مرتب‌سازی جدول قیمت';
+
   /** Admin-placed factories, name → position. Built once per prop change so
    *  the comparator below stays an O(1) lookup. */
   const factoryRank = useMemo(
@@ -505,38 +620,49 @@ export function PriceTable({
     [factoryOrder],
   );
 
-  // «بر اساس کارخانه» sections — grouped from the same sub-filtered rows,
-  // each group internally sorted by the toolbar's `sort` control (size by
-  // default, same comparator the old flat table used).
-  const byFactory = useMemo(() => {
+  // The page's sections — «بر اساس کارخانه», or «بر اساس محل تولید» on the
+  // پروفیل subs — grouped from the same sub-filtered rows, each group
+  // internally sorted by the toolbar's `sort` control (size by default, same
+  // comparator the old flat table used).
+  const bySection = useMemo(() => {
     const map = new Map<string, PriceRow[]>();
     for (const r of subFiltered) {
-      const key = r.factory ?? 'سایر';
+      const key = groupKeyFor(groupMode, r);
       const list = map.get(key);
       if (list) list.push(r);
       else map.set(key, [r]);
     }
     for (const list of map.values()) list.sort((a, b) => compareRows(a, b, sort));
     return [...map.entries()].sort(([an, a], [bn, b]) => {
+      // «نامشخص» always sinks to the bottom of a region-grouped page: a named
+      // city is information and the absence of one is not, so it cannot lead
+      // the page just because it happens to hold the cheapest row. Deliberately
+      // NOT applied to factory mode's «سایر», which has ranked by price among
+      // the unplaced mills since US-18.2 and is asserted to (factoryOrder test).
+      if (groupMode === 'region') {
+        const ac = an === UNKNOWN_VALUE;
+        const bc = bn === UNKNOWN_VALUE;
+        if (ac !== bc) return ac ? 1 : -1;
+      }
       // The admin's order wins wherever it has an opinion (US-18.2): the mills
       // customers ask for by name are not the cheapest ones, and leading with
       // «whoever is cheapest today» reshuffled the page daily and buried
-      // ذوب‌آهن under mills nobody had heard of.
+      // ذوب‌آهن under mills nobody had heard of. It is a FACTORY order — it has
+      // no opinion about cities, and `factoryRank` is simply empty of them.
       const ar = factoryRank.get(an) ?? Infinity;
       const br = factoryRank.get(bn) ?? Infinity;
       if (ar !== br) return ar - br;
       // Both unplaced (or the admin has arranged nothing at all): cheapest
       // overall visible price first — the previous behaviour, kept verbatim
-      // so a partly-filled order is never worse than no order. The «سایر»
-      // bucket (rows with no factory) can only ever land here.
+      // so a partly-filled order is never worse than no order.
       const av = a.find((r) => !r.current.priceHidden)?.current.price ?? Infinity;
       const bv = b.find((r) => !r.current.priceHidden)?.current.price ?? Infinity;
       return av - bv;
     });
-  }, [subFiltered, sort, factoryRank]);
-  const factoryIndex = useMemo(
-    () => new Map(byFactory.map(([name], i) => [name, i] as const)),
-    [byFactory],
+  }, [subFiltered, sort, factoryRank, groupMode]);
+  const sectionIndex = useMemo(
+    () => new Map(bySection.map(([name], i) => [name, i] as const)),
+    [bySection],
   );
   /** First 3 sections start expanded; the rest start collapsed. Purely a
    *  visual default via `<details open>` — every section's full markup is
@@ -552,7 +678,7 @@ export function PriceTable({
   useEffect(() => {
     const fromUrl = new URLSearchParams(window.location.search).get('factory');
     if (!fromUrl) return;
-    const idx = factoryIndex.get(fromUrl);
+    const idx = sectionIndex.get(fromUrl);
     if (idx === undefined) return;
     const el = document.getElementById(`factory-section-${idx}`);
     if (el instanceof HTMLDetailsElement) {
@@ -560,10 +686,10 @@ export function PriceTable({
       el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [factoryIndex]);
+  }, [sectionIndex]);
 
-  const jumpToFactory = (name: string) => {
-    const idx = factoryIndex.get(name);
+  const jumpToSection = (name: string) => {
+    const idx = sectionIndex.get(name);
     if (idx === undefined) return;
     const el = document.getElementById(`factory-section-${idx}`);
     if (el instanceof HTMLDetailsElement) {
@@ -634,8 +760,8 @@ export function PriceTable({
   const priceBasis = useMemo(() => singlePriceBasis(subFiltered), [subFiltered]);
   const selectedForCompare = useMemo(() => rows.filter((r) => compareIds.has(r.id)), [rows, compareIds]);
   const exportRows = useMemo(
-    () => byFactory.flatMap(([, list]) => list),
-    [byFactory],
+    () => bySection.flatMap(([, list]) => list),
+    [bySection],
   );
 
   return (
@@ -689,12 +815,12 @@ export function PriceTable({
         <div className={styles.tools}>
           <label className={styles.sort}>
             <SortIcon size={16} />
-            <span className="visually-hidden">مرتب‌سازی بخش‌های کارخانه</span>
+            <span className="visually-hidden">{sortLabel}</span>
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value as SortKey)}
               className={styles.select}
-              aria-label="مرتب‌سازی بخش‌های کارخانه"
+              aria-label={sortLabel}
             >
               <option value="size">{sizeCol}</option>
               <option value="price">قیمت</option>
@@ -728,7 +854,8 @@ export function PriceTable({
 
       <div className={styles.meta}>
         <span>
-          {toPersianDigits(subFiltered.length)} کالا · {toPersianDigits(byFactory.length)} کارخانه
+          {toPersianDigits(subFiltered.length)} کالا
+          {sectionNoun ? ` · ${toPersianDigits(bySection.length)} ${sectionNoun}` : ''}
           {updated ? ` · به‌روزرسانی ${formatJalali(updated)}` : ''}
         </span>
         {/* Only when every visible row shares one denomination. A table mixing
@@ -742,37 +869,36 @@ export function PriceTable({
         ) : null}
       </div>
 
-      {/* ===== پرش سریع به کارخانه ===== */}
-      {byFactory.length > 1 && (
-        <nav className={styles.quickJump} aria-label="پرش به کارخانه">
-          {byFactory.map(([name]) => (
-            <button key={name} type="button" className={styles.quickJumpChip} onClick={() => jumpToFactory(name)}>
+      {/* ===== پرش سریع به بخش‌ها ===== */}
+      {sectionNoun && bySection.length > 1 && (
+        <nav className={styles.quickJump} aria-label={`پرش به ${sectionNoun}`}>
+          {bySection.map(([name]) => (
+            <button key={name} type="button" className={styles.quickJumpChip} onClick={() => jumpToSection(name)}>
               {name}
             </button>
           ))}
         </nav>
       )}
 
-      {/* ===== بر اساس کارخانه — one section per factory ===== */}
+      {/* ===== one section per کارخانه / محل تولید ===== */}
       <div className={styles.factoryList}>
-        {byFactory.map(([name, list], i) => {
+        {bySection.map(([name, list], i) => {
           const cheapest = list.find((r) => !r.current.priceHidden);
           const factoryVat = vatFor(name);
+          // «قیمت میلگرد کویر کاشان» when the mill is a real distinction,
+          // «قیمت پروفیل Z تهران» when the producing city is, and «قیمت پروفیل
+          // مبلی» when neither is and this is the page's one table.
+          const sectionTitle = sectionNoun ? `${categoryName} ${name}` : categoryName;
           return (
-            <details
+            <SectionShell
               key={name}
-              id={`factory-section-${i}`}
-              className={styles.factorySection}
+              labelled={sectionNoun !== null}
+              index={i}
+              name={name}
+              title={`قیمت ${sectionTitle}`}
               open={i < DEFAULT_OPEN_COUNT}
-            >
-              <summary className={styles.factorySummary}>
-                <span className={styles.factorySummaryMain}>
-                  <ChevronDownIcon size={18} className={styles.factoryChevron} />
-                  <h2 className={styles.factoryTitle}>
-                    قیمت {categoryName} {name}
-                  </h2>
-                </span>
-                <span className={styles.factorySummaryMeta}>
+              meta={
+                <>
                   {toPersianDigits(list.length)} {sizeCol}
                   {cheapest ? (
                     <>
@@ -781,9 +907,9 @@ export function PriceTable({
                       تومان
                     </>
                   ) : null}
-                </span>
-              </summary>
-
+                </>
+              }
+            >
               <div className={styles.factoryBody}>
                 {/* Per-factory controls — the toolbar's VAT toggle and export
                     menu, scoped to this mill only, the way ahanprice.com scopes
@@ -797,7 +923,7 @@ export function PriceTable({
                     toolbar already covers exactly these rows, and a second
                     identical pair of controls three lines below the first is
                     noise. Same rule the quick-jump nav above follows. */}
-                {byFactory.length > 1 ? (
+                {bySection.length > 1 ? (
                   <div className={styles.factoryTools}>
                     <Switch
                       size="sm"
@@ -808,7 +934,7 @@ export function PriceTable({
                     />
                     <ExportMenu
                       rows={list}
-                      title={`${categoryName} ${name}`}
+                      title={sectionTitle}
                       categorySlug={categorySlug}
                       vat={factoryVat}
                       vatRate={vatRate}
@@ -819,11 +945,9 @@ export function PriceTable({
                 ) : null}
 
                 {/* Desktop table */}
-                <div className={styles.tableScroll} role="region" aria-label={`قیمت ${categoryName} ${name}`} tabIndex={0}>
+                <div className={styles.tableScroll} role="region" aria-label={`قیمت ${sectionTitle}`} tabIndex={0}>
                   <table className={`${styles.table} tnum`}>
-                    <caption className="visually-hidden">
-                      قیمت {categoryName} {name}
-                    </caption>
+                    <caption className="visually-hidden">قیمت {sectionTitle}</caption>
                     <thead>
                       <tr>
                         <th scope="col">
@@ -837,8 +961,13 @@ export function PriceTable({
                             is a pair, not a number, so there is no ordering the
                             `size`/price/movement comparator could honour. */}
                         {showDimensions ? <th scope="col">{DIMENSIONS_LABEL}</th> : null}
-                        {showGrade ? <th scope="col">{gradeCol}</th> : null}
-                        <th scope="col">کارخانه</th>
+                        {attrCols.map((c) => (
+                          <th key={c.key} scope="col">
+                            {c.label}
+                          </th>
+                        ))}
+                        {showFactory ? <th scope="col">کارخانه</th> : null}
+                        {showRegionColumn ? <th scope="col">{REGION_LABEL}</th> : null}
                         <th scope="col" className={styles.num}>
                           وزن شاخه
                         </th>
@@ -866,8 +995,9 @@ export function PriceTable({
                           compareChecked={compareIds.has(r.id)}
                           onToggleCompare={toggleCompare}
                           showDimensions={showDimensions}
-                          showGrade={showGrade}
-                          categorySlug={categorySlug}
+                          attrCols={attrCols}
+                          showFactory={showFactory}
+                          showRegion={showRegionColumn}
                           showRowBasis={priceBasis === null}
                           onToggleFav={toggleFav}
                           onChart={setChartFor}
@@ -888,7 +1018,8 @@ export function PriceTable({
                       vatRate={vatRate}
                       isFav={fav.has(r.id)}
                       showDimensions={showDimensions}
-                      categorySlug={categorySlug}
+                      attrCols={attrCols}
+                      showRegion={groupMode !== 'factory'}
                       onToggleFav={toggleFav}
                       onChart={setChartFor}
                       onAddToCart={addToCart}
@@ -896,7 +1027,7 @@ export function PriceTable({
                   ))}
                 </ul>
               </div>
-            </details>
+            </SectionShell>
           );
         })}
       </div>
@@ -970,12 +1101,25 @@ export function PriceTable({
                     ))}
                   </tr>
                 ) : null}
-                <tr>
-                  <th scope="row">کارخانه</th>
-                  {selectedForCompare.map((r) => (
-                    <td key={r.id}>{r.factory ?? 'نامشخص'}</td>
-                  ))}
-                </tr>
+                {/* Only when at least one selected product HAS a mill — a
+                    «کارخانه: نامشخص» row across a پروفیل comparison would
+                    reintroduce, in the one place a buyer studies most closely,
+                    exactly the fabricated distinction this page dropped. */}
+                {selectedForCompare.some((r) => r.factory) ? (
+                  <tr>
+                    <th scope="row">کارخانه</th>
+                    {selectedForCompare.map((r) => (
+                      <td key={r.id}>{r.factory ?? 'نامشخص'}</td>
+                    ))}
+                  </tr>
+                ) : selectedForCompare.some((r) => r.region) ? (
+                  <tr>
+                    <th scope="row">{REGION_LABEL}</th>
+                    {selectedForCompare.map((r) => (
+                      <td key={r.id}>{r.region ?? UNKNOWN_VALUE}</td>
+                    ))}
+                  </tr>
+                ) : null}
                 <tr>
                   <th scope="row">وزن شاخه</th>
                   {selectedForCompare.map((r) => (

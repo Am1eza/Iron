@@ -32,7 +32,14 @@ import {
   defaultUnitFor,
   theoreticalWeightFor,
 } from '@/lib/utils/catalogCompose';
-import { sizeLabel, usesDimensions, DIMENSIONS_LABEL } from '@/lib/utils/catalogLabels';
+import {
+  sizeLabel,
+  usesDimensions,
+  attrKeysFor,
+  DIMENSIONS_LABEL,
+  GRADE_LABEL,
+  ALLOY_LABEL,
+} from '@/lib/utils/catalogLabels';
 import { useToast } from '@/lib/hooks/useToast';
 import { Alert, Badge, Button, Heading, Text, useConfirm } from '@/components/ui';
 import { TextInput, PickerInput } from '@/components/forms/fields';
@@ -228,6 +235,14 @@ export function SkuDrawer({
   // product under (see catalogLabels). The stored column is unchanged.
   const sizeCol = sizeLabel(parentCategory?.slug);
   const showDimensions = usesDimensions(parentCategory?.slug);
+  // پروفیل استیل reads `skus.grade` as «آلیاژ» on the public pages, because for
+  // a stainless profile the stored grade genuinely IS the alloy (۲۰۱/۳۰۴/۳۱۶).
+  // The admin box is relabelled to match — an operator asked for a «گرید» and
+  // an product page publishing «آلیاژ» is how the wrong value gets typed in.
+  // Deliberately narrow: no other category's field changes at all.
+  const gradeLabel = attrKeysFor(parentCategory?.slug, selectedSub?.slug ?? null).includes('alloy')
+    ? ALLOY_LABEL
+    : GRADE_LABEL;
 
   const { data: suggestions } = useQuery({
     queryKey: ['admin', 'cat', 'suggestions', parentCategory?.id ?? ''],
@@ -466,8 +481,12 @@ export function SkuDrawer({
               />
               <PickerInput
                 id="sku-grade"
-                label="گرید"
-                helper="میلگرد: A1، A2، A3 · ورق: ST37، ST52. در صفحهٔ کالا به مشتری نشان داده می‌شود."
+                label={gradeLabel}
+                helper={
+                  gradeLabel === ALLOY_LABEL
+                    ? 'استیل: ۲۰۱، ۳۰۴، ۳۱۶. در صفحهٔ کالا به مشتری نشان داده می‌شود.'
+                    : 'میلگرد: A1، A2، A3 · ورق: ST37، ST52. در صفحهٔ کالا به مشتری نشان داده می‌شود.'
+                }
                 value={v.grade}
                 options={suggestions?.grades ?? []}
                 error={fieldErrors.grade}
