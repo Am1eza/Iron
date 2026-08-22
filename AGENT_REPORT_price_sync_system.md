@@ -301,9 +301,127 @@ SKU keeps its old price, gains no `price_points` row, and is logged as
 
 ---
 
-## 8. Live run
+## 8. Live runs — what actually happened
 
-*(filled in below after deploy)*
+The first live execution was deliberately **scoped to one category** using the
+`categorySlugs` setting rather than turned loose on all 446 SKUs. That was not
+the staged-approval workflow the owner declined — it is one run, live, against
+real prices — but writing 446 first-ever automated prices unchecked was not a
+risk worth taking when scoping costs nothing. **It immediately paid for
+itself.**
+
+### Run 1 — نبشی و ناودانی (29 SKUs): found a real bug
+
+`3 written, 26 skipped` in 8s. Two writes were obviously right (+1.2% and
++0.0%, like-for-like mills). The third was wrong:
+
+| SKU | our mill | matched competitor row | old | new | Δ |
+|---|---|---|---:|---:|---:|
+| نبشی **لقمه** ۱۰ | آریان فولاد | «نبشی 10*100*100 آریان فولاد 6 متری کارخانه» | 35,450 | 78,281 | **+120.8%** |
+
+Same mill, same 100 mm leg, per-kg on both sides, factory-gate delivery, source
+row updated that day. **Every confidence gate passed.** But «نبشی لقمه» is a cut
+spacer, not a length of angle.
+
+The gates were not wrong — the taxonomy map was. I had asserted ahanonline sells
+that variant. Checked against the live pages, it sells none of the three
+variants I had mapped:
+
+| page | rows | variant rows |
+|---|---:|---|
+| `نبشی-و-ناودانی/نبشی` | 82 | **0** لقمه · **0** unequal-leg |
+| `تیرآهن-و-هاش/تیرآهن` | 45 | **0** لانه‌زنبوری |
+
+Fixed in #221: `angle-channel/spot`, `angle-channel/angle-unequal` and
+`ibeam/lane-zanburi` are unmapped, so those SKUs now skip as
+`skip:no-source-mapping`. Two regression tests lock it down, including "refuse a
+لقمه SKU even when a plain نبشی row matches it perfectly".
+
+**The bad write was rolled back in production**: price and `updated_at` restored
+to their pre-run values, and the spurious `price_points` row deleted so the
+customer-facing chart carries no phantom +121% spike. Its `price_sync_entries`
+row was deliberately **kept** — that is the audit trail, and it is true.
+
+The other 26 skips were all legitimate and are worth reading, because they are
+the honest answer to "why didn't this update?": we stock سپهر ایرانیان /
+دهشیر یزد / جاوید بناب / ظهوریان where ahanonline stocks ناب تبریز / شکفته /
+نورد سجاد. No like-for-like row exists, so nothing was copied.
+
+### Run 2 — میلگرد (209 SKUs): the calibration check
+
+`205 written, 4 skipped` in 6s. میلگرد is the one category kept fresh by hand,
+so it is the best test of whether the matcher agrees with a human:
+
+| | |
+|---|---|
+| new price range | 65,455 – 78,182 T/kg (avg 69,829) |
+| median change | **+0.8%** |
+| range of change | −3.7% … +5.0% (excluding one outlier below) |
+
+That band is exactly the میلگرد market the 2026-08-19 audit measured
+(65k–78k), and a mean move under 1% against hand-entered prices is the strongest
+available evidence that the matching is right.
+
+**Three writes hand-verified against the live source:**
+
+| SKU | ahanonline `data-price` (rial) → Toman | we wrote |
+|---|---|---|
+| ظفر بناب ۱۴ | 702,727 → 70,273 | **70,273** ✓ |
+| ذوب‌آهن اصفهان ۱۶ | 690,909 → 69,091 | **69,091** ✓ |
+| کویر کاشان ۸ | two rows: 72,727 / 73,545 | **73,136** = their median ✓ |
+
+The third confirms the tied-candidate median rule working as designed (spread
+1.1%, well inside the 8% ambiguity threshold).
+
+**It also fixed a live overcharge.** «میلگرد آجدار ۱۴ ظفر بناب» carried
+**1,012,361 T/kg** with `price_basis = 'kg'`. Rebar is ~70,000 T/kg; 1,012,361
+is a per-شاخه figure (≈14.5 kg × 70,000) sitting in a per-kilogram column — the
+exact failure mode that caused a 155× overcharge once before. The mirror
+corrected it to 70,273, a **−93.1%** move. That SKU had been quoting roughly
+14× the correct price to real customers.
+
+### Run 3 — لوله، ورق، پروفیل، کلاف و مفتول (163 SKUs)
+
+`27 written, 136 skipped` in 98s over 26 pages. Almost every write was a
+**0.4%–1.9%** adjustment, which is what a healthy mirror against
+recently-corrected prices looks like. Three that needed a second look, all
+checked and sound:
+
+- **کلاف آجدار ۸ آناهیتا گیلان, +83.4%** → matched «میلگرد 8 آناهیتا گیلان
+  آجدار A2». Size-8 ribbed rebar genuinely is sold as coil, and 73,727 sits in
+  the current market band; the old 40,200 was the stale July number. Staleness
+  correction, not a mismatch.
+- **کلاف ساده ۶.۵ سیادن ابهر, 0.0%** → the source row literally reads «میلگرد
+  ساده 6.5 ابهر **کلاف** کارخانه».
+- **ورق رنگی colour mismatches** — a blue SKU matched a red row. Colour is
+  price-invariant at a given thickness and mill here (every چین 0.48 row
+  resolved to the same 170,455), and if a colour ever carried a >8% premium the
+  ambiguity guard would skip rather than guess. Acceptable, but it is the same
+  *shape* of issue as لقمه and worth knowing about.
+
+### Totals written so far
+
+**235 prices** across میلگرد (205), ورق (23), کلاف و مفتول (2), لوله (1),
+پروفیل (1), نبشی و ناودانی (2, after the rollback) — every one of them logged
+with its old value, its new value, the competitor row it came from and that
+row's own publication date.
+
+### What is NOT yet live
+
+`ibeam` and `angle-channel` are **excluded from the schedule** at the time of
+writing. The #221 mapping fix is merged and its image is built, but the
+GHCR pull from this host is failing (see §10), so the running container is
+still `4c2d37d`, which contains the bad mappings. Rather than let the 08:00
+Tehran cron write wrong prices for لقمه / بال‌نامساوی / لانه‌زنبوری, the
+`PRICE_SYNC.categorySlugs` setting is scoped to the five unaffected categories:
+
+```json
+{"enabled": true, "categorySlugs": ["rebar", "pipe", "sheet", "profile", "wire"]}
+```
+
+**Once the fixed image is deployed, clear that list to `[]`** (or edit it from
+the panel) to bring تیرآهن and نبشی و ناودانی back into scope. Until then the
+schedule is correct and safe, just narrower than intended.
 
 ---
 
@@ -313,19 +431,125 @@ SKU keeps its old price, gains no `price_points` row, and is logged as
    and mirroring a competitor's prices 1:1 as our own is a commercial decision
    with its own exposure. The robots.txt boundary is respected and the rate is
    polite, but that is a technical courtesy, not a legal clearance.
-2. **The brief's staleness figures are now partly superseded.** As of tonight
-   every in-scope category has *some* rows still at 2026-07-07 and others
-   refreshed on 08-19/08-20 by the earlier one-off fix — and **every** price row
-   in the catalog currently reads `is_stale = true` (nothing was updated today).
-   The drift the brief describes is real; the specific "30+ days untouched"
-   number predates the one-off pass.
-3. **Scope is 446 SKUs** (میلگرد 209, لوله 54, ورق 47, تیرآهن 45, پروفیل 37,
-   کلاف و مفتول 25, نبشی و ناودانی 29). All are per-kg and all name a factory, so
-   none is lost to those two gates. استیل, فلزات رنگی and the specialty lines
-   (وال پست، لوله جدار چاه، کوپلر، گریتینگ، ساندویچ پانل) are deliberately out of
-   scope — ahanonline publishes no like-for-like price for them.
-4. **The `wire` category itself is `is_active = false`** at category level while
+
+2. **The mirror will not refresh most of the catalog, and that is correct.**
+   Of the 446 in-scope SKUs, the runs so far wrote **235**. The single largest
+   reason for a skip is `skip:low-confidence-match`: we and ahanonline stock
+   **different mills**. In نبشی و ناودانی that meant 3 writes out of 29 — we
+   carry سپهر ایرانیان / دهشیر یزد / جاوید بناب / ظهوریان, they carry ناب تبریز /
+   شکفته / نورد سجاد. There is no like-for-like price to copy, so nothing is
+   copied. Expect the mirror to keep میلگرد and ورق fresh and to leave much of
+   نبشی و ناودانی, تیرآهن and پروفیل to manual entry. If broader coverage
+   matters, the lever is a **second competitor source** (مرکزآهن / kilooton were
+   both used for corroboration in the هاش work), not loosening the match rule.
+
+3. **It found and fixed a live overcharge.** «میلگرد آجدار ۱۴ ظفر بناب» was
+   priced at 1,012,361 T/kg with `price_basis='kg'` — a per-شاخه figure in a
+   per-kilogram column, roughly **14× the correct price**, quoted to real
+   customers. The mirror corrected it to 70,273. Worth a look at whether other
+   non-mirrored categories carry the same error; the per-kg maxima in استیل and
+   فلزات رنگی are not obviously wrong but were not audited here.
+
+4. **The brief's staleness figures were partly superseded.** Every in-scope
+   category had *some* rows still at 2026-07-07 and others refreshed on
+   08-19/08-20 by the earlier one-off fix, and **every** price row read
+   `is_stale = true` before these runs. The drift the brief describes is real;
+   the specific "30+ days untouched" number predates the one-off pass.
+
+5. **Scope is 446 SKUs** — میلگرد 209, لوله 54, ورق 47, تیرآهن 45, پروفیل 37,
+   نبشی و ناودانی 29, کلاف و مفتول 25. All per-kg, all naming a factory.
+   استیل, فلزات رنگی and the specialty lines (وال پست، لوله جدار چاه، کوپلر،
+   گریتینگ، ساندویچ پانل) are deliberately unmapped, as are the three variants
+   removed in #221 (نبشی لقمه، نبشی بال نامساوی، تیرآهن لانه‌زنبوری).
+
+6. **ورق رنگی is matched without regard to colour.** A blue SKU can take a red
+   row's price. That is safe *today* because colour is price-invariant at a given
+   thickness and mill on their listing, and a >8% divergence would trip the
+   ambiguity guard — but it is the same shape of issue as the لقمه bug, so it is
+   named here rather than buried.
+
+7. **The `wire` category itself is `is_active = false`** at category level while
    its SKUs are active. The mirror prices them anyway (prices are per-SKU), but if
    کلاف و مفتول is meant to be visible, that flag needs flipping separately.
-5. **No logrotate** on `/var/log/ahantime-price-sync.log`. ~20 lines per run,
+
+8. **No logrotate** on `/var/log/ahantime-price-sync.log`. ~20 lines per run,
    twice a day — negligible, but it grows forever, same as `matomo-archive.log`.
+
+---
+
+## 10. Deploy state, and three things that went wrong
+
+Being straight about this, because two of the three were my mistakes.
+
+### a) I broke the image build (fixed, #220)
+
+`priceSync.service.ts` statically imported `safeRevalidatePath`, so bundling the
+standalone cron script pulled in `next/cache` → Next's tracer → an optional
+`@opentelemetry/api` that is not installed. esbuild failed, the image never
+built, `deploy` was skipped. **Nothing reached production** — the running
+container stayed on the previous tag throughout.
+
+`publishArticles.job.ts` already documents the convention I missed: a job outside
+a Next request has no rendering context, so `revalidatePath` there could only
+ever be a no-op. The cache bust now lives in the admin manual-trigger route,
+which does run inside a request. I should have run the Dockerfile's own esbuild
+invocation locally before pushing; I now have, and do.
+
+### b) I mapped three product variants onto their plain equivalents (fixed, #221)
+
+Covered in §8. Caught by scoping the first run to one category — which is the
+argument for doing that on any future source addition.
+
+### c) The GHCR pull from this host is failing (not mine, and unresolved)
+
+Auto-deploy's `build` job is green; its `deploy` step fails at
+`docker pull ghcr.io/…: net/http: TLS handshake timeout`, the documented
+Iran↔ghcr.io flakiness. It failed for #220, #221 and #222 (another agent's PR)
+alike. I deployed #220 manually after ~10 pull attempts; #221 and #222 have not
+pulled after 25 and 14+ attempts respectively.
+
+Also found: the GHCR credential stored on this host in `/root/.docker/config.json`
+**had expired at 10:23 UTC today**, which is a separate failure from the
+timeout — a manual `docker pull` returned `denied` rather than timing out. The
+deploy workflow re-logged-in and refreshed it, so that part is now healthy.
+
+**Current deployed state:** `ghcr.io/am1eza/iron-web:4c2d37d…` — the price mirror
+is live and working, the #221 mapping fix is **not** yet on the box.
+
+**Because of that, the schedule is scoped to the five unaffected categories:**
+
+```json
+{"enabled": true, "categorySlugs": ["rebar", "pipe", "sheet", "profile", "wire"]}
+```
+
+This is safe and correct as it stands — the 08:00 and 12:00 Tehran runs will
+mirror those five categories and cannot touch the bad mappings.
+
+**The one follow-up action:** once the GHCR link recovers, deploy current `main`
+and clear the category list.
+
+```bash
+docker pull ghcr.io/am1eza/iron-web:<sha of origin/main>
+docker image inspect ghcr.io/am1eza/iron-web:<sha>     # must succeed first
+sed -i 's#^WEB_IMAGE=.*#WEB_IMAGE=ghcr.io/am1eza/iron-web:<sha>#' /opt/ahantime/.env
+cd /opt/ahantime && docker compose up -d web
+```
+
+then, from the panel's settings or directly:
+
+```sql
+UPDATE settings SET value = '{"enabled":true,"categorySlugs":[]}'::jsonb,
+       updated_at = now() WHERE key = 'PRICE_SYNC';
+```
+
+`[]` means "every mapped sub-category", bringing تیرآهن and نبشی و ناودانی back
+in. Nothing else is pending.
+
+### A note on CI
+
+`CI / checks` failed once on this branch, on `src/lib/auth/service.test.ts`'s
+refresh-token grace-window case — 1912 of 1913 tests passing, nothing to do with
+this work. It passes locally and passed on re-run, and the same job failed
+intermittently on `main` (2026-08-21) and on another agent's branch earlier the
+same day. CLAUDE.md records `checks` as "green since #208"; that is no longer
+true, and the flake is worth chasing separately.
