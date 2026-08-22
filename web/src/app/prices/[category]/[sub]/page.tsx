@@ -76,7 +76,7 @@ export default async function SubCategoryPage({ params }: Params) {
     { label: 'خانه', href: routes.home() },
     { label: 'قیمت‌ها', href: routes.prices() },
     { label: cat.name, href: routes.category(category) },
-    { label: name },
+    { label: name, href: routes.subCategory(category, sub) },
   ];
 
   return (

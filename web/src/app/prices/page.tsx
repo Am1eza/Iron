@@ -22,7 +22,10 @@ export const metadata: Metadata = buildMetadata({
 // revalidatePath call exists for category admin writes yet).
 export const revalidate = 300;
 
-const crumbs = [{ label: 'خانه', href: routes.home() }, { label: 'قیمت‌ها' }];
+const crumbs = [
+  { label: 'خانه', href: routes.home() },
+  { label: 'قیمت‌ها', href: routes.prices() },
+];
 
 /** Answers the questions a visitor arriving on «قیمت روز آهن» actually asks
  *  next. Each answer stands alone — FAQPage entries are quoted out of page

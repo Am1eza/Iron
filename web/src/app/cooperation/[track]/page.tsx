@@ -47,7 +47,7 @@ export default async function CooperationTrackPage({ params }: Params) {
   const crumbs = [
     { label: 'خانه', href: routes.home() },
     { label: 'همکاری با ما', href: routes.cooperation() },
-    { label: t.title },
+    { label: t.title, href: routes.cooperation(t.key) },
   ];
 
   return (

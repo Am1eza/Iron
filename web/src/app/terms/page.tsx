@@ -174,7 +174,7 @@ export default async function TermsPage() {
   const sections = buildSections(CONTACT);
   const crumbs = [
     { label: 'خانه', href: routes.home() },
-    { label: 'قوانین و مقررات' },
+    { label: 'قوانین و مقررات', href: routes.terms() },
   ];
 
   return (

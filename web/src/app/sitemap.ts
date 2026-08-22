@@ -9,6 +9,7 @@ import {
   isLiveCatalog,
 } from '@/lib/server/catalog';
 import { getSubsMap } from '@/lib/server/catalog';
+import { listRedirectFromPaths, normalizePath } from '@/lib/server/repos/redirectsRepo';
 import { factoryFacets, sizeFacets } from '@/lib/utils/catalogFacets';
 import { TRACK_ORDER } from '@/components/cooperation/tracks';
 import { NEWS_TOPICS } from '@/lib/data/newsTopics';
@@ -229,7 +230,7 @@ async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }));
 
-  return [
+  const entries = [
     ...staticEntries,
     ...cooperationEntries,
     ...categoryEntries,
@@ -241,4 +242,29 @@ async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
     ...blogCategoryEntries,
     ...newsTopicEntries,
   ];
+
+  // Last gate: never advertise a URL this site then refuses to serve.
+  //
+  // An admin redirect row beats a real route match in `middleware.ts`, so a
+  // sub-category can be `is_active = true`, carry SKUs, be rendered into the
+  // list above by the catalog queries — and still answer 308 to the crawler
+  // that follows it. Verified against production 1405/05/31 by fetching all
+  // 1,235 published URLs: zero 404s, and exactly three redirects, all of
+  // them this shape (`/prices/profile/prvfyl-*`, orphaned by the پروفیل
+  // re-slug). Every other filter here works from the catalog's own state,
+  // which cannot see the redirect table at all.
+  //
+  // This suppresses the symptom, not the cause: a live page that a stale row
+  // hides is still hidden from visitors. The row is the thing to delete —
+  // this only stops us pointing Google at it in the meantime.
+  return dropRedirectedEntries(entries, await listRedirectFromPaths());
+}
+
+/** Exported for the test — pure, so it needs no database. */
+export function dropRedirectedEntries(
+  entries: MetadataRoute.Sitemap,
+  redirected: ReadonlySet<string>,
+): MetadataRoute.Sitemap {
+  if (redirected.size === 0) return entries;
+  return entries.filter((e) => !redirected.has(normalizePath(new URL(e.url).pathname)));
 }

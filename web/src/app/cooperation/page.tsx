@@ -25,7 +25,7 @@ export const metadata: Metadata = buildMetadata({
 export default function CooperationPage() {
   const crumbs = [
     { label: 'خانه', href: routes.home() },
-    { label: 'همکاری با ما' },
+    { label: 'همکاری با ما', href: routes.cooperation() },
   ];
 
   return (

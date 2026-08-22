@@ -1,12 +1,26 @@
 import { describe, it, expect } from 'vitest';
-import { buildMetadata, catalogNavigationJsonLd, orgJsonLd, productJsonLd } from './index';
+import {
+  breadcrumbJsonLd,
+  buildMetadata,
+  catalogNavigationJsonLd,
+  orgJsonLd,
+  productJsonLd,
+} from './index';
 import { CHANNELS } from '@/lib/data/nav';
 
 type Offer = {
   availability?: string;
   price: number;
+  priceCurrency: string;
+  priceValidUntil: string;
+  url: string;
   businessFunction: string;
-  priceSpecification: { valueAddedTaxIncluded: boolean; unitCode: string };
+  priceSpecification: {
+    price: number;
+    priceCurrency: string;
+    valueAddedTaxIncluded: boolean;
+    unitCode: string;
+  };
 };
 const offerOf = (o: ReturnType<typeof productJsonLd>): Offer | undefined =>
   (o as { offers?: Offer }).offers;
@@ -43,6 +57,99 @@ describe('productJsonLd', () => {
 
   it('emits no offer at all when the price is the stale-hidden sentinel', () => {
     expect(offerOf(productJsonLd({ ...base, price: 0, priceHidden: true, available: true }))).toBeUndefined();
+  });
+
+  // The silent-10x class of bug, pinned from both ends. Every published price
+  // on this site is in TOMAN; the only ISO 4217 code for Iran is IRR (Rial),
+  // and 1 Toman = 10 Rial. Tagging the Toman figure `IRR` unconverted would
+  // publish a price one tenth of the real one — a number Google would happily
+  // show in a rich result and no test would have caught.
+  describe('Toman → IRR conversion', () => {
+    it.each([
+      [42_000, 420_000],
+      [1, 10],
+      [667_027, 6_670_270],
+    ])('publishes %i Toman as %i IRR', (toman, rial) => {
+      const offer = offerOf(productJsonLd({ ...base, price: toman, available: true }))!;
+      expect(offer.price).toBe(rial);
+      expect(offer.priceSpecification.price).toBe(rial);
+    });
+
+    it('never publishes the raw Toman figure under an IRR tag', () => {
+      const toman = 42_000;
+      const offer = offerOf(productJsonLd({ ...base, price: toman, available: true }))!;
+      expect(offer.priceCurrency).toBe('IRR');
+      expect(offer.priceSpecification.priceCurrency).toBe('IRR');
+      expect(offer.price).not.toBe(toman);
+      expect(offer.price / toman).toBe(10);
+    });
+
+    it('keeps the Offer price and its UnitPriceSpecification in lockstep', () => {
+      // Two places carry the same number; a fix applied to one and not the
+      // other is a self-contradicting offer.
+      const offer = offerOf(productJsonLd({ ...base, available: true }))!;
+      expect(offer.price).toBe(offer.priceSpecification.price);
+      expect(offer.priceCurrency).toBe(offer.priceSpecification.priceCurrency);
+    });
+  });
+
+  it('gives the offer its own absolute canonical URL', () => {
+    const offer = offerOf(productJsonLd({ ...base, available: true }))!;
+    expect(offer.url).toBe('https://ahantime.com/prices/rebar/deformed/x');
+  });
+
+  it('bounds priceValidUntil to a near date — steel prices move daily', () => {
+    const offer = offerOf(productJsonLd({ ...base, available: true }))!;
+    expect(offer.priceValidUntil).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    const days = (Date.parse(offer.priceValidUntil) - Date.now()) / 864e5;
+    expect(days).toBeGreaterThan(0);
+    expect(days).toBeLessThanOrEqual(7);
+  });
+});
+
+describe('breadcrumbJsonLd', () => {
+  type Entry = { '@type': string; position: number; name: string; item?: string };
+  const listOf = (o: ReturnType<typeof breadcrumbJsonLd>) => o.itemListElement as Entry[];
+
+  it('gives EVERY ListItem an item — the last one included', () => {
+    // Regression (GSC, 1405/05): the terminal crumb was emitted name-only, so
+    // the one node in the trail that identifies the page being ranked had no
+    // resolvable URL.
+    const list = listOf(
+      breadcrumbJsonLd([
+        { name: 'خانه', url: '/' },
+        { name: 'قیمت‌ها', url: '/prices' },
+        { name: 'لوله', url: '/prices/pipe' },
+      ]),
+    );
+    expect(list).toHaveLength(3);
+    for (const e of list) expect(e.item).toBeTruthy();
+    expect(list[2]!.item).toBe('https://ahantime.com/prices/pipe');
+  });
+
+  it('resolves every item to an absolute same-origin URL', () => {
+    const list = listOf(
+      breadcrumbJsonLd([
+        { name: 'خانه', url: '/' },
+        { name: 'x', url: '/x' },
+      ]),
+    );
+    for (const e of list) expect(e.item).toMatch(/^https:\/\/ahantime\.com\//);
+  });
+
+  it('drops a URL-less crumb and renumbers, keeping position contiguous', () => {
+    // `/tools/[tool]` renders an «ابزارها» crumb for a section with no index
+    // page (`/tools` is a real 404). A name-only middle node, or a gap in
+    // `position`, invalidates the list.
+    const list = listOf(
+      breadcrumbJsonLd([
+        { name: 'خانه', url: '/' },
+        { name: 'ابزارها' },
+        { name: 'محاسبه وزن', url: '/tools/weight' },
+      ]),
+    );
+    expect(list.map((e) => e.position)).toEqual([1, 2]);
+    expect(list.map((e) => e.name)).toEqual(['خانه', 'محاسبه وزن']);
   });
 });
 

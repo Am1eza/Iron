@@ -212,7 +212,7 @@ export default async function PrivacyPage() {
   const sections = buildSections(CONTACT);
   const crumbs = [
     { label: 'خانه', href: routes.home() },
-    { label: 'حریم خصوصی' },
+    { label: 'حریم خصوصی', href: routes.privacy() },
   ];
 
   return (

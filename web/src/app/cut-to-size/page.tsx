@@ -49,7 +49,7 @@ const STEPS: { n: string; title: string; body: string }[] = [
 
 const crumbs = [
   { label: 'خانه', href: routes.home() },
-  { label: 'کالا با ابعاد درخواستی' },
+  { label: 'کالا با ابعاد درخواستی', href: routes.cutToSize() },
 ];
 
 export default function CutToSizePage() {

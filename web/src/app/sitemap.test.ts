@@ -23,6 +23,7 @@ import { resolve } from 'node:path';
 import { STATIC_INDEXABLE, routes } from '@/lib/routes';
 import { MOCK_CATEGORY_SUBS } from '@/lib/data/nav';
 import { NEWS_TOPICS } from '@/lib/data/newsTopics';
+import type * as RedirectsRepo from '@/lib/server/repos/redirectsRepo';
 
 const catalog = vi.hoisted(() => ({
   isLiveCatalog: vi.fn(() => false),
@@ -35,6 +36,17 @@ const catalog = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/server/catalog', () => catalog);
+
+/** The redirect table is a second, independent source of "do not advertise
+ *  this URL" — see `dropRedirectedEntries`. `normalizePath` stays real. */
+const redirectsRepo = vi.hoisted(() => ({
+  listRedirectFromPaths: vi.fn(async () => new Set<string>()),
+}));
+
+vi.mock('@/lib/server/repos/redirectsRepo', async (importOriginal) => ({
+  ...(await importOriginal<typeof RedirectsRepo>()),
+  ...redirectsRepo,
+}));
 
 /** What the seam really returns in mock mode — the fixtures themselves. */
 function useMockCatalog() {
@@ -73,6 +85,7 @@ const paths = (entries: Array<{ url: string }>) => entries.map((e) => new URL(e.
 
 beforeEach(() => {
   vi.clearAllMocks();
+  redirectsRepo.listRedirectFromPaths.mockResolvedValue(new Set<string>());
 });
 
 afterEach(() => {
@@ -202,7 +215,6 @@ describe('sitemap · /blog/category/* entries (US-14.5)', () => {
   });
 });
 
-
 describe('sitemap · /news/topic/* entries', () => {
   beforeEach(() => {
     catalog.isLiveCatalog.mockReturnValue(true);
@@ -252,5 +264,84 @@ describe('sitemap · is not prerenderable', () => {
     // this module a file: URL.
     const src = readFileSync(resolve(process.cwd(), 'src/app/sitemap.ts'), 'utf8');
     expect(src).not.toMatch(/^export const (revalidate|dynamic\s*=\s*'force-static')/m);
+  });
+});
+
+describe('sitemap · a URL the site redirects away is never advertised', () => {
+  beforeEach(() => {
+    catalog.isLiveCatalog.mockReturnValue(true);
+    catalog.getCategories.mockResolvedValue([
+      { id: 'cat-profile', slug: 'profile', name: 'پروفیل', order: 0, isActive: true },
+    ]);
+    catalog.getSubsMap.mockResolvedValue({
+      profile: [
+        { slug: 'prvfyl-snaty', name: 'پروفیل صنعتی' },
+        { slug: 'profil-sotuni', name: 'پروفیل ستونی' },
+      ],
+    });
+    catalog.getRows.mockResolvedValue([]);
+    catalog.getAllPublishedArticles.mockResolvedValue([]);
+    catalog.getCategoryArticleCounts.mockResolvedValue({});
+    catalog.getNewsTopicArticleCounts.mockResolvedValue({});
+  });
+
+  // The real production case (1405/05/31): three `is_active = true`
+  // sub-categories under پروفیل were published in the sitemap and 308'd back
+  // to `/prices/profile` by rows left over from the taxonomy re-slug. The
+  // catalog queries cannot see that — only the redirect table can.
+  it('drops a live sub-category that a redirect row shadows', async () => {
+    redirectsRepo.listRedirectFromPaths.mockResolvedValue(
+      new Set(['/prices/profile/prvfyl-snaty']),
+    );
+    const { default: sitemap } = await loadSitemap();
+
+    const got = paths(await sitemap());
+
+    expect(got).not.toContain('/prices/profile/prvfyl-snaty');
+    expect(got).toContain('/prices/profile/profil-sotuni');
+    expect(got).toContain('/prices/profile');
+  });
+
+  it('drops a redirected static route too, not just catalog URLs', async () => {
+    redirectsRepo.listRedirectFromPaths.mockResolvedValue(new Set(['/cut-to-size']));
+    const { default: sitemap } = await loadSitemap();
+
+    expect(paths(await sitemap())).not.toContain('/cut-to-size');
+  });
+
+  it('changes nothing when no redirects are configured', async () => {
+    const { default: sitemap } = await loadSitemap();
+
+    const got = paths(await sitemap());
+
+    expect(got).toContain('/prices/profile/prvfyl-snaty');
+    expect(got).toContain('/prices/profile/profil-sotuni');
+  });
+});
+
+describe('dropRedirectedEntries', () => {
+  const entry = (path: string) => ({ url: `https://ahantime.com${path}` });
+
+  it('matches on the pathname, ignoring the origin', async () => {
+    const { dropRedirectedEntries } = await loadSitemap();
+
+    const got = dropRedirectedEntries([entry('/a'), entry('/b')], new Set(['/a']));
+
+    expect(got.map((e) => e.url)).toEqual(['https://ahantime.com/b']);
+  });
+
+  it('normalizes the pathname the same way middleware looks it up', async () => {
+    // `normalizePath` strips a trailing slash; a stored `/a` must still match
+    // an entry emitted as `/a/`, or the filter silently misses.
+    const { dropRedirectedEntries } = await loadSitemap();
+
+    expect(dropRedirectedEntries([entry('/a/')], new Set(['/a']))).toEqual([]);
+  });
+
+  it('returns the input untouched for an empty redirect set', async () => {
+    const { dropRedirectedEntries } = await loadSitemap();
+    const input = [entry('/a')];
+
+    expect(dropRedirectedEntries(input, new Set())).toBe(input);
   });
 });

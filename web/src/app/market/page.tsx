@@ -30,7 +30,10 @@ export const metadata: Metadata = buildMetadata({
 // revalidatePath call exists for category admin writes yet).
 export const revalidate = 300;
 
-const crumbs = [{ label: 'خانه', href: routes.home() }, { label: 'طلا، ارز و شمش' }];
+const crumbs = [
+  { label: 'خانه', href: routes.home() },
+  { label: 'طلا، ارز و شمش', href: routes.market() },
+];
 
 /** The one published article that actually walks through how دلار moves a
  *  finished-product price (سازوکار قیمت ورق) — closest existing match to

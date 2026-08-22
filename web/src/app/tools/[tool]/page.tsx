@@ -59,7 +59,11 @@ export default async function ToolPage({ params }: Params) {
   if (!isToolSlug(tool)) notFound();
 
   const t = TOOLS[tool];
-  const crumbs = [{ label: 'خانه', href: routes.home() }, { label: 'ابزارها' }, { label: t.title }];
+  const crumbs = [
+    { label: 'خانه', href: routes.home() },
+    { label: 'ابزارها' },
+    { label: t.title, href: routes.tool(tool) },
+  ];
 
   return (
     <Container>
