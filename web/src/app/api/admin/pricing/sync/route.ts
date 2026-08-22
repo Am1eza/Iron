@@ -9,6 +9,7 @@ import {
 } from '@/lib/server/repos/priceSyncRepo';
 import { priceSyncScope, runPriceSync } from '@/lib/server/services/priceSync.service';
 import { getPriceSyncConfig } from '@/lib/server/repos/settingsRepo';
+import { safeRevalidatePath } from '@/lib/server/utils/revalidate';
 import { reportError } from '@/lib/errors/report';
 
 /**
@@ -76,7 +77,20 @@ async function POSTImpl(req: NextRequest) {
   after(() =>
     runPriceSync({ trigger: 'manual', force: true })
       .then((s) => {
-        if (s.status === 'failed') reportError(new Error(s.error ?? 'price sync failed'), { scope: 'priceSync.manual' });
+        if (s.status === 'failed') {
+          reportError(new Error(s.error ?? 'price sync failed'), { scope: 'priceSync.manual' });
+          return;
+        }
+        // The cache bust lives HERE rather than in the service: this is the one
+        // caller that runs inside a Next.js request, so `revalidatePath` has a
+        // rendering context to act on. The cron script does not, which is why
+        // the service deliberately never calls it (see its comment). Home reads
+        // the same rows as /prices but sits outside that subtree, so it needs
+        // its own bust — same pair the admin bulk-save route purges.
+        if (s.written > 0) {
+          safeRevalidatePath('/prices', 'layout');
+          safeRevalidatePath('/', 'page');
+        }
       })
       .catch((err) => reportError(err, { scope: 'priceSync.manual' })),
   );

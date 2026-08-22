@@ -40,7 +40,6 @@ import {
 } from '@/lib/server/repos/priceSyncRepo';
 import { getPriceSyncConfig, type PriceSyncConfig } from '@/lib/server/repos/settingsRepo';
 import { jalaliDayKey } from '@/lib/server/utils/jalali';
-import { safeRevalidatePath } from '@/lib/server/utils/revalidate';
 import { evaluateAlerts } from '@/lib/server/services/alerts.service';
 import { reportError } from '@/lib/errors/report';
 
@@ -264,13 +263,19 @@ export async function runPriceSync(opts: RunPriceSyncOptions = {}): Promise<Pric
     });
 
     if (written > 0) {
-      // Same post-save work the admin bulk-save route does: re-evaluate price
-      // alerts customers subscribed to, then bust the ISR cache on both pages
-      // that render these numbers.
+      // Re-evaluate the price alerts customers subscribed to, the same thing
+      // the admin bulk-save route does after a save.
       await evaluateAlerts().catch((err) => reportError(err, { scope: 'priceSync', stage: 'evaluateAlerts' }));
-      safeRevalidatePath('/prices', 'layout');
-      safeRevalidatePath('/', 'page');
     }
+    // Deliberately NO revalidatePath() here — the same call publishArticles.job
+    // documents leaving out, for the same reason. The primary caller is
+    // `scripts/priceSync.ts`, a standalone process with no Next.js rendering
+    // context, so the call could only ever be a no-op there; worse, statically
+    // importing `next/cache` drags Next's tracer (and its optional
+    // `@opentelemetry/api`) into that script's esbuild bundle and fails the
+    // image build outright. The /prices pages carry their own 300s ISR window,
+    // so a cron-written price surfaces within five minutes. The admin's manual
+    // trigger DOES run inside a request, and its route busts the cache itself.
 
     return {
       runId,
