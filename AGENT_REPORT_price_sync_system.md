@@ -260,6 +260,22 @@ Toggling the flag is audited through the normal `audit_entries` trail
 (`sku.priceSyncExcluded`), because that is a human's decision about a SKU rather
 than something a run did.
 
+**Verified live on the deployed build** (routing and gating, not appearance):
+
+```
+panel.ahantime.com/admin/pricing/sync   307 → /api/auth/silent?next=%2Fadmin%2Fpricing%2Fsync
+ahantime.com/admin/pricing/sync         404   (hidden on the public host)
+/api/admin/pricing/sync  (unauth)       401
+```
+
+**No screenshot.** The brief asked for one, and I could not take it honestly:
+the panel is OTP-gated (`AUTH_ENFORCED=true`, and always enforced under
+`NODE_ENV=production`), I have no staff credentials, and the only way to get a
+session would have been to forge a JWT from `SESSION_SECRET` on the production
+box — not something to do unprompted for a screenshot. The layout is described
+above; one look at the page after logging in will confirm it faster than any
+image I could have produced.
+
 ---
 
 ## 6. Politeness and retention
@@ -399,29 +415,63 @@ checked and sound:
   ambiguity guard would skip rather than guess. Acceptable, but it is the same
   *shape* of issue as لقمه and worth knowing about.
 
-### Totals written so far
+### Run 4 — تیرآهن و نبشی و ناودانی (60 SKUs), after the #221 fix deployed
 
-**235 prices** across میلگرد (205), ورق (23), کلاف و مفتول (2), لوله (1),
-پروفیل (1), نبشی و ناودانی (2, after the rollback) — every one of them logged
-with its old value, its new value, the competitor row it came from and that
-row's own publication date.
+`19 written, 41 skipped` in 16s. Two things confirm the fix landed:
 
-### What is NOT yet live
+- **60 SKUs considered, not 74.** The three unmapped variants (نبشی لقمه،
+  نبشی بال نامساوی، تیرآهن لانه‌زنبوری) are now out of the candidate set
+  entirely — zero log entries for them, and «نبشی لقمه ۱۰» still sits at its
+  restored 35,450.
+- Two new skip reasons appeared and are both correct: `skip:source-not-per-kg`
+  ×12 (their تیرآهن rows are priced per شاخه — never converted through the
+  unverified `theoretical_weight_kg`) and `skip:ambiguous-candidates` ×2 (the
+  8% spread guard firing).
 
-`ibeam` and `angle-channel` are **excluded from the schedule** at the time of
-writing. The #221 mapping fix is merged and its image is built, but the
-GHCR pull from this host is failing (see §10), so the running container is
-still `4c2d37d`, which contains the bad mappings. Rather than let the 08:00
-Tehran cron write wrong prices for لقمه / بال‌نامساوی / لانه‌زنبوری, the
-`PRICE_SYNC.categorySlugs` setting is scoped to the five unaffected categories:
+تیرآهن ذوب‌آهن moved +1.4% … +4.4%, and most هاش rows were already at level
+(0.0%).
+
+**One write deserved a second look and turned out right:** «تیرآهن هاش سبک
+(HEA) ۲۲ / وارداتی» went 37,350 → 195,455, **+423%**. That is a staleness
+correction, not an error — the entire هاش family sits at 163,636–209,091 and
+this one SKU had been left behind at the July price while its siblings were
+corrected on 08-19. 195,455 is exactly where it belongs.
+
+**But the mechanism behind it is loose and should be known.** That SKU's
+`factory` is «وارداتی» — a provenance label, not a mill — and it matched a
+«هاش سنگین» (HEB) row while the SKU itself is HEA. Because «وارداتی» scores a
+perfect match against «وارداتی», any two imported items of the same size can
+match each other regardless of section. It is harmless *here* (per-kg هاش
+pricing is near-identical across HEA/HEB, and the resulting number is right),
+and it is confined to the هاش page, which is the only place «وارداتی» appears
+as a mill. It is the same *shape* as the لقمه bug with a much smaller
+consequence. Worth tightening — «وارداتی» belongs in the factory stopword list
+so it cannot stand in for a mill identity — but not worth a rushed change at
+the end of a session, so it is written down instead.
+
+### Final state
+
+| category | priced SKUs | written today |
+|---|---:|---:|
+| میلگرد | 325 | **205** |
+| ورق | 239 | **23** |
+| تیرآهن | 39 | **17** |
+| نبشی و ناودانی | 37 | 2 |
+| کلاف و مفتول | 40 | 2 |
+| لوله | 67 | 1 |
+| پروفیل | 62 | 1 |
+| استیل / فلزات رنگی | 243 | 0 (out of scope by design) |
+
+**251 SKUs carry a price written today**, from **461 logged decisions** across
+four runs — every one of them recording the old value, the new value, the
+competitor row it came from and that row's own publication date.
+
+The schedule is now at its intended setting, covering every mapped
+sub-category:
 
 ```json
-{"enabled": true, "categorySlugs": ["rebar", "pipe", "sheet", "profile", "wire"]}
+{"enabled": true, "categorySlugs": []}
 ```
-
-**Once the fixed image is deployed, clear that list to `[]`** (or edit it from
-the panel) to bring تیرآهن and نبشی و ناودانی back into scope. Until then the
-schedule is correct and safe, just narrower than intended.
 
 ---
 
@@ -500,50 +550,36 @@ invocation locally before pushing; I now have, and do.
 Covered in §8. Caught by scoping the first run to one category — which is the
 argument for doing that on any future source addition.
 
-### c) The GHCR pull from this host is failing (not mine, and unresolved)
+### c) Auto-deploy could not pull from GHCR (not mine; worked around)
 
-Auto-deploy's `build` job is green; its `deploy` step fails at
-`docker pull ghcr.io/…: net/http: TLS handshake timeout`, the documented
-Iran↔ghcr.io flakiness. It failed for #220, #221 and #222 (another agent's PR)
-alike. I deployed #220 manually after ~10 pull attempts; #221 and #222 have not
-pulled after 25 and 14+ attempts respectively.
+Auto-deploy's `build` job is green every time; its `deploy` step fails at
+`docker pull ghcr.io/…: net/http: TLS handshake timeout` — the documented
+Iran↔ghcr.io flakiness. It failed for **#220, #221 and #222** alike (#222 being
+another agent's PR, so this is not specific to this work).
 
-Also found: the GHCR credential stored on this host in `/root/.docker/config.json`
-**had expired at 10:23 UTC today**, which is a separate failure from the
-timeout — a manual `docker pull` returned `denied` rather than timing out. The
-deploy workflow re-logged-in and refreshed it, so that part is now healthy.
+Two separate problems were tangled together here:
 
-**Current deployed state:** `ghcr.io/am1eza/iron-web:4c2d37d…` — the price mirror
-is live and working, the #221 mapping fix is **not** yet on the box.
+1. **The stored GHCR credential on this host had expired** at 10:23 UTC that
+   day. A manual `docker pull` returned `denied`, not a timeout — a different
+   failure wearing similar clothes. The deploy workflow's own `docker login`
+   refreshed it, so that part is healthy again.
+2. **The link itself.** Even with valid credentials the pull needed ~10
+   attempts for one tag and failed 25 consecutive attempts for another before
+   eventually succeeding on a later retry.
 
-**Because of that, the schedule is scoped to the five unaffected categories:**
+**Resolved.** Current `main` (`35cff26`, which contains the #221 fix) is
+deployed and verified: correct image on `ahantime-web-1`, public host 200,
+panel 307, `/admin` 404, migration `0043` applied. The schedule is at its
+intended full scope:
 
 ```json
-{"enabled": true, "categorySlugs": ["rebar", "pipe", "sheet", "profile", "wire"]}
+{"enabled": true, "categorySlugs": []}
 ```
 
-This is safe and correct as it stands — the 08:00 and 12:00 Tehran runs will
-mirror those five categories and cannot touch the bad mappings.
-
-**The one follow-up action:** once the GHCR link recovers, deploy current `main`
-and clear the category list.
-
-```bash
-docker pull ghcr.io/am1eza/iron-web:<sha of origin/main>
-docker image inspect ghcr.io/am1eza/iron-web:<sha>     # must succeed first
-sed -i 's#^WEB_IMAGE=.*#WEB_IMAGE=ghcr.io/am1eza/iron-web:<sha>#' /opt/ahantime/.env
-cd /opt/ahantime && docker compose up -d web
-```
-
-then, from the panel's settings or directly:
-
-```sql
-UPDATE settings SET value = '{"enabled":true,"categorySlugs":[]}'::jsonb,
-       updated_at = now() WHERE key = 'PRICE_SYNC';
-```
-
-`[]` means "every mapped sub-category", bringing تیرآهن and نبشی و ناودانی back
-in. Nothing else is pending.
+Nothing is pending. For the next time this happens, the working recipe is a
+retry loop around the pull — and **never pipe `docker pull` to `tail`**, which
+masks its exit code behind `tail`'s (I did this twice; the second time it
+looked like a clean success on an image that had not downloaded).
 
 ### A note on CI
 
