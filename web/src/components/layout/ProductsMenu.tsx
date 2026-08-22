@@ -191,11 +191,19 @@ export function ProductsMenu({ categories, subs }: { categories: Category[]; sub
                     onFocus={() => setActiveSlug(cat.slug)}
                     onKeyDown={(e) => onRailKeyDown(e, i)}
                   >
+                    {/* `CategoryArt` is asked for 20, not the 22 it used to
+                        get: `.railThumb > *` stretches the svg to fill the box
+                        either way, so this prop picks the DRAWING, not the
+                        display size. At 20 and below the icon set switches to
+                        its micro master, and this rail is exactly the dense
+                        case that master exists for. With the full master at
+                        22, the pipe category crowded into a solid blob and the
+                        wire/coil one read the same as the flange one. */}
                     <span className={styles.railThumb} aria-hidden="true">
                       {productImage(cat.slug) ? (
                         <ProductImage slug={cat.slug} name={cat.name} variant="thumb" />
                       ) : (
-                        <CategoryArt slug={cat.slug} size={22} />
+                        <CategoryArt slug={cat.slug} size={20} />
                       )}
                     </span>
                     <span className={styles.railName}>{cat.name}</span>
