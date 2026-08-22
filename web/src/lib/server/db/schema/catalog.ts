@@ -146,6 +146,13 @@ export const skus = pgTable(
     // per row. Also the length a `branch`/`coil` price basis refers to.
     branchLengthM: doublePrecision('branch_length_m'),
     imageUrl: text('image_url'),
+    // Manual price override — «قیمت این کالا دستی است، خودکار به‌روزرسانی نشود».
+    // The automated mirror (priceSync.service.ts) skips any SKU flagged here
+    // and records the skip, so a deliberately hand-entered price is never
+    // silently clobbered by the next twice-daily run. Defaults to false:
+    // auto-sync applies to everything unless an admin explicitly opts a SKU
+    // out, which is the owner's stated default.
+    priceSyncExcluded: boolean('price_sync_excluded').notNull().default(false),
     isActive: boolean('is_active').notNull().default(true),
     // A SKU has exactly one home (subCategoryId/categoryId above) — that's
     // what its URL is built from. This is an ADDITIONAL, non-exclusive tag:

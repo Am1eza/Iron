@@ -48,6 +48,7 @@ const NAV_GROUPS: Array<{
     title: 'سایت',
     items: [
       { href: routes.admin.pricing(), label: 'قیمت‌گذاری' },
+      { href: routes.admin.priceSync(), label: 'به‌روزرسانی خودکار' },
       { href: routes.admin.catalog(), label: 'کاتالوگ' },
       { href: routes.admin.content(), label: 'محتوا' },
       { href: routes.admin.seo(), label: 'سئو' },

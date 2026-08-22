@@ -122,6 +122,7 @@ export const routes = {
     dashboard: () => '/admin',
     desk: () => '/admin/desk',
     pricing: () => '/admin/pricing',
+    priceSync: () => '/admin/pricing/sync',
     alerts: () => '/admin/alerts',
     catalog: () => '/admin/catalog',
     leads: () => '/admin/leads',

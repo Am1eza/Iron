@@ -26,6 +26,80 @@ export type AdminComment = {
   articleType: 'blog' | 'news';
 };
 
+/**
+ * Wire shapes for the automated price mirror's admin surface (US-02.5).
+ * Declared here rather than imported from `priceSyncRepo` so no server code
+ * is pulled into the client bundle — the same rule `AdminComment` follows.
+ */
+export interface PriceSyncEntry {
+  id: string;
+  runId: string;
+  skuId: string;
+  skuName: string;
+  skuSlug: string;
+  categoryName: string;
+  categorySlug: string;
+  subCategoryName: string;
+  factory: string | null;
+  outcome: 'written' | 'skipped';
+  reason: string;
+  oldPrice: number | null;
+  newPrice: number | null;
+  source: string;
+  matchedName: string | null;
+  matchedFactory: string | null;
+  matchedCode: string | null;
+  matchedUnit: string | null;
+  sourceUpdatedAt: string | null;
+  confidence: string;
+  appliedAt: string;
+  excluded: boolean;
+}
+
+export interface PriceSyncRun {
+  id: string;
+  source: string;
+  trigger: 'cron' | 'manual';
+  status: 'running' | 'ok' | 'failed';
+  startedAt: string;
+  finishedAt: string | null;
+  sourceRows: number;
+  consideredSkus: number;
+  written: number;
+  skipped: number;
+  error: string | null;
+}
+
+export interface PriceSyncExcludedSku {
+  id: string;
+  name: string;
+  slug: string;
+  factory: string | null;
+  categoryName: string;
+  subCategoryName: string;
+}
+
+export interface PriceSyncLogResponse {
+  entries: PriceSyncEntry[];
+  nextCursor: string | null;
+  runs: PriceSyncRun[];
+  config: {
+    enabled: boolean;
+    categorySlugs: string[];
+    minPriceToman: number;
+    maxPriceToman: number;
+    maxCandidateSpreadPct: number;
+    maxSourceAgeDays: number;
+  };
+  scope: Array<{
+    categorySlug: string;
+    categoryName: string;
+    subCategoryName: string;
+    skuCount: number;
+  }>;
+  breakdown: Array<{ reason: string; count: number }>;
+}
+
 /** Every field is scoped to the caller's permissions server-side — a field is
  * simply absent if the current role can't see that domain (e.g. a content
  * editor never receives `stalePrices` or `totalUsers`). */
@@ -473,6 +547,27 @@ export const adminApi = {
     http.get<{ points: PricePoint[]; range: string }>(
       `/api/admin/pricing/history/${encodeURIComponent(slug)}?range=${encodeURIComponent(range)}`,
     ),
+
+  /* automated price mirroring (US-02.5) */
+  priceSync: {
+    log: (params: { run?: string; outcome?: 'written' | 'skipped'; cat?: string; cursor?: string } = {}) => {
+      const qs = new URLSearchParams();
+      if (params.run) qs.set('run', params.run);
+      if (params.outcome) qs.set('outcome', params.outcome);
+      if (params.cat) qs.set('cat', params.cat);
+      if (params.cursor) qs.set('cursor', params.cursor);
+      const suffix = qs.toString() ? `?${qs}` : '';
+      return http.get<PriceSyncLogResponse>(`/api/admin/pricing/sync${suffix}`);
+    },
+    /** 202 — the pass runs in the background; poll `log()` for the result. */
+    runNow: () => http.post<{ started: true }>('/api/admin/pricing/sync', { confirm: true }),
+    exclusions: () => http.get<{ skus: PriceSyncExcludedSku[] }>('/api/admin/pricing/sync/exclusions'),
+    setExcluded: (skuId: string, excluded: boolean) =>
+      http.patch<{ skuId: string; excluded: boolean }>('/api/admin/pricing/sync/exclusions', {
+        skuId,
+        excluded,
+      }),
+  },
 
   /* leads / crm */
   leads: (

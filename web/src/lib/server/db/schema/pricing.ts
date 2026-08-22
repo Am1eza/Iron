@@ -8,6 +8,7 @@ import {
   boolean,
   doublePrecision,
   index,
+  integer,
   pgTable,
   text,
   timestamp,
@@ -61,4 +62,83 @@ export const pricePoints = pgTable(
     at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('price_points_sku_at_idx').on(t.skuId, t.at)],
+);
+
+/**
+ * Automated price mirroring (US-02.5) — the durable trail behind every price
+ * this site writes WITHOUT a human typing it.
+ *
+ * The mirror job runs unattended twice a day and writes straight into
+ * `current_prices`; there is deliberately no draft/approval step. That makes
+ * this log the only way anyone notices a bad automated write after the fact,
+ * so it records the SKIPS too, each with the reason. "Nothing happened to
+ * this SKU" and "this SKU was never even looked at" are very different facts
+ * when you are trying to explain a wrong number on the site.
+ */
+export const PRICE_SYNC_SOURCES = ['ahanonline'] as const;
+export const PRICE_SYNC_RUN_STATUSES = ['running', 'ok', 'failed'] as const;
+export const PRICE_SYNC_TRIGGERS = ['cron', 'manual'] as const;
+export const PRICE_SYNC_OUTCOMES = ['written', 'skipped'] as const;
+/** How well the competitor's row identified our SKU. Only `exact` is ever
+ *  written — see `priceSync.match.ts` for why the others are not. */
+export const PRICE_SYNC_CONFIDENCES = ['exact', 'fuzzy', 'uncertain', 'none'] as const;
+
+export const priceSyncRuns = pgTable(
+  'price_sync_runs',
+  {
+    id: text('id').primaryKey(),
+    source: text('source', { enum: PRICE_SYNC_SOURCES }).notNull(),
+    trigger: text('trigger', { enum: PRICE_SYNC_TRIGGERS }).notNull().default('cron'),
+    status: text('status', { enum: PRICE_SYNC_RUN_STATUSES }).notNull().default('running'),
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
+    /** Priced rows parsed off the competitor's category pages. */
+    sourceRows: integer('source_rows').notNull().default(0),
+    /** Active SKUs the matcher actually looked at. */
+    consideredSkus: integer('considered_skus').notNull().default(0),
+    written: integer('written').notNull().default(0),
+    skipped: integer('skipped').notNull().default(0),
+    error: text('error'),
+  },
+  (t) => [index('price_sync_runs_started_idx').on(t.startedAt)],
+);
+
+export const priceSyncEntries = pgTable(
+  'price_sync_entries',
+  {
+    id: text('id').primaryKey(),
+    runId: text('run_id')
+      .notNull()
+      .references(() => priceSyncRuns.id, { onDelete: 'cascade' }),
+    // Same reasoning as `price_points`: a per-SKU record of what a job did to
+    // a SKU is meaningless once that SKU is gone.
+    skuId: text('sku_id')
+      .notNull()
+      .references(() => skus.id, { onDelete: 'cascade' }),
+    outcome: text('outcome', { enum: PRICE_SYNC_OUTCOMES }).notNull(),
+    /** A STABLE machine code (`write:exact`, `skip:no-size-match`), not prose —
+     *  the Persian sentence lives in the admin UI so it can be reworded later
+     *  without rewriting history. */
+    reason: text('reason').notNull(),
+    oldPrice: bigint('old_price', { mode: 'number' }),
+    newPrice: bigint('new_price', { mode: 'number' }),
+    source: text('source', { enum: PRICE_SYNC_SOURCES }).notNull(),
+    /** What we matched against, verbatim from the competitor's row — the
+     *  evidence for "is this actually the same product?". */
+    matchedName: text('matched_name'),
+    matchedFactory: text('matched_factory'),
+    matchedCode: text('matched_code'),
+    matchedUnit: text('matched_unit'),
+    /** Their own «تاریخ بروزرسانی» for the row, as published (Jalali text). */
+    sourceUpdatedAt: text('source_updated_at'),
+    confidence: text('confidence', { enum: PRICE_SYNC_CONFIDENCES }).notNull(),
+    appliedAt: timestamp('applied_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('price_sync_entries_run_idx').on(t.runId, t.outcome),
+    index('price_sync_entries_sku_idx').on(t.skuId, t.appliedAt),
+    // Backs the admin log's keyset pagination (newest first) — the same shape
+    // `audit_entries_at_id_idx` exists for.
+    index('price_sync_entries_applied_idx').on(t.appliedAt, t.id),
+  ],
 );

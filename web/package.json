@@ -23,7 +23,8 @@
     "db:migrate": "node scripts/migrate.mjs",
     "db:seed": "tsx scripts/seed.ts",
     "db:studio": "drizzle-kit studio",
-    "jobs:dev": "tsx scripts/jobs.ts"
+    "jobs:dev": "tsx scripts/jobs.ts",
+    "price-sync": "tsx scripts/priceSync.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

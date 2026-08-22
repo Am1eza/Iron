@@ -35,11 +35,17 @@ export function AdminNavLinks({ groups, variant }: { groups: NavGroup[]; variant
     return (s.newLeads ?? 0) + (s.newMessages ?? 0) + (s.openRequests ?? 0);
   };
 
+  // Every nav href the current path is a prefix-match for. With a nested item
+  // in the list («قیمت‌گذاری» and «به‌روزرسانی خودکار» = /admin/pricing and
+  // /admin/pricing/sync) a plain startsWith lights up BOTH; only the longest —
+  // i.e. most specific — match is the page you are on.
+  const hrefs = groups.flatMap((g) => g.items.map((i) => i.href));
+  const bestMatch = hrefs
+    .filter((h) => h !== '/admin' && (pathname === h || (pathname?.startsWith(`${h}/`) ?? false)))
+    .sort((a, b) => b.length - a.length)[0];
+
   const renderItem = (item: { href: string; label: string; badge?: 'inbound' | 'alerts' }) => {
-    const active =
-      item.href === '/admin'
-        ? pathname === '/admin'
-        : pathname === item.href || (pathname?.startsWith(`${item.href}/`) ?? false);
+    const active = item.href === '/admin' ? pathname === '/admin' : item.href === bestMatch;
     const count = badgeCount(item.badge);
     return (
       <Link

@@ -48,8 +48,17 @@ async function lastDifferentDayPrice(tx: DbOrTx, skuId: string, now: Date): Prom
   return rows.find((r) => !isSameJalaliDay(r.at, now))?.price ?? null;
 }
 
-/** Save one price (in an existing transaction when part of a bulk save). */
-export async function savePrice(actorId: string, input: SavePriceInput): Promise<SavePriceResult> {
+/**
+ * Save one price (in an existing transaction when part of a bulk save).
+ *
+ * `actorId` is nullable because the automated price mirror (US-02.5) has no
+ * staff account behind it. Both columns it lands in already model that:
+ * `current_prices.updated_by` is nullable, and `audit_entries.actor_id`
+ * documents null as "system job". A synthetic user row would have been the
+ * alternative and would read as a person in every «چه کسی» column in the
+ * panel — which is exactly the fact the owner needs to see at a glance.
+ */
+export async function savePrice(actorId: string | null, input: SavePriceInput): Promise<SavePriceResult> {
   // W23 review fix: `bulkPayload` at the route layer is the only validation
   // this function could previously rely on — this is documented as also
   // serving "AI/admin tools" as a direct callsite, which wouldn't go through
@@ -182,7 +191,7 @@ const BULK_SAVE_CONCURRENCY = 5;
  * reports the failures"). Results are returned in the same order as `inputs`.
  */
 export async function savePrices(
-  actorId: string,
+  actorId: string | null,
   inputs: SavePriceInput[],
 ): Promise<SavePricesRowResult[]> {
   const out: SavePricesRowResult[] = new Array(inputs.length);
