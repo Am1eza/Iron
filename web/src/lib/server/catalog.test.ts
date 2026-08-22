@@ -139,9 +139,16 @@ describe('catalog reads', () => {
     expect(beams.length).toBeGreaterThan(0);
     expect(beams.every((r) => r.categoryId === 'ibeam')).toBe(true);
 
+    // «ناودونی» resolves to «ناودانی», which matches the CATEGORY name
+    // «نبشی و ناودانی» as well as the ناودانی rows themselves — so the hit set
+    // is the category, exactly like the `هاش` case above. This used to assert
+    // `name.includes('ناودانی')` on EVERY row and passed only because the
+    // seeder glued the compound category label onto every product name
+    // («نبشی و ناودانی سپری ۵»); see `composeCatalogSkuName`.
     const channels = await searchSkus('ناودونی');
     expect(channels.length).toBeGreaterThan(0);
-    expect(channels.every((r) => r.name.includes('ناودانی'))).toBe(true);
+    expect(channels.every((r) => r.categoryId === 'angle-channel')).toBe(true);
+    expect(channels.some((r) => r.name.includes('ناودانی'))).toBe(true);
 
     const sheets = await searchSkus('ورقه');
     expect(sheets.length).toBeGreaterThan(0);
