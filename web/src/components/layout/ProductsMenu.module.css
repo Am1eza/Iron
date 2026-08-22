@@ -141,21 +141,46 @@
   align-items: baseline;
   gap: var(--space-5);
 }
-/* The category's description. Clamped to TWO lines, and bounded in width:
-   the copy is admin-editable, so the layout has to survive someone writing
-   three sentences. Clamping degrades that by truncating instead of by pushing
-   the sub-category flow down the panel — the menu's whole point is that its
-   height does not depend on what a category contains. */
+/* The category's description, as a CAPTION under the title — not a paragraph
+   in front of the menu.
+
+   The copy is admin-editable and the nine authored lines run 158–199
+   characters, so the layout still has to survive someone writing three
+   sentences: the clamp stays, because degrading by truncation is better than
+   pushing the sub-category flow down a panel whose whole point is that its
+   height does not depend on what a category contains.
+
+   What changed is that the clamp used to fire on EVERY category. At 62ch and
+   two lines the box held ~122 characters, so all nine descriptions — the
+   shortest included — ended mid-phrase with an ellipsis: «…خریدارش کارگاه
+   ساختمانی و». A sentence that never finishes reads as scraped keyword copy
+   however good the sentence is, and an answer engine lifting the rendered
+   text got a fragment. 74ch × 3 lines holds ~215, which clears the longest
+   line authored today with room to spare, so the whole sentence is visible
+   and the clamp is back to being the safety net it was meant to be.
+
+   The type is the other half: 400 rather than --t-caption's 500 and a leading
+   of 1.45 rather than 1.6, so three lines read as one quiet block of caption
+   rather than as body prose competing with the --t-h2 above it, and cost only
+   ~15px more head height than the two truncated lines did. It now sits alone
+   in its band — lighter than the 12/600 group labels, smaller and muted
+   against the 14/400 links.
+
+   `text-wrap: pretty` keeps the last line from being a single orphaned word;
+   browsers without it just wrap as before. */
 .panelLede {
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
   overflow: hidden;
-  max-inline-size: 62ch;
-  margin: var(--space-2) 0 0;
+  max-inline-size: 74ch;
+  margin: var(--space-1) 0 0;
   color: var(--color-text-muted);
   font: var(--t-caption);
+  font-weight: 400;
+  line-height: 1.45;
+  text-wrap: pretty;
 }
 /* THE dominant element of the panel. It was --t-h4 (1.125rem/600) — a step
    and a half above the .875rem links beneath it, which is not enough to read

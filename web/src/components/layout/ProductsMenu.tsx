@@ -304,12 +304,16 @@ function CategoryPanel({
           </Link>
         </div>
         {/* The admin-authored line for this product line — what it is and who
-            buys it. Deliberately ONE clamped line: it sits above a flow that
-            can be nineteen sub-categories long, and a paragraph here would
-            compete with the list the menu exists to show. The same string
-            goes into `catalogNavigationJsonLd`, so the sentence a reader sees
-            and the one an answer engine lifts are the same sentence. Rendered
-            only when set — there is no generated fallback. */}
+            buys it. Presented as a caption under the title, clamped: it sits
+            above a flow that can be a dozen sub-categories long, and a
+            paragraph here would compete with the list the menu exists to
+            show. The clamp is a safety net for an over-long admin edit, not
+            the normal case — it used to fire on all nine descriptions and cut
+            every one of them mid-phrase (see .panelLede). The same string goes
+            into `catalogNavigationJsonLd`, so the sentence a reader sees and
+            the one an answer engine lifts are the same sentence, and it is now
+            the whole sentence. Rendered only when set — there is no generated
+            fallback. */}
         {cat.description ? <p className={styles.panelLede}>{cat.description}</p> : null}
       </div>
 
