@@ -7,7 +7,7 @@
  * same shape `auditRepo.listAudit` uses and for the same reason — an
  * append-only table has no cheap `count(*)` for page numbers.
  */
-import { and, desc, eq, inArray, lt, or, sql, type SQL } from 'drizzle-orm';
+import { and, desc, eq, lt, or, sql, type SQL } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { getDb } from '@/lib/server/db/client';
 import {
@@ -270,14 +270,4 @@ export async function setPriceSyncExcluded(
     after: { priceSyncExcluded: excluded },
   });
   return true;
-}
-
-/** Bulk read used by the sync job — one query instead of one per SKU. */
-export async function excludedSkuIds(ids: string[]): Promise<Set<string>> {
-  if (ids.length === 0) return new Set();
-  const rows = await getDb()
-    .select({ id: skus.id })
-    .from(skus)
-    .where(and(inArray(skus.id, ids), eq(skus.priceSyncExcluded, true)));
-  return new Set(rows.map((r) => r.id));
 }

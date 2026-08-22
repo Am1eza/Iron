@@ -22,7 +22,7 @@
 import { and, eq } from 'drizzle-orm';
 import { getDb } from '@/lib/server/db/client';
 import { categories, currentPrices, skus, subCategories } from '@/lib/server/db/schema';
-import { fetchAhanonlinePrices, type AhanonlineRow, type FetchOptions } from '@/lib/server/integrations/ahanonline';
+import { fetchAhanonlinePrices, type FetchOptions } from '@/lib/server/integrations/ahanonline';
 import {
   matchSku,
   SKIP_REASONS,
@@ -290,10 +290,6 @@ export async function runPriceSync(opts: RunPriceSyncOptions = {}): Promise<Pric
     return { ...empty, runId, status: 'failed', error: message };
   }
 }
-
-/** Re-exported so the admin route can show which SKU a competitor row backs
- *  without importing the matcher's internals. */
-export type { AhanonlineRow };
 
 /** Which of our sub-categories the mirror covers at all — surfaced in the
  *  admin UI so "this category never updates" has a visible answer. */

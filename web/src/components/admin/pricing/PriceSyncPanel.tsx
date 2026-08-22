@@ -205,8 +205,8 @@ export function PriceSyncPanel() {
             <thead>
               <tr>
                 <th scope="col">کالا</th>
-                <th scope="col">قیمت قبلی</th>
-                <th scope="col">قیمت جدید</th>
+                <th scope="col">قیمت قبلی (تومان)</th>
+                <th scope="col">قیمت جدید (تومان)</th>
                 <th scope="col">تغییر</th>
                 <th scope="col">مأخذ</th>
                 <th scope="col">وضعیت</th>
@@ -226,8 +226,8 @@ export function PriceSyncPanel() {
                         {e.factory ? ` · ${e.factory}` : ''}
                       </span>
                     </td>
-                    <td className="tnum">{e.oldPrice ? formatToman(e.oldPrice) : '—'}</td>
-                    <td className="tnum">{e.newPrice ? formatToman(e.newPrice) : '—'}</td>
+                    <td className="tnum">{e.oldPrice ? formatToman(e.oldPrice, false) : '—'}</td>
+                    <td className="tnum">{e.newPrice ? formatToman(e.newPrice, false) : '—'}</td>
                     <td className="tnum">
                       {pct === null ? '—' : `${pct > 0 ? '+' : ''}${toPersianDigits(pct)}٪`}
                     </td>
