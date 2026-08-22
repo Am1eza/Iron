@@ -128,11 +128,10 @@ try {
   for (const c of changes) {
     // Guarded on the OLD name as well as the id, so a concurrent admin rename
     // between the read above and this write wins rather than being clobbered.
-    await client.query(`UPDATE skus SET name = $1, updated_at = now() WHERE id = $2 AND name = $3`, [
-      c.to,
-      c.row.id,
-      c.from,
-    ]);
+    await client.query(
+      `UPDATE skus SET name = $1, updated_at = now() WHERE id = $2 AND name = $3`,
+      [c.to, c.row.id, c.from],
+    );
   }
   await client.query('COMMIT');
 } catch (err) {

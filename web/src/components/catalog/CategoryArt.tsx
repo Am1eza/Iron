@@ -7,11 +7,13 @@
  *
  * The header claimed «uniform stroke weight» and the drawings did not have
  * one: at the same `viewBox="0 0 64 64"` the primary outline ranged from 4
- * (felezat-rangi) to 9 (etesalat-felezi) — better than 2× — and these icons
- * are always seen SIDE BY SIDE, in the mega-menu rail and in the search
- * page's row of category chips. Different weights at the same size read as
- * different levels of emphasis, so the rail looked like it was pointing at
- * نبشی و ناودانی and اتصالات فلزی.
+ * (felezat-rangi) to 9 (etesalat-felezi) — better than 2×. That matters
+ * because these are seen SIDE BY SIDE at one size: `/search` draws every
+ * category as an icon chip in a single row, `CategoryStage` lists them down
+ * the mobile rail, and the mega-menu rail + panel draw them for whichever
+ * categories have no product photo. Different weights at the same size read
+ * as different levels of emphasis, so «نبشی و ناودانی» (7) sat forward of
+ * «فلزات رنگی» (4) for no reason anyone chose.
  *
  * So every icon's primary outline is `PRIMARY` and every secondary or accent
  * stroke is `ACCENT`, one step lighter — the same two-tier discipline

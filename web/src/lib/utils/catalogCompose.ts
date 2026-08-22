@@ -120,11 +120,12 @@ export function composeSkuName(input: { subName?: string; size?: string; factory
 /**
  * The display name a row gets from its POSITION in the taxonomy — what the
  * seeder writes when there is no admin to type a name — as
- * «‎[category] sub-category size».
+ * «[category] sub-category size».
  *
  * The category word is prepended only when it adds one the sub-category is
- * missing. It always did, and that produced «نبشی و ناودانی ناودانی سنگین ۱۰»
- * and «کلاف و مفتول توری ۱۰» on 59 live rows: a compound category name
+ * missing. It used to be prepended unconditionally, which produced
+ * «نبشی و ناودانی ناودانی سنگین ۱۰» and «کلاف و مفتول توری ۱۰» on 59 live
+ * rows: a compound category name
  * («X و Y») is a shelf label, not a product noun, and the sub-category under
  * it already carries whichever half applies. Prefixing it restates one half
  * and contradicts the other — «کلاف و مفتول توری» is neither a کلاف nor a
