@@ -331,17 +331,28 @@ export const SOURCE_PATHS: Readonly<Record<string, readonly string[]>> = {
   'wire/wire': ['محصولات-مفتولی/سیم-مفتول'],
   'wire/wire-galvanized': ['محصولات-مفتولی/سیم-مفتول'],
   'wire/tie': ['محصولات-مفتولی/سیم-آرماتور'],
-  'wire/mesh': ['محصولات-مفتولی/مش', 'محصولات-مفتولی/توری'],
+  // مش only: محصولات-مفتولی/توری resolves but publishes zero priced rows, so
+  // keeping it here bought nothing except a 'page failed' line every run.
+  'wire/mesh': ['محصولات-مفتولی/مش'],
 
   'ibeam/tirahan': ['تیرآهن-و-هاش/تیرآهن'],
   'ibeam/light': ['تیرآهن-و-هاش/تیرآهن'],
-  'ibeam/lane-zanburi': ['تیرآهن-و-هاش/تیرآهن'],
+  // NOT ibeam/lane-zanburi. A castellated beam is a different product from the
+  // plain IPE of the same nominal size, and ahanonline publishes no
+  // لانه‌زنبوری row at all (checked: 0 of 45 rows on that page). Mapped here it
+  // would have matched a plain تیرآهن of the same size and mill — every
+  // confidence gate passing, on the wrong product.
   'ibeam/hash-sabok': ['تیرآهن-و-هاش/هاش'],
   'ibeam/hash-sangin': ['تیرآهن-و-هاش/هاش'],
 
   'angle-channel/nabshi': ['نبشی-و-ناودانی/نبشی'],
-  'angle-channel/angle-unequal': ['نبشی-و-ناودانی/نبشی'],
-  'angle-channel/spot': ['نبشی-و-ناودانی/نبشی'],
+  // NOT angle-channel/angle-unequal and NOT angle-channel/spot, for the same
+  // reason, both confirmed against the live page: it carries 82 rows, none
+  // unequal-leg (no «نامساوی», no 100*75-style pair) and none لقمه. A
+  // بال‌نامساوی SKU would have matched the equal-leg row sharing its first
+  // dimension, and «نبشی لقمه ۱۰» actually DID get priced from «نبشی
+  // 10*100*100 آریان فولاد» in the first live run — right mill, right leg,
+  // wrong product, +121%. That write was rolled back and this is the fix.
   'angle-channel/channel-light': ['نبشی-و-ناودانی/ناودانی'],
   'angle-channel/channel-heavy': ['نبشی-و-ناودانی/ناودانی'],
   'angle-channel/separi': ['نبشی-و-ناودانی/سپری'],
@@ -405,11 +416,7 @@ const DIM_KEYS = new Set([
   'profile/profil-z',
 ]);
 /** نبشی: ours is the leg in cm («۶» = 60×60), theirs is mm («60*60»). */
-const ANGLE_KEYS = new Set([
-  'angle-channel/nabshi',
-  'angle-channel/angle-unequal',
-  'angle-channel/spot',
-]);
+const ANGLE_KEYS = new Set(['angle-channel/nabshi']);
 
 export function sizeMatches(sku: MatchableSku, row: AhanonlineRow): boolean {
   const key = taxonomyKey(sku);
