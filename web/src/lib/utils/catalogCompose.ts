@@ -118,6 +118,43 @@ export function composeSkuName(input: { subName?: string; size?: string; factory
 }
 
 /**
+ * The display name a row gets from its POSITION in the taxonomy — what the
+ * seeder writes when there is no admin to type a name — as
+ * «[category] sub-category size».
+ *
+ * The category word is prepended only when it adds one the sub-category is
+ * missing. It used to be prepended unconditionally, which produced
+ * «نبشی و ناودانی ناودانی سنگین ۱۰» and «کلاف و مفتول توری ۱۰» on 59 live
+ * rows: a compound category name
+ * («X و Y») is a shelf label, not a product noun, and the sub-category under
+ * it already carries whichever half applies. Prefixing it restates one half
+ * and contradicts the other — «کلاف و مفتول توری» is neither a کلاف nor a
+ * مفتول.
+ *
+ * So: a single-noun category still prefixes («میلگرد» + «آجدار A3» →
+ * «میلگرد آجدار A3 ۱۴», which is what 500-odd rows already read), a compound
+ * one never does, and a sub-category that already opens with the category
+ * word is left to say it once.
+ *
+ * Not `composeSkuName`: that one is the ADMIN form's auto-fill and ends in
+ * the factory, because an admin naming one row is naming one mill's product.
+ * This one names a product LINE's row and has no factory to end in.
+ */
+export function composeCatalogSkuName(input: {
+  categoryName: string;
+  subName: string;
+  size?: string;
+}): string {
+  const categoryName = input.categoryName.trim();
+  const subName = input.subName.trim();
+  // «نبشی و ناودانی», «کلاف و مفتول» — two product nouns joined by «و».
+  const isCompound = /\sو\s/.test(categoryName);
+  const alreadySaysIt = subName === categoryName || subName.startsWith(`${categoryName} `);
+  const prefix = categoryName && !isCompound && !alreadySaysIt ? categoryName : '';
+  return [prefix, subName, input.size?.trim()].filter(Boolean).join(' ');
+}
+
+/**
  * What physical section a catalog sub-category actually is, and the mill
  * branch length its «وزن شاخه» is quoted for.
  *

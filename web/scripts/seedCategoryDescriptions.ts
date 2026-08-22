@@ -29,10 +29,13 @@
  * read out of the database, not assumed) and against facts this site can
  * stand behind:
  *
- *   · «نبشی و ناودانی» does NOT claim ناودانی. The category is named for it,
- *     but its only active sub-categories today are نبشی، سپری and وال پست, so
- *     the sentence describes those. If ناودانی is loaded later, the panel is
- *     where that sentence gets updated.
+ *   · «نبشی و ناودانی» did NOT claim ناودانی when this was first written: the
+ *     category is named for it, but its only active sub-categories were
+ *     نبشی، سپری and وال پست. That was a stranded-taxonomy artefact, not an
+ *     empty shelf — ten priced ناودانی SKUs were sitting on two deactivated
+ *     rows — and `restoreChannelSubCategories.ts` put them back on
+ *     2026-08-22, so the sentence now names ناودانی سبک/سنگین as well.
+ *     The copy itself lives in `categoryDescriptions.ts`.
  *   · «استیل» names گریدهای ۲۰۱/۳۰۴/۳۱۶ because those grades are really on
  *     the rows (`skus.grade` holds 201, 304, 304L and 316L in that category).
  *   · No superlatives, no «بهترین قیمت», no keyword runs. The house voice is
@@ -57,6 +60,11 @@
  */
 import pg from 'pg';
 
+import {
+  CATEGORY_DESCRIPTION_MAX_LEN as MAX_LEN,
+  CATEGORY_DESCRIPTIONS as DESCRIPTIONS,
+} from './categoryDescriptions';
+
 const APPLY = process.argv.includes('--apply');
 const FORCE = process.argv.includes('--force');
 const url = process.env.DATABASE_URL;
@@ -64,28 +72,6 @@ if (!url) {
   console.error('[cat-desc] DATABASE_URL is not set.');
   process.exit(1);
 }
-
-/** Same cap the admin field and `seoMetaSchema.description` enforce. */
-const MAX_LEN = 200;
-
-const DESCRIPTIONS: Readonly<Record<string, string>> = {
-  rebar:
-    'میلگرد آجدار A2 و A3، میلگرد ساده، میلگرد حرارتی و کوپلر — پرمصرف‌ترین قلم اسکلت بتنی. خریدارش پیمانکار ساختمان و کارگاه بتن است و قیمت هر کیلوگرم بر پایهٔ سایز و کارخانه اعلام می‌شود.',
-  ibeam:
-    'تیرآهن IPE، هاش سبک و سنگین (HEA/HEB) و لانه‌زنبوری — مقاطع باربر اسکلت فلزی. قیمت هر کیلوگرم است و وزن شاخهٔ ۱۲ متری کنارش می‌آید تا هزینهٔ واقعی هر شاخه روشن باشد.',
-  profile:
-    'قوطی و پروفیل چهارپهلو، مبلی، ستونی، Z، کنگره و گالوانیزه — برای سازهٔ سبک، در و پنجره و صنعت مبل. سایز، مقطع بیرونی است؛ ضخامت جدار را هنگام استعلام بگویید.',
-  sheet:
-    'ورق سیاه، روغنی، گالوانیزه، اسیدشویی، آجدار، رنگی و آلیاژی، همراه عرشه فولادی، گریتینگ و ساندویچ‌پانل — کالای صنایع فلزی، سوله و ورق‌کاری. ابعاد برگ در قیمت اثر دارد.',
-  'angle-channel':
-    'نبشی بال‌مساوی، سپری و وال پست — مقاطع قاب‌بندی، اتصال و جداسازی دیوار. نبشی در شاخهٔ ۶ متری قیمت می‌خورد و خریدارش کارگاه ساختمانی و سازندهٔ درب و پنجره است.',
-  pipe: 'لوله مانیسمان، گازی، صنعتی درزدار، داربستی، گالوانیزه، اسپیرال و جدار چاه — از خط لولهٔ صنعتی تا داربست کارگاه. اندازه به اینچ است؛ رده یا ضخامت جدار را هنگام استعلام بگویید.',
-  wire: 'کلاف ساده و آجدار، مفتول سیاه و گالوانیزه، سیم آرماتوربندی و توری — کالای حلقه‌ای که به‌جای شاخه با وزن کلاف خرید و فروش می‌شود. خریدارش کارگاه بتن و صنایع مفتولی است.',
-  steel:
-    'لوله، پروفیل، نبشی، ناودانی، تسمه، توری و اتصالات استنلس استیل در گریدهای ۲۰۱، ۳۰۴ و ۳۱۶ — برای صنایع غذایی و دارویی و هر جای خورنده. گرید، تعیین‌کنندهٔ قیمت است.',
-  'felezat-rangi':
-    'آلومینیوم و مس — لوله، ورق، میلگرد، نبشی، پروفیل، تسمه و سیم‌جوش. خریدارش تأسیسات، برق و صنعت درب و پنجره است. لولهٔ مسی به‌صورت کلاف و بقیه بر پایهٔ کیلوگرم قیمت می‌خورد.',
-};
 
 const pool = new pg.Pool({ connectionString: url, max: 1 });
 
