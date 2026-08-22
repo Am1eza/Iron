@@ -166,6 +166,41 @@ describe('the taxonomy mapping is keyed on slugs', () => {
     expect(sourcePathsForSku(sku({ categorySlug: 'steel', subCategorySlug: 'stainless' }))).toBeUndefined();
     expect(sourcePathsForSku(sku({ categorySlug: 'angle-channel', subCategorySlug: 'val-post' }))).toBeUndefined();
   });
+
+  it('does not map a VARIANT onto its plain equivalent', () => {
+    // Found the hard way in the first live run: «نبشی لقمه ۱۰ آریان فولاد» was
+    // priced from «نبشی 10*100*100 آریان فولاد» — same mill, same 100mm leg, so
+    // every confidence gate passed, but a لقمه spacer is not a length of angle
+    // and the write was +121%. ahanonline lists none of these three variants
+    // (checked live: 0 لقمه and 0 unequal-leg rows of 82 on the نبشی page,
+    // 0 لانه‌زنبوری of 45 on the تیرآهن page), so the only safe mapping is none.
+    for (const [categorySlug, subCategorySlug] of [
+      ['angle-channel', 'spot'],
+      ['angle-channel', 'angle-unequal'],
+      ['ibeam', 'lane-zanburi'],
+    ] as const) {
+      expect(sourcePathsForSku(sku({ categorySlug, subCategorySlug }))).toBeUndefined();
+    }
+  });
+
+  it('refuses to price a لقمه SKU even when a plain نبشی row matches perfectly', () => {
+    const laghmeh = sku({
+      categorySlug: 'angle-channel',
+      subCategorySlug: 'spot',
+      size: '۱۰',
+      factory: 'آریان فولاد',
+    });
+    const plainAngle = row({
+      sourcePath: 'نبشی-و-ناودانی/نبشی',
+      group: 'نبشی آریان فولاد',
+      name: 'نبشی 10*100*100 آریان فولاد 6 متری کارخانه',
+      priceToman: 78_281,
+      cells: { 'سایز': '100*100', 'واحد': 'کیلوگرم', 'محل تحویل': 'کارخانه', 'تاریخ بروزرسانی': '1405/5/31' },
+    });
+    const res = matchSku(laghmeh, [plainAngle], CONFIG, TODAY);
+    expect(res.ok).toBe(false);
+    expect(res.reason).toBe(SKIP_REASONS.noMapping);
+  });
 });
 
 describe('matchSku — when a price may be written', () => {
