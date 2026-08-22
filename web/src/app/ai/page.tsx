@@ -15,7 +15,10 @@ export const metadata: Metadata = buildMetadata({
   path: routes.ai(),
 });
 
-const crumbs = [{ label: 'خانه', href: routes.home() }, { label: 'مشاور هوشمند' }];
+const crumbs = [
+  { label: 'خانه', href: routes.home() },
+  { label: 'مشاور هوشمند', href: routes.ai() },
+];
 
 /** What a visitor who lands on «مشاور هوشمند آهن» actually wants to know
  *  before typing. Each answer stands alone — FAQPage entries get quoted out

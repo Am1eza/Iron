@@ -152,17 +152,34 @@ export function websiteJsonLd() {
   };
 }
 
+/**
+ * BreadcrumbList JSON-LD.
+ *
+ * **Every** `ListItem` carries `item`, the last one included. Google's
+ * reference calls `item` optional on the final crumb, but "optional" only
+ * means it will not error: an entry with a bare `name` is the one node in the
+ * trail that cannot be resolved to a URL, so the crumb that matters most —
+ * the page actually being ranked — contributes no link to the graph. Nothing
+ * is lost by stating it, and Bing/Yandex and the schema.org validators do
+ * treat a URL-less terminal node as an incomplete list.
+ *
+ * A crumb with **no** URL is DROPPED rather than emitted name-only, and the
+ * remaining entries are renumbered so `position` stays 1..n contiguous (a gap
+ * invalidates the list). This is not hypothetical: `/tools/[tool]` renders an
+ * «ابزارها» crumb for a section that has no index page — `/tools` is a real
+ * 404 — so the honest trail there is خانه › <tool>, not a middle node
+ * pointing nowhere.
+ */
 export function breadcrumbJsonLd(items: { name: string; url?: string }[]) {
+  const linked = items.filter((it): it is { name: string; url: string } => Boolean(it.url));
   return {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
-    // The current page (last crumb) may omit `item` per schema.org — include its
-    // name so the full trail is represented.
-    itemListElement: items.map((it, i) => ({
+    itemListElement: linked.map((it, i) => ({
       '@type': 'ListItem',
       position: i + 1,
       name: it.name,
-      ...(it.url ? { item: new URL(it.url, SITE_URL).toString() } : {}),
+      item: new URL(it.url, SITE_URL).toString(),
     })),
   };
 }

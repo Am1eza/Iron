@@ -39,7 +39,7 @@ const BENEFITS: { title: string; body: string }[] = [
 
 const crumbs = [
   { label: 'خانه', href: routes.home() },
-  { label: 'برآورد مناقصات' },
+  { label: 'برآورد مناقصات', href: routes.tender() },
 ];
 
 export default async function TenderPage() {

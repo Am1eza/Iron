@@ -68,7 +68,7 @@ export default async function NewsArticlePage({ params }: Params) {
   const crumbs = [
     { label: 'خانه', href: routes.home() },
     { label: 'اخبار بازار', href: routes.news() },
-    { label: article.title },
+    { label: article.title, href: routes.news(article.slug) },
   ];
 
   return (

@@ -126,7 +126,10 @@ export async function ArticleIndex({ type, page }: { type: 'blog' | 'news'; page
   // publication does not exist and offering no way back.
   if (page > pageCount) redirect(archiveHref(type, pageCount));
 
-  const crumbs = [{ label: 'خانه', href: routes.home() }, { label: copy.crumb }];
+  const crumbs = [
+    { label: 'خانه', href: routes.home() },
+    { label: copy.crumb, href: archiveHref(type, page) },
+  ];
 
   return (
     <Container>

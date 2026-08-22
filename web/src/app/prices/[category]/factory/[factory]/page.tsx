@@ -75,7 +75,7 @@ export default async function FactoryLandingPage({ params }: Params) {
     { label: 'خانه', href: routes.home() },
     { label: 'قیمت‌ها', href: routes.prices() },
     { label: cat.name, href: routes.category(category) },
-    { label: facet.label },
+    { label: facet.label, href: routes.categoryByFactory(category, factory) },
   ];
 
   return (

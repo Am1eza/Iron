@@ -66,7 +66,7 @@ export default async function CategoryPage({ params }: Params) {
   const crumbs = [
     { label: 'خانه', href: routes.home() },
     { label: 'قیمت‌ها', href: routes.prices() },
-    { label: cat.name },
+    { label: cat.name, href: routes.category(category) },
   ];
 
   return (

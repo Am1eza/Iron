@@ -66,7 +66,7 @@ export default async function SizeLandingPage({ params }: Params) {
     { label: 'خانه', href: routes.home() },
     { label: 'قیمت‌ها', href: routes.prices() },
     { label: cat.name, href: routes.category(category) },
-    { label: `${measure} ${facet.label}` },
+    { label: `${measure} ${facet.label}`, href: routes.categoryBySize(category, size) },
   ];
 
   return (

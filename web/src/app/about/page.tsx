@@ -79,7 +79,7 @@ const advantages: Feature[] = [
 export default function AboutPage() {
   const crumbs = [
     { label: 'خانه', href: routes.home() },
-    { label: 'درباره ما' },
+    { label: 'درباره ما', href: routes.about() },
   ];
 
   return (

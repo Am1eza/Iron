@@ -31,6 +31,27 @@ export async function findRedirect(pathname: string): Promise<Pick<RedirectRow, 
   return rows[0] ?? null;
 }
 
+/**
+ * Every `fromPath` currently configured, as a lookup set.
+ *
+ * For `sitemap.ts`. A redirect row wins over a real route match (see
+ * `middleware.ts`), so a path can be a live, active, SKU-bearing page in the
+ * catalog tables and STILL answer 308 to every crawler. Measured on
+ * production 1405/05/31: `/prices/profile/prvfyl-snaty`, `…/prvfyl-sakhtmany`
+ * and `…/prvfyl-astyl` were all `is_active = true` sub-categories, all three
+ * published in the sitemap, and all three 308'd back to `/prices/profile` by
+ * rows left behind when the پروفیل taxonomy was re-slugged. Telling Google to
+ * crawl a URL we then refuse to serve is the "redirect" bucket of the
+ * Coverage report, self-inflicted.
+ *
+ * Only the redirect table can answer this — the catalog side has no idea it
+ * is being shadowed — so the sitemap has to ask.
+ */
+export async function listRedirectFromPaths(): Promise<Set<string>> {
+  const rows = await getDb().select({ fromPath: redirects.fromPath }).from(redirects);
+  return new Set(rows.map((r) => r.fromPath));
+}
+
 export async function adminListRedirects(): Promise<RedirectRow[]> {
   return getDb().select().from(redirects).orderBy(redirects.fromPath);
 }

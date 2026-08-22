@@ -68,7 +68,7 @@ export default async function BlogArticlePage({ params }: Params) {
   const crumbs = [
     { label: 'خانه', href: routes.home() },
     { label: 'وبلاگ', href: routes.blog() },
-    { label: article.title },
+    { label: article.title, href: routes.blog(article.slug) },
   ];
 
   return (

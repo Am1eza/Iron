@@ -49,7 +49,7 @@ const STEPS: { n: string; title: string; body: string }[] = [
 
 const crumbs = [
   { label: 'خانه', href: routes.home() },
-  { label: 'انبار مشتریان' },
+  { label: 'انبار مشتریان', href: routes.warehouse() },
 ];
 
 export default function WarehousePage() {

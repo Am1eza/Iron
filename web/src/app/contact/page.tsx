@@ -16,7 +16,7 @@ export const metadata: Metadata = buildMetadata({
 
 const crumbs = [
   { label: 'خانه', href: routes.home() },
-  { label: 'تماس با ما' },
+  { label: 'تماس با ما', href: routes.contact() },
 ];
 
 export default function ContactPage() {

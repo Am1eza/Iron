@@ -62,6 +62,17 @@
      --color-accent/-focus deliberately still use -500 — unaffected. */
   --color-action:var(--emerald-550); --color-action-hover:var(--emerald-400); --color-action-press:var(--emerald-600);
   --color-on-action:var(--neutral-0); --color-action-text:var(--emerald-700);
+  /* Accent TEXT on --color-surface-inverse, which is neutral-900 in BOTH
+     themes — the footer is dark even in light mode. Neither of the two
+     existing accent-text steps works there: --color-action-text is tuned for
+     a white surface (emerald-700 on neutral-900 is 1.4:1, invisible) and
+     --color-action is a FILL colour meant to sit under white text
+     (emerald-550 → 2.88:1, which is what the footer tagline «اول مشورت، بعد
+     خرید» actually shipped as — the WCAG 1.4.3 failure the GSC review
+     flagged). emerald-300 gives 7.5:1 on that surface. Defined once, outside
+     any theme block, because the surface it is measured against does not
+     change between themes. */
+  --color-accent-on-inverse:var(--emerald-300);
   --color-focus:var(--emerald-500);
   --color-gain:var(--gain-500); --color-gain-text:var(--gain-700);
   --color-loss:var(--loss-500); --color-loss-text:var(--loss-600);

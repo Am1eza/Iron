@@ -26,7 +26,9 @@
 }
 .tagline {
   font: var(--t-h4);
-  color: var(--color-action);
+  /* NOT --color-action: that is the button-fill teal, 2.88:1 against this
+     always-dark footer (WCAG 1.4.3 fail at 18px/600). See tokens.css. */
+  color: var(--color-accent-on-inverse);
   margin: var(--space-2) 0 0;
 }
 .blurb {
@@ -63,7 +65,9 @@
 .link:hover,
 .channel:hover,
 .phone:hover {
-  color: var(--color-action);
+  /* Same reason as .tagline — hovering a footer link must not drop it from
+     rgba(255,255,255,.82) (13.9:1) to the fill teal's 2.88:1. */
+  color: var(--color-accent-on-inverse);
   text-decoration: none;
 }
 

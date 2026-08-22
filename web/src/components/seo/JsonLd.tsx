@@ -23,10 +23,21 @@ export function JsonLd({ data }: { data: object | object[] }) {
   );
 }
 
-/** BreadcrumbList JSON-LD paired with the visual <Breadcrumbs/> (D5 / N7). */
+/**
+ * BreadcrumbList JSON-LD paired with the visual <Breadcrumbs/> (D5 / N7).
+ *
+ * Callers give the LAST crumb an `href` too — its own canonical path. That is
+ * invisible on screen: <Breadcrumbs/> renders the final item as a
+ * non-interactive `aria-current="page"` span regardless of `href`, so the
+ * link is emitted only into the structured data, where the terminal
+ * `ListItem` needs an `item` to be a resolvable node. Do not "clean up" those
+ * hrefs as unused — see `breadcrumbJsonLd`.
+ */
 export function BreadcrumbJsonLd({ items }: { items: Crumb[] }) {
   if (items.length === 0) return null;
-  // Include every crumb (the current page often has no href) so the trail is complete.
-  const entries = items.map((c) => (c.href ? { name: c.label, url: c.href } : { name: c.label }));
-  return <JsonLd data={breadcrumbJsonLd(entries)} />;
+  const entries = items.map((c) => ({ name: c.label, url: c.href }));
+  const data = breadcrumbJsonLd(entries);
+  // A single-node trail (or none) says nothing a crawler cannot already see.
+  if (data.itemListElement.length < 2) return null;
+  return <JsonLd data={data} />;
 }

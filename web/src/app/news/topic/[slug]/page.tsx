@@ -43,7 +43,7 @@ export default async function NewsTopicPage({ params }: Params) {
   const crumbs = [
     { label: 'خانه', href: routes.home() },
     { label: 'اخبار بازار', href: routes.news() },
-    { label: topic.name },
+    { label: topic.name, href: routes.newsTopic(topic.slug) },
   ];
 
   return (

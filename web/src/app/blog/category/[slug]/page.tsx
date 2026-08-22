@@ -42,7 +42,7 @@ export default async function BlogCategoryPage({ params }: Params) {
   const crumbs = [
     { label: 'خانه', href: routes.home() },
     { label: 'وبلاگ', href: routes.blog() },
-    { label: cat.name },
+    { label: cat.name, href: routes.blogCategory(cat.slug) },
   ];
 
   return (

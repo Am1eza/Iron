@@ -51,7 +51,7 @@ const STEPS: { title: string; body: string }[] = [
 export function ClubLanding() {
   const crumbs = [
     { label: 'خانه', href: routes.home() },
-    { label: 'باشگاه مشتریان' },
+    { label: 'باشگاه مشتریان', href: routes.club() },
   ];
 
   return (
