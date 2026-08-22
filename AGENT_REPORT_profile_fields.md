@@ -231,53 +231,44 @@ production database**, so any difference is the code, not the data.
 
 ---
 
-## 8 · Deploy status — **MERGED AND CI-GREEN, NOT DEPLOYED**
+## 8 · Deploy status — **LIVE**
 
 - PR #224 CI: `checks` **pass** (4m37s), `e2e` **pass** (4m38s).
-  `Workers Builds: ahantime` and `Deploy preview to GitHub Pages` failed —
-  both are the documented pre-existing noise, red on `main` independently of
-  any PR.
+  `Workers Builds: ahantime` and `Deploy preview to GitHub Pages` failed — both
+  are the documented pre-existing noise, red on `main` independently of any PR.
 - Squash-merged to `main` as **`4f8b60e`** at 2026-08-22 22:43 UTC.
-- `Deploy to production server`: **`build` job green** — the image
-  `ghcr.io/am1eza/iron-web:4f8b60e93f88ece860514bf563db6590b7cf7f4c` was built
-  and pushed to GHCR successfully. The **`deploy` job failed** at the image
-  pull on this host:
+- `Deploy to production server` **failed on its first run**: `build` green (the
+  image reached GHCR), `deploy` dead at the pull with
+  `Get "https://ghcr.io/v2/": net/http: TLS handshake timeout`. Two manual
+  `docker pull`s from this host then returned a *different* error —
+  `error from registry: denied` — i.e. the stored GHCR credential in
+  `/root/.docker/config.json` had expired, not a network problem.
+- Re-running the failed `deploy` job (`gh run rerun 32603236919 --failed`) fixed
+  it: that job's own `docker login` refreshes the host credential, and the pull
+  then succeeded. **Retrying the local pull would never have worked** — the two
+  failure modes wear similar clothes.
 
-  ```
-  Error response from daemon: Get "https://ghcr.io/v2/":
-  net/http: TLS handshake timeout
-  ```
+### Live verification
 
-  The workflow's own `git fetch`/`reset --hard` step DID succeed, so
-  `/opt/ahantime` is now checked out at `main@4f8b60e`; only the container
-  image was not updated.
-
-- I retried the pull manually twice, spaced out. Both returned a **different**
-  failure — `Error response from daemon: error from registry: denied`. So on
-  this host `ghcr.io` is now reachable but the stored credential in
-  `~/.docker/config.json` is being rejected, in addition to the intermittent
-  TLS timeout the runner hit. Minting or rotating a GHCR token is an owner
-  action, so I stopped rather than looping.
-
-- **Production is unchanged and healthy**:
-  `ahantime-web-1` still runs `ghcr.io/am1eza/iron-web:35cff26…` and
-  `https://ahantime.com/prices/profile` returns 200. The پروفیل changes are
-  merged but **not yet live**.
-
-**To finish the deploy**, once GHCR auth works from this host:
-
-```bash
-docker login ghcr.io -u <user>            # the current credential is rejected
-docker pull ghcr.io/am1eza/iron-web:4f8b60e93f88ece860514bf563db6590b7cf7f4c
-docker image inspect ghcr.io/am1eza/iron-web:4f8b60e93f88ece860514bf563db6590b7cf7f4c
-sed -i 's#^WEB_IMAGE=.*#WEB_IMAGE=ghcr.io/am1eza/iron-web:4f8b60e93f88ece860514bf563db6590b7cf7f4c#' /opt/ahantime/.env
-docker compose up -d web
 ```
+docker inspect ahantime-web-1 --format '{{.Config.Image}}'
+  → ghcr.io/am1eza/iron-web:4f8b60e93f88ece860514bf563db6590b7cf7f4c   ✅
 
-Then verify (note: ISR pages serve mock data briefly after a deploy — wait for
-revalidation before judging a page wrong):
-
-```bash
-curl -sk --resolve ahantime.com:443:127.0.0.1 https://ahantime.com/prices/profile   # 200
+curl -sk --resolve ahantime.com:443:127.0.0.1       https://ahantime.com/        → 200 ✅
+curl -sk --resolve panel.ahantime.com:443:127.0.0.1 https://panel.ahantime.com/  → 307 ✅
+curl -sk --resolve ahantime.com:443:127.0.0.1       https://ahantime.com/admin   → 404 ✅
 docker exec ahantime-web-1 grep -rl 'محل تولید' .next/
+  → .next/server/chunks/1520.js, .next/static/chunks/450-….js                    ✅
 ```
+
+Live HTML through Caddy, per sub-category:
+
+| Page | Headings / columns served in production |
+|---|---|
+| `/prices/profile/profil-sotuni` | «قیمت پروفیل تهران» · «قیمت پروفیل مشهد» · «قیمت پروفیل نامشخص» · «گرید» kept |
+| `/prices/profile/profil-z` | «قیمت پروفیل تهران» · «قیمت پروفیل مشهد» · «قیمت پروفیل نامشخص» · «طول سفارشی» |
+| `/prices/profile/profil-galvanizeh` | flat, «محل تولید» column, «گرید» kept |
+| `/prices/profile/profil-mobli` | flat, «گرید» only, no «محل تولید» |
+
+No «کارخانه» column or section on any of them. Matches the after-screenshots
+exactly.
