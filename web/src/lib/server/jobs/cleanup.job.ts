@@ -170,6 +170,13 @@ export const cleanupJob: Job = {
     // trend analysis, then drop.
     await db.execute(sql`DELETE FROM ai_usage WHERE created_at < now() - interval '180 days'`);
     await db.execute(sql`DELETE FROM ai_feedback WHERE created_at < now() - interval '180 days'`);
+    // price_sync_runs (entries cascade via FK): the automated mirror writes
+    // one entry per considered SKU per run, twice a day, so this is the
+    // fastest-growing table after sms_log. 180 days is two full quarters of
+    // "why did this price change?" — well past the point where the answer
+    // would still be actionable, and the prices themselves keep their own
+    // permanent history in `price_points` regardless.
+    await db.execute(sql`DELETE FROM price_sync_runs WHERE started_at < now() - interval '180 days'`);
     // audit_entries: accountability trail — keep a full year (deliberately the
     // longest window here; do NOT shorten without an operator decision).
     await db.execute(sql`DELETE FROM audit_entries WHERE at < now() - interval '365 days'`);

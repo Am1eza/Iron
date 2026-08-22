@@ -1,0 +1,44 @@
+/* Automated price mirror — the few bits adminUi.module.css does not already
+   cover. Everything else on the page reuses the shared admin table/tile/panel
+   primitives. */
+
+/* A table cell that stacks a strong first line over a muted second one
+   (product name over its taxonomy, competitor row over its source). */
+.primaryCell {
+  display: block;
+  font: var(--t-label);
+  color: var(--color-text-strong);
+}
+
+/* Run-level warning strip — a page-level notice, not a data value, so it uses
+   the surface/border tokens rather than the loss color reserved for data. */
+.notice {
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-hairline);
+  border-inline-start: 3px solid var(--color-accent);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+}
+
+.excludedList {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.excludedList li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-block: var(--space-2);
+  border-block-end: 1px solid var(--color-hairline);
+  font: var(--t-body-sm);
+}
+
+.excludedList li:last-child {
+  border-block-end: none;
+}

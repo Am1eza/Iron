@@ -45,3 +45,56 @@ export function getVatRate(): Promise<number> {
 export function getStaleHideAfterDays(): Promise<number> {
   return getSetting<number>('PRICE_STALE_HIDE_AFTER_DAYS', 2);
 }
+
+/**
+ * Automated price mirroring (US-02.5). One jsonb blob rather than six scalar
+ * keys because these values are only ever read together, by one job.
+ *
+ * `enabled` is a kill switch, not an approval gate — it exists so the owner
+ * can stop the twice-daily run from the panel in the middle of a bad day
+ * without waiting on a deploy or editing the host's crontab.
+ */
+export const PRICE_SYNC_SETTING_KEY = 'PRICE_SYNC';
+
+export interface PriceSyncConfig {
+  enabled: boolean;
+  /** Category slugs in scope. Empty = every mapped sub-category. */
+  categorySlugs: string[];
+  /** Plausibility band for a per-kg steel price, Toman (see priceSync.match). */
+  minPriceToman: number;
+  maxPriceToman: number;
+  maxCandidateSpreadPct: number;
+  maxSourceAgeDays: number;
+}
+
+export const PRICE_SYNC_DEFAULTS: PriceSyncConfig = {
+  enabled: true,
+  categorySlugs: [],
+  minPriceToman: 10_000,
+  maxPriceToman: 500_000,
+  maxCandidateSpreadPct: 8,
+  maxSourceAgeDays: 10,
+};
+
+const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+
+/** Merged over the defaults so a partially-written setting row (or one saved
+ *  before a field existed) can never leave the job with an undefined bound. */
+export async function getPriceSyncConfig(): Promise<PriceSyncConfig> {
+  const raw = await getSetting<Partial<PriceSyncConfig>>(PRICE_SYNC_SETTING_KEY, {});
+  const stored = raw && typeof raw === 'object' ? raw : {};
+  return {
+    enabled: typeof stored.enabled === 'boolean' ? stored.enabled : PRICE_SYNC_DEFAULTS.enabled,
+    categorySlugs: Array.isArray(stored.categorySlugs)
+      ? stored.categorySlugs.filter((s): s is string => typeof s === 'string')
+      : PRICE_SYNC_DEFAULTS.categorySlugs,
+    minPriceToman: isNum(stored.minPriceToman) ? stored.minPriceToman : PRICE_SYNC_DEFAULTS.minPriceToman,
+    maxPriceToman: isNum(stored.maxPriceToman) ? stored.maxPriceToman : PRICE_SYNC_DEFAULTS.maxPriceToman,
+    maxCandidateSpreadPct: isNum(stored.maxCandidateSpreadPct)
+      ? stored.maxCandidateSpreadPct
+      : PRICE_SYNC_DEFAULTS.maxCandidateSpreadPct,
+    maxSourceAgeDays: isNum(stored.maxSourceAgeDays)
+      ? stored.maxSourceAgeDays
+      : PRICE_SYNC_DEFAULTS.maxSourceAgeDays,
+  };
+}
