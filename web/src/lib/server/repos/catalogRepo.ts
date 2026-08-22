@@ -12,6 +12,7 @@ import { getPriceFreshness } from '@/lib/server/services/priceFreshness';
 import { normalizeDigits, toPersianDigits } from '@/lib/utils/format';
 import { likeContains } from '@/lib/server/utils/likeEscape';
 import { factoryFacetSlug, sizeFacetSlug } from '@/lib/utils/catalogFacets';
+import { factoryIsMeaningful, regionFromFactory } from '@/lib/utils/catalogLabels';
 
 /** `db.execute(sql...)` returns a plain array under one driver (pglite,
  *  tests) and `{ rows: [...] }` under another (node-postgres, prod) — same
@@ -55,7 +56,21 @@ function toPriceRow(
     size: r.sku.size ?? undefined,
     grade: r.sku.grade ?? undefined,
     dimensions: r.sku.dimensions ?? undefined,
-    factory: r.sku.factory ?? undefined,
+    // Suppressed — not deleted — for the پروفیل sub-categories whose stored
+    // mill names are fabricated (see `factoryIsMeaningful`). Doing it HERE,
+    // at the one DTO boundary every public surface reads through, is what
+    // keeps the table, the cards, the spec sheet, the «بر اساس کارخانه» facet
+    // rail, the sitemap and the AI's grounding from disagreeing about whether
+    // «نیکان پروفیل» exists.
+    ...(factoryIsMeaningful(r.catSlug, r.subSlug)
+      ? { factory: r.sku.factory ?? undefined }
+      : // Where the mill name is withheld, the producing city recovered from
+        // it takes its place — the structural replacement ahanonline groups
+        // پروفیل by. Derived here, at the same one boundary, so the table's
+        // region sections and every other `PriceRow` consumer read one
+        // consistent story instead of each re-deriving it from a value only
+        // this function can still see.
+        { region: regionFromFactory(r.sku.factory) }),
     theoreticalWeightKg: r.sku.theoreticalWeightKg ?? undefined,
     unit: r.sku.unit,
     priceBasis: r.sku.priceBasis,

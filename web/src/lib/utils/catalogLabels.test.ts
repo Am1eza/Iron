@@ -3,15 +3,21 @@ import {
   sizeLabel,
   usesThickness,
   usesDimensions,
-  usesGradeColumn,
-  gradeColumnLabel,
-  gradeColumnCell,
-  gradeColumnCard,
+  attributeColumns,
+  factoryIsMeaningful,
   SIZE_LABEL,
   THICKNESS_LABEL,
   DIMENSIONS_LABEL,
   GRADE_LABEL,
   STANDARD_LABEL,
+  ALLOY_LABEL,
+  BRANCH_LENGTH_LABEL,
+  CUSTOM_LENGTH_LABEL,
+  NOT_APPLICABLE,
+  UNKNOWN_VALUE,
+  regionFromFactory,
+  groupModeFor,
+  groupKeyFor,
 } from './catalogLabels';
 
 describe('sizeLabel', () => {
@@ -64,73 +70,217 @@ describe('usesDimensions', () => {
   });
 });
 
-describe('the grade/standard column', () => {
-  const row = (subCategoryId: string, fields: { grade?: string; standard?: string } = {}) => ({
-    subCategoryId,
-    ...fields,
-  });
+describe('the attribute columns (گرید / استاندارد / آلیاژ / طول)', () => {
+  const row = (
+    subCategoryId: string,
+    fields: { grade?: string; standard?: string; branchLengthM?: number } = {},
+  ) => ({ subCategoryId, ...fields });
 
-  it('leaves every non-تیرآهن category exactly as it was', () => {
-    for (const slug of ['rebar', 'sheet', 'pipe', 'profile', 'angle-channel', 'wire', 'steel']) {
-      expect(usesGradeColumn(slug, null)).toBe(true);
-      expect(usesGradeColumn(slug, 'anything')).toBe(true);
-      expect(gradeColumnLabel(slug)).toBe(GRADE_LABEL);
-      expect(gradeColumnCell(slug, row('plain', { grade: 'A3' }))).toBe('A3');
-      expect(gradeColumnCell(slug, row('plain'))).toBe('نامشخص');
+  /** The one column a single-column table has. */
+  const only = (categorySlug: string | null | undefined, sub: string | null) => {
+    const cols = attributeColumns(categorySlug, sub);
+    expect(cols).toHaveLength(1);
+    return cols[0]!;
+  };
+
+  it('leaves every non-تیرآهن, non-پروفیل category exactly as it was', () => {
+    for (const slug of ['rebar', 'sheet', 'pipe', 'angle-channel', 'wire', 'steel']) {
+      for (const sub of [null, 'anything']) {
+        const col = only(slug, sub);
+        expect(col.key).toBe('grade');
+        expect(col.label).toBe(GRADE_LABEL);
+        expect(col.cell(row('plain', { grade: 'A3' }))).toBe('A3');
+        expect(col.cell(row('plain'))).toBe(UNKNOWN_VALUE);
+        expect(col.card(row('plain', { grade: 'A3' }))).toBe('A3');
+        expect(col.card(row('plain'))).toBeNull();
+      }
     }
-    // …including the mixed/unknown lists, which must never lose a column just
-    // because they have no single category to answer for.
-    expect(usesGradeColumn(undefined, 'hash-sabok')).toBe(true);
-    expect(gradeColumnLabel(null)).toBe(GRADE_LABEL);
   });
 
-  it('drops the column on the تیرآهن sub-pages that have no grade', () => {
-    for (const sub of ['tirahan', 'ipe', 'light', 'lane-zanburi', 'castellated']) {
-      expect(usesGradeColumn('ibeam', sub)).toBe(false);
+  it('falls back to «گرید» for an unknown, mixed or missing category', () => {
+    expect(only(undefined, 'hash-sabok').label).toBe(GRADE_LABEL);
+    expect(only(null, null).label).toBe(GRADE_LABEL);
+  });
+
+  /* ------------------------------- تیرآهن ------------------------------- */
+
+  it('drops the column on a non-هاش تیرآهن sub and keeps it on هاش', () => {
+    for (const sub of ['tirahan', 'ipe', 'anything-else']) {
+      expect(attributeColumns('ibeam', sub)).toEqual([]);
+    }
+    for (const sub of ['hash-sabok', 'hash-sangin', null]) {
+      const col = only('ibeam', sub);
+      expect(col.key).toBe('standard');
+      expect(col.label).toBe(STANDARD_LABEL);
     }
   });
 
-  it('keeps it for هاش سبک/هاش سنگین, renamed to «استاندارد»', () => {
-    for (const sub of ['hash-sabok', 'hash-sangin']) {
-      expect(usesGradeColumn('ibeam', sub)).toBe(true);
+  it('reads skus.standard on هاش rows, and dashes the ones it does not apply to', () => {
+    const col = only('ibeam', null);
+    expect(col.cell(row('hash-sabok', { standard: 'HEA', grade: 'ST37' }))).toBe('HEA');
+    expect(col.cell(row('hash-sangin', { standard: 'HEB' }))).toBe('HEB');
+    // Filled but empty-standard هاش row: «نامشخص» — the value is simply not
+    // entered yet, which is true of every هاش SKU today.
+    expect(col.cell(row('hash-sabok'))).toBe(UNKNOWN_VALUE);
+    // A non-هاش تیرآهن row has no standard AND its `grade` is deliberately
+    // ignored — the column does not apply to it at all.
+    expect(col.cell(row('ipe', { grade: 'ST37' }))).toBe(NOT_APPLICABLE);
+    expect(col.card(row('ipe', { grade: 'ST37' }))).toBeNull();
+    expect(col.card(row('hash-sabok'))).toBeNull();
+  });
+
+  /* ------------------------------- پروفیل ------------------------------- */
+
+  it('keeps «گرید» on the پروفیل subs the owner left alone', () => {
+    for (const sub of ['prvfyl-sakhtmany', 'profil-mobli', 'profil-sotuni', 'profil-galvanizeh']) {
+      const col = only('profile', sub);
+      expect(col.key).toBe('grade');
+      expect(col.label).toBe(GRADE_LABEL);
     }
-    expect(gradeColumnLabel('ibeam')).toBe(STANDARD_LABEL);
+    // …and in the mixed «همه» view, which falls back to the category default.
+    expect(only('profile', null).label).toBe(GRADE_LABEL);
   });
 
-  it('keeps it in the mixed «همه» تیرآهن table, where هاش rows are present', () => {
-    expect(usesGradeColumn('ibeam', null)).toBe(true);
+  it('replaces صنعتی’s «گرید» with «طول شاخه», read from branch_length_m', () => {
+    const col = only('profile', 'prvfyl-snaty');
+    expect(col.key).toBe('branchLength');
+    expect(col.label).toBe(BRANCH_LENGTH_LABEL);
+    expect(col.cell(row('prvfyl-snaty', { branchLengthM: 6 }))).toBe('۶ متر');
+    // A stored grade is ignored outright — the column is not that fact.
+    expect(col.cell(row('prvfyl-snaty', { grade: 'ST37' }))).toBe(UNKNOWN_VALUE);
+    expect(col.card(row('prvfyl-snaty', { grade: 'ST37' }))).toBeNull();
   });
 
-  it('reads `standard`, not `grade`, for هاش rows', () => {
-    // `grade` is deliberately ignored even when filled: the owner asked for
-    // that field gone from تیرآهن, and HEA/HEB belongs in `standard`.
-    expect(gradeColumnCell('ibeam', row('hash-sabok', { standard: 'HEA', grade: 'ST37' }))).toBe(
-      'HEA',
-    );
-    expect(gradeColumnCell('ibeam', row('hash-sangin', { standard: 'HEB' }))).toBe('HEB');
-    expect(gradeColumnCell('ibeam', row('hash-sabok'))).toBe('نامشخص');
+  it('gives Z «طول سفارشی», which reads «بر اساس سفارش» when unset', () => {
+    const col = only('profile', 'profil-z');
+    expect(col.key).toBe('customLength');
+    expect(col.label).toBe(CUSTOM_LENGTH_LABEL);
+    // پروفیل Z is cut to order, so an EMPTY length is an answer, not a gap —
+    // «نامشخص» would tell the buyer we lost a number that never existed.
+    expect(col.cell(row('profil-z'))).toBe('بر اساس سفارش');
+    expect(col.card(row('profil-z'))).toBe('بر اساس سفارش');
+    // A recorded length still wins — a cut-to-order product can be stocked in
+    // one length, and that is worth saying.
+    expect(col.cell(row('profil-z', { branchLengthM: 6 }))).toBe('۶ متر');
+    expect(col.label).not.toBe(BRANCH_LENGTH_LABEL);
   });
 
-  it('shows a dash, not «نامشخص», for non-هاش تیرآهن rows in the mixed table', () => {
-    // The column does not APPLY to an IPE beam — «نامشخص» would wrongly imply
-    // the value merely hasn't been entered yet.
-    expect(gradeColumnCell('ibeam', row('ipe', { grade: 'ST37' }))).toBe('—');
-    expect(gradeColumnCell('ibeam', row('tirahan'))).toBe('—');
+  it('gives استیل BOTH «آلیاژ» and «طول شاخه» — a gain, not a swap', () => {
+    const cols = attributeColumns('profile', 'prvfyl-astyl');
+    expect(cols.map((c) => c.key)).toEqual(['alloy', 'branchLength']);
+    expect(cols.map((c) => c.label)).toEqual([ALLOY_LABEL, BRANCH_LENGTH_LABEL]);
+    // «آلیاژ» is `skus.grade` re-labelled: the stored grade of a stainless
+    // profile genuinely IS its alloy (۲۰۱/۳۰۴/۳۱۶).
+    expect(cols[0]!.cell(row('prvfyl-astyl', { grade: '۳۰۴' }))).toBe('۳۰۴');
+    expect(cols[1]!.cell(row('prvfyl-astyl', { branchLengthM: 6 }))).toBe('۶ متر');
+    expect(cols[1]!.cell(row('prvfyl-astyl'))).toBe(UNKNOWN_VALUE);
   });
 
-  it('gives the mobile card a line only when there is a real value', () => {
-    expect(gradeColumnCard('ibeam', row('hash-sabok', { standard: 'HEA' }))).toEqual({
-      label: STANDARD_LABEL,
-      value: 'HEA',
-    });
-    // Empty هاش, and every non-هاش تیرآهن row: no line at all, never a dash.
-    expect(gradeColumnCard('ibeam', row('hash-sabok'))).toBeNull();
-    expect(gradeColumnCard('ibeam', row('ipe', { grade: 'ST37' }))).toBeNull();
-    // Other categories: unchanged «گرید: …», omitted when unfilled.
-    expect(gradeColumnCard('rebar', row('plain', { grade: 'A3' }))).toEqual({
-      label: GRADE_LABEL,
-      value: 'A3',
-    });
-    expect(gradeColumnCard('rebar', row('plain'))).toBeNull();
+  it('dashes a پروفیل column that does not apply to the row under it', () => {
+    // The mixed «همه» view: مبلی keeps its «گرید», so the column is there —
+    // but a صنعتی row traded that fact away for a length and must not be
+    // reported as merely missing one.
+    const col = only('profile', null);
+    expect(col.cell(row('profil-mobli'))).toBe(UNKNOWN_VALUE);
+    expect(col.cell(row('prvfyl-snaty', { grade: 'ST37' }))).toBe(NOT_APPLICABLE);
+    expect(col.cell(row('profil-z'))).toBe(NOT_APPLICABLE);
+    expect(col.cell(row('prvfyl-astyl', { grade: '۳۰۴' }))).toBe(NOT_APPLICABLE);
+  });
+});
+
+describe('factoryIsMeaningful', () => {
+  const REMOVED = [
+    'prvfyl-snaty',
+    'profil-mobli',
+    'profil-sotuni',
+    'profil-galvanizeh',
+    'profil-z',
+    'prvfyl-astyl',
+  ];
+
+  it('withholds the fabricated mill names on the six پروفیل subs', () => {
+    for (const sub of REMOVED) expect(factoryIsMeaningful('profile', sub)).toBe(false);
+  });
+
+  it('keeps «پروفیل ساختمانی» — the one sub the owner left with a factory', () => {
+    expect(factoryIsMeaningful('profile', 'prvfyl-sakhtmany')).toBe(true);
+  });
+
+  it('never touches another category, even on a same-named sub', () => {
+    for (const slug of ['rebar', 'ibeam', 'sheet', 'pipe', 'angle-channel', 'steel']) {
+      expect(factoryIsMeaningful(slug, 'profil-z')).toBe(true);
+      expect(factoryIsMeaningful(slug, 'plain')).toBe(true);
+    }
+    expect(factoryIsMeaningful(undefined, 'profil-z')).toBe(true);
+    expect(factoryIsMeaningful(null, null)).toBe(true);
+  });
+
+  it('keeps an unrecognised پروفیل sub — removal is an explicit list', () => {
+    // A sub-category added later is not silently stripped of a real mill name;
+    // it has to be named here, the same way the grade replacements are.
+    expect(factoryIsMeaningful('profile', 'something-new')).toBe(true);
+    expect(factoryIsMeaningful('profile', null)).toBe(true);
+  });
+});
+
+describe('regionFromFactory — recovering a city from a fabricated mill name', () => {
+  it('reads the city out of the names that embed one', () => {
+    expect(regionFromFactory('پایا اصفهان')).toBe('اصفهان');
+    expect(regionFromFactory('تهران شرق')).toBe('تهران');
+    expect(regionFromFactory('فولاد مشهد')).toBe('مشهد');
+    expect(regionFromFactory('نورد میلاد یزد')).toBe('یزد');
+  });
+
+  it('returns nothing for a name with no city in it', () => {
+    // These are the rows that land in «نامشخص». Guessing a city for them is
+    // exactly the fabrication this whole change exists to undo.
+    for (const name of ['نیکان پروفیل', 'کیان پرشیا', 'جهان پروفیل پارس', 'پروفیل یاران', 'پروفیل صابری']) {
+      expect(regionFromFactory(name), name).toBeUndefined();
+    }
+    expect(regionFromFactory(undefined)).toBeUndefined();
+    expect(regionFromFactory('')).toBeUndefined();
+  });
+
+  it('matches whole tokens only, so a city inside a longer word is not one', () => {
+    // «قم» is a real entry in the freight city list and a substring of plenty
+    // of Persian words that have nothing to do with Qom.
+    expect(regionFromFactory('مقاوم سازان')).toBeUndefined();
+    expect(regionFromFactory('ساریان فولاد')).toBeUndefined();
+    // …but a ZWNJ is a word boundary like a space.
+    expect(regionFromFactory('فولاد\u200cاصفهان')).toBe('اصفهان');
+  });
+});
+
+describe('groupModeFor — what a table can honestly be sectioned by', () => {
+  const withRegion = (n: number) => Array.from({ length: n }, () => ({ region: 'تهران' }));
+  const bare = (n: number) => Array.from({ length: n }, () => ({}) as { region?: string });
+
+  it('prefers a real mill over everything else', () => {
+    expect(groupModeFor([{ factory: 'فولاد مشهد' }, { region: 'تهران' }])).toBe('factory');
+  });
+
+  it('sections by region once half the rows resolve to a city', () => {
+    expect(groupModeFor([...withRegion(3), ...bare(3)])).toBe('region');
+    expect(groupModeFor(withRegion(1))).toBe('region');
+  });
+
+  it('falls back to one flat table below that', () => {
+    expect(groupModeFor([...withRegion(1), ...bare(4)])).toBe('none');
+    expect(groupModeFor(bare(5))).toBe('none');
+    expect(groupModeFor([])).toBe('none');
+  });
+});
+
+describe('groupKeyFor', () => {
+  it('names the catch-all bucket after what is missing', () => {
+    expect(groupKeyFor('factory', { factory: 'فولاد مشهد' })).toBe('فولاد مشهد');
+    expect(groupKeyFor('factory', {})).toBe('سایر');
+    expect(groupKeyFor('region', { region: 'اصفهان' })).toBe('اصفهان');
+    // Not an em dash: a پروفیل IS rolled somewhere, we just do not know where.
+    expect(groupKeyFor('region', {})).toBe('نامشخص');
+  });
+
+  it('puts every row in the one unnamed section under «none»', () => {
+    expect(groupKeyFor('none', { factory: 'فولاد مشهد', region: 'مشهد' })).toBe('');
   });
 });

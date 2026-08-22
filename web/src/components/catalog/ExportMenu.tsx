@@ -8,7 +8,7 @@ import {
   withVat,
 } from '@/lib/utils/format';
 import { formatJalali } from '@/lib/utils/jalali';
-import { sizeLabel, usesDimensions, DIMENSIONS_LABEL } from '@/lib/utils/catalogLabels';
+import { sizeLabel, usesDimensions, DIMENSIONS_LABEL, REGION_LABEL } from '@/lib/utils/catalogLabels';
 import { CONSTANTS } from '@/lib/config/constants';
 import type { PriceRow } from '@/lib/types/domain';
 import { SheetIcon, PrintIcon, ImageIcon } from '@/components/primitives/icons';
@@ -26,7 +26,7 @@ const esc = (s: string) =>
  * clean branded sheet), and Image-with-logo (PNG via canvas). All client-side,
  * no dependency. The branded header carries «آهن‌تایم» + the date.
  */
-export const cols = (categorySlug?: string) => [
+export const cols = (categorySlug?: string, regionColumn = false) => [
   'محصول',
   // ورق is measured by thickness, not size — same rule the on-screen table
   // follows (see catalogLabels), so an exported file matches what the buyer
@@ -36,7 +36,13 @@ export const cols = (categorySlug?: string) => [
   // rides along. Every other category has no such column on screen and gets
   // none in the file either.
   ...(usesDimensions(categorySlug) ? [DIMENSIONS_LABEL] : []),
-  'کارخانه',
+  // Same column, different question, on the پروفیل sub-categories whose mill
+  // names are withheld: they publish a producing city instead (see
+  // catalogLabels.regionFromFactory), and a file headed «کارخانه» with
+  // «نامشخص» in every row of it would drop the one fact the on-screen table
+  // groups by. A SUBSTITUTION, never an extra column — the image export lays
+  // its columns out on a fixed pixel grid.
+  regionColumn ? REGION_LABEL : 'کارخانه',
   'وزن شاخه (kg)',
   'قیمت (تومان)',
   'نوسان',
@@ -58,11 +64,14 @@ export function rowCells(
   vat = false,
   vatRate: number = CONSTANTS.VAT_RATE,
 ): string[] {
+  // `factory ?? region` and not a second flag: the two are alternatives on any
+  // one row (catalogRepo.toPriceRow publishes exactly one of them), so this
+  // cell cannot disagree with the header `cols()` chose for it.
   return [
     r.name,
     r.size ? toPersianDigits(r.size) : 'نامشخص',
     ...(withDimensions ? [r.dimensions ? toPersianDigits(r.dimensions) : 'نامشخص'] : []),
-    r.factory ?? 'نامشخص',
+    r.factory ?? r.region ?? 'نامشخص',
     r.theoreticalWeightKg ? toPersianDigits(String(r.theoreticalWeightKg)) : 'نامشخص',
     priceHiddenLabel(r.current) ?? formatToman(withVat(r.current.price, vat, vatRate), false),
     formatMovement(r.current.movementPct),
@@ -98,7 +107,8 @@ export function ExportMenu({
   const toast = useToast();
   const today = formatJalali(new Date());
   const showDimensions = usesDimensions(categorySlug);
-  const COLS = cols(categorySlug);
+  const regionColumn = !rows.some((r) => r.factory) && rows.some((r) => r.region);
+  const COLS = cols(categorySlug, regionColumn);
   const cells = (r: PriceRow) => rowCells(r, showDimensions, vat, vatRate);
   // Spelled out on the sheet itself so a downloaded file is unambiguous about
   // which of the two numbers it carries once it leaves the browser.

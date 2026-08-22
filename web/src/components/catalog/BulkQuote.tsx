@@ -107,7 +107,13 @@ export function BulkQuote({
   );
   const split = useMemo(() => computeBulkSplit(rows, tonnage), [rows, tonnage]);
 
-  if (allRows.length === 0) return null;
+  // Nothing to compare, and — for پروفیل — nobody to compare. This whole panel
+  // asks one question ("which mill is cheapest for N tonnes?"), so on a
+  // category whose rows carry no mill it has no question to ask: every row
+  // would fall into one «سایر» bucket and the page would recommend «تأمین از
+  // کارخانهٔ سایر», which is the fabricated distinction wearing a different
+  // name. It reappears by itself the moment a real factory is priced here.
+  if (allRows.length === 0 || !allRows.some((r) => r.factory)) return null;
 
   const most = split.lines[split.lines.length - 1] ?? null;
   const runnerUp = split.lines.find((l) => l.factory !== split.cheapest?.factory) ?? null;

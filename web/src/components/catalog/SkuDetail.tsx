@@ -10,7 +10,14 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import { CONSTANTS } from '@/lib/config/constants';
 import { routes } from '@/lib/routes';
 import { formatToman, priceHiddenLabel, toPersianDigits } from '@/lib/utils/format';
-import { priceBasisNoun, sizeLabel, DIMENSIONS_LABEL } from '@/lib/utils/catalogLabels';
+import {
+  priceBasisNoun,
+  sizeLabel,
+  attributeColumns,
+  NOT_APPLICABLE,
+  DIMENSIONS_LABEL,
+  REGION_LABEL,
+} from '@/lib/utils/catalogLabels';
 import { formatJalali } from '@/lib/utils/jalali';
 import { priceSeries as mockSeries, relatedRows as mockRelated, subName as mockSubName } from '@/lib/mock/catalogData';
 import { categories } from '@/lib/mock/fixtures';
@@ -196,6 +203,21 @@ export function SkuDetail({
   // every other category keeps «سایز» (see catalogLabels).
   const sizeCol = sizeLabel(row.categoryId);
 
+  // The same «گرید»/«استاندارد»/«آلیاژ»/«طول شاخه»/«طول سفارشی» definitions the
+  // price table's columns are built from, resolved for THIS product's own
+  // sub-category — so a پروفیل استیل spec sheet says «آلیاژ» and a پروفیل Z one
+  // says «طول سفارشی», in the same words the table the visitor arrived from
+  // used. `NOT_APPLICABLE` can't occur here (the row is always in its own
+  // sub-category) but is filtered defensively rather than printed as a dash.
+  const attrCols = attributeColumns(row.categoryId, row.subCategoryId);
+  const attrSpecs = attrCols
+    .map((c) => ({ key: c.key, label: c.label, value: c.cell(row) }))
+    .filter((a) => a.value !== NOT_APPLICABLE);
+  // …so the generic «طول شاخه» row below doesn't print the same fact twice.
+  const attrCoversLength = attrCols.some(
+    (c) => c.key === 'branchLength' || c.key === 'customLength',
+  );
+
   // `value` is a node, not a string, so the کارخانه row can be a link to that
   // mill's page — the natural next question on a product page is "what else
   // does this mill make?" and the spec table was a dead end for it.
@@ -206,14 +228,27 @@ export function SkuDetail({
     // dimensions recorded yet, and a spec table full of «نامشخص» reads as a
     // broken page rather than an unanswered question.
     ...(row.dimensions ? [{ label: DIMENSIONS_LABEL, value: toPersianDigits(row.dimensions) }] : []),
-    {
-      label: row.categoryId === 'rebar' ? 'گرید' : 'گرید / استاندارد',
-      value: row.grade ?? row.standard ?? 'نامشخص',
-    },
-    {
-      label: 'کارخانه',
-      value: <FactoryLink categorySlug={row.categoryId} factory={row.factory} />,
-    },
+    ...attrSpecs.map((a) => ({ label: a.label, value: a.value })),
+    // Only when this product actually has a mill. The پروفیل sub-categories
+    // whose stored factory names were fabricated publish none (see
+    // catalogLabels.factoryIsMeaningful), and a «کارخانه: نامشخص» row would
+    // put the removed distinction straight back on the spec sheet.
+    ...(row.factory
+      ? [
+          {
+            label: 'کارخانه',
+            value: <FactoryLink categorySlug={row.categoryId} factory={row.factory} />,
+          },
+        ]
+      : // …and in its place, on those same sub-categories, the producing city
+        // the price table now groups by — so a visitor who arrived from the
+        // «قیمت پروفیل اصفهان» section finds the same word on the spec sheet
+        // instead of the fact silently vanishing. Plain text, not a link:
+        // there is no per-region landing page, and it is a reconstruction
+        // rather than sourced data (see catalogLabels.regionFromFactory).
+        row.region
+        ? [{ label: REGION_LABEL, value: row.region }]
+        : []),
     {
       label: 'وزن شاخه',
       value: row.theoreticalWeightKg
@@ -223,7 +258,7 @@ export function SkuDetail({
     // Only when the catalog actually records one — «طول شاخه» is genuinely
     // 6 m for some نبشی rows and 12 m for others, so a blanket default here
     // would be the same guess the per-SKU column exists to stop.
-    ...(row.branchLengthM
+    ...(row.branchLengthM && !attrCoversLength
       ? [{ label: 'طول شاخه', value: `${toPersianDigits(row.branchLengthM)} متر` }]
       : []),
     // Read from the stored denomination, not hard-coded: this said
@@ -260,7 +295,19 @@ export function SkuDetail({
                   {DIMENSIONS_LABEL} <strong className="tnum">{toPersianDigits(row.dimensions)}</strong>
                 </li>
               ) : null}
-              {row.grade || row.standard ? <li>گرید {row.grade ?? row.standard}</li> : null}
+              {attrCols.map((c) => {
+                const value = c.card(row);
+                return value ? (
+                  <li key={c.key}>
+                    {c.label} <strong>{value}</strong>
+                  </li>
+                ) : null;
+              })}
+              {row.region ? (
+                <li>
+                  {REGION_LABEL} <strong>{row.region}</strong>
+                </li>
+              ) : null}
               {row.factory ? (
                 <li>
                   کارخانهٔ <FactoryLink categorySlug={row.categoryId} factory={row.factory} />
