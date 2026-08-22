@@ -8,7 +8,7 @@
 import type { Article, MovementDir, PriceRow } from '@/lib/types/domain';
 import { categories } from './fixtures';
 import { MOCK_CATEGORY_SUBS, type SubCat } from '@/lib/data/nav';
-import { theoreticalWeightFor } from '@/lib/utils/catalogCompose';
+import { composeCatalogSkuName, theoreticalWeightFor } from '@/lib/utils/catalogCompose';
 
 /* ---- seeded PRNG (stable across SSR/CSR) ---- */
 function lcg(seed: number) {
@@ -124,7 +124,11 @@ function rowsFor(categorySlug: string): PriceRow[] {
         subCategoryId: sub.slug,
         categoryId: categorySlug,
         slug,
-        name: `${catName} ${sub.name} ${size}`,
+        // Not `${catName} ${sub.name} ${size}`: under a COMPOUND category
+        // name that composed «نبشی و ناودانی ناودانی سنگین ۱۰» and
+        // «کلاف و مفتول توری ۱۰» — 59 live rows that shipped with the shelf
+        // label glued to the product. See `composeCatalogSkuName`.
+        name: composeCatalogSkuName({ categoryName: catName, subName: sub.name, size }),
         standard: grade,
         size,
         grade,

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  composeCatalogSkuName,
   composeSkuName,
   composeSkuSlug,
   defaultBranchLengthM,
@@ -75,6 +76,42 @@ describe('composeSkuName', () => {
   it('never includes grade even when one is given to a caller that forgot the type changed', () => {
     const withGrade = { subName: 'میلگرد آجدار', size: '۱۴', factory: 'ذوب‌آهن اصفهان', grade: 'A3' };
     expect(composeSkuName(withGrade)).toBe('میلگرد آجدار ۱۴ ذوب‌آهن اصفهان');
+  });
+});
+
+describe('composeCatalogSkuName', () => {
+  it('prefixes a single-noun category, which is what most of the catalog reads', () => {
+    expect(
+      composeCatalogSkuName({ categoryName: 'میلگرد', subName: 'آجدار A3', size: '۱۴' }),
+    ).toBe('میلگرد آجدار A3 ۱۴');
+    expect(composeCatalogSkuName({ categoryName: 'تیرآهن', subName: 'IPE', size: '۲۲' })).toBe(
+      'تیرآهن IPE ۲۲',
+    );
+  });
+
+  // The 59-row defect this function exists for: a compound «X و Y» category
+  // name is a shelf label, and gluing it in front restated one half of it and
+  // contradicted the other.
+  it('never prefixes a compound «X و Y» category name', () => {
+    expect(
+      composeCatalogSkuName({ categoryName: 'نبشی و ناودانی', subName: 'ناودانی سنگین', size: '۱۰' }),
+    ).toBe('ناودانی سنگین ۱۰');
+    expect(composeCatalogSkuName({ categoryName: 'کلاف و مفتول', subName: 'توری', size: '۱۰' })).toBe(
+      'توری ۱۰',
+    );
+  });
+
+  it('lets a sub-category that already opens with the category word say it once', () => {
+    expect(
+      composeCatalogSkuName({ categoryName: 'ورق', subName: 'ورق رنگی', size: '۰.۵' }),
+    ).toBe('ورق رنگی ۰.۵');
+    expect(composeCatalogSkuName({ categoryName: 'لوله', subName: 'لوله' })).toBe('لوله');
+  });
+
+  it('drops absent parts instead of leaving double spaces', () => {
+    expect(composeCatalogSkuName({ categoryName: 'میلگرد', subName: 'آجدار A3' })).toBe(
+      'میلگرد آجدار A3',
+    );
   });
 });
 
