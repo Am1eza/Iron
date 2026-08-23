@@ -202,6 +202,27 @@ export const proformas = pgTable(
     // sum) so the proforma stays auditable — an admin/customer can see both
     // the original total and what was taken off, not just the net result.
     discountToman: bigint('discount_toman', { mode: 'number' }).notNull().default(0),
+    // ── تخفیف پلکانی (volume tiers) ──────────────────────────────────────
+    // The RULE-BASED discount, kept in its own column rather than folded
+    // into `discountToman` (which stays the rep's manual, per-deal figure).
+    // Two separate reasons for money coming off one invoice are two separate
+    // numbers: the printed sheet names each, and the owner can later ask
+    // "how much did the tier scheme actually cost us" without that being
+    // tangled up with ad-hoc rep discretion.
+    volumeDiscountToman: bigint('volume_discount_toman', { mode: 'number' }).notNull().default(0),
+    /** Which band earned it — see `lib/config/pricingTiers.ts`. Null on every
+     *  proforma issued before the scheme existed, and on any order that
+     *  resolved to the base band. */
+    volumeTier: text('volume_tier', { enum: ['retail', 'bulk', 'enterprise'] }),
+    /** The customer-facing reason line, FROZEN at issuance («تخفیف عمده
+     *  (۱٫۵٪)»). Snapshotted for the same reason `lines` is: the owner is
+     *  expected to retune the percentages, and a reprint of an old quote must
+     *  keep showing the rate that quote was actually issued at. */
+    volumeDiscountLabel: text('volume_discount_label'),
+    /** Total tonnage (in kg) the tier was decided from — the audit trail for
+     *  why this order got the band it got. Null when no line had a known
+     *  weight. */
+    quotedWeightKg: doublePrecision('quoted_weight_kg'),
     vatRate: doublePrecision('vat_rate').notNull(),
     vatAmount: bigint('vat_amount', { mode: 'number' }).notNull(),
     total: bigint('total', { mode: 'number' }).notNull(),

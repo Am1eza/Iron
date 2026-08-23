@@ -417,6 +417,12 @@ export async function insertProforma(input: {
   lines: LineItem[];
   subtotal: number;
   discountToman?: number;
+  /** تخفیف پلکانی — see `lib/config/pricingTiers.ts`. Computed by
+   *  `issueProforma`, never by a caller. */
+  volumeDiscountToman?: number;
+  volumeTier?: 'retail' | 'bulk' | 'enterprise' | null;
+  volumeDiscountLabel?: string | null;
+  quotedWeightKg?: number | null;
   vatRate: number;
   vatAmount: number;
   total: number;
@@ -513,6 +519,8 @@ export async function listProformas(query: {
       contactMobile: r.contactMobile,
       total: r.p.total,
       discountToman: r.p.discountToman,
+      volumeDiscountToman: r.p.volumeDiscountToman,
+      volumeDiscountLabel: r.p.volumeDiscountLabel,
       validUntil: r.p.validUntil.toISOString(),
       status: r.p.status,
       createdAt: r.p.createdAt.toISOString(),

@@ -27,6 +27,13 @@ async function GETImpl(req: NextRequest, ctx: { params: Promise<{ ref: string }>
         // Applied before VAT — without it a consumer cannot reconcile
         // subtotal/vatAmount/total. See the totals block on /proforma/[ref].
         discountToman: p.discountToman,
+        // تخفیف پلکانی, separate from the rep's manual figure above — both
+        // come off `subtotal` before VAT, so a consumer needs BOTH to
+        // reconcile the totals. `volumeDiscountLabel` is the frozen reason
+        // line («تخفیف عمده (۱٫۵٪)»); null when nothing was earned.
+        volumeDiscountToman: p.volumeDiscountToman,
+        volumeDiscountLabel: p.volumeDiscountLabel,
+        volumeTier: p.volumeTier,
         vatRate: p.vatRate,
         vatAmount: p.vatAmount,
         total: p.total,
