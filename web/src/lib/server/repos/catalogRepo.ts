@@ -503,6 +503,17 @@ export async function skuCountsByCategory(): Promise<Map<string, number>> {
  *     SKU depth, so `GUARDED_PATTERNS`' three-segment rule already covers
  *     them: omitting them here would hard-404 every one of these pages.
  */
+/** One (category × SKU) pairing the facet landing pages are derived from.
+ *  `cat` is the category the URL lives under; `own_cat`/`sub` are the SKU's
+ *  real home, which is what decides whether its factory is published at all. */
+type FacetPathRow = {
+  cat: string;
+  own_cat: string;
+  sub: string;
+  factory: string | null;
+  size: string | null;
+};
+
 export async function publicCatalogPaths(): Promise<string[]> {
   const db = getDb();
   const [cats, subs, sku, facets] = await Promise.all([
@@ -524,14 +535,14 @@ export async function publicCatalogPaths(): Promise<string[]> {
           eq(subCategories.isActive, true),
         ),
       ),
-    db.execute<{ cat: string; factory: string | null; size: string | null }>(sql`
-      SELECT c.slug AS cat, s.factory, s.size
+    db.execute<FacetPathRow>(sql`
+      SELECT c.slug AS cat, c.slug AS own_cat, sc.slug AS sub, s.factory, s.size
       FROM ${skus} s
       JOIN ${subCategories} sc ON sc.id = s.sub_category_id
       JOIN ${categories} c ON c.id = s.category_id
       WHERE s.is_active AND sc.is_active AND c.is_active
       UNION
-      SELECT tc.slug AS cat, s.factory, s.size
+      SELECT tc.slug AS cat, oc.slug AS own_cat, sc.slug AS sub, s.factory, s.size
       FROM ${skus} s
       CROSS JOIN LATERAL jsonb_array_elements_text(s.cross_listed_category_ids) AS cl(cat_id)
       JOIN ${categories} tc ON tc.id = cl.cat_id AND tc.is_active
@@ -546,8 +557,16 @@ export async function publicCatalogPaths(): Promise<string[]> {
   // two functions the pages resolve their segment with, so the guard and the
   // page can only ever agree.
   const facetPaths = new Set<string>();
-  for (const r of rowsOf<{ cat: string; factory: string | null; size: string | null }>(facets)) {
-    const f = r.factory?.trim() ? factoryFacetSlug(r.factory) : '';
+  for (const r of rowsOf<FacetPathRow>(facets)) {
+    // A factory the catalog does not PUBLISH has no landing page: the page
+    // resolves its segment against the same withheld-at-the-DTO-boundary rows
+    // (`toPriceRow` → `factoryIsMeaningful`) and `notFound()`s, so listing the
+    // URL here would put a guaranteed 404 in the sitemap and in
+    // `knownPaths`. Asked with the SKU's OWN category/sub, exactly as
+    // `toPriceRow` asks it — a cross-listed row is withheld or published on
+    // the strength of where it really lives, not where it is shown.
+    const published = factoryIsMeaningful(r.own_cat, r.sub);
+    const f = published && r.factory?.trim() ? factoryFacetSlug(r.factory) : '';
     if (f) facetPaths.add(`/prices/${r.cat}/factory/${f}`);
     const s = r.size?.trim() ? sizeFacetSlug(r.size) : '';
     if (s) facetPaths.add(`/prices/${r.cat}/size/${s}`);
