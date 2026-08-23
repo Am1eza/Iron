@@ -4,6 +4,26 @@
 import type { Metadata } from 'next';
 import { VERIFIED_CHANNELS } from '@/lib/data/nav';
 import { SITE_ORIGIN } from '@/lib/utils/url';
+import type { PriceBasis } from '@/lib/types/domain';
+
+/**
+ * UN/CEFACT Recommendation 20 unit codes for the price bases that HAVE one.
+ *
+ * `undefined` is a deliberate value, not a gap: a «شاخه» (one whole bar of a
+ * given length), a «کلاف» and a «برگ» have no clean Rec-20 unit, and stating
+ * a nearby-but-wrong code is exactly the failure this map exists to end —
+ * the field is omitted instead, which schema.org permits. Only codes that
+ * unambiguously mean the same thing as the basis are listed:
+ *   KGM = kilogram · H87 = piece · MTK = square metre.
+ */
+const UN_CEFACT_UNIT: Record<PriceBasis, string | undefined> = {
+  kg: 'KGM',
+  piece: 'H87',
+  sqm: 'MTK',
+  branch: undefined,
+  coil: undefined,
+  sheet: undefined,
+};
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://ahantime.com';
 /** Resolve against SITE_URL without throwing on a malformed admin value. */
@@ -218,9 +238,14 @@ export function itemListJsonLd(items: { name: string; url: string }[]) {
  *    stock claim.
  *  - `businessFunction` is GoodRelations `Sell`, and `priceSpecification`
  *    carries `valueAddedTaxIncluded: false`, because every published price on
- *    this site is per-kilogram and excludes VAT (see PriceRow.current.price).
- *    Without that flag the bare `price` reads as a VAT-inclusive final price
- *    and mismatches the invoice the buyer is eventually given.
+ *    this site excludes VAT (see PriceRow.current.price). Without that flag
+ *    the bare `price` reads as a VAT-inclusive final price and mismatches the
+ *    invoice the buyer is eventually given.
+ *  - `unitCode` follows the SKU's `priceBasis` and is **omitted** where no
+ *    honest UN/CEFACT code exists. It used to be hard-coded `KGM`, which
+ *    told Google that a per-قطعه وال‌پست or a per-۱۵-متری کلاف مسی price was
+ *    a per-kilogram rate — off by whole orders of magnitude on the exact
+ *    rows `PriceBasis` was introduced to stop mis-captioning.
  */
 export function productJsonLd(p: {
   name: string;
@@ -235,12 +260,16 @@ export function productJsonLd(p: {
   /** Tri-state on purpose. `true` → InStoreOnly, `false` → OutOfStock,
    *  `undefined` → no availability claim at all. Never defaulted. */
   available?: boolean;
+  /** What the price is denominated in (PriceRow.current.priceBasis). Drives
+   *  `unitCode`; defaults to `kg`, which is the column's own default. */
+  priceBasis?: PriceBasis;
   url: string;
   image?: string;
   brand?: string;
   sku?: string;
 }) {
   const offerUrl = new URL(p.url, SITE_URL).toString();
+  const unitCode = UN_CEFACT_UNIT[p.priceBasis ?? 'kg'];
   const availability =
     p.available === true
       ? 'https://schema.org/InStoreOnly'
@@ -267,7 +296,7 @@ export function productJsonLd(p: {
               price: p.price * 10,
               priceCurrency: 'IRR',
               valueAddedTaxIncluded: false,
-              unitCode: 'KGM', // UN/CEFACT: kilogram — prices are per-kg
+              ...(unitCode ? { unitCode } : {}),
             },
             // GoodRelations: this offer is a sale, concluded offline.
             businessFunction: 'http://purl.org/goodrelations/v1#Sell',

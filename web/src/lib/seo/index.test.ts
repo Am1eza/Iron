@@ -261,3 +261,29 @@ describe('catalogNavigationJsonLd — the taxonomy an answer engine reads', () =
     expect(ld.itemListElement[0]).not.toHaveProperty('description');
   });
 });
+describe('productJsonLd unitCode follows priceBasis (W25 audit)', () => {
+  const base = { name: 'میلگرد ۱۴ آجدار', price: 42_000, url: '/prices/rebar/deformed/x' };
+  const unitOf = (o: ReturnType<typeof productJsonLd>) =>
+    (offerOf(o)?.priceSpecification as { unitCode?: string } | undefined)?.unitCode;
+
+  it('defaults to KGM when no basis is given (the column default)', () => {
+    expect(unitOf(productJsonLd({ ...base, available: true }))).toBe('KGM');
+  });
+
+  it('uses KGM / H87 / MTK for the bases that have an unambiguous Rec-20 code', () => {
+    expect(unitOf(productJsonLd({ ...base, available: true, priceBasis: 'kg' }))).toBe('KGM');
+    expect(unitOf(productJsonLd({ ...base, available: true, priceBasis: 'piece' }))).toBe('H87');
+    expect(unitOf(productJsonLd({ ...base, available: true, priceBasis: 'sqm' }))).toBe('MTK');
+  });
+
+  it('omits unitCode entirely for bases with no honest Rec-20 code', () => {
+    // Asserting a nearby-but-wrong code is the exact bug being fixed: a
+    // per-branch/coil/sheet price must never be published as per-kilogram.
+    for (const basis of ['branch', 'coil', 'sheet'] as const) {
+      const spec = offerOf(productJsonLd({ ...base, available: true, priceBasis: basis }))
+        ?.priceSpecification as Record<string, unknown> | undefined;
+      expect(spec).toBeDefined();
+      expect(spec).not.toHaveProperty('unitCode');
+    }
+  });
+});
