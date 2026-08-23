@@ -57,9 +57,11 @@ async function GETImpl(req: NextRequest) {
   // no `current_prices` row at all — never priced, as opposed to priced and
   // gone stale. `stalePrices` above cannot see them (it reads
   // `current_prices`, which is exactly the table they are missing from), so
-  // seven of them sat on production for five days with nothing anywhere
-  // saying so. The automated mirror correctly refuses to guess a price for
-  // them, so this is the only thing that can raise it.
+  // seven of them sat on production for five days without ever reaching this
+  // screen. The catalog page does badge each one «بدون قیمت», but one row at
+  // a time and nowhere near the daily pricing routine. The automated mirror
+  // correctly refuses to guess a price for them, so a person has to see the
+  // number to act on it.
   add('unpricedSkus', 'pricing:write', async () =>
     (await listActiveSkuIdsWithoutPrice()).length);
   add('newLeads', 'leads:read', () =>

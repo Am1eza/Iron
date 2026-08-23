@@ -390,10 +390,15 @@ export async function headlineRowPerCategory(): Promise<PriceRow[]> {
  *
  * These are NOT invisible — the price table left-joins, so the product ships
  * with «تماس بگیرید» in place of a number, which is a defensible lead-gen
- * state and exactly why nothing ever complained. What is missing is anyone
- * noticing. Production carried seven of them on 1405/06/01, the oldest five
- * days old: «تیرآهن ۱۶/۲۰/۲۲/۲۴ فایکو», «تیرآهن ۱۶ اهواز», «تیرآهن ۱۶ ظفر
- * بناب» and «میلگرد آجدار ۱۲ آناهیتا گیلان».
+ * state and exactly why nothing ever complained. Production carried seven of
+ * them on 1405/06/01, the oldest five days old: «تیرآهن ۱۶/۲۰/۲۲/۲۴ فایکو»,
+ * «تیرآهن ۱۶ اهواز», «تیرآهن ۱۶ ظفر بناب» and «میلگرد آجدار ۱۲ آناهیتا گیلان».
+ *
+ * `CatalogManager` already badges each such row «بدون قیمت», so the fact is
+ * not unrecorded — but it is only legible one row at a time, on a page the
+ * daily pricing routine never opens. There is no count, nothing on the
+ * dashboard, and nothing in the pricing grid, which is where the operator
+ * actually types numbers. That is the gap this closes.
  *
  * `priceSync.mjs` cannot fill them and should not: `price_sync_entries`
  * records a `skip:low-confidence-match` for every one, because the only
