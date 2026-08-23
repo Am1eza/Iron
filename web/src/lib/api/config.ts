@@ -28,3 +28,10 @@ export const DEFAULT_GET_RETRIES = 2;
 /** A 5MB image upload over a slow/flaky connection genuinely needs longer
  *  than the default JSON-request timeout. */
 export const UPLOAD_TIMEOUT_MS = 60_000;
+/** Retries for an upload whose `fetch()` failed outright (dropped connection).
+ *  Matches DEFAULT_GET_RETRIES: the admin panel is used from inside Iran over a
+ *  domestic link that drops briefly, and a re-POST of a multipart body that
+ *  never reached the server cannot have been half-applied. Bounded further by
+ *  UPLOAD_TIMEOUT_MS as a TOTAL wall-clock budget in `httpUpload`, so a genuine
+ *  60s timeout is never retried into a multi-minute freeze. */
+export const UPLOAD_RETRIES = 2;
