@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { httpRequest, httpUpload, setUnauthorizedHook } from './http';
 import { ApiError } from './errors';
+import { UPLOAD_RETRIES } from './config';
 
 function jsonResponse(status: number, body: unknown): Response {
   return {
@@ -124,6 +125,89 @@ describe('httpUpload — 401 recovery', () => {
 
     expect(err).toBeInstanceOf(ApiError);
     expect((err as ApiError).message).toBe('ارتباط با سرور برقرار نشد. اتصال اینترنت را بررسی کنید.');
+  });
+});
+
+/**
+ * The admin panel is used from inside Iran over a domestic link that drops for
+ * a second or two; the upload payload is already compressed to WebP ≤1920px, so
+ * the realistic failure is a blip, not a slow transfer. Retrying is only ever
+ * correct for a fetch that never reached the server.
+ */
+describe('httpUpload — network retry', () => {
+  const originalFetch = global.fetch;
+  const file = () => new File(['x'], 'x.jpg', { type: 'image/jpeg' });
+
+  beforeEach(() => {
+    setUnauthorizedHook(null);
+  });
+  afterEach(() => {
+    global.fetch = originalFetch;
+    setUnauthorizedHook(null);
+  });
+
+  it('rides out a dropped connection: a failing-then-succeeding fetch now resolves', async () => {
+    const fetchSpy = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockResolvedValueOnce(jsonResponse(200, { url: '/uploads/x.webp' }));
+    global.fetch = fetchSpy as unknown as typeof fetch;
+
+    const result = await httpUpload<{ url: string }>('/api/admin/upload', file());
+
+    expect(result.url).toBe('/uploads/x.webp');
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('gives up after UPLOAD_RETRIES with the unchanged connection message', async () => {
+    const fetchSpy = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+    global.fetch = fetchSpy as unknown as typeof fetch;
+
+    const err = await httpUpload('/api/admin/upload', file()).catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(ApiError);
+    expect((err as ApiError).status).toBe(0);
+    expect((err as ApiError).message).toBe('ارتباط با سرور برقرار نشد. اتصال اینترنت را بررسی کنید.');
+    expect(fetchSpy).toHaveBeenCalledTimes(1 + UPLOAD_RETRIES);
+  });
+
+  it('does NOT retry a 4xx — a file the server rejected fails the same way every time', async () => {
+    const fetchSpy = vi.fn().mockResolvedValue(jsonResponse(413, { error: 'too_large', message: 'حجم فایل زیاد است.' }));
+    global.fetch = fetchSpy as unknown as typeof fetch;
+
+    const err = await httpUpload('/api/admin/upload', file()).catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(ApiError);
+    expect((err as ApiError).status).toBe(413);
+    expect((err as ApiError).message).toBe('حجم فایل زیاد است.');
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('does NOT retry a 5xx either — the server answered, so the link is not the problem', async () => {
+    const fetchSpy = vi.fn().mockResolvedValue(jsonResponse(500, { message: 'خطای سرور' }));
+    global.fetch = fetchSpy as unknown as typeof fetch;
+
+    const err = await httpUpload('/api/admin/upload', file()).catch((e: unknown) => e);
+
+    expect((err as ApiError).status).toBe(500);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the 401 recovery retry separate from the network retry', async () => {
+    const fetchSpy = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockResolvedValueOnce(jsonResponse(401, { message: 'وارد نشده‌اید.' }))
+      .mockResolvedValueOnce(jsonResponse(200, { url: '/uploads/x.webp' }));
+    global.fetch = fetchSpy as unknown as typeof fetch;
+    const hook = vi.fn().mockResolvedValue(true);
+    setUnauthorizedHook(hook);
+
+    const result = await httpUpload<{ url: string }>('/api/admin/upload', file());
+
+    expect(result.url).toBe('/uploads/x.webp');
+    expect(hook).toHaveBeenCalledTimes(1);
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
   });
 });
 

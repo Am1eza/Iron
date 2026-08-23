@@ -1,5 +1,5 @@
 import { ApiError } from './errors';
-import { BASE_URL, DEFAULT_GET_RETRIES, DEFAULT_TIMEOUT_MS, UPLOAD_TIMEOUT_MS } from './config';
+import { BASE_URL, DEFAULT_GET_RETRIES, DEFAULT_TIMEOUT_MS, UPLOAD_RETRIES, UPLOAD_TIMEOUT_MS } from './config';
 
 type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
@@ -149,8 +149,22 @@ export async function httpRequest<T>(path: string, opts: RequestOptions<T> = {})
 
 /** Multipart file upload (admin image upload). No `Content-Type` header —
  *  the browser sets the multipart boundary itself for a `FormData` body;
- *  forcing `application/json` (like the JSON path above) would break it. */
+ *  forcing `application/json` (like the JSON path above) would break it.
+ *
+ *  Retries a raw `fetch()` failure with backoff (see UPLOAD_RETRIES). Only that
+ *  path retries: an HTTP response — `too_large`, `bad_file`, any 5xx — is the
+ *  server having *seen* the request and decided, so re-sending the same bytes
+ *  would fail identically and only cost the user more waiting.
+ *
+ *  The retry is deliberately silent. Every call site already shows a generic
+ *  busy state («در حال آپلود…» / `isUploading`) and reports failure through its
+ *  own channel (toast in RichTextEditor/LetterheadForm, inline error in
+ *  ImageUpload); threading a "تلاش مجدد…" signal through `adminApi.uploadImage`
+ *  into three differently-shaped UIs buys little when the added wait is bounded
+ *  at ~1.2s of backoff plus whatever the failing attempts themselves took —
+ *  and the total budget below is what actually keeps it from feeling frozen. */
 export async function httpUpload<T>(path: string, file: File): Promise<T> {
+  /** Throws the raw fetch rejection; the caller decides retry vs. give up. */
   const doUpload = async (): Promise<Response> => {
     const headers = new Headers();
     requestHook(headers);
@@ -166,24 +180,42 @@ export async function httpUpload<T>(path: string, file: File): Promise<T> {
         credentials: 'include',
         signal: ctrl.signal,
       });
-    } catch {
-      // A raw fetch failure here (dropped connection mid-upload, aborted
-      // timeout) never reaches the server — nothing to log server-side —
-      // and previously propagated as a bare, unhandled exception instead of
-      // the same friendly ApiError every other request path already gives a
-      // flaky connection (real risk on this deployment's network).
-      throw new ApiError(0, 'ارتباط با سرور برقرار نشد. اتصال اینترنت را بررسی کنید.');
     } finally {
       clearTimeout(timer);
     }
   };
-  let res = await doUpload();
-  const hook = res.status === 401 ? recoveryHookFor(path) : null;
-  if (hook && (await hook())) {
-    res = await doUpload();
+
+  const startedAt = Date.now();
+  let attempt = 0;
+  let authRetried = false;
+  for (;;) {
+    let res: Response;
+    try {
+      res = await doUpload();
+    } catch {
+      // A raw fetch failure here (dropped connection mid-upload, aborted
+      // timeout) never reaches the server — nothing to log server-side, and
+      // nothing half-applied — so re-sending is safe and usually enough to
+      // ride out a brief blip on this deployment's network. UPLOAD_TIMEOUT_MS
+      // doubles as the TOTAL budget: an attempt that burned the whole 60s
+      // timeout is not retried, it fails now exactly as it used to.
+      if (attempt < UPLOAD_RETRIES && Date.now() - startedAt < UPLOAD_TIMEOUT_MS) {
+        attempt++;
+        await backoff(attempt);
+        continue;
+      }
+      throw new ApiError(0, 'ارتباط با سرور برقرار نشد. اتصال اینترنت را بررسی کنید.');
+    }
+    // Auth recovery is a separate, exactly-once retry: a refreshed cookie, not
+    // a flaky link. It must not consume (or be consumed by) the network budget.
+    const hook = res.status === 401 && !authRetried ? recoveryHookFor(path) : null;
+    if (hook) {
+      authRetried = true;
+      if (await hook()) continue;
+    }
+    if (!res.ok) throw await toApiError(res);
+    return (await res.json()) as T;
   }
-  if (!res.ok) throw await toApiError(res);
-  return (await res.json()) as T;
 }
 
 /** Streaming POST (AI). Returns the Response; caller reads response.body. */
