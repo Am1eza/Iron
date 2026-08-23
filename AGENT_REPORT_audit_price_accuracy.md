@@ -329,6 +329,20 @@ Fixed in **#249** as a one-line select addition (not a cast), filed separately b
 blocks CI on every open PR. This is outside the audit's scope; flagging rather than
 folding it into the audit PRs.
 
+**`main` has more than one problem.** With the typecheck break fixed, CI gets *further*
+and the `Unit tests` step then fails on two more pre-existing issues that the typecheck
+failure had been masking (the step never ran):
+
+- `src/lib/auth/service.test.ts:95` — the auth refresh-grace test, a long-documented flake
+- `src/lib/server/repos/aiReviewPagination.test.ts:41` — `expected 6 to be 7`
+
+Both **pass locally in isolation** (`aiReviewPagination` 2/2 green), which points at the
+same pglite-under-parallel-load flakiness already seen in e2e rather than a logic break.
+Neither can be caused by #249, which only adds a column to a script's `select()`.
+
+These are left for the owner: they are pre-existing, unrelated to this audit, and
+"fix main's flaky tests" is a materially different task from the one commissioned.
+
 ---
 
 ## Nothing was fabricated
