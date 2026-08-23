@@ -128,6 +128,19 @@ step numbers in `ValueProps` and the phone numbers in `ContactCardView`.
 - **The office address** in `ContactCardView` — a half-translated Iranian postal address
   is worse than a Persian one a courier can read.
 
+### Payload cost
+
+`fa.json` grew 6.4 KB → 18 KB. Only the default locale ships in the initial payload;
+`en`/`ar`/`zh` are lazy `import()` chunks `LocaleProvider` fetches on switch, so they
+cost nothing until someone changes language. The homepage therefore carries roughly
+**+11.6 KB uncompressed (~3.5 KB gzipped)** of text in an already-streamed payload —
+the unavoidable price of the copy being translatable at all, and well inside the LCP
+budget, which is dominated by fonts and images.
+
+`ValueProps` and the new `WhyAhantime` are the only components that newly enter the
+client bundle. Neither has state, effects or observers, and both already depend on
+`next-intl`, which the header loads regardless.
+
 ### B3. New test
 
 `web/src/i18n/messages.test.ts` (8 tests) pins what nothing enforced before. A missing
