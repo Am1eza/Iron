@@ -250,13 +250,22 @@ async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
   // list above by the catalog queries — and still answer 308 to the crawler
   // that follows it. Verified against production 1405/05/31 by fetching all
   // 1,235 published URLs: zero 404s, and exactly three redirects, all of
-  // them this shape (`/prices/profile/prvfyl-*`, orphaned by the پروفیل
-  // re-slug). Every other filter here works from the catalog's own state,
-  // which cannot see the redirect table at all.
+  // them this shape (`/prices/profile/prvfyl-*`).
   //
-  // This suppresses the symptom, not the cause: a live page that a stale row
-  // hides is still hidden from visitors. The row is the thing to delete —
-  // this only stops us pointing Google at it in the meantime.
+  // Those three are gone — `scripts/unshadowProfileSubCategories.ts` removed
+  // the rows on 1405/05/31, and the crawl is clean. Their cause is worth
+  // keeping in view, because it is not the one it looks like: the پروفیل
+  // sub-categories were retired while empty, then RE-CREATED by the owner ten
+  // days later, and `slugify()` handed the new rows the same slugs the
+  // retirement had already redirected away. Any sub-category an admin
+  // recreates can land in a retired URL the same way, and nothing in the
+  // create path checks for it.
+  //
+  // So this gate stays. It suppresses the symptom, not the cause: a live page
+  // that a stale row hides is still hidden from visitors, and the row is
+  // still the thing to remove — this only stops us pointing Google at it in
+  // the meantime. Every other filter here works from the catalog's own state,
+  // which cannot see the redirect table at all.
   return dropRedirectedEntries(entries, await listRedirectFromPaths());
 }
 
