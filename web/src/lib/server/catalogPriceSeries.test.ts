@@ -17,21 +17,25 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const skuHistory = vi.fn();
-const mockPriceSeries = vi.fn((..._args: unknown[]): number[] => [1, 2, 3]);
+import type * as CatalogRepo from '@/lib/server/repos/catalogRepo';
+import type * as DbClient from '@/lib/server/db/client';
+import type * as MockCatalog from '@/lib/mock/catalogData';
+
+const skuHistory = vi.fn<(slug: string, range?: string) => Promise<Array<{ price: number }>>>();
+const mockPriceSeries = vi.fn<(slug: string, price: number, days?: number) => number[]>(() => [1, 2, 3]);
 
 vi.mock('@/lib/api/config', () => ({ API_MODE: 'live' }));
 vi.mock('@/lib/server/db/client', async (orig) => ({
-  ...(await orig<typeof import('@/lib/server/db/client')>()),
+  ...((await orig()) as typeof DbClient),
   hasDb: () => true,
 }));
 vi.mock('@/lib/server/repos/catalogRepo', async (orig) => ({
-  ...(await orig<typeof import('@/lib/server/repos/catalogRepo')>()),
-  skuHistory: (...args: unknown[]) => skuHistory(...args),
+  ...((await orig()) as typeof CatalogRepo),
+  skuHistory,
 }));
 vi.mock('@/lib/mock/catalogData', async (orig) => ({
-  ...(await orig<typeof import('@/lib/mock/catalogData')>()),
-  priceSeries: (...args: unknown[]) => mockPriceSeries(...args),
+  ...((await orig()) as typeof MockCatalog),
+  priceSeries: mockPriceSeries,
 }));
 
 const { priceSeries } = await import('@/lib/server/catalog');
