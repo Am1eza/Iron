@@ -36,6 +36,7 @@ const REASON_LABEL: Record<string, string> = {
   'skip:sku-has-no-factory': 'کارخانهٔ این کالا ثبت نشده',
   'skip:sku-missing-variant': 'آلیاژ/نوع این کالا در نام آن ثبت نشده',
   'skip:source-has-no-variant': 'منبع آلیاژ/نوع را منتشر نمی‌کند',
+  'skip:variant-not-stocked': 'منبع این سایز را در این آلیاژ ندارد',
   'skip:no-size-match': 'سایز مطابقی در منبع پیدا نشد',
   'skip:source-not-per-kg': 'قیمت منبع شاخه‌ای است، نه کیلوگرمی',
   'skip:low-confidence-match': 'تطبیق کارخانه قطعی نبود',

@@ -95,6 +95,11 @@ async function loadCandidates(config: PriceSyncConfig): Promise<CandidateSku[]> 
       name: skus.name,
       size: skus.size,
       factory: skus.factory,
+      // The alloy, for the stainless families' identity check — see
+      // `IDENTITY`'s `from: 'grade'`. Omitting it here was what made those
+      // lines look un-mirrorable: the matcher had no way to see a column we
+      // had populated all along.
+      grade: skus.grade,
       priceBasis: skus.priceBasis,
       excluded: skus.priceSyncExcluded,
       categorySlug: categories.slug,
