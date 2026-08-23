@@ -85,6 +85,15 @@ ships as «تماس بگیرید». Verified live: `/prices/ibeam/tirahan` → 2
 with «تماس بگیرید». For a lead-gen site whose whole premise is "call us", that is a defensible
 state — which is exactly why nothing ever raised it.
 
+**The gap is narrower than it first looks, and worth stating precisely.** `CatalogManager` already
+badges each such row «بدون قیمت» (`CatalogManager.tsx:693`), and `admin-pricing-catalog.spec.ts:269`
+asserts that badge — its comment even calls it "the only signal that tells an owner there is
+data-entry work outstanding". So the fact is *recorded*. What is missing is any way to notice it
+**while doing the pricing**: the badge is legible one row at a time, on a page the daily routine
+never opens; there is no count anywhere; `stalePrices` cannot see these rows (it counts
+`current_prices`, the table they are absent from); the pricing grid lists them as a blank cell
+indistinguishable from a stale-HIDDEN price; and the dashboard says nothing at all.
+
 **The brief's hypothesis — that `priceSync.match.ts` is failing to match new تیرآهن variants and
 should be fixed — is wrong, and fixing the matcher would have been a pricing incident.**
 `price_sync_entries` has an entry for all seven, every one `skip:low-confidence-match`, and the
