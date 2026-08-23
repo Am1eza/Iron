@@ -18,7 +18,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const skuHistory = vi.fn();
-const mockPriceSeries = vi.fn(() => [1, 2, 3]);
+const mockPriceSeries = vi.fn((..._args: unknown[]): number[] => [1, 2, 3]);
 
 vi.mock('@/lib/api/config', () => ({ API_MODE: 'live' }));
 vi.mock('@/lib/server/db/client', async (orig) => ({
