@@ -34,3 +34,20 @@ describe('PriceChart — area fill traces the line, not a diagonal across the wh
     expect(areaD.trim().endsWith('Z')).toBe(true);
   });
 });
+
+/**
+ * Regression for the 2026-08-23 fabricated-history bug. `catalog.priceSeries`
+ * used to fall back to the mock random walk whenever a SKU had no
+ * `price_points`, so an unpriced product published invented numbers. With that
+ * fallback gone the component receives an empty series, and everything below
+ * the guard indexes `data[0]` and divides by it — an unguarded empty series
+ * renders «از NaN تومان به NaN تومان» over an empty path.
+ */
+describe('PriceChart — no history', () => {
+  it('says so instead of plotting an empty series', () => {
+    const { container, getByText } = render(<PriceChart series={[]} />);
+    expect(getByText('هنوز سابقهٔ قیمتی برای این کالا ثبت نشده است.')).toBeTruthy();
+    expect(container.querySelector('svg')).toBeNull();
+    expect(container.textContent).not.toContain('NaN');
+  });
+});

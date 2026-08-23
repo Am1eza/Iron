@@ -36,6 +36,15 @@ export function PriceChart({
   const data = useMemo(() => series.slice(-range), [series, range]);
   const dateData = useMemo(() => dates?.slice(-range), [dates, range]);
 
+  // No history is a real, common state — a product priced for the first time
+  // today, or never priced at all. Everything below indexes `data[0]` /
+  // `data.length - 1` and divides by the first value, so an empty series would
+  // render a NaN caption over an empty path. Say so instead. This must stay
+  // AFTER the hooks above (rules of hooks) and BEFORE the arithmetic.
+  if (data.length === 0) {
+    return <p className={styles.empty}>هنوز سابقهٔ قیمتی برای این کالا ثبت نشده است.</p>;
+  }
+
   const w = 640;
   const h = 220;
   const pad = 8;
