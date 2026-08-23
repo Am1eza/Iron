@@ -4,10 +4,11 @@ import { requireApiPermission, requireDb, withApiErrorHandling } from '@/lib/ser
 import { can } from '@/lib/auth/roles';
 import type { Permission } from '@/lib/auth/types';
 import { getDb } from '@/lib/server/db/client';
-import { currentPrices, leads, userRequests, orders, contactMessages, users, articles, aiUsage } from '@/lib/server/db/schema';
+import { currentPrices, leads, userRequests, orders, contactMessages, users, articles, aiUsage, skus, subCategories } from '@/lib/server/db/schema';
 import { triggeredAlertCount } from '@/lib/server/repos/alertsRepo';
 import { listActiveSkuIdsWithoutPrice } from '@/lib/server/repos/catalogRepo';
 import { getPriceFreshness } from '@/lib/server/services/priceFreshness';
+import { priceNeedsReview } from '@/lib/utils/priceAge';
 
 /**
  * GET /api/admin/stats — the dashboard tiles. Each field is behind its own
@@ -52,6 +53,30 @@ async function GETImpl(req: NextRequest) {
     const freshness = await getPriceFreshness();
     const rows = await db.select({ updatedAt: currentPrices.updatedAt }).from(currentPrices);
     return rows.filter((r) => !freshness.isStale(r.updatedAt)).length;
+  });
+  // Prices nobody and no mirror run has touched in a working week — the admin
+  // work queue, as opposed to `stalePrices`, which is the CUSTOMER-facing
+  // "not set today" flag. The two answer different questions and, on this
+  // catalogue, differ by an order of magnitude: the mirror refreshes about
+  // half the SKUs twice a day, so by the next morning nearly every other row
+  // is «کهنه» while only the genuinely un-mirrorable ones are past five days.
+  // See `priceAge.ts` for why the customer-facing definition is left alone.
+  //
+  // Scoped to ACTIVE products under an ACTIVE sub-category, which is exactly
+  // what the pricing grid lists. Counting bare `current_prices` (as
+  // `stalePrices` above does) reported 1 on production and the grid could
+  // reach 0 of it: the one row 47 days old belonged to a DEACTIVATED SKU,
+  // whose price row outlives it. A work-queue number nobody can act on is
+  // worse than no number.
+  add('pricesNeedingReview', 'pricing:write', async () => {
+    const now = new Date();
+    const rows = await db
+      .select({ updatedAt: currentPrices.updatedAt })
+      .from(currentPrices)
+      .innerJoin(skus, eq(skus.id, currentPrices.skuId))
+      .innerJoin(subCategories, eq(subCategories.id, skus.subCategoryId))
+      .where(and(eq(skus.isActive, true), eq(subCategories.isActive, true)));
+    return rows.filter((r) => priceNeedsReview(r.updatedAt, now)).length;
   });
   // Products the site is already showing with «تماس بگیرید» because they have
   // no `current_prices` row at all — never priced, as opposed to priced and

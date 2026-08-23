@@ -101,6 +101,40 @@
   background: color-mix(in srgb, var(--chart-warn) 10%, transparent);
 }
 
+/* A price nothing has touched in a working week (US-05.4). Deliberately the
+   faintest of the row states — it marks a standing condition across whole
+   blocks of the table rather than something that just happened, so it has to
+   read as a tint the eye can skim past, not as an error. Ranked last in
+   PricingGrid's rowClass chain for the same reason. */
+.rowAged {
+  background: color-mix(in srgb, var(--color-loss) 5%, transparent);
+}
+
+/* Column-header sort trigger. A bare target, like .sparkButton: the datasheet
+   must keep looking like a datasheet, so this inherits the <th>'s own type and
+   colour and shows its affordance on hover/focus alone. */
+.sortButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.sortButton:hover {
+  color: var(--color-text);
+}
+
+.sortButton:focus-visible {
+  outline: var(--border-focus) solid var(--color-focus);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
 /* Form controls take --color-border-strong (not hairline): that is the
    site-wide input/chip/button border token (see forms/field.module.css). */
 .select {

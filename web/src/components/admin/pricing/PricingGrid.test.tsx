@@ -128,6 +128,7 @@ vi.mock('next/navigation', () => ({
 }));
 
 const pricingGrid = vi.fn();
+const stats = vi.fn(() => Promise.resolve({ stats: { pricesNeedingReview: 0 } }));
 vi.mock('@/lib/api/resources/admin', () => ({
   adminApi: {
     categories: () =>
@@ -137,6 +138,7 @@ vi.mock('@/lib/api/resources/admin', () => ({
     subCategories: () => Promise.resolve({ subCategories: [] }),
     skuHistoryBatch: () => Promise.resolve({ series: {} }),
     pricingGrid: () => pricingGrid(),
+    stats: () => stats(),
     savePrices: vi.fn(),
   },
 }));
@@ -346,5 +348,121 @@ describe('PricingGrid — products that have never been priced', () => {
     renderGrid();
     expect(await screen.findByLabelText('قیمت تیرآهن ۱۴')).toBeInTheDocument();
     expect(screen.queryByText(/هیچ قیمتی ندارد/)).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * The price-age view (US-05.4).
+ *
+ * The screen already had a «فقط کهنه‌ها» filter, and it was useless: «کهنه» is
+ * the customer-facing "not set during the current Jalali day" flag, the mirror
+ * runs twice daily, and by the next morning it matched most of the catalogue.
+ * These cases are about the thing an operator actually needs — which rows have
+ * been sitting untouched long enough that a person has to go and price them.
+ */
+describe('PricingGrid price age', () => {
+  const daysAgo = (n: number) => new Date(Date.now() - n * 24 * 60 * 60 * 1000).toISOString();
+
+  beforeEach(() => {
+    stats.mockResolvedValue({ stats: { pricesNeedingReview: 0 } });
+  });
+
+  it('shows each row’s age in days, and «امروز» for one priced today', async () => {
+    pricingGrid.mockResolvedValue({
+      rows: [
+        priceRow('a', 'میلگرد ۱۴', 285_000, { updatedAt: daysAgo(0) }),
+        priceRow('b', 'میلگرد ۱۶', 284_000, { updatedAt: daysAgo(3) }),
+        priceRow('c', 'لوله مسی ۱', 8_521_500, { updatedAt: daysAgo(11) }),
+      ],
+      hiddenByTaxonomy: 0,
+      withoutPrice: [],
+    });
+    renderGrid();
+
+    expect(await screen.findByText('امروز')).toBeInTheDocument();
+    expect(screen.getByText('۳ روز')).toBeInTheDocument();
+    expect(screen.getByText('۱۱ روز')).toBeInTheDocument();
+  });
+
+  it('flags only what is past the threshold, not everything the day’s sync missed', async () => {
+    pricingGrid.mockResolvedValue({
+      rows: [
+        // 3 days old: «کهنه» by the customer-facing rule, and NOT a work item.
+        // This is the row the old filter drowned the real ones in.
+        priceRow('b', 'میلگرد ۱۶', 284_000, { updatedAt: daysAgo(3), isStale: true }),
+        priceRow('c', 'لوله مسی ۱', 8_521_500, { updatedAt: daysAgo(11), isStale: true }),
+      ],
+      hiddenByTaxonomy: 0,
+      withoutPrice: [],
+    });
+    const user = userEvent.setup();
+    renderGrid();
+
+    const chip = await screen.findByRole('button', { name: /نیازمند بازبینی \(۱\)/ });
+    await user.click(chip);
+    // First cell of each body row — the product name column. `getByText` would
+    // hit the size column too, which the fixture fills with the same string.
+    const names = screen.getAllByRole('row').slice(1).map((r) => r.querySelector('td')!.textContent);
+    expect(names).toEqual(['لوله مسی ۱']);
+  });
+
+  it('sorts by age oldest-first, then newest-first, then back to catalogue order', async () => {
+    pricingGrid.mockResolvedValue({
+      rows: [
+        priceRow('a', 'میلگرد ۱۴', 285_000, { updatedAt: daysAgo(0) }),
+        priceRow('c', 'لوله مسی ۱', 8_521_500, { updatedAt: daysAgo(11) }),
+        priceRow('b', 'میلگرد ۱۶', 284_000, { updatedAt: daysAgo(3) }),
+      ],
+      hiddenByTaxonomy: 0,
+      withoutPrice: [],
+    });
+    const user = userEvent.setup();
+    renderGrid();
+
+    const names = () =>
+      screen.getAllByRole('row').slice(1).map((r) => r.querySelector('td')!.textContent);
+    expect(await screen.findByText('امروز')).toBeInTheDocument();
+    expect(names()).toEqual(['میلگرد ۱۴', 'لوله مسی ۱', 'میلگرد ۱۶']);
+
+    const header = screen.getByRole('button', { name: /عمر قیمت/ });
+    await user.click(header);
+    expect(names()).toEqual(['لوله مسی ۱', 'میلگرد ۱۶', 'میلگرد ۱۴']);
+    await user.click(header);
+    expect(names()).toEqual(['میلگرد ۱۴', 'میلگرد ۱۶', 'لوله مسی ۱']);
+    // Third click restores the order an operator prices a category in.
+    await user.click(header);
+    expect(names()).toEqual(['میلگرد ۱۴', 'لوله مسی ۱', 'میلگرد ۱۶']);
+  });
+
+  it('reports the CATALOGUE-wide count, not just this category’s', async () => {
+    // The lines that go untouched longest are the un-mirrorable ones, and
+    // nobody navigates to them — so a count scoped to the selected category
+    // would never be seen by the person who needs it.
+    stats.mockResolvedValue({ stats: { pricesNeedingReview: 45 } });
+    pricingGrid.mockResolvedValue({
+      rows: [priceRow('a', 'میلگرد ۱۴', 285_000, { updatedAt: daysAgo(0) })],
+      hiddenByTaxonomy: 0,
+      withoutPrice: [],
+    });
+    renderGrid();
+
+    expect(await screen.findByText(/۴۵ قیمت در کل کاتالوگ بیش از ۵ روز/)).toBeInTheDocument();
+    // …and it says so plainly when none of those 45 are in the current view,
+    // rather than offering a filter that would empty the table.
+    expect(screen.getByText(/در این دسته موردی نیست/)).toBeInTheDocument();
+  });
+
+  it('does not report an age for a product that has never been priced', async () => {
+    // Its `updatedAt` is a DTO default, so «امروز» there would claim the
+    // opposite of the truth about the one row most in need of attention.
+    pricingGrid.mockResolvedValue({
+      rows: [priceRow('n', 'ورق کرکره ۱', 0, { updatedAt: daysAgo(0) })],
+      hiddenByTaxonomy: 0,
+      withoutPrice: ['n'],
+    });
+    renderGrid();
+
+    expect(await screen.findAllByText('ورق کرکره ۱')).not.toHaveLength(0);
+    expect(screen.queryByText('امروز')).not.toBeInTheDocument();
   });
 });
