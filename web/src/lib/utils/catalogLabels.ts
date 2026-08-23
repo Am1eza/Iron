@@ -141,9 +141,10 @@ function metres(m: number | null | undefined): string | undefined {
 const ATTR_DEFS: Record<AttrKey, { label: string; read: (r: AttrRow) => string | undefined }> = {
   grade: { label: GRADE_LABEL, read: (r) => r.grade },
   standard: { label: STANDARD_LABEL, read: (r) => r.standard },
-  // «آلیاژ» is `skus.grade` re-labelled, not a new stored column: for پروفیل
-  // استیل the stored grade genuinely IS the alloy (۲۰۱/۳۰۴/۳۱۶), which is the
-  // one spec a stainless buyer actually asks for.
+  // «آلیاژ» is `skus.grade` re-labelled, not a new stored column: on a
+  // stainless product the stored grade genuinely IS the alloy
+  // (۲۰۱/۳۰۴/۳۰۴L/۳۱۶L), which is the one spec a stainless buyer actually asks
+  // for. Used by the whole استیل category and by پروفیل استیل.
   alloy: { label: ALLOY_LABEL, read: (r) => r.grade },
   branchLength: { label: BRANCH_LENGTH_LABEL, read: (r) => metres(r.branchLengthM) },
   customLength: {
@@ -173,10 +174,19 @@ const PROFILE_ATTRS: Record<string, AttrKey[]> = {
  * currently-active sub-category filter (`null` = «همه», every sub-category
  * mixed into one table).
  *
- * Only تیرآهن and پروفیل ever deviate; every other category always gets its one
- * «گرید» column exactly as before. The mixed «همه» view resolves to the
+ * Only تیرآهن, پروفیل and استیل ever deviate; every other category always gets
+ * its one «گرید» column exactly as before. The mixed «همه» view resolves to the
  * category's default column set — the rule تیرآهن has always used — and each
  * cell then answers for its own row (see `attributeColumns`).
+ *
+ * استیل deviates at the CATEGORY level rather than per-sub: every product in it
+ * is stainless, so every stored `grade` in it is an alloy designation
+ * (۲۰۱/۳۰۴/۳۰۴L/۳۱۶L — verified across all 55 live SKUs, 1405/06), and the
+ * owner's employer asked for the column to say «آلیاژ» throughout. That holds
+ * for its currently-empty subs (فلنج، مش، رینگ، فنر، تسمه، تیوب، توری) too:
+ * they are stainless products as well, so «آلیاژ» is already the right word for
+ * the day they get stock. Because the answer is the same for every sub, the
+ * mixed «همه» view needs no special case and no cell can read `NOT_APPLICABLE`.
  */
 export function attrKeysFor(
   categorySlug: string | null | undefined,
@@ -189,6 +199,7 @@ export function attrKeysFor(
   if (categorySlug === 'profile' && sub !== null) {
     return PROFILE_ATTRS[sub] ?? ['grade'];
   }
+  if (categorySlug === 'steel') return ['alloy'];
   return ['grade'];
 }
 

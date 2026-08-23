@@ -83,8 +83,8 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ط
     return cols[0]!;
   };
 
-  it('leaves every non-تیرآهن, non-پروفیل category exactly as it was', () => {
-    for (const slug of ['rebar', 'sheet', 'pipe', 'angle-channel', 'wire', 'steel']) {
+  it('leaves every non-تیرآهن, non-پروفیل, non-استیل category exactly as it was', () => {
+    for (const slug of ['rebar', 'sheet', 'pipe', 'angle-channel', 'wire', 'felezat-rangi']) {
       for (const sub of [null, 'anything']) {
         const col = only(slug, sub);
         expect(col.key).toBe('grade');
@@ -185,6 +185,59 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ط
     expect(col.cell(row('prvfyl-snaty', { grade: 'ST37' }))).toBe(NOT_APPLICABLE);
     expect(col.cell(row('profil-z'))).toBe(NOT_APPLICABLE);
     expect(col.cell(row('prvfyl-astyl', { grade: '۳۰۴' }))).toBe(NOT_APPLICABLE);
+  });
+
+  /* -------------------------- استیل (the category) -------------------------- */
+
+  it('labels the whole استیل category «آلیاژ», every sub and the mixed view', () => {
+    // The four subs that carry live stock, the empty-but-visible ones, and the
+    // «همه» view. Every product under استیل is stainless, so the answer never
+    // varies by sub — which is also why no cell below can read NOT_APPLICABLE.
+    for (const sub of [
+      'angle',
+      'channel',
+      'pipe',
+      'profile',
+      'flange',
+      'mesh',
+      'ring',
+      'spring',
+      'strip',
+      'tube',
+      'wire-mesh',
+      null,
+    ]) {
+      const col = only('steel', sub);
+      expect(col.key).toBe('alloy');
+      expect(col.label).toBe(ALLOY_LABEL);
+    }
+  });
+
+  it('reads the real stainless designations out of skus.grade under استیل', () => {
+    const col = only('steel', null);
+    for (const [sub, alloy] of [
+      ['angle', '304'],
+      ['channel', '304L'],
+      ['pipe', '316L'],
+      ['profile', '201'],
+    ] as const) {
+      expect(col.cell(row(sub, { grade: alloy }))).toBe(alloy);
+      expect(col.card(row(sub, { grade: alloy }))).toBe(alloy);
+    }
+    // Unset is «نامشخص», never a dash: a stainless product HAS an alloy, we
+    // just have not recorded it.
+    expect(col.cell(row('pipe'))).toBe(UNKNOWN_VALUE);
+    expect(col.card(row('pipe'))).toBeNull();
+  });
+
+  it('does not leak «آلیاژ» into the unrelated top-level لوله/نبشی categories', () => {
+    // `steel` has subs literally named `pipe`, `angle`, `channel`, `profile`,
+    // which collide with three top-level category slugs. The label is resolved
+    // from the CATEGORY, so the collision cannot cross over.
+    for (const slug of ['pipe', 'angle-channel']) {
+      expect(only(slug, 'pipe').label).toBe(GRADE_LABEL);
+      expect(only(slug, null).label).toBe(GRADE_LABEL);
+    }
   });
 });
 
