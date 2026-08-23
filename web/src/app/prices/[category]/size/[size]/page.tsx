@@ -6,7 +6,7 @@ import { getCategories, getCategoryFacets, getRowsBySize, getFactoryOrder } from
 import { getSubsMap } from '@/lib/data/catalog';
 import { getSetting, getVatRate } from '@/lib/server/repos/settingsRepo';
 import { DEFAULT_LOGISTICS_CONFIG, type LogisticsConfig } from '@/lib/data/logistics';
-import { sizeLabel } from '@/lib/utils/catalogLabels';
+import { sizeLabel, factoryIsMeaningful } from '@/lib/utils/catalogLabels';
 import { Container, Section, Stack, Breadcrumbs } from '@/components/ui';
 import { BreadcrumbJsonLd, JsonLd } from '@/components/seo/JsonLd';
 import { PriceTable } from '@/components/catalog/PriceTable';
@@ -35,9 +35,16 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const facet = facets.sizes.find((f) => f.slug === size);
   if (!cat || !facet) return buildMetadata({ title: 'صفحه پیدا نشد', noindex: true });
   const measure = sizeLabel(category);
+  // «به تفکیک کارخانه» only where a mill name is actually published — on
+  // استیل (imported, no mill at all) the page has no factory column, no
+  // factory sections and no factory rail, so promising one in the search
+  // snippet describes a page that does not exist. Same conditional the
+  // sub-category page uses (catalogLabels.factoryIsMeaningful); asked at the
+  // CATEGORY level because this page mixes every sub-category of one size.
+  const byFactory = factoryIsMeaningful(category, null);
   return buildMetadata({
     title: `قیمت روز ${cat.name} ${measure} ${facet.label}`,
-    description: `قیمت امروز ${cat.name} ${measure} ${facet.label} به تفکیک کارخانه، همراه با نوسان، وزن شاخه و زمان تحویل. قیمت‌ها لحظه‌ای و اعلام‌شده توسط آهن‌تایم است. اول مشورت، بعد خرید.`,
+    description: `قیمت امروز ${cat.name} ${measure} ${facet.label}${byFactory ? ' به تفکیک کارخانه' : ''}، همراه با نوسان، وزن شاخه و زمان تحویل. قیمت‌ها لحظه‌ای و اعلام‌شده توسط آهن‌تایم است. اول مشورت، بعد خرید.`,
     path: routes.categoryBySize(category, size),
   });
 }
@@ -87,7 +94,9 @@ export default async function SizeLandingPage({ params }: Params) {
               categoryName={cat.name}
               id="size-title"
               title={`قیمت روز ${cat.name} ${measure} ${facet.label}`}
-              description={`قیمت لحظه‌ای ${cat.name} ${measure} ${facet.label} در همهٔ کارخانه‌ها، همراه با نوسان، وزن شاخه و زمان تحویل اعلام‌شده. پیش از خرید، با کارشناس ما مشورت کنید.`}
+              description={`قیمت لحظه‌ای ${cat.name} ${measure} ${facet.label}${
+                factoryIsMeaningful(category, null) ? ' در همهٔ کارخانه‌ها' : ''
+              }، همراه با نوسان، وزن شاخه و زمان تحویل اعلام‌شده. پیش از خرید، با کارشناس ما مشورت کنید.`}
             />
           </div>
 

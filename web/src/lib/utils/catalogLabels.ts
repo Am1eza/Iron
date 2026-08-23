@@ -96,12 +96,26 @@ const PROFILE_NO_FACTORY_SUBS = new Set([
 /**
  * Whether a mill name means anything for products in this category/sub-category
  * — i.e. whether `skus.factory` should be published at all. True everywhere
- * except the پروفیل sub-categories listed above.
+ * except the پروفیل sub-categories listed above and the whole استیل category.
+ *
+ * **استیل is category-wide and has no exceptions.** Every product in it is
+ * IMPORTED stainless, so there is no Iranian mill to name, and the owner's
+ * employer asked for the column removed outright: «برای استیل‌ها چون که
+ * وارداتی هست باید کلاک کارخانه رو حذف بکنیم، فقط محصول رو می‌ذاریم، آلیاژش
+ * رو می‌نویسیم و طولش رو» (1405/06). The stored `skus.factory` values agree
+ * that it was never a mill: they are «چین» on every نبشی row and «تایوان» on
+ * every ناودانی row — a country of ORIGIN, empty for لوله and پروفیل — so the
+ * page was publishing a «کارخانه» column, a «مرتب‌سازی بخش‌های کارخانه» sort
+ * control and a «۱ کارخانه» stat on top of a field that holds no factory at
+ * all. Unlike پروفیل this needs no per-sub allow-list: the reason applies to
+ * every sub under استیل, including the empty ones (فلنج، مش، رینگ، فنر، تسمه،
+ * تیوب، توری), which are imported stainless too.
  */
 export function factoryIsMeaningful(
   categorySlug: string | null | undefined,
   subCategorySlug: string | null | undefined,
 ): boolean {
+  if (categorySlug === 'steel') return false;
   if (categorySlug !== 'profile') return true;
   return !(subCategorySlug && PROFILE_NO_FACTORY_SUBS.has(subCategorySlug));
 }
@@ -187,6 +201,13 @@ const PROFILE_ATTRS: Record<string, AttrKey[]> = {
  * they are stainless products as well, so «آلیاژ» is already the right word for
  * the day they get stock. Because the answer is the same for every sub, the
  * mixed «همه» view needs no special case and no cell can read `NOT_APPLICABLE`.
+ *
+ * It also carries «طول شاخه» — the second half of the same instruction that
+ * removed its factory column (see `factoryIsMeaningful`): with the mill gone,
+ * the length is the spec a stainless buyer needs beside the alloy, and it is
+ * exactly the column the trade's own stainless tables publish. Same
+ * `branchLength` definition پروفیل استیل already uses, so the two tables — the
+ * same product under two categories — cannot word one fact differently.
  */
 export function attrKeysFor(
   categorySlug: string | null | undefined,
@@ -199,7 +220,7 @@ export function attrKeysFor(
   if (categorySlug === 'profile' && sub !== null) {
     return PROFILE_ATTRS[sub] ?? ['grade'];
   }
-  if (categorySlug === 'steel') return ['alloy'];
+  if (categorySlug === 'steel') return ['alloy', 'branchLength'];
   return ['grade'];
 }
 

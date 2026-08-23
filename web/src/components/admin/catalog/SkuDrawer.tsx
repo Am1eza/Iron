@@ -39,6 +39,7 @@ import {
   DIMENSIONS_LABEL,
   GRADE_LABEL,
   ALLOY_LABEL,
+  factoryIsMeaningful,
 } from '@/lib/utils/catalogLabels';
 import { useToast } from '@/lib/hooks/useToast';
 import { Alert, Badge, Button, Heading, Text, useConfirm } from '@/components/ui';
@@ -291,7 +292,18 @@ export function SkuDrawer({
     const factory = normalizeDigits(next.factory);
     const grade = normalizeDigits(next.grade);
     if (!t.name) {
-      out.name = composeSkuName({ subName: sub?.name, size, factory });
+      // The mill is folded into the display name only where the catalog
+      // actually publishes one. On استیل and the fabricated-mill پروفیل subs
+      // it does not (catalogLabels.factoryIsMeaningful), and auto-filling
+      // «نبشی استیل ۲۰×۲۰ چین» would put the removed word straight back on the
+      // product page through the one field the removal cannot reach. The
+      // stored `factory` value itself is untouched, exactly as on the public
+      // side.
+      out.name = composeSkuName({
+        subName: sub?.name,
+        size,
+        factory: factoryIsMeaningful(cat?.slug, sub?.slug) ? factory : '',
+      });
     }
     if (!t.slug && cat) {
       out.slug = composeSkuSlug({
