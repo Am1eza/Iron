@@ -93,6 +93,27 @@ export const AHANONLINE_TARGETS: readonly AhanonlineTarget[] = [
   { ourCategory: 'لوله', path: 'انواع-لوله/لوله-مانسمان' },
   { ourCategory: 'لوله', path: 'انواع-لوله/لوله-گالوانیزه' },
   { ourCategory: 'لوله', path: 'انواع-لوله/لوله-گوشتدار' },
+
+  // ---- added by the multi-source survey (US-05.3) -------------------------
+  // ahanonline publishes 352 `/product-category/` pages; the 32 above were the
+  // ones the 1405/05/19 audit happened to cover, and everything the mirror
+  // could never price — تسمه, کوپلر, stainless, non-ferrous — turned out to be
+  // sitting on pages nobody had pointed it at. Each of these was fetched and
+  // parsed with `parseAhanonlinePage` before being listed; the row counts are
+  // in `docs/price-sync-source-survey.md`. Pages that resolve but publish no
+  // priced rows are excluded there and here.
+  { ourCategory: 'ورق', path: 'انواع-ورق/تسمه' },
+  { ourCategory: 'ورق', path: 'انواع-ورق/ورق-استیل' },
+  { ourCategory: 'ورق', path: 'انواع-ورق/ورق-شیروانی' },
+  { ourCategory: 'ورق', path: 'انواع-ورق/آلوزینک' },
+  { ourCategory: 'ورق', path: 'انواع-ورق/ورق-ضد-سایش' },
+  { ourCategory: 'ورق', path: 'انواع-ورق/ورق-دریایی' },
+  { ourCategory: 'ورق', path: 'انواع-ورق/چهارپهلو' },
+  { ourCategory: 'ورق', path: 'انواع-ورق/چهارپهلو-آلیاژی' },
+  { ourCategory: 'میلگرد', path: 'میلگرد/کوپلر' },
+  { ourCategory: 'لوله', path: 'انواع-لوله/لوله-جدار-چاه' },
+  { ourCategory: 'فلزات رنگی', path: 'انواع-ورق/ورق-آلومینیوم' },
+  { ourCategory: 'فلزات رنگی', path: 'انواع-ورق/ورق-مسی' },
 ] as const;
 
 const BASE = 'https://ahanonline.com/product-category/';

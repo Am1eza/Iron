@@ -320,9 +320,13 @@ describe('matchSku — when a price may be written', () => {
   });
 
   it('reports an unmapped sub-category and a factory-less SKU distinctly', () => {
-    expect(matchSku(sku({ subCategorySlug: 'coupler' }), [rebarRow()], CONFIG, TODAY).reason).toBe(
-      SKIP_REASONS.noMapping,
-    );
+    // Deliberately a slug that does not exist in the catalogue at all. This
+    // used to be `coupler`, which stopped being an example of "unmapped" the
+    // moment the کوپلر page was added to SOURCE_PATHS — the assertion was
+    // right and its fixture had simply been overtaken.
+    expect(
+      matchSku(sku({ subCategorySlug: 'no-such-sub-category' }), [rebarRow()], CONFIG, TODAY).reason,
+    ).toBe(SKIP_REASONS.noMapping);
     expect(matchSku(sku({ factory: null }), [rebarRow()], CONFIG, TODAY).reason).toBe(
       SKIP_REASONS.noFactory,
     );
@@ -346,5 +350,327 @@ describe('jalaliDaysAgo', () => {
     expect(jalaliDaysAgo('1405/5/21', TODAY)).toBe(10);
     expect(jalaliDaysAgo('۱۴۰۵/۵/۲۹', TODAY)).toBe(2);
     expect(jalaliDaysAgo('نامشخص', TODAY)).toBeNull();
+  });
+});
+
+/**
+ * The families added by the multi-source survey (US-05.3).
+ *
+ * ahanonline turned out to publish 352 `/product-category/` pages against the
+ * 32 the mirror was pointed at, and everything it could never price — تسمه,
+ * کوپلر, stainless, non-ferrous — was sitting on pages nobody had mapped. The
+ * catch is that those pages mostly do NOT brand their rows, so the original
+ * "the mill must agree" rule cannot reach them. `IDENTITY` generalises that
+ * rule rather than relaxing it: some other explicit, published token has to
+ * agree instead.
+ *
+ * Every row literal below is a real one, copied from the live tables during
+ * the survey (see `docs/price-sync-source-survey.md`), prices included — the
+ * point is that the rule holds against what ahanonline actually serves, not
+ * against a fixture shaped to pass.
+ */
+describe('matchSku — the variant-keyed families', () => {
+  const steelSku = (name: string) =>
+    sku({ name, categorySlug: 'sheet', subCategorySlug: 'steel', size: '۲', factory: null });
+
+  it('prices ورق استیل off the alloy, and refuses when our SKU omits it', () => {
+    const rows: AhanonlineRow[] = [
+      row({
+        sourcePath: 'انواع-ورق/ورق-استیل',
+        group: 'ورق استیل آلیاژ 304',
+        name: 'ورق استنلس استیل صنعتی 304L ضخامت 2 ابعاد 1500*3000',
+        priceToman: 640_909,
+        cells: {
+          'ضخامت': '2',
+          'آلیاژ': '304L',
+          'حالت': 'شیت',
+          'واحد': 'کیلوگرم',
+          'تاریخ بروزرسانی': '1405/5/31',
+        },
+      }),
+      row({
+        sourcePath: 'انواع-ورق/ورق-استیل',
+        group: 'ورق استیل آلیاژ 316',
+        name: 'ورق استنلس استیل صنعتی 316L ضخامت 2 ابعاد 1500*3000',
+        priceToman: 1_109_091,
+        cells: {
+          'ضخامت': '2',
+          'آلیاژ': '316L',
+          'حالت': 'شیت',
+          'واحد': 'کیلوگرم',
+          'تاریخ بروزرسانی': '1405/5/31',
+        },
+      }),
+    ];
+
+    const l304 = matchSku(steelSku('ورق استیل ۲ 304L'), rows, CONFIG, TODAY);
+    expect(l304.ok).toBe(true);
+    expect(l304.ok && l304.priceToman).toBe(640_909);
+
+    const l316 = matchSku(steelSku('ورق استیل ۲ 316L'), rows, CONFIG, TODAY);
+    expect(l316.ok && l316.priceToman).toBe(1_109_091);
+
+    // Same size, both alloys on offer, ours does not say which. A 1.7× coin
+    // flip — the whole reason this reason code exists.
+    const blind = matchSku(steelSku('ورق استیل ۲'), rows, CONFIG, TODAY);
+    expect(blind.ok).toBe(false);
+    expect(blind.reason).toBe(SKIP_REASONS.missingVariant);
+  });
+
+  it('does not let «304» satisfy a «304L» row', () => {
+    const rows = [
+      row({
+        sourcePath: 'انواع-ورق/ورق-استیل',
+        priceToman: 640_909,
+        cells: { 'ضخامت': '2', 'آلیاژ': '304L', 'واحد': 'کیلوگرم' },
+      }),
+    ];
+    const res = matchSku(steelSku('ورق استیل ۲ 304'), rows, CONFIG, TODAY);
+    expect(res.ok).toBe(false);
+    expect(res.reason).toBe(SKIP_REASONS.missingVariant);
+  });
+
+  it('mirrors کوپلر per عدد, matching نوع as well as سایز', () => {
+    const rows: AhanonlineRow[] = [
+      row({
+        sourcePath: 'میلگرد/کوپلر',
+        group: 'کوپلر انتهایی',
+        name: 'کوپلر سایز 18 نوع انتهایی',
+        priceToman: 82_800,
+        cells: { 'سایز': '18', 'نوع': 'انتهایی', 'واحد': 'عدد', 'تاریخ بروزرسانی': '1405/5/31' },
+      }),
+      row({
+        sourcePath: 'میلگرد/کوپلر',
+        group: 'کوپلر بغل پیچ',
+        name: 'کوپلر سایز 18 نوع بغل پیچ',
+        priceToman: 678_500,
+        cells: { 'سایز': '18', 'نوع': 'بغل پیچ', 'واحد': 'عدد', 'تاریخ بروزرسانی': '1405/5/31' },
+      }),
+    ];
+    const coupler = (name: string) =>
+      sku({
+        name,
+        categorySlug: 'rebar',
+        subCategorySlug: 'coupler',
+        size: '۱۸',
+        factory: null,
+        priceBasis: 'piece',
+      });
+
+    const end = matchSku(coupler('کوپلر انتهایی ۱۸'), rows, CONFIG, TODAY);
+    expect(end.ok).toBe(true);
+    expect(end.ok && end.priceToman).toBe(82_800);
+    expect(end.unit).toBe('piece');
+
+    // 8× apart at the same size — نوع is the entire difference.
+    const side = matchSku(coupler('کوپلر بغل پیچ ۱۸'), rows, CONFIG, TODAY);
+    expect(side.ok && side.priceToman).toBe(678_500);
+  });
+
+  it('looks past a filler noun in the source’s نوع', () => {
+    // ahanonline calls this «خدمات رزوه زنی میلگرد»; we call it «کوپلر رزوه
+    // زنی میلگرد». Only «خدمات» differs, and no other نوع on the page carries
+    // it, so «رزوه زنی میلگرد» still does the identifying on its own.
+    const rows = [
+      row({
+        sourcePath: 'میلگرد/کوپلر',
+        group: 'کوپلر رزوه زنی میلگرد',
+        name: 'کوپلر سایز 16 نوع خدمات رزوه زنی میلگرد',
+        priceToman: 69_000,
+        cells: { 'سایز': '16', 'نوع': 'خدمات رزوه زنی میلگرد', 'واحد': 'عدد' },
+      }),
+      row({
+        sourcePath: 'میلگرد/کوپلر',
+        group: 'کوپلر انتهایی',
+        name: 'کوپلر سایز 16 نوع انتهایی',
+        priceToman: 69_000,
+        cells: { 'سایز': '16', 'نوع': 'انتهایی', 'واحد': 'عدد' },
+      }),
+    ];
+    const res = matchSku(
+      sku({
+        name: 'کوپلر رزوه زنی میلگرد ۱۶',
+        categorySlug: 'rebar',
+        subCategorySlug: 'coupler',
+        size: '۱۶',
+        factory: null,
+        priceBasis: 'piece',
+      }),
+      rows,
+      CONFIG,
+      TODAY,
+    );
+    expect(res.ok).toBe(true);
+    expect(res.factory).toBe('خدمات رزوه زنی میلگرد');
+  });
+
+  it('still refuses to convert between units, per-عدد included', () => {
+    const perPiece = row({
+      sourcePath: 'میلگرد/کوپلر',
+      name: 'کوپلر سایز 18 نوع انتهایی',
+      priceToman: 82_800,
+      cells: { 'سایز': '18', 'نوع': 'انتهایی', 'واحد': 'عدد' },
+    });
+    const res = matchSku(
+      sku({
+        name: 'کوپلر انتهایی ۱۸',
+        categorySlug: 'rebar',
+        subCategorySlug: 'coupler',
+        size: '۱۸',
+        factory: null,
+        priceBasis: 'kg',
+      }),
+      [perPiece],
+      CONFIG,
+      TODAY,
+    );
+    expect(res.ok).toBe(false);
+    expect(res.reason).toBe(SKIP_REASONS.notPerKgSource);
+  });
+
+  it('leaves a basis nothing prices like-for-like alone', () => {
+    // Only `kg` and `piece` have a like-for-like counterpart on any mapped
+    // page. A `coil` SKU — لوله مسی is one — could only be priced by
+    // multiplying through `theoretical_weight_kg`, which is the unverified
+    // seed data the mirror has always refused to build on. Mapped family, so
+    // this is the basis gate talking and not `noMapping`.
+    const res = matchSku(
+      sku({ categorySlug: 'sheet', subCategorySlug: 'strip', priceBasis: 'coil' }),
+      [rebarRow()],
+      CONFIG,
+      TODAY,
+    );
+    expect(res.ok).toBe(false);
+    expect(res.reason).toBe(SKIP_REASONS.notPerKgSku);
+  });
+
+  it('separates «our catalogue lacks the variant» from «the source publishes none»', () => {
+    const noVariant = row({
+      sourcePath: 'انواع-ورق/ورق-استیل',
+      priceToman: 640_909,
+      cells: { 'ضخامت': '2', 'آلیاژ': '-', 'واحد': 'کیلوگرم' },
+    });
+    const res = matchSku(steelSku('ورق استیل ۲'), [noVariant], CONFIG, TODAY);
+    expect(res.ok).toBe(false);
+    // A lone dash is "not applicable", not an alloy every row shares.
+    expect(res.reason).toBe(SKIP_REASONS.sourceNoVariant);
+  });
+
+  it('matches تسمه on ضخامت and حالت, the two things both sides publish', () => {
+    const rows: AhanonlineRow[] = [
+      row({
+        sourcePath: 'انواع-ورق/تسمه',
+        group: 'تسمه نوردی',
+        name: 'تسمه 5 عرض 50 میلیمتر نوردی',
+        priceToman: 74_545,
+        cells: {
+          'حالت': 'نوردی',
+          'ضخامت': '5',
+          'عرض': 'عرض 50 میلیمتر',
+          'تاریخ بروزرسانی': '1405/5/31',
+        },
+      }),
+      row({
+        sourcePath: 'انواع-ورق/تسمه',
+        group: 'تسمه ماشینکاری',
+        name: 'تسمه 5 عرض 50 میلیمتر ماشینکاری',
+        priceToman: 111_364,
+        cells: {
+          'حالت': 'ماشینکاری',
+          'ضخامت': '5',
+          'عرض': 'عرض 50 میلیمتر',
+          'تاریخ بروزرسانی': '1405/5/31',
+        },
+      }),
+    ];
+    const strip = (name: string, size: string) =>
+      sku({ name, size, categorySlug: 'sheet', subCategorySlug: 'strip', factory: null });
+
+    // Our تسمه SKUs carry the width in the NAME and the bare thickness in
+    // `size` — the fixture mirrors the real rows, not a convenient shape.
+    const machined = matchSku(strip('تسمه ماشینکاری ۵×۵۰', '۵'), rows, CONFIG, TODAY);
+    expect(machined.ok && machined.priceToman).toBe(111_364);
+    // 1.5× apart at the same thickness — حالت is the entire difference.
+    const rolled = matchSku(strip('تسمه نوردی ۵×۵۰', '۵'), rows, CONFIG, TODAY);
+    expect(rolled.ok && rolled.priceToman).toBe(74_545);
+
+    // A thickness they do not stock is a skip, not the nearest row.
+    const noSuch = matchSku(strip('تسمه ماشینکاری ۹۹×۵۰', '۹۹'), rows, CONFIG, TODAY);
+    expect(noSuch.ok).toBe(false);
+    expect(noSuch.reason).toBe(SKIP_REASONS.noSizeMatch);
+  });
+
+  it('drops a تسمه width the day ahanonline prices widths apart', () => {
+    // The width is not compared (our `size` has no width to compare), so the
+    // spread gate is what stands between us and a coin flip if their per-width
+    // prices ever diverge. Same حالت, same ضخامت, 34% apart.
+    const diverged: AhanonlineRow[] = [
+      row({
+        sourcePath: 'انواع-ورق/تسمه',
+        priceToman: 111_364,
+        cells: { 'حالت': 'ماشینکاری', 'ضخامت': '5', 'عرض': 'عرض 50 میلیمتر' },
+      }),
+      row({
+        sourcePath: 'انواع-ورق/تسمه',
+        priceToman: 149_000,
+        cells: { 'حالت': 'ماشینکاری', 'ضخامت': '5', 'عرض': 'عرض 120 میلیمتر' },
+      }),
+    ];
+    const res = matchSku(
+      sku({
+        name: 'تسمه ماشینکاری ۵×۵۰',
+        size: '۵',
+        categorySlug: 'sheet',
+        subCategorySlug: 'strip',
+        factory: null,
+      }),
+      diverged,
+      CONFIG,
+      TODAY,
+    );
+    expect(res.ok).toBe(false);
+    expect(res.reason).toBe(SKIP_REASONS.ambiguous);
+  });
+
+  it('reads اراک off «نورد آلومینیوم اراک» without loosening the factory rule', () => {
+    // The material word was the only thing that differed; before it joined the
+    // stopword list this scored 0.5 and every aluminium SKU was skipped.
+    expect(factoryScore('اراک', 'نورد آلومینیوم اراک')).toBe(1);
+    // …and it must still refuse two genuinely different mills.
+    expect(factoryScore('اراک', 'نورد آلومینیوم پارس')).toBe(0);
+  });
+
+  it('judges a stainless price against its own band, not the carbon-steel one', () => {
+    const stainless = row({
+      sourcePath: 'انواع-ورق/ورق-استیل',
+      priceToman: 1_109_091,
+      cells: { 'ضخامت': '2', 'آلیاژ': '316L', 'واحد': 'کیلوگرم' },
+    });
+    // 1,109,091 is >2× the global 500,000 maximum and entirely correct for 316L.
+    expect(matchSku(steelSku('ورق استیل ۲ 316L'), [stainless], CONFIG, TODAY).ok).toBe(true);
+
+    // The band still has to catch a rial/toman flip, which is a 10× move.
+    const flipped = matchSku(
+      steelSku('ورق استیل ۲ 316L'),
+      [row({ ...stainless, priceToman: 11_090_910 })],
+      CONFIG,
+      TODAY,
+    );
+    expect(flipped.ok).toBe(false);
+    expect(flipped.reason).toBe(SKIP_REASONS.outOfBand);
+  });
+
+  it('reads the Arabic-Indic decimal separator as one number', () => {
+    // «۱٫۵» used to parse as [1, 5], so a 1.5mm sheet size-matched the 1mm row.
+    expect(nums('۱٫۵')).toEqual([1.5]);
+    expect(nums('۰٫۴۷')).toEqual([0.47]);
+    expect(norm('۱٫۵')).toBe('1.5');
+  });
+
+  it('keeps every newly mapped page in the fetcher’s target list', () => {
+    const targets = new Set<string>(AHANONLINE_TARGETS.map((t) => t.path));
+    for (const path of allMappedSourcePaths()) {
+      expect(targets.has(path), `${path} is mapped but never fetched`).toBe(true);
+    }
   });
 });

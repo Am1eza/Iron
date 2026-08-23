@@ -19,7 +19,7 @@
  *    have left it stale-flagged and absent from every chart.
  * 2. **A weak match is a skip, not a guess.** See `priceSync.match.ts`.
  */
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { getDb } from '@/lib/server/db/client';
 import { categories, currentPrices, skus, subCategories } from '@/lib/server/db/schema';
 import { fetchAhanonlinePrices, type FetchOptions } from '@/lib/server/integrations/ahanonline';
@@ -312,7 +312,11 @@ export async function priceSyncScope(): Promise<
     .from(skus)
     .innerJoin(categories, eq(categories.id, skus.categoryId))
     .innerJoin(subCategories, eq(subCategories.id, skus.subCategoryId))
-    .where(and(eq(skus.isActive, true), eq(skus.priceBasis, 'kg')));
+    // `piece` joined `kg` when کوپلر became mirrorable — ahanonline prices it
+    // per عدد, the same unit our SKU is in, so no conversion is involved. Kept
+    // in step with `MIRRORABLE_BASES` in the matcher: a basis missing here is
+    // simply invisible in the admin's coverage view, not skipped.
+    .where(and(eq(skus.isActive, true), inArray(skus.priceBasis, ['kg', 'piece'])));
 
   const counts = new Map<string, { categorySlug: string; categoryName: string; subCategoryName: string; skuCount: number }>();
   for (const r of rows) {

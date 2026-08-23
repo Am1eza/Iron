@@ -38,6 +38,14 @@ export const SKIP_REASONS = {
   noFactory: 'skip:sku-has-no-factory',
   noSizeMatch: 'skip:no-size-match',
   notPerKgSource: 'skip:source-not-per-kg',
+  /** The source separates its rows by an explicit variant (آلیاژ / نوع /
+   *  حالت / رده) and OUR SKU does not say which one it is. Actionable on our
+   *  side: name the alloy on the SKU and the next run matches it. */
+  missingVariant: 'skip:sku-missing-variant',
+  /** The source published no variant at all on any size-matching row, so its
+   *  rows are only distinguishable by size — the one thing that is never
+   *  enough. Actionable on nobody's side; it just means "not mirrorable". */
+  sourceNoVariant: 'skip:source-has-no-variant',
   lowConfidence: 'skip:low-confidence-match',
   ambiguous: 'skip:ambiguous-candidates',
   outOfBand: 'skip:price-out-of-band',
@@ -54,13 +62,17 @@ export interface MatchableSku {
   subCategorySlug: string;
   size: string | null;
   factory: string | null;
-  /** What the SKU's price is denominated in. Only `kg` can be mirrored. */
+  /** What the SKU's price is denominated in. Mirrorable only where a source
+   *  row publishes the SAME unit — `kg`, or `piece` for کوپلر. Never converted;
+   *  see `unitMatchesBasis`. */
   priceBasis: string;
 }
 
 export interface MatchConfig {
-  /** Plausibility band for a per-kg steel price, Toman. Guards against a
-   *  wholesale unit change on their side (rial↔toman is a 10× move). */
+  /** Plausibility band for a per-kg carbon-steel price, Toman. Guards against
+   *  a wholesale unit change on their side (rial↔toman is a 10× move).
+   *  Families that legitimately trade outside it — stainless, copper, per-عدد
+   *  کوپلر — override it in `PRICE_BANDS`. */
   minPriceToman: number;
   maxPriceToman: number;
   /** Tied exact candidates whose prices spread wider than this are treated as
@@ -107,7 +119,14 @@ export function norm(input: string | null | undefined): string {
     .replace(/ة/g, 'ه')
     .replace(/‌/g, ' ')
     .replace(/ /g, ' ')
-    .replace(/ـ/g, '');
+    .replace(/ـ/g, '')
+    // Arabic-Indic decimal (U+066B) and thousands (U+066C) separators. Our
+    // catalogue writes thicknesses as «۱٫۵»; without this `nums()` reads that
+    // as TWO numbers, 1 and 5, and «ورق آلومینیوم ۱٫۵» silently size-matches
+    // the 1mm row. Only 12 SKUs carry it in `size` today, but they are exactly
+    // the sub-millimetre sheet gauges the new pages are keyed on.
+    .replace(/٫/g, '.')
+    .replace(/٬/g, '');
   s = s.replace(/[ً-ٟ]/g, '');
   s = s.replace(/[×xX]/g, '*');
   return s.replace(/\s+/g, ' ').trim();
@@ -143,7 +162,12 @@ function dimsKey(s: string | null | undefined): string | null {
 const FACTORY_STOPWORDS = new Set(
   (
     'میلگرد تیرآهن هاش نبشی ناودانی سپری پروفیل قوطی لوله ورق کلاف مفتول سیم مش توری ' +
-    'فولاد صنایع شرکت مجتمع گروه نورد کارخانه بنگاه آهن ساده آجدار صنعتی گالوانیزه رنگی روغنی سیاه'
+    'فولاد صنایع شرکت مجتمع گروه نورد کارخانه بنگاه آهن ساده آجدار صنعتی گالوانیزه رنگی روغنی سیاه ' +
+    // Material words, added with the non-ferrous / stainless pages. They are
+    // nouns for the product, never a mill: ahanonline brands اراک's aluminium
+    // sheet «نورد آلومینیوم اراک» against our factory «اراک», which without
+    // this scores 0.5 (fuzzy) and is skipped even though the mill is identical.
+    'آلومینیوم مسی مس استیل استنلس تسمه کوپلر شیروانی آلوزینک گالوالوم'
   ).split(' '),
 );
 
@@ -252,15 +276,33 @@ export function rowFactory(row: AhanonlineRow): string {
   return !g || NOT_A_BRAND.test(g) ? '' : g;
 }
 
-export type RowUnit = 'kg' | 'branch' | 'sheet' | 'meter' | '';
+export type RowUnit = 'kg' | 'branch' | 'sheet' | 'meter' | 'piece' | '';
 
 export function rowUnit(row: AhanonlineRow): RowUnit {
-  const u = norm(cell(row, 'واحد'));
+  // `unit` (ASCII) appears alongside «واحد» on the newer stainless pages —
+  // ahanonline's own tables are inconsistent about which they emit.
+  const u = norm(cell(row, 'واحد', 'unit'));
   if (u.includes('شاخه')) return 'branch';
   if (u.includes('کیلو')) return 'kg';
   if (u.includes('برگ')) return 'sheet';
+  if (u.includes('عدد')) return 'piece';
   if (u.includes('متر') && !u.includes('متری')) return 'meter';
   return '';
+}
+
+/**
+ * Which of OUR `price_basis` values a source row's unit is like-for-like with.
+ *
+ * Only ever an identity mapping — there is deliberately no conversion here. A
+ * per-شاخه row cannot price a per-kg SKU without multiplying through
+ * `theoretical_weight_kg`, which is exactly the manufactured number the mirror
+ * refuses to invent (see `notPerKgSku`). `''` means the source published no
+ * unit, which the per-kg families tolerate (their tables are per-kg
+ * throughout) and nothing else does.
+ */
+export function unitMatchesBasis(unit: RowUnit, priceBasis: string): boolean {
+  if (unit === '') return priceBasis === 'kg';
+  return unit === priceBasis;
 }
 
 /** Their pages where «سایز/ابعاد» is the sheet's width×length, so the
@@ -284,7 +326,55 @@ const NAME_SIZE_PATHS = new Set([
   'محصولات-مفتولی/مش',
 ]);
 
+/**
+ * Pages whose comparable dimension is NOT in a «سایز»-ish column under that
+ * name. Consulted before every other rule, so a page that needs an explicit
+ * answer gets one instead of falling through to a lucky guess.
+ *
+ * Every entry was read off the live table (see
+ * `docs/price-sync-source-survey.md`), not inferred from the page title:
+ * - تسمه is priced by ضخامت×عرض, and its «عرض» cell reads «عرض 50 میلیمتر»
+ *   rather than a bare number — both are kept and `nums()` picks the pair out.
+ * - The stainless pages emit ASCII `size` / `standard` / `state` / `unit`
+ *   headers instead of Persian ones.
+ * - ساندویچ پانل's thickness column is «ضخامت(عایق)» (the insulation core),
+ *   which is what our SKU's size means too.
+ */
+const SIZE_COLUMNS: Readonly<Record<string, readonly string[]>> = {
+  // Thickness ONLY, deliberately, even though the table also carries «عرض».
+  // Our تسمه SKUs put the width in the name («تسمه ماشینکاری ۳×۵۵») and leave
+  // `size` as the bare thickness, so a width comparison has nothing to compare
+  // against. That is safe here and not a fudge: ahanonline prices تسمه by
+  // حالت, and every width at a given حالت carries the same number (verified
+  // 1405/06/01 — نوردی 0.0% spread, ماشینکاری 3.3%, فابریک 4.2%, all inside
+  // the 8% `maxCandidateSpreadPct` gate). The day they start pricing widths
+  // apart, those rows spread past the gate and the SKU skips instead of
+  // guessing — which is exactly the behaviour we want to inherit rather than
+  // a rule that has to be remembered.
+  'انواع-ورق/تسمه': ['ضخامت'],
+  // Sheet pages where «سایز» is the sheet's WIDTH and the comparable dimension
+  // is the thickness. Without these, `cell()` returns «سایز» first and every
+  // SKU size-matches against a 1000mm-wide coil instead of a 6mm plate.
+  'انواع-ورق/ورق-مسی': ['ضخامت'],
+  'انواع-ورق/ورق-ضد-سایش': ['ضخامت'],
+  'انواع-ورق/ورق-دریایی': ['ضخامت'],
+  'انواع-ورق/ورق-شیروانی': ['ضخامت'],
+  'میلگرد/میلگرد-استیل': ['size'],
+  'انواع-ورق/ساندویچ-پانل': ['ضخامت(عایق)'],
+  'انواع-ورق/ورق-آلومینیوم-آجدار': ['ضخامت (میل)'],
+  'انواع-ورق/ورق-پانچ-سیاه': ['ضخامت (mm)'],
+  'استنلس-استیل/پروفیل-استیل': ['ابعاد'],
+  'انواع-لوله/لوله-مسی': ['size'],
+};
+
 export function rowSize(row: AhanonlineRow): string {
+  const explicit = SIZE_COLUMNS[row.sourcePath];
+  if (explicit) {
+    return explicit
+      .map((c) => row.cells[c] ?? '')
+      .filter(Boolean)
+      .join(' ');
+  }
   if (SHEET_PATHS.has(row.sourcePath)) {
     const v = cell(row, 'ضخامت (میل)', 'ضخامت');
     if (v) return v;
@@ -383,7 +473,179 @@ export const SOURCE_PATHS: Readonly<Record<string, readonly string[]>> = {
   'pipe/furniture': ['انواع-لوله/لوله-گوشتدار'],
   'pipe/thick-walled': ['انواع-لوله/لوله-گوشتدار'],
   'pipe/galvanized': ['انواع-لوله/لوله-گالوانیزه'],
+
+  // ---- added by the multi-source survey (US-05.3) -------------------------
+  // ahanonline publishes 352 product-category pages; the mirror was pointed at
+  // 32 of them, which is the whole reason the non-ferrous, stainless and
+  // specialty lines never updated. Each page below was fetched and parsed
+  // before being listed here — row counts and the identity column that makes
+  // it matchable are in `docs/price-sync-source-survey.md`. Pages that exist
+  // but publish NOTHING (آلومینیوم/میلگرد-آلومینیوم, آلومینیوم/لوله-آلومینیوم,
+  // آلومینیوم/نبشی-آلومینیوم, انواع-پروفیل/پروفیل-آلومینیوم, مس, آلومینیوم,
+  // استنلس-استیل/تسمه-استنلس-استیل — all 0 priced rows) are deliberately NOT
+  // listed: mapping them would only manufacture a «page failed» line per run.
+  'sheet/strip': ['انواع-ورق/تسمه'],
+  'sheet/steel': ['انواع-ورق/ورق-استیل'],
+  'sheet/roofing': ['انواع-ورق/ورق-شیروانی'],
+  'sheet/aluzinc': ['انواع-ورق/آلوزینک'],
+  'sheet/wear-resistant': ['انواع-ورق/ورق-ضد-سایش'],
+  'sheet/marine': ['انواع-ورق/ورق-دریایی'],
+  'rebar/coupler': ['میلگرد/کوپلر'],
+  'profile/chaharpahlu': ['انواع-ورق/چهارپهلو'],
+  'profile/chaharpahlu-alloy': ['انواع-ورق/چهارپهلو-آلیاژی'],
+  'pipe/well-casing': ['انواع-لوله/لوله-جدار-چاه'],
+  'felezat-rangi/aluminum-sheet': ['انواع-ورق/ورق-آلومینیوم'],
+  'felezat-rangi/copper-sheet': ['انواع-ورق/ورق-مسی'],
 };
+
+// ---------------------------------------------------------------------------
+// Product identity beyond the mill
+// ---------------------------------------------------------------------------
+
+/**
+ * WHAT MAKES TWO ROWS DIFFERENT PRODUCTS, per family.
+ *
+ * The original mirror had exactly one answer: the mill. That works for the
+ * ferrous lines, where ahanonline brands every row, and it is why the ferrous
+ * half of the catalogue syncs. It does not work for the non-ferrous and
+ * stainless pages, where the mill is often irrelevant and the price is set by
+ * something else entirely:
+ *
+ *   ورق استیل    — آلیاژ 304L vs 316L is a 1.7× price difference; the mill is
+ *                  not published at all.
+ *   کوپلر        — نوع (انتهایی / بغل پیچ / میانی استاندارد / …) at one size
+ *                  ranges 82,800 → 1,196,000 تومان.
+ *   تسمه         — حالت (نوردی / فابریک / ماشینکاری) sets the price; within a
+ *                  حالت every size carries the SAME number.
+ *
+ * Dropping to "same size wins" for these would be the exact failure the
+ * ambiguity gates exist to prevent, so instead each family names the column
+ * that carries its identity and where OUR copy of that identity lives. The bar
+ * is unchanged — an explicit, published token has to agree on both sides — it
+ * is only the *field* that varies.
+ *
+ * A family absent from this map keeps the original mill rule verbatim.
+ */
+export interface IdentitySpec {
+  /** Source cell(s) whose value IS the identity for this family, in order. */
+  columns: readonly string[];
+  /**
+   * `factory` — score against `sku.factory` with `factoryScore`, as before.
+   * `name`    — every token of the source's value must appear in the SKU's
+   *             name. Our catalogue writes these into the name («ورق استیل ۱۲
+   *             304L», «کوپلر انتهایی ۱۸») rather than into a column, so the
+   *             name is where the answer actually is.
+   */
+  from: 'factory' | 'name';
+}
+
+export const IDENTITY: Readonly<Record<string, IdentitySpec>> = {
+  'sheet/strip': { columns: ['حالت'], from: 'name' },
+  'sheet/steel': { columns: ['آلیاژ'], from: 'name' },
+  'rebar/coupler': { columns: ['نوع'], from: 'name' },
+  'profile/chaharpahlu': { columns: ['حالت'], from: 'name' },
+  'profile/chaharpahlu-alloy': { columns: ['آلیاژ'], from: 'name' },
+  // برند is published here, but as «نورد آلومینیوم اراک» against our «اراک» —
+  // see the material words added to FACTORY_STOPWORDS.
+  'felezat-rangi/aluminum-sheet': { columns: ['برند'], from: 'factory' },
+  'felezat-rangi/copper-sheet': { columns: ['برند'], from: 'factory' },
+  'pipe/well-casing': { columns: ['برند'], from: 'factory' },
+  'sheet/aluzinc': { columns: ['برند'], from: 'factory' },
+  'sheet/wear-resistant': { columns: ['برند'], from: 'factory' },
+  'sheet/marine': { columns: ['برند'], from: 'factory' },
+  // ورق شیروانی: the mill AND the colour both move the price (هفت الماس ۰٫۴۸
+  // is 170,000 in آبی and 170,909 in سفید یخچالی), so both must agree.
+  'sheet/roofing': { columns: ['برند', 'رنگ'], from: 'name' },
+};
+
+export function identitySpecFor(sku: MatchableSku): IdentitySpec | undefined {
+  return IDENTITY[taxonomyKey(sku)];
+}
+
+/**
+ * Per-family plausibility bands, Toman.
+ *
+ * `DEFAULT_MATCH_CONFIG`'s 10,000–500,000 is a *carbon steel per kilogram*
+ * band, and it is the right one for the families the mirror started with. It
+ * is wrong for everything this survey added: 304L sheet trades at ~640,000
+ * and 316L at ~1,109,000 تومان/kg, copper sheet at ~2,480,000, and a کوپلر is
+ * priced per عدد at 69,000–1,196,000. Left on the global band, every one of
+ * those correct matches would be thrown away as `price-out-of-band`.
+ *
+ * The band's job is unchanged — catch a wholesale unit change on their side,
+ * which is a 10× move — so each of these is still far narrower than 10× around
+ * the observed price. Widening one is a deliberate act with a number attached,
+ * never a blanket raise of the global maximum.
+ */
+export const PRICE_BANDS: Readonly<Record<string, { min: number; max: number }>> = {
+  'sheet/steel': { min: 200_000, max: 4_000_000 },
+  'felezat-rangi/copper-sheet': { min: 800_000, max: 8_000_000 },
+  'felezat-rangi/aluminum-sheet': { min: 200_000, max: 2_500_000 },
+  'sheet/wear-resistant': { min: 100_000, max: 1_200_000 },
+  // Per عدد, not per kg — the size range alone spans 17×, hence the width.
+  'rebar/coupler': { min: 20_000, max: 5_000_000 },
+};
+
+/** The band to judge `sku`'s mirrored price against: its family's if it has
+ *  one, otherwise the operator-configured global band. */
+export function priceBandFor(
+  sku: MatchableSku,
+  config: Pick<MatchConfig, 'minPriceToman' | 'maxPriceToman'>,
+): { min: number; max: number } {
+  return (
+    PRICE_BANDS[taxonomyKey(sku)] ?? { min: config.minPriceToman, max: config.maxPriceToman }
+  );
+}
+
+/**
+ * Words that appear inside a published variant but never distinguish one
+ * variant from another — the `FACTORY_STOPWORDS` idea applied to `IDENTITY`.
+ *
+ * Kept deliberately tiny, and every entry has to earn its place by being
+ * non-discriminating across the WHOLE page it appears on. «خدمات» qualifies:
+ * ahanonline's کوپلر table lists seven نوع values and only one of them
+ * («خدمات رزوه زنی میلگرد») carries it, so dropping it still leaves «رزوه زنی
+ * میلگرد» — which no other نوع contains — to do the identifying. Without this
+ * those 10 SKUs skip over a filler noun, and the fix would otherwise be to
+ * rename our catalogue to match a competitor's phrasing.
+ */
+const VARIANT_STOPWORDS = new Set(['خدمات']);
+
+/** The source's published identity for a row under `spec`, or `''` when it
+ *  published none — which is never treated as agreement. */
+export function rowIdentity(row: AhanonlineRow, spec: IdentitySpec): string {
+  const raw = spec.columns
+    .map((c) => row.cells[c] ?? '')
+    .filter(Boolean)
+    .join(' ');
+  const value = norm(raw);
+  // ahanonline renders "not applicable" as a lone dash in several of these
+  // tables; treating it as a value would make every such row look identical.
+  return value === '-' || value === '_' ? '' : value;
+}
+
+/**
+ * Does `sku` carry the same identity this row publishes?
+ *
+ * `null` means "this row published no identity", which callers must keep
+ * distinct from `false` ("it published one and we disagree") — the first is a
+ * dead source column, the second is a fixable gap in our catalogue.
+ */
+export function identityAgrees(
+  sku: MatchableSku,
+  row: AhanonlineRow,
+  spec: IdentitySpec,
+): boolean | null {
+  const theirs = rowIdentity(row, spec);
+  if (!theirs) return null;
+  if (spec.from === 'factory') return factoryScore(sku.factory, theirs) >= 0.999;
+  // Every token, not any token: «304» must not satisfy a «304L» row, and a
+  // two-word variant like «میانی استاندارد» must match in full.
+  const haystack = norm(sku.name);
+  const tokens = theirs.split(' ').filter((t) => t.length > 1 && !VARIANT_STOPWORDS.has(t));
+  if (tokens.length === 0) return null;
+  return tokens.every((t) => haystack.includes(t));
+}
 
 export function taxonomyKey(sku: MatchableSku): string {
   return `${sku.categorySlug}/${sku.subCategorySlug}`;
@@ -418,6 +680,17 @@ const DIM_KEYS = new Set([
 /** نبشی: ours is the leg in cm («۶» = 60×60), theirs is mm («60*60»). */
 const ANGLE_KEYS = new Set(['angle-channel/nabshi']);
 
+/**
+ * چهارپهلو: a square bar quoted as its two faces («۲۰×۲۰») on both sides.
+ *
+ * Listed separately from `DIM_KEYS` so the profile comment there keeps meaning
+ * what it says, and because unlike `DIM_KEYS` these do NOT fall back to "first
+ * number agrees" — a ۱۲۰×۵۰ and a ۱۲۰×۱۲۰ bar are different products at
+ * different prices (86,644 vs 86,752 تومان today) and sharing a first number
+ * must not be enough.
+ */
+const STRICT_DIM_KEYS = new Set(['profile/chaharpahlu', 'profile/chaharpahlu-alloy']);
+
 export function sizeMatches(sku: MatchableSku, row: AhanonlineRow): boolean {
   const key = taxonomyKey(sku);
   const ourSize = sku.size ?? '';
@@ -435,6 +708,12 @@ export function sizeMatches(sku: MatchableSku, row: AhanonlineRow): boolean {
     if (on.length === 0 || tn.length === 0) return false;
     const t = tn[0]! >= 25 ? tn[0]! / 10 : tn[0]!;
     return Math.abs(on[0]! - t) < 1e-9;
+  }
+
+  if (STRICT_DIM_KEYS.has(key)) {
+    const ok = dimsKey(ourSize);
+    const tk = dimsKey(theirSize);
+    return ok !== null && tk !== null && ok === tk;
   }
 
   if (DIM_KEYS.has(key)) {
@@ -515,18 +794,26 @@ export function matchSku(
   config: MatchConfig,
   todayJalali: [number, number, number],
 ): MatchResult {
-  if (sku.priceBasis !== 'kg') {
-    // A per-شاخه or per-برگ SKU could only be mirrored by multiplying through
-    // `theoretical_weight_kg`, which the audit's §4 showed is unverified seed
-    // data — converting would manufacture a number rather than measure one.
-    return { ok: false, reason: SKIP_REASONS.notPerKgSku, ...NO_EVIDENCE };
-  }
   const paths = sourcePathsForSku(sku);
   if (!paths) return { ok: false, reason: SKIP_REASONS.noMapping, ...NO_EVIDENCE };
-  if (!norm(sku.factory)) {
-    // With no mill of our own there is nothing to score against, so every
-    // candidate would land as `uncertain` anyway. Named separately so the log
-    // says "fix this SKU's factory" instead of "no confident match".
+
+  const identity = identitySpecFor(sku);
+
+  // A non-kg SKU is mirrorable only where the source publishes the SAME unit
+  // on the row — کوپلر is «عدد» on both sides, so 65 per-piece SKUs are
+  // like-for-like. Everything else still needs `theoretical_weight_kg` to
+  // convert, which the audit's §4 showed is unverified seed data, so it stays
+  // a skip: converting would manufacture a number rather than measure one.
+  // The per-row check is below; this only rejects bases no page prices at all.
+  const MIRRORABLE_BASES = new Set(['kg', 'piece']);
+  if (!MIRRORABLE_BASES.has(sku.priceBasis)) {
+    return { ok: false, reason: SKIP_REASONS.notPerKgSku, ...NO_EVIDENCE };
+  }
+
+  if (!identity && !norm(sku.factory)) {
+    // Mill-keyed family with no mill of our own: nothing to score against, so
+    // every candidate would land as `uncertain` anyway. Named separately so
+    // the log says "fix this SKU's factory" instead of "no confident match".
     return { ok: false, reason: SKIP_REASONS.noFactory, ...NO_EVIDENCE };
   }
 
@@ -534,30 +821,53 @@ export function matchSku(
   const sized = pool.filter((r) => sizeMatches(sku, r));
   if (sized.length === 0) return { ok: false, reason: SKIP_REASONS.noSizeMatch, ...NO_EVIDENCE };
 
-  const scored = sized.map((r) => ({ row: r, score: factoryScore(sku.factory, rowFactory(r)) }));
-  const best = Math.max(...scored.map((s) => s.score));
-  const tied = scored.filter((s) => s.score === best).map((s) => s.row);
-  const confidence: MatchConfidence = best >= 0.999 ? 'exact' : best >= 0.5 ? 'fuzzy' : 'uncertain';
+  let tied: AhanonlineRow[];
+  let confidence: MatchConfidence;
+  let identityFailure: string | null = null;
+
+  if (identity) {
+    // Variant-keyed family (آلیاژ / نوع / حالت / برند+رنگ). The bar is the same
+    // as the mill rule's — an explicit published token has to agree — but the
+    // two ways it can fail are reported separately, because one is fixable in
+    // our catalogue and the other is not.
+    const verdicts = sized.map((r) => ({ row: r, agrees: identityAgrees(sku, r, identity) }));
+    const agreeing = verdicts.filter((v) => v.agrees === true).map((v) => v.row);
+    if (agreeing.length > 0) {
+      tied = agreeing;
+      confidence = 'exact';
+    } else {
+      tied = sized;
+      confidence = 'uncertain';
+      identityFailure = verdicts.every((v) => v.agrees === null)
+        ? SKIP_REASONS.sourceNoVariant
+        : SKIP_REASONS.missingVariant;
+    }
+  } else {
+    const scored = sized.map((r) => ({ row: r, score: factoryScore(sku.factory, rowFactory(r)) }));
+    const best = Math.max(...scored.map((s) => s.score));
+    tied = scored.filter((s) => s.score === best).map((s) => s.row);
+    confidence = best >= 0.999 ? 'exact' : best >= 0.5 ? 'fuzzy' : 'uncertain';
+  }
 
   const evidence = (row: AhanonlineRow, candidates: number): MatchEvidence => ({
     confidence,
     row,
-    factory: rowFactory(row) || null,
+    factory: (identity ? rowIdentity(row, identity) : rowFactory(row)) || null,
     unit: rowUnit(row),
     sourceUpdatedAt: rowUpdatedAt(row) || null,
     candidates,
   });
 
+  if (identityFailure) {
+    return { ok: false, reason: identityFailure, ...evidence(tied[0]!, tied.length) };
+  }
   if (confidence !== 'exact') {
     return { ok: false, reason: SKIP_REASONS.lowConfidence, ...evidence(tied[0]!, tied.length) };
   }
 
-  // Only per-kg rows are like-for-like against a per-kg SKU. Their per-شاخه
-  // rows are not converted here for the same reason `notPerKgSku` exists.
-  const perKg = tied.filter((r) => {
-    const u = rowUnit(r);
-    return u === 'kg' || u === '';
-  });
+  // The row's unit has to be the one our price is denominated in. Same
+  // reasoning as `notPerKgSku`: no conversion happens here, ever.
+  const perKg = tied.filter((r) => unitMatchesBasis(rowUnit(r), sku.priceBasis));
   if (perKg.length === 0) {
     return { ok: false, reason: SKIP_REASONS.notPerKgSource, ...evidence(tied[0]!, tied.length) };
   }
@@ -590,7 +900,8 @@ export function matchSku(
   const chosen = finalists.find((r) => r.priceToman === priceToman) ?? finalists[0]!;
   const ev = evidence(chosen, finalists.length);
 
-  if (priceToman < config.minPriceToman || priceToman > config.maxPriceToman) {
+  const band = priceBandFor(sku, config);
+  if (priceToman < band.min || priceToman > band.max) {
     return { ok: false, reason: SKIP_REASONS.outOfBand, ...ev };
   }
 
