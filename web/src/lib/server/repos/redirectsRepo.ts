@@ -93,6 +93,62 @@ async function wouldLoop(origin: string, start: string): Promise<boolean> {
   return true; // chain didn't resolve within the hop budget — treat as a loop
 }
 
+/**
+ * Follow `start` through the table to the path it ultimately lands on.
+ *
+ * `wouldLoop` has already refused anything that cycles or outruns the hop
+ * budget, so this only ever walks a chain that terminates — the loop bound is
+ * a belt-and-braces stop, not the real guard.
+ */
+async function resolveTerminal(start: string): Promise<string> {
+  let current = start;
+  for (let hop = 0; hop < MAX_REDIRECT_CHAIN_HOPS; hop++) {
+    const next = await findRedirect(current);
+    if (!next) return current;
+    current = normalizePath(next.toPath);
+  }
+  return current;
+}
+
+/**
+ * Keep the table one hop deep, from BOTH directions, whenever a row is
+ * written.
+ *
+ * `middleware.ts` resolves exactly one hop per request, so a stored chain is
+ * a real extra round trip for the visitor and a second crawl of the same URL
+ * for Googlebot. Production had 22 of them (audit 1405/06/01), and none was
+ * created by anyone typing a chain into the panel — they grew the other way
+ * round, one legal-looking edit at a time:
+ *
+ *   1405/05/13  the ورق re-slug writes  /prices/vrgh-grm → /prices/varagh-garm
+ *   1405/05/22  ورق گرم is folded into ورق:
+ *                                       /prices/varagh-garm → /prices/sheet
+ *
+ * The second row is what turned the first into a chain, and nothing was
+ * looking in that direction. So this does two things on every write:
+ *
+ *   · forward — store where `toPath` ACTUALLY lands, not the first hop;
+ *   · backward — re-aim every existing row that pointed at this `fromPath`
+ *     at the same destination, since they are now one hop short.
+ *
+ * The invariant this maintains is "no stored `toPath` is anyone's
+ * `fromPath`", which also makes a cycle unconstructible — `wouldLoop` still
+ * runs first, and still catches the direct self-redirect this cannot.
+ *
+ * The trade: once `a → b → c` is stored as `a → c`, the table no longer
+ * records that `a` ever went via `b`, so re-pointing `b` later does not drag
+ * `a` along. `a` still lands on a real page in one hop, which is what the
+ * visitor and the crawler actually pay for.
+ */
+async function collapseAround(fromPath: string, toPath: string): Promise<string> {
+  const terminal = await resolveTerminal(toPath);
+  await getDb()
+    .update(redirects)
+    .set({ toPath: terminal, updatedAt: new Date() })
+    .where(eq(redirects.toPath, fromPath));
+  return terminal;
+}
+
 export async function createRedirect(input: {
   fromPath: string;
   toPath: string;
@@ -103,9 +159,10 @@ export async function createRedirect(input: {
   if (await wouldLoop(fromPath, toPath)) {
     throw new RedirectLoopError('این مسیر یک حلقهٔ ریدایرکت می‌سازد (مستقیم یا از چند مسیر واسط).');
   }
+  const terminal = await collapseAround(fromPath, toPath);
   const rows = await getDb()
     .insert(redirects)
-    .values({ id: ulid(), fromPath, toPath, permanent: input.permanent ?? true })
+    .values({ id: ulid(), fromPath, toPath: terminal, permanent: input.permanent ?? true })
     .returning();
   return rows[0]!;
 }
@@ -126,7 +183,7 @@ export async function updateRedirect(
     if (fromPath !== undefined && (await wouldLoop(fromPath, toPath))) {
       throw new RedirectLoopError('این مسیر یک حلقهٔ ریدایرکت می‌سازد (مستقیم یا از چند مسیر واسط).');
     }
-    set.toPath = toPath;
+    set.toPath = fromPath === undefined ? toPath : await collapseAround(fromPath, toPath);
   }
   if (patch.permanent !== undefined) set.permanent = patch.permanent;
   const rows = await getDb().update(redirects).set(set).where(eq(redirects.id, id)).returning();
