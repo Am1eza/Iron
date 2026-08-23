@@ -36,7 +36,29 @@ async function GETImpl(req: NextRequest, ctx: { params: Promise<{ id: string }> 
     ...it,
     currentPrice: it.skuId ? (currentPriceBySku.get(it.skuId) ?? null) : null,
   }));
-  return NextResponse.json({ lead, items: itemsWithCurrentPrice, notes, proformas }, { headers: { 'Cache-Control': 'no-store' } });
+  // The signed-in customer behind the lead, when there is one (guest leads
+  // have a null userId). Only the two fields the rep needs to know they are
+  // talking to an ADMIN-APPROVED business: whether it is verified, and the
+  // company it was verified as. Nothing here changes pricing or priority —
+  // it is context for the call and for issuing a company invoice.
+  const customer = lead.userId ? await businessCustomerOf(lead.userId) : null;
+  return NextResponse.json(
+    { lead, items: itemsWithCurrentPrice, notes, proformas, customer },
+    { headers: { 'Cache-Control': 'no-store' } },
+  );
+}
+
+/** `{ companyName, bizVerified }` for a lead's owner — null when the account
+ *  has no approved business verification, so the badge is opt-in by data. */
+async function businessCustomerOf(userId: string) {
+  const rows = await getDb()
+    .select({ companyName: users.companyName, bizVerifyStatus: users.bizVerifyStatus })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  const u = rows[0];
+  if (!u || u.bizVerifyStatus !== 'approved') return null;
+  return { companyName: u.companyName ?? null, bizVerified: true as const };
 }
 
 const patchPayload = z.object({

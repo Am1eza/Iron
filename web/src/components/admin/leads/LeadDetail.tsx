@@ -19,6 +19,7 @@ import { useToast } from '@/lib/hooks/useToast';
 import { ApiError } from '@/lib/api/errors';
 import { routes } from '@/lib/routes';
 import { PhoneIcon } from '@/components/primitives/icons';
+import { BusinessAccountBadge } from '@/components/account/BusinessAccountBadge';
 import { Alert, Badge, Button, EmptyState, Modal, Skeleton, useConfirm } from '@/components/ui';
 import { JalaliDateField } from '../JalaliDateField';
 import { CallOutcomeModal, type CallOutcomeResult } from './CallOutcomeModal';
@@ -558,7 +559,7 @@ export function LeadDetail({ id }: { id: string }) {
     );
   }
 
-  const { lead, items, notes } = data;
+  const { lead, items, notes, customer } = data;
   const proformas: ProformaView[] = data.proformas;
   const activeProforma = proformas.find(isActiveProforma) ?? null;
   const latestProforma = proformas[0] ?? null; // proformasOfLead orders desc by createdAt
@@ -667,6 +668,14 @@ export function LeadDetail({ id }: { id: string }) {
             <h2 className={s.name}>{lead.contactName?.trim() || 'مشتری بدون نام'}</h2>
             <Badge tone={STATUS_META[lead.status].tone}>{STATUS_META[lead.status].label}</Badge>
             {lead.contactVerified ? <Badge tone="gain">شمارهٔ تأییدشده</Badge> : null}
+            {/* An admin already approved this account's شناسه ملی/کد اقتصادی
+                (users.biz_verify_status). Showing it here means the rep opens
+                the call knowing the company is on file and an official
+                company invoice can be issued — it grants NO price or
+                priority difference. */}
+            {customer?.bizVerified ? (
+              <BusinessAccountBadge companyName={customer.companyName ?? undefined} />
+            ) : null}
             {/* tel: needs the raw Latin digits; the LABEL is Persian. */}
             <a
               className={s.tel}
