@@ -101,6 +101,6 @@ The sub-category page's H1 sub-title reads «قیمت لحظه‌ای **نبشی
 - `next lint` on all touched files — clean (one pre-existing `_catOrder` unused-var warning in `catalogRepo.ts`).
 - Full `next build` in Docker — green.
 - Targeted Vitest: `catalogLabels`, `catalogCompose`, `PriceTable.*` (all 17 files in `components/catalog`), `admin/catalog`, `server/seo`, `profileFactory.pg`, `steelFactory.pg` — **184 + 13 passed**. The full suite is left to CI per the OOM constraint on this box.
-- CI on the PR: `checks` and `e2e` running at time of writing. `Workers Builds: ahantime` is red, which is the known pre-existing failure on `main` (CLAUDE.md §5).
+- CI on the PR: `checks` **pass** (5m56s), `e2e` **pass** (3m30s). `Workers Builds: ahantime` is red, which is the known pre-existing failure on `main` (CLAUDE.md §5).
 
 **PR is open, not a draft, ready for review. Not merged.**
