@@ -287,8 +287,13 @@ describe('sitemap · a URL the site redirects away is never advertised', () => {
 
   // The real production case (1405/05/31): three `is_active = true`
   // sub-categories under پروفیل were published in the sitemap and 308'd back
-  // to `/prices/profile` by rows left over from the taxonomy re-slug. The
-  // catalog queries cannot see that — only the redirect table can.
+  // to `/prices/profile`. The rows that did it were NOT re-slug leftovers, as
+  // it first appeared — they were retire-to-parent rows written while those
+  // sub-categories were empty, which the owner then walked back into by
+  // re-creating the sub-categories under the same auto-derived slugs. Either
+  // way the catalog queries cannot see it; only the redirect table can. The
+  // rows are gone (`scripts/unshadowProfileSubCategories.ts`); this gate has
+  // to survive them, because the create path can still produce the collision.
   it('drops a live sub-category that a redirect row shadows', async () => {
     redirectsRepo.listRedirectFromPaths.mockResolvedValue(
       new Set(['/prices/profile/prvfyl-snaty']),
