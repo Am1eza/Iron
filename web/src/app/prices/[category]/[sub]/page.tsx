@@ -7,6 +7,7 @@ import { getCategories, getRows, getSubRows, getFactoryOrder } from '@/lib/serve
 import { MOCK_CATEGORY_SUBS } from '@/lib/data/nav';
 import { getSubsMap } from '@/lib/data/catalog';
 import { getSetting, getVatRate } from '@/lib/server/repos/settingsRepo';
+import { factoryIsMeaningful } from '@/lib/utils/catalogLabels';
 import { DEFAULT_LOGISTICS_CONFIG, type LogisticsConfig } from '@/lib/data/logistics';
 import { shouldPrerenderMockParams } from '@/lib/server/seo/prerenderParams';
 import { Container, Section, Stack, Breadcrumbs, EmptyState, emptyPresets } from '@/components/ui';
@@ -102,7 +103,9 @@ export default async function SubCategoryPage({ params }: Params) {
               categoryName={cat.name}
               id="sub-title"
               title={`قیمت روز ${name} ${cat.name}`}
-              description={`قیمت لحظه‌ای ${name} ${cat.name} به تفکیک سایز و کارخانه، همراه با نوسان، وزن شاخه و زمان تحویل اعلام‌شده. پیش از خرید، با کارشناس ما مشورت کنید.`}
+              description={`قیمت لحظه‌ای ${name} ${cat.name} ${
+                factoryIsMeaningful(category, sub) ? 'به تفکیک سایز و کارخانه' : 'به تفکیک سایز'
+              }، همراه با نوسان، وزن شاخه و زمان تحویل اعلام‌شده. پیش از خرید، با کارشناس ما مشورت کنید.`}
             />
           </div>
 
