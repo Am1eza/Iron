@@ -106,6 +106,11 @@ export interface PriceSyncLogResponse {
 export interface AdminStats {
   stalePrices?: number;
   freshPrices?: number;
+  /** Prices untouched for `PRICE_REVIEW_AFTER_DAYS` — the admin work queue.
+   *  A strict SUBSET of `stalePrices`, which is the customer-facing "not set
+   *  during the current Jalali day" flag and fires on most of the catalogue
+   *  most mornings. See `lib/utils/priceAge.ts`. */
+  pricesNeedingReview?: number;
   /** Active, customer-visible products with no `current_prices` row at all —
    *  shipping as «تماس بگیرید» because nobody has ever typed a number for
    *  them. Disjoint from `stalePrices`, which can only count rows that exist. */

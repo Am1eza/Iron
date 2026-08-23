@@ -9,6 +9,7 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api/resources/admin';
 import { normalizeDigits, toPersianDigits } from '@/lib/utils/format';
 import { formatJalali } from '@/lib/utils/jalali';
+import { PRICE_REVIEW_AFTER_DAYS, priceAgeDays } from '@/lib/utils/priceAge';
 import { sizeLabel } from '@/lib/utils/catalogLabels';
 import { routes } from '@/lib/routes';
 import { useToast } from '@/lib/hooks/useToast';
@@ -200,6 +201,18 @@ export function PricingGrid() {
   // never-priced product is not a stale one — it has no `current_prices` row
   // for «فقط کهنه‌ها» to find — so it needs its own filter to be reachable.
   const [onlyUnpriced, setOnlyUnpriced] = useState(params.get('unpriced') === '1');
+  // ?review=1 → the deep-link for the «نیازمند بازبینی» summary and the
+  // dashboard tile. Distinct from ?stale=1 on purpose: «کهنه» means "not
+  // priced today" and matches most of the catalogue most mornings, while this
+  // is the far smaller set nothing has touched in a working week. See
+  // `lib/utils/priceAge.ts` for why the two thresholds are kept apart.
+  const [onlyNeedsReview, setOnlyNeedsReview] = useState(params.get('review') === '1');
+  // Age is the one column worth ordering by — «what has been sitting longest»
+  // is the question this screen exists to answer, and scanning a date column
+  // for it by eye across 180 میلگرد rows is not an answer. `null` keeps the
+  // catalogue's own order, which is what an operator pricing a whole category
+  // top-to-bottom wants.
+  const [ageSort, setAgeSort] = useState<'desc' | 'asc' | null>(null);
   const [q, setQ] = useState('');
   const [bulkPct, setBulkPct] = useState('');
   const [drafts, setDrafts] = useState<Map<string, Draft>>(new Map());
@@ -270,13 +283,57 @@ export function PricingGrid() {
   // filter an operator reaches for to find what needs fixing, hid the most
   // urgent rows from the list.
   const staleCount = useMemo(() => allRows.filter((r) => r.current.isStale).length, [allRows]);
+  /**
+   * Age in whole days per row, and the set that has crossed the review
+   * threshold.
+   *
+   * `now` is pinned to the moment this batch of rows arrived rather than read
+   * fresh on every render: an age recomputed mid-keystroke can tick a row over
+   * the threshold while the operator is typing in it, moving the row under
+   * their cursor if the age sort is on.
+   */
+  const ageByRow = useMemo(() => {
+    const now = new Date();
+    return new Map(allRows.map((r) => [r.id, priceAgeDays(r.current.updatedAt, now)]));
+  }, [allRows]);
+  /** Catalogue-wide, not just this category — an operator who has «میلگرد»
+   *  selected must still be told that 45 لوله مسی rows have gone untouched,
+   *  because those are exactly the rows nobody navigates to. */
+  const { data: statsData } = useQuery({
+    queryKey: ['admin', 'stats'],
+    queryFn: adminApi.stats,
+    staleTime: 60 * 1000,
+  });
+  const reviewTotal = statsData?.stats.pricesNeedingReview ?? 0;
   /** Ids of rows with no `current_prices` row at all. Server-supplied: the
    *  admin DTO renders an absent price and a stale-HIDDEN one identically, so
    *  the grid cannot tell them apart from `rows` alone. */
   const unpricedIds = useMemo(() => new Set(data?.withoutPrice ?? []), [data]);
+  /**
+   * Rows past the review threshold — priced once and then left alone.
+   *
+   * `unpricedIds` is excluded, and the exclusion is load-bearing rather than
+   * tidy: a product with no `current_prices` row still arrives with an
+   * `updatedAt` (the admin DTO's default), so on production the very first
+   * render of this filter offered «میلگرد آجدار ۱۲ آناهیتا گیلان» — a SKU
+   * nobody has ever priced — as a price that had gone stale. Never-priced is
+   * already its own queue («فقط بدون قیمت»), with its own explanation of why
+   * the mirror declines to guess; folding the two together would bury the
+   * distinction that makes each of them actionable.
+   */
+  const needsReviewIds = useMemo(
+    () =>
+      new Set(
+        allRows
+          .filter((r) => !unpricedIds.has(r.id) && (ageByRow.get(r.id) ?? 0) >= PRICE_REVIEW_AFTER_DAYS)
+          .map((r) => r.id),
+      ),
+    [allRows, ageByRow, unpricedIds],
+  );
   const rows = useMemo(() => {
     let out = onlyStale ? allRows.filter((r) => r.current.isStale) : allRows;
     if (onlyUnpriced) out = out.filter((r) => unpricedIds.has(r.id));
+    if (onlyNeedsReview) out = out.filter((r) => needsReviewIds.has(r.id));
     const nq = normalizeDigits(q).trim().toLowerCase();
     if (nq) {
       out = out.filter(
@@ -286,8 +343,16 @@ export function PricingGrid() {
           (r.size ?? '').toLowerCase().includes(nq),
       );
     }
+    if (ageSort) {
+      // Copy before sorting: `out` is still `allRows` itself whenever no
+      // filter narrowed it, and sorting in place would reorder the memoized
+      // source array that `dirty`, the paste matcher and the sparkline batch
+      // all read from.
+      const dir = ageSort === 'desc' ? -1 : 1;
+      out = [...out].sort((a, b) => ((ageByRow.get(a.id) ?? 0) - (ageByRow.get(b.id) ?? 0)) * dir);
+    }
     return out;
-  }, [allRows, onlyStale, onlyUnpriced, unpricedIds, q]);
+  }, [allRows, onlyStale, onlyUnpriced, unpricedIds, onlyNeedsReview, needsReviewIds, q, ageSort, ageByRow]);
 
   // Live sub-category list for the selected category — NOT the static
   // MOCK_CATEGORY_SUBS fixture (which silently misses/mismatches anything an admin
@@ -571,6 +636,11 @@ export function PricingGrid() {
             <option key={s.slug} value={s.slug}>{s.name}</option>
           ))}
         </select>
+        {needsReviewIds.size > 0 ? (
+          <Chip selected={onlyNeedsReview} onClick={() => setOnlyNeedsReview((v) => !v)}>
+            نیازمند بازبینی ({toPersianDigits(needsReviewIds.size)})
+          </Chip>
+        ) : null}
         <Chip selected={onlyStale} onClick={() => setOnlyStale((v) => !v)}>
           فقط کهنه‌ها{staleCount > 0 ? ` (${toPersianDigits(staleCount)})` : ''}
         </Chip>
@@ -607,6 +677,28 @@ export function PricingGrid() {
         </div>
       </div>
 
+      {/* The catalogue-wide review queue. Deliberately ABOVE the per-category
+          notices and independent of the selected category: the lines that go
+          untouched longest (لوله مسی on a per-coil basis, تسمه مسی, ساندویچ
+          پانل) are structurally un-mirrorable, so nothing will ever refresh
+          them on its own and nobody navigates to them to notice. */}
+      {reviewTotal > 0 ? (
+        <Alert tone="warning">
+          ‏{toPersianDigits(reviewTotal)} قیمت در کل کاتالوگ بیش از {toPersianDigits(PRICE_REVIEW_AFTER_DAYS)} روز
+          است به‌روز نشده و باید دستی بررسی شود؛ همگام‌سازی خودکار به این کالاها نمی‌رسد.
+          {needsReviewIds.size > 0 ? (
+            <>
+              {' '}
+              <button type="button" className={ui.linkButton} onClick={() => setOnlyNeedsReview(true)}>
+                ‏{toPersianDigits(needsReviewIds.size)} مورد در این دسته را نشان بده
+              </button>
+            </>
+          ) : (
+            ' در این دسته موردی نیست؛ دسته را عوض کنید.'
+          )}
+        </Alert>
+      ) : null}
+
       {unpricedIds.size > 0 ? (
         <Alert tone="warning">
           ‏{toPersianDigits(unpricedIds.size)} کالای فعال این دسته هیچ قیمتی ندارد و روی سایت با «تماس بگیرید»
@@ -627,7 +719,7 @@ export function PricingGrid() {
       ) : null}
 
       {isLoading ? (
-        <TableSkeleton rows={8} cols={8} />
+        <TableSkeleton rows={8} cols={9} />
       ) : isError ? (
         <EmptyState
           size="section"
@@ -656,12 +748,16 @@ export function PricingGrid() {
         <EmptyState
           size="section"
           headline="با این فیلتر کالایی پیدا نشد"
-          body="جستجو یا «فقط کهنه‌ها» را پاک کنید."
+          body="جستجو یا فیلترهای «نیازمند بازبینی» / «فقط کهنه‌ها» را پاک کنید."
           primary={{
             label: 'پاک‌کردن فیلترها',
             onClick: () => {
               setQ('');
               setOnlyStale(false);
+              // Was left set, so «پاک‌کردن فیلترها» could land the operator
+              // back on the same empty table it was offered from.
+              setOnlyUnpriced(false);
+              setOnlyNeedsReview(false);
             },
           }}
         />
@@ -678,6 +774,30 @@ export function PricingGrid() {
                 <th scope="col">زمان تحویل</th>
                 <th scope="col">نوسان</th>
                 <th scope="col">روند ۳۰روزه</th>
+                {/* Tri-state, cycling oldest → newest → catalogue order, so
+                    the operator can always get back to the order they price
+                    a category in. `aria-sort` on the <th> is what a screen
+                    reader announces; the button carries the action. */}
+                <th
+                  scope="col"
+                  aria-sort={ageSort === 'desc' ? 'descending' : ageSort === 'asc' ? 'ascending' : 'none'}
+                >
+                  <button
+                    type="button"
+                    className={ui.sortButton}
+                    onClick={() => setAgeSort((v) => (v === null ? 'desc' : v === 'desc' ? 'asc' : null))}
+                  >
+                    عمر قیمت
+                    <span aria-hidden="true">{ageSort === 'desc' ? ' ↓' : ageSort === 'asc' ? ' ↑' : ' ⇅'}</span>
+                    <span className="visually-hidden">
+                      {ageSort === 'desc'
+                        ? ' — مرتب‌شده از قدیمی‌ترین؛ برای مرتب‌سازی از تازه‌ترین فعال کنید'
+                        : ageSort === 'asc'
+                          ? ' — مرتب‌شده از تازه‌ترین؛ برای بازگشت به ترتیب کاتالوگ فعال کنید'
+                          : ' — برای مرتب‌سازی از قدیمی‌ترین فعال کنید'}
+                    </span>
+                  </button>
+                </th>
                 <th scope="col">وضعیت</th>
               </tr>
             </thead>
@@ -712,6 +832,8 @@ export function PricingGrid() {
                     ? (Math.abs(draftPrice - baseline) / baseline) * 100
                     : 0;
                 const isFatFinger = movePct >= FAT_FINGER_THRESHOLD_PCT;
+                const age = ageByRow.get(r.id) ?? 0;
+                const needsReview = needsReviewIds.has(r.id);
                 const priceErrId = `price-err-${r.id}`;
                 const priceWarnId = `price-warn-${r.id}`;
                 const deliveryErrId = `delivery-err-${r.id}`;
@@ -723,7 +845,12 @@ export function PricingGrid() {
                       ? ui.rowWarn
                       : isDirty
                         ? ui.rowDirty
-                        : undefined;
+                        : // Ranked BELOW every edit state on purpose: age is a
+                          // standing condition, and it must never paint over
+                          // the feedback for what the operator just typed.
+                          needsReview
+                          ? ui.rowAged
+                          : undefined;
                 return (
                   <tr key={r.id} className={rowClass}>
                     <td>
@@ -790,6 +917,19 @@ export function PricingGrid() {
                       >
                         <RowSparkline series={seriesBySlug?.[r.slug]} />
                       </button>
+                    </td>
+                    <td className="tnum">
+                      {/* A never-priced row has no age to report: its
+                          `updatedAt` is whatever the DTO defaults to, and
+                          «۰ روز» there would read as "priced today", which is
+                          the opposite of the truth. */}
+                      {unpricedIds.has(r.id) ? (
+                        <span className={ui.muted}>—</span>
+                      ) : needsReview ? (
+                        <Badge tone="loss">{toPersianDigits(age)} روز</Badge>
+                      ) : (
+                        <span>{age === 0 ? 'امروز' : `${toPersianDigits(age)} روز`}</span>
+                      )}
                     </td>
                     <td>
                       {r.current.priceHidden ? (
