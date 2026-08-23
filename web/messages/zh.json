@@ -1,10 +1,10 @@
 {
   "common": {
-    "brand": "Ahan Time",
+    "brand": "Ahantime",
     "tagline": "先咨询，后购买。",
     "action": {
       "submitRequest": "提交询价",
-      "askAi": "咨询 Ahan Time",
+      "askAi": "咨询 Ahantime",
       "viewPrices": "查看价格",
       "retry": "重试",
       "search": "搜索",
@@ -38,13 +38,13 @@
   "nav": {
     "home": "首页",
     "prices": "价格",
-    "ai": "Ahan Time",
+    "ai": "Ahantime",
     "tools": "工具",
     "content": "文章",
     "services": "服务",
     "warehouse": "客户仓储",
     "club": "会员俱乐部",
-    "cooperation": "合作",
+    "cooperation": "商务合作",
     "contact": "联系我们",
     "account": "我的账户",
     "cart": "询价车",
@@ -68,12 +68,12 @@
     "badgeRegistered": "工商注册",
     "badgeUnion": "钢铁经销商协会成员",
     "blurb": "智能钢铁市场：AI 智能顾问、透明实时报价与明确的交货时间。",
-    "rights": "© {year} Ahan Time，保留所有权利。"
+    "rights": "© {year} Ahantime，保留所有权利。"
   },
   "auth": {
     "mobileLabel": "手机号码",
     "mobileHelper": "验证码将通过短信发送到该号码。",
-    "nameLabel": "全名",
+    "nameLabel": "姓名",
     "nameHelper": "请输入您的名字和姓氏。",
     "getCode": "获取验证码",
     "codeSentTo": "6 位验证码已发送至 {mobile}。",
@@ -105,11 +105,11 @@
     "searchCountry": "搜索国家/地区…",
     "invalid": "请输入有效的手机号码。",
     "otpCountryUnsupported": "短信验证目前仅支持伊朗手机号码（+98）。请使用伊朗号码，或联系我们寻求帮助。",
-    "noCountry": "未找到国家"
+    "noCountry": "未找到相关国家/地区"
   },
   "metadata": {
-    "title": "Ahan Time：智能钢铁市场",
-    "description": "Ahan Time，智能钢铁市场：AI 智能顾问、透明实时报价与明确的交货时间。先咨询，后购买。"
+    "title": "Ahantime：智能钢铁市场",
+    "description": "Ahantime，智能钢铁市场：AI 智能顾问、透明实时报价与明确的交货时间。先咨询，后购买。"
   },
   "contact": {
     "messageLabel": "您的留言",
@@ -124,12 +124,171 @@
     "notes": "备注",
     "notesPlaceholder": "请在此填写您的需求或备注…",
     "submit": "提交合作申请",
-    "consent": "提交此申请即表示您同意 Ahan Time 代表就此事与您联系。",
+    "consent": "提交此申请即表示您同意 Ahantime 代表就此事与您联系。",
     "success": "您的申请已收到，我们会尽快与您联系。"
   },
   "profile": {
     "updated": "个人资料已更新。",
     "updateFailed": "更新失败。",
     "saveChanges": "保存更改"
+  },
+  "home": {
+    "hero": {
+      "aria": "Ahantime，智能钢铁市场",
+      "titleLine1": "今日钢材价格，",
+      "titleLine2": "由智能顾问为您解答",
+      "sub": "螺纹钢、工字钢、钢板与型材，均由钢厂直供。告诉我们您的工程需求，我们为您核算用量、重量与项目成本。",
+      "placeholder": "例如：我想盖一栋房子，需要哪些材料、各需多少？",
+      "inputAria": "向 Ahantime 智能顾问提问",
+      "ask": "向 Ahantime 提问",
+      "trust": "{sku} 款已报价产品，来自 {factory} 家钢厂，价格透明并持续更新",
+      "startersLabel": "问题示例",
+      "starter1": "建一栋两层楼房需要哪些材料？",
+      "starter2": "今天 14 毫米螺纹钢是什么价格？",
+      "starter3": "哪种工字钢价格最低？"
+    },
+    "how": {
+      "eyebrow": "先咨询，后购买",
+      "title": "在 Ahantime 如何完成采购",
+      "step1": {
+        "title": "免费咨询",
+        "text": "告诉智能顾问您的工程需求，系统将依据真实的实时价格核算用量、重量与项目成本。"
+      },
+      "step2": {
+        "title": "正式形式发票",
+        "text": "提交询价车后，系统立即开具价格透明、有效期明确的正式形式发票，并通过短信发送给您。"
+      },
+      "step3": {
+        "title": "可靠货源",
+        "text": "货源来自伊朗商品交易所及各大钢厂；大宗采购可开立信用证（LC），保障大额交易安全。"
+      },
+      "step4": {
+        "title": "按期交货",
+        "text": "每种货品的交货时间均提前告知，专属客服全程跟进，直至货物卸车完成。"
+      }
+    },
+    "why": {
+      "eyebrow": "Ahantime 的优势",
+      "title": "为什么选择 Ahantime？",
+      "lead": "在 {sku} 款已报价产品、来自 {factory} 家钢厂的基础上，Ahantime 不只是发布价格：咨询、正式形式发票、代客仓储与项目测算工具，都在同一平台完成。",
+      "ai": {
+        "title": "具备对话记忆的智能顾问",
+        "text": "Ahantime 的 AI 助手依据本站真实价格作答，能记住您的对话内容，并将我们专家的修正意见应用到后续回答中。",
+        "cta": "与顾问对话"
+      },
+      "proforma": {
+        "title": "即时开具正式形式发票，支持信用证采购",
+        "text": "提交询价车即可立即通过短信收到正式形式发票；货源来自伊朗商品交易所及各大钢厂，大宗采购可开立信用证（LC）。",
+        "cta": "查看价格"
+      },
+      "clients": {
+        "title": "大型工业企业的选择",
+        "text": "水泥、炼油、电力与石化行业：Ahantime 服务于企业级采购与大型工程，而不仅仅是零星订单。",
+        "meta": "已服务 {count} 家工业企业",
+        "cta": "关于我们"
+      },
+      "warehouse": {
+        "title": "客户仓储",
+        "text": "以今日价格锁定货物并存放在我们的仓库：按月计费、可选货物保险、签订合同并定期结算——您无需自建仓库。",
+        "cta": "仓储条款"
+      },
+      "tools": {
+        "title": "免费测算工具",
+        "text": "重量计算器、项目估算器、成本计算器以及黄金与外汇实时行情：我们直接为您完成项目测算，而不只是罗列价格。",
+        "meta": "{count} 款免费工具",
+        "cta": "项目估算器"
+      },
+      "services": {
+        "title": "专属 B2B 服务",
+        "text": "基于实时价格的招标测算、订单跟踪、按需定尺加工与代客仓储——这些是纯报价网站所不提供的服务。",
+        "meta": "{count} 项在线服务",
+        "cta": "招标测算"
+      }
+    },
+    "partners": {
+      "millsEyebrow": "钢厂直供",
+      "millsTitle": "来自伊朗最具实力的钢铁企业",
+      "millsAria": "供货钢厂",
+      "clientsEyebrow": "大型工业企业的信赖",
+      "clientsTitle": "他们信赖 Ahantime",
+      "clientsSub": "从水泥、钢铁到石油、天然气与石化——与伊朗工业巨头同行。",
+      "clientsAria": "信赖 Ahantime 的客户"
+    },
+    "browse": {
+      "title": "请选择产品",
+      "railAria": "产品分类",
+      "subsOf": "{name} 的子分类"
+    },
+    "compare": {
+      "title": "同一产品，各家钢厂",
+      "sub": "并排查看各钢厂的当日价格，比较差价，选出最低价。",
+      "tabsAria": "选择要比较的产品",
+      "perKg": "土曼/公斤",
+      "cheapest": "最低价"
+    }
+  },
+  "about": {
+    "crumbHome": "首页",
+    "crumb": "关于我们",
+    "eyebrow": "关于 Ahantime",
+    "title": "先咨询，后购买",
+    "lead": "{org} 是钢铁价格与供应的在线交易平台——在这里，采购钢材依靠透明的信息与专业的建议，而不是凭经验猜测。",
+    "ctaPrices": "查看价格",
+    "ctaAi": "与智能顾问对话",
+    "storyTitle": "我们为什么创立 Ahantime",
+    "storyP1": "多年来，伊朗钢铁市场一直饱受价格剧烈波动、中间商层层加价与信息分散之苦。无论是<b>工程承包商</b>还是<b>自建房业主</b>，往往在不了解真实价格与货品质量的情况下做出决定。",
+    "storyP2": "我们创立 Ahantime，正是为了让这一过程变得透明：价格实时可靠，购买前人人都能获得咨询，货源由钢厂直供、没有中间商层层转手。我们的口号是一份承诺——<b>“先咨询，后购买”</b>。",
+    "whyTitle": "为什么选择 Ahantime？",
+    "whyLead": "我们去掉了中间商，让价格透明，并把咨询前置到购买之前，让您安心决策。",
+    "howTitle": "采购流程是怎样的？",
+    "howBody": "Ahantime 不支持在线支付。您将所需产品加入<b>询价车</b>即可获得<b>形式发票</b>；随后我们的专员会与您联系，确认价格、库存与交货时间。也就是说，在任何付款之前，您都有充分咨询与确认的机会。",
+    "contactTitle": "联系我们",
+    "adv": {
+      "noMiddleman": {
+        "title": "去掉中间商，价格更优",
+        "desc": "从钢厂直接采购缩短了中间商链条：同样的货品，价格更公道。"
+      },
+      "fast": {
+        "title": "更快——24 小时交货",
+        "desc": "运输与装车调度灵活；多数热销规格可在 24 小时内交付。"
+      },
+      "ai": {
+        "title": "AI 智能顾问",
+        "desc": "Ahantime 智能助手在您下单前即可解答：规格与牌号选择、重量与成本估算。"
+      },
+      "transparent": {
+        "title": "价格透明、实时更新",
+        "desc": "价格实时更新，每种货品旁均标明涨跌幅、单支重量与交货时间。"
+      },
+      "direct": {
+        "title": "钢厂直供",
+        "desc": "我们通过向生产厂家直接采购，确保货品来源正规、质量达标。"
+      },
+      "support": {
+        "title": "真人专业支持",
+        "desc": "我们的专员会致电您确认形式发票、库存与交货事宜——是真人，不是机器人。"
+      },
+      "bourse": {
+        "title": "通过商品交易所采购",
+        "desc": "由伊朗商品交易所正规供货：价格透明、发票有效、产品来源有保障。"
+      },
+      "lc": {
+        "title": "为客户开立信用证",
+        "desc": "大宗采购可开立信用证（LC），让您的大额交易安全无忧。"
+      }
+    }
+  },
+  "contactPage": {
+    "crumbHome": "首页",
+    "crumb": "联系我们",
+    "eyebrow": "保持联系",
+    "title": "联系我们",
+    "lead": "如需购前咨询、询价或有任何其他问题，请致电我们或填写下方表单。"
+  },
+  "contactCard": {
+    "title": "我们随时为您服务",
+    "cta": "致电或发送留言",
+    "landline": "固定电话",
+    "mobile": "手机"
   }
 }

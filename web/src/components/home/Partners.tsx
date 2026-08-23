@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { clientLogos, type ClientLogo } from '../../../public/assets/logos/clients';
 import { useIntersectionObserver } from '@/lib/hooks/useIntersectionObserver';
 import { Marquee } from './Marquee';
@@ -56,6 +57,10 @@ function LogoCell({ c, shouldLoad }: { c: ClientLogo; shouldLoad: boolean }) {
 }
 
 export function Partners() {
+  // Mill names stay Persian in every locale on purpose: «فولاد مبارکه» and its
+  // peers are proper nouns and, more to the point, the site search these link
+  // into matches SKUs on that exact Persian string.
+  const t = useTranslations('home.partners');
   // Client logos are eager-loaded (see LogoCell) to work around lazy-loading
   // never firing inside the clipped/transformed marquee track — but this
   // section is the last thing on the homepage, so gate that eager load on
@@ -70,13 +75,13 @@ export function Partners() {
     <section className={`${styles.section} blueprint`} aria-labelledby="partners-title">
       <div className={styles.block}>
         <div className="container">
-          <p className={styles.eyebrow}>تأمین مستقیم از کارخانه</p>
+          <p className={styles.eyebrow}>{t('millsEyebrow')}</p>
           <h2 id="partners-title" className={styles.title}>
-            از معتبرترین کارخانه‌های فولاد ایران
+            {t('millsTitle')}
           </h2>
         </div>
         <Marquee
-          ariaLabel="کارخانه‌های تأمین‌کننده"
+          ariaLabel={t('millsAria')}
           speed={36}
           items={FACTORIES.map((name) => (
             // A real destination behind the hover affordance: site search
@@ -90,14 +95,12 @@ export function Partners() {
 
       <div className={styles.block} ref={ref}>
         <div className="container">
-          <p className={styles.eyebrow}>اعتماد صنایع بزرگ</p>
-          <h2 className={styles.title}>کسانی که به آهن‌تایم اعتماد کرده‌اند</h2>
-          <p className={styles.sub}>
-            از سیمان و فولاد تا نفت، گاز و پتروشیمی؛ در کنار بزرگان صنعت ایران.
-          </p>
+          <p className={styles.eyebrow}>{t('clientsEyebrow')}</p>
+          <h2 className={styles.title}>{t('clientsTitle')}</h2>
+          <p className={styles.sub}>{t('clientsSub')}</p>
         </div>
         <Marquee
-          ariaLabel="مشتریانی که به آهن‌تایم اعتماد کرده‌اند"
+          ariaLabel={t('clientsAria')}
           speed={48}
           items={clientLogos.map((c) => (
             <LogoCell key={c.slug} c={c} shouldLoad={isIntersecting} />
