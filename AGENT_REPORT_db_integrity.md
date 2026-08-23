@@ -327,12 +327,27 @@ code that should be using an index and isn't") is not met.
 | `catalogUnpriced.pg.test.ts` | 5 passed |
 | `PricingGrid.test.tsx` | 24 passed |
 | `catalogVisibility.pg.test.ts`, `pricing.adminGrid.pg.test.ts`, `sitemap.test.ts` | 11 + 17 passed |
-| CI `checks` / `e2e` on PR #229 | pass / pass |
+| CI `checks` / `e2e` on #229, #230, #232 | pass / pass on all three |
 | `https://ahantime.com/` | 200, 43 ms |
 
 The full suite was **not** run on this host — see CLAUDE.md; GitHub Actions is the authority.
-`Workers Builds: ahantime` is red on both PRs and is known-red on `main` independently of any
+`Workers Builds: ahantime` is red on all three PRs and is known-red on `main` independently of any
 change.
+
+### A note on the e2e flake
+
+`e2e` failed once on #232 and once on #230 before going green on re-run. Both failures were the
+same pair — `admin-pricing-catalog.spec.ts:242` («creating a product from the drawer…»,
+`getByText('بدون قیمت')`) failing and `:81` («pricing grid loads the seeded catalog…») flaky —
+with the identical tally `1 failed / 1 flaky / 1 did not run / 21 passed`.
+
+It is environmental, and #232 proves it: that PR contains one markdown file and **no code at
+all**. The tell is in the job log rather than the Playwright output — `[WebServer]` reports
+`Failed query: select "updated_at" from "current_prices"` and `Failed query: insert into
+"sms_log"`, i.e. the CI Postgres intermittently refusing queries. Whichever test is running at
+that moment is the one that fails.
+
+CLAUDE.md's note that `CI / e2e` has been reliable since #208 does not hold for this spec.
 
 ## Open items for the owner
 
