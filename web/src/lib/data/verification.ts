@@ -12,6 +12,13 @@ export interface LevelInfo {
   unlocks: string[];
 }
 
+/**
+ * The customer-facing name of an APPROVED business account (level 3). One
+ * constant so the account header, the verification card and the sales-side
+ * lead view all say exactly the same thing.
+ */
+export const BUSINESS_ACCOUNT_LABEL = 'حساب سازمانی تأییدشده';
+
 export const LEVEL_INFO: Record<VerificationLevel, LevelInfo> = {
   1: {
     level: 1,
@@ -26,12 +33,21 @@ export const LEVEL_INFO: Record<VerificationLevel, LevelInfo> = {
   3: {
     level: 3,
     name: 'کسب‌وکار تأییدشده',
+    /* Every line here must be something the product ACTUALLY does today.
+       This list used to promise «قیمت و شرایط عمده‌فروشی» and «امکان خرید
+       اعتباری» — neither mechanism exists anywhere in the codebase (no
+       tier pricing, no credit limit), so verifying delivered neither and the
+       copy was a promise sales could not honour. Do not reintroduce a price
+       or discount claim here until the owner has an actual scheme to point
+       at. The four below are each backed by real behaviour: the badge
+       (VerificationCard + account header), the badge the rep sees on the
+       lead (admin lead detail), the stored company identifiers, and the
+       level-3 club weight in clubPoints.ts. */
     unlocks: [
-      'قیمت و شرایط عمده‌فروشی',
-      'امکان خرید اعتباری',
-      'فاکتور رسمی شرکتی',
-      'واجد شرایط بالاترین سطح باشگاه',
-      'نشان «کسب‌وکار تأییدشده»',
+      `نشان «${BUSINESS_ACCOUNT_LABEL}» روی حساب شما`,
+      'کارشناس فروش هنگام استعلام می‌بیند که کسب‌وکار شما تأییدشده است',
+      'مشخصات شرکت برای صدور فاکتور رسمی شرکتی ثبت و آمادهٔ استفاده است',
+      'بیشترین امتیاز احراز در باشگاه مشتریان',
     ],
   },
 };

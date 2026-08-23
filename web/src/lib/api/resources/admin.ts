@@ -630,6 +630,10 @@ export const adminApi = {
       items: Array<LineItem & { id: string; currentPrice: number | null }>;
       notes: Array<{ id: string; authorId: string; text: string; at: string }>;
       proformas: AdminProforma[];
+      /** The lead owner's ADMIN-APPROVED business verification, or null —
+       *  null for a guest lead and for any account not verified as a
+       *  business. Display only: it carries no pricing or priority meaning. */
+      customer: { companyName: string | null; bizVerified: true } | null;
     }>(`/api/admin/leads/${id}`),
   updateLead: (id: string, patch: { status?: string; assigneeId?: string | null; callbackAt?: string | null }) =>
     http.patch<{ lead: AdminLead }>(`/api/admin/leads/${id}`, patch),

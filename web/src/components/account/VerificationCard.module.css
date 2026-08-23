@@ -107,6 +107,18 @@
   color: var(--color-text-muted);
   margin: 0;
 }
+/* Level-3 payoff block: the badge sits above its one-line explanation, so the
+   badge — not the sentence — is what the eye lands on. */
+.maxed {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+.maxedNote {
+  font: var(--t-body-sm);
+  color: var(--color-text-muted);
+  margin: 0;
+}
 .rejected {
   font: var(--t-caption);
   color: var(--color-loss-text);

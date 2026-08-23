@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui';
 import { TextInput } from '@/components/forms/fields';
 import { Button } from '@/components/primitives/Button';
 import { CheckCircleIcon, ShieldIcon } from '@/components/primitives/icons';
+import { BusinessAccountBadge } from './BusinessAccountBadge';
 import styles from './VerificationCard.module.css';
 
 type VStatus = 'none' | 'pending' | 'approved' | 'rejected';
@@ -24,10 +25,15 @@ export function VerificationCard({
   level,
   idStatus,
   bizStatus,
+  verifiedCompanyName,
 }: {
   level: 1 | 2 | 3;
   idStatus: VStatus;
   bizStatus: VStatus;
+  /** The APPROVED company's name — shown inside the level-3 badge. Distinct
+   *  from the `companyName` form field below, which is what the user is
+   *  currently typing into a level-3 submission. */
+  verifiedCompanyName?: string;
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -162,9 +168,15 @@ export function VerificationCard({
           )}
         </div>
       ) : (
-        <p className={styles.maxed}>
-          <Badge tone="action">بالاترین سطح احراز</Badge> حساب شما کاملاً تأیید شده است.
-        </p>
+        /* Level 3 reached. This used to be one grey line ("حساب شما کاملاً
+           تأیید شده است") and nothing else — the approval was invisible. Now
+           the badge itself is the payoff, with the company name on it. */
+        <div className={styles.maxed}>
+          <BusinessAccountBadge companyName={verifiedCompanyName} />
+          <p className={styles.maxedNote}>
+            بالاترین سطح احراز. کارشناس فروش هنگام بررسی استعلام شما این نشان را می‌بیند.
+          </p>
+        </div>
       )}
     </section>
   );

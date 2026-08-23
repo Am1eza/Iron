@@ -21,6 +21,7 @@ import { WarehouseList } from '@/components/account/WarehouseList';
 import { OrdersListLive } from '@/components/account/OrdersListLive';
 import { ClubPanel } from '@/components/account/ClubPanel';
 import { AccountOverview, type OverviewNudge } from '@/components/account/AccountOverview';
+import { BusinessAccountBadge } from '@/components/account/BusinessAccountBadge';
 import { getOrders, getWarehouseItems, getProfileCounts } from '@/lib/server/account';
 import { clubStatus, getLetterhead } from '@/lib/server/repos/clubRepo';
 import { getUserProfile } from '@/lib/server/repos/verificationRepo';
@@ -83,6 +84,12 @@ export default async function AccountPage({ params }: Params) {
   // must come back to the club tab).
   const backTo = slug === '' ? routes.account() : `/account/${slug}`;
   const user = await requireUser(backTo);
+  // The session token carries role, not verification state, so the header
+  // reads the profile to decide whether this is an approved business account.
+  // One PK-indexed select, only in live mode; the tab below may fetch the same
+  // profile again, which is cheap enough not to warrant threading it through.
+  const headerProfile = API_MODE === 'live' ? await getUserProfile(user.id) : null;
+  const isVerifiedBusiness = headerProfile?.bizVerifyStatus === 'approved';
 
   const nav = (variant: 'side' | 'pills') => (
     <nav
@@ -123,6 +130,9 @@ export default async function AccountPage({ params }: Params) {
               <Heading level={1}>سلام{user.name ? `، ${user.name}` : ''}</Heading>
             </div>
             <Cluster gap={2}>
+              {isVerifiedBusiness ? (
+                <BusinessAccountBadge companyName={headerProfile?.companyName} />
+              ) : null}
               <Badge tone="neutral">{ROLE_LABEL[user.role]}</Badge>
               {canAccessAdmin(user.role) ? (
                 <Link href="https://panel.ahantime.com">
@@ -281,6 +291,7 @@ async function TabContent({ slug, userId }: { slug: string; userId: string }) {
                 level={profile.verificationLevel}
                 idStatus={profile.idVerifyStatus}
                 bizStatus={profile.bizVerifyStatus}
+                verifiedCompanyName={profile.bizVerifyStatus === 'approved' ? profile.companyName : undefined}
               />
             ) : null}
             <div className={styles.logoutRow}>
