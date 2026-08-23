@@ -105,13 +105,15 @@ describe('updateRedirect / deleteRedirect', () => {
     await expect(updateRedirect(created.id, { toPath: from })).rejects.toBeInstanceOf(RedirectLoopError);
   });
 
-  it('rejects PATCHing a redirect onto a destination that already chains back to its own source', async () => {
+  it('PATCHing onto a path that itself redirects stores the terminal, not the hop', async () => {
     const a = `/upd-chain-a-${ulid()}`;
     const b = `/upd-chain-b-${ulid()}`;
-    const created = await createRedirect({ fromPath: a, toPath: '/temp-safe' });
-    await createRedirect({ fromPath: b, toPath: a }); // b → a
-    // Now pointing `a`'s own redirect at `b` would close a → b → a.
-    await expect(updateRedirect(created.id, { toPath: b })).rejects.toBeInstanceOf(RedirectLoopError);
+    const created = await createRedirect({ fromPath: a, toPath: '/upd-chain-start' });
+    await createRedirect({ fromPath: b, toPath: `/upd-chain-end-${ulid()}` });
+    const bTerminal = (await findRedirect(b))!.toPath;
+
+    const patched = await updateRedirect(created.id, { toPath: b });
+    expect(patched?.toPath).toBe(bTerminal);
   });
 
   it('a permanent-only patch (no toPath change) never runs the loop check', async () => {
@@ -126,6 +128,90 @@ describe('updateRedirect / deleteRedirect', () => {
     const created = await createRedirect({ fromPath: from, toPath: '/gone' });
     await deleteRedirect(created.id);
     await expect(findRedirect(from)).resolves.toBeNull();
+  });
+});
+
+/**
+ * Production had 22 stored chains (audit 1405/06/01) and `middleware.ts`
+ * resolves one hop per request, so every one of them was a second round trip
+ * for the visitor and a second crawl of the same URL for Googlebot. None was
+ * typed in as a chain — they grew backwards, when a later edit re-pointed a
+ * path some earlier row was already aiming at.
+ */
+describe('chain collapse — the table stays one hop deep from both directions', () => {
+  it('stores the terminal when the new destination is itself a from_path', async () => {
+    const b = `/collapse-b-${ulid()}`;
+    const c = `/collapse-c-${ulid()}`;
+    await createRedirect({ fromPath: b, toPath: c });
+
+    const a = `/collapse-a-${ulid()}`;
+    await createRedirect({ fromPath: a, toPath: b }); // a → b → c
+    expect((await findRedirect(a))?.toPath).toBe(c);
+  });
+
+  it('re-aims existing rows when a NEW row claims the path they pointed at', async () => {
+    // The order production actually took: `a → b` was written first and was
+    // a perfectly good single hop; `b → c`, added nine days later, is what
+    // turned it into a chain. Nothing was looking in this direction.
+    const a = `/regrow-a-${ulid()}`;
+    const b = `/regrow-b-${ulid()}`;
+    const c = `/regrow-c-${ulid()}`;
+    await createRedirect({ fromPath: a, toPath: b });
+    await createRedirect({ fromPath: b, toPath: c });
+
+    expect((await findRedirect(a))?.toPath).toBe(c);
+    expect((await findRedirect(b))?.toPath).toBe(c);
+  });
+
+  it('re-aims existing rows when an UPDATE claims the path they pointed at', async () => {
+    const a = `/regrow-u-a-${ulid()}`;
+    const b = `/regrow-u-b-${ulid()}`;
+    const c = `/regrow-u-c-${ulid()}`;
+    await createRedirect({ fromPath: a, toPath: b });
+    const other = await createRedirect({ fromPath: `/regrow-u-x-${ulid()}`, toPath: '/regrow-u-x0' });
+
+    // `a → b` is a fine single hop until this patch makes `b` a from_path.
+    await updateRedirect(other.id, { toPath: c });
+    const bRow = await createRedirect({ fromPath: b, toPath: c });
+    expect(bRow.toPath).toBe(c);
+    expect((await findRedirect(a))?.toPath).toBe(c);
+  });
+
+  it('a collapsed row keeps its own destination when the old intermediate later moves', async () => {
+    // The cost of collapsing: once `a → b → c` is stored as `a → c`, the
+    // table no longer records that `a` ever went via `b`, so re-pointing `b`
+    // afterwards does not drag `a` along. That is the deliberate trade —
+    // `a` still lands on a real page in one hop, which is what a visitor and
+    // a crawler actually pay for, and no chain can re-form behind it.
+    const a = `/decouple-a-${ulid()}`;
+    const b = `/decouple-b-${ulid()}`;
+    const c = `/decouple-c-${ulid()}`;
+    const d = `/decouple-d-${ulid()}`;
+    await createRedirect({ fromPath: a, toPath: b });
+    const bRow = await createRedirect({ fromPath: b, toPath: c }); // a → c, b → c
+
+    await updateRedirect(bRow.id, { toPath: d });
+    expect((await findRedirect(a))?.toPath).toBe(c);
+    expect((await findRedirect(b))?.toPath).toBe(d);
+  });
+
+  it('collapses a three-deep chain in one write, not one hop per write', async () => {
+    const a = `/deep-a-${ulid()}`;
+    const b = `/deep-b-${ulid()}`;
+    const c = `/deep-c-${ulid()}`;
+    const d = `/deep-d-${ulid()}`;
+    await createRedirect({ fromPath: c, toPath: d });
+    await createRedirect({ fromPath: b, toPath: c });
+    await createRedirect({ fromPath: a, toPath: b });
+
+    for (const p of [a, b, c]) expect((await findRedirect(p))?.toPath).toBe(d);
+  });
+
+  it('still refuses a direct self-redirect — collapse runs after the loop guard', async () => {
+    const path = `/collapse-self-${ulid()}`;
+    await expect(createRedirect({ fromPath: path, toPath: path })).rejects.toBeInstanceOf(
+      RedirectLoopError,
+    );
   });
 });
 
