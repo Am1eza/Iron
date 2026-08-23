@@ -4,7 +4,7 @@
  * (not raw ids) because the frontend builds /prices/{cat}/{sub}/{sku} links
  * from these fields (mock fixtures established that contract).
  */
-import { and, asc, desc, eq, gte, ilike, inArray, ne, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, ilike, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import { getDb } from '@/lib/server/db/client';
 import { categories, subCategories, skus, currentPrices, pricePoints, factoryOrder } from '@/lib/server/db/schema';
 import type { Category, SubCategory, PriceRow, PricePoint } from '@/lib/types/domain';
@@ -385,6 +385,51 @@ export async function headlineRowPerCategory(): Promise<PriceRow[]> {
  * when `categorySlug` is given, so the pricing grid can explain its own empty
  * table instead of claiming the category holds no products.
  */
+/**
+ * Active, customer-visible SKUs that have no `current_prices` row at all.
+ *
+ * These are NOT invisible — the price table left-joins, so the product ships
+ * with «تماس بگیرید» in place of a number, which is a defensible lead-gen
+ * state and exactly why nothing ever complained. Production carried seven of
+ * them on 1405/06/01, the oldest five days old: «تیرآهن ۱۶/۲۰/۲۲/۲۴ فایکو»,
+ * «تیرآهن ۱۶ اهواز», «تیرآهن ۱۶ ظفر بناب» and «میلگرد آجدار ۱۲ آناهیتا گیلان».
+ *
+ * `CatalogManager` already badges each such row «بدون قیمت», so the fact is
+ * not unrecorded — but it is only legible one row at a time, on a page the
+ * daily pricing routine never opens. There is no count, nothing on the
+ * dashboard, and nothing in the pricing grid, which is where the operator
+ * actually types numbers. That is the gap this closes.
+ *
+ * `priceSync.mjs` cannot fill them and should not: `price_sync_entries`
+ * records a `skip:low-confidence-match` for every one, because the only
+ * size-compatible ahanonline row is a DIFFERENT mill (ذوب آهن). Writing that
+ * price onto a فایکو product is the failure mode `priceSync.match.ts` exists
+ * to prevent. So the gap is a human one — the owner has to type a number —
+ * and the only useful thing code can do is say so out loud.
+ *
+ * Returns ids rather than a count so the pricing grid can both report the
+ * number and filter down to exactly those rows, with no client-side guess at
+ * which rows they are (a stale-HIDDEN price and an absent one both surface as
+ * a blank cell to the public DTO).
+ */
+export async function listActiveSkuIdsWithoutPrice(categorySlug?: string): Promise<string[]> {
+  const conds = [
+    eq(skus.isActive, true),
+    eq(categories.isActive, true),
+    eq(subCategories.isActive, true),
+    isNull(currentPrices.skuId),
+  ];
+  if (categorySlug) conds.push(eq(categories.slug, categorySlug));
+  const rows = await getDb()
+    .select({ id: skus.id })
+    .from(skus)
+    .innerJoin(categories, eq(skus.categoryId, categories.id))
+    .innerJoin(subCategories, eq(skus.subCategoryId, subCategories.id))
+    .leftJoin(currentPrices, eq(currentPrices.skuId, skus.id))
+    .where(and(...conds));
+  return rows.map((r) => r.id);
+}
+
 export async function countSkusHiddenByTaxonomy(categorySlug?: string): Promise<number> {
   const conds = [
     eq(skus.isActive, true),

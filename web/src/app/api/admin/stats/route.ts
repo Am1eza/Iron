@@ -6,6 +6,7 @@ import type { Permission } from '@/lib/auth/types';
 import { getDb } from '@/lib/server/db/client';
 import { currentPrices, leads, userRequests, orders, contactMessages, users, articles, aiUsage } from '@/lib/server/db/schema';
 import { triggeredAlertCount } from '@/lib/server/repos/alertsRepo';
+import { listActiveSkuIdsWithoutPrice } from '@/lib/server/repos/catalogRepo';
 import { getPriceFreshness } from '@/lib/server/services/priceFreshness';
 
 /**
@@ -52,6 +53,17 @@ async function GETImpl(req: NextRequest) {
     const rows = await db.select({ updatedAt: currentPrices.updatedAt }).from(currentPrices);
     return rows.filter((r) => !freshness.isStale(r.updatedAt)).length;
   });
+  // Products the site is already showing with «تماس بگیرید» because they have
+  // no `current_prices` row at all — never priced, as opposed to priced and
+  // gone stale. `stalePrices` above cannot see them (it reads
+  // `current_prices`, which is exactly the table they are missing from), so
+  // seven of them sat on production for five days without ever reaching this
+  // screen. The catalog page does badge each one «بدون قیمت», but one row at
+  // a time and nowhere near the daily pricing routine. The automated mirror
+  // correctly refuses to guess a price for them, so a person has to see the
+  // number to act on it.
+  add('unpricedSkus', 'pricing:write', async () =>
+    (await listActiveSkuIdsWithoutPrice()).length);
   add('newLeads', 'leads:read', () =>
     count(db.select({ n: sql<number>`count(*)::int` }).from(leads).where(eq(leads.status, 'new'))));
   add('openRequests', 'leads:read', () =>

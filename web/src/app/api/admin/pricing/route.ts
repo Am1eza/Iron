@@ -3,7 +3,11 @@ import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { safeRevalidatePath } from '@/lib/server/utils/revalidate';
-import { countSkusHiddenByTaxonomy, tableRows } from '@/lib/server/repos/catalogRepo';
+import {
+  countSkusHiddenByTaxonomy,
+  listActiveSkuIdsWithoutPrice,
+  tableRows,
+} from '@/lib/server/repos/catalogRepo';
 import { savePrices, type SavePriceInput, type SavePricesRowResult } from '@/lib/server/services/pricing.service';
 import { evaluateAlerts } from '@/lib/server/services/alerts.service';
 import { reportError } from '@/lib/errors/report';
@@ -21,15 +25,24 @@ async function GETImpl(req: NextRequest) {
   // able to see the one they are replacing. The public DTO withholds it
   // («تماس بگیرید»), which is right for a customer and blanked every cell in
   // the grid the moment prices aged past PRICE_STALE_HIDE_AFTER_DAYS.
-  const [rows, hiddenByTaxonomy] = await Promise.all([
+  const [rows, hiddenByTaxonomy, withoutPrice] = await Promise.all([
     tableRows(cat, sub || undefined, { forAdmin: true }),
     countSkusHiddenByTaxonomy(cat),
+    listActiveSkuIdsWithoutPrice(cat),
   ]);
   // How many ACTIVE products of this category the grid cannot list because
   // their sub-category was retired underneath them. Without this the grid's
   // empty state told the admin the category holds no products — and the next
   // step from there is creating duplicates of the 40 that already exist.
-  return NextResponse.json({ rows, hiddenByTaxonomy }, { headers: { 'Cache-Control': 'no-store' } });
+  //
+  // `withoutPrice` is the opposite failure: products the grid DOES list, and
+  // the public site ships as «تماس بگیرید», that have never been priced at
+  // all. Sent as ids, not a count, because a blank cell alone cannot tell an
+  // absent price from a stale-hidden one.
+  return NextResponse.json(
+    { rows, hiddenByTaxonomy, withoutPrice },
+    { headers: { 'Cache-Control': 'no-store' } },
+  );
 }
 
 // Price ceiling: 1e13 Toman — far above any real per-unit steel price,

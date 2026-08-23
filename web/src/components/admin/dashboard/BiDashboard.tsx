@@ -107,6 +107,19 @@ export function BiDashboard() {
     s?.pendingVerifications
       ? { label: 'احراز هویت در انتظار', n: s.pendingVerifications, href: routes.admin.users(), urgent: false }
       : null,
+    // Urgent where «قیمت کهنه» is not: a stale price is still a number the
+    // customer can act on, an unpriced product is a live page that has never
+    // had one. The automated mirror deliberately refuses to guess these
+    // (`skip:low-confidence-match` — a same-size row from a different mill),
+    // so nothing but a person can clear this queue.
+    s?.unpricedSkus
+      ? {
+          label: 'کالای بدون قیمت',
+          n: s.unpricedSkus,
+          href: `${routes.admin.pricing()}?unpriced=1`,
+          urgent: true,
+        }
+      : null,
     s?.stalePrices
       ? { label: 'قیمت کهنه', n: s.stalePrices, href: `${routes.admin.pricing()}?stale=1`, urgent: false }
       : null,

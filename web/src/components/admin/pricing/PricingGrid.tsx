@@ -196,6 +196,10 @@ export function PricingGrid() {
   const sizeCol = sizeLabel(cat);
   const [sub, setSub] = useState('');
   const [onlyStale, setOnlyStale] = useState(params.get('stale') === '1');
+  // ?unpriced=1 → the same deep-link for the «کالای بدون قیمت» tile. A
+  // never-priced product is not a stale one — it has no `current_prices` row
+  // for «فقط کهنه‌ها» to find — so it needs its own filter to be reachable.
+  const [onlyUnpriced, setOnlyUnpriced] = useState(params.get('unpriced') === '1');
   const [q, setQ] = useState('');
   const [bulkPct, setBulkPct] = useState('');
   const [drafts, setDrafts] = useState<Map<string, Draft>>(new Map());
@@ -266,8 +270,13 @@ export function PricingGrid() {
   // filter an operator reaches for to find what needs fixing, hid the most
   // urgent rows from the list.
   const staleCount = useMemo(() => allRows.filter((r) => r.current.isStale).length, [allRows]);
+  /** Ids of rows with no `current_prices` row at all. Server-supplied: the
+   *  admin DTO renders an absent price and a stale-HIDDEN one identically, so
+   *  the grid cannot tell them apart from `rows` alone. */
+  const unpricedIds = useMemo(() => new Set(data?.withoutPrice ?? []), [data]);
   const rows = useMemo(() => {
     let out = onlyStale ? allRows.filter((r) => r.current.isStale) : allRows;
+    if (onlyUnpriced) out = out.filter((r) => unpricedIds.has(r.id));
     const nq = normalizeDigits(q).trim().toLowerCase();
     if (nq) {
       out = out.filter(
@@ -278,7 +287,7 @@ export function PricingGrid() {
       );
     }
     return out;
-  }, [allRows, onlyStale, q]);
+  }, [allRows, onlyStale, onlyUnpriced, unpricedIds, q]);
 
   // Live sub-category list for the selected category — NOT the static
   // MOCK_CATEGORY_SUBS fixture (which silently misses/mismatches anything an admin
@@ -565,6 +574,11 @@ export function PricingGrid() {
         <Chip selected={onlyStale} onClick={() => setOnlyStale((v) => !v)}>
           فقط کهنه‌ها{staleCount > 0 ? ` (${toPersianDigits(staleCount)})` : ''}
         </Chip>
+        {unpricedIds.size > 0 ? (
+          <Chip selected={onlyUnpriced} onClick={() => setOnlyUnpriced((v) => !v)}>
+            فقط بدون قیمت ({toPersianDigits(unpricedIds.size)})
+          </Chip>
+        ) : null}
         <input
           className={ui.textCell}
           style={{ inlineSize: '12rem' }}
@@ -592,6 +606,17 @@ export function PricingGrid() {
           </Button>
         </div>
       </div>
+
+      {unpricedIds.size > 0 ? (
+        <Alert tone="warning">
+          ‏{toPersianDigits(unpricedIds.size)} کالای فعال این دسته هیچ قیمتی ندارد و روی سایت با «تماس بگیرید»
+          نمایش داده می‌شود. همگام‌سازی خودکار عمداً برایشان قیمت نمی‌گذارد، چون تنها ردیف هم‌سایزِ منبع مربوط به
+          کارخانهٔ دیگری است.{' '}
+          <button type="button" className={ui.linkButton} onClick={() => setOnlyUnpriced(true)}>
+            فقط همین‌ها را نشان بده
+          </button>
+        </Alert>
+      ) : null}
 
       {hiddenByTaxonomy > 0 && allRows.length > 0 ? (
         <Alert tone="warning">
