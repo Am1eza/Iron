@@ -10,7 +10,18 @@ import { finiteNumber } from '@/lib/validation/utils';
 
 const payload = z.object({ value: finiteNumber.positive().max(1e13) });
 
-/** PUT /api/admin/market/billet — the one admin-entered ticker value (شمش). */
+/**
+ * PUT /api/admin/market/billet — manual override for the شمش فولاد ticker value.
+ *
+ * Billet is no longer admin-ONLY: it is polled from esfahanahan every 15 min
+ * (jobs/billetPoll.job.ts). This route stays as the override for when the owner
+ * has a better number than the feed — a mill quote off a phone call, or the
+ * feed publishing something obviously wrong. Writing `source: 'admin'` here
+ * gives that value a hold window (BILLET_ADMIN_HOLD_HOURS, default 6h) during
+ * which `refreshBillet()` will not overwrite it; after that the feed resumes,
+ * deliberately, so a forgotten override can't strand the ticker the way the
+ * pre-automation flow did (60,800 for a week against a real 66,750–67,700).
+ */
 async function PUTImpl(req: NextRequest) {
   const guard = requireDb();
   if (guard) return guard;

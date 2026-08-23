@@ -250,7 +250,7 @@ export interface MarketValue {
   label: string;
   value: number;
   unit: string;
-  source: 'tgju' | 'admin';
+  source: 'tgju' | 'esfahanahan' | 'admin';
   movementDir: MovementDir;
   movementPct?: number;
   updatedAt: string;

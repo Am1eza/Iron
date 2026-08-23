@@ -16,75 +16,12 @@
  *   overrides the default if that source ever needs to change.
  */
 import { z } from 'zod';
-import * as dns from 'node:dns';
-import * as http from 'node:http';
-import * as https from 'node:https';
 import { reportError } from '@/lib/errors/report';
 import { withResilience } from '@/lib/server/utils/resilience';
+import { fetchJson, isRetryableHttpError } from '@/lib/server/utils/httpJson';
 import type { MarketKey } from '@/lib/types/domain';
 
 const DEFAULT_OUNCE_API_URL = 'https://api.gold-api.com/price/XAU';
-
-/** HTTP errors thrown internally, tagged with a status so the resilience
- *  layer can tell a transient 5xx/network blip (worth retrying) from a
- *  persistent 4xx (retrying won't fix a bad URL). */
-class UpstreamHttpError extends Error {
-  constructor(public status: number) {
-    super(`upstream HTTP ${status}`);
-  }
-}
-function isRetryableHttpError(err: unknown): boolean {
-  if (err instanceof UpstreamHttpError) return err.status >= 500;
-  return true; // network errors, timeouts, DNS failures, etc.
-}
-
-/**
- * Node's `fetch()` resolves hostnames via the OS's `getaddrinfo()` — on this
- * image's Alpine/musl base that call is unreliable for some external
- * domains (confirmed: consistently ENOTFOUND for gold-api.com while
- * `dns.resolve4()`, which talks to the nameserver directly instead of going
- * through musl, resolves it instantly). `http(s).get`'s `lookup` option
- * lets us swap in `dns.resolve4` for just this call, sidestepping the musl
- * bug entirely rather than chasing it via resolver/DNS-server config —
- * Docker-internal hostnames (the `tgju` service) are unaffected either way,
- * they resolve through the embedded 127.0.0.11 resolver, a different path.
- */
-function resolveLookup(
-  hostname: string,
-  options: dns.LookupOptions,
-  cb: (err: NodeJS.ErrnoException | null, address: string | dns.LookupAddress[], family?: number) => void,
-): void {
-  dns.resolve4(hostname, (err, addresses) => {
-    if (err) return cb(err, '');
-    if (options.all) cb(null, addresses.map((address) => ({ address, family: 4 })));
-    else cb(null, addresses[0]!, 4);
-  });
-}
-
-function fetchJson(url: string, timeoutMs = 5000): Promise<unknown> {
-  return new Promise((resolve, reject) => {
-    const client = url.startsWith('https:') ? https : http;
-    const req = client.get(url, { timeout: timeoutMs, lookup: resolveLookup }, (res) => {
-      const status = res.statusCode ?? 0;
-      if (status < 200 || status >= 300) {
-        res.resume(); // drain so the socket can be released back to the pool
-        reject(new UpstreamHttpError(status));
-        return;
-      }
-      const chunks: Buffer[] = [];
-      res.on('data', (c: Buffer) => chunks.push(c));
-      res.on('end', () => {
-        try {
-          resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')));
-        } catch (err) {
-          reject(err);
-        }
-      });
-    });
-    req.on('timeout', () => req.destroy(new Error('request timed out')));
-    req.on('error', reject);
-  });
-}
 
 /** tgju-api's shapes, confirmed against its actual source (routers/price.py
  *  + schemas/price.py) — /currency is a flat array of items; /gold is an

@@ -23,6 +23,7 @@ import * as schema from '@/lib/server/db/schema';
 import { runWithScopedDb } from '@/lib/server/db/client';
 import { runExclusive } from './scheduler';
 import { marketPollJob } from './marketPoll.job';
+import { billetPollJob } from './billetPoll.job';
 import { stalenessJob } from './staleness.job';
 import { proformaExpireJob } from './proformaExpire.job';
 import { alertsJob } from './alerts.job';
@@ -33,7 +34,11 @@ const EVERY_TEN_MINUTES = '*/10 * * * *';
 const HOURLY = '0 * * * *';
 
 const MINUTE_JOBS = [marketPollJob, alertsJob, publishArticlesJob];
-const TEN_MINUTE_JOBS = [stalenessJob, proformaExpireJob];
+// billetPollJob wants 15 min (CONSTANTS.BILLET_REFRESH_SECONDS); the Workers
+// target only has these three fixed Cron Triggers, so it rides the 10-minute
+// one — polling its upstream slightly more often than the Docker deploy does
+// is harmless, running it every minute would not be.
+const TEN_MINUTE_JOBS = [stalenessJob, proformaExpireJob, billetPollJob];
 const HOURLY_JOBS = [cleanupJob];
 
 /** Same resolution order as `db/client.ts`'s Workers branch: prefer

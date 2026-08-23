@@ -18,7 +18,8 @@ import styles from './MarketBoard.module.css';
 /**
  * تابلوی بازار — the FX / gold / billet board. Five calm cards (دلار، یورو،
  * طلای ۱۸، انس جهانی، شمش فولاد); selecting one reveals its price history below.
- * Billet (شمش) is admin-entered; the rest are tgju-backed. Values come from
+ * Billet (شمش) is fed from esfahanahan (with an admin override); the rest are
+ * tgju-backed. Values come from
  * `useMarket()` (the same live-polled hook the header Ticker uses) — a mock
  * fallback only covers the brief pre-load flash, not live mode itself.
  */
@@ -33,11 +34,10 @@ function formatValue(v: MarketValue): { num: string; unit: string } {
 
 /** Same badge on every card regardless of `source` — a deliberate choice
  * (Amir, 2026-08-15): all 5 card headers must line up on an identical row,
- * label-then-badge, with no per-card structural difference. شمش فولاد's
- * value itself is still admin-entered (currently a placeholder, and even
- * once real, updated per Iran Mercantile Exchange auction cadence, not
- * every 60s like the other four) — this label is a uniform visual category,
- * not a claim that every card's *number* refreshes live. */
+ * label-then-badge, with no per-card structural difference. شمش فولاد is now
+ * polled too (every 15 min from esfahanahan, vs 60s for the other four, since
+ * its upstream reprices a few times a day) — this label is a uniform visual
+ * category, not a claim that every card's *number* refreshes at one cadence. */
 function SourceBadge() {
   return (
     <span className={styles.source}>

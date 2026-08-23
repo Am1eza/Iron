@@ -5,7 +5,7 @@ import { marketValues as fixtureValues } from '@/lib/mock/fixtures';
 import { withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { cacheGetJson, cacheSetJson, jitterTtl } from '@/lib/server/redis';
 
-/** GET /api/market — ticker values (tgju FX/gold/ounce + admin billet).
+/** GET /api/market — ticker values (tgju FX/gold/ounce + esfahanahan billet).
  *  Redis read-through (30s) offloads the sitewide 60s ticker poll from the DB;
  *  the poll job refreshes the underlying data, so bounded 30s staleness is fine.
  *  Falls straight through to the DB when Redis is unavailable. */

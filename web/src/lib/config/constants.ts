@@ -33,8 +33,13 @@ export const CONSTANTS = {
   OTP_MAX_ATTEMPTS: 5,
   OTP_LOCK_MINUTES: 15,
 
-  /** Ticker refresh interval (نبض بازار) */
+  /** Ticker refresh interval (نبض بازار) — the tgju feed (usd/eur/gold18/ounce)
+   *  and the client-side poll. */
   TICKER_REFRESH_SECONDS: 60,
+  /** Billet (شمش فولاد) feed interval. Its upstream — a steel retailer's
+   *  published price, not an exchange — reprices a few times a day, so it gets
+   *  its own slower job rather than the 60s tick. See jobs/billetPoll.job.ts. */
+  BILLET_REFRESH_SECONDS: 900,
 
   /** Session */
   SESSION_TTL_DAYS: 30,
