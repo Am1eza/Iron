@@ -235,11 +235,13 @@ export function SkuDrawer({
   // product under (see catalogLabels). The stored column is unchanged.
   const sizeCol = sizeLabel(parentCategory?.slug);
   const showDimensions = usesDimensions(parentCategory?.slug);
-  // پروفیل استیل reads `skus.grade` as «آلیاژ» on the public pages, because for
-  // a stainless profile the stored grade genuinely IS the alloy (۲۰۱/۳۰۴/۳۱۶).
-  // The admin box is relabelled to match — an operator asked for a «گرید» and
-  // an product page publishing «آلیاژ» is how the wrong value gets typed in.
-  // Deliberately narrow: no other category's field changes at all.
+  // استیل — the whole category — and پروفیل استیل read `skus.grade` as «آلیاژ»
+  // on the public pages, because on a stainless product the stored grade
+  // genuinely IS the alloy (۲۰۱/۳۰۴/۳۰۴L/۳۱۶L). The admin box is relabelled to
+  // match — an operator asked for a «گرید» and a product page publishing
+  // «آلیاژ» is how the wrong value gets typed in. Deliberately narrow: it asks
+  // catalogLabels rather than deciding for itself, so no other category's field
+  // changes at all.
   const gradeLabel = attrKeysFor(parentCategory?.slug, selectedSub?.slug ?? null).includes('alloy')
     ? ALLOY_LABEL
     : GRADE_LABEL;
@@ -484,7 +486,7 @@ export function SkuDrawer({
                 label={gradeLabel}
                 helper={
                   gradeLabel === ALLOY_LABEL
-                    ? 'استیل: ۲۰۱، ۳۰۴، ۳۱۶. در صفحهٔ کالا به مشتری نشان داده می‌شود.'
+                    ? 'استیل: ۲۰۱، ۳۰۴، ۳۰۴L، ۳۱۶L. در صفحهٔ کالا به مشتری نشان داده می‌شود.'
                     : 'میلگرد: A1، A2، A3 · ورق: ST37، ST52. در صفحهٔ کالا به مشتری نشان داده می‌شود.'
                 }
                 value={v.grade}

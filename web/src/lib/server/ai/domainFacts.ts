@@ -43,6 +43,16 @@ export async function getDomainFacts(): Promise<string> {
         ' گریدهای واقعی و تنها گریدهای مجاز برای نام بردن — ' +
         gradeParts.join('؛ ') +
         '. هیچ کد گرید دیگری وجود ندارد؛ اگر گریدی در این فهرست نیست، نامش را نساز و نگو.';
+      // The codes above are the stored `grade` column for every category, but
+      // in استیل the site publishes that same column to the customer as
+      // «آلیاژ» — it is what a stainless buyer asks for by name. The advisor
+      // has to use the customer's word for it, or it describes a spec the page
+      // in front of them does not have. Only the WORD changes; the allowed
+      // codes are exactly the list above.
+      if (grades['استیل']?.length) {
+        facts +=
+          ' در دستهٔ استیل همین کدها را «آلیاژ» بنام، نه «گرید» — در صفحهٔ کالا هم همین واژه نوشته شده است.';
+      }
     }
   } catch {
     facts = '';
