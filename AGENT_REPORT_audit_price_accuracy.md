@@ -2,7 +2,8 @@
 
 **Date:** 2026-08-23 (Tehran: 2026-08-24)
 **Scope:** the six findings from the external technical/SEO audit
-**Outcome:** all six fixed, plus one unrelated blocker found on `main`. Five PRs, none merged.
+**Outcome:** all six fixed, plus one unrelated blocker found and fixed on `main`.
+Six PRs, none merged.
 
 Every claim below is backed by a command run against the live production DB, or by
 rendering the patched app against production data. Nothing here is inferred from the
@@ -19,6 +20,7 @@ code alone.
 | [#247](https://github.com/Am1eza/Iron/pull/247) | stop asserting stock we do not track and freshness we cannot honour | `#245` | **P1-4**, **P1-5** |
 | [#248](https://github.com/Am1eza/Iron/pull/248) | only promise an instant proforma where one is actually issued | `main` | **P1-6** |
 | [#249](https://github.com/Am1eza/Iron/pull/249) | load `skus.grade` in `repairSeedPrices` so main typechecks again | `main` | — (blocker, see below) |
+| [#252](https://github.com/Am1eza/Iron/pull/252) | this report | `main` | — (docs) |
 
 #247 is stacked on #245 because both touch `productJsonLd`. **Merge #249 first** — it
 unblocks CI everywhere. Then #245, then #247 (its base retargets to `main`
@@ -329,19 +331,22 @@ Fixed in **#249** as a one-line select addition (not a cast), filed separately b
 blocks CI on every open PR. This is outside the audit's scope; flagging rather than
 folding it into the audit PRs.
 
-**`main` has more than one problem.** With the typecheck break fixed, CI gets *further*
-and the `Unit tests` step then fails on two more pre-existing issues that the typecheck
-failure had been masking (the step never ran):
+**#249 is green.** Worth recording how that was established, because the first run looked
+worse than it was. With the typecheck break fixed, CI reached the `Unit tests` step for
+the first time (the typecheck failure had been short-circuiting before it) and that step
+failed on two tests:
 
 - `src/lib/auth/service.test.ts:95` — the auth refresh-grace test, a long-documented flake
 - `src/lib/server/repos/aiReviewPagination.test.ts:41` — `expected 6 to be 7`
 
-Both **pass locally in isolation** (`aiReviewPagination` 2/2 green), which points at the
-same pglite-under-parallel-load flakiness already seen in e2e rather than a logic break.
-Neither can be caused by #249, which only adds a column to a script's `select()`.
+Both **passed locally in isolation** (`aiReviewPagination` 2/2 green), pointing at the
+same pglite-under-parallel-load flakiness already documented for e2e rather than a logic
+break — and neither can be caused by adding a column to a script's `select()`. A rerun
+confirmed it: **`checks` pass (6m5s), `e2e` pass (4m19s)**. So these were flakes, not a
+second break, and nothing further is left open on `main`.
 
-These are left for the owner: they are pre-existing, unrelated to this audit, and
-"fix main's flaky tests" is a materially different task from the one commissioned.
+The lesson for whoever reads this next: a red `Unit tests` step on `main` right now is
+worth one rerun before it is worth an investigation.
 
 ---
 
@@ -362,9 +367,12 @@ Nothing from the six audit items. Two things a reviewer should know:
 
 1. **The `workflow_run` gate cannot be proven before merge** (see P0-3) — post-merge
    verification commands are given above.
-2. **#245's `checks` run is red only because `main` is red.** #247, which is based off
-   #245 rather than `main`, is fully green on both `checks` and `e2e` — showing the audit
-   changes themselves pass. Re-run #245/#248 after #249 merges.
+2. **#245/#246/#248 are red on `checks` only because they inherit `main`'s typecheck
+   break.** GitHub tests a PR merged into its base, so they stay red until **#249**
+   lands; re-run them after it does. Two independent confirmations that the audit
+   changes themselves are fine: **#247** (based off #245 rather than `main`) is green on
+   both `checks` and `e2e`, and **#249** — the same `main` plus the one-line fix — is
+   green on both too.
 
 `Workers Builds: ahantime` is red on all PRs; it is red on `main` independently and is
 documented in CLAUDE.md §5 as known-red noise. The `e2e` failure seen once on #246 (a PR
