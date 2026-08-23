@@ -34,7 +34,7 @@ without inventing a new visual language. The icon treatment is copied verbatim f
 |---|---|---|---|
 | 1 | مشاور هوشمند، با حافظه | `/ai` | `ai_conversations` + `ai_corrections` — real conversation memory and a specialist correction loop. |
 | 2 | پیش‌فاکتور رسمی آنی و تأمین با LC | `/prices` | The instant-proforma-by-SMS flow, بورس کالا/factory sourcing, LC for bulk. Framed as an advantage, not just a process step (it stays a step in `ValueProps` too — the two do not contradict). |
-| 3 | انتخاب صنایع بزرگ | `/about` | The 22 client logos the `Partners` strip actually renders. |
+| 3 | انتخاب صنایع بزرگ | `/about` | The 21 client logos the `Partners` strip actually renders. |
 | 4 | انبار مشتریان | `/warehouse` | `warehouse_items` / `warehouse_settlements`: monthly storage fee, insurance flag, contract ref, periodic settlement. Previously only a nav/footer link. |
 | 5 | ابزارهای رایگان محاسبه | `/tools/project` | The 4 entries in `TOOLS_NAV`. |
 | 6 | خدمات ویژهٔ B2B | `/tender` | The 4 entries in `SERVICES_NAV_FULL`. |
@@ -45,7 +45,7 @@ Every figure is computed server-side in `page.tsx` and passed in as `stats`. Not
 typed into the component, hardcoded, estimated or rounded:
 
 - `skuCount` / `factoryCount` — the same live catalog values `HeroSearch` already uses.
-- `clientCount` — `clientLogos.length` (**22** today), i.e. exactly the logos on screen.
+- `clientCount` — `clientLogos.length` (**21** today), i.e. exactly the logos on screen.
 - `toolCount` — `TOOLS_NAV.length` (**4**).
 - `serviceCount` — `SERVICES_NAV_FULL.length` (**4**).
 
@@ -228,4 +228,35 @@ need URL-prefixed locales landed first, or the translations will not be indexabl
 - `vitest run src/i18n/messages.test.ts` — 8/8 pass.
 - `next build` — clean.
 - Full suite left to CI (not run on this box — past OOM).
-- Live browser check after deploy: recorded below.
+
+### Real-browser check
+
+The branch is not deployed (it is not merged, and merging is the owner's call), so the
+check was run against the **production build of this branch**, served by `next start`
+against the live production database and driven with a real browser — not curl, since
+the locale switch is client-side.
+
+Homepage, «چرا آهن‌تایم» section, live values straight from the DB:
+**۲۴۳ priced products · ۴۹ mills · ۲۱ industrial clients · ۴ tools · ۴ services** — the
+client count matches the logos the `Partners` strip actually renders, one for one.
+Layout is the 3-column grid at 1440px, RTL, arrows mirrored, cobalt icon tint.
+
+Switching language via `LocaleSwitcher` was verified for all three non-default locales:
+
+| Locale | Cookie | `<html>` | Result |
+|---|---|---|---|
+| `en` | `ahantime_locale=en` | `lang=en dir=ltr` | Hero, «how», «why», partners, browse and compare all English; digits Latin (`243`, `49`, `21`, `4`, `4`). |
+| `ar` | `ahantime_locale=ar` | `lang=ar dir=rtl` | All sections MSA; no Persian-only letters anywhere in the section. |
+| `zh` | `ahantime_locale=zh` | `lang=zh dir=ltr` | All sections simplified Chinese. |
+
+`/about` under a switched locale renders the full body translated — hero, both prose
+blocks, all 8 advantage cards, the how-buying-works paragraph and the contact card —
+with the phone numbers in Latin digits. Route metadata stays Persian, as designed.
+
+The only console errors were this harness's own RSC prefetch failures
+(`NEXT_PUBLIC_SITE_URL` points at https while the harness serves http); none on `/about`.
+
+One more Persian string surfaces on the price surfaces in every locale: «تماس بگیرید»,
+the `priceHiddenLabel` shown in place of a stale or absent price. Left as-is for the
+same reason as `PriceBoard` — it belongs to the catalog data surface, not to static
+marketing copy.
