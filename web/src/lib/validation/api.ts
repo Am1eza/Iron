@@ -78,7 +78,7 @@ export const marketValueSchema = z.object({
   label: z.string(),
   value: finiteNumber,
   unit: z.string(),
-  source: z.enum(['tgju', 'admin']),
+  source: z.enum(['tgju', 'esfahanahan', 'admin']),
   movementDir: z.enum(['up', 'down', 'flat']),
   movementPct: finiteNumber.optional(),
   updatedAt: z.string(),
