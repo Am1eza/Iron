@@ -17,7 +17,8 @@ export const MARKET_CACHE_KEY = 'market:values';
  *  immediately-prior stored value made the ticker read 0.00% almost always
  *  for those three, even on days tgju itself shows a real multi-percent
  *  move. ounce/billet only ever looked "correct" by coincidence (ounce
- *  ticks more often; billet is stale from an admin edit weeks ago). */
+ *  ticks more often; billet was, at the time, stale from an admin edit weeks
+ *  ago — it is now polled every 15 min, see jobs/billetPoll.job.ts). */
 const MOVEMENT_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 type Row = typeof marketValues.$inferSelect;
@@ -79,7 +80,7 @@ export async function upsertMarketValue(input: {
   value: number;
   label?: string;
   unit?: string;
-  source: 'tgju' | 'admin';
+  source: MarketValue['source'];
 }): Promise<MarketValue> {
   const db = getDb();
   const prev = await getMarketValue(input.key);
@@ -118,11 +119,19 @@ export async function upsertMarketValue(input: {
   return toDto({ ...row, movementPct: row.movementPct } as Row);
 }
 
-/** Flag all tgju-sourced rows stale (outage) — last-known values keep serving. */
-export async function flagTgjuStale(): Promise<void> {
-  await getDb().update(marketValues).set({ isStale: true }).where(eq(marketValues.source, 'tgju'));
+/** Flag every row last written by `source` stale (that feed is down) —
+ *  last-known values keep serving with the outage badge (AC-A-2). Scoped by
+ *  source so a tgju outage never badges the esfahanahan-fed billet row (or a
+ *  hand-entered `admin` override) stale, and vice versa. */
+export async function flagSourceStale(source: MarketValue['source']): Promise<void> {
+  await getDb().update(marketValues).set({ isStale: true }).where(eq(marketValues.source, source));
   // The served payload's isStale flips — drop the cache so the outage shows promptly.
   await cacheDel(MARKET_CACHE_KEY);
+}
+
+/** Flag all tgju-sourced rows stale (outage) — last-known values keep serving. */
+export async function flagTgjuStale(): Promise<void> {
+  await flagSourceStale('tgju');
 }
 
 const RANGE_DAYS: Record<string, number> = { '7d': 7, '30d': 30, '90d': 90, '1y': 365 };
