@@ -389,15 +389,20 @@
     min-block-size: 48px;
     font: var(--t-button);
   }
-  /* The wide table's action column has room for one word; the card's
-     full-width CTA says the whole thing, the way the hand-written card did.
-     Swapped here rather than by rendering a second span in every row —
-     `font: var(--t-button)` restores the size the zeroed one gave up. */
+  /* The wide table's action column has room for one word; the card's CTA
+     says what the button does, the way the hand-written card did. Swapped
+     here rather than by rendering a second span in every row —
+     `font: var(--t-button)` restores the size the zeroed one gave up.
+
+     «افزودن به سبد», not the card's old «افزودن به سبد استعلام»: this CTA
+     shares its line with the three icon actions, leaving it 136px at 390px
+     wide. The longer string needed ~200px and was clipped mid-word — measured
+     in a browser, not guessed. */
   .table tbody td.actionsCell .addBtnLabel {
     font-size: 0;
   }
   .table tbody td.actionsCell .addBtnLabel::after {
-    content: "افزودن به سبد استعلام";
+    content: "افزودن به سبد";
     font: var(--t-button);
   }
   /* Comfortable touch targets for the three icon actions, which the card used
