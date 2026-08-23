@@ -602,10 +602,12 @@ export function quotedWeightKg(lines: readonly LineItem[]): number {
  *  from. 'pending' is deliberately NOT approved: a submitted-but-unreviewed
  *  company registration must not buy a price cut.
  *
- *  A guest lead (no userId), a deleted account, or any read failure all
- *  resolve to `false` — the tonnage path still applies, so the worst case is
- *  a verified buyer being quoted the same tier an unverified one would get,
- *  never a discount granted on an unverified account. */
+ *  A guest lead (no userId) or a deleted account resolves to `false` — the
+ *  tonnage path still applies, so the worst case is a verified buyer being
+ *  quoted the same tier an unverified one would get, never a discount granted
+ *  on an unverified account. A DB error is deliberately NOT swallowed: it
+ *  fails the whole issuance rather than quietly printing a sheet at a tier we
+ *  could not actually confirm. */
 async function leadHasVerifiedBusiness(lead: LeadRow): Promise<boolean> {
   if (!lead.userId) return false;
   const rows = await getDb()

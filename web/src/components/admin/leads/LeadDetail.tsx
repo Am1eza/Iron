@@ -170,10 +170,10 @@ function formatNum(value: number, maxFrac = 2): string {
  *  `businessVerified` defaults to FALSE, which is the conservative direction:
  *  a verified corporate buyer's tier can only be LIFTED by the flag, so the
  *  worst a false default can do is under-state on screen a discount the
- *  server then grants in full on the document. The admin lead-detail response
- *  does not carry the flag yet — the `b2b-verified-badge` PR is what adds
- *  `customer.bizVerified` to it; wire it through here once that has merged,
- *  and this preview becomes exact for that case too. */
+ *  server then grants in full on the document. The live caller passes the
+ *  admin lead-detail response's `customer.bizVerified`, which that endpoint
+ *  sets only for `biz_verify_status = 'approved'` — the same column and the
+ *  same comparison `leadHasVerifiedBusiness` makes server-side. */
 export function proformaTotals(
   items: ReadonlyArray<{ unitPrice?: number | null; lineTotal?: number | null; weightKg?: number | null }>,
   discountToman: number,
@@ -594,6 +594,12 @@ export function LeadDetail({ id }: { id: string }) {
   }
 
   const { lead, items, notes, customer } = data;
+  // The admin lead-detail endpoint returns `customer` ONLY for an approved
+  // business account (it returns null otherwise), so this is exactly the
+  // «حساب سازمانی تأییدشده» arm of the tier structure — the same signal the
+  // badge below is drawn from, and the same one the server re-reads from
+  // `users.biz_verify_status` at issue time rather than trusting the client.
+  const businessVerified = customer?.bizVerified === true;
   const proformas: ProformaView[] = data.proformas;
   const activeProforma = proformas.find(isActiveProforma) ?? null;
   const latestProforma = proformas[0] ?? null; // proformasOfLead orders desc by createdAt
@@ -610,7 +616,7 @@ export function LeadDetail({ id }: { id: string }) {
     volumeDiscount,
     discount: appliedDiscount,
     taxable,
-  } = proformaTotals(items, discountValid ? parsedDiscount : 0);
+  } = proformaTotals(items, discountValid ? parsedDiscount : 0, 0, businessVerified);
   // Same pure resolver the totals used, over the same PRICED-lines-only
   // tonnage — re-asked here only for the LABEL, so the rep sees which band
   // the customer's sheet will name and at what rate. Note this is not
@@ -620,7 +626,7 @@ export function LeadDetail({ id }: { id: string }) {
     (sum, it) => (it.unitPrice != null && it.unitPrice > 0 ? sum + (it.weightKg ?? 0) : sum),
     0,
   );
-  const volumeTier = resolveVolumeTier({ totalWeightKg: quotedWeight });
+  const volumeTier = resolveVolumeTier({ totalWeightKg: quotedWeight, businessVerified });
 
   const itemsLocked = Boolean(activeProforma);
   const canIssue = pricedCount > 0 && lead.status !== 'lost';
