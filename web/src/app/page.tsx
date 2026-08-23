@@ -10,7 +10,10 @@ import { CategoryStage } from '@/components/home/CategoryStage';
 import { CompareTeaser, type CompareSlide } from '@/components/home/CompareTeaser';
 import { computeBulkSplit, pickBestGroup } from '@/lib/utils/bulkSplit';
 import { ValueProps } from '@/components/home/ValueProps';
+import { WhyAhantime } from '@/components/home/WhyAhantime';
 import { Partners } from '@/components/home/Partners';
+import { TOOLS_NAV, SERVICES_NAV_FULL } from '@/lib/data/nav';
+import { clientLogos } from '../../public/assets/logos/clients';
 import { JsonLd } from '@/components/seo/JsonLd';
 import {
   buildMetadata,
@@ -65,8 +68,9 @@ export default async function HomePage() {
 
   // Precompute the 3rd menu level (mills per category+sub) server-side, so the
   // mock catalog never ships to the client menu bundle.
-  const millsOf = (rows: PriceRow[]) =>
-    [...new Set(rows.map((r) => r.factory).filter((f): f is string => Boolean(f)))];
+  const millsOf = (rows: PriceRow[]) => [
+    ...new Set(rows.map((r) => r.factory).filter((f): f is string => Boolean(f))),
+  ];
   const factories: Record<string, Record<string, string[]>> = {};
   for (const cat of categories) {
     const rows = rowsBySlug.get(cat.slug) ?? [];
@@ -98,11 +102,13 @@ export default async function HomePage() {
       return {
         slug: cat.slug,
         name: cat.name,
-        lines: computeBulkSplit(scoped, 1).lines.slice(0, 4).map((l) => ({
-          factory: l.factory,
-          pricePerKg: l.pricePerKg,
-          best: l.best,
-        })),
+        lines: computeBulkSplit(scoped, 1)
+          .lines.slice(0, 4)
+          .map((l) => ({
+            factory: l.factory,
+            pricePerKg: l.pricePerKg,
+            best: l.best,
+          })),
       };
     })
     .filter((s) => s.lines.length >= 2);
@@ -133,12 +139,24 @@ export default async function HomePage() {
       />
       <HeroSearch
         stats={{ skuCount, factoryCount }}
-        board={
-          heroVideo.url ? <HeroVideo src={heroVideo.url} /> : <PriceBoard rows={boardRows} />
-        }
+        board={heroVideo.url ? <HeroVideo src={heroVideo.url} /> : <PriceBoard rows={boardRows} />}
       />
       <CategoryStage categories={categories} subs={subsMap} factories={factories} />
       <CompareTeaser slides={compareSlides} />
+      {/* «چرا آهن‌تایم» — WHAT this marketplace does that a plain price list
+          does not, stated before ValueProps explains HOW a purchase runs.
+          Every number it shows is derived here, server-side, from live data or
+          from the very nav arrays that render the tools/services menus — never
+          a marketing figure typed into the component. */}
+      <WhyAhantime
+        stats={{
+          skuCount,
+          factoryCount,
+          clientCount: clientLogos.length,
+          toolCount: TOOLS_NAV.length,
+          serviceCount: SERVICES_NAV_FULL.length,
+        }}
+      />
       <ValueProps />
       <Partners />
     </>

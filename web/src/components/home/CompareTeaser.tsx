@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { routes } from '@/lib/routes';
 import { formatToman } from '@/lib/utils/format';
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion';
@@ -24,6 +25,9 @@ export type CompareSlide = {
 const AUTO_MS = 6000;
 
 export function CompareTeaser({ slides }: { slides: CompareSlide[] }) {
+  // Mill names and SKU names inside this card stay Persian — they come from
+  // the catalog. Only the surrounding chrome is translated.
+  const t = useTranslations('home.compare');
   const [active, setActive] = useState(0);
   const reduced = useReducedMotion();
   const paused = useRef(false);
@@ -92,17 +96,17 @@ export function CompareTeaser({ slides }: { slides: CompareSlide[] }) {
       <div className={`container ${styles.grid}`}>
         <div className={styles.copy}>
           <h2 id="compare-teaser-title" className={styles.title}>
-            یک محصول، همهٔ کارخانه‌ها
+            {t('title')}
           </h2>
-          <p className={styles.sub}>
-            قیمت روز هر کارخانه را کنار هم ببینید، اختلاف را بسنجید و ارزان‌ترین را انتخاب کنید.
-          </p>
+          <p className={styles.sub}>{t('sub')}</p>
 
-          <div className={styles.tabs} role="tablist" aria-label="انتخاب محصول برای مقایسه">
+          <div className={styles.tabs} role="tablist" aria-label={t('tabsAria')}>
             {slides.map((s, i) => (
               <button
                 key={s.slug}
-                ref={(el) => { tabRefs.current[i] = el; }}
+                ref={(el) => {
+                  tabRefs.current[i] = el;
+                }}
                 type="button"
                 id={`compare-tab-${s.slug}`}
                 role="tab"
@@ -130,7 +134,7 @@ export function CompareTeaser({ slides }: { slides: CompareSlide[] }) {
           >
             <header className={styles.cardHead}>
               <span className={styles.cardTitle}>{slide.name}</span>
-              <span className={styles.cardMeta}>تومان بر کیلوگرم</span>
+              <span className={styles.cardMeta}>{t('perKg')}</span>
             </header>
 
             <ul className={styles.rows}>
@@ -147,10 +151,12 @@ export function CompareTeaser({ slides }: { slides: CompareSlide[] }) {
                       factory={l.factory}
                       className={styles.factoryLink}
                     />
-                    {l.best && <span className={styles.bestTag}>ارزان‌ترین</span>}
+                    {l.best && <span className={styles.bestTag}>{t('cheapest')}</span>}
                   </span>
                   <span className={styles.figures}>
-                    <span className={`${styles.price} tnum`}>{formatToman(l.pricePerKg, false)}</span>
+                    <span className={`${styles.price} tnum`}>
+                      {formatToman(l.pricePerKg, false)}
+                    </span>
                     <span className={`${styles.delta} tnum`}>
                       {l.best ? '' : `${formatToman(l.pricePerKg - cheapest.pricePerKg, false)}+`}
                     </span>
