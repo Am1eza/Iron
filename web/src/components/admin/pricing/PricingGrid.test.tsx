@@ -308,3 +308,43 @@ describe('PricingGrid — products stranded on a deactivated sub-category', () =
     expect(screen.queryByText('کالایی در این دسته نیست')).not.toBeInTheDocument();
   });
 });
+
+describe('PricingGrid — products that have never been priced', () => {
+  it('names them, and filters down to exactly them on request', async () => {
+    const user = userEvent.setup();
+    pricingGrid.mockResolvedValue({
+      rows: [
+        priceRow('priced', 'تیرآهن ۱۴', 41_200),
+        // What an unpriced row actually looks like coming back from the admin
+        // read: price 0, hidden, no delivery promise — indistinguishable from
+        // a long-stale one, which is why the ids come from the server.
+        priceRow('unpriced', 'تیرآهن ۱۶ فایکو', 0, {
+          priceHidden: true,
+          isStale: true,
+          deliveryTime: '',
+        }),
+      ],
+      hiddenByTaxonomy: 0,
+      withoutPrice: ['unpriced'],
+    });
+    renderGrid();
+
+    expect(await screen.findByText(/۱ کالای فعال این دسته هیچ قیمتی ندارد/)).toBeInTheDocument();
+    expect(await screen.findByLabelText('قیمت تیرآهن ۱۴')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'فقط همین‌ها را نشان بده' }));
+    expect(await screen.findByLabelText('قیمت تیرآهن ۱۶ فایکو')).toBeInTheDocument();
+    expect(screen.queryByLabelText('قیمت تیرآهن ۱۴')).not.toBeInTheDocument();
+  });
+
+  it('says nothing when every product carries a price', async () => {
+    pricingGrid.mockResolvedValue({
+      rows: [priceRow('priced', 'تیرآهن ۱۴', 41_200)],
+      hiddenByTaxonomy: 0,
+      withoutPrice: [],
+    });
+    renderGrid();
+    expect(await screen.findByLabelText('قیمت تیرآهن ۱۴')).toBeInTheDocument();
+    expect(screen.queryByText(/هیچ قیمتی ندارد/)).not.toBeInTheDocument();
+  });
+});

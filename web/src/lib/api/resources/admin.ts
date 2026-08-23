@@ -106,6 +106,10 @@ export interface PriceSyncLogResponse {
 export interface AdminStats {
   stalePrices?: number;
   freshPrices?: number;
+  /** Active, customer-visible products with no `current_prices` row at all —
+   *  shipping as «تماس بگیرید» because nobody has ever typed a number for
+   *  them. Disjoint from `stalePrices`, which can only count rows that exist. */
+  unpricedSkus?: number;
   newLeads?: number;
   openRequests?: number;
   activeOrders?: number;
@@ -518,7 +522,10 @@ export const adminApi = {
     // page (and no row below) can show, because their sub-category was
     // deactivated underneath them. The grid surfaces it rather than
     // presenting an empty table as "this category has no products".
-    http.get<{ rows: PriceRow[]; hiddenByTaxonomy: number }>(
+    // `withoutPrice` = the ids of rows below that have never been priced at
+    // all. Ids, not a count: in the admin DTO a stale-HIDDEN price and an
+    // absent one are not distinguishable from the row alone.
+    http.get<{ rows: PriceRow[]; hiddenByTaxonomy: number; withoutPrice: string[] }>(
       `/api/admin/pricing?cat=${encodeURIComponent(cat)}${sub ? `&sub=${encodeURIComponent(sub)}` : ''}`,
     ),
   savePrices: (prices: Array<{ skuId: string; price: number; deliveryTime?: string; vatIncluded?: boolean }>) =>
