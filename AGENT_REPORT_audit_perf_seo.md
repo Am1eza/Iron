@@ -74,9 +74,17 @@ Driven against the candidate container, not asserted from the CSS:
 
 Screenshots taken at both widths; the card renders name → hero price + unit +
 movement → grade/factory/weight/delivery/date chips → full-width amber CTA,
-which is the card that was there before. One real bug was caught this way and
-fixed: the narrow CTA first read «سبد به سبد استعلام» (a CSS `::after` appended
-to the wide table's one-word label); it now reads «افزودن به سبد استعلام».
+which is the card that was there before. **Two real bugs were caught this way**
+and fixed before review, neither of which any unit test would have found:
+
+1. the narrow CTA read «سبد به سبد استعلام» — a CSS `::after` *appended* to the
+   wide table's one-word label instead of replacing it;
+2. its corrected «افزودن به سبد استعلام» was then **clipped mid-word**. That CTA
+   shares its line with the three icon actions and gets 136 px at a 390 px
+   viewport, where the string needed ~200.
+
+It now reads «افزودن به سبد» — measured at 390 px: 136 px wide, 48 px tall,
+`scrollWidth == clientWidth`, and inside the card's bounds.
 
 ### What I did NOT do, and why — please read before scoping follow-up work
 
@@ -305,9 +313,33 @@ a category's sync source goes dark.**
 
 ---
 
+## ⚠️ `main` does not currently build — both PRs are blocked on #249
+
+Found while rebasing onto the current `origin/main` (`59a0e9e`): **`pnpm build`
+and `tsc --noEmit` both fail on clean `main`**, with nothing of mine applied —
+
+```
+scripts/repairSeedPrices.ts(178,3): error TS2322:
+  Property 'grade' is missing in type '{ … }' but required in type 'SeedRow'.
+```
+
+Introduced by #242 (`e59f3ef`), which made `grade` required on `SeedRow`
+without adding it to the query's select. Verified by checking out
+`origin/main` detached and running `tsc` with a clean tree.
+
+**A fix is already open as #249** (`fix/typecheck-seedrow-grade`) — the sibling
+`price-accuracy` job's. I did not duplicate it. Consequences:
+
+- CI on **#250 and #251 will be red until #249 merges**, for a reason that is
+  not theirs. Merge #249 first, then re-run.
+- Auto-deploy is also blocked: the GHCR `build` job cannot go green on `main`.
+- To verify my own work end-to-end I applied #249's one-line diff **locally,
+  build-only**, built the image, and reverted it before committing. That build
+  was green and served every measurement and browser check in this report.
+
 ## Branches / PRs
 
-Two PRs, split by theme, both left open and CI-green for review — not merged.
+Two PRs, split by theme, both left open for review — not merged.
 
 | PR | Branch | Contents |
 |---|---|---|
@@ -322,5 +354,6 @@ Two PRs, split by theme, both left open and CI-green for review — not merged.
 - `vitest` (targeted, never the full suite on this box — past OOM):
   `src/components/catalog/` **138 passed**; `src/lib/utils/` + `src/components/layout/`
   + `src/app/sitemap.test.ts` **261 passed**
-- Full `next build` in Docker, twice, both green; the resulting image served the
-  measurements and browser checks above.
+- Full `next build` in Docker — green on this branch's content once #249's
+  one-line fix to `repairSeedPrices.ts` is applied (see the blocker above); the
+  resulting image served every measurement and browser check in this report.
