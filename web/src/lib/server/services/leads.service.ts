@@ -6,7 +6,7 @@
  */
 import { and, desc, eq, gt, inArray, ne } from 'drizzle-orm';
 import { getDb, type DbOrTx } from '@/lib/server/db/client';
-import { skus, currentPrices, proformas, userRequests } from '@/lib/server/db/schema';
+import { skus, currentPrices, proformas, userRequests, users } from '@/lib/server/db/schema';
 import type { AuthUser } from '@/lib/auth/types';
 import type { LineItem, PriceUnit } from '@/lib/types/domain';
 import {
@@ -30,6 +30,11 @@ import { lineTotalToman, lineWeightKg } from '@/lib/utils/priceMath';
 import { formatJalali } from '@/lib/utils/jalali';
 import { SHIPMENT_STEPS, type ShipmentStatus } from '@/lib/types/domain';
 import type { Attribution } from '@/lib/utils/attribution';
+import {
+  resolveVolumeTier,
+  volumeDiscountLabel,
+  volumeDiscountToman,
+} from '@/lib/config/pricingTiers';
 
 /** SMS.ir's template-approval policy requires every customer-facing template
  *  to be personalized with a name variable — a lead/order/alert can have no
@@ -574,10 +579,61 @@ export async function markLeadQuoted(
   return { leadStatus, requestSynced: synced.length > 0 };
 }
 
+/** The total tonnage a پیش‌فاکتور is quoting, in kilograms — the input the
+ *  تخفیف پلکانی band is decided from.
+ *
+ *  A tier is a property of the ORDER, not of a SKU, so this sums the whole
+ *  basket. `LineItem.weightKg` is already the LINE's total mass (qty
+ *  included — see `lineWeightKg` in utils/priceMath), so this must NOT
+ *  multiply by qty again. A line with no known weight (توافقی, or a
+ *  per-piece SKU with no section table on file) contributes 0 rather than a
+ *  guess: under-counting only ever costs the customer a discount they were
+ *  never promised, while over-counting hands out money on invented tonnage. */
+export function quotedWeightKg(lines: readonly LineItem[]): number {
+  const kg = lines.reduce((s, l) => s + (Number.isFinite(l.weightKg) ? l.weightKg! : 0), 0);
+  return Math.round(kg * 100) / 100;
+}
+
+/** Does this lead belong to an APPROVED business account (the owner's
+ *  «یا حساب سازمانی تأییدشده» arm of the tier structure)?
+ *
+ *  Reads `users.biz_verify_status` — the same column, and the same
+ *  'approved' comparison, that the «حساب سازمانی تأییدشده» badge is drawn
+ *  from. 'pending' is deliberately NOT approved: a submitted-but-unreviewed
+ *  company registration must not buy a price cut.
+ *
+ *  A guest lead (no userId) or a deleted account resolves to `false` — the
+ *  tonnage path still applies, so the worst case is a verified buyer being
+ *  quoted the same tier an unverified one would get, never a discount granted
+ *  on an unverified account. A DB error is deliberately NOT swallowed: it
+ *  fails the whole issuance rather than quietly printing a sheet at a tier we
+ *  could not actually confirm. */
+async function leadHasVerifiedBusiness(lead: LeadRow): Promise<boolean> {
+  if (!lead.userId) return false;
+  const rows = await getDb()
+    .select({ status: users.bizVerifyStatus })
+    .from(users)
+    .where(eq(users.id, lead.userId))
+    .limit(1);
+  return rows[0]?.status === 'approved';
+}
+
 /** Issue (or re-issue) a proforma for a lead from its priced lines.
- *  `discountToman` (US-19.4): a flat Toman amount off `subtotal`, applied
- *  BEFORE VAT — clamped to [0, subtotal] so it can never go negative or
- *  exceed the order itself regardless of what the caller passes in.
+ *
+ *  Two independent discounts come off `subtotal`, BOTH before VAT:
+ *
+ *   1. تخفیف پلکانی — the RULE-BASED volume discount, derived from the
+ *      basket's total tonnage and the buyer's business-verification status
+ *      via `resolveVolumeTier`. Not a caller input: it is a published
+ *      entitlement, so a rep can neither forget it nor hand it out early.
+ *   2. `discountToman` (US-19.4) — the rep's flat, per-deal figure on top.
+ *
+ *  Ordering matters and is deliberate: the volume discount is taken FIRST
+ *  and the manual one is then clamped into whatever is left. The tier
+ *  discount is the customer's entitlement, so it must survive a rep typing
+ *  an oversized manual figure; without this ordering a fat-fingered manual
+ *  discount would silently swallow the tier the sheet still claims to grant.
+ *  Their sum can never exceed `subtotal`, so `taxable` never goes negative.
  *
  *  Always supersedes the lead's outstanding quote (see
  *  supersedeActiveProformas) — the "exactly one active proforma per lead"
@@ -590,14 +646,22 @@ export async function issueProforma(
   dbh?: DbOrTx,
   discountToman = 0,
 ) {
-  const [vatRate, holidays, hour] = await Promise.all([
+  const [vatRate, holidays, hour, businessVerified] = await Promise.all([
     getVatRate(),
     getHolidays(),
     getSetting<number>('QUOTE_VALIDITY_HOUR', 11),
+    leadHasVerifiedBusiness(lead),
   ]);
   const subtotal = lines.reduce((s, l) => s + (l.lineTotal ?? 0), 0);
-  const discount = Math.min(Math.max(discountToman, 0), subtotal);
-  const taxable = subtotal - discount;
+
+  const weightKg = quotedWeightKg(lines);
+  const resolved = resolveVolumeTier({ totalWeightKg: weightKg, businessVerified });
+  const volumeDiscount = volumeDiscountToman(subtotal, resolved.tier);
+
+  // Clamped into what the tier discount left behind, not into `subtotal` —
+  // see the ordering note above.
+  const discount = Math.min(Math.max(discountToman, 0), subtotal - volumeDiscount);
+  const taxable = subtotal - volumeDiscount - discount;
   const vatAmount = Math.round(taxable * vatRate);
   const total = taxable + vatAmount;
   const validUntil = quoteValidUntil(new Date(), holidays, hour);
@@ -608,7 +672,24 @@ export async function issueProforma(
   // this lead, so voiding afterwards would cancel the quote we just issued.
   await supersedeActiveProformas(lead.id, dbh);
   return insertProforma(
-    { leadId: lead.id, ref, lines, subtotal, discountToman: discount, vatRate, vatAmount, total, validUntil },
+    {
+      leadId: lead.id,
+      ref,
+      lines,
+      subtotal,
+      discountToman: discount,
+      volumeDiscountToman: volumeDiscount,
+      // Null rather than 'retail' when nothing was earned: the columns then
+      // read the same on a pre-scheme proforma and on a base-price one, and
+      // every display site already tests the amount, not the band.
+      volumeTier: volumeDiscount > 0 ? resolved.tier.id : null,
+      volumeDiscountLabel: volumeDiscount > 0 ? volumeDiscountLabel(resolved) : null,
+      quotedWeightKg: weightKg > 0 ? weightKg : null,
+      vatRate,
+      vatAmount,
+      total,
+      validUntil,
+    },
     dbh,
   );
 }

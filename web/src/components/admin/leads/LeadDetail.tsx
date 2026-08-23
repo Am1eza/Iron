@@ -20,6 +20,11 @@ import { ApiError } from '@/lib/api/errors';
 import { routes } from '@/lib/routes';
 import { PhoneIcon } from '@/components/primitives/icons';
 import { BusinessAccountBadge } from '@/components/account/BusinessAccountBadge';
+import {
+  resolveVolumeTier,
+  volumeDiscountLabel,
+  volumeDiscountToman,
+} from '@/lib/config/pricingTiers';
 import { Alert, Badge, Button, EmptyState, Modal, Skeleton, useConfirm } from '@/components/ui';
 import { JalaliDateField } from '../JalaliDateField';
 import { CallOutcomeModal, type CallOutcomeResult } from './CallOutcomeModal';
@@ -138,11 +143,17 @@ function formatNum(value: number, maxFrac = 2): string {
 /** The proforma money math, in ONE place, mirroring `issueProforma`
  *  (leads.service.ts) line for line:
  *
- *      subtotal  = Σ lineTotal of the PRICED lines
- *      discount  = clamp(discountToman, 0, subtotal)
- *      taxable   = subtotal − discount
- *      vatAmount = round(taxable × vatRate)
- *      total     = taxable + vatAmount
+ *      subtotal       = Σ lineTotal of the PRICED lines
+ *      volumeDiscount = round(subtotal × tier rate)   ← تخفیف پلکانی
+ *      discount       = clamp(discountToman, 0, subtotal − volumeDiscount)
+ *      taxable        = subtotal − volumeDiscount − discount
+ *      vatAmount      = round(taxable × vatRate)
+ *      total          = taxable + vatAmount
+ *
+ *  The tier rate comes from `resolveVolumeTier` over the basket's TOTAL
+ *  tonnage (Σ weightKg of the same priced lines) — the identical pure
+ *  function the server calls, imported rather than re-stated, so the rate can
+ *  never drift between the rep's screen and the customer's document.
  *
  *  It used to be four inline expressions in the render body, which is how the
  *  preview a rep reads off the screen and the numbers the customer's document
@@ -154,22 +165,45 @@ function formatNum(value: number, maxFrac = 2): string {
  *  `vatRate` defaults to 0 because this screen has no VAT rate before
  *  issuance (the server reads it from settings at issue time) — hence the
  *  preview stops at «مبلغ پیش از مالیات». Callers that DO know the rate get
- *  the same numbers the server will store. */
+ *  the same numbers the server will store.
+ *
+ *  `businessVerified` defaults to FALSE, which is the conservative direction:
+ *  a verified corporate buyer's tier can only be LIFTED by the flag, so the
+ *  worst a false default can do is under-state on screen a discount the
+ *  server then grants in full on the document. The live caller passes the
+ *  admin lead-detail response's `customer.bizVerified`, which that endpoint
+ *  sets only for `biz_verify_status = 'approved'` — the same column and the
+ *  same comparison `leadHasVerifiedBusiness` makes server-side. */
 export function proformaTotals(
-  items: ReadonlyArray<{ unitPrice?: number | null; lineTotal?: number | null }>,
+  items: ReadonlyArray<{ unitPrice?: number | null; lineTotal?: number | null; weightKg?: number | null }>,
   discountToman: number,
   vatRate = 0,
-): { subtotal: number; discount: number; taxable: number; vatAmount: number; total: number } {
-  const subtotal = items.reduce(
-    (sum, it) => (it.unitPrice != null && it.unitPrice > 0 ? sum + (it.lineTotal ?? 0) : sum),
+  businessVerified = false,
+): {
+  subtotal: number;
+  volumeDiscount: number;
+  discount: number;
+  taxable: number;
+  vatAmount: number;
+  total: number;
+} {
+  // The tonnage the tier is decided from must be summed over the SAME lines
+  // the subtotal is — an unpriced line is not quoted, so its weight must not
+  // buy a discount on the lines that are.
+  const priced = items.filter((it) => it.unitPrice != null && it.unitPrice > 0);
+  const subtotal = priced.reduce((sum, it) => sum + (it.lineTotal ?? 0), 0);
+  const totalWeightKg = priced.reduce(
+    (sum, it) => sum + (Number.isFinite(it.weightKg) ? (it.weightKg as number) : 0),
     0,
   );
+  const { tier } = resolveVolumeTier({ totalWeightKg, businessVerified });
+  const volumeDiscount = volumeDiscountToman(subtotal, tier);
   const requested = Number.isFinite(discountToman) ? discountToman : 0;
-  const discount = Math.min(Math.max(requested, 0), subtotal);
-  const taxable = subtotal - discount;
+  const discount = Math.min(Math.max(requested, 0), subtotal - volumeDiscount);
+  const taxable = subtotal - volumeDiscount - discount;
   const vatAmount = Math.round(taxable * vatRate);
   const total = taxable + vatAmount;
-  return { subtotal, discount, taxable, vatAmount, total };
+  return { subtotal, volumeDiscount, discount, taxable, vatAmount, total };
 }
 
 /** Same predicate the server uses (`status='active' AND validUntil > now()`):
@@ -560,6 +594,12 @@ export function LeadDetail({ id }: { id: string }) {
   }
 
   const { lead, items, notes, customer } = data;
+  // The admin lead-detail endpoint returns `customer` ONLY for an approved
+  // business account (it returns null otherwise), so this is exactly the
+  // «حساب سازمانی تأییدشده» arm of the tier structure — the same signal the
+  // badge below is drawn from, and the same one the server re-reads from
+  // `users.biz_verify_status` at issue time rather than trusting the client.
+  const businessVerified = customer?.bizVerified === true;
   const proformas: ProformaView[] = data.proformas;
   const activeProforma = proformas.find(isActiveProforma) ?? null;
   const latestProforma = proformas[0] ?? null; // proformasOfLead orders desc by createdAt
@@ -573,9 +613,20 @@ export function LeadDetail({ id }: { id: string }) {
   const pricedCount = items.filter((it) => it.unitPrice != null && it.unitPrice > 0).length;
   const {
     subtotal,
+    volumeDiscount,
     discount: appliedDiscount,
     taxable,
-  } = proformaTotals(items, discountValid ? parsedDiscount : 0);
+  } = proformaTotals(items, discountValid ? parsedDiscount : 0, 0, businessVerified);
+  // Same pure resolver the totals used, over the same PRICED-lines-only
+  // tonnage — re-asked here only for the LABEL, so the rep sees which band
+  // the customer's sheet will name and at what rate. Note this is not
+  // `totalWeight` above: that one is the whole lead, including unpriced
+  // lines, and is displayed as «وزن کل» for the rep's own reference.
+  const quotedWeight = items.reduce(
+    (sum, it) => (it.unitPrice != null && it.unitPrice > 0 ? sum + (it.weightKg ?? 0) : sum),
+    0,
+  );
+  const volumeTier = resolveVolumeTier({ totalWeightKg: quotedWeight, businessVerified });
 
   const itemsLocked = Boolean(activeProforma);
   const canIssue = pricedCount > 0 && lead.status !== 'lost';
@@ -852,9 +903,20 @@ export function LeadDetail({ id }: { id: string }) {
                     <span className={s.sumLabel}>جمع اقلام</span>
                     <span className={s.sumValue}>{formatToman(subtotal, false)}</span>
                   </div>
+                  {/* تخفیف پلکانی — the RULE-based band, shown before the
+                      rep's own figure and in its own row because that is the
+                      order the customer's sheet prints them in, and because a
+                      rep must be able to see that the entitlement was applied
+                      without having to reconcile one blended number. */}
+                  {volumeDiscount > 0 ? (
+                    <div className={s.sumRow}>
+                      <span className={s.sumLabel}>{volumeDiscountLabel(volumeTier)}</span>
+                      <span className={s.sumValue}>−{formatToman(volumeDiscount, false)}</span>
+                    </div>
+                  ) : null}
                   {appliedDiscount > 0 ? (
                     <div className={s.sumRow}>
-                      <span className={s.sumLabel}>تخفیف</span>
+                      <span className={s.sumLabel}>تخفیف دستی</span>
                       <span className={s.sumValue}>−{formatToman(appliedDiscount, false)}</span>
                     </div>
                   ) : null}
