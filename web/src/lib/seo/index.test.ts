@@ -28,27 +28,15 @@ const offerOf = (o: ReturnType<typeof productJsonLd>): Offer | undefined =>
 describe('productJsonLd', () => {
   const base = { name: 'میلگرد ۱۴ آجدار', price: 42_000, url: '/prices/rebar/deformed/x' };
 
-  it('never claims InStock — a live SKU is InStoreOnly (no online payment)', () => {
-    const offer = offerOf(productJsonLd({ ...base, available: true }));
-    expect(offer?.availability).toBe('https://schema.org/InStoreOnly');
-  });
-
-  it('omits availability entirely when the caller does not know it', () => {
-    // Regression: this used to default to InStock for anything !== false,
-    // i.e. a missing value became a positive stock claim.
-    const offer = offerOf(productJsonLd(base));
-    expect(offer).toBeDefined();
-    expect(offer).not.toHaveProperty('availability');
-  });
-
-  it('marks an inactive SKU OutOfStock', () => {
-    expect(offerOf(productJsonLd({ ...base, available: false }))?.availability).toBe(
-      'https://schema.org/OutOfStock',
-    );
+  it('never publishes availability — nothing in the schema tracks stock', () => {
+    // Was fed `sku.isActive`, which only means "published in the catalog".
+    // An unpublished product has no page at all, so the field asserted
+    // InStoreOnly for every visible product while carrying no information.
+    expect(offerOf(productJsonLd({ ...base }))).not.toHaveProperty('availability');
   });
 
   it('declares the price as VAT-exclusive, per kilogram, for an offline sale', () => {
-    const offer = offerOf(productJsonLd({ ...base, available: true }));
+    const offer = offerOf(productJsonLd({ ...base }));
     expect(offer?.price).toBe(420_000); // Toman → Rial
     expect(offer?.priceSpecification.valueAddedTaxIncluded).toBe(false);
     expect(offer?.priceSpecification.unitCode).toBe('KGM');
@@ -56,7 +44,7 @@ describe('productJsonLd', () => {
   });
 
   it('emits no offer at all when the price is the stale-hidden sentinel', () => {
-    expect(offerOf(productJsonLd({ ...base, price: 0, priceHidden: true, available: true }))).toBeUndefined();
+    expect(offerOf(productJsonLd({ ...base, price: 0, priceHidden: true }))).toBeUndefined();
   });
 
   // The silent-10x class of bug, pinned from both ends. Every published price
@@ -70,14 +58,14 @@ describe('productJsonLd', () => {
       [1, 10],
       [667_027, 6_670_270],
     ])('publishes %i Toman as %i IRR', (toman, rial) => {
-      const offer = offerOf(productJsonLd({ ...base, price: toman, available: true }))!;
+      const offer = offerOf(productJsonLd({ ...base, price: toman }))!;
       expect(offer.price).toBe(rial);
       expect(offer.priceSpecification.price).toBe(rial);
     });
 
     it('never publishes the raw Toman figure under an IRR tag', () => {
       const toman = 42_000;
-      const offer = offerOf(productJsonLd({ ...base, price: toman, available: true }))!;
+      const offer = offerOf(productJsonLd({ ...base, price: toman }))!;
       expect(offer.priceCurrency).toBe('IRR');
       expect(offer.priceSpecification.priceCurrency).toBe('IRR');
       expect(offer.price).not.toBe(toman);
@@ -87,23 +75,60 @@ describe('productJsonLd', () => {
     it('keeps the Offer price and its UnitPriceSpecification in lockstep', () => {
       // Two places carry the same number; a fix applied to one and not the
       // other is a self-contradicting offer.
-      const offer = offerOf(productJsonLd({ ...base, available: true }))!;
+      const offer = offerOf(productJsonLd({ ...base }))!;
       expect(offer.price).toBe(offer.priceSpecification.price);
       expect(offer.priceCurrency).toBe(offer.priceSpecification.priceCurrency);
     });
   });
 
   it('gives the offer its own absolute canonical URL', () => {
-    const offer = offerOf(productJsonLd({ ...base, available: true }))!;
+    const offer = offerOf(productJsonLd({ ...base }))!;
     expect(offer.url).toBe('https://ahantime.com/prices/rebar/deformed/x');
   });
 
-  it('bounds priceValidUntil to a near date — steel prices move daily', () => {
-    const offer = offerOf(productJsonLd({ ...base, available: true }))!;
+  it('derives priceValidUntil from when the price was SET, not from render time', () => {
+    // Priced 1 day ago under a 2-day SLA -> valid until 1 day from now, NOT
+    // 2 (and certainly not the flat 7 this used to assert on every render).
+    const updatedAt = new Date(Date.now() - 864e5).toISOString();
+    const offer = offerOf(
+      productJsonLd({ ...base, priceUpdatedAt: updatedAt, priceValidityDays: 2 }),
+    )!;
     expect(offer.priceValidUntil).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     const days = (Date.parse(offer.priceValidUntil) - Date.now()) / 864e5;
     expect(days).toBeGreaterThan(0);
-    expect(days).toBeLessThanOrEqual(7);
+    expect(days).toBeLessThanOrEqual(1.001);
+  });
+
+  it('asserts no validity at all once the price is already stale', () => {
+    // The exact audit case: a rebar SKU priced 2 days ago under a 2-day SLA
+    // is stale NOW, yet still advertised a future priceValidUntil.
+    const offer = offerOf(
+      productJsonLd({
+        ...base,
+        priceUpdatedAt: new Date(Date.now() - 3 * 864e5).toISOString(),
+        priceValidityDays: 2,
+      }),
+    )!;
+    expect(offer).toBeDefined();
+    expect(offer).not.toHaveProperty('priceValidUntil');
+  });
+
+  it('asserts no validity when the caller has no price date', () => {
+    expect(offerOf(productJsonLd({ ...base }))).not.toHaveProperty('priceValidUntil');
+  });
+
+  it('publishes no offer at all for a withheld price, validity included', () => {
+    expect(
+      offerOf(
+        productJsonLd({
+          ...base,
+          price: 0,
+          priceHidden: true,
+          priceUpdatedAt: new Date().toISOString(),
+          priceValidityDays: 2,
+        }),
+      ),
+    ).toBeUndefined();
   });
 });
 
@@ -267,20 +292,20 @@ describe('productJsonLd unitCode follows priceBasis (W25 audit)', () => {
     (offerOf(o)?.priceSpecification as { unitCode?: string } | undefined)?.unitCode;
 
   it('defaults to KGM when no basis is given (the column default)', () => {
-    expect(unitOf(productJsonLd({ ...base, available: true }))).toBe('KGM');
+    expect(unitOf(productJsonLd({ ...base }))).toBe('KGM');
   });
 
   it('uses KGM / H87 / MTK for the bases that have an unambiguous Rec-20 code', () => {
-    expect(unitOf(productJsonLd({ ...base, available: true, priceBasis: 'kg' }))).toBe('KGM');
-    expect(unitOf(productJsonLd({ ...base, available: true, priceBasis: 'piece' }))).toBe('H87');
-    expect(unitOf(productJsonLd({ ...base, available: true, priceBasis: 'sqm' }))).toBe('MTK');
+    expect(unitOf(productJsonLd({ ...base, priceBasis: 'kg' }))).toBe('KGM');
+    expect(unitOf(productJsonLd({ ...base, priceBasis: 'piece' }))).toBe('H87');
+    expect(unitOf(productJsonLd({ ...base, priceBasis: 'sqm' }))).toBe('MTK');
   });
 
   it('omits unitCode entirely for bases with no honest Rec-20 code', () => {
     // Asserting a nearby-but-wrong code is the exact bug being fixed: a
     // per-branch/coil/sheet price must never be published as per-kilogram.
     for (const basis of ['branch', 'coil', 'sheet'] as const) {
-      const spec = offerOf(productJsonLd({ ...base, available: true, priceBasis: basis }))
+      const spec = offerOf(productJsonLd({ ...base, priceBasis: basis }))
         ?.priceSpecification as Record<string, unknown> | undefined;
       expect(spec).toBeDefined();
       expect(spec).not.toHaveProperty('unitCode');
