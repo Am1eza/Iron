@@ -69,19 +69,50 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   return value;
 }
 
+/**
+ * The newest edit among a set of articles, or `undefined` when there is none.
+ *
+ * `undefined` rather than "now": an omitted `<lastmod>` says nothing, which is
+ * honest, whereas the request time says "edited this second", which is a claim
+ * and a false one. Same rule the static entries follow.
+ */
+function latestArticleEdit(
+  articles: readonly { updatedAt?: string; publishAt?: string }[],
+): Date | undefined {
+  let max = 0;
+  for (const a of articles) {
+    const raw = a.updatedAt ?? a.publishAt;
+    const t = raw ? new Date(raw).getTime() : 0;
+    if (Number.isFinite(t) && t > max) max = t;
+  }
+  return max > 0 ? new Date(max) : undefined;
+}
+
 async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
 
+  /**
+   * No `lastModified` on the hand-written pages, deliberately.
+   *
+   * These entries used to stamp themselves with the request time, which under
+   * `force-dynamic` means *every* crawl saw «modified just now» for /about,
+   * /contact, /faq and the cooperation tracks — pages whose copy changes a
+   * couple of times a year. A date that is always today is not a freshness
+   * signal, it is noise that costs the signal its meaning on the pages where
+   * it IS real (the catalog entries below, which carry a genuine
+   * `current.updatedAt`). Nothing in the app tracks when a hard-coded page's
+   * copy last changed, so there is no honest value to put here, and the field
+   * is optional: an omitted `<lastmod>` tells a crawler nothing, which is
+   * exactly the truth. Do not "fix" this by reintroducing `now`.
+   */
   const staticEntries: MetadataRoute.Sitemap = STATIC_INDEXABLE.map((path) => ({
     url: new URL(path, SITE_URL).toString(),
-    lastModified: now,
     changeFrequency: 'daily',
     priority: path === '/' ? 1 : 0.7,
   }));
 
   const cooperationEntries: MetadataRoute.Sitemap = TRACK_ORDER.map((track) => ({
     url: new URL(routes.cooperation(track), SITE_URL).toString(),
-    lastModified: now,
     changeFrequency: 'monthly',
     priority: 0.6,
   }));
@@ -183,7 +214,12 @@ async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
     .filter((c) => (categoryArticleCounts[c.id] ?? 0) > 0)
     .map((c) => ({
       url: new URL(routes.blogCategory(c.slug), SITE_URL).toString(),
-      lastModified: now,
+      // A listing page changes when one of the things it lists changes, and
+      // that date is already in hand — `blogArticles` is the full set, fetched
+      // above. No extra query, and a real answer instead of the request time.
+      lastModified: latestArticleEdit(
+        blogArticles.filter((a) => (a.relatedCategoryIds ?? []).includes(c.id)),
+      ),
       changeFrequency: 'weekly',
       priority: 0.6,
     }));
@@ -211,7 +247,10 @@ async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
     (t) => (newsTopicArticleCounts[t.slug] ?? 0) > 0,
   ).map((t) => ({
     url: new URL(routes.newsTopic(t.slug), SITE_URL).toString(),
-    lastModified: now,
+    // Same as blogCategoryEntries: the newest story filed under the topic.
+    lastModified: latestArticleEdit(
+      newsArticles.filter((a) => (a.relatedNewsTopicIds ?? []).includes(t.slug)),
+    ),
     changeFrequency: 'weekly',
     priority: 0.6,
   }));
