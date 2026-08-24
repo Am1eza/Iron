@@ -369,6 +369,10 @@ export interface Article {
   bodyJson?: RichDoc | null;
   /** Cover/hero image — used for the list thumbnail, OG image and Article JSON-LD. */
   coverUrl?: string;
+  /** Estimated reading time in whole minutes, from a DB-side word count over
+   *  `body_md` (never the full body text itself — see `LIST_COLUMNS` in
+   *  articlesRepo.ts). `undefined` on the mock catalog, which has no body. */
+  readingMinutes?: number;
   status: 'draft' | 'scheduled' | 'published';
   source: 'ai' | 'human';
   publishAt?: string;
