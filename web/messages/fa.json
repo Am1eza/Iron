@@ -98,7 +98,8 @@
     "registerSubtitle": "این شماره تازه است؛ کد {mobile} را وارد و مشخصات‌تان را تکمیل کنید.",
     "newUserBadge": "ثبت‌نام",
     "registerNameSubtitle": "حساب شما ساخته شد. برای تکمیل ثبت‌نام، نام و نام خانوادگی‌تان را وارد کنید.",
-    "completeRegistration": "تکمیل ثبت‌نام"
+    "completeRegistration": "تکمیل ثبت‌نام",
+    "requestFlowNote": "سبد استعلام شما نگه داشته شده؛ پس از تأیید شماره، به ثبت درخواست بازمی‌گردید."
   },
   "phone": {
     "country": "کشور",

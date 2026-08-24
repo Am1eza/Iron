@@ -10,6 +10,7 @@ import {
 } from '@/lib/stores/cart';
 import type { CartItem } from '@/lib/stores/cart';
 import { routes } from '@/lib/routes';
+import { useAuth } from '@/lib/hooks/useAuth';
 import { formatToman, toPersianDigits } from '@/lib/utils/format';
 import {
   EmptyState,
@@ -47,6 +48,7 @@ export function CartView() {
   const [mounted, setMounted] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
   useEffect(() => setMounted(true), []);
+  const { isAuthenticated } = useAuth();
 
   const items = useCartStore((s) => s.items);
   const setQty = useCartStore((s) => s.setQty);
@@ -208,7 +210,11 @@ export function CartView() {
           </p>
 
           <Link href={routes.request()} className={styles.primaryCta} data-event="cart_to_request">
-            ادامه و ثبت درخواست
+            {/* /request is auth-gated (requireUser) and silently bounces a
+                guest to /login?next=/request with no warning — the audited
+                bug. Say the login step out loud here instead of letting the
+                visitor discover it mid-redirect. */}
+            {isAuthenticated ? 'ادامه و ثبت درخواست' : 'ورود و ادامه ثبت درخواست'}
             <ArrowEndIcon size={18} />
           </Link>
 
