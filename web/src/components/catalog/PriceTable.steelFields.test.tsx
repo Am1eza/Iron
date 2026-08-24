@@ -85,28 +85,33 @@ function renderTable(rows: PriceRow[] = ROWS, initialSub: string | null = null) 
   );
 }
 
-/** The cell under a named column for a given product row. */
-function cellFor(product: string, column: string): string {
-  const tr = screen.getByRole('rowheader', { name: product }).closest('tr')!;
-  const headers = within(tr.closest('table')!).getAllByRole('columnheader');
-  const col = headers.findIndex((h) => h.textContent === column);
-  expect(col, `column «${column}» is on the table`).toBeGreaterThan(-1);
-  // The leading `<th>` is the compare checkbox and the product name is a
-  // `<th scope="row">`, so the Nth header maps to the (N-1)th `<td>`.
-  return tr.querySelectorAll('td')[col - 1]?.textContent ?? '';
+/** The «جزئیات» disclosure `<tr>` that follows a product's own row — always
+ *  in the DOM (see PriceTableRow). آلیاژ/طول شاخه moved here off the
+ *  always-visible columns (density redesign). */
+function detailFor(product: string): HTMLElement {
+  return screen.getByRole('rowheader', { name: product }).closest('tr')!.nextElementSibling as HTMLElement;
 }
+function detailValueFor(product: string, label: string): string | null {
+  const dt = within(detailFor(product)).queryByText(label);
+  return dt ? (dt.nextElementSibling?.textContent ?? null) : null;
+}
+
+/** Only the disclosures `SectionShell` draws per factory/region — distinct
+ *  from `ExportMenu`'s own «بیشتر» `<details>`, always present regardless of
+ *  whether the page has sections at all. */
+const factorySectionDetails = () => document.querySelectorAll('details[id^="factory-section-"]');
 
 describe('PriceTable — استیل is imported, so it has no کارخانه at all', () => {
   it('draws no factory column, no sections and no mill count in the mixed view', () => {
     renderTable();
     expect(screen.queryByRole('columnheader', { name: 'کارخانه' })).toBeNull();
-    // No `<details>` disclosure: with nothing to group by, one flat table.
-    expect(document.querySelector('details')).toBeNull();
+    // No factory-section disclosure: with nothing to group by, one flat table.
+    expect(factorySectionDetails().length).toBe(0);
     expect(screen.queryByRole('navigation', { name: 'پرش به کارخانه' })).toBeNull();
-    // Nor «محل تولید», the پروفیل replacement: «چین»/«تایوان» are countries,
-    // not Iranian producing cities, so nothing resolves and the fallback
-    // structure is simply one table.
-    expect(screen.queryByText(/کارخانه|محل تولید/)).toBeNull();
+    // Nor «محل تولید» anywhere, the پروفیل replacement: «چین»/«تایوان» are
+    // countries, not Iranian producing cities, so nothing resolves and the
+    // fallback structure is simply one table.
+    expect(detailValueFor('angle-40', 'محل تولید')).toBeNull();
     expect(screen.getByRole('table', { name: 'قیمت استیل' })).toBeInTheDocument();
   });
 
@@ -121,9 +126,9 @@ describe('PriceTable — استیل is imported, so it has no کارخانه at 
     ] as const) {
       await user.click(screen.getByRole('button', { name: sub }));
       expect(screen.queryByRole('columnheader', { name: 'کارخانه' })).toBeNull();
-      expect(cellFor(product, 'آلیاژ')).toBe(alloy);
-      expect(cellFor(product, 'طول شاخه')).toBe('۶ متر');
-      expect(screen.queryByRole('columnheader', { name: 'گرید' })).toBeNull();
+      expect(detailValueFor(product, 'آلیاژ')).toBe(alloy);
+      expect(detailValueFor(product, 'طول شاخه')).toBe('۶ متر');
+      expect(detailValueFor(product, 'گرید')).toBeNull();
     }
   });
 
@@ -131,6 +136,6 @@ describe('PriceTable — استیل is imported, so it has no کارخانه at 
     // A dash would claim استیل products have no branch length; they do, we
     // just have not recorded this one.
     renderTable([row('angle-50', 'angle', { grade: '304' })]);
-    expect(cellFor('angle-50', 'طول شاخه')).toBe('نامشخص');
+    expect(detailValueFor('angle-50', 'طول شاخه')).toBe('نامشخص');
   });
 });

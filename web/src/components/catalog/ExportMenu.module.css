@@ -1,80 +1,104 @@
+/* «بیشتر» overflow menu — consolidates اکسل/چاپ/تصویر, previously three
+   always-visible buttons, into one disclosure (price-table UX audit). Native
+   `<details>`/`<summary>`, same reasoning PriceTable's factory sections use:
+   keyboard-operable and ARIA-correct for free. */
 .menu {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: 3px;
-  border-radius: var(--radius-md);
-  background: var(--color-surface-sunken);
-  border: var(--border-hairline) solid var(--color-hairline);
+  position: relative;
+  display: inline-block;
 }
-.btn {
+.trigger {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+  border: var(--border-hairline) solid var(--color-hairline);
+  color: var(--color-text);
+  font: var(--t-label);
+}
+.trigger::-webkit-details-marker {
+  display: none;
+}
+.trigger:hover {
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+.trigger:focus-visible {
+  outline: var(--border-focus) solid var(--color-focus);
+  outline-offset: 1px;
+}
+.chevron {
+  color: var(--color-text-muted);
+  transition: transform var(--dur-fast) var(--ease-standard);
+}
+.menu[open] .chevron {
+  transform: rotate(180deg);
+}
+
+.panel {
+  position: absolute;
+  inset-inline-end: 0;
+  inset-block-start: calc(100% + var(--space-1));
+  z-index: var(--z-dropdown);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-1);
+  min-inline-size: 10rem;
+  border-radius: var(--radius-md);
+  border: var(--border-hairline) solid var(--color-hairline);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md);
+}
+.btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   border: 0;
   background: transparent;
-  color: var(--color-text-muted);
+  color: var(--color-text);
   font: var(--t-label);
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-sm);
   cursor: pointer;
   white-space: nowrap;
-  transition:
-    background var(--dur-fast) var(--ease-standard),
-    color var(--dur-fast) var(--ease-standard);
+  text-align: start;
 }
 .btn:hover {
-  background: var(--color-surface);
-  color: var(--color-text-strong);
-  box-shadow: var(--shadow-sm);
+  background: var(--color-surface-sunken);
 }
 .btn:focus-visible {
   outline: var(--border-focus) solid var(--color-focus);
-  outline-offset: 1px;
+  outline-offset: -2px;
 }
 .btn svg {
+  flex: none;
   color: var(--color-accent-text);
 }
 
 /* ===== compact =====
-   The per-factory copies inside each accordion section. The page-wide toolbar
-   keeps the filled segmented-control look; these drop the enclosing tray and
-   become three quiet outlined chips, so a page with nine factory sections
-   doesn't read as nine competing toolbars. Declared after the base rules so
-   the hover state out-orders `.btn:hover`. */
-.compact {
-  padding: 0;
-  gap: var(--space-2);
-  background: transparent;
-  border-color: transparent;
-}
-.compact .btn {
+   The per-factory copies inside each accordion section — a smaller, quieter
+   trigger so a page with nine factory sections doesn't read as nine
+   competing toolbars. */
+.compact .trigger {
   padding: var(--space-1) var(--space-2);
   min-block-size: 28px;
   font: var(--t-caption);
-  border: var(--border-hairline) solid var(--color-hairline);
   background: var(--color-surface);
 }
-.compact .btn:hover {
-  background: var(--color-surface-sunken);
-  color: var(--color-text-strong);
-  box-shadow: none;
-}
 
-@media (max-width: 560px) {
-  .btn span {
-    position: absolute;
-    inline-size: 1px;
-    block-size: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
+/* WCAG 2.5.8, coarse pointers only — the collapsed trigger and the menu
+   items it reveals both need a real touch target once dropped from three
+   always-visible buttons to one disclosure. */
+@media (pointer: coarse) {
+  .trigger {
+    min-block-size: 44px;
   }
-  /* Label gone, so a compact chip collapses to its icon. Squared off and
-     grown past the 28px desktop height — this is the size a thumb has to hit,
-     and a 28×30 sliver is the minimum, not a comfortable target. */
-  .compact .btn {
-    min-block-size: 32px;
-    min-inline-size: 32px;
-    justify-content: center;
+  .btn {
+    min-block-size: 44px;
   }
 }

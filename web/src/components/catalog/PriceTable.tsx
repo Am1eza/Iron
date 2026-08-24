@@ -31,6 +31,7 @@ import {
   singlePriceBasis,
 } from '@/lib/utils/catalogLabels';
 import { FactoryLink } from './FactoryLink';
+import { factoryFacetSlug } from '@/lib/utils/catalogFacets';
 import { groupByLabel } from '@/lib/utils/catalogGroups';
 import { formatJalali } from '@/lib/utils/jalali';
 import { API_MODE } from '@/lib/api/config';
@@ -79,6 +80,16 @@ type RowActions = {
 
 /** US-02.9 — 2 to 4 rows only (a wider compare table stops being scannable). */
 const MAX_COMPARE = 4;
+
+/** The price-table UX audit measured `/prices/rebar` at 251 rows rendered
+ *  eagerly across 26 factory sections. Capping each FACTORY section (the one
+ *  mode with a real drill-down destination — `/prices/[category]/factory/
+ *  [factory]`, via `getRowsByFactory`) keeps the hub page bounded without
+ *  deleting the rest: it is one click away, not gone. Region/none-mode
+ *  sections have no equivalent landing page and are left uncapped — in
+ *  practice they are the smaller پروفیل fallback cases, not the hundred-plus
+ *  row categories this exists for. */
+const SECTION_ROW_CAP = 12;
 
 /**
  * The shell around one price table.
@@ -214,130 +225,160 @@ const PriceTableRow = memo(function PriceTableRow({
   sizeCol: string;
 } & RowActions) {
   const hiddenLabel = priceHiddenLabel(r.current);
+  // Collapsed by default, never unmounted when closed (see `.detailRow` in
+  // the stylesheet) — the same "still in the DOM, just not the visible
+  // layout" rule the factory `<details>` sections already rely on for
+  // crawlability, applied at row scale for the columns this redesign moved
+  // out of the always-visible 5.
+  const [detailOpen, setDetailOpen] = useState(false);
+  const detailId = `row-detail-${r.id}`;
   return (
-    <tr role="row" className={styles.row}>
-      <td role="cell" className={styles.compareCell}>
-        <input
-          type="checkbox"
-          checked={compareChecked}
-          onChange={() => onToggleCompare(r.id)}
-          aria-label={`افزودن ${r.name} به مقایسه`}
-        />
-      </td>
-      <th role="rowheader" scope="row" className={styles.name}>
-        <Link href={routes.sku(r.categoryId, r.subCategoryId, r.slug)} className={styles.nameLink}>
-          {r.name}
-        </Link>
-      </th>
-      {/* The size is the tail of the product name, so the card form drops this
-          cell rather than printing «سایز: ۱۴» directly under «میلگرد ۱۴». */}
-      <td role="cell" data-label={sizeCol} className={styles.sizeCell}>
-        {r.size ? toPersianDigits(r.size) : 'نامشخص'}
-      </td>
-      {showDimensions ? (
-        <td
-          role="cell"
-          data-label={DIMENSIONS_LABEL}
-          className={`${styles.muted}${r.dimensions ? '' : ` ${styles.blankOnNarrow}`}`}
-        >
-          {r.dimensions ? toPersianDigits(r.dimensions) : 'نامشخص'}
-        </td>
-      ) : null}
-      {attrCols.map((c) => (
-        <td
-          role="cell"
-          key={c.key}
-          data-label={c.label}
-          // `card` is the column's own answer to "is there anything worth a
-          // line here" — null both for an unfilled value and for a column that
-          // is not a property of this row's sub-category at all.
-          className={`${styles.muted}${c.card(r) === null ? ` ${styles.blankOnNarrow}` : ''}`}
-        >
-          {c.cell(r)}
-        </td>
-      ))}
-      {showFactory ? (
-        <td
-          role="cell"
-          data-label="کارخانه"
-          className={`${styles.muted}${r.factory ? '' : ` ${styles.blankOnNarrow}`}`}
-        >
-          <FactoryCell categorySlug={r.categoryId} factory={r.factory} />
-        </td>
-      ) : null}
-      {showRegion ? (
-        <td
-          role="cell"
-          data-label={REGION_LABEL}
-          className={`${styles.muted}${r.region ? '' : ` ${styles.blankOnNarrow}`}`}
-        >
-          {r.region ?? UNKNOWN_VALUE}
-        </td>
-      ) : null}
-      <td
-        role="cell"
-        data-label="وزن شاخه"
-        className={`${styles.num}${r.theoreticalWeightKg ? '' : ` ${styles.blankOnNarrow}`}`}
-      >
-        {r.theoreticalWeightKg ? (
-          <>
-            {toPersianDigits(r.theoreticalWeightKg)} <bdi lang="en">kg</bdi>
-          </>
-        ) : (
-          'نامشخص'
-        )}
-      </td>
-      <td
-        role="cell"
-        className={`${styles.num} ${styles.price} ${styles.priceCell}`}
-        data-unit={hiddenLabel ? undefined : priceUnitCaption(r.priceBasis, r.branchLengthM)}
-      >
-        {hiddenLabel ?? formatToman(withVat(r.current.price, vat, vatRate), false)}
-        {showRowBasis && !r.current.priceHidden ? (
-          <span className={styles.rowBasis}>
-            {' / '}
-            {priceBasisNoun(r.priceBasis, r.branchLengthM)}
-          </span>
-        ) : null}
-      </td>
-      <td role="cell" className={`${styles.num} ${styles.movementCell}`}>
-        <MovementBadge dir={r.current.movementDir} pct={r.current.movementPct} />
-      </td>
-      <td role="cell" data-label="به‌روزرسانی" className={styles.muted}>
-        {formatJalali(r.current.updatedAt, 'MM/dd')}
-      </td>
-      <td role="cell" className={styles.deliveryCell}>
-        <DeliveryBadge value={r.current.deliveryTime} />
-      </td>
-      <td role="cell" className={styles.actionsCell}>
-        <div className={styles.actions}>
-          <IconButton
-            size="sm"
-            label="افزودن به علاقه‌مندی"
-            active={isFav}
-            icon={<HeartIcon size={18} filled={isFav} />}
-            onClick={() => onToggleFav(r.id)}
+    <>
+      <tr role="row" className={styles.row}>
+        <td role="cell" className={styles.compareCell}>
+          <input
+            type="checkbox"
+            checked={compareChecked}
+            onChange={() => onToggleCompare(r.id)}
+            aria-label={`افزودن ${r.name} به مقایسه`}
           />
-          <AlertBellButton
-            target={{ type: 'sku', skuId: r.id, label: r.name, currentValue: r.current.price }}
-          />
-          <IconButton
-            size="sm"
-            label="نمودار قیمت"
-            icon={<ChartIcon size={18} />}
-            onClick={() => onChart(r)}
-          />
-          <button
-            className={styles.addBtn}
-            onClick={() => onAddToCart(r)}
-            disabled={r.current.priceHidden}
-            title={r.current.priceHidden ? 'برای این کالا باید تماس بگیرید.' : undefined}
+        </td>
+        <th role="rowheader" scope="row" className={styles.name}>
+          <Link href={routes.sku(r.categoryId, r.subCategoryId, r.slug)} className={styles.nameLink}>
+            {r.name}
+          </Link>
+        </th>
+        {/* The size is the tail of the product name, so the card form drops this
+            cell rather than printing «سایز: ۱۴» directly under «میلگرد ۱۴». */}
+        <td role="cell" data-label={sizeCol} className={styles.sizeCell}>
+          {r.size ? toPersianDigits(r.size) : 'نامشخص'}
+        </td>
+        {showFactory ? (
+          <td
+            role="cell"
+            data-label="کارخانه"
+            className={`${styles.muted}${r.factory ? '' : ` ${styles.blankOnNarrow}`}`}
           >
-            <PlusIcon size={16} /> <span className={styles.addBtnLabel}>سبد</span>
-          </button>
-        </div>
-      </td>
-    </tr>
+            <FactoryCell categorySlug={r.categoryId} factory={r.factory} />
+          </td>
+        ) : null}
+        <td
+          role="cell"
+          className={`${styles.num} ${styles.price} ${styles.priceCell}`}
+          data-unit={hiddenLabel ? undefined : priceUnitCaption(r.priceBasis, r.branchLengthM)}
+        >
+          {hiddenLabel ?? formatToman(withVat(r.current.price, vat, vatRate), false)}
+          {showRowBasis && !r.current.priceHidden ? (
+            <span className={styles.rowBasis}>
+              {' / '}
+              {priceBasisNoun(r.priceBasis, r.branchLengthM)}
+            </span>
+          ) : null}
+        </td>
+        <td role="cell" className={styles.detailToggleCell}>
+          <IconButton
+            size="sm"
+            label={detailOpen ? 'پنهان‌کردن جزئیات' : 'نمایش جزئیات (نوسان، تاریخ، تحویل، وزن شاخه)'}
+            icon={<ChevronDownIcon size={16} className={detailOpen ? styles.detailChevronOpen : undefined} />}
+            aria-expanded={detailOpen}
+            aria-controls={detailId}
+            onClick={() => setDetailOpen((v) => !v)}
+          />
+        </td>
+        <td role="cell" className={styles.actionsCell}>
+          <div className={styles.actions}>
+            <IconButton
+              size="sm"
+              label="افزودن به علاقه‌مندی"
+              active={isFav}
+              icon={<HeartIcon size={18} filled={isFav} />}
+              onClick={() => onToggleFav(r.id)}
+            />
+            <AlertBellButton
+              target={{ type: 'sku', skuId: r.id, label: r.name, currentValue: r.current.price }}
+            />
+            <IconButton
+              size="sm"
+              label="نمودار قیمت"
+              icon={<ChartIcon size={18} />}
+              onClick={() => onChart(r)}
+            />
+            <button
+              className={styles.addBtn}
+              onClick={() => onAddToCart(r)}
+              disabled={r.current.priceHidden}
+              title={r.current.priceHidden ? 'برای این کالا باید تماس بگیرید.' : undefined}
+            >
+              <PlusIcon size={16} /> <span className={styles.addBtnLabel}>سبد</span>
+            </button>
+          </div>
+        </td>
+      </tr>
+      {/* «جزئیات» — ابعاد/گرید‌وغیره/محل‌تولید/وزن‌شاخه/نوسان/تاریخ/تحویل,
+          moved out of the always-visible columns above. Always rendered (never
+          conditionally unmounted) so this stays crawlable exactly like the
+          collapsed factory sections it already sits inside — `.detailRow`
+          hides it with `display: none` only, the same mechanism `<details>`
+          uses natively. `colSpan` is a safe upper bound; browsers clamp an
+          oversized one to the table's real column count. */}
+      <tr id={detailId} className={`${styles.detailRow}${detailOpen ? ` ${styles.detailOpen}` : ''}`}>
+        <td role="cell" colSpan={7} className={styles.detailCell}>
+          <dl className={styles.detailList}>
+            {/* Same "always shown, نامشخص/— when empty, never omitted" rule the
+                desktop columns these replaced used to follow — only the OLD
+                mobile card omitted a blank one, and this disclosure isn't
+                that; it is the desktop-equivalent view, just collapsed by
+                default rather than sitting in a permanent column. */}
+            {showDimensions ? (
+              <div className={styles.detailItem}>
+                <dt>{DIMENSIONS_LABEL}</dt>
+                <dd>{r.dimensions ? toPersianDigits(r.dimensions) : 'نامشخص'}</dd>
+              </div>
+            ) : null}
+            {attrCols.map((c) => (
+              <div className={styles.detailItem} key={c.key}>
+                <dt>{c.label}</dt>
+                <dd>{c.cell(r)}</dd>
+              </div>
+            ))}
+            {showRegion ? (
+              <div className={styles.detailItem}>
+                <dt>{REGION_LABEL}</dt>
+                <dd>{r.region ?? UNKNOWN_VALUE}</dd>
+              </div>
+            ) : null}
+            <div className={styles.detailItem}>
+              <dt>وزن شاخه</dt>
+              <dd>
+                {r.theoreticalWeightKg ? (
+                  <>
+                    {toPersianDigits(r.theoreticalWeightKg)} <bdi lang="en">kg</bdi>
+                  </>
+                ) : (
+                  'نامشخص'
+                )}
+              </dd>
+            </div>
+            <div className={styles.detailItem}>
+              <dt>نوسان</dt>
+              <dd>
+                <MovementBadge dir={r.current.movementDir} pct={r.current.movementPct} />
+              </dd>
+            </div>
+            <div className={styles.detailItem}>
+              <dt>به‌روزرسانی</dt>
+              <dd>{formatJalali(r.current.updatedAt, 'MM/dd')}</dd>
+            </div>
+            <div className={styles.detailItem}>
+              <dt>تحویل</dt>
+              <dd>
+                <DeliveryBadge value={r.current.deliveryTime} />
+              </dd>
+            </div>
+          </dl>
+        </td>
+      </tr>
+    </>
   );
 });
 
@@ -368,6 +409,14 @@ const PriceTableRow = memo(function PriceTableRow({
  * The compare-checkbox feature (US-02.9) spans every factory section at
  * once — `compareIds` is just a Set of SKU ids, independent of which
  * section a checkbox lives in.
+ *
+ * Density redesign (price-table UX audit): the toolbar is now a single
+ * sticky filter bar (type/size/گرید/کارخانه/«فقط قیمت‌دار», sort, the one VAT
+ * switch, exports); each row shows only محصول/سایز/کارخانه/قیمت/اقدام by
+ * default, with ابعاد/گرید‌وغیره/محل‌تولید/وزن‌شاخه/نوسان/تاریخ/تحویل moved
+ * into a per-row «جزئیات» disclosure (see PriceTableRow); and a factory
+ * section past `SECTION_ROW_CAP` rows links out to its own full page instead
+ * of rendering everything eagerly.
  */
 export function PriceTable({
   rows,
@@ -418,41 +467,10 @@ export function PriceTable({
   const toast = useToast();
   const router = useRouter();
   const { isAuthenticated } = useAuth();
+  // A single, page-level VAT toggle (US redesign — the audit flagged a
+  // per-factory override alongside the page-wide switch as the same control
+  // repeated with nothing on screen to say the two could disagree).
   const [vat, setVat] = useState(false);
-  // Per-factory overrides of the page-wide `vat`, keyed by factory name; a key
-  // that isn't present means "this section follows the toolbar". A sparse map
-  // rather than one independent boolean per section because the common case is
-  // that NOTHING is overridden — a visitor who flips the toolbar switch expects
-  // all nine mills to move, and a seeded-per-section model would leave every
-  // already-mounted section behind.
-  const [vatOverrides, setVatOverrides] = useState<Record<string, boolean>>({});
-  const vatFor = (factory: string) => vatOverrides[factory] ?? vat;
-  // The toolbar switch is a page-wide instruction, so it wipes the overrides
-  // instead of losing to them. Without this, a section toggled ten minutes ago
-  // would silently keep disagreeing with the switch the visitor just flipped,
-  // with nothing on screen to explain why.
-  const setGlobalVat = useCallback((next: boolean) => {
-    setVat(next);
-    setVatOverrides({});
-  }, []);
-  const setFactoryVat = useCallback(
-    (factory: string, next: boolean) => {
-      setVatOverrides((prev) => {
-        // Toggled back to whatever the toolbar says → drop the override rather
-        // than pin the same value, so the next global flip picks this section
-        // up again along with everyone else.
-        if (next === vat) {
-          if (!(factory in prev)) return prev;
-          const rest = { ...prev };
-          delete rest[factory];
-          return rest;
-        }
-        if (prev[factory] === next) return prev;
-        return { ...prev, [factory]: next };
-      });
-    },
-    [vat],
-  );
   const [sort, setSort] = useState<SortKey>('size');
   const [internalSub, setInternalSub] = useState<string | null>(initialSub);
   const controlled = onSubChange !== undefined;
@@ -540,6 +558,55 @@ export function PriceTable({
     [rows, sub],
   );
 
+  // ===== The سایز/گرید/کارخانه/«فقط قیمت‌دار» filter bar (redesign) =====
+  // Facet OPTION lists come from `subFiltered` — i.e. before these four
+  // filters narrow the set further — so picking one facet never makes the
+  // others' remaining options disappear out from under the visitor.
+  const sizeOptions = useMemo(
+    () => [...new Set(subFiltered.map((r) => r.size).filter((s): s is string => Boolean(s)))],
+    [subFiltered],
+  );
+  const factoryOptions = useMemo(
+    () => [...new Set(subFiltered.map((r) => r.factory).filter((f): f is string => Boolean(f)))],
+    [subFiltered],
+  );
+  // «گرید»/«آلیاژ» is `skus.grade` under whichever label this sub-category
+  // uses it (see catalogLabels) — only offered as a filter when the active
+  // sub actually has that column, so a تیرآهن view (whose grade column is
+  // «استاندارد») doesn't grow a filter for a field it doesn't show.
+  const gradeColumn = attrCols.find((c) => c.key === 'grade' || c.key === 'alloy');
+  const gradeOptions = useMemo(
+    () =>
+      gradeColumn
+        ? [...new Set(subFiltered.map((r) => r.grade).filter((g): g is string => Boolean(g)))]
+        : [],
+    [subFiltered, gradeColumn],
+  );
+  const [sizeFilter, setSizeFilter] = useState('');
+  const [factoryFilter, setFactoryFilter] = useState('');
+  const [gradeFilter, setGradeFilter] = useState('');
+  const [pricedOnly, setPricedOnly] = useState(false);
+  // A facet value that no longer exists once the سایز/type filter narrows the
+  // set (e.g. a factory picked under one زیرشاخه that doesn't sell the other)
+  // would otherwise silently filter everything to zero with no visible cause.
+  useEffect(() => {
+    setSizeFilter('');
+    setFactoryFilter('');
+    setGradeFilter('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sub]);
+  const filtered = useMemo(
+    () =>
+      subFiltered.filter(
+        (r) =>
+          (!sizeFilter || r.size === sizeFilter) &&
+          (!factoryFilter || r.factory === factoryFilter) &&
+          (!gradeFilter || r.grade === gradeFilter) &&
+          (!pricedOnly || !r.current.priceHidden),
+      ),
+    [subFiltered, sizeFilter, factoryFilter, gradeFilter, pricedOnly],
+  );
+
   /**
    * What the rows on screen actually group BY — mill, producing city, or
    * nothing (see catalogLabels.groupModeFor).
@@ -551,7 +618,7 @@ export function PriceTable({
    * present. `factory` is the long-standing behaviour and is what every
    * category other than those پروفیل subs still gets, byte for byte.
    */
-  const groupMode = useMemo(() => groupModeFor(subFiltered), [subFiltered]);
+  const groupMode = useMemo(() => groupModeFor(filtered), [filtered]);
   /** «کارخانه» — the column, the compare row, the section count. Off exactly
    *  when no visible row carries a mill name. */
   const showFactory = groupMode === 'factory';
@@ -569,7 +636,7 @@ export function PriceTable({
    * repeat every heading on every row; under `factory` the rows have no region
    * at all — the DTO publishes one or the other, never both.
    */
-  const showRegionColumn = groupMode === 'none' && subFiltered.some((r) => r.region);
+  const showRegionColumn = groupMode === 'none' && filtered.some((r) => r.region);
   const sortLabel = sectionNoun ? `مرتب‌سازی بخش‌های ${sectionNoun}` : 'مرتب‌سازی جدول قیمت';
 
   /** Admin-placed factories, name → position. Built once per prop change so
@@ -585,7 +652,7 @@ export function PriceTable({
   // comparator the old flat table used).
   const bySection = useMemo(() => {
     const map = new Map<string, PriceRow[]>();
-    for (const r of subFiltered) {
+    for (const r of filtered) {
       const key = groupKeyFor(groupMode, r);
       const list = map.get(key);
       if (list) list.push(r);
@@ -618,7 +685,7 @@ export function PriceTable({
       const bv = b.find((r) => !r.current.priceHidden)?.current.price ?? Infinity;
       return av - bv;
     });
-  }, [subFiltered, sort, factoryRank, groupMode]);
+  }, [filtered, sort, factoryRank, groupMode]);
   const sectionIndex = useMemo(
     () => new Map(bySection.map(([name], i) => [name, i] as const)),
     [bySection],
@@ -714,9 +781,9 @@ export function PriceTable({
   );
 
   const updated = rows[0]?.current.updatedAt;
-  // `subFiltered`, not `rows`: the note sits under the sub-category filter and
+  // `filtered`, not `rows`: the note sits under every active filter and
   // describes what is actually on screen.
-  const priceBasis = useMemo(() => singlePriceBasis(subFiltered), [subFiltered]);
+  const priceBasis = useMemo(() => singlePriceBasis(filtered), [filtered]);
   const selectedForCompare = useMemo(() => rows.filter((r) => compareIds.has(r.id)), [rows, compareIds]);
   const exportRows = useMemo(
     () => bySection.flatMap(([, list]) => list),
@@ -771,6 +838,67 @@ export function PriceTable({
             ),
           )}
         </div>
+        {/* سایز/گرید/کارخانه/«فقط قیمت‌دار» — the redesign's second filter
+            row. Each select is omitted when it would offer at most one real
+            choice (nothing to filter), the same rule the per-factory
+            controls below already follow for their own visibility. */}
+        <div className={styles.filters}>
+          {sizeOptions.length > 1 ? (
+            <label className={styles.filterField}>
+              <span className="visually-hidden">{sizeCol}</span>
+              <select
+                value={sizeFilter}
+                onChange={(e) => setSizeFilter(e.target.value)}
+                className={styles.select}
+                aria-label={sizeCol}
+              >
+                <option value="">همهٔ {sizeCol}‌ها</option>
+                {sizeOptions.map((s) => (
+                  <option key={s} value={s}>
+                    {toPersianDigits(s)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+          {gradeColumn && gradeOptions.length > 1 ? (
+            <label className={styles.filterField}>
+              <span className="visually-hidden">{gradeColumn.label}</span>
+              <select
+                value={gradeFilter}
+                onChange={(e) => setGradeFilter(e.target.value)}
+                className={styles.select}
+                aria-label={gradeColumn.label}
+              >
+                <option value="">همهٔ {gradeColumn.label}‌ها</option>
+                {gradeOptions.map((g) => (
+                  <option key={g} value={g}>
+                    {g}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+          {factoryOptions.length > 1 ? (
+            <label className={styles.filterField}>
+              <span className="visually-hidden">کارخانه</span>
+              <select
+                value={factoryFilter}
+                onChange={(e) => setFactoryFilter(e.target.value)}
+                className={styles.select}
+                aria-label="کارخانه"
+              >
+                <option value="">همهٔ کارخانه‌ها</option>
+                {factoryOptions.map((f) => (
+                  <option key={f} value={f}>
+                    {f}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+          <Switch checked={pricedOnly} onChange={setPricedOnly} label="فقط قیمت‌دار" size="sm" />
+        </div>
         <div className={styles.tools}>
           <label className={styles.sort}>
             <SortIcon size={16} />
@@ -786,13 +914,10 @@ export function PriceTable({
               <option value="movement">نوسان</option>
             </select>
           </label>
-          <Switch checked={vat} onChange={setGlobalVat} label="با ارزش‌افزوده" />
-          {/* Page-wide export — every factory at once, in the page-wide VAT
-              state. A section a visitor has individually overridden is NOT
-              re-resolved here: this file is the "everything" export and its
-              subtitle line spells out which of the two numbers it carries, so
-              a recipient can never be misled. The per-section export below
-              follows that section's own toggle. */}
+          {/* One VAT toggle for the whole page — a per-factory override used to
+              sit next to this and could silently disagree with it (the audit's
+              «تکرار کنترل ارزش‌افزوده» finding). */}
+          <Switch checked={vat} onChange={setVat} label="با ارزش‌افزوده" />
           <ExportMenu
             rows={exportRows}
             title={categoryName}
@@ -813,7 +938,7 @@ export function PriceTable({
 
       <div className={styles.meta}>
         <span>
-          {toPersianDigits(subFiltered.length)} کالا
+          {toPersianDigits(filtered.length)} کالا
           {sectionNoun ? ` · ${toPersianDigits(bySection.length)} ${sectionNoun}` : ''}
           {updated ? ` · به‌روزرسانی ${formatJalali(updated)}` : ''}
         </span>
@@ -843,11 +968,14 @@ export function PriceTable({
       <div className={styles.factoryList}>
         {bySection.map(([name, list], i) => {
           const cheapest = list.find((r) => !r.current.priceHidden);
-          const factoryVat = vatFor(name);
           // «قیمت میلگرد کویر کاشان» when the mill is a real distinction,
           // «قیمت پروفیل Z تهران» when the producing city is, and «قیمت پروفیل
           // مبلی» when neither is and this is the page's one table.
           const sectionTitle = sectionNoun ? `${categoryName} ${name}` : categoryName;
+          // Bounded render — see SECTION_ROW_CAP. Only in factory mode, where
+          // `routes.categoryByFactory` is a real page to send the rest to.
+          const capped = categorySlug !== undefined && groupMode === 'factory' && list.length > SECTION_ROW_CAP;
+          const visibleRows = capped ? list.slice(0, SECTION_ROW_CAP) : list;
           return (
             <SectionShell
               key={name}
@@ -862,7 +990,7 @@ export function PriceTable({
                   {cheapest ? (
                     <>
                       {' '}
-                      · از {formatToman(withVat(cheapest.current.price, factoryVat, vatRate), false)}{' '}
+                      · از {formatToman(withVat(cheapest.current.price, vat, vatRate), false)}{' '}
                       تومان
                     </>
                   ) : null}
@@ -870,32 +998,29 @@ export function PriceTable({
               }
             >
               <div className={styles.factoryBody}>
-                {/* Per-factory controls — the toolbar's VAT toggle and export
-                    menu, scoped to this mill only, the way ahanprice.com scopes
-                    theirs by giving each mill its own page. They live in
-                    `factoryBody`, NOT in `<summary>`: a control inside the
-                    summary would swallow clicks the native <details> toggle
-                    needs, and would land in the tab order between the
-                    disclosure and its own content.
+                {/* Per-factory export, scoped to this mill only, the way
+                    ahanprice.com scopes theirs by giving each mill its own
+                    page. Lives in `factoryBody`, NOT in `<summary>`: a control
+                    inside the summary would swallow clicks the native
+                    <details> toggle needs, and would land in the tab order
+                    between the disclosure and its own content.
+
+                    Its own VAT toggle used to sit right beside it — removed
+                    (US redesign): a page can only sensibly have ONE «با
+                    ارزش‌افزوده» switch, so this now follows the page-wide one,
+                    same as everything else on the page.
 
                     Suppressed when there is only one factory — the page-wide
                     toolbar already covers exactly these rows, and a second
-                    identical pair of controls three lines below the first is
-                    noise. Same rule the quick-jump nav above follows. */}
+                    identical export three lines below the first is noise.
+                    Same rule the quick-jump nav above follows. */}
                 {bySection.length > 1 ? (
                   <div className={styles.factoryTools}>
-                    <Switch
-                      size="sm"
-                      checked={factoryVat}
-                      onChange={(next) => setFactoryVat(name, next)}
-                      label="با ارزش‌افزوده"
-                      ariaLabel={`با ارزش‌افزوده — ${name}`}
-                    />
                     <ExportMenu
                       rows={list}
                       title={sectionTitle}
                       categorySlug={categorySlug}
-                      vat={factoryVat}
+                      vat={vat}
                       vatRate={vatRate}
                       compact
                       scopeLabel={name}
@@ -914,6 +1039,13 @@ export function PriceTable({
                       cards it replaced never was. */}
                   <table role="table" className={`${styles.table} tnum`}>
                     <caption className="visually-hidden">قیمت {sectionTitle}</caption>
+                    {/* Reduced to 5 default-visible columns (محصول/کارخانه/سایز/
+                        قیمت/اقدام) per the density audit — ابعاد, گرید/استاندارد/…,
+                        محل تولید, وزن شاخه, نوسان, تاریخ and تحویل all moved into
+                        the per-row «جزئیات» disclosure below rather than staying
+                        permanently-visible columns. They are NOT removed from the
+                        DOM when collapsed (see PriceTableRow) — only hidden the
+                        same way a collapsed factory section already is. */}
                     <thead role="rowgroup">
                       <tr role="row">
                         <th role="columnheader" scope="col">
@@ -923,39 +1055,24 @@ export function PriceTable({
                         <th role="columnheader" scope="col" aria-sort={sort === 'size' ? 'ascending' : 'none'}>
                           {sizeCol}
                         </th>
-                        {/* ورق only — and deliberately NOT sortable: «۱۰۰۰×۲۰۰۰»
-                            is a pair, not a number, so there is no ordering the
-                            `size`/price/movement comparator could honour. */}
-                        {showDimensions ? <th role="columnheader" scope="col">{DIMENSIONS_LABEL}</th> : null}
-                        {attrCols.map((c) => (
-                          <th role="columnheader" key={c.key} scope="col">
-                            {c.label}
-                          </th>
-                        ))}
                         {showFactory ? <th role="columnheader" scope="col">کارخانه</th> : null}
-                        {showRegionColumn ? <th role="columnheader" scope="col">{REGION_LABEL}</th> : null}
-                        <th role="columnheader" scope="col" className={styles.num}>
-                          وزن شاخه
-                        </th>
                         <th role="columnheader" scope="col" className={styles.num} aria-sort={sort === 'price' ? 'ascending' : 'none'}>
                           قیمت (تومان)
                         </th>
-                        <th role="columnheader" scope="col" className={styles.num} aria-sort={sort === 'movement' ? 'descending' : 'none'}>
-                          نوسان
+                        <th role="columnheader" scope="col">
+                          <span className="visually-hidden">جزئیات</span>
                         </th>
-                        <th role="columnheader" scope="col">تاریخ</th>
-                        <th role="columnheader" scope="col">تحویل</th>
                         <th role="columnheader" scope="col" className={styles.actionsCol}>
                           عملیات
                         </th>
                       </tr>
                     </thead>
                     <tbody role="rowgroup">
-                      {list.map((r) => (
+                      {visibleRows.map((r) => (
                         <PriceTableRow
                           key={r.id}
                           row={r}
-                          vat={factoryVat}
+                          vat={vat}
                           vatRate={vatRate}
                           isFav={fav.has(r.id)}
                           compareChecked={compareIds.has(r.id)}
@@ -976,6 +1093,14 @@ export function PriceTable({
                   {/* eslint-enable jsx-a11y/no-redundant-roles */}
                 </div>
 
+                {capped ? (
+                  <Link
+                    href={routes.categoryByFactory(categorySlug!, factoryFacetSlug(name))}
+                    className={styles.moreRows}
+                  >
+                    مشاهدهٔ همهٔ {toPersianDigits(list.length)} مورد {name}
+                  </Link>
+                ) : null}
               </div>
             </SectionShell>
           );

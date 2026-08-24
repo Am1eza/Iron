@@ -60,15 +60,27 @@ const TWO_FACTORIES = [row('kavir-14', KAVIR, 500_000), row('zob-14', ZOB, 600_0
  *  DOM with CSS hiding one. */
 const pricesOnScreen = () => screen.queryAllByText(/^[۰-۹٬]+$/).map((n) => n.textContent);
 
+/** The «بیشتر» export disclosure's `<summary>` trigger, found directly rather
+ *  than through a role query — `<summary>` has no reliably-recognised ARIA
+ *  role across environments, so structural presence/absence and open/close
+ *  go through the DOM node itself. */
+function exportTrigger(scopeLabel?: string): HTMLElement | null {
+  const label = scopeLabel ? `بیشتر ${scopeLabel}` : 'بیشتر';
+  return document.querySelector<HTMLElement>(`summary[aria-label="${label}"]`);
+}
+function openExportMenu(scopeLabel?: string) {
+  fireEvent.click(exportTrigger(scopeLabel)!);
+}
+
 describe('PriceTable — per-factory controls', () => {
-  it('gives every factory section its own VAT toggle and export menu', () => {
+  it('gives every factory section its own export menu, alongside the page-wide one', () => {
     renderTable(TWO_FACTORIES);
     for (const factory of [KAVIR, ZOB]) {
-      expect(screen.getByRole('switch', { name: `با ارزش‌افزوده — ${factory}` })).toBeInTheDocument();
+      expect(exportTrigger(factory)).not.toBeNull();
+      openExportMenu(factory);
       expect(screen.getByRole('group', { name: `خروجی جدول ${factory}` })).toBeInTheDocument();
     }
-    // …alongside, not instead of, the page-wide pair.
-    expect(screen.getByRole('switch', { name: 'با ارزش‌افزوده' })).toBeInTheDocument();
+    openExportMenu();
     expect(screen.getByRole('group', { name: 'خروجی جدول' })).toBeInTheDocument();
   });
 
@@ -76,6 +88,7 @@ describe('PriceTable — per-factory controls', () => {
     // Three identical «اکسل» buttons per page was the whole a11y problem: the
     // visible text stays short, the accessible name carries the scope.
     renderTable(TWO_FACTORIES);
+    openExportMenu(ZOB);
     const menu = screen.getByRole('group', { name: `خروجی جدول ${ZOB}` });
     for (const label of ['اکسل', 'چاپ', 'تصویر']) {
       const btn = within(menu).getByRole('button', { name: `${label} ${ZOB}` });
@@ -84,68 +97,46 @@ describe('PriceTable — per-factory controls', () => {
     }
   });
 
-  it('applies a factory toggle to that factory only, leaving the others bare', () => {
+  it('omits the per-factory export when there is only one factory', () => {
+    // The page-wide toolbar already covers exactly these rows; a second
+    // identical export three lines below it is noise. Same rule the
+    // quick-jump nav follows.
+    renderTable([row('kavir-14', KAVIR, 500_000), row('kavir-16', KAVIR, 510_000)]);
+    expect(exportTrigger(KAVIR)).toBeNull();
+    expect(exportTrigger()).not.toBeNull();
+  });
+
+  it('keeps the per-factory export out of the section <summary>, where it would fight the disclosure', () => {
+    renderTable(TWO_FACTORIES);
+    const trigger = exportTrigger(KAVIR)!;
+    // CSS Modules hash class names but keep the source name as a substring
+    // (`_factoryBody_xxxxxx`), so a `[class*=…]` match survives the hash.
+    expect(trigger.closest('[class*="factoryBody"]')).not.toBeNull();
+    expect(trigger.closest('[class*="factorySummary"]')).toBeNull();
+  });
+
+  it('has exactly one «با ارزش‌افزوده» switch on the page — no per-factory copy', () => {
+    // The audit's finding: a per-factory VAT override sat next to the
+    // page-wide one and could silently disagree with it. There is now one
+    // switch, full stop.
+    renderTable(TWO_FACTORIES);
+    expect(screen.getAllByRole('switch', { name: 'با ارزش‌افزوده' })).toHaveLength(1);
+    for (const factory of [KAVIR, ZOB]) {
+      expect(screen.queryByRole('switch', { name: `با ارزش‌افزوده — ${factory}` })).toBeNull();
+    }
+  });
+
+  it('moves every section at once from the one page-wide toggle', () => {
     renderTable(TWO_FACTORIES);
     expect(pricesOnScreen()).toContain('۵۰۰٬۰۰۰');
     expect(pricesOnScreen()).toContain('۶۰۰٬۰۰۰');
 
-    fireEvent.click(screen.getByRole('switch', { name: `با ارزش‌افزوده — ${KAVIR}` }));
+    fireEvent.click(screen.getByRole('switch', { name: 'با ارزش‌افزوده' }));
 
     const after = pricesOnScreen();
     expect(after).toContain('۵۵۰٬۰۰۰'); // کویر, +۱۰٪
-    expect(after).toContain('۶۰۰٬۰۰۰'); // ذوب آهن, untouched
+    expect(after).toContain('۶۶۰٬۰۰۰'); // ذوب آهن, +۱۰٪
     expect(after).not.toContain('۵۰۰٬۰۰۰');
-  });
-
-  it('moves every section at once from the page-wide toggle', () => {
-    renderTable(TWO_FACTORIES);
-    fireEvent.click(screen.getByRole('switch', { name: 'با ارزش‌افزوده' }));
-    const after = pricesOnScreen();
-    expect(after).toContain('۵۵۰٬۰۰۰');
-    expect(after).toContain('۶۶۰٬۰۰۰');
-  });
-
-  it('lets the page-wide toggle win over a section a visitor had already changed', () => {
-    // Otherwise a section overridden ten minutes ago silently keeps disagreeing
-    // with the switch just flipped, with nothing on screen to explain why.
-    renderTable(TWO_FACTORIES);
-    fireEvent.click(screen.getByRole('switch', { name: `با ارزش‌افزوده — ${KAVIR}` }));
-    expect(pricesOnScreen()).toContain('۵۵۰٬۰۰۰');
-
-    // Page-wide ON: both sections show VAT, including the overridden one…
-    fireEvent.click(screen.getByRole('switch', { name: 'با ارزش‌افزوده' }));
-    expect(pricesOnScreen()).toEqual(expect.arrayContaining(['۵۵۰٬۰۰۰', '۶۶۰٬۰۰۰']));
-
-    // …and page-wide OFF takes it back down again rather than stranding it.
-    fireEvent.click(screen.getByRole('switch', { name: 'با ارزش‌افزوده' }));
-    const after = pricesOnScreen();
-    expect(after).toContain('۵۰۰٬۰۰۰');
-    expect(after).toContain('۶۰۰٬۰۰۰');
-    expect(after).not.toContain('۵۵۰٬۰۰۰');
-  });
-
-  it('keeps the section switch in sync with the page-wide one it follows', () => {
-    renderTable(TWO_FACTORIES);
-    fireEvent.click(screen.getByRole('switch', { name: 'با ارزش‌افزوده' }));
-    for (const factory of [KAVIR, ZOB]) {
-      expect(screen.getByRole('switch', { name: `با ارزش‌افزوده — ${factory}` })).toBeChecked();
-    }
-  });
-
-  it('omits the per-factory controls when there is only one factory', () => {
-    // The page-wide toolbar already covers exactly these rows; a second
-    // identical pair three lines below it is noise. Same rule the quick-jump
-    // nav follows.
-    renderTable([row('kavir-14', KAVIR, 500_000), row('kavir-16', KAVIR, 510_000)]);
-    expect(screen.queryByRole('switch', { name: `با ارزش‌افزوده — ${KAVIR}` })).toBeNull();
-    expect(screen.queryByRole('group', { name: `خروجی جدول ${KAVIR}` })).toBeNull();
-    expect(screen.getByRole('switch', { name: 'با ارزش‌افزوده' })).toBeInTheDocument();
-  });
-
-  it('keeps the controls out of <summary>, where they would fight the disclosure', () => {
-    renderTable(TWO_FACTORIES);
-    const toggle = screen.getByRole('switch', { name: `با ارزش‌افزوده — ${KAVIR}` });
-    expect(toggle.closest('summary')).toBeNull();
-    expect(toggle.closest('details')).not.toBeNull();
+    expect(after).not.toContain('۶۰۰٬۰۰۰');
   });
 });

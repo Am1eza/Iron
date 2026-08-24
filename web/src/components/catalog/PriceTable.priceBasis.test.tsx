@@ -102,16 +102,16 @@ describe('PriceTable — the price-basis caption', () => {
     expect(unitCaptions().some((c) => /کیلوگرم ۶ متری/.test(c ?? ''))).toBe(false);
   });
 
-  it('renders «نامشخص» in the weight column for a whole-item row rather than something broken', () => {
+  it('renders «نامشخص» in وزن شاخه for a whole-item row rather than something broken', () => {
     // A کوپلر has no branch weight, and the backfill deliberately stores null.
+    // «وزن شاخه» moved off the always-visible columns into the row's «جزئیات»
+    // disclosure (always in the DOM — see PriceTableRow — so no need to open
+    // it here).
     renderTable([row('کوپلر ۲۰', 'piece', 'piece')]);
-    const table = screen.getByRole('table');
-    const headers = within(table).getAllByRole('columnheader');
-    const weightCol = headers.findIndex((h) => h.textContent?.includes('وزن'));
-    expect(weightCol).toBeGreaterThan(-1);
     const tr = screen.getByRole('rowheader', { name: 'کوپلر ۲۰' }).closest('tr')!;
-    // -1: the rowheader occupies a cell that is not in the `td` list.
-    expect(tr.querySelectorAll('td')[weightCol - 1]?.textContent).toBe('نامشخص');
+    const detail = tr.nextElementSibling as HTMLElement;
+    const dt = within(detail).getByText('وزن شاخه');
+    expect(dt.nextElementSibling?.textContent).toBe('نامشخص');
   });
 
   it('prints the page-wide note in «عدد» when every row is piece-priced', () => {

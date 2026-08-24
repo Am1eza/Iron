@@ -62,3 +62,16 @@
 .remove:hover {
   color: var(--color-loss);
 }
+
+/* WCAG 2.5.8 — coarse pointers only, so the compact 36px chip used across
+   dense desktop filter rows is untouched; the price-table UX audit measured
+   this chip at ~30px tall on a touch viewport. */
+@media (pointer: coarse) {
+  .main {
+    min-block-size: 44px;
+  }
+  .remove {
+    inline-size: 36px;
+    block-size: 44px;
+  }
+}

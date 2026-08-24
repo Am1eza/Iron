@@ -20,9 +20,9 @@ export function Switch({
   label: string;
   hideLabel?: boolean;
   disabled?: boolean;
-  /** `sm` is a lighter track for a *secondary* copy of a control that already
-   *  exists elsewhere on the page — PriceTable's per-factory VAT toggles sit
-   *  under a page-wide one and must not compete with it. */
+  /** `sm` is a lighter track for a secondary toggle riding alongside a more
+   *  important control on the same bar — PriceTable's «فقط قیمت‌دار» filter
+   *  sits next to the VAT switch and must not compete with it. */
   size?: 'md' | 'sm';
   /** Overrides the accessible name when the same visible label repeats many
    *  times on one page (one VAT toggle per factory section), so a screen-reader

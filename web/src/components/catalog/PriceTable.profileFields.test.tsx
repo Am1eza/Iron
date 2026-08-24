@@ -93,7 +93,7 @@ function renderTable(rows: PriceRow[] = ROWS, initialSub: string | null = null) 
   );
 }
 
-/** The cell under a named column for a given product row. */
+/** The cell under a still-top-level column (کارخانه) for a given product row. */
 function cellFor(product: string, column: string): string {
   const tr = screen.getByRole('rowheader', { name: product }).closest('tr')!;
   const headers = within(tr.closest('table')!).getAllByRole('columnheader');
@@ -103,6 +103,23 @@ function cellFor(product: string, column: string): string {
   // `<th scope="row">`, so the Nth header maps to the (N-1)th `<td>`.
   return tr.querySelectorAll('td')[col - 1]?.textContent ?? '';
 }
+
+/** The «جزئیات» disclosure `<tr>` that follows a product's own row — always
+ *  in the DOM (see PriceTableRow), so reading from it needs no click. گرید/
+ *  استاندارد/آلیاژ/طول شاخه/طول سفارشی/محل تولید all moved here off the
+ *  always-visible columns (density redesign). */
+function detailFor(product: string): HTMLElement {
+  return screen.getByRole('rowheader', { name: product }).closest('tr')!.nextElementSibling as HTMLElement;
+}
+function detailValueFor(product: string, label: string): string | null {
+  const dt = within(detailFor(product)).queryByText(label);
+  return dt ? (dt.nextElementSibling?.textContent ?? null) : null;
+}
+
+/** Only the disclosures `SectionShell` draws per factory/region — distinct
+ *  from `ExportMenu`'s own «بیشتر» `<details>`, which exists on every render
+ *  regardless of whether the page has sections at all. */
+const factorySectionDetails = () => document.querySelectorAll('details[id^="factory-section-"]');
 
 describe('PriceTable — پروفیل, once the fabricated factory is gone', () => {
   it('drops the column, the sections and the mill count on a stripped sub', async () => {
@@ -114,7 +131,7 @@ describe('PriceTable — پروفیل, once the fabricated factory is gone', () 
     // Not merely an unlabelled section: no disclosure at all. A `<details>`
     // wrapping the page's only table is an affordance that opens and closes
     // everything on screen.
-    expect(document.querySelector('details')).toBeNull();
+    expect(factorySectionDetails().length).toBe(0);
     expect(screen.queryByRole('navigation', { name: 'پرش به کارخانه' })).toBeNull();
     expect(screen.queryByText(/کارخانه/)).toBeNull();
     // The table is still there, headed by the product, not by a mill.
@@ -128,10 +145,10 @@ describe('PriceTable — پروفیل, once the fabricated factory is gone', () 
 
     expect(screen.getByRole('columnheader', { name: 'کارخانه' })).toBeInTheDocument();
     expect(cellFor('sakhtmani-40', 'کارخانه')).toBe('فولاد مشهد');
-    expect(document.querySelector('details')).not.toBeNull();
+    expect(factorySectionDetails().length).toBeGreaterThan(0);
     expect(screen.getByRole('heading', { name: 'قیمت پروفیل فولاد مشهد' })).toBeInTheDocument();
     // …and it still keeps «گرید» — this sub was left alone entirely.
-    expect(cellFor('sakhtmani-40', 'گرید')).toBe('ST37');
+    expect(detailValueFor('sakhtmani-40', 'گرید')).toBe('ST37');
   });
 
   it('keeps the column in the mixed «همه» view, because ساختمانی is in it', () => {
@@ -148,7 +165,7 @@ describe('PriceTable — پروفیل, once the fabricated factory is gone', () 
   it('drops it from the mixed view too once no visible row has a mill', () => {
     renderTable(ROWS.filter((r) => !r.factory));
     expect(screen.queryByRole('columnheader', { name: 'کارخانه' })).toBeNull();
-    expect(document.querySelector('details')).toBeNull();
+    expect(factorySectionDetails().length).toBe(0);
   });
 });
 
@@ -158,14 +175,8 @@ describe('PriceTable — the پروفیل گرید → طول/آلیاژ replace
     renderTable();
     await user.click(screen.getByRole('button', { name: 'پروفیل صنعتی' }));
 
-    expect(screen.getByRole('columnheader', { name: 'طول شاخه' })).toBeInTheDocument();
-    expect(screen.queryByRole('columnheader', { name: 'گرید' })).toBeNull();
-    expect(cellFor('sanati-80', 'طول شاخه')).toBe('۶ متر');
-    // The card form labels the same cell from its own `data-label` — there is
-    // no second, card-only copy of the row rendering that line as text.
-    expect(
-      document.querySelector('td[data-label="طول شاخه"]')?.getAttribute('data-label'),
-    ).toBe('طول شاخه');
+    expect(detailValueFor('sanati-80', 'طول شاخه')).toBe('۶ متر');
+    expect(detailValueFor('sanati-80', 'گرید')).toBeNull();
   });
 
   it('gives Z «طول سفارشی» — a cut-to-order product, not a stock length', async () => {
@@ -173,11 +184,10 @@ describe('PriceTable — the پروفیل گرید → طول/آلیاژ replace
     renderTable();
     await user.click(screen.getByRole('button', { name: 'پروفیل Z' }));
 
-    expect(screen.getByRole('columnheader', { name: 'طول سفارشی' })).toBeInTheDocument();
-    expect(screen.queryByRole('columnheader', { name: 'طول شاخه' })).toBeNull();
-    expect(screen.queryByRole('columnheader', { name: 'گرید' })).toBeNull();
     // An empty length is the ANSWER here, so it must not read «نامشخص».
-    expect(cellFor('z-30', 'طول سفارشی')).toBe('بر اساس سفارش');
+    expect(detailValueFor('z-30', 'طول سفارشی')).toBe('بر اساس سفارش');
+    expect(detailValueFor('z-30', 'طول شاخه')).toBeNull();
+    expect(detailValueFor('z-30', 'گرید')).toBeNull();
   });
 
   it('gives استیل BOTH «آلیاژ» and «طول شاخه»', async () => {
@@ -185,11 +195,9 @@ describe('PriceTable — the پروفیل گرید → طول/آلیاژ replace
     renderTable();
     await user.click(screen.getByRole('button', { name: 'پروفیل استیل' }));
 
-    expect(screen.getByRole('columnheader', { name: 'آلیاژ' })).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: 'طول شاخه' })).toBeInTheDocument();
-    expect(screen.queryByRole('columnheader', { name: 'گرید' })).toBeNull();
-    expect(cellFor('steel-50', 'آلیاژ')).toBe('۳۰۴');
-    expect(cellFor('steel-50', 'طول شاخه')).toBe('۶ متر');
+    expect(detailValueFor('steel-50', 'آلیاژ')).toBe('۳۰۴');
+    expect(detailValueFor('steel-50', 'طول شاخه')).toBe('۶ متر');
+    expect(detailValueFor('steel-50', 'گرید')).toBeNull();
   });
 
   it('leaves مبلی, ستونی and گالوانیزه on the untouched «گرید» column', async () => {
@@ -201,23 +209,21 @@ describe('PriceTable — the پروفیل گرید → طول/آلیاژ replace
       ['پروفیل گالوانیزه', 'galvanizeh-20'],
     ] as const) {
       await user.click(screen.getByRole('button', { name: sub }));
-      expect(screen.getByRole('columnheader', { name: 'گرید' })).toBeInTheDocument();
-      expect(screen.queryByRole('columnheader', { name: 'طول شاخه' })).toBeNull();
-      expect(screen.queryByRole('columnheader', { name: 'طول سفارشی' })).toBeNull();
       // Empty, exactly as before — the owner asked for no change here, and an
       // unfilled grade is «نامشخص», not a dash.
-      expect(cellFor(product, 'گرید')).toBe('نامشخص');
+      expect(detailValueFor(product, 'گرید')).toBe('نامشخص');
+      expect(detailValueFor(product, 'طول شاخه')).toBeNull();
+      expect(detailValueFor(product, 'طول سفارشی')).toBeNull();
     }
   });
 
   it('dashes the mixed view’s «گرید» for rows that traded it away', () => {
     renderTable();
-    expect(screen.getAllByRole('columnheader', { name: 'گرید' }).length).toBeGreaterThan(0);
-    expect(cellFor('mobli-60', 'گرید')).toBe('نامشخص');
+    expect(detailValueFor('mobli-60', 'گرید')).toBe('نامشخص');
     // «—», not «نامشخص»: صنعتی/Z/استیل have no grade to be missing.
-    expect(cellFor('sanati-80', 'گرید')).toBe('—');
-    expect(cellFor('z-30', 'گرید')).toBe('—');
-    expect(cellFor('steel-50', 'گرید')).toBe('—');
+    expect(detailValueFor('sanati-80', 'گرید')).toBe('—');
+    expect(detailValueFor('z-30', 'گرید')).toBe('—');
+    expect(detailValueFor('steel-50', 'گرید')).toBe('—');
   });
 });
 
@@ -269,9 +275,9 @@ describe('PriceTable — پروفیل grouped by محل تولید', () => {
     // used to, because a second card-only copy of every row existed and was
     // (wrongly) assumed to be heading-less; that copy is gone.
     expect(screen.getByRole('heading', { name: 'قیمت پروفیل تهران' })).toBeInTheDocument();
-    // …and the column is NOT drawn either: the headings already say it.
-    expect(screen.queryByRole('columnheader', { name: 'محل تولید' })).toBeNull();
-    expect(screen.queryByText(/^محل تولید: /)).toBeNull();
+    // …and it is NOT drawn again as a detail field either: the headings
+    // already say it.
+    expect(detailValueFor('z-20', 'محل تولید')).toBeNull();
   });
 
   it('falls back to one flat table when too few rows resolve to a city', () => {
@@ -289,14 +295,13 @@ describe('PriceTable — پروفیل grouped by محل تولید', () => {
       'profil-galvanizeh',
     );
 
-    expect(document.querySelector('details')).toBeNull();
+    expect(factorySectionDetails().length).toBe(0);
     expect(screen.queryByRole('navigation', { name: 'پرش به محل تولید' })).toBeNull();
     expect(screen.getByRole('table', { name: 'قیمت پروفیل' })).toBeInTheDocument();
     // …but the city the one resolved row DOES know is not thrown away: it
-    // becomes a column instead of a heading.
-    expect(screen.getByRole('columnheader', { name: 'محل تولید' })).toBeInTheDocument();
-    expect(cellFor('g-20', 'محل تولید')).toBe('اصفهان');
-    expect(cellFor('g-30', 'محل تولید')).toBe('نامشخص');
+    // becomes a detail field instead of a heading.
+    expect(detailValueFor('g-20', 'محل تولید')).toBe('اصفهان');
+    expect(detailValueFor('g-30', 'محل تولید')).toBe('نامشخص');
   });
 
   it('still sections a sub whose every row resolves to the one city', () => {
@@ -306,7 +311,7 @@ describe('PriceTable — پروفیل grouped by محل تولید', () => {
     renderTable([row('sanati-80', 'prvfyl-snaty', { region: 'اصفهان', branchLengthM: 6 })], 'prvfyl-snaty');
 
     expect(screen.getByRole('heading', { name: 'قیمت پروفیل اصفهان' })).toBeInTheDocument();
-    expect(cellFor('sanati-80', 'طول شاخه')).toBe('۶ متر');
+    expect(detailValueFor('sanati-80', 'طول شاخه')).toBe('۶ متر');
   });
 
   it('lets a real mill outrank the region grouping when both are present', () => {
@@ -321,9 +326,8 @@ describe('PriceTable — پروفیل grouped by محل تولید', () => {
 
     expect(screen.getByRole('heading', { name: 'قیمت پروفیل فولاد مشهد' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'قیمت پروفیل سایر' })).toBeInTheDocument();
-    // No region anywhere — not as sections, not as a column, not on a card.
+    // No region anywhere — not as sections, not as a detail field.
     expect(screen.queryByRole('navigation', { name: 'پرش به محل تولید' })).toBeNull();
-    expect(screen.queryByRole('columnheader', { name: 'محل تولید' })).toBeNull();
-    expect(screen.queryByText(/^محل تولید: /)).toBeNull();
+    expect(detailValueFor('z-20', 'محل تولید')).toBeNull();
   });
 });

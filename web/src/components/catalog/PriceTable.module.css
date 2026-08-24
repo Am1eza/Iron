@@ -4,13 +4,36 @@
   gap: var(--space-4);
 }
 
-/* ===== Toolbar ===== */
+/* ===== Toolbar — the single sticky filter/search bar =====
+   Consolidates what used to be scattered across the page header (type tabs,
+   sort, VAT toggle, three export buttons) into one bar that stays reachable
+   while the table scrolls underneath it. Sticks just below the site header
+   (68px — Header.module.css's `.inner` block-size); `--z-sticky` matches the
+   header's own stacking context since the two never overlap spatially. */
 .toolbar {
+  position: sticky;
+  inset-block-start: 68px;
+  z-index: var(--z-sticky);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-block: var(--space-3);
+  background: var(--color-surface);
+  border-block-end: var(--border-hairline) solid var(--color-hairline);
+}
+/* «سایز»/«گرید»/«کارخانه»/«فقط قیمت‌دار» — new in the redesign. */
+.filters {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
+  gap: var(--space-3);
   flex-wrap: wrap;
+}
+.filterField {
+  display: inline-flex;
+}
+.filters .select {
+  min-inline-size: 8rem;
+  max-inline-size: 12rem;
 }
 .subs {
   display: flex;
@@ -209,8 +232,6 @@
 }
 .compareCell,
 .priceCell,
-.movementCell,
-.deliveryCell,
 /* The «نامشخص» placeholder stays on desktop: a column that skipped a row
    would put every cell after it out of line. Only the card form drops it. */
 .blankOnNarrow {
@@ -220,9 +241,78 @@
   display: table-cell;
   white-space: nowrap;
 }
+.detailToggleCell {
+  display: table-cell;
+  text-align: center;
+}
 .actionsCell {
   display: table-cell;
   text-align: center;
+}
+.detailChevronOpen {
+  transform: rotate(180deg);
+}
+
+/* ===== «جزئیات» — the per-row disclosure that replaced 6 always-visible
+   columns (ابعاد/گرید‌وغیره/محل‌تولید/وزن‌شاخه/نوسان/تاریخ/تحویل). Always in
+   the DOM (see PriceTableRow); `display: none` is the only thing collapsing
+   it, so it never affects crawlability. ===== */
+/* `.table tbody tr` prefix (not just `.detailRow`) to outrank the ≤767px
+   card rule below at equal or higher specificity — same convention every
+   other reflow override in this file follows. */
+.table tbody tr.detailRow {
+  display: none;
+}
+.table tbody tr.detailRow.detailOpen {
+  display: table-row;
+}
+.detailCell {
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface-sunken);
+}
+.detailList {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+}
+.detailItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-inline-size: 6rem;
+}
+.detailItem dt {
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}
+.detailItem dd {
+  margin: 0;
+  font: var(--t-body-sm);
+  color: var(--color-text);
+}
+
+/* ===== «مشاهدهٔ همه» — the row-cap's escape hatch to the full per-factory
+   page (SECTION_ROW_CAP in PriceTable.tsx). ===== */
+.moreRows {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 44px;
+  padding-inline: var(--space-4);
+  border: var(--border-hairline) solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--color-accent-text);
+  font: var(--t-label);
+  text-decoration: none;
+}
+.moreRows:hover {
+  background: var(--color-surface-sunken);
+  text-decoration: underline;
+}
+.moreRows:focus-visible {
+  outline: var(--border-focus) solid var(--color-focus);
+  outline-offset: 2px;
 }
 .addBtnLabel {
   white-space: nowrap;
@@ -367,8 +457,39 @@
   .table tbody td.priceCell .rowBasis {
     display: none;
   }
-  .table tbody td.movementCell {
+  .table tbody td.detailToggleCell {
     order: 3;
+    padding: 0;
+  }
+  /* «جزئیات» attaches directly under the card it belongs to instead of
+     reading as its own separate card — cancels the tbody `gap` and drops the
+     shared border/radius on the edge that touches the row above. */
+  .table tbody tr.detailRow.detailOpen {
+    display: block;
+    margin-block-start: calc(-1 * var(--space-3));
+    border: var(--border-hairline) solid var(--color-hairline);
+    border-block-start: 0;
+    border-start-start-radius: 0;
+    border-start-end-radius: 0;
+    border-end-start-radius: var(--radius-md);
+    border-end-end-radius: var(--radius-md);
+    padding: 0;
+    background: var(--color-surface);
+  }
+  .table tbody tr.detailRow .detailCell {
+    display: block;
+    padding: var(--space-3) var(--space-4);
+  }
+  .table tbody tr.detailRow .detailList {
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  .table tbody tr.detailRow .detailItem {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--space-3);
+    min-inline-size: 0;
   }
   .table tbody td.actionsCell {
     order: 5;
@@ -519,26 +640,19 @@
   gap: var(--space-3);
 }
 
-/* This section's own VAT toggle + export menu, sitting between the summary and
-   the table it acts on. Deliberately the quietest row in the section: no
-   surface of its own, caption type, muted text — the factory name and the
-   price column stay the loudest things here. `space-between` puts the toggle
-   at the reading edge and the exports at the far edge, mirroring the page-wide
-   toolbar's arrangement so the two read as the same control at two scales. */
+/* This section's own export menu, sitting between the summary and the table
+   it acts on — quiet, no surface of its own, so the factory name and the
+   price column stay the loudest things here. Used to also hold this
+   section's own VAT toggle (removed — a page has one «با ارزش‌افزوده»
+   switch now), which is why this no longer needs `justify-content:
+   space-between` to keep two clusters apart. */
 .factoryTools {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   flex-wrap: wrap;
   gap: var(--space-2) var(--space-3);
   padding-block-end: var(--space-1);
-}
-@media (max-width: 420px) {
-  /* Narrow phones: the two clusters stop fighting for one line and stack,
-     toggle first. `space-between` on a wrapped column would push them apart. */
-  .factoryTools {
-    justify-content: flex-start;
-  }
 }
 
 /* ===== Compare modal (US-02.9) ===== */
@@ -564,4 +678,23 @@
   position: sticky;
   inset-inline-start: 0;
   background: var(--color-surface);
+}
+
+/* ===== Touch targets (WCAG 2.5.8) — coarse pointers only, so desktop mouse
+   density is untouched. Targets the actual audit numbers: the compare
+   checkbox measured ~13×13px and the filter/sort selects had no explicit
+   height at all. Chip's own ~30px-tall filter chips are fixed once, in
+   Chip.module.css, since that component is shared well beyond this table. */
+@media (pointer: coarse) {
+  /* A native checkbox this large is unusual, but it is a `pointer: coarse`
+     -only rule — it never reaches a mouse user — and the alternative
+     (padding a click target around a visually-small box) would need a
+     `<label>` wrapper this markup doesn't have. */
+  .compareCell input[type='checkbox'] {
+    inline-size: 44px;
+    block-size: 44px;
+  }
+  .select {
+    min-block-size: 44px;
+  }
 }

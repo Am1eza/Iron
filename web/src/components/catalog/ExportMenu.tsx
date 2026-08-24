@@ -11,7 +11,7 @@ import { formatJalali } from '@/lib/utils/jalali';
 import { sizeLabel, usesDimensions, DIMENSIONS_LABEL, REGION_LABEL } from '@/lib/utils/catalogLabels';
 import { CONSTANTS } from '@/lib/config/constants';
 import type { PriceRow } from '@/lib/types/domain';
-import { SheetIcon, PrintIcon, ImageIcon } from '@/components/primitives/icons';
+import { SheetIcon, PrintIcon, ImageIcon, MoreIcon, ChevronDownIcon } from '@/components/primitives/icons';
 import styles from './ExportMenu.module.css';
 
 /** The xls and print outputs are built by string-concatenating into HTML, and
@@ -278,22 +278,31 @@ export function ExportMenu({
   // CONTAIN the visible text, not replace it (WCAG 2.2 §2.5.3 Label in Name),
   // which is why the factory name is appended rather than substituted.
   const scoped = (label: string) => (scopeLabel ? `${label} ${scopeLabel}` : undefined);
+  const groupLabel = scopeLabel ? `خروجی جدول ${scopeLabel}` : 'خروجی جدول';
   const iconSize = compact ? 16 : 18;
   return (
-    <div
-      className={compact ? `${styles.menu} ${styles.compact}` : styles.menu}
-      role="group"
-      aria-label={scopeLabel ? `خروجی جدول ${scopeLabel}` : 'خروجی جدول'}
-    >
-      <button type="button" className={styles.btn} onClick={exportXls} aria-label={scoped('اکسل')}>
-        <SheetIcon size={iconSize} /> <span>اکسل</span>
-      </button>
-      <button type="button" className={styles.btn} onClick={print} aria-label={scoped('چاپ')}>
-        <PrintIcon size={iconSize} /> <span>چاپ</span>
-      </button>
-      <button type="button" className={styles.btn} onClick={exportImage} aria-label={scoped('تصویر')}>
-        <ImageIcon size={iconSize} /> <span>تصویر</span>
-      </button>
-    </div>
+    // «بیشتر» overflow (US redesign) — was three always-visible buttons,
+    // consolidated into one disclosure the same way the factory sections
+    // above use <details>. The `role="group"` panel keeps its original
+    // accessible name, so a screen-reader user who opens it hears exactly
+    // what they did before this changed.
+    <details className={compact ? `${styles.menu} ${styles.compact}` : styles.menu}>
+      <summary className={styles.trigger} aria-label={scoped('بیشتر') ?? 'بیشتر'}>
+        <MoreIcon size={iconSize} />
+        <span>بیشتر</span>
+        <ChevronDownIcon size={14} className={styles.chevron} aria-hidden="true" />
+      </summary>
+      <div className={styles.panel} role="group" aria-label={groupLabel}>
+        <button type="button" className={styles.btn} onClick={exportXls} aria-label={scoped('اکسل')}>
+          <SheetIcon size={iconSize} /> <span>اکسل</span>
+        </button>
+        <button type="button" className={styles.btn} onClick={print} aria-label={scoped('چاپ')}>
+          <PrintIcon size={iconSize} /> <span>چاپ</span>
+        </button>
+        <button type="button" className={styles.btn} onClick={exportImage} aria-label={scoped('تصویر')}>
+          <ImageIcon size={iconSize} /> <span>تصویر</span>
+        </button>
+      </div>
+    </details>
   );
 }
