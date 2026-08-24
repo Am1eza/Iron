@@ -118,9 +118,23 @@
   font: var(--t-caption);
   color: var(--color-text-muted);
 }
+/* Same quiet hairline-badge treatment `PriceParts`' DeliveryBadge uses, so
+   "how fresh is this price" reads as a trust signal on par with «نوسان» and
+   «زمان تحویل» right next to it, not a footnote (design/UX audit — was a lone
+   `--t-caption`/`--color-text-muted` paragraph below the VAT row). */
 .updated {
-  margin: 0;
-  font: var(--t-caption);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 3px var(--space-2);
+  border-radius: var(--radius-sm);
+  border: var(--border-hairline) solid var(--color-hairline);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: var(--t-label);
+  white-space: nowrap;
+}
+.updated svg {
   color: var(--color-text-muted);
 }
 
