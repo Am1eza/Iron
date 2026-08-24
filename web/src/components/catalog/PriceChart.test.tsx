@@ -22,7 +22,7 @@ describe('PriceChart — area fill traces the line, not a diagonal across the wh
     expect(areaD.startsWith(lineD)).toBe(true);
 
     const tail = areaD.slice(lineD.length).trim();
-    const closingCommands = tail.match(/L [\d.]+ 212(?:\.0)?/g);
+    const closingCommands = tail.match(/L [\d.]+ 152(?:\.0)?/g);
     expect(closingCommands).toHaveLength(2);
 
     // The FIRST closing command must share its x with the LAST point on the

@@ -205,6 +205,28 @@ export async function priceSeries(skuSlug: string, currentPrice: number, days = 
   return points.map((p) => p.price);
 }
 
+/**
+ * Same series as `priceSeries`, plus the real per-point date `PriceChart`
+ * needs for its x-axis and hover tooltip. Split out rather than changing
+ * `priceSeries`'s return shape because `PriceTable`'s comparison-modal chart
+ * calls that one and has no use for dates.
+ *
+ * `dates` is omitted in mock mode: `mock.priceSeries` is one point per
+ * *consecutive* day ending today, which is exactly what `PriceChart`'s own
+ * date-reconstruction fallback assumes — real `price_points` skip non-trading
+ * days, so only live mode needs the real timestamps.
+ */
+export async function priceSeriesWithDates(
+  skuSlug: string,
+  currentPrice: number,
+  days = 365,
+): Promise<{ series: number[]; dates?: string[] }> {
+  if (!live()) return { series: mock.priceSeries(skuSlug, currentPrice, days) };
+  const range = days <= 7 ? '7d' : days <= 30 ? '30d' : days <= 90 ? '90d' : '1y';
+  const points = await repo.skuHistory(skuSlug, range);
+  return { series: points.map((p) => p.price), dates: points.map((p) => p.at) };
+}
+
 export async function searchAll(q: string): Promise<{ skus: PriceRow[]; articles: Article[] }> {
   if (!live()) {
     const needle = normalizeDigits(q.trim()).toLowerCase();

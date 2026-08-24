@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { buildMetadata, productJsonLd } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { allRows } from '@/lib/mock/catalogData';
-import { findSku, relatedRows, priceSeries, getRows, getCategories, getBilletReference, getSubsMap } from '@/lib/server/catalog';
+import { findSku, relatedRows, priceSeriesWithDates, getRows, getCategories, getBilletReference, getSubsMap } from '@/lib/server/catalog';
 import { formatToman, priceHiddenLabel } from '@/lib/utils/format';
 import { priceBasisNoun } from '@/lib/utils/catalogLabels';
 import { productImage } from '@/lib/data/productImages';
@@ -50,10 +50,10 @@ export default async function SkuPage({ params }: Params) {
   const row = await findSku(sku);
   if (!row || row.categoryId !== category || row.subCategoryId !== sub) notFound();
 
-  const [related, series, categoryRows, categories, billet, logisticsConfig, vatRate, staleHideAfterDays] =
+  const [related, priceHistory, categoryRows, categories, billet, logisticsConfig, vatRate, staleHideAfterDays] =
     await Promise.all([
       relatedRows(row),
-      priceSeries(row.slug, row.current.price),
+      priceSeriesWithDates(row.slug, row.current.price),
       getRows(category),
       getCategories(),
       getBilletReference(),
@@ -61,12 +61,13 @@ export default async function SkuPage({ params }: Params) {
       getVatRate(),
       getStaleHideAfterDays(),
     ]);
+  const { series, dates } = priceHistory;
 
-  // W25 audit fix: the «مقایسهٔ کارخانه‌ها» panel is about THIS product, so it
-  // is given this product's own sub-category rows — not the whole category's.
-  // Passing the category meant a وال‌پست page shipped a payload dominated by
-  // نبشی / ناودانی rows and opened the comparison on «نبشی» (the sub-category
-  // the most mills quote), silently answering a question about a different
+  // W25 audit fix: the comparison panel is about THIS product, so it
+  // is given this product's own sub-category rows, not the whole category's.
+  // Passing the category meant a wal-post page shipped a payload dominated by
+  // other sub-category rows and opened the comparison on the sub-category the
+  // most mills quote, silently answering a question about a different
   // product. Narrowing here also keeps the client payload to the rows the
   // panel can actually use.
   const subCategoryRows = categoryRows.filter((r) => r.subCategoryId === sub);
@@ -107,7 +108,7 @@ export default async function SkuPage({ params }: Params) {
         })}
       />
       <Section space={10}>
-        <SkuDetail row={row} related={related} series={series} categoryRows={subCategoryRows} billet={billet} subLabel={subLabel} categorySubs={categorySubs} logisticsConfig={logisticsConfig} vatRate={vatRate} />
+        <SkuDetail row={row} related={related} series={series} dates={dates} categoryRows={subCategoryRows} billet={billet} subLabel={subLabel} categorySubs={categorySubs} logisticsConfig={logisticsConfig} vatRate={vatRate} />
       </Section>
     </Container>
   );
