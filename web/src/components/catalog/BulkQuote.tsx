@@ -36,6 +36,8 @@ export function BulkQuote({
   categoryName,
   rows: rowsProp,
   subs: subsProp,
+  defaultSub,
+  defaultSize,
   defaultTonnage = 20,
   logisticsConfig = DEFAULT_LOGISTICS_CONFIG,
   vatRate = CONSTANTS.VAT_RATE,
@@ -45,6 +47,16 @@ export function BulkQuote({
   rows?: PriceRow[];
   /** Live sub-categories (server-provided) — fixture fallback is mock/dev only. */
   subs?: SubCat[];
+  /** The sub-category this panel should OPEN on, when the host page is about
+   *  one specific product (the SKU page). Without it the panel falls back to
+   *  `pickBestGroup`, which picks whichever sub-category the most mills quote
+   *  — on a وال‌پست page that is «نبشی», so the "compare" panel silently
+   *  answered a question about a different product than the one on screen. */
+  defaultSub?: string;
+  /** Likewise for size, so the SKU page's comparison is same-size where the
+   *  data supports it. Cleared automatically if that size isn't quoted in the
+   *  seeded sub-category, so seeding can never empty the panel. */
+  defaultSize?: string;
   defaultTonnage?: number;
   /** Admin-configurable freight/insurance/handling rates + city list, fetched
    *  server-side from `settings.LOGISTICS` and passed down — falls back to
@@ -64,7 +76,7 @@ export function BulkQuote({
   const addRequest = useRequestsStore((s) => s.add);
   const { requireAuth } = useRequireAuth();
   const [tonnage, setTonnage] = useState<number>(defaultTonnage);
-  const [sub, setSub] = useState<string>('');
+  const [sub, setSub] = useState<string>(defaultSub ?? '');
   const [size, setSize] = useState<string>('');
   const warehouseCity = useProfileStore((s) => s.warehouseCity);
   const setWarehouseCity = useProfileStore((s) => s.setWarehouseCity);
@@ -82,14 +94,23 @@ export function BulkQuote({
   // the broader, averaged view. Deliberately doesn't also auto-pick a size:
   // real data showed one exact size is often quoted by only one mill, which
   // would collapse the comparison to a single factory almost every time.
+  //
+  // When the host page IS one specific product (`defaultSub`), that product's
+  // own sub-category wins outright — auto-picking is for the category/landing
+  // surfaces, which have no product to be about.
   const [autoPicked, setAutoPicked] = useState(false);
   useEffect(() => {
     if (autoPicked || allRows.length === 0) return;
+    if (defaultSub) {
+      // Seeded from the product itself; nothing to infer.
+      setAutoPicked(true);
+      return;
+    }
     const group = pickBestGroup(allRows);
     if (group?.subCategoryId) setSub(group.subCategoryId);
     setAutoPicked(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allRows, autoPicked]);
+  }, [allRows, autoPicked, defaultSub]);
 
   // Size-aware comparison: same sub-family AND same size across mills — an
   // apples-to-apples benchmark instead of category averages.
@@ -105,6 +126,18 @@ export function BulkQuote({
     () => (size ? subRows.filter((r) => r.size === size) : subRows),
     [subRows, size],
   );
+
+  // Seed the size from the host product, but only once the seeded
+  // sub-category's sizes are known and only if this size is actually quoted
+  // there — otherwise the panel would open on an empty comparison.
+  const [sizeSeeded, setSizeSeeded] = useState(false);
+  useEffect(() => {
+    if (sizeSeeded || !defaultSize) return;
+    if (sizes.length === 0) return;
+    if (sizes.includes(defaultSize)) setSize(defaultSize);
+    setSizeSeeded(true);
+  }, [sizeSeeded, defaultSize, sizes]);
+
   const split = useMemo(() => computeBulkSplit(rows, tonnage), [rows, tonnage]);
 
   // Nothing to compare, and — for پروفیل — nobody to compare. This whole panel
@@ -114,6 +147,16 @@ export function BulkQuote({
   // کارخانهٔ سایر», which is the fabricated distinction wearing a different
   // name. It reappears by itself the moment a real factory is priced here.
   if (allRows.length === 0 || !allRows.some((r) => r.factory)) return null;
+
+  // W25 audit fix: this panel prices «تناژ × قیمت هر کیلوگرم», which is only
+  // meaningful for kg-priced products. On a per-قطعه / per-کلاف / per-برگ /
+  // per-متر-مربع product (47 active SKUs) a tonnage has no relationship to
+  // the stored price at all, so there is no honest number to show and the
+  // panel removes itself rather than invent one. `computeBulkSplit` drops
+  // those rows too, so this is the visible half of the same rule.
+  if (!allRows.some((r) => !r.current.priceHidden && (r.current.priceBasis ?? r.priceBasis ?? 'kg') === 'kg')) {
+    return null;
+  }
 
   const most = split.lines[split.lines.length - 1] ?? null;
   const runnerUp = split.lines.find((l) => l.factory !== split.cheapest?.factory) ?? null;
@@ -168,25 +211,31 @@ export function BulkQuote({
       </header>
 
       <div className={styles.controls}>
-        <label className={styles.field}>
-          <span className={styles.fieldLabel}>زیرشاخه</span>
-          <select
-            className={styles.select}
-            value={sub}
-            onChange={(e) => {
-              setSub(e.target.value);
-              setSize('');
-            }}
-            aria-label="زیرشاخهٔ محصول"
-          >
-            <option value="">همه (میانگین)</option>
-            {subs.map((s) => (
-              <option key={s.slug} value={s.slug}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        {/* Locked on a product page: the host passes only that product's own
+            sub-category rows, so offering the other sub-categories here would
+            switch to a selection that has no rows behind it. Category and
+            landing surfaces still get the full selector. */}
+        {!defaultSub && (
+          <label className={styles.field}>
+            <span className={styles.fieldLabel}>زیرشاخه</span>
+            <select
+              className={styles.select}
+              value={sub}
+              onChange={(e) => {
+                setSub(e.target.value);
+                setSize('');
+              }}
+              aria-label="زیرشاخهٔ محصول"
+            >
+              <option value="">همه (میانگین)</option>
+              {subs.map((s) => (
+                <option key={s.slug} value={s.slug}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
 
         <label className={styles.field}>
           <span className={styles.fieldLabel}>{sizeCol}</span>
@@ -258,6 +307,15 @@ export function BulkQuote({
         <p className={styles.exactNote}>
           مقایسهٔ دقیق: فقط کارخانه‌هایی که «{subs.find((s) => s.slug === sub)?.name ?? categoryName}{' '}
           {sizeCol} {size}» دارند.
+        </p>
+      )}
+
+      {/* Says what was left out, rather than letting the comparison imply it
+          covered every row in the selection. See computeBulkSplit. */}
+      {split.excludedNonKg > 0 && (
+        <p className={styles.exactNote}>
+          {toPersianDigits(split.excludedNonKg)} محصول در این انتخاب قیمتشان بر پایهٔ کیلوگرم نیست
+          و در این مقایسه نیامده‌اند؛ برای آن‌ها با کارشناس تماس بگیرید.
         </p>
       )}
 

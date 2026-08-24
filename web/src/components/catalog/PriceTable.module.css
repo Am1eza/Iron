@@ -193,13 +193,46 @@
 .actionsCol {
   text-align: center;
 }
+
+/* Row/cell hooks for the reflow.
+
+   Every class below exists so the ≤767px card form at the end of this file can
+   pick one cell out by name once the table has stopped being laid out as a
+   table. On desktop they are deliberately near-inert: each restates the value
+   the cell already has, so adding one can never move a column. They must keep
+   a real declaration rather than becoming empty rules — a class with no
+   declarations is not guaranteed to survive into the CSS Module's export map,
+   and `styles.blankOnNarrow` resolving to `undefined` would write the literal
+   string "undefined" into a class attribute. */
+.row {
+  display: table-row;
+}
+.compareCell,
+.priceCell,
+.movementCell,
+.deliveryCell,
+/* The «نامشخص» placeholder stays on desktop: a column that skipped a row
+   would put every cell after it out of line. Only the card form drops it. */
+.blankOnNarrow {
+  display: table-cell;
+}
+.sizeCell {
+  display: table-cell;
+  white-space: nowrap;
+}
+.actionsCell {
+  display: table-cell;
+  text-align: center;
+}
+.addBtnLabel {
+  white-space: nowrap;
+}
 .actions {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
 }
-.addBtn,
-.addBtnFull {
+.addBtn {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -211,111 +244,17 @@
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
-}
-.addBtn {
   padding: var(--space-2) var(--space-3);
   min-block-size: 36px;
 }
-.addBtn:hover:not(:disabled),
-.addBtnFull:hover:not(:disabled) {
+.addBtn:hover:not(:disabled) {
   background: var(--color-action-hover);
 }
-.addBtn:disabled,
-.addBtnFull:disabled {
+.addBtn:disabled {
   cursor: not-allowed;
   opacity: 0.65;
 }
 
-/* ===== Mobile cards ===== */
-.cards {
-  display: none;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-.card {
-  border: var(--border-hairline) solid var(--color-hairline);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  padding: var(--space-4);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-.cardTop {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-}
-.cardTopActions {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  flex: none;
-}
-.cardName {
-  font: var(--t-h4);
-  color: var(--color-text-strong);
-}
-.cardPrice {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-.cardPrice .price {
-  font: var(--t-price-hero);
-  font-size: 1.5rem;
-}
-.unit {
-  font: var(--t-caption);
-  color: var(--color-text-muted);
-}
-.cardMeta {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: var(--space-1) var(--space-3);
-  font: var(--t-body-sm);
-  color: var(--color-text-muted);
-}
-.cardActions {
-  display: flex;
-  align-items: stretch;
-  gap: var(--space-2);
-}
-.ghostBtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  border: var(--border-hairline) solid var(--color-border-strong);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  color: var(--color-text-strong);
-  font: var(--t-label);
-  font-weight: 600;
-  padding: var(--space-3);
-  min-block-size: 48px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.ghostBtn:hover {
-  background: var(--color-surface-sunken);
-}
-.cardActions .addBtnFull {
-  flex: 1;
-}
-.addBtnFull {
-  justify-content: center;
-  padding: var(--space-3);
-  min-block-size: 48px;
-  font: var(--t-button);
-}
 .modalCta {
   display: inline-flex;
   align-items: center;
@@ -338,19 +277,151 @@
   transform: translateY(1px);
 }
 
+/* ===== The card form: the same table, reflowed (≤767px) =====
+
+   There is no second markup for phones. This page used to render every row
+   TWICE — once as a `<tr>` and once as an `<li>` card — and hide one of them
+   with `display: none`, which cost `/prices/rebar` ~2.0 MB of HTML and ~20.9k
+   DOM nodes for ~248 products. Below the breakpoint the one table lays itself
+   out as that card instead:
+
+   - `thead` stops drawing; each cell reprints its own column header from
+     `data-label` through `::before`, so no label is lost and no element is
+     added to carry it.
+   - Cells a card deliberately never carried — the compare checkbox, the size
+     (already the tail of the product name), and anything holding only a
+     «نامشخص» placeholder — drop out here rather than in a second component.
+   - `order` puts the name, then the price, then the meta chips, then the
+     actions, matching the card that used to be hand-written.
+
+   Every rule is scoped under `.table tbody` so it outranks the desktop
+   `.table tbody td` declarations it has to undo. */
 @media (max-width: 767px) {
   .tableScroll {
+    overflow-x: visible;
+    border: 0;
+    border-radius: 0;
+    background: none;
+  }
+  .table {
+    display: block;
+    min-inline-size: 0;
+  }
+  .table thead {
     display: none;
   }
-  .cards {
+  .table tbody {
     display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  .table tbody tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-1) var(--space-3);
+    border: var(--border-hairline) solid var(--color-hairline);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    padding: var(--space-4);
+  }
+  /* The desktop hover rule paints a row; a card is already its own surface. */
+  .table tbody tr:hover {
+    background: var(--color-surface);
+    box-shadow: none;
+  }
+  .table tbody th,
+  .table tbody td {
+    display: block;
+    order: 4;
+    padding: 0;
+    border-block-end: 0;
+    text-align: start;
+    font: var(--t-body-sm);
+    color: var(--color-text-muted);
+  }
+  .table tbody td[data-label]::before {
+    content: attr(data-label) ': ';
+  }
+  .table tbody th.name {
+    order: 1;
+    flex-basis: 100%;
+    font: var(--t-h4);
+    color: var(--color-text-strong);
+    white-space: normal;
+  }
+  .table tbody td.priceCell {
+    order: 2;
+    font: var(--t-price-hero);
+    font-size: 1.5rem;
+    color: var(--color-text-strong);
+  }
+  /* «تومان / کیلوگرم» — what the desktop column header says and a card has
+     nowhere to inherit from. Absent (so nothing prints) when the price is
+     withheld and the cell reads «تماس بگیرید» instead of a number. */
+  .table tbody td.priceCell::after {
+    content: " " attr(data-unit);
+    font: var(--t-caption);
+    color: var(--color-text-muted);
+  }
+  .table tbody td.priceCell .rowBasis {
+    display: none;
+  }
+  .table tbody td.movementCell {
+    order: 3;
+  }
+  .table tbody td.actionsCell {
+    order: 5;
+    flex-basis: 100%;
+    margin-block-start: var(--space-2);
+  }
+  .table tbody td.actionsCell .actions {
+    display: flex;
+    inline-size: 100%;
+    gap: var(--space-2);
+  }
+  /* The one amber action on the card, at the 48px touch target the old
+     full-width card button had. */
+  .table tbody td.actionsCell .actions > .addBtn {
+    flex: 1;
+    justify-content: center;
+    padding: var(--space-3);
+    min-block-size: 48px;
+    font: var(--t-button);
+  }
+  /* The wide table's action column has room for one word; the card's CTA
+     says what the button does, the way the hand-written card did. Swapped
+     here rather than by rendering a second span in every row —
+     `font: var(--t-button)` restores the size the zeroed one gave up.
+
+     «افزودن به سبد», not the card's old «افزودن به سبد استعلام»: this CTA
+     shares its line with the three icon actions, leaving it 136px at 390px
+     wide. The longer string needed ~200px and was clipped mid-word — measured
+     in a browser, not guessed. */
+  .table tbody td.actionsCell .addBtnLabel {
+    font-size: 0;
+  }
+  .table tbody td.actionsCell .addBtnLabel::after {
+    content: "افزودن به سبد";
+    font: var(--t-button);
+  }
+  /* Comfortable touch targets for the three icon actions, which the card used
+     to give a row of their own. The CTA above is more specific and keeps 48px. */
+  .table tbody td.actionsCell .actions > * {
+    min-block-size: 44px;
+    min-inline-size: 44px;
+  }
+  .table tbody td.compareCell,
+  .table tbody td.sizeCell,
+  .table tbody td.blankOnNarrow {
+    display: none;
   }
   .toolbar {
     gap: var(--space-3);
   }
 }
 
-.addBtnFull:active:not(:disabled) {
+.addBtn:active:not(:disabled) {
   background: var(--color-action-press);
   transform: translateY(1px);
 }

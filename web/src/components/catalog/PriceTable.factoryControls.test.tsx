@@ -55,8 +55,9 @@ function renderTable(rows: PriceRow[]) {
  *  can never be confused with a bare cell for the other. */
 const TWO_FACTORIES = [row('kavir-14', KAVIR, 500_000), row('zob-14', ZOB, 600_000)];
 
-/** Every price cell currently on screen, desktop table + mobile cards (both
- *  are always in the DOM; only CSS hides one). */
+/** Every price cell currently on screen. One per row now: the table used to be
+ *  shadowed by a full mobile-card copy of itself, and both were always in the
+ *  DOM with CSS hiding one. */
 const pricesOnScreen = () => screen.queryAllByText(/^[۰-۹٬]+$/).map((n) => n.textContent);
 
 describe('PriceTable — per-factory controls', () => {
