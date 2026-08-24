@@ -1,0 +1,5 @@
+.search {
+  margin-inline: auto;
+  max-inline-size: 480px;
+  padding-block-end: var(--space-16);
+}
