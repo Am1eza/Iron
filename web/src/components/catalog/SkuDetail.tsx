@@ -472,7 +472,12 @@ export function SkuDetail({
       </section>
 
       {/* ===== Bulk / per-factory split ===== */}
-      <BulkQuote category={row.categoryId} categoryName={categoryName} rows={categoryRows} subs={categorySubs} logisticsConfig={logisticsConfig} vatRate={vatRate} />
+      {/* Seeded with THIS product's own sub-category and size. Without them
+          BulkQuote falls back to `pickBestGroup`, which opens on whichever
+          sub-category the most mills quote — on a وال‌پست page that is
+          «نبشی», so the panel compared a different product than the one the
+          page is about. */}
+      <BulkQuote category={row.categoryId} categoryName={categoryName} rows={categoryRows} subs={categorySubs} defaultSub={row.subCategoryId} defaultSize={row.size} logisticsConfig={logisticsConfig} vatRate={vatRate} />
 
       {/* ===== Related ===== */}
       {related.length > 0 ? (

@@ -3,6 +3,20 @@ import type { PriceRow } from '@/lib/types/domain';
 export type ProductGroup = { subCategoryId?: string };
 
 /**
+ * Whether a row's price is denominated per kilogram — the ONLY basis whose
+ * arithmetic `computeBulkSplit` implements.
+ *
+ * `priceBasis` (not `unit`) is the authority on denomination: `unit` says
+ * what a customer's qty counts in, `priceBasis` says what the stored number
+ * is per. The row DTO carries the basis at `current.priceBasis`, resolved
+ * from the SKU by `catalogRepo.toPriceRow`; the SKU-level `priceBasis` is
+ * the fallback for the handful of callers that build rows by hand.
+ */
+function isKgPriced(r: PriceRow): boolean {
+  return (r.current.priceBasis ?? r.priceBasis ?? 'kg') === 'kg';
+}
+
+/**
  * Picks the single most-comparable sub-category among `rows` — the one with
  * the most distinct factories quoting it (ties broken by row count).
  * "Which factory is cheapest" only means something within ONE real product
@@ -21,6 +35,11 @@ export function pickBestGroup(rows: PriceRow[]): ProductGroup | null {
   const groups = new Map<string, { subCategoryId?: string; factories: Set<string>; rowCount: number }>();
   for (const r of rows) {
     if (r.current.priceHidden) continue;
+    // Only kg-priced rows can be compared here — see computeBulkSplit. A
+    // group made of branch/coil/sheet/piece/sqm rows would be auto-selected
+    // and then produce an empty comparison, which is worse than not
+    // offering the group at all.
+    if (!isKgPriced(r)) continue;
     const key = r.subCategoryId ?? '';
     const g = groups.get(key) ?? { subCategoryId: r.subCategoryId, factories: new Set<string>(), rowCount: 0 };
     if (r.factory) g.factories.add(r.factory);
@@ -50,6 +69,11 @@ export type BulkSplit = {
   totalKg: number;
   lines: FactoryLine[];
   cheapest: FactoryLine | null;
+  /** Rows dropped because their price is not per kilogram — see
+   *  `computeBulkSplit`. Non-zero means the caller was handed rows this
+   *  calculator cannot price, and should say so rather than imply the
+   *  comparison covered them. */
+  excludedNonKg: number;
 };
 
 /**
@@ -68,18 +92,31 @@ export function computeBulkSplit(rows: PriceRow[], tonnage: number): BulkSplit {
   // factory's representative quote toward zero, making it look artificially
   // (and wrongly) cheapest. A withheld price contributes no real signal to
   // "which factory is cheapest," so it's excluded rather than counted as 0.
+  const visible = rows.filter((r) => !r.current.priceHidden);
+  // W25 audit fix: this multiplies a per-kg price by `tonnage × 1000`, so it
+  // is only ever correct for `priceBasis === 'kg'`.
+  //
+  // The comment that used to sit here asserted `current.price` is "ALREADY
+  // per kilogram for every SKU regardless of `unit`". That was true of
+  // `unit`, and it is why the note was written — but it pre-dates
+  // `PriceBasis`, the column added precisely because the denomination was
+  // NOT universal (see domain.ts: 19 تیرآهن rows auto-quoted a branch at
+  // 155× before it existed). 47 active SKUs are currently non-kg
+  // (piece/coil/branch/sqm/sheet). Feeding one of those in here treated a
+  // per-قطعه or per-۱۵-متر-کلاف figure as a per-kilogram rate and multiplied
+  // it by 20,000 — a wrong number presented as a firm quote.
+  //
+  // `leads.service.ts`, `estimate.service.ts` and `tenderEstimate.ts` all
+  // already gate on `priceBasis === 'kg'` before doing mass arithmetic; this
+  // is the same gate, applied at the one place every comparison surface
+  // (the panel, the AI advisor, the landing teaser) reads through. Excluded
+  // rows are COUNTED, not silently dropped, so callers can say what was left
+  // out instead of implying the comparison was complete.
+  const kgRows = visible.filter(isKgPriced);
+  const excludedNonKg = visible.length - kgRows.length;
+
   const byFactory = new Map<string, { sum: number; count: number }>();
-  for (const r of rows.filter((r) => !r.current.priceHidden)) {
-    // `current.price` is ALREADY per kilogram for every SKU regardless of
-    // `unit` — `unit` only says what a customer's `qty` counts in (kg mass
-    // vs. whole branches/sheets/meters), not what the price is denominated
-    // in (see PriceTable's «تومان / کیلوگرم» label, CostCalculator, and
-    // leads.service.ts's priceItems, all of which treat it the same way).
-    // This function used to divide a non-kg row's price by
-    // theoreticalWeightKg to "convert" it — that's the wrong direction
-    // entirely and, on a real branch-priced SKU, would have silently
-    // produced a per-kg quote off by that same weight factor. No conversion
-    // is needed: the price is already per kg.
+  for (const r of kgRows) {
     const pricePerKg = r.current.price;
     const f = r.factory ?? 'سایر';
     const acc = byFactory.get(f) ?? { sum: 0, count: 0 };
@@ -107,5 +144,6 @@ export function computeBulkSplit(rows: PriceRow[], tonnage: number): BulkSplit {
     totalKg,
     lines,
     cheapest: lines[0] ?? null,
+    excludedNonKg,
   };
 }

@@ -4,6 +4,54 @@
 import type { Metadata } from 'next';
 import { VERIFIED_CHANNELS } from '@/lib/data/nav';
 import { SITE_ORIGIN } from '@/lib/utils/url';
+import type { PriceBasis } from '@/lib/types/domain';
+
+/**
+ * UN/CEFACT Recommendation 20 unit codes for the price bases that HAVE one.
+ *
+ * `undefined` is a deliberate value, not a gap: a «شاخه» (one whole bar of a
+ * given length), a «کلاف» and a «برگ» have no clean Rec-20 unit, and stating
+ * a nearby-but-wrong code is exactly the failure this map exists to end —
+ * the field is omitted instead, which schema.org permits. Only codes that
+ * unambiguously mean the same thing as the basis are listed:
+ *   KGM = kilogram · H87 = piece · MTK = square metre.
+ */
+/**
+ * `priceValidUntil` derived from when the price was actually SET, not from
+ * when the page happened to render.
+ *
+ * It used to be `Date.now() + 7 days`, unconditionally. That asserted a
+ * week of validity for a price that this site's own freshness policy
+ * withholds after PRICE_STALE_HIDE_AFTER_DAYS (currently 2) business days —
+ * so a میلگرد priced two days ago was simultaneously badged «کهنه» on the
+ * page and published to Google as valid for another week. Regenerating the
+ * page pushed the claim forward again, meaning the window could never
+ * actually expire.
+ *
+ * Calendar days are used against a business-day SLA on purpose: business
+ * days always span at least as much real time, so this errs SHORT and can
+ * never out-claim the policy.
+ *
+ * Returns `undefined` — no claim at all — when the window has already
+ * closed, which is the honest representation of a price that is stale now.
+ */
+function offerValidUntil(updatedAt?: string, validityDays?: number, now = Date.now()): string | undefined {
+  if (!updatedAt || !validityDays || validityDays <= 0) return undefined;
+  const set = Date.parse(updatedAt);
+  if (!Number.isFinite(set)) return undefined;
+  const until = set + validityDays * 864e5;
+  if (until <= now) return undefined;
+  return new Date(until).toISOString().slice(0, 10);
+}
+
+const UN_CEFACT_UNIT: Record<PriceBasis, string | undefined> = {
+  kg: 'KGM',
+  piece: 'H87',
+  sqm: 'MTK',
+  branch: undefined,
+  coil: undefined,
+  sheet: undefined,
+};
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://ahantime.com';
 /** Resolve against SITE_URL without throwing on a malformed admin value. */
@@ -212,15 +260,24 @@ export function itemListJsonLd(items: { name: string; url: string }[]) {
  *    `InStock` on a page with no buy button is the textbook
  *    "structured data mismatch" that gets merchant rich results stripped
  *    site-wide.
- *  - `availability` is **omitted entirely** when the caller does not know the
- *    state. It used to default to `InStock` for anything that was not exactly
- *    `false` — including `undefined` — so a missing value became a positive
- *    stock claim.
+ *  - `availability` is **never published**. There is no stock or inventory
+ *    column anywhere in the SKU/price schema (verified against the live DB),
+ *    so the site does not know whether anything is in stock. This used to be
+ *    fed `sku.isActive`, which only means "published in the catalog" — an
+ *    unpublished product simply has no page, so the field asserted
+ *    `InStoreOnly` for every product that could be seen at all, carrying no
+ *    information and claiming something untracked. Restoring it requires real
+ *    stock data, not a proxy for it.
  *  - `businessFunction` is GoodRelations `Sell`, and `priceSpecification`
  *    carries `valueAddedTaxIncluded: false`, because every published price on
- *    this site is per-kilogram and excludes VAT (see PriceRow.current.price).
- *    Without that flag the bare `price` reads as a VAT-inclusive final price
- *    and mismatches the invoice the buyer is eventually given.
+ *    this site excludes VAT (see PriceRow.current.price). Without that flag
+ *    the bare `price` reads as a VAT-inclusive final price and mismatches the
+ *    invoice the buyer is eventually given.
+ *  - `unitCode` follows the SKU's `priceBasis` and is **omitted** where no
+ *    honest UN/CEFACT code exists. It used to be hard-coded `KGM`, which
+ *    told Google that a per-قطعه وال‌پست or a per-۱۵-متری کلاف مسی price was
+ *    a per-kilogram rate — off by whole orders of magnitude on the exact
+ *    rows `PriceBasis` was introduced to stop mis-captioning.
  */
 export function productJsonLd(p: {
   name: string;
@@ -232,21 +289,23 @@ export function productJsonLd(p: {
    *  the correct representation of "price withheld, ask us" — Product
    *  schema doesn't require one. */
   priceHidden?: boolean;
-  /** Tri-state on purpose. `true` → InStoreOnly, `false` → OutOfStock,
-   *  `undefined` → no availability claim at all. Never defaulted. */
-  available?: boolean;
+  /** What the price is denominated in (PriceRow.current.priceBasis). Drives
+   *  `unitCode`; defaults to `kg`, which is the column's own default. */
+  priceBasis?: PriceBasis;
+  /** When this price was last set (`current_prices.updated_at`, ISO). With
+   *  `priceValidityDays`, this is what `priceValidUntil` is derived FROM —
+   *  see `offerValidUntil`. Omitted ⇒ no validity is asserted. */
+  priceUpdatedAt?: string;
+  /** The freshness SLA in days (`PRICE_STALE_HIDE_AFTER_DAYS`). */
+  priceValidityDays?: number;
   url: string;
   image?: string;
   brand?: string;
   sku?: string;
 }) {
   const offerUrl = new URL(p.url, SITE_URL).toString();
-  const availability =
-    p.available === true
-      ? 'https://schema.org/InStoreOnly'
-      : p.available === false
-        ? 'https://schema.org/OutOfStock'
-        : undefined;
+  const unitCode = UN_CEFACT_UNIT[p.priceBasis ?? 'kg'];
+  const priceValidUntil = offerValidUntil(p.priceUpdatedAt, p.priceValidityDays);
   return {
     '@context': 'https://schema.org',
     '@type': 'Product',
@@ -267,15 +326,13 @@ export function productJsonLd(p: {
               price: p.price * 10,
               priceCurrency: 'IRR',
               valueAddedTaxIncluded: false,
-              unitCode: 'KGM', // UN/CEFACT: kilogram — prices are per-kg
+              ...(unitCode ? { unitCode } : {}),
             },
             // GoodRelations: this offer is a sale, concluded offline.
             businessFunction: 'http://purl.org/goodrelations/v1#Sell',
-            ...(availability ? { availability } : {}),
-            // Steel prices move daily; give the offer a short validity window so
-            // Google doesn't flag a missing/expired priceValidUntil (which can
-            // suppress the merchant rich result).
-            priceValidUntil: new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10),
+            // No `availability`. See the doc comment above: nothing in the
+            // schema tracks stock, so there is nothing true to assert.
+            ...(priceValidUntil ? { priceValidUntil } : {}),
             url: offerUrl,
             seller: { '@type': 'Organization', name: BRAND },
           },
