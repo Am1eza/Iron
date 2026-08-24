@@ -57,6 +57,7 @@ function sku(partial: Partial<MatchableSku> = {}): MatchableSku {
     subCategorySlug: 'deformed',
     size: '۱۴',
     factory: 'شاهین بناب',
+    grade: null,
     priceBasis: 'kg',
     ...partial,
   };
@@ -163,7 +164,14 @@ describe('the taxonomy mapping is keyed on slugs', () => {
   });
 
   it('leaves lines the competitor does not sell unmapped', () => {
-    expect(sourcePathsForSku(sku({ categorySlug: 'steel', subCategorySlug: 'stainless' }))).toBeUndefined();
+    // `felezat-rangi/copper-pipe` is `price_basis = 'coil'` and no page
+    // publishes a per-coil price; `copper-strip` publishes ONE price for 18
+    // different sections with no unit column; `val-post` is per-شاخه with no
+    // matching source unit. All three are structurally un-mirrorable, not
+    // merely unmapped, and the staleness view (US-05.4) is how a human sees
+    // them instead.
+    expect(sourcePathsForSku(sku({ categorySlug: 'felezat-rangi', subCategorySlug: 'copper-pipe' }))).toBeUndefined();
+    expect(sourcePathsForSku(sku({ categorySlug: 'felezat-rangi', subCategorySlug: 'copper-strip' }))).toBeUndefined();
     expect(sourcePathsForSku(sku({ categorySlug: 'angle-channel', subCategorySlug: 'val-post' }))).toBeUndefined();
   });
 
@@ -672,5 +680,141 @@ describe('matchSku — the variant-keyed families', () => {
     for (const path of allMappedSourcePaths()) {
       expect(targets.has(path), `${path} is mapped but never fetched`).toBe(true);
     }
+  });
+});
+
+/**
+ * The stainless families, unlocked by reading the alloy out of `skus.grade`.
+ *
+ * The source survey reported these as un-mirrorable because «our SKU names
+ * carry a country (هند/تایوان/چین) and no alloy». That was true of the names
+ * and false of the catalogue: `grade` was populated on all 55 of them, and the
+ * stored price agrees with ahanonline's row for that alloy to the rial. Every
+ * row literal below is copied from the live tables on 1405/06/01, prices
+ * included.
+ */
+describe('matchSku — the alloy-keyed (stainless) families', () => {
+  /** میلگرد استیل, whose table emits ASCII `size`/`standard`/`unit` headers. */
+  const bar = (size: string, standard: string, priceToman: number) =>
+    row({
+      sourcePath: 'میلگرد/میلگرد-استیل',
+      priceToman,
+      cells: { size, standard, state: '6 متری', unit: 'کیلوگرم' },
+    });
+
+  const barSku = (name: string, grade: string | null, size = '۱۲') =>
+    sku({ name, categorySlug: 'rebar', subCategorySlug: 'stainless', size, grade, factory: 'هند' });
+
+  const bars = [bar('12', '304L', 831_818), bar('12', '316L', 1_218_182), bar('12', '310S', 1_919_091)];
+
+  it('prices each alloy off `grade`, not off the SKU name or the country', () => {
+    // The name says «هند» on all three and the price still lands on the alloy:
+    // 2.3× apart, and the country moves none of it.
+    expect(matchSku(barSku('میلگرد استیل ۱۲ هند', '304L'), bars, CONFIG, TODAY)).toMatchObject({
+      ok: true,
+      priceToman: 831_818,
+    });
+    expect(matchSku(barSku('میلگرد استیل ۱۲ هند', '316L'), bars, CONFIG, TODAY)).toMatchObject({
+      ok: true,
+      priceToman: 1_218_182,
+    });
+    expect(matchSku(barSku('میلگرد استیل ۱۲ هند', '310S'), bars, CONFIG, TODAY)).toMatchObject({
+      ok: true,
+      priceToman: 1_919_091,
+    });
+  });
+
+  it('demands EQUALITY, so «304» never satisfies a «304L» row', () => {
+    // The `name` mode's token-containment test would pass here — «304» is a
+    // substring of «304L» — and 304 vs 304L trade 6% apart on their own لوله
+    // table. Equality is the whole reason `grade` is a separate mode.
+    const res = matchSku(barSku('میلگرد استیل ۱۲ هند', '304'), bars, CONFIG, TODAY);
+    expect(res.ok).toBe(false);
+    expect(res.reason).toBe(SKIP_REASONS.variantNotStocked);
+  });
+
+  it('says «fill in the alloy» only when the alloy is actually missing', () => {
+    const blind = matchSku(barSku('میلگرد استیل ۱۲ هند', null), bars, CONFIG, TODAY);
+    expect(blind.ok).toBe(false);
+    expect(blind.reason).toBe(SKIP_REASONS.missingVariant);
+
+    // …and NOT when we know our alloy and they simply do not stock this size
+    // in it. میلگرد ۶ is 310S-only on their table; our 304L bar of that size is
+    // not a catalogue defect, and telling the operator to go and fill a field
+    // that already holds the right value would send them on a dead errand.
+    const notStocked = matchSku(
+      barSku('میلگرد استیل ۶ هند', '304L', '۶'),
+      [bar('6', '310S', 1_939_091)],
+      CONFIG,
+      TODAY,
+    );
+    expect(notStocked.ok).toBe(false);
+    expect(notStocked.reason).toBe(SKIP_REASONS.variantNotStocked);
+  });
+
+  it('reads لوله استیل in inches even though its category is استیل, not لوله', () => {
+    // `INCH_CATEGORIES` is keyed on the CATEGORY slug and لوله استیل sits under
+    // استیل, so without `INCH_KEYS` this fell through to "the first number
+    // agrees" — where ۲½ اینچ and ۲ اینچ become the same product.
+    const pipeRows = [
+      row({
+        sourcePath: 'استنلس-استیل/لوله-استیل/لوله-استیل-صنعتی',
+        priceToman: 1_800_000,
+        cells: { 'سایز': '2 اینچ', 'رده': '10', 'آلیاژ': '316L', 'واحد': 'کیلوگرم' },
+      }),
+      row({
+        sourcePath: 'استنلس-استیل/لوله-استیل/لوله-استیل-صنعتی',
+        priceToman: 886_806,
+        cells: { 'سایز': '2 1/2 اینچ', 'رده': '10', 'آلیاژ': '304', 'واحد': 'کیلوگرم' },
+      }),
+    ];
+    const twoAndAHalf = sku({
+      name: 'لوله استیل ۲½ اینچ',
+      categorySlug: 'steel',
+      subCategorySlug: 'pipe',
+      size: '۲½ اینچ',
+      grade: '316L',
+      factory: null,
+    });
+    const res = matchSku(twoAndAHalf, pipeRows, CONFIG, TODAY);
+    expect(res.ok).toBe(false);
+    // Not `write:exact` at 1,800,000 off the 2-inch row, and not
+    // `missingVariant` either: they stock 2½ in 304, we sell it in 316L.
+    expect(res.reason).toBe(SKIP_REASONS.variantNotStocked);
+  });
+
+  it('keeps the stainless price bands wide enough for stainless prices', () => {
+    // Every one of these trades above the global 500,000 ceiling, which is a
+    // carbon-steel-per-kg number. Without a per-family band each correct match
+    // above would have been discarded as `price-out-of-band`.
+    for (const [grade, price] of [
+      ['304L', 831_818],
+      ['310S', 1_919_091],
+    ] as const) {
+      const res = matchSku(barSku('میلگرد استیل ۱۲ هند', grade), bars, CONFIG, TODAY);
+      expect(res.ok, `${grade} was rejected by the price band`).toBe(true);
+      if (res.ok) expect(res.priceToman).toBe(price);
+    }
+  });
+
+  it('will not price نبشی/پروفیل استیل off a row that only shares a first number', () => {
+    // Their پروفیل table carries 30*20 and 30*30 at different prices. Strict
+    // dimension matching, same rule as چهارپهلو.
+    const profileRows = [
+      row({
+        sourcePath: 'استنلس-استیل/پروفیل-استیل',
+        priceToman: 840_175,
+        cells: { 'ابعاد': '30*20', 'ضخامت': '1', 'آلیاژ': '304', 'واحد': 'کیلوگرم' },
+      }),
+    ];
+    const thirtySquare = sku({
+      name: 'پروفیل استیل ۳۰×۳۰',
+      categorySlug: 'steel',
+      subCategorySlug: 'profile',
+      size: '۳۰×۳۰',
+      grade: '304',
+      factory: null,
+    });
+    expect(matchSku(thirtySquare, profileRows, CONFIG, TODAY).reason).toBe(SKIP_REASONS.noSizeMatch);
   });
 });

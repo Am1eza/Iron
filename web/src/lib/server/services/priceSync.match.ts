@@ -46,6 +46,12 @@ export const SKIP_REASONS = {
    *  rows are only distinguishable by size — the one thing that is never
    *  enough. Actionable on nobody's side; it just means "not mirrorable". */
   sourceNoVariant: 'skip:source-has-no-variant',
+  /** Both sides name their variant and they DISAGREE: they publish this size,
+   *  just not in our alloy (میلگرد ۶ is 310S-only on their table, our SKU is
+   *  304L). Actionable on nobody's side — it is a stocking difference, not a
+   *  gap in our data — and kept apart from `missingVariant` because that one
+   *  tells the operator to go and fill a field which is already filled. */
+  variantNotStocked: 'skip:variant-not-stocked',
   lowConfidence: 'skip:low-confidence-match',
   ambiguous: 'skip:ambiguous-candidates',
   outOfBand: 'skip:price-out-of-band',
@@ -62,6 +68,14 @@ export interface MatchableSku {
   subCategorySlug: string;
   size: string | null;
   factory: string | null;
+  /**
+   * `skus.grade` — the alloy designation (304 / 304L / 310S / 316L) for the
+   * stainless lines. A STRUCTURED column we already populate, which is the
+   * whole reason the استیل families are mirrorable without renaming a single
+   * SKU: ahanonline keys those tables on آلیاژ, and the answer was sitting in
+   * this column the entire time (see `IDENTITY`'s `from: 'grade'`).
+   */
+  grade: string | null;
   /** What the SKU's price is denominated in. Mirrorable only where a source
    *  row publishes the SAME unit — `kg`, or `piece` for کوپلر. Never converted;
    *  see `unitMatchesBasis`. */
@@ -364,6 +378,10 @@ const SIZE_COLUMNS: Readonly<Record<string, readonly string[]>> = {
   'انواع-ورق/ورق-آلومینیوم-آجدار': ['ضخامت (میل)'],
   'انواع-ورق/ورق-پانچ-سیاه': ['ضخامت (mm)'],
   'استنلس-استیل/پروفیل-استیل': ['ابعاد'],
+  // «نام کالا» comes first in this table and is a lone dash on every row, so
+  // the generic `cell()` fallback order is fine — named explicitly anyway so
+  // a future column reshuffle on their side cannot quietly repoint it.
+  'استنلس-استیل/لوله-استیل/لوله-استیل-صنعتی': ['سایز'],
   'انواع-لوله/لوله-مسی': ['size'],
 };
 
@@ -496,6 +514,32 @@ export const SOURCE_PATHS: Readonly<Record<string, readonly string[]>> = {
   'pipe/well-casing': ['انواع-لوله/لوله-جدار-چاه'],
   'felezat-rangi/aluminum-sheet': ['انواع-ورق/ورق-آلومینیوم'],
   'felezat-rangi/copper-sheet': ['انواع-ورق/ورق-مسی'],
+
+  // ---- the استیل families, unlocked by `from: 'grade'` (US-05.3) ----------
+  // These were reported as "deliberately left unmatched" by the source survey
+  // on the grounds that «our SKU names carry a country (هند/تایوان/چین) and no
+  // alloy». That was true of the NAMES and false of the catalogue: `skus.grade`
+  // already holds 304 / 304L / 310S / 316L on all 55 of them, and the stored
+  // price agrees with ahanonline's row for that alloy TO THE RIAL — 316L
+  // میلگرد at 1,218,181 against their 1,218,182, 304L at 831,818, 310S at
+  // 1,919,090. They were hand-seeded from these very pages. Nothing here
+  // relaxes the identity bar; it reads the same explicit published token out
+  // of a column instead of out of a name.
+  //
+  // Each page below was fetched and parsed with `parseAhanonlinePage` on
+  // 1405/06/01 before being listed — row counts in the survey doc.
+  'rebar/stainless': ['میلگرد/میلگرد-استیل'],
+  // The CHILD page, not the parent `استنلس-استیل/لوله-استیل`. The parent
+  // publishes سایز and رده but NO آلیاژ column, so its 80 rows interleave
+  // 316L at 1,700,000 and 304 at 886,806 with nothing to tell them apart —
+  // exactly the "distinguishable only by size" case `sourceNoVariant` exists
+  // for. The child publishes the same rows WITH آلیاژ.
+  'steel/pipe': ['استنلس-استیل/لوله-استیل/لوله-استیل-صنعتی'],
+  'steel/angle': ['استنلس-استیل/نبشی-استیل'],
+  'steel/channel': ['استنلس-استیل/ناودانی-استیل'],
+  'steel/profile': ['استنلس-استیل/پروفیل-استیل'],
+  'wire/welding-wire': ['میلگرد/سیم-جوش-استیل'],
+  'wire/wire-rod': ['میلگرد/سیم-مفتول-استیل'],
 };
 
 // ---------------------------------------------------------------------------
@@ -535,8 +579,19 @@ export interface IdentitySpec {
    *             name. Our catalogue writes these into the name («ورق استیل ۱۲
    *             304L», «کوپلر انتهایی ۱۸») rather than into a column, so the
    *             name is where the answer actually is.
+   * `grade`   — the source's value must EQUAL `skus.grade` exactly. Used by
+   *             the stainless families, where the identity is an alloy code
+   *             we already store in a structured column.
+   *
+   *             Equality, not `includes`, and that is the whole point: «304»
+   *             is a substring of «304L» but a different alloy at a different
+   *             price (886,806 vs 831,818 T/kg on their own tables today), and
+   *             the `name` mode's token-containment test would have silently
+   *             conflated the two. Every one of our 55 stainless SKUs already
+   *             carries a value that matches a published آلیاژ exactly, so
+   *             nothing is lost by demanding it.
    */
-  from: 'factory' | 'name';
+  from: 'factory' | 'name' | 'grade';
 }
 
 export const IDENTITY: Readonly<Record<string, IdentitySpec>> = {
@@ -556,6 +611,25 @@ export const IDENTITY: Readonly<Record<string, IdentitySpec>> = {
   // ورق شیروانی: the mill AND the colour both move the price (هفت الماس ۰٫۴۸
   // is 170,000 in آبی and 170,909 in سفید یخچالی), so both must agree.
   'sheet/roofing': { columns: ['برند', 'رنگ'], from: 'name' },
+
+  // The stainless families. Their tables publish the alloy under «آلیاژ»,
+  // except میلگرد استیل, whose table emits the ASCII header `standard` for
+  // the same thing (ahanonline is inconsistent about which alphabet a header
+  // uses — `rowUnit` already carries the same note about `unit`/«واحد»).
+  //
+  // Note what is NOT here: the mill. Our میلگرد استیل SKUs name a COUNTRY
+  // (هند / تایوان / چین) and ahanonline publishes no origin at all, but that
+  // is not a gap — every size at a given alloy carries one price on their
+  // table regardless of origin, which is the market saying origin does not
+  // set the price for imported stainless bar. The alloy does, 2.3× across
+  // 304L → 310S.
+  'rebar/stainless': { columns: ['standard'], from: 'grade' },
+  'steel/pipe': { columns: ['آلیاژ'], from: 'grade' },
+  'steel/angle': { columns: ['آلیاژ'], from: 'grade' },
+  'steel/channel': { columns: ['آلیاژ'], from: 'grade' },
+  'steel/profile': { columns: ['آلیاژ'], from: 'grade' },
+  'wire/welding-wire': { columns: ['آلیاژ'], from: 'grade' },
+  'wire/wire-rod': { columns: ['آلیاژ'], from: 'grade' },
 };
 
 export function identitySpecFor(sku: MatchableSku): IdentitySpec | undefined {
@@ -584,6 +658,19 @@ export const PRICE_BANDS: Readonly<Record<string, { min: number; max: number }>>
   'sheet/wear-resistant': { min: 100_000, max: 1_200_000 },
   // Per عدد, not per kg — the size range alone spans 17×, hence the width.
   'rebar/coupler': { min: 20_000, max: 5_000_000 },
+  // Stainless, per kg. Observed on their tables 1405/06/01: میلگرد 831,818
+  // (304L) → 1,939,090 (310S); لوله 886,806 → 1,854,545; سیم‌جوش 1,354,545 →
+  // 2,000,000; the structural lines 840,000 → 909,090. Every one of these sits
+  // ABOVE the global 500,000 ceiling, so without a band here each correct
+  // match would be discarded as `price-out-of-band`. Each band below is still
+  // far narrower than the 10× rial↔toman flip the band exists to catch.
+  'rebar/stainless': { min: 300_000, max: 4_000_000 },
+  'steel/pipe': { min: 300_000, max: 4_000_000 },
+  'steel/angle': { min: 300_000, max: 2_000_000 },
+  'steel/channel': { min: 300_000, max: 2_000_000 },
+  'steel/profile': { min: 300_000, max: 2_000_000 },
+  'wire/welding-wire': { min: 300_000, max: 4_000_000 },
+  'wire/wire-rod': { min: 300_000, max: 4_000_000 },
 };
 
 /** The band to judge `sku`'s mirrored price against: its family's if it has
@@ -639,12 +726,32 @@ export function identityAgrees(
   const theirs = rowIdentity(row, spec);
   if (!theirs) return null;
   if (spec.from === 'factory') return factoryScore(sku.factory, theirs) >= 0.999;
+  if (spec.from === 'grade') {
+    const ours = norm(sku.grade);
+    // No grade of our own is a MISSING variant, not a disagreement — the
+    // caller separates the two, and this one is fixable by filling the column.
+    if (!ours) return false;
+    return ours === theirs;
+  }
   // Every token, not any token: «304» must not satisfy a «304L» row, and a
   // two-word variant like «میانی استاندارد» must match in full.
   const haystack = norm(sku.name);
   const tokens = theirs.split(' ').filter((t) => t.length > 1 && !VARIANT_STOPWORDS.has(t));
   if (tokens.length === 0) return null;
   return tokens.every((t) => haystack.includes(t));
+}
+
+/**
+ * Does `sku` carry its own value for `spec`'s identity, independent of whether
+ * any row agrees with it?
+ *
+ * Only answerable for `grade`, where our side of the comparison is one column.
+ * Under `name` the identity is embedded in free text — «لوله استیل ۲ اینچ»
+ * neither states an alloy nor proves it lacks one — and under `factory` the
+ * `noFactory` skip already covers the empty case before matching starts.
+ */
+export function skuCarriesOwnIdentity(sku: MatchableSku, spec: IdentitySpec): boolean {
+  return spec.from === 'grade' ? norm(sku.grade) !== '' : false;
 }
 
 export function taxonomyKey(sku: MatchableSku): string {
@@ -666,6 +773,15 @@ export function allMappedSourcePaths(): string[] {
 
 /** Families whose size is an inch figure on both sides. */
 const INCH_CATEGORIES = new Set(['pipe']);
+/**
+ * Families quoted in inches whose CATEGORY is not «لوله».
+ *
+ * لوله استیل lives under the استیل category (`steel/pipe`), not under لوله, so
+ * the category test above misses it and its «۲½ اینچ» would fall through to
+ * the generic "first number agrees" rule — where 2½ and 2 are the same
+ * product. Keyed on the full taxonomy key for that reason.
+ */
+const INCH_KEYS = new Set(['steel/pipe']);
 /** Families whose size is a `a×b` pair. */
 const DIM_KEYS = new Set([
   'profile/box-square',
@@ -689,14 +805,23 @@ const ANGLE_KEYS = new Set(['angle-channel/nabshi']);
  * different prices (86,644 vs 86,752 تومان today) and sharing a first number
  * must not be enough.
  */
-const STRICT_DIM_KEYS = new Set(['profile/chaharpahlu', 'profile/chaharpahlu-alloy']);
+const STRICT_DIM_KEYS = new Set([
+  'profile/chaharpahlu',
+  'profile/chaharpahlu-alloy',
+  // نبشی/پروفیل استیل: both sides quote the two faces («۴۰×۴۰» vs «40*40»),
+  // and both tables carry sizes that share a first number but are different
+  // products (30*20 and 30*30 at 840,175 vs 840,000). Strict, so a shared
+  // first number is never enough — same reasoning as چهارپهلو above.
+  'steel/angle',
+  'steel/profile',
+]);
 
 export function sizeMatches(sku: MatchableSku, row: AhanonlineRow): boolean {
   const key = taxonomyKey(sku);
   const ourSize = sku.size ?? '';
   const theirSize = rowSize(row);
 
-  if (INCH_CATEGORIES.has(sku.categorySlug)) {
+  if (INCH_CATEGORIES.has(sku.categorySlug) || INCH_KEYS.has(key)) {
     const a = inchValue(ourSize);
     const b = inchValue(theirSize);
     return a !== null && b !== null && Math.abs(a - b) < 1e-6;
@@ -840,7 +965,15 @@ export function matchSku(
       confidence = 'uncertain';
       identityFailure = verdicts.every((v) => v.agrees === null)
         ? SKIP_REASONS.sourceNoVariant
-        : SKIP_REASONS.missingVariant;
+        : // A `grade` family is the one case where we can tell the two
+          // remaining failures apart, because our side of the comparison is a
+          // single column rather than a whole product name: if it is filled
+          // then this is a disagreement about stock, not a hole in our data,
+          // and telling the operator to «fill in the alloy» would send them
+          // to a field that already has the right value in it.
+          skuCarriesOwnIdentity(sku, identity)
+          ? SKIP_REASONS.variantNotStocked
+          : SKIP_REASONS.missingVariant;
     }
   } else {
     const scored = sized.map((r) => ({ row: r, score: factoryScore(sku.factory, rowFactory(r)) }));

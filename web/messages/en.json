@@ -1,10 +1,10 @@
 {
   "common": {
-    "brand": "Ahan Time",
+    "brand": "Ahantime",
     "tagline": "Consult first, then buy.",
     "action": {
       "submitRequest": "Submit Request",
-      "askAi": "Ask Ahan Time",
+      "askAi": "Ask Ahantime",
       "viewPrices": "View Prices",
       "retry": "Try Again",
       "search": "Search",
@@ -19,8 +19,8 @@
       "loading": "Loading…",
       "empty": "No items found",
       "error": "Something went wrong",
-      "offline": "You're offline",
-      "stale": "Delayed",
+      "offline": "No internet connection",
+      "stale": "Delayed data",
       "end": "End of list"
     },
     "unit": {
@@ -38,12 +38,12 @@
   "nav": {
     "home": "Home",
     "prices": "Prices",
-    "ai": "Ahan Time",
+    "ai": "Ahantime",
     "tools": "Tools",
     "content": "Articles",
     "services": "Services",
     "warehouse": "Customer Warehouse",
-    "club": "Club",
+    "club": "Customer Club",
     "cooperation": "Partnership",
     "contact": "Contact",
     "account": "My Account",
@@ -68,7 +68,7 @@
     "badgeRegistered": "Business Registered",
     "badgeUnion": "Iron Sellers Union Member",
     "blurb": "The smart iron & steel marketplace: an AI advisor, transparent live pricing, and clear delivery times.",
-    "rights": "© {year} Ahan Time. All rights reserved."
+    "rights": "© {year} Ahantime. All rights reserved."
   },
   "auth": {
     "mobileLabel": "Mobile Number",
@@ -108,8 +108,8 @@
     "noCountry": "No country found"
   },
   "metadata": {
-    "title": "Ahan Time: Smart Iron & Steel Marketplace",
-    "description": "Ahan Time, the smart iron & steel marketplace: an AI advisor, transparent real-time pricing, and clear delivery times. Consult first, then buy."
+    "title": "Ahantime: Smart Iron & Steel Marketplace",
+    "description": "Ahantime, the smart iron & steel marketplace: an AI advisor, transparent real-time pricing, and clear delivery times. Consult first, then buy."
   },
   "contact": {
     "messageLabel": "Your Message",
@@ -124,12 +124,171 @@
     "notes": "Notes",
     "notesPlaceholder": "Write your request or notes here…",
     "submit": "Submit Partnership Request",
-    "consent": "By submitting this request, you agree to be contacted by an Ahan Time representative about this matter.",
+    "consent": "By submitting this request, you agree to be contacted by an Ahantime representative about this matter.",
     "success": "Your request has been received; we'll be in touch soon."
   },
   "profile": {
     "updated": "Profile updated.",
     "updateFailed": "Update failed.",
     "saveChanges": "Save Changes"
+  },
+  "home": {
+    "hero": {
+      "aria": "Ahantime, the smart steel marketplace",
+      "titleLine1": "Today's steel prices,",
+      "titleLine2": "with a smart advisor",
+      "sub": "Rebar, I-beams, sheet and profiles, direct from the mill. Tell us what you are building and we will work out the quantities, weights and project cost.",
+      "placeholder": "e.g. I'm building a house — what do I need, and how much?",
+      "inputAria": "Ask the Ahantime smart advisor",
+      "ask": "Ask Ahantime",
+      "trust": "{sku} priced products from {factory} mills, transparent and up to date",
+      "startersLabel": "Example questions",
+      "starter1": "What do I need for a two-storey building?",
+      "starter2": "What is the price of 14 mm rebar today?",
+      "starter3": "Which I-beam is the cheapest?"
+    },
+    "how": {
+      "eyebrow": "Consult first, then buy",
+      "title": "How buying at Ahantime works",
+      "step1": {
+        "title": "Free consultation",
+        "text": "Tell the smart advisor what you are building; quantities, weights and project cost are calculated from real, current prices."
+      },
+      "step2": {
+        "title": "Official proforma invoice",
+        "text": "Submit your inquiry cart and an official proforma — transparent pricing, a stated validity period — is issued and sent to you by SMS immediately."
+      },
+      "step3": {
+        "title": "Assured supply",
+        "text": "Official sourcing from the Iran Mercantile Exchange and the mills; for bulk orders we open a letter of credit (LC) so a large transaction stays secure."
+      },
+      "step4": {
+        "title": "Scheduled delivery",
+        "text": "The delivery window for every item is stated up front, and a human specialist stays with you until the load is unloaded."
+      }
+    },
+    "why": {
+      "eyebrow": "What sets Ahantime apart",
+      "title": "Why Ahantime?",
+      "lead": "Across {sku} priced products from {factory} mills, Ahantime does more than publish prices: consultation, an official proforma, managed storage and project-level calculators are all in the same place.",
+      "ai": {
+        "title": "A smart advisor with memory",
+        "text": "Ahantime's AI assistant answers from this site's real prices, remembers your conversation, and applies our specialists' corrections to later answers.",
+        "cta": "Talk to the advisor"
+      },
+      "proforma": {
+        "title": "Instant official proforma, LC-backed supply",
+        "text": "Submit your inquiry cart and receive an official proforma by SMS straight away — sourced through the Iran Mercantile Exchange and the mills, with a letter of credit (LC) available for bulk orders.",
+        "cta": "View prices"
+      },
+      "clients": {
+        "title": "Chosen by major industry",
+        "text": "Cement, oil refining, power generation and petrochemicals: Ahantime is used for corporate procurement and large projects, not only small orders.",
+        "meta": "{count} industrial groups among our customers",
+        "cta": "About us"
+      },
+      "warehouse": {
+        "title": "Customer warehouse",
+        "text": "Buy at today's price and leave the goods with us: storage at a stated monthly fee, optional cargo insurance, a contract and periodic settlement — with no warehouse of your own required.",
+        "cta": "Storage terms"
+      },
+      "tools": {
+        "title": "Free calculation tools",
+        "text": "Weight calculator, project estimator, cost calculator and a live gold and currency board: we do the project arithmetic here, not just list prices.",
+        "meta": "{count} free tools",
+        "cta": "Project estimator"
+      },
+      "services": {
+        "title": "Dedicated B2B services",
+        "text": "Tender estimation against live prices, order tracking, cut-to-size goods and managed storage — services a price-listing site does not provide.",
+        "meta": "{count} active services",
+        "cta": "Estimate a tender"
+      }
+    },
+    "partners": {
+      "millsEyebrow": "Direct from the mill",
+      "millsTitle": "From Iran's most established steel mills",
+      "millsAria": "Supplying mills",
+      "clientsEyebrow": "Trusted by major industry",
+      "clientsTitle": "Who trusts Ahantime",
+      "clientsSub": "From cement and steel to oil, gas and petrochemicals — alongside the giants of Iranian industry.",
+      "clientsAria": "Customers who trust Ahantime"
+    },
+    "browse": {
+      "title": "Choose a product",
+      "railAria": "Product categories",
+      "subsOf": "Sub-categories of {name}"
+    },
+    "compare": {
+      "title": "One product, every mill",
+      "sub": "See today's price from each mill side by side, weigh the difference and pick the cheapest.",
+      "tabsAria": "Choose a product to compare",
+      "perKg": "Toman per kilogram",
+      "cheapest": "Cheapest"
+    }
+  },
+  "about": {
+    "crumbHome": "Home",
+    "crumb": "About us",
+    "eyebrow": "About Ahantime",
+    "title": "Consult first, then buy",
+    "lead": "{org} is an online marketplace for iron and steel prices and supply — where buying structural steel is done with transparent information and proper advice instead of guesswork.",
+    "ctaPrices": "View prices",
+    "ctaAi": "Talk to the smart advisor",
+    "storyTitle": "Why we built Ahantime",
+    "storyP1": "Iran's iron and steel market has struggled for years with sharp price swings, layers of middlemen and scattered information. Whether a <b>contractor</b> or an <b>individual builder</b>, the buyer usually decides without a clear picture of the real price or the quality of the goods.",
+    "storyP2": "We built Ahantime to make that path transparent: prices that are live and dependable, advice available to everyone before they buy, and direct mill sourcing with no chain of intermediaries. Our motto is a commitment — <b>“Consult first, then buy”</b>.",
+    "whyTitle": "Why Ahantime?",
+    "whyLead": "We removed the middleman, made pricing transparent and put advice within reach before the purchase, so you can decide with confidence.",
+    "howTitle": "How does buying work?",
+    "howBody": "There is no online payment at Ahantime. You add the products you want to an <b>inquiry cart</b> and receive a <b>proforma invoice</b>; our specialists then call you to confirm the price, availability and delivery time. That means you get to consult and be sure before any payment.",
+    "contactTitle": "Get in touch",
+    "adv": {
+      "noMiddleman": {
+        "title": "Better prices, no middleman",
+        "desc": "Buying direct from the mill shortens the broker chain: the same goods, at a fairer price."
+      },
+      "fast": {
+        "title": "Faster — 24-hour delivery",
+        "desc": "Agile transport and loading coordination; for most high-demand sections, delivery within 24 hours."
+      },
+      "ai": {
+        "title": "AI advisor",
+        "desc": "Ahantime's smart assistant answers before you buy: size and grade selection, weight and cost estimates."
+      },
+      "transparent": {
+        "title": "Transparent, current prices",
+        "desc": "Prices update live, and the movement, bar weight and delivery time are stated next to every item."
+      },
+      "direct": {
+        "title": "Direct mill sourcing",
+        "desc": "We guarantee authenticity and standard quality by sourcing directly from the producer."
+      },
+      "support": {
+        "title": "Real human support",
+        "desc": "Our specialists call you to finalise the proforma, availability and delivery — a real person, not a bot."
+      },
+      "bourse": {
+        "title": "Purchasing via the commodity exchange",
+        "desc": "Official sourcing through the Iran Mercantile Exchange: transparent pricing, a valid invoice and guaranteed product authenticity."
+      },
+      "lc": {
+        "title": "Letters of credit for customers",
+        "desc": "For bulk purchases we open a letter of credit (LC) so your large transaction stays secure and worry-free."
+      }
+    }
+  },
+  "contactPage": {
+    "crumbHome": "Home",
+    "crumb": "Contact us",
+    "eyebrow": "Get in touch",
+    "title": "Contact us",
+    "lead": "For pre-purchase advice, a price quote or any other question, call us or fill in the form below."
+  },
+  "contactCard": {
+    "title": "We're here to help",
+    "cta": "Call us or send a message",
+    "landline": "Landline",
+    "mobile": "Mobile"
   }
 }

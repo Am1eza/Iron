@@ -182,12 +182,26 @@ export async function getBilletReference(): Promise<{ value: number; updatedAt: 
   return row ? { value: row.value, updatedAt: row.updatedAt.toISOString() } : null;
 }
 
-/** Chart series (number[]) — history values ending at the current price. */
+/**
+ * Chart series (number[]) — history values ending at the current price.
+ *
+ * In LIVE mode an empty result means «this product has no price history», and
+ * that is what it returns. It used to fall back to `mock.priceSeries()` there,
+ * which is a seeded random walk around the current price — so a product with
+ * no history got ninety invented prices, generated per request, rendered on
+ * the public page by `PriceChart` and stated in Persian numerals in its
+ * caption («نمودار قیمت در ماه؛ از ۳۸٬۳۹۱ تومان به …»). Nothing marked them as
+ * synthetic. That is a fabricated number in front of a customer on a site
+ * whose whole proposition is price transparency, and it fired on every SKU
+ * that has never been priced — 85 of them after the seed-data repair
+ * (`scripts/repairSeedPrices.ts`), 7 before it.
+ *
+ * The mock fallback is kept for mock mode, which never faces a real visitor.
+ */
 export async function priceSeries(skuSlug: string, currentPrice: number, days = 365): Promise<number[]> {
   if (!live()) return mock.priceSeries(skuSlug, currentPrice, days);
   const range = days <= 7 ? '7d' : days <= 30 ? '30d' : days <= 90 ? '90d' : '1y';
   const points = await repo.skuHistory(skuSlug, range);
-  if (points.length === 0) return mock.priceSeries(skuSlug, currentPrice, days);
   return points.map((p) => p.price);
 }
 

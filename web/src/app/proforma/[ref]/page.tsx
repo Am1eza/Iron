@@ -113,21 +113,36 @@ export default async function ProformaPage({ params }: Params) {
           <dt>جمع کل</dt>
           <dd>{formatToman(p.subtotal, false)} تومان</dd>
         </div>
-        {/* Discount is applied BEFORE VAT (see issueProforma in leads.service.ts),
-              so hiding it made the three printed numbers fail to reconcile and the
-              VAT percentage read as wrong against the printed base. Both rows are
-              omitted at zero discount so the common case is unchanged. */}
+        {/* Discounts are applied BEFORE VAT (see issueProforma in
+              leads.service.ts), so hiding them made the printed numbers fail to
+              reconcile and the VAT percentage read as wrong against the printed
+              base. Each row is omitted when its own amount is zero, so a plain
+              quote prints exactly as it always has.
+
+              The تخفیف پلکانی row is deliberately its OWN line naming its own
+              reason and percentage, not folded into the unit price or into the
+              rep's «تخفیف» line: a buyer must be able to see that the volume
+              band was applied and at what rate, or the promise on the site is
+              unverifiable from the document it is supposed to appear on. */}
+        {p.volumeDiscountToman > 0 ? (
+          <div>
+            <dt>{p.volumeDiscountLabel ?? 'تخفیف پلکانی'}</dt>
+            <dd>−{formatToman(p.volumeDiscountToman, false)} تومان</dd>
+          </div>
+        ) : null}
         {p.discountToman > 0 ? (
-          <>
-            <div>
-              <dt>تخفیف</dt>
-              <dd>−{formatToman(p.discountToman, false)} تومان</dd>
-            </div>
-            <div>
-              <dt>مبلغ مشمول مالیات</dt>
-              <dd>{formatToman(p.subtotal - p.discountToman, false)} تومان</dd>
-            </div>
-          </>
+          <div>
+            <dt>تخفیف</dt>
+            <dd>−{formatToman(p.discountToman, false)} تومان</dd>
+          </div>
+        ) : null}
+        {p.discountToman + p.volumeDiscountToman > 0 ? (
+          <div>
+            <dt>مبلغ مشمول مالیات</dt>
+            <dd>
+              {formatToman(p.subtotal - p.discountToman - p.volumeDiscountToman, false)} تومان
+            </dd>
+          </div>
         ) : null}
         <div>
           <dt>ارزش افزوده ({toPersianDigits(Math.round(p.vatRate * 100))}٪)</dt>

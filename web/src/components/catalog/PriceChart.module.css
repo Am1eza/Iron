@@ -136,3 +136,12 @@
   text-align: start;
   font-variant-numeric: tabular-nums;
 }
+
+/* Empty state — a SKU with no price_points yet. Same muted caption treatment
+   the axis labels use, so it reads as chart chrome rather than an error. */
+.empty {
+  font: var(--t-body);
+  color: var(--color-text-muted);
+  padding-block: var(--space-6);
+  text-align: center;
+}

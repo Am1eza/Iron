@@ -114,6 +114,18 @@ export const AHANONLINE_TARGETS: readonly AhanonlineTarget[] = [
   { ourCategory: 'لوله', path: 'انواع-لوله/لوله-جدار-چاه' },
   { ourCategory: 'فلزات رنگی', path: 'انواع-ورق/ورق-آلومینیوم' },
   { ourCategory: 'فلزات رنگی', path: 'انواع-ورق/ورق-مسی' },
+
+  // ---- the استیل lines (US-05.3, second pass) ------------------------------
+  // Mirrorable once the matcher reads the alloy out of `skus.grade` instead of
+  // out of the SKU name — see `IDENTITY`'s `from: 'grade'`. All seven were
+  // fetched and parsed before being listed (43 / 53 / 4 / 5 / 7 / 6 / 6 rows).
+  { ourCategory: 'استیل', path: 'میلگرد/میلگرد-استیل' },
+  { ourCategory: 'استیل', path: 'استنلس-استیل/لوله-استیل/لوله-استیل-صنعتی' },
+  { ourCategory: 'استیل', path: 'استنلس-استیل/نبشی-استیل' },
+  { ourCategory: 'استیل', path: 'استنلس-استیل/ناودانی-استیل' },
+  { ourCategory: 'استیل', path: 'استنلس-استیل/پروفیل-استیل' },
+  { ourCategory: 'کلاف و مفتول', path: 'میلگرد/سیم-جوش-استیل' },
+  { ourCategory: 'کلاف و مفتول', path: 'میلگرد/سیم-مفتول-استیل' },
 ] as const;
 
 const BASE = 'https://ahanonline.com/product-category/';

@@ -1,0 +1,123 @@
+/* «چرا آهن‌تایم» — the competitive-advantage grid.
+   Visually distinct from its neighbours without inventing a new visual
+   language: ValueProps sits on --color-surface-sunken and Partners is the dark
+   blueprint block, so this one stays on the plain page surface and gets its
+   separation from a 3-column card grid with hairline borders. Tokens only,
+   logical properties only. */
+
+.section {
+  padding-block: var(--space-16);
+  background: var(--color-surface);
+  border-block-end: var(--border-hairline) solid var(--color-hairline);
+}
+
+.head {
+  margin-block-end: var(--space-8);
+  text-align: start;
+  max-inline-size: 62ch;
+}
+.eyebrow {
+  font: var(--t-overline);
+  letter-spacing: 0.04em;
+  color: var(--color-accent-text);
+  margin: 0 0 var(--space-1);
+}
+.title {
+  font: var(--t-h2);
+  margin: 0;
+}
+.lead {
+  font: var(--t-body);
+  color: var(--color-text-muted);
+  margin: var(--space-3) 0 0;
+  text-wrap: pretty;
+}
+
+.grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-5);
+}
+.grid > li {
+  display: flex;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  inline-size: 100%;
+  padding: var(--space-6) var(--space-5);
+  border-radius: var(--radius-lg);
+  border: var(--border-hairline) solid var(--color-hairline);
+  background: var(--color-surface);
+  color: inherit;
+  text-decoration: none;
+  transition:
+    box-shadow var(--dur-base) var(--ease-standard),
+    border-color var(--dur-base) var(--ease-standard);
+}
+.card:hover,
+.card:focus-visible {
+  border-color: var(--color-border-strong);
+  box-shadow: var(--shadow-sm);
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 44px;
+  block-size: 44px;
+  border-radius: var(--radius-md);
+  background: var(--color-accent-tint);
+  color: var(--color-action-text);
+}
+/* Cobalt is reserved for AI / informational, exactly as FeatureGrid uses it. */
+.iconAccent {
+  background: var(--color-accent-tint);
+  color: var(--color-accent-text);
+}
+
+.cardTitle {
+  font: var(--t-h4);
+  font-weight: 700;
+  margin: var(--space-1) 0 0;
+}
+.cardText {
+  font: var(--t-body-sm);
+  color: var(--color-text-muted);
+  margin: 0;
+  text-wrap: pretty;
+}
+/* The one live number a card may carry — always server-computed, never a
+   marketing figure. Tabular numerals so the six cards align. */
+.meta {
+  font: var(--t-caption);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+.more {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-block-start: auto;
+  padding-block-start: var(--space-3);
+  font: var(--t-label);
+  color: var(--color-accent-text);
+}
+
+@media (max-width: 1023px) {
+  .grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (max-width: 560px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
