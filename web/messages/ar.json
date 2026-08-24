@@ -98,7 +98,8 @@
     "registerSubtitle": "هذا الرقم جديد؛ أدخل الرمز المُرسَل إلى {mobile} وأكمل بياناتك.",
     "newUserBadge": "حساب جديد",
     "registerNameSubtitle": "تم إنشاء حسابك. أدخل اسمك الأول واسم العائلة لإكمال التسجيل.",
-    "completeRegistration": "إكمال التسجيل"
+    "completeRegistration": "إكمال التسجيل",
+    "requestFlowNote": "سلة استعلامك محفوظة؛ بعد تأكيد رقمك، ستعود لإكمال تقديم الطلب."
   },
   "phone": {
     "country": "الدولة",

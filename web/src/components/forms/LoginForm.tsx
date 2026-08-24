@@ -19,7 +19,7 @@ import { OtpInput, type OtpInputHandle } from './OtpInput';
 import { FormStatus } from './FormStatus';
 import { Button } from '@/components/primitives/Button';
 import { safeNextPath } from '@/lib/routes';
-import { Badge } from '@/components/ui';
+import { Badge, Alert } from '@/components/ui';
 import styles from './LoginForm.module.css';
 
 /** `chromeless` — render just the form, no card frame or heading: the panel
@@ -32,6 +32,11 @@ export function LoginForm({ chromeless = false }: { chromeless?: boolean } = {})
   // cross-origin navigation for an absolute URL, so the victim would complete
   // a genuine OTP login on the real domain and land on an attacker's clone.
   const next = safeNextPath(useSearchParams().get('next'));
+  // The cart's own CTA now says «ورود و ادامه ثبت درخواست» so the login
+  // requirement isn't a surprise, but arriving here still drops the visitor
+  // on a bare phone-number form with no link back to what they were doing.
+  // This is the one thing worth saying twice.
+  const fromRequestFlow = next === routes.request();
   const setUser = useAuthStore((s) => s.setUser);
   const t = useTranslations('auth');
   const tPhone = useTranslations('phone');
@@ -203,6 +208,8 @@ export function LoginForm({ chromeless = false }: { chromeless?: boolean } = {})
           </p>
         </div>
       )}
+
+      {fromRequestFlow ? <Alert tone="info">{t('requestFlowNote')}</Alert> : null}
 
       {error || (step === 'code' && otpError) ? (
         <FormStatus variant="error" id={step === 'code' ? 'otp-error' : undefined}>

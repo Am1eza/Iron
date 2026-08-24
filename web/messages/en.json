@@ -98,7 +98,8 @@
     "registerSubtitle": "This number is new; enter the code sent to {mobile} and complete your details.",
     "newUserBadge": "New account",
     "registerNameSubtitle": "Your account is ready. Enter your first and last name to finish signing up.",
-    "completeRegistration": "Finish signing up"
+    "completeRegistration": "Finish signing up",
+    "requestFlowNote": "Your inquiry cart is saved — after verifying your number, you'll return to submit your request."
   },
   "phone": {
     "country": "Country",
