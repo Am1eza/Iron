@@ -7,7 +7,7 @@ import { findSku, relatedRows, priceSeries, getRows, getCategories, getBilletRef
 import { formatToman, priceHiddenLabel } from '@/lib/utils/format';
 import { priceBasisNoun } from '@/lib/utils/catalogLabels';
 import { productImage } from '@/lib/data/productImages';
-import { getSetting, getVatRate } from '@/lib/server/repos/settingsRepo';
+import { getSetting, getVatRate, getStaleHideAfterDays } from '@/lib/server/repos/settingsRepo';
 import { DEFAULT_LOGISTICS_CONFIG, type LogisticsConfig } from '@/lib/data/logistics';
 import { shouldPrerenderMockParams } from '@/lib/server/seo/prerenderParams';
 import { JsonLd, BreadcrumbJsonLd } from '@/components/seo/JsonLd';
@@ -50,15 +50,17 @@ export default async function SkuPage({ params }: Params) {
   const row = await findSku(sku);
   if (!row || row.categoryId !== category || row.subCategoryId !== sub) notFound();
 
-  const [related, series, categoryRows, categories, billet, logisticsConfig, vatRate] = await Promise.all([
-    relatedRows(row),
-    priceSeries(row.slug, row.current.price),
-    getRows(category),
-    getCategories(),
-    getBilletReference(),
-    getSetting<LogisticsConfig>('LOGISTICS', DEFAULT_LOGISTICS_CONFIG),
-    getVatRate(),
-  ]);
+  const [related, series, categoryRows, categories, billet, logisticsConfig, vatRate, staleHideAfterDays] =
+    await Promise.all([
+      relatedRows(row),
+      priceSeries(row.slug, row.current.price),
+      getRows(category),
+      getCategories(),
+      getBilletReference(),
+      getSetting<LogisticsConfig>('LOGISTICS', DEFAULT_LOGISTICS_CONFIG),
+      getVatRate(),
+      getStaleHideAfterDays(),
+    ]);
 
   // W25 audit fix: the «مقایسهٔ کارخانه‌ها» panel is about THIS product, so it
   // is given this product's own sub-category rows — not the whole category's.
@@ -92,7 +94,12 @@ export default async function SkuPage({ params }: Params) {
           // known Google Merchant policy violation, and simply false).
           priceHidden: row.current.priceHidden,
           priceBasis: row.current.priceBasis ?? row.priceBasis,
-          available: row.isActive,
+          // Validity runs from when the price was SET, bounded by the same
+          // freshness SLA that withholds it — not from render time. See
+          // `offerValidUntil`. `available` is deliberately not passed: nothing
+          // tracks stock, and `isActive` only means "published".
+          priceUpdatedAt: row.current.updatedAt,
+          priceValidityDays: staleHideAfterDays,
           url: routes.sku(row.categoryId, row.subCategoryId, row.slug),
           image: row.imageUrl ?? productImage(row.categoryId),
           brand: row.factory,
