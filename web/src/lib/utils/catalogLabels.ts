@@ -459,3 +459,55 @@ export function groupKeyFor(
   if (mode === 'region') return row.region ?? UNKNOWN_VALUE;
   return '';
 }
+
+/**
+ * What a sub-category page is *about*, spelled once — «میلگرد آجدار», not
+ * «میلگرد آجدار میلگرد».
+ *
+ * A sub-category page titles itself «قیمت روز {sub} {category}» so that the
+ * category keyword is in the title even when the sub name alone would be
+ * ambiguous («هاش سبک» → «قیمت روز هاش سبک تیرآهن»). But 29 of the live
+ * sub-categories already carry the category word inside their own name, and
+ * appending it a second time produced titles, H1s and meta descriptions
+ * reading «قیمت روز میلگرد آجدار میلگرد», «قیمت روز لوله استیل استیل» and —
+ * worst of all — «قیمت روز تیرآهن تیرآهن», where the sub is named exactly
+ * after its category. A repeated word in the one line Google shows is a
+ * quality signal in the wrong direction, and it is also just wrong Persian.
+ *
+ * The rule: append the category name only when the sub name does not already
+ * contain it, comparing on a normalised form so a ZWNJ or an Arabic ي/ك — both
+ * of which occur in admin-entered names — cannot make «لوله» fail to match
+ * «لوله». Matching is on whole space-separated tokens, so a category name is
+ * never found inside a longer word.
+ *
+ * Deliberately NOT handled: «نبشی و ناودانی», whose subs («نبشی», «ناودانی
+ * سبک») each repeat one word of a two-word category without containing the
+ * whole of it. Trimming per-token there produces «ناودانی سبک نبشی و»; that
+ * category wants a shorter display name, which is an owner decision, not a
+ * string rule.
+ */
+export function subCategorySubject(subName: string, categoryName: string): string {
+  return subNameCoversCategory(subName, categoryName) ? subName : `${subName} ${categoryName}`;
+}
+
+/** Does `subName` already say `categoryName`, as a run of whole tokens? */
+function subNameCoversCategory(subName: string, categoryName: string): boolean {
+  const sub = normalizeForMatch(subName);
+  const cat = normalizeForMatch(categoryName);
+  if (!cat) return false;
+  return ` ${sub} `.includes(` ${cat} `);
+}
+
+/**
+ * Persian text as it should be compared, not as it is stored: ZWNJ removed
+ * («لوله‌گوشت‌دار» and «لوله گوشت دار» are the same words), the Arabic ي and ك
+ * folded onto the Persian ی and ک, and runs of whitespace collapsed.
+ */
+function normalizeForMatch(s: string): string {
+  return s
+    .replace(/‌/g, ' ')
+    .replace(/ي/g, 'ی')
+    .replace(/ك/g, 'ک')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
