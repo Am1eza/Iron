@@ -5,8 +5,9 @@ import { routes } from '@/lib/routes';
 import { allRows } from '@/lib/mock/catalogData';
 import { findSku, relatedRows, priceSeriesWithDates, getRows, getCategories, getBilletReference, getSubsMap } from '@/lib/server/catalog';
 import { formatToman, priceHiddenLabel } from '@/lib/utils/format';
+import { priceBasisNoun } from '@/lib/utils/catalogLabels';
 import { productImage } from '@/lib/data/productImages';
-import { getSetting, getVatRate } from '@/lib/server/repos/settingsRepo';
+import { getSetting, getVatRate, getStaleHideAfterDays } from '@/lib/server/repos/settingsRepo';
 import { DEFAULT_LOGISTICS_CONFIG, type LogisticsConfig } from '@/lib/data/logistics';
 import { shouldPrerenderMockParams } from '@/lib/server/seo/prerenderParams';
 import { JsonLd, BreadcrumbJsonLd } from '@/components/seo/JsonLd';
@@ -28,9 +29,15 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   // toPriceRow) — was rendering literally as "۰ تومان" in the search-result
   // snippet Google shows for this page.
   const price = priceHiddenLabel(row.current) ?? formatToman(row.current.price);
+  // W25 audit fix: this said «برای هر کیلوگرم» for every SKU. 47 active SKUs
+  // are priced per قطعه / کلاف / شاخه / برگ / متر مربع, so the snippet Google
+  // shows for those pages stated the wrong denomination — the same class of
+  // error `PriceBasis` was added to end. `priceBasisNoun` is the wording the
+  // price tables already use, so the snippet and the page now agree.
+  const basisNoun = priceBasisNoun(row.current.priceBasis ?? row.priceBasis, row.branchLengthM);
   return buildMetadata({
     title: `قیمت روز ${row.name}`,
-    description: `قیمت روز ${row.name}${row.factory ? ` کارخانه ${row.factory}` : ''}: ${price} برای هر کیلوگرم، همراه با نوسان، وزن شاخه و زمان تحویل در آهن‌تایم.`,
+    description: `قیمت روز ${row.name}${row.factory ? ` کارخانه ${row.factory}` : ''}: ${price} برای هر ${basisNoun}، همراه با نوسان، وزن شاخه و زمان تحویل در آهن‌تایم.`,
     path: routes.sku(row.categoryId, row.subCategoryId, row.slug),
   });
 }
@@ -43,16 +50,27 @@ export default async function SkuPage({ params }: Params) {
   const row = await findSku(sku);
   if (!row || row.categoryId !== category || row.subCategoryId !== sub) notFound();
 
-  const [related, priceHistory, categoryRows, categories, billet, logisticsConfig, vatRate] = await Promise.all([
-    relatedRows(row),
-    priceSeriesWithDates(row.slug, row.current.price),
-    getRows(category),
-    getCategories(),
-    getBilletReference(),
-    getSetting<LogisticsConfig>('LOGISTICS', DEFAULT_LOGISTICS_CONFIG),
-    getVatRate(),
-  ]);
+  const [related, priceHistory, categoryRows, categories, billet, logisticsConfig, vatRate, staleHideAfterDays] =
+    await Promise.all([
+      relatedRows(row),
+      priceSeriesWithDates(row.slug, row.current.price),
+      getRows(category),
+      getCategories(),
+      getBilletReference(),
+      getSetting<LogisticsConfig>('LOGISTICS', DEFAULT_LOGISTICS_CONFIG),
+      getVatRate(),
+      getStaleHideAfterDays(),
+    ]);
   const { series, dates } = priceHistory;
+
+  // W25 audit fix: the comparison panel is about THIS product, so it
+  // is given this product's own sub-category rows, not the whole category's.
+  // Passing the category meant a wal-post page shipped a payload dominated by
+  // other sub-category rows and opened the comparison on the sub-category the
+  // most mills quote, silently answering a question about a different
+  // product. Narrowing here also keeps the client payload to the rows the
+  // panel can actually use.
+  const subCategoryRows = categoryRows.filter((r) => r.subCategoryId === sub);
 
   const catName = categories.find((c) => c.slug === category)?.name ?? category;
   const categorySubs = (await getSubsMap())[category] ?? [];
@@ -76,7 +94,13 @@ export default async function SkuPage({ params }: Params) {
           // never reach a `price: 0, InStock` structured-data claim (a
           // known Google Merchant policy violation, and simply false).
           priceHidden: row.current.priceHidden,
-          available: row.isActive,
+          priceBasis: row.current.priceBasis ?? row.priceBasis,
+          // Validity runs from when the price was SET, bounded by the same
+          // freshness SLA that withholds it — not from render time. See
+          // `offerValidUntil`. `available` is deliberately not passed: nothing
+          // tracks stock, and `isActive` only means "published".
+          priceUpdatedAt: row.current.updatedAt,
+          priceValidityDays: staleHideAfterDays,
           url: routes.sku(row.categoryId, row.subCategoryId, row.slug),
           image: row.imageUrl ?? productImage(row.categoryId),
           brand: row.factory,
@@ -84,7 +108,7 @@ export default async function SkuPage({ params }: Params) {
         })}
       />
       <Section space={10}>
-        <SkuDetail row={row} related={related} series={series} dates={dates} categoryRows={categoryRows} billet={billet} subLabel={subLabel} categorySubs={categorySubs} logisticsConfig={logisticsConfig} vatRate={vatRate} />
+        <SkuDetail row={row} related={related} series={series} dates={dates} categoryRows={subCategoryRows} billet={billet} subLabel={subLabel} categorySubs={categorySubs} logisticsConfig={logisticsConfig} vatRate={vatRate} />
       </Section>
     </Container>
   );
