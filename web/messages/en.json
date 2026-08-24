@@ -159,7 +159,7 @@
       },
       "step2": {
         "title": "Official proforma invoice",
-        "text": "Submit your inquiry cart and an official proforma — transparent pricing, a stated validity period — is issued and sent to you by SMS immediately."
+        "text": "Submit your inquiry cart. If every item in it has a published price, an official proforma — transparent pricing, a stated validity period — is issued and sent to you by SMS immediately. If any item’s price is not published, your request is filed and a specialist calls you with a quote."
       },
       "step3": {
         "title": "Assured supply",
@@ -180,8 +180,8 @@
         "cta": "Talk to the advisor"
       },
       "proforma": {
-        "title": "Instant official proforma, LC-backed supply",
-        "text": "Submit your inquiry cart and receive an official proforma by SMS straight away — sourced through the Iran Mercantile Exchange and the mills, with a letter of credit (LC) available for bulk orders.",
+        "title": "Official proforma, LC-backed supply",
+        "text": "Submit your inquiry cart: as long as every item has a published price, the official proforma is sent by SMS straight away — otherwise a specialist calls you with a quote. Sourced through the Iran Mercantile Exchange and the mills, with a letter of credit (LC) available for bulk orders.",
         "cta": "View prices"
       },
       "clients": {
