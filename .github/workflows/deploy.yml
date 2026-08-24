@@ -48,8 +48,43 @@ name: Deploy to production server
 #   NEXT_PUBLIC_SITE_URL, NEXT_PUBLIC_API_MODE (defaults below match
 #   production: https://ahantime.com / live)
 
+# TRIGGER: this deploys ONLY after the `CI` workflow (.github/workflows/ci.yml)
+# has finished successfully for a push to `main`.
+#
+# It used to trigger directly on `push: branches: [main]`, in parallel with and
+# completely independent of CI. Nothing connected the two: `deploy`'s only
+# `needs:` is this file's own `build` job, which compiles the image but runs no
+# lint, no typecheck, no unit tests and no e2e. A commit that failed every
+# check in CI would still build a perfectly valid image and ship it to
+# production, with CI going red minutes later on a commit that was already
+# live.
+#
+# `workflow_run` is used rather than merging CI into this file so the
+# build-once-deploy-many pipeline documented above stays exactly as it is —
+# the image is still built once here and the server still only pulls a tag.
+#
+# Three conditions are checked on every job below, not just `conclusion`:
+#   - conclusion == 'success'  — CI actually passed (not failed/cancelled/skipped)
+#   - event == 'push'          — CI also runs on `pull_request`; a green PR run
+#                                must never deploy. `branches: [main]` filters
+#                                the run's head_branch, but a PR whose SOURCE
+#                                branch is named `main` would slip through it.
+#   - head_branch == 'main'    — belt and braces with the filter above.
+#
+# And the commit is pinned explicitly: under `workflow_run`, `github.sha` is
+# NOT the commit CI tested — it resolves to the default branch's head at
+# dispatch time, which is a different commit the moment anything else lands.
+# `github.event.workflow_run.head_sha` is the validated commit, so that is what
+# gets checked out, what tags the image, and what the server resets to.
+#
+# FALLBACK: if this trigger ever misbehaves, `workflow_dispatch` below still
+# deploys manually (Actions → Deploy to production server → Run workflow), and
+# CLAUDE.md §5's manual recipe still works. A deploy that does not fire is a
+# stopped pipeline, not a broken production.
 on:
-  push:
+  workflow_run:
+    workflows: ['CI']
+    types: [completed]
     branches: [main]
   workflow_dispatch:
     inputs:
@@ -67,10 +102,23 @@ permissions: {}
 
 env:
   IMAGE: ghcr.io/am1eza/iron-web
+  # The commit CI actually validated. Never `github.sha` — see the trigger
+  # comment above. Falls back to `github.sha` for `workflow_dispatch`, where
+  # there is no upstream run and `github.sha` IS the ref you dispatched from.
+  TARGET_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
 
 jobs:
   build:
-    if: ${{ github.event.inputs.image_tag == '' }}
+    # Runs when CI went green for a push to main, OR on a manual dispatch that
+    # did not name an existing tag to re-deploy. Anything else — CI red,
+    # cancelled, a pull_request run, another branch — leaves this `skipped`,
+    # and `deploy` below has nothing to consume.
+    if: >-
+      github.event_name == 'workflow_dispatch' && github.event.inputs.image_tag == ''
+      || github.event_name == 'workflow_run'
+         && github.event.workflow_run.conclusion == 'success'
+         && github.event.workflow_run.event == 'push'
+         && github.event.workflow_run.head_branch == 'main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -81,10 +129,27 @@ jobs:
     outputs:
       tag: ${{ steps.tag.outputs.tag }}
     steps:
+      # Pinned to the commit CI validated, NOT to whatever main points at now.
+      # A default `actions/checkout` under `workflow_run` checks out the
+      # default branch's current head, which is how a "CI-gated" pipeline
+      # quietly ships a commit CI never saw.
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ env.TARGET_SHA }}
+
+      # Fail loudly rather than build something other than what CI tested.
+      - name: Assert the checkout is the CI-validated commit
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          if [ "$actual" != "${TARGET_SHA}" ]; then
+            echo "::error::checked out $actual but CI validated ${TARGET_SHA}"
+            exit 1
+          fi
+          echo "Building CI-validated commit ${TARGET_SHA}"
 
       - id: tag
-        run: echo "tag=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+        run: echo "tag=${TARGET_SHA}" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
@@ -120,7 +185,17 @@ jobs:
 
   deploy:
     needs: [build]
-    if: ${{ always() && !cancelled() && (needs.build.result == 'success' || github.event.inputs.image_tag != '') }}
+    # `always()` is only here so a manual re-deploy of an existing tag can run
+    # with `build` skipped. It must NOT let a skipped-because-CI-failed build
+    # through: that path is excluded by requiring the dispatch event
+    # explicitly, so under `workflow_run` the ONLY way here is
+    # `needs.build.result == 'success'`, which in turn required CI green.
+    if: >-
+      always() && !cancelled()
+      && (
+        needs.build.result == 'success'
+        || (github.event_name == 'workflow_dispatch' && github.event.inputs.image_tag != '')
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: production
@@ -182,8 +257,35 @@ jobs:
               echo "Stashed as: $STASH_MSG — NOT reapplied; recover deliberately."
             fi
 
+            # Reset to the EXACT commit CI validated and this image was built
+            # from — not to whatever origin/main points at right now.
+            #
+            # `git reset --hard origin/main` looked equivalent, and usually
+            # was, but it is the same class of bug as the trigger this
+            # workflow just fixed: if anything lands on main between CI going
+            # green and this SSH step running, the server ends up running an
+            # image built from commit A while docker-compose.yml, the
+            # Caddyfile and the migration files on disk come from commit B.
+            # Build-once-deploy-many only holds if the checkout and the image
+            # are the same commit.
+            #
+            # main is left pointing at the deployed commit (possibly behind
+            # origin/main); the next deploy moves it forward. That is the
+            # correct invariant here: this directory should describe what is
+            # actually running.
             git checkout main
-            git reset --hard origin/main
+            if ! git rev-parse --verify --quiet "${TARGET_TAG}^{commit}" >/dev/null; then
+              git fetch --quiet origin "$TARGET_TAG" 2>/dev/null || true
+            fi
+            if git rev-parse --verify --quiet "${TARGET_TAG}^{commit}" >/dev/null; then
+              git reset --hard "$TARGET_TAG"
+            else
+              # A dispatched image_tag that is not a commit in this repo (an
+              # old/foreign tag). Deploy the image, but say plainly that the
+              # checkout could not be matched to it.
+              echo "::warning::${TARGET_TAG} is not a commit in this repository — leaving the checkout on origin/main; compose/Caddyfile/migrations may not match the deployed image"
+              git reset --hard origin/main
+            fi
 
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_ACTOR" --password-stdin
 

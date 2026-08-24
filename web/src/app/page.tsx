@@ -115,9 +115,26 @@ export default async function HomePage() {
 
   // REAL trust numbers for the hero (never invented): priced SKUs and
   // distinct supplying mills, straight from the rows already fetched above.
-  const allRows = [...rowsBySlug.values()].flat();
-  const skuCount = allRows.length;
-  const factoryCount = new Set(allRows.map((r) => r.factory).filter(Boolean)).size;
+  //
+  // «محصول قیمت‌خورده» is a claim about PUBLISHED PRICES, so it counts rows
+  // that actually carry one. `getRows()` left-joins `currentPrices` and does
+  // not filter on price visibility, so `allRows.length` also counted SKUs
+  // with no price row at all and SKUs whose price is stale-withheld — both
+  // of which render «تماس بگیرید», not a price. On the live catalogue that
+  // was 595 claimed vs. 260 real (62 rows had no price row; 273 were beyond
+  // PRICE_STALE_HIDE_AFTER_DAYS). `priceHidden` is the same flag every
+  // public surface withholds on (catalogRepo.toPriceRow), so the headline
+  // number and the tables now agree by construction.
+  //
+  // De-duplicated by SKU id first: a cross-listed SKU is returned by BOTH
+  // its native category and the category it is cross-listed into, and a
+  // trust number must not count one product twice.
+  const allRows = [...new Map([...rowsBySlug.values()].flat().map((r) => [r.id, r])).values()];
+  const pricedRows = allRows.filter((r) => !r.current.priceHidden);
+  const skuCount = pricedRows.length;
+  // Mills are counted over the same priced rows, for the same reason: the
+  // sentence reads «… از N کارخانه», i.e. mills we can currently quote.
+  const factoryCount = new Set(pricedRows.map((r) => r.factory).filter(Boolean)).size;
   // Null only when the catalog read failed and the chrome degraded to an empty
   // rail — there is nothing to describe, so nothing is asserted.
   const catalogNav = catalogNavigationJsonLd(categories, subsMap);

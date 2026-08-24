@@ -7,7 +7,7 @@ import { getCategories, getRows, getSubRows, getFactoryOrder } from '@/lib/serve
 import { MOCK_CATEGORY_SUBS } from '@/lib/data/nav';
 import { getSubsMap } from '@/lib/data/catalog';
 import { getSetting, getVatRate } from '@/lib/server/repos/settingsRepo';
-import { factoryIsMeaningful } from '@/lib/utils/catalogLabels';
+import { factoryIsMeaningful, subCategorySubject } from '@/lib/utils/catalogLabels';
 import { DEFAULT_LOGISTICS_CONFIG, type LogisticsConfig } from '@/lib/data/logistics';
 import { shouldPrerenderMockParams } from '@/lib/server/seo/prerenderParams';
 import { Container, Section, Stack, Breadcrumbs, EmptyState, emptyPresets } from '@/components/ui';
@@ -44,9 +44,11 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   if (!cat || !name) {
     return buildMetadata({ title: 'صفحه پیدا نشد', noindex: true });
   }
+  // «میلگرد آجدار», not «میلگرد آجدار میلگرد» — see subCategorySubject.
+  const subject = subCategorySubject(name, cat.name);
   return buildMetadata({
-    title: `قیمت روز ${name} ${cat.name}`,
-    description: `جدول قیمت روز ${name} ${cat.name} با نوسان، وزن شاخه، استاندارد و زمان تحویل در آهن‌تایم. اول مشورت، بعد خرید.`,
+    title: `قیمت روز ${subject}`,
+    description: `جدول قیمت روز ${subject} با نوسان، وزن شاخه، استاندارد و زمان تحویل در آهن‌تایم. اول مشورت، بعد خرید.`,
     path: routes.subCategory(category, sub),
   });
 }
@@ -72,6 +74,10 @@ export default async function SubCategoryPage({ params }: Params) {
     // category page uses (US-18.2).
     getFactoryOrder(category),
   ]);
+
+  // The one subject line the title, the H1 and the intro all spell — kept
+  // identical on purpose, so a page can never advertise itself two ways.
+  const subject = subCategorySubject(name, cat.name);
 
   const crumbs = [
     { label: 'خانه', href: routes.home() },
@@ -102,8 +108,8 @@ export default async function SubCategoryPage({ params }: Params) {
               categorySlug={category}
               categoryName={cat.name}
               id="sub-title"
-              title={`قیمت روز ${name} ${cat.name}`}
-              description={`قیمت لحظه‌ای ${name} ${cat.name} ${
+              title={`قیمت روز ${subject}`}
+              description={`قیمت لحظه‌ای ${subject} ${
                 factoryIsMeaningful(category, sub) ? 'به تفکیک سایز و کارخانه' : 'به تفکیک سایز'
               }، همراه با نوسان، وزن شاخه و زمان تحویل اعلام‌شده. پیش از خرید، با کارشناس ما مشورت کنید.`}
             />
