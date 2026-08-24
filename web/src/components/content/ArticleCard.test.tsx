@@ -43,4 +43,14 @@ describe('ArticleCard', () => {
     render(<ArticleCard article={{ ...article, type: 'news' }} />);
     expect(screen.getByRole('link').getAttribute('href')).toBe(`/news/${article.slug}`);
   });
+
+  it('shows a read-time badge when readingMinutes is present', () => {
+    render(<ArticleCard article={{ ...article, readingMinutes: 4 }} />);
+    expect(screen.getByText('4 دقیقه')).toBeInTheDocument();
+  });
+
+  it('omits the read-time badge when readingMinutes is absent — mock catalog has no body', () => {
+    render(<ArticleCard article={article} />);
+    expect(screen.queryByText(/دقیقه/)).not.toBeInTheDocument();
+  });
 });

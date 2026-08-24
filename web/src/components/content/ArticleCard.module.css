@@ -110,7 +110,13 @@
   padding-block-start: var(--space-3);
   border-block-start: var(--border-hairline) solid var(--color-hairline);
 }
-.date {
+.meta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.date,
+.readTime {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);

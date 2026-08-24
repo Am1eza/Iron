@@ -2,7 +2,7 @@ import Link from 'next/link';
 import type { Article } from '@/lib/types/domain';
 import { routes } from '@/lib/routes';
 import { formatJalali } from '@/lib/utils/jalali';
-import { CalendarIcon, ChevronStartIcon } from '@/components/primitives/icons';
+import { CalendarIcon, ClockIcon, ChevronStartIcon } from '@/components/primitives/icons';
 import styles from './ArticleCard.module.css';
 
 /**
@@ -50,12 +50,22 @@ export function ArticleCard({ article }: { article: Article }) {
         {article.excerpt ? <p className={styles.excerpt}>{article.excerpt}</p> : null}
 
         <div className={styles.foot}>
-          {article.publishAt ? (
-            <span className={styles.date}>
-              <CalendarIcon size={14} aria-hidden="true" />
-              <time className="tnum" dateTime={article.publishAt}>
-                {formatJalali(article.publishAt)}
-              </time>
+          {article.publishAt || article.readingMinutes ? (
+            <span className={styles.meta}>
+              {article.publishAt ? (
+                <span className={styles.date}>
+                  <CalendarIcon size={14} aria-hidden="true" />
+                  <time className="tnum" dateTime={article.publishAt}>
+                    {formatJalali(article.publishAt)}
+                  </time>
+                </span>
+              ) : null}
+              {article.readingMinutes ? (
+                <span className={styles.readTime}>
+                  <ClockIcon size={14} aria-hidden="true" />
+                  <span className="tnum">{article.readingMinutes} دقیقه</span>
+                </span>
+              ) : null}
             </span>
           ) : (
             <span />
