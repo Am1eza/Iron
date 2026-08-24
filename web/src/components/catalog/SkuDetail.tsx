@@ -35,6 +35,7 @@ import {
   Button,
 } from '@/components/ui';
 import { PriceChart } from './PriceChart';
+import { KgQuantityModal } from '@/components/lazy';
 import { BulkQuote } from './BulkQuote';
 import { ProductImage } from './ProductImage';
 import { FactoryLink } from './FactoryLink';
@@ -134,11 +135,11 @@ export function SkuDetail({
     { label: row.name },
   ];
 
-  const addToCart = () => {
+  const addRowToCart = (qty: number) => {
     add({
       skuId: row.id,
       name: row.name,
-      qty: 1,
+      qty,
       unit: row.unit,
       unitPrice: row.current.price,
       weightKg: row.theoreticalWeightKg,
@@ -147,6 +148,19 @@ export function SkuDetail({
       label: 'مشاهده سبد',
       href: routes.cart(),
     });
+  };
+
+  // «۱ کیلوگرم» is not a purchasable unit for a kg-basis product (audit
+  // finding) — ask by شاخه count or direct weight (KgQuantityModal) instead
+  // of defaulting straight to qty:1. Every other basis already counts in a
+  // real unit (شاخه/برگ/عدد/…), so 1 there is already correct.
+  const [kgQtyOpen, setKgQtyOpen] = useState(false);
+  const addToCart = () => {
+    if (row.priceBasis === 'kg') {
+      setKgQtyOpen(true);
+      return;
+    }
+    addRowToCart(1);
   };
 
   const favMutation = useMutation({
@@ -499,6 +513,18 @@ export function SkuDetail({
           </ul>
         </section>
       ) : null}
+
+      <KgQuantityModal
+        open={kgQtyOpen}
+        onClose={() => setKgQtyOpen(false)}
+        productName={row.name}
+        branchWeightKg={row.theoreticalWeightKg}
+        unitPrice={row.current.price}
+        onConfirm={(qtyKg) => {
+          addRowToCart(qtyKg);
+          setKgQtyOpen(false);
+        }}
+      />
     </Stack>
   );
 }
