@@ -868,7 +868,18 @@ export async function searchSkus(q: string, limit = 20): Promise<PriceRow[]> {
           ...conds,
         ),
       )
-      .orderBy(desc(sql`similarity(${skus.name}, ${trimmed})`))
+      // Rounded similarity BUCKETS the near-ties a raw float sort never
+      // groups («میلگرد ۱۴» scored «میلگرد استیل ۱۴ هند» — a niche variant —
+      // ahead of «میلگرد آجدار», the common one, on a razor's-width
+      // similarity gap). Within a bucket, `subCategories.order` — the same
+      // admin-set popularity/display signal the taxonomy rail and search
+      // filters already sort by — breaks the tie toward the common
+      // sub-category, and raw similarity still settles anything left over.
+      .orderBy(
+        desc(sql`round(similarity(${skus.name}, ${trimmed})::numeric, 2)`),
+        asc(subCategories.order),
+        desc(sql`similarity(${skus.name}, ${trimmed})`),
+      )
       .limit(limit);
 
   let rows = await run(perTokenMatch);

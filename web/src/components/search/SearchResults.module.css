@@ -17,6 +17,43 @@
   font-weight: 600;
 }
 
+/* ===== Result-type filter chips ===== */
+.filters {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.filterChip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-pill);
+  border: var(--border-hairline) solid var(--color-border-strong);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: var(--t-body-sm);
+  text-decoration: none;
+  transition:
+    border-color var(--dur-fast) var(--ease-standard),
+    color var(--dur-fast) var(--ease-standard),
+    background var(--dur-fast) var(--ease-standard);
+}
+.filterChip:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent-text);
+  text-decoration: none;
+}
+.filterChip[data-active] {
+  border-color: var(--color-accent);
+  background: var(--color-accent-tint);
+  color: var(--color-accent-text);
+  font-weight: 600;
+}
+
 /* ===== Result group ===== */
 .group {
   display: flex;

@@ -113,7 +113,10 @@ export const routes = {
     track ? `/cooperation/${track}` : '/cooperation',
 
   // Utility / legal
-  search: (q: string) => `/search?q=${enc(q)}`,
+  /** `type` narrows /search's result-type chips (sku/category/article);
+   *  omitted or `undefined` means "all results", the page's default. */
+  search: (q: string, type?: 'sku' | 'category' | 'article') =>
+    type ? `/search?q=${enc(q)}&type=${type}` : `/search?q=${enc(q)}`,
   terms: () => '/terms',
   privacy: () => '/privacy',
 
