@@ -1,7 +1,10 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { routes } from '@/lib/routes';
+import { useAnyModalOpen } from '@/lib/hooks/useFocusTrap';
+import { isPromoSuppressedPath } from './arrivalPopupRoutes';
 import { useUiStore } from '@/lib/stores/ui';
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion';
 import { AiMarkIcon, CloseIcon, ArrowEndIcon } from '@/components/primitives/icons';
@@ -24,6 +27,16 @@ const SUPPRESS_MS = 7 * 24 * 60 * 60 * 1000;
  * into reading — a promo must never steal focus or lock scrolling. It is a
  * `status` complementary region; Esc still dismisses it, but nothing is trapped.
  *
+ * It suppresses ITSELF in two ways the orchestrator can't see:
+ *  - by route (`arrivalPopupRoutes`) — the funnel, login, the account area and
+ *    the advisor are the visitor's task, and a promo must never outrank it. The
+ *    12s timer is not even scheduled on those pages, so it can't fire on a
+ *    client-side navigation into one either;
+ *  - while any dialog is open (`useAnyModalOpen`) — the compare modal, the
+ *    clear-cart confirm, the mobile drawer. Those are focus-trapped and
+ *    scroll-locked; a promo card rendering at --z-toast on top of one is
+ *    unreachable AND covers the thing that trapped focus.
+ *
  * NOTE: This component does not mount itself anywhere — the orchestrator mounts it.
  */
 export function ArrivalPopup() {
@@ -31,6 +44,9 @@ export function ArrivalPopup() {
   const [visible, setVisible] = useState(false);
   const reduced = useReducedMotion();
   const dismiss = useUiStore((s) => s.dismissClubPopup);
+  const pathname = usePathname();
+  const suppressedHere = isPromoSuppressedPath(pathname);
+  const modalOpen = useAnyModalOpen();
 
   // Mark mounted on the client so we never render during SSR / first paint.
   useEffect(() => {
@@ -39,14 +55,21 @@ export function ArrivalPopup() {
 
   // Schedule the reveal once mounted; re-check suppression at fire time.
   useEffect(() => {
-    if (!mounted) return;
+    if (!mounted || suppressedHere) return;
     const timer = window.setTimeout(() => {
       const dismissedAt = useUiStore.getState().dismissedClubPopupAt;
       const suppressed = dismissedAt !== null && Date.now() - dismissedAt < SUPPRESS_MS;
       if (!suppressed) setVisible(true);
     }, SHOW_AFTER_MS);
     return () => window.clearTimeout(timer);
-  }, [mounted]);
+  }, [mounted, suppressedHere]);
+
+  // Already on screen when the visitor taps through to the cart / login: hide
+  // it without burning the 7-day suppression window, since they never chose to
+  // dismiss it.
+  useEffect(() => {
+    if (suppressedHere) setVisible(false);
+  }, [suppressedHere]);
 
   const handleDismiss = () => {
     setVisible(false);
@@ -64,7 +87,7 @@ export function ArrivalPopup() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
-  if (!mounted || !visible) return null;
+  if (!mounted || !visible || suppressedHere || modalOpen) return null;
 
   return (
     <div

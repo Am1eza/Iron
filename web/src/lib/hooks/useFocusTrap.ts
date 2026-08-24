@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
@@ -49,7 +49,10 @@ export function useFocusTrap<T extends HTMLElement = HTMLDivElement>(
 
     lastFocused.current = document.activeElement as HTMLElement;
     const prevOverflow = document.body.style.overflow;
-    if (lockScroll) document.body.style.overflow = 'hidden';
+    if (lockScroll) {
+      document.body.style.overflow = 'hidden';
+      setModalDepth(modalDepth + 1);
+    }
 
     const focusFirst = () => {
       const target =
@@ -89,7 +92,10 @@ export function useFocusTrap<T extends HTMLElement = HTMLDivElement>(
     document.addEventListener('keydown', onKeyDown);
     return () => {
       document.removeEventListener('keydown', onKeyDown);
-      if (lockScroll) document.body.style.overflow = prevOverflow;
+      if (lockScroll) {
+        document.body.style.overflow = prevOverflow;
+        setModalDepth(Math.max(0, modalDepth - 1));
+      }
       lastFocused.current?.focus?.();
     };
     // `onEscape` intentionally excluded — see `onEscapeRef` above. Depending
@@ -98,4 +104,48 @@ export function useFocusTrap<T extends HTMLElement = HTMLDivElement>(
   }, [active, lockScroll]);
 
   return ref;
+}
+
+/* ---------------------------------------------------------------------------
+ * "Is anything modal open right now?"
+ *
+ * Deliberately derived from the focus trap rather than tracked separately:
+ * every modal surface in the app (Modal, SkuDrawer, MobileDrawer, the bottom
+ * sheets) is modal precisely BECAUSE it calls `useFocusTrap` with the default
+ * `lockScroll: true`, so this counter cannot drift from reality the way a
+ * second, hand-maintained registry would. (`useUiStore.activeModal` is that
+ * second registry — a single string slot nothing has ever written to. It
+ * could not have answered this question anyway: modals nest.)
+ *
+ * An INLINE popover passes `lockScroll: false` and is intentionally NOT
+ * counted — it covers nothing, so nothing needs to yield to it.
+ * ------------------------------------------------------------------------- */
+let modalDepth = 0;
+const modalListeners = new Set<() => void>();
+
+function setModalDepth(next: number) {
+  if (next === modalDepth) return;
+  modalDepth = next;
+  for (const l of modalListeners) l();
+}
+
+function subscribeModalDepth(listener: () => void) {
+  modalListeners.add(listener);
+  return () => {
+    modalListeners.delete(listener);
+  };
+}
+
+/**
+ * `true` while at least one focus-trapping, scroll-locking surface is open.
+ * Used by non-modal floating UI (the club promo) to stay out of the way of a
+ * dialog the visitor actually opened. Returns `false` during SSR.
+ */
+export function useAnyModalOpen(): boolean {
+  const subscribe = useCallback(subscribeModalDepth, []);
+  return useSyncExternalStore(
+    subscribe,
+    () => modalDepth > 0,
+    () => false,
+  );
 }

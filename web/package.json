@@ -86,7 +86,7 @@
   "engines": {
     "node": ">=18.18.0"
   },
-  "packageManager": "pnpm@9.12.0",
+  "packageManager": "pnpm@9.12.0+sha512.4abf725084d7bcbafbd728bfc7bee61f2f791f977fd87542b3579dcb23504d170d46337945e4c66485cd12d588a0c0e570ed9c477e7ccdd8507cf05f3f92eaca",
   "pnpm": {
     "//": "Transitive-only pins. Each line is a package we do NOT depend on directly, so it can only be raised here. Re-check these against `pnpm audit --prod` when bumping deps — a stale floor here looks like a fix while pinning the project ON the vulnerable range, which is exactly what happened to postcss (was >=8.5.10, advisory had moved to <=8.5.22).",
     "overrides": {

@@ -60,20 +60,23 @@ export function SiteChromeBottom({ categories, contact }: { categories: Category
   // dropping a second, redundant call CTA there fixes the collision at its
   // root instead of nudging z-index/offsets against a composer this widget
   // has no knowledge of.
-  // The club promo lands in that same bottom corner and has the same problem,
-  // only worse: it fires on a 12s timer — almost exactly the advisor's own
-  // slow-answer threshold (SLOW_HINT_MS) — so it reliably appears WHILE the
-  // visitor is waiting for a price, and covers the answer as it arrives. At
-  // 375px it covers the composer, the send button and the bottom third of the
-  // conversation outright, so the page cannot be used until the × is found.
-  // A promo interrupting the one page that is itself the conversation is the
-  // same redundancy the callback FAB was removed for.
+  //
+  // The FAB is deliberately NOT dropped on /cart, /login or /request the way
+  // the club promo now is: it is help, not promotion. A visitor stuck on the
+  // OTP screen or unsure about a basket line wants the phone number more
+  // there than anywhere else on the site, and it no longer covers anything —
+  // it holds the bottom-most floating lane and the toast region and the promo
+  // stack above it (see --float-lane-* in tokens.css).
   const onAdvisor = pathname?.startsWith('/ai');
+  // Where the promo may appear is the promo's own business — ArrivalPopup
+  // suppresses itself by route (arrivalPopupRoutes.ts, which includes /ai) and
+  // while any dialog is open. Keeping a second copy of that list here is how
+  // the two would drift.
   return (
     <>
       <Footer categories={categories} contact={contact} />
       <BottomTabBar />
-      {!onAdvisor && <ArrivalPopup />}
+      <ArrivalPopup />
       {!onAdvisor && <CallbackWidget phoneLandline={contact.phoneLandline} />}
     </>
   );

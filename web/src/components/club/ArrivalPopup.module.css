@@ -6,10 +6,14 @@
 
 .root {
   position: fixed;
-  /* clear the fixed bottom tab bar (below 768px) plus a breathing gap */
-  inset-block-end: calc(var(--bottom-bar-h) + var(--space-4));
+  /* Lane 3 — furthest from the thumb. On a 375px viewport this card is
+     `100vw - 2rem` wide, so on the shared lane it sat squarely on top of the
+     «تماس بگیرید» FAB and any toast. It is the only one of the three the
+     visitor did not ask for, so it yields to both. See tokens.css. */
+  inset-block-end: var(--float-lane-3);
   inset-inline-start: var(--space-4);
-  z-index: var(--z-toast, 500);
+  /* Below the toast region (--z-toast) so live feedback always wins. */
+  z-index: calc(var(--z-toast) - 1);
   inline-size: min(360px, calc(100vw - 2 * var(--space-4)));
   display: flex;
   flex-direction: column;
