@@ -1,12 +1,16 @@
 /**
  * SiteChrome — which floating widgets are allowed on the advisor page.
  *
- * `/ai`'s composer is fixed to the bottom of the viewport. Anything else that
- * pins itself to a bottom corner lands on top of it: the callback FAB used to
- * swallow taps meant for the send button, and the club promo — which fires on
- * a 12s timer, i.e. while the visitor is waiting for a price — covered the
- * whole composer at 375px. Both are excluded there; everywhere else both
- * still render.
+ * `/ai`'s composer is fixed to the bottom of the viewport. The callback FAB
+ * used to swallow taps meant for the send button there, so SiteChrome still
+ * excludes it explicitly on `/ai`. The club promo used to collide with the
+ * composer the same way, but that's no longer handled at this level: it
+ * suppresses ITSELF by route (`arrivalPopupRoutes.ts`, which includes `/ai`)
+ * so SiteChrome doesn't have to keep a second copy of that list — see
+ * `ArrivalPopup.test.tsx` / `arrivalPopupRoutes.test` for that behaviour.
+ * The mock below is a dumb stub with no route awareness, so from this file's
+ * point of view `<ArrivalPopup>` now renders on every path SiteChrome itself
+ * doesn't gate.
  */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
@@ -38,19 +42,22 @@ describe('SiteChromeBottom — bottom-corner widgets vs the advisor composer', (
     expect(screen.getByTestId('callback')).toBeInTheDocument();
   });
 
-  it('renders neither on /ai, so nothing can cover the composer', () => {
+  it('excludes the callback FAB on /ai, so nothing can cover the composer', () => {
     renderAt('/ai');
-    expect(screen.queryByTestId('arrival')).not.toBeInTheDocument();
     expect(screen.queryByTestId('callback')).not.toBeInTheDocument();
+    // ArrivalPopup is mounted here — this file's stub can't see its own
+    // route suppression, which is exactly the point: that logic now lives
+    // (and is tested) inside ArrivalPopup itself, not duplicated here.
+    expect(screen.getByTestId('arrival')).toBeInTheDocument();
     // The chrome itself must still be there — this is an exclusion, not a bail-out.
     expect(screen.getByTestId('footer')).toBeInTheDocument();
     expect(screen.getByTestId('tabbar')).toBeInTheDocument();
   });
 
-  it('excludes them on nested advisor routes too', () => {
+  it('excludes the callback FAB on nested advisor routes too', () => {
     renderAt('/ai/history');
-    expect(screen.queryByTestId('arrival')).not.toBeInTheDocument();
     expect(screen.queryByTestId('callback')).not.toBeInTheDocument();
+    expect(screen.getByTestId('arrival')).toBeInTheDocument();
   });
 
   it('renders nothing at all on the admin shell', () => {
