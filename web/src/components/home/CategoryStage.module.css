@@ -1,5 +1,5 @@
 .section {
-  padding-block: var(--space-20);
+  padding-block: var(--space-16);
   background: var(--color-bg);
 }
 .head {
@@ -107,7 +107,7 @@
 .flyout {
   flex: 0 1 720px;
   display: flex;
-  min-block-size: 520px;
+  min-block-size: 440px;
 }
 .panel {
   flex: 1 1 auto;
@@ -138,7 +138,7 @@
 
 /* the reveal: large product photography, cover-fit, stable height */
 .photo {
-  block-size: 240px;
+  block-size: 176px;
   border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--color-surface-sunken);
