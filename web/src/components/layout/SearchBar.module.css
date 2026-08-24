@@ -1,3 +1,8 @@
+.wrap {
+  position: relative;
+  inline-size: 100%;
+}
+
 .bar {
   display: flex;
   align-items: center;
@@ -101,4 +106,53 @@
   .lg .submit {
     padding-inline: var(--space-4);
   }
+}
+
+/* ===== Autocomplete suggestions ===== */
+.suggestions {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: calc(100% + var(--space-2));
+  z-index: var(--z-dropdown);
+  margin: 0;
+  padding: var(--space-2);
+  list-style: none;
+  background: var(--color-surface);
+  border: var(--border-hairline) solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  max-block-size: 60vh;
+  overflow-y: auto;
+}
+.suggestion {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-strong);
+  text-decoration: none;
+}
+.suggestion:hover,
+.suggestion[data-active] {
+  background: var(--color-accent-tint);
+  color: var(--color-accent-text);
+  text-decoration: none;
+}
+.suggestionLabel {
+  font: var(--t-body-sm);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.suggestionMeta {
+  flex: none;
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}
+.suggestion:hover .suggestionMeta,
+.suggestion[data-active] .suggestionMeta {
+  color: inherit;
 }

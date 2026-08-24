@@ -2,7 +2,7 @@ import { API_MODE } from '../config';
 import { http } from '../http';
 import { categories as mockCategories, rebarRows } from '@/lib/mock/fixtures';
 import { priceSeries as mockPriceSeries, getRows as mockGetRows } from '@/lib/mock/catalogData';
-import type { Category, PriceRow } from '@/lib/types/domain';
+import type { Article, Category, PriceRow } from '@/lib/types/domain';
 
 const delay = (ms = 120) => new Promise((r) => setTimeout(r, ms));
 const RANGE_DAYS: Record<string, number> = { '7d': 7, '30d': 30, '90d': 90, '1y': 365 };
@@ -62,6 +62,22 @@ export const catalogApi = {
     return http.get<{ points: Array<{ price: number; at: string }> }>(
       `/api/sku/${encodeURIComponent(slug)}/history?range=${range}`,
       { signal: opts?.signal },
+    );
+  },
+
+  /** SearchBar's autocomplete dropdown — the same `/api/search` endpoint that
+   *  already backs the /search page, already rate-limited server-side. Mock
+   *  mode returns no suggestions rather than duplicating /search's own
+   *  substring-scan logic client-side: the baseline Enter-to-/search path
+   *  works unaffected either way (that page's mock branch is untouched by
+   *  this), only the autocomplete dropdown itself has nothing to show. */
+  async search(q: string, opts?: { signal?: AbortSignal }): Promise<{ skus: PriceRow[]; articles: Article[] }> {
+    if (API_MODE === 'mock') return { skus: [], articles: [] };
+    return http.get<{ skus: PriceRow[]; articles: Article[] }>(
+      `/api/search?q=${encodeURIComponent(q)}`,
+      // One attempt, no retry pile-up behind a fast typist — same reasoning
+      // as the admin command palette's search() call.
+      { signal: opts?.signal, retries: 0 },
     );
   },
 };
