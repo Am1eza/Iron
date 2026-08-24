@@ -59,6 +59,7 @@ export function SkuDetail({
   row,
   related: relatedProp,
   series: seriesProp,
+  dates: datesProp,
   categoryRows,
   billet,
   subLabel: subLabelProp,
@@ -70,6 +71,9 @@ export function SkuDetail({
   /** Server-provided (live mode); mock fallbacks apply when absent. */
   related?: PriceRow[];
   series?: number[];
+  /** Real ISO timestamp per `series` point (live mode only — see
+   *  `catalog.priceSeriesWithDates`). Forwarded to `PriceChart`'s x-axis. */
+  dates?: string[];
   categoryRows?: PriceRow[];
   /** بورس billet reference (US-03.3) — null when OP hasn't entered one yet. */
   billet?: { value: number; updatedAt: string } | null;
@@ -426,7 +430,10 @@ export function SkuDetail({
           روند قیمت
         </h2>
         <div className={styles.card}>
-          <PriceChart series={seriesProp ?? mockSeries(row.slug, row.current.price)} />
+          <PriceChart
+            series={seriesProp ?? mockSeries(row.slug, row.current.price)}
+            dates={seriesProp ? datesProp : undefined}
+          />
         </div>
       </section>
 

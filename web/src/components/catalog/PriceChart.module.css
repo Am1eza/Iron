@@ -43,6 +43,7 @@
 .deltaPeriod {
   font: var(--t-caption);
   color: var(--color-text-muted);
+  margin: 0;
 }
 
 .tabs {
@@ -68,12 +69,23 @@
   box-shadow: var(--shadow-sm);
 }
 
+/* The plotted chart (svg + its two axis rows) reads LTR — see PriceChart.tsx's
+   comment on `x()`. Forcing it here keeps the HTML axis/tooltip rows in the
+   same left=oldest/right=newest order as the SVG geometry instead of the
+   ambient RTL page flipping just the HTML half of it. */
+.chartArea {
+  direction: ltr;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
 .svgWrap {
   position: relative;
+  touch-action: pan-y;
 }
 .svg {
   inline-size: 100%;
-  block-size: 220px;
+  block-size: 160px;
   display: block;
 }
 /* The "latest point" dot lives OUTSIDE the <svg>'s own coordinate space —
@@ -98,12 +110,67 @@
 .marker.down {
   background: var(--color-loss);
 }
+.dateAxis {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
 .axis {
   display: flex;
   align-items: center;
   justify-content: space-between;
   font: var(--t-caption);
   color: var(--color-text-muted);
+}
+
+/* Hover/tap tooltip — the vertical guide + dot track the pointer; the card
+   shows the exact date/price the marker (always latest-only) can't. Pointer
+   events pass through everything here (`.svgWrap` itself owns the handlers),
+   so touch-drag keeps tracking instead of the tooltip stealing the gesture. */
+.hoverLine {
+  position: absolute;
+  inset-block: 0;
+  inline-size: 1px;
+  background: var(--color-hairline);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.hoverDot {
+  position: absolute;
+  inline-size: 8px;
+  block-size: 8px;
+  border-radius: var(--radius-circle);
+  background: var(--color-accent);
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 3px var(--color-surface);
+  pointer-events: none;
+}
+/* `transform` (above/below + start/end flip) is computed inline in JS from
+   the hovered point's position — see PriceChart.tsx's `tooltipTransform`. */
+.tooltip {
+  position: absolute;
+  z-index: var(--z-tooltip);
+  background: var(--color-surface);
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  padding: var(--space-1) var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  white-space: nowrap;
+  pointer-events: none;
+  font: var(--t-caption);
+}
+.tooltipDate {
+  color: var(--color-text-muted);
+}
+.tooltipVal {
+  color: var(--color-text-strong);
+  font: var(--t-label);
 }
 
 /* Data-table fallback (WCAG 1.1.1 / §9) — visually minimal, just needs to be
