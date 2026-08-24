@@ -79,6 +79,19 @@ function cellFor(name: string): string {
   return tr.querySelectorAll('td')[col - 1]?.textContent ?? '';
 }
 
+/**
+ * The same cell, found by the `data-label` it carries for the card form.
+ *
+ * `cellFor` reads it positionally, against the `<th>` row. This reads it the
+ * way the ≤767px stylesheet does — which is also the only way to ask whether
+ * that cell would be shown or dropped on a phone, now that a phone is served
+ * by this row rather than by a second, card-only copy of it.
+ */
+function attrCellFor(name: string, label = 'استاندارد'): HTMLElement {
+  const tr = screen.getByRole('rowheader', { name }).closest('tr')!;
+  return tr.querySelector<HTMLElement>(`td[data-label="${label}"]`)!;
+}
+
 describe('PriceTable — the تیرآهن grade → standard column', () => {
   it('labels the column «استاندارد» in the mixed «همه» view and reads skus.standard', () => {
     renderTable();
@@ -110,16 +123,20 @@ describe('PriceTable — the تیرآهن grade → standard column', () => {
     expect(cellFor('hash-a')).toBe('HEA');
   });
 
-  it('gives a mobile card an «استاندارد» line only when the value is filled', () => {
+  it('drops the «استاندارد» cell out of the card form when the value is unfilled', () => {
     renderTable();
-    // Cards are the same rows rendered a second time; they carry no table
-    // semantics, so match on the rendered text instead.
-    expect(screen.getByText('استاندارد: HEA')).toBeInTheDocument();
-    expect(screen.getByText('استاندارد: HEB')).toBeInTheDocument();
-    // Neither the empty هاش row nor the non-هاش row gets a line — not even a
-    // «نامشخص» or a dash one.
-    expect(screen.queryByText(/^استاندارد: ?$/)).toBeNull();
-    expect(screen.queryByText(/^استاندارد: —$/)).toBeNull();
+    // There is no longer a second, card-only copy of every row printing
+    // «استاندارد: HEA» as text — the one table reflows into that card, and a
+    // cell with nothing worth saying is the one the narrow stylesheet drops
+    // (`blankOnNarrow`). Same rule the card had, asserted on the single cell
+    // that now implements it.
+    expect(attrCellFor('hash-a').textContent).toBe('HEA');
+    expect(attrCellFor('hash-a').className).not.toMatch(/blankOnNarrow/);
+    expect(attrCellFor('hash-b').className).not.toMatch(/blankOnNarrow/);
+    // Neither the empty هاش row nor the non-هاش row shows a line on a card —
+    // not even a «نامشخص» or a dash one.
+    expect(attrCellFor('hash-empty').className).toMatch(/blankOnNarrow/);
+    expect(attrCellFor('plain').className).toMatch(/blankOnNarrow/);
     expect(screen.queryByText(/گرید/)).toBeNull();
   });
 
@@ -134,6 +151,7 @@ describe('PriceTable — the تیرآهن grade → standard column', () => {
     expect(screen.queryByRole('columnheader', { name: 'استاندارد' })).toBeNull();
     expect(cellFor('rebar-1')).toBe('A3');
     expect(cellFor('rebar-2')).toBe('نامشخص');
-    expect(screen.getByText('گرید: A3')).toBeInTheDocument();
+    // …and the card form labels it, from the cell's own `data-label`.
+    expect(attrCellFor('rebar-1', 'گرید').textContent).toBe('A3');
   });
 });

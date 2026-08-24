@@ -49,6 +49,19 @@ const SUBS: SubCat[] = [
   { slug: 'deformed', name: 'میلگرد آجدار', groupLabel: null },
 ];
 
+/**
+ * The denomination each price cell on screen is carrying.
+ *
+ * This used to be rendered text, because every row was rendered a SECOND time
+ * as a mobile-only card that printed «تومان / کیلوگرم» under its price. That
+ * duplicate is gone — the one table reflows into the card instead — and the
+ * caption now rides on the price cell as `data-unit`, which the narrow
+ * stylesheet prints with `::after`. Same caption, same per-row correctness,
+ * half the DOM.
+ */
+const unitCaptions = () =>
+  Array.from(document.querySelectorAll('[data-unit]')).map((el) => el.getAttribute('data-unit'));
+
 function renderTable(rows: PriceRow[]) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -71,22 +84,22 @@ describe('PriceTable — the price-basis caption', () => {
     ['coil', 'branch', undefined, 'تومان / کلاف'],
   ] as const)('captions a %s-priced row', (basis, unit, lengthM, caption) => {
     renderTable([row('کالا', unit, basis, { weight: undefined, lengthM })]);
-    expect(screen.getAllByText(caption).length).toBeGreaterThan(0);
+    expect(unitCaptions()).toContain(caption);
   });
 
   it('names the branch length in the caption when the SKU records one', () => {
     // «تومان / کلاف ۱۵ متری» — لوله مسی is quoted for a whole 15 m coil, and
     // the length is the difference between an honest caption and a bare one.
     renderTable([row('لوله مسی', 'branch', 'coil', { lengthM: 15 })]);
-    expect(screen.getAllByText('تومان / کلاف ۱۵ متری').length).toBeGreaterThan(0);
-    expect(screen.queryByText('تومان / کیلوگرم')).toBeNull();
+    expect(unitCaptions()).toContain('تومان / کلاف ۱۵ متری');
+    expect(unitCaptions()).not.toContain('تومان / کیلوگرم');
   });
 
   it('never appends a length to a kilogram basis', () => {
     // A نبشی is per-kilogram AND 6 m long; «کیلوگرم ۶ متری» is nonsense.
     renderTable([row('نبشی ۱۰', 'branch', 'kg', { weight: 94.3, lengthM: 6 })]);
-    expect(screen.getAllByText('تومان / کیلوگرم').length).toBeGreaterThan(0);
-    expect(screen.queryByText(/کیلوگرم ۶ متری/)).toBeNull();
+    expect(unitCaptions()).toContain('تومان / کیلوگرم');
+    expect(unitCaptions().some((c) => /کیلوگرم ۶ متری/.test(c ?? ''))).toBe(false);
   });
 
   it('renders «نامشخص» in the weight column for a whole-item row rather than something broken', () => {
@@ -114,10 +127,11 @@ describe('PriceTable — the price-basis caption', () => {
       row('میلگرد ۲۰', 'kg', 'kg', { sub: 'deformed', weight: 29.6 }),
     ]);
     expect(screen.queryByText(/قیمت‌ها به تومان و برای هر/)).toBeNull();
-    // …and each row still captions itself — including the desktop table, which
+    // …and each row still captions itself — including the wide table, which
     // before this had nothing anywhere on it saying what the numbers are per.
-    expect(screen.getAllByText('تومان / عدد').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('تومان / کیلوگرم').length).toBeGreaterThan(0);
+    expect(unitCaptions()).toEqual(
+      expect.arrayContaining(['تومان / عدد', 'تومان / کیلوگرم']),
+    );
     const tr = screen.getByRole('rowheader', { name: 'کوپلر ۲۰' }).closest('tr')!;
     expect(tr.textContent).toContain('عدد');
   });

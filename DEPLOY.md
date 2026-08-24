@@ -103,8 +103,33 @@ docker compose up -d --build
 ## Automatic deploys via GitHub Actions
 
 `.github/workflows/deploy.yml` implements a **build-once-deploy-many**
-pipeline on every push to `main` (also triggerable manually via
-**Actions → Deploy to production server → Run workflow**):
+pipeline, gated on CI (also triggerable manually via
+**Actions → Deploy to production server → Run workflow**).
+
+**It runs only after `CI` (`.github/workflows/ci.yml`) succeeds for a push
+to `main`.** It used to trigger directly on `push: branches: [main]`, in
+parallel with CI and unrelated to it — so a commit that failed lint,
+typecheck, unit tests or e2e still built a valid image and shipped to
+production, with CI going red minutes later on a commit that was already
+live. The trigger is now `workflow_run`, and the deploy is pinned to
+`github.event.workflow_run.head_sha` — **the exact commit CI validated** —
+rather than to `github.sha`, which under `workflow_run` resolves to the
+default branch's head at dispatch time and is a different commit the moment
+anything else lands. The server resets its checkout to that same commit, so
+the image and the compose/Caddyfile/migration files on disk always describe
+the same revision.
+
+A green run on a `pull_request` can never deploy: the gate requires
+`workflow_run.event == 'push'` as well as `conclusion == 'success'` and
+`head_branch == 'main'`.
+
+> If the trigger ever misbehaves, deploys **stop** rather than ship
+> something unverified. Recover with the manual `workflow_dispatch` above or
+> CLAUDE.md §5's manual recipe — and note that dispatching with an
+> `image_tag` still skips the build and deploys that existing tag, which is
+> the rollback path.
+
+Steps:
 
 1. **`build`** compiles the Next.js image *once*, in CI (never on the
    server), and pushes it to GHCR tagged with the commit SHA, plus a
