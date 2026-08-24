@@ -159,6 +159,26 @@
      the 767px breakpoint where the bar doesn't render. Any fixed bottom-anchored
      UI (toasts, popups) must add this so it never collides with the bar. */
   --bottom-bar-h:0px;
+  /* ===== FLOATING LANES =====
+     Three separate pieces of UI are pinned to the bottom of every public page:
+     the «تماس بگیرید» FAB (bottom-inline-end), the toast region (centred) and
+     the club promo (bottom-inline-start). All three used the same
+     `calc(var(--bottom-bar-h) + var(--space-4))` offset, which is fine on a
+     wide viewport — they sit in different inline corners — but below the
+     767px breakpoint the toast (`inset-inline:0`) and the promo
+     (`min(360px, 100vw - 2rem)`) both span nearly the whole width and land on
+     top of the FAB. So the block offset becomes a LANE, assigned by urgency:
+     the FAB (the thing a stuck visitor reaches for) keeps the bottom lane,
+     transient feedback sits above it, and the promo — the only one of the
+     three the visitor did not ask for — sits furthest from the thumb.
+     `--float-fab-h` is the FAB's real block size: 2 × --space-3 padding plus
+     a 22px icon, floored at the 44px touch target; `--float-toast-h` is one
+     toast (2 × --space-3 padding over a --t-body-sm line). */
+  --float-fab-h:44px;
+  --float-toast-h:48px;
+  --float-lane-1:calc(var(--bottom-bar-h) + var(--space-4));
+  --float-lane-2:var(--float-lane-1);
+  --float-lane-3:var(--float-lane-1);
 
   /* ===== MOTION ===== */
   --dur-instant:0ms; --dur-fast:140ms; --dur-base:200ms; --dur-slow:280ms;
@@ -205,6 +225,14 @@
 @media (min-width: 768px) { :root{ --page-x:1.5rem; } }
 @media (min-width: 1024px) { :root{ --page-x:2rem; } }
 @media (max-width: 767px) { :root{ --bottom-bar-h:calc(60px + env(safe-area-inset-bottom)); } }
+/* Below 767px the three floating surfaces overlap (see --float-lane-* above),
+   so they stack instead of sharing one line. */
+@media (max-width: 767px) {
+  :root{
+    --float-lane-2:calc(var(--float-lane-1) + var(--float-fab-h) + var(--space-3));
+    --float-lane-3:calc(var(--float-lane-2) + var(--float-toast-h) + var(--space-3));
+  }
+}
 
 :root[data-theme="dark"]{
   --color-bg:var(--neutral-950); --color-surface:var(--neutral-900); --color-surface-raised:var(--neutral-800);

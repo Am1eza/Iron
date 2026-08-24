@@ -1,12 +1,19 @@
 .fab {
   position: fixed;
-  inset-block-end: calc(var(--bottom-bar-h) + var(--space-4));
+  /* Lane 1 — the bottom-most floating lane. See --float-lane-* in tokens.css:
+     this FAB is the surface a stuck visitor reaches for, so it keeps the
+     thumb-nearest position and the other two stack above it. */
+  inset-block-end: var(--float-lane-1);
   inset-inline-end: var(--space-4);
   z-index: var(--z-fab);
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-3) var(--space-4);
+  /* --float-lane-2 is computed from this figure; keep the two in step. */
+  min-block-size: var(--float-fab-h);
+  min-inline-size: var(--float-fab-h);
+  justify-content: center;
   border: 0;
   border-radius: var(--radius-pill);
   background: var(--color-action);
