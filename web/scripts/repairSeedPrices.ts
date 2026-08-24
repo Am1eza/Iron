@@ -153,6 +153,11 @@ async function loadSeedRows(): Promise<SeedRow[]> {
       name: skus.name,
       size: skus.size,
       factory: skus.factory,
+      // Required by `MatchableSku` since the استیل lines began mirroring off
+      // this column. Omitting it did not just break the type — the matcher
+      // reads `grade` to tell 304 from 316L, so a row loaded without it
+      // cannot match a stainless source table at all.
+      grade: skus.grade,
       priceBasis: skus.priceBasis,
       isActive: skus.isActive,
       price: currentPrices.price,
