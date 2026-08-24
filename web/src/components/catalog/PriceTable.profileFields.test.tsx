@@ -161,7 +161,11 @@ describe('PriceTable — the پروفیل گرید → طول/آلیاژ replace
     expect(screen.getByRole('columnheader', { name: 'طول شاخه' })).toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: 'گرید' })).toBeNull();
     expect(cellFor('sanati-80', 'طول شاخه')).toBe('۶ متر');
-    expect(screen.getByText('طول شاخه: ۶ متر')).toBeInTheDocument();
+    // The card form labels the same cell from its own `data-label` — there is
+    // no second, card-only copy of the row rendering that line as text.
+    expect(
+      document.querySelector('td[data-label="طول شاخه"]')?.getAttribute('data-label'),
+    ).toBe('طول شاخه');
   });
 
   it('gives Z «طول سفارشی» — a cut-to-order product, not a stock length', async () => {
@@ -260,11 +264,14 @@ describe('PriceTable — پروفیل grouped by محل تولید', () => {
     expect(screen.queryByRole('navigation', { name: 'پرش به کارخانه' })).toBeNull();
     // The whole point: no mill anywhere on the page, in any guise.
     expect(screen.queryByRole('columnheader', { name: 'کارخانه' })).toBeNull();
-    // The heading is desktop-only; the mobile card list has none, so the city
-    // has to survive as a line there.
-    expect(screen.getAllByText('محل تولید: تهران').length).toBeGreaterThan(0);
-    // …and the column is NOT also drawn: the headings already say it.
+    // The `<h2>` above each section carries the city at EVERY width — the
+    // `<summary>` is never hidden — so the row itself does not repeat it. It
+    // used to, because a second card-only copy of every row existed and was
+    // (wrongly) assumed to be heading-less; that copy is gone.
+    expect(screen.getByRole('heading', { name: 'قیمت پروفیل تهران' })).toBeInTheDocument();
+    // …and the column is NOT drawn either: the headings already say it.
     expect(screen.queryByRole('columnheader', { name: 'محل تولید' })).toBeNull();
+    expect(screen.queryByText(/^محل تولید: /)).toBeNull();
   });
 
   it('falls back to one flat table when too few rows resolve to a city', () => {

@@ -129,12 +129,39 @@ function SectionShell({
 }
 
 /**
- * One desktop table row. Memoized so toggling a favorite / opening the chart
- * modal / anything else that only affects one row doesn't re-render every
- * other row too — `isFav` and `vat` are plain primitives (not the parent's
- * `fav` Set) and the callbacks are stable (`useCallback` in the parent), so
- * `React.memo`'s default shallow comparison actually catches "nothing
- * relevant to this row changed".
+ * One price row — **one** DOM subtree, at every viewport.
+ *
+ * This used to be two components: a `<tr>` for desktop and a `<li>` card for
+ * phones, BOTH rendered for every row with one of them hidden by
+ * `display: none`. That doubled the markup, the hydration payload and the
+ * interactive control count of the busiest page on the site — `/prices/rebar`
+ * shipped ~2.0 MB of HTML, ~20.9k elements and ~1,989 buttons for ~248
+ * products. The card component is gone; the table now *reflows* into that card
+ * at narrow widths (see `@media (max-width: 767px)` in the stylesheet), so a
+ * phone gets the same visual result out of half the nodes.
+ *
+ * How the reflow keeps its meaning:
+ * - Every data cell carries `data-label`, and the narrow stylesheet prints it
+ *   with `::before` — the `<th>` header text the cell loses when the table
+ *   stops being laid out as a table. Zero extra elements.
+ * - The price cell carries `data-unit` («تومان / کیلوگرم»), printed the same
+ *   way, so a phone still sees what the number is denominated in even on a
+ *   page whose rows all share one basis (where the column header carries it).
+ * - A cell whose value is only a «نامشخص» placeholder gets `blankOnNarrow` and
+ *   is dropped at card widths — the old card's rule that it omits a field
+ *   rather than printing a placeholder, expressed in CSS instead of in a
+ *   second component.
+ * - ARIA roles are spelled out explicitly. `display: block`/`flex` on table
+ *   elements strips their implicit table semantics in every browser; the old
+ *   mobile card list had no table semantics at all, so restoring them by hand
+ *   here is a net gain for screen readers, not a workaround.
+ *
+ * Memoized so toggling a favorite / opening the chart modal / anything else
+ * that only affects one row doesn't re-render every other row too — `isFav`
+ * and `vat` are plain primitives (not the parent's `fav` Set) and the
+ * callbacks are stable (`useCallback` in the parent), so `React.memo`'s
+ * default shallow comparison actually catches "nothing relevant to this row
+ * changed".
  */
 const PriceTableRow = memo(function PriceTableRow({
   row: r,
@@ -151,6 +178,7 @@ const PriceTableRow = memo(function PriceTableRow({
   showFactory,
   showRegion,
   showRowBasis,
+  sizeCol,
 }: {
   row: PriceRow;
   vat: boolean;
@@ -175,15 +203,20 @@ const PriceTableRow = memo(function PriceTableRow({
    *  of, which is the flat-fallback case (see `showRegionColumn`). */
   showRegion: boolean;
   /** True only when the visible rows do NOT share one denomination, so the
-   *  page-wide «قیمت‌ها … برای هر کیلوگرم است» note has been dropped. Without
-   *  this the desktop table of a mixed page (میلگرد + کوپلر) printed bare
-   *  numbers with nothing anywhere saying what they are per — the mobile card
-   *  has always captioned itself. */
+   *  page-wide «قیمت‌ها … برای هر کیلوگرم است» note has been dropped and the
+   *  basis has to ride along on each price cell. At card widths the basis is
+   *  printed unconditionally from `data-unit` — a card has no column header to
+   *  inherit it from. */
   showRowBasis: boolean;
+  /** The «سایز»/«ضخامت»/… header text, so the reflowed cell can reprint it as
+   *  its own label. Comes from the same `sizeLabel(categorySlug)` call that
+   *  built the `<th>`. */
+  sizeCol: string;
 } & RowActions) {
+  const hiddenLabel = priceHiddenLabel(r.current);
   return (
-    <tr>
-      <td>
+    <tr role="row" className={styles.row}>
+      <td role="cell" className={styles.compareCell}>
         <input
           type="checkbox"
           checked={compareChecked}
@@ -191,27 +224,61 @@ const PriceTableRow = memo(function PriceTableRow({
           aria-label={`افزودن ${r.name} به مقایسه`}
         />
       </td>
-      <th scope="row" className={styles.name}>
+      <th role="rowheader" scope="row" className={styles.name}>
         <Link href={routes.sku(r.categoryId, r.subCategoryId, r.slug)} className={styles.nameLink}>
           {r.name}
         </Link>
       </th>
-      <td>{r.size ? toPersianDigits(r.size) : 'نامشخص'}</td>
+      {/* The size is the tail of the product name, so the card form drops this
+          cell rather than printing «سایز: ۱۴» directly under «میلگرد ۱۴». */}
+      <td role="cell" data-label={sizeCol} className={styles.sizeCell}>
+        {r.size ? toPersianDigits(r.size) : 'نامشخص'}
+      </td>
       {showDimensions ? (
-        <td className={styles.muted}>{r.dimensions ? toPersianDigits(r.dimensions) : 'نامشخص'}</td>
+        <td
+          role="cell"
+          data-label={DIMENSIONS_LABEL}
+          className={`${styles.muted}${r.dimensions ? '' : ` ${styles.blankOnNarrow}`}`}
+        >
+          {r.dimensions ? toPersianDigits(r.dimensions) : 'نامشخص'}
+        </td>
       ) : null}
       {attrCols.map((c) => (
-        <td key={c.key} className={styles.muted}>
+        <td
+          role="cell"
+          key={c.key}
+          data-label={c.label}
+          // `card` is the column's own answer to "is there anything worth a
+          // line here" — null both for an unfilled value and for a column that
+          // is not a property of this row's sub-category at all.
+          className={`${styles.muted}${c.card(r) === null ? ` ${styles.blankOnNarrow}` : ''}`}
+        >
           {c.cell(r)}
         </td>
       ))}
       {showFactory ? (
-        <td className={styles.muted}>
+        <td
+          role="cell"
+          data-label="کارخانه"
+          className={`${styles.muted}${r.factory ? '' : ` ${styles.blankOnNarrow}`}`}
+        >
           <FactoryCell categorySlug={r.categoryId} factory={r.factory} />
         </td>
       ) : null}
-      {showRegion ? <td className={styles.muted}>{r.region ?? UNKNOWN_VALUE}</td> : null}
-      <td className={styles.num}>
+      {showRegion ? (
+        <td
+          role="cell"
+          data-label={REGION_LABEL}
+          className={`${styles.muted}${r.region ? '' : ` ${styles.blankOnNarrow}`}`}
+        >
+          {r.region ?? UNKNOWN_VALUE}
+        </td>
+      ) : null}
+      <td
+        role="cell"
+        data-label="وزن شاخه"
+        className={`${styles.num}${r.theoreticalWeightKg ? '' : ` ${styles.blankOnNarrow}`}`}
+      >
         {r.theoreticalWeightKg ? (
           <>
             {toPersianDigits(r.theoreticalWeightKg)} <bdi lang="en">kg</bdi>
@@ -220,8 +287,12 @@ const PriceTableRow = memo(function PriceTableRow({
           'نامشخص'
         )}
       </td>
-      <td className={`${styles.num} ${styles.price}`}>
-        {priceHiddenLabel(r.current) ?? formatToman(withVat(r.current.price, vat, vatRate), false)}
+      <td
+        role="cell"
+        className={`${styles.num} ${styles.price} ${styles.priceCell}`}
+        data-unit={hiddenLabel ? undefined : priceUnitCaption(r.priceBasis, r.branchLengthM)}
+      >
+        {hiddenLabel ?? formatToman(withVat(r.current.price, vat, vatRate), false)}
         {showRowBasis && !r.current.priceHidden ? (
           <span className={styles.rowBasis}>
             {' / '}
@@ -229,14 +300,16 @@ const PriceTableRow = memo(function PriceTableRow({
           </span>
         ) : null}
       </td>
-      <td className={styles.num}>
+      <td role="cell" className={`${styles.num} ${styles.movementCell}`}>
         <MovementBadge dir={r.current.movementDir} pct={r.current.movementPct} />
       </td>
-      <td className={styles.muted}>{formatJalali(r.current.updatedAt, 'MM/dd')}</td>
-      <td>
+      <td role="cell" data-label="به‌روزرسانی" className={styles.muted}>
+        {formatJalali(r.current.updatedAt, 'MM/dd')}
+      </td>
+      <td role="cell" className={styles.deliveryCell}>
         <DeliveryBadge value={r.current.deliveryTime} />
       </td>
-      <td>
+      <td role="cell" className={styles.actionsCell}>
         <div className={styles.actions}>
           <IconButton
             size="sm"
@@ -260,125 +333,11 @@ const PriceTableRow = memo(function PriceTableRow({
             disabled={r.current.priceHidden}
             title={r.current.priceHidden ? 'برای این کالا باید تماس بگیرید.' : undefined}
           >
-            <PlusIcon size={16} /> سبد
+            <PlusIcon size={16} /> <span className={styles.addBtnLabel}>سبد</span>
           </button>
         </div>
       </td>
     </tr>
-  );
-});
-
-/** One mobile card — same memoization rationale as `PriceTableRow`. */
-const PriceTableCard = memo(function PriceTableCard({
-  row: r,
-  vat,
-  vatRate,
-  isFav,
-  onToggleFav,
-  onChart,
-  onAddToCart,
-  showDimensions,
-  attrCols,
-  showRegion,
-}: {
-  row: PriceRow;
-  vat: boolean;
-  vatRate: number;
-  isFav: boolean;
-  /** ورق only — same flag the desktop header/rows use. */
-  showDimensions: boolean;
-  /** Same columns the desktop table resolved. The card needs no `showFactory`
-   *  or per-column visibility flag: it omits an empty field anyway, and
-   *  `AttrColumn.card` already returns null for every row the desktop column
-   *  would have printed a dash for. */
-  attrCols: readonly AttrColumn[];
-  /** Whether the producing city is this page's story at all — true under both
-   *  region sections and the flat fallback, false when real mills won the
-   *  page. A card must not answer a question the table next to it is not
-   *  asking. */
-  showRegion: boolean;
-} & RowActions) {
-  const attrs = attrCols
-    .map((c) => ({ key: c.key, label: c.label, value: c.card(r) }))
-    .filter((a): a is typeof a & { value: string } => a.value !== null);
-  return (
-    <li className={styles.card}>
-      <div className={styles.cardTop}>
-        <Link href={routes.sku(r.categoryId, r.subCategoryId, r.slug)} className={styles.cardName}>
-          {r.name}
-        </Link>
-        <div className={styles.cardTopActions}>
-          <AlertBellButton
-            target={{ type: 'sku', skuId: r.id, label: r.name, currentValue: r.current.price }}
-          />
-          <IconButton
-            size="sm"
-            label="علاقه‌مندی"
-            active={isFav}
-            icon={<HeartIcon size={18} filled={isFav} />}
-            onClick={() => onToggleFav(r.id)}
-          />
-        </div>
-      </div>
-      <div className={styles.cardPrice}>
-        <span className={`${styles.price} tnum`}>
-          {priceHiddenLabel(r.current) ?? formatToman(withVat(r.current.price, vat, vatRate), false)}
-        </span>
-        <span className={styles.unit}>{priceUnitCaption(r.priceBasis, r.branchLengthM)}</span>
-        <MovementBadge dir={r.current.movementDir} pct={r.current.movementPct} pill />
-      </div>
-      <div className={styles.cardMeta}>
-        {r.factory ? (
-          <span>
-            کارخانه: <FactoryCell categorySlug={r.categoryId} factory={r.factory} />
-          </span>
-        ) : showRegion && r.region ? (
-          // The section heading carries this on desktop; a card list has no
-          // headings, so on a phone it has to be a line or a پروفیل buyer
-          // never sees where the product comes from at all. Omitted rather
-          // than printed as «نامشخص» when unresolved — the established
-          // convention of this card (see `dimensions` below).
-          <span>
-            {REGION_LABEL}: {r.region}
-          </span>
-        ) : null}
-        {attrs.map((a) => (
-          <span key={a.key}>
-            {a.label}: {a.value}
-          </span>
-        ))}
-        {/* size intentionally omitted — the product name already ends in it */}
-        {/* ابعاد is NOT in the name, so unlike size it has to be shown here or
-            a phone user never sees it at all. Only when it's actually filled
-            in — the card is a compact summary, not a spec sheet, and a «نامشخص»
-            line would be pure noise on the majority of plates today. */}
-        {showDimensions && r.dimensions ? (
-          <span>
-            {DIMENSIONS_LABEL}: <bdi className="tnum">{toPersianDigits(r.dimensions)}</bdi>
-          </span>
-        ) : null}
-        {r.theoreticalWeightKg ? (
-          <span>
-            وزن شاخه {toPersianDigits(r.theoreticalWeightKg)} <bdi lang="en">kg</bdi>
-          </span>
-        ) : null}
-        <span>به‌روزرسانی {formatJalali(r.current.updatedAt, 'MM/dd')}</span>
-        <DeliveryBadge value={r.current.deliveryTime} />
-      </div>
-      <div className={styles.cardActions}>
-        <button className={styles.ghostBtn} onClick={() => onChart(r)}>
-          <ChartIcon size={16} /> نمودار
-        </button>
-        <button
-          className={styles.addBtnFull}
-          onClick={() => onAddToCart(r)}
-          disabled={r.current.priceHidden}
-          title={r.current.priceHidden ? 'برای این کالا باید تماس بگیرید.' : undefined}
-        >
-          <PlusIcon size={16} /> افزودن به سبد استعلام
-        </button>
-      </div>
-    </li>
   );
 });
 
@@ -944,47 +903,54 @@ export function PriceTable({
                   </div>
                 ) : null}
 
-                {/* Desktop table */}
+                {/* The one price table. Reflows into a card list at ≤767px —
+                    see PriceTableRow for why there is no second markup. */}
                 <div className={styles.tableScroll} role="region" aria-label={`قیمت ${sectionTitle}`} tabIndex={0}>
-                  <table className={`${styles.table} tnum`}>
+                  {/* eslint-disable jsx-a11y/no-redundant-roles -- NOT redundant here:
+                      at ≤767px this table reflows into cards, and `display: block`
+                      /`flex` on a table element drops its implicit table role in
+                      every browser. Spelling the roles out keeps the reflowed card
+                      list a real table for assistive tech — which the `<ul>` of
+                      cards it replaced never was. */}
+                  <table role="table" className={`${styles.table} tnum`}>
                     <caption className="visually-hidden">قیمت {sectionTitle}</caption>
-                    <thead>
-                      <tr>
-                        <th scope="col">
+                    <thead role="rowgroup">
+                      <tr role="row">
+                        <th role="columnheader" scope="col">
                           <span className="visually-hidden">مقایسه</span>
                         </th>
-                        <th scope="col">محصول</th>
-                        <th scope="col" aria-sort={sort === 'size' ? 'ascending' : 'none'}>
+                        <th role="columnheader" scope="col">محصول</th>
+                        <th role="columnheader" scope="col" aria-sort={sort === 'size' ? 'ascending' : 'none'}>
                           {sizeCol}
                         </th>
                         {/* ورق only — and deliberately NOT sortable: «۱۰۰۰×۲۰۰۰»
                             is a pair, not a number, so there is no ordering the
                             `size`/price/movement comparator could honour. */}
-                        {showDimensions ? <th scope="col">{DIMENSIONS_LABEL}</th> : null}
+                        {showDimensions ? <th role="columnheader" scope="col">{DIMENSIONS_LABEL}</th> : null}
                         {attrCols.map((c) => (
-                          <th key={c.key} scope="col">
+                          <th role="columnheader" key={c.key} scope="col">
                             {c.label}
                           </th>
                         ))}
-                        {showFactory ? <th scope="col">کارخانه</th> : null}
-                        {showRegionColumn ? <th scope="col">{REGION_LABEL}</th> : null}
-                        <th scope="col" className={styles.num}>
+                        {showFactory ? <th role="columnheader" scope="col">کارخانه</th> : null}
+                        {showRegionColumn ? <th role="columnheader" scope="col">{REGION_LABEL}</th> : null}
+                        <th role="columnheader" scope="col" className={styles.num}>
                           وزن شاخه
                         </th>
-                        <th scope="col" className={styles.num} aria-sort={sort === 'price' ? 'ascending' : 'none'}>
+                        <th role="columnheader" scope="col" className={styles.num} aria-sort={sort === 'price' ? 'ascending' : 'none'}>
                           قیمت (تومان)
                         </th>
-                        <th scope="col" className={styles.num} aria-sort={sort === 'movement' ? 'descending' : 'none'}>
+                        <th role="columnheader" scope="col" className={styles.num} aria-sort={sort === 'movement' ? 'descending' : 'none'}>
                           نوسان
                         </th>
-                        <th scope="col">تاریخ</th>
-                        <th scope="col">تحویل</th>
-                        <th scope="col" className={styles.actionsCol}>
+                        <th role="columnheader" scope="col">تاریخ</th>
+                        <th role="columnheader" scope="col">تحویل</th>
+                        <th role="columnheader" scope="col" className={styles.actionsCol}>
                           عملیات
                         </th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody role="rowgroup">
                       {list.map((r) => (
                         <PriceTableRow
                           key={r.id}
@@ -999,6 +965,7 @@ export function PriceTable({
                           showFactory={showFactory}
                           showRegion={showRegionColumn}
                           showRowBasis={priceBasis === null}
+                          sizeCol={sizeCol}
                           onToggleFav={toggleFav}
                           onChart={setChartFor}
                           onAddToCart={addToCart}
@@ -1006,26 +973,9 @@ export function PriceTable({
                       ))}
                     </tbody>
                   </table>
+                  {/* eslint-enable jsx-a11y/no-redundant-roles */}
                 </div>
 
-                {/* Mobile cards */}
-                <ul className={styles.cards}>
-                  {list.map((r) => (
-                    <PriceTableCard
-                      key={r.id}
-                      row={r}
-                      vat={factoryVat}
-                      vatRate={vatRate}
-                      isFav={fav.has(r.id)}
-                      showDimensions={showDimensions}
-                      attrCols={attrCols}
-                      showRegion={groupMode !== 'factory'}
-                      onToggleFav={toggleFav}
-                      onChart={setChartFor}
-                      onAddToCart={addToCart}
-                    />
-                  ))}
-                </ul>
               </div>
             </SectionShell>
           );
