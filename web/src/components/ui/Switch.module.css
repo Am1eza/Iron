@@ -24,7 +24,14 @@
   block-size: 24px;
   border-radius: var(--radius-pill);
   background: var(--neutral-300);
-  transition: background var(--dur-base) var(--ease-standard);
+  /* The OFF state used to be JUST this fill (~1.3:1 against the surrounding
+     --color-surface-sunken card) with no border — easy to miss that a toggle
+     is even there, let alone that it's off, until it's ON and the accent fill
+     pops (design/UX audit: "active/inactive state not clearly distinguishable
+     at a glance"). A hairline border gives the track a visible edge in both
+     states regardless of the surface behind it. */
+  border: var(--border-hairline) solid var(--color-hairline);
+  transition: background var(--dur-base) var(--ease-standard), border-color var(--dur-base) var(--ease-standard);
   flex: none;
 }
 .thumb {
@@ -41,6 +48,7 @@
 /* On: track turns accent, thumb slides to the inline-end. */
 .input:checked + .track {
   background: var(--color-accent);
+  border-color: var(--color-accent);
 }
 .input:checked + .track .thumb {
   transform: translateX(-20px);

@@ -33,6 +33,7 @@ import {
   Badge,
   IconButton,
   Button,
+  Tooltip,
 } from '@/components/ui';
 import { PriceChart } from './PriceChart';
 import { BulkQuote } from './BulkQuote';
@@ -46,6 +47,7 @@ import {
   PlusIcon,
   InfoIcon,
   CheckCircleIcon,
+  ClockIcon,
 } from '@/components/primitives/icons';
 import styles from './SkuDetail.module.css';
 
@@ -317,7 +319,10 @@ export function SkuDetail({
                 <li>
                   وزن شاخه{' '}
                   <strong className="tnum">
-                    {toPersianDigits(row.theoreticalWeightKg)} <bdi lang="en">kg</bdi>
+                    {/* Was Latin "kg" here while every other weight on this same
+                        page (specs table below, BulkQuote) spells out «کیلوگرم» —
+                        the exact mixed-unit inconsistency the audit flagged. */}
+                    {toPersianDigits(row.theoreticalWeightKg)} کیلوگرم
                   </strong>
                 </li>
               ) : null}
@@ -355,6 +360,14 @@ export function SkuDetail({
             <div className={styles.priceMeta}>
               <MovementBadge dir={row.current.movementDir} pct={row.current.movementPct} pill />
               <DeliveryBadge value={row.current.deliveryTime} />
+              {/* Was a lone, muted caption below the VAT row — easy to miss
+                  despite being the answer to "is this price still current?".
+                  Promoted into the same badge row/visual tier as the movement
+                  and delivery signals it sits next to (design/UX audit). */}
+              <span className={styles.updated}>
+                <ClockIcon size={14} aria-hidden="true" />
+                به‌روزرسانی <span className="tnum">{formatJalali(row.current.updatedAt)}</span>
+              </span>
             </div>
 
             {billetDiffPct !== null ? (
@@ -375,10 +388,6 @@ export function SkuDetail({
               </span>
             </div>
 
-            <p className={styles.updated}>
-              به‌روزرسانی: {formatJalali(row.current.updatedAt)}
-            </p>
-
             <div className={styles.actions}>
               <Button
                 variant="primary"
@@ -389,25 +398,34 @@ export function SkuDetail({
               >
                 <PlusIcon size={18} /> افزودن به سبد استعلام
               </Button>
-              <IconButton
-                variant="subtle"
-                label={faved ? 'حذف از علاقه‌مندی‌ها' : 'افزودن به علاقه‌مندی‌ها'}
-                active={faved}
-                icon={<HeartIcon size={20} filled={faved} />}
-                onClick={toggleFav}
-                disabled={favMutation.isPending}
-              />
+              {/* Icon-only actions already had `aria-label`s (native `title`
+                  too, via IconButton) for assistive tech — the audit's point
+                  is that a sighted, non-expert visitor has no VISIBLE cue.
+                  `Tooltip` is an existing, previously-unused design-system
+                  primitive built for exactly this. */}
+              <Tooltip content={faved ? 'حذف از علاقه‌مندی‌ها' : 'افزودن به علاقه‌مندی‌ها'}>
+                <IconButton
+                  variant="subtle"
+                  label={faved ? 'حذف از علاقه‌مندی‌ها' : 'افزودن به علاقه‌مندی‌ها'}
+                  active={faved}
+                  icon={<HeartIcon size={20} filled={faved} />}
+                  onClick={toggleFav}
+                  disabled={favMutation.isPending}
+                />
+              </Tooltip>
               <AlertBellButton
                 variant="subtle"
                 size="md"
                 target={{ type: 'sku', skuId: row.id, label: row.name, currentValue: row.current.price }}
               />
-              <IconButton
-                variant="subtle"
-                label="اشتراک‌گذاری"
-                icon={<ShareIcon size={20} />}
-                onClick={share}
-              />
+              <Tooltip content="اشتراک‌گذاری">
+                <IconButton
+                  variant="subtle"
+                  label="اشتراک‌گذاری"
+                  icon={<ShareIcon size={20} />}
+                  onClick={share}
+                />
+              </Tooltip>
             </div>
 
             <p className={styles.lead}>
