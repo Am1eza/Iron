@@ -49,7 +49,7 @@ function renderTable(rows: PriceRow[]) {
 describe('PriceTable — the کارخانه cell links to the per-factory page', () => {
   it('links a real factory name to /prices/[category]/factory/[factory]', () => {
     renderTable([row('r1', 'ذوب‌آهن اصفهان')]);
-    // Rendered twice (desktop table row + mobile card), both linked.
+    // One cell per row now (the mobile-card copy is gone), and it is linked.
     const links = screen.getAllByRole('link', { name: 'ذوب‌آهن اصفهان' });
     expect(links.length).toBeGreaterThan(0);
     for (const a of links) {
