@@ -115,10 +115,16 @@ export function Header({ categories, subs }: { categories: Category[]; subs: Sub
 
         <nav className={styles.primary} aria-label={t('mainNav')}>
           {/* Order (per the requested desktop structure): مشاور هوشمند →
-              خانه → ابزارها → انبار مشتریان → خدمات. Leading with the AI
-              advisor also matches the site's «اول مشورت، بعد خرید» slogan
-              (consult first, then browse the catalog). محصولات (catalog),
-              مقالات and شرکت follow after. */}
+              ابزارها → انبار مشتریان → خدمات. Leading with the AI advisor
+              also matches the site's «اول مشورت، بعد خرید» slogan (consult
+              first, then browse the catalog). محصولات (catalog), مقالات and
+              شرکت follow after.
+
+              No standalone «خانه» link (design/UX audit — header density):
+              the logo already links home, and every OTHER nav surface on the
+              site (Footer's columns, MobileDrawer) already relies on just
+              that instead of duplicating it as a text link — this bar was
+              the one place still doing so. */}
           <Link
             href={routes.ai()}
             className={styles.aiLink}
@@ -128,15 +134,6 @@ export function Header({ categories, subs }: { categories: Category[]; subs: Sub
           >
             <AiMarkIcon size={16} />
             {t('smartAdvisor')}
-          </Link>
-
-          <Link
-            href={routes.home()}
-            className={styles.navLink}
-            data-active={isActive(routes.home()) ? '' : undefined}
-            aria-current={isActive(routes.home()) ? 'page' : undefined}
-          >
-            {tNav('home')}
           </Link>
 
           <NavDropdown label={tNav('tools')} active={isActive('/tools') || isActive(routes.market())}>
