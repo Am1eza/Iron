@@ -25,6 +25,11 @@ export type { BulkSplit, FactoryLine } from '@/lib/utils/bulkSplit';
 
 const TONNAGE_PRESETS = [10, 20, 50, 100];
 
+/** The price-table UX audit flagged «all factories at once» as unscannable —
+ *  this table defaults to the 5 cheapest with an explicit opt-in to see the
+ *  rest. */
+const TOP_FACTORIES = 5;
+
 /**
  * «مقایسهٔ کارخانه‌ها» — the signature capability. Enter a tonnage and see the
  * same product priced across every mill: proportional price bars, the gap to the
@@ -106,6 +111,14 @@ export function BulkQuote({
     [subRows, size],
   );
   const split = useMemo(() => computeBulkSplit(rows, tonnage), [rows, tonnage]);
+  // Collapses back to the top 5 whenever the comparison set changes — an
+  // expanded 26-mill list from the previous زیرشاخه would otherwise carry
+  // over and undercut the "manageable top-N by default" fix below.
+  const [showAllFactories, setShowAllFactories] = useState(false);
+  useEffect(() => {
+    setShowAllFactories(false);
+  }, [sub, size]);
+  const visibleLines = showAllFactories ? split.lines : split.lines.slice(0, TOP_FACTORIES);
 
   // Nothing to compare, and — for پروفیل — nobody to compare. This whole panel
   // asks one question ("which mill is cheapest for N tonnes?"), so on a
@@ -277,7 +290,7 @@ export function BulkQuote({
             </tr>
           </thead>
           <tbody>
-            {split.lines.map((l) => {
+            {visibleLines.map((l) => {
               const delta = split.cheapest ? l.pricePerKg - split.cheapest.pricePerKg : 0;
               return (
                 <tr key={l.factory} className={l.best ? styles.bestRow : undefined}>
@@ -302,31 +315,56 @@ export function BulkQuote({
         </table>
       </div>
 
+      {/* Top 5 by default (the audit's "دوجین کارخانه یک‌جا" complaint) — the
+          rest is one click away, not deleted. */}
+      {split.lines.length > TOP_FACTORIES ? (
+        <button
+          type="button"
+          className={styles.showAll}
+          aria-expanded={showAllFactories}
+          onClick={() => setShowAllFactories((v) => !v)}
+        >
+          {showAllFactories
+            ? `فقط ${toPersianDigits(TOP_FACTORIES)} کارخانهٔ برتر`
+            : `نمایش همهٔ ${toPersianDigits(split.lines.length)} کارخانه`}
+        </button>
+      ) : null}
+
       {split.cheapest ? (
-        <p className={styles.suggest}>
-          <CheckCircleIcon size={15} aria-hidden="true" />
-          <span>
-            پیشنهاد: تأمین از کارخانهٔ <strong>{split.cheapest.factory}</strong> با قیمت{' '}
-            <strong className="tnum">{formatToman(split.cheapest.pricePerKg, false)}</strong> تومان
-            بر کیلوگرم؛ هزینهٔ تقریبی کل{' '}
-            <strong className="tnum">{formatToman(split.cheapest.lineToman)}</strong>
-            {split.cheapest.rowCount === 1 ? ' (بر اساس فقط یک قیمت ثبت‌شده)' : ''}.
+        <div className={styles.suggest}>
+          <p className={styles.suggestLead}>
+            <CheckCircleIcon size={15} aria-hidden="true" />
+            <span>
+              پیشنهاد: تأمین از کارخانهٔ <strong>{split.cheapest.factory}</strong>
+              {split.cheapest.rowCount === 1 ? ' (بر اساس فقط یک قیمت ثبت‌شده)' : ''}
+            </span>
+          </p>
+          {/* Pulled out of the sentence into their own tiles — a label the eye
+              can skip and a number it can't miss, instead of a run-on sentence
+              with the figures buried mid-clause. */}
+          <dl className={styles.suggestStats}>
+            <div className={styles.suggestStat}>
+              <dt>قیمت هر کیلوگرم</dt>
+              <dd className="tnum">{formatToman(split.cheapest.pricePerKg, false)} تومان</dd>
+            </div>
+            <div className={styles.suggestStat}>
+              <dt>هزینهٔ تقریبی کل</dt>
+              <dd className="tnum">{formatToman(split.cheapest.lineToman)} تومان</dd>
+            </div>
             {savingsVsNext > 0 ? (
-              <>
-                {' '}
-                نسبت به گزینهٔ بعدی حدود{' '}
-                <strong className="tnum">{formatToman(savingsVsNext)}</strong> صرفه‌جویی دارد.
-              </>
+              <div className={styles.suggestStat}>
+                <dt>صرفه‌جویی نسبت به گزینهٔ بعدی</dt>
+                <dd className="tnum">{formatToman(savingsVsNext)} تومان</dd>
+              </div>
             ) : null}
             {savingsVsMax > savingsVsNext ? (
-              <>
-                {' '}
-                (نسبت به گران‌ترین گزینه، تفاوت تا{' '}
-                <strong className="tnum">{formatToman(savingsVsMax)}</strong> تومان است.)
-              </>
+              <div className={styles.suggestStat}>
+                <dt>تفاوت تا گران‌ترین گزینه</dt>
+                <dd className="tnum">{formatToman(savingsVsMax)} تومان</dd>
+              </div>
             ) : null}
-          </span>
-        </p>
+          </dl>
+        </div>
       ) : (
         <p className={styles.suggest}>برای این انتخاب، ردیفی در جدول قیمت نیست؛ زیرشاخه یا {sizeCol} دیگری را امتحان کنید.</p>
       )}
