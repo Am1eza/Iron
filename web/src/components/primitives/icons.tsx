@@ -88,6 +88,17 @@ export const SearchIcon = (p: IconProps) => (
   </Svg>
 );
 
+/** Magnifying glass + a mark inside the lens — "nothing found here", not
+ *  "search". Reads unambiguously on 404/empty-search states, unlike a bare
+ *  `SearchIcon` (which is an action, not a result) or `IBeamGlyph` (an
+ *  unrelated brand mark that reads as a capital "I" out of product context). */
+export const SearchOffIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="10.8" cy="10.8" r="6.6"/><path d="M15.6 15.6 20.6 20.6"/>
+    <path d="M7.5 7.5 14.1 14.1M14.1 7.5 7.5 14.1"/>
+  </Svg>
+);
+
 export const ChevronDownIcon = (p: IconProps) => (
   <Svg {...p}>
     <path d="M6 9.5 12 15.5 18 9.5"/>

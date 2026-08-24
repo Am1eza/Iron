@@ -31,9 +31,73 @@
 .sub {
   font: var(--t-body-lg);
   color: var(--color-text-muted);
-  margin: 0 0 var(--space-7);
+  margin: 0 0 var(--space-6);
   max-inline-size: 52ch;
   text-wrap: pretty;
+}
+
+/* ===== The two paths ===== */
+.ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-block-end: var(--space-4);
+}
+.cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-block-size: 52px;
+  padding-inline: var(--space-6);
+  border-radius: var(--radius-md);
+  font: var(--t-button);
+  text-decoration: none;
+  transition:
+    background var(--dur-fast) var(--ease-standard),
+    border-color var(--dur-fast) var(--ease-standard),
+    color var(--dur-fast) var(--ease-standard);
+}
+.cta:focus-visible {
+  outline: var(--border-focus) solid var(--color-focus);
+  outline-offset: 2px;
+}
+/* --color-action, not --color-accent: white text on -accent is 4.34:1, under
+   AA. Same reason .searchSend uses it (see tokens.css:40). */
+.ctaPrimary {
+  background: var(--color-action);
+  color: var(--color-on-action);
+}
+.ctaPrimary:hover {
+  background: var(--color-action-hover);
+  text-decoration: none;
+}
+.ctaPrimary:active {
+  background: var(--color-action-press);
+}
+.ctaSecondary {
+  background: var(--color-surface);
+  color: var(--color-text-strong);
+  border: var(--border-hairline) solid var(--color-border-strong);
+}
+.ctaSecondary:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent-text);
+  background: var(--color-accent-tint);
+  text-decoration: none;
+}
+
+/* ===== Advisor block — fenced off from the CTA row above ===== */
+.advisor {
+  margin-block-start: var(--space-6);
+  padding-block-start: var(--space-5);
+  border-block-start: var(--border-hairline) solid var(--color-hairline);
+  max-inline-size: 620px;
+}
+.advisorLabel {
+  margin: 0 0 var(--space-3);
+  font: var(--t-label);
+  color: var(--color-text-muted);
 }
 
 /* ===== AI search bar ===== */
@@ -159,9 +223,9 @@
   }
 }
 
-/* real-numbers trust line under the search */
+/* real-numbers trust line — sits under the CTA row, supporting the browse path */
 .trust {
-  margin: var(--space-3) 0 0;
+  margin: 0;
   font: var(--t-body-sm);
   color: var(--color-text-muted);
 }

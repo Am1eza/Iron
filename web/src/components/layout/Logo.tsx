@@ -9,7 +9,15 @@ import logoMark from '../../../public/brand/ahantime-logo.png';
  * raster at public/brand/ahantime-logo.png: replacing that one file rebrands
  * the site header, admin topbar and proforma letterhead together. Width is
  * derived from the asset's real aspect ratio at build time (static import),
- * so any logo shape works without CSS edits. `compact` drops the wordmark.
+ * so any logo shape works without CSS edits.
+ *
+ * `compact` drops the wordmark, but ONLY below Header's own 1024px nav
+ * breakpoint (see Logo.module.css) — Header passes it on scroll-condense,
+ * and above 1024px condensing is a scroll-position affordance with plenty of
+ * bar width to spare, not a real space constraint. Dropping the wordmark
+ * there was losing brand identity on desktop for no space it needed back
+ * (design/UX audit). Below 1024px the header is already in hamburger mode,
+ * where every pixel is genuinely scarce, so the icon-only condense stays.
  */
 const MARK_H = 38;
 const MARK_W = Math.round((logoMark.width / logoMark.height) * MARK_H);
@@ -41,12 +49,10 @@ export function Logo({ compact = false, light = false }: { compact?: boolean; li
          * which is all a 38px-tall logo can ever need. */
         priority
       />
-      {!compact && (
-        <span className={styles.word}>
-          <span className={styles.wordmark}>آهن‌تایم</span>
-          <span className={styles.tagline}>بازار هوشمند فولاد</span>
-        </span>
-      )}
+      <span className={styles.word} data-compact={compact ? '' : undefined}>
+        <span className={styles.wordmark}>آهن‌تایم</span>
+        <span className={styles.tagline}>بازار هوشمند فولاد</span>
+      </span>
     </Link>
   );
 }

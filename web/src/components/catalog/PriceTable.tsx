@@ -39,7 +39,7 @@ import type { PriceRow } from '@/lib/types/domain';
 import type { SubCat } from '@/lib/data/nav';
 import { MovementBadge, DeliveryBadge, Switch, Chip } from '@/components/ui';
 import { IconButton } from '@/components/ui';
-import { Modal, PriceChart } from '@/components/lazy';
+import { Modal, PriceChart, KgQuantityModal } from '@/components/lazy';
 import { ExportMenu } from './ExportMenu';
 import { AlertBellButton } from '@/components/alerts/AlertBellButton';
 import { HeartIcon, ChartIcon, PlusIcon, SortIcon, ChevronDownIcon } from '@/components/primitives/icons';
@@ -707,12 +707,12 @@ export function PriceTable({
     [isAuthenticated, rows, toast],
   );
 
-  const addToCart = useCallback(
-    (r: PriceRow) => {
+  const addRowToCart = useCallback(
+    (r: PriceRow, qty: number) => {
       add({
         skuId: r.id,
         name: r.name,
-        qty: 1,
+        qty,
         unit: r.unit,
         unitPrice: r.current.price,
         weightKg: r.theoreticalWeightKg,
@@ -723,6 +723,22 @@ export function PriceTable({
       });
     },
     [add, toast],
+  );
+
+  // «۱ کیلوگرم میلگرد» is not a purchasable unit (audit finding) — a kg-basis
+  // row asks how much (KgQuantityModal) instead of defaulting straight to
+  // qty:1. Every other basis already counts in a real unit (شاخه/برگ/عدد/…),
+  // so 1 there stays correct as-is.
+  const [kgQtyRow, setKgQtyRow] = useState<PriceRow | null>(null);
+  const addToCart = useCallback(
+    (r: PriceRow) => {
+      if (r.priceBasis === 'kg') {
+        setKgQtyRow(r);
+        return;
+      }
+      addRowToCart(r, 1);
+    },
+    [addRowToCart],
   );
 
   const updated = rows[0]?.current.updatedAt;
@@ -1197,6 +1213,18 @@ export function PriceTable({
           </div>
         )}
       </Modal>
+
+      <KgQuantityModal
+        open={kgQtyRow !== null}
+        onClose={() => setKgQtyRow(null)}
+        productName={kgQtyRow?.name ?? ''}
+        branchWeightKg={kgQtyRow?.theoreticalWeightKg}
+        unitPrice={kgQtyRow?.current.price}
+        onConfirm={(qtyKg) => {
+          if (kgQtyRow) addRowToCart(kgQtyRow, qtyKg);
+          setKgQtyRow(null);
+        }}
+      />
     </div>
   );
 }

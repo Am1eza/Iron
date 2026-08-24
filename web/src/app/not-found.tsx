@@ -14,6 +14,9 @@ import type { Metadata } from 'next';
 import { Container } from '@/components/ui/Layout';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { emptyPresets } from '@/components/ui/emptyPresets';
+import { SearchOffIcon } from '@/components/primitives/icons';
+import { SearchBar } from '@/components/layout/SearchBar';
+import styles from './not-found.module.css';
 
 export const metadata: Metadata = {
   title: 'صفحه پیدا نشد',
@@ -23,7 +26,17 @@ export const metadata: Metadata = {
 export default function NotFound() {
   return (
     <Container>
-      <EmptyState size="full" {...emptyPresets.notFound()} />
+      {/* Default `EmptyState` glyph is `IBeamGlyph` — a steel I-beam
+          silhouette that, out of catalog context, reads as a capital "I" /
+          text cursor (audit finding). `SearchOffIcon` says "nothing found
+          here" without relying on brand context the visitor doesn't have. */}
+      <EmptyState size="full" glyph={<SearchOffIcon size={56} />} {...emptyPresets.notFound()} />
+      {/* The preset copy says "get help from search" but nothing on the page
+          could actually be searched (audit finding) — a real, working field
+          instead of a promise the page didn't keep. */}
+      <div className={styles.search}>
+        <SearchBar size="lg" autoFocus placeholder="جستجوی محصول، سایز، کارخانه…" />
+      </div>
     </Container>
   );
 }

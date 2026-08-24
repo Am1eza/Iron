@@ -31,10 +31,19 @@ export const metadata: Metadata = buildMetadata({
   noindex: true,
 });
 
-type Props = { searchParams: Promise<{ q?: string }> };
+type Props = { searchParams: Promise<{ q?: string; type?: string }> };
 
 /** Max items shown per group before we add a «more results» note. */
 const GROUP_CAP = 24;
+
+const TYPE_FILTERS = ['sku', 'category', 'article'] as const;
+type TypeFilter = (typeof TYPE_FILTERS)[number];
+function parseTypeFilter(raw: string | undefined): TypeFilter | undefined {
+  return TYPE_FILTERS.includes(raw as TypeFilter) ? (raw as TypeFilter) : undefined;
+}
+function filteredCount(type: TypeFilter, skuN: number, catN: number, articleN: number): number {
+  return type === 'sku' ? skuN : type === 'category' ? catN : articleN;
+}
 
 /** Normalize text for substring matching: lowercase + Persian/Arabic digits → Latin. */
 function norm(input: string): string {
@@ -55,9 +64,10 @@ async function withCounts(cats: Category[]): Promise<CatWithCount[]> {
 }
 
 export default async function SearchPage({ searchParams }: Props) {
-  const { q: rawQ } = await searchParams;
+  const { q: rawQ, type: rawType } = await searchParams;
   const q = (rawQ ?? '').trim();
   const needle = norm(q);
+  const activeType = parseTypeFilter(rawType);
 
   const crumbs = [
     { label: 'خانه', href: routes.home() },
@@ -119,19 +129,34 @@ export default async function SearchPage({ searchParams }: Props) {
               <PopularCategories items={popular} />
             </>
           ) : (
-            <p className={resultStyles.summary}>
-              <span className="tnum">{toPersianDigits(totalHits)}</span> نتیجه برای{' '}
-              <span className={resultStyles.term}>«{q}»</span>
-            </p>
+            <>
+              <p className={resultStyles.summary}>
+                <span className="tnum">{toPersianDigits(totalHits)}</span> نتیجه برای{' '}
+                <span className={resultStyles.term}>«{q}»</span>
+              </p>
+              <TypeFilters
+                q={q}
+                active={activeType}
+                counts={{ sku: productHits.length, category: categoryHitsWithCounts.length, article: articleHits.length }}
+              />
+            </>
           )}
 
-          {productHits.length > 0 ? (
+          {(!activeType || activeType === 'sku') && productHits.length > 0 ? (
             <ProductGroup hits={productHits} />
           ) : null}
 
-          {categoryHitsWithCounts.length > 0 ? <CategoryGroup cats={categoryHitsWithCounts} /> : null}
+          {(!activeType || activeType === 'category') && categoryHitsWithCounts.length > 0 ? (
+            <CategoryGroup cats={categoryHitsWithCounts} />
+          ) : null}
 
-          {articleHits.length > 0 ? <ArticleGroup items={articleHits} /> : null}
+          {(!activeType || activeType === 'article') && articleHits.length > 0 ? (
+            <ArticleGroup items={articleHits} />
+          ) : null}
+
+          {activeType && filteredCount(activeType, productHits.length, categoryHitsWithCounts.length, articleHits.length) === 0 ? (
+            <p className={resultStyles.summary}>نتیجه‌ای در این دسته نیست — فیلتر «همه» را امتحان کنید.</p>
+          ) : null}
         </Stack>
       </Section>
     </Container>
@@ -139,6 +164,55 @@ export default async function SearchPage({ searchParams }: Props) {
 }
 
 /* ----------------------------- sections ----------------------------- */
+
+const TYPE_FILTER_LABELS: Record<TypeFilter, string> = {
+  sku: 'محصولات',
+  category: 'دسته‌بندی‌ها',
+  article: 'مقالات و اخبار',
+};
+
+/**
+ * Result-type chips — a plain query-param filter (`?type=`), server-rendered
+ * like the rest of this page; no client JS. `searchAll` already returns the
+ * three groups as distinguishable arrays (skus/categories/articles) — the
+ * page just didn't expose a way to narrow to one of them, only ever showing
+ * all three stacked with their own headings.
+ */
+function TypeFilters({
+  q,
+  active,
+  counts,
+}: {
+  q: string;
+  active: TypeFilter | undefined;
+  counts: Record<TypeFilter, number>;
+}) {
+  const total = counts.sku + counts.category + counts.article;
+  return (
+    <ul className={resultStyles.filters} aria-label="فیلتر نوع نتیجه">
+      <li>
+        <Link
+          href={routes.search(q)}
+          className={resultStyles.filterChip}
+          data-active={active === undefined ? '' : undefined}
+        >
+          همه <span className="tnum">{toPersianDigits(total)}</span>
+        </Link>
+      </li>
+      {TYPE_FILTERS.filter((t) => counts[t] > 0).map((t) => (
+        <li key={t}>
+          <Link
+            href={routes.search(q, t)}
+            className={resultStyles.filterChip}
+            data-active={active === t ? '' : undefined}
+          >
+            {TYPE_FILTER_LABELS[t]} <span className="tnum">{toPersianDigits(counts[t])}</span>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 function Header({ crumbs, initial }: { crumbs: { label: string; href?: string }[]; initial: string }) {
   return (

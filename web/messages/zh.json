@@ -98,7 +98,8 @@
     "registerSubtitle": "该号码是新的，请输入发送到 {mobile} 的验证码并完善您的信息。",
     "newUserBadge": "新账户",
     "registerNameSubtitle": "账户已创建。请输入您的姓名以完成注册。",
-    "completeRegistration": "完成注册"
+    "completeRegistration": "完成注册",
+    "requestFlowNote": "您的询价篮已保存；验证号码后，您将返回继续提交请求。"
   },
   "phone": {
     "country": "国家/地区",
@@ -138,6 +139,9 @@
       "titleLine1": "今日钢材价格，",
       "titleLine2": "由智能顾问为您解答",
       "sub": "螺纹钢、工字钢、钢板与型材，均由钢厂直供。告诉我们您的工程需求，我们为您核算用量、重量与项目成本。",
+      "ctaPrices": "查看价格",
+      "ctaAdvisor": "用智能顾问核算工程",
+      "advisorLabel": "或直接在此输入您的问题",
       "placeholder": "例如：我想盖一栋房子，需要哪些材料、各需多少？",
       "inputAria": "向 Ahantime 智能顾问提问",
       "ask": "向 Ahantime 提问",

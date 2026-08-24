@@ -1,0 +1,19 @@
+.track {
+  position: fixed;
+  inset-block-start: 0;
+  inset-inline: 0;
+  block-size: 3px;
+  z-index: var(--z-fab);
+  pointer-events: none;
+}
+.bar {
+  block-size: 100%;
+  inline-size: 0%;
+  background: var(--color-accent);
+  transition: inline-size var(--dur-fast) linear;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bar {
+    transition: none;
+  }
+}

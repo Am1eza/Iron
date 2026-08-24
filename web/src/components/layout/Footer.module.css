@@ -6,10 +6,11 @@
 
 .top {
   display: grid;
-  /* brand + products + FOOTER_COLUMNS (lib/data/nav.ts) + contact — keep this
-     column count in sync with that array length or the last columns wrap
-     onto an orphan row. */
-  grid-template-columns: 1.6fr repeat(7, 1fr);
+  /* brand + products (primary) + the FOOTER_COLUMNS cluster (one track,
+     internally multi-column — see .moreCluster) + contact (primary). Four
+     tracks now, not eight — the cluster absorbing all of FOOTER_COLUMNS
+     means this no longer needs to stay in sync with that array's length. */
+  grid-template-columns: 1.6fr 1fr 2fr 1.1fr;
   align-items: start;
   gap: var(--space-8) var(--space-6);
   padding-block: var(--space-16) var(--space-12);
@@ -46,6 +47,41 @@
   letter-spacing: 0;
   color: rgba(255, 255, 255, 0.5);
   margin: 0 0 var(--space-4);
+}
+/* The two "you probably want this" columns (محصولات / تماس) — see the
+   hierarchy note in Footer.tsx. Same family as .colTitle, just a size and a
+   weight up, so the priority reads without a second visual language. */
+.primaryTitle {
+  font: var(--t-label);
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.85);
+}
+.primaryCol .link,
+.primaryCol .phone,
+.primaryCol .channel {
+  font: var(--t-body-sm);
+}
+
+/* The remaining five FOOTER_COLUMNS groups, packed into one denser cluster
+   instead of five more full-size columns — `columns` balances them the same
+   way the mega-menu's own multi-column sub-category flow does. */
+.moreCluster {
+  columns: 2;
+  column-gap: var(--space-6);
+}
+.moreCol {
+  break-inside: avoid;
+  margin-block-end: var(--space-5);
+  min-inline-size: 0;
+}
+.moreTitle {
+  font: var(--t-caption);
+  letter-spacing: 0;
+  color: rgba(255, 255, 255, 0.4);
+  margin: 0 0 var(--space-2);
+}
+.moreCol .link {
+  font: var(--t-caption);
 }
 .links {
   list-style: none;
@@ -135,10 +171,17 @@
 /* ===== Responsive ===== */
 @media (max-width: 1023px) {
   .top {
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: 1fr 1fr;
   }
   .brandCol {
     grid-column: 1 / -1;
+  }
+  /* The secondary cluster drops to its own full-width row below the two
+     primary columns — still visibly denser/quieter than them (smaller type),
+     just no longer squeezed into a narrow nested 2-column grid. */
+  .moreCluster {
+    grid-column: 1 / -1;
+    columns: 3;
   }
 }
 @media (max-width: 767px) {
@@ -157,6 +200,10 @@
   }
   .brandCol {
     grid-column: 1 / -1;
+  }
+  .moreCluster {
+    grid-column: 1 / -1;
+    columns: 2;
   }
   .trustInner {
     justify-content: center;

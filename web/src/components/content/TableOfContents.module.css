@@ -44,3 +44,40 @@
   color: var(--color-accent-text);
   text-decoration: underline;
 }
+
+/* The H3-reveal toggle and the "N more" toggle — same disclosure, same
+   chevron-rotate, mirroring ArticleFaq's summary/chevron pattern. Deliberately
+   holds no link (see the file docblock): the jump link is a SIBLING of this
+   `<details>`, not nested inside its `<summary>`. */
+.group {
+  margin-block-start: var(--space-1);
+}
+.groupSummary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding-block: var(--space-1);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  list-style: none;
+}
+.groupSummary::-webkit-details-marker {
+  display: none;
+}
+.groupSummaryText {
+  font: var(--t-caption);
+}
+.chevron {
+  flex: 0 0 auto;
+  transition: transform var(--dur-fast) var(--ease-standard);
+}
+.group[open] > .groupSummary .chevron {
+  transform: rotate(180deg);
+}
+.subList {
+  margin: var(--space-1) 0 0;
+  padding-inline-start: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}

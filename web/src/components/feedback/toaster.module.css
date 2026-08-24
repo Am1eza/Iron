@@ -1,7 +1,9 @@
 .region {
   position: fixed;
-  /* clear the fixed bottom tab bar (below 768px) plus a breathing gap */
-  inset-block-end: calc(var(--bottom-bar-h) + var(--space-4));
+  /* Lane 2 — clears the bottom tab bar AND, below 768px, the «تماس بگیرید»
+     FAB, which this centred full-width region used to land on top of.
+     See --float-lane-* in tokens.css. */
+  inset-block-end: var(--float-lane-2);
   inset-inline: 0;
   display: flex;
   flex-direction: column;

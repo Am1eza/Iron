@@ -29,6 +29,7 @@ type Copy = {
   listTitle: string;
   emptyHeadline: string;
   emptyBody: string;
+  featuredTitle?: string;
 };
 
 export const INDEX_COPY: Record<'blog' | 'news', Copy> = {
@@ -38,6 +39,7 @@ export const INDEX_COPY: Record<'blog' | 'news', Copy> = {
     lede: 'راهنمای خرید، تحلیل بازار و آموزش آهن‌آلات؛ نوشته‌شده برای کسانی که اول مشورت می‌کنند، بعد خرید.',
     crumb: 'وبلاگ',
     listTitle: 'همهٔ مطالب',
+    featuredTitle: 'تازه‌ترین مطالب',
     emptyHeadline: 'هنوز مطلبی منتشر نشده است',
     emptyBody: 'به‌زودی نخستین مقاله‌های آهن‌تایم اینجا منتشر می‌شوند.',
   },
@@ -51,6 +53,11 @@ export const INDEX_COPY: Record<'blog' | 'news', Copy> = {
     emptyBody: 'به‌محض انتشار، تازه‌ترین اخبار بازار اینجا قرار می‌گیرند.',
   },
 };
+
+// How many of the already-fetched (recency-ordered) blog articles surface as
+// the featured strip above the category rail — a preview, not the full
+// «همهٔ مطالب» list (see the render-site comment on why that stays hidden).
+const FEATURED_COUNT = 4;
 
 const META: Record<'blog' | 'news', { title: string; description: string; feed: string }> = {
   blog: {
@@ -144,6 +151,26 @@ export async function ArticleIndex({ type, page }: { type: 'blog' | 'news'; page
             </Heading>
             <Text color="muted">{copy.lede}</Text>
           </div>
+
+          {/* A preview, not the flat list — see the comment below on why
+              «همهٔ مطالب» itself stays hidden for blog. This is 4 cards at
+              most (blog is at 4 articles total today, so it's currently
+              everything), sits ABOVE the rail rather than in the space
+              reserved below it, and exists to fix a distinct problem: page 1
+              rendering with literally zero article content until a reader
+              picks a category first. */}
+          {type === 'blog' && page === 1 && articles.length > 0 && copy.featuredTitle ? (
+            <div>
+              <Heading level={2} id="blog-featured-title">
+                {copy.featuredTitle}
+              </Heading>
+              <ul className={styles.grid} aria-labelledby="blog-featured-title">
+                {articles.slice(0, FEATURED_COUNT).map((article) => (
+                  <ArticleCard key={article.id} article={article} />
+                ))}
+              </ul>
+            </div>
+          ) : null}
 
           {type === 'blog' ? <CategoryRail items={blogRailItems} /> : <NewsTopicRail items={newsRailItems} />}
 

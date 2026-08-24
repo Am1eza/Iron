@@ -21,7 +21,7 @@ import { routes } from '@/lib/routes';
 import { normalizeDigits, formatToman } from '@/lib/utils/format';
 import { findActiveAlert, formatAlertValue, defaultThreshold, capLimitCopy } from '@/lib/utils/alerts';
 import type { MarketKey } from '@/lib/types/domain';
-import { IconButton, Modal, Button } from '@/components/ui';
+import { IconButton, Modal, Button, Tooltip } from '@/components/ui';
 import { Field, RadioGroup } from '@/components/forms/fields';
 import { BellIcon } from '@/components/primitives/icons';
 import fieldStyles from '@/components/forms/field.module.css';
@@ -177,15 +177,22 @@ export function AlertBellButton({
 
   return (
     <>
-      <IconButton
-        size={size}
-        variant={variant}
-        label={bellLabel}
-        active={Boolean(activeAlert)}
-        icon={<BellIcon size={size === 'sm' ? 18 : 20} filled={Boolean(activeAlert)} />}
-        onClick={openModal}
-        className={className}
-      />
+      {/* Icon-only trigger — a sighted, non-expert visitor has no text cue for
+          what a bell icon does otherwise (design/UX audit). `Tooltip` already
+          covers touch via its `onFocusCapture` (a tap focuses the button on
+          mobile browsers), so this is the same visible-label pattern the
+          audit asked for, not a mouse-only affordance. */}
+      <Tooltip content={bellLabel}>
+        <IconButton
+          size={size}
+          variant={variant}
+          label={bellLabel}
+          active={Boolean(activeAlert)}
+          icon={<BellIcon size={size === 'sm' ? 18 : 20} filled={Boolean(activeAlert)} />}
+          onClick={openModal}
+          className={className}
+        />
+      </Tooltip>
 
       <Modal
         open={open}

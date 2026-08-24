@@ -13,6 +13,7 @@ import { docToMarkdown } from '@/lib/content/docToMarkdown';
 import { normalizeDigits, toPersianDigits } from '@/lib/utils/format';
 import { likeContains } from '@/lib/server/utils/likeEscape';
 import { PER_PAGE } from '@/lib/content/archivePaging';
+import { minutesFromWordCount } from '@/lib/utils/readingTime';
 
 type Row = typeof articles.$inferSelect;
 
@@ -24,7 +25,12 @@ export type ArticleListRow = Pick<
   | 'id' | 'slug' | 'type' | 'title' | 'excerpt' | 'coverUrl'
   | 'status' | 'source' | 'publishAt' | 'updatedAt' | 'tags' | 'relatedCategoryIds'
   | 'relatedNewsTopicIds' | 'faq' | 'seo'
->;
+> & {
+  /** DB-side word count over `body_md` — see `LIST_COLUMNS`. Not a real
+   *  column, so not part of `Row`/`Pick<Row, …>` above; absent when
+   *  `toArticleDto` is called from `toArticleFull` on a plain `Row`. */
+  wordCount?: number;
+};
 
 export function toArticleDto(r: ArticleListRow): Article {
   return {
@@ -50,6 +56,7 @@ export function toArticleDto(r: ArticleListRow): Article {
     relatedNewsTopicIds: r.relatedNewsTopicIds ?? [],
     faq: r.faq ?? [],
     seo: r.seo ?? undefined,
+    readingMinutes: typeof r.wordCount === 'number' ? minutesFromWordCount(r.wordCount) : undefined,
   };
 }
 
@@ -135,6 +142,13 @@ const LIST_COLUMNS = {
   relatedNewsTopicIds: articles.relatedNewsTopicIds,
   faq: articles.faq,
   seo: articles.seo,
+  // Approximate: raw whitespace-split over `body_md`'s Markdown source, not
+  // the stripped reader-visible prose `stripMarkdownForWordCount` in
+  // analyticsRepo.ts computes (that needs the full body text in Node; this
+  // stays a skinny int column so list queries don't regress back to
+  // shipping full bodies over the wire — see the comment above this const).
+  // Good enough for a rounded-minutes badge, not for the SEO thin-content gate.
+  wordCount: sql<number>`coalesce(array_length(regexp_split_to_array(trim(${articles.bodyMd}), '\s+'), 1), 0)`,
 } as const;
 
 export async function listPublished(type: 'blog' | 'news', page = 1, perPage = 20) {
