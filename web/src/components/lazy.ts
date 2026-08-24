@@ -38,3 +38,12 @@ export const Modal = dynamic(() => import('./ui/Modal').then((m) => m.Modal), { 
 export const PriceChart = dynamic(() => import('./catalog/PriceChart').then((m) => m.PriceChart), {
   ssr: false,
 });
+
+/** کیلوگرم quantity step — only rendered once a kg-basis product's
+ *  «افزودن به سبد» is actually clicked (PriceTable, SkuDetail). Bundles its
+ *  own `Modal` import rather than reusing the lazy one above, since both
+ *  only ever load together anyway. */
+export const KgQuantityModal = dynamic(
+  () => import('./cart/KgQuantityModal').then((m) => m.KgQuantityModal),
+  { ssr: false },
+);

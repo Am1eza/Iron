@@ -1,0 +1,101 @@
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.modeRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.note {
+  margin: 0;
+  font: var(--t-body-sm);
+  color: var(--color-text-muted);
+}
+
+.branchRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.branchInputWrap {
+  display: inline-flex;
+}
+.branchInput {
+  inline-size: 4.5rem;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-hairline) solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-strong);
+  font: var(--t-data);
+  text-align: center;
+}
+.branchInput:focus-visible {
+  outline: var(--border-focus) solid var(--color-focus);
+  outline-offset: 1px;
+}
+.branchHint {
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}
+
+.weightField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.weightLabel {
+  font: var(--t-label);
+  color: var(--color-text);
+}
+.weightInput {
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-hairline) solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-strong);
+  font: var(--t-data);
+  max-inline-size: 12rem;
+}
+.weightInput:focus-visible {
+  outline: var(--border-focus) solid var(--color-focus);
+  outline-offset: 1px;
+}
+
+.summary {
+  margin: 0;
+  font: var(--t-body-sm);
+  color: var(--color-text);
+  padding-block-start: var(--space-2);
+  border-block-start: var(--border-hairline) solid var(--color-hairline);
+}
+
+.confirmBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--color-action);
+  color: var(--color-on-action);
+  font: var(--t-button);
+  font-weight: 600;
+  padding: var(--space-3) var(--space-5);
+  min-block-size: 48px;
+  cursor: pointer;
+}
+.confirmBtn:hover:not(:disabled) {
+  background: var(--color-action-hover);
+}
+.confirmBtn:active:not(:disabled) {
+  background: var(--color-action-press);
+}
+.confirmBtn:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
