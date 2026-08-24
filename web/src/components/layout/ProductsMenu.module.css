@@ -262,8 +262,11 @@
   /* Bounded on BOTH axes. Unbounded, a 3-sub-category panel handed the figure
      ~750px and the photo's own aspect ratio then made it 420px tall: the menu
      stopped reading as a menu and started reading as a photo with a caption.
-     40rem is the ceiling that keeps it the panel's largest element without
-     making it the panel's only element, and the leftover becomes gutter
+     24rem (was 40rem — design/UX audit: the photo was over HALF the panel's
+     width on a shallow category, for a task that is "pick a category", not
+     "look at a photo") is the new ceiling: still the panel's largest single
+     element, but the sub-category list now wins the width contest on every
+     category instead of just the deep ones, and the leftover becomes gutter
      between the two zones rather than a hole inside one of them.
 
      Deliberately NOT pinned to the far edge with `margin-inline-start: auto`,
@@ -272,9 +275,9 @@
      panel. Packed instead, the two zones sit together against the reading edge
      and the leftover trails off the far end, which is simply how a short line
      ends. */
-  max-inline-size: 40rem;
-  min-block-size: 16rem;
-  max-block-size: 22rem;
+  max-inline-size: 24rem;
+  min-block-size: 14rem;
+  max-block-size: 18rem;
   overflow: hidden;
   border-radius: var(--radius-md);
   background: var(--color-surface-sunken);

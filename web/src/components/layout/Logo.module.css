@@ -66,3 +66,14 @@
     display: none;
   }
 }
+
+/* `compact` (Header's scroll-condensed state) drops the wordmark ONLY below
+   Header's own 1024px nav-collapse breakpoint — see Logo.tsx's comment. */
+.word[data-compact] {
+  display: none;
+}
+@media (min-width: 1024px) {
+  .word[data-compact] {
+    display: inline-flex;
+  }
+}
