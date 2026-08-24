@@ -70,6 +70,11 @@
   background: var(--color-action-press);
   color: var(--color-on-action);
 }
+.compareHint {
+  margin: 0;
+  font: var(--t-caption);
+  color: var(--color-accent-text);
+}
 .tools {
   display: flex;
   align-items: center;
@@ -219,6 +224,16 @@
 .sizeCell {
   display: table-cell;
   white-space: nowrap;
+}
+/* Pads the compare checkbox's tap target to 44px without enlarging the
+   checkbox itself or widening the column. */
+.compareCheckboxHit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: 44px;
+  min-inline-size: 44px;
+  cursor: pointer;
 }
 .actionsCell {
   display: table-cell;
@@ -437,6 +452,12 @@
 }
 .quickJumpChip {
   flex: none;
+  display: inline-flex;
+  align-items: center;
+  /* Padding alone gave this chip a ~30px tap target (audit-flagged, below the
+     44px guideline); the desktop row still reads as compact since only the
+     block size grows. */
+  min-block-size: 44px;
   padding: var(--space-1) var(--space-3);
   border-radius: var(--radius-pill);
   border: var(--border-hairline) solid var(--color-border-strong);
@@ -564,4 +585,12 @@
   position: sticky;
   inset-inline-start: 0;
   background: var(--color-surface);
+}
+/* The row that actually distinguishes the selected products — tinted so it
+   doesn't require re-reading every cell to find. Not a red/green data
+   signal, just the same accent tint the toolbar's own compare button uses
+   for "this needs your attention". */
+.rowDiffers th[scope='row'],
+.rowDiffers td {
+  background: var(--color-accent-tint);
 }

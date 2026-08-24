@@ -58,6 +58,13 @@ function compareRows(a: PriceRow, b: PriceRow, sort: SortKey): number {
   return Number(normalizeDigits(a.size ?? '0')) - Number(normalizeDigits(b.size ?? '0'));
 }
 
+/** Compare-modal row highlighting — true when the selected products don't all
+ *  share this attribute, so the row that actually distinguishes them stands
+ *  out instead of the buyer re-reading every cell to find it. */
+function rowDiffers(values: ReadonlyArray<string | number | null>): boolean {
+  return new Set(values).size > 1;
+}
+
 /**
  * The factory name, linked to that factory's own price page.
  *
@@ -217,12 +224,17 @@ const PriceTableRow = memo(function PriceTableRow({
   return (
     <tr role="row" className={styles.row}>
       <td role="cell" className={styles.compareCell}>
-        <input
-          type="checkbox"
-          checked={compareChecked}
-          onChange={() => onToggleCompare(r.id)}
-          aria-label={`افزودن ${r.name} به مقایسه`}
-        />
+        {/* The visible box stays native-sized; the label pads the tap target
+            out to 44px so the checkbox meets the touch-target guideline
+            without inflating a column meant to stay narrow. */}
+        <label className={styles.compareCheckboxHit}>
+          <input
+            type="checkbox"
+            checked={compareChecked}
+            onChange={() => onToggleCompare(r.id)}
+            aria-label={`افزودن ${r.name} به مقایسه`}
+          />
+        </label>
       </td>
       <th role="rowheader" scope="row" className={styles.name}>
         <Link href={routes.sku(r.categoryId, r.subCategoryId, r.slug)} className={styles.nameLink}>
@@ -734,6 +746,17 @@ export function PriceTable({
   // describes what is actually on screen.
   const priceBasis = useMemo(() => singlePriceBasis(subFiltered), [subFiltered]);
   const selectedForCompare = useMemo(() => rows.filter((r) => compareIds.has(r.id)), [rows, compareIds]);
+  // The compare modal's next action: only offered when a cheaper priced
+  // option actually exists among the selection — a hidden price can't be
+  // compared, and if every visible price ties there is nothing "cheaper" to
+  // push the visitor toward.
+  const cheapestForCompare = useMemo(() => {
+    const priced = selectedForCompare.filter((r) => !r.current.priceHidden);
+    if (priced.length < 2) return null;
+    const cheapest = priced.reduce((a, b) => (b.current.price < a.current.price ? b : a));
+    const isActuallyCheaper = priced.some((r) => r.id !== cheapest.id && r.current.price > cheapest.current.price);
+    return isActuallyCheaper ? cheapest : null;
+  }, [selectedForCompare]);
   const exportRows = useMemo(
     () => bySection.flatMap(([, list]) => list),
     [bySection],
@@ -826,6 +849,17 @@ export function PriceTable({
           </button>
         </div>
       </div>
+
+      {/* The compare button just goes disabled with one item checked, which
+          audits and support tickets both read as "broken" rather than
+          "needs one more". Spell out why. `role="status"` so a screen
+          reader announces it the moment the second checkbox click is still
+          missing, not just on page load. */}
+      {selectedForCompare.length === 1 ? (
+        <p className={styles.compareHint} role="status">
+          حداقل دو محصول برای مقایسه انتخاب کنید — یک مورد دیگر را هم علامت بزنید.
+        </p>
+      ) : null}
 
       <div className={styles.meta}>
         <span>
@@ -1035,11 +1069,31 @@ export function PriceTable({
           table is comparing mills to each other, and per-section VAT states
           would put two of its columns on different bases with nothing in the
           row header to say so. */}
-      <Modal open={compareOpen} onClose={() => setCompareOpen(false)} title="مقایسهٔ کالاها">
+      <Modal
+        open={compareOpen}
+        onClose={() => setCompareOpen(false)}
+        title="مقایسهٔ کالاها"
+        footer={
+          cheapestForCompare ? (
+            <button
+              type="button"
+              className={styles.modalCta}
+              onClick={() => {
+                addToCart(cheapestForCompare);
+                setCompareOpen(false);
+              }}
+            >
+              افزودن گزینهٔ ارزان‌تر ({cheapestForCompare.name}) به سبد
+            </button>
+          ) : undefined
+        }
+      >
         {selectedForCompare.length < 2 ? null : (
           <div className={styles.compareScroll}>
             <table className={`${styles.compareTable} tnum`}>
-              <caption className="visually-hidden">مقایسهٔ مشخصات و قیمت کالاهای انتخاب‌شده</caption>
+              <caption className="visually-hidden">
+                مقایسهٔ مشخصات و قیمت کالاهای انتخاب‌شده؛ ردیف‌هایی که کالاها در آن‌ها متفاوت‌اند برجسته شده‌اند.
+              </caption>
               <tbody>
                 <tr>
                   <th scope="row">محصول</th>
@@ -1051,7 +1105,11 @@ export function PriceTable({
                     </td>
                   ))}
                 </tr>
-                <tr>
+                <tr
+                  className={
+                    rowDiffers(selectedForCompare.map((r) => r.size ?? null)) ? styles.rowDiffers : undefined
+                  }
+                >
                   <th scope="row">{sizeCol}</th>
                   {selectedForCompare.map((r) => (
                     <td key={r.id}>{r.size ? toPersianDigits(r.size) : 'نامشخص'}</td>
@@ -1060,7 +1118,11 @@ export function PriceTable({
                 {/* ورق only — the whole point of comparing two plates is often
                     that they differ here and nowhere else. */}
                 {showDimensions ? (
-                  <tr>
+                  <tr
+                    className={
+                      rowDiffers(selectedForCompare.map((r) => r.dimensions ?? null)) ? styles.rowDiffers : undefined
+                    }
+                  >
                     <th scope="row">{DIMENSIONS_LABEL}</th>
                     {selectedForCompare.map((r) => (
                       <td key={r.id}>{r.dimensions ? toPersianDigits(r.dimensions) : 'نامشخص'}</td>
@@ -1072,27 +1134,47 @@ export function PriceTable({
                     reintroduce, in the one place a buyer studies most closely,
                     exactly the fabricated distinction this page dropped. */}
                 {selectedForCompare.some((r) => r.factory) ? (
-                  <tr>
+                  <tr
+                    className={
+                      rowDiffers(selectedForCompare.map((r) => r.factory ?? null)) ? styles.rowDiffers : undefined
+                    }
+                  >
                     <th scope="row">کارخانه</th>
                     {selectedForCompare.map((r) => (
                       <td key={r.id}>{r.factory ?? 'نامشخص'}</td>
                     ))}
                   </tr>
                 ) : selectedForCompare.some((r) => r.region) ? (
-                  <tr>
+                  <tr
+                    className={
+                      rowDiffers(selectedForCompare.map((r) => r.region ?? null)) ? styles.rowDiffers : undefined
+                    }
+                  >
                     <th scope="row">{REGION_LABEL}</th>
                     {selectedForCompare.map((r) => (
                       <td key={r.id}>{r.region ?? UNKNOWN_VALUE}</td>
                     ))}
                   </tr>
                 ) : null}
-                <tr>
+                <tr
+                  className={
+                    rowDiffers(selectedForCompare.map((r) => r.theoreticalWeightKg ?? null)) ? styles.rowDiffers : undefined
+                  }
+                >
                   <th scope="row">وزن شاخه</th>
                   {selectedForCompare.map((r) => (
                     <td key={r.id}>{r.theoreticalWeightKg ? `${toPersianDigits(r.theoreticalWeightKg)} kg` : 'نامشخص'}</td>
                   ))}
                 </tr>
-                <tr>
+                <tr
+                  className={
+                    rowDiffers(
+                      selectedForCompare.map((r) => priceHiddenLabel(r.current) ?? withVat(r.current.price, vat, vatRate)),
+                    )
+                      ? styles.rowDiffers
+                      : undefined
+                  }
+                >
                   <th scope="row">قیمت (تومان)</th>
                   {selectedForCompare.map((r) => (
                     <td key={r.id} className={styles.price}>
@@ -1100,7 +1182,13 @@ export function PriceTable({
                     </td>
                   ))}
                 </tr>
-                <tr>
+                <tr
+                  className={
+                    rowDiffers(selectedForCompare.map((r) => `${r.current.movementDir}:${r.current.movementPct ?? ''}`))
+                      ? styles.rowDiffers
+                      : undefined
+                  }
+                >
                   <th scope="row">نوسان</th>
                   {selectedForCompare.map((r) => (
                     <td key={r.id}>
@@ -1108,7 +1196,11 @@ export function PriceTable({
                     </td>
                   ))}
                 </tr>
-                <tr>
+                <tr
+                  className={
+                    rowDiffers(selectedForCompare.map((r) => r.current.deliveryTime ?? null)) ? styles.rowDiffers : undefined
+                  }
+                >
                   <th scope="row">تحویل</th>
                   {selectedForCompare.map((r) => (
                     <td key={r.id}>
