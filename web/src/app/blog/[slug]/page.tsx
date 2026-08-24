@@ -13,6 +13,7 @@ import { CalendarIcon, ChevronStartIcon } from '@/components/primitives/icons';
 import { BreadcrumbJsonLd, JsonLd } from '@/components/seo/JsonLd';
 import { ArticleBody, articleDoc } from '@/components/content/ArticleBody';
 import { TableOfContents } from '@/components/content/TableOfContents';
+import { ReadingProgress } from '@/components/content/ReadingProgress';
 import { ArticleFaq } from '@/components/content/ArticleFaq';
 import { ArticleComments } from '@/components/content/ArticleComments';
 import { ArticleCard } from '@/components/content/ArticleCard';
@@ -83,6 +84,7 @@ export default async function BlogArticlePage({ params }: Params) {
           image: article.seo?.ogImage ?? article.coverUrl,
         })}
       />
+      <ReadingProgress />
 
       <Section space={10}>
         <Stack gap={6}>
