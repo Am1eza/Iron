@@ -90,6 +90,18 @@ describe('OTP auth flow', () => {
     // refresh timer racing itself, not reuse — it is served (see
     // service.ts#rotateRefresh). This assertion used to run with no window at
     // all, which is precisely the double-fire that would log staff out.
+    //
+    // Flake fix: rotateRefresh compares real Date.now() millisecond
+    // timestamps (spentAgo = now - record.rotatedAt) against
+    // REFRESH_REUSE_GRACE_SECONDS*1000. With grace forced to 0 here, the
+    // assertion below needs spentAgo > 0 to hold — but two back-to-back
+    // Date.now() reads with no real I/O between them can and do land in the
+    // same millisecond (spentAgo === 0), which satisfies '<=' and makes the
+    // 'reuse' branch spuriously NOT fire, failing this assertion. Reproduced
+    // directly (~half of standalone runs). A trivial real delay is enough —
+    // this only needs >0ms, not any specific duration — and does not touch
+    // rotateRefresh's actual security comparison.
+    await new Promise((resolve) => setTimeout(resolve, 5));
     process.env.REFRESH_REUSE_GRACE_SECONDS = '0';
     try {
       await expect(rotateRefresh(tokens.refreshToken)).rejects.toBeInstanceOf(AuthError);
