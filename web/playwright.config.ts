@@ -99,6 +99,24 @@ export default defineConfig({
         // See rateLimit.ts — the suite's login volume (multiple specs plus
         // toPass retries) legitimately exceeds otp-request's production cap.
         DISABLE_RATE_LIMIT_FOR_TESTS: 'true',
+        // scripts/e2e-db.ts's own doc comment says it plainly: pglite is
+        // 'effectively single-connection under load'. pglite-socket's
+        // QueryQueueManager (maxConnections: 20 there) serializes queries
+        // across concurrent app connections, but that is a query-level
+        // queue, not a transaction-aware one — two app connections mid
+        // BEGIN/COMMIT (drizzle does this for any multi-statement write,
+        // e.g. the OTP verify route's session + sms_log insert) can still
+        // interleave across connections even though each one's own queries
+        // stay ordered. Reproduced directly: a route that writes sms_log
+        // failed with 'Failed query' under concurrent load from this exact
+        // env, unrelated to whatever the route under test was.
+        // PG_POOL_MAX=1 makes the app's own pg.Pool cap at one real
+        // connection, so concurrent requests queue in Node (fast, in
+        // process) before ever reaching pglite over the wire — the
+        // interleaving this races on structurally cannot happen. Costs
+        // nothing here: e2e already runs serially (workers: 1) and pglite
+        // itself has no concurrency to spend a bigger pool on.
+        PG_POOL_MAX: '1',
       },
     },
   ],
