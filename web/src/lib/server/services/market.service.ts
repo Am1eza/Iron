@@ -3,15 +3,15 @@
  * each, deliberately not merged: they have different upstreams, different
  * cadences (60s vs 15 min) and different failure blast radii.
  *
- * - `refreshMarket()` — tgju (usd/eur/gold18/ounce).
+ * - `refreshMarket()` — usd/eur/gold18/ounce (see integrations/marketRates.ts).
  * - `refreshBillet()` — esfahanahan (billet / شمش فولاد). Was admin-entered
  *   only until 1405/06/01; see integrations/esfahanahan.ts for why it isn't.
  *
  * Both upsert values + history, and on outage flag only THEIR OWN source's
- * rows stale, so the ticker serves last-known values with the outage badge
+ * rows stale, so the ticker serves last-known values marked `isStale`
  * (AC-A-2) without one feed's downtime mislabelling the other's numbers.
  */
-import { fetchTgju } from '@/lib/server/integrations/tgju';
+import { fetchMarketRates } from '@/lib/server/integrations/marketRates';
 import { fetchBilletPrice } from '@/lib/server/integrations/esfahanahan';
 import { upsertMarketValue, flagSourceStale, getMarketValue } from '@/lib/server/repos/marketRepo';
 import type { MarketKey } from '@/lib/types/domain';
@@ -24,10 +24,10 @@ const LABELS: Record<Exclude<MarketKey, 'billet'>, { label: string; unit: string
 };
 
 export async function refreshMarket(): Promise<{ updated: number; stale: boolean }> {
-  const data = await fetchTgju();
+  const data = await fetchMarketRates();
   if (!data) {
-    if (process.env.TGJU_BASE_URL) await flagSourceStale('tgju');
-    return { updated: 0, stale: Boolean(process.env.TGJU_BASE_URL) };
+    if (process.env.BRSAPI_KEY) await flagSourceStale('tgju');
+    return { updated: 0, stale: Boolean(process.env.BRSAPI_KEY) };
   }
   let updated = 0;
   for (const [key, meta] of Object.entries(LABELS) as [Exclude<MarketKey, 'billet'>, { label: string; unit: string }][]) {
@@ -68,7 +68,7 @@ export type BilletRefresh =
  * Poll esfahanahan for شمش فولاد and store it as the `billet` ticker value.
  *
  * Outage → `flagSourceStale('esfahanahan')`: the last-known number keeps
- * serving with the «با تأخیر» badge, exactly as a tgju outage behaves. An
+ * serving, marked `isStale`, exactly as a domestic-feed outage behaves. An
  * outage is NOT allowed to touch an `admin`-sourced row — if the owner typed
  * the current number by hand, the feed being down says nothing about it.
  */

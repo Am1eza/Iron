@@ -87,8 +87,8 @@ function rialToToman(raw: number): number {
  *
  * NEVER throws: `market.service.ts` treats `null` as "outage — keep the
  * last-known value and flag the row stale" (AC-A-2), the same contract
- * `fetchTgju()` has. A billet-source failure must not disturb the other four
- * keys, and vice versa.
+ * `fetchMarketRates()` has. A billet-source failure must not disturb the
+ * other four keys, and vice versa.
  *
  * Only ever called from the background billet-poll job, never in a request
  * path, so the retry/backoff below costs no user-facing latency.
