@@ -33,6 +33,7 @@ import {
 import { FactoryLink } from './FactoryLink';
 import { groupByLabel } from '@/lib/utils/catalogGroups';
 import { formatJalali } from '@/lib/utils/jalali';
+import { trackGoal } from '@/lib/analytics/track';
 import { API_MODE } from '@/lib/api/config';
 import { api } from '@/lib/api';
 import type { PriceRow } from '@/lib/types/domain';
@@ -725,6 +726,7 @@ export function PriceTable({
         unitPrice: r.current.price,
         weightKg: r.theoreticalWeightKg,
       });
+      trackGoal('add-to-cart', r.categoryId, r.name);
       toast.success(`${r.name} به سبد استعلام اضافه شد.`, {
         label: 'مشاهده سبد',
         href: routes.cart(),

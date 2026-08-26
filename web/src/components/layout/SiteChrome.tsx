@@ -7,10 +7,11 @@ import type { SiteContact } from '@/lib/server/contact';
 import { BottomTabBar } from './BottomTabBar';
 import { CallbackWidget } from '@/components/support/CallbackWidget';
 // Code-split: the hamburger drawer is only reachable below the 1024px
-// breakpoint (and only once opened), and the arrival popup renders `null`
-// for its own first 12s by design — neither needs to ship in the shared
-// bundle every visitor downloads (see components/lazy.ts).
-import { MobileDrawer, ArrivalPopup } from '@/components/lazy';
+// breakpoint (and only once opened), and the arrival popup and cart
+// reminder both render `null` on most visits by design — none of the three
+// need to ship in the shared bundle every visitor downloads (see
+// components/lazy.ts).
+import { MobileDrawer, ArrivalPopup, CartReminder } from '@/components/lazy';
 import type { Category } from '@/lib/types/domain';
 import type { SubsMap } from '@/lib/data/catalog';
 
@@ -45,6 +46,7 @@ export function SiteChromeTop({ categories, subs }: { categories: Category[]; su
     <>
       <Ticker />
       <Header categories={categories} subs={subs} />
+      <CartReminder />
       <MobileDrawer categories={categories} subs={subs} />
     </>
   );
