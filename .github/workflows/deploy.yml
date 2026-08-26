@@ -171,6 +171,8 @@ jobs:
             NEXT_PUBLIC_SITE_URL=${{ vars.NEXT_PUBLIC_SITE_URL || 'https://ahantime.com' }}
             NEXT_PUBLIC_API_MODE=${{ vars.NEXT_PUBLIC_API_MODE || 'live' }}
             NEXT_PUBLIC_DEPLOY_REGION=ir-docker
+            GTM_ID=${{ vars.GTM_ID }}
+            GA4_ID=${{ vars.GA4_ID }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
