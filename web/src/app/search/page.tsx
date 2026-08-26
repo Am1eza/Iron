@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
@@ -16,6 +17,7 @@ import {
   EmptyState,
   emptyPresets,
   MovementBadge,
+  Badge,
 } from '@/components/ui';
 import { ArticleCard } from '@/components/content/ArticleCard';
 import { CategoryArt } from '@/components/catalog/CategoryArt';
@@ -31,7 +33,7 @@ export const metadata: Metadata = buildMetadata({
   noindex: true,
 });
 
-type Props = { searchParams: Promise<{ q?: string; type?: string }> };
+type Props = { searchParams: Promise<{ q?: string; type?: string; sort?: string }> };
 
 /** Max items shown per group before we add a «more results» note. */
 const GROUP_CAP = 24;
@@ -43,6 +45,41 @@ function parseTypeFilter(raw: string | undefined): TypeFilter | undefined {
 }
 function filteredCount(type: TypeFilter, skuN: number, catN: number, articleN: number): number {
   return type === 'sku' ? skuN : type === 'category' ? catN : articleN;
+}
+
+/** Product-group sort — a query param, not client state: `searchAll` already
+ *  fetches every hit (there's no pagination to push this into a DB query
+ *  for), so re-ordering the array server-side needs no backend change and
+ *  keeps this a plain Server Component (no client JS for what three links
+ *  can do). `relevance` is the default — whatever order `searchAll` already
+ *  returns, unchanged. */
+type SortKey = 'relevance' | 'price' | 'factory';
+const SORT_OPTIONS: { v: SortKey; label: string }[] = [
+  { v: 'relevance', label: 'مرتبط‌ترین' },
+  { v: 'price', label: 'ارزان‌ترین' },
+  { v: 'factory', label: 'کارخانه' },
+];
+
+function sortProductHits(hits: ProductHit[], sort: SortKey): ProductHit[] {
+  if (sort === 'price') {
+    // Hidden («تماس بگیرید») rows have no comparable price — sink them to
+    // the end rather than let their `0` sentinel (catalogRepo.toPriceRow)
+    // sort as the cheapest result on the page.
+    return [...hits].sort((a, b) => {
+      const av = a.row.current.priceHidden ? Infinity : a.row.current.price;
+      const bv = b.row.current.priceHidden ? Infinity : b.row.current.price;
+      return av - bv;
+    });
+  }
+  if (sort === 'factory') {
+    // Same reasoning as the price sink above — a factory-less row sorts
+    // AFTER every real factory name, not before, via a sentinel that
+    // collates last rather than the empty string's default (first).
+    return [...hits].sort((a, b) =>
+      (a.row.factory || '￿').localeCompare(b.row.factory || '￿', 'fa'),
+    );
+  }
+  return hits;
 }
 
 /** Normalize text for substring matching: lowercase + Persian/Arabic digits → Latin. */
@@ -64,10 +101,11 @@ async function withCounts(cats: Category[]): Promise<CatWithCount[]> {
 }
 
 export default async function SearchPage({ searchParams }: Props) {
-  const { q: rawQ, type: rawType } = await searchParams;
+  const { q: rawQ, type: rawType, sort: rawSort } = await searchParams;
   const q = (rawQ ?? '').trim();
   const needle = norm(q);
   const activeType = parseTypeFilter(rawType);
+  const sort: SortKey = SORT_OPTIONS.some((o) => o.v === rawSort) ? (rawSort as SortKey) : 'relevance';
 
   const crumbs = [
     { label: 'خانه', href: routes.home() },
@@ -104,10 +142,13 @@ export default async function SearchPage({ searchParams }: Props) {
   // ----- Run the search (mock: substring scan; live: DB search) -----
   const { skus: skuHits, articles: articleHits } = await searchAll(q);
   const catName = new Map(categories.map((c) => [c.slug, c.name] as const));
-  const productHits: ProductHit[] = skuHits.map((row) => ({
-    row,
-    categoryName: catName.get(row.categoryId) ?? row.categoryId,
-  }));
+  const productHits: ProductHit[] = sortProductHits(
+    skuHits.map((row) => ({
+      row,
+      categoryName: catName.get(row.categoryId) ?? row.categoryId,
+    })),
+    sort,
+  );
 
   const categoryHits: Category[] = categories.filter(
     (c) => c.isActive && norm(c.name).includes(needle),
@@ -143,7 +184,7 @@ export default async function SearchPage({ searchParams }: Props) {
           )}
 
           {(!activeType || activeType === 'sku') && productHits.length > 0 ? (
-            <ProductGroup hits={productHits} />
+            <ProductGroup hits={productHits} q={q} activeType={activeType} sort={sort} />
           ) : null}
 
           {(!activeType || activeType === 'category') && categoryHitsWithCounts.length > 0 ? (
@@ -242,12 +283,16 @@ function GroupHead({
   truncated,
   moreHref,
   moreLabel,
+  extra,
 }: {
   title: string;
   count: number;
   truncated: boolean;
   moreHref?: string;
   moreLabel?: string;
+  /** Group-specific controls (currently just `ProductGroup`'s sort tabs) —
+   *  kept generic here rather than teaching `GroupHead` about sorting. */
+  extra?: ReactNode;
 }) {
   return (
     <div className={resultStyles.groupHead}>
@@ -255,6 +300,7 @@ function GroupHead({
       <span className={`${resultStyles.groupCount} tnum`}>
         {toPersianDigits(count)} مورد{truncated ? ` (${toPersianDigits(GROUP_CAP)} مورد اول)` : ''}
       </span>
+      {extra}
       {moreHref && moreLabel ? (
         <Link href={moreHref} className={resultStyles.more}>
           {moreLabel}
@@ -264,14 +310,54 @@ function GroupHead({
   );
 }
 
-function ProductGroup({ hits }: { hits: ProductHit[] }) {
+/** Relevance/price/factory sort — plain links to `?sort=`, not a client
+ *  control (see `sortProductHits`'s comment on why this needn't be one).
+ *  Carries `type` along so sorting from the «فقط محصولات» filtered view
+ *  doesn't silently drop back to the unfiltered one. */
+function SortControl({ q, activeType, sort }: { q: string; activeType: TypeFilter | undefined; sort: SortKey }) {
+  const base = routes.search(q, activeType);
+  return (
+    <div className={resultStyles.sort} role="group" aria-label="ترتیب نتایج">
+      {SORT_OPTIONS.map((o) => (
+        <Link
+          key={o.v}
+          href={o.v === 'relevance' ? base : `${base}&sort=${o.v}`}
+          className={resultStyles.sortTab}
+          data-active={sort === o.v ? '' : undefined}
+          aria-current={sort === o.v ? 'true' : undefined}
+        >
+          {o.label}
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+function ProductGroup({
+  hits,
+  q,
+  activeType,
+  sort,
+}: {
+  hits: ProductHit[];
+  q: string;
+  activeType: TypeFilter | undefined;
+  sort: SortKey;
+}) {
   const shown = hits.slice(0, GROUP_CAP);
   const truncated = hits.length > GROUP_CAP;
   return (
     <section className={resultStyles.group} aria-label="نتایج محصولات">
-      <GroupHead title="محصولات" count={hits.length} truncated={truncated} />
+      <GroupHead
+        title="محصولات"
+        count={hits.length}
+        truncated={truncated}
+        extra={hits.length > 1 ? <SortControl q={q} activeType={activeType} sort={sort} /> : undefined}
+      />
       <ul className={`${resultStyles.products} tnum`}>
-        {shown.map(({ row, categoryName }) => (
+        {shown.map(({ row, categoryName }) => {
+          const hiddenLabel = priceHiddenLabel(row.current);
+          return (
           <li key={row.id}>
             <Link
               href={routes.sku(row.categoryId, row.subCategoryId, row.slug)}
@@ -301,15 +387,33 @@ function ProductGroup({ hits }: { hits: ProductHit[] }) {
               </span>
               <span className={resultStyles.productSide}>
                 <span className={resultStyles.priceCol}>
-                  <span className={resultStyles.price}>{priceHiddenLabel(row.current) ?? formatToman(row.current.price, false)}</span>
-                  <span className={resultStyles.priceUnit}>{priceUnitCaption(row.priceBasis, row.branchLengthM)}</span>
+                  {/* A numeric price and «تماس بگیرید» used to render through
+                      the exact same bold/strong span — indistinguishable at a
+                      glance (design/UX audit). Neither `PriceTable` nor any
+                      other `priceHiddenLabel` caller in the codebase actually
+                      differentiates them either (checked), so there was no
+                      existing convention to reuse; a quiet `Badge` in place
+                      of the big price number is the differentiation here —
+                      it reads as "not a number" rather than as a suspicious
+                      zero or a matching-weight price. */}
+                  {hiddenLabel ? (
+                    <Badge tone="neutral">{hiddenLabel}</Badge>
+                  ) : (
+                    <>
+                      <span className={resultStyles.price}>{formatToman(row.current.price, false)}</span>
+                      <span className={resultStyles.priceUnit}>{priceUnitCaption(row.priceBasis, row.branchLengthM)}</span>
+                    </>
+                  )}
                 </span>
                 <MovementBadge dir={row.current.movementDir} pct={row.current.movementPct} />
-                <ChevronStartIcon size={18} className={`${resultStyles.chev} icon--rtl`} />
+                <span className={resultStyles.chevWrap} aria-hidden="true">
+                  <ChevronStartIcon size={18} className={`${resultStyles.chev} icon--rtl`} />
+                </span>
               </span>
             </Link>
           </li>
-        ))}
+          );
+        })}
       </ul>
       {truncated ? (
         <p className={resultStyles.truncNote}>
