@@ -37,7 +37,7 @@ const PLACEHOLDER: MarketValue[] = [
   { key: 'billet', label: 'شمش فولاد', value: 0, unit: 'تومان', source: 'admin', movementDir: 'flat', movementPct: 0, updatedAt: '', isStale: true },
 ];
 export function Ticker() {
-  const { data, isError } = useMarket();
+  const { data } = useMarket();
   const reduced = useReducedMotion();
   const values = data?.values?.length ? data.values : PLACEHOLDER;
 
@@ -56,11 +56,6 @@ export function Ticker() {
           ))}
         </ul>
       </div>
-      {isError && (
-        <span className={styles.stale} title="آخرین مقادیر شناخته‌شده">
-          با تأخیر
-        </span>
-      )}
     </aside>
   );
 }
@@ -89,7 +84,6 @@ function TickerItem({ v, decorative }: { v: MarketValue; decorative: boolean }) 
           </span>
           {formatMovement(v.movementPct)}
         </span>
-        {v.isStale && <span className={styles.itemStale}>با تأخیر</span>}
       </Link>
     </li>
   );
