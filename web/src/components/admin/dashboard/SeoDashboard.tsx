@@ -231,6 +231,17 @@ export function SeoDashboard() {
             </li>
           ))}
         </ul>
+        {/* NOT one of the static facts above: whether Product/Offer JSON-LD
+            actually renders depends on price freshness (see productJsonLd),
+            so — unlike sitemap generation or ISR — this is worth watching,
+            not checking off once. It was 0 for weeks during the 2026-08-04
+            audit's stale-price incident. */}
+        <Text color="muted">
+          دادهٔ ساخت‌یافتهٔ Product/Offer (زنده، نه ثابت): از{' '}
+          <strong className="tnum">{fa(data.productSchema.total)}</strong> محصول دیده‌شدنی،{' '}
+          <strong className="tnum">{fa(data.productSchema.withOffer)}</strong> تا الان قیمتشان به‌قدر کافی تازه است
+          که Offer صادر شود — چون این وابسته به تازگی قیمت است، نه یک واقعیت ثابت معماری.
+        </Text>
       </section>
     </div>
   );

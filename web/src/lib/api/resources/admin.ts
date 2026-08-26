@@ -356,6 +356,7 @@ export interface SeoStatsRes {
   automated: Array<{ label: string; ok: true }>;
   hiddenActiveProducts: number;
   hiddenByGroup: Array<{ category: string; subCategory: string; count: number }>;
+  productSchema: { total: number; withOffer: number };
   /** From Matomo. Null when unconfigured or unreachable — render without it,
    *  same contract as `MarketingStatsRes.traffic`. */
   traffic: {
