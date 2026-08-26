@@ -321,7 +321,12 @@ export async function priceSyncScope(): Promise<
     // per عدد, the same unit our SKU is in, so no conversion is involved. Kept
     // in step with `MIRRORABLE_BASES` in the matcher: a basis missing here is
     // simply invisible in the admin's coverage view, not skipped.
-    .where(and(eq(skus.isActive, true), inArray(skus.priceBasis, ['kg', 'piece'])));
+    .where(
+      and(
+        eq(skus.isActive, true),
+        inArray(skus.priceBasis, ['kg', 'piece', 'branch', 'sqm', 'coil', 'sheet']),
+      ),
+    );
 
   const counts = new Map<string, { categorySlug: string; categoryName: string; subCategoryName: string; skuCount: number }>();
   for (const r of rows) {

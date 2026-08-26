@@ -19,6 +19,7 @@ import {
   matchSku,
   norm,
   nums,
+  rowUnit,
   sizeMatches,
   SKIP_REASONS,
   sourcePathsForSku,
@@ -164,15 +165,21 @@ describe('the taxonomy mapping is keyed on slugs', () => {
   });
 
   it('leaves lines the competitor does not sell unmapped', () => {
-    // `felezat-rangi/copper-pipe` is `price_basis = 'coil'` and no page
-    // publishes a per-coil price; `copper-strip` publishes ONE price for 18
-    // different sections with no unit column; `val-post` is per-شاخه with no
-    // matching source unit. All three are structurally un-mirrorable, not
-    // merely unmapped, and the staleness view (US-05.4) is how a human sees
-    // them instead.
-    expect(sourcePathsForSku(sku({ categorySlug: 'felezat-rangi', subCategorySlug: 'copper-pipe' }))).toBeUndefined();
-    expect(sourcePathsForSku(sku({ categorySlug: 'felezat-rangi', subCategorySlug: 'copper-strip' }))).toBeUndefined();
-    expect(sourcePathsForSku(sku({ categorySlug: 'angle-channel', subCategorySlug: 'val-post' }))).toBeUndefined();
+    // The aluminium extrusions. ahanonline's `آلومینیوم/میلگرد-آلومینیوم`,
+    // `آلومینیوم/لوله-آلومینیوم`, `آلومینیوم/نبشی-آلومینیوم` and
+    // `انواع-پروفیل/پروفیل-آلومینیوم` all resolve and all parse to ZERO priced
+    // rows — they are SEO shells. Re-checked 1405/06/03, third pass. These are
+    // structurally un-mirrorable rather than merely unmapped, and the
+    // staleness view (US-05.4) is how a human sees them instead.
+    //
+    // Note what is deliberately NOT in this list any more: copper-pipe,
+    // copper-strip and val-post were here on the grounds that no page
+    // published their unit. All three had a page the whole time — see the
+    // third-pass block in `SOURCE_PATHS` — and the units they are quoted in
+    // are now mirrored as themselves rather than converted.
+    for (const subCategorySlug of ['aluminum-rebar', 'aluminum-pipe', 'aluminum-angle', 'aluminum-profile']) {
+      expect(sourcePathsForSku(sku({ categorySlug: 'felezat-rangi', subCategorySlug }))).toBeUndefined();
+    }
   });
 
   it('does not map a VARIANT onto its plain equivalent', () => {
@@ -262,8 +269,22 @@ describe('matchSku — when a price may be written', () => {
     expect(res.reason).toBe(SKIP_REASONS.notPerKgSource);
   });
 
-  it('never mirrors onto a SKU that is not itself priced per kg', () => {
+  it('never mirrors a per-kg row onto a SKU priced in another unit', () => {
+    // `branch` became a mirrorable BASIS in the third pass (وال پست is per
+    // شاخه on both sides), which must not be read as "a per-kg row can now
+    // price it". The row here is per-کیلوگرم and the SKU is per-شاخه, so the
+    // per-row unit check refuses it — the no-conversion rule, unchanged.
     const res = matchSku(sku({ priceBasis: 'branch' }), [rebarRow()], CONFIG, TODAY);
+    expect(res.ok).toBe(false);
+    expect(res.reason).toBe(SKIP_REASONS.notPerKgSource);
+  });
+
+  it('refuses a basis no mapped page prices at all', () => {
+    // The basis gate itself, still live. Every basis the catalogue uses today
+    // (kg, piece, branch, sqm, coil, sheet) has a like-for-like counterpart on
+    // some mapped page; anything else has to fall out here rather than be
+    // converted into one.
+    const res = matchSku(sku({ priceBasis: 'ton' }), [rebarRow()], CONFIG, TODAY);
     expect(res.ok).toBe(false);
     expect(res.reason).toBe(SKIP_REASONS.notPerKgSku);
   });
@@ -537,19 +558,26 @@ describe('matchSku — the variant-keyed families', () => {
   });
 
   it('leaves a basis nothing prices like-for-like alone', () => {
-    // Only `kg` and `piece` have a like-for-like counterpart on any mapped
-    // page. A `coil` SKU — لوله مسی is one — could only be priced by
-    // multiplying through `theoretical_weight_kg`, which is the unverified
-    // seed data the mirror has always refused to build on. Mapped family, so
-    // this is the basis gate talking and not `noMapping`.
+    // A basis is mirrorable only where some mapped page publishes THE SAME
+    // unit. `coil` earned that in the third pass because ahanonline's لوله مسی
+    // table quotes 15-متری coils — but only on that page. Asked to price a
+    // per-coil تسمه SKU, whose page is per-kg throughout, the matcher must
+    // still refuse rather than multiply through `theoretical_weight_kg`, which
+    // is the unverified seed data it has always declined to build on.
+    const stripRow = row({
+      sourcePath: 'انواع-ورق/تسمه',
+      name: 'تسمه 14*100 نوردی',
+      priceToman: 111_364,
+      cells: { 'ضخامت': '14', 'حالت': 'نوردی', 'واحد': 'کیلوگرم', 'تاریخ بروزرسانی': '1405/5/31' },
+    });
     const res = matchSku(
-      sku({ categorySlug: 'sheet', subCategorySlug: 'strip', priceBasis: 'coil' }),
-      [rebarRow()],
+      sku({ name: 'تسمه نوردی ۱۴×۱۰۰', categorySlug: 'sheet', subCategorySlug: 'strip', priceBasis: 'coil' }),
+      [stripRow],
       CONFIG,
       TODAY,
     );
     expect(res.ok).toBe(false);
-    expect(res.reason).toBe(SKIP_REASONS.notPerKgSku);
+    expect(res.reason).toBe(SKIP_REASONS.notPerKgSource);
   });
 
   it('separates «our catalogue lacks the variant» from «the source publishes none»', () => {
@@ -816,5 +844,221 @@ describe('matchSku — the alloy-keyed (stainless) families', () => {
       factory: null,
     });
     expect(matchSku(thirtySquare, profileRows, CONFIG, TODAY).reason).toBe(SKIP_REASONS.noSizeMatch);
+  });
+});
+
+describe('matchSku — the specialty lines (US-05.3, third pass)', () => {
+  /** وال پست: one product, no mill on either side, one row per size. */
+  function valPostRow(size: string, priceToman: number): AhanonlineRow {
+    return row({
+      sourcePath: 'نبشی-و-ناودانی/وال-پست',
+      group: 'وال پست ضخامت 2 میلیمتر',
+      name: `وال پست 2 ${size}`,
+      priceToman,
+      cells: { 'بال': '7', 'ضخامت': '2', 'سایز': size, 'تاریخ بروزرسانی': '1405/5/31' },
+    });
+  }
+  const valPost = (size: string) =>
+    sku({
+      name: `وال پست ${size}`,
+      categorySlug: 'angle-channel',
+      subCategorySlug: 'val-post',
+      size,
+      factory: null,
+      priceBasis: 'branch',
+    });
+
+  it('prices a size-only family whose page publishes no mill on either side', () => {
+    const res = matchSku(
+      valPost('۱۰×۲۰'),
+      [valPostRow('10*20', 113_827), valPostRow('15*20', 160_688)],
+      CONFIG,
+      TODAY,
+    );
+    expect(res.ok).toBe(true);
+    if (res.ok) expect(res.priceToman).toBe(113_827);
+  });
+
+  it('reads a unitless وال پست row as per-شاخه, not per-kg', () => {
+    // Their table has no «واحد» column at all. Left on the per-kg default this
+    // SKU would skip as `source-not-per-kg` forever; read as per-kg by a
+    // per-kg SKU it would put a 113,827 شاخه price on a single kilogram.
+    const perKg = { ...valPost('۱۰×۲۰'), priceBasis: 'kg' };
+    expect(matchSku(perKg, [valPostRow('10*20', 113_827)], CONFIG, TODAY).reason).toBe(
+      SKIP_REASONS.notPerKgSource,
+    );
+  });
+
+  it('still refuses a size-only family whose rows stop agreeing on the price', () => {
+    // The whole safety argument for `size-only`. The day ahanonline adds a
+    // second ضخامت to this table, two rows match one size and disagree — and
+    // the family must degrade to a skip on its own, with no rule to remember.
+    const res = matchSku(
+      valPost('۱۰×۲۰'),
+      [valPostRow('10*20', 113_827), valPostRow('10*20', 165_000)],
+      CONFIG,
+      TODAY,
+    );
+    expect(res.ok).toBe(false);
+    expect(res.reason).toBe(SKIP_REASONS.ambiguous);
+  });
+
+  /** لوله مسی: mill AND wall thickness, with حالت carrying the unit. */
+  function copperRow(over: {
+    size: string;
+    thickness: string;
+    halat: string;
+    mill: string;
+    priceToman: number;
+  }): AhanonlineRow {
+    return row({
+      sourcePath: 'انواع-لوله/لوله-مسی',
+      group: `لوله مسی ${over.mill}`,
+      name: `لوله مسی ${over.thickness} ${over.size} ${over.mill} ${over.halat} بنگاه تهران`,
+      priceToman: over.priceToman,
+      cells: {
+        'ضخامت': over.thickness,
+        size: over.size,
+        'حالت': over.halat,
+        'تاریخ بروزرسانی': '1405/5/31',
+      },
+    });
+  }
+  const copperSku = (mill: string) =>
+    sku({
+      name: `لوله مسی ۳/۴ اینچ ${mill}`,
+      categorySlug: 'felezat-rangi',
+      subCategorySlug: 'copper-pipe',
+      size: '۳/۴ اینچ',
+      grade: 'ضخامت ۰.۸۱',
+      factory: mill,
+      priceBasis: 'coil',
+    });
+
+  const copperRows = [
+    copperRow({ size: '"3/4', thickness: '0.81', halat: '15 متری', mill: 'بابک', priceToman: 19_264_749 }),
+    copperRow({ size: '"3/4', thickness: '0.63', halat: '15 متری', mill: 'بابک', priceToman: 14_904_979 }),
+    // The 6-متری straight length: same mill, same size, same ضخامت, 3.5× apart.
+    copperRow({ size: '"3/4', thickness: '0.81', halat: '6 متری', mill: 'بابک', priceToman: 5_463_984 }),
+    copperRow({ size: '"3/4', thickness: '0.81', halat: '15 متری', mill: 'مهر اصل', priceToman: 18_008_491 }),
+  ];
+
+  it('picks the row matching BOTH the mill and the wall thickness', () => {
+    const res = matchSku(copperSku('بابک'), copperRows, CONFIG, TODAY);
+    expect(res.ok).toBe(true);
+    if (res.ok) expect(res.priceToman).toBe(19_264_749);
+    const other = matchSku(copperSku('مهر اصل'), copperRows, CONFIG, TODAY);
+    expect(other.ok).toBe(true);
+    if (other.ok) expect(other.priceToman).toBe(18_008_491);
+  });
+
+  it('never prices a 15-متری coil off the 6-متری length of the same pipe', () => {
+    // The one way this family could go badly wrong: 5,463,984 against
+    // 19,264,749 for what reads as the same product everywhere but «حالت».
+    const onlySixMetre = [
+      copperRow({ size: '"3/4', thickness: '0.81', halat: '6 متری', mill: 'بابک', priceToman: 5_463_984 }),
+    ];
+    const res = matchSku(copperSku('بابک'), onlySixMetre, CONFIG, TODAY);
+    expect(res.ok).toBe(false);
+    expect(res.reason).toBe(SKIP_REASONS.notPerKgSource);
+  });
+
+  it('does not read ۱/۴ اینچ and ۱/۲ اینچ as the same size', () => {
+    // فلزات رنگی is not the لوله category, so without an explicit inch rule
+    // the generic "first number agrees" test reads both as 1 and prices a
+    // quarter-inch coil off a half-inch row — a 2.3× error.
+    const half = copperRow({
+      size: '"1/2',
+      thickness: '0.81',
+      halat: '15 متری',
+      mill: 'بابک',
+      priceToman: 12_710_447,
+    });
+    const quarter = { ...copperSku('بابک'), name: 'لوله مسی ۱/۴ اینچ بابک', size: '۱/۴ اینچ' };
+    expect(matchSku(quarter, [half], CONFIG, TODAY).reason).toBe(SKIP_REASONS.noSizeMatch);
+  });
+
+  it('compares a dimensional grade by its number, not its spelling', () => {
+    // We store «ضخامت ۰.۸۱» and they publish «0.81». Under plain `grade`'s
+    // string equality that reads as a hole in our catalogue that is not there.
+    expect(matchSku(copperSku('بابک'), copperRows, CONFIG, TODAY).ok).toBe(true);
+    // ...and 0.8 is still not 0.81.
+    const eightTenths = { ...copperSku('بابک'), grade: 'ضخامت ۰.۸' };
+    expect(matchSku(eightTenths, copperRows, CONFIG, TODAY).ok).toBe(false);
+  });
+
+  it('reads ساندویچ پانل’s سقفی/دیواری off the table heading', () => {
+    // Their «مدل» column reads «دو رو ورق» on every row; the only place the
+    // model appears is the bold heading above each table.
+    const panelRow = (model: string, priceToman: number) =>
+      row({
+        sourcePath: 'انواع-ورق/ساندویچ-پانل',
+        group: `ساندویچ پانل ${model}`,
+        name: `ساندویچ پانل ${model} ضخامت 4 سانتی متری`,
+        priceToman,
+        cells: {
+          'ضخامت(عایق)': 'ضخامت 4 سانتی متری',
+          'مدل': 'دو رو ورق',
+          'واحد': 'مترمربع',
+          'تاریخ بروزرسانی': '1405/5/31',
+        },
+      });
+    const rows = [panelRow('سقفی', 3_832_000), panelRow('دیواری', 3_709_091)];
+    const wall = sku({
+      name: 'ساندویچ پانل دیواری ضخامت ۴ سانتی‌متر',
+      categorySlug: 'sheet',
+      subCategorySlug: 'sandwich-panel',
+      size: '۴',
+      factory: null,
+      priceBasis: 'sqm',
+    });
+    const res = matchSku(wall, rows, CONFIG, TODAY);
+    expect(res.ok).toBe(true);
+    if (res.ok) expect(res.priceToman).toBe(3_709_091);
+  });
+
+  it('reads «مترمربع» as sqm rather than as a linear metre', () => {
+    const perSqm = row({
+      sourcePath: 'انواع-ورق/ساندویچ-پانل',
+      group: 'ساندویچ پانل سقفی',
+      cells: { 'واحد': 'متر مربع' },
+    });
+    expect(rowUnit(perSqm)).toBe('sqm');
+  });
+
+  it('treats a mill written with the product noun as the same mill', () => {
+    // «لوله اسپیرال کالوپ» against our «کالوپ» scored 0.5 — fuzzy, therefore
+    // skipped — on an identical mill. All 12 لوله اسپیرال SKUs turned on this.
+    expect(factoryScore('کالوپ', 'لوله اسپیرال کالوپ')).toBe(1);
+    expect(factoryScore('نورد لوله و پوشش نیزار', 'لوله اسپیرال نورد لوله و پوشش نیزار')).toBe(1);
+    // ...and it is still not a licence to match a different mill.
+    expect(factoryScore('کالوپ', 'لوله اسپیرال نیزار')).toBeLessThan(1);
+  });
+
+  it('reads the mill out of «نام کالا» where میلگرد حرارتی publishes it nowhere else', () => {
+    const heatRow = (name: string, priceToman: number) =>
+      row({
+        sourcePath: 'میلگرد/قیمت-میلگرد/میلگرد-ساده/میلگرد-حرارتی',
+        group: 'میلگرد حرارتی',
+        name,
+        priceToman,
+        cells: { 'نام کالا': name, 'تاریخ بروزرسانی': '1405/5/31' },
+      });
+    const rows = [
+      heatRow('میلگرد ساده 6.5 ملایر کلاف تهران', 76_545),
+      heatRow('میلگرد ساده 6.5 نطنز کلاف کارخانه', 76_636),
+    ];
+    const malayer = sku({
+      name: 'میلگرد حرارتی ۶.۵ ملایر',
+      categorySlug: 'rebar',
+      subCategorySlug: 'heat-treated',
+      size: '۶.۵',
+      factory: 'ملایر',
+    });
+    const res = matchSku(malayer, rows, CONFIG, TODAY);
+    expect(res.ok).toBe(true);
+    // «کلاف تهران» is the delivery point, not a second mill — without the cut
+    // this scores 0.5 against our «ملایر» and skips.
+    if (res.ok) expect(res.priceToman).toBe(76_545);
   });
 });
