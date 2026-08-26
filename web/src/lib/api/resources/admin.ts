@@ -354,6 +354,29 @@ export interface SeoStatsRes {
    *  understating how much work is left. */
   failingTotal: number;
   automated: Array<{ label: string; ok: true }>;
+  hiddenActiveProducts: number;
+  hiddenByGroup: Array<{ category: string; subCategory: string; count: number }>;
+  productSchema: { total: number; withOffer: number };
+  /** From Matomo. Null when unconfigured or unreachable — render without it,
+   *  same contract as `MarketingStatsRes.traffic`. */
+  traffic: {
+    organicVisits: number;
+    topLandingPages: Array<{ path: string; visits: number }>;
+    topSearchEngines: Array<{ label: string; visits: number }>;
+  } | null;
+}
+
+export interface SeoPageSpeedRes {
+  /** From Google PageSpeed Insights. Null when `PAGESPEED_API_KEY` is unset
+   *  or every check failed — render without this section. */
+  results: Array<{
+    url: string;
+    performanceScore: number | null;
+    seoScore: number | null;
+    lcpMs: number | null;
+    cls: number | null;
+    isFieldData: boolean;
+  }> | null;
 }
 
 export interface DeskLead {
@@ -1192,6 +1215,10 @@ export const adminApi = {
    *  allowlists it and falls back to 30. */
   statsMarketing: (range = 30) => http.get<MarketingStatsRes>(`/api/admin/stats/marketing?range=${range}`),
   statsSeo: () => http.get<SeoStatsRes>('/api/admin/stats/seo'),
+  /** Split from `statsSeo` because a cache-miss PageSpeed Insights call can
+   *  take 10-20s — fetched separately so it never stalls the main SEO
+   *  dashboard's 5-minute poll. */
+  statsSeoPageSpeed: () => http.get<SeoPageSpeedRes>('/api/admin/stats/seo/pagespeed'),
   statsCohorts: () =>
     http.get<{ columns: string[]; rows: Array<{ label: string; size: number; cells: (number | null)[] }> }>(
       '/api/admin/stats/cohorts',
