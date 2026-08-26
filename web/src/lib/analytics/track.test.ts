@@ -3,8 +3,8 @@ import { trackGoal } from './track';
 
 describe('trackGoal', () => {
   beforeEach(() => {
-    delete (window as { _paq?: unknown[][] }).dataLayer;
-    delete (window as { _paq?: unknown[][] })._paq;
+    delete window.dataLayer;
+    delete window._paq;
   });
 
   it('is a no-op when neither tracker is loaded', () => {
