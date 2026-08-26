@@ -40,6 +40,18 @@ export const currentPrices = pgTable(
     // reference to a since-deleted staff account.
     updatedBy: text('updated_by').references(() => users.id, { onDelete: 'set null' }),
     isStale: boolean('is_stale').notNull().default(false),
+    /**
+     * This price was mirrored from the NEAREST ANALOG — the same size from
+     * other mills — rather than from a published price for this exact product.
+     * See `analogPrice` in `priceSync.match.ts`.
+     *
+     * Set only by the automated mirror, and cleared by every other write path,
+     * because typing a price into the admin grid is precisely the act of
+     * replacing an estimate with a real number. That is why it lives here and
+     * not on `price_points`: it describes the price CURRENTLY quoted, and the
+     * history is a series of prices rather than a series of estimates.
+     */
+    priceIsEstimated: boolean('price_is_estimated').notNull().default(false),
   },
   // FK with no covering index (W29) — one row per SKU, so deleting a staff
   // account scanned the entire price table.

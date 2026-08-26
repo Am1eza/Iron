@@ -1,0 +1,16 @@
+-- US-05.3 — mark a price the automated mirror arrived at by NEAREST ANALOG.
+--
+-- The mirror can now price a SKU whose own mill the competitor does not
+-- publish, by taking the median of the same size from the mills it does — but
+-- only when those rows agree within `maxAnalogSpreadPct`, i.e. only when the
+-- source itself shows the mill is not what sets the price for that size.
+-- See `analogPrice` in `web/src/lib/server/services/priceSync.match.ts`.
+--
+-- Such a number is a market estimate, not the competitor's price for this
+-- exact product, and on a live commercial site the two must not be
+-- indistinguishable. This column is what lets the admin — and, if the owner
+-- decides so, the public price row — say which is which.
+--
+-- Additive and defaulted, so every existing row keeps meaning what it meant:
+-- FALSE, "this came from a row naming this product's own mill".
+ALTER TABLE "current_prices" ADD COLUMN "price_is_estimated" boolean DEFAULT false NOT NULL;

@@ -60,6 +60,17 @@ export const SKIP_REASONS = {
 
 export const WRITE_REASON = 'write:exact';
 
+/**
+ * Written from the NEAREST ANALOG rather than from this SKU's own mill —
+ * see `ANALOG_DENYLIST` and `analogPrice` for when that is allowed.
+ *
+ * A separate reason code, and a separate `estimated` flag on the result,
+ * because these two must never be indistinguishable in the log or in the
+ * admin: one is what a competitor publishes for this exact product, the other
+ * is what the market charges for the same size from other mills.
+ */
+export const ANALOG_WRITE_REASON = 'write:nearest-analog';
+
 /** The minimum a SKU must expose for this module to reason about it. */
 export interface MatchableSku {
   id: string;
@@ -95,6 +106,17 @@ export interface MatchConfig {
   /** Refuse to mirror a competitor row they themselves last touched more than
    *  this many days ago. 0 disables the check. */
   maxSourceAgeDays: number;
+  /**
+   * How far the size-matching rows may disagree before a NEAREST-ANALOG write
+   * is refused, in percent. 0 turns nearest-analog off entirely.
+   *
+   * Deliberately tighter than `maxCandidateSpreadPct`: that gate is asked "do
+   * these rows agree enough to pick one?", this one is asked the harder
+   * question "does the mill move the price in this family at all?" — and a
+   * yes is only credible when every mill on the page is charging nearly the
+   * same thing.
+   */
+  maxAnalogSpreadPct: number;
   /** Today, for the source-age check. */
   now: Date;
 }
@@ -104,6 +126,13 @@ export const DEFAULT_MATCH_CONFIG: Omit<MatchConfig, 'now'> = {
   maxPriceToman: 500_000,
   maxCandidateSpreadPct: 8,
   maxSourceAgeDays: 10,
+  // 5%, chosen from the data rather than picked: across the 64 SKUs this
+  // admits today the median move against the stored price is 6.1% — which is
+  // the margin our catalogue already sits below ahanonline by, on the
+  // families that DO match exactly — and the largest is 11.3%. Raising it to
+  // 8% adds 8 SKUs and to 25% adds 34, all of them in families where the
+  // rows visibly disagree about what the product costs.
+  maxAnalogSpreadPct: 5,
 };
 
 // ---------------------------------------------------------------------------
@@ -962,6 +991,37 @@ export function priceBandFor(
 }
 
 /**
+ * Families where the MILL genuinely sets the price, so a nearest-analog write
+ * is never allowed no matter how closely the rows happen to agree today.
+ *
+ * The mirror's whole nearest-analog case rests on an empirical claim — that
+ * for most ferrous lines ahanonline's mills are within a few percent of each
+ * other, so "the market price for this size" is a real number even when they
+ * do not stock our mill. `maxAnalogSpreadPct` measures that claim per SKU, per
+ * run, off the source itself.
+ *
+ * The beam families are where that measurement can look right and be wrong,
+ * and they are the population the 2026-08-19 audit's largest errors (+400%)
+ * came from. ahanonline's هاش rows are IMPORTED stock and its تیرآهن table
+ * interleaves ذوب آهن with فایکو, یزد, کرمانشاه and وارداتی; the gap between
+ * a domestic and an imported beam of the same nominal size is a different
+ * product, not a spread. On any given day a size can happen to have only one
+ * mill listed — spread 0.0% — and the analog would then be a single foreign
+ * row standing in for an Iranian mill with nothing to flag it.
+ *
+ * پروفیل Z is here for a different reason: its «برند» heading is «Z ضخامت 2.5
+ * میل», a THICKNESS. Nothing on that page is a mill, so "the mill does not
+ * move the price" is not a statement the page can support either way.
+ */
+export const ANALOG_DENYLIST = new Set([
+  'ibeam/tirahan',
+  'ibeam/light',
+  'ibeam/hash-sabok',
+  'ibeam/hash-sangin',
+  'profile/profil-z',
+]);
+
+/**
  * Words that appear inside a published variant but never distinguish one
  * variant from another — the `FACTORY_STOPWORDS` idea applied to `IDENTITY`.
  *
@@ -1201,7 +1261,22 @@ export interface MatchEvidence {
 }
 
 export type MatchResult =
-  | ({ ok: true; priceToman: number; reason: typeof WRITE_REASON } & MatchEvidence)
+  | ({
+      ok: true;
+      priceToman: number;
+      reason: typeof WRITE_REASON | typeof ANALOG_WRITE_REASON;
+      /**
+       * The price came from the nearest analog — the same size and unit from
+       * OTHER mills — rather than from a row for this SKU's own mill.
+       *
+       * Carried all the way to `current_prices.price_is_estimated` so the
+       * admin can see at a glance which numbers are the competitor's price for
+       * this exact product and which are a market estimate. Never merged into
+       * the exact case: a mirrored price and an estimated one are different
+       * kinds of fact and the site should be able to say so.
+       */
+      estimated: boolean;
+    } & MatchEvidence)
   | ({ ok: false; reason: string } & MatchEvidence);
 
 const NO_EVIDENCE: MatchEvidence = {
@@ -1212,6 +1287,106 @@ const NO_EVIDENCE: MatchEvidence = {
   sourceUpdatedAt: null,
   candidates: 0,
 };
+
+/**
+ * The NEAREST ANALOG — "what does this size cost, from whoever makes it?"
+ *
+ * The mirror's original rule is that a price is only copyable when the
+ * competitor publishes a row for OUR mill. That is the right rule and it is
+ * why the ferrous half of the catalogue syncs cleanly. Its cost is that a
+ * product ahanonline stocks from four mills, none of them ours, goes
+ * permanently unpriced — «ناودانی سنگین ۱۶ دهشیر یزد» against their ناب
+ * تبریز, شکفته and صبا فولاد سمنان — even though those three rows are 4.6%
+ * apart and plainly describe the same market.
+ *
+ * So this asks a narrower question than "is there a similar product?", which
+ * would be unanswerable: **does the mill move the price in this family, right
+ * now, on this page?** The source answers it itself. If every size-matching,
+ * unit-compatible, in-band, fresh row agrees within `maxAnalogSpreadPct`, then
+ * the mill demonstrably is not what sets the price for this size today, and
+ * their median IS the market price for it. If they disagree, the mill matters
+ * and there is no analog — the SKU skips exactly as before.
+ *
+ * Four things keep this from becoming the «نبشی لقمه ۱۰» failure again:
+ *
+ *   1. **It never runs for a variant family.** Reached only from the
+ *      `confidence !== 'exact'` branch of the mill rule; an آلیاژ/نوع/حالت
+ *      disagreement returns earlier, with its own reason. Nearest-analog fills
+ *      a hole in the source's MILL coverage and nothing else.
+ *   2. **It never crosses a size.** The pool is `sized` — the same rows the
+ *      exact path would have considered. It does not interpolate to an
+ *      adjacent size, because an adjacent size is a different product and
+ *      «نبشی لقمه ۱۰» is what that looks like when it goes wrong.
+ *   3. **It re-applies every downstream gate itself** — unit, price band,
+ *      source freshness, factory-gate delivery preference — so an analog can
+ *      never be written on terms an exact match would have been refused on.
+ *   4. **The families where the mill genuinely IS the product are denied
+ *      outright**, by name, in `ANALOG_DENYLIST`.
+ *
+ * And the result is flagged `estimated` all the way into `current_prices`, so
+ * that a number arrived at this way is never presented as the competitor's
+ * price for this exact SKU.
+ */
+export function analogPrice(
+  sku: MatchableSku,
+  sized: readonly AhanonlineRow[],
+  config: MatchConfig,
+  todayJalali: [number, number, number],
+): { priceToman: number; row: AhanonlineRow; candidates: number; spreadPct: number } | null {
+  if (config.maxAnalogSpreadPct <= 0) return null;
+  if (ANALOG_DENYLIST.has(taxonomyKey(sku))) return null;
+
+  const unitOk = sized.filter((r) => unitMatchesBasis(rowUnit(r), sku.priceBasis));
+  const band = priceBandFor(sku, config);
+  const inBand = unitOk.filter((r) => r.priceToman >= band.min && r.priceToman <= band.max);
+  const fresh = inBand.filter((r) => {
+    if (config.maxSourceAgeDays <= 0) return true;
+    const published = rowUpdatedAt(r);
+    if (!published) return true;
+    const age = jalaliDaysAgo(published, todayJalali);
+    return age === null || age <= config.maxSourceAgeDays;
+  });
+  // Same factory-gate preference as the exact path, for the same reason: it is
+  // the price closest to the mill.
+  const atFactory = fresh.filter((r) => rowDelivery(r).includes('کارخانه'));
+  const finalists = atFactory.length > 0 ? atFactory : fresh;
+  if (finalists.length === 0) return null;
+
+  // How many DIFFERENT mills are actually speaking here. The spread gate is
+  // evidence that "the mill does not set the price", and that sentence only
+  // means anything when more than one mill said so:
+  //
+  //   ≥2 mills agreeing  — the claim is corroborated. This is the intended
+  //                        case: ناودانی ۱۶ from ناب تبریز, شکفته and صبا
+  //                        فولاد سمنان, 4.6% apart.
+  //   0 mills            — the page publishes no brand on any candidate row
+  //                        (پروفیل گالوانیزه and مبلی group by thickness; the
+  //                        مش and مفتول tables carry a delivery point and no
+  //                        mill). There is one published market price and
+  //                        nothing claiming to be a mill's; that is a fact
+  //                        about the product, not a gap.
+  //   exactly 1 mill     — REFUSED. A lone row has a 0.0% spread by
+  //                        arithmetic and proves nothing, and this is exactly
+  //                        the shape of the audit's worst failure: «تیرآهن
+  //                        هاش سبک ۱۸ فایکو» against a single ذوب آهن row,
+  //                        +447%. `ANALOG_DENYLIST` already covers the beams,
+  //                        but no denylist should be the only thing standing
+  //                        between one unrelated row and a live price.
+  const mills = new Set(finalists.map((r) => rowFactory(r)).filter(Boolean));
+  if (mills.size === 1) return null;
+
+  const prices = finalists.map((r) => r.priceToman).sort((a, b) => a - b);
+  const lo = prices[0]!;
+  const hi = prices[prices.length - 1]!;
+  const spreadPct = lo > 0 ? ((hi - lo) / lo) * 100 : Infinity;
+  if (spreadPct > config.maxAnalogSpreadPct) return null;
+
+  const mid = Math.floor(prices.length / 2);
+  const priceToman =
+    prices.length % 2 === 1 ? prices[mid]! : Math.round((prices[mid - 1]! + prices[mid]!) / 2);
+  const row = finalists.find((r) => r.priceToman === priceToman) ?? finalists[0]!;
+  return { priceToman, row, candidates: finalists.length, spreadPct };
+}
 
 /**
  * Decide whether `rows` confidently price `sku`, and at what.
@@ -1314,9 +1489,32 @@ export function matchSku(
   });
 
   if (identityFailure) {
+    // NOT eligible for nearest-analog. A variant failure means a published
+    // token — آلیاژ, نوع, حالت, رده — disagrees or is missing, and standing in
+    // another variant's price is the «نبشی لقمه» mistake with extra steps.
+    // Nearest-analog exists for a gap in the SOURCE's mill coverage, never for
+    // a mismatch in what the product actually is.
     return { ok: false, reason: identityFailure, ...evidence(tied[0]!, tied.length) };
   }
   if (confidence !== 'exact') {
+    // No row for OUR mill. Before recording that as a skip, ask whether the
+    // mill is a thing that moves the price in this family at all — see
+    // `analogPrice`.
+    const analog = analogPrice(sku, sized, config, todayJalali);
+    if (analog) {
+      return {
+        ok: true,
+        priceToman: analog.priceToman,
+        reason: ANALOG_WRITE_REASON,
+        estimated: true,
+        confidence: 'fuzzy',
+        row: analog.row,
+        factory: rowFactory(analog.row) || null,
+        unit: rowUnit(analog.row),
+        sourceUpdatedAt: rowUpdatedAt(analog.row) || null,
+        candidates: analog.candidates,
+      };
+    }
     return { ok: false, reason: SKIP_REASONS.lowConfidence, ...evidence(tied[0]!, tied.length) };
   }
 
@@ -1367,5 +1565,5 @@ export function matchSku(
     }
   }
 
-  return { ok: true, priceToman, reason: WRITE_REASON, ...ev };
+  return { ok: true, priceToman, reason: WRITE_REASON, estimated: false, ...ev };
 }
