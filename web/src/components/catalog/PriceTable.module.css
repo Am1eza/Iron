@@ -554,6 +554,16 @@
   gap: var(--space-2) var(--space-3);
   padding-block-end: var(--space-1);
 }
+/* Restates the adjacent VAT switch's current on/off state in text — the
+ * switch's own label is static regardless of state (audit finding,
+ * 2026-08-26), so this is the only cue that a ~vatRate swing in every price
+ * on the page/section just happened. Same role as SkuDetail.module.css's
+ * .vatNote, duplicated rather than shared since the two live in unrelated
+ * CSS modules. */
+.vatNote {
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}
 @media (max-width: 420px) {
   /* Narrow phones: the two clusters stop fighting for one line and stack,
      toggle first. `space-between` on a wrapped column would push them apart. */

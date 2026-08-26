@@ -834,6 +834,15 @@ export function PriceTable({
             </select>
           </label>
           <Switch checked={vat} onChange={setGlobalVat} label="با ارزش‌افزوده" />
+          {/* The switch's own label is static text regardless of on/off state
+              — this restates the CURRENT state next to it, the same pattern
+              SkuDetail.tsx already used, so a visitor who toggles, scrolls,
+              and comes back has a text cue, not just the switch's visual
+              state, for a change that swings every price by vatRate (audit
+              finding, 2026-08-26). */}
+          <span className={styles.vatNote}>
+            {vat ? `شامل ${toPersianDigits(vatRate * 100)}٪ مالیات بر ارزش‌افزوده` : 'بدون ارزش‌افزوده'}
+          </span>
           {/* Page-wide export — every factory at once, in the page-wide VAT
               state. A section a visitor has individually overridden is NOT
               re-resolved here: this file is the "everything" export and its
@@ -949,6 +958,13 @@ export function PriceTable({
                       label="با ارزش‌افزوده"
                       ariaLabel={`با ارزش‌افزوده — ${name}`}
                     />
+                    {/* Same state-restating note as the page-wide toggle above
+                        — doubly needed here, since a section's own override
+                        can silently disagree with the page-wide toggle's
+                        state (audit finding, 2026-08-26). */}
+                    <span className={styles.vatNote}>
+                      {factoryVat ? `شامل ${toPersianDigits(vatRate * 100)}٪` : 'بدون ارزش‌افزوده'}
+                    </span>
                     <ExportMenu
                       rows={list}
                       title={sectionTitle}
