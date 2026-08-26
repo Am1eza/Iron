@@ -13,6 +13,7 @@ import { describe, it, expect } from 'vitest';
 import { AHANONLINE_TARGETS, type AhanonlineRow } from '@/lib/server/integrations/ahanonline';
 import {
   allMappedSourcePaths,
+  ANALOG_WRITE_REASON,
   factoryScore,
   inchValue,
   jalaliDaysAgo,
@@ -35,8 +36,13 @@ const CONFIG: MatchConfig = {
   maxPriceToman: 500_000,
   maxCandidateSpreadPct: 8,
   maxSourceAgeDays: 10,
+  maxAnalogSpreadPct: 5,
   now: new Date('2026-08-22T09:00:00Z'),
 };
+
+/** The same config with nearest-analog OFF, for the cases that assert the
+ *  mill rule's own behaviour rather than the fallback's. */
+const CONFIG_NO_ANALOG: MatchConfig = { ...CONFIG, maxAnalogSpreadPct: 0 };
 
 function row(partial: Partial<AhanonlineRow> & { sourcePath: string }): AhanonlineRow {
   return {
@@ -1060,5 +1066,178 @@ describe('matchSku — the specialty lines (US-05.3, third pass)', () => {
     // «کلاف تهران» is the delivery point, not a second mill — without the cut
     // this scores 0.5 against our «ملایر» and skips.
     if (res.ok) expect(res.priceToman).toBe(76_545);
+  });
+});
+
+describe('matchSku — the nearest-analog fallback (US-05.3)', () => {
+  /** ناودانی: mill-keyed family, four mills within a few percent. */
+  const channelRow = (mill: string, priceToman: number) =>
+    row({
+      sourcePath: 'نبشی-و-ناودانی/ناودانی',
+      group: `ناودانی ${mill}`,
+      name: `ناودانی 16 ${mill}`,
+      priceToman,
+      cells: {
+        'سایز': '16',
+        'واحد': 'کیلوگرم',
+        'محل تحویل': 'کارخانه',
+        'تاریخ بروزرسانی': '1405/5/31',
+      },
+    });
+  const channelSku = (factory: string) =>
+    sku({
+      name: `ناودانی سنگین ۱۶ ${factory}`,
+      categorySlug: 'angle-channel',
+      subCategorySlug: 'channel-heavy',
+      size: '۱۶',
+      factory,
+    });
+  /** Three mills, 4.6% apart — none of them ours. */
+  const threeMills = [
+    channelRow('ناب تبریز', 78_000),
+    channelRow('شکفته', 79_138),
+    channelRow('صبا فولاد سمنان', 81_588),
+  ];
+
+  it('prices a mill the source does not stock, from the mills it does', () => {
+    const res = matchSku(channelSku('دهشیر یزد'), threeMills, CONFIG, TODAY);
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      expect(res.reason).toBe(ANALOG_WRITE_REASON);
+      expect(res.estimated).toBe(true);
+      expect(res.priceToman).toBe(79_138); // the median, not the first row
+    }
+  });
+
+  it('marks an EXACT match as not estimated, and says so with a different reason', () => {
+    const res = matchSku(channelSku('شکفته'), threeMills, CONFIG, TODAY);
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      expect(res.reason).toBe(WRITE_REASON);
+      expect(res.estimated).toBe(false);
+      expect(res.priceToman).toBe(79_138);
+    }
+  });
+
+  it('refuses when the mills disagree — that IS the mill setting the price', () => {
+    const disagreeing = [channelRow('ناب تبریز', 78_000), channelRow('وارداتی', 205_000)];
+    const res = matchSku(channelSku('دهشیر یزد'), disagreeing, CONFIG, TODAY);
+    expect(res.ok).toBe(false);
+    expect(res.reason).toBe(SKIP_REASONS.lowConfidence);
+  });
+
+  it('refuses a single unrelated row, whose 0% spread is arithmetic not evidence', () => {
+    // The audit's «تیرآهن هاش سبک ۱۸ فایکو → ذوب آهن، +447%» shape. One row
+    // trivially agrees with itself; corroboration needs a second mill.
+    const res = matchSku(channelSku('دهشیر یزد'), [channelRow('ناب تبریز', 78_000)], CONFIG, TODAY);
+    expect(res.ok).toBe(false);
+    expect(res.reason).toBe(SKIP_REASONS.lowConfidence);
+  });
+
+  it('accepts a page that publishes NO mill at all on any candidate row', () => {
+    // پروفیل گالوانیزه groups by thickness and brands nothing, so there is one
+    // published market price and nothing claiming to be a mill's. Distinct
+    // from the single-mill case above: there, one mill spoke for another.
+    const galv = (priceToman: number) =>
+      row({
+        sourcePath: 'انواع-پروفیل/پروفیل-گالوانیزه',
+        group: 'پروفیل گالوانیزه ضخامت 2',
+        name: 'پروفیل گالوانیزه 40*40 ضخامت 2',
+        priceToman,
+        cells: { 'سایز': '40*40', 'واحد': 'کیلوگرم', 'تاریخ بروزرسانی': '1405/5/31' },
+      });
+    const res = matchSku(
+      sku({
+        name: 'پروفیل و قوطی گالوانیزه ۴۰×۴۰',
+        categorySlug: 'profile',
+        subCategorySlug: 'profil-galvanizeh',
+        size: '۴۰×۴۰',
+        factory: 'پروفیل صابری',
+      }),
+      [galv(177_727), galv(177_727)],
+      CONFIG,
+      TODAY,
+    );
+    expect(res.ok).toBe(true);
+    if (res.ok) expect(res.reason).toBe(ANALOG_WRITE_REASON);
+  });
+
+  it('never analogs a family where the mill IS the product', () => {
+    // تیرآهن interleaves ذوب آهن with فایکو, یزد and وارداتی; a domestic and
+    // an imported beam of the same nominal size are different products, and on
+    // a given day a size can happen to list only mills that agree. Denied by
+    // name so no spread measurement can talk its way past it.
+    const beam = (mill: string, priceToman: number) =>
+      row({
+        sourcePath: 'تیرآهن-و-هاش/تیرآهن',
+        group: `تیرآهن ${mill}`,
+        name: `تیرآهن 18 ${mill}`,
+        priceToman,
+        cells: {
+          'سایز': '18',
+          'واحد': 'کیلوگرم',
+          'محل تحویل': 'کارخانه',
+          'تاریخ بروزرسانی': '1405/5/31',
+        },
+      });
+    const res = matchSku(
+      sku({ name: 'تیرآهن ۱۸ فایکو', categorySlug: 'ibeam', subCategorySlug: 'tirahan', size: '۱۸', factory: 'فایکو' }),
+      [beam('ذوب آهن', 99_127), beam('یزد', 99_500)],
+      CONFIG,
+      TODAY,
+    );
+    expect(res.ok).toBe(false);
+    expect(res.reason).toBe(SKIP_REASONS.lowConfidence);
+  });
+
+  it('never analogs past a VARIANT disagreement, only past a missing mill', () => {
+    // ورق استیل is keyed on آلیاژ, and 304L against 316L is 1.7×. A variant
+    // failure returns before the fallback is ever reached — nearest-analog
+    // fills a gap in the source's MILL coverage and nothing else.
+    const steelRow = (alloy: string, priceToman: number) =>
+      row({
+        sourcePath: 'انواع-ورق/ورق-استیل',
+        name: `ورق استیل 12 ${alloy}`,
+        priceToman,
+        cells: { 'ضخامت': '12', 'آلیاژ': alloy, 'واحد': 'کیلوگرم', 'تاریخ بروزرسانی': '1405/5/31' },
+      });
+    const res = matchSku(
+      sku({ name: 'ورق استیل ۱۲', categorySlug: 'sheet', subCategorySlug: 'steel', size: '۱۲', factory: null }),
+      [steelRow('304L', 640_909), steelRow('316L', 1_109_091)],
+      CONFIG,
+      TODAY,
+    );
+    expect(res.ok).toBe(false);
+    expect(res.reason).toBe(SKIP_REASONS.missingVariant);
+  });
+
+  it('never analogs across a size — an adjacent size is a different product', () => {
+    // «نبشی لقمه ۱۰» priced from a 100mm angle is what this looks like when it
+    // goes wrong. The analog pool is the rows the exact path already
+    // size-matched; nothing interpolates.
+    const res = matchSku(channelSku('دهشیر یزد'), [channelRow('ناب تبریز', 78_000), channelRow('شکفته', 79_138)].map((r) => ({
+      ...r,
+      cells: { ...r.cells, 'سایز': '14' },
+    })), CONFIG, TODAY);
+    expect(res.ok).toBe(false);
+    expect(res.reason).toBe(SKIP_REASONS.noSizeMatch);
+  });
+
+  it('re-applies the price band and the source-freshness gate to an analog', () => {
+    const outOfBand = [channelRow('ناب تبریز', 7_800_000), channelRow('شکفته', 7_810_000)];
+    expect(matchSku(channelSku('دهشیر یزد'), outOfBand, CONFIG, TODAY).ok).toBe(false);
+    const stale = [
+      channelRow('ناب تبریز', 78_000),
+      channelRow('شکفته', 79_138),
+    ].map((r) => ({ ...r, cells: { ...r.cells, 'تاریخ بروزرسانی': '1405/4/1' } }));
+    expect(matchSku(channelSku('دهشیر یزد'), stale, CONFIG, TODAY).ok).toBe(false);
+  });
+
+  it('is switched off entirely by maxAnalogSpreadPct = 0', () => {
+    // The owner's kill switch, separate from `enabled`, so the estimates can
+    // be dropped without losing the exact writes with them.
+    const res = matchSku(channelSku('دهشیر یزد'), threeMills, CONFIG_NO_ANALOG, TODAY);
+    expect(res.ok).toBe(false);
+    expect(res.reason).toBe(SKIP_REASONS.lowConfidence);
   });
 });
