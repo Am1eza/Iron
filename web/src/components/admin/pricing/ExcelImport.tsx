@@ -8,6 +8,8 @@
 import { useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api/resources/admin';
+import { http } from '@/lib/api/http';
+import { isApiError } from '@/lib/api/errors';
 import { toPersianDigits, formatToman } from '@/lib/utils/format';
 import { useToast } from '@/lib/hooks/useToast';
 import { Badge, Button, Heading, Text } from '@/components/ui';
@@ -37,14 +39,18 @@ export function ExcelImport() {
     setParsing(true);
     setPreview(null);
     try {
-      const fd = new FormData();
-      fd.append('file', file);
-      const res = await fetch('/api/admin/pricing/import', { method: 'POST', body: fd });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body?.message ?? 'خواندن فایل ناموفق بود.');
+      // http.upload, not a raw fetch (audit finding, 2026-08-26): the raw
+      // fetch call this used to make sat outside http.ts's guarantee that a
+      // network failure always surfaces as a Persian ApiError, not the
+      // browser's own English message — the one place in the app where a
+      // dropped connection could put "Failed to fetch" in a toast.
+      const body = await http.upload<{ matched?: MatchedRow[]; unmatched?: UnmatchedRow[] }>(
+        '/api/admin/pricing/import',
+        file,
+      );
       setPreview({ matched: body.matched ?? [], unmatched: body.unmatched ?? [] });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'خواندن فایل ناموفق بود.');
+      toast.error(isApiError(e) ? e.message : 'خواندن فایل ناموفق بود.');
     } finally {
       setParsing(false);
       if (fileRef.current) fileRef.current.value = '';

@@ -38,7 +38,7 @@ export function ProfileForm() {
       if (isApiError(e) && e.fields?.firstName) {
         setError('firstName', { message: e.fields.firstName[0] });
       } else {
-        toast.error(e instanceof Error ? e.message : t('updateFailed'));
+        toast.error(isApiError(e) ? e.message : t('updateFailed'));
       }
     }
   };

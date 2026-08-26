@@ -1,9 +1,8 @@
 'use client';
 import { useQuery } from '@tanstack/react-query';
-import { routes } from '@/lib/routes';
 import { http } from '@/lib/api/http';
 import { stepsForType, REQUEST_TYPE_LABEL, type RequestStatus, type RequestType } from '@/lib/stores/requests';
-import { EmptyState, TableSkeleton } from '@/components/ui';
+import { EmptyState, TableSkeleton, emptyPresets } from '@/components/ui';
 import { formatJalali } from '@/lib/utils/jalali';
 import styles from './RequestsList.module.css';
 
@@ -42,14 +41,11 @@ export function RequestsList() {
 
   const requests = data?.requests ?? [];
   if (requests.length === 0) {
-    return (
-      <EmptyState
-        size="section"
-        headline="هنوز درخواستی ثبت نکرده‌اید"
-        body="از جدول‌های قیمت یا بخش مقایسهٔ کارخانه‌ها، درخواست پیش‌فاکتور بدهید؛ وضعیت آن همین‌جا دنبال می‌شود."
-        primary={{ label: 'مشاهدهٔ قیمت‌ها', href: routes.prices() }}
-      />
-    );
+    // Shared preset, not a hand-rolled copy of it — a second, drifted-from
+    // the-source copy of this exact headline/body used to live here (audit
+    // finding, 2026-08-26), which is exactly the ad-hoc-dead-end drift
+    // emptyPresets.ts exists to prevent.
+    return <EmptyState size="section" {...emptyPresets.requestsEmpty()} />;
   }
 
   return (

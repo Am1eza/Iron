@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslations } from 'next-intl';
 import { contactSchema, type ContactValues } from '@/lib/validation/schemas';
 import { formsApi } from '@/lib/api/forms';
+import { isApiError } from '@/lib/api/errors';
 import { parsePhone, DEFAULT_PHONE_COUNTRY, type CountryCode } from '@/lib/utils/phone';
 import { TextInput, Textarea } from './fields';
 import { PhoneField } from './PhoneField';
@@ -41,7 +42,7 @@ export function ContactForm() {
       reset();
       setNational('');
     } catch (e) {
-      setError(e instanceof Error ? e.message : t('genericError'));
+      setError(isApiError(e) ? e.message : t('genericError'));
     }
   };
 
