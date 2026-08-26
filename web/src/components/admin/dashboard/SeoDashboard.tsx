@@ -209,6 +209,10 @@ export function SeoDashboard() {
               </tbody>
             </table>
           </div>
+          <Text color="muted">
+            برای فعال یا غیرفعال‌کردن هرکدام: <Link href={routes.admin.catalog()}>مدیریت کاتالوگ</Link> ← «نمایش
+            غیرفعال‌ها».
+          </Text>
         </section>
       ) : null}
 
