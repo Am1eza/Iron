@@ -6,6 +6,7 @@ import { Footer } from './Footer';
 import type { SiteContact } from '@/lib/server/contact';
 import { BottomTabBar } from './BottomTabBar';
 import { CallbackWidget } from '@/components/support/CallbackWidget';
+import { isPromoSuppressedPath } from '@/components/club/arrivalPopupRoutes';
 // Code-split: the hamburger drawer is only reachable below the 1024px
 // breakpoint (and only once opened), and the arrival popup and cart
 // reminder both render `null` on most visits by design — none of the three
@@ -42,11 +43,16 @@ function onPanelHost(): boolean {
 export function SiteChromeTop({ categories, subs }: { categories: Category[]; subs: SubsMap }) {
   const pathname = usePathname();
   if (onPanelHost() || pathname?.startsWith('/admin') || pathname?.startsWith('/panel-login')) return null;
+  // Same reasoning CartReminder's own suppression check already applies —
+  // gating it here too (not just inside the component) means its lazy chunk
+  // is never even fetched on a page it would render null on anyway, same
+  // pattern SiteChromeBottom already uses for CallbackWidget's `onAdvisor`.
+  const suppressCartReminder = isPromoSuppressedPath(pathname);
   return (
     <>
       <Ticker />
       <Header categories={categories} subs={subs} />
-      <CartReminder />
+      {!suppressCartReminder && <CartReminder />}
       <MobileDrawer categories={categories} subs={subs} />
     </>
   );
