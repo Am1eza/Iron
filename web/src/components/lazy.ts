@@ -30,6 +30,15 @@ export const ArrivalPopup = dynamic(
   { ssr: false },
 );
 
+/** Returning-visitor "you have a pending cart" banner — same reasoning as
+ *  ArrivalPopup above: it renders `null` on most visits (empty cart, cart
+ *  too fresh to count as abandoned, already dismissed, or an excluded
+ *  route), so there's no reason to ship it in the initial bundle. */
+export const CartReminder = dynamic(
+  () => import('./cart/CartReminder').then((m) => m.CartReminder),
+  { ssr: false },
+);
+
 /** Generic modal shell — only mounted once something is actually open
  *  (a price chart, an export menu, a confirmation dialog). */
 export const Modal = dynamic(() => import('./ui/Modal').then((m) => m.Modal), { ssr: false });

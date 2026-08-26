@@ -14,6 +14,13 @@ export type CartItem = {
 
 type CartState = {
   items: CartItem[];
+  /** Epoch ms of the last add/remove/qty change — null for an empty cart.
+   *  Lets `CartReminder` tell "actively shopping right now" apart from
+   *  "added something a while ago and never came back" (conversion audit
+   *  finding, 2026-08-27: the cart persisted indefinitely but nothing ever
+   *  resurfaced it to a returning visitor). NOT bumped by `clear()` — an
+   *  emptied cart has nothing to remind anyone about. */
+  lastUpdatedAt: number | null;
   add: (item: CartItem) => void;
   remove: (skuId: string) => void;
   setQty: (skuId: string, qty: number) => void;
@@ -24,30 +31,41 @@ export const useCartStore = create<CartState>()(
   persist(
     (set) => ({
       items: [],
+      lastUpdatedAt: null,
       add: (item) =>
         set((s) => {
           const existing = s.items.find((i) => i.skuId === item.skuId);
-          if (existing) {
-            return {
-              items: s.items.map((i) =>
-                i.skuId === item.skuId ? { ...i, qty: i.qty + item.qty } : i,
-              ),
-            };
-          }
-          return { items: [...s.items, item] };
+          const items = existing
+            ? s.items.map((i) => (i.skuId === item.skuId ? { ...i, qty: i.qty + item.qty } : i))
+            : [...s.items, item];
+          return { items, lastUpdatedAt: Date.now() };
         }),
-      remove: (skuId) => set((s) => ({ items: s.items.filter((i) => i.skuId !== skuId) })),
+      remove: (skuId) =>
+        set((s) => ({ items: s.items.filter((i) => i.skuId !== skuId), lastUpdatedAt: Date.now() })),
       setQty: (skuId, qty) =>
         set((s) => ({
           items: s.items.map((i) => (i.skuId === skuId ? { ...i, qty: Math.max(1, qty) } : i)),
+          lastUpdatedAt: Date.now(),
         })),
-      clear: () => set({ items: [] }),
+      clear: () => set({ items: [], lastUpdatedAt: null }),
     }),
     {
       name: 'ahantime-cart',
-      version: 1,
+      version: 2,
       storage: createJSONStorage(() => safeLocalStorage),
       skipHydration: true, // rehydrated by <StoreHydrator/> → no SSR mismatch
+      // v1 → v2: added lastUpdatedAt. An existing cart's real "last touched"
+      // time is unknown, so it defaults to now — the safe direction to guess
+      // wrong in, since it means CartReminder waits out the full threshold
+      // before surfacing rather than immediately confronting a visitor whose
+      // session just happened to upgrade.
+      migrate: (persisted, version) => {
+        const state = persisted as { items?: CartItem[] };
+        if (version < 2) {
+          return { items: state.items ?? [], lastUpdatedAt: (state.items?.length ?? 0) > 0 ? Date.now() : null };
+        }
+        return persisted as CartState;
+      },
     },
   ),
 );

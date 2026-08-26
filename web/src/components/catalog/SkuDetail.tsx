@@ -1,5 +1,5 @@
 'use client';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query/keys';
@@ -19,6 +19,7 @@ import {
   REGION_LABEL,
 } from '@/lib/utils/catalogLabels';
 import { formatJalali } from '@/lib/utils/jalali';
+import { trackGoal } from '@/lib/analytics/track';
 import { priceSeries as mockSeries, relatedRows as mockRelated, subName as mockSubName } from '@/lib/mock/catalogData';
 import { categories } from '@/lib/mock/fixtures';
 import type { SubCat } from '@/lib/data/nav';
@@ -100,6 +101,16 @@ export function SkuDetail({
   const [vat, setVat] = useState(false);
   const qc = useQueryClient();
 
+  // Funnel measurement gap (conversion audit finding, 2026-08-26): every
+  // OTHER trackGoal call site fires at the final submit, so there was no way
+  // to see a visitor viewed this product at all before either converting or
+  // dropping off. Keyed on row.id so a client-side nav to a different SKU
+  // (no full remount under the same layout) still fires once per product.
+  useEffect(() => {
+    trackGoal('view-product', row.categoryId, row.name);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [row.id]);
+
   // The real favorites list, shared by cache key with /account's FavoritesList
   // so the two can never disagree. Only fetched for a signed-in visitor — a
   // guest's heart is a login prompt, not a state. This is what makes the
@@ -150,6 +161,7 @@ export function SkuDetail({
       unitPrice: row.current.price,
       weightKg: row.theoreticalWeightKg,
     });
+    trackGoal('add-to-cart', row.categoryId, row.name);
     toast.success(`${row.name} به سبد استعلام اضافه شد.`, {
       label: 'مشاهده سبد',
       href: routes.cart(),

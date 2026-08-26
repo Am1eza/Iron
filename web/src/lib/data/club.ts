@@ -31,8 +31,13 @@ export const CLUB_TIER_META: Record<ClubTierKey, ClubTierMeta> = {
     key: 'steel',
     name: 'فولادی',
     tagline: 'برای خریدهای منظم و حرفه‌ای',
+    // «تخفیف پلکانی» deliberately NOT listed here (audit finding,
+    // 2026-08-27): resolveVolumeTier (pricingTiers.ts) grants it to ANY
+    // order ≥5t regardless of club tier or membership at all — it is not
+    // something this tier unlocks, so listing it as a tier perk overstated
+    // what membership actually does. It's real and worth telling customers
+    // about, just accurately — see ClubLanding.tsx's hero copy instead.
     perks: [
-      'تخفیف پلکانی روی حجم خرید',
       'اولویت در تأمین و تحویل',
       // W22: alert creation shipped with a real per-tier cap (see
       // alertsRepo.ts's DEFAULT_ALERT_TIER_CAPS) — kept qualitative here
@@ -47,8 +52,10 @@ export const CLUB_TIER_META: Record<ClubTierKey, ClubTierMeta> = {
     key: 'poolad',
     name: 'پولادی',
     tagline: 'بالاترین سطح وفاداری',
+    // Same note as the «فولادی» tier above: the volume discount is not
+    // actually bigger for پولادی members — resolveVolumeTier only reads
+    // order weight, never club tier.
     perks: [
-      'بیشترین تخفیف پلکانی',
       'تأمین تضمینی با اولویت کامل',
       'بیشترین سقف هشدار قیمت در بین همهٔ سطوح',
       'مشاور اختصاصی و خط ارتباطی مستقیم',
