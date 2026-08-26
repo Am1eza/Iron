@@ -225,6 +225,11 @@ const nextConfig = {
                     "base-uri 'self'",
                     "form-action 'self'",
                     "frame-ancestors 'none'",
+                    // Only the GTM <noscript> iframe fallback (Analytics.tsx)
+                    // needs this — without it, frame-src falls back to
+                    // default-src 'self' and silently blocks that fallback
+                    // for the no-JS/blocked-JS visitors it exists for.
+                    ...(googleOn ? ["frame-src 'self' https://www.googletagmanager.com"] : []),
                     // Production only. Over plain HTTP this directive makes the
                     // browser rewrite every subresource URL to https://, which
                     // a `next dev` server cannot answer — every script, style
