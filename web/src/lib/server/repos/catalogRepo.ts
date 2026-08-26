@@ -370,6 +370,7 @@ export async function headlineRowPerCategory(): Promise<PriceRow[]> {
   const s = await getPriceFreshness();
   return rows
     .sort((a, b) => a.catOrder - b.catOrder)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- destructured only to drop it from `r`
     .map(({ catOrder: _catOrder, ...r }) => toPriceRow(r, s));
 }
 

@@ -10,7 +10,7 @@ import { formatJalali } from '@/lib/utils/jalali';
 import { useToast } from '@/lib/hooks/useToast';
 import { useDeepLinkQuery } from '@/lib/hooks/useDeepLinkQuery';
 import { ApiError } from '@/lib/api/errors';
-import { Badge, Button, Chip, EmptyState, Heading, Spinner, TableSkeleton, useConfirm } from '@/components/ui';
+import { Badge, Button, Chip, EmptyState, Spinner, TableSkeleton, useConfirm } from '@/components/ui';
 import { TextInput } from '@/components/forms/fields';
 import { PagerFooter } from '../PagerFooter';
 import ui from '../adminUi.module.css';

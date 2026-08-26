@@ -65,6 +65,14 @@ function rowDiffers(values: ReadonlyArray<string | number | null>): boolean {
   return new Set(values).size > 1;
 }
 
+/** `rowDiffers(...)`, resolved straight to the CSS class (or `undefined`) a
+ *  compare-table `<tr>` needs — every diff row below computed this ternary
+ *  by hand, which is how a typo'd `styles.rowDiffers` on one of eight sites
+ *  would have gone uncaught. */
+function diffRowClass(values: ReadonlyArray<string | number | null>): string | undefined {
+  return rowDiffers(values) ? styles.rowDiffers : undefined;
+}
+
 /**
  * The factory name, linked to that factory's own price page.
  *
@@ -1083,7 +1091,16 @@ export function PriceTable({
                 setCompareOpen(false);
               }}
             >
-              افزودن گزینهٔ ارزان‌تر ({cheapestForCompare.name}) به سبد
+              {/* A kg-basis row (rebar — the dominant case) can't be added
+                  with a single click: addToCart() defers to KgQuantityModal
+                  to ask how much. The old label promised "به سبد" (added to
+                  cart) unconditionally, so a kg-basis pick looked like the
+                  button silently failed when a *different*, seemingly
+                  unrelated modal opened instead (audit finding, 2026-08-26).
+                  Say what's actually about to happen. */}
+              {cheapestForCompare.priceBasis === 'kg'
+                ? `انتخاب مقدار برای گزینهٔ ارزان‌تر (${cheapestForCompare.name})`
+                : `افزودن گزینهٔ ارزان‌تر (${cheapestForCompare.name}) به سبد`}
             </button>
           ) : undefined
         }
@@ -1105,11 +1122,7 @@ export function PriceTable({
                     </td>
                   ))}
                 </tr>
-                <tr
-                  className={
-                    rowDiffers(selectedForCompare.map((r) => r.size ?? null)) ? styles.rowDiffers : undefined
-                  }
-                >
+                <tr className={diffRowClass(selectedForCompare.map((r) => r.size ?? null))}>
                   <th scope="row">{sizeCol}</th>
                   {selectedForCompare.map((r) => (
                     <td key={r.id}>{r.size ? toPersianDigits(r.size) : 'نامشخص'}</td>
@@ -1118,11 +1131,7 @@ export function PriceTable({
                 {/* ورق only — the whole point of comparing two plates is often
                     that they differ here and nowhere else. */}
                 {showDimensions ? (
-                  <tr
-                    className={
-                      rowDiffers(selectedForCompare.map((r) => r.dimensions ?? null)) ? styles.rowDiffers : undefined
-                    }
-                  >
+                  <tr className={diffRowClass(selectedForCompare.map((r) => r.dimensions ?? null))}>
                     <th scope="row">{DIMENSIONS_LABEL}</th>
                     {selectedForCompare.map((r) => (
                       <td key={r.id}>{r.dimensions ? toPersianDigits(r.dimensions) : 'نامشخص'}</td>
@@ -1134,46 +1143,30 @@ export function PriceTable({
                     reintroduce, in the one place a buyer studies most closely,
                     exactly the fabricated distinction this page dropped. */}
                 {selectedForCompare.some((r) => r.factory) ? (
-                  <tr
-                    className={
-                      rowDiffers(selectedForCompare.map((r) => r.factory ?? null)) ? styles.rowDiffers : undefined
-                    }
-                  >
+                  <tr className={diffRowClass(selectedForCompare.map((r) => r.factory ?? null))}>
                     <th scope="row">کارخانه</th>
                     {selectedForCompare.map((r) => (
                       <td key={r.id}>{r.factory ?? 'نامشخص'}</td>
                     ))}
                   </tr>
                 ) : selectedForCompare.some((r) => r.region) ? (
-                  <tr
-                    className={
-                      rowDiffers(selectedForCompare.map((r) => r.region ?? null)) ? styles.rowDiffers : undefined
-                    }
-                  >
+                  <tr className={diffRowClass(selectedForCompare.map((r) => r.region ?? null))}>
                     <th scope="row">{REGION_LABEL}</th>
                     {selectedForCompare.map((r) => (
                       <td key={r.id}>{r.region ?? UNKNOWN_VALUE}</td>
                     ))}
                   </tr>
                 ) : null}
-                <tr
-                  className={
-                    rowDiffers(selectedForCompare.map((r) => r.theoreticalWeightKg ?? null)) ? styles.rowDiffers : undefined
-                  }
-                >
+                <tr className={diffRowClass(selectedForCompare.map((r) => r.theoreticalWeightKg ?? null))}>
                   <th scope="row">وزن شاخه</th>
                   {selectedForCompare.map((r) => (
                     <td key={r.id}>{r.theoreticalWeightKg ? `${toPersianDigits(r.theoreticalWeightKg)} kg` : 'نامشخص'}</td>
                   ))}
                 </tr>
                 <tr
-                  className={
-                    rowDiffers(
-                      selectedForCompare.map((r) => priceHiddenLabel(r.current) ?? withVat(r.current.price, vat, vatRate)),
-                    )
-                      ? styles.rowDiffers
-                      : undefined
-                  }
+                  className={diffRowClass(
+                    selectedForCompare.map((r) => priceHiddenLabel(r.current) ?? withVat(r.current.price, vat, vatRate)),
+                  )}
                 >
                   <th scope="row">قیمت (تومان)</th>
                   {selectedForCompare.map((r) => (
@@ -1183,11 +1176,9 @@ export function PriceTable({
                   ))}
                 </tr>
                 <tr
-                  className={
-                    rowDiffers(selectedForCompare.map((r) => `${r.current.movementDir}:${r.current.movementPct ?? ''}`))
-                      ? styles.rowDiffers
-                      : undefined
-                  }
+                  className={diffRowClass(
+                    selectedForCompare.map((r) => `${r.current.movementDir}:${r.current.movementPct ?? ''}`),
+                  )}
                 >
                   <th scope="row">نوسان</th>
                   {selectedForCompare.map((r) => (
@@ -1196,11 +1187,7 @@ export function PriceTable({
                     </td>
                   ))}
                 </tr>
-                <tr
-                  className={
-                    rowDiffers(selectedForCompare.map((r) => r.current.deliveryTime ?? null)) ? styles.rowDiffers : undefined
-                  }
-                >
+                <tr className={diffRowClass(selectedForCompare.map((r) => r.current.deliveryTime ?? null))}>
                   <th scope="row">تحویل</th>
                   {selectedForCompare.map((r) => (
                     <td key={r.id}>

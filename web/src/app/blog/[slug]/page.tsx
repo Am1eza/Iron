@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { buildMetadata, articleJsonLd } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { articlesByType } from '@/lib/mock/catalogData';
@@ -93,13 +94,12 @@ export default async function BlogArticlePage({ params }: Params) {
           <article className={styles.article}>
             <header className={styles.header}>
               {article.coverUrl ? (
-                <img
+                <Image
                   src={article.coverUrl}
                   alt={article.title}
                   width={1200}
                   height={630}
-                  loading="eager"
-                  decoding="async"
+                  priority
                   className={styles.cover}
                 />
               ) : null}
