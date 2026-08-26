@@ -84,7 +84,11 @@ export function AuditLog() {
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
 
-  const entries = (data?.pages.flatMap((p) => p.entries) ?? []) as AuditRow[];
+  // useMemo, not a plain expression: `flatMap`/`?? []` return a NEW array
+  // reference every render, which made the grouping useMemo below (keyed on
+  // `entries`) recompute on every render regardless of whether the data
+  // actually changed — it looked memoized but never was.
+  const entries = useMemo(() => (data?.pages.flatMap((p) => p.entries) ?? []) as AuditRow[], [data]);
 
   // Group into Jalali days for the timeline headings. useMemo because the
   // grouping walks every loaded entry and "load more" keeps appending.

@@ -13,7 +13,12 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
-function row(id: string, factory: string, price: number, weightKg: number): PriceRow {
+// priceBasis defaults to 'kg' — that's what real rebar rows are (see
+// PriceTable.tsx's addToCart), and a fixture that leaves it undefined is
+// exactly the gap that let the compare CTA's kg-basis bug ship unnoticed
+// (audit finding, 2026-08-26): the "adds it to the cart" test below asserted
+// a direct add that real rebar data can never actually take.
+function row(id: string, factory: string, price: number, weightKg: number, priceBasis: PriceRow['priceBasis'] = 'kg'): PriceRow {
   return {
     id,
     subCategoryId: 'ribbed',
@@ -24,6 +29,7 @@ function row(id: string, factory: string, price: number, weightKg: number): Pric
     factory,
     theoreticalWeightKg: weightKg,
     unit: 'kg',
+    priceBasis,
     isActive: true,
     current: {
       skuId: id,
@@ -94,7 +100,11 @@ describe('PriceTable — compare modal diff highlighting + next action (US-P0.3)
     expect(factoryRow.className).not.toMatch(/rowDiffers/);
   });
 
-  it('offers the cheaper option as the modal\'s next action and adds it to the cart', async () => {
+  it('offers the cheaper option as the modal\'s next action — kg-basis (rebar) hands off to the quantity picker, not a silent direct add', async () => {
+    // Regression test for the audit finding: CHEAP/PRICEY are kg-basis (real
+    // rebar data always is), so a single click can never mean "added" — it
+    // has to ask how much first. The label must say so up front, and the
+    // handoff must actually reach the cart once a quantity is confirmed.
     useCartStore.setState({ items: [] });
     const user = userEvent.setup();
     renderTable([CHEAP, PRICEY]);
@@ -102,10 +112,32 @@ describe('PriceTable — compare modal diff highlighting + next action (US-P0.3)
     await checkCompare(user, 'pricey-14');
     await user.click(screen.getByRole('button', { name: /مقایسه \(۲\)/ }));
 
-    const cta = screen.getByRole('button', { name: /افزودن گزینهٔ ارزان‌تر \(cheap-14\) به سبد/ });
+    const cta = screen.getByRole('button', { name: /انتخاب مقدار برای گزینهٔ ارزان‌تر \(cheap-14\)/ });
     await user.click(cta);
 
+    // Compare modal closed; the quantity picker opened in its place, titled
+    // with the SAME product the CTA named — not an unrelated-looking dialog.
+    expect(screen.queryByRole('dialog', { name: 'مقایسهٔ کالاها' })).toBeNull();
+    const qtyDialog = within(screen.getByRole('dialog', { name: 'تعداد «cheap-14»' }));
+    await user.click(qtyDialog.getByRole('button', { name: 'افزودن به سبد استعلام' }));
+
     expect(useCartStore.getState().items.map((i) => i.skuId)).toContain('cheap-14');
+  });
+
+  it('offers the cheaper option as the modal\'s next action — non-kg basis adds directly to the cart', async () => {
+    useCartStore.setState({ items: [] });
+    const user = userEvent.setup();
+    const cheapSheet = row('cheap-sheet', 'فولاد مبنا', 500_000, 10, 'sheet');
+    const priceySheet = row('pricey-sheet', 'فولاد مبنا', 600_000, 12, 'sheet');
+    renderTable([cheapSheet, priceySheet]);
+    await checkCompare(user, 'cheap-sheet');
+    await checkCompare(user, 'pricey-sheet');
+    await user.click(screen.getByRole('button', { name: /مقایسه \(۲\)/ }));
+
+    const cta = screen.getByRole('button', { name: /افزودن گزینهٔ ارزان‌تر \(cheap-sheet\) به سبد/ });
+    await user.click(cta);
+
+    expect(useCartStore.getState().items.map((i) => i.skuId)).toContain('cheap-sheet');
     // The CTA also closes the modal, same as clicking a product link does.
     expect(screen.queryByRole('dialog', { name: 'مقایسهٔ کالاها' })).toBeNull();
   });
