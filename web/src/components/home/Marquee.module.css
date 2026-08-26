@@ -17,21 +17,44 @@
   direction: ltr;
 }
 /* Edge fade as OVERLAYS (not a mask on the transformed layer — mask+transform
-   can render a blank composited layer on some GPUs). */
+   can render a blank composited layer on some GPUs).
+   Wide enough to fully cover a client-logo cell (220px) as it enters/exits,
+   with a solid inner band before the taper starts: a plain edge-to-edge
+   linear fade left the cell only partly covered for most of its transit, so
+   its white card showed through a dark gradient mid-crossing — read as the
+   logo being sliced off rather than fading away (audit: لوگوها... بریده
+   دیده می‌شوند). The solid band hides that transit outright; only the last
+   stretch actually tapers. */
 .fade {
   position: absolute;
   inset-block: 0;
-  inline-size: 56px;
+  inline-size: 128px;
   z-index: 1;
   pointer-events: none;
 }
 .fadeStart {
   inset-inline-start: 0;
-  background: linear-gradient(90deg, var(--marquee-fade, var(--color-bg)), transparent);
+  background: linear-gradient(
+    90deg,
+    var(--marquee-fade, var(--color-bg)) 0%,
+    var(--marquee-fade, var(--color-bg)) 45%,
+    transparent 100%
+  );
 }
 .fadeEnd {
   inset-inline-end: 0;
-  background: linear-gradient(270deg, var(--marquee-fade, var(--color-bg)), transparent);
+  background: linear-gradient(
+    270deg,
+    var(--marquee-fade, var(--color-bg)) 0%,
+    var(--marquee-fade, var(--color-bg)) 45%,
+    transparent 100%
+  );
+}
+
+@media (max-width: 640px) {
+  .fade {
+    inline-size: 96px;
+  }
 }
 
 .track {
