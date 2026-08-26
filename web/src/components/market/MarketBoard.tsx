@@ -9,7 +9,7 @@ import { API_MODE } from '@/lib/api/config';
 import { marketApi } from '@/lib/api/resources/market';
 import { useMarket } from '@/lib/hooks/useMarket';
 import type { MarketValue } from '@/lib/types/domain';
-import { MovementBadge, EmptyState, emptyPresets } from '@/components/ui';
+import { MovementBadge, EmptyState, emptyPresets, Skeleton } from '@/components/ui';
 import { PriceChart } from '@/components/catalog/PriceChart';
 import { AlertBellButton } from '@/components/alerts/AlertBellButton';
 import { ChevronStartIcon } from '@/components/primitives/icons';
@@ -44,6 +44,30 @@ function SourceBadge() {
       <span className={styles.sourceDot} aria-hidden="true" />
       نرخ لحظه‌ای بازار
     </span>
+  );
+}
+
+/** Shape-matched to the real 5-card grid below (not a bare spinner) — same
+ *  fix `Ticker.tsx` already applies for the identical `useMarket()` pre-load
+ *  window, just not previously carried over here (audit finding, 2026-08-26):
+ *  this rendered nothing at all while `isLoading`, a blank flash. */
+function MarketBoardSkeleton() {
+  return (
+    <ul className={styles.grid} role="list" aria-hidden="true">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <li key={i} className={styles.cardWrap}>
+          <div className={styles.card}>
+            <span className={styles.cardHead}>
+              <Skeleton variant="text" width="40%" />
+            </span>
+            <span className={styles.valueRow}>
+              <Skeleton variant="text" width="70%" height="1.4em" />
+            </span>
+            <Skeleton variant="text" width="30%" />
+          </div>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -86,7 +110,7 @@ export function MarketBoard() {
   if (!marketValues.length) {
     return (
       <div className={styles.board}>
-        {isLoading ? null : <EmptyState {...emptyPresets.serverError(() => void refetch())} />}
+        {isLoading ? <MarketBoardSkeleton /> : <EmptyState {...emptyPresets.serverError(() => void refetch())} />}
       </div>
     );
   }

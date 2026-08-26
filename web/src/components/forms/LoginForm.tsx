@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import { formsApi } from '@/lib/api/forms';
+import { isApiError } from '@/lib/api/errors';
 // The post-verify name step (see the `step` docblock) is the one call here
 // that formsApi does not proxy — it is a profile update, not a form submit.
 import { api } from '@/lib/api';
@@ -89,7 +90,7 @@ export function LoginForm({ chromeless = false }: { chromeless?: boolean } = {})
       setResendIn(60);
       setDevCode(res.devCode ?? null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t('genericError'));
+      setError(isApiError(e) ? e.message : t('genericError'));
     }
   };
 
@@ -133,7 +134,7 @@ export function LoginForm({ chromeless = false }: { chromeless?: boolean } = {})
       finishLogin(user.role);
     } catch (e) {
       setOtpError(true);
-      setError(e instanceof Error ? e.message : t('wrongCode'));
+      setError(isApiError(e) ? e.message : t('wrongCode'));
       otpRef.current?.focus();
     } finally {
       setVerifying(false);
@@ -155,7 +156,7 @@ export function LoginForm({ chromeless = false }: { chromeless?: boolean } = {})
       setUser(user);
       finishLogin(user.role);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t('genericError'));
+      setError(isApiError(e) ? e.message : t('genericError'));
     } finally {
       setVerifying(false);
     }
