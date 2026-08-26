@@ -354,6 +354,15 @@ export interface SeoStatsRes {
    *  understating how much work is left. */
   failingTotal: number;
   automated: Array<{ label: string; ok: true }>;
+  hiddenActiveProducts: number;
+  hiddenByGroup: Array<{ category: string; subCategory: string; count: number }>;
+  /** From Matomo. Null when unconfigured or unreachable — render without it,
+   *  same contract as `MarketingStatsRes.traffic`. */
+  traffic: {
+    organicVisits: number;
+    topLandingPages: Array<{ path: string; visits: number }>;
+    topSearchEngines: Array<{ label: string; visits: number }>;
+  } | null;
 }
 
 export interface DeskLead {

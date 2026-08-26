@@ -87,6 +87,56 @@ export function SeoDashboard() {
         )}
       </section>
 
+      {data.traffic ? (
+        <section className={ui.panel} aria-labelledby="seo-traffic">
+          <Heading level={2} id="seo-traffic">
+            بازدید واقعی از جست‌وجو — ۳۰ روز گذشته
+          </Heading>
+          <Text color="muted">
+            از Matomo — کدام صفحه‌ها واقعاً از گوگل/بینگ بازدیدکننده می‌گیرند، نه فقط کدام‌ها چک‌لیست بالا را رد
+            می‌کنند.
+          </Text>
+          <div className={styles.miniTiles}>
+            <div className={ui.tile}>
+              <span className={ui.tileLabel}>بازدید از جست‌وجو</span>
+              <span className={`${ui.tileValue} tnum`}>{fa(data.traffic.organicVisits)}</span>
+            </div>
+            {data.traffic.topSearchEngines.slice(0, 3).map((s) => (
+              <div className={ui.tile} key={s.label}>
+                <span className={ui.tileLabel}>{s.label}</span>
+                <span className={`${ui.tileValue} tnum`}>{fa(s.visits)}</span>
+              </div>
+            ))}
+          </div>
+          {data.traffic.topLandingPages.length > 0 ? (
+            <div className={ui.tableWrap}>
+              <table className={ui.table}>
+                <thead>
+                  <tr>
+                    <th scope="col">صفحهٔ ورودی</th>
+                    <th scope="col">بازدید از جست‌وجو</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.traffic.topLandingPages.map((p) => (
+                    <tr key={p.path}>
+                      <td>
+                        <a href={p.path} target="_blank" rel="noreferrer">
+                          {p.path}
+                        </a>
+                      </td>
+                      <td className="tnum">{fa(p.visits)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <EmptyState size="inline" headline="در این بازه بازدید از جست‌وجو ثبت نشده" />
+          )}
+        </section>
+      ) : null}
+
       {hasPublished ? (
         <section className={ui.panel} aria-labelledby="seo-failing">
           <Heading level={2} id="seo-failing">
@@ -126,6 +176,39 @@ export function SeoDashboard() {
             </tbody>
           </table></div>
           )}
+        </section>
+      ) : null}
+
+      {data.hiddenActiveProducts > 0 ? (
+        <section className={ui.panel} aria-labelledby="seo-hidden">
+          <Heading level={2} id="seo-hidden">
+            محصولات فعال در زیردستهٔ غیرفعال
+          </Heading>
+          <Text color="muted">
+            این <strong className="tnum">{fa(data.hiddenActiveProducts)}</strong> محصول خودشان «فعال»اند ولی چون
+            زیردسته‌شان غیرفعال است، در هیچ صفحهٔ دسته، سایت‌مپ یا جست‌وجویی دیده نمی‌شوند — نه لزوماً باگ، شاید کاری
+            در حال ساخت باشد؛ تصمیم انتشار با شماست.
+          </Text>
+          <div className={ui.tableWrap}>
+            <table className={ui.table}>
+              <thead>
+                <tr>
+                  <th scope="col">دسته</th>
+                  <th scope="col">زیردسته</th>
+                  <th scope="col">محصول پنهان</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.hiddenByGroup.map((g) => (
+                  <tr key={`${g.category}/${g.subCategory}`}>
+                    <td>{g.category}</td>
+                    <td>{g.subCategory}</td>
+                    <td className="tnum">{fa(g.count)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>
       ) : null}
 

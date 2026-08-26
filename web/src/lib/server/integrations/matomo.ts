@@ -91,6 +91,71 @@ async function call<T>(params: Record<string, string>): Promise<T | null> {
  *  poll from every logged-in staff member. */
 const CACHE_TTL_SECONDS = 600;
 
+export interface MatomoSeoInsights {
+  /** Visits whose referrer type is specifically `search` — the traffic the
+   *  SEO panel exists to move, isolated from direct/social/campaign noise. */
+  organicVisits: number;
+  /** Landing pages organic-search visitors actually arrived on, largest
+   *  first — which content is winning in search right now, not just which
+   *  content passes an on-page checklist. */
+  topLandingPages: Array<{ path: string; visits: number }>;
+  topSearchEngines: Array<{ label: string; visits: number }>;
+}
+
+export async function matomoSeoInsights(days: number): Promise<MatomoSeoInsights | null> {
+  const cacheKey = `matomo:seo:${days}`;
+  const cached = await cacheGetJson<MatomoSeoInsights>(cacheKey);
+  if (cached) return cached;
+
+  const fresh = await fetchMatomoSeoInsights(days);
+  if (fresh) await cacheSetJson(cacheKey, fresh, jitterTtl(CACHE_TTL_SECONDS));
+  return fresh;
+}
+
+async function fetchMatomoSeoInsights(days: number): Promise<MatomoSeoInsights | null> {
+  const period = matomoPeriod(days);
+  const organicSegment = 'referrerType==search';
+  const [summary, entryPages, searchEngines] = await Promise.all([
+    call<{ nb_visits?: number }>({
+      method: 'VisitsSummary.get',
+      period: 'range',
+      date: period,
+      segment: organicSegment,
+    }),
+    call<Array<{ label?: string; nb_visits?: number }>>({
+      method: 'Actions.getEntryPageUrls',
+      period: 'range',
+      date: period,
+      segment: organicSegment,
+      flat: '1',
+    }),
+    call<Array<{ label?: string; nb_visits?: number }>>({
+      method: 'Referrers.getSearchEngines',
+      period: 'range',
+      date: period,
+    }),
+  ]);
+  if (!summary) return null;
+
+  return {
+    organicVisits: Number(summary.nb_visits ?? 0),
+    topLandingPages: Array.isArray(entryPages)
+      ? entryPages
+          .map((p) => ({ path: String(p.label ?? ''), visits: Number(p.nb_visits ?? 0) }))
+          .filter((p) => p.path && p.visits > 0)
+          .sort((a, b) => b.visits - a.visits)
+          .slice(0, 15)
+      : [],
+    topSearchEngines: Array.isArray(searchEngines)
+      ? searchEngines
+          .map((s) => ({ label: String(s.label ?? ''), visits: Number(s.nb_visits ?? 0) }))
+          .filter((s) => s.label && s.visits > 0)
+          .sort((a, b) => b.visits - a.visits)
+          .slice(0, 8)
+      : [],
+  };
+}
+
 export async function matomoSummary(days: number): Promise<MatomoSummary | null> {
   const cacheKey = `matomo:summary:${days}`;
   const cached = await cacheGetJson<MatomoSummary>(cacheKey);
