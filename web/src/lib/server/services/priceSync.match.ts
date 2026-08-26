@@ -521,6 +521,13 @@ const SIZE_COLUMNS: Readonly<Record<string, readonly string[]>> = {
   // ورق کرکره publishes ضخامت and عرض and no «سایز» at all; naming it here
   // stops a future column reshuffle from repointing this at the 1250 width.
   'انواع-ورق/ورق-کرکره': ['ضخامت'],
+  // markazeahan. Named explicitly for every page rather than left to the
+  // generic «سایز» fallback, because these tables lead with a «نام محصول» or a
+  // «وزن هر شاخه» column that the fallback would read as the size.
+  'markazeahan/aluminium-pipe': ['قطر(mm)'],
+  'markazeahan/aluminum-studs': ['نام محصول'],
+  'markazeahan/aluminum-channel-beam': ['سایز'],
+  'markazeahan/پروفیل-آلومینیم': ['ابعاد (mm)'],
 };
 
 /**
@@ -724,6 +731,19 @@ export const SOURCE_PATHS: Readonly<Record<string, readonly string[]>> = {
   // Our SKU records no ابعاد, so this lands on `ambiguous` every run — which
   // is the correct answer, and now a visible one.
   'sheet/perforated-black': ['انواع-ورق/ورق-پانچ-سیاه'],
+
+  // ---- markazeahan, the second source (US-05.3) ---------------------------
+  // The aluminium extrusions, and ONLY those: ahanonline's aluminium
+  // rebar/pipe/angle/profile pages are SEO shells that parse to zero priced
+  // rows, so these four families are the one thing a second source reaches
+  // that further work on the first cannot. `markazeahan.ts` carries the
+  // evidence, the two safety nets this source does not give us, and why
+  // `aluminum-rebar` is deliberately absent (their page's own «به روز رسانی»
+  // is 110 days old).
+  'felezat-rangi/aluminum-pipe': ['markazeahan/aluminium-pipe'],
+  'felezat-rangi/aluminum-angle': ['markazeahan/aluminum-studs'],
+  'felezat-rangi/aluminum-channel': ['markazeahan/aluminum-channel-beam'],
+  'felezat-rangi/aluminum-profile': ['markazeahan/پروفیل-آلومینیم'],
 };
 
 // ---------------------------------------------------------------------------
@@ -911,6 +931,19 @@ export const IDENTITY: Readonly<Record<string, IdentitySpec>> = {
   'sheet/grating': { columns: [], from: 'size-only' },
   'felezat-rangi/copper-strip': { columns: [], from: 'size-only' },
   'profile/congress': { columns: [], from: 'size-only' },
+
+  // The markazeahan aluminium families. Each page is one product line at ONE
+  // per-kg price across every size — which is how aluminium extrusion is sold
+  // here, ingot plus a conversion charge — and neither side publishes a mill
+  // that moves it. Verified 1405/06/03: لوله 640,000 on all 10 rows, نبشی
+  // 630,000 on all 6, ناودانی 630,000 on all 8, پروفیل 650,000 on all 7, and
+  // our own stored price equal to each. If they ever start pricing sizes or
+  // mills apart, the rows spread and the family skips — see `from:
+  // 'size-only'`.
+  'felezat-rangi/aluminum-pipe': { columns: [], from: 'size-only' },
+  'felezat-rangi/aluminum-angle': { columns: [], from: 'size-only' },
+  'felezat-rangi/aluminum-channel': { columns: [], from: 'size-only' },
+  'felezat-rangi/aluminum-profile': { columns: [], from: 'size-only' },
 };
 
 export function identitySpecFor(sku: MatchableSku): IdentitySpec | undefined {
@@ -974,6 +1007,18 @@ export const PRICE_BANDS: Readonly<Record<string, { min: number; max: number }>>
   // global band and is listed only so the pair reads as one decision).
   'felezat-rangi/copper-strip': { min: 800_000, max: 8_000_000 },
   'sheet/grating': { min: 50_000, max: 1_500_000 },
+  // The markazeahan families. These bands are NOT optional decoration: that
+  // source publishes the price once, with no rial reading to cross-validate
+  // against, so this is the only thing between a units change on their side
+  // and a 10× write. Observed 1405/06/03 — لوله 640,000, نبشی and ناودانی
+  // 630,000, پروفیل 650,000, all per kilogram — and kept to roughly ±40%
+  // rather than the usual near-10×, because aluminium extrusion trades in a
+  // narrow band around the ingot price and there is no second reading here to
+  // fall back on.
+  'felezat-rangi/aluminum-pipe': { min: 400_000, max: 1_000_000 },
+  'felezat-rangi/aluminum-angle': { min: 400_000, max: 1_000_000 },
+  'felezat-rangi/aluminum-channel': { min: 400_000, max: 1_000_000 },
+  'felezat-rangi/aluminum-profile': { min: 400_000, max: 1_000_000 },
   // قلع‌اندود is per kg at ~327,000 — inside the global band, no override
   // needed — and so are کرکره (~163,000), کنگره (~117,000) and حرارتی
   // (~77,000). They are deliberately absent from this map.
@@ -1178,6 +1223,14 @@ const STRICT_DIM_KEYS = new Set([
   // first number is never enough — same reasoning as چهارپهلو above.
   'steel/angle',
   'steel/profile',
+  // The markazeahan aluminium sections, quoted as their faces on both sides
+  // («۱٫۵×۲۰×۲۰» against «نبشی 1.5*20*20 آلومینیوم», «۲۰×۴۰» against «40*20»).
+  // Strict, so a shared first number is never enough — even though every row
+  // on these pages carries the same price today, a size rule that is only
+  // right by accident is one price change away from being wrong.
+  'felezat-rangi/aluminum-angle',
+  'felezat-rangi/aluminum-channel',
+  'felezat-rangi/aluminum-profile',
 ]);
 
 export function sizeMatches(sku: MatchableSku, row: AhanonlineRow): boolean {

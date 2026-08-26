@@ -24,6 +24,12 @@ import { getDb } from '@/lib/server/db/client';
 import { categories, currentPrices, skus, subCategories } from '@/lib/server/db/schema';
 import { fetchAhanonlinePrices, type FetchOptions } from '@/lib/server/integrations/ahanonline';
 import {
+  fetchMarkazeahanPrices,
+  markazeahanPath,
+  MARKAZEAHAN_TARGETS,
+  type MarkazeahanFetchOptions,
+} from '@/lib/server/integrations/markazeahan';
+import {
   matchSku,
   SKIP_REASONS,
   SOURCE_PATHS,
@@ -43,6 +49,18 @@ import { jalaliDayKey } from '@/lib/server/utils/jalali';
 import { evaluateAlerts } from '@/lib/server/services/alerts.service';
 import { reportError } from '@/lib/errors/report';
 
+/**
+ * The source recorded on a run and on every entry it writes.
+ *
+ * Still `ahanonline` even though a second site now contributes rows, because
+ * it names the RUN and the run mirrors both. The site behind an individual
+ * price is recoverable from `price_sync_entries.matched_name` and from the
+ * `SOURCE_PATHS` mapping for its sub-category — and the four families
+ * markazeahan feeds are ones ahanonline publishes nothing for at all, so there
+ * is no case where the two could be confused. Splitting the column would be a
+ * schema change that buys nothing today; the moment two sources can price the
+ * same SKU, it stops being true and this needs revisiting.
+ */
 const SOURCE = 'ahanonline' as const;
 
 export interface RunPriceSyncOptions {
@@ -51,6 +69,8 @@ export interface RunPriceSyncOptions {
   force?: boolean;
   /** Injected in tests; forwarded to the fetcher so nothing hits the network. */
   fetch?: FetchOptions;
+  /** Same, for the markazeahan half. */
+  fetchMarkazeahan?: MarkazeahanFetchOptions;
   now?: Date;
 }
 
@@ -159,10 +179,28 @@ export async function runPriceSync(opts: RunPriceSyncOptions = {}): Promise<Pric
     for (const c of candidates) {
       for (const p of SOURCE_PATHS[taxonomyKey(c)] ?? []) wantedPaths.add(p);
     }
-    const { rows, failures, pagesFetched } = await fetchAhanonlinePrices({
-      paths: [...wantedPaths],
+    // Split the wanted paths by source. `markazeahanPath` prefixes its own,
+    // and no ahanonline path can collide with that prefix — see its comment.
+    const markazeahanWanted = MARKAZEAHAN_TARGETS.map((t) => markazeahanPath(t.slug)).filter((p) =>
+      wantedPaths.has(p),
+    );
+    const ahanonlineWanted = [...wantedPaths].filter((p) => !p.startsWith('markazeahan/'));
+
+    const ahanonline = await fetchAhanonlinePrices({
+      paths: ahanonlineWanted,
       ...opts.fetch,
     });
+    // Sequential, not concurrent: two sites at once is twice the load for no
+    // benefit on a job that runs twice a day, and the delay between requests
+    // is the politeness contract with both of them.
+    const markazeahan =
+      markazeahanWanted.length > 0
+        ? await fetchMarkazeahanPrices({ paths: markazeahanWanted, ...opts.fetchMarkazeahan })
+        : { rows: [], failures: [], pagesFetched: 0 };
+
+    const rows = [...ahanonline.rows, ...markazeahan.rows];
+    const failures = [...ahanonline.failures, ...markazeahan.failures];
+    const pagesFetched = ahanonline.pagesFetched + markazeahan.pagesFetched;
 
     const matchConfig: MatchConfig = {
       minPriceToman: config.minPriceToman,
