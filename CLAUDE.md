@@ -21,7 +21,7 @@ Funnel: Magnet → Engage → Capture (پیش‌فاکتور / proforma) → Con
 | Payments | **None online.** Proforma + human close. |
 | Prices | 100% **admin-entered**. No bourse formula. Weight = deterministic formula. |
 | AI | **Parspack AI Studio** (`nvidia/nemotron-3-nano-omni-30b-a3b-reasoning`), server-side via an **out-of-Iran relay**. Grounded — never invents a number. Was DeepSeek until 1405/05; the owner changed provider when that relay hit a permanent HTTP 402. Env vars are provider-neutral (`AI_BASE_URL`/`AI_API_KEY`/`AI_MODEL`, legacy `DEEPSEEK_*` still accepted) — see `web/src/lib/server/integrations/aiRelayConfig.ts`. It is a REASONING model: `AI_REASONING_EFFORT` must stay capped or every tool round trip times out. |
-| Ticker | FX/gold/ounce from **tgju.org**; billet is admin-entered. |
+| Ticker | FX/gold from **BrsAPI** (api.brsapi.ir), ounce from gold-api.com; billet is admin-entered. |
 | Auth | Mobile number + **OTP**. |
 | SMS | **SMS.ir — OWNER-LOCKED.** Never propose another provider. |
 | Hosting | Hybrid — app + DB inside Iran, AI relay outside. |
@@ -37,7 +37,7 @@ Funnel: Magnet → Engage → Capture (پیش‌فاکتور / proforma) → Con
 /opt/ahantime/                 ← repo root AND the live production deploy dir
 ├─ docs/ product/ design/ brand/ foundation/   ← Layers 1–3 specs (the source of truth for intent)
 ├─ ops/                        ← ahantime-db-backup.sh (restic)
-├─ docker-compose.yml          ← web, db, redis, tgju, matomo(+db), caddy, glitchtip(×5)
+├─ docker-compose.yml          ← web, db, redis, matomo(+db), caddy, glitchtip(×5)
 ├─ Caddyfile                   ← TLS + host routing (ahantime.com, panel.ahantime.com)
 ├─ .env                        ← REAL SECRETS, gitignored. Never read into output or commit.
 ├─ DEPLOY.md · GEO-ROUTING.md · README.md

@@ -1,6 +1,6 @@
 /**
  * Minimal JSON-over-HTTP client for outbound integrations, shared by
- * `integrations/tgju.ts` and `integrations/esfahanahan.ts`.
+ * `integrations/marketRates.ts` and `integrations/esfahanahan.ts`.
  *
  * Deliberately `node:http(s)` rather than `fetch()`: Node's `fetch()`
  * resolves hostnames via the OS's `getaddrinfo()` and on this image's
@@ -9,12 +9,11 @@
  * which talks to the nameserver directly instead of going through musl,
  * resolves it instantly). `http(s).get`'s `lookup` option lets us swap in
  * `dns.resolve4` for just these calls, sidestepping the musl bug entirely
- * rather than chasing it via resolver/DNS-server config — Docker-internal
- * hostnames (the `tgju` service) are unaffected either way, they resolve
- * through the embedded 127.0.0.11 resolver, a different path.
+ * rather than chasing it via resolver/DNS-server config.
  *
- * This lived inline in `tgju.ts` until the billet source (esfahanahan.com)
- * needed the identical treatment; it is the same code, moved, not new.
+ * This lived inline in `marketRates.ts` (formerly `tgju.ts`) until the
+ * billet source (esfahanahan.com) needed the identical treatment; it is the
+ * same code, moved, not new.
  */
 import * as dns from 'node:dns';
 import * as http from 'node:http';

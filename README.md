@@ -64,7 +64,7 @@ This repository currently holds the **complete specification** across three laye
 - **Sales:** lead-gen + پیش‌فاکتور + human close — **no online payment (yet)**.
 - **Prices:** 100% **admin-entered** (manual استعلام); no bourse formula. Weight = deterministic formula.
 - **AI:** **DeepSeek**, server-side via an out-of-Iran relay; **grounded** (never invents a number).
-- **Ticker:** FX/gold/ounce from **tgju.org**; **billet admin-entered**.
+- **Ticker:** FX/gold from **BrsAPI**, ounce from gold-api.com; **billet admin-entered**.
 - **Auth:** mobile + **OTP**. **SMS:** SMS.ir (locked provider).
 - **Hosting:** hybrid — app/DB in Iran, AI relay outside.
 - **Audience:** co-primary **Contractor + Builder** (dual-mode).
