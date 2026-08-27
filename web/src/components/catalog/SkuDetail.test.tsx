@@ -84,3 +84,18 @@ describe('SkuDetail — «ابعاد» (ورق width×length)', () => {
     expect(screen.queryByRole('rowheader', { name: 'ابعاد' })).not.toBeInTheDocument();
   });
 });
+
+describe('SkuDetail — hero image alt text (SEO audit: was identical across every SKU in a category)', () => {
+  it('marks the shared category stock photo as a sample, not this exact product', () => {
+    // No `imageUrl` override → falls back to the category stock photo. Its alt
+    // text must say «نمونه» (sample) rather than claim to literally be
+    // «کالای آزمایشی», which the shared stock photo demonstrably is not.
+    renderDetail('rebar');
+    expect(screen.getByRole('img', { name: 'تصویر نمونه کالای آزمایشی' })).toBeInTheDocument();
+  });
+
+  it('drops «نمونه» once the admin has uploaded the SKU own real photo', () => {
+    renderDetail('rebar', { imageUrl: '/uploads/sku-1.webp' });
+    expect(screen.getByRole('img', { name: 'تصویر کالای آزمایشی' })).toBeInTheDocument();
+  });
+});

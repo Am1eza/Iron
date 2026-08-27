@@ -8,6 +8,7 @@ import { MOCK_CATEGORY_SUBS } from '@/lib/data/nav';
 import { getSubsMap } from '@/lib/data/catalog';
 import { getSetting, getVatRate } from '@/lib/server/repos/settingsRepo';
 import { factoryIsMeaningful, subCategorySubject } from '@/lib/utils/catalogLabels';
+import { toPersianDigits } from '@/lib/utils/format';
 import { DEFAULT_LOGISTICS_CONFIG, type LogisticsConfig } from '@/lib/data/logistics';
 import { shouldPrerenderMockParams } from '@/lib/server/seo/prerenderParams';
 import { Container, Section, Stack, Breadcrumbs, EmptyState, emptyPresets } from '@/components/ui';
@@ -33,7 +34,9 @@ export function generateStaticParams() {
   if (!shouldPrerenderMockParams()) return [];
   return mockCategories
     .filter((c) => c.isActive)
-    .flatMap((c) => (MOCK_CATEGORY_SUBS[c.slug] ?? []).map((s) => ({ category: c.slug, sub: s.slug })));
+    .flatMap((c) =>
+      (MOCK_CATEGORY_SUBS[c.slug] ?? []).map((s) => ({ category: c.slug, sub: s.slug })),
+    );
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
@@ -46,9 +49,27 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   }
   // «میلگرد آجدار», not «میلگرد آجدار میلگرد» — see subCategorySubject.
   const subject = subCategorySubject(name, cat.name);
+  // SEO audit: every sub-category page previously shared one identical meta
+  // description template with only `subject` swapped in, giving a searcher no
+  // page-specific signal to judge relevance from. `getSubRows` is the same
+  // query the page body already runs, so this is one extra call, not a new
+  // data source. Factory count only counts rows that actually publish one —
+  // several families (see `factoryIsMeaningful`) withhold it by design, and
+  // a description bragging «۰ کارخانه» would read as broken.
+  const rows = await getSubRows(category, sub);
+  const factoryCount = new Set(rows.map((r) => r.factory).filter((f): f is string => Boolean(f)))
+    .size;
+  const stats =
+    rows.length > 0
+      ? factoryCount > 0
+        ? `${toPersianDigits(rows.length)} کالا از ${toPersianDigits(factoryCount)} کارخانه`
+        : `${toPersianDigits(rows.length)} کالا`
+      : undefined;
   return buildMetadata({
     title: `قیمت روز ${subject}`,
-    description: `جدول قیمت روز ${subject} با نوسان، وزن شاخه، استاندارد و زمان تحویل در آهن‌تایم. اول مشورت، بعد خرید.`,
+    description: stats
+      ? `جدول قیمت روز ${subject}: ${stats}، به‌روزرسانی روزانه در آهن‌تایم. اول مشورت، بعد خرید.`
+      : `جدول قیمت روز ${subject} با نوسان، وزن شاخه، استاندارد و زمان تحویل در آهن‌تایم. اول مشورت، بعد خرید.`,
     path: routes.subCategory(category, sub),
   });
 }
@@ -126,7 +147,14 @@ export default async function SubCategoryPage({ params }: Params) {
                 vatRate={vatRate}
                 factoryOrder={factoryOrder}
               />
-              <BulkQuote category={category} categoryName={cat.name} rows={allRows} subs={subs} logisticsConfig={logisticsConfig} vatRate={vatRate} />
+              <BulkQuote
+                category={category}
+                categoryName={cat.name}
+                rows={allRows}
+                subs={subs}
+                logisticsConfig={logisticsConfig}
+                vatRate={vatRate}
+              />
             </>
           ) : (
             <EmptyState size="section" {...emptyPresets.emptyCategory()} />

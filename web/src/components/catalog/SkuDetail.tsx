@@ -20,7 +20,11 @@ import {
 } from '@/lib/utils/catalogLabels';
 import { formatJalali } from '@/lib/utils/jalali';
 import { trackGoal } from '@/lib/analytics/track';
-import { priceSeries as mockSeries, relatedRows as mockRelated, subName as mockSubName } from '@/lib/mock/catalogData';
+import {
+  priceSeries as mockSeries,
+  relatedRows as mockRelated,
+  subName as mockSubName,
+} from '@/lib/mock/catalogData';
 import { categories } from '@/lib/mock/fixtures';
 import type { SubCat } from '@/lib/data/nav';
 import type { PriceRow } from '@/lib/types/domain';
@@ -133,14 +137,14 @@ export function SkuDetail({
   // sentinel (see catalogRepo.toPriceRow) — must never be formatted as a
   // real number or fed into the billet-comparison math below.
   const hiddenLabel = priceHiddenLabel(row.current);
-  const price = vat
-    ? Math.round(row.current.price * (1 + vatRate))
-    : row.current.price;
+  const price = vat ? Math.round(row.current.price * (1 + vatRate)) : row.current.price;
 
   // US-03.3 — compared against the raw (VAT-free) price: billet itself has
   // no VAT toggle, so the ratio must stay stable regardless of the switch above.
   const billetDiffPct =
-    !hiddenLabel && billet && billet.value > 0 ? ((row.current.price - billet.value) / billet.value) * 100 : null;
+    !hiddenLabel && billet && billet.value > 0
+      ? ((row.current.price - billet.value) / billet.value) * 100
+      : null;
 
   const crumbs = [
     { label: 'خانه', href: routes.home() },
@@ -259,7 +263,9 @@ export function SkuDetail({
     // there is deliberately no «نامشخص» placeholder: most sheet SKUs have no
     // dimensions recorded yet, and a spec table full of «نامشخص» reads as a
     // broken page rather than an unanswered question.
-    ...(row.dimensions ? [{ label: DIMENSIONS_LABEL, value: toPersianDigits(row.dimensions) }] : []),
+    ...(row.dimensions
+      ? [{ label: DIMENSIONS_LABEL, value: toPersianDigits(row.dimensions) }]
+      : []),
     ...attrSpecs.map((a) => ({ label: a.label, value: a.value })),
     // Only when this product actually has a mill. The پروفیل sub-categories
     // whose stored factory names were fabricated publish none (see
@@ -324,7 +330,8 @@ export function SkuDetail({
               ) : null}
               {row.dimensions ? (
                 <li>
-                  {DIMENSIONS_LABEL} <strong className="tnum">{toPersianDigits(row.dimensions)}</strong>
+                  {DIMENSIONS_LABEL}{' '}
+                  <strong className="tnum">{toPersianDigits(row.dimensions)}</strong>
                 </li>
               ) : null}
               {attrCols.map((c) => {
@@ -360,13 +367,21 @@ export function SkuDetail({
             {/* The product's own photo when the admin uploaded one, else the
                 category stock image. Before W24 `row.imageUrl` was written by
                 the panel and read by nobody, so every product in a category
-                showed the same picture. */}
+                showed the same picture. Alt text stays honest either way: a
+                real per-product photo is described by the SKU's own full
+                name, but a shared category stock image describing itself as
+                that exact SKU would be a false claim — "نمونه" (sample/
+                representative) says what the image actually is while still
+                keeping the specific product name for search differentiation
+                (SEO audit: every SKU page previously shared one generic alt
+                string per category, e.g. "تصویر میلگرد" on all ~180 rebar
+                pages). */}
             {row.imageUrl || productImage(row.categoryId) ? (
               <figure className={styles.heroImage}>
                 <ProductImage
                   slug={row.categoryId}
                   src={row.imageUrl}
-                  name={row.imageUrl ? row.name : categoryName}
+                  name={row.imageUrl ? row.name : `نمونه ${row.name}`}
                   eager
                 />
               </figure>
@@ -446,7 +461,12 @@ export function SkuDetail({
               <AlertBellButton
                 variant="subtle"
                 size="md"
-                target={{ type: 'sku', skuId: row.id, label: row.name, currentValue: row.current.price }}
+                target={{
+                  type: 'sku',
+                  skuId: row.id,
+                  label: row.name,
+                  currentValue: row.current.price,
+                }}
               />
               <Tooltip content="اشتراک‌گذاری">
                 <IconButton
@@ -514,7 +534,16 @@ export function SkuDetail({
           sub-category the most mills quote — on a وال‌پست page that is
           «نبشی», so the panel compared a different product than the one the
           page is about. */}
-      <BulkQuote category={row.categoryId} categoryName={categoryName} rows={categoryRows} subs={categorySubs} defaultSub={row.subCategoryId} defaultSize={row.size} logisticsConfig={logisticsConfig} vatRate={vatRate} />
+      <BulkQuote
+        category={row.categoryId}
+        categoryName={categoryName}
+        rows={categoryRows}
+        subs={categorySubs}
+        defaultSub={row.subCategoryId}
+        defaultSize={row.size}
+        logisticsConfig={logisticsConfig}
+        vatRate={vatRate}
+      />
 
       {/* ===== Related ===== */}
       {related.length > 0 ? (
