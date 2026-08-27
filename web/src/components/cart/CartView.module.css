@@ -119,7 +119,8 @@
   padding: var(--space-2) var(--space-4);
   min-block-size: 40px;
   cursor: pointer;
-  transition: background var(--dur-fast) var(--ease-standard),
+  transition:
+    background var(--dur-fast) var(--ease-standard),
     color var(--dur-fast) var(--ease-standard),
     border-color var(--dur-fast) var(--ease-standard);
 }
@@ -231,6 +232,24 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+}
+
+/* ===== Mobile: reserve room for the fixed bottom tab bar =====
+   Mobile audit finding (1405/06/06): with a short cart (e.g. one item) on a
+   390x844 viewport, `.summaryCard` — and with it the primary CTA,
+   "ورود و ادامه ثبت درخواست" — landed with its bottom ~19px UNDER
+   BottomTabBar (fixed, `--bottom-bar-h` tall on mobile). Confirmed live via
+   elementFromPoint on that overlap: the tap target there resolved to the
+   tab bar's own AI-chat link, not the CTA underneath it — the single most
+   important conversion action on the whole mobile site was silently
+   swallowing taps. Same fix Footer.module.css already applies to itself as
+   the page's last in-flow element; CartView needs its own copy because its
+   content can end the page first on a short cart. */
+@media (max-width: 767px) {
+  .layout,
+  .skeleton {
+    padding-block-end: calc(var(--bottom-bar-h) + var(--space-4));
+  }
 }
 
 /* ===== Desktop: two columns, sticky summary ===== */
