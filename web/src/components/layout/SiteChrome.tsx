@@ -13,7 +13,7 @@ import { isPromoSuppressedPath } from '@/components/club/arrivalPopupRoutes';
 // need to ship in the shared bundle every visitor downloads (see
 // components/lazy.ts).
 import { MobileDrawer, ArrivalPopup, CartReminder } from '@/components/lazy';
-import type { Category } from '@/lib/types/domain';
+import type { Category, MarketValue } from '@/lib/types/domain';
 import type { SubsMap } from '@/lib/data/catalog';
 
 /**
@@ -40,9 +40,20 @@ function onPanelHost(): boolean {
   return typeof window !== 'undefined' && window.location.hostname === 'panel.ahantime.com';
 }
 
-export function SiteChromeTop({ categories, subs }: { categories: Category[]; subs: SubsMap }) {
+export function SiteChromeTop({
+  categories,
+  subs,
+  initialMarketValues,
+}: {
+  categories: Category[];
+  subs: SubsMap;
+  /** Server-fetched ticker values — see layout.tsx's comment. Undefined on
+   *  a DB hiccup; Ticker already has its own zero-value placeholder for that. */
+  initialMarketValues?: MarketValue[];
+}) {
   const pathname = usePathname();
-  if (onPanelHost() || pathname?.startsWith('/admin') || pathname?.startsWith('/panel-login')) return null;
+  if (onPanelHost() || pathname?.startsWith('/admin') || pathname?.startsWith('/panel-login'))
+    return null;
   // Same reasoning CartReminder's own suppression check already applies —
   // gating it here too (not just inside the component) means its lazy chunk
   // is never even fetched on a page it would render null on anyway, same
@@ -50,7 +61,7 @@ export function SiteChromeTop({ categories, subs }: { categories: Category[]; su
   const suppressCartReminder = isPromoSuppressedPath(pathname);
   return (
     <>
-      <Ticker />
+      <Ticker initialValues={initialMarketValues} />
       <Header categories={categories} subs={subs} />
       {!suppressCartReminder && <CartReminder />}
       <MobileDrawer categories={categories} subs={subs} />
@@ -58,9 +69,16 @@ export function SiteChromeTop({ categories, subs }: { categories: Category[]; su
   );
 }
 
-export function SiteChromeBottom({ categories, contact }: { categories: Category[]; contact: SiteContact }) {
+export function SiteChromeBottom({
+  categories,
+  contact,
+}: {
+  categories: Category[];
+  contact: SiteContact;
+}) {
   const pathname = usePathname();
-  if (onPanelHost() || pathname?.startsWith('/admin') || pathname?.startsWith('/panel-login')) return null;
+  if (onPanelHost() || pathname?.startsWith('/admin') || pathname?.startsWith('/panel-login'))
+    return null;
   // /ai's own composer is fixed to the same bottom-inline-end corner as this
   // FAB — on mobile they occupied the exact same pixel box, and the FAB won
   // the stacking order, silently swallowing every tap meant for the chat's

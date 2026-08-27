@@ -30,16 +30,74 @@ import Link from 'next/link';
  * fake price at the top of the page would be worse than an obvious placeholder.
  */
 const PLACEHOLDER: MarketValue[] = [
-  { key: 'usd', label: 'دلار', value: 0, unit: 'تومان', source: 'tgju', movementDir: 'flat', movementPct: 0, updatedAt: '', isStale: true },
-  { key: 'eur', label: 'یورو', value: 0, unit: 'تومان', source: 'tgju', movementDir: 'flat', movementPct: 0, updatedAt: '', isStale: true },
-  { key: 'gold18', label: 'طلای ۱۸', value: 0, unit: 'تومان', source: 'tgju', movementDir: 'flat', movementPct: 0, updatedAt: '', isStale: true },
-  { key: 'ounce', label: 'انس جهانی', value: 0, unit: 'دلار', source: 'tgju', movementDir: 'flat', movementPct: 0, updatedAt: '', isStale: true },
-  { key: 'billet', label: 'شمش فولاد', value: 0, unit: 'تومان', source: 'admin', movementDir: 'flat', movementPct: 0, updatedAt: '', isStale: true },
+  {
+    key: 'usd',
+    label: 'دلار',
+    value: 0,
+    unit: 'تومان',
+    source: 'tgju',
+    movementDir: 'flat',
+    movementPct: 0,
+    updatedAt: '',
+    isStale: true,
+  },
+  {
+    key: 'eur',
+    label: 'یورو',
+    value: 0,
+    unit: 'تومان',
+    source: 'tgju',
+    movementDir: 'flat',
+    movementPct: 0,
+    updatedAt: '',
+    isStale: true,
+  },
+  {
+    key: 'gold18',
+    label: 'طلای ۱۸',
+    value: 0,
+    unit: 'تومان',
+    source: 'tgju',
+    movementDir: 'flat',
+    movementPct: 0,
+    updatedAt: '',
+    isStale: true,
+  },
+  {
+    key: 'ounce',
+    label: 'انس جهانی',
+    value: 0,
+    unit: 'دلار',
+    source: 'tgju',
+    movementDir: 'flat',
+    movementPct: 0,
+    updatedAt: '',
+    isStale: true,
+  },
+  {
+    key: 'billet',
+    label: 'شمش فولاد',
+    value: 0,
+    unit: 'تومان',
+    source: 'admin',
+    movementDir: 'flat',
+    movementPct: 0,
+    updatedAt: '',
+    isStale: true,
+  },
 ];
-export function Ticker() {
+export function Ticker({ initialValues }: { initialValues?: MarketValue[] }) {
   const { data } = useMarket();
   const reduced = useReducedMotion();
-  const values = data?.values?.length ? data.values : PLACEHOLDER;
+  // Real server-fetched values (see layout.tsx) beat the all-zero PLACEHOLDER
+  // for the render(s) before the client's own poll lands — this is what
+  // actually reaches a non-JS crawler and what a real visitor's first paint
+  // shows, instead of a guaranteed-wrong "0 / 0.00%".
+  const values = data?.values?.length
+    ? data.values
+    : initialValues?.length
+      ? initialValues
+      : PLACEHOLDER;
 
   // Duplicate the set so the marquee loops seamlessly (the second copy is decorative).
   const items = reduced ? values : [...values, ...values];
@@ -65,7 +123,9 @@ function TickerItem({ v, decorative }: { v: MarketValue; decorative: boolean }) 
     v.movementDir === 'up' ? styles.up : v.movementDir === 'down' ? styles.down : styles.flat;
   const arrow = v.movementDir === 'up' ? '▲' : v.movementDir === 'down' ? '▼' : '•';
   const valueText =
-    v.unit === 'تومان' ? formatToman(v.value, false) : toPersianDigits(v.value.toLocaleString('en-US'));
+    v.unit === 'تومان'
+      ? formatToman(v.value, false)
+      : toPersianDigits(v.value.toLocaleString('en-US'));
 
   return (
     <li className={styles.item} aria-hidden={decorative ? 'true' : undefined}>

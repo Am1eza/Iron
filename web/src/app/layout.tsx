@@ -6,6 +6,8 @@ import { ThemeScript } from '@/components/theme/ThemeScript';
 import { getCategories, getSubsMap } from '@/lib/data/catalog';
 import { SiteChromeTop, SiteChromeBottom } from '@/components/layout/SiteChrome';
 import { getContact } from '@/lib/server/contact';
+import { listMarketValues } from '@/lib/server/repos/marketRepo';
+import { hasDb } from '@/lib/server/db/client';
 import { RouteAnnouncer } from '@/components/a11y/RouteAnnouncer';
 import { vazirmatn, inter } from '@/lib/theme/fonts';
 import { LocaleProvider } from '@/i18n/LocaleProvider';
@@ -55,7 +57,9 @@ export const metadata: Metadata = {
   },
   robots: { index: true, follow: true },
   // Google Search Console ownership proof — active only when the env is set.
-  ...(process.env.GSC_VERIFICATION ? { verification: { google: process.env.GSC_VERIFICATION } } : {}),
+  ...(process.env.GSC_VERIFICATION
+    ? { verification: { google: process.env.GSC_VERIFICATION } }
+    : {}),
 };
 
 export const viewport: Viewport = {
@@ -80,6 +84,17 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const categories = await getCategories();
   const subs = await getSubsMap();
   const contact = await getContact();
+  // SEO audit: the ticker used to render a literal "0 / 0.00%" placeholder
+  // in the server-rendered HTML for every one of ~1200 pages until the
+  // client hydrated and polled `/api/market` a moment later — a real user
+  // saw a flash of it, and anything that reads raw HTML without running JS
+  // (most non-Google crawlers, some AI answer engines) saw only false
+  // financial data. `listMarketValues()` is the exact same Redis-cached
+  // (30s) read `/api/market` itself calls, so this adds no new load path —
+  // just runs it once more, server-side, before the first paint. Errors
+  // are swallowed the same way `hasDb()` gates the API route: a market
+  // hiccup must not take the whole site down through the root layout.
+  const initialMarketValues = hasDb() ? await listMarketValues().catch(() => undefined) : undefined;
   return (
     <html
       lang="fa"
@@ -96,7 +111,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <LocaleProvider defaultMessages={faMessages}>
           <AppProviders>
             <AuthHydrator />
-            <SiteChromeTop categories={categories} subs={subs} />
+            <SiteChromeTop
+              categories={categories}
+              subs={subs}
+              initialMarketValues={initialMarketValues}
+            />
             <main id="main" tabIndex={-1}>
               {children}
             </main>

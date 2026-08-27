@@ -70,7 +70,9 @@ async function refreshRedirectCacheIfStale(): Promise<void> {
   if (!hasDb()) return;
   try {
     const rows = await adminListRedirects();
-    redirectCache = new Map(rows.map((r) => [r.fromPath, { toPath: r.toPath, permanent: r.permanent }]));
+    redirectCache = new Map(
+      rows.map((r) => [r.fromPath, { toPath: r.toPath, permanent: r.permanent }]),
+    );
     redirectsEverLoaded = true;
   } catch {
     // A DB hiccup must never break normal traffic — keep serving whatever
@@ -108,7 +110,28 @@ export async function middleware(req: NextRequest) {
   // One predicate, shared with resolvePanelRouting — a raw `===` here and a
   // normalized match there would let the two disagree about the same request.
   const onPanelHost = isPanelHost(req.headers.get('host'));
-  const { shouldPrefix, effectivePathname } = resolvePanelRouting(req.headers.get('host'), req.nextUrl.pathname);
+
+  // SEO audit: panel.ahantime.com served the PUBLIC site's static robots.ts
+  // output verbatim (same file, no host branching) — `Allow: /` for every
+  // crawler, plus a `Sitemap:` line advertising ahantime.com's own sitemap
+  // from the admin subdomain. The real protection is the `X-Robots-Tag:
+  // noindex, nofollow` header (next.config.mjs) and it already works
+  // correctly, so nothing was actually exposed — but a from-scratch crawler
+  // reading robots.txt alone has no signal AT ALL that this host is off
+  // limits, which is the opposite of every other admin-surface convention
+  // in this codebase (see the /admin comment below: hide, don't reveal).
+  // Returned before any other branch — this must never interact with the
+  // redirect/404/auth logic that follows, and a static two-line body can't.
+  if (onPanelHost && req.nextUrl.pathname === '/robots.txt') {
+    return new NextResponse('User-agent: *\nDisallow: /\n', {
+      headers: { 'content-type': 'text/plain' },
+    });
+  }
+
+  const { shouldPrefix, effectivePathname } = resolvePanelRouting(
+    req.headers.get('host'),
+    req.nextUrl.pathname,
+  );
 
   // Redirects (US-14.3) are a public-site SEO concern — never checked on the
   // panel host, where every path is already spoken for by the admin rewrite.
@@ -155,7 +178,11 @@ export async function middleware(req: NextRequest) {
     // the same technique `/__admin_denied__` below already relies on.
     if (hasGuardedPrefix(req.nextUrl.pathname)) {
       await refreshKnownPathsIfStale();
-      if (shouldNotFound(req.nextUrl.pathname, knownPathCache, { redirectsLoaded: redirectsEverLoaded })) {
+      if (
+        shouldNotFound(req.nextUrl.pathname, knownPathCache, {
+          redirectsLoaded: redirectsEverLoaded,
+        })
+      ) {
         const url = req.nextUrl.clone();
         // An archive page that does not exist is not a fabricated URL — it is
         // a real position in a list that shrank, or one that has not entered
@@ -236,7 +263,8 @@ export async function middleware(req: NextRequest) {
     // Rewriting to one lets the same not-found.tsx UI render with the
     // correct status, without duplicating that page's markup here.
     const permission = permissionForAdminPath(effectivePathname);
-    const authorized = can(claims.role, 'admin:access') && (!permission || can(claims.role, permission));
+    const authorized =
+      can(claims.role, 'admin:access') && (!permission || can(claims.role, permission));
     if (!authorized) {
       const url = req.nextUrl.clone();
       url.pathname = '/__admin_denied__';
