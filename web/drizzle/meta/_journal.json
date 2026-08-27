@@ -316,6 +316,13 @@
       "when": 1787507310520,
       "tag": "0044_volume_discount_tiers",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1787723524282,
+      "tag": "0045_price_is_estimated",
+      "breakpoints": true
     }
   ]
 }

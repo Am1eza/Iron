@@ -30,6 +30,11 @@ import styles from './priceSync.module.css';
  */
 const REASON_LABEL: Record<string, string> = {
   'write:exact': 'ثبت شد — کارخانه و سایز دقیقاً مطابق',
+  // The nearest-analog write (US-05.3). Worded to say exactly what happened —
+  // the size matched, the mill did not, and the mills the source DOES publish
+  // agreed closely enough that their median is the market price — because the
+  // owner has to be able to tell this apart from an exact mirror at a glance.
+  'write:nearest-analog': 'قیمت تخمینی بر اساس نزدیک‌ترین محصول مشابه',
   'skip:manual-override': 'دستی نگه داشته شده',
   'skip:no-source-mapping': 'این زیرشاخه در منبع پوشش ندارد',
   'skip:sku-not-per-kg': 'قیمت این کالا کیلوگرمی نیست',
@@ -249,7 +254,20 @@ export function PriceSyncPanel() {
                       )}
                     </td>
                     <td>
-                      <Badge tone={e.outcome === 'written' ? 'success' : 'neutral'}>
+                      <Badge
+                        tone={
+                          e.reason === 'write:nearest-analog'
+                            ? // `warning`, not `success`: an estimate is a
+                              // weaker claim than a mirrored price and the two
+                              // must not read the same down a column of 500
+                              // rows. Colour is paired with its own wording, so
+                              // the distinction survives without it too.
+                              'warning'
+                            : e.outcome === 'written'
+                              ? 'success'
+                              : 'neutral'
+                        }
+                      >
                         {REASON_LABEL[e.reason] ?? e.reason}
                       </Badge>
                     </td>

@@ -169,13 +169,14 @@ export async function runPriceSync(opts: RunPriceSyncOptions = {}): Promise<Pric
       maxPriceToman: config.maxPriceToman,
       maxCandidateSpreadPct: config.maxCandidateSpreadPct,
       maxSourceAgeDays: config.maxSourceAgeDays,
+      maxAnalogSpreadPct: config.maxAnalogSpreadPct,
       now,
     };
     const today = todayJalaliTriple(now);
 
     // ---- decide -----------------------------------------------------------
     const entries: NewSyncEntry[] = [];
-    const toWrite: Array<{ skuId: string; price: number; entryIndex: number }> = [];
+    const toWrite: Array<{ skuId: string; price: number; estimated: boolean; entryIndex: number }> = [];
     const skipReasons: Record<string, number> = {};
 
     const baseEntry = (sku: CandidateSku): NewSyncEntry => ({
@@ -228,7 +229,16 @@ export async function runPriceSync(opts: RunPriceSyncOptions = {}): Promise<Pric
         reason: result.reason,
         newPrice: result.priceToman,
       });
-      toWrite.push({ skuId: sku.id, price: result.priceToman, entryIndex });
+      toWrite.push({
+        skuId: sku.id,
+        price: result.priceToman,
+        // Carried into `current_prices.price_is_estimated`. A nearest-analog
+        // price is the market rate for this size from other mills, not the
+        // competitor's price for this product, and the admin has to be able to
+        // tell the two apart at a glance (US-05.3).
+        estimated: result.estimated,
+        entryIndex,
+      });
     }
 
     // ---- write ------------------------------------------------------------
@@ -236,7 +246,7 @@ export async function runPriceSync(opts: RunPriceSyncOptions = {}): Promise<Pric
     // is preferable to a synthetic staff account.
     const saveResults = await savePrices(
       null,
-      toWrite.map((w) => ({ skuId: w.skuId, price: w.price })),
+      toWrite.map((w) => ({ skuId: w.skuId, price: w.price, isEstimated: w.estimated })),
     );
 
     let written = 0;
