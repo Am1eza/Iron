@@ -876,8 +876,21 @@ export async function searchSkus(q: string, limit = 20): Promise<PriceRow[]> {
       // admin-set popularity/display signal the taxonomy rail and search
       // filters already sort by — breaks the tie toward the common
       // sub-category, and raw similarity still settles anything left over.
+      //
+      // Mobile-audit finding (1405/06/06): 2-decimal rounding wasn't coarse
+      // enough for a BARE category query with no size — «میلگرد» alone
+      // scored «میلگرد استیل … هند» at 0.37 and «میلگرد آجدار …», the
+      // catalog's single highest-traffic sub-category, at 0.35. Two
+      // different buckets at 2 decimals, so the order tie-break above never
+      // ran and the niche variant won outright. Rounding to 1 decimal
+      // merges that specific gap into one bucket (both 0.4) without
+      // flattening real distinctions — checked live against every other
+      // top-level category's own bare-word query (تیرآهن, پروفیل, ورق,
+      // لوله, استیل, نبشی) and each one's own top results already shared a
+      // single sub-category at this precision, so nothing that used to be
+      // correctly separated gets merged.
       .orderBy(
-        desc(sql`round(similarity(${skus.name}, ${trimmed})::numeric, 2)`),
+        desc(sql`round(similarity(${skus.name}, ${trimmed})::numeric, 1)`),
         asc(subCategories.order),
         desc(sql`similarity(${skus.name}, ${trimmed})`),
       )
