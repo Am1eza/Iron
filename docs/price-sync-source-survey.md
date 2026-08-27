@@ -237,3 +237,125 @@ The survey scripts were one-off and are not committed. To redo it:
 
 Step 3 is the one worth repeating periodically: this whole gap existed because
 a page list captured once in 1405/05 was never checked again.
+
+---
+
+## 8. Third pass — 1405/06/03 (2026-08-26)
+
+§7 said step 3 was "the one worth repeating periodically". It had not been
+repeated. Repeating it accounts for most of what was still missing.
+
+### 8.1 The sitemap diff, run again
+
+`sitemap/product-types/1/index.xml` lists **350** `/product-category/` pages
+today. **51** were mapped. Filtering the other 299 to lines our catalogue
+carries and parsing each with `parseAhanonlinePage` found a live, priced page
+for nearly every sub-category the previous two passes had recorded as having
+no source at all:
+
+| Our line | SKUs | Page | Rows | Result |
+|---|---:|---|---:|---|
+| وال پست | 8 | `نبشی-و-ناودانی/وال-پست` | 8 | 8/8 |
+| تسمه مسی | 18 | `انواع-ورق/تسمه-مسی` | 18 | 18/18 |
+| لوله مسی | 15 | `انواع-لوله/لوله-مسی` | 54 | 15/15 |
+| میلگرد حرارتی | 7 | `میلگرد/قیمت-میلگرد/میلگرد-ساده/میلگرد-حرارتی` | 9 | 7/7 |
+| ورق کرکره | 6 | `انواع-ورق/ورق-کرکره` | 9 | 5/6 |
+| قلع‌اندود | 6 | `انواع-ورق/قلع-اندود` | 8 | 6/6 |
+| پروفیل کنگره | 6 | `انواع-پروفیل/پروفیل-کنگره` | 6 | 6/6 |
+| ساندویچ پانل | 4 | `انواع-ورق/ساندویچ-پانل` | 6 | 4/4 |
+| گریتینگ | 1 | `انواع-ورق/گریتینگ/گریتینگ-گالوانیزه` | 4 | 1/1 |
+| ورق پانچ سیاه | 1 | `انواع-ورق/ورق-پانچ-سیاه` | 2 | 0/1 — see below |
+
+The strongest evidence that these mappings are right rather than merely
+permissive is that each family lands on a **single constant delta** against our
+stored price, which is what a hand-seeded catalogue that has not been refreshed
+looks like: تسمه مسی 0.0% × 18, ساندویچ پانل 0.0% × 4, وال پست 5.0% × 7,
+کرکره 5.3% × 5, قلع‌اندود 7.5% × 5, کنگره 7.5% × 6, گریتینگ 4.7%. لوله مسی
+lands on 13.1% / 16.8% / 19.7% by mill — which is ahanonline's own published
+نوسانات for باهنر, بابک and مهر اصل that day.
+
+### 8.2 Checked and deliberately not mapped
+
+| Page | Why not |
+|---|---|
+| `آلومینیوم/میلگرد-آلومینیوم`, `آلومینیوم/لوله-آلومینیوم`, `آلومینیوم/نبشی-آلومینیوم`, `آلومینیوم/سپری-آلومینیوم`, `انواع-پروفیل/پروفیل-آلومینیوم`, `لوله-آلومینیوم-2`, `میلگرد-مسی`, `بوشن-مسی`, `مس`, `آلومینیوم`, `استنلس-استیل/تسمه-استنلس-استیل` | Resolve, parse to **zero** priced rows. SEO shells. Unchanged from the second pass. |
+| `انواع-ورق/ورق-آلومینیوم-رنگی` | 14 priced rows but «تاریخ بروزرسانی» 1405/5/20 — fourteen days stale, so `maxSourceAgeDays` refuses every row anyway. Worth re-checking if they resume maintaining it. |
+| `تیرآهن-و-هاش/تیرآهن/تیرآهن-لانه-زنبوری` | 5 priced rows, all «شاخه». Our 4 لانه‌زنبوری SKUs are per-kg, so mirroring needs `theoretical_weight_kg` — the conversion this job never does. |
+| `نبشی-و-ناودانی/نبشی/*` and `.../ناودانی/*` per-mill children (20 pages) | Fetched and parsed. They add اصفهان, اروپا, سپهر ایرانیان, کوهپایه, ابهر — but of our skipped نبشی/ناودانی SKUs only one mill (سپهر ایرانیان, 3 rows) is reachable that way, and ظهوریان/دهشیر یزد have no child page at all. 20 fetches per run for ~1 SKU. Not worth it; the nearest-analog fallback covers those families instead. |
+
+`انواع-ورق/ورق-پانچ-سیاه` **is** mapped, and lands on `ambiguous` every run —
+deliberately. Its two rows are both ضخامت 2 فولاد مبارکه and differ only by
+ابعاد (1000×2000 at 3,438,182 against 1250×2500 at 5,345,455, a 55% spread);
+our SKU records no ابعاد. Mapping it makes the admin log say *why* instead of
+saying nothing.
+
+### 8.3 markazeahan.com — the second source, and the first one that was needed
+
+The second pass reported markazeahan as "no gap keywords found on the
+homepage". That was true of the homepage and false of the site: it carries
+dedicated `/product-category/` pages for every aluminium extrusion line, which
+is the one thing ahanonline publishes nothing for.
+
+| Our line | SKUs | Page | Ours | Theirs |
+|---|---:|---|---:|---:|
+| لوله آلومینیوم | 13 | `aluminium-pipe` | 640,000 | 640,000 |
+| نبشی آلومینیوم | 7 | `aluminum-studs` | 630,000 | 630,000 |
+| ناودانی آلومینیوم | 8 | `aluminum-channel-beam` | 630,000 | 630,000 |
+| پروفیل آلومینیوم | 4 | `پروفیل-آلومینیم` | 650,000 | 650,000 |
+
+Each line is one per-kg price across every size — ingot plus a conversion
+charge, which is how aluminium extrusion is sold here.
+
+Two safety nets this source does **not** give us, both load-bearing:
+
+1. **No `data-price`.** ahanonline publishes the price twice (rial attribute,
+   toman text) and the parser refuses any row where the two disagree. This one
+   publishes it once, so `PRICE_BANDS` is the only thing between a units change
+   and a 10× write. All four families carry a band, at ±40% rather than the
+   usual near-10×.
+2. **The freshness date is per page, not per row.** It is stamped onto every
+   row so the existing `maxSourceAgeDays` gate works unchanged, and a page that
+   *loses* the stamp parses to zero rows and is reported as a failed fetch.
+
+Their price cell leads with the day's movement — «+ 2.4% 630,000» — so
+`priceFromCell` takes the last thousands-grouped run and requires the grouping.
+Read left to right that cell gives 2.
+
+**`aluminum-rebar` is not mapped**, and this is the pass's most important
+negative. Its flat 620,000 equals what our 57 میلگرد آلومینیوم SKUs hold, but
+its own «به روز رسانی» reads **1405/02/12** — ~110 days — and 30 of its 40 rows
+say «تماس بگیرید». That is two stale numbers agreeing, not a live quote;
+ahanyekta's equivalent page is staler still (1404/03/07). Aluminium rebar is
+not a line the Iranian aggregators keep current.
+
+Robots: markazeahan disallows `/api/`, `/rest/`, `/shop/`, `/category/`,
+`/productbox/` and every `*?*` URL. `/product-category/` is not disallowed and
+is the only thing requested.
+
+### 8.4 Precedence
+
+§6 said "if a second source is ever added, `price_sync_runs.source` … already
+exist to record which one won a given write." In practice **no precedence rule
+was needed**: markazeahan is mapped only to four families ahanonline publishes
+nothing for, so no SKU can be priced by both. `price_sync_runs.source` stays
+`ahanonline` because it names the *run*, and the service comment records what
+has to change the day two sources can reach the same SKU.
+
+Rows carry `sourcePath = markazeahan/<slug>`; ahanonline's paths are Persian
+category names, so the prefix routes each path to exactly one fetcher. A test
+asserts the two sets stay disjoint.
+
+### 8.5 Cadence
+
+Still unchanged. The new ahanonline pages publish same-day «تاریخ بروزرسانی»;
+markazeahan's four mapped pages read 1405/06/03 and 1405/05/28, inside the
+existing 10-day gate.
+
+### 8.6 Reproducing this pass
+
+1. Steps 1–3 of §7, against the current sitemap — this is the step that keeps
+   paying and the one that keeps being skipped.
+2. For markazeahan: `GET /product-category/<slug>/`, parse with
+   `parseMarkazeahanPage`, and **read the page's «به روز رسانی» stamp before
+   trusting any number on it.** That single check is what separates the four
+   pages worth mapping from the one that is not.
