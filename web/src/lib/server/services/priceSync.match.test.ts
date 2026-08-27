@@ -11,6 +11,16 @@
  */
 import { describe, it, expect } from 'vitest';
 import { AHANONLINE_TARGETS, type AhanonlineRow } from '@/lib/server/integrations/ahanonline';
+import { MARKAZEAHAN_TARGETS, markazeahanPath } from '@/lib/server/integrations/markazeahan';
+
+/** Every page EITHER fetcher requests. The mirror reads two sites now, so the
+ *  "mapped but never fetched" invariant has to span both — a rule pointed at a
+ *  page no fetcher asks for produces «سایز مطابقی پیدا نشد» for that whole
+ *  sub-category forever, and does it silently. */
+const FETCHED_PATHS = new Set<string>([
+  ...AHANONLINE_TARGETS.map((t) => t.path),
+  ...MARKAZEAHAN_TARGETS.map((t) => markazeahanPath(t.slug)),
+]);
 import {
   allMappedSourcePaths,
   ANALOG_WRITE_REASON,
@@ -161,13 +171,20 @@ describe('the taxonomy mapping is keyed on slugs', () => {
     ]);
   });
 
-  it('only maps pages the fetcher actually requests', () => {
-    // Without this, adding a mapping for a page missing from AHANONLINE_TARGETS
+  it('only maps pages some fetcher actually requests', () => {
+    // Without this, adding a mapping for a page missing from both target lists
     // would silently produce «سایز مطابقی پیدا نشد» for that whole sub-category
     // forever — the page is never fetched, so there is nothing to match.
-    const fetched = new Set(AHANONLINE_TARGETS.map((t) => t.path));
-    const missing = allMappedSourcePaths().filter((p) => !fetched.has(p));
+    const missing = allMappedSourcePaths().filter((p) => !FETCHED_PATHS.has(p));
     expect(missing).toEqual([]);
+  });
+
+  it('routes a path to exactly one source by its prefix', () => {
+    // How `runPriceSync` splits the work between the two fetchers. ahanonline's
+    // paths are Persian category names; markazeahan's are prefixed. A path that
+    // satisfied both tests would be fetched twice and double every row.
+    for (const t of AHANONLINE_TARGETS) expect(t.path.startsWith('markazeahan/')).toBe(false);
+    for (const t of MARKAZEAHAN_TARGETS) expect(markazeahanPath(t.slug).startsWith('markazeahan/')).toBe(true);
   });
 
   it('leaves lines the competitor does not sell unmapped', () => {
@@ -183,9 +200,19 @@ describe('the taxonomy mapping is keyed on slugs', () => {
     // published their unit. All three had a page the whole time — see the
     // third-pass block in `SOURCE_PATHS` — and the units they are quoted in
     // are now mirrored as themselves rather than converted.
-    for (const subCategorySlug of ['aluminum-rebar', 'aluminum-pipe', 'aluminum-angle', 'aluminum-profile']) {
-      expect(sourcePathsForSku(sku({ categorySlug: 'felezat-rangi', subCategorySlug }))).toBeUndefined();
-    }
+    // میلگرد آلومینیوم, and by now only that. ahanonline's aluminium pages are
+    // SEO shells that parse to zero priced rows, and the four extrusion lines
+    // that markazeahan does maintain are mapped there instead — but ITS
+    // aluminium-rebar page reads «به روز رسانی ۱۴۰۵/۰۲/۱۲», about 110 days
+    // stale, with 30 of its 40 rows saying «تماس بگیرید». Its 620,000 equals
+    // our stored price because both stopped moving, not because it is a live
+    // quote; ahanyekta's equivalent is staler still (1404/03/07). The
+    // freshness gate would refuse every row anyway, so the page is left
+    // unmapped rather than fetched twice a day to be thrown away, and those 57
+    // SKUs are reported as unpriceable instead of given a number.
+    expect(
+      sourcePathsForSku(sku({ categorySlug: 'felezat-rangi', subCategorySlug: 'aluminum-rebar' })),
+    ).toBeUndefined();
   });
 
   it('does not map a VARIANT onto its plain equivalent', () => {
@@ -709,10 +736,9 @@ describe('matchSku — the variant-keyed families', () => {
     expect(norm('۱٫۵')).toBe('1.5');
   });
 
-  it('keeps every newly mapped page in the fetcher’s target list', () => {
-    const targets = new Set<string>(AHANONLINE_TARGETS.map((t) => t.path));
+  it('keeps every newly mapped page in a fetcher’s target list', () => {
     for (const path of allMappedSourcePaths()) {
-      expect(targets.has(path), `${path} is mapped but never fetched`).toBe(true);
+      expect(FETCHED_PATHS.has(path), `${path} is mapped but never fetched`).toBe(true);
     }
   });
 });
