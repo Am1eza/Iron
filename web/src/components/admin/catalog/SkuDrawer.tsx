@@ -753,6 +753,26 @@ export function SkuDrawer({
                   }
                 />
               )}
+              {/* Owner-facing feature (1405/06 request), not an edge case for
+                  the rare product — kept out of «تنظیمات پیشرفته» so it is
+                  visible on every open of the form, the same way every field
+                  above it is.
+                  Label deliberately avoids the substring «کارخانه»: Playwright's
+                  `getByLabel` does substring matching by default, and this box
+                  sitting a few fields below the «کارخانه» factory box made
+                  `getByLabel('کارخانه')` in admin-pricing-catalog.spec.ts match
+                  both — an admin never sees this ambiguity, a test locator does. */}
+              <TextInput
+                label="ترتیب نمایش در جدول"
+                inputMode="numeric"
+                placeholder="مثلاً ۱"
+                helper="ترتیب این کالا درون بخش کارخانه‌اش. عدد کوچک‌تر زودتر نمایش داده می‌شود. اگر خالی بگذارید، مثل قبل بر اساس سایز مرتب می‌شود."
+                value={v.order}
+                error={
+                  fieldErrors.order ?? (orderValid ? undefined : 'عدد صحیح نامنفی وارد کنید یا خالی بگذارید.')
+                }
+                onChange={(e) => set({ order: e.target.value })}
+              />
             </div>
             <div className={s.slugPreview} style={{ marginBlockStart: 'var(--space-2)' }}>
               نشانی صفحه: /prices/{parentCategory?.slug ?? '…'}/{selectedSub?.slug ?? '…'}/{v.slug || '…'}
@@ -789,17 +809,6 @@ export function SkuDrawer({
                     نشانی قدیمی ساخته می‌شود تا لینک‌های قبلی نشکنند.
                   </Alert>
                 ) : null}
-                <TextInput
-                  label="ترتیب نمایش در بخش کارخانه"
-                  inputMode="numeric"
-                  placeholder="مثلاً ۱"
-                  helper="عدد کوچک‌تر زودتر نمایش داده می‌شود. اگر خالی بگذارید، مثل قبل بر اساس سایز مرتب می‌شود."
-                  value={v.order}
-                  error={
-                    fieldErrors.order ?? (orderValid ? undefined : 'عدد صحیح نامنفی وارد کنید یا خالی بگذارید.')
-                  }
-                  onChange={(e) => set({ order: e.target.value })}
-                />
                 <TextInput
                   label="نشانی صفحه"
                   dir="ltr"
