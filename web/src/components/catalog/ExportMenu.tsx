@@ -8,7 +8,13 @@ import {
   withVat,
 } from '@/lib/utils/format';
 import { formatJalali } from '@/lib/utils/jalali';
-import { sizeLabel, usesDimensions, dimensionsLabel, REGION_LABEL } from '@/lib/utils/catalogLabels';
+import {
+  sizeLabel,
+  weightLabel,
+  usesDimensions,
+  dimensionsLabel,
+  REGION_LABEL,
+} from '@/lib/utils/catalogLabels';
 import { CONSTANTS } from '@/lib/config/constants';
 import type { PriceRow } from '@/lib/types/domain';
 import { SheetIcon, PrintIcon, ImageIcon } from '@/components/primitives/icons';
@@ -49,7 +55,7 @@ export const cols = (
   // groups by. A SUBSTITUTION, never an extra column — the image export lays
   // its columns out on a fixed pixel grid.
   regionColumn ? REGION_LABEL : 'کارخانه',
-  'وزن شاخه (kg)',
+  `${weightLabel(categorySlug)} (kg)`,
   'قیمت (تومان)',
   'نوسان',
   'زمان تحویل',

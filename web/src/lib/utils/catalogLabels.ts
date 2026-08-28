@@ -49,6 +49,8 @@ export const THICKNESS_LABEL = 'ضخامت';
 export const DIMENSIONS_LABEL = 'ابعاد';
 export const GRADE_LABEL = 'گرید';
 export const STANDARD_LABEL = 'استاندارد';
+export const WEIGHT_LABEL = 'وزن';
+export const BRANCH_WEIGHT_LABEL = 'وزن شاخه';
 
 /** True when this category measures its products by thickness. */
 export function usesThickness(categorySlug: string | null | undefined): boolean {
@@ -94,6 +96,19 @@ export function dimensionsLabel(
 /** «ضخامت» for ورق, «سایز» everywhere else (including unknown/mixed lists). */
 export function sizeLabel(categorySlug: string | null | undefined): string {
   return usesThickness(categorySlug) ? THICKNESS_LABEL : SIZE_LABEL;
+}
+
+/**
+ * «وزن» for ورق, «وزن شاخه» everywhere else.
+ *
+ * ورق is sold per برگ (sheet/leaf), never in a «شاخه» (mill bar/rod) — the
+ * word does not describe the product at all there, unlike میلگرد/تیرآهن/نبشی
+ * where the stored theoretical weight genuinely is one branch's weight. Keyed
+ * on the same THICKNESS_CATEGORIES set sizeLabel already uses: it is exactly
+ * the categories where «شاخه» stops applying.
+ */
+export function weightLabel(categorySlug: string | null | undefined): string {
+  return usesThickness(categorySlug) ? WEIGHT_LABEL : BRANCH_WEIGHT_LABEL;
 }
 
 /* ---------------------- per-sub attribute columns ---------------------- */

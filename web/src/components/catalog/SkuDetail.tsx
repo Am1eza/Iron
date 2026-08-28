@@ -15,6 +15,7 @@ import {
   sizeLabel,
   usesDimensions,
   dimensionsLabel,
+  weightLabel,
   attributeColumns,
   NOT_APPLICABLE,
   REGION_LABEL,
@@ -295,7 +296,7 @@ export function SkuDetail({
         ? [{ label: REGION_LABEL, value: row.region }]
         : []),
     {
-      label: 'وزن شاخه',
+      label: weightLabel(row.categoryId),
       value: row.theoreticalWeightKg
         ? `${toPersianDigits(row.theoreticalWeightKg)} کیلوگرم`
         : 'نامشخص',
@@ -361,7 +362,7 @@ export function SkuDetail({
               ) : null}
               {row.theoreticalWeightKg ? (
                 <li>
-                  وزن شاخه{' '}
+                  {weightLabel(row.categoryId)}{' '}
                   <strong className="tnum">
                     {/* Was Latin "kg" here while every other weight on this same
                         page (specs table below, BulkQuote) spells out «کیلوگرم» —
