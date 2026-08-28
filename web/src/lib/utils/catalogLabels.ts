@@ -45,6 +45,34 @@ const NABSHI_THICKNESS_SUBS = new Set(['nabshi', 'angle-unequal', 'spot']);
 const IBEAM_STANDARD_SUBS = new Set(['hash-sabok', 'hash-sangin']);
 
 /**
+ * تیرآهن sub-categories whose factory-section headings must name the
+ * SUB-TYPE, not just the category (owner report, 1405/06).
+ *
+ * The price page groups its rows into one «قیمت {موضوع} {کارخانه}» section
+ * per mill, and that subject had always been the category name alone. Under
+ * هاش or لانه‌زنبوری that reads as a lie: the section «قیمت تیرآهن ذوب‌آهن
+ * اصفهان» sits directly above rows whose own auto-composed names say «هاش
+ * سبک ۱۴ ذوب‌آهن اصفهان». A visitor scanning headings sees plain تیرآهن
+ * pricing where there is none — and these are genuinely different products at
+ * genuinely different prices, not a naming nicety.
+ *
+ * Deliberately an allow-list, exactly like NABSHI_THICKNESS_SUBS and
+ * PIPE_SCHEDULE_SUBS. `tirahan` — the plain-تیرآهن sub — must NOT be in it:
+ * its own name IS the category word, so naming the sub there would produce
+ * «قیمت تیرآهن تیرآهن ذوب‌آهن اصفهان», the exact stutter
+ * `subCategorySubject` was written to prevent. Every other category is
+ * untouched: «قیمت میلگرد کویر کاشان» stays as it is, because nobody reported
+ * it reading wrong and «میلگرد» is not a claim about the wrong product the
+ * way «تیرآهن» is on a هاش page.
+ *
+ * Slugs verified against the live catalog (1405/06), NOT `data/nav.ts` —
+ * which is labelled a mock fixture in its own header and still lists `hea`,
+ * `heb` and `castellated`, none of which exist in the database. Gating on
+ * those would have matched no rows and shipped a silent no-op.
+ */
+const IBEAM_SUBTYPE_HEADING_SUBS = new Set(['hash-sabok', 'hash-sangin', 'lane-zanburi']);
+
+/**
  * لوله sub-categories that carry a «رده» (`skus.schedule`) — the pipe
  * schedule, the trade's own name for a wall-thickness/pressure class
  * («رده ۴۰», «رده ۸۰», per ASME B36.10).
@@ -651,6 +679,51 @@ export function groupKeyFor(mode: GroupMode, row: { factory?: string; region?: s
  */
 export function subCategorySubject(subName: string, categoryName: string): string {
   return subNameCoversCategory(subName, categoryName) ? subName : `${subName} ${categoryName}`;
+}
+
+/**
+ * What one factory-grouped price section is a section OF — the subject in
+ * «قیمت {موضوع} {کارخانه}».
+ *
+ * Normally the category name, which is what every category has always used
+ * and what «قیمت میلگرد کویر کاشان» still gets. On the تیرآهن sub-types
+ * listed in IBEAM_SUBTYPE_HEADING_SUBS it becomes «{category} {sub}» —
+ * «تیرآهن هاش سبک» — so the heading finally agrees with the product names
+ * underneath it.
+ *
+ * Deliberately NOT `subCategorySubject`, even though the two answer
+ * neighbouring questions. That one builds a PAGE TITLE, «{sub} {category}»
+ * («قیمت روز هاش سبک تیرآهن»), where the SEO job is to get the category
+ * keyword into the line at all. This is a section heading that already
+ * carries a mill name after it, and the same word order there strands the
+ * product word three phrases away from its mill: «قیمت هاش سبک تیرآهن
+ * ذوب‌آهن اصفهان» reads as a تیرآهن made by a mill called «ذوب‌آهن اصفهان»
+ * only if you parse it carefully. Category-first keeps the qualifier next to
+ * what it qualifies and matches the phrasing the owner asked for.
+ *
+ * It DOES reuse that function's `subNameCoversCategory` de-duplication, so a
+ * sub later renamed «تیرآهن هاش سبک» yields «تیرآهن هاش سبک», never
+ * «تیرآهن تیرآهن هاش سبک» — the two helpers cannot drift on that rule.
+ *
+ * `activeSub` is null in the mixed «همه» view, and that is the whole reason
+ * this takes the ACTIVE filter rather than the page's own sub: one mill's
+ * section there can hold plain تیرآهن and هاش rows at once, so no
+ * sub-specific subject is true of all of them and the generic category name
+ * is the only honest answer — the same "mixed context → generic fallback"
+ * rule `dimensionsLabel` and `factoryLabel` already follow.
+ */
+export function sectionSubject(
+  categoryName: string,
+  categorySlug: string | null | undefined,
+  activeSub: { slug: string; name: string } | null | undefined,
+): string {
+  if (!activeSub) return categoryName;
+  if (categorySlug !== 'ibeam' || !IBEAM_SUBTYPE_HEADING_SUBS.has(activeSub.slug)) {
+    return categoryName;
+  }
+  return subNameCoversCategory(activeSub.name, categoryName)
+    ? activeSub.name
+    : `${categoryName} ${activeSub.name}`;
 }
 
 /** Does `subName` already say `categoryName`, as a run of whole tokens? */
