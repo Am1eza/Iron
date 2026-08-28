@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   sizeLabel,
+  weightLabel,
   usesThickness,
   usesDimensions,
   attributeColumns,
@@ -17,6 +18,8 @@ import {
   factoryLabel,
   BRANCH_LENGTH_LABEL,
   CUSTOM_LENGTH_LABEL,
+  WEIGHT_LABEL,
+  BRANCH_WEIGHT_LABEL,
   NOT_APPLICABLE,
   UNKNOWN_VALUE,
   regionFromFactory,
@@ -44,6 +47,25 @@ describe('sizeLabel', () => {
     expect(sizeLabel(null)).toBe(SIZE_LABEL);
     expect(sizeLabel('')).toBe(SIZE_LABEL);
     expect(sizeLabel('something-new')).toBe(SIZE_LABEL);
+  });
+});
+
+describe('weightLabel', () => {
+  it('calls the ورق attribute وزن — it is sold per برگ, not شاخه', () => {
+    expect(weightLabel('sheet')).toBe(WEIGHT_LABEL);
+  });
+
+  it('leaves every other category on وزن شاخه', () => {
+    for (const slug of ['rebar', 'ibeam', 'pipe', 'profile', 'angle-channel', 'wire', 'steel']) {
+      expect(weightLabel(slug)).toBe(BRANCH_WEIGHT_LABEL);
+    }
+  });
+
+  it('falls back to وزن شاخه for an unknown, mixed or missing category', () => {
+    expect(weightLabel(undefined)).toBe(BRANCH_WEIGHT_LABEL);
+    expect(weightLabel(null)).toBe(BRANCH_WEIGHT_LABEL);
+    expect(weightLabel('')).toBe(BRANCH_WEIGHT_LABEL);
+    expect(weightLabel('something-new')).toBe(BRANCH_WEIGHT_LABEL);
   });
 });
 
