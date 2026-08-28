@@ -173,6 +173,12 @@ export interface SKU {
    *  every other category and for sheets nobody has filled it in for yet.
    *  See server/db/schema/catalog.ts. */
   dimensions?: string;
+  /** «رده» — the pipe schedule, on لوله's pressure-pipe sub-categories only
+   *  (مانیسمان داخلی/خارجی, گازی, صنعتی درزدار). Its own stored column, not a
+   *  re-label of `standard`, which لولهٔ جدار چاه already uses for a real
+   *  «استاندارد». Undefined everywhere else, and on the pressure subs nobody
+   *  has filled it in for yet. See server/db/schema/catalog.ts. */
+  schedule?: string;
   factory?: string;
   /** Producing city — «اصفهان», «تهران», … — for the پروفیل sub-categories
    *  whose mill names are withheld (see `catalogLabels.factoryIsMeaningful`).

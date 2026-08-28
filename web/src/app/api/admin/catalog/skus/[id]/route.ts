@@ -47,6 +47,15 @@ const patchPayload = nonEmptyPatch(
       .nullable()
       .optional()
       .transform((v) => (v ? normalizeSizeText(v) : v === '' ? null : v)),
+    // «رده» — see the create route. Nullable so clearing the box actually
+    // clears the column instead of silently leaving it.
+    schedule: z
+      .string()
+      .trim()
+      .max(40)
+      .nullable()
+      .optional()
+      .transform((v) => (v ? normalizeSizeText(v) : v === '' ? null : v)),
     factory: optionalPersianText(80),
     theoreticalWeightKg: finiteNumber.positive().max(100_000).nullable().optional(),
     unit: z.enum(PRICE_UNIT_VALUES).optional(),

@@ -75,6 +75,17 @@ const createPayload = z.object({
     .nullable()
     .optional()
     .transform((v) => (v ? normalizeSizeText(v) : v === '' ? null : v)),
+  // «رده» — the pipe schedule. لوله's pressure-pipe subs only (the admin form
+  // offers it nowhere else). Through normalizeSizeText like `size`, so a «40»
+  // typed on a Latin keypad and a «۴۰» typed on a Persian one are one value
+  // in the picker rather than two lookalikes.
+  schedule: z
+    .string()
+    .trim()
+    .max(40)
+    .nullable()
+    .optional()
+    .transform((v) => (v ? normalizeSizeText(v) : v === '' ? null : v)),
   factory: optionalPersianText(80),
   theoreticalWeightKg: finiteNumber.positive().max(100_000).nullable().optional(),
   unit: z.enum(PRICE_UNIT_VALUES).optional(),

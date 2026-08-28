@@ -44,11 +44,75 @@ const NABSHI_THICKNESS_SUBS = new Set(['nabshi', 'angle-unequal', 'spot']);
  *  «گرید» column is unfilled noise the owner asked removed. */
 const IBEAM_STANDARD_SUBS = new Set(['hash-sabok', 'hash-sangin']);
 
+/**
+ * لوله sub-categories that carry a «رده» (`skus.schedule`) — the pipe
+ * schedule, the trade's own name for a wall-thickness/pressure class
+ * («رده ۴۰», «رده ۸۰», per ASME B36.10).
+ *
+ * Deliberately an allow-list rather than the whole category, for the same
+ * reason the نبشی thickness one is: «رده» is a real property of pipe sold by
+ * pressure/schedule class, and of nothing else under لوله. لولهٔ مبلی is
+ * furniture tube sold on outside diameter and wall gauge, and لولهٔ داربستی
+ * is scaffold tube sold to a scaffolding spec; neither carries a schedule
+ * rating at all, so offering the field there would ask an admin to invent a
+ * value for a property the product does not have — these two stay excluded.
+ *
+ * BOTH مانیسمان subs are listed because that sub-category really is split in
+ * production — «مانیسمان داخلی» and «مانیسمان خارجی» — and a schedule is the
+ * same fact on either side of the split. The slugs are the live ones, read
+ * from the production catalog rather than from `data/nav.ts`, which still
+ * lists a single `seamless` sub that no longer exists and would therefore
+ * have matched no rows at all.
+ *
+ * اسپیرال, جدار چاه and گوشت‌دار were initially left out pending an owner
+ * decision (each is arguably pressure-rated too, and جدار چاه already
+ * records «ST37» in `skus.standard`) — the owner confirmed all three should
+ * get «رده» as well (1405/06). `schedule` is its own column, independent of
+ * `standard`, so جدار چاه now correctly carries both facts on one row rather
+ * than one column meaning two things.
+ */
+const PIPE_SCHEDULE_SUBS = new Set([
+  'seamless-internal',
+  'seamless-external',
+  'gas',
+  'industrial',
+  'spiral',
+  'well-casing',
+  'thick-walled',
+]);
+
+/**
+ * لوله sub-categories whose «کارخانه» column is really a «برند».
+ *
+ * مانیسمان sold here is IMPORTED, not rolled by a named Iranian mill, so the
+ * only value an admin can honestly put in that box is an origin — «چینی»,
+ * «اروپایی» — and not a factory at all. That is the same real-world situation
+ * `factoryIsMeaningful` documents for استیل, and the owner's reasoning is the
+ * one quoted there.
+ *
+ * The RESOLUTION is deliberately different. استیل drops the column outright,
+ * because nothing in it was worth publishing. مانیسمان keeps it, because an
+ * origin genuinely IS what a مانیسمان buyer compares on — what is wrong is
+ * the column's name and its expected contents, not its existence. So this
+ * belongs with `sizeLabel`/`dimensionsLabel` — one stored column, relabelled
+ * per context — and not with the factory removal.
+ *
+ * Go-forward only, and nothing is backfilled: the live مانیسمان rows still
+ * hold mill-shaped values and keep them until an admin edits each one, the
+ * same way the نبشی thickness column was left null rather than guessed at.
+ */
+const SEAMLESS_BRAND_SUBS = new Set(['seamless-internal', 'seamless-external']);
+
 export const SIZE_LABEL = 'سایز';
 export const THICKNESS_LABEL = 'ضخامت';
 export const DIMENSIONS_LABEL = 'ابعاد';
 export const GRADE_LABEL = 'گرید';
 export const STANDARD_LABEL = 'استاندارد';
+export const SCHEDULE_LABEL = 'رده';
+/** The default name of the `skus.factory` column — see `factoryLabel`. */
+export const FACTORY_LABEL = 'کارخانه';
+/** …and what مانیسمان calls it instead, where the value is an origin. */
+export const BRAND_LABEL = 'برند';
 export const WEIGHT_LABEL = 'وزن';
 export const BRANCH_WEIGHT_LABEL = 'وزن شاخه';
 
@@ -169,6 +233,38 @@ export function factoryIsMeaningful(
   return !(subCategorySlug && PROFILE_NO_FACTORY_SUBS.has(subCategorySlug));
 }
 
+/**
+ * What the `skus.factory` column is CALLED in this exact catalog context —
+ * «برند» on مانیسمان, «کارخانه» everywhere else.
+ *
+ * The companion to `factoryIsMeaningful`, and deliberately a SEPARATE
+ * question from it: that one decides whether the column is published at all,
+ * this one decides what to call it where it is published. A sub can perfectly
+ * well have a meaningful factory column under a name other than «کارخانه»,
+ * which is exactly مانیسمان's case, so a caller that needs both answers asks
+ * both.
+ *
+ * Keyed on category AND sub like `dimensionsLabel`, and with the same
+ * fallback rule: anything unknown, and any mixed «همه» view whose rows do not
+ * agree on one sub, resolves to the generic «کارخانه». That is the safe
+ * direction — a مانیسمان row sitting under a «کارخانه» header is merely
+ * generic, whereas a گازی row under a «برند» header would be a false claim
+ * about what its mill name is.
+ *
+ * Before this existed «کارخانه» was a bare string literal repeated across the
+ * table header, the row cell's `data-label`, the compare sheet, the section
+ * noun, the spec sheet and the admin form. Six hand-copied copies is how a
+ * relabel like this one silently half-lands.
+ */
+export function factoryLabel(
+  categorySlug: string | null | undefined,
+  subCategorySlug: string | null | undefined = null,
+): string {
+  return categorySlug === 'pipe' && subCategorySlug && SEAMLESS_BRAND_SUBS.has(subCategorySlug)
+    ? BRAND_LABEL
+    : FACTORY_LABEL;
+}
+
 export const BRANCH_LENGTH_LABEL = 'طول شاخه';
 export const CUSTOM_LENGTH_LABEL = 'طول سفارشی';
 export const ALLOY_LABEL = 'آلیاژ';
@@ -185,7 +281,7 @@ const CUT_TO_ORDER = 'بر اساس سفارش';
 /** The identity of one attribute column. Not a free label: the same key drives
  *  the header, the desktop cell, the mobile card line and the spec sheet, so
  *  they cannot drift into three different words for one fact. */
-export type AttrKey = 'grade' | 'standard' | 'alloy' | 'branchLength' | 'customLength';
+export type AttrKey = 'grade' | 'standard' | 'alloy' | 'branchLength' | 'customLength' | 'schedule';
 
 /** The subset of a price row the attribute columns read. Deliberately
  *  structural rather than `PriceRow` so the admin tables and the spec sheet can
@@ -194,6 +290,7 @@ export type AttrRow = {
   subCategoryId: string;
   grade?: string;
   standard?: string;
+  schedule?: string;
   branchLengthM?: number;
 };
 
@@ -210,6 +307,14 @@ const ATTR_DEFS: Record<AttrKey, { label: string; read: (r: AttrRow) => string |
   // for. Used by the whole استیل category and by پروفیل استیل.
   alloy: { label: ALLOY_LABEL, read: (r) => r.grade },
   branchLength: { label: BRANCH_LENGTH_LABEL, read: (r) => metres(r.branchLengthM) },
+  // «رده» — the pipe schedule. Its own stored column (`skus.schedule`), and
+  // deliberately NOT a re-label of `standard` the way `alloy` re-labels
+  // `grade`: لولهٔ جدار چاه already stores a real «استاندارد» there (ST37, on
+  // every live row of that sub), so borrowing the column would have made one
+  // column mean two different things inside a single category — the exact
+  // collision the ورق/نبشی reuse of `dimensions` avoids by never letting two
+  // meanings meet under one parent.
+  schedule: { label: SCHEDULE_LABEL, read: (r) => r.schedule },
   customLength: {
     label: CUSTOM_LENGTH_LABEL,
     read: (r) => metres(r.branchLengthM) ?? CUT_TO_ORDER,
@@ -237,10 +342,10 @@ const PROFILE_ATTRS: Record<string, AttrKey[]> = {
  * currently-active sub-category filter (`null` = «همه», every sub-category
  * mixed into one table).
  *
- * Only تیرآهن, پروفیل and استیل ever deviate; every other category always gets
- * its one «گرید» column exactly as before. The mixed «همه» view resolves to the
- * category's default column set — the rule تیرآهن has always used — and each
- * cell then answers for its own row (see `attributeColumns`).
+ * Only تیرآهن, پروفیل, استیل and لوله ever deviate; every other category
+ * always gets its one «گرید» column exactly as before. The mixed «همه» view
+ * resolves to the category's default column set — the rule تیرآهن has always
+ * used — and each cell then answers for its own row (see `attributeColumns`).
  *
  * استیل deviates at the CATEGORY level rather than per-sub: every product in it
  * is stainless, so every stored `grade` in it is an alloy designation
@@ -268,6 +373,19 @@ export function attrKeysFor(
   }
   if (categorySlug === 'profile' && sub !== null) {
     return PROFILE_ATTRS[sub] ?? ['grade'];
+  }
+  // لوله is the one category that ADDS an attribute column rather than
+  // trading one away: its pressure-pipe subs keep the «گرید» column they have
+  // always had and gain «رده» beside it. (Compare پروفیل صنعتی, which swaps
+  // grade for a length — there the two facts are alternatives; here a pipe
+  // genuinely has both a steel grade and a schedule.)
+  //
+  // The mixed «همه» view is deliberately left on the plain default: most لوله
+  // subs have no schedule at all, so a «رده» column across that page would
+  // read `NOT_APPLICABLE` for the majority of its own rows — the outcome
+  // `usesDimensions`' sub-scoping exists to prevent.
+  if (categorySlug === 'pipe' && sub !== null) {
+    return PIPE_SCHEDULE_SUBS.has(sub) ? ['grade', 'schedule'] : ['grade'];
   }
   if (categorySlug === 'steel') return ['alloy', 'branchLength'];
   return ['grade'];
