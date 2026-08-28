@@ -40,6 +40,7 @@ import {
   attrKeysFor,
   GRADE_LABEL,
   ALLOY_LABEL,
+  BRANCH_LABEL,
   CONDITION_LABEL,
   SCHEDULE_LABEL,
   BRAND_LABEL,
@@ -290,6 +291,17 @@ export function SkuDrawer({
   // است (مثلاً HEA/HEB بر اساس DIN 1025) — همان قاعده‌ای که آلیاژ استیل بالا
   // به آن اشاره دارد، این‌بار برای catalogLabels.attrKeysFor(...).includes('standard').
   const usesStandardAttr = attrKeys.includes('standard');
+  // نبشی و ناودانی (بجز وال پست): «گرید» جای خود را به «شاخه» می‌دهد — همان
+  // ستونی که در جدول قیمت «۶ متری»/«۱۲ متری» نشان داده می‌شود.
+  //
+  // The form must swap with the page, not merely alongside it. Leaving the
+  // «گرید» box here while the public table no longer publishes grade for
+  // these subs would invite an operator to keep filling a field nobody will
+  // ever see — the same "collect exactly what is published" rule the آلیاژ
+  // and استاندارد relabels above follow. Nothing is stranded by hiding it:
+  // `grade` is null on every live row of all six of these subs (وال پست, the
+  // one sub that does hold a real grade, is deliberately not in the set).
+  const usesBranchAttr = attrKeys.includes('branch');
   const gradeLabel = attrKeys.includes('alloy')
     ? ALLOY_LABEL
     : attrKeys.includes('condition')
@@ -597,25 +609,51 @@ export function SkuDrawer({
                 placeholder={isBrand ? BRAND_PLACEHOLDER : FACTORY_PLACEHOLDER}
                 onChange={(factory) => set({ factory })}
               />
-              <PickerInput
-                id={usesStandardAttr ? 'sku-standard' : 'sku-grade'}
-                label={gradeLabel}
-                helper={
-                  gradeLabel === ALLOY_LABEL
-                    ? 'استیل: ۲۰۱، ۳۰۴، ۳۰۴L، ۳۱۶L. در صفحهٔ کالا به مشتری نشان داده می‌شود.'
-                    : gradeLabel === CONDITION_LABEL
-                      ? 'ورق: برش‌خورده، رول. در صفحهٔ کالا به مشتری نشان داده می‌شود.'
-                      : gradeLabel === STANDARD_LABEL
-                        ? 'مثلاً HEA یا HEB (بر اساس DIN 1025). در صفحهٔ کالا به مشتری نشان داده می‌شود.'
-                        : 'میلگرد: A1، A2، A3. در صفحهٔ کالا به مشتری نشان داده می‌شود.'
-                }
-                value={usesStandardAttr ? v.standard : v.grade}
-                options={(usesStandardAttr ? suggestions?.standards : suggestions?.grades) ?? []}
-                error={usesStandardAttr ? fieldErrors.standard : fieldErrors.grade}
-                maxLength={40}
-                placeholder={usesStandardAttr ? undefined : GRADE_PLACEHOLDER}
-                onChange={(val) => (usesStandardAttr ? set({ standard: val }) : set({ grade: val }))}
-              />
+              {usesBranchAttr ? (
+                /* Bound to `branchLengthM` — the SAME column the «طول شاخه»
+                   box in the auto-filled section normally edits, which is why
+                   that box is hidden for these subs below: two inputs writing
+                   one column is how they silently disagree. Stored as the
+                   plain number (۶), rendered «۶ متری» by the price table, so
+                   the theoretical-weight prefill keeps reading it unchanged —
+                   hence the identical `touched.weight` handling. */
+                <PickerInput
+                  id="sku-branch"
+                  label={BRANCH_LABEL}
+                  helper={`طول شاخه به متر. در جدول قیمت «۶ متری» نمایش داده می‌شود؛ ${weightLabel(parentCategory?.slug)} هم بر همین طول حساب می‌شود.`}
+                  value={v.branchLengthM}
+                  options={['6', '12']}
+                  error={
+                    fieldErrors.branchLengthM ??
+                    (lengthValid ? undefined : 'عدد مثبت وارد کنید یا خالی بگذارید.')
+                  }
+                  maxLength={10}
+                  placeholder="مثلاً ۶"
+                  onChange={(val) => set({ branchLengthM: val }, { weight: touched.weight })}
+                />
+              ) : (
+                <PickerInput
+                  id={usesStandardAttr ? 'sku-standard' : 'sku-grade'}
+                  label={gradeLabel}
+                  helper={
+                    gradeLabel === ALLOY_LABEL
+                      ? 'استیل: ۲۰۱، ۳۰۴، ۳۰۴L، ۳۱۶L. در صفحهٔ کالا به مشتری نشان داده می‌شود.'
+                      : gradeLabel === CONDITION_LABEL
+                        ? 'ورق: برش‌خورده، رول. در صفحهٔ کالا به مشتری نشان داده می‌شود.'
+                        : gradeLabel === STANDARD_LABEL
+                          ? 'مثلاً HEA یا HEB (بر اساس DIN 1025). در صفحهٔ کالا به مشتری نشان داده می‌شود.'
+                          : 'میلگرد: A1، A2، A3. در صفحهٔ کالا به مشتری نشان داده می‌شود.'
+                  }
+                  value={usesStandardAttr ? v.standard : v.grade}
+                  options={(usesStandardAttr ? suggestions?.standards : suggestions?.grades) ?? []}
+                  error={usesStandardAttr ? fieldErrors.standard : fieldErrors.grade}
+                  maxLength={40}
+                  placeholder={usesStandardAttr ? undefined : GRADE_PLACEHOLDER}
+                  onChange={(val) =>
+                    usesStandardAttr ? set({ standard: val }) : set({ grade: val })
+                  }
+                />
+              )}
             </div>
           </div>
 
@@ -695,19 +733,26 @@ export function SkuDrawer({
                   قیمتی که در «قیمت‌گذاری» وارد می‌کنید، به ازای همین مبنا است.
                 </div>
               </div>
-              <TextInput
-                label="طول شاخه (متر)"
-                name="branchLengthM"
-                inputMode="decimal"
-                placeholder="مثلاً ۶"
-                helper={`اختیاری. اگر ثبت شود، ${weightLabel(parentCategory?.slug)} بر همین طول حساب می‌شود.`}
-                value={v.branchLengthM}
-                error={
-                  fieldErrors.branchLengthM ??
-                  (lengthValid ? undefined : 'عدد مثبت وارد کنید یا خالی بگذارید.')
-                }
-                onChange={(e) => set({ branchLengthM: e.target.value }, { weight: touched.weight })}
-              />
+              {/* Hidden exactly where the «شاخه» box above already edits this
+                  column, so one field owns it. Every other category keeps this
+                  box precisely as it was. */}
+              {usesBranchAttr ? null : (
+                <TextInput
+                  label="طول شاخه (متر)"
+                  name="branchLengthM"
+                  inputMode="decimal"
+                  placeholder="مثلاً ۶"
+                  helper={`اختیاری. اگر ثبت شود، ${weightLabel(parentCategory?.slug)} بر همین طول حساب می‌شود.`}
+                  value={v.branchLengthM}
+                  error={
+                    fieldErrors.branchLengthM ??
+                    (lengthValid ? undefined : 'عدد مثبت وارد کنید یا خالی بگذارید.')
+                  }
+                  onChange={(e) =>
+                    set({ branchLengthM: e.target.value }, { weight: touched.weight })
+                  }
+                />
+              )}
             </div>
             <div className={s.slugPreview} style={{ marginBlockStart: 'var(--space-2)' }}>
               نشانی صفحه: /prices/{parentCategory?.slug ?? '…'}/{selectedSub?.slug ?? '…'}/{v.slug || '…'}

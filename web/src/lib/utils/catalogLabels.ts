@@ -39,6 +39,38 @@ const DIMENSIONS_CATEGORIES = new Set(['sheet']);
  *  unrelated product lines a meaningless extra field. */
 const NABSHI_THICKNESS_SUBS = new Set(['nabshi', 'angle-unequal', 'spot']);
 
+/**
+ * نبشی و ناودانی sub-categories that publish «شاخه» — the branch length the
+ * product is sold in, «۶ متری» / «۱۲ متری» — INSTEAD of «گرید» (owner
+ * request, 1405/06).
+ *
+ * This is a swap, not an addition, and the live data is why it costs nothing:
+ * across all 37 rows in this category, `skus.grade` is empty on every single
+ * one of these six subs, so the «گرید» column was rendering «نامشخص» on every
+ * row of every one of their pages — a column that has never carried a fact
+ * and, being a steel grade nobody records for نبشی, never will. The length
+ * genuinely is what a buyer asks for here. Same shape as پروفیل صنعتی, which
+ * traded its «گرید» for a length for the same reason.
+ *
+ * `val-post` is deliberately EXCLUDED, and it is the whole reason this is an
+ * allow-list rather than the category. It is the one sub whose `grade` holds
+ * real published data — «ضخامت ۲», on all 8 of its live rows — so swapping
+ * the column there would delete a value from the price table that an admin
+ * deliberately entered. Confirmed live on /prices/angle-channel/val-post
+ * before this change, and confirmed by the owner.
+ *
+ * Slugs verified against the live catalog, not `data/nav.ts` — which its own
+ * header labels a mock fixture.
+ */
+const ANGLE_CHANNEL_BRANCH_SUBS = new Set([
+  'nabshi',
+  'angle-unequal',
+  'spot',
+  'channel-light',
+  'channel-heavy',
+  'separi',
+]);
+
 /** تیرآهن sub-category slugs where «استاندارد» (`skus.standard`, e.g. HEA/HEB
  *  per DIN 1025) is the meaningful column. Everywhere else in تیرآهن the
  *  «گرید» column is unfilled noise the owner asked removed. */
@@ -296,6 +328,15 @@ export function factoryLabel(
 export const BRANCH_LENGTH_LABEL = 'طول شاخه';
 export const CUSTOM_LENGTH_LABEL = 'طول سفارشی';
 export const ALLOY_LABEL = 'آلیاژ';
+/**
+ * «شاخه» — deliberately NOT «طول شاخه» (`BRANCH_LENGTH_LABEL`) even though
+ * both read the same column. That one answers "how long is one شاخه" beside a
+ * پروفیل's other specs; this one IS the product distinction a نبشی buyer
+ * chooses on, and the owner asked for the short word. They also print
+ * differently — «۶ متر» there, «۶ متری» here — because «۶ متری» is an
+ * adjective describing the شاخه, which is how the trade says it.
+ */
+export const BRANCH_LABEL = 'شاخه';
 export const CONDITION_LABEL = 'حالت';
 
 /** Printed where the column is not a property of THAT row's product at all —
@@ -317,7 +358,8 @@ export type AttrKey =
   | 'condition'
   | 'branchLength'
   | 'customLength'
-  | 'schedule';
+  | 'schedule'
+  | 'branch';
 
 /** The subset of a price row the attribute columns read. Deliberately
  *  structural rather than `PriceRow` so the admin tables and the spec sheet can
@@ -332,6 +374,12 @@ export type AttrRow = {
 
 function metres(m: number | null | undefined): string | undefined {
   return m ? `${toPersianDigits(m)} متر` : undefined;
+}
+
+/** «۶ متری» — the same stored number as `metres`, said the way a نبشی buyer
+ *  says it: an adjective for the شاخه, not a bare measurement. */
+function metresAdjective(m: number | null | undefined): string | undefined {
+  return m ? `${toPersianDigits(m)} متری` : undefined;
 }
 
 const ATTR_DEFS: Record<AttrKey, { label: string; read: (r: AttrRow) => string | undefined }> = {
@@ -359,6 +407,12 @@ const ATTR_DEFS: Record<AttrKey, { label: string; read: (r: AttrRow) => string |
   // collision the ورق/نبشی reuse of `dimensions` avoids by never letting two
   // meanings meet under one parent.
   schedule: { label: SCHEDULE_LABEL, read: (r) => r.schedule },
+  // «شاخه» — `skus.branch_length_m` again, but as نبشی و ناودانی's own
+  // product distinction rather than as a پروفیل spec line. No new column: the
+  // length was already stored and already editable, it simply had nowhere to
+  // show on these pages. An unrecorded length reads «نامشخص», never a dash —
+  // a نبشی IS sold in some شاخه, we just have not recorded which.
+  branch: { label: BRANCH_LABEL, read: (r) => metresAdjective(r.branchLengthM) },
   customLength: {
     label: CUSTOM_LENGTH_LABEL,
     read: (r) => metres(r.branchLengthM) ?? CUT_TO_ORDER,
@@ -386,10 +440,10 @@ const PROFILE_ATTRS: Record<string, AttrKey[]> = {
  * currently-active sub-category filter (`null` = «همه», every sub-category
  * mixed into one table).
  *
- * Only تیرآهن, پروفیل, استیل, لوله and ورق ever deviate; every other
- * category always gets its one «گرید» column exactly as before. The mixed
- * «همه» view resolves to the category's default column set — the rule تیرآهن
- * has always used — and each cell then answers for its own row (see
+ * Only تیرآهن, پروفیل, استیل, لوله, ورق and نبشی‌وناودانی ever deviate; every
+ * other category always gets its one «گرید» column exactly as before. The
+ * mixed «همه» view resolves to the category's default column set — the rule
+ * تیرآهن has always used — and each cell then answers for its own row (see
  * `attributeColumns`).
  *
  * استیل deviates at the CATEGORY level rather than per-sub: every product in it
@@ -434,6 +488,18 @@ export function attrKeysFor(
   // subs have no schedule at all, so a «رده» column across that page would
   // read `NOT_APPLICABLE` for the majority of its own rows — the outcome
   // `usesDimensions`' sub-scoping exists to prevent.
+  // نبشی و ناودانی: six of its seven subs trade «گرید» — empty on every live
+  // row of every one of them — for the «شاخه» a buyer actually chooses on.
+  // وال پست keeps «گرید», because its grade column holds real data
+  // («ضخامت ۲»); see ANGLE_CHANNEL_BRANCH_SUBS.
+  //
+  // The mixed «همه» view deliberately stays on the category default, so it
+  // still publishes وال پست's grade and marks the six swapped subs
+  // `NOT_APPLICABLE` — exactly how پروفیل's mixed view already treats صنعتی
+  // and Z, whose grade was likewise traded for a length.
+  if (categorySlug === 'angle-channel' && sub !== null) {
+    return ANGLE_CHANNEL_BRANCH_SUBS.has(sub) ? ['branch'] : ['grade'];
+  }
   if (categorySlug === 'pipe' && sub !== null) {
     return PIPE_SCHEDULE_SUBS.has(sub) ? ['grade', 'schedule'] : ['grade'];
   }

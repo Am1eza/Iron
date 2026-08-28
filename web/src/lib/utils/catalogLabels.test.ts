@@ -13,6 +13,7 @@ import {
   GRADE_LABEL,
   STANDARD_LABEL,
   ALLOY_LABEL,
+  BRANCH_LABEL,
   CONDITION_LABEL,
   SCHEDULE_LABEL,
   FACTORY_LABEL,
@@ -135,7 +136,13 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ح
   // which is the point: gaining «رده» on مانیسمان/گازی/صنعتی must leave the
   // rest of the category — and every other category — on the plain «گرید»
   // column it has always had.
-  it('leaves every category outside تیرآهن/پروفیل/استیل/ورق and لوله’s pressure subs exactly as it was', () => {
+  // لوله and نبشی‌وناودانی appear here with subs that are NOT in their
+  // respective allow-lists, which is the point: the new columns must leave the
+  // rest of each category — and every other category — on the plain «گرید».
+  // ورق is not in this slug list at all — it deviates category-wide (its
+  // «حالت» applies to every sub, including the mixed «همه» view), unlike
+  // لوله and نبشی‌وناودانی, which only ever deviate for a named sub.
+  it('leaves every category outside the deviating ones exactly as it was', () => {
     for (const slug of ['rebar', 'pipe', 'angle-channel', 'wire', 'felezat-rangi']) {
       for (const sub of [null, 'anything']) {
         const col = only(slug, sub);
@@ -261,6 +268,77 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ح
     expect(col.cell(row('prvfyl-snaty', { grade: 'ST37' }))).toBe(NOT_APPLICABLE);
     expect(col.cell(row('profil-z'))).toBe(NOT_APPLICABLE);
     expect(col.cell(row('prvfyl-astyl', { grade: '۳۰۴' }))).toBe(NOT_APPLICABLE);
+  });
+
+  /* ---------------------------- نبشی و ناودانی ---------------------------- */
+
+  it('swaps «گرید» for «شاخه» on the six owner-approved نبشی/ناودانی subs', () => {
+    // Live slugs. `grade` is null on every row of all six, so the «گرید»
+    // column they had was printing «نامشخص» on every row of every page.
+    for (const sub of [
+      'nabshi',
+      'angle-unequal',
+      'spot',
+      'channel-light',
+      'channel-heavy',
+      'separi',
+    ]) {
+      const col = only('angle-channel', sub);
+      expect(col.key).toBe('branch');
+      expect(col.label).toBe(BRANCH_LABEL);
+      expect(col.label).toBe('شاخه');
+      // A swap, not an addition: «گرید» is gone from these pages.
+      expect(attributeColumns('angle-channel', sub).some((c) => c.key === 'grade')).toBe(false);
+    }
+  });
+
+  it('prints the stored length as «۶ متری», not «۶ متر»', () => {
+    const col = only('angle-channel', 'nabshi');
+    expect(col.cell(row('nabshi', { branchLengthM: 6 }))).toBe('۶ متری');
+    expect(col.cell(row('nabshi', { branchLengthM: 12 }))).toBe('۱۲ متری');
+    // «طول شاخه» on پروفیل reads the SAME column and still says «۶ متر» —
+    // the two labels and the two phrasings must not have merged.
+    expect(only('profile', 'prvfyl-snaty').cell(row('prvfyl-snaty', { branchLengthM: 6 }))).toBe(
+      '۶ متر',
+    );
+  });
+
+  it('says «نامشخص» for a length nobody recorded — never a dash', () => {
+    // A نبشی IS sold in some شاخه; we simply have not recorded which. Only 4
+    // of the 37 live rows in this category carry a length today.
+    const col = only('angle-channel', 'nabshi');
+    expect(col.cell(row('nabshi'))).toBe(UNKNOWN_VALUE);
+    expect(col.card(row('nabshi'))).toBeNull();
+    // A stored grade is ignored outright — the column is not that fact.
+    expect(col.cell(row('nabshi', { grade: 'A3' }))).toBe(UNKNOWN_VALUE);
+  });
+
+  it('leaves وال پست on «گرید», because its grade holds real data', () => {
+    // «ضخامت ۲» on all 8 live rows. Swapping the column there would delete a
+    // published value from the price table.
+    const col = only('angle-channel', 'val-post');
+    expect(col.key).toBe('grade');
+    expect(col.label).toBe(GRADE_LABEL);
+    expect(col.cell(row('val-post', { grade: 'ضخامت ۲' }))).toBe('ضخامت ۲');
+  });
+
+  it('keeps the mixed «همه» view on «گرید», dashing the swapped subs', () => {
+    // Same rule پروفیل's mixed view already follows for صنعتی and Z: وال پست
+    // still publishes its grade, and a sub that traded the column away is
+    // «—», not «نامشخص».
+    const col = only('angle-channel', null);
+    expect(col.key).toBe('grade');
+    expect(col.cell(row('val-post', { grade: 'ضخامت ۲' }))).toBe('ضخامت ۲');
+    expect(col.cell(row('nabshi', { branchLengthM: 6 }))).toBe(NOT_APPLICABLE);
+    expect(col.card(row('channel-light'))).toBeNull();
+  });
+
+  it('does not give any OTHER category a «شاخه» column', () => {
+    for (const slug of ['rebar', 'ibeam', 'sheet', 'profile', 'steel', 'pipe', 'wire']) {
+      for (const sub of [null, 'nabshi', 'channel-light', 'separi']) {
+        expect(attributeColumns(slug, sub).some((c) => c.key === 'branch')).toBe(false);
+      }
+    }
   });
 
   /* --------------------------------- لوله --------------------------------- */
