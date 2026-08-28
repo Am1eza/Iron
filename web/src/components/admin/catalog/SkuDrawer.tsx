@@ -39,7 +39,10 @@ import {
   DIMENSIONS_LABEL,
   GRADE_LABEL,
   ALLOY_LABEL,
+  SCHEDULE_LABEL,
+  BRAND_LABEL,
   factoryIsMeaningful,
+  factoryLabel,
 } from '@/lib/utils/catalogLabels';
 import { useToast } from '@/lib/hooks/useToast';
 import { Alert, Badge, Button, Heading, Text, useConfirm } from '@/components/ui';
@@ -98,6 +101,27 @@ const SIZE_PLACEHOLDER: Record<string, string> = {
 const FACTORY_PLACEHOLDER = 'مثلاً ذوب‌آهن اصفهان';
 const GRADE_PLACEHOLDER = 'مثلاً A3';
 const DIMENSIONS_PLACEHOLDER = 'مثلاً ۱۰۰۰×۲۰۰۰';
+const SCHEDULE_PLACEHOLDER = 'مثلاً ۴۰';
+const BRAND_PLACEHOLDER = 'مثلاً چینی';
+
+/**
+ * What «برند» expects on مانیسمان — an ORIGIN, not a mill.
+ *
+ * A hard-coded list rather than `suggestions.factories`, which is the source
+ * every other picker in this form uses. That list is scoped to the whole
+ * parent CATEGORY, so under لوله it is precisely the set of Iranian mill
+ * names — «لوله سپاهان», «تهران شرق», «سپنتا» — that this relabel exists to
+ * stop an admin entering here; offering it beneath a «برند» label would push
+ * them straight back to the values the owner asked us to move away from. The
+ * sub's own stored values are no better: they are those same legacy mill
+ * names, deliberately left un-backfilled.
+ *
+ * So until real برند values accumulate there is no honest data-derived list,
+ * and these are the owner's own examples («چینی», «اروپایی») — UI guidance of
+ * exactly the same kind as FACTORY_PLACEHOLDER above, not stored data. The
+ * box stays free text, so an origin not listed here is still typeable.
+ */
+const BRAND_SUGGESTIONS = ['چینی', 'اروپایی', 'روسی', 'کره‌ای', 'ژاپنی', 'ترکیه‌ای'];
 
 type Values = {
   name: string;
@@ -110,6 +134,10 @@ type Values = {
    *  other categories, but the value is still round-tripped so moving a SKU
    *  between categories never silently drops it. */
   dimensions: string;
+  /** «رده» — pipe schedule. Round-tripped like `dimensions` even where the
+   *  field is not rendered, so moving a SKU between sub-categories never
+   *  silently drops a recorded value. */
+  schedule: string;
   standard: string;
   unit: AdminSku['unit'];
   /** What a stored price is per — see PRICE_BASES. */
@@ -137,6 +165,7 @@ function toValues(sku: AdminSku | null, defaultSubId: string, steelCategoryId: s
     factory: sku?.factory ?? '',
     grade: sku?.grade ?? '',
     dimensions: sku?.dimensions ?? '',
+    schedule: sku?.schedule ?? '',
     standard: sku?.standard ?? '',
     unit: sku?.unit ?? 'kg',
     priceBasis: sku?.priceBasis ?? 'kg',
@@ -246,6 +275,20 @@ export function SkuDrawer({
   const gradeLabel = attrKeysFor(parentCategory?.slug, selectedSub?.slug ?? null).includes('alloy')
     ? ALLOY_LABEL
     : GRADE_LABEL;
+  // «رده» is offered on exactly the لوله sub-categories whose products have a
+  // schedule rating, decided by the same catalogLabels allow-list the public
+  // table's column is built from — so the form can never collect a value the
+  // page would then refuse to show, or vice versa.
+  const showSchedule = attrKeysFor(parentCategory?.slug, selectedSub?.slug ?? null).includes(
+    'schedule',
+  );
+  // «کارخانه», or «برند» on مانیسمان — where the product is imported and the
+  // honest value is an origin rather than a mill (see catalogLabels'
+  // factoryLabel). Relabelling the ADMIN box is the half that actually
+  // changes what gets stored: an operator asked for a «کارخانه» types a mill
+  // name, whatever the public page later calls the column.
+  const factoryCol = factoryLabel(parentCategory?.slug, selectedSub?.slug ?? null);
+  const isBrand = factoryCol === BRAND_LABEL;
 
   const { data: suggestions } = useQuery({
     queryKey: ['admin', 'cat', 'suggestions', parentCategory?.id ?? ''],
@@ -363,6 +406,7 @@ export function SkuDrawer({
         factory: orNull(normalizeDigits(v.factory)),
         grade: orNull(normalizeDigits(v.grade)),
         dimensions: orNull(normText(v.dimensions)),
+        schedule: orNull(normText(v.schedule)),
         standard: orNull(normalizeDigits(v.standard)),
         unit: v.unit,
         priceBasis: v.priceBasis,
@@ -482,15 +526,39 @@ export function SkuDrawer({
                   onChange={(dimensions) => set({ dimensions })}
                 />
               ) : null}
+              {/* «رده» — لوله's pressure-pipe subs only. مبلی and داربستی
+                  have no schedule rating at all, so the box is not rendered
+                  there rather than being rendered and left permanently
+                  empty. */}
+              {showSchedule ? (
+                <PickerInput
+                  id="sku-schedule"
+                  label={SCHEDULE_LABEL}
+                  helper="ردهٔ لوله (ضخامت جدار). اختیاری — اگر نمی‌دانید خالی بگذارید."
+                  value={v.schedule}
+                  options={suggestions?.schedules ?? []}
+                  error={fieldErrors.schedule}
+                  maxLength={40}
+                  placeholder={SCHEDULE_PLACEHOLDER}
+                  onChange={(schedule) => set({ schedule })}
+                />
+              ) : null}
               <PickerInput
                 id="sku-factory"
-                label="کارخانه"
-                helper="از فهرست انتخاب کنید تا یک کارخانه دو اسم نشود."
+                label={factoryCol}
+                helper={
+                  isBrand
+                    ? // The whole point of the relabel: مانیسمان is imported,
+                      // so the answer is where it comes from, not which
+                      // Iranian mill rolled it.
+                      'کشور یا برند سازنده — مثلاً «چینی» یا «اروپایی». مانیسمان وارداتی است و نام کارخانهٔ ایرانی ندارد.'
+                    : 'از فهرست انتخاب کنید تا یک کارخانه دو اسم نشود.'
+                }
                 value={v.factory}
-                options={suggestions?.factories ?? []}
+                options={isBrand ? BRAND_SUGGESTIONS : (suggestions?.factories ?? [])}
                 error={fieldErrors.factory}
                 maxLength={80}
-                placeholder={FACTORY_PLACEHOLDER}
+                placeholder={isBrand ? BRAND_PLACEHOLDER : FACTORY_PLACEHOLDER}
                 onChange={(factory) => set({ factory })}
               />
               <PickerInput

@@ -17,6 +17,8 @@ import {
   NOT_APPLICABLE,
   DIMENSIONS_LABEL,
   REGION_LABEL,
+  BRAND_LABEL,
+  factoryLabel,
 } from '@/lib/utils/catalogLabels';
 import { formatJalali } from '@/lib/utils/jalali';
 import { trackGoal } from '@/lib/analytics/track';
@@ -246,6 +248,15 @@ export function SkuDetail({
   // used. `NOT_APPLICABLE` can't occur here (the row is always in its own
   // sub-category) but is filtered defensively rather than printed as a dash.
   const attrCols = attributeColumns(row.categoryId, row.subCategoryId);
+  // «کارخانه», or «برند» on مانیسمان — resolved for THIS product's own
+  // sub-category, in the same words as the table the visitor arrived from
+  // (see catalogLabels' factoryLabel).
+  const factoryCol = factoryLabel(row.categoryId, row.subCategoryId);
+  // The highlights list reads as a phrase rather than a label — «کارخانهٔ
+  // فولاد مبارکه» — so the کارخانه form carries its ezafe. «برند» takes none:
+  // «برند چینی» is how the trade says it, and an ezafe there would be wrong
+  // Persian.
+  const factoryPhrase = factoryCol === BRAND_LABEL ? BRAND_LABEL : 'کارخانهٔ';
   const attrSpecs = attrCols
     .map((c) => ({ key: c.key, label: c.label, value: c.cell(row) }))
     .filter((a) => a.value !== NOT_APPLICABLE);
@@ -274,7 +285,7 @@ export function SkuDetail({
     ...(row.factory
       ? [
           {
-            label: 'کارخانه',
+            label: factoryCol,
             value: <FactoryLink categorySlug={row.categoryId} factory={row.factory} />,
           },
         ]
@@ -349,7 +360,8 @@ export function SkuDetail({
               ) : null}
               {row.factory ? (
                 <li>
-                  کارخانهٔ <FactoryLink categorySlug={row.categoryId} factory={row.factory} />
+                  {factoryPhrase}{' '}
+                  <FactoryLink categorySlug={row.categoryId} factory={row.factory} />
                 </li>
               ) : null}
               {row.theoreticalWeightKg ? (

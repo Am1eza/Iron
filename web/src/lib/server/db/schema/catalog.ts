@@ -130,6 +130,26 @@ export const skus = pgTable(
     // every existing row — nothing is backfilled, and no other category is
     // asked to fill it in.
     dimensions: text('dimensions'),
+    // «رده» — the pipe schedule, i.e. the wall-thickness/pressure class the
+    // pipe trade sizes pressure pipe by («رده ۴۰», «رده ۸۰», ASME B36.10).
+    // Free text on purpose, exactly like `size` and `standard`: the schedule
+    // numbers in actual Iranian market use are not a closed set, and an enum
+    // would turn "the owner listed a new class" into a migration.
+    //
+    // This is a NEW column rather than a reuse of `standard`, which is the
+    // reuse the similar-looking ورق/نبشی `dimensions` precedent would
+    // suggest. `standard` is already meaningfully populated INSIDE لوله —
+    // every live لولهٔ جدار چاه row stores «ST37» in it — so borrowing it
+    // would have made one column carry two unrelated meanings within a single
+    // category, and the admin form could not have offered both facts on the
+    // same product. The ورق/نبشی reuse works precisely because those two
+    // meanings never meet under one parent category; here they would.
+    //
+    // Nullable with no backfill, and offered only on the pressure-pipe subs
+    // (see catalogLabels' PIPE_SCHEDULE_SUBS): مبلی and داربستی have no
+    // schedule rating at all, and every existing row stays null until an
+    // admin records one.
+    schedule: text('schedule'),
     factory: text('factory'),
     theoreticalWeightKg: doublePrecision('theoretical_weight_kg'),
     unit: text('unit', { enum: PRICE_UNIT_VALUES }).notNull().default('kg'),

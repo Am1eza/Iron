@@ -23,6 +23,7 @@ import {
   type AttrColumn,
   groupModeFor,
   groupKeyFor,
+  factoryLabel,
   REGION_LABEL,
   UNKNOWN_VALUE,
   DIMENSIONS_LABEL,
@@ -210,6 +211,7 @@ const PriceTableRow = memo(function PriceTableRow({
   showDimensions,
   attrCols,
   showFactory,
+  factoryCol,
   showRegion,
   showRowBasis,
   sizeCol,
@@ -232,6 +234,11 @@ const PriceTableRow = memo(function PriceTableRow({
    *  mill name — پروفیل, whose stored ones were fabricated and are suppressed
    *  at the DTO boundary (see catalogLabels.factoryIsMeaningful). */
   showFactory: boolean;
+  /** What that column is CALLED here — «برند» on مانیسمان, «کارخانه»
+   *  everywhere else. Passed down from the one `factoryLabel` call that built
+   *  the `<th>`, so the reflowed card label and the header cannot drift into
+   *  two different words for one column. */
+  factoryCol: string;
   /** «محل تولید» — the producing city, in the same lockstep. On only when the
    *  rows carry one but there are no region SECTIONS to put it in the heading
    *  of, which is the flat-fallback case (see `showRegionColumn`). */
@@ -312,7 +319,7 @@ const PriceTableRow = memo(function PriceTableRow({
       {showFactory ? (
         <td
           role="cell"
-          data-label="کارخانه"
+          data-label={factoryCol}
           className={`${styles.muted}${r.factory ? '' : ` ${styles.blankOnNarrow}`}`}
         >
           <FactoryCell categorySlug={r.categoryId} factory={r.factory} />
@@ -519,6 +526,12 @@ export function PriceTable({
   // Memoized because it is handed to every memoized row/card: a fresh array
   // each render would defeat their `React.memo` entirely.
   const attrCols = useMemo(() => attributeColumns(categorySlug, sub), [categorySlug, sub]);
+  // «کارخانه», or «برند» on مانیسمان — one stored column, named for what it
+  // actually holds in this context (see catalogLabels' factoryLabel). Like
+  // `attrCols` it depends on the ACTIVE sub-filter, so the mixed «همه» view
+  // keeps the generic «کارخانه»: those rows do not agree on a sub, and a
+  // گازی row under a «برند» header would be a false claim about its mill.
+  const factoryCol = factoryLabel(categorySlug, sub);
 
   // Filter changes animate via same-document View Transitions where supported
   // (a no-op elsewhere) — the rows crossfade instead of snapping.
@@ -612,7 +625,7 @@ export function PriceTable({
    *  `none`: there are no sections, and naming a structure the page does not
    *  have is worse than saying nothing about it. */
   const sectionNoun =
-    groupMode === 'factory' ? 'کارخانه' : groupMode === 'region' ? REGION_LABEL : null;
+    groupMode === 'factory' ? factoryCol : groupMode === 'region' ? REGION_LABEL : null;
   /**
    * «محل تولید» as a COLUMN rather than as section headings.
    *
@@ -1077,7 +1090,7 @@ export function PriceTable({
                         ))}
                         {showFactory ? (
                           <th role="columnheader" scope="col">
-                            کارخانه
+                            {factoryCol}
                           </th>
                         ) : null}
                         {showRegionColumn ? (
@@ -1128,6 +1141,7 @@ export function PriceTable({
                           showDimensions={showDimensions}
                           attrCols={attrCols}
                           showFactory={showFactory}
+                          factoryCol={factoryCol}
                           showRegion={showRegionColumn}
                           showRowBasis={priceBasis === null}
                           sizeCol={sizeCol}
@@ -1254,7 +1268,7 @@ export function PriceTable({
                     exactly the fabricated distinction this page dropped. */}
                 {selectedForCompare.some((r) => r.factory) ? (
                   <tr className={diffRowClass(selectedForCompare.map((r) => r.factory ?? null))}>
-                    <th scope="row">کارخانه</th>
+                    <th scope="row">{factoryCol}</th>
                     {selectedForCompare.map((r) => (
                       <td key={r.id}>{r.factory ?? 'نامشخص'}</td>
                     ))}

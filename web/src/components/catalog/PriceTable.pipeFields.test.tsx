@@ -1,0 +1,187 @@
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { PriceRow } from '@/lib/types/domain';
+import type { SubCat } from '@/lib/data/nav';
+import { PriceTable } from './PriceTable';
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() }),
+  usePathname: () => '/prices/pipe',
+  useSearchParams: () => new URLSearchParams(),
+}));
+
+/**
+ * لوله after the owner's two 1405/06 requests: a «رده» (pipe schedule) column
+ * on the pressure-pipe subs, and «کارخانه» renamed to «برند» on مانیسمان,
+ * where the product is imported and the value is an origin rather than a mill.
+ *
+ * The sub slugs are the LIVE ones, read from the production catalog rather
+ * than from `data/nav.ts` — which still lists a single `seamless` that exists
+ * nowhere in the database, and omits `well-casing` and `thick-walled`
+ * entirely. A test written against nav.ts would have passed while the feature
+ * matched no real row.
+ *
+ * This is the case neither the استیل nor the پروفیل file covers: a category
+ * where one sub RENAMES the factory column while its siblings keep it, and
+ * where an attribute column is GAINED by some subs and not others.
+ */
+function row(
+  id: string,
+  subCategoryId: string,
+  extra: { grade?: string; schedule?: string; factory?: string } = {},
+): PriceRow {
+  return {
+    id,
+    subCategoryId,
+    categoryId: 'pipe',
+    slug: id,
+    name: id,
+    size: '۴ اینچ',
+    unit: 'kg',
+    priceBasis: 'kg',
+    isActive: true,
+    ...extra,
+    current: {
+      skuId: id,
+      price: 520_000,
+      unit: 'kg',
+      priceBasis: 'kg',
+      deliveryTime: '۲۴ ساعت',
+      vatIncluded: false,
+      movementDir: 'flat',
+      updatedAt: new Date('2026-08-23T09:00:00Z').toISOString(),
+      isStale: false,
+    },
+  } as PriceRow;
+}
+
+const SUBS: SubCat[] = [
+  { slug: 'seamless-internal', name: 'لوله مانیسمان داخلی', groupLabel: 'مانیسمان' },
+  { slug: 'seamless-external', name: 'لوله مانیسمان خارجی', groupLabel: 'مانیسمان' },
+  { slug: 'gas', name: 'گازی', groupLabel: null },
+  { slug: 'industrial', name: 'صنعتی درزدار', groupLabel: null },
+  { slug: 'furniture', name: 'مبلی', groupLabel: null },
+];
+
+const ROWS = [
+  // Still a mill-shaped value: this change is go-forward only and nothing was
+  // backfilled, so the live rows keep exactly what they hold today.
+  row('seamless-3', 'seamless-internal', { schedule: '۴۰', factory: 'لوله سپاهان' }),
+  row('seamless-x', 'seamless-external', { schedule: '۸۰', factory: 'چینی' }),
+  row('gas-2', 'gas', { schedule: '۴۰', factory: 'نورد لوله ساوه' }),
+  row('industrial-2', 'industrial', { grade: 'ST37', factory: 'سپنتا' }),
+  row('furniture-1', 'furniture', { factory: 'لوله سمنان' }),
+];
+
+function renderTable(rows: PriceRow[] = ROWS, initialSub: string | null = null) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={qc}>
+      <PriceTable
+        rows={rows}
+        subs={SUBS}
+        categoryName="لوله"
+        categorySlug="pipe"
+        initialSub={initialSub}
+      />
+    </QueryClientProvider>,
+  );
+}
+
+/** The cell under a named column for a given product row. */
+function cellFor(product: string, column: string): string {
+  const tr = screen.getByRole('rowheader', { name: product }).closest('tr')!;
+  const headers = within(tr.closest('table')!).getAllByRole('columnheader');
+  const col = headers.findIndex((h) => h.textContent === column);
+  expect(col, `column «${column}» is on the table`).toBeGreaterThan(-1);
+  // The leading `<th>` is the compare checkbox and the product name is a
+  // `<th scope="row">`, so the Nth header maps to the (N-1)th `<td>`.
+  return tr.querySelectorAll('td')[col - 1]?.textContent ?? '';
+}
+
+describe('PriceTable — لوله gains «رده» on its pressure-pipe subs', () => {
+  it('publishes «رده» beside «گرید» on مانیسمان, گازی and صنعتی درزدار', async () => {
+    const user = userEvent.setup();
+    renderTable();
+    for (const [sub, product, schedule] of [
+      ['لوله مانیسمان داخلی', 'seamless-3', '۴۰'],
+      ['لوله مانیسمان خارجی', 'seamless-x', '۸۰'],
+      ['گازی', 'gas-2', '۴۰'],
+    ] as const) {
+      await user.click(screen.getByRole('button', { name: sub }));
+      expect(cellFor(product, 'رده')).toBe(schedule);
+      // A gain, not a swap — the pipe still has a steel grade too.
+      expect(screen.getByRole('columnheader', { name: 'گرید' })).toBeInTheDocument();
+    }
+  });
+
+  it('says «نامشخص» for a schedule nobody has entered — never a dash', async () => {
+    // A dash would claim صنعتی درزدار pipe has no schedule; it has one, we
+    // just have not recorded this row's.
+    const user = userEvent.setup();
+    renderTable();
+    await user.click(screen.getByRole('button', { name: 'صنعتی درزدار' }));
+    expect(cellFor('industrial-2', 'رده')).toBe('نامشخص');
+  });
+
+  it('offers no «رده» on مبلی, which has no schedule rating at all', async () => {
+    const user = userEvent.setup();
+    renderTable();
+    await user.click(screen.getByRole('button', { name: 'مبلی' }));
+    expect(screen.queryByRole('columnheader', { name: 'رده' })).toBeNull();
+    expect(screen.getByRole('columnheader', { name: 'گرید' })).toBeInTheDocument();
+  });
+
+  it('keeps «رده» off the mixed «همه» view', () => {
+    // Most لوله subs have no schedule, so the column would read «—» for the
+    // majority of its own rows.
+    renderTable();
+    expect(screen.queryByRole('columnheader', { name: 'رده' })).toBeNull();
+  });
+});
+
+describe('PriceTable — مانیسمان calls its factory column «برند»', () => {
+  it('renames the column, the section noun and the sort control on مانیسمان', async () => {
+    const user = userEvent.setup();
+    renderTable();
+    await user.click(screen.getByRole('button', { name: 'لوله مانیسمان داخلی' }));
+    expect(screen.getByRole('columnheader', { name: 'برند' })).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'کارخانه' })).toBeNull();
+    // The sections are named after the column, so they move with it.
+    expect(screen.getByRole('combobox', { name: 'مرتب‌سازی بخش‌های برند' })).toBeInTheDocument();
+  });
+
+  it('keeps the stored value untouched — only the label changed', async () => {
+    // Go-forward only: the live مانیسمان rows still hold mill-shaped values
+    // and nothing was backfilled, so «لوله سپاهان» must still be printed
+    // exactly as stored, merely under a different heading.
+    const user = userEvent.setup();
+    renderTable();
+    await user.click(screen.getByRole('button', { name: 'لوله مانیسمان داخلی' }));
+    expect(cellFor('seamless-3', 'برند')).toContain('لوله سپاهان');
+  });
+
+  it('leaves every other لوله sub on «کارخانه»', async () => {
+    const user = userEvent.setup();
+    renderTable();
+    for (const sub of ['گازی', 'صنعتی درزدار', 'مبلی']) {
+      await user.click(screen.getByRole('button', { name: sub }));
+      expect(screen.getByRole('columnheader', { name: 'کارخانه' })).toBeInTheDocument();
+      expect(screen.queryByRole('columnheader', { name: 'برند' })).toBeNull();
+    }
+  });
+
+  it('keeps the generic «کارخانه» in the mixed «همه» view', () => {
+    // Those rows do not agree on a sub: a گازی row under a «برند» header
+    // would be a false claim about what its mill name is.
+    renderTable();
+    // The mixed view groups by mill, so there is one section table — and one
+    // header — per factory. EVERY one of them has to say «کارخانه»; a single
+    // «برند» among them would be the drift this label exists to prevent.
+    const headers = screen.getAllByRole('columnheader', { name: 'کارخانه' });
+    expect(headers.length).toBeGreaterThan(0);
+    expect(screen.queryByRole('columnheader', { name: 'برند' })).toBeNull();
+  });
+});

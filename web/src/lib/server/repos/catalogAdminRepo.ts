@@ -459,6 +459,11 @@ export async function catalogSuggestions(categoryId?: string): Promise<{
   /** ورق plate dimensions already in use. Empty for every other category,
    *  which simply has none. */
   dimensions: string[];
+  /** «رده» values already in use in this category, so «رده ۴۰» stays one
+   *  string rather than splitting across near-identical spellings — the same
+   *  "let them pick, not type" reason every other picker here is fed from the
+   *  data. Empty for every category except لوله. */
+  schedules: string[];
   standards: string[];
   groupLabels: string[];
 }> {
@@ -470,6 +475,7 @@ export async function catalogSuggestions(categoryId?: string): Promise<{
       size: skus.size,
       grade: skus.grade,
       dimensions: skus.dimensions,
+      schedule: skus.schedule,
       standard: skus.standard,
     })
     .from(skus)
@@ -492,6 +498,7 @@ export async function catalogSuggestions(categoryId?: string): Promise<{
     sizes: pick((r) => r.size),
     grades: pick((r) => r.grade),
     dimensions: pick((r) => r.dimensions),
+    schedules: pick((r) => r.schedule),
     standards: pick((r) => r.standard),
     groupLabels,
   };
@@ -509,6 +516,10 @@ export interface SkuInput {
    *  column alone, explicit null clears it" rule as every other optional
    *  field here. See server/db/schema/catalog.ts. */
   dimensions?: string | null;
+  /** «رده» — the pipe schedule, on لوله's pressure-pipe subs. Same nullable
+   *  "absent key leaves the column alone, explicit null clears it" rule as
+   *  every other optional field here. See server/db/schema/catalog.ts. */
+  schedule?: string | null;
   factory?: string | null;
   theoreticalWeightKg?: number | null;
   unit?: PriceUnit;

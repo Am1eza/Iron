@@ -11,6 +11,10 @@ import {
   GRADE_LABEL,
   STANDARD_LABEL,
   ALLOY_LABEL,
+  SCHEDULE_LABEL,
+  FACTORY_LABEL,
+  BRAND_LABEL,
+  factoryLabel,
   BRANCH_LENGTH_LABEL,
   CUSTOM_LENGTH_LABEL,
   NOT_APPLICABLE,
@@ -73,7 +77,7 @@ describe('usesDimensions', () => {
 describe('the attribute columns (گرید / استاندارد / آلیاژ / طول)', () => {
   const row = (
     subCategoryId: string,
-    fields: { grade?: string; standard?: string; branchLengthM?: number } = {},
+    fields: { grade?: string; standard?: string; schedule?: string; branchLengthM?: number } = {},
   ) => ({ subCategoryId, ...fields });
 
   /** The one column a single-column table has. */
@@ -83,7 +87,11 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ط
     return cols[0]!;
   };
 
-  it('leaves every non-تیرآهن, non-پروفیل, non-استیل category exactly as it was', () => {
+  // لوله appears here with a sub that is NOT one of its pressure-pipe ones,
+  // which is the point: gaining «رده» on مانیسمان/گازی/صنعتی must leave the
+  // rest of the category — and every other category — on the plain «گرید»
+  // column it has always had.
+  it('leaves every category outside تیرآهن/پروفیل/استیل and لوله’s pressure subs exactly as it was', () => {
     for (const slug of ['rebar', 'sheet', 'pipe', 'angle-channel', 'wire', 'felezat-rangi']) {
       for (const sub of [null, 'anything']) {
         const col = only(slug, sub);
@@ -185,6 +193,67 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ط
     expect(col.cell(row('prvfyl-snaty', { grade: 'ST37' }))).toBe(NOT_APPLICABLE);
     expect(col.cell(row('profil-z'))).toBe(NOT_APPLICABLE);
     expect(col.cell(row('prvfyl-astyl', { grade: '۳۰۴' }))).toBe(NOT_APPLICABLE);
+  });
+
+  /* --------------------------------- لوله --------------------------------- */
+
+  /** The لوله column set on a given sub. */
+  const pipeCols = (sub: string | null) => attributeColumns('pipe', sub);
+
+  it('adds «رده» beside «گرید» on the pressure-pipe subs — a gain, not a swap', () => {
+    // The live slugs, read from the production catalog: مانیسمان really is
+    // split into داخلی/خارجی, and `data/nav.ts`'s single `seamless` would
+    // have matched no rows at all.
+    for (const sub of ['seamless-internal', 'seamless-external', 'gas', 'industrial']) {
+      const cols = pipeCols(sub);
+      expect(cols.map((c) => c.key)).toEqual(['grade', 'schedule']);
+      expect(cols.map((c) => c.label)).toEqual([GRADE_LABEL, SCHEDULE_LABEL]);
+      // A pipe genuinely has both facts, so neither displaces the other.
+      expect(cols[0]!.cell(row(sub, { grade: 'ST37' }))).toBe('ST37');
+      expect(cols[1]!.cell(row(sub, { schedule: '۴۰' }))).toBe('۴۰');
+    }
+  });
+
+  it('reads «رده» from skus.schedule and never from standard or grade', () => {
+    const schedule = pipeCols('seamless-internal')[1]!;
+    // لولهٔ جدار چاه stores a real «استاندارد» (ST37) in `standard`, which is
+    // exactly why «رده» could not borrow that column. Neither neighbouring
+    // value may leak into it.
+    expect(schedule.cell(row('seamless-internal', { standard: 'ST37', grade: 'ST37' }))).toBe(
+      UNKNOWN_VALUE,
+    );
+    expect(schedule.cell(row('seamless-internal', { schedule: 'رده ۸۰' }))).toBe('رده ۸۰');
+    expect(schedule.card(row('seamless-internal'))).toBeNull();
+  });
+
+  it('offers no «رده» on the لوله subs that have no schedule rating', () => {
+    // مبلی is furniture tube and داربستی is scaffold tube — sold on outside
+    // diameter and wall gauge, with no schedule class at all. اسپیرال,
+    // جدار چاه and گوشت‌دار are deliberately out too, pending an owner call.
+    for (const sub of [
+      'furniture',
+      'scaffold',
+      'galvanized',
+      'spiral',
+      'well-casing',
+      'thick-walled',
+    ]) {
+      expect(pipeCols(sub).map((c) => c.key)).toEqual(['grade']);
+    }
+  });
+
+  it('keeps «رده» out of the mixed «همه» لوله view', () => {
+    // Most لوله subs have no schedule, so the column would read «—» for the
+    // majority of its own rows — the outcome the sub-scoping exists to avoid.
+    expect(pipeCols(null).map((c) => c.key)).toEqual(['grade']);
+  });
+
+  it('does not give any OTHER category a «رده» column', () => {
+    for (const slug of ['rebar', 'ibeam', 'sheet', 'profile', 'steel', 'angle-channel']) {
+      for (const sub of [null, 'seamless-internal', 'gas', 'industrial']) {
+        expect(attributeColumns(slug, sub).some((c) => c.key === 'schedule')).toBe(false);
+      }
+    }
   });
 
   /* -------------------------- استیل (the category) -------------------------- */
@@ -313,6 +382,68 @@ describe('factoryIsMeaningful', () => {
     // it has to be named here, the same way the grade replacements are.
     expect(factoryIsMeaningful('profile', 'something-new')).toBe(true);
     expect(factoryIsMeaningful('profile', null)).toBe(true);
+  });
+});
+
+describe('factoryLabel — «برند» on مانیسمان, «کارخانه» everywhere else', () => {
+  // The live مانیسمان slugs, read from the production catalog. `data/nav.ts`
+  // still lists a single `seamless`, which exists nowhere in the database —
+  // gating on it would have silently relabelled nothing at all.
+  const SEAMLESS = ['seamless-internal', 'seamless-external'];
+
+  it('calls the column «برند» on both مانیسمان subs', () => {
+    for (const sub of SEAMLESS) {
+      expect(factoryLabel('pipe', sub)).toBe(BRAND_LABEL);
+      expect(factoryLabel('pipe', sub)).toBe('برند');
+    }
+  });
+
+  it('leaves every other لوله sub on «کارخانه»', () => {
+    // These pipes ARE rolled by named Iranian mills, so «برند» would be a
+    // false claim about what the stored value is.
+    for (const sub of [
+      'gas',
+      'industrial',
+      'scaffold',
+      'galvanized',
+      'spiral',
+      'furniture',
+      'well-casing',
+      'thick-walled',
+    ]) {
+      expect(factoryLabel('pipe', sub)).toBe(FACTORY_LABEL);
+    }
+  });
+
+  it('keeps the generic «کارخانه» for a mixed «همه» view or an unknown sub', () => {
+    // A مانیسمان row under a «کارخانه» header is merely generic; a گازی row
+    // under a «برند» header would be wrong. The fallback errs that way.
+    expect(factoryLabel('pipe', null)).toBe(FACTORY_LABEL);
+    expect(factoryLabel('pipe', undefined)).toBe(FACTORY_LABEL);
+    expect(factoryLabel('pipe')).toBe(FACTORY_LABEL);
+    expect(factoryLabel('pipe', 'something-new')).toBe(FACTORY_LABEL);
+  });
+
+  it('never touches another category, even one with a same-named sub', () => {
+    for (const slug of ['rebar', 'ibeam', 'sheet', 'profile', 'steel', 'angle-channel', 'wire']) {
+      for (const sub of [...SEAMLESS, 'gas', null]) {
+        expect(factoryLabel(slug, sub)).toBe(FACTORY_LABEL);
+      }
+    }
+    expect(factoryLabel(null, 'seamless-internal')).toBe(FACTORY_LABEL);
+    expect(factoryLabel(undefined, 'seamless-internal')).toBe(FACTORY_LABEL);
+  });
+
+  it('is a separate question from whether the column is published at all', () => {
+    // مانیسمان keeps a meaningful factory column — it is only NAMED
+    // differently. استیل is the opposite case: the column goes away entirely.
+    // A caller that needs both answers has to ask both.
+    for (const sub of SEAMLESS) {
+      expect(factoryIsMeaningful('pipe', sub)).toBe(true);
+      expect(factoryLabel('pipe', sub)).toBe(BRAND_LABEL);
+    }
+    expect(factoryIsMeaningful('steel', 'angle')).toBe(false);
+    expect(factoryLabel('steel', 'angle')).toBe(FACTORY_LABEL);
   });
 });
 
