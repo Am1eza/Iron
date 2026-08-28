@@ -296,6 +296,7 @@ export function factoryLabel(
 export const BRANCH_LENGTH_LABEL = 'طول شاخه';
 export const CUSTOM_LENGTH_LABEL = 'طول سفارشی';
 export const ALLOY_LABEL = 'آلیاژ';
+export const CONDITION_LABEL = 'حالت';
 
 /** Printed where the column is not a property of THAT row's product at all —
  *  «نامشخص» would claim the value is merely unknown. */
@@ -309,7 +310,14 @@ const CUT_TO_ORDER = 'بر اساس سفارش';
 /** The identity of one attribute column. Not a free label: the same key drives
  *  the header, the desktop cell, the mobile card line and the spec sheet, so
  *  they cannot drift into three different words for one fact. */
-export type AttrKey = 'grade' | 'standard' | 'alloy' | 'branchLength' | 'customLength' | 'schedule';
+export type AttrKey =
+  | 'grade'
+  | 'standard'
+  | 'alloy'
+  | 'condition'
+  | 'branchLength'
+  | 'customLength'
+  | 'schedule';
 
 /** The subset of a price row the attribute columns read. Deliberately
  *  structural rather than `PriceRow` so the admin tables and the spec sheet can
@@ -334,6 +342,14 @@ const ATTR_DEFS: Record<AttrKey, { label: string; read: (r: AttrRow) => string |
   // (۲۰۱/۳۰۴/۳۰۴L/۳۱۶L), which is the one spec a stainless buyer actually asks
   // for. Used by the whole استیل category and by پروفیل استیل.
   alloy: { label: ALLOY_LABEL, read: (r) => r.grade },
+  // «حالت» is the same established re-label pattern as استیل's
+  // «آلیاژ» above: it is NOT a new stored fact. On ورق the owner has
+  // already been using `skus.grade` for the product form supplied to the
+  // buyer — values such as «برش‌خورده» and «رول» — rather than for a
+  // metallurgical grade. Reading the existing column through a distinct key
+  // changes only what the UI calls it; validation, persistence and every
+  // stored value remain untouched.
+  condition: { label: CONDITION_LABEL, read: (r) => r.grade },
   branchLength: { label: BRANCH_LENGTH_LABEL, read: (r) => metres(r.branchLengthM) },
   // «رده» — the pipe schedule. Its own stored column (`skus.schedule`), and
   // deliberately NOT a re-label of `standard` the way `alloy` re-labels
@@ -370,10 +386,11 @@ const PROFILE_ATTRS: Record<string, AttrKey[]> = {
  * currently-active sub-category filter (`null` = «همه», every sub-category
  * mixed into one table).
  *
- * Only تیرآهن, پروفیل, استیل and لوله ever deviate; every other category
- * always gets its one «گرید» column exactly as before. The mixed «همه» view
- * resolves to the category's default column set — the rule تیرآهن has always
- * used — and each cell then answers for its own row (see `attributeColumns`).
+ * Only تیرآهن, پروفیل, استیل, لوله and ورق ever deviate; every other
+ * category always gets its one «گرید» column exactly as before. The mixed
+ * «همه» view resolves to the category's default column set — the rule تیرآهن
+ * has always used — and each cell then answers for its own row (see
+ * `attributeColumns`).
  *
  * استیل deviates at the CATEGORY level rather than per-sub: every product in it
  * is stainless, so every stored `grade` in it is an alloy designation
@@ -402,6 +419,11 @@ export function attrKeysFor(
   if (categorySlug === 'profile' && sub !== null) {
     return PROFILE_ATTRS[sub] ?? ['grade'];
   }
+  // ورق is category-wide, exactly like استیل's alloy relabel: every
+  // sheet row uses the existing `grade` value to describe its supplied
+  // condition («برش‌خورده»/«رول»), so both an individual sub and
+  // the mixed «همه» view have one unambiguous label. No stored value moves.
+  if (categorySlug === 'sheet') return ['condition'];
   // لوله is the one category that ADDS an attribute column rather than
   // trading one away: its pressure-pipe subs keep the «گرید» column they have
   // always had and gain «رده» beside it. (Compare پروفیل صنعتی, which swaps
