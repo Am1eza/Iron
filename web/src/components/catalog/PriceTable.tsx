@@ -26,6 +26,7 @@ import {
   groupModeFor,
   groupKeyFor,
   factoryLabel,
+  sectionSubject,
   REGION_LABEL,
   UNKNOWN_VALUE,
   priceBasisNoun,
@@ -56,11 +57,27 @@ import styles from './PriceTable.module.css';
 
 type SortKey = 'size' | 'price' | 'movement';
 
+/** 0 = never ranked. Read as +Infinity, not literally 0, so one admin-ranked
+ *  row (`order` 1, 2, …) always leads every untouched row in its section —
+ *  not just the other ranked ones — instead of losing to them on a literal
+ *  "0 < 1" comparison. */
+const rank = (r: PriceRow): number => (r.order > 0 ? r.order : Infinity);
+
 /** Shared row comparator — used for the per-factory sections, driven by the
  *  toolbar's `sort` control. */
 function compareRows(a: PriceRow, b: PriceRow, sort: SortKey): number {
   if (sort === 'price') return a.current.price - b.current.price;
   if (sort === 'movement') return (b.current.movementPct ?? 0) - (a.current.movementPct ?? 0);
+  // Admin-assigned `order` (owner request, 1405/06) takes priority over the
+  // default «سایز» sort — it exists precisely because the plain size parse
+  // below cannot express his arrangement (e.g. «۲ برش‌خورده» before «۲ رول»,
+  // both sharing the same size string). Rows nobody has ranked tie with each
+  // other here (both read as +Infinity) and fall straight through to the
+  // untouched size comparator — a category the owner has never ranked
+  // behaves exactly as it did before this field existed.
+  const ra = rank(a);
+  const rb = rank(b);
+  if (ra !== rb) return ra - rb;
   // `Number('۱۴')` is NaN — every stored size is in Persian digits, so this
   // comparator silently returned NaN for every pair and the «سایز» sort did
   // nothing at all.
@@ -541,6 +558,23 @@ export function PriceTable({
   // keeps the generic «کارخانه»: those rows do not agree on a sub, and a
   // گازی row under a «برند» header would be a false claim about its mill.
   const factoryCol = factoryLabel(categorySlug, sub);
+  /**
+   * What the sections below are sections OF — «تیرآهن», or «تیرآهن هاش سبک»
+   * on the تیرآهن sub-types whose heading used to misdescribe them (see
+   * catalogLabels' sectionSubject).
+   *
+   * Resolved from the ACTIVE sub-filter, not from whatever sub the page was
+   * entered on: this table's filter is uncontrolled on a sub page
+   * (`initialSub`), so a visitor can switch to «همه» without navigating, and
+   * the heading has to stop claiming هاش the moment the rows stop being only
+   * هاش. `subs` is looked up rather than trusted to contain the slug — an
+   * unknown one falls back to the plain category name.
+   */
+  const activeSub = useMemo(
+    () => (sub ? (subs.find((x) => x.slug === sub) ?? null) : null),
+    [subs, sub],
+  );
+  const subject = sectionSubject(categoryName, categorySlug, activeSub);
 
   // Filter changes animate via same-document View Transitions where supported
   // (a no-op elsewhere) — the rows crossfade instead of snapping.
@@ -915,9 +949,14 @@ export function PriceTable({
               subtitle line spells out which of the two numbers it carries, so
               a recipient can never be misled. The per-section export below
               follows that section's own toggle. */}
+          {/* `subject`, not `categoryName`: `exportRows` is built from
+              `bySection`, which is already narrowed by the active sub-filter,
+              so on a هاش page this "everything" export contains only هاش rows
+              — and titling the sheet, its header line and its filename
+              «تیرآهن» mislabels a file that outlives the page it came from. */}
           <ExportMenu
             rows={exportRows}
-            title={categoryName}
+            title={subject}
             categorySlug={categorySlug}
             subCategorySlug={sub}
             vat={vat}
@@ -987,7 +1026,14 @@ export function PriceTable({
           // «قیمت میلگرد کویر کاشان» when the mill is a real distinction,
           // «قیمت پروفیل Z تهران» when the producing city is, and «قیمت پروفیل
           // مبلی» when neither is and this is the page's one table.
-          const sectionTitle = sectionNoun ? `${categoryName} ${name}` : categoryName;
+          //
+          // `subject` — not the bare category name — because on تیرآهن's
+          // هاش/لانه‌زنبوری subs the category word alone advertised plain
+          // تیرآهن above rows that are nothing of the kind. It resolves back
+          // to the category name for every other category and for the mixed
+          // «همه» view, so this line is byte-for-byte what it was everywhere
+          // else.
+          const sectionTitle = sectionNoun ? `${subject} ${name}` : subject;
           return (
             <SectionShell
               key={name}

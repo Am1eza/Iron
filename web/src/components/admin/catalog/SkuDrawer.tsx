@@ -41,6 +41,7 @@ import {
   GRADE_LABEL,
   ALLOY_LABEL,
   BRANCH_LABEL,
+  CONDITION_LABEL,
   SCHEDULE_LABEL,
   BRAND_LABEL,
   STANDARD_LABEL,
@@ -145,6 +146,10 @@ type Values = {
    *  silently drops a recorded value. */
   schedule: string;
   standard: string;
+  /** Position within this SKU's own factory-grouped section on the public
+   *  price page. '' means "not ranked" (→ 0), same "empty box is a real,
+   *  common answer" convention as branchLengthM/theoreticalWeightKg below. */
+  order: string;
   unit: AdminSku['unit'];
   /** What a stored price is per — see PRICE_BASES. */
   priceBasis: AdminSku['priceBasis'];
@@ -173,6 +178,7 @@ function toValues(sku: AdminSku | null, defaultSubId: string, steelCategoryId: s
     dimensions: sku?.dimensions ?? '',
     schedule: sku?.schedule ?? '',
     standard: sku?.standard ?? '',
+    order: sku?.order ? String(sku.order) : '',
     unit: sku?.unit ?? 'kg',
     priceBasis: sku?.priceBasis ?? 'kg',
     branchLengthM: sku?.branchLengthM != null ? String(sku.branchLengthM) : '',
@@ -275,13 +281,11 @@ export function SkuDrawer({
   // وال‌پست and تی‌بار share this parent and must remain untouched.
   const showDimensions = usesDimensions(parentCategory?.slug, selectedSub?.slug ?? null);
   const dimensionsCol = dimensionsLabel(parentCategory?.slug, selectedSub?.slug ?? null);
-  // استیل — the whole category — and پروفیل استیل read `skus.grade` as «آلیاژ»
-  // on the public pages, because on a stainless product the stored grade
-  // genuinely IS the alloy (۲۰۱/۳۰۴/۳۰۴L/۳۱۶L). The admin box is relabelled to
-  // match — an operator asked for a «گرید» and a product page publishing
-  // «آلیاژ» is how the wrong value gets typed in. Deliberately narrow: it asks
-  // catalogLabels rather than deciding for itself, so no other category's field
-  // changes at all.
+  // The admin uses the same AttrKey decision as the public page: استیل's
+  // stored grade is an «آلیاژ», while ورق's already-stored «برش‌خورده»/
+  // «رول» values describe its «حالت», not a metallurgical grade. This is
+  // deliberately only a label choice: both still edit `skus.grade`, through
+  // the unchanged value/options/save path below.
   const attrKeys = attrKeysFor(parentCategory?.slug, selectedSub?.slug ?? null);
   // تیرآهن هاش سبک/سنگین: «گرید» بی‌معناست، ستون واقعی همان skus.standard
   // است (مثلاً HEA/HEB بر اساس DIN 1025) — همان قاعده‌ای که آلیاژ استیل بالا
@@ -300,9 +304,11 @@ export function SkuDrawer({
   const usesBranchAttr = attrKeys.includes('branch');
   const gradeLabel = attrKeys.includes('alloy')
     ? ALLOY_LABEL
-    : usesStandardAttr
-      ? STANDARD_LABEL
-      : GRADE_LABEL;
+    : attrKeys.includes('condition')
+      ? CONDITION_LABEL
+      : usesStandardAttr
+        ? STANDARD_LABEL
+        : GRADE_LABEL;
   // «رده» is offered on exactly the لوله sub-categories whose products have a
   // schedule rating, decided by the same catalogLabels allow-list the public
   // table's column is built from — so the form can never collect a value the
@@ -420,8 +426,18 @@ export function SkuDrawer({
   const lengthRaw = normText(v.branchLengthM).trim();
   const lengthNum = lengthNumOf(v.branchLengthM);
   const lengthValid = lengthRaw === '' || lengthNum !== null;
+  // Empty box = 0 = "not ranked" — same value a SKU nobody has ranked
+  // already carries, so leaving this untouched is a no-op save.
+  const orderRaw = normText(v.order).trim();
+  const orderNum = orderRaw === '' ? 0 : Number(orderRaw);
+  const orderValid = Number.isInteger(orderNum) && orderNum >= 0 && orderNum <= 10_000;
   const canSave =
-    v.name.trim() !== '' && Boolean(v.subCategoryId) && Boolean(v.slug) && weightValid && lengthValid;
+    v.name.trim() !== '' &&
+    Boolean(v.subCategoryId) &&
+    Boolean(v.slug) &&
+    weightValid &&
+    lengthValid &&
+    orderValid;
 
   const save = useMutation({
     mutationFn: () => {
@@ -440,6 +456,7 @@ export function SkuDrawer({
         priceBasis: v.priceBasis,
         branchLengthM: lengthNum,
         theoreticalWeightKg: weightNum,
+        order: orderNum,
         imageUrl: v.imageUrl,
         crossListedCategoryIds: v.crossListedSteel && steelCategory ? [steelCategory.id] : null,
       };
@@ -621,9 +638,11 @@ export function SkuDrawer({
                   helper={
                     gradeLabel === ALLOY_LABEL
                       ? 'استیل: ۲۰۱، ۳۰۴، ۳۰۴L، ۳۱۶L. در صفحهٔ کالا به مشتری نشان داده می‌شود.'
-                      : gradeLabel === STANDARD_LABEL
-                        ? 'مثلاً HEA یا HEB (بر اساس DIN 1025). در صفحهٔ کالا به مشتری نشان داده می‌شود.'
-                        : 'میلگرد: A1، A2، A3 · ورق: ST37، ST52. در صفحهٔ کالا به مشتری نشان داده می‌شود.'
+                      : gradeLabel === CONDITION_LABEL
+                        ? 'ورق: برش‌خورده، رول. در صفحهٔ کالا به مشتری نشان داده می‌شود.'
+                        : gradeLabel === STANDARD_LABEL
+                          ? 'مثلاً HEA یا HEB (بر اساس DIN 1025). در صفحهٔ کالا به مشتری نشان داده می‌شود.'
+                          : 'میلگرد: A1، A2، A3. در صفحهٔ کالا به مشتری نشان داده می‌شود.'
                   }
                   value={usesStandardAttr ? v.standard : v.grade}
                   options={(usesStandardAttr ? suggestions?.standards : suggestions?.grades) ?? []}
@@ -646,7 +665,11 @@ export function SkuDrawer({
             <div className={s.fieldGrid}>
               <TextInput
                 label="نام کالا"
-                helper={touched.name ? 'دستی ویرایش شده.' : `از زیر‌دسته، ${sizeCol}، گرید و کارخانه ساخته می‌شود.`}
+                helper={
+                  touched.name
+                    ? 'دستی ویرایش شده.'
+                    : `از زیر‌دسته، ${sizeCol}، ${gradeLabel === CONDITION_LABEL ? CONDITION_LABEL : GRADE_LABEL} و کارخانه ساخته می‌شود.`
+                }
                 value={v.name}
                 error={fieldErrors.name}
                 maxLength={160}
@@ -766,6 +789,17 @@ export function SkuDrawer({
                     نشانی قدیمی ساخته می‌شود تا لینک‌های قبلی نشکنند.
                   </Alert>
                 ) : null}
+                <TextInput
+                  label="ترتیب نمایش در بخش کارخانه"
+                  inputMode="numeric"
+                  placeholder="مثلاً ۱"
+                  helper="عدد کوچک‌تر زودتر نمایش داده می‌شود. اگر خالی بگذارید، مثل قبل بر اساس سایز مرتب می‌شود."
+                  value={v.order}
+                  error={
+                    fieldErrors.order ?? (orderValid ? undefined : 'عدد صحیح نامنفی وارد کنید یا خالی بگذارید.')
+                  }
+                  onChange={(e) => set({ order: e.target.value })}
+                />
                 <TextInput
                   label="نشانی صفحه"
                   dir="ltr"

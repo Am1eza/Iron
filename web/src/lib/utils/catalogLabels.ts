@@ -77,6 +77,34 @@ const ANGLE_CHANNEL_BRANCH_SUBS = new Set([
 const IBEAM_STANDARD_SUBS = new Set(['hash-sabok', 'hash-sangin']);
 
 /**
+ * تیرآهن sub-categories whose factory-section headings must name the
+ * SUB-TYPE, not just the category (owner report, 1405/06).
+ *
+ * The price page groups its rows into one «قیمت {موضوع} {کارخانه}» section
+ * per mill, and that subject had always been the category name alone. Under
+ * هاش or لانه‌زنبوری that reads as a lie: the section «قیمت تیرآهن ذوب‌آهن
+ * اصفهان» sits directly above rows whose own auto-composed names say «هاش
+ * سبک ۱۴ ذوب‌آهن اصفهان». A visitor scanning headings sees plain تیرآهن
+ * pricing where there is none — and these are genuinely different products at
+ * genuinely different prices, not a naming nicety.
+ *
+ * Deliberately an allow-list, exactly like NABSHI_THICKNESS_SUBS and
+ * PIPE_SCHEDULE_SUBS. `tirahan` — the plain-تیرآهن sub — must NOT be in it:
+ * its own name IS the category word, so naming the sub there would produce
+ * «قیمت تیرآهن تیرآهن ذوب‌آهن اصفهان», the exact stutter
+ * `subCategorySubject` was written to prevent. Every other category is
+ * untouched: «قیمت میلگرد کویر کاشان» stays as it is, because nobody reported
+ * it reading wrong and «میلگرد» is not a claim about the wrong product the
+ * way «تیرآهن» is on a هاش page.
+ *
+ * Slugs verified against the live catalog (1405/06), NOT `data/nav.ts` —
+ * which is labelled a mock fixture in its own header and still lists `hea`,
+ * `heb` and `castellated`, none of which exist in the database. Gating on
+ * those would have matched no rows and shipped a silent no-op.
+ */
+const IBEAM_SUBTYPE_HEADING_SUBS = new Set(['hash-sabok', 'hash-sangin', 'lane-zanburi']);
+
+/**
  * لوله sub-categories that carry a «رده» (`skus.schedule`) — the pipe
  * schedule, the trade's own name for a wall-thickness/pressure class
  * («رده ۴۰», «رده ۸۰», per ASME B36.10).
@@ -309,6 +337,7 @@ export const ALLOY_LABEL = 'آلیاژ';
  * adjective describing the شاخه, which is how the trade says it.
  */
 export const BRANCH_LABEL = 'شاخه';
+export const CONDITION_LABEL = 'حالت';
 
 /** Printed where the column is not a property of THAT row's product at all —
  *  «نامشخص» would claim the value is merely unknown. */
@@ -323,7 +352,14 @@ const CUT_TO_ORDER = 'بر اساس سفارش';
  *  the header, the desktop cell, the mobile card line and the spec sheet, so
  *  they cannot drift into three different words for one fact. */
 export type AttrKey =
-  'grade' | 'standard' | 'alloy' | 'branchLength' | 'customLength' | 'schedule' | 'branch';
+  | 'grade'
+  | 'standard'
+  | 'alloy'
+  | 'condition'
+  | 'branchLength'
+  | 'customLength'
+  | 'schedule'
+  | 'branch';
 
 /** The subset of a price row the attribute columns read. Deliberately
  *  structural rather than `PriceRow` so the admin tables and the spec sheet can
@@ -354,6 +390,14 @@ const ATTR_DEFS: Record<AttrKey, { label: string; read: (r: AttrRow) => string |
   // (۲۰۱/۳۰۴/۳۰۴L/۳۱۶L), which is the one spec a stainless buyer actually asks
   // for. Used by the whole استیل category and by پروفیل استیل.
   alloy: { label: ALLOY_LABEL, read: (r) => r.grade },
+  // «حالت» is the same established re-label pattern as استیل's
+  // «آلیاژ» above: it is NOT a new stored fact. On ورق the owner has
+  // already been using `skus.grade` for the product form supplied to the
+  // buyer — values such as «برش‌خورده» and «رول» — rather than for a
+  // metallurgical grade. Reading the existing column through a distinct key
+  // changes only what the UI calls it; validation, persistence and every
+  // stored value remain untouched.
+  condition: { label: CONDITION_LABEL, read: (r) => r.grade },
   branchLength: { label: BRANCH_LENGTH_LABEL, read: (r) => metres(r.branchLengthM) },
   // «رده» — the pipe schedule. Its own stored column (`skus.schedule`), and
   // deliberately NOT a re-label of `standard` the way `alloy` re-labels
@@ -396,10 +440,11 @@ const PROFILE_ATTRS: Record<string, AttrKey[]> = {
  * currently-active sub-category filter (`null` = «همه», every sub-category
  * mixed into one table).
  *
- * Only تیرآهن, پروفیل, استیل, لوله and نبشی‌وناودانی ever deviate; every
- * other category always gets its one «گرید» column exactly as before. The mixed «همه» view
- * resolves to the category's default column set — the rule تیرآهن has always
- * used — and each cell then answers for its own row (see `attributeColumns`).
+ * Only تیرآهن, پروفیل, استیل, لوله, ورق and نبشی‌وناودانی ever deviate; every
+ * other category always gets its one «گرید» column exactly as before. The
+ * mixed «همه» view resolves to the category's default column set — the rule
+ * تیرآهن has always used — and each cell then answers for its own row (see
+ * `attributeColumns`).
  *
  * استیل deviates at the CATEGORY level rather than per-sub: every product in it
  * is stainless, so every stored `grade` in it is an alloy designation
@@ -428,6 +473,11 @@ export function attrKeysFor(
   if (categorySlug === 'profile' && sub !== null) {
     return PROFILE_ATTRS[sub] ?? ['grade'];
   }
+  // ورق is category-wide, exactly like استیل's alloy relabel: every
+  // sheet row uses the existing `grade` value to describe its supplied
+  // condition («برش‌خورده»/«رول»), so both an individual sub and
+  // the mixed «همه» view have one unambiguous label. No stored value moves.
+  if (categorySlug === 'sheet') return ['condition'];
   // لوله is the one category that ADDS an attribute column rather than
   // trading one away: its pressure-pipe subs keep the «گرید» column they have
   // always had and gain «رده» beside it. (Compare پروفیل صنعتی, which swaps
@@ -717,6 +767,51 @@ export function groupKeyFor(mode: GroupMode, row: { factory?: string; region?: s
  */
 export function subCategorySubject(subName: string, categoryName: string): string {
   return subNameCoversCategory(subName, categoryName) ? subName : `${subName} ${categoryName}`;
+}
+
+/**
+ * What one factory-grouped price section is a section OF — the subject in
+ * «قیمت {موضوع} {کارخانه}».
+ *
+ * Normally the category name, which is what every category has always used
+ * and what «قیمت میلگرد کویر کاشان» still gets. On the تیرآهن sub-types
+ * listed in IBEAM_SUBTYPE_HEADING_SUBS it becomes «{category} {sub}» —
+ * «تیرآهن هاش سبک» — so the heading finally agrees with the product names
+ * underneath it.
+ *
+ * Deliberately NOT `subCategorySubject`, even though the two answer
+ * neighbouring questions. That one builds a PAGE TITLE, «{sub} {category}»
+ * («قیمت روز هاش سبک تیرآهن»), where the SEO job is to get the category
+ * keyword into the line at all. This is a section heading that already
+ * carries a mill name after it, and the same word order there strands the
+ * product word three phrases away from its mill: «قیمت هاش سبک تیرآهن
+ * ذوب‌آهن اصفهان» reads as a تیرآهن made by a mill called «ذوب‌آهن اصفهان»
+ * only if you parse it carefully. Category-first keeps the qualifier next to
+ * what it qualifies and matches the phrasing the owner asked for.
+ *
+ * It DOES reuse that function's `subNameCoversCategory` de-duplication, so a
+ * sub later renamed «تیرآهن هاش سبک» yields «تیرآهن هاش سبک», never
+ * «تیرآهن تیرآهن هاش سبک» — the two helpers cannot drift on that rule.
+ *
+ * `activeSub` is null in the mixed «همه» view, and that is the whole reason
+ * this takes the ACTIVE filter rather than the page's own sub: one mill's
+ * section there can hold plain تیرآهن and هاش rows at once, so no
+ * sub-specific subject is true of all of them and the generic category name
+ * is the only honest answer — the same "mixed context → generic fallback"
+ * rule `dimensionsLabel` and `factoryLabel` already follow.
+ */
+export function sectionSubject(
+  categoryName: string,
+  categorySlug: string | null | undefined,
+  activeSub: { slug: string; name: string } | null | undefined,
+): string {
+  if (!activeSub) return categoryName;
+  if (categorySlug !== 'ibeam' || !IBEAM_SUBTYPE_HEADING_SUBS.has(activeSub.slug)) {
+    return categoryName;
+  }
+  return subNameCoversCategory(activeSub.name, categoryName)
+    ? activeSub.name
+    : `${categoryName} ${activeSub.name}`;
 }
 
 /** Does `subName` already say `categoryName`, as a run of whole tokens? */

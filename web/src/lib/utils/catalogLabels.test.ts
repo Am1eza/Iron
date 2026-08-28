@@ -14,6 +14,7 @@ import {
   STANDARD_LABEL,
   ALLOY_LABEL,
   BRANCH_LABEL,
+  CONDITION_LABEL,
   SCHEDULE_LABEL,
   FACTORY_LABEL,
   BRAND_LABEL,
@@ -118,7 +119,7 @@ describe('usesDimensions', () => {
   });
 });
 
-describe('the attribute columns (گرید / استاندارد / آلیاژ / طول)', () => {
+describe('the attribute columns (گرید / استاندارد / آلیاژ / حالت / طول)', () => {
   const row = (
     subCategoryId: string,
     fields: { grade?: string; standard?: string; schedule?: string; branchLengthM?: number } = {},
@@ -138,8 +139,11 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ط
   // لوله and نبشی‌وناودانی appear here with subs that are NOT in their
   // respective allow-lists, which is the point: the new columns must leave the
   // rest of each category — and every other category — on the plain «گرید».
-  it('leaves every category outside the four deviating ones exactly as it was', () => {
-    for (const slug of ['rebar', 'sheet', 'pipe', 'angle-channel', 'wire', 'felezat-rangi']) {
+  // ورق is not in this slug list at all — it deviates category-wide (its
+  // «حالت» applies to every sub, including the mixed «همه» view), unlike
+  // لوله and نبشی‌وناودانی, which only ever deviate for a named sub.
+  it('leaves every category outside the deviating ones exactly as it was', () => {
+    for (const slug of ['rebar', 'pipe', 'angle-channel', 'wire', 'felezat-rangi']) {
       for (const sub of [null, 'anything']) {
         const col = only(slug, sub);
         expect(col.key).toBe('grade');
@@ -182,6 +186,30 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ط
     expect(col.cell(row('ipe', { grade: 'ST37' }))).toBe(NOT_APPLICABLE);
     expect(col.card(row('ipe', { grade: 'ST37' }))).toBeNull();
     expect(col.card(row('hash-sabok'))).toBeNull();
+  });
+
+  /* -------------------------------- ورق -------------------------------- */
+
+  it('labels ورق’s existing skus.grade value «حالت» in every sub and the mixed view', () => {
+    for (const sub of ['black', 'cold', 'galvanized', 'colored', null]) {
+      const col = only('sheet', sub);
+      expect(col.key).toBe('condition');
+      expect(col.label).toBe(CONDITION_LABEL);
+      // This is the same physical column as before: only its trade-facing
+      // name changes, and existing values pass through byte-for-byte.
+      expect(col.cell(row(sub ?? 'black', { grade: 'برش‌خورده' }))).toBe('برش‌خورده');
+      expect(col.card(row(sub ?? 'black', { grade: 'رول' }))).toBe('رول');
+      expect(col.cell(row(sub ?? 'black'))).toBe(UNKNOWN_VALUE);
+      expect(col.card(row(sub ?? 'black'))).toBeNull();
+    }
+  });
+
+  it('does not leak «حالت» into any other category', () => {
+    for (const slug of ['rebar', 'ibeam', 'pipe', 'profile', 'steel', 'angle-channel']) {
+      for (const sub of [null, 'black']) {
+        expect(attributeColumns(slug, sub).some((c) => c.key === 'condition')).toBe(false);
+      }
+    }
   });
 
   /* ------------------------------- پروفیل ------------------------------- */

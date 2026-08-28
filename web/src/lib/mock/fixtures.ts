@@ -27,37 +27,37 @@ export const rebarRows: PriceRow[] = [
   {
     id: 's1', subCategoryId: 'sc1', categoryId: 'c1', slug: 'rebar-14-a3-zob',
     name: 'میلگرد ۱۴ A3 ذوب‌آهن', standard: 'A3', size: '14', grade: 'A3', factory: 'ذوب‌آهن',
-    theoreticalWeightKg: 18.9, unit: 'kg', priceBasis: 'kg', isActive: true,
+    order: 0, theoreticalWeightKg: 18.9, unit: 'kg', priceBasis: 'kg', isActive: true,
     current: { skuId: 's1', price: 32450, unit: 'kg', priceBasis: 'kg', deliveryTime: '۲۴ ساعت', vatIncluded: false, movementPct: 0.8, movementDir: 'up', updatedAt: '2026-06-29T08:00:00.000Z', isStale: false },
   },
   {
     id: 's2', subCategoryId: 'sc1', categoryId: 'c1', slug: 'rebar-16-a3-zob',
     name: 'میلگرد ۱۶ A3 ذوب‌آهن', standard: 'A3', size: '16', grade: 'A3', factory: 'ذوب‌آهن',
-    theoreticalWeightKg: 24.7, unit: 'kg', priceBasis: 'kg', isActive: true,
+    order: 0, theoreticalWeightKg: 24.7, unit: 'kg', priceBasis: 'kg', isActive: true,
     current: { skuId: 's2', price: 32100, unit: 'kg', priceBasis: 'kg', deliveryTime: '۴۸ ساعت', vatIncluded: false, movementPct: -0.3, movementDir: 'down', updatedAt: '2026-06-29T08:00:00.000Z', isStale: false },
   },
   {
     id: 's3', subCategoryId: 'sc1', categoryId: 'c1', slug: 'rebar-18-a3-zob',
     name: 'میلگرد ۱۸ A3 ذوب‌آهن', standard: 'A3', size: '18', grade: 'A3', factory: 'ذوب‌آهن',
-    theoreticalWeightKg: 31.2, unit: 'kg', priceBasis: 'kg', isActive: true,
+    order: 0, theoreticalWeightKg: 31.2, unit: 'kg', priceBasis: 'kg', isActive: true,
     current: { skuId: 's3', price: 31950, unit: 'kg', priceBasis: 'kg', deliveryTime: '۲۴ ساعت', vatIncluded: false, movementPct: 0.5, movementDir: 'up', updatedAt: '2026-06-29T08:00:00.000Z', isStale: false },
   },
   {
     id: 's4', subCategoryId: 'sc1', categoryId: 'c1', slug: 'rebar-20-a3-neyshabur',
     name: 'میلگرد ۲۰ A3 نیشابور', standard: 'A3', size: '20', grade: 'A3', factory: 'نیشابور',
-    theoreticalWeightKg: 38.5, unit: 'kg', priceBasis: 'kg', isActive: true,
+    order: 0, theoreticalWeightKg: 38.5, unit: 'kg', priceBasis: 'kg', isActive: true,
     current: { skuId: 's4', price: 32600, unit: 'kg', priceBasis: 'kg', deliveryTime: '۲۴ ساعت', vatIncluded: false, movementPct: 1.2, movementDir: 'up', updatedAt: '2026-06-29T08:00:00.000Z', isStale: false },
   },
   {
     id: 's5', subCategoryId: 'sc1', categoryId: 'c1', slug: 'rebar-22-a3-zob',
     name: 'میلگرد ۲۲ A3 ذوب‌آهن', standard: 'A3', size: '22', grade: 'A3', factory: 'ذوب‌آهن',
-    theoreticalWeightKg: 46.5, unit: 'kg', priceBasis: 'kg', isActive: true,
+    order: 0, theoreticalWeightKg: 46.5, unit: 'kg', priceBasis: 'kg', isActive: true,
     current: { skuId: 's5', price: 31800, unit: 'kg', priceBasis: 'kg', deliveryTime: '۷۲ ساعت', vatIncluded: false, movementPct: 0, movementDir: 'flat', updatedAt: '2026-06-29T08:00:00.000Z', isStale: false },
   },
   {
     id: 's6', subCategoryId: 'sc1', categoryId: 'c1', slug: 'rebar-25-a3-kaveh',
     name: 'میلگرد ۲۵ A3 کاوه', standard: 'A3', size: '25', grade: 'A3', factory: 'کاوه',
-    theoreticalWeightKg: 60.1, unit: 'kg', priceBasis: 'kg', isActive: true,
+    order: 0, theoreticalWeightKg: 60.1, unit: 'kg', priceBasis: 'kg', isActive: true,
     current: { skuId: 's6', price: 33150, unit: 'kg', priceBasis: 'kg', deliveryTime: '۲۴ ساعت', vatIncluded: false, movementPct: -0.6, movementDir: 'down', updatedAt: '2026-06-29T08:00:00.000Z', isStale: false },
   },
 ];

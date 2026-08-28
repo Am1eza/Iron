@@ -521,6 +521,11 @@ export interface SkuInput {
    *  every other optional field here. See server/db/schema/catalog.ts. */
   schedule?: string | null;
   factory?: string | null;
+  /** Admin-chosen position within this SKU's own factory-grouped section on
+   *  the public price page. Absent = leave alone (defaults to 0, "unranked",
+   *  on insert). See server/db/schema/catalog.ts and `compareRows` in
+   *  components/catalog/PriceTable.tsx. */
+  order?: number;
   theoreticalWeightKg?: number | null;
   unit?: PriceUnit;
   /** What a stored price is per. Absent = leave alone (the column defaults to

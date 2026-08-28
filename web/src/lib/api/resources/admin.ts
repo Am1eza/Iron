@@ -501,6 +501,10 @@ export interface AdminSku {
    *  other category and for pipes nobody has filled it in for yet. */
   schedule: string | null;
   factory: string | null;
+  /** Admin-chosen position within this SKU's own factory-grouped section on
+   *  the public price page. 0 = never ranked, so the section falls back to
+   *  its usual size/price/movement sort for this one row. */
+  order: number;
   theoreticalWeightKg: number | null;
   unit: PriceUnit;
   /** What a price on this product is per — see `PriceBasis`. */
@@ -527,6 +531,7 @@ export interface AdminSkuInput {
   dimensions?: string | null;
   schedule?: string | null;
   factory?: string | null;
+  order?: number;
   theoreticalWeightKg?: number | null;
   unit?: PriceUnit;
   priceBasis?: PriceBasis;
