@@ -203,8 +203,17 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ط
   it('adds «رده» beside «گرید» on the pressure-pipe subs — a gain, not a swap', () => {
     // The live slugs, read from the production catalog: مانیسمان really is
     // split into داخلی/خارجی, and `data/nav.ts`'s single `seamless` would
-    // have matched no rows at all.
-    for (const sub of ['seamless-internal', 'seamless-external', 'gas', 'industrial']) {
+    // have matched no rows at all. اسپیرال/جدار چاه/گوشت‌دار were added after
+    // the owner confirmed «رده» for all of them (1405/06).
+    for (const sub of [
+      'seamless-internal',
+      'seamless-external',
+      'gas',
+      'industrial',
+      'spiral',
+      'well-casing',
+      'thick-walled',
+    ]) {
       const cols = pipeCols(sub);
       expect(cols.map((c) => c.key)).toEqual(['grade', 'schedule']);
       expect(cols.map((c) => c.label)).toEqual([GRADE_LABEL, SCHEDULE_LABEL]);
@@ -228,16 +237,9 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ط
 
   it('offers no «رده» on the لوله subs that have no schedule rating', () => {
     // مبلی is furniture tube and داربستی is scaffold tube — sold on outside
-    // diameter and wall gauge, with no schedule class at all. اسپیرال,
-    // جدار چاه and گوشت‌دار are deliberately out too, pending an owner call.
-    for (const sub of [
-      'furniture',
-      'scaffold',
-      'galvanized',
-      'spiral',
-      'well-casing',
-      'thick-walled',
-    ]) {
+    // diameter and wall gauge, with no schedule class at all. گالوانیزه is
+    // likewise excluded — it was never named in any owner request.
+    for (const sub of ['furniture', 'scaffold', 'galvanized']) {
       expect(pipeCols(sub).map((c) => c.key)).toEqual(['grade']);
     }
   });

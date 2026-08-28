@@ -43,13 +43,12 @@ const IBEAM_STANDARD_SUBS = new Set(['hash-sabok', 'hash-sangin']);
  * («رده ۴۰», «رده ۸۰», per ASME B36.10).
  *
  * Deliberately an allow-list rather than the whole category, for the same
- * reason the نبشی thickness one is: «رده» is a real property of PRESSURE pipe
- * — مانیسمان, گازی and صنعتی درزدار, the three the owner named — and of
- * nothing else under لوله. لولهٔ مبلی is furniture tube sold on outside
- * diameter and wall gauge, and لولهٔ داربستی is scaffold tube sold to a
- * scaffolding spec; neither carries a schedule rating at all, so offering the
- * field there would ask an admin to invent a value for a property the product
- * does not have.
+ * reason the نبشی thickness one is: «رده» is a real property of pipe sold by
+ * pressure/schedule class, and of nothing else under لوله. لولهٔ مبلی is
+ * furniture tube sold on outside diameter and wall gauge, and لولهٔ داربستی
+ * is scaffold tube sold to a scaffolding spec; neither carries a schedule
+ * rating at all, so offering the field there would ask an admin to invent a
+ * value for a property the product does not have — these two stay excluded.
  *
  * BOTH مانیسمان subs are listed because that sub-category really is split in
  * production — «مانیسمان داخلی» and «مانیسمان خارجی» — and a schedule is the
@@ -58,13 +57,22 @@ const IBEAM_STANDARD_SUBS = new Set(['hash-sabok', 'hash-sangin']);
  * lists a single `seamless` sub that no longer exists and would therefore
  * have matched no rows at all.
  *
- * Deliberately NOT listed, pending an owner decision: اسپیرال, جدار چاه and
- * گوشت‌دار. A case can be made that each is pressure-rated too, but none was
- * in the owner's request, and جدار چاه already records its spec in
- * `skus.standard` («ST37» on every live row) — so giving it a second spec
- * column is a product decision, not a labelling one.
+ * اسپیرال, جدار چاه and گوشت‌دار were initially left out pending an owner
+ * decision (each is arguably pressure-rated too, and جدار چاه already
+ * records «ST37» in `skus.standard`) — the owner confirmed all three should
+ * get «رده» as well (1405/06). `schedule` is its own column, independent of
+ * `standard`, so جدار چاه now correctly carries both facts on one row rather
+ * than one column meaning two things.
  */
-const PIPE_SCHEDULE_SUBS = new Set(['seamless-internal', 'seamless-external', 'gas', 'industrial']);
+const PIPE_SCHEDULE_SUBS = new Set([
+  'seamless-internal',
+  'seamless-external',
+  'gas',
+  'industrial',
+  'spiral',
+  'well-casing',
+  'thick-walled',
+]);
 
 /**
  * لوله sub-categories whose «کارخانه» column is really a «برند».
