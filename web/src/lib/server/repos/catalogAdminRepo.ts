@@ -456,8 +456,8 @@ export async function catalogSuggestions(categoryId?: string): Promise<{
   factories: string[];
   sizes: string[];
   grades: string[];
-  /** ورق plate dimensions already in use. Empty for every other category,
-   *  which simply has none. */
+  /** Shared ورق dimensions / approved نبشی thickness values already
+   *  in use within the requested parent-category scope. */
   dimensions: string[];
   standards: string[];
   groupLabels: string[];

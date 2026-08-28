@@ -1,0 +1,76 @@
+import { describe, expect, it, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { PriceRow } from '@/lib/types/domain';
+import type { SubCat } from '@/lib/data/nav';
+import { PriceTable } from './PriceTable';
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() }),
+  usePathname: () => '/prices/angle-channel/nabshi',
+  useSearchParams: () => new URLSearchParams(),
+}));
+
+const SUBS: SubCat[] = [
+  { slug: 'nabshi', name: 'نبشی بال مساوی', groupLabel: null },
+  { slug: 'angle-unequal', name: 'نبشی بال نامساوی', groupLabel: null },
+  { slug: 'spot', name: 'نبشی لقمه', groupLabel: null },
+  { slug: 'val-post', name: 'وال‌پست', groupLabel: null },
+  { slug: 'tbar', name: 'تی‌بار', groupLabel: null },
+];
+
+function row(subCategoryId: string): PriceRow {
+  return {
+    id: subCategoryId,
+    subCategoryId,
+    categoryId: 'angle-channel',
+    slug: subCategoryId,
+    name: subCategoryId,
+    size: '۴۰',
+    dimensions: '۴',
+    factory: 'فولاد مشهد',
+    unit: 'kg',
+    isActive: true,
+    current: {
+      skuId: subCategoryId,
+      price: 500_000,
+      unit: 'kg',
+      deliveryTime: '۲۴ ساعت',
+      vatIncluded: false,
+      movementDir: 'flat',
+      updatedAt: new Date('2026-08-28T09:00:00Z').toISOString(),
+      isStale: false,
+    },
+  } as PriceRow;
+}
+
+function renderTable(initialSub: string | null) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={qc}>
+      <PriceTable
+        rows={SUBS.map((sub) => row(sub.slug))}
+        subs={SUBS}
+        categoryName="نبشی و ناودانی"
+        categorySlug="angle-channel"
+        initialSub={initialSub}
+      />
+    </QueryClientProvider>,
+  );
+}
+
+describe('PriceTable — نبشی wall thickness scope', () => {
+  it.each(['nabshi', 'angle-unequal', 'spot'])('shows a ضخامت column on %s', (subCategoryId) => {
+    renderTable(subCategoryId);
+    expect(screen.getByRole('columnheader', { name: 'ضخامت' })).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'ابعاد' })).not.toBeInTheDocument();
+    expect(document.querySelector('td[data-label="ضخامت"]')).not.toBeNull();
+  });
+
+  it.each([null, 'val-post', 'tbar'])('keeps the shared column hidden for %s', (subCategoryId) => {
+    renderTable(subCategoryId);
+    expect(screen.queryByRole('columnheader', { name: 'ضخامت' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'ابعاد' })).not.toBeInTheDocument();
+    expect(document.querySelector('td[data-label="ضخامت"]')).toBeNull();
+  });
+});

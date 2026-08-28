@@ -34,7 +34,7 @@ function row(overrides: Partial<PriceRow> = {}): PriceRow {
  * thing that silently files every factory name under «وزن شاخه» in a customer's
  * spreadsheet. These assertions pin the two arrays to each other.
  */
-describe('ExportMenu columns — ورق carries ابعاد, nothing else does', () => {
+describe('ExportMenu columns — the shared secondary-spec column stays context-aware', () => {
   it('adds an ابعاد header for ورق, right after ضخامت', () => {
     const c = cols('sheet');
     expect(c).toEqual(['محصول', 'ضخامت', 'ابعاد', 'کارخانه', 'وزن (kg)', 'قیمت (تومان)', 'نوسان', 'زمان تحویل']);
@@ -43,6 +43,24 @@ describe('ExportMenu columns — ورق carries ابعاد, nothing else does', 
   it('leaves every other category on the original column set', () => {
     for (const slug of ['rebar', 'pipe', undefined]) {
       expect(cols(slug)).toEqual(['محصول', 'سایز', 'کارخانه', 'وزن شاخه (kg)', 'قیمت (تومان)', 'نوسان', 'زمان تحویل']);
+    }
+  });
+
+  it('adds ضخامت only for the three approved نبشی subs', () => {
+    for (const sub of ['nabshi', 'angle-unequal', 'spot']) {
+      expect(cols('angle-channel', sub)).toEqual([
+        'محصول',
+        'سایز',
+        'ضخامت',
+        'کارخانه',
+        'وزن شاخه (kg)',
+        'قیمت (تومان)',
+        'نوسان',
+        'زمان تحویل',
+      ]);
+    }
+    for (const sub of ['val-post', 'tbar', null]) {
+      expect(cols('angle-channel', sub)).not.toContain('ضخامت');
     }
   });
 

@@ -121,14 +121,15 @@ export const skus = pgTable(
     standard: text('standard'),
     size: text('size'),
     grade: text('grade'),
-    // Sheet dimensions — the width×length of the plate, e.g. «۱۰۰۰×۲۰۰۰».
-    // Only ورق has this: `size` already carries a sheet's THICKNESS (which is
-    // why the UI labels it «ضخامت» there), and the plate's other two
-    // dimensions had nowhere to live. They were being smuggled into `grade`
-    // by at least one product before #123 gave grade its own column and that
-    // SKU's grade had to be cleared by hand. Nullable and stays null for
-    // every existing row — nothing is backfilled, and no other category is
-    // asked to fill it in.
+    // One shared optional secondary-spec column. For ورق it is the plate's
+    // width×length (e.g. «۱۰۰۰×۲۰۰۰»): `size` already carries sheet
+    // THICKNESS, and those other two dimensions previously had nowhere to
+    // live. Per the owner's 1405/06 request it also stores a single wall-
+    // thickness value (e.g. «۴») for exactly نبشی بال مساوی, بال
+    // نامساوی and لقمه. UI allow-lists decide which meaning applies;
+    // وال‌پست, تی‌بار and every other product line stay unaffected.
+    // Nullable, with no backfill: existing نبشی rows remain null until
+    // an admin records the optional value.
     dimensions: text('dimensions'),
     factory: text('factory'),
     theoreticalWeightKg: doublePrecision('theoretical_weight_kg'),
