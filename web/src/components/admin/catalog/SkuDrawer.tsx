@@ -40,6 +40,7 @@ import {
   attrKeysFor,
   GRADE_LABEL,
   ALLOY_LABEL,
+  CONDITION_LABEL,
   SCHEDULE_LABEL,
   BRAND_LABEL,
   STANDARD_LABEL,
@@ -274,13 +275,11 @@ export function SkuDrawer({
   // وال‌پست and تی‌بار share this parent and must remain untouched.
   const showDimensions = usesDimensions(parentCategory?.slug, selectedSub?.slug ?? null);
   const dimensionsCol = dimensionsLabel(parentCategory?.slug, selectedSub?.slug ?? null);
-  // استیل — the whole category — and پروفیل استیل read `skus.grade` as «آلیاژ»
-  // on the public pages, because on a stainless product the stored grade
-  // genuinely IS the alloy (۲۰۱/۳۰۴/۳۰۴L/۳۱۶L). The admin box is relabelled to
-  // match — an operator asked for a «گرید» and a product page publishing
-  // «آلیاژ» is how the wrong value gets typed in. Deliberately narrow: it asks
-  // catalogLabels rather than deciding for itself, so no other category's field
-  // changes at all.
+  // The admin uses the same AttrKey decision as the public page: استیل's
+  // stored grade is an «آلیاژ», while ورق's already-stored «برش‌خورده»/
+  // «رول» values describe its «حالت», not a metallurgical grade. This is
+  // deliberately only a label choice: both still edit `skus.grade`, through
+  // the unchanged value/options/save path below.
   const attrKeys = attrKeysFor(parentCategory?.slug, selectedSub?.slug ?? null);
   // تیرآهن هاش سبک/سنگین: «گرید» بی‌معناست، ستون واقعی همان skus.standard
   // است (مثلاً HEA/HEB بر اساس DIN 1025) — همان قاعده‌ای که آلیاژ استیل بالا
@@ -288,9 +287,11 @@ export function SkuDrawer({
   const usesStandardAttr = attrKeys.includes('standard');
   const gradeLabel = attrKeys.includes('alloy')
     ? ALLOY_LABEL
-    : usesStandardAttr
-      ? STANDARD_LABEL
-      : GRADE_LABEL;
+    : attrKeys.includes('condition')
+      ? CONDITION_LABEL
+      : usesStandardAttr
+        ? STANDARD_LABEL
+        : GRADE_LABEL;
   // «رده» is offered on exactly the لوله sub-categories whose products have a
   // schedule rating, decided by the same catalogLabels allow-list the public
   // table's column is built from — so the form can never collect a value the
@@ -586,9 +587,11 @@ export function SkuDrawer({
                 helper={
                   gradeLabel === ALLOY_LABEL
                     ? 'استیل: ۲۰۱، ۳۰۴، ۳۰۴L، ۳۱۶L. در صفحهٔ کالا به مشتری نشان داده می‌شود.'
-                    : gradeLabel === STANDARD_LABEL
-                      ? 'مثلاً HEA یا HEB (بر اساس DIN 1025). در صفحهٔ کالا به مشتری نشان داده می‌شود.'
-                      : 'میلگرد: A1، A2، A3 · ورق: ST37، ST52. در صفحهٔ کالا به مشتری نشان داده می‌شود.'
+                    : gradeLabel === CONDITION_LABEL
+                      ? 'ورق: برش‌خورده، رول. در صفحهٔ کالا به مشتری نشان داده می‌شود.'
+                      : gradeLabel === STANDARD_LABEL
+                        ? 'مثلاً HEA یا HEB (بر اساس DIN 1025). در صفحهٔ کالا به مشتری نشان داده می‌شود.'
+                        : 'میلگرد: A1، A2، A3. در صفحهٔ کالا به مشتری نشان داده می‌شود.'
                 }
                 value={usesStandardAttr ? v.standard : v.grade}
                 options={(usesStandardAttr ? suggestions?.standards : suggestions?.grades) ?? []}
@@ -608,7 +611,11 @@ export function SkuDrawer({
             <div className={s.fieldGrid}>
               <TextInput
                 label="نام کالا"
-                helper={touched.name ? 'دستی ویرایش شده.' : `از زیر‌دسته، ${sizeCol}، گرید و کارخانه ساخته می‌شود.`}
+                helper={
+                  touched.name
+                    ? 'دستی ویرایش شده.'
+                    : `از زیر‌دسته، ${sizeCol}، ${gradeLabel === CONDITION_LABEL ? CONDITION_LABEL : GRADE_LABEL} و کارخانه ساخته می‌شود.`
+                }
                 value={v.name}
                 error={fieldErrors.name}
                 maxLength={160}
