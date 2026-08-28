@@ -20,7 +20,7 @@ Funnel: Magnet → Engage → Capture (پیش‌فاکتور / proforma) → Con
 |---|---|
 | Payments | **None online.** Proforma + human close. |
 | Prices | 100% **admin-entered**. No bourse formula. Weight = deterministic formula. |
-| AI | **Parspack AI Studio** (`nvidia/nemotron-3-nano-omni-30b-a3b-reasoning`), server-side via an **out-of-Iran relay**. Grounded — never invents a number. Was DeepSeek until 1405/05; the owner changed provider when that relay hit a permanent HTTP 402. Env vars are provider-neutral (`AI_BASE_URL`/`AI_API_KEY`/`AI_MODEL`, legacy `DEEPSEEK_*` still accepted) — see `web/src/lib/server/integrations/aiRelayConfig.ts`. It is a REASONING model: `AI_REASONING_EFFORT` must stay capped or every tool round trip times out. |
+| AI | **Surplus Intelligence** (`gpt-5.6-luna`), server-side via an **out-of-Iran relay**. Grounded — never invents a number. Was DeepSeek until 1405/05, then Parspack AI Studio until 1405/06; the owner switched again. Env vars are provider-neutral (`AI_BASE_URL`/`AI_API_KEY`/`AI_MODEL`, legacy `DEEPSEEK_*` still accepted) — see `web/src/lib/server/integrations/aiRelayConfig.ts`. `AI_REASONING_EFFORT` stays capped by default (measured `reasoning_tokens: 0` for this model at `low`, but the cap that saved production from the Parspack model's timeouts is left in place regardless). |
 | Ticker | FX/gold from **BrsAPI** (api.brsapi.ir), ounce from gold-api.com; billet is admin-entered. |
 | Auth | Mobile number + **OTP**. |
 | SMS | **SMS.ir — OWNER-LOCKED.** Never propose another provider. |
