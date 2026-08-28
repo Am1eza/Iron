@@ -64,9 +64,10 @@ const createPayload = z.object({
     .optional()
     .transform((v) => (v ? normalizeSizeText(v) : v === '' ? null : v)),
   grade: optionalPersianText(40),
-  // ورق only (the admin form offers it for no other category). Runs through
-  // normalizeSizeText like `size` does, so «1000x2000», «1000*2000» and
-  // «۱۰۰۰ × ۲۰۰۰» all land as «۱۰۰۰×۲۰۰۰» instead of three lookalike values.
+  // Shared optional ورق-dimensions / نبشی-thickness text. The admin
+  // UI owns the exact category/sub allow-list; the API passes it through
+  // generically and normalizes it like `size`, preserving existing sheet
+  // inputs such as «1000x2000» → «۱۰۰۰×۲۰۰۰» unchanged.
   dimensions: z
     .string()
     .trim()

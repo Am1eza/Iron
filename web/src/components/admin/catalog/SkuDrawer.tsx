@@ -35,8 +35,8 @@ import {
 import {
   sizeLabel,
   usesDimensions,
+  dimensionsLabel,
   attrKeysFor,
-  DIMENSIONS_LABEL,
   GRADE_LABEL,
   ALLOY_LABEL,
   factoryIsMeaningful,
@@ -97,7 +97,10 @@ const SIZE_PLACEHOLDER: Record<string, string> = {
 };
 const FACTORY_PLACEHOLDER = 'مثلاً ذوب‌آهن اصفهان';
 const GRADE_PLACEHOLDER = 'مثلاً A3';
-const DIMENSIONS_PLACEHOLDER = 'مثلاً ۱۰۰۰×۲۰۰۰';
+const DIMENSIONS_PLACEHOLDER: Record<string, string> = {
+  sheet: 'مثلاً ۱۰۰۰×۲۰۰۰',
+  'angle-channel': 'مثلاً ۴',
+};
 
 type Values = {
   name: string;
@@ -106,9 +109,9 @@ type Values = {
   size: string;
   factory: string;
   grade: string;
-  /** ورق only — the plate's width×length. The field is not even rendered for
-   *  other categories, but the value is still round-tripped so moving a SKU
-   *  between categories never silently drops it. */
+  /** ورق width×length or wall thickness on the three approved نبشی
+   *  subs. The field is hidden everywhere else, but the value is still
+   *  round-tripped so moving a SKU never silently drops it. */
   dimensions: string;
   standard: string;
   unit: AdminSku['unit'];
@@ -235,7 +238,11 @@ export function SkuDrawer({
   // word the trade actually uses for whichever category they're filing this
   // product under (see catalogLabels). The stored column is unchanged.
   const sizeCol = sizeLabel(parentCategory?.slug);
-  const showDimensions = usesDimensions(parentCategory?.slug);
+  // The shared column means width×length for ورق and wall thickness for
+  // exactly three نبشی subs. Passing `selectedSub.slug` is essential:
+  // وال‌پست and تی‌بار share this parent and must remain untouched.
+  const showDimensions = usesDimensions(parentCategory?.slug, selectedSub?.slug ?? null);
+  const dimensionsCol = dimensionsLabel(parentCategory?.slug, selectedSub?.slug ?? null);
   // استیل — the whole category — and پروفیل استیل read `skus.grade` as «آلیاژ»
   // on the public pages, because on a stainless product the stored grade
   // genuinely IS the alloy (۲۰۱/۳۰۴/۳۰۴L/۳۱۶L). The admin box is relabelled to
@@ -465,20 +472,23 @@ export function SkuDrawer({
                 placeholder={SIZE_PLACEHOLDER[parentCategory?.slug ?? ''] ?? 'مثلاً ۱۴'}
                 onChange={(size) => set({ size })}
               />
-              {/* ورق only. A plate has three dimensions and `size` above holds
-                  just the thickness — «ابعاد» is the width×length. Asking
-                  میلگرد/تیرآهن/… for it would be a meaningless extra box, so
-                  the field simply isn't rendered there. */}
+              {/* One shared stored column, offered only where it has an
+                  owner-approved meaning: ورق width×length, or wall thickness
+                  on نبشی بال مساوی/نامساوی/لقمه. */}
               {showDimensions ? (
                 <PickerInput
                   id="sku-dimensions"
-                  label={DIMENSIONS_LABEL}
-                  helper="عرض×طول ورق. اختیاری — اگر نمی‌دانید خالی بگذارید."
+                  label={dimensionsCol}
+                  helper={
+                    parentCategory?.slug === 'sheet'
+                      ? 'عرض×طول ورق. اختیاری — اگر نمی‌دانید خالی بگذارید.'
+                      : 'ضخامت پروفیل نبشی به میلی‌متر. اختیاری — اگر نمی‌دانید خالی بگذارید.'
+                  }
                   value={v.dimensions}
                   options={suggestions?.dimensions ?? []}
                   error={fieldErrors.dimensions}
                   maxLength={40}
-                  placeholder={DIMENSIONS_PLACEHOLDER}
+                  placeholder={DIMENSIONS_PLACEHOLDER[parentCategory?.slug ?? '']}
                   onChange={(dimensions) => set({ dimensions })}
                 />
               ) : null}

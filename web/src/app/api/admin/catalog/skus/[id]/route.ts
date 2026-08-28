@@ -38,8 +38,8 @@ const patchPayload = nonEmptyPatch(
       .optional()
       .transform((v) => (v ? normalizeSizeText(v) : v === '' ? null : v)),
     grade: optionalPersianText(40),
-    // ورق only — see the create route. Nullable like the rest, so clearing the
-    // box actually clears the column instead of silently leaving it.
+    // Shared optional ورق-dimensions / نبشی-thickness text — see the
+    // create route. Nullable so clearing the box actually clears the column.
     dimensions: z
       .string()
       .trim()

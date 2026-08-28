@@ -3,6 +3,7 @@ import {
   sizeLabel,
   usesThickness,
   usesDimensions,
+  dimensionsLabel,
   attributeColumns,
   factoryIsMeaningful,
   SIZE_LABEL,
@@ -59,6 +60,25 @@ describe('usesDimensions', () => {
     }
   });
 
+  it('offers ضخامت only to the three owner-approved نبشی subs', () => {
+    for (const sub of ['nabshi', 'angle-unequal', 'spot']) {
+      expect(usesDimensions('angle-channel', sub)).toBe(true);
+      expect(dimensionsLabel('angle-channel', sub)).toBe(THICKNESS_LABEL);
+    }
+
+    for (const sub of ['val-post', 'tbar', 'anything-else', null]) {
+      expect(usesDimensions('angle-channel', sub)).toBe(false);
+      expect(dimensionsLabel('angle-channel', sub)).toBe(DIMENSIONS_LABEL);
+    }
+  });
+
+  it('keeps ورق exactly category-wide and labelled ابعاد', () => {
+    for (const sub of [null, 'black', 'anything-new']) {
+      expect(usesDimensions('sheet', sub)).toBe(true);
+      expect(dimensionsLabel('sheet', sub)).toBe(DIMENSIONS_LABEL);
+    }
+  });
+
   it('says no for an unknown, mixed or missing category', () => {
     // Same reasoning as the size label: the «استیل» hub mixes categories, and
     // growing an extra column there because one cross-listed ورق row wandered
@@ -67,6 +87,7 @@ describe('usesDimensions', () => {
     expect(usesDimensions(null)).toBe(false);
     expect(usesDimensions('')).toBe(false);
     expect(usesDimensions('something-new')).toBe(false);
+    expect(dimensionsLabel(undefined)).toBe(DIMENSIONS_LABEL);
   });
 });
 

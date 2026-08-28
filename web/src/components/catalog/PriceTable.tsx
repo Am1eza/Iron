@@ -19,13 +19,13 @@ import {
 import {
   sizeLabel,
   usesDimensions,
+  dimensionsLabel,
   attributeColumns,
   type AttrColumn,
   groupModeFor,
   groupKeyFor,
   REGION_LABEL,
   UNKNOWN_VALUE,
-  DIMENSIONS_LABEL,
   priceBasisNoun,
   priceUnitCaption,
   singlePriceBasis,
@@ -208,6 +208,7 @@ const PriceTableRow = memo(function PriceTableRow({
   onChart,
   onAddToCart,
   showDimensions,
+  dimensionsCol,
   attrCols,
   showFactory,
   showRegion,
@@ -220,9 +221,11 @@ const PriceTableRow = memo(function PriceTableRow({
   isFav: boolean;
   compareChecked: boolean;
   onToggleCompare: (id: string) => void;
-  /** ورق only — must stay in lockstep with the matching `<th>` in the header,
-   *  which is driven by the same flag. */
+  /** ورق or one of the three approved نبشی subs — must stay in
+   *  lockstep with the matching `<th>`, which is driven by the same flag. */
   showDimensions: boolean;
+  /** «ابعاد» for ورق; «ضخامت» for those نبشی rows. */
+  dimensionsCol: string;
   /** «گرید»/«استاندارد»/«طول شاخه»/… — resolved once for the whole table from
    *  the page's category and the active sub-filter (see catalogLabels), and
    *  handed to the header and every row from that ONE array, so a cell can
@@ -290,7 +293,7 @@ const PriceTableRow = memo(function PriceTableRow({
       {showDimensions ? (
         <td
           role="cell"
-          data-label={DIMENSIONS_LABEL}
+          data-label={dimensionsCol}
           className={`${styles.muted}${r.dimensions ? '' : ` ${styles.blankOnNarrow}`}`}
         >
           {r.dimensions ? toPersianDigits(r.dimensions) : 'نامشخص'}
@@ -463,10 +466,6 @@ export function PriceTable({
 }) {
   const sizeCol = sizeLabel(categorySlug);
   const subGroups = useMemo(() => groupByLabel(subs), [subs]);
-  // ورق only. Driven by the PAGE's category for the same reason `sizeCol` is:
-  // a mixed list (the «استیل» hub, via cross-listing) must not grow an «ابعاد»
-  // column just because one sheet row wandered into it.
-  const showDimensions = usesDimensions(categorySlug);
   const add = useCartStore((s) => s.add);
   const toast = useToast();
   const router = useRouter();
@@ -510,11 +509,16 @@ export function PriceTable({
   const [internalSub, setInternalSub] = useState<string | null>(initialSub);
   const controlled = onSubChange !== undefined;
   const sub = controlled ? (subProp ?? null) : internalSub;
-  // The «گرید»/«استاندارد»/«طول شاخه»/«طول سفارشی»/«آلیاژ» columns. Unlike
-  // `showDimensions` these depend on the ACTIVE sub-filter, so they have to be
-  // computed after `sub` is resolved: تیرآهن's «استاندارد» and پروفیل's per-sub
-  // replacements are both sub-level decisions, while the mixed «همه» view
-  // falls back to the category default (see catalogLabels).
+  // ورق keeps its category-wide «ابعاد» column. نبشی thickness is
+  // intentionally sub-aware: only the three owner-approved subs show it, and
+  // the mixed `angle-channel` «همه» view stays structurally unchanged.
+  const showDimensions = usesDimensions(categorySlug, sub);
+  const dimensionsCol = dimensionsLabel(categorySlug, sub);
+  // The «گرید»/«استاندارد»/«طول شاخه»/«طول سفارشی»/«آلیاژ» columns also
+  // depend on the ACTIVE sub-filter, so they are computed after `sub` is
+  // resolved: تیرآهن's «استاندارد» and پروفیل's per-sub replacements
+  // are both sub-level decisions, while the mixed «همه» view falls back to
+  // the category default (see catalogLabels).
   //
   // Memoized because it is handed to every memoized row/card: a fresh array
   // each render would defeat their `React.memo` entirely.
@@ -897,6 +901,7 @@ export function PriceTable({
             rows={exportRows}
             title={categoryName}
             categorySlug={categorySlug}
+            subCategorySlug={sub}
             vat={vat}
             vatRate={vatRate}
           />
@@ -1023,6 +1028,7 @@ export function PriceTable({
                       rows={list}
                       title={sectionTitle}
                       categorySlug={categorySlug}
+                      subCategorySlug={sub}
                       vat={factoryVat}
                       vatRate={vatRate}
                       compact
@@ -1062,12 +1068,13 @@ export function PriceTable({
                         >
                           {sizeCol}
                         </th>
-                        {/* ورق only — and deliberately NOT sortable: «۱۰۰۰×۲۰۰۰»
-                            is a pair, not a number, so there is no ordering the
-                            `size`/price/movement comparator could honour. */}
+                        {/* The shared secondary-spec column is deliberately
+                            not sortable. ورق stores a width×length pair here;
+                            نبشی stores free-form wall thickness. Neither has
+                            an ordering this table's comparator can honour. */}
                         {showDimensions ? (
                           <th role="columnheader" scope="col">
-                            {DIMENSIONS_LABEL}
+                            {dimensionsCol}
                           </th>
                         ) : null}
                         {attrCols.map((c) => (
@@ -1126,6 +1133,7 @@ export function PriceTable({
                           compareChecked={compareIds.has(r.id)}
                           onToggleCompare={toggleCompare}
                           showDimensions={showDimensions}
+                          dimensionsCol={dimensionsCol}
                           attrCols={attrCols}
                           showFactory={showFactory}
                           showRegion={showRegionColumn}
@@ -1238,11 +1246,11 @@ export function PriceTable({
                     <td key={r.id}>{r.size ? toPersianDigits(r.size) : 'نامشخص'}</td>
                   ))}
                 </tr>
-                {/* ورق only — the whole point of comparing two plates is often
-                    that they differ here and nowhere else. */}
+                {/* ورق dimensions or the approved نبشی wall thickness,
+                    kept in the comparison wherever it is on the source table. */}
                 {showDimensions ? (
                   <tr className={diffRowClass(selectedForCompare.map((r) => r.dimensions ?? null))}>
-                    <th scope="row">{DIMENSIONS_LABEL}</th>
+                    <th scope="row">{dimensionsCol}</th>
                     {selectedForCompare.map((r) => (
                       <td key={r.id}>{r.dimensions ? toPersianDigits(r.dimensions) : 'نامشخص'}</td>
                     ))}
