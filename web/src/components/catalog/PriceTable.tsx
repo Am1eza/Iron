@@ -18,6 +18,7 @@ import {
 } from '@/lib/utils/format';
 import {
   sizeLabel,
+  weightLabel,
   usesDimensions,
   attributeColumns,
   type AttrColumn,
@@ -213,6 +214,7 @@ const PriceTableRow = memo(function PriceTableRow({
   showRegion,
   showRowBasis,
   sizeCol,
+  weightCol,
 }: {
   row: PriceRow;
   vat: boolean;
@@ -246,6 +248,8 @@ const PriceTableRow = memo(function PriceTableRow({
    *  its own label. Comes from the same `sizeLabel(categorySlug)` call that
    *  built the `<th>`. */
   sizeCol: string;
+  /** «وزن شاخه»/«وزن» — same lockstep rule, from `weightLabel(categorySlug)`. */
+  weightCol: string;
 } & RowActions) {
   const hiddenLabel = priceHiddenLabel(r.current);
   return (
@@ -329,7 +333,7 @@ const PriceTableRow = memo(function PriceTableRow({
       ) : null}
       <td
         role="cell"
-        data-label="وزن شاخه"
+        data-label={weightCol}
         className={`${styles.num}${r.theoreticalWeightKg ? '' : ` ${styles.blankOnNarrow}`}`}
       >
         {r.theoreticalWeightKg ? (
@@ -462,6 +466,7 @@ export function PriceTable({
   factoryOrder?: string[];
 }) {
   const sizeCol = sizeLabel(categorySlug);
+  const weightCol = weightLabel(categorySlug);
   const subGroups = useMemo(() => groupByLabel(subs), [subs]);
   // ورق only. Driven by the PAGE's category for the same reason `sizeCol` is:
   // a mixed list (the «استیل» hub, via cross-listing) must not grow an «ابعاد»
@@ -1086,7 +1091,7 @@ export function PriceTable({
                           </th>
                         ) : null}
                         <th role="columnheader" scope="col" className={styles.num}>
-                          وزن شاخه
+                          {weightCol}
                         </th>
                         <th
                           role="columnheader"
@@ -1131,6 +1136,7 @@ export function PriceTable({
                           showRegion={showRegionColumn}
                           showRowBasis={priceBasis === null}
                           sizeCol={sizeCol}
+                          weightCol={weightCol}
                           onToggleFav={toggleFav}
                           onChart={setChartFor}
                           onAddToCart={addToCart}
@@ -1272,7 +1278,7 @@ export function PriceTable({
                     selectedForCompare.map((r) => r.theoreticalWeightKg ?? null),
                   )}
                 >
-                  <th scope="row">وزن شاخه</th>
+                  <th scope="row">{weightCol}</th>
                   {selectedForCompare.map((r) => (
                     <td key={r.id}>
                       {r.theoreticalWeightKg

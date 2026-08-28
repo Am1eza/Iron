@@ -34,6 +34,7 @@ import {
 } from '@/lib/utils/catalogCompose';
 import {
   sizeLabel,
+  weightLabel,
   usesDimensions,
   attrKeysFor,
   DIMENSIONS_LABEL,
@@ -598,7 +599,7 @@ export function SkuDrawer({
                 name="branchLengthM"
                 inputMode="decimal"
                 placeholder="مثلاً ۶"
-                helper="اختیاری. اگر ثبت شود، وزن شاخه بر همین طول حساب می‌شود."
+                helper={`اختیاری. اگر ثبت شود، ${weightLabel(parentCategory?.slug)} بر همین طول حساب می‌شود.`}
                 value={v.branchLengthM}
                 error={
                   fieldErrors.branchLengthM ??
