@@ -37,7 +37,7 @@ function row(overrides: Partial<PriceRow> = {}): PriceRow {
 describe('ExportMenu columns — ورق carries ابعاد, nothing else does', () => {
   it('adds an ابعاد header for ورق, right after ضخامت', () => {
     const c = cols('sheet');
-    expect(c).toEqual(['محصول', 'ضخامت', 'ابعاد', 'کارخانه', 'وزن شاخه (kg)', 'قیمت (تومان)', 'نوسان', 'زمان تحویل']);
+    expect(c).toEqual(['محصول', 'ضخامت', 'ابعاد', 'کارخانه', 'وزن (kg)', 'قیمت (تومان)', 'نوسان', 'زمان تحویل']);
   });
 
   it('leaves every other category on the original column set', () => {
