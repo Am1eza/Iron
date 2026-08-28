@@ -9,6 +9,7 @@ import { categories, subCategories } from '@/lib/server/db/schema';
 import { catalogErrorResponse, redirectOnSlugChange, revalidateCatalog } from '@/lib/server/utils/catalogRoute';
 import { finiteNumber, nonEmptyPatch, slugSchema, uploadPathSchema } from '@/lib/validation/utils';
 import { normalizePersian, normalizeSizeText } from '@/lib/utils/persianText';
+import { toPersianDigits } from '@/lib/utils/format';
 import { routes } from '@/lib/routes';
 import { PRICE_BASIS_VALUES, PRICE_UNIT_VALUES } from '@/lib/types/domain';
 
@@ -24,7 +25,7 @@ const optionalPersianText = (max: number) =>
 const patchPayload = nonEmptyPatch(
   z.object({
     slug: slugSchema(120).optional(),
-    name: z.string().trim().min(1).max(160).transform(normalizePersian).optional(),
+    name: z.string().trim().min(1).max(160).transform(normalizePersian).transform(toPersianDigits).optional(),
     // `.nullable()` throughout: sending `undefined` for a cleared box made zod
     // drop the key and drizzle omit the column, so an admin who deleted a
     // wrong factory name was told «ذخیره شد» while the wrong value stayed.
