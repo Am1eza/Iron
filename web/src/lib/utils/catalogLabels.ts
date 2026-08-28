@@ -28,9 +28,16 @@ import { CITIES } from '@/lib/data/logistics';
 /** Categories whose `size` column holds a thickness. Only ورق today. */
 const THICKNESS_CATEGORIES = new Set(['sheet']);
 
-/** Categories that additionally carry a width×length. Only ورق today — a
- *  plate has three dimensions and `size` only holds the thickness. */
+/** Categories that additionally carry a width×length. Only ورق — a plate has
+ *  three dimensions and `size` only holds the thickness. */
 const DIMENSIONS_CATEGORIES = new Set(['sheet']);
+
+/** The exact نبشی sub-categories whose wall thickness the owner asked to
+ *  record alongside the existing «سایز» (1405/06). Deliberately an allow-list:
+ *  `angle-channel` also contains وال‌پست and تی‌بار, and the request was for
+ *  نبشی only — widening this to the whole parent category would give those
+ *  unrelated product lines a meaningless extra field. */
+const NABSHI_THICKNESS_SUBS = new Set(['nabshi', 'angle-unequal', 'spot']);
 
 /** تیرآهن sub-category slugs where «استاندارد» (`skus.standard`, e.g. HEA/HEB
  *  per DIN 1025) is the meaningful column. Everywhere else in تیرآهن the
@@ -115,12 +122,39 @@ export function usesThickness(categorySlug: string | null | undefined): boolean 
 }
 
 /**
- * True when this category has a meaningful «ابعاد» (width×length) alongside
- * its thickness. Drives whether the column/field is OFFERED at all — every
- * other category never sees it, in the admin form or on the public table.
+ * True when the shared `skus.dimensions` column is meaningful in this exact
+ * catalog context. For ورق it remains category-wide width×length. For the
+ * three owner-approved نبشی subs it is wall thickness; every other
+ * `angle-channel` sub stays untouched.
+ *
+ * Drives whether the column/field is OFFERED at all — callers must pass the
+ * active/product sub-category so a mixed «همه» view does not grow a column
+ * that is meaningless for some of its rows.
  */
-export function usesDimensions(categorySlug: string | null | undefined): boolean {
-  return Boolean(categorySlug && DIMENSIONS_CATEGORIES.has(categorySlug));
+export function usesDimensions(
+  categorySlug: string | null | undefined,
+  subCategorySlug: string | null = null,
+): boolean {
+  if (categorySlug && DIMENSIONS_CATEGORIES.has(categorySlug)) return true;
+  return (
+    categorySlug === 'angle-channel' &&
+    Boolean(subCategorySlug && NABSHI_THICKNESS_SUBS.has(subCategorySlug))
+  );
+}
+
+/** «ابعاد» for ورق's width×length, «ضخامت» for the three نبشی
+ *  subs approved by the owner. The generic fallback stays «ابعاد» so an
+ *  unknown or mixed context can never silently misdescribe the shared column
+ *  as thickness; those contexts do not render it in the first place. */
+export function dimensionsLabel(
+  categorySlug: string | null | undefined,
+  subCategorySlug: string | null = null,
+): string {
+  return categorySlug === 'angle-channel' &&
+    subCategorySlug &&
+    NABSHI_THICKNESS_SUBS.has(subCategorySlug)
+    ? THICKNESS_LABEL
+    : DIMENSIONS_LABEL;
 }
 
 /** «ضخامت» for ورق, «سایز» everywhere else (including unknown/mixed lists). */
@@ -487,7 +521,6 @@ export function singlePriceBasis(
   return only ? { basis, branchLengthM: only } : { basis };
 }
 
-
 /* --------------------------- محل تولید (region) --------------------------- */
 
 /**
@@ -584,10 +617,7 @@ export const OTHER_GROUP = 'سایر';
  * The section a row belongs to under `mode`. Under `none` every row shares
  * the single unnamed section, so the key is the empty string.
  */
-export function groupKeyFor(
-  mode: GroupMode,
-  row: { factory?: string; region?: string },
-): string {
+export function groupKeyFor(mode: GroupMode, row: { factory?: string; region?: string }): string {
   if (mode === 'factory') return row.factory ?? OTHER_GROUP;
   if (mode === 'region') return row.region ?? UNKNOWN_VALUE;
   return '';
@@ -637,10 +667,5 @@ function subNameCoversCategory(subName: string, categoryName: string): boolean {
  * folded onto the Persian ی and ک, and runs of whitespace collapsed.
  */
 function normalizeForMatch(s: string): string {
-  return s
-    .replace(/‌/g, ' ')
-    .replace(/ي/g, 'ی')
-    .replace(/ك/g, 'ک')
-    .trim()
-    .replace(/\s+/g, ' ');
+  return s.replace(/‌/g, ' ').replace(/ي/g, 'ی').replace(/ك/g, 'ک').trim().replace(/\s+/g, ' ');
 }

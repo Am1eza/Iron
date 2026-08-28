@@ -80,9 +80,30 @@ describe('SkuDetail — «ابعاد» (ورق width×length)', () => {
   });
 
   it('never shows it for a category that has no dimensions to record', () => {
-    renderDetail('rebar');
+    renderDetail('rebar', { dimensions: '۹۹' });
     expect(screen.queryByRole('rowheader', { name: 'ابعاد' })).not.toBeInTheDocument();
+    expect(screen.queryByText('۹۹')).not.toBeInTheDocument();
   });
+});
+
+describe('SkuDetail — نبشی wall thickness', () => {
+  it.each(['nabshi', 'angle-unequal', 'spot'])(
+    'labels dimensions as ضخامت for %s',
+    (subCategoryId) => {
+      renderDetail('angle-channel', { subCategoryId, dimensions: '۴' });
+      expect(screen.getByRole('rowheader', { name: 'ضخامت' })).toBeInTheDocument();
+      expect(screen.queryByRole('rowheader', { name: 'ابعاد' })).not.toBeInTheDocument();
+    },
+  );
+
+  it.each(['val-post', 'tbar'])(
+    'does not expose the shared value on unrelated angle-channel sub %s',
+    (subCategoryId) => {
+      renderDetail('angle-channel', { subCategoryId, dimensions: '۴' });
+      expect(screen.queryByRole('rowheader', { name: 'ضخامت' })).not.toBeInTheDocument();
+      expect(screen.queryByText('۴')).not.toBeInTheDocument();
+    },
+  );
 });
 
 describe('SkuDetail — hero image alt text (SEO audit: was identical across every SKU in a category)', () => {

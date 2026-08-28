@@ -13,10 +13,11 @@ import { formatToman, priceHiddenLabel, toPersianDigits } from '@/lib/utils/form
 import {
   priceBasisNoun,
   sizeLabel,
+  usesDimensions,
+  dimensionsLabel,
   weightLabel,
   attributeColumns,
   NOT_APPLICABLE,
-  DIMENSIONS_LABEL,
   REGION_LABEL,
   BRAND_LABEL,
   factoryLabel,
@@ -241,6 +242,12 @@ export function SkuDetail({
   // ورق is sold by thickness, so its `size` column is labelled «ضخامت» —
   // every other category keeps «سایز» (see catalogLabels).
   const sizeCol = sizeLabel(row.categoryId);
+  // The shared column is public only in its approved context: ورق
+  // width×length, or wall thickness on the three نبشی subs. This gate
+  // also prevents a stale value on any unrelated SKU from leaking onto its
+  // product page merely because the nullable DB column happens to be filled.
+  const showDimensions = usesDimensions(row.categoryId, row.subCategoryId);
+  const dimensionsCol = dimensionsLabel(row.categoryId, row.subCategoryId);
 
   // The same «گرید»/«استاندارد»/«آلیاژ»/«طول شاخه»/«طول سفارشی» definitions the
   // price table's columns are built from, resolved for THIS product's own
@@ -271,12 +278,12 @@ export function SkuDetail({
   // does this mill make?" and the spec table was a dead end for it.
   const specs: { label: string; value: ReactNode }[] = [
     { label: sizeCol, value: row.size ? toPersianDigits(row.size) : 'نامشخص' },
-    // ورق only, and only once someone has filled it in. Unlike the rows below
-    // there is deliberately no «نامشخص» placeholder: most sheet SKUs have no
-    // dimensions recorded yet, and a spec table full of «نامشخص» reads as a
-    // broken page rather than an unanswered question.
-    ...(row.dimensions
-      ? [{ label: DIMENSIONS_LABEL, value: toPersianDigits(row.dimensions) }]
+    // Only once someone has filled it in. There is deliberately no «نامشخص»
+    // placeholder: existing ورق rows and all current نبشی rows are
+    // mostly/null throughout, and an empty new spec on every product reads as
+    // a broken page rather than an unanswered optional question.
+    ...(showDimensions && row.dimensions
+      ? [{ label: dimensionsCol, value: toPersianDigits(row.dimensions) }]
       : []),
     ...attrSpecs.map((a) => ({ label: a.label, value: a.value })),
     // Only when this product actually has a mill. The پروفیل sub-categories
@@ -340,9 +347,9 @@ export function SkuDetail({
                   {sizeCol} <strong className="tnum">{toPersianDigits(row.size)}</strong>
                 </li>
               ) : null}
-              {row.dimensions ? (
+              {showDimensions && row.dimensions ? (
                 <li>
-                  {DIMENSIONS_LABEL}{' '}
+                  {dimensionsCol}{' '}
                   <strong className="tnum">{toPersianDigits(row.dimensions)}</strong>
                 </li>
               ) : null}
