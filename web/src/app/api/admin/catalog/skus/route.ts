@@ -6,6 +6,7 @@ import { adminListSkus, createSku } from '@/lib/server/repos/catalogAdminRepo';
 import { catalogErrorResponse, revalidateCatalog } from '@/lib/server/utils/catalogRoute';
 import { finiteNumber, slugSchema, uploadPathSchema } from '@/lib/validation/utils';
 import { normalizePersian, normalizeSizeText } from '@/lib/utils/persianText';
+import { toPersianDigits } from '@/lib/utils/format';
 import { PRICE_BASIS_VALUES, PRICE_UNIT_VALUES } from '@/lib/types/domain';
 
 async function GETImpl(req: NextRequest) {
@@ -49,7 +50,11 @@ const createPayload = z.object({
   // (a live product page under a breadcrumb path that 404s).
   subCategoryId: z.string().min(1),
   slug: slugSchema(120),
-  name: persianText(160),
+  // Latin digits (typed directly, or from an OS/keyboard whose numeral
+  // setting silently outputs 0-9 even on a Persian layout) would otherwise
+  // sit next to the Persian digits normalizeSizeText already forces onto
+  // size/dimensions, splitting one product across two digit scripts.
+  name: persianText(160).transform(toPersianDigits),
   standard: optionalPersianText(40),
   size: z
     .string()

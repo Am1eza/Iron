@@ -18,7 +18,14 @@ import localFont from 'next/font/local';
 export const vazirmatn = localFont({
   src: '../../../public/fonts/Vazirmatn.var.woff2',
   variable: '--font-vazirmatn',
-  display: 'swap',
+  // 'optional' (not 'swap'): with 'swap' the browser repaints the WHOLE
+  // element the instant the font arrives, however late — if that lands
+  // mid-keystroke in a live-typed field (e.g. admin/catalog/SkuDrawer's
+  // «نام کالا»), the word being typed visibly jumps to a different
+  // font/weight ("suddenly bold"). 'optional' decides fallback-vs-webfont
+  // once, within ~100ms, and never swaps later; preload+immutable caching
+  // (next.config) means a warm cache still paints Vazirmatn immediately.
+  display: 'optional',
   preload: true,
 });
 
