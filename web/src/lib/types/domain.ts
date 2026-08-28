@@ -180,6 +180,12 @@ export interface SKU {
    *  has filled it in for yet. See server/db/schema/catalog.ts. */
   schedule?: string;
   factory?: string;
+  /** Admin-chosen position within this SKU's own factory-grouped section on
+   *  the public price page — see server/db/schema/catalog.ts. Zero (the
+   *  default) means "unranked": those rows keep falling back to the
+   *  pre-existing size/price/movement sort, exactly as before this field
+   *  existed. See `compareRows` in components/catalog/PriceTable.tsx. */
+  order: number;
   /** Producing city — «اصفهان», «تهران», … — for the پروفیل sub-categories
    *  whose mill names are withheld (see `catalogLabels.factoryIsMeaningful`).
    *

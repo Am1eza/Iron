@@ -330,6 +330,13 @@
       "when": 1787926022079,
       "tag": "0046_sku_schedule",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1787932475299,
+      "tag": "0047_sku_display_order",
+      "breakpoints": true
     }
   ]
 }

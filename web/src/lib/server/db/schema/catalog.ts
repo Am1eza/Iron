@@ -152,6 +152,26 @@ export const skus = pgTable(
     // admin records one.
     schedule: text('schedule'),
     factory: text('factory'),
+    // Admin-chosen position of this SKU within its own «بر اساس کارخانه»
+    // section on the public price page (owner request, 1405/06). The
+    // section itself already has an admin-controlled order — `factoryOrder`
+    // above, which decides which MILL leads a category. This is the same
+    // idea one level down: within one mill's own block of rows, the default
+    // «سایز» sort is a plain ascending parse of `size`, which cannot express
+    // anything else — it cannot put «۲ برش‌خورده» before «۲ رول» when both
+    // SKUs carry the same size string, and the owner reported exactly that:
+    // rows he had carefully arranged kept reshuffling back into that plain
+    // numeric order. Scoping this to `skus` directly, rather than a second
+    // (category, factory, sku) join table mirroring `factoryOrder`'s own
+    // shape, is deliberate and safe: unlike a factory name, a SKU already
+    // has exactly one home — this same row's own `factory` field — so there
+    // is no second context it could need a different rank in.
+    // Zero for every existing row (no backfill): a SKU nobody has ranked
+    // keeps exactly its current position, since ties fall back to the
+    // pre-existing size/price/movement comparator unchanged (see
+    // `compareRows` in PriceTable.tsx). Only rows an admin actually gives a
+    // non-zero rank change behaviour.
+    order: integer('order').notNull().default(0),
     theoreticalWeightKg: doublePrecision('theoretical_weight_kg'),
     unit: text('unit', { enum: PRICE_UNIT_VALUES }).notNull().default('kg'),
     // What the price on this SKU is per, as opposed to what `unit` counts.

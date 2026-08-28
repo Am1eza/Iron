@@ -145,6 +145,10 @@ type Values = {
    *  silently drops a recorded value. */
   schedule: string;
   standard: string;
+  /** Position within this SKU's own factory-grouped section on the public
+   *  price page. '' means "not ranked" (→ 0), same "empty box is a real,
+   *  common answer" convention as branchLengthM/theoreticalWeightKg below. */
+  order: string;
   unit: AdminSku['unit'];
   /** What a stored price is per — see PRICE_BASES. */
   priceBasis: AdminSku['priceBasis'];
@@ -173,6 +177,7 @@ function toValues(sku: AdminSku | null, defaultSubId: string, steelCategoryId: s
     dimensions: sku?.dimensions ?? '',
     schedule: sku?.schedule ?? '',
     standard: sku?.standard ?? '',
+    order: sku?.order ? String(sku.order) : '',
     unit: sku?.unit ?? 'kg',
     priceBasis: sku?.priceBasis ?? 'kg',
     branchLengthM: sku?.branchLengthM != null ? String(sku.branchLengthM) : '',
@@ -409,8 +414,18 @@ export function SkuDrawer({
   const lengthRaw = normText(v.branchLengthM).trim();
   const lengthNum = lengthNumOf(v.branchLengthM);
   const lengthValid = lengthRaw === '' || lengthNum !== null;
+  // Empty box = 0 = "not ranked" — same value a SKU nobody has ranked
+  // already carries, so leaving this untouched is a no-op save.
+  const orderRaw = normText(v.order).trim();
+  const orderNum = orderRaw === '' ? 0 : Number(orderRaw);
+  const orderValid = Number.isInteger(orderNum) && orderNum >= 0 && orderNum <= 10_000;
   const canSave =
-    v.name.trim() !== '' && Boolean(v.subCategoryId) && Boolean(v.slug) && weightValid && lengthValid;
+    v.name.trim() !== '' &&
+    Boolean(v.subCategoryId) &&
+    Boolean(v.slug) &&
+    weightValid &&
+    lengthValid &&
+    orderValid;
 
   const save = useMutation({
     mutationFn: () => {
@@ -429,6 +444,7 @@ export function SkuDrawer({
         priceBasis: v.priceBasis,
         branchLengthM: lengthNum,
         theoreticalWeightKg: weightNum,
+        order: orderNum,
         imageUrl: v.imageUrl,
         crossListedCategoryIds: v.crossListedSteel && steelCategory ? [steelCategory.id] : null,
       };
@@ -728,6 +744,17 @@ export function SkuDrawer({
                     نشانی قدیمی ساخته می‌شود تا لینک‌های قبلی نشکنند.
                   </Alert>
                 ) : null}
+                <TextInput
+                  label="ترتیب نمایش در بخش کارخانه"
+                  inputMode="numeric"
+                  placeholder="مثلاً ۱"
+                  helper="عدد کوچک‌تر زودتر نمایش داده می‌شود. اگر خالی بگذارید، مثل قبل بر اساس سایز مرتب می‌شود."
+                  value={v.order}
+                  error={
+                    fieldErrors.order ?? (orderValid ? undefined : 'عدد صحیح نامنفی وارد کنید یا خالی بگذارید.')
+                  }
+                  onChange={(e) => set({ order: e.target.value })}
+                />
                 <TextInput
                   label="نشانی صفحه"
                   dir="ltr"

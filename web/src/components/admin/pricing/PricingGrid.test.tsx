@@ -151,6 +151,7 @@ function priceRow(id: string, name: string, price: number, over: Partial<PriceRo
     slug: id,
     name,
     size: name,
+    order: 0,
     unit: 'kg',
     priceBasis: 'kg',
     isActive: true,

@@ -57,6 +57,9 @@ const patchPayload = nonEmptyPatch(
       .optional()
       .transform((v) => (v ? normalizeSizeText(v) : v === '' ? null : v)),
     factory: optionalPersianText(80),
+    // See the create route — never nullable, there is no "clear it" state
+    // distinct from ranking it back to 0.
+    order: z.number().int().nonnegative().max(10_000).optional(),
     theoreticalWeightKg: finiteNumber.positive().max(100_000).nullable().optional(),
     unit: z.enum(PRICE_UNIT_VALUES).optional(),
     // «مبنای قیمت». Absent leaves the column alone — never sent as null: the

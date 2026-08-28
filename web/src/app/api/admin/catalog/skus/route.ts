@@ -87,6 +87,11 @@ const createPayload = z.object({
     .optional()
     .transform((v) => (v ? normalizeSizeText(v) : v === '' ? null : v)),
   factory: optionalPersianText(80),
+  // Admin-chosen position within this SKU's own factory-grouped section on
+  // the public price page. Absent leaves the column at its `0` ("unranked")
+  // default — never nullable, unlike the free-text fields above: there is no
+  // "clear it" state distinct from ranking it back to 0.
+  order: z.number().int().nonnegative().max(10_000).optional(),
   theoreticalWeightKg: finiteNumber.positive().max(100_000).nullable().optional(),
   unit: z.enum(PRICE_UNIT_VALUES).optional(),
   // «مبنای قیمت». Absent leaves the column alone — never sent as null: the
