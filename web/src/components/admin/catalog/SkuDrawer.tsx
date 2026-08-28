@@ -39,6 +39,7 @@ import {
   DIMENSIONS_LABEL,
   GRADE_LABEL,
   ALLOY_LABEL,
+  STANDARD_LABEL,
   factoryIsMeaningful,
 } from '@/lib/utils/catalogLabels';
 import { useToast } from '@/lib/hooks/useToast';
@@ -243,9 +244,16 @@ export function SkuDrawer({
   // «آلیاژ» is how the wrong value gets typed in. Deliberately narrow: it asks
   // catalogLabels rather than deciding for itself, so no other category's field
   // changes at all.
-  const gradeLabel = attrKeysFor(parentCategory?.slug, selectedSub?.slug ?? null).includes('alloy')
+  const attrKeys = attrKeysFor(parentCategory?.slug, selectedSub?.slug ?? null);
+  // تیرآهن هاش سبک/سنگین: «گرید» بی‌معناست، ستون واقعی همان skus.standard
+  // است (مثلاً HEA/HEB بر اساس DIN 1025) — همان قاعده‌ای که آلیاژ استیل بالا
+  // به آن اشاره دارد، این‌بار برای catalogLabels.attrKeysFor(...).includes('standard').
+  const usesStandardAttr = attrKeys.includes('standard');
+  const gradeLabel = attrKeys.includes('alloy')
     ? ALLOY_LABEL
-    : GRADE_LABEL;
+    : usesStandardAttr
+      ? STANDARD_LABEL
+      : GRADE_LABEL;
 
   const { data: suggestions } = useQuery({
     queryKey: ['admin', 'cat', 'suggestions', parentCategory?.id ?? ''],
@@ -494,19 +502,21 @@ export function SkuDrawer({
                 onChange={(factory) => set({ factory })}
               />
               <PickerInput
-                id="sku-grade"
+                id={usesStandardAttr ? 'sku-standard' : 'sku-grade'}
                 label={gradeLabel}
                 helper={
                   gradeLabel === ALLOY_LABEL
                     ? 'استیل: ۲۰۱، ۳۰۴، ۳۰۴L، ۳۱۶L. در صفحهٔ کالا به مشتری نشان داده می‌شود.'
-                    : 'میلگرد: A1، A2، A3 · ورق: ST37، ST52. در صفحهٔ کالا به مشتری نشان داده می‌شود.'
+                    : gradeLabel === STANDARD_LABEL
+                      ? 'مثلاً HEA یا HEB (بر اساس DIN 1025). در صفحهٔ کالا به مشتری نشان داده می‌شود.'
+                      : 'میلگرد: A1، A2، A3 · ورق: ST37، ST52. در صفحهٔ کالا به مشتری نشان داده می‌شود.'
                 }
-                value={v.grade}
-                options={suggestions?.grades ?? []}
-                error={fieldErrors.grade}
+                value={usesStandardAttr ? v.standard : v.grade}
+                options={(usesStandardAttr ? suggestions?.standards : suggestions?.grades) ?? []}
+                error={usesStandardAttr ? fieldErrors.standard : fieldErrors.grade}
                 maxLength={40}
-                placeholder={GRADE_PLACEHOLDER}
-                onChange={(grade) => set({ grade })}
+                placeholder={usesStandardAttr ? undefined : GRADE_PLACEHOLDER}
+                onChange={(val) => (usesStandardAttr ? set({ standard: val }) : set({ grade: val }))}
               />
             </div>
           </div>
@@ -614,16 +624,18 @@ export function SkuDrawer({
             </Button>
             {advanced ? (
               <div style={{ marginBlockStart: 'var(--space-3)', display: 'grid', gap: 'var(--space-3)' }}>
-                <PickerInput
-                  id="sku-standard"
-                  label="استاندارد"
-                  helper="مثلاً ISIRI 3132 یا DIN 1025. اگر نمی‌دانید خالی بگذارید."
-                  value={v.standard}
-                  options={suggestions?.standards ?? []}
-                  error={fieldErrors.standard}
-                  maxLength={40}
-                  onChange={(standard) => set({ standard })}
-                />
+                {!usesStandardAttr ? (
+                  <PickerInput
+                    id="sku-standard"
+                    label="استاندارد"
+                    helper="مثلاً ISIRI 3132 یا DIN 1025. اگر نمی‌دانید خالی بگذارید."
+                    value={v.standard}
+                    options={suggestions?.standards ?? []}
+                    error={fieldErrors.standard}
+                    maxLength={40}
+                    onChange={(standard) => set({ standard })}
+                  />
+                ) : null}
                 {isEdit ? (
                   <Alert tone="warning">
                     نشانی فعلی در گوگل ثبت شده و ممکن است مشتریان ذخیره‌اش کرده باشند. با تغییر آن، انتقال خودکار از
