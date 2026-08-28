@@ -1,0 +1,21 @@
+-- Admin-chosen position of a SKU within its own «بر اساس کارخانه» section on
+-- the public price page (owner request, 1405/06).
+--
+-- The section itself already has an admin-controlled order (`factory_order`,
+-- US-18.2) — this is the same idea one level down: within one mill's block
+-- of rows, the default «سایز» sort is a plain ascending parse of `size` and
+-- cannot express anything else. The owner reported exactly that failure —
+-- rows he carefully arranged kept reshuffling back into plain numeric order,
+-- because there was nowhere to record his own ranking (e.g. «۲ برش‌خورده»
+-- before «۲ رول» when both share the same size string).
+--
+-- Scoped to `skus` directly rather than a second (category, factory, sku)
+-- join table mirroring `factory_order`'s own shape: unlike a factory name, a
+-- SKU already has exactly one home — this same row's own `factory` field —
+-- so there is no second context it could need a different rank in.
+--
+-- Additive and NOT NULL DEFAULT 0: every existing row keeps meaning exactly
+-- what it meant, ties still fall back to the pre-existing size/price/
+-- movement comparator unchanged (see `compareRows` in PriceTable.tsx), and
+-- nothing is backfilled — only rows an admin actually ranks change behaviour.
+ALTER TABLE "skus" ADD COLUMN "order" integer DEFAULT 0 NOT NULL;

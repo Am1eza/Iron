@@ -56,11 +56,27 @@ import styles from './PriceTable.module.css';
 
 type SortKey = 'size' | 'price' | 'movement';
 
+/** 0 = never ranked. Read as +Infinity, not literally 0, so one admin-ranked
+ *  row (`order` 1, 2, …) always leads every untouched row in its section —
+ *  not just the other ranked ones — instead of losing to them on a literal
+ *  "0 < 1" comparison. */
+const rank = (r: PriceRow): number => (r.order > 0 ? r.order : Infinity);
+
 /** Shared row comparator — used for the per-factory sections, driven by the
  *  toolbar's `sort` control. */
 function compareRows(a: PriceRow, b: PriceRow, sort: SortKey): number {
   if (sort === 'price') return a.current.price - b.current.price;
   if (sort === 'movement') return (b.current.movementPct ?? 0) - (a.current.movementPct ?? 0);
+  // Admin-assigned `order` (owner request, 1405/06) takes priority over the
+  // default «سایز» sort — it exists precisely because the plain size parse
+  // below cannot express his arrangement (e.g. «۲ برش‌خورده» before «۲ رول»,
+  // both sharing the same size string). Rows nobody has ranked tie with each
+  // other here (both read as +Infinity) and fall straight through to the
+  // untouched size comparator — a category the owner has never ranked
+  // behaves exactly as it did before this field existed.
+  const ra = rank(a);
+  const rb = rank(b);
+  if (ra !== rb) return ra - rb;
   // `Number('۱۴')` is NaN — every stored size is in Persian digits, so this
   // comparator silently returned NaN for every pair and the «سایز» sort did
   // nothing at all.

@@ -57,6 +57,7 @@ function toPriceRow(
     grade: r.sku.grade ?? undefined,
     dimensions: r.sku.dimensions ?? undefined,
     schedule: r.sku.schedule ?? undefined,
+    order: r.sku.order,
     // Suppressed — not deleted — for the پروفیل sub-categories whose stored
     // mill names are fabricated (see `factoryIsMeaningful`). Doing it HERE,
     // at the one DTO boundary every public surface reads through, is what
