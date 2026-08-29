@@ -136,10 +136,11 @@ export const skus = pgTable(
     // THICKNESS, and those other two dimensions previously had nowhere to
     // live. Per the owner's 1405/06 request it also stores a single wall-
     // thickness value (e.g. «۴») for exactly نبشی بال مساوی, بال
-    // نامساوی and لقمه. UI allow-lists decide which meaning applies;
-    // وال‌پست, تی‌بار and every other product line stay unaffected.
-    // Nullable, with no backfill: existing نبشی rows remain null until
-    // an admin records the optional value.
+    // نامساوی and لقمه, and the gauge beside پروفیل Z's separate height.
+    // UI allow-lists decide which meaning applies; وال‌پست, تی‌بار, ordinary
+    // box profiles and every other product line stay unaffected.
+    // Nullable: ambiguous نبشی rows remain null until an admin records a
+    // verified value; newly seeded Z variants carry their published gauge.
     dimensions: text('dimensions'),
     // «رده» — the pipe schedule, i.e. the wall-thickness/pressure class the
     // pipe trade sizes pressure pipe by («رده ۴۰», «رده ۸۰», ASME B36.10).

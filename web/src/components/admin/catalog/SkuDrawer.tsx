@@ -141,9 +141,9 @@ type Values = {
   /** Product form/finish. Independent from grade so one sheet can carry both
    *  an alloy and a supplied condition. */
   condition: string;
-  /** ورق width×length or wall thickness on the three approved نبشی
-   *  subs. The field is hidden everywhere else, but the value is still
-   *  round-tripped so moving a SKU never silently drops it. */
+  /** ورق width×length or wall thickness on approved section subs. The field
+   *  is hidden elsewhere, but still round-tripped so moving a SKU never
+   *  silently drops it. */
   dimensions: string;
   /** «رده» — pipe schedule. Round-tripped like `dimensions` even where the
    *  field is not rendered, so moving a SKU between sub-categories never
@@ -280,7 +280,7 @@ export function SkuDrawer({
   // ورق products are described by thickness, not size — the admin sees the
   // word the trade actually uses for whichever category they're filing this
   // product under (see catalogLabels). The stored column is unchanged.
-  const sizeCol = sizeLabel(parentCategory?.slug);
+  const sizeCol = sizeLabel(parentCategory?.slug, selectedSub?.slug ?? null);
   // The shared column means width×length for ورق and wall thickness for
   // exactly three نبشی subs. Passing `selectedSub.slug` is essential:
   // وال‌پست and تی‌بار share this parent and must remain untouched.

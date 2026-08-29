@@ -172,10 +172,9 @@ export interface SKU {
    *  of `grade` because products such as aluminium sheet have both an alloy
    *  and a condition. Undefined where it has not been recorded. */
   condition?: string;
-  /** ورق only — the plate's width×length, e.g. «۱۰۰۰×۲۰۰۰». For a sheet,
-   *  `size` is the THICKNESS; this is the other two dimensions. Undefined for
-   *  every other category and for sheets nobody has filled it in for yet.
-   *  See server/db/schema/catalog.ts. */
+  /** Context-specific secondary specification: plate width×length on ورق,
+   *  section thickness on approved نبشی/استیل/Z lines. Undefined where that
+   *  line has no secondary axis or nobody has recorded it yet. */
   dimensions?: string;
   /** «رده» — the pipe schedule, on لوله's pressure-pipe sub-categories only
    *  (مانیسمان داخلی/خارجی, گازی, صنعتی درزدار). Its own stored column, not a

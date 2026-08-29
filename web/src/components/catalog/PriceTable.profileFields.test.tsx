@@ -31,7 +31,14 @@ vi.mock('next/navigation', () => ({
 function row(
   id: string,
   subCategoryId: string,
-  extra: { grade?: string; branchLengthM?: number; factory?: string; region?: string } = {},
+  extra: {
+    grade?: string;
+    branchLengthM?: number;
+    factory?: string;
+    region?: string;
+    size?: string;
+    dimensions?: string;
+  } = {},
 ): PriceRow {
   return {
     id,
@@ -74,7 +81,7 @@ const ROWS = [
   row('mobli-60', 'profil-mobli'),
   row('sotuni-70', 'profil-sotuni'),
   row('galvanizeh-20', 'profil-galvanizeh'),
-  row('z-30', 'profil-z'),
+  row('z-30', 'profil-z', { size: 'Z*۱۶', dimensions: '۲٫۵' }),
   row('steel-50', 'prvfyl-astyl', { grade: '۳۰۴', branchLengthM: 6 }),
 ];
 
@@ -174,8 +181,12 @@ describe('PriceTable — the پروفیل گرید → طول/آلیاژ replace
     await user.click(screen.getByRole('button', { name: 'پروفیل Z' }));
 
     expect(screen.getByRole('columnheader', { name: 'طول سفارشی' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'ارتفاع' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'ضخامت' })).toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: 'طول شاخه' })).toBeNull();
     expect(screen.queryByRole('columnheader', { name: 'گرید' })).toBeNull();
+    expect(cellFor('z-30', 'ارتفاع')).toBe('Z*۱۶');
+    expect(cellFor('z-30', 'ضخامت')).toBe('۲٫۵');
     // An empty length is the ANSWER here, so it must not read «نامشخص».
     expect(cellFor('z-30', 'طول سفارشی')).toBe('بر اساس سفارش');
   });
