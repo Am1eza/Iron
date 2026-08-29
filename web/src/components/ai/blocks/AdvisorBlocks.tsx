@@ -4,6 +4,7 @@ import { OptionsCard } from './OptionsCard';
 import { QuoteCard } from './QuoteCard';
 import { CompareCard } from './CompareCard';
 import { TrendCard } from './TrendCard';
+import { ForecastCard } from './ForecastCard';
 import { ExpertCard } from './ExpertCard';
 import styles from './blocks.module.css';
 
@@ -27,6 +28,8 @@ function renderBlock(block: AdvisorBlock, onPick: (text: string) => void) {
       return <CompareCard block={block} onPick={onPick} />;
     case 'trend':
       return <TrendCard block={block} />;
+    case 'forecast':
+      return <ForecastCard block={block} onPick={onPick} />;
     case 'expert':
       return <ExpertCard block={block} />;
     default:

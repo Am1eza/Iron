@@ -36,10 +36,13 @@ import {
   buildOptionsBlock,
   buildQuoteBlock,
   buildTrendBlock,
+  buildTrendSeries,
   skuHref,
   unitLabelFor,
 } from '@/lib/server/ai/blockBuilders';
 import { cityDistance } from '@/lib/data/logistics';
+import { marketHistory } from '@/lib/server/repos/marketRepo';
+import { computeForecast, HORIZON_LABEL, MIN_HISTORY_POINTS } from '@/lib/server/ai/forecast';
 
 export const AI_TOOLS: ToolDef[] = [
   {
@@ -86,6 +89,21 @@ export const AI_TOOLS: ToolDef[] = [
         properties: {
           query: { type: 'string', description: 'نام محصول، مثلاً «میلگرد ۱۴ ذوب‌آهن»' },
           range: { type: 'string', enum: ['7d', '30d', '90d', '1y'], description: 'بازه، پیش‌فرض ۳۰ روز' },
+        },
+        required: ['query'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'forecastPrice',
+      description:
+        'چشم‌انداز جهت‌دار قیمت یک محصول برای ۱ تا ۲ هفتهٔ آینده، بر پایهٔ روند واقعی خودِ همان محصول و همبستگی‌اش با دلار، طلا و شمش. خروجی فقط «جهت» (بالا/پایین/کم‌نوسان) با یک بازهٔ درصدی و دلیل است؛ هرگز قیمت قطعی برای یک تاریخ مشخص نمی‌دهد. برای «قیمت میلگرد بالا می‌رود؟» یا «الان بخرم یا صبر کنم؟» همین را صدا بزن و از خودت پیش‌بینی نساز. اگر سابقهٔ قیمتی کافی نباشد، صادقانه می‌گوید نمی‌شود.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'نام محصول، مثلاً «میلگرد ۱۴ ذوب‌آهن»' },
         },
         required: ['query'],
       },
@@ -304,6 +322,17 @@ const priceHistoryArgs = z.object({
   query: z.string().trim().min(1).max(120),
   range: z.enum(['7d', '30d', '90d', '1y']).optional(),
 });
+
+const forecastPriceArgs = z.object({ query: z.string().trim().min(1).max(120) });
+
+/** The market series the outlook reads, and what to call them on the card.
+ *  Exactly the three the ticker already polls — no new data source, and no
+ *  driver the operator cannot see for themselves on /market. */
+const FORECAST_DRIVERS: ReadonlyArray<{ key: 'usd' | 'gold18' | 'billet'; label: string }> = [
+  { key: 'usd', label: 'دلار' },
+  { key: 'billet', label: 'شمش فولاد' },
+  { key: 'gold18', label: 'طلای ۱۸ عیار' },
+];
 
 /** Persian caption for each history window. Keys match `catalogRepo.RANGE_DAYS`,
  *  which is what actually decides how far back the query reaches — a label
@@ -742,6 +771,72 @@ export async function runTool(
           pointCount: block.values.length,
         };
       }
+      case 'forecastPrice': {
+        const parsed = forecastPriceArgs.safeParse(args);
+        if (!parsed.success) return { error: 'نام محصول لازم است.' };
+        const direct = await findSkuRow(parsed.data.query);
+        const rows = direct ? [direct] : await searchSkus(parsed.data.query, 5);
+        if (rows.length === 0) return { error: 'این محصول در کاتالوگ پیدا نشد.' };
+        // An outlook is about ONE product's series. Several hits means we do
+        // not know whose — ask with the option chips rather than forecasting
+        // an arbitrary mill's history under a generic title.
+        if (rows.length > 1) {
+          const ui = await emitPriceRowBlocks(rows, parsed.data.query, ctx);
+          return {
+            status: 'needs_choice',
+            ...(ui ? { ui, uiNote: UI_NOTE[ui] } : {}),
+            note: 'اول مشخص کن کدام محصول، بعد دوباره همین ابزار را صدا بزن.',
+          };
+        }
+        const row = rows[0]!;
+        // 90 days: long enough for a correlation to mean something, short
+        // enough that last quarter's regime still resembles this one.
+        const points = await skuHistory(row.slug, '90d');
+        const series = buildTrendSeries(points);
+        const drivers = await Promise.all(
+          FORECAST_DRIVERS.map(async (d) => ({
+            key: d.key,
+            label: d.label,
+            // A driver feed being down must never take the outlook down with
+            // it — an absent driver simply contributes nothing.
+            values: (await marketHistory(d.key, '90d').catch(() => [])).map((p) => p.value),
+          })),
+        );
+        const forecast = computeForecast({ series: series?.values ?? [], drivers });
+        if (!forecast) {
+          return {
+            error: `برای این محصول کمتر از ${toPersianDigits(String(MIN_HISTORY_POINTS))} روز قیمت ثبت‌شده داریم و روند قابل‌اتکایی وجود ندارد. صادقانه بگو چشم‌انداز نمی‌دهی و پیشنهاد بده با کارشناس صحبت کند؛ هیچ حدسی نزن.`,
+          };
+        }
+        ctx.onBlock?.({
+          kind: 'forecast',
+          title: row.name,
+          direction: forecast.direction,
+          confidence: forecast.confidence,
+          bandLowPct: forecast.bandLowPct,
+          bandHighPct: forecast.bandHighPct,
+          horizonLabel: forecast.horizonLabel,
+          reason: forecast.reason,
+          drivers: forecast.drivers,
+          basedOnDays: forecast.basedOnDays,
+          ownChangePct: forecast.ownChangePct,
+          updatedAt: row.current.updatedAt,
+          ...(series ? { trend: series } : {}),
+        });
+        // Deliberately NOT echoing the band back as two loose numbers the
+        // model might recombine into «حدود ۴۳٬۰۰۰ تومان»: it gets the words
+        // and the direction, and the card carries the figures.
+        return {
+          ui: 'forecast',
+          uiNote: UI_NOTE.forecast,
+          product: row.name,
+          direction: forecast.direction,
+          confidence: forecast.confidence,
+          horizonLabel: HORIZON_LABEL,
+          reason: forecast.reason,
+          note: 'این یک برآورد جهت‌دار است، نه قیمت قطعی. هرگز عدد قیمتی برای تاریخ آینده نگو و هرگز نگو «قطعاً» یا «حتماً». بگو بازه و جهت است و قیمت پیش‌فاکتور همان روز معتبر است.',
+        };
+      }
       case 'calcWeight': {
         const parsed = calcWeightArgs.safeParse(args);
         if (!parsed.success) return { error: 'ورودی ناقص است؛ ابعاد لازم را بپرس.' };
@@ -1043,7 +1138,14 @@ export const AI_SYSTEM_PROMPT = `تو «مشاور هوشمند آهن‌تای�
 7) محاسبه را شفاف نشان بده تا مشتری بفهمد عدد از کجا آمده: مبنا را اعلام کن (شاخهٔ ۱۲ متری، وزن تئوری) و از فیلدهای unitWeightKg/totalWeightKg خروجی ابزار به شکل «هر شاخه X کیلوگرم؛ N شاخه می‌شود Y کیلوگرم» استفاده کن. مفروضات را همیشه بگو. هیچ حساب سرانگشتی نکن؛ حتی تقسیم و ضرب ساده (مثل «چند شاخه می‌شود») را از ابزار بگیر: برای تبدیل تناژ به تعداد شاخه، calcWeight را با targetTons صدا بزن و فیلد piecesForTargetTons را بگو.
 8) حرکت امضای کارشناس: مقایسه‌ها را به «قیمت هر کیلوگرم» برگردان تا منصفانه شوند؛ قیمت شاخه‌ایِ ارزان‌تر گاهی به‌خاطر وزن کمتر است، نه ارزانی واقعی. برای تناژ عمده («۲۰ تن میلگرد از کجا ارزون‌تره؟») حتماً compareFactories را صدا بزن و تفکیک کارخانه‌ها را نشان بده؛ این قابلیت سیگنیچر آهن‌تایم است. اگر کاربر زیرشاخه/گرید دقیق را نگفت، خودِ ابزار پرتکرارترین زیرشاخه را انتخاب می‌کند و در فیلد subCategory برمی‌گرداند؛ همیشه همان را در پاسخ بگو («این مقایسه برای گریدِ X است؛ برای گرید دیگر بگو تا دوباره چک کنم») تا مشتری فکر نکند این عدد برای هر گریدی معتبر است. اگر کاربر سایز مشخصی هم گفت، همان را در پارامتر size بده تا مقایسه دقیقاً روی آن سایز محدود شود. اختلاف/تفاضل قیمت‌ها را هرگز خودت حساب نکن؛ صرفهٔ نسبت به گزینهٔ بعدی را از فیلد savingsVsNextToman همان خروجی بگو، و اگر تعداد ردیف قیمتیِ ارزان‌ترین گزینه (cheapestRowCount) فقط ۱ بود، صادقانه بگو این قیمت فقط از یک منبع است. این ابزار جدول مقایسه را خودش به شکل کارت نشان می‌دهد؛ پس فهرست کارخانه‌ها و قیمت‌ها را در متن دوباره ننویس (بند ۵-ب) و فقط نتیجه‌گیری و قدم بعدی را بگو. اگر شهر تحویل کاربر معلوم باشد، همان کارت «ارزان‌ترین با حمل» را هم جدا نشان می‌دهد و آن معمولاً کارخانهٔ دیگری است؛ اگر شهر را نمی‌دانی، یک‌بار بپرس.
 9) دید هزینهٔ کامل بده: یادآوری کن هزینهٔ نهایی فقط قیمت کالا نیست (حمل، ارزش افزوده، شرایط تسویه) و عدد دقیق این‌ها را کارشناس در پیش‌فاکتور اعلام می‌کند. تناژ بالا معمولاً از کارخانه به‌صرفه‌تر است و خرید خرد/ترکیبی از بنگاه؛ اگر تناژ کاربر معلوم است، همین را در توصیه لحاظ کن.
-10) صادق باش، نه بله‌قربان‌گو: اگر انتخاب کاربر برای کاربردش مناسب نیست (مثلاً گرید نامناسب برای خاموت یا اسکلت)، محترمانه و مستدل بگو و جایگزین پیشنهاد بده. دربارهٔ آیندهٔ قیمت هرگز پیش‌بینی قطعی نده؛ فقط بگو بازار نوسان دارد و قیمت پیش‌فاکتور همان روز معتبر است.
+10) صادق باش، نه بله‌قربان‌گو: اگر انتخاب کاربر برای کاربردش مناسب نیست (مثلاً گرید نامناسب برای خاموت یا اسکلت)، محترمانه و مستدل بگو و جایگزین پیشنهاد بده.
+10-الف) آیندهٔ قیمت: «نمی‌دانم» جواب کاملی نیست، ولی عدد ساختن هم ممنوع است. قاعده دقیقاً این است:
+  • هرگز از خودت دربارهٔ آیندهٔ قیمت حرف نزن. تحلیل بازار، تأثیر دلار یا شمش، و جمله‌هایی مثل «احتمالاً بالا می‌رود» را از حافظه یا حدس خودت نگو.
+  • اگر کاربر پرسید قیمت بالا می‌رود یا پایین، یا پرسید «الان بخرم یا صبر کنم؟»، ابزار forecastPrice را صدا بزن. این ابزار روند واقعی خودِ همان محصول و همبستگی‌اش با دلار، طلا و شمش را از دیتابیس می‌خواند و یک کارت «چشم‌انداز قیمت» با جهت، بازهٔ درصدی و دلیل نشان می‌دهد.
+  • فقط همان چیزی را بگو که ابزار برگردانده: جهت (رو به بالا / رو به پایین / کم‌نوسان) و دلیلش. جهت و بازه روی خود کارت نوشته شده؛ در متن تکرارشان نکن.
+  • هرگز قیمت مشخصی برای تاریخ آینده نگو («هفتهٔ دیگر ۴۳٬۵۰۰ تومان می‌شود» مطلقاً ممنوع است)، و هرگز واژه‌های قطعی به کار نبر: «قطعاً»، «حتماً»، «مطمئن باش»، «تضمین می‌کنم».
+  • همیشه اضافه کن که این یک برآورد جهت‌دار از روی داده‌های گذشته است و قیمت معتبر همان قیمت پیش‌فاکتور همان روز است.
+  • اگر ابزار گفت سابقهٔ قیمتی کافی نیست، صادقانه همان را بگو و هیچ جهتی حدس نزن؛ پیشنهاد بده با کارشناس صحبت کند.
 11) وقتی کاربر به عددی که از ابزار گرفتی اعتراض کرد یا گفت اشتباه/دروغ است، هرگز فقط همان جمله را عیناً تکرار نکن؛ این غیرمتقاعدکننده و ماشینی به‌نظر می‌رسد. با اطمینان مبنای محاسبه را دوباره و شفاف‌تر توضیح بده (مثلاً «این عدد از جدول وزن استاندارد مقطع می‌آید، نه تخمین هندسی») و بپرس خودش چه عدد یا فرضی (طول/سایز/گرید متفاوت) در ذهن داشته تا اختلاف واقعی را پیدا کنی. فقط اگر فرض ورودی واقعاً عوض شد، ابزار را دوباره با مقدار جدید صدا بزن؛ بدون دلیل جدید، هرگز عدد گرفته‌شده از ابزار را زیر فشار کاربر عوض یا انکار نکن (خلاف بند ۱ است).
 12) برای سؤال‌های دانشی (مثل «فرق A2 و A3؟») ابزار searchGuides را صدا بزن، پاسخ را بر پایهٔ همان متن بده و منبع را ذکر کن: «طبق راهنمای آهن‌تایم» + عنوان مقاله. اگر راهنمای مرتبطی پیدا نشد، صادقانه بگو برای این موضوع راهنمایی نداریم و پیشنهاد گفتگو با کارشناس بده.
 13) خارج از حوزهٔ آهن/فولاد/ساخت‌وساز، مؤدبانه به موضوع برگرد.

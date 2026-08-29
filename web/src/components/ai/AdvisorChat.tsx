@@ -272,6 +272,7 @@ const TOOL_PROGRESS: Record<string, string> = {
   searchGuides: 'در حال مرور راهنماها…',
   productOptions: 'در حال دیدن گزینه‌های موجود…',
   priceHistory: 'در حال خواندن روند قیمت…',
+  forecastPrice: 'در حال بررسی روند و شاخص‌های بازار…',
 };
 const PROGRESS_DEFAULT = 'در حال نوشتن…';
 /** After this long with no answer, say so. A 45s server deadline is a normal
