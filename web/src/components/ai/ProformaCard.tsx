@@ -3,7 +3,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { routes } from '@/lib/routes';
 import { api, isApiError } from '@/lib/api';
-import { formatToman, toPersianDigits } from '@/lib/utils/format';
+import { formatToman, normalizeDigits, toPersianDigits } from '@/lib/utils/format';
 import { CITIES } from '@/lib/data/logistics';
 import { PRICE_UNIT_VALUES, type PriceUnit } from '@/lib/types/domain';
 import { PRICE_UNIT_LABEL } from '@/lib/utils/catalogLabels';
@@ -221,22 +221,30 @@ export function ProformaCard({
                   <label className="visually-hidden" htmlFor={`${draft.draftId}-qty-${i}`}>
                     مقدار {it.name}
                   </label>
+                  {/* `type="text"` with a numeric inputMode, NOT
+                   *  `type="number"`: a number input can only hold a valid
+                   *  Latin-digit number, so it would print «3000» in the one
+                   *  field of an otherwise entirely Persian-digit document —
+                   *  and it would reject «۳۰۰۰» typed on an Iranian keyboard,
+                   *  which is how these customers actually type. The value is
+                   *  shown in Persian digits and normalised on the way out. */}
                   <input
                     id={`${draft.draftId}-qty-${i}`}
                     className={`${styles.qty} tnum`}
-                    type="number"
-                    inputMode="decimal"
-                    min={1}
-                    step={1}
-                    defaultValue={it.qty}
+                    type="text"
+                    inputMode="numeric"
+                    dir="ltr"
+                    // See the city select below — same reason.
+                    autoComplete="off"
+                    defaultValue={toPersianDigits(it.qty.toLocaleString('en-US'))}
                     disabled={saving}
                     // On blur, not on every keystroke: each change is a real
                     // server repricing, and firing one per digit would price
                     // «5», «50», «500» on the way to «5000».
                     onBlur={(e) => {
-                      const qty = Number(e.target.value);
+                      const qty = Number(normalizeDigits(e.target.value).replace(/[,\s٬]/g, ''));
                       if (Number.isFinite(qty) && qty > 0 && qty !== it.qty) setLine(i, { qty });
-                      else e.target.value = String(it.qty);
+                      else e.target.value = toPersianDigits(it.qty.toLocaleString('en-US'));
                     }}
                   />
                   <label className="visually-hidden" htmlFor={`${draft.draftId}-unit-${i}`}>
@@ -273,10 +281,20 @@ export function ProformaCard({
           <label className={styles.cityLabel} htmlFor={`${draft.draftId}-city`}>
             شهر تحویل
           </label>
+          {/* AUTOFILL OFF, and this one is not cosmetic.
+           *
+           *  Observed in a real browser: a `<select>` whose options are a list
+           *  of Iranian city names is read by Chrome as an address field and
+           *  autofilled — it changed the delivery city from «مشهد» to
+           *  «کرمانشاه» on its own, and because autofill dispatches a real
+           *  `change` event that fired an edit against the draft. A customer
+           *  would have confirmed a پیش‌فاکتور destined for a city they never
+           *  chose, with no visible moment where they changed it. */}
           <select
             id={`${draft.draftId}-city`}
             className={styles.city}
             value={draft.city ?? ''}
+            autoComplete="off"
             disabled={saving}
             onChange={(e) => void applyEdit(draft.items, e.target.value)}
           >

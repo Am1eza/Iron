@@ -145,6 +145,36 @@ describe('AdvisorChat — tool output arrives as UI, not as a paragraph', () => 
     expect(screen.getByText('مقایسهٔ کارخانه‌ها')).toBeInTheDocument();
   });
 
+  it('does not collide ids with a restored thread — the duplicate-key bug', async () => {
+    // `seq` restarts at 0 on every page load while localStorage still holds
+    // `m1`, so the first new message used to key-collide with the first
+    // restored one. React then reused one message's DOM for the other, which
+    // with an editable پیش‌فاکتور card in the thread meant the live card's
+    // fields drove the OLD, expired draft id.
+    chatStream.mockResolvedValue(
+      sseResponse([{ type: 'token', text: 'اولی.' }, { type: 'done', messageId: 'm1' }]),
+    );
+    const first = render(<AdvisorChat />);
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText('پیام به مشاور هوشمند'), 'سؤال اول{Enter}');
+    await screen.findByText('اولی.', {}, { timeout: 3000 });
+    first.unmount();
+
+    const errors: unknown[][] = [];
+    const spy = vi.spyOn(console, 'error').mockImplementation((...a) => errors.push(a));
+    try {
+      chatStream.mockResolvedValue(
+        sseResponse([{ type: 'token', text: 'دومی.' }, { type: 'done', messageId: 'm2' }]),
+      );
+      render(<AdvisorChat />);
+      await user.type(await screen.findByLabelText('پیام به مشاور هوشمند'), 'سؤال دوم{Enter}');
+      await screen.findByText('دومی.', {}, { timeout: 3000 });
+      expect(errors.flat().join(' ')).not.toContain('same key');
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it('keeps the cards when the thread is restored from storage', async () => {
     chatStream.mockResolvedValue(
       sseResponse([

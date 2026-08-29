@@ -57,7 +57,7 @@ describe('ProformaCard — editing', () => {
 
     const qty = screen.getByLabelText(/مقدار میلگرد/);
     await userEvent.clear(qty);
-    await userEvent.type(qty, '5000');
+    await userEvent.type(qty, '۵۰۰۰'); // as an Iranian keyboard actually types
     await userEvent.tab(); // commit on blur, not per keystroke
 
     await waitFor(() => expect(updateDraft).toHaveBeenCalledTimes(1));
@@ -82,11 +82,20 @@ describe('ProformaCard — editing', () => {
 
     const qty = screen.getByLabelText(/مقدار میلگرد/);
     await userEvent.clear(qty);
-    await userEvent.type(qty, '5000');
+    await userEvent.type(qty, '5000'); // …and Latin digits work too
     await userEvent.tab();
 
     await waitFor(() => expect(onChanged).toHaveBeenCalled());
     expect(onChanged.mock.calls[0]![0]).toMatchObject({ total: 210_000_000, totalWeightKg: 5000 });
+  });
+
+  it('shows the quantity in Persian digits, like every other figure on the site', () => {
+    render(<ProformaCard draft={DRAFT} onConfirmed={vi.fn()} onChanged={vi.fn()} />);
+    const qty = screen.getByLabelText(/مقدار میلگرد/) as HTMLInputElement;
+    // `type="number"` cannot hold this, which is why the field is a text
+    // input with a numeric inputMode.
+    expect(qty.value).toBe('۳,۰۰۰');
+    expect(qty).toHaveAttribute('inputmode', 'numeric');
   });
 
   it('does not call the server when the quantity did not actually change', async () => {
@@ -103,7 +112,19 @@ describe('ProformaCard — editing', () => {
     await userEvent.clear(qty);
     await userEvent.tab();
     expect(updateDraft).not.toHaveBeenCalled();
-    expect(qty.value).toBe('3000');
+    // Restored in the same Persian-digit, grouped form it was shown in.
+    expect(qty.value).toBe('۳,۰۰۰');
+  });
+
+  it('opts every field out of browser autofill', () => {
+    // Observed in a real browser: Chrome read the city `<select>` as an
+    // address field and autofilled it, changing «مشهد» to «کرمانشاه» on its
+    // own — and autofill dispatches a real change event, so it fired an edit.
+    // The customer would have confirmed a پیش‌فاکتور destined somewhere they
+    // never chose, with no visible moment where they changed it.
+    render(<ProformaCard draft={{ ...DRAFT, city: 'مشهد' }} onConfirmed={vi.fn()} onChanged={vi.fn()} />);
+    expect(screen.getByLabelText('شهر تحویل')).toHaveAttribute('autocomplete', 'off');
+    expect(screen.getByLabelText(/مقدار میلگرد/)).toHaveAttribute('autocomplete', 'off');
   });
 
   it('sends the delivery city as a real change of its own', async () => {
