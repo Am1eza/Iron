@@ -30,6 +30,13 @@ export const CHIP = {
    *  want to correct, phrased as the correction itself. */
   perFloorArea: 'متراژی که گفتم مساحت هر طبقه بود',
   compareFactories: 'ارزان‌ترین کارخانه را نشانم بده',
+  /** After a price answer: the question every buyer actually has next, and the
+   *  one the advisor used to refuse outright. Answered by forecastPrice, which
+   *  gives a DIRECTION and a band — never a price for a date. */
+  outlook: 'قیمتش بالا می‌رود یا پایین؟',
+  /** After an outlook: the honest way to act on a directional call is to lock
+   *  today's number or wait for a level, not to trade the forecast. */
+  proformaToday: 'با قیمت امروز پیش‌فاکتور بگیر',
 } as const;
 
 /**
@@ -122,13 +129,20 @@ export function selectFollowUpChips(
     else chips.push(CHIP.allPrices);
     return chips;
   }
+  // An outlook's only honest next steps are acting on TODAY's price or
+  // asking again later — never «چقدر می‌شود؟», which is the question the
+  // forecast deliberately does not answer.
+  if (toolsUsed.has('forecastPrice')) return [CHIP.proformaToday, CHIP.allPrices];
   if (
     toolsUsed.has('getPrice') ||
     toolsUsed.has('calcWeight') ||
     toolsUsed.has('compareFactories') ||
     toolsUsed.has('priceHistory')
   )
-    return [CHIP.proforma, CHIP.allPrices];
+    // «بالا می‌رود یا پایین؟» sits here on purpose: it is the most common real
+    // follow-up to a price, and now that a grounded tool answers it, offering
+    // it is better than waiting for the visitor to discover the advisor will.
+    return [CHIP.proforma, CHIP.outlook, CHIP.allPrices];
   // searchGuides answered a knowledge question, not a pricing one — neither
   // the starter chips (redundant: onboarding is over) nor the proforma/
   // prices pair (presumes a purchase that isn't what was asked) fit here.
