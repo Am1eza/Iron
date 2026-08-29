@@ -64,6 +64,13 @@ describe('ExportMenu columns — the shared secondary-spec column stays context-
     }
   });
 
+  it('exports پروفیل Z by ارتفاع and ضخامت without changing sibling profiles', () => {
+    expect(cols('profile', 'profil-z')).toContain('ارتفاع');
+    expect(cols('profile', 'profil-z')).toContain('ضخامت');
+    expect(cols('profile', 'box-square')).toContain('سایز');
+    expect(cols('profile', 'box-square')).not.toContain('ضخامت');
+  });
+
   it('keeps cells aligned with headers in both shapes', () => {
     expect(rowCells(row({ dimensions: '۱۰۰۰×۲۰۰۰' }), true)).toHaveLength(cols('sheet').length);
     expect(rowCells(row(), false)).toHaveLength(cols('rebar').length);

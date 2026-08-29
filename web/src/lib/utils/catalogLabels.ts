@@ -42,6 +42,11 @@ const NABSHI_THICKNESS_SUBS = new Set(['nabshi', 'angle-unequal', 'spot']);
 /** Stainless sections whose stored secondary dimension is wall thickness. */
 const STEEL_THICKNESS_SUBS = new Set(['angle', 'channel']);
 
+/** Profile sections whose secondary dimension is wall thickness. Z is sold by
+ *  height plus gauge; square/rectangular profiles keep their complete section
+ *  in `size` and are deliberately not included. */
+const PROFILE_THICKNESS_SUBS = new Set(['profil-z']);
+
 /** Coloured-metal sheet lines whose `dimensions` is width×length. */
 const COLOURED_SHEET_DIMENSION_SUBS = new Set(['aluminum-sheet', 'copper-sheet']);
 
@@ -170,6 +175,7 @@ const PIPE_SCHEDULE_SUBS = new Set([
 const SEAMLESS_BRAND_SUBS = new Set(['seamless-internal', 'seamless-external']);
 
 export const SIZE_LABEL = 'سایز';
+export const HEIGHT_LABEL = 'ارتفاع';
 export const THICKNESS_LABEL = 'ضخامت';
 export const DIMENSIONS_LABEL = 'ابعاد';
 export const GRADE_LABEL = 'گرید';
@@ -214,6 +220,12 @@ export function usesDimensions(
   ) {
     return true;
   }
+  if (
+    categorySlug === 'profile' &&
+    Boolean(subCategorySlug && PROFILE_THICKNESS_SUBS.has(subCategorySlug))
+  ) {
+    return true;
+  }
   return (
     categorySlug === 'angle-channel' &&
     Boolean(subCategorySlug && NABSHI_THICKNESS_SUBS.has(subCategorySlug))
@@ -231,13 +243,20 @@ export function dimensionsLabel(
   return (categorySlug === 'angle-channel' &&
     subCategorySlug &&
     NABSHI_THICKNESS_SUBS.has(subCategorySlug)) ||
-    (categorySlug === 'steel' && subCategorySlug && STEEL_THICKNESS_SUBS.has(subCategorySlug))
+    (categorySlug === 'steel' && subCategorySlug && STEEL_THICKNESS_SUBS.has(subCategorySlug)) ||
+    (categorySlug === 'profile' && subCategorySlug && PROFILE_THICKNESS_SUBS.has(subCategorySlug))
     ? THICKNESS_LABEL
     : DIMENSIONS_LABEL;
 }
 
-/** «ضخامت» for ورق, «سایز» everywhere else (including unknown/mixed lists). */
-export function sizeLabel(categorySlug: string | null | undefined): string {
+/** «ضخامت» for ورق, «ارتفاع» on پروفیل Z, «سایز» everywhere else. The Z
+ *  spelling is sub-scoped because every sibling profile is still bought by
+ *  its section size; mixed/category lists therefore keep the safe generic. */
+export function sizeLabel(
+  categorySlug: string | null | undefined,
+  subCategorySlug: string | null = null,
+): string {
+  if (categorySlug === 'profile' && subCategorySlug === 'profil-z') return HEIGHT_LABEL;
   return usesThickness(categorySlug) ? THICKNESS_LABEL : SIZE_LABEL;
 }
 

@@ -518,9 +518,8 @@ export interface SkuInput {
   grade?: string | null;
   /** Product form/finish, independent of metallurgical grade. */
   condition?: string | null;
-  /** ورق only — plate width×length. Same nullable "absent key leaves the
-   *  column alone, explicit null clears it" rule as every other optional
-   *  field here. See server/db/schema/catalog.ts. */
+  /** Context-specific plate dimensions or section thickness. Same nullable
+   *  "absent key leaves it alone, explicit null clears it" update rule. */
   dimensions?: string | null;
   /** «رده» — the pipe schedule, on لوله's pressure-pipe subs. Same nullable
    *  "absent key leaves the column alone, explicit null clears it" rule as

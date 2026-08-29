@@ -495,8 +495,7 @@ export interface AdminSku {
   size: string | null;
   grade: string | null;
   condition: string | null;
-  /** ورق only — plate width×length, e.g. «۱۰۰۰×۲۰۰۰». Null for every other
-   *  category and for sheets not filled in yet. */
+  /** Context-specific plate dimensions or section thickness; see catalogLabels. */
   dimensions: string | null;
   /** «رده» — pipe schedule, on لوله's pressure-pipe subs only. Null for every
    *  other category and for pipes nobody has filled it in for yet. */

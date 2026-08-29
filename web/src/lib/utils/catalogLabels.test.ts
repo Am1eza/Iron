@@ -8,6 +8,7 @@ import {
   attributeColumns,
   factoryIsMeaningful,
   SIZE_LABEL,
+  HEIGHT_LABEL,
   THICKNESS_LABEL,
   DIMENSIONS_LABEL,
   GRADE_LABEL,
@@ -50,6 +51,12 @@ describe('sizeLabel', () => {
     expect(sizeLabel(null)).toBe(SIZE_LABEL);
     expect(sizeLabel('')).toBe(SIZE_LABEL);
     expect(sizeLabel('something-new')).toBe(SIZE_LABEL);
+  });
+
+  it('calls only پروفیل Z height, without changing sibling or mixed profile lists', () => {
+    expect(sizeLabel('profile', 'profil-z')).toBe(HEIGHT_LABEL);
+    expect(sizeLabel('profile', 'box-square')).toBe(SIZE_LABEL);
+    expect(sizeLabel('profile', null)).toBe(SIZE_LABEL);
   });
 });
 
@@ -119,6 +126,10 @@ describe('usesDimensions', () => {
     expect(usesDimensions('felezat-rangi', null)).toBe(false);
     expect(usesDimensions('steel', null)).toBe(false);
     expect(usesDimensions('steel', 'pipe')).toBe(false);
+    expect(usesDimensions('profile', 'profil-z')).toBe(true);
+    expect(dimensionsLabel('profile', 'profil-z')).toBe(THICKNESS_LABEL);
+    expect(usesDimensions('profile', null)).toBe(false);
+    expect(usesDimensions('profile', 'box-square')).toBe(false);
   });
 
   it('says no for an unknown, mixed or missing category', () => {

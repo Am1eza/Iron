@@ -191,11 +191,11 @@ export function PricingGrid() {
   // hunting for it).
   const params = useSearchParams();
   const [cat, setCat] = useState('rebar');
-  // The grid is always scoped to exactly one category, so its `size` column
-  // can carry that category's own word for it — «ضخامت» for ورق (see
-  // catalogLabels).
-  const sizeCol = sizeLabel(cat);
   const [sub, setSub] = useState('');
+  // The grid is scoped to one category and optionally one sub-category, so its
+  // `size` column can use «ضخامت» for ورق and «ارتفاع» for پروفیل Z without
+  // leaking either word into a mixed profile list.
+  const sizeCol = sizeLabel(cat, sub || null);
   const [onlyStale, setOnlyStale] = useState(params.get('stale') === '1');
   // ?unpriced=1 → the same deep-link for the «کالای بدون قیمت» tile. A
   // never-priced product is not a stale one — it has no `current_prices` row

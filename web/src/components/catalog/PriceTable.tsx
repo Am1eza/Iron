@@ -244,10 +244,10 @@ const PriceTableRow = memo(function PriceTableRow({
   isFav: boolean;
   compareChecked: boolean;
   onToggleCompare: (id: string) => void;
-  /** ورق or one of the three approved نبشی subs — must stay in
+  /** ورق, an approved نبشی sub, or پروفیل Z — must stay in
    *  lockstep with the matching `<th>`, which is driven by the same flag. */
   showDimensions: boolean;
-  /** «ابعاد» for ورق; «ضخامت» for those نبشی rows. */
+  /** «ابعاد» for ورق; «ضخامت» for those section rows. */
   dimensionsCol: string;
   /** «گرید»/«استاندارد»/«طول شاخه»/… — resolved once for the whole table from
    *  the page's category and the active sub-filter (see catalogLabels), and
@@ -274,7 +274,7 @@ const PriceTableRow = memo(function PriceTableRow({
    *  inherit it from. */
   showRowBasis: boolean;
   /** The «سایز»/«ضخامت»/… header text, so the reflowed cell can reprint it as
-   *  its own label. Comes from the same `sizeLabel(categorySlug)` call that
+   *  its own label. Comes from the same `sizeLabel(categorySlug, sub)` call that
    *  built the `<th>`. */
   sizeCol: string;
   /** «وزن شاخه»/«وزن» — same lockstep rule, from `weightLabel(categorySlug)`. */
@@ -494,7 +494,6 @@ export function PriceTable({
    *  behaves exactly as it did before this existed. */
   factoryOrder?: string[];
 }) {
-  const sizeCol = sizeLabel(categorySlug);
   const weightCol = weightLabel(categorySlug);
   const subGroups = useMemo(() => groupByLabel(subs), [subs]);
   const add = useCartStore((s) => s.add);
@@ -540,9 +539,10 @@ export function PriceTable({
   const [internalSub, setInternalSub] = useState<string | null>(initialSub);
   const controlled = onSubChange !== undefined;
   const sub = controlled ? (subProp ?? null) : internalSub;
-  // ورق keeps its category-wide «ابعاد» column. نبشی thickness is
-  // intentionally sub-aware: only the three owner-approved subs show it, and
-  // the mixed `angle-channel` «همه» view stays structurally unchanged.
+  const sizeCol = sizeLabel(categorySlug, sub);
+  // ورق keeps its category-wide «ابعاد» column. Section thickness is
+  // intentionally sub-aware: only the approved نبشی subs and پروفیل Z show
+  // it, while their mixed category views stay structurally unchanged.
   const showDimensions = usesDimensions(categorySlug, sub);
   const dimensionsCol = dimensionsLabel(categorySlug, sub);
   // The «گرید»/«استاندارد»/«طول شاخه»/«طول سفارشی»/«آلیاژ» columns also
