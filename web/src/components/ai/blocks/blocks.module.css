@@ -378,3 +378,100 @@
     flex: 0 1 auto;
   }
 }
+
+/* ===== forecast =====
+   The headline is a WORD, not a number: nothing on this card may be
+   screenshotted and read as a quote for a future date. See
+   server/ai/forecast.ts for why the whole feature is shaped this way. */
+.fcHeadline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin-block: var(--space-2);
+}
+.fcArrow {
+  font: var(--t-movement);
+}
+.fcDir {
+  font: var(--t-h4);
+}
+.fcConfidence {
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+  font: var(--t-micro);
+}
+.fcUp {
+  color: var(--color-gain-text);
+}
+.fcDown {
+  color: var(--color-loss-text);
+}
+.fcFlat {
+  color: var(--color-text-muted);
+}
+.fcBand {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: var(--space-3) 0 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-sunken);
+}
+.fcBandValue {
+  font: var(--t-price-cell);
+  color: var(--color-text-strong);
+}
+.fcReason {
+  margin: var(--space-3) 0 0;
+  font: var(--t-body-sm);
+  color: var(--color-text);
+}
+.fcDrivers {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.fcDrivers li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-block: var(--space-1);
+  border-block-end: var(--border-hairline) solid var(--color-hairline);
+  font: var(--t-caption);
+  color: var(--color-text);
+}
+.fcDrivers li:last-child {
+  border-block-end: 0;
+}
+.fcDriverLabel {
+  color: var(--color-text-muted);
+}
+.fcDriverNums {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+.fcDriverCorr {
+  color: var(--color-text-muted);
+  font: var(--t-micro);
+}
+.fcCaveat {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  border: var(--border-hairline) solid var(--color-hairline);
+  background: var(--color-surface-sunken);
+  font: var(--t-micro);
+  color: var(--color-text-muted);
+}

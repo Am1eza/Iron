@@ -114,6 +114,64 @@ describe('AdvisorBlocks', () => {
     expect(container.textContent).toBe('');
   });
 
+  /**
+   * The forecast card carries a guarantee the arithmetic cannot: that what a
+   * reader SEES is a direction and a range, and that the caveat is on the
+   * card rather than left to the model to remember saying.
+   */
+  describe('the price-outlook card', () => {
+    const forecast: AdvisorBlock = {
+      kind: 'forecast',
+      title: 'میلگرد ۱۴ ذوب‌آهن',
+      direction: 'up',
+      confidence: 'medium',
+      bandLowPct: 1.4,
+      bandHighPct: 6.2,
+      horizonLabel: '۱ تا ۲ هفتهٔ آینده',
+      reason: 'قیمت این محصول در ۳۰ روز گذشته ۴٫۱ درصد بالا رفته و هم‌جهت با دلار حرکت کرده.',
+      drivers: [
+        { label: 'دلار', changePct: 3.2, correlation: 0.71 },
+        { label: 'طلای ۱۸ عیار', changePct: 1.1, correlation: 0.04 },
+      ],
+      basedOnDays: 30,
+      ownChangePct: 4.1,
+      updatedAt: AT,
+    };
+
+    it('leads with a direction in words, not with a number', () => {
+      render(<AdvisorBlocks blocks={[forecast]} onPick={vi.fn()} />);
+      expect(screen.getByText('رو به بالا')).toBeInTheDocument();
+      expect(screen.getByText('اتکای متوسط')).toBeInTheDocument();
+    });
+
+    it('shows the range as a range, and only ever in percent', () => {
+      const { container } = render(<AdvisorBlocks blocks={[forecast]} onPick={vi.fn()} />);
+      expect(screen.getByText(/بازهٔ تقریبی تغییر/)).toBeInTheDocument();
+      // Nothing on this card may read as a Toman figure for a future date.
+      expect(container.textContent).not.toMatch(/تومان/);
+    });
+
+    it('carries its own caveat, so a forgotten sentence cannot drop it', () => {
+      render(<AdvisorBlocks blocks={[forecast]} onPick={vi.fn()} />);
+      expect(screen.getByText(/برآورد جهت‌دار از روی داده‌های گذشته است، نه قیمت قطعی/)).toBeInTheDocument();
+      expect(screen.getByText(/قیمت معتبر همان قیمتی است که در پیش‌فاکتور همان روز/)).toBeInTheDocument();
+    });
+
+    it('lists a driver that correlates with nothing, rather than quietly hiding it', () => {
+      render(<AdvisorBlocks blocks={[forecast]} onPick={vi.fn()} />);
+      // The card proving it looked is more trustworthy than an omission.
+      expect(screen.getByText('طلای ۱۸ عیار')).toBeInTheDocument();
+      expect(screen.getByText(/۰٫۰۴/)).toBeInTheDocument();
+    });
+
+    it('offers acting on today’s price as the next step', async () => {
+      const onPick = vi.fn();
+      render(<AdvisorBlocks blocks={[forecast]} onPick={onPick} />);
+      await userEvent.click(screen.getByRole('button', { name: /پیش‌فاکتور با قیمت امروز/ }));
+      expect(onPick).toHaveBeenCalledWith(expect.stringContaining('میلگرد ۱۴ ذوب‌آهن'));
+    });
+  });
+
   it('describes a sparkline in words for anyone who cannot see it', () => {
     const block: AdvisorBlock = {
       kind: 'trend',
