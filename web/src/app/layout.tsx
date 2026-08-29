@@ -66,6 +66,13 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
+  // The keyboard RESIZES the layout viewport instead of overlaying it, so a
+  // bottom-docked composer sitting in a `100dvh` shell stays on top of the
+  // keyboard rather than behind it (/ai's immersive mobile mode). Without it,
+  // `dvh` does not react to the keyboard on iOS Safari and the input is
+  // covered exactly when it is being typed into. Ignored by browsers that do
+  // not know it, and inert on every page that has no fixed bottom control.
+  interactiveWidget: 'resizes-content',
   // Light-theme page background (--neutral-50): the site is light-only for
   // visitors (see public/theme-init.js), so browser chrome matches — was the
   // dark gunmetal #171C22.
