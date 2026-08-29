@@ -135,22 +135,20 @@ const IBEAM_SUBTYPE_HEADING_SUBS = new Set(['hash-sabok', 'hash-sangin', 'lane-z
  * lists a single `seamless` sub that no longer exists and would therefore
  * have matched no rows at all.
  *
- * اسپیرال, جدار چاه and گوشت‌دار were initially left out pending an owner
- * decision (each is arguably pressure-rated too, and جدار چاه already
- * records «ST37» in `skus.standard`) — the owner confirmed all three should
- * get «رده» as well (1405/06). `schedule` is its own column, independent of
- * `standard`, so جدار چاه now correctly carries both facts on one row rather
- * than one column meaning two things.
+ * اسپیرال, جدار چاه, گازی, صنعتی and گوشت‌دار were added on top of مانیسمان
+ * for one stretch (1405/06) on the theory that each is arguably pressure-
+ * rated too. Reverted the same day after checking ahanonline.com's own live
+ * pages for all five: none of them publish a «رده» column at all — they sell
+ * on «ضخامت» (a millimetre wall thickness) instead, which every one of these
+ * subs already has in `skus.size`/`skus.standard`. ASME B36.10 schedule
+ * numbers are not how the Iranian market actually classifies گازی, جدار چاه
+ * or اسپیرال pipe, so populating one here would not mirror a real published
+ * fact — it would manufacture a classification nobody in this trade uses for
+ * these products. مانیسمان is the one pipe family actually sold and quoted
+ * by «رده ۴۰» / «رده ۸۰» — on ahanonline and everywhere else — which is why
+ * it alone stays in this set.
  */
-const PIPE_SCHEDULE_SUBS = new Set([
-  'seamless-internal',
-  'seamless-external',
-  'gas',
-  'industrial',
-  'spiral',
-  'well-casing',
-  'thick-walled',
-]);
+const PIPE_SCHEDULE_SUBS = new Set(['seamless-internal', 'seamless-external']);
 
 /**
  * لوله sub-categories whose «کارخانه» column is really a «برند».
