@@ -196,15 +196,25 @@ function netChangePct(values: ReadonlyArray<number>): number {
 const round1 = (n: number) => Math.round(n * 10) / 10;
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
 
-/** «۳٫۲ درصد» — Persian digits with the Persian decimal separator. */
-function pct(n: number): string {
-  const s = Math.abs(round1(n)).toFixed(1).replace(/\.0$/, '');
-  return `${s.replace('.', '٫')} درصد`;
-}
-
 const FA_DIGITS = '۰۱۲۳۴۵۶۷۸۹';
 function fa(input: string | number): string {
   return String(input).replace(/[0-9]/g, (d) => FA_DIGITS[Number(d)]!);
+}
+
+/**
+ * «۳٫۲ درصد» — Persian digits, Persian decimal separator.
+ *
+ * `fa()` is not optional here. The reason string is a finished Persian
+ * sentence that is shown verbatim on the card and handed to the model to
+ * relay, and prompt rule 20 forbids non-Persian characters in an answer — so
+ * a Latin «11.9» in it is both a visible inconsistency on a site that renders
+ * every other figure in Persian digits and an instruction the model is being
+ * asked to break. Caught by driving the real endpoint, which is exactly the
+ * class of thing a unit test on the arithmetic would not have noticed.
+ */
+function pct(n: number): string {
+  const s = Math.abs(round1(n)).toFixed(1).replace(/\.0$/, '');
+  return `${fa(s).replace('.', '٫')} درصد`;
 }
 
 /* ---------------------------------------------------------------- compute -- */

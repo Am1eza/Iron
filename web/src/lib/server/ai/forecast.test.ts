@@ -345,6 +345,16 @@ describe('computeForecast — the sentence it hands the model', () => {
     expect(r.reason).not.toMatch(/تومان/);
   });
 
+  it('writes every figure in Persian digits, like the rest of the site', () => {
+    // Caught by driving the real endpoint: the sentence came out «۹۰ روز
+    // گذشته 11٫9 درصد بالا رفته». It is rendered verbatim on the card AND
+    // handed to the model to relay under a prompt rule that forbids
+    // non-Persian characters in an answer, so a Latin digit here is both a
+    // visible inconsistency and an instruction the model is asked to break.
+    const r = computeForecast({ series: walk(30, 40_000, 0.5, 0.8) })!;
+    expect(r.reason).not.toMatch(/[0-9]/);
+  });
+
   it('says "roughly unchanged" rather than reporting a meaningless fraction', () => {
     const r = computeForecast({ series: ramp(30, 40_000, 0) })!;
     expect(r.reason).toContain('تقریباً ثابت مانده');
