@@ -43,6 +43,13 @@ import {
 import { cityDistance } from '@/lib/data/logistics';
 import { marketHistory } from '@/lib/server/repos/marketRepo';
 import { computeForecast, HORIZON_LABEL, MIN_HISTORY_POINTS } from '@/lib/server/ai/forecast';
+import type { MemoryFacts } from '@/lib/server/ai/memory';
+import {
+  createAlert,
+  alertCapForTier,
+  AlertCapExceededError,
+  AlertTargetNotFoundError,
+} from '@/lib/server/repos/alertsRepo';
 
 export const AI_TOOLS: ToolDef[] = [
   {
@@ -104,6 +111,31 @@ export const AI_TOOLS: ToolDef[] = [
         type: 'object',
         properties: {
           query: { type: 'string', description: 'نام محصول، مثلاً «میلگرد ۱۴ ذوب‌آهن»' },
+        },
+        required: ['query'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'setPriceAlert',
+      description:
+        'برای کاربرِ واردشده روی یک محصول هشدار قیمت ثبت می‌کند: وقتی قیمت از حد مشخصی پایین‌تر (یا بالاتر) رفت، پیامک می‌شود. برای «اگر ارزان شد خبرم کن» یا «اگر رفت زیر X تومان بگو». اگر کاربر عددی نگفته باشد، خودِ قیمت امروزِ همان محصول مبنا می‌شود، یعنی با هر کاهش خبر می‌دهد؛ هیچ عددی از خودت نساز. اگر کاربر وارد حساب نشده باشد، ابزار همین را می‌گوید و باید از او بخواهی وارد شود.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'نام محصول، مثلاً «میلگرد ۱۴ ذوب‌آهن»' },
+          direction: {
+            type: 'string',
+            enum: ['below', 'above'],
+            description: 'below یعنی وقتی ارزان‌تر شد خبر بده (پیش‌فرض)، above یعنی وقتی گران‌تر شد',
+          },
+          threshold: {
+            type: 'number',
+            description:
+              'فقط اگر خودِ کاربر عدد گفت (تومان بر کیلوگرم). اگر نگفته، این را خالی بگذار تا قیمت امروز مبنا شود.',
+          },
         },
         required: ['query'],
       },
@@ -324,6 +356,14 @@ const priceHistoryArgs = z.object({
 });
 
 const forecastPriceArgs = z.object({ query: z.string().trim().min(1).max(120) });
+
+const setPriceAlertArgs = z.object({
+  query: z.string().trim().min(1).max(120),
+  direction: z.enum(['below', 'above']).optional(),
+  // Same finite+ceiling guard the public POST /api/alerts applies — tool-call
+  // arguments are model-generated JSON and get no more trust than a request body.
+  threshold: finiteNumber.positive().max(1e13).optional(),
+});
 
 /** The market series the outlook reads, and what to call them on the card.
  *  Exactly the three the ticker already polls — no new data source, and no
@@ -569,6 +609,7 @@ async function emitPriceRowBlocks(
 
   if (rows.length === 1) {
     const row = rows[0]!;
+    rememberRow(row, ctx);
     // Best-effort: a product with no history is normal (priced for the first
     // time today), and the card simply renders without its sparkline.
     const points = await skuHistory(row.slug, '30d').catch(() => []);
@@ -606,9 +647,20 @@ async function emitPriceRowBlocks(
 
   // Nothing to choose between (every hit is the same product) — quote the first.
   const row = rows[0]!;
+  rememberRow(row, ctx);
   const points = await skuHistory(row.slug, '30d').catch(() => []);
   ctx.onBlock(buildQuoteBlock(row, points));
   return 'quote';
+}
+
+/** One resolved catalog row IS the conversation's subject from here on — the
+ *  visitor should never have to name it again. */
+function rememberRow(row: PriceRow, ctx: ToolRunContext): void {
+  ctx.onFacts?.({
+    product: row.name,
+    ...(row.size ? { size: row.size } : {}),
+    ...(row.factory ? { factory: row.factory } : {}),
+  });
 }
 
 /**
@@ -633,6 +685,15 @@ export interface ToolRunContext {
   /** Delivery city already established in this conversation. Present ⇒ the
    *  comparison card can also rank mills by DELIVERED cost. */
   city?: string;
+  /**
+   * A fact this tool just established (see ai/memory.ts) — the product it
+   * resolved, the size it narrowed to, the tonnage it priced.
+   *
+   * Reported rather than written: the tools may run several times per turn,
+   * and the caller collects everything and persists ONE merged record at the
+   * end of the request instead of racing four writes against each other.
+   */
+  onFacts?: (facts: MemoryFacts) => void;
 }
 
 /** Execute one tool call; ALWAYS returns a JSON-safe result (errors as text). */
@@ -724,6 +785,13 @@ export async function runTool(
             note: 'گزینهٔ مبهمی نمانده؛ مستقیم جواب بده.',
           };
         }
+        ctx.onFacts?.({
+          category: category.name,
+          ...(subSlug
+            ? { sub: (await listSubCategories(category.slug)).find((x) => x.slug === subSlug)?.name ?? null }
+            : {}),
+          ...(size && scoped.length > 0 ? { size } : {}),
+        });
         ctx.onBlock?.(block);
         return {
           status: 'options_shown',
@@ -836,6 +904,68 @@ export async function runTool(
           reason: forecast.reason,
           note: 'این یک برآورد جهت‌دار است، نه قیمت قطعی. هرگز عدد قیمتی برای تاریخ آینده نگو و هرگز نگو «قطعاً» یا «حتماً». بگو بازه و جهت است و قیمت پیش‌فاکتور همان روز معتبر است.',
         };
+      }
+      case 'setPriceAlert': {
+        const parsed = setPriceAlertArgs.safeParse(args);
+        if (!parsed.success) return { error: 'نام محصول لازم است.' };
+        // Auth is not optional and not something the model may work around:
+        // an alert is a promise to send this person an SMS later, so it needs
+        // an account, and the account is the ONLY place the number comes from.
+        if (!session) {
+          return {
+            status: 'needs_login',
+            note: 'برای ثبت هشدار قیمت باید وارد حساب کاربری شود. کوتاه بگو با شمارهٔ موبایل و کد پیامکی وارد شود و بعد دوباره بگوید تا ثبتش کنی. هرگز شمارهٔ موبایل را در گفتگو نپرس.',
+          };
+        }
+        const direct = await findSkuRow(parsed.data.query);
+        const rows = direct ? [direct] : await searchSkus(parsed.data.query, 5);
+        if (rows.length === 0) return { error: 'این محصول در کاتالوگ پیدا نشد.' };
+        if (rows.length > 1) {
+          const ui = await emitPriceRowBlocks(rows, parsed.data.query, ctx);
+          return {
+            status: 'needs_choice',
+            ...(ui ? { ui, uiNote: UI_NOTE[ui] } : {}),
+            note: 'اول مشخص کن هشدار برای کدام محصول است، بعد دوباره همین ابزار را صدا بزن.',
+          };
+        }
+        const row = rows[0]!;
+        if (row.current.priceHidden || row.current.price <= 0) {
+          return { error: 'قیمت این محصول ثبت نشده و نمی‌شود رویش هشدار گذاشت؛ پیشنهاد بده کارشناس اعلام کند.' };
+        }
+        // No threshold given ⇒ today's own price. That is a GROUNDED default
+        // («خبرم کن اگر از این ارزان‌تر شد») and the only one available: any
+        // «۵٪ پایین‌تر» would be a number this tool invented.
+        const threshold = parsed.data.threshold ?? row.current.price;
+        const op = parsed.data.direction ?? 'below';
+        try {
+          const cap = await alertCapForTier(session.clubTier);
+          const created = await createAlert({
+            userId: session.id,
+            target: { type: 'sku', skuId: row.id },
+            op,
+            threshold,
+            channel: 'sms',
+            cap,
+          });
+          rememberRow(row, ctx);
+          return {
+            status: created.merged ? 'already_set' : 'created',
+            product: row.name,
+            op,
+            threshold,
+            note: created.merged
+              ? 'همین هشدار از قبل فعال بوده؛ بگو دوباره ثبت نشد چون قبلاً هست و با تغییر قیمت پیامک می‌شود.'
+              : 'هشدار ثبت شد. کوتاه بگو با رسیدن قیمت به این حد برایش پیامک می‌شود و می‌تواند در حسابش مدیریتش کند.',
+          };
+        } catch (err) {
+          if (err instanceof AlertCapExceededError) {
+            return {
+              error: `سقف هشدارهای فعال این کاربر پر است (${toPersianDigits(String(err.cap))} مورد). بگو یکی از هشدارهای قبلی‌اش را در حسابش غیرفعال کند و دوباره بگوید.`,
+            };
+          }
+          if (err instanceof AlertTargetNotFoundError) return { error: 'این محصول یافت نشد.' };
+          throw err;
+        }
       }
       case 'calcWeight': {
         const parsed = calcWeightArgs.safeParse(args);
@@ -956,6 +1086,12 @@ export async function runTool(
           ...(km && ctx.city ? { city: ctx.city, cityKm: km, logistics: cfg, vatRate } : {}),
         });
         if (compareBlock) ctx.onBlock?.(compareBlock);
+        ctx.onFacts?.({
+          category: category.name,
+          ...(usedSubName ? { sub: usedSubName } : {}),
+          ...(usedSize ? { size: usedSize } : {}),
+          tonnage: split.tonnage,
+        });
 
         return {
           ...(compareBlock ? { ui: 'compare', uiNote: UI_NOTE.compare } : {}),
@@ -1068,6 +1204,7 @@ export async function runTool(
           items: resolved,
           conversationId,
           userId: session?.id,
+          ...(ctx.city ? { city: ctx.city } : {}),
           transcript: capTranscript(transcript),
         });
         const totalWeightKg = lines.reduce((s, l) => s + (l.weightKg ?? 0), 0) || undefined;
@@ -1075,6 +1212,11 @@ export async function runTool(
         const card = {
           draftId: draft.id,
           items: lines.map((l) => ({
+            // The card is editable now (POST /api/ai/lead/draft) and can push
+            // lines into the cart, and both address a line by sku. Not a
+            // secret — the cart and every price page already work in these
+            // ids — but still never SHOWN, and still never asked of the user.
+            skuId: l.skuId,
             name: l.name,
             qty: l.qty,
             unit: l.unit,
@@ -1085,6 +1227,7 @@ export async function runTool(
           totalWeightKg,
           total,
           allPriced,
+          ...(ctx.city ? { city: ctx.city } : {}),
           signedIn: Boolean(session),
         };
         onDraft?.(card);
@@ -1132,6 +1275,7 @@ export const AI_SYSTEM_PROMPT = `تو «مشاور هوشمند آهن‌تای�
 5-پ) وقتی درخواست کاربر مبهم است (فقط اسم دسته را گفته، بدون سایز یا نوع یا کارخانه)، به‌جای پرسیدن با متنِ خالی، ابزار productOptions را صدا بزن تا گزینه‌های واقعی کاتالوگ به شکل دکمه نشان داده شوند. بعد فقط یک سؤال کوتاه بپرس و اضافه کن که می‌تواند یکی از دکمه‌ها را بزند یا خودش بنویسد. هرگز گزینه‌ها را در متن شماره‌گذاری نکن.
 5-ت) اگر برای یک محصول چند کارخانه قیمت دارند، getPrice خودش جدول مقایسه را نشان می‌دهد. این همان چیزی است که مشتری می‌خواهد: «قیمت میلگرد چنده؟» یک عدد نیست، قیمت امروزِ همهٔ کارخانه‌هاست.
 5-ث) برای «روند قیمت» یا «این ماه چطور بوده؟» ابزار priceHistory را صدا بزن تا نمودار واقعی نشان داده شود؛ روند را از حافظهٔ خودت توصیف نکن.
+5-ج) اگر کاربر گفت «اگر ارزان شد خبرم کن» یا «اگر رفت زیر فلان قیمت بگو»، ابزار setPriceAlert را صدا بزن. اگر خودش عددی نگفته، مبنا را خالی بگذار تا قیمت امروزِ همان محصول مبنا شود؛ هیچ عددی از خودت نساز. اگر ابزار گفت باید وارد حساب شود، فقط همان را کوتاه بگو و هرگز شمارهٔ موبایل نپرس.
 
 == روش مشاوره (مثل یک کارشناس واقعی) ==
 6) اول تشخیص، بعد نسخه: اگر کاربر فقط پرسید «قیمت چنده؟» بدون هیچ مشخصاتی، با یک سؤال کوتاه بپرس برای چه کاری می‌خواهد و هنوز قیمت نده. اما اگر دسته را گفته و فقط سایز/نوع/کارخانه نامعلوم است (مثل «قیمت میلگرد»)، سؤال متنی خالی نپرس: productOptions را صدا بزن تا گزینه‌های واقعی به شکل دکمه نشان داده شوند و کاربر با یک لمس جواب بدهد. پرسش دقیق (محصول + سایز) را مستقیم جواب بده. در هر نوبت حداکثر ۱–۲ سؤال بپرس؛ بازجویی نکن.
@@ -1149,6 +1293,7 @@ export const AI_SYSTEM_PROMPT = `تو «مشاور هوشمند آهن‌تای�
 11) وقتی کاربر به عددی که از ابزار گرفتی اعتراض کرد یا گفت اشتباه/دروغ است، هرگز فقط همان جمله را عیناً تکرار نکن؛ این غیرمتقاعدکننده و ماشینی به‌نظر می‌رسد. با اطمینان مبنای محاسبه را دوباره و شفاف‌تر توضیح بده (مثلاً «این عدد از جدول وزن استاندارد مقطع می‌آید، نه تخمین هندسی») و بپرس خودش چه عدد یا فرضی (طول/سایز/گرید متفاوت) در ذهن داشته تا اختلاف واقعی را پیدا کنی. فقط اگر فرض ورودی واقعاً عوض شد، ابزار را دوباره با مقدار جدید صدا بزن؛ بدون دلیل جدید، هرگز عدد گرفته‌شده از ابزار را زیر فشار کاربر عوض یا انکار نکن (خلاف بند ۱ است).
 12) برای سؤال‌های دانشی (مثل «فرق A2 و A3؟») ابزار searchGuides را صدا بزن، پاسخ را بر پایهٔ همان متن بده و منبع را ذکر کن: «طبق راهنمای آهن‌تایم» + عنوان مقاله. اگر راهنمای مرتبطی پیدا نشد، صادقانه بگو برای این موضوع راهنمایی نداریم و پیشنهاد گفتگو با کارشناس بده.
 13) خارج از حوزهٔ آهن/فولاد/ساخت‌وساز، مؤدبانه به موضوع برگرد.
+13-الف) وقتی داده‌ای برای جواب‌دادن نداری یا سؤال از حد داده‌های آهن‌تایم فنی‌تر است، گفتگو را بن‌بست نکن و سرِ هم هم نکن: صادقانه بگو این را از روی داده‌های ما نمی‌شود مطمئن گفت و بگو کارشناس همین حالا در دسترس است. شمارهٔ تماس و دکمهٔ واتساپ همیشه پایین همین گفتگو به کاربر نشان داده می‌شوند و در چنین حالتی کارت «گفتگو با کارشناس» هم زیر پیام تو می‌آید؛ پس شماره را در متن ننویس، فقط به کارشناس ارجاع بده.
 
 == قالب پاسخ (سخت‌گیرانه رعایت کن) ==
 14) کوتاه و کاربردی: پیش‌فرض حداکثر حدود ۱۵۰ کلمه؛ فقط برای مقایسهٔ چندقلمی یا وقتی کاربر جزئیات خواست بلندتر شو. بدون مقدمهٔ تعارفی («سؤال خوبیه» ممنوع)؛ مستقیم سر اصل مطلب.

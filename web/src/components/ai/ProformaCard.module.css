@@ -1,0 +1,243 @@
+/* The advisor's editable پیش‌فاکتور card.
+   Carried over from AdvisorChat.module.css's `.est*` block (which the
+   read-only version shared with the estimate card) and extended with the
+   edit controls. Split out with the component: the two cards no longer want
+   the same layout, and sharing classes was already forcing one of them to
+   compromise. */
+
+.card {
+  inline-size: min(100%, 420px);
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4) 0;
+}
+.badge {
+  display: inline-flex;
+  padding: 2px var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-tint);
+  color: var(--color-action-text);
+  font: var(--t-overline);
+}
+.saving {
+  font: var(--t-micro);
+  color: var(--color-text-muted);
+}
+
+/* ===== line items =====
+   The name gives way first and the controls never shrink: a long product name
+   («میلگرد آجدار ۱۶ فایکو») next to a quantity field must wrap rather than
+   squeeze the field to unusable width. */
+.items {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-2) var(--space-4);
+}
+.item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  padding-block: var(--space-2);
+  border-block-end: var(--border-hairline) solid var(--color-hairline);
+  font: var(--t-data);
+  color: var(--color-text);
+}
+.item:last-child {
+  border-block-end: 0;
+}
+.itemName {
+  flex: 1 1 10rem;
+  min-inline-size: 0;
+}
+.itemControls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: none;
+}
+/* 5rem fits «۱۰۰٬۰۰۰» and still leaves the unit select on the same line at
+   375px. The number input keeps its native stepper on desktop. */
+.qty {
+  inline-size: 5rem;
+  min-block-size: 40px;
+  padding: var(--space-1) var(--space-2);
+  border: var(--border-hairline) solid var(--color-field-border);
+  border-radius: var(--radius-xs);
+  background: var(--color-surface);
+  color: var(--color-text-strong);
+  font: var(--t-input);
+  text-align: center;
+}
+.unit {
+  min-block-size: 40px;
+  padding: var(--space-1) var(--space-2);
+  border: var(--border-hairline) solid var(--color-field-border);
+  border-radius: var(--radius-xs);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: var(--t-label);
+}
+.qty:disabled,
+.unit:disabled {
+  opacity: 0.6;
+}
+.lineTotal {
+  color: var(--color-text-strong);
+  font: var(--t-price-cell);
+}
+
+/* ===== delivery city ===== */
+.cityRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4) var(--space-3);
+  border-block-start: var(--border-hairline) solid var(--color-hairline);
+}
+.cityLabel {
+  font: var(--t-label);
+  color: var(--color-text-muted);
+}
+.city {
+  min-block-size: 40px;
+  padding: var(--space-1) var(--space-2);
+  border: var(--border-hairline) solid var(--color-field-border);
+  border-radius: var(--radius-xs);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: var(--t-label);
+}
+.cityHint {
+  flex: 1 1 100%;
+  font: var(--t-micro);
+  color: var(--color-text-muted);
+}
+
+/* ===== totals ===== */
+.totals {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface-sunken);
+}
+.totalLabel {
+  display: block;
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}
+.totalValue {
+  display: block;
+  font: var(--t-price-cell);
+  color: var(--color-text-strong);
+  margin-block-start: 2px;
+}
+
+/* ===== notes ===== */
+.done {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4) 0;
+  color: var(--color-accent-text);
+  font: var(--t-body-sm);
+}
+.note {
+  margin: 0;
+  padding: var(--space-2) var(--space-4) 0;
+  color: var(--color-text-muted);
+  font: var(--t-caption);
+}
+.error {
+  margin: 0;
+  padding: var(--space-2) var(--space-4) 0;
+  color: var(--color-loss-text);
+  font: var(--t-caption);
+}
+/* The escape hatch, on the card the visitor is most likely to hesitate over.
+   Quiet by design: it is a way out, not a competing call to action. */
+.human {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-2) var(--space-4) var(--space-4);
+  color: var(--color-text-muted);
+  font: var(--t-micro);
+}
+.human a {
+  color: var(--color-accent-text);
+}
+
+/* ===== actions =====
+   Two side-by-side buttons only survive while both labels fit on one line.
+   They didn't: inside a card capped at 420px, inside a bubble capped at 86%,
+   at 375px each got ~118px and «ورود به حساب کاربری» broke across THREE lines
+   — the primary control of the whole funnel, mangled at the width most of the
+   traffic uses. `flex-wrap` plus a sane basis stacks them instead, primary
+   first, without a media query — so it responds to the CARD's width rather
+   than the viewport's. */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+}
+.cta,
+.ghost {
+  flex: 1 1 11rem;
+  text-align: center;
+  min-block-size: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  font: var(--t-button);
+  text-decoration: none;
+  font-family: inherit;
+}
+.cta {
+  border: 0;
+  background: var(--color-action);
+  color: var(--color-on-action);
+  cursor: pointer;
+}
+.cta:hover {
+  background: var(--color-action-hover);
+  text-decoration: none;
+}
+.cta:active {
+  background: var(--color-action-press);
+  transform: translateY(1px);
+}
+.ghost {
+  border: var(--border-hairline) solid var(--color-hairline);
+  background: var(--color-surface);
+  color: var(--color-accent-text);
+  cursor: pointer;
+}
+.ghost:hover {
+  background: var(--color-accent-tint);
+  text-decoration: none;
+}
+.cta:disabled,
+.ghost:disabled {
+  opacity: 0.6;
+  cursor: default;
+  transform: none;
+}

@@ -638,3 +638,29 @@ button.estCta:disabled {
 .newChat:hover {
   background: var(--color-accent-tint);
 }
+
+/* ===== human escape hatch =====
+   Permanent, and deliberately quiet: a way out of the conversation, not a
+   competing call to action. It sits with the disclaimer rather than with the
+   composer so it never reads as "the advisor has given up" — it is simply
+   always there for the visitor who wants a person. */
+.human {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  padding: var(--space-2) var(--space-4) 0;
+  font: var(--t-micro);
+  color: var(--color-text-muted);
+}
+.humanLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-accent-text);
+  text-decoration: none;
+}
+.humanLink:hover {
+  text-decoration: underline;
+}

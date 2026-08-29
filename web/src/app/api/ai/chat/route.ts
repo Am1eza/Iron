@@ -11,6 +11,10 @@ import { runAdvisorPipeline } from '@/lib/server/ai/pipeline';
 import { buildChatMessages, ensureConversation, identityFact, persistTurn } from '@/lib/server/ai/conversation';
 import { getPromptVersions, resolvePromptText } from '@/lib/server/ai/promptVersions';
 import { getDomainFacts } from '@/lib/server/ai/domainFacts';
+import { detectCity, detectTonnage, getMemory, memoryFact, rememberFacts } from '@/lib/server/ai/memory';
+import { customerHistoryFact, getCustomerHistory } from '@/lib/server/ai/customerFacts';
+import { getContact } from '@/lib/server/contact';
+import type { ExpertBlock } from '@/lib/ai/blocks';
 import { isBareGreeting, GREETING_REPLY } from '@/lib/server/ai/greeting';
 // The advisor's own user-facing copy (see ai/messages.ts): one register,
 // one home, and testable, which a const inside a route file cannot be.
@@ -212,12 +216,34 @@ async function POSTImpl(req: NextRequest) {
         // are context only — no numbers, never added to the ledger/
         // userNumbers, so they can't license a claim.
         const domainFacts = await getDomainFacts().catch(() => '');
+
+        // CONTINUITY, the part the rolling summary cannot do (see ai/memory.ts).
+        // The city and tonnage are read from the visitor's OWN words with a
+        // closed-vocabulary scan — never from the model — and merged over what
+        // earlier turns established, so «تحویل مشهد» said once holds for the
+        // rest of the conversation and reaches the comparison card as a real
+        // freight calculation rather than as a sentence in a summary.
+        const stated = {
+          ...(detectCity(parsed.data.messages) ? { city: detectCity(parsed.data.messages) } : {}),
+          ...(detectTonnage(parsed.data.messages) ? { tonnage: detectTonnage(parsed.data.messages) } : {}),
+        };
+        const memory = await rememberFacts(convId, stated).catch(() => getMemory(convId).catch(() => null));
+
+        // …and for a signed-in customer, what they have actually ordered
+        // before, so a returning buyer is not interviewed from scratch.
+        const history = await getCustomerHistory(session).catch(() => null);
+        // Their last recorded delivery city is a DEFAULT, never an assumption:
+        // it only reaches the landed-cost card once this conversation has
+        // confirmed it (memory.city), which is what the prompt line asks for.
+        const city = memory?.city;
+
         const messages = buildChatMessages(
           parsed.data.messages,
           summary,
           domainFacts,
           systemPrompt,
           identityFact(session),
+          [memoryFact(memory), customerHistoryFact(history)].filter(Boolean).join(' '),
         );
 
         const result = await runAdvisorPipeline({
@@ -226,6 +252,7 @@ async function POSTImpl(req: NextRequest) {
           session,
           conversationId: convId,
           clientMessages: parsed.data.messages,
+          ...(city ? { city } : {}),
           signal,
           // Raw abort — separate from `signal` (merged with the AI_TIMEOUT_MS
           // deadline) so a shared-deadline timeout doesn't get mistaken for
@@ -234,6 +261,30 @@ async function POSTImpl(req: NextRequest) {
           send,
         });
         const { toolsUsed } = result;
+
+        // THE ESCAPE HATCH. Every tool this turn came back empty and nothing
+        // was drawn — so the advisor has genuinely reached the end of what it
+        // knows. The old behaviour here was a paragraph apologising, which is
+        // where conversations went to die. A card with the real number is a
+        // next step; «متأسفم، اطلاعاتی ندارم» is not.
+        //
+        // Gated on `blocks.length === 0` on purpose: a turn that DID draw a
+        // price card and also had one tool miss is a normal, successful turn,
+        // and offering a phone number over a working answer reads as the
+        // advisor giving up on a question it just answered.
+        if (result.toolErrors > 0 && result.blocks.length === 0) {
+          const contact = await getContact().catch(() => null);
+          if (contact) {
+            const expert: ExpertBlock = {
+              kind: 'expert',
+              reason: 'این را از روی داده‌های آهن‌تایم نمی‌شود مطمئن جواب داد. کارشناس ما همین حالا در دسترس است.',
+              phone: contact.phoneLandline,
+              mobile: contact.phoneMobile,
+              whatsappUrl: `https://wa.me/98${contact.phoneMobile.replace(/^0/, '')}`,
+            };
+            send({ type: 'block', block: expert });
+          }
+        }
 
         // Validated text streams in small frames (typewriter UX, few re-renders).
         for (let i = 0; i < result.text.length; i += 120) {
@@ -260,6 +311,16 @@ async function POSTImpl(req: NextRequest) {
         // client can attach 👍/👎 feedback to it (persisted below under the same id).
         const answerId = ulid();
         send({ type: 'done', messageId: answerId });
+
+        // What the tools pinned down this turn (the product they resolved, the
+        // size they narrowed to, the tonnage they priced) — merged into the
+        // conversation's memory AFTER the answer is on the wire, so a slow
+        // cache write can never delay it.
+        if (convId && Object.keys(result.facts).length > 0) {
+          void rememberFacts(convId, result.facts).catch(() => {
+            /* memory is an optimisation; losing it costs one repeated question */
+          });
+        }
 
         // Turn persistence + rolling-summary refresh — fire-and-forget AFTER
         // the stream is complete; a failure can never break the answer.
