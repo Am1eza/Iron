@@ -82,8 +82,8 @@ describe('usesDimensions', () => {
     expect(DIMENSIONS_LABEL).not.toBe(sizeLabel('sheet'));
   });
 
-  it('never offers it to any other category', () => {
-    for (const slug of ['rebar', 'ibeam', 'pipe', 'profile', 'angle-channel', 'wire', 'steel']) {
+  it('never offers it to an unrelated category', () => {
+    for (const slug of ['rebar', 'ibeam', 'pipe', 'profile', 'wire']) {
       expect(usesDimensions(slug)).toBe(false);
     }
   });
@@ -107,6 +107,20 @@ describe('usesDimensions', () => {
     }
   });
 
+  it('offers verified sheet dimensions and stainless section thickness by sub only', () => {
+    for (const sub of ['aluminum-sheet', 'copper-sheet']) {
+      expect(usesDimensions('felezat-rangi', sub)).toBe(true);
+      expect(dimensionsLabel('felezat-rangi', sub)).toBe(DIMENSIONS_LABEL);
+    }
+    for (const sub of ['angle', 'channel']) {
+      expect(usesDimensions('steel', sub)).toBe(true);
+      expect(dimensionsLabel('steel', sub)).toBe(THICKNESS_LABEL);
+    }
+    expect(usesDimensions('felezat-rangi', null)).toBe(false);
+    expect(usesDimensions('steel', null)).toBe(false);
+    expect(usesDimensions('steel', 'pipe')).toBe(false);
+  });
+
   it('says no for an unknown, mixed or missing category', () => {
     // Same reasoning as the size label: the «استیل» hub mixes categories, and
     // growing an extra column there because one cross-listed ورق row wandered
@@ -122,7 +136,13 @@ describe('usesDimensions', () => {
 describe('the attribute columns (گرید / استاندارد / آلیاژ / حالت / طول)', () => {
   const row = (
     subCategoryId: string,
-    fields: { grade?: string; standard?: string; schedule?: string; branchLengthM?: number } = {},
+    fields: {
+      grade?: string;
+      condition?: string;
+      standard?: string;
+      schedule?: string;
+      branchLengthM?: number;
+    } = {},
   ) => ({ subCategoryId, ...fields });
 
   /** The one column a single-column table has. */
@@ -190,24 +210,58 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ح
 
   /* -------------------------------- ورق -------------------------------- */
 
-  it('labels ورق’s existing skus.grade value «حالت» in every sub and the mixed view', () => {
+  it('labels ورق «حالت» in every sub and preserves its verified rollout fallback', () => {
     for (const sub of ['black', 'cold', 'galvanized', 'colored', null]) {
       const col = only('sheet', sub);
-      expect(col.key).toBe('condition');
+      expect(col.key).toBe('legacyCondition');
       expect(col.label).toBe(CONDITION_LABEL);
-      // This is the same physical column as before: only its trade-facing
-      // name changes, and existing values pass through byte-for-byte.
+      // Before the guarded move runs, the known legacy value remains visible
+      // byte-for-byte. Afterward the independent column wins.
       expect(col.cell(row(sub ?? 'black', { grade: 'برش‌خورده' }))).toBe('برش‌خورده');
       expect(col.card(row(sub ?? 'black', { grade: 'رول' }))).toBe('رول');
+      expect(col.cell(row(sub ?? 'black', { grade: 'رول', condition: 'برش‌خورده' }))).toBe(
+        'برش‌خورده',
+      );
       expect(col.cell(row(sub ?? 'black'))).toBe(UNKNOWN_VALUE);
       expect(col.card(row(sub ?? 'black'))).toBeNull();
     }
   });
 
+  it('prefers the independent condition column while retaining the rollout fallback', () => {
+    const col = only('sheet', 'black');
+    expect(col.cell(row('black', { condition: 'شیت', grade: 'رول' }))).toBe('شیت');
+    expect(col.cell(row('black', { grade: 'رول' }))).toBe('رول');
+  });
+
+  it('publishes alloy and condition independently for aluminium sheet', () => {
+    const cols = attributeColumns('felezat-rangi', 'aluminum-sheet');
+    expect(cols.map((c) => c.label)).toEqual([ALLOY_LABEL, CONDITION_LABEL]);
+    expect(
+      cols.map((c) => c.cell(row('aluminum-sheet', { grade: '1050', condition: 'شیت' }))),
+    ).toEqual(['1050', 'شیت']);
+    expect(cols.map((c) => c.cell(row('aluminum-sheet', { grade: '1050' })))).toEqual([
+      '1050',
+      UNKNOWN_VALUE,
+    ]);
+  });
+
+  it('publishes the verified condition on copper sheet and چهارپهلو', () => {
+    expect(
+      only('felezat-rangi', 'copper-sheet').cell(row('copper-sheet', { condition: 'شیت' })),
+    ).toBe('شیت');
+    const fourSquare = only('profile', 'chaharpahlu');
+    expect(fourSquare.cell(row('chaharpahlu', { condition: 'ترانس' }))).toBe('ترانس');
+    expect(fourSquare.cell(row('chaharpahlu', { grade: 'نرمال' }))).toBe('نرمال');
+  });
+
   it('does not leak «حالت» into any other category', () => {
-    for (const slug of ['rebar', 'ibeam', 'pipe', 'profile', 'steel', 'angle-channel']) {
+    for (const slug of ['rebar', 'ibeam', 'pipe', 'steel', 'angle-channel']) {
       for (const sub of [null, 'black']) {
-        expect(attributeColumns(slug, sub).some((c) => c.key === 'condition')).toBe(false);
+        expect(
+          attributeColumns(slug, sub).some(
+            (c) => c.key === 'condition' || c.key === 'legacyCondition',
+          ),
+        ).toBe(false);
       }
     }
   });

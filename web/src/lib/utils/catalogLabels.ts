@@ -39,6 +39,12 @@ const DIMENSIONS_CATEGORIES = new Set(['sheet']);
  *  unrelated product lines a meaningless extra field. */
 const NABSHI_THICKNESS_SUBS = new Set(['nabshi', 'angle-unequal', 'spot']);
 
+/** Stainless sections whose stored secondary dimension is wall thickness. */
+const STEEL_THICKNESS_SUBS = new Set(['angle', 'channel']);
+
+/** Coloured-metal sheet lines whose `dimensions` is width×length. */
+const COLOURED_SHEET_DIMENSION_SUBS = new Set(['aluminum-sheet', 'copper-sheet']);
+
 /**
  * نبشی و ناودانی sub-categories that publish «شاخه» — the branch length the
  * product is sold in, «۶ متری» / «۱۲ متری» — INSTEAD of «گرید» (owner
@@ -196,6 +202,18 @@ export function usesDimensions(
   subCategorySlug: string | null = null,
 ): boolean {
   if (categorySlug && DIMENSIONS_CATEGORIES.has(categorySlug)) return true;
+  if (
+    categorySlug === 'felezat-rangi' &&
+    Boolean(subCategorySlug && COLOURED_SHEET_DIMENSION_SUBS.has(subCategorySlug))
+  ) {
+    return true;
+  }
+  if (
+    categorySlug === 'steel' &&
+    Boolean(subCategorySlug && STEEL_THICKNESS_SUBS.has(subCategorySlug))
+  ) {
+    return true;
+  }
   return (
     categorySlug === 'angle-channel' &&
     Boolean(subCategorySlug && NABSHI_THICKNESS_SUBS.has(subCategorySlug))
@@ -210,9 +228,10 @@ export function dimensionsLabel(
   categorySlug: string | null | undefined,
   subCategorySlug: string | null = null,
 ): string {
-  return categorySlug === 'angle-channel' &&
+  return (categorySlug === 'angle-channel' &&
     subCategorySlug &&
-    NABSHI_THICKNESS_SUBS.has(subCategorySlug)
+    NABSHI_THICKNESS_SUBS.has(subCategorySlug)) ||
+    (categorySlug === 'steel' && subCategorySlug && STEEL_THICKNESS_SUBS.has(subCategorySlug))
     ? THICKNESS_LABEL
     : DIMENSIONS_LABEL;
 }
@@ -356,6 +375,7 @@ export type AttrKey =
   | 'standard'
   | 'alloy'
   | 'condition'
+  | 'legacyCondition'
   | 'branchLength'
   | 'customLength'
   | 'schedule'
@@ -367,6 +387,7 @@ export type AttrKey =
 export type AttrRow = {
   subCategoryId: string;
   grade?: string;
+  condition?: string;
   standard?: string;
   schedule?: string;
   branchLengthM?: number;
@@ -390,14 +411,18 @@ const ATTR_DEFS: Record<AttrKey, { label: string; read: (r: AttrRow) => string |
   // (۲۰۱/۳۰۴/۳۰۴L/۳۱۶L), which is the one spec a stainless buyer actually asks
   // for. Used by the whole استیل category and by پروفیل استیل.
   alloy: { label: ALLOY_LABEL, read: (r) => r.grade },
-  // «حالت» is the same established re-label pattern as استیل's
-  // «آلیاژ» above: it is NOT a new stored fact. On ورق the owner has
-  // already been using `skus.grade` for the product form supplied to the
-  // buyer — values such as «برش‌خورده» and «رول» — rather than for a
-  // metallurgical grade. Reading the existing column through a distinct key
-  // changes only what the UI calls it; validation, persistence and every
-  // stored value remain untouched.
-  condition: { label: CONDITION_LABEL, read: (r) => r.grade },
+  // «حالت» is now its own stored fact because alloy and supplied form can
+  // coexist on one product (an aluminium sheet may be 1050 AND «شیت»).
+  condition: { label: CONDITION_LABEL, read: (r) => r.condition },
+  // Main ورق and چهارپهلو are the two verified legacy families whose owner-
+  // entered `grade` values are actually conditions («رول»/«برش خورده» and
+  // «نرمال»/«ترانس»). They alone retain a read fallback during rollout so
+  // deploying the nullable column before running the guarded data script
+  // cannot temporarily render «نامشخص». This MUST stay a separate key from
+  // `condition`: falling grade back globally would show aluminium alloy 1050
+  // a second time under «حالت», recreating the exact conflation the new
+  // column fixes.
+  legacyCondition: { label: CONDITION_LABEL, read: (r) => r.condition ?? r.grade },
   branchLength: { label: BRANCH_LENGTH_LABEL, read: (r) => metres(r.branchLengthM) },
   // «رده» — the pipe schedule. Its own stored column (`skus.schedule`), and
   // deliberately NOT a re-label of `standard` the way `alloy` re-labels
@@ -433,6 +458,14 @@ const PROFILE_ATTRS: Record<string, AttrKey[]> = {
   'prvfyl-snaty': ['branchLength'],
   'profil-z': ['customLength'],
   'prvfyl-astyl': ['alloy', 'branchLength'],
+  chaharpahlu: ['legacyCondition'],
+};
+
+/** Metal sheets outside the main ورق category. Aluminium genuinely needs
+ *  both axes; copper currently has a verified condition but no alloy value. */
+const COLOURED_METAL_ATTRS: Readonly<Record<string, AttrKey[]>> = {
+  'aluminum-sheet': ['alloy', 'condition'],
+  'copper-sheet': ['condition'],
 };
 
 /**
@@ -473,11 +506,15 @@ export function attrKeysFor(
   if (categorySlug === 'profile' && sub !== null) {
     return PROFILE_ATTRS[sub] ?? ['grade'];
   }
-  // ورق is category-wide, exactly like استیل's alloy relabel: every
-  // sheet row uses the existing `grade` value to describe its supplied
-  // condition («برش‌خورده»/«رول»), so both an individual sub and
-  // the mixed «همه» view have one unambiguous label. No stored value moves.
-  if (categorySlug === 'sheet') return ['condition'];
+  // ورق is category-wide: its owner-entered legacy `grade` values describe
+  // supplied condition («برش‌خورده»/«رول»), not metallurgy. The dedicated
+  // key reads the new `condition` column first and falls back only for this
+  // verified legacy family until the guarded move has run; both an individual
+  // sub and the mixed «همه» view therefore keep one unambiguous label.
+  if (categorySlug === 'sheet') return ['legacyCondition'];
+  if (categorySlug === 'felezat-rangi' && sub !== null) {
+    return COLOURED_METAL_ATTRS[sub] ?? ['grade'];
+  }
   // لوله is the one category that ADDS an attribute column rather than
   // trading one away: its pressure-pipe subs keep the «گرید» column they have
   // always had and gain «رده» beside it. (Compare پروفیل صنعتی, which swaps

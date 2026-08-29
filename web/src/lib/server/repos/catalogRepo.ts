@@ -55,6 +55,7 @@ function toPriceRow(
     standard: r.sku.standard ?? undefined,
     size: r.sku.size ?? undefined,
     grade: r.sku.grade ?? undefined,
+    condition: r.sku.condition ?? undefined,
     dimensions: r.sku.dimensions ?? undefined,
     schedule: r.sku.schedule ?? undefined,
     order: r.sku.order,

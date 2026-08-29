@@ -38,6 +38,9 @@ const patchPayload = nonEmptyPatch(
       .optional()
       .transform((v) => (v ? normalizeSizeText(v) : v === '' ? null : v)),
     grade: optionalPersianText(40),
+    // Independent product form/finish; nullable so clearing the picker clears
+    // the column instead of silently retaining a stale condition.
+    condition: optionalPersianText(40),
     // Shared optional ورق-dimensions / نبشی-thickness text — see the
     // create route. Nullable so clearing the box actually clears the column.
     dimensions: z

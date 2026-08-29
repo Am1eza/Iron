@@ -494,6 +494,7 @@ export interface AdminSku {
   standard: string | null;
   size: string | null;
   grade: string | null;
+  condition: string | null;
   /** ورق only — plate width×length, e.g. «۱۰۰۰×۲۰۰۰». Null for every other
    *  category and for sheets not filled in yet. */
   dimensions: string | null;
@@ -528,6 +529,7 @@ export interface AdminSkuInput {
   standard?: string | null;
   size?: string | null;
   grade?: string | null;
+  condition?: string | null;
   dimensions?: string | null;
   schedule?: string | null;
   factory?: string | null;
@@ -1160,6 +1162,7 @@ export const adminApi = {
       sizes: string[];
       grades: string[];
       dimensions: string[];
+      conditions: string[];
       schedules: string[];
       standards: string[];
       groupLabels: string[];

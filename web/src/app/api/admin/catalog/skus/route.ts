@@ -64,6 +64,9 @@ const createPayload = z.object({
     .optional()
     .transform((v) => (v ? normalizeSizeText(v) : v === '' ? null : v)),
   grade: optionalPersianText(40),
+  // Product form/finish, deliberately independent of metallurgical `grade`.
+  // Both can be present on one row (aluminium sheet is the motivating case).
+  condition: optionalPersianText(40),
   // Shared optional ورق-dimensions / نبشی-thickness text. The admin
   // UI owns the exact category/sub allow-list; the API passes it through
   // generically and normalizes it like `size`, preserving existing sheet

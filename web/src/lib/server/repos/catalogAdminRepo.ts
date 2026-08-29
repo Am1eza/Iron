@@ -359,6 +359,7 @@ export async function adminListSkus(query: {
           ilike(skus.size, term),
           ilike(skus.factory, term),
           ilike(skus.grade, term),
+          ilike(skus.condition, term),
           ilike(skus.standard, term),
         ]),
       ),
@@ -456,6 +457,7 @@ export async function catalogSuggestions(categoryId?: string): Promise<{
   factories: string[];
   sizes: string[];
   grades: string[];
+  conditions: string[];
   /** Shared ورق dimensions / approved نبشی thickness values already
    *  in use within the requested parent-category scope. */
   dimensions: string[];
@@ -474,6 +476,7 @@ export async function catalogSuggestions(categoryId?: string): Promise<{
       factory: skus.factory,
       size: skus.size,
       grade: skus.grade,
+      condition: skus.condition,
       dimensions: skus.dimensions,
       schedule: skus.schedule,
       standard: skus.standard,
@@ -497,6 +500,7 @@ export async function catalogSuggestions(categoryId?: string): Promise<{
     factories: pick((r) => r.factory),
     sizes: pick((r) => r.size),
     grades: pick((r) => r.grade),
+    conditions: pick((r) => r.condition),
     dimensions: pick((r) => r.dimensions),
     schedules: pick((r) => r.schedule),
     standards: pick((r) => r.standard),
@@ -512,6 +516,8 @@ export interface SkuInput {
   standard?: string | null;
   size?: string | null;
   grade?: string | null;
+  /** Product form/finish, independent of metallurgical grade. */
+  condition?: string | null;
   /** ورق only — plate width×length. Same nullable "absent key leaves the
    *  column alone, explicit null clears it" rule as every other optional
    *  field here. See server/db/schema/catalog.ts. */
