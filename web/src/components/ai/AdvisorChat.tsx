@@ -17,15 +17,20 @@ import {
   StopIcon,
   ThumbDownIcon,
   ThumbUpIcon,
+  PhoneIcon,
+  WhatsappIcon,
 } from '@/components/primitives/icons';
 import { getSpeechRecognition, type SpeechRecognitionLike } from '@/lib/utils/speech';
 import { ChatMarkdown } from './ChatMarkdown';
+// The پیش‌فاکتور card lives in its own module now: it grew editable fields, a
+// cart hand-off and a WhatsApp hand-off, and it was the last thing keeping
+// this file's card section as long as its chat section.
+import { ProformaCard, type DraftLine, type LeadDraftView } from './ProformaCard';
 import { AdvisorBlocks } from './blocks/AdvisorBlocks';
 import { isAdvisorBlock, type AdvisorBlock } from '@/lib/ai/blocks';
 import { loadChat, saveChat, clearChat } from '@/lib/ai/chatStorage';
 import styles from './AdvisorChat.module.css';
 import { trackGoal } from '@/lib/analytics/track';
-import { useAuthStore } from '@/lib/stores/auth';
 
 /** Average میلگرد price from the seeded catalog — grounded, never an invented number. */
 const AVG_REBAR_PRICE: number = (() => {
@@ -44,35 +49,9 @@ const AVG_REBAR_PRICE: number = (() => {
 
 type Estimate = { items: { name: string; weightKg: number }[]; totalKg: number; totalToman: number };
 
-/** One priced line of a pending پیش‌فاکتور draft (server-priced — see
- *  aiTools' prepareProforma; the client never computes any of these). */
-export type DraftLine = {
-  name: string;
-  qty: number;
-  unit: string;
-  weightKg?: number;
-  unitPrice?: number;
-  lineTotal?: number;
-};
+/** Re-exported so the chat's own message type stays self-describing. */
+export type { DraftLine, LeadDraftView };
 
-/**
- * The advisor's confirmation card: what it collected, as a list, with the
- * button that actually files the request. The model prepares this; only the
- * visitor's own tap (or, for a guest, sign-in then tap) creates the lead.
- * `confirmedRef` is set once that happened — it lives ON the message so the
- * persisted thread (localStorage) restores as confirmed rather than offering
- * the button a second time.
- */
-export type LeadDraftView = {
-  draftId: string;
-  items: DraftLine[];
-  totalWeightKg?: number;
-  total?: number;
-  allPriced?: boolean;
-  signedIn?: boolean;
-  confirmedRef?: string;
-  proformaRef?: string;
-};
 type SplitAnswer = { categoryName: string; split: BulkSplit };
 export type Msg = {
   id: string;
@@ -273,6 +252,7 @@ const TOOL_PROGRESS: Record<string, string> = {
   productOptions: 'در حال دیدن گزینه‌های موجود…',
   priceHistory: 'در حال خواندن روند قیمت…',
   forecastPrice: 'در حال بررسی روند و شاخص‌های بازار…',
+  setPriceAlert: 'در حال ثبت هشدار قیمت…',
 };
 const PROGRESS_DEFAULT = 'در حال نوشتن…';
 /** After this long with no answer, say so. A 45s server deadline is a normal
@@ -556,13 +536,15 @@ const MessageBubble = memo(function MessageBubble({
   message: m,
   onPick,
   onRetry,
-  onDraftConfirmed,
+  onDraftPatch,
   hidden,
 }: {
   message: Msg;
   onPick: (text: string) => void;
   onRetry: (m: Msg) => void;
-  onDraftConfirmed: (messageId: string, patch: Partial<LeadDraftView>) => void;
+  /** Confirmation OR an edit — both are a partial update of the draft stored
+   *  on this message (see ProformaCard). */
+  onDraftPatch: (messageId: string, patch: Partial<LeadDraftView>) => void;
   hidden?: boolean;
 }) {
   // Speech bubbles want the ragged 86% edge so the thread reads as a
@@ -622,9 +604,14 @@ const MessageBubble = memo(function MessageBubble({
          *  be reachable by keyboard while hidden from screen readers. The
          *  card renders once, on the committed message. */}
         {m.draft && !hidden && (
-          <ProformaDraftCard
+          <ProformaCard
             draft={m.draft}
-            onConfirmed={(patch) => onDraftConfirmed(m.id, patch)}
+            onConfirmed={(patch) => onDraftPatch(m.id, patch)}
+            // An edit reprices server-side and comes back as a new card — it
+            // is stored on the MESSAGE, like the confirmation, so a reload or
+            // a re-render of the thread restores what the visitor edited
+            // rather than the advisor's original quantities.
+            onChanged={(patch) => onDraftPatch(m.id, patch)}
           />
         )}
         {m.split && <SplitCard answer={m.split} />}
@@ -656,11 +643,16 @@ const MessageBubble = memo(function MessageBubble({
 export function AdvisorChat({
   initialQuestion,
   initialMessages,
+  contact,
 }: {
   initialQuestion?: string;
   /** Server-rendered greeting (see app/ai/page.tsx) so the advisor's opening
    *  message is present in the initial HTML, not only injected client-side. */
   initialMessages?: Msg[];
+  /** The real, admin-editable contact details (server/contact.ts), passed
+   *  down rather than hardcoded — the escape hatch below is only useful if
+   *  the number on it is the number the office actually answers. */
+  contact?: { phoneLandline: string; phoneMobile: string };
 }) {
   const [messages, setMessages] = useState<Msg[]>(() => initialMessages ?? []);
   // The in-progress streamed reply — purely presentational (rendered aria-hidden)
@@ -1076,7 +1068,7 @@ export function AdvisorChat({
   /** A confirmed draft is recorded ON the message, so the persisted thread
    *  restores as «ثبت شد» instead of offering the button again (the draft
    *  itself is single-use server-side — a second tap would 410). */
-  const stableDraftConfirmed = useCallback((messageId: string, patch: Partial<LeadDraftView>) => {
+  const stableDraftPatch = useCallback((messageId: string, patch: Partial<LeadDraftView>) => {
     setMessages((all) =>
       all.map((m) => (m.id === messageId && m.draft ? { ...m, draft: { ...m.draft, ...patch } } : m)),
     );
@@ -1166,7 +1158,7 @@ export function AdvisorChat({
               message={m}
               onPick={stableSend}
               onRetry={stableRetry}
-              onDraftConfirmed={stableDraftConfirmed}
+              onDraftPatch={stableDraftPatch}
             />
           ))}
 
@@ -1178,7 +1170,7 @@ export function AdvisorChat({
               message={streamPreview}
               onPick={stableSend}
               onRetry={stableRetry}
-              onDraftConfirmed={stableDraftConfirmed}
+              onDraftPatch={stableDraftPatch}
               hidden
             />
           )}
@@ -1280,6 +1272,34 @@ export function AdvisorChat({
           </button>
         )}
       </form>
+      {/* THE ESCAPE HATCH, always present.
+       *
+       *  The advisor also draws a کارشناس card when a turn comes up empty
+       *  (route.ts), but that only fires when it NOTICES it failed. The more
+       *  common case is subtler: the question is too specific, or the visitor
+       *  simply wants a person, and until now the only route to one was
+       *  navigating away to /contact and losing the conversation. This row is
+       *  deliberately quiet — a way out, not a competing call to action — and
+       *  deliberately permanent, so nobody has to discover it at the moment
+       *  they are already frustrated. */}
+      {contact ? (
+        <p className={styles.human}>
+          <span>جوابت را نگرفتی؟</span>
+          <a className={styles.humanLink} href={`tel:${contact.phoneMobile}`} dir="ltr">
+            <PhoneIcon size={14} aria-hidden="true" />
+            <bdi>{toPersianDigits(contact.phoneMobile)}</bdi>
+          </a>
+          <a
+            className={styles.humanLink}
+            href={`https://wa.me/98${contact.phoneMobile.replace(/^0/, '')}`}
+            target="_blank"
+            rel="noreferrer noopener"
+          >
+            <WhatsappIcon size={14} aria-hidden="true" />
+            واتساپ کارشناس
+          </a>
+        </p>
+      ) : null}
       <p className={styles.disclaimer}>
         پاسخ‌ها بر پایهٔ قیمت‌های واقعی است؛ آهن‌تایم هرگز عدد ساختگی نمی‌سازد.
       </p>
@@ -1343,164 +1363,6 @@ function QuickReply({ label, onPick }: { label: string; onPick: (t: string) => v
     <button type="button" className={styles.chip} onClick={() => onPick(label)}>
       {label}
     </button>
-  );
-}
-
-const DRAFT_UNIT_LABEL: Record<string, string> = {
-  kg: 'کیلوگرم',
-  branch: 'شاخه',
-  piece: 'عدد',
-  sheet: 'برگ',
-  meter: 'متر',
-};
-
-/**
- * The advisor's «خلاصهٔ درخواست» card — the list of what it collected plus the
- * one button that files it. Deliberately a CONFIRMATION step: the model
- * prepares the draft, the visitor commits it. A guest sees «ورود به حساب
- * کاربری» instead, and the card survives that round trip (it is persisted with
- * the thread), so signing in returns them to this exact summary, ready to send
- * — no name or mobile is ever asked in the chat.
- */
-function ProformaDraftCard({
-  draft,
-  onConfirmed,
-}: {
-  draft: LeadDraftView;
-  onConfirmed: (patch: Partial<LeadDraftView>) => void;
-}) {
-  const authStatus = useAuthStore((s) => s.status);
-  // `AuthHydrator` resolves the session client-side (GET /api/me), so the
-  // store reads 'loading' on first paint. The server already told us whether
-  // the visitor was signed in when the draft was prepared — trust that for
-  // the first frame so a signed-in customer never sees the login button
-  // flash, and keep the action disabled until the store confirms.
-  const signedIn = authStatus === 'authenticated' || (authStatus === 'loading' && Boolean(draft.signedIn));
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const confirm = async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      const result = await api.ai.confirmLead(draft.draftId);
-      trackGoal('lead', 'ai-advisor', `${draft.items.length} قلم`);
-      onConfirmed({ confirmedRef: result.ref, proformaRef: result.proformaRef, total: result.total });
-    } catch (e) {
-      setError(
-        isApiError(e)
-          ? e.message
-          : 'ثبت درخواست انجام نشد. اتصال را بررسی کن و دوباره تلاش کن.',
-      );
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  if (draft.confirmedRef) {
-    return (
-      <div className={styles.estimate} role="status">
-        <div className={styles.estHead}>
-          <span className={styles.estBadge}>درخواست ثبت شد</span>
-        </div>
-        <div className={styles.draftDone}>
-          <CheckCircleIcon size={16} aria-hidden="true" />
-          <span className="tnum">
-            کد پیگیری: <bdi>{toPersianDigits(draft.confirmedRef)}</bdi>
-          </span>
-        </div>
-        <p className={styles.draftNote}>
-          کارشناس فروش برای نهایی‌کردن قیمت و زمان تحویل با تو تماس می‌گیرد.
-        </p>
-        <div className={styles.estActions}>
-          {draft.proformaRef ? (
-            <Link
-              href={`/proforma/${encodeURIComponent(draft.proformaRef)}`}
-              className={styles.estCta}
-              target="_blank"
-              rel="noreferrer"
-            >
-              دیدن پیش‌فاکتور
-            </Link>
-          ) : null}
-          <Link href={routes.account('requests')} className={styles.estGhost}>
-            پیگیری درخواست‌های من
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className={styles.estimate}>
-      <div className={styles.estHead}>
-        <span className={styles.estBadge}>خلاصهٔ درخواست پیش‌فاکتور</span>
-      </div>
-      <ul className={styles.estItems}>
-        {draft.items.map((it, i) => (
-          <li key={`${it.name}-${i}`}>
-            <span>{it.name}</span>
-            <span className="tnum">
-              {toPersianDigits(it.qty.toLocaleString('en-US'))} {DRAFT_UNIT_LABEL[it.unit] ?? it.unit}
-              {it.lineTotal ? ` · ${formatToman(it.lineTotal)}` : ''}
-            </span>
-          </li>
-        ))}
-      </ul>
-      {(draft.totalWeightKg || draft.total) && (
-        <div className={styles.estTotals}>
-          {draft.totalWeightKg ? (
-            <div>
-              <span className={styles.estLabel}>وزن کل</span>
-              <span className={`${styles.estValue} tnum`}>
-                {toPersianDigits(Math.round(draft.totalWeightKg).toLocaleString('en-US'))} کیلوگرم
-              </span>
-            </div>
-          ) : null}
-          {draft.total ? (
-            <div>
-              <span className={styles.estLabel}>جمع کل</span>
-              <span className={`${styles.estValue} tnum`}>{formatToman(draft.total)}</span>
-            </div>
-          ) : null}
-        </div>
-      )}
-      {!draft.allPriced && (
-        <p className={styles.draftNote}>
-          قیمت بعضی اقلام را کارشناس اعلام می‌کند؛ درخواستت مستقیم به تیم فروش می‌رود.
-        </p>
-      )}
-      {error && (
-        <p className={styles.draftError} role="alert">
-          {error}
-        </p>
-      )}
-      <div className={styles.estActions}>
-        {signedIn ? (
-          <button
-            type="button"
-            className={styles.estCta}
-            onClick={() => void confirm()}
-            disabled={busy || authStatus === 'loading'}
-          >
-            {busy ? 'در حال ثبت…' : 'تأیید و ثبت درخواست'}
-          </button>
-        ) : (
-          <Link href={routes.login(routes.ai())} className={styles.estCta}>
-            ورود به حساب کاربری
-          </Link>
-        )}
-        <Link href={routes.contact()} className={styles.estGhost}>
-          گفتگو با کارشناس
-        </Link>
-      </div>
-      {!signedIn && (
-        <p className={styles.draftNote}>
-          بعد از ورود، به همین گفتگو برمی‌گردی و با یک دکمه درخواست را ثبت می‌کنی؛ نام و شماره از حسابت
-          برداشته می‌شود.
-        </p>
-      )}
-    </div>
   );
 }
 
