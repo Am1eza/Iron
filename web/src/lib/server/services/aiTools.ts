@@ -11,11 +11,12 @@ import {
   listCategories,
   listSubCategories,
   tableRows,
+  skuHistory,
   unmatchedQueryTokens,
 } from '@/lib/server/repos/catalogRepo';
 import { searchPublishedGuides, type ArticleFull } from '@/lib/server/repos/articlesRepo';
 import { searchCorrections } from '@/lib/server/repos/aiCorrectionsRepo';
-import { estimateProject } from '@/lib/server/services/estimate.service';
+import { estimateProject, logisticsContext } from '@/lib/server/services/estimate.service';
 import { priceItems } from '@/lib/server/services/leads.service';
 import { putDraft, type DraftItem } from '@/lib/server/ai/leadDraft';
 import { computeBulkSplit, pickBestGroup } from '@/lib/utils/bulkSplit';
@@ -28,17 +29,64 @@ import type { ToolDef } from '@/lib/server/integrations/aiRelay';
 import { finiteNumber } from '@/lib/validation/utils';
 import { normalizeDigits, toPersianDigits } from '@/lib/utils/format';
 import { formatJalali } from '@/lib/utils/jalali';
-import { PRICE_UNIT_VALUES } from '@/lib/types/domain';
+import { PRICE_UNIT_VALUES, type PriceRow } from '@/lib/types/domain';
+import type { AdvisorBlock } from '@/lib/ai/blocks';
+import {
+  buildCompareBlock,
+  buildOptionsBlock,
+  buildQuoteBlock,
+  buildTrendBlock,
+  skuHref,
+  unitLabelFor,
+} from '@/lib/server/ai/blockBuilders';
+import { cityDistance } from '@/lib/data/logistics';
 
 export const AI_TOOLS: ToolDef[] = [
   {
     type: 'function',
     function: {
       name: 'getPrice',
-      description: 'قیمت روز یک محصول فولادی را از دیتابیس آهن‌تایم می‌گیرد. با نام/سایز/کارخانه جستجو کن.',
+      description:
+        'قیمت روز یک محصول فولادی را از دیتابیس آهن‌تایم می‌گیرد. با نام/سایز/کارخانه جستجو کن. این ابزار خودش کارت قیمت (با تاریخ و ساعت دقیق آخرین به‌روزرسانی و نمودار روند) یا جدول مقایسهٔ کارخانه‌ها را زیر پیام تو به کاربر نشان می‌دهد؛ فیلد ui در خروجی می‌گوید چه چیزی نشان داده شده. عددها را در متن تکرار نکن.',
       parameters: {
         type: 'object',
         properties: { query: { type: 'string', description: 'مثلاً «میلگرد ۱۴ ذوب‌آهن» یا slug محصول' } },
+        required: ['query'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      // The owner's own example of what was broken: «قیمت میلگرد؟» used to get
+      // a plain-text question back. The real answer is the catalog's own list
+      // of what exists, as buttons.
+      name: 'productOptions',
+      description:
+        'وقتی درخواست کاربر مبهم است (مثلاً فقط گفته «میلگرد» یا «ورق» بدون سایز/نوع/کارخانه)، به‌جای پرسیدن با متن، این ابزار را صدا بزن: گزینه‌های واقعی موجود در کاتالوگ (نوع، سایز یا کارخانه) را همان لحظه به شکل دکمه‌های قابل‌لمس زیر پیام تو به کاربر نشان می‌دهد. فقط یک سؤال کوتاه فارسی بنویس و گزینه‌ها را در متن فهرست نکن.',
+      parameters: {
+        type: 'object',
+        properties: {
+          category: { type: 'string', description: 'دستهٔ محصول، مثلاً «میلگرد» یا slug آن (rebar)' },
+          sub: { type: 'string', description: 'زیردسته اگر کاربر گفته، مثلاً «آجدار»' },
+          size: { type: 'string', description: 'سایز اگر کاربر گفته، مثلاً «۱۴»' },
+        },
+        required: ['category'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'priceHistory',
+      description:
+        'روند قیمت یک محصول را در بازهٔ گذشته از همان داده‌ای می‌گیرد که نمودار صفحهٔ محصول را می‌سازد، و نمودار کوچک آن را زیر پیام تو نشان می‌دهد. برای «قیمت میلگرد این ماه چطور بوده؟» یا «روند قیمت را نشانم بده».',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'نام محصول، مثلاً «میلگرد ۱۴ ذوب‌آهن»' },
+          range: { type: 'string', enum: ['7d', '30d', '90d', '1y'], description: 'بازه، پیش‌فرض ۳۰ روز' },
+        },
         required: ['query'],
       },
     },
@@ -246,6 +294,27 @@ const compareFactoriesArgs = z.object({
   tonnage: finiteNumber.positive().max(100_000),
 });
 
+const productOptionsArgs = z.object({
+  category: z.string().trim().min(1).max(60),
+  sub: z.string().trim().max(60).optional(),
+  size: z.string().trim().max(60).optional(),
+});
+
+const priceHistoryArgs = z.object({
+  query: z.string().trim().min(1).max(120),
+  range: z.enum(['7d', '30d', '90d', '1y']).optional(),
+});
+
+/** Persian caption for each history window. Keys match `catalogRepo.RANGE_DAYS`,
+ *  which is what actually decides how far back the query reaches — a label
+ *  invented here that the repo does not honour would date the chart wrongly. */
+const RANGE_LABEL: Record<string, string> = {
+  '7d': '۷ روز اخیر',
+  '30d': '۳۰ روز اخیر',
+  '90d': '۳ ماه اخیر',
+  '1y': 'یک سال اخیر',
+};
+
 /** Resolve the model's free-text category/sub-category name to the DB's real
  *  slug — exact slug, exact name, or substring match (either direction), so
  *  «میلگرد» / «rebar» / «میلگرد آجدار» all land on the same row. Reads the
@@ -398,17 +467,156 @@ export function chipsForChoice(ambiguous: ReadonlyArray<{ product: string; optio
   return [...new Set(options)].slice(0, MAX_CHOICE_CHIPS);
 }
 
+/* ------------------------------------------------------------------------- */
+/*  Generative UI — turning rows into the card the visitor actually sees.      */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * What the model is told about a card that has ALREADY been rendered.
+ *
+ * The single biggest reason the old answers read like a machine was that the
+ * model restated its own tool output: a five-mill comparison arrived as a
+ * markdown table the visitor had to parse, and then again as three sentences
+ * of prose. Now the card carries the data and these notes tell the model its
+ * job is the one thing a card cannot do — say what it MEANS and what to do
+ * next. Every one of them ends by forbidding a repeat of the numbers.
+ */
+const UI_NOTE: Record<string, string> = {
+  quote:
+    'کارت قیمت این محصول همراه تاریخ و ساعت دقیق آخرین به‌روزرسانی و نمودار روند، همین حالا زیر پیام تو به کاربر نشان داده شد. قیمت و تاریخ را در متن تکرار نکن؛ فقط در یک یا دو جمله بگو این عدد یعنی چه و قدم بعدی چیست.',
+  compare:
+    'جدول مقایسهٔ کارخانه‌ها با قیمت هر کیلو، تغییر نسبت به روز قبل و نشان «ارزان‌ترین» همین حالا زیر پیام تو به کاربر نشان داده شد. فهرست کارخانه‌ها و قیمت‌ها را در متن تکرار نکن و جدول ننویس؛ فقط نتیجه‌گیری کوتاه بده و یک قدم بعدی پیشنهاد کن.',
+  options:
+    'گزینه‌های واقعی کاتالوگ همین حالا به شکل دکمه‌های قابل‌لمس زیر پیام تو به کاربر نشان داده شدند. فهرستشان را در متن ننویس و شماره‌گذاری نکن؛ فقط یک سؤال کوتاه فارسی بپرس و بگو می‌تواند یکی از دکمه‌ها را بزند یا خودش بنویسد.',
+  trend:
+    'نمودار روند قیمت همین حالا زیر پیام تو به کاربر نشان داده شد. عددهای نمودار را در متن تکرار نکن؛ فقط جهت حرکت و معنی‌اش را در یک جمله بگو.',
+  forecast:
+    'کارت چشم‌انداز قیمت همین حالا زیر پیام تو به کاربر نشان داده شد. جهت، بازه و دلیل روی خود کارت نوشته شده؛ آن‌ها را در متن تکرار نکن. فقط تأکید کن که این یک برآورد جهت‌دار است نه قیمت قطعی، و قیمت پیش‌فاکتور همان روز معتبر است.',
+};
+
+/** Sub-category SLUG → display name for every category present in `rows`.
+ *  `PriceRow.categoryId`/`subCategoryId` are slugs (catalogRepo.toPriceRow). */
+async function subNameMap(rows: ReadonlyArray<PriceRow>): Promise<Map<string, string>> {
+  const cats = [...new Set(rows.map((r) => r.categoryId).filter(Boolean))];
+  const out = new Map<string, string>();
+  for (const cat of cats) {
+    for (const sub of await listSubCategories(cat)) out.set(sub.slug, sub.name);
+  }
+  return out;
+}
+
+/** The visitor's word for what they asked about — used as the options card's
+ *  subject so the chips read «میلگرد ۱۴ ذوب‌آهن», not a slug. Falls back to
+ *  the rows' shared category name when the query was a slug or a code. */
+function subjectFor(query: string, rows: ReadonlyArray<PriceRow>): string {
+  const q = query.trim();
+  if (q && /[\u0600-\u06FF]/.test(q)) return q;
+  return rows[0]?.name ?? q;
+}
+
+/**
+ * Decide which card a price lookup deserves, build it, and emit it.
+ *
+ * The branching is the product judgement, so it is written out rather than
+ * hidden behind a heuristic:
+ *
+ *   one row              → the quote card, with its own price history inline.
+ *   several mills, one   → the comparison card. This is the answer the owner
+ *   product                asked for: «قیمت میلگرد ۱۴» is not one number, it
+ *                          is what five mills are charging for it today.
+ *   several products     → the options card. The visitor has not said enough
+ *                          yet, and the honest response is the catalog's real
+ *                          list as buttons, not a guess at which one they meant.
+ *
+ * Returns the `ui` tag for the model, or undefined when there was nothing to
+ * draw — a card is never invented to fill space.
+ */
+async function emitPriceRowBlocks(
+  rows: ReadonlyArray<PriceRow>,
+  query: string,
+  ctx: ToolRunContext,
+): Promise<'quote' | 'compare' | 'options' | undefined> {
+  if (!ctx.onBlock || rows.length === 0) return undefined;
+
+  if (rows.length === 1) {
+    const row = rows[0]!;
+    // Best-effort: a product with no history is normal (priced for the first
+    // time today), and the card simply renders without its sparkline.
+    const points = await skuHistory(row.slug, '30d').catch(() => []);
+    ctx.onBlock(buildQuoteBlock(row, points));
+    return 'quote';
+  }
+
+  // "The same product from different mills" — the one shape where a side-by-
+  // side price comparison is honest. Different sizes or different grades are
+  // NOT comparable (bulkSplit.ts's pickBestGroup documents why), and blending
+  // them into one cheapest-badge is exactly the misleading answer this avoids.
+  const sizes = new Set(rows.map((r) => r.size ?? ''));
+  const subs = new Set(rows.map((r) => r.subCategoryId ?? ''));
+  const factories = new Set(rows.map((r) => r.factory).filter(Boolean));
+  if (sizes.size === 1 && subs.size === 1 && factories.size > 1) {
+    const compare = buildCompareBlock(rows, {
+      title: rows[0]!.name,
+      ...(rows[0]!.size ? { subtitle: `سایز ${rows[0]!.size}` } : {}),
+    });
+    if (compare) {
+      ctx.onBlock(compare);
+      return 'compare';
+    }
+  }
+
+  const options = buildOptionsBlock({
+    subject: subjectFor(query, rows),
+    rows,
+    subNames: await subNameMap(rows),
+  });
+  if (options) {
+    ctx.onBlock(options);
+    return 'options';
+  }
+
+  // Nothing to choose between (every hit is the same product) — quote the first.
+  const row = rows[0]!;
+  const points = await skuHistory(row.slug, '30d').catch(() => []);
+  ctx.onBlock(buildQuoteBlock(row, points));
+  return 'quote';
+}
+
+/**
+ * Everything a tool call needs beyond its own arguments.
+ *
+ * Collected into one object rather than a fifth, sixth and seventh positional
+ * parameter: the generative-UI work adds `onBlock` and `city` to what was
+ * already a three-callback tail, and a call site with four trailing
+ * `undefined`s is where an argument silently lands in the wrong slot.
+ */
+export interface ToolRunContext {
+  conversationId?: string;
+  /** The validated client transcript — rides into the lead for sales. */
+  transcript?: Array<{ role: string; content: string }>;
+  /** Emitted when prepareProforma builds a draft — the pipeline forwards it to
+   *  the client as a `leadDraft` SSE frame (the confirmation card). */
+  onDraft?: (draft: Record<string, unknown>) => void;
+  /** Emitted for every UI block a tool produces — the pipeline forwards each
+   *  as a `{type:'block'}` SSE frame. Blocks are built in code from repo rows
+   *  (see ai/blockBuilders.ts); the model never authors one. */
+  onBlock?: (block: AdvisorBlock) => void;
+  /** Delivery city already established in this conversation. Present ⇒ the
+   *  comparison card can also rank mills by DELIVERED cost. */
+  city?: string;
+}
+
 /** Execute one tool call; ALWAYS returns a JSON-safe result (errors as text). */
 export async function runTool(
   name: string,
   args: Record<string, unknown>,
   session: AuthUser | null,
-  conversationId?: string,
-  transcript?: Array<{ role: string; content: string }>,
-  /** Emitted when prepareProforma builds a draft — the pipeline forwards it to
-   *  the client as a `leadDraft` SSE frame (the confirmation card). */
-  onDraft?: (draft: Record<string, unknown>) => void,
+  ctx: ToolRunContext = {},
 ): Promise<unknown> {
+  const { conversationId, transcript, onDraft } = ctx;
+  // `ctx.onBlock` is deliberately read through `ctx` (and passed as `ctx`) so
+  // the block-emitting helpers below take one object rather than a callback
+  // plus the two fields that decide what a card may contain.
   try {
     switch (name) {
       case 'getPrice': {
@@ -416,7 +624,13 @@ export async function runTool(
         if (!q) return { error: 'query لازم است.' };
         const direct = await findSkuRow(q);
         const rows = direct ? [direct] : await searchSkus(q, 5);
+        // THE CARD, not a paragraph describing the card. Built here from the
+        // same rows the model is about to be shown, so the two can never
+        // disagree; `ui` tells the model which one the visitor is already
+        // looking at so it stops re-listing the data in prose.
+        const ui = await emitPriceRowBlocks(rows, q, ctx);
         return {
+          ...(ui ? { ui, uiNote: UI_NOTE[ui] } : {}),
           results: rows.map((r) => ({
             skuId: r.id,
             slug: r.slug,
@@ -445,6 +659,87 @@ export async function runTool(
             // («در تاریخ ۱۴۰۵/۰۴/۱۱») — the validator exempts date patterns.
             updatedAtJalali: formatJalali(r.current.updatedAt),
           })),
+        };
+      }
+      case 'productOptions': {
+        const parsed = productOptionsArgs.safeParse(args);
+        if (!parsed.success) return { error: 'دستهٔ محصول لازم است.' };
+        const category = await resolveCategory(parsed.data.category);
+        if (!category) return { error: 'این دسته‌بندی شناخته نشد؛ با نام فارسی بپرس چه محصولی می‌خواهد.' };
+        const subSlug = parsed.data.sub ? await resolveSubCategory(category.slug, parsed.data.sub) : undefined;
+        const all = await tableRows(category.slug, subSlug);
+        const size = parsed.data.size?.trim();
+        // A size the visitor gave that matches nothing is a fact worth
+        // keeping, not silently ignoring — narrowing to zero rows would
+        // otherwise produce «هیچ گزینه‌ای نیست» for a product we do stock.
+        const scoped = size ? all.filter((r) => r.size === size) : all;
+        const rows = scoped.length > 0 ? scoped : all;
+        if (rows.length === 0) {
+          return { error: 'برای این دسته محصول فعالی در کاتالوگ نیست؛ پیشنهاد بده با کارشناس صحبت کند.' };
+        }
+        const block = buildOptionsBlock({
+          subject: subSlug
+            ? `${category.name} ${(await listSubCategories(category.slug)).find((x) => x.slug === subSlug)?.name ?? ''}`.trim()
+            : category.name,
+          rows,
+          subNames: await subNameMap(rows),
+          known: { sub: Boolean(subSlug), size: Boolean(size && scoped.length > 0) },
+        });
+        if (!block) {
+          // Nothing left to choose: the ask is already specific enough, so
+          // quote it instead of asking a question with one possible answer.
+          const ui = await emitPriceRowBlocks(rows.slice(0, 5), parsed.data.category, ctx);
+          return {
+            status: 'already_specific',
+            ...(ui ? { ui, uiNote: UI_NOTE[ui] } : {}),
+            note: 'گزینهٔ مبهمی نمانده؛ مستقیم جواب بده.',
+          };
+        }
+        ctx.onBlock?.(block);
+        return {
+          status: 'options_shown',
+          ui: 'options',
+          uiNote: UI_NOTE.options,
+          question: block.question,
+          optionCount: block.groups[0]?.options.length ?? 0,
+        };
+      }
+      case 'priceHistory': {
+        const parsed = priceHistoryArgs.safeParse(args);
+        if (!parsed.success) return { error: 'نام محصول لازم است.' };
+        const direct = await findSkuRow(parsed.data.query);
+        const rows = direct ? [direct] : await searchSkus(parsed.data.query, 5);
+        if (rows.length === 0) return { error: 'این محصول در کاتالوگ پیدا نشد.' };
+        // Several hits means we do not know WHOSE history to draw — ask,
+        // exactly as a price lookup would, rather than charting an arbitrary
+        // mill's series under a generic title.
+        if (rows.length > 1) {
+          const ui = await emitPriceRowBlocks(rows, parsed.data.query, ctx);
+          return { status: 'needs_choice', ...(ui ? { ui, uiNote: UI_NOTE[ui] } : {}) };
+        }
+        const row = rows[0]!;
+        const range = parsed.data.range ?? '30d';
+        const points = await skuHistory(row.slug, range);
+        const block = buildTrendBlock({
+          title: row.name,
+          unitLabel: unitLabelFor(row),
+          rangeLabel: RANGE_LABEL[range] ?? RANGE_LABEL['30d']!,
+          points,
+          ...(skuHref(row) ? { href: skuHref(row)! } : {}),
+        });
+        if (!block) {
+          return {
+            error: 'سابقهٔ قیمتی کافی برای این محصول ثبت نشده؛ صادقانه بگو روند قابل‌نمایشی نداریم.',
+          };
+        }
+        ctx.onBlock?.(block);
+        return {
+          ui: 'trend',
+          uiNote: UI_NOTE.trend,
+          product: row.name,
+          rangeLabel: block.rangeLabel,
+          changePct: block.changePct,
+          pointCount: block.values.length,
         };
       }
       case 'calcWeight': {
@@ -542,7 +837,33 @@ export async function runTool(
         const usedSubName = usedSub
           ? (await listSubCategories(category.slug)).find((s) => s.slug === usedSub)?.name
           : undefined;
+
+        // THE CARD. Same rows, same computeBulkSplit, one extra thing the
+        // prose version could never do: when the conversation has already
+        // established a delivery city, each mill is also priced DELIVERED,
+        // and the cheapest-delivered badge is computed separately — the two
+        // winners genuinely differ often enough that showing only the
+        // ex-works one is the wrong advice, which is the whole reason this
+        // business is worth phoning.
+        const km = ctx.city ? cityDistance(ctx.city) : null;
+        const { cfg, vatRate } = km
+          ? await logisticsContext().catch(() => ({ cfg: undefined, vatRate: 0 }))
+          : { cfg: undefined, vatRate: 0 };
+        const compareBlock = buildCompareBlock(priced, {
+          title: [category.name, usedSubName].filter(Boolean).join(' · '),
+          subtitle: [
+            usedSize ? `سایز ${usedSize}` : '',
+            `${toPersianDigits(String(split.tonnage))} تن`,
+          ]
+            .filter(Boolean)
+            .join(' · '),
+          tonnage: split.tonnage,
+          ...(km && ctx.city ? { city: ctx.city, cityKm: km, logistics: cfg, vatRate } : {}),
+        });
+        if (compareBlock) ctx.onBlock?.(compareBlock);
+
         return {
+          ...(compareBlock ? { ui: 'compare', uiNote: UI_NOTE.compare } : {}),
           category: category.name,
           // Which exact product this comparison is for — state this in the
           // reply, especially when the model didn't ask the user for a size
@@ -710,10 +1031,17 @@ export const AI_SYSTEM_PROMPT = `تو «مشاور هوشمند آهن‌تای�
 4-ب) نام و شمارهٔ موبایل را هرگز از کاربر نپرس. اگر کاربر وارد حساب شده باشد، این اطلاعات از پروفایلش برداشته می‌شود؛ اگر نشده باشد، دکمهٔ «ورود به حساب کاربری» در همان کارت به او نشان داده می‌شود. فقط چیزهای واقعاً لازم و ناقص (محصول، سایز، مقدار، شهر تحویل، زمان نیاز) را بپرس. ورود به حساب فقط با شمارهٔ موبایل و کد پیامکی یکبارمصرف انجام می‌شود؛ در آهن‌تایم «رمز عبور» و «نام کاربری» اصلاً وجود ندارد، پس هرگز از رمز یا نام کاربری حرف نزن — حتی به‌شکل هشدار («رمزت را اینجا ننویس») — چون کاربر را دنبال چیزی می‌فرستد که در این سایت نیست.
 5) اگر کاربر خودش قیمتی گفت، آن را تأیید یا رد نکن؛ قیمت معتبر را از ابزار بگیر و همان را بگو.
 
+== کارت‌های تعاملی (مهم؛ شکل تازهٔ پاسخ‌ها) ==
+5-الف) بعضی ابزارها علاوه بر داده، یک «کارت» واقعی هم همان لحظه زیر پیام تو به کاربر نشان می‌دهند: کارت قیمت، جدول مقایسهٔ کارخانه‌ها، دکمه‌های انتخاب گزینه، نمودار روند و کارت چشم‌انداز قیمت. اگر در خروجی ابزار فیلد ui دیدی، یعنی آن کارت همین حالا روی صفحهٔ کاربر است. متن فیلد uiNote دستور همان کارت است؛ دقیقاً رعایتش کن.
+5-ب) وقتی کارتی نشان داده شده، عددها و فهرست‌های همان کارت را در متن تکرار نکن و جدول Markdown ننویس. کارت کارِ نشان‌دادنِ داده را کرده است؛ کار تو این است که در یک یا دو جمله بگویی این داده یعنی چه و قدم بعدی چیست. پاسخ‌های تکراری («جدول را ببین، و در ضمن قیمت ذوب‌آهن ۴۲٬۳۰۰ تومان است…») بلند و ماشینی به‌نظر می‌رسند.
+5-پ) وقتی درخواست کاربر مبهم است (فقط اسم دسته را گفته، بدون سایز یا نوع یا کارخانه)، به‌جای پرسیدن با متنِ خالی، ابزار productOptions را صدا بزن تا گزینه‌های واقعی کاتالوگ به شکل دکمه نشان داده شوند. بعد فقط یک سؤال کوتاه بپرس و اضافه کن که می‌تواند یکی از دکمه‌ها را بزند یا خودش بنویسد. هرگز گزینه‌ها را در متن شماره‌گذاری نکن.
+5-ت) اگر برای یک محصول چند کارخانه قیمت دارند، getPrice خودش جدول مقایسه را نشان می‌دهد. این همان چیزی است که مشتری می‌خواهد: «قیمت میلگرد چنده؟» یک عدد نیست، قیمت امروزِ همهٔ کارخانه‌هاست.
+5-ث) برای «روند قیمت» یا «این ماه چطور بوده؟» ابزار priceHistory را صدا بزن تا نمودار واقعی نشان داده شود؛ روند را از حافظهٔ خودت توصیف نکن.
+
 == روش مشاوره (مثل یک کارشناس واقعی) ==
-6) اول تشخیص، بعد نسخه: اگر کاربر فقط پرسید «قیمت چنده؟» بدون مشخصات، با یک سؤال کوتاه بپرس برای چه کاری می‌خواهد و هنوز قیمت نده؛ پرسش دقیق (محصول + سایز) را مستقیم جواب بده. در هر نوبت حداکثر ۱–۲ سؤال بپرس؛ بازجویی نکن.
+6) اول تشخیص، بعد نسخه: اگر کاربر فقط پرسید «قیمت چنده؟» بدون هیچ مشخصاتی، با یک سؤال کوتاه بپرس برای چه کاری می‌خواهد و هنوز قیمت نده. اما اگر دسته را گفته و فقط سایز/نوع/کارخانه نامعلوم است (مثل «قیمت میلگرد»)، سؤال متنی خالی نپرس: productOptions را صدا بزن تا گزینه‌های واقعی به شکل دکمه نشان داده شوند و کاربر با یک لمس جواب بدهد. پرسش دقیق (محصول + سایز) را مستقیم جواب بده. در هر نوبت حداکثر ۱–۲ سؤال بپرس؛ بازجویی نکن.
 7) محاسبه را شفاف نشان بده تا مشتری بفهمد عدد از کجا آمده: مبنا را اعلام کن (شاخهٔ ۱۲ متری، وزن تئوری) و از فیلدهای unitWeightKg/totalWeightKg خروجی ابزار به شکل «هر شاخه X کیلوگرم؛ N شاخه می‌شود Y کیلوگرم» استفاده کن. مفروضات را همیشه بگو. هیچ حساب سرانگشتی نکن؛ حتی تقسیم و ضرب ساده (مثل «چند شاخه می‌شود») را از ابزار بگیر: برای تبدیل تناژ به تعداد شاخه، calcWeight را با targetTons صدا بزن و فیلد piecesForTargetTons را بگو.
-8) حرکت امضای کارشناس: مقایسه‌ها را به «قیمت هر کیلوگرم» برگردان تا منصفانه شوند؛ قیمت شاخه‌ایِ ارزان‌تر گاهی به‌خاطر وزن کمتر است، نه ارزانی واقعی. برای تناژ عمده («۲۰ تن میلگرد از کجا ارزون‌تره؟») حتماً compareFactories را صدا بزن و تفکیک کارخانه‌ها را نشان بده؛ این قابلیت سیگنیچر آهن‌تایم است. اگر کاربر زیرشاخه/گرید دقیق را نگفت، خودِ ابزار پرتکرارترین زیرشاخه را انتخاب می‌کند و در فیلد subCategory برمی‌گرداند؛ همیشه همان را در پاسخ بگو («این مقایسه برای گریدِ X است؛ برای گرید دیگر بگو تا دوباره چک کنم») تا مشتری فکر نکند این عدد برای هر گریدی معتبر است. اگر کاربر سایز مشخصی هم گفت، همان را در پارامتر size بده تا مقایسه دقیقاً روی آن سایز محدود شود. اختلاف/تفاضل قیمت‌ها را هرگز خودت حساب نکن؛ صرفهٔ نسبت به گزینهٔ بعدی را از فیلد savingsVsNextToman همان خروجی بگو، و اگر تعداد ردیف قیمتیِ ارزان‌ترین گزینه (cheapestRowCount) فقط ۱ بود، صادقانه بگو این قیمت فقط از یک منبع است.
+8) حرکت امضای کارشناس: مقایسه‌ها را به «قیمت هر کیلوگرم» برگردان تا منصفانه شوند؛ قیمت شاخه‌ایِ ارزان‌تر گاهی به‌خاطر وزن کمتر است، نه ارزانی واقعی. برای تناژ عمده («۲۰ تن میلگرد از کجا ارزون‌تره؟») حتماً compareFactories را صدا بزن و تفکیک کارخانه‌ها را نشان بده؛ این قابلیت سیگنیچر آهن‌تایم است. اگر کاربر زیرشاخه/گرید دقیق را نگفت، خودِ ابزار پرتکرارترین زیرشاخه را انتخاب می‌کند و در فیلد subCategory برمی‌گرداند؛ همیشه همان را در پاسخ بگو («این مقایسه برای گریدِ X است؛ برای گرید دیگر بگو تا دوباره چک کنم») تا مشتری فکر نکند این عدد برای هر گریدی معتبر است. اگر کاربر سایز مشخصی هم گفت، همان را در پارامتر size بده تا مقایسه دقیقاً روی آن سایز محدود شود. اختلاف/تفاضل قیمت‌ها را هرگز خودت حساب نکن؛ صرفهٔ نسبت به گزینهٔ بعدی را از فیلد savingsVsNextToman همان خروجی بگو، و اگر تعداد ردیف قیمتیِ ارزان‌ترین گزینه (cheapestRowCount) فقط ۱ بود، صادقانه بگو این قیمت فقط از یک منبع است. این ابزار جدول مقایسه را خودش به شکل کارت نشان می‌دهد؛ پس فهرست کارخانه‌ها و قیمت‌ها را در متن دوباره ننویس (بند ۵-ب) و فقط نتیجه‌گیری و قدم بعدی را بگو. اگر شهر تحویل کاربر معلوم باشد، همان کارت «ارزان‌ترین با حمل» را هم جدا نشان می‌دهد و آن معمولاً کارخانهٔ دیگری است؛ اگر شهر را نمی‌دانی، یک‌بار بپرس.
 9) دید هزینهٔ کامل بده: یادآوری کن هزینهٔ نهایی فقط قیمت کالا نیست (حمل، ارزش افزوده، شرایط تسویه) و عدد دقیق این‌ها را کارشناس در پیش‌فاکتور اعلام می‌کند. تناژ بالا معمولاً از کارخانه به‌صرفه‌تر است و خرید خرد/ترکیبی از بنگاه؛ اگر تناژ کاربر معلوم است، همین را در توصیه لحاظ کن.
 10) صادق باش، نه بله‌قربان‌گو: اگر انتخاب کاربر برای کاربردش مناسب نیست (مثلاً گرید نامناسب برای خاموت یا اسکلت)، محترمانه و مستدل بگو و جایگزین پیشنهاد بده. دربارهٔ آیندهٔ قیمت هرگز پیش‌بینی قطعی نده؛ فقط بگو بازار نوسان دارد و قیمت پیش‌فاکتور همان روز معتبر است.
 11) وقتی کاربر به عددی که از ابزار گرفتی اعتراض کرد یا گفت اشتباه/دروغ است، هرگز فقط همان جمله را عیناً تکرار نکن؛ این غیرمتقاعدکننده و ماشینی به‌نظر می‌رسد. با اطمینان مبنای محاسبه را دوباره و شفاف‌تر توضیح بده (مثلاً «این عدد از جدول وزن استاندارد مقطع می‌آید، نه تخمین هندسی») و بپرس خودش چه عدد یا فرضی (طول/سایز/گرید متفاوت) در ذهن داشته تا اختلاف واقعی را پیدا کنی. فقط اگر فرض ورودی واقعاً عوض شد، ابزار را دوباره با مقدار جدید صدا بزن؛ بدون دلیل جدید، هرگز عدد گرفته‌شده از ابزار را زیر فشار کاربر عوض یا انکار نکن (خلاف بند ۱ است).

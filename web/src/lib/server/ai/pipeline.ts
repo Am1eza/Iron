@@ -18,6 +18,7 @@ import {
 } from '@/lib/server/integrations/aiRelay';
 import { AI_TOOLS, runTool } from '@/lib/server/services/aiTools';
 import type { EstimateFacts } from '@/lib/data/aiTaxonomy';
+import type { AdvisorBlock } from '@/lib/ai/blocks';
 import { GroundingLedger, sanitizeGrounded } from './grounding';
 import {
   collapseImmediateRepeat,
@@ -113,7 +114,11 @@ export interface PipelineOptions {
    *  wrongly skip the fallback relay (US-25.6). Optional: omitting it just
    *  reproduces the old behavior. */
   userSignal?: AbortSignal;
-  /** SSE frame emitter ('tool'/'lead' progress frames); omit for tests. */
+  /** Delivery city already established in this conversation (see
+   *  ai/memory.ts). Present ⇒ the comparison card also ranks mills by
+   *  DELIVERED cost, not only ex-works. */
+  city?: string;
+  /** SSE frame emitter ('tool'/'lead'/'block' progress frames); omit for tests. */
   send?: (frame: Record<string, unknown>) => void;
   /** Injected relay (defaults to the real streamCompletion relay). */
   stream?: StreamCompletionFn;
@@ -133,6 +138,15 @@ export interface PipelineResult {
    * the next step.
    */
   choiceChips: string[];
+  /**
+   * Every generative-UI block this turn produced, in tool-call order.
+   *
+   * Also streamed live as `{type:'block'}` frames — this copy exists for the
+   * callers that do not consume the stream at all (the eval harness, and the
+   * route's own follow-up-chip selection, which keys on what the visitor was
+   * actually SHOWN rather than only on which tool ran).
+   */
+  blocks: AdvisorBlock[];
   /** What this turn's project estimate found, for the follow-up chips (see
    *  aiTaxonomy.EstimateFacts). Undefined unless estimateProject ran. */
   estimate?: EstimateFacts;
@@ -145,7 +159,7 @@ export interface PipelineResult {
 }
 
 export async function runAdvisorPipeline(opts: PipelineOptions): Promise<PipelineResult> {
-  const { messages, userNumbers, session, conversationId, clientMessages, signal, userSignal } = opts;
+  const { messages, userNumbers, session, conversationId, clientMessages, signal, userSignal, city } = opts;
   const stream = opts.stream ?? streamCompletion;
   const send = opts.send ?? (() => {});
 
@@ -156,6 +170,8 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
   // PipelineResult.choiceChips). Reset by a later resolved draft so a stale
   // «کدام کارخانه؟» row can never outlive its own question.
   let choiceChips: string[] = [];
+  // Cards drawn this turn, in the order the tools produced them.
+  const blocks: AdvisorBlock[] = [];
   // The last project estimate of the turn — the follow-up chips key on what
   // it actually found, not merely on the fact that it ran.
   let estimate: EstimateFacts | undefined;
@@ -283,14 +299,25 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
         if (call.function.name === 'prepareProforma' && draftCalls >= MAX_DRAFT_CALLS) {
           result = { error: 'خلاصهٔ درخواست همین حالا به کاربر نشان داده شده؛ فقط بگو آن را تأیید کند.' };
         } else {
-          // The validated request messages ride along so the draft carries the
-          // chat transcript into the lead for sales on confirm.
-          result = await runTool(call.function.name, args, session, conversationId, clientMessages, (draft) =>
+          result = await runTool(call.function.name, args, session, {
+            conversationId,
+            // The validated request messages ride along so the draft carries
+            // the chat transcript into the lead for sales on confirm.
+            transcript: clientMessages,
             // The confirmation card — emitted DURING tool execution, i.e.
             // strictly before this turn's text, exactly like the old `lead`
             // frame, so the client can attach it to the committed message.
-            send({ type: 'leadDraft', ...draft }),
-          );
+            onDraft: (draft) => send({ type: 'leadDraft', ...draft }),
+            // Generative-UI blocks, same timing and same reasoning: every
+            // block is on the wire before the first token of prose, so the
+            // client attaches them to the finished message in tool-call
+            // order rather than racing them against the text.
+            onBlock: (block) => {
+              blocks.push(block);
+              send({ type: 'block', block });
+            },
+            ...(city ? { city } : {}),
+          });
           if (call.function.name === 'prepareProforma') {
             draftCalls++;
             // The tool decides WHETHER a choice is chip-able (one ambiguous
@@ -485,6 +512,7 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
     text: collapsed,
     violationsCaught,
     choiceChips,
+    blocks,
     estimate,
     toolsUsed,
     usage,
