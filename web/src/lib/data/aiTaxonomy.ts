@@ -37,6 +37,10 @@ export const CHIP = {
   /** After an outlook: the honest way to act on a directional call is to lock
    *  today's number or wait for a level, not to trade the forecast. */
   proformaToday: 'با قیمت امروز پیش‌فاکتور بگیر',
+  /** Answered by setPriceAlert — a real row in `alerts`, an SMS when the
+   *  price crosses. Offered next to an outlook because "wait" is only a real
+   *  option if something tells you when the waiting is over. */
+  priceAlert: 'اگر ارزان شد خبرم کن',
 } as const;
 
 /**
@@ -132,7 +136,9 @@ export function selectFollowUpChips(
   // An outlook's only honest next steps are acting on TODAY's price or
   // asking again later — never «چقدر می‌شود؟», which is the question the
   // forecast deliberately does not answer.
-  if (toolsUsed.has('forecastPrice')) return [CHIP.proformaToday, CHIP.allPrices];
+  if (toolsUsed.has('forecastPrice')) return [CHIP.proformaToday, CHIP.priceAlert];
+  // The alert is set; the next step is the purchase, not another alert.
+  if (toolsUsed.has('setPriceAlert')) return [CHIP.proforma, CHIP.allPrices];
   if (
     toolsUsed.has('getPrice') ||
     toolsUsed.has('calcWeight') ||

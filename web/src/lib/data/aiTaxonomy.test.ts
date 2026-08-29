@@ -23,12 +23,20 @@ describe('selectFollowUpChips', () => {
     }
   });
 
-  it('never offers a follow-up that re-asks what the outlook refuses to answer', () => {
-    // After a directional call the honest next steps are acting on TODAY's
-    // price or looking at the tables — not another forecast.
+  it('turns an outlook into the two things you can actually DO about it', () => {
+    // A directional call leaves exactly two honest moves: lock today's price,
+    // or wait — and «wait» is only real if something tells you when the
+    // waiting is over, which is what the alert is. Never another forecast.
     const chips = selectFollowUpChips(new Set(['forecastPrice']), 2, 'قیمت میلگرد بالا می‌رود؟');
-    expect(chips).toEqual([CHIP.proformaToday, CHIP.allPrices]);
+    expect(chips).toEqual([CHIP.proformaToday, CHIP.priceAlert]);
     expect(chips).not.toContain(CHIP.outlook);
+  });
+
+  it('moves on to buying once the alert is set, rather than offering it twice', () => {
+    expect(selectFollowUpChips(new Set(['setPriceAlert']), 3, 'خبرم کن')).toEqual([
+      CHIP.proforma,
+      CHIP.allPrices,
+    ]);
   });
 
   it('says nothing extra when the options card already asked the question', () => {

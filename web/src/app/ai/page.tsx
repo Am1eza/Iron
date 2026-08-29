@@ -7,6 +7,7 @@ import { AdvisorChat, GREETING_TEXT } from '@/components/ai/AdvisorChat';
 import { AdvisorCapabilities } from '@/components/ai/AdvisorCapabilities';
 import { ArticleFaq } from '@/components/content/ArticleFaq';
 import { PURPOSE_CHIPS } from '@/lib/data/aiTaxonomy';
+import { getContact } from '@/lib/server/contact';
 
 export const metadata: Metadata = buildMetadata({
   title: 'مشاور هوشمند خرید آهن و فولاد',
@@ -60,6 +61,9 @@ type Search = { searchParams: Promise<{ q?: string }> };
 export default async function AiPage({ searchParams }: Search) {
   const { q } = await searchParams;
   const initialQuestion = typeof q === 'string' ? q : undefined;
+  // The real, admin-editable numbers — read here (server) and passed down, so
+  // the advisor's «گفتگو با کارشناس» row can never drift from the footer's.
+  const contact = await getContact();
   // Rendered server-side so the advisor's opening message is real, crawlable
   // HTML on first load instead of only appearing after client-side hydration.
   const initialMessages = [
@@ -94,7 +98,11 @@ export default async function AiPage({ searchParams }: Search) {
           {/* The chat sits directly under the header: it is this page's primary
               control, so nothing explanatory goes between the lede and the
               composer. Everything that describes the advisor comes AFTER it. */}
-          <AdvisorChat initialQuestion={initialQuestion} initialMessages={initialMessages} />
+          <AdvisorChat
+            initialQuestion={initialQuestion}
+            initialMessages={initialMessages}
+            contact={{ phoneLandline: contact.phoneLandline, phoneMobile: contact.phoneMobile }}
+          />
 
           <AdvisorCapabilities />
           <ArticleFaq items={FAQ_ITEMS} />

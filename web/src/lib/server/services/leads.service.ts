@@ -229,6 +229,9 @@ export interface CreateLeadInput {
     sourcePage?: string;
     /** AI-advisor chat that led to this lead (capped upstream) — sales context. */
     transcript?: Array<{ role: string; content: string }>;
+    aiSummary?: string;
+    /** Where the chat established this is going — see LeadContext.deliveryCity. */
+    deliveryCity?: string;
   };
 }
 

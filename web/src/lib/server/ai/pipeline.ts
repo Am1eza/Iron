@@ -19,6 +19,7 @@ import {
 import { AI_TOOLS, runTool } from '@/lib/server/services/aiTools';
 import type { EstimateFacts } from '@/lib/data/aiTaxonomy';
 import type { AdvisorBlock } from '@/lib/ai/blocks';
+import type { MemoryFacts } from './memory';
 import { GroundingLedger, sanitizeGrounded } from './grounding';
 import {
   collapseImmediateRepeat,
@@ -147,6 +148,24 @@ export interface PipelineResult {
    * actually SHOWN rather than only on which tool ran).
    */
   blocks: AdvisorBlock[];
+  /**
+   * Facts the tools established this turn (see ai/memory.ts), already merged
+   * in tool-call order — the LAST tool to name a product wins, which is what
+   * a visitor correcting themselves mid-turn means. The route persists this
+   * once, after the answer is on the wire.
+   */
+  facts: MemoryFacts;
+  /**
+   * Tool calls that came back with an `error` field this turn.
+   *
+   * Not a failure count for telemetry — a signal for the ANSWER. A tool that
+   * found nothing is often recovered from (the model retries with better
+   * arguments, which is exactly what the error strings are written to prompt),
+   * so this only matters alongside `blocks`: errors AND nothing drawn means
+   * the advisor genuinely came up empty, which is when the route offers a
+   * human instead of letting the conversation dead-end.
+   */
+  toolErrors: number;
   /** What this turn's project estimate found, for the follow-up chips (see
    *  aiTaxonomy.EstimateFacts). Undefined unless estimateProject ran. */
   estimate?: EstimateFacts;
@@ -172,6 +191,9 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
   let choiceChips: string[] = [];
   // Cards drawn this turn, in the order the tools produced them.
   const blocks: AdvisorBlock[] = [];
+  // …and what those tools pinned down about the conversation.
+  const facts: MemoryFacts = {};
+  let toolErrors = 0;
   // The last project estimate of the turn — the follow-up chips key on what
   // it actually found, not merely on the fact that it ran.
   let estimate: EstimateFacts | undefined;
@@ -317,6 +339,7 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
               send({ type: 'block', block });
             },
             ...(city ? { city } : {}),
+            onFacts: (f) => Object.assign(facts, f),
           });
           if (call.function.name === 'prepareProforma') {
             draftCalls++;
@@ -343,6 +366,7 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
               : undefined;
           }
         }
+        if ((result as { error?: unknown } | null)?.error) toolErrors++;
         toolsUsed.add(call.function.name);
         trace.toolCalls++;
         ledger.addFromJson(result); // every tool number becomes quotable
@@ -513,6 +537,8 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
     violationsCaught,
     choiceChips,
     blocks,
+    facts,
+    toolErrors,
     estimate,
     toolsUsed,
     usage,
