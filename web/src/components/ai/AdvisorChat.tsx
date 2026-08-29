@@ -142,15 +142,33 @@ function detectSpecificSku(t: string): PriceRow | null {
   return matches.length === 1 ? matches[0]! : null;
 }
 
+/**
+ * Message ids, unique ACROSS page loads.
+ *
+ * `m${++seq}` alone was not: `seq` is module state, so it restarts at 0 on
+ * every load, while the thread restored from localStorage still holds `m1`,
+ * `m2`, … The first new message of the next visit therefore collided with the
+ * first restored one. React warned («two children with the same key») and then
+ * did what duplicate keys make it do — it reused one message's DOM for the
+ * other. With a پیش‌فاکتور card in the thread that stopped being cosmetic:
+ * the restored card's fields and the new card's fields became the same DOM
+ * nodes, and editing the live card fired an update against the OLD, long
+ * expired draft id (a run of HTTP 410s with no user-visible cause).
+ *
+ * A per-load random segment fixes it at the root and costs nothing: already
+ * persisted ids keep working as keys, and no id minted in this load can
+ * collide with one minted in any other.
+ */
 let seq = 0;
-const uid = () => `m${++seq}`;
+const RUN = Math.random().toString(36).slice(2, 8);
+const uid = () => `m${RUN}-${++seq}`;
 
 /* ---- live mode: SSE frames from /api/ai/chat (route.ts contract) ---- */
 type ServerEvent =
   | { type: 'conversation'; id: string }
   | { type: 'token'; text: string }
   | { type: 'tool'; name: string }
-  | { type: 'leadDraft'; draftId: string; items?: DraftLine[]; totalWeightKg?: number; total?: number; allPriced?: boolean; signedIn?: boolean }
+  | { type: 'leadDraft'; draftId: string; items?: DraftLine[]; totalWeightKg?: number; total?: number; allPriced?: boolean; city?: string; signedIn?: boolean }
   | { type: 'block'; block: unknown }
   | { type: 'chips'; chips: string[] }
   | { type: 'done'; messageId?: string }
@@ -891,6 +909,12 @@ export function AdvisorChat({
               totalWeightKg: ev.totalWeightKg,
               total: ev.total,
               allPriced: ev.allPriced,
+              // The city the conversation already established (ai/memory.ts).
+              // Dropping it here was the whole point of remembering it: the
+              // card came back with «انتخاب نشده» one turn after the visitor
+              // had written «تحویل مشهد», which is precisely the ask-me-again
+              // behaviour this work exists to remove.
+              city: ev.city,
               signedIn: ev.signedIn,
             };
           }
