@@ -68,8 +68,6 @@ export function BulkQuote({
    *  that don't have it yet. */
   vatRate?: number;
 }) {
-  // ورق is measured by thickness — «ضخامت», not «سایز» (see catalogLabels).
-  const sizeCol = sizeLabel(category);
   const router = useRouter();
   const toast = useToast();
   const add = useCartStore((s) => s.add);
@@ -77,6 +75,7 @@ export function BulkQuote({
   const { requireAuth } = useRequireAuth();
   const [tonnage, setTonnage] = useState<number>(defaultTonnage);
   const [sub, setSub] = useState<string>(defaultSub ?? '');
+  const sizeCol = sizeLabel(category, sub || null);
   const [size, setSize] = useState<string>('');
   const warehouseCity = useProfileStore((s) => s.warehouseCity);
   const setWarehouseCity = useProfileStore((s) => s.setWarehouseCity);

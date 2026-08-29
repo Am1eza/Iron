@@ -41,10 +41,10 @@ export const cols = (
   // ورق is measured by thickness, not size — same rule the on-screen table
   // follows (see catalogLabels), so an exported file matches what the buyer
   // was looking at when they clicked «اکسل».
-  sizeLabel(categorySlug),
-  // The same shared secondary-spec column as the screen: «ابعاد» for
-  // ورق, «ضخامت» for exactly the three approved نبشی subs, and
-  // absent everywhere else (including angle-channel's mixed «همه» view).
+  sizeLabel(categorySlug, subCategorySlug),
+  // The same shared secondary-spec column as the screen: «ابعاد» for ورق,
+  // «ضخامت» for the approved نبشی subs and پروفیل Z, and absent on mixed
+  // or unrelated product lines.
   ...(usesDimensions(categorySlug, subCategorySlug)
     ? [dimensionsLabel(categorySlug, subCategorySlug)]
     : []),

@@ -241,7 +241,7 @@ export function SkuDetail({
 
   // ورق is sold by thickness, so its `size` column is labelled «ضخامت» —
   // every other category keeps «سایز» (see catalogLabels).
-  const sizeCol = sizeLabel(row.categoryId);
+  const sizeCol = sizeLabel(row.categoryId, row.subCategoryId);
   // The shared column is public only in its approved context: ورق
   // width×length, or wall thickness on the three نبشی subs. This gate
   // also prevents a stale value on any unrelated SKU from leaking onto its
