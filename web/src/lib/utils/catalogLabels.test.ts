@@ -411,20 +411,15 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ح
   /** The لوله column set on a given sub. */
   const pipeCols = (sub: string | null) => attributeColumns('pipe', sub);
 
-  it('adds «رده» beside «گرید» on the pressure-pipe subs — a gain, not a swap', () => {
+  it('adds «رده» beside «گرید» on مانیسمان only — a gain, not a swap', () => {
     // The live slugs, read from the production catalog: مانیسمان really is
     // split into داخلی/خارجی, and `data/nav.ts`'s single `seamless` would
-    // have matched no rows at all. اسپیرال/جدار چاه/گوشت‌دار were added after
-    // the owner confirmed «رده» for all of them (1405/06).
-    for (const sub of [
-      'seamless-internal',
-      'seamless-external',
-      'gas',
-      'industrial',
-      'spiral',
-      'well-casing',
-      'thick-walled',
-    ]) {
+    // have matched no rows at all. گازی/صنعتی/اسپیرال/جدار چاه/گوشت‌دار briefly
+    // also carried «رده» (1405/06), reverted the same day: ahanonline.com's
+    // own live pages for all five publish no «رده» column, and ASME B36.10
+    // schedule numbers are not how this market classifies them — only
+    // مانیسمان is actually sold and quoted by «رده ۴۰» / «رده ۸۰».
+    for (const sub of ['seamless-internal', 'seamless-external']) {
       const cols = pipeCols(sub);
       expect(cols.map((c) => c.key)).toEqual(['grade', 'schedule']);
       expect(cols.map((c) => c.label)).toEqual([GRADE_LABEL, SCHEDULE_LABEL]);
@@ -449,8 +444,19 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ح
   it('offers no «رده» on the لوله subs that have no schedule rating', () => {
     // مبلی is furniture tube and داربستی is scaffold tube — sold on outside
     // diameter and wall gauge, with no schedule class at all. گالوانیزه is
-    // likewise excluded — it was never named in any owner request.
-    for (const sub of ['furniture', 'scaffold', 'galvanized']) {
+    // likewise excluded — it was never named in any owner request. گازی،
+    // صنعتی درزدار، اسپیرال، جدار چاه and گوشت‌دار join them because
+    // ahanonline.com does not publish «رده» for any of the five either.
+    for (const sub of [
+      'furniture',
+      'scaffold',
+      'galvanized',
+      'gas',
+      'industrial',
+      'spiral',
+      'well-casing',
+      'thick-walled',
+    ]) {
       expect(pipeCols(sub).map((c) => c.key)).toEqual(['grade']);
     }
   });

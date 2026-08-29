@@ -13,9 +13,15 @@ vi.mock('next/navigation', () => ({
 }));
 
 /**
- * لوله after the owner's two 1405/06 requests: a «رده» (pipe schedule) column
- * on the pressure-pipe subs, and «کارخانه» renamed to «برند» on مانیسمان,
- * where the product is imported and the value is an origin rather than a mill.
+ * لوله after the owner's 1405/06 requests: a «رده» (pipe schedule) column on
+ * مانیسمان, and «کارخانه» renamed to «برند» there too, where the product is
+ * imported and the value is an origin rather than a mill.
+ *
+ * «رده» briefly also applied to گازی, صنعتی درزدار, اسپیرال, جدار چاه and
+ * گوشت‌دار (1405/06), reverted the same day: ahanonline.com's own live pages
+ * for all five publish no «رده» column at all, and ASME B36.10 schedule
+ * numbers are not how the Iranian market classifies these product lines —
+ * only مانیسمان is actually sold and quoted by «رده ۴۰» / «رده ۸۰».
  *
  * The sub slugs are the LIVE ones, read from the production catalog rather
  * than from `data/nav.ts` — which still lists a single `seamless` that exists
@@ -25,7 +31,7 @@ vi.mock('next/navigation', () => ({
  *
  * This is the case neither the استیل nor the پروفیل file covers: a category
  * where one sub RENAMES the factory column while its siblings keep it, and
- * where an attribute column is GAINED by some subs and not others.
+ * where an attribute column is GAINED by only that one sub.
  */
 function row(
   id: string,
@@ -101,14 +107,13 @@ function cellFor(product: string, column: string): string {
   return tr.querySelectorAll('td')[col - 1]?.textContent ?? '';
 }
 
-describe('PriceTable — لوله gains «رده» on its pressure-pipe subs', () => {
-  it('publishes «رده» beside «گرید» on مانیسمان, گازی and صنعتی درزدار', async () => {
+describe('PriceTable — لوله gains «رده» on مانیسمان only', () => {
+  it('publishes «رده» beside «گرید» on هر دو زیرشاخهٔ مانیسمان', async () => {
     const user = userEvent.setup();
     renderTable();
     for (const [sub, product, schedule] of [
       ['لوله مانیسمان داخلی', 'seamless-3', '۴۰'],
       ['لوله مانیسمان خارجی', 'seamless-x', '۸۰'],
-      ['گازی', 'gas-2', '۴۰'],
     ] as const) {
       await user.click(screen.getByRole('button', { name: sub }));
       expect(cellFor(product, 'رده')).toBe(schedule);
@@ -117,21 +122,14 @@ describe('PriceTable — لوله gains «رده» on its pressure-pipe subs', (
     }
   });
 
-  it('says «نامشخص» for a schedule nobody has entered — never a dash', async () => {
-    // A dash would claim صنعتی درزدار pipe has no schedule; it has one, we
-    // just have not recorded this row's.
+  it('offers no «رده» on گازی, صنعتی درزدار or مبلی — ahanonline publishes none for them', async () => {
     const user = userEvent.setup();
     renderTable();
-    await user.click(screen.getByRole('button', { name: 'صنعتی درزدار' }));
-    expect(cellFor('industrial-2', 'رده')).toBe('نامشخص');
-  });
-
-  it('offers no «رده» on مبلی, which has no schedule rating at all', async () => {
-    const user = userEvent.setup();
-    renderTable();
-    await user.click(screen.getByRole('button', { name: 'مبلی' }));
-    expect(screen.queryByRole('columnheader', { name: 'رده' })).toBeNull();
-    expect(screen.getByRole('columnheader', { name: 'گرید' })).toBeInTheDocument();
+    for (const sub of ['گازی', 'صنعتی درزدار', 'مبلی']) {
+      await user.click(screen.getByRole('button', { name: sub }));
+      expect(screen.queryByRole('columnheader', { name: 'رده' })).toBeNull();
+      expect(screen.getByRole('columnheader', { name: 'گرید' })).toBeInTheDocument();
+    }
   });
 
   it('keeps «رده» off the mixed «همه» view', () => {
