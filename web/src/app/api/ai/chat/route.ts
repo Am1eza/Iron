@@ -90,7 +90,12 @@ function sseGreetingResponse(): Response {
  * its id in a {type:'conversation'} frame, persists the turn, and injects the
  * rolling summary as a SECOND system message (AI_SYSTEM_PROMPT stays the
  * byte-identical first message — it is the relay's prompt-cache prefix).
- * SSE frames: data: {type:'conversation'|'token'|'tool'|'leadDraft'|'chips'|'done'|'error', ...}
+ * GENERATIVE UI: tools also emit typed `block` frames (lib/ai/blocks.ts) — the
+ * price quote, the factory comparison, the option chips, the trend chart —
+ * built server-side from repo rows and rendered as real components. They ride
+ * the same stream and, like `leadDraft`, are always on the wire BEFORE the
+ * first `token`, so the client attaches them to the finished message.
+ * SSE frames: data: {type:'conversation'|'token'|'tool'|'leadDraft'|'block'|'chips'|'done'|'error', ...}
  */
 async function POSTImpl(req: NextRequest) {
   const origin = assertSameOrigin(req);

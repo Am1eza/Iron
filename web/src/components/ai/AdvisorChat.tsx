@@ -20,6 +20,8 @@ import {
 } from '@/components/primitives/icons';
 import { getSpeechRecognition, type SpeechRecognitionLike } from '@/lib/utils/speech';
 import { ChatMarkdown } from './ChatMarkdown';
+import { AdvisorBlocks } from './blocks/AdvisorBlocks';
+import { isAdvisorBlock, type AdvisorBlock } from '@/lib/ai/blocks';
 import { loadChat, saveChat, clearChat } from '@/lib/ai/chatStorage';
 import styles from './AdvisorChat.module.css';
 import { trackGoal } from '@/lib/analytics/track';
@@ -81,6 +83,15 @@ export type Msg = {
   split?: SplitAnswer;
   /** Pending پیش‌فاکتور confirmation card (server `leadDraft` frame). */
   draft?: LeadDraftView;
+  /**
+   * Generative-UI cards for this answer (server `block` frames), in the order
+   * the tools produced them — the price quote, the factory comparison, the
+   * option chips, the trend chart. Persisted with the thread like everything
+   * else on `Msg`, which is safe precisely because every price card carries
+   * its own «آخرین به‌روزرسانی» stamp: a restored card states the age of its
+   * own number rather than passing it off as today's.
+   */
+  blocks?: AdvisorBlock[];
   /** Server answer id (from the stream's `done` frame) — present only on
    *  committed live AI answers, enables 👍/👎 feedback. */
   dbMessageId?: string;
@@ -161,6 +172,7 @@ type ServerEvent =
   | { type: 'token'; text: string }
   | { type: 'tool'; name: string }
   | { type: 'leadDraft'; draftId: string; items?: DraftLine[]; totalWeightKg?: number; total?: number; allPriced?: boolean; signedIn?: boolean }
+  | { type: 'block'; block: unknown }
   | { type: 'chips'; chips: string[] }
   | { type: 'done'; messageId?: string }
   | { type: 'error'; message: string };
@@ -258,6 +270,8 @@ const TOOL_PROGRESS: Record<string, string> = {
   prepareProforma: 'در حال آماده‌سازی خلاصهٔ درخواست…',
   compareFactories: 'در حال مقایسهٔ کارخانه‌ها…',
   searchGuides: 'در حال مرور راهنماها…',
+  productOptions: 'در حال دیدن گزینه‌های موجود…',
+  priceHistory: 'در حال خواندن روند قیمت…',
 };
 const PROGRESS_DEFAULT = 'در حال نوشتن…';
 /** After this long with no answer, say so. A 45s server deadline is a normal
@@ -555,7 +569,7 @@ const MessageBubble = memo(function MessageBubble({
   // and a price summary — and that cap plus the avatar column squeezed the
   // confirm card to ~250px inside a 375px screen, which is what broke its
   // line items and CTA row. Those rows take the full width on mobile.
-  const wide = Boolean(m.estimate || m.draft || m.split || m.chips);
+  const wide = Boolean(m.estimate || m.draft || m.split || m.chips || m.blocks?.length);
   return (
     <div
       className={`${styles.row} ${styles.rowIn} ${m.role === 'user' ? styles.rowUser : styles.rowAi}${
@@ -581,6 +595,25 @@ const MessageBubble = memo(function MessageBubble({
             ) : (
               m.text.split('\n').map((line, i) => <p key={i}>{line}</p>)
             )}
+          </div>
+        )}
+        {/* Cards go ABOVE the confirmation card and below the prose: the model
+         *  has just been told (see aiTools' UI_NOTE) that the data is already
+         *  on screen, so its text reads as the interpretation OF these cards.
+         *  Rendered on the streaming preview too — the blocks arrive before
+         *  the first token, so holding them back would leave the visitor
+         *  watching a spinner with the answer already in hand. */}
+        {m.blocks && m.blocks.length > 0 && (
+          // `inert` while this is the streaming PREVIEW: the row is
+          // aria-hidden, and a card's buttons inside aria-hidden content are
+          // reachable by keyboard but invisible to a screen reader — the exact
+          // trap the confirmation card below avoids by not rendering at all.
+          // The cards can be rendered early (they arrive before the first
+          // token, so withholding them would show a spinner over an answer the
+          // server has already sent) as long as they cannot be operated until
+          // the message is committed a few hundred milliseconds later.
+          <div inert={hidden || undefined}>
+            <AdvisorBlocks blocks={m.blocks} onPick={onPick} />
           </div>
         )}
         {m.estimate && <EstimateCard est={m.estimate} />}
@@ -786,6 +819,10 @@ export function AdvisorChat({
     // BEFORE any 'token' (the buffered, sanitized final text) — so it's held
     // and attached to the finished message, under the model's own prose.
     let draftBuf: LeadDraftView | undefined;
+    // Cards, in arrival order. Like `leadDraft`, every block frame is on the
+    // wire before the first `token` frame, so this is complete by the time the
+    // finished message is committed.
+    const blocksBuf: AdvisorBlock[] = [];
     // These mutate ONLY the presentational preview (aria-hidden, not the
     // role="log" region) — the finished message is committed to `messages`
     // (and thus announced) a single time, after the stream ends.
@@ -864,6 +901,17 @@ export function AdvisorChat({
               signedIn: ev.signedIn,
             };
           }
+        } else if (ev.type === 'block') {
+          // The guard checks the discriminant only (see lib/ai/blocks.ts):
+          // an unknown kind from a newer server is dropped here rather than
+          // reaching a renderer that has no arm for it.
+          if (isAdvisorBlock(ev.block)) {
+            blocksBuf.push(ev.block);
+            // Paint immediately — a comparison card that appears while the
+            // model is still writing is the whole point of streaming it.
+            if (opened) patchPreview((m) => ({ ...m, blocks: [...blocksBuf] }));
+            else open({ blocks: [...blocksBuf] });
+          }
         } else if (ev.type === 'chips') {
           chipsBuf = ev.chips;
           if (opened) patchPreview((m) => ({ ...m, chips: ev.chips }));
@@ -878,8 +926,9 @@ export function AdvisorChat({
       }
       clearTimers();
       stopPaint(); // the commit below carries the full text — no late repaint
-      // A turn that produced only the confirmation card (no prose) is still a
-      // real answer — the card IS the message.
+      // A turn that produced only a card (no prose) is still a real answer —
+      // the card IS the message. Blocks already open the preview themselves
+      // when they arrive; this covers the draft-only case.
       if (!opened && draftBuf) open({ draft: draftBuf });
       if (!opened) throw new Error('empty');
       if (streamedText.trim()) transcriptRef.current.push({ role: 'ai', text: streamedText });
@@ -888,7 +937,7 @@ export function AdvisorChat({
       setStreamPreview(null);
       setMessages((all) => [
         ...all,
-        { id: aiId, role: 'ai', text: streamedText, chips: chipsBuf, draft: draftBuf, dbMessageId, conversationId: conversationIdRef.current },
+        { id: aiId, role: 'ai', text: streamedText, chips: chipsBuf, draft: draftBuf, blocks: blocksBuf.length ? blocksBuf : undefined, dbMessageId, conversationId: conversationIdRef.current },
       ]);
     } catch (e) {
       clearTimers();
@@ -906,7 +955,7 @@ export function AdvisorChat({
           transcriptRef.current.push({ role: 'ai', text: streamedText });
           setMessages((all) => [
             ...all,
-            { id: aiId, role: 'ai', text: streamedText, chips: chipsBuf, draft: draftBuf, dbMessageId, conversationId: conversationIdRef.current },
+            { id: aiId, role: 'ai', text: streamedText, chips: chipsBuf, draft: draftBuf, blocks: blocksBuf.length ? blocksBuf : undefined, dbMessageId, conversationId: conversationIdRef.current },
           ]);
         }
         return;
@@ -952,7 +1001,7 @@ export function AdvisorChat({
         transcriptRef.current.push({ role: 'ai', text: streamedText });
         setMessages((all) => [
           ...all,
-          { id: aiId, role: 'ai', text: streamedText, chips: chipsBuf, draft: draftBuf, conversationId: conversationIdRef.current, notice },
+          { id: aiId, role: 'ai', text: streamedText, chips: chipsBuf, draft: draftBuf, blocks: blocksBuf.length ? blocksBuf : undefined, conversationId: conversationIdRef.current, notice },
         ]);
         return;
       }

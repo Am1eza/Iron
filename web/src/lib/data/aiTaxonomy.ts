@@ -104,6 +104,10 @@ export function selectFollowUpChips(
   // درخواست», or the login button for a guest) — a «دریافت پیش‌فاکتور» chip
   // next to it would offer the same action twice, in two different places.
   if (toolsUsed.has('prepareProforma')) return [];
+  // The options card IS this turn's next step — a row of generic follow-ups
+  // under a row of real product chips asks the visitor two questions at once
+  // and makes it ambiguous which row answers which.
+  if (toolsUsed.has('productOptions')) return [];
   if (toolsUsed.has('estimateProject')) {
     const chips: string[] = [];
     // An itemised estimate's next step is the whole list, not one item.
@@ -118,7 +122,12 @@ export function selectFollowUpChips(
     else chips.push(CHIP.allPrices);
     return chips;
   }
-  if (toolsUsed.has('getPrice') || toolsUsed.has('calcWeight') || toolsUsed.has('compareFactories'))
+  if (
+    toolsUsed.has('getPrice') ||
+    toolsUsed.has('calcWeight') ||
+    toolsUsed.has('compareFactories') ||
+    toolsUsed.has('priceHistory')
+  )
     return [CHIP.proforma, CHIP.allPrices];
   // searchGuides answered a knowledge question, not a pricing one — neither
   // the starter chips (redundant: onboarding is over) nor the proforma/

@@ -226,9 +226,11 @@ describe('lead → proforma flow', () => {
       'prepareProforma',
       { items: [{ skuId: sku.id, qty: 2, unit: sku.unit }] },
       null,
-      'conv-draft-1',
-      [{ role: 'user', content: 'دو شاخه میلگرد می‌خوام' }],
-      (d) => emitted.push(d),
+      {
+        conversationId: 'conv-draft-1',
+        transcript: [{ role: 'user', content: 'دو شاخه میلگرد می‌خوام' }],
+        onDraft: (d) => emitted.push(d),
+      },
     )) as { status: string; draftId: string; signedIn: boolean };
 
     // No lead, no proforma, no SMS: the visitor has not confirmed anything yet.
@@ -272,9 +274,7 @@ describe('lead → proforma flow', () => {
       'prepareProforma',
       { items: [{ product: sku.name, qty: 3000, unit: 'kg' }] },
       null,
-      'conv-resolve-1',
-      undefined,
-      (d) => emitted.push(d),
+      { conversationId: 'conv-resolve-1', onDraft: (d) => emitted.push(d) },
     )) as { status?: string; draftId?: string; error?: string };
 
     expect(result.error).toBeUndefined();
