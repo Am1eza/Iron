@@ -42,6 +42,7 @@ import {
   ALLOY_LABEL,
   BRANCH_LABEL,
   CONDITION_LABEL,
+  THICKNESS_LABEL,
   SCHEDULE_LABEL,
   BRAND_LABEL,
   STANDARD_LABEL,
@@ -137,6 +138,9 @@ type Values = {
   size: string;
   factory: string;
   grade: string;
+  /** Product form/finish. Independent from grade so one sheet can carry both
+   *  an alloy and a supplied condition. */
+  condition: string;
   /** ورق width×length or wall thickness on the three approved نبشی
    *  subs. The field is hidden everywhere else, but the value is still
    *  round-tripped so moving a SKU never silently drops it. */
@@ -175,6 +179,7 @@ function toValues(sku: AdminSku | null, defaultSubId: string, steelCategoryId: s
     size: sku?.size ?? '',
     factory: sku?.factory ?? '',
     grade: sku?.grade ?? '',
+    condition: sku?.condition ?? '',
     dimensions: sku?.dimensions ?? '',
     schedule: sku?.schedule ?? '',
     standard: sku?.standard ?? '',
@@ -282,15 +287,18 @@ export function SkuDrawer({
   const showDimensions = usesDimensions(parentCategory?.slug, selectedSub?.slug ?? null);
   const dimensionsCol = dimensionsLabel(parentCategory?.slug, selectedSub?.slug ?? null);
   // The admin uses the same AttrKey decision as the public page: استیل's
-  // stored grade is an «آلیاژ», while ورق's already-stored «برش‌خورده»/
-  // «رول» values describe its «حالت», not a metallurgical grade. This is
-  // deliberately only a label choice: both still edit `skus.grade`, through
-  // the unchanged value/options/save path below.
+  // stored grade is an «آلیاژ», while supplied form/finish is edited through
+  // the independent `condition` column. The legacy-condition key is limited
+  // to families whose pre-migration grade is known to contain that fact.
   const attrKeys = attrKeysFor(parentCategory?.slug, selectedSub?.slug ?? null);
   // تیرآهن هاش سبک/سنگین: «گرید» بی‌معناست، ستون واقعی همان skus.standard
   // است (مثلاً HEA/HEB بر اساس DIN 1025) — همان قاعده‌ای که آلیاژ استیل بالا
   // به آن اشاره دارد، این‌بار برای catalogLabels.attrKeysFor(...).includes('standard').
   const usesStandardAttr = attrKeys.includes('standard');
+  const usesAlloyAttr = attrKeys.includes('alloy');
+  const usesGradeAttr = attrKeys.includes('grade') || usesAlloyAttr;
+  const usesLegacyConditionAttr = attrKeys.includes('legacyCondition');
+  const usesConditionAttr = attrKeys.includes('condition') || usesLegacyConditionAttr;
   // نبشی و ناودانی (بجز وال پست): «گرید» جای خود را به «شاخه» می‌دهد — همان
   // ستونی که در جدول قیمت «۶ متری»/«۱۲ متری» نشان داده می‌شود.
   //
@@ -302,13 +310,15 @@ export function SkuDrawer({
   // `grade` is null on every live row of all six of these subs (وال پست, the
   // one sub that does hold a real grade, is deliberately not in the set).
   const usesBranchAttr = attrKeys.includes('branch');
-  const gradeLabel = attrKeys.includes('alloy')
+  const gradeLabel = usesAlloyAttr
     ? ALLOY_LABEL
-    : attrKeys.includes('condition')
-      ? CONDITION_LABEL
-      : usesStandardAttr
-        ? STANDARD_LABEL
-        : GRADE_LABEL;
+    : usesStandardAttr
+      ? STANDARD_LABEL
+      : GRADE_LABEL;
+  // During rollout, old ورق rows still carry condition-shaped values in
+  // grade. Display that value until the verified migration (or this edit)
+  // moves it, but never use the fallback where grade is a real alloy.
+  const legacyConditionFromGrade = usesLegacyConditionAttr && !v.condition && Boolean(v.grade);
   // «رده» is offered on exactly the لوله sub-categories whose products have a
   // schedule rating, decided by the same catalogLabels allow-list the public
   // table's column is built from — so the form can never collect a value the
@@ -368,6 +378,7 @@ export function SkuDrawer({
     const size = normText(next.size);
     const factory = normalizeDigits(next.factory);
     const grade = normalizeDigits(next.grade);
+    const condition = normalizeDigits(next.condition);
     if (!t.name) {
       // The mill is folded into the display name only where the catalog
       // actually publishes one. On استیل and the fabricated-mill پروفیل subs
@@ -387,6 +398,7 @@ export function SkuDrawer({
         categorySlug: cat.slug,
         size,
         grade,
+        condition,
         factory,
       });
     }
@@ -449,6 +461,7 @@ export function SkuDrawer({
         size: orNull(normText(v.size)),
         factory: orNull(normalizeDigits(v.factory)),
         grade: orNull(normalizeDigits(v.grade)),
+        condition: orNull(normalizeDigits(v.condition)),
         dimensions: orNull(normText(v.dimensions)),
         schedule: orNull(normText(v.schedule)),
         standard: orNull(normalizeDigits(v.standard)),
@@ -562,9 +575,9 @@ export function SkuDrawer({
                   id="sku-dimensions"
                   label={dimensionsCol}
                   helper={
-                    parentCategory?.slug === 'sheet'
+                    dimensionsCol !== THICKNESS_LABEL
                       ? 'عرض×طول ورق. اختیاری — اگر نمی‌دانید خالی بگذارید.'
-                      : 'ضخامت پروفیل نبشی به میلی‌متر. اختیاری — اگر نمی‌دانید خالی بگذارید.'
+                      : 'ضخامت مقطع به میلی‌متر. اختیاری — اگر نمی‌دانید خالی بگذارید.'
                   }
                   value={v.dimensions}
                   options={suggestions?.dimensions ?? []}
@@ -631,18 +644,16 @@ export function SkuDrawer({
                   placeholder="مثلاً ۶"
                   onChange={(val) => set({ branchLengthM: val }, { weight: touched.weight })}
                 />
-              ) : (
+              ) : usesStandardAttr || usesGradeAttr ? (
                 <PickerInput
                   id={usesStandardAttr ? 'sku-standard' : 'sku-grade'}
                   label={gradeLabel}
                   helper={
                     gradeLabel === ALLOY_LABEL
                       ? 'استیل: ۲۰۱، ۳۰۴، ۳۰۴L، ۳۱۶L. در صفحهٔ کالا به مشتری نشان داده می‌شود.'
-                      : gradeLabel === CONDITION_LABEL
-                        ? 'ورق: برش‌خورده، رول. در صفحهٔ کالا به مشتری نشان داده می‌شود.'
-                        : gradeLabel === STANDARD_LABEL
-                          ? 'مثلاً HEA یا HEB (بر اساس DIN 1025). در صفحهٔ کالا به مشتری نشان داده می‌شود.'
-                          : 'میلگرد: A1، A2، A3. در صفحهٔ کالا به مشتری نشان داده می‌شود.'
+                      : gradeLabel === STANDARD_LABEL
+                        ? 'مثلاً HEA یا HEB (بر اساس DIN 1025). در صفحهٔ کالا به مشتری نشان داده می‌شود.'
+                        : 'میلگرد: A1، A2، A3. در صفحهٔ کالا به مشتری نشان داده می‌شود.'
                   }
                   value={usesStandardAttr ? v.standard : v.grade}
                   options={(usesStandardAttr ? suggestions?.standards : suggestions?.grades) ?? []}
@@ -653,7 +664,22 @@ export function SkuDrawer({
                     usesStandardAttr ? set({ standard: val }) : set({ grade: val })
                   }
                 />
-              )}
+              ) : null}
+              {usesConditionAttr ? (
+                <PickerInput
+                  id="sku-condition"
+                  label={CONDITION_LABEL}
+                  helper="حالت عرضهٔ کالا، مثل برش‌خورده، رول، شیت، نرمال یا ترانس. از آلیاژ/گرید مستقل است."
+                  value={legacyConditionFromGrade ? v.grade : v.condition}
+                  options={suggestions?.conditions ?? []}
+                  error={fieldErrors.condition}
+                  maxLength={40}
+                  placeholder="مثلاً رول"
+                  onChange={(condition) =>
+                    set(legacyConditionFromGrade ? { condition, grade: '' } : { condition })
+                  }
+                />
+              ) : null}
             </div>
           </div>
 
@@ -668,7 +694,7 @@ export function SkuDrawer({
                 helper={
                   touched.name
                     ? 'دستی ویرایش شده.'
-                    : `از زیر‌دسته، ${sizeCol}، ${gradeLabel === CONDITION_LABEL ? CONDITION_LABEL : GRADE_LABEL} و کارخانه ساخته می‌شود.`
+                    : `از زیر‌دسته، ${sizeCol}، مشخصات و کارخانه ساخته می‌شود.`
                 }
                 value={v.name}
                 error={fieldErrors.name}

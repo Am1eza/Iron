@@ -121,6 +121,16 @@ export const skus = pgTable(
     standard: text('standard'),
     size: text('size'),
     grade: text('grade'),
+    // «حالت» — the supplied form/finish of a product («رول», «شیت»,
+    // «برش‌خورده», «نرمال», …). This must be independent of `grade`:
+    // an aluminium sheet can simultaneously be alloy 1050 and supplied as a
+    // sheet, so one overloaded text cell cannot represent the product.
+    //
+    // Nullable and additive. Existing sheet rows historically stored their
+    // condition in `grade`; catalogLabels retains a read-only fallback during
+    // the rollout, while the verified one-shot migration moves only known
+    // condition values and all new admin writes go here.
+    condition: text('condition'),
     // One shared optional secondary-spec column. For ورق it is the plate's
     // width×length (e.g. «۱۰۰۰×۲۰۰۰»): `size` already carries sheet
     // THICKNESS, and those other two dimensions previously had nowhere to

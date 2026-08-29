@@ -13,9 +13,9 @@ import {
   formatToman,
   priceHiddenLabel,
   toPersianDigits,
-  normalizeDigits,
   withVat,
 } from '@/lib/utils/format';
+import { compareCatalogSizes } from '@/lib/utils/catalogSize';
 import {
   sizeLabel,
   weightLabel,
@@ -78,10 +78,12 @@ function compareRows(a: PriceRow, b: PriceRow, sort: SortKey): number {
   const ra = rank(a);
   const rb = rank(b);
   if (ra !== rb) return ra - rb;
-  // `Number('۱۴')` is NaN — every stored size is in Persian digits, so this
-  // comparator silently returned NaN for every pair and the «سایز» sort did
-  // nothing at all.
-  return Number(normalizeDigits(a.size ?? '0')) - Number(normalizeDigits(b.size ?? '0'));
+  // Sizes are vectors, not just numbers: alongside «۱۴» the catalog carries
+  // decimal gauges, inch fractions and sections such as «۶۰×۶۰×۶». A
+  // single Number() either returned NaN or collapsed that structure. The
+  // shared comparator preserves every axis and keeps all catalog surfaces in
+  // the same trade order.
+  return compareCatalogSizes(a.size, b.size);
 }
 
 /** Compare-modal row highlighting — true when the selected products don't all

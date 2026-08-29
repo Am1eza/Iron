@@ -1,0 +1,1 @@
+ALTER TABLE "skus" ADD COLUMN "condition" text;

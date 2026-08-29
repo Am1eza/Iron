@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { routes } from '@/lib/routes';
 import { api, API_MODE, isApiError } from '@/lib/api';
 import { normalizeDigits, toPersianDigits, formatToman } from '@/lib/utils/format';
+import { normalizeDimensionToken } from '@/lib/utils/catalogSize';
 import { getRows } from '@/lib/mock/catalogData';
 import type { PriceRow } from '@/lib/types/domain';
 import { CATEGORY_ALIASES, PURPOSE_CHIPS } from '@/lib/data/aiTaxonomy';
@@ -107,18 +108,21 @@ function detectBulk(t: string): { tonnage: number; slug: string; name: string } 
 /** Normalize a user-typed dimension separator («x», «X», «*») to the «×» the
  *  mock catalog's SIZES table uses, and strip stray whitespace. */
 function normalizeSizeToken(raw: string): string {
-  return raw.replace(/[xX*]/g, '×').replace(/\s+/g, '');
+  return normalizeDimensionToken(raw);
 }
 
 /** Every size-shaped substring the text could contain, most specific first
- *  (dimension pairs and inch fractions before a bare number) — tried in order
- *  against the category's real size set so «۴۰×۴۰» isn't reduced to «۴۰».
+ *  (multi-axis dimensions and inch fractions before a bare number) — tried in
+ *  order against the category's real size set so «۶۰×۶۰×۶» isn't reduced
+ *  to «۶۰×۶۰» or a bare «۶۰».
  *  `t` arrives ALREADY digit-normalized (aiReply's `normalizeDigits(text)`
  *  runs before this is ever called) — Latin digits only, hence [0-9] here,
  *  not the Persian range the mock catalog's own SIZES table is written in. */
-function extractSizeCandidates(t: string): string[] {
+export function extractSizeCandidates(t: string): string[] {
   const out: string[] = [];
-  for (const m of t.matchAll(/[0-9]+\s*[×xX*]\s*[0-9]+/g)) out.push(normalizeSizeToken(m[0]));
+  for (const m of t.matchAll(/[0-9]+(?:\.[0-9]+)?(?:\s*[×xX*]\s*[0-9]+(?:\.[0-9]+)?){1,}/g)) {
+    out.push(normalizeSizeToken(m[0]));
+  }
   for (const m of t.matchAll(/[0-9]+(?:\/[0-9]+)?\s*اینچ/g)) out.push(m[0].replace(/\s+/g, ' ').trim());
   for (const m of t.matchAll(/[0-9]+(?:\.[0-9]+)?/g)) out.push(m[0]);
   return out;

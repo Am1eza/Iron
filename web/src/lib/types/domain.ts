@@ -168,6 +168,10 @@ export interface SKU {
   standard?: string;
   size?: string;
   grade?: string;
+  /** Supplied form/finish («رول», «شیت», «برش‌خورده», …). Independent
+   *  of `grade` because products such as aluminium sheet have both an alloy
+   *  and a condition. Undefined where it has not been recorded. */
+  condition?: string;
   /** ورق only — the plate's width×length, e.g. «۱۰۰۰×۲۰۰۰». For a sheet,
    *  `size` is the THICKNESS; this is the other two dimensions. Undefined for
    *  every other category and for sheets nobody has filled it in for yet.

@@ -15,7 +15,7 @@ vi.mock('next/navigation', () => ({
 function row(
   id: string,
   subCategoryId: string,
-  extra: { grade?: string; standard?: string } = {},
+  extra: { grade?: string; condition?: string; standard?: string } = {},
 ): PriceRow {
   return {
     id,
@@ -75,7 +75,9 @@ function renderTable(props: Partial<Parameters<typeof PriceTable>[0]> = {}) {
 function cellFor(name: string): string {
   const tr = screen.getByRole('rowheader', { name }).closest('tr')!;
   const headers = within(screen.getByRole('table')).getAllByRole('columnheader');
-  const col = headers.findIndex((h) => h.textContent === 'استاندارد' || h.textContent === 'گرید');
+  const col = headers.findIndex(
+    (h) => h.textContent === 'استاندارد' || h.textContent === 'گرید' || h.textContent === 'حالت',
+  );
   return tr.querySelectorAll('td')[col - 1]?.textContent ?? '';
 }
 
@@ -153,5 +155,21 @@ describe('PriceTable — the تیرآهن grade → standard column', () => {
     expect(cellFor('rebar-2')).toBe('نامشخص');
     // …and the card form labels it, from the cell's own `data-label`.
     expect(attrCellFor('rebar-1', 'گرید').textContent).toBe('A3');
+  });
+
+  it('renders the independent ورق condition and keeps the guarded legacy fallback', () => {
+    renderTable({
+      categorySlug: 'sheet',
+      categoryName: 'ورق',
+      rows: [
+        row('sheet-new', 'black', { condition: 'رول' }),
+        row('sheet-legacy', 'black', { grade: 'برش خورده' }),
+      ],
+      subs: [{ slug: 'black', name: 'ورق سیاه', groupLabel: null }],
+    });
+    expect(screen.getByRole('columnheader', { name: 'حالت' })).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'گرید' })).toBeNull();
+    expect(cellFor('sheet-new')).toBe('رول');
+    expect(cellFor('sheet-legacy')).toBe('برش خورده');
   });
 });
