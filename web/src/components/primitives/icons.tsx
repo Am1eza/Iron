@@ -636,6 +636,15 @@ export const KanbanIcon = (p: IconProps) => (
  * up below ~18px. `fillRule="evenodd"` is what makes the beam a hole, so the
  * mark inherits `currentColor` on light, dark and amber surfaces alike.
  */
+/** A plain speech balloon — the history rail's per-conversation glyph.
+ *  Deliberately NOT `AiMarkIcon`, which is the advisor's brand mark: a mark
+ *  repeated forty times down a list stops reading as a brand. */
+export const ChatIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9.5 9.5 0 0 1-2.9-.4L3 21l1.5-4.4A8.1 8.1 0 0 1 3.6 11.5 8.4 8.4 0 0 1 12 3.1a8.4 8.4 0 0 1 9 8.4z" />
+  </Svg>
+);
+
 export const AiMarkIcon = (p: IconProps) => (
   <Svg {...p} stroke="none" fill="currentColor">
     <path

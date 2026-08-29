@@ -12,6 +12,8 @@ import { pickBestGroup } from '@/lib/utils/bulkSplit';
 import {
   AiMarkIcon,
   CheckCircleIcon,
+  ChevronStartIcon,
+  MenuIcon,
   MicIcon,
   SendIcon,
   StopIcon,
@@ -27,6 +29,7 @@ import { ChatMarkdown } from './ChatMarkdown';
 // this file's card section as long as its chat section.
 import { ProformaCard, type DraftLine, type LeadDraftView } from './ProformaCard';
 import { AdvisorBlocks } from './blocks/AdvisorBlocks';
+import { ConversationRail } from './ConversationRail';
 import { isAdvisorBlock, type AdvisorBlock } from '@/lib/ai/blocks';
 import { loadChat, saveChat, clearChat } from '@/lib/ai/chatStorage';
 import styles from './AdvisorChat.module.css';
@@ -47,7 +50,11 @@ const AVG_REBAR_PRICE: number = (() => {
  * for mock mode and relay outages, so the advisor never dead-ends.
  */
 
-type Estimate = { items: { name: string; weightKg: number }[]; totalKg: number; totalToman: number };
+type Estimate = {
+  items: { name: string; weightKg: number }[];
+  totalKg: number;
+  totalToman: number;
+};
 
 /** Re-exported so the chat's own message type stays self-describing. */
 export type { DraftLine, LeadDraftView };
@@ -168,7 +175,16 @@ type ServerEvent =
   | { type: 'conversation'; id: string }
   | { type: 'token'; text: string }
   | { type: 'tool'; name: string }
-  | { type: 'leadDraft'; draftId: string; items?: DraftLine[]; totalWeightKg?: number; total?: number; allPriced?: boolean; city?: string; signedIn?: boolean }
+  | {
+      type: 'leadDraft';
+      draftId: string;
+      items?: DraftLine[];
+      totalWeightKg?: number;
+      total?: number;
+      allPriced?: boolean;
+      city?: string;
+      signedIn?: boolean;
+    }
   | { type: 'block'; block: unknown }
   | { type: 'chips'; chips: string[] }
   | { type: 'done'; messageId?: string }
@@ -246,7 +262,8 @@ const NOTICE_TEXT: Record<NoticeKind, string> = {
   // warning on the SECOND message onward, is a worse experience than an
   // honest "try again" (owner decision — the advisor is ONE thing or it
   // says so, never a quietly swapped-in impostor).
-  fallback: 'دستیار هوشمند موقتاً در دسترس نیست. چند لحظهٔ دیگر دوباره امتحان کن یا با کارشناس تماس بگیر.',
+  fallback:
+    'دستیار هوشمند موقتاً در دسترس نیست. چند لحظهٔ دیگر دوباره امتحان کن یا با کارشناس تماس بگیر.',
   rate_limited: 'پیام‌ها پشت‌سرهم ارسال شد. کمی صبر کن و دوباره بفرست.',
   offline: 'اتصال اینترنت قطع است. وقتی وصل شدی دوباره امتحان کن.',
   // A genuine mid-stream drop — the partial answer above is REAL model output,
@@ -326,7 +343,10 @@ function buildEstimate(areaM2: number): Estimate {
   return { items, totalKg, totalToman };
 }
 
-function aiReply(text: string, ctx: { purpose: string | null }): { msgs: Msg[]; purpose: string | null } {
+function aiReply(
+  text: string,
+  ctx: { purpose: string | null },
+): { msgs: Msg[]; purpose: string | null } {
   const t = normalizeDigits(text);
   const purpose = ctx.purpose ?? detectPurpose(t);
 
@@ -338,7 +358,9 @@ function aiReply(text: string, ctx: { purpose: string | null }): { msgs: Msg[]; 
   if (bulk) {
     const bulkRows = getRows(bulk.slug);
     const bulkGroup = pickBestGroup(bulkRows);
-    const bulkScoped = bulkGroup ? bulkRows.filter((r) => r.subCategoryId === bulkGroup.subCategoryId) : bulkRows;
+    const bulkScoped = bulkGroup
+      ? bulkRows.filter((r) => r.subCategoryId === bulkGroup.subCategoryId)
+      : bulkRows;
     const split = computeBulkSplit(bulkScoped, bulk.tonnage);
     if (split.cheapest) {
       return {
@@ -463,7 +485,13 @@ function aiReply(text: string, ctx: { purpose: string | null }): { msgs: Msg[]; 
  *  Drawn with the icon set, NOT with 👍/👎: production self-hosts its fonts
  *  and ships no emoji font (no CDN — Iran reachability), so the emoji had no
  *  glyph and rendered as an empty box under every single answer. */
-function FeedbackButtons({ messageId, conversationId }: { messageId: string; conversationId?: string }) {
+function FeedbackButtons({
+  messageId,
+  conversationId,
+}: {
+  messageId: string;
+  conversationId?: string;
+}) {
   const [sent, setSent] = useState<'up' | 'down' | null>(null);
   const submit = (rating: 'up' | 'down') => {
     if (sent) return;
@@ -541,7 +569,9 @@ function TurnNoticeRow({ notice, onRetry }: { notice: TurnNotice; onRetry: () =>
         disabled={waiting}
         // The countdown is decoration; the label carries the state for AT.
         aria-label={
-          waiting ? `تلاش دوباره، ${toPersianDigits(secs)} ثانیه دیگر` : 'تلاش دوباره برای پاسخ هوشمند'
+          waiting
+            ? `تلاش دوباره، ${toPersianDigits(secs)} ثانیه دیگر`
+            : 'تلاش دوباره برای پاسخ هوشمند'
         }
       >
         {notice.kind === 'dropped' ? 'ادامه بده' : 'تلاش دوباره'}
@@ -662,6 +692,8 @@ export function AdvisorChat({
   initialQuestion,
   initialMessages,
   contact,
+  crumbs,
+  heading = 'مشاور هوشمند آهن‌تایم',
 }: {
   initialQuestion?: string;
   /** Server-rendered greeting (see app/ai/page.tsx) so the advisor's opening
@@ -671,6 +703,12 @@ export function AdvisorChat({
    *  down rather than hardcoded — the escape hatch below is only useful if
    *  the number on it is the number the office actually answers. */
   contact?: { phoneLandline: string; phoneMobile: string };
+  /** Breadcrumb trail, rendered INSIDE the shell's app bar. The page has no
+   *  hero any more, and this page still needs its crumbs in the DOM. */
+  crumbs?: { label: string; href: string }[];
+  /** The page's h1 text. Passed in rather than hardcoded so the page owns its
+   *  own heading (and its SEO phrase) even though the shell renders it. */
+  heading?: string;
 }) {
   const [messages, setMessages] = useState<Msg[]>(() => initialMessages ?? []);
   // The in-progress streamed reply — purely presentational (rendered aria-hidden)
@@ -715,6 +753,18 @@ export function AdvisorChat({
   // Feature-detected AFTER mount (SSR renders without window); unsupported
   // browsers simply never see the mic button. One utterance lands in the
   // input for review — it is NEVER auto-sent.
+  /**
+   * MOBILE TAKEOVER. Off until the visitor is actually in the conversation —
+   * arriving on the page should still look like a page, with the site's own
+   * navigation available. It turns on when they send or focus the composer,
+   * and the app bar grows a back button to turn it off. Never on above 767px,
+   * where the chrome costs the chat nothing.
+   */
+  const [immersive, setImmersive] = useState(false);
+  /** The history rail is permanent from 1024px up; below that it is a drawer,
+   *  closed until asked for. */
+  const [railOpen, setRailOpen] = useState(false);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const [voiceSupported, setVoiceSupported] = useState(false);
   const [listening, setListening] = useState(false);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
@@ -722,6 +772,57 @@ export function AdvisorChat({
     setVoiceSupported(getSpeechRecognition() !== null);
     return () => recognitionRef.current?.abort();
   }, []);
+
+  /**
+   * Auto-grow.
+   *
+   * Reset to `auto` before reading `scrollHeight`, or the box only ever grows:
+   * a shrinking value is measured against the height it already has. The cap
+   * matches the stylesheet's `max-block-size`, past which the textarea scrolls
+   * internally rather than eating the thread.
+   */
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    if (!input) {
+      // An EMPTY composer is always one line. Measuring `scrollHeight` here
+      // would measure the placeholder, which wraps to two lines at 390px — so
+      // the box sat two lines tall on the screens with the least room to give.
+      el.style.height = '';
+      return;
+    }
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 168)}px`;
+  }, [input]);
+
+  /**
+   * Immersive mode is a document-level state, not a local one: the chrome it
+   * hides (ticker, header, bottom tab bar) is rendered by the root layout,
+   * far outside this tree. A single attribute on <html> lets globals.css do
+   * it in one place — cheaper and far less fragile than threading a prop
+   * through SiteChrome, and it cleans itself up on unmount, so navigating
+   * away mid-conversation can never leave the site without navigation.
+   */
+  useEffect(() => {
+    const root = document.documentElement;
+    if (immersive) root.setAttribute('data-chat-immersive', 'true');
+    else root.removeAttribute('data-chat-immersive');
+    return () => root.removeAttribute('data-chat-immersive');
+  }, [immersive]);
+
+  // Leaving immersive mode with the hardware/browser back gesture is what a
+  // phone user expects from a full-screen surface — so it takes a history
+  // entry, and Back exits the conversation view instead of the whole page.
+  useEffect(() => {
+    if (!immersive) return;
+    window.history.pushState({ chatImmersive: true }, '');
+    const onPop = () => setImmersive(false);
+    window.addEventListener('popstate', onPop);
+    return () => {
+      window.removeEventListener('popstate', onPop);
+      if (window.history.state?.chatImmersive) window.history.back();
+    };
+  }, [immersive]);
 
   // Connectivity. Read AFTER mount (SSR has no navigator) and then follow the
   // events — recovery is instant, so a visitor who steps into a lift does not
@@ -751,7 +852,8 @@ export function AdvisorChat({
     rec.maxAlternatives = 1;
     rec.onresult = (ev) => {
       const transcript = ev.results[0]?.[0]?.transcript?.trim();
-      if (transcript) setInput((prev) => (prev.trim() ? `${prev.trim()} ${transcript}` : transcript));
+      if (transcript)
+        setInput((prev) => (prev.trim() ? `${prev.trim()} ${transcript}` : transcript));
     };
     // onend also fires after onerror (mic denied, no speech) — one cleanup path.
     rec.onend = () => {
@@ -837,8 +939,7 @@ export function AdvisorChat({
     // These mutate ONLY the presentational preview (aria-hidden, not the
     // role="log" region) — the finished message is committed to `messages`
     // (and thus announced) a single time, after the stream ends.
-    const patchPreview = (fn: (m: Msg) => Msg) =>
-      setStreamPreview((m) => (m ? fn(m) : m));
+    const patchPreview = (fn: (m: Msg) => Msg) => setStreamPreview((m) => (m ? fn(m) : m));
     const open = (init: Partial<Msg> = {}) => {
       opened = true;
       setTyping(false);
@@ -954,7 +1055,16 @@ export function AdvisorChat({
       setStreamPreview(null);
       setMessages((all) => [
         ...all,
-        { id: aiId, role: 'ai', text: streamedText, chips: chipsBuf, draft: draftBuf, blocks: blocksBuf.length ? blocksBuf : undefined, dbMessageId, conversationId: conversationIdRef.current },
+        {
+          id: aiId,
+          role: 'ai',
+          text: streamedText,
+          chips: chipsBuf,
+          draft: draftBuf,
+          blocks: blocksBuf.length ? blocksBuf : undefined,
+          dbMessageId,
+          conversationId: conversationIdRef.current,
+        },
       ]);
     } catch (e) {
       clearTimers();
@@ -963,7 +1073,8 @@ export function AdvisorChat({
       stalledRef.current = false;
       const aborted =
         !stalled &&
-        (abortRef.current?.signal.aborted || (e instanceof DOMException && e.name === 'AbortError'));
+        (abortRef.current?.signal.aborted ||
+          (e instanceof DOMException && e.name === 'AbortError'));
       if (aborted) {
         // User pressed stop — keep whatever streamed so far, no fallback, no error.
         setTyping(false);
@@ -972,7 +1083,16 @@ export function AdvisorChat({
           transcriptRef.current.push({ role: 'ai', text: streamedText });
           setMessages((all) => [
             ...all,
-            { id: aiId, role: 'ai', text: streamedText, chips: chipsBuf, draft: draftBuf, blocks: blocksBuf.length ? blocksBuf : undefined, dbMessageId, conversationId: conversationIdRef.current },
+            {
+              id: aiId,
+              role: 'ai',
+              text: streamedText,
+              chips: chipsBuf,
+              draft: draftBuf,
+              blocks: blocksBuf.length ? blocksBuf : undefined,
+              dbMessageId,
+              conversationId: conversationIdRef.current,
+            },
           ]);
         }
         return;
@@ -989,7 +1109,8 @@ export function AdvisorChat({
       const serverSpoke = e instanceof StreamErrorFrame || isApiError(e);
       const rateLimited = isApiError(e) && e.status === 429;
       const offline = typeof navigator !== 'undefined' && !navigator.onLine;
-      const transportFailed = stalled || (!serverSpoke && !(e instanceof Error && e.message === 'empty'));
+      const transportFailed =
+        stalled || (!serverSpoke && !(e instanceof Error && e.message === 'empty'));
 
       const notice: TurnNotice = {
         kind: rateLimited
@@ -1018,7 +1139,16 @@ export function AdvisorChat({
         transcriptRef.current.push({ role: 'ai', text: streamedText });
         setMessages((all) => [
           ...all,
-          { id: aiId, role: 'ai', text: streamedText, chips: chipsBuf, draft: draftBuf, blocks: blocksBuf.length ? blocksBuf : undefined, conversationId: conversationIdRef.current, notice },
+          {
+            id: aiId,
+            role: 'ai',
+            text: streamedText,
+            chips: chipsBuf,
+            draft: draftBuf,
+            blocks: blocksBuf.length ? blocksBuf : undefined,
+            conversationId: conversationIdRef.current,
+            notice,
+          },
         ]);
         return;
       }
@@ -1042,7 +1172,8 @@ export function AdvisorChat({
     purposeRef.current = purposeRef.current ?? detectPurpose(normalizeDigits(text));
     // Conversion: the FIRST message only — a conversation is the goal, not
     // each turn of it (transcriptRef is still empty at this point on turn 1).
-    if (transcriptRef.current.length === 0) trackGoal('ai-chat', 'first-message', purposeRef.current ?? 'general');
+    if (transcriptRef.current.length === 0)
+      trackGoal('ai-chat', 'first-message', purposeRef.current ?? 'general');
     transcriptRef.current.push({ role: 'user', text });
     setMessages((m) => [...m, { id: uid(), role: 'user', text }]);
     if (useServer.current) void sendLive(text);
@@ -1094,7 +1225,9 @@ export function AdvisorChat({
    *  itself is single-use server-side — a second tap would 410). */
   const stableDraftPatch = useCallback((messageId: string, patch: Partial<LeadDraftView>) => {
     setMessages((all) =>
-      all.map((m) => (m.id === messageId && m.draft ? { ...m, draft: { ...m.draft, ...patch } } : m)),
+      all.map((m) =>
+        m.id === messageId && m.draft ? { ...m, draft: { ...m.draft, ...patch } } : m,
+      ),
     );
   }, []);
 
@@ -1108,6 +1241,51 @@ export function AdvisorChat({
     setStreamPreview(null);
     setMessages([{ id: uid(), role: 'ai', text: GREETING_TEXT, chips: PURPOSE_CHIPS }]);
   };
+
+  /**
+   * Reopen a stored conversation from the history rail.
+   *
+   * TEXT ONLY, on purpose. The generative-UI cards are built per turn from
+   * live catalog rows and are deliberately not persisted, so a reopened thread
+   * shows what was said and not a three-week-old comparison card dressed as
+   * today's price. Asking again re-runs the tools and redraws the cards with
+   * current numbers — which is the same freshness promise the «آخرین
+   * به‌روزرسانی» stamp on every card makes.
+   *
+   * The conversation id is adopted too, so the next turn CONTINUES this thread
+   * server-side (rolling summary, remembered product/size/city) rather than
+   * opening a new row that happens to look like it.
+   */
+  const openConversation = useCallback(async (id: string) => {
+    if (busyRef.current) return;
+    setStreamPreview(null);
+    setMessages([{ id: uid(), role: 'ai', text: 'در حال باز کردن گفتگو…' }]);
+    try {
+      const conv = await api.ai.conversation(id);
+      conversationIdRef.current = conv.id;
+      transcriptRef.current = conv.messages.map((m) => ({
+        role: m.role === 'assistant' ? ('ai' as const) : ('user' as const),
+        text: m.content,
+      }));
+      setMessages(
+        conv.messages.length > 0
+          ? conv.messages.map((m) => ({
+              id: uid(),
+              role: m.role === 'assistant' ? ('ai' as const) : ('user' as const),
+              text: m.content,
+            }))
+          : [{ id: uid(), role: 'ai', text: GREETING_TEXT, chips: [...PURPOSE_CHIPS] }],
+      );
+    } catch {
+      setMessages([
+        {
+          id: uid(),
+          role: 'ai',
+          text: 'این گفتگو باز نشد. دوباره تلاش کن یا گفتگوی تازه‌ای شروع کن.',
+        },
+      ]);
+    }
+  }, []);
 
   // First load: greet (unless the server already rendered it — see
   // `initialMessages`), then auto-send the question from the home search (if any).
@@ -1155,19 +1333,87 @@ export function AdvisorChat({
   }, [messages]);
 
   return (
-    // A labelled region, not the page's <h1>: /ai now has a real page header
-    // above this panel (app/ai/page.tsx), and the widget's own title used to
-    // BE the page's only h1, shrunk to --t-h4 inside a chrome bar. The name
-    // still labels the panel for assistive tech, via aria-labelledby.
-    <section className={styles.wrap} aria-labelledby="advisor-panel-title">
+    // The page's primary landmark. The /ai hero is gone (see app/ai/page.tsx
+    // for the measurements that killed it), so the shell's own title IS the
+    // page's h1 again — at app-bar size, which is what a chat product's header
+    // is. `aria-labelledby` still names the region for assistive tech.
+    <section
+      className={`${styles.wrap}${immersive ? ` ${styles.wrapImmersive}` : ''}`}
+      aria-labelledby="advisor-panel-title"
+    >
+      {/* PERMANENT COLUMN from 1024px, DRAWER below it. The rail is rendered
+       *  once either way — a second copy for mobile would mean two components
+       *  fetching the same list and disagreeing about which thread is open. */}
+      <div className={`${styles.railDrawer}${railOpen ? ` ${styles.railDrawerOpen}` : ''}`}>
+        <ConversationRail
+          activeId={conversationIdRef.current}
+          onOpen={(id) => void openConversation(id)}
+          onNew={resetChat}
+          onDismiss={() => setRailOpen(false)}
+        />
+      </div>
+      {railOpen ? (
+        <button
+          type="button"
+          className={styles.railScrim}
+          aria-label="بستن فهرست گفتگوها"
+          onClick={() => setRailOpen(false)}
+        />
+      ) : null}
+
+      <div className={styles.column}>
       <header className={styles.head}>
-        <span className={styles.avatar} aria-hidden>
-          <AiMarkIcon size={20} />
-        </span>
+        {/* Below 1024px the rail is a drawer, so the app bar carries its
+         *  trigger — the same place ChatGPT and Claude put theirs. */}
+        <button
+          type="button"
+          className={styles.railToggle}
+          onClick={() => setRailOpen(true)}
+          aria-label="فهرست گفتگوها"
+          aria-expanded={railOpen}
+        >
+          <MenuIcon size={20} />
+        </button>
+        {/* On mobile, immersive mode takes the whole viewport — so the app bar
+         *  has to carry the way out, exactly as a messaging app's does. */}
+        {immersive ? (
+          <button
+            type="button"
+            className={styles.exitImmersive}
+            onClick={() => setImmersive(false)}
+            aria-label="بازگشت به صفحه"
+          >
+            <ChevronStartIcon size={20} className="icon--rtl" />
+          </button>
+        ) : (
+          <span className={styles.avatar} aria-hidden>
+            <AiMarkIcon size={20} />
+          </span>
+        )}
         <div className={styles.headText}>
-          <p id="advisor-panel-title" className={styles.headName}>
-            مشاور هوشمند آهن‌تایم
-          </p>
+          {crumbs && crumbs.length > 0 && !immersive ? (
+            <p className={styles.crumbs}>
+              {crumbs.map((c, i) => (
+                <Fragment key={c.href}>
+                  {i > 0 ? ' / ' : ''}
+                  {i === crumbs.length - 1 ? (
+                    <span aria-current="page">{c.label}</span>
+                  ) : (
+                    <Link href={c.href}>{c.label}</Link>
+                  )}
+                </Fragment>
+              ))}
+            </p>
+          ) : null}
+          {/* THE PAGE'S h1, and it keeps the page's own phrase rather than the
+           *  widget's name. The hero that used to carry «مشاور هوشمند خرید
+           *  آهن و فولاد» is gone, and this page is acquired through organic
+           *  search — dropping its ranking phrase out of the only h1 to put a
+           *  shorter product name in an app bar would be trading the page's
+           *  topic for a nicer bar. It renders at app-bar size instead. */}
+          <h1 id="advisor-panel-title" className={styles.headName}>
+            {heading}
+          </h1>
         </div>
         <button type="button" className={styles.newChat} onClick={resetChat}>
           گفتگوی جدید
@@ -1175,7 +1421,20 @@ export function AdvisorChat({
       </header>
 
       <div className={styles.scroll} ref={scrollRef}>
-        <div className={styles.thread} role="log" aria-live="polite" aria-atomic="false" aria-relevant="additions">
+        {/* EMPTY STATE. With a full-height shell the opening greeting is one
+         *  small bubble at the top of a large empty surface — so before the
+         *  first turn the thread centres itself and the greeting reads as a
+         *  welcome rather than as a stray message. The starter chips and their
+         *  behaviour are untouched; only the layout around them changes. */}
+        <div
+          className={`${styles.thread}${
+            messages.length <= 1 && !streamPreview && !typing ? ` ${styles.threadEmpty}` : ''
+          }`}
+          role="log"
+          aria-live="polite"
+          aria-atomic="false"
+          aria-relevant="additions"
+        >
           {messages.map((m) => (
             <MessageBubble
               key={m.id}
@@ -1249,17 +1508,43 @@ export function AdvisorChat({
         <label htmlFor="chat-input" className="visually-hidden">
           پیام به مشاور هوشمند
         </label>
-        <input
+        {/* AUTO-GROWING TEXTAREA.
+         *  A cut list, a tender line or «۳ تن میلگرد ۱۴ و ۲ تن ۱۶، تحویل
+         *  مشهد» all run past one line, and the single-line field turned them
+         *  into a horizontally-scrolling slot the visitor could not re-read
+         *  before sending. Enter still sends (it is a chat, and every test and
+         *  habit depends on it); Shift+Enter is the newline — the convention
+         *  every current chat product uses. */}
+        <textarea
           id="chat-input"
+          ref={inputRef}
+          rows={1}
           className={styles.input}
           value={input}
           onChange={(e) => setInput(e.target.value)}
+          onFocus={() => {
+            // Focusing the composer IS the intent to converse — that is the
+            // moment the phone should become a messaging app.
+            if (typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches) {
+              setImmersive(true);
+            }
+          }}
+          onKeyDown={(e) => {
+            if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return;
+            e.preventDefault();
+            send(input);
+          }}
           placeholder={
             !online
               ? 'اتصال اینترنت قطع است…'
               : busy
                 ? 'در حال پاسخ…'
-                : 'بنویس… مثلاً: یه خونهٔ ۱۰۰ متری دو طبقه می‌سازم'
+                : // Short on purpose: the composer is a textarea now, and at
+                  // 390px the old placeholder («… یه خونهٔ ۱۰۰ متری دو طبقه»)
+                  // wrapped to a second line inside a one-line box. The four
+                  // starter chips in the empty state already carry the
+                  // examples, and carry them as things you can tap.
+                  'سؤالت را بنویس…'
           }
           enterKeyHint="send"
           maxLength={1000}
@@ -1327,6 +1612,7 @@ export function AdvisorChat({
       <p className={styles.disclaimer}>
         پاسخ‌ها بر پایهٔ قیمت‌های واقعی است؛ آهن‌تایم هرگز عدد ساختگی نمی‌سازد.
       </p>
+      </div>
     </section>
   );
 }
@@ -1344,7 +1630,11 @@ function QuickReply({ label, onPick }: { label: string; onPick: (t: string) => v
   // ثبت درخواست»), which is the same review-then-submit step /request gives.
   if (label === 'دریافت پیش‌فاکتور')
     return (
-      <button type="button" className={`${styles.chip} ${styles.chipCta}`} onClick={() => onPick(label)}>
+      <button
+        type="button"
+        className={`${styles.chip} ${styles.chipCta}`}
+        onClick={() => onPick(label)}
+      >
         {label}
       </button>
     );
@@ -1400,7 +1690,9 @@ function EstimateCard({ est }: { est: Estimate }) {
         {est.items.map((it) => (
           <li key={it.name}>
             <span>{it.name}</span>
-            <span className="tnum">{toPersianDigits(it.weightKg.toLocaleString('en-US'))} کیلوگرم</span>
+            <span className="tnum">
+              {toPersianDigits(it.weightKg.toLocaleString('en-US'))} کیلوگرم
+            </span>
           </li>
         ))}
       </ul>
