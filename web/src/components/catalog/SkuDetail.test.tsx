@@ -97,14 +97,21 @@ describe('SkuDetail — نبشی wall thickness', () => {
     },
   );
 
-  it.each(['val-post', 'tbar'])(
-    'does not expose the shared value on unrelated angle-channel sub %s',
-    (subCategoryId) => {
-      renderDetail('angle-channel', { subCategoryId, dimensions: '۴' });
-      expect(screen.queryByRole('rowheader', { name: 'ضخامت' })).not.toBeInTheDocument();
-      expect(screen.queryByText('۴')).not.toBeInTheDocument();
-    },
-  );
+  it('does not expose the shared value on unrelated angle-channel sub tbar', () => {
+    renderDetail('angle-channel', { subCategoryId: 'tbar', dimensions: '۴' });
+    expect(screen.queryByRole('rowheader', { name: 'ضخامت' })).not.toBeInTheDocument();
+    expect(screen.queryByText('۴')).not.toBeInTheDocument();
+  });
+
+  it('shows «ضخامت» on وال‌پست from its own grade column, not the shared dimensions value', () => {
+    // 1405/06/08: وال‌پست's «گرید» was relabelled «ضخامت» to match
+    // ahanonline — a coincidentally identical row label to the shared نبشی
+    // wall-thickness row above, but reading `grade`, not `dimensions`. The
+    // shared «۴» dimensions value must NOT leak into it.
+    renderDetail('angle-channel', { subCategoryId: 'val-post', dimensions: '۴' });
+    expect(screen.getByRole('rowheader', { name: 'ضخامت' })).toBeInTheDocument();
+    expect(screen.queryByText('۴')).not.toBeInTheDocument();
+  });
 });
 
 describe('SkuDetail — live profile source fields', () => {
