@@ -40,7 +40,6 @@ import {
   attrKeysFor,
   GRADE_LABEL,
   ALLOY_LABEL,
-  BRANCH_LABEL,
   LENGTH_LABEL,
   CONDITION_LABEL,
   THICKNESS_LABEL,
@@ -297,12 +296,21 @@ export function SkuDrawer({
   // به آن اشاره دارد، این‌بار برای catalogLabels.attrKeysFor(...).includes('standard').
   const usesStandardAttr = attrKeys.includes('standard');
   const usesAlloyAttr = attrKeys.includes('alloy');
-  const usesGradeAttr = attrKeys.includes('grade') || usesAlloyAttr;
+  // وال‌پست (angle-channel): «گرید» is still the column being edited — only
+  // the public label became «ضخامت» 1405/06/08, to match ahanonline. Same
+  // `grade` field, same input, so it must keep resolving into this branch.
+  const usesGradeAsThicknessAttr = attrKeys.includes('gradeAsThickness');
+  const usesGradeAttr = attrKeys.includes('grade') || usesAlloyAttr || usesGradeAsThicknessAttr;
   const usesLegacyConditionAttr = attrKeys.includes('legacyCondition');
   const usesConditionAttr = attrKeys.includes('condition') || usesLegacyConditionAttr;
   // Some section families replace «گرید» with the name their source gives
-  // the stored branch length: «شاخه» on نبشی/ناودانی, «حالت» on industrial
-  // and furniture profile, and «طول» on galvanized profile.
+  // the stored branch length: «حالت» on نبشی/ناودانی (`branch`) and on
+  // industrial/furniture profile (`profileCondition` — same label, a
+  // separate key only because the two categories' owner decisions were
+  // made independently), and «طول» on galvanized profile (`length`). سپری
+  // is deliberately NOT in this set — its own «طول شاخه» reads the
+  // `branchLength` key instead and falls through to the generic automatic
+  // input below, same as لوله/پروفیل صنعتی.
   //
   // The form must swap with the page, not merely alongside it. Leaving the
   // «گرید» box here while the public table no longer publishes grade for
@@ -310,22 +318,25 @@ export function SkuDrawer({
   // ever see — the same "collect exactly what is published" rule the آلیاژ
   // and استاندارد relabels above follow. Every key here reads the SAME
   // `branchLengthM` field; the old automatic input below is hidden so two
-  // controls cannot write conflicting values into it.
+  // controls cannot write conflicting values into it. Nothing is stranded by
+  // hiding it: `grade` is null on every live row of every one of these
+  // families (وال‌پست, the one نبشی sub that does hold a real grade — now
+  // edited as «ضخامت» via `usesGradeAttr` above — is deliberately not here).
   const branchAttrKey = attrKeys.find(
     (key) => key === 'branch' || key === 'profileCondition' || key === 'length',
   );
   const usesBranchAttr = Boolean(branchAttrKey);
   const branchAttrLabel =
-    branchAttrKey === 'profileCondition'
+    branchAttrKey === 'branch' || branchAttrKey === 'profileCondition'
       ? CONDITION_LABEL
-      : branchAttrKey === 'length'
-        ? LENGTH_LABEL
-        : BRANCH_LABEL;
+      : LENGTH_LABEL;
   const gradeLabel = usesAlloyAttr
     ? ALLOY_LABEL
     : usesStandardAttr
       ? STANDARD_LABEL
-      : GRADE_LABEL;
+      : usesGradeAsThicknessAttr
+        ? THICKNESS_LABEL
+        : GRADE_LABEL;
   // During rollout, old ورق rows still carry condition-shaped values in
   // grade. Display that value until the verified migration (or this edit)
   // moves it, but never use the fallback where grade is a real alloy.

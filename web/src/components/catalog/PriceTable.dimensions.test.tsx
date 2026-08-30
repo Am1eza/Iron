@@ -67,10 +67,27 @@ describe('PriceTable — نبشی wall thickness scope', () => {
     expect(document.querySelector('td[data-label="ضخامت"]')).not.toBeNull();
   });
 
-  it.each([null, 'val-post', 'tbar'])('keeps the shared column hidden for %s', (subCategoryId) => {
+  it.each([null, 'tbar'])('keeps the shared wall-thickness column hidden for %s', (subCategoryId) => {
     renderTable(subCategoryId);
     expect(screen.queryByRole('columnheader', { name: 'ضخامت' })).not.toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: 'ابعاد' })).not.toBeInTheDocument();
     expect(document.querySelector('td[data-label="ضخامت"]')).toBeNull();
+  });
+
+  it('shows «ضخامت» on وال‌پست from its own grade column, not the shared wall-thickness one', () => {
+    // 1405/06/08: وال‌پست's «گرید» was relabelled «ضخامت» to match
+    // ahanonline (see catalogLabels' ANGLE_CHANNEL_THICKNESS_GRADE_SUBS) —
+    // a coincidentally identical header text to the shared نبشی wall-
+    // thickness column above, but a different column reading a different
+    // field (`grade`, not `dimensions`). Exactly one «ضخامت» column must
+    // render, not two.
+    renderTable('val-post');
+    const headers = screen.getAllByRole('columnheader', { name: 'ضخامت' });
+    expect(headers).toHaveLength(1);
+    expect(screen.queryByRole('columnheader', { name: 'ابعاد' })).not.toBeInTheDocument();
+    // The row helper above sets `dimensions` but not `grade`, so the value
+    // shown must be «نامشخص» (unrecorded grade), never the `dimensions`
+    // value «۴» — proof the column is reading the right field.
+    expect(document.querySelector('td[data-label="ضخامت"]')?.textContent).toBe('نامشخص');
   });
 });
