@@ -54,24 +54,29 @@ const PROFILE_THICKNESS_SUBS = new Set(['profil-z']);
 const COLOURED_SHEET_DIMENSION_SUBS = new Set(['aluminum-sheet', 'copper-sheet']);
 
 /**
- * نبشی و ناودانی sub-categories that publish «شاخه» — the branch length the
- * product is sold in, «۶ متری» / «۱۲ متری» — INSTEAD of «گرید» (owner
- * request, 1405/06).
+ * نبشی و ناودانی sub-categories that publish the branch length, «۶ متری» /
+ * «۱۲ متری», under the label «حالت» — INSTEAD of «گرید».
  *
- * This is a swap, not an addition, and the live data is why it costs nothing:
- * across all 37 rows in this category, `skus.grade` is empty on every single
- * one of these six subs, so the «گرید» column was rendering «نامشخص» on every
- * row of every one of their pages — a column that has never carried a fact
- * and, being a steel grade nobody records for نبشی, never will. The length
- * genuinely is what a buyer asks for here. Same shape as پروفیل صنعتی, which
- * traded its «گرید» for a length for the same reason.
+ * Originally an owner request (1405/06) to swap the always-empty «گرید»
+ * column for the length, labelled «شاخه». Relabelled to «حالت» 1405/06/08
+ * after the owner confirmed matching ahanonline.com's exact columns: its
+ * نبشی and ناودانی pages publish this exact same fact (verified live —
+ * ahanonline's «حالت» cells read «۶ متری» / «۱۲ متری», i.e. the same branch
+ * length) under that word, not «شاخه». No data changes, only the label; the
+ * admin edit form (`SkuDrawer`) still says «شاخه» — an internal admin term,
+ * out of scope for matching a public competitor site.
+ *
+ * `separi` moved OUT of this set 1405/06/08: ahanonline's سپری page uses its
+ * own third label, «طول شاخه» — already the `branchLength` AttrKey's label,
+ * shared with لوله/پروفیل — so سپری now reads that key instead of this one.
  *
  * `val-post` is deliberately EXCLUDED, and it is the whole reason this is an
  * allow-list rather than the category. It is the one sub whose `grade` holds
  * real published data — «ضخامت ۲», on all 8 of its live rows — so swapping
  * the column there would delete a value from the price table that an admin
- * deliberately entered. Confirmed live on /prices/angle-channel/val-post
- * before this change, and confirmed by the owner.
+ * deliberately entered. ahanonline's وال‌پست page confirms this is genuinely
+ * a «ضخامت» column (numeric, e.g. «۲») rather than a گرید — val-post now
+ * reads that same `grade` value under the `gradeAsThickness` key instead.
  *
  * Slugs verified against the live catalog, not `data/nav.ts` — which its own
  * header labels a mock fixture.
@@ -82,8 +87,13 @@ const ANGLE_CHANNEL_BRANCH_SUBS = new Set([
   'spot',
   'channel-light',
   'channel-heavy',
-  'separi',
 ]);
+
+/** سپری's own «طول شاخه» AttrKey mapping — see `ANGLE_CHANNEL_BRANCH_SUBS`. */
+const ANGLE_CHANNEL_BRANCH_LENGTH_SUBS = new Set(['separi']);
+
+/** وال‌پست's own «ضخامت» AttrKey mapping — see `ANGLE_CHANNEL_BRANCH_SUBS`. */
+const ANGLE_CHANNEL_THICKNESS_GRADE_SUBS = new Set(['val-post']);
 
 /** تیرآهن sub-category slugs where «استاندارد» (`skus.standard`, e.g. HEA/HEB
  *  per DIN 1025) is the meaningful column. Everywhere else in تیرآهن the
@@ -399,7 +409,8 @@ export type AttrKey =
   | 'branchLength'
   | 'customLength'
   | 'schedule'
-  | 'branch';
+  | 'branch'
+  | 'gradeAsThickness';
 
 /** The subset of a price row the attribute columns read. Deliberately
  *  structural rather than `PriceRow` so the admin tables and the spec sheet can
@@ -452,12 +463,18 @@ const ATTR_DEFS: Record<AttrKey, { label: string; read: (r: AttrRow) => string |
   // collision the ورق/نبشی reuse of `dimensions` avoids by never letting two
   // meanings meet under one parent.
   schedule: { label: SCHEDULE_LABEL, read: (r) => r.schedule },
-  // «شاخه» — `skus.branch_length_m` again, but as نبشی و ناودانی's own
-  // product distinction rather than as a پروفیل spec line. No new column: the
-  // length was already stored and already editable, it simply had nowhere to
-  // show on these pages. An unrecorded length reads «نامشخص», never a dash —
-  // a نبشی IS sold in some شاخه, we just have not recorded which.
-  branch: { label: BRANCH_LABEL, read: (r) => metresAdjective(r.branchLengthM) },
+  // `skus.branch_length_m` again, as نبشی و ناودانی's own product distinction
+  // rather than as a پروفیل spec line. No new column: the length was already
+  // stored and already editable, it simply had nowhere to show on these
+  // pages. Labelled «حالت», not «شاخه» — see ANGLE_CHANNEL_BRANCH_SUBS — to
+  // match ahanonline's exact wording for these subs. An unrecorded length
+  // reads «نامشخص», never a dash — a نبشی IS sold in some شاخه, we just have
+  // not recorded which.
+  branch: { label: CONDITION_LABEL, read: (r) => metresAdjective(r.branchLengthM) },
+  // وال‌پست's `skus.grade` genuinely holds a thickness value («۲»), not a
+  // grade — see ANGLE_CHANNEL_BRANCH_SUBS. Same re-label move as `alloy`
+  // above, just a different word for a different sub.
+  gradeAsThickness: { label: THICKNESS_LABEL, read: (r) => r.grade },
   customLength: {
     label: CUSTOM_LENGTH_LABEL,
     read: (r) => metres(r.branchLengthM) ?? CUT_TO_ORDER,
@@ -571,17 +588,23 @@ export function attrKeysFor(
   // subs have no schedule at all, so a «رده» column across that page would
   // read `NOT_APPLICABLE` for the majority of its own rows — the outcome
   // `usesDimensions`' sub-scoping exists to prevent.
-  // نبشی و ناودانی: six of its seven subs trade «گرید» — empty on every live
-  // row of every one of them — for the «شاخه» a buyer actually chooses on.
-  // وال پست keeps «گرید», because its grade column holds real data
-  // («ضخامت ۲»); see ANGLE_CHANNEL_BRANCH_SUBS.
+  // نبشی و ناودانی: five of its seven subs trade «گرید» — empty on every
+  // live row of every one of them — for the «حالت» a buyer actually chooses
+  // on (see ANGLE_CHANNEL_BRANCH_SUBS). سپری trades it for «طول شاخه»
+  // instead — ahanonline's own page for سپری uses that label, not «حالت»
+  // (see ANGLE_CHANNEL_BRANCH_LENGTH_SUBS). وال پست keeps its `grade` value
+  // but relabelled «ضخامت», because that column genuinely holds a thickness
+  // («ضخامت ۲») rather than a grade (see ANGLE_CHANNEL_THICKNESS_GRADE_SUBS).
   //
-  // The mixed «همه» view deliberately stays on the category default, so it
-  // still publishes وال پست's grade and marks the six swapped subs
-  // `NOT_APPLICABLE` — exactly how پروفیل's mixed view already treats صنعتی
-  // and Z, whose grade was likewise traded for a length.
+  // The mixed «همه» view deliberately stays on the category default
+  // («گرید»), so it marks every one of these seven subs `NOT_APPLICABLE` —
+  // exactly how پروفیل's mixed view already treats صنعتی and Z, whose grade
+  // was likewise traded for a length.
   if (categorySlug === 'angle-channel' && sub !== null) {
-    return ANGLE_CHANNEL_BRANCH_SUBS.has(sub) ? ['branch'] : ['grade'];
+    if (ANGLE_CHANNEL_BRANCH_SUBS.has(sub)) return ['branch'];
+    if (ANGLE_CHANNEL_BRANCH_LENGTH_SUBS.has(sub)) return ['branchLength'];
+    if (ANGLE_CHANNEL_THICKNESS_GRADE_SUBS.has(sub)) return ['gradeAsThickness'];
+    return ['grade'];
   }
   if (categorySlug === 'pipe' && sub !== null) {
     return PIPE_SCHEDULE_SUBS.has(sub) ? ['grade', 'schedule'] : ['grade'];

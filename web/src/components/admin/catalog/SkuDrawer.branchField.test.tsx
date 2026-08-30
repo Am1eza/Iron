@@ -103,19 +103,32 @@ describe('SkuDrawer — نبشی و ناودانی collects «شاخه» in plac
     expect(input.value).toBe('12');
   });
 
-  it('does the same on ناودانی سبک and سپری', () => {
-    for (const sub of ['s-channel', 's-separi']) {
-      const { unmount } = openDrawer(sub);
-      expect(screen.getByLabelText('شاخه')).toBeInTheDocument();
-      expect(screen.queryByLabelText('گرید')).toBeNull();
-      unmount();
-    }
+  it('does the same on ناودانی سبک', () => {
+    openDrawer('s-channel');
+    expect(screen.getByLabelText('شاخه')).toBeInTheDocument();
+    expect(screen.queryByLabelText('گرید')).toBeNull();
   });
 
-  it('keeps «گرید» — and the original length box — on وال پست', () => {
-    // The one sub whose grade holds real data («ضخامت ۲» on all 8 live rows).
+  it('gives سپری the generic «طول شاخه (متر)» box instead — same column, own ahanonline label', () => {
+    // سپری's public column is «طول شاخه» (its own `branchLength` key, ahanonline's
+    // own label for this sub — see catalogLabels' ANGLE_CHANNEL_BRANCH_LENGTH_SUBS),
+    // not «حالت»/«شاخه» like نبشی/ناودانی — so it does not qualify for the
+    // نبشی-specific «شاخه» quick-picker (usesBranchAttr checks the `branch`
+    // key only) and instead gets the same generic box every other
+    // branchLength-using category (e.g. پروفیل صنعتی) already uses.
+    openDrawer('s-separi');
+    expect(screen.queryByLabelText('شاخه')).toBeNull();
+    expect(screen.queryByLabelText('گرید')).toBeNull();
+    expect(screen.getByLabelText('طول شاخه (متر)')).toBeInTheDocument();
+  });
+
+  it('relabels وال پست’s «گرید» box «ضخامت» — same column, same real data', () => {
+    // The one sub whose grade holds real data («ضخامت ۲» on all 8 live
+    // rows). 1405/06/08: relabelled to match ahanonline's own «ضخامت»
+    // column for وال‌پست — still the same `grade` field/input, not a swap.
     openDrawer('s-valpost');
-    expect(screen.getByLabelText('گرید')).toBeInTheDocument();
+    expect(screen.getByLabelText('ضخامت')).toBeInTheDocument();
+    expect(screen.queryByLabelText('گرید')).toBeNull();
     expect(screen.queryByLabelText('شاخه')).toBeNull();
     expect(screen.getByLabelText('طول شاخه (متر)')).toBeInTheDocument();
   });
@@ -134,7 +147,8 @@ describe('SkuDrawer — نبشی و ناودانی collects «شاخه» in plac
     openDrawer('s-nabshi');
     expect(screen.getByLabelText('شاخه')).toBeInTheDocument();
     await user.selectOptions(screen.getByLabelText('زیر‌دسته'), 's-valpost');
-    expect(screen.getByLabelText('گرید')).toBeInTheDocument();
+    expect(screen.getByLabelText('ضخامت')).toBeInTheDocument();
     expect(screen.queryByLabelText('شاخه')).toBeNull();
+    expect(screen.queryByLabelText('گرید')).toBeNull();
   });
 });
