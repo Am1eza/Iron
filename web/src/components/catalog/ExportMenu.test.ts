@@ -64,7 +64,11 @@ describe('ExportMenu columns — the shared secondary-spec column stays context-
     }
   });
 
-  it('exports پروفیل Z by ارتفاع and ضخامت without changing sibling profiles', () => {
+  it('exports thickness for the source-verified profile subs', () => {
+    for (const sub of ['prvfyl-snaty', 'profil-mobli', 'profil-galvanizeh']) {
+      expect(cols('profile', sub)).toContain('سایز');
+      expect(cols('profile', sub)).toContain('ضخامت');
+    }
     expect(cols('profile', 'profil-z')).toContain('ارتفاع');
     expect(cols('profile', 'profil-z')).toContain('ضخامت');
     expect(cols('profile', 'box-square')).toContain('سایز');

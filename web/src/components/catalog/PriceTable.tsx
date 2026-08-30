@@ -541,8 +541,8 @@ export function PriceTable({
   const sub = controlled ? (subProp ?? null) : internalSub;
   const sizeCol = sizeLabel(categorySlug, sub);
   // ورق keeps its category-wide «ابعاد» column. Section thickness is
-  // intentionally sub-aware: only the approved نبشی subs and پروفیل Z show
-  // it, while their mixed category views stay structurally unchanged.
+  // intentionally sub-aware: only the source-verified نبشی/استیل/پروفیل
+  // subs show it, while their mixed category views stay structurally safe.
   const showDimensions = usesDimensions(categorySlug, sub);
   const dimensionsCol = dimensionsLabel(categorySlug, sub);
   // The «گرید»/«استاندارد»/«طول شاخه»/«طول سفارشی»/«آلیاژ» columns also

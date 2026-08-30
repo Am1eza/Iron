@@ -39,6 +39,7 @@ vi.mock('@/lib/api/resources/admin', () => ({
 const CATEGORIES = [
   { id: 'c5', slug: 'angle-channel', name: 'نبشی و ناودانی' },
   { id: 'c1', slug: 'rebar', name: 'میلگرد' },
+  { id: 'c3', slug: 'profile', name: 'پروفیل' },
 ] as AdminCategory[];
 
 /** The live نبشی و ناودانی taxonomy, plus one میلگرد sub as a control. */
@@ -48,6 +49,14 @@ const SUBS = [
   { id: 's-separi', categoryId: 'c5', slug: 'separi', name: 'سپری' },
   { id: 's-valpost', categoryId: 'c5', slug: 'val-post', name: 'وال پست' },
   { id: 's-deformed', categoryId: 'c1', slug: 'deformed', name: 'آجدار A3' },
+  { id: 's-industrial', categoryId: 'c3', slug: 'prvfyl-snaty', name: 'پروفیل صنعتی' },
+  { id: 's-furniture', categoryId: 'c3', slug: 'profil-mobli', name: 'پروفیل مبلی' },
+  {
+    id: 's-galvanized',
+    categoryId: 'c3',
+    slug: 'profil-galvanizeh',
+    name: 'پروفیل گالوانیزه',
+  },
 ] as AdminSubCategory[];
 
 function openDrawer(defaultSubId: string) {
@@ -136,5 +145,26 @@ describe('SkuDrawer — نبشی و ناودانی collects «شاخه» in plac
     await user.selectOptions(screen.getByLabelText('زیر‌دسته'), 's-valpost');
     expect(screen.getByLabelText('گرید')).toBeInTheDocument();
     expect(screen.queryByLabelText('شاخه')).toBeNull();
+  });
+});
+
+describe('SkuDrawer — profile fields match the public source columns', () => {
+  it('collects thickness and «حالت» on industrial and furniture profile', () => {
+    for (const sub of ['s-industrial', 's-furniture']) {
+      const { unmount } = openDrawer(sub);
+      expect(screen.getByLabelText('ضخامت')).toBeInTheDocument();
+      expect(screen.getByLabelText('حالت')).toBeInTheDocument();
+      expect(screen.queryByLabelText('گرید')).toBeNull();
+      expect(screen.queryByLabelText('طول شاخه (متر)')).toBeNull();
+      unmount();
+    }
+  });
+
+  it('collects thickness and «طول» on galvanized profile', () => {
+    openDrawer('s-galvanized');
+    expect(screen.getByLabelText('ضخامت')).toBeInTheDocument();
+    expect(screen.getByLabelText('طول')).toBeInTheDocument();
+    expect(screen.queryByLabelText('گرید')).toBeNull();
+    expect(screen.queryByLabelText('طول شاخه (متر)')).toBeNull();
   });
 });

@@ -41,6 +41,7 @@ import {
   GRADE_LABEL,
   ALLOY_LABEL,
   BRANCH_LABEL,
+  LENGTH_LABEL,
   CONDITION_LABEL,
   THICKNESS_LABEL,
   SCHEDULE_LABEL,
@@ -299,17 +300,27 @@ export function SkuDrawer({
   const usesGradeAttr = attrKeys.includes('grade') || usesAlloyAttr;
   const usesLegacyConditionAttr = attrKeys.includes('legacyCondition');
   const usesConditionAttr = attrKeys.includes('condition') || usesLegacyConditionAttr;
-  // نبشی و ناودانی (بجز وال پست): «گرید» جای خود را به «شاخه» می‌دهد — همان
-  // ستونی که در جدول قیمت «۶ متری»/«۱۲ متری» نشان داده می‌شود.
+  // Some section families replace «گرید» with the name their source gives
+  // the stored branch length: «شاخه» on نبشی/ناودانی, «حالت» on industrial
+  // and furniture profile, and «طول» on galvanized profile.
   //
   // The form must swap with the page, not merely alongside it. Leaving the
   // «گرید» box here while the public table no longer publishes grade for
   // these subs would invite an operator to keep filling a field nobody will
   // ever see — the same "collect exactly what is published" rule the آلیاژ
-  // and استاندارد relabels above follow. Nothing is stranded by hiding it:
-  // `grade` is null on every live row of all six of these subs (وال پست, the
-  // one sub that does hold a real grade, is deliberately not in the set).
-  const usesBranchAttr = attrKeys.includes('branch');
+  // and استاندارد relabels above follow. Every key here reads the SAME
+  // `branchLengthM` field; the old automatic input below is hidden so two
+  // controls cannot write conflicting values into it.
+  const branchAttrKey = attrKeys.find(
+    (key) => key === 'branch' || key === 'profileCondition' || key === 'length',
+  );
+  const usesBranchAttr = Boolean(branchAttrKey);
+  const branchAttrLabel =
+    branchAttrKey === 'profileCondition'
+      ? CONDITION_LABEL
+      : branchAttrKey === 'length'
+        ? LENGTH_LABEL
+        : BRANCH_LABEL;
   const gradeLabel = usesAlloyAttr
     ? ALLOY_LABEL
     : usesStandardAttr
@@ -632,8 +643,8 @@ export function SkuDrawer({
                    hence the identical `touched.weight` handling. */
                 <PickerInput
                   id="sku-branch"
-                  label={BRANCH_LABEL}
-                  helper={`طول شاخه به متر. در جدول قیمت «۶ متری» نمایش داده می‌شود؛ ${weightLabel(parentCategory?.slug)} هم بر همین طول حساب می‌شود.`}
+                  label={branchAttrLabel}
+                  helper={`طول شاخه به متر. در جدول قیمت زیر عنوان «${branchAttrLabel}» و به‌شکل «۶ متری» نمایش داده می‌شود؛ ${weightLabel(parentCategory?.slug)} هم بر همین طول حساب می‌شود.`}
                   value={v.branchLengthM}
                   options={['6', '12']}
                   error={

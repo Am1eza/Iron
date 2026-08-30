@@ -22,6 +22,7 @@ import {
   factoryLabel,
   BRANCH_LENGTH_LABEL,
   CUSTOM_LENGTH_LABEL,
+  LENGTH_LABEL,
   WEIGHT_LABEL,
   BRANCH_WEIGHT_LABEL,
   NOT_APPLICABLE,
@@ -126,8 +127,10 @@ describe('usesDimensions', () => {
     expect(usesDimensions('felezat-rangi', null)).toBe(false);
     expect(usesDimensions('steel', null)).toBe(false);
     expect(usesDimensions('steel', 'pipe')).toBe(false);
-    expect(usesDimensions('profile', 'profil-z')).toBe(true);
-    expect(dimensionsLabel('profile', 'profil-z')).toBe(THICKNESS_LABEL);
+    for (const sub of ['prvfyl-snaty', 'profil-mobli', 'profil-galvanizeh', 'profil-z']) {
+      expect(usesDimensions('profile', sub)).toBe(true);
+      expect(dimensionsLabel('profile', sub)).toBe(THICKNESS_LABEL);
+    }
     expect(usesDimensions('profile', null)).toBe(false);
     expect(usesDimensions('profile', 'box-square')).toBe(false);
   });
@@ -279,24 +282,41 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ح
 
   /* ------------------------------- پروفیل ------------------------------- */
 
-  it('keeps «گرید» on the پروفیل subs the owner left alone', () => {
-    for (const sub of ['prvfyl-sakhtmany', 'profil-mobli', 'profil-sotuni', 'profil-galvanizeh']) {
+  it('keeps «گرید» only on the unreconciled profile subs, never the mixed view', () => {
+    for (const sub of ['prvfyl-sakhtmany', 'profil-sotuni']) {
       const col = only('profile', sub);
       expect(col.key).toBe('grade');
       expect(col.label).toBe(GRADE_LABEL);
     }
-    // …and in the mixed «همه» view, which falls back to the category default.
-    expect(only('profile', null).label).toBe(GRADE_LABEL);
+    // The priced subs disagree on «حالت»/«طول»/«طول سفارشی», but none has a
+    // grade. The mixed page therefore omits the attribute column altogether.
+    expect(attributeColumns('profile', null)).toEqual([]);
   });
 
-  it('replaces صنعتی’s «گرید» with «طول شاخه», read from branch_length_m', () => {
+  it('replaces industrial and furniture grade with source-style «حالت»', () => {
+    for (const sub of ['prvfyl-snaty', 'profil-mobli']) {
+      const col = only('profile', sub);
+      expect(col.key).toBe('profileCondition');
+      expect(col.label).toBe(CONDITION_LABEL);
+      expect(col.cell(row(sub, { branchLengthM: 6 }))).toBe('۶ متری');
+      // A stored grade/condition is ignored: ahanonline's value here is the
+      // supplied branch length, not a metallurgy or finish field.
+      expect(col.cell(row(sub, { grade: 'ST37', condition: 'رول' }))).toBe(UNKNOWN_VALUE);
+      expect(col.card(row(sub, { grade: 'ST37' }))).toBeNull();
+    }
+  });
+
+  it('replaces galvanized grade with «طول», read from branch_length_m', () => {
+    const col = only('profile', 'profil-galvanizeh');
+    expect(col.key).toBe('length');
+    expect(col.label).toBe(LENGTH_LABEL);
+    expect(col.cell(row('profil-galvanizeh', { branchLengthM: 6 }))).toBe('۶ متری');
+    expect(col.cell(row('profil-galvanizeh', { grade: 'ST37' }))).toBe(UNKNOWN_VALUE);
+  });
+
+  it('does not retain the former صنعتی «طول شاخه» wording', () => {
     const col = only('profile', 'prvfyl-snaty');
-    expect(col.key).toBe('branchLength');
-    expect(col.label).toBe(BRANCH_LENGTH_LABEL);
-    expect(col.cell(row('prvfyl-snaty', { branchLengthM: 6 }))).toBe('۶ متر');
-    // A stored grade is ignored outright — the column is not that fact.
-    expect(col.cell(row('prvfyl-snaty', { grade: 'ST37' }))).toBe(UNKNOWN_VALUE);
-    expect(col.card(row('prvfyl-snaty', { grade: 'ST37' }))).toBeNull();
+    expect(col.label).not.toBe(BRANCH_LENGTH_LABEL);
   });
 
   it('gives Z «طول سفارشی», which reads «بر اساس سفارش» when unset', () => {
@@ -322,17 +342,6 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ح
     expect(cols[0]!.cell(row('prvfyl-astyl', { grade: '۳۰۴' }))).toBe('۳۰۴');
     expect(cols[1]!.cell(row('prvfyl-astyl', { branchLengthM: 6 }))).toBe('۶ متر');
     expect(cols[1]!.cell(row('prvfyl-astyl'))).toBe(UNKNOWN_VALUE);
-  });
-
-  it('dashes a پروفیل column that does not apply to the row under it', () => {
-    // The mixed «همه» view: مبلی keeps its «گرید», so the column is there —
-    // but a صنعتی row traded that fact away for a length and must not be
-    // reported as merely missing one.
-    const col = only('profile', null);
-    expect(col.cell(row('profil-mobli'))).toBe(UNKNOWN_VALUE);
-    expect(col.cell(row('prvfyl-snaty', { grade: 'ST37' }))).toBe(NOT_APPLICABLE);
-    expect(col.cell(row('profil-z'))).toBe(NOT_APPLICABLE);
-    expect(col.cell(row('prvfyl-astyl', { grade: '۳۰۴' }))).toBe(NOT_APPLICABLE);
   });
 
   /* ---------------------------- نبشی و ناودانی ---------------------------- */
@@ -361,10 +370,10 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ح
     const col = only('angle-channel', 'nabshi');
     expect(col.cell(row('nabshi', { branchLengthM: 6 }))).toBe('۶ متری');
     expect(col.cell(row('nabshi', { branchLengthM: 12 }))).toBe('۱۲ متری');
-    // «طول شاخه» on پروفیل reads the SAME column and still says «۶ متر» —
-    // the two labels and the two phrasings must not have merged.
+    // صنعتی now uses the same adjectival phrase because its source calls the
+    // column «حالت» and publishes «۶ متری» there.
     expect(only('profile', 'prvfyl-snaty').cell(row('prvfyl-snaty', { branchLengthM: 6 }))).toBe(
-      '۶ متر',
+      '۶ متری',
     );
   });
 
