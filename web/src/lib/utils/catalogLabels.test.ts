@@ -58,6 +58,18 @@ describe('sizeLabel', () => {
     expect(sizeLabel('profile', 'box-square')).toBe(SIZE_LABEL);
     expect(sizeLabel('profile', null)).toBe(SIZE_LABEL);
   });
+
+  it('calls فلزات‌رنگی\'s ورق subs «ضخامت», every sibling stays «سایز»', () => {
+    // ahanonline.com's ورق آلومینیوم/ورق مسی pages both use «ضخامت», verified
+    // 1405/06/08 — sub-scoped, not category-wide like the main ورق category,
+    // because میلگرد/نبشی/لوله/پروفیل آلومینیوم genuinely mean سایز.
+    for (const sub of ['aluminum-sheet', 'copper-sheet']) {
+      expect(sizeLabel('felezat-rangi', sub)).toBe(THICKNESS_LABEL);
+    }
+    for (const sub of ['aluminum-rebar', 'aluminum-angle', 'copper-pipe', null]) {
+      expect(sizeLabel('felezat-rangi', sub)).toBe(SIZE_LABEL);
+    }
+  });
 });
 
 describe('weightLabel', () => {
@@ -265,6 +277,28 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ح
     const fourSquare = only('profile', 'chaharpahlu');
     expect(fourSquare.cell(row('chaharpahlu', { condition: 'ترانس' }))).toBe('ترانس');
     expect(fourSquare.cell(row('chaharpahlu', { grade: 'نرمال' }))).toBe('نرمال');
+  });
+
+  it('labels میلگرد آلومینیوم «آلیاژ» — grade is a real alloy on every live row', () => {
+    // Verified 1405/06/08: all 57 live aluminum-rebar rows store a real
+    // alloy series in `grade` («۷۰۰۰»), confirmed from the product names
+    // themselves. Not an empty-column guess like the نبشی/پروفیل swaps.
+    const col = only('felezat-rangi', 'aluminum-rebar');
+    expect(col.key).toBe('alloy');
+    expect(col.label).toBe(ALLOY_LABEL);
+    expect(col.cell(row('aluminum-rebar', { grade: '7000' }))).toBe('7000');
+  });
+
+  it('relabels لوله مسی «ضخامت» — grade literally stores «ضخامت X.XX» on every live row', () => {
+    // Verified 1405/06/08: all 45 live copper-pipe rows store the literal
+    // string «ضخامت ۰.۸۱» in `grade` — the same mislabeled-not-empty pattern
+    // as نبشی's وال‌پست, reusing its `gradeAsThickness` AttrKey rather than
+    // duplicating it. ahanonline's own لوله مسی page confirms «ضخامت» is the
+    // real column here, not «گرید».
+    const col = only('felezat-rangi', 'copper-pipe');
+    expect(col.key).toBe('gradeAsThickness');
+    expect(col.label).toBe(THICKNESS_LABEL);
+    expect(col.cell(row('copper-pipe', { grade: 'ضخامت ۰.۸۱' }))).toBe('ضخامت ۰.۸۱');
   });
 
   it('does not leak «حالت» into any other category', () => {

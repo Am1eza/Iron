@@ -273,12 +273,24 @@ export function dimensionsLabel(
 
 /** «ضخامت» for ورق, «ارتفاع» on پروفیل Z, «سایز» everywhere else. The Z
  *  spelling is sub-scoped because every sibling profile is still bought by
- *  its section size; mixed/category lists therefore keep the safe generic. */
+ *  its section size; mixed/category lists therefore keep the safe generic.
+ *
+ *  فلزات‌رنگی's ورق subs (`aluminum-sheet`/`copper-sheet`) are «ضخامت» too —
+ *  verified against ahanonline.com's own ورق آلومینیوم/ورق مسی pages
+ *  1405/06/08, same THICKNESS_CATEGORIES concept as the main ورق category
+ *  but sub-scoped rather than category-wide, since سایز genuinely means size
+ *  (not thickness) on every OTHER فلزات‌رنگی sub (میلگرد/نبشی/لوله/…). */
 export function sizeLabel(
   categorySlug: string | null | undefined,
   subCategorySlug: string | null = null,
 ): string {
   if (categorySlug === 'profile' && subCategorySlug === 'profil-z') return HEIGHT_LABEL;
+  if (
+    categorySlug === 'felezat-rangi' &&
+    Boolean(subCategorySlug && COLOURED_SHEET_DIMENSION_SUBS.has(subCategorySlug))
+  ) {
+    return THICKNESS_LABEL;
+  }
   return usesThickness(categorySlug) ? THICKNESS_LABEL : SIZE_LABEL;
 }
 
@@ -532,10 +544,25 @@ const PROFILE_ATTRS: Record<string, AttrKey[]> = {
 };
 
 /** Metal sheets outside the main ورق category. Aluminium genuinely needs
- *  both axes; copper currently has a verified condition but no alloy value. */
+ *  both axes; copper currently has a verified condition but no alloy value.
+ *
+ *  Two more entries added 1405/06/08 after checking real production data
+ *  against ahanonline.com — not a relabel-for-consistency guess:
+ *  - `aluminum-rebar`: every one of its 57 live rows stores a real alloy
+ *    designation in `grade` («۷۰۰۰», confirmed from the product names
+ *    themselves — «میلگرد آلومینیوم گرید ۷۰۰۰ …»), exactly the `alloy`
+ *    re-label pattern استیل/aluminum-sheet already use.
+ *  - `copper-pipe`: every one of its 45 live rows stores «ضخامت X.XX» —
+ *    literally the word «ضخامت» — IN `grade`, the same mislabeled-not-empty
+ *    pattern as نبشی's وال‌پست (see catalogLabels' ANGLE_CHANNEL_THICKNESS_GRADE_SUBS
+ *    and its `gradeAsThickness` AttrKey, reused here rather than duplicated).
+ *    ahanonline's own لوله مسی page confirms «ضخامت» is the real column.
+ */
 const COLOURED_METAL_ATTRS: Readonly<Record<string, AttrKey[]>> = {
   'aluminum-sheet': ['alloy', 'condition'],
   'copper-sheet': ['condition'],
+  'aluminum-rebar': ['alloy'],
+  'copper-pipe': ['gradeAsThickness'],
 };
 
 /**
