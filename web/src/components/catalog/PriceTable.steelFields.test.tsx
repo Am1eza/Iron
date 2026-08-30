@@ -13,14 +13,15 @@ vi.mock('next/navigation', () => ({
 }));
 
 /**
- * استیل after the owner's employer's 1405/06 instruction: «کلاک کارخانه رو
- * حذف بکنیم، فقط محصول رو می‌ذاریم، آلیاژش رو می‌نویسیم و طولش رو».
- *
- * The category is imported stainless end to end, so — unlike پروفیل, where
- * the removal is a per-sub list with «ساختمانی» deliberately exempt — no sub
- * in it keeps a mill. That makes this table the case the پروفیل file cannot
- * cover: a category where NO row can carry a factory, in the mixed «همه» view
- * as well as under every filter.
+ * استیل after the owner's 1405/06/08 confirmation: matching ahanonline.com's
+ * exact columns overrides the prior 1405/06 "no factory, آلیاژ+طول شاخه
+ * everywhere" instruction (verified per sub against the live ahanonline.com
+ * page). The factory removal itself stands — ahanonline shows no
+ * factory/برند column for any استیل sub either — but the attribute columns
+ * are now per-sub: نبشی/ناودانی استیل keep «آلیاژ» with no length; پروفیل
+ * استیل keeps «آلیاژ» and gains «حالت»; لوله استیل trades «آلیاژ» for
+ * «حالت»+«رده», matching ahanonline's پرشور pressure-class treatment of
+ * pipe rather than the alloy treatment of the other three sections.
  *
  * `factory: undefined` here is what `catalogRepo.toPriceRow` already delivers
  * (it withholds the stored «چین»/«تایوان» origin strings at the DTO
@@ -29,7 +30,14 @@ vi.mock('next/navigation', () => ({
 function row(
   id: string,
   subCategoryId: string,
-  extra: { grade?: string; branchLengthM?: number; factory?: string } = {},
+  extra: {
+    grade?: string;
+    condition?: string;
+    schedule?: string;
+    branchLengthM?: number;
+    factory?: string;
+    dimensions?: string;
+  } = {},
 ): PriceRow {
   return {
     id,
@@ -64,10 +72,10 @@ const SUBS: SubCat[] = [
 ];
 
 const ROWS = [
-  row('angle-40', 'angle', { grade: '304', branchLengthM: 6 }),
-  row('channel-10', 'channel', { grade: '304L', branchLengthM: 6 }),
-  row('pipe-2', 'pipe', { grade: '316L', branchLengthM: 6 }),
-  row('profile-40', 'profile', { grade: '201', branchLengthM: 6 }),
+  row('angle-40', 'angle', { grade: '304', dimensions: '2' }),
+  row('channel-10', 'channel', { grade: '304L', dimensions: '3' }),
+  row('pipe-2', 'pipe', { condition: 'درزدار', schedule: '۴۰' }),
+  row('profile-40', 'profile', { grade: '201', condition: 'گالوانیزه', dimensions: '2' }),
 ];
 
 function renderTable(rows: PriceRow[] = ROWS, initialSub: string | null = null) {
@@ -110,27 +118,45 @@ describe('PriceTable — استیل is imported, so it has no کارخانه at 
     expect(screen.getByRole('table', { name: 'قیمت استیل' })).toBeInTheDocument();
   });
 
-  it('publishes «آلیاژ» and «طول شاخه» on every sub', async () => {
+  it('publishes «آلیاژ» (no length) on نبشی/ناودانی استیل', async () => {
     const user = userEvent.setup();
     renderTable();
     for (const [sub, product, alloy] of [
       ['نبشی استیل', 'angle-40', '304'],
       ['ناودانی استیل', 'channel-10', '304L'],
-      ['لوله استیل', 'pipe-2', '316L'],
-      ['پروفیل استیل', 'profile-40', '201'],
     ] as const) {
       await user.click(screen.getByRole('button', { name: sub }));
       expect(screen.queryByRole('columnheader', { name: 'کارخانه' })).toBeNull();
       expect(cellFor(product, 'آلیاژ')).toBe(alloy);
-      expect(cellFor(product, 'طول شاخه')).toBe('۶ متر');
+      expect(screen.queryByRole('columnheader', { name: 'طول شاخه' })).toBeNull();
       expect(screen.queryByRole('columnheader', { name: 'گرید' })).toBeNull();
     }
   });
 
-  it('says «نامشخص» for a length nobody has entered — never a dash', () => {
-    // A dash would claim استیل products have no branch length; they do, we
-    // just have not recorded this one.
-    renderTable([row('angle-50', 'angle', { grade: '304' })]);
-    expect(cellFor('angle-50', 'طول شاخه')).toBe('نامشخص');
+  it('publishes «آلیاژ»+«حالت» on پروفیل استیل, no length', async () => {
+    const user = userEvent.setup();
+    renderTable();
+    await user.click(screen.getByRole('button', { name: 'پروفیل استیل' }));
+    expect(cellFor('profile-40', 'آلیاژ')).toBe('201');
+    expect(cellFor('profile-40', 'حالت')).toBe('گالوانیزه');
+    expect(screen.queryByRole('columnheader', { name: 'طول شاخه' })).toBeNull();
+  });
+
+  it('publishes «حالت»+«رده» on لوله استیل, no آلیاژ', async () => {
+    const user = userEvent.setup();
+    renderTable();
+    await user.click(screen.getByRole('button', { name: 'لوله استیل' }));
+    expect(cellFor('pipe-2', 'حالت')).toBe('درزدار');
+    expect(cellFor('pipe-2', 'رده')).toBe('۴۰');
+    expect(screen.queryByRole('columnheader', { name: 'آلیاژ' })).toBeNull();
+  });
+
+  it('says «نامشخص» for an آلیاژ nobody has entered on نبشی استیل — never a dash', async () => {
+    const user = userEvent.setup();
+    // A dash would claim نبشی استیل products have no alloy; they do, we just
+    // have not recorded this one.
+    renderTable([row('angle-50', 'angle')]);
+    await user.click(screen.getByRole('button', { name: 'نبشی استیل' }));
+    expect(cellFor('angle-50', 'آلیاژ')).toBe('نامشخص');
   });
 });

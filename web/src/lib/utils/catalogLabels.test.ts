@@ -477,78 +477,56 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ح
 
   /* -------------------------- استیل (the category) -------------------------- */
 
-  /** The استیل column pair, in the order the table renders them. */
-  const steelCols = (sub: string | null) => {
-    const cols = attributeColumns('steel', sub);
-    expect(cols.map((c) => c.key)).toEqual(['alloy', 'branchLength']);
-    return { alloy: cols[0]!, length: cols[1]! };
-  };
+  // 1405/06/08: the owner confirmed matching ahanonline.com's exact columns
+  // overrides the prior "آلیاژ+طول شاخه everywhere" instruction. Verified per
+  // sub against the live ahanonline.com page: لوله استیل shows «رده»+«حالت»
+  // and no آلیاژ/length at all; نبشی/ناودانی استیل keep «آلیاژ» with no
+  // length; پروفیل استیل keeps «آلیاژ» and additionally gains «حالت». Only
+  // the currently-empty subs (فلنج، مش، رینگ، فنر، تسمه، تیوب، توری) — no
+  // live ahanonline page, no live rows — keep the old category default.
 
-  it('labels the whole استیل category «آلیاژ», every sub and the mixed view', () => {
-    // The four subs that carry live stock, the empty-but-visible ones, and the
-    // «همه» view. Every product under استیل is stainless, so the answer never
-    // varies by sub — which is also why no cell below can read NOT_APPLICABLE.
-    for (const sub of [
-      'angle',
-      'channel',
-      'pipe',
-      'profile',
-      'flange',
-      'mesh',
-      'ring',
-      'spring',
-      'strip',
-      'tube',
-      'wire-mesh',
-      null,
-    ]) {
-      const { alloy, length } = steelCols(sub);
-      expect(alloy.label).toBe(ALLOY_LABEL);
-      // …and «طول شاخه» beside it, on the same every-sub rule: the mill column
-      // is gone category-wide (imported stainless), so the length is the other
-      // spec the buyer is left needing.
-      expect(length.label).toBe(BRANCH_LENGTH_LABEL);
+  it('gives نبشی/ناودانی استیل «آلیاژ» with no length', () => {
+    for (const sub of ['angle', 'channel']) {
+      const cols = attributeColumns('steel', sub);
+      expect(cols.map((c) => c.key)).toEqual(['alloy']);
+      expect(cols[0]!.label).toBe(ALLOY_LABEL);
     }
   });
 
-  it('prints the استیل branch length in metres, and «نامشخص» when unrecorded', () => {
-    const { length } = steelCols(null);
-    expect(length.cell(row('angle', { branchLengthM: 6 }))).toBe('۶ متر');
-    expect(length.card(row('angle', { branchLengthM: 6 }))).toBe('۶ متر');
-    // Never a dash: every استیل product HAS a branch length — an unfilled one
-    // is a gap in the data, not an inapplicable column.
-    expect(length.cell(row('pipe'))).toBe(UNKNOWN_VALUE);
-    expect(length.card(row('pipe'))).toBeNull();
+  it('gives پروفیل استیل «آلیاژ»+«حالت», and لوله استیل «حالت»+«رده» with no آلیاژ', () => {
+    const profileCols = attributeColumns('steel', 'profile');
+    expect(profileCols.map((c) => c.key)).toEqual(['alloy', 'condition']);
+    expect(profileCols.map((c) => c.label)).toEqual([ALLOY_LABEL, CONDITION_LABEL]);
+
+    const pipeCols = attributeColumns('steel', 'pipe');
+    expect(pipeCols.map((c) => c.key)).toEqual(['condition', 'schedule']);
+    expect(pipeCols.map((c) => c.label)).toEqual([CONDITION_LABEL, SCHEDULE_LABEL]);
   });
 
-  it('gives استیل and پروفیل استیل the same «طول شاخه» definition', () => {
-    // The same product family lives under both, and one table wording the
-    // length differently from the other is exactly what the shared AttrKey
-    // exists to prevent.
-    const viaProfile = attributeColumns('profile', 'prvfyl-astyl').find((c) => c.key === 'branchLength')!;
-    const viaSteel = steelCols('profile').length;
-    expect(viaSteel.label).toBe(viaProfile.label);
-    expect(viaSteel.cell(row('profile', { branchLengthM: 6 }))).toBe(
-      viaProfile.cell(row('prvfyl-astyl', { branchLengthM: 6 })),
-    );
+  it('keeps «آلیاژ»+«طول شاخه» on استیل subs with no live ahanonline page to verify against, and on the mixed «همه» view', () => {
+    for (const sub of ['flange', 'mesh', 'ring', 'spring', 'strip', 'tube', 'wire-mesh', null]) {
+      const cols = attributeColumns('steel', sub);
+      expect(cols.map((c) => c.key)).toEqual(['alloy', 'branchLength']);
+    }
   });
 
-  it('reads the real stainless designations out of skus.grade under استیل', () => {
-    const col = steelCols(null).alloy;
+  it('reads «آلیاژ» out of skus.grade for the استیل subs that still carry it', () => {
     for (const [sub, alloy] of [
       ['angle', '304'],
       ['channel', '304L'],
-      ['pipe', '316L'],
       ['profile', '201'],
     ] as const) {
+      const col = attributeColumns('steel', sub).find((c) => c.key === 'alloy')!;
       expect(col.cell(row(sub, { grade: alloy }))).toBe(alloy);
       expect(col.card(row(sub, { grade: alloy }))).toBe(alloy);
     }
     // Unset is «نامشخص», never a dash: a stainless product HAS an alloy, we
     // just have not recorded it.
-    expect(col.cell(row('pipe'))).toBe(UNKNOWN_VALUE);
-    expect(col.card(row('pipe'))).toBeNull();
+    const angleAlloy = attributeColumns('steel', 'angle').find((c) => c.key === 'alloy')!;
+    expect(angleAlloy.cell(row('angle'))).toBe(UNKNOWN_VALUE);
+    expect(angleAlloy.card(row('angle'))).toBeNull();
   });
+
 
   it('does not leak «آلیاژ» into the unrelated top-level لوله/نبشی categories', () => {
     // `steel` has subs literally named `pipe`, `angle`, `channel`, `profile`,

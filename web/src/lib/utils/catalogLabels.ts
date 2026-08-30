@@ -39,8 +39,11 @@ const DIMENSIONS_CATEGORIES = new Set(['sheet']);
  *  unrelated product lines a meaningless extra field. */
 const NABSHI_THICKNESS_SUBS = new Set(['nabshi', 'angle-unequal', 'spot']);
 
-/** Stainless sections whose stored secondary dimension is wall thickness. */
-const STEEL_THICKNESS_SUBS = new Set(['angle', 'channel']);
+/** Stainless sections whose stored secondary dimension is wall thickness.
+ *  `profile` (پروفیل استیل) joined 1405/06/08 to match ahanonline.com, which
+ *  publishes «ضخامت» as its own column beside «ابعاد» for this sub — unlike
+ *  `pipe`, which ahanonline shows with no alloy/thickness column at all. */
+const STEEL_THICKNESS_SUBS = new Set(['angle', 'channel', 'profile']);
 
 /** Profile sections whose secondary dimension is wall thickness. Z is sold by
  *  height plus gauge; square/rectangular profiles keep their complete section
@@ -486,6 +489,34 @@ const COLOURED_METAL_ATTRS: Readonly<Record<string, AttrKey[]>> = {
 };
 
 /**
+ * استیل sub-categories that deviate from the category's own default
+ * (`['alloy', 'branchLength']`, see the big comment on `attrKeysFor` below).
+ * Added 1405/06/08 after the owner confirmed matching ahanonline.com's exact
+ * columns overrides the prior 1405/06 "no factory, alloy+length everywhere"
+ * instruction — verified per sub against the live ahanonline.com page:
+ *
+ * - `pipe` (لوله استیل): ahanonline shows «رده»+«حالت», no «آلیاژ»/length at
+ *   all — a pressure-class fact, same distinction لوله already makes between
+ *   plain and schedule-bearing subs. Uses the same `schedule`/`condition`
+ *   columns those categories already write to; no new column.
+ * - `profile` (پروفیل استیل): ahanonline keeps «آلیاژ» but ALSO shows «حالت»
+ *   and its own «ضخامت» (wired via `STEEL_THICKNESS_SUBS` above); drops the
+ *   length ahanonline does not show.
+ * - `angle`/`channel` (نبشی/ناودانی استیل): ahanonline shows «آلیاژ» beside
+ *   the `STEEL_THICKNESS_SUBS` «ضخامت», with no length column.
+ *
+ * Every sub NOT listed here — the currently-empty فلنج/مش/رینگ/فنر/تسمه/
+ * تیوب/توری — keeps the category default: they have no live ahanonline page
+ * to verify against, and no live rows to break.
+ */
+const STEEL_ATTRS: Readonly<Record<string, AttrKey[]>> = {
+  pipe: ['condition', 'schedule'],
+  profile: ['alloy', 'condition'],
+  angle: ['alloy'],
+  channel: ['alloy'],
+};
+
+/**
  * Which attribute columns a table shows, given the page's category and the
  * currently-active sub-category filter (`null` = «همه», every sub-category
  * mixed into one table).
@@ -496,21 +527,19 @@ const COLOURED_METAL_ATTRS: Readonly<Record<string, AttrKey[]>> = {
  * تیرآهن has always used — and each cell then answers for its own row (see
  * `attributeColumns`).
  *
- * استیل deviates at the CATEGORY level rather than per-sub: every product in it
- * is stainless, so every stored `grade` in it is an alloy designation
- * (۲۰۱/۳۰۴/۳۰۴L/۳۱۶L — verified across all 55 live SKUs, 1405/06), and the
- * owner's employer asked for the column to say «آلیاژ» throughout. That holds
- * for its currently-empty subs (فلنج، مش، رینگ، فنر، تسمه، تیوب، توری) too:
- * they are stainless products as well, so «آلیاژ» is already the right word for
- * the day they get stock. Because the answer is the same for every sub, the
- * mixed «همه» view needs no special case and no cell can read `NOT_APPLICABLE`.
- *
- * It also carries «طول شاخه» — the second half of the same instruction that
- * removed its factory column (see `factoryIsMeaningful`): with the mill gone,
- * the length is the spec a stainless buyer needs beside the alloy, and it is
- * exactly the column the trade's own stainless tables publish. Same
- * `branchLength` definition پروفیل استیل already uses, so the two tables — the
- * same product under two categories — cannot word one fact differently.
+ * استیل used to deviate at the CATEGORY level («آلیاژ»+«طول شاخه» on every
+ * sub, 1405/06 instruction). Superseded 1405/06/08: the owner confirmed
+ * matching ahanonline.com's exact columns takes priority even where it
+ * contradicts that earlier instruction, so استیل is now per-sub like پروفیل —
+ * see `STEEL_ATTRS`. `['alloy', 'branchLength']` remains the fallback for its
+ * currently-empty subs (فلنج، مش، رینگ، فنر، تسمه، تیوب، توری), which have no
+ * live ahanonline page to verify against and no live rows to break; every
+ * stored `grade` in this category is still an alloy designation
+ * (۲۰۱/۳۰۴/۳۰۴L/۳۱۶L — verified across all 55 live SKUs, 1405/06), so «آلیاژ»
+ * is the right word for the day they get stock. The mixed «همه» view stays on
+ * this same default — exactly like پروفیل's مجموعه handling of صنعتی/Z —
+ * so cells for `pipe`/`profile`/`angle`/`channel` rows read `NOT_APPLICABLE`
+ * there rather than silently reusing a column that is not their own.
  */
 export function attrKeysFor(
   categorySlug: string | null | undefined,
@@ -557,7 +586,9 @@ export function attrKeysFor(
   if (categorySlug === 'pipe' && sub !== null) {
     return PIPE_SCHEDULE_SUBS.has(sub) ? ['grade', 'schedule'] : ['grade'];
   }
-  if (categorySlug === 'steel') return ['alloy', 'branchLength'];
+  if (categorySlug === 'steel') {
+    return sub !== null ? (STEEL_ATTRS[sub] ?? ['alloy', 'branchLength']) : ['alloy', 'branchLength'];
+  }
   return ['grade'];
 }
 
