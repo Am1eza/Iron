@@ -42,10 +42,21 @@ const NABSHI_THICKNESS_SUBS = new Set(['nabshi', 'angle-unequal', 'spot']);
 /** Stainless sections whose stored secondary dimension is wall thickness. */
 const STEEL_THICKNESS_SUBS = new Set(['angle', 'channel']);
 
-/** Profile sections whose secondary dimension is wall thickness. Z is sold by
- *  height plus gauge; square/rectangular profiles keep their complete section
- *  in `size` and are deliberately not included. */
-const PROFILE_THICKNESS_SUBS = new Set(['profil-z']);
+/** Profile sections whose secondary dimension is wall thickness.
+ *
+ * ahanonline publishes thickness as its own column on the three live profile
+ * lines this catalog can currently price (industrial, furniture/light and
+ * galvanized), just as it does beside Z's height. Their square/rectangular
+ * `size` remains the outside section; `dimensions` carries the independent
+ * wall gauge. This is deliberately a per-sub allow-list: the remaining
+ * profile families have no active priced row from which we can verify and
+ * backfill that fact without guessing. */
+const PROFILE_THICKNESS_SUBS = new Set([
+  'prvfyl-snaty',
+  'profil-mobli',
+  'profil-galvanizeh',
+  'profil-z',
+]);
 
 /** Coloured-metal sheet lines whose `dimensions` is width×length. */
 const COLOURED_SHEET_DIMENSION_SUBS = new Set(['aluminum-sheet', 'copper-sheet']);
@@ -194,8 +205,8 @@ export function usesThickness(categorySlug: string | null | undefined): boolean 
 /**
  * True when the shared `skus.dimensions` column is meaningful in this exact
  * catalog context. For ورق it remains category-wide width×length. For the
- * three owner-approved نبشی subs it is wall thickness; every other
- * `angle-channel` sub stays untouched.
+ * approved section subs it is wall thickness; every unlisted sibling stays
+ * untouched.
  *
  * Drives whether the column/field is OFFERED at all — callers must pass the
  * active/product sub-category so a mixed «همه» view does not grow a column
@@ -230,8 +241,8 @@ export function usesDimensions(
   );
 }
 
-/** «ابعاد» for ورق's width×length, «ضخامت» for the three نبشی
- *  subs approved by the owner. The generic fallback stays «ابعاد» so an
+/** «ابعاد» for sheet width×length, «ضخامت» for the verified section
+ *  subs. The generic fallback stays «ابعاد» so an
  *  unknown or mixed context can never silently misdescribe the shared column
  *  as thickness; those contexts do not render it in the first place. */
 export function dimensionsLabel(
@@ -363,6 +374,7 @@ export function factoryLabel(
 
 export const BRANCH_LENGTH_LABEL = 'طول شاخه';
 export const CUSTOM_LENGTH_LABEL = 'طول سفارشی';
+export const LENGTH_LABEL = 'طول';
 export const ALLOY_LABEL = 'آلیاژ';
 /**
  * «شاخه» — deliberately NOT «طول شاخه» (`BRANCH_LENGTH_LABEL`) even though
@@ -394,6 +406,8 @@ export type AttrKey =
   | 'condition'
   | 'legacyCondition'
   | 'branchLength'
+  | 'profileCondition'
+  | 'length'
   | 'customLength'
   | 'schedule'
   | 'branch';
@@ -441,6 +455,18 @@ const ATTR_DEFS: Record<AttrKey, { label: string; read: (r: AttrRow) => string |
   // column fixes.
   legacyCondition: { label: CONDITION_LABEL, read: (r) => r.condition ?? r.grade },
   branchLength: { label: BRANCH_LENGTH_LABEL, read: (r) => metres(r.branchLengthM) },
+  // On ahanonline's industrial and furniture/light profile tables, «حالت» is
+  // not a material condition like sheet's رول/برش‌خورده. Its values are
+  // «۶ متری»/«۱۲ متری»: the supplied branch length this catalog already
+  // stores structurally in `branch_length_m`. Reusing that fact mirrors the
+  // source without overloading the independent `condition` column or copying
+  // a formatted phrase into a second field.
+  profileCondition: { label: CONDITION_LABEL, read: (r) => metresAdjective(r.branchLengthM) },
+  // Galvanized profile calls the same physical fact «طول», not «حالت» and not
+  // the catalog's generic «طول شاخه». A separate display key keeps the source
+  // vocabulary sub-specific while all three surfaces still read the one
+  // `branch_length_m` value.
+  length: { label: LENGTH_LABEL, read: (r) => metresAdjective(r.branchLengthM) },
   // «رده» — the pipe schedule. Its own stored column (`skus.schedule`), and
   // deliberately NOT a re-label of `standard` the way `alloy` re-labels
   // `grade`: لولهٔ جدار چاه already stores a real «استاندارد» there (ST37, on
@@ -462,17 +488,24 @@ const ATTR_DEFS: Record<AttrKey, { label: string; read: (r: AttrRow) => string |
 };
 
 /**
- * پروفیل sub-categories whose «گرید» column is replaced (owner decision,
- * 1405/05). Every پروفیل sub NOT listed here — «ساختمانی», «مبلی», «ستونی»,
- * «گالوانیزه» — keeps the plain «گرید» column untouched.
+ * پروفیل sub-categories whose «گرید» column is replaced.
  *
- * صنعتی and Z each swap grade for a length one-for-one; استیل is the only one
- * that GAINS a column rather than trading one, because a stainless buyer needs
- * both the alloy and the length. Z's is «طول سفارشی», not «طول شاخه»: it is not
- * sold in a fixed standard branch length, it is cut to order.
+ * The 1405/06 ahanonline reconciliation established that grade is not a
+ * published profile attribute on any of the three profile lines with active
+ * prices here. صنعتی and مبلی call their stored branch length «حالت»;
+ * گالوانیزه calls it «طول». All three also publish wall thickness separately
+ * through `PROFILE_THICKNESS_SUBS`. This follows the source's meanings rather
+ * than inventing a profile grade or putting «۶ متری» into `condition`.
+ *
+ * Z and stainless retain their earlier verified rules. Unlisted/empty profile
+ * families deliberately keep their previous fallback until they have a real,
+ * priced source row to reconcile — absence of stock is not evidence for a
+ * migration.
  */
 const PROFILE_ATTRS: Record<string, AttrKey[]> = {
-  'prvfyl-snaty': ['branchLength'],
+  'prvfyl-snaty': ['profileCondition'],
+  'profil-mobli': ['profileCondition'],
+  'profil-galvanizeh': ['length'],
   'profil-z': ['customLength'],
   'prvfyl-astyl': ['alloy', 'branchLength'],
   chaharpahlu: ['legacyCondition'],
@@ -523,6 +556,12 @@ export function attrKeysFor(
   if (categorySlug === 'profile' && sub !== null) {
     return PROFILE_ATTRS[sub] ?? ['grade'];
   }
+  // The mixed profile page contains rows whose source-specific replacement is
+  // «حالت», «طول», «طول سفارشی» or «آلیاژ». There is no one honest attribute
+  // header across that mixture; in particular, falling through to «گرید»
+  // would restore the exact meaningless column removed from every priced
+  // profile line above. Individual sub filters publish their verified fields.
+  if (categorySlug === 'profile') return [];
   // ورق is category-wide: its owner-entered legacy `grade` values describe
   // supplied condition («برش‌خورده»/«رول»), not metallurgy. The dedicated
   // key reads the new `condition` column first and falls back only for this

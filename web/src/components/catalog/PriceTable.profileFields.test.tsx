@@ -21,7 +21,9 @@ vi.mock('next/navigation', () => ({
  * to group by and stop drawing per-factory sections at all, rather than draw
  * one «سایر» section with an empty column. The grade replacement is per-SUB —
  * صنعتی and Z each trade «گرید» for a length, استیل trades it for «آلیاژ» AND
- * gains a length, and مبلی/ستونی/گالوانیزه/ساختمانی keep «گرید» untouched.
+ * gains a length. The later ahanonline column audit replaces grade on the
+ * three live priced profile lines too: صنعتی/مبلی publish «حالت», galvanized
+ * publishes «طول», and all three publish «ضخامت» separately.
  *
  * Rows here carry `factory: undefined` for the six stripped subs exactly as
  * the DTO delivers them (asserted separately in
@@ -74,13 +76,13 @@ const SUBS: SubCat[] = [
 ];
 
 const ROWS = [
-  row('sanati-80', 'prvfyl-snaty', { branchLengthM: 6 }),
+  row('sanati-80', 'prvfyl-snaty', { branchLengthM: 6, dimensions: '۵' }),
   // The one sub that KEPT its factory — and the only reason «کارخانه» still
   // exists anywhere in this category.
   row('sakhtmani-40', 'prvfyl-sakhtmany', { factory: 'فولاد مشهد', grade: 'ST37' }),
-  row('mobli-60', 'profil-mobli'),
+  row('mobli-60', 'profil-mobli', { branchLengthM: 6, dimensions: '۰٫۷' }),
   row('sotuni-70', 'profil-sotuni'),
-  row('galvanizeh-20', 'profil-galvanizeh'),
+  row('galvanizeh-20', 'profil-galvanizeh', { branchLengthM: 6, dimensions: '۲' }),
   row('z-30', 'profil-z', { size: 'Z*۱۶', dimensions: '۲٫۵' }),
   row('steel-50', 'prvfyl-astyl', { grade: '۳۰۴', branchLengthM: 6 }),
 ];
@@ -159,20 +161,22 @@ describe('PriceTable — پروفیل, once the fabricated factory is gone', () 
   });
 });
 
-describe('PriceTable — the پروفیل گرید → طول/آلیاژ replacements', () => {
-  it('gives صنعتی «طول شاخه» instead of «گرید»', async () => {
+describe('PriceTable — the profile-specific replacements for «گرید»', () => {
+  it('gives industrial «ضخامت» + source-style «حالت»', async () => {
     const user = userEvent.setup();
     renderTable();
     await user.click(screen.getByRole('button', { name: 'پروفیل صنعتی' }));
 
-    expect(screen.getByRole('columnheader', { name: 'طول شاخه' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'ضخامت' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'حالت' })).toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: 'گرید' })).toBeNull();
-    expect(cellFor('sanati-80', 'طول شاخه')).toBe('۶ متر');
+    expect(cellFor('sanati-80', 'ضخامت')).toBe('۵');
+    expect(cellFor('sanati-80', 'حالت')).toBe('۶ متری');
     // The card form labels the same cell from its own `data-label` — there is
     // no second, card-only copy of the row rendering that line as text.
-    expect(
-      document.querySelector('td[data-label="طول شاخه"]')?.getAttribute('data-label'),
-    ).toBe('طول شاخه');
+    expect(document.querySelector('td[data-label="حالت"]')?.getAttribute('data-label')).toBe(
+      'حالت',
+    );
   });
 
   it('gives Z «طول سفارشی» — a cut-to-order product, not a stock length', async () => {
@@ -203,32 +207,35 @@ describe('PriceTable — the پروفیل گرید → طول/آلیاژ replace
     expect(cellFor('steel-50', 'طول شاخه')).toBe('۶ متر');
   });
 
-  it('leaves مبلی, ستونی and گالوانیزه on the untouched «گرید» column', async () => {
+  it('gives furniture/light «ضخامت» + «حالت»', async () => {
     const user = userEvent.setup();
     renderTable();
-    for (const [sub, product] of [
-      ['پروفیل مبلی', 'mobli-60'],
-      ['پروفیل ستونی', 'sotuni-70'],
-      ['پروفیل گالوانیزه', 'galvanizeh-20'],
-    ] as const) {
-      await user.click(screen.getByRole('button', { name: sub }));
-      expect(screen.getByRole('columnheader', { name: 'گرید' })).toBeInTheDocument();
-      expect(screen.queryByRole('columnheader', { name: 'طول شاخه' })).toBeNull();
-      expect(screen.queryByRole('columnheader', { name: 'طول سفارشی' })).toBeNull();
-      // Empty, exactly as before — the owner asked for no change here, and an
-      // unfilled grade is «نامشخص», not a dash.
-      expect(cellFor(product, 'گرید')).toBe('نامشخص');
-    }
+    await user.click(screen.getByRole('button', { name: 'پروفیل مبلی' }));
+    expect(cellFor('mobli-60', 'ضخامت')).toBe('۰٫۷');
+    expect(cellFor('mobli-60', 'حالت')).toBe('۶ متری');
+    expect(screen.queryByRole('columnheader', { name: 'گرید' })).toBeNull();
   });
 
-  it('dashes the mixed view’s «گرید» for rows that traded it away', () => {
+  it('gives galvanized «ضخامت» + «طول»', async () => {
+    const user = userEvent.setup();
     renderTable();
-    expect(screen.getAllByRole('columnheader', { name: 'گرید' }).length).toBeGreaterThan(0);
-    expect(cellFor('mobli-60', 'گرید')).toBe('نامشخص');
-    // «—», not «نامشخص»: صنعتی/Z/استیل have no grade to be missing.
-    expect(cellFor('sanati-80', 'گرید')).toBe('—');
-    expect(cellFor('z-30', 'گرید')).toBe('—');
-    expect(cellFor('steel-50', 'گرید')).toBe('—');
+    await user.click(screen.getByRole('button', { name: 'پروفیل گالوانیزه' }));
+    expect(cellFor('galvanizeh-20', 'ضخامت')).toBe('۲');
+    expect(cellFor('galvanizeh-20', 'طول')).toBe('۶ متری');
+    expect(screen.queryByRole('columnheader', { name: 'گرید' })).toBeNull();
+  });
+
+  it('keeps the unpriced/unreconciled column profile on its previous grade rule', async () => {
+    const user = userEvent.setup();
+    renderTable();
+    await user.click(screen.getByRole('button', { name: 'پروفیل ستونی' }));
+    expect(screen.getByRole('columnheader', { name: 'گرید' })).toBeInTheDocument();
+    expect(cellFor('sotuni-70', 'گرید')).toBe('نامشخص');
+  });
+
+  it('does not restore a meaningless grade column on the mixed profile page', () => {
+    renderTable();
+    expect(screen.queryByRole('columnheader', { name: 'گرید' })).toBeNull();
   });
 });
 
@@ -314,10 +321,20 @@ describe('PriceTable — پروفیل grouped by محل تولید', () => {
     // صنعتی's live state: a single «صنعتی اصفهان» row. One section, but a
     // named and correct one — «قیمت پروفیل اصفهان» is exactly the heading
     // ahanonline carries, and it is worth having with one row under it.
-    renderTable([row('sanati-80', 'prvfyl-snaty', { region: 'اصفهان', branchLengthM: 6 })], 'prvfyl-snaty');
+    renderTable(
+      [
+        row('sanati-80', 'prvfyl-snaty', {
+          region: 'اصفهان',
+          branchLengthM: 6,
+          dimensions: '۵',
+        }),
+      ],
+      'prvfyl-snaty',
+    );
 
     expect(screen.getByRole('heading', { name: 'قیمت پروفیل اصفهان' })).toBeInTheDocument();
-    expect(cellFor('sanati-80', 'طول شاخه')).toBe('۶ متر');
+    expect(cellFor('sanati-80', 'ضخامت')).toBe('۵');
+    expect(cellFor('sanati-80', 'حالت')).toBe('۶ متری');
   });
 
   it('lets a real mill outrank the region grouping when both are present', () => {

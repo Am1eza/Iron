@@ -43,8 +43,8 @@ export const cols = (
   // was looking at when they clicked «اکسل».
   sizeLabel(categorySlug, subCategorySlug),
   // The same shared secondary-spec column as the screen: «ابعاد» for ورق,
-  // «ضخامت» for the approved نبشی subs and پروفیل Z, and absent on mixed
-  // or unrelated product lines.
+  // «ضخامت» for the source-verified section subs, and absent on mixed or
+  // unrelated product lines.
   ...(usesDimensions(categorySlug, subCategorySlug)
     ? [dimensionsLabel(categorySlug, subCategorySlug)]
     : []),
@@ -105,8 +105,8 @@ export function ExportMenu({
   title: string;
   /** Category the exported table belongs to — labels the size column only. */
   categorySlug?: string;
-  /** Active sub-category, needed because only three angle-channel subs expose
-   *  the shared column as «ضخامت». Null means the mixed view. */
+  /** Active sub-category, needed because only source-verified section subs
+   *  expose the shared column as «ضخامت». Null means the mixed view. */
   subCategorySlug?: string | null;
   /** Whether the buyer is currently viewing VAT-inclusive prices. The export
    *  follows the screen; see `rowCells`. */

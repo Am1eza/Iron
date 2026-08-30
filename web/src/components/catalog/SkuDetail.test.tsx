@@ -107,6 +107,27 @@ describe('SkuDetail — نبشی wall thickness', () => {
   );
 });
 
+describe('SkuDetail — live profile source fields', () => {
+  it.each([
+    ['prvfyl-snaty', 'حالت'],
+    ['profil-mobli', 'حالت'],
+    ['profil-galvanizeh', 'طول'],
+  ])('shows thickness and the source length label for %s', (subCategoryId, lengthLabel) => {
+    renderDetail('profile', {
+      subCategoryId,
+      size: '۶۰×۶۰',
+      dimensions: '۲',
+      branchLengthM: 6,
+    });
+    expect(screen.getByRole('rowheader', { name: 'ضخامت' })).toBeInTheDocument();
+    expect(screen.getByRole('rowheader', { name: lengthLabel })).toBeInTheDocument();
+    expect(screen.queryByRole('rowheader', { name: 'گرید' })).not.toBeInTheDocument();
+    // The generic spec row reads the same branch_length_m. Once the source-
+    // named attribute owns it, it must not print a second «طول شاخه» row.
+    expect(screen.queryByRole('rowheader', { name: 'طول شاخه' })).not.toBeInTheDocument();
+  });
+});
+
 describe('SkuDetail — hero image alt text (SEO audit: was identical across every SKU in a category)', () => {
   it('marks the shared category stock photo as a sample, not this exact product', () => {
     // No `imageUrl` override → falls back to the category stock photo. Its alt
