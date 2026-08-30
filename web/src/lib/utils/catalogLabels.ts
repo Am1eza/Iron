@@ -65,6 +65,26 @@ const PROFILE_THICKNESS_SUBS = new Set([
 const COLOURED_SHEET_DIMENSION_SUBS = new Set(['aluminum-sheet', 'copper-sheet']);
 
 /**
+ * Coloured-metal SECTION lines (نبشی/ناودانی/لوله/پروفیل آلومینیوم) whose
+ * `dimensions` is wall thickness — the same STEEL_THICKNESS_SUBS/
+ * PROFILE_THICKNESS_SUBS concept, applied here 1405/06/08 after checking
+ * these exact four subs against a live third-party reference (ahanonline.com
+ * has no page for any of them): ahanyekta.com's نبشی/لوله/پروفیل آلومینیوم
+ * pages each publish «ابعاد» (cross-section, already our `size`) AND its own
+ * «ضخامت» (wall thickness) AND «طول شاخه» as three separate facts — see
+ * `COLOURED_METAL_ATTRS`' `branchLength` entries for these same four subs.
+ * ناودانی is included by the same physical-product reasoning as its سیبلینگ
+ * نبشی (no direct reference page found for it specifically, but it is the
+ * same section-profile family with the same three facts).
+ */
+const COLOURED_SECTION_THICKNESS_SUBS = new Set([
+  'aluminum-angle',
+  'aluminum-channel',
+  'aluminum-pipe',
+  'aluminum-profile',
+]);
+
+/**
  * نبشی و ناودانی sub-categories that publish the branch length, «۶ متری» /
  * «۱۲ متری», under the label «حالت» — INSTEAD of «گرید».
  *
@@ -232,7 +252,11 @@ export function usesDimensions(
   if (categorySlug && DIMENSIONS_CATEGORIES.has(categorySlug)) return true;
   if (
     categorySlug === 'felezat-rangi' &&
-    Boolean(subCategorySlug && COLOURED_SHEET_DIMENSION_SUBS.has(subCategorySlug))
+    Boolean(
+      subCategorySlug &&
+        (COLOURED_SHEET_DIMENSION_SUBS.has(subCategorySlug) ||
+          COLOURED_SECTION_THICKNESS_SUBS.has(subCategorySlug)),
+    )
   ) {
     return true;
   }
@@ -254,8 +278,9 @@ export function usesDimensions(
   );
 }
 
-/** «ابعاد» for sheet width×length, «ضخامت» for the verified section
- *  subs. The generic fallback stays «ابعاد» so an
+/** «ابعاد» for sheet width×length (فلزات‌رنگی's ورق subs included — that
+ *  meaning stays width×length there, unlike its SECTION subs below), «ضخامت»
+ *  for the verified section subs. The generic fallback stays «ابعاد» so an
  *  unknown or mixed context can never silently misdescribe the shared column
  *  as thickness; those contexts do not render it in the first place. */
 export function dimensionsLabel(
@@ -266,7 +291,10 @@ export function dimensionsLabel(
     subCategorySlug &&
     NABSHI_THICKNESS_SUBS.has(subCategorySlug)) ||
     (categorySlug === 'steel' && subCategorySlug && STEEL_THICKNESS_SUBS.has(subCategorySlug)) ||
-    (categorySlug === 'profile' && subCategorySlug && PROFILE_THICKNESS_SUBS.has(subCategorySlug))
+    (categorySlug === 'profile' && subCategorySlug && PROFILE_THICKNESS_SUBS.has(subCategorySlug)) ||
+    (categorySlug === 'felezat-rangi' &&
+      subCategorySlug &&
+      COLOURED_SECTION_THICKNESS_SUBS.has(subCategorySlug))
     ? THICKNESS_LABEL
     : DIMENSIONS_LABEL;
 }
@@ -557,12 +585,35 @@ const PROFILE_ATTRS: Record<string, AttrKey[]> = {
  *    pattern as نبشی's وال‌پست (see catalogLabels' ANGLE_CHANNEL_THICKNESS_GRADE_SUBS
  *    and its `gradeAsThickness` AttrKey, reused here rather than duplicated).
  *    ahanonline's own لوله مسی page confirms «ضخامت» is the real column.
+ *
+ *  Five more entries added 1405/06/08 — no ahanonline page exists for any of
+ *  these, so verified against ahanyekta.com (نبشی/لوله/پروفیل آلومینیوم) and
+ *  ahanonline.com's تسمه مسی page instead. None of these five currently has
+ *  ANY stored grade/condition/dimensions data (checked live in prod), so
+ *  every cell reads «نامشخص» today — wiring the correct column now, honestly
+ *  empty, is the same "collect exactly what is published" convention as
+ *  aluminum-sheet's 0%-populated «condition» above, not a fabrication:
+ *  - `aluminum-angle`/`aluminum-channel`/`aluminum-pipe`/`aluminum-profile`:
+ *    ahanyekta's نبشی/لوله/پروفیل آلومینیوم pages each publish سایز (cross-
+ *    section, already our `size`) + its own «ضخامت» (wall thickness, wired
+ *    via COLOURED_SECTION_THICKNESS_SUBS above) + «طول شاخه»/«شاخه» (branch
+ *    length) as three separate facts. ناودانی has no page of its own found,
+ *    included by the same reasoning as its سیبلینگ نبشی (identical section-
+ *    profile product family).
+ *  - `copper-strip`: ahanonline's تسمه مسی page publishes a «حالت» column
+ *    whose value is a fixed supplied-form phrase («شاخه ۴ متری»), the same
+ *    concept `condition` already models for aluminum-sheet.
  */
 const COLOURED_METAL_ATTRS: Readonly<Record<string, AttrKey[]>> = {
   'aluminum-sheet': ['alloy', 'condition'],
   'copper-sheet': ['condition'],
   'aluminum-rebar': ['alloy'],
   'copper-pipe': ['gradeAsThickness'],
+  'aluminum-angle': ['branchLength'],
+  'aluminum-channel': ['branchLength'],
+  'aluminum-pipe': ['branchLength'],
+  'aluminum-profile': ['branchLength'],
+  'copper-strip': ['condition'],
 };
 
 /**

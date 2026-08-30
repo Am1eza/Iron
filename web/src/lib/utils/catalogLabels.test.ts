@@ -301,6 +301,34 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ح
     expect(col.cell(row('copper-pipe', { grade: 'ضخامت ۰.۸۱' }))).toBe('ضخامت ۰.۸۱');
   });
 
+  it('gives آلومینیوم section subs their own «ضخامت»+«طول شاخه», verified against ahanyekta.com', () => {
+    // No ahanonline page exists for these — checked against ahanyekta.com's
+    // نبشی/لوله/پروفیل آلومینیوم pages instead (ناودانی included by the same
+    // section-profile-family reasoning as its سیبلینگ نبشی). None of the
+    // four currently has ANY stored data (checked live in prod), so every
+    // cell below reads «نامشخص» — an honest gap, not a fabrication.
+    for (const sub of ['aluminum-angle', 'aluminum-channel', 'aluminum-pipe', 'aluminum-profile']) {
+      expect(usesDimensions('felezat-rangi', sub)).toBe(true);
+      expect(dimensionsLabel('felezat-rangi', sub)).toBe(THICKNESS_LABEL);
+      const col = only('felezat-rangi', sub);
+      expect(col.key).toBe('branchLength');
+      expect(col.label).toBe(BRANCH_LENGTH_LABEL);
+      expect(col.cell(row(sub, { branchLengthM: 6 }))).toBe('۶ متر');
+      expect(col.cell(row(sub))).toBe(UNKNOWN_VALUE);
+    }
+  });
+
+  it('gives تسمه مسی «حالت», matching ahanonline\'s fixed supplied-form column', () => {
+    // ahanonline's تسمه مسی page publishes «حالت» with a fixed phrase value
+    // («شاخه ۴ متری») — the same `condition` concept aluminum-sheet already
+    // uses, not an empty-column guess. copper-strip has zero stored
+    // condition data today (checked live in prod), so this reads «نامشخص».
+    const col = only('felezat-rangi', 'copper-strip');
+    expect(col.key).toBe('condition');
+    expect(col.label).toBe(CONDITION_LABEL);
+    expect(col.cell(row('copper-strip', { condition: 'شاخه ۴ متری' }))).toBe('شاخه ۴ متری');
+  });
+
   it('does not leak «حالت» into any other category', () => {
     for (const slug of ['rebar', 'ibeam', 'pipe', 'steel', 'angle-channel']) {
       for (const sub of [null, 'black']) {
