@@ -19,9 +19,11 @@ vi.mock('next/navigation', () => ({
  * page). The factory removal itself stands — ahanonline shows no
  * factory/برند column for any استیل sub either — but the attribute columns
  * are now per-sub: نبشی/ناودانی استیل keep «آلیاژ» with no length; پروفیل
- * استیل keeps «آلیاژ» and gains «حالت»; لوله استیل trades «آلیاژ» for
- * «حالت»+«رده», matching ahanonline's پرشور pressure-class treatment of
- * pipe rather than the alloy treatment of the other three sections.
+ * استیل keeps «آلیاژ» and gains «حالت»; لوله استیل ALSO keeps «آلیاژ»
+ * alongside its own «حالت»+«رده» — corrected 1405/06/09 after re-checking
+ * the live page, which does publish آلیاژ (316L at 1,700,000 T/kg on the
+ * page today, up to 2.3× apart from 304L), contrary to the earlier note here
+ * that it did not.
  *
  * `factory: undefined` here is what `catalogRepo.toPriceRow` already delivers
  * (it withholds the stored «چین»/«تایوان» origin strings at the DTO
@@ -74,7 +76,7 @@ const SUBS: SubCat[] = [
 const ROWS = [
   row('angle-40', 'angle', { grade: '304', dimensions: '2' }),
   row('channel-10', 'channel', { grade: '304L', dimensions: '3' }),
-  row('pipe-2', 'pipe', { condition: 'درزدار', schedule: '۴۰' }),
+  row('pipe-2', 'pipe', { grade: '316L', condition: 'درزدار', schedule: '۴۰' }),
   row('profile-40', 'profile', { grade: '201', condition: 'گالوانیزه', dimensions: '2' }),
 ];
 
@@ -142,13 +144,13 @@ describe('PriceTable — استیل is imported, so it has no کارخانه at 
     expect(screen.queryByRole('columnheader', { name: 'طول شاخه' })).toBeNull();
   });
 
-  it('publishes «حالت»+«رده» on لوله استیل, no آلیاژ', async () => {
+  it('publishes «آلیاژ»+«حالت»+«رده» on لوله استیل', async () => {
     const user = userEvent.setup();
     renderTable();
     await user.click(screen.getByRole('button', { name: 'لوله استیل' }));
+    expect(cellFor('pipe-2', 'آلیاژ')).toBe('316L');
     expect(cellFor('pipe-2', 'حالت')).toBe('درزدار');
     expect(cellFor('pipe-2', 'رده')).toBe('۴۰');
-    expect(screen.queryByRole('columnheader', { name: 'آلیاژ' })).toBeNull();
   });
 
   it('says «نامشخص» for an آلیاژ nobody has entered on نبشی استیل — never a dash', async () => {
