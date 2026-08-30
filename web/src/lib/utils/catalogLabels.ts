@@ -623,10 +623,15 @@ const COLOURED_METAL_ATTRS: Readonly<Record<string, AttrKey[]>> = {
  * columns overrides the prior 1405/06 "no factory, alloy+length everywhere"
  * instruction — verified per sub against the live ahanonline.com page:
  *
- * - `pipe` (لوله استیل): ahanonline shows «رده»+«حالت», no «آلیاژ»/length at
- *   all — a pressure-class fact, same distinction لوله already makes between
- *   plain and schedule-bearing subs. Uses the same `schedule`/`condition`
- *   columns those categories already write to; no new column.
+ * - `pipe` (لوله استیل): ahanonline shows «سایز»+«رده»+«آلیاژ»+«حالت» (re-verified
+ *   live 1405/06/09 via the rendered table's own `<th>`s — a wholesale-market
+ *   page changes without notice, and the earlier note here that it omitted
+ *   «آلیاژ» no longer matches what the page actually renders). Alloy is not
+ *   optional for این خانواده either way: 316L/304L/310S sit up to 2.3× apart
+ *   in price on that very page, exactly the identity fact
+ *   `priceSync.match.ts`'s `IDENTITY['steel/pipe']` already keys its matching
+ *   on via `skus.grade` — the display column had fallen out of sync with the
+ *   matcher's own assumption about what distinguishes these rows.
  * - `profile` (پروفیل استیل): ahanonline keeps «آلیاژ» but ALSO shows «حالت»
  *   and its own «ضخامت» (wired via `STEEL_THICKNESS_SUBS` above); drops the
  *   length ahanonline does not show.
@@ -638,7 +643,7 @@ const COLOURED_METAL_ATTRS: Readonly<Record<string, AttrKey[]>> = {
  * to verify against, and no live rows to break.
  */
 const STEEL_ATTRS: Readonly<Record<string, AttrKey[]>> = {
-  pipe: ['condition', 'schedule'],
+  pipe: ['alloy', 'condition', 'schedule'],
   profile: ['alloy', 'condition'],
   angle: ['alloy'],
   channel: ['alloy'],
@@ -675,7 +680,14 @@ export function attrKeysFor(
 ): AttrKey[] {
   if (categorySlug === 'ibeam') {
     if (sub === null) return ['standard'];
-    return IBEAM_STANDARD_SUBS.has(sub) ? ['standard'] : [];
+    // هاش (hash-sabok/hash-sangin): ahanonline's own «تیرآهن-و-هاش/هاش» page
+    // carries a «حالت» column beside «استاندارد» (sample row: "12 متری") —
+    // re-verified live 1405/06/09. Read from `branchLengthM`, which these
+    // SKUs already store, rather than the unused `condition` field, so the
+    // column renders the same fact ahanonline's does instead of a second
+    // always-empty one. تیرآهن (plain IPE, `tirahan`) has neither column on
+    // ahanonline's page and correctly stays on the bare `[]` default below.
+    return IBEAM_STANDARD_SUBS.has(sub) ? ['standard', 'branchLength'] : [];
   }
   if (categorySlug === 'profile' && sub !== null) {
     return PROFILE_ATTRS[sub] ?? ['grade'];

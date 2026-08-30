@@ -208,15 +208,23 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ح
 
   /* ------------------------------- تیرآهن ------------------------------- */
 
-  it('drops the column on a non-هاش تیرآهن sub and keeps it on هاش', () => {
+  it('drops the column on a non-هاش تیرآهن sub, and gives هاش «استاندارد»+«طول شاخه»', () => {
     for (const sub of ['tirahan', 'ipe', 'anything-else']) {
       expect(attributeColumns('ibeam', sub)).toEqual([]);
     }
-    for (const sub of ['hash-sabok', 'hash-sangin', null]) {
-      const col = only('ibeam', sub);
-      expect(col.key).toBe('standard');
-      expect(col.label).toBe(STANDARD_LABEL);
+    // ahanonline's «تیرآهن-و-هاش/هاش» page carries a «حالت» column beside
+    // «استاندارد» (re-verified live 1405/06/09) — we read it from
+    // `branchLengthM`, which هاش SKUs already store, rather than a second
+    // always-empty column. The mixed «همه» view deliberately stays on the
+    // single-column default, same as every other ibeam sub not in the list.
+    for (const sub of ['hash-sabok', 'hash-sangin']) {
+      const cols = attributeColumns('ibeam', sub);
+      expect(cols.map((c) => c.key)).toEqual(['standard', 'branchLength']);
+      expect(cols[0]!.label).toBe(STANDARD_LABEL);
     }
+    const mixed = only('ibeam', null);
+    expect(mixed.key).toBe('standard');
+    expect(mixed.label).toBe(STANDARD_LABEL);
   });
 
   it('reads skus.standard on هاش rows, and dashes the ones it does not apply to', () => {
@@ -557,11 +565,13 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ح
 
   // 1405/06/08: the owner confirmed matching ahanonline.com's exact columns
   // overrides the prior "آلیاژ+طول شاخه everywhere" instruction. Verified per
-  // sub against the live ahanonline.com page: لوله استیل shows «رده»+«حالت»
-  // and no آلیاژ/length at all; نبشی/ناودانی استیل keep «آلیاژ» with no
-  // length; پروفیل استیل keeps «آلیاژ» and additionally gains «حالت». Only
-  // the currently-empty subs (فلنج، مش، رینگ، فنر، تسمه، تیوب، توری) — no
-  // live ahanonline page, no live rows — keep the old category default.
+  // sub against the live ahanonline.com page: نبشی/ناودانی استیل keep «آلیاژ»
+  // with no length; پروفیل استیل keeps «آلیاژ» and additionally gains «حالت».
+  // لوله استیل's own note was corrected 1405/06/09 — re-checked live, its
+  // page shows «آلیاژ» too (alongside «رده»+«حالت»); the earlier note that it
+  // omitted alloy no longer matches what the page renders. Only the
+  // currently-empty subs (فلنج، مش، رینگ، فنر، تسمه، تیوب، توری) — no live
+  // ahanonline page, no live rows — keep the old category default.
 
   it('gives نبشی/ناودانی استیل «آلیاژ» with no length', () => {
     for (const sub of ['angle', 'channel']) {
@@ -571,14 +581,14 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ح
     }
   });
 
-  it('gives پروفیل استیل «آلیاژ»+«حالت», and لوله استیل «حالت»+«رده» with no آلیاژ', () => {
+  it('gives پروفیل استیل «آلیاژ»+«حالت», and لوله استیل «آلیاژ»+«حالت»+«رده»', () => {
     const profileCols = attributeColumns('steel', 'profile');
     expect(profileCols.map((c) => c.key)).toEqual(['alloy', 'condition']);
     expect(profileCols.map((c) => c.label)).toEqual([ALLOY_LABEL, CONDITION_LABEL]);
 
     const pipeCols = attributeColumns('steel', 'pipe');
-    expect(pipeCols.map((c) => c.key)).toEqual(['condition', 'schedule']);
-    expect(pipeCols.map((c) => c.label)).toEqual([CONDITION_LABEL, SCHEDULE_LABEL]);
+    expect(pipeCols.map((c) => c.key)).toEqual(['alloy', 'condition', 'schedule']);
+    expect(pipeCols.map((c) => c.label)).toEqual([ALLOY_LABEL, CONDITION_LABEL, SCHEDULE_LABEL]);
   });
 
   it('keeps «آلیاژ»+«طول شاخه» on استیل subs with no live ahanonline page to verify against, and on the mixed «همه» view', () => {
