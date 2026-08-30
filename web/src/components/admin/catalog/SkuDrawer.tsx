@@ -296,25 +296,35 @@ export function SkuDrawer({
   // به آن اشاره دارد، این‌بار برای catalogLabels.attrKeysFor(...).includes('standard').
   const usesStandardAttr = attrKeys.includes('standard');
   const usesAlloyAttr = attrKeys.includes('alloy');
-  const usesGradeAttr = attrKeys.includes('grade') || usesAlloyAttr;
+  // وال‌پست (angle-channel): «گرید» is still the column being edited — only
+  // the public label became «ضخامت» 1405/06/08, to match ahanonline. Same
+  // `grade` field, same input, so it must keep resolving into this branch.
+  const usesGradeAsThicknessAttr = attrKeys.includes('gradeAsThickness');
+  const usesGradeAttr = attrKeys.includes('grade') || usesAlloyAttr || usesGradeAsThicknessAttr;
   const usesLegacyConditionAttr = attrKeys.includes('legacyCondition');
   const usesConditionAttr = attrKeys.includes('condition') || usesLegacyConditionAttr;
-  // نبشی و ناودانی (بجز وال پست): «گرید» جای خود را به «شاخه» می‌دهد — همان
-  // ستونی که در جدول قیمت «۶ متری»/«۱۲ متری» نشان داده می‌شود.
+  // نبشی و ناودانی (پنج زیردسته، بجز وال‌پست و سپری): «گرید» جای خود را به
+  // «حالت» می‌دهد — همان ستونی که در جدول قیمت «۶ متری»/«۱۲ متری» نشان داده
+  // می‌شود. سپری خودش «طول شاخه» را دارد (کلید `branchLength` جدا، همان
+  // جعبهٔ عمومی «طول شاخه (متر)» پایین‌تر را می‌گیرد)، پس اینجا نمی‌آید.
   //
   // The form must swap with the page, not merely alongside it. Leaving the
   // «گرید» box here while the public table no longer publishes grade for
   // these subs would invite an operator to keep filling a field nobody will
   // ever see — the same "collect exactly what is published" rule the آلیاژ
   // and استاندارد relabels above follow. Nothing is stranded by hiding it:
-  // `grade` is null on every live row of all six of these subs (وال پست, the
-  // one sub that does hold a real grade, is deliberately not in the set).
+  // `grade` is null on every live row of all five of these subs (وال پست, the
+  // one sub that does hold a real grade — now edited as «ضخامت» via
+  // `usesGradeAttr` above — is deliberately not in the set; سپری edits its
+  // length through the generic «طول شاخه (متر)» box below instead).
   const usesBranchAttr = attrKeys.includes('branch');
   const gradeLabel = usesAlloyAttr
     ? ALLOY_LABEL
     : usesStandardAttr
       ? STANDARD_LABEL
-      : GRADE_LABEL;
+      : usesGradeAsThicknessAttr
+        ? THICKNESS_LABEL
+        : GRADE_LABEL;
   // During rollout, old ورق rows still carry condition-shaped values in
   // grade. Display that value until the verified migration (or this edit)
   // moves it, but never use the fallback where grade is a real alloy.

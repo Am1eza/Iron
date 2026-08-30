@@ -14,7 +14,6 @@ import {
   GRADE_LABEL,
   STANDARD_LABEL,
   ALLOY_LABEL,
-  BRANCH_LABEL,
   CONDITION_LABEL,
   SCHEDULE_LABEL,
   FACTORY_LABEL,
@@ -337,24 +336,28 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ح
 
   /* ---------------------------- نبشی و ناودانی ---------------------------- */
 
-  it('swaps «گرید» for «شاخه» on the six owner-approved نبشی/ناودانی subs', () => {
-    // Live slugs. `grade` is null on every row of all six, so the «گرید»
+  it('swaps «گرید» for «حالت» on the five owner-approved نبشی/ناودانی subs', () => {
+    // Live slugs. `grade` is null on every row of all five, so the «گرید»
     // column they had was printing «نامشخص» on every row of every page.
-    for (const sub of [
-      'nabshi',
-      'angle-unequal',
-      'spot',
-      'channel-light',
-      'channel-heavy',
-      'separi',
-    ]) {
+    // Relabelled from «شاخه» to «حالت» 1405/06/08 to match ahanonline's exact
+    // wording for these subs (سپری and وال‌پست use their own labels — see
+    // the tests below).
+    for (const sub of ['nabshi', 'angle-unequal', 'spot', 'channel-light', 'channel-heavy']) {
       const col = only('angle-channel', sub);
       expect(col.key).toBe('branch');
-      expect(col.label).toBe(BRANCH_LABEL);
-      expect(col.label).toBe('شاخه');
+      expect(col.label).toBe(CONDITION_LABEL);
+      expect(col.label).toBe('حالت');
       // A swap, not an addition: «گرید» is gone from these pages.
       expect(attributeColumns('angle-channel', sub).some((c) => c.key === 'grade')).toBe(false);
     }
+  });
+
+  it('gives سپری its own «طول شاخه» label, matching ahanonline — not «حالت»', () => {
+    // ahanonline's سپری page uses «طول شاخه», unlike نبشی/ناودانی's «حالت».
+    const col = only('angle-channel', 'separi');
+    expect(col.key).toBe('branchLength');
+    expect(col.label).toBe(BRANCH_LENGTH_LABEL);
+    expect(col.cell(row('separi', { branchLengthM: 6 }))).toBe('۶ متر');
   });
 
   it('prints the stored length as «۶ متری», not «۶ متر»', () => {
@@ -378,25 +381,29 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ح
     expect(col.cell(row('nabshi', { grade: 'A3' }))).toBe(UNKNOWN_VALUE);
   });
 
-  it('leaves وال پست on «گرید», because its grade holds real data', () => {
-    // «ضخامت ۲» on all 8 live rows. Swapping the column there would delete a
-    // published value from the price table.
+  it('gives وال پست its own «ضخامت» label, because its grade holds real thickness data', () => {
+    // «ضخامت ۲» on all 8 live rows. ahanonline's وال‌پست page confirms this
+    // is genuinely a thickness column, not a grade — relabelled 1405/06/08
+    // to match, still reading the same `skus.grade` value (no data change).
     const col = only('angle-channel', 'val-post');
-    expect(col.key).toBe('grade');
-    expect(col.label).toBe(GRADE_LABEL);
+    expect(col.key).toBe('gradeAsThickness');
+    expect(col.label).toBe(THICKNESS_LABEL);
     expect(col.cell(row('val-post', { grade: 'ضخامت ۲' }))).toBe('ضخامت ۲');
   });
 
-  it('keeps the mixed «همه» view on «گرید», dashing the swapped subs', () => {
-    // Same rule پروفیل's mixed view already follows for صنعتی and Z: وال پست
-    // still publishes its grade, and a sub that traded the column away is
-    // «—», not «نامشخص».
+  it('keeps the mixed «همه» view on «گرید», dashing all seven subs', () => {
+    // Every one of the seven subs traded «گرید» for its own column (حالت,
+    // طول شاخه, or a relabelled گرید-as-ضخامت), so the mixed view's plain
+    // «گرید» default now applies to none of their rows — same rule پروفیل's
+    // mixed view already follows for صنعتی and Z.
     const col = only('angle-channel', null);
     expect(col.key).toBe('grade');
-    expect(col.cell(row('val-post', { grade: 'ضخامت ۲' }))).toBe('ضخامت ۲');
+    expect(col.cell(row('val-post', { grade: 'ضخامت ۲' }))).toBe(NOT_APPLICABLE);
     expect(col.cell(row('nabshi', { branchLengthM: 6 }))).toBe(NOT_APPLICABLE);
+    expect(col.cell(row('separi', { branchLengthM: 6 }))).toBe(NOT_APPLICABLE);
     expect(col.card(row('channel-light'))).toBeNull();
   });
+
 
   it('does not give any OTHER category a «شاخه» column', () => {
     for (const slug of ['rebar', 'ibeam', 'sheet', 'profile', 'steel', 'pipe', 'wire']) {
