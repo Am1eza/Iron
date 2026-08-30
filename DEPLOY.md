@@ -248,3 +248,4 @@ NEXT_PUBLIC_API_MODE=live SESSION_SECRET=dev-secret pnpm dev
 ```
 (Note: the bundled `db` service doesn't publish 5432 to the host by default —
 add `ports: ["5432:5432"]` to it locally, or run any local Postgres.)
+# diagnostic 1788088357
