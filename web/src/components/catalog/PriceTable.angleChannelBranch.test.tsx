@@ -37,7 +37,7 @@ vi.mock('next/navigation', () => ({
 function row(
   id: string,
   subCategoryId: string,
-  extra: { grade?: string; branchLengthM?: number } = {},
+  extra: { grade?: string; branchLengthM?: number; dimensions?: string } = {},
 ): PriceRow {
   return {
     id,
@@ -81,7 +81,7 @@ const ROWS = [
   row('nabshi-none', 'nabshi'),
   row('channel-6', 'channel-light', { branchLengthM: 6 }),
   row('separi-6', 'separi', { branchLengthM: 6 }),
-  row('valpost-1', 'val-post', { grade: 'ضخامت ۲' }),
+  row('valpost-1', 'val-post', { grade: 'ضخامت ۲', dimensions: '۷' }),
 ];
 
 function renderTable(initialSub: string | null = null, rows: PriceRow[] = ROWS) {
@@ -145,17 +145,21 @@ describe('PriceTable — نبشی و ناودانی matches ahanonline: «حال
     expect(cellFor('separi-6', 'طول شاخه')).toBe('۶ متر');
   });
 
-  it('gives وال پست its own «ضخامت» label, still publishing «ضخامت ۲»', async () => {
-    // The one sub whose grade holds real data. Relabelling it would not
-    // delete the value an admin deliberately entered — reading the same
-    // `skus.grade` value, just calling the column what ahanonline calls it.
+  it('gives وال پست both spec columns its source leads with — «بال» and «ضخامت»', async () => {
+    // ahanonline `/نبشی-و-ناودانی/وال-پست/` renders «بال | ضخامت | سایز», بال
+    // reading 7 on all 8 priced rows. ضخامت is the one sub whose `grade` holds
+    // real data, so relabelling it deletes nothing — the same stored value
+    // under ahanonline's word for it, minus the «ضخامت» that string repeats
+    // from its own header. «بال» is the `dimensions` field, free on this sub.
     const user = userEvent.setup();
     renderTable('nabshi');
     await user.click(screen.getByRole('button', { name: 'وال پست' }));
     expect(screen.getByRole('columnheader', { name: 'ضخامت' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'بال' })).toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: 'گرید' })).toBeNull();
     expect(screen.queryByRole('columnheader', { name: 'حالت' })).toBeNull();
-    expect(cellFor('valpost-1', 'ضخامت')).toBe('ضخامت ۲');
+    expect(cellFor('valpost-1', 'ضخامت')).toBe('۲');
+    expect(cellFor('valpost-1', 'بال')).toBe('۷');
   });
 
   it('keeps the mixed «همه» view on «گرید», dashing all seven subs', () => {

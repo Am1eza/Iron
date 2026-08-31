@@ -67,12 +67,15 @@ describe('PriceTable — نبشی wall thickness scope', () => {
     expect(document.querySelector('td[data-label="ضخامت"]')).not.toBeNull();
   });
 
-  it.each([null, 'tbar'])('keeps the shared wall-thickness column hidden for %s', (subCategoryId) => {
-    renderTable(subCategoryId);
-    expect(screen.queryByRole('columnheader', { name: 'ضخامت' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('columnheader', { name: 'ابعاد' })).not.toBeInTheDocument();
-    expect(document.querySelector('td[data-label="ضخامت"]')).toBeNull();
-  });
+  it.each([null, 'tbar'])(
+    'keeps the shared wall-thickness column hidden for %s',
+    (subCategoryId) => {
+      renderTable(subCategoryId);
+      expect(screen.queryByRole('columnheader', { name: 'ضخامت' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('columnheader', { name: 'ابعاد' })).not.toBeInTheDocument();
+      expect(document.querySelector('td[data-label="ضخامت"]')).toBeNull();
+    },
+  );
 
   it('shows «ضخامت» on وال‌پست from its own grade column, not the shared wall-thickness one', () => {
     // 1405/06/08: وال‌پست's «گرید» was relabelled «ضخامت» to match
@@ -89,5 +92,14 @@ describe('PriceTable — نبشی wall thickness scope', () => {
     // shown must be «نامشخص» (unrecorded grade), never the `dimensions`
     // value «۴» — proof the column is reading the right field.
     expect(document.querySelector('td[data-label="ضخامت"]')?.textContent).toBe('نامشخص');
+  });
+
+  it('publishes وال‌پست’s `dimensions` as «بال», the header ahanonline leads with', () => {
+    // 1405/06/09: the field this sub had never used now carries the flange
+    // width. It must land under «بال» and stay out of the «ضخامت» column
+    // beside it, which reads `grade` — the two facts share a row, not a cell.
+    renderTable('val-post');
+    expect(screen.getByRole('columnheader', { name: 'بال' })).toBeInTheDocument();
+    expect(document.querySelector('td[data-label="بال"]')?.textContent).toBe('۴');
   });
 });

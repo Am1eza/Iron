@@ -28,15 +28,50 @@ import { CITIES } from '@/lib/data/logistics';
 /** Categories whose `size` column holds a thickness. Only ورق today. */
 const THICKNESS_CATEGORIES = new Set(['sheet']);
 
-/** Main-ورق subs whose existing `dimensions` value is actually published.
+/** Main-ورق subs whose `dimensions` is the mixed width/width×length fact.
  *
- * ahanonline's live black-sheet tables call this mixed width/width×length
- * fact «سایز»: roll rows are 1000/1250/1500, while cut rows are
- * 1000×2000/1250×2500/etc. The other live sheet lines publish an independent
- * width that our schema does not currently store, so offering their empty
- * `dimensions` field as «ابعاد» would be both the wrong fact and the wrong
- * word. Keep this deliberately sub-scoped until that width has its own column. */
+ * ahanonline's live black-sheet tables call it «سایز»: roll rows are
+ * 1000/1250/1500, while cut rows are 1000×2000/1250×2500/etc. — one column
+ * holding either shape, which is exactly what our own black rows already
+ * store. */
 const SHEET_DIMENSION_SUBS = new Set(['black']);
+
+/**
+ * Main-ورق subs whose `dimensions` is a bare WIDTH, headed «عرض».
+ *
+ * The one column every live sheet line except سیاه publishes and this catalog
+ * did not. Verified against ahanonline.com 1405/06/09 by reading the rendered
+ * `<thead>`, not the prose (all three «تاریخ بروزرسانی» 1405/6/9):
+ * - ورق روغنی `/انواع-ورق/ورق-روغنی/` → «ضخامت | **عرض** | برند | استاندارد»,
+ *   its عرض cells reading a bare `1000`/`1250`.
+ * - ورق گالوانیزه `/انواع-ورق/ورق-گالوانیزه/` → «ضخامت | **عرض** | برند».
+ * - ورق رنگی `/انواع-ورق/ورق-رنگی/` → «ضخامت | **عرض** | رنگ | برند» — the
+ *   owner's own worked example of what these tables should look like.
+ *
+ * #349 recorded this gap and declined to fill it, on the reading that the
+ * width "has no stored field" and that using `dimensions` would overload it.
+ * Re-checked against production: `skus.dimensions` is NULL on all 10 live
+ * روغنی/گالوانیزه/اسیدشویی rows, and the value the source publishes there is
+ * a bare width — byte-for-byte the same shape `black` already stores in that
+ * very column for its roll rows («۱۲۵۰», «۱۰۰۰»). So this is not an overload
+ * but the column's documented purpose: ONE optional secondary-spec field
+ * whose meaning each sub declares (see `skus.dimensions` in the schema, and
+ * the نبشی/پروفیل/استیل subs that already read it as a wall thickness). No
+ * migration, and no sub gains a second meaning for a field it already uses.
+ *
+ * Empty until an admin fills it: ahanonline prices the same thickness at two
+ * widths (1000 AND 1250) at one brand, so there is no honest 1:1 row match to
+ * backfill from — the same "wire the published column, leave the fact to the
+ * admin" convention `COLOURED_METAL_ATTRS`' aluminium sections follow. */
+const SHEET_WIDTH_SUBS = new Set(['oiled', 'galvanized', 'colored']);
+
+/** ورق اسیدشویی's own name for that same width — see `SHEET_WIDTH_SUBS`.
+ *
+ *  ahanonline `/انواع-ورق/ورق-اسید-شوئی/` renders «استاندارد | ضخامت | برند |
+ *  **سایز**» and puts the bare width (`1000`/`1250`) under «سایز», not under
+ *  «عرض» as its three sibling pages do. Same stored field, same fact, the
+ *  source's own word for this one sub — the `separi`/«طول شاخه» precedent. */
+const SHEET_WIDTH_AS_SIZE_SUBS = new Set(['pickled']);
 
 /** The exact نبشی sub-categories whose wall thickness the owner asked to
  *  record alongside the existing «سایز» (1405/06). Deliberately an allow-list:
@@ -44,6 +79,67 @@ const SHEET_DIMENSION_SUBS = new Set(['black']);
  *  نبشی only — widening this to the whole parent category would give those
  *  unrelated product lines a meaningless extra field. */
 const NABSHI_THICKNESS_SUBS = new Set(['nabshi', 'angle-unequal', 'spot']);
+
+/**
+ * وال‌پست's «بال» — the flange width its source leads the table with.
+ *
+ * ahanonline `/نبشی-و-ناودانی/وال-پست/` renders «**بال** | ضخامت | سایز» over
+ * its 8 priced rows, «بال» reading `7` on every one of them. #343 matched the
+ * other two columns (`size` is the section, `grade` the thickness — see
+ * `ANGLE_CHANNEL_THICKNESS_GRADE_SUBS`) and #350 recorded «بال» as "genuinely
+ * absent from the schema". It is not: `dimensions` is this catalog's one
+ * optional secondary-spec field, NULL on all 8 live وال‌پست rows and unused by
+ * this sub — `NABSHI_THICKNESS_SUBS` deliberately excludes it because its
+ * thickness lives in `grade`. Declaring the free field's meaning here is the
+ * same move پروفیل Z makes for its gauge, not a second meaning for a field
+ * وال‌پست already reads.
+ *
+ * Unlike the ورق width, this one BACKFILLS: our 8 sizes (۱۰×۲۰، ۱۰×۳۰،
+ * ۱۰×۴۰، ۱۵×۲۰، ۱۵×۳۰۰، ۱۵×۴۰، ۲۰×۳۰۰، ۲۰×۴۰) are exactly the source's 8,
+ * and every one of them publishes بال ۷ — see `scripts/fillSourcedDimensions.ts`.
+ */
+const VAL_POST_FLANGE_SUBS = new Set(['val-post']);
+
+/**
+ * لوله sub-categories whose `dimensions` is the wall thickness, «ضخامت».
+ *
+ * The single most-published pipe column, and the one #350 identified as
+ * missing on 7 of 9 subs but deferred as "needs a new DB column". It does
+ * not: `skus.dimensions` is NULL on all 59 live لوله rows and `usesDimensions`
+ * had no `pipe` branch at all, so the field is free for this category to
+ * declare — exactly as نبشی, پروفیل, استیل and the aluminium sections already
+ * declare it, and the reason the schema calls it "one shared optional
+ * secondary-spec column" rather than "ابعاد".
+ *
+ * Re-verified live 1405/06/09 off each page's own rendered `<thead>` («تاریخ
+ * بروزرسانی» 1405/6/9 throughout):
+ * - `galvanized` `/انواع-لوله/لوله-گالوانیزه/` → «سایز | **ضخامت** | حالت | استاندارد»
+ * - `industrial` `/انواع-لوله/لوله-درز-مستقیم/` → «سایز | **ضخامت** | حالت | استاندارد»
+ * - `scaffold` `/انواع-لوله/لوله-داربستی/` → «سایز | **ضخامت** | حالت»
+ * - `spiral` `/انواع-لوله/لوله-اسپیرال/` → «سایز | **ضخامت** | حالت»
+ * - `well-casing` `/انواع-لوله/لوله-جدار-چاه/` → «سایز | برند | **ضخامت**»
+ * - `gas`/`furniture`: recorded in #350 from ahanonline's لوله گاز خانگی page
+ *   and from sabaprofile's `/قیمت-لوله-مبلی/` («ضخامت | طول») respectively.
+ *
+ * `seamless-*` and `thick-walled` are deliberately absent: مانیسمان is priced
+ * on «رده» (the schedule class, already its own column) and گوشت‌دار's page
+ * publishes «سایز» and nothing else.
+ *
+ * Only `spiral` ships populated — all 12 of its rows carry the thickness
+ * inside `skus.name` («… ۱۶ اینچ **ضخامت ۶** …»), so it is an extraction, not
+ * a collection (`scripts/fillSourcedDimensions.ts`). The other six read
+ * «نامشخص» until an admin records the gauge: their sources price the SAME
+ * size at two or three different thicknesses, so there is nothing to derive
+ * from a size alone and a guessed wall is worse than an admitted gap. */
+const PIPE_THICKNESS_SUBS = new Set([
+  'galvanized',
+  'industrial',
+  'scaffold',
+  'spiral',
+  'well-casing',
+  'gas',
+  'furniture',
+]);
 
 /** Stainless sections whose stored secondary dimension is wall thickness.
  *  `profile` (پروفیل استیل) joined 1405/06/08 to match ahanonline.com, which
@@ -316,6 +412,10 @@ export const SIZE_LABEL = 'سایز';
 export const HEIGHT_LABEL = 'ارتفاع';
 export const THICKNESS_LABEL = 'ضخامت';
 export const DIMENSIONS_LABEL = 'ابعاد';
+/** ورق روغنی/گالوانیزه/رنگی's own width column — see `SHEET_WIDTH_SUBS`. */
+export const WIDTH_LABEL = 'عرض';
+/** وال‌پست's flange width — see `VAL_POST_FLANGE_SUBS`. */
+export const FLANGE_LABEL = 'بال';
 export const GRADE_LABEL = 'گرید';
 export const STANDARD_LABEL = 'استاندارد';
 export const SCHEDULE_LABEL = 'رده';
@@ -332,10 +432,38 @@ export function usesThickness(categorySlug: string | null | undefined): boolean 
 }
 
 /**
+ * What the shared `skus.dimensions` column MEANS on each sub-category, said in
+ * that sub's own source's word for it — the single table `usesDimensions` and
+ * `dimensionsLabel` both answer from.
+ *
+ * Those two used to be independent conditionals over the same six `Set`s, one
+ * deciding whether to render the field and the other what to call it. That is
+ * one fact expressed twice, and the failure it invites is silent: adding a sub
+ * to `usesDimensions` alone renders the column under the generic «ابعاد»
+ * fallback — a plausible-looking header describing the wrong fact. Keyed
+ * `${category}/${sub}` so absence means "this sub does not publish the field",
+ * which is the honest default for every unlisted sibling.
+ */
+const DIMENSION_MEANING: ReadonlyMap<string, string> = new Map(
+  (
+    [
+      ['sheet', SHEET_DIMENSION_SUBS, SIZE_LABEL],
+      ['sheet', SHEET_WIDTH_SUBS, WIDTH_LABEL],
+      ['sheet', SHEET_WIDTH_AS_SIZE_SUBS, SIZE_LABEL],
+      ['felezat-rangi', COLOURED_SHEET_DIMENSION_SUBS, DIMENSIONS_LABEL],
+      ['felezat-rangi', COLOURED_SECTION_THICKNESS_SUBS, THICKNESS_LABEL],
+      ['steel', STEEL_THICKNESS_SUBS, THICKNESS_LABEL],
+      ['profile', PROFILE_THICKNESS_SUBS, THICKNESS_LABEL],
+      ['angle-channel', NABSHI_THICKNESS_SUBS, THICKNESS_LABEL],
+      ['angle-channel', VAL_POST_FLANGE_SUBS, FLANGE_LABEL],
+      ['pipe', PIPE_THICKNESS_SUBS, THICKNESS_LABEL],
+    ] as const
+  ).flatMap(([category, subs, label]) => [...subs].map((sub) => [`${category}/${sub}`, label])),
+);
+
+/**
  * True when the shared `skus.dimensions` column is meaningful in this exact
- * catalog context. For main ورق it is the black-sheet «سایز» only; for
- * the approved section subs it is wall thickness. Every unlisted sibling
- * stays untouched.
+ * catalog context — see `DIMENSION_MEANING` for what it means where.
  *
  * Drives whether the column/field is OFFERED at all — callers must pass the
  * active/product sub-category so a mixed «همه» view does not grow a column
@@ -345,58 +473,22 @@ export function usesDimensions(
   categorySlug: string | null | undefined,
   subCategorySlug: string | null = null,
 ): boolean {
-  if (categorySlug === 'sheet') {
-    return Boolean(subCategorySlug && SHEET_DIMENSION_SUBS.has(subCategorySlug));
-  }
-  if (
-    categorySlug === 'felezat-rangi' &&
-    Boolean(
-      subCategorySlug &&
-      (COLOURED_SHEET_DIMENSION_SUBS.has(subCategorySlug) ||
-        COLOURED_SECTION_THICKNESS_SUBS.has(subCategorySlug)),
-    )
-  ) {
-    return true;
-  }
-  if (
-    categorySlug === 'steel' &&
-    Boolean(subCategorySlug && STEEL_THICKNESS_SUBS.has(subCategorySlug))
-  ) {
-    return true;
-  }
-  if (
-    categorySlug === 'profile' &&
-    Boolean(subCategorySlug && PROFILE_THICKNESS_SUBS.has(subCategorySlug))
-  ) {
-    return true;
-  }
-  return (
-    categorySlug === 'angle-channel' &&
-    Boolean(subCategorySlug && NABSHI_THICKNESS_SUBS.has(subCategorySlug))
-  );
+  return Boolean(subCategorySlug && DIMENSION_MEANING.has(`${categorySlug}/${subCategorySlug}`));
 }
 
-/** «سایز» for main ورق's black-sheet width/width×length, «ابعاد»
- *  for coloured-metal sheets, and «ضخامت» for the verified section
- *  subs. The generic fallback stays «ابعاد»; unknown contexts do not render
- *  the field, so they cannot silently misdescribe it. */
+/** The header that context puts over `skus.dimensions` — «سایز» on ورق سیاه
+ *  and اسیدشویی, «عرض» on the other sheet lines, «ضخامت» on every section sub
+ *  that publishes a wall gauge, «بال» on وال‌پست, «ابعاد» on coloured-metal
+ *  sheets. The generic fallback stays «ابعاد»; unknown contexts do not render
+ *  the field at all, so they cannot silently misdescribe it. */
 export function dimensionsLabel(
   categorySlug: string | null | undefined,
   subCategorySlug: string | null = null,
 ): string {
-  if (categorySlug === 'sheet' && subCategorySlug === 'black') return SIZE_LABEL;
-  return (categorySlug === 'angle-channel' &&
-    subCategorySlug &&
-    NABSHI_THICKNESS_SUBS.has(subCategorySlug)) ||
-    (categorySlug === 'steel' && subCategorySlug && STEEL_THICKNESS_SUBS.has(subCategorySlug)) ||
-    (categorySlug === 'profile' &&
-      subCategorySlug &&
-      PROFILE_THICKNESS_SUBS.has(subCategorySlug)) ||
-    (categorySlug === 'felezat-rangi' &&
-      subCategorySlug &&
-      COLOURED_SECTION_THICKNESS_SUBS.has(subCategorySlug))
-    ? THICKNESS_LABEL
-    : DIMENSIONS_LABEL;
+  return (
+    (subCategorySlug ? DIMENSION_MEANING.get(`${categorySlug}/${subCategorySlug}`) : undefined) ??
+    DIMENSIONS_LABEL
+  );
 }
 
 /** «ضخامت» for ورق, «ارتفاع» on پروفیل Z, «سایز» everywhere else. The Z
@@ -622,6 +714,15 @@ function metresAdjective(m: number | null | undefined): string | undefined {
   return m ? `${toPersianDigits(m)} متری` : undefined;
 }
 
+/** «ضخامت ۲» → «۲», under a column already headed «ضخامت». Display only —
+ *  see the `gradeAsThickness` entry below. A value with nothing left after
+ *  the word is returned unchanged rather than emptied. */
+function stripThicknessWord(value: string | undefined): string | undefined {
+  if (!value) return value;
+  const stripped = value.replace(/^\s*ضخامت\s*/, '').trim();
+  return stripped || value;
+}
+
 const ATTR_DEFS: Record<AttrKey, { label: string; read: (r: AttrRow) => string | undefined }> = {
   grade: { label: GRADE_LABEL, read: (r) => r.grade },
   standard: { label: STANDARD_LABEL, read: (r) => r.standard },
@@ -674,7 +775,16 @@ const ATTR_DEFS: Record<AttrKey, { label: string; read: (r: AttrRow) => string |
   // وال‌پست's `skus.grade` genuinely holds a thickness value («۲»), not a
   // grade — see ANGLE_CHANNEL_BRANCH_SUBS. Same re-label move as `alloy`
   // above, just a different word for a different sub.
-  gradeAsThickness: { label: THICKNESS_LABEL, read: (r) => r.grade },
+  //
+  // The stored strings carry the word too — «ضخامت ۲» on all 8 وال‌پست rows,
+  // «ضخامت ۰.۸۱» on all 15 لوله مسی rows — which under this header rendered
+  // «ضخامت: ضخامت ۲»: the column name repeated inside its own cell. Both
+  // sources print the bare number there (ahanonline's وال‌پست «بال | ضخامت |
+  // سایز» reads `7 | 2 | 20*300`), so the redundant prefix is stripped for
+  // DISPLAY only — the stored value is left byte-for-byte alone, exactly like
+  // every other re-label in this file. A value that is only the word and no
+  // number keeps it rather than rendering as an empty cell.
+  gradeAsThickness: { label: THICKNESS_LABEL, read: (r) => stripThicknessWord(r.grade) },
   // پروفیل Z's length column. Headed «طول» and NOT «طول سفارشی» since
   // 1405/06/09: ahanonline's own پروفیلz page (fetched 2026-08-31, «تاریخ
   // بروزرسانی» 1405/6/7) renders «ارتفاع | ضخامت(mm) | طول(m)» over its 8
