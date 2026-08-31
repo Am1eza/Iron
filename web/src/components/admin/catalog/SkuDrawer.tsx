@@ -300,7 +300,20 @@ export function SkuDrawer({
   // the public label became «ضخامت» 1405/06/08, to match ahanonline. Same
   // `grade` field, same input, so it must keep resolving into this branch.
   const usesGradeAsThicknessAttr = attrKeys.includes('gradeAsThickness');
-  const usesGradeAttr = attrKeys.includes('grade') || usesAlloyAttr || usesGradeAsThicknessAttr;
+  // میلگرد (1405/06/09): the public column moved from «گرید» to «استاندارد»
+  // to match ahanonline/teleahan, but it is still `skus.grade` underneath —
+  // so, exactly like وال‌پست's «ضخامت» above, this must keep resolving into
+  // the grade branch or the operator loses the only box that edits A2/A3.
+  const usesGradeAsStandardAttr = attrKeys.includes('gradeAsStandard');
+  // تسمه مسی: «حالت» whose value is stored in `skus.standard`, not in
+  // `skus.condition` — the box has to write the field the page reads.
+  const usesStandardAsConditionAttr = attrKeys.includes('standardAsCondition');
+  const writesStandardAttr = usesStandardAttr || usesStandardAsConditionAttr;
+  const usesGradeAttr =
+    attrKeys.includes('grade') ||
+    usesAlloyAttr ||
+    usesGradeAsThicknessAttr ||
+    usesGradeAsStandardAttr;
   const usesLegacyConditionAttr = attrKeys.includes('legacyCondition');
   const usesConditionAttr = attrKeys.includes('condition') || usesLegacyConditionAttr;
   // Some section families replace «گرید» with the name their source gives
@@ -332,11 +345,13 @@ export function SkuDrawer({
       : LENGTH_LABEL;
   const gradeLabel = usesAlloyAttr
     ? ALLOY_LABEL
-    : usesStandardAttr
-      ? STANDARD_LABEL
-      : usesGradeAsThicknessAttr
-        ? THICKNESS_LABEL
-        : GRADE_LABEL;
+    : usesStandardAsConditionAttr
+      ? CONDITION_LABEL
+      : usesStandardAttr || usesGradeAsStandardAttr
+        ? STANDARD_LABEL
+        : usesGradeAsThicknessAttr
+          ? THICKNESS_LABEL
+          : GRADE_LABEL;
   // During rollout, old ورق rows still carry condition-shaped values in
   // grade. Display that value until the verified migration (or this edit)
   // moves it, but never use the fallback where grade is a real alloy.
@@ -644,6 +659,40 @@ export function SkuDrawer({
                 placeholder={isBrand ? BRAND_PLACEHOLDER : FACTORY_PLACEHOLDER}
                 onChange={(factory) => set({ factory })}
               />
+              {/* Rendered INDEPENDENTLY of the branch box below, not as its
+                  else-branch. Until 1405/06/09 no sub-category had both a
+                  grade-shaped column and a branch-length one, so a ternary was
+                  harmless; میلگرد ساده («استاندارد» + «حالت»), میلگرد استیل
+                  («آلیاژ» + «حالت») and لوله مسی («ضخامت» + «حالت») all do, and
+                  under a ternary the first of the two would silently lose its
+                  input. */}
+              {writesStandardAttr || usesGradeAttr ? (
+                <PickerInput
+                  id={writesStandardAttr ? 'sku-standard' : 'sku-grade'}
+                  label={gradeLabel}
+                  helper={
+                    usesAlloyAttr
+                      ? 'استیل: ۲۰۱، ۳۰۴، ۳۰۴L، ۳۱۶L. در صفحهٔ کالا به مشتری نشان داده می‌شود.'
+                      : usesStandardAsConditionAttr
+                        ? 'حالت عرضه، مثلاً «شاخه ۴ متری». در صفحهٔ کالا به مشتری نشان داده می‌شود.'
+                        : usesGradeAsStandardAttr
+                          ? 'میلگرد: A1، A2، A3. در صفحهٔ کالا به مشتری نشان داده می‌شود.'
+                          : usesStandardAttr
+                            ? 'مثلاً HEA یا HEB (بر اساس DIN 1025). در صفحهٔ کالا به مشتری نشان داده می‌شود.'
+                            : 'میلگرد: A1، A2، A3. در صفحهٔ کالا به مشتری نشان داده می‌شود.'
+                  }
+                  value={writesStandardAttr ? v.standard : v.grade}
+                  options={
+                    (writesStandardAttr ? suggestions?.standards : suggestions?.grades) ?? []
+                  }
+                  error={writesStandardAttr ? fieldErrors.standard : fieldErrors.grade}
+                  maxLength={40}
+                  placeholder={writesStandardAttr ? undefined : GRADE_PLACEHOLDER}
+                  onChange={(val) =>
+                    writesStandardAttr ? set({ standard: val }) : set({ grade: val })
+                  }
+                />
+              ) : null}
               {usesBranchAttr ? (
                 /* Bound to `branchLengthM` — the SAME column the «طول شاخه»
                    box in the auto-filled section normally edits, which is why
@@ -665,26 +714,6 @@ export function SkuDrawer({
                   maxLength={10}
                   placeholder="مثلاً ۶"
                   onChange={(val) => set({ branchLengthM: val }, { weight: touched.weight })}
-                />
-              ) : usesStandardAttr || usesGradeAttr ? (
-                <PickerInput
-                  id={usesStandardAttr ? 'sku-standard' : 'sku-grade'}
-                  label={gradeLabel}
-                  helper={
-                    gradeLabel === ALLOY_LABEL
-                      ? 'استیل: ۲۰۱، ۳۰۴، ۳۰۴L، ۳۱۶L. در صفحهٔ کالا به مشتری نشان داده می‌شود.'
-                      : gradeLabel === STANDARD_LABEL
-                        ? 'مثلاً HEA یا HEB (بر اساس DIN 1025). در صفحهٔ کالا به مشتری نشان داده می‌شود.'
-                        : 'میلگرد: A1، A2، A3. در صفحهٔ کالا به مشتری نشان داده می‌شود.'
-                  }
-                  value={usesStandardAttr ? v.standard : v.grade}
-                  options={(usesStandardAttr ? suggestions?.standards : suggestions?.grades) ?? []}
-                  error={usesStandardAttr ? fieldErrors.standard : fieldErrors.grade}
-                  maxLength={40}
-                  placeholder={usesStandardAttr ? undefined : GRADE_PLACEHOLDER}
-                  onChange={(val) =>
-                    usesStandardAttr ? set({ standard: val }) : set({ grade: val })
-                  }
                 />
               ) : null}
               {usesConditionAttr ? (
@@ -839,7 +868,13 @@ export function SkuDrawer({
             </Button>
             {advanced ? (
               <div style={{ marginBlockStart: 'var(--space-3)', display: 'grid', gap: 'var(--space-3)' }}>
-                {!usesStandardAttr ? (
+                {/* Hidden wherever `skus.standard` is already edited above —
+                    under its own name (تیرآهن هاش) or under تسمه مسی's
+                    «حالت» — and wherever the primary box is a relabelled
+                    grade called «استاندارد» (میلگرد), so the form can never
+                    show two boxes with the same label writing different
+                    columns. */}
+                {!writesStandardAttr && !usesGradeAsStandardAttr ? (
                   <PickerInput
                     id="sku-standard"
                     label="استاندارد"
