@@ -5,23 +5,25 @@ import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/
 import { deleteSubCategory, updateSubCategory } from '@/lib/server/repos/catalogAdminRepo';
 import {
   catalogErrorResponse,
-  redirectTaxonomySlugChange,
+  planDeletedNodeRedirects,
+  redirectSubCategoryChange,
   revalidateCatalog,
+  writeCatalogRedirects,
 } from '@/lib/server/utils/catalogRoute';
 import { finiteNumber, nonEmptyPatch, subCategorySlugSchema } from '@/lib/validation/utils';
-import { normalizePersian } from '@/lib/utils/persianText';
+import { normalizeCatalogText } from '@/lib/server/utils/persianZwnj';
 
 const patchPayload = nonEmptyPatch(
   z.object({
     slug: subCategorySlugSchema(60).optional(),
-    name: z.string().trim().min(1).max(80).transform(normalizePersian).optional(),
+    name: z.string().trim().min(1).max(80).transform(normalizeCatalogText).optional(),
     // Display-only cluster label (not a real hierarchy level, see catalog.ts).
     // Empty string clears the group (normalized to null, same as create).
     groupLabel: z
       .string()
       .trim()
       .max(80)
-      .transform(normalizePersian)
+      .transform(normalizeCatalogText)
       .transform((v) => v || null)
       .nullable()
       .optional(),
@@ -55,9 +57,10 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }
   // to the raw identifier, printing Latin «subCategory» inline in a Persian
   // sentence and losing the link through to the catalog.
   await audit(auth.session.id, 'catalog.sub.update', { type: 'sub', id }, result.before, result.after);
-  if (v.data.slug && v.data.slug !== result.before.slug) {
-    await redirectTaxonomySlugChange('subCategory', id, result.before.slug, v.data.slug);
-  }
+  // A MOVE changes this sub's public URL exactly as a rename does — the parent
+  // category's slug is the first segment of it — and every product underneath
+  // moves with it. Comparing slugs alone left all of those hard-404ing.
+  await redirectSubCategoryChange(id, result.before, result.after);
   await revalidateCatalog('taxonomy');
   return NextResponse.json({ subCategory: result.after });
 }
@@ -69,15 +72,15 @@ async function DELETEImpl(req: NextRequest, ctx: { params: Promise<{ id: string 
   const auth = await requireApiPermission(req, 'catalog:write');
   if ('response' in auth) return auth.response;
   const { id } = await ctx.params;
+  // Before the delete: its products cascade away with it.
+  const tombstone = await planDeletedNodeRedirects('subCategory', id);
   const removed = await deleteSubCategory(id);
   if (!removed) return NextResponse.json({ error: 'not_found', message: 'زیر‌دسته یافت نشد.' }, { status: 404 });
-  await audit(
-    auth.session.id,
-    'catalog.sub.delete',
-    { type: 'sub', id },
-    { name: removed.name, slug: removed.slug },
-    null,
-  );
+  // The whole row — see the category route for why two columns is not a
+  // recovery story.
+  await audit(auth.session.id, 'catalog.sub.delete', { type: 'sub', id }, removed, null);
+  // The sub's own page and each of its products land on the parent category.
+  await writeCatalogRedirects(tombstone);
   await revalidateCatalog('taxonomy');
   return NextResponse.json({ ok: true });
 }
