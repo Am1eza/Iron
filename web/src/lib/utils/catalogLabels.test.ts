@@ -59,7 +59,7 @@ describe('sizeLabel', () => {
     expect(sizeLabel('profile', null)).toBe(SIZE_LABEL);
   });
 
-  it('calls فلزات‌رنگی\'s ورق subs «ضخامت», every sibling stays «سایز»', () => {
+  it("calls فلزات‌رنگی's ورق subs «ضخامت», every sibling stays «سایز»", () => {
     // ahanonline.com's ورق آلومینیوم/ورق مسی pages both use «ضخامت», verified
     // 1405/06/08 — sub-scoped, not category-wide like the main ورق category,
     // because میلگرد/نبشی/لوله/پروفیل آلومینیوم genuinely mean سایز.
@@ -326,7 +326,7 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ح
     }
   });
 
-  it('gives تسمه مسی «حالت», matching ahanonline\'s fixed supplied-form column', () => {
+  it("gives تسمه مسی «حالت», matching ahanonline's fixed supplied-form column", () => {
     // ahanonline's تسمه مسی page publishes «حالت» with a fixed phrase value
     // («شاخه ۴ متری») — the same `condition` concept aluminum-sheet already
     // uses, not an empty-column guess. copper-strip has zero stored
@@ -483,7 +483,6 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ح
     expect(col.card(row('channel-light'))).toBeNull();
   });
 
-
   it('does not give any OTHER category a «شاخه» column', () => {
     for (const slug of ['rebar', 'ibeam', 'sheet', 'profile', 'steel', 'pipe', 'wire']) {
       for (const sub of [null, 'nabshi', 'channel-light', 'separi']) {
@@ -497,7 +496,7 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ح
   /** The لوله column set on a given sub. */
   const pipeCols = (sub: string | null) => attributeColumns('pipe', sub);
 
-  it('adds «رده» beside «گرید» on مانیسمان only — a gain, not a swap', () => {
+  it('gives مانیسمان «رده» ALONE — the always-empty «گرید» beside it is gone', () => {
     // The live slugs, read from the production catalog: مانیسمان really is
     // split into داخلی/خارجی, and `data/nav.ts`'s single `seamless` would
     // have matched no rows at all. گازی/صنعتی/اسپیرال/جدار چاه/گوشت‌دار briefly
@@ -505,18 +504,25 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ح
     // own live pages for all five publish no «رده» column, and ASME B36.10
     // schedule numbers are not how this market classifies them — only
     // مانیسمان is actually sold and quoted by «رده ۴۰» / «رده ۸۰».
+    //
+    // «رده» sat beside «گرید» until 1405/06/10, when the spec-completeness
+    // audit found that grade column empty on all five live مانیسمان rows and
+    // published by nobody: ahanonline's لوله-مانسمان page renders
+    // سایز|رده|برند|واحد across all three of its tables (2026-08-31) and
+    // teleahan's مانیسمان page carries no grade either. So it became a swap
+    // after all — of an empty column for the populated one it stood next to.
     for (const sub of ['seamless-internal', 'seamless-external']) {
       const cols = pipeCols(sub);
-      expect(cols.map((c) => c.key)).toEqual(['grade', 'schedule']);
-      expect(cols.map((c) => c.label)).toEqual([GRADE_LABEL, SCHEDULE_LABEL]);
-      // A pipe genuinely has both facts, so neither displaces the other.
-      expect(cols[0]!.cell(row(sub, { grade: 'ST37' }))).toBe('ST37');
-      expect(cols[1]!.cell(row(sub, { schedule: '۴۰' }))).toBe('۴۰');
+      expect(cols.map((c) => c.key)).toEqual(['schedule']);
+      expect(cols.map((c) => c.label)).toEqual([SCHEDULE_LABEL]);
+      expect(cols[0]!.cell(row(sub, { schedule: '۴۰' }))).toBe('۴۰');
+      // A stored grade must not resurface anywhere on the row.
+      expect(cols.some((c) => c.label === GRADE_LABEL)).toBe(false);
     }
   });
 
   it('reads «رده» from skus.schedule and never from standard or grade', () => {
-    const schedule = pipeCols('seamless-internal')[1]!;
+    const schedule = pipeCols('seamless-internal')[0]!;
     // لولهٔ جدار چاه stores a real «استاندارد» (ST37) in `standard`, which is
     // exactly why «رده» could not borrow that column. Neither neighbouring
     // value may leak into it.
@@ -527,12 +533,29 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ح
     expect(schedule.card(row('seamless-internal'))).toBeNull();
   });
 
+  it('gives لوله جدار چاه «استاندارد» — the column its data was already in', () => {
+    // 13 of 13 live rows printed «گرید: نامشخص» while ST37 sat unused one
+    // column over, in `skus.standard`. ahanonline's لوله-جدار-چاه page
+    // (2026-08-31) has no grade column at all and names st37 in every one of
+    // its 26 priced rows, for all three mills we carry.
+    const cols = pipeCols('well-casing');
+    expect(cols.map((c) => c.key)).toEqual(['standard']);
+    expect(cols[0]!.label).toBe(STANDARD_LABEL);
+    expect(cols[0]!.cell(row('well-casing', { standard: 'ST37' }))).toBe('ST37');
+    // Read from `standard` only — a stray grade must not fill the cell.
+    expect(cols[0]!.cell(row('well-casing', { grade: 'ST37' }))).toBe(UNKNOWN_VALUE);
+  });
+
   it('offers no «رده» on the لوله subs that have no schedule rating', () => {
     // مبلی is furniture tube and داربستی is scaffold tube — sold on outside
     // diameter and wall gauge, with no schedule class at all. گالوانیزه is
     // likewise excluded — it was never named in any owner request. گازی،
-    // صنعتی درزدار، اسپیرال، جدار چاه and گوشت‌دار join them because
-    // ahanonline.com does not publish «رده» for any of the five either.
+    // صنعتی درزدار، اسپیرال and گوشت‌دار join them because ahanonline.com does
+    // not publish «رده» for any of them either. All six keep the plain
+    // «گرید» they have always had: the 1405/06/10 audit checked ahanonline,
+    // markazeahan, teleahan and kilooton and found no published grade for any
+    // welded structural pipe line, so the column stays honestly empty rather
+    // than being filled with an invented ST37 — see `attrKeysFor`'s note.
     for (const sub of [
       'furniture',
       'scaffold',
@@ -540,11 +563,12 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ح
       'gas',
       'industrial',
       'spiral',
-      'well-casing',
       'thick-walled',
     ]) {
       expect(pipeCols(sub).map((c) => c.key)).toEqual(['grade']);
     }
+    // …and جدار چاه, which reads «استاندارد» instead, still has no «رده».
+    expect(pipeCols('well-casing').some((c) => c.key === 'schedule')).toBe(false);
   });
 
   it('keeps «رده» out of the mixed «همه» لوله view', () => {
@@ -615,7 +639,6 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ح
     expect(angleAlloy.card(row('angle'))).toBeNull();
   });
 
-
   it('does not leak «آلیاژ» into the unrelated top-level لوله/نبشی categories', () => {
     // `steel` has subs literally named `pipe`, `angle`, `channel`, `profile`,
     // which collide with three top-level category slugs. The label is resolved
@@ -648,7 +671,16 @@ describe('factoryIsMeaningful', () => {
   it('withholds it for the whole استیل category — imported, no mill exists', () => {
     // Category-wide and exception-free, unlike پروفیل: the stored values are
     // countries of origin («چین» on نبشی, «تایوان» on ناودانی), not mills.
-    for (const sub of ['angle', 'channel', 'pipe', 'profile', 'flange', 'mesh', 'anything-new', null]) {
+    for (const sub of [
+      'angle',
+      'channel',
+      'pipe',
+      'profile',
+      'flange',
+      'mesh',
+      'anything-new',
+      null,
+    ]) {
       expect(factoryIsMeaningful('steel', sub)).toBe(false);
     }
   });
@@ -743,7 +775,13 @@ describe('regionFromFactory — recovering a city from a fabricated mill name', 
   it('returns nothing for a name with no city in it', () => {
     // These are the rows that land in «نامشخص». Guessing a city for them is
     // exactly the fabrication this whole change exists to undo.
-    for (const name of ['نیکان پروفیل', 'کیان پرشیا', 'جهان پروفیل پارس', 'پروفیل یاران', 'پروفیل صابری']) {
+    for (const name of [
+      'نیکان پروفیل',
+      'کیان پرشیا',
+      'جهان پروفیل پارس',
+      'پروفیل یاران',
+      'پروفیل صابری',
+    ]) {
       expect(regionFromFactory(name), name).toBeUndefined();
     }
     expect(regionFromFactory(undefined)).toBeUndefined();

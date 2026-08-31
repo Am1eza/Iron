@@ -195,6 +195,34 @@ const IBEAM_SUBTYPE_HEADING_SUBS = new Set(['hash-sabok', 'hash-sangin', 'lane-z
 const PIPE_SCHEDULE_SUBS = new Set(['seamless-internal', 'seamless-external']);
 
 /**
+ * لوله جدار چاه — «استاندارد», not «گرید».
+ *
+ * Established 1405/06/10 by the spec-completeness audit (`specCoverageReport`),
+ * which measures what a buyer actually reads as «نامشخص» on a live price
+ * table. جدار چاه was its single largest gap: 13 of 13 active rows printing
+ * «گرید: نامشخص» — while the very fact those cells were missing sat unused,
+ * one column over, in `skus.standard` («ST37», on all 13). No data was
+ * missing; the sub was simply reading the wrong field.
+ *
+ * ahanonline.com/product-category/انواع-لوله/لوله-جدار-چاه (fetched
+ * 2026-08-31, its own «تاریخ بروزرسانی» 1405/6/7) confirms both halves:
+ * its columns are سایز|برند|ضخامت|محل تحویل|واحد — **no grade column at
+ * all** — and every one of its 26 priced rows names the standard in its
+ * `data-name`, «لوله جدار چاه 4 8 اینچ تهران شرق st37 12 متری کارخانه»,
+ * for all three mills we also carry (تهران شرق / کالوپ / کیان پرشیا).
+ * teleahan.com/product-category/لوله-اتصالات/لوله-جدار-چاه (same date)
+ * publishes سایز|ضخامت|محل تحویل|واحد and likewise no grade.
+ * markazeahan.com and kilooton.com have no جدار چاه page at all.
+ *
+ * So «گرید» is a column no source in this trade publishes for جدار چاه, and
+ * ST37 is the one spec every source that names anything names. Same
+ * one-stored-column-relabelled move as `alloy`/`gradeAsThickness`, except
+ * here the value was already in its own correct column and only the display
+ * key pointed elsewhere. No stored value changes.
+ */
+const PIPE_STANDARD_SUBS = new Set(['well-casing']);
+
+/**
  * لوله sub-categories whose «کارخانه» column is really a «برند».
  *
  * مانیسمان sold here is IMPORTED, not rolled by a named Iranian mill, so the
@@ -254,8 +282,8 @@ export function usesDimensions(
     categorySlug === 'felezat-rangi' &&
     Boolean(
       subCategorySlug &&
-        (COLOURED_SHEET_DIMENSION_SUBS.has(subCategorySlug) ||
-          COLOURED_SECTION_THICKNESS_SUBS.has(subCategorySlug)),
+      (COLOURED_SHEET_DIMENSION_SUBS.has(subCategorySlug) ||
+        COLOURED_SECTION_THICKNESS_SUBS.has(subCategorySlug)),
     )
   ) {
     return true;
@@ -291,7 +319,9 @@ export function dimensionsLabel(
     subCategorySlug &&
     NABSHI_THICKNESS_SUBS.has(subCategorySlug)) ||
     (categorySlug === 'steel' && subCategorySlug && STEEL_THICKNESS_SUBS.has(subCategorySlug)) ||
-    (categorySlug === 'profile' && subCategorySlug && PROFILE_THICKNESS_SUBS.has(subCategorySlug)) ||
+    (categorySlug === 'profile' &&
+      subCategorySlug &&
+      PROFILE_THICKNESS_SUBS.has(subCategorySlug)) ||
     (categorySlug === 'felezat-rangi' &&
       subCategorySlug &&
       COLOURED_SECTION_THICKNESS_SUBS.has(subCategorySlug))
@@ -561,6 +591,20 @@ const ATTR_DEFS: Record<AttrKey, { label: string; read: (r: AttrRow) => string |
  * families deliberately keep their previous fallback until they have a real,
  * priced source row to reconcile — absence of stock is not evidence for a
  * migration.
+ *
+ * `profil-sotuni` (پروفیل ستونی) is the one unlisted family that DOES have
+ * live priced rows — 6 of them, all reading «گرید: نامشخص». Checked
+ * 2026-08-31 by the spec-completeness audit and left on the fallback
+ * deliberately: no source publishes a grade for column section either.
+ * ahanonline.com/product-category/انواع-پروفیل/پروفیل/قوطی-ستونی («تاریخ
+ * بروزرسانی» 1405/6/7) renders سایز|ضخامت|حالت|برند|محل تحویل|واحد;
+ * markazeahan.com/product-category/قوطی-ستونی renders
+ * نام محصول|ضخامت(mm)|طول(m)|وزن(kg); teleahan.com's پروفیل ساختمانی page
+ * and kilooton.com/catalog/hollowsection likewise carry none — kilooton's
+ * only grade-shaped field reads «ساختمانی», an application class, beside a
+ * generic «EN 10219-2, ISIRI 17003-2». Not swapped to the «حالت» ahanonline
+ * publishes for the same reason the لوله subs were not: none of the six rows
+ * stores a `branch_length_m`, so the column would still read «نامشخص».
  */
 const PROFILE_ATTRS: Record<string, AttrKey[]> = {
   'prvfyl-snaty': ['profileCondition'],
@@ -703,6 +747,11 @@ export function attrKeysFor(
   // key reads the new `condition` column first and falls back only for this
   // verified legacy family until the guarded move has run; both an individual
   // sub and the mixed «همه» view therefore keep one unambiguous label.
+  // ورق's own «حالت» gap — اسیدشویی 5, روغنی 3, گالوانیزه 2, every cell
+  // «نامشخص» — was closed in the data rather than here, 1405/06/10:
+  // `scripts/fillSheetAndRebarSpecGaps.ts` writes the «رول» that ahanonline
+  // and kilooton both publish for every priced row of all three lines. The
+  // column was already the right one.
   if (categorySlug === 'sheet') return ['legacyCondition'];
   if (categorySlug === 'felezat-rangi' && sub !== null) {
     return COLOURED_METAL_ATTRS[sub] ?? ['grade'];
@@ -735,12 +784,90 @@ export function attrKeysFor(
     if (ANGLE_CHANNEL_THICKNESS_GRADE_SUBS.has(sub)) return ['gradeAsThickness'];
     return ['grade'];
   }
+  // مانیسمان trades «گرید» away rather than gaining «رده» beside it, and جدار
+  // چاه reads «استاندارد» — both settled 1405/06/10 by the spec-completeness
+  // audit (`scripts/specCoverageReport.ts`), which measures what a buyer
+  // actually reads as «نامشخص» on a live table rather than what a null scan
+  // says.
+  //
+  // مانیسمان: `PIPE_SCHEDULE_SUBS`' own note already established that this is
+  // the one pipe family the market classifies by «رده». What the audit added
+  // is that «رده» is ALSO the only fact it classifies them by:
+  // ahanonline.com/product-category/انواع-لوله/لوله-مانسمان (fetched
+  // 2026-08-31, «تاریخ بروزرسانی» 1405/6/7) renders سایز|رده|برند|واحد across
+  // all three of its tables (رده ۲۰ / ۴۰ / ۸۰, 51 priced rows) with no grade
+  // column; teleahan.com's لوله مانیسمان page likewise. All five of our live
+  // مانیسمان rows already carry a `schedule`, and all five carried an empty
+  // «گرید» beside it. So this is the نبشی swap, not a loss: one always-empty
+  // column removed, the populated one it sits next to kept.
+  //
+  // جدار چاه: see `PIPE_STANDARD_SUBS`.
+  //
+  // Every OTHER لوله sub keeps «گرید», and six of them — گوشت‌دار, گالوانیزه,
+  // گازی, صنعتی درزدار, مبلی, داربستی (29 live rows) — were checked in the
+  // same pass and confirmed to have NO published grade anywhere, so their
+  // «نامشخص» is honest rather than a collection failure. Sources, all fetched
+  // 2026-08-31:
+  //   * ahanonline.com has a page for five of the six and a grade column on
+  //     none — گوشت‌دار is سایز|واحد; گالوانیزه and صنعتی (via their
+  //     لوله-درز-مستقیم parent) are سایز|ضخامت|حالت|استاندارد where
+  //     «استاندارد» holds a test class («تست آب», «صنعتی», «تست گاز API»),
+  //     never a steel grade; گازی is سایز|ضخامت|برند; داربستی is
+  //     سایز|ضخامت|حالت. Its `لوله-مبلی` page parses to zero priced rows.
+  //   * markazeahan.com's مبلی/داربستی/صنعتی/گالوانیزه pages are all
+  //     قطر|ضخامت|طول|وزن|محل بارگیری. داربستی's «نوع» column names the source
+  //     coil («ورق فولاد مبارکه اصفهان», «مخلوط») — a supplier, not a grade.
+  //   * teleahan.com's مبلی/داربستی/صنعتی/گالوانیزه/تست گاز pages are all
+  //     کارخانه|سایز|ضخامت|محل تحویل|واحد.
+  //   * kilooton.com/catalog/circular-hollowsection is the one source with a
+  //     grade-shaped field for welded pipe and it reads «ساختمانی» — an
+  //     application class, beside a generic «استاندارد موجود EN 10219-2,
+  //     ISIRI 17003-2».
+  // Deliberately NOT resolved by swapping in the «حالت» (branch length) those
+  // pages do publish, the way نبشی's was: not one of the 29 rows stores a
+  // `branch_length_m`, so the swap would move «نامشخص» under a new header and
+  // gain the buyer nothing.
   if (categorySlug === 'pipe' && sub !== null) {
-    return PIPE_SCHEDULE_SUBS.has(sub) ? ['grade', 'schedule'] : ['grade'];
+    if (PIPE_SCHEDULE_SUBS.has(sub)) return ['schedule'];
+    if (PIPE_STANDARD_SUBS.has(sub)) return ['standard'];
+    return ['grade'];
   }
   if (categorySlug === 'steel') {
-    return sub !== null ? (STEEL_ATTRS[sub] ?? ['alloy', 'branchLength']) : ['alloy', 'branchLength'];
+    return sub !== null
+      ? (STEEL_ATTRS[sub] ?? ['alloy', 'branchLength'])
+      : ['alloy', 'branchLength'];
   }
+  // Every remaining category keeps the plain «گرید» column it has always had.
+  //
+  // کلاف و مفتول (`wire`) is the one that lands here with a real, measured
+  // gap: all 17 of its live rows across six subs — کلاف آجدار 4, مفتول سیاه
+  // 4, توری 3, کلاف ساده 2, مفتول گالوانیزه 2, سیم آرماتوربندی 2 — print
+  // «گرید: نامشخص». Checked 2026-08-31 by the spec-completeness audit
+  // (`scripts/specCoverageReport.ts`) and left as-is, for two different
+  // reasons that both rule out writing a value:
+  //
+  // 1. For the drawn-wire and mesh lines — مفتول سیاه, مفتول گالوانیزه, سیم
+  //    آرماتوربندی, توری — no source publishes a grade column at all.
+  //    ahanonline.com's محصولات-مفتولی/سیم-مفتول, /سیم-آرماتور, /مش and /توری
+  //    pages are «نام کالا» + price and nothing else (fetched 2026-08-31,
+  //    «تاریخ بروزرسانی» 1405/6/7; its /توری page carries no priced table).
+  //    markazeahan.com/product-category/سیم-مفتولی publishes
+  //    نام محصول|سایز|حالت («کلاف») and /مش publishes
+  //    نام محصول|سایز|حالت («آجدار»)|چشمه|وزن — a supplied form and a mesh
+  //    aperture, never a grade.
+  // 2. For the coil lines — کلاف ساده and کلاف آجدار — a grade IS published,
+  //    and that is exactly why it cannot be copied: it is heat- and
+  //    mill-specific and the sources disagree for the same size.
+  //    kilooton.com/catalog/wirerod lists 5.5 mm کلاف ساده as SAE1008 (یزد),
+  //    3SP (امیرآباد, افق ابهر, نورد کرمان) and — from سهند آذر alone —
+  //    SAE1006, SAE1008, 3SP and RST34 as four separately priced rows.
+  //    markazeahan.com/product-category/کلاف gives ذوب آهن اصفهان 1008, کیان
+  //    فولاد ابهر 3sp and rst34, الیگودرز 3sp for ساده and A2 for آجدار.
+  //    None of our six mills (امیرکبیر خزر, سیادن ابهر, جهان فولاد سیرجان,
+  //    فولاد نطنز, فولاد کویر کاشان, آناهیتا گیلان) appears on either list, so
+  //    there is no row to copy from — the same conclusion نبشی بال‌نامساوی
+  //    reached when three sources disagreed. An admin who knows the heat can
+  //    still enter it; nothing here should guess it.
   return ['grade'];
 }
 

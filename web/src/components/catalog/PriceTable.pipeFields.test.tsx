@@ -107,8 +107,8 @@ function cellFor(product: string, column: string): string {
   return tr.querySelectorAll('td')[col - 1]?.textContent ?? '';
 }
 
-describe('PriceTable — لوله gains «رده» on مانیسمان only', () => {
-  it('publishes «رده» beside «گرید» on هر دو زیرشاخهٔ مانیسمان', async () => {
+describe('PriceTable — لوله publishes «رده» on مانیسمان only', () => {
+  it('publishes «رده» — and no «گرید» — on هر دو زیرشاخهٔ مانیسمان', async () => {
     const user = userEvent.setup();
     renderTable();
     for (const [sub, product, schedule] of [
@@ -117,8 +117,10 @@ describe('PriceTable — لوله gains «رده» on مانیسمان only', ()
     ] as const) {
       await user.click(screen.getByRole('button', { name: sub }));
       expect(cellFor(product, 'رده')).toBe(schedule);
-      // A gain, not a swap — the pipe still has a steel grade too.
-      expect(screen.getByRole('columnheader', { name: 'گرید' })).toBeInTheDocument();
+      // A swap after all: the 1405/06/10 spec-completeness audit found the
+      // «گرید» beside it empty on every live مانیسمان row and published by
+      // nobody — ahanonline's لوله-مانسمان page is سایز|رده|برند|واحد.
+      expect(screen.queryByRole('columnheader', { name: 'گرید' })).toBeNull();
     }
   });
 
