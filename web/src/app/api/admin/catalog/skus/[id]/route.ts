@@ -1,22 +1,20 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { deleteSku, updateSku } from '@/lib/server/repos/catalogAdminRepo';
-import { getDb } from '@/lib/server/db/client';
-import { categories, subCategories } from '@/lib/server/db/schema';
 import {
   catalogErrorResponse,
+  clearRedirectShadow,
   planDeletedNodeRedirects,
   redirectOnSlugChange,
   revalidateCatalog,
+  skuPublicPath,
   writeCatalogRedirects,
 } from '@/lib/server/utils/catalogRoute';
 import { finiteNumber, nonEmptyPatch, slugSchema, uploadPathSchema } from '@/lib/validation/utils';
 import { normalizeCatalogSize, normalizeCatalogText } from '@/lib/server/utils/persianZwnj';
 import { toPersianDigits } from '@/lib/utils/format';
-import { routes } from '@/lib/routes';
 import { PRICE_BASIS_VALUES, PRICE_UNIT_VALUES } from '@/lib/types/domain';
 
 const optionalPersianText = (max: number) =>
@@ -88,18 +86,6 @@ const patchPayload = nonEmptyPatch(
   }),
 );
 
-/** Full public path of a SKU, for the redirect a slug change needs. */
-async function skuPath(categoryId: string, subCategoryId: string, slug: string): Promise<string | null> {
-  const rows = await getDb()
-    .select({ catSlug: categories.slug, subSlug: subCategories.slug })
-    .from(subCategories)
-    .innerJoin(categories, eq(categories.id, categoryId))
-    .where(eq(subCategories.id, subCategoryId))
-    .limit(1);
-  const hit = rows[0];
-  return hit ? routes.sku(hit.catSlug, hit.subSlug, slug) : null;
-}
-
 async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const guard = requireDb();
   if (guard) return guard;
@@ -124,9 +110,14 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }
   const moved = result.before.subCategoryId !== result.after.subCategoryId;
   if (slugChanged || moved) {
     const [from, to] = await Promise.all([
-      skuPath(result.before.categoryId, result.before.subCategoryId, result.before.slug),
-      skuPath(result.after.categoryId, result.after.subCategoryId, result.after.slug),
+      skuPublicPath(result.before.categoryId, result.before.subCategoryId, result.before.slug),
+      skuPublicPath(result.after.categoryId, result.after.subCategoryId, result.after.slug),
     ]);
+    // Clearing first, not after: the destination may be a path a deleted
+    // product left a tombstone on, and `collapseAround` would otherwise
+    // resolve straight THROUGH it and file this move against the tombstone's
+    // target instead of where the product actually went.
+    await clearRedirectShadow([to]);
     if (from && to) await redirectOnSlugChange(from, to);
   }
   await revalidateCatalog('sku');

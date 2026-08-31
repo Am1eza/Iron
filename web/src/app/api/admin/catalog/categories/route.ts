@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { adminListCategoriesWithCounts, createCategory } from '@/lib/server/repos/catalogAdminRepo';
-import { catalogErrorResponse, revalidateCatalog } from '@/lib/server/utils/catalogRoute';
+import { catalogErrorResponse, clearRedirectShadow, revalidateCatalog } from '@/lib/server/utils/catalogRoute';
+import { routes } from '@/lib/routes';
 import { finiteNumber, seoMetaSchema, slugSchema, uploadPathSchema } from '@/lib/validation/utils';
 import { normalizeCatalogText } from '@/lib/server/utils/persianZwnj';
 
@@ -50,6 +51,10 @@ async function POSTImpl(req: NextRequest) {
   // different slug than the one that was sent, and the log is what the delete
   // entry's `before` is meant to be comparable with.
   await audit(auth.session.id, 'catalog.category.create', { type: 'category', id: category.id }, null, category);
+  // A delete leaves a tombstone on the path it vacated, and a redirect beats a
+  // route match — so rebuilding a retired category at the same slug has to
+  // take that tombstone back down or the new page 308s to `/prices` forever.
+  await clearRedirectShadow([routes.category(category.slug)]);
   // Taxonomy edits must show up on the public site immediately (nav,
   // mega-menu, home cascade, /prices) — not after the 5-minute ISR window.
   await revalidateCatalog('taxonomy');

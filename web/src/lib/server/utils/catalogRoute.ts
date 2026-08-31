@@ -19,7 +19,12 @@ import { getDb } from '@/lib/server/db/client';
 import { categories, subCategories, skus } from '@/lib/server/db/schema';
 import { routes } from '@/lib/routes';
 import { DuplicateProductError, DuplicateSlugError, InvalidParentError } from '@/lib/server/repos/catalogAdminRepo';
-import { createRedirect, createRedirects, RedirectLoopError } from '@/lib/server/repos/redirectsRepo';
+import {
+  createRedirect,
+  createRedirects,
+  deleteRedirectsFrom,
+  RedirectLoopError,
+} from '@/lib/server/repos/redirectsRepo';
 import { safeRevalidatePath } from '@/lib/server/utils/revalidate';
 import { invalidateDomainFacts } from '@/lib/server/ai/domainFacts';
 import { reportError } from '@/lib/errors/report';
@@ -139,6 +144,72 @@ export async function writeCatalogRedirects(entries: Array<{ fromPath: string; t
 }
 
 /**
+ * Take down any redirect sitting ON the paths this write is about to occupy,
+ * BEFORE it writes its own.
+ *
+ * The counterpart to the tombstones the DELETE paths now leave. A tombstone is
+ * right until the owner rebuilds what they retired — and they do; the پروفیل
+ * sub-categories were retired and recreated ten days later. Two things go
+ * wrong if the row is left standing:
+ *
+ *  · `middleware.ts` answers a redirect before a route is matched, so the
+ *    rebuilt page 308s to its own parent forever and never reaches the
+ *    sitemap — the exact production symptom `listRedirectFromPaths` exists to
+ *    keep out of it;
+ *  · `createRedirects` resolves its destination with `resolveTerminal`, so a
+ *    rename or a move onto a tombstoned path resolves THROUGH the tombstone
+ *    and files this write's redirects against the tombstone's target instead
+ *    of the page that actually moved there.
+ *
+ * The second is why this runs before the write and not after: clearing
+ * afterwards fixes the reachability and leaves every redirect aimed one level
+ * too high, silently.
+ *
+ * Only paths this write genuinely occupies belong here. A DELETE must not
+ * clear its destination — sending a dead sub-category to its category says
+ * nothing about whether that category is itself deliberately folded elsewhere.
+ *
+ * Best-effort, and a no-op in the overwhelmingly common case where none of
+ * these paths has a row.
+ */
+export async function clearRedirectShadow(paths: ReadonlyArray<string | null>): Promise<void> {
+  const live = paths.filter((p): p is string => Boolean(p));
+  if (live.length === 0) return;
+  try {
+    await deleteRedirectsFrom(live);
+  } catch (err) {
+    reportError(err, { stage: 'catalog.clearRedirectShadow', count: live.length });
+  }
+}
+
+/** Full public path of a sub-category, from ids. */
+export async function subCategoryPublicPath(categoryId: string, slug: string): Promise<string | null> {
+  const rows = await getDb()
+    .select({ catSlug: categories.slug })
+    .from(categories)
+    .where(eq(categories.id, categoryId))
+    .limit(1);
+  const catSlug = rows[0]?.catSlug;
+  return catSlug ? routes.subCategory(catSlug, slug) : null;
+}
+
+/** Full public path of a SKU, from ids. */
+export async function skuPublicPath(
+  categoryId: string,
+  subCategoryId: string,
+  slug: string,
+): Promise<string | null> {
+  const rows = await getDb()
+    .select({ catSlug: categories.slug, subSlug: subCategories.slug })
+    .from(subCategories)
+    .innerJoin(categories, eq(categories.id, categoryId))
+    .where(eq(subCategories.id, subCategoryId))
+    .limit(1);
+  const hit = rows[0];
+  return hit ? routes.sku(hit.catSlug, hit.subSlug, slug) : null;
+}
+
+/**
  * A category slug is a PATH PREFIX: renaming «rebar» moves the category page,
  * every sub page beneath it, and every product page beneath those. Redirecting
  * only the node's own page would still 404 every indexed product — which is
@@ -169,6 +240,10 @@ export async function redirectCategorySlugChange(id: string, oldSlug: string, ne
       });
     }
   }
+  // Every one of these destinations is a live page the moment the rename
+  // commits, so a redirect still standing on one of them is stale by
+  // definition — and would otherwise swallow the redirect aimed at it.
+  await clearRedirectShadow(entries.map((e) => e.toPath));
   await writeCatalogRedirects(entries);
 }
 
@@ -202,13 +277,17 @@ export async function redirectSubCategoryChange(
   const to = routes.subCategory(newCat, after.slug);
   if (from === to) return;
   const rows = await db.select({ slug: skus.slug }).from(skus).where(eq(skus.subCategoryId, id));
-  await writeCatalogRedirects([
+  const entries = [
     { fromPath: from, toPath: to },
     ...rows.map((r) => ({
       fromPath: routes.sku(oldCat, before.slug, r.slug),
       toPath: routes.sku(newCat, after.slug, r.slug),
     })),
-  ]);
+  ];
+  // A move very often lands on a path something else vacated — that IS the
+  // usual reason for the move. Clear before writing; see `clearRedirectShadow`.
+  await clearRedirectShadow(entries.map((e) => e.toPath));
+  await writeCatalogRedirects(entries);
 }
 
 /**

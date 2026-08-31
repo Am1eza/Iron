@@ -3,7 +3,12 @@ import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { adminListSubCategoriesWithCounts, createSubCategory } from '@/lib/server/repos/catalogAdminRepo';
-import { catalogErrorResponse, revalidateCatalog } from '@/lib/server/utils/catalogRoute';
+import {
+  catalogErrorResponse,
+  clearRedirectShadow,
+  revalidateCatalog,
+  subCategoryPublicPath,
+} from '@/lib/server/utils/catalogRoute';
 import { finiteNumber, subCategorySlugSchema } from '@/lib/validation/utils';
 import { normalizeCatalogText } from '@/lib/server/utils/persianZwnj';
 
@@ -54,6 +59,10 @@ async function POSTImpl(req: NextRequest) {
   }
   // The persisted row, not the request body — see the category route.
   await audit(auth.session.id, 'catalog.sub.create', { type: 'sub', id: subCategory.id }, null, subCategory);
+  // Retiring a sub-category and rebuilding it days later is a sequence this
+  // catalog has already been through; the tombstone the delete left would
+  // otherwise make the rebuilt page unreachable. See `clearRedirectShadow`.
+  await clearRedirectShadow([await subCategoryPublicPath(subCategory.categoryId, subCategory.slug)]);
   await revalidateCatalog('taxonomy');
   return NextResponse.json({ subCategory }, { status: 201 });
 }

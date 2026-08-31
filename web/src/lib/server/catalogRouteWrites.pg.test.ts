@@ -11,7 +11,9 @@
  *    away, while holding the whole row — and there is no trash, no undo and no
  *    soft delete behind it;
  *  · a delete left no redirect and no tombstone at any of the three levels, so
- *    an indexed product URL became a bare 404;
+ *    an indexed product URL became a bare 404 — and, once it did leave one,
+ *    nothing took that tombstone back down when the page was rebuilt on the
+ *    same path, which is worse than the 404 was;
  *  · moving a sub-category between categories changed the URL of that sub and
  *    every product under it, and the route only ever compared slugs;
  *  · a create logged the request body rather than the row, so the activity log
@@ -345,5 +347,111 @@ describe('PUT /api/admin/catalog/factory-order', () => {
     );
     expect(res.status).toBe(400);
     expect((await res.json()).error).toBe('invalid_parent');
+  });
+});
+
+/**
+ * The other half of the tombstones above. Now that every delete leaves a
+ * redirect behind, the paths those redirects sit on are landmines for whatever
+ * occupies them next — and the catalog does re-occupy them: the پروفیل
+ * sub-categories were retired and rebuilt ten days later.
+ */
+describe('a rebuilt page takes its own tombstone back down', () => {
+  beforeAll(async () => {
+    await db.insert(schema.categories).values({ id: 'c-shadow', slug: 'shadow', name: 'سایه', order: 9, iconId: '' });
+    await db.insert(schema.subCategories).values([
+      { id: 's-retired', categoryId: 'c-shadow', slug: 'retired', name: 'بازنشسته', order: 1 },
+      { id: 's-vacated', categoryId: 'c-shadow', slug: 'vacated', name: 'تخلیه‌شده', order: 2 },
+      { id: 's-renamer', categoryId: 'c-shadow', slug: 'renamer', name: 'تغییرنام', order: 3 },
+      { id: 's-keep', categoryId: 'c-shadow', slug: 'keep', name: 'ماندگار', order: 4 },
+    ]);
+    await db.insert(schema.skus).values([
+      {
+        id: 'k-retired',
+        slug: 'retired-sku',
+        subCategoryId: 's-retired',
+        categoryId: 'c-shadow',
+        name: 'کالای بازنشسته',
+        unit: 'kg' as const,
+      },
+      {
+        id: 'k-recreate',
+        slug: 'recreate-sku',
+        subCategoryId: 's-keep',
+        categoryId: 'c-shadow',
+        name: 'کالای بازساخته',
+        unit: 'kg' as const,
+      },
+    ]);
+  });
+
+  it('clears the tombstone a delete left on the path a new sub-category now occupies', async () => {
+    const { DELETE } = await import('@/app/api/admin/catalog/subcategories/[id]/route');
+    const { POST } = await import('@/app/api/admin/catalog/subcategories/route');
+    await DELETE(
+      await authedReq('/api/admin/catalog/subcategories/s-retired', { method: 'DELETE' }),
+      params('s-retired'),
+    );
+    expect(await redirectFor('/prices/shadow/retired')).toMatchObject({ toPath: '/prices/shadow' });
+
+    const res = await POST(
+      await authedReq('/api/admin/catalog/subcategories', {
+        method: 'POST',
+        body: { categoryId: 'c-shadow', slug: 'retired', name: 'بازنشسته دوباره' },
+      }),
+    );
+    expect(res.status).toBe(201);
+
+    // `middleware.ts` answers a redirect before the route is matched, so
+    // leaving this row makes the page it just rebuilt 308 to its own parent
+    // forever — and `sitemap.ts` drops it for the same reason.
+    expect(await redirectFor('/prices/shadow/retired')).toBeUndefined();
+    // Its products are NOT resurrected by rebuilding the sub-category, so
+    // their tombstones stay: those URLs still need to land somewhere real.
+    expect(await redirectFor('/prices/shadow/retired/retired-sku')).toMatchObject({ toPath: '/prices/shadow' });
+  });
+
+  it('aims a rename onto a vacated path at that path, not through its tombstone', async () => {
+    const { DELETE } = await import('@/app/api/admin/catalog/subcategories/[id]/route');
+    const { PATCH } = await import('@/app/api/admin/catalog/subcategories/[id]/route');
+    await DELETE(
+      await authedReq('/api/admin/catalog/subcategories/s-vacated', { method: 'DELETE' }),
+      params('s-vacated'),
+    );
+    expect(await redirectFor('/prices/shadow/vacated')).toMatchObject({ toPath: '/prices/shadow' });
+
+    const res = await PATCH(
+      await authedReq('/api/admin/catalog/subcategories/s-renamer', { method: 'PATCH', body: { slug: 'vacated' } }),
+      params('s-renamer'),
+    );
+    expect(res.status).toBe(200);
+
+    // The failure this pins is silent rather than loud: `createRedirects`
+    // resolves its destination with `resolveTerminal`, so with the tombstone
+    // still standing the rename files itself as `renamer → /prices/shadow` —
+    // a live sub-category page redirecting to its own category, with the page
+    // it actually moved to unreachable underneath it. Clearing AFTER the write
+    // fixes the reachability and leaves this aimed one level too high, which
+    // is why the order matters.
+    expect(await redirectFor('/prices/shadow/renamer')).toMatchObject({ toPath: '/prices/shadow/vacated' });
+    expect(await redirectFor('/prices/shadow/vacated')).toBeUndefined();
+  });
+
+  it('clears it for a product recreated at the slug it was deleted from', async () => {
+    const { DELETE } = await import('@/app/api/admin/catalog/skus/[id]/route');
+    const { POST } = await import('@/app/api/admin/catalog/skus/route');
+    await DELETE(await authedReq('/api/admin/catalog/skus/k-recreate', { method: 'DELETE' }), params('k-recreate'));
+    expect(await redirectFor('/prices/shadow/keep/recreate-sku')).toMatchObject({ toPath: '/prices/shadow/keep' });
+
+    // A SKU slug is globally unique, so re-adding the product reuses the exact
+    // URL its own delete tombstoned.
+    const res = await POST(
+      await authedReq('/api/admin/catalog/skus', {
+        method: 'POST',
+        body: { subCategoryId: 's-keep', slug: 'recreate-sku', name: 'کالای بازساخته دوباره' },
+      }),
+    );
+    expect(res.status).toBe(201);
+    expect(await redirectFor('/prices/shadow/keep/recreate-sku')).toBeUndefined();
   });
 });

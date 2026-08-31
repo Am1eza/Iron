@@ -244,6 +244,37 @@ export async function createRedirects(
   return written;
 }
 
+/**
+ * Drop every redirect whose SOURCE is one of `paths`, because those paths are
+ * real pages again.
+ *
+ * The other half of writing a tombstone on delete. `middleware.ts` answers a
+ * redirect BEFORE the route is ever matched, so a row left over from when a
+ * path was deleted makes the page that later occupies it unreachable: it
+ * serves a 308 to its own parent forever, and `sitemap.ts` (which asks
+ * `listRedirectFromPaths`) drops it as well. Production had exactly this —
+ * three live, SKU-bearing پروفیل sub-categories 308'ing to `/prices/profile`
+ * off rows left by an earlier re-slug — and now that every delete leaves a
+ * tombstone, rebuilding what was retired would walk straight back into it.
+ *
+ * Worse than unreachable, silently: `createRedirects` resolves each
+ * destination with `resolveTerminal`, so a rename or a move ONTO a tombstoned
+ * path resolves through the tombstone and stores the tombstone's target
+ * instead of the page that actually moved there. That is why the callers clear
+ * before they write rather than after.
+ *
+ * @returns how many rows were removed.
+ */
+export async function deleteRedirectsFrom(paths: readonly string[]): Promise<number> {
+  const fromPaths = [...new Set(paths.map(normalizePath))];
+  if (fromPaths.length === 0) return 0;
+  const rows = await getDb()
+    .delete(redirects)
+    .where(inArray(redirects.fromPath, fromPaths))
+    .returning({ id: redirects.id });
+  return rows.length;
+}
+
 export async function updateRedirect(
   id: string,
   patch: { toPath?: string; permanent?: boolean },

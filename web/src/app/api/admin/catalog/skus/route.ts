@@ -3,7 +3,12 @@ import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { adminListSkus, createSku } from '@/lib/server/repos/catalogAdminRepo';
-import { catalogErrorResponse, revalidateCatalog } from '@/lib/server/utils/catalogRoute';
+import {
+  catalogErrorResponse,
+  clearRedirectShadow,
+  revalidateCatalog,
+  skuPublicPath,
+} from '@/lib/server/utils/catalogRoute';
 import { finiteNumber, slugSchema, uploadPathSchema } from '@/lib/validation/utils';
 import { normalizeCatalogSize, normalizeCatalogText } from '@/lib/server/utils/persianZwnj';
 import { toPersianDigits } from '@/lib/utils/format';
@@ -126,6 +131,10 @@ async function POSTImpl(req: NextRequest) {
   // never in the database, which is the same log the delete entry expects to
   // be reconstructible from.
   await audit(auth.session.id, 'catalog.sku.create', { type: 'sku', id: sku.id }, null, sku);
+  // A SKU slug is globally unique, so recreating a deleted product reuses its
+  // exact old URL — the one its own delete left a tombstone on. See
+  // `clearRedirectShadow`.
+  await clearRedirectShadow([await skuPublicPath(sku.categoryId, sku.subCategoryId, sku.slug)]);
   // The SKU routes used to revalidate NOTHING while the taxonomy routes
   // revalidated the world — a new product stayed invisible for the full
   // 5-minute ISR window.
