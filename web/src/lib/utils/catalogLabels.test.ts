@@ -6,6 +6,7 @@ import {
   usesDimensions,
   dimensionsLabel,
   attributeColumns,
+  attrKeysFor,
   factoryIsMeaningful,
   SIZE_LABEL,
   HEIGHT_LABEL,
@@ -223,10 +224,15 @@ describe('usesDimensions', () => {
   });
 
   it('offers verified sheet dimensions and stainless section thickness by sub only', () => {
+    // Both non-ferrous sheet lines OFFER the field, but each under its own
+    // source's word for it: ahanonline heads ورق آلومینیوم's «ابعاد» and
+    // ورق مسی's «سایز». They shared «ابعاد» until 1405/06/09, which had
+    // copper borrowing aluminium's header for the same fact.
     for (const sub of ['aluminum-sheet', 'copper-sheet']) {
       expect(usesDimensions('felezat-rangi', sub)).toBe(true);
-      expect(dimensionsLabel('felezat-rangi', sub)).toBe(DIMENSIONS_LABEL);
     }
+    expect(dimensionsLabel('felezat-rangi', 'aluminum-sheet')).toBe(DIMENSIONS_LABEL);
+    expect(dimensionsLabel('felezat-rangi', 'copper-sheet')).toBe(SIZE_LABEL);
     for (const sub of ['angle', 'channel']) {
       expect(usesDimensions('steel', sub)).toBe(true);
       expect(dimensionsLabel('steel', sub)).toBe(THICKNESS_LABEL);
@@ -557,16 +563,29 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ح
 
   /* ------------------------------- پروفیل ------------------------------- */
 
-  it('keeps «گرید» only on the unreconciled profile subs, never the mixed view', () => {
-    // پروفیل ساختمانی is the last one left: it has no active priced row, so
-    // there is nothing to reconcile against its source table yet. پروفیل
-    // ستونی left this list 1405/06/09 — it has 6 priced rows and a live
-    // ahanonline table, see below.
-    for (const sub of ['prvfyl-sakhtmany']) {
-      const col = only('profile', sub);
-      expect(col.key).toBe('grade');
-      expect(col.label).toBe(GRADE_LABEL);
+  it('leaves no پروفیل sub — priced or empty — on «گرید»', () => {
+    // پروفیل ساختمانی was the last one on the fallback, kept there because it
+    // has no active priced row. Reconciled 1405/06/09: having no STOCK is not
+    // having no SOURCE, and both references publish the same set its siblings
+    // already use — ahanonline `/انواع-پروفیل/پروفیل/` and teleahan
+    // `/پروفیل/پروفیل-ساختمانی/` render «سایز | ضخامت | حالت».
+    for (const sub of [
+      'prvfyl-sakhtmany',
+      'prvfyl-snaty',
+      'profil-mobli',
+      'profil-sotuni',
+      'profil-galvanizeh',
+      'profil-z',
+      'prvfyl-astyl',
+    ]) {
+      expect(attrKeysFor('profile', sub)).not.toContain('grade');
     }
+    expect(attrKeysFor('profile', 'prvfyl-sakhtmany')).toEqual(['profileCondition']);
+    expect(usesDimensions('profile', 'prvfyl-sakhtmany')).toBe(true);
+    expect(dimensionsLabel('profile', 'prvfyl-sakhtmany')).toBe(THICKNESS_LABEL);
+    // The fallback itself is untouched: a sub nobody has reconciled yet still
+    // gets the safe generic rather than silently inheriting a sibling's set.
+    expect(attrKeysFor('profile', 'box-square')).toEqual(['grade']);
     // The priced subs disagree on «حالت»/«طول», but none has a grade. The
     // mixed page therefore omits the attribute column altogether.
     expect(attributeColumns('profile', null)).toEqual([]);
@@ -639,14 +658,22 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ح
     expect(col.label).not.toBe(BRANCH_LENGTH_LABEL);
   });
 
-  it('gives استیل BOTH «آلیاژ» and «طول شاخه» — a gain, not a swap', () => {
+  it('gives پروفیل استیل the same four columns as its steel/profile twin', () => {
+    // `profile/prvfyl-astyl` and `steel/profile` are the same product filed
+    // under two parents. ahanonline has one page for it
+    // (`/استنلس-استیل/پروفیل-استیل/`, «ابعاد | ضخامت | آلیاژ | حالت»), so the
+    // two must not disagree — this one had kept a «طول شاخه» that page does
+    // not publish, and lacked the «ضخامت» and «حالت» it does.
     const cols = attributeColumns('profile', 'prvfyl-astyl');
-    expect(cols.map((c) => c.key)).toEqual(['alloy', 'branchLength']);
-    expect(cols.map((c) => c.label)).toEqual([ALLOY_LABEL, BRANCH_LENGTH_LABEL]);
+    expect(cols.map((c) => c.key)).toEqual(['alloy', 'condition']);
+    expect(cols.map((c) => c.label)).toEqual([ALLOY_LABEL, CONDITION_LABEL]);
+    expect(cols.map((c) => c.key)).toEqual(attrKeysFor('steel', 'profile'));
+    expect(sizeLabel('profile', 'prvfyl-astyl')).toBe(sizeLabel('steel', 'profile'));
+    expect(dimensionsLabel('profile', 'prvfyl-astyl')).toBe(dimensionsLabel('steel', 'profile'));
     // «آلیاژ» is `skus.grade` re-labelled: the stored grade of a stainless
     // profile genuinely IS its alloy (۲۰۱/۳۰۴/۳۱۶).
     expect(cols[0]!.cell(row('prvfyl-astyl', { grade: '۳۰۴' }))).toBe('۳۰۴');
-    expect(cols[1]!.cell(row('prvfyl-astyl', { branchLengthM: 6 }))).toBe('۶ متر');
+    expect(cols[1]!.cell(row('prvfyl-astyl', { condition: '۶ متری' }))).toBe('۶ متری');
     expect(cols[1]!.cell(row('prvfyl-astyl'))).toBe(UNKNOWN_VALUE);
   });
 
@@ -879,40 +906,41 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ح
     // four-column set. No other لوله page publishes the column.
     for (const sub of ['galvanized', 'industrial']) {
       const cols = pipeCols(sub);
-      expect(cols.map((c) => c.key)).toEqual(['standard', 'branch']);
-      expect(cols[0]!.label).toBe(STANDARD_LABEL);
-      expect(cols[0]!.cell(row(sub, { standard: 'تست آب' }))).toBe('تست آب');
+      // «حالت» BEFORE «استاندارد» — the order both references render, and the
+      // order this had backwards until 1405/06/09. `attrKeysFor`'s array order
+      // is the render order, so the sequence is part of matching the source.
+      expect(cols.map((c) => c.key)).toEqual(['branch', 'standard']);
+      expect(cols[1]!.label).toBe(STANDARD_LABEL);
+      expect(cols[1]!.cell(row(sub, { standard: 'تست آب' }))).toBe('تست آب');
     }
     for (const sub of ['scaffold', 'furniture', 'spiral', 'gas', 'thick-walled']) {
       expect(pipeCols(sub).some((c) => c.key === 'standard')).toBe(false);
     }
   });
 
-  it('reads جدار چاه’s real ST37 from skus.standard, not from the empty grade', () => {
-    // The bug this whole pass is about, in one sub: all 13 live rows store
-    // ST37 in `standard` while the page rendered the EMPTY `grade` under
-    // «گرید». Both sources' جدار چاه tables (ahanonline
-    // `/انواع-لوله/لوله-جدار-چاه/`, teleahan `/لوله-اتصالات/لوله-جدار-چاه/`)
-    // publish سایز + ضخامت + برند and no standard column at all, so this
-    // keeps a real owner-entered value on the page under its truthful label
-    // rather than deleting it — the وال‌پست precedent (#343).
-    const col = only('pipe', 'well-casing');
-    expect(col.key).toBe('standard');
-    expect(col.label).toBe(STANDARD_LABEL);
-    expect(col.cell(row('well-casing', { standard: 'ST37' }))).toBe('ST37');
-    // A grade value can never leak into it.
-    expect(col.cell(row('well-casing', { grade: 'ST37' }))).toBe(UNKNOWN_VALUE);
-  });
-
-  it('keeps اسپیرال’s real ST37 under «گرید», where that row actually stores it', () => {
-    // Unlike جدار چاه, اسپیرال's ST37 lives in `grade` on all 12 live rows —
-    // so the column is read from where the value is, and keeps the label
-    // matching that field. It gains «حالت» beside it; all 12 rows already
-    // store a branch length, so that column ships populated.
-    const cols = pipeCols('spiral');
-    expect(cols.map((c) => c.key)).toEqual(['grade', 'branch']);
-    expect(cols[0]!.cell(row('spiral', { grade: 'ST37' }))).toBe('ST37');
-    expect(cols[1]!.cell(row('spiral', { branchLengthM: 12 }))).toBe('۱۲ متری');
+  it('drops the ST37 columns neither جدار چاه nor اسپیرال has a source for', () => {
+    // The last two لوله subs still publishing a material column, both kept in
+    // the 1405/06 pass on the reasoning that their stored ST37 was real data
+    // strict source-matching would delete — جدار چاه's in `skus.standard`,
+    // اسپیرال's in `skus.grade`. #350 wrote that جدار چاه's was "flagged for
+    // the owner: if matching the source column-for-column wins here too, this
+    // becomes []". It does; the owner asked for exactly that 1405/06/09.
+    //
+    // All four reference tables agree there is no such column: ahanonline
+    // `/انواع-لوله/لوله-جدار-چاه/` («سایز | برند | ضخامت») and
+    // `/انواع-لوله/لوله-اسپیرال/` («سایز | ضخامت | حالت»), teleahan
+    // `/لوله-اتصالات/لوله-جدار-چاه/` («سایز | ضخامت») and
+    // `/لوله-اتصالات/لوله-اسپیرال/` («سایز | ضخامت | حالت»). ST37 is constant
+    // across every row of both subs, so as a COLUMN it separates nothing —
+    // which is why no source prints one. The stored values are untouched.
+    expect(pipeCols('well-casing')).toEqual([]);
+    const spiral = pipeCols('spiral');
+    expect(spiral.map((c) => c.key)).toEqual(['branch']);
+    expect(spiral[0]!.cell(row('spiral', { branchLengthM: 12 }))).toBe('۱۲ متری');
+    // …and specifically not by moving ST37 to some other header instead.
+    for (const sub of ['well-casing', 'spiral']) {
+      expect(pipeCols(sub).some((c) => c.key === 'standard' || c.key === 'grade')).toBe(false);
+    }
   });
 
   it('publishes no attribute column at all on گازی and گوشت‌دار', () => {
@@ -1231,21 +1259,43 @@ describe('factoryLabel — contextual «برند», «کارخانه» everywher
     expect(factoryLabel('sheet', 'anything-new')).toBe(FACTORY_LABEL);
   });
 
-  it('leaves every other لوله sub on «کارخانه»', () => {
-    // These pipes ARE rolled by named Iranian mills, so «برند» would be a
-    // false claim about what the stored value is.
-    for (const sub of [
-      'gas',
-      'industrial',
-      'scaffold',
-      'galvanized',
-      'spiral',
-      'furniture',
-      'well-casing',
-      'thick-walled',
-    ]) {
+  it('calls گازی and جدار چاه «برند» too — the word their own pages use', () => {
+    // Added 1405/06/09. ahanonline
+    // `/انواع-لوله/لوله-درز-مستقیم/لوله-گاز-خانگی/` renders «سایز | ضخامت |
+    // برند» and `/انواع-لوله/لوله-جدار-چاه/` renders «سایز | برند | ضخامت».
+    // Unlike مانیسمان nothing about the stored VALUE is wrong on these two —
+    // «سپاهان», «تهران شرق», «کالوپ» are real mills — so this is purely
+    // `factoryLabel`'s question (what is it called) and not
+    // `factoryIsMeaningful`'s (should it be published at all).
+    for (const sub of ['gas', 'well-casing']) {
+      expect(factoryLabel('pipe', sub)).toBe(BRAND_LABEL);
+      expect(factoryIsMeaningful('pipe', sub)).toBe(true);
+    }
+  });
+
+  it('leaves every لوله sub whose sources name no producer on «کارخانه»', () => {
+    // Neither reference publishes a producer column for these four, so there
+    // is no source word to adopt and the catalog's own default — the word its
+    // factory grouping, its «۱۲ کارخانه» stat and its sort control all use —
+    // is what stays.
+    for (const sub of ['industrial', 'scaffold', 'galvanized', 'spiral', 'furniture']) {
       expect(factoryLabel('pipe', sub)).toBe(FACTORY_LABEL);
     }
+  });
+
+  it('publishes no producer column at all on لوله گوشت‌دار', () => {
+    // Its `skus.factory` reads «چین» on 7 of 8 live rows and «وارداتی» on the
+    // eighth — a country of origin and an import status, not a mill. That is
+    // verbatim the situation the استیل category and میلگرد استیل already
+    // resolve by withholding the column, and ahanonline
+    // `/انواع-لوله/لوله-گوشتدار/` publishes «سایز» and nothing beside it, so
+    // dropping it makes this page match its source exactly.
+    expect(factoryIsMeaningful('pipe', 'thick-walled')).toBe(false);
+    // Scoped to that one sub — every other لوله family is genuinely milled.
+    for (const sub of ['gas', 'industrial', 'scaffold', 'galvanized', 'spiral', 'well-casing']) {
+      expect(factoryIsMeaningful('pipe', sub)).toBe(true);
+    }
+    expect(factoryIsMeaningful('pipe', null)).toBe(true);
   });
 
   it('keeps the generic «کارخانه» for a mixed «همه» view or an unknown sub', () => {
@@ -1269,10 +1319,16 @@ describe('factoryLabel — contextual «برند», «کارخانه» everywher
     for (const sub of ['aluminum-sheet', 'copper-sheet']) {
       expect(factoryLabel('felezat-rangi', sub)).toBe(BRAND_LABEL);
     }
-    // لوله مسی stores a brand too, but ahanonline's لوله مسی page publishes
-    // no brand column at all — so there is no source label to match, and it
-    // stays on the generic word.
-    for (const sub of ['copper-pipe', 'aluminum-rebar', 'aluminum-angle', null]) {
+    // لوله مسی joined them 1405/06/09. ahanonline's لوله مسی page names no
+    // producer column, which had kept it on the generic word — but its rows
+    // store «باهنر»/«بابک»/«مهر اصل», and «باهنر» is the very value under
+    // ahanonline's «برند» header on the ورق مسی page. Leaving it out printed
+    // one producer identity under two different words on two adjacent copper
+    // pages of our own site.
+    expect(factoryLabel('felezat-rangi', 'copper-pipe')).toBe(BRAND_LABEL);
+    // Everything else in the category keeps the default: no source names their
+    // column, and nothing in our own catalog names those values either.
+    for (const sub of ['aluminum-rebar', 'aluminum-angle', 'copper-strip', null]) {
       expect(factoryLabel('felezat-rangi', sub)).toBe(FACTORY_LABEL);
     }
   });
