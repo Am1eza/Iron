@@ -126,14 +126,24 @@ describe('SkuDetail — نبشی wall thickness', () => {
     expect(screen.queryByText('۴')).not.toBeInTheDocument();
   });
 
-  it('shows «ضخامت» on وال‌پست from its own grade column, not the shared dimensions value', () => {
+  it('reads وال‌پست’s «ضخامت» from grade and its «بال» from dimensions', () => {
     // 1405/06/08: وال‌پست's «گرید» was relabelled «ضخامت» to match
     // ahanonline — a coincidentally identical row label to the shared نبشی
-    // wall-thickness row above, but reading `grade`, not `dimensions`. The
-    // shared «۴» dimensions value must NOT leak into it.
-    renderDetail('angle-channel', { subCategoryId: 'val-post', dimensions: '۴' });
-    expect(screen.getByRole('rowheader', { name: 'ضخامت' })).toBeInTheDocument();
-    expect(screen.queryByText('۴')).not.toBeInTheDocument();
+    // wall-thickness row above, but reading `grade`, not `dimensions`.
+    // 1405/06/09: `dimensions` gained its own meaning on this sub — «بال», the
+    // flange width ahanonline leads that table with — so the two facts must
+    // land on two differently-named rows and can never swap.
+    renderDetail('angle-channel', {
+      subCategoryId: 'val-post',
+      grade: 'ضخامت ۲',
+      dimensions: '۷',
+    });
+    const thickness = screen.getByRole('rowheader', { name: 'ضخامت' }).closest('tr')!;
+    const flange = screen.getByRole('rowheader', { name: 'بال' }).closest('tr')!;
+    expect(thickness).toHaveTextContent('۲');
+    expect(flange).toHaveTextContent('۷');
+    // and the header word is not repeated inside its own cell
+    expect(thickness).not.toHaveTextContent('ضخامت ۲');
   });
 });
 

@@ -11,6 +11,8 @@ import {
   HEIGHT_LABEL,
   THICKNESS_LABEL,
   DIMENSIONS_LABEL,
+  WIDTH_LABEL,
+  FLANGE_LABEL,
   GRADE_LABEL,
   STANDARD_LABEL,
   ALLOY_LABEL,
@@ -67,7 +69,7 @@ describe('sizeLabel', () => {
     }
   });
 
-  it('calls فلزات‌رنگی\'s ورق subs «ضخامت», every sibling stays «سایز»', () => {
+  it("calls فلزات‌رنگی's ورق subs «ضخامت», every sibling stays «سایز»", () => {
     // ahanonline.com's ورق آلومینیوم/ورق مسی pages both use «ضخامت», verified
     // 1405/06/08 — sub-scoped, not category-wide like the main ورق category,
     // because میلگرد/نبشی/لوله/پروفیل آلومینیوم genuinely mean سایز.
@@ -119,16 +121,104 @@ describe('usesDimensions', () => {
       expect(dimensionsLabel('angle-channel', sub)).toBe(THICKNESS_LABEL);
     }
 
-    for (const sub of ['val-post', 'tbar', 'anything-else', null]) {
+    for (const sub of ['tbar', 'anything-else', null]) {
       expect(usesDimensions('angle-channel', sub)).toBe(false);
       expect(dimensionsLabel('angle-channel', sub)).toBe(DIMENSIONS_LABEL);
     }
   });
 
-  it('does not mislabel the missing sheet width as the shared «ابعاد» field', () => {
-    for (const sub of [null, 'oiled', 'galvanized', 'pickled', 'colored', 'anything-new']) {
+  it('reads وال‌پست’s free dimensions field as «بال», the column its source leads with', () => {
+    // ahanonline `/نبشی-و-ناودانی/وال-پست/` → «بال | ضخامت | سایز», بال = 7 on
+    // all 8 priced rows. The thickness is NOT here — it lives in `grade`
+    // (`gradeAsThickness`), which is exactly why this sub is excluded from
+    // NABSHI_THICKNESS_SUBS and its `dimensions` was free to carry the flange.
+    expect(usesDimensions('angle-channel', 'val-post')).toBe(true);
+    expect(dimensionsLabel('angle-channel', 'val-post')).toBe(FLANGE_LABEL);
+    // «بال» belongs to وال‌پست alone — no نبشی sibling inherits it
+    for (const sub of ['nabshi', 'angle-unequal', 'spot']) {
+      expect(dimensionsLabel('angle-channel', sub)).not.toBe(FLANGE_LABEL);
+    }
+  });
+
+  it('publishes the sheet width every live ورق line except سیاه has', () => {
+    // ahanonline, fetched 1405/06/09: ورق روغنی «ضخامت | عرض | برند |
+    // استاندارد», گالوانیزه «ضخامت | عرض | برند», رنگی «ضخامت | عرض | رنگ |
+    // برند» — and اسیدشویی calls that same bare width «سایز» instead.
+    for (const sub of ['oiled', 'galvanized', 'colored']) {
+      expect(usesDimensions('sheet', sub)).toBe(true);
+      expect(dimensionsLabel('sheet', sub)).toBe(WIDTH_LABEL);
+    }
+    expect(usesDimensions('sheet', 'pickled')).toBe(true);
+    expect(dimensionsLabel('sheet', 'pickled')).toBe(SIZE_LABEL);
+    // سیاه keeps «سایز»: its values are the mixed width/width×length fact
+    expect(dimensionsLabel('sheet', 'black')).toBe(SIZE_LABEL);
+    // the mixed view and unverified lines still publish nothing
+    for (const sub of [null, 'anything-new']) {
       expect(usesDimensions('sheet', sub)).toBe(false);
       expect(dimensionsLabel('sheet', sub)).toBe(DIMENSIONS_LABEL);
+    }
+  });
+
+  it('publishes «ضخامت» on the seven لوله subs whose sources do, and on no others', () => {
+    for (const sub of [
+      'galvanized',
+      'industrial',
+      'scaffold',
+      'spiral',
+      'well-casing',
+      'gas',
+      'furniture',
+    ]) {
+      expect(usesDimensions('pipe', sub)).toBe(true);
+      expect(dimensionsLabel('pipe', sub)).toBe(THICKNESS_LABEL);
+    }
+    // مانیسمان is priced on «رده» and گوشت‌دار on «سایز» alone — neither
+    // source publishes a wall gauge, so neither grows an empty column.
+    for (const sub of ['seamless-internal', 'seamless-external', 'thick-walled', null]) {
+      expect(usesDimensions('pipe', sub)).toBe(false);
+      expect(dimensionsLabel('pipe', sub)).toBe(DIMENSIONS_LABEL);
+    }
+  });
+
+  it('never offers the field under a header describing some other fact', () => {
+    // The regression the single DIMENSION_MEANING table exists to prevent.
+    // `usesDimensions` and `dimensionsLabel` used to be two independent
+    // conditionals over the same Sets, so adding a sub to one alone rendered
+    // the column under the generic «ابعاد» — a plausible header for the wrong
+    // fact. Only the coloured-metal SHEETS legitimately publish «ابعاد» (a
+    // real width×length); every other offered sub must name its own.
+    const OFFERED: [string, string[]][] = [
+      ['sheet', ['black', 'oiled', 'galvanized', 'pickled', 'colored']],
+      ['angle-channel', ['nabshi', 'angle-unequal', 'spot', 'val-post']],
+      [
+        'pipe',
+        ['galvanized', 'industrial', 'scaffold', 'spiral', 'well-casing', 'gas', 'furniture'],
+      ],
+      ['steel', ['angle', 'channel', 'profile']],
+      [
+        'profile',
+        ['prvfyl-snaty', 'profil-mobli', 'profil-galvanizeh', 'profil-z', 'profil-sotuni'],
+      ],
+      [
+        'felezat-rangi',
+        [
+          'aluminum-sheet',
+          'copper-sheet',
+          'aluminum-angle',
+          'aluminum-channel',
+          'aluminum-pipe',
+          'aluminum-profile',
+        ],
+      ],
+    ];
+    const NAMES_ABAAD = new Set(['felezat-rangi/aluminum-sheet', 'felezat-rangi/copper-sheet']);
+    for (const [cat, subs] of OFFERED) {
+      for (const sub of subs) {
+        expect(usesDimensions(cat, sub)).toBe(true);
+        if (!NAMES_ABAAD.has(`${cat}/${sub}`)) {
+          expect(dimensionsLabel(cat, sub)).not.toBe(DIMENSIONS_LABEL);
+        }
+      }
     }
   });
 
@@ -369,7 +459,9 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ح
     const cols = attributeColumns('felezat-rangi', 'copper-pipe');
     expect(cols.map((c) => c.key)).toEqual(['gradeAsThickness', 'branch']);
     expect(cols[0]!.label).toBe(THICKNESS_LABEL);
-    expect(cols[0]!.cell(row('copper-pipe', { grade: 'ضخامت ۰.۸۱' }))).toBe('ضخامت ۰.۸۱');
+    // …and the stored string's own «ضخامت» word is dropped for display: the
+    // column is already headed «ضخامت», and the source prints the bare number.
+    expect(cols[0]!.cell(row('copper-pipe', { grade: 'ضخامت ۰.۸۱' }))).toBe('۰.۸۱');
   });
 
   it('gives لوله مسی the «حالت» ahanonline publishes beside that thickness', () => {
@@ -412,7 +504,7 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ح
     }
   });
 
-  it('calls پروفیل آلومینیوم\'s branch fact «حالت», the word its ahanonline page uses', () => {
+  it("calls پروفیل آلومینیوم's branch fact «حالت», the word its ahanonline page uses", () => {
     // 1405/06/09. `انواع-پروفیل/پروفیل-آلومینیوم` (fetched 2026-08-31) exists
     // and prices 13 rows under «سایز | حالت | ضخامت» — the previous pass did
     // not find it and fell back to ahanyekta's «طول شاخه». ahanonline is the
@@ -427,7 +519,7 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ح
     expect(col.cell(row('aluminum-profile', { branchLengthM: 6 }))).toBe('۶ متری');
   });
 
-  it('reads تسمه مسی\'s «حالت» from the field that actually holds it', () => {
+  it("reads تسمه مسی's «حالت» from the field that actually holds it", () => {
     // ahanonline's تسمه مسی page (`انواع-ورق/تسمه-مسی`, fetched 2026-08-31)
     // publishes «نام کالا | حالت» over 18 priced rows, every «حالت» cell the
     // fixed phrase «شاخه 4 متری». The header here was already right; the
@@ -526,7 +618,7 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ح
     expect(col.label).not.toBe(BRANCH_LENGTH_LABEL);
   });
 
-  it('heads Z\'s column «طول» and prints «طول سفارشی» in it when unset', () => {
+  it("heads Z's column «طول» and prints «طول سفارشی» in it when unset", () => {
     // 1405/06/09: the header and the value were the wrong way round.
     // ahanonline's پروفیلz page (fetched 2026-08-31) heads this column
     // «طول(m)» and puts «طول سفارشی» in every one of its 8 priced CELLS; we
@@ -560,7 +652,7 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ح
 
   /* -------------------------------- میلگرد -------------------------------- */
 
-  it('heads میلگرد\'s analysis column «استاندارد», the word both references use', () => {
+  it("heads میلگرد's analysis column «استاندارد», the word both references use", () => {
     // 1405/06/09. Same stored `skus.grade`, different word above it.
     // ahanonline `میلگرد/قیمت-میلگرد` renders «سایز | استاندارد | محل تحویل»
     // over 560 priced rows reading A3/A2; teleahan `میلگرد/میلگرد-آجدار`
@@ -580,7 +672,7 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ح
     expect(col.cell(row('deformed', { standard: 'ISIRI 3132' }))).toBe(UNKNOWN_VALUE);
   });
 
-  it('takes «استاندارد» as the mixed میلگرد view\'s column too', () => {
+  it("takes «استاندارد» as the mixed میلگرد view's column too", () => {
     // Unlike پروفیل and فلزات رنگی, this category has one honest shared
     // column: 208 of its 240 live rows are آجدار or ساده. The 32 stainless
     // rows, whose own column is «آلیاژ», read `NOT_APPLICABLE` there.
@@ -699,7 +791,13 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ح
     const col = only('angle-channel', 'val-post');
     expect(col.key).toBe('gradeAsThickness');
     expect(col.label).toBe(THICKNESS_LABEL);
-    expect(col.cell(row('val-post', { grade: 'ضخامت ۲' }))).toBe('ضخامت ۲');
+    // The stored string repeats the header word; ahanonline's cell is a bare
+    // «2», so the prefix is dropped for display and the number kept.
+    expect(col.cell(row('val-post', { grade: 'ضخامت ۲' }))).toBe('۲');
+    // A plain numeric grade is untouched, and a value that is ONLY the word
+    // survives rather than rendering as an empty cell.
+    expect(col.cell(row('val-post', { grade: '۲' }))).toBe('۲');
+    expect(col.cell(row('val-post', { grade: 'ضخامت' }))).toBe('ضخامت');
   });
 
   it('keeps the mixed «همه» view on «گرید», dashing all seven subs', () => {

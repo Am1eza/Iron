@@ -22,7 +22,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useFocusTrap } from '@/lib/hooks/useFocusTrap';
-import { adminApi, type AdminSku, type AdminCategory, type AdminSubCategory } from '@/lib/api/resources/admin';
+import {
+  adminApi,
+  type AdminSku,
+  type AdminCategory,
+  type AdminSubCategory,
+} from '@/lib/api/resources/admin';
 import { ApiError } from '@/lib/api/errors';
 import { normalizeDigits } from '@/lib/utils/format';
 import {
@@ -43,6 +48,10 @@ import {
   LENGTH_LABEL,
   CONDITION_LABEL,
   THICKNESS_LABEL,
+  SIZE_LABEL,
+  WIDTH_LABEL,
+  FLANGE_LABEL,
+  DIMENSIONS_LABEL,
   SCHEDULE_LABEL,
   BRAND_LABEL,
   STANDARD_LABEL,
@@ -105,10 +114,58 @@ const SIZE_PLACEHOLDER: Record<string, string> = {
 };
 const FACTORY_PLACEHOLDER = 'مثلاً ذوب‌آهن اصفهان';
 const GRADE_PLACEHOLDER = 'مثلاً A3';
-const DIMENSIONS_PLACEHOLDER: Record<string, string> = {
-  sheet: 'مثلاً ۱۰۰۰×۲۰۰۰',
-  'angle-channel': 'مثلاً ۴',
+/**
+ * What the one shared `dimensions` box is asking for, keyed on the LABEL the
+ * public table already resolved for this exact sub — not on the category.
+ *
+ * The category was the wrong key the moment one parent came to hold two
+ * meanings for the field: under ورق, سیاه stores «۱۰۰۰×۲۰۰۰» while روغنی
+ * stores a bare width, and under نبشی و ناودانی, نبشی stores a wall thickness
+ * while وال‌پست stores a flange. Keying on the resolved label means the hint
+ * cannot describe a different fact from the one written above the box —
+ * `dimensionsLabel` is the single source both read (see `DIMENSION_MEANING`).
+ *
+ * `SIZE_LABEL` is the one label that is genuinely two facts (سیاه's mixed
+ * width/width×length, اسیدشویی's bare width), so it is resolved per sub below.
+ */
+const DIMENSIONS_HINT: Record<string, { helper: string; placeholder: string }> = {
+  [THICKNESS_LABEL]: {
+    helper: 'ضخامت مقطع به میلی‌متر. اختیاری — اگر نمی‌دانید خالی بگذارید.',
+    placeholder: 'مثلاً ۴',
+  },
+  [WIDTH_LABEL]: {
+    helper: 'عرض ورق به میلی‌متر. اختیاری — اگر نمی‌دانید خالی بگذارید.',
+    placeholder: 'مثلاً ۱۲۵۰',
+  },
+  [FLANGE_LABEL]: {
+    helper: 'پهنای بال به میلی‌متر. اختیاری — اگر نمی‌دانید خالی بگذارید.',
+    placeholder: 'مثلاً ۷',
+  },
+  [DIMENSIONS_LABEL]: {
+    helper: 'عرض×طول ورق. اختیاری — اگر نمی‌دانید خالی بگذارید.',
+    placeholder: 'مثلاً ۱۰۰۰×۲۰۰۰',
+  },
 };
+
+/** ورق سیاه's «سایز» holds either shape; اسیدشویی's holds a bare width. */
+const SHEET_SIZE_HINT: Record<string, { helper: string; placeholder: string }> = {
+  black: {
+    helper: 'عرض یا عرض×طول ورق. اختیاری — اگر نمی‌دانید خالی بگذارید.',
+    placeholder: 'مثلاً ۱۲۵۰ یا ۱۰۰۰×۲۰۰۰',
+  },
+  pickled: DIMENSIONS_HINT[WIDTH_LABEL]!,
+};
+
+function dimensionsHint(
+  categorySlug: string | undefined,
+  subSlug: string | undefined,
+  label: string,
+): { helper: string; placeholder: string } {
+  if (label === SIZE_LABEL && categorySlug === 'sheet' && subSlug && SHEET_SIZE_HINT[subSlug]) {
+    return SHEET_SIZE_HINT[subSlug]!;
+  }
+  return DIMENSIONS_HINT[label] ?? DIMENSIONS_HINT[DIMENSIONS_LABEL]!;
+}
 const SCHEDULE_PLACEHOLDER = 'مثلاً ۴۰';
 const BRAND_PLACEHOLDER = 'مثلاً چینی';
 
@@ -171,7 +228,11 @@ type Values = {
   crossListedSteel: boolean;
 };
 
-function toValues(sku: AdminSku | null, defaultSubId: string, steelCategoryId: string | undefined): Values {
+function toValues(
+  sku: AdminSku | null,
+  defaultSubId: string,
+  steelCategoryId: string | undefined,
+): Values {
   return {
     name: sku?.name ?? '',
     slug: sku?.slug ?? '',
@@ -189,7 +250,9 @@ function toValues(sku: AdminSku | null, defaultSubId: string, steelCategoryId: s
     branchLengthM: sku?.branchLengthM != null ? String(sku.branchLengthM) : '',
     theoreticalWeightKg: sku?.theoreticalWeightKg != null ? String(sku.theoreticalWeightKg) : '',
     imageUrl: sku?.imageUrl ?? null,
-    crossListedSteel: Boolean(steelCategoryId && sku?.crossListedCategoryIds?.includes(steelCategoryId)),
+    crossListedSteel: Boolean(
+      steelCategoryId && sku?.crossListedCategoryIds?.includes(steelCategoryId),
+    ),
   };
 }
 
@@ -469,7 +532,8 @@ export function SkuDrawer({
   // the server as null and came back as an unexplained 400.
   const weightRaw = normText(v.theoreticalWeightKg).trim();
   const weightNum = weightRaw === '' ? null : Number(weightRaw);
-  const weightValid = weightNum === null || (Number.isFinite(weightNum) && weightNum > 0 && weightNum <= 100_000);
+  const weightValid =
+    weightNum === null || (Number.isFinite(weightNum) && weightNum > 0 && weightNum <= 100_000);
   // Same Persian-digit treatment as the weight above. 100 m is far past any
   // mill branch and 0 is not a length, so both are rejected rather than saved.
   const lengthRaw = normText(v.branchLengthM).trim();
@@ -554,7 +618,13 @@ export function SkuDrawer({
                 {parentCategory.name} › {selectedSub?.name ?? '—'}
               </Text>
             ) : null}
-            {sku ? sku.isActive ? <Badge tone="gain">فعال</Badge> : <Badge tone="stale">غیرفعال</Badge> : null}
+            {sku ? (
+              sku.isActive ? (
+                <Badge tone="gain">فعال</Badge>
+              ) : (
+                <Badge tone="stale">غیرفعال</Badge>
+              )
+            ) : null}
           </div>
         </div>
 
@@ -604,23 +674,27 @@ export function SkuDrawer({
                 placeholder={SIZE_PLACEHOLDER[parentCategory?.slug ?? ''] ?? 'مثلاً ۱۴'}
                 onChange={(size) => set({ size })}
               />
-              {/* One shared stored column, offered only where it has an
-                  owner-approved meaning: ورق width×length, or wall thickness
-                  on نبشی بال مساوی/نامساوی/لقمه. */}
+              {/* One shared stored column, offered only where a source says
+                  what it means there: ورق's width (or سیاه's width×length),
+                  the wall thickness of every section family that publishes
+                  one, and وال‌پست's «بال». The label AND the hint both come
+                  from `dimensionsLabel`, so the box can never ask for one fact
+                  under the name of another. */}
               {showDimensions ? (
                 <PickerInput
                   id="sku-dimensions"
                   label={dimensionsCol}
                   helper={
-                    dimensionsCol !== THICKNESS_LABEL
-                      ? 'عرض×طول ورق. اختیاری — اگر نمی‌دانید خالی بگذارید.'
-                      : 'ضخامت مقطع به میلی‌متر. اختیاری — اگر نمی‌دانید خالی بگذارید.'
+                    dimensionsHint(parentCategory?.slug, selectedSub?.slug, dimensionsCol).helper
                   }
                   value={v.dimensions}
                   options={suggestions?.dimensions ?? []}
                   error={fieldErrors.dimensions}
                   maxLength={40}
-                  placeholder={DIMENSIONS_PLACEHOLDER[parentCategory?.slug ?? '']}
+                  placeholder={
+                    dimensionsHint(parentCategory?.slug, selectedSub?.slug, dimensionsCol)
+                      .placeholder
+                  }
                   onChange={(dimensions) => set({ dimensions })}
                 />
               ) : null}
@@ -762,7 +836,8 @@ export function SkuDrawer({
                 }
                 value={v.theoreticalWeightKg}
                 error={
-                  fieldErrors.theoreticalWeightKg ?? (weightValid ? undefined : 'عدد مثبت وارد کنید یا خالی بگذارید.')
+                  fieldErrors.theoreticalWeightKg ??
+                  (weightValid ? undefined : 'عدد مثبت وارد کنید یا خالی بگذارید.')
                 }
                 onChange={(e) => set({ theoreticalWeightKg: e.target.value }, { weight: true })}
               />
@@ -775,7 +850,9 @@ export function SkuDrawer({
                   className={ui.select}
                   style={{ inlineSize: '100%' }}
                   value={v.unit}
-                  onChange={(e) => set({ unit: e.target.value as AdminSku['unit'] }, { unit: true })}
+                  onChange={(e) =>
+                    set({ unit: e.target.value as AdminSku['unit'] }, { unit: true })
+                  }
                 >
                   {UNITS.map((u) => (
                     <option key={u.v} value={u.v}>
@@ -846,28 +923,45 @@ export function SkuDrawer({
                 helper="ترتیب این کالا درون بخش کارخانه‌اش. عدد کوچک‌تر زودتر نمایش داده می‌شود. اگر خالی بگذارید، مثل قبل بر اساس سایز مرتب می‌شود."
                 value={v.order}
                 error={
-                  fieldErrors.order ?? (orderValid ? undefined : 'عدد صحیح نامنفی وارد کنید یا خالی بگذارید.')
+                  fieldErrors.order ??
+                  (orderValid ? undefined : 'عدد صحیح نامنفی وارد کنید یا خالی بگذارید.')
                 }
                 onChange={(e) => set({ order: e.target.value })}
               />
             </div>
             <div className={s.slugPreview} style={{ marginBlockStart: 'var(--space-2)' }}>
-              نشانی صفحه: /prices/{parentCategory?.slug ?? '…'}/{selectedSub?.slug ?? '…'}/{v.slug || '…'}
+              نشانی صفحه: /prices/{parentCategory?.slug ?? '…'}/{selectedSub?.slug ?? '…'}/
+              {v.slug || '…'}
             </div>
           </div>
 
           <div>
-            <ImageUpload label="تصویر کالا" value={v.imageUrl} onChange={(imageUrl) => set({ imageUrl })} />
+            <ImageUpload
+              label="تصویر کالا"
+              value={v.imageUrl}
+              onChange={(imageUrl) => set({ imageUrl })}
+            />
           </div>
 
           {/* The fields a normal product never needs, so the form reads as four
               questions rather than nine. */}
           <div>
-            <Button size="sm" variant="ghost" aria-expanded={advanced} onClick={() => setAdvanced((x) => !x)}>
+            <Button
+              size="sm"
+              variant="ghost"
+              aria-expanded={advanced}
+              onClick={() => setAdvanced((x) => !x)}
+            >
               {advanced ? 'بستن تنظیمات پیشرفته' : 'تنظیمات پیشرفته'}
             </Button>
             {advanced ? (
-              <div style={{ marginBlockStart: 'var(--space-3)', display: 'grid', gap: 'var(--space-3)' }}>
+              <div
+                style={{
+                  marginBlockStart: 'var(--space-3)',
+                  display: 'grid',
+                  gap: 'var(--space-3)',
+                }}
+              >
                 {/* Hidden wherever `skus.standard` is already edited above —
                     under its own name (تیرآهن هاش) or under تسمه مسی's
                     «حالت» — and wherever the primary box is a relabelled
@@ -888,8 +982,8 @@ export function SkuDrawer({
                 ) : null}
                 {isEdit ? (
                   <Alert tone="warning">
-                    نشانی فعلی در گوگل ثبت شده و ممکن است مشتریان ذخیره‌اش کرده باشند. با تغییر آن، انتقال خودکار از
-                    نشانی قدیمی ساخته می‌شود تا لینک‌های قبلی نشکنند.
+                    نشانی فعلی در گوگل ثبت شده و ممکن است مشتریان ذخیره‌اش کرده باشند. با تغییر آن،
+                    انتقال خودکار از نشانی قدیمی ساخته می‌شود تا لینک‌های قبلی نشکنند.
                   </Alert>
                 ) : null}
                 <TextInput
@@ -902,7 +996,9 @@ export function SkuDrawer({
                   onChange={(e) => set({ slug: e.target.value }, { slug: true })}
                 />
                 {steelCategory && parentCategory?.slug !== 'steel' ? (
-                  <label style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-start' }}>
+                  <label
+                    style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-start' }}
+                  >
                     <input
                       type="checkbox"
                       checked={v.crossListedSteel}
@@ -911,7 +1007,9 @@ export function SkuDrawer({
                     />
                     <span>
                       این کالا از جنس استیل است — همچنین در دستهٔ «استیل» هم نمایش داده شود
-                      <div className={ui.tileHint}>نشانی صفحه همین یکی می‌ماند؛ فقط در فهرست «استیل» هم دیده می‌شود.</div>
+                      <div className={ui.tileHint}>
+                        نشانی صفحه همین یکی می‌ماند؛ فقط در فهرست «استیل» هم دیده می‌شود.
+                      </div>
                     </span>
                   </label>
                 ) : null}
@@ -921,13 +1019,19 @@ export function SkuDrawer({
         </div>
 
         <div className={s.drawerFoot}>
-          <Button onClick={() => save.mutate()} disabled={!canSave || (isEdit && !dirty)} loading={save.isPending}>
+          <Button
+            onClick={() => save.mutate()}
+            disabled={!canSave || (isEdit && !dirty)}
+            loading={save.isPending}
+          >
             ذخیره
           </Button>
           <Button variant="ghost" onClick={() => void requestClose()}>
             انصراف
           </Button>
-          {dirty ? <span className={`${ui.tileHint} ${s.footSpacer}`}>تغییرات ذخیره‌نشده</span> : null}
+          {dirty ? (
+            <span className={`${ui.tileHint} ${s.footSpacer}`}>تغییرات ذخیره‌نشده</span>
+          ) : null}
         </div>
       </div>
       {dialog}
