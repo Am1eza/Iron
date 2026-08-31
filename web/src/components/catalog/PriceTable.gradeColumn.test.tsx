@@ -142,13 +142,19 @@ describe('PriceTable — the تیرآهن grade → standard column', () => {
     expect(screen.queryByText(/گرید/)).toBeNull();
   });
 
-  it('leaves every other category on the untouched «گرید» column', () => {
+  it('leaves an unreconciled کلاف‌ومفتول sub on the untouched «گرید» column', async () => {
+    // 1405/06/09: کلاف‌ومفتول's own eight live subs were reconciled per-sub
+    // (see `WIRE_ATTRS`), and its mixed «همه» view now publishes no shared
+    // column at all. This asserts the OTHER half of that change survives —
+    // a sub with no source page yet (fake 'plain' here) still falls back to
+    // plain «گرید» once it is the SELECTED sub, same as before.
     renderTable({
       categorySlug: 'wire',
       categoryName: 'کلاف و مفتول',
       rows: [row('wire-1', 'plain', { grade: 'A3' }), row('wire-2', 'plain')],
       subs: [{ slug: 'plain', name: 'ساده', groupLabel: null }],
     });
+    await userEvent.click(screen.getByRole('button', { name: 'ساده' }));
     expect(screen.getByRole('columnheader', { name: 'گرید' })).toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: 'استاندارد' })).toBeNull();
     expect(cellFor('wire-1')).toBe('A3');
@@ -178,7 +184,7 @@ describe('PriceTable — the تیرآهن grade → standard column', () => {
     expect(attrCellFor('rebar-1', 'استاندارد').textContent).toBe('A3');
   });
 
-  it('renders the independent ورق condition and keeps the guarded legacy fallback', () => {
+  it('renders the independent ورق condition and keeps the guarded legacy fallback', async () => {
     renderTable({
       categorySlug: 'sheet',
       categoryName: 'ورق',
@@ -188,6 +194,9 @@ describe('PriceTable — the تیرآهن grade → standard column', () => {
       ],
       subs: [{ slug: 'black', name: 'ورق سیاه', groupLabel: null }],
     });
+    // Main ورق no longer has one honest attribute header in its mixed
+    // view; select the exact product line whose source publishes «حالت».
+    await userEvent.click(screen.getByRole('button', { name: 'ورق سیاه' }));
     expect(screen.getByRole('columnheader', { name: 'حالت' })).toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: 'گرید' })).toBeNull();
     expect(cellFor('sheet-new')).toBe('رول');
