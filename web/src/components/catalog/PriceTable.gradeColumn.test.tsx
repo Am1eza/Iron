@@ -144,17 +144,38 @@ describe('PriceTable — the تیرآهن grade → standard column', () => {
 
   it('leaves every other category on the untouched «گرید» column', () => {
     renderTable({
-      categorySlug: 'rebar',
-      categoryName: 'میلگرد',
-      rows: [row('rebar-1', 'plain', { grade: 'A3' }), row('rebar-2', 'plain')],
+      categorySlug: 'wire',
+      categoryName: 'کلاف و مفتول',
+      rows: [row('wire-1', 'plain', { grade: 'A3' }), row('wire-2', 'plain')],
       subs: [{ slug: 'plain', name: 'ساده', groupLabel: null }],
     });
     expect(screen.getByRole('columnheader', { name: 'گرید' })).toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: 'استاندارد' })).toBeNull();
+    expect(cellFor('wire-1')).toBe('A3');
+    expect(cellFor('wire-2')).toBe('نامشخص');
+    // …and the card form labels it, from the cell's own `data-label`.
+    expect(attrCellFor('wire-1', 'گرید').textContent).toBe('A3');
+  });
+
+  it("heads میلگرد's own column «استاندارد» — the reference sites' word for A2/A3", () => {
+    // 1405/06/09. Same stored `skus.grade`, matching ahanonline's
+    // `میلگرد/قیمت-میلگرد` and teleahan's `میلگرد/میلگرد-آجدار`, which both
+    // head this column «استاندارد» (fetched 2026-08-31). It is a re-label, so
+    // a value stored in `skus.standard` must NOT leak into it.
+    renderTable({
+      categorySlug: 'rebar',
+      categoryName: 'میلگرد',
+      rows: [
+        row('rebar-1', 'deformed', { grade: 'A3' }),
+        row('rebar-2', 'deformed', { standard: 'ISIRI 3132' }),
+      ],
+      subs: [{ slug: 'deformed', name: 'آجدار', groupLabel: null }],
+    });
+    expect(screen.getByRole('columnheader', { name: 'استاندارد' })).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'گرید' })).toBeNull();
     expect(cellFor('rebar-1')).toBe('A3');
     expect(cellFor('rebar-2')).toBe('نامشخص');
-    // …and the card form labels it, from the cell's own `data-label`.
-    expect(attrCellFor('rebar-1', 'گرید').textContent).toBe('A3');
+    expect(attrCellFor('rebar-1', 'استاندارد').textContent).toBe('A3');
   });
 
   it('renders the independent ورق condition and keeps the guarded legacy fallback', () => {

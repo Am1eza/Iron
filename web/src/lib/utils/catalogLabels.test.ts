@@ -188,7 +188,11 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ح
   // «حالت» applies to every sub, including the mixed «همه» view), unlike
   // لوله and نبشی‌وناودانی, which only ever deviate for a named sub.
   it('leaves every category outside the deviating ones exactly as it was', () => {
-    for (const slug of ['rebar', 'pipe', 'angle-channel', 'wire', 'felezat-rangi']) {
+    // میلگرد and فلزات رنگی left this list 1405/06/09 — both now deviate
+    // («استاندارد» category-wide, and a per-sub set with no mixed column at
+    // all). کلاف‌ومفتول (`wire`) and the unlisted لوله/نبشی subs still hold
+    // the line for the plain «گرید» default.
+    for (const slug of ['pipe', 'angle-channel', 'wire']) {
       for (const sub of [null, 'anything']) {
         const col = only(slug, sub);
         expect(col.key).toBe('grade');
@@ -303,19 +307,39 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ح
     // as نبشی's وال‌پست, reusing its `gradeAsThickness` AttrKey rather than
     // duplicating it. ahanonline's own لوله مسی page confirms «ضخامت» is the
     // real column here, not «گرید».
-    const col = only('felezat-rangi', 'copper-pipe');
-    expect(col.key).toBe('gradeAsThickness');
-    expect(col.label).toBe(THICKNESS_LABEL);
-    expect(col.cell(row('copper-pipe', { grade: 'ضخامت ۰.۸۱' }))).toBe('ضخامت ۰.۸۱');
+    const cols = attributeColumns('felezat-rangi', 'copper-pipe');
+    expect(cols.map((c) => c.key)).toEqual(['gradeAsThickness', 'branch']);
+    expect(cols[0]!.label).toBe(THICKNESS_LABEL);
+    expect(cols[0]!.cell(row('copper-pipe', { grade: 'ضخامت ۰.۸۱' }))).toBe('ضخامت ۰.۸۱');
+  });
+
+  it('gives لوله مسی the «حالت» ahanonline publishes beside that thickness', () => {
+    // 1405/06/09. `انواع-لوله/لوله-مسی` (fetched 2026-08-31, «تاریخ
+    // بروزرسانی» 1405/6/7) renders «ضخامت | size | حالت» over 54 priced rows
+    // whose «حالت» reads «15 متری» — a fact all 15 of our live rows already
+    // store in `branch_length_m`, and that nothing was displaying. A missing
+    // column, not an empty cell.
+    const col = attributeColumns('felezat-rangi', 'copper-pipe')[1]!;
+    expect(col.key).toBe('branch');
+    expect(col.label).toBe(CONDITION_LABEL);
+    expect(col.cell(row('copper-pipe', { branchLengthM: 15 }))).toBe('۱۵ متری');
+    expect(col.cell(row('copper-pipe'))).toBe(UNKNOWN_VALUE);
   });
 
   it('gives آلومینیوم section subs their own «ضخامت»+«طول شاخه», verified against ahanyekta.com', () => {
-    // No ahanonline page exists for these — checked against ahanyekta.com's
+    // No ahanonline page prices these — checked against ahanyekta.com's
     // نبشی/لوله/پروفیل آلومینیوم pages instead (ناودانی included by the same
     // section-profile-family reasoning as its سیبلینگ نبشی). None of the
-    // four currently has ANY stored data (checked live in prod), so every
-    // cell below reads «نامشخص» — an honest gap, not a fabrication.
-    for (const sub of ['aluminum-angle', 'aluminum-channel', 'aluminum-pipe', 'aluminum-profile']) {
+    // three currently has ANY stored thickness (checked live in prod), so the
+    // ضخامت cell reads «نامشخص» — an honest gap, not a fabrication.
+    //
+    // Re-checked 2026-08-31: ahanonline DOES have نبشی آلومینیوم and لوله
+    // آلومینیوم pages, but both render zero priced rows, and it has no
+    // ناودانی آلومینیوم page at all — so there is still no ahanonline column
+    // set for these three. ahanyekta was unreachable that day, so its
+    // «طول شاخه» stands rather than being overwritten. پروفیل آلومینیوم left
+    // this group — see the next test.
+    for (const sub of ['aluminum-angle', 'aluminum-channel', 'aluminum-pipe']) {
       expect(usesDimensions('felezat-rangi', sub)).toBe(true);
       expect(dimensionsLabel('felezat-rangi', sub)).toBe(THICKNESS_LABEL);
       const col = only('felezat-rangi', sub);
@@ -326,15 +350,43 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ح
     }
   });
 
-  it('gives تسمه مسی «حالت», matching ahanonline\'s fixed supplied-form column', () => {
-    // ahanonline's تسمه مسی page publishes «حالت» with a fixed phrase value
-    // («شاخه ۴ متری») — the same `condition` concept aluminum-sheet already
-    // uses, not an empty-column guess. copper-strip has zero stored
-    // condition data today (checked live in prod), so this reads «نامشخص».
-    const col = only('felezat-rangi', 'copper-strip');
-    expect(col.key).toBe('condition');
+  it('calls پروفیل آلومینیوم\'s branch fact «حالت», the word its ahanonline page uses', () => {
+    // 1405/06/09. `انواع-پروفیل/پروفیل-آلومینیوم` (fetched 2026-08-31) exists
+    // and prices 13 rows under «سایز | حالت | ضخامت» — the previous pass did
+    // not find it and fell back to ahanyekta's «طول شاخه». ahanonline is the
+    // reference the owner benchmarks against, the same tie-break STEEL_ATTRS
+    // records. The ضخامت stays wired as before.
+    expect(usesDimensions('felezat-rangi', 'aluminum-profile')).toBe(true);
+    expect(dimensionsLabel('felezat-rangi', 'aluminum-profile')).toBe(THICKNESS_LABEL);
+    const col = only('felezat-rangi', 'aluminum-profile');
+    expect(col.key).toBe('branch');
     expect(col.label).toBe(CONDITION_LABEL);
-    expect(col.cell(row('copper-strip', { condition: 'شاخه ۴ متری' }))).toBe('شاخه ۴ متری');
+    expect(col.label).not.toBe(BRANCH_LENGTH_LABEL);
+    expect(col.cell(row('aluminum-profile', { branchLengthM: 6 }))).toBe('۶ متری');
+  });
+
+  it('reads تسمه مسی\'s «حالت» from the field that actually holds it', () => {
+    // ahanonline's تسمه مسی page (`انواع-ورق/تسمه-مسی`, fetched 2026-08-31)
+    // publishes «نام کالا | حالت» over 18 priced rows, every «حالت» cell the
+    // fixed phrase «شاخه 4 متری». The header here was already right; the
+    // FIELD was not. `condition` is null on all 18 live rows while that exact
+    // string sits in `standard` on all 18 — so the column rendered «نامشخص»
+    // over data we already had. Display-only rewire, no data migration; this
+    // is the same shape of bug as ورق رنگی's حالت/grade mix-up.
+    const col = only('felezat-rangi', 'copper-strip');
+    expect(col.key).toBe('standardAsCondition');
+    expect(col.label).toBe(CONDITION_LABEL);
+    expect(col.cell(row('copper-strip', { standard: 'شاخه ۴ متری' }))).toBe('شاخه ۴ متری');
+    // The old wiring must not silently keep working — a stored `condition`
+    // is not what this sub publishes.
+    expect(col.cell(row('copper-strip', { condition: 'شاخه ۴ متری' }))).toBe(UNKNOWN_VALUE);
+  });
+
+  it('drops the attribute column from the mixed فلزات رنگی view', () => {
+    // Every priced sub now publishes «آلیاژ», «حالت» or «ضخامت» and none a
+    // grade, so «گرید» there would be `NOT_APPLICABLE` for all 148 rows —
+    // exactly why پروفیل's mixed view is empty too.
+    expect(attributeColumns('felezat-rangi', null)).toEqual([]);
   });
 
   it('does not leak «حالت» into any other category', () => {
@@ -352,14 +404,38 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ح
   /* ------------------------------- پروفیل ------------------------------- */
 
   it('keeps «گرید» only on the unreconciled profile subs, never the mixed view', () => {
-    for (const sub of ['prvfyl-sakhtmany', 'profil-sotuni']) {
+    // پروفیل ساختمانی is the last one left: it has no active priced row, so
+    // there is nothing to reconcile against its source table yet. پروفیل
+    // ستونی left this list 1405/06/09 — it has 6 priced rows and a live
+    // ahanonline table, see below.
+    for (const sub of ['prvfyl-sakhtmany']) {
       const col = only('profile', sub);
       expect(col.key).toBe('grade');
       expect(col.label).toBe(GRADE_LABEL);
     }
-    // The priced subs disagree on «حالت»/«طول»/«طول سفارشی», but none has a
-    // grade. The mixed page therefore omits the attribute column altogether.
+    // The priced subs disagree on «حالت»/«طول», but none has a grade. The
+    // mixed page therefore omits the attribute column altogether.
     expect(attributeColumns('profile', null)).toEqual([]);
+  });
+
+  it('gives پروفیل ستونی the «ضخامت»+«حالت» its ahanonline table publishes', () => {
+    // 1405/06/09. `انواع-پروفیل/پروفیل/قوطی-ستونی` (fetched 2026-08-31,
+    // «تاریخ بروزرسانی» 1405/6/7) renders «سایز | ضخامت | حالت | برند» over
+    // 14 priced rows — e.g. «90*90 | 2 | 6 متری | اطلس فولاد مازندران».
+    // teleahan's پروفیل ساختمانی/صنعتی tables agree on «سایز | ضخامت | حالت».
+    // This was the one profile line with active stock still on the bare
+    // «گرید» fallback, and `grade` is null on all 6 of its rows — a column
+    // that could only ever print «نامشخص» and that no source publishes.
+    expect(usesDimensions('profile', 'profil-sotuni')).toBe(true);
+    expect(dimensionsLabel('profile', 'profil-sotuni')).toBe(THICKNESS_LABEL);
+    const col = only('profile', 'profil-sotuni');
+    expect(col.key).toBe('profileCondition');
+    expect(col.label).toBe(CONDITION_LABEL);
+    expect(col.label).not.toBe(GRADE_LABEL);
+    expect(col.cell(row('profil-sotuni', { branchLengthM: 6 }))).toBe('۶ متری');
+    // Neither fact is stored on any live row yet — honestly empty, never
+    // invented.
+    expect(col.cell(row('profil-sotuni'))).toBe(UNKNOWN_VALUE);
   });
 
   it('replaces industrial and furniture grade with source-style «حالت»', () => {
@@ -388,14 +464,21 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ح
     expect(col.label).not.toBe(BRANCH_LENGTH_LABEL);
   });
 
-  it('gives Z «طول سفارشی», which reads «بر اساس سفارش» when unset', () => {
+  it('heads Z\'s column «طول» and prints «طول سفارشی» in it when unset', () => {
+    // 1405/06/09: the header and the value were the wrong way round.
+    // ahanonline's پروفیلz page (fetched 2026-08-31) heads this column
+    // «طول(m)» and puts «طول سفارشی» in every one of its 8 priced CELLS; we
+    // had the source's value as our header and a paraphrase («بر اساس سفارش»)
+    // as our value. teleahan's پروفیل زد table has no length column at all,
+    // so it neither confirms nor contradicts.
     const col = only('profile', 'profil-z');
     expect(col.key).toBe('customLength');
-    expect(col.label).toBe(CUSTOM_LENGTH_LABEL);
+    expect(col.label).toBe(LENGTH_LABEL);
+    expect(col.label).not.toBe(CUSTOM_LENGTH_LABEL);
     // پروفیل Z is cut to order, so an EMPTY length is an answer, not a gap —
     // «نامشخص» would tell the buyer we lost a number that never existed.
-    expect(col.cell(row('profil-z'))).toBe('بر اساس سفارش');
-    expect(col.card(row('profil-z'))).toBe('بر اساس سفارش');
+    expect(col.cell(row('profil-z'))).toBe(CUSTOM_LENGTH_LABEL);
+    expect(col.card(row('profil-z'))).toBe(CUSTOM_LENGTH_LABEL);
     // A recorded length still wins — a cut-to-order product can be stocked in
     // one length, and that is worth saying.
     expect(col.cell(row('profil-z', { branchLengthM: 6 }))).toBe('۶ متر');
@@ -411,6 +494,74 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ح
     expect(cols[0]!.cell(row('prvfyl-astyl', { grade: '۳۰۴' }))).toBe('۳۰۴');
     expect(cols[1]!.cell(row('prvfyl-astyl', { branchLengthM: 6 }))).toBe('۶ متر');
     expect(cols[1]!.cell(row('prvfyl-astyl'))).toBe(UNKNOWN_VALUE);
+  });
+
+  /* -------------------------------- میلگرد -------------------------------- */
+
+  it('heads میلگرد\'s analysis column «استاندارد», the word both references use', () => {
+    // 1405/06/09. Same stored `skus.grade`, different word above it.
+    // ahanonline `میلگرد/قیمت-میلگرد` renders «سایز | استاندارد | محل تحویل»
+    // over 560 priced rows reading A3/A2; teleahan `میلگرد/میلگرد-آجدار`
+    // renders «نام محصول | سایز | استاندارد | محل تحویل» over 538. Both
+    // fetched 2026-08-31, «تاریخ بروزرسانی» 1405/6/7. markazeahan (recorded in
+    // PR #348, unreachable from outside Iran today) heads it «آنالیز». Three
+    // sources, three words — and «گرید» is none of them.
+    const col = only('rebar', 'deformed');
+    expect(col.key).toBe('gradeAsStandard');
+    expect(col.label).toBe(STANDARD_LABEL);
+    expect(col.label).not.toBe(GRADE_LABEL);
+    expect(col.cell(row('deformed', { grade: 'A3' }))).toBe('A3');
+    expect(col.card(row('deformed', { grade: 'A2' }))).toBe('A2');
+    expect(col.cell(row('deformed'))).toBe(UNKNOWN_VALUE);
+    // It is a re-label of `grade`, NOT a move to `skus.standard` — میلگرد
+    // leaves that column null and a stored value there must not leak in.
+    expect(col.cell(row('deformed', { standard: 'ISIRI 3132' }))).toBe(UNKNOWN_VALUE);
+  });
+
+  it('takes «استاندارد» as the mixed میلگرد view\'s column too', () => {
+    // Unlike پروفیل and فلزات رنگی, this category has one honest shared
+    // column: 208 of its 240 live rows are آجدار or ساده. The 32 stainless
+    // rows, whose own column is «آلیاژ», read `NOT_APPLICABLE` there.
+    const col = only('rebar', null);
+    expect(col.key).toBe('gradeAsStandard');
+    expect(col.cell(row('deformed', { grade: 'A3' }))).toBe('A3');
+    expect(col.cell(row('stainless', { grade: '316L' }))).toBe(NOT_APPLICABLE);
+  });
+
+  it('gives میلگرد ساده the «حالت» both references publish beside its standard', () => {
+    // ahanonline `میلگرد/میلگرد-ساده` renders «سایز | حالت» over 19 priced
+    // rows («شاخه 6 متری», «کلاف») and no analysis column at all; teleahan's
+    // renders «نام محصول | سایز | استاندارد | حالت | محل بارگیری | واحد» over
+    // 28, its «استاندارد» reading A1 throughout. Union of the two. Only 3 of
+    // our 22 live rows store a `branch_length_m`, so «حالت» reads «نامشخص» on
+    // 19 — a real, admin-fillable gap on a fact the trade prices on.
+    const cols = attributeColumns('rebar', 'mylgrd-sadh');
+    expect(cols.map((c) => c.key)).toEqual(['gradeAsStandard', 'branch']);
+    expect(cols.map((c) => c.label)).toEqual([STANDARD_LABEL, CONDITION_LABEL]);
+    expect(cols[0]!.cell(row('mylgrd-sadh', { grade: 'A1' }))).toBe('A1');
+    expect(cols[1]!.cell(row('mylgrd-sadh', { branchLengthM: 6 }))).toBe('۶ متری');
+    expect(cols[1]!.cell(row('mylgrd-sadh'))).toBe(UNKNOWN_VALUE);
+  });
+
+  it('publishes میلگرد استیل as «آلیاژ»+«حالت», not as a grade', () => {
+    // The one stainless line in the catalog filed under میلگرد rather than
+    // استیل, and so the one that never got the category's «آلیاژ» treatment:
+    // it fell through to the bare «گرید» fallback. Its stored grade is 316L
+    // (×22), 310S (×7) and 304L (×3) — alloy designations, at prices ~1.5×
+    // apart. ahanonline `میلگرد/میلگرد-استیل` (fetched 2026-08-31) prices 46
+    // rows under an untranslated `size | standard | state | unit` header,
+    // whose `standard` reads 316L/304L and whose `state` reads «6 متری»; the
+    // alloy WORD comes from this catalog's own استیل convention rather than
+    // from that broken header row, the COLUMN SET from the page.
+    const cols = attributeColumns('rebar', 'stainless');
+    expect(cols.map((c) => c.key)).toEqual(['alloy', 'branch']);
+    expect(cols.map((c) => c.label)).toEqual([ALLOY_LABEL, CONDITION_LABEL]);
+    expect(cols[0]!.cell(row('stainless', { grade: '316L' }))).toBe('316L');
+    // `branch_length_m` is null on all 32 today — honestly empty.
+    expect(cols[1]!.cell(row('stainless'))).toBe(UNKNOWN_VALUE);
+    expect(cols[1]!.cell(row('stainless', { branchLengthM: 6 }))).toBe('۶ متری');
+    // A میلگرد آجدار row sitting in the same mixed table answers for itself.
+    expect(cols[0]!.cell(row('deformed', { grade: 'A3' }))).toBe(NOT_APPLICABLE);
   });
 
   /* ---------------------------- نبشی و ناودانی ---------------------------- */
@@ -709,9 +860,29 @@ describe('factoryLabel — «برند» on مانیسمان, «کارخانه» 
     expect(factoryLabel('pipe', 'something-new')).toBe(FACTORY_LABEL);
   });
 
+  it('calls the non-ferrous sheet lines «برند», as their ahanonline tables do', () => {
+    // 1405/06/09. `انواع-ورق/ورق-آلومینیوم` (64 priced rows) and its آجدار
+    // sibling (25) render «آلیاژ | ضخامت | حالت | ابعاد | برند», that column
+    // reading «نورد آلومینیوم اراک» and «پارس آلومان کار» — the exact two
+    // names our 17 live rows carry as «اراک»/«پارس». `انواع-ورق/ورق-مسی`
+    // (9 rows) renders «ضخامت | سایز | برند | حالت» reading «باهنر», the one
+    // value all 9 of our copper-sheet rows store. Both fetched 2026-08-31.
+    // Unlike مانیسمان these really ARE mill identities — only the word above
+    // them was wrong.
+    for (const sub of ['aluminum-sheet', 'copper-sheet']) {
+      expect(factoryLabel('felezat-rangi', sub)).toBe(BRAND_LABEL);
+    }
+    // لوله مسی stores a brand too, but ahanonline's لوله مسی page publishes
+    // no brand column at all — so there is no source label to match, and it
+    // stays on the generic word.
+    for (const sub of ['copper-pipe', 'aluminum-rebar', 'aluminum-angle', null]) {
+      expect(factoryLabel('felezat-rangi', sub)).toBe(FACTORY_LABEL);
+    }
+  });
+
   it('never touches another category, even one with a same-named sub', () => {
     for (const slug of ['rebar', 'ibeam', 'sheet', 'profile', 'steel', 'angle-channel', 'wire']) {
-      for (const sub of [...SEAMLESS, 'gas', null]) {
+      for (const sub of [...SEAMLESS, 'gas', null, 'aluminum-sheet', 'copper-sheet']) {
         expect(factoryLabel(slug, sub)).toBe(FACTORY_LABEL);
       }
     }

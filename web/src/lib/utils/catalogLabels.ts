@@ -47,22 +47,58 @@ const STEEL_THICKNESS_SUBS = new Set(['angle', 'channel', 'profile']);
 
 /** Profile sections whose secondary dimension is wall thickness.
  *
- * ahanonline publishes thickness as its own column on the three live profile
- * lines this catalog can currently price (industrial, furniture/light and
- * galvanized), just as it does beside Z's height. Their square/rectangular
+ * ahanonline publishes thickness as its own column on every live profile line
+ * this catalog can currently price (industrial, furniture/light, galvanized
+ * and columnar), just as it does beside Z's height. Their square/rectangular
  * `size` remains the outside section; `dimensions` carries the independent
  * wall gauge. This is deliberately a per-sub allow-list: the remaining
  * profile families have no active priced row from which we can verify and
- * backfill that fact without guessing. */
+ * backfill that fact without guessing.
+ *
+ * `profil-sotuni` (پروفیل ستونی) joined 1405/06/09 — the one priced profile
+ * line the 1405/06/08 pass had missed, and it was still on the bare «گرید»
+ * fallback. ahanonline's own قوطی ستونی page (fetched 2026-08-31, «تاریخ
+ * بروزرسانی» 1405/6/7) renders «سایز | ضخامت | حالت | برند» over 14 priced
+ * rows, e.g. «90*90 | 2 | 6 متری | اطلس فولاد مازندران» — so ضخامت is a
+ * published column there exactly as it is on صنعتی and مبلی. teleahan's
+ * پروفیل ساختمانی/صنعتی tables agree («سایز | ضخامت | حالت»). None of our 6
+ * live ستونی rows stores a `dimensions` value yet, so the column is honestly
+ * empty until an admin fills it — the same "collect exactly what the source
+ * publishes" convention `COLOURED_METAL_ATTRS`' aluminium sections follow. */
 const PROFILE_THICKNESS_SUBS = new Set([
   'prvfyl-snaty',
   'profil-mobli',
   'profil-galvanizeh',
   'profil-z',
+  'profil-sotuni',
 ]);
 
 /** Coloured-metal sheet lines whose `dimensions` is width×length. */
 const COLOURED_SHEET_DIMENSION_SUBS = new Set(['aluminum-sheet', 'copper-sheet']);
+
+/**
+ * فلزات رنگی sheet lines whose «کارخانه» column is really a «برند» — the
+ * `SEAMLESS_BRAND_SUBS` move, applied to the two non-ferrous sheet subs whose
+ * reference page names that column outright.
+ *
+ * Verified 2026-08-31 against ahanonline.com (both pages «تاریخ بروزرسانی»
+ * 1405/6/7):
+ * - ورق آلومینیوم (`انواع-ورق/ورق-آلومینیوم`, 64 priced rows) and its آجدار
+ *   sibling (`…/ورق-آلومینیوم-آجدار`, 25 rows) both render
+ *   «آلیاژ | ضخامت | حالت | ابعاد | **برند**», with «نورد آلومینیوم اراک» and
+ *   «پارس آلومان کار» in that column — the exact two names our own 17 rows
+ *   carry, abbreviated to «اراک» / «پارس».
+ * - ورق مسی (`انواع-ورق/ورق-مسی`, 9 rows) renders
+ *   «ضخامت | سایز | **برند** | حالت», its brand column reading «باهنر» — the
+ *   single value all 9 of our copper-sheet rows store.
+ *
+ * Unlike مانیسمان, whose stored value is an ORIGIN rather than a mill, these
+ * really are mill/brand identities; what is wrong is only the word above
+ * them. لوله مسی is deliberately NOT here even though we store a brand for
+ * it: ahanonline's لوله مسی page publishes no brand column at all, so there
+ * is no source label to match.
+ */
+const COLOURED_SHEET_BRAND_SUBS = new Set(['aluminum-sheet', 'copper-sheet']);
 
 /**
  * Coloured-metal SECTION lines (نبشی/ناودانی/لوله/پروفیل آلومینیوم) whose
@@ -420,9 +456,20 @@ export function factoryLabel(
   categorySlug: string | null | undefined,
   subCategorySlug: string | null | undefined = null,
 ): string {
-  return categorySlug === 'pipe' && subCategorySlug && SEAMLESS_BRAND_SUBS.has(subCategorySlug)
-    ? BRAND_LABEL
-    : FACTORY_LABEL;
+  if (categorySlug === 'pipe' && subCategorySlug && SEAMLESS_BRAND_SUBS.has(subCategorySlug)) {
+    return BRAND_LABEL;
+  }
+  // See COLOURED_SHEET_BRAND_SUBS — ahanonline's own ورق آلومینیوم and ورق
+  // مسی tables head this column «برند», and the values we store there are the
+  // very mill names it lists.
+  if (
+    categorySlug === 'felezat-rangi' &&
+    subCategorySlug &&
+    COLOURED_SHEET_BRAND_SUBS.has(subCategorySlug)
+  ) {
+    return BRAND_LABEL;
+  }
+  return FACTORY_LABEL;
 }
 
 export const BRANCH_LENGTH_LABEL = 'طول شاخه';
@@ -445,9 +492,13 @@ export const CONDITION_LABEL = 'حالت';
 export const NOT_APPLICABLE = '—';
 /** Printed where it IS a property of the product but nobody has entered it. */
 export const UNKNOWN_VALUE = 'نامشخص';
-/** «طول سفارشی» for a product with no standard branch length: پروفیل Z is cut
- *  to order, so an empty length is an answer, not a gap. */
-const CUT_TO_ORDER = 'بر اساس سفارش';
+/** What a پروفیل Z row prints where no branch length is recorded. It is cut to
+ *  order, so an empty length is an answer, not a gap — and «طول سفارشی» is
+ *  ahanonline's own word for that answer, printed in the cells of its «طول(m)»
+ *  column (fetched 2026-08-31; see `customLength` in ATTR_DEFS). Deliberately
+ *  the same string as `CUSTOM_LENGTH_LABEL`, because on this product the
+ *  source says it as a VALUE where we used to say it as a HEADER. */
+const CUT_TO_ORDER = CUSTOM_LENGTH_LABEL;
 
 /** The identity of one attribute column. Not a free label: the same key drives
  *  the header, the desktop cell, the mobile card line and the spec sheet, so
@@ -464,7 +515,9 @@ export type AttrKey =
   | 'customLength'
   | 'schedule'
   | 'branch'
-  | 'gradeAsThickness';
+  | 'gradeAsThickness'
+  | 'gradeAsStandard'
+  | 'standardAsCondition';
 
 /** The subset of a price row the attribute columns read. Deliberately
  *  structural rather than `PriceRow` so the admin tables and the spec sheet can
@@ -541,10 +594,38 @@ const ATTR_DEFS: Record<AttrKey, { label: string; read: (r: AttrRow) => string |
   // grade — see ANGLE_CHANNEL_BRANCH_SUBS. Same re-label move as `alloy`
   // above, just a different word for a different sub.
   gradeAsThickness: { label: THICKNESS_LABEL, read: (r) => r.grade },
+  // پروفیل Z's length column. Headed «طول» and NOT «طول سفارشی» since
+  // 1405/06/09: ahanonline's own پروفیلz page (fetched 2026-08-31, «تاریخ
+  // بروزرسانی» 1405/6/7) renders «ارتفاع | ضخامت(mm) | طول(m)» over its 8
+  // priced rows and puts «طول سفارشی» in that column's CELLS, on every row.
+  // We had the two the wrong way round — the source's value as our header,
+  // and a paraphrase («بر اساس سفارش») as our value. teleahan's پروفیل زد
+  // table publishes no length column at all, so it neither confirms nor
+  // contradicts the wording.
   customLength: {
-    label: CUSTOM_LENGTH_LABEL,
+    label: LENGTH_LABEL,
     read: (r) => metres(r.branchLengthM) ?? CUT_TO_ORDER,
   },
+  // «استاندارد» is `skus.grade` re-labelled — the same move `alloy` and
+  // `gradeAsThickness` make, for میلگرد's own word. A2/A3/A1 really are the
+  // rebar standard (ISIRI 3132 analysis classes), and both live references
+  // head that column «استاندارد», never «گرید»: ahanonline's
+  // `میلگرد/قیمت-میلگرد` renders «سایز | استاندارد | محل تحویل» over 560
+  // priced rows reading A3/A2, and teleahan's `میلگرد/میلگرد-آجدار` renders
+  // «نام محصول | سایز | استاندارد | محل تحویل» over 538 (both fetched
+  // 2026-08-31, «تاریخ بروزرسانی» 1405/6/7). markazeahan — a third reference,
+  // unreachable from outside Iran on the day of this pass — was recorded in
+  // PR #348 as heading the same column «آنالیز». So three sources, three
+  // words, and «گرید» is none of them; ahanonline is the one the owner
+  // benchmarks these pages against, which is the tie-break rule STEEL_ATTRS
+  // already follows. Kept as a DISPLAY key rather than a data move because
+  // `skus.standard` is a genuinely different column that میلگرد leaves null.
+  gradeAsStandard: { label: STANDARD_LABEL, read: (r) => r.grade },
+  // «حالت» read from `skus.standard`. تسمه مسی is the ورق رنگی bug exactly:
+  // the header was already right, but it read `condition` — null on all 18
+  // live rows — while the value the source publishes, «شاخه ۴ متری», sits in
+  // `standard` on all 18. Display-only rewire, no data migration.
+  standardAsCondition: { label: CONDITION_LABEL, read: (r) => r.standard },
 };
 
 /**
@@ -561,10 +642,32 @@ const ATTR_DEFS: Record<AttrKey, { label: string; read: (r: AttrRow) => string |
  * families deliberately keep their previous fallback until they have a real,
  * priced source row to reconcile — absence of stock is not evidence for a
  * migration.
+ *
+ * `profil-sotuni` (پروفیل ستونی) joined 1405/06/09. It was the ONE profile
+ * line with active priced stock — 6 live SKUs — that the 1405/06 pass left on
+ * the bare «گرید» fallback, and `grade` is null on all 6, so the page was
+ * publishing a column that could only ever read «نامشخص» AND that its
+ * reference does not have. ahanonline's قوطی ستونی page (fetched 2026-08-31,
+ * «تاریخ بروزرسانی» 1405/6/7) renders «سایز | ضخامت | حالت | برند» over 14
+ * priced rows with «6 متری»/«12 متری» in «حالت» — the same supplied branch
+ * length صنعتی and مبلی already read through `profileCondition`, and the same
+ * ضخامت now wired through `PROFILE_THICKNESS_SUBS`. Neither fact is stored on
+ * any of the 6 rows yet; both are honestly empty rather than fabricated.
+ *
+ * ahanonline's «برند» column on that page is deliberately NOT restored here:
+ * `profil-sotuni` is in `PROFILE_NO_FACTORY_SUBS`, an explicit owner decision
+ * about fabricated mill names, and its values on the reference are themselves
+ * half brands («اطلس فولاد مازندران») and half cities («تهران», «اصفهان») —
+ * which is what our «محل تولید» column already publishes.
+ *
+ * `chaharpahlu` is retained but matches nothing live: چهارپهلو is not among
+ * the 7 active پروفیل subs (it sits under ورق). Left alone — it is another
+ * workstream's category and harmless dead config here.
  */
 const PROFILE_ATTRS: Record<string, AttrKey[]> = {
   'prvfyl-snaty': ['profileCondition'],
   'profil-mobli': ['profileCondition'],
+  'profil-sotuni': ['profileCondition'],
   'profil-galvanizeh': ['length'],
   'profil-z': ['customLength'],
   'prvfyl-astyl': ['alloy', 'branchLength'],
@@ -603,17 +706,100 @@ const PROFILE_ATTRS: Record<string, AttrKey[]> = {
  *  - `copper-strip`: ahanonline's تسمه مسی page publishes a «حالت» column
  *    whose value is a fixed supplied-form phrase («شاخه ۴ متری»), the same
  *    concept `condition` already models for aluminum-sheet.
+ *
+ *  Three corrections from the 1405/06/09 column-taxonomy pass, each re-checked
+ *  against a live ahanonline page fetched 2026-08-31 (all «تاریخ بروزرسانی»
+ *  1405/6/7). This pass asked a different question from the previous ones —
+ *  not "is the cell empty" but "is this column the one the source has, called
+ *  what the source calls it, reading the field that actually holds the fact":
+ *
+ *  - `copper-strip` was reading the WRONG STORED FIELD. Its header «حالت» was
+ *    already correct, but `condition` is null on all 18 live rows while the
+ *    value the source publishes — «شاخه ۴ متری», the literal string — sits in
+ *    `standard` on all 18. `انواع-ورق/تسمه-مسی` renders «نام کالا | حالت» over
+ *    18 priced rows, every «حالت» cell reading «شاخه 4 متری». Rewired to
+ *    `standardAsCondition`; no data moves.
+ *  - `copper-pipe` was MISSING a column. `انواع-لوله/لوله-مسی` renders
+ *    «ضخامت | size | حالت» over 54 priced rows whose «حالت» reads «15 متری» —
+ *    a fact all 15 of our rows already store structurally in
+ *    `branch_length_m` (15) and that nothing was displaying. Gains `branch`
+ *    beside the thickness it already had.
+ *  - `aluminum-profile` had the WRONG LABEL. ahanonline does publish a
+ *    پروفیل آلومینیوم page (`انواع-پروفیل/پروفیل-آلومینیوم`, 13 priced rows),
+ *    which the previous pass did not find; it renders
+ *    «سایز | حالت | ضخامت» and calls the supplied-branch fact «حالت», not the
+ *    «طول شاخه» ahanyekta used. ahanonline is the reference the owner
+ *    benchmarks against — the same tie-break STEEL_ATTRS records — so this sub
+ *    moves to `branch` («۶ متری»), keeping the `dimensions` ضخامت wired by
+ *    COLOURED_SECTION_THICKNESS_SUBS.
+ *
+ *  `aluminum-angle`, `aluminum-channel` and `aluminum-pipe` deliberately do
+ *  NOT follow it. ahanonline HAS a نبشی آلومینیوم page and a لوله آلومینیوم
+ *  page, but both render zero priced rows (verified 2026-08-31) and it has no
+ *  ناودانی آلومینیوم page at all — so there is no ahanonline column set for
+ *  these three to match. Their «طول شاخه» rests on the ahanyekta.com pages the
+ *  1405/06/08 pass cited, and ahanyekta was unreachable from outside Iran on
+ *  the day of this pass (connection timeout), so that verification could not
+ *  be re-run and is left standing rather than overwritten on a sibling's
+ *  evidence. Whether to unify all four on «حالت» is a one-line owner call.
  */
 const COLOURED_METAL_ATTRS: Readonly<Record<string, AttrKey[]>> = {
   'aluminum-sheet': ['alloy', 'condition'],
   'copper-sheet': ['condition'],
   'aluminum-rebar': ['alloy'],
-  'copper-pipe': ['gradeAsThickness'],
+  'copper-pipe': ['gradeAsThickness', 'branch'],
   'aluminum-angle': ['branchLength'],
   'aluminum-channel': ['branchLength'],
   'aluminum-pipe': ['branchLength'],
-  'aluminum-profile': ['branchLength'],
-  'copper-strip': ['condition'],
+  'aluminum-profile': ['branch'],
+  'copper-strip': ['standardAsCondition'],
+};
+
+/**
+ * میلگرد sub-categories that deviate from the category default
+ * («استاندارد», see `attrKeysFor`). Added 1405/06/09.
+ *
+ * `stainless` (میلگرد استیل) is the whole reason this map exists. It carries
+ * 32 active SKUs and had never been reconciled with anything: sitting under
+ * `rebar` rather than under `steel`, it fell through to the bare «گرید»
+ * fallback at the bottom of `attrKeysFor` and so was the one stainless
+ * product line in the catalog not publishing «آلیاژ». Its stored `grade` is
+ * 316L (×22), 310S (×7) and 304L (×3) — alloy designations, exactly the
+ * values the whole استیل category re-labels through `alloy`, and prices that
+ * sit ~1.5× apart between them. ahanonline's `میلگرد/میلگرد-استیل` page
+ * (fetched 2026-08-31, «تاریخ بروزرسانی» 1405/6/7) renders 46 priced rows
+ * under an untranslated header row — `size | standard | state | unit` — whose
+ * `standard` cells read 316L/304L and whose `state` cells read «6 متری». The
+ * English headers are a bug on their page, which is why the alloy word is
+ * taken from our own استیل convention rather than from that row; the COLUMN
+ * SET it proves is alloy + supplied branch length, and the branch length is a
+ * fact nothing here was showing. `branch_length_m` is null on all 32 today,
+ * so «حالت» is honestly empty.
+ *
+ * NOT changed here, and worth an owner decision: `stainless` also publishes a
+ * «کارخانه» column whose stored values are «هند» (×21), «تایوان» (×8) and
+ * «چین» (×3) — countries of origin, not mills, and ahanonline's page has no
+ * brand column at all. That is verbatim the situation `factoryIsMeaningful`
+ * documents for the استیل CATEGORY, whose resolution the owner gave as
+ * «برای استیل‌ها چون که وارداتی هست باید کلاک کارخانه رو حذف بکنیم، فقط
+ * محصول رو می‌ذاریم، آلیاژش رو می‌نویسیم و طولش رو». Extending that ruling to
+ * a sub filed under میلگرد would also change the page's SECTION STRUCTURE
+ * (`groupModeFor` would fall from `factory` to `none`, since «هند» resolves to
+ * no city), which is more than a column relabel — so it is flagged rather than
+ * taken unilaterally.
+ */
+const REBAR_ATTRS: Readonly<Record<string, AttrKey[]>> = {
+  stainless: ['alloy', 'branch'],
+  // میلگرد ساده keeps its standard AND gains the «حالت» both references
+  // publish beside it. ahanonline's `میلگرد/میلگرد-ساده` (fetched 2026-08-31)
+  // renders «سایز | حالت» over 19 priced rows — «شاخه 6 متری» and «کلاف» —
+  // and no analysis column at all; teleahan's `میلگرد/میلگرد-ساده` renders
+  // «نام محصول | سایز | استاندارد | حالت | محل بارگیری | واحد» over 28, its
+  // «استاندارد» reading A1 throughout. Union of the two: size, standard,
+  // حالت. Only 3 of our 22 rows store a `branch_length_m` (6), so the new
+  // column reads «نامشخص» on 19 — a real, fillable gap on a fact the trade
+  // genuinely prices on, not a fabricated column.
+  'mylgrd-sadh': ['gradeAsStandard', 'branch'],
 };
 
 /**
@@ -704,7 +890,13 @@ export function attrKeysFor(
   // verified legacy family until the guarded move has run; both an individual
   // sub and the mixed «همه» view therefore keep one unambiguous label.
   if (categorySlug === 'sheet') return ['legacyCondition'];
-  if (categorySlug === 'felezat-rangi' && sub !== null) {
+  if (categorySlug === 'felezat-rangi') {
+    // Every priced فلزات رنگی sub now publishes a source-verified column of
+    // its own — «آلیاژ», «حالت» or «ضخامت» — and not one of them is a grade.
+    // The mixed «همه» view therefore omits the attribute column entirely,
+    // exactly as پروفیل's does: falling through to «گرید» there would print a
+    // header that is `NOT_APPLICABLE` for all 148 of its own rows.
+    if (sub === null) return [];
     return COLOURED_METAL_ATTRS[sub] ?? ['grade'];
   }
   // لوله is the one category that ADDS an attribute column rather than
@@ -740,6 +932,21 @@ export function attrKeysFor(
   }
   if (categorySlug === 'steel') {
     return sub !== null ? (STEEL_ATTRS[sub] ?? ['alloy', 'branchLength']) : ['alloy', 'branchLength'];
+  }
+  // میلگرد: the one column it has always shown is right about WHICH fact it
+  // publishes and wrong about what that fact is called. A2/A3 (آجدار, 186
+  // live rows) and A1 (ساده, 22) are headed «استاندارد» by ahanonline and by
+  // teleahan alike, and «آنالیز» by markazeahan — never «گرید» by any of
+  // them. See `gradeAsStandard`. No data moves: the same `skus.grade` value
+  // renders under the word the market uses for it.
+  //
+  // The mixed «همه» view takes that same default rather than `[]`, because
+  // unlike پروفیل and فلزات رنگی this category genuinely does have one honest
+  // shared column: 208 of its 240 live rows are آجدار or ساده and answer it.
+  // The 32 میلگرد استیل rows, whose own column is «آلیاژ», read
+  // `NOT_APPLICABLE` there — the established mixed-view rule.
+  if (categorySlug === 'rebar') {
+    return sub !== null ? (REBAR_ATTRS[sub] ?? ['gradeAsStandard']) : ['gradeAsStandard'];
   }
   return ['grade'];
 }

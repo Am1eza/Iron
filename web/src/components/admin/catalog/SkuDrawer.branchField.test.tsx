@@ -149,8 +149,13 @@ describe('SkuDrawer — نبشی و ناودانی collects «حالت» in plac
   });
 
   it('changes nothing for another category', () => {
+    // میلگرد آجدار's own box was relabelled «استاندارد» 1405/06/09 to match
+    // the public column (still `skus.grade` — see catalogLabels'
+    // `gradeAsStandard`), so this asserts the نبشی «حالت» swap did not reach
+    // it rather than that the word «گرید» survived.
     openDrawer('s-deformed');
-    expect(screen.getByLabelText('گرید')).toBeInTheDocument();
+    expect(screen.getByLabelText('استاندارد')).toBeInTheDocument();
+    expect(screen.queryByLabelText('حالت')).toBeNull();
     expect(screen.queryByLabelText('شاخه')).toBeNull();
     expect(screen.getByLabelText('طول شاخه (متر)')).toBeInTheDocument();
   });

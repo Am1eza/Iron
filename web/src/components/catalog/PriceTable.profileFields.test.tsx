@@ -179,20 +179,24 @@ describe('PriceTable — the profile-specific replacements for «گرید»', ()
     );
   });
 
-  it('gives Z «طول سفارشی» — a cut-to-order product, not a stock length', async () => {
+  it("heads Z's column «طول» and prints «طول سفارشی» in it", async () => {
+    // 1405/06/09: header and value were the wrong way round. ahanonline's
+    // پروفیلz page (fetched 2026-08-31) heads this «طول(m)» and puts «طول
+    // سفارشی» in all 8 of its priced CELLS.
     const user = userEvent.setup();
     renderTable();
     await user.click(screen.getByRole('button', { name: 'پروفیل Z' }));
 
-    expect(screen.getByRole('columnheader', { name: 'طول سفارشی' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'طول' })).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'ارتفاع' })).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'ضخامت' })).toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: 'طول شاخه' })).toBeNull();
+    expect(screen.queryByRole('columnheader', { name: 'طول سفارشی' })).toBeNull();
     expect(screen.queryByRole('columnheader', { name: 'گرید' })).toBeNull();
     expect(cellFor('z-30', 'ارتفاع')).toBe('Z*۱۶');
     expect(cellFor('z-30', 'ضخامت')).toBe('۲٫۵');
     // An empty length is the ANSWER here, so it must not read «نامشخص».
-    expect(cellFor('z-30', 'طول سفارشی')).toBe('بر اساس سفارش');
+    expect(cellFor('z-30', 'طول')).toBe('طول سفارشی');
   });
 
   it('gives استیل BOTH «آلیاژ» and «طول شاخه»', async () => {
@@ -225,12 +229,20 @@ describe('PriceTable — the profile-specific replacements for «گرید»', ()
     expect(screen.queryByRole('columnheader', { name: 'گرید' })).toBeNull();
   });
 
-  it('keeps the unpriced/unreconciled column profile on its previous grade rule', async () => {
+  it('gives پروفیل ستونی the «ضخامت» + «حالت» its ahanonline table publishes', async () => {
+    // 1405/06/09. `انواع-پروفیل/پروفیل/قوطی-ستونی` (fetched 2026-08-31)
+    // renders «سایز | ضخامت | حالت | برند» over 14 priced rows. This was the
+    // one profile line with active stock still on the bare «گرید» fallback,
+    // and `grade` is null on all 6 of its live rows — a column that could
+    // only ever print «نامشخص» and that no source publishes. Neither new fact
+    // is stored yet either, so both read «نامشخص» honestly.
     const user = userEvent.setup();
     renderTable();
     await user.click(screen.getByRole('button', { name: 'پروفیل ستونی' }));
-    expect(screen.getByRole('columnheader', { name: 'گرید' })).toBeInTheDocument();
-    expect(cellFor('sotuni-70', 'گرید')).toBe('نامشخص');
+    expect(screen.queryByRole('columnheader', { name: 'گرید' })).toBeNull();
+    expect(screen.getByRole('columnheader', { name: 'ضخامت' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'حالت' })).toBeInTheDocument();
+    expect(cellFor('sotuni-70', 'حالت')).toBe('نامشخص');
   });
 
   it('does not restore a meaningless grade column on the mixed profile page', () => {
