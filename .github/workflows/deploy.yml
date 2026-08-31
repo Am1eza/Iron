@@ -199,11 +199,130 @@ jobs:
         || (github.event_name == 'workflow_dispatch' && github.event.inputs.image_tag != '')
       )
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # 15 was enough while the server always pulled from GHCR itself. The
+    # side-load step below streams a whole image over SSH to a host in Iran
+    # when it has to, which is minutes of transfer, not seconds of pull.
+    timeout-minutes: 45
     environment: production
     permissions:
       contents: read
+      packages: read      # the runner pulls the image for the side-load below
     steps:
+      # ── GHCR side-load fallback ─────────────────────────────────────────
+      # The production host is in Iran and its route to ghcr.io disappears for
+      # hours or days at a time — `docker pull` dies with
+      #   Get "https://ghcr.io/v2/": net/http: TLS handshake timeout
+      # while `git fetch github.com` from the same shell in the same second
+      # works fine. It is the registry endpoint that is unreachable, not the
+      # network. This has happened repeatedly (2026-08-22, 2026-08-25) and
+      # was each time waited out; on 2026-08-30 it stopped coming back, and
+      # every deploy since — every merged PR — has been failing at this exact
+      # line with main green and production frozen on a stale image.
+      #
+      # Waiting is not a fix, and neither is a mirror: no registry mirror is
+      # reachable from this host either, and adding one means new credentials
+      # and a new trust anchor for an image we already have.
+      #
+      # We already own a channel to this server that demonstrably works — the
+      # SSH one this very job uses, from GitHub's network rather than the
+      # server's. So: ask the server whether it can reach GHCR, and when it
+      # cannot, pull the image HERE and stream it in over SSH. The deploy
+      # script below then finds the image already present and skips the pull.
+      #
+      # This is a fallback, not a replacement. When GHCR is reachable the
+      # probe succeeds, this step exits in a second, and the deploy takes the
+      # unchanged registry path.
+      - name: Side-load the image when GHCR is unreachable from the server
+        env:
+          # IMAGE comes from the workflow-level `env:` block above.
+          TARGET_TAG: ${{ github.event.inputs.image_tag || needs.build.outputs.tag }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_ACTOR: ${{ github.actor }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT || 22 }}
+          DEPLOY_HOST_FINGERPRINT: ${{ secrets.DEPLOY_HOST_FINGERPRINT }}
+        run: |
+          set -euo pipefail
+
+          # Host-key pinning, same fingerprint the ssh-action verifies below.
+          # Without the fingerprint the only way to connect is trust-on-first-
+          # use, which is exactly what the comment on DEPLOY_HOST_FINGERPRINT
+          # refuses to do — so skip the fallback rather than connect blind.
+          # The deploy below is then unchanged from before this step existed.
+          if [ -z "${DEPLOY_HOST_FINGERPRINT}" ]; then
+            echo "::warning::DEPLOY_HOST_FINGERPRINT is unset — skipping the GHCR side-load fallback rather than accepting an unverified host key. The deploy still needs GHCR reachable from the server."
+            exit 0
+          fi
+
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          # Keep ONLY the scanned host key whose fingerprint matches the
+          # pinned one. `ssh-keyscan` offers every algorithm the host serves
+          # and any of them would satisfy StrictHostKeyChecking; pinning by
+          # fingerprint is the whole point, so the others are dropped.
+          want="${DEPLOY_HOST_FINGERPRINT#SHA256:}"
+          ssh-keyscan -p "$DEPLOY_PORT" "$DEPLOY_HOST" > /tmp/hostkeys 2>/dev/null || true
+          : > ~/.ssh/known_hosts
+          while IFS= read -r line; do
+            case "$line" in ''|'#'*) continue;; esac
+            fp="$(printf '%s\n' "$line" | ssh-keygen -lf - 2>/dev/null | awk '{print $2}')" || continue
+            if [ "${fp#SHA256:}" = "$want" ]; then printf '%s\n' "$line" >> ~/.ssh/known_hosts; fi
+          done < /tmp/hostkeys
+          # No match: warn and skip, do NOT fail. The ssh-action below does its
+          # own fingerprint check and stays the authority on it; if this step
+          # hard-failed on, say, a fingerprint stored in a format ssh-keygen
+          # prints differently, it would break deploys that would otherwise
+          # have worked. A skipped fallback is exactly the old behaviour.
+          if [ ! -s ~/.ssh/known_hosts ]; then
+            echo "::warning::No host key served by ${DEPLOY_HOST} matched DEPLOY_HOST_FINGERPRINT — skipping the GHCR side-load fallback (the deploy below still runs and verifies the fingerprint itself)."
+            exit 0
+          fi
+          chmod 600 ~/.ssh/known_hosts
+
+          ssh_run() {
+            ssh -i ~/.ssh/deploy_key \
+                -o IdentitiesOnly=yes \
+                -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+                -o StrictHostKeyChecking=yes \
+                -o BatchMode=yes \
+                -o ConnectTimeout=20 \
+                -p "$DEPLOY_PORT" "${DEPLOY_USER}@${DEPLOY_HOST}" "$@"
+          }
+
+          # Probe with the exact operation that fails: a registry login. Not
+          # curl — the deploy host is not guaranteed to have it, and a plain
+          # TCP check would pass anyway since it is the TLS handshake, not the
+          # connection, that hangs. The token goes over stdin, never argv,
+          # so it never appears in the server's process list.
+          if printf '%s\n' "$GHCR_TOKEN" \
+             | ssh_run "timeout 30 docker login ghcr.io -u '${GHCR_ACTOR}' --password-stdin" >/dev/null 2>&1
+          then
+            echo "GHCR is reachable from the production host — normal registry pull, nothing to side-load."
+            exit 0
+          fi
+
+          echo "::warning::GHCR is unreachable from the production host — side-loading ${IMAGE}:${TARGET_TAG} over SSH instead."
+
+          echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_ACTOR" --password-stdin
+          docker pull "${IMAGE}:${TARGET_TAG}"
+
+          # gzip -1, not a better ratio: the bottleneck is the link to Iran,
+          # but an already-compressed image layer set does not shrink much at
+          # any level, so spending CPU on -9 buys almost nothing. gzip rather
+          # than zstd because gzip is on every host by default and this path
+          # only runs when the host is already having a bad day.
+          #
+          # `docker load` is verified afterwards rather than trusted: a
+          # truncated stream makes load fail, but a silent no-op would leave
+          # the deploy script below to fall through to a pull that cannot work.
+          docker save "${IMAGE}:${TARGET_TAG}" | gzip -1 | ssh_run "gunzip | docker load"
+          ssh_run "docker image inspect '${IMAGE}:${TARGET_TAG}' >/dev/null"
+          echo "Side-load complete and verified on the server."
+
       - name: Deploy over SSH (health-gated, auto-rollback)
         uses: appleboy/ssh-action@7eaf76671a0d7eec5d98ee897acda4f968735a17 # v1.2.0
         env:
@@ -289,13 +408,27 @@ jobs:
               git reset --hard origin/main
             fi
 
-            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_ACTOR" --password-stdin
-
             PREV_TAG="$(grep -oP '^WEB_IMAGE=\K.*' .env 2>/dev/null || true)"
             NEW_IMAGE="${IMAGE}:${TARGET_TAG}"
             echo "Deploying ${NEW_IMAGE} (previous: ${PREV_TAG:-none})"
 
-            docker pull "$NEW_IMAGE"
+            # Normally: log in and pull. But the step before this one may have
+            # already streamed this exact image in over SSH because ghcr.io was
+            # unreachable from here — in which case logging in would fail and
+            # pulling would be pointless. Tags are content-addressed commit
+            # SHAs and never reused, so a local hit is the same image the
+            # registry would have served, not a stale namesake.
+            #
+            # Deliberately keyed on the image being present rather than on a
+            # flag from the previous step: whichever way it got here — a
+            # side-load, or an operator who loaded it by hand during an
+            # outage — the pull has nothing left to do.
+            if docker image inspect "$NEW_IMAGE" >/dev/null 2>&1; then
+              echo "$NEW_IMAGE is already present on this host — skipping registry login and pull."
+            else
+              echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_ACTOR" --password-stdin
+              docker pull "$NEW_IMAGE"
+            fi
 
             if grep -q '^WEB_IMAGE=' .env 2>/dev/null; then
               sed -i "s#^WEB_IMAGE=.*#WEB_IMAGE=${NEW_IMAGE}#" .env
