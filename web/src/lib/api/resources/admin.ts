@@ -354,8 +354,6 @@ export interface SeoStatsRes {
    *  understating how much work is left. */
   failingTotal: number;
   automated: Array<{ label: string; ok: true }>;
-  hiddenActiveProducts: number;
-  hiddenByGroup: Array<{ category: string; subCategory: string; count: number }>;
   productSchema: { total: number; withOffer: number };
   /** From Matomo. Null when unconfigured or unreachable — render without it,
    *  same contract as `MarketingStatsRes.traffic`. */
@@ -452,12 +450,12 @@ export interface AdminCategory {
   order: number;
   iconId: string;
   imageUrl: string | null;
-  isActive: boolean;
   /** The same `SeoMeta` blob an article carries. Its `description` is the
    *  category's one-line «چیست و مشتری‌اش کیست», shown in the mega-menu panel
    *  and emitted in `catalogNavigationJsonLd`. */
   seo: SeoMeta | null;
-  /** Active descendants — the confirm dialog states these before hiding. */
+  /** What deleting this category would take with it — the confirm dialog
+   *  states these before the admin agrees to it. */
   subCount: number;
   skuCount: number;
 }
@@ -470,7 +468,6 @@ export interface AdminSubCategory {
   /** Display-only cluster label, not a real hierarchy level — see catalog.ts. Null = no grouping. */
   groupLabel: string | null;
   order: number;
-  isActive: boolean;
   skuCount: number;
 }
 
@@ -512,7 +509,6 @@ export interface AdminSku {
   /** «طول شاخه» in metres, or null when the catalog records none. */
   branchLengthM: number | null;
   imageUrl: string | null;
-  isActive: boolean;
   /** Category IDs this product is ALSO listed under, beyond its own home
    *  above — e.g. a sheet-steel product also shown under «استیل». */
   crossListedCategoryIds: string[] | null;
@@ -556,14 +552,10 @@ export const adminApi = {
 
   /* pricing */
   pricingGrid: (cat: string, sub?: string) =>
-    // `hiddenByTaxonomy` = active products of this category that no public
-    // page (and no row below) can show, because their sub-category was
-    // deactivated underneath them. The grid surfaces it rather than
-    // presenting an empty table as "this category has no products".
     // `withoutPrice` = the ids of rows below that have never been priced at
     // all. Ids, not a count: in the admin DTO a stale-HIDDEN price and an
     // absent one are not distinguishable from the row alone.
-    http.get<{ rows: PriceRow[]; hiddenByTaxonomy: number; withoutPrice: string[] }>(
+    http.get<{ rows: PriceRow[]; withoutPrice: string[] }>(
       `/api/admin/pricing?cat=${encodeURIComponent(cat)}${sub ? `&sub=${encodeURIComponent(sub)}` : ''}`,
     ),
   savePrices: (prices: Array<{ skuId: string; price: number; deliveryTime?: string; vatIncluded?: boolean }>) =>
@@ -1061,11 +1053,12 @@ export const adminApi = {
       order: number;
       iconId: string;
       imageUrl: string | null;
-      isActive: boolean;
       seo: SeoMeta | null;
     }>,
   ) => http.patch<{ category: AdminCategory }>(`/api/admin/catalog/categories/${id}`, patch),
-  deactivateCategory: (id: string) => http.del<{ ok: true }>(`/api/admin/catalog/categories/${id}`),
+  /** Deletes for real — the category, its sub-categories and their products.
+   *  Quotes and orders keep their own frozen snapshot of what was sold. */
+  deleteCategory: (id: string) => http.del<{ ok: true }>(`/api/admin/catalog/categories/${id}`),
 
   subCategories: (categoryId?: string) =>
     http.get<{ subCategories: AdminSubCategory[] }>(
@@ -1088,53 +1081,40 @@ export const adminApi = {
       groupLabel: string | null;
       order: number;
       categoryId: string;
-      isActive: boolean;
     }>,
   ) => http.patch<{ subCategory: AdminSubCategory }>(`/api/admin/catalog/subcategories/${id}`, patch),
-  deactivateSubCategory: (id: string) => http.del<{ ok: true }>(`/api/admin/catalog/subcategories/${id}`),
+  /** Deletes for real — the sub-category and every product under it. */
+  deleteSubCategory: (id: string) => http.del<{ ok: true }>(`/api/admin/catalog/subcategories/${id}`),
 
   skus: (params: {
     categoryId?: string;
     subCategoryId?: string;
     q?: string;
-    status?: 'active' | 'inactive';
-    /** 'hidden' → only products the public site cannot reach because a parent
-     *  taxonomy node is deactivated. */
-    visibility?: 'hidden';
-    all?: boolean;
     page?: number;
   } = {}) => {
     const qs = new URLSearchParams();
     if (params.categoryId) qs.set('categoryId', params.categoryId);
     if (params.subCategoryId) qs.set('subCategoryId', params.subCategoryId);
     if (params.q) qs.set('q', params.q);
-    if (params.status) qs.set('status', params.status);
-    if (params.visibility) qs.set('visibility', params.visibility);
-    if (params.all) qs.set('all', 'true');
     if (params.page) qs.set('page', String(params.page));
     return http.get<{
       rows: Array<{
         sku: AdminSku;
         price: { price: number; updatedAt: string } | null;
-        /** All three levels active — what actually decides whether a customer
-         *  can reach this product. `sku.isActive` alone never did. */
-        visibleOnSite: boolean;
-        hiddenReason: 'sub' | 'category' | null;
         subName: string;
       }>;
       total: number;
-      /** Catalog-wide count of active products stranded on a deactivated
-       *  sub-category/category — independent of the filters above. */
-      hiddenTotal: number;
       page: number;
       perPage: number;
     }>(`/api/admin/catalog/skus?${qs}`);
   },
   createSku: (input: AdminSkuInput) => http.post<{ sku: AdminSku }>('/api/admin/catalog/skus', input),
-  updateSku: (id: string, patch: Partial<AdminSkuInput> & { isActive?: boolean }) =>
+  updateSku: (id: string, patch: Partial<AdminSkuInput>) =>
     http.patch<{ sku: AdminSku }>(`/api/admin/catalog/skus/${id}`, patch),
-  deactivateSku: (id: string) => http.del<{ ok: true }>(`/api/admin/catalog/skus/${id}`),
-  /** What retiring this product would disturb — drives the confirm dialog. */
+  /** Deletes for real. The price history goes with the product; the quotes
+   *  and orders that referenced it keep their frozen name and price. */
+  deleteSku: (id: string) => http.del<{ ok: true }>(`/api/admin/catalog/skus/${id}`),
+  /** What deleting this product would disturb — drives the confirm dialog. */
   skuImpact: (id: string) =>
     http.get<{ openLeads: number; openOrders: number; activeAlerts: number; favorites: number; hasPrice: boolean }>(
       `/api/admin/catalog/skus/${id}/impact`,

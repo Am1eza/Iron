@@ -26,7 +26,7 @@ export const revalidate = 300;
 /** Fixture-derived — gated. See `lib/server/seo/prerenderParams.ts`. */
 export function generateStaticParams() {
   if (!shouldPrerenderMockParams()) return [];
-  return mockCategories.filter((c) => c.isActive).map((c) => ({ category: c.slug }));
+  return mockCategories.map((c) => ({ category: c.slug }));
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {

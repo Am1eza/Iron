@@ -104,21 +104,19 @@ const die = async (msg: string): Promise<never> => {
 };
 
 // ── Catalog state ───────────────────────────────────────────────────────────
-const { rows: cats } = await pool.query<{ slug: string; is_active: boolean }>(
-  `SELECT slug, is_active FROM categories`,
-);
-const catActive = new Map(cats.map((c) => [c.slug, c.is_active]));
+// Existence IS liveness now: the catalog has no hidden rows, so a row that
+// is in the table serves a 200 and a row that is gone serves a 404.
+const { rows: cats } = await pool.query<{ slug: string }>(`SELECT slug FROM categories`);
+const catLive = new Set(cats.map((c) => c.slug));
 
-const { rows: subs } = await pool.query<{ cat_slug: string; slug: string; is_active: boolean }>(
-  `SELECT c.slug AS cat_slug, s.slug, s.is_active
+const { rows: subs } = await pool.query<{ cat_slug: string; slug: string }>(
+  `SELECT c.slug AS cat_slug, s.slug
      FROM sub_categories s JOIN categories c ON c.id = s.category_id`,
 );
-const subActive = new Map(subs.map((s) => [`${s.cat_slug}/${s.slug}`, s.is_active]));
+const subLive = new Set(subs.map((s) => `${s.cat_slug}/${s.slug}`));
 
-const { rows: skuRows } = await pool.query<{ slug: string; is_active: boolean }>(
-  `SELECT slug, is_active FROM skus`,
-);
-const skuActive = new Map(skuRows.map((s) => [s.slug, s.is_active]));
+const { rows: skuRows } = await pool.query<{ slug: string }>(`SELECT slug FROM skus`);
+const skuLive = new Set(skuRows.map((s) => s.slug));
 
 /**
  * Is this path a page the public site serves 200 for? Only `/prices` paths
@@ -131,12 +129,12 @@ function isLive(path: string): boolean | null {
   const seg = path.split('/').filter(Boolean); // ['prices', cat, …]
   const [, cat, sub, sku] = seg;
   if (!cat || seg.length > 4) return null;
-  if (!catActive.get(cat)) return false;
+  if (!catLive.has(cat)) return false;
   if (sub === undefined) return true;
   if (FACET_SEGMENTS.has(sub)) return true; // /prices/<cat>/factory/<f>
-  if (!subActive.get(`${cat}/${sub}`)) return false;
+  if (!subLive.has(`${cat}/${sub}`)) return false;
   if (sku === undefined) return true;
-  return skuActive.get(sku) === true;
+  return skuLive.has(sku);
 }
 
 /** Nearest ancestor of `path` that is live; `/prices` is the floor. */

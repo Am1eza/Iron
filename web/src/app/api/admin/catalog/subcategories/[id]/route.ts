@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
-import { updateSubCategory } from '@/lib/server/repos/catalogAdminRepo';
+import { deleteSubCategory, updateSubCategory } from '@/lib/server/repos/catalogAdminRepo';
 import {
   catalogErrorResponse,
   redirectTaxonomySlugChange,
@@ -30,7 +30,6 @@ const patchPayload = nonEmptyPatch(
     // sub could only be retired and rebuilt. The repo re-parents its products
     // in the same call so the two can't drift apart.
     categoryId: z.string().min(1).optional(),
-    isActive: z.boolean().optional(),
   }),
 );
 
@@ -63,20 +62,21 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }
   return NextResponse.json({ subCategory: result.after });
 }
 
+/** DELETE really deletes — the sub-category and every product under it. */
 async function DELETEImpl(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const guard = requireDb();
   if (guard) return guard;
   const auth = await requireApiPermission(req, 'catalog:write');
   if ('response' in auth) return auth.response;
   const { id } = await ctx.params;
-  const result = await updateSubCategory(id, { isActive: false });
-  if (!result) return NextResponse.json({ error: 'not_found', message: 'زیر‌دسته یافت نشد.' }, { status: 404 });
+  const removed = await deleteSubCategory(id);
+  if (!removed) return NextResponse.json({ error: 'not_found', message: 'زیر‌دسته یافت نشد.' }, { status: 404 });
   await audit(
     auth.session.id,
-    'catalog.sub.deactivate',
+    'catalog.sub.delete',
     { type: 'sub', id },
-    { name: result.before.name, slug: result.before.slug, isActive: result.before.isActive },
-    { isActive: false },
+    { name: removed.name, slug: removed.slug },
+    null,
   );
   await revalidateCatalog('taxonomy');
   return NextResponse.json({ ok: true });

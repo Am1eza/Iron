@@ -15,14 +15,10 @@ async function GETImpl(req: NextRequest) {
   const auth = await requireApiPermission(req, 'catalog:read');
   if ('response' in auth) return auth.response;
   const p = req.nextUrl.searchParams;
-  const statusParam = p.get('status');
   const result = await adminListSkus({
     categoryId: p.get('categoryId') ?? undefined,
     subCategoryId: p.get('subCategoryId') ?? undefined,
     q: p.get('q') ?? undefined,
-    status: statusParam === 'active' || statusParam === 'inactive' ? statusParam : undefined,
-    visibility: p.get('visibility') === 'hidden' ? 'hidden' : undefined,
-    includeInactive: p.get('all') === 'true',
     // `Number('1e400')` is Infinity, which reached OFFSET and made Postgres
     // reject the statement outright; the repo now clamps, this just parses.
     page: Number(p.get('page') ?? 1),

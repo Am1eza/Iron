@@ -102,7 +102,7 @@ export async function adminListCategories() {
 
 /** Categories plus what sits under each — the admin has to see that «پروفیل»
  *  carries 7 sub-categories and 210 live products BEFORE the confirm dialog
- *  asks whether to hide it. */
+ *  asks whether to delete it, because deleting takes all of them with it. */
 export async function adminListCategoriesWithCounts() {
   const db = getDb();
   const [rows, subCounts, skuCounts] = await Promise.all([
@@ -110,12 +110,10 @@ export async function adminListCategoriesWithCounts() {
     db
       .select({ categoryId: subCategories.categoryId, n: sql<number>`count(*)::int` })
       .from(subCategories)
-      .where(eq(subCategories.isActive, true))
       .groupBy(subCategories.categoryId),
     db
       .select({ categoryId: skus.categoryId, n: sql<number>`count(*)::int` })
       .from(skus)
-      .where(eq(skus.isActive, true))
       .groupBy(skus.categoryId),
   ]);
   const subsBy = new Map(subCounts.map((r) => [r.categoryId, r.n]));
@@ -165,7 +163,6 @@ export async function updateCategory(
     order: number;
     iconId: string;
     imageUrl: string | null;
-    isActive: boolean;
     /** Replaced wholesale, not merged: the panel sends the whole blob it read,
      *  which is how the article editor already treats this column. */
     seo: SeoMeta | null;
@@ -211,7 +208,6 @@ export async function adminListSubCategoriesWithCounts(categoryId?: string) {
     .from(skus)
     .where(
       and(
-        eq(skus.isActive, true),
         inArray(
           skus.subCategoryId,
           rows.map((r) => r.id),
@@ -272,7 +268,6 @@ export async function updateSubCategory(
     name: string;
     groupLabel: string | null;
     order: number;
-    isActive: boolean;
     categoryId: string;
   }>,
 ) {
@@ -320,11 +315,6 @@ export async function adminListSkus(query: {
   categoryId?: string;
   subCategoryId?: string;
   q?: string;
-  includeInactive?: boolean;
-  status?: 'active' | 'inactive';
-  /** 'hidden' → only products the public site cannot show because their
-   *  sub-category or category is deactivated underneath them. */
-  visibility?: 'hidden';
   page?: number;
   perPage?: number;
 }) {
@@ -337,9 +327,6 @@ export async function adminListSkus(query: {
   const conds = [];
   if (query.categoryId) conds.push(eq(skus.categoryId, query.categoryId));
   if (query.subCategoryId) conds.push(eq(skus.subCategoryId, query.subCategoryId));
-  if (query.status === 'active') conds.push(eq(skus.isActive, true));
-  else if (query.status === 'inactive') conds.push(eq(skus.isActive, false));
-  else if (!query.includeInactive) conds.push(eq(skus.isActive, true));
   if (query.q) {
     // The old filter matched `name` alone while the UI promised
     // «نام/اسلاگ/سایز» — an admin pasting a slug from a customer's broken URL,
@@ -380,23 +367,16 @@ export async function adminListSkus(query: {
       ),
     );
   }
-  // A product is only reachable on the public site when all THREE levels are
-  // active — every read path filters on `is_active` at category, sub-category
-  // and SKU. The panel used to report the SKU's own flag alone, so a product
-  // stranded on a retired sub-category showed a green «فعال» badge while
-  // nothing on the site could reach it. That is how 167 of 240 products went
-  // missing for weeks without the panel ever saying a word.
-  if (query.visibility === 'hidden') {
-    conds.push(or(eq(subCategories.isActive, false), eq(categories.isActive, false))!);
-  }
+  // Every product that exists is reachable on the public site: the three
+  // levels have no hidden state left to disagree about. The panel used to
+  // carry a whole «مخفی» apparatus for products stranded under a deactivated
+  // parent — 167 of 240 at its worst — and that condition can no longer occur.
   const where = conds.length ? and(...conds) : undefined;
-  const [rows, total, hiddenTotal] = await Promise.all([
+  const [rows, total] = await Promise.all([
     db
       .select({
         sku: skus,
         price: currentPrices,
-        subActive: subCategories.isActive,
-        categoryActive: categories.isActive,
         subName: subCategories.name,
       })
       .from(skus)
@@ -413,38 +393,10 @@ export async function adminListSkus(query: {
       .innerJoin(subCategories, eq(subCategories.id, skus.subCategoryId))
       .innerJoin(categories, eq(categories.id, skus.categoryId))
       .where(where),
-    // Catalog-wide, deliberately ignoring every other filter: this is the
-    // number that has to be visible on the screen at all times, because an
-    // admin has no reason to click a filter for a problem nobody told them
-    // they have.
-    db
-      .select({ n: sql<number>`count(*)::int` })
-      .from(skus)
-      .innerJoin(subCategories, eq(subCategories.id, skus.subCategoryId))
-      .innerJoin(categories, eq(categories.id, skus.categoryId))
-      .where(
-        and(
-          eq(skus.isActive, true),
-          or(eq(subCategories.isActive, false), eq(categories.isActive, false)),
-        ),
-      ),
   ]);
   return {
-    rows: rows.map(({ sku, price, subActive, categoryActive, subName }) => ({
-      sku,
-      price,
-      visibleOnSite: sku.isActive && subActive && categoryActive,
-      hiddenReason: !sku.isActive
-        ? null
-        : !categoryActive
-          ? ('category' as const)
-          : !subActive
-            ? ('sub' as const)
-            : null,
-      subName,
-    })),
+    rows: rows.map(({ sku, price, subName }) => ({ sku, price, subName })),
     total: total[0]?.n ?? 0,
-    hiddenTotal: hiddenTotal[0]?.n ?? 0,
     page,
     perPage,
   };
@@ -574,7 +526,7 @@ async function sanitizeCrossListedCategoryIds(
   const rows = await getDb()
     .select({ id: categories.id })
     .from(categories)
-    .where(and(inArray(categories.id, ids), eq(categories.isActive, true)));
+    .where(and(inArray(categories.id, ids)));
   // A SKU cross-listed into its own home category would just show up twice
   // on the one page it already lives on — meaningless, so it's dropped
   // rather than saved and silently double-rendered.
@@ -617,7 +569,7 @@ export async function createSku(input: SkuInput) {
   return rows[0]!;
 }
 
-export async function updateSku(id: string, patch: Partial<SkuInput> & { isActive?: boolean }) {
+export async function updateSku(id: string, patch: Partial<SkuInput>) {
   const db = getDb();
   const prevRows = await db.select().from(skus).where(eq(skus.id, id)).limit(1);
   const before = prevRows[0];
@@ -673,14 +625,35 @@ export async function updateSku(id: string, patch: Partial<SkuInput> & { isActiv
   return { before, after };
 }
 
-/** Soft-delete (isActive=false). Hard delete is intentionally not implemented. */
-export async function deactivateSku(id: string) {
-  return updateSku(id, { isActive: false });
+/**
+ * Delete a product for real, returning the row that was removed so the caller
+ * can name it in the audit log.
+ *
+ * The structural children (current_prices, price_points, favorites, alerts,
+ * price_sync_entries) cascade; `lead_items` and `order_items` are ON DELETE
+ * SET NULL and keep the frozen name/price snapshot they took at the time, so
+ * no quote or order loses what it was for. See schemaCascade.test.ts.
+ */
+export async function deleteSku(id: string) {
+  const rows = await getDb().delete(skus).where(eq(skus.id, id)).returning();
+  return rows[0] ?? null;
 }
 
-/** What hiding this product would actually disturb. Shown in the confirm
- *  dialog: retiring a SKU that sits in three open deals is a different
- *  decision from retiring one nobody has ever asked about. */
+/** Delete a sub-category and, by cascade, every product under it. */
+export async function deleteSubCategory(id: string) {
+  const rows = await getDb().delete(subCategories).where(eq(subCategories.id, id)).returning();
+  return rows[0] ?? null;
+}
+
+/** Delete a category and, by cascade, its sub-categories and their products. */
+export async function deleteCategory(id: string) {
+  const rows = await getDb().delete(categories).where(eq(categories.id, id)).returning();
+  return rows[0] ?? null;
+}
+
+/** What deleting this product would actually disturb. Shown in the confirm
+ *  dialog: removing a SKU that sits in three open deals is a different
+ *  decision from removing one nobody has ever asked about. */
 export async function skuImpact(id: string): Promise<{
   openLeads: number;
   openOrders: number;
@@ -773,7 +746,6 @@ export async function factoriesForCategory(categoryId: string): Promise<AdminFac
       .where(
         and(
           eq(skus.categoryId, categoryId),
-          eq(skus.isActive, true),
           sql`${skus.factory} is not null and ${skus.factory} <> ''`,
         ),
       )

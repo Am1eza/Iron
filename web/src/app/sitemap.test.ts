@@ -56,7 +56,6 @@ function useMockCatalog() {
       slug,
       name: slug,
       order: i,
-      isActive: true,
     })),
   );
   catalog.getSubsMap.mockResolvedValue(MOCK_CATEGORY_SUBS);
@@ -114,8 +113,8 @@ describe('sitemap · the mock path can never produce catalog URLs', () => {
       expect(got).not.toContain(routes.category(cat));
       for (const sub of subs) expect(got).not.toContain(routes.subCategory(cat, sub.slug));
     }
-    // `sheet` is the sharp case: a fixture category that is is_active=false in
-    // the live database, i.e. a URL Google was being told to crawl that 404s.
+    // `sheet` is the sharp case: a fixture category the live database does
+    // not have, i.e. a URL Google was being told to crawl that 404s.
     expect(got).not.toContain('/prices/sheet');
   });
 
@@ -148,8 +147,7 @@ describe('sitemap · the live path', () => {
   beforeEach(() => {
     catalog.isLiveCatalog.mockReturnValue(true);
     catalog.getCategories.mockResolvedValue([
-      { slug: 'varagh-garm', name: 'ورق گرم', order: 0, isActive: true },
-      { slug: 'sheet', name: 'ورق', order: 1, isActive: false },
+      { slug: 'varagh-garm', name: 'ورق گرم', order: 0 },
     ]);
     catalog.getSubsMap.mockResolvedValue({ 'varagh-garm': [{ slug: 'st37', name: 'ST37' }] });
     catalog.getRows.mockResolvedValue([
@@ -165,7 +163,7 @@ describe('sitemap · the live path', () => {
     catalog.getNewsTopicArticleCounts.mockResolvedValue({});
   });
 
-  it('emits the database taxonomy and skips inactive categories', async () => {
+  it('emits the database taxonomy, and only what the database holds', async () => {
     const { default: sitemap } = await loadSitemap();
 
     const got = paths(await sitemap());
@@ -173,6 +171,9 @@ describe('sitemap · the live path', () => {
     expect(got).toContain('/prices/varagh-garm');
     expect(got).toContain('/prices/varagh-garm/st37');
     expect(got).toContain('/prices/varagh-garm/st37/varagh-garm-st37-2mm');
+    // The catalog no longer returns rows the site refuses to serve, so
+    // «skip the inactive ones» has nothing left to skip — anything Google is
+    // told to crawl here is a page that answers 200.
     expect(got).not.toContain('/prices/sheet');
   });
 });
@@ -181,8 +182,8 @@ describe('sitemap · /blog/category/* entries (US-14.5)', () => {
   beforeEach(() => {
     catalog.isLiveCatalog.mockReturnValue(true);
     catalog.getCategories.mockResolvedValue([
-      { id: 'cat-rebar', slug: 'rebar', name: 'میلگرد', order: 0, isActive: true },
-      { id: 'cat-pipe', slug: 'pipe', name: 'لوله', order: 1, isActive: true },
+      { id: 'cat-rebar', slug: 'rebar', name: 'میلگرد', order: 0 },
+      { id: 'cat-pipe', slug: 'pipe', name: 'لوله', order: 1 },
     ]);
     catalog.getSubsMap.mockResolvedValue({});
     catalog.getRows.mockResolvedValue([]);

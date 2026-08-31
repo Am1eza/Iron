@@ -31,7 +31,6 @@ import {
   Alert,
   Badge,
   Button,
-  Chip,
   EmptyState,
   Modal,
   TableSkeleton,
@@ -65,14 +64,8 @@ export function CatalogManager() {
 
   const [sel, setSel] = useState<RailSelection>({ categoryId: '', subCategoryId: '' });
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [showInactive, setShowInactive] = useState(false);
   const [search, setSearch] = useState('');
   const [q, setQ] = useState('');
-  const [status, setStatus] = useState<'active' | 'inactive' | 'all'>('active');
-  // «نامرئی در سایت» — products whose own flag says active but whose
-  // sub-category (or category) is retired underneath them. Without this the
-  // panel had no way to even ASK the question, let alone answer it.
-  const [onlyHidden, setOnlyHidden] = useState(false);
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -89,12 +82,10 @@ export function CatalogManager() {
   // too, not just the box, so the filtered list is one render away rather
   // than waiting out the 300ms debounce above. The rail is already ignored
   // while a search is active (see the skus query), so the hit is reachable
-  // whatever category it sits in; `status` is forced back to the default
-  // because the palette only ever offers ACTIVE products.
+  // whatever category it sits in.
   useDeepLinkQuery((deepQ) => {
     setSearch(deepQ);
     setQ(deepQ);
-    setStatus('active');
   });
 
   const onError = (err: unknown) =>
@@ -121,29 +112,14 @@ export function CatalogManager() {
   }, [allSubs.data]);
 
   const skus = useQuery({
-    queryKey: [
-      'admin',
-      'cat',
-      'skus',
-      sel.categoryId,
-      sel.subCategoryId,
-      q,
-      status,
-      onlyHidden,
-      page,
-    ],
+    queryKey: ['admin', 'cat', 'skus', sel.categoryId, sel.subCategoryId, q, page],
     queryFn: () =>
       adminApi.skus({
         // While searching, ignore the rail: the badge tells the admin the
         // search spans every category, so the request has to actually do it.
-        // The «نامرئی در سایت» filter does the same, and for the same reason:
-        // the whole point is to find them wherever they are stranded.
-        categoryId: q || onlyHidden ? undefined : sel.categoryId || undefined,
-        subCategoryId: q || onlyHidden ? undefined : sel.subCategoryId || undefined,
+        categoryId: q ? undefined : sel.categoryId || undefined,
+        subCategoryId: q ? undefined : sel.subCategoryId || undefined,
         q: q || undefined,
-        status: status === 'all' ? undefined : status,
-        visibility: onlyHidden ? 'hidden' : undefined,
-        all: status === 'all',
         page,
       }),
   });
@@ -151,7 +127,6 @@ export function CatalogManager() {
   const rows = skus.data?.rows ?? [];
   const total = skus.data?.total ?? 0;
   const perPage = skus.data?.perPage ?? 50;
-  const hiddenTotal = skus.data?.hiddenTotal ?? 0;
 
   const invalidateAll = () => {
     void qc.invalidateQueries({ queryKey: ['admin', 'cat'] });
@@ -165,12 +140,12 @@ export function CatalogManager() {
   };
 
   // Any filter change invalidates both the page number and the selection — a
-  // stale selection surviving a filter change could bulk-toggle rows the
+  // stale selection surviving a filter change could bulk-delete rows the
   // admin can no longer see.
   useEffect(() => {
     setPage(1);
     setSelected(new Set());
-  }, [sel.categoryId, sel.subCategoryId, q, status, onlyHidden]);
+  }, [sel.categoryId, sel.subCategoryId, q]);
 
   // Paging away strands the selection off-screen, and the bulk bar would then
   // act on rows the admin cannot see.
@@ -178,21 +153,18 @@ export function CatalogManager() {
     setSelected(new Set());
   }, [page]);
 
-  const setActive = useMutation({
-    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
-      adminApi.updateSku(id, { isActive }),
-    onSuccess: (_d, vars) => {
-      toast.success(
-        vars.isActive ? 'کالا فعال شد.' : 'کالا غیرفعال شد (تاریخچهٔ قیمت حفظ می‌شود).',
-      );
+  const removeSku = useMutation({
+    mutationFn: (id: string) => adminApi.deleteSku(id),
+    onSuccess: () => {
+      toast.success('کالا حذف شد.');
       invalidateAll();
     },
     onError,
   });
 
-  /** Deactivation states its blast radius first — the old dialog was a fixed
-   *  string that did not even name the product. */
-  const askDeactivateSku = async (r: AdminSku) => {
+  /** Deletion states its blast radius first — and it is a real deletion, so
+   *  the dialog has to be honest that there is no undo. */
+  const askDeleteSku = async (r: AdminSku) => {
     let impact: Awaited<ReturnType<typeof adminApi.skuImpact>> | null = null;
     try {
       impact = await adminApi.skuImpact(r.id);
@@ -200,7 +172,7 @@ export function CatalogManager() {
       // The confirm still has to work if the impact lookup fails.
     }
     const ok = await confirm({
-      title: `غیرفعال‌سازی «${r.name}»`,
+      title: `حذف «${r.name}»`,
       body: (
         <div style={{ display: 'grid', gap: 'var(--space-2)' }}>
           <span>
@@ -222,39 +194,39 @@ export function CatalogManager() {
               {toPersianDigits(impact.activeAlerts)} هشدار قیمت رویش فعال است.
             </span>
           ) : null}
-          <span>تاریخچهٔ قیمت حفظ می‌شود؛ هر زمان می‌توانید برش گردانید.</span>
+          <span>
+            تاریخچهٔ قیمت این کالا هم پاک می‌شود. پیش‌فاکتورها و سفارش‌های صادرشده دست نمی‌خورند —
+            نام و قیمت را خودشان نگه داشته‌اند. این کار برگشت‌پذیر نیست.
+          </span>
         </div>
       ),
-      confirmLabel: 'غیرفعال کن',
+      confirmLabel: 'حذف کن',
     });
-    if (ok) setActive.mutate({ id: r.id, isActive: false });
+    if (ok) removeSku.mutate(r.id);
   };
 
-  const askDeactivateCategory = async (c: AdminCategory) => {
+  const askDeleteCategory = async (c: AdminCategory) => {
     const ok = await confirm({
-      title: `غیرفعال‌سازی دستهٔ «${c.name}»`,
+      title: `حذف دستهٔ «${c.name}»`,
       body: (
         <div style={{ display: 'grid', gap: 'var(--space-2)' }}>
           <span>
-            این دسته {toPersianDigits(c.subCount)} زیر‌دسته و {toPersianDigits(c.skuCount)} کالای
-            فعال دارد.
+            این دسته {toPersianDigits(c.subCount)} زیر‌دسته و {toPersianDigits(c.skuCount)} کالا
+            دارد.
           </span>
-          {/* The old copy said the products stay untouched. They do in the
-              panel — but every one of their public pages 404s, which is the
-              opposite of what the admin was told. */}
           <span>
-            با غیرفعال‌شدن دسته، صفحهٔ هر {toPersianDigits(c.skuCount)} کالا در سایت هم بسته می‌شود
-            — نه فقط خود دسته. وضعیت کالاها در پنل تغییر نمی‌کند و با فعال‌کردن دوبارهٔ دسته همه
-            برمی‌گردند.
+            هر {toPersianDigits(c.subCount)} زیر‌دسته و هر {toPersianDigits(c.skuCount)} کالا — با
+            تاریخچهٔ قیمتشان — همراه دسته پاک می‌شوند. پیش‌فاکتورها و سفارش‌های صادرشده دست
+            نمی‌خورند. این کار برگشت‌پذیر نیست.
           </span>
         </div>
       ),
-      confirmLabel: 'غیرفعال کن',
+      confirmLabel: 'حذف کن',
     });
     if (!ok) return;
     try {
-      await adminApi.deactivateCategory(c.id);
-      toast.success('دسته غیرفعال شد.');
+      await adminApi.deleteCategory(c.id);
+      toast.success('دسته حذف شد.');
       if (sel.categoryId === c.id) setSel({ categoryId: '', subCategoryId: '' });
       invalidateAll();
     } catch (err) {
@@ -262,24 +234,24 @@ export function CatalogManager() {
     }
   };
 
-  const askDeactivateSub = async (x: AdminSubCategory) => {
+  const askDeleteSub = async (x: AdminSubCategory) => {
     const ok = await confirm({
-      title: `غیرفعال‌سازی زیر‌دستهٔ «${x.name}»`,
+      title: `حذف زیر‌دستهٔ «${x.name}»`,
       body: (
         <div style={{ display: 'grid', gap: 'var(--space-2)' }}>
-          <span>این زیر‌دسته {toPersianDigits(x.skuCount)} کالای فعال دارد.</span>
+          <span>این زیر‌دسته {toPersianDigits(x.skuCount)} کالا دارد.</span>
           <span>
-            صفحهٔ زیر‌دسته و صفحهٔ هر {toPersianDigits(x.skuCount)} کالای آن در سایت بسته می‌شود.
-            وضعیت کالاها در پنل تغییر نمی‌کند.
+            زیر‌دسته و هر {toPersianDigits(x.skuCount)} کالای آن — با تاریخچهٔ قیمتشان — پاک
+            می‌شوند. پیش‌فاکتورها و سفارش‌های صادرشده دست نمی‌خورند. این کار برگشت‌پذیر نیست.
           </span>
         </div>
       ),
-      confirmLabel: 'غیرفعال کن',
+      confirmLabel: 'حذف کن',
     });
     if (!ok) return;
     try {
-      await adminApi.deactivateSubCategory(x.id);
-      toast.success('زیر‌دسته غیرفعال شد.');
+      await adminApi.deleteSubCategory(x.id);
+      toast.success('زیر‌دسته حذف شد.');
       if (sel.subCategoryId === x.id) setSel({ categoryId: sel.categoryId, subCategoryId: '' });
       invalidateAll();
     } catch (err) {
@@ -287,31 +259,27 @@ export function CatalogManager() {
     }
   };
 
-  const bulkSetActive = async (isActive: boolean) => {
+  const bulkDelete = async () => {
     const ids = [...selected];
     if (ids.length === 0) return;
     const ok = await confirm({
-      title: isActive ? 'فعال‌سازی گروهی' : 'غیرفعال‌سازی گروهی',
-      body: isActive
-        ? `${toPersianDigits(ids.length)} کالا دوباره در سایت نمایش داده می‌شود.`
-        : `صفحهٔ ${toPersianDigits(ids.length)} کالا در سایت بسته می‌شود. تاریخچهٔ قیمت حفظ می‌شود.`,
-      confirmLabel: isActive ? 'فعال کن' : 'غیرفعال کن',
+      title: 'حذف گروهی',
+      body: `${toPersianDigits(ids.length)} کالا با تاریخچهٔ قیمتشان پاک می‌شوند. این کار برگشت‌پذیر نیست.`,
+      confirmLabel: 'حذف کن',
     });
     if (!ok) return;
     setBulkBusy(true);
-    const results = await Promise.allSettled(ids.map((id) => adminApi.updateSku(id, { isActive })));
+    const results = await Promise.allSettled(ids.map((id) => adminApi.deleteSku(id)));
     setBulkBusy(false);
     const failedIds = ids.filter((_id, i) => results[i]!.status === 'rejected');
     if (failedIds.length > 0) {
       // Keep the failures selected so «دوباره تلاش» is one click, instead of
       // reporting a bare count and clearing the selection.
       setSelected(new Set(failedIds));
-      toast.error(
-        `${toPersianDigits(failedIds.length)} کالا به‌روزرسانی نشد؛ همان‌ها انتخاب مانده‌اند.`,
-      );
+      toast.error(`${toPersianDigits(failedIds.length)} کالا حذف نشد؛ همان‌ها انتخاب مانده‌اند.`);
     } else {
       setSelected(new Set());
-      toast.success(`${toPersianDigits(ids.length)} کالا ${isActive ? 'فعال' : 'غیرفعال'} شد.`);
+      toast.success(`${toPersianDigits(ids.length)} کالا حذف شد.`);
     }
     invalidateAll();
   };
@@ -319,18 +287,6 @@ export function CatalogManager() {
   /** Reorder writes the whole neighbourhood in one go and always refetches,
    *  so a partial failure can't leave the rail rendering numbers the DB no
    *  longer has. */
-  const visibleIds = useMemo(
-    () =>
-      new Set([
-        ...categories.filter((c) => c.isActive).map((c) => c.id),
-        ...Object.values(subsByCategory)
-          .flat()
-          .filter((x) => x.isActive)
-          .map((x) => x.id),
-      ]),
-    [categories, subsByCategory],
-  );
-
   const move = async (
     list: Array<{ id: string; order: number }>,
     id: string,
@@ -342,12 +298,9 @@ export function CatalogManager() {
     // move the wrong row here.
     const index = list.findIndex((x) => x.id === id);
     if (index < 0) return;
-    // Step to the nearest neighbour the admin can actually SEE. With
-    // «نمایش غیرفعال‌ها» off, index ± 1 could swap past a hidden row and
-    // leave the rail visually unchanged while still writing two PATCHes.
-    const isVisible = (x: { id: string }) => showInactive || visibleIds.has(x.id);
-    let target = index + dir;
-    while (target >= 0 && target < list.length && !isVisible(list[target]!)) target += dir;
+    // Every row in the rail is a row on the site, so the neighbour is simply
+    // the next one — the old walk past hidden rows has nothing left to skip.
+    const target = index + dir;
     if (target < 0 || target >= list.length) return;
     const next = [...list];
     const [moved] = next.splice(index, 1);
@@ -392,7 +345,6 @@ export function CatalogManager() {
   // clicking «همهٔ کالاها». The optgroup grouping keeps the list legible.
   const subsForDrawer = useMemo(() => Object.values(subsByCategory).flat(), [subsByCategory]);
 
-  const inactiveHint = status === 'active' && total > 0;
   const selectedCategory = categories.find((c) => c.id === sel.categoryId) ?? null;
 
   if (cats.isError) {
@@ -415,33 +367,13 @@ export function CatalogManager() {
         onSelect={setSel}
         expanded={expanded}
         onExpand={toggleExpand}
-        showInactive={showInactive}
-        onShowInactive={setShowInactive}
         busy={reordering}
         onNewCategory={() => setNodeDraft({ kind: 'category', row: null })}
         onNewSub={(categoryId) => setNodeDraft({ kind: 'sub', row: null, categoryId })}
         onEditCategory={(c) => setNodeDraft({ kind: 'category', row: c })}
         onEditSub={(x) => setNodeDraft({ kind: 'sub', row: x, categoryId: x.categoryId })}
-        onDeactivateCategory={(c) => void askDeactivateCategory(c)}
-        onDeactivateSub={(x) => void askDeactivateSub(x)}
-        onReactivateCategory={(c) =>
-          void adminApi
-            .updateCategory(c.id, { isActive: true })
-            .then(() => {
-              toast.success('دسته فعال شد.');
-              invalidateAll();
-            })
-            .catch(onError)
-        }
-        onReactivateSub={(x) =>
-          void adminApi
-            .updateSubCategory(x.id, { isActive: true })
-            .then(() => {
-              toast.success('زیر‌دسته فعال شد.');
-              invalidateAll();
-            })
-            .catch(onError)
-        }
+        onDeleteCategory={(c) => void askDeleteCategory(c)}
+        onDeleteSub={(x) => void askDeleteSub(x)}
         onMoveCategory={(id, dir) => void move(categories, id, dir, 'category')}
         // Reorder in the order the rail SHOWS, not in raw array order. The
         // rail renders `groupByLabel` clusters, so once a category carries
@@ -468,20 +400,6 @@ export function CatalogManager() {
             onChange={(e) => setSearch(e.target.value)}
             aria-label="جستجوی کالا"
           />
-          <Chip selected={status === 'active'} onClick={() => setStatus('active')}>
-            فعال
-          </Chip>
-          <Chip selected={status === 'inactive'} onClick={() => setStatus('inactive')}>
-            غیرفعال
-          </Chip>
-          <Chip selected={status === 'all'} onClick={() => setStatus('all')}>
-            همه
-          </Chip>
-          {hiddenTotal > 0 ? (
-            <Chip selected={onlyHidden} onClick={() => setOnlyHidden((v) => !v)}>
-              نامرئی در سایت ({toPersianDigits(hiddenTotal)})
-            </Chip>
-          ) : null}
           <span className={ui.muted}>
             {toPersianDigits(total)} کالا
             {skus.isFetching ? ' · در حال به‌روزرسانی…' : ''}
@@ -511,28 +429,6 @@ export function CatalogManager() {
           />
         ) : null}
 
-        {/* The single most consequential fact about this catalog, stated
-            without being asked: these products look active in the panel and
-            do not exist as far as any customer is concerned. */}
-        {hiddenTotal > 0 && !onlyHidden ? (
-          <Alert tone="warning">
-            ‏{toPersianDigits(hiddenTotal)} کالای فعال روی سایت دیده نمی‌شود، چون زیر‌دسته یا دستهٔ
-            آن‌ها غیرفعال است. قیمتشان را هم نمی‌توانید در «قیمت‌گذاری» ویرایش کنید.{' '}
-            <button type="button" className={ui.linkButton} onClick={() => setOnlyHidden(true)}>
-              نمایش این {toPersianDigits(hiddenTotal)} کالا
-            </button>
-          </Alert>
-        ) : null}
-
-        {onlyHidden ? (
-          <div className={ui.toolbar}>
-            <Badge tone="stale">فقط کالاهای نامرئی در سایت — در همهٔ دسته‌ها</Badge>
-            <Button size="sm" variant="ghost" onClick={() => setOnlyHidden(false)}>
-              برگشت به فهرست عادی
-            </Button>
-          </div>
-        ) : null}
-
         {q ? (
           <div className={ui.toolbar}>
             <Badge tone="info">جستجو در همهٔ دسته‌ها</Badge>
@@ -554,16 +450,8 @@ export function CatalogManager() {
               >
                 لغو انتخاب
               </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                loading={bulkBusy}
-                onClick={() => void bulkSetActive(true)}
-              >
-                فعال‌سازی {toPersianDigits(selected.size)} کالا
-              </Button>
-              <Button size="sm" loading={bulkBusy} onClick={() => void bulkSetActive(false)}>
-                غیرفعال‌سازی {toPersianDigits(selected.size)} کالا
+              <Button size="sm" loading={bulkBusy} onClick={() => void bulkDelete()}>
+                حذف {toPersianDigits(selected.size)} کالا
               </Button>
             </div>
           </div>
@@ -582,11 +470,7 @@ export function CatalogManager() {
           <EmptyState
             size="section"
             headline={q ? `کالایی با «${q}» پیدا نشد` : 'کالایی در این نما نیست'}
-            body={
-              q
-                ? 'شاید در نمای دیگری باشد — فیلتر وضعیت را «همه» کنید.'
-                : 'با «کالای جدید» اضافه کنید.'
-            }
+            body={q ? 'در هیچ دسته‌ای چنین کالایی نیست.' : 'با «کالای جدید» اضافه کنید.'}
             primary={
               q
                 ? { label: 'پاک‌کردن جستجو', onClick: () => setSearch('') }
@@ -631,7 +515,7 @@ export function CatalogManager() {
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map(({ sku: r, price, visibleOnSite, hiddenReason, subName }) => (
+                  {rows.map(({ sku: r, price }) => (
                     <tr key={r.id}>
                       <td>
                         <input
@@ -670,51 +554,24 @@ export function CatalogManager() {
                         {price ? `${formatToman(price.price, false)} تومان` : '—'}
                       </td>
                       <td>
-                        {/* «فعال» used to be the whole story here, and it was
-                            a lie for 167 products: the flag was on, and the
-                            product was unreachable on the site because its
-                            sub-category had been retired. Say which. */}
-                        {!r.isActive ? (
-                          <Badge tone="stale">غیرفعال</Badge>
-                        ) : visibleOnSite ? (
-                          <Badge tone="gain">فعال</Badge>
+                        {/* There is no «فعال»/«غیرفعال» to report any more —
+                            the row is in the panel, therefore it is on the
+                            site. The one status a product can still be in
+                            that a customer notices is «بدون قیمت». */}
+                        {price ? (
+                          <Badge tone="gain">روی سایت</Badge>
                         ) : (
-                          <Badge tone="loss">نامرئی در سایت</Badge>
+                          <Badge tone="stale">بدون قیمت</Badge>
                         )}
-                        {r.isActive && !visibleOnSite ? (
-                          <div className={ui.tileHintWarn}>
-                            {hiddenReason === 'category'
-                              ? 'دستهٔ این کالا غیرفعال است.'
-                              : `زیر‌دستهٔ «${subName}» غیرفعال است.`}{' '}
-                            با «ویرایش» می‌توانید کالا را به زیر‌دستهٔ فعال منتقل کنید.
-                          </div>
-                        ) : null}
-                        {r.isActive && !price ? (
-                          <div className={ui.tileHintWarn}>بدون قیمت</div>
-                        ) : null}
                       </td>
                       <td>
                         <span style={{ display: 'flex', gap: 'var(--space-1)' }}>
                           <Button size="sm" variant="ghost" onClick={() => setDrawer({ sku: r })}>
                             ویرایش
                           </Button>
-                          {r.isActive ? (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => void askDeactivateSku(r)}
-                            >
-                              غیرفعال
-                            </Button>
-                          ) : (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => setActive.mutate({ id: r.id, isActive: true })}
-                            >
-                              فعال‌سازی
-                            </Button>
-                          )}
+                          <Button size="sm" variant="ghost" onClick={() => void askDeleteSku(r)}>
+                            حذف
+                          </Button>
                         </span>
                       </td>
                     </tr>
@@ -725,11 +582,6 @@ export function CatalogManager() {
             {/* The list is paginated server-side; without this the admin saw
                 the first 50 rows and had no way to know more existed. */}
             <PagerFooter page={page} perPage={perPage} total={total} onPage={setPage} />
-            {inactiveHint ? (
-              <span className={ui.tileHint}>
-                نمای «فعال» را می‌بینید — برای دیدن کالاهای غیرفعال روی «غیرفعال» یا «همه» بزنید.
-              </span>
-            ) : null}
           </>
         )}
       </div>

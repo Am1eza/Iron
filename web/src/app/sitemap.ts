@@ -123,7 +123,7 @@ async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
   // guessed. See the module comment.
   if (!isLiveCatalog()) return [...staticEntries, ...cooperationEntries];
 
-  const categories = (await getCategories()).filter((c) => c.isActive);
+  const categories = await getCategories();
 
   // Sub-category + SKU pages — the bulk of the site's indexable, revenue-relevant
   // content. One getRows() call per category (not per sub-category) — rows are

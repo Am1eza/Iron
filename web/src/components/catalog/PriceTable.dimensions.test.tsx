@@ -30,7 +30,6 @@ function row(subCategoryId: string): PriceRow {
     dimensions: '۴',
     factory: 'فولاد مشهد',
     unit: 'kg',
-    isActive: true,
     current: {
       skuId: subCategoryId,
       price: 500_000,

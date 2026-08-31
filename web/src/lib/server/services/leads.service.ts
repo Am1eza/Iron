@@ -272,7 +272,7 @@ export async function priceItems(
     // shop could issue a binding quote for a delisted item. An id that no
     // longer resolves already falls through to `unitPrice: undefined` →
     // `allPriced = false`, which routes the lead to a human instead.
-    .where(and(inArray(skus.id, ids), eq(skus.isActive, true)));
+    .where(and(inArray(skus.id, ids)));
   const bySku = new Map(rows.map((r) => [r.sku.id, r] as const));
   // Slug fallback: cart items created from mock-era rows carry slug ids. Only
   // query the ids that DIDN'T resolve by SKU id — skip the extra round-trip
@@ -288,7 +288,7 @@ export async function priceItems(
       // slug id would otherwise resolve a delisted product through this
       // fallback and get it auto-quoted, which is exactly what the primary
       // query above was fixed to prevent.
-      .where(and(inArray(skus.slug, unresolved), eq(skus.isActive, true)));
+      .where(and(inArray(skus.slug, unresolved)));
     for (const r of slugRows) bySlug.set(r.sku.slug, r);
   }
 

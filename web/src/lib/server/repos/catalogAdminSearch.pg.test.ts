@@ -29,10 +29,10 @@ let close: () => Promise<void>;
 beforeAll(async () => {
   ({ db, close } = await createTestDb());
   await db.insert(schema.categories).values([
-    { id: 'c-rebar', slug: 'rebar', name: 'میلگرد', order: 1, iconId: '', isActive: true },
+    { id: 'c-rebar', slug: 'rebar', name: 'میلگرد', order: 1, iconId: '' },
   ]);
   await db.insert(schema.subCategories).values([
-    { id: 's-plain', categoryId: 'c-rebar', slug: 'plain', name: 'ساده', order: 1, isActive: true },
+    { id: 's-plain', categoryId: 'c-rebar', slug: 'plain', name: 'ساده', order: 1 },
   ]);
   const sku = (id: string, name: string, factory: string) => ({
     id,
@@ -42,7 +42,6 @@ beforeAll(async () => {
     name,
     factory,
     unit: 'kg' as const,
-    isActive: true,
   });
   await db.insert(schema.skus).values([
     // Stored exactly as the create route writes it: normalized.
@@ -59,24 +58,24 @@ afterAll(async () => {
 describe('adminListSkus search normalization', () => {
   it('finds a normalized row from the un-normalized spelling an admin types', async () => {
     // The exact string the admin form offers back, hamza and all.
-    const { rows } = await adminListSkus({ q: 'کارخانهٔ آزمایشی', status: 'active' });
+    const { rows } = await adminListSkus({ q: 'کارخانهٔ آزمایشی' });
     expect(rows.map((r) => r.sku.id)).toEqual(['normalized']);
   });
 
   it('matches across the Arabic/Persian ک and ی an Excel paste or iOS keyboard produces', async () => {
-    const { rows } = await adminListSkus({ q: 'ميلگرد', status: 'active' });
+    const { rows } = await adminListSkus({ q: 'ميلگرد' });
     expect(rows.map((r) => r.sku.id)).toContain('normalized');
   });
 
   it('still finds rows written BEFORE normalization, by their own raw spelling', async () => {
     // Regression guard for the fix itself: normalizing the query must be an
     // ADDITIONAL term, never a replacement, or these rows become unfindable.
-    const { rows } = await adminListSkus({ q: 'كارخانه قديمي', status: 'active' });
+    const { rows } = await adminListSkus({ q: 'كارخانه قديمي' });
     expect(rows.map((r) => r.sku.id)).toEqual(['legacy']);
   });
 
   it('does not turn an unrelated query into a match', async () => {
-    const { rows } = await adminListSkus({ q: 'ورق گالوانیزه', status: 'active' });
+    const { rows } = await adminListSkus({ q: 'ورق گالوانیزه' });
     expect(rows).toHaveLength(0);
   });
 });

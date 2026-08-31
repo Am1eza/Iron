@@ -30,7 +30,6 @@ function row(id: string, factory: string, price: number, weightKg: number, price
     theoreticalWeightKg: weightKg,
     unit: 'kg',
     priceBasis,
-    isActive: true,
     current: {
       skuId: id,
       price,

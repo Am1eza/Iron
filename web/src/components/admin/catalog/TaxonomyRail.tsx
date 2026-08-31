@@ -13,14 +13,13 @@ import { useState } from 'react';
 import type { AdminCategory, AdminSubCategory } from '@/lib/api/resources/admin';
 import { toPersianDigits } from '@/lib/utils/format';
 import { groupByLabel, displayOrder } from '@/lib/utils/catalogGroups';
-import { Badge, Button, IconButton, Switch } from '@/components/ui';
+import { Button, IconButton } from '@/components/ui';
 import {
   ChevronDownIcon,
   CloseIcon,
   EditIcon,
   MoreIcon,
   PlusIcon,
-  RefreshIcon,
 } from '@/components/primitives/icons';
 import ui from '../adminUi.module.css';
 import s from './catalog.module.css';
@@ -37,16 +36,12 @@ export function TaxonomyRail({
   onSelect,
   onExpand,
   expanded,
-  showInactive,
-  onShowInactive,
   onNewCategory,
   onNewSub,
   onEditCategory,
   onEditSub,
-  onDeactivateCategory,
-  onDeactivateSub,
-  onReactivateCategory,
-  onReactivateSub,
+  onDeleteCategory,
+  onDeleteSub,
   onMoveCategory,
   onMoveSub,
   busy,
@@ -57,22 +52,17 @@ export function TaxonomyRail({
   onSelect: (sel: RailSelection) => void;
   expanded: Set<string>;
   onExpand: (categoryId: string) => void;
-  showInactive: boolean;
-  onShowInactive: (v: boolean) => void;
   onNewCategory: () => void;
   onNewSub: (categoryId: string) => void;
   onEditCategory: (c: AdminCategory) => void;
   onEditSub: (x: AdminSubCategory) => void;
-  onDeactivateCategory: (c: AdminCategory) => void;
-  onDeactivateSub: (x: AdminSubCategory) => void;
-  onReactivateCategory: (c: AdminCategory) => void;
-  onReactivateSub: (x: AdminSubCategory) => void;
+  onDeleteCategory: (c: AdminCategory) => void;
+  onDeleteSub: (x: AdminSubCategory) => void;
   onMoveCategory: (categoryId: string, dir: -1 | 1) => void;
   onMoveSub: (categoryId: string, subId: string, dir: -1 | 1) => void;
   busy: boolean;
 }) {
   const [menuFor, setMenuFor] = useState<string | null>(null);
-  const visibleCats = categories.filter((c) => showInactive || c.isActive);
   const allActiveSkus = categories.reduce((n, c) => n + c.skuCount, 0);
 
   return (
@@ -98,18 +88,16 @@ export function TaxonomyRail({
         </button>
       </div>
 
-      {visibleCats.map((c, ci) => {
+      {categories.map((c, ci) => {
         const isOpen = expanded.has(c.id);
-        const subs = (subsByCategory[c.id] ?? []).filter((x) => showInactive || x.isActive);
+        const subs = subsByCategory[c.id] ?? [];
         // The order the rows are actually painted in, which is what the
         // move-up/down buttons have to reason about.
         const shown = displayOrder(subs);
         const selected = selection.categoryId === c.id && !selection.subCategoryId;
         return (
           <div key={c.id}>
-            <div
-              className={`${s.node} ${selected ? s.nodeOn : ''} ${c.isActive ? '' : s.nodeInactive}`}
-            >
+            <div className={`${s.node} ${selected ? s.nodeOn : ''}`}>
               <button
                 type="button"
                 className={s.twisty}
@@ -153,7 +141,7 @@ export function TaxonomyRail({
               <IconButton
                 label={`جابه‌جایی ${c.name} به پایین`}
                 size="sm"
-                disabled={ci === visibleCats.length - 1 || busy}
+                disabled={ci === categories.length - 1 || busy}
                 icon={<ChevronDownIcon size={16} />}
                 onClick={() => onMoveCategory(c.id, 1)}
               />
@@ -174,15 +162,9 @@ export function TaxonomyRail({
                 <Button size="sm" variant="ghost" onClick={() => onNewSub(c.id)}>
                   زیر‌دستهٔ جدید
                 </Button>
-                {c.isActive ? (
-                  <Button size="sm" variant="ghost" onClick={() => onDeactivateCategory(c)}>
-                    غیرفعال‌سازی
-                  </Button>
-                ) : (
-                  <Button size="sm" variant="ghost" onClick={() => onReactivateCategory(c)}>
-                    فعال‌سازی
-                  </Button>
-                )}
+                <Button size="sm" variant="ghost" onClick={() => onDeleteCategory(c)}>
+                  حذف
+                </Button>
               </div>
             ) : null}
 
@@ -202,7 +184,7 @@ export function TaxonomyRail({
                       return (
                         <div
                           key={x.id}
-                          className={`${s.node} ${s.subNode} ${subSelected ? s.nodeOn : ''} ${x.isActive ? '' : s.nodeInactive}`}
+                          className={`${s.node} ${s.subNode} ${subSelected ? s.nodeOn : ''}`}
                         >
                           <button
                             type="button"
@@ -235,21 +217,12 @@ export function TaxonomyRail({
                             icon={<ChevronDownIcon size={14} />}
                             onClick={() => onMoveSub(c.id, x.id, 1)}
                           />
-                          {x.isActive ? (
-                            <IconButton
-                              label={`غیرفعال‌سازی ${x.name}`}
-                              size="sm"
-                              icon={<CloseIcon size={14} />}
-                              onClick={() => onDeactivateSub(x)}
-                            />
-                          ) : (
-                            <IconButton
-                              label={`فعال‌سازی ${x.name}`}
-                              size="sm"
-                              icon={<RefreshIcon size={14} />}
-                              onClick={() => onReactivateSub(x)}
-                            />
-                          )}
+                          <IconButton
+                            label={`حذف ${x.name}`}
+                            size="sm"
+                            icon={<CloseIcon size={14} />}
+                            onClick={() => onDeleteSub(x)}
+                          />
                         </div>
                       );
                     })}
@@ -270,14 +243,6 @@ export function TaxonomyRail({
         );
       })}
 
-      <div className={s.railFoot}>
-        <Switch checked={showInactive} onChange={onShowInactive} label="نمایش غیرفعال‌ها" />
-        {categories.some((c) => !c.isActive) && !showInactive ? (
-          <Badge tone="stale">
-            {toPersianDigits(categories.filter((c) => !c.isActive).length)} دستهٔ غیرفعال پنهان است
-          </Badge>
-        ) : null}
-      </div>
     </aside>
   );
 }

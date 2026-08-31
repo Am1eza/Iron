@@ -24,7 +24,6 @@ const cat = (slug: string, name: string, order: number, description?: string): C
   name,
   order,
   iconId: '',
-  isActive: true,
   ...(description ? { description } : {}),
 });
 

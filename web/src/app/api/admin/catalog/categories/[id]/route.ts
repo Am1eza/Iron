@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
-import { updateCategory } from '@/lib/server/repos/catalogAdminRepo';
+import { deleteCategory, updateCategory } from '@/lib/server/repos/catalogAdminRepo';
 import {
   catalogErrorResponse,
   redirectTaxonomySlugChange,
@@ -21,7 +21,6 @@ const patchPayload = nonEmptyPatch(
     // a category image was unsettable through the panel despite the column,
     // the repo argument and the public read all existing.
     imageUrl: uploadPathSchema.nullable().optional(),
-    isActive: z.boolean().optional(),
     // The category's `SeoMeta` blob. Its `description` is what the mega-menu
     // panel and `catalogNavigationJsonLd` publish — catalog copy belongs in
     // the panel, so the column has to be reachable from it and not only from
@@ -59,23 +58,27 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }
   return NextResponse.json({ category: result.after });
 }
 
-/** DELETE = soft-delete (isActive=false) — history is never destroyed. */
+/**
+ * DELETE really deletes: the category, its sub-categories and their products
+ * all go (FK cascade). Quotes and orders keep their frozen snapshot — their
+ * `sku_id` is ON DELETE SET NULL — so no business history is destroyed.
+ */
 async function DELETEImpl(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const guard = requireDb();
   if (guard) return guard;
   const auth = await requireApiPermission(req, 'catalog:write');
   if ('response' in auth) return auth.response;
   const { id } = await ctx.params;
-  const result = await updateCategory(id, { isActive: false });
-  if (!result) return NextResponse.json({ error: 'not_found', message: 'دسته یافت نشد.' }, { status: 404 });
+  const removed = await deleteCategory(id);
+  if (!removed) return NextResponse.json({ error: 'not_found', message: 'دسته یافت نشد.' }, { status: 404 });
   // Name and slug in `before`, so the log can say WHICH category left the site
-  // — the old bare `{type, id}` entry could not.
+  // — and now that the row is gone, the log is the only place still holding it.
   await audit(
     auth.session.id,
-    'catalog.category.deactivate',
+    'catalog.category.delete',
     { type: 'category', id },
-    { name: result.before.name, slug: result.before.slug, isActive: result.before.isActive },
-    { isActive: false },
+    { name: removed.name, slug: removed.slug },
+    null,
   );
   await revalidateCatalog('taxonomy');
   return NextResponse.json({ ok: true });

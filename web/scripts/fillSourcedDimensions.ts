@@ -107,7 +107,6 @@ const { rows } = await pool.query<Row>(
      FROM skus k
      JOIN sub_categories sc ON sc.id = k.sub_category_id
      JOIN categories c ON c.id = k.category_id
-    WHERE k.is_active
       AND ((c.slug = 'pipe' AND sc.slug = 'spiral')
         OR (c.slug = 'angle-channel' AND sc.slug = 'val-post'))
     ORDER BY c.slug, sc.slug, k.name`,
