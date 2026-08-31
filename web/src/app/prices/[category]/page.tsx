@@ -8,6 +8,7 @@ import { getSubsMap } from '@/lib/data/catalog';
 import { getSetting, getVatRate } from '@/lib/server/repos/settingsRepo';
 import { DEFAULT_LOGISTICS_CONFIG, type LogisticsConfig } from '@/lib/data/logistics';
 import { shouldPrerenderMockParams } from '@/lib/server/seo/prerenderParams';
+import { taxonomyIsIndexable } from '../_seo/indexability';
 import { Container, Section, Stack, Breadcrumbs, EmptyState, emptyPresets } from '@/components/ui';
 import { BreadcrumbJsonLd, JsonLd } from '@/components/seo/JsonLd';
 import { PriceTable } from '@/components/catalog/PriceTable';
@@ -35,6 +36,25 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const cat = categories.find((c) => c.slug === category);
   if (!cat) return buildMetadata({ title: 'دسته پیدا نشد', noindex: true });
   const name = cat.name;
+  // Same rule as the sub-category one level down (`_seo/indexability.ts`): a
+  // category with no rows renders an EmptyState, so it must not be indexed
+  // promising a price list. No category is in that state today — the audit
+  // found the 17 empties one level down — but the panel creates a category
+  // before anything is filed under it, and that window is exactly when
+  // Googlebot is most likely to arrive from the mega-menu link.
+  //
+  // The extra `getRows` costs one query on a page that already runs it:
+  // `getRows` is not memoised across generateMetadata and the render, which
+  // is the same trade the [sub] page already makes for its own description.
+  const rows = await getRows(category);
+  if (!taxonomyIsIndexable(rows.length)) {
+    return buildMetadata({
+      title: name,
+      description: `هنوز کالایی در دستهٔ ${name} ثبت نشده است. برای استعلام قیمت و موجودی با کارشناسان آهن‌تایم تماس بگیرید.`,
+      path: routes.category(category),
+      noindex: true,
+    });
+  }
   return buildMetadata({
     title: `قیمت روز ${name}`,
     description: `قیمت روز ${name} با نوسان، وزن شاخه و زمان تحویل در آهن‌تایم.`,
@@ -91,8 +111,18 @@ export default async function CategoryPage({ params }: Params) {
               categorySlug={category}
               categoryName={cat.name}
               id="cat-title"
-              title={`قیمت روز ${cat.name}`}
-              description={`قیمت‌های لحظه‌ای ${cat.name} با نوسان، وزن شاخه و زمان تحویل اعلام‌شده. اول مشورت، بعد خرید.`}
+              {...(rows.length > 0
+                ? {
+                    title: `قیمت روز ${cat.name}`,
+                    description: `قیمت‌های لحظه‌ای ${cat.name} با نوسان، وزن شاخه و زمان تحویل اعلام‌شده. اول مشورت، بعد خرید.`,
+                  }
+                : {
+                    // Nothing to list — the heading and the intro say so, so
+                    // the visible page and the (noindex) metadata tell one
+                    // story. See `_seo/indexability.ts`.
+                    title: cat.name,
+                    description: `هنوز کالایی در دستهٔ ${cat.name} ثبت نشده است. برای استعلام قیمت، موجودی و زمان تحویل با کارشناسان ما تماس بگیرید.`,
+                  })}
             />
           </div>
 

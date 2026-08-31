@@ -178,6 +178,167 @@ describe('sitemap · the live path', () => {
   });
 });
 
+/**
+ * The soft-404 gate. Production carried 17 zero-row sub-categories (20 % of
+ * 85) that were all HTTP 200, all without `noindex`, and all in here —
+ * `/prices/steel/mesh` shipping «جدول قیمت روز مش استنلس استیل با نوسان، وزن
+ * شاخه، استاندارد و زمان تحویل» over a page with no table at all.
+ *
+ * The page's `robots` and this file have to agree: submitting a URL that
+ * answers `noindex` is «Submitted URL marked noindex» in Search Console, so
+ * both read the same predicate (`app/prices/_seo/indexability.ts`).
+ */
+describe('sitemap · an empty taxonomy page is never advertised', () => {
+  beforeEach(() => {
+    catalog.isLiveCatalog.mockReturnValue(true);
+    catalog.getCategories.mockResolvedValue([
+      { id: 'cat-steel', slug: 'steel', name: 'استیل', order: 0 },
+    ]);
+    catalog.getSubsMap.mockResolvedValue({
+      steel: [
+        { slug: 'pipe', name: 'لوله استیل' },
+        { slug: 'mesh', name: 'مش استنلس استیل' },
+      ],
+    });
+    catalog.getRows.mockResolvedValue([
+      {
+        slug: 'steel-pipe-2inch',
+        categoryId: 'steel',
+        subCategoryId: 'pipe',
+        current: { updatedAt: '2026-02-02T00:00:00.000Z' },
+      },
+    ]);
+    catalog.getAllPublishedArticles.mockResolvedValue([]);
+    catalog.getCategoryArticleCounts.mockResolvedValue({});
+    catalog.getNewsTopicArticleCounts.mockResolvedValue({});
+  });
+
+  it('omits a sub-category no SKU belongs to, and keeps its populated sibling', async () => {
+    const { default: sitemap } = await loadSitemap();
+
+    const got = paths(await sitemap());
+
+    expect(got).not.toContain('/prices/steel/mesh');
+    expect(got).toContain('/prices/steel/pipe');
+    expect(got).toContain('/prices/steel/pipe/steel-pipe-2inch');
+  });
+
+  it('omits a category that holds no rows at all', async () => {
+    catalog.getRows.mockResolvedValue([]);
+    const { default: sitemap } = await loadSitemap();
+
+    const got = paths(await sitemap());
+
+    // Nothing under this category survives — not the category page, not
+    // either sub-category. `/prices` itself is a static route and stays.
+    expect(got.filter((p) => p.startsWith('/prices/'))).toEqual([]);
+    expect(got).toContain('/prices');
+  });
+
+  it('re-admits a sub-category as soon as it holds one row', async () => {
+    // The reason no deploy is needed to undo this: the sitemap is
+    // force-dynamic, so filing the first SKU under مش puts the URL back on
+    // the next fetch.
+    catalog.getRows.mockResolvedValue([
+      {
+        slug: 'steel-mesh-3mm',
+        categoryId: 'steel',
+        subCategoryId: 'mesh',
+        current: { updatedAt: '2026-02-02T00:00:00.000Z' },
+      },
+    ]);
+    const { default: sitemap } = await loadSitemap();
+
+    expect(paths(await sitemap())).toContain('/prices/steel/mesh');
+  });
+
+  it('dates a sub-category from its own rows, not from the whole category', async () => {
+    catalog.getRows.mockResolvedValue([
+      {
+        slug: 'steel-pipe-2inch',
+        categoryId: 'steel',
+        subCategoryId: 'pipe',
+        current: { updatedAt: '2026-02-02T00:00:00.000Z' },
+      },
+      {
+        slug: 'steel-mesh-3mm',
+        categoryId: 'steel',
+        subCategoryId: 'mesh',
+        current: { updatedAt: '2026-08-08T00:00:00.000Z' },
+      },
+    ]);
+    const { default: sitemap } = await loadSitemap();
+
+    const entries = await sitemap();
+    const pipe = entries.find((e) => new URL(e.url).pathname === '/prices/steel/pipe');
+
+    expect(pipe?.lastModified).toEqual(new Date('2026-02-02T00:00:00.000Z'));
+  });
+});
+
+/**
+ * The other half of the indexability rule: a product page with no price is
+ * thin but true, so it stays advertised — 195 of production's 748 SKUs are in
+ * that state and pulling them would remove 26 % of the catalog from search on
+ * a flag that flips back the moment an admin types a number. What it must not
+ * do is claim to change hourly.
+ */
+describe('sitemap · a price-less SKU is advertised, but not as hourly', () => {
+  const skuRows = [
+    {
+      slug: 'ibeam-heb-20',
+      categoryId: 'ibeam',
+      subCategoryId: 'hash-sangin',
+      current: { updatedAt: '2026-02-02T00:00:00.000Z', priceHidden: true },
+    },
+    {
+      slug: 'ibeam-ipe-14',
+      categoryId: 'ibeam',
+      subCategoryId: 'hash-sangin',
+      current: { updatedAt: '2026-02-02T00:00:00.000Z', priceHidden: false },
+    },
+  ];
+
+  beforeEach(() => {
+    catalog.isLiveCatalog.mockReturnValue(true);
+    catalog.getCategories.mockResolvedValue([
+      { id: 'cat-ibeam', slug: 'ibeam', name: 'تیرآهن', order: 0 },
+    ]);
+    catalog.getSubsMap.mockResolvedValue({
+      ibeam: [{ slug: 'hash-sangin', name: 'هاش سنگین' }],
+    });
+    catalog.getRows.mockResolvedValue(skuRows);
+    catalog.getAllPublishedArticles.mockResolvedValue([]);
+    catalog.getCategoryArticleCounts.mockResolvedValue({});
+    catalog.getNewsTopicArticleCounts.mockResolvedValue({});
+  });
+
+  it('keeps the price-less product page in the sitemap', async () => {
+    const { default: sitemap } = await loadSitemap();
+
+    expect(paths(await sitemap())).toContain('/prices/ibeam/hash-sangin/ibeam-heb-20');
+  });
+
+  it('claims hourly change only for the one that has a price to change', async () => {
+    const { default: sitemap } = await loadSitemap();
+    const entries = await sitemap();
+    const at = (p: string) => entries.find((e) => new URL(e.url).pathname === p);
+
+    expect(at('/prices/ibeam/hash-sangin/ibeam-heb-20')?.changeFrequency).toBe('weekly');
+    expect(at('/prices/ibeam/hash-sangin/ibeam-ipe-14')?.changeFrequency).toBe('hourly');
+  });
+
+  it('a price-less row still counts towards its sub-category being non-empty', async () => {
+    // The two rules are independent: «has no price» must never be read as
+    // «is not a row». A sub-category of nothing but unpriced SKUs is still a
+    // real table of specs and stays advertised.
+    catalog.getRows.mockResolvedValue([skuRows[0]]);
+    const { default: sitemap } = await loadSitemap();
+
+    expect(paths(await sitemap())).toContain('/prices/ibeam/hash-sangin');
+  });
+});
+
 describe('sitemap · /blog/category/* entries (US-14.5)', () => {
   beforeEach(() => {
     catalog.isLiveCatalog.mockReturnValue(true);
@@ -280,7 +441,25 @@ describe('sitemap · a URL the site redirects away is never advertised', () => {
         { slug: 'profil-sotuni', name: 'پروفیل ستونی' },
       ],
     });
-    catalog.getRows.mockResolvedValue([]);
+    // Both sub-categories carry a row on purpose: the redirect gate is what
+    // these cases are about, so the emptiness gate (the other, independent
+    // reason a sub-category is withheld — see `_seo/indexability.ts`) must
+    // not be what removes them, or the assertions would pass for the wrong
+    // reason.
+    catalog.getRows.mockResolvedValue([
+      {
+        slug: 'profile-snaty-40',
+        categoryId: 'profile',
+        subCategoryId: 'prvfyl-snaty',
+        current: { updatedAt: '2026-02-02T00:00:00.000Z' },
+      },
+      {
+        slug: 'profile-sotuni-40',
+        categoryId: 'profile',
+        subCategoryId: 'profil-sotuni',
+        current: { updatedAt: '2026-02-02T00:00:00.000Z' },
+      },
+    ]);
     catalog.getAllPublishedArticles.mockResolvedValue([]);
     catalog.getCategoryArticleCounts.mockResolvedValue({});
     catalog.getNewsTopicArticleCounts.mockResolvedValue({});
