@@ -13,7 +13,7 @@
  * reachable, nothing is hidden, and every destructive action states what it
  * will take down before it does it.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   adminApi,
@@ -25,6 +25,7 @@ import { ApiError } from '@/lib/api/errors';
 import { formatToman, toPersianDigits } from '@/lib/utils/format';
 import { slugify } from '@/lib/utils/slugify';
 import { displayOrder } from '@/lib/utils/catalogGroups';
+import { routes } from '@/lib/routes';
 import { useToast } from '@/lib/hooks/useToast';
 import { useDeepLinkQuery } from '@/lib/hooks/useDeepLinkQuery';
 import {
@@ -34,14 +35,16 @@ import {
   EmptyState,
   Modal,
   TableSkeleton,
-  useConfirm,
 } from '@/components/ui';
+import { ExternalIcon } from '@/components/primitives/icons';
 import { TextInput, Textarea, PickerInput } from '@/components/forms/fields';
 import { ImageUpload } from '../ImageUpload';
 import { PagerFooter } from '../PagerFooter';
+import { useDangerConfirm } from '../useDangerConfirm';
 import { TaxonomyRail, type RailSelection } from './TaxonomyRail';
 import { SkuDrawer } from './SkuDrawer';
 import { FactoryOrderPanel } from './FactoryOrderPanel';
+import { priceVisibility } from './priceVisibility';
 import ui from '../adminUi.module.css';
 import s from './catalog.module.css';
 
@@ -57,19 +60,34 @@ type NodeDraft =
   | { kind: 'category'; row: AdminCategory | null }
   | { kind: 'sub'; row: AdminSubCategory | null; categoryId: string };
 
+/**
+ * The route's own default, and the sizes it will honour — it clamps `perPage`
+ * to 1–200. «همهٔ کالاها» is 748 rows, so at the old hard-coded 50 the admin
+ * paged fifteen times, one click and one round trip each, and nothing on the
+ * screen offered any other way. 200 fits the biggest sub-category
+ * (`rebar/deformed`, 186) in a single page.
+ */
+const DEFAULT_PER_PAGE = 50;
+const PER_PAGE_OPTIONS = [50, 100, 200] as const;
+
+/** Editing an existing product, or seeding a new one from an existing row
+ *  («تکثیر») — the second is a create, so `sku` stays null. */
+type DrawerState = { sku: AdminSku | null; cloneFrom?: AdminSku };
+
 export function CatalogManager() {
   const toast = useToast();
   const qc = useQueryClient();
-  const { confirm, dialog } = useConfirm();
+  const { confirmDanger, dialog } = useDangerConfirm();
 
   const [sel, setSel] = useState<RailSelection>({ categoryId: '', subCategoryId: '' });
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState('');
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(DEFAULT_PER_PAGE);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
-  const [drawer, setDrawer] = useState<{ sku: AdminSku | null } | null>(null);
+  const [drawer, setDrawer] = useState<DrawerState | null>(null);
   const [nodeDraft, setNodeDraft] = useState<NodeDraft | null>(null);
   const [reordering, setReordering] = useState(false);
 
@@ -111,8 +129,27 @@ export function CatalogManager() {
     return out;
   }, [allSubs.data]);
 
+  // The public URL of a row needs both slugs, and the SKU DTO carries neither
+  // — only ids and the sub's display name. Both lists are already loaded for
+  // the rail, so the lookup costs nothing.
+  const categoryById = useMemo(
+    () => new Map(categories.map((c) => [c.id, c])),
+    [categories],
+  );
+  const subById = useMemo(
+    () => new Map((allSubs.data?.subCategories ?? []).map((x) => [x.id, x])),
+    [allSubs.data],
+  );
+  /** `/prices/{cat}/{sub}/{sku}` — null until the taxonomy that names it has
+   *  loaded, so a link is never rendered pointing at a guess. */
+  const skuHref = (r: AdminSku): string | null => {
+    const sub = subById.get(r.subCategoryId);
+    const cat = categoryById.get(sub?.categoryId ?? r.categoryId);
+    return sub && cat ? routes.sku(cat.slug, sub.slug, r.slug) : null;
+  };
+
   const skus = useQuery({
-    queryKey: ['admin', 'cat', 'skus', sel.categoryId, sel.subCategoryId, q, page],
+    queryKey: ['admin', 'cat', 'skus', sel.categoryId, sel.subCategoryId, q, page, perPage],
     queryFn: () =>
       adminApi.skus({
         // While searching, ignore the rail: the badge tells the admin the
@@ -121,12 +158,15 @@ export function CatalogManager() {
         subCategoryId: q ? undefined : sel.subCategoryId || undefined,
         q: q || undefined,
         page,
+        perPage,
       }),
   });
 
   const rows = skus.data?.rows ?? [];
   const total = skus.data?.total ?? 0;
-  const perPage = skus.data?.perPage ?? 50;
+  // The server's echo, not the request: it clamps, and paging against a size
+  // the list is not actually being served in miscounts the last page.
+  const effectivePerPage = skus.data?.perPage ?? perPage;
 
   const invalidateAll = () => {
     void qc.invalidateQueries({ queryKey: ['admin', 'cat'] });
@@ -171,10 +211,10 @@ export function CatalogManager() {
     } catch {
       // The confirm still has to work if the impact lookup fails.
     }
-    const ok = await confirm({
+    const ok = await confirmDanger({
       title: `حذف «${r.name}»`,
       body: (
-        <div style={{ display: 'grid', gap: 'var(--space-2)' }}>
+        <div className={s.confirmBody}>
           <span>
             صفحهٔ این کالا در سایت دیگر باز نمی‌شود و از جدول قیمت‌ها، جستجو و نقشهٔ سایت حذف
             می‌شود.
@@ -196,7 +236,7 @@ export function CatalogManager() {
           ) : null}
           <span>
             تاریخچهٔ قیمت این کالا هم پاک می‌شود. پیش‌فاکتورها و سفارش‌های صادرشده دست نمی‌خورند —
-            نام و قیمت را خودشان نگه داشته‌اند. این کار برگشت‌پذیر نیست.
+            نام و قیمت را خودشان نگه داشته‌اند.
           </span>
         </div>
       ),
@@ -206,10 +246,10 @@ export function CatalogManager() {
   };
 
   const askDeleteCategory = async (c: AdminCategory) => {
-    const ok = await confirm({
+    const ok = await confirmDanger({
       title: `حذف دستهٔ «${c.name}»`,
       body: (
-        <div style={{ display: 'grid', gap: 'var(--space-2)' }}>
+        <div className={s.confirmBody}>
           <span>
             این دسته {toPersianDigits(c.subCount)} زیر‌دسته و {toPersianDigits(c.skuCount)} کالا
             دارد.
@@ -217,11 +257,16 @@ export function CatalogManager() {
           <span>
             هر {toPersianDigits(c.subCount)} زیر‌دسته و هر {toPersianDigits(c.skuCount)} کالا — با
             تاریخچهٔ قیمتشان — همراه دسته پاک می‌شوند. پیش‌فاکتورها و سفارش‌های صادرشده دست
-            نمی‌خورند. این کار برگشت‌پذیر نیست.
+            نمی‌خورند.
           </span>
         </div>
       ),
       confirmLabel: 'حذف کن',
+      // A category is the largest blast radius the panel offers — «ورق» takes
+      // 19 sub-categories and hundreds of products with it. Typing the name is
+      // the difference between agreeing and mis-clicking.
+      requireTyped: c.skuCount > 0 || c.subCount > 0 ? c.name : undefined,
+      typedLabel: 'برای تأیید، نام دسته را بنویسید',
     });
     if (!ok) return;
     try {
@@ -235,18 +280,20 @@ export function CatalogManager() {
   };
 
   const askDeleteSub = async (x: AdminSubCategory) => {
-    const ok = await confirm({
+    const ok = await confirmDanger({
       title: `حذف زیر‌دستهٔ «${x.name}»`,
       body: (
-        <div style={{ display: 'grid', gap: 'var(--space-2)' }}>
+        <div className={s.confirmBody}>
           <span>این زیر‌دسته {toPersianDigits(x.skuCount)} کالا دارد.</span>
           <span>
             زیر‌دسته و هر {toPersianDigits(x.skuCount)} کالای آن — با تاریخچهٔ قیمتشان — پاک
-            می‌شوند. پیش‌فاکتورها و سفارش‌های صادرشده دست نمی‌خورند. این کار برگشت‌پذیر نیست.
+            می‌شوند. پیش‌فاکتورها و سفارش‌های صادرشده دست نمی‌خورند.
           </span>
         </div>
       ),
       confirmLabel: 'حذف کن',
+      requireTyped: x.skuCount > 0 ? x.name : undefined,
+      typedLabel: 'برای تأیید، نام زیر‌دسته را بنویسید',
     });
     if (!ok) return;
     try {
@@ -262,10 +309,10 @@ export function CatalogManager() {
   const bulkDelete = async () => {
     const ids = [...selected];
     if (ids.length === 0) return;
-    const ok = await confirm({
+    const ok = await confirmDanger({
       title: 'حذف گروهی',
-      body: `${toPersianDigits(ids.length)} کالا با تاریخچهٔ قیمتشان پاک می‌شوند. این کار برگشت‌پذیر نیست.`,
-      confirmLabel: 'حذف کن',
+      body: `${toPersianDigits(ids.length)} کالا با تاریخچهٔ قیمتشان پاک می‌شوند.`,
+      confirmLabel: `حذف ${toPersianDigits(ids.length)} کالا`,
     });
     if (!ok) return;
     setBulkBusy(true);
@@ -368,6 +415,19 @@ export function CatalogManager() {
         expanded={expanded}
         onExpand={toggleExpand}
         busy={reordering}
+        // Both trees load separately, and until now only the SKU table said so
+        // — an expanded category whose sub-categories had failed to arrive
+        // rendered the same «اولین زیر‌دسته را بسازید» invitation as a genuinely
+        // empty one.
+        categoriesLoading={cats.isLoading}
+        subsLoading={allSubs.isLoading}
+        subsError={allSubs.isError}
+        onRetrySubs={() => void allSubs.refetch()}
+        categoryHref={(c) => routes.category(c.slug)}
+        subHref={(x) => {
+          const cat = categoryById.get(x.categoryId);
+          return cat ? routes.subCategory(cat.slug, x.slug) : null;
+        }}
         onNewCategory={() => setNodeDraft({ kind: 'category', row: null })}
         onNewSub={(categoryId) => setNodeDraft({ kind: 'sub', row: null, categoryId })}
         onEditCategory={(c) => setNodeDraft({ kind: 'category', row: c })}
@@ -389,12 +449,11 @@ export function CatalogManager() {
         }
       />
 
-      <div style={{ display: 'grid', gap: 'var(--space-3)' }}>
+      <div className={s.mainCol}>
         <div className={ui.toolbar}>
           <input
             type="search"
-            className={ui.textCell}
-            style={{ inlineSize: '16rem' }}
+            className={`${ui.textCell} ${s.searchBox}`}
             placeholder="جستجو در نام، نشانی، سایز، کارخانه…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -407,12 +466,35 @@ export function CatalogManager() {
           <Button
             size="sm"
             variant="secondary"
-            style={{ marginInlineStart: 'auto' }}
+            className={s.toolbarEnd}
+            // Every product must be filed under a sub-category, so with the
+            // sub-category list missing the drawer's only mandatory select is
+            // empty and «ذخیره» can never enable. Saying so here beats letting
+            // the admin fill in twelve fields against a dead form.
+            disabled={allSubs.isError}
+            title={allSubs.isError ? 'تا بارگذاری زیر‌دسته‌ها ممکن نیست' : undefined}
             onClick={() => setDrawer({ sku: null })}
           >
             کالای جدید
           </Button>
         </div>
+
+        {allSubs.isError ? (
+          <Alert tone="error" title="زیر‌دسته‌ها بارگذاری نشدند">
+            <div className={s.confirmBody}>
+              <span>
+                فهرست زیر‌دسته‌ها نیامد. آنچه در ریل می‌بینید ناقص است — نبودن یک زیر‌دسته در ریل
+                به‌معنی نبودنش در کاتالوگ نیست، پس دوباره نسازیدش. ساختن کالای جدید هم تا بارگذاری
+                این فهرست ممکن نیست.
+              </span>
+              <span>
+                <Button size="sm" variant="secondary" onClick={() => void allSubs.refetch()}>
+                  تلاش دوباره
+                </Button>
+              </span>
+            </div>
+          </Alert>
+        ) : null}
 
         {/* Factory display order for the selected category (US-18.2). Lives
             here rather than in the rail because factories are not a taxonomy
@@ -441,7 +523,7 @@ export function CatalogManager() {
         {selected.size > 0 ? (
           <div className={ui.stickyBar}>
             <span>{toPersianDigits(selected.size)} کالا انتخاب شده.</span>
-            <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+            <div className={s.rowActions}>
               <Button
                 size="sm"
                 variant="ghost"
@@ -458,7 +540,9 @@ export function CatalogManager() {
         ) : null}
 
         {skus.isLoading ? (
-          <TableSkeleton rows={8} cols={8} />
+          // Same column count as the real thead below — a narrower skeleton
+          // relaid the whole table out the moment the rows arrived.
+          <TableSkeleton rows={8} cols={10} />
         ) : skus.isError ? (
           <EmptyState
             size="section"
@@ -503,6 +587,11 @@ export function CatalogManager() {
                       />
                     </th>
                     <th scope="col">نام</th>
+                    {/* The API has always sent `subName`; the list threw it
+                        away, so a cross-category search returned fifty rows
+                        from ورق, لوله and نبشی with nothing saying which was
+                        which. */}
+                    <th scope="col">زیر‌دسته</th>
                     <th scope="col">سایز</th>
                     <th scope="col">کارخانه</th>
                     <th scope="col">گرید</th>
@@ -515,7 +604,7 @@ export function CatalogManager() {
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map(({ sku: r, price }) => (
+                  {rows.map(({ sku: r, price, subName }) => (
                     <tr key={r.id}>
                       <td>
                         <input
@@ -533,9 +622,7 @@ export function CatalogManager() {
                         />
                       </td>
                       <td className={s.nameCell}>
-                        <div
-                          style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}
-                        >
+                        <div className={s.nameInner}>
                           {r.imageUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img src={r.imageUrl} alt="" className={s.thumb} />
@@ -546,6 +633,7 @@ export function CatalogManager() {
                           </span>
                         </div>
                       </td>
+                      <td>{subName || '—'}</td>
                       <td className="tnum">{r.size ? toPersianDigits(r.size) : '—'}</td>
                       <td>{r.factory ?? '—'}</td>
                       <td>{r.grade ?? r.standard ?? '—'}</td>
@@ -556,19 +644,45 @@ export function CatalogManager() {
                       <td>
                         {/* There is no «فعال»/«غیرفعال» to report any more —
                             the row is in the panel, therefore it is on the
-                            site. The one status a product can still be in
-                            that a customer notices is «بدون قیمت». */}
-                        {price ? (
-                          <Badge tone="gain">روی سایت</Badge>
-                        ) : (
-                          <Badge tone="stale">بدون قیمت</Badge>
-                        )}
+                            site. What the customer still notices is whether
+                            there is a price there AT ALL, and an old enough
+                            price is withheld exactly like a missing one — see
+                            priceVisibility. */}
+                        <StatusBadge updatedAt={price?.updatedAt ?? null} />
                       </td>
                       <td>
-                        <span style={{ display: 'flex', gap: 'var(--space-1)' }}>
+                        <span className={s.rowActions}>
                           <Button size="sm" variant="ghost" onClick={() => setDrawer({ sku: r })}>
                             ویرایش
                           </Button>
+                          {/* 186 of the rows under rebar/deformed differ only
+                              in size and mill. Retyping ten fields per row is
+                              what sent this work into `ts-node` scripts. */}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setDrawer({ sku: null, cloneFrom: r })}
+                          >
+                            تکثیر
+                          </Button>
+                          {/* The panel had no way to look at what it publishes.
+                              Seventeen empty sub-categories stayed live for
+                              months behind that missing half-second. */}
+                          {skuHref(r) ? (
+                            <a
+                              className={s.viewLive}
+                              href={skuHref(r)!}
+                              target="_blank"
+                              rel="noreferrer"
+                              title={`مشاهدهٔ ${r.name} در سایت`}
+                            >
+                              <ExternalIcon size={14} />
+                              <span className="visually-hidden">
+                                مشاهدهٔ {r.name} در سایت (در تب جدید)
+                              </span>
+                              <span aria-hidden="true">سایت</span>
+                            </a>
+                          ) : null}
                           <Button size="sm" variant="ghost" onClick={() => void askDeleteSku(r)}>
                             حذف
                           </Button>
@@ -581,7 +695,20 @@ export function CatalogManager() {
             </div>
             {/* The list is paginated server-side; without this the admin saw
                 the first 50 rows and had no way to know more existed. */}
-            <PagerFooter page={page} perPage={perPage} total={total} onPage={setPage} />
+            <PagerFooter
+              page={page}
+              perPage={effectivePerPage}
+              total={total}
+              onPage={setPage}
+              perPageOptions={PER_PAGE_OPTIONS}
+              onPerPage={(n) => {
+                setPerPage(n);
+                // Page 12 of 15 is page 3 of 4 at 200 a page — but it is not
+                // the same rows, so there is no honest place to land except
+                // the top.
+                setPage(1);
+              }}
+            />
           </>
         )}
       </div>
@@ -591,8 +718,9 @@ export function CatalogManager() {
           kept the first row's typed values and saved them onto the second. */}
       {drawer ? (
         <SkuDrawer
-          key={drawer.sku?.id ?? 'new'}
+          key={drawer.sku?.id ?? `new-${drawer.cloneFrom?.id ?? ''}`}
           sku={drawer.sku}
+          cloneFrom={drawer.cloneFrom ?? null}
           categories={categories}
           subs={subsForDrawer}
           defaultSubId={sel.subCategoryId}
@@ -620,6 +748,41 @@ export function CatalogManager() {
       {dialog}
     </div>
   );
+}
+
+/**
+ * What a customer sees where this product's price should be.
+ *
+ * «روی سایت» used to mean nothing more than "a `current_prices` row exists",
+ * while the public page withholds a price that has gone
+ * PRICE_STALE_HIDE_AFTER_DAYS business days without an update. On an ordinary
+ * day that painted hundreds of rows green whose product pages read «تماس
+ * بگیرید» — the exact confusion this column was added to end.
+ */
+function StatusBadge({ updatedAt }: { updatedAt: string | null }) {
+  switch (priceVisibility(updatedAt)) {
+    case 'none':
+      return <Badge tone="stale">بدون قیمت</Badge>;
+    case 'hidden':
+      return (
+        <Badge tone="loss">
+          تماس بگیرید
+          <span className="visually-hidden">
+            {' '}
+            — قیمت آن‌قدر کهنه است که سایت پنهانش کرده؛ نیاز به به‌روزرسانی دارد
+          </span>
+        </Badge>
+      );
+    case 'stale':
+      return (
+        <Badge tone="stale">
+          روی سایت · کهنه
+          <span className="visually-hidden"> — قیمت امروز نیست و کنارش نشان «کهنه» می‌خورد</span>
+        </Badge>
+      );
+    default:
+      return <Badge tone="gain">روی سایت</Badge>;
+  }
 }
 
 /** Create/edit for a category or sub-category. Sub-categories additionally
@@ -655,6 +818,50 @@ function NodeModal({
   const [description, setDescription] = useState(iconRow?.seo?.description ?? '');
   const subRow = draft.kind === 'sub' ? (draft.row as AdminSubCategory | null) : null;
   const [groupLabel, setGroupLabel] = useState(subRow?.groupLabel ?? '');
+
+  /**
+   * Unsaved-work guard — the same contract `SkuDrawer` has had on this very
+   * screen. Without it, `Modal`'s default Escape and scrim-click handed the
+   * whole form back with no question asked, so an admin who had typed a name,
+   * a 200-character description and uploaded an image lost all three to a
+   * stray key. Two forms on one page cannot disagree about whether closing
+   * throws work away.
+   */
+  const initial = useRef({
+    name: draft.row?.name ?? '',
+    slug: draft.row?.slug ?? '',
+    categoryId: draft.kind === 'sub' ? (draft.row?.categoryId ?? draft.categoryId) : '',
+    iconId: iconRow?.iconId ?? '',
+    imageUrl: iconRow?.imageUrl ?? null,
+    description: iconRow?.seo?.description ?? '',
+    groupLabel: subRow?.groupLabel ?? '',
+  });
+  const dirty =
+    name !== initial.current.name ||
+    slug !== initial.current.slug ||
+    categoryId !== initial.current.categoryId ||
+    iconId !== initial.current.iconId ||
+    imageUrl !== initial.current.imageUrl ||
+    description !== initial.current.description ||
+    groupLabel !== initial.current.groupLabel;
+
+  const { confirmDanger, dialog, isOpen: confirmOpen } = useDangerConfirm();
+
+  const requestClose = async () => {
+    // Escape reaches every open dialog's trap, so without this the key that
+    // dismisses the "are you sure" would re-ask it underneath.
+    if (confirmOpen) return;
+    if (!dirty) {
+      onClose();
+      return;
+    }
+    const ok = await confirmDanger({
+      title: 'بستن بدون ذخیره',
+      body: 'هرچه در این فرم نوشته‌اید از بین می‌رود.',
+      confirmLabel: 'بستن و ازدست‌دادن تغییرات',
+    });
+    if (ok) onClose();
+  };
 
   // Existing group labels within the selected parent category — same "pick,
   // don't retype" rationale as SkuDrawer's factory/size/grade pickers: a
@@ -717,13 +924,14 @@ function NodeModal({
         : 'زیر‌دستهٔ جدید';
 
   return (
+    <>
     <Modal
       open
-      onClose={onClose}
+      onClose={() => void requestClose()}
       title={title}
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="ghost" onClick={() => void requestClose()}>
             انصراف
           </Button>
           <Button
@@ -736,7 +944,7 @@ function NodeModal({
         </>
       }
     >
-      <div style={{ display: 'grid', gap: 'var(--space-3)' }}>
+      <div className={s.nodeForm}>
         {draft.kind === 'sub' ? (
           <div>
             <label className={ui.tileLabel} htmlFor="node-cat">
@@ -744,8 +952,7 @@ function NodeModal({
             </label>
             <select
               id="node-cat"
-              className={ui.select}
-              style={{ inlineSize: '100%' }}
+              className={`${ui.select} ${s.selectFull}`}
               value={categoryId}
               onChange={(e) => setCategoryId(e.target.value)}
             >
@@ -797,8 +1004,21 @@ function NodeModal({
 
         {/* The URL is derived and shown, never asked for. A duplicate is
             settled server-side by suffixing, so the admin cannot be handed an
-            error about a concept they have never heard of. */}
-        <div className={s.slugPreview}>نشانی صفحه: /prices/{slug || '…'}</div>
+            error about a concept they have never heard of.
+
+            A sub-category lives UNDER its category (`routes.subCategory`), and
+            printing the category's one-segment shape for it handed the admin a
+            URL that 404s — one they then paste to a colleague or link from an
+            article. */}
+        <div className={s.slugPreview}>
+          نشانی صفحه:{' '}
+          {draft.kind === 'sub'
+            ? routes.subCategory(
+                categories.find((c) => c.id === categoryId)?.slug ?? '…',
+                slug || '…',
+              )
+            : routes.category(slug || '…')}
+        </div>
 
         {draft.kind === 'category' ? (
           <>
@@ -808,8 +1028,7 @@ function NodeModal({
               </label>
               <select
                 id="node-icon"
-                className={ui.select}
-                style={{ inlineSize: '100%' }}
+                className={`${ui.select} ${s.selectFull}`}
                 value={iconId}
                 onChange={(e) => setIconId(e.target.value)}
               >
@@ -848,7 +1067,7 @@ function NodeModal({
             {advanced ? 'بستن تنظیمات پیشرفته' : 'تنظیمات پیشرفته'}
           </Button>
           {advanced ? (
-            <div style={{ marginBlockStart: 'var(--space-3)' }}>
+            <div className={s.advancedPanel}>
               {isEdit ? (
                 <Alert tone="warning">
                   نشانی فعلی در گوگل ثبت شده؛ با تغییر آن انتقال خودکار از نشانی قدیمی ساخته می‌شود
@@ -875,6 +1094,8 @@ function NodeModal({
         </div>
       </div>
     </Modal>
+    {dialog}
+    </>
   );
 }
 

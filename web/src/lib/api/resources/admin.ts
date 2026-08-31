@@ -1091,12 +1091,17 @@ export const adminApi = {
     subCategoryId?: string;
     q?: string;
     page?: number;
+    /** 1–200; the route clamps and defaults to 50. It has accepted this from
+     *  the start and the client never sent it, which left «همهٔ کالاها» a
+     *  fifteen-page walk with no way to widen it. */
+    perPage?: number;
   } = {}) => {
     const qs = new URLSearchParams();
     if (params.categoryId) qs.set('categoryId', params.categoryId);
     if (params.subCategoryId) qs.set('subCategoryId', params.subCategoryId);
     if (params.q) qs.set('q', params.q);
     if (params.page) qs.set('page', String(params.page));
+    if (params.perPage) qs.set('perPage', String(params.perPage));
     return http.get<{
       rows: Array<{
         sku: AdminSku;
