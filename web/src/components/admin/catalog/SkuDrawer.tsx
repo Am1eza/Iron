@@ -59,7 +59,7 @@ import {
   factoryLabel,
 } from '@/lib/utils/catalogLabels';
 import { useToast } from '@/lib/hooks/useToast';
-import { Alert, Badge, Button, Heading, Text, useConfirm } from '@/components/ui';
+import { Alert, Button, Heading, Text, useConfirm } from '@/components/ui';
 import { TextInput, PickerInput } from '@/components/forms/fields';
 import { ImageUpload } from '../ImageUpload';
 import ui from '../adminUi.module.css';
@@ -618,13 +618,6 @@ export function SkuDrawer({
                 {parentCategory.name} › {selectedSub?.name ?? '—'}
               </Text>
             ) : null}
-            {sku ? (
-              sku.isActive ? (
-                <Badge tone="gain">فعال</Badge>
-              ) : (
-                <Badge tone="stale">غیرفعال</Badge>
-              )
-            ) : null}
           </div>
         </div>
 
@@ -650,7 +643,6 @@ export function SkuDrawer({
                       {g.subs.map((x) => (
                         <option key={x.id} value={x.id}>
                           {x.name}
-                          {x.isActive ? '' : ' (غیرفعال)'}
                         </option>
                       ))}
                     </optgroup>

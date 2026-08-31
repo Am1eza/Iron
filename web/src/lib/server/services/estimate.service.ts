@@ -26,7 +26,7 @@ export async function estimateItems(items: Array<{ skuId: string; qty: number; u
     // W24: same `isActive` gate as leads.service.priceItems — an estimate
     // must never quote a delisted product, least of all via the AI tools
     // that call this.
-    .where(and(inArray(skus.id, ids), eq(skus.isActive, true)));
+    .where(and(inArray(skus.id, ids)));
   const byId = new Map(rows.map((r) => [r.sku.id, r] as const));
   for (const r of rows) byId.set(r.sku.slug, r);
 

@@ -84,7 +84,6 @@ async function main(): Promise<void> {
       SELECT sc.id, sc.slug, sc.name, c.slug AS category_slug, c.name AS category_name
       FROM sub_categories sc
       JOIN categories c ON c.id = sc.category_id
-      WHERE sc.is_active = true
     `);
 
     const gaps: Gap[] = [];
@@ -94,7 +93,7 @@ async function main(): Promise<void> {
       const { rows: skus } = await client.query<SkuRow>(
         `SELECT id, grade, condition, standard, schedule, branch_length_m
            FROM skus
-          WHERE sub_category_id = $1 AND is_active = true`,
+          WHERE sub_category_id = $1`,
         [sub.id],
       );
       if (skus.length === 0) continue;

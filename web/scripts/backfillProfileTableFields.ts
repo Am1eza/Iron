@@ -82,7 +82,6 @@ type Row = {
   slug: string;
   sub: string;
   size: string | null;
-  is_active: boolean;
   dimensions: string | null;
   branch_length_m: number | null;
   price: number | null;
@@ -93,7 +92,7 @@ const pool = new pg.Pool({ connectionString: url, max: 1 });
 
 async function readRows(client: pg.Pool | pg.PoolClient, lock = false): Promise<Row[]> {
   const { rows } = await client.query<Row>(
-    `SELECT s.id, s.slug, sc.slug AS sub, s.size, s.is_active,
+    `SELECT s.id, s.slug, sc.slug AS sub, s.size,
             s.dimensions, s.branch_length_m, cp.price, cp.price_hidden
        FROM skus s
        JOIN sub_categories sc ON sc.id = s.sub_category_id
@@ -118,9 +117,9 @@ function validate(rows: readonly Row[]): Map<string, Row> {
 
   for (const item of PLAN) {
     const row = bySlug.get(item.slug)!;
-    if (row.sub !== item.sub || row.size !== item.size || !row.is_active) {
+    if (row.sub !== item.sub || row.size !== item.size) {
       throw new Error(
-        `[profile-fields] ABORT — ${item.slug} identity drift: sub=${row.sub}, size=${row.size}, active=${row.is_active}.`,
+        `[profile-fields] ABORT — ${item.slug} identity drift: sub=${row.sub}, size=${row.size}.`,
       );
     }
     if (row.branch_length_m !== null && Number(row.branch_length_m) !== 6) {

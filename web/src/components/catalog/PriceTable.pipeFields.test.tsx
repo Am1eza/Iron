@@ -53,7 +53,6 @@ function row(
     size: '۴ اینچ',
     unit: 'kg',
     priceBasis: 'kg',
-    isActive: true,
     ...extra,
     current: {
       skuId: id,

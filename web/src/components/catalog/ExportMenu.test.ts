@@ -12,7 +12,6 @@ function row(overrides: Partial<PriceRow> = {}): PriceRow {
     size: '۲',
     factory: 'فولاد مبارکه',
     unit: 'kg',
-    isActive: true,
     ...overrides,
     current: {
       skuId: 'sku-1',

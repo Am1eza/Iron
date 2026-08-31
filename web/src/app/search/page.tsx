@@ -120,7 +120,7 @@ export default async function SearchPage({ searchParams }: Props) {
 
   // ----- Empty query: prompt + popular categories -----
   if (needle.length === 0) {
-    const popular = await withCounts(categories.filter((c) => c.isActive));
+    const popular = await withCounts(categories);
     return (
       <Container>
         <Section space={10}>
@@ -150,13 +150,11 @@ export default async function SearchPage({ searchParams }: Props) {
     sort,
   );
 
-  const categoryHits: Category[] = categories.filter(
-    (c) => c.isActive && norm(c.name).includes(needle),
-  );
+  const categoryHits: Category[] = categories.filter((c) => norm(c.name).includes(needle));
 
   const totalHits = productHits.length + categoryHits.length + articleHits.length;
   const categoryHitsWithCounts = await withCounts(categoryHits);
-  const popular = totalHits === 0 ? await withCounts(categories.filter((c) => c.isActive)) : [];
+  const popular = totalHits === 0 ? await withCounts(categories) : [];
 
   return (
     <Container>

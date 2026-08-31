@@ -33,7 +33,6 @@ export const revalidate = 300;
 export function generateStaticParams() {
   if (!shouldPrerenderMockParams()) return [];
   return mockCategories
-    .filter((c) => c.isActive)
     .flatMap((c) =>
       (MOCK_CATEGORY_SUBS[c.slug] ?? []).map((s) => ({ category: c.slug, sub: s.slug })),
     );

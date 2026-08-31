@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
-import { updateSku } from '@/lib/server/repos/catalogAdminRepo';
+import { deleteSku, updateSku } from '@/lib/server/repos/catalogAdminRepo';
 import { getDb } from '@/lib/server/db/client';
 import { categories, subCategories } from '@/lib/server/db/schema';
 import { catalogErrorResponse, redirectOnSlugChange, revalidateCatalog } from '@/lib/server/utils/catalogRoute';
@@ -79,7 +79,6 @@ const patchPayload = nonEmptyPatch(
     // rebuild got a worse URL and orphaned its price history. The repo derives
     // `categoryId` from this, so the pair can never disagree.
     subCategoryId: z.string().min(1).optional(),
-    isActive: z.boolean().optional(),
   }),
 );
 
@@ -128,24 +127,28 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }
   return NextResponse.json({ sku: result.after });
 }
 
-/** DELETE = soft-delete; priced SKUs keep their history forever. */
+/**
+ * DELETE really deletes. The price history goes with the product; the quotes
+ * and orders that referenced it do not (`sku_id` is ON DELETE SET NULL and
+ * every line keeps its own frozen name and price).
+ */
 async function DELETEImpl(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const guard = requireDb();
   if (guard) return guard;
   const auth = await requireApiPermission(req, 'catalog:write');
   if ('response' in auth) return auth.response;
   const { id } = await ctx.params;
-  const result = await updateSku(id, { isActive: false });
-  if (!result) return NextResponse.json({ error: 'not_found', message: 'محصول یافت نشد.' }, { status: 404 });
+  const removed = await deleteSku(id);
+  if (!removed) return NextResponse.json({ error: 'not_found', message: 'محصول یافت نشد.' }, { status: 404 });
   await audit(
     auth.session.id,
-    'catalog.sku.deactivate',
+    'catalog.sku.delete',
     { type: 'sku', id },
-    { name: result.before.name, slug: result.before.slug, isActive: result.before.isActive },
-    { isActive: false },
+    { name: removed.name, slug: removed.slug },
+    null,
   );
   // Without this the product kept serving a 200 page at a live price for the
-  // full ISR window after being delisted.
+  // full ISR window after being removed.
   await revalidateCatalog('sku');
   return NextResponse.json({ ok: true });
 }

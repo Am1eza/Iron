@@ -47,7 +47,6 @@ type Row = {
   factory: string | null;
   theoretical_weight_kg: string | number | null;
   branch_length_m: string | number | null;
-  is_active: boolean;
   category_slug: string;
   sub_slug: string;
 };
@@ -65,7 +64,6 @@ function assertRow(item: (typeof EQUAL_ANGLE_NORMALIZATION)[number], row: Row): 
   const failures = [
     row.category_slug === 'angle-channel' ? null : `category=${row.category_slug}`,
     row.sub_slug === 'nabshi' ? null : `sub=${row.sub_slug}`,
-    row.is_active ? null : 'inactive',
     row.size === expectedSize ? null : `size=${JSON.stringify(row.size)}`,
     row.name === expectedName ? null : `name=${JSON.stringify(row.name)}`,
     row.factory === item.factory ? null : `factory=${JSON.stringify(row.factory)}`,
@@ -111,7 +109,7 @@ function assertRedirects(rows: RedirectRow[]): Map<string, RedirectRow> {
 async function snapshot(client: pg.Pool | pg.PoolClient, lock = false) {
   const { rows } = await client.query<Row>(
     `SELECT s.id, s.slug, s.name, s.size, s.factory, s.theoretical_weight_kg,
-            s.branch_length_m, s.is_active, c.slug AS category_slug,
+            s.branch_length_m, c.slug AS category_slug,
             sc.slug AS sub_slug
        FROM skus s
        JOIN categories c ON c.id = s.category_id

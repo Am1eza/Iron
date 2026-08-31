@@ -49,7 +49,6 @@ function row(
     factory: 'ناب تبریز',
     unit: 'kg',
     priceBasis: 'kg',
-    isActive: true,
     ...extra,
     current: {
       skuId: id,
