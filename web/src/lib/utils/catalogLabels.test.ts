@@ -15,6 +15,7 @@ import {
   STANDARD_LABEL,
   ALLOY_LABEL,
   CONDITION_LABEL,
+  COLOR_LABEL,
   SCHEDULE_LABEL,
   FACTORY_LABEL,
   BRAND_LABEL,
@@ -59,6 +60,13 @@ describe('sizeLabel', () => {
     expect(sizeLabel('profile', null)).toBe(SIZE_LABEL);
   });
 
+  it("calls پروفیل استیل's outside section «ابعاد» only", () => {
+    expect(sizeLabel('steel', 'profile')).toBe(DIMENSIONS_LABEL);
+    for (const sub of ['pipe', 'angle', 'channel', null]) {
+      expect(sizeLabel('steel', sub)).toBe(SIZE_LABEL);
+    }
+  });
+
   it('calls فلزات‌رنگی\'s ورق subs «ضخامت», every sibling stays «سایز»', () => {
     // ahanonline.com's ورق آلومینیوم/ورق مسی pages both use «ضخامت», verified
     // 1405/06/08 — sub-scoped, not category-wide like the main ورق category,
@@ -92,13 +100,11 @@ describe('weightLabel', () => {
 });
 
 describe('usesDimensions', () => {
-  it('offers «ابعاد» to ورق, whose سایز column is only the thickness', () => {
-    expect(usesDimensions('sheet')).toBe(true);
-    // The two are deliberately paired: a category asked for ابعاد is exactly a
-    // category whose سایز means ضخامت. If that ever stops holding, the table
-    // header would read «سایز | ابعاد», which is meaningless.
+  it("offers black sheet's stored size only, under ahanonline's «سایز» label", () => {
+    expect(usesDimensions('sheet', 'black')).toBe(true);
+    expect(dimensionsLabel('sheet', 'black')).toBe(SIZE_LABEL);
     expect(usesThickness('sheet')).toBe(true);
-    expect(DIMENSIONS_LABEL).not.toBe(sizeLabel('sheet'));
+    expect(dimensionsLabel('sheet', 'black')).not.toBe(sizeLabel('sheet', 'black'));
   });
 
   it('never offers it to an unrelated category', () => {
@@ -119,9 +125,9 @@ describe('usesDimensions', () => {
     }
   });
 
-  it('keeps ورق exactly category-wide and labelled ابعاد', () => {
-    for (const sub of [null, 'black', 'anything-new']) {
-      expect(usesDimensions('sheet', sub)).toBe(true);
+  it('does not mislabel the missing sheet width as the shared «ابعاد» field', () => {
+    for (const sub of [null, 'oiled', 'galvanized', 'pickled', 'colored', 'anything-new']) {
+      expect(usesDimensions('sheet', sub)).toBe(false);
       expect(dimensionsLabel('sheet', sub)).toBe(DIMENSIONS_LABEL);
     }
   });
@@ -243,27 +249,45 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ح
 
   /* -------------------------------- ورق -------------------------------- */
 
-  it('labels ورق «حالت» in every sub and preserves its verified rollout fallback', () => {
-    for (const sub of ['black', 'cold', 'galvanized', 'colored', null]) {
-      const col = only('sheet', sub);
-      expect(col.key).toBe('legacyCondition');
-      expect(col.label).toBe(CONDITION_LABEL);
-      // Before the guarded move runs, the known legacy value remains visible
-      // byte-for-byte. Afterward the independent column wins.
-      expect(col.cell(row(sub ?? 'black', { grade: 'برش‌خورده' }))).toBe('برش‌خورده');
-      expect(col.card(row(sub ?? 'black', { grade: 'رول' }))).toBe('رول');
-      expect(col.cell(row(sub ?? 'black', { grade: 'رول', condition: 'برش‌خورده' }))).toBe(
-        'برش‌خورده',
-      );
-      expect(col.cell(row(sub ?? 'black'))).toBe(UNKNOWN_VALUE);
-      expect(col.card(row(sub ?? 'black'))).toBeNull();
-    }
+  it("keeps ورق سیاه's verified «حالت» rollout fallback", () => {
+    const col = only('sheet', 'black');
+    expect(col.key).toBe('legacyCondition');
+    expect(col.label).toBe(CONDITION_LABEL);
+    // Before the guarded move runs, the known legacy value remains visible
+    // byte-for-byte. Afterward the independent column wins.
+    expect(col.cell(row('black', { grade: 'برش‌خورده' }))).toBe('برش‌خورده');
+    expect(col.card(row('black', { grade: 'رول' }))).toBe('رول');
+    expect(col.cell(row('black', { grade: 'رول', condition: 'برش‌خورده' }))).toBe('برش‌خورده');
+    expect(col.cell(row('black'))).toBe(UNKNOWN_VALUE);
+    expect(col.card(row('black'))).toBeNull();
   });
 
   it('prefers the independent condition column while retaining the rollout fallback', () => {
     const col = only('sheet', 'black');
     expect(col.cell(row('black', { condition: 'شیت', grade: 'رول' }))).toBe('شیت');
     expect(col.cell(row('black', { grade: 'رول' }))).toBe('رول');
+  });
+
+  it("matches each remaining ورق line's real attribute taxonomy", () => {
+    for (const sub of ['oiled', 'pickled']) {
+      const col = only('sheet', sub);
+      expect(col.key).toBe('standard');
+      expect(col.label).toBe(STANDARD_LABEL);
+      expect(col.cell(row(sub, { standard: sub === 'pickled' ? 'W22' : 'ST12' }))).toBe(
+        sub === 'pickled' ? 'W22' : 'ST12',
+      );
+    }
+    expect(attributeColumns('sheet', 'galvanized')).toEqual([]);
+    expect(attributeColumns('sheet', null)).toEqual([]);
+  });
+
+  it("relabels ورق رنگی's stored grade as «رنگ» without moving data", () => {
+    const col = only('sheet', 'colored');
+    expect(col.key).toBe('color');
+    expect(col.label).toBe(COLOR_LABEL);
+    expect(col.cell(row('colored', { grade: 'سفید یخچالی' }))).toBe('سفید یخچالی');
+    expect(col.card(row('colored', { grade: 'آبی' }))).toBe('آبی');
+    expect(col.cell(row('colored'))).toBe(UNKNOWN_VALUE);
   });
 
   it('publishes alloy and condition independently for aluminium sheet', () => {
@@ -670,7 +694,7 @@ describe('factoryIsMeaningful', () => {
   });
 });
 
-describe('factoryLabel — «برند» on مانیسمان, «کارخانه» everywhere else', () => {
+describe('factoryLabel — contextual «برند», «کارخانه» everywhere else', () => {
   // The live مانیسمان slugs, read from the production catalog. `data/nav.ts`
   // still lists a single `seamless`, which exists nowhere in the database —
   // gating on it would have silently relabelled nothing at all.
@@ -681,6 +705,14 @@ describe('factoryLabel — «برند» on مانیسمان, «کارخانه» 
       expect(factoryLabel('pipe', sub)).toBe(BRAND_LABEL);
       expect(factoryLabel('pipe', sub)).toBe('برند');
     }
+  });
+
+  it('calls the producer «برند» on each verified main-ورق line', () => {
+    for (const sub of ['black', 'oiled', 'galvanized', 'pickled', 'colored']) {
+      expect(factoryLabel('sheet', sub)).toBe(BRAND_LABEL);
+    }
+    expect(factoryLabel('sheet', null)).toBe(FACTORY_LABEL);
+    expect(factoryLabel('sheet', 'anything-new')).toBe(FACTORY_LABEL);
   });
 
   it('leaves every other لوله sub on «کارخانه»', () => {
@@ -710,7 +742,7 @@ describe('factoryLabel — «برند» on مانیسمان, «کارخانه» 
   });
 
   it('never touches another category, even one with a same-named sub', () => {
-    for (const slug of ['rebar', 'ibeam', 'sheet', 'profile', 'steel', 'angle-channel', 'wire']) {
+    for (const slug of ['rebar', 'ibeam', 'profile', 'steel', 'angle-channel', 'wire']) {
       for (const sub of [...SEAMLESS, 'gas', null]) {
         expect(factoryLabel(slug, sub)).toBe(FACTORY_LABEL);
       }

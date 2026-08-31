@@ -64,10 +64,11 @@ describe('SkuDetail — the size attribute is labelled per category', () => {
   });
 });
 
-describe('SkuDetail — «ابعاد» (ورق width×length)', () => {
-  it('shows the row once a ورق product has dimensions recorded', () => {
+describe('SkuDetail — «سایز» (ورق سیاه width/width×length)', () => {
+  it('shows the row under the source label once a ورق سیاه product has it recorded', () => {
     renderDetail('sheet', { dimensions: '۱۰۰۰×۲۰۰۰' });
-    expect(screen.getByRole('rowheader', { name: 'ابعاد' })).toBeInTheDocument();
+    expect(screen.getByRole('rowheader', { name: 'سایز' })).toBeInTheDocument();
+    expect(screen.queryByRole('rowheader', { name: 'ابعاد' })).not.toBeInTheDocument();
     expect(screen.getAllByText('۱۰۰۰×۲۰۰۰').length).toBeGreaterThan(0);
   });
 
@@ -77,13 +78,35 @@ describe('SkuDetail — «ابعاد» (ورق width×length)', () => {
     // spec table showing «ابعاد: نامشخص» on every plate reads as a broken page
     // rather than as an unanswered question.
     renderDetail('sheet');
-    expect(screen.queryByRole('rowheader', { name: 'ابعاد' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('rowheader', { name: 'سایز' })).not.toBeInTheDocument();
   });
 
   it('never shows it for a category that has no dimensions to record', () => {
     renderDetail('rebar', { dimensions: '۹۹' });
     expect(screen.queryByRole('rowheader', { name: 'ابعاد' })).not.toBeInTheDocument();
     expect(screen.queryByText('۹۹')).not.toBeInTheDocument();
+  });
+});
+
+describe('SkuDetail — audited ورق/استیل taxonomy', () => {
+  it("shows ورق رنگی's legacy grade as «رنگ» and its producer as «برند»", () => {
+    renderDetail('sheet', { subCategoryId: 'colored', grade: 'آبی' });
+    expect(screen.getByRole('rowheader', { name: 'رنگ' })).toBeInTheDocument();
+    expect(screen.getByRole('rowheader', { name: 'برند' })).toBeInTheDocument();
+    expect(screen.getAllByText('آبی').length).toBeGreaterThan(0);
+    expect(screen.queryByRole('rowheader', { name: 'حالت' })).not.toBeInTheDocument();
+  });
+
+  it("labels پروفیل استیل's outside section «ابعاد» beside wall «ضخامت»", () => {
+    renderDetail('steel', {
+      subCategoryId: 'profile',
+      size: '۲۰×۴۰',
+      dimensions: '۲',
+      grade: '۳۰۴',
+      condition: '۶ متری',
+    });
+    expect(screen.getByRole('rowheader', { name: 'ابعاد' })).toBeInTheDocument();
+    expect(screen.getByRole('rowheader', { name: 'ضخامت' })).toBeInTheDocument();
   });
 });
 

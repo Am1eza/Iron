@@ -28,9 +28,15 @@ import { CITIES } from '@/lib/data/logistics';
 /** Categories whose `size` column holds a thickness. Only ورق today. */
 const THICKNESS_CATEGORIES = new Set(['sheet']);
 
-/** Categories that additionally carry a width×length. Only ورق — a plate has
- *  three dimensions and `size` only holds the thickness. */
-const DIMENSIONS_CATEGORIES = new Set(['sheet']);
+/** Main-ورق subs whose existing `dimensions` value is actually published.
+ *
+ * ahanonline's live black-sheet tables call this mixed width/width×length
+ * fact «سایز»: roll rows are 1000/1250/1500, while cut rows are
+ * 1000×2000/1250×2500/etc. The other live sheet lines publish an independent
+ * width that our schema does not currently store, so offering their empty
+ * `dimensions` field as «ابعاد» would be both the wrong fact and the wrong
+ * word. Keep this deliberately sub-scoped until that width has its own column. */
+const SHEET_DIMENSION_SUBS = new Set(['black']);
 
 /** The exact نبشی sub-categories whose wall thickness the owner asked to
  *  record alongside the existing «سایز» (1405/06). Deliberately an allow-list:
@@ -216,6 +222,9 @@ const PIPE_SCHEDULE_SUBS = new Set(['seamless-internal', 'seamless-external']);
  */
 const SEAMLESS_BRAND_SUBS = new Set(['seamless-internal', 'seamless-external']);
 
+/** Main-ورق lines whose source calls the producer column «برند». */
+const SHEET_BRAND_SUBS = new Set(['black', 'oiled', 'galvanized', 'pickled', 'colored']);
+
 export const SIZE_LABEL = 'سایز';
 export const HEIGHT_LABEL = 'ارتفاع';
 export const THICKNESS_LABEL = 'ضخامت';
@@ -237,9 +246,9 @@ export function usesThickness(categorySlug: string | null | undefined): boolean 
 
 /**
  * True when the shared `skus.dimensions` column is meaningful in this exact
- * catalog context. For ورق it remains category-wide width×length. For the
- * approved section subs it is wall thickness; every unlisted sibling stays
- * untouched.
+ * catalog context. For main ورق it is the black-sheet «سایز» only; for
+ * the approved section subs it is wall thickness. Every unlisted sibling
+ * stays untouched.
  *
  * Drives whether the column/field is OFFERED at all — callers must pass the
  * active/product sub-category so a mixed «همه» view does not grow a column
@@ -249,7 +258,9 @@ export function usesDimensions(
   categorySlug: string | null | undefined,
   subCategorySlug: string | null = null,
 ): boolean {
-  if (categorySlug && DIMENSIONS_CATEGORIES.has(categorySlug)) return true;
+  if (categorySlug === 'sheet') {
+    return Boolean(subCategorySlug && SHEET_DIMENSION_SUBS.has(subCategorySlug));
+  }
   if (
     categorySlug === 'felezat-rangi' &&
     Boolean(
@@ -278,15 +289,15 @@ export function usesDimensions(
   );
 }
 
-/** «ابعاد» for sheet width×length (فلزات‌رنگی's ورق subs included — that
- *  meaning stays width×length there, unlike its SECTION subs below), «ضخامت»
- *  for the verified section subs. The generic fallback stays «ابعاد» so an
- *  unknown or mixed context can never silently misdescribe the shared column
- *  as thickness; those contexts do not render it in the first place. */
+/** «سایز» for main ورق's black-sheet width/width×length, «ابعاد»
+ *  for coloured-metal sheets, and «ضخامت» for the verified section
+ *  subs. The generic fallback stays «ابعاد»; unknown contexts do not render
+ *  the field, so they cannot silently misdescribe it. */
 export function dimensionsLabel(
   categorySlug: string | null | undefined,
   subCategorySlug: string | null = null,
 ): string {
+  if (categorySlug === 'sheet' && subCategorySlug === 'black') return SIZE_LABEL;
   return (categorySlug === 'angle-channel' &&
     subCategorySlug &&
     NABSHI_THICKNESS_SUBS.has(subCategorySlug)) ||
@@ -313,6 +324,9 @@ export function sizeLabel(
   subCategorySlug: string | null = null,
 ): string {
   if (categorySlug === 'profile' && subCategorySlug === 'profil-z') return HEIGHT_LABEL;
+  // ahanonline publishes پروفیل استیل's outside section as «ابعاد»,
+  // beside its independent wall «ضخامت» in `dimensions`.
+  if (categorySlug === 'steel' && subCategorySlug === 'profile') return DIMENSIONS_LABEL;
   if (
     categorySlug === 'felezat-rangi' &&
     Boolean(subCategorySlug && COLOURED_SHEET_DIMENSION_SUBS.has(subCategorySlug))
@@ -395,7 +409,8 @@ export function factoryIsMeaningful(
 
 /**
  * What the `skus.factory` column is CALLED in this exact catalog context —
- * «برند» on مانیسمان, «کارخانه» everywhere else.
+ * «برند» on مانیسمان and the verified main-ورق lines,
+ * «کارخانه» everywhere else.
  *
  * The companion to `factoryIsMeaningful`, and deliberately a SEPARATE
  * question from it: that one decides whether the column is published at all,
@@ -420,7 +435,8 @@ export function factoryLabel(
   categorySlug: string | null | undefined,
   subCategorySlug: string | null | undefined = null,
 ): string {
-  return categorySlug === 'pipe' && subCategorySlug && SEAMLESS_BRAND_SUBS.has(subCategorySlug)
+  return (categorySlug === 'pipe' && subCategorySlug && SEAMLESS_BRAND_SUBS.has(subCategorySlug)) ||
+    (categorySlug === 'sheet' && subCategorySlug && SHEET_BRAND_SUBS.has(subCategorySlug))
     ? BRAND_LABEL
     : FACTORY_LABEL;
 }
@@ -439,6 +455,7 @@ export const ALLOY_LABEL = 'آلیاژ';
  */
 export const BRANCH_LABEL = 'شاخه';
 export const CONDITION_LABEL = 'حالت';
+export const COLOR_LABEL = 'رنگ';
 
 /** Printed where the column is not a property of THAT row's product at all —
  *  «نامشخص» would claim the value is merely unknown. */
@@ -464,7 +481,8 @@ export type AttrKey =
   | 'customLength'
   | 'schedule'
   | 'branch'
-  | 'gradeAsThickness';
+  | 'gradeAsThickness'
+  | 'color';
 
 /** The subset of a price row the attribute columns read. Deliberately
  *  structural rather than `PriceRow` so the admin tables and the spec sheet can
@@ -545,6 +563,12 @@ const ATTR_DEFS: Record<AttrKey, { label: string; read: (r: AttrRow) => string |
     label: CUSTOM_LENGTH_LABEL,
     read: (r) => metres(r.branchLengthM) ?? CUT_TO_ORDER,
   },
+  // ورق رنگی's legacy `skus.grade` values are literal colours
+  // («قرمز»/«سفید یخچالی»/«آبی»), not a metallurgical grade and not a
+  // supplied condition. This mirrors the stainless `alloy` precedent: keep
+  // the stored value byte-for-byte and correct only the public/admin name of
+  // the fact. ahanonline's live table calls the column exactly «رنگ».
+  color: { label: COLOR_LABEL, read: (r) => r.grade },
 };
 
 /**
@@ -614,6 +638,34 @@ const COLOURED_METAL_ATTRS: Readonly<Record<string, AttrKey[]>> = {
   'aluminum-pipe': ['branchLength'],
   'aluminum-profile': ['branchLength'],
   'copper-strip': ['condition'],
+};
+
+/**
+ * Main ورق attribute columns, verified per product line against the live
+ * ahanonline product-card DOM on 2026-08-31.
+ *
+ * - `black`: its published «حالت» is the existing condition/legacy-grade
+ *   fact; its separate «سایز» is wired through `SHEET_DIMENSION_SUBS`.
+ * - `oiled`: ahanonline publishes «استاندارد» (for example ST12), not
+ *   «حالت», so read the existing `standard` field even where it is not yet
+ *   populated.
+ * - `galvanized`: no additional attribute column is published.
+ * - `pickled`: the live table publishes W22 under «استاندارد»; those values
+ *   already live in `skus.standard`.
+ * - `colored`: its legacy `grade` is colour, so use the display-only `color`
+ *   key above—the same relabel-without-moving-data pattern as stainless alloy.
+ *
+ * Width remains intentionally unwired on oiled/galvanized/colored (called
+ * «عرض» by ahanonline) and pickled (called «سایز» there): no dedicated
+ * stored field carries that independent fact. Do not overload `dimensions`;
+ * these need one coordinated nullable width column in a later schema PR.
+ */
+const SHEET_ATTRS: Readonly<Record<string, AttrKey[]>> = {
+  black: ['legacyCondition'],
+  oiled: ['standard'],
+  galvanized: [],
+  pickled: ['standard'],
+  colored: ['color'],
 };
 
 /**
@@ -698,12 +750,13 @@ export function attrKeysFor(
   // would restore the exact meaningless column removed from every priced
   // profile line above. Individual sub filters publish their verified fields.
   if (categorySlug === 'profile') return [];
-  // ورق is category-wide: its owner-entered legacy `grade` values describe
-  // supplied condition («برش‌خورده»/«رول»), not metallurgy. The dedicated
-  // key reads the new `condition` column first and falls back only for this
-  // verified legacy family until the guarded move has run; both an individual
-  // sub and the mixed «همه» view therefore keep one unambiguous label.
-  if (categorySlug === 'sheet') return ['legacyCondition'];
+  // Main ورق is per-sub: ورق سیاه has «حالت», روغنی/اسیدشویی
+  // have «استاندارد», گالوانیزه has no extra attribute, and رنگی's
+  // legacy grade is «رنگ». Their mixed view has no honest shared header;
+  // inactive/unverified sheet families retain the old fallback unchanged.
+  if (categorySlug === 'sheet') {
+    return sub !== null ? (SHEET_ATTRS[sub] ?? ['legacyCondition']) : [];
+  }
   if (categorySlug === 'felezat-rangi' && sub !== null) {
     return COLOURED_METAL_ATTRS[sub] ?? ['grade'];
   }

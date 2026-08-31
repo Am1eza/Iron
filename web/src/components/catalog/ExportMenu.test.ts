@@ -30,14 +30,23 @@ function row(overrides: Partial<PriceRow> = {}): PriceRow {
 
 /**
  * The exported file is positional — headers and cells are two independent
- * arrays zipped by index — so «ابعاد» being conditional is exactly the kind of
+ * arrays zipped by index — so ورق سیاه's «سایز» being conditional is exactly the kind of
  * thing that silently files every factory name under «وزن شاخه» in a customer's
  * spreadsheet. These assertions pin the two arrays to each other.
  */
 describe('ExportMenu columns — the shared secondary-spec column stays context-aware', () => {
-  it('adds an ابعاد header for ورق, right after ضخامت', () => {
-    const c = cols('sheet');
-    expect(c).toEqual(['محصول', 'ضخامت', 'ابعاد', 'کارخانه', 'وزن (kg)', 'قیمت (تومان)', 'نوسان', 'زمان تحویل']);
+  it('adds a سایز header for ورق سیاه, right after ضخامت', () => {
+    const c = cols('sheet', 'black');
+    expect(c).toEqual([
+      'محصول',
+      'ضخامت',
+      'سایز',
+      'کارخانه',
+      'وزن (kg)',
+      'قیمت (تومان)',
+      'نوسان',
+      'زمان تحویل',
+    ]);
   });
 
   it('leaves every other category on the original column set', () => {
@@ -76,22 +85,24 @@ describe('ExportMenu columns — the shared secondary-spec column stays context-
   });
 
   it('keeps cells aligned with headers in both shapes', () => {
-    expect(rowCells(row({ dimensions: '۱۰۰۰×۲۰۰۰' }), true)).toHaveLength(cols('sheet').length);
+    expect(rowCells(row({ dimensions: '۱۰۰۰×۲۰۰۰' }), true)).toHaveLength(
+      cols('sheet', 'black').length,
+    );
     expect(rowCells(row(), false)).toHaveLength(cols('rebar').length);
   });
 
-  it('puts the dimensions in the ابعاد slot and keeps کارخانه after it', () => {
-    const header = cols('sheet');
+  it('puts the dimensions in the black-sheet سایز slot and keeps کارخانه after it', () => {
+    const header = cols('sheet', 'black');
     const cells = rowCells(row({ dimensions: '۱۰۰۰×۲۰۰۰' }), true);
-    expect(cells[header.indexOf('ابعاد')]).toBe('۱۰۰۰×۲۰۰۰');
+    expect(cells[header.indexOf('سایز')]).toBe('۱۰۰۰×۲۰۰۰');
     expect(cells[header.indexOf('کارخانه')]).toBe('فولاد مبارکه');
     expect(cells[header.indexOf('ضخامت')]).toBe('۲');
   });
 
   it('writes «نامشخص» for a ورق row nobody has filled in yet, rather than dropping the cell and shifting the file', () => {
     const cells = rowCells(row(), true);
-    expect(cells).toHaveLength(cols('sheet').length);
-    expect(cells[cols('sheet').indexOf('ابعاد')]).toBe('نامشخص');
+    expect(cells).toHaveLength(cols('sheet', 'black').length);
+    expect(cells[cols('sheet', 'black').indexOf('سایز')]).toBe('نامشخص');
   });
 
   it('omits the cell for a non-ورق row, matching its shorter header', () => {
