@@ -425,6 +425,13 @@ export function factoryIsMeaningful(
   subCategorySlug: string | null | undefined,
 ): boolean {
   if (categorySlug === 'steel') return false;
+  // میلگرد استیل (`rebar/stainless`) is imported stainless filed under the
+  // wrong parent category, not a mill product — its `skus.factory` values
+  // are countries of origin («هند»/«تایوان»/«چین»), the exact situation
+  // `steel` above exists for. Applying the owner's already-stated rule for
+  // that identical situation (1405/06/09, delegated): drop «کارخانه» here
+  // too rather than leave an imported product publishing a fake mill column.
+  if (categorySlug === 'rebar' && subCategorySlug === 'stainless') return false;
   if (categorySlug !== 'profile') return true;
   return !(subCategorySlug && PROFILE_NO_FACTORY_SUBS.has(subCategorySlug));
 }
@@ -733,24 +740,33 @@ const PROFILE_ATTRS: Record<string, AttrKey[]> = {
  *    moves to `branch` («۶ متری»), keeping the `dimensions` ضخامت wired by
  *    COLOURED_SECTION_THICKNESS_SUBS.
  *
- *  `aluminum-angle`, `aluminum-channel` and `aluminum-pipe` deliberately do
- *  NOT follow it. ahanonline HAS a نبشی آلومینیوم page and a لوله آلومینیوم
- *  page, but both render zero priced rows (verified 2026-08-31) and it has no
- *  ناودانی آلومینیوم page at all — so there is no ahanonline column set for
- *  these three to match. Their «طول شاخه» rests on the ahanyekta.com pages the
- *  1405/06/08 pass cited, and ahanyekta was unreachable from outside Iran on
- *  the day of this pass (connection timeout), so that verification could not
- *  be re-run and is left standing rather than overwritten on a sibling's
- *  evidence. Whether to unify all four on «حالت» is a one-line owner call.
+ *  `aluminum-angle`, `aluminum-channel` and `aluminum-pipe` now follow it too
+ *  (1405/06/09, owner-delegated). ahanonline HAS a نبشی آلومینیوم page and a
+ *  لوله آلومینیوم page, but both still render zero priced rows and it has no
+ *  ناودانی آلومینیوم page at all, so there is still no direct ahanonline
+ *  column set for these three; ahanyekta.com — the 1405/06/08 pass's source
+ *  for their old «طول شاخه» — was retried and was unreachable again. The call
+ *  was made on internal consistency instead of a fourth source: see the note
+ *  beside `COLOURED_METAL_ATTRS` below.
  */
 const COLOURED_METAL_ATTRS: Readonly<Record<string, AttrKey[]>> = {
   'aluminum-sheet': ['alloy', 'condition'],
   'copper-sheet': ['condition'],
   'aluminum-rebar': ['alloy'],
   'copper-pipe': ['gradeAsThickness', 'branch'],
-  'aluminum-angle': ['branchLength'],
-  'aluminum-channel': ['branchLength'],
-  'aluminum-pipe': ['branchLength'],
+  // Unified onto «حالت» 1405/06/09 (owner-delegated call) — see the comment
+  // above for why: ahanonline's نبشی/لوله آلومینیوم pages render zero priced
+  // rows today so there is still no direct column-set source, and ahanyekta
+  // remained unreachable on this pass too (second attempt, still timed out).
+  // Decided on internal consistency instead: «حالت» is now confirmed live on
+  // every other supplied-branch-length sub in this entire catalog except
+  // سپری (نبشی، ناودانی، قوطی ستونی، پروفیل صنعتی/مبلی/آلومینیوم، میلگرد
+  // ساده، میلگرد استیل، تسمه مسی، لوله مسی) — a sibling family staying on the
+  // old «طول شاخه» would be the one outlier without a source to justify it.
+  // Same underlying `branch_length_m` field either way — display-only.
+  'aluminum-angle': ['branch'],
+  'aluminum-channel': ['branch'],
+  'aluminum-pipe': ['branch'],
   'aluminum-profile': ['branch'],
   'copper-strip': ['standardAsCondition'],
 };
@@ -776,17 +792,19 @@ const COLOURED_METAL_ATTRS: Readonly<Record<string, AttrKey[]>> = {
  * fact nothing here was showing. `branch_length_m` is null on all 32 today,
  * so «حالت» is honestly empty.
  *
- * NOT changed here, and worth an owner decision: `stainless` also publishes a
- * «کارخانه» column whose stored values are «هند» (×21), «تایوان» (×8) and
- * «چین» (×3) — countries of origin, not mills, and ahanonline's page has no
- * brand column at all. That is verbatim the situation `factoryIsMeaningful`
- * documents for the استیل CATEGORY, whose resolution the owner gave as
- * «برای استیل‌ها چون که وارداتی هست باید کلاک کارخانه رو حذف بکنیم، فقط
- * محصول رو می‌ذاریم، آلیاژش رو می‌نویسیم و طولش رو». Extending that ruling to
- * a sub filed under میلگرد would also change the page's SECTION STRUCTURE
- * (`groupModeFor` would fall from `factory` to `none`, since «هند» resolves to
- * no city), which is more than a column relabel — so it is flagged rather than
- * taken unilaterally.
+ * `stainless` also published a «کارخانه» column whose stored values are
+ * «هند» (×21), «تایوان» (×8) and «چین» (×3) — countries of origin, not
+ * mills, and ahanonline's page has no brand column at all. That is verbatim
+ * the situation `factoryIsMeaningful` documents for the استیل CATEGORY,
+ * whose resolution the owner already gave as «برای استیل‌ها چون که وارداتی
+ * هست باید کلاک کارخانه رو حذف بکنیم، فقط محصول رو می‌ذاریم، آلیاژش رو
+ * می‌نویسیم و طولش رو». Flagged after the first pass as needing an owner
+ * call because extending it here also drops the page's SECTION STRUCTURE
+ * from `factory` grouping to flat (`groupModeFor` falls to `none`, since
+ * «هند» resolves to no city) — more than a column relabel. The owner
+ * delegated the call 1405/06/09 ("خودت... درست کن"); applied via
+ * `factoryIsMeaningful`'s new `rebar/stainless` branch above, since the
+ * underlying fact (imported stainless, no real mill) is identical to استیل's.
  */
 const REBAR_ATTRS: Readonly<Record<string, AttrKey[]>> = {
   stainless: ['alloy', 'branch'],

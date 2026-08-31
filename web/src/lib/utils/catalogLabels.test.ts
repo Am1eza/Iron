@@ -336,16 +336,19 @@ describe('the attribute columns (گرید / استاندارد / آلیاژ / ح
     // Re-checked 2026-08-31: ahanonline DOES have نبشی آلومینیوم and لوله
     // آلومینیوم pages, but both render zero priced rows, and it has no
     // ناودانی آلومینیوم page at all — so there is still no ahanonline column
-    // set for these three. ahanyekta was unreachable that day, so its
-    // «طول شاخه» stands rather than being overwritten. پروفیل آلومینیوم left
-    // this group — see the next test.
+    // set for these three, and ahanyekta was unreachable on a second retry
+    // 1405/06/09 too. Unified onto «حالت» anyway (owner-delegated call) on
+    // internal consistency: every OTHER supplied-branch-length sub in the
+    // whole catalog bar سپری now reads «حالت», so this sibling trio staying
+    // on «طول شاخه» would be the one outlier with no source behind it either
+    // way. Same `branch_length_m` field, display-only.
     for (const sub of ['aluminum-angle', 'aluminum-channel', 'aluminum-pipe']) {
       expect(usesDimensions('felezat-rangi', sub)).toBe(true);
       expect(dimensionsLabel('felezat-rangi', sub)).toBe(THICKNESS_LABEL);
       const col = only('felezat-rangi', sub);
-      expect(col.key).toBe('branchLength');
-      expect(col.label).toBe(BRANCH_LENGTH_LABEL);
-      expect(col.cell(row(sub, { branchLengthM: 6 }))).toBe('۶ متر');
+      expect(col.key).toBe('branch');
+      expect(col.label).toBe(CONDITION_LABEL);
+      expect(col.cell(row(sub, { branchLengthM: 6 }))).toBe('۶ متری');
       expect(col.cell(row(sub))).toBe(UNKNOWN_VALUE);
     }
   });
@@ -818,6 +821,17 @@ describe('factoryIsMeaningful', () => {
     // it has to be named here, the same way the grade replacements are.
     expect(factoryIsMeaningful('profile', 'something-new')).toBe(true);
     expect(factoryIsMeaningful('profile', null)).toBe(true);
+  });
+
+  it('withholds it for میلگرد استیل — imported, stored values are countries not mills', () => {
+    // 1405/06/09, owner-delegated: the exact استیل-category situation
+    // («هند»/«تایوان»/«چین» on every live row) reproduced on a sub filed
+    // filed under rebar instead. Scoped to that one sub, not rebar-wide — میلگرد
+    // آجدار/ساده are real Iranian mills.
+    expect(factoryIsMeaningful('rebar', 'stainless')).toBe(false);
+    expect(factoryIsMeaningful('rebar', 'deformed')).toBe(true);
+    expect(factoryIsMeaningful('rebar', 'mylgrd-sadh')).toBe(true);
+    expect(factoryIsMeaningful('rebar', null)).toBe(true);
   });
 });
 
