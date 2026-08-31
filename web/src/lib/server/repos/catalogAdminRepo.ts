@@ -36,6 +36,7 @@ import {
 } from '@/lib/server/db/schema';
 import type { PriceBasis, PriceUnit, SeoMeta } from '@/lib/types/domain';
 import { normalizeDigits } from '@/lib/utils/format';
+import { normalizePersian } from '@/lib/utils/persianText';
 import { likeContains } from '@/lib/server/utils/likeEscape';
 
 /** A unique-index violation, translated into something a form can render.
@@ -347,10 +348,24 @@ export async function adminListSkus(query: {
     // Sizes and names are stored with Persian digits, but an admin on a Latin
     // keyboard types «14» — and slugs are the reverse, always ASCII. Matching
     // BOTH spellings is what makes one search box cover all six columns.
+    // Every free-text column above is written through `normalizePersian`
+    // (see the create/update payloads in api/admin/catalog/skus): Arabic ك/ي
+    // become ک/ی, tatweel and harakat are dropped, Arabic-Indic digits become
+    // Persian ones. The query was NOT, so the write and the read disagreed and
+    // the box could never find what the same form had just saved — «کارخانهٔ
+    // آزمایشی» is stored «کارخانه آزمایشی», because U+0654 is a harakat, and
+    // ILIKE has no idea the two are the same word. That is the very failure
+    // the write-side normalization exists to prevent, half-applied.
+    // `raw` stays in the set beside it: rows written before that
+    // normalization existed still carry the un-normalized spelling, and
+    // dropping `raw` would trade one unfindable set of products for another.
     const raw = query.q.slice(0, 100).trim();
+    const normalized = normalizePersian(raw);
     const asPersian = raw.replace(/[0-9]/g, (d) => String.fromCharCode(d.charCodeAt(0) + 0x06f0 - 0x30));
     const asLatin = normalizeDigits(raw);
-    const terms = [...new Set([raw, asPersian, asLatin])].map(likeContains);
+    const terms = [...new Set([raw, normalized, asPersian, asLatin])]
+      .filter((t) => t.length > 0)
+      .map(likeContains);
     conds.push(
       or(
         ...terms.flatMap((term) => [

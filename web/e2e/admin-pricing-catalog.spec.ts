@@ -264,9 +264,18 @@ test('creating a product from the drawer lands it in the catalog and in pricing'
 
   // It is findable, and it is flagged as having no price yet — the only
   // signal that tells an owner there is data-entry work outstanding.
+  //
+  // Waiting on `tbody tr` .first() being visible is NOT a wait for the search
+  // to land: the pre-search rows are already there and satisfy it instantly,
+  // so on a slow runner the «بدون قیمت» assertion below used to run against
+  // the OLD, priced first row and fail on a 15s budget while the filtered
+  // fetch was still in flight (CI run 33373001173). Wait for the row COUNT
+  // the search must produce — the same settling rule the pagination test
+  // above already uses — and then read the badge out of that one row rather
+  // than anywhere on the page.
   await page.getByLabel('جستجوی کالا').fill('کارخانهٔ آزمایشی');
-  await expect(table.locator('tbody tr').first()).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByText('بدون قیمت').first()).toBeVisible();
+  await expect(table.locator('tbody tr')).toHaveCount(1, { timeout: 30_000 });
+  await expect(table.locator('tbody tr').first().getByText('بدون قیمت')).toBeVisible();
 });
 
 test('the catalog names products the public site cannot reach', async () => {
