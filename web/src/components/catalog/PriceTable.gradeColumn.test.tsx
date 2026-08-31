@@ -157,7 +157,7 @@ describe('PriceTable — the تیرآهن grade → standard column', () => {
     expect(attrCellFor('rebar-1', 'گرید').textContent).toBe('A3');
   });
 
-  it('renders the independent ورق condition and keeps the guarded legacy fallback', () => {
+  it('renders the independent ورق condition and keeps the guarded legacy fallback', async () => {
     renderTable({
       categorySlug: 'sheet',
       categoryName: 'ورق',
@@ -167,6 +167,9 @@ describe('PriceTable — the تیرآهن grade → standard column', () => {
       ],
       subs: [{ slug: 'black', name: 'ورق سیاه', groupLabel: null }],
     });
+    // Main ورق no longer has one honest attribute header in its mixed
+    // view; select the exact product line whose source publishes «حالت».
+    await userEvent.click(screen.getByRole('button', { name: 'ورق سیاه' }));
     expect(screen.getByRole('columnheader', { name: 'حالت' })).toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: 'گرید' })).toBeNull();
     expect(cellFor('sheet-new')).toBe('رول');
