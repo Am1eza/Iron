@@ -20,7 +20,9 @@ import {
   type AdminCategory,
   type AdminSku,
   type AdminSubCategory,
+  type CatalogImpact,
 } from '@/lib/api/resources/admin';
+import { ImpactLines } from './ImpactLines';
 import { ApiError } from '@/lib/api/errors';
 import { formatToman, toPersianDigits } from '@/lib/utils/format';
 import { slugify } from '@/lib/utils/slugify';
@@ -202,15 +204,26 @@ export function CatalogManager() {
     onError,
   });
 
+  /**
+   * The impact lookup must never be the reason a delete cannot be confirmed.
+   *
+   * It is one extra round-trip in front of a dialog the admin already asked
+   * for; if it fails or the node has since gone, the confirm still opens and
+   * falls back to whatever counts the list is holding. `null` means "we do not
+   * know", which the dialog says by staying quiet rather than printing zeroes.
+   */
+  const impactOrNull = async (load: () => Promise<CatalogImpact>): Promise<CatalogImpact | null> => {
+    try {
+      return await load();
+    } catch {
+      return null;
+    }
+  };
+
   /** Deletion states its blast radius first — and it is a real deletion, so
    *  the dialog has to be honest that there is no undo. */
   const askDeleteSku = async (r: AdminSku) => {
-    let impact: Awaited<ReturnType<typeof adminApi.skuImpact>> | null = null;
-    try {
-      impact = await adminApi.skuImpact(r.id);
-    } catch {
-      // The confirm still has to work if the impact lookup fails.
-    }
+    const impact = await impactOrNull(() => adminApi.skuImpact(r.id));
     const ok = await confirmDanger({
       title: `حذف «${r.name}»`,
       body: (
@@ -219,24 +232,9 @@ export function CatalogManager() {
             صفحهٔ این کالا در سایت دیگر باز نمی‌شود و از جدول قیمت‌ها، جستجو و نقشهٔ سایت حذف
             می‌شود.
           </span>
-          {impact && impact.openLeads > 0 ? (
-            <span>
-              ‏{toPersianDigits(impact.openLeads)} سرنخ باز این کالا را در اقلام دارد —
-              پیش‌فاکتورهای صادرشده تغییر نمی‌کنند.
-            </span>
-          ) : null}
-          {impact && impact.openOrders > 0 ? (
-            <span>‏{toPersianDigits(impact.openOrders)} سفارش در جریان این کالا را دارد.</span>
-          ) : null}
-          {impact && (impact.favorites > 0 || impact.activeAlerts > 0) ? (
-            <span>
-              ‏{toPersianDigits(impact.favorites)} کاربر نشانش کرده‌اند و{' '}
-              {toPersianDigits(impact.activeAlerts)} هشدار قیمت رویش فعال است.
-            </span>
-          ) : null}
+          <ImpactLines impact={impact} />
           <span>
-            تاریخچهٔ قیمت این کالا هم پاک می‌شود. پیش‌فاکتورها و سفارش‌های صادرشده دست نمی‌خورند —
-            نام و قیمت را خودشان نگه داشته‌اند.
+            پیش‌فاکتورها و سفارش‌های صادرشده دست نمی‌خورند — نام و قیمت را خودشان نگه داشته‌اند.
           </span>
         </div>
       ),
@@ -246,26 +244,30 @@ export function CatalogManager() {
   };
 
   const askDeleteCategory = async (c: AdminCategory) => {
+    const impact = await impactOrNull(() => adminApi.categoryImpact(c.id));
+    // Server truth when we have it, the row's own counts as the fallback —
+    // never both, or the dialog can contradict itself in two sentences.
+    const subs = impact?.subCategories ?? c.subCount;
+    const products = impact?.skus ?? c.skuCount;
     const ok = await confirmDanger({
       title: `حذف دستهٔ «${c.name}»`,
       body: (
         <div className={s.confirmBody}>
-          <span>
-            این دسته {toPersianDigits(c.subCount)} زیر‌دسته و {toPersianDigits(c.skuCount)} کالا
-            دارد.
-          </span>
-          <span>
-            هر {toPersianDigits(c.subCount)} زیر‌دسته و هر {toPersianDigits(c.skuCount)} کالا — با
-            تاریخچهٔ قیمتشان — همراه دسته پاک می‌شوند. پیش‌فاکتورها و سفارش‌های صادرشده دست
-            نمی‌خورند.
-          </span>
+          <ImpactLines impact={impact} />
+          {impact ? null : (
+            <span>
+              این دسته {toPersianDigits(subs)} زیر‌دسته و {toPersianDigits(products)} کالا دارد و
+              همه — با تاریخچهٔ قیمتشان — همراه آن پاک می‌شوند.
+            </span>
+          )}
+          <span>پیش‌فاکتورها و سفارش‌های صادرشده دست نمی‌خورند.</span>
         </div>
       ),
       confirmLabel: 'حذف کن',
       // A category is the largest blast radius the panel offers — «ورق» takes
       // 19 sub-categories and hundreds of products with it. Typing the name is
       // the difference between agreeing and mis-clicking.
-      requireTyped: c.skuCount > 0 || c.subCount > 0 ? c.name : undefined,
+      requireTyped: products > 0 || subs > 0 ? c.name : undefined,
       typedLabel: 'برای تأیید، نام دسته را بنویسید',
     });
     if (!ok) return;
@@ -280,19 +282,24 @@ export function CatalogManager() {
   };
 
   const askDeleteSub = async (x: AdminSubCategory) => {
+    const impact = await impactOrNull(() => adminApi.subCategoryImpact(x.id));
+    const products = impact?.skus ?? x.skuCount;
     const ok = await confirmDanger({
       title: `حذف زیر‌دستهٔ «${x.name}»`,
       body: (
         <div className={s.confirmBody}>
-          <span>این زیر‌دسته {toPersianDigits(x.skuCount)} کالا دارد.</span>
-          <span>
-            زیر‌دسته و هر {toPersianDigits(x.skuCount)} کالای آن — با تاریخچهٔ قیمتشان — پاک
-            می‌شوند. پیش‌فاکتورها و سفارش‌های صادرشده دست نمی‌خورند.
-          </span>
+          <ImpactLines impact={impact} />
+          {impact ? null : (
+            <span>
+              زیر‌دسته و هر {toPersianDigits(products)} کالای آن — با تاریخچهٔ قیمتشان — پاک
+              می‌شوند.
+            </span>
+          )}
+          <span>پیش‌فاکتورها و سفارش‌های صادرشده دست نمی‌خورند.</span>
         </div>
       ),
       confirmLabel: 'حذف کن',
-      requireTyped: x.skuCount > 0 ? x.name : undefined,
+      requireTyped: products > 0 ? x.name : undefined,
       typedLabel: 'برای تأیید، نام زیر‌دسته را بنویسید',
     });
     if (!ok) return;
