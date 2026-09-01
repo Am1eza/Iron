@@ -480,7 +480,36 @@ jobs:
             # the current inode. Image tag tracks the `caddy` service's.
             docker run --rm -v "$APP_DIR/Caddyfile:/etc/caddy/Caddyfile:ro" \
               caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
-            docker compose up -d --force-recreate caddy
+
+            # Only pay the force-recreate blip above when the Caddyfile
+            # actually changed. Every deploy used to force-recreate `caddy`
+            # unconditionally, even when this deploy touched nothing but the
+            # `web` image — tearing the edge down for a few seconds on every
+            # single release (confirmed on all 7 most recent deploys) for no
+            # reason, since an unchanged Caddyfile is still being served
+            # correctly by the container already running.
+            #
+            # CADDYFILE_HASH_FILE lives inside APP_DIR but is intentionally
+            # untracked (see .gitignore) — `git reset --hard` above only ever
+            # touches tracked files, so this survives every deploy and keeps
+            # remembering what was last applied. Its absence (first deploy
+            # ever, or the file was lost) is treated the same as a mismatch:
+            # force-recreate, don't guess.
+            CADDYFILE_HASH_FILE="$APP_DIR/.caddyfile.sha256"
+            NEW_CADDYFILE_HASH="$(sha256sum Caddyfile | awk '{print $1}')"
+            OLD_CADDYFILE_HASH="$(cat "$CADDYFILE_HASH_FILE" 2>/dev/null || true)"
+            if [ "$NEW_CADDYFILE_HASH" != "$OLD_CADDYFILE_HASH" ]; then
+              echo "Caddyfile changed (or no prior record) — force-recreating caddy."
+              docker compose up -d --force-recreate caddy
+            else
+              echo "Caddyfile unchanged since last deploy — normal 'up -d', no recreate."
+              docker compose up -d caddy
+            fi
+            # Record what's now actually running, unconditionally, so the
+            # NEXT deploy's comparison is against what THIS deploy applied —
+            # including the recreate branch above, otherwise the very next
+            # deploy would force-recreate again despite no further change.
+            printf '%s' "$NEW_CADDYFILE_HASH" > "$CADDYFILE_HASH_FILE"
 
             # DB backup right before the swap — cheap insurance against a
             # migration in the new image going wrong (entrypoint runs
