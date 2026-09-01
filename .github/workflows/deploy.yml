@@ -494,8 +494,37 @@ jobs:
             # machinery that was flaking, so it can't reproduce this failure
             # mode. Still catches everything `validate` did for correctness:
             # a genuinely broken Caddyfile fails `adapt` too.
-            docker run --rm -v "$APP_DIR/Caddyfile:/etc/caddy/Caddyfile:ro" \
-              caddy:2-alpine caddy adapt --config /etc/caddy/Caddyfile --adapter caddyfile > /dev/null
+            #
+            # STILL flaked once even after that switch (2026-09-01, run
+            # 33522743774: died in the exact same spot, zero output on
+            # either stream — not reproducible locally, where this exact
+            # command on this exact Caddyfile succeeds every time; prod was
+            # again fine afterward). Whatever this is, it is intermittent and
+            # survives a `docker run --rm` boundary, so: capture BOTH streams
+            # to a file instead of discarding stdout, retry once before
+            # giving up (a transient blip should not fail a healthy deploy),
+            # and on a second failure print the captured output and abort for
+            # real — turning the next occurrence into an actual diagnosis
+            # instead of another silent "Process exited with status 1".
+            CADDY_CHECK_OUT="$(mktemp)"
+            if ! docker run --rm -v "$APP_DIR/Caddyfile:/etc/caddy/Caddyfile:ro" \
+              caddy:2-alpine caddy adapt --config /etc/caddy/Caddyfile --adapter caddyfile \
+              > "$CADDY_CHECK_OUT" 2>&1
+            then
+              echo "::warning::Caddyfile check failed once — retrying before treating it as real"
+              cat "$CADDY_CHECK_OUT"
+              if ! docker run --rm -v "$APP_DIR/Caddyfile:/etc/caddy/Caddyfile:ro" \
+                caddy:2-alpine caddy adapt --config /etc/caddy/Caddyfile --adapter caddyfile \
+                > "$CADDY_CHECK_OUT" 2>&1
+              then
+                echo "::error::Caddyfile failed to adapt twice — treating as a real syntax error, not a flake:"
+                cat "$CADDY_CHECK_OUT"
+                rm -f "$CADDY_CHECK_OUT"
+                exit 1
+              fi
+              echo "Second attempt succeeded — the first failure was transient."
+            fi
+            rm -f "$CADDY_CHECK_OUT"
 
             # Only pay the force-recreate blip above when the Caddyfile
             # actually changed. Every deploy used to force-recreate `caddy`
