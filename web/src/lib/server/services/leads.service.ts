@@ -216,7 +216,19 @@ export function orderCancelledSmsNotification(
 
 export interface CreateLeadInput {
   contact: { name?: string; mobile: string };
-  items: Array<{ skuId: string; qty: number; unit: PriceUnit }>;
+  items: Array<{
+    skuId: string;
+    qty: number;
+    unit: PriceUnit;
+    /** The per-kg unit price the client had on screen when the item went
+     *  into the cart (cart.ts snapshots it on add). Purely a COMPARISON
+     *  value — the authoritative price is always re-read server-side in
+     *  `priceItems` below, never taken from this field. Its only job is
+     *  letting `createLead` tell the customer "the price moved since you
+     *  looked" instead of silently issuing a different total (audit finding
+     *  #12: price mirrors run every ~12h, so a stale cart can drift). */
+    quotedUnitPrice?: number;
+  }>;
   channel?: 'sms' | 'whatsapp' | 'telegram' | 'eitaa';
   source?: string;
   note?: string;
@@ -243,8 +255,21 @@ export interface CreateLeadResult {
   // Resolved line items (name/weight/price) — surfaced so the AI advisor's
   // confirmation message can quote real figures instead of leaving a
   // grounding-censored gap where the user's requested weight/cost would go.
-  items?: Array<{ name: string; qty: number; unit: PriceUnit; weightKg?: number; unitPrice?: number; lineTotal?: number }>;
+  items?: Array<{
+    name: string;
+    qty: number;
+    unit: PriceUnit;
+    weightKg?: number;
+    unitPrice?: number;
+    lineTotal?: number;
+    /** True when this line's server-resolved unitPrice differs from the
+     *  client's `quotedUnitPrice` (only set when the caller sent one). */
+    priceChanged?: boolean;
+  }>;
   totalWeightKg?: number;
+  /** True when ANY line's price moved since the client last saw it — the
+   *  UI/SMS should say so explicitly instead of just showing the new total. */
+  priceChanged?: boolean;
 }
 
 const KNOWN_SOURCES = ['table', 'ai', 'cart', 'cooperation', 'tool', 'warehouse', 'contact', 'cutToSize', 'tender'] as const;
@@ -403,14 +428,22 @@ export async function createLead(
   const ref = await nextRef('PF');
   const verified = Boolean(session && session.mobile === input.contact.mobile);
 
-  const items = lines.map((l) => ({
-    name: l.name,
-    qty: l.qty,
-    unit: l.unit,
-    weightKg: l.weightKg,
-    unitPrice: l.unitPrice,
-    lineTotal: l.lineTotal,
-  }));
+  // `lines` is a 1:1, order-preserving map of `input.items` (priceItems maps
+  // without filtering/reordering), so zipping by index is safe here.
+  const items = lines.map((l, i) => {
+    const quoted = input.items[i]?.quotedUnitPrice;
+    const priceChanged = quoted != null && l.unitPrice != null && quoted !== l.unitPrice;
+    return {
+      name: l.name,
+      qty: l.qty,
+      unit: l.unit,
+      weightKg: l.weightKg,
+      unitPrice: l.unitPrice,
+      lineTotal: l.lineTotal,
+      priceChanged,
+    };
+  });
+  const priceChanged = items.some((i) => i.priceChanged);
   const totalWeightKg = lines.reduce((s, l) => s + (l.weightKg ?? 0), 0) || undefined;
 
   // Precompute the proforma financials OUTSIDE the transaction: getVatRate/
@@ -442,7 +475,7 @@ export async function createLead(
   // rolls back to nothing rather than orphaning a lead without its proforma/
   // inbox row. The SMS is sent AFTER commit — an external side effect can't be
   // rolled back, so it must never fire for a request that didn't fully persist.
-  let result: CreateLeadResult = { ref, items, totalWeightKg };
+  let result: CreateLeadResult = { ref, items, totalWeightKg, priceChanged };
   let validUntilDate: Date | undefined;
 
   await getDb().transaction(async (tx) => {
@@ -497,6 +530,7 @@ export async function createLead(
         total: proforma.total,
         items,
         totalWeightKg,
+        priceChanged,
       };
     }
 

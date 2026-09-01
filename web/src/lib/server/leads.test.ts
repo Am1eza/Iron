@@ -231,6 +231,43 @@ describe('lead → proforma flow', () => {
     expect(p!.total).toBe(p!.subtotal - p!.volumeDiscountToman - p!.discountToman + p!.vatAmount);
   });
 
+  it('flags priceChanged when the client\'s cart-snapshot price drifted from the server (audit #12)', async () => {
+    const rows = await tableRows('rebar');
+    const sku = rows[0]!;
+    const real = await db.select().from(schema.currentPrices).where(eq(schema.currentPrices.skuId, sku.id));
+    const realPrice = real[0]!.price;
+
+    const stale = await createLead(
+      {
+        contact: { mobile: '09123334444' },
+        items: [{ skuId: sku.id, qty: 5, unit: sku.unit, quotedUnitPrice: realPrice + 1_000_000 }],
+        source: 'cart',
+      },
+      null,
+    );
+    expect(stale.priceChanged).toBe(true);
+    expect(stale.items![0]!.priceChanged).toBe(true);
+
+    const fresh = await createLead(
+      {
+        contact: { mobile: '09123334444' },
+        items: [{ skuId: sku.id, qty: 5, unit: sku.unit, quotedUnitPrice: realPrice }],
+        source: 'cart',
+      },
+      null,
+    );
+    expect(fresh.priceChanged).toBe(false);
+    expect(fresh.items![0]!.priceChanged).toBe(false);
+
+    // No quotedUnitPrice at all (e.g. the AI-advisor path, which has no
+    // "displayed" price to compare against) must not falsely flag a change.
+    const noComparison = await createLead(
+      { contact: { mobile: '09123334444' }, items: [{ skuId: sku.id, qty: 5, unit: sku.unit }], source: 'ai' },
+      null,
+    );
+    expect(noComparison.priceChanged).toBe(false);
+  });
+
   it('skips the proforma when a line is unpriced (sales follows up)', async () => {
     const rows = await tableRows('rebar');
     const sku = rows[5]!;

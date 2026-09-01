@@ -425,9 +425,13 @@ export function BulkQuote({
           </p>
           {/* Freight itself is sourced from the official 1405 road-tariff (see
            *  lib/data/logistics.ts); handling/insurance/scale are not — say so
-           *  rather than let them read as equally confirmed. */}
+           *  rather than let them read as equally confirmed. Packaging (audit
+           *  #9) has no line item at all — silently omitting it would read as
+           *  "nothing to pay for it", so it's named explicitly instead of
+           *  invented as a number nobody has confirmed. */}
           <p className={styles.landedMeta}>
-            بارگیری، بیمه و باسکول برآوردی است؛ مبلغ قطعی را کارشناس هنگام تماس اعلام می‌کند.
+            بارگیری، بیمه، باسکول و بسته‌بندی برآوردی/جدا از این جمع است؛ مبلغ قطعی را کارشناس هنگام تماس
+            اعلام می‌کند.
           </p>
         </div>
       ) : null}
