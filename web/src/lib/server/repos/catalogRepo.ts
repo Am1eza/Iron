@@ -101,11 +101,20 @@ function toPriceRow(
 
 /* ------------------------------- reads ------------------------------- */
 
+/**
+ * `order` alone is not a sort — see the same note in `catalogAdminRepo`. Every
+ * node created through the panel defaults to 99, so ties are the norm, and
+ * Postgres orders tied rows however the plan happens to produce them. These
+ * rows build the nav, the mega-menu and the home cascade, all of which are
+ * rendered into ISR output: two regenerations could publish two different
+ * orders with nothing in the database having changed. The primary key breaks
+ * the tie deterministically (and, being a ULID, by creation order).
+ */
 export async function listCategories(): Promise<Category[]> {
   const rows = await getDb()
     .select()
     .from(categories)
-    .orderBy(asc(categories.order));
+    .orderBy(asc(categories.order), asc(categories.id));
   return rows.map((c) => ({
     id: c.id,
     slug: c.slug,
@@ -194,7 +203,7 @@ export async function listAllSubCategories(): Promise<
       })
       .from(subCategories)
       .innerJoin(categories, eq(subCategories.categoryId, categories.id))
-      .orderBy(asc(subCategories.order)),
+      .orderBy(asc(subCategories.order), asc(subCategories.id)),
     crossListedSubsByCategory(),
   ]);
   const out: Record<string, Array<{ slug: string; name: string; groupLabel: string | null }>> = {};
@@ -214,7 +223,7 @@ export async function listSubCategories(categorySlug: string): Promise<SubCatego
     .from(subCategories)
     .innerJoin(categories, eq(subCategories.categoryId, categories.id))
     .where(and(eq(categories.slug, categorySlug)))
-    .orderBy(asc(subCategories.order));
+    .orderBy(asc(subCategories.order), asc(subCategories.id));
   return rows.map(({ sub }) => ({
     id: sub.id,
     categoryId: sub.categoryId,
@@ -308,7 +317,7 @@ export async function tableRows(
     .innerJoin(subCategories, eq(skus.subCategoryId, subCategories.id))
     .leftJoin(currentPrices, eq(currentPrices.skuId, skus.id))
     .where(and(...conds))
-    .orderBy(asc(subCategories.order), asc(skus.name));
+    .orderBy(asc(subCategories.order), asc(subCategories.id), asc(skus.name));
   const s = await getPriceFreshness();
   return rows.map((r) => toPriceRow(r, s, !opts?.forAdmin));
 }

@@ -280,11 +280,11 @@ test('creating a product from the drawer lands it in the catalog and in pricing'
 
 test('deleting a product removes it from the panel and from the site', async () => {
   // The catalog has no hidden state to get stuck in any more, so the thing
-  // worth proving end to end is that «حذف» is honest: one click, and the row
-  // is gone from the panel AND its public page stops answering. What this
-  // replaced was the opposite guarantee — a «غیرفعال» flag that left 167 of
-  // 240 live products invisible on production while the panel showed every
-  // one of them as «فعال».
+  // worth proving end to end is that «حذف» is honest: one click, the row is
+  // gone from the panel, and the product's URL stops serving the product.
+  // What this replaced was the opposite guarantee — a «غیرفعال» flag that
+  // left 167 of 240 live products invisible on production while the panel
+  // showed every one of them as «فعال».
   //
   // Built and destroyed inside the test: this file is `mode: 'serial'` on one
   // long-lived pglite instance, and a real delete cannot be undone in a
@@ -327,9 +327,21 @@ test('deleting a product removes it from the panel and from the site', async () 
   await page.getByRole('button', { name: 'حذف کن' }).click();
 
   await expect(row).toHaveCount(0, { timeout: 30_000 });
-  await expect
-    .poll(async () => (await page.request.get(publicUrl)).status(), { timeout: 60_000 })
-    .not.toBe(200);
+
+  // Deleting no longer leaves a hole where the page was. The product's URL
+  // now answers a PERMANENT REDIRECT up to the sub-category it lived in, so a
+  // customer arriving on a bookmark or a stale search result lands on the
+  // nearest real page instead of a 404, and the link keeps its value.
+  //
+  // `maxRedirects: 0` is the entire point of this assertion. Playwright
+  // follows redirects by default, so the plain `.get()` this used to do
+  // reported the PARENT page's 200 and read exactly like a deleted product
+  // still being served — which is how a correct delete failed this test.
+  const afterDelete = async () => page.request.get(publicUrl, { maxRedirects: 0 });
+  await expect.poll(async () => (await afterDelete()).status(), { timeout: 60_000 }).toBe(308);
+  expect((await afterDelete()).headers().location).toBe(
+    `/prices/${created.catSlug}/${created.subSlug}`,
+  );
 
   // And the sub-category it lived in, so the seeded catalog is left as found.
   await page.evaluate(async (id) => {
