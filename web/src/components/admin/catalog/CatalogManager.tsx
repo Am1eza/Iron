@@ -28,6 +28,7 @@ import { formatToman, toPersianDigits } from '@/lib/utils/format';
 import { slugify } from '@/lib/utils/slugify';
 import { displayOrder } from '@/lib/utils/catalogGroups';
 import { routes } from '@/lib/routes';
+import { SITE_ORIGIN } from '@/lib/utils/url';
 import { useToast } from '@/lib/hooks/useToast';
 import { useDeepLinkQuery } from '@/lib/hooks/useDeepLinkQuery';
 import {
@@ -142,12 +143,17 @@ export function CatalogManager() {
     () => new Map((allSubs.data?.subCategories ?? []).map((x) => [x.id, x])),
     [allSubs.data],
   );
-  /** `/prices/{cat}/{sub}/{sku}` — null until the taxonomy that names it has
-   *  loaded, so a link is never rendered pointing at a guess. */
+  /** `{SITE_ORIGIN}/prices/{cat}/{sub}/{sku}` — null until the taxonomy that
+   *  names it has loaded, so a link is never rendered pointing at a guess.
+   *  Absolute, not `routes.sku()`'s bare path: this is rendered as an
+   *  `<a target="_blank">` opened from `panel.ahantime.com`, where a relative
+   *  `/prices/...` href resolves against the panel's own origin. The panel
+   *  middleware then rewrites it to `/admin/prices/...`, which doesn't exist,
+   *  and the admin gets a 404 instead of the storefront page. */
   const skuHref = (r: AdminSku): string | null => {
     const sub = subById.get(r.subCategoryId);
     const cat = categoryById.get(sub?.categoryId ?? r.categoryId);
-    return sub && cat ? routes.sku(cat.slug, sub.slug, r.slug) : null;
+    return sub && cat ? `${SITE_ORIGIN}${routes.sku(cat.slug, sub.slug, r.slug)}` : null;
   };
 
   const skus = useQuery({
@@ -449,10 +455,10 @@ export function CatalogManager() {
         subsLoading={allSubs.isLoading}
         subsError={allSubs.isError}
         onRetrySubs={() => void allSubs.refetch()}
-        categoryHref={(c) => routes.category(c.slug)}
+        categoryHref={(c) => `${SITE_ORIGIN}${routes.category(c.slug)}`}
         subHref={(x) => {
           const cat = categoryById.get(x.categoryId);
-          return cat ? routes.subCategory(cat.slug, x.slug) : null;
+          return cat ? `${SITE_ORIGIN}${routes.subCategory(cat.slug, x.slug)}` : null;
         }}
         onNewCategory={() => setNodeDraft({ kind: 'category', row: null })}
         onNewSub={(categoryId) => setNodeDraft({ kind: 'sub', row: null, categoryId })}
