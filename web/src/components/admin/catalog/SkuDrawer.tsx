@@ -291,8 +291,20 @@ const lengthNumOf = (raw: string): number | null => {
  */
 const normText = (v: string): string => normalizeDigits(v).replace(/٫/g, '.');
 
+/**
+ * Identity of the currently scheduled "pop the Back-guard sentinel", or null.
+ *
+ * Module scope rather than a ref because the whole point is to outlive the
+ * component instance: a REMOUNT has to be able to cancel the pop that the
+ * outgoing mount's cleanup scheduled, and claim its sentinel instead of
+ * pushing a second one. Only one drawer is open at a time (the parent holds a
+ * single `drawer` state), so one token is enough.
+ */
+let guardPopToken: object | null = null;
+
 export function SkuDrawer({
   sku,
+  cloneFrom = null,
   categories,
   subs,
   defaultSubId,
@@ -301,6 +313,17 @@ export function SkuDrawer({
 }: {
   /** null = creating. */
   sku: AdminSku | null;
+  /**
+   * Seed a NEW product from an existing one («تکثیر»). `rebar/deformed` holds
+   * 186 rows that differ only in size and mill, and typing ten fields per row
+   * — with `unit`/`priceBasis` among them, where a slip prices the product
+   * wrongly — is the work that got pushed out into `ts-node` scripts.
+   *
+   * Deliberately not `sku`: this is a create. Name and slug follow the fields
+   * again as soon as one of them changes, exactly as for a blank form, so
+   * altering the size re-derives both instead of copying the source's.
+   */
+  cloneFrom?: AdminSku | null;
   categories: AdminCategory[];
   subs: AdminSubCategory[];
   defaultSubId: string;
@@ -309,9 +332,12 @@ export function SkuDrawer({
 }) {
   const toast = useToast();
   const steelCategory = useMemo(() => categories.find((c) => c.slug === 'steel'), [categories]);
+  /** The row this form's values came from — the one being edited, or the one
+   *  being copied. */
+  const source = sku ?? cloneFrom;
   const initial = useMemo(
-    () => toValues(sku, defaultSubId, steelCategory?.id),
-    [sku, defaultSubId, steelCategory?.id],
+    () => toValues(source, defaultSubId, steelCategory?.id),
+    [source, defaultSubId, steelCategory?.id],
   );
   const [v, setV] = useState<Values>(initial);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -469,6 +495,87 @@ export function SkuDrawer({
     return () => window.removeEventListener('beforeunload', warn);
   }, [dirty]);
 
+  /**
+   * …and the same guard for the Back button, which `beforeunload` never sees.
+   *
+   * Next's client navigation is a `history` transition, not an unload, so Back
+   * (or a command-palette jump) tore the drawer down mid-edit without a word.
+   * A sentinel entry is pushed while the drawer is open so the first Back
+   * lands here instead of leaving the page; the handler puts it straight back
+   * and asks the same question «انصراف» asks.
+   *
+   * Three details this cannot get wrong:
+   * - Next keeps its router tree in `history.state`; the sentinel is spread
+   *   onto a COPY of it, never replacing it, or the router loses its place on
+   *   the next back/forward.
+   * - On unmount the entry is only popped when it is still the top of the
+   *   stack. Closing the drawer by navigating away (a nav link pushes its own
+   *   entry) must not then send the admin back a page.
+   * - It runs on mount and unmount, FULL STOP — hence the ref and the empty
+   *   dependency list. `requestClose` closes over `onClose`, which the parent
+   *   passes as an inline arrow and therefore re-creates on every one of its
+   *   renders (a keystroke in the search box, any refetch). Depending on it
+   *   re-ran this effect mid-edit, and the cleanup's `history.back()` is
+   *   asynchronous: it landed AFTER the re-registered listener existed, so an
+   *   ordinary re-render fired the guard and asked the admin whether to throw
+   *   away work they were still in the middle of typing. The drawer is keyed
+   *   per row upstream, so one mount really is one product.
+   */
+  const requestCloseRef = useRef(requestClose);
+  requestCloseRef.current = requestClose;
+
+  useEffect(() => {
+    const marker = { __skuDrawerGuard: true };
+    const state = () => window.history.state as Record<string, unknown> | null;
+
+    // A REMOUNT is the fourth way this raced, and the one the notes above
+    // missed. React runs mount → cleanup → mount on the same instance under
+    // StrictMode (`reactStrictMode: true`, so every dev server and the whole
+    // Playwright suite), and remounts this subtree on Fast Refresh and on
+    // recovery from a hydration mismatch. The cleanup's `history.back()` is
+    // asynchronous, so it landed AFTER the second mount had re-registered a
+    // live listener: `popstate` fired, the handler called `requestClose`, and
+    // the drawer shut itself the instant it opened. «کالای جدید» did nothing
+    // at all — one click, no dialog, no error in the console.
+    //
+    // So the pop is deferred by a tick and a remount cancels it, and the push
+    // is skipped when the sentinel is already on top. Together those make the
+    // pair idempotent: one sentinel per open drawer however many times React
+    // chooses to run this.
+    if (guardPopToken !== null) {
+      // A pop is queued, so the sentinel it was going to remove is still on
+      // the stack: this is a remount, and that entry is ours to keep.
+      guardPopToken = null;
+    } else {
+      window.history.pushState({ ...state(), ...marker }, '');
+    }
+
+    let live = true;
+    const onPopState = () => {
+      if (!live) return;
+      window.history.pushState({ ...state(), ...marker }, '');
+      void requestCloseRef.current();
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => {
+      live = false;
+      window.removeEventListener('popstate', onPopState);
+      const token = {};
+      guardPopToken = token;
+      // A microtask, not a timer: it still lands after a same-commit remount
+      // has had its chance to claim the token, and it is guaranteed to have
+      // run by the end of this task — so a real close pops the entry now
+      // rather than leaving it for whatever happens next.
+      queueMicrotask(() => {
+        if (guardPopToken !== token) return; // a remount took it
+        guardPopToken = null;
+        // Still only when the sentinel is the top of the stack — closing the
+        // drawer by navigating away must not send the admin back a page.
+        if (state()?.__skuDrawerGuard === true) window.history.back();
+      });
+    };
+  }, []);
+
   /** Re-derive everything the admin has not taken over. */
   const applyDerived = (next: Values, t: typeof touched): Values => {
     const sub = subs.find((x) => x.id === next.subCategoryId);
@@ -552,6 +659,17 @@ export function SkuDrawer({
     lengthValid &&
     orderValid;
 
+  /** Cross-listings this form cannot see, kept as they are — see the payload
+   *  comment below. A clone inherits them along with everything else. */
+  const otherCrossListedIds = useMemo(
+    () => (source?.crossListedCategoryIds ?? []).filter((id) => id !== steelCategory?.id),
+    [source, steelCategory?.id],
+  );
+  const crossListedIds = [
+    ...otherCrossListedIds,
+    ...(v.crossListedSteel && steelCategory ? [steelCategory.id] : []),
+  ];
+
   const save = useMutation({
     mutationFn: () => {
       const body = {
@@ -572,7 +690,14 @@ export function SkuDrawer({
         theoreticalWeightKg: weightNum,
         order: orderNum,
         imageUrl: v.imageUrl,
-        crossListedCategoryIds: v.crossListedSteel && steelCategory ? [steelCategory.id] : null,
+        // The checkbox speaks for «استیل» and nothing else, but the field is
+        // replaced wholesale by the API and accepts up to five ids. Sending
+        // `[steel]`/`null` therefore deleted every OTHER cross-listing a
+        // script or an earlier build had set — an admin correcting a size made
+        // the product vanish from lists it was in, with no message and no
+        // trace. The ids this form has no control over are carried through
+        // untouched.
+        crossListedCategoryIds: crossListedIds.length > 0 ? crossListedIds : null,
       };
       return sku ? adminApi.updateSku(sku.id, body) : adminApi.createSku(body);
     },
@@ -607,7 +732,9 @@ export function SkuDrawer({
         className={s.drawer}
         role="dialog"
         aria-modal="true"
-        aria-label={sku ? `ویرایش ${sku.name}` : 'کالای جدید'}
+        aria-label={
+          sku ? `ویرایش ${sku.name}` : cloneFrom ? `کالای جدید بر اساس ${cloneFrom.name}` : 'کالای جدید'
+        }
         ref={panelRef}
       >
         <div className={s.drawerHead}>
@@ -617,6 +744,12 @@ export function SkuDrawer({
               <Text color="muted">
                 {parentCategory.name} › {selectedSub?.name ?? '—'}
               </Text>
+            ) : null}
+            {cloneFrom ? (
+              // Said out loud because the form arrives pre-filled: an admin
+              // who does not know this is a COPY will read the fields as the
+              // original and think they are editing it.
+              <Text color="muted">کپی از «{cloneFrom.name}» — کالای تازه‌ای ساخته می‌شود.</Text>
             ) : null}
           </div>
         </div>
