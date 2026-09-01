@@ -423,6 +423,12 @@ export function BulkQuote({
           <p className={styles.landedMeta}>
             زمان تحویل تقریبی: <strong>{landed.delivery}</strong>
           </p>
+          {/* Freight itself is sourced from the official 1405 road-tariff (see
+           *  lib/data/logistics.ts); handling/insurance/scale are not — say so
+           *  rather than let them read as equally confirmed. */}
+          <p className={styles.landedMeta}>
+            بارگیری، بیمه و باسکول برآوردی است؛ مبلغ قطعی را کارشناس هنگام تماس اعلام می‌کند.
+          </p>
         </div>
       ) : null}
 
