@@ -218,7 +218,13 @@ describe('product list', () => {
     const link = await screen.findByRole('link', {
       name: /مشاهدهٔ میلگرد آجدار ۱۴ ذوب آهن در سایت/,
     });
-    expect(link).toHaveAttribute('href', '/prices/rebar/deformed/rebar-14-a3-zobahan');
+    // Absolute, not a bare `/prices/...` path: this panel also runs on
+    // panel.ahantime.com, where a relative href would resolve against the
+    // panel's own origin instead of the storefront.
+    expect(link).toHaveAttribute(
+      'href',
+      'https://ahantime.com/prices/rebar/deformed/rebar-14-a3-zobahan',
+    );
     expect(link).toHaveAttribute('target', '_blank');
     expect(link).toHaveAttribute('rel', 'noreferrer');
   });
