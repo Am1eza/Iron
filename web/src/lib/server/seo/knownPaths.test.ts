@@ -1,10 +1,22 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+const { publicCatalogPaths, publishedGuardPaths, hasDb } = vi.hoisted(() => ({
+  publicCatalogPaths: vi.fn(async () => [] as string[]),
+  publishedGuardPaths: vi.fn(async () => [] as string[]),
+  hasDb: vi.fn(() => true),
+}));
+vi.mock('@/lib/server/repos/catalogRepo', () => ({ publicCatalogPaths }));
+vi.mock('@/lib/server/repos/articlesRepo', () => ({ publishedGuardPaths }));
+vi.mock('@/lib/server/db/client', () => ({ hasDb }));
+
 import {
   STATIC_DYNAMIC_PATHS,
   hasGuardedPrefix,
   isGuardedPath,
   normalizeKnownPath,
   shouldNotFound,
+  getKnownPaths,
+  invalidateKnownPaths,
 } from './knownPaths';
 import { TRACK_ORDER } from '@/components/cooperation/tracks';
 import { NEWS_TOPICS } from '@/lib/data/newsTopics';
@@ -233,5 +245,54 @@ describe('shouldNotFound — the %2F guard bypass (security regression)', () => 
 
   it('still fails open on the archive pages when the catalog is cold', () => {
     expect(shouldNotFound('/blog/page/999', new Set())).toBe(false);
+  });
+});
+
+describe('getKnownPaths / invalidateKnownPaths', () => {
+  beforeEach(() => {
+    publicCatalogPaths.mockClear();
+    publishedGuardPaths.mockClear();
+    invalidateKnownPaths();
+  });
+
+  it('a fresh SKU is immediately visible to the guard after invalidateKnownPaths — the audit #12026 regression', async () => {
+    // Confirmed live (2026-09-01, CI run 33518928535, e2e delete test):
+    // `revalidateCatalog` cleared the ISR page cache but never this guard,
+    // so a SKU created via the admin API hard-404'd through THIS module for
+    // up to KNOWN_PATHS_TTL_MS even though the page itself would render it
+    // fine. `getKnownPaths` must serve stale data inside the TTL (cheap, the
+    // whole point of caching) and MUST refetch the moment
+    // `invalidateKnownPaths` is called, regardless of how little time has
+    // passed since the last load.
+    publicCatalogPaths.mockResolvedValueOnce([]);
+    publishedGuardPaths.mockResolvedValueOnce([]);
+    const before = await getKnownPaths();
+    expect(before.has('/prices/rebar/deformed/new-sku')).toBe(false);
+
+    publicCatalogPaths.mockResolvedValueOnce(['/prices/rebar/deformed/new-sku']);
+    publishedGuardPaths.mockResolvedValueOnce([]);
+    invalidateKnownPaths();
+    const after = await getKnownPaths();
+    expect(after.has('/prices/rebar/deformed/new-sku')).toBe(true);
+  });
+
+  it('serves the cached set without refetching inside the TTL', async () => {
+    publicCatalogPaths.mockResolvedValueOnce(['/prices/rebar']);
+    publishedGuardPaths.mockResolvedValueOnce([]);
+    await getKnownPaths();
+    await getKnownPaths();
+    expect(publicCatalogPaths).toHaveBeenCalledTimes(1);
+  });
+
+  it('fails open (keeps the last good set) when the DB read throws', async () => {
+    publicCatalogPaths.mockResolvedValueOnce(['/prices/rebar']);
+    publishedGuardPaths.mockResolvedValueOnce([]);
+    const good = await getKnownPaths();
+    expect(good.has('/prices/rebar')).toBe(true);
+
+    invalidateKnownPaths();
+    publicCatalogPaths.mockRejectedValueOnce(new Error('db down'));
+    const stillGood = await getKnownPaths();
+    expect(stillGood.has('/prices/rebar')).toBe(true);
   });
 });

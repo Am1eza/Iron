@@ -27,6 +27,7 @@ import {
 } from '@/lib/server/repos/redirectsRepo';
 import { safeRevalidatePath } from '@/lib/server/utils/revalidate';
 import { invalidateDomainFacts } from '@/lib/server/ai/domainFacts';
+import { invalidateKnownPaths } from '@/lib/server/seo/knownPaths';
 import { reportError } from '@/lib/errors/report';
 
 /**
@@ -119,11 +120,21 @@ export function openOrdersBlock(
  * completion on this app's Workers target (same reasoning as the `after()`
  * usage in the pricing route). Best-effort throughout — the write is already
  * committed and a cache miss must never fail it.
+ *
+ * ALSO invalidates `middleware.ts`'s `known`-paths guard (`knownPaths.ts`).
+ * That guard sits IN FRONT of the ISR cache the two `safeRevalidatePath`
+ * calls above bust — a brand-new SKU/category/sub-category hard-404'd for up
+ * to its own TTL regardless of how fresh the page cache was, because the
+ * guard never even let the request reach the page. Confirmed live
+ * (2026-09-01, CI run 33518928535): create a SKU, read it back immediately,
+ * 404. Synchronous (no I/O — it only clears an in-process timestamp), so
+ * unlike the two calls above it costs nothing to call unconditionally.
  */
 export async function revalidateCatalog(scope: 'sku' | 'taxonomy'): Promise<void> {
   safeRevalidatePath('/prices', 'layout');
   safeRevalidatePath('/', 'page');
   if (scope === 'taxonomy') safeRevalidatePath('/', 'layout');
+  invalidateKnownPaths();
   try {
     await invalidateDomainFacts();
   } catch (err) {
