@@ -4,9 +4,7 @@ import { verifyAccessToken } from '@/lib/auth/jwt';
 import { can, permissionForAdminPath } from '@/lib/auth/roles';
 import { hasDb } from '@/lib/server/db/client';
 import { adminListRedirects, normalizePath } from '@/lib/server/repos/redirectsRepo';
-import { publicCatalogPaths } from '@/lib/server/repos/catalogRepo';
-import { publishedGuardPaths } from '@/lib/server/repos/articlesRepo';
-import { hasGuardedPrefix, shouldNotFound } from '@/lib/server/seo/knownPaths';
+import { hasGuardedPrefix, shouldNotFound, getKnownPaths } from '@/lib/server/seo/knownPaths';
 import { archiveIndexFallback, archiveRedirect } from '@/lib/content/archivePaging';
 import { resolvePanelRouting, isPanelHost } from '@/lib/server/utils/panelHost';
 
@@ -80,31 +78,11 @@ async function refreshRedirectCacheIfStale(): Promise<void> {
   }
 }
 
-/**
- * Live catalog/article URLs, for turning an unknown slug into a REAL 404
- * (see lib/server/seo/knownPaths.ts for the full why). Same in-process,
- * TTL'd cache shape as `redirectCache` above and valid for the same reason
- * (one long-lived Node process). Empty = "not loaded" and never blocks a
- * request, so a DB hiccup or a cold start degrades to the previous
- * soft-404-200 behaviour rather than to a dead catalog.
- */
-let knownPathCache: Set<string> = new Set();
-let knownPathsLoadedAt = 0;
-const KNOWN_PATHS_TTL_MS = 60_000;
-
-async function refreshKnownPathsIfStale(): Promise<void> {
-  if (Date.now() - knownPathsLoadedAt < KNOWN_PATHS_TTL_MS) return;
-  knownPathsLoadedAt = Date.now(); // before the await — see refreshRedirectCacheIfStale
-  if (!hasDb()) return;
-  try {
-    const [catalog, articles] = await Promise.all([publicCatalogPaths(), publishedGuardPaths()]);
-    knownPathCache = new Set([...catalog, ...articles]);
-  } catch {
-    // Keep whatever was already loaded. Never empty the set on failure: an
-    // empty set means "unknown" and is fail-open, but replacing a good set
-    // with an empty one would also throw away a working guard for no reason.
-  }
-}
+// The `known`-paths cache (live catalog/article URLs, for turning an unknown
+// slug into a REAL 404) now lives in lib/server/seo/knownPaths.ts, not here —
+// an admin catalog write needs to invalidate it, and that route can't reach
+// into this file's module scope. See `getKnownPaths`/`invalidateKnownPaths`
+// there for the full why.
 
 export async function middleware(req: NextRequest) {
   // One predicate, shared with resolvePanelRouting — a raw `===` here and a
@@ -177,9 +155,9 @@ export async function middleware(req: NextRequest) {
     // a path that matches no route makes Next's own router produce the 404 —
     // the same technique `/__admin_denied__` below already relies on.
     if (hasGuardedPrefix(req.nextUrl.pathname)) {
-      await refreshKnownPathsIfStale();
+      const known = await getKnownPaths();
       if (
-        shouldNotFound(req.nextUrl.pathname, knownPathCache, {
+        shouldNotFound(req.nextUrl.pathname, known, {
           redirectsLoaded: redirectsEverLoaded,
         })
       ) {
