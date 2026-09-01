@@ -38,6 +38,7 @@ import {
   skus,
   factoryOrder,
   currentPrices,
+  pricePoints,
   leadItems,
   leads,
   orderItems,
@@ -809,44 +810,131 @@ export async function deleteCategory(id: string) {
   return rows[0] ?? null;
 }
 
-/** What deleting this product would actually disturb. Shown in the confirm
- *  dialog: removing a SKU that sits in three open deals is a different
- *  decision from removing one nobody has ever asked about. */
-export async function skuImpact(id: string): Promise<{
+/**
+ * What deleting a catalog node would actually destroy.
+ *
+ * One shape for all three levels, because the question the admin is answering
+ * is the same one at each: removing something that sits in three open deals is
+ * a different decision from removing something nobody has ever asked about.
+ *
+ * Scoped by a predicate over `skus` rather than by a list of ids: «ورق» takes
+ * 19 sub-categories and hundreds of products with it, and shipping those ids
+ * to the client to count them there is how the old dialog ended up quoting
+ * numbers that were minutes stale.
+ */
+export type CatalogImpact = {
+  /** Products removed — 1 for a SKU, the whole subtree for a taxonomy node. */
+  skus: number;
+  /** Sub-categories removed. Always 0 below category level. */
+  subCategories: number;
+  /**
+   * Rows of `price_points` that go with them.
+   *
+   * This is the number that changes minds and the one the dialog never had:
+   * `hasPrice` was a BOOLEAN, so eighteen months of series behind a public
+   * chart and a product priced once yesterday read identically.
+   */
+  pricePoints: number;
+  /** Products carrying a published price right now. */
+  pricedSkus: number;
   openLeads: number;
+  /**
+   * Leads already WON on these products. Counted separately and never folded
+   * into `openLeads`, which only ever meant `new`/`contacted` — a closed sale
+   * is the strongest reason not to delete something, and it was the one class
+   * of lead the impact check stayed silent about.
+   */
+  wonLeads: number;
   openOrders: number;
   activeAlerts: number;
   favorites: number;
-  hasPrice: boolean;
-}> {
+};
+
+const OPEN_LEAD_STATUSES = ['new', 'contacted'] as const;
+const OPEN_ORDER_STATUSES = ['registered', 'confirmed', 'loading', 'in_transit'] as const;
+
+/** `skus.id` for everything a delete at this node would take down. */
+function impactScope(scope: { sku: string } | { sub: string } | { category: string }) {
+  if ('sku' in scope) return eq(skus.id, scope.sku);
+  if ('sub' in scope) return eq(skus.subCategoryId, scope.sub);
+  return eq(skus.categoryId, scope.category);
+}
+
+async function catalogImpact(
+  scope: { sku: string } | { sub: string } | { category: string },
+): Promise<CatalogImpact> {
   const db = getDb();
-  const [leadRows, orderRows, alertRows, favRows, priceRows] = await Promise.all([
-    db
-      .select({ n: sql<number>`count(*)::int` })
-      .from(leadItems)
-      .innerJoin(leads, eq(leadItems.leadId, leads.id))
-      .where(and(eq(leadItems.skuId, id), inArray(leads.status, ['new', 'contacted']))),
-    db
-      .select({ n: sql<number>`count(*)::int` })
-      .from(orderItems)
-      .innerJoin(orders, eq(orderItems.orderId, orders.id))
-      .where(
-        and(eq(orderItems.skuId, id), inArray(orders.status, ['registered', 'confirmed', 'loading', 'in_transit'])),
-      ),
-    db
-      .select({ n: sql<number>`count(*)::int` })
-      .from(alerts)
-      .where(and(eq(alerts.skuId, id), eq(alerts.status, 'active'))),
-    db.select({ n: sql<number>`count(*)::int` }).from(favorites).where(eq(favorites.skuId, id)),
-    db.select({ skuId: currentPrices.skuId }).from(currentPrices).where(eq(currentPrices.skuId, id)).limit(1),
-  ]);
+  // A sub-select of the affected ids, evaluated once per count by Postgres
+  // rather than materialized here — a category delete must not pull hundreds
+  // of ids through the app just to count what hangs off them.
+  const scoped = db.select({ id: skus.id }).from(skus).where(impactScope(scope));
+  const inScope = (col: AnyColumn) => inArray(col, scoped);
+  const count = sql<number>`count(*)::int`;
+
+  const [skuRows, subRows, pointRows, pricedRows, openLeadRows, wonLeadRows, orderRows, alertRows, favRows] =
+    await Promise.all([
+      db.select({ n: count }).from(skus).where(impactScope(scope)),
+      'category' in scope
+        ? db.select({ n: count }).from(subCategories).where(eq(subCategories.categoryId, scope.category))
+        : Promise.resolve([{ n: 0 }]),
+      db.select({ n: count }).from(pricePoints).where(inScope(pricePoints.skuId)),
+      db.select({ n: count }).from(currentPrices).where(inScope(currentPrices.skuId)),
+      db
+        .select({ n: count })
+        .from(leadItems)
+        .innerJoin(leads, eq(leadItems.leadId, leads.id))
+        .where(and(inScope(leadItems.skuId), inArray(leads.status, [...OPEN_LEAD_STATUSES]))),
+      db
+        .select({ n: count })
+        .from(leadItems)
+        .innerJoin(leads, eq(leadItems.leadId, leads.id))
+        .where(and(inScope(leadItems.skuId), eq(leads.status, 'won'))),
+      db
+        .select({ n: count })
+        .from(orderItems)
+        .innerJoin(orders, eq(orderItems.orderId, orders.id))
+        .where(and(inScope(orderItems.skuId), inArray(orders.status, [...OPEN_ORDER_STATUSES]))),
+      db
+        .select({ n: count })
+        .from(alerts)
+        .where(and(inScope(alerts.skuId), eq(alerts.status, 'active'))),
+      db.select({ n: count }).from(favorites).where(inScope(favorites.skuId)),
+    ]);
+
   return {
-    openLeads: leadRows[0]?.n ?? 0,
+    skus: skuRows[0]?.n ?? 0,
+    subCategories: subRows[0]?.n ?? 0,
+    pricePoints: pointRows[0]?.n ?? 0,
+    pricedSkus: pricedRows[0]?.n ?? 0,
+    openLeads: openLeadRows[0]?.n ?? 0,
+    wonLeads: wonLeadRows[0]?.n ?? 0,
     openOrders: orderRows[0]?.n ?? 0,
     activeAlerts: alertRows[0]?.n ?? 0,
     favorites: favRows[0]?.n ?? 0,
-    hasPrice: Boolean(priceRows[0]),
   };
+}
+
+/** What deleting this product would disturb. */
+export function skuImpact(id: string): Promise<CatalogImpact> {
+  return catalogImpact({ sku: id });
+}
+
+/** What deleting this sub-category would disturb, products included. */
+export function subCategoryImpact(id: string): Promise<CatalogImpact> {
+  return catalogImpact({ sub: id });
+}
+
+/**
+ * What deleting this category would disturb — its sub-categories, every
+ * product under them, and their price history.
+ *
+ * The confirm dialog used to quote `category.skuCount` off the list the
+ * browser happened to be holding, so a category showing «۰ کالا» could take
+ * 210 products with it if anything had been filed under it since the page
+ * loaded.
+ */
+export function categoryImpact(id: string): Promise<CatalogImpact> {
+  return catalogImpact({ category: id });
 }
 
 /**

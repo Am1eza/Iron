@@ -471,6 +471,33 @@ export interface AdminSubCategory {
   skuCount: number;
 }
 
+/**
+ * What deleting a catalog node would actually destroy, counted on the SERVER
+ * at the moment the dialog opens.
+ *
+ * One shape for all three levels. The `subCount`/`skuCount` carried on the
+ * category and sub-category rows above are a different thing and stay a
+ * different thing: those come with the list and are as old as the last fetch,
+ * which is fine for a column and not fine for a sentence someone is about to
+ * agree to.
+ */
+export interface CatalogImpact {
+  /** Products removed — 1 for a SKU, the whole subtree for a taxonomy node. */
+  skus: number;
+  /** Sub-categories removed. Always 0 below category level. */
+  subCategories: number;
+  /** Rows of price history that go with them — the number that changes minds. */
+  pricePoints: number;
+  /** Products carrying a published price right now. */
+  pricedSkus: number;
+  openLeads: number;
+  /** Leads already WON on these products; never folded into `openLeads`. */
+  wonLeads: number;
+  openOrders: number;
+  activeAlerts: number;
+  favorites: number;
+}
+
 /** One row of a category's «ترتیب کارخانه‌ها» list (US-18.2). */
 export interface AdminFactoryOrderRow {
   factory: string;
@@ -1120,10 +1147,13 @@ export const adminApi = {
    *  and orders that referenced it keep their frozen name and price. */
   deleteSku: (id: string) => http.del<{ ok: true }>(`/api/admin/catalog/skus/${id}`),
   /** What deleting this product would disturb — drives the confirm dialog. */
-  skuImpact: (id: string) =>
-    http.get<{ openLeads: number; openOrders: number; activeAlerts: number; favorites: number; hasPrice: boolean }>(
-      `/api/admin/catalog/skus/${id}/impact`,
-    ),
+  skuImpact: (id: string) => http.get<CatalogImpact>(`/api/admin/catalog/skus/${id}/impact`),
+  /** The same question one level up: the sub-category AND every product in it. */
+  subCategoryImpact: (id: string) =>
+    http.get<CatalogImpact>(`/api/admin/catalog/subcategories/${id}/impact`),
+  /** …and at the top: sub-categories, products, and all their price history. */
+  categoryImpact: (id: string) =>
+    http.get<CatalogImpact>(`/api/admin/catalog/categories/${id}/impact`),
   /** Factory names already in use, for the form's datalist. */
   catalogFactories: () => http.get<{ factories: string[] }>('/api/admin/catalog/factories'),
 
