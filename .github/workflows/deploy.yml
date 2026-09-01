@@ -478,8 +478,24 @@ jobs:
             # copy this step exists to replace, passing while the real file is
             # broken. A fresh `docker run` mounts the host path now, so it sees
             # the current inode. Image tag tracks the `caddy` service's.
+            #
+            # `caddy adapt`, NOT `caddy validate` — validate actually SPINS UP
+            # an ephemeral Caddy instance (real listeners, TLS/ACME setup,
+            # cert-cache maintenance goroutines) to catch runtime-only errors,
+            # then tears it down. That teardown raced non-deterministically:
+            # confirmed live (2026-09-01, run 33517292203) — it printed "Valid
+            # configuration" and still exited 1, aborting this whole
+            # `set -euo pipefail` script AFTER `web` had already been swapped
+            # to the new image, just before the Caddyfile-changed check, so
+            # the deploy was marked failed even though nothing was actually
+            # wrong (prod was fine — confirmed after the fact on the host).
+            # `adapt` only parses the Caddyfile and converts it to JSON — the
+            # exact same syntax/structure check, none of the ephemeral-server
+            # machinery that was flaking, so it can't reproduce this failure
+            # mode. Still catches everything `validate` did for correctness:
+            # a genuinely broken Caddyfile fails `adapt` too.
             docker run --rm -v "$APP_DIR/Caddyfile:/etc/caddy/Caddyfile:ro" \
-              caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+              caddy:2-alpine caddy adapt --config /etc/caddy/Caddyfile --adapter caddyfile > /dev/null
 
             # Only pay the force-recreate blip above when the Caddyfile
             # actually changed. Every deploy used to force-recreate `caddy`
