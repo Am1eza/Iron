@@ -49,6 +49,10 @@ export const leadPayload = z.object({
         skuId: z.string().min(1).max(120),
         qty: finiteNumber.positive().max(100_000),
         unit: priceUnit,
+        // The price the client had on screen when this line was added to the
+        // cart — comparison-only, never trusted for pricing (see
+        // CreateLeadInput.quotedUnitPrice's doc comment).
+        quotedUnitPrice: finiteNumber.nonnegative().optional(),
       }),
     )
     .min(1, { message: M.required })
