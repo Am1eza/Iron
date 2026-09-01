@@ -17,6 +17,7 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { AdminCategory, AdminSku, AdminSubCategory } from '@/lib/api/resources/admin';
 import { CatalogManager } from './CatalogManager';
+import { ApiError } from '@/lib/api/errors';
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
@@ -30,6 +31,7 @@ const skus = vi.fn();
 const deleteSku = vi.fn();
 const deleteCategory = vi.fn();
 const deleteSubCategory = vi.fn();
+const bulkDeleteSkus = vi.fn();
 const skuImpact = vi.fn();
 const createCategory = vi.fn();
 
@@ -41,6 +43,7 @@ vi.mock('@/lib/api/resources/admin', () => ({
     deleteSku: (id: string) => deleteSku(id),
     deleteCategory: (id: string) => deleteCategory(id),
     deleteSubCategory: (id: string) => deleteSubCategory(id),
+    bulkDeleteSkus: (ids: string[], opts?: unknown) => bulkDeleteSkus(ids, opts),
     skuImpact: (id: string) => skuImpact(id),
     createCategory: (input: unknown) => createCategory(input),
     updateCategory: vi.fn(),
@@ -144,6 +147,7 @@ beforeEach(() => {
   });
   deleteSku.mockResolvedValue({ ok: true });
   deleteCategory.mockResolvedValue({ ok: true });
+  bulkDeleteSkus.mockResolvedValue({ ok: true, removedCount: 1, notFoundIds: [] });
 });
 
 afterEach(() => {
@@ -301,6 +305,36 @@ describe('deleting', () => {
     await user.click(await screen.findByRole('button', { name: 'حذف' }));
     await user.click(await screen.findByRole('button', { name: 'انصراف' }));
     expect(deleteSku).not.toHaveBeenCalled();
+  });
+});
+
+describe('bulk deleting', () => {
+  it('sends one transactional request for the whole selection, not one per row', async () => {
+    const user = renderManager();
+    await user.click(await screen.findByLabelText('انتخاب میلگرد آجدار ۱۴ ذوب آهن'));
+    await user.click(await screen.findByRole('button', { name: 'حذف ۱ کالا' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: 'حذف ۱ کالا' }));
+    await waitFor(() => expect(bulkDeleteSkus).toHaveBeenCalledWith(['k1'], undefined));
+    // Not the old per-id loop.
+    expect(deleteSku).not.toHaveBeenCalled();
+  });
+
+  it('asks before forcing a batch that includes a product on an open order', async () => {
+    bulkDeleteSkus.mockImplementationOnce(() => {
+      throw new ApiError(409, 'سفارش باز', { code: 'open_orders', details: { blockedIds: ['k1'] } });
+    });
+    const user = renderManager();
+    await user.click(await screen.findByLabelText('انتخاب میلگرد آجدار ۱۴ ذوب آهن'));
+    await user.click(await screen.findByRole('button', { name: 'حذف ۱ کالا' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: 'حذف ۱ کالا' }));
+
+    const overrideDialog = await screen.findByRole('dialog', { name: 'سفارش باز روی برخی کالاها' });
+    await user.click(within(overrideDialog).getByRole('button', { name: 'حذف اجباری' }));
+    await waitFor(() =>
+      expect(bulkDeleteSkus).toHaveBeenLastCalledWith(['k1'], { override: true }),
+    );
   });
 });
 

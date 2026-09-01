@@ -2,9 +2,10 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
-import { deleteCategory, updateCategory } from '@/lib/server/repos/catalogAdminRepo';
+import { categoryImpact, deleteCategory, updateCategory } from '@/lib/server/repos/catalogAdminRepo';
 import {
   catalogErrorResponse,
+  openOrdersBlock,
   planDeletedNodeRedirects,
   redirectCategorySlugChange,
   revalidateCatalog,
@@ -71,17 +72,23 @@ async function DELETEImpl(req: NextRequest, ctx: { params: Promise<{ id: string 
   const auth = await requireApiPermission(req, 'catalog:write');
   if ('response' in auth) return auth.response;
   const { id } = await ctx.params;
+  const impact = await categoryImpact(id);
+  const blocked = openOrdersBlock(req, impact);
+  if (blocked) return blocked;
   // Before the delete — the sub-categories and products whose URLs this takes
   // down go with it by cascade, so this is the last moment they can be listed.
   const tombstone = await planDeletedNodeRedirects('category', id);
-  const removed = await deleteCategory(id);
-  if (!removed) return NextResponse.json({ error: 'not_found', message: 'دسته یافت نشد.' }, { status: 404 });
-  // The WHOLE row in `before`, not just name and slug: now that the row is
-  // gone, the log is the only place still holding it, and «کدام دسته رفت» is
-  // only half of what a recovery needs (the icon, the image and the seo blob
-  // are the other half, and they were being dropped for no reason — the row is
-  // already in hand).
-  await audit(auth.session.id, 'catalog.category.delete', { type: 'category', id }, removed, null);
+  const result = await deleteCategory(id);
+  if (!result) return NextResponse.json({ error: 'not_found', message: 'دسته یافت نشد.' }, { status: 404 });
+  const { removed, subtree } = result;
+  // The WHOLE row, plus the WHOLE subtree it cascaded away — not just name
+  // and slug, and not just the category's own two columns. A cascade takes
+  // sub-categories and products with it that the old audit entry never
+  // recorded at all, so «restore this delete» had nothing to restore beyond
+  // the category shell. `_subtree` carries what a real restore needs; price
+  // history is deliberately excluded and only counted (see
+  // `CategorySubtreeSnapshot`).
+  await audit(auth.session.id, 'catalog.category.delete', { type: 'category', id }, { ...removed, _subtree: subtree }, null);
   // Every URL under a deleted category — its own page, its subs, its products
   // — points at the price index instead of hard-404ing.
   await writeCatalogRedirects(tombstone);

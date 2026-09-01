@@ -798,16 +798,138 @@ export async function deleteSku(id: string) {
   return rows[0] ?? null;
 }
 
-/** Delete a sub-category and, by cascade, every product under it. */
-export async function deleteSubCategory(id: string) {
-  const rows = await getDb().delete(subCategories).where(eq(subCategories.id, id)).returning();
+/**
+ * Delete many products in ONE transaction — the panel's only bulk operation
+ * used to be N independent `DELETE` requests via `Promise.allSettled`, so a
+ * dropped connection mid-batch left an arbitrary split of "gone" and "still
+ * there" with no way back short of picking through the activity log by hand.
+ * Ids that don't exist are simply absent from the returned rows, not an error.
+ */
+export async function deleteSkusBulk(ids: string[]): Promise<(typeof skus.$inferSelect)[]> {
+  if (ids.length === 0) return [];
+  return getDb().delete(skus).where(inArray(skus.id, ids)).returning();
+}
+
+/** Which of these ids currently sit on an open order — the same standard a
+ *  single delete is held to (`OPEN_ORDER_STATUSES`), checked as one query
+ *  over the whole batch instead of once per id. */
+export async function skuIdsWithOpenOrders(ids: string[]): Promise<string[]> {
+  if (ids.length === 0) return [];
+  const rows = await getDb()
+    .selectDistinct({ id: orderItems.skuId })
+    .from(orderItems)
+    .innerJoin(orders, eq(orderItems.orderId, orders.id))
+    .where(and(inArray(orderItems.skuId, ids), inArray(orders.status, [...OPEN_ORDER_STATUSES])));
+  return rows.map((r) => r.id).filter((id): id is string => id !== null);
+}
+
+export type SubCategorySubtreeSnapshot = {
+  skus: (typeof skus.$inferSelect)[];
+  /** Not the rows themselves — see the module header on why. */
+  pricePointsCount: number;
+};
+
+export type CategorySubtreeSnapshot = SubCategorySubtreeSnapshot & {
+  subCategories: (typeof subCategories.$inferSelect)[];
+};
+
+async function pricePointsCountFor(tx: DbOrTx, skuIds: string[]): Promise<number> {
+  if (skuIds.length === 0) return 0;
+  const rows = await tx
+    .select({ n: sql<number>`count(*)::int` })
+    .from(pricePoints)
+    .where(inArray(pricePoints.skuId, skuIds));
+  return rows[0]?.n ?? 0;
+}
+
+/**
+ * Delete a sub-category and, by cascade, every product under it — capturing
+ * that whole subtree (minus price-history rows, which are counted, not kept)
+ * BEFORE it is gone, so the audit log holds enough to restore it rather than
+ * just the sub-category's own two columns.
+ */
+export async function deleteSubCategory(
+  id: string,
+): Promise<{ removed: typeof subCategories.$inferSelect; subtree: SubCategorySubtreeSnapshot } | null> {
+  return getDb().transaction(async (tx) => {
+    const skuRows = await tx.select().from(skus).where(eq(skus.subCategoryId, id));
+    const pricePointsCount = await pricePointsCountFor(
+      tx,
+      skuRows.map((s) => s.id),
+    );
+    const rows = await tx.delete(subCategories).where(eq(subCategories.id, id)).returning();
+    const removed = rows[0];
+    if (!removed) return null;
+    return { removed, subtree: { skus: skuRows, pricePointsCount } };
+  });
+}
+
+/**
+ * Delete a category and, by cascade, its sub-categories and their products —
+ * same subtree-snapshot-before-delete shape as `deleteSubCategory`, one level
+ * deeper.
+ */
+export async function deleteCategory(
+  id: string,
+): Promise<{ removed: typeof categories.$inferSelect; subtree: CategorySubtreeSnapshot } | null> {
+  return getDb().transaction(async (tx) => {
+    const subCategoryRows = await tx.select().from(subCategories).where(eq(subCategories.categoryId, id));
+    const skuRows = await tx.select().from(skus).where(eq(skus.categoryId, id));
+    const pricePointsCount = await pricePointsCountFor(
+      tx,
+      skuRows.map((s) => s.id),
+    );
+    const rows = await tx.delete(categories).where(eq(categories.id, id)).returning();
+    const removed = rows[0];
+    if (!removed) return null;
+    return { removed, subtree: { subCategories: subCategoryRows, skus: skuRows, pricePointsCount } };
+  });
+}
+
+/**
+ * Re-insert a subtree snapshot taken by `deleteCategory`/`deleteSubCategory`
+ * (or a single row from a `sku.delete` audit entry). `onConflictDoNothing`
+ * throughout: a restore can be replayed safely — from a stale audit page, a
+ * double click, or a node partially restored earlier — without ever throwing
+ * a duplicate-key error over rows that already made it back.
+ *
+ * Price history is never restored — it was never kept (see
+ * `CategorySubtreeSnapshot`) — so a restored product starts with no chart,
+ * same as a brand-new one, until the next price sync.
+ */
+export async function restoreSku(row: typeof skus.$inferInsert): Promise<typeof skus.$inferSelect | null> {
+  const rows = await getDb().insert(skus).values(row).onConflictDoNothing().returning();
   return rows[0] ?? null;
 }
 
-/** Delete a category and, by cascade, its sub-categories and their products. */
-export async function deleteCategory(id: string) {
-  const rows = await getDb().delete(categories).where(eq(categories.id, id)).returning();
-  return rows[0] ?? null;
+export async function restoreSubCategory(
+  row: typeof subCategories.$inferInsert,
+  skuRows: (typeof skus.$inferInsert)[],
+): Promise<{ subCategory: typeof subCategories.$inferSelect | null; skus: (typeof skus.$inferSelect)[] }> {
+  return getDb().transaction(async (tx) => {
+    const subRows = await tx.insert(subCategories).values(row).onConflictDoNothing().returning();
+    const restoredSkus = skuRows.length ? await tx.insert(skus).values(skuRows).onConflictDoNothing().returning() : [];
+    return { subCategory: subRows[0] ?? null, skus: restoredSkus };
+  });
+}
+
+export async function restoreCategory(
+  row: typeof categories.$inferInsert,
+  subCategoryRows: (typeof subCategories.$inferInsert)[],
+  skuRows: (typeof skus.$inferInsert)[],
+): Promise<{
+  category: typeof categories.$inferSelect | null;
+  subCategories: (typeof subCategories.$inferSelect)[];
+  skus: (typeof skus.$inferSelect)[];
+}> {
+  return getDb().transaction(async (tx) => {
+    const catRows = await tx.insert(categories).values(row).onConflictDoNothing().returning();
+    const subRows = subCategoryRows.length
+      ? await tx.insert(subCategories).values(subCategoryRows).onConflictDoNothing().returning()
+      : [];
+    const restoredSkus = skuRows.length ? await tx.insert(skus).values(skuRows).onConflictDoNothing().returning() : [];
+    return { category: catRows[0] ?? null, subCategories: subRows, skus: restoredSkus };
+  });
 }
 
 /**

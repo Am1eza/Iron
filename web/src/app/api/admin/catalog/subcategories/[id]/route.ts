@@ -2,9 +2,10 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
-import { deleteSubCategory, updateSubCategory } from '@/lib/server/repos/catalogAdminRepo';
+import { deleteSubCategory, subCategoryImpact, updateSubCategory } from '@/lib/server/repos/catalogAdminRepo';
 import {
   catalogErrorResponse,
+  openOrdersBlock,
   planDeletedNodeRedirects,
   redirectSubCategoryChange,
   revalidateCatalog,
@@ -72,13 +73,17 @@ async function DELETEImpl(req: NextRequest, ctx: { params: Promise<{ id: string 
   const auth = await requireApiPermission(req, 'catalog:write');
   if ('response' in auth) return auth.response;
   const { id } = await ctx.params;
+  const impact = await subCategoryImpact(id);
+  const blocked = openOrdersBlock(req, impact);
+  if (blocked) return blocked;
   // Before the delete: its products cascade away with it.
   const tombstone = await planDeletedNodeRedirects('subCategory', id);
-  const removed = await deleteSubCategory(id);
-  if (!removed) return NextResponse.json({ error: 'not_found', message: 'زیر‌دسته یافت نشد.' }, { status: 404 });
-  // The whole row — see the category route for why two columns is not a
-  // recovery story.
-  await audit(auth.session.id, 'catalog.sub.delete', { type: 'sub', id }, removed, null);
+  const result = await deleteSubCategory(id);
+  if (!result) return NextResponse.json({ error: 'not_found', message: 'زیر‌دسته یافت نشد.' }, { status: 404 });
+  const { removed, subtree } = result;
+  // The whole row, plus the products it cascaded away — see the category
+  // route for why two columns and a bare count is not a recovery story.
+  await audit(auth.session.id, 'catalog.sub.delete', { type: 'sub', id }, { ...removed, _subtree: subtree }, null);
   // The sub's own page and each of its products land on the parent category.
   await writeCatalogRedirects(tombstone);
   await revalidateCatalog('taxonomy');

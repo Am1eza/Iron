@@ -1144,8 +1144,17 @@ export const adminApi = {
   updateSku: (id: string, patch: Partial<AdminSkuInput>) =>
     http.patch<{ sku: AdminSku }>(`/api/admin/catalog/skus/${id}`, patch),
   /** Deletes for real. The price history goes with the product; the quotes
-   *  and orders that referenced it keep their frozen name and price. */
-  deleteSku: (id: string) => http.del<{ ok: true }>(`/api/admin/catalog/skus/${id}`),
+   *  and orders that referenced it keep their frozen name and price. Rejected
+   *  with 409 if the product sits on an open order, unless `override`. */
+  deleteSku: (id: string, opts?: { override?: boolean }) =>
+    http.del<{ ok: true }>(`/api/admin/catalog/skus/${id}${opts?.override ? '?override=true' : ''}`),
+  /** One transaction and one open-order check for the whole batch, instead of
+   *  N independent `deleteSku` calls that could each half-succeed. */
+  bulkDeleteSkus: (ids: string[], opts?: { override?: boolean }) =>
+    http.post<{ ok: true; removedCount: number; notFoundIds: string[] }>(
+      `/api/admin/catalog/skus/bulk-delete${opts?.override ? '?override=true' : ''}`,
+      { ids },
+    ),
   /** What deleting this product would disturb — drives the confirm dialog. */
   skuImpact: (id: string) => http.get<CatalogImpact>(`/api/admin/catalog/skus/${id}/impact`),
   /** The same question one level up: the sub-category AND every product in it. */

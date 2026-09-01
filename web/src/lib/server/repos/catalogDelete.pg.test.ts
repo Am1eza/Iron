@@ -83,8 +83,13 @@ describe('delete is a delete', () => {
     expect((await tableRows('rebar', 'plain', { forAdmin: true })).map((r) => r.id)).toEqual(['ok-1']);
   });
 
-  it('removing a sub-category removes its products rather than stranding them', async () => {
-    expect(await deleteSubCategory('s-doomed')).toMatchObject({ id: 's-doomed' });
+  it('removing a sub-category removes its products rather than stranding them, and snapshots them for restore', async () => {
+    const result = await deleteSubCategory('s-doomed');
+    expect(result?.removed).toMatchObject({ id: 's-doomed' });
+    // The whole point of #5: the cascaded product is captured BEFORE it's
+    // gone, not just the sub-category's own two columns.
+    expect(result?.subtree.skus.map((s) => s.id)).toEqual(['under-doomed-sub']);
+    expect(result?.subtree.pricePointsCount).toBe(0);
 
     const left = await db.select().from(schema.skus).where(eq(schema.skus.id, 'under-doomed-sub'));
     expect(left).toHaveLength(0);
@@ -92,8 +97,11 @@ describe('delete is a delete', () => {
     expect(rows.map((r) => r.sku.id)).toEqual(['ok-1']);
   });
 
-  it('removing a category takes its sub-categories and their products with it', async () => {
-    expect(await deleteCategory('c-doomed')).toMatchObject({ id: 'c-doomed' });
+  it('removing a category takes its sub-categories and their products with it, and snapshots the whole subtree', async () => {
+    const result = await deleteCategory('c-doomed');
+    expect(result?.removed).toMatchObject({ id: 'c-doomed' });
+    expect(result?.subtree.subCategories.map((s) => s.id)).toEqual(['s-under-doomed-cat']);
+    expect(result?.subtree.skus.map((s) => s.id)).toEqual(['under-doomed-cat']);
 
     const subs = await db
       .select()
