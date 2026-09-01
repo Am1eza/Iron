@@ -40,6 +40,10 @@ export const ACTION_META: Record<string, ActionMeta> = {
   'catalog.sku.update': { verb: 'کالا را ویرایش کرد', tone: 'update' },
   'catalog.sku.deactivate': { verb: 'کالا را غیرفعال کرد', tone: 'destroy' },
   'catalog.sku.delete': { verb: 'کالا را حذف کرد', tone: 'destroy' },
+  'catalog.sku.bulkDelete': { verb: 'چند کالا را یک‌جا حذف کرد', tone: 'destroy' },
+  'catalog.category.restore': { verb: 'دسته‌بندی حذف‌شده را بازگرداند', tone: 'create' },
+  'catalog.sub.restore': { verb: 'زیردستهٔ حذف‌شده را بازگرداند', tone: 'create' },
+  'catalog.sku.restore': { verb: 'کالای حذف‌شده را بازگرداند', tone: 'create' },
 
   'club.tier': { verb: 'سطح باشگاه مشتری را تغییر داد', tone: 'update' },
 

@@ -63,6 +63,34 @@ export function catalogErrorResponse(err: unknown): NextResponse | null {
 }
 
 /**
+ * `skuImpact`/`subCategoryImpact`/`categoryImpact` used to be decorative —
+ * every DELETE route computed one only to show it in a confirm dialog the
+ * client could skip by calling the API directly, and bulk delete never
+ * computed it at all. A product mid-shipment could be deleted by the same
+ * `curl -X DELETE` that retires an unsold one.
+ *
+ * `openOrders` is the one line of `CatalogImpact` this now actually enforces
+ * server-side: refuse with 409 unless the caller passes `?override=true`,
+ * which is a decision an admin makes on purpose, once, per request, not a
+ * flag they can turn on globally.
+ */
+export function openOrdersBlock(
+  req: { nextUrl: { searchParams: URLSearchParams } },
+  impact: { openOrders: number },
+): NextResponse | null {
+  if (impact.openOrders === 0) return null;
+  if (req.nextUrl.searchParams.get('override') === 'true') return null;
+  return NextResponse.json(
+    {
+      error: 'open_orders',
+      message: `${impact.openOrders} سفارش باز به این مورد وابسته است. برای حذف قطعی، درخواست را با override=true دوباره بفرست.`,
+      impact,
+    },
+    { status: 409 },
+  );
+}
+
+/**
  * Bust the public caches a catalog write can affect. `/prices` covers the
  * table, sub and SKU pages (all `revalidate = 300`); `/` covers the home
  * cascade. `taxonomy` additionally purges the root layout, which is what the

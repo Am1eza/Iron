@@ -2,10 +2,11 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
-import { deleteSku, updateSku } from '@/lib/server/repos/catalogAdminRepo';
+import { deleteSku, skuImpact, updateSku } from '@/lib/server/repos/catalogAdminRepo';
 import {
   catalogErrorResponse,
   clearRedirectShadow,
+  openOrdersBlock,
   planDeletedNodeRedirects,
   redirectOnSlugChange,
   revalidateCatalog,
@@ -135,6 +136,9 @@ async function DELETEImpl(req: NextRequest, ctx: { params: Promise<{ id: string 
   const auth = await requireApiPermission(req, 'catalog:write');
   if ('response' in auth) return auth.response;
   const { id } = await ctx.params;
+  const impact = await skuImpact(id);
+  const blocked = openOrdersBlock(req, impact);
+  if (blocked) return blocked;
   // Before the delete: the public path is built from the parent slugs, and
   // this is the last moment the row exists to read them from.
   const tombstone = await planDeletedNodeRedirects('sku', id);

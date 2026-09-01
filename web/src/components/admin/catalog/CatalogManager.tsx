@@ -322,20 +322,39 @@ export function CatalogManager() {
       confirmLabel: `حذف ${toPersianDigits(ids.length)} کالا`,
     });
     if (!ok) return;
+    // One transactional request, not N independent ones: either the whole
+    // batch lands or none of it does, and the server checks open orders for
+    // the whole batch before touching any row.
     setBulkBusy(true);
-    const results = await Promise.allSettled(ids.map((id) => adminApi.deleteSku(id)));
-    setBulkBusy(false);
-    const failedIds = ids.filter((_id, i) => results[i]!.status === 'rejected');
-    if (failedIds.length > 0) {
-      // Keep the failures selected so «دوباره تلاش» is one click, instead of
-      // reporting a bare count and clearing the selection.
-      setSelected(new Set(failedIds));
-      toast.error(`${toPersianDigits(failedIds.length)} کالا حذف نشد؛ همان‌ها انتخاب مانده‌اند.`);
-    } else {
-      setSelected(new Set());
-      toast.success(`${toPersianDigits(ids.length)} کالا حذف شد.`);
+    try {
+      const res = await adminApi.bulkDeleteSkus(ids);
+      setSelected(new Set(res.notFoundIds));
+      toast.success(`${toPersianDigits(res.removedCount)} کالا حذف شد.`);
+      invalidateAll();
+    } catch (err) {
+      if (err instanceof ApiError && err.code === 'open_orders') {
+        const blockedIds = (err.details?.blockedIds as string[] | undefined) ?? [];
+        const force = await confirmDanger({
+          title: 'سفارش باز روی برخی کالاها',
+          body: `${toPersianDigits(blockedIds.length)} کالای انتخابی سفارش باز دارد. حذف اجباری همهٔ ${toPersianDigits(ids.length)} کالا انجام شود؟`,
+          confirmLabel: 'حذف اجباری',
+        });
+        if (force) {
+          try {
+            const res = await adminApi.bulkDeleteSkus(ids, { override: true });
+            setSelected(new Set(res.notFoundIds));
+            toast.success(`${toPersianDigits(res.removedCount)} کالا حذف شد.`);
+            invalidateAll();
+          } catch (err2) {
+            onError(err2);
+          }
+        }
+      } else {
+        onError(err);
+      }
+    } finally {
+      setBulkBusy(false);
     }
-    invalidateAll();
   };
 
   /** Reorder writes the whole neighbourhood in one go and always refetches,
