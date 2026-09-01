@@ -291,6 +291,17 @@ const lengthNumOf = (raw: string): number | null => {
  */
 const normText = (v: string): string => normalizeDigits(v).replace(/٫/g, '.');
 
+/**
+ * Identity of the currently scheduled "pop the Back-guard sentinel", or null.
+ *
+ * Module scope rather than a ref because the whole point is to outlive the
+ * component instance: a REMOUNT has to be able to cancel the pop that the
+ * outgoing mount's cleanup scheduled, and claim its sentinel instead of
+ * pushing a second one. Only one drawer is open at a time (the parent holds a
+ * single `drawer` state), so one token is enough.
+ */
+let guardPopToken: object | null = null;
+
 export function SkuDrawer({
   sku,
   cloneFrom = null,
@@ -516,7 +527,29 @@ export function SkuDrawer({
   useEffect(() => {
     const marker = { __skuDrawerGuard: true };
     const state = () => window.history.state as Record<string, unknown> | null;
-    window.history.pushState({ ...state(), ...marker }, '');
+
+    // A REMOUNT is the fourth way this raced, and the one the notes above
+    // missed. React runs mount → cleanup → mount on the same instance under
+    // StrictMode (`reactStrictMode: true`, so every dev server and the whole
+    // Playwright suite), and remounts this subtree on Fast Refresh and on
+    // recovery from a hydration mismatch. The cleanup's `history.back()` is
+    // asynchronous, so it landed AFTER the second mount had re-registered a
+    // live listener: `popstate` fired, the handler called `requestClose`, and
+    // the drawer shut itself the instant it opened. «کالای جدید» did nothing
+    // at all — one click, no dialog, no error in the console.
+    //
+    // So the pop is deferred by a tick and a remount cancels it, and the push
+    // is skipped when the sentinel is already on top. Together those make the
+    // pair idempotent: one sentinel per open drawer however many times React
+    // chooses to run this.
+    if (guardPopToken !== null) {
+      // A pop is queued, so the sentinel it was going to remove is still on
+      // the stack: this is a remount, and that entry is ours to keep.
+      guardPopToken = null;
+    } else {
+      window.history.pushState({ ...state(), ...marker }, '');
+    }
+
     let live = true;
     const onPopState = () => {
       if (!live) return;
@@ -527,7 +560,19 @@ export function SkuDrawer({
     return () => {
       live = false;
       window.removeEventListener('popstate', onPopState);
-      if (state()?.__skuDrawerGuard === true) window.history.back();
+      const token = {};
+      guardPopToken = token;
+      // A microtask, not a timer: it still lands after a same-commit remount
+      // has had its chance to claim the token, and it is guaranteed to have
+      // run by the end of this task — so a real close pops the entry now
+      // rather than leaving it for whatever happens next.
+      queueMicrotask(() => {
+        if (guardPopToken !== token) return; // a remount took it
+        guardPopToken = null;
+        // Still only when the sentinel is the top of the stack — closing the
+        // drawer by navigating away must not send the admin back a page.
+        if (state()?.__skuDrawerGuard === true) window.history.back();
+      });
     };
   }, []);
 

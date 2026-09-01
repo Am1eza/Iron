@@ -11,8 +11,9 @@
  * 3. Retyping. 186 rows under rebar/deformed differ only in size and mill, and
  *    there was no way to start from one of them.
  */
+import { StrictMode } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { AdminCategory, AdminSku, AdminSubCategory } from '@/lib/api/resources/admin';
@@ -165,6 +166,53 @@ describe('the Back button', () => {
       expect(screen.queryByText(/تغییرات ذخیره‌نشده از بین می‌رود/)).not.toBeNull(),
     );
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('survives a remount, so the drawer opens at all under StrictMode', async () => {
+    // The same asynchronous `history.back()`, reached the other way. React
+    // itself runs mount → cleanup → mount on one instance under StrictMode
+    // (`reactStrictMode: true`, i.e. every dev server and the whole Playwright
+    // suite), and remounts this subtree on Fast Refresh too. The teardown's
+    // pop then landed AFTER the second mount had re-registered a live
+    // listener, so `popstate` fired into a drawer that had only just opened
+    // and closed it again.
+    //
+    // What that looked like: clicking «کالای جدید» produced no drawer, no
+    // error and nothing in the console — the e2e run failed waiting on a
+    // dialog that was never there. So the pair has to be idempotent: one
+    // sentinel, still armed, drawer open.
+    const push = vi.spyOn(window.history, 'pushState');
+    const onClose = vi.fn();
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <StrictMode>
+        <QueryClientProvider client={qc}>
+          <SkuDrawer
+            sku={null}
+            categories={CATEGORIES}
+            subs={SUBS}
+            defaultSubId="s1"
+            onClose={() => onClose()}
+            onSaved={() => {}}
+          />
+        </QueryClientProvider>
+      </StrictMode>,
+    );
+
+    // Long enough for a deferred pop to have landed, if one were still queued
+    // (and for the suggestions query to settle, so the wait is inside `act`).
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
+
+    expect(screen.queryByRole('dialog')).not.toBeNull();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(push).toHaveBeenCalledTimes(1);
+
+    // And the guard still answers Back rather than having spent itself.
+    push.mockRestore();
+    window.history.back();
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
 });
 
