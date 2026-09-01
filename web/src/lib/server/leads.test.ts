@@ -198,6 +198,39 @@ describe('lead → proforma flow', () => {
     expect(lead[0]!.source).toBe('cart');
   });
 
+  it('applies تخفیف پلکانی on the AUTOMATIC path too — createLead is not just issueProforma\'s poor cousin', async () => {
+    // Regression for the audit's Critical finding: createLead used to build
+    // its proforma with a bare `subtotal + vatAmount`, never calling
+    // `resolveVolumeTier` — so a customer whose basket cleared the ۵ تن
+    // threshold got the discount ONLY if a rep manually re-issued the quote
+    // via the admin `issueProforma` path, never on the automatic proforma
+    // `POST /api/leads` (this exact call) actually sends first.
+    const rows = await tableRows('rebar');
+    const sku = rows.find((r) => r.unit === 'kg') ?? rows[0]!;
+    // Enough qty to clear the 5-ton bulk band regardless of whether the SKU
+    // is priced per kg directly or per piece with a theoretical weight.
+    const qty = sku.unit === 'kg' ? 6000 : Math.ceil(6000 / (sku.theoreticalWeightKg || 1));
+
+    const result = await createLead(
+      {
+        contact: { mobile: '09122223333' },
+        items: [{ skuId: sku.id, qty, unit: sku.unit }],
+        source: 'cart',
+      },
+      null,
+    );
+
+    expect(result.totalWeightKg).toBeGreaterThanOrEqual(5000);
+    const p = await findProformaByRef(result.ref);
+    expect(p).not.toBeNull();
+    expect(p!.volumeDiscountToman).toBeGreaterThan(0);
+    expect(p!.volumeTier).toBe('bulk');
+    expect(p!.volumeDiscountLabel).toBe('تخفیف عمده (۱٫۵٪)');
+    // Same identity issueProforma pins: subtotal − volumeDiscount − discount
+    // + vat === total.
+    expect(p!.total).toBe(p!.subtotal - p!.volumeDiscountToman - p!.discountToman + p!.vatAmount);
+  });
+
   it('skips the proforma when a line is unpriced (sales follows up)', async () => {
     const rows = await tableRows('rebar');
     const sku = rows[5]!;

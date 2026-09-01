@@ -418,18 +418,23 @@ export async function createLead(
   // that INSIDE the transaction (which holds one connection) deadlocks on a
   // single-connection backend. A fresh lead has no prior proforma, so its ref
   // is just `ref` (no proformasOfLead lookup needed).
-  let proformaData:
-    | { subtotal: number; vatRate: number; vatAmount: number; total: number; validUntil: Date }
-    | null = null;
+  let proformaData: (ReturnType<typeof computeProformaAmounts> & { validUntil: Date }) | null = null;
   if (allPriced && lines.length > 0) {
-    const [vatRate, holidays, hour] = await Promise.all([
+    // Same discipline as issueProforma's own precompute, and the same reason
+    // (see the transaction comment below): every read here borrows its own
+    // pool connection, so it must happen OUTSIDE the transaction.
+    // `businessVerified` reads the SESSION's user, not the lead's — the lead
+    // row doesn't exist yet, and `session?.id` is exactly what becomes
+    // `userId` on the insert a few lines down, so it is the same account
+    // `issueProforma` would later check via `lead.userId`.
+    const [vatRate, holidays, hour, businessVerified] = await Promise.all([
       getVatRate(),
       getHolidays(),
       getSetting<number>('QUOTE_VALIDITY_HOUR', 11),
+      userHasVerifiedBusiness(session?.id),
     ]);
-    const subtotal = lines.reduce((s, l) => s + (l.lineTotal ?? 0), 0);
-    const vatAmount = Math.round(subtotal * vatRate);
-    proformaData = { subtotal, vatRate, vatAmount, total: subtotal + vatAmount, validUntil: quoteValidUntil(new Date(), holidays, hour) };
+    const amounts = computeProformaAmounts(lines, vatRate, businessVerified);
+    proformaData = { ...amounts, validUntil: quoteValidUntil(new Date(), holidays, hour) };
   }
 
   // ALL DB writes (lead + items + proforma + account-inbox mirror) run in ONE
@@ -465,7 +470,25 @@ export async function createLead(
     );
 
     if (proformaData) {
-      const proforma = await insertProforma({ leadId: lead.id, ref, lines, ...proformaData }, tx);
+      const proforma = await insertProforma(
+        {
+          leadId: lead.id,
+          ref,
+          lines,
+          subtotal: proformaData.subtotal,
+          discountToman: proformaData.discountToman,
+          volumeDiscountToman: proformaData.volumeDiscountToman,
+          volumeTier: proformaData.volumeDiscountToman > 0 ? proformaData.resolved.tier.id : null,
+          volumeDiscountLabel:
+            proformaData.volumeDiscountToman > 0 ? volumeDiscountLabel(proformaData.resolved) : null,
+          quotedWeightKg: proformaData.weightKg > 0 ? proformaData.weightKg : null,
+          vatRate: proformaData.vatRate,
+          vatAmount: proformaData.vatAmount,
+          total: proformaData.total,
+          validUntil: proformaData.validUntil,
+        },
+        tx,
+      );
       validUntilDate = proforma.validUntil;
       result = {
         ref,
@@ -597,28 +620,72 @@ export function quotedWeightKg(lines: readonly LineItem[]): number {
   return Math.round(kg * 100) / 100;
 }
 
-/** Does this lead belong to an APPROVED business account (the owner's
- *  «یا حساب سازمانی تأییدشده» arm of the tier structure)?
+/** Does this user hold an APPROVED business account (the owner's «یا حساب
+ *  سازمانی تأییدشده» arm of the tier structure)?
  *
  *  Reads `users.biz_verify_status` — the same column, and the same
  *  'approved' comparison, that the «حساب سازمانی تأییدشده» badge is drawn
  *  from. 'pending' is deliberately NOT approved: a submitted-but-unreviewed
  *  company registration must not buy a price cut.
  *
- *  A guest lead (no userId) or a deleted account resolves to `false` — the
+ *  A guest (no userId) or a deleted account resolves to `false` — the
  *  tonnage path still applies, so the worst case is a verified buyer being
  *  quoted the same tier an unverified one would get, never a discount granted
  *  on an unverified account. A DB error is deliberately NOT swallowed: it
  *  fails the whole issuance rather than quietly printing a sheet at a tier we
- *  could not actually confirm. */
-async function leadHasVerifiedBusiness(lead: LeadRow): Promise<boolean> {
-  if (!lead.userId) return false;
+ *  could not actually confirm.
+ *
+ *  Takes a userId rather than a `LeadRow` so `createLead` can check the
+ *  buyer's status BEFORE the lead row exists — see `computeProformaAmounts`. */
+async function userHasVerifiedBusiness(userId: string | null | undefined): Promise<boolean> {
+  if (!userId) return false;
   const rows = await getDb()
     .select({ status: users.bizVerifyStatus })
     .from(users)
-    .where(eq(users.id, lead.userId))
+    .where(eq(users.id, userId))
     .limit(1);
   return rows[0]?.status === 'approved';
+}
+
+/** The full money breakdown of a پیش‌فاکتور from its priced lines — the ONE
+ *  place `تخفیف پلکانی` (tonnage/business-tier discount), the manual rep
+ *  discount, and VAT are combined into a total. `issueProforma` (admin,
+ *  manual/re-issue) and `createLead` (automatic, the `allPriced` fast path)
+ *  used to each hardcode this arithmetic, and only the admin one remembered
+ *  to call `resolveVolumeTier` — so a customer whose basket cleared the ۵/۲۰
+ *  تن threshold got their tiered discount ONLY if a rep manually re-issued
+ *  the quote, never on the automatic proforma the shop actually sends first.
+ *  Both callers now go through this pure function so there is exactly one
+ *  formula to audit and pin with tests. */
+export function computeProformaAmounts(
+  lines: readonly LineItem[],
+  vatRate: number,
+  businessVerified: boolean,
+  discountToman = 0,
+) {
+  const subtotal = lines.reduce((s, l) => s + (l.lineTotal ?? 0), 0);
+  const weightKg = quotedWeightKg(lines);
+  const resolved = resolveVolumeTier({ totalWeightKg: weightKg, businessVerified });
+  const volumeDiscount = volumeDiscountToman(subtotal, resolved.tier);
+  // Clamped into what the tier discount left behind, not into `subtotal` —
+  // the tier discount is the customer's entitlement, so it must survive a
+  // rep (or, on the automatic path, a caller passing 0) typing/leaving an
+  // oversized manual figure.
+  const discount = Math.min(Math.max(discountToman, 0), subtotal - volumeDiscount);
+  const taxable = subtotal - volumeDiscount - discount;
+  const vatAmount = Math.round(taxable * vatRate);
+  const total = taxable + vatAmount;
+  return {
+    subtotal,
+    weightKg,
+    resolved,
+    volumeDiscountToman: volumeDiscount,
+    discountToman: discount,
+    taxable,
+    vatRate,
+    vatAmount,
+    total,
+  };
 }
 
 /** Issue (or re-issue) a proforma for a lead from its priced lines.
@@ -653,20 +720,9 @@ export async function issueProforma(
     getVatRate(),
     getHolidays(),
     getSetting<number>('QUOTE_VALIDITY_HOUR', 11),
-    leadHasVerifiedBusiness(lead),
+    userHasVerifiedBusiness(lead.userId),
   ]);
-  const subtotal = lines.reduce((s, l) => s + (l.lineTotal ?? 0), 0);
-
-  const weightKg = quotedWeightKg(lines);
-  const resolved = resolveVolumeTier({ totalWeightKg: weightKg, businessVerified });
-  const volumeDiscount = volumeDiscountToman(subtotal, resolved.tier);
-
-  // Clamped into what the tier discount left behind, not into `subtotal` —
-  // see the ordering note above.
-  const discount = Math.min(Math.max(discountToman, 0), subtotal - volumeDiscount);
-  const taxable = subtotal - volumeDiscount - discount;
-  const vatAmount = Math.round(taxable * vatRate);
-  const total = taxable + vatAmount;
+  const amounts = computeProformaAmounts(lines, vatRate, businessVerified, discountToman);
   const validUntil = quoteValidUntil(new Date(), holidays, hour);
   // First issue reuses the lead's human ref; re-issues get a fresh one.
   const existing = await proformasOfLead(lead.id, dbh);
@@ -679,18 +735,18 @@ export async function issueProforma(
       leadId: lead.id,
       ref,
       lines,
-      subtotal,
-      discountToman: discount,
-      volumeDiscountToman: volumeDiscount,
+      subtotal: amounts.subtotal,
+      discountToman: amounts.discountToman,
+      volumeDiscountToman: amounts.volumeDiscountToman,
       // Null rather than 'retail' when nothing was earned: the columns then
       // read the same on a pre-scheme proforma and on a base-price one, and
       // every display site already tests the amount, not the band.
-      volumeTier: volumeDiscount > 0 ? resolved.tier.id : null,
-      volumeDiscountLabel: volumeDiscount > 0 ? volumeDiscountLabel(resolved) : null,
-      quotedWeightKg: weightKg > 0 ? weightKg : null,
+      volumeTier: amounts.volumeDiscountToman > 0 ? amounts.resolved.tier.id : null,
+      volumeDiscountLabel: amounts.volumeDiscountToman > 0 ? volumeDiscountLabel(amounts.resolved) : null,
+      quotedWeightKg: amounts.weightKg > 0 ? amounts.weightKg : null,
       vatRate,
-      vatAmount,
-      total,
+      vatAmount: amounts.vatAmount,
+      total: amounts.total,
       validUntil,
     },
     dbh,
