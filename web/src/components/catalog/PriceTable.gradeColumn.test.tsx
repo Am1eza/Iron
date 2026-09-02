@@ -26,7 +26,6 @@ function row(
     size: '۱۴',
     factory: 'ذوب‌آهن اصفهان',
     unit: 'kg',
-    isActive: true,
     ...extra,
     current: {
       skuId: id,

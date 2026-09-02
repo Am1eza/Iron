@@ -50,7 +50,6 @@ function row(
     name: id,
     size: '۶۰×۶۰',
     unit: 'kg',
-    isActive: true,
     ...extra,
     current: {
       skuId: id,
@@ -139,8 +138,13 @@ describe('PriceTable — پروفیل, once the fabricated factory is gone', () 
     expect(cellFor('sakhtmani-40', 'کارخانه')).toBe('فولاد مشهد');
     expect(document.querySelector('details')).not.toBeNull();
     expect(screen.getByRole('heading', { name: 'قیمت پروفیل فولاد مشهد' })).toBeInTheDocument();
-    // …and it still keeps «گرید» — this sub was left alone entirely.
-    expect(cellFor('sakhtmani-40', 'گرید')).toBe('ST37');
+    // Its «گرید» went 1405/06/09 — the last پروفیل sub still publishing it.
+    // It had been left alone for having no priced row, but ahanonline
+    // `/انواع-پروفیل/پروفیل/` and teleahan `/پروفیل/پروفیل-ساختمانی/` both
+    // render «سایز | ضخامت | حالت», the very set its siblings already use.
+    expect(screen.queryByRole('columnheader', { name: 'گرید' })).toBeNull();
+    expect(screen.getByRole('columnheader', { name: 'ضخامت' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'حالت' })).toBeInTheDocument();
   });
 
   it('keeps the column in the mixed «همه» view, because ساختمانی is in it', () => {
@@ -199,16 +203,23 @@ describe('PriceTable — the profile-specific replacements for «گرید»', ()
     expect(cellFor('z-30', 'طول')).toBe('طول سفارشی');
   });
 
-  it('gives استیل BOTH «آلیاژ» and «طول شاخه»', async () => {
+  it('gives پروفیل استیل the «آلیاژ»+«حالت» set of its steel/profile twin', async () => {
+    // Same product, two parent categories, ONE ahanonline page
+    // (`/استنلس-استیل/پروفیل-استیل/`, «ابعاد | ضخامت | آلیاژ | حالت»). This
+    // sub used to publish a «طول شاخه» that page does not have and to miss
+    // the «ضخامت» and «حالت» it does, so our two پروفیل استیل pages
+    // disagreed with each other.
     const user = userEvent.setup();
     renderTable();
     await user.click(screen.getByRole('button', { name: 'پروفیل استیل' }));
 
     expect(screen.getByRole('columnheader', { name: 'آلیاژ' })).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: 'طول شاخه' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'حالت' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'ضخامت' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'ابعاد' })).toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: 'گرید' })).toBeNull();
+    expect(screen.queryByRole('columnheader', { name: 'طول شاخه' })).toBeNull();
     expect(cellFor('steel-50', 'آلیاژ')).toBe('۳۰۴');
-    expect(cellFor('steel-50', 'طول شاخه')).toBe('۶ متر');
   });
 
   it('gives furniture/light «ضخامت» + «حالت»', async () => {

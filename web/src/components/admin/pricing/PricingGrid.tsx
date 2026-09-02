@@ -11,7 +11,6 @@ import { normalizeDigits, toPersianDigits } from '@/lib/utils/format';
 import { formatJalali } from '@/lib/utils/jalali';
 import { PRICE_REVIEW_AFTER_DAYS, priceAgeDays } from '@/lib/utils/priceAge';
 import { sizeLabel } from '@/lib/utils/catalogLabels';
-import { routes } from '@/lib/routes';
 import { useToast } from '@/lib/hooks/useToast';
 import { useUnsavedGuard } from '@/lib/hooks/useUnsavedGuard';
 import { ApiError } from '@/lib/api/errors';
@@ -235,7 +234,7 @@ export function PricingGrid() {
     queryFn: adminApi.categories,
     staleTime: 5 * 60 * 1000,
   });
-  const categories = catData?.categories.filter((c) => c.isActive).sort((a, b) => a.order - b.order) ?? [];
+  const categories = [...(catData?.categories ?? [])].sort((a, b) => a.order - b.order);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['admin', 'pricing', cat, sub],
@@ -272,10 +271,6 @@ export function PricingGrid() {
   });
 
   const allRows = useMemo(() => data?.rows ?? [], [data]);
-  /** Active products of this category that no public page — and therefore no
-   *  row below — can show, because their sub-category was deactivated
-   *  underneath them. */
-  const hiddenByTaxonomy = data?.hiddenByTaxonomy ?? 0;
   // W23 review fix (H1): a stale-hidden price («تماس بگیرید») is a stale
   // price too — it's the row that has been stale the LONGEST, which is why
   // it got hidden in the first place (see priceFreshness.ts: `isHidden`
@@ -364,9 +359,7 @@ export function PricingGrid() {
     enabled: Boolean(catId),
     staleTime: 5 * 60 * 1000,
   });
-  const subs = (subData?.subCategories ?? [])
-    .filter((s) => s.isActive)
-    .sort((a, b) => a.order - b.order);
+  const subs = [...(subData?.subCategories ?? [])].sort((a, b) => a.order - b.order);
 
   // One batched request for every visible row's sparkline series.
   const slugsKey = useMemo(() => allRows.map((r) => r.slug).sort().join(','), [allRows]);
@@ -710,14 +703,6 @@ export function PricingGrid() {
         </Alert>
       ) : null}
 
-      {hiddenByTaxonomy > 0 && allRows.length > 0 ? (
-        <Alert tone="warning">
-          ‏{toPersianDigits(hiddenByTaxonomy)} کالای فعال این دسته در این جدول نیست چون زیر‌دسته‌شان غیرفعال است — نه
-          قیمتشان را می‌توانید اینجا ویرایش کنید و نه روی سایت دیده می‌شوند.{' '}
-          <a href={routes.admin.catalog()}>در کاتالوگ ببینید و درستش کنید</a>.
-        </Alert>
-      ) : null}
-
       {isLoading ? (
         <TableSkeleton rows={8} cols={9} />
       ) : isError ? (
@@ -728,22 +713,13 @@ export function PricingGrid() {
           primary={{ label: 'تلاش دوباره', onClick: () => void refetch() }}
         />
       ) : rows.length === 0 && allRows.length === 0 ? (
-        hiddenByTaxonomy > 0 ? (
-          // NOT «کالایی در این دسته نیست». Production had 40 products in
-          // «پروفیل» and this table showed none of them, because their
-          // sub-categories had been retired underneath them — and the empty
-          // state's advice was to go and add products, i.e. to create
-          // duplicates of the ones already there.
-          <EmptyState
-            size="section"
-            tone="error"
-            headline={`${toPersianDigits(hiddenByTaxonomy)} کالای این دسته روی سایت دیده نمی‌شود`}
-            body="زیر‌دستهٔ این کالاها غیرفعال است، پس نه در سایت و نه در این جدول نمایش داده می‌شوند. در «کاتالوگ» یا زیر‌دسته را دوباره فعال کنید یا کالاها را به زیر‌دستهٔ فعال منتقل کنید."
-            primary={{ label: 'رفتن به کاتالوگ', href: routes.admin.catalog() }}
-          />
-        ) : (
-          <EmptyState size="section" headline="کالایی در این دسته نیست" body="از بخش کاتالوگ کالا اضافه کنید." />
-        )
+        // This used to have a second branch for products stranded under a
+        // retired sub-category — 40 of «پروفیل»'s were, and the empty state
+        // told the operator to go and add products, i.e. to duplicate the
+        // ones already there. A product can no longer be missing from this
+        // table while existing in the catalog, so the honest empty state is
+        // the only one left.
+        <EmptyState size="section" headline="کالایی در این دسته نیست" body="از بخش کاتالوگ کالا اضافه کنید." />
       ) : rows.length === 0 ? (
         <EmptyState
           size="section"

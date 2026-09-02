@@ -3,9 +3,14 @@ import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { adminListSkus, createSku } from '@/lib/server/repos/catalogAdminRepo';
-import { catalogErrorResponse, revalidateCatalog } from '@/lib/server/utils/catalogRoute';
+import {
+  catalogErrorResponse,
+  clearRedirectShadow,
+  revalidateCatalog,
+  skuPublicPath,
+} from '@/lib/server/utils/catalogRoute';
 import { finiteNumber, slugSchema, uploadPathSchema } from '@/lib/validation/utils';
-import { normalizePersian, normalizeSizeText } from '@/lib/utils/persianText';
+import { normalizeCatalogSize, normalizeCatalogText } from '@/lib/server/utils/persianZwnj';
 import { toPersianDigits } from '@/lib/utils/format';
 import { PRICE_BASIS_VALUES, PRICE_UNIT_VALUES } from '@/lib/types/domain';
 
@@ -15,14 +20,10 @@ async function GETImpl(req: NextRequest) {
   const auth = await requireApiPermission(req, 'catalog:read');
   if ('response' in auth) return auth.response;
   const p = req.nextUrl.searchParams;
-  const statusParam = p.get('status');
   const result = await adminListSkus({
     categoryId: p.get('categoryId') ?? undefined,
     subCategoryId: p.get('subCategoryId') ?? undefined,
     q: p.get('q') ?? undefined,
-    status: statusParam === 'active' || statusParam === 'inactive' ? statusParam : undefined,
-    visibility: p.get('visibility') === 'hidden' ? 'hidden' : undefined,
-    includeInactive: p.get('all') === 'true',
     // `Number('1e400')` is Infinity, which reached OFFSET and made Postgres
     // reject the statement outright; the repo now clamps, this just parses.
     page: Number(p.get('page') ?? 1),
@@ -34,7 +35,7 @@ async function GETImpl(req: NextRequest) {
 /** Free text an admin types or pastes gets normalized on the way in: Arabic
  *  ك/ي are visually identical to Persian ک/ی but never ILIKE-match them, so a
  *  name saved from an Excel paste becomes permanently unsearchable. */
-const persianText = (max: number) => z.string().trim().min(1).max(max).transform(normalizePersian);
+const persianText = (max: number) => z.string().trim().min(1).max(max).transform(normalizeCatalogText);
 const optionalPersianText = (max: number) =>
   z
     .string()
@@ -42,7 +43,7 @@ const optionalPersianText = (max: number) =>
     .max(max)
     .nullable()
     .optional()
-    .transform((v) => (v ? normalizePersian(v) : v === '' ? null : v));
+    .transform((v) => (v ? normalizeCatalogText(v) : v === '' ? null : v));
 
 const createPayload = z.object({
   // `categoryId` is deliberately absent: it is fully determined by the
@@ -62,7 +63,7 @@ const createPayload = z.object({
     .max(40)
     .nullable()
     .optional()
-    .transform((v) => (v ? normalizeSizeText(v) : v === '' ? null : v)),
+    .transform((v) => (v ? normalizeCatalogSize(v) : v === '' ? null : v)),
   grade: optionalPersianText(40),
   // Product form/finish, deliberately independent of metallurgical `grade`.
   // Both can be present on one row (aluminium sheet is the motivating case).
@@ -77,7 +78,7 @@ const createPayload = z.object({
     .max(40)
     .nullable()
     .optional()
-    .transform((v) => (v ? normalizeSizeText(v) : v === '' ? null : v)),
+    .transform((v) => (v ? normalizeCatalogSize(v) : v === '' ? null : v)),
   // «رده» — the pipe schedule. لوله's pressure-pipe subs only (the admin form
   // offers it nowhere else). Through normalizeSizeText like `size`, so a «40»
   // typed on a Latin keypad and a «۴۰» typed on a Persian one are one value
@@ -88,7 +89,7 @@ const createPayload = z.object({
     .max(40)
     .nullable()
     .optional()
-    .transform((v) => (v ? normalizeSizeText(v) : v === '' ? null : v)),
+    .transform((v) => (v ? normalizeCatalogSize(v) : v === '' ? null : v)),
   factory: optionalPersianText(80),
   // Admin-chosen position within this SKU's own factory-grouped section on
   // the public price page. Absent leaves the column at its `0` ("unranked")
@@ -123,7 +124,17 @@ async function POSTImpl(req: NextRequest) {
     if (mapped) return mapped;
     throw err;
   }
-  await audit(auth.session.id, 'catalog.sku.create', { type: 'sku', id: sku.id }, null, v.data);
+  // The ROW, not the request body. `v.data.slug` is what the client asked for;
+  // `sku.slug` is what exists, and `freeSlug` may have made it `…-2`. The body
+  // also has no `categoryId` (derived from the sub) and no sanitized
+  // `crossListedCategoryIds` — so the activity log showed a product that was
+  // never in the database, which is the same log the delete entry expects to
+  // be reconstructible from.
+  await audit(auth.session.id, 'catalog.sku.create', { type: 'sku', id: sku.id }, null, sku);
+  // A SKU slug is globally unique, so recreating a deleted product reuses its
+  // exact old URL — the one its own delete left a tombstone on. See
+  // `clearRedirectShadow`.
+  await clearRedirectShadow([await skuPublicPath(sku.categoryId, sku.subCategoryId, sku.slug)]);
   // The SKU routes used to revalidate NOTHING while the taxonomy routes
   // revalidated the world — a new product stayed invisible for the full
   // 5-minute ISR window.

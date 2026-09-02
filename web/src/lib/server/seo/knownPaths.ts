@@ -38,6 +38,9 @@
  */
 import { TOOL_SLUGS, COOPERATION_TRACKS } from '@/lib/routes';
 import { NEWS_TOPICS } from '@/lib/data/newsTopics';
+import { publicCatalogPaths } from '@/lib/server/repos/catalogRepo';
+import { publishedGuardPaths } from '@/lib/server/repos/articlesRepo';
+import { hasDb } from '@/lib/server/db/client';
 
 /**
  * URL families served by a dynamic segment whose slug set lives in the
@@ -215,4 +218,49 @@ export function shouldNotFound(
   // carried no escapes at all — checking it costs nothing and cannot 404 a
   // path that is genuinely known.
   return !known.has(p) && !known.has(raw);
+}
+
+/**
+ * The `known` set's cache — moved here (out of middleware.ts, which merely
+ * consumed it) so an admin write can invalidate it too. Same in-process,
+ * TTL'd shape middleware.ts's `redirectCache` still keeps locally (one
+ * long-lived Node process — see middleware.ts's runtime comment).
+ *
+ * Confirmed live (2026-09-01, e2e/admin-pricing-catalog.spec.ts's delete
+ * test, CI run 33518928535): a SKU created via the admin API and read back
+ * immediately hard-404'd through THIS guard — `revalidateCatalog` cleared
+ * Next's ISR page cache and the AI advisor's `domainFacts`, but never told
+ * this middleware-level guard its `known` set was now stale, so it kept
+ * routing the brand-new URL through `notFound()` for up to
+ * `KNOWN_PATHS_TTL_MS` regardless. `invalidateKnownPaths` closes that gap the
+ * same way `invalidateDomainFacts` already does for the advisor's cache.
+ */
+let knownPathCache: Set<string> = new Set();
+let knownPathsLoadedAt = 0;
+const KNOWN_PATHS_TTL_MS = 60_000;
+
+/** Force the next `getKnownPaths()` call to hit the DB, regardless of TTL. */
+export function invalidateKnownPaths(): void {
+  knownPathsLoadedAt = 0;
+}
+
+/**
+ * The current `known` set, refreshing it first if stale. Empty = "not
+ * loaded"/"DB hiccup" and is fail-open by `shouldNotFound`'s own contract —
+ * never replaced with an empty set on a failed refresh, only left as
+ * whatever last loaded successfully.
+ */
+export async function getKnownPaths(): Promise<ReadonlySet<string>> {
+  if (Date.now() - knownPathsLoadedAt < KNOWN_PATHS_TTL_MS) return knownPathCache;
+  // Set BEFORE the await (synchronously, no yield point in between) so two
+  // requests landing in the same tick don't both kick off a refresh.
+  knownPathsLoadedAt = Date.now();
+  if (!hasDb()) return knownPathCache;
+  try {
+    const [catalog, articles] = await Promise.all([publicCatalogPaths(), publishedGuardPaths()]);
+    knownPathCache = new Set([...catalog, ...articles]);
+  } catch {
+    // Keep whatever was already loaded — see the class doc comment above.
+  }
+  return knownPathCache;
 }

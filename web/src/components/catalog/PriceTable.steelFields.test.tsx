@@ -50,7 +50,6 @@ function row(
     size: '۴۰×۴۰',
     unit: 'kg',
     priceBasis: 'kg',
-    isActive: true,
     ...extra,
     current: {
       skuId: id,

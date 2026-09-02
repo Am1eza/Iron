@@ -32,7 +32,6 @@ function row(categoryId: string, subCategoryId: string, extra: Partial<PriceRow>
     factory: 'فولاد مبارکه',
     unit: 'kg',
     priceBasis: 'kg',
-    isActive: true,
     current: {
       skuId: subCategoryId,
       price: 500_000,

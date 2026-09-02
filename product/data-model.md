@@ -37,7 +37,6 @@ interface Category {
   order: number;
   iconId: string;           // cat-rebar
   imageUrl?: string;        // rail hero image
-  isActive: boolean;
   seo?: SeoMeta;
   createdAt: string; updatedAt: string;
 }
@@ -47,7 +46,6 @@ interface SubCategory {
   slug: string;             // "اجدار"
   name: string;             // "میلگرد آجدار"
   order: number;
-  isActive: boolean;
   seo?: SeoMeta;
 }
 
@@ -61,7 +59,6 @@ interface SKU {
   factory?: string;         // "ذوب‌آهن"
   theoreticalWeightKg?: number;  // per unit (شاخه/برگ/متر) — for وزن‌سنج & per-kg↔per-piece
   unit: PriceUnit;          // base selling unit
-  isActive: boolean;        // inactive = hidden, history kept
   seo?: SeoMeta;
   createdAt: string; updatedAt: string;
 }
@@ -227,8 +224,8 @@ interface Setting { key: string; value: unknown; updatedAt: string; }
 
 ## 9. Key Constraints & Indexes
 - **Unique:** `Category.slug`, `SubCategory(categoryId,slug)`, `SKU.slug`, `User.mobile`, `Lead.ref`, `Proforma.ref`.
-- **Indexes (read-hot):** `CurrentPrice(skuId)`, `SKU(subCategoryId,isActive)`, `PricePoint(skuId,at)`, `Alert(status)`, `Lead(status,assigneeId,createdAt)`, `Article(status,publishAt)`, `MarketValue(key)`.
-- **Soft-delete:** `isActive=false` hides SKUs/categories but **retains history** (never hard-delete priced SKUs).
+- **Indexes (read-hot):** `CurrentPrice(skuId)`, `SKU(subCategoryId)`, `PricePoint(skuId,at)`, `Alert(status)`, `Lead(status,assigneeId,createdAt)`, `Article(status,publishAt)`, `MarketValue(key)`.
+- **Delete means delete (2026-08-31, owner's call):** the catalog has no hidden/inactive state. Removing a category, sub-category or SKU removes the row and cascades to its structural children (prices, price history, favourites, alerts). Business history is protected by the FK rules, not by keeping dead catalog rows: `LeadItem.skuId` and `OrderItem.skuId` are `ON DELETE SET NULL` and each line keeps its own frozen name and price. The previous `isActive` soft-delete produced a third state — in the database, invisible to customers, invisible in most admin views — that stranded 167 priced products for weeks.
 - **Money:** integer Toman everywhere; never float.
 
 ## 10. API Contract (outline — REST; backend layer details later)

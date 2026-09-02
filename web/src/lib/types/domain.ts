@@ -128,7 +128,6 @@ export interface Category {
   order: number;
   iconId: string;
   imageUrl?: string;
-  isActive: boolean;
   /**
    * One or two lines saying what this product line IS and who buys it —
    * admin-authored, read from `categories.seo.description`.
@@ -156,7 +155,6 @@ export interface SubCategory {
   /** Display-only cluster label, not a real hierarchy level — see server/db/schema/catalog.ts. */
   groupLabel: string | null;
   order: number;
-  isActive: boolean;
 }
 
 export interface SKU {
@@ -220,7 +218,6 @@ export interface SKU {
    *  photo keyed on CATEGORY, so every rebar looked identical and an uploaded
    *  photo silently went nowhere. */
   imageUrl?: string;
-  isActive: boolean;
   /** Category IDs this SKU is ALSO listed under, beyond its own home
    *  (categoryId/subCategoryId, which is what its URL is built from) — e.g.
    *  a sheet-steel product tagged into the "استیل" hub category too. Never

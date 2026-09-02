@@ -24,7 +24,6 @@ function row(overrides: Partial<PriceRow> = {}): PriceRow {
     unit: 'kg',
     priceBasis: 'kg',
     theoreticalWeightKg: 14.5,
-    isActive: true,
     current: {
       skuId: 'rebar-14',
       price: 35_000,

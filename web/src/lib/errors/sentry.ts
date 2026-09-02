@@ -53,6 +53,7 @@ export function sendToSentry(
   message: string,
   stack: string | undefined,
   context?: Record<string, unknown>,
+  level: 'error' | 'warning' = 'error',
 ): void {
   const url = ingestUrl();
   if (!url) return;
@@ -70,7 +71,7 @@ export function sendToSentry(
   const event = {
     event_id: eventId,
     timestamp: sentAt,
-    level: 'error',
+    level,
     environment: process.env.NODE_ENV ?? 'production',
     // Without a release, every event in the tracker is undated in the only
     // sense that matters: you cannot tell whether an error is still happening

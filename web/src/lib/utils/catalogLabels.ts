@@ -34,7 +34,15 @@ const THICKNESS_CATEGORIES = new Set(['sheet']);
  * 1000/1250/1500, while cut rows are 1000×2000/1250×2500/etc. — one column
  * holding either shape, which is exactly what our own black rows already
  * store. */
-const SHEET_DIMENSION_SUBS = new Set(['black']);
+const SHEET_DIMENSION_SUBS = new Set([
+  'black',
+  // The alloy plates carry the same mixed width / width×length fact and both
+  // sources head it «سایز» — ahanonline's ورق A516 page and teleahan's A516 and
+  // ST52 pages alike. (ahanonline's own ST52 page says «ابعاد», the single
+  // place in its ورق tree that word appears; see `SHEET_ATTRS`.)
+  'vrgh-a516',
+  'vrgh-st52',
+]);
 
 /**
  * Main-ورق subs whose `dimensions` is a bare WIDTH, headed «عرض».
@@ -173,10 +181,39 @@ const PROFILE_THICKNESS_SUBS = new Set([
   'profil-galvanizeh',
   'profil-z',
   'profil-sotuni',
+  // Added 1405/06/09 — the last two پروفیل subs still on the bare «گرید»
+  // fallback, and the only two the previous passes skipped because they hold
+  // no priced stock. «no stock» is not «no source»: both have published
+  // column sets, and wiring them now is what stops a future SKU from landing
+  // on a page whose header is wrong.
+  //  · `prvfyl-sakhtmany` — ahanonline `/انواع-پروفیل/پروفیل/` and teleahan
+  //    `/پروفیل/پروفیل-ساختمانی/` both render «سایز | ضخامت | حالت».
+  //  · `prvfyl-astyl` — ahanonline `/استنلس-استیل/پروفیل-استیل/» renders
+  //    «ابعاد | ضخامت | آلیاژ | حالت», identical to the `steel/profile` sub
+  //    this one duplicates under the wrong parent category.
+  'prvfyl-sakhtmany',
+  'prvfyl-astyl',
 ]);
 
-/** Coloured-metal sheet lines whose `dimensions` is width×length. */
+/** Coloured-metal sheet lines whose stored `size` is a THICKNESS — the pair
+ *  `sizeLabel` reads. Both also carry a second dimension in `dimensions`, but
+ *  under two DIFFERENT headers: see `COLOURED_SHEET_AREA_SUBS` below. */
 const COLOURED_SHEET_DIMENSION_SUBS = new Set(['aluminum-sheet', 'copper-sheet']);
+
+/** ورق آلومینیوم's «ابعاد» — its source's own word for the width×length. */
+const COLOURED_SHEET_AREA_SUBS = new Set(['aluminum-sheet']);
+
+/**
+ * ورق مسی's own word for that same width×length: «سایز», not «ابعاد».
+ *
+ * Split out of `COLOURED_SHEET_DIMENSION_SUBS` 1405/06/09. The two subs share
+ * a `sizeLabel` («ضخامت») but not this header, and lumping them together made
+ * copper borrow aluminium's word. ahanonline `/انواع-ورق/ورق-مسی/` renders
+ * «ضخامت | **سایز** | برند | حالت» over its priced rows, while its ورق
+ * آلومینیوم sibling renders «آلیاژ | ضخامت | حالت | **ابعاد** | برند» — same
+ * fact, two different published names, so each sub gets its source's.
+ */
+const COLOURED_SHEET_SIZE_SUBS = new Set(['copper-sheet']);
 
 /**
  * فلزات رنگی sheet lines whose «کارخانه» column is really a «برند» — the
@@ -196,11 +233,21 @@ const COLOURED_SHEET_DIMENSION_SUBS = new Set(['aluminum-sheet', 'copper-sheet']
  *
  * Unlike مانیسمان, whose stored value is an ORIGIN rather than a mill, these
  * really are mill/brand identities; what is wrong is only the word above
- * them. لوله مسی is deliberately NOT here even though we store a brand for
- * it: ahanonline's لوله مسی page publishes no brand column at all, so there
- * is no source label to match.
+ * them.
+ *
+ * `copper-pipe` joined 1405/06/09. It was deliberately excluded before, on the
+ * rule "no source column, no relabel" — ahanonline's لوله مسی page renders
+ * «ضخامت | size | حالت» and names no producer at all. What that reading
+ * missed is that this is not an unnamed fact: our لوله مسی rows store
+ * «باهنر», «بابک» and «مهر اصل», and «باهنر» is the very value sitting under
+ * ahanonline's «برند» header on the ورق مسی page one directory away. So the
+ * old rule left our own site printing one identity under two different words
+ * on two adjacent copper pages. Where a source names the column we take its
+ * word; where none does, the word our own catalog already uses for that exact
+ * producer identity is the next-best answer, and it is not contradicted by
+ * any source.
  */
-const COLOURED_SHEET_BRAND_SUBS = new Set(['aluminum-sheet', 'copper-sheet']);
+const COLOURED_SHEET_BRAND_SUBS = new Set(['aluminum-sheet', 'copper-sheet', 'copper-pipe']);
 
 /**
  * Coloured-metal SECTION lines (نبشی/ناودانی/لوله/پروفیل آلومینیوم) whose
@@ -405,8 +452,48 @@ const PIPE_SCHEDULE_SUBS = new Set(['seamless-internal', 'seamless-external']);
  */
 const SEAMLESS_BRAND_SUBS = new Set(['seamless-internal', 'seamless-external']);
 
+/**
+ * Every لوله sub whose producer column its own source heads «برند» — the
+ * مانیسمان set above, plus the two added 1405/06/09 when the owner asked for
+ * the column NAMES to match the references exactly.
+ *
+ * ahanonline `/انواع-لوله/لوله-درز-مستقیم/لوله-گاز-خانگی/` renders
+ * «سایز | ضخامت | **برند**» and `/انواع-لوله/لوله-جدار-چاه/` renders
+ * «سایز | **برند** | ضخامت» (both fetched 2026-08-31). Our stored values on
+ * those two subs are real Iranian mills — «سپاهان» on گازی, «تهران شرق» /
+ * «کالوپ» / «کیان پرشیا» on جدار چاه — so unlike مانیسمان nothing about the
+ * VALUE is wrong here; only the word above it, which is the whole point of
+ * `factoryLabel` being a separate question from `factoryIsMeaningful`.
+ *
+ * Deliberately still an allow-list rather than the لوله category: صنعتی,
+ * گالوانیزه, داربستی and اسپیرال publish no producer column on either
+ * reference, so «کارخانه» — this catalog's own default, and the word its
+ * factory grouping, its «۱۲ کارخانه» stat and its sort control all use —
+ * stays there rather than being renamed to match a column that has no source.
+ */
+const PIPE_BRAND_SUBS = new Set([...SEAMLESS_BRAND_SUBS, 'gas', 'well-casing']);
+
+/**
+ * سپری's producer column, «برند» — ahanonline
+ * `/نبشی-و-ناودانی/سپری/` renders «سایز | **برند** | طول شاخه» (fetched
+ * 2026-08-31). This is the one نبشی و ناودانی sub whose reference names that
+ * column at all: its نبشی, ناودانی and وال‌پست pages publish no producer
+ * column, so those three keep the generic «کارخانه».
+ */
+const ANGLE_CHANNEL_BRAND_SUBS = new Set(['separi']);
+
 /** Main-ورق lines whose source calls the producer column «برند». */
-const SHEET_BRAND_SUBS = new Set(['black', 'oiled', 'galvanized', 'pickled', 'colored']);
+const SHEET_BRAND_SUBS = new Set([
+  'black',
+  'oiled',
+  'galvanized',
+  'pickled',
+  'colored',
+  // ahanonline `/انواع-ورق/ورق-A516/` heads its producer column «برند» like
+  // every other page in its ورق tree. `vrgh-st52` is deliberately absent: that
+  // one page says «کارخانه», which is already this catalog's default.
+  'vrgh-a516',
+]);
 
 export const SIZE_LABEL = 'سایز';
 export const HEIGHT_LABEL = 'ارتفاع';
@@ -450,7 +537,8 @@ const DIMENSION_MEANING: ReadonlyMap<string, string> = new Map(
       ['sheet', SHEET_DIMENSION_SUBS, SIZE_LABEL],
       ['sheet', SHEET_WIDTH_SUBS, WIDTH_LABEL],
       ['sheet', SHEET_WIDTH_AS_SIZE_SUBS, SIZE_LABEL],
-      ['felezat-rangi', COLOURED_SHEET_DIMENSION_SUBS, DIMENSIONS_LABEL],
+      ['felezat-rangi', COLOURED_SHEET_AREA_SUBS, DIMENSIONS_LABEL],
+      ['felezat-rangi', COLOURED_SHEET_SIZE_SUBS, SIZE_LABEL],
       ['felezat-rangi', COLOURED_SECTION_THICKNESS_SUBS, THICKNESS_LABEL],
       ['steel', STEEL_THICKNESS_SUBS, THICKNESS_LABEL],
       ['profile', PROFILE_THICKNESS_SUBS, THICKNESS_LABEL],
@@ -506,8 +594,12 @@ export function sizeLabel(
 ): string {
   if (categorySlug === 'profile' && subCategorySlug === 'profil-z') return HEIGHT_LABEL;
   // ahanonline publishes پروفیل استیل's outside section as «ابعاد»,
-  // beside its independent wall «ضخامت» in `dimensions`.
+  // beside its independent wall «ضخامت» in `dimensions`. `profile/prvfyl-astyl`
+  // is the same product filed under the wrong parent category and gets the
+  // same header — otherwise the two پروفیل استیل pages this catalog has would
+  // disagree about what to call one fact.
   if (categorySlug === 'steel' && subCategorySlug === 'profile') return DIMENSIONS_LABEL;
+  if (categorySlug === 'profile' && subCategorySlug === 'prvfyl-astyl') return DIMENSIONS_LABEL;
   if (
     categorySlug === 'felezat-rangi' &&
     Boolean(subCategorySlug && COLOURED_SHEET_DIMENSION_SUBS.has(subCategorySlug))
@@ -591,6 +683,19 @@ export function factoryIsMeaningful(
   // that identical situation (1405/06/09, delegated): drop «کارخانه» here
   // too rather than leave an imported product publishing a fake mill column.
   if (categorySlug === 'rebar' && subCategorySlug === 'stainless') return false;
+  //
+  // لوله گوشت‌دار is the third instance of that same situation, found
+  // 1405/06/09 while making the column sets exact. Its `skus.factory` reads
+  // «چین» on 7 of its 8 live rows and «وارداتی» on the eighth — a country of
+  // origin and an import status, not a mill, so the page was publishing a
+  // «کارخانه» column, a factory sort control and a «قیمت لوله چین» section
+  // heading over a field that names no factory. Both references agree there is
+  // no producer column here at all: ahanonline `/انواع-لوله/لوله-گوشتدار/`
+  // renders «سایز» and nothing else beside it, and teleahan has no گوشت‌دار
+  // page. Dropping it makes this page match its source exactly and applies the
+  // owner's own already-stated rule for imported stock. Nothing is deleted —
+  // this withholds the value at the DTO boundary, as it does for استیل.
+  if (categorySlug === 'pipe' && subCategorySlug === 'thick-walled') return false;
   if (categorySlug !== 'profile') return true;
   return !(subCategorySlug && PROFILE_NO_FACTORY_SUBS.has(subCategorySlug));
 }
@@ -623,7 +728,14 @@ export function factoryLabel(
   categorySlug: string | null | undefined,
   subCategorySlug: string | null | undefined = null,
 ): string {
-  if (categorySlug === 'pipe' && subCategorySlug && SEAMLESS_BRAND_SUBS.has(subCategorySlug)) {
+  if (categorySlug === 'pipe' && subCategorySlug && PIPE_BRAND_SUBS.has(subCategorySlug)) {
+    return BRAND_LABEL;
+  }
+  if (
+    categorySlug === 'angle-channel' &&
+    subCategorySlug &&
+    ANGLE_CHANNEL_BRAND_SUBS.has(subCategorySlug)
+  ) {
     return BRAND_LABEL;
   }
   // See COLOURED_SHEET_BRAND_SUBS — ahanonline's own ورق آلومینیوم و ورق
@@ -887,9 +999,18 @@ const PROFILE_ATTRS: Record<string, AttrKey[]> = {
   'prvfyl-snaty': ['profileCondition'],
   'profil-mobli': ['profileCondition'],
   'profil-sotuni': ['profileCondition'],
+  // پروفیل ساختمانی — the one پروفیل sub still publishing the empty «گرید»
+  // this whole reconciliation exists to remove. It was left out of the
+  // 1405/06 pass for having no priced row; the column set is nonetheless
+  // published and agreed on by both references (see PROFILE_THICKNESS_SUBS),
+  // and it is the SAME set its صنعتی/مبلی/ستونی siblings already use.
+  'prvfyl-sakhtmany': ['profileCondition'],
   'profil-galvanizeh': ['length'],
   'profil-z': ['customLength'],
-  'prvfyl-astyl': ['alloy', 'branchLength'],
+  // «حالت», not «طول شاخه» — ahanonline's پروفیل استیل page publishes the
+  // supplied form, exactly as the `steel/profile` entry in STEEL_ATTRS
+  // already records for the identical product.
+  'prvfyl-astyl': ['alloy', 'condition'],
   chaharpahlu: ['legacyCondition'],
 };
 
@@ -1047,10 +1168,13 @@ const REBAR_ATTRS: Readonly<Record<string, AttrKey[]>> = {
  * - `colored`: its legacy `grade` is colour, so use the display-only `color`
  *   key above—the same relabel-without-moving-data pattern as stainless alloy.
  *
- * Width remains intentionally unwired on oiled/galvanized/colored (called
- * «عرض» by ahanonline) and pickled (called «سایز» there): no dedicated
- * stored field carries that independent fact. Do not overload `dimensions`;
- * these need one coordinated nullable width column in a later schema PR.
+ * The width these four publish — «عرض» on روغنی/گالوانیزه/رنگی, «سایز» on
+ * اسیدشویی — is NOT an attribute column and is not listed here. It is
+ * `skus.dimensions`, wired through `SHEET_WIDTH_SUBS`/`SHEET_WIDTH_AS_SIZE_SUBS`
+ * above; the note that once stood here calling for "one coordinated nullable
+ * width column in a later schema PR" was superseded by #353, which established
+ * that `dimensions` IS that column and that no sub gains a second meaning for
+ * it.
  */
 const SHEET_ATTRS: Readonly<Record<string, AttrKey[]>> = {
   black: ['legacyCondition'],
@@ -1058,6 +1182,21 @@ const SHEET_ATTRS: Readonly<Record<string, AttrKey[]>> = {
   galvanized: [],
   pickled: ['standard'],
   colored: ['color'],
+  // The two alloy-plate subs, reconciled 1405/06/09. Both hold no priced row
+  // today and both fell through to the `['legacyCondition']` fallback, which
+  // is half right — the «حالت» is real, but each source publishes a second
+  // column beside it that this catalog was not offering.
+  //  · `vrgh-a516` — ahanonline `/انواع-ورق/ورق-A516/` renders «استاندارد |
+  //    ضخامت | سایز | برند | حالت» and teleahan `/ورق/ورق-گرم/ورق-a516/`
+  //    renders «سایز | ضخامت | حالت». Union, and «استاندارد» is exactly what
+  //    an A516 plate is bought on (A516 Gr.60 vs Gr.70).
+  //  · `vrgh-st52` — teleahan `/ورق/ورق-گرم/ورق-st52/` renders «سایز | ضخامت |
+  //    حالت»; ahanonline's own ST52 page is the outlier of its whole ورق tree
+  //    («کارخانه | وضعیت | ابعاد»), using three words it uses nowhere else, so
+  //    the sibling-consistent teleahan set is taken instead. Its grade IS the
+  //    sub name, so no standard column.
+  'vrgh-a516': ['standard', 'legacyCondition'],
+  'vrgh-st52': ['legacyCondition'],
 };
 
 /**
@@ -1173,12 +1312,37 @@ const PIPE_ATTRS: Readonly<Record<string, AttrKey[]>> = {
     string,
     AttrKey[]
   >),
-  galvanized: ['standard', 'branch'],
-  industrial: ['standard', 'branch'],
+  // «ضخامت | حالت | استاندارد», in that order, on BOTH sources — ahanonline
+  // `/انواع-لوله/لوله-گالوانیزه/` and `/…/لوله-درز-مستقیم/` and teleahan
+  // `/لوله-اتصالات/لوله-گالوانیزه/` (fetched 2026-08-31). We had the last two
+  // the other way round; `attrKeysFor`'s array order IS the render order.
+  galvanized: ['branch', 'standard'],
+  industrial: ['branch', 'standard'],
   scaffold: ['branch'],
-  spiral: ['grade', 'branch'],
+  // «گرید» dropped 1405/06/09. The 1405/06 pass kept it here as the one لوله
+  // exception, on the reading that its ST37 — stored in `grade` on all 12 live
+  // rows — was real owner-entered data that strict source-matching would
+  // delete. Re-checked against BOTH references on the day the owner asked for
+  // the column sets to be made exact, and neither publishes any grade,
+  // analysis or standard column for this product: ahanonline
+  // `/انواع-لوله/لوله-اسپیرال/` renders «سایز | ضخامت | حالت» and teleahan
+  // `/لوله-اتصالات/لوله-اسپیرال/` renders «سایز | ضخامت | حالت» too. ST37 is
+  // simply what spiral pipe is made of — it is the same on every row, so as a
+  // COLUMN it distinguishes nothing, which is why neither source prints one.
+  // The stored value is untouched and still shows on the product's own spec
+  // sheet; only the price-table column goes.
+  spiral: ['branch'],
   furniture: ['branch'],
-  'well-casing': ['standard'],
+  // Emptied 1405/06/09, and this is the resolution of the question #350 left
+  // open here in writing («Flagged for the owner: if matching the source
+  // column-for-column wins here too, this becomes `[]`»). It does — the owner
+  // asked for exactly that. ahanonline `/انواع-لوله/لوله-جدار-چاه/` renders
+  // «سایز | برند | ضخامت» and teleahan `/لوله-اتصالات/لوله-جدار-چاه/» renders
+  // «سایز | ضخامت»; neither has a standard column, and the ST37 our 13 rows
+  // store is constant across all of them. Its «کارخانه» becomes «برند» in
+  // `factoryLabel`, which is the third column ahanonline does publish — so
+  // this page now matches its source column-for-column.
+  'well-casing': [],
   gas: [],
   'thick-walled': [],
 };

@@ -53,7 +53,6 @@ function row(
     size: '۴ اینچ',
     unit: 'kg',
     priceBasis: 'kg',
-    isActive: true,
     ...extra,
     current: {
       skuId: id,
@@ -203,14 +202,21 @@ describe('PriceTable — مانیسمان calls its factory column «برند»'
     expect(cellFor('seamless-3', 'برند')).toContain('لوله سپاهان');
   });
 
-  it('leaves every other لوله sub on «کارخانه»', async () => {
+  it('leaves the لوله subs whose sources name no producer on «کارخانه»', async () => {
+    // گازی left this list 1405/06/09 — ahanonline's لوله گاز خانگی table
+    // heads that column «برند», so it now reads برند like مانیسمان. صنعتی and
+    // مبلی have no producer column on any reference, so there is no source
+    // word to adopt and the catalog's own default stays.
     const user = userEvent.setup();
     renderTable();
-    for (const sub of ['گازی', 'صنعتی درزدار', 'مبلی']) {
+    for (const sub of ['صنعتی درزدار', 'مبلی']) {
       await user.click(screen.getByRole('button', { name: sub }));
       expect(screen.getByRole('columnheader', { name: 'کارخانه' })).toBeInTheDocument();
       expect(screen.queryByRole('columnheader', { name: 'برند' })).toBeNull();
     }
+    await user.click(screen.getByRole('button', { name: 'گازی' }));
+    expect(screen.getByRole('columnheader', { name: 'برند' })).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'کارخانه' })).toBeNull();
   });
 
   it('keeps the generic «کارخانه» in the mixed «همه» view', () => {

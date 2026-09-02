@@ -40,7 +40,6 @@ function row(over: Partial<PriceRow> & { price?: number } = {}): PriceRow {
     order: 0,
     unit: 'kg',
     priceBasis: 'kg',
-    isActive: true,
     ...rest,
     current: {
       skuId: rest.id ?? 'sku-1',

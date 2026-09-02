@@ -38,7 +38,6 @@ const ROW: PriceRow = {
   order: 0,
   unit: 'kg',
   priceBasis: 'kg',
-  isActive: true,
   current: {
     skuId: 'sku-1',
     price: 500_000,
