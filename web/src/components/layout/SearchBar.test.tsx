@@ -27,7 +27,6 @@ function sku(id: string): PriceRow {
     factory: 'فولاد مبارکه',
     size: '14',
     unit: 'kg',
-    isActive: true,
     current: {
       skuId: id,
       price: 500_000,

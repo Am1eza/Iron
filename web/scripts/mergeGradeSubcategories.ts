@@ -71,8 +71,8 @@ if (!keepSub || !retireSub) {
   process.exit(1);
 }
 
-console.log(`[merge-grade-sub] Keep:   ${keepSub.id}  slug=${keepSub.slug}  name="${keepSub.name}"  active=${keepSub.isActive}`);
-console.log(`[merge-grade-sub] Retire: ${retireSub.id}  slug=${retireSub.slug}  name="${retireSub.name}"  active=${retireSub.isActive}`);
+console.log(`[merge-grade-sub] Keep:   ${keepSub.id}  slug=${keepSub.slug}  name="${keepSub.name}"`);
+console.log(`[merge-grade-sub] Retire: ${retireSub.id}  slug=${retireSub.slug}  name="${retireSub.name}"`);
 
 const orphanSkus = await db.select().from(schema.skus).where(eq(schema.skus.subCategoryId, RETIRE_SUB_ID));
 console.log(`\n[merge-grade-sub] ${orphanSkus.length} sku(s) under ${retireSub.slug} to re-home:`);
@@ -81,7 +81,7 @@ for (const s of orphanSkus) {
   const from = routes.sku(CATEGORY_SLUG, retireSub.slug, s.slug);
   const to = routes.sku(CATEGORY_SLUG, keepSub.slug, s.slug);
   skuRedirects.push({ from, to });
-  console.log(`  · ${s.id}  slug=${s.slug}  name="${s.name}"  grade=${s.grade}  active=${s.isActive}  ${from} → ${to}`);
+  console.log(`  · ${s.id}  slug=${s.slug}  name="${s.name}"  grade=${s.grade}  ${from} → ${to}`);
 }
 
 const subRedirect = {

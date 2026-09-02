@@ -23,7 +23,6 @@ function row(id: string, factory: string, price: number): PriceRow {
     size: '۱۴',
     factory,
     unit: 'kg',
-    isActive: true,
     current: {
       skuId: id,
       price,

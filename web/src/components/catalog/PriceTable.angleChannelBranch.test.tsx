@@ -14,13 +14,22 @@ vi.mock('next/navigation', () => ({
 
 /**
  * نبشی و ناودانی after the owner's 1405/06 request: «جای گرید بنویسیم شاخه که
- * ما اونجا مثلا بنویسیم ۶ متری یا ۱۲ متری».
+ * ما اونجا مثلا بنویسیم ۶ متری یا ۱۲ متری». Relabelled 1405/06/08 after the
+ * owner confirmed matching ahanonline.com's exact columns overrides that
+ * original wording — verified per sub against the live ahanonline.com page:
  *
- * The swap costs nothing because the column it replaces was empty: `grade` is
- * null on every live row of all six affected subs, so their «گرید» column was
- * printing «نامشخص» on every row of every page. وال پست is the exception the
- * owner confirmed — its grade holds «ضخامت ۲» on all 8 live rows, so it keeps
- * the column.
+ * - نبشی/ناودانی (5 subs): ahanonline shows this exact fact under «حالت»,
+ *   not «شاخه» — its cells read «۶ متری»/«۱۲ متری» too.
+ * - سپری: ahanonline's own page uses a THIRD label, «طول شاخه» — the same
+ *   AttrKey لوله/پروفیل already use, printed «۶ متر» not «۶ متری».
+ * - وال پست: unchanged reasoning, still keeps its `grade` value (that column
+ *   genuinely holds «ضخامت ۲» on all 8 live rows, confirmed by the owner) —
+ *   but ahanonline's وال‌پست page confirms it as a «ضخامت» column, so it is
+ *   now labelled that instead of «گرید».
+ *
+ * The swap/relabel costs nothing on the five حالت subs: `grade` is null on
+ * every live row of all five, so their «گرید» column was printing «نامشخص»
+ * on every row of every page.
  *
  * Sub slugs are the LIVE ones. `data/nav.ts` is a mock fixture by its own
  * header and cannot be trusted for this.
@@ -28,7 +37,7 @@ vi.mock('next/navigation', () => ({
 function row(
   id: string,
   subCategoryId: string,
-  extra: { grade?: string; branchLengthM?: number } = {},
+  extra: { grade?: string; branchLengthM?: number; dimensions?: string } = {},
 ): PriceRow {
   return {
     id,
@@ -40,7 +49,6 @@ function row(
     factory: 'ناب تبریز',
     unit: 'kg',
     priceBasis: 'kg',
-    isActive: true,
     ...extra,
     current: {
       skuId: id,
@@ -72,7 +80,7 @@ const ROWS = [
   row('nabshi-none', 'nabshi'),
   row('channel-6', 'channel-light', { branchLengthM: 6 }),
   row('separi-6', 'separi', { branchLengthM: 6 }),
-  row('valpost-1', 'val-post', { grade: 'ضخامت ۲' }),
+  row('valpost-1', 'val-post', { grade: 'ضخامت ۲', dimensions: '۷' }),
 ];
 
 function renderTable(initialSub: string | null = null, rows: PriceRow[] = ROWS) {
@@ -99,60 +107,77 @@ function cellFor(product: string, column: string): string {
   return tr.querySelectorAll('td')[col - 1]?.textContent ?? '';
 }
 
-describe('PriceTable — نبشی و ناودانی publishes «شاخه» instead of «گرید»', () => {
-  it('draws «شاخه» and drops «گرید» on نبشی', () => {
+describe('PriceTable — نبشی و ناودانی matches ahanonline: «حالت», «طول شاخه», or «ضخامت» instead of «گرید»', () => {
+  it('draws «حالت» and drops «گرید» on نبشی', () => {
     renderTable('nabshi');
-    expect(screen.getByRole('columnheader', { name: 'شاخه' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'حالت' })).toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: 'گرید' })).toBeNull();
+    expect(screen.queryByRole('columnheader', { name: 'شاخه' })).toBeNull();
   });
 
-  it('prints «۶ متری» and «۱۲ متری», not «۶ متر»', () => {
+  it('prints «۶ متری» and «۱۲ متری» under «حالت», not «۶ متر»', () => {
     renderTable('nabshi');
-    expect(cellFor('nabshi-6', 'شاخه')).toBe('۶ متری');
-    expect(cellFor('nabshi-12', 'شاخه')).toBe('۱۲ متری');
+    expect(cellFor('nabshi-6', 'حالت')).toBe('۶ متری');
+    expect(cellFor('nabshi-12', 'حالت')).toBe('۱۲ متری');
   });
 
   it('says «نامشخص» where no length is recorded — never a dash', () => {
-    // A نبشی IS sold in some شاخه; we just have not recorded this one's.
+    // A نبشی IS sold in some حالت; we just have not recorded this one's.
     renderTable('nabshi');
-    expect(cellFor('nabshi-none', 'شاخه')).toBe('نامشخص');
+    expect(cellFor('nabshi-none', 'حالت')).toBe('نامشخص');
   });
 
-  it('does the same on ناودانی and سپری', async () => {
-    const user = userEvent.setup();
+  it('does the same on ناودانی', () => {
     renderTable('channel-light');
-    expect(cellFor('channel-6', 'شاخه')).toBe('۶ متری');
-    await user.click(screen.getByRole('button', { name: 'سپری' }));
-    expect(cellFor('separi-6', 'شاخه')).toBe('۶ متری');
+    expect(cellFor('channel-6', 'حالت')).toBe('۶ متری');
     expect(screen.queryByRole('columnheader', { name: 'گرید' })).toBeNull();
   });
 
-  it('leaves وال پست on «گرید», still publishing «ضخامت ۲»', async () => {
-    // The one sub whose grade holds real data. Swapping it would delete a
-    // value an admin deliberately entered.
+  it('gives سپری its own «طول شاخه» label, matching ahanonline — not «حالت»', async () => {
+    const user = userEvent.setup();
+    renderTable('nabshi');
+    await user.click(screen.getByRole('button', { name: 'سپری' }));
+    expect(screen.getByRole('columnheader', { name: 'طول شاخه' })).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'حالت' })).toBeNull();
+    expect(screen.queryByRole('columnheader', { name: 'گرید' })).toBeNull();
+    // «طول شاخه» prints «۶ متر», not «۶ متری» — the لوله/پروفیل phrasing.
+    expect(cellFor('separi-6', 'طول شاخه')).toBe('۶ متر');
+  });
+
+  it('gives وال پست both spec columns its source leads with — «بال» and «ضخامت»', async () => {
+    // ahanonline `/نبشی-و-ناودانی/وال-پست/` renders «بال | ضخامت | سایز», بال
+    // reading 7 on all 8 priced rows. ضخامت is the one sub whose `grade` holds
+    // real data, so relabelling it deletes nothing — the same stored value
+    // under ahanonline's word for it, minus the «ضخامت» that string repeats
+    // from its own header. «بال» is the `dimensions` field, free on this sub.
     const user = userEvent.setup();
     renderTable('nabshi');
     await user.click(screen.getByRole('button', { name: 'وال پست' }));
-    expect(screen.getByRole('columnheader', { name: 'گرید' })).toBeInTheDocument();
-    expect(screen.queryByRole('columnheader', { name: 'شاخه' })).toBeNull();
-    expect(cellFor('valpost-1', 'گرید')).toBe('ضخامت ۲');
+    expect(screen.getByRole('columnheader', { name: 'ضخامت' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'بال' })).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'گرید' })).toBeNull();
+    expect(screen.queryByRole('columnheader', { name: 'حالت' })).toBeNull();
+    expect(cellFor('valpost-1', 'ضخامت')).toBe('۲');
+    expect(cellFor('valpost-1', 'بال')).toBe('۷');
   });
 
-  it('keeps the mixed «همه» view on «گرید», dashing the swapped subs', async () => {
-    // Same rule پروفیل's mixed view follows: وال پست still publishes its
-    // grade, and a sub that traded the column away reads «—», not «نامشخص».
+  it('keeps the mixed «همه» view on «گرید», dashing all seven subs', () => {
+    // Every sub now reads its own key (حالت, طول شاخه, or ضخامت), so the
+    // mixed view's plain «گرید» default applies to none of their rows —
+    // same rule پروفیل's mixed view follows for صنعتی and Z.
     renderTable(null);
     expect(screen.getByRole('columnheader', { name: 'گرید' })).toBeInTheDocument();
-    expect(screen.queryByRole('columnheader', { name: 'شاخه' })).toBeNull();
-    expect(cellFor('valpost-1', 'گرید')).toBe('ضخامت ۲');
+    expect(screen.queryByRole('columnheader', { name: 'حالت' })).toBeNull();
+    expect(screen.queryByRole('columnheader', { name: 'طول شاخه' })).toBeNull();
+    expect(cellFor('valpost-1', 'گرید')).toBe('—');
     expect(cellFor('nabshi-6', 'گرید')).toBe('—');
   });
 
   it('does not touch the «وزن شاخه» column it now sits beside', () => {
-    // Two similarly-named columns: «شاخه» is the length sold, «وزن شاخه» is
+    // Two similarly-named columns: «حالت» is the length sold, «وزن شاخه» is
     // the theoretical weight. They must both exist and stay distinct.
     renderTable('nabshi');
-    expect(screen.getByRole('columnheader', { name: 'شاخه' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'حالت' })).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'وزن شاخه' })).toBeInTheDocument();
   });
 });

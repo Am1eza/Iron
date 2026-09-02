@@ -90,19 +90,16 @@ async function POSTImpl(req: NextRequest) {
     );
   }
 
-  // Catalog lookup maps (id → sku, normalized name → sku). W23 review fix:
-  // `isActive` was selected but never filtered on, so a deactivated SKU
-  // (invisible in the live grid — catalogRepo.tableRows explicitly requires
-  // isActive=true) could still silently match and get re-priced through
-  // this import path. Excluding it here means it falls into `unmatched`
-  // like any other row with no real product behind it — the correct signal
-  // for "this can't be imported right now."
+  // Catalog lookup maps (id → sku, normalized name → sku). Every product that
+  // exists is on the site, so any match here is a match the grid can also
+  // show. The hazard this lookup used to guard against — a deactivated SKU
+  // silently re-priced through the import path while invisible in the live
+  // grid — needs a hidden state, and the catalog no longer has one.
   const db = getDb();
   const all = await db
-    .select({ id: skus.id, name: skus.name, isActive: skus.isActive, price: currentPrices.price })
+    .select({ id: skus.id, name: skus.name, price: currentPrices.price })
     .from(skus)
-    .leftJoin(currentPrices, eq(currentPrices.skuId, skus.id))
-    .where(eq(skus.isActive, true));
+    .leftJoin(currentPrices, eq(currentPrices.skuId, skus.id));
   const byId = new Map(all.map((s) => [s.id, s]));
   const byName = new Map(all.map((s) => [norm(s.name), s]));
 

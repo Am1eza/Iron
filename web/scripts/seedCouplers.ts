@@ -182,8 +182,8 @@ try {
   for (const p of planned) {
     await client.query(
       `INSERT INTO skus (id, sub_category_id, category_id, slug, name, size, unit,
-                         theoretical_weight_kg, is_active, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, 'piece', NULL, true, now(), now())`,
+                         theoretical_weight_kg, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, 'piece', NULL, now(), now())`,
       [p.id, subId, categoryId, p.slug, p.name, p.size],
     );
     await client.query(

@@ -106,6 +106,48 @@
   outline-offset: 1px;
 }
 
+/* ===== Spec filter bar (سایز/گرید/کارخانه/…) =====
+   One compact row of dropdown triggers, always the same height — the
+   `.specFilterActive` row of removable chips below it only exists once
+   something is actually selected (progressive disclosure; see the JSX
+   comment at the call site for why). */
+.specFilters {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-subtle, var(--color-surface));
+}
+.specFilterTriggers {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.specFilterActive {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.specFilterClear {
+  border: none;
+  background: none;
+  padding: 0;
+  font: var(--t-caption);
+  color: var(--color-accent-text);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.specFilterEmpty {
+  margin: 0;
+  padding: var(--space-4);
+  text-align: center;
+  font: var(--t-label);
+  color: var(--color-text-muted);
+}
+
 .meta {
   display: flex;
   align-items: baseline;

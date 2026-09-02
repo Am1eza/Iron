@@ -1,0 +1,38 @@
+# Install on the host (the units live here in git; systemd needs them in /etc):
+#
+#   install -m 0700 /opt/ahantime/ops/ahantime-redirect-repair.sh /usr/local/sbin/
+#   install -m 0644 /opt/ahantime/ops/systemd/ahantime-redirect-repair.{service,timer} \
+#           /etc/systemd/system/
+#   systemctl daemon-reload && systemctl enable --now ahantime-redirect-repair.timer
+#
+# Same pattern as ahantime-uptime.{service,timer} and ahantime-backup. Check it with:
+#   systemctl list-timers ahantime-redirect-repair.timer
+#   journalctl -u ahantime-redirect-repair.service -n 200
+#   systemctl list-units --failed          <- the alert surface
+#
+# Preview without writing anything:
+#   REDIRECT_REPAIR_MODE=check /usr/local/sbin/ahantime-redirect-repair.sh
+#
+# Re-run the two `install` lines after any edit to the script or the units;
+# editing the copy in /opt/ahantime alone does NOT reach systemd.
+
+[Unit]
+Description=ahantime redirect-table repair (collapse chains, re-aim 404 destinations)
+Documentation=file:/opt/ahantime/web/scripts/repairRedirectTargets.ts
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+Environment=REDIRECT_REPAIR_MODE=apply
+ExecStart=/usr/local/sbin/ahantime-redirect-repair.sh
+# A non-zero exit means the table is in a state the planner refuses to guess
+# at — a cycle, an over-long chain, a row shadowing a live page, or a
+# computed destination that is itself a from_path. Each of those wants a
+# human decision, and the failed unit is how this host says so: there is no
+# SMTP or monitoring SaaS here by policy (see ahantime-uptime.service).
+#
+# Finding drift and fixing it is NOT a failure and exits 0. The full per-row
+# report goes to the journal either way, which is where the list of re-aimed
+# rows lives for the owner to override in the panel.
+TimeoutStartSec=600

@@ -16,7 +16,6 @@ function row(over: Partial<PriceRow> & { id: string; categoryId: string }): Pric
     size: '18',
     factory: 'ذوب آهن',
     unit: 'kg',
-    isActive: true,
     current: {
       skuId: over.id,
       price: 32500,

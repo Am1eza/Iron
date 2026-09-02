@@ -693,8 +693,8 @@ try {
     if (subById.has(key)) continue;
     const id = ulid();
     await client.query(
-      `INSERT INTO sub_categories (id, category_id, slug, name, group_label, "order", is_active)
-       VALUES ($1, $2, $3, $4, $5, $6, true)`,
+      `INSERT INTO sub_categories (id, category_id, slug, name, group_label, "order")
+       VALUES ($1, $2, $3, $4, $5, $6)`,
       [id, catBySlug.get(s.catSlug), s.slug, s.name, s.groupLabel, s.order],
     );
     subById.set(key, id);
@@ -704,8 +704,8 @@ try {
     const id = ulid();
     await client.query(
       `INSERT INTO skus (id, sub_category_id, category_id, slug, name, size, dimensions, grade,
-                         standard, factory, theoretical_weight_kg, unit, is_active, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NULL, $11, true, now(), now())`,
+                         standard, factory, theoretical_weight_kg, unit, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NULL, $11, now(), now())`,
       [
         id,
         subId,
