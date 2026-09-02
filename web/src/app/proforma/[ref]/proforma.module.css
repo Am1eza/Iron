@@ -132,6 +132,36 @@
 .validity {
   margin-block-end: var(--space-4);
 }
+
+/* ===== customer (US: proforma standard — buyer name/phone) ===== */
+.customer {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  background: var(--color-surface-sunken);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  margin-block-end: var(--space-4);
+}
+.customerLabel {
+  color: var(--color-text-muted);
+  font: var(--t-caption);
+}
+.customerName {
+  color: var(--color-text-strong);
+  font-weight: 700;
+}
+.customerPhone {
+  color: var(--color-text-strong);
+}
+/* Separator only when a name renders before it — a solo phone (no name on
+   file, the nullable `contactName` case) needs nothing ahead of it. */
+.customerName + .customerPhone::before {
+  content: '·';
+  margin-inline-end: var(--space-3);
+  color: var(--color-hairline);
+}
 .expired {
   background: var(--loss-50);
   color: var(--color-loss-text);
@@ -202,7 +232,17 @@
   flex-wrap: wrap;
 }
 
-/* ===== print — clean white sheet, no chrome ===== */
+/* ===== print — clean white sheet, no chrome =====
+ * The site-wide chrome (ticker/nav/footer/cart & call widgets) is hidden
+ * globally by SiteChrome.module.css, not here — this block only owns what
+ * is local to the پیش‌فاکتور sheet itself: page geometry and not letting the
+ * items table or totals block tear across a page boundary badly.
+ */
+@page {
+  size: A4;
+  margin: 14mm 12mm;
+}
+
 @media print {
   .page {
     padding: 0;
@@ -221,5 +261,22 @@
   .table th {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+  /* A quote can run to 15+ lines (bulk/tender orders) — without these, a
+     browser's print engine is free to slice a row in half across the page
+     break, or start a fresh page with a bare totals block and no table
+     above it to anchor it. */
+  .head {
+    break-after: avoid;
+  }
+  .table thead {
+    display: table-header-group;
+  }
+  .table tr {
+    break-inside: avoid;
+  }
+  .totals,
+  .foot {
+    break-inside: avoid;
   }
 }

@@ -30,6 +30,13 @@ export async function writeAudit(entry: {
   });
 }
 
+/** Single entry by id — the restore endpoint's only read, since a snapshot is
+ *  only ever reachable by the id the activity log links to. */
+export async function getAuditEntry(id: string): Promise<AuditRow | null> {
+  const rows = await getDb().select().from(auditEntries).where(eq(auditEntries.id, id)).limit(1);
+  return rows[0] ?? null;
+}
+
 /** Opaque keyset cursor — `${at.getTime()}_${id}` of the last row on the
  *  previous page, base64'd so callers never depend on its shape. */
 function encodeCursor(row: Pick<AuditRow, 'at' | 'id'>): string {

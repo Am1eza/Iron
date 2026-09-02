@@ -1,6 +1,25 @@
 import type { CSSProperties } from 'react';
 import styles from './Skeleton.module.css';
 
+// The handful of widths every current caller actually uses get a real CSS
+// class instead of an inline `style` attribute (SEO/performance audit: inline
+// styles were flagged across every skeleton instance on the page). Callers
+// with a genuinely one-off width still fall back to inline `style`.
+const WIDTH_CLASSES: Record<string, string> = {
+  '40%': 'w40',
+  '55%': 'w55',
+  '60%': 'w60',
+  '65%': 'w65',
+  '70%': 'w70',
+  '90%': 'w90',
+  '100%': 'w100',
+};
+const HEIGHT_CLASSES: Record<number, string> = {
+  28: 'h28',
+  160: 'h160',
+  320: 'h320',
+};
+
 /**
  * B7 · Skeleton — calm shimmering placeholder (static under reduced-motion).
  * Use while data loads so the UI never flashes empty (empty-states §6 anti-flash).
@@ -16,11 +35,24 @@ export function Skeleton({
   height?: string | number;
   className?: string;
 }) {
-  const style: CSSProperties = { inlineSize: width, blockSize: height };
+  const widthClass = typeof width === 'string' ? WIDTH_CLASSES[width] : undefined;
+  const heightClass = typeof height === 'number' ? HEIGHT_CLASSES[height] : undefined;
+  const style: CSSProperties = {
+    inlineSize: widthClass ? undefined : width,
+    blockSize: heightClass ? undefined : height,
+  };
   return (
     <span
       aria-hidden="true"
-      className={[styles.skeleton, styles[variant], className].filter(Boolean).join(' ')}
+      className={[
+        styles.skeleton,
+        styles[variant],
+        widthClass && styles[widthClass],
+        heightClass && styles[heightClass],
+        className,
+      ]
+        .filter(Boolean)
+        .join(' ')}
       style={style}
     />
   );

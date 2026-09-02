@@ -32,6 +32,12 @@ export default async function ProformaPage({ params }: Params) {
   const p = await findProformaByRef(decodeURIComponent(ref).toUpperCase());
   if (!p) notFound();
 
+  // The lead is fetched unconditionally now — every پیش‌فاکتور needs its
+  // buyer's name/mobile printed on it (a standard proforma cannot identify
+  // who it was issued to otherwise), not just the signed-in-owner path the
+  // letterhead check below already had a reason to fetch it for.
+  const lead = await findLead(p.leadId);
+
   // Own-letterhead eligibility (US-tender-letterhead): signed in, actually
   // owns the lead this proforma belongs to (not just anyone who has the
   // link — the ref is a public capability, but the letterhead swap is a
@@ -40,21 +46,18 @@ export default async function ProformaPage({ params }: Params) {
   // renders exactly as it always has.
   let custom: CustomLetterhead | null = null;
   const session = await getSession();
-  if (session) {
-    const lead = await findLead(p.leadId);
-    if (lead?.userId === session.id) {
-      const [status, letterhead] = await Promise.all([
-        clubStatus(session.id),
-        getLetterhead(session.id),
-      ]);
-      if (status.tier === 'poolad' && isLetterheadUsable(letterhead)) {
-        custom = {
-          logoUrl: letterhead!.logoUrl!,
-          companyName: letterhead!.companyName!,
-          address: letterhead!.address,
-          phone: letterhead!.phone,
-        };
-      }
+  if (session && lead?.userId === session.id) {
+    const [status, letterhead] = await Promise.all([
+      clubStatus(session.id),
+      getLetterhead(session.id),
+    ]);
+    if (status.tier === 'poolad' && isLetterheadUsable(letterhead)) {
+      custom = {
+        logoUrl: letterhead!.logoUrl!,
+        companyName: letterhead!.companyName!,
+        address: letterhead!.address,
+        phone: letterhead!.phone,
+      };
     }
   }
 
@@ -69,6 +72,8 @@ export default async function ProformaPage({ params }: Params) {
       phoneMobile={CONTACT.phoneMobile}
       refCode={p.ref}
       date={formatJalali(p.createdAt.toISOString())}
+      customerName={lead?.contactName ?? null}
+      customerMobile={lead?.contactMobile ?? null}
       custom={custom}
     >
       {expired ? (

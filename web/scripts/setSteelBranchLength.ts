@@ -123,7 +123,7 @@ const { rows } = await pool.query<Row>(
      FROM skus k
      JOIN sub_categories sc ON sc.id = k.sub_category_id
      JOIN categories c ON c.id = k.category_id
-    WHERE c.slug = $1 AND k.is_active
+    WHERE c.slug = $1
     ORDER BY sc.slug, k.name`,
   [CATEGORY],
 );

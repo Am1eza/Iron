@@ -176,7 +176,7 @@ const catSlugs = [...new Set(keys.map((k) => k.split('/')[0]!))];
 
 const { rows } = await pool.query<Row>(
   `SELECT s.id, c.slug AS "catSlug", s.slug, s.name,
-          s.group_label AS "groupLabel", s.is_active AS active
+          s.group_label AS "groupLabel"
      FROM sub_categories s
      JOIN categories c ON c.id = s.category_id
     WHERE c.slug = ANY($1::text[])

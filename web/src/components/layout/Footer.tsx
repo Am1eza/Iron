@@ -24,7 +24,7 @@ export function Footer({ categories, contact }: { categories: Category[]; contac
   const year = locale === 'fa' ? localizeDigits('۱۴۰۵', locale) : String(new Date().getFullYear());
 
   return (
-    <footer className={styles.footer}>
+    <footer className={styles.footer} data-site-chrome>
       <div className={`container ${styles.top}`}>
         {/* Brand + tagline */}
         <div className={styles.brandCol}>
