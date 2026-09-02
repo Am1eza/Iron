@@ -27,7 +27,7 @@
  * As of this writing no category has a collision in either dimension.
  */
 import { slugify } from './slugify';
-import { normalizeDigits } from './format';
+import { compareCatalogSizes } from './catalogSize';
 
 /** Vulgar fractions → an unambiguous, sluggable ASCII form. */
 const FRACTIONS: Record<string, string> = {
@@ -114,21 +114,13 @@ export function factoryFacets(rows: readonly FacetRow[]): Facet[] {
   );
 }
 
-/** Every size with at least one active SKU, in ascending numeric order —
- *  «۸، ۱۰، ۱۲…», the order the trade reads a size list in. Sizes that are not
- *  a plain number («۱۰۰×۱۰۰», «۲½ اینچ») sort on their leading number, which
- *  is the one that varies within a category. */
+/** Every size with at least one active SKU, in dimension-aware ascending
+ *  order. The full vector matters: «۶۰×۶۰×۵» must precede «۶۰×۶۰×۶»,
+ *  while decimal gauges and mixed inch fractions retain numeric order. */
 export function sizeFacets(rows: readonly FacetRow[]): Facet[] {
   return toFacets(group(rows, (r) => r.size, sizeFacetSlug)).sort(
-    (a, b) => sizeSortKey(a.label) - sizeSortKey(b.label) || a.label.localeCompare(b.label, 'fa'),
+    (a, b) => compareCatalogSizes(a.label, b.label),
   );
-}
-
-/** Leading numeric value of a size label, or +∞ when it has none (so unparseable
- *  sizes sort last instead of silently leading the list as NaN would). */
-function sizeSortKey(label: string): number {
-  const n = Number.parseFloat(normalizeDigits(label).replace(',', '.'));
-  return Number.isFinite(n) ? n : Number.POSITIVE_INFINITY;
 }
 
 /** Facets whose slug is shared by more than one stored spelling — a silent

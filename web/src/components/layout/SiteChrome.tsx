@@ -15,6 +15,7 @@ import { isPromoSuppressedPath } from '@/components/club/arrivalPopupRoutes';
 import { MobileDrawer, ArrivalPopup, CartReminder } from '@/components/lazy';
 import type { Category, MarketValue } from '@/lib/types/domain';
 import type { SubsMap } from '@/lib/data/catalog';
+import styles from './SiteChrome.module.css';
 
 /**
  * The public storefront chrome — hidden on `/admin/*`, which has its own
@@ -60,12 +61,12 @@ export function SiteChromeTop({
   // pattern SiteChromeBottom already uses for CallbackWidget's `onAdvisor`.
   const suppressCartReminder = isPromoSuppressedPath(pathname);
   return (
-    <>
+    <div className={styles.top}>
       <Ticker initialValues={initialMarketValues} />
       <Header categories={categories} subs={subs} />
       {!suppressCartReminder && <CartReminder />}
       <MobileDrawer categories={categories} subs={subs} />
-    </>
+    </div>
   );
 }
 
@@ -99,11 +100,11 @@ export function SiteChromeBottom({
   // while any dialog is open. Keeping a second copy of that list here is how
   // the two would drift.
   return (
-    <>
+    <div className={styles.bottom}>
       <Footer categories={categories} contact={contact} />
       <BottomTabBar />
       <ArrivalPopup />
       {!onAdvisor && <CallbackWidget phoneLandline={contact.phoneLandline} />}
-    </>
+    </div>
   );
 }

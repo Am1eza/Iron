@@ -28,6 +28,8 @@ export function ProformaSheet({
   phoneMobile,
   refCode,
   date,
+  customerName,
+  customerMobile,
   custom,
   children,
 }: {
@@ -38,6 +40,14 @@ export function ProformaSheet({
   phoneMobile: string;
   refCode: string;
   date: string;
+  /** From `leads.contact_name` — optional at intake, so this is genuinely
+   *  nullable, unlike `customerMobile`. */
+  customerName: string | null;
+  /** From `leads.contact_mobile` — required at intake, so every real
+   *  پیش‌فاکتور has one. Typed nullable anyway (not `!`) because a lead can
+   *  in principle be deleted out from under an already-issued proforma; the
+   *  render below already treats a missing block as "omit it", not a crash. */
+  customerMobile: string | null;
   /** Present only when the viewer is signed in, owns this lead, is پولادی
    *  tier, and has a usable letterhead saved — see the page's eligibility
    *  check. Its mere presence, not a tier check here, gates the toggle. */
@@ -115,6 +125,25 @@ export function ProformaSheet({
             <p className={styles.date}>تاریخ صدور: {date}</p>
           </div>
         </header>
+
+        {/* A پیش‌فاکتور has to say who it was issued to — omitted entirely
+            (not "نامشخص") when a lead was deleted out from under an
+            already-issued document, rather than printing a placeholder for a
+            person the sheet can no longer name. `customerMobile` is required
+            at lead intake, so in the overwhelmingly common case this always
+            renders; `customerName` is optional there and simply does not
+            print its own line when absent. */}
+        {customerName || customerMobile ? (
+          <div className={styles.customer}>
+            <span className={styles.customerLabel}>مشتری</span>
+            {customerName ? <span className={styles.customerName}>{customerName}</span> : null}
+            {customerMobile ? (
+              <span className={`${styles.customerPhone} tnum`}>
+                {toPersianDigits(customerMobile)}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
 
         {children}
       </main>

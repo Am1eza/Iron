@@ -27,6 +27,22 @@
  * I couldn't find an equally authoritative 1405 figure for them — those
  * three stay as the original mock-era estimates and are still
  * admin-editable; worth confirming against Amir's actual freight partners.
+ *
+ * Cross-check (1405/06/10): ahanprice.com's public «هزینه حمل بار از مبداً
+ * بنگاه تهران» calculator (https://ahanprice.com/هزینه-ی-حمل-بار — a normal
+ * page, not their robots.txt-disallowed `/Freight/GetFreight` API) quotes a
+ * FULL TRUCKLOAD price from their Tehran/Shadabad depot — the same district
+ * `ORIGIN_LABEL` ships from — e.g. Tehran ۶,۰۰۰,۰۰۰ت/۱۰-ton single truck,
+ * Karaj ۵,۰۰۰,۰۰۰ت, Qom ۱۰,۰۰۰,۰۰۰ت, Isfahan ۱۱,۰۰۰,۰۰۰ت. That is a
+ * DIFFERENT product (one all-in commercial truck charter, likely already
+ * bundling driver/fuel/margin and possibly insurance) from this table's
+ * NET-tariff-before-extras per-ton figure, so the two are not directly
+ * substitutable — but per-ton they land within the same order of magnitude
+ * (e.g. Qom: this table ≈540,000ت/ton net vs ahanprice's all-in
+ * ≈1,000,000ت/ton for a 10-ton single truck), which is a sanity check in
+ * favour of the current numbers, not a contradiction of them. It does NOT
+ * expose handling/insurance/scale as separate figures, so it cannot source
+ * those three — they still need Amir's actual freight partners.
  */
 export const ORIGIN_LABEL = 'انبار شادآباد تهران';
 

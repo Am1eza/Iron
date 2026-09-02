@@ -47,8 +47,8 @@ const SUBS = [
 beforeAll(async () => {
   ({ db, close } = await createTestDb());
   await db.insert(schema.categories).values([
-    { id: 'c-profile', slug: 'profile', name: 'پروفیل', order: 1, iconId: '', isActive: true },
-    { id: 'c-rebar', slug: 'rebar', name: 'میلگرد', order: 2, iconId: '', isActive: true },
+    { id: 'c-profile', slug: 'profile', name: 'پروفیل', order: 1, iconId: '' },
+    { id: 'c-rebar', slug: 'rebar', name: 'میلگرد', order: 2, iconId: '' },
   ]);
   await db.insert(schema.subCategories).values([
     ...SUBS.map((s, i) => ({
@@ -57,9 +57,8 @@ beforeAll(async () => {
       slug: s.slug,
       name: s.name,
       order: i + 1,
-      isActive: true,
     })),
-    { id: 'sub-plain', categoryId: 'c-rebar', slug: 'plain', name: 'ساده', order: 1, isActive: true },
+    { id: 'sub-plain', categoryId: 'c-rebar', slug: 'plain', name: 'ساده', order: 1 },
   ]);
   await db.insert(schema.skus).values([
     ...SUBS.map((s) => ({
@@ -71,7 +70,6 @@ beforeAll(async () => {
       size: '۶۰×۶۰',
       factory: s.factory,
       unit: 'kg' as const,
-      isActive: true,
     })),
     {
       id: 'sku-rebar',
@@ -82,7 +80,6 @@ beforeAll(async () => {
       size: '۱۲',
       factory: 'نیکان پروفیل',
       unit: 'kg' as const,
-      isActive: true,
     },
   ]);
 }, 120_000);

@@ -79,7 +79,7 @@ type Row = { id: string; slug: string; name: string; seo: Record<string, unknown
 
 const slugs = Object.keys(DESCRIPTIONS);
 const { rows } = await pool.query<Row>(
-  `SELECT id, slug, name, seo, is_active AS active
+  `SELECT id, slug, name, seo
      FROM categories WHERE slug = ANY($1::text[]) ORDER BY "order"`,
   [slugs],
 );

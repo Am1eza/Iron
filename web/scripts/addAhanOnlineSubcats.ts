@@ -76,7 +76,6 @@ async function main() {
         slug: row.slug,
         name: row.name,
         order: row.order,
-        isActive: false,
       });
     }
   }

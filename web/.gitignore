@@ -38,3 +38,6 @@ yarn-error.log*
 .vercel
 *.tsbuildinfo
 /.pnpm-store/
+
+# Pre-image dumps written by the guarded catalog --apply scripts.
+/scripts/.backups/

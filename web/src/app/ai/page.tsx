@@ -1,12 +1,13 @@
 import type { Metadata } from 'next';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
-import { Container, Section, Stack, Heading, Text, Overline, Breadcrumbs } from '@/components/ui';
+import { Container } from '@/components/ui';
 import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
 import { AdvisorChat, GREETING_TEXT } from '@/components/ai/AdvisorChat';
-import { AdvisorCapabilities } from '@/components/ai/AdvisorCapabilities';
-import { ArticleFaq } from '@/components/content/ArticleFaq';
+import { AdvisorAbout } from '@/components/ai/AdvisorAbout';
+import styles from './page.module.css';
 import { PURPOSE_CHIPS } from '@/lib/data/aiTaxonomy';
+import { getContact } from '@/lib/server/contact';
 
 export const metadata: Metadata = buildMetadata({
   title: 'مشاور هوشمند خرید آهن و فولاد',
@@ -60,6 +61,9 @@ type Search = { searchParams: Promise<{ q?: string }> };
 export default async function AiPage({ searchParams }: Search) {
   const { q } = await searchParams;
   const initialQuestion = typeof q === 'string' ? q : undefined;
+  // The real, admin-editable numbers — read here (server) and passed down, so
+  // the advisor's «گفتگو با کارشناس» row can never drift from the footer's.
+  const contact = await getContact();
   // Rendered server-side so the advisor's opening message is real, crawlable
   // HTML on first load instead of only appearing after client-side hydration.
   const initialMessages = [
@@ -71,35 +75,40 @@ export default async function AiPage({ searchParams }: Search) {
     },
   ];
   return (
-    <Container width="narrow">
+    <>
       <BreadcrumbJsonLd items={crumbs} />
-      <Section space={8}>
-        <Stack gap={6}>
-          <Stack gap={3}>
-            <Breadcrumbs items={crumbs} />
-            <Overline>اول مشورت، بعد خرید</Overline>
-            <Heading level={1}>مشاور هوشمند خرید آهن و فولاد</Heading>
-            {/* Two sentences, not four. At 375px every line of lede is ~37px
-                of the one screen the visitor has, and the composer is what
-                they came for: the first version pushed it ~400px past the
-                fold. The payment fact moved down to the capability strip. */}
-            <Text color="muted" variant="body-lg">
-              مشاور آهن‌تایم بر پایهٔ همان قیمت‌هایی جواب می‌دهد که در جدول‌های سایت می‌بینی؛ هیچ
-              عددی از خودش نمی‌سازد. بگو چه محصولی و برای چه کاری می‌خواهی تا قیمت روز، وزن دقیق
-              مقاطع و ارزان‌ترین کارخانه برای تناژت را حساب کند و در پایان، اگر خواستی، پیش‌فاکتور
-              هم بگیری.
-            </Text>
-          </Stack>
+      {/*
+        AN APP SURFACE, NOT A PAGE SECTION.
 
-          {/* The chat sits directly under the header: it is this page's primary
-              control, so nothing explanatory goes between the lede and the
-              composer. Everything that describes the advisor comes AFTER it. */}
-          <AdvisorChat initialQuestion={initialQuestion} initialMessages={initialMessages} />
+        What shipped before this put 381px of hero above the chat and 1143px
+        of explainer below it, leaving the chat 702px of a 4509px document —
+        and the composer, the one control the page exists for, at y=922 on a
+        900px laptop and 207px below the fold on a phone.
 
-          <AdvisorCapabilities />
-          <ArticleFaq items={FAQ_ITEMS} />
-        </Stack>
-      </Section>
-    </Container>
+        So the first screen is now the chat and nothing else. `Container`/
+        `Section` are deliberately not used here: both add block padding and a
+        reading-width cap that are right for an article and wrong for an app
+        shell, which has to be able to reach the full viewport height and let
+        its own thread own the reading width.
+
+        The h1 and breadcrumb stay in the DOM — this page still has to rank —
+        but as a slim header row inside the shell rather than a hero block.
+      */}
+      <div className={styles.surface}>
+        <AdvisorChat
+          initialQuestion={initialQuestion}
+          initialMessages={initialMessages}
+          contact={{ phoneLandline: contact.phoneLandline, phoneMobile: contact.phoneMobile }}
+          crumbs={crumbs}
+          heading="مشاور هوشمند خرید آهن و فولاد"
+        />
+      </div>
+
+      {/* Below the fold by construction: the shell above is exactly one
+          viewport tall, so this can no longer compress the chat. */}
+      <Container width="wide">
+        <AdvisorAbout faqItems={FAQ_ITEMS} />
+      </Container>
+    </>
   );
 }
