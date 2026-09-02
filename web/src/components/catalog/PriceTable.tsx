@@ -35,6 +35,7 @@ import {
   singlePriceBasis,
 } from '@/lib/utils/catalogLabels';
 import { FactoryLink } from './FactoryLink';
+import { SpecFilterDropdown } from './SpecFilterDropdown';
 import { groupByLabel } from '@/lib/utils/catalogGroups';
 import { formatJalali } from '@/lib/utils/jalali';
 import { trackGoal } from '@/lib/analytics/track';
@@ -119,6 +120,10 @@ function normalizeSpecValue(value: string): string {
     .replace(/ي/g, 'ی')
     .replace(/ك/g, 'ک');
 }
+
+// Stable identity for "no selections yet" so a facet with nothing checked
+// doesn't hand SpecFilterDropdown a fresh `new Set()` on every render.
+const EMPTY_SPEC_SET: ReadonlySet<string> = new Set();
 
 /** One filterable spec column — «سایز», «گرید», «کارخانه», … — and how to
  *  read ITS value off a row. `undefined`/empty means the column is not a
@@ -1115,30 +1120,48 @@ export function PriceTable({
 
       {/* ===== فیلتر مشخصات — سایز/گرید/کارخانه/… ، بسته به ستون‌های همین
           جدول (owner request 1405/06/02). Multi-select per column (OR درون
-          یک ستون، AND بین ستون‌ها) — دو گرید هم‌زمان قابل انتخاب‌اند. */}
+          یک ستون، AND بین ستون‌ها) — دو گرید هم‌زمان قابل انتخاب‌اند.
+
+          یک ردیف کوتاهِ دکمهٔ دراپ‌داون، نه دیوار همیشه-باز چیپ‌ها: قبلاً هر
+          مقدار هر فیلتر (مثلاً ۱۳ سایز + ۲ استاندارد + ۱۸ کارخانه) همیشه روی
+          صفحه بود و در موبایل تقریباً دو صفحه اسکرول فقط فیلتر بود، قبل از
+          اولین ردیف قیمت. حالا فقط دکمه‌های تریگر همیشه دیده می‌شن؛ مقادیر
+          انتخاب‌شده به‌صورت چیپ‌های قابل‌حذف زیر همون ردیف میان — فقط وقتی
+          چیزی انتخاب شده (progressive disclosure). */}
       {facets.length > 0 ? (
         <div className={styles.specFilters} role="group" aria-label="فیلتر مشخصات">
-          {facets.map((f) => (
-            <div key={f.key} className={styles.specFilterGroup}>
-              <span className={styles.specFilterLabel}>{f.label}</span>
-              <div className={styles.specFilterChips}>
-                {f.values.map((v) => (
-                  <Chip
-                    key={v}
-                    variant="filter"
-                    selected={specFilters[f.key]?.has(v) ?? false}
-                    onClick={() => toggleSpecFilter(f.key, v)}
-                  >
-                    {toPersianDigits(v)}
-                  </Chip>
-                ))}
-              </div>
-            </div>
-          ))}
+          <div className={styles.specFilterTriggers}>
+            {facets.map((f) => (
+              <SpecFilterDropdown
+                key={f.key}
+                label={f.label}
+                values={f.values}
+                selected={specFilters[f.key] ?? EMPTY_SPEC_SET}
+                onToggle={(v) => toggleSpecFilter(f.key, v)}
+              />
+            ))}
+            {activeSpecFilterCount > 0 ? (
+              <button type="button" className={styles.specFilterClear} onClick={clearSpecFilters}>
+                پاک کردن فیلترها ({toPersianDigits(activeSpecFilterCount)})
+              </button>
+            ) : null}
+          </div>
           {activeSpecFilterCount > 0 ? (
-            <button type="button" className={styles.specFilterClear} onClick={clearSpecFilters}>
-              پاک کردن فیلترها ({toPersianDigits(activeSpecFilterCount)})
-            </button>
+            <div className={styles.specFilterActive} role="group" aria-label="فیلترهای فعال">
+              {facets.map((f) =>
+                [...(specFilters[f.key] ?? EMPTY_SPEC_SET)].map((v) => (
+                  <Chip
+                    key={`${f.key}:${v}`}
+                    variant="filter"
+                    selected
+                    onClick={() => toggleSpecFilter(f.key, v)}
+                    onRemove={() => toggleSpecFilter(f.key, v)}
+                  >
+                    {`${f.label}: ${toPersianDigits(v)}`}
+                  </Chip>
+                )),
+              )}
+            </div>
           ) : null}
         </div>
       ) : null}

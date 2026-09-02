@@ -56,21 +56,36 @@ function renderTable() {
   );
 }
 
+// Values live inside a closed-by-default popover now (the whole point of the
+// dropdown redesign — see SpecFilterDropdown), so every test that wants to
+// check/click one must open its facet's trigger first.
+async function openFacet(user: ReturnType<typeof userEvent.setup>, label: string) {
+  await user.click(screen.getByRole('button', { name: new RegExp(`^${label}`) }));
+}
+
 describe('PriceTable — spec filter bar (owner request 1405/06/02)', () => {
-  it('renders a facet group per filterable column, offering every distinct value on screen', () => {
+  it('renders a compact trigger per filterable column; values stay hidden until opened', () => {
     renderTable();
-    const sizeGroup = screen.getByRole('group', { name: 'فیلتر مشخصات' });
-    expect(within(sizeGroup).getByText('سایز')).toBeInTheDocument();
-    expect(within(sizeGroup).getByText('استاندارد')).toBeInTheDocument();
-    expect(within(sizeGroup).getByRole('button', { name: '۱۴' })).toBeInTheDocument();
-    expect(within(sizeGroup).getByRole('button', { name: '۱۶' })).toBeInTheDocument();
-    expect(within(sizeGroup).getByRole('button', { name: 'A۲' })).toBeInTheDocument();
-    expect(within(sizeGroup).getByRole('button', { name: 'A۳' })).toBeInTheDocument();
+    const bar = screen.getByRole('group', { name: 'فیلتر مشخصات' });
+    expect(within(bar).getByRole('button', { name: /^سایز/ })).toBeInTheDocument();
+    expect(within(bar).getByRole('button', { name: /^استاندارد/ })).toBeInTheDocument();
+    expect(within(bar).queryByRole('button', { name: '۱۴' })).not.toBeInTheDocument();
+  });
+
+  it('opening a trigger reveals every distinct value for that column', async () => {
+    const user = userEvent.setup();
+    renderTable();
+    await openFacet(user, 'سایز');
+
+    const popover = screen.getByRole('group', { name: 'سایز' });
+    expect(within(popover).getByRole('button', { name: '۱۴' })).toBeInTheDocument();
+    expect(within(popover).getByRole('button', { name: '۱۶' })).toBeInTheDocument();
   });
 
   it('narrows to exactly the rows matching one selected value (single column)', async () => {
     const user = userEvent.setup();
     renderTable();
+    await openFacet(user, 'سایز');
     await user.click(screen.getByRole('button', { name: '۱۴' }));
 
     expect(screen.getByText('r-14-a2')).toBeInTheDocument();
@@ -80,12 +95,18 @@ describe('PriceTable — spec filter bar (owner request 1405/06/02)', () => {
     // The count confirms the filter narrowed something, not just that two
     // rows happen to be on screen.
     expect(screen.getByText(/۲ از ۴ کالا/)).toBeInTheDocument();
+    // The trigger itself now advertises the selection count. `expanded: true`
+    // disambiguates it from the active-filter chip below, which also starts
+    // with «سایز» but (unlike the trigger) carries no aria-expanded.
+    expect(screen.getByRole('button', { name: /^سایز/, expanded: true })).toHaveTextContent('1');
   });
 
   it('ANDs two different columns: size ۱۴ AND grade A2 leaves exactly one row', async () => {
     const user = userEvent.setup();
     renderTable();
+    await openFacet(user, 'سایز');
     await user.click(screen.getByRole('button', { name: '۱۴' }));
+    await openFacet(user, 'استاندارد');
     await user.click(screen.getByRole('button', { name: 'A۲' }));
 
     expect(screen.getByText('r-14-a2')).toBeInTheDocument();
@@ -97,6 +118,7 @@ describe('PriceTable — spec filter bar (owner request 1405/06/02)', () => {
   it('ORs two values checked within the SAME column', async () => {
     const user = userEvent.setup();
     renderTable();
+    await openFacet(user, 'استاندارد');
     await user.click(screen.getByRole('button', { name: 'A۲' }));
     await user.click(screen.getByRole('button', { name: 'A۳' }));
 
@@ -106,12 +128,30 @@ describe('PriceTable — spec filter bar (owner request 1405/06/02)', () => {
     }
   });
 
+  it('shows the active selections as removable chips below the trigger row', async () => {
+    const user = userEvent.setup();
+    renderTable();
+    await openFacet(user, 'سایز');
+    await user.click(screen.getByRole('button', { name: '۱۴' }));
+
+    const active = screen.getByRole('group', { name: 'فیلترهای فعال' });
+    const removeChip = within(active).getByRole('button', { name: /سایز.*۱۴/ });
+    expect(removeChip).toBeInTheDocument();
+
+    // Removing via the active chip clears it the same way unchecking would.
+    await user.click(removeChip);
+    expect(screen.queryByRole('group', { name: 'فیلترهای فعال' })).not.toBeInTheDocument();
+    expect(screen.getByText('r-16-a2')).toBeInTheDocument();
+  });
+
   it('shows the empty state and a working clear-filters action when a combination matches nothing', async () => {
     const user = userEvent.setup();
     renderTable();
     // Fixture pairs size ۱۴ with factory F1 only (never F2) — so size ۱۶ AND
     // factory F1 is a real, reachable AND-across-columns dead end.
+    await openFacet(user, 'سایز');
     await user.click(screen.getByRole('button', { name: '۱۶' }));
+    await openFacet(user, 'کارخانه');
     await user.click(screen.getByRole('button', { name: 'F۱' }));
 
     expect(screen.getByText(/کالایی پیدا نشد/)).toBeInTheDocument();
@@ -129,6 +169,7 @@ describe('PriceTable — spec filter bar (owner request 1405/06/02)', () => {
   it('clearing filters restores every row', async () => {
     const user = userEvent.setup();
     renderTable();
+    await openFacet(user, 'سایز');
     await user.click(screen.getByRole('button', { name: '۱۴' }));
     expect(screen.queryByText('r-16-a2')).not.toBeInTheDocument();
 
