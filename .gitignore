@@ -13,6 +13,11 @@
 caddy_data/
 caddy_config/
 
+# Server-side record of the last-deployed Caddyfile hash (deploy.yml) — used
+# to decide whether the caddy container needs --force-recreate. Lives only
+# on the deploy host, never belongs in git.
+.caddyfile.sha256
+
 # Pre-deploy DB dumps (deploy.yml's backup step, and manual pre-deploy backups)
 # — full database contents, never belongs in git.
 backups/

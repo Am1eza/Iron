@@ -66,8 +66,11 @@ beforeEach(() => {
   fetchMock.mockImplementation(async () => ok());
   vi.stubGlobal('fetch', fetchMock);
   // reportError writes one structured JSON line per report; silence it and
-  // count it (the "does not spam the tracker" test reads this).
+  // count it (the "does not spam the tracker" test reads this). A circuit
+  // opening reports at 'warning' (fix/circuit-breaker-warning-level), not
+  // 'error' — console.warn is what actually fires here.
   vi.spyOn(console, 'error').mockImplementation(() => {});
+  vi.spyOn(console, 'warn').mockImplementation(() => {});
   process.env.ALERT_RELAY_SECRET = SECRET;
   process.env.TELEGRAM_BOT_TOKEN = TOKEN;
   process.env.TELEGRAM_ALERT_CHAT_ID = CHAT_ID;
@@ -257,7 +260,7 @@ describe('the bot token is a bearer credential in a URL path — it must never b
     await post(SECRET);
     await post(SECRET);
 
-    const logged = vi.mocked(console.error).mock.calls.flat().map(String).join('\n');
+    const logged = vi.mocked(console.warn).mock.calls.flat().map(String).join('\n');
     expect(logged).not.toContain(TOKEN);
     expect(logged).not.toContain(TOKEN.split(':')[1]);
     // The reported error is the breaker's own message, which never carried a URL.
@@ -454,7 +457,7 @@ describe('non-fatal — Telegram is an untrusted network dependency', () => {
     fetchMock.mockImplementation(async () => {
       throw new Error('ETIMEDOUT');
     });
-    const errorSpy = vi.mocked(console.error);
+    const warnSpy = vi.mocked(console.warn);
 
     for (let i = 0; i < 10; i++) await post(SECRET);
 
@@ -462,7 +465,7 @@ describe('non-fatal — Telegram is an untrusted network dependency', () => {
     // reports exactly once on that transition (92cab87). Without this rule
     // each report becomes a GlitchTip issue that webhooks back into this very
     // route.
-    expect(errorSpy).toHaveBeenCalledTimes(1);
+    expect(warnSpy).toHaveBeenCalledTimes(1);
     // …and while the circuit is open no further network calls are made at all.
     expect(fetchMock.mock.calls.length).toBeLessThan(10);
   });

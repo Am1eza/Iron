@@ -89,7 +89,18 @@ export async function requireApiPermission(
   return auth;
 }
 
-/** Audit an admin write — thin wrapper so handlers stay one-line. */
+/**
+ * Audit an admin write — thin wrapper so handlers stay one-line.
+ *
+ * Never throws. Every caller runs this AFTER its write has committed, and
+ * `withApiErrorHandling` turns anything thrown here into a generic 500 — so a
+ * transient failure inserting the audit row reported «خطایی در سرور رخ داد» for
+ * an operation that had fully succeeded. The admin then retries, gets a 404
+ * (the product is already deleted, the slug is already taken), and has no way
+ * to tell what actually happened. The row is gone either way; losing the trail
+ * of who removed it is bad, and lying about the outcome on top of that is
+ * worse. Reported instead, so the failure is visible where failures are read.
+ */
 export async function audit(
   actorId: string | null,
   action: string,
@@ -97,5 +108,9 @@ export async function audit(
   before?: unknown,
   after?: unknown,
 ): Promise<void> {
-  await writeAudit({ actorId, action, entityType: entity.type, entityId: entity.id, before, after });
+  try {
+    await writeAudit({ actorId, action, entityType: entity.type, entityId: entity.id, before, after });
+  } catch (err) {
+    reportError(err, { stage: 'audit', action, entityType: entity.type, entityId: entity.id });
+  }
 }

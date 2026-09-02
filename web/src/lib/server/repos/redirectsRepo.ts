@@ -3,7 +3,7 @@
  *  request time from `middleware.ts`, on every public-host request — this
  *  takes priority over a real route match, not just 404 fallback, since a
  *  redirect aimed at a still-live page's own URL must actually win. */
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { getDb } from '@/lib/server/db/client';
 import { redirects } from '@/lib/server/db/schema';
@@ -165,6 +165,114 @@ export async function createRedirect(input: {
     .values({ id: ulid(), fromPath, toPath: terminal, permanent: input.permanent ?? true })
     .returning();
   return rows[0]!;
+}
+
+/**
+ * Write MANY redirects with a constant number of round trips.
+ *
+ * `createRedirect` above is per-row and does three queries of its own
+ * (`wouldLoop`, `resolveTerminal`, the backward collapse) before it inserts,
+ * which is fine for the one row an admin types into the panel and is not fine
+ * for the catalog: renaming a category, moving a sub-category or deleting
+ * either has to preserve EVERY indexed URL underneath it — «rebar» alone is
+ * ~280 products — and a `for` loop of `await createRedirect` puts ~900
+ * sequential statements inside one PATCH. A proxy timing out halfway through
+ * that leaves the taxonomy renamed and half its URLs permanently 404, with no
+ * retry and no queue.
+ *
+ * Same invariants as the single-row path, established once per destination
+ * instead of once per row:
+ *
+ *  · the destination is resolved to where it ACTUALLY lands (`resolveTerminal`),
+ *    so this cannot append a second hop to an existing chain;
+ *  · any existing row that pointed at one of these sources is re-aimed at that
+ *    destination, so it cannot BECOME a chain either;
+ *  · a source equal to the destination is dropped rather than stored as a
+ *    self-redirect — which, together with the terminal resolution, is what
+ *    `wouldLoop` was protecting against here (the chain it walks is already
+ *    collapsed to one hop by the two rules above).
+ *
+ * An existing row for the same `fromPath` is re-pointed, not rejected: these
+ * callers are stating where a path lives NOW, and the previous answer is by
+ * definition stale.
+ */
+export async function createRedirects(
+  entries: Array<{ fromPath: string; toPath: string }>,
+  opts?: { permanent?: boolean },
+): Promise<number> {
+  const byTarget = new Map<string, Set<string>>();
+  for (const e of entries) {
+    const fromPath = normalizePath(e.fromPath);
+    const toPath = normalizePath(e.toPath);
+    if (fromPath === toPath) continue;
+    const set = byTarget.get(toPath) ?? new Set<string>();
+    set.add(fromPath);
+    byTarget.set(toPath, set);
+  }
+  const permanent = opts?.permanent ?? true;
+  const db = getDb();
+  let written = 0;
+  for (const [toPath, sources] of byTarget) {
+    const terminal = await resolveTerminal(toPath);
+    const fromPaths = [...sources].filter((f) => f !== terminal);
+    if (fromPaths.length === 0) continue;
+    await db
+      .update(redirects)
+      .set({ toPath: terminal, updatedAt: new Date() })
+      .where(inArray(redirects.toPath, fromPaths));
+    // Chunked so one delete of a very large category cannot build a statement
+    // with more bound parameters than the driver will carry.
+    for (let i = 0; i < fromPaths.length; i += 500) {
+      const rows = await db
+        .insert(redirects)
+        .values(
+          fromPaths.slice(i, i + 500).map((fromPath) => ({
+            id: ulid(),
+            fromPath,
+            toPath: terminal,
+            permanent,
+          })),
+        )
+        .onConflictDoUpdate({
+          target: redirects.fromPath,
+          set: { toPath: terminal, permanent, updatedAt: new Date() },
+        })
+        .returning({ id: redirects.id });
+      written += rows.length;
+    }
+  }
+  return written;
+}
+
+/**
+ * Drop every redirect whose SOURCE is one of `paths`, because those paths are
+ * real pages again.
+ *
+ * The other half of writing a tombstone on delete. `middleware.ts` answers a
+ * redirect BEFORE the route is ever matched, so a row left over from when a
+ * path was deleted makes the page that later occupies it unreachable: it
+ * serves a 308 to its own parent forever, and `sitemap.ts` (which asks
+ * `listRedirectFromPaths`) drops it as well. Production had exactly this —
+ * three live, SKU-bearing پروفیل sub-categories 308'ing to `/prices/profile`
+ * off rows left by an earlier re-slug — and now that every delete leaves a
+ * tombstone, rebuilding what was retired would walk straight back into it.
+ *
+ * Worse than unreachable, silently: `createRedirects` resolves each
+ * destination with `resolveTerminal`, so a rename or a move ONTO a tombstoned
+ * path resolves through the tombstone and stores the tombstone's target
+ * instead of the page that actually moved there. That is why the callers clear
+ * before they write rather than after.
+ *
+ * @returns how many rows were removed.
+ */
+export async function deleteRedirectsFrom(paths: readonly string[]): Promise<number> {
+  const fromPaths = [...new Set(paths.map(normalizePath))];
+  if (fromPaths.length === 0) return 0;
+  const rows = await getDb()
+    .delete(redirects)
+    .where(inArray(redirects.fromPath, fromPaths))
+    .returning({ id: redirects.id });
+  return rows.length;
 }
 
 export async function updateRedirect(

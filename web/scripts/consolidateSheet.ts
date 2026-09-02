@@ -201,7 +201,6 @@ await db.transaction(async (tx) => {
       slug: n.slug,
       name: n.name,
       order: n.order,
-      isActive: true,
     });
   }
   for (const m of skuMoves) {

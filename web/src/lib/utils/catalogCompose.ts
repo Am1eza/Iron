@@ -8,6 +8,7 @@
  * that are genuinely theirs: which sub-category, which size, which factory.
  */
 import { normalizeDigits } from './format';
+import { catalogSizeNumbers } from './catalogSize';
 import { slugify } from './slugify';
 import { unitWeightKg, type WeightShape } from './weight';
 import type { PriceBasis, PriceUnit } from '@/lib/types/domain';
@@ -89,12 +90,14 @@ export function composeSkuSlug(input: {
   categorySlug: string;
   size?: string;
   grade?: string;
+  condition?: string;
   factory?: string;
 }): string {
   const parts = [
     input.categorySlug,
     input.size ? normalizeDigits(input.size).replace(/×/g, 'x') : '',
     input.grade ? slugify(input.grade) : '',
+    input.condition ? slugify(input.condition) : '',
     input.factory ? factorySlug(input.factory) : '',
   ];
   return parts
@@ -277,14 +280,18 @@ export function theoreticalWeightFor(
   if (!size) return null;
   const basis = CATALOG_WEIGHT_BASIS[weightBasisKey(categorySlug, subSlug)];
   if (!basis) return null;
-  const n = Number(normalizeDigits(size).replace(/[^\d.]/g, ''));
-  if (!Number.isFinite(n) || n <= 0) return null;
+  const axes = catalogSizeNumbers(size);
+  const n = axes[0];
+  if (n == null || !Number.isFinite(n) || n <= 0) return null;
   const dims =
     basis.sizeAs === 'diameterMm'
       ? { diameterMm: n }
       : basis.sizeAs === 'legCm'
-        ? // ANGLE_KG_PER_M is keyed in mm of leg; the catalog size is in cm.
-          { sizeCode: n * 10 }
+        ? // Legacy angle rows use the centimetre code «۶»; normalized rows
+          // use the physical section «۶۰×۶۰×۶». ANGLE_KG_PER_M is
+          // keyed in millimetres, so a dimension vector already supplies the
+          // first leg in the right unit while a scalar keeps the old ×10 rule.
+          { sizeCode: axes.length >= 2 ? n : n * 10 }
         : { sizeCode: n };
   // The SKU's OWN branch length wins over the line's convention when one is
   // recorded. نبشی is the case that forced this: مرکزآهن and ahanonline both

@@ -23,13 +23,10 @@ let close: () => Promise<void>;
 beforeAll(async () => {
   ({ db, close } = await createTestDb());
   await db.insert(schema.categories).values([
-    { id: 'c-ibeam', slug: 'ibeam', name: 'تیرآهن', order: 1, iconId: '', isActive: true },
-    { id: 'c-off', slug: 'wire', name: 'کلاف', order: 2, iconId: '', isActive: false },
+    { id: 'c-ibeam', slug: 'ibeam', name: 'تیرآهن', order: 1, iconId: '' },
   ]);
   await db.insert(schema.subCategories).values([
-    { id: 's-tirahan', categoryId: 'c-ibeam', slug: 'tirahan', name: 'تیرآهن', order: 1, isActive: true },
-    { id: 's-off', categoryId: 'c-ibeam', slug: 'light', name: 'سبک', order: 2, isActive: false },
-    { id: 's-under-off-cat', categoryId: 'c-off', slug: 'coil', name: 'کلاف', order: 1, isActive: true },
+    { id: 's-tirahan', categoryId: 'c-ibeam', slug: 'tirahan', name: 'تیرآهن', order: 1 },
   ]);
   const sku = (id: string, subId: string, catId: string, name: string) => ({
     id,
@@ -38,15 +35,11 @@ beforeAll(async () => {
     slug: id,
     name,
     unit: 'kg' as const,
-    isActive: true,
   });
   await db.insert(schema.skus).values([
     sku('priced', 's-tirahan', 'c-ibeam', 'تیرآهن ۱۴ ذوب آهن'),
     sku('unpriced-faico', 's-tirahan', 'c-ibeam', 'تیرآهن ۱۶ فایکو'),
     sku('unpriced-zafar', 's-tirahan', 'c-ibeam', 'تیرآهن ۱۶ ظفر بناب'),
-    { ...sku('retired', 's-tirahan', 'c-ibeam', 'تیرآهن بازنشسته'), isActive: false },
-    sku('stranded-sub', 's-off', 'c-ibeam', 'تیرآهن سبک ۱۸'),
-    sku('stranded-cat', 's-under-off-cat', 'c-off', 'کلاف ۶.۵'),
   ]);
   await db.insert(schema.currentPrices).values({
     skuId: 'priced',
@@ -71,19 +64,6 @@ describe('listActiveSkuIdsWithoutPrice', () => {
       'unpriced-faico',
       'unpriced-zafar',
     ]);
-  });
-
-  it('does not report a deliberately retired product', async () => {
-    expect(await listActiveSkuIdsWithoutPrice()).not.toContain('retired');
-  });
-
-  it('does not report a product already hidden by its taxonomy', async () => {
-    // These have their own tile (`countSkusHiddenByTaxonomy`) and their own
-    // fix — reactivating the parent, not typing a price. Counting them here
-    // too would send the operator to a grid that cannot show them.
-    const ids = await listActiveSkuIdsWithoutPrice();
-    expect(ids).not.toContain('stranded-sub');
-    expect(ids).not.toContain('stranded-cat');
   });
 
   it('names rows the admin grid DOES list — the gap is the number, not the row', async () => {

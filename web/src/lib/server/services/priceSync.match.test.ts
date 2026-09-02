@@ -142,6 +142,22 @@ describe('sizeMatches — the per-family rules', () => {
     expect(sizeMatches({ ...s, size: '۸' }, r)).toBe(false);
   });
 
+  it('نبشی: canonical three-axis sections match every published physical axis', () => {
+    const source = row({
+      sourcePath: 'نبشی-و-ناودانی/نبشی',
+      cells: { 'سایز': '60*60', 'ضخامت': '6' },
+    });
+    const canonical = sku({
+      categorySlug: 'angle-channel',
+      subCategorySlug: 'nabshi',
+      size: '۶۰×۶۰×۶',
+      factory: 'سپهر ایرانیان',
+    });
+    expect(sizeMatches(canonical, source)).toBe(true);
+    expect(sizeMatches({ ...canonical, size: '۶۰×۶۰×۸' }, source)).toBe(false);
+    expect(sizeMatches({ ...canonical, size: '۸۰×۶۰×۶' }, source)).toBe(false);
+  });
+
   it('پروفیل: a×b compared as an unordered pair', () => {
     const s = sku({ categorySlug: 'profile', subCategorySlug: 'box-rect', size: '۴۰×۸۰' });
     expect(sizeMatches(s, row({ sourcePath: 'انواع-پروفیل/پروفیل', cells: { 'سایز': '80*40' } }))).toBe(true);

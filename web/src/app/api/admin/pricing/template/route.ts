@@ -30,7 +30,6 @@ async function GETImpl(req: NextRequest) {
     .from(skus)
     .innerJoin(subCategories, eq(subCategories.id, skus.subCategoryId))
     .leftJoin(currentPrices, eq(currentPrices.skuId, skus.id))
-    .where(eq(skus.isActive, true))
     .orderBy(asc(skus.categoryId), asc(skus.subCategoryId), asc(skus.name));
 
   const wb = new ExcelJS.Workbook();

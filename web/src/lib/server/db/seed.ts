@@ -190,7 +190,7 @@ export async function seedDatabase(db: Db, opts: SeedOptions = {}): Promise<void
     for (const c of categoryFixtures) {
       await db
         .insert(schema.categories)
-        .values({ id: c.id, slug: c.slug, name: c.name, order: c.order, iconId: c.iconId, isActive: true })
+        .values({ id: c.id, slug: c.slug, name: c.name, order: c.order, iconId: c.iconId })
         .onConflictDoUpdate({
           target: schema.categories.slug,
           set: { name: c.name, order: c.order, iconId: c.iconId },
@@ -201,7 +201,7 @@ export async function seedDatabase(db: Db, opts: SeedOptions = {}): Promise<void
         const id = `${c.id}-${s.slug}`;
         await db
           .insert(schema.subCategories)
-          .values({ id, categoryId: c.id, slug: s.slug, name: s.name, order: ++order, isActive: true })
+          .values({ id, categoryId: c.id, slug: s.slug, name: s.name, order: ++order })
           .onConflictDoUpdate({
             target: [schema.subCategories.categoryId, schema.subCategories.slug],
             set: { name: s.name, order },
@@ -239,7 +239,6 @@ export async function seedDatabase(db: Db, opts: SeedOptions = {}): Promise<void
             factory: row.factory,
             theoreticalWeightKg: row.theoreticalWeightKg,
             unit: row.unit,
-            isActive: true,
           })
           .onConflictDoUpdate({ target: schema.skus.slug, set: { name: row.name, factory: row.factory } });
 

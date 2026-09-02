@@ -19,11 +19,11 @@ let close: () => Promise<void>;
 beforeAll(async () => {
   ({ db, close } = await createTestDb());
   await db.insert(schema.categories).values([
-    { id: 'c-rebar', slug: 'rebar', name: 'میلگرد', order: 1, iconId: '', isActive: true },
+    { id: 'c-rebar', slug: 'rebar', name: 'میلگرد', order: 1, iconId: '' },
   ]);
   await db.insert(schema.subCategories).values([
-    { id: 's-plain', categoryId: 'c-rebar', slug: 'plain', name: 'ساده', order: 1, isActive: true },
-    { id: 's-solo', categoryId: 'c-rebar', slug: 'solo', name: 'تک‌کارخانه', order: 2, isActive: true },
+    { id: 's-plain', categoryId: 'c-rebar', slug: 'plain', name: 'ساده', order: 1 },
+    { id: 's-solo', categoryId: 'c-rebar', slug: 'solo', name: 'تک‌کارخانه', order: 2 },
   ]);
   // Three factories for the same product+size 14 (unit branch, 10kg/branch):
   // cheap (28k), pricey (30k), and one with NO price row at all.
@@ -37,7 +37,6 @@ beforeAll(async () => {
     factory,
     theoreticalWeightKg: 10,
     unit: 'branch' as const,
-    isActive: true,
   });
   await db.insert(schema.skus).values([
     sku('rebar-cheap', 's-plain', 'کارخانهٔ ب', '14'),
