@@ -49,10 +49,14 @@ function redact(context?: Record<string, unknown>): Record<string, unknown> | un
   return redactValue(context, 0, new WeakSet()) as Record<string, unknown>;
 }
 
-export function reportError(error: unknown, context?: Record<string, unknown>): void {
+export function reportError(
+  error: unknown,
+  context?: Record<string, unknown>,
+  level: 'error' | 'warning' = 'error',
+): void {
   const scrubbedContext = redact(context);
   const payload = {
-    level: 'error',
+    level,
     tag: 'ahantime:error',
     name: error instanceof Error ? error.name : 'Unknown',
     message: scrubPii(error instanceof Error ? error.message : String(error)),
@@ -69,7 +73,7 @@ export function reportError(error: unknown, context?: Record<string, unknown>): 
   // sink below is for alerting on top of these logs, not for making them
   // structured in the first place.
   // eslint-disable-next-line no-console
-  console.error(JSON.stringify(payload));
+  console[level === 'warning' ? 'warn' : 'error'](JSON.stringify(payload));
   // Pass the SCRUBBED message/stack to Sentry too — it builds its event value
   // from these, and the raw error object would otherwise re-leak the mobile.
   //
@@ -87,7 +91,9 @@ export function reportError(error: unknown, context?: Record<string, unknown>): 
   // which is what that endpoint exists for.
   if (typeof window === 'undefined') {
     void import('./sentry')
-      .then((m) => m.sendToSentry(payload.name, payload.message, payload.stack, scrubbedContext))
+      .then((m) =>
+        m.sendToSentry(payload.name, payload.message, payload.stack, scrubbedContext, level),
+      )
       .catch(() => {});
   }
   beaconToServer(payload);
