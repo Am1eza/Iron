@@ -31,7 +31,7 @@ export function Logo({ compact = false, light = false }: { compact?: boolean; li
     >
       <Image
         src={logoMark}
-        alt=""
+        alt="آهن‌تایم"
         className={styles.mark}
         width={MARK_W}
         height={MARK_H}

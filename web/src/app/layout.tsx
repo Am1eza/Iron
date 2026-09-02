@@ -44,11 +44,11 @@ import faMessages from '../../messages/fa.json';
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://ahantime.com'),
   title: {
-    default: 'آهن‌تایم، بازار هوشمند آهن و فولاد',
+    default: 'آهن‌تایم؛ بازار هوشمند خرید و فروش آهن‌آلات و فولاد ایران',
     template: '%s | آهن‌تایم',
   },
   description:
-    'آهن‌تایم، بازار هوشمند آهن و فولاد: مشاور هوش مصنوعی، قیمت‌های شفاف و لحظه‌ای و زمان تحویل مشخص. اول مشورت، بعد خرید.',
+    'آهن‌تایم، بازار هوشمند خرید و فروش آهن‌آلات و فولاد ایران: مشاور هوش مصنوعی، قیمت‌های شفاف و لحظه‌ای، پیش‌فاکتور رسمی و زمان تحویل مشخص. اول مشورت، بعد خرید.',
   applicationName: 'آهن‌تایم',
   openGraph: {
     type: 'website',
