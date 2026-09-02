@@ -22,7 +22,6 @@ function row(id: string, size: string, order: number, price = 500_000): PriceRow
     factory: 'فولاد مبارکه',
     order,
     unit: 'kg',
-    isActive: true,
     current: {
       skuId: id,
       price,

@@ -11,13 +11,36 @@ import { describe, it, expect } from 'vitest';
 import { selectFollowUpChips, CHIP, PURPOSE_CHIPS } from './aiTaxonomy';
 
 describe('selectFollowUpChips', () => {
-  it('offers proforma + all-prices after getPrice/calcWeight/compareFactories', () => {
-    for (const tool of ['getPrice', 'calcWeight', 'compareFactories']) {
+  it('offers proforma + outlook + all-prices after a price/weight/comparison answer', () => {
+    // «بالا می‌رود یا پایین؟» joined this row when forecastPrice made it a
+    // grounded question rather than one the advisor had to refuse (US-05.7).
+    for (const tool of ['getPrice', 'calcWeight', 'compareFactories', 'priceHistory']) {
       expect(selectFollowUpChips(new Set([tool]), 1, 'قیمت میلگرد چنده؟')).toEqual([
         CHIP.proforma,
+        CHIP.outlook,
         CHIP.allPrices,
       ]);
     }
+  });
+
+  it('turns an outlook into the two things you can actually DO about it', () => {
+    // A directional call leaves exactly two honest moves: lock today's price,
+    // or wait — and «wait» is only real if something tells you when the
+    // waiting is over, which is what the alert is. Never another forecast.
+    const chips = selectFollowUpChips(new Set(['forecastPrice']), 2, 'قیمت میلگرد بالا می‌رود؟');
+    expect(chips).toEqual([CHIP.proformaToday, CHIP.priceAlert]);
+    expect(chips).not.toContain(CHIP.outlook);
+  });
+
+  it('moves on to buying once the alert is set, rather than offering it twice', () => {
+    expect(selectFollowUpChips(new Set(['setPriceAlert']), 3, 'خبرم کن')).toEqual([
+      CHIP.proforma,
+      CHIP.allPrices,
+    ]);
+  });
+
+  it('says nothing extra when the options card already asked the question', () => {
+    expect(selectFollowUpChips(new Set(['productOptions']), 1, 'قیمت میلگرد')).toEqual([]);
   });
 
   // The estimate branch is the one place the picker reads the tool's RESULT
@@ -93,6 +116,7 @@ describe('selectFollowUpChips', () => {
     expect(selectFollowUpChips(new Set(['prepareProforma']), 2, 'پیش‌فاکتور', [])).toEqual([]);
     expect(selectFollowUpChips(new Set(['getPrice']), 2, 'قیمت میلگرد', undefined)).toEqual([
       CHIP.proforma,
+      CHIP.outlook,
       CHIP.allPrices,
     ]);
   });

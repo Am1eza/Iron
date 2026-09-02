@@ -3,9 +3,14 @@ import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { adminListSubCategoriesWithCounts, createSubCategory } from '@/lib/server/repos/catalogAdminRepo';
-import { catalogErrorResponse, revalidateCatalog } from '@/lib/server/utils/catalogRoute';
+import {
+  catalogErrorResponse,
+  clearRedirectShadow,
+  revalidateCatalog,
+  subCategoryPublicPath,
+} from '@/lib/server/utils/catalogRoute';
 import { finiteNumber, subCategorySlugSchema } from '@/lib/validation/utils';
-import { normalizePersian } from '@/lib/utils/persianText';
+import { normalizeCatalogText } from '@/lib/server/utils/persianZwnj';
 
 async function GETImpl(req: NextRequest) {
   const guard = requireDb();
@@ -22,7 +27,7 @@ async function GETImpl(req: NextRequest) {
 const createPayload = z.object({
   categoryId: z.string().min(1),
   slug: subCategorySlugSchema(60),
-  name: z.string().trim().min(1).max(80).transform(normalizePersian),
+  name: z.string().trim().min(1).max(80).transform(normalizeCatalogText),
   // Display-only cluster label (not a real hierarchy level, see catalog.ts).
   // Empty string means "no group" — normalized to null so it matches an
   // untouched subcategory rather than becoming a spurious "" group.
@@ -30,7 +35,7 @@ const createPayload = z.object({
     .string()
     .trim()
     .max(80)
-    .transform(normalizePersian)
+    .transform(normalizeCatalogText)
     .transform((v) => v || null)
     .nullable()
     .optional(),
@@ -52,7 +57,12 @@ async function POSTImpl(req: NextRequest) {
     if (mapped) return mapped;
     throw err;
   }
-  await audit(auth.session.id, 'catalog.sub.create', { type: 'sub', id: subCategory.id }, null, v.data);
+  // The persisted row, not the request body — see the category route.
+  await audit(auth.session.id, 'catalog.sub.create', { type: 'sub', id: subCategory.id }, null, subCategory);
+  // Retiring a sub-category and rebuilding it days later is a sequence this
+  // catalog has already been through; the tombstone the delete left would
+  // otherwise make the rebuilt page unreachable. See `clearRedirectShadow`.
+  await clearRedirectShadow([await subCategoryPublicPath(subCategory.categoryId, subCategory.slug)]);
   await revalidateCatalog('taxonomy');
   return NextResponse.json({ subCategory }, { status: 201 });
 }
