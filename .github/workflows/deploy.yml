@@ -324,7 +324,7 @@ jobs:
           echo "Side-load complete and verified on the server."
 
       - name: Deploy over SSH (health-gated, auto-rollback)
-        uses: appleboy/ssh-action@7eaf76671a0d7eec5d98ee897acda4f968735a17 # v1.2.0
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
         env:
           TARGET_TAG: ${{ github.event.inputs.image_tag || needs.build.outputs.tag }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
