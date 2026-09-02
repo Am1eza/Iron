@@ -198,6 +198,76 @@ describe('lead → proforma flow', () => {
     expect(lead[0]!.source).toBe('cart');
   });
 
+  it('applies تخفیف پلکانی on the AUTOMATIC path too — createLead is not just issueProforma\'s poor cousin', async () => {
+    // Regression for the audit's Critical finding: createLead used to build
+    // its proforma with a bare `subtotal + vatAmount`, never calling
+    // `resolveVolumeTier` — so a customer whose basket cleared the ۵ تن
+    // threshold got the discount ONLY if a rep manually re-issued the quote
+    // via the admin `issueProforma` path, never on the automatic proforma
+    // `POST /api/leads` (this exact call) actually sends first.
+    const rows = await tableRows('rebar');
+    const sku = rows.find((r) => r.unit === 'kg') ?? rows[0]!;
+    // Enough qty to clear the 5-ton bulk band regardless of whether the SKU
+    // is priced per kg directly or per piece with a theoretical weight.
+    const qty = sku.unit === 'kg' ? 6000 : Math.ceil(6000 / (sku.theoreticalWeightKg || 1));
+
+    const result = await createLead(
+      {
+        contact: { mobile: '09122223333' },
+        items: [{ skuId: sku.id, qty, unit: sku.unit }],
+        source: 'cart',
+      },
+      null,
+    );
+
+    expect(result.totalWeightKg).toBeGreaterThanOrEqual(5000);
+    const p = await findProformaByRef(result.ref);
+    expect(p).not.toBeNull();
+    expect(p!.volumeDiscountToman).toBeGreaterThan(0);
+    expect(p!.volumeTier).toBe('bulk');
+    expect(p!.volumeDiscountLabel).toBe('تخفیف عمده (۱٫۵٪)');
+    // Same identity issueProforma pins: subtotal − volumeDiscount − discount
+    // + vat === total.
+    expect(p!.total).toBe(p!.subtotal - p!.volumeDiscountToman - p!.discountToman + p!.vatAmount);
+  });
+
+  it('flags priceChanged when the client\'s cart-snapshot price drifted from the server (audit #12)', async () => {
+    const rows = await tableRows('rebar');
+    const sku = rows[0]!;
+    const real = await db.select().from(schema.currentPrices).where(eq(schema.currentPrices.skuId, sku.id));
+    const realPrice = real[0]!.price;
+
+    const stale = await createLead(
+      {
+        contact: { mobile: '09123334444' },
+        items: [{ skuId: sku.id, qty: 5, unit: sku.unit, quotedUnitPrice: realPrice + 1_000_000 }],
+        source: 'cart',
+      },
+      null,
+    );
+    expect(stale.priceChanged).toBe(true);
+    expect(stale.items![0]!.priceChanged).toBe(true);
+
+    const fresh = await createLead(
+      {
+        contact: { mobile: '09123334444' },
+        items: [{ skuId: sku.id, qty: 5, unit: sku.unit, quotedUnitPrice: realPrice }],
+        source: 'cart',
+      },
+      null,
+    );
+    expect(fresh.priceChanged).toBe(false);
+    expect(fresh.items![0]!.priceChanged).toBe(false);
+
+    // No quotedUnitPrice at all (e.g. the AI-advisor path, which has no
+    // "displayed" price to compare against) must not falsely flag a change.
+    const noComparison = await createLead(
+      { contact: { mobile: '09123334444' }, items: [{ skuId: sku.id, qty: 5, unit: sku.unit }], source: 'ai' },
+      null,
+    );
+    expect(noComparison.priceChanged).toBe(false);
+  });
+
   it('skips the proforma when a line is unpriced (sales follows up)', async () => {
     const rows = await tableRows('rebar');
     const sku = rows[5]!;
@@ -226,9 +296,11 @@ describe('lead → proforma flow', () => {
       'prepareProforma',
       { items: [{ skuId: sku.id, qty: 2, unit: sku.unit }] },
       null,
-      'conv-draft-1',
-      [{ role: 'user', content: 'دو شاخه میلگرد می‌خوام' }],
-      (d) => emitted.push(d),
+      {
+        conversationId: 'conv-draft-1',
+        transcript: [{ role: 'user', content: 'دو شاخه میلگرد می‌خوام' }],
+        onDraft: (d) => emitted.push(d),
+      },
     )) as { status: string; draftId: string; signedIn: boolean };
 
     // No lead, no proforma, no SMS: the visitor has not confirmed anything yet.
@@ -272,9 +344,7 @@ describe('lead → proforma flow', () => {
       'prepareProforma',
       { items: [{ product: sku.name, qty: 3000, unit: 'kg' }] },
       null,
-      'conv-resolve-1',
-      undefined,
-      (d) => emitted.push(d),
+      { conversationId: 'conv-resolve-1', onDraft: (d) => emitted.push(d) },
     )) as { status?: string; draftId?: string; error?: string };
 
     expect(result.error).toBeUndefined();

@@ -2,26 +2,29 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
-import { updateSubCategory } from '@/lib/server/repos/catalogAdminRepo';
+import { deleteSubCategory, subCategoryImpact, updateSubCategory } from '@/lib/server/repos/catalogAdminRepo';
 import {
   catalogErrorResponse,
-  redirectTaxonomySlugChange,
+  openOrdersBlock,
+  planDeletedNodeRedirects,
+  redirectSubCategoryChange,
   revalidateCatalog,
+  writeCatalogRedirects,
 } from '@/lib/server/utils/catalogRoute';
 import { finiteNumber, nonEmptyPatch, subCategorySlugSchema } from '@/lib/validation/utils';
-import { normalizePersian } from '@/lib/utils/persianText';
+import { normalizeCatalogText } from '@/lib/server/utils/persianZwnj';
 
 const patchPayload = nonEmptyPatch(
   z.object({
     slug: subCategorySlugSchema(60).optional(),
-    name: z.string().trim().min(1).max(80).transform(normalizePersian).optional(),
+    name: z.string().trim().min(1).max(80).transform(normalizeCatalogText).optional(),
     // Display-only cluster label (not a real hierarchy level, see catalog.ts).
     // Empty string clears the group (normalized to null, same as create).
     groupLabel: z
       .string()
       .trim()
       .max(80)
-      .transform(normalizePersian)
+      .transform(normalizeCatalogText)
       .transform((v) => v || null)
       .nullable()
       .optional(),
@@ -30,7 +33,6 @@ const patchPayload = nonEmptyPatch(
     // sub could only be retired and rebuilt. The repo re-parents its products
     // in the same call so the two can't drift apart.
     categoryId: z.string().min(1).optional(),
-    isActive: z.boolean().optional(),
   }),
 );
 
@@ -56,28 +58,34 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }
   // to the raw identifier, printing Latin «subCategory» inline in a Persian
   // sentence and losing the link through to the catalog.
   await audit(auth.session.id, 'catalog.sub.update', { type: 'sub', id }, result.before, result.after);
-  if (v.data.slug && v.data.slug !== result.before.slug) {
-    await redirectTaxonomySlugChange('subCategory', id, result.before.slug, v.data.slug);
-  }
+  // A MOVE changes this sub's public URL exactly as a rename does — the parent
+  // category's slug is the first segment of it — and every product underneath
+  // moves with it. Comparing slugs alone left all of those hard-404ing.
+  await redirectSubCategoryChange(id, result.before, result.after);
   await revalidateCatalog('taxonomy');
   return NextResponse.json({ subCategory: result.after });
 }
 
+/** DELETE really deletes — the sub-category and every product under it. */
 async function DELETEImpl(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const guard = requireDb();
   if (guard) return guard;
   const auth = await requireApiPermission(req, 'catalog:write');
   if ('response' in auth) return auth.response;
   const { id } = await ctx.params;
-  const result = await updateSubCategory(id, { isActive: false });
+  const impact = await subCategoryImpact(id);
+  const blocked = openOrdersBlock(req, impact);
+  if (blocked) return blocked;
+  // Before the delete: its products cascade away with it.
+  const tombstone = await planDeletedNodeRedirects('subCategory', id);
+  const result = await deleteSubCategory(id);
   if (!result) return NextResponse.json({ error: 'not_found', message: 'زیر‌دسته یافت نشد.' }, { status: 404 });
-  await audit(
-    auth.session.id,
-    'catalog.sub.deactivate',
-    { type: 'sub', id },
-    { name: result.before.name, slug: result.before.slug, isActive: result.before.isActive },
-    { isActive: false },
-  );
+  const { removed, subtree } = result;
+  // The whole row, plus the products it cascaded away — see the category
+  // route for why two columns and a bare count is not a recovery story.
+  await audit(auth.session.id, 'catalog.sub.delete', { type: 'sub', id }, { ...removed, _subtree: subtree }, null);
+  // The sub's own page and each of its products land on the parent category.
+  await writeCatalogRedirects(tombstone);
   await revalidateCatalog('taxonomy');
   return NextResponse.json({ ok: true });
 }

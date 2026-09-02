@@ -1,0 +1,26 @@
+/**
+ * `display: contents` on screen — the wrapper contributes no box of its own,
+ * so it cannot interfere with Header/Ticker's sticky positioning or any
+ * child's `position: fixed` (CartReminder, the drawer, the callback FAB):
+ * their containing block is still the viewport/nearest positioned ancestor,
+ * exactly as if this div were not here at all.
+ *
+ * On print it switches to `display: none`, hiding the ENTIRE storefront
+ * chrome — ticker, nav, drawer, cart/arrival promos, footer, call FAB — in
+ * one place. Every printable page shares this bug (not just پیش‌فاکتور,
+ * where it was first reported): nothing in the app previously hid this
+ * chrome for print, so any page a visitor tried to print/"Save as PDF" got
+ * the live ticker and site nav baked into the paper alongside whatever they
+ * actually meant to print.
+ */
+.top,
+.bottom {
+  display: contents;
+}
+
+@media print {
+  .top,
+  .bottom {
+    display: none;
+  }
+}

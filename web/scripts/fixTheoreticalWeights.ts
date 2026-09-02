@@ -97,7 +97,6 @@
  *   · one UPDATE per row, by primary key, setting only `theoretical_weight_kg`
  *     and `updated_at`
  *   · the full old → new report is printed before any write
- *   · `--all` also reports inactive SKUs (default is active only)
  *
  *     ./node_modules/.bin/tsx scripts/fixTheoreticalWeights.ts
  *     # …review the report, then re-run with --apply
@@ -106,7 +105,6 @@ import pg from 'pg';
 import { theoreticalWeightFor } from '../src/lib/utils/catalogCompose';
 
 const APPLY = process.argv.includes('--apply');
-const INCLUDE_INACTIVE = process.argv.includes('--all');
 const url = process.env.DATABASE_URL;
 if (!url) {
   console.error('[weights] DATABASE_URL is not set.');
@@ -123,17 +121,15 @@ type Row = {
   weight: string | null;
   cat: string;
   sub: string;
-  active: boolean;
 };
 
 const { rows } = await pool.query<Row>(
   `SELECT s.id, s.name, s.size, s.unit,
           s.theoretical_weight_kg::text AS weight,
-          c.slug AS cat, sc.slug AS sub, s.is_active AS active
+          c.slug AS cat, sc.slug AS sub
      FROM skus s
      JOIN categories c ON c.id = s.category_id
      JOIN sub_categories sc ON sc.id = s.sub_category_id
-    WHERE ${INCLUDE_INACTIVE ? 'TRUE' : 's.is_active'}
     ORDER BY c.slug, sc.slug, s.size, s.name`,
 );
 
@@ -182,7 +178,7 @@ for (const r of rows) {
   changes.push({ row: r, from, to });
 }
 
-console.log(`[weights] ${rows.length} sku(s) examined${INCLUDE_INACTIVE ? ' (incl. inactive)' : ' (active only)'}.`);
+console.log(`[weights] ${rows.length} sku(s) examined.`);
 console.log(`[weights]   ${notGenerated.length} not written by the bug (null, hand-entered or already corrected) — untouched`);
 console.log(`[weights]   ${alreadyRight.length} bug-written but coincidentally correct (round bar) — no write`);
 console.log(`[weights]   ${changes.length} to change\n`);

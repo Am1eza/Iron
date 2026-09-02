@@ -16,7 +16,7 @@ import { getCategories as serverCategories, getSubsMap as serverSubsMap } from '
 export const getCategories = cache(async (): Promise<Category[]> => {
   try {
     const categories = await serverCategories();
-    return categories.filter((c) => c.isActive).sort((a, b) => a.order - b.order);
+    return [...categories].sort((a, b) => a.order - b.order);
   } catch {
     // Chrome must never hard-fail; an empty rail degrades gracefully.
     return [];

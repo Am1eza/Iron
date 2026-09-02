@@ -22,7 +22,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useFocusTrap } from '@/lib/hooks/useFocusTrap';
-import { adminApi, type AdminSku, type AdminCategory, type AdminSubCategory } from '@/lib/api/resources/admin';
+import {
+  adminApi,
+  type AdminSku,
+  type AdminCategory,
+  type AdminSubCategory,
+} from '@/lib/api/resources/admin';
 import { ApiError } from '@/lib/api/errors';
 import { normalizeDigits } from '@/lib/utils/format';
 import {
@@ -40,8 +45,13 @@ import {
   attrKeysFor,
   GRADE_LABEL,
   ALLOY_LABEL,
-  BRANCH_LABEL,
+  LENGTH_LABEL,
   CONDITION_LABEL,
+  THICKNESS_LABEL,
+  SIZE_LABEL,
+  WIDTH_LABEL,
+  FLANGE_LABEL,
+  DIMENSIONS_LABEL,
   SCHEDULE_LABEL,
   BRAND_LABEL,
   STANDARD_LABEL,
@@ -49,7 +59,7 @@ import {
   factoryLabel,
 } from '@/lib/utils/catalogLabels';
 import { useToast } from '@/lib/hooks/useToast';
-import { Alert, Badge, Button, Heading, Text, useConfirm } from '@/components/ui';
+import { Alert, Button, Heading, Text, useConfirm } from '@/components/ui';
 import { TextInput, PickerInput } from '@/components/forms/fields';
 import { ImageUpload } from '../ImageUpload';
 import ui from '../adminUi.module.css';
@@ -104,10 +114,58 @@ const SIZE_PLACEHOLDER: Record<string, string> = {
 };
 const FACTORY_PLACEHOLDER = 'مثلاً ذوب‌آهن اصفهان';
 const GRADE_PLACEHOLDER = 'مثلاً A3';
-const DIMENSIONS_PLACEHOLDER: Record<string, string> = {
-  sheet: 'مثلاً ۱۰۰۰×۲۰۰۰',
-  'angle-channel': 'مثلاً ۴',
+/**
+ * What the one shared `dimensions` box is asking for, keyed on the LABEL the
+ * public table already resolved for this exact sub — not on the category.
+ *
+ * The category was the wrong key the moment one parent came to hold two
+ * meanings for the field: under ورق, سیاه stores «۱۰۰۰×۲۰۰۰» while روغنی
+ * stores a bare width, and under نبشی و ناودانی, نبشی stores a wall thickness
+ * while وال‌پست stores a flange. Keying on the resolved label means the hint
+ * cannot describe a different fact from the one written above the box —
+ * `dimensionsLabel` is the single source both read (see `DIMENSION_MEANING`).
+ *
+ * `SIZE_LABEL` is the one label that is genuinely two facts (سیاه's mixed
+ * width/width×length, اسیدشویی's bare width), so it is resolved per sub below.
+ */
+const DIMENSIONS_HINT: Record<string, { helper: string; placeholder: string }> = {
+  [THICKNESS_LABEL]: {
+    helper: 'ضخامت مقطع به میلی‌متر. اختیاری — اگر نمی‌دانید خالی بگذارید.',
+    placeholder: 'مثلاً ۴',
+  },
+  [WIDTH_LABEL]: {
+    helper: 'عرض ورق به میلی‌متر. اختیاری — اگر نمی‌دانید خالی بگذارید.',
+    placeholder: 'مثلاً ۱۲۵۰',
+  },
+  [FLANGE_LABEL]: {
+    helper: 'پهنای بال به میلی‌متر. اختیاری — اگر نمی‌دانید خالی بگذارید.',
+    placeholder: 'مثلاً ۷',
+  },
+  [DIMENSIONS_LABEL]: {
+    helper: 'عرض×طول ورق. اختیاری — اگر نمی‌دانید خالی بگذارید.',
+    placeholder: 'مثلاً ۱۰۰۰×۲۰۰۰',
+  },
 };
+
+/** ورق سیاه's «سایز» holds either shape; اسیدشویی's holds a bare width. */
+const SHEET_SIZE_HINT: Record<string, { helper: string; placeholder: string }> = {
+  black: {
+    helper: 'عرض یا عرض×طول ورق. اختیاری — اگر نمی‌دانید خالی بگذارید.',
+    placeholder: 'مثلاً ۱۲۵۰ یا ۱۰۰۰×۲۰۰۰',
+  },
+  pickled: DIMENSIONS_HINT[WIDTH_LABEL]!,
+};
+
+function dimensionsHint(
+  categorySlug: string | undefined,
+  subSlug: string | undefined,
+  label: string,
+): { helper: string; placeholder: string } {
+  if (label === SIZE_LABEL && categorySlug === 'sheet' && subSlug && SHEET_SIZE_HINT[subSlug]) {
+    return SHEET_SIZE_HINT[subSlug]!;
+  }
+  return DIMENSIONS_HINT[label] ?? DIMENSIONS_HINT[DIMENSIONS_LABEL]!;
+}
 const SCHEDULE_PLACEHOLDER = 'مثلاً ۴۰';
 const BRAND_PLACEHOLDER = 'مثلاً چینی';
 
@@ -137,9 +195,12 @@ type Values = {
   size: string;
   factory: string;
   grade: string;
-  /** ورق width×length or wall thickness on the three approved نبشی
-   *  subs. The field is hidden everywhere else, but the value is still
-   *  round-tripped so moving a SKU never silently drops it. */
+  /** Product form/finish. Independent from grade so one sheet can carry both
+   *  an alloy and a supplied condition. */
+  condition: string;
+  /** ورق width×length or wall thickness on approved section subs. The field
+   *  is hidden elsewhere, but still round-tripped so moving a SKU never
+   *  silently drops it. */
   dimensions: string;
   /** «رده» — pipe schedule. Round-tripped like `dimensions` even where the
    *  field is not rendered, so moving a SKU between sub-categories never
@@ -167,7 +228,11 @@ type Values = {
   crossListedSteel: boolean;
 };
 
-function toValues(sku: AdminSku | null, defaultSubId: string, steelCategoryId: string | undefined): Values {
+function toValues(
+  sku: AdminSku | null,
+  defaultSubId: string,
+  steelCategoryId: string | undefined,
+): Values {
   return {
     name: sku?.name ?? '',
     slug: sku?.slug ?? '',
@@ -175,6 +240,7 @@ function toValues(sku: AdminSku | null, defaultSubId: string, steelCategoryId: s
     size: sku?.size ?? '',
     factory: sku?.factory ?? '',
     grade: sku?.grade ?? '',
+    condition: sku?.condition ?? '',
     dimensions: sku?.dimensions ?? '',
     schedule: sku?.schedule ?? '',
     standard: sku?.standard ?? '',
@@ -184,7 +250,9 @@ function toValues(sku: AdminSku | null, defaultSubId: string, steelCategoryId: s
     branchLengthM: sku?.branchLengthM != null ? String(sku.branchLengthM) : '',
     theoreticalWeightKg: sku?.theoreticalWeightKg != null ? String(sku.theoreticalWeightKg) : '',
     imageUrl: sku?.imageUrl ?? null,
-    crossListedSteel: Boolean(steelCategoryId && sku?.crossListedCategoryIds?.includes(steelCategoryId)),
+    crossListedSteel: Boolean(
+      steelCategoryId && sku?.crossListedCategoryIds?.includes(steelCategoryId),
+    ),
   };
 }
 
@@ -223,8 +291,20 @@ const lengthNumOf = (raw: string): number | null => {
  */
 const normText = (v: string): string => normalizeDigits(v).replace(/٫/g, '.');
 
+/**
+ * Identity of the currently scheduled "pop the Back-guard sentinel", or null.
+ *
+ * Module scope rather than a ref because the whole point is to outlive the
+ * component instance: a REMOUNT has to be able to cancel the pop that the
+ * outgoing mount's cleanup scheduled, and claim its sentinel instead of
+ * pushing a second one. Only one drawer is open at a time (the parent holds a
+ * single `drawer` state), so one token is enough.
+ */
+let guardPopToken: object | null = null;
+
 export function SkuDrawer({
   sku,
+  cloneFrom = null,
   categories,
   subs,
   defaultSubId,
@@ -233,6 +313,17 @@ export function SkuDrawer({
 }: {
   /** null = creating. */
   sku: AdminSku | null;
+  /**
+   * Seed a NEW product from an existing one («تکثیر»). `rebar/deformed` holds
+   * 186 rows that differ only in size and mill, and typing ten fields per row
+   * — with `unit`/`priceBasis` among them, where a slip prices the product
+   * wrongly — is the work that got pushed out into `ts-node` scripts.
+   *
+   * Deliberately not `sku`: this is a create. Name and slug follow the fields
+   * again as soon as one of them changes, exactly as for a blank form, so
+   * altering the size re-derives both instead of copying the source's.
+   */
+  cloneFrom?: AdminSku | null;
   categories: AdminCategory[];
   subs: AdminSubCategory[];
   defaultSubId: string;
@@ -241,9 +332,12 @@ export function SkuDrawer({
 }) {
   const toast = useToast();
   const steelCategory = useMemo(() => categories.find((c) => c.slug === 'steel'), [categories]);
+  /** The row this form's values came from — the one being edited, or the one
+   *  being copied. */
+  const source = sku ?? cloneFrom;
   const initial = useMemo(
-    () => toValues(sku, defaultSubId, steelCategory?.id),
-    [sku, defaultSubId, steelCategory?.id],
+    () => toValues(source, defaultSubId, steelCategory?.id),
+    [source, defaultSubId, steelCategory?.id],
   );
   const [v, setV] = useState<Values>(initial);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -275,40 +369,82 @@ export function SkuDrawer({
   // ورق products are described by thickness, not size — the admin sees the
   // word the trade actually uses for whichever category they're filing this
   // product under (see catalogLabels). The stored column is unchanged.
-  const sizeCol = sizeLabel(parentCategory?.slug);
+  const sizeCol = sizeLabel(parentCategory?.slug, selectedSub?.slug ?? null);
   // The shared column means width×length for ورق and wall thickness for
   // exactly three نبشی subs. Passing `selectedSub.slug` is essential:
   // وال‌پست and تی‌بار share this parent and must remain untouched.
   const showDimensions = usesDimensions(parentCategory?.slug, selectedSub?.slug ?? null);
   const dimensionsCol = dimensionsLabel(parentCategory?.slug, selectedSub?.slug ?? null);
   // The admin uses the same AttrKey decision as the public page: استیل's
-  // stored grade is an «آلیاژ», while ورق's already-stored «برش‌خورده»/
-  // «رول» values describe its «حالت», not a metallurgical grade. This is
-  // deliberately only a label choice: both still edit `skus.grade`, through
-  // the unchanged value/options/save path below.
+  // stored grade is an «آلیاژ», while supplied form/finish is edited through
+  // the independent `condition` column. The legacy-condition key is limited
+  // to families whose pre-migration grade is known to contain that fact.
   const attrKeys = attrKeysFor(parentCategory?.slug, selectedSub?.slug ?? null);
   // تیرآهن هاش سبک/سنگین: «گرید» بی‌معناست، ستون واقعی همان skus.standard
   // است (مثلاً HEA/HEB بر اساس DIN 1025) — همان قاعده‌ای که آلیاژ استیل بالا
   // به آن اشاره دارد، این‌بار برای catalogLabels.attrKeysFor(...).includes('standard').
   const usesStandardAttr = attrKeys.includes('standard');
-  // نبشی و ناودانی (بجز وال پست): «گرید» جای خود را به «شاخه» می‌دهد — همان
-  // ستونی که در جدول قیمت «۶ متری»/«۱۲ متری» نشان داده می‌شود.
+  const usesAlloyAttr = attrKeys.includes('alloy');
+  // وال‌پست (angle-channel): «گرید» is still the column being edited — only
+  // the public label became «ضخامت» 1405/06/08, to match ahanonline. Same
+  // `grade` field, same input, so it must keep resolving into this branch.
+  const usesGradeAsThicknessAttr = attrKeys.includes('gradeAsThickness');
+  // میلگرد (1405/06/09): the public column moved from «گرید» to «استاندارد»
+  // to match ahanonline/teleahan, but it is still `skus.grade` underneath —
+  // so, exactly like وال‌پست's «ضخامت» above, this must keep resolving into
+  // the grade branch or the operator loses the only box that edits A2/A3.
+  const usesGradeAsStandardAttr = attrKeys.includes('gradeAsStandard');
+  // تسمه مسی: «حالت» whose value is stored in `skus.standard`, not in
+  // `skus.condition` — the box has to write the field the page reads.
+  const usesStandardAsConditionAttr = attrKeys.includes('standardAsCondition');
+  const writesStandardAttr = usesStandardAttr || usesStandardAsConditionAttr;
+  const usesGradeAttr =
+    attrKeys.includes('grade') ||
+    usesAlloyAttr ||
+    usesGradeAsThicknessAttr ||
+    usesGradeAsStandardAttr;
+  const usesLegacyConditionAttr = attrKeys.includes('legacyCondition');
+  const usesConditionAttr = attrKeys.includes('condition') || usesLegacyConditionAttr;
+  // Some section families replace «گرید» with the name their source gives
+  // the stored branch length: «حالت» on نبشی/ناودانی (`branch`) and on
+  // industrial/furniture profile (`profileCondition` — same label, a
+  // separate key only because the two categories' owner decisions were
+  // made independently), and «طول» on galvanized profile (`length`). سپری
+  // is deliberately NOT in this set — its own «طول شاخه» reads the
+  // `branchLength` key instead and falls through to the generic automatic
+  // input below, same as لوله/پروفیل صنعتی.
   //
   // The form must swap with the page, not merely alongside it. Leaving the
   // «گرید» box here while the public table no longer publishes grade for
   // these subs would invite an operator to keep filling a field nobody will
   // ever see — the same "collect exactly what is published" rule the آلیاژ
-  // and استاندارد relabels above follow. Nothing is stranded by hiding it:
-  // `grade` is null on every live row of all six of these subs (وال پست, the
-  // one sub that does hold a real grade, is deliberately not in the set).
-  const usesBranchAttr = attrKeys.includes('branch');
-  const gradeLabel = attrKeys.includes('alloy')
-    ? ALLOY_LABEL
-    : attrKeys.includes('condition')
+  // and استاندارد relabels above follow. Every key here reads the SAME
+  // `branchLengthM` field; the old automatic input below is hidden so two
+  // controls cannot write conflicting values into it. Nothing is stranded by
+  // hiding it: `grade` is null on every live row of every one of these
+  // families (وال‌پست, the one نبشی sub that does hold a real grade — now
+  // edited as «ضخامت» via `usesGradeAttr` above — is deliberately not here).
+  const branchAttrKey = attrKeys.find(
+    (key) => key === 'branch' || key === 'profileCondition' || key === 'length',
+  );
+  const usesBranchAttr = Boolean(branchAttrKey);
+  const branchAttrLabel =
+    branchAttrKey === 'branch' || branchAttrKey === 'profileCondition'
       ? CONDITION_LABEL
-      : usesStandardAttr
+      : LENGTH_LABEL;
+  const gradeLabel = usesAlloyAttr
+    ? ALLOY_LABEL
+    : usesStandardAsConditionAttr
+      ? CONDITION_LABEL
+      : usesStandardAttr || usesGradeAsStandardAttr
         ? STANDARD_LABEL
-        : GRADE_LABEL;
+        : usesGradeAsThicknessAttr
+          ? THICKNESS_LABEL
+          : GRADE_LABEL;
+  // During rollout, old ورق rows still carry condition-shaped values in
+  // grade. Display that value until the verified migration (or this edit)
+  // moves it, but never use the fallback where grade is a real alloy.
+  const legacyConditionFromGrade = usesLegacyConditionAttr && !v.condition && Boolean(v.grade);
   // «رده» is offered on exactly the لوله sub-categories whose products have a
   // schedule rating, decided by the same catalogLabels allow-list the public
   // table's column is built from — so the form can never collect a value the
@@ -359,6 +495,87 @@ export function SkuDrawer({
     return () => window.removeEventListener('beforeunload', warn);
   }, [dirty]);
 
+  /**
+   * …and the same guard for the Back button, which `beforeunload` never sees.
+   *
+   * Next's client navigation is a `history` transition, not an unload, so Back
+   * (or a command-palette jump) tore the drawer down mid-edit without a word.
+   * A sentinel entry is pushed while the drawer is open so the first Back
+   * lands here instead of leaving the page; the handler puts it straight back
+   * and asks the same question «انصراف» asks.
+   *
+   * Three details this cannot get wrong:
+   * - Next keeps its router tree in `history.state`; the sentinel is spread
+   *   onto a COPY of it, never replacing it, or the router loses its place on
+   *   the next back/forward.
+   * - On unmount the entry is only popped when it is still the top of the
+   *   stack. Closing the drawer by navigating away (a nav link pushes its own
+   *   entry) must not then send the admin back a page.
+   * - It runs on mount and unmount, FULL STOP — hence the ref and the empty
+   *   dependency list. `requestClose` closes over `onClose`, which the parent
+   *   passes as an inline arrow and therefore re-creates on every one of its
+   *   renders (a keystroke in the search box, any refetch). Depending on it
+   *   re-ran this effect mid-edit, and the cleanup's `history.back()` is
+   *   asynchronous: it landed AFTER the re-registered listener existed, so an
+   *   ordinary re-render fired the guard and asked the admin whether to throw
+   *   away work they were still in the middle of typing. The drawer is keyed
+   *   per row upstream, so one mount really is one product.
+   */
+  const requestCloseRef = useRef(requestClose);
+  requestCloseRef.current = requestClose;
+
+  useEffect(() => {
+    const marker = { __skuDrawerGuard: true };
+    const state = () => window.history.state as Record<string, unknown> | null;
+
+    // A REMOUNT is the fourth way this raced, and the one the notes above
+    // missed. React runs mount → cleanup → mount on the same instance under
+    // StrictMode (`reactStrictMode: true`, so every dev server and the whole
+    // Playwright suite), and remounts this subtree on Fast Refresh and on
+    // recovery from a hydration mismatch. The cleanup's `history.back()` is
+    // asynchronous, so it landed AFTER the second mount had re-registered a
+    // live listener: `popstate` fired, the handler called `requestClose`, and
+    // the drawer shut itself the instant it opened. «کالای جدید» did nothing
+    // at all — one click, no dialog, no error in the console.
+    //
+    // So the pop is deferred by a tick and a remount cancels it, and the push
+    // is skipped when the sentinel is already on top. Together those make the
+    // pair idempotent: one sentinel per open drawer however many times React
+    // chooses to run this.
+    if (guardPopToken !== null) {
+      // A pop is queued, so the sentinel it was going to remove is still on
+      // the stack: this is a remount, and that entry is ours to keep.
+      guardPopToken = null;
+    } else {
+      window.history.pushState({ ...state(), ...marker }, '');
+    }
+
+    let live = true;
+    const onPopState = () => {
+      if (!live) return;
+      window.history.pushState({ ...state(), ...marker }, '');
+      void requestCloseRef.current();
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => {
+      live = false;
+      window.removeEventListener('popstate', onPopState);
+      const token = {};
+      guardPopToken = token;
+      // A microtask, not a timer: it still lands after a same-commit remount
+      // has had its chance to claim the token, and it is guaranteed to have
+      // run by the end of this task — so a real close pops the entry now
+      // rather than leaving it for whatever happens next.
+      queueMicrotask(() => {
+        if (guardPopToken !== token) return; // a remount took it
+        guardPopToken = null;
+        // Still only when the sentinel is the top of the stack — closing the
+        // drawer by navigating away must not send the admin back a page.
+        if (state()?.__skuDrawerGuard === true) window.history.back();
+      });
+    };
+  }, []);
+
   /** Re-derive everything the admin has not taken over. */
   const applyDerived = (next: Values, t: typeof touched): Values => {
     const sub = subs.find((x) => x.id === next.subCategoryId);
@@ -368,6 +585,7 @@ export function SkuDrawer({
     const size = normText(next.size);
     const factory = normalizeDigits(next.factory);
     const grade = normalizeDigits(next.grade);
+    const condition = normalizeDigits(next.condition);
     if (!t.name) {
       // The mill is folded into the display name only where the catalog
       // actually publishes one. On استیل and the fabricated-mill پروفیل subs
@@ -387,6 +605,7 @@ export function SkuDrawer({
         categorySlug: cat.slug,
         size,
         grade,
+        condition,
         factory,
       });
     }
@@ -420,7 +639,8 @@ export function SkuDrawer({
   // the server as null and came back as an unexplained 400.
   const weightRaw = normText(v.theoreticalWeightKg).trim();
   const weightNum = weightRaw === '' ? null : Number(weightRaw);
-  const weightValid = weightNum === null || (Number.isFinite(weightNum) && weightNum > 0 && weightNum <= 100_000);
+  const weightValid =
+    weightNum === null || (Number.isFinite(weightNum) && weightNum > 0 && weightNum <= 100_000);
   // Same Persian-digit treatment as the weight above. 100 m is far past any
   // mill branch and 0 is not a length, so both are rejected rather than saved.
   const lengthRaw = normText(v.branchLengthM).trim();
@@ -439,6 +659,17 @@ export function SkuDrawer({
     lengthValid &&
     orderValid;
 
+  /** Cross-listings this form cannot see, kept as they are — see the payload
+   *  comment below. A clone inherits them along with everything else. */
+  const otherCrossListedIds = useMemo(
+    () => (source?.crossListedCategoryIds ?? []).filter((id) => id !== steelCategory?.id),
+    [source, steelCategory?.id],
+  );
+  const crossListedIds = [
+    ...otherCrossListedIds,
+    ...(v.crossListedSteel && steelCategory ? [steelCategory.id] : []),
+  ];
+
   const save = useMutation({
     mutationFn: () => {
       const body = {
@@ -449,6 +680,7 @@ export function SkuDrawer({
         size: orNull(normText(v.size)),
         factory: orNull(normalizeDigits(v.factory)),
         grade: orNull(normalizeDigits(v.grade)),
+        condition: orNull(normalizeDigits(v.condition)),
         dimensions: orNull(normText(v.dimensions)),
         schedule: orNull(normText(v.schedule)),
         standard: orNull(normalizeDigits(v.standard)),
@@ -458,7 +690,14 @@ export function SkuDrawer({
         theoreticalWeightKg: weightNum,
         order: orderNum,
         imageUrl: v.imageUrl,
-        crossListedCategoryIds: v.crossListedSteel && steelCategory ? [steelCategory.id] : null,
+        // The checkbox speaks for «استیل» and nothing else, but the field is
+        // replaced wholesale by the API and accepts up to five ids. Sending
+        // `[steel]`/`null` therefore deleted every OTHER cross-listing a
+        // script or an earlier build had set — an admin correcting a size made
+        // the product vanish from lists it was in, with no message and no
+        // trace. The ids this form has no control over are carried through
+        // untouched.
+        crossListedCategoryIds: crossListedIds.length > 0 ? crossListedIds : null,
       };
       return sku ? adminApi.updateSku(sku.id, body) : adminApi.createSku(body);
     },
@@ -493,7 +732,9 @@ export function SkuDrawer({
         className={s.drawer}
         role="dialog"
         aria-modal="true"
-        aria-label={sku ? `ویرایش ${sku.name}` : 'کالای جدید'}
+        aria-label={
+          sku ? `ویرایش ${sku.name}` : cloneFrom ? `کالای جدید بر اساس ${cloneFrom.name}` : 'کالای جدید'
+        }
         ref={panelRef}
       >
         <div className={s.drawerHead}>
@@ -504,7 +745,12 @@ export function SkuDrawer({
                 {parentCategory.name} › {selectedSub?.name ?? '—'}
               </Text>
             ) : null}
-            {sku ? sku.isActive ? <Badge tone="gain">فعال</Badge> : <Badge tone="stale">غیرفعال</Badge> : null}
+            {cloneFrom ? (
+              // Said out loud because the form arrives pre-filled: an admin
+              // who does not know this is a COPY will read the fields as the
+              // original and think they are editing it.
+              <Text color="muted">کپی از «{cloneFrom.name}» — کالای تازه‌ای ساخته می‌شود.</Text>
+            ) : null}
           </div>
         </div>
 
@@ -530,7 +776,6 @@ export function SkuDrawer({
                       {g.subs.map((x) => (
                         <option key={x.id} value={x.id}>
                           {x.name}
-                          {x.isActive ? '' : ' (غیرفعال)'}
                         </option>
                       ))}
                     </optgroup>
@@ -554,23 +799,27 @@ export function SkuDrawer({
                 placeholder={SIZE_PLACEHOLDER[parentCategory?.slug ?? ''] ?? 'مثلاً ۱۴'}
                 onChange={(size) => set({ size })}
               />
-              {/* One shared stored column, offered only where it has an
-                  owner-approved meaning: ورق width×length, or wall thickness
-                  on نبشی بال مساوی/نامساوی/لقمه. */}
+              {/* One shared stored column, offered only where a source says
+                  what it means there: ورق's width (or سیاه's width×length),
+                  the wall thickness of every section family that publishes
+                  one, and وال‌پست's «بال». The label AND the hint both come
+                  from `dimensionsLabel`, so the box can never ask for one fact
+                  under the name of another. */}
               {showDimensions ? (
                 <PickerInput
                   id="sku-dimensions"
                   label={dimensionsCol}
                   helper={
-                    parentCategory?.slug === 'sheet'
-                      ? 'عرض×طول ورق. اختیاری — اگر نمی‌دانید خالی بگذارید.'
-                      : 'ضخامت پروفیل نبشی به میلی‌متر. اختیاری — اگر نمی‌دانید خالی بگذارید.'
+                    dimensionsHint(parentCategory?.slug, selectedSub?.slug, dimensionsCol).helper
                   }
                   value={v.dimensions}
                   options={suggestions?.dimensions ?? []}
                   error={fieldErrors.dimensions}
                   maxLength={40}
-                  placeholder={DIMENSIONS_PLACEHOLDER[parentCategory?.slug ?? '']}
+                  placeholder={
+                    dimensionsHint(parentCategory?.slug, selectedSub?.slug, dimensionsCol)
+                      .placeholder
+                  }
                   onChange={(dimensions) => set({ dimensions })}
                 />
               ) : null}
@@ -609,6 +858,40 @@ export function SkuDrawer({
                 placeholder={isBrand ? BRAND_PLACEHOLDER : FACTORY_PLACEHOLDER}
                 onChange={(factory) => set({ factory })}
               />
+              {/* Rendered INDEPENDENTLY of the branch box below, not as its
+                  else-branch. Until 1405/06/09 no sub-category had both a
+                  grade-shaped column and a branch-length one, so a ternary was
+                  harmless; میلگرد ساده («استاندارد» + «حالت»), میلگرد استیل
+                  («آلیاژ» + «حالت») and لوله مسی («ضخامت» + «حالت») all do, and
+                  under a ternary the first of the two would silently lose its
+                  input. */}
+              {writesStandardAttr || usesGradeAttr ? (
+                <PickerInput
+                  id={writesStandardAttr ? 'sku-standard' : 'sku-grade'}
+                  label={gradeLabel}
+                  helper={
+                    usesAlloyAttr
+                      ? 'استیل: ۲۰۱، ۳۰۴، ۳۰۴L، ۳۱۶L. در صفحهٔ کالا به مشتری نشان داده می‌شود.'
+                      : usesStandardAsConditionAttr
+                        ? 'حالت عرضه، مثلاً «شاخه ۴ متری». در صفحهٔ کالا به مشتری نشان داده می‌شود.'
+                        : usesGradeAsStandardAttr
+                          ? 'میلگرد: A1، A2، A3. در صفحهٔ کالا به مشتری نشان داده می‌شود.'
+                          : usesStandardAttr
+                            ? 'مثلاً HEA یا HEB (بر اساس DIN 1025). در صفحهٔ کالا به مشتری نشان داده می‌شود.'
+                            : 'میلگرد: A1، A2، A3. در صفحهٔ کالا به مشتری نشان داده می‌شود.'
+                  }
+                  value={writesStandardAttr ? v.standard : v.grade}
+                  options={
+                    (writesStandardAttr ? suggestions?.standards : suggestions?.grades) ?? []
+                  }
+                  error={writesStandardAttr ? fieldErrors.standard : fieldErrors.grade}
+                  maxLength={40}
+                  placeholder={writesStandardAttr ? undefined : GRADE_PLACEHOLDER}
+                  onChange={(val) =>
+                    writesStandardAttr ? set({ standard: val }) : set({ grade: val })
+                  }
+                />
+              ) : null}
               {usesBranchAttr ? (
                 /* Bound to `branchLengthM` — the SAME column the «طول شاخه»
                    box in the auto-filled section normally edits, which is why
@@ -619,8 +902,8 @@ export function SkuDrawer({
                    hence the identical `touched.weight` handling. */
                 <PickerInput
                   id="sku-branch"
-                  label={BRANCH_LABEL}
-                  helper={`طول شاخه به متر. در جدول قیمت «۶ متری» نمایش داده می‌شود؛ ${weightLabel(parentCategory?.slug)} هم بر همین طول حساب می‌شود.`}
+                  label={branchAttrLabel}
+                  helper={`طول شاخه به متر. در جدول قیمت زیر عنوان «${branchAttrLabel}» و به‌شکل «۶ متری» نمایش داده می‌شود؛ ${weightLabel(parentCategory?.slug)} هم بر همین طول حساب می‌شود.`}
                   value={v.branchLengthM}
                   options={['6', '12']}
                   error={
@@ -631,29 +914,22 @@ export function SkuDrawer({
                   placeholder="مثلاً ۶"
                   onChange={(val) => set({ branchLengthM: val }, { weight: touched.weight })}
                 />
-              ) : (
+              ) : null}
+              {usesConditionAttr ? (
                 <PickerInput
-                  id={usesStandardAttr ? 'sku-standard' : 'sku-grade'}
-                  label={gradeLabel}
-                  helper={
-                    gradeLabel === ALLOY_LABEL
-                      ? 'استیل: ۲۰۱، ۳۰۴، ۳۰۴L، ۳۱۶L. در صفحهٔ کالا به مشتری نشان داده می‌شود.'
-                      : gradeLabel === CONDITION_LABEL
-                        ? 'ورق: برش‌خورده، رول. در صفحهٔ کالا به مشتری نشان داده می‌شود.'
-                        : gradeLabel === STANDARD_LABEL
-                          ? 'مثلاً HEA یا HEB (بر اساس DIN 1025). در صفحهٔ کالا به مشتری نشان داده می‌شود.'
-                          : 'میلگرد: A1، A2، A3. در صفحهٔ کالا به مشتری نشان داده می‌شود.'
-                  }
-                  value={usesStandardAttr ? v.standard : v.grade}
-                  options={(usesStandardAttr ? suggestions?.standards : suggestions?.grades) ?? []}
-                  error={usesStandardAttr ? fieldErrors.standard : fieldErrors.grade}
+                  id="sku-condition"
+                  label={CONDITION_LABEL}
+                  helper="حالت عرضهٔ کالا، مثل برش‌خورده، رول، شیت، نرمال یا ترانس. از آلیاژ/گرید مستقل است."
+                  value={legacyConditionFromGrade ? v.grade : v.condition}
+                  options={suggestions?.conditions ?? []}
+                  error={fieldErrors.condition}
                   maxLength={40}
-                  placeholder={usesStandardAttr ? undefined : GRADE_PLACEHOLDER}
-                  onChange={(val) =>
-                    usesStandardAttr ? set({ standard: val }) : set({ grade: val })
+                  placeholder="مثلاً رول"
+                  onChange={(condition) =>
+                    set(legacyConditionFromGrade ? { condition, grade: '' } : { condition })
                   }
                 />
-              )}
+              ) : null}
             </div>
           </div>
 
@@ -668,7 +944,7 @@ export function SkuDrawer({
                 helper={
                   touched.name
                     ? 'دستی ویرایش شده.'
-                    : `از زیر‌دسته، ${sizeCol}، ${gradeLabel === CONDITION_LABEL ? CONDITION_LABEL : GRADE_LABEL} و کارخانه ساخته می‌شود.`
+                    : `از زیر‌دسته، ${sizeCol}، مشخصات و کارخانه ساخته می‌شود.`
                 }
                 value={v.name}
                 error={fieldErrors.name}
@@ -685,7 +961,8 @@ export function SkuDrawer({
                 }
                 value={v.theoreticalWeightKg}
                 error={
-                  fieldErrors.theoreticalWeightKg ?? (weightValid ? undefined : 'عدد مثبت وارد کنید یا خالی بگذارید.')
+                  fieldErrors.theoreticalWeightKg ??
+                  (weightValid ? undefined : 'عدد مثبت وارد کنید یا خالی بگذارید.')
                 }
                 onChange={(e) => set({ theoreticalWeightKg: e.target.value }, { weight: true })}
               />
@@ -698,7 +975,9 @@ export function SkuDrawer({
                   className={ui.select}
                   style={{ inlineSize: '100%' }}
                   value={v.unit}
-                  onChange={(e) => set({ unit: e.target.value as AdminSku['unit'] }, { unit: true })}
+                  onChange={(e) =>
+                    set({ unit: e.target.value as AdminSku['unit'] }, { unit: true })
+                  }
                 >
                   {UNITS.map((u) => (
                     <option key={u.v} value={u.v}>
@@ -769,29 +1048,52 @@ export function SkuDrawer({
                 helper="ترتیب این کالا درون بخش کارخانه‌اش. عدد کوچک‌تر زودتر نمایش داده می‌شود. اگر خالی بگذارید، مثل قبل بر اساس سایز مرتب می‌شود."
                 value={v.order}
                 error={
-                  fieldErrors.order ?? (orderValid ? undefined : 'عدد صحیح نامنفی وارد کنید یا خالی بگذارید.')
+                  fieldErrors.order ??
+                  (orderValid ? undefined : 'عدد صحیح نامنفی وارد کنید یا خالی بگذارید.')
                 }
                 onChange={(e) => set({ order: e.target.value })}
               />
             </div>
             <div className={s.slugPreview} style={{ marginBlockStart: 'var(--space-2)' }}>
-              نشانی صفحه: /prices/{parentCategory?.slug ?? '…'}/{selectedSub?.slug ?? '…'}/{v.slug || '…'}
+              نشانی صفحه: /prices/{parentCategory?.slug ?? '…'}/{selectedSub?.slug ?? '…'}/
+              {v.slug || '…'}
             </div>
           </div>
 
           <div>
-            <ImageUpload label="تصویر کالا" value={v.imageUrl} onChange={(imageUrl) => set({ imageUrl })} />
+            <ImageUpload
+              label="تصویر کالا"
+              value={v.imageUrl}
+              onChange={(imageUrl) => set({ imageUrl })}
+            />
           </div>
 
           {/* The fields a normal product never needs, so the form reads as four
               questions rather than nine. */}
           <div>
-            <Button size="sm" variant="ghost" aria-expanded={advanced} onClick={() => setAdvanced((x) => !x)}>
+            <Button
+              size="sm"
+              variant="ghost"
+              aria-expanded={advanced}
+              onClick={() => setAdvanced((x) => !x)}
+            >
               {advanced ? 'بستن تنظیمات پیشرفته' : 'تنظیمات پیشرفته'}
             </Button>
             {advanced ? (
-              <div style={{ marginBlockStart: 'var(--space-3)', display: 'grid', gap: 'var(--space-3)' }}>
-                {!usesStandardAttr ? (
+              <div
+                style={{
+                  marginBlockStart: 'var(--space-3)',
+                  display: 'grid',
+                  gap: 'var(--space-3)',
+                }}
+              >
+                {/* Hidden wherever `skus.standard` is already edited above —
+                    under its own name (تیرآهن هاش) or under تسمه مسی's
+                    «حالت» — and wherever the primary box is a relabelled
+                    grade called «استاندارد» (میلگرد), so the form can never
+                    show two boxes with the same label writing different
+                    columns. */}
+                {!writesStandardAttr && !usesGradeAsStandardAttr ? (
                   <PickerInput
                     id="sku-standard"
                     label="استاندارد"
@@ -805,8 +1107,8 @@ export function SkuDrawer({
                 ) : null}
                 {isEdit ? (
                   <Alert tone="warning">
-                    نشانی فعلی در گوگل ثبت شده و ممکن است مشتریان ذخیره‌اش کرده باشند. با تغییر آن، انتقال خودکار از
-                    نشانی قدیمی ساخته می‌شود تا لینک‌های قبلی نشکنند.
+                    نشانی فعلی در گوگل ثبت شده و ممکن است مشتریان ذخیره‌اش کرده باشند. با تغییر آن،
+                    انتقال خودکار از نشانی قدیمی ساخته می‌شود تا لینک‌های قبلی نشکنند.
                   </Alert>
                 ) : null}
                 <TextInput
@@ -819,7 +1121,9 @@ export function SkuDrawer({
                   onChange={(e) => set({ slug: e.target.value }, { slug: true })}
                 />
                 {steelCategory && parentCategory?.slug !== 'steel' ? (
-                  <label style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-start' }}>
+                  <label
+                    style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-start' }}
+                  >
                     <input
                       type="checkbox"
                       checked={v.crossListedSteel}
@@ -828,7 +1132,9 @@ export function SkuDrawer({
                     />
                     <span>
                       این کالا از جنس استیل است — همچنین در دستهٔ «استیل» هم نمایش داده شود
-                      <div className={ui.tileHint}>نشانی صفحه همین یکی می‌ماند؛ فقط در فهرست «استیل» هم دیده می‌شود.</div>
+                      <div className={ui.tileHint}>
+                        نشانی صفحه همین یکی می‌ماند؛ فقط در فهرست «استیل» هم دیده می‌شود.
+                      </div>
                     </span>
                   </label>
                 ) : null}
@@ -838,13 +1144,19 @@ export function SkuDrawer({
         </div>
 
         <div className={s.drawerFoot}>
-          <Button onClick={() => save.mutate()} disabled={!canSave || (isEdit && !dirty)} loading={save.isPending}>
+          <Button
+            onClick={() => save.mutate()}
+            disabled={!canSave || (isEdit && !dirty)}
+            loading={save.isPending}
+          >
             ذخیره
           </Button>
           <Button variant="ghost" onClick={() => void requestClose()}>
             انصراف
           </Button>
-          {dirty ? <span className={`${ui.tileHint} ${s.footSpacer}`}>تغییرات ذخیره‌نشده</span> : null}
+          {dirty ? (
+            <span className={`${ui.tileHint} ${s.footSpacer}`}>تغییرات ذخیره‌نشده</span>
+          ) : null}
         </div>
       </div>
       {dialog}

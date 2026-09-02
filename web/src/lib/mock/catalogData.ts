@@ -137,7 +137,6 @@ function rowsFor(categorySlug: string): PriceRow[] {
         theoreticalWeightKg: weight,
         unit: 'kg',
         priceBasis: 'kg',
-        isActive: true,
         current: {
           skuId: slug,
           price,

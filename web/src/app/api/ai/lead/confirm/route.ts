@@ -6,6 +6,7 @@ import { requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { rateLimit } from '@/lib/server/utils/rateLimit';
 import { consumeDraft } from '@/lib/server/ai/leadDraft';
 import { conversationForSales } from '@/lib/server/ai/conversation';
+import { getMemory } from '@/lib/server/ai/memory';
 import { createLead } from '@/lib/server/services/leads.service';
 // Rendered inside the chat thread, so they speak in the advisor's register.
 import { LEAD_CONFIRM_MESSAGES } from '@/lib/server/ai/messages';
@@ -76,6 +77,11 @@ async function POSTImpl(req: NextRequest) {
     ? await conversationForSales(draft.conversationId)
     : { summary: null, transcript: [] };
   const transcript = chat.transcript.length > 0 ? chat.transcript : draft.transcript;
+  // Where the chat established this is going. Recorded on the lead so the rep
+  // opens the call knowing it, and so this customer's NEXT conversation can
+  // default to it instead of asking again (ai/customerFacts.ts). Best-effort:
+  // a missing memory must never fail a confirmed request.
+  const remembered = draft.conversationId ? await getMemory(draft.conversationId).catch(() => null) : null;
 
   const result = await createLead(
     {
@@ -86,6 +92,9 @@ async function POSTImpl(req: NextRequest) {
         ...(draft.conversationId ? { aiConversationId: draft.conversationId } : {}),
         ...(chat.summary ? { aiSummary: chat.summary } : {}),
         ...(transcript && transcript.length > 0 ? { transcript } : {}),
+        // The card's own city wins: if the visitor changed it there, that is
+        // the most recent and most deliberate statement of where this goes.
+        ...(draft.city || remembered?.city ? { deliveryCity: draft.city || remembered!.city! } : {}),
       },
     },
     session,

@@ -43,14 +43,25 @@ export function RequestFlow() {
         </span>
         <h2 className={styles.successTitle}>درخواست شما به تیم فروش ارسال شد</h2>
         <p className={styles.successLead}>
-          کارشناسان فروش آهن‌تایم درخواست شما را دریافت کردند و برای نهایی‌کردن قیمت و شرایط تحویل با شما
-          تماس می‌گیرند.
+          {done.proformaRef
+            ? // The proforma below is ALREADY issued and binding (createLead priced
+              // it automatically) — saying "کارشناس قیمت را نهایی می‌کند" here would
+              // contradict that (audit finding #11). The rep still calls, but to
+              // confirm delivery/logistics, not to set the price.
+              'قیمت شما به‌صورت خودکار محاسبه و پیش‌فاکتور صادر شد. کارشناسان فروش آهن‌تایم برای هماهنگی تحویل با شما تماس می‌گیرند.'
+            : 'کارشناسان فروش آهن‌تایم درخواست شما را دریافت کردند و برای نهایی‌کردن قیمت و شرایط تحویل با شما تماس می‌گیرند.'}
         </p>
         <p className={`${styles.successRef} tnum`}>
           کد پیگیری: <bdi>{done.ref}</bdi>
         </p>
         {done.proformaRef ? (
           <div className={styles.successProforma}>
+            {done.priceChanged ? (
+              <p className={styles.successNote} role="alert">
+                توجه: قیمت یک یا چند قلم از زمانی که به سبد اضافه کردید به‌روزرسانی شده؛ مبلغ زیر قیمت
+                لحظه‌ای و نهایی است.
+              </p>
+            ) : null}
             <p className="tnum">
               پیش‌فاکتور شما صادر شد
               {done.total ? <>، مبلغ {formatToman(done.total)}</> : null}
@@ -114,7 +125,7 @@ export function RequestFlow() {
       try {
         const result = await api.leads.create({
           contact: { name: user.name, mobile: user.mobile },
-          items: items.map((i) => ({ skuId: i.skuId, qty: i.qty, unit: i.unit })),
+          items: items.map((i) => ({ skuId: i.skuId, qty: i.qty, unit: i.unit, quotedUnitPrice: i.unitPrice })),
           channel: 'sms',
           source: 'cart',
           note: note.trim() || undefined,
