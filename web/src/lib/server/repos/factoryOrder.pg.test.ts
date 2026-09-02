@@ -21,14 +21,14 @@ let close: () => Promise<void>;
 beforeAll(async () => {
   ({ db, close } = await createTestDb());
   await db.insert(schema.categories).values([
-    { id: 'c-rebar', slug: 'rebar', name: 'میلگرد', order: 1, iconId: '', isActive: true },
-    { id: 'c-sheet', slug: 'sheet', name: 'ورق', order: 2, iconId: '', isActive: true },
+    { id: 'c-rebar', slug: 'rebar', name: 'میلگرد', order: 1, iconId: '' },
+    { id: 'c-sheet', slug: 'sheet', name: 'ورق', order: 2, iconId: '' },
   ]);
   await db.insert(schema.subCategories).values([
-    { id: 's-rebar', categoryId: 'c-rebar', slug: 'deformed', name: 'آجدار', order: 1, isActive: true },
-    { id: 's-sheet', categoryId: 'c-sheet', slug: 'hot', name: 'گرم', order: 1, isActive: true },
+    { id: 's-rebar', categoryId: 'c-rebar', slug: 'deformed', name: 'آجدار', order: 1 },
+    { id: 's-sheet', categoryId: 'c-sheet', slug: 'hot', name: 'گرم', order: 1 },
   ]);
-  const sku = (id: string, catId: string, subId: string, factory: string, isActive = true) => ({
+  const sku = (id: string, catId: string, subId: string, factory: string) => ({
     id,
     subCategoryId: subId,
     categoryId: catId,
@@ -36,15 +36,12 @@ beforeAll(async () => {
     name: `کالا ${id}`,
     factory,
     unit: 'kg' as const,
-    isActive,
   });
   await db.insert(schema.skus).values([
     sku('r1', 'c-rebar', 's-rebar', 'ذوب‌آهن اصفهان'),
     sku('r2', 'c-rebar', 's-rebar', 'ذوب‌آهن اصفهان'),
     sku('r3', 'c-rebar', 's-rebar', 'نیشابور'),
     sku('r4', 'c-rebar', 's-rebar', 'ابرکوه'),
-    // Retired — its factory must not appear as a live option.
-    sku('r5', 'c-rebar', 's-rebar', 'کارخانهٔ بازنشسته', false),
     // Same mill name, other category: the two lists must stay independent.
     sku('h1', 'c-sheet', 's-sheet', 'فولاد مبارکه'),
     sku('h2', 'c-sheet', 's-sheet', 'ذوب‌آهن اصفهان'),
@@ -62,8 +59,6 @@ beforeEach(async () => {
 describe('factoriesForCategory', () => {
   it('lists a never-ordered category alphabetically, with every order null', async () => {
     const rows = await factoriesForCategory('c-rebar');
-    // «کارخانهٔ بازنشسته» has only an inactive SKU — a customer can never see
-    // it, so offering it as something to arrange would be a lie.
     expect(rows.map((r) => r.factory)).toEqual(['ابرکوه', 'ذوب‌آهن اصفهان', 'نیشابور']);
     expect(rows.every((r) => r.order === null)).toBe(true);
     expect(rows.find((r) => r.factory === 'ذوب‌آهن اصفهان')!.skuCount).toBe(2);

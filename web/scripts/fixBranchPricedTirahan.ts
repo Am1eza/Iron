@@ -126,7 +126,7 @@ const { rows } = await pool.query<Row>(
      FROM skus s
      JOIN current_prices cp ON cp.sku_id = s.id
      JOIN sub_categories sc ON sc.id = s.sub_category_id
-    WHERE s.is_active AND sc.slug = 'tirahan' AND s.unit = 'branch'
+    WHERE sc.slug = 'tirahan' AND s.unit = 'branch'
     ORDER BY s.size, s.factory`,
 );
 

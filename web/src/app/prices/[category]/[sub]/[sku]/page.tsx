@@ -4,12 +4,13 @@ import { buildMetadata, productJsonLd } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { allRows } from '@/lib/mock/catalogData';
 import { findSku, relatedRows, priceSeriesWithDates, getRows, getCategories, getBilletReference, getSubsMap } from '@/lib/server/catalog';
-import { formatToman, priceHiddenLabel } from '@/lib/utils/format';
+import { formatToman } from '@/lib/utils/format';
 import { priceBasisNoun } from '@/lib/utils/catalogLabels';
 import { productImage } from '@/lib/data/productImages';
 import { getSetting, getVatRate, getStaleHideAfterDays } from '@/lib/server/repos/settingsRepo';
 import { DEFAULT_LOGISTICS_CONFIG, type LogisticsConfig } from '@/lib/data/logistics';
 import { shouldPrerenderMockParams } from '@/lib/server/seo/prerenderParams';
+import { skuHasPublishedPrice } from '../../../_seo/indexability';
 import { JsonLd, BreadcrumbJsonLd } from '@/components/seo/JsonLd';
 import { Container, Section } from '@/components/ui';
 import { SkuDetail } from '@/components/catalog/SkuDetail';
@@ -25,19 +26,37 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   if (!row || row.categoryId !== category || row.subCategoryId !== sub) {
     return buildMetadata({ title: 'محصول پیدا نشد', noindex: true });
   }
-  // W23 audit fix: a stale-hidden price is a `0` sentinel (catalogRepo.
-  // toPriceRow) — was rendering literally as "۰ تومان" in the search-result
-  // snippet Google shows for this page.
-  const price = priceHiddenLabel(row.current) ?? formatToman(row.current.price);
   // W25 audit fix: this said «برای هر کیلوگرم» for every SKU. 47 active SKUs
   // are priced per قطعه / کلاف / شاخه / برگ / متر مربع, so the snippet Google
   // shows for those pages stated the wrong denomination — the same class of
   // error `PriceBasis` was added to end. `priceBasisNoun` is the wording the
   // price tables already use, so the snippet and the page now agree.
   const basisNoun = priceBasisNoun(row.current.priceBasis ?? row.priceBasis, row.branchLengthM);
+  const mill = row.factory ? ` کارخانه ${row.factory}` : '';
+  // 195 of 748 product pages (26 %, measured on production 1405/06/09)
+  // publish no price. They shipped a title announcing «قیمت روز تیرآهن هاش
+  // سنگین (HEB) ۲۴» over a description that then read «… : تماس بگیرید برای
+  // هر کیلوگرم» — a headline promising a number, a snippet admitting there
+  // is none, and a click that bounces. `priceHidden` covers both causes
+  // (never priced, or aged past the freshness SLA) because the page cannot
+  // tell them apart and neither can the searcher.
+  //
+  // These pages stay INDEXED — see `_seo/indexability.ts` for why that is
+  // not symmetric with the empty-taxonomy rule. Only the claim changes. The
+  // JSON-LD below already drops `offers` entirely on this branch, which is
+  // the correct structured-data representation and needs no change: a
+  // Product with no Offer is valid schema, a `price: 0` Offer is a Merchant
+  // Center policy violation.
+  if (!skuHasPublishedPrice(row)) {
+    return buildMetadata({
+      title: `استعلام قیمت ${row.name}`,
+      description: `${row.name}${mill} — قیمت امروز این کالا در آهن‌تایم اعلام نشده است. برای استعلام قیمت هر ${basisNoun}، وزن شاخه و زمان تحویل با کارشناس ما تماس بگیرید.`,
+      path: routes.sku(row.categoryId, row.subCategoryId, row.slug),
+    });
+  }
   return buildMetadata({
     title: `قیمت روز ${row.name}`,
-    description: `قیمت روز ${row.name}${row.factory ? ` کارخانه ${row.factory}` : ''}: ${price} برای هر ${basisNoun}، همراه با نوسان، وزن شاخه و زمان تحویل در آهن‌تایم.`,
+    description: `قیمت روز ${row.name}${mill}: ${formatToman(row.current.price)} برای هر ${basisNoun}، همراه با نوسان، وزن شاخه و زمان تحویل در آهن‌تایم.`,
     path: routes.sku(row.categoryId, row.subCategoryId, row.slug),
   });
 }

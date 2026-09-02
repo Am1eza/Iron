@@ -143,6 +143,47 @@ Steps:
    never gets silently left running, and never gets silently left broken
    either).
 
+### When the server cannot reach GHCR
+
+The production host is in Iran and its route to `ghcr.io` goes away for
+hours or days at a time. The symptom is unmistakable and always the same
+line:
+
+```
+Error response from daemon: Get "https://ghcr.io/v2/": net/http: TLS handshake timeout
+```
+
+— while `git fetch` against github.com from the same shell, in the same
+second, works. It is the registry endpoint that is unreachable, not the
+network, and the site itself stays up the whole time: the running
+container never needed the registry. What breaks is only *shipping a new
+one*, so main quietly gets further and further ahead of production.
+
+It happened on 2026-08-22 and 2026-08-25 and came back on its own both
+times. On **2026-08-30 it stopped coming back**, and every deploy for the
+next day and a half failed on that line with CI green.
+
+So step 2 above now probes the registry from the server first (with a
+`docker login`, the exact operation that fails — not `curl`, which the
+host may not have, and not a TCP check, which passes since it is the TLS
+handshake that hangs). If the probe fails, the runner — which reaches
+GHCR fine — pulls the image itself and streams it to the server over the
+same SSH connection the deploy already uses:
+
+```
+docker save … | gzip -1 | ssh … 'gunzip | docker load'
+```
+
+The deploy script then finds the image already present and skips the pull
+entirely. No mirror, no extra registry, no new credentials: the image
+travels over a channel we already trust and already depend on.
+
+**This is a fallback, not the normal path.** When GHCR is reachable the
+probe succeeds in about a second and the deploy pulls from the registry
+exactly as before. If you see `side-loading … over SSH instead` in a
+deploy log, the outage is back — the deploy is fine, but nothing else on
+that host can pull an image until it lifts.
+
 This is **not** zero-downtime (see the comment at the top of
 `deploy.yml`) — recreating a single `web` container has a brief gap while
 Caddy's upstream restarts. True zero-downtime needs two upstreams behind

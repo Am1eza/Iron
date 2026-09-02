@@ -152,13 +152,12 @@ type Row = {
   slug: string;
   name: string;
   factory: string | null;
-  is_active: boolean;
   price: string | null;
   price_basis: string | null;
 };
 
 const { rows } = await pool.query<Row>(
-  `SELECT s.id, s.slug, s.name, s.factory, s.is_active,
+  `SELECT s.id, s.slug, s.name, s.factory,
           cp.price::text AS price, cp.price_basis
      FROM skus s
      LEFT JOIN current_prices cp ON cp.sku_id = s.id
@@ -167,17 +166,22 @@ const { rows } = await pool.query<Row>(
 );
 const bySlug = new Map(rows.map((r) => [r.slug, r]));
 
+// A row planned for removal that is already gone is this script having run
+// before, not a broken plan — «retire» deletes now, so re-runs must survive it.
 const missing = PLAN.filter((p) => !bySlug.has(p.slug));
-if (missing.length) {
-  console.error(`[hash] ABORT — ${missing.length} slug(s) not found: ${missing.map((m) => m.slug).join(', ')}`);
+const unexpected = missing.filter((p) => p.factory !== null);
+if (unexpected.length) {
+  console.error(`[hash] ABORT — ${unexpected.length} slug(s) not found: ${unexpected.map((m) => m.slug).join(', ')}`);
   process.exit(1);
 }
+if (missing.length) console.log(`[hash] ${missing.length} planned removal(s) already deleted.`);
+const PLAN_LIVE = PLAN.filter((p) => bySlug.has(p.slug));
 
 // Guard against acting on a row somebody else has already corrected: the whole
 // premise of this script is the specific wrong mill it was researched against.
-const drifted = PLAN.filter((p) => {
+const drifted = PLAN_LIVE.filter((p) => {
   const r = bySlug.get(p.slug)!;
-  const done = r.factory === p.factory || (p.factory === null && !r.is_active);
+  const done = r.factory === p.factory;
   return !done && r.factory !== p.wasFactory;
 });
 if (drifted.length) {
@@ -188,9 +192,9 @@ if (drifted.length) {
 
 type Change = { plan: Plan; row: Row; retire: boolean; factory: string | null; price: number | null };
 const changes: Change[] = [];
-for (const p of PLAN) {
+for (const p of PLAN_LIVE) {
   const r = bySlug.get(p.slug)!;
-  const retire = p.factory === null && r.is_active;
+  const retire = p.factory === null;
   const factory = p.factory !== null && r.factory !== p.factory ? p.factory : null;
   const price = p.price != null && Number(r.price) !== p.price ? p.price : null;
   if (retire || factory || price != null) changes.push({ plan: p, row: r, retire, factory, price });
@@ -200,7 +204,7 @@ const pad = (s: string, n: number) => (s.length >= n ? s.slice(0, n) : s + ' '.r
 console.log(`[hash] ${PLAN.length} targeted SKU(s); ${changes.length} to change.\n`);
 for (const c of changes) {
   const what = c.retire
-    ? 'RETIRE (is_active=false)'
+    ? 'DELETE'
     : `${c.factory ? `mill «${c.row.factory}» → «${c.factory}»` : ''}` +
       `${c.price != null ? `  price ${Number(c.row.price ?? 0).toLocaleString()} → ${c.price.toLocaleString()} T/kg` : ''}`;
   console.log(`  ${pad(c.row.slug, 16)} ${pad(c.row.name, 30)} ${what}`);
@@ -223,7 +227,7 @@ try {
   await client.query('BEGIN');
   for (const c of changes) {
     if (c.retire) {
-      await client.query(`UPDATE skus SET is_active = false, updated_at = now() WHERE id = $1`, [c.row.id]);
+      await client.query(`DELETE FROM skus WHERE id = $1`, [c.row.id]);
       continue;
     }
     if (c.factory) {

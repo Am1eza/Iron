@@ -11,6 +11,7 @@ import { factoryIsMeaningful, subCategorySubject } from '@/lib/utils/catalogLabe
 import { toPersianDigits } from '@/lib/utils/format';
 import { DEFAULT_LOGISTICS_CONFIG, type LogisticsConfig } from '@/lib/data/logistics';
 import { shouldPrerenderMockParams } from '@/lib/server/seo/prerenderParams';
+import { taxonomyIsIndexable } from '../../_seo/indexability';
 import { Container, Section, Stack, Breadcrumbs, EmptyState, emptyPresets } from '@/components/ui';
 import { BreadcrumbJsonLd, JsonLd } from '@/components/seo/JsonLd';
 import { PriceTable } from '@/components/catalog/PriceTable';
@@ -33,7 +34,6 @@ export const revalidate = 300;
 export function generateStaticParams() {
   if (!shouldPrerenderMockParams()) return [];
   return mockCategories
-    .filter((c) => c.isActive)
     .flatMap((c) =>
       (MOCK_CATEGORY_SUBS[c.slug] ?? []).map((s) => ({ category: c.slug, sub: s.slug })),
     );
@@ -57,19 +57,31 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   // several families (see `factoryIsMeaningful`) withhold it by design, and
   // a description bragging «۰ کارخانه» would read as broken.
   const rows = await getSubRows(category, sub);
+  // A sub-category with no rows publishes no table, so it may neither promise
+  // one nor be indexed — the rule, and the 17 production pages that were
+  // doing both, are in `_seo/indexability.ts`. The branch removed from
+  // `description` below IS the soft-404 the audit caught: «جدول قیمت روز مش
+  // استنلس استیل با نوسان، وزن شاخه، استاندارد و زمان تحویل» shipped on a
+  // zero-row page. `path` is still passed so the canonical stays
+  // self-referential; a noindex page whose canonical points elsewhere sends
+  // two contradictory instructions about the same URL.
+  if (!taxonomyIsIndexable(rows.length)) {
+    return buildMetadata({
+      title: subject,
+      description: `هنوز کالایی در ${subject} ثبت نشده است. برای استعلام قیمت و موجودی با کارشناسان آهن‌تایم تماس بگیرید.`,
+      path: routes.subCategory(category, sub),
+      noindex: true,
+    });
+  }
   const factoryCount = new Set(rows.map((r) => r.factory).filter((f): f is string => Boolean(f)))
     .size;
   const stats =
-    rows.length > 0
-      ? factoryCount > 0
-        ? `${toPersianDigits(rows.length)} کالا از ${toPersianDigits(factoryCount)} کارخانه`
-        : `${toPersianDigits(rows.length)} کالا`
-      : undefined;
+    factoryCount > 0
+      ? `${toPersianDigits(rows.length)} کالا از ${toPersianDigits(factoryCount)} کارخانه`
+      : `${toPersianDigits(rows.length)} کالا`;
   return buildMetadata({
     title: `قیمت روز ${subject}`,
-    description: stats
-      ? `جدول قیمت روز ${subject}: ${stats}، به‌روزرسانی روزانه در آهن‌تایم. اول مشورت، بعد خرید.`
-      : `جدول قیمت روز ${subject} با نوسان، وزن شاخه، استاندارد و زمان تحویل در آهن‌تایم. اول مشورت، بعد خرید.`,
+    description: `جدول قیمت روز ${subject}: ${stats}، به‌روزرسانی روزانه در آهن‌تایم. اول مشورت، بعد خرید.`,
     path: routes.subCategory(category, sub),
   });
 }
@@ -125,14 +137,25 @@ export default async function SubCategoryPage({ params }: Params) {
         <Stack gap={6}>
           <div>
             <Breadcrumbs items={crumbs} />
+            {/* The H1 and the intro follow the same rule the metadata does:
+                with no rows there is no price list, so the page must not
+                announce one. Saying «قیمت لحظه‌ای … به تفکیک سایز و کارخانه»
+                above an EmptyState is the on-page half of the soft-404 —
+                what a crawler reads and what a visitor reads have to agree. */}
             <PriceHeader
               categorySlug={category}
               categoryName={cat.name}
               id="sub-title"
-              title={`قیمت روز ${subject}`}
-              description={`قیمت لحظه‌ای ${subject} ${
-                factoryIsMeaningful(category, sub) ? 'به تفکیک سایز و کارخانه' : 'به تفکیک سایز'
-              }، همراه با نوسان، وزن شاخه و زمان تحویل اعلام‌شده. پیش از خرید، با کارشناس ما مشورت کنید.`}
+              title={rows.length > 0 ? `قیمت روز ${subject}` : subject}
+              description={
+                rows.length > 0
+                  ? `قیمت لحظه‌ای ${subject} ${
+                      factoryIsMeaningful(category, sub)
+                        ? 'به تفکیک سایز و کارخانه'
+                        : 'به تفکیک سایز'
+                    }، همراه با نوسان، وزن شاخه و زمان تحویل اعلام‌شده. پیش از خرید، با کارشناس ما مشورت کنید.`
+                  : `هنوز کالایی در ${subject} ثبت نشده است. برای استعلام قیمت، موجودی و زمان تحویل با کارشناسان ما تماس بگیرید.`
+              }
             />
           </div>
 

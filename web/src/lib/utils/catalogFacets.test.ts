@@ -56,6 +56,15 @@ describe('factoryFacets / sizeFacets', () => {
     expect(sizeFacets(rows).map((x) => x.slug)).toEqual(['10', '14']);
   });
 
+  it('uses every section axis when leading dimensions tie', () => {
+    const facets = sizeFacets([
+      { size: '۶۰×۶۰×۶' },
+      { size: '۸۰×۸۰×۸' },
+      { size: '۶۰×۶۰×۵' },
+    ]);
+    expect(facets.map((x) => x.label)).toEqual(['۶۰×۶۰×۵', '۶۰×۶۰×۶', '۸۰×۸۰×۸']);
+  });
+
   it('never emits a facet for a blank or slug-less value', () => {
     expect(factoryFacets(rows).some((x) => x.slug === '')).toBe(false);
     expect(sizeFacets([{ size: '—' }]).length).toBe(0);

@@ -15,7 +15,7 @@ vi.mock('next/navigation', () => ({
 function row(
   id: string,
   subCategoryId: string,
-  extra: { grade?: string; standard?: string } = {},
+  extra: { grade?: string; condition?: string; standard?: string } = {},
 ): PriceRow {
   return {
     id,
@@ -26,7 +26,6 @@ function row(
     size: '۱۴',
     factory: 'ذوب‌آهن اصفهان',
     unit: 'kg',
-    isActive: true,
     ...extra,
     current: {
       skuId: id,
@@ -75,7 +74,9 @@ function renderTable(props: Partial<Parameters<typeof PriceTable>[0]> = {}) {
 function cellFor(name: string): string {
   const tr = screen.getByRole('rowheader', { name }).closest('tr')!;
   const headers = within(screen.getByRole('table')).getAllByRole('columnheader');
-  const col = headers.findIndex((h) => h.textContent === 'استاندارد' || h.textContent === 'گرید');
+  const col = headers.findIndex(
+    (h) => h.textContent === 'استاندارد' || h.textContent === 'گرید' || h.textContent === 'حالت',
+  );
   return tr.querySelectorAll('td')[col - 1]?.textContent ?? '';
 }
 
@@ -140,18 +141,64 @@ describe('PriceTable — the تیرآهن grade → standard column', () => {
     expect(screen.queryByText(/گرید/)).toBeNull();
   });
 
-  it('leaves every other category on the untouched «گرید» column', () => {
+  it('leaves an unreconciled کلاف‌ومفتول sub on the untouched «گرید» column', async () => {
+    // 1405/06/09: کلاف‌ومفتول's own eight live subs were reconciled per-sub
+    // (see `WIRE_ATTRS`), and its mixed «همه» view now publishes no shared
+    // column at all. This asserts the OTHER half of that change survives —
+    // a sub with no source page yet (fake 'plain' here) still falls back to
+    // plain «گرید» once it is the SELECTED sub, same as before.
+    renderTable({
+      categorySlug: 'wire',
+      categoryName: 'کلاف و مفتول',
+      rows: [row('wire-1', 'plain', { grade: 'A3' }), row('wire-2', 'plain')],
+      subs: [{ slug: 'plain', name: 'ساده', groupLabel: null }],
+    });
+    await userEvent.click(screen.getByRole('button', { name: 'ساده' }));
+    expect(screen.getByRole('columnheader', { name: 'گرید' })).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'استاندارد' })).toBeNull();
+    expect(cellFor('wire-1')).toBe('A3');
+    expect(cellFor('wire-2')).toBe('نامشخص');
+    // …and the card form labels it, from the cell's own `data-label`.
+    expect(attrCellFor('wire-1', 'گرید').textContent).toBe('A3');
+  });
+
+  it("heads میلگرد's own column «استاندارد» — the reference sites' word for A2/A3", () => {
+    // 1405/06/09. Same stored `skus.grade`, matching ahanonline's
+    // `میلگرد/قیمت-میلگرد` and teleahan's `میلگرد/میلگرد-آجدار`, which both
+    // head this column «استاندارد» (fetched 2026-08-31). It is a re-label, so
+    // a value stored in `skus.standard` must NOT leak into it.
     renderTable({
       categorySlug: 'rebar',
       categoryName: 'میلگرد',
-      rows: [row('rebar-1', 'plain', { grade: 'A3' }), row('rebar-2', 'plain')],
-      subs: [{ slug: 'plain', name: 'ساده', groupLabel: null }],
+      rows: [
+        row('rebar-1', 'deformed', { grade: 'A3' }),
+        row('rebar-2', 'deformed', { standard: 'ISIRI 3132' }),
+      ],
+      subs: [{ slug: 'deformed', name: 'آجدار', groupLabel: null }],
     });
-    expect(screen.getByRole('columnheader', { name: 'گرید' })).toBeInTheDocument();
-    expect(screen.queryByRole('columnheader', { name: 'استاندارد' })).toBeNull();
+    expect(screen.getByRole('columnheader', { name: 'استاندارد' })).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'گرید' })).toBeNull();
     expect(cellFor('rebar-1')).toBe('A3');
     expect(cellFor('rebar-2')).toBe('نامشخص');
-    // …and the card form labels it, from the cell's own `data-label`.
-    expect(attrCellFor('rebar-1', 'گرید').textContent).toBe('A3');
+    expect(attrCellFor('rebar-1', 'استاندارد').textContent).toBe('A3');
+  });
+
+  it('renders the independent ورق condition and keeps the guarded legacy fallback', async () => {
+    renderTable({
+      categorySlug: 'sheet',
+      categoryName: 'ورق',
+      rows: [
+        row('sheet-new', 'black', { condition: 'رول' }),
+        row('sheet-legacy', 'black', { grade: 'برش خورده' }),
+      ],
+      subs: [{ slug: 'black', name: 'ورق سیاه', groupLabel: null }],
+    });
+    // Main ورق no longer has one honest attribute header in its mixed
+    // view; select the exact product line whose source publishes «حالت».
+    await userEvent.click(screen.getByRole('button', { name: 'ورق سیاه' }));
+    expect(screen.getByRole('columnheader', { name: 'حالت' })).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'گرید' })).toBeNull();
+    expect(cellFor('sheet-new')).toBe('رول');
+    expect(cellFor('sheet-legacy')).toBe('برش خورده');
   });
 });

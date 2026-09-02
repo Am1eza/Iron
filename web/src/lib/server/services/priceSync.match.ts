@@ -1202,7 +1202,10 @@ const DIM_KEYS = new Set([
   // («وال پست 2 10*20» against «وال پست ۱۰×۲۰»), matched the same way.
   'angle-channel/val-post',
 ]);
-/** نبشی: ours is the leg in cm («۶» = 60×60), theirs is mm («60*60»). */
+/** نبشی: canonical rows use the physical `leg×leg×thickness`
+ *  section. A scalar centimetre code remains readable only as a zero-downtime
+ *  compatibility path while the separately-reviewed data migration rolls
+ *  out; new/corrected rows never depend on that shorthand. */
 const ANGLE_KEYS = new Set(['angle-channel/nabshi']);
 
 /**
@@ -1250,8 +1253,17 @@ export function sizeMatches(sku: MatchableSku, row: AhanonlineRow): boolean {
     const on = nums(ourSize);
     const tn = nums(theirSize);
     if (on.length === 0 || tn.length === 0) return false;
-    const t = tn[0]! >= 25 ? tn[0]! / 10 : tn[0]!;
-    return Math.abs(on[0]! - t) < 1e-9;
+    if (on.length >= 2) {
+      if (Math.abs(on[0]! - tn[0]!) >= 1e-9 || Math.abs(on[1]! - (tn[1] ?? tn[0])!) >= 1e-9) {
+        return false;
+      }
+      const sourceThickness = tn[2] ?? nums(row.cells['ضخامت'])[0];
+      return on[2] == null || sourceThickness == null || Math.abs(on[2] - sourceThickness) < 1e-9;
+    }
+    // Transitional legacy spelling: «۶» centimetres against a published
+    // 60 mm leg. Kept until PR 2's guarded migration has been applied.
+    const publishedLegCm = tn[0]! >= 25 ? tn[0]! / 10 : tn[0]!;
+    return Math.abs(on[0]! - publishedLegCm) < 1e-9;
   }
 
   if (STRICT_DIM_KEYS.has(key)) {

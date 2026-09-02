@@ -41,10 +41,10 @@ export const cols = (
   // ورق is measured by thickness, not size — same rule the on-screen table
   // follows (see catalogLabels), so an exported file matches what the buyer
   // was looking at when they clicked «اکسل».
-  sizeLabel(categorySlug),
-  // The same shared secondary-spec column as the screen: «ابعاد» for
-  // ورق, «ضخامت» for exactly the three approved نبشی subs, and
-  // absent everywhere else (including angle-channel's mixed «همه» view).
+  sizeLabel(categorySlug, subCategorySlug),
+  // The same shared secondary-spec column as the screen: «ابعاد» for ورق,
+  // «ضخامت» for the source-verified section subs, and absent on mixed or
+  // unrelated product lines.
   ...(usesDimensions(categorySlug, subCategorySlug)
     ? [dimensionsLabel(categorySlug, subCategorySlug)]
     : []),
@@ -105,8 +105,8 @@ export function ExportMenu({
   title: string;
   /** Category the exported table belongs to — labels the size column only. */
   categorySlug?: string;
-  /** Active sub-category, needed because only three angle-channel subs expose
-   *  the shared column as «ضخامت». Null means the mixed view. */
+  /** Active sub-category, needed because only source-verified section subs
+   *  expose the shared column as «ضخامت». Null means the mixed view. */
   subCategorySlug?: string | null;
   /** Whether the buyer is currently viewing VAT-inclusive prices. The export
    *  follows the screen; see `rowCells`. */
