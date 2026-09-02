@@ -50,7 +50,6 @@ beforeAll(async () => {
     name: 'میلگرد ۱۴',
     size: '۱۴',
     unit: 'kg',
-    isActive: true,
   });
   await db.insert(schema.currentPrices).values({
     skuId: SKU,

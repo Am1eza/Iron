@@ -103,7 +103,7 @@ export function Ticker({ initialValues }: { initialValues?: MarketValue[] }) {
   const items = reduced ? values : [...values, ...values];
 
   return (
-    <aside className={styles.ticker} aria-label="نبض بازار">
+    <aside className={styles.ticker} aria-label="نبض بازار" data-site-chrome>
       <span className={styles.tag} aria-hidden="true">
         نبض بازار
       </span>

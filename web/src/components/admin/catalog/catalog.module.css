@@ -19,11 +19,18 @@
   }
 }
 
+/* 56px is the admin topbar's own height — `.sidebar` in admin.module.css
+   parks itself at exactly that for the same reason. At var(--space-3) the
+   rail's head slid UNDER the opaque sticky bar: «دسته‌بندی‌ها», «دستهٔ جدید»
+   and the whole «همهٔ کالاها» row went invisible and their clicks landed on
+   the topbar. The z-index keeps the rail above ordinary page content while
+   staying below --z-sticky, i.e. below that same topbar. */
 .rail {
   position: sticky;
-  inset-block-start: var(--space-3);
-  max-block-size: calc(100vh - var(--space-6));
-  max-block-size: calc(100dvh - var(--space-6));
+  inset-block-start: 56px;
+  max-block-size: calc(100vh - 56px - var(--space-4));
+  max-block-size: calc(100dvh - 56px - var(--space-4));
+  z-index: var(--z-raised);
   overflow-y: auto;
   border: var(--border-hairline) solid var(--color-hairline);
   border-radius: var(--radius-md);
@@ -47,16 +54,18 @@
 }
 
 .node {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--space-1);
   inline-size: 100%;
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-sm);
-  min-block-size: 34px;
+  min-block-size: 44px;
 }
 
-.node:hover {
+.node:hover,
+.node:focus-within {
   background: var(--color-surface-sunken);
 }
 
@@ -64,8 +73,107 @@
   background: var(--color-accent-tint);
 }
 
-.nodeOn:hover {
+.nodeOn:hover,
+.nodeOn:focus-within {
   background: var(--color-accent-tint);
+}
+
+/* Out of the name's flow (see TaxonomyRail's header): four buttons in the row
+   itself left ~50px for a category name. `background: inherit` picks up
+   whichever row state is underneath, so the cluster covers the name's tail
+   only while it is actually shown. */
+.nodeActions {
+  position: absolute;
+  inset-block: 2px;
+  inset-inline-end: var(--space-1);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding-inline: var(--space-1);
+  border-radius: var(--radius-sm);
+  background: inherit;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.node:hover .nodeActions,
+.node:focus-within .nodeActions,
+.nodeOn .nodeActions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Touch has no hover to reveal anything with, and below 900px the rail is a
+   full-width block with room to spare — so there the cluster just sits in the
+   row like it always did. */
+@media (hover: none) {
+  .nodeActions {
+    position: static;
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+/* ---- the row's overflow menu (a real one: role=menu, Esc, outside click) ---- */
+
+.menuWrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.menu {
+  position: absolute;
+  inset-block-start: 100%;
+  inset-inline-end: 0;
+  z-index: var(--z-dropdown);
+  min-inline-size: 12rem;
+  /* MENU_MAX_BLOCK_SIZE in TaxonomyRail.tsx must match this: it is the height
+     the open-upwards decision reserves. */
+  max-block-size: 220px;
+  display: grid;
+  padding: var(--space-1);
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow-md);
+}
+
+/* The rail is `overflow-y: auto`, so a menu hanging below one of its lower
+   rows is clipped — and absolute positioning adds nothing to the scroll
+   height, so there is no scrolling to it either. «حذف دسته» on the last
+   category would be unreachable. See NodeMenu for the measurement. */
+.menuUp {
+  inset-block-start: auto;
+  inset-block-end: 100%;
+}
+
+.menuItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-block-size: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text);
+  font: var(--t-body-sm);
+  text-align: start;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.menuItem:hover {
+  background: var(--color-surface-sunken);
+}
+
+.menuItem:focus-visible {
+  outline: var(--border-focus) solid var(--color-focus);
+  outline-offset: -2px;
+}
+
+.menuItemDanger {
+  color: var(--color-loss-text);
 }
 
 /* The node label is the filter control — a button, so it is keyboard
@@ -98,9 +206,29 @@
   flex-shrink: 0;
 }
 
-.nodeInactive .nodeName {
+/* The rail's own loading and failure states. An expanded category with no
+   sub-categories LOADED is not an empty one, and drawing them the same way is
+   how the panel came to invite an admin to rebuild nineteen rows that already
+   existed. */
+.railLoading {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-2);
   color: var(--color-text-muted);
-  text-decoration: line-through;
+  font: var(--t-body-sm);
+}
+
+.subsPending {
+  gap: var(--space-2);
+  color: var(--color-text-muted);
+  font: var(--t-caption);
+}
+
+.subsFailed {
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  color: var(--color-loss-text);
+  font: var(--t-caption);
 }
 
 .subNode {
@@ -132,12 +260,81 @@
   transform: rotate(180deg);
 }
 
-.railFoot {
-  margin-block-start: var(--space-2);
-  padding: var(--space-2);
-  border-block-start: var(--border-hairline) solid var(--color-hairline);
+/* ------------------------- product index column ------------------------- */
+
+.mainCol {
+  display: grid;
+  gap: var(--space-3);
+}
+
+/* The search box is the widest control in its toolbar; `.textCell` is sized
+   for in-cell editing (7rem), which is why this one has always carried an
+   override. Keeping the override in the stylesheet at least keeps it out of
+   the component. */
+.searchBox {
+  inline-size: 16rem;
+}
+
+.toolbarEnd {
+  margin-inline-start: auto;
+}
+
+.rowActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.nameInner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* «مشاهده در سایت» — the panel's missing feedback loop. Styled as a quiet
+   inline link rather than a button: it navigates away, and it must not read
+   as one of the row's write actions. */
+.viewLive {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-block-size: 44px;
+  padding-inline: var(--space-2);
+  border-radius: var(--radius-sm);
+  color: var(--color-accent-text);
+  font: var(--t-body-sm);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.viewLive:hover {
+  background: var(--color-accent-tint);
+  text-decoration: underline;
+}
+
+.viewLive:focus-visible {
+  outline: var(--border-focus) solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+/* --------------------------- node create/edit --------------------------- */
+
+.nodeForm {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.confirmBody {
   display: grid;
   gap: var(--space-2);
+}
+
+.selectFull {
+  inline-size: 100%;
+}
+
+.advancedPanel {
+  margin-block-start: var(--space-3);
 }
 
 /* ---------------------------- drawer editor ---------------------------- */

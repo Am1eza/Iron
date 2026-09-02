@@ -36,13 +36,21 @@ async function renderPage() {
 const FORBIDDEN = /[—""'']|[一-鿿぀-ヿ]/;
 
 describe('/ai — the page around the advisor', () => {
-  it('has exactly one h1, and it is the page heading rather than the widget chrome', async () => {
+  it('has exactly one h1, and it carries the page phrase — now inside the app bar', async () => {
     const { container } = await renderPage();
     const h1s = container.querySelectorAll('h1');
     expect(h1s).toHaveLength(1);
+    // Unchanged and load-bearing: this page is acquired through organic
+    // search, so the heading keeps the page's own phrase rather than the
+    // widget's shorter product name.
     expect(h1s[0]!.textContent).toBe('مشاور هوشمند خرید آهن و فولاد');
-    // The panel keeps its name for assistive tech without competing for the h1.
-    expect(screen.getByRole('region', { name: 'مشاور هوشمند آهن‌تایم' })).toBeInTheDocument();
+    // WHAT CHANGED (US-05.9): there is no separate page hero any more — the
+    // chat shell IS the page, so its app bar renders that same h1 and the
+    // region is labelled by it. The invariants this test existed for hold:
+    // exactly one h1, carrying the page phrase, and a named landmark.
+    expect(
+      screen.getByRole('region', { name: 'مشاور هوشمند خرید آهن و فولاد' }),
+    ).toBeInTheDocument();
   });
 
   it('opens with a short lede that states what the advisor does', async () => {

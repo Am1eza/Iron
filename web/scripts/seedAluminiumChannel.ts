@@ -260,8 +260,8 @@ try {
   if (!subId) {
     subId = ulid();
     await client.query(
-      `INSERT INTO sub_categories (id, category_id, slug, name, "order", is_active)
-       VALUES ($1, $2, $3, $4, $5, true)`,
+      `INSERT INTO sub_categories (id, category_id, slug, name, "order")
+       VALUES ($1, $2, $3, $4, $5)`,
       [subId, categoryId, SUB.slug, SUB.name, SUB.order],
     );
   }
@@ -269,8 +269,8 @@ try {
     await client.query(
       `INSERT INTO skus (id, sub_category_id, category_id, slug, name, size, dimensions, grade,
                          factory, unit, price_basis, branch_length_m, theoretical_weight_kg,
-                         is_active, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, NULL, NULL, $7, 'kg', 'kg', $8, NULL, true, now(), now())`,
+                         created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, NULL, NULL, $7, 'kg', 'kg', $8, NULL, now(), now())`,
       [p.id, subId, categoryId, p.slug, p.name, p.size, p.factory, p.branchLengthM],
     );
     await client.query(

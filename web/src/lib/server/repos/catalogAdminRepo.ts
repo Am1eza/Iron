@@ -1,6 +1,17 @@
 /**
- * Catalog writes (admin) — CRUD with soft-delete only. Hard deletes never
- * happen: priced SKUs keep their history forever (data-model §9).
+ * Catalog writes (admin) — CRUD where DELETE MEANS DELETE.
+ *
+ * There is no soft delete and no hidden state: `deleteSku`,
+ * `deleteSubCategory` and `deleteCategory` remove the row, and the FK cascade
+ * takes current_prices, price_points, favorites and alerts with it. Only
+ * `lead_items`/`order_items` survive (ON DELETE SET NULL, keeping their frozen
+ * name/price snapshot), so no quote or order loses what it was for. Nothing
+ * here is recoverable from the catalog tables afterwards — which is why the
+ * routes audit the WHOLE removed row and leave a redirect behind.
+ * (This header claimed the exact opposite — "soft-delete only, hard deletes
+ * never happen" — for as long as `961bb34` had already been deleting for real.
+ * A developer trusting it would assume price history was safe and never write
+ * the backup, undo or impact check that assumption removes the need for.)
  *
  * The W24 audit reshaped this layer around four defects that all surfaced to
  * the admin as either an opaque 500 or a silent no-op:
@@ -15,10 +26,10 @@
  *    nothing cross-checked, so a product could be filed under a sub belonging
  *    to a different category (a live page under a breadcrumb that 404s);
  *    `resolveSkuParent` now DERIVES the category from the sub instead;
- *  - listings gave the admin no idea what a soft-delete would take down,
- *    hence the `*WithCounts` variants and `skuImpact`.
+ *  - listings gave the admin no idea what a delete would take down, hence the
+ *    `*WithCounts` variants and `skuImpact`.
  */
-import { and, asc, eq, ilike, inArray, or, sql } from 'drizzle-orm';
+import { and, asc, eq, ilike, inArray, or, sql, type AnyColumn } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { getDb, type DbOrTx } from '@/lib/server/db/client';
 import {
@@ -27,6 +38,7 @@ import {
   skus,
   factoryOrder,
   currentPrices,
+  pricePoints,
   leadItems,
   leads,
   orderItems,
@@ -36,7 +48,9 @@ import {
 } from '@/lib/server/db/schema';
 import type { PriceBasis, PriceUnit, SeoMeta } from '@/lib/types/domain';
 import { normalizeDigits } from '@/lib/utils/format';
+import { normalizePersian } from '@/lib/utils/persianText';
 import { likeContains } from '@/lib/server/utils/likeEscape';
+import { foldZwnjForSearch, ZWNJ } from '@/lib/server/utils/persianZwnj';
 
 /** A unique-index violation, translated into something a form can render.
  *  `field` names the input the message belongs next to. */
@@ -44,6 +58,27 @@ export class DuplicateSlugError extends Error {
   constructor(readonly field: 'slug', message: string) {
     super(message);
     this.name = 'DuplicateSlugError';
+  }
+}
+
+/**
+ * The SAME product already exists — same sub-category, name, size and factory.
+ *
+ * Distinct from `DuplicateSlugError`: that one is about a URL, and `freeSlug`
+ * settles it silently on create because two genuinely different products in
+ * two sub-categories can legitimately compose to one slug. This one is about
+ * the PRODUCT, where settling silently is the bug: a double-clicked save or a
+ * retried request produced «میلگرد ۱۴ A3» twice — two live pages, two rows in
+ * the public price table, two targets for the price sync — and told the admin
+ * both times that it had saved.
+ */
+export class DuplicateProductError extends Error {
+  constructor(
+    readonly existingId: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'DuplicateProductError';
   }
 }
 
@@ -95,26 +130,38 @@ async function freeSlug(base: string, taken: (slug: string) => Promise<boolean>)
 
 /* ------------------------------ categories ------------------------------ */
 
+/**
+ * Ties in `order` are the normal case, not an edge case: create defaults every
+ * new node to 99, so five categories added in a row all share it. Postgres
+ * guarantees NO order between rows a sort cannot distinguish, and the plan for
+ * this query legitimately changes with the table's shape — so without a second
+ * key the mega-menu, the home cascade and the admin rail could each come back
+ * in a different order between two ISR regenerations with nothing in the
+ * database having changed. The id is the tie-break because it is the primary
+ * key (a total order, always) and it is a ULID, so equal-`order` rows fall
+ * back to the order they were created in.
+ */
+const TAXONOMY_ORDER = [asc(categories.order), asc(categories.id)] as const;
+const SUB_ORDER = [asc(subCategories.order), asc(subCategories.id)] as const;
+
 export async function adminListCategories() {
-  return getDb().select().from(categories).orderBy(asc(categories.order));
+  return getDb().select().from(categories).orderBy(...TAXONOMY_ORDER);
 }
 
 /** Categories plus what sits under each — the admin has to see that «پروفیل»
  *  carries 7 sub-categories and 210 live products BEFORE the confirm dialog
- *  asks whether to hide it. */
+ *  asks whether to delete it, because deleting takes all of them with it. */
 export async function adminListCategoriesWithCounts() {
   const db = getDb();
   const [rows, subCounts, skuCounts] = await Promise.all([
-    db.select().from(categories).orderBy(asc(categories.order)),
+    db.select().from(categories).orderBy(...TAXONOMY_ORDER),
     db
       .select({ categoryId: subCategories.categoryId, n: sql<number>`count(*)::int` })
       .from(subCategories)
-      .where(eq(subCategories.isActive, true))
       .groupBy(subCategories.categoryId),
     db
       .select({ categoryId: skus.categoryId, n: sql<number>`count(*)::int` })
       .from(skus)
-      .where(eq(skus.isActive, true))
       .groupBy(skus.categoryId),
   ]);
   const subsBy = new Map(subCounts.map((r) => [r.categoryId, r.n]));
@@ -164,7 +211,6 @@ export async function updateCategory(
     order: number;
     iconId: string;
     imageUrl: string | null;
-    isActive: boolean;
     /** Replaced wholesale, not merged: the panel sends the whole blob it read,
      *  which is how the article editor already treats this column. */
     seo: SeoMeta | null;
@@ -195,7 +241,7 @@ export async function updateCategory(
 
 export async function adminListSubCategories(categoryId?: string) {
   const where = categoryId ? eq(subCategories.categoryId, categoryId) : undefined;
-  return getDb().select().from(subCategories).where(where).orderBy(asc(subCategories.order));
+  return getDb().select().from(subCategories).where(where).orderBy(...SUB_ORDER);
 }
 
 /** Sub-categories plus their active-SKU count — same blast-radius rationale
@@ -203,14 +249,13 @@ export async function adminListSubCategories(categoryId?: string) {
 export async function adminListSubCategoriesWithCounts(categoryId?: string) {
   const db = getDb();
   const where = categoryId ? eq(subCategories.categoryId, categoryId) : undefined;
-  const rows = await db.select().from(subCategories).where(where).orderBy(asc(subCategories.order));
+  const rows = await db.select().from(subCategories).where(where).orderBy(...SUB_ORDER);
   if (rows.length === 0) return [];
   const counts = await db
     .select({ subCategoryId: skus.subCategoryId, n: sql<number>`count(*)::int` })
     .from(skus)
     .where(
       and(
-        eq(skus.isActive, true),
         inArray(
           skus.subCategoryId,
           rows.map((r) => r.id),
@@ -271,7 +316,6 @@ export async function updateSubCategory(
     name: string;
     groupLabel: string | null;
     order: number;
-    isActive: boolean;
     categoryId: string;
   }>,
 ) {
@@ -295,21 +339,30 @@ export async function updateSubCategory(
   if ((patch.slug || patch.categoryId) && (await subSlugTaken(targetCategory, targetSlug, id))) {
     throw new DuplicateSlugError('slug', 'این نشانی قبلاً در دستهٔ مقصد استفاده شده است.');
   }
+  // ONE transaction, because moving a sub to another category must drag its
+  // products along: `skus.categoryId` disagreeing with
+  // `subCategories.categoryId` puts every product of that sub on a live page
+  // under a breadcrumb path that 404s, and `adminListSkus` (which joins
+  // through `skus.categoryId`) stops showing them under the category they are
+  // actually in — with nothing anywhere that reconciles the two. As two
+  // independent UPDATEs, a dropped connection between them left exactly that,
+  // permanently, however loudly the comment promised otherwise.
   const rows = await asSlugConflict(
-    () => db.update(subCategories).set(patch).where(eq(subCategories.id, id)).returning(),
+    () =>
+      db.transaction(async (tx) => {
+        const updated = await tx.update(subCategories).set(patch).where(eq(subCategories.id, id)).returning();
+        if (updated[0] && patch.categoryId && patch.categoryId !== before.categoryId) {
+          await tx
+            .update(skus)
+            .set({ categoryId: patch.categoryId, updatedAt: new Date() })
+            .where(eq(skus.subCategoryId, id));
+        }
+        return updated;
+      }),
     'این نشانی قبلاً در دستهٔ مقصد استفاده شده است.',
   );
   const after = rows[0];
   if (!after) return null;
-  // Moving a sub to another category must drag its products along, or
-  // `skus.categoryId` silently disagrees with `subCategories.categoryId` and
-  // those products render under a breadcrumb path that 404s.
-  if (patch.categoryId && patch.categoryId !== before.categoryId) {
-    await db
-      .update(skus)
-      .set({ categoryId: patch.categoryId, updatedAt: new Date() })
-      .where(eq(skus.subCategoryId, id));
-  }
   return { before, after };
 }
 
@@ -319,11 +372,6 @@ export async function adminListSkus(query: {
   categoryId?: string;
   subCategoryId?: string;
   q?: string;
-  includeInactive?: boolean;
-  status?: 'active' | 'inactive';
-  /** 'hidden' → only products the public site cannot show because their
-   *  sub-category or category is deactivated underneath them. */
-  visibility?: 'hidden';
   page?: number;
   perPage?: number;
 }) {
@@ -336,9 +384,6 @@ export async function adminListSkus(query: {
   const conds = [];
   if (query.categoryId) conds.push(eq(skus.categoryId, query.categoryId));
   if (query.subCategoryId) conds.push(eq(skus.subCategoryId, query.subCategoryId));
-  if (query.status === 'active') conds.push(eq(skus.isActive, true));
-  else if (query.status === 'inactive') conds.push(eq(skus.isActive, false));
-  else if (!query.includeInactive) conds.push(eq(skus.isActive, true));
   if (query.q) {
     // The old filter matched `name` alone while the UI promised
     // «نام/اسلاگ/سایز» — an admin pasting a slug from a customer's broken URL,
@@ -347,40 +392,84 @@ export async function adminListSkus(query: {
     // Sizes and names are stored with Persian digits, but an admin on a Latin
     // keyboard types «14» — and slugs are the reverse, always ASCII. Matching
     // BOTH spellings is what makes one search box cover all six columns.
-    const raw = query.q.slice(0, 100).trim();
-    const asPersian = raw.replace(/[0-9]/g, (d) => String.fromCharCode(d.charCodeAt(0) + 0x06f0 - 0x30));
-    const asLatin = normalizeDigits(raw);
-    const terms = [...new Set([raw, asPersian, asLatin])].map(likeContains);
-    conds.push(
-      or(
-        ...terms.flatMap((term) => [
-          ilike(skus.name, term),
-          ilike(skus.slug, term),
-          ilike(skus.size, term),
-          ilike(skus.factory, term),
-          ilike(skus.grade, term),
-          ilike(skus.standard, term),
+    // Every free-text column above is written through `normalizePersian`
+    // (see the create/update payloads in api/admin/catalog/skus): Arabic ك/ي
+    // become ک/ی, tatweel and harakat are dropped, Arabic-Indic digits become
+    // Persian ones. The query was NOT, so the write and the read disagreed and
+    // the box could never find what the same form had just saved — «کارخانهٔ
+    // آزمایشی» is stored «کارخانه آزمایشی», because U+0654 is a harakat, and
+    // ILIKE has no idea the two are the same word. That is the very failure
+    // the write-side normalization exists to prevent, half-applied.
+    // `raw` stays in the set beside it: rows written before that
+    // normalization existed still carry the un-normalized spelling, and
+    // dropping `raw` would trade one unfindable set of products for another.
+    // The last spelling axis is the half-space: JS `\s` does not include ZWNJ,
+    // so «ذوب آهن» and «ذوب‌آهن» are two unequal strings that render nearly
+    // identically, and neither the write path nor this query used to bridge
+    // them. Folding ZWNJ to a space on BOTH sides — the term below, the
+    // haystack in SQL — makes them one string. It costs no extra predicates
+    // and can only add matches: it is a 1:1 character substitution, so every
+    // substring match that held before still holds. See utils/persianZwnj.ts.
+    //
+    // And the last axis of all is WORD ORDER. Everything above still built one
+    // contiguous `%…%`, so the query had to be a substring of a single column
+    // — but names are COMPOSED (`composeSkuName` writes «میلگرد آجدار ۱۴ ذوب
+    // آهن» out of four parts), so «میلگرد ۱۴» — the most natural thing an
+    // admin can type, and the exact phrasing the panel's own placeholder
+    // invites — matched nothing at all while the product sat right there.
+    // That is the failure that closes the loop: search says no, the admin
+    // concludes the product is missing, and creates it again (see
+    // `DuplicateProductError`).
+    //
+    // So: split on whitespace and require EVERY token to appear SOMEWHERE,
+    // rather than requiring the whole phrase to appear in one place. A
+    // single-word query is unchanged (one token, one predicate group); a
+    // multi-word one now behaves the way every search box the admin has ever
+    // used behaves. It only ever adds matches — a contiguous phrase that used
+    // to match still contains all of its own tokens.
+    const tokens = foldZwnjForSearch(query.q.slice(0, 100))
+      .split(/\s+/)
+      .filter((t) => t.length > 0)
+      // A bound on the predicate count, not on the admin: eight tokens is far
+      // past the longest composed name in the catalog, so anything beyond it
+      // is a paste, and the tokens that survive still narrow the result.
+      .slice(0, 8);
+    // ONE searchable expression instead of seven, which is also what makes
+    // per-token matching affordable: `concat_ws` skips NULLs and separates the
+    // rest with a space, so a token can match any column without multiplying
+    // the predicate count by seven. No index is lost by it — this search
+    // already spanned five columns with no index at all (`slug`, `size`,
+    // `grade`, `condition`, `standard`; see schema/catalog.ts), which Postgres
+    // could only ever answer with a scan whatever the two trigram indexes on
+    // `name` and `factory` might have offered.
+    const haystack = sql`replace(concat_ws(' ', ${skus.name}, ${skus.slug}, ${skus.size}, ${skus.factory}, ${skus.grade}, ${skus.condition}, ${skus.standard}), ${ZWNJ}, ' ')`;
+    for (const token of tokens) {
+      // Per TOKEN, not per query: «کارخانهٔ ۱۴» needs the harakat folded out of
+      // the first word and the digits re-spelled in the second, and a variant
+      // set built from the whole string can only apply both to both.
+      const patterns = [
+        ...new Set([
+          token,
+          normalizePersian(token),
+          token.replace(/[0-9]/g, (d) => String.fromCharCode(d.charCodeAt(0) + 0x06f0 - 0x30)),
+          normalizeDigits(token),
         ]),
-      ),
-    );
+      ]
+        .filter((t) => t.length > 0)
+        .map(likeContains);
+      conds.push(or(...patterns.map((p) => ilike(haystack, p))));
+    }
   }
-  // A product is only reachable on the public site when all THREE levels are
-  // active — every read path filters on `is_active` at category, sub-category
-  // and SKU. The panel used to report the SKU's own flag alone, so a product
-  // stranded on a retired sub-category showed a green «فعال» badge while
-  // nothing on the site could reach it. That is how 167 of 240 products went
-  // missing for weeks without the panel ever saying a word.
-  if (query.visibility === 'hidden') {
-    conds.push(or(eq(subCategories.isActive, false), eq(categories.isActive, false))!);
-  }
+  // Every product that exists is reachable on the public site: the three
+  // levels have no hidden state left to disagree about. The panel used to
+  // carry a whole «مخفی» apparatus for products stranded under a deactivated
+  // parent — 167 of 240 at its worst — and that condition can no longer occur.
   const where = conds.length ? and(...conds) : undefined;
-  const [rows, total, hiddenTotal] = await Promise.all([
+  const [rows, total] = await Promise.all([
     db
       .select({
         sku: skus,
         price: currentPrices,
-        subActive: subCategories.isActive,
-        categoryActive: categories.isActive,
         subName: subCategories.name,
       })
       .from(skus)
@@ -397,38 +486,10 @@ export async function adminListSkus(query: {
       .innerJoin(subCategories, eq(subCategories.id, skus.subCategoryId))
       .innerJoin(categories, eq(categories.id, skus.categoryId))
       .where(where),
-    // Catalog-wide, deliberately ignoring every other filter: this is the
-    // number that has to be visible on the screen at all times, because an
-    // admin has no reason to click a filter for a problem nobody told them
-    // they have.
-    db
-      .select({ n: sql<number>`count(*)::int` })
-      .from(skus)
-      .innerJoin(subCategories, eq(subCategories.id, skus.subCategoryId))
-      .innerJoin(categories, eq(categories.id, skus.categoryId))
-      .where(
-        and(
-          eq(skus.isActive, true),
-          or(eq(subCategories.isActive, false), eq(categories.isActive, false)),
-        ),
-      ),
   ]);
   return {
-    rows: rows.map(({ sku, price, subActive, categoryActive, subName }) => ({
-      sku,
-      price,
-      visibleOnSite: sku.isActive && subActive && categoryActive,
-      hiddenReason: !sku.isActive
-        ? null
-        : !categoryActive
-          ? ('category' as const)
-          : !subActive
-            ? ('sub' as const)
-            : null,
-      subName,
-    })),
+    rows: rows.map(({ sku, price, subName }) => ({ sku, price, subName })),
     total: total[0]?.n ?? 0,
-    hiddenTotal: hiddenTotal[0]?.n ?? 0,
     page,
     perPage,
   };
@@ -456,6 +517,7 @@ export async function catalogSuggestions(categoryId?: string): Promise<{
   factories: string[];
   sizes: string[];
   grades: string[];
+  conditions: string[];
   /** Shared ورق dimensions / approved نبشی thickness values already
    *  in use within the requested parent-category scope. */
   dimensions: string[];
@@ -469,21 +531,38 @@ export async function catalogSuggestions(categoryId?: string): Promise<{
 }> {
   const db = getDb();
   const where = categoryId ? eq(skus.categoryId, categoryId) : undefined;
-  const rows = await db
+  // DISTINCT in Postgres, not in Node.
+  //
+  // This ran unscoped on every drawer open (the "all products" view passes no
+  // category), and it selected seven columns of all 748 rows with no LIMIT and
+  // no DISTINCT — ~5,200 values shipped over the wire to produce a few dozen,
+  // then seven `localeCompare` sorts over the duplicates. `array_agg(distinct)`
+  // does the de-duplication where the rows already are, so the same scan
+  // returns seven small arrays: tens of values instead of thousands, and the
+  // sort below is over the distinct set rather than the whole table.
+  //
+  // The sort stays in Node deliberately — Persian collation is a property of
+  // the database's locale, which this code cannot assume (pglite in tests, the
+  // server's own collation in production), and `localeCompare(…, 'fa')` is the
+  // same ordering the rest of the panel uses.
+  const distinct = (col: AnyColumn) =>
+    sql<string[] | null>`array_agg(distinct ${col}) filter (where ${col} is not null and btrim(${col}) <> '')`;
+  const agg = await db
     .select({
-      factory: skus.factory,
-      size: skus.size,
-      grade: skus.grade,
-      dimensions: skus.dimensions,
-      schedule: skus.schedule,
-      standard: skus.standard,
+      factory: distinct(skus.factory),
+      size: distinct(skus.size),
+      grade: distinct(skus.grade),
+      condition: distinct(skus.condition),
+      dimensions: distinct(skus.dimensions),
+      schedule: distinct(skus.schedule),
+      standard: distinct(skus.standard),
     })
     .from(skus)
     .where(where);
-  const pick = (get: (r: (typeof rows)[number]) => string | null) =>
-    [...new Set(rows.map(get).filter((v): v is string => Boolean(v && v.trim())))].sort((a, b) =>
-      a.localeCompare(b, 'fa'),
-    );
+  // No rows at all means every aggregate is NULL, not an empty array — a brand
+  // new category must answer with empty pickers, never `null`.
+  const pick = (values: string[] | null | undefined) =>
+    [...new Set(values ?? [])].sort((a, b) => a.localeCompare(b, 'fa'));
   // groupLabel lives on subCategories, not skus — same "let them pick, not
   // type" rationale as factory above: a free-text cluster label is only
   // useful if «ورق رنگی» stays one string, not three near-identical spellings
@@ -493,13 +572,15 @@ export async function catalogSuggestions(categoryId?: string): Promise<{
   const groupLabels = [
     ...new Set(groupRows.map((r) => r.groupLabel).filter((v): v is string => Boolean(v && v.trim()))),
   ].sort((a, b) => a.localeCompare(b, 'fa'));
+  const row = agg[0];
   return {
-    factories: pick((r) => r.factory),
-    sizes: pick((r) => r.size),
-    grades: pick((r) => r.grade),
-    dimensions: pick((r) => r.dimensions),
-    schedules: pick((r) => r.schedule),
-    standards: pick((r) => r.standard),
+    factories: pick(row?.factory),
+    sizes: pick(row?.size),
+    grades: pick(row?.grade),
+    conditions: pick(row?.condition),
+    dimensions: pick(row?.dimensions),
+    schedules: pick(row?.schedule),
+    standards: pick(row?.standard),
     groupLabels,
   };
 }
@@ -512,9 +593,10 @@ export interface SkuInput {
   standard?: string | null;
   size?: string | null;
   grade?: string | null;
-  /** ورق only — plate width×length. Same nullable "absent key leaves the
-   *  column alone, explicit null clears it" rule as every other optional
-   *  field here. See server/db/schema/catalog.ts. */
+  /** Product form/finish, independent of metallurgical grade. */
+  condition?: string | null;
+  /** Context-specific plate dimensions or section thickness. Same nullable
+   *  "absent key leaves it alone, explicit null clears it" update rule. */
   dimensions?: string | null;
   /** «رده» — the pipe schedule, on لوله's pressure-pipe subs. Same nullable
    *  "absent key leaves the column alone, explicit null clears it" rule as
@@ -554,7 +636,7 @@ async function sanitizeCrossListedCategoryIds(
   const rows = await getDb()
     .select({ id: categories.id })
     .from(categories)
-    .where(and(inArray(categories.id, ids), eq(categories.isActive, true)));
+    .where(and(inArray(categories.id, ids)));
   // A SKU cross-listed into its own home category would just show up twice
   // on the one page it already lives on — meaningless, so it's dropped
   // rather than saved and silently double-rendered.
@@ -582,8 +664,45 @@ async function skuSlugTaken(slug: string, exceptId?: string): Promise<boolean> {
   return Boolean(hit && hit.id !== exceptId);
 }
 
+/**
+ * The row this input would duplicate, if there is one.
+ *
+ * `(subCategoryId, name, size, factory)` is what makes a product distinct in
+ * this catalog: everything else on the row (weight, branch length, image,
+ * basis) is a property OF that product rather than part of its identity. All
+ * four values arrive already normalized from the route's zod transforms, so
+ * this compares like with like.
+ *
+ * `is null` rather than `= null` for the two nullable columns — a rebar SKU
+ * with no factory recorded twice is still the same product twice.
+ */
+async function existingProduct(input: SkuInput): Promise<{ id: string; slug: string } | null> {
+  const rows = await getDb()
+    .select({ id: skus.id, slug: skus.slug })
+    .from(skus)
+    .where(
+      and(
+        eq(skus.subCategoryId, input.subCategoryId),
+        eq(skus.name, input.name),
+        input.size == null ? sql`${skus.size} is null` : eq(skus.size, input.size),
+        input.factory == null ? sql`${skus.factory} is null` : eq(skus.factory, input.factory),
+      ),
+    )
+    .limit(1);
+  return rows[0] ?? null;
+}
+
 export async function createSku(input: SkuInput) {
   const categoryId = await resolveSkuParent(input.subCategoryId);
+  // Before `freeSlug`, not after: the slug suffix is exactly the mechanism
+  // that used to turn a duplicate submission into a second product.
+  const duplicate = await existingProduct(input);
+  if (duplicate) {
+    throw new DuplicateProductError(
+      duplicate.id,
+      'همین کالا (با همین نام، سایز و کارخانه) در این زیر‌دسته وجود دارد.',
+    );
+  }
   const slug = await freeSlug(input.slug, (c) => skuSlugTaken(c));
   const crossListedCategoryIds = await sanitizeCrossListedCategoryIds(input.crossListedCategoryIds, categoryId);
   const rows = await asSlugConflict(
@@ -597,7 +716,7 @@ export async function createSku(input: SkuInput) {
   return rows[0]!;
 }
 
-export async function updateSku(id: string, patch: Partial<SkuInput> & { isActive?: boolean }) {
+export async function updateSku(id: string, patch: Partial<SkuInput>) {
   const db = getDb();
   const prevRows = await db.select().from(skus).where(eq(skus.id, id)).limit(1);
   const before = prevRows[0];
@@ -619,101 +738,380 @@ export async function updateSku(id: string, patch: Partial<SkuInput> & { isActiv
       patch.crossListedCategoryIds,
       next.categoryId ?? before.categoryId,
     );
+  } else if (next.categoryId && next.categoryId !== before.categoryId) {
+    // A move re-runs the sanitize even though the client sent no such key:
+    // dropping the SKU's own home category is the whole job of that helper,
+    // and the home category is precisely what just changed. Without this, a
+    // product cross-listed into «استیل» and then moved INTO an استیل sub keeps
+    // «استیل» in the array, so `categoryId === crossListedCategoryIds[0]` and
+    // the public استیل page renders the same product twice.
+    next.crossListedCategoryIds = await sanitizeCrossListedCategoryIds(
+      before.crossListedCategoryIds,
+      next.categoryId,
+    );
   }
   if (patch.slug && patch.slug !== before.slug && (await skuSlugTaken(patch.slug, id))) {
     throw new DuplicateSlugError('slug', 'این نشانی قبلاً برای کالای دیگری استفاده شده است.');
   }
+  // `current_prices.unit`/`price_basis` are only rewritten on the NEXT price
+  // save, and `toPriceRow` PREFERS them over the `skus` columns — so the two
+  // have to move together or the public page quotes a real price against the
+  // wrong denomination. Correcting a SKU from «per kilogram» to «per کلاف»
+  // and losing the second statement leaves «تومان / کیلوگرم» under a per-coil
+  // number until somebody happens to re-save the price: a wrong price quoted
+  // to a customer, from a save the admin was told succeeded. One transaction,
+  // and one UPDATE instead of two, so there is no in-between state to land in.
   const rows = await asSlugConflict(
     () =>
-      db
-        .update(skus)
-        .set({ ...next, updatedAt: new Date() })
-        .where(eq(skus.id, id))
-        .returning(),
+      db.transaction(async (tx) => {
+        const updated = await tx
+          .update(skus)
+          .set({ ...next, updatedAt: new Date() })
+          .where(eq(skus.id, id))
+          .returning();
+        const pricePatch: { unit?: PriceUnit; priceBasis?: PriceBasis } = {};
+        if (patch.unit && patch.unit !== before.unit) pricePatch.unit = patch.unit;
+        if (patch.priceBasis && patch.priceBasis !== before.priceBasis) pricePatch.priceBasis = patch.priceBasis;
+        if (updated[0] && Object.keys(pricePatch).length > 0) {
+          await tx.update(currentPrices).set(pricePatch).where(eq(currentPrices.skuId, id));
+        }
+        return updated;
+      }),
     'این نشانی قبلاً برای کالای دیگری استفاده شده است.',
   );
   const after = rows[0];
   if (!after) return null;
-  // `current_prices.unit` is only rewritten on the NEXT price save, and
-  // `toPriceRow` prefers it over `skus.unit` — without this the public table
-  // would keep showing the old unit against the new one on the detail page.
-  if (patch.unit && patch.unit !== before.unit) {
-    await db.update(currentPrices).set({ unit: patch.unit }).where(eq(currentPrices.skuId, id));
-  }
-  // Same reasoning one column over, and it matters more: `toPriceRow` prefers
-  // `current_prices.price_basis`, so correcting a SKU from «per kilogram» to
-  // «per کلاف» without this would leave the public caption still saying
-  // «تومان / کیلوگرم» until somebody happened to re-save the price.
-  if (patch.priceBasis && patch.priceBasis !== before.priceBasis) {
-    await db
-      .update(currentPrices)
-      .set({ priceBasis: patch.priceBasis })
-      .where(eq(currentPrices.skuId, id));
-  }
   return { before, after };
 }
 
-/** Soft-delete (isActive=false). Hard delete is intentionally not implemented. */
-export async function deactivateSku(id: string) {
-  return updateSku(id, { isActive: false });
+/**
+ * Delete a product for real, returning the row that was removed so the caller
+ * can name it in the audit log.
+ *
+ * The structural children (current_prices, price_points, favorites, alerts,
+ * price_sync_entries) cascade; `lead_items` and `order_items` are ON DELETE
+ * SET NULL and keep the frozen name/price snapshot they took at the time, so
+ * no quote or order loses what it was for. See schemaCascade.test.ts.
+ */
+export async function deleteSku(id: string) {
+  const rows = await getDb().delete(skus).where(eq(skus.id, id)).returning();
+  return rows[0] ?? null;
 }
 
-/** What hiding this product would actually disturb. Shown in the confirm
- *  dialog: retiring a SKU that sits in three open deals is a different
- *  decision from retiring one nobody has ever asked about. */
-export async function skuImpact(id: string): Promise<{
+/**
+ * Delete many products in ONE transaction — the panel's only bulk operation
+ * used to be N independent `DELETE` requests via `Promise.allSettled`, so a
+ * dropped connection mid-batch left an arbitrary split of "gone" and "still
+ * there" with no way back short of picking through the activity log by hand.
+ * Ids that don't exist are simply absent from the returned rows, not an error.
+ */
+export async function deleteSkusBulk(ids: string[]): Promise<(typeof skus.$inferSelect)[]> {
+  if (ids.length === 0) return [];
+  return getDb().delete(skus).where(inArray(skus.id, ids)).returning();
+}
+
+/** Which of these ids currently sit on an open order — the same standard a
+ *  single delete is held to (`OPEN_ORDER_STATUSES`), checked as one query
+ *  over the whole batch instead of once per id. */
+export async function skuIdsWithOpenOrders(ids: string[]): Promise<string[]> {
+  if (ids.length === 0) return [];
+  const rows = await getDb()
+    .selectDistinct({ id: orderItems.skuId })
+    .from(orderItems)
+    .innerJoin(orders, eq(orderItems.orderId, orders.id))
+    .where(and(inArray(orderItems.skuId, ids), inArray(orders.status, [...OPEN_ORDER_STATUSES])));
+  return rows.map((r) => r.id).filter((id): id is string => id !== null);
+}
+
+export type SubCategorySubtreeSnapshot = {
+  skus: (typeof skus.$inferSelect)[];
+  /** Not the rows themselves — see the module header on why. */
+  pricePointsCount: number;
+};
+
+export type CategorySubtreeSnapshot = SubCategorySubtreeSnapshot & {
+  subCategories: (typeof subCategories.$inferSelect)[];
+};
+
+async function pricePointsCountFor(tx: DbOrTx, skuIds: string[]): Promise<number> {
+  if (skuIds.length === 0) return 0;
+  const rows = await tx
+    .select({ n: sql<number>`count(*)::int` })
+    .from(pricePoints)
+    .where(inArray(pricePoints.skuId, skuIds));
+  return rows[0]?.n ?? 0;
+}
+
+/**
+ * Delete a sub-category and, by cascade, every product under it — capturing
+ * that whole subtree (minus price-history rows, which are counted, not kept)
+ * BEFORE it is gone, so the audit log holds enough to restore it rather than
+ * just the sub-category's own two columns.
+ */
+export async function deleteSubCategory(
+  id: string,
+): Promise<{ removed: typeof subCategories.$inferSelect; subtree: SubCategorySubtreeSnapshot } | null> {
+  return getDb().transaction(async (tx) => {
+    const skuRows = await tx.select().from(skus).where(eq(skus.subCategoryId, id));
+    const pricePointsCount = await pricePointsCountFor(
+      tx,
+      skuRows.map((s) => s.id),
+    );
+    const rows = await tx.delete(subCategories).where(eq(subCategories.id, id)).returning();
+    const removed = rows[0];
+    if (!removed) return null;
+    return { removed, subtree: { skus: skuRows, pricePointsCount } };
+  });
+}
+
+/**
+ * Delete a category and, by cascade, its sub-categories and their products —
+ * same subtree-snapshot-before-delete shape as `deleteSubCategory`, one level
+ * deeper.
+ */
+export async function deleteCategory(
+  id: string,
+): Promise<{ removed: typeof categories.$inferSelect; subtree: CategorySubtreeSnapshot } | null> {
+  return getDb().transaction(async (tx) => {
+    const subCategoryRows = await tx.select().from(subCategories).where(eq(subCategories.categoryId, id));
+    const skuRows = await tx.select().from(skus).where(eq(skus.categoryId, id));
+    const pricePointsCount = await pricePointsCountFor(
+      tx,
+      skuRows.map((s) => s.id),
+    );
+    const rows = await tx.delete(categories).where(eq(categories.id, id)).returning();
+    const removed = rows[0];
+    if (!removed) return null;
+    return { removed, subtree: { subCategories: subCategoryRows, skus: skuRows, pricePointsCount } };
+  });
+}
+
+/**
+ * Re-insert a subtree snapshot taken by `deleteCategory`/`deleteSubCategory`
+ * (or a single row from a `sku.delete` audit entry). `onConflictDoNothing`
+ * throughout: a restore can be replayed safely — from a stale audit page, a
+ * double click, or a node partially restored earlier — without ever throwing
+ * a duplicate-key error over rows that already made it back.
+ *
+ * Price history is never restored — it was never kept (see
+ * `CategorySubtreeSnapshot`) — so a restored product starts with no chart,
+ * same as a brand-new one, until the next price sync.
+ */
+export async function restoreSku(row: typeof skus.$inferInsert): Promise<typeof skus.$inferSelect | null> {
+  const rows = await getDb().insert(skus).values(row).onConflictDoNothing().returning();
+  return rows[0] ?? null;
+}
+
+export async function restoreSubCategory(
+  row: typeof subCategories.$inferInsert,
+  skuRows: (typeof skus.$inferInsert)[],
+): Promise<{ subCategory: typeof subCategories.$inferSelect | null; skus: (typeof skus.$inferSelect)[] }> {
+  return getDb().transaction(async (tx) => {
+    const subRows = await tx.insert(subCategories).values(row).onConflictDoNothing().returning();
+    const restoredSkus = skuRows.length ? await tx.insert(skus).values(skuRows).onConflictDoNothing().returning() : [];
+    return { subCategory: subRows[0] ?? null, skus: restoredSkus };
+  });
+}
+
+export async function restoreCategory(
+  row: typeof categories.$inferInsert,
+  subCategoryRows: (typeof subCategories.$inferInsert)[],
+  skuRows: (typeof skus.$inferInsert)[],
+): Promise<{
+  category: typeof categories.$inferSelect | null;
+  subCategories: (typeof subCategories.$inferSelect)[];
+  skus: (typeof skus.$inferSelect)[];
+}> {
+  return getDb().transaction(async (tx) => {
+    const catRows = await tx.insert(categories).values(row).onConflictDoNothing().returning();
+    const subRows = subCategoryRows.length
+      ? await tx.insert(subCategories).values(subCategoryRows).onConflictDoNothing().returning()
+      : [];
+    const restoredSkus = skuRows.length ? await tx.insert(skus).values(skuRows).onConflictDoNothing().returning() : [];
+    return { category: catRows[0] ?? null, subCategories: subRows, skus: restoredSkus };
+  });
+}
+
+/**
+ * What deleting a catalog node would actually destroy.
+ *
+ * One shape for all three levels, because the question the admin is answering
+ * is the same one at each: removing something that sits in three open deals is
+ * a different decision from removing something nobody has ever asked about.
+ *
+ * Scoped by a predicate over `skus` rather than by a list of ids: «ورق» takes
+ * 19 sub-categories and hundreds of products with it, and shipping those ids
+ * to the client to count them there is how the old dialog ended up quoting
+ * numbers that were minutes stale.
+ */
+export type CatalogImpact = {
+  /** Products removed — 1 for a SKU, the whole subtree for a taxonomy node. */
+  skus: number;
+  /** Sub-categories removed. Always 0 below category level. */
+  subCategories: number;
+  /**
+   * Rows of `price_points` that go with them.
+   *
+   * This is the number that changes minds and the one the dialog never had:
+   * `hasPrice` was a BOOLEAN, so eighteen months of series behind a public
+   * chart and a product priced once yesterday read identically.
+   */
+  pricePoints: number;
+  /** Products carrying a published price right now. */
+  pricedSkus: number;
   openLeads: number;
+  /**
+   * Leads already WON on these products. Counted separately and never folded
+   * into `openLeads`, which only ever meant `new`/`contacted` — a closed sale
+   * is the strongest reason not to delete something, and it was the one class
+   * of lead the impact check stayed silent about.
+   */
+  wonLeads: number;
   openOrders: number;
   activeAlerts: number;
   favorites: number;
-  hasPrice: boolean;
-}> {
+};
+
+const OPEN_LEAD_STATUSES = ['new', 'contacted'] as const;
+const OPEN_ORDER_STATUSES = ['registered', 'confirmed', 'loading', 'in_transit'] as const;
+
+/** `skus.id` for everything a delete at this node would take down. */
+function impactScope(scope: { sku: string } | { sub: string } | { category: string }) {
+  if ('sku' in scope) return eq(skus.id, scope.sku);
+  if ('sub' in scope) return eq(skus.subCategoryId, scope.sub);
+  return eq(skus.categoryId, scope.category);
+}
+
+async function catalogImpact(
+  scope: { sku: string } | { sub: string } | { category: string },
+): Promise<CatalogImpact> {
   const db = getDb();
-  const [leadRows, orderRows, alertRows, favRows, priceRows] = await Promise.all([
-    db
-      .select({ n: sql<number>`count(*)::int` })
-      .from(leadItems)
-      .innerJoin(leads, eq(leadItems.leadId, leads.id))
-      .where(and(eq(leadItems.skuId, id), inArray(leads.status, ['new', 'contacted']))),
-    db
-      .select({ n: sql<number>`count(*)::int` })
-      .from(orderItems)
-      .innerJoin(orders, eq(orderItems.orderId, orders.id))
-      .where(
-        and(eq(orderItems.skuId, id), inArray(orders.status, ['registered', 'confirmed', 'loading', 'in_transit'])),
-      ),
-    db
-      .select({ n: sql<number>`count(*)::int` })
-      .from(alerts)
-      .where(and(eq(alerts.skuId, id), eq(alerts.status, 'active'))),
-    db.select({ n: sql<number>`count(*)::int` }).from(favorites).where(eq(favorites.skuId, id)),
-    db.select({ skuId: currentPrices.skuId }).from(currentPrices).where(eq(currentPrices.skuId, id)).limit(1),
-  ]);
+  // A sub-select of the affected ids, evaluated once per count by Postgres
+  // rather than materialized here — a category delete must not pull hundreds
+  // of ids through the app just to count what hangs off them.
+  const scoped = db.select({ id: skus.id }).from(skus).where(impactScope(scope));
+  const inScope = (col: AnyColumn) => inArray(col, scoped);
+  const count = sql<number>`count(*)::int`;
+
+  const [skuRows, subRows, pointRows, pricedRows, openLeadRows, wonLeadRows, orderRows, alertRows, favRows] =
+    await Promise.all([
+      db.select({ n: count }).from(skus).where(impactScope(scope)),
+      'category' in scope
+        ? db.select({ n: count }).from(subCategories).where(eq(subCategories.categoryId, scope.category))
+        : Promise.resolve([{ n: 0 }]),
+      db.select({ n: count }).from(pricePoints).where(inScope(pricePoints.skuId)),
+      db.select({ n: count }).from(currentPrices).where(inScope(currentPrices.skuId)),
+      db
+        .select({ n: count })
+        .from(leadItems)
+        .innerJoin(leads, eq(leadItems.leadId, leads.id))
+        .where(and(inScope(leadItems.skuId), inArray(leads.status, [...OPEN_LEAD_STATUSES]))),
+      db
+        .select({ n: count })
+        .from(leadItems)
+        .innerJoin(leads, eq(leadItems.leadId, leads.id))
+        .where(and(inScope(leadItems.skuId), eq(leads.status, 'won'))),
+      db
+        .select({ n: count })
+        .from(orderItems)
+        .innerJoin(orders, eq(orderItems.orderId, orders.id))
+        .where(and(inScope(orderItems.skuId), inArray(orders.status, [...OPEN_ORDER_STATUSES]))),
+      db
+        .select({ n: count })
+        .from(alerts)
+        .where(and(inScope(alerts.skuId), eq(alerts.status, 'active'))),
+      db.select({ n: count }).from(favorites).where(inScope(favorites.skuId)),
+    ]);
+
   return {
-    openLeads: leadRows[0]?.n ?? 0,
+    skus: skuRows[0]?.n ?? 0,
+    subCategories: subRows[0]?.n ?? 0,
+    pricePoints: pointRows[0]?.n ?? 0,
+    pricedSkus: pricedRows[0]?.n ?? 0,
+    openLeads: openLeadRows[0]?.n ?? 0,
+    wonLeads: wonLeadRows[0]?.n ?? 0,
     openOrders: orderRows[0]?.n ?? 0,
     activeAlerts: alertRows[0]?.n ?? 0,
     favorites: favRows[0]?.n ?? 0,
-    hasPrice: Boolean(priceRows[0]),
   };
 }
 
-/** Bulk reorder in ONE transaction. The old UI fired N independent PATCHes off
- *  a client-side snapshot: two admins reordering the same list interleaved
- *  into an order neither chose, and each PATCH separately purged the whole
- *  root-layout cache. */
+/** What deleting this product would disturb. */
+export function skuImpact(id: string): Promise<CatalogImpact> {
+  return catalogImpact({ sku: id });
+}
+
+/** What deleting this sub-category would disturb, products included. */
+export function subCategoryImpact(id: string): Promise<CatalogImpact> {
+  return catalogImpact({ sub: id });
+}
+
+/**
+ * What deleting this category would disturb — its sub-categories, every
+ * product under them, and their price history.
+ *
+ * The confirm dialog used to quote `category.skuCount` off the list the
+ * browser happened to be holding, so a category showing «۰ کالا» could take
+ * 210 products with it if anything had been filed under it since the page
+ * loaded.
+ */
+export function categoryImpact(id: string): Promise<CatalogImpact> {
+  return catalogImpact({ category: id });
+}
+
+/**
+ * Bulk reorder in ONE transaction.
+ *
+ * The UI fired N independent PATCHes off a client-side snapshot: two admins
+ * reordering the same list interleaved into an order neither chose, a partial
+ * failure left duplicate/gapped `order` values published to the public nav, and
+ * each PATCH separately wrote an audit row and purged the whole root-layout
+ * cache — moving one row in a list of 18 cost 18 of each. This function was
+ * written to fix exactly that and then was never wired to a route; it is
+ * reachable now (`PUT /api/admin/catalog/reorder`).
+ *
+ * Returns the rows as they WERE alongside what was applied, so the single
+ * audit entry can answer "what was the order before?" — the same thing
+ * `factory-order` records, and the only way a bad drag is undoable.
+ * Ids that do not exist are skipped rather than failing the batch: a stale
+ * client snapshot listing a node another admin has since deleted should still
+ * apply the positions of the nodes that are still there.
+ */
 export async function reorderTaxonomy(
   kind: 'category' | 'subCategory',
   items: Array<{ id: string; order: number }>,
-): Promise<number> {
-  if (items.length === 0) return 0;
+  /** Sub-categories only: the parent whose children are being arranged. Ids
+   *  belonging to any other category are skipped, so one category's rail can
+   *  never renumber another's. */
+  scopeCategoryId?: string,
+): Promise<{ before: Array<{ id: string; order: number }>; after: Array<{ id: string; order: number }> }> {
+  if (items.length === 0) return { before: [], after: [] };
   const db = getDb();
+  const ids = items.map((it) => it.id);
   return db.transaction(async (tx) => {
+    const before =
+      kind === 'category'
+        ? await tx
+            .select({ id: categories.id, order: categories.order })
+            .from(categories)
+            .where(inArray(categories.id, ids))
+        : await tx
+            .select({ id: subCategories.id, order: subCategories.order })
+            .from(subCategories)
+            .where(
+              scopeCategoryId
+                ? and(inArray(subCategories.id, ids), eq(subCategories.categoryId, scopeCategoryId))
+                : inArray(subCategories.id, ids),
+            );
+    const known = new Set(before.map((r) => r.id));
+    const after: Array<{ id: string; order: number }> = [];
     for (const it of items) {
+      if (!known.has(it.id)) continue;
       if (kind === 'category') await tx.update(categories).set({ order: it.order }).where(eq(categories.id, it.id));
       else await tx.update(subCategories).set({ order: it.order }).where(eq(subCategories.id, it.id));
+      after.push(it);
     }
-    return items.length;
+    return { before, after };
   });
 }
 
@@ -753,7 +1151,6 @@ export async function factoriesForCategory(categoryId: string): Promise<AdminFac
       .where(
         and(
           eq(skus.categoryId, categoryId),
-          eq(skus.isActive, true),
           sql`${skus.factory} is not null and ${skus.factory} <> ''`,
         ),
       )
@@ -796,6 +1193,14 @@ export async function factoriesForCategory(categoryId: string): Promise<AdminFac
  */
 export async function setFactoryOrder(categoryId: string, factories: string[]): Promise<number> {
   const db = getDb();
+  // `factory_order.category_id` is a FK, so a stale id (a category another
+  // admin just deleted, or client state from before a reload) reached Postgres
+  // and came back as SQLSTATE 23503 — which this route, alone among the six,
+  // turned into «خطایی در سرور رخ داد» with no code the panel could branch on.
+  // The same id answers 200 with an empty list on GET; one of the two had to
+  // give, and an actionable 400 is the one the admin can do something about.
+  const parent = await db.select({ id: categories.id }).from(categories).where(eq(categories.id, categoryId)).limit(1);
+  if (!parent[0]) throw new InvalidParentError('دستهٔ انتخاب‌شده یافت نشد.');
   // De-duplicate defensively: the unique index would reject a repeat anyway,
   // and a 23505 here is not a duplicate-SLUG error the forms know how to show.
   const clean = [...new Set(factories.map((f) => f.trim()).filter((f) => f !== ''))];

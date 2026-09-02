@@ -39,6 +39,7 @@ import { JalaliDateField } from '../JalaliDateField';
 import { PagerFooter } from '../PagerFooter';
 import { CommentsModeration } from './CommentsModeration';
 import { routes } from '@/lib/routes';
+import { SITE_ORIGIN } from '@/lib/utils/url';
 import ui from '../adminUi.module.css';
 import s from './content.module.css';
 
@@ -937,7 +938,13 @@ function ArticleDrawer({
   };
 
   const status = article?.status ?? 'draft';
-  const liveUrl = article && status !== 'draft' ? articlePath(article.type, article.slug) : null;
+  // Absolute, not `articlePath()`'s bare path: rendered as an
+  // `<a target="_blank">` opened from `panel.ahantime.com`, where a relative
+  // href resolves against the panel's own origin and gets rewritten by the
+  // panel middleware to a nonexistent `/admin/...` route instead of the
+  // storefront page.
+  const liveUrl =
+    article && status !== 'draft' ? `${SITE_ORIGIN}${articlePath(article.type, article.slug)}` : null;
 
   if (!isCreate && isLoading) {
     return (

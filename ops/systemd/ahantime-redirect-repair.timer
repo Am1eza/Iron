@@ -1,0 +1,26 @@
+[Unit]
+Description=Repair the ahantime redirect table daily
+
+[Timer]
+# Daily, off-peak in Tehran. Production runs UTC (`docker exec ahantime-web-1
+# date`; TZ is unset in docker-compose.yml), so 23:40 UTC is ~03:10 Tehran:
+# after the working day in which admins curate the catalog, and after both of
+# the day's price syncs. A day's deletions are then reconciled in one pass
+# instead of racing an admin who is still mid-restructure.
+#
+# Daily, not hourly: the cost of a redirect pointing at a 404 for a few more
+# hours is small, while re-aiming a destination that an admin is about to
+# recreate — the exact پروفیل sequence in PR #227, where sub-categories were
+# retired and rebuilt ten days later — throws away information. A wider
+# window is the cheaper mistake.
+OnCalendar=*-*-* 23:40:00 UTC
+# Deletions that happened while the box was down still need reconciling.
+Persistent=true
+# Nothing downstream is waiting on this, so spread it away from the backup
+# and the price sync rather than insisting on the minute.
+RandomizedDelaySec=10min
+AccuracySec=1min
+Unit=ahantime-redirect-repair.service
+
+[Install]
+WantedBy=timers.target
