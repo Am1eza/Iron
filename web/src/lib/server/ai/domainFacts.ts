@@ -18,7 +18,7 @@ export async function getDomainFacts(): Promise<string> {
 
   let facts = '';
   try {
-    const cats = (await listCategories()).filter((c) => c.isActive);
+    const cats = await listCategories();
     const [subsMap, grades] = await Promise.all([getSubsMap(), gradesByCategory()]);
     const parts = cats.map((c) => {
       const subs = (subsMap[c.slug] ?? []).map((s) => s.name);

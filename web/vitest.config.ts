@@ -36,7 +36,15 @@ export default defineConfig({
     env: { TZ: 'UTC' },
     setupFiles: ['./vitest.setup.ts'],
     css: false,
-    include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    // `scripts/` is in here for one reason: some of what runs against
+    // production lives there rather than in `src/`, and one of those things
+    // (`scripts/lib/redirectRepair.ts`) now runs unattended on a systemd
+    // timer and rewrites live URLs. Code with that reach has to be pinned by
+    // a suite, not by a human reading its dry run. Only the pure planning
+    // half is testable and only that half is imported — the scripts
+    // themselves still open a real `pg` pool at module scope and are not
+    // collected here.
+    include: ['src/**/*.{test,spec}.{ts,tsx}', 'scripts/**/*.{test,spec}.ts'],
     exclude: ['node_modules', '.next', 'e2e', 'tests/e2e'],
     coverage: {
       provider: 'v8',

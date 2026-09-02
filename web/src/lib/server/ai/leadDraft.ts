@@ -37,6 +37,11 @@ export interface LeadDraft {
    *  (that IS the login-then-continue flow); one prepared while signed in
    *  may only be confirmed by the same account. */
   userId?: string;
+  /** Delivery city, when the visitor set it on the card itself. Recorded on
+   *  the lead so the rep opens the call knowing where it goes — and it is a
+   *  DELIVERY fact, not a price one: the پیش‌فاکتور still quotes goods, and
+   *  freight is confirmed by the کارشناس. */
+  city?: string;
   createdAt: number;
 }
 
@@ -68,6 +73,39 @@ export async function putDraft(draft: Omit<LeadDraft, 'id' | 'createdAt'>): Prom
     /* memory copy still serves this instance */
   });
   return full;
+}
+
+/**
+ * Replace a draft's editable parts IN PLACE, keeping its id.
+ *
+ * The id is what the client holds and what confirm consumes, so editing the
+ * quantity on the card must not mint a second draft — that would leave the
+ * old one alive, still confirmable, still holding the pre-edit quantities. The
+ * TTL restarts, which is correct: someone actively adjusting a quantity has
+ * not gone away.
+ *
+ * Returns null when the draft is gone (expired, or already confirmed), which
+ * the caller reports rather than silently re-creating: a draft that has been
+ * consumed has become a real lead, and quietly resurrecting it would let one
+ * conversation file two requests.
+ */
+export async function updateDraft(
+  id: string,
+  patch: { items?: DraftItem[]; city?: string },
+): Promise<LeadDraft | null> {
+  const current = await getDraft(id);
+  if (!current) return null;
+  const next: LeadDraft = {
+    ...current,
+    ...(patch.items ? { items: patch.items } : {}),
+    ...(patch.city !== undefined ? { city: patch.city } : {}),
+  };
+  sweepMemory();
+  memory.set(id, { draft: next, expiresAt: Date.now() + DRAFT_TTL_SECONDS * 1000 });
+  await cacheSetJson(key(id), next, DRAFT_TTL_SECONDS).catch(() => {
+    /* memory copy still serves this instance */
+  });
+  return next;
 }
 
 export async function getDraft(id: string): Promise<LeadDraft | null> {

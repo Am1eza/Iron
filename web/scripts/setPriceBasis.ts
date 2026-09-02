@@ -129,7 +129,7 @@ const { rows } = await pool.query<Row>(
           s.theoretical_weight_kg AS weight
      FROM skus s
      JOIN sub_categories sc ON sc.id = s.sub_category_id
-    WHERE s.is_active AND sc.slug = ANY($1)
+    WHERE sc.slug = ANY($1)
     ORDER BY sc.slug, s.name`,
   [subs],
 );

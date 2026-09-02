@@ -264,76 +264,87 @@ test('creating a product from the drawer lands it in the catalog and in pricing'
 
   // It is findable, and it is flagged as having no price yet — the only
   // signal that tells an owner there is data-entry work outstanding.
+  //
+  // Waiting on `tbody tr` .first() being visible is NOT a wait for the search
+  // to land: the pre-search rows are already there and satisfy it instantly,
+  // so on a slow runner the «بدون قیمت» assertion below used to run against
+  // the OLD, priced first row and fail on a 15s budget while the filtered
+  // fetch was still in flight (CI run 33373001173). Wait for the row COUNT
+  // the search must produce — the same settling rule the pagination test
+  // above already uses — and then read the badge out of that one row rather
+  // than anywhere on the page.
   await page.getByLabel('جستجوی کالا').fill('کارخانهٔ آزمایشی');
-  await expect(table.locator('tbody tr').first()).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByText('بدون قیمت').first()).toBeVisible();
+  await expect(table.locator('tbody tr')).toHaveCount(1, { timeout: 30_000 });
+  await expect(table.locator('tbody tr').first().getByText('بدون قیمت')).toBeVisible();
 });
 
-test('the catalog names products the public site cannot reach', async () => {
-  await openCatalog();
-  const table = page.locator('table').first();
-
-  // Retire a sub-category WITHOUT moving its products — the exact
-  // half-finished migration that left 167 of 240 live products invisible on
-  // production while the panel showed every one of them as «فعال».
+test('deleting a product removes it from the panel and from the site', async () => {
+  // The catalog has no hidden state to get stuck in any more, so the thing
+  // worth proving end to end is that «حذف» is honest: one click, the row is
+  // gone from the panel, and the product's URL stops serving the product.
+  // What this replaced was the opposite guarantee — a «غیرفعال» flag that
+  // left 167 of 240 live products invisible on production while the panel
+  // showed every one of them as «فعال».
   //
-  // Scoped to the `rebar` CATEGORY specifically, not "any active sub with
-  // products": PricingGrid.tsx hardcodes `useState('rebar')` as the grid's
-  // initial category (openPricing() never selects one), so a sub-category
-  // retired under a DIFFERENT category leaves `hiddenByTaxonomy` at 0 for the
-  // category actually on screen and the warning never appears — 60s of
-  // waiting for a banner that has no reason to exist yet, not a defect in
-  // the feature itself.
-  const subId = await page.evaluate(async () => {
+  // Built and destroyed inside the test: this file is `mode: 'serial'` on one
+  // long-lived pglite instance, and a real delete cannot be undone in a
+  // `finally` the way the old deactivate could.
+  const created = await page.evaluate(async () => {
     const c = await fetch('/api/admin/catalog/categories');
     const { categories } = (await c.json()) as { categories: Array<{ id: string; slug: string }> };
-    const rebarId = categories.find((x) => x.slug === 'rebar')!.id;
-    const r = await fetch(`/api/admin/catalog/subcategories?categoryId=${rebarId}`);
-    const { subCategories } = (await r.json()) as { subCategories: Array<{ id: string; isActive: boolean }> };
-    // Any active sub, under rebar, that actually holds products.
-    const s = await fetch('/api/admin/catalog/skus?status=active&perPage=200');
-    const { rows } = (await s.json()) as { rows: Array<{ sku: { subCategoryId: string } }> };
-    const withSkus = new Set(rows.map((x) => x.sku.subCategoryId));
-    return subCategories.find((x) => x.isActive && withSkus.has(x.id))!.id;
+    const cat = categories.find((x) => x.slug === 'rebar')!;
+    const sub = await fetch('/api/admin/catalog/subcategories', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ categoryId: cat.id, slug: 'e2e-doomed', name: 'زیردستهٔ آزمایشی حذف', order: 900 }),
+    });
+    const { subCategory } = (await sub.json()) as { subCategory: { id: string; slug: string } };
+    const sku = await fetch('/api/admin/catalog/skus', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        subCategoryId: subCategory.id,
+        slug: 'e2e-doomed-sku',
+        name: 'کالای آزمایشی حذف',
+        unit: 'kg',
+      }),
+    });
+    const { sku: row } = (await sku.json()) as { sku: { id: string; slug: string } };
+    return { catSlug: cat.slug, subId: subCategory.id, subSlug: subCategory.slug, skuSlug: row.slug };
   });
-  // try/finally, not a plain last statement: this file runs `mode: 'serial'`
-  // and the pglite instance behind it lives for the WHOLE `playwright test`
-  // invocation, not per-test — a Playwright serial-mode retry re-runs every
-  // test in the file from the top on the SAME database. An assertion below
-  // that throws before the old last-statement restore ran once left the
-  // sub-category deactivated for the retry, which then failed test #1 for a
-  // reason that had nothing to do with the pricing grid — a leaked fixture
-  // masquerading as an unrelated regression.
-  try {
-    await page.evaluate(async (id) => {
-      await fetch(`/api/admin/catalog/subcategories/${id}`, { method: 'DELETE' });
-    }, subId);
 
-    await page.reload();
-    // The screen has to SAY it, unprompted — an owner will never go looking
-    // for a problem nobody told them about.
-    await expect(page.getByText(/کالای فعال روی سایت دیده نمی‌شود/)).toBeVisible({ timeout: 60_000 });
-    await page.getByRole('button', { name: /نمایش این .* کالا/ }).click();
-    await expect(page.getByText('فقط کالاهای نامرئی در سایت — در همهٔ دسته‌ها')).toBeVisible();
-    await expect(page.getByText('نامرئی در سایت').first()).toBeVisible();
+  const publicUrl = `${BASE_URL}/prices/${created.catSlug}/${created.subSlug}/${created.skuSlug}`;
+  expect((await page.request.get(publicUrl)).status()).toBe(200);
 
-    // …and the pricing grid must not claim the category is empty when it is
-    // merely unreachable.
-    await page.goto('/admin/pricing');
-    await expect(page.getByRole('heading', { name: 'قیمت‌گذاری روزانه' })).toBeVisible();
-    await expect(
-      page.getByText(/کالای فعال این دسته در این جدول نیست|کالای این دسته روی سایت دیده نمی‌شود/),
-    ).toBeVisible({ timeout: 60_000 });
-  } finally {
-    // Put it back so the rest of the run — and any retry of this same
-    // serial block — sees an intact catalog, whether or not the assertions
-    // above passed.
-    await page.evaluate(async (id) => {
-      await fetch(`/api/admin/catalog/subcategories/${id}`, {
-        method: 'PATCH',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ isActive: true }),
-      });
-    }, subId);
-  }
+  await openCatalog();
+  await page.getByPlaceholder('جستجو در نام، نشانی، سایز، کارخانه…').fill('کالای آزمایشی حذف');
+  const row = page.locator('table').first().locator('tbody tr').filter({ hasText: 'کالای آزمایشی حذف' });
+  await expect(row).toHaveCount(1, { timeout: 30_000 });
+
+  await row.getByRole('button', { name: 'حذف' }).click();
+  // The dialog has to state what goes with it before the admin agrees.
+  await expect(page.getByText(/این کار برگشت‌پذیر نیست/)).toBeVisible();
+  await page.getByRole('button', { name: 'حذف کن' }).click();
+
+  await expect(row).toHaveCount(0, { timeout: 30_000 });
+
+  // Deleting no longer leaves a hole where the page was. The product's URL
+  // now answers a PERMANENT REDIRECT up to the sub-category it lived in, so a
+  // customer arriving on a bookmark or a stale search result lands on the
+  // nearest real page instead of a 404, and the link keeps its value.
+  //
+  // `maxRedirects: 0` is the entire point of this assertion. Playwright
+  // follows redirects by default, so the plain `.get()` this used to do
+  // reported the PARENT page's 200 and read exactly like a deleted product
+  // still being served — which is how a correct delete failed this test.
+  const afterDelete = async () => page.request.get(publicUrl, { maxRedirects: 0 });
+  await expect.poll(async () => (await afterDelete()).status(), { timeout: 60_000 }).toBe(308);
+  expect((await afterDelete()).headers().location).toBe(
+    `/prices/${created.catSlug}/${created.subSlug}`,
+  );
+
+  // And the sub-category it lived in, so the seeded catalog is left as found.
+  await page.evaluate(async (id) => {
+    await fetch(`/api/admin/catalog/subcategories/${id}`, { method: 'DELETE' });
+  }, created.subId);
 });

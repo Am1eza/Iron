@@ -21,7 +21,6 @@ function row(id: string, factory: string | null, price: number, priceHidden = fa
     size: '۱۴',
     factory,
     unit: 'kg',
-    isActive: true,
     current: {
       skuId: id,
       price,

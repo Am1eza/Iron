@@ -39,7 +39,6 @@ function row(id: string, subCategoryId: string, factory = 'ذوب‌آهن اص�
     factory,
     unit: 'kg',
     priceBasis: 'kg',
-    isActive: true,
     current: {
       skuId: id,
       price: 500_000,

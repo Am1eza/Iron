@@ -596,18 +596,7 @@ export interface SeoStats {
   /** Static architecture facts, not a live per-request check — see the
    *  `automated` block's own doc comment below for why. */
   automated: Array<{ label: string; ok: true }>;
-  /** Live count of SKUs that are themselves `is_active` but sit under an
-   *  `is_active = false` sub-category — so `catalog.ts`'s active-filtered
-   *  read paths (category pages, sitemap, search) never surface them even
-   *  though the product row itself is "on". Found by the 2026-08-04 audit
-   *  (167 products then; re-verified live via this query, not a stale
-   *  count) as an in-progress taxonomy migration, not necessarily a bug —
-   *  see `hiddenByGroup` for exactly which sub-categories to review. */
-  hiddenActiveProducts: number;
-  /** Worst-offending inactive sub-categories, most hidden products first,
-   *  capped the same way `failing` is. */
-  hiddenByGroup: Array<{ category: string; subCategory: string; count: number }>;
-  /** Live count of visible SKUs (active SKU + active sub-category) whose
+  /** Live count of visible SKUs whose
    *  price is fresh enough to actually emit `Product`/`Offer` JSON-LD —
    *  `productJsonLd()` drops the whole `offers` block once a price passes
    *  `PRICE_STALE_HIDE_AFTER_DAYS`. This used to be one of the flat "✓
@@ -618,7 +607,7 @@ export interface SeoStats {
 }
 
 export async function seoStats(): Promise<SeoStats> {
-  const [arts, counts, lastPub, hiddenGroups, visiblePrices, freshness] = await Promise.all([
+  const [arts, counts, lastPub, visiblePrices, freshness] = await Promise.all([
     rows(sql`SELECT id, slug, title, type, excerpt, body_md AS "bodyMd" FROM articles WHERE status = 'published'`),
     rows(sql`
       SELECT
@@ -628,26 +617,13 @@ export async function seoStats(): Promise<SeoStats> {
       FROM articles
     `),
     rows(sql`SELECT max(publish_at) AS last FROM articles WHERE status = 'published'`),
-    // Active SKU, inactive sub-category — see the `hiddenActiveProducts`
-    // doc comment above for why this can happen and what it means.
-    rows(sql`
-      SELECT c.slug AS category, sc.slug AS "subCategory", count(s.id)::int AS count
-      FROM sub_categories sc
-      JOIN categories c ON c.id = sc.category_id
-      JOIN skus s ON s.sub_category_id = sc.id AND s.is_active
-      WHERE NOT sc.is_active
-      GROUP BY c.slug, sc.slug
-      ORDER BY count DESC
-    `),
-    // Visible SKUs (the population `productJsonLd` actually renders for)
-    // with their current price age, to score against the same freshness
-    // rule the JSON-LD emitter itself uses.
+    // Every SKU (the population `productJsonLd` actually renders for) with
+    // its current price age, to score against the same freshness rule the
+    // JSON-LD emitter itself uses.
     rows(sql`
       SELECT cp.updated_at AS "updatedAt"
       FROM skus s
-      JOIN sub_categories sc ON sc.id = s.sub_category_id
       JOIN current_prices cp ON cp.sku_id = s.id
-      WHERE s.is_active AND sc.is_active
     `),
     getPriceFreshness(),
   ]);
@@ -691,12 +667,6 @@ export async function seoStats(): Promise<SeoStats> {
       { label: 'دادهٔ ساخت‌یافتهٔ NewsArticle برای مقاله‌ها', ok: true },
       { label: 'صفحات دسته/محصول ISR با متا و canonical', ok: true },
     ],
-    hiddenActiveProducts: hiddenGroups.reduce((sum, g) => sum + Number(g.count ?? 0), 0),
-    hiddenByGroup: hiddenGroups.slice(0, 15).map((g) => ({
-      category: String(g.category),
-      subCategory: String(g.subCategory),
-      count: Number(g.count ?? 0),
-    })),
     productSchema: {
       total: visiblePrices.length,
       withOffer: visiblePrices.filter((r) => !freshness.isHidden(new Date(String(r.updatedAt)))).length,

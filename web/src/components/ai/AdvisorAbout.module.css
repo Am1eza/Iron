@@ -1,0 +1,71 @@
+/* The explainer, folded away under the chat. See AdvisorAbout.tsx for why
+   this is a disclosure rather than a separate route. */
+
+.about {
+  inline-size: 100%;
+  max-inline-size: 860px;
+  margin-inline: auto;
+  margin-block: var(--space-6) var(--space-10);
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+/* Collapsed, this is the entire cost of the explainer: one row. */
+.summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  cursor: pointer;
+  border-radius: var(--radius-lg);
+  color: var(--color-text-strong);
+  /* The default triangle marker points the wrong way in RTL and cannot be
+     styled consistently across engines — the chevron below is the affordance. */
+  list-style: none;
+}
+.summary::-webkit-details-marker {
+  display: none;
+}
+.summary:hover {
+  background: var(--color-surface-sunken);
+}
+.summary:focus-visible {
+  outline: var(--border-focus) solid var(--color-focus);
+  outline-offset: 2px;
+}
+.summaryText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-inline-size: 0;
+}
+.summaryTitle {
+  font: var(--t-title-sm);
+}
+.summaryHint {
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}
+.about[open] .summary svg {
+  transform: rotate(180deg);
+}
+.summary svg {
+  flex: none;
+  color: var(--color-text-muted);
+  transition: transform var(--dur-fast);
+}
+
+.body {
+  padding: 0 var(--space-5) var(--space-5);
+  border-block-start: var(--border-hairline) solid var(--color-hairline);
+}
+.lede {
+  margin: var(--space-5) 0 0;
+  font: var(--t-body);
+  color: var(--color-text);
+}
+.link {
+  color: var(--color-accent-text);
+}
