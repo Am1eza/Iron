@@ -19,7 +19,7 @@ export function BottomTabBar() {
     href === routes.home() ? pathname === '/' : pathname.startsWith(href);
 
   return (
-    <nav className={styles.bar} aria-label="ناوبری پایین">
+    <nav className={styles.bar} aria-label="ناوبری پایین" data-site-chrome>
       <Tab href={routes.home()} label="خانه" active={isActive(routes.home())}>
         <HomeIcon size={22} />
       </Tab>

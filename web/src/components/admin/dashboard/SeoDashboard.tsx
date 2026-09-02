@@ -236,43 +236,6 @@ export function SeoDashboard() {
         </section>
       ) : null}
 
-      {data.hiddenActiveProducts > 0 ? (
-        <section className={ui.panel} aria-labelledby="seo-hidden">
-          <Heading level={2} id="seo-hidden">
-            محصولات فعال در زیردستهٔ غیرفعال
-          </Heading>
-          <Text color="muted">
-            این <strong className="tnum">{fa(data.hiddenActiveProducts)}</strong> محصول خودشان «فعال»اند ولی چون
-            زیردسته‌شان غیرفعال است، در هیچ صفحهٔ دسته، سایت‌مپ یا جست‌وجویی دیده نمی‌شوند — نه لزوماً باگ، شاید کاری
-            در حال ساخت باشد؛ تصمیم انتشار با شماست.
-          </Text>
-          <div className={ui.tableWrap}>
-            <table className={ui.table}>
-              <thead>
-                <tr>
-                  <th scope="col">دسته</th>
-                  <th scope="col">زیردسته</th>
-                  <th scope="col">محصول پنهان</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.hiddenByGroup.map((g) => (
-                  <tr key={`${g.category}/${g.subCategory}`}>
-                    <td>{g.category}</td>
-                    <td>{g.subCategory}</td>
-                    <td className="tnum">{fa(g.count)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <Text color="muted">
-            برای فعال یا غیرفعال‌کردن هرکدام: <Link href={routes.admin.catalog()}>مدیریت کاتالوگ</Link> ← «نمایش
-            غیرفعال‌ها».
-          </Text>
-        </section>
-      ) : null}
-
       <section className={ui.panel} aria-labelledby="seo-auto">
         <Heading level={2} id="seo-auto">
           ویژگی‌های فنی از پیش پیاده‌شده

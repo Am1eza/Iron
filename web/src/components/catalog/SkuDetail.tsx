@@ -241,7 +241,7 @@ export function SkuDetail({
 
   // ورق is sold by thickness, so its `size` column is labelled «ضخامت» —
   // every other category keeps «سایز» (see catalogLabels).
-  const sizeCol = sizeLabel(row.categoryId);
+  const sizeCol = sizeLabel(row.categoryId, row.subCategoryId);
   // The shared column is public only in its approved context: ورق
   // width×length, or wall thickness on the three نبشی subs. This gate
   // also prevents a stale value on any unrelated SKU from leaking onto its
@@ -249,7 +249,7 @@ export function SkuDetail({
   const showDimensions = usesDimensions(row.categoryId, row.subCategoryId);
   const dimensionsCol = dimensionsLabel(row.categoryId, row.subCategoryId);
 
-  // The same «گرید»/«استاندارد»/«آلیاژ»/«طول شاخه»/«طول سفارشی» definitions the
+  // The same «گرید»/«استاندارد»/«آلیاژ»/profile-length definitions the
   // price table's columns are built from, resolved for THIS product's own
   // sub-category — so a پروفیل استیل spec sheet says «آلیاژ» and a پروفیل Z one
   // says «طول سفارشی», in the same words the table the visitor arrived from
@@ -270,7 +270,11 @@ export function SkuDetail({
     .filter((a) => a.value !== NOT_APPLICABLE);
   // …so the generic «طول شاخه» row below doesn't print the same fact twice.
   const attrCoversLength = attrCols.some(
-    (c) => c.key === 'branchLength' || c.key === 'customLength',
+    (c) =>
+      c.key === 'branchLength' ||
+      c.key === 'profileCondition' ||
+      c.key === 'length' ||
+      c.key === 'customLength',
   );
 
   // `value` is a node, not a string, so the کارخانه row can be a link to that

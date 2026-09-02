@@ -120,6 +120,12 @@ export function buildChatMessages(
   systemPrompt: string = AI_SYSTEM_PROMPT,
   /** Who the visitor is, when signed in — see identityFact(). */
   identity?: string | null,
+  /** What this conversation (and, for a signed-in customer, their order
+   *  history) has already established — see ai/memory.ts and
+   *  ai/customerFacts.ts. Numbers inside are catalog/city facts, never prices:
+   *  like the summary, this is context and is never added to the grounding
+   *  ledger, so it cannot license a numeric claim. */
+  context?: string | null,
 ): ChatMessage[] {
   const messages: ChatMessage[] = [{ role: 'system', content: systemPrompt }];
   // Stable, NON-NUMERIC catalog overview — sits right after the byte-identical
@@ -138,6 +144,13 @@ export function buildChatMessages(
   // the grounding ledger, so echoing them would be censored anyway).
   if (identity && identity.trim()) {
     messages.push({ role: 'system', content: identity.trim() });
+  }
+  // AFTER identity and AFTER the summary: this is the most specific and most
+  // recently-true context in the prompt, and it has to be the thing the model
+  // reads last before the visitor's own turns. It also sits past the
+  // cache-prefix messages, so it changes every turn without invalidating them.
+  if (context && context.trim()) {
+    messages.push({ role: 'system', content: context.trim() });
   }
   // Register, restated LAST — right before the visitor's own turns. The rule
   // itself is in AI_SYSTEM_PROMPT (21-22), but that is the far end of a

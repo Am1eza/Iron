@@ -39,6 +39,19 @@ export interface LeadContext {
   /** The advisor's own rolling summary of the OLDER turns of that chat — what
    *  the rep reads first before the verbatim transcript below it. */
   aiSummary?: string;
+  /**
+   * Delivery city the advisor established during the chat (matched against
+   * the freight table's own city list, never free text — see ai/memory.ts).
+   *
+   * Two readers. The REP opens the call already knowing where it is going,
+   * instead of asking a question the chat answered. And the advisor itself
+   * reads the customer's most recent one back on a LATER conversation
+   * (ai/customerFacts.ts), which is what stops a returning buyer being asked
+   * their city every single time. Lives in this jsonb rather than in a new
+   * column precisely because it is a recorded fact about one request, not a
+   * profile field — where they took delivery last time, not where they live.
+   */
+  deliveryCity?: string;
   /** Set by createWarehouseRequest (W20) — what the customer actually asked
    *  to store, read back by requestsRepo.pendingWarehouseRequests() so the
    *  admin intake queue can prefill a real value instead of a rep re-typing

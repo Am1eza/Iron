@@ -54,7 +54,7 @@ export function isLiveCatalog(): boolean {
 }
 
 export async function getCategories(): Promise<Category[]> {
-  if (!live()) return mockCategories.filter((c) => c.isActive);
+  if (!live()) return mockCategories;
   return repo.listCategories();
 }
 
@@ -82,7 +82,7 @@ export async function getRows(categorySlug: string): Promise<PriceRow[]> {
 export async function getHeadlineRows(): Promise<PriceRow[]> {
   if (!live()) {
     const rows = await Promise.all(
-      mockCategories.filter((c) => c.isActive).map(async (c) => (await mock.getRows(c.slug))[0]),
+      mockCategories.map(async (c) => (await mock.getRows(c.slug))[0]),
     );
     return rows.filter((r): r is PriceRow => Boolean(r));
   }

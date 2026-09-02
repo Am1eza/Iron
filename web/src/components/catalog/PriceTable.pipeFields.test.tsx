@@ -13,9 +13,21 @@ vi.mock('next/navigation', () => ({
 }));
 
 /**
- * لوله after the owner's two 1405/06 requests: a «رده» (pipe schedule) column
- * on the pressure-pipe subs, and «کارخانه» renamed to «برند» on مانیسمان,
- * where the product is imported and the value is an origin rather than a mill.
+ * لوله after the owner's 1405/06 requests: a «رده» (pipe schedule) column on
+ * مانیسمان, and «کارخانه» renamed to «برند» there too, where the product is
+ * imported and the value is an origin rather than a mill.
+ *
+ * Updated 1405/06/09 for the per-sub column reconciliation: «گرید» is not a
+ * column any of the nine source pages checked publishes for any لوله sub, so
+ * it is gone from every one of them (اسپیرال aside, whose own rows store a
+ * real ST37 there); five subs gained the «حالت» their sources print, and two
+ * gained «استاندارد». See `catalogLabels`' `PIPE_ATTRS` for the source table.
+ *
+ * «رده» briefly also applied to گازی, صنعتی درزدار, اسپیرال, جدار چاه and
+ * گوشت‌دار (1405/06), reverted the same day: ahanonline.com's own live pages
+ * for all five publish no «رده» column at all, and ASME B36.10 schedule
+ * numbers are not how the Iranian market classifies these product lines —
+ * only مانیسمان is actually sold and quoted by «رده ۴۰» / «رده ۸۰».
  *
  * The sub slugs are the LIVE ones, read from the production catalog rather
  * than from `data/nav.ts` — which still lists a single `seamless` that exists
@@ -25,7 +37,7 @@ vi.mock('next/navigation', () => ({
  *
  * This is the case neither the استیل nor the پروفیل file covers: a category
  * where one sub RENAMES the factory column while its siblings keep it, and
- * where an attribute column is GAINED by some subs and not others.
+ * where an attribute column is GAINED by only that one sub.
  */
 function row(
   id: string,
@@ -41,7 +53,6 @@ function row(
     size: '۴ اینچ',
     unit: 'kg',
     priceBasis: 'kg',
-    isActive: true,
     ...extra,
     current: {
       skuId: id,
@@ -101,44 +112,72 @@ function cellFor(product: string, column: string): string {
   return tr.querySelectorAll('td')[col - 1]?.textContent ?? '';
 }
 
-describe('PriceTable — لوله gains «رده» on its pressure-pipe subs', () => {
-  it('publishes «رده» beside «گرید» on مانیسمان, گازی and صنعتی درزدار', async () => {
+describe('PriceTable — لوله publishes «رده» on مانیسمان only', () => {
+  it('publishes «رده» — and no «گرید» beside it — on هر دو زیرشاخهٔ مانیسمان', async () => {
     const user = userEvent.setup();
     renderTable();
     for (const [sub, product, schedule] of [
       ['لوله مانیسمان داخلی', 'seamless-3', '۴۰'],
       ['لوله مانیسمان خارجی', 'seamless-x', '۸۰'],
-      ['گازی', 'gas-2', '۴۰'],
     ] as const) {
       await user.click(screen.getByRole('button', { name: sub }));
       expect(cellFor(product, 'رده')).toBe(schedule);
-      // A gain, not a swap — the pipe still has a steel grade too.
-      expect(screen.getByRole('columnheader', { name: 'گرید' })).toBeInTheDocument();
+      // 1405/06/09: «گرید» went. ahanonline `/انواع-لوله/لوله-مانسمان/` and
+      // teleahan `/لوله-اتصالات/لوله-مانیسمان/` both publish «سایز | رده |
+      // برند» and nothing more, and `grade` is null on all 5 live rows — so
+      // the column beside «رده» was empty noise under a word this family's
+      // sources do not use.
+      expect(screen.queryByRole('columnheader', { name: 'گرید' })).toBeNull();
     }
   });
 
-  it('says «نامشخص» for a schedule nobody has entered — never a dash', async () => {
-    // A dash would claim صنعتی درزدار pipe has no schedule; it has one, we
-    // just have not recorded this row's.
+  it('offers no «رده» on گازی, صنعتی درزدار or مبلی — ahanonline publishes none for them', async () => {
+    const user = userEvent.setup();
+    renderTable();
+    for (const sub of ['گازی', 'صنعتی درزدار', 'مبلی']) {
+      await user.click(screen.getByRole('button', { name: sub }));
+      expect(screen.queryByRole('columnheader', { name: 'رده' })).toBeNull();
+      // …and none of the three publishes «گرید» either, as of 1405/06/09.
+      expect(screen.queryByRole('columnheader', { name: 'گرید' })).toBeNull();
+    }
+  });
+
+  it('gives صنعتی درزدار and مبلی the «حالت» their sources print', async () => {
+    // ahanonline `/انواع-لوله/لوله-درز-مستقیم/` publishes «حالت» («۶ متری»)
+    // beside «استاندارد»; مبلی has no ahanonline page and follows ahan1.com
+    // `/Category/pipe/steel-furniture-pipe/` («حالت: شاخه ۶ متری») and
+    // sabaprofile.com `/قیمت-لوله-مبلی/` («طول: ۶ متر»). Both fetched
+    // 1405/06/09.
     const user = userEvent.setup();
     renderTable();
     await user.click(screen.getByRole('button', { name: 'صنعتی درزدار' }));
-    expect(cellFor('industrial-2', 'رده')).toBe('نامشخص');
+    expect(screen.getByRole('columnheader', { name: 'حالت' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'استاندارد' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'مبلی' }));
+    expect(screen.getByRole('columnheader', { name: 'حالت' })).toBeInTheDocument();
+    // مبلی's sources publish no standard, so it gains none.
+    expect(screen.queryByRole('columnheader', { name: 'استاندارد' })).toBeNull();
   });
 
-  it('offers no «رده» on مبلی, which has no schedule rating at all', async () => {
+  it('publishes no attribute column at all on گازی', async () => {
+    // Its source table (ahanonline `/لوله-درز-مستقیم/لوله-گاز-خانگی/`) is
+    // «سایز | ضخامت | برند» — every fact of which this catalog renders
+    // outside the attribute columns.
     const user = userEvent.setup();
     renderTable();
-    await user.click(screen.getByRole('button', { name: 'مبلی' }));
-    expect(screen.queryByRole('columnheader', { name: 'رده' })).toBeNull();
-    expect(screen.getByRole('columnheader', { name: 'گرید' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'گازی' }));
+    for (const name of ['گرید', 'رده', 'حالت', 'استاندارد', 'آلیاژ']) {
+      expect(screen.queryByRole('columnheader', { name })).toBeNull();
+    }
   });
 
-  it('keeps «رده» off the mixed «همه» view', () => {
-    // Most لوله subs have no schedule, so the column would read «—» for the
-    // majority of its own rows.
+  it('keeps «رده» — and every other attribute column — off the mixed «همه» view', () => {
+    // لوله's live subs no longer agree on any one attribute column, so a
+    // single header there would read «—» for most of the page's own rows.
     renderTable();
-    expect(screen.queryByRole('columnheader', { name: 'رده' })).toBeNull();
+    for (const name of ['رده', 'گرید', 'حالت', 'استاندارد']) {
+      expect(screen.queryByRole('columnheader', { name })).toBeNull();
+    }
   });
 });
 
@@ -163,14 +202,21 @@ describe('PriceTable — مانیسمان calls its factory column «برند»'
     expect(cellFor('seamless-3', 'برند')).toContain('لوله سپاهان');
   });
 
-  it('leaves every other لوله sub on «کارخانه»', async () => {
+  it('leaves the لوله subs whose sources name no producer on «کارخانه»', async () => {
+    // گازی left this list 1405/06/09 — ahanonline's لوله گاز خانگی table
+    // heads that column «برند», so it now reads برند like مانیسمان. صنعتی and
+    // مبلی have no producer column on any reference, so there is no source
+    // word to adopt and the catalog's own default stays.
     const user = userEvent.setup();
     renderTable();
-    for (const sub of ['گازی', 'صنعتی درزدار', 'مبلی']) {
+    for (const sub of ['صنعتی درزدار', 'مبلی']) {
       await user.click(screen.getByRole('button', { name: sub }));
       expect(screen.getByRole('columnheader', { name: 'کارخانه' })).toBeInTheDocument();
       expect(screen.queryByRole('columnheader', { name: 'برند' })).toBeNull();
     }
+    await user.click(screen.getByRole('button', { name: 'گازی' }));
+    expect(screen.getByRole('columnheader', { name: 'برند' })).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'کارخانه' })).toBeNull();
   });
 
   it('keeps the generic «کارخانه» in the mixed «همه» view', () => {

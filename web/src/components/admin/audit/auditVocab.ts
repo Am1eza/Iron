@@ -28,13 +28,22 @@ export const ACTION_META: Record<string, ActionMeta> = {
 
   'catalog.category.create': { verb: 'دسته‌بندی جدید ساخت', tone: 'create' },
   'catalog.category.update': { verb: 'دسته‌بندی را ویرایش کرد', tone: 'update' },
+  // Kept alongside the new `.delete` verbs: the log is a permanent record and
+  // still holds the entries written while the catalog had a soft-delete flag.
   'catalog.category.deactivate': { verb: 'دسته‌بندی را غیرفعال کرد', tone: 'destroy' },
+  'catalog.category.delete': { verb: 'دسته‌بندی را حذف کرد', tone: 'destroy' },
   'catalog.sub.create': { verb: 'زیردسته ساخت', tone: 'create' },
   'catalog.sub.update': { verb: 'زیردسته را ویرایش کرد', tone: 'update' },
   'catalog.sub.deactivate': { verb: 'زیردسته را غیرفعال کرد', tone: 'destroy' },
+  'catalog.sub.delete': { verb: 'زیردسته را حذف کرد', tone: 'destroy' },
   'catalog.sku.create': { verb: 'کالای جدید ثبت کرد', tone: 'create' },
   'catalog.sku.update': { verb: 'کالا را ویرایش کرد', tone: 'update' },
   'catalog.sku.deactivate': { verb: 'کالا را غیرفعال کرد', tone: 'destroy' },
+  'catalog.sku.delete': { verb: 'کالا را حذف کرد', tone: 'destroy' },
+  'catalog.sku.bulkDelete': { verb: 'چند کالا را یک‌جا حذف کرد', tone: 'destroy' },
+  'catalog.category.restore': { verb: 'دسته‌بندی حذف‌شده را بازگرداند', tone: 'create' },
+  'catalog.sub.restore': { verb: 'زیردستهٔ حذف‌شده را بازگرداند', tone: 'create' },
+  'catalog.sku.restore': { verb: 'کالای حذف‌شده را بازگرداند', tone: 'create' },
 
   'club.tier': { verb: 'سطح باشگاه مشتری را تغییر داد', tone: 'update' },
 

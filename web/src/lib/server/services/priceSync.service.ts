@@ -129,8 +129,7 @@ async function loadCandidates(config: PriceSyncConfig): Promise<CandidateSku[]> 
     .from(skus)
     .innerJoin(categories, eq(categories.id, skus.categoryId))
     .innerJoin(subCategories, eq(subCategories.id, skus.subCategoryId))
-    .leftJoin(currentPrices, eq(currentPrices.skuId, skus.id))
-    .where(eq(skus.isActive, true));
+    .leftJoin(currentPrices, eq(currentPrices.skuId, skus.id));
 
   const inScope = (r: (typeof rows)[number]) => {
     if (!SOURCE_PATHS[`${r.categorySlug}/${r.subCategorySlug}`]) return false;
@@ -371,7 +370,6 @@ export async function priceSyncScope(): Promise<
     // simply invisible in the admin's coverage view, not skipped.
     .where(
       and(
-        eq(skus.isActive, true),
         inArray(skus.priceBasis, ['kg', 'piece', 'branch', 'sqm', 'coil', 'sheet']),
       ),
     );

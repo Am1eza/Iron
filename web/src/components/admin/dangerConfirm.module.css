@@ -1,0 +1,38 @@
+/* Destructive-confirm dialog (see useDangerConfirm.tsx for why the panel
+   styles its own instead of reaching for a kit variant). Outlined rather than
+   filled: `--color-loss-text` is the ramp step picked to stay legible on a
+   surface in both themes, so this clears AA where white-on-`--color-loss`
+   only just does. */
+
+.danger {
+  border-color: var(--color-loss);
+  color: var(--color-loss-text);
+  font-weight: 600;
+}
+
+/* Filled only on hover/focus, where the pointer already says which control
+   this is. `--color-loss` is the same value in both themes and carries
+   white at 4.51:1 — over AA, and the only step that is in both. */
+.danger:hover:not(:disabled),
+.danger:focus-visible:not(:disabled) {
+  background: var(--color-loss);
+  border-color: var(--color-loss);
+  color: var(--color-text-inverse);
+}
+
+.body {
+  display: grid;
+  gap: var(--space-3);
+}
+
+/* The one sentence that has to survive an admin skimming the dialog. */
+.lead {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--border-hairline) solid var(--color-loss);
+  border-radius: var(--radius-sm);
+  color: var(--color-loss-text);
+  font-weight: 600;
+}

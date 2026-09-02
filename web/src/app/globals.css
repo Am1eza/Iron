@@ -34,3 +34,26 @@
 [dir='rtl'] .icon--rtl {
   transform: scaleX(-1);
 }
+
+/* ===== /ai immersive mode =====
+   Set by AdvisorChat while a visitor is actively chatting on a phone (see its
+   `immersive` state). The chat shell fixes itself to the viewport; these rules
+   take the site chrome out of its way, because ticker + header + bottom tab
+   bar together claim ~200px of an 844px screen from what should be a
+   full-screen messaging surface.
+
+   Attribute-driven on <html> rather than prop-driven through SiteChrome: the
+   chrome is rendered by the root layout, far outside the chat's tree, and one
+   documented switch is far less fragile than threading state through it. The
+   attribute is removed on unmount, so navigating away mid-conversation can
+   never strand the site without navigation.
+
+   Only below 767px — on a desktop the chrome costs the chat nothing. */
+@media (max-width: 767px) {
+  html[data-chat-immersive] body {
+    overflow: hidden;
+  }
+  html[data-chat-immersive] [data-site-chrome] {
+    display: none;
+  }
+}
