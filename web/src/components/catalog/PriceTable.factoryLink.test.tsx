@@ -21,7 +21,6 @@ function row(id: string, factory: string | null, categoryId = 'rebar'): PriceRow
     size: '۱۴',
     factory,
     unit: 'kg',
-    isActive: true,
     current: {
       skuId: id,
       price: 70_000,

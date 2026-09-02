@@ -81,7 +81,6 @@ await runWithScopedDb(db, pool, async () => {
           .where(
             and(
               eq(schema.skus.categoryId, cat.id),
-              eq(schema.skus.isActive, true),
               sql`${schema.skus.factory} is not null and ${schema.skus.factory} <> ''`,
             ),
           )

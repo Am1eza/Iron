@@ -12,7 +12,6 @@ function row(overrides: Partial<PriceRow> & { factory: string; price: number; un
     name: 'sku',
     factory,
     unit,
-    isActive: true,
     current: {
       skuId: 'sku',
       price,

@@ -1,0 +1,115 @@
+/* The conversation history rail.
+   A permanent 260px column on desktop; a slide-in drawer below 1024px, which
+   is the width the research and every current chat product converge on for
+   collapsing the rail to a trigger. */
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  min-block-size: 0;
+  block-size: 100%;
+  background: var(--color-surface-sunken);
+  border-inline-end: var(--border-hairline) solid var(--color-hairline);
+}
+
+.railHead {
+  flex: none;
+  padding: var(--space-3);
+  border-block-end: var(--border-hairline) solid var(--color-hairline);
+}
+.newBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  inline-size: 100%;
+  min-block-size: 40px;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-accent-text);
+  font: var(--t-label);
+  font-family: inherit;
+  cursor: pointer;
+}
+.newBtn:hover {
+  border-color: var(--color-accent);
+  background: var(--color-accent-tint);
+}
+
+.list {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: var(--space-2);
+}
+.group + .group {
+  margin-block-start: var(--space-3);
+}
+.groupLabel {
+  margin: 0 0 var(--space-1);
+  padding-inline: var(--space-2);
+  font: var(--t-overline);
+  color: var(--color-text-muted);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  inline-size: 100%;
+  min-block-size: 40px;
+  padding: var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text);
+  font: var(--t-body-sm);
+  font-family: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.item:hover {
+  background: var(--color-surface);
+}
+/* The open conversation is marked with a tint AND `aria-current`, never with
+   colour alone. */
+.itemActive {
+  background: var(--color-accent-tint);
+  color: var(--color-accent-text);
+}
+.item svg {
+  flex: none;
+  color: var(--color-text-muted);
+}
+.itemTitle {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.itemDate {
+  flex: none;
+  font: var(--t-micro);
+  color: var(--color-text-muted);
+}
+
+.empty {
+  margin: var(--space-3) var(--space-2);
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+  line-height: 1.7;
+}
+.link {
+  color: var(--color-accent-text);
+}
+.retry {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--color-accent-text);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}

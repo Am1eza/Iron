@@ -74,8 +74,7 @@ async function GETImpl(req: NextRequest) {
       .select({ updatedAt: currentPrices.updatedAt })
       .from(currentPrices)
       .innerJoin(skus, eq(skus.id, currentPrices.skuId))
-      .innerJoin(subCategories, eq(subCategories.id, skus.subCategoryId))
-      .where(and(eq(skus.isActive, true), eq(subCategories.isActive, true)));
+      .innerJoin(subCategories, eq(subCategories.id, skus.subCategoryId));
     return rows.filter((r) => priceNeedsReview(r.updatedAt, now)).length;
   });
   // Products the site is already showing with «تماس بگیرید» because they have

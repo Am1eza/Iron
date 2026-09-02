@@ -98,7 +98,7 @@ export function Header({ categories, subs }: { categories: Category[]; subs: Sub
     href === routes.home() ? pathname === '/' : pathname.startsWith(href);
 
   return (
-    <header className={styles.header} data-condensed={condensed ? '' : undefined}>
+    <header className={styles.header} data-condensed={condensed ? '' : undefined} data-site-chrome>
       <div className={`container ${styles.inner}`}>
         <button
           type="button"
