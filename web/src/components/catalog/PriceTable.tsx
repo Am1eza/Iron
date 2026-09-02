@@ -29,6 +29,7 @@ import {
   sectionSubject,
   REGION_LABEL,
   UNKNOWN_VALUE,
+  NOT_APPLICABLE,
   priceBasisNoun,
   priceUnitCaption,
   singlePriceBasis,
@@ -100,6 +101,33 @@ function rowDiffers(values: ReadonlyArray<string | number | null>): boolean {
 function diffRowClass(values: ReadonlyArray<string | number | null>): string | undefined {
   return rowDiffers(values) ? styles.rowDiffers : undefined;
 }
+
+/**
+ * Column-value normalizer for the spec filter bar (owner request, 1405/06/02
+ * — "فیلتر کنه فقط یک سایز خاص رو ببینه یا یک گرید خاص رو"). `grade`/
+ * `dimensions`/`size` are free text an admin typed by hand, not a clean enum,
+ * so «۶۰×۶۰×۶» and «۶۰ × ۶۰ × ۶» must resolve to the same filter option or the
+ * facet list doubles up near-identical entries that mean the same spec. Only
+ * whitespace and the ي/ك Arabic presentation forms are folded — never the
+ * digits or the trade shorthand itself, so a value that legitimately differs
+ * (different size, different grade) never collapses into another.
+ */
+function normalizeSpecValue(value: string): string {
+  return value
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replace(/ي/g, 'ی')
+    .replace(/ك/g, 'ک');
+}
+
+/** One filterable spec column — «سایز», «گرید», «کارخانه», … — and how to
+ *  read ITS value off a row. `undefined`/empty means the column is not a
+ *  property of that row at all, which must never become a selectable "" chip. */
+type SpecFacetGetter = {
+  key: string;
+  label: string;
+  get: (r: PriceRow) => string | undefined;
+};
 
 /**
  * The factory name, linked to that factory's own price page.
@@ -684,6 +712,111 @@ export function PriceTable({
   const showRegionColumn = groupMode === 'none' && subFiltered.some((r) => r.region);
   const sortLabel = sectionNoun ? `مرتب‌سازی بخش‌های ${sectionNoun}` : 'مرتب‌سازی جدول قیمت';
 
+  /**
+   * Spec filters (owner request, 1405/06/02): "فیلتر کنه فقط یک سایز خاص رو
+   * ببینه یا یک گرید خاص رو، بسته به ستون‌های جدول اون محصول" — narrow the
+   * table to one exact size/grade/factory/… value, driven by whichever
+   * columns are actually meaningful for the current view (`attrCols` and the
+   * `show*` flags above — the same table already resolves that per
+   * category/sub, so the filter bar rides on it rather than re-deciding).
+   *
+   * Getters, not a plain value list: filtering and facet-option-building both
+   * need "what does THIS row say for column X", so one definition serves
+   * both `facets` (below) and `filtered`, and a column can never offer an
+   * option it would then fail to match.
+   */
+  const facetGetters = useMemo<SpecFacetGetter[]>(() => {
+    const defs: SpecFacetGetter[] = [{ key: 'size', label: sizeCol, get: (r) => r.size }];
+    if (showDimensions) {
+      defs.push({ key: 'dimensions', label: dimensionsCol, get: (r) => r.dimensions });
+    }
+    for (const c of attrCols) {
+      defs.push({
+        key: `attr:${c.key}`,
+        label: c.label,
+        // `c.cell` already resolves "not this row's property" vs "unrecorded"
+        // to NOT_APPLICABLE/UNKNOWN_VALUE — neither is a real spec value a
+        // buyer would filter by, so both are dropped rather than turned into
+        // filterable chips reading «—» or «نامشخص».
+        get: (r) => {
+          const v = c.cell(r);
+          return v === NOT_APPLICABLE || v === UNKNOWN_VALUE ? undefined : v;
+        },
+      });
+    }
+    if (showFactory) defs.push({ key: 'factory', label: factoryCol, get: (r) => r.factory });
+    if (showRegionColumn) defs.push({ key: 'region', label: REGION_LABEL, get: (r) => r.region });
+    return defs;
+  }, [sizeCol, showDimensions, dimensionsCol, attrCols, showFactory, factoryCol, showRegionColumn]);
+
+  // Facet option lists are built from `subFiltered` (the sub-category
+  // selection only), NOT from the already-filtered rows below — the standard
+  // faceted-search rule. Shrinking a column's own option list as soon as one
+  // of its own values is picked would make every multi-select field collapse
+  // to whatever is already checked, and shrinking OTHER columns' options as
+  // this one narrows would make an AND-across-columns filter look like it
+  // just deleted valid combinations instead of finding none.
+  const facets = useMemo(
+    () =>
+      facetGetters
+        .map((d) => {
+          const values = new Set<string>();
+          for (const r of subFiltered) {
+            const raw = d.get(r);
+            if (raw) values.add(normalizeSpecValue(raw));
+          }
+          return {
+            key: d.key,
+            label: d.label,
+            values: [...values].sort((a, b) => a.localeCompare(b, 'fa', { numeric: true })),
+          };
+        })
+        // A column with 0 or 1 distinct value on this view has nothing to
+        // filter — every visible row already agrees on it.
+        .filter((f) => f.values.length > 1),
+    [facetGetters, subFiltered],
+  );
+
+  const [specFilters, setSpecFilters] = useState<Record<string, Set<string>>>({});
+  // The facet SET changes with the active sub (different sub → different
+  // attrCols/columns) — a grade filter picked on «ساده» has no meaning once
+  // the visitor switches to «آجدار», and silently keeping it selected while
+  // hiding its own chip row would leave the table filtered by something
+  // nothing on screen explains.
+  useEffect(() => {
+    setSpecFilters({});
+  }, [sub]);
+  const toggleSpecFilter = useCallback((key: string, value: string) => {
+    setSpecFilters((prev) => {
+      const current = new Set(prev[key]);
+      if (current.has(value)) current.delete(value);
+      else current.add(value);
+      const next = { ...prev };
+      if (current.size === 0) delete next[key];
+      else next[key] = current;
+      return next;
+    });
+  }, []);
+  const clearSpecFilters = useCallback(() => setSpecFilters({}), []);
+  const activeSpecFilterCount = useMemo(
+    () => Object.values(specFilters).reduce((n, s) => n + s.size, 0),
+    [specFilters],
+  );
+
+  // AND across columns (a سایز filter for both سایز AND گرید must match
+  // both), OR within one column's own checked values (either of two checked
+  // grades passes that column).
+  const filtered = useMemo(() => {
+    const active = facetGetters.filter((d) => specFilters[d.key]?.size);
+    if (active.length === 0) return subFiltered;
+    return subFiltered.filter((r) =>
+      active.every((d) => {
+        const raw = d.get(r);
+        return raw ? (specFilters[d.key]?.has(normalizeSpecValue(raw)) ?? false) : false;
+      }),
+    );
+  }, [subFiltered, specFilters, facetGetters]);
+
   /** Admin-placed factories, name → position. Built once per prop change so
    *  the comparator below stays an O(1) lookup. */
   const factoryRank = useMemo(
@@ -692,12 +825,16 @@ export function PriceTable({
   );
 
   // The page's sections — «بر اساس کارخانه», or «بر اساس محل تولید» on the
-  // پروفیل subs — grouped from the same sub-filtered rows, each group
+  // پروفیل subs — grouped from the sub- AND spec-filtered rows, each group
   // internally sorted by the toolbar's `sort` control (size by default, same
-  // comparator the old flat table used).
+  // comparator the old flat table used). `groupMode`/`showRegionColumn` above
+  // stay resolved from `subFiltered` (before spec filters), not `filtered` —
+  // checking one grade should never make the «کارخانه» column or its section
+  // headings disappear because the narrowed set happens not to need it
+  // (`filtered` is defined above, right after the spec-filter state).
   const bySection = useMemo(() => {
     const map = new Map<string, PriceRow[]>();
-    for (const r of subFiltered) {
+    for (const r of filtered) {
       const key = groupKeyFor(groupMode, r);
       const list = map.get(key);
       if (list) list.push(r);
@@ -730,7 +867,7 @@ export function PriceTable({
       const bv = b.find((r) => !r.current.priceHidden)?.current.price ?? Infinity;
       return av - bv;
     });
-  }, [subFiltered, sort, factoryRank, groupMode]);
+  }, [filtered, sort, factoryRank, groupMode]);
   const sectionIndex = useMemo(
     () => new Map(bySection.map(([name], i) => [name, i] as const)),
     [bySection],
@@ -843,9 +980,9 @@ export function PriceTable({
   );
 
   const updated = rows[0]?.current.updatedAt;
-  // `subFiltered`, not `rows`: the note sits under the sub-category filter and
-  // describes what is actually on screen.
-  const priceBasis = useMemo(() => singlePriceBasis(subFiltered), [subFiltered]);
+  // `filtered`, not `rows`: the note sits under the sub-category AND spec
+  // filters and describes what is actually on screen.
+  const priceBasis = useMemo(() => singlePriceBasis(filtered), [filtered]);
   const selectedForCompare = useMemo(
     () => rows.filter((r) => compareIds.has(r.id)),
     [rows, compareIds],
@@ -976,6 +1113,36 @@ export function PriceTable({
         </div>
       </div>
 
+      {/* ===== فیلتر مشخصات — سایز/گرید/کارخانه/… ، بسته به ستون‌های همین
+          جدول (owner request 1405/06/02). Multi-select per column (OR درون
+          یک ستون، AND بین ستون‌ها) — دو گرید هم‌زمان قابل انتخاب‌اند. */}
+      {facets.length > 0 ? (
+        <div className={styles.specFilters} role="group" aria-label="فیلتر مشخصات">
+          {facets.map((f) => (
+            <div key={f.key} className={styles.specFilterGroup}>
+              <span className={styles.specFilterLabel}>{f.label}</span>
+              <div className={styles.specFilterChips}>
+                {f.values.map((v) => (
+                  <Chip
+                    key={v}
+                    variant="filter"
+                    selected={specFilters[f.key]?.has(v) ?? false}
+                    onClick={() => toggleSpecFilter(f.key, v)}
+                  >
+                    {toPersianDigits(v)}
+                  </Chip>
+                ))}
+              </div>
+            </div>
+          ))}
+          {activeSpecFilterCount > 0 ? (
+            <button type="button" className={styles.specFilterClear} onClick={clearSpecFilters}>
+              پاک کردن فیلترها ({toPersianDigits(activeSpecFilterCount)})
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
       {/* The compare button just goes disabled with one item checked, which
           audits and support tickets both read as "broken" rather than
           "needs one more". Spell out why. `role="status"` so a screen
@@ -989,7 +1156,13 @@ export function PriceTable({
 
       <div className={styles.meta}>
         <span>
-          {toPersianDigits(subFiltered.length)} کالا
+          {/* «۱۲ از ۴۰ کالا» once a spec filter narrows the set, so the count
+              itself confirms the filter did something — plain «۱۲ کالا» would
+              read identically whether that ۱۲ is the whole sub-category or a
+              narrowed slice of it. */}
+          {activeSpecFilterCount > 0 && filtered.length !== subFiltered.length
+            ? `${toPersianDigits(filtered.length)} از ${toPersianDigits(subFiltered.length)} کالا`
+            : `${toPersianDigits(subFiltered.length)} کالا`}
           {sectionNoun ? ` · ${toPersianDigits(bySection.length)} ${sectionNoun}` : ''}
           {updated ? ` · به‌روزرسانی ${formatJalali(updated)}` : ''}
         </span>
@@ -1019,6 +1192,20 @@ export function PriceTable({
           ))}
         </nav>
       )}
+
+      {/* No section, no table — the spec filter matched nothing (e.g. a
+          checked size AND a checked grade that no single row carries both
+          of). Distinct from an actually-empty category page: this state only
+          exists because the visitor narrowed it, so the way out is offered
+          right here instead of leaving a blank page under the toolbar. */}
+      {filtered.length === 0 && subFiltered.length > 0 ? (
+        <p className={styles.specFilterEmpty} role="status">
+          با این ترکیب فیلتر، کالایی پیدا نشد.{' '}
+          <button type="button" className={styles.specFilterClear} onClick={clearSpecFilters}>
+            پاک کردن فیلترها
+          </button>
+        </p>
+      ) : null}
 
       {/* ===== one section per کارخانه / محل تولید ===== */}
       <div className={styles.factoryList}>
