@@ -112,10 +112,22 @@ export async function withResilience<T>(
     const wasOpen = breaker.openUntil > Date.now();
     breaker.openUntil = Date.now() + openMs;
     if (!wasOpen) {
-      reportError(new Error(`circuit opening for ${service}`), {
-        integration: service,
-        consecutiveFailures: breaker.consecutiveFailures,
-      });
+      // 'warning', not the reportError default: a circuit opening is this
+      // mechanism succeeding at its one job (stop hammering a failing
+      // upstream), not an unhandled failure in this app. At 'error' it was
+      // indistinguishable in GlitchTip's unresolved-issues view from a real
+      // bug — three flapping upstreams (tgju-gold/tgju-currency/brsapi)
+      // alone generated 10,000+ events, burying genuine errors. Still fully
+      // visible/searchable; just not competing for attention at the same
+      // severity as something actually broken in this app.
+      reportError(
+        new Error(`circuit opening for ${service}`),
+        {
+          integration: service,
+          consecutiveFailures: breaker.consecutiveFailures,
+        },
+        'warning',
+      );
     }
   }
   throw lastErr;

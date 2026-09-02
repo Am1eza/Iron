@@ -25,7 +25,6 @@ function row(id: string, priceBasis: PriceRow['priceBasis'], weightKg?: number):
     priceBasis,
     theoreticalWeightKg: weightKg,
     unit: priceBasis === 'kg' ? 'kg' : 'branch',
-    isActive: true,
     current: {
       skuId: id,
       price: 35_000,

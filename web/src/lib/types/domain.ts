@@ -128,7 +128,6 @@ export interface Category {
   order: number;
   iconId: string;
   imageUrl?: string;
-  isActive: boolean;
   /**
    * One or two lines saying what this product line IS and who buys it —
    * admin-authored, read from `categories.seo.description`.
@@ -156,7 +155,6 @@ export interface SubCategory {
   /** Display-only cluster label, not a real hierarchy level — see server/db/schema/catalog.ts. */
   groupLabel: string | null;
   order: number;
-  isActive: boolean;
 }
 
 export interface SKU {
@@ -168,10 +166,13 @@ export interface SKU {
   standard?: string;
   size?: string;
   grade?: string;
-  /** ورق only — the plate's width×length, e.g. «۱۰۰۰×۲۰۰۰». For a sheet,
-   *  `size` is the THICKNESS; this is the other two dimensions. Undefined for
-   *  every other category and for sheets nobody has filled it in for yet.
-   *  See server/db/schema/catalog.ts. */
+  /** Supplied form/finish («رول», «شیت», «برش‌خورده», …). Independent
+   *  of `grade` because products such as aluminium sheet have both an alloy
+   *  and a condition. Undefined where it has not been recorded. */
+  condition?: string;
+  /** Context-specific secondary specification: plate width×length on ورق,
+   *  section thickness on approved نبشی/استیل/Z lines. Undefined where that
+   *  line has no secondary axis or nobody has recorded it yet. */
   dimensions?: string;
   /** «رده» — the pipe schedule, on لوله's pressure-pipe sub-categories only
    *  (مانیسمان داخلی/خارجی, گازی, صنعتی درزدار). Its own stored column, not a
@@ -217,7 +218,6 @@ export interface SKU {
    *  photo keyed on CATEGORY, so every rebar looked identical and an uploaded
    *  photo silently went nowhere. */
   imageUrl?: string;
-  isActive: boolean;
   /** Category IDs this SKU is ALSO listed under, beyond its own home
    *  (categoryId/subCategoryId, which is what its URL is built from) — e.g.
    *  a sheet-steel product tagged into the "استیل" hub category too. Never

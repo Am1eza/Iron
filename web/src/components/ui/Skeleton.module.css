@@ -51,6 +51,39 @@
   display: block;
 }
 
+/* Fixed-step widths for the common skeleton sizes, so callers using one of
+ * these values don't need an inline `style` attribute. */
+.w40 {
+  inline-size: 40%;
+}
+.w55 {
+  inline-size: 55%;
+}
+.w60 {
+  inline-size: 60%;
+}
+.w65 {
+  inline-size: 65%;
+}
+.w70 {
+  inline-size: 70%;
+}
+.w90 {
+  inline-size: 90%;
+}
+.w100 {
+  inline-size: 100%;
+}
+.h28 {
+  block-size: 28px;
+}
+.h160 {
+  block-size: 160px;
+}
+.h320 {
+  block-size: 320px;
+}
+
 .table {
   border: var(--border-hairline) solid var(--color-hairline);
   border-radius: var(--radius-md);

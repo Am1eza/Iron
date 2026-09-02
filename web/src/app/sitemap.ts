@@ -13,6 +13,12 @@ import { listRedirectFromPaths, normalizePath } from '@/lib/server/repos/redirec
 import { factoryFacets, sizeFacets } from '@/lib/utils/catalogFacets';
 import { TRACK_ORDER } from '@/components/cooperation/tracks';
 import { NEWS_TOPICS } from '@/lib/data/newsTopics';
+import {
+  rowsInSubCategory,
+  skuHasPublishedPrice,
+  skuSitemapHints,
+  taxonomyIsIndexable,
+} from './prices/_seo/indexability';
 
 /**
  * Why this route is dynamic, and why that is not negotiable.
@@ -123,7 +129,7 @@ async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
   // guessed. See the module comment.
   if (!isLiveCatalog()) return [...staticEntries, ...cooperationEntries];
 
-  const categories = (await getCategories()).filter((c) => c.isActive);
+  const categories = await getCategories();
 
   // Sub-category + SKU pages — the bulk of the site's indexable, revenue-relevant
   // content. One getRows() call per category (not per sub-category) — rows are
@@ -143,12 +149,21 @@ async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
     return max > 0 ? new Date(max) : now;
   };
 
-  const categoryEntries: MetadataRoute.Sitemap = categories.map((c, i) => ({
-    url: new URL(routes.category(c.slug), SITE_URL).toString(),
-    lastModified: latestUpdate(categoryRows[i] ?? []),
-    changeFrequency: 'hourly',
-    priority: 0.8,
-  }));
+  // Only categories that hold at least one row — the same predicate the
+  // category page applies to its own `robots` (app/prices/_seo/indexability.ts).
+  // Submitting a URL that answers `noindex` is the «Submitted URL marked
+  // noindex» error in Search Console, so these two callers must not be
+  // allowed to drift apart; that is why the rule is a shared function and
+  // not a `rows.length > 0` written out twice.
+  const categoryEntries: MetadataRoute.Sitemap = categories
+    .map((c, i) => ({ c, rows: categoryRows[i] ?? [] }))
+    .filter(({ rows }) => taxonomyIsIndexable(rows.length))
+    .map(({ c, rows }) => ({
+      url: new URL(routes.category(c.slug), SITE_URL).toString(),
+      lastModified: latestUpdate(rows),
+      changeFrequency: 'hourly',
+      priority: 0.8,
+    }));
 
   const subCategoryEntries: MetadataRoute.Sitemap = [];
   const skuEntries: MetadataRoute.Sitemap = [];
@@ -181,19 +196,39 @@ async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
       });
     }
     for (const sub of subsMap[cat.slug] ?? []) {
+      // 17 of production's 85 sub-categories (20 %) held zero rows and were
+      // all in here, all answering 200, all shipping a meta description that
+      // promised «جدول قیمت روز …» over an empty page. That is a soft-404,
+      // and soft-404s are graded at the host level, so it was 17 pages
+      // putting the whole domain's quality signal at risk. The page now says
+      // `noindex`; this is the other half of the same decision.
+      //
+      // `rows` is the CATEGORY's row set and `PriceRow.subCategoryId` is the
+      // joined sub-category slug, so this filter is exactly the query the
+      // sub-category page runs — 85 decisions out of the 8 calls already
+      // made, with no extra round trip.
+      const subRows = rowsInSubCategory(rows, sub.slug);
+      if (!taxonomyIsIndexable(subRows.length)) continue;
       subCategoryEntries.push({
         url: new URL(routes.subCategory(cat.slug, sub.slug), SITE_URL).toString(),
-        lastModified: catLatest,
+        // The sub-category's own newest price, not the category's. The
+        // category-wide date said every one of rebar's sub-categories changed
+        // whenever any one of its 280+ SKUs did.
+        lastModified: latestUpdate(subRows),
         changeFrequency: 'hourly',
         priority: 0.75,
       });
     }
     for (const row of rows) {
+      // A price-less SKU page stays in the sitemap — it is thin but true, and
+      // it is the funnel's entry point (see `_seo/indexability.ts`). What it
+      // must not do is claim to change hourly: 195 of 748 rows have no price
+      // to move, and telling a crawler otherwise spends the budget the 553
+      // pages that DO change intraday need.
       skuEntries.push({
         url: new URL(routes.sku(row.categoryId, row.subCategoryId, row.slug), SITE_URL).toString(),
         lastModified: row.current.updatedAt ? new Date(row.current.updatedAt) : now,
-        changeFrequency: 'hourly',
-        priority: 0.65,
+        ...skuSitemapHints(skuHasPublishedPrice(row)),
       });
     }
   });

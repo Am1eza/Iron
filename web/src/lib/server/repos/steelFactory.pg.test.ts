@@ -37,8 +37,8 @@ const SUBS = [
 beforeAll(async () => {
   ({ db, close } = await createTestDb());
   await db.insert(schema.categories).values([
-    { id: 'c-steel', slug: 'steel', name: 'استیل', order: 1, iconId: '', isActive: true },
-    { id: 'c-angle-channel', slug: 'angle-channel', name: 'نبشی و ناودانی', order: 2, iconId: '', isActive: true },
+    { id: 'c-steel', slug: 'steel', name: 'استیل', order: 1, iconId: '' },
+    { id: 'c-angle-channel', slug: 'angle-channel', name: 'نبشی و ناودانی', order: 2, iconId: '' },
   ]);
   await db.insert(schema.subCategories).values([
     ...SUBS.map((s, i) => ({
@@ -47,10 +47,9 @@ beforeAll(async () => {
       slug: s.slug,
       name: s.name,
       order: i + 1,
-      isActive: true,
     })),
     // A same-named sub under a DIFFERENT category, whose mill is real.
-    { id: 'sub-carbon-angle', categoryId: 'c-angle-channel', slug: 'angle', name: 'نبشی', order: 1, isActive: true },
+    { id: 'sub-carbon-angle', categoryId: 'c-angle-channel', slug: 'angle', name: 'نبشی', order: 1 },
   ]);
   await db.insert(schema.skus).values([
     ...SUBS.map((s) => ({
@@ -64,7 +63,6 @@ beforeAll(async () => {
       factory: s.factory,
       branchLengthM: 6,
       unit: 'kg' as const,
-      isActive: true,
     })),
     {
       id: 'sku-carbon-angle',
@@ -75,7 +73,6 @@ beforeAll(async () => {
       size: '۴۰×۴۰',
       factory: 'ناب تبریز',
       unit: 'kg' as const,
-      isActive: true,
     },
   ]);
 }, 120_000);

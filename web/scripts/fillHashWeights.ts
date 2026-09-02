@@ -150,7 +150,7 @@ const { rows } = await pool.query<Row>(
   `SELECT s.id, s.name, s.size, s.unit, s.price_basis AS basis,
           s.theoretical_weight_kg::text AS weight,
           s.branch_length_m::text AS length,
-          c.slug AS cat, sc.slug AS sub, s.is_active AS active,
+          c.slug AS cat, sc.slug AS sub,
           p.price::text AS price
      FROM skus s
      JOIN categories c ON c.id = s.category_id

@@ -1,14 +1,14 @@
-import { ChartIcon, IBeamGlyph, InfoIcon } from '@/components/primitives/icons';
+import { ChartIcon, ClockIcon, IBeamGlyph, InfoIcon } from '@/components/primitives/icons';
 import { routes } from '@/lib/routes';
 import Link from 'next/link';
 import styles from './AdvisorCapabilities.module.css';
 
 /**
- * What this advisor does that a general-purpose chat cannot — the three
- * capabilities that are REAL tools in `aiTools.ts` (`compareFactories`,
- * `calcWeight`, `searchGuides`), described in the terms a buyer would use.
+ * What this advisor does that a general-purpose chat cannot — capabilities
+ * that are REAL tools in `aiTools.ts` (`compareFactories`, `calcWeight`,
+ * `searchGuides`, `forecastPrice`), described in the terms a buyer would use.
  *
- * Deliberately three claims, each of which the page can back up on the spot:
+ * Deliberately few claims, each of which the page can back up on the spot:
  * nothing here is a capability the advisor doesn't have. It sits BELOW the
  * chat panel on purpose (see app/ai/page.tsx) — the composer is the page's
  * primary control and must stay one screen away, not below an explainer.
@@ -37,6 +37,17 @@ const CAPABILITIES = [
           وزن‌سنج
         </Link>{' '}
         سایت به کار می‌برد.
+      </>
+    ),
+  },
+  {
+    Icon: ClockIcon,
+    title: 'چشم‌انداز قیمت، با بازه و دلیل',
+    body: (
+      <>
+        «بخرم یا صبر کنم؟» را بی‌جواب نمی‌گذارد: روند واقعی همان محصول و همبستگی‌اش با دلار، طلا و
+        شمش را می‌خواند و جهت کوتاه‌مدت را با یک بازهٔ درصدی و دلیلش نشان می‌دهد. هرگز قیمت قطعی
+        برای یک تاریخ نمی‌گوید، و اگر سابقهٔ قیمتی کافی نباشد صادقانه می‌گوید نمی‌شود.
       </>
     ),
   },

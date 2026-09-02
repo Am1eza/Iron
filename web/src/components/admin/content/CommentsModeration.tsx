@@ -13,6 +13,7 @@ import { adminApi, type AdminComment } from '@/lib/api/resources/admin';
 import { ApiError } from '@/lib/api/errors';
 import { useToast } from '@/lib/hooks/useToast';
 import { formatJalali } from '@/lib/utils/jalali';
+import { SITE_ORIGIN } from '@/lib/utils/url';
 import { Badge, Button, EmptyState, TableSkeleton, Tabs, TabPanel, Text } from '@/components/ui';
 import ui from '../adminUi.module.css';
 import s from './comments.module.css';
@@ -29,8 +30,12 @@ const STATUS_LABEL: Record<AdminComment['status'], { label: string; tone: 'stale
   rejected: { label: 'ردشده', tone: 'loss' },
 };
 
+// Absolute, not a bare `/news/...` path: rendered as an `<a target="_blank">`
+// opened from `panel.ahantime.com`, where a relative href resolves against
+// the panel's own origin and gets rewritten by the panel middleware to a
+// nonexistent `/admin/...` route instead of the storefront page.
 function articlePath(type: 'blog' | 'news', slug: string): string {
-  return type === 'news' ? `/news/${encodeURIComponent(slug)}` : `/blog/${encodeURIComponent(slug)}`;
+  return `${SITE_ORIGIN}${type === 'news' ? `/news/${encodeURIComponent(slug)}` : `/blog/${encodeURIComponent(slug)}`}`;
 }
 
 export function CommentsModeration() {
