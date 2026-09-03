@@ -1,13 +1,16 @@
 // @vitest-environment node
 /**
- * Provider migration (owner decision): DeepSeek → Parspack AI Studio.
+ * Provider migrations (owner decisions): DeepSeek → Parspack AI Studio →
+ * Surplus Intelligence (`gpt-5.6-luna`, 1405/06).
  *
  * Two properties are load-bearing here and both are easy to break silently:
  *   1. the LEGACY `DEEPSEEK_*` names keep working, because the live `.env`
  *      still uses them and the container must not die the moment this lands;
- *   2. reasoning effort is ALWAYS capped, because unconstrained this model
- *      spends ~95% of its tokens thinking and cannot finish a tool round trip
- *      inside AI_TIMEOUT_MS — which is exactly how production broke.
+ *   2. reasoning effort is ALWAYS capped, because the Parspack model that
+ *      previously held this default spent ~95% of its tokens thinking
+ *      unconstrained and could not finish a tool round trip inside
+ *      AI_TIMEOUT_MS — which is exactly how production broke. Kept capped for
+ *      Surplus too even though it measured `reasoning_tokens: 0` at `low`.
  */
 import { describe, it, expect } from 'vitest';
 import {
@@ -48,7 +51,7 @@ describe('provider-neutral names, with a legacy fallback', () => {
 
   it('defaults to the model the owner asked for, and no other', () => {
     expect(aiModel(env({}))).toBe(DEFAULT_AI_MODEL);
-    expect(DEFAULT_AI_MODEL).toBe('nvidia/nemotron-3-nano-omni-30b-a3b-reasoning');
+    expect(DEFAULT_AI_MODEL).toBe('gpt-5.6-luna');
   });
 
   it('resolves the fallback relay the same way', () => {

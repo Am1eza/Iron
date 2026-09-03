@@ -25,6 +25,12 @@ describe('composeSkuSlug', () => {
     expect(composeSkuSlug({ categorySlug: 'profile', size: '۴۰×۴۰' })).toBe('profile-40x40');
   });
 
+  it('keeps alloy and condition as independent URL identity axes', () => {
+    expect(
+      composeSkuSlug({ categorySlug: 'felezat-rangi', size: '۱', grade: '1050', condition: 'شیت' }),
+    ).toBe('felezat-rangi-1-1050-shyt');
+  });
+
   it('skips missing parts without leaving stray hyphens', () => {
     expect(composeSkuSlug({ categorySlug: 'pipe', factory: 'سپنتا' })).toBe('pipe-sepanta');
     expect(composeSkuSlug({ categorySlug: 'wire' })).toBe('wire');
@@ -132,6 +138,14 @@ describe('theoreticalWeightFor', () => {
     expect(theoreticalWeightFor('angle-channel', '۶', 'nabshi')).toBeCloseTo(34, 0);
     // The pre-rename sub slug resolves identically.
     expect(theoreticalWeightFor('angle-channel', '۱۰', 'angle')).toBeCloseTo(94.3, 1);
+  });
+
+  it('reads a normalized three-axis نبشی section without collapsing its digits', () => {
+    expect(theoreticalWeightFor('angle-channel', '۶۰×۶۰×۶', 'nabshi')).toBeCloseTo(
+      theoreticalWeightFor('angle-channel', '۶', 'nabshi')!,
+      6,
+    );
+    expect(theoreticalWeightFor('angle-channel', '۱۰۰×۱۰۰×۱۰', 'nabshi')).toBeCloseTo(94.3, 1);
   });
 
   it('refuses نبشی sizes the published table does not cover rather than approximating', () => {

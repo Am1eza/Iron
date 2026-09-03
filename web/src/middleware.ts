@@ -4,9 +4,7 @@ import { verifyAccessToken } from '@/lib/auth/jwt';
 import { can, permissionForAdminPath } from '@/lib/auth/roles';
 import { hasDb } from '@/lib/server/db/client';
 import { adminListRedirects, normalizePath } from '@/lib/server/repos/redirectsRepo';
-import { publicCatalogPaths } from '@/lib/server/repos/catalogRepo';
-import { publishedGuardPaths } from '@/lib/server/repos/articlesRepo';
-import { hasGuardedPrefix, shouldNotFound } from '@/lib/server/seo/knownPaths';
+import { hasGuardedPrefix, shouldNotFound, getKnownPaths } from '@/lib/server/seo/knownPaths';
 import { archiveIndexFallback, archiveRedirect } from '@/lib/content/archivePaging';
 import { resolvePanelRouting, isPanelHost } from '@/lib/server/utils/panelHost';
 
@@ -70,7 +68,9 @@ async function refreshRedirectCacheIfStale(): Promise<void> {
   if (!hasDb()) return;
   try {
     const rows = await adminListRedirects();
-    redirectCache = new Map(rows.map((r) => [r.fromPath, { toPath: r.toPath, permanent: r.permanent }]));
+    redirectCache = new Map(
+      rows.map((r) => [r.fromPath, { toPath: r.toPath, permanent: r.permanent }]),
+    );
     redirectsEverLoaded = true;
   } catch {
     // A DB hiccup must never break normal traffic — keep serving whatever
@@ -78,37 +78,38 @@ async function refreshRedirectCacheIfStale(): Promise<void> {
   }
 }
 
-/**
- * Live catalog/article URLs, for turning an unknown slug into a REAL 404
- * (see lib/server/seo/knownPaths.ts for the full why). Same in-process,
- * TTL'd cache shape as `redirectCache` above and valid for the same reason
- * (one long-lived Node process). Empty = "not loaded" and never blocks a
- * request, so a DB hiccup or a cold start degrades to the previous
- * soft-404-200 behaviour rather than to a dead catalog.
- */
-let knownPathCache: Set<string> = new Set();
-let knownPathsLoadedAt = 0;
-const KNOWN_PATHS_TTL_MS = 60_000;
-
-async function refreshKnownPathsIfStale(): Promise<void> {
-  if (Date.now() - knownPathsLoadedAt < KNOWN_PATHS_TTL_MS) return;
-  knownPathsLoadedAt = Date.now(); // before the await — see refreshRedirectCacheIfStale
-  if (!hasDb()) return;
-  try {
-    const [catalog, articles] = await Promise.all([publicCatalogPaths(), publishedGuardPaths()]);
-    knownPathCache = new Set([...catalog, ...articles]);
-  } catch {
-    // Keep whatever was already loaded. Never empty the set on failure: an
-    // empty set means "unknown" and is fail-open, but replacing a good set
-    // with an empty one would also throw away a working guard for no reason.
-  }
-}
+// The `known`-paths cache (live catalog/article URLs, for turning an unknown
+// slug into a REAL 404) now lives in lib/server/seo/knownPaths.ts, not here —
+// an admin catalog write needs to invalidate it, and that route can't reach
+// into this file's module scope. See `getKnownPaths`/`invalidateKnownPaths`
+// there for the full why.
 
 export async function middleware(req: NextRequest) {
   // One predicate, shared with resolvePanelRouting — a raw `===` here and a
   // normalized match there would let the two disagree about the same request.
   const onPanelHost = isPanelHost(req.headers.get('host'));
-  const { shouldPrefix, effectivePathname } = resolvePanelRouting(req.headers.get('host'), req.nextUrl.pathname);
+
+  // SEO audit: panel.ahantime.com served the PUBLIC site's static robots.ts
+  // output verbatim (same file, no host branching) — `Allow: /` for every
+  // crawler, plus a `Sitemap:` line advertising ahantime.com's own sitemap
+  // from the admin subdomain. The real protection is the `X-Robots-Tag:
+  // noindex, nofollow` header (next.config.mjs) and it already works
+  // correctly, so nothing was actually exposed — but a from-scratch crawler
+  // reading robots.txt alone has no signal AT ALL that this host is off
+  // limits, which is the opposite of every other admin-surface convention
+  // in this codebase (see the /admin comment below: hide, don't reveal).
+  // Returned before any other branch — this must never interact with the
+  // redirect/404/auth logic that follows, and a static two-line body can't.
+  if (onPanelHost && req.nextUrl.pathname === '/robots.txt') {
+    return new NextResponse('User-agent: *\nDisallow: /\n', {
+      headers: { 'content-type': 'text/plain' },
+    });
+  }
+
+  const { shouldPrefix, effectivePathname } = resolvePanelRouting(
+    req.headers.get('host'),
+    req.nextUrl.pathname,
+  );
 
   // Redirects (US-14.3) are a public-site SEO concern — never checked on the
   // panel host, where every path is already spoken for by the admin rewrite.
@@ -154,8 +155,12 @@ export async function middleware(req: NextRequest) {
     // a path that matches no route makes Next's own router produce the 404 —
     // the same technique `/__admin_denied__` below already relies on.
     if (hasGuardedPrefix(req.nextUrl.pathname)) {
-      await refreshKnownPathsIfStale();
-      if (shouldNotFound(req.nextUrl.pathname, knownPathCache, { redirectsLoaded: redirectsEverLoaded })) {
+      const known = await getKnownPaths();
+      if (
+        shouldNotFound(req.nextUrl.pathname, known, {
+          redirectsLoaded: redirectsEverLoaded,
+        })
+      ) {
         const url = req.nextUrl.clone();
         // An archive page that does not exist is not a fabricated URL — it is
         // a real position in a list that shrank, or one that has not entered
@@ -236,7 +241,8 @@ export async function middleware(req: NextRequest) {
     // Rewriting to one lets the same not-found.tsx UI render with the
     // correct status, without duplicating that page's markup here.
     const permission = permissionForAdminPath(effectivePathname);
-    const authorized = can(claims.role, 'admin:access') && (!permission || can(claims.role, permission));
+    const authorized =
+      can(claims.role, 'admin:access') && (!permission || can(claims.role, permission));
     if (!authorized) {
       const url = req.nextUrl.clone();
       url.pathname = '/__admin_denied__';

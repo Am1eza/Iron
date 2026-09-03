@@ -1,5 +1,5 @@
 'use client';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query/keys';
@@ -13,13 +13,22 @@ import { formatToman, priceHiddenLabel, toPersianDigits } from '@/lib/utils/form
 import {
   priceBasisNoun,
   sizeLabel,
+  usesDimensions,
+  dimensionsLabel,
+  weightLabel,
   attributeColumns,
   NOT_APPLICABLE,
-  DIMENSIONS_LABEL,
   REGION_LABEL,
+  BRAND_LABEL,
+  factoryLabel,
 } from '@/lib/utils/catalogLabels';
 import { formatJalali } from '@/lib/utils/jalali';
-import { priceSeries as mockSeries, relatedRows as mockRelated, subName as mockSubName } from '@/lib/mock/catalogData';
+import { trackGoal } from '@/lib/analytics/track';
+import {
+  priceSeries as mockSeries,
+  relatedRows as mockRelated,
+  subName as mockSubName,
+} from '@/lib/mock/catalogData';
 import { categories } from '@/lib/mock/fixtures';
 import type { SubCat } from '@/lib/data/nav';
 import type { PriceRow } from '@/lib/types/domain';
@@ -100,6 +109,16 @@ export function SkuDetail({
   const [vat, setVat] = useState(false);
   const qc = useQueryClient();
 
+  // Funnel measurement gap (conversion audit finding, 2026-08-26): every
+  // OTHER trackGoal call site fires at the final submit, so there was no way
+  // to see a visitor viewed this product at all before either converting or
+  // dropping off. Keyed on row.id so a client-side nav to a different SKU
+  // (no full remount under the same layout) still fires once per product.
+  useEffect(() => {
+    trackGoal('view-product', row.categoryId, row.name);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [row.id]);
+
   // The real favorites list, shared by cache key with /account's FavoritesList
   // so the two can never disagree. Only fetched for a signed-in visitor — a
   // guest's heart is a login prompt, not a state. This is what makes the
@@ -122,14 +141,14 @@ export function SkuDetail({
   // sentinel (see catalogRepo.toPriceRow) — must never be formatted as a
   // real number or fed into the billet-comparison math below.
   const hiddenLabel = priceHiddenLabel(row.current);
-  const price = vat
-    ? Math.round(row.current.price * (1 + vatRate))
-    : row.current.price;
+  const price = vat ? Math.round(row.current.price * (1 + vatRate)) : row.current.price;
 
   // US-03.3 — compared against the raw (VAT-free) price: billet itself has
   // no VAT toggle, so the ratio must stay stable regardless of the switch above.
   const billetDiffPct =
-    !hiddenLabel && billet && billet.value > 0 ? ((row.current.price - billet.value) / billet.value) * 100 : null;
+    !hiddenLabel && billet && billet.value > 0
+      ? ((row.current.price - billet.value) / billet.value) * 100
+      : null;
 
   const crumbs = [
     { label: 'خانه', href: routes.home() },
@@ -150,6 +169,7 @@ export function SkuDetail({
       unitPrice: row.current.price,
       weightKg: row.theoreticalWeightKg,
     });
+    trackGoal('add-to-cart', row.categoryId, row.name);
     toast.success(`${row.name} به سبد استعلام اضافه شد.`, {
       label: 'مشاهده سبد',
       href: routes.cart(),
@@ -221,21 +241,40 @@ export function SkuDetail({
 
   // ورق is sold by thickness, so its `size` column is labelled «ضخامت» —
   // every other category keeps «سایز» (see catalogLabels).
-  const sizeCol = sizeLabel(row.categoryId);
+  const sizeCol = sizeLabel(row.categoryId, row.subCategoryId);
+  // The shared column is public only in its approved context: ورق
+  // width×length, or wall thickness on the three نبشی subs. This gate
+  // also prevents a stale value on any unrelated SKU from leaking onto its
+  // product page merely because the nullable DB column happens to be filled.
+  const showDimensions = usesDimensions(row.categoryId, row.subCategoryId);
+  const dimensionsCol = dimensionsLabel(row.categoryId, row.subCategoryId);
 
-  // The same «گرید»/«استاندارد»/«آلیاژ»/«طول شاخه»/«طول سفارشی» definitions the
+  // The same «گرید»/«استاندارد»/«آلیاژ»/profile-length definitions the
   // price table's columns are built from, resolved for THIS product's own
   // sub-category — so a پروفیل استیل spec sheet says «آلیاژ» and a پروفیل Z one
   // says «طول سفارشی», in the same words the table the visitor arrived from
   // used. `NOT_APPLICABLE` can't occur here (the row is always in its own
   // sub-category) but is filtered defensively rather than printed as a dash.
   const attrCols = attributeColumns(row.categoryId, row.subCategoryId);
+  // «کارخانه», or «برند» on مانیسمان — resolved for THIS product's own
+  // sub-category, in the same words as the table the visitor arrived from
+  // (see catalogLabels' factoryLabel).
+  const factoryCol = factoryLabel(row.categoryId, row.subCategoryId);
+  // The highlights list reads as a phrase rather than a label — «کارخانهٔ
+  // فولاد مبارکه» — so the کارخانه form carries its ezafe. «برند» takes none:
+  // «برند چینی» is how the trade says it, and an ezafe there would be wrong
+  // Persian.
+  const factoryPhrase = factoryCol === BRAND_LABEL ? BRAND_LABEL : 'کارخانهٔ';
   const attrSpecs = attrCols
     .map((c) => ({ key: c.key, label: c.label, value: c.cell(row) }))
     .filter((a) => a.value !== NOT_APPLICABLE);
   // …so the generic «طول شاخه» row below doesn't print the same fact twice.
   const attrCoversLength = attrCols.some(
-    (c) => c.key === 'branchLength' || c.key === 'customLength',
+    (c) =>
+      c.key === 'branchLength' ||
+      c.key === 'profileCondition' ||
+      c.key === 'length' ||
+      c.key === 'customLength',
   );
 
   // `value` is a node, not a string, so the کارخانه row can be a link to that
@@ -243,11 +282,13 @@ export function SkuDetail({
   // does this mill make?" and the spec table was a dead end for it.
   const specs: { label: string; value: ReactNode }[] = [
     { label: sizeCol, value: row.size ? toPersianDigits(row.size) : 'نامشخص' },
-    // ورق only, and only once someone has filled it in. Unlike the rows below
-    // there is deliberately no «نامشخص» placeholder: most sheet SKUs have no
-    // dimensions recorded yet, and a spec table full of «نامشخص» reads as a
-    // broken page rather than an unanswered question.
-    ...(row.dimensions ? [{ label: DIMENSIONS_LABEL, value: toPersianDigits(row.dimensions) }] : []),
+    // Only once someone has filled it in. There is deliberately no «نامشخص»
+    // placeholder: existing ورق rows and all current نبشی rows are
+    // mostly/null throughout, and an empty new spec on every product reads as
+    // a broken page rather than an unanswered optional question.
+    ...(showDimensions && row.dimensions
+      ? [{ label: dimensionsCol, value: toPersianDigits(row.dimensions) }]
+      : []),
     ...attrSpecs.map((a) => ({ label: a.label, value: a.value })),
     // Only when this product actually has a mill. The پروفیل sub-categories
     // whose stored factory names were fabricated publish none (see
@@ -256,7 +297,7 @@ export function SkuDetail({
     ...(row.factory
       ? [
           {
-            label: 'کارخانه',
+            label: factoryCol,
             value: <FactoryLink categorySlug={row.categoryId} factory={row.factory} />,
           },
         ]
@@ -270,7 +311,7 @@ export function SkuDetail({
         ? [{ label: REGION_LABEL, value: row.region }]
         : []),
     {
-      label: 'وزن شاخه',
+      label: weightLabel(row.categoryId),
       value: row.theoreticalWeightKg
         ? `${toPersianDigits(row.theoreticalWeightKg)} کیلوگرم`
         : 'نامشخص',
@@ -310,9 +351,10 @@ export function SkuDetail({
                   {sizeCol} <strong className="tnum">{toPersianDigits(row.size)}</strong>
                 </li>
               ) : null}
-              {row.dimensions ? (
+              {showDimensions && row.dimensions ? (
                 <li>
-                  {DIMENSIONS_LABEL} <strong className="tnum">{toPersianDigits(row.dimensions)}</strong>
+                  {dimensionsCol}{' '}
+                  <strong className="tnum">{toPersianDigits(row.dimensions)}</strong>
                 </li>
               ) : null}
               {attrCols.map((c) => {
@@ -330,12 +372,13 @@ export function SkuDetail({
               ) : null}
               {row.factory ? (
                 <li>
-                  کارخانهٔ <FactoryLink categorySlug={row.categoryId} factory={row.factory} />
+                  {factoryPhrase}{' '}
+                  <FactoryLink categorySlug={row.categoryId} factory={row.factory} />
                 </li>
               ) : null}
               {row.theoreticalWeightKg ? (
                 <li>
-                  وزن شاخه{' '}
+                  {weightLabel(row.categoryId)}{' '}
                   <strong className="tnum">
                     {/* Was Latin "kg" here while every other weight on this same
                         page (specs table below, BulkQuote) spells out «کیلوگرم» —
@@ -348,13 +391,21 @@ export function SkuDetail({
             {/* The product's own photo when the admin uploaded one, else the
                 category stock image. Before W24 `row.imageUrl` was written by
                 the panel and read by nobody, so every product in a category
-                showed the same picture. */}
+                showed the same picture. Alt text stays honest either way: a
+                real per-product photo is described by the SKU's own full
+                name, but a shared category stock image describing itself as
+                that exact SKU would be a false claim — "نمونه" (sample/
+                representative) says what the image actually is while still
+                keeping the specific product name for search differentiation
+                (SEO audit: every SKU page previously shared one generic alt
+                string per category, e.g. "تصویر میلگرد" on all ~180 rebar
+                pages). */}
             {row.imageUrl || productImage(row.categoryId) ? (
               <figure className={styles.heroImage}>
                 <ProductImage
                   slug={row.categoryId}
                   src={row.imageUrl}
-                  name={row.imageUrl ? row.name : categoryName}
+                  name={row.imageUrl ? row.name : `نمونه ${row.name}`}
                   eager
                 />
               </figure>
@@ -434,7 +485,12 @@ export function SkuDetail({
               <AlertBellButton
                 variant="subtle"
                 size="md"
-                target={{ type: 'sku', skuId: row.id, label: row.name, currentValue: row.current.price }}
+                target={{
+                  type: 'sku',
+                  skuId: row.id,
+                  label: row.name,
+                  currentValue: row.current.price,
+                }}
               />
               <Tooltip content="اشتراک‌گذاری">
                 <IconButton
@@ -502,7 +558,16 @@ export function SkuDetail({
           sub-category the most mills quote — on a وال‌پست page that is
           «نبشی», so the panel compared a different product than the one the
           page is about. */}
-      <BulkQuote category={row.categoryId} categoryName={categoryName} rows={categoryRows} subs={categorySubs} defaultSub={row.subCategoryId} defaultSize={row.size} logisticsConfig={logisticsConfig} vatRate={vatRate} />
+      <BulkQuote
+        category={row.categoryId}
+        categoryName={categoryName}
+        rows={categoryRows}
+        subs={categorySubs}
+        defaultSub={row.subCategoryId}
+        defaultSize={row.size}
+        logisticsConfig={logisticsConfig}
+        vatRate={vatRate}
+      />
 
       {/* ===== Related ===== */}
       {related.length > 0 ? (

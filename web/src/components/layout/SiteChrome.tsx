@@ -6,13 +6,16 @@ import { Footer } from './Footer';
 import type { SiteContact } from '@/lib/server/contact';
 import { BottomTabBar } from './BottomTabBar';
 import { CallbackWidget } from '@/components/support/CallbackWidget';
+import { isPromoSuppressedPath } from '@/components/club/arrivalPopupRoutes';
 // Code-split: the hamburger drawer is only reachable below the 1024px
-// breakpoint (and only once opened), and the arrival popup renders `null`
-// for its own first 12s by design — neither needs to ship in the shared
-// bundle every visitor downloads (see components/lazy.ts).
-import { MobileDrawer, ArrivalPopup } from '@/components/lazy';
-import type { Category } from '@/lib/types/domain';
+// breakpoint (and only once opened), and the arrival popup and cart
+// reminder both render `null` on most visits by design — none of the three
+// need to ship in the shared bundle every visitor downloads (see
+// components/lazy.ts).
+import { MobileDrawer, ArrivalPopup, CartReminder } from '@/components/lazy';
+import type { Category, MarketValue } from '@/lib/types/domain';
 import type { SubsMap } from '@/lib/data/catalog';
+import styles from './SiteChrome.module.css';
 
 /**
  * The public storefront chrome — hidden on `/admin/*`, which has its own
@@ -38,21 +41,45 @@ function onPanelHost(): boolean {
   return typeof window !== 'undefined' && window.location.hostname === 'panel.ahantime.com';
 }
 
-export function SiteChromeTop({ categories, subs }: { categories: Category[]; subs: SubsMap }) {
+export function SiteChromeTop({
+  categories,
+  subs,
+  initialMarketValues,
+}: {
+  categories: Category[];
+  subs: SubsMap;
+  /** Server-fetched ticker values — see layout.tsx's comment. Undefined on
+   *  a DB hiccup; Ticker already has its own zero-value placeholder for that. */
+  initialMarketValues?: MarketValue[];
+}) {
   const pathname = usePathname();
-  if (onPanelHost() || pathname?.startsWith('/admin') || pathname?.startsWith('/panel-login')) return null;
+  if (onPanelHost() || pathname?.startsWith('/admin') || pathname?.startsWith('/panel-login'))
+    return null;
+  // Same reasoning CartReminder's own suppression check already applies —
+  // gating it here too (not just inside the component) means its lazy chunk
+  // is never even fetched on a page it would render null on anyway, same
+  // pattern SiteChromeBottom already uses for CallbackWidget's `onAdvisor`.
+  const suppressCartReminder = isPromoSuppressedPath(pathname);
   return (
-    <>
-      <Ticker />
+    <div className={styles.top}>
+      <Ticker initialValues={initialMarketValues} />
       <Header categories={categories} subs={subs} />
+      {!suppressCartReminder && <CartReminder />}
       <MobileDrawer categories={categories} subs={subs} />
-    </>
+    </div>
   );
 }
 
-export function SiteChromeBottom({ categories, contact }: { categories: Category[]; contact: SiteContact }) {
+export function SiteChromeBottom({
+  categories,
+  contact,
+}: {
+  categories: Category[];
+  contact: SiteContact;
+}) {
   const pathname = usePathname();
-  if (onPanelHost() || pathname?.startsWith('/admin') || pathname?.startsWith('/panel-login')) return null;
+  if (onPanelHost() || pathname?.startsWith('/admin') || pathname?.startsWith('/panel-login'))
+    return null;
   // /ai's own composer is fixed to the same bottom-inline-end corner as this
   // FAB — on mobile they occupied the exact same pixel box, and the FAB won
   // the stacking order, silently swallowing every tap meant for the chat's
@@ -73,11 +100,11 @@ export function SiteChromeBottom({ categories, contact }: { categories: Category
   // while any dialog is open. Keeping a second copy of that list here is how
   // the two would drift.
   return (
-    <>
+    <div className={styles.bottom}>
       <Footer categories={categories} contact={contact} />
       <BottomTabBar />
       <ArrivalPopup />
       {!onAdvisor && <CallbackWidget phoneLandline={contact.phoneLandline} />}
-    </>
+    </div>
   );
 }

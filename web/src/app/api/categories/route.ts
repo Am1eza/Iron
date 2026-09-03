@@ -1,4 +1,3 @@
-import { NextResponse } from 'next/server';
 import { requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { listCategories } from '@/lib/server/repos/catalogRepo';
 import { jsonWithEtag } from '@/lib/server/utils/httpCache';

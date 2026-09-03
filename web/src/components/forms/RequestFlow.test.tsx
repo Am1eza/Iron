@@ -15,9 +15,10 @@ import { RequestFlow } from './RequestFlow';
 import { useAuthStore } from '@/lib/stores/auth';
 import { useCartStore } from '@/lib/stores/cart';
 import { useRequestsStore } from '@/lib/stores/requests';
+import type * as ApiConfig from '@/lib/api/config';
 
 vi.mock('@/lib/api/config', async (orig) => ({
-  ...(await orig<typeof import('@/lib/api/config')>()),
+  ...(await orig<typeof ApiConfig>()),
   API_MODE: 'live',
 }));
 vi.mock('@/lib/api', () => ({ api: { leads: { create: vi.fn() } } }));

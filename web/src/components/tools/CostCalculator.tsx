@@ -42,10 +42,7 @@ export function CostCalculator() {
     queryFn: () => api.catalog.categories(),
     staleTime: 5 * 60 * 1000,
   });
-  const activeCategories = useMemo(
-    () => (categoriesData?.categories ?? []).filter((c) => c.isActive),
-    [categoriesData],
-  );
+  const activeCategories = useMemo(() => categoriesData?.categories ?? [], [categoriesData]);
 
   const [catSlug, setCatSlug] = useState<string>('');
   // Categories load async — pick the first one the moment the list arrives,

@@ -101,6 +101,7 @@ async function POSTImpl(req: NextRequest) {
   if ('theoreticalWeightKg' in d) {
     unit = d.theoreticalWeightKg;
   } else {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- destructured only to drop it from `dims`
     const { shape, qty: _qty, ...dims } = d;
     unit = unitWeightKg(shape satisfies WeightShape, dims satisfies WeightDims);
   }

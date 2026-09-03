@@ -17,6 +17,16 @@ export interface SavePriceInput {
   unit?: PriceUnit;
   deliveryTime?: string;
   vatIncluded?: boolean;
+  /**
+   * This price is the automated mirror's NEAREST-ANALOG estimate rather than a
+   * published price for this exact product (US-05.3).
+   *
+   * Defaults to FALSE on every save, and that default is the point: a human
+   * typing a price into the admin grid, or an exact mirror write, is precisely
+   * the act of replacing an estimate with a real number, so the flag has to
+   * clear itself without any caller having to remember to clear it.
+   */
+  isEstimated?: boolean;
 }
 
 export interface SavePriceResult {
@@ -128,6 +138,9 @@ export async function savePrice(actorId: string | null, input: SavePriceInput): 
     // function is documented as also serving AI/admin tools directly.
     const deliveryTime = input.deliveryTime?.trim() || prev?.deliveryTime || '۲۴ ساعت';
     const vatIncluded = input.vatIncluded ?? prev?.vatIncluded ?? false;
+    // NOT `?? prev?.priceIsEstimated`: see the field's comment. Any save that
+    // does not claim to be an estimate is asserting a real price.
+    const priceIsEstimated = input.isEstimated === true;
     await tx
       .insert(currentPrices)
       .values({
@@ -142,10 +155,11 @@ export async function savePrice(actorId: string | null, input: SavePriceInput): 
         updatedAt: now,
         updatedBy: actorId,
         isStale: false,
+        priceIsEstimated,
       })
       .onConflictDoUpdate({
         target: currentPrices.skuId,
-        set: { price, unit, priceBasis, deliveryTime, vatIncluded, movementPct, movementDir, updatedAt: now, updatedBy: actorId, isStale: false },
+        set: { price, unit, priceBasis, deliveryTime, vatIncluded, movementPct, movementDir, updatedAt: now, updatedBy: actorId, isStale: false, priceIsEstimated },
       });
 
     // Append-only history — every save (spec: HISTORY_RETENTION unlimited).

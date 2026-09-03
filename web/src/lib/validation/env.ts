@@ -79,7 +79,8 @@ const serverSchema = z
     SMSIR_TEMPLATE_ID_CALLBACK_REMINDER: z.string().optional(),
     // W20 — confirms a customer's «انبار مشتریان» storage request landed.
     SMSIR_TEMPLATE_ID_WAREHOUSE_REQUEST: z.string().optional(),
-    TGJU_BASE_URL: z.string().optional(),
+    BRSAPI_KEY: z.string().optional(),
+    BRSAPI_URL: z.string().optional(),
     OUNCE_API_URL: z.string().optional(),
     SESSION_SECRET: z.string().optional(),
     DATABASE_URL: z.string().optional(),
@@ -108,8 +109,9 @@ const serverSchema = z
   // (loud, one line, before any traffic) to per-send failures nobody reads.
   // A 2026-07 outage where free-text SMS was dead for days while OTP kept
   // working (the Verify endpoint needs no line) is exactly what boot-time
-  // validation is for. Only tgju (falls back to last-known values) and the AI
-  // relay keys (gated on AI_ENABLED) still degrade without blocking boot.
+  // validation is for. Only the domestic market-rates feed (falls back to
+  // last-known values) and the AI relay keys (gated on AI_ENABLED) still
+  // degrade without blocking boot.
   .superRefine((env, ctx) => {
     if (publicEnv.NEXT_PUBLIC_API_MODE === 'live') {
       for (const key of ['DATABASE_URL', 'SESSION_SECRET'] as const) {

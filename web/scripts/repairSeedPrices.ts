@@ -135,7 +135,6 @@ const FIXTURE_ID = sql`${skus.id} !~ '^[0-9A-HJKMNP-TV-Z]{26}$'`;
 
 interface SeedRow extends MatchableSku {
   price: number;
-  isActive: boolean;
   categoryName: string;
   subCategoryName: string;
   skuName: string;
@@ -159,7 +158,6 @@ async function loadSeedRows(): Promise<SeedRow[]> {
       // cannot match a stainless source table at all.
       grade: skus.grade,
       priceBasis: skus.priceBasis,
-      isActive: skus.isActive,
       price: currentPrices.price,
       categorySlug: categories.slug,
       subCategorySlug: subCategories.slug,
@@ -207,7 +205,7 @@ interface MatchOutcome {
 }
 
 async function runMatcher(seedRows: SeedRow[], now: Date): Promise<MatchOutcome[]> {
-  const active = seedRows.filter((r) => r.isActive);
+  const active = seedRows;
   const paths = new Set<string>();
   for (const r of active) for (const p of SOURCE_PATHS[taxonomyKey(r)] ?? []) paths.add(p);
   if (paths.size === 0) return [];
@@ -247,7 +245,6 @@ async function main(): Promise<number> {
 
   console.log(`\n[repair] ${apply ? 'APPLY' : 'DRY RUN'} — nothing is written until --apply is passed.\n`);
   console.log(`[repair] seed current_prices rows : ${seedRows.length}`);
-  console.log(`[repair]   of which active SKUs   : ${seedRows.filter((r) => r.isActive).length}`);
   console.log(`[repair] fabricated price_points  : ${history.points} across ${history.skuIds.length} SKUs\n`);
 
   if (seedRows.length === 0 && history.points === 0) {
@@ -262,8 +259,7 @@ async function main(): Promise<number> {
     byCategory.set(r.categoryName, list);
   }
   for (const [cat, list] of byCategory) {
-    const act = list.filter((r) => r.isActive).length;
-    console.log(`[repair]   ${cat}: ${list.length} rows (${act} active)`);
+    console.log(`[repair]   ${cat}: ${list.length} rows`);
   }
 
   const outcomes = noFetch ? [] : await runMatcher(seedRows, now);
@@ -283,13 +279,10 @@ async function main(): Promise<number> {
     );
   }
 
-  const willUnprice = seedRows.filter(
-    (r) => r.isActive && !writable.some((w) => w.skuId === r.id),
-  );
+  const willUnprice = seedRows.filter((r) => !writable.some((w) => w.skuId === r.id));
   console.log(
     `\n[repair] would delete ${seedRows.length} seed price row(s); ` +
-      `${willUnprice.length} active SKU(s) end up «بدون قیمت», ` +
-      `${seedRows.length - seedRows.filter((r) => r.isActive).length} are on inactive SKUs.`,
+      `${willUnprice.length} SKU(s) end up «بدون قیمت».`,
   );
 
   if (!apply) {

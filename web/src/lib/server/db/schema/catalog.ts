@@ -1,6 +1,12 @@
 /**
  * Catalog — Category 1─* SubCategory 1─* SKU (product/data-model.md §2).
- * Soft-delete only: `isActive=false` hides rows but keeps priced history.
+ * Delete means DELETE: there is no hidden/unpublished state. A row that
+ * exists is on the site; a row that shouldn't be on the site is removed.
+ * The old `isActive` flag produced a third state — present in the database,
+ * invisible to customers, invisible in most admin views — that silently
+ * stranded priced products for months. Transaction history is protected by
+ * the FK rules below (lead_items/order_items SET NULL), not by keeping dead
+ * catalog rows around.
  */
 import { sql } from 'drizzle-orm';
 import {
@@ -59,7 +65,6 @@ export const categories = pgTable(
     order: integer('order').notNull().default(0),
     iconId: text('icon_id').notNull().default(''),
     imageUrl: text('image_url'),
-    isActive: boolean('is_active').notNull().default(true),
     seo: jsonb('seo').$type<SeoMeta>(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -77,9 +82,8 @@ export const subCategories = pgTable(
   {
     id: text('id').primaryKey(),
     // Structural parent-child (category → sub-category → sku, see below):
-    // cascading is correct here — the app never actually hard-deletes
-    // categories in normal operation (isActive=false is the real "delete"),
-    // this is a safety net for the rare deliberate admin cleanup, and each
+    // cascading is correct here, and it is now the ONLY delete path — removing
+    // a category really removes its sub-categories and products. Each
     // downstream table (current_prices, price_points, favorites, alerts vs.
     // lead_items, order_items) sets its OWN onDelete appropriately so the
     // cascade doesn't silently destroy real transaction history further down.
@@ -100,7 +104,6 @@ export const subCategories = pgTable(
     // that predates this field.
     groupLabel: text('group_label'),
     order: integer('order').notNull().default(0),
-    isActive: boolean('is_active').notNull().default(true),
     seo: jsonb('seo').$type<SeoMeta>(),
   },
   (t) => [uniqueIndex('sub_categories_category_slug_uq').on(t.categoryId, t.slug)],
@@ -121,16 +124,68 @@ export const skus = pgTable(
     standard: text('standard'),
     size: text('size'),
     grade: text('grade'),
-    // Sheet dimensions — the width×length of the plate, e.g. «۱۰۰۰×۲۰۰۰».
-    // Only ورق has this: `size` already carries a sheet's THICKNESS (which is
-    // why the UI labels it «ضخامت» there), and the plate's other two
-    // dimensions had nowhere to live. They were being smuggled into `grade`
-    // by at least one product before #123 gave grade its own column and that
-    // SKU's grade had to be cleared by hand. Nullable and stays null for
-    // every existing row — nothing is backfilled, and no other category is
-    // asked to fill it in.
+    // «حالت» — the supplied form/finish of a product («رول», «شیت»,
+    // «برش‌خورده», «نرمال», …). This must be independent of `grade`:
+    // an aluminium sheet can simultaneously be alloy 1050 and supplied as a
+    // sheet, so one overloaded text cell cannot represent the product.
+    //
+    // Nullable and additive. Existing sheet rows historically stored their
+    // condition in `grade`; catalogLabels retains a read-only fallback during
+    // the rollout, while the verified one-shot migration moves only known
+    // condition values and all new admin writes go here.
+    condition: text('condition'),
+    // One shared optional secondary-spec column. For ورق it is the plate's
+    // width×length (e.g. «۱۰۰۰×۲۰۰۰»): `size` already carries sheet
+    // THICKNESS, and those other two dimensions previously had nowhere to
+    // live. Per the owner's 1405/06 request it also stores a single wall-
+    // thickness value (e.g. «۴») for exactly نبشی بال مساوی, بال
+    // نامساوی and لقمه, and the gauge beside پروفیل Z's separate height.
+    // UI allow-lists decide which meaning applies; وال‌پست, تی‌بار, ordinary
+    // box profiles and every other product line stay unaffected.
+    // Nullable: ambiguous نبشی rows remain null until an admin records a
+    // verified value; newly seeded Z variants carry their published gauge.
     dimensions: text('dimensions'),
+    // «رده» — the pipe schedule, i.e. the wall-thickness/pressure class the
+    // pipe trade sizes pressure pipe by («رده ۴۰», «رده ۸۰», ASME B36.10).
+    // Free text on purpose, exactly like `size` and `standard`: the schedule
+    // numbers in actual Iranian market use are not a closed set, and an enum
+    // would turn "the owner listed a new class" into a migration.
+    //
+    // This is a NEW column rather than a reuse of `standard`, which is the
+    // reuse the similar-looking ورق/نبشی `dimensions` precedent would
+    // suggest. `standard` is already meaningfully populated INSIDE لوله —
+    // every live لولهٔ جدار چاه row stores «ST37» in it — so borrowing it
+    // would have made one column carry two unrelated meanings within a single
+    // category, and the admin form could not have offered both facts on the
+    // same product. The ورق/نبشی reuse works precisely because those two
+    // meanings never meet under one parent category; here they would.
+    //
+    // Nullable with no backfill, and offered only on the pressure-pipe subs
+    // (see catalogLabels' PIPE_SCHEDULE_SUBS): مبلی and داربستی have no
+    // schedule rating at all, and every existing row stays null until an
+    // admin records one.
+    schedule: text('schedule'),
     factory: text('factory'),
+    // Admin-chosen position of this SKU within its own «بر اساس کارخانه»
+    // section on the public price page (owner request, 1405/06). The
+    // section itself already has an admin-controlled order — `factoryOrder`
+    // above, which decides which MILL leads a category. This is the same
+    // idea one level down: within one mill's own block of rows, the default
+    // «سایز» sort is a plain ascending parse of `size`, which cannot express
+    // anything else — it cannot put «۲ برش‌خورده» before «۲ رول» when both
+    // SKUs carry the same size string, and the owner reported exactly that:
+    // rows he had carefully arranged kept reshuffling back into that plain
+    // numeric order. Scoping this to `skus` directly, rather than a second
+    // (category, factory, sku) join table mirroring `factoryOrder`'s own
+    // shape, is deliberate and safe: unlike a factory name, a SKU already
+    // has exactly one home — this same row's own `factory` field — so there
+    // is no second context it could need a different rank in.
+    // Zero for every existing row (no backfill): a SKU nobody has ranked
+    // keeps exactly its current position, since ties fall back to the
+    // pre-existing size/price/movement comparator unchanged (see
+    // `compareRows` in PriceTable.tsx). Only rows an admin actually gives a
+    // non-zero rank change behaviour.
+    order: integer('order').notNull().default(0),
     theoreticalWeightKg: doublePrecision('theoretical_weight_kg'),
     unit: text('unit', { enum: PRICE_UNIT_VALUES }).notNull().default('kg'),
     // What the price on this SKU is per, as opposed to what `unit` counts.
@@ -153,7 +208,6 @@ export const skus = pgTable(
     // auto-sync applies to everything unless an admin explicitly opts a SKU
     // out, which is the owner's stated default.
     priceSyncExcluded: boolean('price_sync_excluded').notNull().default(false),
-    isActive: boolean('is_active').notNull().default(true),
     // A SKU has exactly one home (subCategoryId/categoryId above) — that's
     // what its URL is built from. This is an ADDITIONAL, non-exclusive tag:
     // category IDs this SKU should also be listed under (e.g. a sheet-steel
@@ -167,8 +221,8 @@ export const skus = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    index('skus_sub_active_idx').on(t.subCategoryId, t.isActive),
-    index('skus_cat_active_idx').on(t.categoryId, t.isActive),
+    index('skus_sub_idx').on(t.subCategoryId),
+    index('skus_cat_idx').on(t.categoryId),
     index('skus_factory_idx').on(t.factory),
     // GIN trigram indexes back both the ILIKE '%term%' matching AND the
     // similarity() ranking in catalogRepo.searchSkus — without these, both

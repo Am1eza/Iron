@@ -6,6 +6,8 @@ import { ThemeScript } from '@/components/theme/ThemeScript';
 import { getCategories, getSubsMap } from '@/lib/data/catalog';
 import { SiteChromeTop, SiteChromeBottom } from '@/components/layout/SiteChrome';
 import { getContact } from '@/lib/server/contact';
+import { listMarketValues } from '@/lib/server/repos/marketRepo';
+import { hasDb } from '@/lib/server/db/client';
 import { RouteAnnouncer } from '@/components/a11y/RouteAnnouncer';
 import { vazirmatn, inter } from '@/lib/theme/fonts';
 import { LocaleProvider } from '@/i18n/LocaleProvider';
@@ -42,11 +44,11 @@ import faMessages from '../../messages/fa.json';
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://ahantime.com'),
   title: {
-    default: 'آهن‌تایم، بازار هوشمند آهن و فولاد',
+    default: 'آهن‌تایم؛ بازار هوشمند خرید و فروش آهن‌آلات و فولاد ایران',
     template: '%s | آهن‌تایم',
   },
   description:
-    'آهن‌تایم، بازار هوشمند آهن و فولاد: مشاور هوش مصنوعی، قیمت‌های شفاف و لحظه‌ای و زمان تحویل مشخص. اول مشورت، بعد خرید.',
+    'آهن‌تایم، بازار هوشمند خرید و فروش آهن‌آلات و فولاد ایران: مشاور هوش مصنوعی، قیمت‌های شفاف و لحظه‌ای، پیش‌فاکتور رسمی و زمان تحویل مشخص. اول مشورت، بعد خرید.',
   applicationName: 'آهن‌تایم',
   openGraph: {
     type: 'website',
@@ -55,13 +57,22 @@ export const metadata: Metadata = {
   },
   robots: { index: true, follow: true },
   // Google Search Console ownership proof — active only when the env is set.
-  ...(process.env.GSC_VERIFICATION ? { verification: { google: process.env.GSC_VERIFICATION } } : {}),
+  ...(process.env.GSC_VERIFICATION
+    ? { verification: { google: process.env.GSC_VERIFICATION } }
+    : {}),
 };
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
+  // The keyboard RESIZES the layout viewport instead of overlaying it, so a
+  // bottom-docked composer sitting in a `100dvh` shell stays on top of the
+  // keyboard rather than behind it (/ai's immersive mobile mode). Without it,
+  // `dvh` does not react to the keyboard on iOS Safari and the input is
+  // covered exactly when it is being typed into. Ignored by browsers that do
+  // not know it, and inert on every page that has no fixed bottom control.
+  interactiveWidget: 'resizes-content',
   // Light-theme page background (--neutral-50): the site is light-only for
   // visitors (see public/theme-init.js), so browser chrome matches — was the
   // dark gunmetal #171C22.
@@ -80,6 +91,17 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const categories = await getCategories();
   const subs = await getSubsMap();
   const contact = await getContact();
+  // SEO audit: the ticker used to render a literal "0 / 0.00%" placeholder
+  // in the server-rendered HTML for every one of ~1200 pages until the
+  // client hydrated and polled `/api/market` a moment later — a real user
+  // saw a flash of it, and anything that reads raw HTML without running JS
+  // (most non-Google crawlers, some AI answer engines) saw only false
+  // financial data. `listMarketValues()` is the exact same Redis-cached
+  // (30s) read `/api/market` itself calls, so this adds no new load path —
+  // just runs it once more, server-side, before the first paint. Errors
+  // are swallowed the same way `hasDb()` gates the API route: a market
+  // hiccup must not take the whole site down through the root layout.
+  const initialMarketValues = hasDb() ? await listMarketValues().catch(() => undefined) : undefined;
   return (
     <html
       lang="fa"
@@ -96,7 +118,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <LocaleProvider defaultMessages={faMessages}>
           <AppProviders>
             <AuthHydrator />
-            <SiteChromeTop categories={categories} subs={subs} />
+            <SiteChromeTop
+              categories={categories}
+              subs={subs}
+              initialMarketValues={initialMarketValues}
+            />
             <main id="main" tabIndex={-1}>
               {children}
             </main>

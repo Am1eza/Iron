@@ -30,7 +30,6 @@ const cat = (slug: string, name: string, order: number): Category => ({
   name,
   order,
   iconId: '',
-  isActive: true,
 });
 
 const categories = [cat('sheet', 'ورق', 1), cat('rebar', 'میلگرد', 2)];

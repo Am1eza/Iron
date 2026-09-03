@@ -59,10 +59,10 @@ async function authedReq(
 beforeAll(async () => {
   ({ db, close } = await createTestDb());
   await db.insert(schema.categories).values([
-    { id: 'c-rebar', slug: 'rebar', name: 'میلگرد', order: 1, iconId: '', isActive: true },
+    { id: 'c-rebar', slug: 'rebar', name: 'میلگرد', order: 1, iconId: '' },
   ]);
   await db.insert(schema.subCategories).values([
-    { id: 's-rebar', categoryId: 'c-rebar', slug: 'deformed', name: 'آجدار', order: 1, isActive: true },
+    { id: 's-rebar', categoryId: 'c-rebar', slug: 'deformed', name: 'آجدار', order: 1 },
   ]);
   await db.insert(schema.skus).values([
     {
@@ -73,7 +73,6 @@ beforeAll(async () => {
       name: 'میلگرد ۱۴',
       factory: 'نیشابور',
       unit: 'kg' as const,
-      isActive: true,
     },
   ]);
 }, 120_000);

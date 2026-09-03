@@ -126,6 +126,56 @@ export const AHANONLINE_TARGETS: readonly AhanonlineTarget[] = [
   { ourCategory: 'استیل', path: 'استنلس-استیل/پروفیل-استیل' },
   { ourCategory: 'کلاف و مفتول', path: 'میلگرد/سیم-جوش-استیل' },
   { ourCategory: 'کلاف و مفتول', path: 'میلگرد/سیم-مفتول-استیل' },
+
+  // ---- the specialty lines (US-05.3, third pass) --------------------------
+  // Re-diffed `AHANONLINE_TARGETS` against their own sitemap on 1405/06/03,
+  // the follow-up `docs/price-sync-source-survey.md` §7 asked for. Their
+  // `sitemap/product-types/1/index.xml` lists **350** `/product-category/`
+  // pages; 51 were mapped. Filtering the other 299 to the lines our catalogue
+  // has and parsing each with `parseAhanonlinePage` turned up a page for
+  // almost every sub-category the mirror had written off as source-less:
+  // وال پست, گریتینگ, ساندویچ پانل, ورق کرکره, پروفیل کنگره, قلع‌اندود,
+  // میلگرد حرارتی, لوله مسی and تسمه مسی were all being published the whole
+  // time, on pages nobody had pointed the job at.
+  //
+  // Row counts as parsed on 1405/06/03 are in the survey doc. Two rules were
+  // applied before anything was listed here, both the same ones the second
+  // pass used:
+  //   * the page must publish priced rows NOW (parsed, not assumed);
+  //   * where a page has per-variant children, the CHILD is mapped when the
+  //     parent interleaves variants that carry different prices — گریتینگ is
+  //     the case in point (گالوانیزه 200,847 against فلزی 185,455 against
+  //     استنلس 954,777, with nothing in a column to tell them apart).
+  { ourCategory: 'نبشی و ناودانی', path: 'نبشی-و-ناودانی/وال-پست' },
+  { ourCategory: 'ورق', path: 'انواع-ورق/گریتینگ/گریتینگ-گالوانیزه' },
+  { ourCategory: 'ورق', path: 'انواع-ورق/ساندویچ-پانل' },
+  { ourCategory: 'ورق', path: 'انواع-ورق/ورق-کرکره' },
+  { ourCategory: 'ورق', path: 'انواع-ورق/قلع-اندود' },
+  { ourCategory: 'پروفیل و قوطی', path: 'انواع-پروفیل/پروفیل-کنگره' },
+  { ourCategory: 'میلگرد', path: 'میلگرد/قیمت-میلگرد/میلگرد-ساده/میلگرد-حرارتی' },
+  { ourCategory: 'فلزات رنگی', path: 'انواع-لوله/لوله-مسی' },
+  { ourCategory: 'فلزات رنگی', path: 'انواع-ورق/تسمه-مسی' },
+  //
+  // Checked on 1405/06/03 and deliberately NOT listed, each for a stated
+  // reason rather than by omission:
+  //   `آلومینیوم/میلگرد-آلومینیوم`, `آلومینیوم/لوله-آلومینیوم`,
+  //   `آلومینیوم/نبشی-آلومینیوم`, `آلومینیوم/سپری-آلومینیوم`,
+  //   `انواع-پروفیل/پروفیل-آلومینیوم`, `لوله-آلومینیوم-2`, `میلگرد-مسی`,
+  //   `بوشن-مسی`, `مس`, `آلومینیوم`, `استنلس-استیل/تسمه-استنلس-استیل`
+  //     — resolve, but parse to **zero** priced rows. Unchanged from the
+  //       second pass's finding: ahanonline sells aluminium and copper SHEET
+  //       and نبشی/میلگرد/لوله آلومینیوم only as SEO shells. This is why the
+  //       89 aluminium-extrusion SKUs stay unpriceable from this source.
+  //   `انواع-ورق/ورق-آلومینیوم-رنگی` — 14 priced rows, but «تاریخ بروزرسانی»
+  //       is 1405/5/20, fourteen days stale. `maxSourceAgeDays` would refuse
+  //       every row anyway, so mapping it buys a fetch per run and nothing
+  //       else. Worth re-checking if they resume maintaining it.
+  //   `تیرآهن-و-هاش/تیرآهن/تیرآهن-لانه-زنبوری` — 5 priced rows, all «شاخه».
+  //       Our 4 لانه‌زنبوری SKUs are per-kg, so mirroring needs
+  //       `theoretical_weight_kg`, i.e. the conversion this job never does.
+  //   `انواع-ورق/ورق-پانچ-سیاه` — mapped below, but see the note there: its
+  //       two rows differ only by ابعاد, which our SKU does not record.
+  { ourCategory: 'ورق', path: 'انواع-ورق/ورق-پانچ-سیاه' },
 ] as const;
 
 const BASE = 'https://ahanonline.com/product-category/';

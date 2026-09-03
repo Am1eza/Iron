@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { subCategorySubject } from './catalogLabels';
+import { subCategorySubject, sectionSubject } from './catalogLabels';
 
 /**
  * Every case below is a live (category, sub-category) pair, taken from the
@@ -52,5 +52,63 @@ describe('subCategorySubject', () => {
     // the two-word category without containing the whole of it, and trimming
     // per token would produce «ناودانی سبک نبشی و».
     expect(subCategorySubject('نبشی', 'نبشی و ناودانی')).toBe('نبشی نبشی و ناودانی');
+  });
+});
+
+/**
+ * The neighbouring question: what a FACTORY-GROUPED SECTION on a price page
+ * is a section of — «قیمت {موضوع} {کارخانه}».
+ *
+ * Sub slugs are the live ones (`hash-sabok`, `hash-sangin`, `lane-zanburi`),
+ * verified against the production catalog. `data/nav.ts` is a mock fixture
+ * and still lists `hea`/`heb`/`castellated`, which match nothing live.
+ */
+describe('sectionSubject', () => {
+  const HASH = { slug: 'hash-sabok', name: 'هاش سبک' };
+
+  it('names the sub-type on تیرآهن’s هاش and لانه‌زنبوری subs', () => {
+    // Category first, so the qualifier stays next to what it qualifies and
+    // the mill name that follows is not stranded three phrases away.
+    expect(sectionSubject('تیرآهن', 'ibeam', HASH)).toBe('تیرآهن هاش سبک');
+    expect(sectionSubject('تیرآهن', 'ibeam', { slug: 'hash-sangin', name: 'هاش سنگین' })).toBe(
+      'تیرآهن هاش سنگین',
+    );
+    expect(sectionSubject('تیرآهن', 'ibeam', { slug: 'lane-zanburi', name: 'لانه زنبوری' })).toBe(
+      'تیرآهن لانه زنبوری',
+    );
+  });
+
+  it('leaves plain تیرآهن alone rather than stuttering the category word', () => {
+    // `tirahan` is deliberately outside the allow-list — «قیمت تیرآهن تیرآهن
+    // ذوب‌آهن اصفهان» is exactly what subCategorySubject exists to prevent.
+    expect(sectionSubject('تیرآهن', 'ibeam', { slug: 'tirahan', name: 'تیرآهن' })).toBe('تیرآهن');
+  });
+
+  it('falls back to the category name in the mixed «همه» view', () => {
+    // One mill's section there can hold plain تیرآهن and هاش rows at once, so
+    // no sub-specific subject is true of all of them.
+    expect(sectionSubject('تیرآهن', 'ibeam', null)).toBe('تیرآهن');
+    expect(sectionSubject('تیرآهن', 'ibeam', undefined)).toBe('تیرآهن');
+  });
+
+  it('changes nothing for any other category', () => {
+    // Including a category that happens to have a same-named sub slug.
+    for (const slug of ['rebar', 'pipe', 'sheet', 'profile', 'steel', 'angle-channel']) {
+      expect(sectionSubject('میلگرد', slug, HASH)).toBe('میلگرد');
+      expect(sectionSubject('میلگرد', slug, { slug: 'deformed', name: 'آجدار A3' })).toBe('میلگرد');
+    }
+    expect(sectionSubject('تیرآهن', null, HASH)).toBe('تیرآهن');
+    expect(sectionSubject('تیرآهن', undefined, HASH)).toBe('تیرآهن');
+  });
+
+  it('does not double the category word if a sub is renamed to include it', () => {
+    // Shares subCategorySubject's de-duplication, so the two cannot drift.
+    expect(sectionSubject('تیرآهن', 'ibeam', { slug: 'hash-sabok', name: 'تیرآهن هاش سبک' })).toBe(
+      'تیرآهن هاش سبک',
+    );
+    // ZWNJ and Arabic ي/ك fold the same way they do for page titles.
+    expect(sectionSubject('تیرآهن', 'ibeam', { slug: 'hash-sabok', name: 'تیرآهن\u200cهاش' })).toBe(
+      'تیرآهن\u200cهاش',
+    );
   });
 });

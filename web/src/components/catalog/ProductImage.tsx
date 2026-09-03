@@ -43,6 +43,10 @@ export function ProductImage({
   // A real product photo has no pre-rendered thumb — only the stock map does.
   const thumb = !srcOverride && variant === 'full' ? productThumb(slug) : undefined;
   return (
+    // Deliberate, see the module doc comment above: these are pre-generated,
+    // fixed-size (1200/320px) static .webp files with a hand-rolled srcset,
+    // not next/image candidates.
+    // eslint-disable-next-line @next/next/no-img-element
     <img
       src={src}
       srcSet={thumb ? `${thumb} 320w, ${src} 1200w` : undefined}

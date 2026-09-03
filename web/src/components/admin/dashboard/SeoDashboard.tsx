@@ -24,11 +24,23 @@ const fa = (n: number) => toPersianDigits(n);
 const articleHref = (a: { slug: string; type: 'blog' | 'news' }) =>
   a.type === 'news' ? routes.news(a.slug) : routes.blog(a.slug);
 
+/** Human labels for the two checked paths — matches `CHECKED_PATHS` in
+ *  `lib/server/integrations/pagespeed.ts`. */
+const PAGESPEED_LABEL: Record<string, string> = { '/': 'صفحهٔ اصلی', '/prices': 'لیست قیمت‌ها' };
+
 export function SeoDashboard() {
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['admin', 'stats', 'seo'],
     queryFn: () => adminApi.statsSeo(),
     refetchInterval: 300_000,
+  });
+  // Separate query, not folded into the one above: a cache-miss PageSpeed
+  // call takes 10-20s server-side and this data barely moves day to day, so
+  // no polling — just fetch once and let the server's 24h cache do the rest.
+  const { data: psi } = useQuery({
+    queryKey: ['admin', 'stats', 'seo', 'pagespeed'],
+    queryFn: () => adminApi.statsSeoPageSpeed(),
+    staleTime: 60 * 60 * 1000,
   });
 
   if (isLoading) return <TableSkeleton rows={6} />;
@@ -87,6 +99,101 @@ export function SeoDashboard() {
         )}
       </section>
 
+      {data.traffic ? (
+        <section className={ui.panel} aria-labelledby="seo-traffic">
+          <Heading level={2} id="seo-traffic">
+            بازدید واقعی از جست‌وجو — ۳۰ روز گذشته
+          </Heading>
+          <Text color="muted">
+            از Matomo — کدام صفحه‌ها واقعاً از گوگل/بینگ بازدیدکننده می‌گیرند، نه فقط کدام‌ها چک‌لیست بالا را رد
+            می‌کنند.
+          </Text>
+          <div className={styles.miniTiles}>
+            <div className={ui.tile}>
+              <span className={ui.tileLabel}>بازدید از جست‌وجو</span>
+              <span className={`${ui.tileValue} tnum`}>{fa(data.traffic.organicVisits)}</span>
+            </div>
+            {data.traffic.topSearchEngines.slice(0, 3).map((s) => (
+              <div className={ui.tile} key={s.label}>
+                <span className={ui.tileLabel}>{s.label}</span>
+                <span className={`${ui.tileValue} tnum`}>{fa(s.visits)}</span>
+              </div>
+            ))}
+          </div>
+          {data.traffic.topLandingPages.length > 0 ? (
+            <div className={ui.tableWrap}>
+              <table className={ui.table}>
+                <thead>
+                  <tr>
+                    <th scope="col">صفحهٔ ورودی</th>
+                    <th scope="col">بازدید از جست‌وجو</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.traffic.topLandingPages.map((p) => (
+                    <tr key={p.path}>
+                      <td>
+                        <a href={p.path} target="_blank" rel="noreferrer">
+                          {p.path}
+                        </a>
+                      </td>
+                      <td className="tnum">{fa(p.visits)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <EmptyState size="inline" headline="در این بازه بازدید از جست‌وجو ثبت نشده" />
+          )}
+        </section>
+      ) : null}
+
+      {psi?.results && psi.results.length > 0 ? (
+        <section className={ui.panel} aria-labelledby="seo-pagespeed">
+          <Heading level={2} id="seo-pagespeed">
+            هستهٔ وب حیاتی (Core Web Vitals) — از Google PageSpeed Insights
+          </Heading>
+          <Text color="muted">
+            سرعت واقعی موبایل، یکی از سیگنال‌های مستقیم رتبه‌بندی گوگل. کش‌شده تا ۲۴ ساعت.
+          </Text>
+          <div className={ui.tableWrap}>
+            <table className={ui.table}>
+              <thead>
+                <tr>
+                  <th scope="col">صفحه</th>
+                  <th scope="col">امتیاز عملکرد</th>
+                  <th scope="col">امتیاز سئو</th>
+                  <th scope="col">LCP</th>
+                  <th scope="col">CLS</th>
+                </tr>
+              </thead>
+              <tbody>
+                {psi.results.map((r) => {
+                  const perfTone = r.performanceScore === null ? 'neutral' : r.performanceScore >= 90 ? 'success' : r.performanceScore >= 50 ? 'warning' : 'loss';
+                  const lcpTone = r.lcpMs === null ? 'neutral' : r.lcpMs <= 2500 ? 'success' : r.lcpMs <= 4000 ? 'warning' : 'loss';
+                  const clsTone = r.cls === null ? 'neutral' : r.cls <= 0.1 ? 'success' : r.cls <= 0.25 ? 'warning' : 'loss';
+                  return (
+                    <tr key={r.url}>
+                      <td>
+                        <a href={r.url} target="_blank" rel="noreferrer">
+                          {PAGESPEED_LABEL[new URL(r.url).pathname] ?? r.url}
+                        </a>
+                      </td>
+                      <td>{r.performanceScore === null ? '—' : <Badge tone={perfTone}>{fa(r.performanceScore)}</Badge>}</td>
+                      <td>{r.seoScore === null ? '—' : <Badge tone={r.seoScore >= 90 ? 'success' : 'warning'}>{fa(r.seoScore)}</Badge>}</td>
+                      <td>{r.lcpMs === null ? '—' : <Badge tone={lcpTone}>{fa(Math.round(r.lcpMs / 100) / 10)}s</Badge>}</td>
+                      <td>{r.cls === null ? '—' : <Badge tone={clsTone}>{fa(Math.round(r.cls * 100) / 100)}</Badge>}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <Text color="muted">{psi.results[0]?.isFieldData ? 'دادهٔ کاربران واقعی (CrUX)' : 'دادهٔ آزمایشگاهی Lighthouse — ترافیک کافی برای دادهٔ کاربر واقعی هنوز ثبت نشده'}</Text>
+        </section>
+      ) : null}
+
       {hasPublished ? (
         <section className={ui.panel} aria-labelledby="seo-failing">
           <Heading level={2} id="seo-failing">
@@ -144,6 +251,17 @@ export function SeoDashboard() {
             </li>
           ))}
         </ul>
+        {/* NOT one of the static facts above: whether Product/Offer JSON-LD
+            actually renders depends on price freshness (see productJsonLd),
+            so — unlike sitemap generation or ISR — this is worth watching,
+            not checking off once. It was 0 for weeks during the 2026-08-04
+            audit's stale-price incident. */}
+        <Text color="muted">
+          دادهٔ ساخت‌یافتهٔ Product/Offer (زنده، نه ثابت): از{' '}
+          <strong className="tnum">{fa(data.productSchema.total)}</strong> محصول دیده‌شدنی،{' '}
+          <strong className="tnum">{fa(data.productSchema.withOffer)}</strong> تا الان قیمتشان به‌قدر کافی تازه است
+          که Offer صادر شود — چون این وابسته به تازگی قیمت است، نه یک واقعیت ثابت معماری.
+        </Text>
       </section>
     </div>
   );

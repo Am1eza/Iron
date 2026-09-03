@@ -1,0 +1,22 @@
+-- «رده» — the pipe schedule (wall-thickness / pressure class: «رده ۴۰»,
+-- «رده ۸۰», per ASME B36.10).
+--
+-- Offered only on لوله's pressure-pipe sub-categories — مانیسمان (داخلی and
+-- خارجی), گازی, صنعتی درزدار — because that is where a schedule is a real
+-- property of the product. لولهٔ مبلی and لولهٔ داربستی are sold on outside
+-- diameter and wall gauge and have no schedule rating at all; the UI
+-- allow-list (catalogLabels' PIPE_SCHEDULE_SUBS) owns that scoping, and this
+-- column simply stores whatever it collects.
+--
+-- A NEW column rather than a reuse of `skus.standard`, which is what the
+-- ورق/نبشی reuse of `skus.dimensions` would otherwise suggest. `standard` is
+-- already meaningfully in use INSIDE لوله — every live لولهٔ جدار چاه row
+-- stores «ST37» there — so borrowing it would have made one column mean two
+-- unrelated things within a single category, and would have made the two
+-- facts unrecordable on one product. The dimensions reuse works only because
+-- its two meanings never meet under one parent category.
+--
+-- Additive and nullable, so every existing row keeps meaning exactly what it
+-- meant. Nothing is backfilled: a schedule nobody has entered is null, not a
+-- guess.
+ALTER TABLE "skus" ADD COLUMN "schedule" text;

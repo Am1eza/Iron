@@ -65,6 +65,17 @@ export interface PriceSyncConfig {
   maxPriceToman: number;
   maxCandidateSpreadPct: number;
   maxSourceAgeDays: number;
+  /**
+   * How far the same size may vary across mills before the mirror declines to
+   * write a NEAREST-ANALOG estimate for a SKU whose own mill the source does
+   * not publish (US-05.3, `analogPrice`).
+   *
+   * **Set it to 0 to turn nearest-analog off entirely** and go back to writing
+   * only exact, mill-matched prices — the kill switch for the whole feature,
+   * separate from `enabled`, so the owner can drop the estimates without
+   * losing the 500-odd exact writes with them.
+   */
+  maxAnalogSpreadPct: number;
 }
 
 export const PRICE_SYNC_DEFAULTS: PriceSyncConfig = {
@@ -74,6 +85,7 @@ export const PRICE_SYNC_DEFAULTS: PriceSyncConfig = {
   maxPriceToman: 500_000,
   maxCandidateSpreadPct: 8,
   maxSourceAgeDays: 10,
+  maxAnalogSpreadPct: 5,
 };
 
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
@@ -96,5 +108,8 @@ export async function getPriceSyncConfig(): Promise<PriceSyncConfig> {
     maxSourceAgeDays: isNum(stored.maxSourceAgeDays)
       ? stored.maxSourceAgeDays
       : PRICE_SYNC_DEFAULTS.maxSourceAgeDays,
+    maxAnalogSpreadPct: isNum(stored.maxAnalogSpreadPct)
+      ? stored.maxAnalogSpreadPct
+      : PRICE_SYNC_DEFAULTS.maxAnalogSpreadPct,
   };
 }

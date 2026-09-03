@@ -29,7 +29,6 @@ function row(
     priceBasis,
     branchLengthM: extra.lengthM,
     theoreticalWeightKg: extra.weight,
-    isActive: true,
     current: {
       skuId: id,
       price: 86_250,

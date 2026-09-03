@@ -13,26 +13,32 @@ import {
   formatToman,
   priceHiddenLabel,
   toPersianDigits,
-  normalizeDigits,
   withVat,
 } from '@/lib/utils/format';
+import { compareCatalogSizes } from '@/lib/utils/catalogSize';
 import {
   sizeLabel,
+  weightLabel,
   usesDimensions,
+  dimensionsLabel,
   attributeColumns,
   type AttrColumn,
   groupModeFor,
   groupKeyFor,
+  factoryLabel,
+  sectionSubject,
   REGION_LABEL,
   UNKNOWN_VALUE,
-  DIMENSIONS_LABEL,
+  NOT_APPLICABLE,
   priceBasisNoun,
   priceUnitCaption,
   singlePriceBasis,
 } from '@/lib/utils/catalogLabels';
 import { FactoryLink } from './FactoryLink';
+import { SpecFilterDropdown } from './SpecFilterDropdown';
 import { groupByLabel } from '@/lib/utils/catalogGroups';
 import { formatJalali } from '@/lib/utils/jalali';
+import { trackGoal } from '@/lib/analytics/track';
 import { API_MODE } from '@/lib/api/config';
 import { api } from '@/lib/api';
 import type { PriceRow } from '@/lib/types/domain';
@@ -42,20 +48,44 @@ import { IconButton } from '@/components/ui';
 import { Modal, PriceChart, KgQuantityModal } from '@/components/lazy';
 import { ExportMenu } from './ExportMenu';
 import { AlertBellButton } from '@/components/alerts/AlertBellButton';
-import { HeartIcon, ChartIcon, PlusIcon, SortIcon, ChevronDownIcon } from '@/components/primitives/icons';
+import {
+  HeartIcon,
+  ChartIcon,
+  PlusIcon,
+  SortIcon,
+  ChevronDownIcon,
+} from '@/components/primitives/icons';
 import styles from './PriceTable.module.css';
 
 type SortKey = 'size' | 'price' | 'movement';
+
+/** 0 = never ranked. Read as +Infinity, not literally 0, so one admin-ranked
+ *  row (`order` 1, 2, …) always leads every untouched row in its section —
+ *  not just the other ranked ones — instead of losing to them on a literal
+ *  "0 < 1" comparison. */
+const rank = (r: PriceRow): number => (r.order > 0 ? r.order : Infinity);
 
 /** Shared row comparator — used for the per-factory sections, driven by the
  *  toolbar's `sort` control. */
 function compareRows(a: PriceRow, b: PriceRow, sort: SortKey): number {
   if (sort === 'price') return a.current.price - b.current.price;
   if (sort === 'movement') return (b.current.movementPct ?? 0) - (a.current.movementPct ?? 0);
-  // `Number('۱۴')` is NaN — every stored size is in Persian digits, so this
-  // comparator silently returned NaN for every pair and the «سایز» sort did
-  // nothing at all.
-  return Number(normalizeDigits(a.size ?? '0')) - Number(normalizeDigits(b.size ?? '0'));
+  // Admin-assigned `order` (owner request, 1405/06) takes priority over the
+  // default «سایز» sort — it exists precisely because the plain size parse
+  // below cannot express his arrangement (e.g. «۲ برش‌خورده» before «۲ رول»,
+  // both sharing the same size string). Rows nobody has ranked tie with each
+  // other here (both read as +Infinity) and fall straight through to the
+  // untouched size comparator — a category the owner has never ranked
+  // behaves exactly as it did before this field existed.
+  const ra = rank(a);
+  const rb = rank(b);
+  if (ra !== rb) return ra - rb;
+  // Sizes are vectors, not just numbers: alongside «۱۴» the catalog carries
+  // decimal gauges, inch fractions and sections such as «۶۰×۶۰×۶». A
+  // single Number() either returned NaN or collapsed that structure. The
+  // shared comparator preserves every axis and keeps all catalog surfaces in
+  // the same trade order.
+  return compareCatalogSizes(a.size, b.size);
 }
 
 /** Compare-modal row highlighting — true when the selected products don't all
@@ -64,6 +94,45 @@ function compareRows(a: PriceRow, b: PriceRow, sort: SortKey): number {
 function rowDiffers(values: ReadonlyArray<string | number | null>): boolean {
   return new Set(values).size > 1;
 }
+
+/** `rowDiffers(...)`, resolved straight to the CSS class (or `undefined`) a
+ *  compare-table `<tr>` needs — every diff row below computed this ternary
+ *  by hand, which is how a typo'd `styles.rowDiffers` on one of eight sites
+ *  would have gone uncaught. */
+function diffRowClass(values: ReadonlyArray<string | number | null>): string | undefined {
+  return rowDiffers(values) ? styles.rowDiffers : undefined;
+}
+
+/**
+ * Column-value normalizer for the spec filter bar (owner request, 1405/06/02
+ * — "فیلتر کنه فقط یک سایز خاص رو ببینه یا یک گرید خاص رو"). `grade`/
+ * `dimensions`/`size` are free text an admin typed by hand, not a clean enum,
+ * so «۶۰×۶۰×۶» and «۶۰ × ۶۰ × ۶» must resolve to the same filter option or the
+ * facet list doubles up near-identical entries that mean the same spec. Only
+ * whitespace and the ي/ك Arabic presentation forms are folded — never the
+ * digits or the trade shorthand itself, so a value that legitimately differs
+ * (different size, different grade) never collapses into another.
+ */
+function normalizeSpecValue(value: string): string {
+  return value
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replace(/ي/g, 'ی')
+    .replace(/ك/g, 'ک');
+}
+
+// Stable identity for "no selections yet" so a facet with nothing checked
+// doesn't hand SpecFilterDropdown a fresh `new Set()` on every render.
+const EMPTY_SPEC_SET: ReadonlySet<string> = new Set();
+
+/** One filterable spec column — «سایز», «گرید», «کارخانه», … — and how to
+ *  read ITS value off a row. `undefined`/empty means the column is not a
+ *  property of that row at all, which must never become a selectable "" chip. */
+type SpecFacetGetter = {
+  key: string;
+  label: string;
+  get: (r: PriceRow) => string | undefined;
+};
 
 /**
  * The factory name, linked to that factory's own price page.
@@ -75,7 +144,14 @@ function rowDiffers(values: ReadonlyArray<string | number | null>): boolean {
  * styling. See FactoryLink for why `categorySlug` is the ROW's category.
  */
 function FactoryCell({ categorySlug, factory }: { categorySlug: string; factory?: string | null }) {
-  return <FactoryLink categorySlug={categorySlug} factory={factory} className={styles.nameLink} />;
+  return (
+    <FactoryLink
+      categorySlug={categorySlug}
+      factory={factory}
+      className={styles.nameLink}
+      prefetch={false}
+    />
+  );
 }
 
 type RowActions = {
@@ -122,7 +198,12 @@ function SectionShell({
 }) {
   if (!labelled) return <div className={styles.factorySection}>{children}</div>;
   return (
-    <details key={name} id={`factory-section-${index}`} className={styles.factorySection} open={open}>
+    <details
+      key={name}
+      id={`factory-section-${index}`}
+      className={styles.factorySection}
+      open={open}
+    >
       <summary className={styles.factorySummary}>
         <span className={styles.factorySummaryMain}>
           <ChevronDownIcon size={18} className={styles.factoryChevron} />
@@ -181,11 +262,14 @@ const PriceTableRow = memo(function PriceTableRow({
   onChart,
   onAddToCart,
   showDimensions,
+  dimensionsCol,
   attrCols,
   showFactory,
+  factoryCol,
   showRegion,
   showRowBasis,
   sizeCol,
+  weightCol,
 }: {
   row: PriceRow;
   vat: boolean;
@@ -193,9 +277,11 @@ const PriceTableRow = memo(function PriceTableRow({
   isFav: boolean;
   compareChecked: boolean;
   onToggleCompare: (id: string) => void;
-  /** ورق only — must stay in lockstep with the matching `<th>` in the header,
-   *  which is driven by the same flag. */
+  /** ورق, an approved نبشی sub, or پروفیل Z — must stay in
+   *  lockstep with the matching `<th>`, which is driven by the same flag. */
   showDimensions: boolean;
+  /** «ابعاد» for ورق; «ضخامت» for those section rows. */
+  dimensionsCol: string;
   /** «گرید»/«استاندارد»/«طول شاخه»/… — resolved once for the whole table from
    *  the page's category and the active sub-filter (see catalogLabels), and
    *  handed to the header and every row from that ONE array, so a cell can
@@ -205,6 +291,11 @@ const PriceTableRow = memo(function PriceTableRow({
    *  mill name — پروفیل, whose stored ones were fabricated and are suppressed
    *  at the DTO boundary (see catalogLabels.factoryIsMeaningful). */
   showFactory: boolean;
+  /** What that column is CALLED here — «برند» on مانیسمان, «کارخانه»
+   *  everywhere else. Passed down from the one `factoryLabel` call that built
+   *  the `<th>`, so the reflowed card label and the header cannot drift into
+   *  two different words for one column. */
+  factoryCol: string;
   /** «محل تولید» — the producing city, in the same lockstep. On only when the
    *  rows carry one but there are no region SECTIONS to put it in the heading
    *  of, which is the flat-fallback case (see `showRegionColumn`). */
@@ -216,9 +307,11 @@ const PriceTableRow = memo(function PriceTableRow({
    *  inherit it from. */
   showRowBasis: boolean;
   /** The «سایز»/«ضخامت»/… header text, so the reflowed cell can reprint it as
-   *  its own label. Comes from the same `sizeLabel(categorySlug)` call that
+   *  its own label. Comes from the same `sizeLabel(categorySlug, sub)` call that
    *  built the `<th>`. */
   sizeCol: string;
+  /** «وزن شاخه»/«وزن» — same lockstep rule, from `weightLabel(categorySlug)`. */
+  weightCol: string;
 } & RowActions) {
   const hiddenLabel = priceHiddenLabel(r.current);
   return (
@@ -237,7 +330,21 @@ const PriceTableRow = memo(function PriceTableRow({
         </label>
       </td>
       <th role="rowheader" scope="row" className={styles.name}>
-        <Link href={routes.sku(r.categoryId, r.subCategoryId, r.slug)} className={styles.nameLink}>
+        {/* Perf audit: a sub-category page renders one of these per row —
+            up to ~186 on the largest today. Next.js Link prefetches its
+            target the moment it enters the viewport, so a table this size
+            fired that many background route-cache warms on a page a
+            visitor almost always leaves via exactly ONE row. Measured
+            contribution to this: 500ms Total Blocking Time on the same
+            /prices/rebar/deformed page real users spend the most time on
+            (Lighthouse, mobile, slow 4G, 1405/06/05). `prefetch={false}`
+            does not change navigation — clicking still works exactly the
+            same, it only removes the speculative background fetch. */}
+        <Link
+          href={routes.sku(r.categoryId, r.subCategoryId, r.slug)}
+          className={styles.nameLink}
+          prefetch={false}
+        >
           {r.name}
         </Link>
       </th>
@@ -249,7 +356,7 @@ const PriceTableRow = memo(function PriceTableRow({
       {showDimensions ? (
         <td
           role="cell"
-          data-label={DIMENSIONS_LABEL}
+          data-label={dimensionsCol}
           className={`${styles.muted}${r.dimensions ? '' : ` ${styles.blankOnNarrow}`}`}
         >
           {r.dimensions ? toPersianDigits(r.dimensions) : 'نامشخص'}
@@ -271,7 +378,7 @@ const PriceTableRow = memo(function PriceTableRow({
       {showFactory ? (
         <td
           role="cell"
-          data-label="کارخانه"
+          data-label={factoryCol}
           className={`${styles.muted}${r.factory ? '' : ` ${styles.blankOnNarrow}`}`}
         >
           <FactoryCell categorySlug={r.categoryId} factory={r.factory} />
@@ -288,7 +395,7 @@ const PriceTableRow = memo(function PriceTableRow({
       ) : null}
       <td
         role="cell"
-        data-label="وزن شاخه"
+        data-label={weightCol}
         className={`${styles.num}${r.theoreticalWeightKg ? '' : ` ${styles.blankOnNarrow}`}`}
       >
         {r.theoreticalWeightKg ? (
@@ -420,12 +527,8 @@ export function PriceTable({
    *  behaves exactly as it did before this existed. */
   factoryOrder?: string[];
 }) {
-  const sizeCol = sizeLabel(categorySlug);
+  const weightCol = weightLabel(categorySlug);
   const subGroups = useMemo(() => groupByLabel(subs), [subs]);
-  // ورق only. Driven by the PAGE's category for the same reason `sizeCol` is:
-  // a mixed list (the «استیل» hub, via cross-listing) must not grow an «ابعاد»
-  // column just because one sheet row wandered into it.
-  const showDimensions = usesDimensions(categorySlug);
   const add = useCartStore((s) => s.add);
   const toast = useToast();
   const router = useRouter();
@@ -469,15 +572,44 @@ export function PriceTable({
   const [internalSub, setInternalSub] = useState<string | null>(initialSub);
   const controlled = onSubChange !== undefined;
   const sub = controlled ? (subProp ?? null) : internalSub;
-  // The «گرید»/«استاندارد»/«طول شاخه»/«طول سفارشی»/«آلیاژ» columns. Unlike
-  // `showDimensions` these depend on the ACTIVE sub-filter, so they have to be
-  // computed after `sub` is resolved: تیرآهن's «استاندارد» and پروفیل's per-sub
-  // replacements are both sub-level decisions, while the mixed «همه» view
-  // falls back to the category default (see catalogLabels).
+  const sizeCol = sizeLabel(categorySlug, sub);
+  // ورق keeps its category-wide «ابعاد» column. Section thickness is
+  // intentionally sub-aware: only the source-verified نبشی/استیل/پروفیل
+  // subs show it, while their mixed category views stay structurally safe.
+  const showDimensions = usesDimensions(categorySlug, sub);
+  const dimensionsCol = dimensionsLabel(categorySlug, sub);
+  // The «گرید»/«استاندارد»/«طول شاخه»/«طول سفارشی»/«آلیاژ» columns also
+  // depend on the ACTIVE sub-filter, so they are computed after `sub` is
+  // resolved: تیرآهن's «استاندارد» and پروفیل's per-sub replacements
+  // are both sub-level decisions, while the mixed «همه» view falls back to
+  // the category default (see catalogLabels).
   //
   // Memoized because it is handed to every memoized row/card: a fresh array
   // each render would defeat their `React.memo` entirely.
   const attrCols = useMemo(() => attributeColumns(categorySlug, sub), [categorySlug, sub]);
+  // «کارخانه», or «برند» on مانیسمان — one stored column, named for what it
+  // actually holds in this context (see catalogLabels' factoryLabel). Like
+  // `attrCols` it depends on the ACTIVE sub-filter, so the mixed «همه» view
+  // keeps the generic «کارخانه»: those rows do not agree on a sub, and a
+  // گازی row under a «برند» header would be a false claim about its mill.
+  const factoryCol = factoryLabel(categorySlug, sub);
+  /**
+   * What the sections below are sections OF — «تیرآهن», or «تیرآهن هاش سبک»
+   * on the تیرآهن sub-types whose heading used to misdescribe them (see
+   * catalogLabels' sectionSubject).
+   *
+   * Resolved from the ACTIVE sub-filter, not from whatever sub the page was
+   * entered on: this table's filter is uncontrolled on a sub page
+   * (`initialSub`), so a visitor can switch to «همه» without navigating, and
+   * the heading has to stop claiming هاش the moment the rows stop being only
+   * هاش. `subs` is looked up rather than trusted to contain the slug — an
+   * unknown one falls back to the plain category name.
+   */
+  const activeSub = useMemo(
+    () => (sub ? (subs.find((x) => x.slug === sub) ?? null) : null),
+    [subs, sub],
+  );
+  const subject = sectionSubject(categoryName, categorySlug, activeSub);
 
   // Filter changes animate via same-document View Transitions where supported
   // (a no-op elsewhere) — the rows crossfade instead of snapping.
@@ -570,7 +702,8 @@ export function PriceTable({
   /** What one section is a section OF, for the labels below. Null under
    *  `none`: there are no sections, and naming a structure the page does not
    *  have is worse than saying nothing about it. */
-  const sectionNoun = groupMode === 'factory' ? 'کارخانه' : groupMode === 'region' ? REGION_LABEL : null;
+  const sectionNoun =
+    groupMode === 'factory' ? factoryCol : groupMode === 'region' ? REGION_LABEL : null;
   /**
    * «محل تولید» as a COLUMN rather than as section headings.
    *
@@ -584,6 +717,111 @@ export function PriceTable({
   const showRegionColumn = groupMode === 'none' && subFiltered.some((r) => r.region);
   const sortLabel = sectionNoun ? `مرتب‌سازی بخش‌های ${sectionNoun}` : 'مرتب‌سازی جدول قیمت';
 
+  /**
+   * Spec filters (owner request, 1405/06/02): "فیلتر کنه فقط یک سایز خاص رو
+   * ببینه یا یک گرید خاص رو، بسته به ستون‌های جدول اون محصول" — narrow the
+   * table to one exact size/grade/factory/… value, driven by whichever
+   * columns are actually meaningful for the current view (`attrCols` and the
+   * `show*` flags above — the same table already resolves that per
+   * category/sub, so the filter bar rides on it rather than re-deciding).
+   *
+   * Getters, not a plain value list: filtering and facet-option-building both
+   * need "what does THIS row say for column X", so one definition serves
+   * both `facets` (below) and `filtered`, and a column can never offer an
+   * option it would then fail to match.
+   */
+  const facetGetters = useMemo<SpecFacetGetter[]>(() => {
+    const defs: SpecFacetGetter[] = [{ key: 'size', label: sizeCol, get: (r) => r.size }];
+    if (showDimensions) {
+      defs.push({ key: 'dimensions', label: dimensionsCol, get: (r) => r.dimensions });
+    }
+    for (const c of attrCols) {
+      defs.push({
+        key: `attr:${c.key}`,
+        label: c.label,
+        // `c.cell` already resolves "not this row's property" vs "unrecorded"
+        // to NOT_APPLICABLE/UNKNOWN_VALUE — neither is a real spec value a
+        // buyer would filter by, so both are dropped rather than turned into
+        // filterable chips reading «—» or «نامشخص».
+        get: (r) => {
+          const v = c.cell(r);
+          return v === NOT_APPLICABLE || v === UNKNOWN_VALUE ? undefined : v;
+        },
+      });
+    }
+    if (showFactory) defs.push({ key: 'factory', label: factoryCol, get: (r) => r.factory });
+    if (showRegionColumn) defs.push({ key: 'region', label: REGION_LABEL, get: (r) => r.region });
+    return defs;
+  }, [sizeCol, showDimensions, dimensionsCol, attrCols, showFactory, factoryCol, showRegionColumn]);
+
+  // Facet option lists are built from `subFiltered` (the sub-category
+  // selection only), NOT from the already-filtered rows below — the standard
+  // faceted-search rule. Shrinking a column's own option list as soon as one
+  // of its own values is picked would make every multi-select field collapse
+  // to whatever is already checked, and shrinking OTHER columns' options as
+  // this one narrows would make an AND-across-columns filter look like it
+  // just deleted valid combinations instead of finding none.
+  const facets = useMemo(
+    () =>
+      facetGetters
+        .map((d) => {
+          const values = new Set<string>();
+          for (const r of subFiltered) {
+            const raw = d.get(r);
+            if (raw) values.add(normalizeSpecValue(raw));
+          }
+          return {
+            key: d.key,
+            label: d.label,
+            values: [...values].sort((a, b) => a.localeCompare(b, 'fa', { numeric: true })),
+          };
+        })
+        // A column with 0 or 1 distinct value on this view has nothing to
+        // filter — every visible row already agrees on it.
+        .filter((f) => f.values.length > 1),
+    [facetGetters, subFiltered],
+  );
+
+  const [specFilters, setSpecFilters] = useState<Record<string, Set<string>>>({});
+  // The facet SET changes with the active sub (different sub → different
+  // attrCols/columns) — a grade filter picked on «ساده» has no meaning once
+  // the visitor switches to «آجدار», and silently keeping it selected while
+  // hiding its own chip row would leave the table filtered by something
+  // nothing on screen explains.
+  useEffect(() => {
+    setSpecFilters({});
+  }, [sub]);
+  const toggleSpecFilter = useCallback((key: string, value: string) => {
+    setSpecFilters((prev) => {
+      const current = new Set(prev[key]);
+      if (current.has(value)) current.delete(value);
+      else current.add(value);
+      const next = { ...prev };
+      if (current.size === 0) delete next[key];
+      else next[key] = current;
+      return next;
+    });
+  }, []);
+  const clearSpecFilters = useCallback(() => setSpecFilters({}), []);
+  const activeSpecFilterCount = useMemo(
+    () => Object.values(specFilters).reduce((n, s) => n + s.size, 0),
+    [specFilters],
+  );
+
+  // AND across columns (a سایز filter for both سایز AND گرید must match
+  // both), OR within one column's own checked values (either of two checked
+  // grades passes that column).
+  const filtered = useMemo(() => {
+    const active = facetGetters.filter((d) => specFilters[d.key]?.size);
+    if (active.length === 0) return subFiltered;
+    return subFiltered.filter((r) =>
+      active.every((d) => {
+        const raw = d.get(r);
+        return raw ? (specFilters[d.key]?.has(normalizeSpecValue(raw)) ?? false) : false;
+      }),
+    );
+  }, [subFiltered, specFilters, facetGetters]);
+
   /** Admin-placed factories, name → position. Built once per prop change so
    *  the comparator below stays an O(1) lookup. */
   const factoryRank = useMemo(
@@ -592,12 +830,16 @@ export function PriceTable({
   );
 
   // The page's sections — «بر اساس کارخانه», or «بر اساس محل تولید» on the
-  // پروفیل subs — grouped from the same sub-filtered rows, each group
+  // پروفیل subs — grouped from the sub- AND spec-filtered rows, each group
   // internally sorted by the toolbar's `sort` control (size by default, same
-  // comparator the old flat table used).
+  // comparator the old flat table used). `groupMode`/`showRegionColumn` above
+  // stay resolved from `subFiltered` (before spec filters), not `filtered` —
+  // checking one grade should never make the «کارخانه» column or its section
+  // headings disappear because the narrowed set happens not to need it
+  // (`filtered` is defined above, right after the spec-filter state).
   const bySection = useMemo(() => {
     const map = new Map<string, PriceRow[]>();
-    for (const r of subFiltered) {
+    for (const r of filtered) {
       const key = groupKeyFor(groupMode, r);
       const list = map.get(key);
       if (list) list.push(r);
@@ -630,7 +872,7 @@ export function PriceTable({
       const bv = b.find((r) => !r.current.priceHidden)?.current.price ?? Infinity;
       return av - bv;
     });
-  }, [subFiltered, sort, factoryRank, groupMode]);
+  }, [filtered, sort, factoryRank, groupMode]);
   const sectionIndex = useMemo(
     () => new Map(bySection.map(([name], i) => [name, i] as const)),
     [bySection],
@@ -717,6 +959,7 @@ export function PriceTable({
         unitPrice: r.current.price,
         weightKg: r.theoreticalWeightKg,
       });
+      trackGoal('add-to-cart', r.categoryId, r.name);
       toast.success(`${r.name} به سبد استعلام اضافه شد.`, {
         label: 'مشاهده سبد',
         href: routes.cart(),
@@ -742,10 +985,13 @@ export function PriceTable({
   );
 
   const updated = rows[0]?.current.updatedAt;
-  // `subFiltered`, not `rows`: the note sits under the sub-category filter and
-  // describes what is actually on screen.
-  const priceBasis = useMemo(() => singlePriceBasis(subFiltered), [subFiltered]);
-  const selectedForCompare = useMemo(() => rows.filter((r) => compareIds.has(r.id)), [rows, compareIds]);
+  // `filtered`, not `rows`: the note sits under the sub-category AND spec
+  // filters and describes what is actually on screen.
+  const priceBasis = useMemo(() => singlePriceBasis(filtered), [filtered]);
+  const selectedForCompare = useMemo(
+    () => rows.filter((r) => compareIds.has(r.id)),
+    [rows, compareIds],
+  );
   // The compare modal's next action: only offered when a cheaper priced
   // option actually exists among the selection — a hidden price can't be
   // compared, and if every visible price ties there is nothing "cheaper" to
@@ -754,13 +1000,12 @@ export function PriceTable({
     const priced = selectedForCompare.filter((r) => !r.current.priceHidden);
     if (priced.length < 2) return null;
     const cheapest = priced.reduce((a, b) => (b.current.price < a.current.price ? b : a));
-    const isActuallyCheaper = priced.some((r) => r.id !== cheapest.id && r.current.price > cheapest.current.price);
+    const isActuallyCheaper = priced.some(
+      (r) => r.id !== cheapest.id && r.current.price > cheapest.current.price,
+    );
     return isActuallyCheaper ? cheapest : null;
   }, [selectedForCompare]);
-  const exportRows = useMemo(
-    () => bySection.flatMap(([, list]) => list),
-    [bySection],
-  );
+  const exportRows = useMemo(() => bySection.flatMap(([, list]) => list), [bySection]);
 
   return (
     <div className={styles.wrap}>
@@ -781,7 +1026,12 @@ export function PriceTable({
               ungrouped sub-categories are untouched. */}
           {subGroups.map((group) =>
             group.label ? (
-              <div key={`g_${group.label}`} className={styles.subGroup} role="group" aria-label={group.label}>
+              <div
+                key={`g_${group.label}`}
+                className={styles.subGroup}
+                role="group"
+                aria-label={group.label}
+              >
                 <span className={styles.subGroupHeading}>{group.label}</span>
                 <div className={styles.subGroupChips}>
                   {group.items.map((s) => (
@@ -826,16 +1076,33 @@ export function PriceTable({
             </select>
           </label>
           <Switch checked={vat} onChange={setGlobalVat} label="با ارزش‌افزوده" />
+          {/* The switch's own label is static text regardless of on/off state
+              — this restates the CURRENT state next to it, the same pattern
+              SkuDetail.tsx already used, so a visitor who toggles, scrolls,
+              and comes back has a text cue, not just the switch's visual
+              state, for a change that swings every price by vatRate (audit
+              finding, 2026-08-26). */}
+          <span className={styles.vatNote}>
+            {vat
+              ? `شامل ${toPersianDigits(vatRate * 100)}٪ مالیات بر ارزش‌افزوده`
+              : 'بدون ارزش‌افزوده'}
+          </span>
           {/* Page-wide export — every factory at once, in the page-wide VAT
               state. A section a visitor has individually overridden is NOT
               re-resolved here: this file is the "everything" export and its
               subtitle line spells out which of the two numbers it carries, so
               a recipient can never be misled. The per-section export below
               follows that section's own toggle. */}
+          {/* `subject`, not `categoryName`: `exportRows` is built from
+              `bySection`, which is already narrowed by the active sub-filter,
+              so on a هاش page this "everything" export contains only هاش rows
+              — and titling the sheet, its header line and its filename
+              «تیرآهن» mislabels a file that outlives the page it came from. */}
           <ExportMenu
             rows={exportRows}
-            title={categoryName}
+            title={subject}
             categorySlug={categorySlug}
+            subCategorySlug={sub}
             vat={vat}
             vatRate={vatRate}
           />
@@ -845,10 +1112,59 @@ export function PriceTable({
             disabled={selectedForCompare.length < 2}
             onClick={() => setCompareOpen(true)}
           >
-            مقایسه {selectedForCompare.length > 0 ? `(${toPersianDigits(selectedForCompare.length)})` : ''}
+            مقایسه{' '}
+            {selectedForCompare.length > 0 ? `(${toPersianDigits(selectedForCompare.length)})` : ''}
           </button>
         </div>
       </div>
+
+      {/* ===== فیلتر مشخصات — سایز/گرید/کارخانه/… ، بسته به ستون‌های همین
+          جدول (owner request 1405/06/02). Multi-select per column (OR درون
+          یک ستون، AND بین ستون‌ها) — دو گرید هم‌زمان قابل انتخاب‌اند.
+
+          یک ردیف کوتاهِ دکمهٔ دراپ‌داون، نه دیوار همیشه-باز چیپ‌ها: قبلاً هر
+          مقدار هر فیلتر (مثلاً ۱۳ سایز + ۲ استاندارد + ۱۸ کارخانه) همیشه روی
+          صفحه بود و در موبایل تقریباً دو صفحه اسکرول فقط فیلتر بود، قبل از
+          اولین ردیف قیمت. حالا فقط دکمه‌های تریگر همیشه دیده می‌شن؛ مقادیر
+          انتخاب‌شده به‌صورت چیپ‌های قابل‌حذف زیر همون ردیف میان — فقط وقتی
+          چیزی انتخاب شده (progressive disclosure). */}
+      {facets.length > 0 ? (
+        <div className={styles.specFilters} role="group" aria-label="فیلتر مشخصات">
+          <div className={styles.specFilterTriggers}>
+            {facets.map((f) => (
+              <SpecFilterDropdown
+                key={f.key}
+                label={f.label}
+                values={f.values}
+                selected={specFilters[f.key] ?? EMPTY_SPEC_SET}
+                onToggle={(v) => toggleSpecFilter(f.key, v)}
+              />
+            ))}
+            {activeSpecFilterCount > 0 ? (
+              <button type="button" className={styles.specFilterClear} onClick={clearSpecFilters}>
+                پاک کردن فیلترها ({toPersianDigits(activeSpecFilterCount)})
+              </button>
+            ) : null}
+          </div>
+          {activeSpecFilterCount > 0 ? (
+            <div className={styles.specFilterActive} role="group" aria-label="فیلترهای فعال">
+              {facets.map((f) =>
+                [...(specFilters[f.key] ?? EMPTY_SPEC_SET)].map((v) => (
+                  <Chip
+                    key={`${f.key}:${v}`}
+                    variant="filter"
+                    selected
+                    onClick={() => toggleSpecFilter(f.key, v)}
+                    onRemove={() => toggleSpecFilter(f.key, v)}
+                  >
+                    {`${f.label}: ${toPersianDigits(v)}`}
+                  </Chip>
+                )),
+              )}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       {/* The compare button just goes disabled with one item checked, which
           audits and support tickets both read as "broken" rather than
@@ -863,7 +1179,13 @@ export function PriceTable({
 
       <div className={styles.meta}>
         <span>
-          {toPersianDigits(subFiltered.length)} کالا
+          {/* «۱۲ از ۴۰ کالا» once a spec filter narrows the set, so the count
+              itself confirms the filter did something — plain «۱۲ کالا» would
+              read identically whether that ۱۲ is the whole sub-category or a
+              narrowed slice of it. */}
+          {activeSpecFilterCount > 0 && filtered.length !== subFiltered.length
+            ? `${toPersianDigits(filtered.length)} از ${toPersianDigits(subFiltered.length)} کالا`
+            : `${toPersianDigits(subFiltered.length)} کالا`}
           {sectionNoun ? ` · ${toPersianDigits(bySection.length)} ${sectionNoun}` : ''}
           {updated ? ` · به‌روزرسانی ${formatJalali(updated)}` : ''}
         </span>
@@ -882,12 +1204,31 @@ export function PriceTable({
       {sectionNoun && bySection.length > 1 && (
         <nav className={styles.quickJump} aria-label={`پرش به ${sectionNoun}`}>
           {bySection.map(([name]) => (
-            <button key={name} type="button" className={styles.quickJumpChip} onClick={() => jumpToSection(name)}>
+            <button
+              key={name}
+              type="button"
+              className={styles.quickJumpChip}
+              onClick={() => jumpToSection(name)}
+            >
               {name}
             </button>
           ))}
         </nav>
       )}
+
+      {/* No section, no table — the spec filter matched nothing (e.g. a
+          checked size AND a checked grade that no single row carries both
+          of). Distinct from an actually-empty category page: this state only
+          exists because the visitor narrowed it, so the way out is offered
+          right here instead of leaving a blank page under the toolbar. */}
+      {filtered.length === 0 && subFiltered.length > 0 ? (
+        <p className={styles.specFilterEmpty} role="status">
+          با این ترکیب فیلتر، کالایی پیدا نشد.{' '}
+          <button type="button" className={styles.specFilterClear} onClick={clearSpecFilters}>
+            پاک کردن فیلترها
+          </button>
+        </p>
+      ) : null}
 
       {/* ===== one section per کارخانه / محل تولید ===== */}
       <div className={styles.factoryList}>
@@ -897,7 +1238,14 @@ export function PriceTable({
           // «قیمت میلگرد کویر کاشان» when the mill is a real distinction,
           // «قیمت پروفیل Z تهران» when the producing city is, and «قیمت پروفیل
           // مبلی» when neither is and this is the page's one table.
-          const sectionTitle = sectionNoun ? `${categoryName} ${name}` : categoryName;
+          //
+          // `subject` — not the bare category name — because on تیرآهن's
+          // هاش/لانه‌زنبوری subs the category word alone advertised plain
+          // تیرآهن above rows that are nothing of the kind. It resolves back
+          // to the category name for every other category and for the mixed
+          // «همه» view, so this line is byte-for-byte what it was everywhere
+          // else.
+          const sectionTitle = sectionNoun ? `${subject} ${name}` : subject;
           return (
             <SectionShell
               key={name}
@@ -912,7 +1260,11 @@ export function PriceTable({
                   {cheapest ? (
                     <>
                       {' '}
-                      · از {formatToman(withVat(cheapest.current.price, factoryVat, vatRate), false)}{' '}
+                      · از{' '}
+                      {formatToman(
+                        withVat(cheapest.current.price, factoryVat, vatRate),
+                        false,
+                      )}{' '}
                       تومان
                     </>
                   ) : null}
@@ -941,10 +1293,18 @@ export function PriceTable({
                       label="با ارزش‌افزوده"
                       ariaLabel={`با ارزش‌افزوده — ${name}`}
                     />
+                    {/* Same state-restating note as the page-wide toggle above
+                        — doubly needed here, since a section's own override
+                        can silently disagree with the page-wide toggle's
+                        state (audit finding, 2026-08-26). */}
+                    <span className={styles.vatNote}>
+                      {factoryVat ? `شامل ${toPersianDigits(vatRate * 100)}٪` : 'بدون ارزش‌افزوده'}
+                    </span>
                     <ExportMenu
                       rows={list}
                       title={sectionTitle}
                       categorySlug={categorySlug}
+                      subCategorySlug={sub}
                       vat={factoryVat}
                       vatRate={vatRate}
                       compact
@@ -955,7 +1315,12 @@ export function PriceTable({
 
                 {/* The one price table. Reflows into a card list at ≤767px —
                     see PriceTableRow for why there is no second markup. */}
-                <div className={styles.tableScroll} role="region" aria-label={`قیمت ${sectionTitle}`} tabIndex={0}>
+                <div
+                  className={styles.tableScroll}
+                  role="region"
+                  aria-label={`قیمت ${sectionTitle}`}
+                  tabIndex={0}
+                >
                   {/* eslint-disable jsx-a11y/no-redundant-roles -- NOT redundant here:
                       at ≤767px this table reflows into cards, and `display: block`
                       /`flex` on a table element drops its implicit table role in
@@ -969,32 +1334,65 @@ export function PriceTable({
                         <th role="columnheader" scope="col">
                           <span className="visually-hidden">مقایسه</span>
                         </th>
-                        <th role="columnheader" scope="col">محصول</th>
-                        <th role="columnheader" scope="col" aria-sort={sort === 'size' ? 'ascending' : 'none'}>
+                        <th role="columnheader" scope="col">
+                          محصول
+                        </th>
+                        <th
+                          role="columnheader"
+                          scope="col"
+                          aria-sort={sort === 'size' ? 'ascending' : 'none'}
+                        >
                           {sizeCol}
                         </th>
-                        {/* ورق only — and deliberately NOT sortable: «۱۰۰۰×۲۰۰۰»
-                            is a pair, not a number, so there is no ordering the
-                            `size`/price/movement comparator could honour. */}
-                        {showDimensions ? <th role="columnheader" scope="col">{DIMENSIONS_LABEL}</th> : null}
+                        {/* The shared secondary-spec column is deliberately
+                            not sortable. ورق stores a width×length pair here;
+                            نبشی stores free-form wall thickness. Neither has
+                            an ordering this table's comparator can honour. */}
+                        {showDimensions ? (
+                          <th role="columnheader" scope="col">
+                            {dimensionsCol}
+                          </th>
+                        ) : null}
                         {attrCols.map((c) => (
                           <th role="columnheader" key={c.key} scope="col">
                             {c.label}
                           </th>
                         ))}
-                        {showFactory ? <th role="columnheader" scope="col">کارخانه</th> : null}
-                        {showRegionColumn ? <th role="columnheader" scope="col">{REGION_LABEL}</th> : null}
+                        {showFactory ? (
+                          <th role="columnheader" scope="col">
+                            {factoryCol}
+                          </th>
+                        ) : null}
+                        {showRegionColumn ? (
+                          <th role="columnheader" scope="col">
+                            {REGION_LABEL}
+                          </th>
+                        ) : null}
                         <th role="columnheader" scope="col" className={styles.num}>
-                          وزن شاخه
+                          {weightCol}
                         </th>
-                        <th role="columnheader" scope="col" className={styles.num} aria-sort={sort === 'price' ? 'ascending' : 'none'}>
+                        <th
+                          role="columnheader"
+                          scope="col"
+                          className={styles.num}
+                          aria-sort={sort === 'price' ? 'ascending' : 'none'}
+                        >
                           قیمت (تومان)
                         </th>
-                        <th role="columnheader" scope="col" className={styles.num} aria-sort={sort === 'movement' ? 'descending' : 'none'}>
+                        <th
+                          role="columnheader"
+                          scope="col"
+                          className={styles.num}
+                          aria-sort={sort === 'movement' ? 'descending' : 'none'}
+                        >
                           نوسان
                         </th>
-                        <th role="columnheader" scope="col">تاریخ</th>
-                        <th role="columnheader" scope="col">تحویل</th>
+                        <th role="columnheader" scope="col">
+                          تاریخ
+                        </th>
+                        <th role="columnheader" scope="col">
+                          تحویل
+                        </th>
                         <th role="columnheader" scope="col" className={styles.actionsCol}>
                           عملیات
                         </th>
@@ -1011,11 +1409,14 @@ export function PriceTable({
                           compareChecked={compareIds.has(r.id)}
                           onToggleCompare={toggleCompare}
                           showDimensions={showDimensions}
+                          dimensionsCol={dimensionsCol}
                           attrCols={attrCols}
                           showFactory={showFactory}
+                          factoryCol={factoryCol}
                           showRegion={showRegionColumn}
                           showRowBasis={priceBasis === null}
                           sizeCol={sizeCol}
+                          weightCol={weightCol}
                           onToggleFav={toggleFav}
                           onChart={setChartFor}
                           onAddToCart={addToCart}
@@ -1025,7 +1426,6 @@ export function PriceTable({
                   </table>
                   {/* eslint-enable jsx-a11y/no-redundant-roles */}
                 </div>
-
               </div>
             </SectionShell>
           );
@@ -1083,7 +1483,16 @@ export function PriceTable({
                 setCompareOpen(false);
               }}
             >
-              افزودن گزینهٔ ارزان‌تر ({cheapestForCompare.name}) به سبد
+              {/* A kg-basis row (rebar — the dominant case) can't be added
+                  with a single click: addToCart() defers to KgQuantityModal
+                  to ask how much. The old label promised "به سبد" (added to
+                  cart) unconditionally, so a kg-basis pick looked like the
+                  button silently failed when a *different*, seemingly
+                  unrelated modal opened instead (audit finding, 2026-08-26).
+                  Say what's actually about to happen. */}
+              {cheapestForCompare.priceBasis === 'kg'
+                ? `انتخاب مقدار برای گزینهٔ ارزان‌تر (${cheapestForCompare.name})`
+                : `افزودن گزینهٔ ارزان‌تر (${cheapestForCompare.name}) به سبد`}
             </button>
           ) : undefined
         }
@@ -1092,38 +1501,34 @@ export function PriceTable({
           <div className={styles.compareScroll}>
             <table className={`${styles.compareTable} tnum`}>
               <caption className="visually-hidden">
-                مقایسهٔ مشخصات و قیمت کالاهای انتخاب‌شده؛ ردیف‌هایی که کالاها در آن‌ها متفاوت‌اند برجسته شده‌اند.
+                مقایسهٔ مشخصات و قیمت کالاهای انتخاب‌شده؛ ردیف‌هایی که کالاها در آن‌ها متفاوت‌اند
+                برجسته شده‌اند.
               </caption>
               <tbody>
                 <tr>
                   <th scope="row">محصول</th>
                   {selectedForCompare.map((r) => (
                     <td key={r.id}>
-                      <Link href={routes.sku(r.categoryId, r.subCategoryId, r.slug)} onClick={() => setCompareOpen(false)}>
+                      <Link
+                        href={routes.sku(r.categoryId, r.subCategoryId, r.slug)}
+                        onClick={() => setCompareOpen(false)}
+                      >
                         {r.name}
                       </Link>
                     </td>
                   ))}
                 </tr>
-                <tr
-                  className={
-                    rowDiffers(selectedForCompare.map((r) => r.size ?? null)) ? styles.rowDiffers : undefined
-                  }
-                >
+                <tr className={diffRowClass(selectedForCompare.map((r) => r.size ?? null))}>
                   <th scope="row">{sizeCol}</th>
                   {selectedForCompare.map((r) => (
                     <td key={r.id}>{r.size ? toPersianDigits(r.size) : 'نامشخص'}</td>
                   ))}
                 </tr>
-                {/* ورق only — the whole point of comparing two plates is often
-                    that they differ here and nowhere else. */}
+                {/* ورق dimensions or the approved نبشی wall thickness,
+                    kept in the comparison wherever it is on the source table. */}
                 {showDimensions ? (
-                  <tr
-                    className={
-                      rowDiffers(selectedForCompare.map((r) => r.dimensions ?? null)) ? styles.rowDiffers : undefined
-                    }
-                  >
-                    <th scope="row">{DIMENSIONS_LABEL}</th>
+                  <tr className={diffRowClass(selectedForCompare.map((r) => r.dimensions ?? null))}>
+                    <th scope="row">{dimensionsCol}</th>
                     {selectedForCompare.map((r) => (
                       <td key={r.id}>{r.dimensions ? toPersianDigits(r.dimensions) : 'نامشخص'}</td>
                     ))}
@@ -1134,22 +1539,14 @@ export function PriceTable({
                     reintroduce, in the one place a buyer studies most closely,
                     exactly the fabricated distinction this page dropped. */}
                 {selectedForCompare.some((r) => r.factory) ? (
-                  <tr
-                    className={
-                      rowDiffers(selectedForCompare.map((r) => r.factory ?? null)) ? styles.rowDiffers : undefined
-                    }
-                  >
-                    <th scope="row">کارخانه</th>
+                  <tr className={diffRowClass(selectedForCompare.map((r) => r.factory ?? null))}>
+                    <th scope="row">{factoryCol}</th>
                     {selectedForCompare.map((r) => (
                       <td key={r.id}>{r.factory ?? 'نامشخص'}</td>
                     ))}
                   </tr>
                 ) : selectedForCompare.some((r) => r.region) ? (
-                  <tr
-                    className={
-                      rowDiffers(selectedForCompare.map((r) => r.region ?? null)) ? styles.rowDiffers : undefined
-                    }
-                  >
+                  <tr className={diffRowClass(selectedForCompare.map((r) => r.region ?? null))}>
                     <th scope="row">{REGION_LABEL}</th>
                     {selectedForCompare.map((r) => (
                       <td key={r.id}>{r.region ?? UNKNOWN_VALUE}</td>
@@ -1157,37 +1554,40 @@ export function PriceTable({
                   </tr>
                 ) : null}
                 <tr
-                  className={
-                    rowDiffers(selectedForCompare.map((r) => r.theoreticalWeightKg ?? null)) ? styles.rowDiffers : undefined
-                  }
+                  className={diffRowClass(
+                    selectedForCompare.map((r) => r.theoreticalWeightKg ?? null),
+                  )}
                 >
-                  <th scope="row">وزن شاخه</th>
+                  <th scope="row">{weightCol}</th>
                   {selectedForCompare.map((r) => (
-                    <td key={r.id}>{r.theoreticalWeightKg ? `${toPersianDigits(r.theoreticalWeightKg)} kg` : 'نامشخص'}</td>
-                  ))}
-                </tr>
-                <tr
-                  className={
-                    rowDiffers(
-                      selectedForCompare.map((r) => priceHiddenLabel(r.current) ?? withVat(r.current.price, vat, vatRate)),
-                    )
-                      ? styles.rowDiffers
-                      : undefined
-                  }
-                >
-                  <th scope="row">قیمت (تومان)</th>
-                  {selectedForCompare.map((r) => (
-                    <td key={r.id} className={styles.price}>
-                      {priceHiddenLabel(r.current) ?? formatToman(withVat(r.current.price, vat, vatRate), false)}
+                    <td key={r.id}>
+                      {r.theoreticalWeightKg
+                        ? `${toPersianDigits(r.theoreticalWeightKg)} kg`
+                        : 'نامشخص'}
                     </td>
                   ))}
                 </tr>
                 <tr
-                  className={
-                    rowDiffers(selectedForCompare.map((r) => `${r.current.movementDir}:${r.current.movementPct ?? ''}`))
-                      ? styles.rowDiffers
-                      : undefined
-                  }
+                  className={diffRowClass(
+                    selectedForCompare.map(
+                      (r) => priceHiddenLabel(r.current) ?? withVat(r.current.price, vat, vatRate),
+                    ),
+                  )}
+                >
+                  <th scope="row">قیمت (تومان)</th>
+                  {selectedForCompare.map((r) => (
+                    <td key={r.id} className={styles.price}>
+                      {priceHiddenLabel(r.current) ??
+                        formatToman(withVat(r.current.price, vat, vatRate), false)}
+                    </td>
+                  ))}
+                </tr>
+                <tr
+                  className={diffRowClass(
+                    selectedForCompare.map(
+                      (r) => `${r.current.movementDir}:${r.current.movementPct ?? ''}`,
+                    ),
+                  )}
                 >
                   <th scope="row">نوسان</th>
                   {selectedForCompare.map((r) => (
@@ -1197,9 +1597,9 @@ export function PriceTable({
                   ))}
                 </tr>
                 <tr
-                  className={
-                    rowDiffers(selectedForCompare.map((r) => r.current.deliveryTime ?? null)) ? styles.rowDiffers : undefined
-                  }
+                  className={diffRowClass(
+                    selectedForCompare.map((r) => r.current.deliveryTime ?? null),
+                  )}
                 >
                   <th scope="row">تحویل</th>
                   {selectedForCompare.map((r) => (

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import type { Article } from '@/lib/types/domain';
 import { routes } from '@/lib/routes';
 import { formatJalali } from '@/lib/utils/jalali';
@@ -27,13 +28,12 @@ export function ArticleCard({ article }: { article: Article }) {
     <li className={styles.item}>
       <article className={styles.card}>
         {article.coverUrl ? (
-          <img
+          <Image
             src={article.coverUrl}
             alt=""
             width={400}
             height={225}
-            loading="lazy"
-            decoding="async"
+            sizes="(max-width: 640px) 100vw, 400px"
             className={styles.cover}
           />
         ) : null}
