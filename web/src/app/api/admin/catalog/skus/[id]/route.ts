@@ -1,15 +1,21 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
-import { updateSku } from '@/lib/server/repos/catalogAdminRepo';
-import { getDb } from '@/lib/server/db/client';
-import { categories, subCategories } from '@/lib/server/db/schema';
-import { catalogErrorResponse, redirectOnSlugChange, revalidateCatalog } from '@/lib/server/utils/catalogRoute';
+import { deleteSku, skuImpact, updateSku } from '@/lib/server/repos/catalogAdminRepo';
+import {
+  catalogErrorResponse,
+  clearRedirectShadow,
+  openOrdersBlock,
+  planDeletedNodeRedirects,
+  redirectOnSlugChange,
+  revalidateCatalog,
+  skuPublicPath,
+  writeCatalogRedirects,
+} from '@/lib/server/utils/catalogRoute';
 import { finiteNumber, nonEmptyPatch, slugSchema, uploadPathSchema } from '@/lib/validation/utils';
-import { normalizePersian, normalizeSizeText } from '@/lib/utils/persianText';
-import { routes } from '@/lib/routes';
+import { normalizeCatalogSize, normalizeCatalogText } from '@/lib/server/utils/persianZwnj';
+import { toPersianDigits } from '@/lib/utils/format';
 import { PRICE_BASIS_VALUES, PRICE_UNIT_VALUES } from '@/lib/types/domain';
 
 const optionalPersianText = (max: number) =>
@@ -19,12 +25,12 @@ const optionalPersianText = (max: number) =>
     .max(max)
     .nullable()
     .optional()
-    .transform((v) => (v ? normalizePersian(v) : v === '' ? null : v));
+    .transform((v) => (v ? normalizeCatalogText(v) : v === '' ? null : v));
 
 const patchPayload = nonEmptyPatch(
   z.object({
     slug: slugSchema(120).optional(),
-    name: z.string().trim().min(1).max(160).transform(normalizePersian).optional(),
+    name: z.string().trim().min(1).max(160).transform(normalizeCatalogText).transform(toPersianDigits).optional(),
     // `.nullable()` throughout: sending `undefined` for a cleared box made zod
     // drop the key and drizzle omit the column, so an admin who deleted a
     // wrong factory name was told «ذخیره شد» while the wrong value stayed.
@@ -35,18 +41,33 @@ const patchPayload = nonEmptyPatch(
       .max(40)
       .nullable()
       .optional()
-      .transform((v) => (v ? normalizeSizeText(v) : v === '' ? null : v)),
+      .transform((v) => (v ? normalizeCatalogSize(v) : v === '' ? null : v)),
     grade: optionalPersianText(40),
-    // ورق only — see the create route. Nullable like the rest, so clearing the
-    // box actually clears the column instead of silently leaving it.
+    // Independent product form/finish; nullable so clearing the picker clears
+    // the column instead of silently retaining a stale condition.
+    condition: optionalPersianText(40),
+    // Shared optional ورق-dimensions / نبشی-thickness text — see the
+    // create route. Nullable so clearing the box actually clears the column.
     dimensions: z
       .string()
       .trim()
       .max(40)
       .nullable()
       .optional()
-      .transform((v) => (v ? normalizeSizeText(v) : v === '' ? null : v)),
+      .transform((v) => (v ? normalizeCatalogSize(v) : v === '' ? null : v)),
+    // «رده» — see the create route. Nullable so clearing the box actually
+    // clears the column instead of silently leaving it.
+    schedule: z
+      .string()
+      .trim()
+      .max(40)
+      .nullable()
+      .optional()
+      .transform((v) => (v ? normalizeCatalogSize(v) : v === '' ? null : v)),
     factory: optionalPersianText(80),
+    // See the create route — never nullable, there is no "clear it" state
+    // distinct from ranking it back to 0.
+    order: z.number().int().nonnegative().max(10_000).optional(),
     theoreticalWeightKg: finiteNumber.positive().max(100_000).nullable().optional(),
     unit: z.enum(PRICE_UNIT_VALUES).optional(),
     // «مبنای قیمت». Absent leaves the column alone — never sent as null: the
@@ -63,21 +84,8 @@ const patchPayload = nonEmptyPatch(
     // rebuild got a worse URL and orphaned its price history. The repo derives
     // `categoryId` from this, so the pair can never disagree.
     subCategoryId: z.string().min(1).optional(),
-    isActive: z.boolean().optional(),
   }),
 );
-
-/** Full public path of a SKU, for the redirect a slug change needs. */
-async function skuPath(categoryId: string, subCategoryId: string, slug: string): Promise<string | null> {
-  const rows = await getDb()
-    .select({ catSlug: categories.slug, subSlug: subCategories.slug })
-    .from(subCategories)
-    .innerJoin(categories, eq(categories.id, categoryId))
-    .where(eq(subCategories.id, subCategoryId))
-    .limit(1);
-  const hit = rows[0];
-  return hit ? routes.sku(hit.catSlug, hit.subSlug, slug) : null;
-}
 
 async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const guard = requireDb();
@@ -103,33 +111,53 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }
   const moved = result.before.subCategoryId !== result.after.subCategoryId;
   if (slugChanged || moved) {
     const [from, to] = await Promise.all([
-      skuPath(result.before.categoryId, result.before.subCategoryId, result.before.slug),
-      skuPath(result.after.categoryId, result.after.subCategoryId, result.after.slug),
+      skuPublicPath(result.before.categoryId, result.before.subCategoryId, result.before.slug),
+      skuPublicPath(result.after.categoryId, result.after.subCategoryId, result.after.slug),
     ]);
+    // Clearing first, not after: the destination may be a path a deleted
+    // product left a tombstone on, and `collapseAround` would otherwise
+    // resolve straight THROUGH it and file this move against the tombstone's
+    // target instead of where the product actually went.
+    await clearRedirectShadow([to]);
     if (from && to) await redirectOnSlugChange(from, to);
   }
   await revalidateCatalog('sku');
   return NextResponse.json({ sku: result.after });
 }
 
-/** DELETE = soft-delete; priced SKUs keep their history forever. */
+/**
+ * DELETE really deletes. The price history goes with the product; the quotes
+ * and orders that referenced it do not (`sku_id` is ON DELETE SET NULL and
+ * every line keeps its own frozen name and price).
+ */
 async function DELETEImpl(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const guard = requireDb();
   if (guard) return guard;
   const auth = await requireApiPermission(req, 'catalog:write');
   if ('response' in auth) return auth.response;
   const { id } = await ctx.params;
-  const result = await updateSku(id, { isActive: false });
-  if (!result) return NextResponse.json({ error: 'not_found', message: 'محصول یافت نشد.' }, { status: 404 });
-  await audit(
-    auth.session.id,
-    'catalog.sku.deactivate',
-    { type: 'sku', id },
-    { name: result.before.name, slug: result.before.slug, isActive: result.before.isActive },
-    { isActive: false },
-  );
+  const impact = await skuImpact(id);
+  const blocked = openOrdersBlock(req, impact);
+  if (blocked) return blocked;
+  // Before the delete: the public path is built from the parent slugs, and
+  // this is the last moment the row exists to read them from.
+  const tombstone = await planDeletedNodeRedirects('sku', id);
+  const removed = await deleteSku(id);
+  if (!removed) return NextResponse.json({ error: 'not_found', message: 'محصول یافت نشد.' }, { status: 404 });
+  // The WHOLE row, not `{ name, slug }`. Nothing else keeps it: the row is
+  // gone, price history went with it by cascade, and there is no trash and no
+  // undo — so `size`, `grade`, `factory`, `theoreticalWeightKg`,
+  // `branchLengthM`, `priceBasis`, `imageUrl`, `crossListedCategoryIds` and
+  // `seo` existed nowhere at all after a mistaken delete, even though
+  // `deleteSku` hands the complete row back for free. Rebuilding from an audit
+  // entry is not a good recovery story; rebuilding from two of eighteen
+  // columns is not a recovery story at all.
+  await audit(auth.session.id, 'catalog.sku.delete', { type: 'sku', id }, removed, null);
+  // A deleted product's URL is usually its most-linked one. Hand it to the
+  // sub-category it lived in rather than answering a bare 404.
+  await writeCatalogRedirects(tombstone);
   // Without this the product kept serving a 200 page at a live price for the
-  // full ISR window after being delisted.
+  // full ISR window after being removed.
   await revalidateCatalog('sku');
   return NextResponse.json({ ok: true });
 }

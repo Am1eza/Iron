@@ -1,0 +1,477 @@
+/* Generative-UI cards inside the advisor thread.
+   Tokens only, logical properties only — these sit in an RTL document and are
+   read on a 375px phone far more often than on a desktop, so every width here
+   is a max, never a fixed size. */
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  inline-size: 100%;
+}
+
+/* One card. Deliberately the same hairline + small radius + sunken-head
+   language as the advisor's existing خلاصهٔ درخواست card, so a thread that
+   mixes them reads as one surface rather than as a widget gallery. */
+.card {
+  inline-size: min(100%, 420px);
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  overflow: hidden;
+}
+/* The comparison card carries several numbers per row; it earns more width
+   where there is any, and still stacks cleanly at 375px. */
+.cardWide {
+  inline-size: min(100%, 560px);
+}
+.cardExpert {
+  border-color: var(--color-accent-tint);
+  background: var(--color-accent-tint);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin-block-end: var(--space-2);
+}
+.badge {
+  display: inline-flex;
+  padding: 2px var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-tint);
+  color: var(--color-action-text);
+  font: var(--t-overline);
+}
+.title {
+  margin: 0;
+  font: var(--t-title-sm);
+  color: var(--color-text-strong);
+  flex: 1 1 100%;
+}
+.subtitle {
+  margin: 0;
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+  flex: 1 1 100%;
+}
+
+.meta {
+  margin: 0 0 var(--space-2);
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}
+.metaSep {
+  color: var(--color-text-placeholder);
+}
+
+/* ===== price ===== */
+.priceRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-block: var(--space-2);
+}
+.priceAsk {
+  font: var(--t-title-sm);
+  color: var(--color-text-muted);
+}
+.badgeRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-block-end: var(--space-2);
+}
+
+/* ===== freshness stamp ===== */
+.freshness {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0;
+  padding-block-start: var(--space-2);
+  border-block-start: var(--border-hairline) solid var(--color-hairline);
+  font: var(--t-micro);
+  color: var(--color-text-muted);
+}
+.freshnessStale {
+  color: var(--color-text);
+}
+.staleTag {
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+}
+
+/* ===== label/value pairs ===== */
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-inline-size: 0;
+}
+.statLabel {
+  font: var(--t-micro);
+  color: var(--color-text-muted);
+}
+.statValue {
+  font: var(--t-data);
+  color: var(--color-text);
+}
+.statValueStrong {
+  font: var(--t-price-cell);
+  color: var(--color-text-strong);
+}
+
+/* ===== options ===== */
+.optionSet {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.optionLegend {
+  padding: 0;
+  margin-block-end: var(--space-2);
+  font: var(--t-body-sm);
+  color: var(--color-text-strong);
+}
+.optionDim {
+  color: var(--color-text-muted);
+}
+.optionChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.optionChip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-pill);
+  border: var(--border-hairline) solid var(--color-accent-tint);
+  background: var(--color-surface);
+  color: var(--color-accent-text);
+  font: var(--t-body-sm);
+  cursor: pointer;
+  transition: background var(--dur-fast), border-color var(--dur-fast);
+}
+.optionChip:hover {
+  background: var(--color-accent-tint);
+  border-color: var(--color-accent);
+}
+.optionHint {
+  font: var(--t-micro);
+  color: var(--color-text-muted);
+}
+.optionMore {
+  margin: var(--space-2) 0 0;
+  font: var(--t-micro);
+  color: var(--color-text-muted);
+}
+
+/* ===== sparkline ===== */
+.spark {
+  margin: var(--space-3) 0 0;
+  block-size: 48px;
+}
+.sparkSvg {
+  inline-size: 100%;
+  block-size: 100%;
+  /* Time runs oldest→newest left to right even in an RTL document — the same
+     convention PriceChart and the admin Sparkline already document. */
+  direction: ltr;
+}
+.sparkUp {
+  color: var(--color-gain);
+}
+.sparkDown {
+  color: var(--color-loss);
+}
+.sparkFlat {
+  color: var(--color-text-muted);
+}
+
+.trendChange {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 0;
+  font: var(--t-movement);
+}
+.trendUp {
+  color: var(--color-gain-text);
+}
+.trendDown {
+  color: var(--color-loss-text);
+}
+.trendFlat {
+  color: var(--color-text-muted);
+}
+.trendChangeNote {
+  font: var(--t-micro);
+  color: var(--color-text-muted);
+}
+
+/* ===== compare ===== */
+.compareList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.compareItem {
+  padding: var(--space-3);
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+/* The winner is tinted AND badged — never colour alone (accessibility.md). */
+.compareBest {
+  border-color: var(--color-accent);
+  background: var(--color-accent-tint);
+}
+.compareHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.compareFactory {
+  font: var(--t-label);
+  color: var(--color-text-strong);
+}
+.compareFactoryLink {
+  color: inherit;
+}
+.compareTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+.tagBest,
+.tagLanded {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-pill);
+  font: var(--t-micro);
+}
+.tagBest {
+  background: var(--color-gain);
+  color: var(--color-text-inverse);
+}
+.tagLanded {
+  background: var(--color-surface-sunken);
+  color: var(--color-text-strong);
+  border: var(--border-hairline) solid var(--color-border-strong);
+}
+.compareNums {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: var(--space-2) var(--space-4);
+  margin-block-start: var(--space-2);
+}
+.compareFoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-block-start: var(--space-2);
+}
+.compareNote {
+  font: var(--t-micro);
+  color: var(--color-text-muted);
+}
+.compareNoteBlock {
+  margin: var(--space-2) 0 0;
+  font: var(--t-micro);
+  color: var(--color-text-muted);
+}
+.compareSaving {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-sunken);
+  font: var(--t-body-sm);
+  color: var(--color-text);
+}
+
+/* ===== expert ===== */
+.expertReason {
+  margin: 0 0 var(--space-3);
+  font: var(--t-body-sm);
+  color: var(--color-text);
+}
+
+/* ===== actions =====
+   Stacked at phone width on purpose: the advisor's own confirmation card had
+   to learn this the hard way — two side-by-side buttons inside a card capped
+   at 420px, inside a bubble capped at 86%, gave «ورود به حساب کاربری» about
+   118px and broke the funnel's primary control across three lines. */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-block-start: var(--space-3);
+}
+.actionPrimary,
+.actionGhost,
+.actionLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-block-size: 40px;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-sm);
+  font: var(--t-button);
+  cursor: pointer;
+  text-decoration: none;
+  border: var(--border-hairline) solid transparent;
+  flex: 1 1 auto;
+}
+.actionPrimary {
+  background: var(--color-action);
+  color: var(--color-on-action);
+  border-color: var(--color-action);
+}
+.actionPrimary:hover {
+  background: var(--color-action-hover);
+  text-decoration: none;
+}
+.actionGhost {
+  background: var(--color-surface);
+  color: var(--color-accent-text);
+  border-color: var(--color-hairline);
+}
+.actionGhost:hover {
+  border-color: var(--color-accent);
+  text-decoration: none;
+}
+.actionLink {
+  background: transparent;
+  color: var(--color-accent-text);
+  font: var(--t-body-sm);
+  flex: 0 1 auto;
+  padding-inline: var(--space-2);
+}
+
+@media (min-width: 480px) {
+  .actionPrimary,
+  .actionGhost {
+    flex: 0 1 auto;
+  }
+}
+
+/* ===== forecast =====
+   The headline is a WORD, not a number: nothing on this card may be
+   screenshotted and read as a quote for a future date. See
+   server/ai/forecast.ts for why the whole feature is shaped this way. */
+.fcHeadline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin-block: var(--space-2);
+}
+.fcArrow {
+  font: var(--t-movement);
+}
+.fcDir {
+  font: var(--t-h4);
+}
+.fcConfidence {
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+  font: var(--t-micro);
+}
+.fcUp {
+  color: var(--color-gain-text);
+}
+.fcDown {
+  color: var(--color-loss-text);
+}
+.fcFlat {
+  color: var(--color-text-muted);
+}
+.fcBand {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: var(--space-3) 0 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-sunken);
+}
+.fcBandValue {
+  font: var(--t-price-cell);
+  color: var(--color-text-strong);
+}
+.fcReason {
+  margin: var(--space-3) 0 0;
+  font: var(--t-body-sm);
+  color: var(--color-text);
+}
+.fcDrivers {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.fcDrivers li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-block: var(--space-1);
+  border-block-end: var(--border-hairline) solid var(--color-hairline);
+  font: var(--t-caption);
+  color: var(--color-text);
+}
+.fcDrivers li:last-child {
+  border-block-end: 0;
+}
+.fcDriverLabel {
+  color: var(--color-text-muted);
+}
+.fcDriverNums {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+.fcDriverCorr {
+  color: var(--color-text-muted);
+  font: var(--t-micro);
+}
+.fcCaveat {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  border: var(--border-hairline) solid var(--color-hairline);
+  background: var(--color-surface-sunken);
+  font: var(--t-micro);
+  color: var(--color-text-muted);
+}

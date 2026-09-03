@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, type ReactNode } from 'react';
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion';
 import { ChevronStartIcon, ChevronEndIcon } from '@/components/primitives/icons';
 import styles from './Marquee.module.css';
@@ -39,15 +39,17 @@ export function Marquee({
   const period = useRef(0);
   const n = Math.max(1, items.length);
 
-  // Exact width of ONE copy including the gap that follows it.
-  const measure = () => {
+  // Exact width of ONE copy including the gap that follows it. useCallback
+  // (not a plain function) so the effect below can list it as a real
+  // dependency instead of silently closing over whichever render defined it.
+  const measure = useCallback(() => {
     const track = trackRef.current;
     if (!track || track.children.length <= n) return;
     const first = track.children[0] as HTMLElement;
     const nextCopy = track.children[n] as HTMLElement;
     const p = nextCopy.offsetLeft - first.offsetLeft;
     if (p > 0) period.current = p;
-  };
+  }, [n]);
 
   useEffect(() => {
     if (reduced) return;
@@ -110,7 +112,7 @@ export function Marquee({
       stop();
       window.removeEventListener('resize', onResize);
     };
-  }, [reduced, speed, n]);
+  }, [reduced, speed, n, measure]);
 
   // dir: +1 = «بعدی» (advance / right), -1 = «قبلی» (back / left)
   const nudge = (dir: 1 | -1) => {

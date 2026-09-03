@@ -32,10 +32,19 @@ export function FactoryLink({
   categorySlug,
   factory,
   className,
+  /** Perf audit: PriceTable renders one of these per row (up to ~186 on the
+   *  largest sub-category today) — the same repeated handful of mill names,
+   *  each independently triggering Next.js's viewport-prefetch. Every other
+   *  call site (nav flyout, /prices hub, search, bulk-quote, a SKU's own spec
+   *  list) renders this once or a handful of times, where prefetching is
+   *  still worth it, so this is an explicit per-call opt-out rather than a
+   *  new default that would silently change those too. */
+  prefetch = true,
 }: {
   categorySlug: string;
   factory?: string | null;
   className?: string;
+  prefetch?: boolean;
 }) {
   const name = factory?.trim();
   if (!name || name === UNKNOWN_FACTORY) return <>{UNKNOWN_FACTORY}</>;
@@ -43,6 +52,7 @@ export function FactoryLink({
     <Link
       href={routes.categoryByFactory(categorySlug, factoryFacetSlug(name))}
       className={className ?? styles.link}
+      prefetch={prefetch}
     >
       {name}
     </Link>

@@ -173,7 +173,7 @@ function formatNum(value: number, maxFrac = 2): string {
  *  server then grants in full on the document. The live caller passes the
  *  admin lead-detail response's `customer.bizVerified`, which that endpoint
  *  sets only for `biz_verify_status = 'approved'` — the same column and the
- *  same comparison `leadHasVerifiedBusiness` makes server-side. */
+ *  same comparison `userHasVerifiedBusiness` makes server-side. */
 export function proformaTotals(
   items: ReadonlyArray<{ unitPrice?: number | null; lineTotal?: number | null; weightKg?: number | null }>,
   discountToman: number,

@@ -26,6 +26,12 @@ async function loadRequests() {
 async function loadProfile() {
   return (await import('./profile')).useProfileStore;
 }
+async function loadCart() {
+  return (await import('./cart')).useCartStore;
+}
+async function loadUi() {
+  return (await import('./ui')).useUiStore;
+}
 
 const V0_REQUEST = {
   id: 'rq-1',
@@ -93,5 +99,49 @@ describe('profile store — an existing v0 payload survives the version bump', (
     expect(store.getState().warehouseCity).toBeNull();
     await store.persist.rehydrate();
     expect(store.getState().warehouseCity).toBe('اصفهان');
+  });
+});
+
+/**
+ * cart store — v1 (`items` only) → v2 (adds `lastUpdatedAt`, for
+ * CartReminder). A visitor's already-committed request items must survive
+ * the bump, same reasoning as the requests/profile stores above.
+ */
+describe('cart store — an existing v1 payload survives the version bump', () => {
+  const V1_ITEM = { skuId: 'sku-1', name: 'میلگرد ۱۴ ذوب‌آهن', qty: 100, unit: 'kg', unitPrice: 42_000 };
+
+  it('keeps the saved cart items', async () => {
+    localStorage.setItem('ahantime-cart', JSON.stringify({ state: { items: [V1_ITEM] }, version: 1 }));
+    const store = await loadCart();
+    await store.persist.rehydrate();
+    expect(store.getState().items).toEqual([V1_ITEM]);
+  });
+
+  it('backfills lastUpdatedAt for a non-empty migrated cart, rather than leaving it null (which would hide it from CartReminder forever)', async () => {
+    localStorage.setItem('ahantime-cart', JSON.stringify({ state: { items: [V1_ITEM] }, version: 1 }));
+    const store = await loadCart();
+    await store.persist.rehydrate();
+    expect(store.getState().lastUpdatedAt).not.toBeNull();
+  });
+
+  it('leaves lastUpdatedAt null for an empty migrated cart — nothing to remind anyone about', async () => {
+    localStorage.setItem('ahantime-cart', JSON.stringify({ state: { items: [] }, version: 1 }));
+    const store = await loadCart();
+    await store.persist.rehydrate();
+    expect(store.getState().lastUpdatedAt).toBeNull();
+  });
+});
+
+/** ui store — v2 (dismissedClubPopupAt) → v3 (adds dismissedCartReminderAt). */
+describe('ui store — an existing v2 payload survives the version bump', () => {
+  it('keeps the existing club-popup dismissal and defaults the new field to null', async () => {
+    localStorage.setItem(
+      'ahantime-ui',
+      JSON.stringify({ state: { theme: 'light', dismissedClubPopupAt: 1700000000000 }, version: 2 }),
+    );
+    const store = await loadUi();
+    await store.persist.rehydrate();
+    expect(store.getState().dismissedClubPopupAt).toBe(1700000000000);
+    expect(store.getState().dismissedCartReminderAt).toBeNull();
   });
 });

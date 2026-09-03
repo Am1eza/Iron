@@ -15,7 +15,9 @@ let close: () => Promise<void>;
 
 beforeAll(async () => {
   ({ db, close } = await createTestDb());
-  await db.insert(schema.categories).values([{ id: 'cat-rebar', slug: 'rebar', name: 'میلگرد', order: 0 }]);
+  await db
+    .insert(schema.categories)
+    .values([{ id: 'cat-rebar', slug: 'rebar', name: 'میلگرد', order: 0 }]);
   await db.insert(schema.subCategories).values([
     // Ribbed rebar (میلگرد آجدار) is the common, high-traffic sub-category —
     // lower `order`, same admin-set popularity/display signal the taxonomy
@@ -43,6 +45,28 @@ beforeAll(async () => {
       name: 'میلگرد استیل سایز 14',
       size: '14',
     },
+    // Mobile-audit finding (1405/06/06): names matching the exact production
+    // shapes that reproduced a BARE (no size) query ranking the niche variant
+    // first — «میلگرد استیل ۸ هند» measured 0.37 similarity against «میلگرد»,
+    // «میلگرد آجدار ۸ ابهر» measured 0.35. A NEAR-tie, not an exact one — two
+    // different buckets at 2-decimal rounding, so the order tie-break above
+    // never ran.
+    {
+      id: 'sku-ajdar-8',
+      categoryId: 'cat-rebar',
+      subCategoryId: 'sub-ajdar',
+      slug: 'ajdar-8',
+      name: 'میلگرد آجدار ۸ ابهر',
+      size: '8',
+    },
+    {
+      id: 'sku-steel-8',
+      categoryId: 'cat-rebar',
+      subCategoryId: 'sub-steel',
+      slug: 'steel-8',
+      name: 'میلگرد استیل ۸ هند',
+      size: '8',
+    },
   ]);
 }, 120_000);
 
@@ -57,5 +81,13 @@ describe('searchSkus', () => {
     expect(slugs).toContain('ajdar-14');
     expect(slugs).toContain('steel-14');
     expect(slugs.indexOf('ajdar-14')).toBeLessThan(slugs.indexOf('steel-14'));
+  });
+
+  it('breaks a NEAR text-similarity tie toward the common sub-category too, on a bare (no size) query', async () => {
+    const rows = await searchSkus('میلگرد');
+    const slugs = rows.map((r) => r.slug);
+    expect(slugs).toContain('ajdar-8');
+    expect(slugs).toContain('steel-8');
+    expect(slugs.indexOf('ajdar-8')).toBeLessThan(slugs.indexOf('steel-8'));
   });
 });

@@ -55,7 +55,12 @@ describe('compareFactories tool', () => {
     const group = pickBestGroup(rows);
     const scoped = group ? rows.filter((r) => r.subCategoryId === group.subCategoryId) : rows;
     const byFactory = new Map<string, number[]>();
-    for (const r of scoped) if (r.factory) byFactory.get(r.factory)?.push(r.current.price) ?? byFactory.set(r.factory, [r.current.price]);
+    for (const r of scoped) {
+      if (!r.factory) continue;
+      const list = byFactory.get(r.factory);
+      if (list) list.push(r.current.price);
+      else byFactory.set(r.factory, [r.current.price]);
+    }
     const expectedCheapest = [...byFactory.entries()]
       .map(([f, prices]) => [f, prices.reduce((s, p) => s + p, 0) / prices.length] as const)
       .sort((a, b) => a[1] - b[1])[0]![0];

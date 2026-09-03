@@ -7,14 +7,14 @@ import { requirePermission } from '@/lib/auth/guards';
 import { routes } from '@/lib/routes';
 
 /** /admin/seo — self-computed content SEO health with actionable fix lists,
- *  plus visibility/control over every redirect on the site (US-14.3). This
- *  is deliberately NOT a replacement for Google Search Console or Matomo:
- *  those answer "how is Google/a visitor actually treating the site" from
- *  outside, days-delayed and requiring separate accounts most content
- *  editors don't hold. This page answers a narrower, faster question this
- *  team's own editor is equipped to act on today — "does THIS article
- *  follow basic on-page conventions, and where does the site currently send
- *  visitors on purpose." */
+ *  real organic-search traffic pulled from Matomo (which landing pages are
+ *  actually winning, not just which pass an on-page checklist), catalog
+ *  visibility (active SKUs stranded under an inactive sub-category), and
+ *  visibility/control over every redirect on the site (US-14.3). Search
+ *  Console keyword/impression data is a separate, deeper layer this page
+ *  links out to once connected (`SearchConsoleConnection`) — Google is still
+ *  the only source for "what did people search before clicking," so this
+ *  page complements it rather than replacing it. */
 export default async function AdminSeoPage() {
   await requirePermission('content:write', routes.admin.seo());
   return (
@@ -22,8 +22,8 @@ export default async function AdminSeoPage() {
       <div>
         <Heading level={1}>سئو</Heading>
         <Text color="muted">
-          سلامت سئوی محتوا، محاسبه‌شده روی دادهٔ خود سایت — هر مورد قرمز، یک کار مشخص برای سردبیر است. برای رتبه و
-          بازدید واقعی در گوگل، به Search Console و Matomo مراجعه کنید؛ این صفحه مکمل آن‌هاست، نه جایگزینشان.
+          سلامت سئوی محتوا و کاتالوگ، محاسبه‌شده روی دادهٔ خود سایت، به‌علاوهٔ بازدید واقعی از جست‌وجو (Matomo) — هر
+          مورد قرمز، یک کار مشخص است. برای کلمات کلیدی و رتبه در گوگل، Search Console را در پایین همین صفحه وصل کنید.
         </Text>
       </div>
       <SeoDashboard />

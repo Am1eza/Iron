@@ -8,7 +8,13 @@ import {
   withVat,
 } from '@/lib/utils/format';
 import { formatJalali } from '@/lib/utils/jalali';
-import { sizeLabel, usesDimensions, DIMENSIONS_LABEL, REGION_LABEL } from '@/lib/utils/catalogLabels';
+import {
+  sizeLabel,
+  weightLabel,
+  usesDimensions,
+  dimensionsLabel,
+  REGION_LABEL,
+} from '@/lib/utils/catalogLabels';
 import { CONSTANTS } from '@/lib/config/constants';
 import type { PriceRow } from '@/lib/types/domain';
 import { SheetIcon, PrintIcon, ImageIcon } from '@/components/primitives/icons';
@@ -26,16 +32,22 @@ const esc = (s: string) =>
  * clean branded sheet), and Image-with-logo (PNG via canvas). All client-side,
  * no dependency. The branded header carries «آهن‌تایم» + the date.
  */
-export const cols = (categorySlug?: string, regionColumn = false) => [
+export const cols = (
+  categorySlug?: string,
+  subCategorySlug: string | null = null,
+  regionColumn = false,
+) => [
   'محصول',
   // ورق is measured by thickness, not size — same rule the on-screen table
   // follows (see catalogLabels), so an exported file matches what the buyer
   // was looking at when they clicked «اکسل».
-  sizeLabel(categorySlug),
-  // …and for ورق the thickness alone doesn't identify a plate, so «ابعاد»
-  // rides along. Every other category has no such column on screen and gets
-  // none in the file either.
-  ...(usesDimensions(categorySlug) ? [DIMENSIONS_LABEL] : []),
+  sizeLabel(categorySlug, subCategorySlug),
+  // The same shared secondary-spec column as the screen: «ابعاد» for ورق,
+  // «ضخامت» for the source-verified section subs, and absent on mixed or
+  // unrelated product lines.
+  ...(usesDimensions(categorySlug, subCategorySlug)
+    ? [dimensionsLabel(categorySlug, subCategorySlug)]
+    : []),
   // Same column, different question, on the پروفیل sub-categories whose mill
   // names are withheld: they publish a producing city instead (see
   // catalogLabels.regionFromFactory), and a file headed «کارخانه» with
@@ -43,7 +55,7 @@ export const cols = (categorySlug?: string, regionColumn = false) => [
   // groups by. A SUBSTITUTION, never an extra column — the image export lays
   // its columns out on a fixed pixel grid.
   regionColumn ? REGION_LABEL : 'کارخانه',
-  'وزن شاخه (kg)',
+  `${weightLabel(categorySlug)} (kg)`,
   'قیمت (تومان)',
   'نوسان',
   'زمان تحویل',
@@ -83,6 +95,7 @@ export function ExportMenu({
   rows,
   title,
   categorySlug,
+  subCategorySlug = null,
   vat = false,
   vatRate = CONSTANTS.VAT_RATE,
   compact = false,
@@ -92,6 +105,9 @@ export function ExportMenu({
   title: string;
   /** Category the exported table belongs to — labels the size column only. */
   categorySlug?: string;
+  /** Active sub-category, needed because only source-verified section subs
+   *  expose the shared column as «ضخامت». Null means the mixed view. */
+  subCategorySlug?: string | null;
   /** Whether the buyer is currently viewing VAT-inclusive prices. The export
    *  follows the screen; see `rowCells`. */
   vat?: boolean;
@@ -106,9 +122,9 @@ export function ExportMenu({
 }) {
   const toast = useToast();
   const today = formatJalali(new Date());
-  const showDimensions = usesDimensions(categorySlug);
+  const showDimensions = usesDimensions(categorySlug, subCategorySlug);
   const regionColumn = !rows.some((r) => r.factory) && rows.some((r) => r.region);
-  const COLS = cols(categorySlug, regionColumn);
+  const COLS = cols(categorySlug, subCategorySlug, regionColumn);
   const cells = (r: PriceRow) => rowCells(r, showDimensions, vat, vatRate);
   // Spelled out on the sheet itself so a downloaded file is unambiguous about
   // which of the two numbers it carries once it leaves the browser.

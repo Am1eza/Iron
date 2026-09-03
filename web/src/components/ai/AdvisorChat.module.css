@@ -1,27 +1,172 @@
+/* The shell FILLS the surface it is given (app/ai/page.module.css) rather than
+   sizing itself. It used to be `min(78svh, 760px)` — a viewport-relative
+   height on an element positioned in document flow 381px down the page, which
+   is why it read as a tall box wedged under a hero instead of a screen. */
 .wrap {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  /* One column until there is room for a rail beside a full reading column;
+     the rail becomes a drawer below that (see .railDrawer). 1024px is where
+     every current chat product collapses it, and where this shell would
+     otherwise squeeze the 768px thread. */
+  grid-template-columns: 1fr;
   inline-size: 100%;
-  max-inline-size: 760px;
+  /* Wide enough for the history rail plus a 768px reading column (the width
+     every current chat product converges on — 65–72 characters per line). */
+  max-inline-size: 1120px;
   margin-inline: auto;
-  /* No own block margin: the panel now sits inside the /ai page's Stack (page
-     header above, capability strip + FAQ below), which owns the rhythm. */
   margin-block: 0;
-  block-size: min(78vh, 760px);
-  block-size: min(78svh, 760px);
+  block-size: 100%;
+  min-block-size: 0;
   background: var(--color-surface);
   border: var(--border-hairline) solid var(--color-hairline);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
   overflow: hidden;
+  /* Containing block for the rail drawer + its scrim. */
+  position: relative;
 }
 
+/* ===== Mobile immersive mode =====
+   Once the visitor is actually in the conversation on a phone, the site chrome
+   is in the way: the ticker, the header, the breadcrumb and the bottom tab bar
+   together take ~200px of an 844px screen away from a messaging surface. In
+   this mode the shell leaves the document flow and owns the viewport, the way
+   any real messaging app does, and the chrome is hidden by the matching rules
+   in globals.css.
+
+   `dvh` here, deliberately, where the resting shell uses `svh`: this element is
+   pinned to the visual viewport, so it SHOULD shrink when the keyboard opens —
+   which, with `interactiveWidget: 'resizes-content'` on the viewport meta,
+   keeps the composer sitting on top of the keyboard instead of behind it. */
+@media (max-width: 767px) {
+  /* `.wrap.wrapImmersive`, not `.wrapImmersive`: both are single class
+     selectors, so which one wins the `block-size` declaration would otherwise
+     depend on the order the CSS modules happen to be emitted in — and losing
+     that race leaves the shell sized to its old in-flow parent while being
+     positioned against the viewport, i.e. a chat that stops two-thirds of the
+     way down the screen. Doubling the class settles it. */
+  .wrap.wrapImmersive {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-dropdown);
+    max-inline-size: none;
+    /* `inset: 0` on a fixed element already stretches it to the viewport, so
+       there is no height to declare — and declaring one is worse than
+       redundant: `100dvh` measured 688px against an 844px viewport here,
+       leaving the composer floating above the page behind it. Letting the
+       insets do the work also means the box tracks the visual viewport when
+       the keyboard opens (with `interactiveWidget: resizes-content` on the
+       viewport meta), which is the whole point of the mode. */
+    block-size: auto;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    padding-block-end: env(safe-area-inset-bottom);
+  }
+}
+
+/* The chat column itself — the former contents of .wrap. */
+.column {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+  min-block-size: 0;
+}
+
+@media (min-width: 1024px) {
+  .wrap {
+    grid-template-columns: 260px minmax(0, 1fr);
+  }
+}
+
+/* ===== Conversation rail as a mobile/tablet drawer ===== */
+.railDrawer {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  inline-size: min(84vw, 300px);
+  z-index: var(--z-dropdown);
+  box-shadow: var(--shadow-lg);
+  transform: translateX(var(--rail-hidden-x, 105%));
+  transition: transform var(--dur-base) var(--ease-standard);
+}
+[dir='rtl'] .railDrawer {
+  --rail-hidden-x: 105%;
+}
+[dir='ltr'] .railDrawer {
+  --rail-hidden-x: -105%;
+}
+.railDrawerOpen {
+  transform: translateX(0);
+}
+.railScrim {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-dropdown);
+  background: var(--color-overlay);
+  border: 0;
+  cursor: pointer;
+}
+@media (prefers-reduced-motion: reduce) {
+  .railDrawer {
+    transition: none;
+  }
+}
+.railToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  inline-size: 40px;
+  block-size: 40px;
+  margin-inline-start: calc(var(--space-2) * -1);
+  border: 0;
+  border-radius: var(--radius-circle);
+  background: transparent;
+  color: var(--color-text-strong);
+  cursor: pointer;
+}
+.railToggle:hover {
+  background: var(--color-surface-sunken);
+}
+/* The brand avatar and the rail trigger occupy the same slot below 1024px;
+   the trigger is the useful one there, so the avatar only returns once the
+   rail is a permanent column and no trigger is rendered. */
+@media (max-width: 1023px) {
+  .head > .avatar {
+    display: none;
+  }
+}
+
+/* From 1024px the rail stops being a drawer and becomes the grid's first
+   column: back into flow, no transform, no shadow, no trigger. */
+@media (min-width: 1024px) {
+  .railDrawer {
+    position: static;
+    inline-size: auto;
+    transform: none;
+    box-shadow: none;
+  }
+  .railScrim,
+  .railToggle,
+  /* The rail has its own «گفتگوی جدید» — two of them, a hand apart, is one
+     control too many. Below 1024px the rail is behind a drawer, so the app
+     bar keeps its copy. */
+  .newChat {
+    display: none;
+  }
+}
+
+
 /* ===== Header ===== */
+/* A slim app bar, not a card header: it now sits where a page header would,
+   so it carries the breadcrumb and the h1 that used to be a 270px hero. */
 .head {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-4) var(--space-5);
+  flex: none;
+  padding: var(--space-3) var(--space-4);
   border-block-end: var(--border-hairline) solid var(--color-hairline);
   background: linear-gradient(180deg, var(--color-accent-tint), transparent);
 }
@@ -29,17 +174,48 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  inline-size: 40px;
-  block-size: 40px;
+  inline-size: 34px;
+  block-size: 34px;
   border-radius: var(--radius-circle);
   background: linear-gradient(140deg, var(--emerald-400), var(--emerald-700));
   color: var(--color-on-action);
   box-shadow: 0 4px 12px -2px rgba(15, 138, 99, 0.5);
 }
+/* The page's real <h1>, at app-bar size. It stays an h1 because this page
+   still has to rank for «مشاور هوشمند آهن»; it stops being a 40px hero
+   because a chat product's header is a bar, not a billboard. */
+/* The page's real <h1>, at app-bar size. It stays an h1, and keeps the page's
+   own ranking phrase, because this page is acquired through organic search;
+   it stops being a 40px hero because a chat product's header is a bar, not a
+   billboard. Clamped to one line so a long heading cannot grow the bar and
+   eat the thread — the text is intact in the DOM either way. */
 .headName {
-  font: var(--t-h4);
+  font: var(--t-title-sm);
   margin: 0;
   color: var(--color-text-strong);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.headText {
+  min-inline-size: 0;
+  flex: 1 1 auto;
+}
+.crumbs {
+  font: var(--t-micro);
+  color: var(--color-text-muted);
+  margin: 0 0 1px;
+}
+.crumbs a {
+  color: inherit;
+}
+.crumbs a:hover {
+  color: var(--color-accent-text);
+}
+@media (max-width: 480px) {
+  .crumbs {
+    display: none;
+  }
 }
 /* ===== Thread ===== */
 .scroll {
@@ -47,11 +223,24 @@
   overflow-y: auto;
   background: var(--color-surface-sunken);
 }
+/* The reading column. Capped and centred inside a scroll area that is now as
+   wide as the shell — the same move every current chat product makes, and what
+   gives the generative-UI cards room to breathe without stretching the prose
+   to an unreadable line length. */
 .thread {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-  padding: var(--space-5);
+  gap: var(--space-5);
+  padding: var(--space-6) var(--space-5);
+  inline-size: 100%;
+  max-inline-size: 768px;
+  margin-inline: auto;
+}
+@media (max-width: 767px) {
+  .thread {
+    gap: var(--space-4);
+    padding: var(--space-4);
+  }
 }
 .row {
   display: flex;
@@ -69,8 +258,19 @@
 @media (prefers-reduced-motion: reduce) {
   .rowIn { animation: none; }
 }
+/* An ASSISTANT turn is not a speech bubble any more.
+   Two reasons, and they point the same way. The current convention for
+   tool-backed assistants is a flat, full-width block with subtle background
+   differentiation rather than a chat bubble — a bubble frames the output as
+   chatter when it is a price quote. And practically: the 86% cap plus the
+   avatar column is what squeezed the comparison card in the first place, so
+   lifting it is what gives the generative-UI blocks their room. The USER's
+   own messages stay bubbles, which is what keeps the thread readable as a
+   conversation. */
 .rowAi {
-  align-self: flex-start;
+  align-self: stretch;
+  max-inline-size: 100%;
+  inline-size: 100%;
 }
 .rowUser {
   align-self: flex-end;
@@ -109,10 +309,10 @@
   margin-block-start: var(--space-1);
 }
 .ai {
-  background: var(--color-surface);
-  border: var(--border-hairline) solid var(--color-hairline);
+  background: transparent;
+  border: 0;
+  padding-inline: 0;
   color: var(--color-text-strong);
-  border-end-start-radius: var(--radius-xs);
 }
 .user {
   background: var(--color-action);
@@ -162,6 +362,7 @@
 
 /* ===== Quick replies ===== */
 .chips {
+  margin-block-start: var(--space-1);
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
@@ -386,25 +587,47 @@ button.estCta:disabled {
 .splitSuggest strong { color: var(--color-gain-text); font-weight: 700; }
 
 /* ===== Composer ===== */
+/* Docked, never floating over the thread, and centred on the same reading
+   column the messages use. `align-items: flex-end` so the send/mic buttons
+   stay pinned to the bottom of a composer that has grown to several lines. */
 .composer {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: var(--space-2);
+  flex: none;
   padding: var(--space-3) var(--space-4);
   border-block-start: var(--border-hairline) solid var(--color-hairline);
   background: var(--color-surface);
+  inline-size: 100%;
+  max-inline-size: 768px;
+  margin-inline: auto;
 }
+/* A textarea, not an input. A cut list or a tender line runs well past one
+   line, and a single-line field turns it into a horizontally-scrolling slot
+   the visitor cannot re-read before sending. It grows with the content and
+   then scrolls internally at the cap (~6 lines) rather than eating the thread.
+
+   Sized by JS rather than by `field-sizing: content`, deliberately: the CSS
+   property also sizes the box to the PLACEHOLDER, and this placeholder wraps
+   to two lines at 390px — so an empty composer sat two lines tall on exactly
+   the screens with the least room. The effect in AdvisorChat measures real
+   content and pins the empty state to `min-block-size`. */
 .input {
   flex: 1 1 auto;
   min-inline-size: 0;
-  block-size: 48px;
+  min-block-size: 48px;
+  max-block-size: 168px;
+  padding-block: 13px;
   padding-inline: var(--space-4);
   border: var(--border-hairline) solid var(--color-field-border);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-lg);
   background: var(--color-surface);
   font: var(--t-input);
+  font-family: inherit;
   color: var(--color-text-strong);
   outline: none;
+  resize: none;
+  overflow-y: auto;
 }
 .input:focus {
   border-color: var(--color-accent);
@@ -637,4 +860,76 @@ button.estCta:disabled {
 }
 .newChat:hover {
   background: var(--color-accent-tint);
+}
+
+/* ===== human escape hatch =====
+   Permanent, and deliberately quiet: a way out of the conversation, not a
+   competing call to action. It sits with the disclaimer rather than with the
+   composer so it never reads as "the advisor has given up" — it is simply
+   always there for the visitor who wants a person. */
+.human {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  padding: var(--space-2) var(--space-4) 0;
+  font: var(--t-micro);
+  color: var(--color-text-muted);
+}
+.humanLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-accent-text);
+  text-decoration: none;
+}
+.humanLink:hover {
+  text-decoration: underline;
+}
+
+/* ===== app-bar back button (immersive mode only) ===== */
+.exitImmersive {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  inline-size: 40px;
+  block-size: 40px;
+  margin-inline-start: calc(var(--space-2) * -1);
+  border: 0;
+  border-radius: var(--radius-circle);
+  background: transparent;
+  color: var(--color-text-strong);
+  cursor: pointer;
+}
+.exitImmersive:hover {
+  background: var(--color-surface-sunken);
+}
+
+/* ===== empty state =====
+   Before the first turn the thread has one message in it. In a shell that is
+   now a full screen tall, left-aligning that at the top reads as an accident;
+   centring it reads as a welcome. Purely presentational — the greeting and
+   the four starter chips are the same nodes, in the same order. */
+.threadEmpty {
+  /* The scroll area is a block container, so the thread has to be told to be
+     as tall as it before `justify-content` has anything to centre within. */
+  min-block-size: 100%;
+  justify-content: center;
+}
+.threadEmpty .rowAi {
+  align-items: center;
+  text-align: center;
+}
+.threadEmpty .bubbleAvatar {
+  display: none;
+}
+.threadEmpty .bubble {
+  font: var(--t-body-lg);
+  color: var(--color-text-strong);
+}
+.threadEmpty .chips {
+  justify-content: center;
+  margin-block-start: var(--space-4);
 }

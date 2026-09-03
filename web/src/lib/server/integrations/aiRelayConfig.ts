@@ -1,21 +1,31 @@
 /**
  * Which AI relay to talk to, and how hard to let it think.
  *
- * ── The provider changed ──────────────────────────────────────────────────
- * DeepSeek is gone: the relay was permanently at HTTP 402 (credit exhausted)
- * and the OWNER moved the site to Parspack's AI Studio proxy. That overrides
- * the "AI = DeepSeek" line in CLAUDE.md's locked-decisions table, which has
- * been updated to match. Everything else about the decision is unchanged:
- * server-side only, through an out-of-Iran relay, grounded — the model talks,
- * TOOLS decide every number.
+ * ── The provider changed (again) ──────────────────────────────────────────
+ * Parspack AI Studio → Surplus Intelligence (`gpt-5.6-luna`), 1405/06 — the
+ * owner's decision. Before that this was DeepSeek → Parspack, when the
+ * DeepSeek relay hit a permanent HTTP 402. Both moves update the "AI" line in
+ * CLAUDE.md's locked-decisions table to match. Everything else about the
+ * decision is unchanged: server-side only, through an out-of-Iran relay,
+ * grounded — the model talks, TOOLS decide every number.
+ *
+ * Verified against the live Surplus endpoint before this landed: plain chat,
+ * tool-calling (`finish_reason: 'tool_calls'`, arguments parse correctly),
+ * and streaming — all byte-for-byte the OpenAI chat-completions shape this
+ * client already parses. `reasoning_effort: 'low'` is accepted without error
+ * and the measured response carried `reasoning_tokens: 0`, so the capped
+ * default below costs nothing here even if this model turns out not to be a
+ * reasoning model at all.
  *
  * ── Why the names are read twice ──────────────────────────────────────────
  * The variables are `AI_BASE_URL` / `AI_API_KEY` / `AI_MODEL`, because naming
- * them after one vendor is exactly what made this migration touch forty
- * places. But the live `.env` still uses `DEEPSEEK_*`, so every lookup falls
- * back to the old name: the running container keeps working the moment this
- * lands, and the owner can migrate `.env` afterwards on their own schedule.
- * The fallbacks are cheap and can be deleted once `.env` is migrated.
+ * them after one vendor is exactly what made the FIRST migration touch forty
+ * places — a mistake deliberately not repeated for Surplus: there is no
+ * `SURPLUS_*` name anywhere in this file, only new values for the same three
+ * provider-neutral keys. The legacy `DEEPSEEK_*` fallback stays for now
+ * because the live `.env` still sets it (redundantly, alongside `AI_*`) from
+ * the Parspack migration — cheap to keep, safe to delete once `.env` is
+ * cleaned up.
  */
 
 /** First non-empty value among the given env keys. Empty string counts as
@@ -35,7 +45,7 @@ export function aiApiKey(env: NodeJS.ProcessEnv = process.env): string | undefin
   return pick(env, 'AI_API_KEY', 'DEEPSEEK_API_KEY');
 }
 /** The owner asked for exactly this model and no other. */
-export const DEFAULT_AI_MODEL = 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning';
+export const DEFAULT_AI_MODEL = 'gpt-5.6-luna';
 export function aiModel(env: NodeJS.ProcessEnv = process.env): string {
   return pick(env, 'AI_MODEL', 'DEEPSEEK_MODEL') ?? DEFAULT_AI_MODEL;
 }

@@ -38,7 +38,7 @@ export function ClubPanel({
         <h3 className={styles.joinTitle}>به باشگاه مشتریان آهن‌تایم بپیوندید</h3>
         <p className={styles.joinLead}>
           عضویت رایگان است. با هر سفارش، تکمیل پروفایل و احراز هویت، امتیاز می‌گیرید و سطح‌تان بالا
-          می‌رود؛ از تخفیف پلکانی تا مشاور اختصاصی.
+          می‌رود؛ از اولویت در تأمین تا مشاور اختصاصی.
         </p>
         <JoinClubButton />
         <ul className={styles.ladderPreview}>

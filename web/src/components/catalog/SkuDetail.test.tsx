@@ -21,9 +21,9 @@ function row(categoryId: string, overrides: Partial<PriceRow> = {}): PriceRow {
     name: 'کالای آزمایشی',
     size: '۲',
     factory: 'فولاد مبارکه',
+    order: 0,
     unit: 'kg',
     priceBasis: 'kg',
-    isActive: true,
     current: {
       skuId: 'sku-1',
       price: 500_000,
@@ -63,10 +63,11 @@ describe('SkuDetail — the size attribute is labelled per category', () => {
   });
 });
 
-describe('SkuDetail — «ابعاد» (ورق width×length)', () => {
-  it('shows the row once a ورق product has dimensions recorded', () => {
+describe('SkuDetail — «سایز» (ورق سیاه width/width×length)', () => {
+  it('shows the row under the source label once a ورق سیاه product has it recorded', () => {
     renderDetail('sheet', { dimensions: '۱۰۰۰×۲۰۰۰' });
-    expect(screen.getByRole('rowheader', { name: 'ابعاد' })).toBeInTheDocument();
+    expect(screen.getByRole('rowheader', { name: 'سایز' })).toBeInTheDocument();
+    expect(screen.queryByRole('rowheader', { name: 'ابعاد' })).not.toBeInTheDocument();
     expect(screen.getAllByText('۱۰۰۰×۲۰۰۰').length).toBeGreaterThan(0);
   });
 
@@ -76,11 +77,107 @@ describe('SkuDetail — «ابعاد» (ورق width×length)', () => {
     // spec table showing «ابعاد: نامشخص» on every plate reads as a broken page
     // rather than as an unanswered question.
     renderDetail('sheet');
-    expect(screen.queryByRole('rowheader', { name: 'ابعاد' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('rowheader', { name: 'سایز' })).not.toBeInTheDocument();
   });
 
   it('never shows it for a category that has no dimensions to record', () => {
-    renderDetail('rebar');
+    renderDetail('rebar', { dimensions: '۹۹' });
     expect(screen.queryByRole('rowheader', { name: 'ابعاد' })).not.toBeInTheDocument();
+    expect(screen.queryByText('۹۹')).not.toBeInTheDocument();
+  });
+});
+
+describe('SkuDetail — audited ورق/استیل taxonomy', () => {
+  it("shows ورق رنگی's legacy grade as «رنگ» and its producer as «برند»", () => {
+    renderDetail('sheet', { subCategoryId: 'colored', grade: 'آبی' });
+    expect(screen.getByRole('rowheader', { name: 'رنگ' })).toBeInTheDocument();
+    expect(screen.getByRole('rowheader', { name: 'برند' })).toBeInTheDocument();
+    expect(screen.getAllByText('آبی').length).toBeGreaterThan(0);
+    expect(screen.queryByRole('rowheader', { name: 'حالت' })).not.toBeInTheDocument();
+  });
+
+  it("labels پروفیل استیل's outside section «ابعاد» beside wall «ضخامت»", () => {
+    renderDetail('steel', {
+      subCategoryId: 'profile',
+      size: '۲۰×۴۰',
+      dimensions: '۲',
+      grade: '۳۰۴',
+      condition: '۶ متری',
+    });
+    expect(screen.getByRole('rowheader', { name: 'ابعاد' })).toBeInTheDocument();
+    expect(screen.getByRole('rowheader', { name: 'ضخامت' })).toBeInTheDocument();
+  });
+});
+
+describe('SkuDetail — نبشی wall thickness', () => {
+  it.each(['nabshi', 'angle-unequal', 'spot'])(
+    'labels dimensions as ضخامت for %s',
+    (subCategoryId) => {
+      renderDetail('angle-channel', { subCategoryId, dimensions: '۴' });
+      expect(screen.getByRole('rowheader', { name: 'ضخامت' })).toBeInTheDocument();
+      expect(screen.queryByRole('rowheader', { name: 'ابعاد' })).not.toBeInTheDocument();
+    },
+  );
+
+  it('does not expose the shared value on unrelated angle-channel sub tbar', () => {
+    renderDetail('angle-channel', { subCategoryId: 'tbar', dimensions: '۴' });
+    expect(screen.queryByRole('rowheader', { name: 'ضخامت' })).not.toBeInTheDocument();
+    expect(screen.queryByText('۴')).not.toBeInTheDocument();
+  });
+
+  it('reads وال‌پست’s «ضخامت» from grade and its «بال» from dimensions', () => {
+    // 1405/06/08: وال‌پست's «گرید» was relabelled «ضخامت» to match
+    // ahanonline — a coincidentally identical row label to the shared نبشی
+    // wall-thickness row above, but reading `grade`, not `dimensions`.
+    // 1405/06/09: `dimensions` gained its own meaning on this sub — «بال», the
+    // flange width ahanonline leads that table with — so the two facts must
+    // land on two differently-named rows and can never swap.
+    renderDetail('angle-channel', {
+      subCategoryId: 'val-post',
+      grade: 'ضخامت ۲',
+      dimensions: '۷',
+    });
+    const thickness = screen.getByRole('rowheader', { name: 'ضخامت' }).closest('tr')!;
+    const flange = screen.getByRole('rowheader', { name: 'بال' }).closest('tr')!;
+    expect(thickness).toHaveTextContent('۲');
+    expect(flange).toHaveTextContent('۷');
+    // and the header word is not repeated inside its own cell
+    expect(thickness).not.toHaveTextContent('ضخامت ۲');
+  });
+});
+
+describe('SkuDetail — live profile source fields', () => {
+  it.each([
+    ['prvfyl-snaty', 'حالت'],
+    ['profil-mobli', 'حالت'],
+    ['profil-galvanizeh', 'طول'],
+  ])('shows thickness and the source length label for %s', (subCategoryId, lengthLabel) => {
+    renderDetail('profile', {
+      subCategoryId,
+      size: '۶۰×۶۰',
+      dimensions: '۲',
+      branchLengthM: 6,
+    });
+    expect(screen.getByRole('rowheader', { name: 'ضخامت' })).toBeInTheDocument();
+    expect(screen.getByRole('rowheader', { name: lengthLabel })).toBeInTheDocument();
+    expect(screen.queryByRole('rowheader', { name: 'گرید' })).not.toBeInTheDocument();
+    // The generic spec row reads the same branch_length_m. Once the source-
+    // named attribute owns it, it must not print a second «طول شاخه» row.
+    expect(screen.queryByRole('rowheader', { name: 'طول شاخه' })).not.toBeInTheDocument();
+  });
+});
+
+describe('SkuDetail — hero image alt text (SEO audit: was identical across every SKU in a category)', () => {
+  it('marks the shared category stock photo as a sample, not this exact product', () => {
+    // No `imageUrl` override → falls back to the category stock photo. Its alt
+    // text must say «نمونه» (sample) rather than claim to literally be
+    // «کالای آزمایشی», which the shared stock photo demonstrably is not.
+    renderDetail('rebar');
+    expect(screen.getByRole('img', { name: 'تصویر نمونه کالای آزمایشی' })).toBeInTheDocument();
+  });
+
+  it('drops «نمونه» once the admin has uploaded the SKU own real photo', () => {
+    renderDetail('rebar', { imageUrl: '/uploads/sku-1.webp' });
+    expect(screen.getByRole('img', { name: 'تصویر کالای آزمایشی' })).toBeInTheDocument();
   });
 });

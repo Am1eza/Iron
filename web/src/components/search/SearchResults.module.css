@@ -86,6 +86,38 @@
   text-decoration: underline;
 }
 
+/* Relevance/price/factory sort — same pill-tab-group treatment PriceChart's
+   range tabs already use, so it reads as "the app's sort/filter control"
+   rather than a one-off. Sits between the count and the (optional) «more»
+   link in `.groupHead`'s flex row. */
+.sort {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-sunken);
+  border: var(--border-hairline) solid var(--color-hairline);
+  margin-inline-start: var(--space-2);
+}
+.sortTab {
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: var(--t-label);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  text-decoration: none;
+}
+.sortTab:hover {
+  color: var(--color-text-strong);
+  text-decoration: none;
+}
+.sortTab[data-active] {
+  background: var(--color-surface);
+  color: var(--color-text-strong);
+  box-shadow: var(--shadow-sm);
+}
+
 .truncNote {
   font: var(--t-caption);
   color: var(--color-text-muted);
@@ -120,6 +152,16 @@
 .productRow:hover {
   background: var(--color-surface-sunken);
   text-decoration: none;
+}
+/* No visible focus indicator existed here at all before this — a keyboard
+   user tabbing through results had no way to tell which row they were on
+   (design/UX audit's "minimal affordance" complaint doubles as a real a11y
+   gap). `outline-offset: -2px` keeps the ring inside the row's own box
+   instead of overlapping the hairline divider shared with its neighbour. */
+.productRow:focus-visible {
+  outline: var(--border-focus) solid var(--color-focus);
+  outline-offset: -2px;
+  background: var(--color-surface-sunken);
 }
 .productMain {
   display: flex;
@@ -163,11 +205,30 @@
   font: var(--t-micro);
   color: var(--color-text-muted);
 }
+/* A bare chevron was the row's ONLY affordance that it goes anywhere — the
+   pill background on hover/focus is what makes it read as a clickable
+   target rather than a stray glyph (design/UX audit). */
+.chevWrap {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 28px;
+  block-size: 28px;
+  border-radius: var(--radius-circle);
+  background: transparent;
+  transition: background var(--dur-fast) var(--ease-standard);
+}
+.productRow:hover .chevWrap,
+.productRow:focus-visible .chevWrap {
+  background: var(--color-accent-tint);
+}
 .chev {
   flex: none;
   color: var(--color-text-placeholder);
 }
-.productRow:hover .chev {
+.productRow:hover .chev,
+.productRow:focus-visible .chev {
   color: var(--color-accent-text);
 }
 

@@ -23,12 +23,17 @@ export function Alert({
   title,
   children,
   dismissible = false,
+  /** Called right before the (internal, ephemeral) close — for a caller that
+   *  needs the dismissal to survive a reload/navigation (e.g. CartReminder's
+   *  24h suppression), not just this mount's local state. */
+  onDismiss,
   className,
 }: {
   tone?: Tone;
   title?: string;
   children?: ReactNode;
   dismissible?: boolean;
+  onDismiss?: () => void;
   className?: string;
 }) {
   const [open, setOpen] = useState(true);
@@ -52,7 +57,10 @@ export function Alert({
           type="button"
           className={styles.close}
           aria-label="بستن"
-          onClick={() => setOpen(false)}
+          onClick={() => {
+            onDismiss?.();
+            setOpen(false);
+          }}
         >
           <CloseIcon size={16} />
         </button>

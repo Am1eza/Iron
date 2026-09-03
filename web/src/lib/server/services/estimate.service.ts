@@ -26,7 +26,7 @@ export async function estimateItems(items: Array<{ skuId: string; qty: number; u
     // W24: same `isActive` gate as leads.service.priceItems — an estimate
     // must never quote a delisted product, least of all via the AI tools
     // that call this.
-    .where(and(inArray(skus.id, ids), eq(skus.isActive, true)));
+    .where(and(inArray(skus.id, ids)));
   const byId = new Map(rows.map((r) => [r.sku.id, r] as const));
   for (const r of rows) byId.set(r.sku.slug, r);
 
@@ -352,15 +352,30 @@ export async function estimateProject(
   };
 }
 
+/**
+ * The admin's saved freight schedule + the current VAT rate, read once.
+ *
+ * Exported because `landedCost` is not the only caller any more: the AI
+ * advisor's factory-comparison card computes a landed cost PER MILL (a
+ * cheapest-delivered badge that frequently disagrees with cheapest-ex-works),
+ * which needs the config itself rather than one finished total. Both go
+ * through here so an admin's edit reaches the card and the panel at once —
+ * the exact drift `lib/data/logistics.ts`'s own header describes.
+ */
+export async function logisticsContext(): Promise<{ cfg: LogisticsConfig; vatRate: number }> {
+  const [cfg, vatRate] = await Promise.all([
+    getSetting<LogisticsConfig>('LOGISTICS', DEFAULT_LOGISTICS_CONFIG),
+    getVatRate(),
+  ]);
+  return { cfg, vatRate };
+}
+
 /** Shared with `BulkQuote`/`SkuDetail` (client, config passed as a prop from
  *  the server page) — see lib/data/logistics.ts for the freight model and
  *  why it used to be a second, separately-hardcoded copy of this exact
  *  formula that an admin's saved settings never actually reached. */
 export async function landedCost(tons: number, city: string, goodsToman: number) {
-  const [cfg, vatRate] = await Promise.all([
-    getSetting<LogisticsConfig>('LOGISTICS', DEFAULT_LOGISTICS_CONFIG),
-    getVatRate(),
-  ]);
+  const { cfg, vatRate } = await logisticsContext();
   const km = cfg.cities.find((c) => c.name === city.trim())?.km ?? 150;
   const estimate = estimateLogistics(tons, km, goodsToman, vatRate, cfg);
   return { ...estimate, km, origin: cfg.originLabel };

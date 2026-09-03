@@ -15,9 +15,11 @@ type UiState = {
   theme: Theme;
   reducedMotionOverride: boolean | null; // null = follow system
   dismissedClubPopupAt: number | null; // 7-day suppression (empty-states H1)
+  dismissedCartReminderAt: number | null; // 24h suppression — see CartReminder.tsx
   setTheme: (t: Theme) => void;
   setReducedMotionOverride: (v: boolean | null) => void;
   dismissClubPopup: () => void;
+  dismissCartReminder: () => void;
 
   // ephemeral UI
   drawerOpen: boolean;
@@ -51,9 +53,11 @@ export const useUiStore = create<UiState>()(
       theme: initialTheme(),
       reducedMotionOverride: null,
       dismissedClubPopupAt: null,
+      dismissedCartReminderAt: null,
       setTheme: (theme) => set({ theme }),
       setReducedMotionOverride: (reducedMotionOverride) => set({ reducedMotionOverride }),
       dismissClubPopup: () => set({ dismissedClubPopupAt: Date.now() }),
+      dismissCartReminder: () => set({ dismissedCartReminderAt: Date.now() }),
 
       drawerOpen: false,
       activeModal: null,
@@ -75,10 +79,13 @@ export const useUiStore = create<UiState>()(
       // `prefers-color-scheme`, so dark-OS users had theme:'dark' persisted
       // without ever choosing it. The site is light-only for visitors now
       // (see public/theme-init.js), so migrate that stale guess away.
-      version: 2,
+      // v3: added dismissedCartReminderAt (CartReminder.tsx) — defaults to
+      // null for every existing visitor, same as a first-time one; nothing
+      // to carry forward since the field didn't exist yet.
+      version: 3,
       migrate: (persisted) => {
         const s = (persisted ?? {}) as Partial<UiState>;
-        return { ...s, theme: 'light' as Theme };
+        return { ...s, theme: 'light' as Theme, dismissedCartReminderAt: s.dismissedCartReminderAt ?? null };
       },
       storage: createJSONStorage(() => safeLocalStorage),
       skipHydration: true,
@@ -87,6 +94,7 @@ export const useUiStore = create<UiState>()(
         theme: s.theme,
         reducedMotionOverride: s.reducedMotionOverride,
         dismissedClubPopupAt: s.dismissedClubPopupAt,
+        dismissedCartReminderAt: s.dismissedCartReminderAt,
       }),
     },
   ),

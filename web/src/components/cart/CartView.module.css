@@ -119,7 +119,8 @@
   padding: var(--space-2) var(--space-4);
   min-block-size: 40px;
   cursor: pointer;
-  transition: background var(--dur-fast) var(--ease-standard),
+  transition:
+    background var(--dur-fast) var(--ease-standard),
     color var(--dur-fast) var(--ease-standard),
     border-color var(--dur-fast) var(--ease-standard);
 }
@@ -231,6 +232,48 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+}
+
+/* ===== Mobile: pin the primary CTA above the fixed bottom tab bar =====
+   Mobile audit finding (1405/06/06), corrected after a first attempt that
+   didn't work: on a short cart (one item, 390x844 viewport), `.primaryCta`
+   ("ورود و ادامه ثبت درخواست") is plain in-flow content, so its on-screen
+   position is whatever the cumulative height of everything above it happens
+   to be — here, that put its bottom ~19-30px into BottomTabBar's territory.
+   A first fix tried reserving `padding-block-end` on `.layout` (the same
+   pattern Footer.module.css uses for itself); that does nothing for THIS
+   case, because padding added after an element can't move that element,
+   already visible on the very first unscrolled paint, out of the way.
+   Confirmed live with `elementFromPoint`: a tap there hit BottomTabBar's own
+   raised AI-chat orb — its real `<a>` hit-box starts ~11px above the bar's
+   own visible top (it's a deliberately raised, larger-than-the-bar center
+   tab), overlapping whatever in-flow content happens to render behind it,
+   regardless of scroll position. Nothing about ordinary document flow can
+   reliably dodge a FIXED element's real footprint.
+   Real fix: stop being ordinary flow content. Every major mobile checkout
+   pins its primary action as its own fixed bar above any tab bar for
+   exactly this reason — the action must never depend on where the rest of
+   the page's content happens to end. `position: fixed` here removes
+   `.primaryCta` from flow entirely (the note above and the "no online
+   payment" alert below it simply close the gap), so it always renders at
+   the same safe, tab-bar-clear position no matter how short or tall the
+   cart is. `--z-sticky` keeps it below BottomTabBar's own `--z-bottom-nav`
+   on the off chance of overlap, though the `inset-block-end` offset below
+   is sized to avoid touching it at all. */
+@media (max-width: 767px) {
+  .primaryCta {
+    position: fixed;
+    inset-inline: var(--space-4);
+    inset-block-end: calc(var(--bottom-bar-h) + var(--space-3));
+    z-index: var(--z-sticky);
+    box-shadow: 0 -4px 16px rgba(16, 22, 30, 0.14);
+  }
+  /* The fixed bar covers whatever used to be beneath it — reserve its own
+     height (button + the offset above) so the alert/note before it in flow
+     is never hidden behind it. */
+  .summaryCard {
+    padding-block-end: calc(48px + var(--bottom-bar-h) + var(--space-3) + var(--space-3));
+  }
 }
 
 /* ===== Desktop: two columns, sticky summary ===== */

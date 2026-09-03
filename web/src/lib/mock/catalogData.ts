@@ -133,10 +133,10 @@ function rowsFor(categorySlug: string): PriceRow[] {
         size,
         grade,
         factory,
+        order: 0,
         theoreticalWeightKg: weight,
         unit: 'kg',
         priceBasis: 'kg',
-        isActive: true,
         current: {
           skuId: slug,
           price,

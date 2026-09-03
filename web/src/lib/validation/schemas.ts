@@ -39,7 +39,7 @@ const numberSchema = z.preprocess(
     const n = Number(normalizeDigits(String(v ?? '')).trim());
     return Number.isFinite(n) ? n : undefined;
   },
-  z.number({ required_error: M.positive, invalid_type_error: M.positive }).positive({ message: M.positive }),
+  z.number({ error: M.positive }).positive({ message: M.positive }),
 );
 
 /* ---- form schemas ---- */

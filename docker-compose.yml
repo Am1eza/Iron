@@ -118,11 +118,12 @@ services:
       GSC_TOKEN_BASE_URL: ${GSC_TOKEN_BASE_URL:-}
       GSC_API_BASE_URL: ${GSC_API_BASE_URL:-}
       # Fully optional integrations (dev fallbacks / last-known values apply when blank).
-      # TGJU_BASE_URL defaults to the self-hosted `tgju` service below —
-      # override only to point at a different relay. OUNCE_API_URL has its
-      # own free/keyless default baked into tgju.ts; only set it to switch
-      # providers.
-      TGJU_BASE_URL: ${TGJU_BASE_URL:-http://tgju:8000}
+      # BRSAPI_KEY gates the domestic usd/eur/gold18 feed (api.brsapi.ir,
+      # free tier) — unset skips that source, ticker serves last-known
+      # values for those three only. OUNCE_API_URL has its own free/keyless
+      # default baked into marketRates.ts; only set it to switch providers.
+      BRSAPI_KEY: ${BRSAPI_KEY:-}
+      BRSAPI_URL: ${BRSAPI_URL:-}
       OUNCE_API_URL: ${OUNCE_API_URL:-}
       AI_ENABLED: ${AI_ENABLED:-false}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
@@ -262,39 +263,6 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
-
-  # Self-hosted currency/gold scraper for the نبض بازار ticker — tgju.org has
-  # no official public API (sanctions-era Iran has none), so this small
-  # community FastAPI project (github.com/BlackIQ/tgju-api) fronts it for
-  # us. Pinned to a known commit inside services/tgju/Dockerfile — see that
-  # file's header for why it clones+builds their source itself instead of
-  # pointing `build:` at their repo directly (their published Dockerfile is
-  # broken as of the pinned commit). `web` degrades gracefully (last-known
-  # values, isStale=true) if this is ever down — see tgju.ts — so it does
-  # NOT gate web's healthcheck/startup.
-  tgju:
-    build:
-      context: ./services/tgju
-    restart: unless-stopped
-    security_opt:
-      - no-new-privileges:true
-    mem_limit: 256m
-    pids_limit: 128
-    expose:
-      - "8000"          # internal only — not published to the host
-    healthcheck:
-      # Hits /openapi.json (always served, instant, no upstream call) rather
-      # than /api/price/* — those live-scrape tgju.org on EVERY request, no
-      # caching (see scrap/tgju.py), so polling one as a healthcheck would
-      # hammer tgju.org every 30s on top of our own market-poll usage, purely
-      # to answer "is the process up", which /openapi.json answers just as
-      # well without the extra load or the occasional multi-second scrape
-      # latency tripping a tight timeout.
-      test: ["CMD", "python3", "-c", "import urllib.request as u,sys; sys.exit(0 if u.urlopen('http://localhost:8000/openapi.json',timeout=5).status==200 else 1)"]
-      interval: 30s
-      timeout: 8s
-      retries: 5
-      start_period: 15s
 
   matomo-db:
     image: mariadb:11

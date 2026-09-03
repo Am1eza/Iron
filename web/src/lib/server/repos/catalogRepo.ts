@@ -55,7 +55,10 @@ function toPriceRow(
     standard: r.sku.standard ?? undefined,
     size: r.sku.size ?? undefined,
     grade: r.sku.grade ?? undefined,
+    condition: r.sku.condition ?? undefined,
     dimensions: r.sku.dimensions ?? undefined,
+    schedule: r.sku.schedule ?? undefined,
+    order: r.sku.order,
     // Suppressed — not deleted — for the پروفیل sub-categories whose stored
     // mill names are fabricated (see `factoryIsMeaningful`). Doing it HERE,
     // at the one DTO boundary every public surface reads through, is what
@@ -76,7 +79,6 @@ function toPriceRow(
     priceBasis: r.sku.priceBasis,
     branchLengthM: r.sku.branchLengthM ?? undefined,
     imageUrl: r.sku.imageUrl ?? undefined,
-    isActive: r.sku.isActive,
     current: {
       skuId: r.sku.id,
       // Hidden-stale prices are not exposed (UI shows «تماس بگیرید»).
@@ -99,12 +101,20 @@ function toPriceRow(
 
 /* ------------------------------- reads ------------------------------- */
 
+/**
+ * `order` alone is not a sort — see the same note in `catalogAdminRepo`. Every
+ * node created through the panel defaults to 99, so ties are the norm, and
+ * Postgres orders tied rows however the plan happens to produce them. These
+ * rows build the nav, the mega-menu and the home cascade, all of which are
+ * rendered into ISR output: two regenerations could publish two different
+ * orders with nothing in the database having changed. The primary key breaks
+ * the tie deterministically (and, being a ULID, by creation order).
+ */
 export async function listCategories(): Promise<Category[]> {
   const rows = await getDb()
     .select()
     .from(categories)
-    .where(eq(categories.isActive, true))
-    .orderBy(asc(categories.order));
+    .orderBy(asc(categories.order), asc(categories.id));
   return rows.map((c) => ({
     id: c.id,
     slug: c.slug,
@@ -112,7 +122,6 @@ export async function listCategories(): Promise<Category[]> {
     order: c.order,
     iconId: c.iconId,
     imageUrl: c.imageUrl ?? undefined,
-    isActive: c.isActive,
     // `|| undefined`, not `?? undefined`: a description saved as an empty
     // string is "not set", and letting '' through would render an empty
     // paragraph in the mega-menu and an empty `description` in the JSON-LD.
@@ -123,7 +132,7 @@ export async function listCategories(): Promise<Category[]> {
 export async function findCategoryBySlug(slug: string): Promise<Category | null> {
   const rows = await getDb().select().from(categories).where(eq(categories.slug, slug)).limit(1);
   const c = rows[0];
-  if (!c || !c.isActive) return null;
+  if (!c) return null;
   return {
     id: c.id,
     slug: c.slug,
@@ -131,7 +140,6 @@ export async function findCategoryBySlug(slug: string): Promise<Category | null>
     order: c.order,
     iconId: c.iconId,
     imageUrl: c.imageUrl ?? undefined,
-    isActive: c.isActive,
     description: c.seo?.description || undefined,
   };
 }
@@ -163,10 +171,10 @@ async function crossListedSubsByCategory(): Promise<
       sub.group_label AS "groupLabel",
       sub."order" AS "subOrder"
     FROM ${skus} s
-    JOIN ${subCategories} sub ON sub.id = s.sub_category_id AND sub.is_active = true
+    JOIN ${subCategories} sub ON sub.id = s.sub_category_id
     CROSS JOIN LATERAL jsonb_array_elements_text(s.cross_listed_category_ids) AS cl(cat_id)
-    JOIN ${categories} target_cat ON target_cat.id = cl.cat_id AND target_cat.is_active = true
-    WHERE s.is_active = true AND s.cross_listed_category_ids IS NOT NULL
+    JOIN ${categories} target_cat ON target_cat.id = cl.cat_id
+    WHERE s.cross_listed_category_ids IS NOT NULL
     ORDER BY target_cat.slug, sub.slug, sub."order"
   `);
   const out: Record<string, Array<{ slug: string; name: string; groupLabel: string | null }>> = {};
@@ -195,8 +203,7 @@ export async function listAllSubCategories(): Promise<
       })
       .from(subCategories)
       .innerJoin(categories, eq(subCategories.categoryId, categories.id))
-      .where(and(eq(categories.isActive, true), eq(subCategories.isActive, true)))
-      .orderBy(asc(subCategories.order)),
+      .orderBy(asc(subCategories.order), asc(subCategories.id)),
     crossListedSubsByCategory(),
   ]);
   const out: Record<string, Array<{ slug: string; name: string; groupLabel: string | null }>> = {};
@@ -215,8 +222,8 @@ export async function listSubCategories(categorySlug: string): Promise<SubCatego
     .select({ sub: subCategories })
     .from(subCategories)
     .innerJoin(categories, eq(subCategories.categoryId, categories.id))
-    .where(and(eq(categories.slug, categorySlug), eq(subCategories.isActive, true)))
-    .orderBy(asc(subCategories.order));
+    .where(and(eq(categories.slug, categorySlug)))
+    .orderBy(asc(subCategories.order), asc(subCategories.id));
   return rows.map(({ sub }) => ({
     id: sub.id,
     categoryId: sub.categoryId,
@@ -224,7 +231,6 @@ export async function listSubCategories(categorySlug: string): Promise<SubCatego
     name: sub.name,
     groupLabel: sub.groupLabel,
     order: sub.order,
-    isActive: sub.isActive,
   }));
 }
 
@@ -251,9 +257,6 @@ export async function gradesByCategory(): Promise<Record<string, string[]>> {
     .innerJoin(subCategories, eq(skus.subCategoryId, subCategories.id))
     .where(
       and(
-        eq(skus.isActive, true),
-        eq(categories.isActive, true),
-        eq(subCategories.isActive, true),
         sql`${skus.grade} is not null and ${skus.grade} <> ''`,
       ),
     );
@@ -305,9 +308,6 @@ export async function tableRows(
       eq(categories.slug, categorySlug),
       targetCat ? sql`${skus.crossListedCategoryIds} @> ${JSON.stringify([targetCat.id])}::jsonb` : sql`false`,
     )!,
-    eq(categories.isActive, true),
-    eq(skus.isActive, true),
-    eq(subCategories.isActive, true),
   ];
   if (subSlug) conds.push(eq(subCategories.slug, subSlug));
   const rows = await db
@@ -317,7 +317,7 @@ export async function tableRows(
     .innerJoin(subCategories, eq(skus.subCategoryId, subCategories.id))
     .leftJoin(currentPrices, eq(currentPrices.skuId, skus.id))
     .where(and(...conds))
-    .orderBy(asc(subCategories.order), asc(skus.name));
+    .orderBy(asc(subCategories.order), asc(subCategories.id), asc(skus.name));
   const s = await getPriceFreshness();
   return rows.map((r) => toPriceRow(r, s, !opts?.forAdmin));
 }
@@ -362,14 +362,12 @@ export async function headlineRowPerCategory(): Promise<PriceRow[]> {
     )
     .where(
       and(
-        eq(categories.isActive, true),
-        eq(subCategories.isActive, true),
-        eq(skus.isActive, true),
       ),
     );
   const s = await getPriceFreshness();
   return rows
     .sort((a, b) => a.catOrder - b.catOrder)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- destructured only to drop it from `r`
     .map(({ catOrder: _catOrder, ...r }) => toPriceRow(r, s));
 }
 
@@ -414,9 +412,6 @@ export async function headlineRowPerCategory(): Promise<PriceRow[]> {
  */
 export async function listActiveSkuIdsWithoutPrice(categorySlug?: string): Promise<string[]> {
   const conds = [
-    eq(skus.isActive, true),
-    eq(categories.isActive, true),
-    eq(subCategories.isActive, true),
     isNull(currentPrices.skuId),
   ];
   if (categorySlug) conds.push(eq(categories.slug, categorySlug));
@@ -428,21 +423,6 @@ export async function listActiveSkuIdsWithoutPrice(categorySlug?: string): Promi
     .leftJoin(currentPrices, eq(currentPrices.skuId, skus.id))
     .where(and(...conds));
   return rows.map((r) => r.id);
-}
-
-export async function countSkusHiddenByTaxonomy(categorySlug?: string): Promise<number> {
-  const conds = [
-    eq(skus.isActive, true),
-    or(eq(subCategories.isActive, false), eq(categories.isActive, false))!,
-  ];
-  if (categorySlug) conds.push(eq(categories.slug, categorySlug));
-  const rows = await getDb()
-    .select({ n: sql<number>`count(*)::int` })
-    .from(skus)
-    .innerJoin(categories, eq(skus.categoryId, categories.id))
-    .innerJoin(subCategories, eq(skus.subCategoryId, subCategories.id))
-    .where(and(...conds));
-  return rows[0]?.n ?? 0;
 }
 
 /** Active SKU counts for every category, keyed by category slug, in ONE
@@ -463,14 +443,13 @@ export async function skuCountsByCategory(): Promise<Map<string, number>> {
       .from(skus)
       .innerJoin(categories, eq(skus.categoryId, categories.id))
       .innerJoin(subCategories, eq(skus.subCategoryId, subCategories.id))
-      .where(and(eq(categories.isActive, true), eq(skus.isActive, true), eq(subCategories.isActive, true)))
       .groupBy(categories.slug),
     db.execute<{ slug: string; count: number }>(sql`
       SELECT target_cat.slug AS slug, count(*)::int AS count
       FROM ${skus} s
       CROSS JOIN LATERAL jsonb_array_elements_text(s.cross_listed_category_ids) AS cl(cat_id)
-      JOIN ${categories} target_cat ON target_cat.id = cl.cat_id AND target_cat.is_active = true
-      WHERE s.is_active = true AND s.cross_listed_category_ids IS NOT NULL
+      JOIN ${categories} target_cat ON target_cat.id = cl.cat_id
+      WHERE s.cross_listed_category_ids IS NOT NULL
       GROUP BY target_cat.slug
     `),
   ]);
@@ -517,12 +496,11 @@ type FacetPathRow = {
 export async function publicCatalogPaths(): Promise<string[]> {
   const db = getDb();
   const [cats, subs, sku, facets] = await Promise.all([
-    db.select({ slug: categories.slug }).from(categories).where(eq(categories.isActive, true)),
+    db.select({ slug: categories.slug }).from(categories),
     db
       .select({ cat: categories.slug, sub: subCategories.slug })
       .from(subCategories)
-      .innerJoin(categories, eq(subCategories.categoryId, categories.id))
-      .where(and(eq(categories.isActive, true), eq(subCategories.isActive, true))),
+      .innerJoin(categories, eq(subCategories.categoryId, categories.id)),
     db
       .select({ cat: categories.slug, sub: subCategories.slug, sku: skus.slug })
       .from(skus)
@@ -530,9 +508,6 @@ export async function publicCatalogPaths(): Promise<string[]> {
       .innerJoin(subCategories, eq(skus.subCategoryId, subCategories.id))
       .where(
         and(
-          eq(skus.isActive, true),
-          eq(categories.isActive, true),
-          eq(subCategories.isActive, true),
         ),
       ),
     db.execute<FacetPathRow>(sql`
@@ -540,16 +515,14 @@ export async function publicCatalogPaths(): Promise<string[]> {
       FROM ${skus} s
       JOIN ${subCategories} sc ON sc.id = s.sub_category_id
       JOIN ${categories} c ON c.id = s.category_id
-      WHERE s.is_active AND sc.is_active AND c.is_active
       UNION
       SELECT tc.slug AS cat, oc.slug AS own_cat, sc.slug AS sub, s.factory, s.size
       FROM ${skus} s
       CROSS JOIN LATERAL jsonb_array_elements_text(s.cross_listed_category_ids) AS cl(cat_id)
-      JOIN ${categories} tc ON tc.id = cl.cat_id AND tc.is_active
+      JOIN ${categories} tc ON tc.id = cl.cat_id
       JOIN ${subCategories} sc ON sc.id = s.sub_category_id
       JOIN ${categories} oc ON oc.id = s.category_id
-      WHERE s.is_active AND sc.is_active AND oc.is_active
-        AND s.cross_listed_category_ids IS NOT NULL
+      WHERE s.cross_listed_category_ids IS NOT NULL
     `),
   ]);
 
@@ -597,9 +570,6 @@ export async function findSkuRow(slug: string): Promise<PriceRow | null> {
     .where(
       and(
         eq(skus.slug, slug),
-        eq(skus.isActive, true),
-        eq(categories.isActive, true),
-        eq(subCategories.isActive, true),
       ),
     )
     .limit(1);
@@ -627,9 +597,6 @@ export async function findSkuRowsByIds(ids: string[]): Promise<PriceRow[]> {
     .where(
       and(
         inArray(skus.id, ids),
-        eq(skus.isActive, true),
-        eq(categories.isActive, true),
-        eq(subCategories.isActive, true),
       ),
     );
   const s = await getPriceFreshness();
@@ -652,11 +619,8 @@ export async function relatedSkuRows(slug: string, limit = 4): Promise<PriceRow[
       and(
         eq(skus.categoryId, self[0].categoryId),
         ne(skus.slug, slug),
-        eq(skus.isActive, true),
-        eq(categories.isActive, true),
         // W24: cross-sell must not resurface a product whose sub-category
         // was retired — see the note on findSkuRow.
-        eq(subCategories.isActive, true),
       ),
     )
     .orderBy(asc(skus.name))
@@ -816,9 +780,6 @@ export async function unmatchedQueryTokens(q: string): Promise<string[]> {
         .innerJoin(subCategories, eq(skus.subCategoryId, subCategories.id))
         .where(
           and(
-            eq(skus.isActive, true),
-            eq(categories.isActive, true),
-            eq(subCategories.isActive, true),
             tokenMatchCondition(token),
           ),
         )
@@ -862,9 +823,6 @@ export async function searchSkus(q: string, limit = 20): Promise<PriceRow[]> {
       // ranking in site search and in the AI advisor's getPrice tool.
       .where(
         and(
-          eq(skus.isActive, true),
-          eq(categories.isActive, true),
-          eq(subCategories.isActive, true),
           ...conds,
         ),
       )
@@ -875,8 +833,21 @@ export async function searchSkus(q: string, limit = 20): Promise<PriceRow[]> {
       // admin-set popularity/display signal the taxonomy rail and search
       // filters already sort by — breaks the tie toward the common
       // sub-category, and raw similarity still settles anything left over.
+      //
+      // Mobile-audit finding (1405/06/06): 2-decimal rounding wasn't coarse
+      // enough for a BARE category query with no size — «میلگرد» alone
+      // scored «میلگرد استیل … هند» at 0.37 and «میلگرد آجدار …», the
+      // catalog's single highest-traffic sub-category, at 0.35. Two
+      // different buckets at 2 decimals, so the order tie-break above never
+      // ran and the niche variant won outright. Rounding to 1 decimal
+      // merges that specific gap into one bucket (both 0.4) without
+      // flattening real distinctions — checked live against every other
+      // top-level category's own bare-word query (تیرآهن, پروفیل, ورق,
+      // لوله, استیل, نبشی) and each one's own top results already shared a
+      // single sub-category at this precision, so nothing that used to be
+      // correctly separated gets merged.
       .orderBy(
-        desc(sql`round(similarity(${skus.name}, ${trimmed})::numeric, 2)`),
+        desc(sql`round(similarity(${skus.name}, ${trimmed})::numeric, 1)`),
         asc(subCategories.order),
         desc(sql`similarity(${skus.name}, ${trimmed})`),
       )

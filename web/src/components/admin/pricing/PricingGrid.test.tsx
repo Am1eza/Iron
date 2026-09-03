@@ -151,9 +151,9 @@ function priceRow(id: string, name: string, price: number, over: Partial<PriceRo
     slug: id,
     name,
     size: name,
+    order: 0,
     unit: 'kg',
     priceBasis: 'kg',
-    isActive: true,
     current: {
       skuId: id,
       price,
@@ -254,7 +254,6 @@ describe('PricingGrid with stale-hidden rows', () => {
   beforeEach(() => {
     pricingGrid.mockResolvedValue({
       rows: [priceRow('r14', 'میلگرد ۱۴', 300_000, hidden), priceRow('r16', 'میلگرد ۱۶', 310_000, hidden)],
-      hiddenByTaxonomy: 0,
     });
   });
 
@@ -286,7 +285,6 @@ describe('PricingGrid delivery-time-only edits', () => {
     const user = userEvent.setup();
     pricingGrid.mockResolvedValue({
       rows: [priceRow('r14', 'میلگرد ۱۴', 0, { priceHidden: true, isStale: true, deliveryTime: '' })],
-      hiddenByTaxonomy: 0,
     });
     renderGrid();
     const cell = await screen.findByLabelText('زمان تحویل میلگرد ۱۴');
@@ -299,15 +297,16 @@ describe('PricingGrid delivery-time-only edits', () => {
   });
 });
 
-describe('PricingGrid — products stranded on a deactivated sub-category', () => {
-  it('does not tell the admin an empty category has no products', async () => {
-    pricingGrid.mockResolvedValue({ rows: [], hiddenByTaxonomy: 40 });
+describe('PricingGrid — an empty category', () => {
+  it('says the category is empty, because now that is the only way it can be', async () => {
+    // This case used to be ambiguous: production had 40 products in «پروفیل»
+    // and this grid showed none of them, because their sub-categories had
+    // been retired underneath them — so «کالایی در این دسته نیست» was a lie
+    // whose only possible outcome was 40 duplicates. A product can no longer
+    // exist in the catalog and be missing from this table.
+    pricingGrid.mockResolvedValue({ rows: [] });
     renderGrid();
-    // The old empty state said «کالایی در این دسته نیست · از بخش کاتالوگ کالا
-    // اضافه کنید» for a category holding 40 real products — advice whose only
-    // possible outcome is 40 duplicates.
-    expect(await screen.findByText('۴۰ کالای این دسته روی سایت دیده نمی‌شود')).toBeInTheDocument();
-    expect(screen.queryByText('کالایی در این دسته نیست')).not.toBeInTheDocument();
+    expect(await screen.findByText('کالایی در این دسته نیست')).toBeInTheDocument();
   });
 });
 
@@ -326,7 +325,6 @@ describe('PricingGrid — products that have never been priced', () => {
           deliveryTime: '',
         }),
       ],
-      hiddenByTaxonomy: 0,
       withoutPrice: ['unpriced'],
     });
     renderGrid();
@@ -342,7 +340,6 @@ describe('PricingGrid — products that have never been priced', () => {
   it('says nothing when every product carries a price', async () => {
     pricingGrid.mockResolvedValue({
       rows: [priceRow('priced', 'تیرآهن ۱۴', 41_200)],
-      hiddenByTaxonomy: 0,
       withoutPrice: [],
     });
     renderGrid();
@@ -374,7 +371,6 @@ describe('PricingGrid price age', () => {
         priceRow('b', 'میلگرد ۱۶', 284_000, { updatedAt: daysAgo(3) }),
         priceRow('c', 'لوله مسی ۱', 8_521_500, { updatedAt: daysAgo(11) }),
       ],
-      hiddenByTaxonomy: 0,
       withoutPrice: [],
     });
     renderGrid();
@@ -392,7 +388,6 @@ describe('PricingGrid price age', () => {
         priceRow('b', 'میلگرد ۱۶', 284_000, { updatedAt: daysAgo(3), isStale: true }),
         priceRow('c', 'لوله مسی ۱', 8_521_500, { updatedAt: daysAgo(11), isStale: true }),
       ],
-      hiddenByTaxonomy: 0,
       withoutPrice: [],
     });
     const user = userEvent.setup();
@@ -413,7 +408,6 @@ describe('PricingGrid price age', () => {
         priceRow('c', 'لوله مسی ۱', 8_521_500, { updatedAt: daysAgo(11) }),
         priceRow('b', 'میلگرد ۱۶', 284_000, { updatedAt: daysAgo(3) }),
       ],
-      hiddenByTaxonomy: 0,
       withoutPrice: [],
     });
     const user = userEvent.setup();
@@ -441,7 +435,6 @@ describe('PricingGrid price age', () => {
     stats.mockResolvedValue({ stats: { pricesNeedingReview: 45 } });
     pricingGrid.mockResolvedValue({
       rows: [priceRow('a', 'میلگرد ۱۴', 285_000, { updatedAt: daysAgo(0) })],
-      hiddenByTaxonomy: 0,
       withoutPrice: [],
     });
     renderGrid();
@@ -457,7 +450,6 @@ describe('PricingGrid price age', () => {
     // opposite of the truth about the one row most in need of attention.
     pricingGrid.mockResolvedValue({
       rows: [priceRow('n', 'ورق کرکره ۱', 0, { updatedAt: daysAgo(0) })],
-      hiddenByTaxonomy: 0,
       withoutPrice: ['n'],
     });
     renderGrid();

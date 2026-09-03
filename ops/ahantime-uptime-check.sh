@@ -93,11 +93,33 @@ capture_diagnostics() {
 }
 
 notify() {
-  # No SMTP, no webhook (policy: no external SaaS dependency). Broadcast to
-  # any logged-in session and leave a permanent journald record — that plus
-  # the unit's failed state is the alert.
+  # journald + wall stay as the local record regardless of whether the
+  # Telegram leg below succeeds — this function must never let an alerting
+  # failure look like a successful notification.
   logger -t ahantime-uptime -p daemon.err "$1"
   command -v wall >/dev/null 2>&1 && echo "$1" | wall -n 2>/dev/null || true
+
+  # Telegram, via ops/telegram-forwarder.worker.js — api.telegram.org itself
+  # is blocked at the Iranian national level from this host (DNS resolves,
+  # TCP connect times out), which is exactly why the forwarder Worker exists.
+  # `-4` is required: the Worker's workers.dev domain resolves AAAA-first and
+  # this host has no working IPv6 route, so a plain `curl` hangs its full
+  # timeout on every call instead of falling back to the working A record.
+  # Best-effort only: this must never be the reason the probe itself fails or
+  # hangs, so every failure mode here is swallowed and capped at 15s.
+  local env_file="/opt/ahantime/.env" bot_token chat_id api_base secret
+  if [ -f "$env_file" ]; then
+    bot_token=$(grep -oP '^TELEGRAM_BOT_TOKEN=\K.*' "$env_file" 2>/dev/null || echo "")
+    chat_id=$(grep -oP '^TELEGRAM_ALERT_CHAT_ID=\K.*' "$env_file" 2>/dev/null || echo "")
+    api_base=$(grep -oP '^TELEGRAM_API_BASE=\K.*' "$env_file" 2>/dev/null || echo "")
+    secret=$(grep -oP '^TELEGRAM_FORWARD_SECRET=\K.*' "$env_file" 2>/dev/null || echo "")
+    if [ -n "$bot_token" ] && [ -n "$chat_id" ] && [ -n "$api_base" ] && [ -n "$secret" ] && command -v jq >/dev/null 2>&1; then
+      curl -sS -4 --max-time 15 -X POST "${api_base}/bot${bot_token}/sendMessage?key=${secret}" \
+        -H 'content-type: application/json' \
+        --data-binary "$(jq -n --arg chat_id "$chat_id" --arg text "🚨 $1" '{chat_id:$chat_id, text:$text}')" \
+        >/dev/null 2>&1 || true
+    fi
+  fi
 }
 
 if [ "$fails" -ge 9 ]; then
