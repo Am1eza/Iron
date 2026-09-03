@@ -108,7 +108,7 @@ export function canActOnAssignedRecord(
 /**
  * Admin sub-path → permission required to view it. Single source of truth
  * shared by the admin nav filter (admin/layout.tsx) and the edge-level
- * `middleware.ts` gate — each admin/*\/page.tsx also calls `requirePermission`
+ * `proxy.ts` gate — each admin/*\/page.tsx also calls `requirePermission`
  * with the matching entry below as defense-in-depth.
  */
 export const ADMIN_PATH_PERMISSIONS: Array<[prefix: string, permission: Permission]> = [

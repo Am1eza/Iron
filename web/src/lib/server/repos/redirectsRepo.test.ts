@@ -132,7 +132,7 @@ describe('updateRedirect / deleteRedirect', () => {
 });
 
 /**
- * Production had 22 stored chains (audit 1405/06/01) and `middleware.ts`
+ * Production had 22 stored chains (audit 1405/06/01) and `proxy.ts`
  * resolves one hop per request, so every one of them was a second round trip
  * for the visitor and a second crawl of the same URL for Googlebot. None was
  * typed in as a chain — they grew backwards, when a later edit re-pointed a

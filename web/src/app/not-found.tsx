@@ -4,7 +4,7 @@
  *  Next.js version (confirmed by inspecting `.next/server/app/_not-found.html`
  *  in the built image) regardless of using dynamic APIs like `headers()`, so
  *  per-request logic placed here silently never runs for a genuinely
- *  unmatched path. See middleware.ts instead, which does run per-request. */
+ *  unmatched path. See proxy.ts instead, which does run per-request. */
 import type { Metadata } from 'next';
 // Deep imports, NOT the `@/components/ui` barrel: the package has no
 // `sideEffects: false`, so touching the barrel keeps every 'use client'

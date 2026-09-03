@@ -60,7 +60,7 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://ahantime.com';
  * Small in-process memo so `force-dynamic` cannot be turned into a database
  * amplifier by anyone willing to request /sitemap.xml in a loop. Same
  * reasoning (and same one-long-lived-Node-process premise) as the redirect
- * cache in `middleware.ts`; on Workers it simply misses, which is correct.
+ * cache in `proxy.ts`; on Workers it simply misses, which is correct.
  *
  * A process restart clears it — which is the desired direction here: a restart
  * makes the sitemap *fresher*, never staler, and can never resurrect fixtures.
@@ -319,7 +319,7 @@ async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Last gate: never advertise a URL this site then refuses to serve.
   //
-  // An admin redirect row beats a real route match in `middleware.ts`, so a
+  // An admin redirect row beats a real route match in `proxy.ts`, so a
   // sub-category can be `is_active = true`, carry SKUs, be rendered into the
   // list above by the catalog queries — and still answer 308 to the crawler
   // that follows it. Verified against production 1405/05/31 by fetching all

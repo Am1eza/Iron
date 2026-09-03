@@ -1,6 +1,6 @@
 /** URL redirect management (US-14.3) — old-path → new-path 301/302-style
  *  redirects, configured by an admin instead of a code deploy. Enforced at
- *  request time from `middleware.ts`, on every public-host request — this
+ *  request time from `proxy.ts`, on every public-host request — this
  *  takes priority over a real route match, not just 404 fallback, since a
  *  redirect aimed at a still-live page's own URL must actually win. */
 import { eq, inArray } from 'drizzle-orm';
@@ -35,7 +35,7 @@ export async function findRedirect(pathname: string): Promise<Pick<RedirectRow, 
  * Every `fromPath` currently configured, as a lookup set.
  *
  * For `sitemap.ts`. A redirect row wins over a real route match (see
- * `middleware.ts`), so a path can be a live, active, SKU-bearing page in the
+ * `proxy.ts`), so a path can be a live, active, SKU-bearing page in the
  * catalog tables and STILL answer 308 to every crawler. Measured on
  * production 1405/05/31: `/prices/profile/prvfyl-snaty`, `…/prvfyl-sakhtmany`
  * and `…/prvfyl-astyl` were all `is_active = true` sub-categories, all three
@@ -73,7 +73,7 @@ const MAX_REDIRECT_CHAIN_HOPS = 10;
  * `toPath` have a redirect straight back to `fromPath`?), which caught the
  * common accidental A⇄B swap but not a 3+-hop cycle built up over several
  * separate edits (A→B, then B→C, then C→A — each individual edit looked
- * fine in isolation). At request time `middleware.ts` only ever resolves
+ * fine in isolation). At request time `proxy.ts` only ever resolves
  * ONE hop per request — so a stored cycle doesn't crash the server, but a
  * real visitor's browser follows the chain across successive requests and
  * hits its own redirect-loop limit (`ERR_TOO_MANY_REDIRECTS`) on a real
@@ -114,7 +114,7 @@ async function resolveTerminal(start: string): Promise<string> {
  * Keep the table one hop deep, from BOTH directions, whenever a row is
  * written.
  *
- * `middleware.ts` resolves exactly one hop per request, so a stored chain is
+ * `proxy.ts` resolves exactly one hop per request, so a stored chain is
  * a real extra round trip for the visitor and a second crawl of the same URL
  * for Googlebot. Production had 22 of them (audit 1405/06/01), and none was
  * created by anyone typing a chain into the panel — they grew the other way
@@ -248,7 +248,7 @@ export async function createRedirects(
  * Drop every redirect whose SOURCE is one of `paths`, because those paths are
  * real pages again.
  *
- * The other half of writing a tombstone on delete. `middleware.ts` answers a
+ * The other half of writing a tombstone on delete. `proxy.ts` answers a
  * redirect BEFORE the route is ever matched, so a row left over from when a
  * path was deleted makes the page that later occupies it unreachable: it
  * serves a 308 to its own parent forever, and `sitemap.ts` (which asks

@@ -402,7 +402,7 @@ describe('a rebuilt page takes its own tombstone back down', () => {
     );
     expect(res.status).toBe(201);
 
-    // `middleware.ts` answers a redirect before the route is matched, so
+    // `proxy.ts` answers a redirect before the route is matched, so
     // leaving this row makes the page it just rebuilt 308 to its own parent
     // forever — and `sitemap.ts` drops it for the same reason.
     expect(await redirectFor('/prices/shadow/retired')).toBeUndefined();

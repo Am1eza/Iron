@@ -18,7 +18,7 @@ import logoMark from '../../../public/brand/ahantime-logo.png';
 export const metadata: Metadata = { robots: { index: false, follow: false } };
 
 // Permissions come from the shared ADMIN_PATH_PERMISSIONS map (roles.ts) so
-// the nav filter, middleware.ts's edge gate, and each page's own
+// the nav filter, proxy.ts's edge gate, and each page's own
 // requirePermission() call can never drift apart.
 //
 // Grouped by job (dashboard-IA research: 15 flat links don't scan; grouping +

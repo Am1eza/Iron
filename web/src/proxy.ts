@@ -9,8 +9,10 @@ import { archiveIndexFallback, archiveRedirect } from '@/lib/content/archivePagi
 import { resolvePanelRouting, isPanelHost } from '@/lib/server/utils/panelHost';
 
 /**
- * Middleware — admin auth gating, admin-configured URL redirects (US-14.3),
- * and the panel.ahantime.com subdomain rewrite.
+ * Proxy (renamed from `middleware` in Next.js 16 — same file, same
+ * semantics, see https://nextjs.org/docs/app/guides/upgrading/version-16#middleware-to-proxy) —
+ * admin auth gating, admin-configured URL redirects (US-14.3), and the
+ * panel.ahantime.com subdomain rewrite.
  * Security response headers (CSP, X-Frame-Options, HSTS, ...) live in
  * `next.config.mjs`'s `headers()` — the single source of truth. They used
  * to be duplicated here too, which is exactly how X-Frame-Options ended up
@@ -19,23 +21,23 @@ import { resolvePanelRouting, isPanelHost } from '@/lib/server/utils/panelHost';
  * Persian-path auth gating is also enforced at the route/layout level (server components)
  * to avoid encoded-path matcher pitfalls.
  *
- * Runs on the Node.js middleware runtime (stable since Next 15.2) so it can
- * query Postgres directly for redirects — the default Edge runtime can't
- * (`pg` needs Node sockets, see next.config.mjs's `serverExternalPackages`).
+ * Runs on the Node.js runtime (the only runtime `proxy` supports as of
+ * Next.js 16 — no `export const runtime` to set anymore) so it can query
+ * Postgres directly for redirects — the Edge runtime can't (`pg` needs Node
+ * sockets, see next.config.mjs's `serverExternalPackages`).
  * Redirects were originally attempted from `src/app/not-found.tsx` instead;
  * that page turned out to be statically pre-rendered at build time in this
  * Next.js version regardless of dynamic API use, so per-request logic there
- * silently never ran — see that file's comment. Middleware genuinely runs
+ * silently never ran — see that file's comment. This file genuinely runs
  * per request, which is why the redirect list is cached in-process (a DB
  * round trip on every single page view would be its own cost) rather than
- * queried fresh each time: this Docker/self-hosted deployment runs
- * middleware inside the same long-lived Node process (not per-request
+ * queried fresh each time: this Docker/self-hosted deployment runs the
+ * proxy inside the same long-lived Node process (not per-request
  * isolates), so a module-level cache persists correctly across requests.
  * NOTE: this assumption does NOT hold for the separate Cloudflare Workers
  * deployment target (see GEO-ROUTING.md) — that target would need a
  * different caching strategy (e.g. KV) if it ever serves redirects too.
  */
-export const runtime = 'nodejs';
 
 const SESSION_COOKIE = 'ahantime_at'; // access-token cookie (lib/auth/session)
 
@@ -84,7 +86,7 @@ async function refreshRedirectCacheIfStale(): Promise<void> {
 // into this file's module scope. See `getKnownPaths`/`invalidateKnownPaths`
 // there for the full why.
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   // One predicate, shared with resolvePanelRouting — a raw `===` here and a
   // normalized match there would let the two disagree about the same request.
   const onPanelHost = isPanelHost(req.headers.get('host'));

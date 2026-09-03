@@ -33,7 +33,7 @@
  * next message that does go out ("+12 more"), so nothing is silently lost.
  *
  * State is in-process on purpose. This deployment is a single long-lived Node
- * container (the same property `middleware.ts` documents for its redirect
+ * container (the same property `proxy.ts` documents for its redirect
  * cache), so a module-level object is correct here and cannot fail open the
  * way a Redis blip could — and failing open is precisely the message storm. If
  * the process restarts, the worst case is one extra message.
