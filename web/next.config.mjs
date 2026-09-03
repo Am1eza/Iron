@@ -39,6 +39,27 @@ const nextConfig = {
   // resolve pg-cloudflare" (reproduced in CI; see @opennextjs/cloudflare's
   // dist/cli/build/utils/workerd.js).
   serverExternalPackages: ['pg', 'pg-cloudflare', 'ioredis'],
+  // `next dev` now blocks cross-origin static-asset/HMR requests by default
+  // (a security hardening, not present the same way before Next 16) — every
+  // request whose Host doesn't match the origin `next dev` itself was
+  // reached on gets a 403 on its JS/CSS chunks, breaking hydration (a button
+  // that never becomes interactive, a form field a fill() can't reach) with
+  // no error surfaced anywhere near the actual UI symptom.
+  //   - panel.ahantime.com: this app's own panel host rewrite (proxy.ts,
+  //     panelHost.ts) legitimately serves the SAME app under a second
+  //     hostname (see Caddyfile) — local dev and the e2e suite's
+  //     Host-header-driven RBAC specs (playwright.config.ts's
+  //     PANEL_BASE_URL) both need it.
+  //   - 127.0.0.1: only the literal string "localhost" is implicitly
+  //     trusted by this check — the loopback IP is treated as a distinct,
+  //     untrusted origin despite resolving to the same server. The e2e
+  //     suite's BASE_URL is `http://127.0.0.1:${APP_PORT}` (playwright.
+  //     config.ts), so every non-RBAC spec hit this too (reproduced
+  //     directly: e2e/catalog.spec.ts's chart-modal test failed
+  //     deterministically against 127.0.0.1, passed instantly against
+  //     localhost, same code, same port).
+  // Production is unaffected — this check does not exist outside `next dev`.
+  allowedDevOrigins: ['panel.ahantime.com', '127.0.0.1'],
   // `date-fns-jalali` is imported (named imports only) across format/validation/
   // server utils; this keeps only the modules actually used in the bundle
   // instead of Next's default whole-package handling for non-`esm`-optimized

@@ -107,6 +107,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       lang="fa"
       dir="rtl"
       suppressHydrationWarning
+      // Next.js 16 stopped overriding `scroll-behavior` during SPA route
+      // transitions by default — without this, the global `scroll-behavior:
+      // smooth` in tokens.css would make every navigation slide-scroll to
+      // the top instead of jumping instantly, which is what visitors saw
+      // pre-16. This attribute opts back into the old (and still correct
+      // here) behavior. See
+      // https://nextjs.org/docs/app/guides/upgrading/version-16#scroll-behavior-override
+      data-scroll-behavior="smooth"
       className={`${vazirmatn.variable} ${inter.variable}`}
     >
       <body>
