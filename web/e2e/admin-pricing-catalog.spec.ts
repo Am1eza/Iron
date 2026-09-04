@@ -325,7 +325,14 @@ test('deleting a product removes it from the panel and from the site', async () 
   });
 
   const publicUrl = `${BASE_URL}/prices/${created.catSlug}/${created.subSlug}/${created.skuSlug}`;
-  expect((await page.request.get(publicUrl)).status()).toBe(200);
+  // Poll, don't single-shot: the 404 guard (proxy.ts → knownPaths.ts) serves
+  // from a TTL'd in-process set of live paths, so a just-created SKU can
+  // legitimately 404 for a moment until that set refreshes. The post-delete
+  // assertion below already polls for exactly this reason; this one didn't,
+  // and it is the one that kept failing on CI.
+  await expect.poll(async () => (await page.request.get(publicUrl)).status(), {
+    timeout: 60_000,
+  }).toBe(200);
 
   await openCatalog();
   await page.getByPlaceholder('جستجو در نام، نشانی، سایز، کارخانه…').fill('کالای آزمایشی حذف');
