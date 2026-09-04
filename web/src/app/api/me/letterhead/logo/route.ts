@@ -61,7 +61,7 @@ async function POSTImpl(req: NextRequest) {
   const filename = `${ulid()}.${ext}`;
   const dir = uploadDir();
   await fs.mkdir(dir, { recursive: true });
-  await fs.writeFile(path.join(dir, filename), buf);
+  await fs.writeFile(path.join(/*turbopackIgnore: true*/ dir, filename), buf);
 
   const url = `/uploads/${filename}`;
   const ok = await setLetterhead(session.id, { logoUrl: url });

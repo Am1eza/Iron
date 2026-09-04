@@ -8,7 +8,7 @@ import { BASE_URL, PANEL_BASE_URL } from '../playwright.config';
  * must 404 (hide, don't reveal — same contract as the API guards).
  *
  * ── W29: these were all `test.fixme`; the blocker is fixed ────────────────
- * middleware.ts hard-404s every `/admin/*` and `/api/admin/*` path unless the
+ * proxy.ts hard-404s every `/admin/*` and `/api/admin/*` path unless the
  * request arrives on `panel.ahantime.com`, and playwright.config.ts sets
  * AUTH_ENFORCED=true, so the admin area was invisible to a suite driving
  * 127.0.0.1:3100. Pointing the suite at the panel hostname did not work

@@ -22,7 +22,7 @@ const payload = z.object({
 });
 
 /** POST /api/admin/seo/redirects — add a redirect (US-14.3). Enforced live
- *  from middleware.ts, picked up within its ~60s cache window the next time
+ *  from proxy.ts, picked up within its ~60s cache window the next time
  *  that fromPath is requested. */
 async function POSTImpl(req: NextRequest) {
   const guard = requireDb();

@@ -1,6 +1,6 @@
 /**
  * panel.ahantime.com routing decision — pure logic, kept out of
- * middleware.ts so it's independently testable (middleware.ts itself is
+ * proxy.ts so it's independently testable (proxy.ts itself is
  * hard to unit test directly: it needs a real NextRequest, and — after
  * today's not-found.tsx lesson about Next's restricted per-file export
  * surfaces — an extra export there is a build-time risk not worth taking

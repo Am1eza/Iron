@@ -1,7 +1,7 @@
 /**
  * Archive pagination URLs for /blog and /news.
  *
- * Pure and dependency-free on purpose: `middleware.ts` (Node runtime, no React)
+ * Pure and dependency-free on purpose: `proxy.ts` (Node runtime, no React)
  * and the archive route components both need exactly one answer to "what is
  * page N's URL, and is this `[n]` segment real?". Two copies is how the
  * middleware redirect and the route's own bounds check drift apart, and a

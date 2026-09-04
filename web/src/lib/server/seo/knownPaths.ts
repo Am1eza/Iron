@@ -221,10 +221,10 @@ export function shouldNotFound(
 }
 
 /**
- * The `known` set's cache — moved here (out of middleware.ts, which merely
+ * The `known` set's cache — moved here (out of proxy.ts, which merely
  * consumed it) so an admin write can invalidate it too. Same in-process,
- * TTL'd shape middleware.ts's `redirectCache` still keeps locally (one
- * long-lived Node process — see middleware.ts's runtime comment).
+ * TTL'd shape proxy.ts's `redirectCache` still keeps locally (one
+ * long-lived Node process — see proxy.ts's runtime comment).
  *
  * Confirmed live (2026-09-01, e2e/admin-pricing-catalog.spec.ts's delete
  * test, CI run 33518928535): a SKU created via the admin API and read back

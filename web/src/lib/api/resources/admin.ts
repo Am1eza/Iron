@@ -1027,7 +1027,7 @@ export const adminApi = {
   /** Draft only — the server rejects a published/scheduled article (unpublish first). */
   deleteArticle: (id: string) => http.del<{ ok: true }>(`/api/admin/articles/${id}`),
 
-  /* redirects (US-14.3) — old-path → new-path, enforced from middleware.ts.
+  /* redirects (US-14.3) — old-path → new-path, enforced from proxy.ts.
    * No server-side filter exists, so the article drawer's "is this URL
    * already redirected?" check filters this full list client-side; the
    * table is small enough (site-wide redirect count, not per-article) that

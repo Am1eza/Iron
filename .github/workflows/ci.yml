@@ -58,6 +58,17 @@ jobs:
       - name: Lint CSS (design tokens + RTL logical properties)
         run: pnpm lint:css
 
+      # `next-env.d.ts` (gitignored, providing the `next/image-types/global`
+      # ambient declarations image imports need) used to get generated as a
+      # side effect of the Lint step invoking the `next` binary (`next
+      # lint`). Next.js 16 removed that command — `pnpm lint` is now plain
+      # `eslint .`, which never touches `next` — so Typecheck started
+      # failing on missing PNG-import types with nothing upstream to blame.
+      # `next typegen` is the lightweight, purpose-built replacement (no
+      # full build needed).
+      - name: Generate Next.js types
+        run: pnpm exec next typegen
+
       - name: Typecheck
         run: pnpm typecheck
 

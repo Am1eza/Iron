@@ -86,7 +86,18 @@ test('pricing grid loads the seeded catalog with editable price cells', async ()
   // entire data-entry surface.
   const firstPrice = rows.first().locator('input[data-col="price"]');
   await expect(firstPrice).toBeVisible();
-  await expect(firstPrice).not.toHaveValue('');
+  // At least one row carries a real seeded price — NOT specifically the first
+  // one. This file is `mode: 'serial'` and the later "creating a product from
+  // the drawer" test adds a deliberately unpriced product (کارخانهٔ آزمایشی,
+  // size ۹۹). On CI — and only on CI, which is the only place `retries` is
+  // non-zero — a retry of this test re-runs AFTER that product exists, it
+  // sorts to the top of the grid, and asserting on `rows.first()` then fails
+  // on an empty input that is empty for a legitimate reason. Asserting "the
+  // grid loaded seeded prices" is what this test actually means.
+  const pricedCount = await page
+    .locator('input[data-col="price"]')
+    .evaluateAll((els) => els.filter((el) => (el as HTMLInputElement).value !== '').length);
+  expect(pricedCount).toBeGreaterThan(0);
 });
 
 test('keyboard-only entry: type, Enter, land on the next row, save from the keyboard', async () => {
@@ -314,7 +325,14 @@ test('deleting a product removes it from the panel and from the site', async () 
   });
 
   const publicUrl = `${BASE_URL}/prices/${created.catSlug}/${created.subSlug}/${created.skuSlug}`;
-  expect((await page.request.get(publicUrl)).status()).toBe(200);
+  // Poll, don't single-shot: the 404 guard (proxy.ts → knownPaths.ts) serves
+  // from a TTL'd in-process set of live paths, so a just-created SKU can
+  // legitimately 404 for a moment until that set refreshes. The post-delete
+  // assertion below already polls for exactly this reason; this one didn't,
+  // and it is the one that kept failing on CI.
+  await expect.poll(async () => (await page.request.get(publicUrl)).status(), {
+    timeout: 60_000,
+  }).toBe(200);
 
   await openCatalog();
   await page.getByPlaceholder('جستجو در نام، نشانی، سایز، کارخانه…').fill('کالای آزمایشی حذف');

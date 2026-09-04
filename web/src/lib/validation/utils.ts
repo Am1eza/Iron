@@ -84,7 +84,7 @@ export const articleSlugSchema = (max: number) =>
 
 /**
  * An internal site path on a server-trust boundary — used for redirect
- * from/to paths. `middleware.ts` only ever mutates `.pathname` on a cloned
+ * from/to paths. `proxy.ts` only ever mutates `.pathname` on a cloned
  * same-origin `URL`, so an absolute/protocol-relative value here can never
  * actually produce a cross-origin redirect (verified: setting `.pathname` to
  * `https://evil.com/x` or `//evil.com/x` yields `ahantime.com/https://evil.

@@ -121,7 +121,7 @@ export function openOrdersBlock(
  * usage in the pricing route). Best-effort throughout — the write is already
  * committed and a cache miss must never fail it.
  *
- * ALSO invalidates `middleware.ts`'s `known`-paths guard (`knownPaths.ts`).
+ * ALSO invalidates `proxy.ts`'s `known`-paths guard (`knownPaths.ts`).
  * That guard sits IN FRONT of the ISR cache the two `safeRevalidatePath`
  * calls above bust — a brand-new SKU/category/sub-category hard-404'd for up
  * to its own TTL regardless of how fresh the page cache was, because the
@@ -191,7 +191,7 @@ export async function writeCatalogRedirects(entries: Array<{ fromPath: string; t
  * sub-categories were retired and recreated ten days later. Two things go
  * wrong if the row is left standing:
  *
- *  · `middleware.ts` answers a redirect before a route is matched, so the
+ *  · `proxy.ts` answers a redirect before a route is matched, so the
  *    rebuilt page 308s to its own parent forever and never reaches the
  *    sitemap — the exact production symptom `listRedirectFromPaths` exists to
  *    keep out of it;

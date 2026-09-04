@@ -59,7 +59,7 @@ async function POSTImpl(req: NextRequest) {
   const filename = `${ulid()}.${ext}`;
   const dir = uploadDir();
   await fs.mkdir(dir, { recursive: true });
-  await fs.writeFile(path.join(dir, filename), buf);
+  await fs.writeFile(path.join(/*turbopackIgnore: true*/ dir, filename), buf);
 
   // Served back by app/uploads/[filename]/route.ts, NOT Next's static
   // public/ handling — see that file for why a runtime-written file can't
