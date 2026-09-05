@@ -76,7 +76,7 @@
     "postcss": "^8.5.26",
     "prettier": "^3.9.6",
     "stylelint": "^16",
-    "stylelint-config-standard": "^36",
+    "stylelint-config-standard": "^39",
     "stylelint-declaration-strict-value": "^1.12",
     "stylelint-use-logical": "^2",
     "tsx": "^4.23.12",
