@@ -5,6 +5,7 @@ describe('trackGoal', () => {
   beforeEach(() => {
     delete window.dataLayer;
     delete window._paq;
+    window.sessionStorage.clear();
   });
 
   it('is a no-op when neither tracker is loaded', () => {
@@ -45,5 +46,12 @@ describe('trackGoal', () => {
     trackGoal('lead', 'tender-estimate', '۳ قلم');
     expect(window._paq).toHaveLength(1);
     expect(window.dataLayer).toHaveLength(1);
+  });
+
+  it('marks club invitation eligibility only after a lead or alert', () => {
+    trackGoal('navigation', 'search_use');
+    expect(window.sessionStorage.getItem('ahantime_club_invite_eligible')).toBeNull();
+    trackGoal('alert', 'alert_set');
+    expect(window.sessionStorage.getItem('ahantime_club_invite_eligible')).toBe('1');
   });
 });

@@ -2,7 +2,7 @@
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores/auth';
 import { useRequestsStore } from '@/lib/stores/requests';
-import { api } from '@/lib/api';
+import { authApi } from '@/lib/api/resources/auth';
 import { can, canAccessAdmin } from '@/lib/auth/roles';
 import type { Permission } from '@/lib/auth/types';
 
@@ -27,7 +27,7 @@ export function useAuth() {
 
     async logout(redirectTo = '/') {
       try {
-        await api.auth.logout();
+        await authApi.logout();
       } finally {
         setUser(null);
         // W20: this mock-mode request store persists to a single GLOBAL
@@ -46,7 +46,7 @@ export function useAuth() {
     /** Silent refresh — rotate tokens; returns whether a session survived. */
     async refresh(): Promise<boolean> {
       try {
-        const { user: u } = await api.auth.refresh();
+        const { user: u } = await authApi.refresh();
         setUser(u);
         return true;
       } catch {

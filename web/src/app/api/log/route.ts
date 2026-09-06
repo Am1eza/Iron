@@ -1,3 +1,4 @@
+import { readJsonBody } from '@/lib/server/utils/requestBody';
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { withApiErrorHandling } from '@/lib/server/utils/apiGuard';
@@ -39,7 +40,7 @@ async function POSTImpl(req: NextRequest): Promise<NextResponse> {
   if (limited) return new NextResponse(null, { status: 204 });
 
   try {
-    const parsed = payload.safeParse(await req.json());
+    const parsed = payload.safeParse(await readJsonBody(req));
     if (parsed.success) {
       const { name, message, stack, url, userAgent } = parsed.data;
       // Reconstructed as an Error so it takes the identical redact + scrub +

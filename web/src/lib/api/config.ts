@@ -15,8 +15,17 @@
  */
 const val = (v: string | undefined) => (v === undefined || v === '' ? undefined : v);
 
-/** 'mock' | 'live' — anything unrecognized falls back to the safe 'mock'. */
-export const API_MODE: 'mock' | 'live' = val(process.env.NEXT_PUBLIC_API_MODE) === 'live' ? 'live' : 'mock';
+/**
+ * Production must fail closed onto the real API. An omitted/misspelled public
+ * env used to silently ship the demo fixtures to customers. Mock is now an
+ * explicit development/test choice; it can never be the production default.
+ */
+const configuredMode = val(process.env.NEXT_PUBLIC_API_MODE);
+const explicitStaticPreview = process.env.EXPORT === '1' && configuredMode === 'mock';
+export const API_MODE: 'mock' | 'live' =
+  configuredMode === 'live' || (process.env.NODE_ENV === 'production' && !explicitStaticPreview)
+    ? 'live'
+    : 'mock';
 
 const SITE_URL = val(process.env.NEXT_PUBLIC_SITE_URL) ?? 'https://ahantime.com';
 

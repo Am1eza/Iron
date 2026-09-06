@@ -1,6 +1,12 @@
+import { readJsonBody } from '@/lib/server/utils/requestBody';
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
+import {
+  requireApiPermission,
+  requireDb,
+  audit,
+  withApiErrorHandling,
+} from '@/lib/server/utils/apiGuard';
 import { withIdempotency } from '@/lib/server/utils/idempotency';
 import { findLead, leadItemsOf, toLineItem } from '@/lib/server/repos/leadsRepo';
 import {
@@ -8,10 +14,11 @@ import {
   issueProforma,
   markLeadQuoted,
   proformaSmsNotification,
+  ManualDiscountLimitError,
 } from '@/lib/server/services/leads.service';
 import { sendNotification } from '@/lib/server/integrations/smsir';
 import { formatJalali } from '@/lib/utils/jalali';
-import { canActOnAssignedRecord } from '@/lib/auth/roles';
+import { can, canActOnAssignedRecord } from '@/lib/auth/roles';
 
 // Optional body — a bare POST (no body at all) is the common case and must
 // keep working exactly as before; `discountToman` (US-19.4) is opt-in. The
@@ -71,12 +78,27 @@ async function POSTImpl(req: NextRequest, ctx: { params: Promise<{ id: string }>
   if ('response' in auth) return auth.response;
   const { id } = await ctx.params;
 
-  const rawBody: unknown = await req.json().catch(() => null);
+  const rawBody: unknown = await readJsonBody(req);
   const parsedBody = payload.safeParse(rawBody);
   if (!parsedBody.success) {
-    return NextResponse.json({ error: 'validation', message: 'ورودی نامعتبر است.' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'validation', message: 'ورودی نامعتبر است.' },
+      { status: 400 },
+    );
   }
   const discountToman = parsedBody.data?.discountToman ?? 0;
+  // Manual money-off is a managerial action. A sales rep may own and price
+  // the lead, but cannot reduce the invoice outside the published automatic
+  // tiers. This is enforced at the API boundary, not merely hidden in UI.
+  if (discountToman > 0 && !can(auth.session.role, 'leads:manage')) {
+    return NextResponse.json(
+      {
+        error: 'discount_approval_required',
+        message: 'تخفیف دستی نیاز به تأیید و صدور توسط مدیر فروش دارد.',
+      },
+      { status: 403 },
+    );
+  }
   // Defaults FALSE — an un-flagged request can never silently create a second
   // active quote. Today's UI sends no flag at all, so it fails safe until the
   // confirm step lands.
@@ -94,7 +116,11 @@ async function POSTImpl(req: NextRequest, ctx: { params: Promise<{ id: string }>
       if (!canActOnAssignedRecord(auth.session, lead.assigneeId)) {
         return {
           status: 403,
-          body: { error: 'lead_forbidden', message: 'این سرنخ به کارشناس دیگری واگذار شده؛ فقط او یا مدیر سیستم می‌تواند پیش‌فاکتور صادر کند.' },
+          body: {
+            error: 'lead_forbidden',
+            message:
+              'این سرنخ به کارشناس دیگری واگذار شده؛ فقط او یا مدیر سیستم می‌تواند پیش‌فاکتور صادر کند.',
+          },
         };
       }
 
@@ -118,12 +144,31 @@ async function POSTImpl(req: NextRequest, ctx: { params: Promise<{ id: string }>
           body: {
             error: 'proforma_active',
             message: `پیش‌فاکتور ${active.ref} برای این سرنخ فعال است (اعتبار تا ${formatJalali(active.validUntil)}). برای صدور نسخهٔ جدید، «صدور مجدد» را تأیید کنید؛ نسخهٔ فعلی باطل می‌شود.`,
-            proforma: { ref: active.ref, total: active.total, validUntil: active.validUntil.toISOString() },
+            proforma: {
+              ref: active.ref,
+              total: active.total,
+              validUntil: active.validUntil.toISOString(),
+            },
           },
         };
       }
 
-      const proforma = await issueProforma(lead, priced, undefined, discountToman);
+      let proforma;
+      try {
+        proforma = await issueProforma(lead, priced, undefined, discountToman);
+      } catch (err) {
+        if (err instanceof ManualDiscountLimitError) {
+          return {
+            status: 422,
+            body: {
+              error: 'discount_limit',
+              message: `تخفیف دستی از سقف سیاست فروش بیشتر است. سقف مجاز این پیش‌فاکتور ${err.maximumToman.toLocaleString('fa-IR')} تومان است.`,
+              maximumToman: err.maximumToman,
+            },
+          };
+        }
+        throw err;
+      }
       // Pipeline moves on the DB write, not on the SMS — sendSms can burn
       // ~10s of timeouts and retries, and the lead/inbox state must not wait
       // on (or depend on) an external gateway.
@@ -133,7 +178,12 @@ async function POSTImpl(req: NextRequest, ctx: { params: Promise<{ id: string }>
       // roll the rep's work back — it must just stop us claiming it landed.
       const sms = await sendNotification(
         lead.contactMobile,
-        proformaSmsNotification(proforma.ref, lead.contactName, proforma.total, proforma.validUntil),
+        proformaSmsNotification(
+          proforma.ref,
+          lead.contactName,
+          proforma.total,
+          proforma.validUntil,
+        ),
       );
       await audit(
         auth.session.id,

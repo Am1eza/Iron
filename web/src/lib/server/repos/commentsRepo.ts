@@ -14,7 +14,13 @@
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { getDb } from '@/lib/server/db/client';
-import { articleComments, articles, users, commentHelpfulVotes, orders } from '@/lib/server/db/schema';
+import {
+  articleComments,
+  articles,
+  users,
+  commentHelpfulVotes,
+  orders,
+} from '@/lib/server/db/schema';
 
 export type CommentStatus = 'pending' | 'approved' | 'rejected';
 
@@ -69,7 +75,10 @@ export async function createComment(input: {
  *  `false`. Default order is oldest-first; "پرمفیدترین" is a client-side
  *  re-sort of this same array (see `CommentsSection.tsx`), not a second
  *  query — every row already carries `helpfulCount`. */
-export async function listApprovedComments(articleId: string, viewerId?: string): Promise<PublicComment[]> {
+export async function listApprovedComments(
+  articleId: string,
+  viewerId?: string,
+): Promise<PublicComment[]> {
   const db = getDb();
   const rows = await db
     .select({
@@ -87,7 +96,9 @@ export async function listApprovedComments(articleId: string, viewerId?: string)
   if (rows.length === 0) return [];
 
   const commentIds = rows.map((r) => r.id);
-  const authorIds = [...new Set(rows.map((r) => r.authorId).filter((id): id is string => id !== null))];
+  const authorIds = [
+    ...new Set(rows.map((r) => r.authorId).filter((id): id is string => id !== null)),
+  ];
 
   const [counts, myVotes, buyerIds] = await Promise.all([
     db
@@ -99,19 +110,23 @@ export async function listApprovedComments(articleId: string, viewerId?: string)
       ? db
           .select({ commentId: commentHelpfulVotes.commentId })
           .from(commentHelpfulVotes)
-          .where(and(inArray(commentHelpfulVotes.commentId, commentIds), eq(commentHelpfulVotes.userId, viewerId)))
+          .where(
+            and(
+              inArray(commentHelpfulVotes.commentId, commentIds),
+              eq(commentHelpfulVotes.userId, viewerId),
+            ),
+          )
       : Promise.resolve([]),
     authorIds.length > 0
-      ? db
-          .select({ userId: orders.userId })
-          .from(orders)
-          .where(inArray(orders.userId, authorIds))
+      ? db.select({ userId: orders.userId }).from(orders).where(inArray(orders.userId, authorIds))
       : Promise.resolve([]),
   ]);
 
   const countByComment = new Map(counts.map((c) => [c.commentId, c.n]));
   const votedByMe = new Set(myVotes.map((v) => v.commentId));
-  const verifiedAuthors = new Set(buyerIds.map((b) => b.userId).filter((id): id is string => id !== null));
+  const verifiedAuthors = new Set(
+    buyerIds.map((b) => b.userId).filter((id): id is string => id !== null),
+  );
 
   return rows.map((r) => ({
     id: r.id,
@@ -128,12 +143,17 @@ export async function listApprovedComments(articleId: string, viewerId?: string)
  *  present, so a double-click can never double-count. Returns the count
  *  AFTER the toggle so the client can reconcile its optimistic update
  *  against the real number in one round trip. */
-export async function toggleHelpfulVote(commentId: string, userId: string): Promise<{ voted: boolean; count: number }> {
+export async function toggleHelpfulVote(
+  commentId: string,
+  userId: string,
+): Promise<{ voted: boolean; count: number }> {
   const db = getDb();
   const existing = await db
     .select({ id: commentHelpfulVotes.id })
     .from(commentHelpfulVotes)
-    .where(and(eq(commentHelpfulVotes.commentId, commentId), eq(commentHelpfulVotes.userId, userId)))
+    .where(
+      and(eq(commentHelpfulVotes.commentId, commentId), eq(commentHelpfulVotes.userId, userId)),
+    )
     .limit(1);
 
   if (existing.length > 0) {
@@ -159,7 +179,12 @@ export async function myHelpfulVotes(commentIds: string[], userId: string): Prom
   const rows = await getDb()
     .select({ commentId: commentHelpfulVotes.commentId })
     .from(commentHelpfulVotes)
-    .where(and(inArray(commentHelpfulVotes.commentId, commentIds), eq(commentHelpfulVotes.userId, userId)));
+    .where(
+      and(
+        inArray(commentHelpfulVotes.commentId, commentIds),
+        eq(commentHelpfulVotes.userId, userId),
+      ),
+    );
   return rows.map((r) => r.commentId);
 }
 
@@ -203,14 +228,6 @@ export async function moderateComment(
   const rows = await getDb()
     .update(articleComments)
     .set({ status, moderatedBy: moderatorId, moderatedAt: new Date() })
-    .where(eq(articleComments.id, id))
-    .returning({ id: articleComments.id });
-  return rows.length > 0;
-}
-
-export async function deleteComment(id: string): Promise<boolean> {
-  const rows = await getDb()
-    .delete(articleComments)
     .where(eq(articleComments.id, id))
     .returning({ id: articleComments.id });
   return rows.length > 0;

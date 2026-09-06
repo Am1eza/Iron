@@ -1,3 +1,4 @@
+import { readJsonBody } from '@/lib/server/utils/requestBody';
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { ulid } from 'ulid';
@@ -32,11 +33,15 @@ async function POSTImpl(req: NextRequest) {
   const dbGuard = requireDb();
   if (dbGuard) return dbGuard;
 
-  const body: unknown = await req.json().catch(() => null);
+  const body: unknown = await readJsonBody(req);
   const parsed = payload.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: 'validation', message: 'درخواست نامعتبر است.', fields: parsed.error.flatten().fieldErrors },
+      {
+        error: 'validation',
+        message: 'درخواست نامعتبر است.',
+        fields: parsed.error.flatten().fieldErrors,
+      },
       { status: 400 },
     );
   }

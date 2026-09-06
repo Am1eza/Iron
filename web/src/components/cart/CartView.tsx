@@ -6,7 +6,7 @@ import {
   selectCartCount,
   selectCartTotalWeight,
   selectCartEstTotal,
-  cartItemWeightKg,
+  cartItemEstimateToman,
 } from '@/lib/stores/cart';
 import type { CartItem } from '@/lib/stores/cart';
 import { routes } from '@/lib/routes';
@@ -29,13 +29,21 @@ import {
 } from '@/components/primitives/icons';
 import styles from './CartView.module.css';
 import { PRICE_UNIT_LABEL } from '@/lib/utils/catalogLabels';
+import {
+  resolveVolumeTier,
+  tierPercentLabel,
+  volumeDiscountToman,
+  VOLUME_TIERS,
+  type VolumeTier,
+} from '@/lib/config/pricingTiers';
+import { DEFAULT_ORDER_POLICY } from '@/lib/config/orderPolicy';
 
 /** کیلوگرم/شاخه/برگ/متر — display labels for the price unit. */
 
 
 /** Per-line estimate = unitPrice (per kg) × the item's real weight (mirrors selectCartEstTotal). */
 function lineEstimate(item: CartItem): number {
-  return (item.unitPrice ?? 0) * cartItemWeightKg(item);
+  return cartItemEstimateToman(item);
 }
 
 /**
@@ -44,7 +52,13 @@ function lineEstimate(item: CartItem): number {
  * line items with a qty stepper, a sticky summary, and the «ادامه و ثبت درخواست» CTA.
  * No online payment — a کارشناس confirms the final price and delivery.
  */
-export function CartView() {
+export function CartView({
+  minimumAutoQuoteToman = DEFAULT_ORDER_POLICY.minimumAutoQuoteToman,
+  volumeTiers = VOLUME_TIERS,
+}: {
+  minimumAutoQuoteToman?: number;
+  volumeTiers?: readonly VolumeTier[];
+}) {
   const [mounted, setMounted] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -58,6 +72,9 @@ export function CartView() {
   const count = useCartStore(selectCartCount);
   const totalWeight = useCartStore(selectCartTotalWeight);
   const estTotal = useCartStore(selectCartEstTotal);
+  const resolvedTier = resolveVolumeTier({ totalWeightKg: totalWeight }, volumeTiers);
+  const tierDiscount = volumeDiscountToman(estTotal, resolvedTier.tier);
+  const nextTier = [...volumeTiers].sort((a, b) => a.minWeightKg - b.minWeightKg).find((tier) => tier.minWeightKg > totalWeight);
 
   // Pre-hydration placeholder — calm skeleton so the layout never flashes empty.
   if (!mounted) {
@@ -205,9 +222,33 @@ export function CartView() {
             </div>
           </dl>
 
+          <Alert tone={tierDiscount > 0 ? 'success' : 'info'} className={styles.calmNote}>
+            {tierDiscount > 0 ? (
+              <>
+                سطح {resolvedTier.tier.label}: تخفیف خودکار {tierPercentLabel(resolvedTier.tier)}٪، حدود{' '}
+                <span className="tnum">{formatToman(tierDiscount)}</span> صرفه‌جویی.
+              </>
+            ) : (
+              <>قیمت پایه؛ تخفیف عمده از ۵ تن به‌صورت خودکار شروع می‌شود.</>
+            )}
+            {nextTier ? (
+              <>
+                {' '}با افزودن{' '}
+                <span className="tnum">{toPersianDigits(Math.ceil(nextTier.minWeightKg - totalWeight))}</span>{' '}
+                کیلوگرم، به سطح {nextTier.label} با تخفیف {tierPercentLabel(nextTier)}٪ می‌رسید.
+              </>
+            ) : null}
+          </Alert>
+
           <p className={styles.estNote}>
             برآورد تقریبی؛ قیمت نهایی هنگام تأیید کارشناس
           </p>
+
+          {estTotal > 0 && estTotal < minimumAutoQuoteToman ? (
+            <Alert tone="warning" className={styles.calmNote}>
+              مبلغ این سبد کمتر از حد صدور خودکار ({formatToman(minimumAutoQuoteToman)}) است؛ درخواست شما ثبت می‌شود و کارشناس قیمت و امکان تأمین را بررسی می‌کند.
+            </Alert>
+          ) : null}
 
           <Link href={routes.request()} className={styles.primaryCta} data-event="cart_to_request">
             {/* /request is auth-gated (requireUser) and silently bounces a

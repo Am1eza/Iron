@@ -5,6 +5,7 @@
  * (they never rely on the server's local timezone).
  */
 import { format as formatJalali } from 'date-fns-jalali';
+import { toPersianDigits } from '@/lib/utils/format';
 
 export const TEHRAN_OFFSET_MS = 3.5 * 60 * 60 * 1000;
 
@@ -28,6 +29,13 @@ export function jalaliStamp(date: Date = new Date()): string {
 /** Jalali `1405-04-10` (Tehran) — used for holidays / day comparisons. */
 export function jalaliDayKey(date: Date): string {
   return formatJalali(toTehranWallClock(date), 'yyyy-MM-dd');
+}
+
+/** One canonical customer-facing Tehran timestamp. Financial documents and
+ * notifications must render the hour from the stored instant itself — never
+ * append a hard-coded business hour that can drift from settings. */
+export function formatTehranJalaliDateTime(date: Date, pattern = 'yyyy/MM/dd HH:mm'): string {
+  return toPersianDigits(formatJalali(toTehranWallClock(date), pattern));
 }
 
 /** Same Jalali calendar day in Tehran? (PRICE_FRESH_WINDOW = same day) */

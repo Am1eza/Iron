@@ -36,16 +36,28 @@ export function isRetryableHttpError(err: unknown): boolean {
 function resolveLookup(
   hostname: string,
   options: dns.LookupOptions,
-  cb: (err: NodeJS.ErrnoException | null, address: string | dns.LookupAddress[], family?: number) => void,
+  cb: (
+    err: NodeJS.ErrnoException | null,
+    address: string | dns.LookupAddress[],
+    family?: number,
+  ) => void,
 ): void {
   dns.resolve4(hostname, (err, addresses) => {
     if (err) return cb(err, '');
-    if (options.all) cb(null, addresses.map((address) => ({ address, family: 4 })));
+    if (options.all)
+      cb(
+        null,
+        addresses.map((address) => ({ address, family: 4 })),
+      );
     else cb(null, addresses[0]!, 4);
   });
 }
 
-export function fetchJson(url: string, timeoutMs = 5000, headers?: Record<string, string>): Promise<unknown> {
+export function fetchJson(
+  url: string,
+  timeoutMs = 5000,
+  headers?: Record<string, string>,
+): Promise<unknown> {
   return new Promise((resolve, reject) => {
     const client = url.startsWith('https:') ? https : http;
     const req = client.get(url, { timeout: timeoutMs, lookup: resolveLookup, headers }, (res) => {
@@ -55,6 +67,7 @@ export function fetchJson(url: string, timeoutMs = 5000, headers?: Record<string
         reject(new UpstreamHttpError(status));
         return;
       }
+      res.on('error', reject);
       const chunks: Buffer[] = [];
       res.on('data', (c: Buffer) => chunks.push(c));
       res.on('end', () => {

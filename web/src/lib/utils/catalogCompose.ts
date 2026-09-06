@@ -54,7 +54,7 @@ const FACTORY_SLUG: Record<string, string> = {
   'کاویان اهواز': 'kavian-ahvaz',
   'قطعات اصفهان': 'ghataat-esfahan',
   'فولاد گیلان': 'gilan',
-  'هفت‌الماس': 'haft-almas',
+  هفت‌الماس: 'haft-almas',
   'ورق شهرکرد': 'shahrekord',
   تاراز: 'taraz',
   'امیرکبیر کاشان': 'amirkabir-kashan',
@@ -113,7 +113,11 @@ export function composeSkuSlug(input: {
  *  reads: «میلگرد آجدار ۱۴ ذوب‌آهن اصفهان». Grade is deliberately excluded —
  *  it lives in its own column/field so a customer scanning the price table
  *  can read it without parsing it back out of a sentence. */
-export function composeSkuName(input: { subName?: string; size?: string; factory?: string }): string {
+export function composeSkuName(input: {
+  subName?: string;
+  size?: string;
+  factory?: string;
+}): string {
   return [input.subName, input.size, input.factory]
     .map((p) => p?.trim())
     .filter(Boolean)
@@ -305,7 +309,11 @@ export function theoreticalWeightFor(
       : basis.lengthM;
   const branch = unitWeightKg(basis.shape, { ...dims, lengthM });
   if (branch === null) return null;
-  return Math.round(branch * 10) / 10 || null;
+  // This value is multiplied by every branch in an order, so rounding one
+  // branch to 0.1 kg compounds into tens of kilograms on bulk quantities.
+  // Keep gram precision in the commercial model; presentation may still use
+  // fewer decimals without changing the amount calculation.
+  return Math.round(branch * 1000) / 1000 || null;
 }
 
 /**
@@ -342,7 +350,7 @@ const SQM_SUBS = new Set(['sandwich-panel']);
  * rule: the column is per-SKU and the form can override it, because وال پست
  * and لوله مسی are per-item inside sub-categories that are not.
  */
-export function defaultPriceBasisFor(categorySlug: string, subSlug?: string): PriceBasis {
+export function defaultPriceBasisFor(subSlug?: string): PriceBasis {
   if (subSlug && PIECE_SUBS.has(subSlug)) return 'piece';
   if (subSlug && SQM_SUBS.has(subSlug)) return 'sqm';
   return 'kg';

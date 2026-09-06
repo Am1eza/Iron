@@ -87,8 +87,7 @@ export function PriceTag({
 }
 
 /**
- * E4 · زمان تحویل badge — the ownable delivery-time trust signal. Quiet hairline
- * badge with a clock glyph; `guaranteed` adds a subtle check + «تحویل تضمینی».
+ * E4 · زمان تحویل اعلام‌شده — an estimate until sales confirms it in writing.
  */
 export function DeliveryBadge({
   value,

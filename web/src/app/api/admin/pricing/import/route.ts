@@ -1,3 +1,4 @@
+import { readFormBody } from '@/lib/server/utils/requestBody';
 import { NextResponse, type NextRequest } from 'next/server';
 import ExcelJS from 'exceljs';
 import { eq } from 'drizzle-orm';
@@ -56,13 +57,19 @@ async function POSTImpl(req: NextRequest) {
   const auth = await requireApiPermission(req, 'pricing:write');
   if ('response' in auth) return auth.response;
 
-  const form = await req.formData().catch(() => null);
+  const form = await readFormBody(req);
   const file = form?.get('file');
   if (!file || typeof file === 'string') {
-    return NextResponse.json({ error: 'no_file', message: 'فایل اکسل ارسال نشده است.' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'no_file', message: 'فایل اکسل ارسال نشده است.' },
+      { status: 400 },
+    );
   }
   if (file.size > 5 * 1024 * 1024) {
-    return NextResponse.json({ error: 'too_large', message: 'حجم فایل حداکثر ۵ مگابایت.' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'too_large', message: 'حجم فایل حداکثر ۵ مگابایت.' },
+      { status: 400 },
+    );
   }
 
   const wb = new ExcelJS.Workbook();
@@ -70,7 +77,10 @@ async function POSTImpl(req: NextRequest) {
     await wb.xlsx.load(await file.arrayBuffer());
   } catch {
     return NextResponse.json(
-      { error: 'bad_file', message: 'فایل قابل خواندن نیست — فرمت باید xlsx باشد (قالب را دانلود کنید).' },
+      {
+        error: 'bad_file',
+        message: 'فایل قابل خواندن نیست — فرمت باید xlsx باشد (قالب را دانلود کنید).',
+      },
       { status: 400 },
     );
   }
@@ -85,7 +95,11 @@ async function POSTImpl(req: NextRequest) {
   const priceCol = headers.get('قیمت') ?? headers.get('قیمت (تومان)') ?? headers.get('price');
   if (!priceCol || (!idCol && !nameCol)) {
     return NextResponse.json(
-      { error: 'bad_headers', message: 'ستون‌های لازم پیدا نشد. سطر اول باید «نام کالا» و «قیمت» (و در صورت تمایل «کد کالا») باشد.' },
+      {
+        error: 'bad_headers',
+        message:
+          'ستون‌های لازم پیدا نشد. سطر اول باید «نام کالا» و «قیمت» (و در صورت تمایل «کد کالا») باشد.',
+      },
       { status: 400 },
     );
   }
@@ -119,7 +133,11 @@ async function POSTImpl(req: NextRequest) {
     }
     const sku = (rawId && byId.get(rawId)) || (rawName && byName.get(norm(rawName))) || null;
     if (!sku) {
-      unmatched.push({ row: rowNumber, name: rawName || rawId, reason: 'کالا در کاتالوگ پیدا نشد' });
+      unmatched.push({
+        row: rowNumber,
+        name: rawName || rawId,
+        reason: 'کالا در کاتالوگ پیدا نشد',
+      });
       return;
     }
     if (seen.has(sku.id)) {
@@ -127,7 +145,12 @@ async function POSTImpl(req: NextRequest) {
       return;
     }
     seen.add(sku.id);
-    matched.push({ skuId: sku.id, name: sku.name, currentPrice: sku.price ?? null, newPrice: price });
+    matched.push({
+      skuId: sku.id,
+      name: sku.name,
+      currentPrice: sku.price ?? null,
+      newPrice: price,
+    });
   });
 
   return NextResponse.json({ matched, unmatched, total: matched.length + unmatched.length });

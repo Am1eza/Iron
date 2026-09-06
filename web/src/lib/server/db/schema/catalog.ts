@@ -11,7 +11,9 @@
 import { sql } from 'drizzle-orm';
 import {
   boolean,
+  check,
   doublePrecision,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -106,7 +108,12 @@ export const subCategories = pgTable(
     order: integer('order').notNull().default(0),
     seo: jsonb('seo').$type<SeoMeta>(),
   },
-  (t) => [uniqueIndex('sub_categories_category_slug_uq').on(t.categoryId, t.slug)],
+  (t) => [
+    uniqueIndex('sub_categories_category_slug_uq').on(t.categoryId, t.slug),
+    // Required by the composite SKU parent FK below. `id` is already unique,
+    // but Postgres requires the exact referenced column set to be unique.
+    uniqueIndex('sub_categories_id_category_uq').on(t.id, t.categoryId),
+  ],
 );
 
 export const skus = pgTable(
@@ -216,11 +223,43 @@ export const skus = pgTable(
     // articles.relatedCategoryIds — see catalogRepo's crossListedInCategory
     // for the `@>` containment query this backs.
     crossListedCategoryIds: jsonb('cross_listed_category_ids').$type<string[]>(),
+    // Database-owned structural identity. Marketing name and slug are
+    // intentionally excluded: changing copy must not manufacture a second
+    // physical product. The separators/digit folding catches visually equal
+    // Persian inputs even when a script bypasses the API normalizers.
+    identityKey: text('identity_key').generatedAlwaysAs(sql`
+      lower(regexp_replace(
+        translate(
+          (case when coalesce("size", '') = '' and coalesce("grade", '') = '' and
+            coalesce("condition", '') = '' and coalesce("dimensions", '') = '' and
+            coalesce("schedule", '') = '' and coalesce("standard", '') = ''
+          then coalesce("name", '') || '|' || coalesce("factory", '')
+          else coalesce("size", '') || '|' || coalesce("grade", '') || '|' ||
+            coalesce("condition", '') || '|' || coalesce("dimensions", '') || '|' ||
+            coalesce("schedule", '') || '|' || coalesce("standard", '') || '|' ||
+            coalesce("factory", '') end)
+          || '|' || "unit" || '|' || "price_basis",
+          '٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹كيىةآأإ×X*٭‌',
+          '01234567890123456789کییهاااxxxx '
+        ),
+        '[[:space:]_.،,;؛:()\\[\\]{}/\\\\-]+', '', 'g'
+      ))
+    `),
     seo: jsonb('seo').$type<SeoMeta>(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    foreignKey({
+      name: 'skus_sub_category_parent_fk',
+      columns: [t.subCategoryId, t.categoryId],
+      foreignColumns: [subCategories.id, subCategories.categoryId],
+    }).onDelete('cascade').onUpdate('cascade'),
+    check('skus_order_range_ck', sql`${t.order} between 0 and 10000`),
+    check('skus_weight_range_ck', sql`${t.theoreticalWeightKg} is null or (${t.theoreticalWeightKg} > 0 and ${t.theoreticalWeightKg} <= 100000)`),
+    check('skus_branch_length_range_ck', sql`${t.branchLengthM} is null or (${t.branchLengthM} > 0 and ${t.branchLengthM} <= 100)`),
+    check('skus_unit_ck', sql`${t.unit} in ('kg','branch','sheet','meter','piece','sqm')`),
+    check('skus_price_basis_ck', sql`${t.priceBasis} in ('kg','branch','coil','sheet','piece','sqm')`),
     index('skus_sub_idx').on(t.subCategoryId),
     index('skus_cat_idx').on(t.categoryId),
     index('skus_factory_idx').on(t.factory),
@@ -237,6 +276,11 @@ export const skus = pgTable(
     // containment query crossListedInCategory runs on every load of a hub
     // category page (e.g. /prices/steel).
     index('skus_cross_listed_idx').using('gin', sql`${t.crossListedCategoryIds} jsonb_path_ops`),
+    uniqueIndex('skus_sub_structural_identity_uq').on(
+      t.subCategoryId,
+      t.identityKey,
+      sql`coalesce(${t.branchLengthM}, -1)`,
+    ),
   ],
 );
 

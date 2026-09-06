@@ -30,10 +30,8 @@ function LogoCell({ c, shouldLoad }: { c: ClientLogo; shouldLoad: boolean }) {
     <div className={styles.cell} title={c.name}>
       {showImg ? (
         // eager on purpose: lazy-loading never fires inside the clipped,
-        // transformed marquee track → logos would stay blank (round-6 bug).
-        // Gated on `shouldLoad` (the section entering the viewport) instead,
-        // so these don't compete for bandwidth with the hero/fonts on every
-        // page load — this is the last section on the homepage.
+        // transformed marquee track. Loading still waits until the section
+        // approaches the viewport so it does not compete with the hero.
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={c.file}
@@ -61,16 +59,10 @@ export function Partners() {
   // peers are proper nouns and, more to the point, the site search these link
   // into matches SKUs on that exact Persian string.
   const t = useTranslations('home.partners');
-  // Client logos are eager-loaded (see LogoCell) to work around lazy-loading
-  // never firing inside the clipped/transformed marquee track — but this
-  // section is the last thing on the homepage, so gate that eager load on
-  // the section actually approaching the viewport instead of firing on every
-  // page load regardless of scroll position.
   const { ref, isIntersecting } = useIntersectionObserver<HTMLDivElement>({
     rootMargin: '600px',
     freezeOnceVisible: true,
   });
-
   return (
     <section className={`${styles.section} blueprint`} aria-labelledby="partners-title">
       <div className={styles.block}>

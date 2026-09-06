@@ -20,7 +20,7 @@
  * fallback is the human path, not an apology.
  */
 export const AI_UNAVAILABLE_MESSAGE =
-  'دستیار هوشمند موقتاً در دسترس نیست. قیمت‌های لحظه‌ای و ابزارها در دسترس‌اند و کارشناسان ما هم پاسخگویند؛ درخواست مشاوره ثبت کن تا تماس بگیریم.';
+  'دستیار هوشمند موقتاً در دسترس نیست. آخرین قیمت‌های منتشرشده و ابزارها در دسترس‌اند و کارشناسان ما هم پاسخگویند؛ درخواست مشاوره ثبت کن تا تماس بگیریم.';
 
 /** An unexpected failure inside the pipeline, as opposed to a known upstream
  *  refusal or a deadline — retrying really can help here. */

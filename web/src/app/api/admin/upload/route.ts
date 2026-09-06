@@ -1,9 +1,15 @@
+import { readFormBody } from '@/lib/server/utils/requestBody';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { NextResponse, type NextRequest } from 'next/server';
 import { ulid } from 'ulid';
 import { can } from '@/lib/auth/roles';
-import { requireApiUser, requireDb, withApiErrorHandling, audit } from '@/lib/server/utils/apiGuard';
+import {
+  requireApiUser,
+  requireDb,
+  withApiErrorHandling,
+  audit,
+} from '@/lib/server/utils/apiGuard';
 import { rateLimit } from '@/lib/server/utils/rateLimit';
 import { sniffImageExt } from '@/lib/server/utils/imageSniff';
 import { uploadDir } from '@/lib/server/utils/uploadStorage';
@@ -36,13 +42,19 @@ async function POSTImpl(req: NextRequest) {
   const limited = await rateLimit(req, 'upload', { limit: 30, windowMs: 60_000 });
   if (limited) return limited;
 
-  const form = await req.formData().catch(() => null);
+  const form = await readFormBody(req);
   const file = form?.get('file');
   if (!file || typeof file === 'string') {
-    return NextResponse.json({ error: 'no_file', message: 'فایلی ارسال نشده است.' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'no_file', message: 'فایلی ارسال نشده است.' },
+      { status: 400 },
+    );
   }
   if (file.size > MAX_BYTES) {
-    return NextResponse.json({ error: 'too_large', message: 'حجم فایل حداکثر ۵ مگابایت.' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'too_large', message: 'حجم فایل حداکثر ۵ مگابایت.' },
+      { status: 400 },
+    );
   }
 
   const buf = Buffer.from(await file.arrayBuffer());

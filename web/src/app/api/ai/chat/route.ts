@@ -1,3 +1,4 @@
+import { readJsonBody } from '@/lib/server/utils/requestBody';
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { getSession } from '@/lib/auth/session';
@@ -8,10 +9,21 @@ import { budgetExhausted } from '@/lib/server/ai/budget';
 import { upstreamUnavailable, noteSlowTimeout } from '@/lib/server/ai/upstreamState';
 import { numbersInText } from '@/lib/server/ai/grounding';
 import { runAdvisorPipeline } from '@/lib/server/ai/pipeline';
-import { buildChatMessages, ensureConversation, identityFact, persistTurn } from '@/lib/server/ai/conversation';
+import {
+  buildChatMessages,
+  ensureConversation,
+  identityFact,
+  persistTurn,
+} from '@/lib/server/ai/conversation';
 import { getPromptVersions, resolvePromptText } from '@/lib/server/ai/promptVersions';
 import { getDomainFacts } from '@/lib/server/ai/domainFacts';
-import { detectCity, detectTonnage, getMemory, memoryFact, rememberFacts } from '@/lib/server/ai/memory';
+import {
+  detectCity,
+  detectTonnage,
+  getMemory,
+  memoryFact,
+  rememberFacts,
+} from '@/lib/server/ai/memory';
 import { customerHistoryFact, getCustomerHistory } from '@/lib/server/ai/customerFacts';
 import { getContact } from '@/lib/server/contact';
 import type { ExpertBlock } from '@/lib/ai/blocks';
@@ -56,7 +68,10 @@ function isDeadlineTimeout(err: unknown): boolean {
 /** 503 so AdvisorChat switches to the local grounded engine for the session
  *  (see its `e.status === 503` branch) instead of showing an error. */
 function unavailable(): NextResponse {
-  return NextResponse.json({ error: 'ai_unavailable', message: AI_UNAVAILABLE_MESSAGE }, { status: 503 });
+  return NextResponse.json(
+    { error: 'ai_unavailable', message: AI_UNAVAILABLE_MESSAGE },
+    { status: 503 },
+  );
 }
 
 const SSE_HEADERS = {
@@ -112,12 +127,16 @@ async function POSTImpl(req: NextRequest) {
   const limited = await rateLimit(req, 'ai-chat', { limit: 10, windowMs: 5 * 60_000 });
   if (limited) return limited;
 
-  const body: unknown = await req.json().catch(() => null);
+  const body: unknown = await readJsonBody(req);
   const parsed = payload.safeParse(body);
   if (!parsed.success) {
     // Match the app-wide validation envelope ({error:'validation', fields}).
     return NextResponse.json(
-      { error: 'validation', message: 'درخواست نامعتبر است.', fields: parsed.error.flatten().fieldErrors },
+      {
+        error: 'validation',
+        message: 'درخواست نامعتبر است.',
+        fields: parsed.error.flatten().fieldErrors,
+      },
       { status: 400 },
     );
   }
@@ -200,7 +219,11 @@ async function POSTImpl(req: NextRequest) {
         const promptVersions = await getPromptVersions().catch(() => []);
         let systemPrompt: string | undefined;
         try {
-          const conv = await ensureConversation(conversationId, session?.id ?? null, promptVersions);
+          const conv = await ensureConversation(
+            conversationId,
+            session?.id ?? null,
+            promptVersions,
+          );
           convId = conv.id;
           summary = conv.summary;
           systemPrompt = resolvePromptText(conv.promptVersionId, promptVersions);
@@ -225,9 +248,13 @@ async function POSTImpl(req: NextRequest) {
         // freight calculation rather than as a sentence in a summary.
         const stated = {
           ...(detectCity(parsed.data.messages) ? { city: detectCity(parsed.data.messages) } : {}),
-          ...(detectTonnage(parsed.data.messages) ? { tonnage: detectTonnage(parsed.data.messages) } : {}),
+          ...(detectTonnage(parsed.data.messages)
+            ? { tonnage: detectTonnage(parsed.data.messages) }
+            : {}),
         };
-        const memory = await rememberFacts(convId, stated).catch(() => getMemory(convId).catch(() => null));
+        const memory = await rememberFacts(convId, stated).catch(() =>
+          getMemory(convId).catch(() => null),
+        );
 
         // …and for a signed-in customer, what they have actually ordered
         // before, so a returning buyer is not interviewed from scratch.
@@ -277,7 +304,8 @@ async function POSTImpl(req: NextRequest) {
           if (contact) {
             const expert: ExpertBlock = {
               kind: 'expert',
-              reason: 'این را از روی داده‌های آهن‌تایم نمی‌شود مطمئن جواب داد. کارشناس ما همین حالا در دسترس است.',
+              reason:
+                'این را از روی داده‌های آهن‌تایم نمی‌شود مطمئن جواب داد. کارشناس ما همین حالا در دسترس است.',
               phone: contact.phoneLandline,
               mobile: contact.phoneMobile,
               whatsappUrl: `https://wa.me/98${contact.phoneMobile.replace(/^0/, '')}`,
@@ -292,7 +320,10 @@ async function POSTImpl(req: NextRequest) {
         }
 
         // Contextual follow-up chips (AC-D-7) — see selectFollowUpChips above.
-        const lastUserMessage = [...parsed.data.messages].reverse().find((m) => m.role === 'user')?.content?.trim();
+        const lastUserMessage = [...parsed.data.messages]
+          .reverse()
+          .find((m) => m.role === 'user')
+          ?.content?.trim();
         const userMessageCount = parsed.data.messages.filter((m) => m.role === 'user').length;
         const chips = selectFollowUpChips(
           toolsUsed,
@@ -329,7 +360,13 @@ async function POSTImpl(req: NextRequest) {
         // rolling summary a turn where the advisor said nothing.
         if (convId && result.text.trim()) {
           const lastUser = [...parsed.data.messages].reverse().find((m) => m.role === 'user');
-          void persistTurn(convId, lastUser?.content ?? null, result.text, undefined, answerId).catch(() => {
+          void persistTurn(
+            convId,
+            lastUser?.content ?? null,
+            result.text,
+            undefined,
+            answerId,
+          ).catch(() => {
             /* persistence must never surface an error */
           });
         }
@@ -387,7 +424,11 @@ async function POSTImpl(req: NextRequest) {
             // cooldown — one slow answer must not take the advisor away from
             // everyone else.
             if (noteSlowTimeout()) {
-              reportError(err, { route: 'ai/chat', reason: 'deadline_timeout', budgetMs: CONSTANTS.AI_TIMEOUT_MS });
+              reportError(err, {
+                route: 'ai/chat',
+                reason: 'deadline_timeout',
+                budgetMs: CONSTANTS.AI_TIMEOUT_MS,
+              });
             }
             send({ type: 'error', message: AI_UNAVAILABLE_MESSAGE });
           } else {

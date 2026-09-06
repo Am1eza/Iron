@@ -9,6 +9,8 @@ import { ApiError } from '@/lib/api/errors';
 import { Button, Card, Heading, Stack, Text, TableSkeleton, EmptyState } from '@/components/ui';
 import { TextInput } from '@/components/forms/fields';
 import { DEFAULT_FREIGHT_TABLE } from '@/lib/data/logistics';
+import { DEFAULT_ORDER_POLICY, type OrderPolicy } from '@/lib/config/orderPolicy';
+import { DEFAULT_VOLUME_DISCOUNT_POLICY, type VolumeDiscountPolicy } from '@/lib/config/pricingTiers';
 import ui from '../adminUi.module.css';
 
 interface Logistics {
@@ -26,6 +28,10 @@ interface Logistics {
   handlingPerTon: number;
   insuranceRate: number;
   scaleFee: number;
+  packagingPerTon?: number;
+  taxable?: { goods: boolean; freight: boolean; handling: boolean; insurance: boolean; scale: boolean; packaging: boolean };
+  sourceNote?: string;
+  verifiedAt?: string;
   cities: { name: string; km: number }[];
 }
 
@@ -76,6 +82,16 @@ export function SettingsForm() {
         onSave={(key, value) => save.mutate({ key, value })}
         busy={save.isPending}
       />
+      <OrderPolicyCard
+        policy={get<OrderPolicy>('ORDER_POLICY', DEFAULT_ORDER_POLICY)}
+        onSave={(value) => save.mutate({ key: 'ORDER_POLICY', value })}
+        busy={save.isPending}
+      />
+      <VolumeDiscountPolicyCard
+        policy={get<VolumeDiscountPolicy>('VOLUME_DISCOUNT_POLICY', DEFAULT_VOLUME_DISCOUNT_POLICY)}
+        onSave={(value) => save.mutate({ key: 'VOLUME_DISCOUNT_POLICY', value })}
+        busy={save.isPending}
+      />
       <SmsAutomationsCard
         cfg={get('SMS_AUTOMATIONS', { welcome: true, proformaReminder: true, callbackReminder: true, weeklyReport: true })}
         onSave={(v) => save.mutate({ key: 'SMS_AUTOMATIONS', value: v })}
@@ -104,12 +120,123 @@ export function SettingsForm() {
           handlingPerTon: 150000,
           insuranceRate: 0.0025,
           scaleFee: 75000,
+          packagingPerTon: 0,
+          taxable: { goods: true, freight: false, handling: false, insurance: false, scale: false, packaging: false },
+          sourceNote: '',
           cities: [],
         })}
         onSave={(v) => save.mutate({ key: 'LOGISTICS', value: v })}
         busy={save.isPending}
       />
     </div>
+  );
+}
+
+function OrderPolicyCard({
+  policy,
+  onSave,
+  busy,
+}: {
+  policy: OrderPolicy;
+  onSave: (value: OrderPolicy) => void;
+  busy: boolean;
+}) {
+  const [minimum, setMinimum] = useState(String(policy.minimumAutoQuoteToman));
+  const [maximumDiscount, setMaximumDiscount] = useState(String(policy.maximumManagerDiscountRate * 100));
+  const [maximumTotalDiscount, setMaximumTotalDiscount] = useState(String(policy.maximumTotalDiscountRate * 100));
+  const [error, setError] = useState<string>();
+  useEffect(() => {
+    setMinimum(String(policy.minimumAutoQuoteToman));
+    setMaximumDiscount(String(policy.maximumManagerDiscountRate * 100));
+    setMaximumTotalDiscount(String(policy.maximumTotalDiscountRate * 100));
+    setError(undefined);
+  }, [policy.minimumAutoQuoteToman, policy.maximumManagerDiscountRate, policy.maximumTotalDiscountRate]);
+
+  const submit = () => {
+    const min = num(minimum);
+    const maxPct = num(maximumDiscount);
+    const maxTotalPct = num(maximumTotalDiscount);
+    if (!Number.isInteger(min) || min < 0 || !Number.isFinite(maxPct) || maxPct < 0 || maxPct > 10 || !Number.isFinite(maxTotalPct) || maxTotalPct < 0 || maxTotalPct > 10) {
+      setError('حداقل مبلغ باید عدد صحیح نامنفی و سقف تخفیف بین ۰ تا ۱۰ درصد باشد.');
+      return;
+    }
+    setError(undefined);
+    onSave({
+      version: new Date().toISOString(),
+      minimumAutoQuoteToman: min,
+      maximumManagerDiscountRate: maxPct / 100,
+      maximumTotalDiscountRate: maxTotalPct / 100,
+    });
+  };
+
+  return (
+    <Card>
+      <Heading level={2}>سیاست مالی سفارش</Heading>
+      <Text color="muted">
+        درخواست زیر حداقل مبلغ حذف نمی‌شود؛ به کارشناس ارجاع می‌شود و پیش‌فاکتور خودکار صادر نمی‌کند.
+      </Text>
+      <div className={ui.grid2} style={{ marginBlockStart: 'var(--space-3)' }}>
+        <TextInput label="حداقل مبلغ پیش‌فاکتور خودکار (تومان)" inputMode="numeric" value={minimum} onChange={(e) => setMinimum(e.target.value)} />
+        <TextInput label="سقف تخفیف دستی مدیر (٪)" inputMode="decimal" value={maximumDiscount} onChange={(e) => setMaximumDiscount(e.target.value)} />
+        <TextInput label="سقف مجموع تخفیف‌ها (٪)" inputMode="decimal" value={maximumTotalDiscount} onChange={(e) => setMaximumTotalDiscount(e.target.value)} />
+      </div>
+      {error ? <p style={{ color: 'var(--color-loss-text)' }}>{error}</p> : null}
+      <div className={ui.toolbar} style={{ marginBlockStart: 'var(--space-3)' }}>
+        <Button size="sm" loading={busy} onClick={submit}>ذخیرهٔ سیاست مالی</Button>
+      </div>
+    </Card>
+  );
+}
+
+function VolumeDiscountPolicyCard({
+  policy,
+  onSave,
+  busy,
+}: {
+  policy: VolumeDiscountPolicy;
+  onSave: (value: VolumeDiscountPolicy) => void;
+  busy: boolean;
+}) {
+  const ordered = [...policy.tiers].sort((a, b) => a.minWeightKg - b.minWeightKg);
+  const [rows, setRows] = useState(() => ordered.map((tier) => ({ ...tier, minTons: String(tier.minWeightKg / 1000), pct: String(tier.discountRate * 100) })));
+  const [error, setError] = useState<string>();
+  useEffect(() => {
+    setRows([...policy.tiers].sort((a, b) => a.minWeightKg - b.minWeightKg).map((tier) => ({ ...tier, minTons: String(tier.minWeightKg / 1000), pct: String(tier.discountRate * 100) })));
+    setError(undefined);
+  }, [policy]);
+  const submit = () => {
+    const tiers = rows.map(({ minTons, pct, ...tier }) => ({
+      ...tier,
+      minWeightKg: Math.round(num(minTons) * 1000),
+      discountRate: num(pct) / 100,
+    }));
+    if (tiers.some((tier) => !Number.isFinite(tier.minWeightKg) || tier.minWeightKg < 0 || !Number.isFinite(tier.discountRate) || tier.discountRate < 0 || tier.discountRate > 0.1)) {
+      setError('مرز تناژ باید نامنفی و درصد تخفیف بین ۰ تا ۱۰ باشد.');
+      return;
+    }
+    const sorted = [...tiers].sort((a, b) => a.minWeightKg - b.minWeightKg);
+    if (sorted[0]?.id !== 'retail' || sorted[0].minWeightKg !== 0 || sorted.some((tier, index) => index > 0 && tier.minWeightKg <= sorted[index - 1]!.minWeightKg)) {
+      setError('سطح خرد باید از صفر شروع شود و مرز سطح‌ها باید صعودی و بدون تکرار باشد.');
+      return;
+    }
+    setError(undefined);
+    onSave({ version: new Date().toISOString(), tiers: sorted });
+  };
+  return (
+    <Card>
+      <Heading level={2}>نسخهٔ تخفیف پلکانی</Heading>
+      <Text color="muted">هر تغییر نسخه‌دار و در audit تنظیمات ثبت می‌شود؛ پیش‌فاکتور صادرشده مبلغ و برچسب همان زمان را نگه می‌دارد.</Text>
+      <div className={ui.grid2} style={{ marginBlockStart: 'var(--space-3)' }}>
+        {rows.map((row, index) => (
+          <div key={row.id} className={ui.grid2}>
+            <TextInput label={`${row.label}: شروع از (تن)`} inputMode="decimal" value={row.minTons} disabled={row.id === 'retail'} onChange={(e) => setRows(rows.map((item, i) => i === index ? { ...item, minTons: e.target.value } : item))} />
+            <TextInput label={`${row.label}: تخفیف (٪)`} inputMode="decimal" value={row.pct} onChange={(e) => setRows(rows.map((item, i) => i === index ? { ...item, pct: e.target.value } : item))} />
+          </div>
+        ))}
+      </div>
+      {error ? <p style={{ color: 'var(--color-loss-text)' }}>{error}</p> : null}
+      <div className={ui.toolbar} style={{ marginBlockStart: 'var(--space-3)' }}><Button size="sm" loading={busy} onClick={submit}>انتشار نسخهٔ جدید تخفیف</Button></div>
+    </Card>
   );
 }
 
@@ -397,7 +524,10 @@ function LogisticsCard({ cfg, onSave, busy }: { cfg: Logistics; onSave: (v: Logi
     handling: String(cfg.handlingPerTon),
     insurance: String(cfg.insuranceRate * 100),
     scale: String(cfg.scaleFee),
+    packaging: String(cfg.packagingPerTon ?? 0),
+    sourceNote: cfg.sourceNote ?? '',
   });
+  const [taxable, setTaxable] = useState(cfg.taxable ?? { goods: true, freight: false, handling: false, insurance: false, scale: false, packaging: false });
   const [cities, setCities] = useState<CityRow[]>(() => cfg.cities.map((c) => ({ id: newRowId(), name: c.name, km: String(c.km) })));
   const [cityErrors, setCityErrors] = useState<Record<string, string>>({});
   const [freight, setFreight] = useState<FreightRow[]>(() =>
@@ -410,7 +540,10 @@ function LogisticsCard({ cfg, onSave, busy }: { cfg: Logistics; onSave: (v: Logi
       handling: String(cfg.handlingPerTon),
       insurance: String(cfg.insuranceRate * 100),
       scale: String(cfg.scaleFee),
+      packaging: String(cfg.packagingPerTon ?? 0),
+      sourceNote: cfg.sourceNote ?? '',
     });
+    setTaxable(cfg.taxable ?? { goods: true, freight: false, handling: false, insurance: false, scale: false, packaging: false });
     setCities(cfg.cities.map((c) => ({ id: newRowId(), name: c.name, km: String(c.km) })));
     setCityErrors({});
     setFreight(freightTableOrDefault(cfg.freightTable).map((f) => ({ id: newRowId(), km: String(f.km), perTon: String(f.perTon) })));
@@ -422,6 +555,8 @@ function LogisticsCard({ cfg, onSave, busy }: { cfg: Logistics; onSave: (v: Logi
     handling?: string;
     insurance?: string;
     scale?: string;
+    packaging?: string;
+    sourceNote?: string;
   }>({});
 
   const NON_NEGATIVE_MSG = 'عدد معتبر و نامنفی وارد کنید.';
@@ -445,6 +580,9 @@ function LogisticsCard({ cfg, onSave, busy }: { cfg: Logistics; onSave: (v: Logi
     if (!Number.isFinite(insurance) || insurance < 0) nextErrors.insurance = NON_NEGATIVE_MSG;
     const scale = num(v.scale);
     if (!Number.isFinite(scale) || scale < 0) nextErrors.scale = NON_NEGATIVE_MSG;
+    const packaging = num(v.packaging);
+    if (!Number.isFinite(packaging) || packaging < 0) nextErrors.packaging = NON_NEGATIVE_MSG;
+    if (!v.sourceNote.trim()) nextErrors.sourceNote = 'منبع/یادداشت تأیید نرخ‌ها الزامی است.';
 
     const nextCityErrors: Record<string, string> = {};
     const cityValues: { name: string; km: number }[] = [];
@@ -491,6 +629,10 @@ function LogisticsCard({ cfg, onSave, busy }: { cfg: Logistics; onSave: (v: Logi
       handlingPerTon: handling,
       insuranceRate: insurance / 100,
       scaleFee: scale,
+      packagingPerTon: packaging,
+      taxable,
+      sourceNote: v.sourceNote.trim(),
+      verifiedAt: new Date().toISOString(),
       cities: cityValues,
     });
   };
@@ -503,6 +645,22 @@ function LogisticsCard({ cfg, onSave, busy }: { cfg: Logistics; onSave: (v: Logi
         <TextInput label="بارگیری/تخلیه (تومان/تن)" inputMode="numeric" value={v.handling} error={errors.handling} onChange={(e) => setV({ ...v, handling: e.target.value })} />
         <TextInput label="بیمه (٪ ارزش کالا)" inputMode="decimal" value={v.insurance} error={errors.insurance} onChange={(e) => setV({ ...v, insurance: e.target.value })} />
         <TextInput label="باسکول (تومان)" inputMode="numeric" value={v.scale} error={errors.scale} onChange={(e) => setV({ ...v, scale: e.target.value })} />
+        <TextInput label="بسته‌بندی (تومان/تن)" inputMode="numeric" value={v.packaging} error={errors.packaging} onChange={(e) => setV({ ...v, packaging: e.target.value })} />
+        <TextInput label="منبع و توضیح تأیید نرخ‌ها" value={v.sourceNote} error={errors.sourceNote} onChange={(e) => setV({ ...v, sourceNote: e.target.value })} />
+      </div>
+
+      <div style={{ marginBlockStart: 'var(--space-3)' }}>
+        <Text color="muted">اجزای مشمول مالیات را مطابق تأیید حسابدار مشخص کنید:</Text>
+        <div className={ui.toolbar}>
+          {([
+            ['goods', 'کالا'], ['freight', 'حمل'], ['handling', 'بارگیری/تخلیه'],
+            ['insurance', 'بیمه'], ['scale', 'باسکول'], ['packaging', 'بسته‌بندی'],
+          ] as const).map(([key, label]) => (
+            <label key={key}>
+              <input type="checkbox" checked={taxable[key]} onChange={(e) => setTaxable({ ...taxable, [key]: e.target.checked })} />{' '}{label}
+            </label>
+          ))}
+        </div>
       </div>
 
       <div style={{ marginBlockStart: 'var(--space-3)' }}>

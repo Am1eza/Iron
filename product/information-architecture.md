@@ -239,7 +239,7 @@ sitemap.xml  robots.txt                                                    [SEO]
 | Sub-category (table) | «قیمت {زیردسته} امروز {تاریخ} | آهن‌تایم» | AggregateOffer + BreadcrumbList |
 | SKU | «قیمت {محصول} {سایز} {کارخانه} امروز {تاریخ} | آهن‌تایم» | **Product + Offer** (price, priceCurrency, priceValidUntil, availability) |
 | AI | «آهن‌تایم — مشاور هوشمند خرید آهن و فولاد» | WebApplication |
-| Market | «قیمت لحظه‌ای دلار، یورو و طلا — آهن‌تایم» | — |
+| Market | «آخرین نرخ ثبت‌شده دلار، یورو و طلا — آهن‌تایم» | — |
 | Blog/News | «{عنوان} | وبلاگ آهن‌تایم» | **Article** + (FAQPage if Q&A) |
 | Tool | «{ابزار} آنلاین — آهن‌تایم» | WebApplication |
 | Why/About/Contact | «{عنوان} — آهن‌تایم» | Organization + LocalBusiness (address/phone) |

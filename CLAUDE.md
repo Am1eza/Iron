@@ -8,7 +8,7 @@ Guidance for AI agents working in this repository. Read this before touching cod
 
 **ahantime.com** — a Persian-first (RTL) smart marketplace for iron & steel in Iran.
 Business model is **lead-gen, not e-commerce**: the site publishes transparent live
-prices, an AI advisor grounded in real data, and a guaranteed delivery-time promise;
+prices, an AI advisor grounded in real data, and a delivery window confirmed before sale;
 the actual sale is closed by a human over the phone.
 
 > **There is no online payment.** «اول مشورت، بعد خرید.»
@@ -16,18 +16,19 @@ the actual sale is closed by a human over the phone.
 Funnel: Magnet → Engage → Capture (پیش‌فاکتور / proforma) → Convert (human call) → Retain.
 
 ### Locked product decisions (do not "improve" these)
-| Decision | Value |
-|---|---|
-| Payments | **None online.** Proforma + human close. |
-| Prices | 100% **admin-entered**. No bourse formula. Weight = deterministic formula. |
-| AI | **Surplus Intelligence** (`gpt-5.6-luna`), server-side via an **out-of-Iran relay**. Grounded — never invents a number. Was DeepSeek until 1405/05, then Parspack AI Studio until 1405/06; the owner switched again. Env vars are provider-neutral (`AI_BASE_URL`/`AI_API_KEY`/`AI_MODEL`, legacy `DEEPSEEK_*` still accepted) — see `web/src/lib/server/integrations/aiRelayConfig.ts`. `AI_REASONING_EFFORT` stays capped by default (measured `reasoning_tokens: 0` for this model at `low`, but the cap that saved production from the Parspack model's timeouts is left in place regardless). |
-| Ticker | FX/gold from **BrsAPI** (api.brsapi.ir), ounce from gold-api.com; billet is admin-entered. |
-| Auth | Mobile number + **OTP**. |
-| SMS | **SMS.ir — OWNER-LOCKED.** Never propose another provider. |
-| Hosting | Hybrid — app + DB inside Iran, AI relay outside. |
-| Localization | Persian-first, RTL, Jalali dates, Toman currency. |
-| UI kit | **None.** No Tailwind/MUI/Bootstrap. CSS Modules + `design/tokens.css` only. |
-| CDNs | **None.** Fonts and JS are self-hosted (Iran reachability). |
+
+| Decision     | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Payments     | **None online.** Proforma + human close.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| Prices       | **Admin-managed**, with manual entry and source-sync code paths. Verify enabled jobs/settings per environment. No bourse formula; weight uses deterministic calculations.                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| AI           | **Surplus Intelligence** (`gpt-5.6-luna`), server-side via an **out-of-Iran relay**. Grounded — never invents a number. Was DeepSeek until 1405/05, then Parspack AI Studio until 1405/06; the owner switched again. Env vars are provider-neutral (`AI_BASE_URL`/`AI_API_KEY`/`AI_MODEL`, legacy `DEEPSEEK_*` still accepted) — see `web/src/lib/server/integrations/aiRelayConfig.ts`. `AI_REASONING_EFFORT` stays capped by default (measured `reasoning_tokens: 0` for this model at `low`, but the cap that saved production from the Parspack model's timeouts is left in place regardless). |
+| Ticker       | FX/gold from **BrsAPI** (api.brsapi.ir), ounce from gold-api.com; billet has a separate polling job and an admin override.                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Auth         | Mobile number + **OTP**.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| SMS          | **SMS.ir — OWNER-LOCKED.** Never propose another provider.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Hosting      | Hybrid — app + DB inside Iran, AI relay outside.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| Localization | Persian-first, RTL, Jalali dates, Toman currency.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| UI kit       | **None.** No Tailwind/MUI/Bootstrap. CSS Modules + `design/tokens.css` only.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| CDNs         | **None.** Fonts and JS are self-hosted (Iran reachability).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 
 ---
 
@@ -42,23 +43,21 @@ Funnel: Magnet → Engage → Capture (پیش‌فاکتور / proforma) → Con
 ├─ .env                        ← REAL SECRETS, gitignored. Never read into output or commit.
 ├─ DEPLOY.md · GEO-ROUTING.md · README.md
 └─ web/                        ← the Next.js app (everything below is relative to here)
-   ├─ src/app/                 ← App Router · 122 route handlers under src/app/api/
+   ├─ src/app/                 ← App Router pages and API handlers
    ├─ src/components/          ← ~30 domains (admin, ai, catalog, market, forms, primitives…)
    ├─ src/lib/
    │  ├─ auth/                 ← jwt, session, guards, roles, sms, store.pg, origin
-   │  ├─ server/               ← db/ (drizzle schema ×11), repos/ (39), services/, jobs/, integrations/
-   │  ├─ validation/ config/ api/ stores/ hooks/ utils/ i18n/
+   │  ├─ server/               ← db/, repos/, services/, jobs/, integrations/
+   │  ├─ validation/ config/ api/ stores/ hooks/ utils/
    ├─ src/middleware.ts        ← admin gating + panel-host rewrite + DB-backed redirects
-   ├─ drizzle/                 ← 27 SQL migrations + meta/_journal.json
+   ├─ drizzle/                 ← SQL migrations + meta/_journal.json
    ├─ e2e/                     ← Playwright
    └─ next.config.mjs          ← **the single source of truth for security headers**
 ```
 
-**Scale:** ~620 TS/TSX files, ~70k LOC, 122 API routes, 79 test files, 27 migrations.
-
 ### Layer model (from README.md)
-Layers 1–3 (Vision / Product Design / UI System) are **complete specs** and are the
-authority on intent. Layer 4+ (`web/`) is the build. When code and spec disagree,
+
+Layers 1–3 (Vision / Product Design / UI System) document product intent. Layer 4+ (`web/`) is the build. When code and spec disagree,
 the spec states the intent — but verify against code before assuming either is current.
 
 ---
@@ -77,6 +76,7 @@ the spec states the intent — but verify against code before assuming either is
   assumptions valid for the Docker target are **not** automatically valid there.
 
 ### Architecture notes that bite
+
 - **Server Components by default.** `"use client"` only for genuine interactivity.
   Secrets live in route handlers / server only — never in a client bundle.
 - **`middleware.ts` runs on the Node runtime** (`export const runtime = 'nodejs'`) so it
@@ -100,52 +100,54 @@ the spec states the intent — but verify against code before assuming either is
   is the single source for every in-app URL; never hardcode a path. Persian appears in labels
   and content only. Verified: `find src/app -type d` has zero non-ASCII entries, and live
   `/قیمت` → 404 while `/prices` → 200.
-  > `web/ROUTING.md` still documents the abandoned Persian-slug scheme and its entire URL
-  > table 404s. `middleware.ts`'s comment about "Persian-path auth gating" is likewise
-  > vestigial. Do not trust either on this point.
+  See [routing](web/ROUTING.md) for the current route families.
 
 ---
 
 ## 4. Working conventions
 
 ### Commits
+
 Format: `type(US-XX.X): short description` — `type` ∈ `feat|fix|security|backend|chore|docs|perf|test`,
 referencing story ids from `product/epics-user-stories-v2.md`.
 
 ### The git index is shared, mutable state
+
 Multiple agents may work this tree concurrently. **Never `git add -A` or `git add .`.**
 A sibling's `git add` can land between your own two tool calls and a bare `git commit`
 would fold their unrelated work into your commit.
 
 **Commit atomically with explicit paths:**
+
 ```bash
 git commit web/src/foo.ts web/src/foo.test.ts -m "fix(US-12.3): ..."
 ```
+
 This bypasses the index for those files entirely — no race window. Before starting and
 before committing, run `git status --porcelain=v1 -- web` and `git log --oneline -10`.
 
 ### The drizzle migration journal is a second collision point
+
 `web/drizzle/meta/_journal.json` is append-only and shared. If a sibling generated
 migration N but hasn't committed the `.sql`, and you generate N+1, committing the
 journal alone breaks `drizzle-kit migrate` for everyone. Diff it against
 `git show HEAD:web/drizzle/meta/_journal.json` before committing; if it references a
 tag whose `.sql` is untracked, commit that migration's SQL + snapshot too.
 
-### No Node on the host PATH
-There is no local `node`/`npm`/`pnpm`/`npx`. `web/node_modules` **is** installed on disk.
-Run tooling through Docker:
-```bash
-docker run --rm -v /opt/ahantime:/app -w /app/web node:20 sh -c "./node_modules/.bin/tsc --noEmit"
-```
-Swap the binary for `vitest run`, `next lint`, `next build`, `drizzle-kit generate`.
-> **Trap:** use `node:20`, not `node:20-alpine`, for builds.
+### Local tooling versus the deployment host
+
+Detect available tooling in the current checkout; `/opt/ahantime` is the production path, not every contributor's working directory. Use the package-manager version in `web/package.json`. When dependencies are installed, local binaries such as `./node_modules/.bin/tsc --noEmit` also work from `web/`.
+
+If the deployment host has no Node tooling, use its documented Docker toolchain. Run a production build before shipping; see [web/README.md](web/README.md) for checks. Never run a build and the browser suite's dev server concurrently in one checkout.
 
 ### Before writing a new file
+
 Check whether it already exists. A sibling agent (usually BE/DEVOPS for infra-adjacent
 work) may have already built it to a matching contract. Read it fully and adapt rather
 than overwrite.
 
 ### Docs can be stale
+
 `docs/PRODUCTION-AUDIT.md` has listed already-fixed items as open. **Verify every claim
 in any audit/roadmap doc against the actual code** before scoping work off it.
 
@@ -153,7 +155,7 @@ in any audit/roadmap doc against the actual code** before scoping work off it.
 
 ## 5. Deploy
 
-Auto-deploy **works now.** It used to fail at the SSH step because
+**Historical deployment observation (1405/05/29):** auto-deploy worked at the recorded commit. Verify current workflow/deployment status before acting. It used to fail at the SSH step because
 `DEPLOY_HOST` / `DEPLOY_USER` / `DEPLOY_SSH_KEY` were unset; the owner has since set them.
 Observed on `main@f330abe` (1405/05/29): merging a PR ran `Deploy to production server`
 → both `build` and `deploy` green, and `ahantime-web-1` was already running the new tag
@@ -162,7 +164,7 @@ deploy it** — `docker inspect ahantime-web-1 --format '{{.Config.Image}}'` aga
 `git rev-parse origin/main`. The manual recipe below is still correct, and still the
 fallback when the workflow does fail.
 
-Known-red and **not** caused by your change (confirmed across many commits):
+**Historical CI observations, not a current exemption from checks:**
 `Deploy preview to GitHub Pages` (a job literally named `build` — do not confuse it with
 the GHCR `build` job in `deploy.yml`, which must be green) and
 `Workers Builds: ahantime` (the secondary Cloudflare target; red on `main` independently
@@ -170,6 +172,7 @@ of any PR). `CI / checks` and `CI / e2e` were long-standing flakes but have been
 since #208 — treat a failure there as real until proven otherwise.
 
 **Manual deploy on this host:**
+
 ```bash
 GIT_SSH_COMMAND="ssh -i ~/.ssh/ahantime_deploy -o IdentitiesOnly=yes" git push origin main
 docker pull ghcr.io/am1eza/iron-web:<full-sha>
@@ -177,16 +180,19 @@ docker image inspect ghcr.io/am1eza/iron-web:<full-sha>     # MUST succeed befor
 sed -i 's#^WEB_IMAGE=.*#WEB_IMAGE=<image>#' /opt/ahantime/.env
 docker compose up -d web
 ```
+
 Never pipe the pull to `tail` — a masked failure once pointed `.env` at a missing tag.
 
 **Verify (port 3000 is not host-exposed — go through Caddy):**
+
 ```bash
 curl -sk --resolve ahantime.com:443:127.0.0.1        https://ahantime.com/          # 200
 curl -sk --resolve panel.ahantime.com:443:127.0.0.1  https://panel.ahantime.com/    # 307 → login
 curl -sk --resolve ahantime.com:443:127.0.0.1        https://ahantime.com/admin     # 404
 docker exec ahantime-web-1 grep -rl '<a string you just shipped>' .next/
 ```
-Always run a full `next build` in Docker before pushing.
+
+Always run a full `next build` using the appropriate local or Docker toolchain before pushing.
 
 ---
 
@@ -199,6 +205,7 @@ Always run a full `next build` in Docker before pushing.
 - Budgets: **LCP < 2.5s · TTFB < 0.8s · CLS < 0.1**
 
 ### Styling rules that reviewers enforce
+
 - Semantic tokens only (`--color-*`, `--t-*`, `--space-*`) — never raw values, never primitives
 - Logical properties only (`margin-inline-start`, not `margin-left`)
 - **One amber action per view.** Cobalt = interactive. Green/red **only** in data.
@@ -214,7 +221,7 @@ Always run a full `next build` in Docker before pushing.
 - **Matomo** for analytics (self-hosted, with MarketingCampaignsReporting). Only
   `/mt/matomo.js` and `/mt/matomo.php` are proxied on the public origin; everything else
   under `/mt/*` is a deliberate 404. The admin console is the `:8443` host, not `/mt/`.
-- **Editing `Caddyfile` does NOT reach Caddy.** It is bind-mounted as a *single file*, so
+- **Editing `Caddyfile` does NOT reach Caddy.** It is bind-mounted as a _single file_, so
   any editor that writes-then-renames gives the host path a new inode while the container
   keeps the old one — `caddy reload` then reports `config is unchanged` and you can spend
   a long time debugging a fix that was never loaded. Confirm with

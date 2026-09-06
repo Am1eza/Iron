@@ -1,3 +1,4 @@
+import { readFormBody } from '@/lib/server/utils/requestBody';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { NextResponse, type NextRequest } from 'next/server';
@@ -29,7 +30,10 @@ async function POSTImpl(req: NextRequest) {
   if (guard) return guard;
   const session = await getSessionVerified();
   if (!session) {
-    return NextResponse.json({ error: 'unauthenticated', message: 'وارد نشده‌اید.' }, { status: 401 });
+    return NextResponse.json(
+      { error: 'unauthenticated', message: 'وارد نشده‌اید.' },
+      { status: 401 },
+    );
   }
   const status = await clubStatus(session.id);
   if (status.tier !== 'poolad') {
@@ -40,13 +44,19 @@ async function POSTImpl(req: NextRequest) {
   const limited = await rateLimit(req, 'upload', { limit: 10, windowMs: 60_000 });
   if (limited) return limited;
 
-  const form = await req.formData().catch(() => null);
+  const form = await readFormBody(req);
   const file = form?.get('file');
   if (!file || typeof file === 'string') {
-    return NextResponse.json({ error: 'no_file', message: 'فایلی ارسال نشده است.' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'no_file', message: 'فایلی ارسال نشده است.' },
+      { status: 400 },
+    );
   }
   if (file.size > MAX_BYTES) {
-    return NextResponse.json({ error: 'too_large', message: 'حجم فایل حداکثر ۵ مگابایت.' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'too_large', message: 'حجم فایل حداکثر ۵ مگابایت.' },
+      { status: 400 },
+    );
   }
 
   const buf = Buffer.from(await file.arrayBuffer());
@@ -66,7 +76,10 @@ async function POSTImpl(req: NextRequest) {
   const url = `/uploads/${filename}`;
   const ok = await setLetterhead(session.id, { logoUrl: url });
   if (!ok) {
-    return NextResponse.json({ error: 'no_membership', message: 'عضویت باشگاه یافت نشد.' }, { status: 409 });
+    return NextResponse.json(
+      { error: 'no_membership', message: 'عضویت باشگاه یافت نشد.' },
+      { status: 409 },
+    );
   }
 
   return NextResponse.json({ url }, { status: 201 });

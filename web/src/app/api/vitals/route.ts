@@ -1,3 +1,4 @@
+import { readJsonBody } from '@/lib/server/utils/requestBody';
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { withApiErrorHandling } from '@/lib/server/utils/apiGuard';
@@ -65,7 +66,7 @@ async function POSTImpl(req: NextRequest): Promise<NextResponse> {
   if (limited) return new NextResponse(null, { status: 204 });
 
   try {
-    const parsed = payload.safeParse(await req.json());
+    const parsed = payload.safeParse(await readJsonBody(req));
     if (parsed.success) {
       const { name, value, rating, section } = parsed.data;
       const overBudget = !isWithinBudget({ id: '', name, value, rating });

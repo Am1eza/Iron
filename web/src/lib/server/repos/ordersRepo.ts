@@ -144,7 +144,11 @@ export async function ordersForUser(
 export async function cancelOrder(ref: string): Promise<Order | null> {
   const rows = await getDb()
     .update(orders)
-    .set({ deletedAt: new Date(), lastUpdate: new Date(), updatedAt: new Date() })
+    .set({
+      deletedAt: new Date(),
+      lastUpdate: sql`greatest(${orders.lastUpdate} + interval '1 millisecond', clock_timestamp())`,
+      updatedAt: new Date(),
+    })
     .where(and(eq(orders.ref, ref), isNull(orders.deletedAt)))
     .returning();
   if (!rows[0]) return null;
@@ -223,7 +227,11 @@ export async function updateOrderStatus(
     assertForwardTransition(ORDER_STATUS_ORDER, current[0].status, status);
     const rows = await tx
       .update(orders)
-      .set({ status, lastUpdate: new Date(), updatedAt: new Date() })
+      .set({
+        status,
+        lastUpdate: sql`greatest(${orders.lastUpdate} + interval '1 millisecond', clock_timestamp())`,
+        updatedAt: new Date(),
+      })
       .where(and(eq(orders.ref, ref), isNull(orders.deletedAt)))
       .returning();
     if (!rows[0]) return null;
@@ -257,12 +265,17 @@ export async function updateOrderShipping(
   // watching "آخرین به‌روزرسانی" should see it move the moment a rep enters a
   // tracking number, which is real, visible progress even with the shipment
   // stepper unchanged.
-  const set: Partial<typeof orders.$inferInsert> = { updatedAt: new Date(), lastUpdate: new Date() };
-  if (patch.trackingNumber !== undefined) set.trackingNumber = patch.trackingNumber;
-  if (patch.carrierName !== undefined) set.carrierName = patch.carrierName;
   const rows = await getDb()
     .update(orders)
-    .set(set)
+    .set({
+      updatedAt: new Date(),
+      // `new Date()` can equal the insert timestamp at millisecond precision.
+      // Keep this customer-visible progress clock strictly monotonic even for
+      // two writes in the same tick, and do it atomically in Postgres.
+      lastUpdate: sql`greatest(${orders.lastUpdate} + interval '1 millisecond', clock_timestamp())`,
+      ...(patch.trackingNumber !== undefined ? { trackingNumber: patch.trackingNumber } : {}),
+      ...(patch.carrierName !== undefined ? { carrierName: patch.carrierName } : {}),
+    })
     .where(and(eq(orders.ref, ref), isNull(orders.deletedAt)))
     .returning();
   if (!rows[0]) return null;

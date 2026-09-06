@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
@@ -55,6 +55,10 @@ export function WarehouseForm() {
   const { register, handleSubmit, reset, formState } = useForm<WarehouseFormValues>({
     defaultValues: { product: '', duration: '' },
   });
+
+  useEffect(() => {
+    if (status === 'anonymous') trackGoal('funnel', 'auth_gate_view', 'warehouse');
+  }, [status]);
 
   if (status !== 'authenticated') {
     return (

@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslations } from 'next-intl';
 import { contactSchema, type ContactValues } from '@/lib/validation/schemas';
-import { formsApi } from '@/lib/api/forms';
+import { contactApi } from '@/lib/api/resources/misc';
 import { isApiError } from '@/lib/api/errors';
 import { parsePhone, DEFAULT_PHONE_COUNTRY, type CountryCode } from '@/lib/utils/phone';
 import { TextInput, Textarea } from './fields';
@@ -36,7 +36,7 @@ export function ContactForm() {
   const onSubmit = async (values: ContactValues) => {
     setError(null);
     try {
-      await formsApi.submitContact(values);
+      await contactApi.submit(values);
       trackGoal('contact', 'contact-form');
       setDone(true);
       reset();

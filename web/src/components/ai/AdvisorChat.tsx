@@ -393,7 +393,7 @@ function aiReply(
         {
           id: uid(),
           role: 'ai',
-          text: `${specific.name} (${specific.factory}) طبق آخرین به‌روزرسانی حدود ${formatToman(specific.current.price)} است. این عدد تخمینی است و ممکن است لحظه‌ای نباشد؛ برای نرخ دقیق «دریافت پیش‌فاکتور» را بزن.`,
+          text: `${specific.name} (${specific.factory}) طبق قیمت لحظه‌ای حدود ${formatToman(specific.current.price)} است؛ برای دریافت پیش‌فاکتور فوری «دریافت پیش‌فاکتور» را بزن.`,
           chips: ['دریافت پیش‌فاکتور', 'همهٔ قیمت‌ها'],
         },
       ],

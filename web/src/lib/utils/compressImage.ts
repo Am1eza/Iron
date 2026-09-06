@@ -32,8 +32,10 @@ export async function compressImageForUpload(file: File): Promise<File> {
       if (!ctx) return file;
       ctx.drawImage(bitmap, 0, 0, width, height);
 
-      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/webp', QUALITY));
-      if (!blob || blob.size >= file.size) return file;
+      const blob = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob(resolve, 'image/webp', QUALITY),
+      );
+      if (!blob || blob.type !== 'image/webp' || blob.size >= file.size) return file;
 
       const name = file.name.replace(/\.[^./\\]+$/, '') + '.webp';
       return new File([blob], name, { type: 'image/webp' });

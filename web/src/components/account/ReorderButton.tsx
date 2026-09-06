@@ -4,7 +4,7 @@
  *  in the server-rendered order data, this just replays them into the
  *  client-side cart store. */
 import { useRouter } from 'next/navigation';
-import { useCartStore } from '@/lib/stores/cart';
+import { inferSnapshotPriceBasis, useCartStore } from '@/lib/stores/cart';
 import { useToast } from '@/lib/hooks/useToast';
 import { routes } from '@/lib/routes';
 import { Button } from '@/components/ui';
@@ -26,7 +26,7 @@ export function ReorderButton({ items }: { items: LineItem[] }) {
       disabled={reorderable.length === 0}
       onClick={() => {
         for (const it of reorderable) {
-          add({ skuId: it.skuId, name: it.name, qty: it.qty, unit: it.unit, unitPrice: it.unitPrice, weightKg: it.weightKg });
+          add({ skuId: it.skuId, name: it.name, qty: it.qty, unit: it.unit, unitPrice: it.unitPrice, weightKg: it.weightKg, priceBasis: inferSnapshotPriceBasis(it) });
         }
         toast.success(
           reorderable.length < items.length

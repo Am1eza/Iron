@@ -21,6 +21,9 @@ export const metadata: Metadata = buildMetadata({
 // window this page would otherwise cache forever after build (no
 // revalidatePath call exists for category admin writes yet).
 export const revalidate = 300;
+// Catalog data is unavailable during the production image build; render the
+// hub against the live DB instead of baking an empty/fixture snapshot.
+export const dynamic = 'force-dynamic';
 
 const crumbs = [
   { label: 'خانه', href: routes.home() },
@@ -56,7 +59,7 @@ const FAQ_ITEMS = [
   {
     question: 'قیمت اعلام‌شده تا چه زمانی معتبر است؟',
     answer:
-      'نرخ‌های سایت مرجع لحظه‌ای بازارند و با تغییر بازار به‌روز می‌شوند. نرخ قطعی و تعهدآور همان چیزی است که در پیش‌فاکتور صادرشده درج می‌شود و اعتبار آن در خود پیش‌فاکتور مشخص شده است.',
+      'نرخ‌های سایت همراه زمان آخرین به‌روزرسانی نمایش داده می‌شوند. نرخ قطعی و تعهدآور همان چیزی است که در پیش‌فاکتور صادرشده درج می‌شود و اعتبار آن در خود پیش‌فاکتور مشخص شده است.',
   },
 ];
 

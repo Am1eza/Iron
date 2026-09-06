@@ -19,22 +19,24 @@ import {
   type ProformaRow,
 } from '@/lib/server/repos/leadsRepo';
 import { insertRequest } from '@/lib/server/repos/requestsRepo';
-import { getVatRate, getHolidays, getSetting } from '@/lib/server/repos/settingsRepo';
+import { getVatRate, getHolidays, getOrderPolicy, getSetting, getVolumeDiscountPolicy } from '@/lib/server/repos/settingsRepo';
 import { nextRef } from '@/lib/server/utils/refs';
-import { quoteValidUntil } from '@/lib/server/utils/jalali';
+import { formatTehranJalaliDateTime, quoteValidUntil } from '@/lib/server/utils/jalali';
 import { sendNotification, truncateParam, type TemplateParam } from '@/lib/server/integrations/smsir';
 import { getPriceFreshness } from '@/lib/server/services/priceFreshness';
 import { publicEnv } from '@/lib/validation/env';
 import { formatToman } from '@/lib/utils/format';
 import { lineTotalToman, lineWeightKg } from '@/lib/utils/priceMath';
-import { formatJalali } from '@/lib/utils/jalali';
 import { SHIPMENT_STEPS, type ShipmentStatus } from '@/lib/types/domain';
 import type { Attribution } from '@/lib/utils/attribution';
 import {
   resolveVolumeTier,
   volumeDiscountLabel,
   volumeDiscountToman,
+  VOLUME_TIERS,
+  type VolumeTier,
 } from '@/lib/config/pricingTiers';
+import { isAutoQuoteEligible, maximumManualDiscountToman, type OrderPolicy } from '@/lib/config/orderPolicy';
 
 /** SMS.ir's template-approval policy requires every customer-facing template
  *  to be personalized with a name variable — a lead/order/alert can have no
@@ -52,7 +54,7 @@ export function proformaSmsText(ref: string, name: string | null | undefined, to
   const who = name?.trim() || 'مشتری';
   const link = `${publicEnv.NEXT_PUBLIC_SITE_URL}/proforma/${ref}`;
   if (total && validUntil) {
-    return `آهن‌تایم: ${who} عزیز، پیش‌فاکتور شما صادر شد. کد پیگیری: ${ref}، مبلغ: ${formatToman(total)}، اعتبار تا ${formatJalali(validUntil)} ساعت ۱۱:۰۰. مشاهده: ${link}`;
+    return `آهن‌تایم: ${who} عزیز، پیش‌فاکتور شما صادر شد. کد پیگیری: ${ref}، مبلغ: ${formatToman(total)}، اعتبار تا ${formatTehranJalaliDateTime(validUntil)}. مشاهده: ${link}`;
   }
   return `آهن‌تایم: ${who} عزیز، درخواست شما با کد پیگیری ${ref} ثبت شد. کارشناسان ما به‌زودی با شما تماس می‌گیرند. پیگیری: ${link}`;
 }
@@ -81,7 +83,7 @@ export function proformaSmsNotification(
         { name: 'NAME', value: NAME },
         { name: 'REF', value: truncateParam(ref) },
         { name: 'AMOUNT', value: truncateParam(formatToman(total, false)) },
-        { name: 'EXPIRY', value: truncateParam(formatJalali(validUntil)) },
+        { name: 'EXPIRY', value: truncateParam(formatTehranJalaliDateTime(validUntil)) },
       ],
       fallbackText,
       kind: 'proforma',
@@ -272,6 +274,12 @@ export interface CreateLeadResult {
   priceChanged?: boolean;
 }
 
+export class ManualDiscountLimitError extends Error {
+  constructor(public readonly maximumToman: number) {
+    super('manual_discount_limit');
+  }
+}
+
 const KNOWN_SOURCES = ['table', 'ai', 'cart', 'cooperation', 'tool', 'warehouse', 'contact', 'cutToSize', 'tender'] as const;
 type LeadSource = (typeof KNOWN_SOURCES)[number];
 
@@ -452,6 +460,7 @@ export async function createLead(
   // single-connection backend. A fresh lead has no prior proforma, so its ref
   // is just `ref` (no proformasOfLead lookup needed).
   let proformaData: (ReturnType<typeof computeProformaAmounts> & { validUntil: Date }) | null = null;
+  const candidateSubtotal = lines.reduce((sum, line) => sum + (line.lineTotal ?? 0), 0);
   if (allPriced && lines.length > 0) {
     // Same discipline as issueProforma's own precompute, and the same reason
     // (see the transaction comment below): every read here borrows its own
@@ -460,14 +469,18 @@ export async function createLead(
     // row doesn't exist yet, and `session?.id` is exactly what becomes
     // `userId` on the insert a few lines down, so it is the same account
     // `issueProforma` would later check via `lead.userId`.
-    const [vatRate, holidays, hour, businessVerified] = await Promise.all([
+    const [vatRate, holidays, hour, businessVerified, orderPolicy, volumePolicy] = await Promise.all([
       getVatRate(),
       getHolidays(),
       getSetting<number>('QUOTE_VALIDITY_HOUR', 11),
       userHasVerifiedBusiness(session?.id),
+      getOrderPolicy(),
+      getVolumeDiscountPolicy(),
     ]);
-    const amounts = computeProformaAmounts(lines, vatRate, businessVerified);
-    proformaData = { ...amounts, validUntil: quoteValidUntil(new Date(), holidays, hour) };
+    if (isAutoQuoteEligible(candidateSubtotal, orderPolicy)) {
+      const amounts = computeProformaAmounts(lines, vatRate, businessVerified, 0, volumePolicy.tiers, orderPolicy);
+      proformaData = { ...amounts, validUntil: quoteValidUntil(new Date(), holidays, hour) };
+    }
   }
 
   // ALL DB writes (lead + items + proforma + account-inbox mirror) run in ONE
@@ -696,16 +709,25 @@ export function computeProformaAmounts(
   vatRate: number,
   businessVerified: boolean,
   discountToman = 0,
+  tiers: readonly VolumeTier[] = VOLUME_TIERS,
+  orderPolicy?: OrderPolicy,
 ) {
   const subtotal = lines.reduce((s, l) => s + (l.lineTotal ?? 0), 0);
   const weightKg = quotedWeightKg(lines);
-  const resolved = resolveVolumeTier({ totalWeightKg: weightKg, businessVerified });
-  const volumeDiscount = volumeDiscountToman(subtotal, resolved.tier);
+  const resolved = resolveVolumeTier({ totalWeightKg: weightKg, businessVerified }, tiers);
+  const totalDiscountCeiling = orderPolicy
+    ? Math.floor(subtotal * orderPolicy.maximumTotalDiscountRate)
+    : subtotal;
+  const volumeDiscount = Math.min(volumeDiscountToman(subtotal, resolved.tier), totalDiscountCeiling);
   // Clamped into what the tier discount left behind, not into `subtotal` —
   // the tier discount is the customer's entitlement, so it must survive a
   // rep (or, on the automatic path, a caller passing 0) typing/leaving an
   // oversized manual figure.
-  const discount = Math.min(Math.max(discountToman, 0), subtotal - volumeDiscount);
+  const discount = Math.min(
+    Math.max(discountToman, 0),
+    subtotal - volumeDiscount,
+    totalDiscountCeiling - volumeDiscount,
+  );
   const taxable = subtotal - volumeDiscount - discount;
   const vatAmount = Math.round(taxable * vatRate);
   const total = taxable + vatAmount;
@@ -750,13 +772,18 @@ export async function issueProforma(
   dbh?: DbOrTx,
   discountToman = 0,
 ) {
-  const [vatRate, holidays, hour, businessVerified] = await Promise.all([
+  const [vatRate, holidays, hour, businessVerified, orderPolicy, volumePolicy] = await Promise.all([
     getVatRate(),
     getHolidays(),
     getSetting<number>('QUOTE_VALIDITY_HOUR', 11),
     userHasVerifiedBusiness(lead.userId),
+    getOrderPolicy(),
+    getVolumeDiscountPolicy(),
   ]);
-  const amounts = computeProformaAmounts(lines, vatRate, businessVerified, discountToman);
+  const subtotal = lines.reduce((sum, line) => sum + (line.lineTotal ?? 0), 0);
+  const maximumDiscount = maximumManualDiscountToman(subtotal, orderPolicy);
+  if (discountToman > maximumDiscount) throw new ManualDiscountLimitError(maximumDiscount);
+  const amounts = computeProformaAmounts(lines, vatRate, businessVerified, discountToman, volumePolicy.tiers, orderPolicy);
   const validUntil = quoteValidUntil(new Date(), holidays, hour);
   // First issue reuses the lead's human ref; re-issues get a fresh one.
   const existing = await proformasOfLead(lead.id, dbh);
@@ -978,5 +1005,3 @@ export async function createCutToSizeRequest(
 
   return { ref };
 }
-
-

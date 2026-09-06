@@ -9,7 +9,7 @@ import { PRICE_UNIT_VALUES, type PriceUnit } from '@/lib/types/domain';
 import { PRICE_UNIT_LABEL } from '@/lib/utils/catalogLabels';
 import { CheckCircleIcon, DownloadIcon, WhatsappIcon, PhoneIcon } from '@/components/primitives/icons';
 import { useAuthStore } from '@/lib/stores/auth';
-import { useCartStore } from '@/lib/stores/cart';
+import { inferSnapshotPriceBasis, useCartStore } from '@/lib/stores/cart';
 import { trackGoal } from '@/lib/analytics/track';
 import styles from './ProformaCard.module.css';
 
@@ -370,6 +370,13 @@ export function ProformaCard({
                   unit: it.unit as PriceUnit,
                   ...(it.unitPrice !== undefined ? { unitPrice: it.unitPrice } : {}),
                   ...(it.weightKg !== undefined ? { weightKg: it.weightKg } : {}),
+                  priceBasis: inferSnapshotPriceBasis({
+                    unit: it.unit as PriceUnit,
+                    qty: it.qty,
+                    unitPrice: it.unitPrice,
+                    weightKg: it.weightKg,
+                    lineTotal: it.lineTotal,
+                  }),
                 });
               }
               setAdded(true);

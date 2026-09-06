@@ -52,7 +52,7 @@ export async function listEvalCandidates(
       .select()
       .from(aiEvalCandidates)
       .where(where)
-      .orderBy(desc(aiEvalCandidates.createdAt))
+      .orderBy(desc(aiEvalCandidates.createdAt), desc(aiEvalCandidates.id))
       .limit(perPage)
       .offset((page - 1) * perPage),
     db.select({ n: sql<number>`count(*)::int` }).from(aiEvalCandidates).where(where),

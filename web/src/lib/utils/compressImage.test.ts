@@ -102,6 +102,14 @@ describe('compressImageForUpload', () => {
     expect(result).toBe(original);
   });
 
+  it('keeps the original when the browser falls back to PNG for unsupported WebP', async () => {
+    const close = stubBitmap(800, 600);
+    stubCanvas({}, new Blob([new Uint8Array(100)], { type: 'image/png' }));
+    const original = makeFile('photo.jpg', 2000);
+    expect(await compressImageForUpload(original)).toBe(original);
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
   it('always closes the bitmap, even when the encode path fails', async () => {
     const close = stubBitmap(800, 600);
     stubCanvas(null, null);

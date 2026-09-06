@@ -37,12 +37,13 @@ describe('Ticker — value precedence before the client poll lands', () => {
     expect(screen.queryByText('۰')).not.toBeInTheDocument();
   });
 
-  it('falls back to the all-zero placeholder when no initialValues were passed', () => {
+  it('falls back to honest em-dash placeholders when no initialValues were passed', () => {
     // The DB-down case in layout.tsx (`hasDb()` false, or the fetch rejected).
     // Must not crash, and must not fabricate a plausible-looking number.
     marketData = undefined;
     render(<Ticker />);
-    expect(screen.getAllByText('۰').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0);
+    expect(screen.queryByText('۰')).not.toBeInTheDocument();
   });
 
   it('prefers the live polled value over the stale initialValues once it lands', () => {

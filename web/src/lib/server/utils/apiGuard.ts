@@ -1,3 +1,4 @@
+import { PayloadTooLargeError, payloadTooLargeResponse } from './requestBody';
 /**
  * Route-handler guards — session/permission checks with the app's Persian
  * error contract ({ error, message }), plus the audit helper every admin
@@ -29,6 +30,7 @@ export function withApiErrorHandling<Args extends unknown[]>(
     try {
       return await handler(...args);
     } catch (err) {
+      if (err instanceof PayloadTooLargeError) return payloadTooLargeResponse();
       reportError(err, { scope: 'api', unhandled: true });
       return NextResponse.json(
         { error: 'internal_error', message: 'خطایی در سرور رخ داد. دوباره تلاش کنید.' },
@@ -80,10 +82,7 @@ export async function requireApiPermission(
   if (!can(auth.session.role, permission)) {
     // Hide, don't reveal: admin API answers 404 to non-staff (same as pages).
     return {
-      response: NextResponse.json(
-        { error: 'not_found', message: 'یافت نشد.' },
-        { status: 404 },
-      ),
+      response: NextResponse.json({ error: 'not_found', message: 'یافت نشد.' }, { status: 404 }),
     };
   }
   return auth;
@@ -109,7 +108,14 @@ export async function audit(
   after?: unknown,
 ): Promise<void> {
   try {
-    await writeAudit({ actorId, action, entityType: entity.type, entityId: entity.id, before, after });
+    await writeAudit({
+      actorId,
+      action,
+      entityType: entity.type,
+      entityId: entity.id,
+      before,
+      after,
+    });
   } catch (err) {
     reportError(err, { stage: 'audit', action, entityType: entity.type, entityId: entity.id });
   }

@@ -17,14 +17,8 @@ import { DEFAULT_LOCALE, LOCALE_COOKIE, isAppLocale, type AppLocale } from './co
  * Persian, which is also this site's actual primary-market default — and a
  * returning visitor who previously chose another language is switched to it
  * client-side, immediately after mount, by dynamically importing that
- * locale's message catalog. `LocaleScript` (a `beforeInteractive` script,
- * same trick as `ThemeScript`'s no-FOUC theme flip) fixes `<html lang dir>`
- * before paint; the translated *text* itself swaps a moment later once
- * this component's effect runs — an accepted, brief flash-to-fa for
- * returning non-default-locale visitors, the same class of trade-off as
- * the static-fa-by-default rendering choice itself. Switching locale
- * interactively (the header's LocaleSwitcher) uses the exact same code path
- * with no flash, since it's already client-side.
+ * locale's message catalog. `LocaleScript` fixes `<html lang dir>` before
+ * paint; interactive switching uses the same loading path.
  */
 
 const MESSAGE_LOADERS: Record<AppLocale, () => Promise<{ default: AbstractIntlMessages }>> = {

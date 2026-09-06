@@ -28,6 +28,7 @@ import { useAlerts } from '@/lib/hooks/useAlerts';
 import { useToast } from '@/lib/hooks/useToast';
 import { queryKeys } from '@/lib/query/keys';
 import { alertsApi } from '@/lib/api/resources/misc';
+import { trackGoal } from '@/lib/analytics/track';
 import { ApiError } from '@/lib/api/errors';
 import { routes } from '@/lib/routes';
 import { normalizeDigits, formatToman } from '@/lib/utils/format';
@@ -210,6 +211,7 @@ function AlertBellModal({
         });
         return;
       }
+      trackGoal('alert', 'alert_set', target.label);
       const cond =
         alert.op === 'below'
           ? `وقتی «${target.label}» به ${formatToman(alert.threshold, false)} تومان یا کمتر برسد`

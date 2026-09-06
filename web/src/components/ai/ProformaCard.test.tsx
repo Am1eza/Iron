@@ -24,6 +24,7 @@ vi.mock('@/lib/stores/auth', () => ({
 const cartAdd = vi.fn();
 vi.mock('@/lib/stores/cart', () => ({
   useCartStore: (sel: (s: { add: typeof cartAdd }) => unknown) => sel({ add: cartAdd }),
+  inferSnapshotPriceBasis: () => 'kg',
 }));
 
 import { api } from '@/lib/api';

@@ -13,7 +13,7 @@ import { ulid } from 'ulid';
 import { createTestDb } from '@/test/db';
 import * as schema from '@/lib/server/db/schema';
 import type { Db } from '@/lib/server/db/client';
-import { issueProforma } from './leads.service';
+import { issueProforma, ManualDiscountLimitError } from './leads.service';
 import { findLead, type LeadRow } from '@/lib/server/repos/leadsRepo';
 import { KG_PER_TON } from '@/lib/config/pricingTiers';
 import type { LineItem } from '@/lib/types/domain';
@@ -73,13 +73,13 @@ describe('issueProforma — discount (US-19.4)', () => {
       lead,
       LINES,
       undefined,
-      100_000,
+      20_000,
     );
     expect(proforma.subtotal).toBe(1_000_000);
-    expect(proforma.discountToman).toBe(100_000);
-    const expectedVat = Math.round(900_000 * proforma.vatRate);
+    expect(proforma.discountToman).toBe(20_000);
+    const expectedVat = Math.round(980_000 * proforma.vatRate);
     expect(proforma.vatAmount).toBe(expectedVat);
-    expect(proforma.total).toBe(900_000 + expectedVat);
+    expect(proforma.total).toBe(980_000 + expectedVat);
   });
 
   // The customer-facing /proforma/[ref] sheet prints these fields verbatim, so
@@ -89,7 +89,7 @@ describe('issueProforma — discount (US-19.4)', () => {
   // exact identity the page now renders.
   it('keeps the printed identity subtotal − discount + vat === total', async () => {
     const lead = await seedLead();
-    const proforma = await issueProforma(lead, LINES, undefined, 250_000);
+    const proforma = await issueProforma(lead, LINES, undefined, 30_000);
     expect(proforma.subtotal - proforma.discountToman + proforma.vatAmount).toBe(proforma.total);
     // and the printed VAT percentage must be true of the printed taxable base,
     // not of the subtotal — that's why the sheet shows «مبلغ مشمول مالیات».
@@ -97,17 +97,9 @@ describe('issueProforma — discount (US-19.4)', () => {
     expect(proforma.vatAmount).toBe(Math.round(taxable * proforma.vatRate));
   });
 
-  it('clamps a discount larger than the subtotal down to the subtotal (taxable never negative)', async () => {
+  it('rejects a discount above the configured managerial ceiling', async () => {
     const lead = await seedLead();
-    const proforma = await issueProforma(
-      lead,
-      LINES,
-      undefined,
-      5_000_000,
-    );
-    expect(proforma.discountToman).toBe(1_000_000);
-    expect(proforma.vatAmount).toBe(0);
-    expect(proforma.total).toBe(0);
+    await expect(issueProforma(lead, LINES, undefined, 5_000_000)).rejects.toBeInstanceOf(ManualDiscountLimitError);
   });
 
   it('clamps a negative discount up to zero', async () => {
@@ -193,11 +185,8 @@ describe('issueProforma — تخفیف پلکانی (volume tiers)', () => {
     expect(p.volumeDiscountLabel).toBe('تخفیف عمده (۲٫۵٪)');
   });
 
-  it('keeps the tier discount whole when the rep types an oversized manual one', async () => {
-    const p = await issueProforma(await seedLead(), weighedLines(20 * KG_PER_TON), undefined, 99_000_000);
-    expect(p.volumeDiscountToman).toBe(250_000);
-    expect(p.discountToman).toBe(9_750_000);
-    expect(p.total).toBe(0);
+  it('rejects an oversized manual discount instead of zeroing a tiered invoice', async () => {
+    await expect(issueProforma(await seedLead(), weighedLines(20 * KG_PER_TON), undefined, 99_000_000)).rejects.toBeInstanceOf(ManualDiscountLimitError);
   });
 
   it('ignores the weight of lines that carry no weightKg (never invents tonnage)', async () => {

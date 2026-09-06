@@ -7,7 +7,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'آهن‌تایم، بازار هوشمند آهن و فولاد',
     short_name: 'آهن‌تایم',
-    description: 'مشاور هوش مصنوعی، قیمت‌های شفاف و لحظه‌ای و زمان تحویل مشخص. اول مشورت، بعد خرید.',
+    description: 'مشاور هوشمند، قیمت‌های شفاف و لحظه‌ای آهن و فولاد و پیش‌فاکتور فوری.',
     start_url: '/',
     display: 'standalone',
     background_color: '#F4F7FA',

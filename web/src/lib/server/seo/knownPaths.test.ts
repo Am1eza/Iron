@@ -75,7 +75,14 @@ describe('shouldNotFound', () => {
   });
 
   it('never touches a path outside the guarded families', () => {
-    for (const p of ['/', '/about', '/ai', '/api/catalog/rows', '/admin/pricing', '/account/orders']) {
+    for (const p of [
+      '/',
+      '/about',
+      '/ai',
+      '/api/catalog/rows',
+      '/admin/pricing',
+      '/account/orders',
+    ]) {
       expect(shouldNotFound(p, known)).toBe(false);
     }
   });
@@ -135,13 +142,17 @@ describe('code-defined families (/tools, /cooperation, /news/topic)', () => {
     // The page and the guard read from two places; if they ever drift, the
     // guard would 404 a live track. Assert them equal instead of hoping.
     expect(TRACK_ORDER.map((t) => `/cooperation/${t}`).sort()).toEqual(
-      STATIC_DYNAMIC_PATHS.filter((p) => p.startsWith('/cooperation/')).slice().sort(),
+      STATIC_DYNAMIC_PATHS.filter((p) => p.startsWith('/cooperation/'))
+        .slice()
+        .sort(),
     );
   });
 
   it('stays in step with the fixed NEWS_TOPICS list', () => {
     expect(NEWS_TOPICS.map((t) => `/news/topic/${t.slug}`).sort()).toEqual(
-      STATIC_DYNAMIC_PATHS.filter((p) => p.startsWith('/news/topic/')).slice().sort(),
+      STATIC_DYNAMIC_PATHS.filter((p) => p.startsWith('/news/topic/'))
+        .slice()
+        .sort(),
     );
   });
 });
@@ -151,7 +162,9 @@ describe('cold redirect cache', () => {
     // Middleware checks redirects FIRST. 404ing here while that lookup is
     // still cold would turn a renamed URL's 308 into a 404 — observed on a
     // cold process during verification, which is why the flag exists.
-    expect(shouldNotFound('/prices/old-renamed-slug', known, { redirectsLoaded: false })).toBe(false);
+    expect(shouldNotFound('/prices/old-renamed-slug', known, { redirectsLoaded: false })).toBe(
+      false,
+    );
     expect(shouldNotFound('/prices/old-renamed-slug', known, { redirectsLoaded: true })).toBe(true);
   });
 
@@ -294,5 +307,58 @@ describe('getKnownPaths / invalidateKnownPaths', () => {
     publicCatalogPaths.mockRejectedValueOnce(new Error('db down'));
     const stillGood = await getKnownPaths();
     expect(stillGood.has('/prices/rebar')).toBe(true);
+  });
+});
+
+describe('known-path cache concurrency and module boundaries', () => {
+  beforeEach(() => {
+    publicCatalogPaths.mockReset();
+    publishedGuardPaths.mockReset();
+    publishedGuardPaths.mockResolvedValue([]);
+    invalidateKnownPaths();
+  });
+
+  it('awaits the same refresh for concurrent requests', async () => {
+    let finish!: (paths: string[]) => void;
+    publicCatalogPaths.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const first = getKnownPaths();
+    const second = getKnownPaths();
+    finish(['/prices/new']);
+    expect((await first).has('/prices/new')).toBe(true);
+    expect((await second).has('/prices/new')).toBe(true);
+    expect(publicCatalogPaths).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not let an older refresh overwrite data loaded after invalidation', async () => {
+    let finishOld!: (paths: string[]) => void;
+    publicCatalogPaths.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishOld = resolve;
+        }),
+    );
+    const oldRead = getKnownPaths();
+    invalidateKnownPaths();
+    publicCatalogPaths.mockResolvedValueOnce(['/prices/new']);
+    await getKnownPaths();
+    finishOld(['/prices/old']);
+    await oldRead;
+    expect((await getKnownPaths()).has('/prices/new')).toBe(true);
+    expect((await getKnownPaths()).has('/prices/old')).toBe(false);
+  });
+
+  it('shares invalidation across separately loaded module instances', async () => {
+    publicCatalogPaths.mockResolvedValueOnce(['/prices/old']);
+    await getKnownPaths();
+    vi.resetModules();
+    const routeModule = await import('./knownPaths');
+    routeModule.invalidateKnownPaths();
+    publicCatalogPaths.mockResolvedValueOnce(['/prices/new']);
+    expect((await getKnownPaths()).has('/prices/new')).toBe(true);
   });
 });

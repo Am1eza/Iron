@@ -9,6 +9,7 @@ import { rateLimit } from '@/lib/server/utils/rateLimit';
 import { withIdempotency } from '@/lib/server/utils/idempotency';
 import { reportError } from '@/lib/errors/report';
 import { ATTRIBUTION_COOKIE, parseAttributionCookie } from '@/lib/utils/attribution';
+import { leadDedupeFingerprint } from '@/lib/server/utils/leadDedupe';
 
 /** POST /api/leads — request → پیش‌فاکتور + SMS + CRM lead (UX-flow F6). */
 async function POSTImpl(req: NextRequest) {
@@ -30,10 +31,8 @@ async function POSTImpl(req: NextRequest) {
   // silently replayed — no new lead/proforma/SMS. With it, only near-simultaneous
   // resubmits collide; a deliberate re-request minutes later goes through.
   const bucket = Math.floor(Date.now() / 120_000);
-  const dedupeKey = `${v.data.contact.mobile}:${v.data.items
-    .map((i) => `${i.skuId}x${i.qty}`)
-    .sort()
-    .join(',')}:${bucket}`;
+  const fingerprint = leadDedupeFingerprint(v.data);
+  const dedupeKey = `${v.data.contact.mobile}:${fingerprint}:${bucket}`;
 
   try {
     return await withIdempotency(req, 'leads', dedupeKey, async () => {

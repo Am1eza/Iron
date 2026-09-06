@@ -5,6 +5,8 @@
 import { eq } from 'drizzle-orm';
 import { getDb } from '@/lib/server/db/client';
 import { settings } from '@/lib/server/db/schema';
+import { DEFAULT_ORDER_POLICY, type OrderPolicy } from '@/lib/config/orderPolicy';
+import { DEFAULT_VOLUME_DISCOUNT_POLICY, type VolumeDiscountPolicy } from '@/lib/config/pricingTiers';
 
 const cache = new Map<string, { value: unknown; at: number }>();
 const TTL_MS = 60_000;
@@ -44,6 +46,16 @@ export function getVatRate(): Promise<number> {
 }
 export function getStaleHideAfterDays(): Promise<number> {
   return getSetting<number>('PRICE_STALE_HIDE_AFTER_DAYS', 2);
+}
+export async function getOrderPolicy(): Promise<OrderPolicy> {
+  const stored = await getSetting<Partial<OrderPolicy>>('ORDER_POLICY', {});
+  return { ...DEFAULT_ORDER_POLICY, ...(stored && typeof stored === 'object' ? stored : {}) };
+}
+export async function getVolumeDiscountPolicy(): Promise<VolumeDiscountPolicy> {
+  const stored = await getSetting<Partial<VolumeDiscountPolicy>>('VOLUME_DISCOUNT_POLICY', {});
+  return stored?.tiers?.length === 3
+    ? { version: stored.version ?? DEFAULT_VOLUME_DISCOUNT_POLICY.version, tiers: stored.tiers }
+    : DEFAULT_VOLUME_DISCOUNT_POLICY;
 }
 
 /**

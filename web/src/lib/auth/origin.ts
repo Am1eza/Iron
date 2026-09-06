@@ -6,6 +6,8 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
 export function assertSameOrigin(req: NextRequest): NextResponse | null {
+  // Browser-controlled metadata also rejects cross-scheme cross-site requests.
+  if (req.headers.get('sec-fetch-site') === 'cross-site') return forbidden();
   const origin = req.headers.get('origin') ?? req.headers.get('referer');
   const method = req.method.toUpperCase();
   const stateChanging = method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS';
@@ -18,7 +20,11 @@ export function assertSameOrigin(req: NextRequest): NextResponse | null {
 
   let originHost: string;
   try {
-    originHost = new URL(origin).host;
+    const parsed = new URL(origin);
+    if (!['http:', 'https:'].includes(parsed.protocol) || parsed.username || parsed.password) {
+      return forbidden();
+    }
+    originHost = parsed.host;
   } catch {
     return forbidden();
   }
@@ -30,7 +36,6 @@ export function assertSameOrigin(req: NextRequest): NextResponse | null {
   if (!host || originHost !== host) return forbidden();
   return null;
 }
-
 
 function forbidden(): NextResponse {
   return NextResponse.json(

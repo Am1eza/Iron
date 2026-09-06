@@ -114,7 +114,7 @@ export default async function CategoryPage({ params }: Params) {
               {...(rows.length > 0
                 ? {
                     title: `قیمت روز ${cat.name}`,
-                    description: `قیمت‌های لحظه‌ای ${cat.name} با نوسان، وزن شاخه و زمان تحویل اعلام‌شده. اول مشورت، بعد خرید.`,
+                    description: `قیمت‌های لحظه‌ای ${cat.name} با نوسان، وزن شاخه و زمان تحویل.`,
                   }
                 : {
                     // Nothing to list — the heading and the intro say so, so

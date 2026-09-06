@@ -1,8 +1,13 @@
+import { readJsonBody } from '@/lib/server/utils/requestBody';
 import { NextResponse, type NextRequest } from 'next/server';
 import { timingSafeEqual } from '@/lib/auth/crypto';
 import { withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { admitAlert } from '@/lib/server/alerts/relayThrottle';
-import { sendTelegramHtml, telegramApiBase, telegramConfig } from '@/lib/server/integrations/telegram';
+import {
+  sendTelegramHtml,
+  telegramApiBase,
+  telegramConfig,
+} from '@/lib/server/integrations/telegram';
 import { buildAlertHtml } from '@/lib/server/alerts/alertMessage';
 
 export const runtime = 'nodejs';
@@ -107,12 +112,17 @@ async function POSTImpl(req: NextRequest) {
     return NextResponse.json({ ok: false, sent: false, reason: 'no_recipient' }, { status: 503 });
   }
 
-  const body: unknown = await req.json().catch(() => null);
+  const body: unknown = await readJsonBody(req);
 
   // Exactly once per request — admitAlert consumes the decision.
   const decision = admitAlert();
   if (!decision.send) {
-    return NextResponse.json({ ok: true, sent: false, reason: decision.reason, suppressed: decision.suppressed });
+    return NextResponse.json({
+      ok: true,
+      sent: false,
+      reason: decision.reason,
+      suppressed: decision.suppressed,
+    });
   }
 
   try {

@@ -22,9 +22,8 @@
  *
  * When two DIFFERENT stored strings still share a slug, the facet carries both
  * (`values`) and the page matches all of them. That is the only coherent
- * behaviour for a slug-addressed URL — but it IS a silent merge, so
- * `collidingFacets` exists to surface it rather than let it pass unnoticed.
- * As of this writing no category has a collision in either dimension.
+ * behaviour for a slug-addressed URL. `values` preserves those spellings
+ * explicitly so callers can inspect a merged facet.
  */
 import { slugify } from './slugify';
 import { compareCatalogSizes } from './catalogSize';
@@ -52,7 +51,7 @@ export function factoryFacetSlug(factory: string): string {
 /** URL segment for a stored `skus.size` value. See the module comment for why
  *  this is not `slugify` — «۱½ اینچ» and «۱ اینچ» must not share a URL. */
 export function sizeFacetSlug(size: string): string {
-  const expanded = [...size].map((ch) => FRACTIONS[ch] ?? ch).join('').replace(/\//g, '-');
+  const expanded = size.replace(/[¼½¾⅓⅔⅛⅜⅝⅞/]/g, (ch) => (ch === '/' ? '-' : FRACTIONS[ch]!));
   return slugify(expanded);
 }
 
@@ -74,16 +73,19 @@ function group(
   pick: (r: FacetRow) => string | null | undefined,
   toSlug: (v: string) => string,
 ): Map<string, Map<string, number>> {
-  const bySlug = new Map<string, Map<string, number>>();
+  // Normalize each distinct spelling once, rather than once per SKU.
+  const counts = new Map<string, number>();
   for (const row of rows) {
     const raw = pick(row)?.trim();
-    if (!raw) continue;
+    if (raw) counts.set(raw, (counts.get(raw) ?? 0) + 1);
+  }
+  const bySlug = new Map<string, Map<string, number>>();
+  for (const [raw, count] of counts) {
     const slug = toSlug(raw);
-    // An all-punctuation value slugifies to '' — it has no URL, so it gets no
-    // page rather than one at `/prices/rebar/factory/`.
+    // Punctuation-only values have no addressable facet page.
     if (!slug) continue;
     const variants = bySlug.get(slug) ?? new Map<string, number>();
-    variants.set(raw, (variants.get(raw) ?? 0) + 1);
+    variants.set(raw, count);
     bySlug.set(slug, variants);
   }
   return bySlug;
@@ -118,15 +120,7 @@ export function factoryFacets(rows: readonly FacetRow[]): Facet[] {
  *  order. The full vector matters: «۶۰×۶۰×۵» must precede «۶۰×۶۰×۶»,
  *  while decimal gauges and mixed inch fractions retain numeric order. */
 export function sizeFacets(rows: readonly FacetRow[]): Facet[] {
-  return toFacets(group(rows, (r) => r.size, sizeFacetSlug)).sort(
-    (a, b) => compareCatalogSizes(a.label, b.label),
+  return toFacets(group(rows, (r) => r.size, sizeFacetSlug)).sort((a, b) =>
+    compareCatalogSizes(a.label, b.label),
   );
-}
-
-/** Facets whose slug is shared by more than one stored spelling — a silent
- *  merge of two products into one URL. Surfaced for the SEO audit page and
- *  the tests; never used to suppress a page (a merged page is still better
- *  than no page, and dropping it would 404 a URL the sitemap advertises). */
-export function collidingFacets(facets: readonly Facet[]): Facet[] {
-  return facets.filter((f) => f.values.length > 1);
 }

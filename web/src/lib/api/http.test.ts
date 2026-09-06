@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { httpRequest, httpUpload, setUnauthorizedHook } from './http';
 import { ApiError } from './errors';
-import { UPLOAD_RETRIES } from './config';
+import { UPLOAD_RETRIES, UPLOAD_TIMEOUT_MS } from './config';
 
 function jsonResponse(status: number, body: unknown): Response {
   return {
@@ -65,7 +65,9 @@ describe('httpRequest — 401 recovery', () => {
     const hook = vi.fn().mockResolvedValue(true);
     setUnauthorizedHook(hook);
 
-    await expect(httpRequest('/api/auth/refresh', { method: 'POST' })).rejects.toBeInstanceOf(ApiError);
+    await expect(httpRequest('/api/auth/refresh', { method: 'POST' })).rejects.toBeInstanceOf(
+      ApiError,
+    );
     expect(hook).not.toHaveBeenCalled();
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
@@ -118,13 +120,17 @@ describe('httpUpload — 401 recovery', () => {
   });
 
   it('turns a raw network failure (dropped connection) into a friendly ApiError instead of an unhandled exception', async () => {
-    global.fetch = vi.fn().mockRejectedValue(new TypeError('Failed to fetch')) as unknown as typeof fetch;
+    global.fetch = vi
+      .fn()
+      .mockRejectedValue(new TypeError('Failed to fetch')) as unknown as typeof fetch;
 
     const file = new File(['x'], 'x.jpg', { type: 'image/jpeg' });
     const err = await httpUpload('/api/admin/upload', file).catch((e: unknown) => e);
 
     expect(err).toBeInstanceOf(ApiError);
-    expect((err as ApiError).message).toBe('ارتباط با سرور برقرار نشد. اتصال اینترنت را بررسی کنید.');
+    expect((err as ApiError).message).toBe(
+      'ارتباط با سرور برقرار نشد. اتصال اینترنت را بررسی کنید.',
+    );
   });
 });
 
@@ -167,12 +173,16 @@ describe('httpUpload — network retry', () => {
 
     expect(err).toBeInstanceOf(ApiError);
     expect((err as ApiError).status).toBe(0);
-    expect((err as ApiError).message).toBe('ارتباط با سرور برقرار نشد. اتصال اینترنت را بررسی کنید.');
+    expect((err as ApiError).message).toBe(
+      'ارتباط با سرور برقرار نشد. اتصال اینترنت را بررسی کنید.',
+    );
     expect(fetchSpy).toHaveBeenCalledTimes(1 + UPLOAD_RETRIES);
   });
 
   it('does NOT retry a 4xx — a file the server rejected fails the same way every time', async () => {
-    const fetchSpy = vi.fn().mockResolvedValue(jsonResponse(413, { error: 'too_large', message: 'حجم فایل زیاد است.' }));
+    const fetchSpy = vi
+      .fn()
+      .mockResolvedValue(jsonResponse(413, { error: 'too_large', message: 'حجم فایل زیاد است.' }));
     global.fetch = fetchSpy as unknown as typeof fetch;
 
     const err = await httpUpload('/api/admin/upload', file()).catch((e: unknown) => e);
@@ -226,13 +236,20 @@ describe('toApiError — Retry-After', () => {
     ({
       ok: false,
       status: 429,
-      headers: { get: (h: string) => (h.toLowerCase() === 'retry-after' ? (retryAfter ?? null) : null) },
-      json: async () => ({ error: 'rate_limited', message: 'درخواست‌ها بیش از حد است. کمی بعد دوباره تلاش کنید.' }),
+      headers: {
+        get: (h: string) => (h.toLowerCase() === 'retry-after' ? (retryAfter ?? null) : null),
+      },
+      json: async () => ({
+        error: 'rate_limited',
+        message: 'درخواست‌ها بیش از حد است. کمی بعد دوباره تلاش کنید.',
+      }),
     }) as unknown as Response;
 
   it('exposes delta-seconds from the header', async () => {
     global.fetch = vi.fn().mockResolvedValue(rateLimited('300')) as unknown as typeof fetch;
-    const err = (await httpRequest('/api/ai/chat', { method: 'POST' }).catch((e: unknown) => e)) as ApiError;
+    const err = (await httpRequest('/api/ai/chat', { method: 'POST' }).catch(
+      (e: unknown) => e,
+    )) as ApiError;
     expect(err).toBeInstanceOf(ApiError);
     expect(err.status).toBe(429);
     expect(err.code).toBe('rate_limited');
@@ -241,7 +258,9 @@ describe('toApiError — Retry-After', () => {
 
   it('is undefined when the header is absent', async () => {
     global.fetch = vi.fn().mockResolvedValue(rateLimited()) as unknown as typeof fetch;
-    const err = (await httpRequest('/api/ai/chat', { method: 'POST' }).catch((e: unknown) => e)) as ApiError;
+    const err = (await httpRequest('/api/ai/chat', { method: 'POST' }).catch(
+      (e: unknown) => e,
+    )) as ApiError;
     expect(err.retryAfterSeconds).toBeUndefined();
   });
 
@@ -249,16 +268,210 @@ describe('toApiError — Retry-After', () => {
     global.fetch = vi
       .fn()
       .mockResolvedValue(rateLimited('Wed, 21 Oct 2026 07:28:00 GMT')) as unknown as typeof fetch;
-    const err = (await httpRequest('/api/ai/chat', { method: 'POST' }).catch((e: unknown) => e)) as ApiError;
+    const err = (await httpRequest('/api/ai/chat', { method: 'POST' }).catch(
+      (e: unknown) => e,
+    )) as ApiError;
     expect(err.retryAfterSeconds).toBeUndefined();
   });
 
   it('survives a Response double with no headers at all', async () => {
-    global.fetch = vi
-      .fn()
-      .mockResolvedValue({ ok: false, status: 500, json: async () => ({}) } as Response) as unknown as typeof fetch;
-    const err = (await httpRequest('/api/ai/chat', { method: 'POST' }).catch((e: unknown) => e)) as ApiError;
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: async () => ({}),
+    } as Response) as unknown as typeof fetch;
+    const err = (await httpRequest('/api/ai/chat', { method: 'POST' }).catch(
+      (e: unknown) => e,
+    )) as ApiError;
     expect(err).toBeInstanceOf(ApiError);
     expect(err.status).toBe(500);
+  });
+});
+
+describe('httpRequest — cancellation and cleanup', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it('does not fetch when already cancelled', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    await expect(httpRequest('/api/categories', { signal: controller.signal })).rejects.toBe(
+      controller.signal.reason,
+    );
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('cancels an in-flight request without retrying or replacing its reason', async () => {
+    const controller = new AbortController();
+    const fetchSpy = vi.fn(
+      (_url, init: RequestInit) =>
+        new Promise((_resolve, reject) => {
+          init.signal!.addEventListener('abort', () => reject(init.signal!.reason), { once: true });
+        }),
+    );
+    vi.stubGlobal('fetch', fetchSpy);
+    const request = httpRequest('/api/categories', { signal: controller.signal });
+    const assertion = expect(request).rejects.toMatchObject({ name: 'AbortError' });
+    controller.abort();
+    await assertion;
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it.each(['network', 'server'])('cancels during %s retry backoff immediately', async (failure) => {
+    const controller = new AbortController();
+    const fetchSpy =
+      failure === 'network'
+        ? vi.fn().mockRejectedValue(new TypeError('Failed to fetch'))
+        : vi.fn().mockResolvedValue(jsonResponse(503, {}));
+    vi.stubGlobal('fetch', fetchSpy);
+    const request = httpRequest('/api/categories', { signal: controller.signal });
+    const assertion = expect(request).rejects.toMatchObject({ name: 'AbortError' });
+    await vi.advanceTimersByTimeAsync(0);
+    controller.abort();
+    await assertion;
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it.each([200, 400])('removes the caller abort listener after HTTP %s', async (status) => {
+    const controller = new AbortController();
+    const add = vi.spyOn(controller.signal, 'addEventListener');
+    const remove = vi.spyOn(controller.signal, 'removeEventListener');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(status, {})));
+    await httpRequest('/api/categories', { signal: controller.signal }).catch(() => {});
+    expect(add).toHaveBeenCalledTimes(1);
+    expect(remove).toHaveBeenCalledWith('abort', add.mock.calls[0]![1]);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('still retries transient network failures', async () => {
+    const fetchSpy = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockResolvedValueOnce(jsonResponse(200, { ok: true }));
+    vi.stubGlobal('fetch', fetchSpy);
+    const request = httpRequest('/api/categories');
+    await vi.advanceTimersByTimeAsync(400);
+    await expect(request).resolves.toEqual({ ok: true });
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+describe('httpRequest — response boundary', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  it('does not refetch a response rejected by its schema', async () => {
+    const fetchSpy = vi.fn().mockResolvedValue(jsonResponse(200, { price: 'invalid' }));
+    vi.stubGlobal('fetch', fetchSpy);
+    await expect(
+      httpRequest('/api/market', {
+        schema: {
+          parse: () => {
+            throw new Error('schema');
+          },
+        },
+      }),
+    ).rejects.toMatchObject({ code: 'invalid_response' });
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not refetch malformed JSON', async () => {
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => {
+        throw new SyntaxError('invalid JSON');
+      },
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    await expect(httpRequest('/api/market')).rejects.toMatchObject({ code: 'invalid_response' });
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the timeout active while reading a response body', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((_url, init: RequestInit) =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () =>
+            new Promise((_resolve, reject) => {
+              init.signal!.addEventListener('abort', () => reject(init.signal!.reason), {
+                once: true,
+              });
+            }),
+        }),
+      ),
+    );
+    const request = httpRequest('/api/market', { retries: 0, timeoutMs: 100 });
+    const assertion = expect(request).rejects.toMatchObject({ status: 0 });
+    await vi.advanceTimersByTimeAsync(100);
+    await assertion;
+    expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+describe('httpUpload — total timeout', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it('shares the time budget across retries instead of granting each a new minute', async () => {
+    vi.useFakeTimers();
+    const fetchSpy = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise((_resolve, reject) =>
+            setTimeout(() => reject(new TypeError('connection lost')), UPLOAD_TIMEOUT_MS - 1000),
+          ),
+      )
+      .mockImplementation(
+        (_url, init: RequestInit) =>
+          new Promise((_resolve, reject) => {
+            init.signal!.addEventListener('abort', () => reject(init.signal!.reason), {
+              once: true,
+            });
+          }),
+      );
+    vi.stubGlobal('fetch', fetchSpy);
+    const request = httpUpload('/api/admin/upload', new File(['x'], 'x.jpg'));
+    const assertion = expect(request).rejects.toMatchObject({ status: 0 });
+    await vi.advanceTimersByTimeAsync(UPLOAD_TIMEOUT_MS);
+    await assertion;
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('cancels retry backoff when the shared deadline expires', async () => {
+    vi.useFakeTimers();
+    const fetchSpy = vi.fn(
+      () =>
+        new Promise((_resolve, reject) =>
+          setTimeout(() => reject(new TypeError('connection lost')), UPLOAD_TIMEOUT_MS - 100),
+        ),
+    );
+    vi.stubGlobal('fetch', fetchSpy);
+    const request = httpUpload('/api/admin/upload', new File(['x'], 'x.jpg'));
+    const assertion = expect(request).rejects.toMatchObject({ status: 0 });
+    await vi.advanceTimersByTimeAsync(UPLOAD_TIMEOUT_MS);
+    await assertion;
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(0);
   });
 });

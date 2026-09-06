@@ -8,7 +8,7 @@ import { z } from 'zod';
 /* ---- Public (NEXT_PUBLIC_*) — safe in client + server ---- */
 const publicSchema = z.object({
   NEXT_PUBLIC_SITE_URL: z.string().url().default('https://ahantime.com'),
-  NEXT_PUBLIC_API_MODE: z.enum(['mock', 'live']).default('mock'),
+  NEXT_PUBLIC_API_MODE: z.enum(['mock', 'live']),
   // Free-form label for whichever deployment served this build — no
   // behavioral effect, just surfaced on /api/health so a geo-routing setup
   // (see GEO-ROUTING.md) can be verified by curling from each region and
@@ -19,7 +19,11 @@ const publicSchema = z.object({
 
 export const publicEnv = publicSchema.parse({
   NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
-  NEXT_PUBLIC_API_MODE: process.env.NEXT_PUBLIC_API_MODE,
+  // Production may never silently become a fixture-backed storefront. Local
+  // development/tests keep the convenient mock default; production defaults
+  // live and therefore activates the required-secret checks below.
+  NEXT_PUBLIC_API_MODE:
+    process.env.NEXT_PUBLIC_API_MODE || (process.env.NODE_ENV === 'production' ? 'live' : 'mock'),
   NEXT_PUBLIC_DEPLOY_REGION: process.env.NEXT_PUBLIC_DEPLOY_REGION,
 });
 

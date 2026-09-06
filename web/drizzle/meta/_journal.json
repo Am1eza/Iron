@@ -351,6 +351,34 @@
       "when": 1788182615669,
       "tag": "0049_drop_catalog_is_active",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1788508954109,
+      "tag": "0050_majestic_randall",
+      "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1788509013282,
+      "tag": "0051_white_preak",
+      "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1788509202483,
+      "tag": "0052_awesome_pride",
+      "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1788509338458,
+      "tag": "0053_happy_moondragon",
+      "breakpoints": true
     }
   ]
 }

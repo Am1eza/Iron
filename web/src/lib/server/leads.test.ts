@@ -60,6 +60,7 @@ describe('proformaSmsText', () => {
     expect(text).toContain('رضا کریمی عزیز');
     expect(text).toContain('PF-14050411-0001-ABCDEF');
     expect(text).toContain('۷۸۲٬۶۵۰ تومان');
+    expect(text).toContain('۱۴۰۵/۰۴/۱۳ ۱۱:۰۰');
     expect(text).toContain('/proforma/PF-14050411-0001-ABCDEF');
   });
 
@@ -88,7 +89,7 @@ describe('proformaSmsNotification (template + fallback wiring)', () => {
       { name: 'NAME', value: 'رضا کریمی' },
       { name: 'REF', value: 'PF-14050411-0001-ABCDEF' },
       { name: 'AMOUNT', value: '۷۸۲٬۶۵۰' },
-      { name: 'EXPIRY', value: '۱۴۰۵/۰۴/۱۳' },
+      { name: 'EXPIRY', value: '۱۴۰۵/۰۴/۱۳ ۱۱:۰۰' },
     ]);
     // Fallback text must match the exact wording sendSms would have sent —
     // this is what actually ships until the template is registered.

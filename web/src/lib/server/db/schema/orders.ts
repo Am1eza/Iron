@@ -117,8 +117,8 @@ export const warehouseItems = pgTable(
     // infrastructure (descoped, see W20 audit report).
     receivedBy: text('received_by').references(() => users.id, { onDelete: 'set null' }),
     intakeNote: text('intake_note'),
-    // The public page sells «قرارداد نگهداری» and «بیمهٔ کامل» as headline
-    // guarantees; these record that they exist for a given item without
+    // The public page offers a storage request; contract and insurance scope
+    // are confirmed per item. These fields record that confirmation without
     // building a document-management system.
     contractRef: text('contract_ref'),
     insured: boolean('insured').notNull().default(false),

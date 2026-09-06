@@ -22,9 +22,21 @@ type Row = typeof articles.$inferSelect;
  *  to the DTO is a compile error here, not a silent `undefined` on list rows. */
 export type ArticleListRow = Pick<
   Row,
-  | 'id' | 'slug' | 'type' | 'title' | 'excerpt' | 'coverUrl'
-  | 'status' | 'source' | 'publishAt' | 'updatedAt' | 'tags' | 'relatedCategoryIds'
-  | 'relatedNewsTopicIds' | 'faq' | 'seo'
+  | 'id'
+  | 'slug'
+  | 'type'
+  | 'title'
+  | 'excerpt'
+  | 'coverUrl'
+  | 'status'
+  | 'source'
+  | 'publishAt'
+  | 'updatedAt'
+  | 'tags'
+  | 'relatedCategoryIds'
+  | 'relatedNewsTopicIds'
+  | 'faq'
+  | 'seo'
 > & {
   /** DB-side word count over `body_md` — see `LIST_COLUMNS`. Not a real
    *  column, so not part of `Row`/`Pick<Row, …>` above; absent when
@@ -61,10 +73,19 @@ export function toArticleDto(r: ArticleListRow): Article {
 }
 
 /** Body (+ byline) included — for the article page and the admin editor. */
-export type ArticleFull = Article & { bodyMd: string; bodyJson: RichDoc | null; authorId?: string | null };
+export type ArticleFull = Article & {
+  bodyMd: string;
+  bodyJson: RichDoc | null;
+  authorId?: string | null;
+};
 
 export function toArticleFull(r: Row): ArticleFull {
-  return { ...toArticleDto(r), bodyMd: r.bodyMd, bodyJson: r.bodyJson ?? null, authorId: r.authorId ?? null };
+  return {
+    ...toArticleDto(r),
+    bodyMd: r.bodyMd,
+    bodyJson: r.bodyJson ?? null,
+    authorId: r.authorId ?? null,
+  };
 }
 
 /**
@@ -148,7 +169,7 @@ const LIST_COLUMNS = {
   // stays a skinny int column so list queries don't regress back to
   // shipping full bodies over the wire — see the comment above this const).
   // Good enough for a rounded-minutes badge, not for the SEO thin-content gate.
-  wordCount: sql<number>`coalesce(array_length(regexp_split_to_array(trim(${articles.bodyMd}), '\s+'), 1), 0)`,
+  wordCount: sql<number>`coalesce(array_length(regexp_split_to_array(trim(${articles.bodyMd}), '[[:space:]]+'), 1), 0)`,
 } as const;
 
 export async function listPublished(type: 'blog' | 'news', page = 1, perPage = 20) {
@@ -162,7 +183,10 @@ export async function listPublished(type: 'blog' | 'news', page = 1, perPage = 2
       .orderBy(desc(articles.publishAt))
       .limit(perPage)
       .offset((page - 1) * perPage),
-    db.select({ n: sql<number>`count(*)::int` }).from(articles).where(where),
+    db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(articles)
+      .where(where),
   ]);
   return { articles: rows.map(toArticleDto), total: total[0]?.n ?? 0 };
 }
@@ -188,7 +212,10 @@ export async function listPublishedByCategory(categoryId: string, page = 1, perP
       .orderBy(desc(articles.publishAt))
       .limit(perPage)
       .offset((page - 1) * perPage),
-    db.select({ n: sql<number>`count(*)::int` }).from(articles).where(where),
+    db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(articles)
+      .where(where),
   ]);
   return { articles: rows.map(toArticleDto), total: total[0]?.n ?? 0 };
 }
@@ -235,7 +262,10 @@ export async function listPublishedByNewsTopic(topicSlug: string, page = 1, perP
       .orderBy(desc(articles.publishAt))
       .limit(perPage)
       .offset((page - 1) * perPage),
-    db.select({ n: sql<number>`count(*)::int` }).from(articles).where(where),
+    db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(articles)
+      .where(where),
   ]);
   return { articles: rows.map(toArticleDto), total: total[0]?.n ?? 0 };
 }
@@ -250,7 +280,9 @@ export async function newsTopicArticleCounts(): Promise<Record<string, number>> 
     from ${articles}, jsonb_array_elements_text(${articles.relatedNewsTopicIds}) as topic_slug
     where ${articles.type} = 'news' and ${publishedCond()}
     group by topic_slug
-  `)) as unknown as { rows?: { topic_slug: string; n: number }[] } | { topic_slug: string; n: number }[];
+  `)) as unknown as
+    | { rows?: { topic_slug: string; n: number }[] }
+    | { topic_slug: string; n: number }[];
   const rows = Array.isArray(res) ? res : (res.rows ?? []);
   const out: Record<string, number> = {};
   for (const r of rows) out[r.topic_slug] = r.n;
@@ -348,7 +380,9 @@ export async function searchArticles(q: string, limit = 10): Promise<Article[]> 
   const trimmed = q.trim();
   const tokens = [...new Set(trimmed.split(/\s+/).filter((t) => t.length >= 2))];
   if (tokens.length === 0) return [];
-  const variantsOf = (token: string) => [...new Set([token, normalizeDigits(token), toPersianDigits(token)])];
+  const variantsOf = (token: string) => [
+    ...new Set([token, normalizeDigits(token), toPersianDigits(token)]),
+  ];
   const anyToken = or(
     ...tokens.flatMap((token) =>
       variantsOf(token).flatMap((v) => {
@@ -368,13 +402,15 @@ export async function searchArticles(q: string, limit = 10): Promise<Article[]> 
     return tokens.filter((t) => hay.includes(normalizeDigits(t).toLowerCase())).length;
   };
   const threshold = Math.ceil(tokens.length / 2);
-  return rows
-    .map((r) => ({ r, score: matchCount(r) }))
-    .filter(({ score }) => score >= threshold)
-    // Stable sort: majority score first, then the SQL similarity order.
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit)
-    .map(({ r }) => toArticleDto(r));
+  return (
+    rows
+      .map((r) => ({ r, score: matchCount(r) }))
+      .filter(({ score }) => score >= threshold)
+      // Stable sort: majority score first, then the SQL similarity order.
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit)
+      .map(({ r }) => toArticleDto(r))
+  );
 }
 
 /**
@@ -422,14 +458,20 @@ export async function searchPublishedGuides(q: string, limit = 3): Promise<Artic
   // Single-char tokens are stop-words in this domain («و», «یا») — drop them.
   const tokens = [...new Set(trimmed.split(/\s+/).filter((t) => t.length >= 2))];
   if (tokens.length === 0) return [];
-  const variantsOf = (token: string) => [...new Set([token, normalizeDigits(token), toPersianDigits(token)])];
+  const variantsOf = (token: string) => [
+    ...new Set([token, normalizeDigits(token), toPersianDigits(token)]),
+  ];
   const synonymsOf = (token: string) => SYNONYMS[normalizeDigits(token)] ?? [];
   const anyToken = or(
     ...tokens.flatMap((token) =>
       [token, ...synonymsOf(token)].flatMap((word) =>
         variantsOf(word).flatMap((v) => {
           const term = likeContains(v);
-          return [ilike(articles.title, term), ilike(articles.excerpt, term), ilike(articles.bodyMd, term)];
+          return [
+            ilike(articles.title, term),
+            ilike(articles.excerpt, term),
+            ilike(articles.bodyMd, term),
+          ];
         }),
       ),
     ),
@@ -448,24 +490,15 @@ export async function searchPublishedGuides(q: string, limit = 3): Promise<Artic
     }).length;
   };
   const threshold = Math.ceil(tokens.length / 2);
-  return rows
-    .map((r) => ({ r, score: matchCount(r) }))
-    .filter(({ score }) => score >= threshold)
-    // Stable sort: majority score first, then the SQL similarity order.
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit)
-    .map(({ r }) => toArticleFull(r));
-}
-
-/** Related articles for a SKU/category context (simple recency fallback). */
-export async function recentPublished(limit = 4): Promise<Article[]> {
-  const rows = await getDb()
-    .select()
-    .from(articles)
-    .where(publishedCond())
-    .orderBy(desc(articles.publishAt))
-    .limit(limit);
-  return rows.map(toArticleDto);
+  return (
+    rows
+      .map((r) => ({ r, score: matchCount(r) }))
+      .filter(({ score }) => score >= threshold)
+      // Stable sort: majority score first, then the SQL similarity order.
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit)
+      .map(({ r }) => toArticleFull(r))
+  );
 }
 
 /* --------------------------- admin (content) --------------------------- */
@@ -478,7 +511,10 @@ export async function adminListArticles(query: {
   perPage?: number;
 }) {
   const db = getDb();
-  const page = Math.min(100_000, Math.max(1, Math.floor(Number.isFinite(query.page) ? (query.page as number) : 1)));
+  const page = Math.min(
+    100_000,
+    Math.max(1, Math.floor(Number.isFinite(query.page) ? (query.page as number) : 1)),
+  );
   const perPage = Math.min(100, Math.max(1, Math.floor(query.perPage ?? 50)));
   const conds = [];
   if (query.status) conds.push(eq(articles.status, query.status));
@@ -488,7 +524,12 @@ export async function adminListArticles(query: {
     // remember a phrase from the body, not just the title or slug.
     const term = likeContains(query.q.trim().slice(0, 100));
     conds.push(
-      or(ilike(articles.title, term), ilike(articles.slug, term), ilike(articles.excerpt, term), ilike(articles.bodyMd, term)),
+      or(
+        ilike(articles.title, term),
+        ilike(articles.slug, term),
+        ilike(articles.excerpt, term),
+        ilike(articles.bodyMd, term),
+      ),
     );
   }
   const where = conds.length ? and(...conds) : undefined;
@@ -500,7 +541,10 @@ export async function adminListArticles(query: {
       .orderBy(desc(articles.updatedAt))
       .limit(perPage)
       .offset((page - 1) * perPage),
-    db.select({ n: sql<number>`count(*)::int` }).from(articles).where(where),
+    db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(articles)
+      .where(where),
   ]);
   return { articles: rows.map(toArticleFull), total: total[0]?.n ?? 0 };
 }
@@ -548,25 +592,25 @@ export async function createArticle(input: {
   const body = withDerivedBody({ bodyJson: input.bodyJson, bodyMd: input.bodyMd });
   const rows = await asSlugConflict(() =>
     getDb()
-    .insert(articles)
-    .values({
-      id: ulid(),
-      slug: input.slug,
-      type: input.type,
-      title: input.title,
-      excerpt: input.excerpt ?? null,
-      bodyMd: body.bodyMd ?? '',
-      bodyJson: body.bodyJson ?? null,
-      source: input.source ?? 'human',
-      authorId: input.authorId ?? null,
-      tags: input.tags ?? null,
-      relatedCategoryIds: input.relatedCategoryIds ?? null,
-      relatedNewsTopicIds: input.relatedNewsTopicIds ?? null,
-      faq: input.faq ?? null,
-      seo: input.seo ?? null,
-      status: 'draft',
-    })
-    .returning(),
+      .insert(articles)
+      .values({
+        id: ulid(),
+        slug: input.slug,
+        type: input.type,
+        title: input.title,
+        excerpt: input.excerpt ?? null,
+        bodyMd: body.bodyMd ?? '',
+        bodyJson: body.bodyJson ?? null,
+        source: input.source ?? 'human',
+        authorId: input.authorId ?? null,
+        tags: input.tags ?? null,
+        relatedCategoryIds: input.relatedCategoryIds ?? null,
+        relatedNewsTopicIds: input.relatedNewsTopicIds ?? null,
+        faq: input.faq ?? null,
+        seo: input.seo ?? null,
+        status: 'draft',
+      })
+      .returning(),
   );
   return toArticleFull(rows[0]!);
 }
@@ -622,7 +666,13 @@ export async function publishDueArticles(): Promise<{ type: 'blog' | 'news'; slu
   const rows = await getDb()
     .update(articles)
     .set({ status: 'published', updatedAt: new Date() })
-    .where(and(eq(articles.status, 'scheduled'), lte(articles.publishAt, new Date()), isNotNull(articles.approvedBy)))
+    .where(
+      and(
+        eq(articles.status, 'scheduled'),
+        lte(articles.publishAt, new Date()),
+        isNotNull(articles.approvedBy),
+      ),
+    )
     .returning({ type: articles.type, slug: articles.slug });
   return rows;
 }

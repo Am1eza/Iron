@@ -94,40 +94,6 @@
   color: var(--chart-bad);
 }
 
-/* ===== Heatmap (cohort retention) ===== */
-.heatmapWrap {
-  overflow-x: auto;
-}
-.heatmap {
-  border-collapse: separate;
-  border-spacing: 3px;
-  font: var(--t-caption);
-}
-.heatmap th {
-  font: var(--t-overline);
-  color: var(--color-text-muted);
-  font-weight: 600;
-  padding: var(--space-1) var(--space-2);
-  white-space: nowrap;
-  text-align: center;
-}
-.heatmap th[scope='row'] {
-  text-align: start;
-}
-.heatCell {
-  inline-size: 3rem;
-  block-size: 2rem;
-  border-radius: var(--radius-xs);
-  text-align: center;
-  color: var(--color-text-strong);
-  font-variant-numeric: tabular-nums;
-  vertical-align: middle;
-}
-.heatEmpty {
-  color: var(--color-text-placeholder);
-  background: var(--chart-track);
-}
-
 /* ===== shared chart chrome ===== */
 .axisText {
   font: var(--t-micro);

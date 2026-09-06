@@ -1,14 +1,17 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { safeLocalStorage } from '@/lib/utils/safeStorage';
-import type { PriceUnit } from '@/lib/types/domain';
+import type { PriceBasis, PriceUnit } from '@/lib/types/domain';
 
 export type CartItem = {
   skuId: string;
   name: string;
   qty: number;
   unit: PriceUnit;
-  unitPrice?: number; // Toman PER KILOGRAM (snapshot; final price confirmed at request)
+  unitPrice?: number;
+  /** What unitPrice is per. Required on new catalog adds; optional only for
+   * carts persisted before v3 and synthetic/manual items. */
+  priceBasis?: PriceBasis;
   weightKg?: number; // weight of ONE piece — only meaningful for branch/sheet/meter units; irrelevant for kg (qty IS the weight there)
 };
 
@@ -51,10 +54,12 @@ export const useCartStore = create<CartState>()(
     }),
     {
       name: 'ahantime-cart',
-      version: 2,
+      version: 3,
       storage: createJSONStorage(() => safeLocalStorage),
       skipHydration: true, // rehydrated by <StoreHydrator/> → no SSR mismatch
-      // v1 → v2: added lastUpdatedAt. An existing cart's real "last touched"
+      // v1 → v2: added lastUpdatedAt. v3 adds priceBasis; old entries retain
+      // the safe unit-derived fallback in cartItemEstimateToman and are always
+      // re-priced by the server before a document is issued. An existing cart's real "last touched"
       // time is unknown, so it defaults to now — the safe direction to guess
       // wrong in, since it means CartReminder waits out the full threshold
       // before surfacing rather than immediately confronting a visitor whose
@@ -85,6 +90,32 @@ export function cartItemWeightKg(item: Pick<CartItem, 'unit' | 'qty' | 'weightKg
   return item.unit === 'kg' ? item.qty : (item.weightKg ?? 0) * item.qty;
 }
 
+/** Snapshot estimate only; the server still re-prices authoritatively. A
+ * non-kg price basis is charged per counted item, not per theoretical kg. */
+export function cartItemEstimateToman(
+  item: Pick<CartItem, 'unit' | 'qty' | 'unitPrice' | 'weightKg' | 'priceBasis'>,
+): number {
+  if (!item.unitPrice) return 0;
+  // Pre-v3 carts were created when every snapshot was documented as per-kg;
+  // defaulting them to a whole-item basis would silently inflate old carts.
+  const basis = item.priceBasis ?? 'kg';
+  return basis === 'kg' ? item.unitPrice * cartItemWeightKg(item) : item.unitPrice * item.qty;
+}
+
+export function inferSnapshotPriceBasis(item: Pick<CartItem, 'unit' | 'qty' | 'unitPrice' | 'weightKg'> & { lineTotal?: number }): PriceBasis {
+  if (
+    item.unitPrice &&
+    item.lineTotal != null &&
+    Math.abs(item.lineTotal - item.unitPrice * item.qty) < 1
+  ) {
+    if (item.unit === 'branch') return 'branch';
+    if (item.unit === 'sheet') return 'sheet';
+    if (item.unit === 'piece') return 'piece';
+    if (item.unit === 'sqm') return 'sqm';
+  }
+  return 'kg';
+}
+
 /* ---- derived selectors (use to avoid re-renders) ---- */
 export const selectCartCount = (s: CartState) => s.items.length;
 export const selectCartTotalWeight = (s: CartState) =>
@@ -92,4 +123,4 @@ export const selectCartTotalWeight = (s: CartState) =>
 // `unitPrice` is per kg — this is Σ(unitPrice × real weight in kg), which is
 // exactly the same basis `priceItems`/`createLead` use for the proforma.
 export const selectCartEstTotal = (s: CartState) =>
-  s.items.reduce((sum, i) => sum + (i.unitPrice ?? 0) * cartItemWeightKg(i), 0);
+  s.items.reduce((sum, i) => sum + cartItemEstimateToman(i), 0);

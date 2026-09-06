@@ -41,7 +41,16 @@
  * / GTM_ID / GA4_ID unset, an ad-blocker, SSR), so call sites never need to
  * guard, and a failure in one tracker can never take out the other.
  */
-export type GoalCategory = 'lead' | 'ai-chat' | 'contact' | 'view-product' | 'add-to-cart';
+export type GoalCategory =
+  | 'lead'
+  | 'ai-chat'
+  | 'contact'
+  | 'view-product'
+  | 'add-to-cart'
+  | 'navigation'
+  | 'club'
+  | 'alert'
+  | 'funnel';
 
 const GA4_EVENT_NAME: Record<GoalCategory, string> = {
   lead: 'generate_lead',
@@ -49,6 +58,10 @@ const GA4_EVENT_NAME: Record<GoalCategory, string> = {
   contact: 'contact_form_submit',
   'view-product': 'view_item',
   'add-to-cart': 'add_to_cart',
+  navigation: 'navigation_select',
+  club: 'club_join',
+  alert: 'alert_set',
+  funnel: 'funnel_step',
 };
 
 declare global {
@@ -66,6 +79,17 @@ declare global {
  */
 export function trackGoal(category: GoalCategory, action: string, name?: string): void {
   if (typeof window === 'undefined') return;
+  // A club invitation is earned by intent, never by elapsed time. Keep the
+  // eligibility through the auth/request redirect and let ArrivalPopup show
+  // it on the next non-suppressed page.
+  if (category === 'lead' || category === 'alert') {
+    try {
+      window.sessionStorage.setItem('ahantime_club_invite_eligible', '1');
+      window.dispatchEvent(new CustomEvent('ahantime:club-invite-eligible'));
+    } catch {
+      // Storage/privacy restrictions must never affect the completed action.
+    }
+  }
   if (Array.isArray(window._paq)) {
     try {
       window._paq.push(name ? ['trackEvent', category, action, name] : ['trackEvent', category, action]);

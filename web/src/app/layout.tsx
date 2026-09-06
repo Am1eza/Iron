@@ -3,7 +3,7 @@ import './globals.css';
 import { AppProviders } from '@/lib/providers/AppProviders';
 import { AuthHydrator } from '@/lib/providers/AuthHydrator';
 import { ThemeScript } from '@/components/theme/ThemeScript';
-import { getCategories, getSubsMap } from '@/lib/data/catalog';
+import { getCategories, getSubsMap, type SubsMap } from '@/lib/data/catalog';
 import { SiteChromeTop, SiteChromeBottom } from '@/components/layout/SiteChrome';
 import { getContact } from '@/lib/server/contact';
 import { listMarketValues } from '@/lib/server/repos/marketRepo';
@@ -14,6 +14,7 @@ import { LocaleProvider } from '@/i18n/LocaleProvider';
 import { LocaleScript } from '@/i18n/LocaleScript';
 import { Analytics } from '@/components/analytics/Analytics';
 import { AttributionCapture } from '@/components/analytics/AttributionCapture';
+import { InteractionAnalytics } from '@/components/analytics/InteractionAnalytics';
 import { ServiceWorkerRegistrar } from '@/components/pwa/ServiceWorkerRegistrar';
 import faMessages from '../../messages/fa.json';
 
@@ -32,13 +33,8 @@ import faMessages from '../../messages/fa.json';
  *
  * Multi-language (fa default; en/ar/zh via the header's language switcher)
  * is deliberately layered in client-side (`LocaleProvider`/`LocaleScript`)
- * rather than resolved here via next-intl's server APIs — see
- * `LocaleProvider`'s header comment for why: this layout wraps every route,
- * and any dynamic API call here (cookies()/getLocale()/getMessages() all
- * read the same way) would force the entire app into per-request dynamic
- * rendering, undoing the ISR strategy across ~250 prerendered pages the
- * same way the signed-in session cookie once did (see `AuthHydrator`).
- * Static metadata below is fa-only for the same reason.
+ * rather than resolved here via next-intl's server APIs, preserving ISR for
+ * public pages while returning visitors keep their selected language.
  */
 
 export const metadata: Metadata = {
@@ -88,9 +84,20 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // resolved client-side instead (`AuthHydrator` → `GET /api/me`), which is
   // enough since 100% of auth-driven UI already lives behind Zustand's
   // `useAuthStore`, not server-rendered markup.
-  const categories = await getCategories();
-  const subs = await getSubsMap();
-  const contact = await getContact();
+  // The image build deliberately has no database. Never freeze development
+  // fixtures into the year-long cached shell: render an honest empty catalog
+  // and let SiteChrome hydrate it from /api/categories at runtime. Dynamic
+  // renders with a DB still get complete SSR navigation.
+  const dbReady = hasDb();
+  const [[categories, subs], contact, initialMarketValues]: [
+    [Awaited<ReturnType<typeof getCategories>>, SubsMap],
+    Awaited<ReturnType<typeof getContact>>,
+    Awaited<ReturnType<typeof listMarketValues>> | undefined,
+  ] = await Promise.all([
+    dbReady ? Promise.all([getCategories(), getSubsMap()]) : Promise.resolve([[], {}] as [[], SubsMap]),
+    getContact(),
+    dbReady ? listMarketValues().catch(() => undefined) : Promise.resolve(undefined),
+  ]);
   // SEO audit: the ticker used to render a literal "0 / 0.00%" placeholder
   // in the server-rendered HTML for every one of ~1200 pages until the
   // client hydrated and polled `/api/market` a moment later — a real user
@@ -101,7 +108,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // just runs it once more, server-side, before the first paint. Errors
   // are swallowed the same way `hasDb()` gates the API route: a market
   // hiccup must not take the whole site down through the root layout.
-  const initialMarketValues = hasDb() ? await listMarketValues().catch(() => undefined) : undefined;
   return (
     <html
       lang="fa"
@@ -126,6 +132,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <LocaleProvider defaultMessages={faMessages}>
           <AppProviders>
             <AuthHydrator />
+            <InteractionAnalytics />
             <SiteChromeTop
               categories={categories}
               subs={subs}

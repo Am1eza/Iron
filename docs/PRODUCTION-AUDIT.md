@@ -8,7 +8,7 @@
 > PII scrubbing, `/api/me/*` pagination, `finish_reason` handling, real sitemap
 > `lastmod`, the OTP `aria-describedby`, route-group error boundaries, coverage
 > tooling, the `msw` removal, the `window.confirm` replacement) has shipped.
-> Current findings live in `/opt/ahantime/AUDIT_REPORT.md`.
+> The later audit is retained in the [audit archive](archive/audits.md#audit-report); it is also a dated snapshot.
 
 
 Full multi-domain audit of the live production app (Next.js 15 / React 19 /
