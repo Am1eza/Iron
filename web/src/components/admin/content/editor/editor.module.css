@@ -333,7 +333,7 @@
 
 :root[data-theme='dark'] .altWarn {
   color: var(--amber-300);
-  background: rgba(245, 150, 30, 0.14);
+  background: rgb(245, 150, 30, 0.14);
 }
 
 /* ------------------------------ chart node ------------------------------ */

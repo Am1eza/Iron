@@ -58,7 +58,7 @@
   white-space: nowrap;
 }
 .navLink:hover {
-  background: var(--color-surface-sunken, rgba(0, 0, 0, 0.04));
+  background: var(--color-surface-sunken, rgb(0, 0, 0, 0.04));
   color: var(--color-text);
 }
 .navLink[aria-current='page'] {

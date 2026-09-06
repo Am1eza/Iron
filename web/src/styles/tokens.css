@@ -76,11 +76,11 @@
   --color-focus:var(--emerald-500);
   --color-gain:var(--gain-500); --color-gain-text:var(--gain-700);
   --color-loss:var(--loss-500); --color-loss-text:var(--loss-600);
-  --color-overlay:rgba(15,19,24,.55);
+  --color-overlay:rgb(15,19,24,.55);
   /* Gunmetal panel — same in both themes (the "steel terminal" surfaces) */
   --color-panel:var(--steel-900); --color-panel-raised:var(--steel-800);
   --color-on-panel:#EAF2F1; --color-on-panel-muted:#8AA19E;
-  --color-panel-hairline:rgba(255,255,255,.09);
+  --color-panel-hairline:rgb(255,255,255,.09);
 
   /* ===== BI / CHART TOKENS — LIGHT =====
      Categorical series + status hues + chart chrome. Dashboards consume these
@@ -146,9 +146,9 @@
   --radius-pill:999px; --radius-circle:50%;
   --border-hairline:1px; --border-strong:1.5px; --border-focus:2px;
   --shadow-none:none;
-  --shadow-sm:0 2px 8px rgba(16,22,30,.08);
-  --shadow-md:0 8px 24px rgba(16,22,30,.12);
-  --shadow-lg:0 16px 48px rgba(16,22,30,.16);
+  --shadow-sm:0 2px 8px rgb(16,22,30,.08);
+  --shadow-md:0 8px 24px rgb(16,22,30,.12);
+  --shadow-lg:0 16px 48px rgb(16,22,30,.16);
   --z-base:0; --z-raised:10; --z-sticky:100; --z-bottom-nav:105; --z-fab:150; --z-dropdown:200;
   --z-scrim:300; --z-drawer:350; --z-modal:400; --z-toast:500; --z-tooltip:600;
 
@@ -238,29 +238,29 @@
   --color-bg:var(--neutral-950); --color-surface:var(--neutral-900); --color-surface-raised:var(--neutral-800);
   /* mirrors the light theme's sunken===bg relationship (both neutral-50 there) */
   --color-surface-sunken:var(--neutral-950);
-  --color-surface-inverse:var(--neutral-900); --color-hairline:rgba(255,255,255,.08); --color-border-strong:var(--neutral-700);
+  --color-surface-inverse:var(--neutral-900); --color-hairline:rgb(255,255,255,.08); --color-border-strong:var(--neutral-700);
   /* -400 is 6.6:1 on --color-surface and 5.8:1 on --color-surface-raised;
      -450/-500 drop to ~3:1 on the raised surface, too close to the floor. */
   --color-field-border:var(--neutral-400);
   --color-text:var(--neutral-100); --color-text-strong:var(--neutral-0); --color-text-muted:var(--neutral-400);
   --color-text-placeholder:var(--neutral-500);
   --color-brand:var(--emerald-300);
-  --color-accent:var(--emerald-400); --color-accent-text:var(--emerald-300); --color-accent-tint:rgba(10,127,119,.16);
+  --color-accent:var(--emerald-400); --color-accent-text:var(--emerald-300); --color-accent-tint:rgb(10,127,119,.16);
   --color-action:var(--emerald-550); --color-on-action:var(--neutral-0); --color-action-hover:var(--emerald-400); --color-action-press:var(--emerald-600); --color-action-text:var(--emerald-300); --color-focus:var(--emerald-400);
-  --color-overlay:rgba(0,0,0,.6);
+  --color-overlay:rgb(0,0,0,.6);
   /* WCAG 1.4.3. The -text steps are tuned for a WHITE surface and were never
      overridden here: --gain-700 lands at 2.69:1 and --loss-600 at 2.99:1 on
      --color-surface, so every price movement in dark mode was unreadable.
      The light steps give 9.8:1 / 5.2:1. --color-gain/--color-loss (graphical,
      3:1) already pass at 5.2:1 / 3.8:1 and stay put. */
   --color-gain-text:var(--gain-400); --color-loss-text:var(--loss-400);
-  --shadow-sm:0 2px 8px rgba(0,0,0,.4); --shadow-md:0 8px 24px rgba(0,0,0,.5); --shadow-lg:0 16px 48px rgba(0,0,0,.6);
+  --shadow-sm:0 2px 8px rgb(0,0,0,.4); --shadow-md:0 8px 24px rgb(0,0,0,.5); --shadow-lg:0 16px 48px rgb(0,0,0,.6);
 
   /* Chart hues lift a step in dark so they stay vivid on the dark surface. */
   --chart-1:var(--emerald-400); --chart-2:var(--cobalt-400); --chart-3:var(--amber-400);
   --chart-4:#9B82FF; --chart-5:#2FB9C6; --chart-6:#F072AE;
   --chart-good:var(--gain-500); --chart-warn:var(--amber-400); --chart-bad:var(--loss-400);
-  --chart-grid:rgba(255,255,255,.08); --chart-track:var(--neutral-850);
+  --chart-grid:rgb(255,255,255,.08); --chart-track:var(--neutral-850);
   --chart-axis:var(--color-text-muted);
 }
 
@@ -327,8 +327,8 @@ img{max-inline-size:100%;height:auto;}
 .blueprint{
   background-color:var(--color-panel);
   background-image:
-    repeating-linear-gradient(0deg,rgba(255,255,255,.045) 0 1px,transparent 1px 44px),
-    repeating-linear-gradient(90deg,rgba(255,255,255,.045) 0 1px,transparent 1px 44px);
+    repeating-linear-gradient(0deg,rgb(255,255,255,.045) 0 1px,transparent 1px 44px),
+    repeating-linear-gradient(90deg,rgb(255,255,255,.045) 0 1px,transparent 1px 44px);
 }
 
 @keyframes spark{ from{transform:scale(.9);opacity:.5} to{transform:scale(1.15);opacity:0} }

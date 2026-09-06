@@ -52,7 +52,7 @@
 }
 .mill:hover {
   border-color: var(--emerald-400);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 16px rgb(0, 0, 0, 0.3);
   text-decoration: none;
 }
 
@@ -79,7 +79,7 @@
 }
 .cell:hover {
   border-color: var(--emerald-400);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 16px rgb(0, 0, 0, 0.3);
 }
 .logoImg {
   max-block-size: 58px;

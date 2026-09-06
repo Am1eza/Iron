@@ -266,7 +266,7 @@
     inset-inline: var(--space-4);
     inset-block-end: calc(var(--bottom-bar-h) + var(--space-3));
     z-index: var(--z-sticky);
-    box-shadow: 0 -4px 16px rgba(16, 22, 30, 0.14);
+    box-shadow: 0 -4px 16px rgb(16, 22, 30, 0.14);
   }
   /* The fixed bar covers whatever used to be beneath it — reserve its own
      height (button + the offset above) so the alert/note before it in flow

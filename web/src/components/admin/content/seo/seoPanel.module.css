@@ -174,7 +174,7 @@
 /* Query text can be long; numbers must never wrap or lose their alignment. */
 .queryCell {
   inline-size: 55%;
-  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .numCell {

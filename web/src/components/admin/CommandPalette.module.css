@@ -11,7 +11,7 @@
   cursor: pointer;
 }
 .trigger:hover {
-  background: var(--color-surface-sunken, rgba(0, 0, 0, 0.04));
+  background: var(--color-surface-sunken, rgb(0, 0, 0, 0.04));
   color: var(--color-text);
 }
 .trigger kbd {
@@ -77,7 +77,7 @@
 }
 .item:hover,
 .item[data-active] {
-  background: var(--color-surface-sunken, rgba(0, 0, 0, 0.04));
+  background: var(--color-surface-sunken, rgb(0, 0, 0, 0.04));
 }
 
 /* Non-focusable group heading — a `role="presentation"` row that must never
