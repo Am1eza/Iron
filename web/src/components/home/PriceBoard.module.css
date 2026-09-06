@@ -42,7 +42,7 @@
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  background: rgba(21, 160, 111, 0.55);
+  background: rgb(21, 160, 111, 0.55);
   animation: board-pulse 2.4s ease-out infinite;
 }
 @keyframes board-pulse {
@@ -78,11 +78,11 @@
   transition: background var(--dur-fast) var(--ease-standard);
 }
 .rowLink:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgb(255, 255, 255, 0.05);
   text-decoration: none;
 }
 .rowLink:active {
-  background: rgba(255, 255, 255, 0.09);
+  background: rgb(255, 255, 255, 0.09);
 }
 .name {
   font: var(--t-body-sm);

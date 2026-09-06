@@ -7,8 +7,8 @@
   overflow: hidden;
   background-color: var(--color-panel);
   background-image:
-    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.045) 0 1px, transparent 1px 44px),
-    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.045) 0 1px, transparent 1px 44px);
+    repeating-linear-gradient(0deg, rgb(255, 255, 255, 0.045) 0 1px, transparent 1px 44px),
+    repeating-linear-gradient(90deg, rgb(255, 255, 255, 0.045) 0 1px, transparent 1px 44px);
 }
 
 .heroContent {
