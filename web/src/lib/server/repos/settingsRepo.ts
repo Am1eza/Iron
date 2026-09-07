@@ -3,7 +3,7 @@
  * club tiers). Cached in-process for 60s; admin PUT busts the cache.
  */
 import { eq } from 'drizzle-orm';
-import { getDb } from '@/lib/server/db/client';
+import { getDb, hasDb } from '@/lib/server/db/client';
 import { settings } from '@/lib/server/db/schema';
 import { DEFAULT_ORDER_POLICY, type OrderPolicy } from '@/lib/config/orderPolicy';
 import { DEFAULT_VOLUME_DISCOUNT_POLICY, type VolumeDiscountPolicy } from '@/lib/config/pricingTiers';
@@ -14,6 +14,10 @@ const TTL_MS = 60_000;
 export async function getSetting<T>(key: string, fallback: T): Promise<T> {
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < TTL_MS) return hit.value as T;
+  // No DB (mock/export builds, e.g. the GitHub Pages preview): every setting
+  // is admin-configurable business policy, so its own `fallback` IS the
+  // correct answer, not an error.
+  if (!hasDb()) return fallback;
   const rows = await getDb().select().from(settings).where(eq(settings.key, key)).limit(1);
   const value = rows[0] ? (rows[0].value as T) : fallback;
   cache.set(key, { value, at: Date.now() });
