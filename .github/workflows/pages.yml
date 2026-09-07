@@ -61,6 +61,11 @@ jobs:
         run: |
           rm -rf src/app/api src/app/account src/app/admin src/app/proforma src/app/uploads src/app/sitemap.ts
           rm -rf src/app/blog/page src/app/news/page
+          # factory/size are free-text facets (skus.factory/size), not a
+          # fixture-known taxonomy like category/sub — each route's own
+          # comment explains why it has no generateStaticParams even in
+          # EXPORT mode.
+          rm -rf "src/app/prices/[category]/factory" "src/app/prices/[category]/size"
           find src -name '*.test.ts' -o -name '*.test.tsx' | xargs rm -f
 
       - name: Build static export
