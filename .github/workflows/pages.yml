@@ -71,14 +71,15 @@ jobs:
           # EXPORT mode.
           rm -rf "src/app/prices/[category]/factory" "src/app/prices/[category]/size"
           find src -name '*.test.ts' -o -name '*.test.tsx' | xargs rm -f
-          # blog/news index pages are `force-dynamic` for the same
-          # no-build-time-content reason as sitemap.ts (see their own
+          # Homepage and blog/news index pages are `force-dynamic` for the
+          # same no-build-time-content reason as sitemap.ts (see their own
           # comments) — but that value must be a literal Next can statically
           # parse, so it can't be made conditional in the source itself.
           # `output: export` has no runtime to force-dynamic render against,
           # and this IS the one build where the fixtures are the intended
           # content, so drop the line for this build only.
           sed -i "/^export const dynamic = 'force-dynamic';$/d" \
+            src/app/page.tsx src/app/prices/page.tsx \
             "src/app/blog/(index)/page.tsx" "src/app/news/(index)/page.tsx"
 
       - name: Build static export
