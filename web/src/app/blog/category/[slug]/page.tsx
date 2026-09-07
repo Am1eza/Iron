@@ -4,6 +4,8 @@ import { notFound } from 'next/navigation';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { getCategories, getArticlesPageByCategory, getBlogCategoryRailItems } from '@/lib/server/catalog';
+import { categories as mockCategories } from '@/lib/mock/fixtures';
+import { shouldPrerenderMockParams } from '@/lib/server/seo/prerenderParams';
 import { Container, Section, Stack, Heading, Text, Breadcrumbs, EmptyState } from '@/components/ui';
 import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
 import { ArticleCard } from '@/components/content/ArticleCard';
@@ -17,6 +19,12 @@ const PER_PAGE = 24;
 // Same cadence as /blog itself — a category page is just a filtered slice of
 // the same content, not a differently-changing one.
 export const revalidate = 600;
+
+/** Fixture-derived — gated. See `lib/server/seo/prerenderParams.ts`. */
+export function generateStaticParams() {
+  if (!shouldPrerenderMockParams()) return [];
+  return mockCategories.map((c) => ({ slug: c.slug }));
+}
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params;

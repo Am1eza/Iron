@@ -1,8 +1,9 @@
 name: Deploy preview to GitHub Pages
 
 # Builds the Ahantime web app (in web/) as a static export and publishes it to
-# GitHub Pages. Server-only routes (/api, the authed /account area) are excluded
-# from the static build; the app stays full-SSR for `next dev` / `next start`.
+# GitHub Pages. Server-only/auth-gated routes (/api, /account, /admin,
+# /proforma) are excluded from the static build; the app stays full-SSR for
+# `next dev` / `next start`.
 
 on:
   push:
@@ -46,7 +47,40 @@ jobs:
         # sitemap it could produce would list fixture URLs — which is the exact
         # failure the force-dynamic exists to prevent (see src/app/sitemap.ts).
         # A preview of mock data should not publish a sitemap at all.
-        run: rm -rf src/app/api src/app/account src/app/sitemap.ts
+        #
+        # Test files are removed too: this job never runs tests, but `next
+        # build` type-checks every file tsconfig includes, and some tests
+        # import the api routes just deleted above.
+        #
+        # blog/news page/[n] archive routes deliberately return an empty
+        # generateStaticParams (see their own comments) so the real app stays
+        # ISR instead of fully dynamic — but `output: export` requires at
+        # least one static path per dynamic segment, and the mock fixture set
+        # (4 blog + 3 news articles) never reaches a page 2 to enumerate. Real
+        # archive pagination is untestable from fixtures this small anyway.
+        run: |
+          rm -rf src/app/api src/app/account src/app/admin src/app/proforma src/app/uploads src/app/sitemap.ts
+          # /ai and /search opt into `dynamic = "error"` and read
+          # searchParams — interactive, request-driven pages, not ones with
+          # a static form.
+          rm -rf src/app/ai src/app/search
+          rm -rf src/app/blog/page src/app/news/page
+          # factory/size are free-text facets (skus.factory/size), not a
+          # fixture-known taxonomy like category/sub — each route's own
+          # comment explains why it has no generateStaticParams even in
+          # EXPORT mode.
+          rm -rf "src/app/prices/[category]/factory" "src/app/prices/[category]/size"
+          find src -name '*.test.ts' -o -name '*.test.tsx' | xargs rm -f
+          # Homepage and blog/news index pages are `force-dynamic` for the
+          # same no-build-time-content reason as sitemap.ts (see their own
+          # comments) — but that value must be a literal Next can statically
+          # parse, so it can't be made conditional in the source itself.
+          # `output: export` has no runtime to force-dynamic render against,
+          # and this IS the one build where the fixtures are the intended
+          # content, so drop the line for this build only.
+          sed -i "/^export const dynamic = 'force-dynamic';$/d" \
+            src/app/page.tsx src/app/prices/page.tsx \
+            "src/app/blog/(index)/page.tsx" "src/app/news/(index)/page.tsx"
 
       - name: Build static export
         run: pnpm build
