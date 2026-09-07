@@ -1,8 +1,9 @@
 name: Deploy preview to GitHub Pages
 
 # Builds the Ahantime web app (in web/) as a static export and publishes it to
-# GitHub Pages. Server-only routes (/api, the authed /account area) are excluded
-# from the static build; the app stays full-SSR for `next dev` / `next start`.
+# GitHub Pages. Server-only/auth-gated routes (/api, /account, /admin,
+# /proforma) are excluded from the static build; the app stays full-SSR for
+# `next dev` / `next start`.
 
 on:
   push:
@@ -58,7 +59,7 @@ jobs:
         # (4 blog + 3 news articles) never reaches a page 2 to enumerate. Real
         # archive pagination is untestable from fixtures this small anyway.
         run: |
-          rm -rf src/app/api src/app/account src/app/sitemap.ts
+          rm -rf src/app/api src/app/account src/app/admin src/app/proforma src/app/sitemap.ts
           rm -rf src/app/blog/page src/app/news/page
           find src -name '*.test.ts' -o -name '*.test.tsx' | xargs rm -f
 

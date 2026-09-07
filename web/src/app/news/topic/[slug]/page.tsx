@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
-import { findNewsTopic } from '@/lib/data/newsTopics';
+import { findNewsTopic, NEWS_TOPICS } from '@/lib/data/newsTopics';
 import { getArticlesPageByNewsTopic, getNewsTopicRailItems } from '@/lib/server/catalog';
 import { Container, Section, Stack, Heading, Text, Breadcrumbs, EmptyState } from '@/components/ui';
 import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
@@ -18,6 +18,12 @@ const PER_PAGE = 24;
 // Same cadence as /news itself — a topic page is just a filtered slice of
 // the same content, not a differently-changing one.
 export const revalidate = 600;
+
+// Fixed in code, not fixture-derived — same as TRACK_ORDER/TOOL_SLUGS, always
+// safe to prerender (see NEWS_TOPICS's own comment).
+export function generateStaticParams() {
+  return NEWS_TOPICS.map((topic) => ({ slug: topic.slug }));
+}
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params;
