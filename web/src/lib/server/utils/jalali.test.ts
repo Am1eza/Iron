@@ -13,23 +13,27 @@ describe('quoteValidUntil', () => {
   it('Thursday → next business day is Saturday (Friday skipped)', () => {
     const thu = new Date('2026-07-02T10:00:00.000Z'); // Thu in Tehran
     const until = quoteValidUntil(thu, new Set(), 11);
-    expect(until.getUTCDay()).not.toBe(5);
-    expect(jalaliDayKey(until)).not.toBe(jalaliDayKey(thu));
+    // Sat 2026-07-04, 11:00 Tehran == 07:30 UTC.
+    expect(until.toISOString()).toBe('2026-07-04T07:30:00.000Z');
   });
 
-  it('Wednesday night → lands on Thursday, not Friday', () => {
-    // 2026-07-01 is a Wednesday in Tehran.
+  it('Wednesday → jumps the WHOLE closure to Saturday, not Thursday', () => {
+    // 2026-07-01 is a Wednesday in Tehran. The office is shut Thursday as well
+    // as Friday, so a quote issued Wednesday must not expire on a day nobody
+    // is here to honour it.
     const wed = new Date('2026-07-01T10:00:00.000Z');
     const until = quoteValidUntil(wed, new Set(), 11);
-    expect(until.getUTCDay()).not.toBe(5);
-    expect(until.toISOString()).toContain('T07:30:00');
+    expect(until.toISOString()).toBe('2026-07-04T07:30:00.000Z');
   });
 
   it('skips a holiday even on an otherwise-open weekday', () => {
-    const wed = new Date('2026-07-01T10:00:00.000Z');
-    const nextDayKey = jalaliDayKey(new Date(wed.getTime() + 24 * 60 * 60 * 1000));
-    const withoutHoliday = quoteValidUntil(wed, new Set(), 11);
-    const withHoliday = quoteValidUntil(wed, new Set([nextDayKey]), 11);
+    // Saturday → Sunday: an ordinary working pair, so the holiday set is what
+    // moves the result rather than the weekly closure.
+    const sat = new Date('2026-07-04T10:00:00.000Z');
+    const nextDayKey = jalaliDayKey(new Date(sat.getTime() + 24 * 60 * 60 * 1000));
+    const withoutHoliday = quoteValidUntil(sat, new Set(), 11);
+    const withHoliday = quoteValidUntil(sat, new Set([nextDayKey]), 11);
+    expect(jalaliDayKey(withoutHoliday)).toBe(nextDayKey);
     expect(jalaliDayKey(withHoliday)).not.toBe(nextDayKey);
     expect(withHoliday.getTime()).toBeGreaterThan(withoutHoliday.getTime());
   });
@@ -50,10 +54,10 @@ describe('businessDaysSince', () => {
   });
 
   it('counts one business day for a same-week weekday gap', () => {
-    // Wed → Thu is one business day.
-    const wed = new Date('2026-07-01T10:00:00.000Z');
-    const thu = new Date(wed.getTime() + DAY);
-    expect(businessDaysSince(wed, thu)).toBe(1);
+    // Sat → Sun is one business day.
+    const sat = new Date('2026-07-04T10:00:00.000Z');
+    const sun = new Date(sat.getTime() + DAY);
+    expect(businessDaysSince(sat, sun)).toBe(1);
   });
 
   it('does not count Friday as a business day', () => {
@@ -63,11 +67,20 @@ describe('businessDaysSince', () => {
     expect(businessDaysSince(thu, sat)).toBe(1);
   });
 
-  it('excludes admin-configured holidays from the count', () => {
+  it('does not count Thursday as a business day either', () => {
+    // Wed → Sat spans Thursday AND Friday; only Saturday counts. Before the
+    // weekly closure covered Thursday this returned 2, aging prices by a day
+    // nobody was ever going to update them on.
     const wed = new Date('2026-07-01T10:00:00.000Z');
-    const thu = new Date(wed.getTime() + DAY);
-    const thuKey = jalaliDayKey(thu);
-    expect(businessDaysSince(wed, thu, new Set([thuKey]))).toBe(0);
+    const sat = new Date(wed.getTime() + 3 * DAY);
+    expect(businessDaysSince(wed, sat)).toBe(1);
+  });
+
+  it('excludes admin-configured holidays from the count', () => {
+    const sat = new Date('2026-07-04T10:00:00.000Z');
+    const sun = new Date(sat.getTime() + DAY);
+    const sunKey = jalaliDayKey(sun);
+    expect(businessDaysSince(sat, sun, new Set([sunKey]))).toBe(0);
   });
 });
 

@@ -480,7 +480,9 @@ function HolidaysCard({ holidays, onSave, busy }: { holidays: string[]; onSave: 
   return (
     <Card>
       <Heading level={2}>تعطیلات رسمی</Heading>
-      <Text color="muted">تاریخ جلالی به شکل 1405-01-13؛ جمعه‌ها خودکار تعطیل‌اند.</Text>
+      <Text color="muted">
+        تاریخ جلالی به شکل 1405-01-13؛ پنجشنبه‌ها و جمعه‌ها خودکار تعطیل‌اند و لازم نیست این‌جا وارد شوند.
+      </Text>
       <div style={{ display: 'grid', gap: 'var(--space-2)', marginBlockStart: 'var(--space-3)' }}>
         {rows.map((r) => (
           <div key={r.id} style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-start' }}>
