@@ -20,6 +20,7 @@
  * SMSIR_TEMPLATE_ID_* is set, with zero code change and no risk of a message
  * silently stopping if the env var is ever unset again.
  */
+import { and, count, eq, gt, inArray } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { reportError } from '@/lib/errors/report';
 import { scrubPii } from '@/lib/errors/scrub';
@@ -91,12 +92,52 @@ function isPermanentRejection(err: unknown): boolean {
   return err instanceof SmsHttpError && err.status >= 400 && err.status < 500 && err.status !== 429;
 }
 
-async function log(to: string, kind: SmsKind, payload: Record<string, unknown>, status: 'sent' | 'failed' | 'dev_logged') {
+async function log(
+  to: string,
+  kind: SmsKind,
+  payload: Record<string, unknown>,
+  status: 'sent' | 'failed' | 'dev_logged' | 'suppressed',
+) {
   if (!hasDb()) return;
   try {
     await getDb().insert(smsLog).values({ id: ulid(), to, kind, payload, status });
   } catch (err) {
     reportError(err, { scope: 'sms_log' });
+  }
+}
+
+/**
+ * How many messages of one kind we have already put on the wire to ONE mobile
+ * in the trailing 24h — the per-recipient counterpart to rateLimit.ts, which
+ * buckets by IP and therefore cannot see an attacker rotating IPs against a
+ * single victim's number (item 95).
+ *
+ * Counts only messages that actually left (or would have left) the box:
+ * 'failed' rows are gateway problems, not sends the recipient experienced, and
+ * counting them would let an SMS.ir outage silently spend a real customer's
+ * daily budget. 'suppressed' rows are likewise not sends. A DB error counts as
+ * ZERO — the cap is an anti-abuse ceiling on a feature the owner wants firing,
+ * so it fails OPEN: a broken query must never silence a legitimate customer's
+ * پیش‌فاکتور SMS.
+ */
+async function sentToMobileSince(to: string, kind: SmsKind, windowMs: number): Promise<number> {
+  if (!hasDb()) return 0;
+  try {
+    const rows = await getDb()
+      .select({ n: count() })
+      .from(smsLog)
+      .where(
+        and(
+          eq(smsLog.to, to),
+          eq(smsLog.kind, kind),
+          inArray(smsLog.status, ['sent', 'dev_logged']),
+          gt(smsLog.at, new Date(Date.now() - windowMs)),
+        ),
+      );
+    return rows[0]?.n ?? 0;
+  } catch (err) {
+    reportError(err, { scope: 'sms_daily_cap' });
+    return 0;
   }
 }
 
@@ -300,7 +341,17 @@ export interface NotificationSpec {
   params: TemplateParam[];
   fallbackText: string;
   kind: SmsKind;
+  /**
+   * Optional ceiling on how many messages of this `kind` may go to ONE mobile
+   * per 24h. OMITTED (the default) means uncapped — every existing caller
+   * keeps its exact current behaviour. Set it only on paths an unauthenticated
+   * stranger can trigger against a phone number they do not own.
+   */
+  dailyCapPerMobile?: number;
 }
+
+/** Window the cap above is measured over. */
+const DAILY_CAP_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 /**
  * The seam every customer-facing notification should call through instead of
@@ -308,6 +359,19 @@ export interface NotificationSpec {
  * a template, free-text bulk send until then. Nothing regresses either way.
  */
 export async function sendNotification(mobile: string, spec: NotificationSpec): Promise<SmsSendResult> {
+  // Per-recipient ceiling, only for callers that opted in (see
+  // dailyCapPerMobile). This is NOT a switch that turns the notification off:
+  // it is an abuse ceiling set far above real customer behaviour, and the
+  // document being announced is always issued and viewable regardless.
+  if (spec.dailyCapPerMobile !== undefined) {
+    const already = await sentToMobileSince(mobile, spec.kind, DAILY_CAP_WINDOW_MS);
+    if (already >= spec.dailyCapPerMobile) {
+      // `permanent` so schedulers stop rather than re-queueing into the cap —
+      // same contract as a 4xx rejection.
+      await log(mobile, spec.kind, { cap: spec.dailyCapPerMobile, already }, 'suppressed');
+      return { ok: false, permanent: true };
+    }
+  }
   const templateId = process.env[spec.templateEnvVar];
   if (templateId) return sendTemplate(mobile, templateId, spec.params, spec.kind);
   return sendSms(mobile, spec.fallbackText, spec.kind);

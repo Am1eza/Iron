@@ -41,7 +41,14 @@ export const settings = pgTable('settings', {
 });
 
 export const SMS_KINDS = ['otp', 'proforma', 'alert', 'generic'] as const;
-export const SMS_STATUSES = ['sent', 'failed', 'dev_logged'] as const;
+/** `suppressed` = we deliberately did NOT hand this message to SMS.ir (the
+ *  per-mobile daily cap in `sendNotification` tripped — item 95). It is not a
+ *  failure: nothing broke and nothing should be retried, so it stays distinct
+ *  from 'failed' or the marketing dashboard's delivery health would read an
+ *  anti-abuse decision as a gateway outage. `status` is a plain text column
+ *  with no DB-level check (see drizzle/0000_init.sql), so widening this list
+ *  is a TypeScript-only change and needs no migration. */
+export const SMS_STATUSES = ['sent', 'failed', 'dev_logged', 'suppressed'] as const;
 
 /** One AI-advisor conversation — anchors persisted turns and the rolling
  *  Persian summary that keeps long chats cheap (older turns collapse into
