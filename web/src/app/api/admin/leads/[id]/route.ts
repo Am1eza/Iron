@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { eq, inArray } from 'drizzle-orm';
 import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
-import { findLead, leadItemsOf, leadNotesOf, proformasOfLead, softDeleteLead, updateLead } from '@/lib/server/repos/leadsRepo';
+import { addLeadNote, findLead, leadItemsOf, leadNotesOf, proformasOfLead, softDeleteLead, updateLead } from '@/lib/server/repos/leadsRepo';
+import { checkLeadStatusChange, LEAD_STATUS_LABEL } from '@/lib/server/utils/leadStatusFlow';
 import { recomputeTier } from '@/lib/server/repos/clubRepo';
 import { getDb } from '@/lib/server/db/client';
 import { users, currentPrices } from '@/lib/server/db/schema';
@@ -67,6 +68,10 @@ const patchPayload = z.object({
   // reaching the FK as a literal id and blowing up as a 500.
   assigneeId: z.string().min(1).nullable().optional(),
   callbackAt: z.string().datetime().nullable().optional(),
+  // Why a lead is being pulled back out of a terminal status. Only read when
+  // `checkLeadStatusChange` demands it (today: leaving 'won'); ignored
+  // otherwise, so every existing caller keeps working unchanged.
+  statusReason: z.string().trim().max(500).optional(),
 });
 
 /** Roles that may hold a lead — derived, so a permission-table change can't
@@ -158,6 +163,23 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }
       { status: 403 },
     );
   }
+  // Legal-move check BEFORE the write: without it the raw API accepted every
+  // status from every other one, including back to 'new' (see
+  // leadStatusFlow.ts). Skipped entirely when the body carries no `status`, so
+  // an assignee-only or callback-only PATCH is untouched.
+  if (v.data.status !== undefined) {
+    const rejection = checkLeadStatusChange({
+      from: before.status,
+      to: v.data.status,
+      reason: v.data.statusReason,
+    });
+    if (rejection) {
+      return NextResponse.json(
+        { error: rejection.error, message: rejection.message },
+        { status: rejection.httpStatus },
+      );
+    }
+  }
   // Compare-and-swap on the owner this request was AUTHORIZED against, so the
   // window between `findLead` above and this write cannot be used to silently
   // overwrite someone else's claim (see updateLead's doc comment).
@@ -208,6 +230,17 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }
     { status: before.status, assigneeId: before.assigneeId },
     v.data,
   );
+  // The reason also lands in the notes timeline, next to the lost-reason notes
+  // the UI already writes: an audit row answers "who did this" for an admin
+  // digging through logs, but the rep who opens this lead tomorrow only ever
+  // sees the timeline. Best-effort — a failed note must not undo a status
+  // change that already committed.
+  const statusReason = v.data.statusReason?.trim();
+  if (statusReason && v.data.status !== undefined && v.data.status !== before.status) {
+    await addLeadNote(id, auth.session.id, `دلیل تغییر وضعیت از «${LEAD_STATUS_LABEL[before.status]}» به «${LEAD_STATUS_LABEL[v.data.status]}»: ${statusReason}`).catch(
+      () => {},
+    );
+  }
   // Recompute on any change into OR out of 'won' — recomputeTier derives
   // the tier fresh from the live won-lead count and downgrades correctly
   // when it's lower than stored, so an admin reverting a mis-marked 'won'

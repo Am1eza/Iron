@@ -692,8 +692,12 @@ export const adminApi = {
        *  business. Display only: it carries no pricing or priority meaning. */
       customer: { companyName: string | null; bizVerified: true } | null;
     }>(`/api/admin/leads/${id}`),
-  updateLead: (id: string, patch: { status?: string; assigneeId?: string | null; callbackAt?: string | null }) =>
-    http.patch<{ lead: AdminLead }>(`/api/admin/leads/${id}`, patch),
+  /** `statusReason` is required by the server only when the move needs
+   *  justifying (today: leaving 'won' — it drives club tier and revenue). */
+  updateLead: (
+    id: string,
+    patch: { status?: string; assigneeId?: string | null; callbackAt?: string | null; statusReason?: string },
+  ) => http.patch<{ lead: AdminLead }>(`/api/admin/leads/${id}`, patch),
   addLeadNote: (id: string, text: string) => http.post<{ note: unknown }>(`/api/admin/leads/${id}/notes`, { text }),
   /** Other live leads sharing this one's NORMALISED mobile, within
    *  `windowDays` of its own `createdAt` (exact match only — never fuzzy).
