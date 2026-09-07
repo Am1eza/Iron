@@ -3,11 +3,8 @@ import { routes } from '@/lib/routes';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
-import { formsApi } from '@/lib/api/forms';
+import { authApi } from '@/lib/api/resources/auth';
 import { isApiError } from '@/lib/api/errors';
-// The post-verify name step (see the `step` docblock) is the one call here
-// that formsApi does not proxy — it is a profile update, not a form submit.
-import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/stores/auth';
 import { canAccessAdmin } from '@/lib/auth/roles';
 import { normalizeDigits, localizeDigits } from '@/lib/utils/format';
@@ -84,7 +81,7 @@ export function LoginForm({ chromeless = false }: { chromeless?: boolean } = {})
   const sendOtp = async (m: string) => {
     setError(null);
     try {
-      const res = await formsApi.requestOtp(m);
+      const res = await authApi.requestOtp(m);
       setMobile(m);
       setStep('code');
       setResendIn(60);
@@ -119,7 +116,7 @@ export function LoginForm({ chromeless = false }: { chromeless?: boolean } = {})
     setNameError(undefined);
     setVerifying(true);
     try {
-      const { user, isNew } = await formsApi.verifyOtp(mobile, code, {
+      const { user, isNew } = await authApi.verifyOtp(mobile, code, {
         inviteCode: inviteCode.trim() || undefined,
       });
       setUser(user);
@@ -152,7 +149,7 @@ export function LoginForm({ chromeless = false }: { chromeless?: boolean } = {})
     setNameError(undefined);
     setVerifying(true);
     try {
-      const { user } = await api.auth.updateProfile(firstName.trim(), lastName.trim());
+      const { user } = await authApi.updateProfile(firstName.trim(), lastName.trim());
       setUser(user);
       finishLogin(user.role);
     } catch (e) {
@@ -170,7 +167,8 @@ export function LoginForm({ chromeless = false }: { chromeless?: boolean } = {})
     // usable destination on that host at all, so send them to their account
     // on the public site (their session cookie is host-scoped — they'll
     // sign in there like a normal visitor).
-    const onPanelHost = typeof window !== 'undefined' && window.location.hostname === 'panel.ahantime.com';
+    const onPanelHost =
+      typeof window !== 'undefined' && window.location.hostname === 'panel.ahantime.com';
     if (onPanelHost && !canAccessAdmin(role)) {
       window.location.href = `https://ahantime.com${routes.account()}`;
       return;
@@ -193,7 +191,11 @@ export function LoginForm({ chromeless = false }: { chromeless?: boolean } = {})
       ) : (
         <div className={styles.head}>
           <h1 className={styles.title}>
-            {step === 'mobile' ? t('title') : step === 'name' ? t('registerTitle') : t('verifyTitle')}
+            {step === 'mobile'
+              ? t('title')
+              : step === 'name'
+                ? t('registerTitle')
+                : t('verifyTitle')}
             {step === 'name' ? (
               <Badge tone="accent" className={styles.newUserBadge}>
                 {t('newUserBadge')}
@@ -283,7 +285,13 @@ export function LoginForm({ chromeless = false }: { chromeless?: boolean } = {})
               {t('devCode', { code: localizeDigits(devCode, locale) })}
             </p>
           ) : null}
-          <OtpInput ref={otpRef} value={code} onChange={setCode} error={otpError} label={t('otpLabel')} />
+          <OtpInput
+            ref={otpRef}
+            value={code}
+            onChange={setCode}
+            error={otpError}
+            label={t('otpLabel')}
+          />
           {/* Optional for everyone, and shown to everyone: it applies only if
               this code creates an account, and — unlike the name fields it
               used to sit beside — it discloses nothing about the number. */}

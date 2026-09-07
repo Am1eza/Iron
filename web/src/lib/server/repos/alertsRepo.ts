@@ -11,7 +11,9 @@ export type AlertRow = typeof alerts.$inferSelect;
 
 export interface AlertDto {
   id: string;
-  target: { type: 'sku'; skuId: string; label?: string } | { type: 'market'; key: MarketKey; label?: string };
+  target:
+    | { type: 'sku'; skuId: string; label?: string }
+    | { type: 'market'; key: MarketKey; label?: string };
   op: 'below' | 'above';
   threshold: number;
   channel: NotifyChannel;
@@ -43,14 +45,6 @@ export function toAlertDto(r: AlertRow, label?: string): AlertDto {
   };
 }
 
-export async function activeAlertCount(userId: string): Promise<number> {
-  const rows = await getDb()
-    .select({ n: sql<number>`count(*)::int` })
-    .from(alerts)
-    .where(and(eq(alerts.userId, userId), eq(alerts.status, 'active'), isNull(alerts.deletedAt)));
-  return rows[0]?.n ?? 0;
-}
-
 /** Count of alerts sitting in 'triggered' across ALL users — feeds the
  *  /admin/stats `triggeredAlerts` field (W22), which drives both the alerts
  *  page's summary tile and the admin nav badge. A 'triggered' alert has
@@ -77,7 +71,9 @@ export async function triggeredAlertCount(): Promise<number> {
 export const DEFAULT_ALERT_TIER_CAPS = { base: 2, iron: 2, steel: 6, poolad: 10 } as const;
 export type AlertTierCaps = { base: number; iron: number; steel: number; poolad: number };
 
-export async function alertCapForTier(tier: 'iron' | 'steel' | 'poolad' | undefined): Promise<number> {
+export async function alertCapForTier(
+  tier: 'iron' | 'steel' | 'poolad' | undefined,
+): Promise<number> {
   const caps = await getSetting<AlertTierCaps>('ALERT_TIER_CAPS', DEFAULT_ALERT_TIER_CAPS);
   const key = tier ?? 'base';
   return caps[key] ?? DEFAULT_ALERT_TIER_CAPS.base;
@@ -137,7 +133,11 @@ export async function createAlert(input: {
   cap: number;
 }): Promise<{ alert: AlertDto; merged: boolean }> {
   if (input.target.type === 'sku') {
-    const found = await getDb().select({ id: skus.id }).from(skus).where(eq(skus.id, input.target.skuId)).limit(1);
+    const found = await getDb()
+      .select({ id: skus.id })
+      .from(skus)
+      .where(eq(skus.id, input.target.skuId))
+      .limit(1);
     if (!found[0]) throw new AlertTargetNotFoundError('این محصول یافت نشد.');
   }
   return withUserAlertLock(input.userId, async (tx) => {
@@ -146,7 +146,9 @@ export async function createAlert(input: {
       eq(alerts.status, 'active'),
       isNull(alerts.deletedAt),
       eq(alerts.targetType, input.target.type),
-      input.target.type === 'sku' ? eq(alerts.skuId, input.target.skuId) : eq(alerts.marketKey, input.target.key),
+      input.target.type === 'sku'
+        ? eq(alerts.skuId, input.target.skuId)
+        : eq(alerts.marketKey, input.target.key),
       eq(alerts.op, input.op),
       eq(alerts.threshold, input.threshold),
     );
@@ -183,7 +185,11 @@ export async function createAlert(input: {
  *  Pausing doesn't go through this — only the active-going transition is
  *  cap-relevant. Returns null if the alert doesn't exist (soft-deleted or
  *  bad id); throws `AlertCapExceededError` if reactivating would exceed cap. */
-export async function reactivateAlert(id: string, ownerUserId: string, cap: number): Promise<AlertRow | null> {
+export async function reactivateAlert(
+  id: string,
+  ownerUserId: string,
+  cap: number,
+): Promise<AlertRow | null> {
   return withUserAlertLock(ownerUserId, async (tx) => {
     const rows = await tx
       .select()
@@ -345,7 +351,11 @@ export async function findAlert(id: string): Promise<AlertRow | null> {
   return rows[0] ?? null;
 }
 
-export async function updateAlertStatus(id: string, status: AlertRow['status'], lastTriggeredAt?: Date) {
+export async function updateAlertStatus(
+  id: string,
+  status: AlertRow['status'],
+  lastTriggeredAt?: Date,
+) {
   const rows = await getDb()
     .update(alerts)
     .set({ status, updatedAt: new Date(), ...(lastTriggeredAt ? { lastTriggeredAt } : {}) })
@@ -388,7 +398,10 @@ export async function revertAlertClaim(id: string): Promise<void> {
 /** Soft-delete (W22, matches leads/orders/warehouseItems) — a hard DELETE
  *  erased a cap-relevant history with no audit trail. */
 export async function deleteAlert(id: string): Promise<void> {
-  await getDb().update(alerts).set({ deletedAt: new Date(), updatedAt: new Date() }).where(eq(alerts.id, id));
+  await getDb()
+    .update(alerts)
+    .set({ deletedAt: new Date(), updatedAt: new Date() })
+    .where(eq(alerts.id, id));
 }
 
 /** Active alerts joined with their current values + owner mobile — the

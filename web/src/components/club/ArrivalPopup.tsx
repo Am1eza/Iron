@@ -10,15 +10,14 @@ import { useReducedMotion } from '@/lib/hooks/useReducedMotion';
 import { AiMarkIcon, CloseIcon, ArrowEndIcon } from '@/components/primitives/icons';
 import styles from './ArrivalPopup.module.css';
 
-/** Delay before the invitation appears (ms). */
-const SHOW_AFTER_MS = 12_000;
 /** Suppression window after a dismissal (7 days). */
 const SUPPRESS_MS = 7 * 24 * 60 * 60 * 1000;
+const ELIGIBLE_KEY = 'ahantime_club_invite_eligible';
 
 /**
  * An intent-timed announcement inviting visitors to the customer club / fresh
  * prices. It mounts nothing on the server (and until the mount effect runs), then
- * after ~12s reveals a small card pinned to the bottom-inline-start corner —
+ * reveals a small card only after a completed quote/lead or price alert —
  * UNLESS the popup was dismissed within the last 7 days. Date.now() is read only
  * inside effects/handlers (never during render) so there is no hydration mismatch.
  *
@@ -30,8 +29,7 @@ const SUPPRESS_MS = 7 * 24 * 60 * 60 * 1000;
  * It suppresses ITSELF in two ways the orchestrator can't see:
  *  - by route (`arrivalPopupRoutes`) — the funnel, login, the account area and
  *    the advisor are the visitor's task, and a promo must never outrank it. The
- *    12s timer is not even scheduled on those pages, so it can't fire on a
- *    client-side navigation into one either;
+ *    invitation can't fire on a client-side navigation into one either;
  *  - while any dialog is open (`useAnyModalOpen`) — the compare modal, the
  *    clear-cart confirm, the mobile drawer. Those are focus-trapped and
  *    scroll-locked; a promo card rendering at --z-toast on top of one is
@@ -53,15 +51,24 @@ export function ArrivalPopup() {
     setMounted(true);
   }, []);
 
-  // Schedule the reveal once mounted; re-check suppression at fire time.
+  // Intent gate: never show on first load or because a timer expired. A
+  // successful lead/quote or alert sets the session flag in trackGoal.
   useEffect(() => {
     if (!mounted || suppressedHere) return;
-    const timer = window.setTimeout(() => {
+    const revealIfEligible = () => {
       const dismissedAt = useUiStore.getState().dismissedClubPopupAt;
       const suppressed = dismissedAt !== null && Date.now() - dismissedAt < SUPPRESS_MS;
-      if (!suppressed) setVisible(true);
-    }, SHOW_AFTER_MS);
-    return () => window.clearTimeout(timer);
+      let eligible = false;
+      try {
+        eligible = window.sessionStorage.getItem(ELIGIBLE_KEY) === '1';
+      } catch {
+        eligible = false;
+      }
+      if (eligible && !suppressed) setVisible(true);
+    };
+    revealIfEligible();
+    window.addEventListener('ahantime:club-invite-eligible', revealIfEligible);
+    return () => window.removeEventListener('ahantime:club-invite-eligible', revealIfEligible);
   }, [mounted, suppressedHere]);
 
   // Already on screen when the visitor taps through to the cart / login: hide
@@ -73,6 +80,11 @@ export function ArrivalPopup() {
 
   const handleDismiss = () => {
     setVisible(false);
+    try {
+      window.sessionStorage.removeItem(ELIGIBLE_KEY);
+    } catch {
+      // Storage may be unavailable; the persisted dismissal still suppresses.
+    }
     dismiss();
   };
 

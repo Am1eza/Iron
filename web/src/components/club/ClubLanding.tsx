@@ -31,7 +31,7 @@ const TIERS = CLUB_TIERS_ORDERED;
 const STEPS: { title: string; body: string }[] = [
   {
     title: 'ثبت‌نام با موبایل',
-    body: 'با شمارهٔ موبایل خود در چند ثانیه ثبت‌نام کنید و به سطح «آهنی» بپیوندید.',
+    body: 'با شمارهٔ موبایل وارد حساب شوید، سپس در بخش «باشگاه من» عضویت رایگان را فعال کنید.',
   },
   {
     title: 'اولین استعلام یا خرید',
@@ -82,7 +82,7 @@ export function ClubLanding() {
             />
             <p className={styles.heroHint}>
               <StarIcon size={15} filled aria-hidden="true" />
-              عضویت رایگان است و با اولین ثبت‌نام فعال می‌شود.
+              عضویت رایگان است و پس از ورود، با تأیید شما در «باشگاه من» فعال می‌شود.
             </p>
           </header>
 
@@ -166,7 +166,7 @@ export function ClubLanding() {
                 همین حالا عضو شوید
               </Heading>
               <Text color="muted" align="center" className={styles.closingLead}>
-                با یک شماره موبایل عضو می‌شوید و از همان اولین استعلام، باشگاه کنار شماست.
+                وارد حساب شوید، عضویت را در «باشگاه من» فعال کنید و از استعلام‌های بعدی امتیاز بگیرید.
               </Text>
               <ClubCtas
                 wrapClass={styles.heroCtas ?? ''}

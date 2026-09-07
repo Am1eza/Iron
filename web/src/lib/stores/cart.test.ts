@@ -43,9 +43,21 @@ describe('selectCartEstTotal / selectCartTotalWeight', () => {
   });
 
   it('a branch-unit line prices at unitPrice (per kg) × real weight, matching priceItems', () => {
-    const s = state([{ skuId: 'a', name: 'a', qty: 5, unit: 'branch', unitPrice: 42_000, weightKg: 12 }]);
+    const s = state([{ skuId: 'a', name: 'a', qty: 5, unit: 'branch', unitPrice: 42_000, weightKg: 12, priceBasis: 'kg' }]);
     expect(selectCartEstTotal(s)).toBe(5 * 12 * 42_000);
     expect(selectCartTotalWeight(s)).toBe(60);
+  });
+
+  it('a per-branch price multiplies by branch count, never by theoretical kilograms', () => {
+    const s = state([{ skuId: 'a', name: 'a', qty: 5, unit: 'branch', unitPrice: 8_000_000, weightKg: 155, priceBasis: 'branch' }]);
+    expect(selectCartEstTotal(s)).toBe(5 * 8_000_000);
+    expect(selectCartTotalWeight(s)).toBe(5 * 155);
+  });
+
+  it('a per-piece product with no known mass still has a monetary estimate', () => {
+    const s = state([{ skuId: 'a', name: 'a', qty: 12, unit: 'piece', unitPrice: 95_000, priceBasis: 'piece' }]);
+    expect(selectCartEstTotal(s)).toBe(12 * 95_000);
+    expect(selectCartTotalWeight(s)).toBe(0);
   });
 
   it('sums correctly across a mix of kg and piece-priced lines', () => {

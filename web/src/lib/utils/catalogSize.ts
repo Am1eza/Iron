@@ -1,5 +1,7 @@
 import { normalizeDigits } from './format';
 
+const sizeCollator = new Intl.Collator('fa', { numeric: true });
+
 /** Numeric value of the vulgar fractions buyers and admins use in inch sizes. */
 const VULGAR_FRACTIONS: Readonly<Record<string, number>> = {
   '¼': 1 / 4,
@@ -75,5 +77,5 @@ export function compareCatalogSizes(
     const bv = right[i] ?? Number.POSITIVE_INFINITY;
     if (av !== bv) return av - bv;
   }
-  return (a ?? '').localeCompare(b ?? '', 'fa', { numeric: true });
+  return sizeCollator.compare(a ?? '', b ?? '');
 }

@@ -10,10 +10,10 @@ vi.mock('next/navigation', () => ({ usePathname: () => pathname.current }));
 const modalOpen = vi.hoisted(() => ({ current: false }));
 vi.mock('@/lib/hooks/useFocusTrap', () => ({ useAnyModalOpen: () => modalOpen.current }));
 
-/** Past the 12s reveal timer. */
-function advancePastReveal() {
+function becomeEligible() {
   act(() => {
-    vi.advanceTimersByTime(13_000);
+    window.sessionStorage.setItem('ahantime_club_invite_eligible', '1');
+    window.dispatchEvent(new CustomEvent('ahantime:club-invite-eligible'));
   });
 }
 
@@ -33,38 +33,41 @@ describe('isPromoSuppressedPath', () => {
 
 describe('ArrivalPopup — a promo that never outranks the visitor’s task', () => {
   beforeEach(() => {
-    vi.useFakeTimers();
     pathname.current = '/prices';
     modalOpen.current = false;
     useUiStore.setState({ dismissedClubPopupAt: null });
+    window.sessionStorage.clear();
   });
-  afterEach(() => {
-    vi.useRealTimers();
+  afterEach(() => window.sessionStorage.clear());
+
+  it('never appears on an ordinary first load without proven intent', () => {
+    render(<ArrivalPopup />);
+    expect(screen.queryByRole('status')).toBeNull();
   });
 
-  it('appears on an ordinary page once the timer fires', () => {
+  it('appears after a completed lead or alert marks the session eligible', () => {
     render(<ArrivalPopup />);
-    advancePastReveal();
+    becomeEligible();
     expect(screen.getByRole('status', { name: /باشگاه مشتریان/ })).toBeInTheDocument();
   });
 
   it('never fires on the cart', () => {
     pathname.current = '/cart';
     render(<ArrivalPopup />);
-    advancePastReveal();
+    becomeEligible();
     expect(screen.queryByRole('status')).toBeNull();
   });
 
   it('never fires on the login screen, where an OTP field is on the page', () => {
     pathname.current = '/login';
     render(<ArrivalPopup />);
-    advancePastReveal();
+    becomeEligible();
     expect(screen.queryByRole('status')).toBeNull();
   });
 
   it('hides itself when a dialog opens on top of it, and comes back when it closes', () => {
     const { rerender } = render(<ArrivalPopup />);
-    advancePastReveal();
+    becomeEligible();
     expect(screen.getByRole('status')).toBeInTheDocument();
 
     modalOpen.current = true;
@@ -78,7 +81,7 @@ describe('ArrivalPopup — a promo that never outranks the visitor’s task', ()
 
   it('hiding on a route change does not burn the 7-day dismissal window', () => {
     const { rerender } = render(<ArrivalPopup />);
-    advancePastReveal();
+    becomeEligible();
     expect(screen.getByRole('status')).toBeInTheDocument();
 
     pathname.current = '/cart';

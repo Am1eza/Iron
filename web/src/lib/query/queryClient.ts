@@ -44,7 +44,9 @@ function makeQueryClient(): QueryClient {
         refetchOnWindowFocus: false,
         // No retry on client (4xx) errors; limited retry on server (5xx).
         retry: (failureCount, error) => {
-          const status = (error as { status?: number } | null)?.status;
+          const apiError = error as { status?: number; code?: string } | null;
+          if (apiError?.code === 'invalid_response') return false;
+          const status = apiError?.status;
           if (status && status >= 400 && status < 500) return false;
           return failureCount < 2;
         },

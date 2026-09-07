@@ -92,6 +92,19 @@ export interface LogisticsConfig {
   handlingPerTon: number;
   insuranceRate: number;
   scaleFee: number;
+  packagingPerTon?: number;
+  /** Explicit tax policy per component. Defaults preserve the historical
+   * goods-only VAT formula until accounting approves a different matrix. */
+  taxable?: {
+    goods: boolean;
+    freight: boolean;
+    handling: boolean;
+    insurance: boolean;
+    scale: boolean;
+    packaging: boolean;
+  };
+  sourceNote?: string;
+  verifiedAt?: string;
   cities: { name: string; km: number }[];
 }
 
@@ -101,6 +114,9 @@ export const DEFAULT_LOGISTICS_CONFIG: LogisticsConfig = {
   handlingPerTon: HANDLING_PER_TON,
   insuranceRate: INSURANCE_RATE,
   scaleFee: SCALE_FEE,
+  packagingPerTon: 0,
+  taxable: { goods: true, freight: false, handling: false, insurance: false, scale: false, packaging: false },
+  sourceNote: 'تعرفهٔ حمل ۱۴۰۵؛ اجزای جانبی نیازمند تأیید دوره‌ای شریک حمل',
   cities: CITIES,
 };
 
@@ -146,6 +162,7 @@ export type LogisticsEstimate = {
   handling: number;
   insurance: number;
   scale: number;
+  packaging: number;
   vat: number;
   total: number; // goods + everything
   delivery: string;
@@ -167,7 +184,16 @@ export function estimateLogistics(
       : Math.round(Math.max(cfg.freightMinTrip ?? 0, tons * km * (cfg.freightRatePerTonKm ?? 0)));
   const handling = Math.round(tons * cfg.handlingPerTon);
   const insurance = Math.round(goodsToman * cfg.insuranceRate);
-  const vat = Math.round(goodsToman * vatRate);
-  const total = goodsToman + freight + handling + insurance + cfg.scaleFee + vat;
-  return { freight, handling, insurance, scale: cfg.scaleFee, vat, total, delivery: deliveryLabel(km) };
+  const packaging = Math.round(tons * (cfg.packagingPerTon ?? 0));
+  const taxable = cfg.taxable ?? DEFAULT_LOGISTICS_CONFIG.taxable!;
+  const taxableBase =
+    (taxable.goods ? goodsToman : 0) +
+    (taxable.freight ? freight : 0) +
+    (taxable.handling ? handling : 0) +
+    (taxable.insurance ? insurance : 0) +
+    (taxable.scale ? cfg.scaleFee : 0) +
+    (taxable.packaging ? packaging : 0);
+  const vat = Math.round(taxableBase * vatRate);
+  const total = goodsToman + freight + handling + insurance + cfg.scaleFee + packaging + vat;
+  return { freight, handling, insurance, scale: cfg.scaleFee, packaging, vat, total, delivery: deliveryLabel(km) };
 }

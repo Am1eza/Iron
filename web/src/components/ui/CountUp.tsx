@@ -1,54 +1,40 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion';
+import { useIntersectionObserver } from '@/lib/hooks/useIntersectionObserver';
 import { toPersianDigits } from '@/lib/utils/format';
 
 /**
- * Count-up number — animates to its value the first time it scrolls into view
- * (the «آهن‌تایم» live feel), then on each `value` change. Grouped Persian digits.
- * Static under reduced-motion; the rAF only runs while visible (no offscreen work).
+ * Shows its initial value immediately, then animates updates after first visibility.
+ * Static under reduced motion; unchanged values schedule no animation frames.
  */
 export function CountUp({ value, duration = 1.1 }: { value: number; duration?: number }) {
   const reduced = useReducedMotion();
   const [display, setDisplay] = useState(value);
-  const fromRef = useRef(0);
-  const ref = useRef<HTMLSpanElement | null>(null);
-  const [seen, setSeen] = useState(false);
-
-  // Animate only once the number is on screen.
-  useEffect(() => {
-    if (reduced || seen) return;
-    const el = ref.current;
-    if (!el) return;
-    const io = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((e) => e.isIntersecting)) {
-          setSeen(true);
-          io.disconnect();
-        }
-      },
-      { rootMargin: '0px 0px -10% 0px' },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [reduced, seen]);
+  const fromRef = useRef(value);
+  const { ref, isIntersecting: seen } = useIntersectionObserver<HTMLSpanElement>({
+    rootMargin: '0px 0px -10% 0px',
+    freezeOnceVisible: true,
+    enabled: !reduced,
+  });
 
   useEffect(() => {
-    if (reduced || !seen) {
+    if (reduced || !seen || duration <= 0 || !Number.isFinite(duration)) {
       setDisplay(value);
       fromRef.current = value;
       return;
     }
     const from = fromRef.current;
+    if (from === value) return;
     let raf = 0;
-    let start = 0;
+    let start: number | undefined;
     const tick = (now: number) => {
-      if (!start) start = now;
+      start ??= now;
       const p = Math.min(1, (now - start) / (duration * 1000));
       const eased = 1 - Math.pow(1 - p, 3);
-      setDisplay(Math.round(from + (value - from) * eased));
+      fromRef.current = Math.round(from + (value - from) * eased);
+      setDisplay(fromRef.current);
       if (p < 1) raf = requestAnimationFrame(tick);
-      else fromRef.current = value;
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);

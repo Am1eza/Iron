@@ -2,7 +2,7 @@
 ## Layer 4 · Frontend — Document 7 (Error Handling)
 
 **Version:** 1.0 · 26 June 2026
-**Builds on:** `API-CLIENT.md`, `VALIDATION.md`, `design/empty-states.md`, `design/accessibility.md`.
+**Builds on:** `API-CLIENT.md`, `FORMS.md`, `design/empty-states.md`, `design/accessibility.md`.
 **Purpose:** One coherent error strategy — every failure becomes a calm, Persian, recoverable state (never a dead-end, never a raw/English error), with centralized logging and graceful degradation.
 
 ## 1. Principles
@@ -30,8 +30,8 @@
 |---|---|
 | **Route segment** | `app/**/error.tsx` (client boundary, Persian retry) — already global at `app/error.tsx` |
 | **Root layout** | `app/global-error.tsx` (renders own html/body; self-contained styles) |
-| **Component / widget** | `<ErrorBoundary>` (class) → `<ErrorState onRetry>` — isolates ticker/chart/table |
-| **Data (Query)** | `useQuery` `error` state → `ErrorState`; `QueryCache`/`MutationCache` `onError` → `reportError` |
+| **Component / widget** | `EditorErrorBoundary` isolates the content editor; other components handle their own scoped error UI |
+| **Data (Query)** | `useQuery` `error` state → local message and retry; `QueryCache`/`MutationCache` `onError` → `reportError` |
 | **Form** | field errors + `FormStatus` (+ server `fields` → `setError`) |
 | **Server route** | consistent `{ error, message, fields }` JSON (validation 400, others 4xx/5xx) |
 | **Boundary/external** | `parseOr` fallback; `isStale` indicators |
@@ -40,7 +40,7 @@
 ## 4. Display Patterns (when to use each)
 - **Field error** — invalid input (inline, `aria-describedby`).
 - **`FormStatus`** — form-level success/failure (in-flow).
-- **`ErrorState`** — a section/widget failed to load → message + **retry** (scoped).
+- **Scoped error UI** — show a local message and retry for a failed section; no unused generic error component.
 - **`Toaster`** — transient/background failures & confirmations (auto-dismiss, `aria-live`; errors `role="alert"`).
 - **Route `error.tsx`** — a whole page render failed → full-page retry.
 - **`global-error.tsx`** — the shell itself failed (rare).
@@ -65,7 +65,7 @@
 ## 8. Query / Mutation pattern
 ```ts
 const q = useQuery({ queryKey, queryFn });
-if (q.isError) return <ErrorState onRetry={() => q.refetch()} />;
+if (q.isError) return <button onClick={() => q.refetch()}>تلاش دوباره</button>;
 // mutations: handle UI locally (FormStatus/toast); global onError only logs (no double-notify)
 ```
 
@@ -81,7 +81,8 @@ if (q.isError) return <ErrorState onRetry={() => q.refetch()} />;
 ## 12. File map
 ```
 app/error.tsx · app/global-error.tsx · app/not-found.tsx
-components/feedback/ ErrorBoundary.tsx · ErrorState.tsx · Toaster.tsx (+css)
+components/feedback/Toaster.tsx (+css)
+components/admin/content/editor/EditorErrorBoundary.tsx
 lib/errors/report.ts · lib/api/errors.ts (ApiError/toUserMessage)
 lib/query/queryClient.ts (cache onError → reportError)
 ```

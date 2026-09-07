@@ -72,4 +72,20 @@ describe('estimateLogistics', () => {
     expect(est.freight).toBeGreaterThan(0);
     expect(est.total).toBeGreaterThan(50_000_000);
   });
+
+  it('includes packaging and computes VAT from the explicit taxable-component matrix', () => {
+    const cfg: LogisticsConfig = {
+      ...DEFAULT_LOGISTICS_CONFIG,
+      freightTable: [{ km: 100, perTon: 1_000 }],
+      handlingPerTon: 2_000,
+      insuranceRate: 0,
+      scaleFee: 3_000,
+      packagingPerTon: 4_000,
+      taxable: { goods: true, freight: true, handling: true, insurance: false, scale: true, packaging: true },
+    };
+    const est = estimateLogistics(2, 100, 1_000_000, 0.1, cfg);
+    expect(est.packaging).toBe(8_000);
+    expect(est.vat).toBe(101_700); // 10% of goods + 2k freight + 4k handling + 3k scale + 8k packaging
+    expect(est.total).toBe(1_118_700);
+  });
 });

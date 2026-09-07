@@ -44,7 +44,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const byFactory = factoryIsMeaningful(category, null);
   return buildMetadata({
     title: `قیمت روز ${cat.name} ${measure} ${facet.label}`,
-    description: `قیمت امروز ${cat.name} ${measure} ${facet.label}${byFactory ? ' به تفکیک کارخانه' : ''}، همراه با نوسان، وزن شاخه و زمان تحویل. قیمت‌ها لحظه‌ای و اعلام‌شده توسط آهن‌تایم است. اول مشورت، بعد خرید.`,
+    description: `قیمت امروز ${cat.name} ${measure} ${facet.label}${byFactory ? ' به تفکیک کارخانه' : ''}؛ قیمت‌ها لحظه‌ای، همراه نوسان، وزن شاخه و زمان تحویل.`,
     path: routes.categoryBySize(category, size),
   });
 }
@@ -94,7 +94,7 @@ export default async function SizeLandingPage({ params }: Params) {
               categoryName={cat.name}
               id="size-title"
               title={`قیمت روز ${cat.name} ${measure} ${facet.label}`}
-              description={`قیمت لحظه‌ای ${cat.name} ${measure} ${facet.label}${
+              description={`آخرین قیمت منتشرشدهٔ ${cat.name} ${measure} ${facet.label}${
                 factoryIsMeaningful(category, null) ? ' در همهٔ کارخانه‌ها' : ''
               }، همراه با نوسان، وزن شاخه و زمان تحویل اعلام‌شده. پیش از خرید، با کارشناس ما مشورت کنید.`}
             />

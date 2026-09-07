@@ -44,7 +44,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   if (!cat || !facet) return buildMetadata({ title: 'صفحه پیدا نشد', noindex: true });
   return buildMetadata({
     title: `قیمت روز ${cat.name} ${facet.label}`,
-    description: `قیمت امروز ${cat.name} ${facet.label} به تفکیک ${sizeLabel(category)}، همراه با نوسان، وزن شاخه و زمان تحویل. قیمت‌ها لحظه‌ای و اعلام‌شده توسط آهن‌تایم است. اول مشورت، بعد خرید.`,
+    description: `قیمت لحظه‌ای تمام ${cat.name}‌های تولید ${facet.label} به تفکیک ${sizeLabel(category)}، همراه نوسان، وزن شاخه و زمان تحویل.`,
     path: routes.categoryByFactory(category, factory),
   });
 }
@@ -96,7 +96,7 @@ export default async function FactoryLandingPage({ params }: Params) {
               categoryName={cat.name}
               id="factory-title"
               title={`قیمت روز ${cat.name} ${facet.label}`}
-              description={`قیمت لحظه‌ای تمام ${cat.name}‌های تولید ${facet.label} به تفکیک ${sizeLabel(category)}، همراه با نوسان، وزن شاخه و زمان تحویل اعلام‌شده. پیش از خرید، با کارشناس ما مشورت کنید.`}
+              description={`قیمت لحظه‌ای ${cat.name}‌های تولید ${facet.label} به تفکیک ${sizeLabel(category)}، همراه نوسان، وزن شاخه و زمان تحویل.`}
             />
           </div>
 

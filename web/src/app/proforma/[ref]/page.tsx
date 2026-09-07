@@ -12,8 +12,10 @@ import { isLetterheadUsable } from '@/lib/utils/letterhead';
 import { formatToman, toPersianDigits } from '@/lib/utils/format';
 import { PRICE_UNIT_LABEL } from '@/lib/utils/catalogLabels';
 import { formatJalali } from '@/lib/utils/jalali';
+import { formatTehranJalaliDateTime } from '@/lib/server/utils/jalali';
 import { ProformaSheet, type CustomLetterhead } from './ProformaSheet';
 import styles from './proforma.module.css';
+import { proformaInvalidMessage } from '@/lib/utils/proformaStatus';
 
 export const metadata: Metadata = buildMetadata({ title: 'پیش‌فاکتور', noindex: true });
 
@@ -61,7 +63,7 @@ export default async function ProformaPage({ params }: Params) {
     }
   }
 
-  const expired = p.status === 'expired';
+  const invalidMessage = proformaInvalidMessage(p.status);
 
   return (
     <ProformaSheet
@@ -76,13 +78,13 @@ export default async function ProformaPage({ params }: Params) {
       customerMobile={lead?.contactMobile ?? null}
       custom={custom}
     >
-      {expired ? (
+      {invalidMessage ? (
         <p className={styles.expired}>
-          اعتبار این پیش‌فاکتور به پایان رسیده است. برای قیمت به‌روز با کارشناسان تماس بگیرید.
+          {invalidMessage}
         </p>
       ) : (
         <p className={styles.validity}>
-          اعتبار قیمت‌ها: تا {formatJalali(p.validUntil.toISOString())} ساعت ۱۱:۰۰
+          اعتبار قیمت‌ها: تا {formatTehranJalaliDateTime(p.validUntil)}
         </p>
       )}
 

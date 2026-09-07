@@ -1,132 +1,98 @@
 'use client';
-import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
 
-const FOCUSABLE =
-  'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
+const FOCUSABLE = 'a[href], button, textarea, input:not([type="hidden"]), select, [tabindex]';
 
-/**
- * Focus trap for dialogs/drawers/sheets. When `active`, it:
- *  - moves focus into the container ([data-autofocus] first, else the container),
- *  - cycles Tab/Shift+Tab within it,
- *  - calls `onEscape` on Esc,
- *  - locks body scroll (opt out with `{ lockScroll: false }`),
- *  - restores focus to the previously-focused element on deactivate.
- * Returns the container ref to spread onto the dialog element.
- *
- * `lockScroll` defaults to true because every original caller (Modal,
- * SkuDrawer, sheets) IS modal: content behind a scrim must not scroll. An
- * INLINE popover — a date picker anchored to its input, `aria-modal="false"`
- * — is the opposite case: it covers nothing, so freezing the page behind it
- * is a bug, not a feature. Those callers pass `{ lockScroll: false }`.
- */
+function focusableElements(container: HTMLElement): HTMLElement[] {
+  return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
+    (el) =>
+      el.tabIndex >= 0 &&
+      !el.matches(':disabled') &&
+      !el.closest('[hidden], [inert]') &&
+      getComputedStyle(el).visibility !== 'hidden',
+  );
+}
+
+type Trap = { container: HTMLElement; lockScroll: boolean };
+const traps: Trap[] = [];
+let savedOverflow = '';
+const modalListeners = new Set<() => void>();
+const isModalOpen = () => traps.some((trap) => trap.lockScroll);
+const serverModalOpen = () => false;
+
+function notifyModalListeners() {
+  for (const listener of modalListeners) listener();
+}
+
+/** Focus, Tab/Escape handling, and scroll locking for dialogs and popovers.
+ * Only the most recently opened trap handles keys. Nested dialogs share one
+ * scroll lock, restored after the final modal closes, in any closing order. */
 export function useFocusTrap<T extends HTMLElement = HTMLDivElement>(
   active: boolean,
   onEscape?: () => void,
   options?: { lockScroll?: boolean },
 ) {
-  // Read into a primitive: `options` is an object literal at every call site,
-  // so putting it in the dep array would re-run (and re-focus) the trap on
-  // every single render.
   const lockScroll = options?.lockScroll ?? true;
   const ref = useRef<T | null>(null);
-  const lastFocused = useRef<HTMLElement | null>(null);
-  // Same problem as `options` above, but worse in practice: callers routinely
-  // pass an inline arrow (`() => doThing()`), which is a fresh function
-  // identity on every render — including every keystroke in any field inside
-  // the trap, since typing sets state and re-renders the caller. With
-  // `onEscape` in the effect's deps, that reran the WHOLE setup effect below
-  // (including `focusFirst()`) on every keystroke, silently stealing focus
-  // back to the first focusable element while the admin was mid-type. Keeping
-  // the latest callback in a ref lets the keydown handler always call the
-  // current one without the setup effect depending on its identity at all.
   const onEscapeRef = useRef(onEscape);
   onEscapeRef.current = onEscape;
 
   useEffect(() => {
-    if (!active) return;
     const container = ref.current;
-    if (!container) return;
-
-    lastFocused.current = document.activeElement as HTMLElement;
-    const prevOverflow = document.body.style.overflow;
-    if (lockScroll) {
+    if (!active || !container) return;
+    const lastFocused = document.activeElement as HTMLElement | null;
+    if (lockScroll && !isModalOpen()) {
+      savedOverflow = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
-      setModalDepth(modalDepth + 1);
+    }
+    const trap = { container, lockScroll };
+    // Child effects can run before their parent on a shared mount.
+    const descendant = traps.findIndex((item) => container.contains(item.container));
+    if (descendant === -1) traps.push(trap);
+    else traps.splice(descendant, 0, trap);
+    notifyModalListeners();
+
+    if (traps[traps.length - 1] === trap) {
+      const items = focusableElements(container);
+      (items.find((el) => el.hasAttribute('data-autofocus')) ?? items[0] ?? container).focus();
     }
 
-    const focusFirst = () => {
-      const target =
-        container.querySelector<HTMLElement>('[data-autofocus]') ??
-        container.querySelector<HTMLElement>(FOCUSABLE) ??
-        container;
-      target.focus();
-    };
-    focusFirst();
-
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (traps[traps.length - 1] !== trap) return;
+      if (event.key === 'Escape') {
         onEscapeRef.current?.();
         return;
       }
-      if (e.key !== 'Tab') return;
-      const items = Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
-        (el) => el.offsetParent !== null,
-      );
-      if (items.length === 0) {
-        e.preventDefault();
-        return;
-      }
+      if (event.key !== 'Tab') return;
+      const items = focusableElements(container).filter((el) => el.getClientRects().length > 0);
       const first = items[0];
       const last = items[items.length - 1];
-      if (!first || !last) return;
-      const activeEl = document.activeElement;
-      if (e.shiftKey && activeEl === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && activeEl === last) {
-        e.preventDefault();
-        first.focus();
+      if (!first || !last) {
+        event.preventDefault();
+        container.focus();
+        return;
+      }
+      const focused = document.activeElement;
+      if (
+        !items.includes(focused as HTMLElement) ||
+        (event.shiftKey ? focused === first : focused === last)
+      ) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
       }
     };
-
     document.addEventListener('keydown', onKeyDown);
     return () => {
       document.removeEventListener('keydown', onKeyDown);
-      if (lockScroll) {
-        document.body.style.overflow = prevOverflow;
-        setModalDepth(Math.max(0, modalDepth - 1));
-      }
-      lastFocused.current?.focus?.();
+      const wasTop = traps[traps.length - 1] === trap;
+      traps.splice(traps.indexOf(trap), 1);
+      if (lockScroll && !isModalOpen()) document.body.style.overflow = savedOverflow;
+      notifyModalListeners();
+      if (wasTop && lastFocused?.isConnected) lastFocused.focus();
     };
-    // `onEscape` intentionally excluded — see `onEscapeRef` above. Depending
-    // on it here is exactly what caused the focus-stealing bug.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, lockScroll]);
 
   return ref;
-}
-
-/* ---------------------------------------------------------------------------
- * "Is anything modal open right now?"
- *
- * Deliberately derived from the focus trap rather than tracked separately:
- * every modal surface in the app (Modal, SkuDrawer, MobileDrawer, the bottom
- * sheets) is modal precisely BECAUSE it calls `useFocusTrap` with the default
- * `lockScroll: true`, so this counter cannot drift from reality the way a
- * second, hand-maintained registry would. (`useUiStore.activeModal` is that
- * second registry — a single string slot nothing has ever written to. It
- * could not have answered this question anyway: modals nest.)
- *
- * An INLINE popover passes `lockScroll: false` and is intentionally NOT
- * counted — it covers nothing, so nothing needs to yield to it.
- * ------------------------------------------------------------------------- */
-let modalDepth = 0;
-const modalListeners = new Set<() => void>();
-
-function setModalDepth(next: number) {
-  if (next === modalDepth) return;
-  modalDepth = next;
-  for (const l of modalListeners) l();
 }
 
 function subscribeModalDepth(listener: () => void) {
@@ -136,16 +102,7 @@ function subscribeModalDepth(listener: () => void) {
   };
 }
 
-/**
- * `true` while at least one focus-trapping, scroll-locking surface is open.
- * Used by non-modal floating UI (the club promo) to stay out of the way of a
- * dialog the visitor actually opened. Returns `false` during SSR.
- */
+/** Whether floating UI should yield to an open modal. False during SSR. */
 export function useAnyModalOpen(): boolean {
-  const subscribe = useCallback(subscribeModalDepth, []);
-  return useSyncExternalStore(
-    subscribe,
-    () => modalDepth > 0,
-    () => false,
-  );
+  return useSyncExternalStore(subscribeModalDepth, isModalOpen, serverModalOpen);
 }

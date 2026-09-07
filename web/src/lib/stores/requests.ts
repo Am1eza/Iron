@@ -133,5 +133,3 @@ export const useRequestsStore = create<RequestsState>()(
     },
   ),
 );
-
-export const selectRequestCount = (s: RequestsState) => s.requests.length;

@@ -1,5 +1,8 @@
 # Ahantime — Phase 2 · UX Engineering
 
+> Historical delivery reference. Component inventories and completion claims describe the original phase; consult the current source and [documentation index](../docs/README.md) for maintained engineering guides.
+
+
 **Status:** ✅ Built (items 11–20 implemented as real React components in the Next.js app).
 **Builds on:** Phase 1 — Foundation, the UI/Design System (`design/*`, `web/src/styles/tokens.css`), and the engineering foundation (routing, state, forms, validation, API client, error handling).
 **Spec source:** `product/navigation.md` (N1–N15), `product/information-architecture.md`, `product/wireframes.md`, `design/*`.

@@ -8,16 +8,18 @@ const FA_DIGITS = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'] a
 
 /** Convert Latin/Arabic digits in a string to Persian digits for display. */
 export function toPersianDigits(input: string | number): string {
-  return String(input)
-    .replace(/[0-9]/g, (d) => FA_DIGITS[Number(d)]!)
-    .replace(/[٠-٩]/g, (d) => FA_DIGITS[d.charCodeAt(0) - 0x0660]!);
+  return String(input).replace(/[0-9٠-٩]/g, (d) => {
+    const code = d.charCodeAt(0);
+    return FA_DIGITS[code >= 0x0660 ? code - 0x0660 : code - 0x30]!;
+  });
 }
 
 /** Normalize Persian/Arabic digits in user input back to Latin (for parsing). */
 export function normalizeDigits(input: string): string {
-  return input
-    .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0))
-    .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660));
+  return input.replace(/[۰-۹٠-٩]/g, (d) => {
+    const code = d.charCodeAt(0);
+    return String(code >= 0x06f0 ? code - 0x06f0 : code - 0x0660);
+  });
 }
 
 /**
@@ -31,7 +33,9 @@ export function normalizeDigits(input: string): string {
 export function localizeDigits(input: string | number, locale: string): string {
   // Non-fa: also swap the Persian thousands separator (٬) for the Latin comma
   // so a fa-formatted composite value renders natively in en/ar/zh.
-  return locale === 'fa' ? toPersianDigits(input) : normalizeDigits(String(input)).replace(/٬/g, ',');
+  return locale === 'fa'
+    ? toPersianDigits(input)
+    : normalizeDigits(String(input)).replace(/٬/g, ',');
 }
 
 /** Format an integer Toman value with thousands separators + Persian digits + unit. */

@@ -23,11 +23,8 @@ type UiState = {
 
   // ephemeral UI
   drawerOpen: boolean;
-  activeModal: string | null;
   toasts: Toast[];
   setDrawerOpen: (open: boolean) => void;
-  openModal: (id: string) => void;
-  closeModal: () => void;
   addToast: (t: Omit<Toast, 'id'>) => string;
   dismissToast: (id: string) => void;
 };
@@ -60,11 +57,8 @@ export const useUiStore = create<UiState>()(
       dismissCartReminder: () => set({ dismissedCartReminderAt: Date.now() }),
 
       drawerOpen: false,
-      activeModal: null,
       toasts: [],
       setDrawerOpen: (drawerOpen) => set({ drawerOpen }),
-      openModal: (activeModal) => set({ activeModal }),
-      closeModal: () => set({ activeModal: null }),
       addToast: (t) => {
         const id = `t${++toastSeq}`;
         set((s) => ({ toasts: [...s.toasts, { ...t, id }].slice(-3) })); // max 3
@@ -85,7 +79,11 @@ export const useUiStore = create<UiState>()(
       version: 3,
       migrate: (persisted) => {
         const s = (persisted ?? {}) as Partial<UiState>;
-        return { ...s, theme: 'light' as Theme, dismissedCartReminderAt: s.dismissedCartReminderAt ?? null };
+        return {
+          ...s,
+          theme: 'light' as Theme,
+          dismissedCartReminderAt: s.dismissedCartReminderAt ?? null,
+        };
       },
       storage: createJSONStorage(() => safeLocalStorage),
       skipHydration: true,

@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { routes } from '@/lib/routes';
 import { useCartStore } from '@/lib/stores/cart';
@@ -34,6 +34,10 @@ export function RequestFlow() {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<CreateLeadResult | null>(null);
 
+  useEffect(() => {
+    if (authStatus === 'anonymous') trackGoal('funnel', 'auth_gate_view', 'request');
+  }, [authStatus]);
+
   // ===== success confirmation =====
   if (done) {
     return (
@@ -44,11 +48,7 @@ export function RequestFlow() {
         <h2 className={styles.successTitle}>درخواست شما به تیم فروش ارسال شد</h2>
         <p className={styles.successLead}>
           {done.proformaRef
-            ? // The proforma below is ALREADY issued and binding (createLead priced
-              // it automatically) — saying "کارشناس قیمت را نهایی می‌کند" here would
-              // contradict that (audit finding #11). The rep still calls, but to
-              // confirm delivery/logistics, not to set the price.
-              'قیمت شما به‌صورت خودکار محاسبه و پیش‌فاکتور صادر شد. کارشناسان فروش آهن‌تایم برای هماهنگی تحویل با شما تماس می‌گیرند.'
+            ? 'قیمت شما به‌صورت خودکار محاسبه و پیش‌فاکتور صادر شد. کارشناسان فروش آهن‌تایم برای هماهنگی تحویل با شما تماس می‌گیرند.'
             : 'کارشناسان فروش آهن‌تایم درخواست شما را دریافت کردند و برای نهایی‌کردن قیمت و شرایط تحویل با شما تماس می‌گیرند.'}
         </p>
         <p className={`${styles.successRef} tnum`}>

@@ -36,9 +36,13 @@ export const metadata: Metadata = buildMetadata({
 });
 
 // A price-marketplace homepage must never be frozen at build time — without
-// this the hero board's «لحظه‌ای» prices and freshness stamp were whatever
+// this the hero board's latest published prices and freshness stamp were whatever
 // the last DEPLOY happened to capture. 5 minutes matches /prices.
 export const revalidate = 300;
+// Production images are built without the database. The homepage's catalog
+// and trust counts must therefore be rendered at request time from live data,
+// never baked as fixtures (or as an empty first-deploy page).
+export const dynamic = 'force-dynamic';
 
 /**
  * Home — the «Steel Terminal». Asymmetric hero (AI search + live price board,
@@ -47,9 +51,11 @@ export const revalidate = 300;
  * (mills & customers). Price data is the visual anchor.
  */
 export default async function HomePage() {
-  const contact = await getContact();
-  const categories = await getCategories();
-  const subsMap = await getSubsMap();
+  const [contact, categories, subsMap] = await Promise.all([
+    getContact(),
+    getCategories(),
+    getSubsMap(),
+  ]);
   // Owner-supplied hero motion graphic (admin setting; empty = price board).
   // The video drops into the exact slot the board occupies — no layout change.
   // hasDb guard: build-time prerender (ISR) runs without DATABASE_URL — an
@@ -68,16 +74,23 @@ export default async function HomePage() {
 
   // Precompute the 3rd menu level (mills per category+sub) server-side, so the
   // mock catalog never ships to the client menu bundle.
-  const millsOf = (rows: PriceRow[]) => [
-    ...new Set(rows.map((r) => r.factory).filter((f): f is string => Boolean(f))),
-  ];
   const factories: Record<string, Record<string, string[]>> = {};
   for (const cat of categories) {
-    const rows = rowsBySlug.get(cat.slug) ?? [];
+    const allMills = new Set<string>();
+    const millsBySub = new Map<string | undefined, Set<string>>();
+    for (const row of rowsBySlug.get(cat.slug) ?? []) {
+      if (!row.factory) continue;
+      allMills.add(row.factory);
+      const mills = millsBySub.get(row.subCategoryId) ?? new Set<string>();
+      mills.add(row.factory);
+      millsBySub.set(row.subCategoryId, mills);
+    }
+    const categoryMills = [...allMills];
     factories[cat.slug] = {};
-    for (const s of subsMap[cat.slug] ?? []) {
-      const subMills = millsOf(rows.filter((r) => r.subCategoryId === s.slug));
-      factories[cat.slug]![s.slug] = subMills.length >= 2 ? subMills : millsOf(rows);
+    for (const sub of subsMap[cat.slug] ?? []) {
+      const subMills = millsBySub.get(sub.slug);
+      factories[cat.slug]![sub.slug] =
+        subMills && subMills.size >= 2 ? [...subMills] : categoryMills;
     }
   }
 
@@ -133,7 +146,7 @@ export default async function HomePage() {
   const pricedRows = allRows.filter((r) => !r.current.priceHidden);
   const skuCount = pricedRows.length;
   // Mills are counted over the same priced rows, for the same reason: the
-  // sentence reads «… از N کارخانه», i.e. mills we can currently quote.
+  // sentence describes catalog labels, not verified direct-supply relationships.
   const factoryCount = new Set(pricedRows.map((r) => r.factory).filter(Boolean)).size;
   // Null only when the catalog read failed and the chrome degraded to an empty
   // rail — there is nothing to describe, so nothing is asserted.

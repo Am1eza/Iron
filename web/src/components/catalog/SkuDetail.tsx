@@ -167,6 +167,7 @@ export function SkuDetail({
       qty,
       unit: row.unit,
       unitPrice: row.current.price,
+      priceBasis: row.priceBasis,
       weightKg: row.theoreticalWeightKg,
     });
     trackGoal('add-to-cart', row.categoryId, row.name);

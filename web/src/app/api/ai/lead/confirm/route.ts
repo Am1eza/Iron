@@ -1,10 +1,11 @@
+import { readJsonBody } from '@/lib/server/utils/requestBody';
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { getSession } from '@/lib/auth/session';
+import { getSessionVerified } from '@/lib/auth/session';
 import { assertSameOrigin } from '@/lib/auth/origin';
 import { requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { rateLimit } from '@/lib/server/utils/rateLimit';
-import { consumeDraft } from '@/lib/server/ai/leadDraft';
+import { consumeDraft, getDraft } from '@/lib/server/ai/leadDraft';
 import { conversationForSales } from '@/lib/server/ai/conversation';
 import { getMemory } from '@/lib/server/ai/memory';
 import { createLead } from '@/lib/server/services/leads.service';
@@ -33,13 +34,16 @@ async function POSTImpl(req: NextRequest) {
   const guard = requireDb();
   if (guard) return guard;
 
-  const body: unknown = await req.json().catch(() => null);
+  const body: unknown = await readJsonBody(req);
   const parsed = payload.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: 'validation', message: 'درخواست نامعتبر است.' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'validation', message: 'درخواست نامعتبر است.' },
+      { status: 400 },
+    );
   }
 
-  const session = await getSession();
+  const session = await getSessionVerified({ strict: true });
   if (!session) {
     // The client turns this into the «ورود به حساب کاربری» state on the card
     // rather than an error toast — the draft is still waiting.
@@ -52,6 +56,16 @@ async function POSTImpl(req: NextRequest) {
     return NextResponse.json(
       { error: 'no_mobile', message: LEAD_CONFIRM_MESSAGES.noMobile },
       { status: 400 },
+    );
+  }
+
+  // Check ownership before consuming: another account must not be able to
+  // destroy a pending draft merely by submitting its identifier.
+  const existing = await getDraft(parsed.data.draftId);
+  if (existing?.userId && existing.userId !== session.id) {
+    return NextResponse.json(
+      { error: 'forbidden', message: LEAD_CONFIRM_MESSAGES.forbidden },
+      { status: 403 },
     );
   }
 
@@ -68,7 +82,10 @@ async function POSTImpl(req: NextRequest) {
   // confirm. One prepared anonymously belongs to whoever signs in from that
   // chat — that is the login-then-continue flow itself.
   if (draft.userId && draft.userId !== session.id) {
-    return NextResponse.json({ error: 'forbidden', message: LEAD_CONFIRM_MESSAGES.forbidden }, { status: 403 });
+    return NextResponse.json(
+      { error: 'forbidden', message: LEAD_CONFIRM_MESSAGES.forbidden },
+      { status: 403 },
+    );
   }
 
   // Sales context: the WHOLE stored chat + the advisor's rolling summary,
@@ -81,7 +98,9 @@ async function POSTImpl(req: NextRequest) {
   // opens the call knowing it, and so this customer's NEXT conversation can
   // default to it instead of asking again (ai/customerFacts.ts). Best-effort:
   // a missing memory must never fail a confirmed request.
-  const remembered = draft.conversationId ? await getMemory(draft.conversationId).catch(() => null) : null;
+  const remembered = draft.conversationId
+    ? await getMemory(draft.conversationId).catch(() => null)
+    : null;
 
   const result = await createLead(
     {
@@ -94,7 +113,9 @@ async function POSTImpl(req: NextRequest) {
         ...(transcript && transcript.length > 0 ? { transcript } : {}),
         // The card's own city wins: if the visitor changed it there, that is
         // the most recent and most deliberate statement of where this goes.
-        ...(draft.city || remembered?.city ? { deliveryCity: draft.city || remembered!.city! } : {}),
+        ...(draft.city || remembered?.city
+          ? { deliveryCity: draft.city || remembered!.city! }
+          : {}),
       },
     },
     session,

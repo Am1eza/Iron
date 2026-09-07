@@ -1,0 +1,1183 @@
+path_relative_to_web,lines,review_status,scope
+e2e/accessibility.spec.ts,16,test_suite,"Chromium Playwright suite executed; 24 tests passed, including accessibility checks."
+e2e/admin-pricing-catalog.spec.ts,350,test_suite,"Chromium Playwright suite executed; 24 tests passed, including accessibility checks."
+e2e/admin-rbac.spec.ts,231,test_suite,"Chromium Playwright suite executed; 24 tests passed, including accessibility checks."
+e2e/adminLogin.ts,37,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+e2e/auth.spec.ts,98,test_suite,"Chromium Playwright suite executed; 24 tests passed, including accessibility checks."
+e2e/catalog.spec.ts,52,test_suite,"Chromium Playwright suite executed; 24 tests passed, including accessibility checks."
+scripts/addAhanOnlineSubcats.ts,91,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+scripts/ai-trace-probe.mts,76,inventoried,No manual review claim.
+scripts/alignCatalogSafeFields.ts,339,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+scripts/backfillArticleBodyJson.ts,136,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+scripts/backfillBilletHistory.ts,167,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+scripts/backfillProfileTableFields.ts,211,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+scripts/catalogIntegrityAudit.ts,52,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+scripts/categoryDescriptions.ts,57,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+scripts/check-analytics.mts,9,inventoried,No manual review claim.
+scripts/check-migration.mts,14,inventoried,No manual review claim.
+scripts/check-seed.mts,23,inventoried,No manual review claim.
+scripts/cleanupSteelDuplicates.ts,115,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+scripts/consolidateSheet.ts,233,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+scripts/e2e-db.ts,70,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+scripts/fillCatalogGaps.ts,742,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+scripts/fillHashWeights.ts,268,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+scripts/fillSheetAndRebarSpecGaps.ts,310,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+scripts/fillSourcedDimensions.ts,182,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+scripts/fixBranchPricedTirahan.ts,204,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+scripts/fixHashMills.ts,265,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+scripts/fixTheoreticalWeights.ts,235,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+scripts/jobs.ts,32,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+scripts/lib/redirectRepair.test.ts,275,test_suite,Vitest executed; e2e files tracked separately in the report.
+scripts/lib/redirectRepair.ts,230,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+scripts/mergeGradeSubcategories.ts,126,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+scripts/migrate.mjs,38,inventoried,No manual review claim.
+scripts/migrateArticleBodies.ts,77,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+scripts/normalizeEqualAngles.ts,200,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+scripts/pages-postbuild.mjs,26,inventoried,No manual review claim.
+scripts/priceSync.ts,68,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+scripts/recomposeSkuNames.ts,144,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+scripts/renameCatalogSlugs.ts,291,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+scripts/repairRedirectTargets.ts,223,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+scripts/repairSeedPrices.ts,353,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+scripts/seed.ts,31,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+scripts/seedAluminium.ts,374,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+scripts/seedAluminiumChannel.ts,298,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+scripts/seedCategoryDescriptions.ts,152,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+scripts/seedCouplers.ts,208,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+scripts/seedFactoryOrder.ts,115,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+scripts/seedSandwichPanel.ts,202,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+scripts/seedSubCategoryGroups.ts,296,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+scripts/seoAuditFullDump.ts,43,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+scripts/seoAuditReport.ts,97,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+scripts/seoBodyFixApply.ts,116,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+scripts/seoQuickFixApply.ts,79,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+scripts/setPriceBasis.ts,200,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+scripts/setSteelBranchLength.ts,211,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+scripts/specCoverageReport.ts,149,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+scripts/stripGradeFromSkuNames.ts,115,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/about/page.tsx,46,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/account/[[...tab]]/page.tsx,343,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/account/account.module.css,132,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/app/account/error.tsx,18,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/account/loading.tsx,32,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/admin/AdminNavLinks.tsx,81,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/admin/AdminThemeToggle.tsx,28,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/admin/ExitToSiteLink.tsx,20,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/admin/admin.module.css,206,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/app/admin/ai/page.tsx,20,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/admin/alerts/page.tsx,18,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/admin/audit/page.tsx,21,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/admin/catalog/page.tsx,30,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/admin/content/page.tsx,18,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/admin/desk/page.tsx,21,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/admin/error.tsx,14,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/admin/help/page.tsx,202,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/admin/layout.tsx,129,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/admin/leads/[id]/page.tsx,28,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/admin/leads/page.tsx,18,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/admin/loading.tsx,26,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/admin/marketing/page.tsx,22,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/admin/orders/page.tsx,20,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/admin/page.tsx,6,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/admin/pricing/page.tsx,24,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/admin/pricing/sync/page.tsx,24,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/admin/seo/page.tsx,40,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/admin/settings/page.tsx,18,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/admin/users/page.tsx,24,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/admin/warehouse/page.tsx,18,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/ai/loading.tsx,29,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/ai/page.module.css,44,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/app/ai/page.test.tsx,131,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/app/ai/page.tsx,114,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/ai/conversations/[id]/route.ts,21,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/ai/corrections/[id]/route.ts,23,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/ai/corrections/route.ts,46,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/ai/eval-candidates/[id]/route.ts,25,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/ai/eval-candidates/route.ts,53,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/ai/feedback/route.ts,25,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/ai/prompt-versions/metrics/route.ts,18,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/ai/usage/route.ts,17,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/alerts/[id]/route.ts,61,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/alerts/route.ts,30,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/allowlist/[mobile]/route.ts,54,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/allowlist/route.ts,71,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/articles/[id]/publish/route.ts,55,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/articles/[id]/route.ts,192,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/articles/route.ts,85,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/audit/export/route.ts,31,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/audit/filters.ts,24,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/audit/route.ts,20,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/catalog/audit/[id]/restore/route.ts,106,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/catalog/categories/[id]/impact/route.ts,23,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/catalog/categories/[id]/route.ts,100,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/catalog/categories/route.ts,65,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/catalog/factories/route.ts,16,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/catalog/factory-order/route.ts,99,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/catalog/reorder/route.ts,74,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/catalog/skus/[id]/impact/route.ts,20,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/catalog/skus/[id]/route.ts,166,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/catalog/skus/bulk-delete/route.ts,73,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/catalog/skus/route.ts,146,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/catalog/subcategories/[id]/impact/route.ts,23,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/catalog/subcategories/[id]/route.ts,94,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/catalog/subcategories/route.ts,71,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/catalog/suggestions/route.ts,22,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/club/members/[id]/route.ts,31,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/club/members/route.ts,16,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/comments/[id]/route.ts,29,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/comments/route.ts,22,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/contact-messages/[id]/reply/route.ts,37,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/contact-messages/[id]/route.ts,26,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/contact-messages/route.ts,22,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/leads/[id]/duplicates/route.ts,34,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/leads/[id]/items/[itemId]/route.ts,107,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/leads/[id]/merge/route.ts,134,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/leads/[id]/notes/route.ts,37,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/leads/[id]/order/route.ts,63,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/leads/[id]/proforma/route.ts,193,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/leads/[id]/route.ts,215,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/leads/export/route.ts,47,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/leads/filters.ts,34,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/leads/route.ts,27,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/market/[key]/route.ts,70,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/market/billet/route.ts,53,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/my/desk/route.ts,61,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/orders/[ref]/route.ts,198,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/orders/route.ts,26,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/pricing/history/[slug]/route.ts,34,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/pricing/history/route.ts,24,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/pricing/import/route.ts,136,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/pricing/route.ts,122,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/pricing/sync/exclusions/route.ts,43,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/pricing/sync/route.ts,102,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/pricing/template/route.ts,61,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/proforma/[ref]/route.ts,50,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/proformas/route.ts,25,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/requests/[id]/route.ts,29,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/requests/route.ts,27,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/search/route.ts,135,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/seo/redirects/[id]/route.ts,56,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/seo/redirects/route.ts,57,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/seo/search-console/callback/route.ts,60,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/seo/search-console/connect/route.ts,42,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/seo/search-console/metrics/route.ts,84,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/seo/search-console/route.ts,36,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/settings/route.test.ts,31,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/app/api/admin/settings/route.ts,160,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/staff/route.ts,24,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/stats/cohorts/route.ts,14,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/stats/dashboard/route.ts,20,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/stats/marketing/route.ts,42,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/stats/route.ts,153,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/stats/seo/pagespeed/route.ts,17,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/stats/seo/route.ts,20,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/upload/route.ts,77,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/users/[id]/revoke-sessions/route.ts,26,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/users/[id]/route.ts,95,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/users/route.ts,73,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/verifications/[userId]/route.ts,50,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/verifications/route.ts,22,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/warehouse/[id]/movements/route.ts,22,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/warehouse/[id]/route.ts,148,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/warehouse/requests/route.ts,18,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/warehouse/route.ts,124,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/warehouse/settlements/[id]/route.ts,66,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/warehouse/settlements/customers/route.ts,25,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/admin/warehouse/settlements/route.ts,149,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/ai/chat/route.ts,413,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/ai/conversations/[id]/route.ts,38,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/ai/conversations/route.ts,37,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/ai/feedback/route.ts,58,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/ai/lead/confirm/route.ts,106,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/ai/lead/draft/route.ts,149,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/alerts/route.ts,64,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/analytics/script/route.ts,60,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/articles/[slug]/comments/route.ts,36,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/articles/[slug]/route.ts,25,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/articles/route.ts,32,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/auth/logout/route.ts,18,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/auth/otp/request/route.ts,62,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/auth/otp/verify/route.ts,65,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/auth/refresh/route.ts,32,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/auth/silent/route.ts,62,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/categories/[cat]/[sub]/route.ts,22,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/categories/[cat]/route.ts,26,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/categories/route.ts,16,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/comments/[id]/helpful/route.ts,25,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/comments/my-votes/route.ts,33,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/contact/route.ts,41,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/cooperation/route.ts,53,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/cut-to-size-requests/route.ts,50,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/health/route.ts,41,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/internal/alert-relay/route.test.ts,486,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/app/api/internal/alert-relay/route.ts,137,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/leads/route.ts,65,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/log/route.ts,59,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/market/[key]/history/route.ts,24,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/market/route.ts,27,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/me/alerts/[id]/route.ts,83,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/me/alerts/route.ts,15,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/me/club/route.ts,27,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/me/export/route.ts,88,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/me/favorites/[skuId]/route.ts,16,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/me/favorites/route.ts,35,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/me/leads/route.ts,41,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/me/letterhead/logo/route.ts,75,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/me/letterhead/route.ts,63,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/me/orders/route.ts,18,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/me/profile/route.ts,41,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/me/requests/import/route.ts,65,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/me/requests/route.ts,44,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/me/route.ts,58,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/me/verification/route.ts,74,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/me/warehouse/route.ts,15,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/me/warehouse/settlements/route.ts,19,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/proforma/[ref]/route.ts,49,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/search/route.ts,25,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/sku/[slug]/history/route.ts,18,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/sku/[slug]/route.ts,21,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/tender/options/route.ts,47,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/tender/price/route.ts,43,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/tools/cost/route.ts,30,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/tools/estimate/route.ts,49,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/tools/weight/route.ts,119,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/track/[ref]/route.ts,24,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/vitals/route.test.ts,68,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/app/api/vitals/route.ts,96,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/api/warehouse-requests/route.ts,51,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/blog/(index)/error.tsx,49,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/blog/(index)/page.tsx,14,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/blog/[slug]/article.module.css,110,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/app/blog/[slug]/page.tsx,153,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/blog/category/[slug]/page.module.css,67,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/app/blog/category/[slug]/page.tsx,89,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/blog/page/[n]/page.tsx,47,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/blog/rss.xml/route.test.ts,67,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/app/blog/rss.xml/route.ts,40,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/cart/error.tsx,18,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/cart/loading.tsx,24,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/cart/page.tsx,50,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/club/page.tsx,15,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/contact/page.tsx,40,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/cooperation/[track]/page.tsx,109,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/cooperation/page.tsx,80,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/cut-to-size/page.tsx,141,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/error.tsx,24,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/global-error.tsx,212,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/globals.css,59,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/app/layout.tsx,146,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/loading.tsx,44,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/login/loading.tsx,27,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/login/page.tsx,37,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/manifest.ts,23,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/market/page.module.css,103,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/app/market/page.tsx,192,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/news/(index)/error.tsx,49,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/news/(index)/page.tsx,12,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/news/[slug]/article.module.css,107,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/app/news/[slug]/page.tsx,154,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/news/page/[n]/page.tsx,37,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/news/rss.xml/route.ts,39,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/news/topic/[slug]/page.module.css,48,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/app/news/topic/[slug]/page.tsx,94,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/not-found.module.css,5,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/app/not-found.test.tsx,40,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/app/not-found.tsx,42,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/page.tsx,194,changed_and_reviewed,"See change ledger for the exact scope; large files were reviewed around the change, not certified in full."
+src/app/panel-login/page.tsx,37,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/panel-login/panelLogin.module.css,49,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/app/prices/[category]/[sub]/[sku]/page.test.ts,137,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/app/prices/[category]/[sub]/[sku]/page.tsx,145,targeted_review,Selected paths/callers inspected; full module review remains.
+src/app/prices/[category]/[sub]/page.test.ts,119,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/app/prices/[category]/[sub]/page.tsx,189,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/prices/[category]/factory/[factory]/page.tsx,137,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/prices/[category]/page.tsx,163,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/prices/[category]/size/[size]/page.tsx,137,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/prices/_seo/indexability.test.ts,93,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/app/prices/_seo/indexability.ts,129,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/prices/page.tsx,113,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/privacy/page.tsx,234,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/proforma/[ref]/PrintButton.tsx,19,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/proforma/[ref]/ProformaSheet.tsx,152,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/proforma/[ref]/page.tsx,175,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/proforma/[ref]/proforma.module.css,282,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/app/request/page.tsx,34,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/robots.ts,37,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/search/page.tsx,496,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/sitemap.test.ts,532,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/app/sitemap.ts,353,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/tender/page.tsx,109,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/terms/page.tsx,205,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/tools/[tool]/page.tsx,88,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/track/TrackLookup.tsx,128,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/track/page.tsx,36,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/uploads/[filename]/route.test.ts,74,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/app/uploads/[filename]/route.ts,56,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/app/warehouse/page.tsx,140,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/a11y/Announcer.tsx,21,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/a11y/RouteAnnouncer.tsx,31,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/account/AccountOverview.module.css,101,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/account/AccountOverview.tsx,90,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/account/AlertsList.module.css,27,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/account/AlertsList.tsx,162,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/account/BusinessAccountBadge.test.tsx,18,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/account/BusinessAccountBadge.tsx,25,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/account/ClubPanel.module.css,267,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/account/ClubPanel.tsx,178,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/account/DeliveryCity.module.css,51,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/account/DeliveryCity.tsx,48,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/account/FavoritesList.tsx,55,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/account/InviteCode.tsx,31,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/account/JoinClubButton.tsx,28,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/account/LetterheadForm.module.css,68,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/account/LetterheadForm.tsx,160,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/account/OrderTimeline.module.css,152,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/account/OrderTimeline.tsx,60,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/account/OrdersList.module.css,67,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/account/OrdersList.tsx,72,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/account/OrdersListLive.tsx,29,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/account/ProfileStats.module.css,50,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/account/ProfileStats.tsx,56,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/account/ReorderButton.tsx,42,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/account/RequestsList.module.css,117,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/account/RequestsList.tsx,89,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/account/VerificationCard.module.css,131,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/account/VerificationCard.tsx,183,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/account/WarehouseList.tsx,245,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/AdminAlerts.tsx,263,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/CommandPalette.module.css,128,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/admin/CommandPalette.tsx,242,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/ImageUpload.module.css,49,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/admin/ImageUpload.tsx,102,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/JalaliDateField.test.ts,25,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/admin/JalaliDateField.test.tsx,266,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/admin/JalaliDateField.tsx,410,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/PagerFooter.tsx,87,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/adminUi.module.css,457,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/admin/ai/AiAdminTabs.tsx,36,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/ai/AiReview.tsx,490,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/ai/AiUsageConsole.tsx,93,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/ai/PromptVersionsPanel.tsx,166,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/alerts/AlertsPanel.tsx,233,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/audit/ActivityItem.tsx,144,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/audit/AuditLog.tsx,194,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/audit/activity.module.css,187,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/admin/audit/auditVocab.test.ts,46,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/admin/audit/auditVocab.ts,245,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/catalog/CatalogManager.test.tsx,420,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/admin/catalog/CatalogManager.tsx,1145,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/catalog/FactoryOrderPanel.test.tsx,140,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/admin/catalog/FactoryOrderPanel.tsx,190,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/catalog/ImpactLines.tsx,70,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/catalog/SkuDrawer.branchField.test.tsx,195,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/admin/catalog/SkuDrawer.columnTaxonomy.test.tsx,162,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/admin/catalog/SkuDrawer.dimensionsField.test.tsx,114,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/admin/catalog/SkuDrawer.guards.test.tsx,283,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/admin/catalog/SkuDrawer.tsx,1169,changed_and_reviewed,"See change ledger for the exact scope; large files were reviewed around the change, not certified in full."
+src/components/admin/catalog/TaxonomyRail.tsx,457,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/catalog/catalog.module.css,482,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/admin/catalog/priceVisibility.test.ts,90,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/admin/catalog/priceVisibility.ts,94,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/charts/BarList.tsx,59,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/charts/ComboChart.tsx,183,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/charts/DonutChart.tsx,91,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/charts/Funnel.tsx,37,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/charts/Gauge.tsx,59,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/charts/MeterBar.tsx,30,changed_and_reviewed,"See change ledger for the exact scope; large files were reviewed around the change, not certified in full."
+src/components/admin/charts/PriceHistoryChart.test.tsx,96,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/admin/charts/PriceHistoryChart.tsx,217,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/charts/SalesFunnel.test.tsx,39,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/admin/charts/SalesFunnel.tsx,56,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/charts/charts.module.css,313,changed_and_reviewed,"See change ledger for the exact scope; large files were reviewed around the change, not certified in full."
+src/components/admin/content/CommentsModeration.tsx,120,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/content/ContentQueue.tsx,1451,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/content/comments.module.css,37,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/admin/content/content.module.css,271,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/admin/content/editor/ChartNodeView.tsx,309,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/content/editor/EditorErrorBoundary.tsx,40,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/content/editor/ImageDetailsDialog.tsx,146,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/content/editor/ImageNodeView.tsx,63,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/content/editor/LinkDialog.tsx,135,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/content/editor/RichTextEditor.tsx,627,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/content/editor/TableGridPicker.tsx,185,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/content/editor/editor.module.css,656,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/admin/content/editor/editorIcons.tsx,198,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/content/editor/extensions/ArticleImage.ts,109,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/content/editor/extensions/ChartBlock.ts,96,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/content/seo/ArticleSearchConsole.tsx,143,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/content/seo/KeywordToolLinks.tsx,52,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/content/seo/SeoChecklist.tsx,117,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/content/seo/seoPanel.module.css,188,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/admin/dangerConfirm.module.css,38,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/admin/dashboard/BiDashboard.tsx,360,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/dashboard/KpiCard.test.tsx,27,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/admin/dashboard/KpiCard.tsx,75,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/dashboard/MarketingDashboard.tsx,349,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/dashboard/RedirectsManager.tsx,266,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/dashboard/SearchConsoleConnection.tsx,195,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/dashboard/SeoDashboard.tsx,268,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/dashboard/Sparkline.tsx,41,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/dashboard/dashboard.module.css,288,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/admin/desk/MyDesk.module.css,216,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/admin/desk/MyDesk.tsx,699,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/leads/CallOutcomeModal.module.css,98,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/admin/leads/CallOutcomeModal.test.tsx,86,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/admin/leads/CallOutcomeModal.tsx,164,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/leads/LeadDetail.module.css,492,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/admin/leads/LeadDetail.test.tsx,275,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/admin/leads/LeadDetail.tsx,1353,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/leads/LeadsBoard.tsx,65,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/leads/LeadsTab.tsx,462,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/leads/MessagesTab.tsx,184,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/leads/ProformasTab.tsx,135,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/leads/RequestsTab.tsx,211,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/orders/OrdersManager.module.css,16,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/admin/orders/OrdersManager.tsx,348,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/pricing/BilletCard.tsx,127,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/pricing/ExcelImport.tsx,169,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/pricing/PriceSyncPanel.tsx,340,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/pricing/PricingGrid.test.tsx,460,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/admin/pricing/PricingGrid.tsx,1012,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/pricing/priceSync.module.css,44,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/admin/settings/SettingsForm.tsx,831,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/useDangerConfirm.tsx,122,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/users/AdminAllowlist.tsx,254,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/users/UsersTable.tsx,396,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/users/VerificationReview.tsx,135,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/warehouse/WarehouseManager.tsx,1002,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/ai/AdvisorAbout.module.css,71,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/ai/AdvisorAbout.test.tsx,49,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/ai/AdvisorAbout.tsx,64,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/ai/AdvisorCapabilities.module.css,82,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/ai/AdvisorCapabilities.tsx,97,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/ai/AdvisorChat.blocks.test.tsx,198,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/ai/AdvisorChat.choice.test.tsx,105,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/ai/AdvisorChat.draft.test.tsx,128,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/ai/AdvisorChat.icons.test.tsx,93,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/ai/AdvisorChat.module.css,935,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/ai/AdvisorChat.register.test.tsx,123,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/ai/AdvisorChat.resilience.test.tsx,242,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/ai/AdvisorChat.shell.test.tsx,210,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/ai/AdvisorChat.size.test.ts,15,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/ai/AdvisorChat.tsx,1767,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/ai/ChatMarkdown.module.css,141,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/ai/ChatMarkdown.test.tsx,117,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/ai/ChatMarkdown.tsx,319,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/ai/ConversationRail.module.css,115,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/ai/ConversationRail.test.tsx,122,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/ai/ConversationRail.tsx,169,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/ai/ProformaCard.module.css,243,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/ai/ProformaCard.test.tsx,205,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/ai/ProformaCard.tsx,418,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/ai/blocks/AdvisorBlocks.test.tsx,193,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/ai/blocks/AdvisorBlocks.tsx,64,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/ai/blocks/CompareCard.tsx,146,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/ai/blocks/ExpertCard.tsx,42,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/ai/blocks/ForecastCard.tsx,126,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/ai/blocks/OptionsCard.tsx,57,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/ai/blocks/QuoteCard.tsx,87,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/ai/blocks/Sparkline.tsx,99,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/ai/blocks/TrendCard.tsx,59,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/ai/blocks/blocks.module.css,477,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/ai/blocks/parts.tsx,59,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/alerts/AlertBellButton.module.css,37,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/alerts/AlertBellButton.test.tsx,157,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/alerts/AlertBellButton.tsx,369,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/analytics/Analytics.tsx,64,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/analytics/AttributionCapture.tsx,48,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/analytics/InteractionAnalytics.test.tsx,28,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/analytics/InteractionAnalytics.tsx,33,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/auth/LogoutButton.tsx,22,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/auth/ProfileForm.tsx,80,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/cart/CartReminder.test.tsx,75,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/cart/CartReminder.tsx,70,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/cart/CartView.module.css,297,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/cart/CartView.test.tsx,38,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/cart/CartView.tsx,269,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/cart/KgQuantityModal.module.css,101,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/cart/KgQuantityModal.test.tsx,75,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/cart/KgQuantityModal.tsx,138,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/catalog/BulkQuote.module.css,370,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/catalog/BulkQuote.tsx,476,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/catalog/CategoryArt.test.tsx,128,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/catalog/CategoryArt.tsx,99,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/catalog/ExportMenu.module.css,80,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/catalog/ExportMenu.test.ts,145,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/catalog/ExportMenu.tsx,315,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/catalog/FacetRail.module.css,43,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/catalog/FacetRail.tsx,60,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/catalog/FactoryLink.module.css,15,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/catalog/FactoryLink.tsx,60,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/catalog/PriceChart.module.css,214,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/catalog/PriceChart.test.tsx,53,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/catalog/PriceChart.tsx,269,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/catalog/PriceHeader.module.css,38,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/catalog/PriceHeader.tsx,44,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/catalog/PriceTable.angleChannelBranch.test.tsx,183,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/catalog/PriceTable.compareUx.test.tsx,162,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/catalog/PriceTable.dimensions.test.tsx,104,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/catalog/PriceTable.factoryControls.test.tsx,150,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/catalog/PriceTable.factoryLink.test.tsx,78,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/catalog/PriceTable.factoryOrder.test.tsx,120,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/catalog/PriceTable.gradeColumn.test.tsx,204,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/catalog/PriceTable.ibeamHeading.test.tsx,189,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/catalog/PriceTable.kgQuantity.test.tsx,93,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/catalog/PriceTable.manualOrder.test.tsx,92,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/catalog/PriceTable.module.css,653,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/catalog/PriceTable.pipeFields.test.tsx,233,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/catalog/PriceTable.priceBasis.test.tsx,147,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/catalog/PriceTable.profileFields.test.tsx,380,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/catalog/PriceTable.sheetWidthPipeThickness.test.tsx,175,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/catalog/PriceTable.specFilters.test.tsx,141,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/catalog/PriceTable.steelFields.test.tsx,163,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/catalog/PriceTable.subs.test.tsx,96,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/catalog/PriceTable.tsx,1601,changed_and_reviewed,"See change ledger for the exact scope; large files were reviewed around the change, not certified in full."
+src/components/catalog/ProductImage.module.css,6,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/catalog/ProductImage.tsx,63,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/catalog/SkuDetail.favorites.test.tsx,115,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/catalog/SkuDetail.kgQuantity.test.tsx,101,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/catalog/SkuDetail.module.css,310,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/catalog/SkuDetail.test.tsx,183,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/catalog/SkuDetail.tsx,621,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/catalog/SubCategoryArt.test.tsx,91,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/catalog/SubCategoryArt.tsx,363,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/club/ArrivalPopup.module.css,132,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/club/ArrivalPopup.test.tsx,92,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/club/ArrivalPopup.tsx,137,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/club/ClubCtas.tsx,45,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/club/ClubLanding.module.css,286,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/club/ClubLanding.tsx,192,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/club/arrivalPopupRoutes.ts,37,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/company/AboutContent.tsx,120,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/company/ContactCard.module.css,108,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/company/ContactCard.tsx,19,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/company/ContactCardView.tsx,72,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/company/ContactIntro.tsx,27,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/company/FeatureGrid.module.css,57,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/company/FeatureGrid.tsx,39,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/company/LegalDoc.module.css,121,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/company/LegalDoc.tsx,62,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/company/PageHero.module.css,71,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/company/PageHero.tsx,64,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/company/Prose.module.css,54,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/content/ArticleBody.test.tsx,147,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/content/ArticleBody.tsx,81,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/content/ArticleCard.module.css,133,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/content/ArticleCard.test.tsx,56,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/content/ArticleCard.tsx,81,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/content/ArticleChart.module.css,134,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/content/ArticleChart.test.tsx,76,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/content/ArticleChart.tsx,381,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/content/ArticleComments.module.css,3,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/content/ArticleComments.tsx,47,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/content/ArticleFaq.module.css,54,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/content/ArticleFaq.test.tsx,49,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/content/ArticleFaq.tsx,64,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/content/ArticleIndex.module.css,19,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/content/ArticleIndex.tsx,217,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/content/CategoryRail.module.css,114,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/content/CategoryRail.test.tsx,39,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/content/CategoryRail.tsx,45,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/content/CommentAvatar.module.css,14,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/content/CommentAvatar.tsx,17,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/content/CommentsSection.module.css,151,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/content/CommentsSection.tsx,256,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/content/NewsTopicRail.module.css,59,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/content/NewsTopicRail.test.tsx,27,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/content/NewsTopicRail.tsx,42,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/content/ReadingProgress.module.css,19,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/content/ReadingProgress.test.tsx,49,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/content/ReadingProgress.tsx,45,read_reviewed,"Read for YAGNI, dependencies, behavior and avoidable work; retained."
+src/components/content/RichContent.module.css,205,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/content/RichContent.test.tsx,147,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/content/RichContent.tsx,238,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/content/TableOfContents.module.css,83,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/content/TableOfContents.test.tsx,67,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/content/TableOfContents.tsx,131,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/content/legacyBodies.ts,256,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/cooperation/CooperationForm.module.css,84,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/cooperation/CooperationForm.tsx,130,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/cooperation/TrackCard.module.css,84,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/cooperation/TrackCard.tsx,43,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/cooperation/TrackLayout.module.css,84,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/cooperation/tracks.tsx,95,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/cut-to-size/CutToSizeForm.tsx,174,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/feedback/Toaster.test.tsx,60,changed_and_reviewed,"See change ledger for the exact scope; large files were reviewed around the change, not certified in full."
+src/components/feedback/Toaster.tsx,102,changed_and_reviewed,"See change ledger for the exact scope; large files were reviewed around the change, not certified in full."
+src/components/feedback/toaster.module.css,62,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/forms/ContactForm.tsx,82,changed_and_reviewed,"See change ledger for the exact scope; large files were reviewed around the change, not certified in full."
+src/components/forms/CountrySelect.module.css,124,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/forms/CountrySelect.test.tsx,102,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/forms/CountrySelect.tsx,305,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/forms/FormStatus.tsx,31,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/forms/LoginForm.module.css,104,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/forms/LoginForm.test.tsx,38,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/forms/LoginForm.tsx,330,changed_and_reviewed,"See change ledger for the exact scope; large files were reviewed around the change, not certified in full."
+src/components/forms/OtpInput.tsx,94,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/forms/PhoneField.module.css,11,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/forms/PhoneField.tsx,60,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/forms/RequestFlow.module.css,141,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/forms/RequestFlow.test.tsx,81,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/forms/RequestFlow.tsx,203,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/forms/field.module.css,47,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/forms/fields.tsx,211,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/forms/otp.module.css,29,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/home/CategoryStage.module.css,322,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/home/CategoryStage.tsx,272,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/home/CompareTeaser.module.css,198,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/home/CompareTeaser.tsx,177,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/home/HeroSearch.module.css,231,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/home/HeroSearch.tsx,130,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/home/HeroVideo.module.css,17,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/home/HeroVideo.test.tsx,49,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/home/HeroVideo.tsx,69,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/home/Marquee.module.css,125,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/home/Marquee.tsx,176,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/home/Partners.module.css,131,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/home/Partners.tsx,104,targeted_review,Selected paths/callers inspected; full module review remains.
+src/components/home/PriceBoard.module.css,145,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/home/PriceBoard.tsx,63,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/home/ValueProps.module.css,99,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/home/ValueProps.tsx,61,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/home/WhyAhantime.module.css,123,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/home/WhyAhantime.tsx,156,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/layout/BottomTabBar.module.css,90,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/layout/BottomTabBar.tsx,91,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/layout/Footer.module.css,212,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/layout/Footer.tsx,130,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/layout/Header.module.css,371,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/layout/Header.tsx,292,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/layout/LocaleSwitcher.module.css,46,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/layout/LocaleSwitcher.tsx,36,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/layout/Logo.module.css,79,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/layout/Logo.tsx,58,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/layout/MobileDrawer.module.css,312,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/layout/MobileDrawer.test.tsx,195,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/layout/MobileDrawer.tsx,408,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/layout/NavDropdown.tsx,150,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/layout/ProductsMenu.module.css,461,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/layout/ProductsMenu.test.tsx,280,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/layout/ProductsMenu.tsx,468,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/layout/SearchBar.module.css,158,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/layout/SearchBar.test.tsx,104,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/layout/SearchBar.tsx,227,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/layout/SiteChrome.module.css,26,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/layout/SiteChrome.test.tsx,67,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/layout/SiteChrome.tsx,143,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/layout/Ticker.module.css,192,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/layout/Ticker.test.tsx,55,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/layout/Ticker.tsx,166,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/lazy.ts,58,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/market/CategoryGrid.module.css,107,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/market/CategoryGrid.tsx,64,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/market/CategoryPriceSummary.module.css,212,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/market/CategoryPriceSummary.test.tsx,72,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/market/CategoryPriceSummary.tsx,177,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/market/FeaturedPrices.module.css,190,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/market/FeaturedPrices.tsx,146,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/market/MarketBoard.module.css,251,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/market/MarketBoard.test.tsx,47,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/market/MarketBoard.tsx,195,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/motion/Reveal.module.css,16,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/motion/Reveal.tsx,52,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/perf/WebVitals.tsx,17,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/primitives/Button.module.css,59,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/primitives/Button.tsx,66,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/primitives/icons.tsx,743,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/pwa/ServiceWorkerRegistrar.tsx,48,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/search/SearchResults.module.css,301,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/seo/JsonLd.test.tsx,50,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/seo/JsonLd.tsx,43,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/support/CallbackWidget.module.css,35,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/support/CallbackWidget.tsx,20,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/tender/TenderEstimator.module.css,312,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/tender/TenderEstimator.tsx,411,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/theme/ThemeScript.tsx,28,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/tools/CostCalculator.module.css,183,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/tools/CostCalculator.tsx,337,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/tools/ProjectEstimator.module.css,251,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/tools/ProjectEstimator.tsx,654,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/tools/ProjectEstimatorGuide.module.css,20,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/tools/ProjectEstimatorGuide.tsx,128,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/tools/ToolRenderer.tsx,24,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/tools/WeightCalculator.module.css,214,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/tools/WeightCalculator.tsx,587,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/ui/Alert.module.css,70,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/ui/Alert.tsx,70,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/ui/Avatar.module.css,43,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/ui/Avatar.tsx,43,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/ui/Badge.module.css,64,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/ui/Badge.tsx,63,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/ui/Breadcrumbs.module.css,45,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/ui/Breadcrumbs.tsx,37,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/ui/Card.module.css,42,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/ui/Card.tsx,57,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/ui/Chip.module.css,64,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/ui/Chip.tsx,57,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/ui/CountUp.test.tsx,47,changed_and_reviewed,"See change ledger for the exact scope; large files were reviewed around the change, not certified in full."
+src/components/ui/CountUp.tsx,53,changed_and_reviewed,"See change ledger for the exact scope; large files were reviewed around the change, not certified in full."
+src/components/ui/EmptyState.module.css,136,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/ui/EmptyState.tsx,102,read_reviewed,"Read for YAGNI, dependencies, behavior and avoidable work; retained."
+src/components/ui/IconButton.module.css,53,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/ui/IconButton.tsx,42,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/ui/Layout.module.css,48,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/ui/Layout.tsx,157,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/ui/Modal.module.css,116,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/ui/Modal.tsx,58,read_reviewed,"Read for YAGNI, dependencies, behavior and avoidable work; retained."
+src/components/ui/Pagination.module.css,59,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/ui/Pagination.tsx,94,read_reviewed,"Read for YAGNI, dependencies, behavior and avoidable work; retained."
+src/components/ui/PriceParts.module.css,108,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/ui/PriceParts.test.tsx,45,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/components/ui/PriceParts.tsx,107,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/ui/Skeleton.module.css,105,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/ui/Skeleton.tsx,108,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/ui/Spinner.module.css,17,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/ui/Spinner.tsx,20,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/ui/Switch.module.css,105,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/ui/Switch.tsx,56,read_reviewed,"Read for YAGNI, dependencies, behavior and avoidable work; retained."
+src/components/ui/Tabs.module.css,66,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/ui/Tabs.tsx,96,read_reviewed,"Read for YAGNI, dependencies, behavior and avoidable work; retained."
+src/components/ui/Tooltip.module.css,49,read_reviewed,"Read for YAGNI, dependencies, behavior and avoidable work; retained."
+src/components/ui/Tooltip.tsx,56,read_reviewed,"Read for YAGNI, dependencies, behavior and avoidable work; retained."
+src/components/ui/Typography.module.css,8,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/components/ui/Typography.tsx,110,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/ui/emptyPresets.ts,130,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/ui/index.ts,47,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/ui/useConfirm.test.tsx,32,changed_and_reviewed,"See change ledger for the exact scope; large files were reviewed around the change, not certified in full."
+src/components/ui/useConfirm.tsx,65,changed_and_reviewed,"See change ledger for the exact scope; large files were reviewed around the change, not certified in full."
+src/components/warehouse/WarehouseForm.tsx,199,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/i18n/LocaleProvider.tsx,94,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/i18n/LocaleScript.tsx,23,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/i18n/config.ts,34,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/i18n/messages.test.ts,77,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/i18n/request.ts,47,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/instrumentation.ts,45,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/ai/blocks.ts,268,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/ai/chatStorage.ts,42,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/analytics/track.test.ts,57,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/analytics/track.ts,111,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/api/config.test.ts,29,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/api/config.ts,46,read_reviewed,"Read for YAGNI, dependencies, behavior and avoidable work; retained."
+src/lib/api/errors.ts,47,read_reviewed,"Read for YAGNI, dependencies, behavior and avoidable work; retained."
+src/lib/api/http.test.ts,477,changed_and_reviewed,"See change ledger for the exact scope; large files were reviewed around the change, not certified in full."
+src/lib/api/http.ts,266,changed_and_reviewed,"See change ledger for the exact scope; large files were reviewed around the change, not certified in full."
+src/lib/api/index.ts,33,read_reviewed,"Read for YAGNI, dependencies, behavior and avoidable work; retained."
+src/lib/api/resources/admin.ts,1402,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/api/resources/ai.ts,93,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/api/resources/auth.ts,59,targeted_review,Selected paths/callers inspected; full module review remains.
+src/lib/api/resources/catalog.ts,85,read_reviewed,"Read for YAGNI, dependencies, behavior and avoidable work; retained."
+src/lib/api/resources/comments.ts,20,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/api/resources/leads.ts,14,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/api/resources/market.ts,38,read_reviewed,"Read for YAGNI, dependencies, behavior and avoidable work; retained."
+src/lib/api/resources/me.ts,25,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/api/resources/misc.ts,57,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/api/resources/tender.ts,15,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/api/resources/tools.ts,14,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/auth/adminSearch.test.ts,41,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/auth/adminSearch.ts,53,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/auth/apiError.ts,20,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/auth/authEnforced.test.ts,32,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/auth/authEnforced.ts,23,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/auth/clientRefresh.test.ts,63,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/auth/clientRefresh.ts,33,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/auth/crypto.ts,79,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/auth/guards.ts,31,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/auth/jwt.ts,65,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/auth/origin.ts,40,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/auth/panelEnumeration.test.ts,100,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/auth/publicUser.ts,24,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/auth/refreshPolicy.ts,50,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/auth/refreshReuse.test.ts,234,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/auth/roles.test.ts,97,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/auth/roles.ts,137,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/auth/service.pg.test.ts,74,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/auth/service.test.ts,116,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/auth/service.ts,393,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/auth/session.ts,128,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/auth/sms.test.ts,228,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/auth/sms.ts,235,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/auth/store.memory.ts,202,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/auth/store.pg.ts,304,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/auth/store.revokeSessions.test.ts,43,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/auth/store.ts,101,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/auth/store.types.ts,109,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/auth/types.ts,74,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/businessClaims.test.ts,29,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/config/constants.ts,120,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/config/orderPolicy.test.ts,13,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/config/orderPolicy.ts,27,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/config/pricingTiers.test.ts,167,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/config/pricingTiers.ts,220,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/content/archivePaging.test.ts,120,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/content/archivePaging.ts,102,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/content/docToMarkdown.ts,161,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/content/markdownToDoc.ts,192,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/content/richDoc.test.ts,249,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/content/richDoc.ts,464,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/content/richDocUrl.test.ts,161,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/data/aiTaxonomy.test.ts,136,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/data/aiTaxonomy.ts,161,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/data/catalog.ts,36,read_reviewed,"Read for YAGNI, dependencies, behavior and avoidable work; retained."
+src/lib/data/catalogAngleNormalization.test.ts,33,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/data/catalogAngleNormalization.ts,60,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/data/catalogProfileZReplacement.test.ts,44,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/data/catalogProfileZReplacement.ts,39,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/data/club.ts,72,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/data/leadSourceLabels.ts,34,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/data/logistics.test.ts,91,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/data/logistics.ts,199,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/data/nav.ts,219,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/data/newsTopics.ts,69,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/data/productImages.ts,30,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/data/verification.test.ts,41,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/data/verification.ts,53,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/errors/chunkRecovery.test.ts,43,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/errors/chunkRecovery.ts,153,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/errors/report.test.ts,68,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/errors/report.ts,138,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/errors/scrub.test.ts,50,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/errors/scrub.ts,67,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/errors/sentry.test.ts,90,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/errors/sentry.ts,108,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/hooks/useAlerts.ts,19,read_reviewed,"Read for YAGNI, dependencies, behavior and avoidable work; retained."
+src/lib/hooks/useAnnounce.ts,7,read_reviewed,"Read for YAGNI, dependencies, behavior and avoidable work; retained."
+src/lib/hooks/useAuth.ts,58,changed_and_reviewed,"See change ledger for the exact scope; large files were reviewed around the change, not certified in full."
+src/lib/hooks/useDeepLinkQuery.ts,56,read_reviewed,"Read for YAGNI, dependencies, behavior and avoidable work; retained."
+src/lib/hooks/useFocusTrap.test.tsx,146,changed_and_reviewed,"See change ledger for the exact scope; large files were reviewed around the change, not certified in full."
+src/lib/hooks/useFocusTrap.ts,108,changed_and_reviewed,"See change ledger for the exact scope; large files were reviewed around the change, not certified in full."
+src/lib/hooks/useIntersectionObserver.ts,43,read_reviewed,"Read for YAGNI, dependencies, behavior and avoidable work; retained."
+src/lib/hooks/useMarket.ts,26,read_reviewed,"Read for YAGNI, dependencies, behavior and avoidable work; retained."
+src/lib/hooks/useMediaQuery.ts,15,read_reviewed,"Read for YAGNI, dependencies, behavior and avoidable work; retained."
+src/lib/hooks/useReducedMotion.ts,13,read_reviewed,"Read for YAGNI, dependencies, behavior and avoidable work; retained."
+src/lib/hooks/useRequestsSync.test.tsx,81,changed_and_reviewed,"See change ledger for the exact scope; large files were reviewed around the change, not certified in full."
+src/lib/hooks/useRequestsSync.ts,50,changed_and_reviewed,"See change ledger for the exact scope; large files were reviewed around the change, not certified in full."
+src/lib/hooks/useRequireAuth.ts,25,read_reviewed,"Read for YAGNI, dependencies, behavior and avoidable work; retained."
+src/lib/hooks/useToast.ts,29,read_reviewed,"Read for YAGNI, dependencies, behavior and avoidable work; retained."
+src/lib/hooks/useUnsavedGuard.ts,33,read_reviewed,"Read for YAGNI, dependencies, behavior and avoidable work; retained."
+src/lib/mock/catalogData.ts,272,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/mock/fixtures.ts,63,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/mock/orders.ts,56,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/mock/warehouse.ts,67,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/perf/webVitals.ts,65,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/providers/AppProviders.tsx,21,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/providers/AuthHydrator.tsx,74,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/providers/StoreHydrator.tsx,30,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/pwa/sw.test.ts,144,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/query/keys.ts,18,read_reviewed,"Read for YAGNI, dependencies, behavior and avoidable work; retained."
+src/lib/query/queryClient.test.ts,51,changed_and_reviewed,"See change ledger for the exact scope; large files were reviewed around the change, not certified in full."
+src/lib/query/queryClient.ts,70,changed_and_reviewed,"See change ledger for the exact scope; large files were reviewed around the change, not certified in full."
+src/lib/routes.ts,172,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/seo/index.test.ts,314,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/seo/index.ts,430,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/seo/keywordTools.test.ts,52,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/seo/keywordTools.ts,93,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/seo/onPageAudit.test.ts,532,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/seo/onPageAudit.ts,985,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/account.ts,56,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/adminApi.test.ts,149,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/ai/ai.test.ts,239,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/ai/answerGuard.test.ts,257,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/ai/answerGuard.ts,337,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/ai/blockBuilders.test.ts,303,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/ai/blockBuilders.ts,364,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/ai/budget.test.ts,180,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/ai/budget.ts,85,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/ai/conversation.test.ts,264,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/ai/conversation.ts,314,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/ai/customerFacts.test.ts,110,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/ai/customerFacts.ts,101,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/ai/domainFacts.ts,86,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/ai/evals.test.ts,668,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/ai/forecast.test.ts,362,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/ai/forecast.ts,352,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/ai/gradeGrounding.pg.test.ts,87,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/ai/greeting.test.ts,45,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/ai/greeting.ts,45,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/ai/grounding.ts,257,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/ai/informalVoice.test.ts,100,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/ai/informalVoice.ts,66,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/ai/leadDraft.ts,125,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/ai/memory.test.ts,152,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/ai/memory.ts,227,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/ai/messages.ts,37,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/ai/pipeline.test.ts,404,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/ai/pipeline.ts,548,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/ai/promptVersions.ts,61,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/ai/register.test.ts,140,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/ai/upstreamState.ts,100,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/aiToolsChoiceChips.test.ts,53,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/aiToolsCompareFactories.test.ts,135,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/aiToolsSearchGuides.test.ts,91,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/aiUsage.test.ts,69,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/alerts/alertMessage.ts,153,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/alerts/relayThrottle.ts,99,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/articles.test.ts,124,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/catalog.test.ts,250,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/catalog.ts,430,changed_and_reviewed,"See change ledger for the exact scope; large files were reviewed around the change, not certified in full."
+src/lib/server/catalogFailClosed.test.ts,25,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/catalogPriceSeries.test.ts,60,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/catalogRouteWrites.pg.test.ts,457,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/contact.ts,25,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/db/client.ts,188,targeted_review,Selected paths/callers inspected; full module review remains.
+src/lib/server/db/schema/auth.ts,178,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/db/schema/catalog.ts,326,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/db/schema/content.ts,175,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/db/schema/engagement.ts,125,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/db/schema/index.ts,11,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/db/schema/leads.ts,327,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/db/schema/market.ts,39,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/db/schema/orders.ts,228,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/db/schema/pricing.ts,156,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/db/schema/seo.ts,123,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/db/schema/system.ts,227,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/db/schemaCascade.test.ts,188,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/db/seed.test.ts,52,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/db/seed.ts,392,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/engagement.test.ts,505,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/factoryOrderApi.pg.test.ts,171,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/integrations/ahanonline.test.ts,133,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/integrations/ahanonline.ts,364,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/integrations/aiRelay.test.ts,368,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/integrations/aiRelay.ts,356,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/integrations/aiRelayConfig.test.ts,95,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/integrations/aiRelayConfig.ts,96,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/integrations/esfahanahan.test.ts,173,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/integrations/esfahanahan.ts,123,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/integrations/markazeahan.test.ts,170,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/integrations/markazeahan.ts,314,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/integrations/marketRates.test.ts,167,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/integrations/marketRates.ts,102,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/integrations/matomo.ts,199,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/integrations/pagespeed.ts,117,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/integrations/searchConsole.ts,288,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/integrations/searchConsoleConfig.ts,95,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/integrations/smsir.test.ts,457,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/integrations/smsir.ts,314,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/integrations/telegram.forwardSecret.test.ts,113,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/integrations/telegram.ts,260,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/jobs/alerts.job.ts,12,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/jobs/billetPoll.job.ts,28,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/jobs/cleanup.job.ts,185,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/jobs/cleanupMarketPoints.pg.test.ts,238,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/jobs/cronRunner.ts,65,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/jobs/index.ts,15,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/jobs/marketPoll.job.ts,13,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/jobs/proformaExpire.job.ts,11,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/jobs/publishArticles.job.ts,35,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/jobs/scheduler.ts,97,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/jobs/searchConsoleRefresh.job.ts,27,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/jobs/smsAutomation.job.ts,168,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/jobs/staleness.job.ts,11,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/jobs/weeklyReport.job.ts,92,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/leads.test.ts,569,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/redis.test.ts,43,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/redis.ts,143,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/repos/adminAllowlist.pg.test.ts,124,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/repos/adminAllowlistRepo.ts,148,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/repos/aiConversationsRepo.test.ts,55,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/repos/aiConversationsRepo.ts,172,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/repos/aiCorrectionsRepo.ts,99,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/repos/aiEvalCandidatesRepo.ts,66,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/repos/aiReviewPagination.test.ts,95,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/repos/aiReviewRepo.ts,116,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/repos/aiUsageRepo.ts,128,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/repos/alertsRepo.ts,453,changed_and_reviewed,"See change ledger for the exact scope; large files were reviewed around the change, not certified in full."
+src/lib/server/repos/analytics.test.ts,89,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/repos/analyticsFanout.pg.test.ts,183,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/repos/analyticsKpiSources.pg.test.ts,104,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/repos/analyticsRepo.ts,903,targeted_review,Selected paths/callers inspected; full module review remains.
+src/lib/server/repos/articlesRepo.category.pg.test.ts,105,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/repos/articlesRepo.newsTopic.pg.test.ts,120,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/repos/articlesRepo.readingTime.pg.test.ts,29,changed_and_reviewed,"See change ledger for the exact scope; large files were reviewed around the change, not certified in full."
+src/lib/server/repos/articlesRepo.search.pg.test.ts,87,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/repos/articlesRepo.test.ts,51,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/repos/articlesRepo.ts,678,changed_and_reviewed,"See change ledger for the exact scope; large files were reviewed around the change, not certified in full."
+src/lib/server/repos/assigneeDesk.test.ts,195,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/repos/auditRepo.test.ts,123,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/repos/auditRepo.ts,150,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/repos/catalogAdminRepo.ts,1299,changed_and_reviewed,"See change ledger for the exact scope; large files were reviewed around the change, not certified in full."
+src/lib/server/repos/catalogAdminSearch.pg.test.ts,152,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/repos/catalogAdminWrites.pg.test.ts,345,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/repos/catalogDelete.pg.test.ts,121,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/repos/catalogImpact.pg.test.ts,114,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/repos/catalogRepo.search.pg.test.ts,93,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/repos/catalogRepo.ts,893,targeted_review,Selected paths/callers inspected; full module review remains.
+src/lib/server/repos/catalogRestore.pg.test.ts,101,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/repos/catalogRiskyDelete.pg.test.ts,80,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/repos/catalogUnpriced.pg.test.ts,76,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/repos/clubPoints.test.ts,80,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/repos/clubPoints.ts,107,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/repos/clubRepo.letterhead.pg.test.ts,68,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/repos/clubRepo.ts,199,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/repos/commentsRepo.pg.test.ts,171,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/repos/commentsRepo.ts,245,changed_and_reviewed,"See change ledger for the exact scope; large files were reviewed around the change, not certified in full."
+src/lib/server/repos/contactMessagesRepo.ts,48,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/repos/factoryOrder.pg.test.ts,125,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/repos/favoritesRepo.ts,45,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/repos/leadsRepo.merge.test.ts,555,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/repos/leadsRepo.test.ts,168,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/repos/leadsRepo.ts,1122,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/repos/likeEscape.pg.test.ts,51,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/repos/marketRepo.movement.pg.test.ts,74,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/repos/marketRepo.ts,175,targeted_review,Selected paths/callers inspected; full module review remains.
+src/lib/server/repos/ordersRepo.test.ts,204,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/repos/ordersRepo.ts,647,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/repos/priceSyncRepo.ts,273,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/repos/profileFactory.pg.test.ts,154,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/repos/redirectsRepo.test.ts,225,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/repos/redirectsRepo.ts,303,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/repos/requestsRepo.ts,191,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/repos/searchConsole.pg.test.ts,183,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/repos/searchConsoleRepo.ts,272,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/repos/settingsRepo.ts,127,targeted_review,Selected paths/callers inspected; full module review remains.
+src/lib/server/repos/steelFactory.pg.test.ts,124,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/repos/updateLeadItem.test.ts,203,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/repos/userActivityRepo.test.ts,70,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/repos/userActivityRepo.ts,37,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/repos/verification.test.ts,147,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/repos/verificationRepo.ts,323,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/repos/warehouseSettlementsRepo.test.ts,489,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/repos/warehouseSettlementsRepo.ts,490,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/rss.test.ts,135,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/rss.ts,119,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/seo/knownPaths.test.ts,364,changed_and_reviewed,Cache lifecycle and cross-module invalidation reviewed; concurrency and browser regression covered.
+src/lib/server/seo/knownPaths.ts,266,changed_and_reviewed,Cache lifecycle and cross-module invalidation reviewed; concurrency and browser regression covered.
+src/lib/server/seo/prerenderParams.ts,36,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/services/aiSystemPrompt.test.ts,100,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/services/aiTools.test.ts,76,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/services/aiTools.ts,1328,targeted_review,Selected paths/callers inspected; full module review remains.
+src/lib/server/services/alerts.service.ts,132,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/services/estimate.service.ts,382,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/services/estimateProject.pg.test.ts,167,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/services/leads.pricing.hash.test.ts,136,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/services/leads.pricing.test.ts,312,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/services/leads.service.test.ts,199,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/services/leads.service.ts,1007,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/services/market.billet.pg.test.ts,112,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/services/market.service.ts,98,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/services/priceFreshness.ts,26,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/services/priceSync.match.test.ts,1285,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/services/priceSync.match.ts,1634,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/services/priceSync.service.pg.test.ts,206,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/services/priceSync.service.ts,392,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/services/pricing.adminGrid.pg.test.ts,113,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/services/pricing.service.ts,253,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/services/searchConsole.service.ts,357,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/services/searchConsole.window.test.ts,99,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/services/tenderEstimate.pg.test.ts,136,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/services/tenderEstimate.ts,181,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/utils/apiGuard.ts,116,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/utils/apiGuardAudit.test.ts,54,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/utils/catalogRoute.test.ts,60,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/utils/catalogRoute.ts,409,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/utils/csv.test.ts,43,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/utils/csv.ts,41,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/utils/httpCache.test.ts,75,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/utils/httpCache.ts,89,read_reviewed,"Read for YAGNI, dependencies, behavior and avoidable work; retained."
+src/lib/server/utils/httpJson.test.ts,46,changed_and_reviewed,"See change ledger for the exact scope; large files were reviewed around the change, not certified in full."
+src/lib/server/utils/httpJson.ts,84,changed_and_reviewed,"See change ledger for the exact scope; large files were reviewed around the change, not certified in full."
+src/lib/server/utils/idempotency.test.ts,86,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/utils/idempotency.ts,74,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/utils/imageSniff.test.ts,45,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/utils/imageSniff.ts,32,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/utils/jalali.test.ts,89,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/utils/jalali.ts,94,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/utils/leadDedupe.test.ts,20,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/utils/leadDedupe.ts,29,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/utils/likeEscape.test.ts,77,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/utils/likeEscape.ts,60,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/utils/panelHost.test.ts,194,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/utils/panelHost.ts,121,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/utils/persianZwnj.test.ts,61,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/utils/persianZwnj.ts,93,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/utils/rateLimit.test.ts,98,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/utils/rateLimit.ts,195,targeted_review,Selected paths/callers inspected; full module review remains.
+src/lib/server/utils/refs.ts,45,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/utils/resilience.test.ts,86,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/server/utils/resilience.ts,134,read_reviewed,"Read for YAGNI, dependencies, behavior and avoidable work; retained."
+src/lib/server/utils/revalidate.ts,44,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/server/utils/uploadStorage.ts,20,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/stores/announcer.ts,27,read_reviewed,"Read for YAGNI, dependencies, behavior and avoidable work; retained."
+src/lib/stores/auth.ts,26,read_reviewed,"Read for YAGNI, dependencies, behavior and avoidable work; retained."
+src/lib/stores/cart.test.ts,71,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/stores/cart.ts,126,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/stores/persistMigration.test.ts,147,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/stores/profile.ts,46,read_reviewed,"Read for YAGNI, dependencies, behavior and avoidable work; retained."
+src/lib/stores/requests.ts,135,changed_and_reviewed,"See change ledger for the exact scope; large files were reviewed around the change, not certified in full."
+src/lib/stores/ui.ts,99,changed_and_reviewed,"See change ledger for the exact scope; large files were reviewed around the change, not certified in full."
+src/lib/theme/fonts.ts,54,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/types/domain.ts,410,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/utils/alerts.ts,121,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/utils/articleSlug.test.ts,100,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/utils/articleSlug.ts,76,read_reviewed,"Read for YAGNI, dependencies, behavior and avoidable work; retained."
+src/lib/utils/articleTags.test.ts,65,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/utils/articleTags.ts,64,read_reviewed,"Read for YAGNI, dependencies, behavior and avoidable work; retained."
+src/lib/utils/attribution.test.ts,73,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/utils/attribution.ts,102,read_reviewed,"Read for YAGNI, dependencies, behavior and avoidable work; retained."
+src/lib/utils/bulkSplit.test.ts,187,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/utils/bulkSplit.ts,149,read_reviewed,"Read for YAGNI, dependencies, behavior and avoidable work; retained."
+src/lib/utils/callbackPresets.ts,33,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/utils/catalogCompose.test.ts,298,changed_and_reviewed,"See change ledger for the exact scope; large files were reviewed around the change, not certified in full."
+src/lib/utils/catalogCompose.ts,376,changed_and_reviewed,"See change ledger for the exact scope; large files were reviewed around the change, not certified in full."
+src/lib/utils/catalogFacets.test.ts,90,changed_and_reviewed,"See change ledger for the exact scope; large files were reviewed around the change, not certified in full."
+src/lib/utils/catalogFacets.ts,126,changed_and_reviewed,"See change ledger for the exact scope; large files were reviewed around the change, not certified in full."
+src/lib/utils/catalogGroups.test.ts,89,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/utils/catalogGroups.ts,83,read_reviewed,"Read for YAGNI, dependencies, behavior and avoidable work; retained."
+src/lib/utils/catalogIdentity.test.ts,17,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/utils/catalogIdentity.ts,53,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/utils/catalogLabels.subject.test.ts,114,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/utils/catalogLabels.test.ts,1425,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/utils/catalogLabels.ts,1893,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/utils/catalogSize.test.ts,30,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/utils/catalogSize.ts,81,changed_and_reviewed,"See change ledger for the exact scope; large files were reviewed around the change, not certified in full."
+src/lib/utils/compressImage.test.ts,121,changed_and_reviewed,"See change ledger for the exact scope; large files were reviewed around the change, not certified in full."
+src/lib/utils/compressImage.ts,50,changed_and_reviewed,"See change ledger for the exact scope; large files were reviewed around the change, not certified in full."
+src/lib/utils/format.test.ts,71,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/utils/format.ts,108,read_reviewed,"Read for YAGNI, dependencies, behavior and avoidable work; retained."
+src/lib/utils/jalali.ts,21,read_reviewed,"Read for YAGNI, dependencies, behavior and avoidable work; retained."
+src/lib/utils/leadUrgency.test.ts,73,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/utils/leadUrgency.ts,57,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/utils/letterhead.test.ts,16,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/utils/letterhead.ts,16,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/utils/persianText.test.ts,95,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/utils/persianText.ts,43,read_reviewed,"Read for YAGNI, dependencies, behavior and avoidable work; retained."
+src/lib/utils/phone.ts,136,read_reviewed,"Read for YAGNI, dependencies, behavior and avoidable work; retained."
+src/lib/utils/phoneMeta.ts,58,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/utils/priceAge.test.ts,45,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/utils/priceAge.ts,79,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/utils/priceMath.test.ts,72,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/utils/priceMath.ts,69,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/utils/proformaStatus.test.ts,10,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/utils/proformaStatus.ts,9,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/utils/readingTime.test.ts,20,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/utils/readingTime.ts,10,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/utils/safeStorage.ts,104,read_reviewed,"Read for YAGNI, dependencies, behavior and avoidable work; retained."
+src/lib/utils/slugify.ts,23,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/utils/speech.test.ts,45,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/utils/speech.ts,37,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/utils/url.ts,77,read_reviewed,"Read for YAGNI, dependencies, behavior and avoidable work; retained."
+src/lib/utils/weight.test.ts,141,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/utils/weight.ts,263,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/validation/api.ts,91,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/validation/env.test.ts,108,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/validation/env.ts,164,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/validation/messages.ts,10,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/validation/request.ts,33,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/validation/schemas.test.ts,43,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/validation/schemas.ts,89,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/validation/settingsSchemas.ts,29,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/lib/validation/sitePath.test.ts,67,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/validation/utils.test.ts,121,test_suite,Vitest executed; e2e files tracked separately in the report.
+src/lib/validation/utils.ts,313,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/middleware.ts,265,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/styles/tokens.css,338,stylelint_checked,Stylesheet lint passed; no visual-review claim.
+src/test/db.ts,27,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/test/persianRegister.ts,33,static_checked,TypeScript/ESLint checks; source not manually reviewed in full.
+src/components/admin/charts/Heatmap.tsx,0,removed,"Confirmed no runtime callers, or direct callers migrated to typed resources."
+src/components/feedback/ErrorState.tsx,0,removed,"Confirmed no runtime callers, or direct callers migrated to typed resources."
+src/lib/api/client.ts,0,removed,"Confirmed no runtime callers, or direct callers migrated to typed resources."
+src/lib/api/endpoints.ts,0,removed,"Confirmed no runtime callers, or direct callers migrated to typed resources."
+src/lib/api/forms.ts,0,removed,"Confirmed no runtime callers, or direct callers migrated to typed resources."
+src/lib/i18n/index.ts,0,removed,"Confirmed no runtime callers, or direct callers migrated to typed resources."
+src/lib/i18n/locale.ts,0,removed,"Confirmed no runtime callers, or direct callers migrated to typed resources."
+src/lib/i18n/strings.ts,0,removed,"Confirmed no runtime callers, or direct callers migrated to typed resources."

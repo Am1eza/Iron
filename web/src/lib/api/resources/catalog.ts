@@ -3,15 +3,17 @@ import { http } from '../http';
 import { categories as mockCategories, rebarRows } from '@/lib/mock/fixtures';
 import { priceSeries as mockPriceSeries, getRows as mockGetRows } from '@/lib/mock/catalogData';
 import type { Article, Category, PriceRow } from '@/lib/types/domain';
+import type { SubsMap } from '@/lib/data/catalog';
 
 const delay = (ms = 120) => new Promise((r) => setTimeout(r, ms));
 const RANGE_DAYS: Record<string, number> = { '7d': 7, '30d': 30, '90d': 90, '1y': 365 };
 
 export const catalogApi = {
-  async categories(opts?: { signal?: AbortSignal }): Promise<{ categories: Category[] }> {
+  async categories(opts?: { signal?: AbortSignal }): Promise<{ categories: Category[]; subs: SubsMap }> {
     if (API_MODE === 'mock') {
       await delay();
-      return { categories: mockCategories };
+      const { MOCK_CATEGORY_SUBS } = await import('@/lib/data/nav');
+      return { categories: mockCategories, subs: MOCK_CATEGORY_SUBS };
     }
     return http.get('/api/categories', { signal: opts?.signal, next: { revalidate: 300 } });
   },

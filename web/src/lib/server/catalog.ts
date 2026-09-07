@@ -9,7 +9,10 @@ import { hasDb } from '@/lib/server/db/client';
 import type { Category, PriceRow, Article } from '@/lib/types/domain';
 import type { SubCat } from '@/lib/data/nav';
 import * as mock from '@/lib/mock/catalogData';
-import { categories as mockCategories, marketValues as mockMarketValues } from '@/lib/mock/fixtures';
+import {
+  categories as mockCategories,
+  marketValues as mockMarketValues,
+} from '@/lib/mock/fixtures';
 import * as repo from '@/lib/server/repos/catalogRepo';
 import { getMarketValue } from '@/lib/server/repos/marketRepo';
 import { normalizeDigits } from '@/lib/utils/format';
@@ -39,48 +42,49 @@ const live = () => API_MODE === 'live' && hasDb();
 /**
  * Is this seam answering from the real database, or from the mock fixtures?
  *
- * Every `get*` below silently substitutes fixture data when the answer is
- * `false`. That is the right behaviour for a page (a preview build should
- * still render something) and a *catastrophic* one for anything published to a
- * search engine: a sitemap or a feed built from fixtures advertises URLs that
- * do not exist and omits every URL that does.
+ * When this is false, explicit mock mode may use fixtures. Live mode without a
+ * database fails closed to empty/null values; it must never turn a missing
+ * production dependency into a convincing demo storefront.
  *
- * Machine-readable, crawler-facing routes MUST therefore check this and emit
- * nothing catalog-shaped rather than emit fabrications. Exported so those
- * routes state the dependency explicitly instead of trusting the seam.
+ * Machine-readable, crawler-facing routes still check this explicitly so
+ * their empty response documents the dependency at the call site.
  */
 export function isLiveCatalog(): boolean {
   return live();
 }
 
-export async function getCategories(): Promise<Category[]> {
-  if (!live()) return mockCategories;
+// Request-scoped deduplication: layout, metadata, and page reads share data
+// without retaining prices or database failures across requests.
+export const getCategories = cache(async (): Promise<Category[]> => {
+  if (!live()) return API_MODE === 'mock' ? mockCategories : [];
   return repo.listCategories();
-}
+});
 
 /** Active sub-categories grouped by category slug — the live source for
  *  every public taxonomy surface (mega-menu, drawer, home cascade, category
  *  chips, breadcrumbs, sitemap). Admin-created sub-categories used to be
  *  invisible site-wide because these surfaces read the static MOCK_CATEGORY_SUBS
  *  fixture; that fixture is now only the mock/dev fallback. */
-export async function getSubsMap(): Promise<Record<string, SubCat[]>> {
+export const getSubsMap = cache(async (): Promise<Record<string, SubCat[]>> => {
   if (!live()) {
+    if (API_MODE !== 'mock') return {};
     const { MOCK_CATEGORY_SUBS } = await import('@/lib/data/nav');
     return MOCK_CATEGORY_SUBS;
   }
   return repo.listAllSubCategories();
-}
+});
 
-export async function getRows(categorySlug: string): Promise<PriceRow[]> {
-  if (!live()) return mock.getRows(categorySlug);
+export const getRows = cache(async (categorySlug: string): Promise<PriceRow[]> => {
+  if (!live()) return API_MODE === 'mock' ? mock.getRows(categorySlug) : [];
   return repo.tableRows(categorySlug);
-}
+});
 
 /** One headline PriceRow per active category, in category (taxonomy) order —
  *  the /prices hub's multi-category live summary. See
  *  catalogRepo.headlineRowPerCategory for what "headline" means. */
 export async function getHeadlineRows(): Promise<PriceRow[]> {
   if (!live()) {
+    if (API_MODE !== 'mock') return [];
     const rows = await Promise.all(
       mockCategories.map(async (c) => (await mock.getRows(c.slug))[0]),
     );
@@ -93,6 +97,7 @@ export async function getHeadlineRows(): Promise<PriceRow[]> {
  *  that only need counts must use this rather than measuring getRows(). */
 export async function getSkuCounts(categorySlugs: readonly string[]): Promise<Map<string, number>> {
   if (!live()) {
+    if (API_MODE !== 'mock') return new Map();
     const entries = await Promise.all(
       categorySlugs.map(async (slug) => [slug, (await mock.getRows(slug)).length] as const),
     );
@@ -111,15 +116,17 @@ export async function getSkuCounts(categorySlugs: readonly string[]): Promise<Ma
  * order" everywhere it is consumed, so mock mode simply behaves as it did
  * before this existed.
  */
-export async function getFactoryOrder(categorySlug: string): Promise<string[]> {
+export const getFactoryOrder = cache(async (categorySlug: string): Promise<string[]> => {
   if (!live()) return [];
   return repo.factoryOrderForCategory(categorySlug);
-}
+});
 
-export async function getSubRows(categorySlug: string, subSlug: string): Promise<PriceRow[]> {
-  if (!live()) return mock.getSubRows(categorySlug, subSlug);
-  return repo.tableRows(categorySlug, subSlug);
-}
+export const getSubRows = cache(
+  async (categorySlug: string, subSlug: string): Promise<PriceRow[]> => {
+    if (!live()) return API_MODE === 'mock' ? mock.getSubRows(categorySlug, subSlug) : [];
+    return repo.tableRows(categorySlug, subSlug);
+  },
+);
 
 /* ------------------------- factory / size facets ------------------------- */
 
@@ -147,7 +154,10 @@ export async function getCategoryFacets(
   return { factories: factoryFacets(rows), sizes: sizeFacets(rows) };
 }
 
-export async function getRowsByFactory(categorySlug: string, factorySlug: string): Promise<PriceRow[]> {
+export async function getRowsByFactory(
+  categorySlug: string,
+  factorySlug: string,
+): Promise<PriceRow[]> {
   const rows = await getRows(categorySlug);
   return rows.filter((r) => r.factory && factoryFacetSlug(r.factory) === factorySlug);
 }
@@ -157,13 +167,13 @@ export async function getRowsBySize(categorySlug: string, sizeSlug: string): Pro
   return rows.filter((r) => r.size && sizeFacetSlug(r.size) === sizeSlug);
 }
 
-export async function findSku(slug: string): Promise<PriceRow | undefined> {
-  if (!live()) return mock.findSku(slug);
+export const findSku = cache(async (slug: string): Promise<PriceRow | undefined> => {
+  if (!live()) return API_MODE === 'mock' ? mock.findSku(slug) : undefined;
   return (await repo.findSkuRow(slug)) ?? undefined;
-}
+});
 
 export async function relatedRows(row: PriceRow, n = 4): Promise<PriceRow[]> {
-  if (!live()) return mock.relatedRows(row, n);
+  if (!live()) return API_MODE === 'mock' ? mock.relatedRows(row, n) : [];
   return repo.relatedSkuRows(row.slug, n);
 }
 
@@ -175,6 +185,7 @@ export async function relatedRows(row: PriceRow, n = 4): Promise<PriceRow[]> {
  *  that as "no comparison available", not zero. */
 export async function getBilletReference(): Promise<{ value: number; updatedAt: string } | null> {
   if (!live()) {
+    if (API_MODE !== 'mock') return null;
     const m = mockMarketValues.find((v) => v.key === 'billet');
     return m ? { value: m.value, updatedAt: m.updatedAt } : null;
   }
@@ -198,8 +209,12 @@ export async function getBilletReference(): Promise<{ value: number; updatedAt: 
  *
  * The mock fallback is kept for mock mode, which never faces a real visitor.
  */
-export async function priceSeries(skuSlug: string, currentPrice: number, days = 365): Promise<number[]> {
-  if (!live()) return mock.priceSeries(skuSlug, currentPrice, days);
+export async function priceSeries(
+  skuSlug: string,
+  currentPrice: number,
+  days = 365,
+): Promise<number[]> {
+  if (!live()) return API_MODE === 'mock' ? mock.priceSeries(skuSlug, currentPrice, days) : [];
   const range = days <= 7 ? '7d' : days <= 30 ? '30d' : days <= 90 ? '90d' : '1y';
   const points = await repo.skuHistory(skuSlug, range);
   return points.map((p) => p.price);
@@ -221,7 +236,10 @@ export async function priceSeriesWithDates(
   currentPrice: number,
   days = 365,
 ): Promise<{ series: number[]; dates?: string[] }> {
-  if (!live()) return { series: mock.priceSeries(skuSlug, currentPrice, days) };
+  if (!live())
+    return API_MODE === 'mock'
+      ? { series: mock.priceSeries(skuSlug, currentPrice, days) }
+      : { series: [] };
   const range = days <= 7 ? '7d' : days <= 30 ? '30d' : days <= 90 ? '90d' : '1y';
   const points = await repo.skuHistory(skuSlug, range);
   return { series: points.map((p) => p.price), dates: points.map((p) => p.at) };
@@ -229,11 +247,14 @@ export async function priceSeriesWithDates(
 
 export async function searchAll(q: string): Promise<{ skus: PriceRow[]; articles: Article[] }> {
   if (!live()) {
+    if (API_MODE !== 'mock') return { skus: [], articles: [] };
     const needle = normalizeDigits(q.trim()).toLowerCase();
     const hay = (s: string) => normalizeDigits(s).toLowerCase();
     const skus = mockCategories
       .flatMap((c) => mock.getRows(c.slug))
-      .filter((r) => hay(`${r.name} ${r.factory ?? ''} ${r.size ?? ''} ${r.grade ?? ''}`).includes(needle))
+      .filter((r) =>
+        hay(`${r.name} ${r.factory ?? ''} ${r.size ?? ''} ${r.grade ?? ''}`).includes(needle),
+      )
       .slice(0, 20);
     const articles = mock.articles
       .filter((a) => a.status === 'published' && hay(a.title).includes(needle))
@@ -261,6 +282,7 @@ export async function getArticlesPage(
   perPage = 12,
 ): Promise<{ articles: Article[]; total: number }> {
   if (!live()) {
+    if (API_MODE !== 'mock') return { articles: [], total: 0 };
     const all = mock.articlesByType(type);
     return { articles: all.slice((page - 1) * perPage, page * perPage), total: all.length };
   }
@@ -306,7 +328,12 @@ export type CategoryRailItem = {
 export async function getBlogCategoryRailItems(): Promise<CategoryRailItem[]> {
   const [cats, counts] = await Promise.all([getCategories(), getCategoryArticleCounts()]);
   return cats
-    .map((c) => ({ slug: c.slug, name: c.name, imageUrl: c.imageUrl ?? null, count: counts[c.id] ?? 0 }))
+    .map((c) => ({
+      slug: c.slug,
+      name: c.name,
+      imageUrl: c.imageUrl ?? null,
+      count: counts[c.id] ?? 0,
+    }))
     .filter((c) => c.count > 0);
 }
 
@@ -333,7 +360,10 @@ export type NewsTopicRailItem = { slug: string; name: string; count: number };
  *  is the CURRENT visitor (from `getSessionVerified()` in the page),
  *  omitted for an anonymous one — see `listApprovedComments`'s own
  *  comment for what that changes. */
-export async function getApprovedComments(articleId: string, viewerId?: string): Promise<PublicComment[]> {
+export async function getApprovedComments(
+  articleId: string,
+  viewerId?: string,
+): Promise<PublicComment[]> {
   if (!live()) return [];
   return listApprovedComments(articleId, viewerId);
 }
@@ -348,9 +378,11 @@ export async function getApprovedComments(articleId: string, viewerId?: string):
  */
 export async function getNewsTopicRailItems(): Promise<NewsTopicRailItem[]> {
   const counts = await getNewsTopicArticleCounts();
-  return NEWS_TOPICS.map((t) => ({ slug: t.slug, name: t.name, count: counts[t.slug] ?? 0 })).filter(
-    (t) => t.count > 0,
-  );
+  return NEWS_TOPICS.map((t) => ({
+    slug: t.slug,
+    name: t.name,
+    count: counts[t.slug] ?? 0,
+  })).filter((t) => t.count > 0);
 }
 
 /** The 3 cards under an article. One projected query — see `relatedArticles`. */
@@ -360,6 +392,7 @@ export async function getRelatedArticles(
   limit = 3,
 ): Promise<Article[]> {
   if (!live()) {
+    if (API_MODE !== 'mock') return [];
     return mock
       .articlesByType(type)
       .filter((a) => a.slug !== excludeSlug)
@@ -371,7 +404,7 @@ export async function getRelatedArticles(
 /** Every published slug of a type, for the sitemap — which must never be a
  *  single page of results. */
 export async function getAllPublishedArticles(type: 'blog' | 'news'): Promise<Article[]> {
-  if (!live()) return mock.articlesByType(type);
+  if (!live()) return API_MODE === 'mock' ? mock.articlesByType(type) : [];
   const perPage = 200;
   const out: Article[] = [];
   for (let page = 1; page <= 50; page += 1) {
@@ -391,7 +424,7 @@ export async function getAllPublishedArticles(type: 'blog' | 'news'): Promise<Ar
  */
 export const getArticle = cache(
   async (slug: string): Promise<ArticleFull | Article | undefined> => {
-    if (!live()) return mock.findArticle(slug);
+    if (!live()) return API_MODE === 'mock' ? mock.findArticle(slug) : undefined;
     return (await findPublishedBySlug(slug)) ?? undefined;
   },
 );

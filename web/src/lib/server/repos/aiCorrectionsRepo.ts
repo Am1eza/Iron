@@ -48,7 +48,10 @@ export async function listCorrections(query: { page?: number; perPage?: number }
     db
       .select()
       .from(aiCorrections)
-      .orderBy(desc(aiCorrections.createdAt))
+      // Timestamps are not unique (bulk inserts can share the same millisecond).
+      // A deterministic tie-breaker is mandatory for OFFSET pagination or a row
+      // can move between pages and appear twice while another row disappears.
+      .orderBy(desc(aiCorrections.createdAt), desc(aiCorrections.id))
       .limit(perPage)
       .offset((page - 1) * perPage),
     db.select({ n: sql<number>`count(*)::int` }).from(aiCorrections),

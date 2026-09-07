@@ -123,6 +123,7 @@ export function CostCalculator() {
       qty: Math.max(1, Math.round(qty)), // cart qty is an integer (±1 stepper)
       unit: product.unit,
       unitPrice: product.current.price,
+      priceBasis: product.priceBasis,
       weightKg:
         effectiveMode === 'whole'
           ? undefined

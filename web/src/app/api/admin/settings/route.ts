@@ -4,6 +4,7 @@ import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { listSettings, setSetting } from '@/lib/server/repos/settingsRepo';
 import { finiteNumber } from '@/lib/validation/utils';
+import { logisticsSettingSchema } from '@/lib/validation/settingsSchemas';
 
 /**
  * Known keys with per-key validation — unknown keys are rejected. These
@@ -16,6 +17,46 @@ const KEY_SCHEMAS: Record<string, z.ZodTypeAny> = {
   VAT_RATE: finiteNumber.min(0).max(1),
   PRICE_STALE_HIDE_AFTER_DAYS: finiteNumber.int().min(1).max(30),
   QUOTE_VALIDITY_HOUR: finiteNumber.int().min(0).max(23),
+  ORDER_POLICY: z
+    .object({
+      version: z.string().trim().min(1).max(40),
+      minimumAutoQuoteToman: finiteNumber.int().min(0).max(1e15),
+      maximumManagerDiscountRate: finiteNumber.min(0).max(0.1),
+      maximumTotalDiscountRate: finiteNumber.min(0).max(0.1),
+    })
+    .refine((policy) => policy.maximumManagerDiscountRate <= policy.maximumTotalDiscountRate, {
+      message: 'سقف تخفیف دستی نمی‌تواند از سقف کل تخفیف بیشتر باشد.',
+    }),
+  VOLUME_DISCOUNT_POLICY: z.object({
+    version: z.string().trim().min(1).max(40),
+    tiers: z
+      .array(
+        z.object({
+          id: z.enum(['retail', 'bulk', 'enterprise']),
+          minWeightKg: finiteNumber.int().min(0).max(10_000_000),
+          discountRate: finiteNumber.min(0).max(0.1),
+          label: z.string().trim().min(1).max(60),
+          benefits: z.array(z.string().trim().min(1).max(120)).max(10),
+        }),
+      )
+      .length(3)
+      .refine((tiers) => new Set(tiers.map((tier) => tier.id)).size === 3, 'هر سطح باید دقیقاً یک‌بار وجود داشته باشد.'),
+  }).superRefine((policy, ctx) => {
+    const byId = Object.fromEntries(policy.tiers.map((tier) => [tier.id, tier]));
+    const retail = byId.retail;
+    const bulk = byId.bulk;
+    const enterprise = byId.enterprise;
+    if (!retail || !bulk || !enterprise) return;
+    if (retail.minWeightKg !== 0 || retail.discountRate !== 0) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'سطح خرده باید از صفر و بدون تخفیف شروع شود.' });
+    }
+    if (!(bulk.minWeightKg > retail.minWeightKg && enterprise.minWeightKg > bulk.minWeightKg)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'حدنصاب سطح‌ها باید صعودی باشد.' });
+    }
+    if (!(bulk.discountRate >= retail.discountRate && enterprise.discountRate >= bulk.discountRate)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'درصد تخفیف سطح‌ها نباید کاهش پیدا کند.' });
+    }
+  }),
   HOLIDAYS: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).max(100),
   // Hybrid-points club model (clubPoints.ts) — weights + tier thresholds.
   CLUB_CONFIG: z.object({
@@ -40,15 +81,7 @@ const KEY_SCHEMAS: Record<string, z.ZodTypeAny> = {
     phoneMobile: z.string().min(1).max(20),
     email: z.string().email().max(120).optional().or(z.literal('')),
   }),
-  LOGISTICS: z.object({
-    originLabel: z.string().max(120),
-    freightRatePerTonKm: finiteNumber.positive().max(1_000_000_000),
-    freightMinTrip: finiteNumber.positive().max(1e13),
-    handlingPerTon: finiteNumber.min(0).max(1e13),
-    insuranceRate: finiteNumber.min(0).max(0.2),
-    scaleFee: finiteNumber.min(0).max(1e13),
-    cities: z.array(z.object({ name: z.string().max(60), km: finiteNumber.min(0).max(100_000) })).max(200),
-  }),
+  LOGISTICS: logisticsSettingSchema,
   // W22: per-tier active-alert cap — replaces the old flat
   // ALERT_MAX_ACTIVE_PER_USER (one number for everyone). `base` covers both
   // a non-member and the zero-effort `iron` tier on purpose — see
@@ -114,8 +147,12 @@ async function PUTImpl(req: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: 'invalid_value', message: 'مقدار نامعتبر است.' }, { status: 422 });
   }
-  await setSetting(v.data.key, parsed.data);
-  await audit(auth.session.id, 'settings.update', { type: 'setting', id: v.data.key }, null, { value: parsed.data });
+  const storedValue =
+    v.data.key === 'LOGISTICS'
+      ? { ...(parsed.data as Record<string, unknown>), verifiedAt: new Date().toISOString() }
+      : parsed.data;
+  await setSetting(v.data.key, storedValue);
+  await audit(auth.session.id, 'settings.update', { type: 'setting', id: v.data.key }, null, { value: storedValue });
   return NextResponse.json({ ok: true });
 }
 

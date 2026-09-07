@@ -113,6 +113,16 @@ export const VOLUME_TIERS: readonly VolumeTier[] = [
   },
 ];
 
+export interface VolumeDiscountPolicy {
+  version: string;
+  tiers: VolumeTier[];
+}
+
+export const DEFAULT_VOLUME_DISCOUNT_POLICY: VolumeDiscountPolicy = {
+  version: '1405-06-13',
+  tiers: VOLUME_TIERS.map((tier) => ({ ...tier, benefits: [...tier.benefits] })),
+};
+
 const BY_ID: Readonly<Record<VolumeTierId, VolumeTier>> = Object.fromEntries(
   VOLUME_TIERS.map((t) => [t.id, t]),
 ) as Record<VolumeTierId, VolumeTier>;
@@ -151,20 +161,24 @@ export interface ResolvedVolumeTier {
  * above `enterprise` the tonnage path must still be able to reach it — hence
  * "the higher of the two", not "verified wins".
  */
-export function resolveVolumeTier(input: VolumeTierInput): ResolvedVolumeTier {
+export function resolveVolumeTier(
+  input: VolumeTierInput,
+  tiers: readonly VolumeTier[] = VOLUME_TIERS,
+): ResolvedVolumeTier {
   // Guard the whole numeric domain, not just negatives: NaN/Infinity here
   // would silently pick a band. A non-finite weight means "we don't know",
   // and "we don't know" must never buy a discount.
   const kg = Number.isFinite(input.totalWeightKg) ? Math.max(0, input.totalWeightKg) : 0;
 
-  let byWeight = VOLUME_TIERS[0]!;
-  for (const tier of VOLUME_TIERS) {
+  const ordered = [...tiers].sort((a, b) => a.minWeightKg - b.minWeightKg);
+  let byWeight = ordered[0] ?? VOLUME_TIERS[0]!;
+  for (const tier of ordered) {
     if (kg >= tier.minWeightKg) byWeight = tier;
   }
 
   if (!input.businessVerified) return { tier: byWeight, viaBusinessAccount: false };
 
-  const byAccount = BY_ID[VERIFIED_BUSINESS_TIER];
+  const byAccount = ordered.find((tier) => tier.id === VERIFIED_BUSINESS_TIER) ?? BY_ID[VERIFIED_BUSINESS_TIER];
   // Compare on the RATE, not on array position: if the bands are ever
   // retuned so that a high-tonnage band beats the business floor, the buyer
   // keeps the better of the two either way.

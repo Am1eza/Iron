@@ -85,3 +85,9 @@ export function normalizeCatalogText(input: string): string {
 export function normalizeCatalogSize(input: string): string {
   return foldCatalogZwnj(normalizeSizeText(input));
 }
+
+/** Factory is an identity, not prose: space and نیم‌فاصله must not create two
+ * mills. Store one visible convention (ordinary spaces) for every write. */
+export function normalizeFactoryName(input: string): string {
+  return foldZwnjForSearch(normalizeCatalogText(input)).replace(/\s+/g, ' ').trim();
+}

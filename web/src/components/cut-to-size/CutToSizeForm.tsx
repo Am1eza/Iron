@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
@@ -54,6 +54,10 @@ export function CutToSizeForm() {
   const { register, handleSubmit, reset, formState } = useForm<CutToSizeFormValues>({
     defaultValues: { product: '' },
   });
+
+  useEffect(() => {
+    if (status === 'anonymous') trackGoal('funnel', 'auth_gate_view', 'cut-to-size');
+  }, [status]);
 
   if (status !== 'authenticated') {
     return (

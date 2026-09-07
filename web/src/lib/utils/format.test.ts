@@ -57,3 +57,15 @@ describe('normalizeMobile', () => {
     expect(normalizeMobile('12345')).toBeNull();
   });
 });
+
+describe('mixed-script digit formatting', () => {
+  it('converts every Latin and Arabic digit while preserving surrounding text', () => {
+    expect(toPersianDigits('0123456789 / ٠١٢٣٤٥٦٧٨٩ / ۰۱۲۳۴۵۶۷۸۹ تومان')).toBe(
+      '۰۱۲۳۴۵۶۷۸۹ / ۰۱۲۳۴۵۶۷۸۹ / ۰۱۲۳۴۵۶۷۸۹ تومان',
+    );
+  });
+
+  it('normalizes mixed Persian and Arabic digits without changing separators or signs', () => {
+    expect(normalizeDigits('-۰١۲٣۴٥۶٧۸٩.50 / steel')).toBe('-0123456789.50 / steel');
+  });
+});

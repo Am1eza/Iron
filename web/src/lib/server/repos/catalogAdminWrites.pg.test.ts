@@ -57,6 +57,16 @@ afterAll(async () => {
 });
 
 describe('createSku — a repeated submission is not a second product', () => {
+  it('database unique index blocks a concurrent/bypass duplicate', async () => {
+    await db.insert(schema.skus).values({
+      id: 'db-dupe-a', subCategoryId: 's-steel-sheet', categoryId: 'c-steel',
+      slug: 'db-dupe-a', name: 'نام اول', size: '۱۲', grade: 'A3', factory: 'ذوب‌آهن',
+    });
+    await expect(db.insert(schema.skus).values({
+      id: 'db-dupe-b', subCategoryId: 's-steel-sheet', categoryId: 'c-steel',
+      slug: 'db-dupe-b', name: 'نام دوم', size: '12', grade: 'a3', factory: 'ذوب آهن',
+    })).rejects.toThrow();
+  });
   it('refuses the same name/size/factory under the same sub-category', async () => {
     const first = await createSku({
       subCategoryId: 's-deformed',
@@ -110,9 +120,33 @@ describe('createSku — a repeated submission is not a second product', () => {
       createSku({ subCategoryId: 's-hot', slug: 'varagh-2-again', name: 'ورق ۲', size: '۲' }),
     ).rejects.toBeInstanceOf(DuplicateProductError);
   });
+
+  it('refuses visually identical structured facts even when name, digits and ZWNJ differ', async () => {
+    await createSku({
+      subCategoryId: 's-steel-sheet', slug: 'visual-a', name: 'عنوان بازاری اول',
+      size: '۱۴', grade: 'A3', factory: 'ذوب‌آهن',
+    });
+    await expect(createSku({
+      subCategoryId: 's-steel-sheet', slug: 'visual-b', name: 'عنوان بازاری دوم',
+      size: '14', grade: 'a3', factory: 'ذوب آهن',
+    })).rejects.toBeInstanceOf(DuplicateProductError);
+  });
+
+  it('keeps different grades as different physical offers', async () => {
+    const row = await createSku({
+      subCategoryId: 's-steel-sheet', slug: 'visual-grade', name: 'عنوان دیگر',
+      size: '۱۴', grade: 'A2', factory: 'ذوب آهن',
+    });
+    expect(row.grade).toBe('A2');
+  });
 });
 
 describe('updateSku — the price row moves with the product', () => {
+  it('cannot turn an existing row into a structural duplicate by renaming fields', async () => {
+    const one = await createSku({ subCategoryId: 's-hot', slug: 'update-dupe-one', name: 'ورق یک', size: '۳', grade: 'A' });
+    const two = await createSku({ subCategoryId: 's-hot', slug: 'update-dupe-two', name: 'ورق دو', size: '۴', grade: 'B' });
+    await expect(updateSku(two.id, { name: 'نام متفاوت', size: one.size, grade: one.grade })).rejects.toBeInstanceOf(DuplicateProductError);
+  });
   it('publishes unit and priceBasis to current_prices in the same transaction', async () => {
     const sku = await createSku({
       subCategoryId: 's-hot',

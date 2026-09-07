@@ -16,7 +16,8 @@ vi.mock('@/lib/server/repos/auditRepo', () => ({ writeAudit }));
 const { reportError } = vi.hoisted(() => ({ reportError: vi.fn() }));
 vi.mock('@/lib/errors/report', () => ({ reportError }));
 
-import { audit } from './apiGuard';
+import { audit, withApiErrorHandling } from './apiGuard';
+import { PayloadTooLargeError } from './requestBody';
 
 beforeEach(() => {
   writeAudit.mockClear();
@@ -50,5 +51,25 @@ describe('audit()', () => {
       expect.any(Error),
       expect.objectContaining({ stage: 'audit', action: 'catalog.sku.delete', entityId: 'sku-1' }),
     );
+  });
+});
+
+describe('request size errors at the API boundary', () => {
+  it('returns 413 without flooding error reporting', async () => {
+    const handler = withApiErrorHandling(() => {
+      throw new PayloadTooLargeError();
+    });
+    const response = await handler();
+    expect(response.status).toBe(413);
+    expect(await response.json()).toMatchObject({ error: 'payload_too_large' });
+    expect(reportError).not.toHaveBeenCalled();
+  });
+
+  it('still reports genuine unexpected errors as 500', async () => {
+    const handler = withApiErrorHandling(() => {
+      throw new Error('unexpected');
+    });
+    expect((await handler()).status).toBe(500);
+    expect(reportError).toHaveBeenCalledOnce();
   });
 });

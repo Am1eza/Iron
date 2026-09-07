@@ -1,11 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  factoryFacetSlug,
-  sizeFacetSlug,
-  factoryFacets,
-  sizeFacets,
-  collidingFacets,
-} from './catalogFacets';
+import { factoryFacetSlug, sizeFacetSlug, factoryFacets, sizeFacets } from './catalogFacets';
 import { RESERVED_SUB_SLUGS, routes } from '@/lib/routes';
 import { MOCK_CATEGORY_SUBS } from '@/lib/data/nav';
 
@@ -13,7 +7,9 @@ describe('sizeFacetSlug', () => {
   it('keeps the three لوله inch sizes apart — the collision plain slugify has', () => {
     // All three exist in the live catalog today and are priced separately.
     // `slugify` drops ¼/½ entirely, mapping every one of these to `1-aynch`.
-    const slugs = ['۱ اینچ', '۱¼ اینچ', '۱½ اینچ', '۱/۲ اینچ', '۲½ اینچ', '۳/۴ اینچ'].map(sizeFacetSlug);
+    const slugs = ['۱ اینچ', '۱¼ اینچ', '۱½ اینچ', '۱/۲ اینچ', '۲½ اینچ', '۳/۴ اینچ'].map(
+      sizeFacetSlug,
+    );
     expect(new Set(slugs).size).toBe(slugs.length);
     expect(slugs[0]).toBe('1-aynch');
     expect(slugs[1]).toBe('1-1-4-aynch');
@@ -57,11 +53,7 @@ describe('factoryFacets / sizeFacets', () => {
   });
 
   it('uses every section axis when leading dimensions tie', () => {
-    const facets = sizeFacets([
-      { size: '۶۰×۶۰×۶' },
-      { size: '۸۰×۸۰×۸' },
-      { size: '۶۰×۶۰×۵' },
-    ]);
+    const facets = sizeFacets([{ size: '۶۰×۶۰×۶' }, { size: '۸۰×۸۰×۸' }, { size: '۶۰×۶۰×۵' }]);
     expect(facets.map((x) => x.label)).toEqual(['۶۰×۶۰×۵', '۶۰×۶۰×۶', '۸۰×۸۰×۸']);
   });
 
@@ -75,7 +67,7 @@ describe('factoryFacets / sizeFacets', () => {
     const abhr = f.find((x) => x.slug === 'abhr')!;
     expect(abhr.count).toBe(2);
     // Trimmed to the same string, so this is one value, not a collision.
-    expect(collidingFacets(f)).toEqual([]);
+    expect(f.every((facet) => facet.values.length === 1)).toBe(true);
   });
 });
 

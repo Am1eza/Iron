@@ -1,3 +1,4 @@
+import { readJsonBody } from '@/lib/server/utils/requestBody';
 import { NextResponse, type NextRequest } from 'next/server';
 import { requireApiPermission, requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { skuHistoryBatch } from '@/lib/server/repos/catalogRepo';
@@ -12,7 +13,7 @@ async function POSTImpl(req: NextRequest) {
   const auth = await requireApiPermission(req, 'pricing:write');
   if ('response' in auth) return auth.response;
 
-  const body = (await req.json().catch(() => null)) as { slugs?: unknown; range?: unknown } | null;
+  const body = (await readJsonBody(req)) as { slugs?: unknown; range?: unknown } | null;
   const slugs = Array.isArray(body?.slugs)
     ? body.slugs.filter((s): s is string => typeof s === 'string').slice(0, 300)
     : [];

@@ -1,43 +1,41 @@
 # Ahantime Web
 
-The Ahantime website — **Layer 4 (Frontend)**. Built on the specs in the repo root (`/docs`, `/product`, `/design`).
+Next.js 15 App Router + React 19 application with its API, PostgreSQL/Drizzle backend and admin panel. Persian-first, RTL, Jalali dates and Toman amounts.
 
-> See **[`ARCHITECTURE.md`](./ARCHITECTURE.md)** for the full stack, structure, and conventions.
+## Local development
 
-## Stack
-Next.js 15 (App Router) · TypeScript (strict) · CSS Modules + design tokens · Zustand · TanStack Query · React Hook Form + Zod · MSW (mocks) · Vitest/Playwright/axe. Persian-first, **RTL**, Jalali, Toman. No UI kit, no external CDNs.
+Use the package-manager version declared in [package.json](package.json) and a compatible Node installation.
 
-## Getting started
-```bash
+```sh
 cd web
 pnpm install
-cp .env.example .env.local      # start with NEXT_PUBLIC_API_MODE=mock
-# add self-hosted fonts to public/fonts/ (Estedad/Vazirmatn/Inter .var.woff2)
-pnpm dev                        # http://localhost:3000
+cp .env.example .env.local
+pnpm dev
 ```
 
-## Scripts
-`pnpm dev` · `pnpm build` · `pnpm start` · `pnpm lint` · `pnpm typecheck` · `pnpm test` · `pnpm test:e2e` · `pnpm format`
+Configure the local environment before starting. Mock catalog data is for development; authentication still calls real local route handlers. Live mode requires its database/session configuration. Production defaults to live and rejects mock configuration. See [environment validation](src/lib/validation/env.ts) and [API configuration](src/lib/api/config.ts). Never commit `.env.local` or print its secrets.
 
-## Structure (short)
+Fonts are already self-hosted; loading is configured in [fonts.ts](src/lib/theme/fonts.ts).
+
+## Checks
+
+```sh
+pnpm typecheck
+pnpm lint
+pnpm lint:css
+pnpm test --run
+pnpm exec playwright install chromium --only-shell
+pnpm test:e2e --project=chromium
+pnpm build
 ```
-src/
-  app/        routes (App Router) + api/ + admin/
-  components/ primitives · layout · data · ai · commerce · feedback
-  lib/        types · config · api · ai · mock · utils · hooks · stores
-  styles/     tokens.css (canonical design tokens)
-```
 
-## Foundation in place
-- RTL Persian root layout (`src/app/layout.tsx`) + skip-link + SEO metadata
-- Canonical **design tokens** wired (`src/styles/tokens.css` → `globals.css`)
-- Business constants (`lib/config/constants.ts`), format utils (digits/Toman/Jalali), domain types, and mock fixtures
+The browser suite uses the local test environment configured in [playwright.config.ts](playwright.config.ts). Do not run its Next dev server concurrently with a build in the same checkout: both write `.next`.
 
-## Conventions
-Semantic tokens only (no hardcoded colors/spacing) · CSS **logical properties** (RTL) · server components by default (`"use client"` only when needed) · secrets server-only · WCAG 2.2 AA.
+If the package-manager launcher is unavailable but dependencies are installed, run the corresponding binary under `./node_modules/.bin/` (for example `vitest run`, `next lint`, or `tsc --noEmit`). `pnpm format` rewrites the whole directory; format only intended files during a scoped change.
 
-## Notes
-- **Fonts:** self-host the `.var.woff2` files in `public/fonts/`; until then the system fallback renders.
-- **API:** runs in **mock** mode (MSW + fixtures) until the backend layer; flip with `NEXT_PUBLIC_API_MODE`.
+## Reference
 
-*Ahantime — اول مشورت، بعد خرید.*
+- [Architecture](ARCHITECTURE.md), [routing](ROUTING.md), [state](STATE-MANAGEMENT.md)
+- [API transport](API-CLIENT.md), [forms and validation](FORMS.md), [error handling](ERROR-HANDLING.md)
+- [UI system](UI-SYSTEM.md), [UX engineering](UX-ENGINEERING.md), [AI advisor](AI.md)
+- [Deployment](../DEPLOY.md), [documentation index](../docs/README.md)

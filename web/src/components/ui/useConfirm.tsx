@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Modal } from './Modal';
 import { Button } from '@/components/primitives/Button';
 
@@ -20,7 +20,17 @@ export function useConfirm() {
   const [options, setOptions] = useState<ConfirmOptions | null>(null);
   const resolver = useRef<((value: boolean) => void) | null>(null);
 
+  useEffect(
+    () => () => {
+      resolver.current?.(false);
+      resolver.current = null;
+    },
+    [],
+  );
+
   const confirm = useCallback((opts: ConfirmOptions) => {
+    // Replacing a prompt cancels its pending decision instead of leaking it.
+    resolver.current?.(false);
     setOptions(opts);
     return new Promise<boolean>((resolve) => {
       resolver.current = resolve;

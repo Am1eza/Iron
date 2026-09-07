@@ -1,60 +1,50 @@
 'use client';
-/**
- * Live-mode sync for the requests inbox: pushes any locally-filed requests to
- * the server (idempotent by (userId, ref)) and mirrors the server's list back
- * into the zustand store, so RequestsList/ProfileStats keep working unchanged
- * and legacy localStorage inboxes migrate on first authenticated visit.
- */
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { API_MODE } from '@/lib/api/config';
 import { http } from '@/lib/api/http';
 import { useAuthStore } from '@/lib/stores/auth';
 import { useRequestsStore, type UserRequest } from '@/lib/stores/requests';
 
+/** Import the local inbox once per authenticated user, then mirror the server.
+ * Cancel obsolete work on logout, account changes, and Strict Mode cleanup. */
 export function useRequestsSync(): void {
-  const user = useAuthStore((s) => s.user);
-  const syncedFor = useRef<string | null>(null);
+  const userId = useAuthStore((s) => s.user?.id);
 
   useEffect(() => {
-    if (API_MODE !== 'live' || !user || syncedFor.current === user.id) return;
-    syncedFor.current = user.id;
-    let cancelled = false;
+    if (API_MODE !== 'live' || !userId) return;
+    const controller = new AbortController();
+    const { signal } = controller;
 
-    (async () => {
+    void (async () => {
       try {
-        // The store is skipHydration now, and React runs sibling effects in
-        // document order — so this effect can fire before <StoreHydrator/>'s.
-        // Reading an unhydrated store here would see an empty inbox and push
-        // NOTHING to the server, losing every locally-filed request on the
-        // first authenticated visit. Rehydrating is idempotent, so just make
-        // sure it has happened rather than depending on mount order.
-        if (!useRequestsStore.persist.hasHydrated()) {
-          await useRequestsStore.persist.rehydrate();
-        }
+        // StoreHydrator may not have run yet. Awaiting also lets a Strict Mode
+        // cleanup cancel the first setup before it starts an import.
+        await useRequestsStore.persist.rehydrate();
+        signal.throwIfAborted();
         const local = useRequestsStore.getState().requests;
         let skipped: string[] = [];
         if (local.length > 0) {
-          const res = await http.post<{ ok: true; imported: number; skipped: string[] }>('/api/me/requests/import', { requests: local });
+          const res = await http.post<{ ok: true; imported: number; skipped: string[] }>(
+            '/api/me/requests/import',
+            { requests: local },
+            { signal },
+          );
           skipped = res.skipped;
         }
-        const { requests } = await http.get<{ requests: UserRequest[] }>('/api/me/requests');
-        if (cancelled) return;
-        // W20: `replaceAll` used to wholesale-overwrite the local mirror with
-        // the server's list, so any row the import route reported as
-        // `skipped` (a genuine conflict, not a success) was discarded from
-        // BOTH places — silently gone. Local rows the import couldn't place
-        // are kept so a later sync attempt (or a human looking at raw
-        // localStorage) can still recover them instead of losing the request.
-        const stillLocal = local.filter((r) => skipped.includes(r.ref));
+        signal.throwIfAborted();
+        const { requests } = await http.get<{ requests: UserRequest[] }>('/api/me/requests', {
+          signal,
+        });
+        signal.throwIfAborted();
+        // Preserve conflicts, but let replaceAll deduplicate rows now on the server.
+        const skippedRefs = new Set(skipped);
+        const stillLocal = local.filter((r) => skippedRefs.has(r.ref));
         useRequestsStore.getState().replaceAll(requests, stillLocal);
       } catch {
-        // Non-fatal: the local mirror keeps serving; next visit retries.
-        syncedFor.current = null;
+        // Keep the local inbox on failure. A later mount/sign-in retries.
       }
     })();
 
-    return () => {
-      cancelled = true;
-    };
-  }, [user]);
+    return () => controller.abort();
+  }, [userId]);
 }

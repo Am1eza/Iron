@@ -14,7 +14,7 @@ import {
   writeCatalogRedirects,
 } from '@/lib/server/utils/catalogRoute';
 import { finiteNumber, nonEmptyPatch, slugSchema, uploadPathSchema } from '@/lib/validation/utils';
-import { normalizeCatalogSize, normalizeCatalogText } from '@/lib/server/utils/persianZwnj';
+import { normalizeCatalogSize, normalizeCatalogText, normalizeFactoryName } from '@/lib/server/utils/persianZwnj';
 import { toPersianDigits } from '@/lib/utils/format';
 import { PRICE_BASIS_VALUES, PRICE_UNIT_VALUES } from '@/lib/types/domain';
 
@@ -64,7 +64,7 @@ const patchPayload = nonEmptyPatch(
       .nullable()
       .optional()
       .transform((v) => (v ? normalizeCatalogSize(v) : v === '' ? null : v)),
-    factory: optionalPersianText(80),
+    factory: z.string().trim().max(80).nullable().optional().transform((v) => (v ? normalizeFactoryName(v) : v === '' ? null : v)),
     // See the create route — never nullable, there is no "clear it" state
     // distinct from ranking it back to 0.
     order: z.number().int().nonnegative().max(10_000).optional(),

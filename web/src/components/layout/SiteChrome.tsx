@@ -1,5 +1,6 @@
 'use client';
 import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { Ticker } from './Ticker';
 import { Header } from './Header';
 import { Footer } from './Footer';
@@ -41,6 +42,36 @@ function onPanelHost(): boolean {
   return typeof window !== 'undefined' && window.location.hostname === 'panel.ahantime.com';
 }
 
+type RuntimeCatalog = { categories: Category[]; subs: SubsMap };
+let runtimeCatalogPromise: Promise<RuntimeCatalog> | undefined;
+
+function useRuntimeCatalog(categories: Category[], subs: SubsMap, needsSubs = true) {
+  const initial = { categories, subs };
+  const complete = categories.length > 0 && (!needsSubs || Object.keys(subs).length > 0);
+  const [catalog, setCatalog] = useState<RuntimeCatalog>(initial);
+  useEffect(() => {
+    if (complete) return;
+    let active = true;
+    runtimeCatalogPromise ??= import('@/lib/api/resources/catalog')
+      .then(({ catalogApi }) => catalogApi.categories())
+      .catch((error: unknown) => {
+        runtimeCatalogPromise = undefined;
+        throw error;
+      });
+    void runtimeCatalogPromise
+      .then((result) => {
+        if (active) setCatalog(result);
+      })
+      .catch(() => {
+        // Empty, truthful navigation is safer than fixture links on failure.
+      });
+    return () => {
+      active = false;
+    };
+  }, [complete]);
+  return complete ? initial : catalog;
+}
+
 export function SiteChromeTop({
   categories,
   subs,
@@ -49,10 +80,11 @@ export function SiteChromeTop({
   categories: Category[];
   subs: SubsMap;
   /** Server-fetched ticker values — see layout.tsx's comment. Undefined on
-   *  a DB hiccup; Ticker already has its own zero-value placeholder for that. */
+   *  a DB hiccup; Ticker renders an honest em-dash placeholder for that. */
   initialMarketValues?: MarketValue[];
 }) {
   const pathname = usePathname();
+  const catalog = useRuntimeCatalog(categories, subs);
   if (onPanelHost() || pathname?.startsWith('/admin') || pathname?.startsWith('/panel-login'))
     return null;
   // Same reasoning CartReminder's own suppression check already applies —
@@ -63,9 +95,9 @@ export function SiteChromeTop({
   return (
     <div className={styles.top}>
       <Ticker initialValues={initialMarketValues} />
-      <Header categories={categories} subs={subs} />
+      <Header categories={catalog.categories} subs={catalog.subs} />
       {!suppressCartReminder && <CartReminder />}
-      <MobileDrawer categories={categories} subs={subs} />
+      <MobileDrawer categories={catalog.categories} subs={catalog.subs} />
     </div>
   );
 }
@@ -78,6 +110,7 @@ export function SiteChromeBottom({
   contact: SiteContact;
 }) {
   const pathname = usePathname();
+  const catalog = useRuntimeCatalog(categories, {}, false);
   if (onPanelHost() || pathname?.startsWith('/admin') || pathname?.startsWith('/panel-login'))
     return null;
   // /ai's own composer is fixed to the same bottom-inline-end corner as this
@@ -101,7 +134,7 @@ export function SiteChromeBottom({
   // the two would drift.
   return (
     <div className={styles.bottom}>
-      <Footer categories={categories} contact={contact} />
+      <Footer categories={catalog.categories} contact={contact} />
       <BottomTabBar />
       <ArrivalPopup />
       {!onAdvisor && <CallbackWidget phoneLandline={contact.phoneLandline} />}

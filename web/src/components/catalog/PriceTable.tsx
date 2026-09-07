@@ -9,12 +9,7 @@ import { useToast } from '@/lib/hooks/useToast';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { CONSTANTS } from '@/lib/config/constants';
 import { routes } from '@/lib/routes';
-import {
-  formatToman,
-  priceHiddenLabel,
-  toPersianDigits,
-  withVat,
-} from '@/lib/utils/format';
+import { formatToman, priceHiddenLabel, toPersianDigits, withVat } from '@/lib/utils/format';
 import { compareCatalogSizes } from '@/lib/utils/catalogSize';
 import {
   sizeLabel,
@@ -56,6 +51,8 @@ import {
   ChevronDownIcon,
 } from '@/components/primitives/icons';
 import styles from './PriceTable.module.css';
+
+const specCollator = new Intl.Collator('fa', { numeric: true });
 
 type SortKey = 'size' | 'price' | 'movement';
 
@@ -114,11 +111,7 @@ function diffRowClass(values: ReadonlyArray<string | number | null>): string | u
  * (different size, different grade) never collapses into another.
  */
 function normalizeSpecValue(value: string): string {
-  return value
-    .trim()
-    .replace(/\s+/g, ' ')
-    .replace(/ي/g, 'ی')
-    .replace(/ك/g, 'ک');
+  return value.trim().replace(/\s+/g, ' ').replace(/ي/g, 'ی').replace(/ك/g, 'ک');
 }
 
 // Stable identity for "no selections yet" so a facet with nothing checked
@@ -773,7 +766,7 @@ export function PriceTable({
           return {
             key: d.key,
             label: d.label,
-            values: [...values].sort((a, b) => a.localeCompare(b, 'fa', { numeric: true })),
+            values: [...values].sort(specCollator.compare),
           };
         })
         // A column with 0 or 1 distinct value on this view has nothing to
@@ -957,6 +950,7 @@ export function PriceTable({
         qty,
         unit: r.unit,
         unitPrice: r.current.price,
+        priceBasis: r.priceBasis,
         weightKg: r.theoreticalWeightKg,
       });
       trackGoal('add-to-cart', r.categoryId, r.name);

@@ -1,7 +1,6 @@
 # AI — the grounded advisor (مشاور هوشمند)
 
-How the AI advisor works, why it can never invent a number, and how to run it
-cheaply. Implements `product/acceptance-criteria.md §D`.
+How the AI advisor uses server tools and numeric grounding checks. Implements `product/acceptance-criteria.md §D`.
 
 ## Architecture
 
@@ -57,31 +56,30 @@ and asserts zero ungrounded numbers survive (DoD-D).
 
 ## Cost controls
 
-| Lever | Implementation |
-|---|---|
-| DeepSeek context caching | `SYSTEM_PROMPT` is one static string — never interpolated; cache-hit input is ~1/10 the price |
-| History trim | client sends only the last 10 turns; server caps 40 msgs × 4000 chars |
-| Token caps | explicit `max_tokens` on every relay round (integrations/deepseek.ts) |
-| Compact payloads | short tool schemas; compact DB tool results |
-| Model tier | `deepseek-chat` (non-thinking) — enough for tool routing |
-| Abuse guard | per-IP rate limit (10 req / 5 min) — lib/server/utils/rateLimit |
-| Zero-cost fallback | mock mode / outages answer locally, no API call |
+| Lever               | Implementation                                                                                        |
+| ------------------- | ----------------------------------------------------------------------------------------------------- |
+| Prompt reuse        | Keep stable instructions reusable; actual caching and billing depend on the configured relay          |
+| History trim        | client sends only the last 10 turns; server caps 40 msgs × 4000 chars                                 |
+| Token caps          | explicit `max_tokens` on every relay round (integrations/deepseek.ts)                                 |
+| Compact payloads    | short tool schemas; compact DB tool results                                                           |
+| Model configuration | `AI_MODEL`, with the default defined in `aiRelayConfig.ts`; reasoning effort is explicitly controlled |
+| Abuse guard         | per-IP rate limit (10 req / 5 min) — lib/server/utils/rateLimit                                       |
+| Zero-cost fallback  | mock mode / outages answer locally, no API call                                                       |
 
 ## Configuration
 
-| Var | Meaning |
-|---|---|
-| `DEEPSEEK_API_KEY` | relay key (server-only) |
-| `DEEPSEEK_BASE_URL` | OpenAI-compatible relay base, e.g. `https://relay/v1` |
-| `DEEPSEEK_MODEL` | default `deepseek-chat` |
-| `FALLBACK_BASE_URL` | optional second OpenAI-compatible relay — a primary failure (throw or non-2xx) retries the same request once here |
-| `FALLBACK_API_KEY` | key for the fallback relay; the fallback only activates when BOTH this and `FALLBACK_BASE_URL` are set |
-| `FALLBACK_MODEL` | model on the fallback relay (default: `DEEPSEEK_MODEL`) |
-| `NEXT_PUBLIC_API_MODE` | `live` activates the server advisor; `mock` keeps the local engine |
-| `AI_ENABLED` | `true` switches the relay on (backend flag) — the fallback never replaces the primary config in `aiEnabled()` |
+[aiRelayConfig.ts](src/lib/server/integrations/aiRelayConfig.ts) owns provider selection and compatibility. The configured integration is Surplus Intelligence; the code default model is `gpt-5.6-luna`. These are repository settings, not a live provider availability check.
 
-With `AI_ENABLED` false or `DEEPSEEK_*` missing the route answers `503` and the
-client silently uses the local engine.
+| Variable                                                           | Purpose                                                             |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------- |
+| `AI_BASE_URL`, `AI_API_KEY`                                        | Primary server-only relay configuration                             |
+| `AI_MODEL`                                                         | Model override; defaults to `DEFAULT_AI_MODEL`                      |
+| `AI_REASONING_EFFORT`                                              | Reasoning control; see the configuration helper for accepted values |
+| `AI_FALLBACK_BASE_URL`, `AI_FALLBACK_API_KEY`, `AI_FALLBACK_MODEL` | Optional fallback relay                                             |
+| `AI_ENABLED`                                                       | Enables the server advisor when required configuration is present   |
+| `NEXT_PUBLIC_API_MODE`                                             | Development mock/live data choice; production rejects mock mode     |
+
+Legacy `DEEPSEEK_*` and `FALLBACK_*` aliases remain supported for existing deployments. Prefer `AI_*` for new configuration. The integration filename `deepseek.ts` is historical and does not imply that DeepSeek is the current provider. Keep all relay keys server-only.
 
 ## Division of labour
 

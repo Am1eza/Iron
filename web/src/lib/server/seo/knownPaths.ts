@@ -222,45 +222,63 @@ export function shouldNotFound(
 
 /**
  * The `known` set's cache — moved here (out of proxy.ts, which merely
- * consumed it) so an admin write can invalidate it too. Same in-process,
- * TTL'd shape proxy.ts's `redirectCache` still keeps locally (one
- * long-lived Node process — see proxy.ts's runtime comment).
+ * consumed it) so an admin write can invalidate it too.
+ *
+ * On the process global, not a plain module-level `let`: middleware and
+ * route handlers compile this module separately (Next.js always bundles
+ * middleware for the edge runtime, even on a Node deployment), so a
+ * module-level variable here is two distinct copies in memory — an admin
+ * write invalidating "its" copy would leave the OTHER one, whichever this
+ * guard actually reads from, none the wiser.
  *
  * Confirmed live (2026-09-01, e2e/admin-pricing-catalog.spec.ts's delete
  * test, CI run 33518928535): a SKU created via the admin API and read back
  * immediately hard-404'd through THIS guard — `revalidateCatalog` cleared
  * Next's ISR page cache and the AI advisor's `domainFacts`, but never told
- * this middleware-level guard its `known` set was now stale, so it kept
- * routing the brand-new URL through `notFound()` for up to
- * `KNOWN_PATHS_TTL_MS` regardless. `invalidateKnownPaths` closes that gap the
- * same way `invalidateDomainFacts` already does for the advisor's cache.
+ * this guard's `known` set was now stale, so it kept routing the brand-new
+ * URL through `notFound()` for up to `KNOWN_PATHS_TTL_MS` regardless.
+ * `invalidateKnownPaths` closes that gap the same way `invalidateDomainFacts`
+ * already does for the advisor's cache — sharing the process global is what
+ * makes that invalidation actually reach the copy this guard reads.
  */
-let knownPathCache: Set<string> = new Set();
-let knownPathsLoadedAt = 0;
+type KnownPathsCache = {
+  paths: ReadonlySet<string>;
+  loadedAt: number;
+  pending: Promise<ReadonlySet<string>> | null;
+};
+const processCache = globalThis as typeof globalThis & { __ahantimeKnownPaths?: KnownPathsCache };
+const cache = (processCache.__ahantimeKnownPaths ??= {
+  paths: new Set<string>(),
+  loadedAt: 0,
+  pending: null,
+});
 const KNOWN_PATHS_TTL_MS = 60_000;
 
-/** Force the next `getKnownPaths()` call to hit the DB, regardless of TTL. */
+/** Invalidate completed and in-flight reads. An older refresh cannot publish
+ * its result after a catalog write has made that snapshot obsolete. */
 export function invalidateKnownPaths(): void {
-  knownPathsLoadedAt = 0;
+  cache.loadedAt = 0;
+  cache.pending = null;
 }
 
-/**
- * The current `known` set, refreshing it first if stale. Empty = "not
- * loaded"/"DB hiccup" and is fail-open by `shouldNotFound`'s own contract —
- * never replaced with an empty set on a failed refresh, only left as
- * whatever last loaded successfully.
- */
+/** Concurrent readers await one refresh; failures retain the last good set. */
 export async function getKnownPaths(): Promise<ReadonlySet<string>> {
-  if (Date.now() - knownPathsLoadedAt < KNOWN_PATHS_TTL_MS) return knownPathCache;
-  // Set BEFORE the await (synchronously, no yield point in between) so two
-  // requests landing in the same tick don't both kick off a refresh.
-  knownPathsLoadedAt = Date.now();
-  if (!hasDb()) return knownPathCache;
-  try {
-    const [catalog, articles] = await Promise.all([publicCatalogPaths(), publishedGuardPaths()]);
-    knownPathCache = new Set([...catalog, ...articles]);
-  } catch {
-    // Keep whatever was already loaded — see the class doc comment above.
-  }
-  return knownPathCache;
+  if (Date.now() - cache.loadedAt < KNOWN_PATHS_TTL_MS) return cache.paths;
+  if (cache.pending) return cache.pending;
+  if (!hasDb()) return cache.paths;
+
+  const pending = Promise.all([publicCatalogPaths(), publishedGuardPaths()])
+    .then(([catalog, articles]) => {
+      if (cache.pending === pending) cache.paths = new Set([...catalog, ...articles]);
+      return cache.paths;
+    })
+    .catch(() => cache.paths)
+    .finally(() => {
+      if (cache.pending === pending) {
+        cache.loadedAt = Date.now();
+        cache.pending = null;
+      }
+    });
+  cache.pending = pending;
+  return pending;
 }

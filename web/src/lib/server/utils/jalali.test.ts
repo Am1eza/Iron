@@ -4,9 +4,12 @@
  * exercise directly since they only hit one path each incidentally.
  */
 import { describe, it, expect } from 'vitest';
-import { quoteValidUntil, businessDaysSince, isSameJalaliDay, jalaliDayKey } from './jalali';
+import { quoteValidUntil, businessDaysSince, isSameJalaliDay, jalaliDayKey, formatTehranJalaliDateTime } from './jalali';
 
 describe('quoteValidUntil', () => {
+  it('renders the stored Tehran hour instead of appending a fixed hour', () => {
+    expect(formatTehranJalaliDateTime(new Date('2026-07-04T10:30:00.000Z'))).toContain('۱۴:۰۰');
+  });
   it('Thursday → next business day is Saturday (Friday skipped)', () => {
     const thu = new Date('2026-07-02T10:00:00.000Z'); // Thu in Tehran
     const until = quoteValidUntil(thu, new Set(), 11);

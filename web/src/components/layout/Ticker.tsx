@@ -19,7 +19,8 @@ import Link from 'next/link';
  * same as before. A touch user who hasn't set that OS-level preference has
  * no way to stop the scroll; this is a known, accepted gap, not an oversight.
  *
- * Never blank: falls back to the skeleton below until the first poll lands.
+ * Never fabricates: falls back to labelled em-dash placeholders until the
+ * first real poll lands.
  */
 
 /**
@@ -101,6 +102,7 @@ export function Ticker({ initialValues }: { initialValues?: MarketValue[] }) {
 
   // Duplicate the set so the marquee loops seamlessly (the second copy is decorative).
   const items = reduced ? values : [...values, ...values];
+  const pending = values === PLACEHOLDER;
 
   return (
     <aside className={styles.ticker} aria-label="نبض بازار" data-site-chrome>
@@ -110,7 +112,12 @@ export function Ticker({ initialValues }: { initialValues?: MarketValue[] }) {
       <div className={styles.viewport} data-reduced={reduced ? '' : undefined}>
         <ul className={`${styles.track} tnum`}>
           {items.map((v, i) => (
-            <TickerItem key={`${v.key}-${i}`} v={v} decorative={!reduced && i >= values.length} />
+            <TickerItem
+              key={`${v.key}-${i}`}
+              v={v}
+              decorative={!reduced && i >= values.length}
+              pending={pending}
+            />
           ))}
         </ul>
       </div>
@@ -118,12 +125,21 @@ export function Ticker({ initialValues }: { initialValues?: MarketValue[] }) {
   );
 }
 
-function TickerItem({ v, decorative }: { v: MarketValue; decorative: boolean }) {
+function TickerItem({
+  v,
+  decorative,
+  pending,
+}: {
+  v: MarketValue;
+  decorative: boolean;
+  pending: boolean;
+}) {
   const dirClass =
     v.movementDir === 'up' ? styles.up : v.movementDir === 'down' ? styles.down : styles.flat;
   const arrow = v.movementDir === 'up' ? '▲' : v.movementDir === 'down' ? '▼' : '•';
-  const valueText =
-    v.unit === 'تومان'
+  const valueText = pending
+    ? '—'
+    : v.unit === 'تومان'
       ? formatToman(v.value, false)
       : toPersianDigits(v.value.toLocaleString('en-US'));
 
@@ -142,7 +158,7 @@ function TickerItem({ v, decorative }: { v: MarketValue; decorative: boolean }) 
           <span className={styles.arrow} aria-hidden="true">
             {arrow}
           </span>
-          {formatMovement(v.movementPct)}
+          {pending ? '—' : formatMovement(v.movementPct)}
         </span>
       </Link>
     </li>

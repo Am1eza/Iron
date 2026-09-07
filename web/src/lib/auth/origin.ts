@@ -9,6 +9,10 @@ export function assertSameOrigin(req: NextRequest): NextResponse | null {
   const origin = req.headers.get('origin') ?? req.headers.get('referer');
   const method = req.method.toUpperCase();
   const stateChanging = method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS';
+  // Browser-controlled metadata also rejects cross-scheme cross-site requests
+  // — but only for the state-changing requests this guard exists for; safe
+  // read methods keep the same leniency as the rest of this function.
+  if (stateChanging && req.headers.get('sec-fetch-site') === 'cross-site') return forbidden();
   if (!origin) {
     // Browsers ALWAYS send Origin on state-changing fetches (POST/PUT/PATCH/
     // DELETE), so a missing header on those is treated as suspicious and
@@ -18,7 +22,11 @@ export function assertSameOrigin(req: NextRequest): NextResponse | null {
 
   let originHost: string;
   try {
-    originHost = new URL(origin).host;
+    const parsed = new URL(origin);
+    if (!['http:', 'https:'].includes(parsed.protocol) || parsed.username || parsed.password) {
+      return forbidden();
+    }
+    originHost = parsed.host;
   } catch {
     return forbidden();
   }
@@ -30,7 +38,6 @@ export function assertSameOrigin(req: NextRequest): NextResponse | null {
   if (!host || originHost !== host) return forbidden();
   return null;
 }
-
 
 function forbidden(): NextResponse {
   return NextResponse.json(

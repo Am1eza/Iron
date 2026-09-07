@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { http } from '@/lib/api/http';
 import { Button } from '@/components/primitives/Button';
+import { trackGoal } from '@/lib/analytics/track';
 
 /** One-tap join → POST /api/me/club, then refresh so the server re-renders the
  *  full member panel. No page navigation, no login prompt (already signed in). */
@@ -13,6 +14,7 @@ export function JoinClubButton() {
     setBusy(true);
     try {
       await http.post('/api/me/club', {});
+      trackGoal('club', 'club_join');
       router.refresh();
     } catch {
       setBusy(false);

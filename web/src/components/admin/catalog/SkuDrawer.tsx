@@ -620,7 +620,7 @@ export function SkuDrawer({
     }
     // `sub` too: کوپلر is sold per «عدد» even though میلگرد defaults to «شاخه».
     if (!t.unit && cat) out.unit = defaultUnitFor(cat.slug, sub?.slug);
-    if (!t.basis && cat) out.priceBasis = defaultPriceBasisFor(cat.slug, sub?.slug);
+    if (!t.basis && cat) out.priceBasis = defaultPriceBasisFor(sub?.slug);
     return out;
   };
 
@@ -733,7 +733,11 @@ export function SkuDrawer({
         role="dialog"
         aria-modal="true"
         aria-label={
-          sku ? `ویرایش ${sku.name}` : cloneFrom ? `کالای جدید بر اساس ${cloneFrom.name}` : 'کالای جدید'
+          sku
+            ? `ویرایش ${sku.name}`
+            : cloneFrom
+              ? `کالای جدید بر اساس ${cloneFrom.name}`
+              : 'کالای جدید'
         }
         ref={panelRef}
       >

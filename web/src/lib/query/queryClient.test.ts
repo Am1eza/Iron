@@ -38,3 +38,14 @@ describe('queryClient error reporting', () => {
     expect(reportError).toHaveBeenCalledWith(boom, { source: 'mutation' });
   });
 });
+
+it('does not retry deterministic response-validation failures', async () => {
+  const client = getQueryClient();
+  const error = Object.assign(new Error('Invalid response'), {
+    code: 'invalid_response',
+    status: 200,
+  });
+  const queryFn = vi.fn().mockRejectedValue(error);
+  await expect(client.fetchQuery({ queryKey: ['invalid-response'], queryFn })).rejects.toBe(error);
+  expect(queryFn).toHaveBeenCalledTimes(1);
+});

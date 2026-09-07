@@ -51,11 +51,15 @@ import { normalizeDigits } from '@/lib/utils/format';
 import { normalizePersian } from '@/lib/utils/persianText';
 import { likeContains } from '@/lib/server/utils/likeEscape';
 import { foldZwnjForSearch, ZWNJ } from '@/lib/server/utils/persianZwnj';
+import { catalogProductIdentity } from '@/lib/utils/catalogIdentity';
 
 /** A unique-index violation, translated into something a form can render.
  *  `field` names the input the message belongs next to. */
 export class DuplicateSlugError extends Error {
-  constructor(readonly field: 'slug', message: string) {
+  constructor(
+    readonly field: 'slug',
+    message: string,
+  ) {
     super(message);
     this.name = 'DuplicateSlugError';
   }
@@ -91,19 +95,35 @@ export class InvalidParentError extends Error {
   }
 }
 
-/** Postgres unique_violation — node-postgres puts the SQLSTATE on `.code`. */
-function isUniqueViolation(err: unknown): boolean {
-  return typeof err === 'object' && err !== null && (err as { code?: string }).code === '23505';
+/** Postgres unique_violation — node-postgres puts the SQLSTATE on `.code` and
+ *  the offending index name on `.constraint`. */
+function uniqueViolationConstraint(err: unknown): string | undefined {
+  if (typeof err !== 'object' || err === null || (err as { code?: string }).code !== '23505') {
+    return undefined;
+  }
+  return (err as { constraint?: string }).constraint;
 }
 
 /** Backstop for the concurrent-insert race the pre-checks below can't close:
- *  they produce the better message, this catches the narrow window. */
-async function asSlugConflict<T>(run: () => Promise<T>, message: string): Promise<T> {
+ *  they produce the better message, this catches the narrow window. A hit on
+ *  `skus_sub_structural_identity_uq` is a structural duplicate, not a slug
+ *  collision — `onStructuralDuplicate` re-resolves it as a `DuplicateProductError`
+ *  instead of the generic slug message, so the admin isn't pointed at the
+ *  wrong form field. */
+async function asSlugConflict<T>(
+  run: () => Promise<T>,
+  message: string,
+  onStructuralDuplicate?: () => Promise<never>,
+): Promise<T> {
   try {
     return await run();
   } catch (err) {
-    if (isUniqueViolation(err)) throw new DuplicateSlugError('slug', message);
-    throw err;
+    const constraint = uniqueViolationConstraint(err);
+    if (constraint === undefined) throw err;
+    if (constraint === 'skus_sub_structural_identity_uq' && onStructuralDuplicate) {
+      return onStructuralDuplicate();
+    }
+    throw new DuplicateSlugError('slug', message);
   }
 }
 
@@ -145,7 +165,10 @@ const TAXONOMY_ORDER = [asc(categories.order), asc(categories.id)] as const;
 const SUB_ORDER = [asc(subCategories.order), asc(subCategories.id)] as const;
 
 export async function adminListCategories() {
-  return getDb().select().from(categories).orderBy(...TAXONOMY_ORDER);
+  return getDb()
+    .select()
+    .from(categories)
+    .orderBy(...TAXONOMY_ORDER);
 }
 
 /** Categories plus what sits under each — the admin has to see that «پروفیل»
@@ -154,7 +177,10 @@ export async function adminListCategories() {
 export async function adminListCategoriesWithCounts() {
   const db = getDb();
   const [rows, subCounts, skuCounts] = await Promise.all([
-    db.select().from(categories).orderBy(...TAXONOMY_ORDER),
+    db
+      .select()
+      .from(categories)
+      .orderBy(...TAXONOMY_ORDER),
     db
       .select({ categoryId: subCategories.categoryId, n: sql<number>`count(*)::int` })
       .from(subCategories)
@@ -166,11 +192,19 @@ export async function adminListCategoriesWithCounts() {
   ]);
   const subsBy = new Map(subCounts.map((r) => [r.categoryId, r.n]));
   const skusBy = new Map(skuCounts.map((r) => [r.categoryId, r.n]));
-  return rows.map((c) => ({ ...c, subCount: subsBy.get(c.id) ?? 0, skuCount: skusBy.get(c.id) ?? 0 }));
+  return rows.map((c) => ({
+    ...c,
+    subCount: subsBy.get(c.id) ?? 0,
+    skuCount: skusBy.get(c.id) ?? 0,
+  }));
 }
 
 async function categorySlugTaken(slug: string, exceptId?: string): Promise<boolean> {
-  const rows = await getDb().select({ id: categories.id }).from(categories).where(eq(categories.slug, slug)).limit(1);
+  const rows = await getDb()
+    .select({ id: categories.id })
+    .from(categories)
+    .where(eq(categories.slug, slug))
+    .limit(1);
   const hit = rows[0];
   return Boolean(hit && hit.id !== exceptId);
 }
@@ -237,19 +271,16 @@ export async function updateCategory(
   return after ? { before, after } : null;
 }
 
-/* ---------------------------- sub-categories ---------------------------- */
-
-export async function adminListSubCategories(categoryId?: string) {
-  const where = categoryId ? eq(subCategories.categoryId, categoryId) : undefined;
-  return getDb().select().from(subCategories).where(where).orderBy(...SUB_ORDER);
-}
-
 /** Sub-categories plus their active-SKU count — same blast-radius rationale
  *  as `adminListCategoriesWithCounts`. */
 export async function adminListSubCategoriesWithCounts(categoryId?: string) {
   const db = getDb();
   const where = categoryId ? eq(subCategories.categoryId, categoryId) : undefined;
-  const rows = await db.select().from(subCategories).where(where).orderBy(...SUB_ORDER);
+  const rows = await db
+    .select()
+    .from(subCategories)
+    .where(where)
+    .orderBy(...SUB_ORDER);
   if (rows.length === 0) return [];
   const counts = await db
     .select({ subCategoryId: skus.subCategoryId, n: sql<number>`count(*)::int` })
@@ -350,7 +381,11 @@ export async function updateSubCategory(
   const rows = await asSlugConflict(
     () =>
       db.transaction(async (tx) => {
-        const updated = await tx.update(subCategories).set(patch).where(eq(subCategories.id, id)).returning();
+        const updated = await tx
+          .update(subCategories)
+          .set(patch)
+          .where(eq(subCategories.id, id))
+          .returning();
         if (updated[0] && patch.categoryId && patch.categoryId !== before.categoryId) {
           await tx
             .update(skus)
@@ -546,7 +581,9 @@ export async function catalogSuggestions(categoryId?: string): Promise<{
   // server's own collation in production), and `localeCompare(…, 'fa')` is the
   // same ordering the rest of the panel uses.
   const distinct = (col: AnyColumn) =>
-    sql<string[] | null>`array_agg(distinct ${col}) filter (where ${col} is not null and btrim(${col}) <> '')`;
+    sql<
+      string[] | null
+    >`array_agg(distinct ${col}) filter (where ${col} is not null and btrim(${col}) <> '')`;
   const agg = await db
     .select({
       factory: distinct(skus.factory),
@@ -568,9 +605,14 @@ export async function catalogSuggestions(categoryId?: string): Promise<{
   // useful if «ورق رنگی» stays one string, not three near-identical spellings
   // silently splitting the group.
   const groupWhere = categoryId ? eq(subCategories.categoryId, categoryId) : undefined;
-  const groupRows = await db.select({ groupLabel: subCategories.groupLabel }).from(subCategories).where(groupWhere);
+  const groupRows = await db
+    .select({ groupLabel: subCategories.groupLabel })
+    .from(subCategories)
+    .where(groupWhere);
   const groupLabels = [
-    ...new Set(groupRows.map((r) => r.groupLabel).filter((v): v is string => Boolean(v && v.trim()))),
+    ...new Set(
+      groupRows.map((r) => r.groupLabel).filter((v): v is string => Boolean(v && v.trim())),
+    ),
   ].sort((a, b) => a.localeCompare(b, 'fa'));
   const row = agg[0];
   return {
@@ -667,29 +709,38 @@ async function skuSlugTaken(slug: string, exceptId?: string): Promise<boolean> {
 /**
  * The row this input would duplicate, if there is one.
  *
- * `(subCategoryId, name, size, factory)` is what makes a product distinct in
- * this catalog: everything else on the row (weight, branch length, image,
- * basis) is a property OF that product rather than part of its identity. All
- * four values arrive already normalized from the route's zod transforms, so
- * this compares like with like.
- *
- * `is null` rather than `= null` for the two nullable columns — a rebar SKU
- * with no factory recorded twice is still the same product twice.
+ * Identity comes from `catalogProductIdentity` (subCategoryId plus the
+ * structured facts — size/grade/condition/dimensions/schedule/standard —
+ * falling back to name only when none of those are present), never from the
+ * marketing name alone: renaming a product must not manufacture a second one,
+ * and must not un-duplicate an existing one either. Mirrors the DB-generated
+ * `identity_key` column and its `skus_sub_structural_identity_uq` index,
+ * which is the concurrent-write backstop for this same check.
  */
-async function existingProduct(input: SkuInput): Promise<{ id: string; slug: string } | null> {
+async function existingProduct(
+  input: SkuInput,
+  exceptId?: string,
+): Promise<{ id: string } | null> {
   const rows = await getDb()
-    .select({ id: skus.id, slug: skus.slug })
+    .select({
+      id: skus.id,
+      name: skus.name,
+      size: skus.size,
+      grade: skus.grade,
+      condition: skus.condition,
+      dimensions: skus.dimensions,
+      schedule: skus.schedule,
+      standard: skus.standard,
+      factory: skus.factory,
+      unit: skus.unit,
+      priceBasis: skus.priceBasis,
+      branchLengthM: skus.branchLengthM,
+    })
     .from(skus)
-    .where(
-      and(
-        eq(skus.subCategoryId, input.subCategoryId),
-        eq(skus.name, input.name),
-        input.size == null ? sql`${skus.size} is null` : eq(skus.size, input.size),
-        input.factory == null ? sql`${skus.factory} is null` : eq(skus.factory, input.factory),
-      ),
-    )
-    .limit(1);
-  return rows[0] ?? null;
+    .where(eq(skus.subCategoryId, input.subCategoryId));
+  const identity = catalogProductIdentity(input);
+  const hit = rows.find((row) => row.id !== exceptId && catalogProductIdentity(row) === identity);
+  return hit ? { id: hit.id } : null;
 }
 
 export async function createSku(input: SkuInput) {
@@ -704,14 +755,31 @@ export async function createSku(input: SkuInput) {
     );
   }
   const slug = await freeSlug(input.slug, (c) => skuSlugTaken(c));
-  const crossListedCategoryIds = await sanitizeCrossListedCategoryIds(input.crossListedCategoryIds, categoryId);
+  const crossListedCategoryIds = await sanitizeCrossListedCategoryIds(
+    input.crossListedCategoryIds,
+    categoryId,
+  );
   const rows = await asSlugConflict(
     () =>
       getDb()
         .insert(skus)
-        .values({ ...input, id: ulid(), slug, categoryId, unit: input.unit ?? 'kg', crossListedCategoryIds })
+        .values({
+          ...input,
+          id: ulid(),
+          slug,
+          categoryId,
+          unit: input.unit ?? 'kg',
+          crossListedCategoryIds,
+        })
         .returning(),
     'این نشانی قبلاً برای کالای دیگری استفاده شده است.',
+    async () => {
+      const duplicate = await existingProduct(input);
+      throw new DuplicateProductError(
+        duplicate?.id ?? '',
+        'همین کالا (با همین نام، سایز و کارخانه) در این زیر‌دسته وجود دارد.',
+      );
+    },
   );
   return rows[0]!;
 }
@@ -753,6 +821,22 @@ export async function updateSku(id: string, patch: Partial<SkuInput>) {
   if (patch.slug && patch.slug !== before.slug && (await skuSlugTaken(patch.slug, id))) {
     throw new DuplicateSlugError('slug', 'این نشانی قبلاً برای کالای دیگری استفاده شده است.');
   }
+  const merged = { ...before, ...next };
+  // Only re-check identity when this edit actually changes it. A row that was
+  // ALREADY structurally identical to some sibling (legacy data, or created
+  // before this constraint existed) must stay editable for every OTHER field
+  // — otherwise the first unrelated save (image, price basis, weight) after
+  // this check shipped would 409 forever, since the pre-existing duplicate
+  // never goes away on its own.
+  if (catalogProductIdentity(merged) !== catalogProductIdentity(before)) {
+    const duplicate = await existingProduct(merged, id);
+    if (duplicate) {
+      throw new DuplicateProductError(
+        duplicate.id,
+        'کالایی با همین مشخصات ساختاری در این زیر‌دسته وجود دارد؛ تفاوت نام یا نوع اعداد، محصول تازه نمی‌سازد.',
+      );
+    }
+  }
   // `current_prices.unit`/`price_basis` are only rewritten on the NEXT price
   // save, and `toPriceRow` PREFERS them over the `skus` columns — so the two
   // have to move together or the public page quotes a real price against the
@@ -771,13 +855,21 @@ export async function updateSku(id: string, patch: Partial<SkuInput>) {
           .returning();
         const pricePatch: { unit?: PriceUnit; priceBasis?: PriceBasis } = {};
         if (patch.unit && patch.unit !== before.unit) pricePatch.unit = patch.unit;
-        if (patch.priceBasis && patch.priceBasis !== before.priceBasis) pricePatch.priceBasis = patch.priceBasis;
+        if (patch.priceBasis && patch.priceBasis !== before.priceBasis)
+          pricePatch.priceBasis = patch.priceBasis;
         if (updated[0] && Object.keys(pricePatch).length > 0) {
           await tx.update(currentPrices).set(pricePatch).where(eq(currentPrices.skuId, id));
         }
         return updated;
       }),
     'این نشانی قبلاً برای کالای دیگری استفاده شده است.',
+    async () => {
+      const duplicate = await existingProduct(merged, id);
+      throw new DuplicateProductError(
+        duplicate?.id ?? '',
+        'کالایی با همین مشخصات ساختاری در این زیر‌دسته وجود دارد؛ تفاوت نام یا نوع اعداد، محصول تازه نمی‌سازد.',
+      );
+    },
   );
   const after = rows[0];
   if (!after) return null;
@@ -850,7 +942,10 @@ async function pricePointsCountFor(tx: DbOrTx, skuIds: string[]): Promise<number
  */
 export async function deleteSubCategory(
   id: string,
-): Promise<{ removed: typeof subCategories.$inferSelect; subtree: SubCategorySubtreeSnapshot } | null> {
+): Promise<{
+  removed: typeof subCategories.$inferSelect;
+  subtree: SubCategorySubtreeSnapshot;
+} | null> {
   return getDb().transaction(async (tx) => {
     const skuRows = await tx.select().from(skus).where(eq(skus.subCategoryId, id));
     const pricePointsCount = await pricePointsCountFor(
@@ -873,7 +968,10 @@ export async function deleteCategory(
   id: string,
 ): Promise<{ removed: typeof categories.$inferSelect; subtree: CategorySubtreeSnapshot } | null> {
   return getDb().transaction(async (tx) => {
-    const subCategoryRows = await tx.select().from(subCategories).where(eq(subCategories.categoryId, id));
+    const subCategoryRows = await tx
+      .select()
+      .from(subCategories)
+      .where(eq(subCategories.categoryId, id));
     const skuRows = await tx.select().from(skus).where(eq(skus.categoryId, id));
     const pricePointsCount = await pricePointsCountFor(
       tx,
@@ -882,7 +980,10 @@ export async function deleteCategory(
     const rows = await tx.delete(categories).where(eq(categories.id, id)).returning();
     const removed = rows[0];
     if (!removed) return null;
-    return { removed, subtree: { subCategories: subCategoryRows, skus: skuRows, pricePointsCount } };
+    return {
+      removed,
+      subtree: { subCategories: subCategoryRows, skus: skuRows, pricePointsCount },
+    };
   });
 }
 
@@ -897,7 +998,9 @@ export async function deleteCategory(
  * `CategorySubtreeSnapshot`) — so a restored product starts with no chart,
  * same as a brand-new one, until the next price sync.
  */
-export async function restoreSku(row: typeof skus.$inferInsert): Promise<typeof skus.$inferSelect | null> {
+export async function restoreSku(
+  row: typeof skus.$inferInsert,
+): Promise<typeof skus.$inferSelect | null> {
   const rows = await getDb().insert(skus).values(row).onConflictDoNothing().returning();
   return rows[0] ?? null;
 }
@@ -905,10 +1008,15 @@ export async function restoreSku(row: typeof skus.$inferInsert): Promise<typeof 
 export async function restoreSubCategory(
   row: typeof subCategories.$inferInsert,
   skuRows: (typeof skus.$inferInsert)[],
-): Promise<{ subCategory: typeof subCategories.$inferSelect | null; skus: (typeof skus.$inferSelect)[] }> {
+): Promise<{
+  subCategory: typeof subCategories.$inferSelect | null;
+  skus: (typeof skus.$inferSelect)[];
+}> {
   return getDb().transaction(async (tx) => {
     const subRows = await tx.insert(subCategories).values(row).onConflictDoNothing().returning();
-    const restoredSkus = skuRows.length ? await tx.insert(skus).values(skuRows).onConflictDoNothing().returning() : [];
+    const restoredSkus = skuRows.length
+      ? await tx.insert(skus).values(skuRows).onConflictDoNothing().returning()
+      : [];
     return { subCategory: subRows[0] ?? null, skus: restoredSkus };
   });
 }
@@ -927,7 +1035,9 @@ export async function restoreCategory(
     const subRows = subCategoryRows.length
       ? await tx.insert(subCategories).values(subCategoryRows).onConflictDoNothing().returning()
       : [];
-    const restoredSkus = skuRows.length ? await tx.insert(skus).values(skuRows).onConflictDoNothing().returning() : [];
+    const restoredSkus = skuRows.length
+      ? await tx.insert(skus).values(skuRows).onConflictDoNothing().returning()
+      : [];
     return { category: catRows[0] ?? null, subCategories: subRows, skus: restoredSkus };
   });
 }
@@ -993,35 +1103,47 @@ async function catalogImpact(
   const inScope = (col: AnyColumn) => inArray(col, scoped);
   const count = sql<number>`count(*)::int`;
 
-  const [skuRows, subRows, pointRows, pricedRows, openLeadRows, wonLeadRows, orderRows, alertRows, favRows] =
-    await Promise.all([
-      db.select({ n: count }).from(skus).where(impactScope(scope)),
-      'category' in scope
-        ? db.select({ n: count }).from(subCategories).where(eq(subCategories.categoryId, scope.category))
-        : Promise.resolve([{ n: 0 }]),
-      db.select({ n: count }).from(pricePoints).where(inScope(pricePoints.skuId)),
-      db.select({ n: count }).from(currentPrices).where(inScope(currentPrices.skuId)),
-      db
-        .select({ n: count })
-        .from(leadItems)
-        .innerJoin(leads, eq(leadItems.leadId, leads.id))
-        .where(and(inScope(leadItems.skuId), inArray(leads.status, [...OPEN_LEAD_STATUSES]))),
-      db
-        .select({ n: count })
-        .from(leadItems)
-        .innerJoin(leads, eq(leadItems.leadId, leads.id))
-        .where(and(inScope(leadItems.skuId), eq(leads.status, 'won'))),
-      db
-        .select({ n: count })
-        .from(orderItems)
-        .innerJoin(orders, eq(orderItems.orderId, orders.id))
-        .where(and(inScope(orderItems.skuId), inArray(orders.status, [...OPEN_ORDER_STATUSES]))),
-      db
-        .select({ n: count })
-        .from(alerts)
-        .where(and(inScope(alerts.skuId), eq(alerts.status, 'active'))),
-      db.select({ n: count }).from(favorites).where(inScope(favorites.skuId)),
-    ]);
+  const [
+    skuRows,
+    subRows,
+    pointRows,
+    pricedRows,
+    openLeadRows,
+    wonLeadRows,
+    orderRows,
+    alertRows,
+    favRows,
+  ] = await Promise.all([
+    db.select({ n: count }).from(skus).where(impactScope(scope)),
+    'category' in scope
+      ? db
+          .select({ n: count })
+          .from(subCategories)
+          .where(eq(subCategories.categoryId, scope.category))
+      : Promise.resolve([{ n: 0 }]),
+    db.select({ n: count }).from(pricePoints).where(inScope(pricePoints.skuId)),
+    db.select({ n: count }).from(currentPrices).where(inScope(currentPrices.skuId)),
+    db
+      .select({ n: count })
+      .from(leadItems)
+      .innerJoin(leads, eq(leadItems.leadId, leads.id))
+      .where(and(inScope(leadItems.skuId), inArray(leads.status, [...OPEN_LEAD_STATUSES]))),
+    db
+      .select({ n: count })
+      .from(leadItems)
+      .innerJoin(leads, eq(leadItems.leadId, leads.id))
+      .where(and(inScope(leadItems.skuId), eq(leads.status, 'won'))),
+    db
+      .select({ n: count })
+      .from(orderItems)
+      .innerJoin(orders, eq(orderItems.orderId, orders.id))
+      .where(and(inScope(orderItems.skuId), inArray(orders.status, [...OPEN_ORDER_STATUSES]))),
+    db
+      .select({ n: count })
+      .from(alerts)
+      .where(and(inScope(alerts.skuId), eq(alerts.status, 'active'))),
+    db.select({ n: count }).from(favorites).where(inScope(favorites.skuId)),
+  ]);
 
   return {
     skus: skuRows[0]?.n ?? 0,
@@ -1084,7 +1206,10 @@ export async function reorderTaxonomy(
    *  belonging to any other category are skipped, so one category's rail can
    *  never renumber another's. */
   scopeCategoryId?: string,
-): Promise<{ before: Array<{ id: string; order: number }>; after: Array<{ id: string; order: number }> }> {
+): Promise<{
+  before: Array<{ id: string; order: number }>;
+  after: Array<{ id: string; order: number }>;
+}> {
   if (items.length === 0) return { before: [], after: [] };
   const db = getDb();
   const ids = items.map((it) => it.id);
@@ -1107,8 +1232,10 @@ export async function reorderTaxonomy(
     const after: Array<{ id: string; order: number }> = [];
     for (const it of items) {
       if (!known.has(it.id)) continue;
-      if (kind === 'category') await tx.update(categories).set({ order: it.order }).where(eq(categories.id, it.id));
-      else await tx.update(subCategories).set({ order: it.order }).where(eq(subCategories.id, it.id));
+      if (kind === 'category')
+        await tx.update(categories).set({ order: it.order }).where(eq(categories.id, it.id));
+      else
+        await tx.update(subCategories).set({ order: it.order }).where(eq(subCategories.id, it.id));
       after.push(it);
     }
     return { before, after };
@@ -1199,7 +1326,11 @@ export async function setFactoryOrder(categoryId: string, factories: string[]): 
   // turned into «خطایی در سرور رخ داد» with no code the panel could branch on.
   // The same id answers 200 with an empty list on GET; one of the two had to
   // give, and an actionable 400 is the one the admin can do something about.
-  const parent = await db.select({ id: categories.id }).from(categories).where(eq(categories.id, categoryId)).limit(1);
+  const parent = await db
+    .select({ id: categories.id })
+    .from(categories)
+    .where(eq(categories.id, categoryId))
+    .limit(1);
   if (!parent[0]) throw new InvalidParentError('دستهٔ انتخاب‌شده یافت نشد.');
   // De-duplicate defensively: the unique index would reject a repeat anyway,
   // and a 23505 here is not a duplicate-SLUG error the forms know how to show.

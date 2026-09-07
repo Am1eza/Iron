@@ -1,65 +1,94 @@
 # Ahantime — Success Metrics
 ## Phase 1 · Foundation — #10
 
-**Version:** 1.0 · 26 June 2026
-**Companions:** `foundation/business-goals.md`, `product/navigation.md §22` (event instrumentation).
-**Purpose:** How we measure success — the north star, the funnel KPIs, business/ops/AI/SEO metrics, guardrails, instrumentation, and cadence. (Numeric targets are placeholders to set with the founder.)
+**Version:** 2.0 · 4 September 2026
 
----
+**Owner:** Head of Growth (accountable) · Sales Lead, Catalog Ops, Engineering and Content/SEO (metric owners)
 
-## 1. North-Star Metric
-**Monthly closed orders facilitated (won leads).**
-> It captures *real value* (a purchase happened) and forces the whole funnel to work — traffic, trust, AI, and the human close. Leading indicators below predict it.
+**North star:** monthly closed orders facilitated by Ahantime (`won` leads with a recorded order reference).
 
-## 2. The Funnel (Magnet → Engage → Capture → Convert → Retain)
-| Stage | Metric | Definition | Target* |
-|---|---|---|---|
-| **Magnet** | organic sessions; ticker/طلا‌و‌ارز entries | top-of-funnel reach | grow MoM |
-| | avg. session duration | "stays a few minutes" goal | ↑ |
-| **Engage** | AI conversations started / completed | advisor adoption & quality | high completion |
-| | price-page sessions; tools used (وزن‌سنج/پروژه‌سنج) | depth | ↑ |
-| **Capture** | leads created (ثبت درخواست) | qualified demand | core driver |
-| | alerts set; club sign-ups; phone reveals/WhatsApp hand-offs | identity capture | ↑ |
-| **Convert** | **lead → sales-qualified → won** | the money step (offline) | ↑ % |
-| | time-to-پیش‌فاکتور; quote→order | speed/efficiency | ↓ time |
-| **Retain** | returning visitors; repeat-purchase rate | stickiness | ↑ |
-| | alert open rate; club active members | re-engagement | ↑ |
+These are operating targets, not aspirations. The first 14 complete days after this version ships form the baseline. Targets apply by day 90 unless a written decision log changes them. A missing denominator, owner or data source is a failed metric—not a zero and not “N/A”.
 
-\*Set concrete numbers with the founder before launch; track MoM trend first.
+## 1. Ninety-day scorecard
 
-## 3. Business Metrics
-Closed orders / **GMV** · **AOV** · **margin per order/ton** · **lead→won %** · **repeat-purchase rate** · **CAC** (≈ low via organic) · **LTV**.
+| Stage | Metric and exact definition | Day-90 target | Owner | Source |
+|---|---|---:|---|---|
+| Magnet | Organic sessions, bot-filtered | ≥20% growth vs baseline 28-day run-rate | Content/SEO | Matomo |
+| Magnet | Search CTR on valid indexed catalog pages | ≥4.0% | Content/SEO | Search Console |
+| Engage | Engaged catalog session: `view-product` or tool use / catalog sessions | ≥35% | Growth | Matomo events |
+| Engage | AI useful-response rate: grounded answer without fallback / started conversations | ≥80% | AI/Product | AI logs |
+| Capture | Visitor→lead: unique sessions with `lead` / eligible non-staff sessions | ≥3.5% | Growth | Matomo + CRM |
+| Capture | Cart→lead: `cart-proforma` / sessions reaching cart with ≥1 item | ≥18% | Growth | Matomo events |
+| Capture | Alert-set success / alert modal submits | ≥70% | Product | API + Matomo |
+| Convert | Lead→sales-qualified | ≥45% | Sales Lead | CRM |
+| Convert | Sales-qualified→won | ≥20% | Sales Lead | CRM |
+| Convert | First human response during working hours | median ≤10 min; p90 ≤30 min | Sales Lead | CRM timestamps |
+| Convert | Quote→won | ≥15% | Sales Lead | CRM/proforma |
+| Retain | Won customers with another won order within 90 days | ≥25% | Sales Lead | CRM |
+| Retain | Active club members with ≥1 value event in 30 days | ≥30% | Growth | club/alert/lead tables |
 
-## 4. Operational Metrics (trust depends on these)
-- **Price freshness:** % SKUs updated today (target high, e.g., ≥95%).
-- **Time-to-publish** the daily price set.
-- **Lead response time** (sales callback).
-- **Uptime / data availability** (ticker, AI).
+## 2. Revenue and unit economics
 
-## 5. AI Quality Metrics (the differentiator must be trustworthy)
-- **Zero ungrounded numbers** (hard gate; adversarial test set).
-- **Intent-first compliance** (asks purpose before quoting).
-- **Conversation→lead rate**; **fallback rate** (missing-data → callback).
-- **CSAT / helpfulness** (thumbs / short survey).
+The Business dashboard must show monthly won orders, GMV, gross margin amount, gross margin %, tonnes sold, AOV, margin/tonne, lead→won, repeat rate, CAC and 90-day contribution LTV. GMV or margin without a traceable order reference is excluded. Refunds/cancellations reverse the original month and remain visible in an adjustment row.
 
-## 6. SEO Metrics (the acquisition lifeblood)
-- Organic sessions & **share of traffic**; **rankings** for قیمت میلگرد/تیرآهن…; **indexed pages** (SKU/category/article); CTR; Core Web Vitals (LCP/CLS within budget).
+Guardrails:
 
-## 7. Guardrail Metrics (don't win one by breaking another)
-- Bounce rate; client/API error rate; AI latency (first token < 2s); complaint rate; stale-price incidents (should be ~0).
+- Gross margin % may not fall more than 1.5 percentage points below the trailing 90-day baseline to buy conversion.
+- No channel scales if its 90-day contribution margin is negative.
+- Staff/test traffic is excluded using an explicit segment; it is never manually subtracted.
 
-## 8. Instrumentation
-- **Events** (per `navigation §22`): `rail_category_click`, `ai_entry`, `search_use`, `ticker_item_click`, `lead_created`, `alert_set`, `club_join`, `quote_built`, plus funnel-stage events.
-- **Tooling:** privacy-respecting web analytics + a CRM pipeline (lead→won) + an ops dashboard (price freshness, time-to-publish). Reconcile lead/order numbers with the CRM.
-- **Dashboards:** Funnel (by stage & persona/lane: AI vs tables), Business (orders/GMV/margin/repeat), Ops (freshness/response), AI quality.
+**Owner:** Finance/Founder for margin and GMV integrity; Growth for acquisition; Sales Lead for status hygiene.
 
-## 9. Cadence & Ownership
-- **Daily:** ops (price freshness, leads, errors).
-- **Weekly:** funnel + AI quality + SEO trend.
-- **Monthly:** business review (north star, GMV, retention) → roadmap adjustments.
-- Each metric has an owner; regressions are tracked as issues.
+## 3. Trust and operations SLOs
 
-## 10. Definition of "winning" (Phase-1)
-A steady, **growing flow of qualified leads converting to orders**, with **fresh prices**, a **grounded, trusted AI**, **rising organic share**, and **early repeat/club signals** — proving the funnel and the model before scaling to web/mobile apps and new revenue lines.
+| Metric | Target | Owner |
+|---|---:|---|
+| Visible priced SKUs updated inside the configured freshness window | ≥95% each working day by 10:30 Tehran | Catalog Ops |
+| Price displayed after its hide-after threshold | 0 | Engineering + Catalog Ops |
+| Published price differing from approved admin value | 0 | Engineering |
+| Delivery promise missed after written confirmation | <2% monthly | Sales/Ops |
+| Public web/API availability | ≥99.9% monthly | Engineering |
+| Server 5xx rate | <0.5% of requests | Engineering |
+| Lead records missing source/UTM/first-response timestamp | <1% | Growth + Sales |
+
+## 4. AI quality gates
+
+- Ungrounded numeric claims: **0** across the maintained adversarial suite; any occurrence blocks release.
+- Price/tool arithmetic agreement: **100%** on deterministic fixtures.
+- First token: p75 <2.0s and p95 <5.0s; complete answer p95 <20s.
+- Conversation→lead: ≥8% by day 90, reported separately by intent.
+- User-rated helpful: ≥75% positive with ≥50 ratings/month before the percentage is decision-grade.
+
+**Owner:** AI/Product. Source: conversation/tool audit logs plus Matomo `ai-chat` and `lead` events.
+
+## 5. SEO and UX performance gates
+
+- Valid indexed canonical pages / submitted indexable pages: ≥95%; fixture, redirect and 404 URLs in sitemap: 0.
+- Core Web Vitals at p75 by mobile route group: LCP <2.5s, INP <200ms, CLS <0.1.
+- Server TTFB at p75 <0.8s and p95 <1.5s by route group.
+- Form/API error rate <2%; OTP delivery success ≥98%, median delivery ≤20s, reported separately from application errors.
+
+**Owners:** Content/SEO for indexing; Engineering for performance/errors; Auth Ops for SMS delivery.
+
+## 6. Event contract
+
+Required client events: `rail_category_click`, `ai_entry`, `search_use`, `search_suggestion_click`, `ticker_item_click`, `view-product`, `add-to-cart`, `cart_to_request`, `lead`, `alert_set`, `club_join`, `phone-click`, and `whatsapp-click`. Every event carries route; conversion events also carry source/type. Server records remain authoritative for leads, proformas, alerts and membership; client analytics is reconciled weekly and must be within ±5% after bot/ad-blocker exclusions.
+
+Release acceptance:
+
+1. Automated tests prove every declared `data-event` is consumed.
+2. A synthetic production journey appears in Matomo within 15 minutes and is tagged as test traffic.
+3. Lead, alert and club totals reconcile to database records within ±5% for a complete week.
+4. Funnel dashboard shows a denominator at every step; no percentage is calculated from mixed date windows.
+
+## 7. Review cadence and decision rules
+
+- Daily, Catalog Ops: freshness, hidden stale prices, failed imports.
+- Daily, Sales Lead: uncontacted leads and response-time SLO.
+- Weekly, Growth: full funnel by source, device and AI/table lane; investigate any ≥15% week-over-week fall with ≥100 eligible sessions.
+- Weekly, Engineering: availability, errors and p75/p95 web vitals by route group.
+- Monthly, Founder/Finance: won orders, GMV, margin, repeat rate and channel contribution.
+
+Every red metric receives an owner, due date and linked issue in the same review. Changes to definitions or targets require a dated decision-log entry; historical dashboards retain the prior definition boundary.
 
 *Ahantime — اول مشورت، بعد خرید.*

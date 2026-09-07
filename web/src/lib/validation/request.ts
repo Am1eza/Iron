@@ -1,3 +1,8 @@
+import {
+  readJsonBody,
+  PayloadTooLargeError,
+  payloadTooLargeResponse,
+} from '@/lib/server/utils/requestBody';
 import type { z } from 'zod';
 import { NextResponse } from 'next/server';
 import { formatZodError } from './utils';
@@ -13,18 +18,23 @@ export async function validateBody<S extends z.ZodTypeAny>(
   req: Request,
   schema: S,
 ): Promise<{ ok: true; data: z.infer<S> } | { ok: false; response: NextResponse }> {
-  let body: unknown = null;
+  let body: unknown;
   try {
-    body = await req.json();
-  } catch {
-    body = null;
+    body = await readJsonBody(req);
+  } catch (error) {
+    if (!(error instanceof PayloadTooLargeError)) throw error;
+    return { ok: false, response: payloadTooLargeResponse() };
   }
   const result = schema.safeParse(body);
   if (!result.success) {
     return {
       ok: false,
       response: NextResponse.json(
-        { error: 'validation', message: 'ورودی نامعتبر است.', fields: formatZodError(result.error) },
+        {
+          error: 'validation',
+          message: 'ورودی نامعتبر است.',
+          fields: formatZodError(result.error),
+        },
         { status: 400 },
       ),
     };

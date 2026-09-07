@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useUiStore, type Toast } from '@/lib/stores/ui';
 import styles from './toaster.module.css';
@@ -11,21 +11,31 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
   const startedAt = useRef(0);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  const start = () => {
+  const hovered = useRef(false);
+  const focused = useRef(false);
+
+  const start = useCallback(() => {
+    if (timer.current !== undefined || hovered.current || focused.current) return;
     startedAt.current = Date.now();
-    timer.current = setTimeout(() => onDismiss(toast.id), remaining.current);
-  };
+    timer.current = setTimeout(() => {
+      timer.current = undefined;
+      onDismiss(toast.id);
+    }, remaining.current);
+  }, [onDismiss, toast.id]);
   const pause = () => {
-    if (!timer.current) return;
+    if (timer.current === undefined) return;
     clearTimeout(timer.current);
+    timer.current = undefined;
     remaining.current = Math.max(0, remaining.current - (Date.now() - startedAt.current));
   };
 
   useEffect(() => {
     start();
-    return () => clearTimeout(timer.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [toast.id]);
+    return () => {
+      clearTimeout(timer.current);
+      timer.current = undefined;
+    };
+  }, [start]);
 
   return (
     <div
@@ -35,10 +45,23 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
       // region would let some screen readers flatten it to the parent's
       // (weaker) politeness, so the region wrapper carries no aria-live itself.
       role={toast.variant === 'error' ? 'alert' : 'status'}
-      onMouseEnter={pause}
-      onMouseLeave={start}
-      onFocus={pause}
-      onBlur={start}
+      onMouseEnter={() => {
+        hovered.current = true;
+        pause();
+      }}
+      onMouseLeave={() => {
+        hovered.current = false;
+        start();
+      }}
+      onFocus={() => {
+        focused.current = true;
+        pause();
+      }}
+      onBlur={(event) => {
+        if (event.currentTarget.contains(event.relatedTarget)) return;
+        focused.current = false;
+        start();
+      }}
     >
       <span className={styles.msg}>{toast.message}</span>
       {toast.action ? (

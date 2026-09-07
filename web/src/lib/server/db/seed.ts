@@ -24,8 +24,11 @@ import {
   SCALE_FEE,
   CITIES,
   ORIGIN_LABEL,
+  DEFAULT_LOGISTICS_CONFIG,
 } from '@/lib/data/logistics';
 import { CONSTANTS } from '@/lib/config/constants';
+import { DEFAULT_ORDER_POLICY } from '@/lib/config/orderPolicy';
+import { DEFAULT_VOLUME_DISCOUNT_POLICY } from '@/lib/config/pricingTiers';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -358,6 +361,8 @@ export async function seedDatabase(db: Db, opts: SeedOptions = {}): Promise<void
     VAT_RATE: CONSTANTS.VAT_RATE,
     PRICE_STALE_HIDE_AFTER_DAYS: CONSTANTS.PRICE_STALE_HIDE_AFTER_DAYS,
     QUOTE_VALIDITY_HOUR: 11,
+    ORDER_POLICY: DEFAULT_ORDER_POLICY,
+    VOLUME_DISCOUNT_POLICY: DEFAULT_VOLUME_DISCOUNT_POLICY,
     HOLIDAYS: [], // Jalali dates 'yyyy-MM-dd' — admin-editable
     CLUB_TIERS: {
       iron: { name: 'آهنی', minLeads: 0 },
@@ -370,6 +375,9 @@ export async function seedDatabase(db: Db, opts: SeedOptions = {}): Promise<void
       handlingPerTon: HANDLING_PER_TON,
       insuranceRate: INSURANCE_RATE,
       scaleFee: SCALE_FEE,
+      packagingPerTon: DEFAULT_LOGISTICS_CONFIG.packagingPerTon,
+      taxable: DEFAULT_LOGISTICS_CONFIG.taxable,
+      sourceNote: DEFAULT_LOGISTICS_CONFIG.sourceNote,
       cities: CITIES,
     },
     ALERT_TIER_CAPS: { base: 2, iron: 2, steel: 6, poolad: 10 },

@@ -1,6 +1,7 @@
+import { readJsonBody } from '@/lib/server/utils/requestBody';
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { getSession } from '@/lib/auth/session';
+import { getSessionVerified } from '@/lib/auth/session';
 import { assertSameOrigin } from '@/lib/auth/origin';
 import { requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { rateLimit } from '@/lib/server/utils/rateLimit';
@@ -65,10 +66,13 @@ async function POSTImpl(req: NextRequest) {
   const guard = requireDb();
   if (guard) return guard;
 
-  const body: unknown = await req.json().catch(() => null);
+  const body: unknown = await readJsonBody(req);
   const parsed = payload.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: 'validation', message: 'درخواست نامعتبر است.' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'validation', message: 'درخواست نامعتبر است.' },
+      { status: 400 },
+    );
   }
 
   const existing = await getDraft(parsed.data.draftId);
@@ -80,9 +84,12 @@ async function POSTImpl(req: NextRequest) {
   }
   // Same ownership rule as confirm: a draft prepared while another account was
   // signed in is not this visitor's to edit.
-  const session = await getSession();
+  const session = await getSessionVerified({ strict: true });
   if (existing.userId && existing.userId !== session?.id) {
-    return NextResponse.json({ error: 'forbidden', message: LEAD_CONFIRM_MESSAGES.forbidden }, { status: 403 });
+    return NextResponse.json(
+      { error: 'forbidden', message: LEAD_CONFIRM_MESSAGES.forbidden },
+      { status: 403 },
+    );
   }
 
   // The edit may only re-quantify lines the ADVISOR already put on this draft.
@@ -126,7 +133,9 @@ async function POSTImpl(req: NextRequest) {
   }
 
   const totalWeightKg = lines.reduce((s, l) => s + (l.weightKg ?? 0), 0) || undefined;
-  const total = allPriced ? lines.reduce((s, l) => s + (l.lineTotal ?? 0), 0) || undefined : undefined;
+  const total = allPriced
+    ? lines.reduce((s, l) => s + (l.lineTotal ?? 0), 0) || undefined
+    : undefined;
   return NextResponse.json({
     draftId: updated.id,
     items: lines.map((l) => ({

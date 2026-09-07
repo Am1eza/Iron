@@ -1,5 +1,8 @@
 # Products navigation redesign — desktop mega-menu, mobile drawer, factory links
 
+> Historical delivery reference. Component inventories and completion claims describe the original phase; consult the current source and [documentation index](../README.md) for maintained engineering guides.
+
+
 **Date:** 1405/05/29 (2026-08-20) · **Branch:** `worktree-nav-redesign`
 
 The owner's verdict on the products menu was «خیلی داغون». This is what was

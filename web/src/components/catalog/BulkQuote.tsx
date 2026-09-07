@@ -187,6 +187,7 @@ export function BulkQuote({
       qty: split.totalKg,
       unit: 'kg',
       unitPrice: best.pricePerKg,
+      priceBasis: 'kg',
       weightKg: split.totalKg,
     });
     toast.success('استعلام عمده به سبد اضافه شد.', {
@@ -412,6 +413,10 @@ export function BulkQuote({
               <dd className="tnum">{formatToman(landed.insurance + landed.scale)}</dd>
             </div>
             <div className={styles.landedRow}>
+              <dt>بسته‌بندی</dt>
+              <dd className="tnum">{landed.packaging > 0 ? formatToman(landed.packaging) : 'مشمول نیست / صفر'}</dd>
+            </div>
+            <div className={styles.landedRow}>
               <dt>ارزش افزوده (٪{toPersianDigits(Math.round(vatRate * 100))})</dt>
               <dd className="tnum">{formatToman(landed.vat)}</dd>
             </div>
@@ -423,16 +428,15 @@ export function BulkQuote({
           <p className={styles.landedMeta}>
             زمان تحویل تقریبی: <strong>{landed.delivery}</strong>
           </p>
-          {/* Freight itself is sourced from the official 1405 road-tariff (see
-           *  lib/data/logistics.ts); handling/insurance/scale are not — say so
-           *  rather than let them read as equally confirmed. Packaging (audit
-           *  #9) has no line item at all — silently omitting it would read as
-           *  "nothing to pay for it", so it's named explicitly instead of
-           *  invented as a number nobody has confirmed. */}
           <p className={styles.landedMeta}>
-            بارگیری، بیمه، باسکول و بسته‌بندی برآوردی/جدا از این جمع است؛ مبلغ قطعی را کارشناس هنگام تماس
+            بارگیری، بیمه، باسکول و بسته‌بندی در ردیف‌های بالا برآورد شده‌اند؛ مبلغ قطعی را کارشناس هنگام تماس
             اعلام می‌کند.
           </p>
+          {!logisticsConfig.verifiedAt || Date.now() - new Date(logisticsConfig.verifiedAt).getTime() > 30 * 86_400_000 ? (
+            <p className={styles.landedMeta} role="status">
+              نرخ‌های جانبی بیش از ۳۰ روز است تأیید نشده‌اند؛ این جمع صرفاً برآورد اولیه است.
+            </p>
+          ) : null}
         </div>
       ) : null}
 

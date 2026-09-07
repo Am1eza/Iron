@@ -1,5 +1,8 @@
 # Ahantime — Phase 3 · UI Engineering
 
+> Historical delivery reference. Component inventories and completion claims describe the original phase; consult the current source and [documentation index](../docs/README.md) for maintained engineering guides.
+
+
 **Status:** ✅ Built. A real, reusable component library under `web/src/components/ui/`, exported from one barrel (`@/components/ui`).
 
 > **Doc accuracy note (2026-08-17).** Parts of this file described the kit as first delivered, not as it stands. The `/styleguide` kitchen-sink page, `ThemeToggle`, `Reveal`, the `useSpark` hook file and `lib/theme/tokens.ts` were all removed during later passes and no longer exist; the claims below have been corrected to match the code. **There is no public theme toggle — dark mode is reachable only inside `/admin` (`app/admin/AdminThemeToggle.tsx`).**

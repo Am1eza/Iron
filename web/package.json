@@ -23,6 +23,7 @@
     "db:migrate": "node scripts/migrate.mjs",
     "db:seed": "tsx scripts/seed.ts",
     "db:studio": "drizzle-kit studio",
+    "audit:catalog": "tsx scripts/catalogIntegrityAudit.ts",
     "jobs:dev": "tsx scripts/jobs.ts",
     "price-sync": "tsx scripts/priceSync.ts"
   },

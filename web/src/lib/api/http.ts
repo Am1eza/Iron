@@ -1,5 +1,11 @@
 import { ApiError } from './errors';
-import { BASE_URL, DEFAULT_GET_RETRIES, DEFAULT_TIMEOUT_MS, UPLOAD_RETRIES, UPLOAD_TIMEOUT_MS } from './config';
+import {
+  BASE_URL,
+  DEFAULT_GET_RETRIES,
+  DEFAULT_TIMEOUT_MS,
+  UPLOAD_RETRIES,
+  UPLOAD_TIMEOUT_MS,
+} from './config';
 
 type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
@@ -41,18 +47,21 @@ function recoveryHookFor(path: string): UnauthorizedHook | null {
 }
 
 /* ---- helpers ---- */
-const backoff = (n: number) => new Promise((r) => setTimeout(r, Math.min(2 ** n * 200, 2000)));
-
-function anySignal(signals: AbortSignal[]): AbortSignal {
-  const ctrl = new AbortController();
-  for (const s of signals) {
-    if (s.aborted) {
-      ctrl.abort(s.reason);
-      break;
-    }
-    s.addEventListener('abort', () => ctrl.abort(s.reason), { once: true });
-  }
-  return ctrl.signal;
+function backoff(n: number, signal?: AbortSignal): Promise<void> {
+  signal?.throwIfAborted();
+  return new Promise((resolve, reject) => {
+    const finish = () => {
+      signal?.removeEventListener('abort', abort);
+      resolve();
+    };
+    const abort = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', abort);
+      reject(signal?.reason);
+    };
+    const timer = setTimeout(finish, Math.min(2 ** n * 200, 2000));
+    signal?.addEventListener('abort', abort, { once: true });
+  });
 }
 
 async function toApiError(res: Response): Promise<ApiError> {
@@ -61,10 +70,11 @@ async function toApiError(res: Response): Promise<ApiError> {
   let code: string | undefined;
   let details: Record<string, unknown> | undefined;
   try {
-    const body = (await res.json()) as { message?: string; fields?: Record<string, string>; error?: string } & Record<
-      string,
-      unknown
-    >;
+    const body = (await res.json()) as {
+      message?: string;
+      fields?: Record<string, string>;
+      error?: string;
+    } & Record<string, unknown>;
     if (body?.message) message = body.message;
     fields = body?.fields;
     code = body?.error;
@@ -72,7 +82,12 @@ async function toApiError(res: Response): Promise<ApiError> {
   } catch {
     /* keep the friendly default */
   }
-  return new ApiError(res.status, message, { fields, code, details, retryAfterSeconds: retryAfter(res) });
+  return new ApiError(res.status, message, {
+    fields,
+    code,
+    details,
+    retryAfterSeconds: retryAfter(res),
+  });
 }
 
 /** `Retry-After` as whole seconds. Only the delta-seconds form is honoured —
@@ -101,6 +116,10 @@ function buildInit<T>(opts: RequestOptions<T>): RequestInit & { headers: Headers
   } as RequestInit & { headers: Headers };
 }
 
+function invalidResponse(): ApiError {
+  return new ApiError(200, 'پاسخ سرور معتبر نیست. دوباره تلاش کنید.', { code: 'invalid_response' });
+}
+
 /** Core request: timeout, retry-with-backoff (idempotent GET), normalized errors, optional schema. */
 export async function httpRequest<T>(path: string, opts: RequestOptions<T> = {}): Promise<T> {
   const method = opts.method ?? 'GET';
@@ -112,20 +131,24 @@ export async function httpRequest<T>(path: string, opts: RequestOptions<T> = {})
   let attempt = 0;
   let authRetried = false;
   for (;;) {
+    opts.signal?.throwIfAborted();
     const ctrl = new AbortController();
+    const abort = () => ctrl.abort(opts.signal?.reason);
+    opts.signal?.addEventListener('abort', abort, { once: true });
     const timer = setTimeout(() => ctrl.abort(), timeoutMs);
-    const signal = opts.signal ? anySignal([opts.signal, ctrl.signal]) : ctrl.signal;
+    const signal = ctrl.signal;
     try {
       const res = await fetch(url, { ...init, signal });
-      clearTimeout(timer);
       if (!res.ok) {
         if (method === 'GET' && res.status >= 500 && attempt < maxRetries) {
+          clearTimeout(timer);
           attempt++;
-          await backoff(attempt);
+          await backoff(attempt, opts.signal);
           continue;
         }
         const hook = res.status === 401 && !authRetried ? recoveryHookFor(path) : null;
         if (hook) {
+          clearTimeout(timer);
           authRetried = true;
           if (await hook()) continue;
         }
@@ -133,88 +156,78 @@ export async function httpRequest<T>(path: string, opts: RequestOptions<T> = {})
       }
       if (res.status === 204) return undefined as T;
       const data = (await res.json()) as unknown;
-      return opts.schema ? opts.schema.parse(data) : (data as T);
+      if (!opts.schema) return data as T;
+      try {
+        return opts.schema.parse(data);
+      } catch {
+        throw invalidResponse();
+      }
     } catch (e) {
       clearTimeout(timer);
+      opts.signal?.throwIfAborted();
       if (e instanceof ApiError) throw e;
+      if (e instanceof SyntaxError) throw invalidResponse();
       if (method === 'GET' && attempt < maxRetries) {
         attempt++;
-        await backoff(attempt);
+        await backoff(attempt, opts.signal);
         continue;
       }
       throw new ApiError(0, 'ارتباط با سرور برقرار نشد. اتصال اینترنت را بررسی کنید.');
+    } finally {
+      clearTimeout(timer);
+      opts.signal?.removeEventListener('abort', abort);
     }
   }
 }
 
-/** Multipart file upload (admin image upload). No `Content-Type` header —
- *  the browser sets the multipart boundary itself for a `FormData` body;
- *  forcing `application/json` (like the JSON path above) would break it.
- *
- *  Retries a raw `fetch()` failure with backoff (see UPLOAD_RETRIES). Only that
- *  path retries: an HTTP response — `too_large`, `bad_file`, any 5xx — is the
- *  server having *seen* the request and decided, so re-sending the same bytes
- *  would fail identically and only cost the user more waiting.
- *
- *  The retry is deliberately silent. Every call site already shows a generic
- *  busy state («در حال آپلود…» / `isUploading`) and reports failure through its
- *  own channel (toast in RichTextEditor/LetterheadForm, inline error in
- *  ImageUpload); threading a "تلاش مجدد…" signal through `adminApi.uploadImage`
- *  into three differently-shaped UIs buys little when the added wait is bounded
- *  at ~1.2s of backoff plus whatever the failing attempts themselves took —
- *  and the total budget below is what actually keeps it from feeling frozen. */
+/** Multipart upload with bounded network retries and one shared timeout.
+ * HTTP errors are not retried; 401 recovery gets one separate attempt.
+ * Do not set Content-Type: fetch supplies the FormData multipart boundary. */
 export async function httpUpload<T>(path: string, file: File): Promise<T> {
-  /** Throws the raw fetch rejection; the caller decides retry vs. give up. */
-  const doUpload = async (): Promise<Response> => {
-    const headers = new Headers();
-    requestHook(headers);
-    const form = new FormData();
-    form.set('file', file);
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), UPLOAD_TIMEOUT_MS);
-    try {
-      return await fetch(path.startsWith('http') ? path : `${BASE_URL}${path}`, {
-        method: 'POST',
-        headers,
-        body: form,
-        credentials: 'include',
-        signal: ctrl.signal,
-      });
-    } finally {
-      clearTimeout(timer);
-    }
-  };
-
-  const startedAt = Date.now();
+  const headers = new Headers();
+  requestHook(headers);
+  const form = new FormData();
+  form.set('file', file);
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), UPLOAD_TIMEOUT_MS);
   let attempt = 0;
   let authRetried = false;
-  for (;;) {
-    let res: Response;
-    try {
-      res = await doUpload();
-    } catch {
-      // A raw fetch failure here (dropped connection mid-upload, aborted
-      // timeout) never reaches the server — nothing to log server-side, and
-      // nothing half-applied — so re-sending is safe and usually enough to
-      // ride out a brief blip on this deployment's network. UPLOAD_TIMEOUT_MS
-      // doubles as the TOTAL budget: an attempt that burned the whole 60s
-      // timeout is not retried, it fails now exactly as it used to.
-      if (attempt < UPLOAD_RETRIES && Date.now() - startedAt < UPLOAD_TIMEOUT_MS) {
-        attempt++;
-        await backoff(attempt);
-        continue;
+
+  try {
+    for (;;) {
+      let res: Response;
+      try {
+        ctrl.signal.throwIfAborted();
+        res = await fetch(path.startsWith('http') ? path : `${BASE_URL}${path}`, {
+          method: 'POST',
+          headers,
+          body: form,
+          credentials: 'include',
+          signal: ctrl.signal,
+        });
+      } catch {
+        if (!ctrl.signal.aborted && attempt < UPLOAD_RETRIES) {
+          attempt++;
+          await backoff(attempt, ctrl.signal);
+          continue;
+        }
+        throw new ApiError(0, 'ارتباط با سرور برقرار نشد. اتصال اینترنت را بررسی کنید.');
       }
+      const hook = res.status === 401 && !authRetried ? recoveryHookFor(path) : null;
+      if (hook) {
+        authRetried = true;
+        if (await hook()) continue;
+      }
+      if (!res.ok) throw await toApiError(res);
+      return (await res.json()) as T;
+    }
+  } catch (error) {
+    if (ctrl.signal.aborted) {
       throw new ApiError(0, 'ارتباط با سرور برقرار نشد. اتصال اینترنت را بررسی کنید.');
     }
-    // Auth recovery is a separate, exactly-once retry: a refreshed cookie, not
-    // a flaky link. It must not consume (or be consumed by) the network budget.
-    const hook = res.status === 401 && !authRetried ? recoveryHookFor(path) : null;
-    if (hook) {
-      authRetried = true;
-      if (await hook()) continue;
-    }
-    if (!res.ok) throw await toApiError(res);
-    return (await res.json()) as T;
+    throw error;
+  } finally {
+    clearTimeout(timer);
   }
 }
 

@@ -80,16 +80,21 @@ describe('composeSkuName', () => {
   // the two. See catalogAdminRepo's SKU rename backfill for the one-time
   // migration that stripped it out of names already saved with it baked in.
   it('never includes grade even when one is given to a caller that forgot the type changed', () => {
-    const withGrade = { subName: 'میلگرد آجدار', size: '۱۴', factory: 'ذوب‌آهن اصفهان', grade: 'A3' };
+    const withGrade = {
+      subName: 'میلگرد آجدار',
+      size: '۱۴',
+      factory: 'ذوب‌آهن اصفهان',
+      grade: 'A3',
+    };
     expect(composeSkuName(withGrade)).toBe('میلگرد آجدار ۱۴ ذوب‌آهن اصفهان');
   });
 });
 
 describe('composeCatalogSkuName', () => {
   it('prefixes a single-noun category, which is what most of the catalog reads', () => {
-    expect(
-      composeCatalogSkuName({ categoryName: 'میلگرد', subName: 'آجدار A3', size: '۱۴' }),
-    ).toBe('میلگرد آجدار A3 ۱۴');
+    expect(composeCatalogSkuName({ categoryName: 'میلگرد', subName: 'آجدار A3', size: '۱۴' })).toBe(
+      'میلگرد آجدار A3 ۱۴',
+    );
     expect(composeCatalogSkuName({ categoryName: 'تیرآهن', subName: 'IPE', size: '۲۲' })).toBe(
       'تیرآهن IPE ۲۲',
     );
@@ -100,17 +105,21 @@ describe('composeCatalogSkuName', () => {
   // contradicted the other.
   it('never prefixes a compound «X و Y» category name', () => {
     expect(
-      composeCatalogSkuName({ categoryName: 'نبشی و ناودانی', subName: 'ناودانی سنگین', size: '۱۰' }),
+      composeCatalogSkuName({
+        categoryName: 'نبشی و ناودانی',
+        subName: 'ناودانی سنگین',
+        size: '۱۰',
+      }),
     ).toBe('ناودانی سنگین ۱۰');
-    expect(composeCatalogSkuName({ categoryName: 'کلاف و مفتول', subName: 'توری', size: '۱۰' })).toBe(
-      'توری ۱۰',
-    );
+    expect(
+      composeCatalogSkuName({ categoryName: 'کلاف و مفتول', subName: 'توری', size: '۱۰' }),
+    ).toBe('توری ۱۰');
   });
 
   it('lets a sub-category that already opens with the category word say it once', () => {
-    expect(
-      composeCatalogSkuName({ categoryName: 'ورق', subName: 'ورق رنگی', size: '۰.۵' }),
-    ).toBe('ورق رنگی ۰.۵');
+    expect(composeCatalogSkuName({ categoryName: 'ورق', subName: 'ورق رنگی', size: '۰.۵' })).toBe(
+      'ورق رنگی ۰.۵',
+    );
     expect(composeCatalogSkuName({ categoryName: 'لوله', subName: 'لوله' })).toBe('لوله');
   });
 
@@ -122,6 +131,9 @@ describe('composeCatalogSkuName', () => {
 });
 
 describe('theoreticalWeightFor', () => {
+  it('keeps gram precision so per-branch rounding does not compound on bulk orders', () => {
+    expect(theoreticalWeightFor('rebar', '۱۴', 'deformed')).toBe(14.519);
+  });
   it('uses d²/162 × 12m for a rebar branch', () => {
     // 14² / 162 × 12 ≈ 14.5 kg — the number the customer weight calculator
     // and the cost estimate are both built on.
@@ -266,21 +278,21 @@ describe('defaultBranchLengthM', () => {
 describe('defaultPriceBasisFor / defaultUnitFor — ساندویچ‌پانل', () => {
   it('prefills «متر مربع» for ساندویچ‌پانل, both unit and basis', () => {
     expect(defaultUnitFor('sheet', 'sandwich-panel')).toBe('sqm');
-    expect(defaultPriceBasisFor('sheet', 'sandwich-panel')).toBe('sqm');
+    expect(defaultPriceBasisFor('sandwich-panel')).toBe('sqm');
   });
 
   it('keeps «برگ» and a kilogram basis for every other ورق line', () => {
     expect(defaultUnitFor('sheet', 'black')).toBe('sheet');
-    expect(defaultPriceBasisFor('sheet', 'black')).toBe('kg');
+    expect(defaultPriceBasisFor('black')).toBe('kg');
   });
 
   it('prefills «عدد» for کوپلر, both unit and basis', () => {
     expect(defaultUnitFor('rebar', 'coupler')).toBe('piece');
-    expect(defaultPriceBasisFor('rebar', 'coupler')).toBe('piece');
+    expect(defaultPriceBasisFor('coupler')).toBe('piece');
   });
 
   it('defaults everything else to a kilogram basis — the catalog’s 880-row norm', () => {
-    expect(defaultPriceBasisFor('rebar', 'deformed')).toBe('kg');
-    expect(defaultPriceBasisFor('something-new')).toBe('kg');
+    expect(defaultPriceBasisFor('deformed')).toBe('kg');
+    expect(defaultPriceBasisFor()).toBe('kg');
   });
 });
