@@ -59,7 +59,7 @@ jobs:
         # (4 blog + 3 news articles) never reaches a page 2 to enumerate. Real
         # archive pagination is untestable from fixtures this small anyway.
         run: |
-          rm -rf src/app/api src/app/account src/app/admin src/app/proforma src/app/sitemap.ts
+          rm -rf src/app/api src/app/account src/app/admin src/app/proforma src/app/uploads src/app/sitemap.ts
           rm -rf src/app/blog/page src/app/news/page
           find src -name '*.test.ts' -o -name '*.test.tsx' | xargs rm -f
 
