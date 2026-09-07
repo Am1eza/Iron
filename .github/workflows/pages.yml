@@ -46,7 +46,13 @@ jobs:
         # sitemap it could produce would list fixture URLs — which is the exact
         # failure the force-dynamic exists to prevent (see src/app/sitemap.ts).
         # A preview of mock data should not publish a sitemap at all.
-        run: rm -rf src/app/api src/app/account src/app/sitemap.ts
+        #
+        # Test files are removed too: this job never runs tests, but `next
+        # build` type-checks every file tsconfig includes, and some tests
+        # import the api routes just deleted above.
+        run: |
+          rm -rf src/app/api src/app/account src/app/sitemap.ts
+          find src -name '*.test.ts' -o -name '*.test.tsx' | xargs rm -f
 
       - name: Build static export
         run: pnpm build
