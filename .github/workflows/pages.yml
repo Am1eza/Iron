@@ -60,9 +60,10 @@ jobs:
         # archive pagination is untestable from fixtures this small anyway.
         run: |
           rm -rf src/app/api src/app/account src/app/admin src/app/proforma src/app/uploads src/app/sitemap.ts
-          # /ai opts into `dynamic = "error"` and reads searchParams — an
-          # interactive chat shell, not a page with a static form.
-          rm -rf src/app/ai
+          # /ai and /search opt into `dynamic = "error"` and read
+          # searchParams — interactive, request-driven pages, not ones with
+          # a static form.
+          rm -rf src/app/ai src/app/search
           rm -rf src/app/blog/page src/app/news/page
           # factory/size are free-text facets (skus.factory/size), not a
           # fixture-known taxonomy like category/sub — each route's own
