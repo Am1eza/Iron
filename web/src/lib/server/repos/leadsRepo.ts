@@ -276,6 +276,21 @@ export async function softDeleteLead(id: string): Promise<LeadRow | null> {
   return rows[0] ?? null;
 }
 
+/**
+ * @param opts.ifAssigneeId Compare-and-swap guard: only write if the row's
+ *   CURRENT owner still matches this value (`null` meaning still unassigned).
+ *   Returns null instead of writing when it does not.
+ *
+ *   The PATCH route authorizes against a snapshot read in a SEPARATE earlier
+ *   query, so without this the check and the write are not atomic: two reps
+ *   opening the same unassigned lead both saw `assigneeId === null`, both were
+ *   authorized to claim it, and the second unconditional `WHERE id = ?` simply
+ *   overwrote the first — no error, no 409, and the losing rep's UI still said
+ *   the lead was theirs. Two reps then phone the same customer.
+ *
+ *   Omitted = unconditional write, unchanged, for callers whose authorization
+ *   does not depend on current ownership (e.g. contactVerified backfill).
+ */
 export async function updateLead(
   id: string,
   patch: Partial<{
@@ -284,11 +299,18 @@ export async function updateLead(
     callbackAt: Date | null;
     contactVerified: boolean;
   }>,
+  opts: { ifAssigneeId?: string | null } = {},
 ): Promise<LeadRow | null> {
+  const guard =
+    opts.ifAssigneeId === undefined
+      ? undefined
+      : opts.ifAssigneeId === null
+        ? isNull(leads.assigneeId)
+        : eq(leads.assigneeId, opts.ifAssigneeId);
   const rows = await getDb()
     .update(leads)
     .set({ ...patch, updatedAt: new Date() })
-    .where(eq(leads.id, id))
+    .where(guard ? and(eq(leads.id, id), guard) : eq(leads.id, id))
     .returning();
   return rows[0] ?? null;
 }

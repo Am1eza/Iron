@@ -6,11 +6,12 @@
  * isolation with directly-controlled createdAt values.
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { eq } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { createTestDb } from '@/test/db';
 import * as schema from '@/lib/server/db/schema';
 import type { Db } from '@/lib/server/db/client';
-import { adminListLeads, updateLeadItem } from './leadsRepo';
+import { adminListLeads, updateLead, updateLeadItem } from './leadsRepo';
 
 let db: Db;
 let close: () => Promise<void>;
@@ -164,5 +165,92 @@ describe('updateLeadItem (US-19.4)', () => {
   it('returns null for a non-existent item id', async () => {
     const { leadId } = await insertLeadWithItem();
     await expect(updateLeadItem(ulid(), leadId, { qty: 1 })).resolves.toBeNull();
+  });
+});
+
+/**
+ * Item 86. The PATCH route authorizes a claim against a snapshot read in an
+ * EARLIER, separate query, so the check and the write are not atomic: two reps
+ * who both open the same unassigned lead both see `assigneeId === null`, both
+ * pass `canChangeLeadAssignee`, and the second unconditional UPDATE silently
+ * overwrote the first — the losing rep's UI still said the lead was theirs, so
+ * two reps phone the same customer. `ifAssigneeId` closes that window in the
+ * database, which is the only place it can actually be closed.
+ */
+describe('updateLead — ifAssigneeId compare-and-swap (item 86)', () => {
+  const REP_A = 'cas-rep-a';
+  const REP_B = 'cas-rep-b';
+
+  beforeAll(async () => {
+    // leads.assignee_id is a real FK to users — claims must point at real staff.
+    await db.insert(schema.users).values([
+      { id: REP_A, mobile: '09120000101', name: 'کارشناس الف', role: 'sales' },
+      { id: REP_B, mobile: '09120000102', name: 'کارشناس ب', role: 'sales' },
+    ]);
+  });
+
+  async function insertUnassignedLead(): Promise<string> {
+    const id = ulid();
+    await db.insert(schema.leads).values({
+      id,
+      ref: `CAS-${id}`,
+      contactMobile: '09120000009',
+      source: 'table',
+    });
+    return id;
+  }
+
+  async function ownerOf(id: string): Promise<string | null> {
+    const rows = await db.select().from(schema.leads).where(eq(schema.leads.id, id));
+    return rows[0]!.assigneeId;
+  }
+
+  it('lets exactly ONE of two concurrent claims on the same unassigned lead win', async () => {
+    const id = await insertUnassignedLead();
+
+    // Both reps raced through the guard on the same `before.assigneeId === null`.
+    const [a, b] = await Promise.all([
+      updateLead(id, { assigneeId: REP_A }, { ifAssigneeId: null }),
+      updateLead(id, { assigneeId: REP_B }, { ifAssigneeId: null }),
+    ]);
+
+    const winners = [a, b].filter(Boolean);
+    expect(winners).toHaveLength(1);
+    // And the DB agrees with whichever one was told it won — the losing rep
+    // gets null (the route turns that into a 409), never a false success.
+    expect(await ownerOf(id)).toBe(winners[0]!.assigneeId);
+  });
+
+  it('refuses to overwrite a claim that landed after the caller read its snapshot', async () => {
+    const id = await insertUnassignedLead();
+    await updateLead(id, { assigneeId: REP_A }, { ifAssigneeId: null });
+
+    // Rep B's request was authorized against the stale "unassigned" snapshot.
+    const stale = await updateLead(id, { assigneeId: REP_B }, { ifAssigneeId: null });
+
+    expect(stale).toBeNull();
+    expect(await ownerOf(id)).toBe(REP_A);
+  });
+
+  it('allows the legitimate hand-back and hand-over — the guard blocks staleness, not the operation', async () => {
+    const id = await insertUnassignedLead();
+    await updateLead(id, { assigneeId: REP_A }, { ifAssigneeId: null });
+
+    // Rep A releases their own lead (guard matches the real current owner).
+    expect(await updateLead(id, { assigneeId: null }, { ifAssigneeId: REP_A })).not.toBeNull();
+    expect(await ownerOf(id)).toBeNull();
+
+    // A manager then assigns it onward, again against a fresh snapshot.
+    expect(await updateLead(id, { assigneeId: REP_B }, { ifAssigneeId: null })).not.toBeNull();
+    expect(await ownerOf(id)).toBe(REP_B);
+  });
+
+  it('stays unconditional when no guard is passed — existing callers are unaffected', async () => {
+    const id = await insertUnassignedLead();
+    await updateLead(id, { assigneeId: REP_A }, { ifAssigneeId: null });
+
+    // No ifAssigneeId: writes regardless of ownership, exactly as before.
+    expect(await updateLead(id, { status: 'won' })).not.toBeNull();
+    expect(await ownerOf(id)).toBe(REP_A);
   });
 });

@@ -422,8 +422,15 @@ export function LeadDetail({ id }: { id: string }) {
     void qc.invalidateQueries({ queryKey: ['admin', 'leads'] });
     void qc.invalidateQueries({ queryKey: ['admin', 'stats'] });
   };
-  const showError = (err: unknown, fallback: string) =>
+  const showError = (err: unknown, fallback: string) => {
+    // A 409 `assignee_conflict` means a colleague claimed or reassigned this
+    // lead between the render this click was based on and the write (item 86).
+    // The toast alone would leave the rep staring at a screen that still shows
+    // the old owner — and the buttons that go with it — so refetch: what they
+    // are told and what they see have to agree.
+    if (err instanceof ApiError && err.code === 'assignee_conflict') invalidate();
     toast.error(err instanceof ApiError ? err.message : fallback);
+  };
 
   const merge = useMutation({
     // Exactly one attempt: the server keys idempotency on

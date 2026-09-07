@@ -158,11 +158,47 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }
       { status: 403 },
     );
   }
-  const lead = await updateLead(id, {
-    status: v.data.status,
-    assigneeId: v.data.assigneeId === undefined ? undefined : v.data.assigneeId,
-    callbackAt: v.data.callbackAt === undefined ? undefined : v.data.callbackAt ? new Date(v.data.callbackAt) : null,
-  });
+  // Compare-and-swap on the owner this request was AUTHORIZED against, so the
+  // window between `findLead` above and this write cannot be used to silently
+  // overwrite someone else's claim (see updateLead's doc comment).
+  //
+  // Applied when — and only when — the decision above actually depended on
+  // current ownership: any assignee change (a rep's right to claim IS
+  // «before === null», and a manager reassigning must not silently erase a
+  // claim made a second ago), and any status/callback write let through by
+  // canActOnAssignedRecord rather than by leads:manage. A manager editing
+  // only status is not ownership-gated, so it is not guarded here and cannot
+  // get a spurious conflict.
+  const ownershipGated =
+    v.data.assigneeId !== undefined ||
+    ((v.data.status !== undefined || v.data.callbackAt !== undefined) &&
+      !can(auth.session.role, 'leads:manage'));
+  const lead = await updateLead(
+    id,
+    {
+      status: v.data.status,
+      assigneeId: v.data.assigneeId === undefined ? undefined : v.data.assigneeId,
+      callbackAt: v.data.callbackAt === undefined ? undefined : v.data.callbackAt ? new Date(v.data.callbackAt) : null,
+    },
+    ownershipGated ? { ifAssigneeId: before.assigneeId } : {},
+  );
+  if (!lead) {
+    // The guard matched nothing. Re-read to report WHICH of the two it was
+    // rather than guessing: the row can also have been archived concurrently,
+    // and calling that «کس دیگری برداشت» would send the rep hunting for a
+    // colleague who does not exist.
+    const now = await findLead(id);
+    if (!now) return NextResponse.json({ error: 'not_found', message: 'سرنخ یافت نشد.' }, { status: 404 });
+    return NextResponse.json(
+      {
+        error: 'assignee_conflict',
+        message:
+          'این سرنخ همین الان توسط شخص دیگری برداشته یا واگذار شد. صفحه را تازه کنید و دوباره تلاش کنید.',
+        assigneeId: now.assigneeId,
+      },
+      { status: 409 },
+    );
+  }
   // assigneeId in the before-state too: re-assignment is the field the guard
   // above protects, so the trail has to show who the lead was taken FROM.
   await audit(
@@ -177,7 +213,7 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }
   // when it's lower than stored, so an admin reverting a mis-marked 'won'
   // lead (e.g. back to 'lost') un-advances the tier too, not just upgrades.
   const wonChanged = v.data.status !== undefined && (v.data.status === 'won' || before.status === 'won');
-  if (wonChanged && lead?.userId) void recomputeTier(lead.userId).catch(() => {});
+  if (wonChanged && lead.userId) void recomputeTier(lead.userId).catch(() => {});
   return NextResponse.json({ lead });
 }
 
