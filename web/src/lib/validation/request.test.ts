@@ -8,7 +8,7 @@ function streamed(chunks: Uint8Array[], headers?: Record<string, string>) {
   let index = 0;
   const body = new ReadableStream<Uint8Array>({
     pull(c) {
-      if (index < chunks.length) c.enqueue(chunks[index++]);
+      if (index < chunks.length) c.enqueue(chunks[index++]!);
       else c.close();
     },
     cancel,

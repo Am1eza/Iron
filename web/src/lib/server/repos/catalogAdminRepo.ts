@@ -95,19 +95,35 @@ export class InvalidParentError extends Error {
   }
 }
 
-/** Postgres unique_violation — node-postgres puts the SQLSTATE on `.code`. */
-function isUniqueViolation(err: unknown): boolean {
-  return typeof err === 'object' && err !== null && (err as { code?: string }).code === '23505';
+/** Postgres unique_violation — node-postgres puts the SQLSTATE on `.code` and
+ *  the offending index name on `.constraint`. */
+function uniqueViolationConstraint(err: unknown): string | undefined {
+  if (typeof err !== 'object' || err === null || (err as { code?: string }).code !== '23505') {
+    return undefined;
+  }
+  return (err as { constraint?: string }).constraint;
 }
 
 /** Backstop for the concurrent-insert race the pre-checks below can't close:
- *  they produce the better message, this catches the narrow window. */
-async function asSlugConflict<T>(run: () => Promise<T>, message: string): Promise<T> {
+ *  they produce the better message, this catches the narrow window. A hit on
+ *  `skus_sub_structural_identity_uq` is a structural duplicate, not a slug
+ *  collision — `onStructuralDuplicate` re-resolves it as a `DuplicateProductError`
+ *  instead of the generic slug message, so the admin isn't pointed at the
+ *  wrong form field. */
+async function asSlugConflict<T>(
+  run: () => Promise<T>,
+  message: string,
+  onStructuralDuplicate?: () => Promise<never>,
+): Promise<T> {
   try {
     return await run();
   } catch (err) {
-    if (isUniqueViolation(err)) throw new DuplicateSlugError('slug', message);
-    throw err;
+    const constraint = uniqueViolationConstraint(err);
+    if (constraint === undefined) throw err;
+    if (constraint === 'skus_sub_structural_identity_uq' && onStructuralDuplicate) {
+      return onStructuralDuplicate();
+    }
+    throw new DuplicateSlugError('slug', message);
   }
 }
 
@@ -693,24 +709,38 @@ async function skuSlugTaken(slug: string, exceptId?: string): Promise<boolean> {
 /**
  * The row this input would duplicate, if there is one.
  *
- * `(subCategoryId, name, size, factory)` is what makes a product distinct in
- * this catalog: everything else on the row (weight, branch length, image,
- * basis) is a property OF that product rather than part of its identity. All
- * four values arrive already normalized from the route's zod transforms, so
- * this compares like with like.
- *
- * `is null` rather than `= null` for the two nullable columns — a rebar SKU
- * with no factory recorded twice is still the same product twice.
+ * Identity comes from `catalogProductIdentity` (subCategoryId plus the
+ * structured facts — size/grade/condition/dimensions/schedule/standard —
+ * falling back to name only when none of those are present), never from the
+ * marketing name alone: renaming a product must not manufacture a second one,
+ * and must not un-duplicate an existing one either. Mirrors the DB-generated
+ * `identity_key` column and its `skus_sub_structural_identity_uq` index,
+ * which is the concurrent-write backstop for this same check.
  */
 async function existingProduct(
   input: SkuInput,
   exceptId?: string,
-): Promise<{ id: string; slug: string } | null> {
-  const rows = await getDb().select().from(skus).where(eq(skus.subCategoryId, input.subCategoryId));
+): Promise<{ id: string } | null> {
+  const rows = await getDb()
+    .select({
+      id: skus.id,
+      name: skus.name,
+      size: skus.size,
+      grade: skus.grade,
+      condition: skus.condition,
+      dimensions: skus.dimensions,
+      schedule: skus.schedule,
+      standard: skus.standard,
+      factory: skus.factory,
+      unit: skus.unit,
+      priceBasis: skus.priceBasis,
+      branchLengthM: skus.branchLengthM,
+    })
+    .from(skus)
+    .where(eq(skus.subCategoryId, input.subCategoryId));
   const identity = catalogProductIdentity(input);
-  return (
-    rows.find((row) => row.id !== exceptId && catalogProductIdentity(row) === identity) ?? null
-  );
+  const hit = rows.find((row) => row.id !== exceptId && catalogProductIdentity(row) === identity);
+  return hit ? { id: hit.id } : null;
 }
 
 export async function createSku(input: SkuInput) {
@@ -743,6 +773,13 @@ export async function createSku(input: SkuInput) {
         })
         .returning(),
     'این نشانی قبلاً برای کالای دیگری استفاده شده است.',
+    async () => {
+      const duplicate = await existingProduct(input);
+      throw new DuplicateProductError(
+        duplicate?.id ?? '',
+        'همین کالا (با همین نام، سایز و کارخانه) در این زیر‌دسته وجود دارد.',
+      );
+    },
   );
   return rows[0]!;
 }
@@ -784,12 +821,21 @@ export async function updateSku(id: string, patch: Partial<SkuInput>) {
   if (patch.slug && patch.slug !== before.slug && (await skuSlugTaken(patch.slug, id))) {
     throw new DuplicateSlugError('slug', 'این نشانی قبلاً برای کالای دیگری استفاده شده است.');
   }
-  const duplicate = await existingProduct({ ...before, ...next }, id);
-  if (duplicate) {
-    throw new DuplicateProductError(
-      duplicate.id,
-      'کالایی با همین مشخصات ساختاری در این زیر‌دسته وجود دارد؛ تفاوت نام یا نوع اعداد، محصول تازه نمی‌سازد.',
-    );
+  const merged = { ...before, ...next };
+  // Only re-check identity when this edit actually changes it. A row that was
+  // ALREADY structurally identical to some sibling (legacy data, or created
+  // before this constraint existed) must stay editable for every OTHER field
+  // — otherwise the first unrelated save (image, price basis, weight) after
+  // this check shipped would 409 forever, since the pre-existing duplicate
+  // never goes away on its own.
+  if (catalogProductIdentity(merged) !== catalogProductIdentity(before)) {
+    const duplicate = await existingProduct(merged, id);
+    if (duplicate) {
+      throw new DuplicateProductError(
+        duplicate.id,
+        'کالایی با همین مشخصات ساختاری در این زیر‌دسته وجود دارد؛ تفاوت نام یا نوع اعداد، محصول تازه نمی‌سازد.',
+      );
+    }
   }
   // `current_prices.unit`/`price_basis` are only rewritten on the NEXT price
   // save, and `toPriceRow` PREFERS them over the `skus` columns — so the two
@@ -817,6 +863,13 @@ export async function updateSku(id: string, patch: Partial<SkuInput>) {
         return updated;
       }),
     'این نشانی قبلاً برای کالای دیگری استفاده شده است.',
+    async () => {
+      const duplicate = await existingProduct(merged, id);
+      throw new DuplicateProductError(
+        duplicate?.id ?? '',
+        'کالایی با همین مشخصات ساختاری در این زیر‌دسته وجود دارد؛ تفاوت نام یا نوع اعداد، محصول تازه نمی‌سازد.',
+      );
+    },
   );
   const after = rows[0];
   if (!after) return null;

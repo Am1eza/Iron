@@ -107,7 +107,12 @@ async function POSTImpl(req: NextRequest, ctx: { params: Promise<{ id: string }>
   return withIdempotency(
     req,
     'lead.proforma',
-    `${id}:${auth.session.id}:${Math.floor(Date.now() / 10_000)}`,
+    // discountToman/reissue MUST be part of the fallback key: without them, a
+    // rep who reissues moments later with a manager-approved discount (or with
+    // reissue=true) collides with their own no-discount request from seconds
+    // earlier and silently gets THAT response replayed — a 200 that looks like
+    // success while the discount was never applied.
+    `${id}:${auth.session.id}:${discountToman}:${reissue}:${Math.floor(Date.now() / 10_000)}`,
     async () => {
       const lead = await findLead(id);
       if (!lead) return { status: 404, body: { error: 'not_found', message: 'سرنخ یافت نشد.' } };

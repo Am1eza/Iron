@@ -1,4 +1,5 @@
-ALTER TABLE "skus" drop column "identity_key";--> statement-breakpoint
+ALTER TABLE "skus" DROP CONSTRAINT "skus_sub_category_parent_fk";
+--> statement-breakpoint
 ALTER TABLE "skus" ADD COLUMN "identity_key" text GENERATED ALWAYS AS (
       lower(regexp_replace(
         translate(
@@ -14,7 +15,8 @@ ALTER TABLE "skus" ADD COLUMN "identity_key" text GENERATED ALWAYS AS (
           '٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹كيىةآأإ×X*٭‌',
           '01234567890123456789کییهاااxxxx '
         ),
-        '[[:space:]_.،,;؛:()\[\]{}/\\-]+', '', 'g'
+        '[[:space:]_.،,;؛:()\[\]{}\\-]+', '', 'g'
       ))
     ) STORED;--> statement-breakpoint
+ALTER TABLE "skus" ADD CONSTRAINT "skus_sub_category_parent_fk" FOREIGN KEY ("sub_category_id","category_id") REFERENCES "public"."sub_categories"("id","category_id") ON DELETE cascade ON UPDATE cascade;--> statement-breakpoint
 CREATE UNIQUE INDEX "skus_sub_structural_identity_uq" ON "skus" USING btree ("sub_category_id","identity_key",coalesce("branch_length_m", -1));

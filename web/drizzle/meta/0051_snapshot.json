@@ -1,5 +1,5 @@
 {
-  "id": "93b925bd-bcdd-47e3-ba03-ce508c595b43",
+  "id": "b14a868e-29f5-407e-92bc-166cb3724d09",
   "prevId": "34d5383d-1f7e-4361-ab76-f8f841213079",
   "version": "7",
   "dialect": "postgresql",
@@ -821,7 +821,7 @@
           "primaryKey": false,
           "notNull": false,
           "generated": {
-            "as": "\n      lower(regexp_replace(\n        translate(\n          concat_ws('|', coalesce(\"size\", ''), coalesce(\"grade\", ''),\n            coalesce(\"condition\", ''), coalesce(\"dimensions\", ''),\n            coalesce(\"schedule\", ''), coalesce(\"standard\", ''),\n            coalesce(\"factory\", ''), \"unit\", \"price_basis\",\n            coalesce(\"branch_length_m\"::text, '')),\n          '٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹كيىةآأإ×X*٭‌',\n          '01234567890123456789کییهاااxxxx '\n        ),\n        '[[:space:]_.،,;؛:()\\[\\]{}/\\\\-]+', '', 'g'\n      ))\n    ",
+            "as": "\n      lower(regexp_replace(\n        translate(\n          (case when coalesce(\"size\", '') = '' and coalesce(\"grade\", '') = '' and\n            coalesce(\"condition\", '') = '' and coalesce(\"dimensions\", '') = '' and\n            coalesce(\"schedule\", '') = '' and coalesce(\"standard\", '') = ''\n          then coalesce(\"name\", '') || '|' || coalesce(\"factory\", '')\n          else coalesce(\"size\", '') || '|' || coalesce(\"grade\", '') || '|' ||\n            coalesce(\"condition\", '') || '|' || coalesce(\"dimensions\", '') || '|' ||\n            coalesce(\"schedule\", '') || '|' || coalesce(\"standard\", '') || '|' ||\n            coalesce(\"factory\", '') end)\n          || '|' || \"unit\" || '|' || \"price_basis\",\n          '٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹كيىةآأإ×X*٭‌',\n          '01234567890123456789کییهاااxxxx '\n        ),\n        '[[:space:]_.،,;؛:()\\[\\]{}\\\\-]+', '', 'g'\n      ))\n    ",
             "type": "stored"
           }
         },
@@ -953,6 +953,12 @@
               "isExpression": false,
               "asc": true,
               "nulls": "last"
+            },
+            {
+              "expression": "coalesce(\"branch_length_m\", -1)",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
             }
           ],
           "isUnique": true,
@@ -1001,7 +1007,7 @@
             "category_id"
           ],
           "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "cascade"
         }
       },
       "compositePrimaryKeys": {},

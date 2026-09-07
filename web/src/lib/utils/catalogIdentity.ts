@@ -9,7 +9,14 @@ export function canonicalCatalogValue(value: string | null | undefined): string 
     .replace(/[آأإ]/g, 'ا')
     .replace(/\u200c/g, ' ')
     .replace(/[×xX*٭]/g, 'x')
-    .replace(/[\s_.،,;؛:()\[\]{}\-/\\]+/g, '')
+    // `/` is excluded from the vanish-set on purpose: it is the fraction
+    // separator («۱/۲ اینچ» = 1/2"), the one meaningful character among these
+    // — stripping it entirely made "1/2" and "12" the same identity (a real
+    // production collision between a 1/2" and a 12" pipe). Every other
+    // separator here really is decoration around an already-explicit token
+    // (e.g. the space in "14 x 14" next to the literal "x"), so it still
+    // vanishes rather than becoming a space that would itself need folding.
+    .replace(/[\s_.،,;؛:()\[\]{}\-\\]+/g, '')
     .toLocaleLowerCase('fa');
 }
 

@@ -227,6 +227,13 @@ export const skus = pgTable(
     // intentionally excluded: changing copy must not manufacture a second
     // physical product. The separators/digit folding catches visually equal
     // Persian inputs even when a script bypasses the API normalizers.
+    // `/` is deliberately excluded from the stripped separator class below:
+    // it is the fraction separator («۱/۲ اینچ» = 1/2"), the one character
+    // here that carries meaning rather than decoration. Stripping it to
+    // nothing collided a 1/2" pipe with a 12" pipe in production (both
+    // folded to "12"). Every other separator really is decoration around an
+    // already-explicit token (e.g. the space in "14 x 14" next to the
+    // literal "x"), so those still vanish entirely.
     identityKey: text('identity_key').generatedAlwaysAs(sql`
       lower(regexp_replace(
         translate(
@@ -242,7 +249,7 @@ export const skus = pgTable(
           '٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹كيىةآأإ×X*٭‌',
           '01234567890123456789کییهاااxxxx '
         ),
-        '[[:space:]_.،,;؛:()\\[\\]{}/\\\\-]+', '', 'g'
+        '[[:space:]_.،,;؛:()\\[\\]{}\\\\-]+', '', 'g'
       ))
     `),
     seo: jsonb('seo').$type<SeoMeta>(),
