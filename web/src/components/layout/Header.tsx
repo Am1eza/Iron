@@ -32,6 +32,7 @@ export function Header({ categories, subs }: { categories: Category[]; subs: Sub
   const t = useTranslations('header');
   const tNav = useTranslations('nav');
   const tCommon = useTranslations('common');
+  const tNavLinks = useTranslations('navLinks');
   const locale = useLocale() as AppLocale;
   const drawerOpen = useUiStore((s) => s.drawerOpen);
   const setDrawerOpen = useUiStore((s) => s.setDrawerOpen);
@@ -145,7 +146,7 @@ export function Header({ categories, subs }: { categories: Category[]; subs: Sub
                     className={styles.dropdownItem}
                     aria-current={isActive(item.href) ? 'page' : undefined}
                   >
-                    {item.label}
+                    {tNavLinks(item.labelKey)}
                   </Link>
                 </li>
               ))}
@@ -175,7 +176,7 @@ export function Header({ categories, subs }: { categories: Category[]; subs: Sub
                     className={styles.dropdownItem}
                     aria-current={isActive(s.href) ? 'page' : undefined}
                   >
-                    {s.label}
+                    {tNavLinks(s.labelKey)}
                   </Link>
                 </li>
               ))}
@@ -199,7 +200,7 @@ export function Header({ categories, subs }: { categories: Category[]; subs: Sub
                     className={styles.dropdownItem}
                     aria-current={isActive(item.href) ? 'page' : undefined}
                   >
-                    {item.label}
+                    {tNavLinks(item.labelKey)}
                   </Link>
                 </li>
               ))}
@@ -215,7 +216,7 @@ export function Header({ categories, subs }: { categories: Category[]; subs: Sub
                     className={styles.dropdownItem}
                     aria-current={isActive(c.href) ? 'page' : undefined}
                   >
-                    {c.label}
+                    {tNavLinks(c.labelKey)}
                   </Link>
                 </li>
               ))}
@@ -227,7 +228,7 @@ export function Header({ categories, subs }: { categories: Category[]; subs: Sub
                     className={styles.dropdownItem}
                     aria-current={isActive(c.href) ? 'page' : undefined}
                   >
-                    {c.label}
+                    {tNavLinks(c.labelKey)}
                   </Link>
                 </li>
               ))}

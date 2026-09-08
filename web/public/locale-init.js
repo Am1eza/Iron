@@ -3,8 +3,25 @@
     var SUPPORTED = ['fa', 'en', 'ar', 'zh'];
     var RTL = { fa: true, ar: true };
     var m = document.cookie.match(/(?:^|; )ahantime_locale=([^;]+)/);
-    var locale = m ? decodeURIComponent(m[1]) : 'fa';
-    if (SUPPORTED.indexOf(locale) === -1) locale = 'fa';
+    var locale = m ? decodeURIComponent(m[1]) : null;
+    if (locale && SUPPORTED.indexOf(locale) === -1) locale = null;
+    if (!locale) {
+      // No cookie yet — a visitor who has never chosen a language. Try the
+      // browser's own language list before falling back to fa, mirroring
+      // LocaleProvider's client-side detection (see its header comment for
+      // why this can't happen server-side without defeating ISR). Doing it
+      // here too, not just in LocaleProvider, avoids a *second* flash where
+      // `dir` (rtl/ltr) itself flips after first paint.
+      var langs = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || ''];
+      for (var i = 0; i < langs.length; i++) {
+        var primary = (langs[i] || '').split('-')[0].toLowerCase();
+        if (SUPPORTED.indexOf(primary) !== -1) {
+          locale = primary;
+          break;
+        }
+      }
+      locale = locale || 'fa';
+    }
     // Write ONLY on a real change. The server already emits lang="fa"
     // dir="rtl" (app/layout.tsx), so for the ~all-Persian traffic these were
     // no-op assignments that still invalidated style for the whole document:

@@ -2,11 +2,11 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { routes } from '@/lib/routes';
 import { useCartStore, selectCartCount } from '@/lib/stores/cart';
 import { useUiStore } from '@/lib/stores/ui';
 import { isPromoSuppressedPath } from '@/components/club/arrivalPopupRoutes';
-import { toPersianDigits } from '@/lib/utils/format';
 import { Alert } from '@/components/ui';
 
 /** "Actively shopping right now" vs. "added something and never came back" —
@@ -38,6 +38,7 @@ const SUPPRESS_MS = 24 * 60 * 60 * 1000;
  * collision system entirely.
  */
 export function CartReminder() {
+  const t = useTranslations('cartReminder');
   const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
   const count = useCartStore(selectCartCount);
@@ -63,8 +64,8 @@ export function CartReminder() {
 
   return (
     <Alert tone="info" dismissible onDismiss={dismissCartReminder}>
-      {toPersianDigits(count)} کالا در سبد استعلام شما منتظر است.{' '}
-      <Link href={routes.cart()}>ادامهٔ سبد استعلام</Link>
+      {t('message', { count })}{' '}
+      <Link href={routes.cart()}>{t('continueLink')}</Link>
     </Alert>
   );
 }

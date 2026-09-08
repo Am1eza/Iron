@@ -1,7 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { renderWithIntl } from '@/test/renderWithIntl';
 import NotFound from './not-found';
+
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() }),
@@ -9,7 +11,7 @@ vi.mock('next/navigation', () => ({
 
 function renderNotFound() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
+  return renderWithIntl(
     <QueryClientProvider client={qc}>
       <NotFound />
     </QueryClientProvider>,

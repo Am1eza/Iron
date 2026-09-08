@@ -1,11 +1,13 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
+import { renderWithIntl } from '@/test/renderWithIntl';
 import userEvent from '@testing-library/user-event';
 import { KgQuantityModal } from './KgQuantityModal';
 
+
 describe('KgQuantityModal', () => {
   it('defaults to one branch\'s worth of kg when the branch weight is known', () => {
-    render(
+    renderWithIntl(
       <KgQuantityModal
         open
         onClose={vi.fn()}
@@ -21,7 +23,7 @@ describe('KgQuantityModal', () => {
   it('recomputes the total as the branch count changes, and confirms with that total', async () => {
     const onConfirm = vi.fn();
     const user = userEvent.setup();
-    render(
+    renderWithIntl(
       <KgQuantityModal
         open
         onClose={vi.fn()}
@@ -40,7 +42,7 @@ describe('KgQuantityModal', () => {
   it('switches to a direct weight entry and confirms with the typed value', async () => {
     const onConfirm = vi.fn();
     const user = userEvent.setup();
-    render(
+    renderWithIntl(
       <KgQuantityModal
         open
         onClose={vi.fn()}
@@ -60,7 +62,7 @@ describe('KgQuantityModal', () => {
   it('has no mode toggle and no default when the branch weight is unknown, and disables confirm until a weight is typed', async () => {
     const onConfirm = vi.fn();
     const user = userEvent.setup();
-    render(
+    renderWithIntl(
       <KgQuantityModal open onClose={vi.fn()} productName="محصول ناشناخته" onConfirm={onConfirm} />,
     );
     expect(screen.queryByRole('button', { name: 'تعداد شاخه' })).toBeNull();

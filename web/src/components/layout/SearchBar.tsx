@@ -2,11 +2,13 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useTranslations, useLocale } from 'next-intl';
 import { useQuery } from '@tanstack/react-query';
 import { routes } from '@/lib/routes';
-import { normalizeDigits, toPersianDigits } from '@/lib/utils/format';
+import { normalizeDigits, localizeDigits } from '@/lib/utils/format';
 import { catalogApi } from '@/lib/api/resources/catalog';
 import type { Article, PriceRow } from '@/lib/types/domain';
+import type { AppLocale } from '@/i18n/config';
 import { SearchIcon, CloseIcon } from '@/components/primitives/icons';
 import styles from './SearchBar.module.css';
 
@@ -30,8 +32,14 @@ const MAX_SKU_SUGGESTIONS = 5;
 const MAX_ARTICLE_SUGGESTIONS = 3;
 const NO_HITS: Suggestion[] = [];
 
-function skuSuggestion(row: PriceRow): Suggestion {
-  const meta = [row.factory, row.size ? `سایز ${toPersianDigits(row.size)}` : null].filter(Boolean).join(' · ');
+function skuSuggestion(
+  row: PriceRow,
+  t: ReturnType<typeof useTranslations>,
+  locale: string,
+): Suggestion {
+  const meta = [row.factory, row.size ? t('sizeLabel', { size: localizeDigits(row.size, locale) }) : null]
+    .filter(Boolean)
+    .join(' · ');
   return {
     key: `sku:${row.id}`,
     label: row.name,
@@ -40,11 +48,11 @@ function skuSuggestion(row: PriceRow): Suggestion {
   };
 }
 
-function articleSuggestion(a: Article): Suggestion {
+function articleSuggestion(a: Article, t: ReturnType<typeof useTranslations<'searchBar'>>): Suggestion {
   return {
     key: `article:${a.id}`,
     label: a.title,
-    meta: a.type === 'news' ? 'خبر بازار' : 'مقاله',
+    meta: a.type === 'news' ? t('newsLabel') : t('articleLabel'),
     href: a.type === 'news' ? routes.news(a.slug) : routes.blog(a.slug),
   };
 }
@@ -66,10 +74,14 @@ function articleSuggestion(a: Article): Suggestion {
 export function SearchBar({
   size = 'sm',
   autoFocus = false,
-  placeholder = 'جستجوی محصول، سایز، کارخانه…',
-  label = 'جستجو در آهن‌تایم',
+  placeholder,
+  label,
   initial = '',
 }: Props) {
+  const t = useTranslations('searchBar');
+  const locale = useLocale() as AppLocale;
+  const resolvedPlaceholder = placeholder ?? t('placeholder');
+  const resolvedLabel = label ?? t('label');
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -102,10 +114,10 @@ export function SearchBar({
   const suggestions = useMemo<Suggestion[]>(() => {
     if (!canSearch || !search.data) return NO_HITS;
     return [
-      ...search.data.skus.slice(0, MAX_SKU_SUGGESTIONS).map(skuSuggestion),
-      ...search.data.articles.slice(0, MAX_ARTICLE_SUGGESTIONS).map(articleSuggestion),
+      ...search.data.skus.slice(0, MAX_SKU_SUGGESTIONS).map((row) => skuSuggestion(row, t, locale)),
+      ...search.data.articles.slice(0, MAX_ARTICLE_SUGGESTIONS).map((a) => articleSuggestion(a, t)),
     ];
-  }, [canSearch, search.data]);
+  }, [canSearch, search.data, t, locale]);
 
   // Open/close and reset the highlighted row on new results, not on every
   // keystroke — a response for a query the visitor has since changed must
@@ -167,8 +179,8 @@ export function SearchBar({
           type="search"
           inputMode="search"
           className={styles.input}
-          placeholder={placeholder}
-          aria-label={label}
+          placeholder={resolvedPlaceholder}
+          aria-label={resolvedLabel}
           value={q}
           onChange={(e) => setQ(e.target.value)}
           onKeyDown={onKeyDown}
@@ -186,7 +198,7 @@ export function SearchBar({
           <button
             type="button"
             className={styles.clear}
-            aria-label="پاک کردن جستجو"
+            aria-label={t('clear')}
             onClick={() => {
               setQ('');
               setOpen(false);
@@ -198,13 +210,13 @@ export function SearchBar({
         )}
         {size === 'lg' && (
           <button type="submit" className={styles.submit}>
-            جستجو
+            {t('submit')}
           </button>
         )}
       </form>
 
       {open && suggestions.length > 0 ? (
-        <ul id={listboxId} role="listbox" className={styles.suggestions} aria-label="پیشنهادهای جستجو">
+        <ul id={listboxId} role="listbox" className={styles.suggestions} aria-label={t('suggestionsLabel')}>
           {suggestions.map((s, i) => (
             <li key={s.key} id={`${listboxId}-${i}`} role="option" aria-selected={i === activeIndex}>
               <Link

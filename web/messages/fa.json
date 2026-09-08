@@ -13,7 +13,12 @@
       "cancel": "انصراف",
       "close": "بستن",
       "login": "ورود",
-      "backHome": "بازگشت به خانه"
+      "backHome": "بازگشت به خانه",
+      "previous": "قبلی",
+      "next": "بعدی",
+      "call": "تماس بگیرید",
+      "remove": "حذف",
+      "continue": "ادامه"
     },
     "state": {
       "loading": "در حال بارگذاری…",
@@ -33,7 +38,18 @@
       "updatedAt": "آخرین به‌روزرسانی"
     },
     "skipToContent": "پرش به محتوا",
-    "nameLabel": "نام"
+    "nameLabel": "نام",
+    "pagination": "صفحه‌بندی",
+    "movement": {
+      "up": "افزایش",
+      "down": "کاهش",
+      "flat": "بدون تغییر"
+    },
+    "breadcrumbs": "مسیر صفحه",
+    "notFound": {
+      "headline": "این صفحه پیدا نشد",
+      "body": "شاید آدرس عوض شده. از جستجو یا آهن‌تایم کمک بگیرید."
+    }
   },
   "nav": {
     "home": "خانه",
@@ -48,7 +64,8 @@
     "contact": "تماس",
     "account": "حساب من",
     "cart": "سبد استعلام",
-    "company": "شرکت"
+    "company": "شرکت",
+    "support": "پشتیبانی"
   },
   "header": {
     "openMenu": "باز کردن منو",
@@ -99,7 +116,8 @@
     "newUserBadge": "ثبت‌نام",
     "registerNameSubtitle": "حساب شما ساخته شد. برای تکمیل ثبت‌نام، نام و نام خانوادگی‌تان را وارد کنید.",
     "completeRegistration": "تکمیل ثبت‌نام",
-    "requestFlowNote": "سبد استعلام شما نگه داشته شده؛ پس از تأیید شماره، به ثبت درخواست بازمی‌گردید."
+    "requestFlowNote": "سبد استعلام شما نگه داشته شده؛ پس از تأیید شماره، به ثبت درخواست بازمی‌گردید.",
+    "otpLengthError": "کد تأیید باید ۶ رقم باشد."
   },
   "phone": {
     "country": "کشور",
@@ -221,7 +239,9 @@
     "browse": {
       "title": "محصول را انتخاب کنید",
       "railAria": "دسته‌بندی محصولات",
-      "subsOf": "زیرشاخه‌های {name}"
+      "subsOf": "زیرشاخه‌های {name}",
+      "mainCategories": "دسته‌بندی‌های اصلی",
+      "noSubs": "زیردسته‌ای برای {name} ثبت نشده است؛ جدول قیمت این دسته را ببینید."
     },
     "compare": {
       "title": "یک محصول، همهٔ کارخانه‌ها",
@@ -229,6 +249,12 @@
       "tabsAria": "انتخاب محصول برای مقایسه",
       "perKg": "تومان بر کیلوگرم",
       "cheapest": "ارزان‌ترین"
+    },
+    "priceBoard": {
+      "ariaLabel": "تابلوی قیمت لحظه‌ای",
+      "live": "قیمت لحظه‌ای",
+      "unit": "تومان",
+      "viewAll": "مشاهدهٔ همهٔ قیمت‌ها"
     }
   },
   "about": {
@@ -294,5 +320,145 @@
     "cta": "تماس و ارسال پیام",
     "landline": "تلفن ثابت",
     "mobile": "همراه"
+  },
+  "navLinks": {
+    "aiAdvisor": "مشاور هوشمند",
+    "weight": "وزن‌سنج",
+    "project": "برآورد پروژه",
+    "cost": "محاسبه هزینه",
+    "market": "طلا و ارز",
+    "blogAnalysis": "تحلیل و آموزش",
+    "marketNews": "اخبار بازار",
+    "tender": "برآورد مناقصات",
+    "track": "پیگیری سفارش",
+    "cutToSize": "کالا با ابعاد درخواستی",
+    "warehouse": "انبار مشتریان",
+    "about": "درباره ما",
+    "cooperation": "همکاری با ما",
+    "contactUs": "تماس با ما",
+    "terms": "قوانین",
+    "privacy": "حریم خصوصی",
+    "telegram": "تلگرام",
+    "eitaa": "ایتا",
+    "instagram": "اینستاگرام",
+    "whatsapp": "واتساپ"
+  },
+  "drawer": {
+    "closeMenu": "بستن منو",
+    "mainMenuLabel": "منوی اصلی",
+    "mobileNav": "ناوبری موبایل",
+    "products": "محصولات",
+    "subCategoriesOf": "زیردسته‌های {name}",
+    "subsCount": "{count} زیردسته",
+    "todayPriceOf": "قیمت روز {name}",
+    "loginRegister": "ورود / ثبت‌نام",
+    "opensNewTab": "در تب جدید باز می‌شود"
+  },
+  "ticker": {
+    "ariaLabel": "نبض بازار",
+    "usd": "دلار",
+    "eur": "یورو",
+    "gold18": "طلای ۱۸",
+    "ounce": "انس جهانی",
+    "billet": "شمش فولاد",
+    "unitToman": "تومان",
+    "unitDollar": "دلار"
+  },
+  "searchBar": {
+    "placeholder": "جستجوی محصول، سایز، کارخانه…",
+    "label": "جستجو در آهن‌تایم",
+    "clear": "پاک کردن جستجو",
+    "submit": "جستجو",
+    "suggestionsLabel": "پیشنهادهای جستجو",
+    "newsLabel": "خبر بازار",
+    "articleLabel": "مقاله",
+    "sizeLabel": "سایز {size}"
+  },
+  "bottomTab": {
+    "nav": "ناوبری پایین",
+    "cart": "سبد",
+    "aiAria": "آهن‌تایم، مشاور هوشمند"
+  },
+  "cartReminder": {
+    "message": "{count} کالا در سبد استعلام شما منتظر است.",
+    "continueLink": "ادامهٔ سبد استعلام"
+  },
+  "requestFlow": {
+    "successTitle": "درخواست شما به تیم فروش ارسال شد",
+    "successLeadPriced": "قیمت شما به‌صورت خودکار محاسبه و پیش‌فاکتور صادر شد. کارشناسان فروش آهن‌تایم برای هماهنگی تحویل با شما تماس می‌گیرند.",
+    "successLeadUnpriced": "کارشناسان فروش آهن‌تایم درخواست شما را دریافت کردند و برای نهایی‌کردن قیمت و شرایط تحویل با شما تماس می‌گیرند.",
+    "trackingCode": "کد پیگیری:",
+    "priceUpdatedNote": "توجه: قیمت یک یا چند قلم از زمانی که به سبد اضافه کردید به‌روزرسانی شده؛ مبلغ زیر قیمت لحظه‌ای و نهایی است.",
+    "proformaIssued": "پیش‌فاکتور شما صادر شد",
+    "proformaIssuedWithTotal": "پیش‌فاکتور شما صادر شد، مبلغ {total}",
+    "downloadProforma": "دانلود پیش‌فاکتور (PDF)",
+    "someItemsNeedQuote": "برخی اقلام نیاز به استعلام قیمت دارند؛ کارشناس فروش پیش‌فاکتور نهایی را برایتان ارسال می‌کند.",
+    "trackMyRequests": "پیگیری درخواست‌های من",
+    "continueShopping": "ادامهٔ خرید",
+    "emptyHeadline": "سبد استعلام خالی است",
+    "emptyBody": "از جدول‌های قیمت، کالاهای موردنظر را به سبد اضافه کنید تا برایشان پیش‌فاکتور بگیرید.",
+    "proformaTitleSingle": "پیش‌فاکتور {name}",
+    "proformaTitleMulti": "پیش‌فاکتور {count} قلم کالا",
+    "loginRequiredError": "برای ثبت درخواست ابتدا وارد حساب کاربری شوید.",
+    "submitFailedError": "ثبت درخواست ناموفق بود. دوباره تلاش کنید.",
+    "submitSuccessToast": "درخواست ثبت شد؛ وضعیت آن در پروفایل شماست.",
+    "unitKg": "کیلوگرم",
+    "unitPiece": "عدد",
+    "perUnitToman": "تومان",
+    "notesLabel": "توضیحات (اختیاری)",
+    "notesPlaceholder": "مثلاً: تحویل تا پایان هفته، ترجیح کارخانهٔ خاص، شرایط پرداخت…",
+    "loginCta": "ورود به حساب کاربری",
+    "submitting": "در حال ثبت…",
+    "submitCta": "ثبت درخواست پیش‌فاکتور",
+    "editCart": "ویرایش سبد",
+    "anonymousNote": "بعد از ورود به همین صفحه برمی‌گردید؛ نام و شمارهٔ تماس از حساب شما برداشته می‌شود.",
+    "footerNote": "پس از ثبت، درخواست شما مستقیم به تیم فروش می‌رود و کارشناس برای نهایی‌کردن قیمت و شرایط تحویل تماس می‌گیرد. پرداخت آنلاین نداریم."
+  },
+  "cart": {
+    "itemsHeading": "اقلام سبد استعلام",
+    "unitLabel": "واحد: {unit}",
+    "weightPerUnit": "وزن هر واحد: {weight} کیلوگرم",
+    "qtyAria": "تعداد {name}",
+    "decreaseQty": "کاهش تعداد {name}",
+    "increaseQty": "افزایش تعداد {name}",
+    "estimateLabel": "تخمین",
+    "quoteOnRequest": "استعلامی",
+    "removeItem": "حذف {name} از سبد",
+    "clearCart": "خالی کردن سبد",
+    "clearCartTitle": "خالی کردن سبد استعلام",
+    "clearCartBody": "همهٔ اقلام از سبد استعلام حذف شوند؟ این کار قابل بازگشت نیست.",
+    "clearConfirm": "خالی کن",
+    "addMoreItems": "افزودن محصول دیگر",
+    "summaryTitle": "خلاصهٔ استعلام",
+    "itemCount": "تعداد اقلام",
+    "itemCountValue": "{count} مورد",
+    "totalWeight": "وزن کل",
+    "totalWeightValue": "{weight} کیلوگرم",
+    "totalWeightUnknown": "نامشخص",
+    "estimatedTotal": "برآورد کل",
+    "tierDiscountNote": "سطح {tier}: تخفیف خودکار {percent}٪، حدود {amount} صرفه‌جویی.",
+    "baseTierNote": "قیمت پایه؛ تخفیف عمده از ۵ تن به‌صورت خودکار شروع می‌شود.",
+    "nextTierNote": " با افزودن {weight} کیلوگرم، به سطح {tier} با تخفیف {percent}٪ می‌رسید.",
+    "estimateDisclaimer": "برآورد تقریبی؛ قیمت نهایی هنگام تأیید کارشناس",
+    "belowAutoQuoteNote": "مبلغ این سبد کمتر از حد صدور خودکار ({amount}) است؛ درخواست شما ثبت می‌شود و کارشناس قیمت و امکان تأمین را بررسی می‌کند.",
+    "continueRequestCta": "ادامه و ثبت درخواست",
+    "loginContinueRequestCta": "ورود و ادامه ثبت درخواست",
+    "noOnlinePaymentNote": "در آهن‌تایم پرداخت آنلاین نداریم؛ کارشناس ما برای نهایی‌کردن قیمت و تحویل با شما تماس می‌گیرد."
+  },
+  "kgModal": {
+    "title": "تعداد «{name}»",
+    "modeAria": "روش تعیین تعداد",
+    "byBranch": "تعداد شاخه",
+    "byWeight": "وزن مستقیم (کیلوگرم)",
+    "noBranchWeightNote": "وزن شاخهٔ این محصول ثبت نشده؛ وزن موردنیاز را مستقیم وارد کنید.",
+    "decreaseBranch": "کاهش تعداد شاخه",
+    "increaseBranch": "افزایش تعداد شاخه",
+    "branchCountLabel": "تعداد شاخه",
+    "perBranchWeight": "× {weight} کیلوگرم هر شاخه",
+    "weightLabel": "وزن (کیلوگرم)",
+    "weightPlaceholder": "مثلاً ۵۰۰",
+    "totalWeight": "وزن کل: {weight} کیلوگرم",
+    "estimateLabel": "تخمین: {amount}",
+    "addToCart": "افزودن به سبد استعلام"
   }
 }

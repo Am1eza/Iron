@@ -10,7 +10,8 @@
  *    stacked on an identical «چهارپهلو» link.
  */
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
+import { renderWithIntl as render } from '@/test/renderWithIntl';
 import { ProductsMenu, columnsFor } from './ProductsMenu';
 import type { Category } from '@/lib/types/domain';
 

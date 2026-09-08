@@ -13,7 +13,12 @@
       "cancel": "Cancel",
       "close": "Close",
       "login": "Log In",
-      "backHome": "Back to Home"
+      "backHome": "Back to Home",
+      "previous": "Previous",
+      "next": "Next",
+      "call": "Call Us",
+      "remove": "Remove",
+      "continue": "Continue"
     },
     "state": {
       "loading": "Loading…",
@@ -33,7 +38,18 @@
       "updatedAt": "Last updated"
     },
     "skipToContent": "Skip to content",
-    "nameLabel": "Name"
+    "nameLabel": "Name",
+    "pagination": "Pagination",
+    "movement": {
+      "up": "Up",
+      "down": "Down",
+      "flat": "Unchanged"
+    },
+    "breadcrumbs": "Breadcrumb",
+    "notFound": {
+      "headline": "This page could not be found",
+      "body": "The address may have changed. Try search, or ask Ahantime for help."
+    }
   },
   "nav": {
     "home": "Home",
@@ -48,7 +64,8 @@
     "contact": "Contact",
     "account": "My Account",
     "cart": "Inquiry Cart",
-    "company": "Company"
+    "company": "Company",
+    "support": "Support"
   },
   "header": {
     "openMenu": "Open menu",
@@ -98,8 +115,9 @@
     "registerSubtitle": "This number is new; enter the code sent to {mobile} and complete your details.",
     "newUserBadge": "New account",
     "registerNameSubtitle": "Your account is ready. Enter your first and last name to finish signing up.",
-    "completeRegistration": "Finish signing up",
-    "requestFlowNote": "Your inquiry cart is saved — after verifying your number, you'll return to submit your request."
+    "completeRegistration": "Complete Registration",
+    "requestFlowNote": "Your inquiry cart is saved — after verifying your number, you'll return to submit your request.",
+    "otpLengthError": "The verification code must be 6 digits."
   },
   "phone": {
     "country": "Country",
@@ -139,7 +157,7 @@
       "titleLine1": "Today's steel prices,",
       "titleLine2": "with a smart advisor",
       "sub": "Rebar, I-beams, sheet and profiles, direct from the mill. Tell us what you are building and we will work out the quantities, weights and project cost.",
-      "ctaPrices": "Browse prices",
+      "ctaPrices": "View prices",
       "ctaAdvisor": "Plan a project with the advisor",
       "advisorLabel": "Or write your question right here",
       "placeholder": "e.g. I'm building a house — what do I need, and how much?",
@@ -221,7 +239,9 @@
     "browse": {
       "title": "Choose a product",
       "railAria": "Product categories",
-      "subsOf": "Sub-categories of {name}"
+      "subsOf": "Sub-categories of {name}",
+      "mainCategories": "Main categories",
+      "noSubs": "No sub-category is registered for {name} yet; see this category’s price table."
     },
     "compare": {
       "title": "One product, every mill",
@@ -229,6 +249,12 @@
       "tabsAria": "Choose a product to compare",
       "perKg": "Toman per kilogram",
       "cheapest": "Cheapest"
+    },
+    "priceBoard": {
+      "ariaLabel": "Live Price Board",
+      "live": "Live price",
+      "unit": "Toman",
+      "viewAll": "View all prices"
     }
   },
   "about": {
@@ -273,7 +299,7 @@
         "desc": "Our specialists call you to finalise the proforma, availability and delivery — a real person, not a bot."
       },
       "bourse": {
-        "title": "Purchasing via the commodity exchange",
+        "title": "Purchasing via the Iran Mercantile Exchange",
         "desc": "Official sourcing through the Iran Mercantile Exchange: transparent pricing, a valid invoice and guaranteed product authenticity."
       },
       "lc": {
@@ -294,5 +320,145 @@
     "cta": "Call us or send a message",
     "landline": "Landline",
     "mobile": "Mobile"
+  },
+  "navLinks": {
+    "aiAdvisor": "Smart Advisor",
+    "weight": "Weight Calculator",
+    "project": "Project Estimator",
+    "cost": "Cost Calculator",
+    "market": "Gold & Currency",
+    "blogAnalysis": "Analysis & Guides",
+    "marketNews": "Market News",
+    "tender": "Tender Estimation",
+    "track": "Order Tracking",
+    "cutToSize": "Cut-to-Size Goods",
+    "warehouse": "Customer Warehouse",
+    "about": "About Us",
+    "cooperation": "Partner With Us",
+    "contactUs": "Contact Us",
+    "terms": "Terms",
+    "privacy": "Privacy Policy",
+    "telegram": "Telegram",
+    "eitaa": "Eitaa",
+    "instagram": "Instagram",
+    "whatsapp": "WhatsApp"
+  },
+  "drawer": {
+    "closeMenu": "Close menu",
+    "mainMenuLabel": "Main menu",
+    "mobileNav": "Mobile navigation",
+    "products": "Products",
+    "subCategoriesOf": "Sub-categories of {name}",
+    "subsCount": "{count, plural, one {# sub-category} other {# sub-categories}}",
+    "todayPriceOf": "Today's price for {name}",
+    "loginRegister": "Log In / Sign Up",
+    "opensNewTab": "opens in a new tab"
+  },
+  "ticker": {
+    "ariaLabel": "Market Pulse",
+    "usd": "USD",
+    "eur": "EUR",
+    "gold18": "18k Gold",
+    "ounce": "Gold (Global Oz)",
+    "billet": "Steel Billet",
+    "unitToman": "Toman",
+    "unitDollar": "USD"
+  },
+  "searchBar": {
+    "placeholder": "Search product, size, mill…",
+    "label": "Search Ahantime",
+    "clear": "Clear search",
+    "submit": "Search",
+    "suggestionsLabel": "Search suggestions",
+    "newsLabel": "Market News",
+    "articleLabel": "Article",
+    "sizeLabel": "Size {size}"
+  },
+  "bottomTab": {
+    "nav": "Bottom navigation",
+    "cart": "Cart",
+    "aiAria": "Ahantime, Smart Advisor"
+  },
+  "cartReminder": {
+    "message": "{count, plural, one {# item is} other {# items are}} waiting in your inquiry cart.",
+    "continueLink": "Continue with your cart"
+  },
+  "requestFlow": {
+    "successTitle": "Your request has been sent to our sales team",
+    "successLeadPriced": "Your price was calculated automatically and a proforma invoice has been issued. Ahantime's sales specialists will contact you to arrange delivery.",
+    "successLeadUnpriced": "Ahantime's sales specialists have received your request and will contact you to finalize the price and delivery terms.",
+    "trackingCode": "Tracking code:",
+    "priceUpdatedNote": "Note: the price of one or more items has updated since you added them to your cart; the amount below reflects the current, final price.",
+    "proformaIssued": "Your proforma invoice has been issued",
+    "proformaIssuedWithTotal": "Your proforma invoice has been issued for {total}",
+    "downloadProforma": "Download proforma invoice (PDF)",
+    "someItemsNeedQuote": "Some items require a price quote; a sales specialist will send you the final proforma invoice.",
+    "trackMyRequests": "Track my requests",
+    "continueShopping": "Continue shopping",
+    "emptyHeadline": "Your inquiry cart is empty",
+    "emptyBody": "Add the items you need from the price tables to request a proforma invoice for them.",
+    "proformaTitleSingle": "Proforma invoice — {name}",
+    "proformaTitleMulti": "Proforma invoice — {count} items",
+    "loginRequiredError": "Please log in to your account before submitting a request.",
+    "submitFailedError": "The request could not be submitted. Please try again.",
+    "submitSuccessToast": "Request submitted — track its status in your profile.",
+    "unitKg": "kg",
+    "unitPiece": "pcs",
+    "perUnitToman": "Toman",
+    "notesLabel": "Notes (optional)",
+    "notesPlaceholder": "e.g. deliver by end of week, prefer a specific mill, payment terms…",
+    "loginCta": "Log in to your account",
+    "submitting": "Submitting…",
+    "submitCta": "Submit proforma request",
+    "editCart": "Edit cart",
+    "anonymousNote": "You'll return to this page after logging in; your name and phone number are taken from your account.",
+    "footerNote": "Once submitted, your request goes straight to the sales team and a specialist will call to finalize the price and delivery terms. We do not accept online payment."
+  },
+  "cart": {
+    "itemsHeading": "Inquiry cart items",
+    "unitLabel": "Unit: {unit}",
+    "weightPerUnit": "Weight per unit: {weight} kg",
+    "qtyAria": "Quantity of {name}",
+    "decreaseQty": "Decrease quantity of {name}",
+    "increaseQty": "Increase quantity of {name}",
+    "estimateLabel": "Estimate",
+    "quoteOnRequest": "Quote on request",
+    "removeItem": "Remove {name} from cart",
+    "clearCart": "Clear cart",
+    "clearCartTitle": "Clear inquiry cart",
+    "clearCartBody": "Remove all items from the inquiry cart? This cannot be undone.",
+    "clearConfirm": "Clear",
+    "addMoreItems": "Add another product",
+    "summaryTitle": "Inquiry summary",
+    "itemCount": "Item count",
+    "itemCountValue": "{count, plural, one {# item} other {# items}}",
+    "totalWeight": "Total weight",
+    "totalWeightValue": "{weight} kg",
+    "totalWeightUnknown": "Unknown",
+    "estimatedTotal": "Estimated total",
+    "tierDiscountNote": "{tier} tier: automatic {percent}% discount, about {amount} in savings.",
+    "baseTierNote": "Base pricing; bulk discounts start automatically from 5 tons.",
+    "nextTierNote": " Add {weight} more kg to reach the {tier} tier with a {percent}% discount.",
+    "estimateDisclaimer": "Approximate estimate; the final price is confirmed by a specialist",
+    "belowAutoQuoteNote": "This cart's total is below the automatic-issue threshold ({amount}); your request will be filed and a specialist will review pricing and availability.",
+    "continueRequestCta": "Continue and submit request",
+    "loginContinueRequestCta": "Log in and continue with your request",
+    "noOnlinePaymentNote": "Ahantime does not accept online payment; our specialist will contact you to finalize the price and delivery."
+  },
+  "kgModal": {
+    "title": "Quantity for \"{name}\"",
+    "modeAria": "How to specify quantity",
+    "byBranch": "Number of bars",
+    "byWeight": "Direct weight (kg)",
+    "noBranchWeightNote": "This product's per-bar weight isn't on record; enter the required weight directly.",
+    "decreaseBranch": "Decrease number of bars",
+    "increaseBranch": "Increase number of bars",
+    "branchCountLabel": "Number of bars",
+    "perBranchWeight": "× {weight} kg per bar",
+    "weightLabel": "Weight (kg)",
+    "weightPlaceholder": "e.g. 500",
+    "totalWeight": "Total weight: {weight} kg",
+    "estimateLabel": "Estimate: {amount}",
+    "addToCart": "Add to inquiry cart"
   }
 }

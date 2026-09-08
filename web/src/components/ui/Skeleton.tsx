@@ -1,4 +1,6 @@
+'use client';
 import type { CSSProperties } from 'react';
+import { useTranslations } from 'next-intl';
 import styles from './Skeleton.module.css';
 
 // The handful of widths every current caller actually uses get a real CSS
@@ -83,14 +85,15 @@ export function SkeletonText({ lines = 3 }: { lines?: number }) {
 export function TableSkeleton({
   rows = 6,
   cols = 5,
-  label = 'در حال بارگذاری',
+  label,
 }: {
   rows?: number;
   cols?: number;
   label?: string;
 }) {
+  const t = useTranslations('common.state');
   return (
-    <div className={styles.table} role="status" aria-label={label}>
+    <div className={styles.table} role="status" aria-label={label ?? t('loading')}>
       <div className={styles.tableHead}>
         {Array.from({ length: cols }).map((_, i) => (
           <Skeleton key={i} variant="text" width="70%" />

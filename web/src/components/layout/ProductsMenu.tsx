@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { flushSync } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useTranslations, useLocale } from 'next-intl';
 import { routes } from '@/lib/routes';
 import type { SubsMap } from '@/lib/data/catalog';
 import type { Category } from '@/lib/types/domain';
@@ -11,7 +12,8 @@ import { CategoryArt } from '@/components/catalog/CategoryArt';
 import { SubCategoryArt } from '@/components/catalog/SubCategoryArt';
 import { productImage } from '@/lib/data/productImages';
 import { groupSubCategories } from '@/lib/utils/catalogGroups';
-import { toPersianDigits } from '@/lib/utils/format';
+import { localizeDigits } from '@/lib/utils/format';
+import type { AppLocale } from '@/i18n/config';
 import { ChevronStartIcon } from '@/components/primitives/icons';
 import { NavDropdown } from './NavDropdown';
 import styles from './ProductsMenu.module.css';
@@ -56,6 +58,10 @@ import styles from './ProductsMenu.module.css';
  */
 export function ProductsMenu({ categories, subs }: { categories: Category[]; subs: SubsMap }) {
   const pathname = usePathname();
+  const tFooter = useTranslations('footer');
+  const tBrowse = useTranslations('home.browse');
+  const tDrawer = useTranslations('drawer');
+  const locale = useLocale() as AppLocale;
 
   // Open on whatever the visitor is already looking at, so the menu confirms
   // where they are rather than resetting them to میلگرد from a ورق page.
@@ -168,12 +174,17 @@ export function ProductsMenu({ categories, subs }: { categories: Category[]; sub
   if (categories.length === 0) return null;
 
   return (
-    <NavDropdown label="محصولات" mega keepMounted panelLabel="دسته‌بندی محصولات">
+    <NavDropdown
+      label={tFooter('products')}
+      mega
+      keepMounted
+      panelLabel={tBrowse('railAria')}
+    >
       <div className={styles.layout} ref={layoutRef}>
         {/* The rail is a real <nav> landmark with its own name: it is a
             standing list of the site's product lines, which is exactly the
             question an answer engine asks of a marketplace. */}
-        <nav className={styles.rail} aria-label="دسته‌بندی‌های اصلی">
+        <nav className={styles.rail} aria-label={tBrowse('mainCategories')}>
           <ul className={styles.railList}>
             {categories.map((cat, i) => {
               const count = subs[cat.slug]?.length ?? 0;
@@ -215,7 +226,7 @@ export function ProductsMenu({ categories, subs }: { categories: Category[]; sub
                         is behind a row before they open it, which is exactly
                         what `visually-hidden` text is for. */}
                     {count > 0 && (
-                      <span className="visually-hidden">، {toPersianDigits(count)} زیردسته</span>
+                      <span className="visually-hidden">{tDrawer('subsCount', { count: localizeDigits(count, locale) })}</span>
                     )}
                     <ChevronStartIcon size={14} className={`${styles.railChev} icon--rtl`} />
                   </Link>
@@ -277,6 +288,8 @@ function CategoryPanel({
   hidden: boolean;
   onKeyDown: (e: KeyboardEvent) => void;
 }) {
+  const tDrawer = useTranslations('drawer');
+  const tBrowse = useTranslations('home.browse');
   const groups = groupSubCategories(subs);
   /**
    * Column count is a function of how many LINES the flow will draw, not of
@@ -307,7 +320,7 @@ function CategoryPanel({
               side of the click; a generic «مشاهده» says nothing to a reader
               scanning, and nothing to an answer engine reading anchor text. */}
           <Link href={routes.category(cat.slug)} className={styles.panelAll}>
-            قیمت روز {cat.name}
+            {tDrawer('todayPriceOf', { name: cat.name })}
             <ChevronStartIcon size={14} className="icon--rtl" />
           </Link>
         </div>
@@ -363,9 +376,7 @@ function CategoryPanel({
         </div>
 
         {subs.length === 0 ? (
-          <p className={styles.panelEmpty}>
-            زیردسته‌ای برای {cat.name} ثبت نشده است؛ جدول قیمت این دسته را ببینید.
-          </p>
+          <p className={styles.panelEmpty}>{tBrowse('noSubs', { name: cat.name })}</p>
         ) : (
           <ul className={styles.groups} data-cols={columnsFor(rows, groups.length)}>
             {groups.map((group) => {

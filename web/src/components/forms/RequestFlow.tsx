@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useTranslations, useLocale } from 'next-intl';
 import { routes } from '@/lib/routes';
 import { useCartStore } from '@/lib/stores/cart';
 import { useRequestsStore } from '@/lib/stores/requests';
@@ -11,7 +12,8 @@ import { API_MODE } from '@/lib/api/config';
 import { ApiError } from '@/lib/api/errors';
 import { trackGoal } from '@/lib/analytics/track';
 import type { CreateLeadResult } from '@/lib/server/services/leads.service';
-import { formatToman, toPersianDigits } from '@/lib/utils/format';
+import { formatToman, localizeDigits } from '@/lib/utils/format';
+import type { AppLocale } from '@/i18n/config';
 import { Textarea } from '@/components/forms/fields';
 import { Button, EmptyState } from '@/components/ui';
 import { CheckCircleIcon, DownloadIcon } from '@/components/primitives/icons';
@@ -24,6 +26,11 @@ import styles from './RequestFlow.module.css';
  * branded پیش‌فاکتور PDF. The lead lands on the sales panel immediately.
  */
 export function RequestFlow() {
+  const t = useTranslations('requestFlow');
+  const tAction = useTranslations('common.action');
+  const tUnit = useTranslations('common.unit');
+  const locale = useLocale() as AppLocale;
+  const money = (v: number) => `${formatToman(v, false, locale)} ${tUnit('currency')}`;
   const toast = useToast();
   const items = useCartStore((s) => s.items);
   const clear = useCartStore((s) => s.clear);
@@ -45,26 +52,24 @@ export function RequestFlow() {
         <span className={styles.successIcon} aria-hidden="true">
           <CheckCircleIcon size={40} />
         </span>
-        <h2 className={styles.successTitle}>درخواست شما به تیم فروش ارسال شد</h2>
+        <h2 className={styles.successTitle}>{t('successTitle')}</h2>
         <p className={styles.successLead}>
-          {done.proformaRef
-            ? 'قیمت شما به‌صورت خودکار محاسبه و پیش‌فاکتور صادر شد. کارشناسان فروش آهن‌تایم برای هماهنگی تحویل با شما تماس می‌گیرند.'
-            : 'کارشناسان فروش آهن‌تایم درخواست شما را دریافت کردند و برای نهایی‌کردن قیمت و شرایط تحویل با شما تماس می‌گیرند.'}
+          {done.proformaRef ? t('successLeadPriced') : t('successLeadUnpriced')}
         </p>
         <p className={`${styles.successRef} tnum`}>
-          کد پیگیری: <bdi>{done.ref}</bdi>
+          {t('trackingCode')} <bdi>{done.ref}</bdi>
         </p>
         {done.proformaRef ? (
           <div className={styles.successProforma}>
             {done.priceChanged ? (
               <p className={styles.successNote} role="alert">
-                توجه: قیمت یک یا چند قلم از زمانی که به سبد اضافه کردید به‌روزرسانی شده؛ مبلغ زیر قیمت
-                لحظه‌ای و نهایی است.
+                {t('priceUpdatedNote')}
               </p>
             ) : null}
             <p className="tnum">
-              پیش‌فاکتور شما صادر شد
-              {done.total ? <>، مبلغ {formatToman(done.total)}</> : null}
+              {done.total
+                ? t('proformaIssuedWithTotal', { total: money(done.total) })
+                : t('proformaIssued')}
             </p>
             <Link
               href={`/proforma/${encodeURIComponent(done.proformaRef)}`}
@@ -73,20 +78,18 @@ export function RequestFlow() {
               rel="noreferrer"
             >
               <DownloadIcon size={18} aria-hidden="true" />
-              دانلود پیش‌فاکتور (PDF)
+              {t('downloadProforma')}
             </Link>
           </div>
         ) : (
-          <p className={styles.successNote}>
-            برخی اقلام نیاز به استعلام قیمت دارند؛ کارشناس فروش پیش‌فاکتور نهایی را برایتان ارسال می‌کند.
-          </p>
+          <p className={styles.successNote}>{t('someItemsNeedQuote')}</p>
         )}
         <div className={styles.successActions}>
           <Link href={routes.account('requests')} className={styles.trackLink}>
-            پیگیری درخواست‌های من
+            {t('trackMyRequests')}
           </Link>
           <Link href={routes.prices()} className={styles.editLink}>
-            ادامهٔ خرید
+            {t('continueShopping')}
           </Link>
         </div>
       </div>
@@ -97,9 +100,9 @@ export function RequestFlow() {
     return (
       <EmptyState
         size="section"
-        headline="سبد استعلام خالی است"
-        body="از جدول‌های قیمت، کالاهای موردنظر را به سبد اضافه کنید تا برایشان پیش‌فاکتور بگیرید."
-        primary={{ label: 'مشاهدهٔ قیمت‌ها', href: routes.prices() }}
+        headline={t('emptyHeadline')}
+        body={t('emptyBody')}
+        primary={{ label: tAction('viewPrices'), href: routes.prices() }}
       />
     );
   }
@@ -107,9 +110,9 @@ export function RequestFlow() {
   const submit = async () => {
     const title =
       items.length === 1
-        ? `پیش‌فاکتور ${items[0]!.name}`
-        : `پیش‌فاکتور ${toPersianDigits(items.length)} قلم کالا`;
-    const detail = items.map((i) => `${i.name} × ${toPersianDigits(i.qty)}`).join(' · ');
+        ? t('proformaTitleSingle', { name: items[0]!.name })
+        : t('proformaTitleMulti', { count: items.length });
+    const detail = items.map((i) => `${i.name} × ${localizeDigits(i.qty, locale)}`).join(' · ');
 
     // Never fall through to the local-only store while signed in: that path
     // writes to browser storage ONLY and the sales team never sees the lead,
@@ -118,7 +121,7 @@ export function RequestFlow() {
     // real submit button is not rendered for them at all (see below).
     if (API_MODE === 'live') {
       if (!user) {
-        toast.error('برای ثبت درخواست ابتدا وارد حساب کاربری شوید.');
+        toast.error(t('loginRequiredError'));
         return;
       }
       setBusy(true);
@@ -132,10 +135,10 @@ export function RequestFlow() {
         });
         clear();
         // Conversion: this is the moment a visitor became a real sales lead.
-        trackGoal('lead', 'cart-proforma', `${items.length} قلم`);
+        trackGoal('lead', 'cart-proforma', `${items.length} items`);
         setDone(result);
       } catch (err) {
-        toast.error(err instanceof ApiError ? err.message : 'ثبت درخواست ناموفق بود. دوباره تلاش کنید.');
+        toast.error(err instanceof ApiError ? err.message : t('submitFailedError'));
       } finally {
         setBusy(false);
       }
@@ -145,7 +148,7 @@ export function RequestFlow() {
     // Mock API mode (local development only — production is always live).
     addRequest({ type: 'proforma', title, detail, note: note.trim() || undefined });
     clear();
-    toast.success('درخواست ثبت شد؛ وضعیت آن در پروفایل شماست.');
+    toast.success(t('submitSuccessToast'));
   };
 
   return (
@@ -155,18 +158,18 @@ export function RequestFlow() {
           <li key={i.skuId} className={styles.item}>
             <span className={styles.itemName}>{i.name}</span>
             <span className={`${styles.itemMeta} tnum`}>
-              {toPersianDigits(i.qty)} {i.unit === 'kg' ? 'کیلوگرم' : 'عدد'}
-              {i.unitPrice ? ` · ${formatToman(i.unitPrice, false)} تومان` : ''}
+              {localizeDigits(i.qty, locale)} {i.unit === 'kg' ? t('unitKg') : t('unitPiece')}
+              {i.unitPrice ? ` · ${money(i.unitPrice)}` : ''}
             </span>
           </li>
         ))}
       </ul>
 
       <Textarea
-        label="توضیحات (اختیاری)"
+        label={t('notesLabel')}
         value={note}
         onChange={(e) => setNote(e.target.value)}
-        placeholder="مثلاً: تحویل تا پایان هفته، ترجیح کارخانهٔ خاص، شرایط پرداخت…"
+        placeholder={t('notesPlaceholder')}
         rows={3}
       />
 
@@ -176,28 +179,21 @@ export function RequestFlow() {
           // signed out gets the login CTA, not a submit button that would file
           // nothing. The cart survives the round trip, so they come straight back.
           <Link href={routes.login(routes.request())} className={styles.loginBtn}>
-            ورود به حساب کاربری
+            {t('loginCta')}
           </Link>
         ) : (
           <Button onClick={submit} disabled={busy || authStatus === 'loading'} loading={busy}>
-            {busy ? 'در حال ثبت…' : 'ثبت درخواست پیش‌فاکتور'}
+            {busy ? t('submitting') : t('submitCta')}
           </Button>
         )}
         <Link href={routes.cart()} className={styles.editLink}>
-          ویرایش سبد
+          {t('editCart')}
         </Link>
       </div>
 
-      {authStatus === 'anonymous' && (
-        <p className={styles.note}>
-          بعد از ورود به همین صفحه برمی‌گردید؛ نام و شمارهٔ تماس از حساب شما برداشته می‌شود.
-        </p>
-      )}
+      {authStatus === 'anonymous' && <p className={styles.note}>{t('anonymousNote')}</p>}
 
-      <p className={styles.note}>
-        پس از ثبت، درخواست شما مستقیم به تیم فروش می‌رود و کارشناس برای نهایی‌کردن قیمت و شرایط تحویل تماس
-        می‌گیرد. پرداخت آنلاین نداریم.
-      </p>
+      <p className={styles.note}>{t('footerNote')}</p>
     </div>
   );
 }

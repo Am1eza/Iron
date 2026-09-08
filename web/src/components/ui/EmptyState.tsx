@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef, type ReactNode } from 'react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { routes } from '@/lib/routes';
 import { IBeamGlyph, AiMarkIcon } from '@/components/primitives/icons';
 import styles from './EmptyState.module.css';
@@ -39,6 +40,7 @@ export function EmptyState({
   secondary?: CtaAction;
   showAi?: boolean;
 }) {
+  const t = useTranslations('common');
   const headingRef = useRef<HTMLHeadingElement | null>(null);
   useEffect(() => {
     if (size === 'full') headingRef.current?.focus();
@@ -76,7 +78,7 @@ export function EmptyState({
           {showAi ? (
             <Link href={routes.ai()} className={styles.ai} data-event="ai_entry">
               <AiMarkIcon size={16} />
-              پرسش از آهن‌تایم
+              {t('action.askAi')}
             </Link>
           ) : null}
         </div>

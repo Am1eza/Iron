@@ -9,8 +9,9 @@
  * table, and that the nested disclosure reports its state to assistive tech.
  */
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { render, screen, within, act } from '@testing-library/react';
+import { screen, within, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { renderWithIntl as render } from '@/test/renderWithIntl';
 import { MobileDrawer } from './MobileDrawer';
 import { useUiStore } from '@/lib/stores/ui';
 import type { Category } from '@/lib/types/domain';

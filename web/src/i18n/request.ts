@@ -16,10 +16,17 @@ import { DEFAULT_LOCALE, LOCALE_COOKIE, isAppLocale } from './config';
  * locales later (for shareable/indexable per-language URLs) is a supported,
  * incremental next step once ready.
  *
- * Falls back to Accept-Language on first visit (no cookie yet) so a new
- * visitor sees their browser's language before ever choosing one
- * explicitly, then to fa.
+ * Falls back to Accept-Language on first visit (no cookie yet), then to fa.
+ * This config is next-intl's server-side resolution — it drives anything
+ * that calls `getTranslations()`/`getLocale()` from 'next-intl/server'
+ * (currently just the OTP SMS route). It does NOT drive the page a browser
+ * visitor actually sees: the root layout renders a static `fa` shell for
+ * ISR (see `LocaleProvider`'s header comment), so the equivalent detection
+ * for the rendered UI is duplicated client-side in `LocaleProvider`'s
+ * `readBrowserLocale()` and in `public/locale-init.js` — keep those in sync
+ * with the `isAppLocale`/`LOCALES` list here if it ever changes.
  *
+
  * The static-export build (GitHub Pages mock preview, `EXPORT=1`) has no
  * per-request context at all — `cookies()`/`headers()` cannot be called
  * during static generation — so that path skips straight to the default

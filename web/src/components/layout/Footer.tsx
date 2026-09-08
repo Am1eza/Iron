@@ -16,6 +16,8 @@ import styles from './Footer.module.css';
 export function Footer({ categories, contact }: { categories: Category[]; contact: SiteContact }) {
   const t = useTranslations('footer');
   const tCommon = useTranslations('common');
+  const tNav = useTranslations('nav');
+  const tNavLinks = useTranslations('navLinks');
   const locale = useLocale() as AppLocale;
   // Copyright year: the fa locale keeps the deliberate Jalali ۱۴۰۵ (this is a
   // Persian-calendar business, not a raw current-year computation); every
@@ -63,20 +65,20 @@ export function Footer({ categories, contact }: { categories: Category[]; contac
           </ul>
         </nav>
 
-        {/* Configured columns — data-driven (lib/data/nav.ts); still fa-only
-            pending the broader page-content translation pass (see
-            GEO-ROUTING.md-adjacent scope note: this session translated the
-            shell, not every data source). Secondary cluster — see the
-            hierarchy note above. */}
+        {/* Configured columns — data-driven (lib/data/nav.ts), each link's
+            `labelKey` resolved here via next-intl so switching locale
+            actually retranslates them (it silently didn't before — see
+            nav.ts's header comment). Secondary cluster — see the hierarchy
+            note above. */}
         <div className={styles.moreCluster}>
           {FOOTER_COLUMNS.map((group) => (
-            <nav key={group.title} className={styles.moreCol} aria-label={group.title}>
-              <p className={styles.moreTitle}>{group.title}</p>
+            <nav key={group.titleKey} className={styles.moreCol} aria-label={tNav(group.titleKey)}>
+              <p className={styles.moreTitle}>{tNav(group.titleKey)}</p>
               <ul className={styles.links}>
                 {group.links.map((l) => (
-                  <li key={l.href + l.label}>
+                  <li key={l.href + l.labelKey}>
                     <Link href={l.href} className={styles.link}>
-                      {l.label}
+                      {tNavLinks(l.labelKey)}
                     </Link>
                   </li>
                 ))}
@@ -106,7 +108,7 @@ export function Footer({ categories, contact }: { categories: Category[]; contac
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  {ch.label}
+                  {tNavLinks(ch.labelKey)}
                 </a>
               </li>
             ))}

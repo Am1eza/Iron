@@ -1,12 +1,14 @@
 'use client';
 import { useCallback, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { useUiStore, type Toast } from '@/lib/stores/ui';
 import styles from './toaster.module.css';
 
 const AUTO_DISMISS_MS = 4000;
 
 function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string) => void }) {
+  const t = useTranslations('common');
   const remaining = useRef(AUTO_DISMISS_MS);
   const startedAt = useRef(0);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -78,7 +80,7 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
       <button
         type="button"
         className={styles.close}
-        aria-label="بستن"
+        aria-label={t('action.close')}
         onClick={() => onDismiss(toast.id)}
       >
         ×

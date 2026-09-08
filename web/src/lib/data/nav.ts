@@ -1,17 +1,49 @@
 /**
  * Navigation model (navigation.md §3/§4/§7) — the single source for header,
- * mega-menu, footer and drawer link sets. Persian labels; URLs via typed `routes`.
+ * mega-menu, footer and drawer link sets. `labelKey` resolves against the
+ * `navLinks` message namespace (see `messages/*.json`) — this file used to
+ * hold literal Persian `label` strings straight in the data, which is why
+ * switching locale never translated a single nav item in the header
+ * dropdowns, the footer's five secondary columns, or (worse) the ENTIRE
+ * mobile drawer, which didn't import next-intl at all: on a phone — the only
+ * viewport where `.primary` nav is hidden and the drawer is the sole way to
+ * navigate — a non-Persian visitor got zero translated navigation. URLs via
+ * typed `routes`.
  */
 import { routes } from '@/lib/routes';
 
-export type NavLink = { label: string; href: string; event?: string };
+/** Leaf keys of the `navLinks` message namespace — kept in sync by
+ *  `messages.test.ts`'s key-parity check across all 4 locale files. */
+export type NavLinkKey =
+  | 'aiAdvisor'
+  | 'weight'
+  | 'project'
+  | 'cost'
+  | 'market'
+  | 'blogAnalysis'
+  | 'marketNews'
+  | 'tender'
+  | 'track'
+  | 'cutToSize'
+  | 'warehouse'
+  | 'about'
+  | 'cooperation'
+  | 'contactUs'
+  | 'terms'
+  | 'privacy'
+  | 'telegram'
+  | 'eitaa'
+  | 'instagram'
+  | 'whatsapp';
+
+export type NavLink = { labelKey: NavLinkKey; href: string; event?: string };
 
 /** Primary links for the mobile drawer (the only consumer). «قیمت‌ها» was
  *  dropped as redundant: the drawer already has a «محصولات» accordion into the
  *  same catalog, and the mobile bottom tab bar keeps a direct قیمت‌ها entry —
  *  mirrors the desktop header, where the standalone قیمت‌ها link was removed. */
 export const PRIMARY_NAV: NavLink[] = [
-  { label: 'مشاور هوشمند', href: routes.ai(), event: 'ai_entry' },
+  { labelKey: 'aiAdvisor', href: routes.ai(), event: 'ai_entry' },
   // «تماس» removed — COMPANY_NAV already carries «تماس با ما» → routes.contact(),
   // and the drawer renders both PRIMARY_NAV and COMPANY_NAV, so /contact was
   // listed twice in one drawer.
@@ -19,10 +51,10 @@ export const PRIMARY_NAV: NavLink[] = [
 
 /** «ابزارها ▾» dropdown. */
 export const TOOLS_NAV: NavLink[] = [
-  { label: 'وزن‌سنج', href: routes.tool('weight') },
-  { label: 'برآورد پروژه', href: routes.tool('project') },
-  { label: 'محاسبه هزینه', href: routes.tool('cost') },
-  { label: 'طلا و ارز', href: routes.market() },
+  { labelKey: 'weight', href: routes.tool('weight') },
+  { labelKey: 'project', href: routes.tool('project') },
+  { labelKey: 'cost', href: routes.tool('cost') },
+  { labelKey: 'market', href: routes.market() },
 ];
 
 /** A sub-category as the UI consumes it. Slugs are ASCII (URL), names Persian
@@ -127,14 +159,14 @@ export const MOCK_CATEGORY_SUBS: Record<string, SubCat[]> = {
  *  «خدمات»), per the requested header structure. Still grouped under «خدمات»
  *  in the footer & mobile drawer via SERVICES_NAV_FULL below, so it never
  *  disappears from those surfaces. */
-export const WAREHOUSE_LINK: NavLink = { label: 'انبار مشتریان', href: routes.warehouse() };
+export const WAREHOUSE_LINK: NavLink = { labelKey: 'warehouse', href: routes.warehouse() };
 
 /** «خدمات» dropdown — the desktop header renders exactly these (انبار مشتریان
  *  is now a separate top-level item, so it's NOT here). */
 export const SERVICES_NAV: NavLink[] = [
-  { label: 'برآورد مناقصات', href: routes.tender() },
-  { label: 'پیگیری سفارش', href: routes.track() },
-  { label: 'کالا با ابعاد درخواستی', href: routes.cutToSize() },
+  { labelKey: 'tender', href: routes.tender() },
+  { labelKey: 'track', href: routes.track() },
+  { labelKey: 'cutToSize', href: routes.cutToSize() },
 ];
 
 /** «خدمات» as the footer & mobile drawer show it — the desktop-only split of
@@ -146,15 +178,15 @@ export const SERVICES_NAV_FULL: NavLink[] = [WAREHOUSE_LINK, ...SERVICES_NAV];
  *  «چرا آهن‌تایم» was merged into «درباره ما» (/why → /about redirect), so it's
  *  no longer a separate entry — the About page now carries the advantages. */
 export const COMPANY_NAV: NavLink[] = [
-  { label: 'درباره ما', href: routes.about() },
-  { label: 'همکاری با ما', href: routes.cooperation() },
-  { label: 'تماس با ما', href: routes.contact() },
+  { labelKey: 'about', href: routes.about() },
+  { labelKey: 'cooperation', href: routes.cooperation() },
+  { labelKey: 'contactUs', href: routes.contact() },
 ];
 
 /** «پشتیبانی» — legal/support. Shared by header dropdown, drawer & footer. */
 export const SUPPORT_NAV: NavLink[] = [
-  { label: 'قوانین', href: routes.terms() },
-  { label: 'حریم خصوصی', href: routes.privacy() },
+  { labelKey: 'terms', href: routes.terms() },
+  { labelKey: 'privacy', href: routes.privacy() },
 ];
 
 /**
@@ -175,18 +207,21 @@ export const SUPPORT_NAV: NavLink[] = [
  * convention and reads wrong to contractors and traders.
  */
 export const CONTENT_NAV: NavLink[] = [
-  { label: 'تحلیل و آموزش', href: routes.blog() },
-  { label: 'اخبار بازار', href: routes.news() },
+  { labelKey: 'blogAnalysis', href: routes.blog() },
+  { labelKey: 'marketNews', href: routes.news() },
 ];
 
-export const FOOTER_COLUMNS: { title: string; links: NavLink[] }[] = [
-  { title: 'ابزارها', links: TOOLS_NAV },
-  { title: 'مقالات', links: CONTENT_NAV },
+/** `titleKey` resolves against the existing `nav` namespace (same group names
+ *  the header dropdown buttons already use — `tools`/`content`/`services`/
+ *  `company`/`support` — so a column title always matches its dropdown). */
+export const FOOTER_COLUMNS: { titleKey: 'tools' | 'content' | 'services' | 'company' | 'support'; links: NavLink[] }[] = [
+  { titleKey: 'tools', links: TOOLS_NAV },
+  { titleKey: 'content', links: CONTENT_NAV },
   // Full set (incl. انبار مشتریان) — the footer keeps every service grouped
   // together even though the desktop navbar splits انبار مشتریان out.
-  { title: 'خدمات', links: SERVICES_NAV_FULL },
-  { title: 'شرکت', links: COMPANY_NAV },
-  { title: 'پشتیبانی', links: SUPPORT_NAV },
+  { titleKey: 'services', links: SERVICES_NAV_FULL },
+  { titleKey: 'company', links: COMPANY_NAV },
+  { titleKey: 'support', links: SUPPORT_NAV },
 ];
 
 /**
@@ -209,10 +244,10 @@ export const FOOTER_COLUMNS: { title: string; links: NavLink[] }[] = [
 export type Channel = NavLink & { verified?: boolean };
 
 export const CHANNELS: Channel[] = [
-  { label: 'تلگرام', href: 'https://t.me/ahantime' },
-  { label: 'ایتا', href: 'https://eitaa.com/ahantime' },
-  { label: 'اینستاگرام', href: 'https://instagram.com/ahantime' },
-  { label: 'واتساپ', href: 'https://wa.me/989121395954' },
+  { labelKey: 'telegram', href: 'https://t.me/ahantime' },
+  { labelKey: 'eitaa', href: 'https://eitaa.com/ahantime' },
+  { labelKey: 'instagram', href: 'https://instagram.com/ahantime' },
+  { labelKey: 'whatsapp', href: 'https://wa.me/989121395954' },
 ];
 
 /** The subset safe to assert as this organization's identity (see above). */

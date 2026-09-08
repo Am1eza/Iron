@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, within, cleanup, act } from '@testing-library/react';
+import { screen, within, cleanup, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { renderWithIntl } from '@/test/renderWithIntl';
 import type { Article, PriceRow } from '@/lib/types/domain';
 import { SearchBar } from './SearchBar';
+
 
 afterEach(cleanup);
 
@@ -53,7 +55,7 @@ function article(): Article {
 
 function renderBar() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
+  return renderWithIntl(
     <QueryClientProvider client={qc}>
       <SearchBar size="lg" />
     </QueryClientProvider>,

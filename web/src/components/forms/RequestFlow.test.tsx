@@ -9,7 +9,8 @@
  * GET /api/me. Both paths silently lost the lead.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
+import { renderWithIntl } from '@/test/renderWithIntl';
 import userEvent from '@testing-library/user-event';
 import { RequestFlow } from './RequestFlow';
 import { useAuthStore } from '@/lib/stores/auth';
@@ -25,6 +26,7 @@ vi.mock('@/lib/api', () => ({ api: { leads: { create: vi.fn() } } }));
 vi.mock('@/lib/analytics/track', () => ({ trackGoal: vi.fn() }));
 
 import { api } from '@/lib/api';
+
 const createLead = api.leads.create as unknown as ReturnType<typeof vi.fn>;
 
 const ITEM = { skuId: 'sku-1', name: 'میلگرد ۱۴ آجدار A3', qty: 2, unit: 'branch' as const, unitPrice: 40_000, weightKg: 74 };
@@ -43,7 +45,7 @@ describe('RequestFlow', () => {
       user: { id: 'u1', mobile: '09120000000', name: 'رضا', role: 'customer' },
     });
     const user = userEvent.setup();
-    render(<RequestFlow />);
+    renderWithIntl(<RequestFlow />);
 
     await user.click(screen.getByRole('button', { name: 'ثبت درخواست پیش‌فاکتور' }));
 
@@ -60,7 +62,7 @@ describe('RequestFlow', () => {
 
   it('offers login instead of a submit button to a signed-out visitor, and files nothing locally', async () => {
     useAuthStore.setState({ status: 'anonymous', user: null });
-    render(<RequestFlow />);
+    renderWithIntl(<RequestFlow />);
 
     expect(screen.queryByRole('button', { name: 'ثبت درخواست پیش‌فاکتور' })).not.toBeInTheDocument();
     const login = screen.getByRole('link', { name: 'ورود به حساب کاربری' });
@@ -74,7 +76,7 @@ describe('RequestFlow', () => {
 
   it('keeps submit disabled until the session has resolved', () => {
     useAuthStore.setState({ status: 'loading', user: null });
-    render(<RequestFlow />);
+    renderWithIntl(<RequestFlow />);
 
     expect(screen.getByRole('button', { name: 'ثبت درخواست پیش‌فاکتور' })).toBeDisabled();
   });

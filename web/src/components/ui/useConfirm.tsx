@@ -1,5 +1,6 @@
 'use client';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useTranslations } from 'next-intl';
 import { Modal } from './Modal';
 import { Button } from '@/components/primitives/Button';
 
@@ -17,6 +18,7 @@ type ConfirmOptions = {
  *   return <>{dialog}...</>
  */
 export function useConfirm() {
+  const t = useTranslations('common.action');
   const [options, setOptions] = useState<ConfirmOptions | null>(null);
   const resolver = useRef<((value: boolean) => void) | null>(null);
 
@@ -51,9 +53,9 @@ export function useConfirm() {
       footer={
         <>
           <Button variant="ghost" onClick={() => settle(false)}>
-            انصراف
+            {t('cancel')}
           </Button>
-          <Button onClick={() => settle(true)}>{options.confirmLabel ?? 'ادامه'}</Button>
+          <Button onClick={() => settle(true)}>{options.confirmLabel ?? t('continue')}</Button>
         </>
       }
     >

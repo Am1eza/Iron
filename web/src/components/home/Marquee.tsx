@@ -1,5 +1,6 @@
 'use client';
 import { useCallback, useEffect, useRef, type ReactNode } from 'react';
+import { useTranslations } from 'next-intl';
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion';
 import { ChevronStartIcon, ChevronEndIcon } from '@/components/primitives/icons';
 import styles from './Marquee.module.css';
@@ -30,6 +31,7 @@ export function Marquee({
   ariaLabel?: string;
   speed?: number; // px per second
 }) {
+  const t = useTranslations('common.action');
   const reduced = useReducedMotion();
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const trackRef = useRef<HTMLUListElement | null>(null);
@@ -145,7 +147,7 @@ export function Marquee({
   return (
     <div className={styles.wrap}>
       {/* right side in RTL — moves content left (back) */}
-      <button type="button" className={styles.nav} aria-label="قبلی" onClick={() => nudge(-1)}>
+      <button type="button" className={styles.nav} aria-label={t('previous')} onClick={() => nudge(-1)}>
         <ChevronEndIcon size={22} />
       </button>
 
@@ -168,7 +170,7 @@ export function Marquee({
       </div>
 
       {/* left side in RTL — moves content right (forward) */}
-      <button type="button" className={styles.nav} aria-label="بعدی" onClick={() => nudge(1)}>
+      <button type="button" className={styles.nav} aria-label={t('next')} onClick={() => nudge(1)}>
         <ChevronStartIcon size={22} />
       </button>
     </div>

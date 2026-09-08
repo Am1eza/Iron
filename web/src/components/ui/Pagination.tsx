@@ -1,11 +1,19 @@
+'use client';
 import Link from 'next/link';
-import { toPersianDigits } from '@/lib/utils/format';
+import { useTranslations, useLocale } from 'next-intl';
+import { localizeDigits } from '@/lib/utils/format';
 import { ChevronStartIcon, ChevronEndIcon } from '@/components/primitives/icons';
+import type { AppLocale } from '@/i18n/config';
 import styles from './Pagination.module.css';
 
 /**
  * D9 · Pagination — numbered pager «‹ ۱ ۲ ۳ ›» (arrows mirror for RTL). `hrefFor`
  * builds each page URL so it stays a real, crawlable link (rel prev/next set by page).
+ * `'use client'` (was a plain server component): page numbers and the
+ * prev/next labels were hardcoded Persian digits/text, which stayed Persian
+ * forever regardless of the visitor's chosen locale — see `LocaleProvider`'s
+ * header comment for why a server component's own literal text never
+ * responds to a client-side locale switch, only a client component's does.
  */
 export function Pagination({
   page,
@@ -16,14 +24,17 @@ export function Pagination({
   pageCount: number;
   hrefFor: (p: number) => string;
 }) {
+  const t = useTranslations('common');
+  const locale = useLocale() as AppLocale;
   if (pageCount <= 1) return null;
   const pages = windowed(page, pageCount);
 
   return (
-    <nav className={styles.nav} aria-label="صفحه‌بندی">
+    <nav className={styles.nav} aria-label={t('pagination')}>
       <PageLink
         href={page > 1 ? hrefFor(page - 1) : undefined}
-        label="قبلی"
+        label={t('action.previous')}
+        rel="prev"
         icon={<ChevronStartIcon size={18} className="icon--rtl" />}
       />
       <ul className={styles.list}>
@@ -40,7 +51,7 @@ export function Pagination({
                 aria-current={p === page ? 'page' : undefined}
                 data-active={p === page ? '' : undefined}
               >
-                {toPersianDigits(p)}
+                {localizeDigits(p, locale)}
               </Link>
             </li>
           ),
@@ -48,7 +59,8 @@ export function Pagination({
       </ul>
       <PageLink
         href={page < pageCount ? hrefFor(page + 1) : undefined}
-        label="بعدی"
+        label={t('action.next')}
+        rel="next"
         icon={<ChevronEndIcon size={18} className="icon--rtl" />}
       />
     </nav>
@@ -58,10 +70,12 @@ export function Pagination({
 function PageLink({
   href,
   label,
+  rel,
   icon,
 }: {
   href?: string;
   label: string;
+  rel: 'prev' | 'next';
   icon: React.ReactNode;
 }) {
   if (!href) {
@@ -73,7 +87,7 @@ function PageLink({
     );
   }
   return (
-    <Link href={href} className={styles.arrow} aria-label={label} rel={label === 'بعدی' ? 'next' : 'prev'}>
+    <Link href={href} className={styles.arrow} aria-label={label} rel={rel}>
       {icon}
     </Link>
   );

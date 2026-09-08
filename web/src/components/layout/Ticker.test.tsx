@@ -6,7 +6,8 @@
  * reads raw HTML without running JS).
  */
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
+import { renderWithIntl as render } from '@/test/renderWithIntl';
 import type { MarketValue } from '@/lib/types/domain';
 import { Ticker } from './Ticker';
 

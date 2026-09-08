@@ -216,7 +216,7 @@ export function LoginForm({ chromeless = false }: { chromeless?: boolean } = {})
 
       {error || (step === 'code' && otpError) ? (
         <FormStatus variant="error" id={step === 'code' ? 'otp-error' : undefined}>
-          {error ?? 'کد تأیید باید ۶ رقم باشد.'}
+          {error ?? t('otpLengthError')}
         </FormStatus>
       ) : null}
 
