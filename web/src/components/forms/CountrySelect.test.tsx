@@ -14,7 +14,12 @@ import { CountrySelect } from './CountrySelect';
 vi.mock('next-intl', () => ({
   useLocale: () => 'fa',
   useTranslations: () => (key: string) =>
-    ({ country: 'کشور', searchCountry: 'جستجوی کشور', noCountry: 'کشوری یافت نشد' })[key] ?? key,
+    ({
+      country: 'کشور',
+      searchCountry: 'جستجوی کشور',
+      noCountry: 'کشوری یافت نشد',
+      selected: 'انتخاب‌شده',
+    })[key] ?? key,
 }));
 
 const openIt = async (user: ReturnType<typeof userEvent.setup>) => {

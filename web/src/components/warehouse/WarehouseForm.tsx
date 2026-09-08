@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
+import { useTranslations } from 'next-intl';
 import { TextInput, Textarea, Field } from '@/components/forms/fields';
 import { FormStatus } from '@/components/forms/FormStatus';
 import { Button, EmptyState } from '@/components/ui';
@@ -24,6 +25,10 @@ type WarehouseFormValues = {
   notes?: string;
 };
 
+// Submitted verbatim as the request's `product`/`duration` value (API + mock
+// store + trackGoal all key off the fa string), so the array itself stays
+// fa-keyed — only the <option> LABEL localizes, via PRODUCT_KEYS/DURATION_KEYS
+// below mapping each fa value to its `warehouseForm.products`/`durations` key.
 const PRODUCTS = [
   'میلگرد آجدار',
   'میلگرد ساده',
@@ -35,8 +40,25 @@ const PRODUCTS = [
   'لوله',
   'سایر',
 ];
+const PRODUCT_KEYS: Record<string, string> = {
+  'میلگرد آجدار': 'rebarDeformed',
+  'میلگرد ساده': 'rebarPlain',
+  'ورق سیاه': 'blackSheet',
+  'ورق گالوانیزه': 'galvanizedSheet',
+  تیرآهن: 'ibeam',
+  'نبشی و ناودانی': 'angleAndChannel',
+  'پروفیل و قوطی': 'profileAndBoxPipe',
+  لوله: 'pipe',
+  سایر: 'other',
+};
 
 const DURATIONS = ['۱ تا ۳ ماه', '۳ تا ۶ ماه', '۶ تا ۱۲ ماه', 'بیش از یک سال'];
+const DURATION_KEYS: Record<string, string> = {
+  '۱ تا ۳ ماه': 'oneToThreeMonths',
+  '۳ تا ۶ ماه': 'threeToSixMonths',
+  '۶ تا ۱۲ ماه': 'sixToTwelveMonths',
+  'بیش از یک سال': 'moreThanOneYear',
+};
 
 /**
  * «انبار مشتریان» request — profile-centric: guests are asked to sign in first
@@ -47,6 +69,7 @@ const DURATIONS = ['۱ تا ۳ ماه', '۳ تا ۶ ماه', '۶ تا ۱۲ ما�
  * /account/requests where its status is tracked.
  */
 export function WarehouseForm() {
+  const t = useTranslations('warehouseForm');
   const router = useRouter();
   const toast = useToast();
   const status = useAuthStore((s) => s.status);
@@ -64,9 +87,9 @@ export function WarehouseForm() {
     return (
       <EmptyState
         size="section"
-        headline="برای ثبت درخواست وارد شوید"
-        body="درخواست نگهداری کالا در پروفایل شما ثبت و پیگیری می‌شود؛ ابتدا با شمارهٔ موبایل وارد شوید."
-        primary={{ label: 'ورود / ثبت‌نام', href: routes.login(routes.warehouse()) }}
+        headline={t('authGateHeadline')}
+        body={t('authGateBody')}
+        primary={{ label: t('authGateCta'), href: routes.login(routes.warehouse()) }}
       />
     );
   }
@@ -87,7 +110,7 @@ export function WarehouseForm() {
         setDone(result.ref);
         reset();
       } catch (err) {
-        toast.error(err instanceof ApiError ? err.message : 'ثبت درخواست ناموفق بود. دوباره تلاش کنید.');
+        toast.error(err instanceof ApiError ? err.message : t('submitError'));
       }
       return;
     }
@@ -106,8 +129,9 @@ export function WarehouseForm() {
   if (done) {
     return (
       <FormStatus variant="success">
-        درخواست نگهداری کالای شما ثبت شد (کد پیگیری: <bdi className="tnum">{done}</bdi>) و کارشناس برای هماهنگی تحویل
-        و قرارداد تماس می‌گیرد.{' '}
+        {t('successPrefix')}
+        <bdi className="tnum">{done}</bdi>
+        {t('successSuffix')}{' '}
         <Link
           href={routes.account('requests')}
           onClick={(e) => {
@@ -119,7 +143,7 @@ export function WarehouseForm() {
             router.refresh();
           }}
         >
-          پیگیری در پروفایل
+          {t('trackInProfile')}
         </Link>
       </FormStatus>
     );
@@ -128,7 +152,7 @@ export function WarehouseForm() {
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate style={{ maxInlineSize: 480 }}>
       <Field
-        label="نوع محصول"
+        label={t('productLabel')}
         htmlFor="wh-product"
         required
         error={formState.errors.product?.message}
@@ -138,35 +162,35 @@ export function WarehouseForm() {
           className={fieldStyles.select}
           aria-invalid={formState.errors.product ? true : undefined}
           aria-describedby={formState.errors.product ? 'wh-product-error' : undefined}
-          {...register('product', { required: 'انتخاب نوع محصول الزامی است.' })}
+          {...register('product', { required: t('productRequired') })}
         >
           <option value="" disabled>
-            انتخاب کنید…
+            {t('selectPlaceholder')}
           </option>
           {PRODUCTS.map((p) => (
             <option key={p} value={p}>
-              {p}
+              {t(`products.${PRODUCT_KEYS[p]}`)}
             </option>
           ))}
         </select>
       </Field>
 
       <TextInput
-        label="مقدار (تن)"
+        label={t('quantityLabel')}
         type="text"
         inputMode="decimal"
         required
         error={formState.errors.quantityTons?.message}
         {...register('quantityTons', {
-          required: 'مقدار را وارد کنید.',
+          required: t('quantityRequired'),
           // W20: was a hand-rolled Persian-digit-only replace that rejected
           // valid Arabic-Indic input (٠-٩) — normalizeDigits handles both.
-          validate: (v) => Number(normalizeDigits(v)) > 0 || 'مقدار باید بزرگ‌تر از صفر باشد.',
+          validate: (v) => Number(normalizeDigits(v)) > 0 || t('quantityInvalid'),
         })}
       />
 
       <Field
-        label="مدت نگهداری"
+        label={t('durationLabel')}
         htmlFor="wh-duration"
         required
         error={formState.errors.duration?.message}
@@ -176,23 +200,23 @@ export function WarehouseForm() {
           className={fieldStyles.select}
           aria-invalid={formState.errors.duration ? true : undefined}
           aria-describedby={formState.errors.duration ? 'wh-duration-error' : undefined}
-          {...register('duration', { required: 'مدت نگهداری را انتخاب کنید.' })}
+          {...register('duration', { required: t('durationRequired') })}
         >
           <option value="" disabled>
-            انتخاب کنید…
+            {t('selectPlaceholder')}
           </option>
           {DURATIONS.map((d) => (
             <option key={d} value={d}>
-              {d}
+              {t(`durations.${DURATION_KEYS[d]}`)}
             </option>
           ))}
         </select>
       </Field>
 
-      <Textarea label="توضیحات" {...register('notes')} />
+      <Textarea label={t('notesLabel')} {...register('notes')} />
 
       <Button type="submit" loading={formState.isSubmitting}>
-        ثبت درخواست نگهداری
+        {t('submitLabel')}
       </Button>
     </form>
   );

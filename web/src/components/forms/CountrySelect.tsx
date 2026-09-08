@@ -291,7 +291,7 @@ export function CountrySelect({
                   </span>
                   <span className={styles.name}>{c.name}</span>
                   <span className={styles.optionDial}>{c.dial}</span>
-                  {c.code === value ? <span className="visually-hidden">(انتخاب‌شده)</span> : null}
+                  {c.code === value ? <span className="visually-hidden">({t('selected')})</span> : null}
                 </li>
               ))
             )}

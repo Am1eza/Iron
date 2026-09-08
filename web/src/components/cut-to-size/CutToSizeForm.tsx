@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
+import { useTranslations } from 'next-intl';
 import { TextInput, Textarea, Field } from '@/components/forms/fields';
 import { FormStatus } from '@/components/forms/FormStatus';
 import { Button, EmptyState } from '@/components/ui';
@@ -24,6 +25,10 @@ type CutToSizeFormValues = {
   notes?: string;
 };
 
+// Submitted verbatim as the request's `product` value, so the array itself
+// stays fa-keyed — only the <option> LABEL localizes, via PRODUCT_KEYS below
+// mapping each fa value to its `cutToSizeForm.products` key (same
+// steel-product vocabulary as WarehouseForm's product list).
 const PRODUCTS = [
   'ورق سیاه',
   'ورق گالوانیزه',
@@ -36,6 +41,18 @@ const PRODUCTS = [
   'لوله',
   'سایر',
 ];
+const PRODUCT_KEYS: Record<string, string> = {
+  'ورق سیاه': 'blackSheet',
+  'ورق گالوانیزه': 'galvanizedSheet',
+  'ورق روغنی': 'oiledSheet',
+  'ورق آجدار': 'checkeredSheet',
+  تسمه: 'strip',
+  میلگرد: 'rebar',
+  'نبشی و ناودانی': 'angleAndChannel',
+  'پروفیل و قوطی': 'profileAndBoxPipe',
+  لوله: 'pipe',
+  سایر: 'other',
+};
 
 /**
  * «کالا با ابعاد درخواستی» (cut-to-size) intake — profile-centric, identical
@@ -46,6 +63,7 @@ const PRODUCTS = [
  * site's «اول مشورت، بعد خرید» flow.
  */
 export function CutToSizeForm() {
+  const t = useTranslations('cutToSizeForm');
   const router = useRouter();
   const toast = useToast();
   const status = useAuthStore((s) => s.status);
@@ -63,9 +81,9 @@ export function CutToSizeForm() {
     return (
       <EmptyState
         size="section"
-        headline="برای ثبت درخواست وارد شوید"
-        body="درخواست برش/تبدیل کالا به ابعاد دلخواه در پروفایل شما ثبت و پیگیری می‌شود؛ ابتدا با شمارهٔ موبایل وارد شوید."
-        primary={{ label: 'ورود / ثبت‌نام', href: routes.login(routes.cutToSize()) }}
+        headline={t('authGateHeadline')}
+        body={t('authGateBody')}
+        primary={{ label: t('authGateCta'), href: routes.login(routes.cutToSize()) }}
       />
     );
   }
@@ -86,7 +104,7 @@ export function CutToSizeForm() {
         setDone(result.ref);
         reset();
       } catch (err) {
-        toast.error(err instanceof ApiError ? err.message : 'ثبت درخواست ناموفق بود. دوباره تلاش کنید.');
+        toast.error(err instanceof ApiError ? err.message : t('submitError'));
       }
       return;
     }
@@ -105,8 +123,9 @@ export function CutToSizeForm() {
   if (done) {
     return (
       <FormStatus variant="success">
-        درخواست شما ثبت شد (کد پیگیری: <bdi className="tnum">{done}</bdi>) و کارشناس برای بررسی امکان برش/تبدیل و اعلام
-        هزینه تماس می‌گیرد.{' '}
+        {t('successPrefix')}
+        <bdi className="tnum">{done}</bdi>
+        {t('successSuffix')}{' '}
         <Link
           href={routes.account('requests')}
           onClick={(e) => {
@@ -115,7 +134,7 @@ export function CutToSizeForm() {
             router.refresh();
           }}
         >
-          پیگیری در پروفایل
+          {t('trackInProfile')}
         </Link>
       </FormStatus>
     );
@@ -123,51 +142,51 @@ export function CutToSizeForm() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate style={{ maxInlineSize: 480 }}>
-      <Field label="نوع کالا" htmlFor="cts-product" required error={formState.errors.product?.message}>
+      <Field label={t('productLabel')} htmlFor="cts-product" required error={formState.errors.product?.message}>
         <select
           id="cts-product"
           className={fieldStyles.select}
           aria-invalid={formState.errors.product ? true : undefined}
           aria-describedby={formState.errors.product ? 'cts-product-error' : undefined}
-          {...register('product', { required: 'انتخاب نوع کالا الزامی است.' })}
+          {...register('product', { required: t('productRequired') })}
         >
           <option value="" disabled>
-            انتخاب کنید…
+            {t('selectPlaceholder')}
           </option>
           {PRODUCTS.map((p) => (
             <option key={p} value={p}>
-              {p}
+              {t(`products.${PRODUCT_KEYS[p]}`)}
             </option>
           ))}
         </select>
       </Field>
 
       <TextInput
-        label="ابعاد فعلی کالا (اختیاری)"
-        placeholder="مثلاً ورق ۶ میل، ۱۲۵۰×۲۵۰۰"
+        label={t('currentDimensionsLabel')}
+        placeholder={t('currentDimensionsPlaceholder')}
         {...register('currentDimensions')}
       />
 
       <TextInput
-        label="ابعاد درخواستی"
-        placeholder="مثلاً برش به ۱۰۰۰×۲۰۰۰ یا قطر ۲۰ سانتی‌متر"
+        label={t('requestedDimensionsLabel')}
+        placeholder={t('requestedDimensionsPlaceholder')}
         required
         error={formState.errors.requestedDimensions?.message}
-        {...register('requestedDimensions', { required: 'ابعاد درخواستی را وارد کنید.' })}
+        {...register('requestedDimensions', { required: t('requestedDimensionsRequired') })}
       />
 
       <TextInput
-        label="مقدار"
-        placeholder="مثلاً ۵۰ برگ، ۲۰ شاخه یا ۳ تن"
+        label={t('quantityLabel')}
+        placeholder={t('quantityPlaceholder')}
         required
         error={formState.errors.quantity?.message}
-        {...register('quantity', { required: 'مقدار را وارد کنید.' })}
+        {...register('quantity', { required: t('quantityRequired') })}
       />
 
-      <Textarea label="توضیحات" {...register('notes')} />
+      <Textarea label={t('notesLabel')} {...register('notes')} />
 
       <Button type="submit" loading={formState.isSubmitting}>
-        ثبت درخواست
+        {t('submitLabel')}
       </Button>
     </form>
   );

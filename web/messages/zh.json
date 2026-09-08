@@ -125,7 +125,8 @@
     "searchCountry": "搜索国家/地区…",
     "invalid": "请输入有效的手机号码。",
     "otpCountryUnsupported": "短信验证目前仅支持伊朗手机号码（+98）。请使用伊朗号码，或联系我们寻求帮助。",
-    "noCountry": "未找到相关国家/地区"
+    "noCountry": "未找到相关国家/地区",
+    "selected": "已选择"
   },
   "metadata": {
     "title": "Ahantime：智能钢铁市场",
@@ -1416,5 +1417,170 @@
       "warehouseItemsHintHas": "客户仓库库存",
       "warehouseItemsHintEmpty": "没有寄存的货物"
     }
+  },
+  "warehouseForm": {
+    "authGateHeadline": "登录以提交申请",
+    "authGateBody": "仓储申请将记录并追踪在您的个人账户中；请先使用手机号码登录。",
+    "authGateCta": "登录 / 注册",
+    "productLabel": "产品类型",
+    "productRequired": "请选择产品类型。",
+    "selectPlaceholder": "请选择…",
+    "quantityLabel": "数量（吨）",
+    "quantityRequired": "请输入数量。",
+    "quantityInvalid": "数量必须大于零。",
+    "durationLabel": "仓储时长",
+    "durationRequired": "请选择仓储时长。",
+    "notesLabel": "备注",
+    "submitLabel": "提交仓储申请",
+    "submitError": "提交申请失败，请重试。",
+    "successPrefix": "您的仓储申请已提交（追踪码：",
+    "successSuffix": "），我们的专员将与您联系以安排交货和签订合同。",
+    "trackInProfile": "在个人中心追踪",
+    "products": {
+      "rebarDeformed": "带肋钢筋",
+      "rebarPlain": "光圆钢筋",
+      "rebar": "螺纹钢",
+      "blackSheet": "黑板",
+      "galvanizedSheet": "镀锌板",
+      "oiledSheet": "涂油板",
+      "checkeredSheet": "花纹板",
+      "strip": "钢带",
+      "ibeam": "工字钢",
+      "angleAndChannel": "角钢与槽钢",
+      "profileAndBoxPipe": "型材与方管",
+      "pipe": "钢管",
+      "other": "其他"
+    },
+    "durations": {
+      "oneToThreeMonths": "1至3个月",
+      "threeToSixMonths": "3至6个月",
+      "sixToTwelveMonths": "6至12个月",
+      "moreThanOneYear": "一年以上"
+    }
+  },
+  "cutToSizeForm": {
+    "authGateHeadline": "登录以提交申请",
+    "authGateBody": "尺寸切割/加工申请将记录并追踪在您的个人账户中；请先使用手机号码登录。",
+    "authGateCta": "登录 / 注册",
+    "productLabel": "产品类型",
+    "productRequired": "请选择产品类型。",
+    "selectPlaceholder": "请选择…",
+    "currentDimensionsLabel": "当前尺寸（选填）",
+    "currentDimensionsPlaceholder": "例如：6毫米钢板，1250×2500",
+    "requestedDimensionsLabel": "所需尺寸",
+    "requestedDimensionsPlaceholder": "例如：切割为1000×2000或直径20厘米",
+    "requestedDimensionsRequired": "请输入所需尺寸。",
+    "quantityLabel": "数量",
+    "quantityPlaceholder": "例如：50张、20根或3吨",
+    "quantityRequired": "请输入数量。",
+    "notesLabel": "备注",
+    "submitLabel": "提交申请",
+    "submitError": "提交申请失败，请重试。",
+    "successPrefix": "您的申请已提交（追踪码：",
+    "successSuffix": "），我们的专员将评估切割/加工的可行性并与您联系报价。",
+    "trackInProfile": "在个人中心追踪",
+    "products": {
+      "rebarDeformed": "带肋钢筋",
+      "rebarPlain": "光圆钢筋",
+      "rebar": "螺纹钢",
+      "blackSheet": "黑板",
+      "galvanizedSheet": "镀锌板",
+      "oiledSheet": "涂油板",
+      "checkeredSheet": "花纹板",
+      "strip": "钢带",
+      "ibeam": "工字钢",
+      "angleAndChannel": "角钢与槽钢",
+      "profileAndBoxPipe": "型材与方管",
+      "pipe": "钢管",
+      "other": "其他"
+    }
+  },
+  "warehousePage": {
+    "overline": "Ahantime 服务",
+    "heading": "客户仓储",
+    "lead": "将您的货物委托给 Ahantime 保管。我们会将其存放在安全且已投保的仓库中，并在市场行情合适时为您出售。您只需支付少量的月度仓储费，即可享受价格波动带来的收益和快速变现。",
+    "benefits": {
+      "security": {
+        "title": "全面安全",
+        "body": "设有全天候警卫与监控的封闭仓库，您的货物安心存放。"
+      },
+      "insurance": {
+        "title": "货物保险",
+        "body": "您的全部库存均已投保，如遇意外可获得赔偿。"
+      },
+      "timedSale": {
+        "title": "适时出售",
+        "body": "一旦市场价格合适，我们的专员即为您出售货物。"
+      },
+      "liquidity": {
+        "title": "快速变现",
+        "body": "借助 Ahantime 的买家网络，库存可在最短时间内变现为现金。"
+      }
+    },
+    "howItWorksHeading": "如何运作？",
+    "steps": {
+      "register": {
+        "title": "提交申请",
+        "body": "在下方表单中告知我们货物的类型和数量。"
+      },
+      "deliverAndContract": {
+        "title": "交付与签约",
+        "body": "您交付货物，双方签订仓储合同。"
+      },
+      "safeStorage": {
+        "title": "安全存储",
+        "body": "您的库存存放在已投保的仓库中，按固定月费计费。"
+      },
+      "sellAndSettle": {
+        "title": "出售与结算",
+        "body": "我们在合适的时机出售并与您结算款项。"
+      }
+    },
+    "formHeading": "仓储申请",
+    "formLead": "请填写下方表单，我们的专员将与您联系安排交货并签订合同。"
+  },
+  "cutToSizePage": {
+    "overline": "Ahantime 服务",
+    "heading": "定制尺寸货品",
+    "lead": "将您的钢材交给 Ahantime，我们会按照您项目所需的精确尺寸进行切割并准备交付——从钢板、钢带到钢筋及其他型材均可。您只需告知产品类型和所需尺寸；我们的专员会先评估可行性和费用，经您确认后再进行切割。",
+    "benefits": {
+      "exactSize": {
+        "title": "精准符合您的需求尺寸",
+        "body": "无需购买标准尺寸并造成边角料浪费，按项目所需的精确尺寸收货。"
+      },
+      "lessWaste": {
+        "title": "减少浪费与成本",
+        "body": "精准切割意味着更少的材料浪费，您无需支付废料的加工和运输费用。"
+      },
+      "precisionCut": {
+        "title": "精密工业切割",
+        "body": "采用工业设备按既定公差切割；交付尺寸与您所订购的完全一致。"
+      },
+      "readyToDeliver": {
+        "title": "备妥交付",
+        "body": "切割完成的货物将包装妥当，可供发货或现场提货。"
+      }
+    },
+    "howItWorksHeading": "如何运作？",
+    "steps": {
+      "register": {
+        "title": "提交申请",
+        "body": "在下方表单中告知我们产品类型和所需尺寸。"
+      },
+      "reviewAndQuote": {
+        "title": "评估与报价",
+        "body": "我们的专员评估切割可行性并向您报价。"
+      },
+      "cutting": {
+        "title": "执行切割",
+        "body": "经您确认后，货物将使用工业设备按所需尺寸切割。"
+      },
+      "delivery": {
+        "title": "交付",
+        "body": "成品货物将被包装，并安排发货或提货。"
+      }
+    },
+    "formHeading": "提交切割/加工申请",
+    "formLead": "请填写下方表单，我们的专员将评估可行性和费用并与您协调。"
   }
 }

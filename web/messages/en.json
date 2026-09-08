@@ -125,7 +125,8 @@
     "searchCountry": "Search country…",
     "invalid": "Enter a valid mobile number.",
     "otpCountryUnsupported": "SMS sign-in currently only supports Iranian mobile numbers (+98). Please use an Iranian number, or contact us for help.",
-    "noCountry": "No country found"
+    "noCountry": "No country found",
+    "selected": "Selected"
   },
   "metadata": {
     "title": "Ahantime: Smart Iron & Steel Marketplace",
@@ -1416,5 +1417,170 @@
       "warehouseItemsHintHas": "Customer warehouse inventory",
       "warehouseItemsHintEmpty": "No consigned goods"
     }
+  },
+  "warehouseForm": {
+    "authGateHeadline": "Sign In to Submit a Request",
+    "authGateBody": "Your storage request is recorded and tracked in your profile; please sign in with your mobile number first.",
+    "authGateCta": "Log In / Sign Up",
+    "productLabel": "Product Type",
+    "productRequired": "Please select a product type.",
+    "selectPlaceholder": "Select…",
+    "quantityLabel": "Quantity (tons)",
+    "quantityRequired": "Please enter the quantity.",
+    "quantityInvalid": "The quantity must be greater than zero.",
+    "durationLabel": "Storage Duration",
+    "durationRequired": "Please select a storage duration.",
+    "notesLabel": "Notes",
+    "submitLabel": "Submit Storage Request",
+    "submitError": "Failed to submit the request. Please try again.",
+    "successPrefix": "Your storage request has been submitted (tracking code: ",
+    "successSuffix": ") and our team will contact you to arrange delivery and the contract.",
+    "trackInProfile": "Track in Profile",
+    "products": {
+      "rebarDeformed": "Deformed Rebar",
+      "rebarPlain": "Plain Rebar",
+      "rebar": "Rebar",
+      "blackSheet": "Black Sheet",
+      "galvanizedSheet": "Galvanized Sheet",
+      "oiledSheet": "Oiled Sheet",
+      "checkeredSheet": "Checkered Sheet",
+      "strip": "Steel Strip",
+      "ibeam": "I-Beam",
+      "angleAndChannel": "Angle & Channel",
+      "profileAndBoxPipe": "Profile & Box Pipe",
+      "pipe": "Pipe",
+      "other": "Other"
+    },
+    "durations": {
+      "oneToThreeMonths": "1–3 months",
+      "threeToSixMonths": "3–6 months",
+      "sixToTwelveMonths": "6–12 months",
+      "moreThanOneYear": "More than a year"
+    }
+  },
+  "cutToSizeForm": {
+    "authGateHeadline": "Sign In to Submit a Request",
+    "authGateBody": "Your cutting/conversion request is recorded and tracked in your profile; please sign in with your mobile number first.",
+    "authGateCta": "Log In / Sign Up",
+    "productLabel": "Product Type",
+    "productRequired": "Please select a product type.",
+    "selectPlaceholder": "Select…",
+    "currentDimensionsLabel": "Current Dimensions (optional)",
+    "currentDimensionsPlaceholder": "e.g. 6mm sheet, 1250×2500",
+    "requestedDimensionsLabel": "Requested Dimensions",
+    "requestedDimensionsPlaceholder": "e.g. cut to 1000×2000 or 20cm diameter",
+    "requestedDimensionsRequired": "Please enter the requested dimensions.",
+    "quantityLabel": "Quantity",
+    "quantityPlaceholder": "e.g. 50 sheets, 20 bars, or 3 tons",
+    "quantityRequired": "Please enter the quantity.",
+    "notesLabel": "Notes",
+    "submitLabel": "Submit Request",
+    "submitError": "Failed to submit the request. Please try again.",
+    "successPrefix": "Your request has been submitted (tracking code: ",
+    "successSuffix": ") and our team will review the cutting/conversion feasibility and contact you with a quote.",
+    "trackInProfile": "Track in Profile",
+    "products": {
+      "rebarDeformed": "Deformed Rebar",
+      "rebarPlain": "Plain Rebar",
+      "rebar": "Rebar",
+      "blackSheet": "Black Sheet",
+      "galvanizedSheet": "Galvanized Sheet",
+      "oiledSheet": "Oiled Sheet",
+      "checkeredSheet": "Checkered Sheet",
+      "strip": "Steel Strip",
+      "ibeam": "I-Beam",
+      "angleAndChannel": "Angle & Channel",
+      "profileAndBoxPipe": "Profile & Box Pipe",
+      "pipe": "Pipe",
+      "other": "Other"
+    }
+  },
+  "warehousePage": {
+    "overline": "Ahantime Services",
+    "heading": "Customer Warehousing",
+    "lead": "Store your goods with Ahantime on consignment. We keep them in a secure, insured warehouse and sell them for you whenever the market is right. You only pay a small monthly storage fee, while benefiting from price movement and quick liquidity.",
+    "benefits": {
+      "security": {
+        "title": "Full Security",
+        "body": "A covered warehouse with round-the-clock guarding and monitoring; your goods are kept safe."
+      },
+      "insurance": {
+        "title": "Goods Insurance",
+        "body": "Your entire inventory is insured and covered against accidents."
+      },
+      "timedSale": {
+        "title": "Timely Sale",
+        "body": "Whenever the market price is right, our specialist sells the goods on your behalf."
+      },
+      "liquidity": {
+        "title": "Fast Liquidity",
+        "body": "With Ahantime's buyer network, your inventory converts to cash in the shortest possible time."
+      }
+    },
+    "howItWorksHeading": "How It Works",
+    "steps": {
+      "register": {
+        "title": "Submit a Request",
+        "body": "Tell us the type and quantity of goods in the form below."
+      },
+      "deliverAndContract": {
+        "title": "Delivery & Contract",
+        "body": "You deliver the goods and a storage contract is signed."
+      },
+      "safeStorage": {
+        "title": "Secure Storage",
+        "body": "Your inventory is kept in an insured warehouse for a fixed monthly fee."
+      },
+      "sellAndSettle": {
+        "title": "Sale & Settlement",
+        "body": "We sell at the right time and settle the payment with you."
+      }
+    },
+    "formHeading": "Storage Request",
+    "formLead": "Fill out the form below; our specialist will contact you to arrange delivery and sign the contract."
+  },
+  "cutToSizePage": {
+    "overline": "Ahantime Services",
+    "heading": "Cut-to-Size Goods",
+    "lead": "Hand your steel goods to Ahantime and we'll cut them to the exact dimensions your project needs and prepare them for delivery — from sheet and strip to rebar and other sections. You tell us the product type and size you want; our specialist first reviews feasibility and cost, and the cutting is done once you confirm.",
+    "benefits": {
+      "exactSize": {
+        "title": "Exactly the Size You Need",
+        "body": "Instead of buying standard sizes and wasting offcuts, receive goods in exactly the size your project requires."
+      },
+      "lessWaste": {
+        "title": "Less Waste, Lower Cost",
+        "body": "Precise cutting means less material is wasted, so you don't pay for the labor and hauling of scrap."
+      },
+      "precisionCut": {
+        "title": "Precise Industrial Cutting",
+        "body": "Cut on industrial machines to a defined tolerance; the delivered dimensions match exactly what you ordered."
+      },
+      "readyToDeliver": {
+        "title": "Ready to Deliver",
+        "body": "The cut goods are packaged and prepared for shipping or in-person pickup."
+      }
+    },
+    "howItWorksHeading": "How It Works",
+    "steps": {
+      "register": {
+        "title": "Submit a Request",
+        "body": "Tell us the product type and requested dimensions in the form below."
+      },
+      "reviewAndQuote": {
+        "title": "Review & Quote",
+        "body": "Our specialist reviews the cutting feasibility and gives you a cost quote."
+      },
+      "cutting": {
+        "title": "Cutting",
+        "body": "Once you confirm, the goods are cut to the requested dimensions on industrial machines."
+      },
+      "delivery": {
+        "title": "Delivery",
+        "body": "The finished goods are packaged and arranged for shipping or pickup."
+      }
+    },
+    "formHeading": "Submit a Cutting/Conversion Request",
+    "formLead": "Fill out the form below; our specialist will review feasibility and cost, and coordinate with you."
   }
 }
