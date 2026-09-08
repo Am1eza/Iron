@@ -107,11 +107,15 @@ test('keyboard-only entry: type, Enter, land on the next row, save from the keyb
   const second = priceCells.nth(1);
 
   await first.focus();
-  // Persian digits — an owner typing on a Persian keyboard produces «۳۰۱۰۰۰»,
-  // and the cell has to accept it, not reject it as non-numeric.
+  // Persian digits — an owner typing on a Persian keyboard produces «۱۰۱۰۰۰»,
+  // and the cell has to accept it, not reject it as non-numeric. Kept within
+  // 4x of any plausible seeded rebar price (~33,000-40,000/kg — see
+  // BASE_PRICE.rebar in mock/catalogData.ts) so this plain keyboard-save path
+  // doesn't cross the anomaly-confirmation gate (audit item C-08), which is a
+  // separate, deliberately interruptive flow this test isn't exercising.
   await page.keyboard.press('ControlOrMeta+a');
-  await page.keyboard.type('۳۰۱۰۰۰');
-  await expect(first).toHaveValue('۳۰۱,۰۰۰'); // grouped, Persian, no re-typing needed
+  await page.keyboard.type('۱۰۱۰۰۰');
+  await expect(first).toHaveValue('۱۰۱,۰۰۰'); // grouped, Persian, no re-typing needed
 
   await page.keyboard.press('Enter');
   await expect(second).toBeFocused();
@@ -147,8 +151,13 @@ test('a saved price reaches the public page and the public API', async () => {
   const name = ((await cell.getAttribute('aria-label')) ?? '').replace(/^قیمت\s*/, '').trim();
   expect(name).not.toBe('');
 
-  // A distinctive number nothing else in the seed can produce.
-  const price = 317_419;
+  // A distinctive number nothing else in the seed can produce (every seeded
+  // price is a multiple of 50 — see BASE_PRICE/rowsFor in
+  // mock/catalogData.ts — so anything not a multiple of 50 is guaranteed
+  // unique), kept within 4x of any plausible seeded rebar price so this save
+  // doesn't cross the anomaly-confirmation gate (audit item C-08), which
+  // this test isn't exercising.
+  const price = 101_413;
   await cell.click();
   await page.keyboard.press('ControlOrMeta+a');
   await page.keyboard.type(String(price));
