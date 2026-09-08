@@ -265,6 +265,22 @@ export async function leadsForUser(userId: string, mobile: string, page = 1, pag
   return { rows: rows.slice(0, size), hasMore: rows.length > size };
 }
 
+/**
+ * Physically attaches a user's past guest leads to their account on OTP
+ * login/registration, instead of leaving `userId` permanently null and
+ * relying on `leadsForUser`'s mobile-OR-userId join. Anything that reads
+ * `lead.userId` directly (e.g. `userHasVerifiedBusiness`) would otherwise
+ * keep treating a now-identified customer as a guest forever.
+ */
+export async function backfillLeadUserId(userId: string, mobile: string): Promise<number> {
+  const rows = await getDb()
+    .update(leads)
+    .set({ userId })
+    .where(and(isNull(leads.userId), eq(leads.contactMobile, mobile)))
+    .returning({ id: leads.id });
+  return rows.length;
+}
+
 /** Soft-delete — archives a spam/duplicate/test lead out of admin views
  *  without losing its audit trail (see the `deletedAt` column comment). */
 export async function softDeleteLead(id: string): Promise<LeadRow | null> {
@@ -558,6 +574,33 @@ export async function expireDueProformas(): Promise<number> {
     .where(and(eq(proformas.status, 'active'), sql`${proformas.validUntil} < now()`))
     .returning({ id: proformas.id });
   return rows.length;
+}
+
+/**
+ * Candidates for the expiry SMS (audit item 96): expired proformas within a
+ * bounded recent window, joined with lead contact info. Bounded to the last
+ * few hours rather than "all expired ever" for two reasons: it keeps the
+ * query cheap on a growing table, and it stops this feature's first deploy
+ * from blasting an expiry SMS to every customer whose quote lapsed months
+ * ago. The caller's own claim-before-send dedup (`sendSmsOnce`) makes this
+ * window a performance/blast-radius bound only, not the correctness
+ * mechanism — a proforma can never get two expiry SMS even if it matches
+ * this query on more than one tick.
+ */
+export async function recentlyExpiredProformasForSms(sinceMs: number) {
+  const since = new Date(Date.now() - sinceMs);
+  return getDb()
+    .select({
+      ref: proformas.ref,
+      total: proformas.total,
+      validUntil: proformas.validUntil,
+      mobile: leads.contactMobile,
+      contactName: leads.contactName,
+    })
+    .from(proformas)
+    .innerJoin(leads, eq(leads.id, proformas.leadId))
+    .where(and(eq(proformas.status, 'expired'), gte(proformas.validUntil, since)))
+    .limit(200);
 }
 
 /** Void an issued proforma (customer changed the order, a pricing error,
@@ -1109,9 +1152,22 @@ export async function mergeLeads(winnerId: string, loserId: string, actorId: str
     const prevMergedFrom = Array.isArray(winner.context?.mergedFrom)
       ? (winner.context.mergedFrom as unknown[]).filter((v): v is string => typeof v === 'string')
       : [];
+    // Coalesce campaign attribution onto the winner: if the winner never
+    // captured UTM/referrer data (e.g. it was created by a direct visit that
+    // later duplicated a campaign-driven lead), the loser's first-touch data
+    // would otherwise vanish into the archived row and disappear from every
+    // campaign report that reads the surviving lead. Never overwrites — the
+    // winner's own first-touch data always wins when it has any.
+    const attribution = {
+      utmSource: winner.utmSource ?? loser.utmSource,
+      utmMedium: winner.utmMedium ?? loser.utmMedium,
+      utmCampaign: winner.utmCampaign ?? loser.utmCampaign,
+      landingReferrer: winner.landingReferrer ?? loser.landingReferrer,
+    };
     const winnerRows = await tx
       .update(leads)
       .set({
+        ...attribution,
         context: { ...(winner.context ?? {}), mergedFrom: [...prevMergedFrom, loser.ref] },
         updatedAt: now,
       })

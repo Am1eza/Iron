@@ -9,6 +9,8 @@ import { assertSameOrigin } from '@/lib/auth/origin';
 import { publicUser } from '@/lib/auth/publicUser';
 import { rateLimit } from '@/lib/server/utils/rateLimit';
 import { withApiErrorHandling } from '@/lib/server/utils/apiGuard';
+import { backfillLeadUserId } from '@/lib/server/repos/leadsRepo';
+import { reportError } from '@/lib/errors/report';
 
 /**
  * POST /api/auth/otp/verify — verify the code, login or register, set the session
@@ -38,6 +40,15 @@ async function POSTImpl(req: NextRequest) {
       inviteCode: v.data.inviteCode,
     });
     await setSessionCookies(tokens);
+    // Physically attach any past guest leads under this verified mobile to
+    // the account, so `lead.userId` reads correctly everywhere (not just
+    // through `leadsForUser`'s mobile-OR-userId join). Non-fatal: a backfill
+    // failure must never block a login that already succeeded.
+    try {
+      await backfillLeadUserId(user.id, mobile);
+    } catch (err) {
+      reportError(err, { scope: 'otp-verify.backfillLeadUserId', mobile });
+    }
     // Welcome SMS on first registration — automated, toggleable in settings,
     // fire-and-forget (never blocks the login response).
     if (isNew) {

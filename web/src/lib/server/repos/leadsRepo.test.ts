@@ -11,7 +11,7 @@ import { ulid } from 'ulid';
 import { createTestDb } from '@/test/db';
 import * as schema from '@/lib/server/db/schema';
 import type { Db } from '@/lib/server/db/client';
-import { adminListLeads, updateLead, updateLeadItem } from './leadsRepo';
+import { adminListLeads, backfillLeadUserId, updateLead, updateLeadItem } from './leadsRepo';
 
 let db: Db;
 let close: () => Promise<void>;
@@ -252,5 +252,57 @@ describe('updateLead — ifAssigneeId compare-and-swap (item 86)', () => {
     // No ifAssigneeId: writes regardless of ownership, exactly as before.
     expect(await updateLead(id, { status: 'won' })).not.toBeNull();
     expect(await ownerOf(id)).toBe(REP_A);
+  });
+});
+
+describe('backfillLeadUserId (item 80)', () => {
+  async function insertGuestLead(mobile: string, ref: string) {
+    const id = ulid();
+    await db.insert(schema.leads).values({ id, ref, contactMobile: mobile, source: 'table', userId: null });
+    return id;
+  }
+
+  async function insertUser(mobile: string): Promise<string> {
+    const id = ulid();
+    await db.insert(schema.users).values({ id, mobile });
+    return id;
+  }
+
+  it('attaches every guest lead under the mobile to the newly-identified user', async () => {
+    const mobile = '09120000101';
+    await insertGuestLead(mobile, `BF-${ulid()}`);
+    await insertGuestLead(mobile, `BF-${ulid()}`);
+    const userId = await insertUser('09150000101');
+
+    const count = await backfillLeadUserId(userId, mobile);
+
+    expect(count).toBe(2);
+    const rows = await db.select().from(schema.leads).where(eq(schema.leads.contactMobile, mobile));
+    expect(rows.every((r) => r.userId === userId)).toBe(true);
+  });
+
+  it('never overwrites a lead that already belongs to a (different) user', async () => {
+    const mobile = '09120000102';
+    const otherUserId = await insertUser('09150000102');
+    const id = ulid();
+    await db.insert(schema.leads).values({
+      id,
+      ref: `BF-${ulid()}`,
+      contactMobile: mobile,
+      source: 'table',
+      userId: otherUserId,
+    });
+    const newUserId = await insertUser('09150000103');
+
+    const count = await backfillLeadUserId(newUserId, mobile);
+
+    expect(count).toBe(0);
+    const [row] = await db.select().from(schema.leads).where(eq(schema.leads.id, id));
+    expect(row!.userId).toBe(otherUserId);
+  });
+
+  it('is a no-op for a mobile with no guest leads', async () => {
+    const count = await backfillLeadUserId(ulid(), '09120000103');
+    expect(count).toBe(0);
   });
 });
