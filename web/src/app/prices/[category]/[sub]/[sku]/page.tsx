@@ -112,7 +112,7 @@ export default async function SkuPage({ params }: Params) {
           // W23 audit fix: a stale-hidden price is a `0` sentinel — must
           // never reach a `price: 0, InStock` structured-data claim (a
           // known Google Merchant policy violation, and simply false).
-          priceHidden: row.current.priceHidden,
+          priceHidden: row.current.priceHidden || row.current.priceIsEstimated,
           priceBasis: row.current.priceBasis ?? row.priceBasis,
           // Validity runs from when the price was SET, bounded by the same
           // freshness SLA that withholds it — not from render time. See

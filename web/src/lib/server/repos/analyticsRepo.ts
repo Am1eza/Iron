@@ -621,7 +621,7 @@ export async function seoStats(): Promise<SeoStats> {
     // its current price age, to score against the same freshness rule the
     // JSON-LD emitter itself uses.
     rows(sql`
-      SELECT cp.updated_at AS "updatedAt"
+      SELECT cp.confirmed_at AS "updatedAt"
       FROM skus s
       JOIN current_prices cp ON cp.sku_id = s.id
     `),

@@ -1,0 +1,1 @@
+ALTER TABLE "proformas" ADD COLUMN "volume_policy_version" text DEFAULT 'legacy' NOT NULL;

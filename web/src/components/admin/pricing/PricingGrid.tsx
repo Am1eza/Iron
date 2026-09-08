@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api/resources/admin';
-import { normalizeDigits, toPersianDigits } from '@/lib/utils/format';
+import { formatToman, normalizeDigits, toPersianDigits } from '@/lib/utils/format';
 import { formatJalali } from '@/lib/utils/jalali';
 import { PRICE_REVIEW_AFTER_DAYS, priceAgeDays } from '@/lib/utils/priceAge';
 import { sizeLabel } from '@/lib/utils/catalogLabels';
@@ -221,7 +221,7 @@ export function PricingGrid() {
   // Per-SKU price-history drilldown. The row sparkline used to be
   // `aria-hidden` decoration reachable by nobody — it is now the button that
   // opens the full series.
-  const [historyFor, setHistoryFor] = useState<{ slug: string; name: string } | null>(null);
+  const [historyFor, setHistoryFor] = useState<{ id: string; slug: string; name: string; currentVersion?: string } | null>(null);
   const [historyRange, setHistoryRange] = useState('90d');
   const tableRef = useRef<HTMLTableElement>(null);
   const { confirm, dialog } = useConfirm();
@@ -384,6 +384,16 @@ export function PricingGrid() {
     queryFn: () => adminApi.skuHistoryAdmin(historyFor!.slug, historyRange),
     enabled: Boolean(historyFor),
   });
+  const rollback = useMutation({
+    mutationFn: adminApi.rollbackPrice,
+    onSuccess: () => {
+      toast.success('قیمت قبلی با حفظ کامل تاریخچه برگردانده شد.');
+      void qc.invalidateQueries({ queryKey: ['admin', 'pricing'] });
+      void qc.invalidateQueries({ queryKey: ['admin', 'pricing', 'history'] });
+      setHistoryFor(null);
+    },
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : 'بازگردانی قیمت ناموفق بود.'),
+  });
 
   const setDraft = (skuId: string, patch: Draft) => {
     setDrafts((prev) => {
@@ -429,6 +439,22 @@ export function PricingGrid() {
   // body's `.map` below — O(n²) over the datasheet on every keystroke. A Set
   // makes that lookup O(1).
   const dirtySkuIds = useMemo(() => new Set(dirty.map((x) => x.skuId)), [dirty]);
+  const saveDirty = async () => {
+    const anomalous = dirty.filter((item) => {
+      const old = allRows.find((row) => row.id === item.skuId)?.current.price ?? 0;
+      return old > 0 && (item.price > old * 4 || item.price < old / 4);
+    });
+    if (anomalous.length === 0) {
+      save.mutate(dirty);
+      return;
+    }
+    const ok = await confirm({
+      title: 'تأیید جهش غیرعادی قیمت',
+      body: `${toPersianDigits(anomalous.length)} قیمت بیش از چهار برابر شده یا به کمتر از یک‌چهارم رسیده است. واحد پول و رقم‌ها را دوباره بررسی کرده‌اید؟`,
+      confirmLabel: 'بله، بررسی و تأیید شد',
+    });
+    if (ok) save.mutate(dirty.map((item) => ({ ...item, confirmAnomaly: anomalous.some((row) => row.skuId === item.skuId) })));
+  };
 
   // Closing/reloading the tab with unsaved price edits used to lose them
   // silently — the in-app filter guard never covered the browser itself.
@@ -888,7 +914,7 @@ export function PricingGrid() {
                         aria-label={`تاریخچهٔ قیمت ${r.name}`}
                         onClick={() => {
                           setHistoryRange('90d');
-                          setHistoryFor({ slug: r.slug, name: r.name });
+                          setHistoryFor({ id: r.id, slug: r.slug, name: r.name, currentVersion: r.current.version });
                         }}
                       >
                         <RowSparkline series={seriesBySlug?.[r.slug]} />
@@ -908,7 +934,9 @@ export function PricingGrid() {
                       )}
                     </td>
                     <td>
-                      {r.current.priceHidden ? (
+                      {r.current.priceIsEstimated ? (
+                        <Badge tone="stale">تخمینی؛ نیازمند تأیید</Badge>
+                      ) : r.current.priceHidden ? (
                         <Badge tone="loss">مخفی</Badge>
                       ) : r.current.isStale ? (
                         <Badge tone="stale">کهنه</Badge>
@@ -932,7 +960,7 @@ export function PricingGrid() {
             <Button variant="ghost" onClick={() => setDrafts(new Map())}>
               انصراف
             </Button>
-            <Button onClick={() => save.mutate(dirty)} loading={save.isPending}>
+            <Button onClick={() => void saveDirty()} loading={save.isPending}>
               ذخیرهٔ {toPersianDigits(dirty.length)} قیمت
             </Button>
           </div>
@@ -1002,7 +1030,30 @@ export function PricingGrid() {
             primary={{ label: 'تلاش دوباره', onClick: () => void refetchDrilldown() }}
           />
         ) : (
-          <PriceHistoryChart points={drilldown?.points ?? []} range={historyRange} />
+          <>
+            <PriceHistoryChart points={drilldown?.points ?? []} range={historyRange} />
+            <div style={{ display: 'grid', gap: 'var(--space-2)', marginBlockStart: 'var(--space-4)' }} aria-label="نسخه‌های قابل بازگردانی">
+              {[...(drilldown?.points ?? [])].reverse()
+                .filter((point) => point.version !== historyFor?.currentVersion)
+                .slice(0, 5)
+                .map((point) => (
+                <div key={point.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--space-3)' }}>
+                  <span>{formatToman(point.price)} · {formatJalali(point.at)}</span>
+                  <Button
+                    variant="ghost"
+                    disabled={!point.version || !historyFor?.currentVersion || rollback.isPending}
+                    onClick={() => void (async () => {
+                      if (!historyFor || !point.version || !historyFor.currentVersion) return;
+                      const ok = await confirm({ title: 'بازگردانی قیمت قبلی', body: 'قیمت فعلی با یک نسخهٔ تاریخی جایگزین می‌شود و تاریخچه حذف نخواهد شد.', confirmLabel: 'بازگردانی' });
+                      if (ok) rollback.mutate({ skuId: historyFor.id, targetVersion: point.version, expectedCurrentVersion: historyFor.currentVersion });
+                    })()}
+                  >
+                    بازگردانی این نسخه
+                  </Button>
+                </div>
+                ))}
+            </div>
+          </>
         )}
       </Modal>
 

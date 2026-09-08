@@ -44,7 +44,7 @@ function toPriceRow(
   withhold = true,
 ): PriceRow {
   const p = r.price;
-  const hidden = p ? s.isHidden(p.updatedAt) : true;
+  const hidden = p ? s.isHidden(p.confirmedAt ?? p.updatedAt) : true;
   const withheld = hidden && withhold;
   return {
     id: r.sku.id,
@@ -92,9 +92,12 @@ function toPriceRow(
       vatIncluded: p?.vatIncluded ?? false,
       movementPct: p && !withheld ? (p.movementPct ?? undefined) : undefined,
       movementDir: p && !withheld ? p.movementDir : 'flat',
-      updatedAt: (p?.updatedAt ?? r.sku.updatedAt).toISOString(),
-      isStale: p ? s.isStale(p.updatedAt) : true,
+      updatedAt: (p?.confirmedAt ?? p?.updatedAt ?? r.sku.updatedAt).toISOString(),
+      isStale: p ? s.isStale(p.confirmedAt ?? p.updatedAt) : true,
       priceHidden: hidden,
+      priceIsEstimated: p?.priceIsEstimated ?? false,
+      version: p?.version ?? undefined,
+      confirmedAt: (p?.confirmedAt ?? p?.updatedAt ?? r.sku.updatedAt).toISOString(),
     },
   };
 }
@@ -653,6 +656,11 @@ export async function skuHistory(slug: string, range = '90d'): Promise<PricePoin
     unit: p.unit,
     priceBasis: p.priceBasis,
     at: p.at.toISOString(),
+    confirmedAt: p.confirmedAt.toISOString(),
+    version: p.version,
+    priceIsEstimated: p.priceIsEstimated,
+    source: p.source,
+    sourcePublishedLabel: p.sourcePublishedLabel ?? undefined,
   }));
 }
 

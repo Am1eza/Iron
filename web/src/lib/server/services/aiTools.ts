@@ -741,9 +741,9 @@ export async function runTool(
             ...(r.dimensions ? { dimensions: r.dimensions } : {}),
             unit: r.current.unit,
             // Hidden/stale → no number; the model must offer a کارشناس callback.
-            price: r.current.priceHidden ? null : r.current.price,
+            price: r.current.priceHidden || r.current.priceIsEstimated ? null : r.current.price,
             isStale: r.current.isStale,
-            deliveryTime: r.current.priceHidden ? null : r.current.deliveryTime,
+            deliveryTime: r.current.priceHidden || r.current.priceIsEstimated ? null : r.current.deliveryTime,
             updatedAt: r.current.updatedAt,
             // Jalali form of updatedAt so the model can date a stale price
             // («در تاریخ ۱۴۰۵/۰۴/۱۱») — the validator exempts date patterns.
@@ -929,7 +929,7 @@ export async function runTool(
           };
         }
         const row = rows[0]!;
-        if (row.current.priceHidden || row.current.price <= 0) {
+        if (row.current.priceHidden || row.current.priceIsEstimated || row.current.price <= 0) {
           return { error: 'قیمت این محصول ثبت نشده و نمی‌شود رویش هشدار گذاشت؛ پیشنهاد بده کارشناس اعلام کند.' };
         }
         // No threshold given ⇒ today's own price. That is a GROUNDED default
@@ -1049,7 +1049,7 @@ export async function runTool(
 
         // A hidden/stale price is stored as 0 (toPriceRow's contract) — never
         // let a row with no real price win as "cheapest" by default.
-        const priced = scoped.filter((r) => !r.current.priceHidden && r.current.price > 0);
+        const priced = scoped.filter((r) => !r.current.priceHidden && !r.current.priceIsEstimated && r.current.price > 0);
         if (priced.length === 0) return { error: 'قیمتی برای این محصول ثبت نشده؛ کارشناس اعلام می‌کند.' };
         const split = computeBulkSplit(priced, parsed.data.tonnage);
         if (!split.cheapest) return { error: 'قیمتی برای این محصول ثبت نشده؛ کارشناس اعلام می‌کند.' };

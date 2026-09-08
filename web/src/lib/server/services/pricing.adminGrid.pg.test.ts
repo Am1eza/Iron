@@ -24,7 +24,8 @@ import { createTestDb } from '@/test/db';
 import * as schema from '@/lib/server/db/schema';
 import type { Db } from '@/lib/server/db/client';
 import { tableRows } from '@/lib/server/repos/catalogRepo';
-import { savePrice } from './pricing.service';
+import { InvalidPriceError, PriceAnomalyError, PriceSyncExcludedError, PriceVersionConflictError, rollbackPrice, savePrice, savePrices } from './pricing.service';
+import { ulid } from 'ulid';
 
 let db: Db;
 let close: () => Promise<void>;
@@ -60,6 +61,7 @@ beforeAll(async () => {
     movementPct: 1.5,
     movementDir: 'up',
     updatedAt: LONG_AGO,
+    confirmedAt: LONG_AGO,
     isStale: true,
   });
 }, 120_000);
@@ -92,6 +94,13 @@ describe('tableRows({ forAdmin }) — the admin grid must still see what it is e
 });
 
 describe('savePrice — an empty deliveryTime is "unchanged", never "erase it"', () => {
+  it.each([0, -1, 1e13 + 1])('database constraints reject %s even without application validation', async (price) => {
+    await expect(db.update(schema.currentPrices).set({ price }).where(eq(schema.currentPrices.skuId, SKU))).rejects.toThrow();
+    await expect(db.insert(schema.pricePoints).values({ id: ulid(), skuId: SKU, price, unit: 'kg' })).rejects.toThrow();
+  });
+  it.each([0.1, 100.5, 1e13 + 1, NaN, Infinity])('refuses invalid money %s before a write', async (price) => {
+    await expect(savePrice(ACTOR, { skuId: SKU, price })).rejects.toBeInstanceOf(InvalidPriceError);
+  });
   it('keeps the stored delivery time when the payload carries an empty string', async () => {
     await savePrice(ACTOR, { skuId: SKU, price: 290_000, deliveryTime: '' });
     const rows = await db.select().from(schema.currentPrices).where(eq(schema.currentPrices.skuId, SKU));
@@ -109,5 +118,72 @@ describe('savePrice — an empty deliveryTime is "unchanged", never "erase it"',
     await savePrice(ACTOR, { skuId: SKU, price: 292_000, deliveryTime: '۲۴ ساعت' });
     const rows = await db.select().from(schema.currentPrices).where(eq(schema.currentPrices.skuId, SKU));
     expect(rows[0]!.deliveryTime).toBe('۲۴ ساعت');
+  });
+  it('finds the earlier close behind more than thirty same-day points', async () => {
+    const yesterday = new Date(Date.now() - 86_400_000);
+    await db.insert(schema.pricePoints).values({ id: ulid(), skuId: SKU, price: 200000, unit: 'kg', at: yesterday, confirmedAt: yesterday });
+    await db.insert(schema.pricePoints).values(Array.from({ length: 40 }, () => ({ id: ulid(), skuId: SKU, price: 250000, unit: 'kg' as const, at: new Date() })));
+    const result = await savePrice(ACTOR, { skuId: SKU, price: 220000 });
+    expect(result.movementPct).toBe(10);
+  });
+  it('refuses a price stamped with a different selling unit', async () => {
+    await expect(savePrice(ACTOR, { skuId: SKU, price: 220000, unit: 'branch' })).rejects.toBeInstanceOf(InvalidPriceError);
+  });
+  it('rejects both duplicate bulk rows without choosing a winner', async () => {
+    const before = await db.select().from(schema.currentPrices).where(eq(schema.currentPrices.skuId, SKU));
+    const results = await savePrices(ACTOR, [{ skuId: SKU, price: 300000 }, { skuId: SKU, price: 310000 }]);
+    expect(results.every((row) => !row.ok)).toBe(true);
+    const after = await db.select().from(schema.currentPrices).where(eq(schema.currentPrices.skuId, SKU));
+    expect(after).toEqual(before);
+  });
+  it('rechecks the sync exclusion at the write boundary', async () => {
+    await db.update(schema.skus).set({ priceSyncExcluded: true }).where(eq(schema.skus.id, SKU));
+    try {
+      await expect(savePrice(null, { skuId: SKU, price: 300000, respectSyncExclusion: true })).rejects.toBeInstanceOf(PriceSyncExcludedError);
+      await expect(savePrice(ACTOR, { skuId: SKU, price: 300000 })).resolves.toMatchObject({ price: 300000 });
+    } finally {
+      await db.update(schema.skus).set({ priceSyncExcluded: false }).where(eq(schema.skus.id, SKU));
+    }
+  });
+  it('does not refresh current price or append history for the same source event', async () => {
+    const first = await savePrice(null, { skuId: SKU, price: 305000, source: 'sync:ahanonline', sourceEventKey: 'source:event:1' });
+    const before = await db.select().from(schema.currentPrices).where(eq(schema.currentPrices.skuId, SKU));
+    const pointsBefore = await db.select().from(schema.pricePoints).where(eq(schema.pricePoints.skuId, SKU));
+    const second = await savePrice(null, { skuId: SKU, price: 305000, source: 'sync:ahanonline', sourceEventKey: 'source:event:1' });
+    const after = await db.select().from(schema.currentPrices).where(eq(schema.currentPrices.skuId, SKU));
+    const pointsAfter = await db.select().from(schema.pricePoints).where(eq(schema.pricePoints.skuId, SKU));
+    expect(first.changed).toBe(true);
+    expect(second).toMatchObject({ changed: false, version: first.version });
+    expect(after[0]!.confirmedAt).toEqual(before[0]!.confirmedAt);
+    expect(pointsAfter).toHaveLength(pointsBefore.length);
+  });
+  it('quarantines an order-of-magnitude typo unless explicitly confirmed', async () => {
+    await expect(savePrice(ACTOR, { skuId: SKU, price: 3_050_000 })).rejects.toBeInstanceOf(PriceAnomalyError);
+    await expect(savePrice(ACTOR, { skuId: SKU, price: 3_050_000, confirmAnomaly: true })).resolves.toMatchObject({ changed: true });
+  });
+  it('rolls back by appending, replays idempotently, and refuses a distinct stale rollback', async () => {
+    const target = await savePrice(ACTOR, { skuId: SKU, price: 300000, confirmAnomaly: true });
+    const latest = await savePrice(ACTOR, { skuId: SKU, price: 310000 });
+    const restored = await rollbackPrice(ACTOR, { skuId: SKU, targetVersion: target.version, expectedCurrentVersion: latest.version });
+    expect(restored).toMatchObject({ price: 300000, changed: true });
+    await expect(rollbackPrice(ACTOR, { skuId: SKU, targetVersion: target.version, expectedCurrentVersion: latest.version }))
+      .resolves.toMatchObject({ changed: false, price: 300000 });
+    await expect(rollbackPrice(ACTOR, { skuId: SKU, targetVersion: latest.version, expectedCurrentVersion: latest.version }))
+      .rejects.toBeInstanceOf(PriceVersionConflictError);
+  });
+  it('rolls back price, point and audit when atomic sync evidence cannot be inserted', async () => {
+    const before = await db.select().from(schema.currentPrices).where(eq(schema.currentPrices.skuId, SKU));
+    const points = await db.select().from(schema.pricePoints).where(eq(schema.pricePoints.skuId, SKU));
+    await expect(savePrice(null, {
+      skuId: SKU,
+      price: 320000,
+      source: 'sync:ahanonline',
+      sourceEventKey: 'source:event:broken-log',
+      syncEntry: {
+        runId: 'missing-run', skuId: SKU, reason: 'write:exact', source: 'ahanonline', confidence: 'exact',
+      },
+    })).rejects.toThrow();
+    expect(await db.select().from(schema.currentPrices).where(eq(schema.currentPrices.skuId, SKU))).toEqual(before);
+    expect(await db.select().from(schema.pricePoints).where(eq(schema.pricePoints.skuId, SKU))).toHaveLength(points.length);
   });
 });

@@ -6,6 +6,7 @@
 import {
   bigint,
   boolean,
+  check,
   doublePrecision,
   index,
   integer,
@@ -13,6 +14,7 @@ import {
   text,
   timestamp,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { PRICE_BASES, PRICE_UNITS, skus } from './catalog';
 import { users } from './auth';
 
@@ -36,6 +38,12 @@ export const currentPrices = pgTable(
     movementPct: doublePrecision('movement_pct'),
     movementDir: text('movement_dir', { enum: MOVEMENT_DIRS }).notNull().default('flat'),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    /** Business freshness clock; repeated writes of the same source event do not move it. */
+    confirmedAt: timestamp('confirmed_at', { withTimezone: true }).notNull().defaultNow(),
+    version: text('version').notNull().default('legacy'),
+    source: text('source').notNull().default('admin'),
+    sourceEventKey: text('source_event_key'),
+    sourcePublishedLabel: text('source_published_label'),
     // Nullable already — preserve the price row's history, just drop the
     // reference to a since-deleted staff account.
     updatedBy: text('updated_by').references(() => users.id, { onDelete: 'set null' }),
@@ -55,7 +63,10 @@ export const currentPrices = pgTable(
   },
   // FK with no covering index (W29) — one row per SKU, so deleting a staff
   // account scanned the entire price table.
-  (t) => [index('current_prices_updated_by_idx').on(t.updatedBy)],
+  (t) => [
+    index('current_prices_updated_by_idx').on(t.updatedBy),
+    check('current_prices_price_toman_range', sql`${t.price} BETWEEN 1 AND 10000000000000`),
+  ],
 );
 
 export const pricePoints = pgTable(
@@ -72,8 +83,19 @@ export const pricePoints = pgTable(
     // silently re-interpret the history a chart is drawn from.
     priceBasis: text('price_basis', { enum: PRICE_BASES }).notNull().default('kg'),
     at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
+    confirmedAt: timestamp('confirmed_at', { withTimezone: true }).notNull().defaultNow(),
+    version: text('version').notNull().default('legacy'),
+    priceIsEstimated: boolean('price_is_estimated').notNull().default(false),
+    actorId: text('actor_id').references(() => users.id, { onDelete: 'set null' }),
+    source: text('source').notNull().default('admin'),
+    sourceEventKey: text('source_event_key').unique(),
+    sourcePublishedLabel: text('source_published_label'),
   },
-  (t) => [index('price_points_sku_at_idx').on(t.skuId, t.at)],
+  (t) => [
+    index('price_points_sku_at_idx').on(t.skuId, t.at),
+    index('price_points_version_idx').on(t.version),
+    check('price_points_price_toman_range', sql`${t.price} BETWEEN 1 AND 10000000000000`),
+  ],
 );
 
 /**
@@ -87,7 +109,7 @@ export const pricePoints = pgTable(
  * this SKU" and "this SKU was never even looked at" are very different facts
  * when you are trying to explain a wrong number on the site.
  */
-export const PRICE_SYNC_SOURCES = ['ahanonline'] as const;
+export const PRICE_SYNC_SOURCES = ['ahanonline', 'markazeahan', 'multi'] as const;
 export const PRICE_SYNC_RUN_STATUSES = ['running', 'ok', 'failed'] as const;
 export const PRICE_SYNC_TRIGGERS = ['cron', 'manual'] as const;
 export const PRICE_SYNC_OUTCOMES = ['written', 'skipped'] as const;

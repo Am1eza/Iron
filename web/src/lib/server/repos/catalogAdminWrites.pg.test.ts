@@ -147,7 +147,7 @@ describe('updateSku — the price row moves with the product', () => {
     const two = await createSku({ subCategoryId: 's-hot', slug: 'update-dupe-two', name: 'ورق دو', size: '۴', grade: 'B' });
     await expect(updateSku(two.id, { name: 'نام متفاوت', size: one.size, grade: one.grade })).rejects.toBeInstanceOf(DuplicateProductError);
   });
-  it('publishes unit and priceBasis to current_prices in the same transaction', async () => {
+  it('withholds an old price when unit or priceBasis changes meaning', async () => {
     const sku = await createSku({
       subCategoryId: 's-hot',
       slug: 'varagh-basis',
@@ -164,9 +164,7 @@ describe('updateSku — the price row moves with the product', () => {
       .from(schema.currentPrices)
       .where(eq(schema.currentPrices.skuId, sku.id))
       .limit(1);
-    // `toPriceRow` prefers these over the SKU's own columns, so this is what
-    // the public page actually captions the number with.
-    expect(price[0]).toMatchObject({ unit: 'branch', priceBasis: 'coil' });
+    expect(price).toHaveLength(0);
   });
 
   it('leaves the price row alone when neither column was touched', async () => {

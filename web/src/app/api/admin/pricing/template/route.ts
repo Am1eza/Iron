@@ -4,6 +4,7 @@ import { asc, eq } from 'drizzle-orm';
 import { requireApiPermission, requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { getDb } from '@/lib/server/db/client';
 import { skus, currentPrices, subCategories } from '@/lib/server/db/schema';
+import { PRICING_TEMPLATE_META_SHEET, PRICING_TEMPLATE_VERSION, safeSpreadsheetText } from '@/lib/utils/pricingWorkbook';
 
 export const runtime = 'nodejs';
 
@@ -34,17 +35,19 @@ async function GETImpl(req: NextRequest) {
 
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet('قیمت‌ها', { views: [{ rightToLeft: true, state: 'frozen', ySplit: 1 }] });
+  const meta = wb.addWorksheet(PRICING_TEMPLATE_META_SHEET, { state: 'veryHidden' });
+  meta.addRows([['template', 'ahantime-pricing'], ['version', PRICING_TEMPLATE_VERSION], ['currency', 'TOMAN']]);
   ws.columns = [
     { header: 'کد کالا', key: 'id', width: 30 },
     { header: 'نام کالا', key: 'name', width: 42 },
     { header: 'دسته', key: 'sub', width: 22 },
     { header: 'کارخانه', key: 'factory', width: 20 },
     { header: 'سایز', key: 'size', width: 12 },
-    { header: 'قیمت', key: 'price', width: 16 },
+    { header: 'قیمت (تومان)', key: 'price', width: 18 },
   ];
   ws.getRow(1).font = { bold: true };
   for (const r of rows) {
-    ws.addRow({ id: r.id, name: r.name, sub: r.sub, factory: r.factory ?? '', size: r.size ?? '', price: r.price ?? '' });
+    ws.addRow({ id: safeSpreadsheetText(r.id), name: safeSpreadsheetText(r.name), sub: safeSpreadsheetText(r.sub), factory: safeSpreadsheetText(r.factory), size: safeSpreadsheetText(r.size), price: r.price ?? '' });
   }
   ws.getColumn('price').numFmt = '#,##0';
 

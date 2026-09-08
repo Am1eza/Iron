@@ -837,14 +837,9 @@ export async function updateSku(id: string, patch: Partial<SkuInput>) {
       );
     }
   }
-  // `current_prices.unit`/`price_basis` are only rewritten on the NEXT price
-  // save, and `toPriceRow` PREFERS them over the `skus` columns — so the two
-  // have to move together or the public page quotes a real price against the
-  // wrong denomination. Correcting a SKU from «per kilogram» to «per کلاف»
-  // and losing the second statement leaves «تومان / کیلوگرم» under a per-coil
-  // number until somebody happens to re-save the price: a wrong price quoted
-  // to a customer, from a save the admin was told succeeded. One transaction,
-  // and one UPDATE instead of two, so there is no in-between state to land in.
+  // A current number cannot be reinterpreted merely because the SKU's unit or
+  // price basis changed. Update the catalog and withhold that current price in
+  // one transaction; immutable history remains available for audit/rollback.
   const rows = await asSlugConflict(
     () =>
       db.transaction(async (tx) => {
@@ -853,12 +848,14 @@ export async function updateSku(id: string, patch: Partial<SkuInput>) {
           .set({ ...next, updatedAt: new Date() })
           .where(eq(skus.id, id))
           .returning();
-        const pricePatch: { unit?: PriceUnit; priceBasis?: PriceBasis } = {};
-        if (patch.unit && patch.unit !== before.unit) pricePatch.unit = patch.unit;
-        if (patch.priceBasis && patch.priceBasis !== before.priceBasis)
-          pricePatch.priceBasis = patch.priceBasis;
-        if (updated[0] && Object.keys(pricePatch).length > 0) {
-          await tx.update(currentPrices).set(pricePatch).where(eq(currentPrices.skuId, id));
+        const priceMeaningChanged =
+          (patch.unit != null && patch.unit !== before.unit) ||
+          (patch.priceBasis != null && patch.priceBasis !== before.priceBasis);
+        if (updated[0] && priceMeaningChanged) {
+          // A number per kg does not become a valid number per branch merely
+          // because the catalog denomination changed. Withhold it until an
+          // operator confirms a new price; append-only price_points remain.
+          await tx.delete(currentPrices).where(eq(currentPrices.skuId, id));
         }
         return updated;
       }),

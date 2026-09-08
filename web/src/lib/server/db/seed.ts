@@ -268,13 +268,17 @@ export async function seedDatabase(db: Db, opts: SeedOptions = {}): Promise<void
         // Daily history ending at today's price.
         const series = priceSeries(row.slug, cur.price, historyDays);
         const now = Date.now();
-        const points = series.map((p, i) => ({
+        const points = series.map((p, i) => {
+          const observedAt = new Date(now - (series.length - 1 - i) * DAY_MS);
+          return {
           id: ulid(),
           skuId: row.slug,
           price: p,
           unit: cur.unit,
-          at: new Date(now - (series.length - 1 - i) * DAY_MS),
-        }));
+          at: observedAt,
+          confirmedAt: observedAt,
+          };
+        });
         if (force) {
           await db.delete(schema.pricePoints).where(sql`${schema.pricePoints.skuId} = ${row.slug}`);
         }

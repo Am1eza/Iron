@@ -38,7 +38,7 @@ export function unitLabelFor(row: Pick<PriceRow, 'priceBasis' | 'branchLengthM' 
 
 /** A price that can actually be quoted: not withheld, not a `0` sentinel. */
 function hasRealPrice(r: PriceRow): boolean {
-  return !r.current.priceHidden && r.current.price > 0;
+  return !r.current.priceHidden && !r.current.priceIsEstimated && r.current.price > 0;
 }
 
 /* --------------------------------------------------------------- trend ---- */
@@ -118,11 +118,11 @@ export function buildQuoteBlock(row: PriceRow, points?: ReadonlyArray<PricePoint
     ...(row.grade ? { grade: row.grade } : {}),
     // A withheld price is a `0` sentinel on the row — it must reach the card
     // as `null` so the card shows «استعلام از کارشناس», never «۰ تومان».
-    price: row.current.priceHidden ? null : row.current.price,
+    price: row.current.priceHidden || row.current.priceIsEstimated ? null : row.current.price,
     unitLabel: unitLabelFor(row),
     ...(typeof row.current.movementPct === 'number' ? { movementPct: row.current.movementPct } : {}),
     movementDir: row.current.movementDir,
-    ...(row.current.priceHidden ? {} : { deliveryTime: row.current.deliveryTime }),
+    ...(row.current.priceHidden || row.current.priceIsEstimated ? {} : { deliveryTime: row.current.deliveryTime }),
     updatedAt: row.current.updatedAt,
     isStale: row.current.isStale,
     ...(trend ? { trend } : {}),

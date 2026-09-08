@@ -405,7 +405,7 @@ const PriceTableRow = memo(function PriceTableRow({
         data-unit={hiddenLabel ? undefined : priceUnitCaption(r.priceBasis, r.branchLengthM)}
       >
         {hiddenLabel ?? formatToman(withVat(r.current.price, vat, vatRate), false)}
-        {showRowBasis && !r.current.priceHidden ? (
+        {showRowBasis && !hiddenLabel ? (
           <span className={styles.rowBasis}>
             {' / '}
             {priceBasisNoun(r.priceBasis, r.branchLengthM)}
@@ -413,13 +413,13 @@ const PriceTableRow = memo(function PriceTableRow({
         ) : null}
       </td>
       <td role="cell" className={`${styles.num} ${styles.movementCell}`}>
-        <MovementBadge dir={r.current.movementDir} pct={r.current.movementPct} />
+        {!hiddenLabel ? <MovementBadge dir={r.current.movementDir} pct={r.current.movementPct} /> : null}
       </td>
       <td role="cell" data-label="به‌روزرسانی" className={styles.muted}>
         {formatJalali(r.current.updatedAt, 'MM/dd')}
       </td>
       <td role="cell" className={styles.deliveryCell}>
-        <DeliveryBadge value={r.current.deliveryTime} />
+        {!hiddenLabel ? <DeliveryBadge value={r.current.deliveryTime} /> : null}
       </td>
       <td role="cell" className={styles.actionsCell}>
         <div className={styles.actions}>
@@ -430,9 +430,7 @@ const PriceTableRow = memo(function PriceTableRow({
             icon={<HeartIcon size={18} filled={isFav} />}
             onClick={() => onToggleFav(r.id)}
           />
-          <AlertBellButton
-            target={{ type: 'sku', skuId: r.id, label: r.name, currentValue: r.current.price }}
-          />
+          {!hiddenLabel ? <AlertBellButton target={{ type: 'sku', skuId: r.id, label: r.name, currentValue: r.current.price }} /> : null}
           <IconButton
             size="sm"
             label="نمودار قیمت"
@@ -442,8 +440,8 @@ const PriceTableRow = memo(function PriceTableRow({
           <button
             className={styles.addBtn}
             onClick={() => onAddToCart(r)}
-            disabled={r.current.priceHidden}
-            title={r.current.priceHidden ? 'برای این کالا باید تماس بگیرید.' : undefined}
+            disabled={Boolean(hiddenLabel)}
+            title={hiddenLabel ? 'قیمت قطعی این کالا باید استعلام شود.' : undefined}
           >
             <PlusIcon size={16} /> <span className={styles.addBtnLabel}>سبد</span>
           </button>
@@ -861,8 +859,8 @@ export function PriceTable({
       // Both unplaced (or the admin has arranged nothing at all): cheapest
       // overall visible price first — the previous behaviour, kept verbatim
       // so a partly-filled order is never worse than no order.
-      const av = a.find((r) => !r.current.priceHidden)?.current.price ?? Infinity;
-      const bv = b.find((r) => !r.current.priceHidden)?.current.price ?? Infinity;
+      const av = a.find((r) => !r.current.priceHidden && !r.current.priceIsEstimated)?.current.price ?? Infinity;
+      const bv = b.find((r) => !r.current.priceHidden && !r.current.priceIsEstimated)?.current.price ?? Infinity;
       return av - bv;
     });
   }, [filtered, sort, factoryRank, groupMode]);
@@ -991,7 +989,7 @@ export function PriceTable({
   // compared, and if every visible price ties there is nothing "cheaper" to
   // push the visitor toward.
   const cheapestForCompare = useMemo(() => {
-    const priced = selectedForCompare.filter((r) => !r.current.priceHidden);
+    const priced = selectedForCompare.filter((r) => !r.current.priceHidden && !r.current.priceIsEstimated);
     if (priced.length < 2) return null;
     const cheapest = priced.reduce((a, b) => (b.current.price < a.current.price ? b : a));
     const isActuallyCheaper = priced.some(
@@ -1227,7 +1225,7 @@ export function PriceTable({
       {/* ===== one section per کارخانه / محل تولید ===== */}
       <div className={styles.factoryList}>
         {bySection.map(([name, list], i) => {
-          const cheapest = list.find((r) => !r.current.priceHidden);
+          const cheapest = list.find((r) => !r.current.priceHidden && !r.current.priceIsEstimated);
           const factoryVat = vatFor(name);
           // «قیمت میلگرد کویر کاشان» when the mill is a real distinction,
           // «قیمت پروفیل Z تهران» when the producing city is, and «قیمت پروفیل

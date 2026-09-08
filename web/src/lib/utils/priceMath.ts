@@ -16,6 +16,7 @@ import {
   type PriceBasis,
   type PriceUnit,
 } from '@/lib/types/domain';
+import { isValidPriceToman } from './priceValidation';
 
 /**
  * The kilograms a line actually represents, or `undefined` when there are
@@ -33,12 +34,15 @@ export function lineWeightKg(
   qty: number,
   theoreticalWeightKg: number | null | undefined,
 ): number | undefined {
+  if (!Number.isFinite(qty) || qty <= 0 || qty > Number.MAX_SAFE_INTEGER) return undefined;
   if (basis !== 'kg') return undefined;
   // Belt and braces: a piece- or sqm-counted line has no per-piece mass to
   // multiply even if someone sets its basis back to kg by hand.
   if (unit === 'piece' || unit === 'sqm') return undefined;
   if (unit === 'kg') return qty;
-  return theoreticalWeightKg ? Math.round(theoreticalWeightKg * qty * 100) / 100 : undefined;
+  if (theoreticalWeightKg == null || !Number.isFinite(theoreticalWeightKg) || theoreticalWeightKg <= 0) return undefined;
+  const grams = Math.round(theoreticalWeightKg * qty * 1000);
+  return Number.isSafeInteger(grams) && grams > 0 ? grams / 1000 : undefined;
 }
 
 /**
@@ -62,8 +66,11 @@ export function lineTotalToman(
   weightKg: number | undefined,
   unitPrice: number | undefined,
 ): number | undefined {
-  if (unitPrice == null) return undefined;
+  if (!isValidPriceToman(unitPrice) || !Number.isFinite(qty) || qty <= 0) return undefined;
   const counting = PRICE_BASIS_COUNTING_UNIT[basis];
-  if (counting != null) return unit === counting ? Math.round(unitPrice * qty) : undefined;
-  return weightKg != null ? Math.round(unitPrice * weightKg) : undefined;
+  if (counting != null && unit !== counting) return undefined;
+  const quantity = counting != null ? qty : weightKg;
+  if (quantity == null || !Number.isFinite(quantity) || quantity <= 0) return undefined;
+  const total = Math.round(unitPrice * quantity);
+  return Number.isSafeInteger(total) && total > 0 ? total : undefined;
 }

@@ -431,7 +431,7 @@ export async function activeAlertsWithValues() {
       // check would already say stale). `marketStale` is the ONE exception —
       // see its comment below; the evaluator still reads it directly.
       skuStale: currentPrices.isStale,
-      skuUpdatedAt: currentPrices.updatedAt,
+      skuUpdatedAt: currentPrices.confirmedAt,
       marketLabel: marketValues.label,
       marketValue: marketValues.value,
       // Review fix: `flagTgjuStale()` (marketRepo.ts) marks a market row

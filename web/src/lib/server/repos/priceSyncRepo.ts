@@ -41,7 +41,7 @@ const RUN_LEASE = sql`interval '30 minutes'`;
  * writing prices at the same moment.
  */
 export async function createSyncRun(input: {
-  source: 'ahanonline';
+  source: 'ahanonline' | 'markazeahan' | 'multi';
   trigger: 'cron' | 'manual';
 }): Promise<string | null> {
   const id = ulid();

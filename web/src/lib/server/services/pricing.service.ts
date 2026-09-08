@@ -3,13 +3,14 @@
  * AI/admin tools). One transaction: lock row → compute movement → upsert
  * current_prices → append price_points → audit. (acceptance-criteria §B2)
  */
-import { desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, lt, sql } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { getDb, type DbOrTx } from '@/lib/server/db/client';
-import { currentPrices, pricePoints, skus, auditEntries } from '@/lib/server/db/schema';
-import type { PriceUnit } from '@/lib/types/domain';
-import { isSameJalaliDay } from '@/lib/server/utils/jalali';
+import { currentPrices, pricePoints, priceSyncEntries, skus, auditEntries } from '@/lib/server/db/schema';
+import type { PriceBasis, PriceUnit } from '@/lib/types/domain';
+import { isSameJalaliDay, TEHRAN_OFFSET_MS } from '@/lib/server/utils/jalali';
 import { reportError } from '@/lib/errors/report';
+import { isValidPriceToman } from '@/lib/utils/priceValidation';
 
 export interface SavePriceInput {
   skuId: string;
@@ -27,6 +28,19 @@ export interface SavePriceInput {
    * clear itself without any caller having to remember to clear it.
    */
   isEstimated?: boolean;
+  /** Recheck under the SKU row lock, not only before a slow source fetch. */
+  respectSyncExclusion?: boolean;
+  /** Stable identity of one upstream observation; retries become no-ops. */
+  sourceEventKey?: string;
+  source?: 'admin' | 'sync:ahanonline' | 'sync:markazeahan' | 'rollback';
+  sourcePublishedLabel?: string | null;
+  confirmedAt?: Date;
+  /** Required for an intentional >4x or <0.25x correction. */
+  confirmAnomaly?: boolean;
+  /** Optimistic lock for rollback/cart-sensitive administrative operations. */
+  expectedCurrentVersion?: string;
+  /** Sync evidence inserted in the same transaction as the price itself. */
+  syncEntry?: Omit<typeof priceSyncEntries.$inferInsert, 'id' | 'outcome' | 'oldPrice' | 'newPrice' | 'appliedAt'>;
 }
 
 export interface SavePriceResult {
@@ -34,6 +48,8 @@ export interface SavePriceResult {
   price: number;
   movementPct: number | null;
   movementDir: 'up' | 'down' | 'flat';
+  changed: boolean;
+  version: string;
 }
 
 export class InvalidPriceError extends Error {}
@@ -41,21 +57,22 @@ export class InvalidPriceError extends Error {}
 /** A bulk row naming a SKU that does not exist. Its own class so savePrices
  *  can answer it specifically instead of matching on message text. */
 export class SkuNotFoundError extends Error {}
+export class PriceSyncExcludedError extends Error {}
+export class PriceAnomalyError extends Error {}
+export class PriceVersionConflictError extends Error {}
 
-/** The most recent `price_points` row for this SKU from a DIFFERENT Jalali
- *  day than `now` — the correct "yesterday's close" baseline for movement%
- *  (W23 review fix; see the comment at its call site for why `prev.price`
- *  alone isn't). 30 rows is comfortably more than any realistic number of
- *  same-day re-saves; the index is on (sku_id, at) so this stays cheap even
- *  for a SKU with years of history. */
-async function lastDifferentDayPrice(tx: DbOrTx, skuId: string, now: Date): Promise<number | null> {
+/** Last close before Tehran midnight, in the same denomination. No arbitrary
+ * history window: even thousands of updates today cannot hide the baseline. */
+async function lastDifferentDayPrice(tx: DbOrTx, skuId: string, now: Date, unit: PriceUnit, basis: PriceBasis): Promise<number | null> {
+  const dayMs = 86_400_000;
+  const midnight = new Date(Math.floor((now.getTime() + TEHRAN_OFFSET_MS) / dayMs) * dayMs - TEHRAN_OFFSET_MS);
   const rows = await tx
-    .select({ price: pricePoints.price, at: pricePoints.at })
+    .select({ price: pricePoints.price, confirmedAt: pricePoints.confirmedAt })
     .from(pricePoints)
-    .where(eq(pricePoints.skuId, skuId))
-    .orderBy(desc(pricePoints.at))
-    .limit(30);
-  return rows.find((r) => !isSameJalaliDay(r.at, now))?.price ?? null;
+    .where(and(eq(pricePoints.skuId, skuId), lt(pricePoints.confirmedAt, midnight), eq(pricePoints.unit, unit), eq(pricePoints.priceBasis, basis)))
+    .orderBy(desc(pricePoints.confirmedAt), desc(pricePoints.at), desc(pricePoints.id))
+    .limit(1);
+  return rows[0]?.price ?? null;
 }
 
 /**
@@ -74,7 +91,7 @@ export async function savePrice(actorId: string | null, input: SavePriceInput): 
   // serving "AI/admin tools" as a direct callsite, which wouldn't go through
   // that route at all. A non-finite/non-positive price must never reach a
   // customer-facing price table regardless of caller.
-  if (!Number.isFinite(input.price) || input.price <= 0) {
+  if (!isValidPriceToman(input.price)) {
     throw new InvalidPriceError(`invalid price for ${input.skuId}: ${input.price}`);
   }
 
@@ -88,18 +105,52 @@ export async function savePrice(actorId: string | null, input: SavePriceInput): 
     // a row exists yet, closing that race.
     await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${'price:' + input.skuId}))`);
 
-    const skuRows = await tx.select().from(skus).where(eq(skus.id, input.skuId)).limit(1);
+    const skuRows = await tx.select().from(skus).where(eq(skus.id, input.skuId)).limit(1).for('update');
     const sku = skuRows[0];
     if (!sku) throw new SkuNotFoundError(`SKU not found: ${input.skuId}`);
+    if (input.respectSyncExclusion && sku.priceSyncExcluded) throw new PriceSyncExcludedError('SKU excluded from sync');
+    if (input.unit != null && input.unit !== sku.unit) {
+      throw new InvalidPriceError('price unit must match the SKU');
+    }
 
     const prevRows = await tx.select().from(currentPrices).where(eq(currentPrices.skuId, input.skuId));
     const prev = prevRows[0] ?? null;
+    if (input.sourceEventKey) {
+      const existing = await tx.select({ version: pricePoints.version }).from(pricePoints)
+        .where(eq(pricePoints.sourceEventKey, input.sourceEventKey)).limit(1);
+      if (existing[0]) {
+        return {
+          skuId: input.skuId,
+          price: prev?.price ?? input.price,
+          movementPct: prev?.movementPct ?? null,
+          movementDir: prev?.movementDir ?? 'flat',
+          changed: false,
+          version: existing[0].version,
+        };
+      }
+    }
 
-    const price = Math.round(input.price);
+    // A replay of the exact same source event is a successful no-op even if
+    // the current version has since advanced. For a genuinely new event,
+    // optimistic concurrency is still checked before any write.
+    if (input.expectedCurrentVersion != null && prev?.version !== input.expectedCurrentVersion) {
+      throw new PriceVersionConflictError('price changed after the operator loaded it');
+    }
+
+    const price = input.price;
     const now = new Date();
+    const confirmedAt = input.confirmedAt ?? now;
+    if (!Number.isFinite(confirmedAt.getTime()) || confirmedAt > now) {
+      throw new InvalidPriceError('invalid price confirmation timestamp');
+    }
+    if (prev && (price > prev.price * 4 || price < prev.price / 4) && !input.confirmAnomaly) {
+      throw new PriceAnomalyError('price change requires explicit confirmation');
+    }
+    const version = ulid();
+    const source = input.source ?? 'admin';
     let movementPct: number | null = null;
     let movementDir: 'up' | 'down' | 'flat' = 'flat';
-    if (prev && prev.price > 0) {
+    if (prev && prev.price > 0 && prev.unit === sku.unit && prev.priceBasis === sku.priceBasis) {
       // W23 review fix: movement% used to always diff against `prev.price`
       // (whatever was last saved, even minutes ago) — a same-day correction
       // (fixing a typo) silently overwrote the real day-over-day نوسان
@@ -107,7 +158,9 @@ export async function savePrice(actorId: string | null, input: SavePriceInput): 
       // save was ALSO today, walk price_points back to the last save from a
       // genuinely earlier day and diff against that instead; price_points
       // itself is unaffected either way (append-only, every save recorded).
-      const baseline = isSameJalaliDay(prev.updatedAt, now) ? await lastDifferentDayPrice(tx, input.skuId, now) : prev.price;
+      const baseline = isSameJalaliDay(prev.confirmedAt, now)
+        ? await lastDifferentDayPrice(tx, input.skuId, now, sku.unit, sku.priceBasis)
+        : prev.confirmedAt < now ? prev.price : null;
       if (baseline != null && baseline > 0) {
         movementPct = Math.round(((price - baseline) / baseline) * 10000) / 100;
         movementDir = movementPct > 0.05 ? 'up' : movementPct < -0.05 ? 'down' : 'flat';
@@ -153,17 +206,22 @@ export async function savePrice(actorId: string | null, input: SavePriceInput): 
         movementPct,
         movementDir,
         updatedAt: now,
+        confirmedAt,
+        version,
+        source,
+        sourceEventKey: input.sourceEventKey ?? null,
+        sourcePublishedLabel: input.sourcePublishedLabel ?? null,
         updatedBy: actorId,
         isStale: false,
         priceIsEstimated,
       })
       .onConflictDoUpdate({
         target: currentPrices.skuId,
-        set: { price, unit, priceBasis, deliveryTime, vatIncluded, movementPct, movementDir, updatedAt: now, updatedBy: actorId, isStale: false, priceIsEstimated },
+        set: { price, unit, priceBasis, deliveryTime, vatIncluded, movementPct, movementDir, updatedAt: now, confirmedAt, version, source, sourceEventKey: input.sourceEventKey ?? null, sourcePublishedLabel: input.sourcePublishedLabel ?? null, updatedBy: actorId, isStale: !isSameJalaliDay(confirmedAt, now), priceIsEstimated },
       });
 
     // Append-only history — every save (spec: HISTORY_RETENTION unlimited).
-    await tx.insert(pricePoints).values({ id: ulid(), skuId: input.skuId, price, unit, priceBasis, at: now });
+    await tx.insert(pricePoints).values({ id: ulid(), skuId: input.skuId, price, unit, priceBasis, at: now, confirmedAt, version, priceIsEstimated, actorId, source, sourceEventKey: input.sourceEventKey ?? null, sourcePublishedLabel: input.sourcePublishedLabel ?? null });
 
     await tx.insert(auditEntries).values({
       id: ulid(),
@@ -175,11 +233,21 @@ export async function savePrice(actorId: string | null, input: SavePriceInput): 
       // write — omitting it from the diff meant a VAT-inclusion flip left
       // zero audit trail even though FIELD_LABEL.vatIncluded already exists
       // in auditVocab.ts specifically to render it.
-      before: prev ? { price: prev.price, unit: prev.unit, deliveryTime: prev.deliveryTime, vatIncluded: prev.vatIncluded } : null,
-      after: { price, unit, deliveryTime, vatIncluded },
+      before: prev ? { price: prev.price, unit: prev.unit, priceBasis: prev.priceBasis, priceIsEstimated: prev.priceIsEstimated, deliveryTime: prev.deliveryTime, vatIncluded: prev.vatIncluded } : null,
+      after: { price, unit, priceBasis, priceIsEstimated, deliveryTime, vatIncluded },
     });
+    if (input.syncEntry) {
+      await tx.insert(priceSyncEntries).values({
+        ...input.syncEntry,
+        id: ulid(),
+        outcome: 'written',
+        oldPrice: prev?.price ?? null,
+        newPrice: price,
+        appliedAt: now,
+      });
+    }
 
-    return { skuId: input.skuId, price, movementPct, movementDir };
+    return { skuId: input.skuId, price, movementPct, movementDir, changed: true, version };
   });
 }
 
@@ -209,7 +277,13 @@ export async function savePrices(
   inputs: SavePriceInput[],
 ): Promise<SavePricesRowResult[]> {
   const out: SavePricesRowResult[] = new Array(inputs.length);
+  const counts = new Map<string, number>();
+  for (const input of inputs) counts.set(input.skuId, (counts.get(input.skuId) ?? 0) + 1);
   const runOne = async (input: SavePriceInput, index: number) => {
+    if (counts.get(input.skuId)! > 1) {
+      out[index] = { ok: false, skuId: input.skuId, error: 'کالا در درخواست تکرار شده است؛ هیچ قیمت تکراری ذخیره نشد.' };
+      return;
+    }
     try {
       const result = await savePrice(actorId, input);
       out[index] = { ok: true, ...result };
@@ -224,6 +298,12 @@ export async function savePrices(
         error = 'قیمت واردشده معتبر نیست.';
       } else if (err instanceof SkuNotFoundError) {
         error = 'کالا یافت نشد.';
+      } else if (err instanceof PriceSyncExcludedError) {
+        error = 'این کالا از همگام‌سازی مستثنا شده است.';
+      } else if (err instanceof PriceAnomalyError) {
+        error = 'جهش غیرعادی قیمت شناسایی شد؛ عدد و واحد را بررسی و جداگانه تأیید کنید.';
+      } else if (err instanceof PriceVersionConflictError) {
+        error = 'قیمت در این فاصله تغییر کرده است؛ صفحه را تازه کنید.';
       } else {
         reportError(err, { scope: 'savePrices', skuId: input.skuId });
         error = 'ذخیره ناموفق بود.';
@@ -238,12 +318,37 @@ export async function savePrices(
   return out;
 }
 
+/** Compensating append: restores a historical snapshot without deleting or
+ * rewriting history, and refuses to overwrite a newer current version. */
+export async function rollbackPrice(actorId: string, input: {
+  skuId: string;
+  targetVersion: string;
+  expectedCurrentVersion: string;
+}): Promise<SavePriceResult> {
+  const target = await getDb().select().from(pricePoints)
+    .where(and(eq(pricePoints.skuId, input.skuId), eq(pricePoints.version, input.targetVersion)))
+    .limit(1);
+  const point = target[0];
+  if (!point) throw new SkuNotFoundError('historical price not found');
+  return savePrice(actorId, {
+    skuId: input.skuId,
+    price: point.price,
+    unit: point.unit,
+    isEstimated: point.priceIsEstimated,
+    source: 'rollback',
+    sourcePublishedLabel: point.sourcePublishedLabel,
+    sourceEventKey: `rollback:${input.skuId}:${input.targetVersion}:${input.expectedCurrentVersion}`,
+    expectedCurrentVersion: input.expectedCurrentVersion,
+    confirmAnomaly: true,
+  });
+}
+
 /** Staleness job body — flags prices not updated within the current Jalali day. */
 export async function recomputeStaleness(): Promise<number> {
   const db = getDb();
   const now = new Date();
   const fresh = await db
-    .select({ skuId: currentPrices.skuId, updatedAt: currentPrices.updatedAt })
+    .select({ skuId: currentPrices.skuId, updatedAt: currentPrices.confirmedAt })
     .from(currentPrices)
     .where(eq(currentPrices.isStale, false));
   const toFlag = fresh.filter((r) => !isSameJalaliDay(r.updatedAt, now)).map((r) => r.skuId);

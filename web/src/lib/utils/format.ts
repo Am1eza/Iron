@@ -67,8 +67,9 @@ export function withVat(price: number, vat: boolean, rate: number = CONSTANTS.VA
  * withheld price's literal `0` sentinel as a real number instead. A single
  * shared helper closes that class of bug for good — every price render site
  * calls this FIRST, and only formats the real number when it returns null. */
-export function priceHiddenLabel(current: { priceHidden?: boolean }): string | null {
-  return current.priceHidden ? 'تماس بگیرید' : null;
+export function priceHiddenLabel(current: { priceHidden?: boolean; priceIsEstimated?: boolean }): string | null {
+  if (current.priceHidden) return 'تماس بگیرید';
+  return current.priceIsEstimated ? 'برآورد بازار — قیمت قطعی با استعلام' : null;
 }
 
 /** Compact Toman for KPI headlines — «۱٫۲ میلیارد», «۳۴۵ میلیون», plain

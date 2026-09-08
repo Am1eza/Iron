@@ -1,0 +1,6 @@
+ALTER TABLE "lead_items" ADD CONSTRAINT "lead_items_qty_positive_finite" CHECK ("lead_items"."qty" > 0 AND "lead_items"."qty" < 1000000000000);--> statement-breakpoint
+ALTER TABLE "lead_items" ADD CONSTRAINT "lead_items_unit_price_safe" CHECK ("lead_items"."unit_price" IS NULL OR "lead_items"."unit_price" BETWEEN 0 AND 10000000000000);--> statement-breakpoint
+ALTER TABLE "lead_items" ADD CONSTRAINT "lead_items_line_total_safe" CHECK ("lead_items"."line_total" IS NULL OR "lead_items"."line_total" BETWEEN 0 AND 9007199254740991);--> statement-breakpoint
+ALTER TABLE "proformas" ADD CONSTRAINT "proformas_money_nonnegative_safe" CHECK ("proformas"."subtotal" BETWEEN 0 AND 9007199254740991 AND "proformas"."discount_toman" >= 0 AND "proformas"."volume_discount_toman" >= 0 AND "proformas"."vat_amount" >= 0 AND "proformas"."total" BETWEEN 0 AND 9007199254740991);--> statement-breakpoint
+ALTER TABLE "proformas" ADD CONSTRAINT "proformas_discounts_within_subtotal" CHECK ("proformas"."discount_toman" + "proformas"."volume_discount_toman" <= "proformas"."subtotal");--> statement-breakpoint
+ALTER TABLE "proformas" ADD CONSTRAINT "proformas_vat_rate_range" CHECK ("proformas"."vat_rate" >= 0 AND "proformas"."vat_rate" <= 1);

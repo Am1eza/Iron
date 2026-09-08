@@ -66,8 +66,8 @@ function sortProductHits(hits: ProductHit[], sort: SortKey): ProductHit[] {
     // the end rather than let their `0` sentinel (catalogRepo.toPriceRow)
     // sort as the cheapest result on the page.
     return [...hits].sort((a, b) => {
-      const av = a.row.current.priceHidden ? Infinity : a.row.current.price;
-      const bv = b.row.current.priceHidden ? Infinity : b.row.current.price;
+      const av = a.row.current.priceHidden || a.row.current.priceIsEstimated ? Infinity : a.row.current.price;
+      const bv = b.row.current.priceHidden || b.row.current.priceIsEstimated ? Infinity : b.row.current.price;
       return av - bv;
     });
   }
