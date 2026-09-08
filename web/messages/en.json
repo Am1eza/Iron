@@ -30,7 +30,8 @@
     },
     "unit": {
       "currency": "Toman",
-      "vat": "VAT"
+      "vat": "VAT",
+      "usd": "USD"
     },
     "data": {
       "delivery": "Delivery time",
@@ -447,7 +448,10 @@
     "belowAutoQuoteNote": "This cart's total is below the automatic-issue threshold ({amount}); your request will be filed and a specialist will review pricing and availability.",
     "continueRequestCta": "Continue and submit request",
     "loginContinueRequestCta": "Log in and continue with your request",
-    "noOnlinePaymentNote": "Ahantime does not accept online payment; our specialist will contact you to finalize the price and delivery."
+    "noOnlinePaymentNote": "Ahantime does not accept online payment; our specialist will contact you to finalize the price and delivery.",
+    "pageOverline": "Inquiry",
+    "pageTitle": "Inquiry cart",
+    "pageIntro": "Collect the products you want here and get a proforma with a single request. Consult first, buy after."
   },
   "kgModal": {
     "title": "Quantity for \"{name}\"",
@@ -1582,5 +1586,46 @@
     },
     "formHeading": "Submit a Cutting/Conversion Request",
     "formLead": "Fill out the form below; our specialist will review feasibility and cost, and coordinate with you."
+  },
+  "alertBell": {
+    "loginPrompt": "Sign in to set a price alert.",
+    "loginCta": "Sign in",
+    "bellLabelActive": "Active price alert; manage",
+    "bellLabelInactive": "Set a price alert",
+    "removedToast": "Alert removed.",
+    "removeFailedToast": "Couldn't remove the alert.",
+    "alreadyActiveToast": "You already have an active alert for “{label}”.",
+    "viewInAccount": "View in my account",
+    "setToastBelow": "You'll get an SMS when “{label}” reaches {threshold} or lower.",
+    "setToastAbove": "You'll get an SMS when “{label}” reaches {threshold} or higher.",
+    "submitFailedToast": "Couldn't set the alert. Please try again.",
+    "manageTitle": "Manage price alert",
+    "newTitle": "New price alert",
+    "close": "Close",
+    "submitAsNew": "Save as a new alert",
+    "submit": "Set alert",
+    "removeThis": "Remove this alert",
+    "currentPrice": "Current price of “{label}”:",
+    "existingHint": "This alert is already active. Changing the value below and saving adds a separate alert; to replace it, remove this one first.",
+    "directionLabel": "Alert direction",
+    "directionBelow": "When the price drops",
+    "directionAbove": "When the price rises",
+    "thresholdLabel": "Alert threshold ({unit})",
+    "indexUnit": "index unit",
+    "thresholdError": "Enter an amount greater than zero.",
+    "defaultHint": "Defaults to 5% {direction} the current price; you can change the number.",
+    "defaultHintBelow": "below",
+    "defaultHintAbove": "above",
+    "limitCap": {
+      "headlineWithCap": "You've reached your limit of {cap} active alerts.",
+      "nonMemberBody": "To also track “{label}”, join the Ahantime club — membership raises your active-alert limit.",
+      "nonMemberCta": "Join the club",
+      "ironBody": "To also track “{label}”, upgrade to the Steel club tier to raise your active-alert limit.",
+      "steelBody": "To also track “{label}”, upgrade your club tier to raise your active-alert limit.",
+      "upgradeCta": "View the club",
+      "maxHeadlineWithCap": "You're at the top club tier and have reached your limit of {cap} active alerts.",
+      "maxBody": "To set an alert for “{label}”, first pause or remove one of your active alerts.",
+      "maxCta": "Manage alerts"
+    }
   }
 }

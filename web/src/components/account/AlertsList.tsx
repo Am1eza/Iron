@@ -8,8 +8,9 @@ import { useAlerts } from '@/lib/hooks/useAlerts';
 import { useToast } from '@/lib/hooks/useToast';
 import { formatToman, localizeDigits } from '@/lib/utils/format';
 import { formatJalali } from '@/lib/utils/jalali';
-import { formatAlertValue, alertDistance } from '@/lib/utils/alerts';
+import { formatAlertValueLocalized, alertDistance } from '@/lib/utils/alerts';
 import type { Alert } from '@/lib/types/domain';
+import type { AppLocale } from '@/i18n/config';
 import { Badge, Button, EmptyState, TableSkeleton, emptyPresets } from '@/components/ui';
 import styles from './RequestsList.module.css';
 import alertStyles from './AlertsList.module.css';
@@ -26,7 +27,8 @@ const STATUS_TONE: Record<Alert['status'], 'gain' | 'accent' | 'stale'> = {
  *  status only. */
 export function AlertsList() {
   const t = useTranslations('account.alerts');
-  const locale = useLocale();
+  const tUnit = useTranslations('common.unit');
+  const locale = useLocale() as AppLocale;
   const qc = useQueryClient();
   const toast = useToast();
   const { data, isLoading, isError, refetch } = useAlerts();
@@ -94,13 +96,15 @@ export function AlertsList() {
 
             <p className={styles.detail}>
               {a.op === 'below' ? t('below') : t('above')}{' '}
-              <bdi className="tnum">{formatToman(a.threshold, false)}</bdi> {t('tomanSuffix')}
+              <bdi className="tnum">{formatToman(a.threshold, false, locale)}</bdi> {t('tomanSuffix')}
             </p>
 
             {a.currentValue != null ? (
               <p className={alertStyles.live}>
                 <span className={alertStyles.liveLabel}>{t('now')}</span>{' '}
-                <bdi className="tnum">{formatAlertValue(a.currentValue, a.target)}</bdi>
+                <bdi className="tnum">
+                  {formatAlertValueLocalized(a.currentValue, a.target, locale, tUnit('currency'), tUnit('usd'))}
+                </bdi>
                 {dist ? (
                   dist.crossed ? (
                     <Badge tone="warning">{t('crossedSoon')}</Badge>

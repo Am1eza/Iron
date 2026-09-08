@@ -30,7 +30,8 @@
     },
     "unit": {
       "currency": "土曼",
-      "vat": "增值税"
+      "vat": "增值税",
+      "usd": "美元"
     },
     "data": {
       "delivery": "交货时间",
@@ -447,7 +448,10 @@
     "belowAutoQuoteNote": "此购物车总额低于自动开票门槛（{amount}）；您的申请将被记录，专员将审核价格和供货情况。",
     "continueRequestCta": "继续提交申请",
     "loginContinueRequestCta": "登录并继续申请",
-    "noOnlinePaymentNote": "Ahantime 不支持在线支付；我们的专员将与您联系以确定最终价格和交货事宜。"
+    "noOnlinePaymentNote": "Ahantime 不支持在线支付；我们的专员将与您联系以确定最终价格和交货事宜。",
+    "pageOverline": "询价",
+    "pageTitle": "询价车",
+    "pageIntro": "在这里收集您选中的产品，一次请求即可获取形式发票。先咨询，后购买。"
   },
   "kgModal": {
     "title": "“{name}” 的数量",
@@ -1582,5 +1586,46 @@
     },
     "formHeading": "提交切割/加工申请",
     "formLead": "请填写下方表单，我们的专员将评估可行性和费用并与您协调。"
+  },
+  "alertBell": {
+    "loginPrompt": "登录后即可设置价格提醒。",
+    "loginCta": "登录",
+    "bellLabelActive": "已有价格提醒；管理",
+    "bellLabelInactive": "设置价格提醒",
+    "removedToast": "提醒已删除。",
+    "removeFailedToast": "删除提醒失败。",
+    "alreadyActiveToast": "您已为「{label}」设置了有效提醒。",
+    "viewInAccount": "在我的账户中查看",
+    "setToastBelow": "当「{label}」降至{threshold}或更低时，您将收到短信通知。",
+    "setToastAbove": "当「{label}」升至{threshold}或更高时，您将收到短信通知。",
+    "submitFailedToast": "设置提醒失败，请重试。",
+    "manageTitle": "管理价格提醒",
+    "newTitle": "新建价格提醒",
+    "close": "关闭",
+    "submitAsNew": "另存为新提醒",
+    "submit": "设置提醒",
+    "removeThis": "删除此提醒",
+    "currentPrice": "「{label}」当前价格：",
+    "existingHint": "该提醒已生效。修改下方数值并保存将新增一条独立提醒；如需替换，请先删除此提醒。",
+    "directionLabel": "提醒方向",
+    "directionBelow": "价格下跌至",
+    "directionAbove": "价格上涨至",
+    "thresholdLabel": "提醒阈值（{unit}）",
+    "indexUnit": "指数单位",
+    "thresholdError": "请输入大于零的金额。",
+    "defaultHint": "默认值为当前价格{direction}5%；您可以修改该数值。",
+    "defaultHintBelow": "下浮",
+    "defaultHintAbove": "上浮",
+    "limitCap": {
+      "headlineWithCap": "您已达到{cap}条有效提醒的上限。",
+      "nonMemberBody": "如需同时关注「{label}」，请加入阿罕时代俱乐部；会员身份将提高您的有效提醒上限。",
+      "nonMemberCta": "加入俱乐部",
+      "ironBody": "如需同时关注「{label}」，请升级至俱乐部钢级会员以提高您的有效提醒上限。",
+      "steelBody": "如需同时关注「{label}」，请升级俱乐部等级以提高您的有效提醒上限。",
+      "upgradeCta": "查看俱乐部",
+      "maxHeadlineWithCap": "您已是俱乐部最高等级，并已达到{cap}条有效提醒的上限。",
+      "maxBody": "如需为「{label}」设置提醒，请先暂停或删除一条现有的有效提醒。",
+      "maxCta": "管理提醒"
+    }
   }
 }

@@ -22,6 +22,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
+import { useTranslations, useLocale } from 'next-intl';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { useAlerts } from '@/lib/hooks/useAlerts';
@@ -34,11 +35,12 @@ import { routes } from '@/lib/routes';
 import { normalizeDigits, formatToman } from '@/lib/utils/format';
 import {
   findActiveAlert,
-  formatAlertValue,
+  formatAlertValueLocalized,
   defaultThreshold,
-  capLimitCopy,
+  capLimitCopyLocalized,
 } from '@/lib/utils/alerts';
 import type { MarketKey } from '@/lib/types/domain';
+import type { AppLocale } from '@/i18n/config';
 import { IconButton, Modal, Button, Tooltip } from '@/components/ui';
 import { Field, RadioGroup } from '@/components/forms/fields';
 import { BellIcon } from '@/components/primitives/icons';
@@ -67,6 +69,7 @@ export function AlertBellButton({
   variant?: 'ghost' | 'subtle' | 'solid';
   className?: string;
 }) {
+  const t = useTranslations('alertBell');
   const { isAuthenticated } = useAuth();
   const toast = useToast();
   const { data } = useAlerts();
@@ -86,13 +89,13 @@ export function AlertBellButton({
         typeof window !== 'undefined'
           ? window.location.pathname + window.location.search
           : undefined;
-      toast.info('برای ثبت هشدار قیمت وارد شوید.', { label: 'ورود', href: routes.login(next) });
+      toast.info(t('loginPrompt'), { label: t('loginCta'), href: routes.login(next) });
       return;
     }
     setOpen(true);
   };
 
-  const bellLabel = activeAlert ? 'هشدار قیمت فعال؛ مدیریت' : 'ثبت هشدار قیمت';
+  const bellLabel = activeAlert ? t('bellLabelActive') : t('bellLabelInactive');
 
   return (
     <>
@@ -138,6 +141,10 @@ function AlertBellModal({
   activeAlert: ActiveAlert;
   onClose: () => void;
 }) {
+  const t = useTranslations('alertBell');
+  const tLimit = useTranslations('alertBell.limitCap');
+  const tUnit = useTranslations('common.unit');
+  const locale = useLocale() as AppLocale;
   const toast = useToast();
   const qc = useQueryClient();
   const router = useRouter();
@@ -186,9 +193,9 @@ function AlertBellModal({
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: queryKeys.myAlerts() });
       onClose();
-      toast.success('هشدار حذف شد.');
+      toast.success(t('removedToast'));
     },
-    onError: (err) => toast.error(err instanceof ApiError ? err.message : 'حذف هشدار ناموفق بود.'),
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : t('removeFailedToast')),
   });
 
   const create = useMutation({
@@ -205,19 +212,17 @@ function AlertBellModal({
       void qc.invalidateQueries({ queryKey: queryKeys.myAlerts() });
       onClose();
       if (merged) {
-        toast.success(`این هشدار از قبل برای شما فعال است: «${target.label}».`, {
-          label: 'مشاهده در حساب من',
+        toast.success(t('alreadyActiveToast', { label: target.label }), {
+          label: t('viewInAccount'),
           href: routes.account('alerts'),
         });
         return;
       }
       trackGoal('alert', 'alert_set', target.label);
-      const cond =
-        alert.op === 'below'
-          ? `وقتی «${target.label}» به ${formatToman(alert.threshold, false)} تومان یا کمتر برسد`
-          : `وقتی «${target.label}» به ${formatToman(alert.threshold, false)} تومان یا بیشتر برسد`;
-      toast.success(`${cond}، پیامک می‌گیرید.`, {
-        label: 'مشاهده در حساب من',
+      const threshold = `${formatToman(alert.threshold, false, locale)} ${tUnit('currency')}`;
+      const toastKey = alert.op === 'below' ? 'setToastBelow' : 'setToastAbove';
+      toast.success(t(toastKey, { label: target.label, threshold }), {
+        label: t('viewInAccount'),
         href: routes.account('alerts'),
       });
     },
@@ -234,9 +239,7 @@ function AlertBellModal({
         toast.error(err.message);
         return;
       }
-      toast.error(
-        err instanceof ApiError ? err.message : 'ثبت هشدار ناموفق بود. دوباره تلاش کنید.',
-      );
+      toast.error(err instanceof ApiError ? err.message : t('submitFailedToast'));
     },
   });
 
@@ -256,13 +259,15 @@ function AlertBellModal({
   // separate LimitNotice component) so its headline/body can live in the
   // Modal body while its buttons live in the footer, same split as the form.
   const { user } = useAuth();
-  const limitCopy = limit ? capLimitCopy(limit.cap, user?.clubTier, target.label) : null;
+  const limitCopy = limit
+    ? capLimitCopyLocalized(limit.cap, user?.clubTier, target.label, locale, tLimit)
+    : null;
 
   return (
     <Modal
       open
       onClose={onClose}
-      title={activeAlert ? 'مدیریت هشدار قیمت' : 'هشدار قیمت جدید'}
+      title={activeAlert ? t('manageTitle') : t('newTitle')}
       footer={
         limitCopy ? (
           <div className={styles.actions}>
@@ -279,7 +284,7 @@ function AlertBellModal({
               </Button>
             ) : null}
             <Button type="button" variant="ghost" onClick={onClose} fullWidth>
-              بستن
+              {t('close')}
             </Button>
           </div>
         ) : (
@@ -295,7 +300,7 @@ function AlertBellModal({
               loading={create.isPending}
               fullWidth
             >
-              {activeAlert ? 'ثبت به‌عنوان هشدار جدید' : 'ثبت هشدار'}
+              {activeAlert ? t('submitAsNew') : t('submit')}
             </Button>
             {activeAlert ? (
               <Button
@@ -305,7 +310,7 @@ function AlertBellModal({
                 onClick={() => removeExisting.mutate(activeAlert.id)}
                 fullWidth
               >
-                حذف این هشدار
+                {t('removeThis')}
               </Button>
             ) : null}
           </div>
@@ -320,30 +325,35 @@ function AlertBellModal({
       ) : (
         <form onSubmit={handleSubmit(onSubmit)} noValidate>
           <p className={styles.current}>
-            قیمت فعلی «{target.label}»:{' '}
-            <bdi className="tnum">{formatAlertValue(target.currentValue, genericTarget)}</bdi>
+            {t('currentPrice', { label: target.label })}{' '}
+            <bdi className="tnum">
+              {formatAlertValueLocalized(
+                target.currentValue,
+                genericTarget,
+                locale,
+                tUnit('currency'),
+                tUnit('usd'),
+              )}
+            </bdi>
           </p>
-          {activeAlert ? (
-            <p className={styles.hint}>
-              این هشدار از قبل فعال است. اگر مقدار زیر را تغییر دهید و ثبت کنید، یک هشدار جداگانه
-              اضافه می‌شود؛ برای جایگزینی، اول همین هشدار را حذف کنید.
-            </p>
-          ) : null}
+          {activeAlert ? <p className={styles.hint}>{t('existingHint')}</p> : null}
 
           <RadioGroup
-            label="جهت هشدار"
+            label={t('directionLabel')}
             register={register('op')}
             options={[
-              { value: 'below', label: 'وقتی قیمت کمتر شود' },
-              { value: 'above', label: 'وقتی قیمت بیشتر شود' },
+              { value: 'below', label: t('directionBelow') },
+              { value: 'above', label: t('directionAbove') },
             ]}
           />
 
           <Field
-            label={`آستانهٔ هشدار (${genericTarget.type === 'sku' ? 'تومان' : 'واحد شاخص'})`}
+            label={t('thresholdLabel', {
+              unit: genericTarget.type === 'sku' ? tUnit('currency') : t('indexUnit'),
+            })}
             htmlFor="alert-threshold"
             required
-            error={formState.errors.threshold ? 'مبلغی بزرگ‌تر از صفر وارد کنید.' : undefined}
+            error={formState.errors.threshold ? t('thresholdError') : undefined}
           >
             <input
               id="alert-threshold"
@@ -358,8 +368,9 @@ function AlertBellModal({
           </Field>
           {!activeAlert ? (
             <p className={styles.hint}>
-              پیش‌فرض ۵٪ {op === 'below' ? 'کمتر از' : 'بیشتر از'} قیمت فعلی است؛ می‌توانید عددش را
-              تغییر دهید.
+              {t('defaultHint', {
+                direction: op === 'below' ? t('defaultHintBelow') : t('defaultHintAbove'),
+              })}
             </p>
           ) : null}
         </form>
