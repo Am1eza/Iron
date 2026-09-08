@@ -1,19 +1,20 @@
-'use client';
-import Link from 'next/link';
-import { useTranslations, useLocale } from 'next-intl';
-import { localizeDigits } from '@/lib/utils/format';
-import { ChevronStartIcon, ChevronEndIcon } from '@/components/primitives/icons';
-import type { AppLocale } from '@/i18n/config';
-import styles from './Pagination.module.css';
+import { PaginationClient } from './PaginationClient';
 
 /**
  * D9 · Pagination — numbered pager «‹ ۱ ۲ ۳ ›» (arrows mirror for RTL). `hrefFor`
  * builds each page URL so it stays a real, crawlable link (rel prev/next set by page).
- * `'use client'` (was a plain server component): page numbers and the
- * prev/next labels were hardcoded Persian digits/text, which stayed Persian
- * forever regardless of the visitor's chosen locale — see `LocaleProvider`'s
- * header comment for why a server component's own literal text never
- * responds to a client-side locale switch, only a client component's does.
+ *
+ * Stays a plain Server Component specifically so `hrefFor` — a function —
+ * can be called here, server-side, rather than crossing into a Client
+ * Component. React/Next.js forbids passing a function prop across that
+ * boundary ("Functions cannot be passed directly to Client Components")
+ * and enforces it at PRERENDER time, not just in dev — this only surfaced
+ * when `PaginationClient` (needed so page numbers and prev/next labels can
+ * react to a locale switch, see that file's header comment) was briefly
+ * merged as `Pagination` itself with `'use client'`, which broke every
+ * Server Component caller passing a `hrefFor` closure (e.g. `/news`) at
+ * static-export build time. Resolving every href here, into plain strings,
+ * before handing off to the client half keeps both requirements satisfied.
  */
 export function Pagination({
   page,
@@ -24,72 +25,16 @@ export function Pagination({
   pageCount: number;
   hrefFor: (p: number) => string;
 }) {
-  const t = useTranslations('common');
-  const locale = useLocale() as AppLocale;
   if (pageCount <= 1) return null;
   const pages = windowed(page, pageCount);
 
   return (
-    <nav className={styles.nav} aria-label={t('pagination')}>
-      <PageLink
-        href={page > 1 ? hrefFor(page - 1) : undefined}
-        label={t('action.previous')}
-        rel="prev"
-        icon={<ChevronStartIcon size={18} className="icon--rtl" />}
-      />
-      <ul className={styles.list}>
-        {pages.map((p, i) =>
-          p === '…' ? (
-            <li key={`gap-${i}`} className={styles.gap} aria-hidden="true">
-              …
-            </li>
-          ) : (
-            <li key={p}>
-              <Link
-                href={hrefFor(p)}
-                className={`${styles.page} tnum`}
-                aria-current={p === page ? 'page' : undefined}
-                data-active={p === page ? '' : undefined}
-              >
-                {localizeDigits(p, locale)}
-              </Link>
-            </li>
-          ),
-        )}
-      </ul>
-      <PageLink
-        href={page < pageCount ? hrefFor(page + 1) : undefined}
-        label={t('action.next')}
-        rel="next"
-        icon={<ChevronEndIcon size={18} className="icon--rtl" />}
-      />
-    </nav>
-  );
-}
-
-function PageLink({
-  href,
-  label,
-  rel,
-  icon,
-}: {
-  href?: string;
-  label: string;
-  rel: 'prev' | 'next';
-  icon: React.ReactNode;
-}) {
-  if (!href) {
-    return (
-      <span className={`${styles.arrow} ${styles.disabled}`} aria-disabled="true">
-        {icon}
-        <span className="visually-hidden">{label}</span>
-      </span>
-    );
-  }
-  return (
-    <Link href={href} className={styles.arrow} aria-label={label} rel={rel}>
-      {icon}
-    </Link>
+    <PaginationClient
+      page={page}
+      prevHref={page > 1 ? hrefFor(page - 1) : undefined}
+      nextHref={page < pageCount ? hrefFor(page + 1) : undefined}
+      pages={pages.map((p) => (p === '…' ? '…' : { value: p, href: hrefFor(p) }))}
+    />
   );
 }
 
