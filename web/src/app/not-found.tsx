@@ -12,9 +12,7 @@ import type { Metadata } from 'next';
 // in the bundle. Error boundaries and the homepage price board are on
 // the first-load critical path, so that cost is paid by every visitor.
 import { Container } from '@/components/ui/Layout';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { emptyPresets } from '@/components/ui/emptyPresets';
-import { SearchOffIcon } from '@/components/primitives/icons';
+import { NotFoundEmptyState } from '@/components/ui/NotFoundEmptyState';
 import { SearchBar } from '@/components/layout/SearchBar';
 import styles from './not-found.module.css';
 
@@ -26,16 +24,16 @@ export const metadata: Metadata = {
 export default function NotFound() {
   return (
     <Container>
-      {/* Default `EmptyState` glyph is `IBeamGlyph` — a steel I-beam
-          silhouette that, out of catalog context, reads as a capital "I" /
-          text cursor (audit finding). `SearchOffIcon` says "nothing found
-          here" without relying on brand context the visitor doesn't have. */}
-      <EmptyState size="full" glyph={<SearchOffIcon size={56} />} {...emptyPresets.notFound()} />
+      {/* Translated EmptyState split into its own 'use client' component
+          (NotFoundEmptyState) — this file stays a server component
+          specifically so it can keep exporting `metadata` above, which a
+          'use client' module cannot do. */}
+      <NotFoundEmptyState />
       {/* The preset copy says "get help from search" but nothing on the page
           could actually be searched (audit finding) — a real, working field
           instead of a promise the page didn't keep. */}
       <div className={styles.search}>
-        <SearchBar size="lg" autoFocus placeholder="جستجوی محصول، سایز، کارخانه…" />
+        <SearchBar size="lg" autoFocus />
       </div>
     </Container>
   );

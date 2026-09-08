@@ -1,4 +1,6 @@
+'use client';
 /** Global route loading — calm skeleton (no blank flash; empty-states anti-flash §6). */
+import { useTranslations } from 'next-intl';
 import { Container, Section, Stack, Grid, Skeleton, TableSkeleton } from '@/components/ui';
 
 /**
@@ -18,11 +20,12 @@ import { Container, Section, Stack, Grid, Skeleton, TableSkeleton } from '@/comp
  * heights, which is the actual, testable version of the complaint.
  */
 export default function Loading() {
+  const t = useTranslations('common.state');
   return (
     <Container>
       <Section space={16}>
         <span className="visually-hidden" role="status" aria-live="polite">
-          در حال بارگذاری…
+          {t('loading')}
         </span>
         <Stack gap={8}>
           <Skeleton variant="block" height={320} />

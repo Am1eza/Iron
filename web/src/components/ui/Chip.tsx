@@ -1,5 +1,6 @@
 'use client';
 import type { ReactNode } from 'react';
+import { useTranslations } from 'next-intl';
 import { CloseIcon } from '@/components/primitives/icons';
 import styles from './Chip.module.css';
 
@@ -23,6 +24,7 @@ export function Chip({
   onRemove?: () => void;
   className?: string;
 }) {
+  const t = useTranslations('common');
   return (
     <span
       className={[
@@ -46,7 +48,7 @@ export function Chip({
         <button
           type="button"
           className={styles.remove}
-          aria-label="حذف"
+          aria-label={t('action.remove')}
           onClick={onRemove}
         >
           <CloseIcon size={14} />

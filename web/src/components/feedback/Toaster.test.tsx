@@ -1,8 +1,10 @@
 import { StrictMode } from 'react';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, screen } from '@testing-library/react';
+import { renderWithIntl } from '@/test/renderWithIntl';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useUiStore } from '@/lib/stores/ui';
 import { Toaster } from './Toaster';
+
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -19,7 +21,7 @@ const advance = (ms: number) => act(() => vi.advanceTimersByTime(ms));
 
 describe('toast dismissal timers', () => {
   it('dismisses after the timeout under Strict Mode', () => {
-    render(
+    renderWithIntl(
       <StrictMode>
         <Toaster />
       </StrictMode>,
@@ -29,7 +31,7 @@ describe('toast dismissal timers', () => {
   });
 
   it('remains paused after the mouse leaves while keyboard focus is inside', () => {
-    render(<Toaster />);
+    renderWithIntl(<Toaster />);
     const toast = screen.getByRole('status');
     advance(1000);
     fireEvent.mouseEnter(toast);
@@ -47,7 +49,7 @@ describe('toast dismissal timers', () => {
   });
 
   it('does not restart the timer when focus moves between its buttons', () => {
-    render(<Toaster />);
+    renderWithIntl(<Toaster />);
     const action = screen.getByRole('button', { name: 'Action' });
     const close = screen.getByRole('button', { name: 'بستن' });
     fireEvent.focus(action);

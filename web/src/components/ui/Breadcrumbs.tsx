@@ -1,4 +1,6 @@
+'use client';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { ChevronEndIcon } from '@/components/primitives/icons';
 import styles from './Breadcrumbs.module.css';
 
@@ -9,8 +11,9 @@ export type Crumb = { label: string; href?: string };
  * (non-link, `aria-current`). Separators mirror for RTL via `.icon--rtl`.
  */
 export function Breadcrumbs({ items }: { items: Crumb[] }) {
+  const t = useTranslations('common');
   return (
-    <nav aria-label="مسیر صفحه" className={styles.nav}>
+    <nav aria-label={t('breadcrumbs')} className={styles.nav}>
       <ol className={styles.list}>
         {items.map((item, i) => {
           const last = i === items.length - 1;

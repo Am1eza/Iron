@@ -1,6 +1,89 @@
 import '@testing-library/jest-dom/vitest';
-import { afterEach } from 'vitest';
+import { afterEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
+import type * as NextIntl from 'next-intl';
+import faMessages from './messages/fa.json';
+
+/**
+ * Global next-intl fallback. The i18n audit wired `useTranslations()` into a
+ * large set of SHARED primitives (Alert, Chip, Modal/useConfirm, Pagination,
+ * PriceParts, KgQuantityModal, …) — components with dozens of pre-existing
+ * unit tests all over the tree that render them bare, with no
+ * `NextIntlClientProvider` ancestor. Without this, EVERY one of those tests
+ * throws "Failed to call useTranslations because the context ... was not
+ * found" the moment it renders a primitive that used to be translation-free.
+ *
+ * This is a PARTIAL mock (`importOriginal` + spread), not a full replacement:
+ * `NextIntlClientProvider` and every other export stay the REAL next-intl
+ * implementation untouched, so a test using `renderWithIntl`
+ * (src/test/renderWithIntl.tsx) — which wraps in a REAL provider — still
+ * gets the real library's ICU formatting (locale-correct digits, plurals,
+ * `{placeholder}` interpolation) exactly as before this file existed; that
+ * matters concretely for e.g. `ProductsMenu.test.tsx`/`MobileDrawer.test.tsx`,
+ * which assert on real Persian-digit output, and `LocaleProvider.test.tsx`,
+ * which renders three DIFFERENT locales through three different real
+ * providers to test the locale-switch behavior itself. Only `useLocale`/
+ * `useTranslations` are wrapped, and only to catch the specific "no provider
+ * in the tree" throw and fall back to resolving straight out of the real
+ * `fa` message catalog — for the many OTHER tests that render a primitive
+ * bare, with no provider at all, and never cared about i18n before now.
+ * `messages.test.ts` (fa/en/ar/zh key-parity, ICU-placeholder-parity,
+ * no-Persian-leak) is the actual source of truth for catalog correctness
+ * across all four locales — this fallback only needs to be right for `fa`.
+ *
+ * A test file can still override this with its own file-level
+ * `vi.mock('next-intl', ...)` — Vitest lets a per-file mock win over this
+ * setup-level one (see LoginForm.test.tsx and CountrySelect.test.tsx, both
+ * predate this global mock and keep their own simpler one).
+ */
+function resolveMessage(key: string): string {
+  const parts = key.split('.');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- walking an untyped JSON tree
+  let node: any = faMessages;
+  for (const part of parts) {
+    if (node && typeof node === 'object' && part in node) node = node[part];
+    else return key;
+  }
+  return typeof node === 'string' ? node : key;
+}
+
+function fallbackTranslator(namespace?: string) {
+  return (key: string, values?: Record<string, unknown>) => {
+    let msg = resolveMessage(namespace ? `${namespace}.${key}` : key);
+    if (values) {
+      for (const [k, v] of Object.entries(values)) {
+        msg = msg.replaceAll(`{${k}}`, String(v));
+      }
+    }
+    return msg;
+  };
+}
+
+vi.mock('next-intl', async (importOriginal) => {
+  const actual = await importOriginal<typeof NextIntl>();
+  return {
+    ...actual,
+    useLocale: (...args: Parameters<typeof actual.useLocale>) => {
+      // `actual.useLocale()`/`useTranslations()` both call React's own
+      // `useContext` unconditionally before deciding whether to throw — the
+      // throw is plain JS control flow AFTER that hook call, not a
+      // conditionally-skipped hook, so catching it here does not violate
+      // the Rules of Hooks (call count/order stays identical every render).
+      try {
+        return actual.useLocale(...args);
+      } catch {
+        return 'fa';
+      }
+    },
+    useTranslations: (...args: Parameters<typeof actual.useTranslations>) => {
+      try {
+        return actual.useTranslations(...args);
+      } catch {
+        return fallbackTranslator(args[0] as string | undefined);
+      }
+    },
+  };
+});
 
 // Use the browser environment's storage, even when Node exposes its own
 // global storage properties. Stores and components must share window storage.

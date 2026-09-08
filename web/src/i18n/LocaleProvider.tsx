@@ -35,6 +35,27 @@ function readCookieLocale(): AppLocale | null {
   return value && isAppLocale(value) ? value : null;
 }
 
+/**
+ * A visitor's browser language, for the case where they have never chosen
+ * one explicitly (no cookie yet). `request.ts` already resolves
+ * Accept-Language server-side, but that resolution never reaches this
+ * component — the server always renders the static `fa` shell (see this
+ * file's header comment) — so without this, "falls back to Accept-Language"
+ * was true only for the one API route that calls next-intl's server
+ * `getTranslations()`, never for the page a visitor actually sees. Mirrors
+ * `locale-init.js`'s detection so `<html lang dir>` and the rendered text
+ * agree from the first frame onward.
+ */
+function readBrowserLocale(): AppLocale | null {
+  if (typeof navigator === 'undefined') return null;
+  const langs = navigator.languages?.length ? navigator.languages : [navigator.language];
+  for (const lang of langs) {
+    const primary = lang?.split('-')[0]?.toLowerCase();
+    if (primary && isAppLocale(primary)) return primary;
+  }
+  return null;
+}
+
 function applyDomAttributes(locale: AppLocale) {
   document.documentElement.lang = locale;
   document.documentElement.dir = locale === 'fa' || locale === 'ar' ? 'rtl' : 'ltr';
@@ -57,9 +78,15 @@ export function LocaleProvider({
   const [locale, setLocale] = useState<AppLocale>(DEFAULT_LOCALE);
   const [messages, setMessages] = useState<AbstractIntlMessages>(defaultMessages);
 
+  // `persist` is false only for one-off browser-language auto-detection: an
+  // undecided visitor should be re-detected every session (their OS/browser
+  // language is the live source of truth), not locked in by a cookie they
+  // never chose to set. An explicit pick via LocaleSwitcher always persists.
   const applyLocale = useCallback(
-    (next: AppLocale) => {
-      document.cookie = `${LOCALE_COOKIE}=${next}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`;
+    (next: AppLocale, persist = true) => {
+      if (persist) {
+        document.cookie = `${LOCALE_COOKIE}=${next}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`;
+      }
       applyDomAttributes(next);
       if (next === DEFAULT_LOCALE) {
         setLocale(DEFAULT_LOCALE);
@@ -74,10 +101,19 @@ export function LocaleProvider({
     [defaultMessages],
   );
 
-  // Adopt a returning visitor's previously-chosen locale once, on mount.
+  // Adopt a returning visitor's previously-chosen locale once, on mount; a
+  // first-time visitor with no cookie yet gets their browser language
+  // instead, matching what `request.ts`'s (server-only) Accept-Language
+  // fallback has always claimed to do but, without this, never actually did
+  // for the rendered page — see `readBrowserLocale`'s comment.
   useEffect(() => {
     const stored = readCookieLocale();
-    if (stored && stored !== DEFAULT_LOCALE) applyLocale(stored);
+    if (stored) {
+      if (stored !== DEFAULT_LOCALE) applyLocale(stored);
+      return;
+    }
+    const detected = readBrowserLocale();
+    if (detected && detected !== DEFAULT_LOCALE) applyLocale(detected, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

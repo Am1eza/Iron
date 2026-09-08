@@ -7,14 +7,16 @@
  * us" that instead opened a form to request a callback read as broken.
  * Lead capture by form still lives at `/contact` (`ContactForm`), unchanged.
  */
+import { useTranslations } from 'next-intl';
 import { PhoneIcon } from '@/components/primitives/icons';
 import styles from './CallbackWidget.module.css';
 
 export function CallbackWidget({ phoneLandline }: { phoneLandline: string }) {
+  const t = useTranslations('common');
   return (
-    <a href={`tel:${phoneLandline}`} className={styles.fab} aria-label="تماس بگیرید">
+    <a href={`tel:${phoneLandline}`} className={styles.fab} aria-label={t('action.call')}>
       <PhoneIcon size={22} />
-      <span className={styles.fabLabel}>تماس بگیرید</span>
+      <span className={styles.fabLabel}>{t('action.call')}</span>
     </a>
   );
 }

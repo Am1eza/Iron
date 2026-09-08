@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useTranslations, useLocale } from 'next-intl';
 import { routes } from '@/lib/routes';
 import {
   PRIMARY_NAV,
@@ -15,7 +16,8 @@ import {
 import type { Category } from '@/lib/types/domain';
 import type { SubsMap } from '@/lib/data/catalog';
 import { groupSubCategories } from '@/lib/utils/catalogGroups';
-import { toPersianDigits } from '@/lib/utils/format';
+import { localizeDigits } from '@/lib/utils/format';
+import type { AppLocale } from '@/i18n/config';
 import { useUiStore } from '@/lib/stores/ui';
 import { useAuthStore } from '@/lib/stores/auth';
 import {
@@ -37,6 +39,12 @@ export function MobileDrawer({ categories, subs }: { categories: Category[]; sub
   const setOpen = useUiStore((s) => s.setDrawerOpen);
   const pathname = usePathname();
   const user = useAuthStore((s) => s.user);
+  const t = useTranslations('drawer');
+  const tNav = useTranslations('nav');
+  const tNavLinks = useTranslations('navLinks');
+  const tCommon = useTranslations('common');
+  const tFooter = useTranslations('footer');
+  const locale = useLocale() as AppLocale;
 
   const panelRef = useRef<HTMLDivElement | null>(null);
   const lastFocused = useRef<HTMLElement | null>(null);
@@ -120,14 +128,14 @@ export function MobileDrawer({ categories, subs }: { categories: Category[]; sub
         className={styles.panel}
         role="dialog"
         aria-modal="true"
-        aria-label="منوی اصلی"
+        aria-label={t('mainMenuLabel')}
       >
         <div className={styles.head}>
-          <span className={styles.brand}>آهن‌تایم</span>
+          <span className={styles.brand}>{tCommon('brand')}</span>
           <button
             type="button"
             className={styles.close}
-            aria-label="بستن منو"
+            aria-label={t('closeMenu')}
             data-autofocus
             onClick={() => setOpen(false)}
           >
@@ -135,7 +143,7 @@ export function MobileDrawer({ categories, subs }: { categories: Category[]; sub
           </button>
         </div>
 
-        <nav className={styles.nav} aria-label="ناوبری موبایل">
+        <nav className={styles.nav} aria-label={t('mobileNav')}>
           {/* Products accordion */}
           <div className={styles.section}>
             <button
@@ -145,7 +153,7 @@ export function MobileDrawer({ categories, subs }: { categories: Category[]; sub
               aria-controls="mobile-drawer-products-panel"
               onClick={() => setExpanded((e) => (e === 'products' ? null : 'products'))}
             >
-              محصولات
+              {t('products')}
               <ChevronDownIcon
                 size={18}
                 className={expanded === 'products' ? styles.caretOpen : undefined}
@@ -180,7 +188,7 @@ export function MobileDrawer({ categories, subs }: { categories: Category[]; sub
                               a row. */}
                           {catSubs.length > 0 && (
                             <span className="visually-hidden">
-                              ، {toPersianDigits(catSubs.length)} زیردسته
+                              {t('subsCount', { count: localizeDigits(catSubs.length, locale) })}
                             </span>
                           )}
                         </Link>
@@ -190,7 +198,7 @@ export function MobileDrawer({ categories, subs }: { categories: Category[]; sub
                             className={styles.catToggle}
                             aria-expanded={isOpen}
                             aria-controls={bodyId}
-                            aria-label={`زیردسته‌های ${cat.name}`}
+                            aria-label={t('subCategoriesOf', { name: cat.name })}
                             onClick={() =>
                               setExpandedCat((s) => (s === cat.slug ? null : cat.slug))
                             }
@@ -226,7 +234,7 @@ export function MobileDrawer({ categories, subs }: { categories: Category[]; sub
                               className={`${styles.subLink} ${styles.subAll}`}
                               aria-current={onCategoryPage(cat.slug) ? 'page' : undefined}
                             >
-                              قیمت روز {cat.name}
+                              {t('todayPriceOf', { name: cat.name })}
                               <ChevronStartIcon size={14} className="icon--rtl" />
                             </Link>
                           </li>
@@ -333,7 +341,7 @@ export function MobileDrawer({ categories, subs }: { categories: Category[]; sub
             {PRIMARY_NAV.map((item) => (
               <li key={item.href}>
                 <Link href={item.href} className={styles.item} data-event={item.event}>
-                  {item.label}
+                  {tNavLinks(item.labelKey)}
                 </Link>
               </li>
             ))}
@@ -341,12 +349,12 @@ export function MobileDrawer({ categories, subs }: { categories: Category[]; sub
 
           {/* Tools */}
           <div className={styles.section}>
-            <p className={styles.groupTitle}>ابزارها</p>
+            <p className={styles.groupTitle}>{tNav('tools')}</p>
             <ul className={styles.list}>
-              {TOOLS_NAV.map((t) => (
-                <li key={t.href}>
-                  <Link href={t.href} className={styles.item}>
-                    {t.label}
+              {TOOLS_NAV.map((item) => (
+                <li key={item.href}>
+                  <Link href={item.href} className={styles.item}>
+                    {tNavLinks(item.labelKey)}
                   </Link>
                 </li>
               ))}
@@ -354,22 +362,24 @@ export function MobileDrawer({ categories, subs }: { categories: Category[]; sub
           </div>
 
           {/* Services / Company / Support — same sets as the header & footer */}
-          {[
-            // Content first: on mobile the drawer is the ONLY path to an
-            // article — the bottom tab bar is full and correctly prioritises
-            // prices, the AI advisor and the cart.
-            { title: 'مقالات', links: CONTENT_NAV },
-            { title: 'خدمات', links: SERVICES_NAV_FULL },
-            { title: 'شرکت', links: COMPANY_NAV },
-            { title: 'پشتیبانی', links: SUPPORT_NAV },
-          ].map((group) => (
-            <div key={group.title} className={styles.section}>
-              <p className={styles.groupTitle}>{group.title}</p>
+          {(
+            [
+              // Content first: on mobile the drawer is the ONLY path to an
+              // article — the bottom tab bar is full and correctly prioritises
+              // prices, the AI advisor and the cart.
+              { titleKey: 'content', links: CONTENT_NAV },
+              { titleKey: 'services', links: SERVICES_NAV_FULL },
+              { titleKey: 'company', links: COMPANY_NAV },
+              { titleKey: 'support', links: SUPPORT_NAV },
+            ] as const
+          ).map((group) => (
+            <div key={group.titleKey} className={styles.section}>
+              <p className={styles.groupTitle}>{tNav(group.titleKey)}</p>
               <ul className={styles.list}>
                 {group.links.map((l) => (
                   <li key={l.href}>
                     <Link href={l.href} className={styles.item}>
-                      {l.label}
+                      {tNavLinks(l.labelKey)}
                     </Link>
                   </li>
                 ))}
@@ -382,20 +392,20 @@ export function MobileDrawer({ categories, subs }: { categories: Category[]; sub
             {user ? (
               <Link href={routes.account()} className={styles.account}>
                 <UserIcon size={18} />
-                {user.name ?? 'حساب من'}
+                {user.name ?? tNav('account')}
               </Link>
             ) : (
               <Link href={routes.login()} className={styles.account}>
                 <UserIcon size={18} />
-                ورود / ثبت‌نام
+                {t('loginRegister')}
               </Link>
             )}
-            <ul className={styles.channels} aria-label="کانال‌ها">
+            <ul className={styles.channels} aria-label={tFooter('channels')}>
               {CHANNELS.map((ch) => (
                 <li key={ch.href}>
                   <a href={ch.href} target="_blank" rel="noopener noreferrer">
-                    {ch.label}
-                    <span className="visually-hidden"> (در تب جدید باز می‌شود)</span>
+                    {tNavLinks(ch.labelKey)}
+                    <span className="visually-hidden"> ({t('opensNewTab')})</span>
                   </a>
                 </li>
               ))}

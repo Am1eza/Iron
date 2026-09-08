@@ -9,6 +9,7 @@ import { getContact } from '@/lib/server/contact';
 import { listMarketValues } from '@/lib/server/repos/marketRepo';
 import { hasDb } from '@/lib/server/db/client';
 import { RouteAnnouncer } from '@/components/a11y/RouteAnnouncer';
+import { SkipLink } from '@/components/a11y/SkipLink';
 import { vazirmatn, inter } from '@/lib/theme/fonts';
 import { LocaleProvider } from '@/i18n/LocaleProvider';
 import { LocaleScript } from '@/i18n/LocaleScript';
@@ -126,11 +127,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body>
         <ThemeScript />
         <LocaleScript />
-        <a href="#main" className="skip-link">
-          {faMessages.common.skipToContent}
-        </a>
         <LocaleProvider defaultMessages={faMessages}>
           <AppProviders>
+            <SkipLink />
             <AuthHydrator />
             <InteractionAnalytics />
             <SiteChromeTop

@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useTranslations, useLocale } from 'next-intl';
 import {
   useCartStore,
   selectCartCount,
@@ -11,7 +12,8 @@ import {
 import type { CartItem } from '@/lib/stores/cart';
 import { routes } from '@/lib/routes';
 import { useAuth } from '@/lib/hooks/useAuth';
-import { formatToman, toPersianDigits } from '@/lib/utils/format';
+import { formatToman, localizeDigits } from '@/lib/utils/format';
+import type { AppLocale } from '@/i18n/config';
 import {
   EmptyState,
   emptyPresets,
@@ -40,7 +42,6 @@ import { DEFAULT_ORDER_POLICY } from '@/lib/config/orderPolicy';
 
 /** کیلوگرم/شاخه/برگ/متر — display labels for the price unit. */
 
-
 /** Per-line estimate = unitPrice (per kg) × the item's real weight (mirrors selectCartEstTotal). */
 function lineEstimate(item: CartItem): number {
   return cartItemEstimateToman(item);
@@ -59,6 +60,10 @@ export function CartView({
   minimumAutoQuoteToman?: number;
   volumeTiers?: readonly VolumeTier[];
 }) {
+  const t = useTranslations('cart');
+  const tAction = useTranslations('common.action');
+  const tUnit = useTranslations('common.unit');
+  const locale = useLocale() as AppLocale;
   const [mounted, setMounted] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -75,6 +80,7 @@ export function CartView({
   const resolvedTier = resolveVolumeTier({ totalWeightKg: totalWeight }, volumeTiers);
   const tierDiscount = volumeDiscountToman(estTotal, resolvedTier.tier);
   const nextTier = [...volumeTiers].sort((a, b) => a.minWeightKg - b.minWeightKg).find((tier) => tier.minWeightKg > totalWeight);
+  const money = (v: number) => `${formatToman(v, false, locale)} ${tUnit('currency')}`;
 
   // Pre-hydration placeholder — calm skeleton so the layout never flashes empty.
   if (!mounted) {
@@ -99,7 +105,7 @@ export function CartView({
       {/* Line items */}
       <section className={styles.items} aria-labelledby="cart-items-title">
         <h2 id="cart-items-title" className="visually-hidden">
-          اقلام سبد استعلام
+          {t('itemsHeading')}
         </h2>
         <ul className={styles.list}>
           {items.map((item) => {
@@ -110,39 +116,39 @@ export function CartView({
                 <div className={styles.rowMain}>
                   <p className={styles.rowName}>{item.name}</p>
                   <p className={styles.rowMeta}>
-                    واحد: {unit}
+                    {t('unitLabel', { unit })}
                     {item.unit !== 'kg' && item.weightKg ? (
                       <>
                         {' · '}
-                        وزن هر واحد: <span className="tnum">{toPersianDigits(item.weightKg)}</span> کیلوگرم
+                        {t('weightPerUnit', { weight: localizeDigits(item.weightKg, locale) })}
                       </>
                     ) : null}
                   </p>
                 </div>
 
-                <div className={styles.stepper} role="group" aria-label={`تعداد ${item.name}`}>
+                <div className={styles.stepper} role="group" aria-label={t('qtyAria', { name: item.name })}>
                   <IconButton
                     size="sm"
-                    label={`کاهش تعداد ${item.name}`}
+                    label={t('decreaseQty', { name: item.name })}
                     icon={<MinusIcon size={16} />}
                     disabled={item.qty <= 1}
                     onClick={() => setQty(item.skuId, item.qty - 1)}
                   />
                   <span className={`${styles.qty} tnum`} aria-live="polite">
-                    {toPersianDigits(item.qty)}
+                    {localizeDigits(item.qty, locale)}
                   </span>
                   <IconButton
                     size="sm"
-                    label={`افزایش تعداد ${item.name}`}
+                    label={t('increaseQty', { name: item.name })}
                     icon={<PlusIcon size={16} />}
                     onClick={() => setQty(item.skuId, item.qty + 1)}
                   />
                 </div>
 
                 <div className={styles.rowEst}>
-                  <span className={styles.rowEstLabel}>تخمین</span>
+                  <span className={styles.rowEstLabel}>{t('estimateLabel')}</span>
                   <span className={`${styles.rowEstValue} tnum`}>
-                    {item.unitPrice ? formatToman(est) : 'استعلامی'}
+                    {item.unitPrice ? money(est) : t('quoteOnRequest')}
                   </span>
                 </div>
 
@@ -150,7 +156,7 @@ export function CartView({
                   size="sm"
                   variant="ghost"
                   className={styles.remove}
-                  label={`حذف ${item.name} از سبد`}
+                  label={t('removeItem', { name: item.name })}
                   icon={<TrashIcon size={18} />}
                   onClick={() => remove(item.skuId)}
                 />
@@ -166,16 +172,16 @@ export function CartView({
             onClick={() => setConfirmClear(true)}
           >
             <TrashIcon size={16} />
-            خالی کردن سبد
+            {t('clearCart')}
           </button>
           <Modal
             open={confirmClear}
             onClose={() => setConfirmClear(false)}
-            title="خالی کردن سبد استعلام"
+            title={t('clearCartTitle')}
             footer={
               <>
                 <Button variant="ghost" onClick={() => setConfirmClear(false)}>
-                  انصراف
+                  {tAction('cancel')}
                 </Button>
                 <Button
                   onClick={() => {
@@ -183,15 +189,15 @@ export function CartView({
                     setConfirmClear(false);
                   }}
                 >
-                  خالی کن
+                  {t('clearConfirm')}
                 </Button>
               </>
             }
           >
-            <p style={{ margin: 0 }}>همهٔ اقلام از سبد استعلام حذف شوند؟ این کار قابل بازگشت نیست.</p>
+            <p style={{ margin: 0 }}>{t('clearCartBody')}</p>
           </Modal>
           <Link href={routes.prices()} className={styles.continueShopping}>
-            افزودن محصول دیگر
+            {t('addMoreItems')}
           </Link>
         </div>
       </section>
@@ -200,53 +206,54 @@ export function CartView({
       <aside className={styles.summary} aria-labelledby="cart-summary-title">
         <div className={styles.summaryCard}>
           <h2 id="cart-summary-title" className={styles.summaryTitle}>
-            خلاصهٔ استعلام
+            {t('summaryTitle')}
           </h2>
 
           <dl className={styles.summaryList}>
             <div className={styles.summaryRow}>
-              <dt>تعداد اقلام</dt>
-              <dd className="tnum">{toPersianDigits(count)} مورد</dd>
+              <dt>{t('itemCount')}</dt>
+              <dd className="tnum">{t('itemCountValue', { count: localizeDigits(count, locale) })}</dd>
             </div>
             <div className={styles.summaryRow}>
-              <dt>وزن کل</dt>
+              <dt>{t('totalWeight')}</dt>
               <dd className="tnum">
-                {totalWeight > 0 ? `${toPersianDigits(Math.round(totalWeight))} کیلوگرم` : 'نامشخص'}
+                {totalWeight > 0
+                  ? t('totalWeightValue', { weight: localizeDigits(Math.round(totalWeight), locale) })
+                  : t('totalWeightUnknown')}
               </dd>
             </div>
             <div className={`${styles.summaryRow} ${styles.summaryTotalRow}`}>
-              <dt>برآورد کل</dt>
+              <dt>{t('estimatedTotal')}</dt>
               <dd className={`${styles.summaryTotal} tnum`}>
-                {estTotal > 0 ? formatToman(estTotal) : 'استعلامی'}
+                {estTotal > 0 ? money(estTotal) : t('quoteOnRequest')}
               </dd>
             </div>
           </dl>
 
           <Alert tone={tierDiscount > 0 ? 'success' : 'info'} className={styles.calmNote}>
             {tierDiscount > 0 ? (
-              <>
-                سطح {resolvedTier.tier.label}: تخفیف خودکار {tierPercentLabel(resolvedTier.tier)}٪، حدود{' '}
-                <span className="tnum">{formatToman(tierDiscount)}</span> صرفه‌جویی.
-              </>
+              t('tierDiscountNote', {
+                tier: resolvedTier.tier.label,
+                percent: localizeDigits(tierPercentLabel(resolvedTier.tier), locale),
+                amount: money(tierDiscount),
+              })
             ) : (
-              <>قیمت پایه؛ تخفیف عمده از ۵ تن به‌صورت خودکار شروع می‌شود.</>
+              t('baseTierNote')
             )}
-            {nextTier ? (
-              <>
-                {' '}با افزودن{' '}
-                <span className="tnum">{toPersianDigits(Math.ceil(nextTier.minWeightKg - totalWeight))}</span>{' '}
-                کیلوگرم، به سطح {nextTier.label} با تخفیف {tierPercentLabel(nextTier)}٪ می‌رسید.
-              </>
-            ) : null}
+            {nextTier
+              ? t('nextTierNote', {
+                  weight: localizeDigits(Math.ceil(nextTier.minWeightKg - totalWeight), locale),
+                  tier: nextTier.label,
+                  percent: localizeDigits(tierPercentLabel(nextTier), locale),
+                })
+              : null}
           </Alert>
 
-          <p className={styles.estNote}>
-            برآورد تقریبی؛ قیمت نهایی هنگام تأیید کارشناس
-          </p>
+          <p className={styles.estNote}>{t('estimateDisclaimer')}</p>
 
           {estTotal > 0 && estTotal < minimumAutoQuoteToman ? (
             <Alert tone="warning" className={styles.calmNote}>
-              مبلغ این سبد کمتر از حد صدور خودکار ({formatToman(minimumAutoQuoteToman)}) است؛ درخواست شما ثبت می‌شود و کارشناس قیمت و امکان تأمین را بررسی می‌کند.
+              {t('belowAutoQuoteNote', { amount: money(minimumAutoQuoteToman) })}
             </Alert>
           ) : null}
 
@@ -255,12 +262,12 @@ export function CartView({
                 guest to /login?next=/request with no warning — the audited
                 bug. Say the login step out loud here instead of letting the
                 visitor discover it mid-redirect. */}
-            {isAuthenticated ? 'ادامه و ثبت درخواست' : 'ورود و ادامه ثبت درخواست'}
+            {isAuthenticated ? t('continueRequestCta') : t('loginContinueRequestCta')}
             <ArrowEndIcon size={18} />
           </Link>
 
           <Alert tone="info" className={styles.calmNote}>
-            در آهن‌تایم پرداخت آنلاین نداریم؛ کارشناس ما برای نهایی‌کردن قیمت و تحویل با شما تماس می‌گیرد.
+            {t('noOnlinePaymentNote')}
           </Alert>
         </div>
       </aside>

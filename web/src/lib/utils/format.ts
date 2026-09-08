@@ -38,9 +38,21 @@ export function localizeDigits(input: string | number, locale: string): string {
     : normalizeDigits(String(input)).replace(/٬/g, ',');
 }
 
-/** Format an integer Toman value with thousands separators + Persian digits + unit. */
-export function formatToman(value: number, withUnit = true): string {
+/**
+ * Format an integer Toman value with thousands separators + digits + unit.
+ * `locale` defaults to 'fa' so every EXISTING call site (PriceTable,
+ * SkuDetail, admin panels, …) keeps its exact historical Persian-digit
+ * output — this default is deliberately never changed for them; only a
+ * caller that explicitly passes a non-fa locale (Ticker, PriceBoard) opts
+ * into localized digits/separator via `localizeDigits`. `withUnit`'s literal
+ * "تومان" suffix is likewise unchanged for the fa path; a non-fa caller that
+ * wants a translated unit word should pass `withUnit=false` and render its
+ * own `t('...')`-sourced unit label beside the digits, same as those two
+ * callers already do.
+ */
+export function formatToman(value: number, withUnit = true, locale: string = 'fa'): string {
   const grouped = Math.round(value).toLocaleString('en-US'); // 32,450
+  if (locale !== 'fa') return localizeDigits(grouped, locale);
   const fa = toPersianDigits(grouped).replace(/,/g, '٬'); // Persian thousands sep
   return withUnit ? `${fa} تومان` : fa;
 }
@@ -89,11 +101,19 @@ export function formatTomanCompact(value: number): string {
   return sign + formatToman(abs, false);
 }
 
-/** Format نوسان percent with sign + Persian digits (color/arrow handled in UI). */
-export function formatMovement(pct: number | undefined): string {
+/**
+ * Format نوسان percent with sign + digits (color/arrow handled in UI).
+ * `locale` defaults to 'fa', same rationale as `formatToman` above — existing
+ * callers are unaffected; a non-fa caller passes its own locale to get Latin
+ * digits and a plain "%" instead of "٪".
+ */
+export function formatMovement(pct: number | undefined, locale: string = 'fa'): string {
   if (pct === undefined || Number.isNaN(pct)) return '';
   const sign = pct > 0 ? '+' : pct < 0 ? '−' : '';
-  return `${sign}${toPersianDigits(Math.abs(pct).toFixed(2))}٪`;
+  const digits = Math.abs(pct).toFixed(2);
+  return locale === 'fa'
+    ? `${sign}${toPersianDigits(digits)}٪`
+    : `${sign}${digits}%`;
 }
 
 /* formatJalali lives in ./jalali — see that file's header. Keeping the

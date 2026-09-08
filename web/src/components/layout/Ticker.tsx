@@ -1,9 +1,11 @@
 'use client';
+import { useTranslations, useLocale } from 'next-intl';
 import { useMarket } from '@/lib/hooks/useMarket';
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion';
 import { routes } from '@/lib/routes';
-import { formatToman, toPersianDigits, formatMovement } from '@/lib/utils/format';
+import { formatToman, localizeDigits, formatMovement } from '@/lib/utils/format';
 import type { MarketValue } from '@/lib/types/domain';
+import type { AppLocale } from '@/i18n/config';
 import styles from './Ticker.module.css';
 import Link from 'next/link';
 
@@ -88,6 +90,7 @@ const PLACEHOLDER: MarketValue[] = [
   },
 ];
 export function Ticker({ initialValues }: { initialValues?: MarketValue[] }) {
+  const t = useTranslations('ticker');
   const { data } = useMarket();
   const reduced = useReducedMotion();
   // Real server-fetched values (see layout.tsx) beat the all-zero PLACEHOLDER
@@ -105,9 +108,9 @@ export function Ticker({ initialValues }: { initialValues?: MarketValue[] }) {
   const pending = values === PLACEHOLDER;
 
   return (
-    <aside className={styles.ticker} aria-label="نبض بازار" data-site-chrome>
+    <aside className={styles.ticker} aria-label={t('ariaLabel')} data-site-chrome>
       <span className={styles.tag} aria-hidden="true">
-        نبض بازار
+        {t('ariaLabel')}
       </span>
       <div className={styles.viewport} data-reduced={reduced ? '' : undefined}>
         <ul className={`${styles.track} tnum`}>
@@ -125,6 +128,19 @@ export function Ticker({ initialValues }: { initialValues?: MarketValue[] }) {
   );
 }
 
+/** Only these 5 keys are ever fed into this ticker (see PLACEHOLDER above and
+ *  the market-values job) — a translated label for each, unlike `v.label`
+ *  itself, which comes back from the admin-editable market-values table
+ *  still in Persian regardless of the visitor's locale (same class of gap as
+ *  DB-sourced catalog names — see the i18n audit's structural findings). */
+const LABEL_KEYS: Record<string, 'usd' | 'eur' | 'gold18' | 'ounce' | 'billet'> = {
+  usd: 'usd',
+  eur: 'eur',
+  gold18: 'gold18',
+  ounce: 'ounce',
+  billet: 'billet',
+};
+
 function TickerItem({
   v,
   decorative,
@@ -134,14 +150,18 @@ function TickerItem({
   decorative: boolean;
   pending: boolean;
 }) {
+  const t = useTranslations('ticker');
+  const locale = useLocale() as AppLocale;
   const dirClass =
     v.movementDir === 'up' ? styles.up : v.movementDir === 'down' ? styles.down : styles.flat;
   const arrow = v.movementDir === 'up' ? '▲' : v.movementDir === 'down' ? '▼' : '•';
   const valueText = pending
     ? '—'
     : v.unit === 'تومان'
-      ? formatToman(v.value, false)
-      : toPersianDigits(v.value.toLocaleString('en-US'));
+      ? formatToman(v.value, false, locale)
+      : localizeDigits(v.value.toLocaleString('en-US'), locale);
+  const labelKey = LABEL_KEYS[v.key];
+  const label = labelKey ? t(labelKey) : v.label;
 
   return (
     <li className={styles.item} aria-hidden={decorative ? 'true' : undefined}>
@@ -151,14 +171,14 @@ function TickerItem({
         tabIndex={decorative ? -1 : undefined}
         data-event="ticker_item_click"
       >
-        <span className={styles.label}>{v.label}</span>
+        <span className={styles.label}>{label}</span>
         <span className={styles.value}>{valueText}</span>
         <span className={styles.unit}>{v.unit}</span>
         <span className={`${styles.move} ${dirClass}`}>
           <span className={styles.arrow} aria-hidden="true">
             {arrow}
           </span>
-          {pending ? '—' : formatMovement(v.movementPct)}
+          {pending ? '—' : formatMovement(v.movementPct, locale)}
         </span>
       </Link>
     </li>

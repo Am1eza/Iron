@@ -32,9 +32,10 @@
  * are specific to THIS file; they do not apply to those boundaries, which
  * render inside the real app tree with tokens.css and the router available.
  */
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { reportError } from '@/lib/errors/report';
 import { useChunkRecovery } from '@/lib/errors/chunkRecovery';
+import { LOCALE_COOKIE, DEFAULT_LOCALE, getDirection, isAppLocale } from '@/i18n/config';
 // Same font the rest of the site uses (`lib/theme/fonts`, wired into the
 // real root `layout.tsx` via `vazirmatn.variable`). Importing it here gives
 // THIS route its own font stylesheet + preload, independent of the root
@@ -47,9 +48,40 @@ import { useChunkRecovery } from '@/lib/errors/chunkRecovery';
 // never a blocked or invisible render.
 import { vazirmatn } from '@/lib/theme/fonts';
 
+/**
+ * No `useTranslations()` here — this boundary REPLACES the root layout
+ * entirely (see the file header), so there is no `NextIntlClientProvider`
+ * ancestor to read from. Reads the same `ahantime_locale` cookie
+ * `LocaleProvider` does and picks from a small inline dictionary instead —
+ * this file's only 4 always-visible strings, not worth a message-catalog
+ * round trip for a boundary that must survive a broken JS chunk. `retryLabel`
+ * / `statusText` (from `useChunkRecovery`, shared with the blog/news error
+ * boundaries that DO have next-intl available) are left Persian-only for now
+ * — a smaller, secondary gap, flagged in the i18n audit rather than
+ * duplicated here.
+ */
+const COPY = {
+  fa: { title: 'مشکلی پیش اومد', heading: 'مشکلی پیش اومد', body: 'از طرف ما بود. چند لحظه دیگر دوباره امتحان کنید.', home: 'بازگشت به صفحه اصلی', brand: 'آهن‌تایم' },
+  en: { title: 'Something went wrong', heading: 'Something went wrong', body: 'It was on our side — please try again in a moment.', home: 'Back to homepage', brand: 'Ahantime' },
+  ar: { title: 'حدث خطأ ما', heading: 'حدث خطأ ما', body: 'كان الخطأ من جانبنا — يرجى المحاولة مرة أخرى بعد قليل.', home: 'العودة إلى الصفحة الرئيسية', brand: 'Ahantime' },
+  zh: { title: '出现问题', heading: '出现问题', body: '这是我们这边的问题,请稍后重试。', home: '返回首页', brand: 'Ahantime' },
+} as const;
+
+function readLocaleCookie(): keyof typeof COPY {
+  if (typeof document === 'undefined') return DEFAULT_LOCALE;
+  const match = document.cookie.match(new RegExp(`(?:^|; )${LOCALE_COOKIE}=([^;]+)`));
+  const value = match?.[1] ? decodeURIComponent(match[1]) : undefined;
+  return value && isAppLocale(value) ? value : DEFAULT_LOCALE;
+}
+
 export default function GlobalError({ error, reset }: { error: Error; reset: () => void }) {
   const headingRef = useRef<HTMLHeadingElement | null>(null);
   const { disabled, retryLabel, statusText, retry } = useChunkRecovery(error, reset);
+  // Read once per mount, not reactively — this page has no locale SWITCHER,
+  // just a locale it happens to render in; matches LocaleScript's own
+  // one-shot-before-paint philosophy (see that file's header comment).
+  const locale = useMemo(readLocaleCookie, []);
+  const copy = COPY[locale];
 
   useEffect(() => {
     reportError(error, { source: 'global-error' });
@@ -62,11 +94,11 @@ export default function GlobalError({ error, reset }: { error: Error; reset: () 
   }, []);
 
   return (
-    <html lang="fa" dir="rtl" className={vazirmatn.variable}>
+    <html lang={locale} dir={getDirection(locale)} className={vazirmatn.variable}>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>مشکلی پیش اومد | آهن‌تایم</title>
+        <title>{copy.title} | {copy.brand}</title>
       </head>
       <body
         className="ahn-ge"
@@ -129,7 +161,7 @@ export default function GlobalError({ error, reset }: { error: Error; reset: () 
             tabIndex={-1}
             style={{ color: 'var(--heading)', fontSize: 26, margin: 0, textAlign: 'center' }}
           >
-            مشکلی پیش اومد
+            {copy.heading}
           </h1>
           <p
             style={{
@@ -140,7 +172,7 @@ export default function GlobalError({ error, reset }: { error: Error; reset: () 
               lineHeight: 1.8,
             }}
           >
-            از طرف ما بود. چند لحظه دیگر دوباره امتحان کنید.
+            {copy.body}
           </p>
           <p
             aria-live="polite"
@@ -202,7 +234,7 @@ export default function GlobalError({ error, reset }: { error: Error; reset: () 
                 alignItems: 'center',
               }}
             >
-              بازگشت به صفحه اصلی
+              {copy.home}
             </a>
           </div>
         </div>

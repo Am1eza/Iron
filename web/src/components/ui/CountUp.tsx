@@ -2,13 +2,23 @@
 import { useEffect, useRef, useState } from 'react';
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion';
 import { useIntersectionObserver } from '@/lib/hooks/useIntersectionObserver';
-import { toPersianDigits } from '@/lib/utils/format';
+import { localizeDigits } from '@/lib/utils/format';
 
 /**
  * Shows its initial value immediately, then animates updates after first visibility.
  * Static under reduced motion; unchanged values schedule no animation frames.
+ * `locale` defaults to 'fa' (Persian digits) so every existing caller is
+ * unaffected; a caller in a non-fa locale passes its own to get Latin digits.
  */
-export function CountUp({ value, duration = 1.1 }: { value: number; duration?: number }) {
+export function CountUp({
+  value,
+  duration = 1.1,
+  locale = 'fa',
+}: {
+  value: number;
+  duration?: number;
+  locale?: string;
+}) {
   const reduced = useReducedMotion();
   const [display, setDisplay] = useState(value);
   const fromRef = useRef(value);
@@ -46,8 +56,8 @@ export function CountUp({ value, duration = 1.1 }: { value: number; duration?: n
   // visually-hidden sibling, so this primitive is safe wherever it's used.
   return (
     <span ref={ref}>
-      <span aria-hidden="true">{toPersianDigits(display.toLocaleString('en-US'))}</span>
-      <span className="visually-hidden">{toPersianDigits(value.toLocaleString('en-US'))}</span>
+      <span aria-hidden="true">{localizeDigits(display.toLocaleString('en-US'), locale)}</span>
+      <span className="visually-hidden">{localizeDigits(value.toLocaleString('en-US'), locale)}</span>
     </span>
   );
 }

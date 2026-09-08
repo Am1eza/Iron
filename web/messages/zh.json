@@ -13,7 +13,12 @@
       "cancel": "取消",
       "close": "关闭",
       "login": "登录",
-      "backHome": "返回首页"
+      "backHome": "返回首页",
+      "previous": "上一个",
+      "next": "下一个",
+      "call": "致电我们",
+      "remove": "移除",
+      "continue": "继续"
     },
     "state": {
       "loading": "加载中…",
@@ -33,7 +38,18 @@
       "updatedAt": "最后更新时间"
     },
     "skipToContent": "跳转到内容",
-    "nameLabel": "姓名"
+    "nameLabel": "姓名",
+    "pagination": "分页",
+    "movement": {
+      "up": "上涨",
+      "down": "下跌",
+      "flat": "持平"
+    },
+    "breadcrumbs": "页面路径",
+    "notFound": {
+      "headline": "未找到该页面",
+      "body": "网址可能已更改。请尝试搜索，或向 Ahantime 寻求帮助。"
+    }
   },
   "nav": {
     "home": "首页",
@@ -48,7 +64,8 @@
     "contact": "联系我们",
     "account": "我的账户",
     "cart": "询价车",
-    "company": "公司"
+    "company": "公司",
+    "support": "支持"
   },
   "header": {
     "openMenu": "打开菜单",
@@ -99,7 +116,8 @@
     "newUserBadge": "新账户",
     "registerNameSubtitle": "账户已创建。请输入您的姓名以完成注册。",
     "completeRegistration": "完成注册",
-    "requestFlowNote": "您的询价篮已保存；验证号码后，您将返回继续提交请求。"
+    "requestFlowNote": "您的询价篮已保存；验证号码后，您将返回继续提交请求。",
+    "otpLengthError": "验证码必须为 6 位数字。"
   },
   "phone": {
     "country": "国家/地区",
@@ -221,7 +239,9 @@
     "browse": {
       "title": "请选择产品",
       "railAria": "产品分类",
-      "subsOf": "{name} 的子分类"
+      "subsOf": "{name} 的子分类",
+      "mainCategories": "主要分类",
+      "noSubs": "{name}尚无已登记的子分类；请查看该分类的价格表。"
     },
     "compare": {
       "title": "同一产品，各家钢厂",
@@ -229,6 +249,12 @@
       "tabsAria": "选择要比较的产品",
       "perKg": "土曼/公斤",
       "cheapest": "最低价"
+    },
+    "priceBoard": {
+      "ariaLabel": "实时价格看板",
+      "live": "实时价格",
+      "unit": "土曼",
+      "viewAll": "查看全部价格"
     }
   },
   "about": {
@@ -273,7 +299,7 @@
         "desc": "我们的专员会致电您确认形式发票、库存与交货事宜——是真人，不是机器人。"
       },
       "bourse": {
-        "title": "通过商品交易所采购",
+        "title": "通过伊朗商品交易所采购",
         "desc": "由伊朗商品交易所正规供货：价格透明、发票有效、产品来源有保障。"
       },
       "lc": {
@@ -294,5 +320,145 @@
     "cta": "致电或发送留言",
     "landline": "固定电话",
     "mobile": "手机"
+  },
+  "navLinks": {
+    "aiAdvisor": "智能顾问",
+    "weight": "重量计算器",
+    "project": "项目估算",
+    "cost": "成本计算器",
+    "market": "黄金与汇率",
+    "blogAnalysis": "分析与指南",
+    "marketNews": "市场资讯",
+    "tender": "招标估算",
+    "track": "订单跟踪",
+    "cutToSize": "定制尺寸货品",
+    "warehouse": "客户仓储",
+    "about": "关于我们",
+    "cooperation": "合作伙伴",
+    "contactUs": "联系我们",
+    "terms": "条款",
+    "privacy": "隐私政策",
+    "telegram": "Telegram",
+    "eitaa": "Eitaa",
+    "instagram": "Instagram",
+    "whatsapp": "WhatsApp"
+  },
+  "drawer": {
+    "closeMenu": "关闭菜单",
+    "mainMenuLabel": "主菜单",
+    "mobileNav": "移动端导航",
+    "products": "产品",
+    "subCategoriesOf": "{name}的子分类",
+    "subsCount": "{count} 个子分类",
+    "todayPriceOf": "{name}的今日价格",
+    "loginRegister": "登录 / 注册",
+    "opensNewTab": "在新标签页中打开"
+  },
+  "ticker": {
+    "ariaLabel": "市场动态",
+    "usd": "美元",
+    "eur": "欧元",
+    "gold18": "18K金",
+    "ounce": "国际盎司",
+    "billet": "钢坯",
+    "unitToman": "土曼",
+    "unitDollar": "美元"
+  },
+  "searchBar": {
+    "placeholder": "搜索产品、规格、钢厂…",
+    "label": "搜索 Ahantime",
+    "clear": "清除搜索",
+    "submit": "搜索",
+    "suggestionsLabel": "搜索建议",
+    "newsLabel": "市场资讯",
+    "articleLabel": "文章",
+    "sizeLabel": "规格 {size}"
+  },
+  "bottomTab": {
+    "nav": "底部导航",
+    "cart": "购物车",
+    "aiAria": "Ahantime，智能顾问"
+  },
+  "cartReminder": {
+    "message": "您的询价篮中有 {count} 件商品待处理。",
+    "continueLink": "继续处理询价篮"
+  },
+  "requestFlow": {
+    "successTitle": "您的申请已发送至我们的销售团队",
+    "successLeadPriced": "系统已自动计算价格并开具形式发票。Ahantime 的销售专员将与您联系以协调交货事宜。",
+    "successLeadUnpriced": "Ahantime 的销售专员已收到您的申请，将与您联系以确定最终价格和交货条件。",
+    "trackingCode": "跟踪编号：",
+    "priceUpdatedNote": "注意：自您将一件或多件商品加入购物车以来，其价格已更新；以下金额为当前最终价格。",
+    "proformaIssued": "您的形式发票已开具",
+    "proformaIssuedWithTotal": "您的形式发票已开具，金额为 {total}",
+    "downloadProforma": "下载形式发票（PDF）",
+    "someItemsNeedQuote": "部分商品需要询价；销售专员会将最终形式发票发送给您。",
+    "trackMyRequests": "跟踪我的申请",
+    "continueShopping": "继续购物",
+    "emptyHeadline": "您的询价篮是空的",
+    "emptyBody": "从价格表中添加所需商品，即可为其申请形式发票。",
+    "proformaTitleSingle": "形式发票 — {name}",
+    "proformaTitleMulti": "形式发票 — {count} 件商品",
+    "loginRequiredError": "请先登录您的账户再提交申请。",
+    "submitFailedError": "申请提交失败，请重试。",
+    "submitSuccessToast": "申请已提交；可在个人资料中查看状态。",
+    "unitKg": "公斤",
+    "unitPiece": "件",
+    "perUnitToman": "土曼",
+    "notesLabel": "备注（可选）",
+    "notesPlaceholder": "例如：周末前交货、指定钢厂、付款条件……",
+    "loginCta": "登录账户",
+    "submitting": "提交中…",
+    "submitCta": "提交形式发票申请",
+    "editCart": "编辑购物车",
+    "anonymousNote": "登录后将返回此页面；姓名和电话号码取自您的账户。",
+    "footerNote": "提交后，您的申请将直接发送给销售团队，专员会致电确定最终价格和交货条件。我们不支持在线支付。"
+  },
+  "cart": {
+    "itemsHeading": "询价篮商品",
+    "unitLabel": "单位：{unit}",
+    "weightPerUnit": "每单位重量：{weight} 公斤",
+    "qtyAria": "{name} 的数量",
+    "decreaseQty": "减少 {name} 的数量",
+    "increaseQty": "增加 {name} 的数量",
+    "estimateLabel": "预估",
+    "quoteOnRequest": "询价后提供",
+    "removeItem": "从购物车中移除 {name}",
+    "clearCart": "清空购物车",
+    "clearCartTitle": "清空询价篮",
+    "clearCartBody": "确定要从询价篮中移除所有商品吗？此操作无法撤销。",
+    "clearConfirm": "清空",
+    "addMoreItems": "添加其他产品",
+    "summaryTitle": "询价摘要",
+    "itemCount": "商品数量",
+    "itemCountValue": "{count} 件",
+    "totalWeight": "总重量",
+    "totalWeightValue": "{weight} 公斤",
+    "totalWeightUnknown": "未知",
+    "estimatedTotal": "预估总额",
+    "tierDiscountNote": "{tier} 级别：自动折扣 {percent}%，约节省 {amount}。",
+    "baseTierNote": "基础价格；满 5 吨自动享受批量折扣。",
+    "nextTierNote": " 再增加 {weight} 公斤即可达到 {tier} 级别，享受 {percent}% 折扣。",
+    "estimateDisclaimer": "此为大致预估；最终价格由专员确认",
+    "belowAutoQuoteNote": "此购物车总额低于自动开票门槛（{amount}）；您的申请将被记录，专员将审核价格和供货情况。",
+    "continueRequestCta": "继续提交申请",
+    "loginContinueRequestCta": "登录并继续申请",
+    "noOnlinePaymentNote": "Ahantime 不支持在线支付；我们的专员将与您联系以确定最终价格和交货事宜。"
+  },
+  "kgModal": {
+    "title": "“{name}” 的数量",
+    "modeAria": "数量确定方式",
+    "byBranch": "钢筋支数",
+    "byWeight": "直接输入重量（公斤）",
+    "noBranchWeightNote": "该产品的单支重量未登记；请直接输入所需重量。",
+    "decreaseBranch": "减少支数",
+    "increaseBranch": "增加支数",
+    "branchCountLabel": "支数",
+    "perBranchWeight": "× 每支 {weight} 公斤",
+    "weightLabel": "重量（公斤）",
+    "weightPlaceholder": "例如 500",
+    "totalWeight": "总重量：{weight} 公斤",
+    "estimateLabel": "预估：{amount}",
+    "addToCart": "加入询价篮"
   }
 }

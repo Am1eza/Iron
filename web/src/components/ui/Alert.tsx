@@ -1,5 +1,6 @@
 'use client';
 import { useState, type ReactNode } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   CheckCircleIcon,
   InfoIcon,
@@ -36,6 +37,7 @@ export function Alert({
   onDismiss?: () => void;
   className?: string;
 }) {
+  const t = useTranslations('common');
   const [open, setOpen] = useState(true);
   if (!open) return null;
   const Icon = TONE_ICON[tone];
@@ -56,7 +58,7 @@ export function Alert({
         <button
           type="button"
           className={styles.close}
-          aria-label="بستن"
+          aria-label={t('action.close')}
           onClick={() => {
             onDismiss?.();
             setOpen(false);

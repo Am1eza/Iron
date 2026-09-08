@@ -38,6 +38,8 @@ export function MovementBadge({
   pct,
   pill = false,
   onPanel = false,
+  locale = 'fa',
+  labels,
 }: {
   dir: MovementDir;
   pct?: number;
@@ -46,11 +48,21 @@ export function MovementBadge({
    *  — the plain gain/loss text colors are tuned for light surfaces and fall
    *  below WCAG AA against a permanently-dark background. */
   onPanel?: boolean;
+  /** Defaults to 'fa' — this file deliberately has no 'use client' (see
+   *  PriceTag's comment below) so it can't call `useTranslations` itself;
+   *  every existing caller renders in fa and is unaffected. A caller that
+   *  IS already a client component in a non-fa locale passes its own
+   *  `locale` (for `formatMovement`'s digits) and translated `labels`. */
+  locale?: string;
+  /** Screen-reader-only up/down/flat words, translated by the caller — falls
+   *  back to the Persian default when omitted. */
+  labels?: { up: string; down: string; flat: string };
 }) {
   const arrow = dir === 'up' ? '▲' : dir === 'down' ? '▼' : '';
   const cls = dir === 'up' ? styles.up : dir === 'down' ? styles.down : styles.flat;
-  const label = dir === 'up' ? 'افزایش' : dir === 'down' ? 'کاهش' : 'بدون تغییر';
-  const text = formatMovement(pct);
+  const defaultLabels = { up: 'افزایش', down: 'کاهش', flat: 'بدون تغییر' };
+  const label = (labels ?? defaultLabels)[dir];
+  const text = formatMovement(pct, locale);
   // No numeric pct (no history to compute a real % from, e.g. the market
   // board's admin-entered شمش فولاد placeholder) previously left this pill
   // visually empty — the label only existed in a visually-hidden span for
