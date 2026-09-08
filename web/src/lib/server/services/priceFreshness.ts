@@ -19,8 +19,9 @@ export interface PriceFreshness {
 
 export async function getPriceFreshness(now: Date = new Date()): Promise<PriceFreshness> {
   const [holidays, hideAfter] = await Promise.all([getHolidays(), getStaleHideAfterDays()]);
+  const invalid = (date: Date) => !Number.isFinite(date.getTime()) || date.getTime() > now.getTime();
   return {
-    isStale: (updatedAt: Date) => !isSameJalaliDay(updatedAt, now),
-    isHidden: (updatedAt: Date) => businessDaysSince(updatedAt, now, holidays) >= hideAfter,
+    isStale: (updatedAt: Date) => invalid(updatedAt) || !isSameJalaliDay(updatedAt, now),
+    isHidden: (updatedAt: Date) => invalid(updatedAt) || businessDaysSince(updatedAt, now, holidays) >= hideAfter,
   };
 }

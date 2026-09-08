@@ -171,7 +171,7 @@ describe('savePrice transaction', () => {
     // here makes this an unambiguous first-save-of-the-day case, so `prev`
     // is genuinely yesterday's price and the plain diff below is correct.
     await db.update(schema.currentPrices)
-      .set({ updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) })
+      .set({ confirmedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) })
       .where(eq(schema.currentPrices.skuId, sku.id));
 
     const pointsBefore = await db.select({ n: sql<number>`count(*)::int` })
@@ -199,7 +199,7 @@ describe('savePrice transaction', () => {
     const sku = rows[0]!;
     const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
     await db.update(schema.currentPrices)
-      .set({ updatedAt: twoDaysAgo })
+      .set({ confirmedAt: twoDaysAgo })
       .where(eq(schema.currentPrices.skuId, sku.id));
 
     const flagged = await recomputeStaleness();

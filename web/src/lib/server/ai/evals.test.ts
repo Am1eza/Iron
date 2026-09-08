@@ -58,7 +58,7 @@ beforeAll(async () => {
   staleSku = pricedRebar[1]!;
   await db
     .update(schema.currentPrices)
-    .set({ updatedAt: new Date(Date.now() - 24 * 60 * 60 * 1000) })
+    .set({ confirmedAt: new Date(Date.now() - 24 * 60 * 60 * 1000) })
     .where(eq(schema.currentPrices.skuId, staleSku.id));
 }, 120_000);
 afterAll(async () => {

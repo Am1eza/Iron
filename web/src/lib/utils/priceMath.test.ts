@@ -36,6 +36,15 @@ describe('lineWeightKg', () => {
 });
 
 describe('lineTotalToman', () => {
+  it.each([NaN, Infinity, -1, 0, 1.5, Number.MAX_SAFE_INTEGER])('rejects invalid unit price %s', (price) => {
+    expect(lineTotalToman('kg', 'kg', 1, 1, price)).toBeUndefined();
+  });
+  it('refuses unsafe totals and retains gram precision before pricing', () => {
+    expect(lineTotalToman('kg', 'kg', 1e10, 1e10, 1e10)).toBeUndefined();
+    expect(lineTotalToman('kg', 'kg', 1, -1, 42000)).toBeUndefined();
+    expect(lineWeightKg('kg', 'branch', 1, 12.345)).toBe(12.345);
+    expect(lineWeightKg('kg', 'branch', 1, Infinity)).toBeUndefined();
+  });
   it('multiplies by the weight on a kg basis, not by the raw quantity', () => {
     // 5 شاخه × 12 kg × 42,000 — charging 5 × 42,000 instead is the 12×
     // undercharge this module was extracted to make impossible.

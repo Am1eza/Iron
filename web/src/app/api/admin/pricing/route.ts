@@ -8,6 +8,7 @@ import { savePrices, type SavePriceInput, type SavePricesRowResult } from '@/lib
 import { evaluateAlerts } from '@/lib/server/services/alerts.service';
 import { reportError } from '@/lib/errors/report';
 import { finiteNumber } from '@/lib/validation/utils';
+import { withIdempotency } from '@/lib/server/utils/idempotency';
 
 /** GET /api/admin/pricing?cat=&sub= — the daily grid (rows incl. stale flags). */
 async function GETImpl(req: NextRequest) {
@@ -40,9 +41,10 @@ async function GETImpl(req: NextRequest) {
 // comfortably below the JS safe-integer range (2^53 ≈ 9e15).
 const rowSchema = z.object({
   skuId: z.string().min(1).max(120),
-  price: finiteNumber.positive().max(1e13),
+  price: finiteNumber.int().positive().max(1e13),
   deliveryTime: z.string().trim().max(40).optional(),
   vatIncluded: z.boolean().optional(),
+  confirmAnomaly: z.boolean().optional(),
 });
 // The envelope is validated loosely on purpose — `prices` must be an array
 // of 1-500 items, but each ITEM is validated individually below, not here.
@@ -68,6 +70,18 @@ async function PUTImpl(req: NextRequest) {
   if ('response' in auth) return auth.response;
   const v = await validateBody(req, bulkPayload);
   if (!v.ok) return v.response;
+  const bytes = new TextEncoder().encode(JSON.stringify(v.data.prices));
+  const fingerprint = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('');
+  const bucket = Math.floor(Date.now() / 10_000);
+  const dedupeKey = `${auth.session.id}:${fingerprint}:${bucket}`;
+  // A retry landing just across the 10s bucket boundary (this is the
+  // slowest request in the app — up to 500 rows — so a client/network retry
+  // crossing the edge is realistic) must still find the original request via
+  // the previous bucket's key, same reasoning as /api/leads.
+  const prevBucketKey = `${auth.session.id}:${fingerprint}:${bucket - 1}`;
+  return withIdempotency(req, 'pricing.bulk', dedupeKey, async () => {
 
   // Per-row schema validation (see the `bulkPayload` comment above) — a row
   // that fails its OWN schema is reported in the exact same
@@ -112,10 +126,9 @@ async function PUTImpl(req: NextRequest) {
     safeRevalidatePath('/prices', 'layout');
     safeRevalidatePath('/', 'page');
   }
-  return NextResponse.json(
-    { results, saved: results.length - failed.length, failed: failed.length },
-    { status: failed.length > 0 && failed.length === results.length ? 422 : 200 },
-  );
+  const status = failed.length > 0 && failed.length === results.length ? 422 : 200;
+  return { status, body: { results, saved: results.length - failed.length, failed: failed.length } };
+  }, [prevBucketKey]);
 }
 
 export const GET = withApiErrorHandling(GETImpl);

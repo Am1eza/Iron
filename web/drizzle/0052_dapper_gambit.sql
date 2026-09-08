@@ -1,0 +1,2 @@
+ALTER TABLE "current_prices" ADD CONSTRAINT "current_prices_price_toman_range" CHECK ("current_prices"."price" BETWEEN 1 AND 10000000000000);--> statement-breakpoint
+ALTER TABLE "price_points" ADD CONSTRAINT "price_points_price_toman_range" CHECK ("price_points"."price" BETWEEN 1 AND 10000000000000);

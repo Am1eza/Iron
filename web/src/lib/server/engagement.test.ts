@@ -189,11 +189,11 @@ describe('alerts', () => {
     // other price-reading path uses. Backdating updatedAt to yesterday is
     // what actually exercises that check now.
     const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    await db.update(schema.currentPrices).set({ updatedAt: yesterday }).where(eq(schema.currentPrices.skuId, sku.id));
+    await db.update(schema.currentPrices).set({ confirmedAt: yesterday }).where(eq(schema.currentPrices.skuId, sku.id));
     expect(await evaluateAlerts()).toBe(0);
 
     // Freshening the feed (a new updatedAt, "today") lets it fire.
-    await db.update(schema.currentPrices).set({ updatedAt: new Date() }).where(eq(schema.currentPrices.skuId, sku.id));
+    await db.update(schema.currentPrices).set({ confirmedAt: new Date() }).where(eq(schema.currentPrices.skuId, sku.id));
     expect(await evaluateAlerts()).toBe(1);
   });
 

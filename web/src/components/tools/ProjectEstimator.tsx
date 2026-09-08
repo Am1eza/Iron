@@ -158,7 +158,7 @@ function useCategoryRows(slug: string) {
     staleTime: 5 * 60 * 1000,
   });
   const rows = useMemo(
-    () => (data?.rows ?? []).filter((r) => !r.current.priceHidden && r.current.price > 0),
+    () => (data?.rows ?? []).filter((r) => !r.current.priceHidden && !r.current.priceIsEstimated && r.current.price > 0),
     [data],
   );
   return { rows, isLoading };

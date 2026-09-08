@@ -7,6 +7,7 @@
  *  the resulting proforma is issued, frozen and SMS'd to the customer. */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { ulid } from 'ulid';
+import { eq } from 'drizzle-orm';
 import { createTestDb } from '@/test/db';
 import * as schema from '@/lib/server/db/schema';
 import type { Db } from '@/lib/server/db/client';
@@ -51,6 +52,15 @@ async function seedSku(unit: PriceUnit, priceBasis: PriceBasis = 'kg'): Promise<
 }
 
 describe('priceItems — the unit is the SKU’s, not the client’s', () => {
+  it('routes an estimated price to sales without issuing a priced line', async () => {
+    const skuId = await seedSku('kg');
+    await db.update(schema.currentPrices).set({ priceIsEstimated: true }).where(eq(schema.currentPrices.skuId, skuId));
+    const result = await priceItems([{ skuId, qty: 100, unit: 'kg' }]);
+    expect(result.allPriced).toBe(false);
+    expect(result.lines[0]!.unitPrice).toBeUndefined();
+    expect(result.lines[0]!.lineTotal).toBeUndefined();
+    expect(result.lines[0]!.weightKg).toBe(100);
+  });
   it('prices normally when the client agrees with the SKU', async () => {
     const skuId = await seedSku('kg');
     const { lines, allPriced } = await priceItems([{ skuId, qty: 100, unit: 'kg' }]);

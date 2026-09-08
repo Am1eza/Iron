@@ -7,6 +7,7 @@ import { sql } from 'drizzle-orm';
 import {
   bigint,
   boolean,
+  check,
   doublePrecision,
   index,
   integer,
@@ -170,6 +171,9 @@ export const leadItems = pgTable(
     index('lead_items_lead_idx').on(t.leadId),
     // FK with no covering index (W29) — the `skus` ON DELETE SET NULL.
     index('lead_items_sku_idx').on(t.skuId),
+    check('lead_items_qty_positive_finite', sql`${t.qty} > 0 AND ${t.qty} < 1000000000000`),
+    check('lead_items_unit_price_safe', sql`${t.unitPrice} IS NULL OR ${t.unitPrice} BETWEEN 0 AND 10000000000000`),
+    check('lead_items_line_total_safe', sql`${t.lineTotal} IS NULL OR ${t.lineTotal} BETWEEN 0 AND 9007199254740991`),
   ],
 );
 
@@ -232,6 +236,8 @@ export const proformas = pgTable(
      *  expected to retune the percentages, and a reprint of an old quote must
      *  keep showing the rate that quote was actually issued at. */
     volumeDiscountLabel: text('volume_discount_label'),
+    /** Frozen rule-set version used to calculate this document. */
+    volumePolicyVersion: text('volume_policy_version').notNull().default('legacy'),
     /** Total tonnage (in kg) the tier was decided from — the audit trail for
      *  why this order got the band it got. Null when no line had a known
      *  weight. */
@@ -259,6 +265,9 @@ export const proformas = pgTable(
     // `created_at` alone (analyticsRepo overviewStats/proformaValue); neither
     // index above is prefixed by it (W29).
     index('proformas_created_idx').on(t.createdAt),
+    check('proformas_money_nonnegative_safe', sql`${t.subtotal} BETWEEN 0 AND 9007199254740991 AND ${t.discountToman} >= 0 AND ${t.volumeDiscountToman} >= 0 AND ${t.vatAmount} >= 0 AND ${t.total} BETWEEN 0 AND 9007199254740991`),
+    check('proformas_discounts_within_subtotal', sql`${t.discountToman} + ${t.volumeDiscountToman} <= ${t.subtotal}`),
+    check('proformas_vat_rate_range', sql`${t.vatRate} >= 0 AND ${t.vatRate} <= 1`),
   ],
 );
 

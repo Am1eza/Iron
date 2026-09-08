@@ -31,6 +31,7 @@ import {
 } from '@/lib/server/integrations/markazeahan';
 import {
   matchSku,
+  jalaliDaysAgo,
   SKIP_REASONS,
   SOURCE_PATHS,
   taxonomyKey,
@@ -61,7 +62,7 @@ import { reportError } from '@/lib/errors/report';
  * schema change that buys nothing today; the moment two sources can price the
  * same SKU, it stops being true and this needs revisiting.
  */
-const SOURCE = 'ahanonline' as const;
+const SOURCE = 'multi' as const;
 
 export interface RunPriceSyncOptions {
   trigger?: 'cron' | 'manual';
@@ -213,7 +214,7 @@ export async function runPriceSync(opts: RunPriceSyncOptions = {}): Promise<Pric
 
     // ---- decide -----------------------------------------------------------
     const entries: NewSyncEntry[] = [];
-    const toWrite: Array<{ skuId: string; price: number; estimated: boolean; entryIndex: number }> = [];
+    const toWrite: Array<{ skuId: string; price: number; estimated: boolean; entryIndex: number; sourceEventKey: string; source: 'sync:ahanonline' | 'sync:markazeahan'; sourcePublishedLabel: string | null; confirmedAt: Date }> = [];
     const skipReasons: Record<string, number> = {};
 
     const baseEntry = (sku: CandidateSku): NewSyncEntry => ({
@@ -250,6 +251,7 @@ export async function runPriceSync(opts: RunPriceSyncOptions = {}): Promise<Pric
         matchedCode: result.row?.code ?? null,
         matchedUnit: result.unit || null,
         sourceUpdatedAt: result.sourceUpdatedAt,
+        source: result.row?.sourcePath.startsWith('markazeahan/') ? 'markazeahan' : 'ahanonline',
       };
 
       if (!result.ok) {
@@ -275,6 +277,13 @@ export async function runPriceSync(opts: RunPriceSyncOptions = {}): Promise<Pric
         // tell the two apart at a glance (US-05.3).
         estimated: result.estimated,
         entryIndex,
+        sourceEventKey: `${result.row!.sourcePath}|${sku.id}|${result.sourceUpdatedAt ?? 'undated'}|${result.priceToman}`,
+        source: result.row!.sourcePath.startsWith('markazeahan/') ? 'sync:markazeahan' : 'sync:ahanonline',
+        sourcePublishedLabel: result.sourceUpdatedAt,
+        confirmedAt: (() => {
+          const age = result.sourceUpdatedAt ? jalaliDaysAgo(result.sourceUpdatedAt, today) : null;
+          return age != null && age >= 0 ? new Date(now.getTime() - age * 86_400_000) : new Date(0);
+        })(),
       });
     }
 
@@ -283,26 +292,28 @@ export async function runPriceSync(opts: RunPriceSyncOptions = {}): Promise<Pric
     // is preferable to a synthetic staff account.
     const saveResults = await savePrices(
       null,
-      toWrite.map((w) => ({ skuId: w.skuId, price: w.price, isEstimated: w.estimated })),
+      toWrite.map((w) => ({ skuId: w.skuId, price: w.price, isEstimated: w.estimated, respectSyncExclusion: true, sourceEventKey: w.sourceEventKey, source: w.source, sourcePublishedLabel: w.sourcePublishedLabel, confirmedAt: w.confirmedAt, syncEntry: entries[w.entryIndex]! })),
     );
 
     let written = 0;
+    const atomicallyLogged = new Set<number>();
     toWrite.forEach((w, i) => {
       const res = saveResults[i];
-      if (res && res.ok) {
+      if (res && res.ok && res.changed) {
         written += 1;
+        atomicallyLogged.add(w.entryIndex);
         return;
       }
       // The save itself failed (a SKU deleted mid-run, an invalid price). The
       // log must not claim a write that never landed.
       const entry = entries[w.entryIndex]!;
       entry.outcome = 'skipped';
-      entry.reason = 'skip:write-failed';
+      entry.reason = res?.ok ? 'skip:duplicate-source-event' : 'skip:write-failed';
       entry.newPrice = null;
-      skipReasons['skip:write-failed'] = (skipReasons['skip:write-failed'] ?? 0) + 1;
+      skipReasons[entry.reason] = (skipReasons[entry.reason] ?? 0) + 1;
     });
 
-    await insertSyncEntries(entries);
+    await insertSyncEntries(entries.filter((_, index) => !atomicallyLogged.has(index)));
 
     const skipped = entries.length - written;
     await finishSyncRun(runId, {

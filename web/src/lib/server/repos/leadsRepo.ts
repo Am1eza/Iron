@@ -460,6 +460,7 @@ export async function insertProforma(input: {
   volumeDiscountToman?: number;
   volumeTier?: 'retail' | 'bulk' | 'enterprise' | null;
   volumeDiscountLabel?: string | null;
+  volumePolicyVersion?: string;
   quotedWeightKg?: number | null;
   vatRate: number;
   vatAmount: number;

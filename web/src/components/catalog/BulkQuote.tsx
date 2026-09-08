@@ -153,7 +153,7 @@ export function BulkQuote({
   // the stored price at all, so there is no honest number to show and the
   // panel removes itself rather than invent one. `computeBulkSplit` drops
   // those rows too, so this is the visible half of the same rule.
-  if (!allRows.some((r) => !r.current.priceHidden && (r.current.priceBasis ?? r.priceBasis ?? 'kg') === 'kg')) {
+  if (!allRows.some((r) => !r.current.priceHidden && !r.current.priceIsEstimated && (r.current.priceBasis ?? r.priceBasis ?? 'kg') === 'kg')) {
     return null;
   }
 

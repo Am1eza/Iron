@@ -6,6 +6,8 @@ import { requireApiPermission, requireDb, withApiErrorHandling } from '@/lib/ser
 import { getDb } from '@/lib/server/db/client';
 import { skus, currentPrices } from '@/lib/server/db/schema';
 import { normalizeDigits } from '@/lib/utils/format';
+import { parsePriceToman } from '@/lib/utils/priceValidation';
+import { PRICING_TEMPLATE_META_SHEET, PRICING_TEMPLATE_VERSION } from '@/lib/utils/pricingWorkbook';
 
 export const runtime = 'nodejs';
 
@@ -21,13 +23,6 @@ function norm(s: string): string {
     .toLowerCase();
 }
 
-/** Parse a price cell: accepts numbers, "۱۲٬۵۰۰", "12,500", "12500 تومان". */
-function parsePrice(v: unknown): number | null {
-  if (typeof v === 'number' && Number.isFinite(v) && v > 0) return Math.round(v);
-  const cleaned = normalizeDigits(String(v ?? '')).replace(/[٬,\s]|تومان|ریال/g, '');
-  const n = Number(cleaned);
-  return Number.isFinite(n) && n > 0 && n <= 1e13 ? Math.round(n) : null;
-}
 
 interface MatchedRow {
   skuId: string;
@@ -84,12 +79,29 @@ async function POSTImpl(req: NextRequest) {
       { status: 400 },
     );
   }
-  const ws = wb.worksheets[0];
+  const meta = wb.getWorksheet(PRICING_TEMPLATE_META_SHEET);
+  if (meta) {
+    const values = new Map<string, string>();
+    meta.eachRow((row) => values.set(String(row.getCell(1).value ?? ''), String(row.getCell(2).value ?? '')));
+    if (values.get('template') !== 'ahantime-pricing' || values.get('version') !== PRICING_TEMPLATE_VERSION || values.get('currency') !== 'TOMAN') {
+      return NextResponse.json({ error: 'unsupported_template', message: 'نسخه یا واحد پول قالب پشتیبانی نمی‌شود؛ قالب تازه را دانلود کنید.' }, { status: 400 });
+    }
+  }
+  const ws = wb.worksheets.find((sheet) => sheet.name !== PRICING_TEMPLATE_META_SHEET);
   if (!ws) return NextResponse.json({ error: 'empty', message: 'فایل خالی است.' }, { status: 400 });
 
   // Header detection: find the columns by header text (row 1).
   const headers = new Map<string, number>();
-  ws.getRow(1).eachCell((cell, col) => headers.set(norm(String(cell.value ?? '')), col));
+  let duplicateHeader = false;
+  ws.getRow(1).eachCell((cell, col) => {
+    const header = norm(String(cell.value ?? ''));
+    if (headers.has(header)) duplicateHeader = true;
+    headers.set(header, col);
+  });
+  const aliases = [['کد کالا', 'sku', 'id'], ['نام کالا', 'نام', 'name'], ['قیمت', 'قیمت (تومان)', 'price']];
+  if (duplicateHeader || aliases.some((group) => group.filter((key) => headers.has(key)).length > 1)) {
+    return NextResponse.json({ error: 'ambiguous_headers', message: 'ستون تکراری یا چند ستون هم‌معنی وجود دارد؛ از قالب استفاده کنید.' }, { status: 400 });
+  }
   const idCol = headers.get('کد کالا') ?? headers.get('sku') ?? headers.get('id');
   const nameCol = headers.get('نام کالا') ?? headers.get('نام') ?? headers.get('name');
   const priceCol = headers.get('قیمت') ?? headers.get('قیمت (تومان)') ?? headers.get('price');
@@ -115,23 +127,34 @@ async function POSTImpl(req: NextRequest) {
     .from(skus)
     .leftJoin(currentPrices, eq(currentPrices.skuId, skus.id));
   const byId = new Map(all.map((s) => [s.id, s]));
-  const byName = new Map(all.map((s) => [norm(s.name), s]));
+  const byName = new Map<string, typeof all>();
+  for (const sku of all) {
+    const key = norm(sku.name);
+    byName.set(key, [...(byName.get(key) ?? []), sku]);
+  }
 
   const matched: MatchedRow[] = [];
   const unmatched: UnmatchedRow[] = [];
   const seen = new Set<string>();
+  const duplicates = new Set<string>();
+  const firstRows = new Map<string, number>();
 
   ws.eachRow((row, rowNumber) => {
     if (rowNumber === 1) return; // header
     const rawName = nameCol ? String(row.getCell(nameCol).value ?? '').trim() : '';
     const rawId = idCol ? String(row.getCell(idCol).value ?? '').trim() : '';
     if (!rawName && !rawId) return; // blank row
-    const price = parsePrice(row.getCell(priceCol).value);
+    const price = parsePriceToman(row.getCell(priceCol).value);
     if (price === null) {
-      unmatched.push({ row: rowNumber, name: rawName || rawId, reason: 'قیمت نامعتبر' });
+      unmatched.push({ row: rowNumber, name: rawName || rawId, reason: 'قیمت باید عدد صحیح مثبت به تومان باشد؛ ریال و فرمول پذیرفته نیست.' });
       return;
     }
-    const sku = (rawId && byId.get(rawId)) || (rawName && byName.get(norm(rawName))) || null;
+    const nameMatches = byName.get(norm(rawName)) ?? [];
+    if (!rawId && nameMatches.length > 1) {
+      unmatched.push({ row: rowNumber, name: rawName, reason: 'نام کالا مشترک است؛ کد دقیق کالا را وارد کنید.' });
+      return;
+    }
+    const sku = rawId ? byId.get(rawId) : nameMatches[0];
     if (!sku) {
       unmatched.push({
         row: rowNumber,
@@ -140,11 +163,17 @@ async function POSTImpl(req: NextRequest) {
       });
       return;
     }
+    if (rawId && rawName && norm(sku.name) !== norm(rawName)) {
+      unmatched.push({ row: rowNumber, name: rawName, reason: 'کد و نام کالا با هم مطابقت ندارند.' });
+      return;
+    }
     if (seen.has(sku.id)) {
+      duplicates.add(sku.id);
       unmatched.push({ row: rowNumber, name: rawName || sku.name, reason: 'ردیف تکراری در فایل' });
       return;
     }
     seen.add(sku.id);
+    firstRows.set(sku.id, rowNumber);
     matched.push({
       skuId: sku.id,
       name: sku.name,
@@ -153,7 +182,13 @@ async function POSTImpl(req: NextRequest) {
     });
   });
 
-  return NextResponse.json({ matched, unmatched, total: matched.length + unmatched.length });
+  // Neither conflicting occurrence may silently win, including the first.
+  const accepted = matched.filter((row) => !duplicates.has(row.skuId));
+  for (const row of matched) {
+    if (duplicates.has(row.skuId)) unmatched.push({ row: firstRows.get(row.skuId)!, name: row.name, reason: 'ردیف تکراری؛ هیچ‌یک از قیمت‌های این کالا پذیرفته نشد.' });
+  }
+  unmatched.sort((a, b) => a.row - b.row);
+  return NextResponse.json({ matched: accepted, unmatched, total: accepted.length + unmatched.length, templateVersion: meta ? PRICING_TEMPLATE_VERSION : 'legacy' });
 }
 
 export const POST = withApiErrorHandling(POSTImpl);

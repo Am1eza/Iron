@@ -112,10 +112,10 @@ describe('runPriceSync', () => {
 
     const [price] = await db.select().from(schema.currentPrices).where(eq(schema.currentPrices.skuId, SKU_MATCH));
     expect(price!.price).toBe(71_000);
-    // A mirrored price must read as FRESH — `getPriceFreshness` withholds a
-    // stale price from the public site entirely, so a stale-flagged "update"
-    // would leave the page saying «تماس بگیرید» after a successful sync.
-    expect(price!.isStale).toBe(false);
+    // Freshness follows the source's published day, not the day this test/job
+    // happened to ingest it. NOW is historical relative to the test runner.
+    expect(price!.isStale).toBe(true);
+    expect(price!.confirmedAt).toEqual(NOW);
     // System write, no staff account behind it.
     expect(price!.updatedBy).toBeNull();
   });

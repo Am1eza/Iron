@@ -34,7 +34,7 @@ function isKgPriced(r: PriceRow): boolean {
 export function pickBestGroup(rows: PriceRow[]): ProductGroup | null {
   const groups = new Map<string, { subCategoryId?: string; factories: Set<string>; rowCount: number }>();
   for (const r of rows) {
-    if (r.current.priceHidden) continue;
+    if (r.current.priceHidden || r.current.priceIsEstimated) continue;
     // Only kg-priced rows can be compared here — see computeBulkSplit. A
     // group made of branch/coil/sheet/piece/sqm rows would be auto-selected
     // and then produce an empty comparison, which is worse than not
@@ -92,7 +92,7 @@ export function computeBulkSplit(rows: PriceRow[], tonnage: number): BulkSplit {
   // factory's representative quote toward zero, making it look artificially
   // (and wrongly) cheapest. A withheld price contributes no real signal to
   // "which factory is cheapest," so it's excluded rather than counted as 0.
-  const visible = rows.filter((r) => !r.current.priceHidden);
+  const visible = rows.filter((r) => !r.current.priceHidden && !r.current.priceIsEstimated);
   // W25 audit fix: this multiplies a per-kg price by `tonnage × 1000`, so it
   // is only ever correct for `priceBasis === 'kg'`.
   //

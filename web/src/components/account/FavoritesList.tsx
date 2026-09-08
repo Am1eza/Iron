@@ -6,7 +6,7 @@ import { routes } from '@/lib/routes';
 import { http } from '@/lib/api/http';
 import { useToast } from '@/lib/hooks/useToast';
 import type { PriceRow } from '@/lib/types/domain';
-import { formatToman } from '@/lib/utils/format';
+import { formatToman, priceHiddenLabel } from '@/lib/utils/format';
 import { Button, EmptyState, emptyPresets, MovementBadge } from '@/components/ui';
 import styles from './RequestsList.module.css';
 
@@ -39,8 +39,8 @@ export function FavoritesList() {
           <div>
             <Link href={routes.sku(r.categoryId, r.subCategoryId, r.slug)}>{r.name}</Link>
             <p className={`tnum`} style={{ color: 'var(--color-text-muted)', font: 'var(--t-body-sm)' }}>
-              {r.current.priceHidden ? 'تماس بگیرید' : `${formatToman(r.current.price, false)} تومان`}{' '}
-              {!r.current.priceHidden && r.current.movementPct != null ? (
+              {priceHiddenLabel(r.current) ?? `${formatToman(r.current.price, false)} تومان`}{' '}
+              {!priceHiddenLabel(r.current) && r.current.movementPct != null ? (
                 <MovementBadge dir={r.current.movementDir} pct={r.current.movementPct} />
               ) : null}
             </p>

@@ -241,6 +241,12 @@ export interface CurrentPrice {
   isStale: boolean;
   /** Older than PRICE_STALE_HIDE_AFTER — UI shows «تماس بگیرید» instead of the price. */
   priceHidden?: boolean;
+  /** Market analog rather than a confirmed price for this exact SKU. */
+  priceIsEstimated?: boolean;
+  /** Stable price snapshot identity used to detect cart drift. */
+  version?: string;
+  /** When this price was actually confirmed, distinct from row write time. */
+  confirmedAt?: string;
 }
 
 export interface PricePoint {
@@ -250,6 +256,11 @@ export interface PricePoint {
   unit: PriceUnit;
   priceBasis: PriceBasis;
   at: string;
+  confirmedAt?: string;
+  version?: string;
+  priceIsEstimated?: boolean;
+  source?: string;
+  sourcePublishedLabel?: string;
 }
 
 /** A price table row = SKU joined with its current price. */
@@ -350,6 +361,8 @@ export interface LineItem {
   weightKg?: number;
   unitPrice?: number;
   lineTotal?: number;
+  priceVersion?: string;
+  priceConfirmedAt?: string;
 }
 
 export interface Lead {

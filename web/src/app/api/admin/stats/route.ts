@@ -46,12 +46,12 @@ async function GETImpl(req: NextRequest) {
   // on a filtered grid whose count doesn't match what sent them there.
   add('stalePrices', 'pricing:write', async () => {
     const freshness = await getPriceFreshness();
-    const rows = await db.select({ updatedAt: currentPrices.updatedAt }).from(currentPrices);
+    const rows = await db.select({ updatedAt: currentPrices.confirmedAt }).from(currentPrices);
     return rows.filter((r) => freshness.isStale(r.updatedAt)).length;
   });
   add('freshPrices', 'pricing:write', async () => {
     const freshness = await getPriceFreshness();
-    const rows = await db.select({ updatedAt: currentPrices.updatedAt }).from(currentPrices);
+    const rows = await db.select({ updatedAt: currentPrices.confirmedAt }).from(currentPrices);
     return rows.filter((r) => !freshness.isStale(r.updatedAt)).length;
   });
   // Prices nobody and no mirror run has touched in a working week — the admin
@@ -71,7 +71,7 @@ async function GETImpl(req: NextRequest) {
   add('pricesNeedingReview', 'pricing:write', async () => {
     const now = new Date();
     const rows = await db
-      .select({ updatedAt: currentPrices.updatedAt })
+      .select({ updatedAt: currentPrices.confirmedAt })
       .from(currentPrices)
       .innerJoin(skus, eq(skus.id, currentPrices.skuId))
       .innerJoin(subCategories, eq(subCategories.id, skus.subCategoryId));

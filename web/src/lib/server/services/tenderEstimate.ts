@@ -64,7 +64,7 @@ export async function factoryOptionsFor(
   const opts = matched.map((r) => {
     // toPriceRow zeroes a withheld/absent price and flags `priceHidden`; both
     // mean "no quotable price" here.
-    const priced = !r.current.priceHidden && r.current.price > 0;
+    const priced = !r.current.priceHidden && !r.current.priceIsEstimated && r.current.price > 0;
     return {
       skuId: r.id,
       factory: r.factory ?? UNKNOWN_FACTORY,

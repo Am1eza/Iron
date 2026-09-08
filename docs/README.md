@@ -11,6 +11,7 @@ Updated 2026-09-06. Implementation guides describe the checkout; product/design 
 - [Code review ledger](code-quality-review.md) and [file coverage](code-review-inventory.csv)
 
 - [Security hardening review](security-review.md)
+- [Pricing audit C and final local fixes](audit-pricing-C.md) — 100/100 local implementation, 96/100 production evidence, all 35 checks and the four release gates (2026-09-08).
 
 ## Operations
 

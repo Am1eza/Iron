@@ -27,6 +27,7 @@ import { getPriceFreshness } from '@/lib/server/services/priceFreshness';
 import { publicEnv } from '@/lib/validation/env';
 import { formatToman } from '@/lib/utils/format';
 import { lineTotalToman, lineWeightKg } from '@/lib/utils/priceMath';
+import { sumToman } from '@/lib/utils/priceValidation';
 import { SHIPMENT_STEPS, type ShipmentStatus } from '@/lib/types/domain';
 import type { Attribution } from '@/lib/utils/attribution';
 import {
@@ -37,6 +38,8 @@ import {
   type VolumeTier,
 } from '@/lib/config/pricingTiers';
 import { isAutoQuoteEligible, maximumManualDiscountToman, type OrderPolicy } from '@/lib/config/orderPolicy';
+
+export class UnsafeMoneyTotalError extends Error {}
 
 /** SMS.ir's template-approval policy requires every customer-facing template
  *  to be personalized with a name variable — a lead/order/alert can have no
@@ -343,7 +346,7 @@ export async function priceItems(
   const lines: LineItem[] = items.map((item) => {
     const hit = bySku.get(item.skuId) ?? bySlug.get(item.skuId);
     const price = hit?.price ?? null;
-    const hidden = price ? freshness.isHidden(price.updatedAt) : true;
+    const hidden = price ? freshness.isHidden(price.confirmedAt ?? price.updatedAt) : true;
 
     // The UNIT IS THE SKU'S, never the client's. Every other number on this
     // line is recomputed server-side, but `unit` used to be taken on trust
@@ -407,7 +410,9 @@ export async function priceItems(
     // known, so this could not be expressed in the route's Zod schema.
     const fractionalPieces = WHOLE_PIECE_UNITS.has(unit) && !Number.isInteger(item.qty);
 
-    const unitPrice = price && !hidden && !unitMismatch && !fractionalPieces ? price.price : undefined;
+    // Analog estimates are useful for guidance, not automatic proformas.
+    // Keep the lead and route it to sales for an exact, confirmed price.
+    const unitPrice = price && !price.priceIsEstimated && !hidden && !unitMismatch && !fractionalPieces ? price.price : undefined;
 
     // The denomination is stored, not assumed: `priceMath` owns both halves
     // of the arithmetic and `estimate.service` calls the same two functions,
@@ -435,6 +440,8 @@ export async function priceItems(
       weightKg,
       unitPrice,
       lineTotal,
+      priceVersion: unitPrice != null ? price?.version : undefined,
+      priceConfirmedAt: unitPrice != null ? (price?.confirmedAt ?? price?.updatedAt)?.toISOString() : undefined,
     };
   });
   return { lines, allPriced };
@@ -471,9 +478,9 @@ export async function createLead(
   // that INSIDE the transaction (which holds one connection) deadlocks on a
   // single-connection backend. A fresh lead has no prior proforma, so its ref
   // is just `ref` (no proformasOfLead lookup needed).
-  let proformaData: (ReturnType<typeof computeProformaAmounts> & { validUntil: Date }) | null = null;
-  const candidateSubtotal = lines.reduce((sum, line) => sum + (line.lineTotal ?? 0), 0);
-  if (allPriced && lines.length > 0) {
+  let proformaData: (ReturnType<typeof computeProformaAmounts> & { validUntil: Date; volumePolicyVersion: string }) | null = null;
+  const candidateSubtotal = sumToman(lines.map((line) => line.lineTotal ?? 0));
+  if (allPriced && candidateSubtotal != null && lines.length > 0) {
     // Same discipline as issueProforma's own precompute, and the same reason
     // (see the transaction comment below): every read here borrows its own
     // pool connection, so it must happen OUTSIDE the transaction.
@@ -491,7 +498,7 @@ export async function createLead(
     ]);
     if (isAutoQuoteEligible(candidateSubtotal, orderPolicy)) {
       const amounts = computeProformaAmounts(lines, vatRate, businessVerified, 0, volumePolicy.tiers, orderPolicy);
-      proformaData = { ...amounts, validUntil: quoteValidUntil(new Date(), holidays, hour) };
+      proformaData = { ...amounts, validUntil: quoteValidUntil(new Date(), holidays, hour), volumePolicyVersion: volumePolicy.version };
     }
   }
 
@@ -539,6 +546,7 @@ export async function createLead(
           volumeTier: proformaData.volumeDiscountToman > 0 ? proformaData.resolved.tier.id : null,
           volumeDiscountLabel:
             proformaData.volumeDiscountToman > 0 ? volumeDiscountLabel(proformaData.resolved) : null,
+          volumePolicyVersion: proformaData.volumePolicyVersion,
           quotedWeightKg: proformaData.weightKg > 0 ? proformaData.weightKg : null,
           vatRate: proformaData.vatRate,
           vatAmount: proformaData.vatAmount,
@@ -739,7 +747,8 @@ export function computeProformaAmounts(
   tiers: readonly VolumeTier[] = VOLUME_TIERS,
   orderPolicy?: OrderPolicy,
 ) {
-  const subtotal = lines.reduce((s, l) => s + (l.lineTotal ?? 0), 0);
+  const subtotal = sumToman(lines.map((line) => line.lineTotal ?? 0));
+  if (subtotal == null) throw new UnsafeMoneyTotalError('unsafe proforma subtotal');
   const weightKg = quotedWeightKg(lines);
   const resolved = resolveVolumeTier({ totalWeightKg: weightKg, businessVerified }, tiers);
   const totalDiscountCeiling = orderPolicy
@@ -758,6 +767,9 @@ export function computeProformaAmounts(
   const taxable = subtotal - volumeDiscount - discount;
   const vatAmount = Math.round(taxable * vatRate);
   const total = taxable + vatAmount;
+  if (![volumeDiscount, discount, taxable, vatAmount, total].every(Number.isSafeInteger) || total < 0) {
+    throw new UnsafeMoneyTotalError('unsafe proforma total');
+  }
   return {
     subtotal,
     weightKg,
@@ -807,7 +819,8 @@ export async function issueProforma(
     getOrderPolicy(),
     getVolumeDiscountPolicy(),
   ]);
-  const subtotal = lines.reduce((sum, line) => sum + (line.lineTotal ?? 0), 0);
+  const subtotal = sumToman(lines.map((line) => line.lineTotal ?? 0));
+  if (subtotal == null) throw new UnsafeMoneyTotalError('unsafe proforma subtotal');
   const maximumDiscount = maximumManualDiscountToman(subtotal, orderPolicy);
   if (discountToman > maximumDiscount) throw new ManualDiscountLimitError(maximumDiscount);
   const amounts = computeProformaAmounts(lines, vatRate, businessVerified, discountToman, volumePolicy.tiers, orderPolicy);
@@ -831,6 +844,7 @@ export async function issueProforma(
       // every display site already tests the amount, not the band.
       volumeTier: amounts.volumeDiscountToman > 0 ? amounts.resolved.tier.id : null,
       volumeDiscountLabel: amounts.volumeDiscountToman > 0 ? volumeDiscountLabel(amounts.resolved) : null,
+      volumePolicyVersion: volumePolicy.version,
       quotedWeightKg: amounts.weightKg > 0 ? amounts.weightKg : null,
       vatRate,
       vatAmount: amounts.vatAmount,

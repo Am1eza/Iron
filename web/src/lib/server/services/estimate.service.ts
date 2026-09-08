@@ -37,7 +37,7 @@ export async function estimateItems(items: Array<{ skuId: string; qty: number; u
 
   const lines: LineItem[] = items.map((item) => {
     const hit = byId.get(item.skuId);
-    const unitPrice = hit?.price && !freshness.isHidden(hit.price.updatedAt) ? hit.price.price : undefined;
+    const unitPrice = hit?.price && !hit.price.priceIsEstimated && !freshness.isHidden(hit.price.confirmedAt ?? hit.price.updatedAt) ? hit.price.price : undefined;
     // Same two functions `leads.service.priceItems` calls — this used to be a
     // hand-copied duplicate of that arithmetic and shipped the identical
     // qty-vs-weight bug. The SKU is the authority on the denomination; a
@@ -54,6 +54,8 @@ export async function estimateItems(items: Array<{ skuId: string; qty: number; u
       weightKg,
       unitPrice,
       lineTotal,
+      priceVersion: unitPrice != null ? hit?.price?.version : undefined,
+      priceConfirmedAt: unitPrice != null ? (hit?.price?.confirmedAt ?? hit?.price?.updatedAt)?.toISOString() : undefined,
     };
   });
 
@@ -300,7 +302,7 @@ export async function estimateProject(
     base.subCategory = subName;
     // Same cheapest-mill maths compareFactories runs — one implementation of
     // "which factory wins for this tonnage", not two.
-    const priced = sizeRows.filter((r) => !r.current.priceHidden && r.current.price > 0);
+    const priced = sizeRows.filter((r) => !r.current.priceHidden && !r.current.priceIsEstimated && r.current.price > 0);
     const split = priced.length > 0 ? computeBulkSplit(priced, kg / 1000) : null;
     const winner = split?.cheapest ?? null;
     const winnerRow = winner ? sizeRows.find((r) => r.factory === winner.factory) : undefined;
@@ -322,7 +324,7 @@ export async function estimateProject(
 
   const allPriced = lines.every((l) => typeof l.lineToman === 'number');
   const costToman = allPriced ? lines.reduce((s, l) => s + (l.lineToman ?? 0), 0) : undefined;
-  const pricedRows = structural.filter((r) => !r.current.priceHidden && r.current.price > 0);
+  const pricedRows = structural.filter((r) => !r.current.priceHidden && !r.current.priceIsEstimated && r.current.price > 0);
   const avg =
     pricedRows.length > 0
       ? Math.round(pricedRows.reduce((s, r) => s + r.current.price, 0) / pricedRows.length)

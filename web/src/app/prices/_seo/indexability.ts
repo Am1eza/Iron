@@ -106,8 +106,8 @@ export function skuIsIndexable(): boolean {
  * are the same fact: there is nothing to show. The public surfaces already
  * render «تماس بگیرید» off this flag; the metadata now agrees with them.
  */
-export function skuHasPublishedPrice(row: { current?: { priceHidden?: boolean } }): boolean {
-  return !row.current?.priceHidden;
+export function skuHasPublishedPrice(row: { current?: { priceHidden?: boolean; priceIsEstimated?: boolean } }): boolean {
+  return !row.current?.priceHidden && !row.current?.priceIsEstimated;
 }
 
 /**

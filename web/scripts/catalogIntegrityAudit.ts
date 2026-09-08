@@ -17,7 +17,7 @@ const checks: Check[] = [
   { name: 'duplicate_category_slug', sql: `select slug,count(*) from categories group by slug having count(*)>1` },
   { name: 'duplicate_subcategory_slug', sql: `select category_id,slug,count(*) from sub_categories group by category_id,slug having count(*)>1` },
   { name: 'duplicate_sku_slug', sql: `select slug,count(*) from skus group by slug having count(*)>1` },
-  { name: 'duplicate_structural_sku', sql: `select sub_category_id,identity_key,count(*) from skus group by sub_category_id,identity_key having count(*)>1 limit 25` },
+  { name: 'duplicate_structural_sku', sql: `select sub_category_id,identity_key,coalesce(branch_length_m,-1) as length_key,count(*) from skus group by sub_category_id,identity_key,coalesce(branch_length_m,-1) having count(*)>1 limit 25` },
   { name: 'invalid_numeric_or_enum', sql: `select id from skus where "order" not between 0 and 10000 or theoretical_weight_kg<=0 or theoretical_weight_kg>100000 or branch_length_m<=0 or branch_length_m>100 or unit not in ('kg','branch','sheet','meter','piece','sqm') or price_basis not in ('kg','branch','coil','sheet','piece','sqm') limit 25` },
   { name: 'weight_required_for_kg_priced_counted_item', sql: `select id,name from skus where unit in ('branch','sheet','piece') and price_basis='kg' and theoretical_weight_kg is null limit 25` },
   { name: 'branch_basis_without_length', sql: `select id,name from skus where price_basis='branch' and branch_length_m is null limit 25` },

@@ -585,7 +585,7 @@ export const adminApi = {
     http.get<{ rows: PriceRow[]; withoutPrice: string[] }>(
       `/api/admin/pricing?cat=${encodeURIComponent(cat)}${sub ? `&sub=${encodeURIComponent(sub)}` : ''}`,
     ),
-  savePrices: (prices: Array<{ skuId: string; price: number; deliveryTime?: string; vatIncluded?: boolean }>) =>
+  savePrices: (prices: Array<{ skuId: string; price: number; deliveryTime?: string; vatIncluded?: boolean; confirmAnomaly?: boolean }>) =>
     http.put<{
       results: Array<
         | { ok: true; skuId: string; price: number; movementPct: number | null; movementDir: string }
@@ -611,6 +611,8 @@ export const adminApi = {
     http.get<{ points: PricePoint[]; range: string }>(
       `/api/admin/pricing/history/${encodeURIComponent(slug)}?range=${encodeURIComponent(range)}`,
     ),
+  rollbackPrice: (input: { skuId: string; targetVersion: string; expectedCurrentVersion: string }) =>
+    http.post<{ skuId: string; price: number; version: string }>('/api/admin/pricing/rollback', input),
 
   /* automated price mirroring (US-02.5) */
   priceSync: {

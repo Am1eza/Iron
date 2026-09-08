@@ -106,7 +106,7 @@ describe('compareFactories tool', () => {
     // threshold (PRICE_STALE_HIDE_AFTER_DAYS) — toPriceRow then reports it
     // as price:0, priceHidden:true, exactly like a real stale row.
     const longAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    await db.update(schema.currentPrices).set({ updatedAt: longAgo }).where(eq(schema.currentPrices.skuId, target.id));
+    await db.update(schema.currentPrices).set({ confirmedAt: longAgo }).where(eq(schema.currentPrices.skuId, target.id));
 
     const hiddenRow = (await tableRows('ibeam')).find((r) => r.id === target.id)!;
     expect(hiddenRow.current.priceHidden).toBe(true);

@@ -143,7 +143,7 @@ export default async function HomePage() {
   // its native category and the category it is cross-listed into, and a
   // trust number must not count one product twice.
   const allRows = [...new Map([...rowsBySlug.values()].flat().map((r) => [r.id, r])).values()];
-  const pricedRows = allRows.filter((r) => !r.current.priceHidden);
+  const pricedRows = allRows.filter((r) => !r.current.priceHidden && !r.current.priceIsEstimated);
   const skuCount = pricedRows.length;
   // Mills are counted over the same priced rows, for the same reason: the
   // sentence describes catalog labels, not verified direct-supply relationships.
