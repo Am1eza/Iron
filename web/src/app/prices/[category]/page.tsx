@@ -131,7 +131,7 @@ export default async function CategoryPage({ params }: Params) {
               <PriceTable
                 rows={rows}
                 subs={subs}
-                categoryName={cat.name}
+                category={cat}
                 categorySlug={category}
                 vatRate={vatRate}
                 factoryOrder={factoryOrder}

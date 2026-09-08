@@ -4,6 +4,7 @@ import { routes } from '@/lib/routes';
 import { FOOTER_COLUMNS, CHANNELS } from '@/lib/data/nav';
 import type { SiteContact } from '@/lib/server/contact';
 import { localizeDigits } from '@/lib/utils/format';
+import { getLocalizedName } from '@/lib/utils/localizedNames';
 import type { Category } from '@/lib/types/domain';
 import type { AppLocale } from '@/i18n/config';
 import { Logo } from './Logo';
@@ -58,7 +59,7 @@ export function Footer({ categories, contact }: { categories: Category[]; contac
             {categories.map((c) => (
               <li key={c.id}>
                 <Link href={routes.category(c.slug)} className={styles.link}>
-                  {c.name}
+                  {getLocalizedName(c, locale)}
                 </Link>
               </li>
             ))}

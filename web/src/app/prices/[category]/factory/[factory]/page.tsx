@@ -103,7 +103,7 @@ export default async function FactoryLandingPage({ params }: Params) {
           <PriceTable
             rows={rows}
             subs={subs}
-            categoryName={cat.name}
+            category={cat}
             categorySlug={category}
             vatRate={vatRate}
             factoryOrder={factoryOrder}

@@ -241,7 +241,9 @@
       "railAria": "Product categories",
       "subsOf": "Sub-categories of {name}",
       "mainCategories": "Main categories",
-      "noSubs": "No sub-category is registered for {name} yet; see this category’s price table."
+      "noSubs": "No sub-category is registered for {name} yet; see this category’s price table.",
+      "factoriesOf": "Mills carrying {name}",
+      "viewPriceTable": "View {name} price table"
     },
     "compare": {
       "title": "One product, every mill",
@@ -460,5 +462,20 @@
     "totalWeight": "Total weight: {weight} kg",
     "estimateLabel": "Estimate: {amount}",
     "addToCart": "Add to inquiry cart"
+  },
+  "priceTable": {
+    "addToCompare": "Add {name} to comparison",
+    "addedToCart": "{name} was added to your inquiry cart.",
+    "viewCart": "View Cart",
+    "priceChart": "Price Chart",
+    "priceChartFor": "{name} Price Chart",
+    "chooseQtyForCheapest": "Choose quantity for the cheaper option ({name})",
+    "addCheapestToCart": "Add the cheaper option ({name}) to cart"
+  },
+  "skuDetail": {
+    "shareText": "Today's price for {name} on Ahantime",
+    "sampleOf": "Sample of {name}",
+    "technicalSpecs": "Technical Specifications",
+    "technicalSpecsOf": "Technical specifications for {name}"
   }
 }

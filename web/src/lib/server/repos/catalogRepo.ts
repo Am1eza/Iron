@@ -8,6 +8,7 @@ import { and, asc, desc, eq, gte, ilike, inArray, isNull, ne, or, sql } from 'dr
 import { getDb } from '@/lib/server/db/client';
 import { categories, subCategories, skus, currentPrices, pricePoints, factoryOrder } from '@/lib/server/db/schema';
 import type { Category, SubCategory, PriceRow, PricePoint } from '@/lib/types/domain';
+import type { SubCat } from '@/lib/data/nav';
 import { getPriceFreshness } from '@/lib/server/services/priceFreshness';
 import { normalizeDigits, toPersianDigits } from '@/lib/utils/format';
 import { likeContains } from '@/lib/server/utils/likeEscape';
@@ -122,6 +123,9 @@ export async function listCategories(): Promise<Category[]> {
     id: c.id,
     slug: c.slug,
     name: c.name,
+    nameEn: c.nameEn ?? undefined,
+    nameAr: c.nameAr ?? undefined,
+    nameZh: c.nameZh ?? undefined,
     order: c.order,
     iconId: c.iconId,
     imageUrl: c.imageUrl ?? undefined,
@@ -140,6 +144,9 @@ export async function findCategoryBySlug(slug: string): Promise<Category | null>
     id: c.id,
     slug: c.slug,
     name: c.name,
+    nameEn: c.nameEn ?? undefined,
+    nameAr: c.nameAr ?? undefined,
+    nameZh: c.nameZh ?? undefined,
     order: c.order,
     iconId: c.iconId,
     imageUrl: c.imageUrl ?? undefined,
@@ -156,14 +163,15 @@ export async function findCategoryBySlug(slug: string): Promise<Category | null>
  * `jsonb_array_elements_text` unnests the tag array; the lateral join is
  * one SKU-row fan-out per tag, cheap at this catalog's size.
  */
-async function crossListedSubsByCategory(): Promise<
-  Record<string, Array<{ slug: string; name: string; groupLabel: string | null }>>
-> {
+async function crossListedSubsByCategory(): Promise<Record<string, SubCat[]>> {
   const db = getDb();
   const result = await db.execute<{
     targetCatSlug: string;
     slug: string;
     name: string;
+    nameEn: string | null;
+    nameAr: string | null;
+    nameZh: string | null;
     groupLabel: string | null;
     subOrder: number;
   }>(sql`
@@ -171,6 +179,9 @@ async function crossListedSubsByCategory(): Promise<
       target_cat.slug AS "targetCatSlug",
       sub.slug AS slug,
       sub.name AS name,
+      sub.name_en AS "nameEn",
+      sub.name_ar AS "nameAr",
+      sub.name_zh AS "nameZh",
       sub.group_label AS "groupLabel",
       sub."order" AS "subOrder"
     FROM ${skus} s
@@ -180,9 +191,24 @@ async function crossListedSubsByCategory(): Promise<
     WHERE s.cross_listed_category_ids IS NOT NULL
     ORDER BY target_cat.slug, sub.slug, sub."order"
   `);
-  const out: Record<string, Array<{ slug: string; name: string; groupLabel: string | null }>> = {};
-  for (const r of rowsOf<{ targetCatSlug: string; slug: string; name: string; groupLabel: string | null }>(result)) {
-    (out[r.targetCatSlug] ??= []).push({ slug: r.slug, name: r.name, groupLabel: r.groupLabel });
+  const out: Record<string, SubCat[]> = {};
+  for (const r of rowsOf<{
+    targetCatSlug: string;
+    slug: string;
+    name: string;
+    nameEn: string | null;
+    nameAr: string | null;
+    nameZh: string | null;
+    groupLabel: string | null;
+  }>(result)) {
+    (out[r.targetCatSlug] ??= []).push({
+      slug: r.slug,
+      name: r.name,
+      nameEn: r.nameEn ?? undefined,
+      nameAr: r.nameAr ?? undefined,
+      nameZh: r.nameZh ?? undefined,
+      groupLabel: r.groupLabel,
+    });
   }
   return out;
 }
@@ -193,15 +219,16 @@ async function crossListedSubsByCategory(): Promise<
  *  Also folds in cross-listed sub-categories (see crossListedSubsByCategory)
  *  so a hub category like «استیل» offers real filter options even though it
  *  owns no sub-categories of its own. */
-export async function listAllSubCategories(): Promise<
-  Record<string, Array<{ slug: string; name: string; groupLabel: string | null }>>
-> {
+export async function listAllSubCategories(): Promise<Record<string, SubCat[]>> {
   const [rows, crossListed] = await Promise.all([
     getDb()
       .select({
         catSlug: categories.slug,
         slug: subCategories.slug,
         name: subCategories.name,
+        nameEn: subCategories.nameEn,
+        nameAr: subCategories.nameAr,
+        nameZh: subCategories.nameZh,
         groupLabel: subCategories.groupLabel,
       })
       .from(subCategories)
@@ -209,8 +236,16 @@ export async function listAllSubCategories(): Promise<
       .orderBy(asc(subCategories.order), asc(subCategories.id)),
     crossListedSubsByCategory(),
   ]);
-  const out: Record<string, Array<{ slug: string; name: string; groupLabel: string | null }>> = {};
-  for (const r of rows) (out[r.catSlug] ??= []).push({ slug: r.slug, name: r.name, groupLabel: r.groupLabel });
+  const out: Record<string, SubCat[]> = {};
+  for (const r of rows)
+    (out[r.catSlug] ??= []).push({
+      slug: r.slug,
+      name: r.name,
+      nameEn: r.nameEn ?? undefined,
+      nameAr: r.nameAr ?? undefined,
+      nameZh: r.nameZh ?? undefined,
+      groupLabel: r.groupLabel,
+    });
   for (const [catSlug, subs] of Object.entries(crossListed)) {
     const existing = out[catSlug] ?? [];
     const seen = new Set(existing.map((s) => s.slug));
@@ -232,6 +267,9 @@ export async function listSubCategories(categorySlug: string): Promise<SubCatego
     categoryId: sub.categoryId,
     slug: sub.slug,
     name: sub.name,
+    nameEn: sub.nameEn ?? undefined,
+    nameAr: sub.nameAr ?? undefined,
+    nameZh: sub.nameZh ?? undefined,
     groupLabel: sub.groupLabel,
     order: sub.order,
   }));

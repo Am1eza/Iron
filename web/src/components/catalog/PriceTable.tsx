@@ -4,6 +4,7 @@ import { flushSync } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useTranslations, useLocale } from 'next-intl';
 import { useCartStore } from '@/lib/stores/cart';
 import { useToast } from '@/lib/hooks/useToast';
 import { useAuth } from '@/lib/hooks/useAuth';
@@ -36,8 +37,10 @@ import { formatJalali } from '@/lib/utils/jalali';
 import { trackGoal } from '@/lib/analytics/track';
 import { API_MODE } from '@/lib/api/config';
 import { api } from '@/lib/api';
-import type { PriceRow } from '@/lib/types/domain';
+import type { PriceRow, Category } from '@/lib/types/domain';
 import type { SubCat } from '@/lib/data/nav';
+import { getLocalizedName, getLocalizedSkuName } from '@/lib/utils/localizedNames';
+import type { AppLocale } from '@/i18n/config';
 import { MovementBadge, DeliveryBadge, Switch, Chip } from '@/components/ui';
 import { IconButton } from '@/components/ui';
 import { Modal, PriceChart, KgQuantityModal } from '@/components/lazy';
@@ -246,6 +249,8 @@ function SectionShell({
  */
 const PriceTableRow = memo(function PriceTableRow({
   row: r,
+  category,
+  subCategory,
   vat,
   vatRate,
   isFav,
@@ -265,6 +270,9 @@ const PriceTableRow = memo(function PriceTableRow({
   weightCol,
 }: {
   row: PriceRow;
+  /** For `getLocalizedSkuName` — see PriceTable's own `category` doc comment. */
+  category: Category;
+  subCategory: SubCat | undefined;
   vat: boolean;
   vatRate: number;
   isFav: boolean;
@@ -306,6 +314,13 @@ const PriceTableRow = memo(function PriceTableRow({
   /** «وزن شاخه»/«وزن» — same lockstep rule, from `weightLabel(categorySlug)`. */
   weightCol: string;
 } & RowActions) {
+  const t = useTranslations('priceTable');
+  const locale = useLocale() as AppLocale;
+  // `getLocalizedSkuName` falls back to `r.name` (fa) unchanged whenever
+  // either parent lacks a real translation — see that function's own
+  // comment for why a partially-translated name is worse than an honest
+  // all-Persian one.
+  const displayName = getLocalizedSkuName(r, category, subCategory, locale);
   const hiddenLabel = priceHiddenLabel(r.current);
   return (
     <tr role="row" className={styles.row}>
@@ -318,7 +333,7 @@ const PriceTableRow = memo(function PriceTableRow({
             type="checkbox"
             checked={compareChecked}
             onChange={() => onToggleCompare(r.id)}
-            aria-label={`افزودن ${r.name} به مقایسه`}
+            aria-label={t('addToCompare', { name: displayName })}
           />
         </label>
       </td>
@@ -338,7 +353,7 @@ const PriceTableRow = memo(function PriceTableRow({
           className={styles.nameLink}
           prefetch={false}
         >
-          {r.name}
+          {displayName}
         </Link>
       </th>
       {/* The size is the tail of the product name, so the card form drops this
@@ -430,7 +445,7 @@ const PriceTableRow = memo(function PriceTableRow({
             icon={<HeartIcon size={18} filled={isFav} />}
             onClick={() => onToggleFav(r.id)}
           />
-          {!hiddenLabel ? <AlertBellButton target={{ type: 'sku', skuId: r.id, label: r.name, currentValue: r.current.price }} /> : null}
+          {!hiddenLabel ? <AlertBellButton target={{ type: 'sku', skuId: r.id, label: displayName, currentValue: r.current.price }} /> : null}
           <IconButton
             size="sm"
             label="نمودار قیمت"
@@ -482,7 +497,7 @@ const PriceTableRow = memo(function PriceTableRow({
 export function PriceTable({
   rows,
   subs,
-  categoryName,
+  category,
   sub: subProp,
   onSubChange,
   initialSub = null,
@@ -492,7 +507,12 @@ export function PriceTable({
 }: {
   rows: PriceRow[];
   subs: SubCat[];
-  categoryName: string;
+  /** Full category object (not just the fa `name`) — needed for
+   *  `getLocalizedName`/`getLocalizedSkuName` (i18n audit follow-up):
+   *  product/section names shown in a non-fa locale are composed from this
+   *  plus each row's matching entry in `subs`, not read from a per-row
+   *  translated column (`skus` has none — see localizedNames.ts). */
+  category: Category;
   /** Slug of the category this table is rendered for. Only used to label the
    *  `size` column — ورق measures thickness, not size (see catalogLabels).
    *  Taken from the page's own category rather than a row's, so a page that
@@ -518,6 +538,9 @@ export function PriceTable({
    *  behaves exactly as it did before this existed. */
   factoryOrder?: string[];
 }) {
+  const t = useTranslations('priceTable');
+  const locale = useLocale() as AppLocale;
+  const categoryName = getLocalizedName(category, locale);
   const weightCol = weightLabel(categorySlug);
   const subGroups = useMemo(() => groupByLabel(subs), [subs]);
   const add = useCartStore((s) => s.add);
@@ -942,9 +965,21 @@ export function PriceTable({
 
   const addRowToCart = useCallback(
     (r: PriceRow, qty: number) => {
+      // Cart items store the name as a plain string at add-time (see
+      // CartView/lib/stores/cart) rather than category/sub ids it could
+      // re-localize from later — so this reflects whatever locale is active
+      // right now, not a value that updates if the visitor switches locale
+      // afterward. A fuller fix (storing ids, composing at cart-render time)
+      // is a cart-data-model change out of scope here; see the i18n audit.
+      const localizedRowName = getLocalizedSkuName(
+        r,
+        category,
+        subs.find((s) => s.slug === r.subCategoryId),
+        locale,
+      );
       add({
         skuId: r.id,
-        name: r.name,
+        name: localizedRowName,
         qty,
         unit: r.unit,
         unitPrice: r.current.price,
@@ -952,12 +987,12 @@ export function PriceTable({
         weightKg: r.theoreticalWeightKg,
       });
       trackGoal('add-to-cart', r.categoryId, r.name);
-      toast.success(`${r.name} به سبد استعلام اضافه شد.`, {
-        label: 'مشاهده سبد',
+      toast.success(t('addedToCart', { name: localizedRowName }), {
+        label: t('viewCart'),
         href: routes.cart(),
       });
     },
-    [add, toast],
+    [add, toast, category, subs, locale, t],
   );
 
   // «۱ کیلوگرم میلگرد» is not a purchasable unit (audit finding) — a kg-basis
@@ -1395,6 +1430,8 @@ export function PriceTable({
                         <PriceTableRow
                           key={r.id}
                           row={r}
+                          category={category}
+                          subCategory={subs.find((s) => s.slug === r.subCategoryId)}
                           vat={factoryVat}
                           vatRate={vatRate}
                           isFav={fav.has(r.id)}
@@ -1428,7 +1465,18 @@ export function PriceTable({
       <Modal
         open={chartFor !== null}
         onClose={() => setChartFor(null)}
-        title={chartFor ? `نمودار قیمت ${chartFor.name}` : 'نمودار قیمت'}
+        title={
+          chartFor
+            ? t('priceChartFor', {
+                name: getLocalizedSkuName(
+                  chartFor,
+                  category,
+                  subs.find((s) => s.slug === chartFor.subCategoryId),
+                  locale,
+                ),
+              })
+            : t('priceChart')
+        }
         footer={
           chartFor ? (
             <button
@@ -1482,9 +1530,17 @@ export function PriceTable({
                   button silently failed when a *different*, seemingly
                   unrelated modal opened instead (audit finding, 2026-08-26).
                   Say what's actually about to happen. */}
-              {cheapestForCompare.priceBasis === 'kg'
-                ? `انتخاب مقدار برای گزینهٔ ارزان‌تر (${cheapestForCompare.name})`
-                : `افزودن گزینهٔ ارزان‌تر (${cheapestForCompare.name}) به سبد`}
+              {(() => {
+                const cheapestName = getLocalizedSkuName(
+                  cheapestForCompare,
+                  category,
+                  subs.find((s) => s.slug === cheapestForCompare.subCategoryId),
+                  locale,
+                );
+                return cheapestForCompare.priceBasis === 'kg'
+                  ? t('chooseQtyForCheapest', { name: cheapestName })
+                  : t('addCheapestToCart', { name: cheapestName });
+              })()}
             </button>
           ) : undefined
         }
@@ -1505,7 +1561,7 @@ export function PriceTable({
                         href={routes.sku(r.categoryId, r.subCategoryId, r.slug)}
                         onClick={() => setCompareOpen(false)}
                       >
-                        {r.name}
+                        {getLocalizedSkuName(r, category, subs.find((s) => s.slug === r.subCategoryId), locale)}
                       </Link>
                     </td>
                   ))}

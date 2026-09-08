@@ -60,8 +60,18 @@ export const TOOLS_NAV: NavLink[] = [
 /** A sub-category as the UI consumes it. Slugs are ASCII (URL), names Persian
  *  (display). Structural type only — says nothing about where the data is from.
  *  `groupLabel` optional here (mock fixture predates it, entries default to
- *  ungrouped) but present as `string | null` on the live DB-backed shape. */
-export type SubCat = { slug: string; name: string; groupLabel?: string | null };
+ *  ungrouped) but present as `string | null` on the live DB-backed shape.
+ *  `nameEn/Ar/Zh` — see `Category.nameEn` in lib/types/domain.ts for the
+ *  same rationale; use `getLocalizedName` (lib/utils/localizedNames.ts)
+ *  rather than reading these directly. */
+export type SubCat = {
+  slug: string;
+  name: string;
+  nameEn?: string;
+  nameAr?: string;
+  nameZh?: string;
+  groupLabel?: string | null;
+};
 
 /**
  * ⚠️ MOCK/SEED FIXTURE — **NOT** the live taxonomy. Do not read this to answer

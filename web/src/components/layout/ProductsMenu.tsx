@@ -13,6 +13,7 @@ import { SubCategoryArt } from '@/components/catalog/SubCategoryArt';
 import { productImage } from '@/lib/data/productImages';
 import { groupSubCategories } from '@/lib/utils/catalogGroups';
 import { localizeDigits } from '@/lib/utils/format';
+import { getLocalizedName } from '@/lib/utils/localizedNames';
 import type { AppLocale } from '@/i18n/config';
 import { ChevronStartIcon } from '@/components/primitives/icons';
 import { NavDropdown } from './NavDropdown';
@@ -217,7 +218,7 @@ export function ProductsMenu({ categories, subs }: { categories: Category[]; sub
                         <CategoryArt slug={cat.slug} size={20} />
                       )}
                     </span>
-                    <span className={styles.railName}>{cat.name}</span>
+                    <span className={styles.railName}>{getLocalizedName(cat, locale)}</span>
                     {/* The sub-category count, for screen readers ONLY. It used
                         to be a visible pill beside every rail row, and it was
                         internal metadata leaking into the shop: nobody picks
@@ -290,6 +291,8 @@ function CategoryPanel({
 }) {
   const tDrawer = useTranslations('drawer');
   const tBrowse = useTranslations('home.browse');
+  const locale = useLocale() as AppLocale;
+  const catName = getLocalizedName(cat, locale);
   const groups = groupSubCategories(subs);
   /**
    * Column count is a function of how many LINES the flow will draw, not of
@@ -315,12 +318,12 @@ function CategoryPanel({
           {/* A real heading, not styled text: the panel is a named section of
               the navigation and both a screen reader and a parser should be
               able to tell that «ورق» heads the list of ورق sub-categories. */}
-          <h2 className={styles.panelTitle}>{cat.name}</h2>
+          <h2 className={styles.panelTitle}>{catName}</h2>
           {/* Descriptive link text — «قیمت روز ورق» says what is on the other
               side of the click; a generic «مشاهده» says nothing to a reader
               scanning, and nothing to an answer engine reading anchor text. */}
           <Link href={routes.category(cat.slug)} className={styles.panelAll}>
-            {tDrawer('todayPriceOf', { name: cat.name })}
+            {tDrawer('todayPriceOf', { name: catName })}
             <ChevronStartIcon size={14} className="icon--rtl" />
           </Link>
         </div>
@@ -376,7 +379,7 @@ function CategoryPanel({
         </div>
 
         {subs.length === 0 ? (
-          <p className={styles.panelEmpty}>{tBrowse('noSubs', { name: cat.name })}</p>
+          <p className={styles.panelEmpty}>{tBrowse('noSubs', { name: catName })}</p>
         ) : (
           <ul className={styles.groups} data-cols={columnsFor(rows, groups.length)}>
             {groups.map((group) => {
@@ -403,7 +406,7 @@ function CategoryPanel({
                           size={16}
                         />
                       </span>
-                      {group.lead.name}
+                      {getLocalizedName(group.lead, locale)}
                     </Link>
                   ) : group.label ? (
                     <p className={styles.groupLabel}>
@@ -462,7 +465,7 @@ function CategoryPanel({
                                 />
                               </span>
                             )}
-                            {s.name}
+                            {getLocalizedName(s, locale)}
                           </Link>
                         </li>
                       ))}

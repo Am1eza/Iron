@@ -62,7 +62,7 @@ function renderTable(props: Partial<Parameters<typeof PriceTable>[0]> = {}) {
       <PriceTable
         rows={IBEAM_ROWS}
         subs={IBEAM_SUBS}
-        categoryName="تیرآهن"
+        category={{ id: 'ibeam', slug: 'ibeam', name: 'تیرآهن', order: 0, iconId: '' }}
         categorySlug="ibeam"
         {...props}
       />
@@ -149,7 +149,7 @@ describe('PriceTable — the تیرآهن grade → standard column', () => {
     // plain «گرید» once it is the SELECTED sub, same as before.
     renderTable({
       categorySlug: 'wire',
-      categoryName: 'کلاف و مفتول',
+      category: { id: 'wire', slug: 'wire', name: 'کلاف و مفتول', order: 0, iconId: '' },
       rows: [row('wire-1', 'plain', { grade: 'A3' }), row('wire-2', 'plain')],
       subs: [{ slug: 'plain', name: 'ساده', groupLabel: null }],
     });
@@ -169,7 +169,7 @@ describe('PriceTable — the تیرآهن grade → standard column', () => {
     // a value stored in `skus.standard` must NOT leak into it.
     renderTable({
       categorySlug: 'rebar',
-      categoryName: 'میلگرد',
+      category: { id: 'rebar', slug: 'rebar', name: 'میلگرد', order: 0, iconId: '' },
       rows: [
         row('rebar-1', 'deformed', { grade: 'A3' }),
         row('rebar-2', 'deformed', { standard: 'ISIRI 3132' }),
@@ -186,7 +186,7 @@ describe('PriceTable — the تیرآهن grade → standard column', () => {
   it('renders the independent ورق condition and keeps the guarded legacy fallback', async () => {
     renderTable({
       categorySlug: 'sheet',
-      categoryName: 'ورق',
+      category: { id: 'sheet', slug: 'sheet', name: 'ورق', order: 0, iconId: '' },
       rows: [
         row('sheet-new', 'black', { condition: 'رول' }),
         row('sheet-legacy', 'black', { grade: 'برش خورده' }),

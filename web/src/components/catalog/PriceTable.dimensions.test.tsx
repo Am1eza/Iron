@@ -50,7 +50,7 @@ function renderTable(initialSub: string | null) {
       <PriceTable
         rows={SUBS.map((sub) => row(sub.slug))}
         subs={SUBS}
-        categoryName="نبشی و ناودانی"
+        category={{ id: 'angle-channel', slug: 'angle-channel', name: 'نبشی و ناودانی', order: 0, iconId: '' }}
         categorySlug="angle-channel"
         initialSub={initialSub}
       />

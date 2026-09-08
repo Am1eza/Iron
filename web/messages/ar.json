@@ -241,7 +241,9 @@
       "railAria": "فئات المنتجات",
       "subsOf": "الفئات الفرعية لـ {name}",
       "mainCategories": "الفئات الرئيسية",
-      "noSubs": "لا توجد فئة فرعية مسجلة لـ {name} بعد؛ راجع جدول أسعار هذه الفئة."
+      "noSubs": "لا توجد فئة فرعية مسجلة لـ {name} بعد؛ راجع جدول أسعار هذه الفئة.",
+      "factoriesOf": "مصانع {name}",
+      "viewPriceTable": "عرض جدول أسعار {name}"
     },
     "compare": {
       "title": "منتج واحد، جميع المصانع",
@@ -460,5 +462,20 @@
     "totalWeight": "الوزن الإجمالي: {weight} كجم",
     "estimateLabel": "التقدير: {amount}",
     "addToCart": "إضافة إلى سلة الاستعلام"
+  },
+  "priceTable": {
+    "addToCompare": "إضافة {name} إلى المقارنة",
+    "addedToCart": "تمت إضافة {name} إلى سلة الاستعلام.",
+    "viewCart": "عرض السلة",
+    "priceChart": "مخطط السعر",
+    "priceChartFor": "مخطط سعر {name}",
+    "chooseQtyForCheapest": "اختيار الكمية للخيار الأرخص ({name})",
+    "addCheapestToCart": "إضافة الخيار الأرخص ({name}) إلى السلة"
+  },
+  "skuDetail": {
+    "shareText": "سعر اليوم لـ {name} في آهن‌تايم",
+    "sampleOf": "نموذج {name}",
+    "technicalSpecs": "المواصفات الفنية",
+    "technicalSpecsOf": "المواصفات الفنية لـ {name}"
   }
 }

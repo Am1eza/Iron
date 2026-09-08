@@ -31,7 +31,10 @@ import {
 } from '@/lib/mock/catalogData';
 import { categories } from '@/lib/mock/fixtures';
 import type { SubCat } from '@/lib/data/nav';
-import type { PriceRow } from '@/lib/types/domain';
+import type { PriceRow, Category } from '@/lib/types/domain';
+import { useTranslations, useLocale } from 'next-intl';
+import { getLocalizedSkuName, getLocalizedName } from '@/lib/utils/localizedNames';
+import type { AppLocale } from '@/i18n/config';
 import type { LogisticsConfig } from '@/lib/data/logistics';
 import {
   Breadcrumbs,
@@ -69,6 +72,7 @@ import styles from './SkuDetail.module.css';
  */
 export function SkuDetail({
   row,
+  category,
   related: relatedProp,
   series: seriesProp,
   dates: datesProp,
@@ -80,6 +84,11 @@ export function SkuDetail({
   vatRate = CONSTANTS.VAT_RATE,
 }: {
   row: PriceRow;
+  /** For `getLocalizedSkuName` (i18n audit follow-up) — see that function's
+   *  own comment. Undefined only in the unreachable case where the row's
+   *  own category slug doesn't resolve, and the composer already falls back
+   *  to the fa `row.name` when this is missing. */
+  category?: Category;
   /** Server-provided (live mode); mock fallbacks apply when absent. */
   related?: PriceRow[];
   series?: number[];
@@ -108,6 +117,22 @@ export function SkuDetail({
   const { isAuthenticated } = useAuth();
   const [vat, setVat] = useState(false);
   const qc = useQueryClient();
+  const t = useTranslations('skuDetail');
+  const tNav = useTranslations('nav');
+  // Reused rather than duplicated under `skuDetail` — same concept
+  // (add-to-cart confirmation), same wording, as PriceTable's toast.
+  const tPriceTable = useTranslations('priceTable');
+  const locale = useLocale() as AppLocale;
+  // Falls back to `row.name` (fa) unchanged whenever `category` or the
+  // matching sub-category lacks a real translation for this locale — see
+  // `getLocalizedSkuName`'s own comment for why a partially-translated name
+  // is worse than an honest all-Persian one.
+  const displayName = getLocalizedSkuName(
+    row,
+    category,
+    categorySubs?.find((s) => s.slug === row.subCategoryId),
+    locale,
+  );
 
   // Funnel measurement gap (conversion audit finding, 2026-08-26): every
   // OTHER trackGoal call site fires at the final submit, so there was no way
@@ -132,9 +157,20 @@ export function SkuDetail({
   });
   const faved = (favData?.favorites ?? []).some((f) => f.id === row.id);
 
-  const cat = categories.find((c) => c.slug === row.categoryId);
-  const categoryName = cat?.name ?? row.categoryId;
-  const subLabel = subLabelProp ?? mockSubName(row.categoryId, row.subCategoryId);
+  // Was `categories.find(...)` against the static mock fixture list (7
+  // hardcoded categories) regardless of live/mock mode — silently wrong for
+  // any live category not in that list (e.g. «استیل»/«فلزات رنگی», added to
+  // production after this fixture was last synced; see nav.ts's own header
+  // comment on that drift). `category` (the real prop, live-DB-backed) is
+  // the actual fix; the mock fixture is now used only as a last-resort
+  // fallback when no live category was ever passed in (mock-mode preview).
+  const categoryName = category
+    ? getLocalizedName(category, locale)
+    : (categories.find((c) => c.slug === row.categoryId)?.name ?? row.categoryId);
+  const subLabelEntity = categorySubs?.find((s) => s.slug === row.subCategoryId);
+  const subLabel = subLabelEntity
+    ? getLocalizedName(subLabelEntity, locale)
+    : (subLabelProp ?? mockSubName(row.categoryId, row.subCategoryId));
   const skuUrl = routes.sku(row.categoryId, row.subCategoryId, row.slug);
 
   // W23 audit fix: a stale-hidden price's `row.current.price` is a `0`
@@ -151,19 +187,19 @@ export function SkuDetail({
       : null;
 
   const crumbs = [
-    { label: 'خانه', href: routes.home() },
-    { label: 'قیمت‌ها', href: routes.prices() },
+    { label: tNav('home'), href: routes.home() },
+    { label: tNav('prices'), href: routes.prices() },
     { label: categoryName, href: routes.category(row.categoryId) },
     ...(subLabel
       ? [{ label: subLabel, href: routes.subCategory(row.categoryId, row.subCategoryId) }]
       : []),
-    { label: row.name },
+    { label: displayName },
   ];
 
   const addRowToCart = (qty: number) => {
     add({
       skuId: row.id,
-      name: row.name,
+      name: displayName,
       qty,
       unit: row.unit,
       unitPrice: row.current.price,
@@ -171,8 +207,8 @@ export function SkuDetail({
       weightKg: row.theoreticalWeightKg,
     });
     trackGoal('add-to-cart', row.categoryId, row.name);
-    toast.success(`${row.name} به سبد استعلام اضافه شد.`, {
-      label: 'مشاهده سبد',
+    toast.success(tPriceTable('addedToCart', { name: displayName }), {
+      label: tPriceTable('viewCart'),
       href: routes.cart(),
     });
   };
@@ -216,8 +252,8 @@ export function SkuDetail({
   const share = async () => {
     const url = typeof window !== 'undefined' ? window.location.href : skuUrl;
     const shareData = {
-      title: row.name,
-      text: `قیمت روز ${row.name} در آهن‌تایم`,
+      title: displayName,
+      text: t('shareText', { name: displayName }),
       url,
     };
     if (typeof navigator !== 'undefined' && navigator.share) {
@@ -344,7 +380,7 @@ export function SkuDetail({
               <span className={styles.crumbCat}>{categoryName}</span>
             </div>
             <h1 id="sku-title" className={styles.title}>
-              {row.name}
+              {displayName}
             </h1>
             <ul className={styles.attrs}>
               {row.size ? (
@@ -406,7 +442,7 @@ export function SkuDetail({
                 <ProductImage
                   slug={row.categoryId}
                   src={row.imageUrl}
-                  name={row.imageUrl ? row.name : `نمونه ${row.name}`}
+                  name={row.imageUrl ? displayName : t('sampleOf', { name: displayName })}
                   eager
                 />
               </figure>
@@ -489,7 +525,7 @@ export function SkuDetail({
                 target={{
                   type: 'sku',
                   skuId: row.id,
-                  label: row.name,
+                  label: displayName,
                   currentValue: row.current.price,
                 }}
               />
@@ -529,11 +565,11 @@ export function SkuDetail({
       {/* ===== Specs ===== */}
       <section className={styles.block} aria-labelledby="specs-title">
         <h2 id="specs-title" className={styles.blockTitle}>
-          مشخصات فنی
+          {t('technicalSpecs')}
         </h2>
         <div className={styles.card}>
           <table className={`${styles.specs} tnum`}>
-            <caption className="visually-hidden">مشخصات فنی {row.name}</caption>
+            <caption className="visually-hidden">{t('technicalSpecsOf', { name: displayName })}</caption>
             <tbody>
               {specs.map((s) => (
                 <tr key={s.label}>
@@ -608,7 +644,7 @@ export function SkuDetail({
       <KgQuantityModal
         open={kgQtyOpen}
         onClose={() => setKgQtyOpen(false)}
-        productName={row.name}
+        productName={displayName}
         branchWeightKg={row.theoreticalWeightKg}
         unitPrice={row.current.price}
         onConfirm={(qtyKg) => {

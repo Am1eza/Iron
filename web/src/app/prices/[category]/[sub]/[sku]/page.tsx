@@ -91,7 +91,8 @@ export default async function SkuPage({ params }: Params) {
   // panel can actually use.
   const subCategoryRows = categoryRows.filter((r) => r.subCategoryId === sub);
 
-  const catName = categories.find((c) => c.slug === category)?.name ?? category;
+  const cat = categories.find((c) => c.slug === category);
+  const catName = cat?.name ?? category;
   const categorySubs = (await getSubsMap())[category] ?? [];
   const subLabel = categorySubs.find((x) => x.slug === sub)?.name ?? sub;
   const crumbs = [
@@ -127,7 +128,7 @@ export default async function SkuPage({ params }: Params) {
         })}
       />
       <Section space={10}>
-        <SkuDetail row={row} related={related} series={series} dates={dates} categoryRows={subCategoryRows} billet={billet} subLabel={subLabel} categorySubs={categorySubs} logisticsConfig={logisticsConfig} vatRate={vatRate} />
+        <SkuDetail row={row} category={cat} related={related} series={series} dates={dates} categoryRows={subCategoryRows} billet={billet} subLabel={subLabel} categorySubs={categorySubs} logisticsConfig={logisticsConfig} vatRate={vatRate} />
       </Section>
     </Container>
   );

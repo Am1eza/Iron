@@ -241,7 +241,9 @@
       "railAria": "دسته‌بندی محصولات",
       "subsOf": "زیرشاخه‌های {name}",
       "mainCategories": "دسته‌بندی‌های اصلی",
-      "noSubs": "زیردسته‌ای برای {name} ثبت نشده است؛ جدول قیمت این دسته را ببینید."
+      "noSubs": "زیردسته‌ای برای {name} ثبت نشده است؛ جدول قیمت این دسته را ببینید.",
+      "factoriesOf": "کارخانه‌های {name}",
+      "viewPriceTable": "مشاهده جدول قیمت {name}"
     },
     "compare": {
       "title": "یک محصول، همهٔ کارخانه‌ها",
@@ -460,5 +462,20 @@
     "totalWeight": "وزن کل: {weight} کیلوگرم",
     "estimateLabel": "تخمین: {amount}",
     "addToCart": "افزودن به سبد استعلام"
+  },
+  "priceTable": {
+    "addToCompare": "افزودن {name} به مقایسه",
+    "addedToCart": "{name} به سبد استعلام اضافه شد.",
+    "viewCart": "مشاهده سبد",
+    "priceChart": "نمودار قیمت",
+    "priceChartFor": "نمودار قیمت {name}",
+    "chooseQtyForCheapest": "انتخاب مقدار برای گزینهٔ ارزان‌تر ({name})",
+    "addCheapestToCart": "افزودن گزینهٔ ارزان‌تر ({name}) به سبد"
+  },
+  "skuDetail": {
+    "shareText": "قیمت روز {name} در آهن‌تایم",
+    "sampleOf": "نمونه {name}",
+    "technicalSpecs": "مشخصات فنی",
+    "technicalSpecsOf": "مشخصات فنی {name}"
   }
 }

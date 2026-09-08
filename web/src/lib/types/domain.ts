@@ -125,6 +125,19 @@ export interface Category {
   id: string;
   slug: string;
   name: string;
+  /**
+   * Per-locale display names (i18n audit follow-up) — a one-time backfill
+   * over this small, bounded taxonomy, NOT admin-writable; `name` (fa)
+   * stays the only source of truth an admin edits. Undefined for a category
+   * added after that backfill, or when the target DB's real taxonomy has a
+   * slug the backfill script didn't know about — see `getLocalizedName` in
+   * `lib/utils/localizedNames.ts`, which is what every display site should
+   * call rather than reading these fields directly, since it's what applies
+   * the fa fallback.
+   */
+  nameEn?: string;
+  nameAr?: string;
+  nameZh?: string;
   order: number;
   iconId: string;
   imageUrl?: string;
@@ -152,6 +165,10 @@ export interface SubCategory {
   categoryId: string;
   slug: string;
   name: string;
+  /** Per-locale display names — same rationale as `Category.nameEn/Ar/Zh`. */
+  nameEn?: string;
+  nameAr?: string;
+  nameZh?: string;
   /** Display-only cluster label, not a real hierarchy level — see server/db/schema/catalog.ts. */
   groupLabel: string | null;
   order: number;

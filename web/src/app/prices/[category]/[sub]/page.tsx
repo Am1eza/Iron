@@ -164,7 +164,7 @@ export default async function SubCategoryPage({ params }: Params) {
               <PriceTable
                 rows={allRows}
                 subs={subs}
-                categoryName={cat.name}
+                category={cat}
                 categorySlug={category}
                 initialSub={sub}
                 vatRate={vatRate}

@@ -3,6 +3,7 @@ import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { listCategories, listAllSubCategories } from '@/lib/server/repos/catalogRepo';
 import { hasDb } from '@/lib/server/db/client';
+import type { SubCat } from '@/lib/data/nav';
 import { Container, Section, Stack, Grid, Heading, Text, Card, Breadcrumbs } from '@/components/ui';
 import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
 import { TenderEstimator } from '@/components/tender/TenderEstimator';
@@ -47,7 +48,7 @@ export default async function TenderPage() {
   // and repopulates once the ISR revalidate lands with real data.
   const [categories, subsByCat] = hasDb()
     ? await Promise.all([listCategories(), listAllSubCategories()])
-    : [[], {} as Record<string, { slug: string; name: string; groupLabel: string | null }[]>];
+    : [[], {} as Record<string, SubCat[]>];
 
   const catOptions = categories.map((c) => ({ slug: c.slug, name: c.name }));
   const subOptions: Record<string, { slug: string; name: string }[]> = {};

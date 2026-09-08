@@ -241,7 +241,9 @@
       "railAria": "产品分类",
       "subsOf": "{name} 的子分类",
       "mainCategories": "主要分类",
-      "noSubs": "{name}尚无已登记的子分类；请查看该分类的价格表。"
+      "noSubs": "{name}尚无已登记的子分类；请查看该分类的价格表。",
+      "factoriesOf": "{name}供应钢厂",
+      "viewPriceTable": "查看{name}价格表"
     },
     "compare": {
       "title": "同一产品，各家钢厂",
@@ -460,5 +462,20 @@
     "totalWeight": "总重量：{weight} 公斤",
     "estimateLabel": "预估：{amount}",
     "addToCart": "加入询价篮"
+  },
+  "priceTable": {
+    "addToCompare": "将{name}加入对比",
+    "addedToCart": "{name}已加入询价车。",
+    "viewCart": "查看购物车",
+    "priceChart": "价格走势图",
+    "priceChartFor": "{name}价格走势图",
+    "chooseQtyForCheapest": "为更便宜的选项({name})选择数量",
+    "addCheapestToCart": "将更便宜的选项({name})加入购物车"
+  },
+  "skuDetail": {
+    "shareText": "Ahantime上{name}的今日价格",
+    "sampleOf": "{name}样品",
+    "technicalSpecs": "技术规格",
+    "technicalSpecsOf": "{name}的技术规格"
   }
 }
