@@ -74,7 +74,14 @@ async function PUTImpl(req: NextRequest) {
   const fingerprint = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)))
     .map((byte) => byte.toString(16).padStart(2, '0'))
     .join('');
-  return withIdempotency(req, 'pricing.bulk', `${auth.session.id}:${fingerprint}:${Math.floor(Date.now() / 10_000)}`, async () => {
+  const bucket = Math.floor(Date.now() / 10_000);
+  const dedupeKey = `${auth.session.id}:${fingerprint}:${bucket}`;
+  // A retry landing just across the 10s bucket boundary (this is the
+  // slowest request in the app — up to 500 rows — so a client/network retry
+  // crossing the edge is realistic) must still find the original request via
+  // the previous bucket's key, same reasoning as /api/leads.
+  const prevBucketKey = `${auth.session.id}:${fingerprint}:${bucket - 1}`;
+  return withIdempotency(req, 'pricing.bulk', dedupeKey, async () => {
 
   // Per-row schema validation (see the `bulkPayload` comment above) — a row
   // that fails its OWN schema is reported in the exact same
@@ -121,7 +128,7 @@ async function PUTImpl(req: NextRequest) {
   }
   const status = failed.length > 0 && failed.length === results.length ? 422 : 200;
   return { status, body: { results, saved: results.length - failed.length, failed: failed.length } };
-  });
+  }, [prevBucketKey]);
 }
 
 export const GET = withApiErrorHandling(GETImpl);

@@ -17,6 +17,7 @@ ALTER TABLE "price_points" ALTER COLUMN "version" SET NOT NULL;--> statement-bre
 ALTER TABLE "price_points" ADD COLUMN "price_is_estimated" boolean DEFAULT false NOT NULL;--> statement-breakpoint
 ALTER TABLE "price_points" ADD COLUMN "actor_id" text;--> statement-breakpoint
 ALTER TABLE "price_points" ADD COLUMN "source" text DEFAULT 'admin' NOT NULL;--> statement-breakpoint
+UPDATE "price_points" SET "source" = 'legacy';--> statement-breakpoint
 ALTER TABLE "price_points" ADD COLUMN "source_event_key" text;--> statement-breakpoint
 ALTER TABLE "price_points" ADD COLUMN "source_published_label" text;--> statement-breakpoint
 ALTER TABLE "price_points" ADD CONSTRAINT "price_points_actor_id_users_id_fk" FOREIGN KEY ("actor_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
