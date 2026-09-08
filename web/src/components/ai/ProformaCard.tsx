@@ -1,9 +1,10 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
+import { useTranslations, useLocale } from 'next-intl';
 import { routes } from '@/lib/routes';
 import { api, isApiError } from '@/lib/api';
-import { formatToman, normalizeDigits, toPersianDigits } from '@/lib/utils/format';
+import { formatToman, normalizeDigits, toPersianDigits, localizeDigits } from '@/lib/utils/format';
 import { CITIES } from '@/lib/data/logistics';
 import { PRICE_UNIT_VALUES, type PriceUnit } from '@/lib/types/domain';
 import { PRICE_UNIT_LABEL } from '@/lib/utils/catalogLabels';
@@ -11,6 +12,7 @@ import { CheckCircleIcon, DownloadIcon, WhatsappIcon, PhoneIcon } from '@/compon
 import { useAuthStore } from '@/lib/stores/auth';
 import { inferSnapshotPriceBasis, useCartStore } from '@/lib/stores/cart';
 import { trackGoal } from '@/lib/analytics/track';
+import type { AppLocale } from '@/i18n/config';
 import styles from './ProformaCard.module.css';
 
 /** One priced line of a pending پیش‌فاکتور draft — SERVER-priced (aiTools'
@@ -100,6 +102,8 @@ export function ProformaCard({
    *  survives a reload and a re-render of the thread. */
   onChanged: (patch: Partial<LeadDraftView>) => void;
 }) {
+  const t = useTranslations('ai.proforma');
+  const locale = useLocale() as AppLocale;
   const authStatus = useAuthStore((s) => s.status);
   // `AuthHydrator` resolves the session client-side, so the store reads
   // 'loading' on first paint. The server already told us whether the visitor
@@ -133,9 +137,7 @@ export function ProformaCard({
         city: next.city,
       });
     } catch (e) {
-      setError(
-        isApiError(e) ? e.message : 'به‌روزرسانی انجام نشد. اتصال را بررسی کن و دوباره تلاش کن.',
-      );
+      setError(isApiError(e) ? e.message : t('updateFailed'));
     } finally {
       setSaving(false);
     }
@@ -154,7 +156,7 @@ export function ProformaCard({
       trackGoal('lead', 'ai-advisor', `${draft.items.length} قلم`);
       onConfirmed({ confirmedRef: result.ref, proformaRef: result.proformaRef, total: result.total });
     } catch (e) {
-      setError(isApiError(e) ? e.message : 'ثبت درخواست انجام نشد. اتصال را بررسی کن و دوباره تلاش کن.');
+      setError(isApiError(e) ? e.message : t('confirmFailed'));
     } finally {
       setBusy(false);
     }
@@ -166,18 +168,18 @@ export function ProformaCard({
     return (
       <div className={styles.card} role="status">
         <div className={styles.head}>
-          <span className={styles.badge}>درخواست ثبت شد</span>
+          <span className={styles.badge}>{t('confirmedBadge')}</span>
         </div>
         <div className={styles.done}>
           <CheckCircleIcon size={16} aria-hidden="true" />
           <span className="tnum">
-            کد پیگیری: <bdi>{toPersianDigits(draft.confirmedRef)}</bdi>
+            {t('trackingCode')} <bdi>{toPersianDigits(draft.confirmedRef)}</bdi>
           </span>
         </div>
-        <p className={styles.note}>کارشناس فروش برای نهایی‌کردن قیمت و زمان تحویل با تو تماس می‌گیرد.</p>
+        <p className={styles.note}>{t('confirmedNote')}</p>
         <div className={styles.actions}>
           {draft.proformaRef ? (
-            // The پیش‌فاکتور page carries the branded print-to-PDF sheet, which
+            // The proforma page carries the branded print-to-PDF sheet, which
             // is where a real downloadable file actually comes from — the card
             // links to it rather than pretending to generate one itself.
             <Link
@@ -187,11 +189,11 @@ export function ProformaCard({
               rel="noreferrer"
             >
               <DownloadIcon size={15} aria-hidden="true" />
-              دیدن و دانلود پیش‌فاکتور
+              {t('viewDownload')}
             </Link>
           ) : null}
           <Link href={routes.account('requests')} className={styles.ghost}>
-            پیگیری درخواست‌های من
+            {t('trackRequests')}
           </Link>
         </div>
       </div>
@@ -203,10 +205,10 @@ export function ProformaCard({
   return (
     <div className={styles.card}>
       <div className={styles.head}>
-        <span className={styles.badge}>خلاصهٔ درخواست پیش‌فاکتور</span>
+        <span className={styles.badge}>{t('pendingBadge')}</span>
         {saving ? (
           <span className={styles.saving} role="status">
-            در حال به‌روزرسانی قیمت…
+            {t('updatingPrice')}
           </span>
         ) : null}
       </div>
@@ -219,7 +221,7 @@ export function ProformaCard({
               {editable ? (
                 <>
                   <label className="visually-hidden" htmlFor={`${draft.draftId}-qty-${i}`}>
-                    مقدار {it.name}
+                    {t('qtyOf', { name: it.name })}
                   </label>
                   {/* `type="text"` with a numeric inputMode, NOT
                    *  `type="number"`: a number input can only hold a valid
@@ -236,7 +238,7 @@ export function ProformaCard({
                     dir="ltr"
                     // See the city select below — same reason.
                     autoComplete="off"
-                    defaultValue={toPersianDigits(it.qty.toLocaleString('en-US'))}
+                    defaultValue={localizeDigits(it.qty.toLocaleString('en-US'), locale)}
                     disabled={saving}
                     // On blur, not on every keystroke: each change is a real
                     // server repricing, and firing one per digit would price
@@ -244,11 +246,11 @@ export function ProformaCard({
                     onBlur={(e) => {
                       const qty = Number(normalizeDigits(e.target.value).replace(/[,\s٬]/g, ''));
                       if (Number.isFinite(qty) && qty > 0 && qty !== it.qty) setLine(i, { qty });
-                      else e.target.value = toPersianDigits(it.qty.toLocaleString('en-US'));
+                      else e.target.value = localizeDigits(it.qty.toLocaleString('en-US'), locale);
                     }}
                   />
                   <label className="visually-hidden" htmlFor={`${draft.draftId}-unit-${i}`}>
-                    واحد {it.name}
+                    {t('unitOf', { name: it.name })}
                   </label>
                   <select
                     id={`${draft.draftId}-unit-${i}`}
@@ -266,7 +268,7 @@ export function ProformaCard({
                 </>
               ) : (
                 <span className="tnum">
-                  {toPersianDigits(it.qty.toLocaleString('en-US'))}{' '}
+                  {localizeDigits(it.qty.toLocaleString('en-US'), locale)}{' '}
                   {PRICE_UNIT_LABEL[it.unit as PriceUnit] ?? it.unit}
                 </span>
               )}
@@ -279,7 +281,7 @@ export function ProformaCard({
       {editable ? (
         <div className={styles.cityRow}>
           <label className={styles.cityLabel} htmlFor={`${draft.draftId}-city`}>
-            شهر تحویل
+            {t('deliveryCity')}
           </label>
           {/* AUTOFILL OFF, and this one is not cosmetic.
            *
@@ -298,14 +300,14 @@ export function ProformaCard({
             disabled={saving}
             onChange={(e) => void applyEdit(draft.items, e.target.value)}
           >
-            <option value="">انتخاب نشده</option>
+            <option value="">{t('cityNotSelected')}</option>
             {CITIES.map((c) => (
               <option key={c.name} value={c.name}>
                 {c.name}
               </option>
             ))}
           </select>
-          <span className={styles.cityHint}>کرایهٔ حمل را کارشناس در پیش‌فاکتور اعلام می‌کند.</span>
+          <span className={styles.cityHint}>{t('cityHint')}</span>
         </div>
       ) : null}
 
@@ -313,26 +315,23 @@ export function ProformaCard({
         <div className={styles.totals}>
           {draft.totalWeightKg ? (
             <div>
-              <span className={styles.totalLabel}>وزن کل</span>
+              <span className={styles.totalLabel}>{t('totalWeight')}</span>
               <span className={`${styles.totalValue} tnum`}>
-                {toPersianDigits(Math.round(draft.totalWeightKg).toLocaleString('en-US'))} کیلوگرم
+                {localizeDigits(Math.round(draft.totalWeightKg).toLocaleString('en-US'), locale)}{' '}
+                {t('kgUnit')}
               </span>
             </div>
           ) : null}
           {draft.total ? (
             <div>
-              <span className={styles.totalLabel}>جمع کل</span>
+              <span className={styles.totalLabel}>{t('grandTotal')}</span>
               <span className={`${styles.totalValue} tnum`}>{formatToman(draft.total)}</span>
             </div>
           ) : null}
         </div>
       )}
 
-      {!draft.allPriced && (
-        <p className={styles.note}>
-          قیمت بعضی اقلام را کارشناس اعلام می‌کند؛ درخواستت مستقیم به تیم فروش می‌رود.
-        </p>
-      )}
+      {!draft.allPriced && <p className={styles.note}>{t('partialPriceNote')}</p>}
 
       {error && (
         <p className={styles.error} role="alert">
@@ -348,11 +347,11 @@ export function ProformaCard({
             onClick={() => void confirm()}
             disabled={busy || saving || authStatus === 'loading'}
           >
-            {busy ? 'در حال ثبت…' : 'تأیید و ثبت درخواست'}
+            {busy ? t('confirming') : t('confirmCta')}
           </button>
         ) : (
           <Link href={routes.login(routes.ai())} className={styles.cta}>
-            ورود به حساب کاربری
+            {t('loginCta')}
           </Link>
         )}
 
@@ -382,7 +381,7 @@ export function ProformaCard({
               setAdded(true);
             }}
           >
-            {added ? 'به سبد اضافه شد' : 'افزودن به سبد'}
+            {added ? t('addedToCart') : t('addToCart')}
           </button>
         ) : null}
 
@@ -393,21 +392,16 @@ export function ProformaCard({
           rel="noreferrer noopener"
         >
           <WhatsappIcon size={15} aria-hidden="true" />
-          ارسال در واتساپ
+          {t('whatsappCta')}
         </a>
       </div>
 
-      {!signedIn && (
-        <p className={styles.note}>
-          بعد از ورود، به همین گفتگو برمی‌گردی و با یک دکمه درخواست را ثبت می‌کنی؛ نام و شماره از حسابت
-          برداشته می‌شود.
-        </p>
-      )}
+      {!signedIn && <p className={styles.note}>{t('guestNote')}</p>}
 
       <p className={styles.human}>
         <PhoneIcon size={14} aria-hidden="true" />
         <span>
-          سؤال فنی داری یا چیزی اینجا جور نیست؟{' '}
+          {t('humanQuestion')}{' '}
           <a href={`tel:${CONTACT_MOBILE}`} dir="ltr">
             <bdi>{toPersianDigits(CONTACT_MOBILE)}</bdi>
           </a>

@@ -914,5 +914,207 @@
         "answer": "对于每一行（钢架钢筋、屋面钢筋、厂房钢架），用户从阿罕时代的实时目录中选择一个具体商品，指定确切的牌号、规格和厂家；费用等于该行的计算重量乘以所选具体商品的当前价格，而不是整个产品类别的平均价格。"
       }
     }
+  },
+  "ai": {
+    "about": {
+      "summaryTitle": "这个顾问究竟能做什么？",
+      "summaryHint": "价格从哪里来、重量有多准确，以及为什么没有在线支付",
+      "lede": "安通顾问的回答基于您在<link>网站价格表</link>中看到的同一价格，绝不会自己编造数字。告诉它您需要什么产品、用于什么用途，它就会为您计算今日价格、型材精确重量，以及按您的吨位计算的最便宜工厂——如果您需要，最后还能为您取得形式发票。"
+    },
+    "capabilities": {
+      "title": "这个顾问能做到通用聊天做不到的哪些事？",
+      "compare": {
+        "title": "按您自己的吨位比较各工厂",
+        "body": "告诉它您需要多少吨；它会按该吨位在各可用工厂之间比较每公斤价格，标出最便宜的选项，并说明比次优选项能省多少。比较始终基于同一具体规格，而不是整个品类的平均值。"
+      },
+      "weight": {
+        "title": "精确的型材重量，而非粗略估算",
+        "body": "按各型材的标准公式计算每支重量和总重量：螺纹钢、工字钢、槽钢、角钢、钢板、钢管、方管、扁钢和钢丝。它也能回答“20吨等于多少支？”，使用与网站<link>重量计算器</link>相同的公式。"
+      },
+      "outlook": {
+        "title": "价格走势，附区间与理由",
+        "body": "它不会把“现在买还是再等等？”这个问题晾在一边：读取该产品的真实走势及其与美元、黄金和坯料的相关性，用一个百分比区间及理由给出短期方向。它绝不会给某个日期报出确定价格，若历史价格数据不足，也会如实说明。"
+      },
+      "sourced": {
+        "title": "有据可查的专业回答，而非泛泛而谈",
+        "body": "对于像螺纹钢各等级区别这类问题，它会在安通已发布的指南和文章中查找，并注明所引用的指南名称作为来源。若某主题没有相关指南，它会如实说明。"
+      },
+      "footnote": "它给出的每一个数字都来自<link>价格表</link>所用的同一数据库。若某价格未登记，它不会编造，而是说明将由专员告知。同样没有在线支付：您可以在这里直接提交形式发票申请，专员会致电确认最终价格和交货时间。"
+    },
+    "rail": {
+      "newConversation": "新对话",
+      "historyAria": "历史对话",
+      "loginPrompt": "<link>登录</link>即可查看您之前的对话，当前对话会保留在这里。",
+      "loadFailed": "对话列表加载失败。",
+      "retry": "重试",
+      "empty": "暂无已保存的对话。",
+      "bucket": {
+        "today": "今天",
+        "yesterday": "昨天",
+        "lastWeek": "上周",
+        "lastMonth": "上月",
+        "older": "更早"
+      }
+    },
+    "proforma": {
+      "confirmedBadge": "请求已提交",
+      "trackingCode": "跟踪码：",
+      "confirmedNote": "销售专员会致电您，确认最终价格和交货时间。",
+      "viewDownload": "查看并下载形式发票",
+      "trackRequests": "查看我的请求",
+      "pendingBadge": "形式发票请求摘要",
+      "updatingPrice": "正在更新价格…",
+      "qtyOf": "{name}的数量",
+      "unitOf": "{name}的单位",
+      "deliveryCity": "交货城市",
+      "cityNotSelected": "未选择",
+      "cityHint": "运费将由专员在形式发票中注明。",
+      "totalWeight": "总重量",
+      "kgUnit": "公斤",
+      "grandTotal": "总计",
+      "partialPriceNote": "部分商品的价格将由专员告知；您的请求将直接转给销售团队。",
+      "updateFailed": "更新失败。请检查网络连接后重试。",
+      "confirmFailed": "提交请求失败。请检查网络连接后重试。",
+      "confirming": "正在提交…",
+      "confirmCta": "确认并提交请求",
+      "loginCta": "登录",
+      "addedToCart": "已加入购物车",
+      "addToCart": "加入购物车",
+      "whatsappCta": "通过WhatsApp发送",
+      "guestNote": "登录后您会返回同一对话，一键即可提交请求；姓名和电话将取自您的账户。",
+      "humanQuestion": "有技术问题，或者哪里对不上？"
+    },
+    "blocks": {
+      "badges": {
+        "quote": "今日价格",
+        "compare": "工厂比价",
+        "options": "请选择",
+        "forecast": "价格走势",
+        "expert": "联系专员",
+        "trend": "价格趋势"
+      },
+      "freshness": {
+        "label": "最后更新：",
+        "at": "",
+        "staleTag": "需专员确认"
+      },
+      "priceAsk": "请咨询专员",
+      "sizeLabel": "规格{size}",
+      "tagBest": "最便宜",
+      "tagLanded": "含运费最便宜",
+      "perKg": "每公斤",
+      "itemTotal": "商品小计",
+      "deliveredTo": "送至{city}",
+      "singleSource": "单一来源",
+      "savingsNote": "选择最便宜的选项比次优选项节省{amount}。",
+      "landedNote": "到货价一栏已计入从{origin}到{city}的运费、装卸费、保险和过磅费；最终数字以专员在形式发票中确认为准。",
+      "excludedNonKg": "有{count}项价格不是按公斤计算，未列入此次比较。",
+      "actions": {
+        "proformaFromCheapest": "按最便宜价格开形式发票",
+        "withFreight": "计入运费",
+        "priceTrend": "价格趋势",
+        "compareFactories": "比较各工厂",
+        "proforma": "形式发票",
+        "productPage": "产品页面",
+        "moreOptions": "还有更多选项；如果没有您需要的，直接输入即可。",
+        "proformaTodayPrice": "按今日价格开形式发票",
+        "priceAlert": "价格提醒"
+      },
+      "forecast": {
+        "bandRange": "{horizon}内的大致变动区间",
+        "direction": {
+          "up": "上行",
+          "down": "下行",
+          "flat": "波动较小"
+        },
+        "confidence": {
+          "high": "可信度较高",
+          "medium": "可信度中等",
+          "low": "可信度较低"
+        },
+        "correlation": "相关性",
+        "caveat": "这是基于历史数据的方向性估计，并非确定价格。钢铁市场可能因消息面和汇率一夜之间波动；有效价格以当天形式发票所载价格为准。"
+      },
+      "trend": {
+        "change": {
+          "up": "上涨",
+          "down": "下跌",
+          "flat": "无变化"
+        },
+        "inRange": "{range}内",
+        "fullChart": "在产品页面查看完整图表"
+      },
+      "whatsapp": "WhatsApp",
+      "sparkline": {
+        "fromTo": "从{from}到{to}",
+        "priceFromTo": "从{from}到{to}{unit}",
+        "tomanUnit": "托曼",
+        "changeSuffix": "，{direction}{pct}%"
+      },
+      "trendOfLabel": "{name}价格趋势：",
+      "trendOfDaysLabel": "{name}最近{days}天的价格趋势：",
+      "trendOfRangeLabel": "{name}在{range}的价格趋势："
+    },
+    "markdown": {
+      "tableAria": "顾问回答表格"
+    },
+    "chat": {
+      "greeting": "你好！我是安通智能顾问。\n我会像一位内行的朋友一样帮你做出最好的采购决定；先咨询，再购买。",
+      "newChat": "新对话",
+      "notice": {
+        "fallback": "智能助手暂时不可用。请稍后重试，或联系专员。",
+        "rateLimited": "消息发送过于频繁。请稍等片刻后再发送。",
+        "offline": "网络连接已断开。重新连接后请再试一次。",
+        "dropped": "回答未完成；接收过程中连接中断。",
+        "waitingSeconds": "（{seconds}秒）"
+      },
+      "retry": {
+        "waitingAria": "{seconds}秒后重试",
+        "defaultAria": "重试以获取实时回答",
+        "continue": "继续",
+        "retry": "重试"
+      },
+      "feedback": {
+        "groupLabel": "这个回答怎么样？",
+        "helpful": "有帮助",
+        "notHelpful": "没帮助",
+        "thanks": "感谢您的反馈"
+      },
+      "roleUser": "你",
+      "tool": {
+        "getPrice": "正在查询今日价格…",
+        "calcWeight": "正在计算重量…",
+        "estimateProject": "正在估算项目用量…",
+        "prepareProforma": "正在准备请求摘要…",
+        "compareFactories": "正在比较各工厂…",
+        "searchGuides": "正在查阅指南…",
+        "productOptions": "正在查看可选项…",
+        "priceHistory": "正在读取价格走势…",
+        "forecastPrice": "正在分析市场趋势与指标…",
+        "setPriceAlert": "正在设置价格提醒…",
+        "default": "正在生成回答…"
+      },
+      "slowHint": "需要多一点时间，感谢您的耐心等待。",
+      "railToggleAria": "对话列表",
+      "railScrimAria": "关闭对话列表",
+      "exitImmersiveAria": "返回页面",
+      "composerLabel": "给智能顾问发消息",
+      "placeholder": {
+        "offline": "网络连接已断开…",
+        "busy": "正在回答…",
+        "default": "输入您的问题…"
+      },
+      "micStart": "语音输入",
+      "micStop": "停止语音输入",
+      "stopAria": "停止回答",
+      "sendAria": "发送",
+      "offlineBar": "网络连接已断开；重新连接后即可继续发送消息。",
+      "humanQuestion": "没有得到答案？",
+      "humanWhatsapp": "WhatsApp联系专员",
+      "disclaimer": "回答均基于真实价格；安通绝不编造任何数字。",
+      "openingConversation": "正在打开对话…",
+      "openConversationFailed": "该对话未能打开。请重试或开始新对话。",
+      "defaultHeading": "安通智能顾问"
+    }
   }
 }

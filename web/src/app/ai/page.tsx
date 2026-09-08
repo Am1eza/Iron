@@ -3,7 +3,7 @@ import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { Container } from '@/components/ui';
 import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
-import { AdvisorChat, GREETING_TEXT } from '@/components/ai/AdvisorChat';
+import { AdvisorChat } from '@/components/ai/AdvisorChat';
 import { AdvisorAbout } from '@/components/ai/AdvisorAbout';
 import styles from './page.module.css';
 import { PURPOSE_CHIPS } from '@/lib/data/aiTaxonomy';
@@ -21,13 +21,25 @@ const crumbs = [
   { label: 'مشاور هوشمند', href: routes.ai() },
 ];
 
-/** What a visitor who lands on «مشاور هوشمند آهن» actually wants to know
- *  before typing. Each answer stands alone — FAQPage entries get quoted out
- *  of page context by Google's "People also ask" and AI Overviews — and each
- *  is deliberately free of prices or dated figures, which belong in the live
- *  tables and would silently go stale in prose. Written impersonally rather
- *  than in the advisor's own تو-voice, for the same reason: quoted out of
- *  context, these are the site speaking, not the advisor. */
+/**
+ * What a visitor who lands on the advisor page actually wants to know before
+ * typing. Each answer stands alone — FAQPage entries get quoted out of page
+ * context by Google's "People also ask" and AI Overviews — and each is
+ * deliberately free of prices or dated figures, which belong in the live
+ * tables and would silently go stale in prose. Written impersonally rather
+ * than in the advisor's own تو-voice, for the same reason: quoted out of
+ * context, these are the site speaking, not the advisor.
+ *
+ * DELIBERATELY PERSIAN, LIKE EVERY OTHER SERVER-RENDERED STRING ON THIS PAGE
+ * (metadata, crumbs). This app never resolves locale server-side — see
+ * `LocaleProvider`'s header comment: doing that here would force this page
+ * into per-request dynamic rendering, and next-intl's `getTranslations()`
+ * isn't wired up for Server Components in this app's minimal i18n setup
+ * (confirmed: it throws "not supported in Client Components" the moment it's
+ * called from here). The server always renders the static `fa` shell; the
+ * chat UI below picks up the visitor's real locale client-side, the same way
+ * every other page in this app does.
+ */
 const FAQ_ITEMS = [
   {
     question: 'مشاور هوشمند آهن‌تایم قیمت‌ها را از کجا می‌آورد؟',
@@ -66,11 +78,14 @@ export default async function AiPage({ searchParams }: Search) {
   const contact = await getContact();
   // Rendered server-side so the advisor's opening message is real, crawlable
   // HTML on first load instead of only appearing after client-side hydration.
+  // Persian, like the rest of this file's server-rendered strings — see the
+  // FAQ_ITEMS comment above. AdvisorChat's own client-side greeting (used on
+  // "new chat" / reopening an empty conversation) already localizes.
   const initialMessages = [
     {
       id: 'greeting',
       role: 'ai' as const,
-      text: GREETING_TEXT,
+      text: 'سلام! من مشاور هوشمند آهن‌تایم‌ام.\nمثل یک دوستِ کاربلد کمکت می‌کنم بهترین خرید را بکنی؛ اول مشورت، بعد خرید.',
       chips: initialQuestion ? undefined : PURPOSE_CHIPS,
     },
   ];

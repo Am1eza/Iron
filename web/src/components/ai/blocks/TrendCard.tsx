@@ -1,6 +1,8 @@
 import Link from 'next/link';
+import { useTranslations, useLocale } from 'next-intl';
 import type { TrendBlock } from '@/lib/ai/blocks';
-import { toPersianDigits } from '@/lib/utils/format';
+import { localizeDigits } from '@/lib/utils/format';
+import type { AppLocale } from '@/i18n/config';
 import { Sparkline } from './Sparkline';
 import { CardHead } from './parts';
 import styles from './blocks.module.css';
@@ -15,23 +17,23 @@ import styles from './blocks.module.css';
  * the model.
  */
 export function TrendCard({ block }: { block: TrendBlock }) {
+  const t = useTranslations('ai.blocks');
+  const locale = useLocale() as AppLocale;
   const dir = block.changePct === undefined ? 'flat' : block.changePct > 0 ? 'up' : block.changePct < 0 ? 'down' : 'flat';
+  const pctDigits =
+    block.changePct === undefined ? null : localizeDigits(Math.abs(block.changePct).toFixed(1), locale);
   const changeText =
-    block.changePct === undefined
-      ? null
-      : `${dir === 'up' ? '▲' : dir === 'down' ? '▼' : ''} ${toPersianDigits(
-          Math.abs(block.changePct).toFixed(1),
-        )}٪`;
+    pctDigits === null ? null : `${dir === 'up' ? '▲' : dir === 'down' ? '▼' : ''} ${pctDigits}${locale === 'fa' ? '٪' : '%'}`;
 
   return (
     <div className={styles.card}>
-      <CardHead badge="روند قیمت" title={block.title} subtitle={block.rangeLabel} />
+      <CardHead badge={t('badges.trend')} title={block.title} subtitle={block.rangeLabel} />
       <Sparkline
         values={block.values}
         dates={block.dates}
         unitLabel={block.unitLabel}
         changePct={block.changePct}
-        label={`روند قیمت ${block.title} در ${block.rangeLabel}:`}
+        label={t('trendOfRangeLabel', { name: block.title, range: block.rangeLabel })}
       />
       {changeText ? (
         <p
@@ -41,16 +43,15 @@ export function TrendCard({ block }: { block: TrendBlock }) {
         >
           <span aria-hidden="true">{changeText}</span>
           <span className="visually-hidden">
-            {dir === 'up' ? 'افزایش' : dir === 'down' ? 'کاهش' : 'بدون تغییر'}{' '}
-            {toPersianDigits(Math.abs(block.changePct!).toFixed(1))} درصد
+            {t(`trend.change.${dir}`)} {pctDigits} {locale === 'fa' ? 'درصد' : '%'}
           </span>
-          <span className={styles.trendChangeNote}>در {block.rangeLabel}</span>
+          <span className={styles.trendChangeNote}>{t('trend.inRange', { range: block.rangeLabel })}</span>
         </p>
       ) : null}
       {block.href ? (
         <div className={styles.actions}>
           <Link href={block.href} className={styles.actionLink}>
-            نمودار کامل در صفحهٔ محصول
+            {t('trend.fullChart')}
           </Link>
         </div>
       ) : null}

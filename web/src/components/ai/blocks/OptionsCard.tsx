@@ -1,6 +1,8 @@
 import { Fragment } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 import { optionMessage, type OptionsBlock } from '@/lib/ai/blocks';
-import { toPersianDigits } from '@/lib/utils/format';
+import { localizeDigits } from '@/lib/utils/format';
+import type { AppLocale } from '@/i18n/config';
 import { CardHead } from './parts';
 import styles from './blocks.module.css';
 
@@ -19,9 +21,11 @@ import styles from './blocks.module.css';
  * option rather than encountering eight unexplained buttons in a row.
  */
 export function OptionsCard({ block, onPick }: { block: OptionsBlock; onPick: (text: string) => void }) {
+  const t = useTranslations('ai.blocks');
+  const locale = useLocale() as AppLocale;
   return (
     <div className={styles.card}>
-      <CardHead badge="انتخاب کن" />
+      <CardHead badge={t('badges.options')} />
       {block.groups.map((group) => (
         <fieldset key={group.title} className={styles.optionSet}>
           <legend className={styles.optionLegend}>
@@ -39,17 +43,15 @@ export function OptionsCard({ block, onPick }: { block: OptionsBlock; onPick: (t
                   className={styles.optionChip}
                   onClick={() => onPick(optionMessage(option))}
                 >
-                  <span>{toPersianDigits(option.label)}</span>
-                  {option.hint ? <span className={styles.optionHint}>{toPersianDigits(option.hint)}</span> : null}
+                  <span>{localizeDigits(option.label, locale)}</span>
+                  {option.hint ? (
+                    <span className={styles.optionHint}>{localizeDigits(option.hint, locale)}</span>
+                  ) : null}
                 </button>
               </Fragment>
             ))}
           </div>
-          {group.truncated ? (
-            <p className={styles.optionMore}>
-              گزینه‌های بیشتری هم هست؛ اگر موردت اینجا نیست، همان را بنویس.
-            </p>
-          ) : null}
+          {group.truncated ? <p className={styles.optionMore}>{t('actions.moreOptions')}</p> : null}
         </fieldset>
       ))}
     </div>

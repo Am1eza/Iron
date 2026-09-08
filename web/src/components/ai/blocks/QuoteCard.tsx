@@ -1,7 +1,9 @@
 import Link from 'next/link';
+import { useTranslations, useLocale } from 'next-intl';
 import type { QuoteBlock } from '@/lib/ai/blocks';
-import { toPersianDigits } from '@/lib/utils/format';
+import { localizeDigits } from '@/lib/utils/format';
 import { MovementBadge, PriceTag, DeliveryBadge } from '@/components/ui/PriceParts';
+import type { AppLocale } from '@/i18n/config';
 import { Sparkline } from './Sparkline';
 import { CardHead, Freshness } from './parts';
 import styles from './blocks.module.css';
@@ -19,17 +21,21 @@ import styles from './blocks.module.css';
  * the product is.
  */
 export function QuoteCard({ block, onPick }: { block: QuoteBlock; onPick: (text: string) => void }) {
-  const meta = [block.factory, block.size ? `سایز ${block.size}` : '', block.grade].filter(Boolean);
+  const t = useTranslations('ai.blocks');
+  const locale = useLocale() as AppLocale;
+  const meta = [block.factory, block.size ? t('sizeLabel', { size: block.size }) : '', block.grade].filter(
+    Boolean,
+  );
 
   return (
     <div className={styles.card}>
-      <CardHead badge="قیمت روز" title={block.name} />
+      <CardHead badge={t('badges.quote')} title={block.name} />
       {meta.length > 0 ? (
         <p className={styles.meta}>
           {meta.map((m, i) => (
             <span key={m}>
               {i > 0 ? <span className={styles.metaSep}> · </span> : null}
-              {toPersianDigits(m!)}
+              {localizeDigits(m!, locale)}
             </span>
           ))}
         </p>
@@ -37,7 +43,7 @@ export function QuoteCard({ block, onPick }: { block: QuoteBlock; onPick: (text:
 
       <div className={styles.priceRow}>
         {block.price === null ? (
-          <span className={styles.priceAsk}>استعلام از کارشناس</span>
+          <span className={styles.priceAsk}>{t('priceAsk')}</span>
         ) : (
           <PriceTag value={block.price} unitLabel={block.unitLabel} />
         )}
@@ -55,7 +61,7 @@ export function QuoteCard({ block, onPick }: { block: QuoteBlock; onPick: (text:
           values={block.trend.values}
           dates={block.trend.dates}
           unitLabel={block.unitLabel}
-          label={`روند قیمت ${block.name}:`}
+          label={t('trendOfLabel', { name: block.name })}
         />
       ) : null}
 
@@ -67,18 +73,18 @@ export function QuoteCard({ block, onPick }: { block: QuoteBlock; onPick: (text:
           className={styles.actionPrimary}
           onClick={() => onPick(`قیمت ${block.name} را در همهٔ کارخانه‌ها مقایسه کن`)}
         >
-          مقایسهٔ کارخانه‌ها
+          {t('actions.compareFactories')}
         </button>
         <button
           type="button"
           className={styles.actionGhost}
           onClick={() => onPick(`برای ${block.name} پیش‌فاکتور می‌خواهم`)}
         >
-          پیش‌فاکتور
+          {t('actions.proforma')}
         </button>
         {block.href ? (
           <Link href={block.href} className={styles.actionLink}>
-            صفحهٔ محصول
+            {t('actions.productPage')}
           </Link>
         ) : null}
       </div>

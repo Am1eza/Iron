@@ -14,7 +14,9 @@
  *    worst case the user briefly sees what the model wrote, never a crash.
  */
 import { Fragment, type ReactNode } from 'react';
-import { toPersianDigits } from '@/lib/utils/format';
+import { useTranslations, useLocale } from 'next-intl';
+import { localizeDigits } from '@/lib/utils/format';
+import type { AppLocale } from '@/i18n/config';
 import styles from './ChatMarkdown.module.css';
 
 /* ---------------- inline: **bold** · *italic* · `code` ---------------- */
@@ -35,29 +37,29 @@ function isPriceRun(s: string): boolean {
  *  (W3C alreq: the classic «10-20 renders as 20-10» failure). */
 const LATIN_RUN = /([A-Za-z][A-Za-z0-9\-./]*)/g;
 
-function faText(s: string, keyBase: string): ReactNode[] {
+function faText(s: string, keyBase: string, locale: AppLocale): ReactNode[] {
   return s.split(LATIN_RUN).map((part, i) =>
     /^[A-Za-z]/.test(part) ? (
       <bdi key={`${keyBase}~${i}`}>{part}</bdi>
     ) : (
-      <Fragment key={`${keyBase}~${i}`}>{toPersianDigits(part)}</Fragment>
+      <Fragment key={`${keyBase}~${i}`}>{localizeDigits(part, locale)}</Fragment>
     ),
   );
 }
 
-function renderInline(text: string, keyBase: string): ReactNode[] {
+function renderInline(text: string, keyBase: string, locale: AppLocale): ReactNode[] {
   return text.split(INLINE).map((part, i) => {
     const key = `${keyBase}.${i}`;
     if (part.startsWith('**') && part.endsWith('**') && part.length > 4)
-      return <strong key={key}>{faText(part.slice(2, -2), key)}</strong>;
+      return <strong key={key}>{faText(part.slice(2, -2), key, locale)}</strong>;
     if (part.startsWith('`') && part.endsWith('`') && part.length > 2)
       return (
         <code key={key} className={styles.code}>
-          {toPersianDigits(part.slice(1, -1))}
+          {localizeDigits(part.slice(1, -1), locale)}
         </code>
       );
     if (part.startsWith('*') && part.endsWith('*') && part.length > 2)
-      return <em key={key}>{faText(part.slice(1, -1), key)}</em>;
+      return <em key={key}>{faText(part.slice(1, -1), key, locale)}</em>;
     // The one number a visitor actually came for shouldn't blend into the
     // rest of the sentence — same accent already used for chips/callouts,
     // not a new color, so it reads as "the site's own emphasis", not a
@@ -69,10 +71,10 @@ function renderInline(text: string, keyBase: string): ReactNode[] {
       // read as the one place on ahantime.com with the wrong punctuation.
       return (
         <strong key={key} className={styles.price}>
-          {faText(part.replace(/,/g, '٬'), key)}
+          {faText(part.replace(/,/g, '٬'), key, locale)}
         </strong>
       );
-    return <Fragment key={key}>{faText(part, key)}</Fragment>;
+    return <Fragment key={key}>{faText(part, key, locale)}</Fragment>;
   });
 }
 
@@ -222,6 +224,8 @@ function isNumericCell(s: string): boolean {
 }
 
 export function ChatMarkdown({ text, streaming }: { text: string; streaming?: boolean }) {
+  const t = useTranslations('ai.markdown');
+  const locale = useLocale() as AppLocale;
   const blocks = parseBlocks(streaming ? repairStreaming(text) : text);
   return (
     <div className={styles.md}>
@@ -233,7 +237,7 @@ export function ChatMarkdown({ text, streaming }: { text: string; streaming?: bo
             // bubble is not a document; h1-sized text inside it reads broken.
             return (
               <p key={key} className={styles.heading} role="heading" aria-level={4}>
-                {renderInline(b.text, key)}
+                {renderInline(b.text, key, locale)}
               </p>
             );
           case 'hr':
@@ -244,7 +248,7 @@ export function ChatMarkdown({ text, streaming }: { text: string; streaming?: bo
                 {b.lines.map((ln, li) => (
                   <Fragment key={li}>
                     {li > 0 && <br />}
-                    {renderInline(ln, `${key}.${li}`)}
+                    {renderInline(ln, `${key}.${li}`, locale)}
                   </Fragment>
                 ))}
               </blockquote>
@@ -253,7 +257,7 @@ export function ChatMarkdown({ text, streaming }: { text: string; streaming?: bo
             return (
               <ul key={key} className={styles.list}>
                 {b.items.map((it, ii) => (
-                  <li key={ii}>{renderInline(it, `${key}.${ii}`)}</li>
+                  <li key={ii}>{renderInline(it, `${key}.${ii}`, locale)}</li>
                 ))}
               </ul>
             );
@@ -261,7 +265,7 @@ export function ChatMarkdown({ text, streaming }: { text: string; streaming?: bo
             return (
               <ol key={key} className={styles.list}>
                 {b.items.map((it, ii) => (
-                  <li key={ii}>{renderInline(it, `${key}.${ii}`)}</li>
+                  <li key={ii}>{renderInline(it, `${key}.${ii}`, locale)}</li>
                 ))}
               </ol>
             );
@@ -274,7 +278,7 @@ export function ChatMarkdown({ text, streaming }: { text: string; streaming?: bo
                 key={key}
                 className={styles.tableWrap}
                 role="region"
-                aria-label="جدول پاسخ مشاور"
+                aria-label={t('tableAria')}
                 tabIndex={0}
               >
                 <table className={styles.table}>
@@ -282,7 +286,7 @@ export function ChatMarkdown({ text, streaming }: { text: string; streaming?: bo
                     <tr>
                       {b.header.map((h, hi) => (
                         <th key={hi} scope="col">
-                          {renderInline(h, `${key}.h${hi}`)}
+                          {renderInline(h, `${key}.h${hi}`, locale)}
                         </th>
                       ))}
                     </tr>
@@ -292,7 +296,7 @@ export function ChatMarkdown({ text, streaming }: { text: string; streaming?: bo
                       <tr key={ri}>
                         {row.map((cell, ci) => (
                           <td key={ci} className={isNumericCell(cell) ? 'tnum' : undefined}>
-                            {renderInline(cell, `${key}.${ri}.${ci}`)}
+                            {renderInline(cell, `${key}.${ri}.${ci}`, locale)}
                           </td>
                         ))}
                       </tr>
@@ -307,7 +311,7 @@ export function ChatMarkdown({ text, streaming }: { text: string; streaming?: bo
                 {b.lines.map((ln, li) => (
                   <Fragment key={li}>
                     {li > 0 && <br />}
-                    {renderInline(ln, `${key}.${li}`)}
+                    {renderInline(ln, `${key}.${li}`, locale)}
                   </Fragment>
                 ))}
               </p>

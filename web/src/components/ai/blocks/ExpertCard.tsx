@@ -1,3 +1,4 @@
+import { useTranslations } from 'next-intl';
 import type { ExpertBlock } from '@/lib/ai/blocks';
 import { toPersianDigits } from '@/lib/utils/format';
 import { PhoneIcon, WhatsappIcon } from '@/components/primitives/icons';
@@ -18,9 +19,10 @@ import styles from './blocks.module.css';
  * RTL paragraph reorders visually and a visitor reading it aloud dials wrong.
  */
 export function ExpertCard({ block }: { block: ExpertBlock }) {
+  const t = useTranslations('ai.blocks');
   return (
     <div className={`${styles.card} ${styles.cardExpert}`}>
-      <CardHead badge="گفتگو با کارشناس" />
+      <CardHead badge={t('badges.expert')} />
       <p className={styles.expertReason}>{block.reason}</p>
       <div className={styles.actions}>
         <a href={`tel:${block.phone}`} className={styles.actionPrimary} dir="ltr">
@@ -34,7 +36,7 @@ export function ExpertCard({ block }: { block: ExpertBlock }) {
           rel="noreferrer noopener"
         >
           <WhatsappIcon size={15} aria-hidden="true" />
-          واتساپ
+          {t('whatsapp')}
         </a>
       </div>
     </div>

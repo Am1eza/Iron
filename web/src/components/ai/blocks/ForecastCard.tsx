@@ -1,6 +1,8 @@
-import type { ForecastBlock, ForecastConfidence, ForecastDirection } from '@/lib/ai/blocks';
-import { toPersianDigits } from '@/lib/utils/format';
+import { useTranslations, useLocale } from 'next-intl';
+import type { ForecastBlock, ForecastDirection } from '@/lib/ai/blocks';
+import { localizeDigits } from '@/lib/utils/format';
 import { InfoIcon } from '@/components/primitives/icons';
+import type { AppLocale } from '@/i18n/config';
 import { Sparkline } from './Sparkline';
 import { CardHead, Freshness } from './parts';
 import styles from './blocks.module.css';
@@ -21,46 +23,40 @@ import styles from './blocks.module.css';
  * ۱۸ عیار · همبستگی ۰٫۰۴» is the card demonstrating that it looked and found
  * no relationship, which is more trustworthy than quietly omitting it.
  */
-const DIR_LABEL: Record<ForecastDirection, string> = {
-  up: 'رو به بالا',
-  down: 'رو به پایین',
-  flat: 'کم‌نوسان',
-};
 const DIR_ARROW: Record<ForecastDirection, string> = { up: '▲', down: '▼', flat: '■' };
-const CONFIDENCE_LABEL: Record<ForecastConfidence, string> = {
-  high: 'اتکای نسبتاً خوب',
-  medium: 'اتکای متوسط',
-  low: 'اتکای کم',
-};
 
-/** «۲٫۵٪» with Persian digits and the Persian decimal separator. */
-function pct(n: number): string {
+/** «±۲٫۵٪» / «±2.5%» — locale-aware digits and decimal separator. */
+function pct(n: number, locale: AppLocale): string {
   const sign = n > 0 ? '+' : n < 0 ? '−' : '';
-  return `${sign}${toPersianDigits(Math.abs(n).toFixed(1).replace(/\.0$/, '')).replace('.', '٫')}٪`;
+  const digits = localizeDigits(Math.abs(n).toFixed(1).replace(/\.0$/, ''), locale);
+  const sep = locale === 'fa' ? digits.replace('.', '٫') : digits;
+  return `${sign}${sep}${locale === 'fa' ? '٪' : '%'}`;
 }
 
 export function ForecastCard({ block, onPick }: { block: ForecastBlock; onPick: (text: string) => void }) {
+  const t = useTranslations('ai.blocks');
+  const locale = useLocale() as AppLocale;
   const tone =
     block.direction === 'up' ? styles.fcUp : block.direction === 'down' ? styles.fcDown : styles.fcFlat;
 
   return (
     <div className={styles.card}>
-      <CardHead badge="چشم‌انداز قیمت" title={block.title} subtitle={block.horizonLabel} />
+      <CardHead badge={t('badges.forecast')} title={block.title} subtitle={block.horizonLabel} />
 
       <div className={`${styles.fcHeadline} ${tone}`}>
         <span className={styles.fcArrow} aria-hidden="true">
           {DIR_ARROW[block.direction]}
         </span>
-        <span className={styles.fcDir}>{DIR_LABEL[block.direction]}</span>
-        <span className={styles.fcConfidence}>{CONFIDENCE_LABEL[block.confidence]}</span>
+        <span className={styles.fcDir}>{t(`forecast.direction.${block.direction}`)}</span>
+        <span className={styles.fcConfidence}>{t(`forecast.confidence.${block.confidence}`)}</span>
       </div>
 
       <p className={styles.fcBand}>
-        <span className={styles.statLabel}>بازهٔ تقریبی تغییر در {block.horizonLabel}</span>
+        <span className={styles.statLabel}>{t('forecast.bandRange', { horizon: block.horizonLabel })}</span>
         <span className={`${styles.fcBandValue} tnum`}>
           {/* LTR so «−۲٫۱٪ تا +۴٫۳٪» reads low-to-high, not reversed by the RTL run. */}
           <bdi dir="ltr">
-            {pct(block.bandLowPct)} … {pct(block.bandHighPct)}
+            {pct(block.bandLowPct, locale)} … {pct(block.bandHighPct, locale)}
           </bdi>
         </span>
       </p>
@@ -72,7 +68,10 @@ export function ForecastCard({ block, onPick }: { block: ForecastBlock; onPick: 
           values={block.trend.values}
           dates={block.trend.dates}
           changePct={block.ownChangePct}
-          label={`روند قیمت ${block.title} در ${toPersianDigits(block.basedOnDays)} روز گذشته:`}
+          label={t('trendOfDaysLabel', {
+            name: block.title,
+            days: localizeDigits(block.basedOnDays, locale),
+          })}
         />
       ) : null}
 
@@ -82,9 +81,15 @@ export function ForecastCard({ block, onPick }: { block: ForecastBlock; onPick: 
             <li key={d.label}>
               <span className={styles.fcDriverLabel}>{d.label}</span>
               <span className={`${styles.fcDriverNums} tnum`}>
-                <bdi dir="ltr">{pct(d.changePct)}</bdi>
+                <bdi dir="ltr">{pct(d.changePct, locale)}</bdi>
                 <span className={styles.fcDriverCorr}>
-                  همبستگی <bdi dir="ltr">{toPersianDigits(d.correlation.toFixed(2)).replace('.', '٫')}</bdi>
+                  {t('forecast.correlation')}{' '}
+                  <bdi dir="ltr">
+                    {localizeDigits(d.correlation.toFixed(2), locale).replace(
+                      '.',
+                      locale === 'fa' ? '٫' : '.',
+                    )}
+                  </bdi>
                 </span>
               </span>
             </li>
@@ -97,10 +102,7 @@ export function ForecastCard({ block, onPick }: { block: ForecastBlock; onPick: 
           rather than left to the model to remember. */}
       <p className={styles.fcCaveat}>
         <InfoIcon size={14} aria-hidden="true" />
-        <span>
-          این یک برآورد جهت‌دار از روی داده‌های گذشته است، نه قیمت قطعی. بازار آهن با خبر و نرخ ارز
-          یک‌شبه جابه‌جا می‌شود؛ قیمت معتبر همان قیمتی است که در پیش‌فاکتور همان روز ثبت می‌شود.
-        </span>
+        <span>{t('forecast.caveat')}</span>
       </p>
 
       <Freshness at={block.updatedAt} />
@@ -111,14 +113,14 @@ export function ForecastCard({ block, onPick }: { block: ForecastBlock; onPick: 
           className={styles.actionPrimary}
           onClick={() => onPick(`برای ${block.title} پیش‌فاکتور امروز را بگیر`)}
         >
-          پیش‌فاکتور با قیمت امروز
+          {t('actions.proformaTodayPrice')}
         </button>
         <button
           type="button"
           className={styles.actionGhost}
           onClick={() => onPick(`اگر قیمت ${block.title} پایین آمد به من خبر بده`)}
         >
-          هشدار قیمت
+          {t('actions.priceAlert')}
         </button>
       </div>
     </div>

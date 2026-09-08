@@ -8,8 +8,9 @@
  * is closed on arrival.
  */
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { renderWithIntl as render } from '@/test/renderWithIntl';
 import { AdvisorAbout } from './AdvisorAbout';
 
 const FAQ = [

@@ -914,5 +914,207 @@
         "answer": "For each line (frame rebar, roof rebar, shed frame), the user selects one specific product from Ahantime's live catalog, with an exact grade, size, and factory; the cost equals that line's calculated weight multiplied by that specific selected product's current price, not the average of an entire product category."
       }
     }
+  },
+  "ai": {
+    "about": {
+      "summaryTitle": "What exactly does this advisor do?",
+      "summaryHint": "Where the prices come from, how accurate the weights are, and why there's no online payment",
+      "lede": "The Ahantime advisor answers from the same prices you see in the <link>site's price tables</link>; it never makes up a number. Tell it what product and what it's for, and it will work out today's price, the exact section weight and the cheapest mill for your tonnage — and, if you'd like, get you a proforma at the end."
+    },
+    "capabilities": {
+      "title": "What can this advisor do that a general-purpose chat can't?",
+      "compare": {
+        "title": "Compares mills on your own tonnage",
+        "body": "Say how many tonnes you want; it compares the price per kilogram at that tonnage across available mills, marks the cheapest, and states how much it saves versus the next option. The comparison always runs on one specific grade, never a category-wide average."
+      },
+      "weight": {
+        "title": "Exact section weight, not a rough guess",
+        "body": "Computes the weight per bar and the total weight with each section's standard formula: rebar, I-beams, channels, angles, sheet, pipe, box, strip and wire. It also answers \"how many bars is 20 tonnes?\", using the same formula the site's <link>weight calculator</link> uses."
+      },
+      "outlook": {
+        "title": "A price outlook, with a range and a reason",
+        "body": "It won't leave \"buy now or wait?\" unanswered: it reads the product's real trend and its correlation with the dollar, gold and billet, and shows the short-term direction with a percentage range and its reason. It never states a firm price for a date, and if there isn't enough price history it honestly says so."
+      },
+      "sourced": {
+        "title": "A sourced technical answer, not a generic one",
+        "body": "For questions like the difference between rebar grades, it searches Ahantime's published guides and articles and names that guide as its source. If we don't have a guide on a topic, it says so honestly."
+      },
+      "footnote": "Every number it states comes from the same database the <link>price tables</link> are built from. If a price isn't on record, it won't invent one — it says a specialist will confirm it. There's no online payment either: you file the proforma request right here, and a specialist calls to finalize the price and delivery time."
+    },
+    "rail": {
+      "newConversation": "New conversation",
+      "historyAria": "Previous conversations",
+      "loginPrompt": "<link>Sign in</link> to see your previous conversations. Your current conversation stays right here.",
+      "loadFailed": "The conversation list didn't load.",
+      "retry": "Try again",
+      "empty": "No saved conversations yet.",
+      "bucket": {
+        "today": "Today",
+        "yesterday": "Yesterday",
+        "lastWeek": "Last week",
+        "lastMonth": "Last month",
+        "older": "Older"
+      }
+    },
+    "proforma": {
+      "confirmedBadge": "Request filed",
+      "trackingCode": "Tracking code:",
+      "confirmedNote": "A sales specialist will call you to finalize the price and delivery time.",
+      "viewDownload": "View & download proforma",
+      "trackRequests": "Track my requests",
+      "pendingBadge": "Proforma request summary",
+      "updatingPrice": "Updating price…",
+      "qtyOf": "Quantity of {name}",
+      "unitOf": "Unit for {name}",
+      "deliveryCity": "Delivery city",
+      "cityNotSelected": "Not selected",
+      "cityHint": "The specialist will state freight on the proforma.",
+      "totalWeight": "Total weight",
+      "kgUnit": "kg",
+      "grandTotal": "Grand total",
+      "partialPriceNote": "A specialist will state the price for some items; your request goes straight to the sales team.",
+      "updateFailed": "The update failed. Check your connection and try again.",
+      "confirmFailed": "Filing the request failed. Check your connection and try again.",
+      "confirming": "Filing…",
+      "confirmCta": "Confirm & file request",
+      "loginCta": "Sign in",
+      "addedToCart": "Added to cart",
+      "addToCart": "Add to cart",
+      "whatsappCta": "Send on WhatsApp",
+      "guestNote": "After signing in you'll return to this same conversation and file the request with one button; your name and number come from your account.",
+      "humanQuestion": "Have a technical question, or something doesn't add up?"
+    },
+    "blocks": {
+      "badges": {
+        "quote": "Today's price",
+        "compare": "Mill comparison",
+        "options": "Choose one",
+        "forecast": "Price outlook",
+        "expert": "Talk to a specialist",
+        "trend": "Price trend"
+      },
+      "freshness": {
+        "label": "Last updated:",
+        "at": "at",
+        "staleTag": "Needs a specialist to confirm"
+      },
+      "priceAsk": "Ask a specialist",
+      "sizeLabel": "size {size}",
+      "tagBest": "Cheapest",
+      "tagLanded": "Cheapest landed",
+      "perKg": "Per kilogram",
+      "itemTotal": "Item total",
+      "deliveredTo": "Delivered to {city}",
+      "singleSource": "Single source",
+      "savingsNote": "Choosing the cheapest option saves {amount} versus the next one.",
+      "landedNote": "The delivered column prices the load from {origin} to {city} including freight, loading, insurance and weighbridge; the specialist confirms the final figure on the proforma.",
+      "excludedNonKg": "{count} row(s) aren't priced per kilogram and were left out of this comparison.",
+      "actions": {
+        "proformaFromCheapest": "Proforma from the cheapest",
+        "withFreight": "Include freight cost",
+        "priceTrend": "Price trend",
+        "compareFactories": "Compare mills",
+        "proforma": "Proforma",
+        "productPage": "Product page",
+        "moreOptions": "There are more options; if yours isn't here, just type it.",
+        "proformaTodayPrice": "Proforma at today's price",
+        "priceAlert": "Price alert"
+      },
+      "forecast": {
+        "bandRange": "Approximate change range over {horizon}",
+        "direction": {
+          "up": "Trending up",
+          "down": "Trending down",
+          "flat": "Low volatility"
+        },
+        "confidence": {
+          "high": "Fairly reliable",
+          "medium": "Moderately reliable",
+          "low": "Low reliability"
+        },
+        "correlation": "correlation",
+        "caveat": "This is a directional estimate from past data, not a firm price. The steel market can move overnight on news and the exchange rate; the valid price is the one set on that day's proforma."
+      },
+      "trend": {
+        "change": {
+          "up": "Up",
+          "down": "Down",
+          "flat": "No change"
+        },
+        "inRange": "over {range}",
+        "fullChart": "Full chart on the product page"
+      },
+      "whatsapp": "WhatsApp",
+      "sparkline": {
+        "fromTo": "from {from} to {to}",
+        "priceFromTo": "from {from} to {to} {unit}",
+        "tomanUnit": "Toman",
+        "changeSuffix": ", {direction} {pct} percent"
+      },
+      "trendOfLabel": "Price trend of {name}:",
+      "trendOfDaysLabel": "Price trend of {name} over the last {days} days:",
+      "trendOfRangeLabel": "Price trend of {name} over {range}:"
+    },
+    "markdown": {
+      "tableAria": "Advisor's answer table"
+    },
+    "chat": {
+      "greeting": "Hi! I'm the Ahantime AI advisor.\nI'll help you make the best purchase, like a knowledgeable friend — consult first, then buy.",
+      "newChat": "New conversation",
+      "notice": {
+        "fallback": "The AI assistant is temporarily unavailable. Try again in a moment, or contact a specialist.",
+        "rateLimited": "Messages were sent back to back. Wait a bit and send again.",
+        "offline": "Your internet connection is down. Try again once you're back online.",
+        "dropped": "The answer was cut short; the connection dropped mid-stream.",
+        "waitingSeconds": "({seconds}s)"
+      },
+      "retry": {
+        "waitingAria": "Retry in {seconds} seconds",
+        "defaultAria": "Retry for a live answer",
+        "continue": "Continue",
+        "retry": "Retry"
+      },
+      "feedback": {
+        "groupLabel": "How was this answer?",
+        "helpful": "Helpful",
+        "notHelpful": "Not helpful",
+        "thanks": "Thanks for the feedback"
+      },
+      "roleUser": "You",
+      "tool": {
+        "getPrice": "Checking today's prices…",
+        "calcWeight": "Calculating weight…",
+        "estimateProject": "Estimating the project…",
+        "prepareProforma": "Preparing the request summary…",
+        "compareFactories": "Comparing mills…",
+        "searchGuides": "Searching the guides…",
+        "productOptions": "Checking available options…",
+        "priceHistory": "Reading the price trend…",
+        "forecastPrice": "Checking market trend and indices…",
+        "setPriceAlert": "Setting up the price alert…",
+        "default": "Writing…"
+      },
+      "slowHint": "This is taking a bit; thanks for your patience.",
+      "railToggleAria": "Conversation list",
+      "railScrimAria": "Close conversation list",
+      "exitImmersiveAria": "Back to the page",
+      "composerLabel": "Message to the AI advisor",
+      "placeholder": {
+        "offline": "Your internet connection is down…",
+        "busy": "Answering…",
+        "default": "Type your question…"
+      },
+      "micStart": "Voice input",
+      "micStop": "Stop voice input",
+      "stopAria": "Stop the answer",
+      "sendAria": "Send",
+      "offlineBar": "Your internet connection is down; you can send a message again as soon as you're reconnected.",
+      "humanQuestion": "Didn't get your answer?",
+      "humanWhatsapp": "WhatsApp a specialist",
+      "disclaimer": "Answers are based on real prices; Ahantime never invents a number.",
+      "openingConversation": "Opening conversation…",
+      "openConversationFailed": "This conversation didn't open. Try again or start a new one.",
+      "defaultHeading": "Ahantime AI Advisor"
+    }
   }
 }

@@ -1,3 +1,6 @@
+'use client';
+import type { ReactNode } from 'react';
+import { useTranslations } from 'next-intl';
 import { ChartIcon, ClockIcon, IBeamGlyph, InfoIcon } from '@/components/primitives/icons';
 import { routes } from '@/lib/routes';
 import Link from 'next/link';
@@ -13,62 +16,29 @@ import styles from './AdvisorCapabilities.module.css';
  * chat panel on purpose (see app/ai/page.tsx) — the composer is the page's
  * primary control and must stay one screen away, not below an explainer.
  */
-const CAPABILITIES = [
-  {
-    Icon: ChartIcon,
-    title: 'مقایسهٔ کارخانه‌ها روی تناژ خودت',
-    body: (
-      <>
-        بگو چند تن می‌خواهی؛ قیمت هر کیلوگرم را برای همان تناژ بین کارخانه‌های موجود مقایسه می‌کند،
-        ارزان‌ترین را مشخص می‌کند و می‌گوید نسبت به گزینهٔ بعدی چقدر صرفه دارد. مقایسه همیشه روی یک
-        گرید مشخص انجام می‌شود، نه میانگین کل دسته.
-      </>
-    ),
-  },
-  {
-    Icon: IBeamGlyph,
-    title: 'وزن دقیق مقطع، نه تخمین سرانگشتی',
-    body: (
-      <>
-        وزن هر شاخه و وزن کل را با فرمول استاندارد همان مقطع حساب می‌کند: میلگرد، تیرآهن، ناودانی،
-        نبشی، ورق، لوله، قوطی، تسمه و مفتول. «۲۰ تن چند شاخه می‌شود؟» را هم جواب می‌دهد، با همان
-        فرمولی که{' '}
-        <Link href={routes.tool('weight')} className={styles.link}>
-          وزن‌سنج
-        </Link>{' '}
-        سایت به کار می‌برد.
-      </>
-    ),
-  },
-  {
-    Icon: ClockIcon,
-    title: 'چشم‌انداز قیمت، با بازه و دلیل',
-    body: (
-      <>
-        «بخرم یا صبر کنم؟» را بی‌جواب نمی‌گذارد: روند واقعی همان محصول و همبستگی‌اش با دلار، طلا و
-        شمش را می‌خواند و جهت کوتاه‌مدت را با یک بازهٔ درصدی و دلیلش نشان می‌دهد. هرگز قیمت قطعی
-        برای یک تاریخ نمی‌گوید، و اگر سابقهٔ قیمتی کافی نباشد صادقانه می‌گوید نمی‌شود.
-      </>
-    ),
-  },
-  {
-    Icon: InfoIcon,
-    title: 'جواب فنی با منبع، نه حرف کلی',
-    body: (
-      <>
-        برای سؤال‌هایی مثل فرق گریدهای میلگرد، در راهنماها و مقاله‌های منتشرشدهٔ آهن‌تایم می‌گردد و
-        نام همان راهنما را به‌عنوان منبع می‌گوید. اگر راهنمایی برای موضوعی نداشته باشیم، صادقانه
-        همین را می‌گوید.
-      </>
-    ),
-  },
-] as const;
-
 export function AdvisorCapabilities() {
+  const t = useTranslations('ai.capabilities');
+  const weightLink = (chunks: ReactNode) => (
+    <Link href={routes.tool('weight')} className={styles.link}>
+      {chunks}
+    </Link>
+  );
+  const pricesLink = (chunks: ReactNode) => (
+    <Link href={routes.prices()} className={styles.link}>
+      {chunks}
+    </Link>
+  );
+  const CAPABILITIES = [
+    { Icon: ChartIcon, title: t('compare.title'), body: t('compare.body') },
+    { Icon: IBeamGlyph, title: t('weight.title'), body: t.rich('weight.body', { link: weightLink }) },
+    { Icon: ClockIcon, title: t('outlook.title'), body: t('outlook.body') },
+    { Icon: InfoIcon, title: t('sourced.title'), body: t('sourced.body') },
+  ] as const;
+
   return (
     <section className={styles.section} aria-labelledby="advisor-can-title">
       <h2 id="advisor-can-title" className={styles.title}>
-        این مشاور چه کاری می‌کند که یک چت عمومی نمی‌کند؟
+        {t('title')}
       </h2>
       <ul className={styles.list}>
         {CAPABILITIES.map(({ Icon, title, body }) => (
@@ -83,15 +53,7 @@ export function AdvisorCapabilities() {
           </li>
         ))}
       </ul>
-      <p className={styles.footnote}>
-        هر عددی که می‌گوید از همان دیتابیسی می‌آید که{' '}
-        <Link href={routes.prices()} className={styles.link}>
-          جدول‌های قیمت
-        </Link>{' '}
-        از آن ساخته می‌شوند. اگر قیمتی ثبت نشده باشد، عدد نمی‌سازد و می‌گوید کارشناس اعلام می‌کند.
-        پرداخت آنلاینی هم در کار نیست: درخواست پیش‌فاکتور را همین‌جا ثبت می‌کنی و کارشناس برای
-        نهایی‌کردن قیمت و زمان تحویل تماس می‌گیرد.
-      </p>
+      <p className={styles.footnote}>{t.rich('footnote', { link: pricesLink })}</p>
     </section>
   );
 }

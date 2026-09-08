@@ -8,9 +8,10 @@
  * a 401 has to read as an invitation, not a failure.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ApiError } from '@/lib/api/errors';
+import { renderWithIntl as render } from '@/test/renderWithIntl';
 
 vi.mock('@/lib/api', () => ({
   API_MODE: 'live',
