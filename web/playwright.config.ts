@@ -51,6 +51,19 @@ export default defineConfig({
     baseURL: BASE_URL,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
+    // Pin the browser's reported language to fa-IR. Without this, the
+    // browser falls back to the CI runner's OS locale (en-US on GitHub
+    // Actions' Ubuntu images) — after the i18n audit taught `LocaleProvider`
+    // to auto-detect `navigator.language` for a first-time visitor with no
+    // locale cookie (see that file's header comment), an unpinned CI browser
+    // silently switched the ENTIRE app to English mid-test for every spec
+    // that doesn't set the locale cookie itself, breaking every Persian-text
+    // selector across the suite. This site's primary market is Persian, so
+    // e2e should exercise that experience deterministically regardless of
+    // the runner's OS locale; a dedicated unit test
+    // (`src/i18n/LocaleProvider.test.tsx`) already covers the detection
+    // behavior itself with a stubbed `navigator.language`.
+    locale: 'fa-IR',
   },
   webServer: [
     {
