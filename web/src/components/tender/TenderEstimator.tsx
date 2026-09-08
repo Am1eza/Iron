@@ -1,5 +1,6 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 import Link from 'next/link';
 import { routes } from '@/lib/routes';
 import { api, ApiError } from '@/lib/api';
@@ -7,15 +8,17 @@ import { API_MODE } from '@/lib/api/config';
 import { useAuthStore } from '@/lib/stores/auth';
 import { useToast } from '@/lib/hooks/useToast';
 import { trackGoal } from '@/lib/analytics/track';
-import { formatToman, toPersianDigits } from '@/lib/utils/format';
+import { formatToman, localizeDigits } from '@/lib/utils/format';
+import { getLocalizedName } from '@/lib/utils/localizedNames';
 import type { FactoryOption, TenderQuote } from '@/lib/server/services/tenderEstimate';
 import type { CreateLeadResult } from '@/lib/server/services/leads.service';
+import type { AppLocale } from '@/i18n/config';
 import { Button } from '@/components/ui';
 import { CheckCircleIcon, DownloadIcon, PlusIcon, TrashIcon } from '@/components/primitives/icons';
 import styles from './TenderEstimator.module.css';
 
-type CatOption = { slug: string; name: string };
-type SubOption = { slug: string; name: string };
+type CatOption = { slug: string; name: string; nameEn?: string; nameAr?: string; nameZh?: string };
+type SubOption = { slug: string; name: string; nameEn?: string; nameAr?: string; nameZh?: string };
 
 type Row = {
   id: string;
@@ -55,6 +58,11 @@ function defaultSku(factories: FactoryOption[]): string {
  * factory but freely changeable), and every price/weight/total shown comes from
  * the server (/api/tender/*), never the client — so the running total equals,
  * to the ریال, the پیش‌فاکتور the user gets on submit.
+ *
+ * Category/product names are localized client-side via `getLocalizedName`
+ * (i18n audit follow-up) — `categories`/`subsByCat` carry the same
+ * `nameEn`/`nameAr`/`nameZh` columns already backfilled for the rest of the
+ * catalog; a category/sub without a translation falls back to its fa name.
  */
 export function TenderEstimator({
   categories,
@@ -63,6 +71,8 @@ export function TenderEstimator({
   categories: CatOption[];
   subsByCat: Record<string, SubOption[]>;
 }) {
+  const t = useTranslations('tenderEstimator');
+  const locale = useLocale() as AppLocale;
   const user = useAuthStore((s) => s.user);
   const toast = useToast();
   const [rows, setRows] = useState<Row[]>(() => [emptyRow(), emptyRow()]);
@@ -91,10 +101,10 @@ export function TenderEstimator({
         }
       } catch {
         patch(id, { loading: false });
-        toast.error('دریافت گزینه‌های این محصول ناموفق بود.');
+        toast.error(t('optionsFetchError'));
       }
     },
-    [patch, toast],
+    [patch, toast, t],
   );
 
   const onCategory = (id: string, slug: string) =>
@@ -132,7 +142,7 @@ export function TenderEstimator({
     }
     priceKeyRef.current = priceKey;
     const items = priceable.map((r) => ({ skuId: r.skuId, qty: r.qty }));
-    const t = setTimeout(async () => {
+    const timer = setTimeout(async () => {
       setPricing(true);
       try {
         const q = await api.tender.price(items);
@@ -144,7 +154,7 @@ export function TenderEstimator({
         setPricing(false);
       }
     }, 400);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
     // priceKey is the exact debounce trigger; items is derived from it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [priceKey]);
@@ -159,7 +169,7 @@ export function TenderEstimator({
       return { skuId: r.skuId, qty: r.qty, unit: opt?.unit ?? ('kg' as const) };
     });
     if (items.length === 0) {
-      toast.error('حداقل یک ردیف کامل (محصول و مقدار) اضافه کنید.');
+      toast.error(t('minRowError'));
       return;
     }
     if (API_MODE === 'live' && user) {
@@ -172,10 +182,13 @@ export function TenderEstimator({
           source: 'tender',
           note: note.trim() || undefined,
         });
+        // Analytics label kept in fa for consistency with every other
+        // trackGoal call site in this codebase (PriceTable, etc.) — an
+        // internal event payload, not user-facing text.
         trackGoal('lead', 'tender-estimate', `${items.length} قلم`);
         setDone(result);
       } catch (err) {
-        toast.error(err instanceof ApiError ? err.message : 'ثبت برآورد ناموفق بود. دوباره تلاش کنید.');
+        toast.error(err instanceof ApiError ? err.message : t('submitErrorGeneric'));
       } finally {
         setBusy(false);
       }
@@ -189,17 +202,14 @@ export function TenderEstimator({
         <span className={styles.successIcon} aria-hidden="true">
           <CheckCircleIcon size={40} />
         </span>
-        <h2 className={styles.successTitle}>برآورد شما ثبت و به تیم فروش ارسال شد</h2>
-        <p className={styles.successLead}>
-          کارشناسان آهن‌تایم برآورد مناقصهٔ شما را دریافت کردند و برای نهایی‌کردن قیمت و شرایط با شما هماهنگ
-          می‌کنند.
-        </p>
-        <p className={`${styles.successRef} tnum`}>
-          کد پیگیری: <bdi>{done.ref}</bdi>
-        </p>
+        <h2 className={styles.successTitle}>{t('successTitle')}</h2>
+        <p className={styles.successLead}>{t('successLead')}</p>
+        <p className={`${styles.successRef} tnum`}>{t('successRef', { ref: done.ref })}</p>
         {done.proformaRef ? (
           <div className={styles.successProforma}>
-            <p className="tnum">پیش‌فاکتور شما صادر شد{done.total ? <>، مبلغ {formatToman(done.total)}</> : null}</p>
+            <p className="tnum">
+              {done.total ? t('proformaIssuedWithAmount', { amount: formatToman(done.total) }) : t('proformaIssued')}
+            </p>
             <Link
               href={`/proforma/${encodeURIComponent(done.proformaRef)}`}
               className={styles.pdfBtn}
@@ -207,17 +217,15 @@ export function TenderEstimator({
               rel="noreferrer"
             >
               <DownloadIcon size={18} aria-hidden="true" />
-              دانلود پیش‌فاکتور (PDF)
+              {t('downloadProforma')}
             </Link>
           </div>
         ) : (
-          <p className={styles.successNote}>
-            برخی اقلام نیاز به استعلام قیمت دارند؛ کارشناس فروش پیش‌فاکتور نهایی را برایتان ارسال می‌کند.
-          </p>
+          <p className={styles.successNote}>{t('successNoteQuote')}</p>
         )}
         <div className={styles.successActions}>
           <Link href={routes.account('requests')} className={styles.trackLink}>
-            پیگیری درخواست‌های من
+            {t('trackRequests')}
           </Link>
         </div>
       </div>
@@ -230,15 +238,15 @@ export function TenderEstimator({
         <table className={styles.table}>
           <thead>
             <tr>
-              <th scope="col">دسته</th>
-              <th scope="col">محصول</th>
-              <th scope="col">سایز</th>
-              <th scope="col">کارخانه</th>
-              <th scope="col">مقدار</th>
-              <th scope="col">وزن</th>
-              <th scope="col">قیمت واحد</th>
-              <th scope="col">جمع ردیف</th>
-              <th scope="col"><span className="sr-only">حذف</span></th>
+              <th scope="col">{t('tableHeaders.category')}</th>
+              <th scope="col">{t('tableHeaders.product')}</th>
+              <th scope="col">{t('tableHeaders.size')}</th>
+              <th scope="col">{t('tableHeaders.factory')}</th>
+              <th scope="col">{t('tableHeaders.qty')}</th>
+              <th scope="col">{t('tableHeaders.weight')}</th>
+              <th scope="col">{t('tableHeaders.unitPrice')}</th>
+              <th scope="col">{t('tableHeaders.lineTotal')}</th>
+              <th scope="col"><span className="sr-only">{t('tableHeaders.remove')}</span></th>
             </tr>
           </thead>
           <tbody>
@@ -247,95 +255,99 @@ export function TenderEstimator({
               const subs = subsByCat[row.categorySlug] ?? [];
               return (
                 <tr key={row.id}>
-                  <td data-label="دسته">
+                  <td data-label={t('tableHeaders.category')}>
                     <select
                       className={styles.select}
-                      aria-label="دسته"
+                      aria-label={t('tableHeaders.category')}
                       value={row.categorySlug}
                       onChange={(e) => onCategory(row.id, e.target.value)}
                     >
-                      <option value="">انتخاب…</option>
+                      <option value="">{t('selectPlaceholder')}</option>
                       {categories.map((c) => (
-                        <option key={c.slug} value={c.slug}>{c.name}</option>
+                        <option key={c.slug} value={c.slug}>{getLocalizedName(c, locale)}</option>
                       ))}
                     </select>
                   </td>
-                  <td data-label="محصول">
+                  <td data-label={t('tableHeaders.product')}>
                     <select
                       className={styles.select}
-                      aria-label="محصول"
+                      aria-label={t('tableHeaders.product')}
                       value={row.subSlug}
                       disabled={!row.categorySlug}
                       onChange={(e) => onSub(row.id, e.target.value)}
                     >
-                      <option value="">انتخاب…</option>
+                      <option value="">{t('selectPlaceholder')}</option>
                       {subs.map((s) => (
-                        <option key={s.slug} value={s.slug}>{s.name}</option>
+                        <option key={s.slug} value={s.slug}>{getLocalizedName(s, locale)}</option>
                       ))}
                     </select>
                   </td>
-                  <td data-label="سایز">
+                  <td data-label={t('tableHeaders.size')}>
                     {row.sizes.length > 0 ? (
                       <select
                         className={styles.select}
-                        aria-label="سایز"
+                        aria-label={t('tableHeaders.size')}
                         value={row.size}
                         onChange={(e) => onSize(row.id, e.target.value)}
                       >
-                        <option value="">انتخاب…</option>
+                        <option value="">{t('selectPlaceholder')}</option>
                         {row.sizes.map((s) => (
                           <option key={s} value={s}>{s}</option>
                         ))}
                       </select>
                     ) : (
-                      <span className={styles.dash}>نامشخص</span>
+                      <span className={styles.dash}>{t('unknown')}</span>
                     )}
                   </td>
-                  <td data-label="کارخانه">
+                  <td data-label={t('tableHeaders.factory')}>
                     {row.factories.length > 0 ? (
                       <select
                         className={styles.select}
-                        aria-label="کارخانه"
+                        aria-label={t('tableHeaders.factory')}
                         value={row.skuId}
                         onChange={(e) => patch(row.id, { skuId: e.target.value })}
                       >
                         {row.factories.map((f) => (
                           <option key={f.skuId} value={f.skuId}>
                             {f.factory}
-                            {f.unitPrice == null ? ' (استعلام)' : ''}
-                            {f.cheapest ? '، ارزان‌ترین' : ''}
+                            {f.unitPrice == null ? ` ${t('factoryQuoteSuffix')}` : ''}
+                            {f.cheapest ? t('factoryCheapestSuffix') : ''}
                           </option>
                         ))}
                       </select>
                     ) : (
-                      <span className={styles.dash}>{row.loading ? '…' : 'نامشخص'}</span>
+                      <span className={styles.dash}>{row.loading ? '…' : t('unknown')}</span>
                     )}
                   </td>
-                  <td data-label="مقدار">
+                  <td data-label={t('tableHeaders.qty')}>
                     <input
                       className={styles.qty}
                       inputMode="numeric"
-                      aria-label="مقدار"
+                      aria-label={t('tableHeaders.qty')}
                       value={row.qty}
                       onChange={(e) => patch(row.id, { qty: e.target.value.replace(/[^\d.]/g, '') })}
-                      placeholder="۰"
+                      placeholder={localizeDigits(0, locale)}
                     />
                   </td>
-                  <td data-label="وزن" className="tnum">
-                    {line?.weightKg != null ? `${toPersianDigits(line.weightKg)} کیلوگرم` : <span className={styles.dash}>نامشخص</span>}
+                  <td data-label={t('tableHeaders.weight')} className="tnum">
+                    {line?.weightKg != null ? (
+                      `${localizeDigits(line.weightKg, locale)} ${t('weightUnit')}`
+                    ) : (
+                      <span className={styles.dash}>{t('unknown')}</span>
+                    )}
                   </td>
-                  <td data-label="قیمت واحد" className="tnum">
-                    {line?.priced ? formatToman(line.unitPrice!, false) : <span className={styles.quote}>استعلام</span>}
+                  <td data-label={t('tableHeaders.unitPrice')} className="tnum">
+                    {line?.priced ? formatToman(line.unitPrice!, false) : <span className={styles.quote}>{t('quoteLabel')}</span>}
                   </td>
-                  <td data-label="جمع ردیف" className="tnum">
-                    {line?.priced ? formatToman(line.lineTotal!, false) : <span className={styles.dash}>نامشخص</span>}
+                  <td data-label={t('tableHeaders.lineTotal')} className="tnum">
+                    {line?.priced ? formatToman(line.lineTotal!, false) : <span className={styles.dash}>{t('unknown')}</span>}
                   </td>
                   <td>
                     <button
                       type="button"
                       className={styles.removeBtn}
                       onClick={() => removeRow(row.id)}
-                      aria-label="حذف ردیف"
+                      aria-label={t('removeRowAria')}
                       disabled={rows.length <= 1}
                     >
                       <TrashIcon size={18} aria-hidden="true" />
@@ -351,32 +363,31 @@ export function TenderEstimator({
       <div className={styles.toolbar}>
         <button type="button" className={styles.addBtn} onClick={addRow} disabled={rows.length >= 100}>
           <PlusIcon size={18} aria-hidden="true" />
-          افزودن ردیف
+          {t('addRow')}
         </button>
-        {pricing ? <span className={styles.pricing}>در حال محاسبه…</span> : null}
+        {pricing ? <span className={styles.pricing}>{t('pricingInProgress')}</span> : null}
       </div>
 
       <div className={styles.summary}>
         <dl className={styles.totals}>
           <div>
-            <dt>جمع کل (بدون مالیات)</dt>
-            <dd className="tnum">{quote ? formatToman(quote.subtotal) : 'نامشخص'}</dd>
+            <dt>{t('subtotalLabel')}</dt>
+            <dd className="tnum">{quote ? formatToman(quote.subtotal) : t('unknown')}</dd>
           </div>
           <div>
-            <dt>مالیات بر ارزش افزوده{quote ? ` (${toPersianDigits(Math.round(quote.vatRate * 100))}٪)` : ''}</dt>
-            <dd className="tnum">{quote ? formatToman(quote.vatAmount) : 'نامشخص'}</dd>
+            <dt>
+              {quote
+                ? t('vatLabelWithRate', { rate: localizeDigits(Math.round(quote.vatRate * 100), locale) })
+                : t('vatLabel')}
+            </dt>
+            <dd className="tnum">{quote ? formatToman(quote.vatAmount) : t('unknown')}</dd>
           </div>
           <div className={styles.grand}>
-            <dt>مبلغ نهایی</dt>
-            <dd className="tnum">{quote ? formatToman(quote.grandTotal) : 'نامشخص'}</dd>
+            <dt>{t('grandTotalLabel')}</dt>
+            <dd className="tnum">{quote ? formatToman(quote.grandTotal) : t('unknown')}</dd>
           </div>
         </dl>
-        {quote && !quote.allPriced ? (
-          <p className={styles.partial}>
-            برخی اقلام قیمت زندهٔ لحظه‌ای ندارند و «استعلام» شده‌اند؛ کارشناس قیمت آن‌ها را در پیش‌فاکتور نهایی
-            اعلام می‌کند.
-          </p>
-        ) : null}
+        {quote && !quote.allPriced ? <p className={styles.partial}>{t('partialPricingNote')}</p> : null}
       </div>
 
       <textarea
@@ -384,28 +395,25 @@ export function TenderEstimator({
         value={note}
         onChange={(e) => setNote(e.target.value)}
         rows={2}
-        placeholder="توضیحات (اختیاری): مهلت مناقصه، شرایط تحویل، الزام کارخانه/استاندارد خاص…"
-        aria-label="توضیحات"
+        placeholder={t('notePlaceholder')}
+        aria-label={t('noteAriaLabel')}
       />
 
       {API_MODE === 'live' && !user ? (
         <div className={styles.actions}>
           <Link href={routes.login(routes.tender())} className={styles.loginBtn}>
-            برای ثبت برآورد و دریافت پیش‌فاکتور وارد شوید
+            {t('loginToSubmit')}
           </Link>
         </div>
       ) : (
         <div className={styles.actions}>
           <Button onClick={submit} disabled={busy} loading={busy}>
-            {busy ? 'در حال ثبت…' : 'ثبت برآورد و دریافت پیش‌فاکتور'}
+            {busy ? t('submitting') : t('submitCta')}
           </Button>
         </div>
       )}
 
-      <p className={styles.disclaimer}>
-        قیمت‌ها بر پایهٔ نرخ روز محصولات آهن‌تایم محاسبه می‌شود و تا صدور پیش‌فاکتور نهایی ممکن است تغییر کند.
-        پرداخت آنلاین نداریم؛ پس از ثبت، کارشناس فروش برای نهایی‌کردن تماس می‌گیرد.
-      </p>
+      <p className={styles.disclaimer}>{t('disclaimer')}</p>
     </div>
   );
 }

@@ -1,15 +1,18 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useCartStore } from '@/lib/stores/cart';
 import { useToast } from '@/lib/hooks/useToast';
 import { CONSTANTS } from '@/lib/config/constants';
 import { routes } from '@/lib/routes';
-import { toPersianDigits, normalizeDigits, formatToman } from '@/lib/utils/format';
+import { normalizeDigits, formatToman, localizeDigits } from '@/lib/utils/format';
+import { getLocalizedName, getLocalizedSkuName } from '@/lib/utils/localizedNames';
 import { Card, Stack, Cluster, Text, Switch, DeliveryBadge, MovementBadge } from '@/components/ui';
 import { Button } from '@/components/ui';
 import { PlusIcon, ChevronDownIcon } from '@/components/primitives/icons';
+import type { AppLocale } from '@/i18n/config';
 import styles from './CostCalculator.module.css';
 import { priceBasisNoun, priceUnitCaption } from '@/lib/utils/catalogLabels';
 
@@ -24,6 +27,12 @@ import { priceBasisNoun, priceUnitCaption } from '@/lib/utils/catalogLabels';
  * real prices. Now fetches the live category list and per-category rows via
  * `api.catalog` (same client, same mock/live split every other client-side
  * catalog read already uses).
+ *
+ * Category/product names are localized via `getLocalizedName`/
+ * `getLocalizedSkuName` (i18n audit follow-up), same composer PriceTable and
+ * SkuDetail use — `priceBasisNoun`/`priceUnitCaption` (contextual per-category
+ * unit phrasing from `catalogLabels.ts`) stay fa-only, a documented residual
+ * gap shared with every other caller of that module this session.
  */
 
 type Mode = 'branch' | 'kg';
@@ -34,6 +43,8 @@ function parse(value: string): number {
 }
 
 export function CostCalculator() {
+  const t = useTranslations('costCalculator');
+  const locale = useLocale() as AppLocale;
   const add = useCartStore((s) => s.add);
   const toast = useToast();
 
@@ -50,6 +61,9 @@ export function CostCalculator() {
   useEffect(() => {
     if (!catSlug && activeCategories.length > 0) setCatSlug(activeCategories[0]!.slug);
   }, [catSlug, activeCategories]);
+
+  const category = activeCategories.find((c) => c.slug === catSlug);
+  const subCategories = categoriesData?.subs[catSlug] ?? [];
 
   const { data: rowsData, isLoading: rowsLoading } = useQuery({
     queryKey: ['catalog', 'category-rows', catSlug],
@@ -73,6 +87,10 @@ export function CostCalculator() {
     () => rows.find((r) => r.id === productId) ?? rows[0],
     [rows, productId],
   );
+  const productSubCategory = product
+    ? subCategories.find((s) => s.slug === product.subCategoryId)
+    : undefined;
+  const productName = product ? getLocalizedSkuName(product, category, productSubCategory, locale) : '';
 
   const onCategoryChange = (slug: string) => {
     setCatSlug(slug);
@@ -119,7 +137,7 @@ export function CostCalculator() {
     if (!product || !canCompute) return;
     add({
       skuId: product.id,
-      name: product.name,
+      name: productName,
       qty: Math.max(1, Math.round(qty)), // cart qty is an integer (±1 stepper)
       unit: product.unit,
       unitPrice: product.current.price,
@@ -131,8 +149,8 @@ export function CostCalculator() {
             ? product.theoreticalWeightKg
             : 1,
     });
-    toast.success(`${product.name} به سبد استعلام اضافه شد.`, {
-      label: 'مشاهده سبد',
+    toast.success(t('addedToCart', { name: productName }), {
+      label: t('viewCart'),
       href: routes.cart(),
     });
   };
@@ -144,17 +162,17 @@ export function CostCalculator() {
         <Stack gap={5}>
           {/* دسته */}
           <label className={styles.field}>
-            <span className={styles.fieldLabel}>دستهٔ کالا</span>
+            <span className={styles.fieldLabel}>{t('categoryLabel')}</span>
             <div className={styles.selectWrap}>
               <select
                 className={styles.select}
                 value={catSlug}
                 onChange={(e) => onCategoryChange(e.target.value)}
-                aria-label="انتخاب دستهٔ کالا"
+                aria-label={t('selectCategoryAria')}
               >
                 {activeCategories.map((c) => (
                   <option key={c.slug} value={c.slug}>
-                    {c.name}
+                    {getLocalizedName(c, locale)}
                   </option>
                 ))}
               </select>
@@ -164,18 +182,18 @@ export function CostCalculator() {
 
           {/* محصول */}
           <label className={styles.field}>
-            <span className={styles.fieldLabel}>محصول</span>
+            <span className={styles.fieldLabel}>{t('productLabel')}</span>
             <div className={styles.selectWrap}>
               <select
                 className={styles.select}
                 value={productId}
                 onChange={(e) => setProductId(e.target.value)}
-                aria-label="انتخاب محصول"
+                aria-label={t('selectProductAria')}
                 disabled={rows.length === 0 || rowsLoading}
               >
                 {rows.map((r) => (
                   <option key={r.id} value={r.id}>
-                    {r.name}
+                    {getLocalizedSkuName(r, category, subCategories.find((s) => s.slug === r.subCategoryId), locale)}
                   </option>
                 ))}
               </select>
@@ -185,21 +203,21 @@ export function CostCalculator() {
 
           {/* مقدار + واحد */}
           <div className={styles.field}>
-            <span className={styles.fieldLabel}>مقدار</span>
+            <span className={styles.fieldLabel}>{t('qtyLabel')}</span>
             <div className={styles.qtyRow}>
               <input
                 className={`${styles.input} tnum`}
                 inputMode="decimal"
                 autoComplete="off"
-                placeholder="مقدار"
+                placeholder={t('qtyLabel')}
                 value={qtyInput}
                 onChange={(e) => setQtyInput(e.target.value)}
                 aria-label={
                   effectiveMode === 'whole'
-                    ? `مقدار به ${priceBasisNoun(product?.priceBasis, product?.branchLengthM)}`
+                    ? t('qtyAriaWhole', { unit: priceBasisNoun(product?.priceBasis, product?.branchLengthM) })
                     : effectiveMode === 'branch'
-                      ? 'تعداد شاخه'
-                      : 'مقدار به کیلوگرم'
+                      ? t('qtyAriaBranch')
+                      : t('qtyAriaKg')
                 }
               />
               {/* No شاخه/کیلوگرم choice for a piece product — «عدد» is the only
@@ -207,7 +225,7 @@ export function CostCalculator() {
               <div
                 className={styles.unitToggle}
                 role="group"
-                aria-label="واحد مقدار"
+                aria-label={t('unitToggleAria')}
                 hidden={effectiveMode === 'whole'}
               >
                 <button
@@ -217,7 +235,7 @@ export function CostCalculator() {
                   aria-pressed={mode === 'branch'}
                   onClick={() => setMode('branch')}
                 >
-                  شاخه
+                  {t('unitBranch')}
                 </button>
                 <button
                   type="button"
@@ -226,15 +244,15 @@ export function CostCalculator() {
                   aria-pressed={mode === 'kg'}
                   onClick={() => setMode('kg')}
                 >
-                  کیلوگرم
+                  {t('unitKg')}
                 </button>
               </div>
             </div>
             {effectiveMode === 'branch' && product?.theoreticalWeightKg ? (
               <Text variant="caption" color="muted">
-                وزن هر شاخه ≈{' '}
-                <span className="tnum">{toPersianDigits(product.theoreticalWeightKg)}</span>{' '}
-                کیلوگرم
+                {t('weightPerBranch')} ≈{' '}
+                <span className="tnum">{localizeDigits(product.theoreticalWeightKg, locale)}</span>{' '}
+                {t('unitKg')}
               </Text>
             ) : null}
           </div>
@@ -242,7 +260,7 @@ export function CostCalculator() {
           <Switch
             checked={vat}
             onChange={setVat}
-            label={`احتساب ارزش افزوده (${toPersianDigits(CONSTANTS.VAT_RATE * 100)}٪)`}
+            label={t('vatSwitchLabel', { rate: localizeDigits(CONSTANTS.VAT_RATE * 100, locale) })}
           />
         </Stack>
       </Card>
@@ -254,7 +272,7 @@ export function CostCalculator() {
           <Stack gap={5}>
             <div>
               <Text variant="overline" color="muted" as="p">
-                {product.name}
+                {productName}
               </Text>
               <Cluster gap={3} align="center">
                 <span className={`${styles.unitPrice} tnum`}>
@@ -275,59 +293,57 @@ export function CostCalculator() {
 
             <dl className={styles.breakdown}>
               <div className={styles.row}>
-                <dt>مقدار</dt>
+                <dt>{t('qtyLabel')}</dt>
                 <dd className="tnum">
                   {effectiveMode === 'whole'
-                    ? `${toPersianDigits(qty)} ${priceBasisNoun(product.priceBasis, product.branchLengthM)}`
+                    ? `${localizeDigits(qty, locale)} ${priceBasisNoun(product.priceBasis, product.branchLengthM)}`
                     : effectiveMode === 'branch'
-                      ? `${toPersianDigits(qty)} شاخه`
-                      : `${toPersianDigits(qty)} کیلوگرم`}
+                      ? `${localizeDigits(qty, locale)} ${t('unitBranch')}`
+                      : `${localizeDigits(qty, locale)} ${t('unitKg')}`}
                 </dd>
               </div>
               {totalWeight != null ? (
                 <div className={styles.row}>
-                  <dt>وزن کل</dt>
-                  <dd className="tnum">{toPersianDigits(Math.round(totalWeight))} کیلوگرم</dd>
+                  <dt>{t('totalWeightLabel')}</dt>
+                  <dd className="tnum">{localizeDigits(Math.round(totalWeight), locale)} {t('unitKg')}</dd>
                 </div>
               ) : null}
               <div className={styles.row}>
-                <dt>مبلغ کالا</dt>
+                <dt>{t('itemAmountLabel')}</dt>
                 <dd className="tnum">{formatToman(base)}</dd>
               </div>
               {vat ? (
                 <div className={styles.row}>
-                  <dt>{`ارزش افزوده (${toPersianDigits(CONSTANTS.VAT_RATE * 100)}٪)`}</dt>
+                  <dt>{t('vatRowLabel', { rate: localizeDigits(CONSTANTS.VAT_RATE * 100, locale) })}</dt>
                   <dd className="tnum">{formatToman(vatAmount)}</dd>
                 </div>
               ) : null}
             </dl>
 
             <div className={styles.totalRow}>
-              <span className={styles.totalLabel}>جمع کل</span>
+              <span className={styles.totalLabel}>{t('grandTotalLabel')}</span>
               <span className={`${styles.totalValue} tnum`}>{formatToman(total)}</span>
             </div>
 
             <Cluster gap={2} align="center" justify="space-between">
               <Text variant="caption" color="muted">
-                زمان تحویل
+                {t('deliveryTimeLabel')}
               </Text>
               <DeliveryBadge value={product.current.deliveryTime} />
             </Cluster>
 
             <Button variant="primary" size="md" fullWidth onClick={addToCart}>
-              <PlusIcon size={18} /> افزودن به سبد استعلام
+              <PlusIcon size={18} /> {t('addToCart')}
             </Button>
 
             <Text variant="caption" color="muted" align="center">
-              قیمت نهایی هنگام صدور پیش‌فاکتور تأیید می‌شود. اول مشورت، بعد خرید.
+              {t('finalPriceNote')}
             </Text>
           </Stack>
         ) : (
           <div className={styles.placeholder}>
             <Text variant="body-sm" color="muted" align="center">
-              {rowsLoading
-                ? 'در حال دریافت قیمت‌های لحظه‌ای…'
-                : 'دسته و محصول را انتخاب کنید و مقدار را وارد کنید تا هزینه محاسبه شود.'}
+              {rowsLoading ? t('fetchingPrices') : t('selectPrompt')}
             </Text>
           </div>
         )}

@@ -50,10 +50,25 @@ export default async function TenderPage() {
     ? await Promise.all([listCategories(), listAllSubCategories()])
     : [[], {} as Record<string, SubCat[]>];
 
-  const catOptions = categories.map((c) => ({ slug: c.slug, name: c.name }));
-  const subOptions: Record<string, { slug: string; name: string }[]> = {};
+  const catOptions = categories.map((c) => ({
+    slug: c.slug,
+    name: c.name,
+    nameEn: c.nameEn,
+    nameAr: c.nameAr,
+    nameZh: c.nameZh,
+  }));
+  const subOptions: Record<
+    string,
+    { slug: string; name: string; nameEn?: string; nameAr?: string; nameZh?: string }[]
+  > = {};
   for (const [cat, subs] of Object.entries(subsByCat)) {
-    subOptions[cat] = subs.map((s) => ({ slug: s.slug, name: s.name }));
+    subOptions[cat] = subs.map((s) => ({
+      slug: s.slug,
+      name: s.name,
+      nameEn: s.nameEn,
+      nameAr: s.nameAr,
+      nameZh: s.nameZh,
+    }));
   }
 
   return (

@@ -634,5 +634,285 @@
     "image": "图片",
     "exportGroupAria": "表格导出",
     "exportGroupAriaScoped": "{scope}表格导出"
+  },
+  "weightCalculator": {
+    "sectionType": "型材类型",
+    "selectPlaceholder": "请选择",
+    "example": "例如 {value}",
+    "pieceCountLabel": "{piece}数量",
+    "weightPerPiece": "每{piece}重量",
+    "totalWeight": "总重量（{count} {piece}）",
+    "invalidGeometry": "所输入的尺寸对该型材无效。",
+    "enterValues": "请输入数值",
+    "noValue": "无数值",
+    "equivalentTons": "约合 {value} 吨",
+    "formulaLabel": "公式：",
+    "formulaPerMeter": "每米重量 = {formula} → 每{piece}重量 = 每米重量 × 长度",
+    "formulaAbsolute": "每{piece}重量 = {formula}",
+    "addToCart": "加入询价车",
+    "addedToCartToast": "计算结果已加入询价车。",
+    "viewCart": "查看购物车",
+    "cartItemName": "{profile}（重量计算结果）",
+    "referenceTableTitle": "标准重量表——{profile}",
+    "disclaimer": "所显示的重量为理论值，基于钢材标准密度计算；实际每批货物的重量可能略有差异。",
+    "fieldAriaLabel": "{label}（单位：{unit}）",
+    "kg": "公斤",
+    "perStandardTable": "按标准表（{subject}）= {value}",
+    "perMillTable": "按厂家表（{subject}）= {value}",
+    "units": {
+      "mm": "毫米",
+      "m": "米",
+      "count": "件"
+    },
+    "pieceWords": {
+      "branch": "件",
+      "sheet": "张"
+    },
+    "terms": {
+      "diameter": "直径",
+      "outerDiameter": "外径",
+      "wallThickness": "壁厚",
+      "thickness": "厚度",
+      "width": "宽度",
+      "length": "长度",
+      "lengthPerPiece": "每{piece}长度",
+      "size": "规格",
+      "sizeLegLength": "规格（边长）"
+    },
+    "profiles": {
+      "rebar": {
+        "label": "螺纹钢",
+        "hint": "根据公称直径计算圆钢每米重量。"
+      },
+      "plate": {
+        "label": "钢板",
+        "hint": "根据长度、宽度和厚度计算单张钢板的重量。"
+      },
+      "pipe": {
+        "label": "钢管",
+        "hint": "根据外径和壁厚计算钢管每米重量。"
+      },
+      "flat": {
+        "label": "扁钢",
+        "hint": "根据宽度和厚度计算扁钢（矩形截面）每米重量。"
+      },
+      "angle": {
+        "label": "角钢",
+        "hint": "根据市场标准规格表计算等边角钢的重量。"
+      },
+      "ibeam": {
+        "label": "工字钢",
+        "hint": "根据各市场规格的厂家重量表计算标准工字钢每米重量。"
+      },
+      "channel": {
+        "label": "槽钢",
+        "hint": "根据各市场规格的厂家重量表计算标准槽钢每米重量。"
+      }
+    },
+    "tableHeaders": {
+      "diameterMm": "直径（mm）",
+      "weightPerMeterKg": "每米重量（kg）",
+      "weightPerBranchLengthKg": "{length}米长每件重量（kg）",
+      "thicknessMm": "厚度（mm）",
+      "widthM": "宽度（m）",
+      "lengthM": "长度（m）",
+      "weightPerSheetKg": "每张重量（kg）",
+      "outerDiameterWithThickness": "外径（mm），厚度{thickness}mm",
+      "widthXThicknessMm": "宽×厚（mm）",
+      "angleSize": "规格（角钢 L×L×t）"
+    }
+  },
+  "projectEstimator": {
+    "projectTypeAria": "项目类型",
+    "types": {
+      "concrete": "混凝土建筑",
+      "steel": "钢结构",
+      "shed": "工业厂房"
+    },
+    "introShed": "输入厂房跨度和大厅总长度，查看主体钢架重量的初步估算。",
+    "introOther": "指定侧向抗力体系类型、屋面类型和项目面积，查看钢架与屋面的分别估算。",
+    "shedSpanLabel": "厂房跨度",
+    "shedSpanPlaceholder": "请选择最接近的跨度",
+    "shedSpanWithColumns": "{span} 米（含 {columns} 根中间柱）",
+    "shedSpanWithoutColumns": "{span} 米（无中间柱）",
+    "hallLength": "大厅长度",
+    "unitMeter": "米",
+    "hallLengthAria": "大厅长度（米）",
+    "example": "例如 {value}",
+    "lateralSystemLabel": "侧向抗力体系类型",
+    "roofTypeLabel": "屋面类型",
+    "floorAreaLabel": "每层建筑面积",
+    "unitSqm": "平方米",
+    "floorAreaAria": "每层建筑面积（平方米）",
+    "floorCountLabel": "楼层数",
+    "unitCount": "个",
+    "totalAreaShed": "厂房总面积",
+    "totalAreaOther": "总建筑面积",
+    "shedFrameLabel": "厂房主钢架（梁/桁架）",
+    "rebarFrameLabel": "钢架钢筋（{system}）",
+    "roofRebarLabel": "屋面钢筋（{roof}）",
+    "unitKg": "公斤",
+    "categoryAria": "{label}的产品类别",
+    "skuAria": "{label}的产品规格",
+    "loadingOptions": "加载中…",
+    "noSkuAvailable": "暂无可用报价产品",
+    "fetchingPrice": "正在获取价格…",
+    "noPriceAvailable": "暂无当前价格",
+    "sizeBit": "规格 {size}",
+    "concreteNeeded": "所需混凝土量",
+    "unitM3": "立方米",
+    "concreteBasis": "按每平方米 {value} 立方米计算；非阿罕时代目录商品，仅供参考",
+    "totalCostLabel": "钢材预估总费用",
+    "fetchingPrices": "正在获取实时价格…",
+    "noCostAvailable": "所选产品暂无当前价格；请与智能顾问沟通以获取费用估算。",
+    "placeholderShed": "请输入跨度和大厅长度，以查看主钢架重量和费用估算。",
+    "placeholderOther": "请输入侧向体系、屋面类型、建筑面积和楼层数，以查看材料和费用估算。",
+    "alertTitle": "初步估算",
+    "chatCta": "与智能顾问沟通",
+    "requestCta": "提交询价申请",
+    "askExpertSuffix": "如需准确数字，请与智能顾问沟通。",
+    "rangeTo": "至",
+    "listSeparator": "、",
+    "kgPerSqm": "公斤/平方米",
+    "disclaimerIntro": "以下数值根据土木工程参考资料计算：",
+    "disclaimerConcreteFrame": "钢架钢筋按侧向体系分类（{ranges} {unit}）",
+    "disclaimerConcreteRoof": "屋面钢筋按屋面类型分类（{ranges} {unit}）",
+    "disclaimerConcreteConcrete": "以及每平方米 {min} 至 {max} 立方米的混凝土",
+    "disclaimerFoundationNote": "基础取决于地质条件，本计算未包含在内。",
+    "disclaimerNotEngineering": "本计算不能替代工程计算。",
+    "disclaimerSteelFrame": "主钢架用钢（柱、梁、支撑及连接件合计）按侧向体系分类（{ranges} {unit}）",
+    "disclaimerSteelRoof": "以及屋面钢筋按屋面类型分类（{ranges} {unit}；复合屋面的压型钢板不含在此数值中，需单独计算）",
+    "disclaimerShed": "该数值仅包含厂房主钢架（梁/桁架），依据厂房重量估算表，按 100 公斤/平方米的雪荷载（德黑兰标准）和 85 公里/小时的风速计算。雪荷载较大的地区（如伊朗北部）需要更大的钢架重量，据其他资料可达约 200 公斤/平方米。檩条（屋面 Z 型钢）、屋面及墙面覆材以及基础均未包含在此估算中；这些项目取决于檩条间距和覆材设计，若无施工图纸则无法可靠估算。",
+    "systems": {
+      "concreteLateral": {
+        "shearwall": "抗弯框架+抗震墙",
+        "momentMedium": "中等抗弯框架",
+        "momentSpecial": "特殊抗弯框架（高抗震性能）"
+      },
+      "steelLateral": {
+        "cbf": "中心支撑框架（CBF）",
+        "ebf": "偏心支撑框架（EBF）",
+        "momentMedium": "中等抗弯框架",
+        "momentSpecial": "特殊抗弯框架",
+        "dual": "双重体系"
+      },
+      "roof": {
+        "joistBlock": "密肋梁+空心砖楼板",
+        "solidSlab": "混凝土实心楼板",
+        "composite": "组合楼面（压型钢板）"
+      },
+      "frameCategories": {
+        "ibeam": "工字钢",
+        "profile": "型材及方管",
+        "angleChannel": "角钢及槽钢"
+      }
+    }
+  },
+  "tenderEstimator": {
+    "optionsFetchError": "获取该产品的选项失败。",
+    "minRowError": "请至少添加一行完整信息（产品和数量）。",
+    "submitErrorGeneric": "提交预估失败，请重试。",
+    "successTitle": "您的预估已提交并发送至销售团队",
+    "successLead": "阿罕时代的专员已收到您的投标预估，将与您沟通以确定最终价格和条款。",
+    "successRef": "跟踪编号：{ref}",
+    "proformaIssued": "您的形式发票已开具",
+    "proformaIssuedWithAmount": "您的形式发票已开具，金额为 {amount}",
+    "downloadProforma": "下载形式发票（PDF）",
+    "successNoteQuote": "部分商品需要询价；销售专员会将最终形式发票发送给您。",
+    "trackRequests": "跟踪我的请求",
+    "tableHeaders": {
+      "category": "类别",
+      "product": "产品",
+      "size": "规格",
+      "factory": "厂家",
+      "qty": "数量",
+      "weight": "重量",
+      "unitPrice": "单价",
+      "lineTotal": "行合计",
+      "remove": "删除"
+    },
+    "selectPlaceholder": "请选择…",
+    "unknown": "未知",
+    "factoryQuoteSuffix": "（询价）",
+    "factoryCheapestSuffix": "，最便宜",
+    "weightUnit": "公斤",
+    "quoteLabel": "询价",
+    "addRow": "添加行",
+    "pricingInProgress": "计算中…",
+    "subtotalLabel": "小计（不含税）",
+    "vatLabel": "增值税",
+    "vatLabelWithRate": "增值税（{rate}%）",
+    "grandTotalLabel": "最终金额",
+    "partialPricingNote": "部分商品暂无实时价格，已标记为“询价”；专员会在最终形式发票中告知其价格。",
+    "notePlaceholder": "备注（可选）：投标截止日期、交货条件、特定厂家/标准要求…",
+    "noteAriaLabel": "备注",
+    "loginToSubmit": "登录以提交预估并获取形式发票",
+    "submitting": "提交中…",
+    "submitCta": "提交预估并获取形式发票",
+    "disclaimer": "价格根据阿罕时代产品的当前价格计算，在最终形式发票开具前可能会变动。我们不支持在线支付；提交后，销售专员会致电与您确认最终订单。",
+    "removeRowAria": "删除该行"
+  },
+  "costCalculator": {
+    "categoryLabel": "商品类别",
+    "selectCategoryAria": "选择商品类别",
+    "productLabel": "产品",
+    "selectProductAria": "选择产品",
+    "qtyLabel": "数量",
+    "qtyAriaWhole": "数量（{unit}）",
+    "qtyAriaBranch": "件数",
+    "qtyAriaKg": "数量（公斤）",
+    "unitToggleAria": "数量单位",
+    "unitBranch": "件",
+    "unitKg": "公斤",
+    "weightPerBranch": "每件重量",
+    "vatSwitchLabel": "含增值税（{rate}%）",
+    "totalWeightLabel": "总重量",
+    "itemAmountLabel": "商品金额",
+    "vatRowLabel": "增值税（{rate}%）",
+    "grandTotalLabel": "总计",
+    "deliveryTimeLabel": "交货时间",
+    "addToCart": "加入询价车",
+    "addedToCart": "已将 {name} 加入询价车。",
+    "viewCart": "查看购物车",
+    "finalPriceNote": "最终价格将在开具形式发票时确认。先咨询，后购买。",
+    "fetchingPrices": "正在获取实时价格…",
+    "selectPrompt": "请选择类别和产品，并输入数量以计算费用。"
+  },
+  "projectEstimatorGuide": {
+    "title": "项目所需钢材重量是如何计算的？",
+    "intro": "本工具针对每种项目类型使用不同的工程系数，因为侧向抗力体系和屋面类型——而不仅仅是建筑面积——才是决定所需材料数量的主要因素。数据来源：多份独立的伊朗土木工程参考资料，每份均以数值区间给出，工具中显示的正是同一区间，而非单一固定数值。",
+    "concreteHeading": "混凝土框架建筑",
+    "concreteBody": "钢架钢筋重量（柱和梁）取决于侧向抗力体系：抗弯框架加抗震墙，是伊朗混凝土建筑中最常见的抗震体系，每平方米需要 35 至 60 公斤；中等抗弯框架需要 40 至 55 公斤；特殊抗弯框架需要 45 至 70 公斤。屋面钢筋重量与此选择无关，取决于屋面类型（密肋梁加空心砖、混凝土实心楼板或组合楼面——参见下方常见问题）。所需混凝土用量约为每平方米建筑面积 0.35 至 0.5 立方米。",
+    "steelHeading": "钢结构建筑",
+    "steelBody": "主钢架用钢重量（柱、梁、支撑及连接件合计）取决于侧向抗力体系：中心支撑框架每平方米需要 45 至 70 公斤；偏心支撑框架需要 50 至 75 公斤；中等抗弯框架需要 65 至 105 公斤；特殊抗弯框架需要 70 至 115 公斤；双重体系最多需要 120 公斤。屋面钢筋重量遵循与混凝土屋面相同的逻辑，不同之处在于组合楼面（压型钢板之上）是钢结构中最常见的选择；每平方米 8 至 12 公斤，不含压型钢板本身的重量，该重量需单独计算。",
+    "shedHeading": "工业厂房",
+    "shedBody": "厂房通常为单层建筑，因此其输入参数是跨度和大厅长度，而非楼层数。主钢架（梁或桁架）的重量，依据厂房重量估算表，按 100 公斤/平方米的雪荷载（德黑兰标准）计算，小跨度约为每平方米 25 公斤，大跨度可达约每平方米 50 公斤。雪荷载较大的地区需要显著更大的钢架重量，可达约每平方米 200 公斤。",
+    "faqHeading": "常见问题",
+    "faq": {
+      "q1": {
+        "question": "为什么要分别计算钢架重量和屋面钢筋重量，而不是用一个总数？",
+        "answer": "因为这两个数值取决于两个不同的设计选择。钢架重量（柱和梁）取决于侧向抗力体系的类型；例如在混凝土建筑中，普通抗弯框架比抗震性能更强的特殊抗弯框架更轻。屋面钢筋重量与此选择无关，取决于屋面体系的类型：密肋梁加空心砖、混凝土实心楼板或组合楼面。用一个合并的数字会掩盖这两个独立的决定，对实际项目而言具有误导性。"
+      },
+      "q2": {
+        "question": "密肋梁加空心砖屋面、混凝土实心楼板和组合楼面之间的钢筋重量差异有多大？",
+        "answer": "大致而言：密肋梁加空心砖屋面（伊朗住宅建筑中最常见、最经济的屋面体系）每平方米约需 5 至 7 公斤钢筋；组合楼面（钢结构中常见）每平方米约需 8 至 12 公斤；而混凝土实心楼板作为最重的选项，每平方米约需 10 至 16 公斤。"
+      },
+      "q3": {
+        "question": "建筑钢结构重量最主要取决于什么因素？",
+        "answer": "取决于侧向抗力体系的类型。中心支撑框架（最常见、最经济的体系）通常每平方米需要 45 至 70 公斤钢材；偏心支撑框架需要 50 至 75 公斤；中等抗弯框架需要 65 至 105 公斤；特殊抗弯框架需要 70 至 115 公斤；双重体系（支撑与抗弯框架结合，用于高层结构或高地震风险地区）最多需要每平方米 120 公斤。该数值包含柱、梁、支撑及连接件的合计，而不仅仅是主工字钢。"
+      },
+      "q4": {
+        "question": "为什么该工具不计算厂房檩条和屋面/墙面覆材的重量？",
+        "answer": "因为檩条的实际重量取决于其安装间距，覆材重量取决于屋面/墙面设计，而这两个参数在没有施工图纸的情况下是未知的。缺少这两项输入，就没有可靠的经验系数可用于估算檩条或覆材重量；在没有这些信息的情况下给出的数字只是虚假的精确度，而非真实的估算。该工具仅根据跨度和长度计算厂房主钢架（梁或桁架）的重量。"
+      },
+      "q5": {
+        "question": "该估算能否替代正式的工程计算？",
+        "answer": "不能。这是基于伊朗建筑行业常用系数的初步经验估算，旨在让您在咨询结构工程师之前，快速估算所需钢材数量和大致费用。该工具的任何数值（包括完全取决于地质条件、本工具未予计算的基础部分）都不能替代正式的结构图纸和计算。"
+      },
+      "q6": {
+        "question": "项目钢材的大致费用是如何计算的？",
+        "answer": "对于每一行（钢架钢筋、屋面钢筋、厂房钢架），用户从阿罕时代的实时目录中选择一个具体商品，指定确切的牌号、规格和厂家；费用等于该行的计算重量乘以所选具体商品的当前价格，而不是整个产品类别的平均价格。"
+      }
+    }
   }
 }

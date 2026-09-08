@@ -634,5 +634,285 @@
     "image": "Image",
     "exportGroupAria": "Table export",
     "exportGroupAriaScoped": "Table export {scope}"
+  },
+  "weightCalculator": {
+    "sectionType": "Section type",
+    "selectPlaceholder": "Select",
+    "example": "e.g. {value}",
+    "pieceCountLabel": "Number of {piece}s",
+    "weightPerPiece": "Weight per {piece}",
+    "totalWeight": "Total weight ({count} {piece}s)",
+    "invalidGeometry": "The dimensions entered are not valid for this section.",
+    "enterValues": "Enter the values",
+    "noValue": "No value",
+    "equivalentTons": "Equivalent to {value} tons",
+    "formulaLabel": "Formula:",
+    "formulaPerMeter": "Weight per meter = {formula} → weight per {piece} = weight per meter × length",
+    "formulaAbsolute": "Weight per {piece} = {formula}",
+    "addToCart": "Add to inquiry cart",
+    "addedToCartToast": "The calculation result was added to your inquiry cart.",
+    "viewCart": "View cart",
+    "cartItemName": "{profile} (weight calculator result)",
+    "referenceTableTitle": "Standard weight table — {profile}",
+    "disclaimer": "The weights shown are theoretical, based on standard steel density; the actual weight of a shipment may vary slightly.",
+    "fieldAriaLabel": "{label} in {unit}",
+    "kg": "kg",
+    "perStandardTable": "Per standard table ({subject}) = {value}",
+    "perMillTable": "Per mill table ({subject}) = {value}",
+    "units": {
+      "mm": "mm",
+      "m": "m",
+      "count": "pcs"
+    },
+    "pieceWords": {
+      "branch": "piece",
+      "sheet": "sheet"
+    },
+    "terms": {
+      "diameter": "Diameter",
+      "outerDiameter": "Outer diameter",
+      "wallThickness": "Wall thickness",
+      "thickness": "Thickness",
+      "width": "Width",
+      "length": "Length",
+      "lengthPerPiece": "Length per {piece}",
+      "size": "Size",
+      "sizeLegLength": "Size (leg length)"
+    },
+    "profiles": {
+      "rebar": {
+        "label": "Rebar",
+        "hint": "Weight per meter of round rebar, based on nominal diameter."
+      },
+      "plate": {
+        "label": "Plate",
+        "hint": "Weight of a single steel plate sheet, based on length, width, and thickness."
+      },
+      "pipe": {
+        "label": "Pipe",
+        "hint": "Weight per meter of steel pipe, based on outer diameter and wall thickness."
+      },
+      "flat": {
+        "label": "Flat bar",
+        "hint": "Weight per meter of flat bar (rectangular section), based on width and thickness."
+      },
+      "angle": {
+        "label": "Angle",
+        "hint": "Weight of an equal-leg angle, based on the standard market size table."
+      },
+      "ibeam": {
+        "label": "I-beam",
+        "hint": "Weight per meter of standard I-beam, based on the mill weight table for each market size."
+      },
+      "channel": {
+        "label": "Channel",
+        "hint": "Weight per meter of standard channel, based on the mill weight table for each market size."
+      }
+    },
+    "tableHeaders": {
+      "diameterMm": "Diameter (mm)",
+      "weightPerMeterKg": "Weight per meter (kg)",
+      "weightPerBranchLengthKg": "Weight of a {length} m piece (kg)",
+      "thicknessMm": "Thickness (mm)",
+      "widthM": "Width (m)",
+      "lengthM": "Length (m)",
+      "weightPerSheetKg": "Weight per sheet (kg)",
+      "outerDiameterWithThickness": "Outer diameter (mm), {thickness}mm thickness",
+      "widthXThicknessMm": "Width × thickness (mm)",
+      "angleSize": "Size (angle L×L×t)"
+    }
+  },
+  "projectEstimator": {
+    "projectTypeAria": "Project type",
+    "types": {
+      "concrete": "Concrete building",
+      "steel": "Steel frame",
+      "shed": "Industrial shed"
+    },
+    "introShed": "Enter the shed span and total hall length to see a preliminary estimate of the main frame weight.",
+    "introOther": "Specify the lateral load system, roof type, and project area to see separate estimates for the frame and the roof.",
+    "shedSpanLabel": "Shed span",
+    "shedSpanPlaceholder": "Select the closest span",
+    "shedSpanWithColumns": "{span} m (with {columns} intermediate columns)",
+    "shedSpanWithoutColumns": "{span} m (no intermediate columns)",
+    "hallLength": "Hall length",
+    "unitMeter": "m",
+    "hallLengthAria": "Hall length in meters",
+    "example": "e.g. {value}",
+    "lateralSystemLabel": "Lateral load-resisting system",
+    "roofTypeLabel": "Roof type",
+    "floorAreaLabel": "Floor area per story",
+    "unitSqm": "m²",
+    "floorAreaAria": "Floor area per story in square meters",
+    "floorCountLabel": "Number of floors",
+    "unitCount": "pcs",
+    "totalAreaShed": "Total shed area",
+    "totalAreaOther": "Total floor area",
+    "shedFrameLabel": "Main shed frame (girder/truss)",
+    "rebarFrameLabel": "Frame rebar ({system})",
+    "roofRebarLabel": "Roof rebar ({roof})",
+    "unitKg": "kg",
+    "categoryAria": "Product category for {label}",
+    "skuAria": "Product spec for {label}",
+    "loadingOptions": "Loading…",
+    "noSkuAvailable": "No priced product available",
+    "fetchingPrice": "Fetching price…",
+    "noPriceAvailable": "No current price available",
+    "sizeBit": "size {size}",
+    "concreteNeeded": "Concrete required",
+    "unitM3": "m³",
+    "concreteBasis": "Based on {value} m³ per m²; not an Ahantime catalog product, informational only",
+    "totalCostLabel": "Total estimated steel cost",
+    "fetchingPrices": "Fetching live prices…",
+    "noCostAvailable": "No current price is available for the selected product; chat with the AI advisor for a cost estimate.",
+    "placeholderShed": "Enter the span and hall length to see the main frame weight and cost estimate.",
+    "placeholderOther": "Enter the lateral system, roof type, floor area, and number of floors to see the material and cost estimate.",
+    "alertTitle": "Preliminary estimate",
+    "chatCta": "Chat with the AI advisor",
+    "requestCta": "Submit an inquiry request",
+    "askExpertSuffix": "For an exact figure, chat with the AI advisor.",
+    "rangeTo": "to",
+    "listSeparator": ", ",
+    "kgPerSqm": "kg/m²",
+    "disclaimerIntro": "These figures are calculated from civil-engineering references:",
+    "disclaimerConcreteFrame": "frame rebar by lateral system ({ranges} {unit})",
+    "disclaimerConcreteRoof": "roof rebar by roof type ({ranges} {unit})",
+    "disclaimerConcreteConcrete": "and concrete {min} to {max} m³ per m²",
+    "disclaimerFoundationNote": "The foundation depends on soil conditions and is not calculated here.",
+    "disclaimerNotEngineering": "This calculation does not replace engineering calculations.",
+    "disclaimerSteelFrame": "main frame steel (columns, beams, bracing and connections together) by lateral system ({ranges} {unit})",
+    "disclaimerSteelRoof": "and roof rebar by roof type ({ranges} {unit}; the composite roof's steel deck sheet is not included in this figure and is calculated separately)",
+    "disclaimerShed": "This figure covers only the shed's main frame (girder/truss), based on a shed weight estimation table for a 100 kg/m² snow load (Tehran standard) and 85 km/h wind speed. Areas with heavier snow load (e.g. northern Iran) need substantially more frame weight, up to about 200 kg/m² per other references. Purlins (roof Z-profiles), roof/wall sheeting, and the foundation are not included in this estimate; they depend on purlin spacing and sheeting design, which cannot be reliably estimated without construction drawings.",
+    "systems": {
+      "concreteLateral": {
+        "shearwall": "Moment frame + shear wall",
+        "momentMedium": "Intermediate moment frame",
+        "momentSpecial": "Special moment frame (high seismic resistance)"
+      },
+      "steelLateral": {
+        "cbf": "Concentrically braced frame (CBF)",
+        "ebf": "Eccentrically braced frame (EBF)",
+        "momentMedium": "Intermediate moment frame",
+        "momentSpecial": "Special moment frame",
+        "dual": "Dual system"
+      },
+      "roof": {
+        "joistBlock": "Joist and block",
+        "solidSlab": "Solid concrete slab",
+        "composite": "Composite (steel deck)"
+      },
+      "frameCategories": {
+        "ibeam": "I-beam",
+        "profile": "Profile and box section",
+        "angleChannel": "Angle and channel"
+      }
+    }
+  },
+  "tenderEstimator": {
+    "optionsFetchError": "Failed to fetch options for this product.",
+    "minRowError": "Add at least one complete row (product and quantity).",
+    "submitErrorGeneric": "Submitting the estimate failed. Please try again.",
+    "successTitle": "Your estimate was submitted and sent to the sales team",
+    "successLead": "Ahantime's specialists have received your tender estimate and will coordinate with you to finalize the price and terms.",
+    "successRef": "Tracking code: {ref}",
+    "proformaIssued": "Your proforma invoice has been issued",
+    "proformaIssuedWithAmount": "Your proforma invoice has been issued, amount {amount}",
+    "downloadProforma": "Download proforma (PDF)",
+    "successNoteQuote": "Some items require a price inquiry; a sales specialist will send you the final proforma invoice.",
+    "trackRequests": "Track my requests",
+    "tableHeaders": {
+      "category": "Category",
+      "product": "Product",
+      "size": "Size",
+      "factory": "Factory",
+      "qty": "Quantity",
+      "weight": "Weight",
+      "unitPrice": "Unit price",
+      "lineTotal": "Line total",
+      "remove": "Remove"
+    },
+    "selectPlaceholder": "Select…",
+    "unknown": "N/A",
+    "factoryQuoteSuffix": "(quote)",
+    "factoryCheapestSuffix": ", cheapest",
+    "weightUnit": "kg",
+    "quoteLabel": "Quote",
+    "addRow": "Add row",
+    "pricingInProgress": "Calculating…",
+    "subtotalLabel": "Subtotal (excl. VAT)",
+    "vatLabel": "VAT",
+    "vatLabelWithRate": "VAT ({rate}%)",
+    "grandTotalLabel": "Grand total",
+    "partialPricingNote": "Some items have no live current price and are marked \"Quote\"; a specialist will state their price in the final proforma invoice.",
+    "notePlaceholder": "Notes (optional): tender deadline, delivery terms, a specific factory/standard requirement…",
+    "noteAriaLabel": "Notes",
+    "loginToSubmit": "Sign in to submit the estimate and receive a proforma invoice",
+    "submitting": "Submitting…",
+    "submitCta": "Submit estimate and receive proforma invoice",
+    "disclaimer": "Prices are calculated from Ahantime's current product rates and may change until the final proforma invoice is issued. We do not accept online payment; after submitting, a sales specialist will call to finalize the order.",
+    "removeRowAria": "Remove row"
+  },
+  "costCalculator": {
+    "categoryLabel": "Product category",
+    "selectCategoryAria": "Select a product category",
+    "productLabel": "Product",
+    "selectProductAria": "Select a product",
+    "qtyLabel": "Quantity",
+    "qtyAriaWhole": "Quantity in {unit}",
+    "qtyAriaBranch": "Number of pieces",
+    "qtyAriaKg": "Quantity in kilograms",
+    "unitToggleAria": "Quantity unit",
+    "unitBranch": "Piece",
+    "unitKg": "Kilogram",
+    "weightPerBranch": "Weight per piece",
+    "vatSwitchLabel": "Include VAT ({rate}%)",
+    "totalWeightLabel": "Total weight",
+    "itemAmountLabel": "Item amount",
+    "vatRowLabel": "VAT ({rate}%)",
+    "grandTotalLabel": "Grand total",
+    "deliveryTimeLabel": "Delivery time",
+    "addToCart": "Add to inquiry cart",
+    "addedToCart": "{name} was added to your inquiry cart.",
+    "viewCart": "View cart",
+    "finalPriceNote": "The final price is confirmed when the proforma invoice is issued. Consult first, buy after.",
+    "fetchingPrices": "Fetching live prices…",
+    "selectPrompt": "Select a category and product, and enter a quantity, to calculate the cost."
+  },
+  "projectEstimatorGuide": {
+    "title": "How is the steel weight for a project calculated?",
+    "intro": "This tool uses different engineering coefficients for each project type, because the lateral load system and the roof type — not just the floor area — are the main drivers of how much material is needed. Sources: several independent Iranian civil-engineering references, each given as a numeric range, and the tool displays that exact same range rather than a single fixed number.",
+    "concreteHeading": "Concrete-frame building",
+    "concreteBody": "The frame rebar weight (columns and beams) depends on the lateral load system: a moment frame with shear walls, the most common seismic-resistant system in Iranian concrete buildings, needs 35 to 60 kg per m²; an intermediate moment frame, 40 to 55 kg; a special moment frame, 45 to 70 kg. The roof rebar weight, independent of that choice, depends on the roof type (joist and block, solid concrete slab, or composite — see the FAQ below). The concrete volume required is also roughly 0.35 to 0.5 m³ per m² of floor area.",
+    "steelHeading": "Steel-frame building",
+    "steelBody": "The main frame steel weight (columns, beams, bracing and connections together) depends on the lateral load system: a concentrically braced frame, 45 to 70 kg per m²; an eccentrically braced frame, 50 to 75 kg; an intermediate moment frame, 65 to 105 kg; a special moment frame, 70 to 115 kg; a dual system, up to 120 kg. The roof rebar weight follows the same logic as a concrete roof, except that a composite roof (on a steel deck) is the most common choice in steel frames — 8 to 12 kg per m², not counting the weight of the steel deck sheet itself, which is calculated separately.",
+    "shedHeading": "Industrial shed",
+    "shedBody": "A shed is usually single-story, so its inputs are the span and hall length, not a number of floors. The main frame weight (girder or truss), based on a shed weight estimation table for a 100 kg/m² snow load (Tehran standard), ranges from about 25 kg/m² for small spans up to about 50 kg/m² for large spans. Areas with heavier snow load need substantially more frame weight, up to about 200 kg/m².",
+    "faqHeading": "Frequently asked questions",
+    "faq": {
+      "q1": {
+        "question": "Why are the frame weight and the roof rebar weight calculated separately instead of as one overall figure?",
+        "answer": "Because these two quantities depend on two different design decisions. The frame weight (columns and beams) depends on the lateral load system — for example, in a concrete building, an ordinary moment frame is lighter than a special seismic-resistant moment frame. The roof rebar weight, independent of that choice, depends on the roof system: joist and block, solid concrete slab, or composite roof. A single combined figure would hide these two independent decisions and would be misleading for a real project."
+      },
+      "q2": {
+        "question": "How much does the rebar weight differ between a joist-and-block roof, a solid concrete slab, and a composite roof?",
+        "answer": "As a rule of thumb: a joist-and-block roof (the most common and economical roof system in Iranian residential buildings) needs about 5 to 7 kg of rebar per m²; a composite roof (common in steel frames) needs about 8 to 12 kg per m²; and a solid concrete slab, the heaviest option, needs about 10 to 16 kg per m²."
+      },
+      "q3": {
+        "question": "What has the biggest effect on a building's steel frame weight?",
+        "answer": "The lateral load system. A concentrically braced frame (the most common and economical system) typically needs 45 to 70 kg of steel per m²; an eccentrically braced frame, 50 to 75 kg; an intermediate moment frame, 65 to 105 kg; a special moment frame, 70 to 115 kg; and a dual system (bracing combined with a moment frame, for high-rise structures or high-seismic-risk areas), up to 120 kg per m². This figure includes the columns, beams, bracing, and connections together, not just the main I-beams."
+      },
+      "q4": {
+        "question": "Why doesn't this tool calculate the weight of the shed's purlins and roof/wall sheeting?",
+        "answer": "Because the actual purlin weight depends on purlin spacing, and the sheeting weight depends on the roof/wall design — two parameters that aren't known without a construction drawing. Without those two inputs, no reliable rule-of-thumb coefficient exists for purlin or sheeting weight; a figure shown without that information would be false precision, not a real estimate. This tool only calculates the weight of the shed's main frame (girder or truss), based on span and length."
+      },
+      "q5": {
+        "question": "Does this estimate replace formal engineering calculations?",
+        "answer": "No. This is a preliminary rule-of-thumb estimate based on coefficients common in the Iranian construction industry, meant for a quick estimate of the quantity and approximate cost of steel before consulting a structural engineer. None of this tool's figures (including the foundation, which depends entirely on soil conditions and is not calculated here) replace formal structural drawings and calculations."
+      },
+      "q6": {
+        "question": "How is the approximate cost of a project's steel calculated?",
+        "answer": "For each line (frame rebar, roof rebar, shed frame), the user selects one specific product from Ahantime's live catalog, with an exact grade, size, and factory; the cost equals that line's calculated weight multiplied by that specific selected product's current price, not the average of an entire product category."
+      }
+    }
   }
 }
