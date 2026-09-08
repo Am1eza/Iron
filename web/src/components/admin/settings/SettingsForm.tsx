@@ -93,7 +93,7 @@ export function SettingsForm() {
         busy={save.isPending}
       />
       <SmsAutomationsCard
-        cfg={get('SMS_AUTOMATIONS', { welcome: true, proformaReminder: true, callbackReminder: true, weeklyReport: true })}
+        cfg={get('SMS_AUTOMATIONS', { welcome: true, proformaReminder: true, proformaExpired: true, callbackReminder: true, weeklyReport: true })}
         onSave={(v) => save.mutate({ key: 'SMS_AUTOMATIONS', value: v })}
         busy={save.isPending}
       />
@@ -789,6 +789,7 @@ function ContactSettingsCard({
 interface SmsAutomationsValue {
   welcome: boolean;
   proformaReminder: boolean;
+  proformaExpired: boolean;
   callbackReminder: boolean;
   weeklyReport: boolean;
 }
@@ -803,8 +804,20 @@ function SmsAutomationsCard({
   onSave: (v: SmsAutomationsValue) => void;
   busy: boolean;
 }) {
-  const [v, setV] = useState(cfg);
-  useEffect(() => setV(cfg), [cfg]);
+  // A settings row saved before `proformaExpired` existed has no such key —
+  // the job itself treats that as "on" (see proformaExpire.job.ts), so the
+  // checkbox must default to checked too. Otherwise an admin who re-saves
+  // this card for an unrelated toggle would silently persist `false` and
+  // turn the feature off for good.
+  const withDefaults = (value: SmsAutomationsValue): SmsAutomationsValue => ({
+    ...value,
+    // A row saved before this key existed has it `undefined` at runtime
+    // despite the type saying `boolean` — nullish-coalesce, not a literal
+    // default before the spread, so a stored `false` is never overwritten.
+    proformaExpired: value.proformaExpired ?? true,
+  });
+  const [v, setV] = useState(withDefaults(cfg));
+  useEffect(() => setV(withDefaults(cfg)), [cfg]);
   const Row = ({ k, label, hint }: { k: keyof SmsAutomationsValue; label: string; hint: string }) => (
     <label style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-3)', cursor: 'pointer' }}>
       <input type="checkbox" checked={v[k]} onChange={(e) => setV({ ...v, [k]: e.target.checked })} style={{ marginBlockStart: 6 }} />
@@ -820,6 +833,7 @@ function SmsAutomationsCard({
       <div style={{ display: 'grid', gap: 'var(--space-3)', marginBlockStart: 'var(--space-3)' }}>
         <Row k="welcome" label="خوش‌آمدگویی" hint="با اولین ثبت‌نام هر کاربر ارسال می‌شود." />
         <Row k="proformaReminder" label="یادآوری اعتبار پیش‌فاکتور" hint="۲۴ ساعت قبل از پایان اعتبار، به مشتری (یک‌بار برای هر پیش‌فاکتور)." />
+        <Row k="proformaExpired" label="اطلاع‌رسانی انقضای پیش‌فاکتور" hint="در لحظهٔ واقعی پایان اعتبار، به مشتری (یک‌بار برای هر پیش‌فاکتور)." />
         <Row k="callbackReminder" label="یادآوری تماس به کارشناس" hint="در زمان تماس ثبت‌شده روی سرنخ، به موبایل کارشناس مسئول." />
         <Row k="weeklyReport" label="گزارش هفتگی مدیر" hint="هر شنبه صبح خلاصهٔ هفته (پیش‌فاکتور، سرنخ، سفارش، کاربر) به موبایل مدیر (شمارهٔ همراهِ «اطلاعات تماس سایت»)." />
       </div>

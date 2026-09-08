@@ -15,17 +15,21 @@
  */
 import { and, eq, gte, isNotNull, lte, sql } from 'drizzle-orm';
 import { getDb } from '@/lib/server/db/client';
-import { leads, proformas, smsLog, users } from '@/lib/server/db/schema';
+import { leads, proformas, users } from '@/lib/server/db/schema';
 import { getSetting } from '@/lib/server/repos/settingsRepo';
-import { sendNotification, truncateParam, type NotificationSpec } from '@/lib/server/integrations/smsir';
+import { truncateParam } from '@/lib/server/integrations/smsir';
 import { customerNameParam } from '@/lib/server/services/leads.service';
 import { formatToman } from '@/lib/utils/format';
 import { formatJalali } from '@/lib/utils/jalali';
+import { sendSmsOnce } from './smsDedup';
 import type { Job } from './scheduler';
 
 export interface SmsAutomations {
   welcome: boolean;
   proformaReminder: boolean;
+  /** انقضای پیش‌فاکتور — sent the moment a quote actually expires, distinct
+   *  from `proformaReminder` (24h-before nudge). See proformaExpire.job.ts. */
+  proformaExpired: boolean;
   callbackReminder: boolean;
   /** گزارش هفتگی مدیر — Saturday-morning summary SMS (weeklyReport.job.ts). */
   weeklyReport: boolean;
@@ -34,42 +38,13 @@ export interface SmsAutomations {
 export const DEFAULT_SMS_AUTOMATIONS: SmsAutomations = {
   welcome: true,
   proformaReminder: true,
+  proformaExpired: true,
   callbackReminder: true,
   weeklyReport: true,
 };
 
 export const smsAutomationsSetting = () =>
   getSetting<SmsAutomations>('SMS_AUTOMATIONS', DEFAULT_SMS_AUTOMATIONS);
-
-/** Has an automation SMS with this dedup key already been logged? */
-async function alreadySent(dedupKey: string): Promise<boolean> {
-  const rows = await getDb()
-    .select({ id: smsLog.id })
-    .from(smsLog)
-    .where(sql`${smsLog.payload}->>'auto' = ${dedupKey}`)
-    .limit(1);
-  return rows.length > 0;
-}
-
-/** sendSms + stamp the dedup key into the log row's payload. sendSms itself
- *  logs {text}; we log a second marker row is avoided by passing kind and
- *  relying on its own log — so instead we check-then-send and accept the tiny
- *  race (the 30-min tick is single-flight via runExclusive). */
-async function sendOnce(dedupKey: string, mobile: string, spec: NotificationSpec): Promise<void> {
-  if (await alreadySent(dedupKey)) return;
-  const { ok } = await sendNotification(mobile, spec);
-  if (!ok) return; // failed sends may retry next tick
-  // Stamp the marker (sendNotification already wrote a row without the key;
-  // one tiny marker row keeps dedup exact without changing its signature).
-  const { ulid } = await import('ulid');
-  await getDb().insert(smsLog).values({
-    id: ulid(),
-    to: mobile,
-    kind: spec.kind,
-    payload: { auto: dedupKey },
-    status: 'sent',
-  });
-}
 
 async function proformaReminders(): Promise<void> {
   const db = getDb();
@@ -94,7 +69,7 @@ async function proformaReminders(): Promise<void> {
     const text = `آهن‌تایم: ${who} عزیز، اعتبار پیش‌فاکتور ${r.ref} (${formatToman(r.total)}) تا ${formatJalali(r.validUntil)} است. برای نهایی‌کردن: ${site}/proforma/${r.ref}`;
     // Templated the moment SMSIR_TEMPLATE_ID_PROFORMA_REMINDER is set — see
     // docs/SMS-TEMPLATES.md; falls back to `text` above until then.
-    await sendOnce(`pf-reminder:${r.ref}`, r.mobile, {
+    await sendSmsOnce(`pf-reminder:${r.ref}`, r.mobile, {
       templateEnvVar: 'SMSIR_TEMPLATE_ID_PROFORMA_REMINDER',
       params: [
         { name: 'NAME', value: customerNameParam(r.contactName) },
@@ -141,7 +116,7 @@ async function callbackReminders(): Promise<void> {
     // Internal (staff-to-staff), low-priority — left on the free-text bulk
     // line rather than a registered template; the env var still exists so it
     // upgrades for free if one is ever added, same as everything else here.
-    await sendOnce(`cb-reminder:${r.id}:${r.callbackAt?.toISOString().slice(0, 10)}`, r.repMobile, {
+    await sendSmsOnce(`cb-reminder:${r.id}:${r.callbackAt?.toISOString().slice(0, 10)}`, r.repMobile, {
       templateEnvVar: 'SMSIR_TEMPLATE_ID_CALLBACK_REMINDER',
       // NAME here is the LEAD's name (who the rep is calling), not the rep's
       // own — SMS.ir's personalization rule wants a name variable in every
