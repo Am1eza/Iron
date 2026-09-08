@@ -33,6 +33,11 @@ async function POSTImpl(req: NextRequest) {
   const bucket = Math.floor(Date.now() / 120_000);
   const fingerprint = leadDedupeFingerprint(v.data);
   const dedupeKey = `${v.data.contact.mobile}:${fingerprint}:${bucket}`;
+  // A retry landing just across the bucket boundary (e.g. first click at
+  // t=119.9s of the bucket, network retry at t=120.1s) still finds the
+  // original request via the previous bucket's key instead of creating a
+  // second lead — see withIdempotency's extraLookupKeys.
+  const prevBucketKey = `${v.data.contact.mobile}:${fingerprint}:${bucket - 1}`;
 
   try {
     return await withIdempotency(req, 'leads', dedupeKey, async () => {
@@ -52,7 +57,7 @@ async function POSTImpl(req: NextRequest) {
         session,
       );
       return { status: 201, body: result };
-    });
+    }, [prevBucketKey]);
   } catch (err) {
     reportError(err, { route: 'leads' });
     return NextResponse.json(

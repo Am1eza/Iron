@@ -9,6 +9,7 @@ import { formatTomanCompact, toPersianDigits } from '@/lib/utils/format';
 import { formatJalali } from '@/lib/utils/jalali';
 import { urgencyOf } from '@/lib/utils/leadUrgency';
 import { useAuthStore } from '@/lib/stores/auth';
+import { can } from '@/lib/auth/roles';
 import { routes } from '@/lib/routes';
 import { Badge, Button, Chip, EmptyState, TableSkeleton, Text } from '@/components/ui';
 import { LeadDetail } from './LeadDetail';
@@ -85,6 +86,7 @@ export function LeadsTab() {
   const params = useSearchParams();
   const currentUser = useAuthStore((st) => st.user);
   const authStatus = useAuthStore((st) => st.status);
+  const canManageLeads = can(currentUser?.role, 'leads:manage');
 
   // Every filter lives in the URL, not in useState: a filtered view is what a
   // rep sends to their manager («این ۹ تای معطل‌مانده») and what Back must
@@ -304,6 +306,14 @@ export function LeadsTab() {
               ? `خروجی حداکثر ${faCount(LEADS_EXPORT_MAX_ROWS)} ردیف از ${faCount(total)} ردیف را می‌گیرد — بازهٔ تاریخ را کوچک‌تر کنید.`
               : `${faCount(total)} ردیف با همین فیلترها`}
           </span>
+        ) : null}
+        {/* The server narrows a non-manager's export to their own leads
+            (resolveLeadExportScope). Saying so here is the whole point of the
+            existing «nothing inside the CSV says which filters made it»
+            warning: a rep must not read a 12-row file as the company's
+            pipeline, nor be surprised that the count above didn't match. */}
+        {currentUser && !canManageLeads ? (
+          <span className={ui.muted}>فقط سرنخ‌های خودتان در خروجی می‌آید.</span>
         ) : null}
       </div>
 

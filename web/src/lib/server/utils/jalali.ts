@@ -43,10 +43,25 @@ export function isSameJalaliDay(a: Date, b: Date): boolean {
   return jalaliDayKey(a) === jalaliDayKey(b);
 }
 
-/** Friday is the weekly holiday in Iran. */
+/**
+ * The weekly closure, as JS `getDay()` numbers: Thursday (4) and Friday (5).
+ *
+ * Friday is Iran's statutory weekly holiday; Thursday is this company's — the
+ * office is shut, confirmed by Amir on 2026-09-07. Treating Thursday as a
+ * working day made «تا روز کاری بعد» land on a day nobody is here to honour
+ * the quote: a proforma issued Wednesday expired Thursday 11:00 with the phone
+ * unanswered from Wednesday evening until Saturday morning, and price
+ * staleness aged a day the prices were never going to be updated on.
+ *
+ * Structural, not in the `holidays` setting: that set is for one-off calendar
+ * holidays (Nowruz, عید), which are entered per year and would otherwise need
+ * every Thursday of every year typed into it by hand.
+ */
+const WEEKLY_CLOSURE_DAYS: readonly number[] = [4, 5];
+
 function isBusinessDay(date: Date, holidays: ReadonlySet<string>): boolean {
   const wall = toTehranWallClock(date);
-  return wall.getDay() !== 5 && !holidays.has(jalaliDayKey(date));
+  return !WEEKLY_CLOSURE_DAYS.includes(wall.getDay()) && !holidays.has(jalaliDayKey(date));
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;

@@ -72,6 +72,7 @@ const KEY_SCHEMAS: Record<string, z.ZodTypeAny> = {
   SMS_AUTOMATIONS: z.object({
     welcome: z.boolean(),
     proformaReminder: z.boolean(),
+    proformaExpired: z.boolean().default(true),
     callbackReminder: z.boolean(),
     weeklyReport: z.boolean().default(true),
   }),

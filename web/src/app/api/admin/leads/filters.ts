@@ -1,5 +1,7 @@
 import type { LeadRow } from '@/lib/server/repos/leadsRepo';
 import { LEAD_SOURCES } from '@/lib/server/db/schema/leads';
+import { can } from '@/lib/auth/roles';
+import type { Role } from '@/lib/auth/types';
 
 const LEAD_STATUSES = ['new', 'contacted', 'won', 'lost'] as const;
 
@@ -31,4 +33,31 @@ export function parseLeadListFilters(p: URLSearchParams): LeadListFilters {
     from: fromDate && !Number.isNaN(fromDate.getTime()) ? fromDate : undefined,
     to: toDate && !Number.isNaN(toDate.getTime()) ? toDate : undefined,
   };
+}
+
+/**
+ * Who may export WHICH leads.
+ *
+ * The shared queue is readable by every rep on purpose — they pick unassigned
+ * leads out of it. But reading a page of it and walking out with 5000
+ * customers' names and mobile numbers in a single file are not the same act,
+ * and until now the CSV endpoint asked for nothing beyond `leads:read`: any
+ * sales rep could download the entire customer database in one click.
+ *
+ * `leads:manage` exports across assignees. Everyone else exports their own
+ * book — which is the case the button was built for (see `leadsExportUrl`'s
+ * note about «سرنخ‌های من»). An unfiltered click is FORCED into own-scope
+ * rather than refused: that click is the normal way to use the button, and a
+ * 403 there would read as a broken panel rather than a rule. Explicitly naming
+ * someone ELSE's id is a different request and is refused outright.
+ */
+export function resolveLeadExportScope(input: {
+  role: Role;
+  actorId: string;
+  requested: LeadListFilters;
+}): { ok: true; filters: LeadListFilters; unrestricted: boolean } | { ok: false } {
+  const unrestricted = can(input.role, 'leads:manage');
+  if (unrestricted) return { ok: true, filters: input.requested, unrestricted };
+  if (input.requested.assigneeId && input.requested.assigneeId !== input.actorId) return { ok: false };
+  return { ok: true, filters: { ...input.requested, assigneeId: input.actorId }, unrestricted };
 }

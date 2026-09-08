@@ -199,6 +199,106 @@ describe('lead → proforma flow', () => {
     expect(lead[0]!.source).toBe('cart');
   });
 
+  /**
+   * Item 95. The owner WANTS the proforma SMS — it is the shop's main touch
+   * with the customer — so the fix is deliberately NOT "require OTP first"
+   * (which would silence it for every legitimate guest). It is a per-recipient
+   * daily ceiling set far above real traffic. These tests pin the three things
+   * that matter: it does not fire for normal use, it does fire for a number
+   * under sustained attack, and the quote itself is never withheld either way.
+   */
+  describe('item 95 — per-mobile daily cap on the guest proforma SMS', () => {
+    const victim = '09121110001';
+
+    async function seedPriorSends(mobile: string, n: number, status: 'sent' | 'failed' = 'sent') {
+      for (let i = 0; i < n; i++) {
+        await db.insert(schema.smsLog).values({
+          id: `cap-${status}-${mobile}-${i}`,
+          to: mobile,
+          kind: 'proforma',
+          status,
+          payload: { text: 'seed' },
+        });
+      }
+    }
+
+    async function createGuestLead(mobile: string) {
+      const rows = await tableRows('rebar');
+      return createLead(
+        {
+          contact: { mobile },
+          items: [{ skuId: rows[0]!.id, qty: 5, unit: rows[0]!.unit }],
+          source: 'cart',
+        },
+        null,
+      );
+    }
+
+    it('still sends normally for a busy-but-real customer (well under the cap)', async () => {
+      // The heaviest genuine recipient in 90 days of production sms_log took 5
+      // proforma messages in one day. That customer must be untouched.
+      const busy = '09121110002';
+      await seedPriorSends(busy, 5);
+
+      const result = await createGuestLead(busy);
+
+      const sms = await db.select().from(schema.smsLog).where(eq(schema.smsLog.to, busy));
+      expect(sms.some((s) => s.status === 'dev_logged')).toBe(true);
+      expect(sms.some((s) => s.status === 'suppressed')).toBe(false);
+      expect(await findProformaByRef(result.ref)).not.toBeNull();
+    });
+
+    it('suppresses the SMS once one number has been targeted past the cap', async () => {
+      await seedPriorSends(victim, 12);
+
+      await createGuestLead(victim);
+
+      const sms = await db.select().from(schema.smsLog).where(eq(schema.smsLog.to, victim));
+      expect(sms.some((s) => s.status === 'suppressed')).toBe(true);
+      // Nothing new was handed to the gateway.
+      expect(sms.filter((s) => s.status === 'dev_logged')).toHaveLength(0);
+    });
+
+    it('still ISSUES the proforma when the SMS is suppressed — the document is never withheld', async () => {
+      const result = await createGuestLead(victim);
+
+      const p = await findProformaByRef(result.ref);
+      expect(p).not.toBeNull();
+      expect(p!.status).toBe('active');
+      expect(p!.total).toBe(p!.subtotal - p!.volumeDiscountToman - p!.discountToman + p!.vatAmount);
+    });
+
+    it('does not count failed sends against the customer — a gateway outage must not spend their budget', async () => {
+      const unlucky = '09121110003';
+      await seedPriorSends(unlucky, 30, 'failed');
+
+      await createGuestLead(unlucky);
+
+      const sms = await db.select().from(schema.smsLog).where(eq(schema.smsLog.to, unlucky));
+      expect(sms.some((s) => s.status === 'dev_logged')).toBe(true);
+      expect(sms.some((s) => s.status === 'suppressed')).toBe(false);
+    });
+
+    it('scopes the cap to one kind — OTP traffic to the same number does not consume it', async () => {
+      const other = '09121110004';
+      for (let i = 0; i < 20; i++) {
+        await db.insert(schema.smsLog).values({
+          id: `cap-otp-${i}`,
+          to: other,
+          kind: 'otp',
+          status: 'sent',
+          payload: { text: 'seed' },
+        });
+      }
+
+      await createGuestLead(other);
+
+      const sms = await db.select().from(schema.smsLog).where(eq(schema.smsLog.to, other));
+      expect(sms.some((s) => s.kind === 'proforma' && s.status === 'dev_logged')).toBe(true);
+      expect(sms.some((s) => s.status === 'suppressed')).toBe(false);
+    });
+  });
+
   it('applies تخفیف پلکانی on the AUTOMATIC path too — createLead is not just issueProforma\'s poor cousin', async () => {
     // Regression for the audit's Critical finding: createLead used to build
     // its proforma with a bare `subtotal + vatAmount`, never calling

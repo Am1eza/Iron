@@ -29,6 +29,7 @@ export async function withIdempotency(
   route: string,
   fallbackKey: string,
   run: () => Promise<IdempotentResult>,
+  extraLookupKeys: string[] = [],
 ): Promise<NextResponse> {
   const db = getDb();
   const headerKey = req.headers.get('idempotency-key')?.trim();
@@ -37,6 +38,32 @@ export async function withIdempotency(
   // of it — otherwise two different admins/leads that happen to send the same header value would
   // collide on one row and replay each other's stored response.
   const key = headerKey ? `${route}:${fallbackKey}:${headerKey}` : `${route}:${fallbackKey}`;
+
+  // Adjacent-key lookup: a caller whose fallback key embeds a fixed time
+  // bucket (e.g. leads dedupe) can pass the sibling key for the immediately
+  // preceding bucket here. A retry that lands ~200ms across the bucket
+  // boundary then still finds the original request instead of racing a
+  // second one through. Only consulted without a client Idempotency-Key
+  // header — a header pins the exact scope the client chose, so it must
+  // never be widened by a bucket the client never asked about.
+  if (!headerKey) {
+    for (const lookupKey of extraLookupKeys) {
+      const fullLookupKey = `${route}:${lookupKey}`;
+      const [existing] = await db.select().from(idempotencyKeys).where(eq(idempotencyKeys.key, fullLookupKey)).limit(1);
+      if (existing?.status === 'done') {
+        return NextResponse.json(existing.responseBody, {
+          status: existing.responseStatus ?? 200,
+          headers: { 'Idempotency-Replayed': 'true' },
+        });
+      }
+      if (existing?.status === 'pending') {
+        return NextResponse.json(
+          { error: 'in_progress', message: 'درخواست مشابه در حال پردازش است. کمی صبر کنید.' },
+          { status: 409 },
+        );
+      }
+    }
+  }
 
   const claimed = await db
     .insert(idempotencyKeys)

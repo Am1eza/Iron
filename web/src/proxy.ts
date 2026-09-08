@@ -7,6 +7,7 @@ import { adminListRedirects, normalizePath } from '@/lib/server/repos/redirectsR
 import { hasGuardedPrefix, shouldNotFound, getKnownPaths } from '@/lib/server/seo/knownPaths';
 import { archiveIndexFallback, archiveRedirect } from '@/lib/content/archivePaging';
 import { resolvePanelRouting, isPanelHost } from '@/lib/server/utils/panelHost';
+import { rateLimit } from '@/lib/server/utils/rateLimit';
 
 /**
  * Proxy (renamed from `middleware` in Next.js 16 — same file, same
@@ -106,6 +107,18 @@ export async function proxy(req: NextRequest) {
     return new NextResponse('User-agent: *\nDisallow: /\n', {
       headers: { 'content-type': 'text/plain' },
     });
+  }
+
+  // /proforma/[ref] renders the SAME real customer PII (name + mobile) that
+  // GET /api/proforma/[ref] deliberately withholds — see that route for why
+  // it's rate-limited. This page had no throttle at all: the ref's ~29.4-bit
+  // entropy (refs.ts) was the ONLY defense against an attacker brute-forcing
+  // refs from a single IP to harvest customer PII. Same scope/limit as the
+  // API route (and shares its bucket, since rateLimit keys on scope+IP) so
+  // neither path can be used to bypass the other's throttle.
+  if (/^\/proforma\/[^/]+\/?$/.test(req.nextUrl.pathname)) {
+    const limited = await rateLimit(req, 'proforma', { limit: 20, windowMs: 60_000 });
+    if (limited) return limited;
   }
 
   const { shouldPrefix, effectivePathname } = resolvePanelRouting(

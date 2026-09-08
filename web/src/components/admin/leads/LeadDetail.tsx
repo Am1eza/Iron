@@ -372,6 +372,8 @@ export function LeadDetail({ id }: { id: string }) {
   const [discount, setDiscount] = useState('');
   const [lostOpen, setLostOpen] = useState(false);
   const [lostReason, setLostReason] = useState('');
+  const [reopenOpen, setReopenOpen] = useState(false);
+  const [reopenReason, setReopenReason] = useState('');
   const [callOutcomeOpen, setCallOutcomeOpen] = useState(false);
   // The SMS outcome has to OUTLIVE the toast: sms.ir is 400-ing free-text
   // sends in production, and a rep who looks away for ten seconds must still
@@ -422,8 +424,15 @@ export function LeadDetail({ id }: { id: string }) {
     void qc.invalidateQueries({ queryKey: ['admin', 'leads'] });
     void qc.invalidateQueries({ queryKey: ['admin', 'stats'] });
   };
-  const showError = (err: unknown, fallback: string) =>
+  const showError = (err: unknown, fallback: string) => {
+    // A 409 `assignee_conflict` means a colleague claimed or reassigned this
+    // lead between the render this click was based on and the write (item 86).
+    // The toast alone would leave the rep staring at a screen that still shows
+    // the old owner — and the buttons that go with it — so refetch: what they
+    // are told and what they see have to agree.
+    if (err instanceof ApiError && err.code === 'assignee_conflict') invalidate();
     toast.error(err instanceof ApiError ? err.message : fallback);
+  };
 
   const merge = useMutation({
     // Exactly one attempt: the server keys idempotency on
@@ -445,8 +454,14 @@ export function LeadDetail({ id }: { id: string }) {
   });
 
   const setStatus = useMutation({
-    mutationFn: (status: string) => adminApi.updateLead(id, { status }),
-    onSuccess: (_res, status) => {
+    // Plain string for the moves the server takes as-is; `{ status, reason }`
+    // for the ones it refuses without a justification (leaving «موفق»).
+    mutationFn: (v: string | { status: string; reason: string }) =>
+      typeof v === 'string'
+        ? adminApi.updateLead(id, { status: v })
+        : adminApi.updateLead(id, { status: v.status, statusReason: v.reason }),
+    onSuccess: (_res, v) => {
+      const status = typeof v === 'string' ? v : v.status;
       // Acknowledge explicitly — a badge repaint alone reads as "nothing
       // happened" (every sibling mutation here toasts).
       toast.success(
@@ -1041,19 +1056,10 @@ export function LeadDetail({ id }: { id: string }) {
                 ) : stage === 'won' ? (
                   <>
                     <p className={s.hint}>این سرنخ موفق ثبت شده است.</p>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      loading={setStatus.isPending}
-                      onClick={async () => {
-                        const ok = await confirm({
-                          title: 'بازگشایی سرنخ؟',
-                          body: 'سرنخ به وضعیت «تماس‌گرفته» برمی‌گردد و دوباره در جریان پیگیری قرار می‌گیرد.',
-                          confirmLabel: 'بازگشایی',
-                        });
-                        if (ok) setStatus.mutate('contacted');
-                      }}
-                    >
+                    {/* A reason, not a confirm dialog: reopening «موفق» moves
+                        the customer's club tier and the team's revenue
+                        numbers, and the server refuses it without one. */}
+                    <Button size="sm" variant="ghost" onClick={() => setReopenOpen(true)}>
                       بازگشایی
                     </Button>
                   </>
@@ -1336,6 +1342,65 @@ export function LeadDetail({ id }: { id: string }) {
           value={lostReason}
           onChange={(e) => setLostReason(e.target.value)}
           aria-label="دلیل ناموفق شدن سرنخ"
+        />
+      </Modal>
+
+      {/* Reopening a WON lead. Mirrors the lost-reason modal, with one
+          difference: the text is mandatory here, because the server rejects the
+          transition without it (leadStatusFlow.ts). The reason travels with the
+          PATCH itself rather than as a separate note, so it can never end up
+          recorded against a status change that then failed. */}
+      <Modal
+        open={reopenOpen}
+        onClose={() => setReopenOpen(false)}
+        title="بازگشایی سرنخ موفق"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setReopenOpen(false)}>
+              انصراف
+            </Button>
+            <Button
+              loading={setStatus.isPending}
+              disabled={reopenReason.trim().length < 3}
+              onClick={() => {
+                setStatus.mutate(
+                  { status: 'contacted', reason: reopenReason.trim() },
+                  {
+                    onSuccess: () => {
+                      setReopenOpen(false);
+                      setReopenReason('');
+                    },
+                  },
+                );
+              }}
+            >
+              بازگشایی
+            </Button>
+          </>
+        }
+      >
+        <p className={s.hint}>
+          سرنخ به وضعیت «تماس‌گرفته» برمی‌گردد و از شمار سرنخ‌های موفق خارج می‌شود (سطح باشگاه مشتری هم دوباره محاسبه
+          می‌شود). دلیل آن در تایم‌لاین سرنخ برای کل تیم ثبت می‌ماند.
+        </p>
+        <div className={ui.toolbar}>
+          {['ثبت اشتباه', 'سفارش لغو شد', 'مشتری منصرف شد', 'پرداخت انجام نشد'].map((r) => (
+            <Button
+              key={r}
+              size="sm"
+              variant={reopenReason === r ? 'secondary' : 'ghost'}
+              onClick={() => setReopenReason(r)}
+            >
+              {r}
+            </Button>
+          ))}
+        </div>
+        <textarea
+          className={s.textarea}
+          placeholder="دلیل بازگشایی (الزامی)…"
+          value={reopenReason}
+          onChange={(e) => setReopenReason(e.target.value)}
+          aria-label="دلیل بازگشایی سرنخ موفق"
         />
       </Modal>
 

@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { eq, inArray } from 'drizzle-orm';
 import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
-import { findLead, leadItemsOf, leadNotesOf, proformasOfLead, softDeleteLead, updateLead } from '@/lib/server/repos/leadsRepo';
+import { addLeadNote, findLead, leadItemsOf, leadNotesOf, proformasOfLead, softDeleteLead, updateLead } from '@/lib/server/repos/leadsRepo';
+import { checkLeadStatusChange, LEAD_STATUS_LABEL } from '@/lib/server/utils/leadStatusFlow';
 import { recomputeTier } from '@/lib/server/repos/clubRepo';
 import { getDb } from '@/lib/server/db/client';
 import { users, currentPrices } from '@/lib/server/db/schema';
@@ -67,6 +68,10 @@ const patchPayload = z.object({
   // reaching the FK as a literal id and blowing up as a 500.
   assigneeId: z.string().min(1).nullable().optional(),
   callbackAt: z.string().datetime().nullable().optional(),
+  // Why a lead is being pulled back out of a terminal status. Only read when
+  // `checkLeadStatusChange` demands it (today: leaving 'won'); ignored
+  // otherwise, so every existing caller keeps working unchanged.
+  statusReason: z.string().trim().max(500).optional(),
 });
 
 /** Roles that may hold a lead — derived, so a permission-table change can't
@@ -158,11 +163,64 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }
       { status: 403 },
     );
   }
-  const lead = await updateLead(id, {
-    status: v.data.status,
-    assigneeId: v.data.assigneeId === undefined ? undefined : v.data.assigneeId,
-    callbackAt: v.data.callbackAt === undefined ? undefined : v.data.callbackAt ? new Date(v.data.callbackAt) : null,
-  });
+  // Legal-move check BEFORE the write: without it the raw API accepted every
+  // status from every other one, including back to 'new' (see
+  // leadStatusFlow.ts). Skipped entirely when the body carries no `status`, so
+  // an assignee-only or callback-only PATCH is untouched.
+  if (v.data.status !== undefined) {
+    const rejection = checkLeadStatusChange({
+      from: before.status,
+      to: v.data.status,
+      reason: v.data.statusReason,
+    });
+    if (rejection) {
+      return NextResponse.json(
+        { error: rejection.error, message: rejection.message },
+        { status: rejection.httpStatus },
+      );
+    }
+  }
+  // Compare-and-swap on the owner this request was AUTHORIZED against, so the
+  // window between `findLead` above and this write cannot be used to silently
+  // overwrite someone else's claim (see updateLead's doc comment).
+  //
+  // Applied when — and only when — the decision above actually depended on
+  // current ownership: any assignee change (a rep's right to claim IS
+  // «before === null», and a manager reassigning must not silently erase a
+  // claim made a second ago), and any status/callback write let through by
+  // canActOnAssignedRecord rather than by leads:manage. A manager editing
+  // only status is not ownership-gated, so it is not guarded here and cannot
+  // get a spurious conflict.
+  const ownershipGated =
+    v.data.assigneeId !== undefined ||
+    ((v.data.status !== undefined || v.data.callbackAt !== undefined) &&
+      !can(auth.session.role, 'leads:manage'));
+  const lead = await updateLead(
+    id,
+    {
+      status: v.data.status,
+      assigneeId: v.data.assigneeId === undefined ? undefined : v.data.assigneeId,
+      callbackAt: v.data.callbackAt === undefined ? undefined : v.data.callbackAt ? new Date(v.data.callbackAt) : null,
+    },
+    ownershipGated ? { ifAssigneeId: before.assigneeId } : {},
+  );
+  if (!lead) {
+    // The guard matched nothing. Re-read to report WHICH of the two it was
+    // rather than guessing: the row can also have been archived concurrently,
+    // and calling that «کس دیگری برداشت» would send the rep hunting for a
+    // colleague who does not exist.
+    const now = await findLead(id);
+    if (!now) return NextResponse.json({ error: 'not_found', message: 'سرنخ یافت نشد.' }, { status: 404 });
+    return NextResponse.json(
+      {
+        error: 'assignee_conflict',
+        message:
+          'این سرنخ همین الان توسط شخص دیگری برداشته یا واگذار شد. صفحه را تازه کنید و دوباره تلاش کنید.',
+        assigneeId: now.assigneeId,
+      },
+      { status: 409 },
+    );
+  }
   // assigneeId in the before-state too: re-assignment is the field the guard
   // above protects, so the trail has to show who the lead was taken FROM.
   await audit(
@@ -172,12 +230,23 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }
     { status: before.status, assigneeId: before.assigneeId },
     v.data,
   );
+  // The reason also lands in the notes timeline, next to the lost-reason notes
+  // the UI already writes: an audit row answers "who did this" for an admin
+  // digging through logs, but the rep who opens this lead tomorrow only ever
+  // sees the timeline. Best-effort — a failed note must not undo a status
+  // change that already committed.
+  const statusReason = v.data.statusReason?.trim();
+  if (statusReason && v.data.status !== undefined && v.data.status !== before.status) {
+    await addLeadNote(id, auth.session.id, `دلیل تغییر وضعیت از «${LEAD_STATUS_LABEL[before.status]}» به «${LEAD_STATUS_LABEL[v.data.status]}»: ${statusReason}`).catch(
+      () => {},
+    );
+  }
   // Recompute on any change into OR out of 'won' — recomputeTier derives
   // the tier fresh from the live won-lead count and downgrades correctly
   // when it's lower than stored, so an admin reverting a mis-marked 'won'
   // lead (e.g. back to 'lost') un-advances the tier too, not just upgrades.
   const wonChanged = v.data.status !== undefined && (v.data.status === 'won' || before.status === 'won');
-  if (wonChanged && lead?.userId) void recomputeTier(lead.userId).catch(() => {});
+  if (wonChanged && lead.userId) void recomputeTier(lead.userId).catch(() => {});
   return NextResponse.json({ lead });
 }
 

@@ -60,6 +60,18 @@ export function proformaSmsText(ref: string, name: string | null | undefined, to
 }
 
 /**
+ * Ceiling on proforma SMS to ONE mobile per 24h, applied ONLY to the public
+ * guest path in `createLead` (item 95). Not applied to the admin re-issue
+ * route: a signed-in rep acting on a lead is an accountable, audited human.
+ *
+ * Chosen against 90 days of production sms_log: the busiest genuine recipient
+ * saw 5 proforma messages in one day, and the only number above that was a
+ * seeded test line. 12 leaves better than 2x that headroom, so this never
+ * touches a real customer — it exists purely to bound targeted SMS harassment.
+ */
+const GUEST_PROFORMA_SMS_DAILY_CAP = 12;
+
+/**
  * The same message as a NotificationSpec — templated the moment the owner
  * registers SMSIR_TEMPLATE_ID_PROFORMA_REQUEST / _ISSUED on the SMS.ir panel
  * (see docs/SMS-TEMPLATES.md for the exact text to submit), free-text bulk
@@ -570,10 +582,25 @@ export async function createLead(
 
   // AFTER commit — the record is durable, so now it's safe to text the ref:
   // a priced proforma with total+validity, or a plain "request received".
-  await sendNotification(
-    input.contact.mobile,
-    proformaSmsNotification(ref, input.contact.name, result.total, validUntilDate),
-  );
+  //
+  // This is the ONE proforma-SMS path an unauthenticated stranger can aim at a
+  // phone number they do not own: `contactMobile` is whatever the form said,
+  // and issuance deliberately does NOT require contactVerified (gating it on
+  // OTP would make legitimate guests wait for a code before getting the quote
+  // SMS the shop wants them to have). So instead of blocking the message, cap
+  // how many times ONE number can be targeted per day — /api/leads' own limiter
+  // buckets by IP and cannot see an attacker rotating IPs at a single victim.
+  //
+  // GUEST_PROFORMA_SMS_DAILY_CAP is set from real production traffic (the
+  // busiest real customer in 90 days of sms_log took 5 proforma messages in a
+  // day; only a seeded load-test number went higher), so no real customer is
+  // reachable by this ceiling. Suppression also never withholds the quote
+  // itself: the proforma is committed above and stays viewable at
+  // /proforma/{ref} either way.
+  await sendNotification(input.contact.mobile, {
+    ...proformaSmsNotification(ref, input.contact.name, result.total, validUntilDate),
+    dailyCapPerMobile: GUEST_PROFORMA_SMS_DAILY_CAP,
+  });
 
   return result;
 }

@@ -282,6 +282,37 @@ describe('mergeLeads — children move', () => {
     expect(row!.deletedAt).toBeNull();
   });
 
+  it('coalesces the loser’s campaign attribution onto the winner only when the winner has none (item 82)', async () => {
+    const actor = await seedUser('09150000060');
+    const winner = await seedLead({ mobile: '09122220021' });
+    const loser = await seedLead({ mobile: '09122220021' });
+    await db
+      .update(schema.leads)
+      .set({ utmSource: 'google', utmMedium: 'cpc', utmCampaign: 'summer-sale', landingReferrer: 'https://google.com' })
+      .where(eq(schema.leads.id, loser.id));
+
+    await mergeLeads(winner.id, loser.id, actor);
+
+    const row = await leadRow(winner.id);
+    expect(row!.utmSource).toBe('google');
+    expect(row!.utmMedium).toBe('cpc');
+    expect(row!.utmCampaign).toBe('summer-sale');
+    expect(row!.landingReferrer).toBe('https://google.com');
+  });
+
+  it('never overwrites the winner’s own campaign attribution with the loser’s (item 82)', async () => {
+    const actor = await seedUser('09150000061');
+    const winner = await seedLead({ mobile: '09122220022' });
+    const loser = await seedLead({ mobile: '09122220022' });
+    await db.update(schema.leads).set({ utmSource: 'direct' }).where(eq(schema.leads.id, winner.id));
+    await db.update(schema.leads).set({ utmSource: 'instagram' }).where(eq(schema.leads.id, loser.id));
+
+    await mergeLeads(winner.id, loser.id, actor);
+
+    const row = await leadRow(winner.id);
+    expect(row!.utmSource).toBe('direct'); // the winner's own first-touch, never clobbered
+  });
+
   it('lead_items.order has no duplicates on the survivor', async () => {
     const actor = await seedUser('09150000013');
     const winner = await seedLead({ mobile: '09122220003', items: 3 });
