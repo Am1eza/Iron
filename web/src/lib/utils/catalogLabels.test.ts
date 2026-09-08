@@ -33,6 +33,12 @@ import {
   regionFromFactory,
   groupModeFor,
   groupKeyFor,
+  translateLabel,
+  regionLabel,
+  unknownValue,
+  priceBasisNoun,
+  priceUnitCaption,
+  priceUnitLabel,
 } from './catalogLabels';
 
 describe('sizeLabel', () => {
@@ -1421,5 +1427,66 @@ describe('groupKeyFor', () => {
 
   it('puts every row in the one unnamed section under «none»', () => {
     expect(groupKeyFor('none', { factory: 'فولاد مشهد', region: 'مشهد' })).toBe('');
+  });
+});
+
+describe('locale-aware labels', () => {
+  it('translateLabel passes Persian through unchanged and defaults every function to fa', () => {
+    expect(translateLabel(SIZE_LABEL)).toBe(SIZE_LABEL);
+    expect(translateLabel(SIZE_LABEL, 'fa')).toBe(SIZE_LABEL);
+    // No third argument at all — the exact shape every existing admin/AI call
+    // site uses — must still return byte-for-byte Persian.
+    expect(sizeLabel('sheet')).toBe(THICKNESS_LABEL);
+    expect(weightLabel('rebar')).toBe(BRANCH_WEIGHT_LABEL);
+    expect(factoryLabel('pipe', 'seamless-internal')).toBe(BRAND_LABEL);
+    expect(regionLabel()).toBe('محل تولید');
+    expect(unknownValue()).toBe('نامشخص');
+  });
+
+  it('translates the fixed column vocabulary for en/ar/zh', () => {
+    expect(sizeLabel('rebar', null, 'en')).toBe('Size');
+    expect(sizeLabel('sheet', null, 'en')).toBe('Thickness');
+    expect(sizeLabel('profile', 'profil-z', 'en')).toBe('Height');
+    expect(weightLabel('rebar', 'en')).toBe('Weight per Bar');
+    expect(weightLabel('sheet', 'en')).toBe('Weight');
+    expect(factoryLabel('pipe', 'seamless-internal', 'en')).toBe('Brand');
+    expect(factoryLabel('rebar', null, 'en')).toBe('Factory');
+    expect(regionLabel('en')).toBe('Origin');
+    expect(unknownValue('en')).toBe('Unspecified');
+    expect(sizeLabel('rebar', null, 'ar')).toBe('المقاس');
+    expect(sizeLabel('rebar', null, 'zh')).toBe('规格');
+  });
+
+  it('leaves an untranslatable value (a raw factory/product name) unchanged in every locale', () => {
+    expect(translateLabel('فولاد مبارکه', 'en')).toBe('فولاد مبارکه');
+    expect(groupKeyFor('factory', { factory: 'فولاد مبارکه' }, 'en')).toBe('فولاد مبارکه');
+  });
+
+  it('translates the synthetic groupKeyFor fallbacks but not a real factory/region name', () => {
+    expect(groupKeyFor('factory', {}, 'en')).toBe('Other');
+    expect(groupKeyFor('region', {}, 'en')).toBe('Unspecified');
+    expect(groupKeyFor('factory', { factory: 'فولاد مشهد' }, 'en')).toBe('فولاد مشهد');
+  });
+
+  it('attributeColumns translates the header label but reads product data verbatim', () => {
+    const cols = attributeColumns('rebar', null, 'en');
+    const gradeCol = cols.find((c) => c.key === 'gradeAsStandard');
+    expect(gradeCol?.label).toBe('Standard');
+    expect(gradeCol?.cell({ subCategoryId: 'deformed', grade: 'A3' })).toBe('A3');
+    expect(gradeCol?.cell({ subCategoryId: 'deformed' })).toBe('Unspecified');
+  });
+
+  it('priceBasisNoun/priceUnitCaption localize the noun, the digits and the currency word', () => {
+    expect(priceBasisNoun('kg')).toBe('کیلوگرم');
+    expect(priceBasisNoun('kg', null, 'en')).toBe('Kilogram');
+    expect(priceBasisNoun('branch', 6, 'fa')).toBe('شاخه ۶ متری');
+    expect(priceBasisNoun('branch', 6, 'en')).toBe('Bar 6m');
+    expect(priceUnitCaption('kg', null, 'fa')).toBe('تومان / کیلوگرم');
+    expect(priceUnitCaption('kg', null, 'en')).toBe('Toman / Kilogram');
+  });
+
+  it('priceUnitLabel translates the cart/proforma unit noun', () => {
+    expect(priceUnitLabel('sqm')).toBe('متر مربع');
+    expect(priceUnitLabel('sqm', 'en')).toBe('Square Meter');
   });
 });

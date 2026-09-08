@@ -1,4 +1,6 @@
-import { formatToman, formatMovement, toPersianDigits } from '@/lib/utils/format';
+import { useLocale, useTranslations } from 'next-intl';
+import type { AppLocale } from '@/i18n/config';
+import { formatToman, formatMovement, localizeDigits } from '@/lib/utils/format';
 import type { MovementDir } from '@/lib/types/domain';
 import { ClockIcon, CheckIcon } from '@/components/primitives/icons';
 import styles from './PriceParts.module.css';
@@ -19,12 +21,13 @@ import styles from './PriceParts.module.css';
  * is the obvious next caller.
  */
 export function BestPriceBadge() {
+  const t = useTranslations('priceParts');
   return (
     <span className={styles.bestPrice}>
       <span className={styles.bestPriceIcon} aria-hidden="true">
         <CheckIcon size={14} />
       </span>
-      بهترین قیمت
+      {t('bestPrice')}
     </span>
   );
 }
@@ -47,10 +50,12 @@ export function MovementBadge({
    *  below WCAG AA against a permanently-dark background. */
   onPanel?: boolean;
 }) {
+  const locale = useLocale() as AppLocale;
+  const t = useTranslations('priceParts');
   const arrow = dir === 'up' ? '▲' : dir === 'down' ? '▼' : '';
   const cls = dir === 'up' ? styles.up : dir === 'down' ? styles.down : styles.flat;
-  const label = dir === 'up' ? 'افزایش' : dir === 'down' ? 'کاهش' : 'بدون تغییر';
-  const text = formatMovement(pct);
+  const label = dir === 'up' ? t('increased') : dir === 'down' ? t('decreased') : t('unchanged');
+  const text = formatMovement(pct, locale);
   // No numeric pct (no history to compute a real % from, e.g. the market
   // board's admin-entered شمش فولاد placeholder) previously left this pill
   // visually empty — the label only existed in a visually-hidden span for
@@ -72,16 +77,18 @@ export function MovementBadge({
 export function PriceTag({
   value,
   size = 'cell',
-  unitLabel = 'تومان',
+  unitLabel,
 }: {
   value: number;
   size?: 'cell' | 'hero';
   unitLabel?: string;
 }) {
+  const locale = useLocale() as AppLocale;
+  const tCommon = useTranslations('common');
   return (
     <span className={`${styles.price} ${size === 'hero' ? styles.hero : styles.cell} tnum`}>
-      <span className={styles.priceNum}>{formatToman(value, false)}</span>
-      <span className={styles.priceUnit}>{unitLabel}</span>
+      <span className={styles.priceNum}>{localizeDigits(formatToman(value, false), locale)}</span>
+      <span className={styles.priceUnit}>{unitLabel ?? tCommon('unit.currency')}</span>
     </span>
   );
 }
@@ -96,12 +103,18 @@ export function DeliveryBadge({
   value: string;
   guaranteed?: boolean;
 }) {
+  const locale = useLocale() as AppLocale;
+  // `value` is admin-entered free text («۲۴ ساعت», «فوری», …) — DB content,
+  // like a product name, not this app's UI vocabulary (see catalogLabels.ts's
+  // `translateLabel` header comment for the same distinction). Only the
+  // digits inside it are locale-aware here; the Persian words themselves are
+  // out of scope for this pass — see the delivery-time note in the i18n audit.
   return (
     <span className={`${styles.delivery} ${guaranteed ? styles.guaranteed : ''}`}>
       <span className={styles.deliveryIcon} aria-hidden="true">
         {guaranteed ? <CheckIcon size={14} /> : <ClockIcon size={14} />}
       </span>
-      <span className="tnum">{toPersianDigits(value)}</span>
+      <span className="tnum">{localizeDigits(value, locale)}</span>
     </span>
   );
 }

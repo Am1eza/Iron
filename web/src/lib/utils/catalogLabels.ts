@@ -22,8 +22,83 @@
  */
 
 import type { PriceBasis, PriceUnit } from '@/lib/types/domain';
-import { toPersianDigits } from '@/lib/utils/format';
+import { toPersianDigits, localizeDigits } from '@/lib/utils/format';
 import { CITIES } from '@/lib/data/logistics';
+import type { AppLocale } from '@/i18n/config';
+
+/**
+ * English/Arabic/Chinese equivalents for this file's fixed, bounded
+ * vocabulary of column/section labels (~25 constants below this point).
+ *
+ * Keyed by the Persian constant's own VALUE, not duplicated by hand
+ * elsewhere: every function in this file that resolves a Persian label
+ * through the category/sub business logic above (`sizeLabel`, `weightLabel`,
+ * `factoryLabel`, `attributeColumns`, `priceBasisNoun`, …) gets the matching
+ * translation for free by passing `locale`, and a label added here can never
+ * drift out of sync with the constant it translates because the constant IS
+ * the lookup key.
+ *
+ * `translateLabel`'s callers all default `locale` to `'fa'`, so every
+ * existing call site (admin panel, AI grounding, proforma PDFs, …) that
+ * passes no locale argument returns byte-for-byte what it always has — this
+ * is additive only, never a behaviour change for Persian.
+ */
+const LABEL_TRANSLATIONS: Readonly<Record<string, Readonly<Record<'en' | 'ar' | 'zh', string>>>> = {
+  سایز: { en: 'Size', ar: 'المقاس', zh: '规格' },
+  ارتفاع: { en: 'Height', ar: 'الارتفاع', zh: '高度' },
+  ضخامت: { en: 'Thickness', ar: 'السماكة', zh: '厚度' },
+  ابعاد: { en: 'Dimensions', ar: 'الأبعاد', zh: '尺寸' },
+  عرض: { en: 'Width', ar: 'العرض', zh: '宽度' },
+  بال: { en: 'Flange', ar: 'الجناح', zh: '翼缘' },
+  گرید: { en: 'Grade', ar: 'الدرجة', zh: '等级' },
+  استاندارد: { en: 'Standard', ar: 'المعيار', zh: '标准' },
+  رده: { en: 'Schedule', ar: 'الفئة', zh: '规格等级' },
+  کارخانه: { en: 'Factory', ar: 'المصنع', zh: '厂家' },
+  برند: { en: 'Brand', ar: 'العلامة التجارية', zh: '品牌' },
+  وزن: { en: 'Weight', ar: 'الوزن', zh: '重量' },
+  'وزن شاخه': { en: 'Weight per Bar', ar: 'وزن القضيب', zh: '每支重量' },
+  'طول شاخه': { en: 'Bar Length', ar: 'طول القضيب', zh: '支长' },
+  'طول سفارشی': { en: 'Custom Length', ar: 'طول حسب الطلب', zh: '定制长度' },
+  طول: { en: 'Length', ar: 'الطول', zh: '长度' },
+  آلیاژ: { en: 'Alloy', ar: 'السبيكة', zh: '合金' },
+  شاخه: { en: 'Bar', ar: 'قضيب', zh: '支' },
+  حالت: { en: 'Form', ar: 'الحالة', zh: '形态' },
+  رنگ: { en: 'Color', ar: 'اللون', zh: '颜色' },
+  نامشخص: { en: 'Unspecified', ar: 'غير محدد', zh: '未指定' },
+  'محل تولید': { en: 'Origin', ar: 'المنشأ', zh: '产地' },
+  سایر: { en: 'Other', ar: 'أخرى', zh: '其他' },
+  'بر اساس سفارش': { en: 'Made to order', ar: 'حسب الطلب', zh: '按订单定制' },
+  کیلوگرم: { en: 'Kilogram', ar: 'كيلوغرام', zh: '千克' },
+  برگ: { en: 'Sheet', ar: 'ورقة', zh: '张' },
+  متر: { en: 'Meter', ar: 'متر', zh: '米' },
+  عدد: { en: 'Piece', ar: 'قطعة', zh: '件' },
+  'متر مربع': { en: 'Square Meter', ar: 'متر مربع', zh: '平方米' },
+  کلاف: { en: 'Coil', ar: 'كويل', zh: '卷' },
+  // Table-export (`ExportMenu`) column headers — a small, equally fixed
+  // vocabulary, so they reuse this same lookup rather than a second one.
+  محصول: { en: 'Product', ar: 'المنتج', zh: '产品' },
+  'قیمت (تومان)': { en: 'Price (Toman)', ar: 'السعر (تومان)', zh: '价格（托曼）' },
+  نوسان: { en: 'Change', ar: 'التغير', zh: '涨跌' },
+  'زمان تحویل': { en: 'Delivery Time', ar: 'مدة التسليم', zh: '交货时间' },
+};
+
+/**
+ * Translate one of this file's fixed label constants (or a composite built
+ * from them, e.g. `` `${noun} متری` ``) into the active locale.
+ *
+ * `'fa'` (the default) is a pure passthrough — no lookup, no risk of ever
+ * returning something other than the exact stored value for the language
+ * this whole catalog is authored in. A miss for en/ar/zh (a value not in
+ * `LABEL_TRANSLATIONS`, e.g. a raw factory/product name) also falls back to
+ * the Persian original rather than throwing or printing a blank cell: this
+ * catalog's product and mill NAMES are DB content, not app vocabulary, and
+ * are out of scope for this lookup — see the per-caller notes where that
+ * matters.
+ */
+export function translateLabel(fa: string, locale: AppLocale = 'fa'): string {
+  if (locale === 'fa') return fa;
+  return LABEL_TRANSLATIONS[fa]?.[locale] ?? fa;
+}
 
 /** Categories whose `size` column holds a thickness. Only ورق today. */
 const THICKNESS_CATEGORIES = new Set(['sheet']);
@@ -572,10 +647,12 @@ export function usesDimensions(
 export function dimensionsLabel(
   categorySlug: string | null | undefined,
   subCategorySlug: string | null = null,
+  locale: AppLocale = 'fa',
 ): string {
-  return (
+  return translateLabel(
     (subCategorySlug ? DIMENSION_MEANING.get(`${categorySlug}/${subCategorySlug}`) : undefined) ??
-    DIMENSIONS_LABEL
+      DIMENSIONS_LABEL,
+    locale,
   );
 }
 
@@ -591,22 +668,29 @@ export function dimensionsLabel(
 export function sizeLabel(
   categorySlug: string | null | undefined,
   subCategorySlug: string | null = null,
+  locale: AppLocale = 'fa',
 ): string {
-  if (categorySlug === 'profile' && subCategorySlug === 'profil-z') return HEIGHT_LABEL;
+  if (categorySlug === 'profile' && subCategorySlug === 'profil-z') {
+    return translateLabel(HEIGHT_LABEL, locale);
+  }
   // ahanonline publishes پروفیل استیل's outside section as «ابعاد»,
   // beside its independent wall «ضخامت» in `dimensions`. `profile/prvfyl-astyl`
   // is the same product filed under the wrong parent category and gets the
   // same header — otherwise the two پروفیل استیل pages this catalog has would
   // disagree about what to call one fact.
-  if (categorySlug === 'steel' && subCategorySlug === 'profile') return DIMENSIONS_LABEL;
-  if (categorySlug === 'profile' && subCategorySlug === 'prvfyl-astyl') return DIMENSIONS_LABEL;
+  if (categorySlug === 'steel' && subCategorySlug === 'profile') {
+    return translateLabel(DIMENSIONS_LABEL, locale);
+  }
+  if (categorySlug === 'profile' && subCategorySlug === 'prvfyl-astyl') {
+    return translateLabel(DIMENSIONS_LABEL, locale);
+  }
   if (
     categorySlug === 'felezat-rangi' &&
     Boolean(subCategorySlug && COLOURED_SHEET_DIMENSION_SUBS.has(subCategorySlug))
   ) {
-    return THICKNESS_LABEL;
+    return translateLabel(THICKNESS_LABEL, locale);
   }
-  return usesThickness(categorySlug) ? THICKNESS_LABEL : SIZE_LABEL;
+  return translateLabel(usesThickness(categorySlug) ? THICKNESS_LABEL : SIZE_LABEL, locale);
 }
 
 /**
@@ -618,8 +702,8 @@ export function sizeLabel(
  * on the same THICKNESS_CATEGORIES set sizeLabel already uses: it is exactly
  * the categories where «شاخه» stops applying.
  */
-export function weightLabel(categorySlug: string | null | undefined): string {
-  return usesThickness(categorySlug) ? WEIGHT_LABEL : BRANCH_WEIGHT_LABEL;
+export function weightLabel(categorySlug: string | null | undefined, locale: AppLocale = 'fa'): string {
+  return translateLabel(usesThickness(categorySlug) ? WEIGHT_LABEL : BRANCH_WEIGHT_LABEL, locale);
 }
 
 /* ---------------------- per-sub attribute columns ---------------------- */
@@ -727,16 +811,17 @@ export function factoryIsMeaningful(
 export function factoryLabel(
   categorySlug: string | null | undefined,
   subCategorySlug: string | null | undefined = null,
+  locale: AppLocale = 'fa',
 ): string {
   if (categorySlug === 'pipe' && subCategorySlug && PIPE_BRAND_SUBS.has(subCategorySlug)) {
-    return BRAND_LABEL;
+    return translateLabel(BRAND_LABEL, locale);
   }
   if (
     categorySlug === 'angle-channel' &&
     subCategorySlug &&
     ANGLE_CHANNEL_BRAND_SUBS.has(subCategorySlug)
   ) {
-    return BRAND_LABEL;
+    return translateLabel(BRAND_LABEL, locale);
   }
   // See COLOURED_SHEET_BRAND_SUBS — ahanonline's own ورق آلومینیوم و ورق
   // مسی tables head this column «برند», and the values we store there are the
@@ -746,12 +831,12 @@ export function factoryLabel(
     subCategorySlug &&
     COLOURED_SHEET_BRAND_SUBS.has(subCategorySlug)
   ) {
-    return BRAND_LABEL;
+    return translateLabel(BRAND_LABEL, locale);
   }
   if (categorySlug === 'sheet' && subCategorySlug && SHEET_BRAND_SUBS.has(subCategorySlug)) {
-    return BRAND_LABEL;
+    return translateLabel(BRAND_LABEL, locale);
   }
-  return FACTORY_LABEL;
+  return translateLabel(FACTORY_LABEL, locale);
 }
 
 export const BRANCH_LENGTH_LABEL = 'طول شاخه';
@@ -775,6 +860,10 @@ export const COLOR_LABEL = 'رنگ';
 export const NOT_APPLICABLE = '—';
 /** Printed where it IS a property of the product but nobody has entered it. */
 export const UNKNOWN_VALUE = 'نامشخص';
+/** Locale-aware `UNKNOWN_VALUE` — see `translateLabel`'s header comment. */
+export function unknownValue(locale: AppLocale = 'fa'): string {
+  return translateLabel(UNKNOWN_VALUE, locale);
+}
 /** What a پروفیل Z row prints where no branch length is recorded. It is cut to
  *  order, so an empty length is an answer, not a gap — and «طول سفارشی» is
  *  ahanonline's own word for that answer, printed in the cells of its «طول(m)»
@@ -1590,14 +1679,20 @@ export type AttrColumn = {
 export function attributeColumns(
   categorySlug: string | null | undefined,
   sub: string | null,
+  locale: AppLocale = 'fa',
 ): AttrColumn[] {
   return attrKeysFor(categorySlug, sub).map((key) => {
     const def = ATTR_DEFS[key];
     const appliesTo = (row: AttrRow) => attrKeysFor(categorySlug, row.subCategoryId).includes(key);
+    const unknown = translateLabel(UNKNOWN_VALUE, locale);
     return {
       key,
-      label: def.label,
-      cell: (row) => (appliesTo(row) ? (def.read(row) ?? UNKNOWN_VALUE) : NOT_APPLICABLE),
+      label: translateLabel(def.label, locale),
+      // `def.read` returns the STORED value verbatim (a grade code, a colour
+      // name the admin typed, …) — that is product DATA, not this file's
+      // fixed label vocabulary, and is deliberately left untranslated here.
+      // Only the two fixed sentinels («نامشخص»/«—») go through `translateLabel`.
+      cell: (row) => (appliesTo(row) ? (def.read(row) ?? unknown) : NOT_APPLICABLE),
       card: (row) => (appliesTo(row) ? (def.read(row) ?? null) : null),
     };
   });
@@ -1622,6 +1717,11 @@ export const PRICE_UNIT_LABEL: Record<PriceUnit, string> = {
   piece: 'عدد',
   sqm: 'متر مربع',
 };
+
+/** Locale-aware `PRICE_UNIT_LABEL[unit]` — see `translateLabel`'s header comment. */
+export function priceUnitLabel(unit: PriceUnit, locale: AppLocale = 'fa'): string {
+  return translateLabel(PRICE_UNIT_LABEL[unit], locale);
+}
 
 /**
  * The Persian noun for one unit of a price basis — «کیلوگرم», «شاخه», … —
@@ -1652,11 +1752,15 @@ const PRICE_BASIS_NOUN: Record<PriceBasis, string> = {
 export function priceBasisNoun(
   basis: PriceBasis | null | undefined,
   branchLengthM?: number | null,
+  locale: AppLocale = 'fa',
 ): string {
   const b: PriceBasis = basis ?? 'kg';
-  const noun = PRICE_BASIS_NOUN[b] ?? PRICE_BASIS_NOUN.kg;
+  const noun = translateLabel(PRICE_BASIS_NOUN[b] ?? PRICE_BASIS_NOUN.kg, locale);
   if ((b === 'branch' || b === 'coil') && branchLengthM) {
-    return `${noun} ${toPersianDigits(branchLengthM)} متری`;
+    const length = localizeDigits(branchLengthM, locale);
+    // «۶ متری» is a Persian adjective («metre-long») glued onto the noun; the
+    // other locales say the same fact as "6m", the trade-standard short form.
+    return locale === 'fa' ? `${noun} ${length} متری` : `${noun} ${length}m`;
   }
   return noun;
 }
@@ -1673,8 +1777,17 @@ export function priceBasisNoun(
 export function priceUnitCaption(
   basis: PriceBasis | null | undefined,
   branchLengthM?: number | null,
+  locale: AppLocale = 'fa',
 ): string {
-  return `تومان / ${priceBasisNoun(basis, branchLengthM)}`;
+  // «تومان» itself is deliberately not resolved through `translateLabel` (it
+  // is a currency, not a column label) — callers that already hold a
+  // `useTranslations('common')` instance should prefer
+  // `t('unit.currency')` (see `messages/*.json`'s `common.unit.currency`);
+  // this bare-utility path keeps the Persian word for `'fa'` and a plain
+  // "Toman" fallback for the others so a caller with no `t` handy (e.g. the
+  // Excel/print export, which has no React tree) still gets a correct label.
+  const currency = locale === 'fa' ? 'تومان' : 'Toman';
+  return `${currency} / ${priceBasisNoun(basis, branchLengthM, locale)}`;
 }
 
 /**
@@ -1709,6 +1822,10 @@ export function singlePriceBasis(
  * word is "unspecified", never a dash meaning "does not apply".
  */
 export const REGION_LABEL = 'محل تولید';
+/** Locale-aware `REGION_LABEL` — see `translateLabel`'s header comment. */
+export function regionLabel(locale: AppLocale = 'fa'): string {
+  return translateLabel(REGION_LABEL, locale);
+}
 
 /** Whole-token lookup set for `regionFromFactory`. */
 const CITY_NAMES = new Set(CITIES.map((c) => c.name));
@@ -1793,10 +1910,19 @@ export const OTHER_GROUP = 'سایر';
 /**
  * The section a row belongs to under `mode`. Under `none` every row shares
  * the single unnamed section, so the key is the empty string.
+ *
+ * `factory`/`region` values that ARE present are DB content (a mill name or a
+ * recovered city — see `regionFromFactory`), left untranslated on purpose:
+ * only the two synthetic fallback labels (`OTHER_GROUP`, `UNKNOWN_VALUE`) are
+ * this file's own vocabulary and go through `translateLabel`.
  */
-export function groupKeyFor(mode: GroupMode, row: { factory?: string; region?: string }): string {
-  if (mode === 'factory') return row.factory ?? OTHER_GROUP;
-  if (mode === 'region') return row.region ?? UNKNOWN_VALUE;
+export function groupKeyFor(
+  mode: GroupMode,
+  row: { factory?: string; region?: string },
+  locale: AppLocale = 'fa',
+): string {
+  if (mode === 'factory') return row.factory ?? translateLabel(OTHER_GROUP, locale);
+  if (mode === 'region') return row.region ?? translateLabel(UNKNOWN_VALUE, locale);
   return '';
 }
 

@@ -2,6 +2,8 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import { useLocale, useTranslations } from 'next-intl';
+import type { AppLocale } from '@/i18n/config';
 import { queryKeys } from '@/lib/query/keys';
 import { http } from '@/lib/api/http';
 import { useCartStore } from '@/lib/stores/cart';
@@ -9,7 +11,7 @@ import { useToast } from '@/lib/hooks/useToast';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { CONSTANTS } from '@/lib/config/constants';
 import { routes } from '@/lib/routes';
-import { formatToman, priceHiddenLabel, toPersianDigits } from '@/lib/utils/format';
+import { formatToman, priceHiddenLabel, localizeDigits } from '@/lib/utils/format';
 import {
   priceBasisNoun,
   sizeLabel,
@@ -18,9 +20,12 @@ import {
   weightLabel,
   attributeColumns,
   NOT_APPLICABLE,
-  REGION_LABEL,
+  regionLabel,
+  unknownValue,
   BRAND_LABEL,
+  BRANCH_LENGTH_LABEL,
   factoryLabel,
+  translateLabel,
 } from '@/lib/utils/catalogLabels';
 import { formatJalali } from '@/lib/utils/jalali';
 import { trackGoal } from '@/lib/analytics/track';
@@ -103,6 +108,15 @@ export function SkuDetail({
    *  back to the same default only for callers that don't have it yet. */
   vatRate?: number;
 }) {
+  const locale = useLocale() as AppLocale;
+  const t = useTranslations('skuDetail');
+  const tCommon = useTranslations('common');
+  const tNav = useTranslations('nav');
+  // Reused rather than duplicated — same exact phrasing as PriceTable's
+  // add-to-cart / favorites-sign-in toasts (see `messages/*.json`'s
+  // `priceTable` namespace), so the two surfaces never drift into two
+  // different wordings for the same event.
+  const tPriceTable = useTranslations('priceTable');
   const add = useCartStore((s) => s.add);
   const toast = useToast();
   const { isAuthenticated } = useAuth();
@@ -140,7 +154,7 @@ export function SkuDetail({
   // W23 audit fix: a stale-hidden price's `row.current.price` is a `0`
   // sentinel (see catalogRepo.toPriceRow) — must never be formatted as a
   // real number or fed into the billet-comparison math below.
-  const hiddenLabel = priceHiddenLabel(row.current);
+  const hiddenLabel = priceHiddenLabel(row.current, locale);
   const price = vat ? Math.round(row.current.price * (1 + vatRate)) : row.current.price;
 
   // US-03.3 — compared against the raw (VAT-free) price: billet itself has
@@ -151,8 +165,8 @@ export function SkuDetail({
       : null;
 
   const crumbs = [
-    { label: 'خانه', href: routes.home() },
-    { label: 'قیمت‌ها', href: routes.prices() },
+    { label: tNav('home'), href: routes.home() },
+    { label: tNav('prices'), href: routes.prices() },
     { label: categoryName, href: routes.category(row.categoryId) },
     ...(subLabel
       ? [{ label: subLabel, href: routes.subCategory(row.categoryId, row.subCategoryId) }]
@@ -171,8 +185,8 @@ export function SkuDetail({
       weightKg: row.theoreticalWeightKg,
     });
     trackGoal('add-to-cart', row.categoryId, row.name);
-    toast.success(`${row.name} به سبد استعلام اضافه شد.`, {
-      label: 'مشاهده سبد',
+    toast.success(tPriceTable('addedToCart', { name: row.name }), {
+      label: tPriceTable('viewCart'),
       href: routes.cart(),
     });
   };
@@ -197,15 +211,15 @@ export function SkuDetail({
         : http.del(`/api/me/favorites/${encodeURIComponent(row.id)}`),
     onSuccess: (_res, next) => {
       qc.invalidateQueries({ queryKey: queryKeys.myFavorites() });
-      toast.success(next ? 'به علاقه‌مندی‌ها اضافه شد.' : 'از علاقه‌مندی‌ها حذف شد.');
+      toast.success(next ? t('addedToFavorites') : t('removedFromFavorites'));
     },
-    onError: () => toast.error('ذخیرهٔ علاقه‌مندی انجام نشد. دوباره تلاش کنید.'),
+    onError: () => toast.error(t('favoriteSaveFailed')),
   });
 
   const toggleFav = () => {
     if (!isAuthenticated) {
-      toast.info('برای ذخیرهٔ علاقه‌مندی‌ها وارد شوید.', {
-        label: 'ورود',
+      toast.info(tPriceTable('signInToSaveFavorites'), {
+        label: tCommon('action.login'),
         href: routes.login(skuUrl),
       });
       return;
@@ -217,7 +231,7 @@ export function SkuDetail({
     const url = typeof window !== 'undefined' ? window.location.href : skuUrl;
     const shareData = {
       title: row.name,
-      text: `قیمت روز ${row.name} در آهن‌تایم`,
+      text: t('shareText', { name: row.name }),
       url,
     };
     if (typeof navigator !== 'undefined' && navigator.share) {
@@ -231,24 +245,24 @@ export function SkuDetail({
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
       try {
         await navigator.clipboard.writeText(url);
-        toast.success('نشانی صفحه کپی شد.');
+        toast.success(t('linkCopied'));
         return;
       } catch {
         // clipboard blocked
       }
     }
-    toast.info('امکان اشتراک‌گذاری در این مرورگر نیست.');
+    toast.info(t('shareUnsupported'));
   };
 
   // ورق is sold by thickness, so its `size` column is labelled «ضخامت» —
   // every other category keeps «سایز» (see catalogLabels).
-  const sizeCol = sizeLabel(row.categoryId, row.subCategoryId);
+  const sizeCol = sizeLabel(row.categoryId, row.subCategoryId, locale);
   // The shared column is public only in its approved context: ورق
   // width×length, or wall thickness on the three نبشی subs. This gate
   // also prevents a stale value on any unrelated SKU from leaking onto its
   // product page merely because the nullable DB column happens to be filled.
   const showDimensions = usesDimensions(row.categoryId, row.subCategoryId);
-  const dimensionsCol = dimensionsLabel(row.categoryId, row.subCategoryId);
+  const dimensionsCol = dimensionsLabel(row.categoryId, row.subCategoryId, locale);
 
   // The same «گرید»/«استاندارد»/«آلیاژ»/profile-length definitions the
   // price table's columns are built from, resolved for THIS product's own
@@ -256,16 +270,19 @@ export function SkuDetail({
   // says «طول سفارشی», in the same words the table the visitor arrived from
   // used. `NOT_APPLICABLE` can't occur here (the row is always in its own
   // sub-category) but is filtered defensively rather than printed as a dash.
-  const attrCols = attributeColumns(row.categoryId, row.subCategoryId);
+  const attrCols = attributeColumns(row.categoryId, row.subCategoryId, locale);
   // «کارخانه», or «برند» on مانیسمان — resolved for THIS product's own
   // sub-category, in the same words as the table the visitor arrived from
   // (see catalogLabels' factoryLabel).
-  const factoryCol = factoryLabel(row.categoryId, row.subCategoryId);
+  const factoryCol = factoryLabel(row.categoryId, row.subCategoryId, locale);
   // The highlights list reads as a phrase rather than a label — «کارخانهٔ
-  // فولاد مبارکه» — so the کارخانه form carries its ezafe. «برند» takes none:
-  // «برند چینی» is how the trade says it, and an ezafe there would be wrong
-  // Persian.
-  const factoryPhrase = factoryCol === BRAND_LABEL ? BRAND_LABEL : 'کارخانهٔ';
+  // فولاد مبارکه» — so the کارخانه form carries its ezafe in Persian. «برند»
+  // takes none: «برند چینی» is how the trade says it, and an ezafe there
+  // would be wrong Persian. Non-fa locales have no ezafe grammar at all, so
+  // they always get the plain translated label instead (English/Arabic/
+  // Chinese already read naturally as "<Factory> <name>" with no connector).
+  const factoryPhrase =
+    locale !== 'fa' || factoryCol === translateLabel(BRAND_LABEL, locale) ? factoryCol : 'کارخانهٔ';
   const attrSpecs = attrCols
     .map((c) => ({ key: c.key, label: c.label, value: c.cell(row) }))
     .filter((a) => a.value !== NOT_APPLICABLE);
@@ -282,13 +299,13 @@ export function SkuDetail({
   // mill's page — the natural next question on a product page is "what else
   // does this mill make?" and the spec table was a dead end for it.
   const specs: { label: string; value: ReactNode }[] = [
-    { label: sizeCol, value: row.size ? toPersianDigits(row.size) : 'نامشخص' },
+    { label: sizeCol, value: row.size ? localizeDigits(row.size, locale) : unknownValue(locale) },
     // Only once someone has filled it in. There is deliberately no «نامشخص»
     // placeholder: existing ورق rows and all current نبشی rows are
     // mostly/null throughout, and an empty new spec on every product reads as
     // a broken page rather than an unanswered optional question.
     ...(showDimensions && row.dimensions
-      ? [{ label: dimensionsCol, value: toPersianDigits(row.dimensions) }]
+      ? [{ label: dimensionsCol, value: localizeDigits(row.dimensions, locale) }]
       : []),
     ...attrSpecs.map((a) => ({ label: a.label, value: a.value })),
     // Only when this product actually has a mill. The پروفیل sub-categories
@@ -309,24 +326,29 @@ export function SkuDetail({
         // there is no per-region landing page, and it is a reconstruction
         // rather than sourced data (see catalogLabels.regionFromFactory).
         row.region
-        ? [{ label: REGION_LABEL, value: row.region }]
+        ? [{ label: regionLabel(locale), value: row.region }]
         : []),
     {
-      label: weightLabel(row.categoryId),
+      label: weightLabel(row.categoryId, locale),
       value: row.theoreticalWeightKg
-        ? `${toPersianDigits(row.theoreticalWeightKg)} کیلوگرم`
-        : 'نامشخص',
+        ? `${localizeDigits(row.theoreticalWeightKg, locale)} ${translateLabel('کیلوگرم', locale)}`
+        : unknownValue(locale),
     },
     // Only when the catalog actually records one — «طول شاخه» is genuinely
     // 6 m for some نبشی rows and 12 m for others, so a blanket default here
     // would be the same guess the per-SKU column exists to stop.
     ...(row.branchLengthM && !attrCoversLength
-      ? [{ label: 'طول شاخه', value: `${toPersianDigits(row.branchLengthM)} متر` }]
+      ? [
+          {
+            label: translateLabel(BRANCH_LENGTH_LABEL, locale),
+            value: `${localizeDigits(row.branchLengthM, locale)} ${translateLabel('متر', locale)}`,
+          },
+        ]
       : []),
     // Read from the stored denomination, not hard-coded: this said
     // «کیلوگرم» on a لوله مسی sold by the 15-metre coil.
-    { label: 'واحد فروش', value: priceBasisNoun(row.priceBasis, row.branchLengthM) },
-    { label: 'زمان تحویل', value: toPersianDigits(row.current.deliveryTime) },
+    { label: t('saleUnit'), value: priceBasisNoun(row.priceBasis, row.branchLengthM, locale) },
+    { label: tCommon('data.delivery'), value: localizeDigits(row.current.deliveryTime, locale) },
   ];
 
   const related = relatedProp ?? mockRelated(row);
@@ -349,13 +371,13 @@ export function SkuDetail({
             <ul className={styles.attrs}>
               {row.size ? (
                 <li>
-                  {sizeCol} <strong className="tnum">{toPersianDigits(row.size)}</strong>
+                  {sizeCol} <strong className="tnum">{localizeDigits(row.size, locale)}</strong>
                 </li>
               ) : null}
               {showDimensions && row.dimensions ? (
                 <li>
                   {dimensionsCol}{' '}
-                  <strong className="tnum">{toPersianDigits(row.dimensions)}</strong>
+                  <strong className="tnum">{localizeDigits(row.dimensions, locale)}</strong>
                 </li>
               ) : null}
               {attrCols.map((c) => {
@@ -368,7 +390,7 @@ export function SkuDetail({
               })}
               {row.region ? (
                 <li>
-                  {REGION_LABEL} <strong>{row.region}</strong>
+                  {regionLabel(locale)} <strong>{row.region}</strong>
                 </li>
               ) : null}
               {row.factory ? (
@@ -379,12 +401,12 @@ export function SkuDetail({
               ) : null}
               {row.theoreticalWeightKg ? (
                 <li>
-                  {weightLabel(row.categoryId)}{' '}
+                  {weightLabel(row.categoryId, locale)}{' '}
                   <strong className="tnum">
                     {/* Was Latin "kg" here while every other weight on this same
-                        page (specs table below, BulkQuote) spells out «کیلوگرم» —
+                        page (specs table below, BulkQuote) spells out the word —
                         the exact mixed-unit inconsistency the audit flagged. */}
-                    {toPersianDigits(row.theoreticalWeightKg)} کیلوگرم
+                    {localizeDigits(row.theoreticalWeightKg, locale)} {translateLabel('کیلوگرم', locale)}
                   </strong>
                 </li>
               ) : null}
@@ -406,7 +428,7 @@ export function SkuDetail({
                 <ProductImage
                   slug={row.categoryId}
                   src={row.imageUrl}
-                  name={row.imageUrl ? row.name : `نمونه ${row.name}`}
+                  name={row.imageUrl ? row.name : t('sampleImageAlt', { name: row.name })}
                   eager
                 />
               </figure>
@@ -415,15 +437,17 @@ export function SkuDetail({
 
           <div className={styles.priceBox}>
             <span className={styles.priceLabel}>
-              قیمت هر {priceBasisNoun(row.priceBasis, row.branchLengthM)}
+              {t('pricePerUnit', { unit: priceBasisNoun(row.priceBasis, row.branchLengthM, locale) })}
             </span>
             <div className={styles.priceRow}>
               {hiddenLabel ? (
                 <span className={`${styles.priceVal} tnum`}>{hiddenLabel}</span>
               ) : (
                 <>
-                  <span className={`${styles.priceVal} tnum`}>{formatToman(price, false)}</span>
-                  <span className={styles.priceUnit}>تومان</span>
+                  <span className={`${styles.priceVal} tnum`}>
+                    {localizeDigits(formatToman(price, false), locale)}
+                  </span>
+                  <span className={styles.priceUnit}>{tCommon('unit.currency')}</span>
                 </>
               )}
             </div>
@@ -436,25 +460,29 @@ export function SkuDetail({
                   and delivery signals it sits next to (design/UX audit). */}
               <span className={styles.updated}>
                 <ClockIcon size={14} aria-hidden="true" />
-                به‌روزرسانی <span className="tnum">{formatJalali(row.current.updatedAt)}</span>
+                {tCommon('data.updatedAt')}{' '}
+                <span className="tnum">{formatJalali(row.current.updatedAt)}</span>
               </span>
             </div>
 
             {billetDiffPct !== null ? (
               <p className={styles.vatNote} style={{ marginBlockStart: 0 }}>
-                {billetDiffPct >= 0
-                  ? `٪${toPersianDigits(Math.abs(billetDiffPct).toFixed(1))} بالاتر از قیمت پایهٔ شمش بورس`
-                  : `٪${toPersianDigits(Math.abs(billetDiffPct).toFixed(1))} پایین‌تر از قیمت پایهٔ شمش بورس`}{' '}
-                <bdi>({formatToman(billet!.value, false)} تومان)</bdi>
+                {t(billetDiffPct >= 0 ? 'aboveBilletBase' : 'belowBilletBase', {
+                  percent: localizeDigits(Math.abs(billetDiffPct).toFixed(1), locale),
+                })}{' '}
+                <bdi>
+                  ({localizeDigits(formatToman(billet!.value, false), locale)}{' '}
+                  {tCommon('unit.currency')})
+                </bdi>
               </p>
             ) : null}
 
             <div className={styles.vatRow}>
-              <Switch checked={vat} onChange={setVat} label="با احتساب ارزش افزوده" />
+              <Switch checked={vat} onChange={setVat} label={t('vatToggle')} />
               <span className={styles.vatNote}>
                 {vat
-                  ? `شامل ${toPersianDigits(vatRate * 100)}٪ مالیات بر ارزش افزوده`
-                  : 'بدون احتساب ارزش افزوده'}
+                  ? tPriceTable('vatIncluded', { percent: localizeDigits(vatRate * 100, locale) })
+                  : tPriceTable('vatExcluded')}
               </span>
             </div>
 
@@ -464,19 +492,19 @@ export function SkuDetail({
                 onClick={addToCart}
                 className={styles.addBtn}
                 disabled={Boolean(hiddenLabel)}
-                title={hiddenLabel ? 'برای این کالا باید تماس بگیرید.' : undefined}
+                title={hiddenLabel ? t('contactForPrice') : undefined}
               >
-                <PlusIcon size={18} /> افزودن به سبد استعلام
+                <PlusIcon size={18} /> {t('addToCart')}
               </Button>
               {/* Icon-only actions already had `aria-label`s (native `title`
                   too, via IconButton) for assistive tech — the audit's point
                   is that a sighted, non-expert visitor has no VISIBLE cue.
                   `Tooltip` is an existing, previously-unused design-system
                   primitive built for exactly this. */}
-              <Tooltip content={faved ? 'حذف از علاقه‌مندی‌ها' : 'افزودن به علاقه‌مندی‌ها'}>
+              <Tooltip content={faved ? t('removeFavorite') : t('addFavorite')}>
                 <IconButton
                   variant="subtle"
-                  label={faved ? 'حذف از علاقه‌مندی‌ها' : 'افزودن به علاقه‌مندی‌ها'}
+                  label={faved ? t('removeFavorite') : t('addFavorite')}
                   active={faved}
                   icon={<HeartIcon size={20} filled={faved} />}
                   onClick={toggleFav}
@@ -493,10 +521,10 @@ export function SkuDetail({
                   currentValue: row.current.price,
                 }}
               />
-              <Tooltip content="اشتراک‌گذاری">
+              <Tooltip content={t('share')}>
                 <IconButton
                   variant="subtle"
-                  label="اشتراک‌گذاری"
+                  label={t('share')}
                   icon={<ShareIcon size={20} />}
                   onClick={share}
                 />
@@ -505,9 +533,7 @@ export function SkuDetail({
 
             <p className={styles.lead}>
               <InfoIcon size={15} aria-hidden="true" />
-              <span>
-                پرداخت آنلاین نداریم؛ پس از ثبت، کارشناس برای نهایی‌کردن قیمت و تحویل تماس می‌گیرد.
-              </span>
+              <span>{t('noOnlinePaymentNote')}</span>
             </p>
           </div>
         </div>
@@ -516,7 +542,7 @@ export function SkuDetail({
       {/* ===== Price history ===== */}
       <section className={styles.block} aria-labelledby="chart-title">
         <h2 id="chart-title" className={styles.blockTitle}>
-          روند قیمت
+          {t('priceTrend')}
         </h2>
         <div className={styles.card}>
           <PriceChart
@@ -529,11 +555,13 @@ export function SkuDetail({
       {/* ===== Specs ===== */}
       <section className={styles.block} aria-labelledby="specs-title">
         <h2 id="specs-title" className={styles.blockTitle}>
-          مشخصات فنی
+          {t('specs')}
         </h2>
         <div className={styles.card}>
           <table className={`${styles.specs} tnum`}>
-            <caption className="visually-hidden">مشخصات فنی {row.name}</caption>
+            <caption className="visually-hidden">
+              {t('specsCaption', { name: row.name })}
+            </caption>
             <tbody>
               {specs.map((s) => (
                 <tr key={s.label}>
@@ -545,10 +573,7 @@ export function SkuDetail({
           </table>
           <p className={styles.specsNote}>
             <CheckCircleIcon size={15} aria-hidden="true" />
-            <span>
-              وزن‌ها تئوری‌اند و طبق استاندارد محاسبه شده‌اند؛ وزن واقعی شاخه ممکن است اندکی متفاوت
-              باشد.
-            </span>
+            <span>{t('weightsTheoreticalNote')}</span>
           </p>
         </div>
       </section>
@@ -574,7 +599,7 @@ export function SkuDetail({
       {related.length > 0 ? (
         <section className={styles.block} aria-labelledby="related-title">
           <h2 id="related-title" className={styles.blockTitle}>
-            محصولات مرتبط
+            {t('relatedProducts')}
           </h2>
           <ul className={styles.related}>
             {related.map((r) => (
@@ -586,10 +611,10 @@ export function SkuDetail({
                   <span className={styles.relName}>{r.name}</span>
                   <span className={styles.relPriceRow}>
                     <span className={`${styles.relPrice} tnum`}>
-                      {priceHiddenLabel(r.current) ?? (
+                      {priceHiddenLabel(r.current, locale) ?? (
                         <>
-                          {formatToman(r.current.price, false)}
-                          <span className={styles.relUnit}> تومان</span>
+                          {localizeDigits(formatToman(r.current.price, false), locale)}
+                          <span className={styles.relUnit}> {tCommon('unit.currency')}</span>
                         </>
                       )}
                     </span>

@@ -1,6 +1,13 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MovementBadge, PriceTag, DeliveryBadge, BestPriceBadge } from './PriceParts';
+
+// See `@/test/intlMock` — resolves real Persian text from `messages/fa.json`
+// so this file's assertions stay byte-identical to what the app renders.
+vi.mock('next-intl', async () => {
+  const { mockUseLocale, mockUseTranslations } = await import('@/test/intlMock');
+  return { useLocale: mockUseLocale, useTranslations: mockUseTranslations };
+});
 
 describe('MovementBadge', () => {
   it('renders an up arrow + signed percent for a gain', () => {

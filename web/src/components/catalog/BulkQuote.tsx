@@ -1,13 +1,15 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
+import { useLocale, useTranslations } from 'next-intl';
+import type { AppLocale } from '@/i18n/config';
 import { useToast } from '@/lib/hooks/useToast';
 import { useCartStore } from '@/lib/stores/cart';
 import { useRequestsStore } from '@/lib/stores/requests';
 import { useRequireAuth } from '@/lib/hooks/useRequireAuth';
 import { routes } from '@/lib/routes';
-import { formatToman, toPersianDigits } from '@/lib/utils/format';
-import { sizeLabel } from '@/lib/utils/catalogLabels';
+import { formatToman, localizeDigits } from '@/lib/utils/format';
+import { sizeLabel, translateLabel } from '@/lib/utils/catalogLabels';
 import { getRows } from '@/lib/mock/catalogData';
 import { computeBulkSplit, pickBestGroup } from '@/lib/utils/bulkSplit';
 import { MOCK_CATEGORY_SUBS, type SubCat } from '@/lib/data/nav';
@@ -68,6 +70,12 @@ export function BulkQuote({
    *  that don't have it yet. */
   vatRate?: number;
 }) {
+  const locale = useLocale() as AppLocale;
+  const t = useTranslations('bulkQuote');
+  const tCommon = useTranslations('common');
+  const tSkuDetail = useTranslations('skuDetail');
+  const tPriceTable = useTranslations('priceTable');
+  const richB = { b: (chunks: ReactNode) => <strong className="tnum">{chunks}</strong> };
   const router = useRouter();
   const toast = useToast();
   const add = useCartStore((s) => s.add);
@@ -75,7 +83,7 @@ export function BulkQuote({
   const { requireAuth } = useRequireAuth();
   const [tonnage, setTonnage] = useState<number>(defaultTonnage);
   const [sub, setSub] = useState<string>(defaultSub ?? '');
-  const sizeCol = sizeLabel(category, sub || null);
+  const sizeCol = sizeLabel(category, sub || null, locale);
   const [size, setSize] = useState<string>('');
   const warehouseCity = useProfileStore((s) => s.warehouseCity);
   const setWarehouseCity = useProfileStore((s) => s.setWarehouseCity);
@@ -183,15 +191,15 @@ export function BulkQuote({
     if (!best) return;
     add({
       skuId: `bulk-${category}-${best.factory}`,
-      name: `${categoryName} عمده، کارخانهٔ ${best.factory}`,
+      name: t('cartItemName', { category: categoryName, factory: best.factory }),
       qty: split.totalKg,
       unit: 'kg',
       unitPrice: best.pricePerKg,
       priceBasis: 'kg',
       weightKg: split.totalKg,
     });
-    toast.success('استعلام عمده به سبد اضافه شد.', {
-      label: 'مشاهده سبد',
+    toast.success(t('addedToCart'), {
+      label: tPriceTable('viewCart'),
       href: routes.cart(),
     });
   };
@@ -201,12 +209,9 @@ export function BulkQuote({
       <header className={styles.head}>
         <div>
           <h2 id="bulk-title" className={styles.title}>
-            مقایسهٔ کارخانه‌ها
+            {t('title')}
           </h2>
-          <p className={styles.sub}>
-            تناژ موردنظر را وارد کنید تا قیمت روز {categoryName} را کارخانه‌به‌کارخانه مقایسه کنید
-            و ارزان‌ترین را انتخاب کنید.
-          </p>
+          <p className={styles.sub}>{t('subtitle', { category: categoryName })}</p>
         </div>
       </header>
 
@@ -217,7 +222,7 @@ export function BulkQuote({
             landing surfaces still get the full selector. */}
         {!defaultSub && (
           <label className={styles.field}>
-            <span className={styles.fieldLabel}>زیرشاخه</span>
+            <span className={styles.fieldLabel}>{t('subCategory')}</span>
             <select
               className={styles.select}
               value={sub}
@@ -225,9 +230,9 @@ export function BulkQuote({
                 setSub(e.target.value);
                 setSize('');
               }}
-              aria-label="زیرشاخهٔ محصول"
+              aria-label={t('subCategoryAria')}
             >
-              <option value="">همه (میانگین)</option>
+              <option value="">{t('allAverage')}</option>
               {subs.map((s) => (
                 <option key={s.slug} value={s.slug}>
                   {s.name}
@@ -243,19 +248,19 @@ export function BulkQuote({
             className={styles.select}
             value={size}
             onChange={(e) => setSize(e.target.value)}
-            aria-label={`${sizeCol} محصول`}
+            aria-label={t('sizeOfProduct', { size: sizeCol })}
           >
-            <option value="">همهٔ {sizeCol}‌ها (میانگین)</option>
+            <option value="">{t('allOfSizeAverage', { size: sizeCol })}</option>
             {sizes.map((s) => (
               <option key={s} value={s}>
-                {s}
+                {localizeDigits(s, locale)}
               </option>
             ))}
           </select>
         </label>
 
         <label className={styles.field}>
-          <span className={styles.fieldLabel}>تناژ سفارش (تن)</span>
+          <span className={styles.fieldLabel}>{t('tonnage')}</span>
           <input
             type="number"
             inputMode="numeric"
@@ -267,17 +272,17 @@ export function BulkQuote({
               setTonnage(Number.isFinite(n) && n > 0 ? n : 0);
             }}
             className={styles.input}
-            aria-label="تناژ سفارش به تن"
+            aria-label={t('tonnageAria')}
           />
         </label>
 
         <label className={styles.field}>
-          <span className={styles.fieldLabel}>شهر مقصد</span>
+          <span className={styles.fieldLabel}>{t('destinationCity')}</span>
           <select
             className={styles.select}
             value={city}
             onChange={(e) => setWarehouseCity(e.target.value)}
-            aria-label="شهر مقصد تحویل"
+            aria-label={t('destinationCityAria')}
           >
             {logisticsConfig.cities.map((c) => (
               <option key={c.name} value={c.name}>
@@ -287,17 +292,17 @@ export function BulkQuote({
           </select>
         </label>
 
-        <div className={styles.presets} role="group" aria-label="تناژهای پیشنهادی">
-          {TONNAGE_PRESETS.map((t) => (
+        <div className={styles.presets} role="group" aria-label={t('presetsAria')}>
+          {TONNAGE_PRESETS.map((presetTons) => (
             <button
-              key={t}
+              key={presetTons}
               type="button"
               className={styles.preset}
-              aria-pressed={tonnage === t}
-              data-active={tonnage === t ? '' : undefined}
-              onClick={() => setTonnage(t)}
+              aria-pressed={tonnage === presetTons}
+              data-active={tonnage === presetTons ? '' : undefined}
+              onClick={() => setTonnage(presetTons)}
             >
-              {toPersianDigits(t)} تن
+              {t('tonPreset', { count: localizeDigits(presetTons, locale) })}
             </button>
           ))}
         </div>
@@ -305,8 +310,9 @@ export function BulkQuote({
 
       {size && (
         <p className={styles.exactNote}>
-          مقایسهٔ دقیق: فقط کارخانه‌هایی که «{subs.find((s) => s.slug === sub)?.name ?? categoryName}{' '}
-          {sizeCol} {size}» دارند.
+          {t('exactCompareNote', {
+            spec: `${subs.find((s) => s.slug === sub)?.name ?? categoryName} ${sizeCol} ${localizeDigits(size, locale)}`,
+          })}
         </p>
       )}
 
@@ -314,23 +320,25 @@ export function BulkQuote({
           covered every row in the selection. See computeBulkSplit. */}
       {split.excludedNonKg > 0 && (
         <p className={styles.exactNote}>
-          {toPersianDigits(split.excludedNonKg)} محصول در این انتخاب قیمتشان بر پایهٔ کیلوگرم نیست
-          و در این مقایسه نیامده‌اند؛ برای آن‌ها با کارشناس تماس بگیرید.
+          {t('excludedNonKg', { count: localizeDigits(split.excludedNonKg, locale) })}
         </p>
       )}
 
-      <div className={styles.tableScroll} role="region" aria-label="مقایسهٔ کارخانه‌ها" tabIndex={0}>
+      <div className={styles.tableScroll} role="region" aria-label={t('title')} tabIndex={0}>
         <table className={`${styles.table} tnum`}>
           <caption className="visually-hidden">
-            مقایسهٔ کارخانه‌های {categoryName} برای {toPersianDigits(split.tonnage)} تن
+            {t('compareCaption', {
+              category: categoryName,
+              tonnage: localizeDigits(split.tonnage, locale),
+            })}
           </caption>
           <thead>
             <tr>
-              <th scope="col">کارخانه</th>
-              <th scope="col" className={styles.num}>قیمت هر کیلوگرم</th>
-              <th scope="col" className={styles.num}>اختلاف با ارزان‌ترین</th>
+              <th scope="col">{translateLabel('کارخانه', locale)}</th>
+              <th scope="col" className={styles.num}>{t('pricePerKgColumn')}</th>
+              <th scope="col" className={styles.num}>{t('deltaColumn')}</th>
               <th scope="col" className={styles.num}>
-                هزینهٔ {toPersianDigits(split.tonnage)} تن
+                {t('costForTonnageColumn', { tonnage: localizeDigits(split.tonnage, locale) })}
               </th>
             </tr>
           </thead>
@@ -343,16 +351,18 @@ export function BulkQuote({
                     <span className={styles.factoryName}>
                       <FactoryLink categorySlug={category} factory={l.factory} />
                     </span>
-                    {l.best ? <span className={styles.bestTag}>ارزان‌ترین</span> : null}
+                    {l.best ? <span className={styles.bestTag}>{t('cheapestTag')}</span> : null}
                     <span className={styles.rowCount}>
-                      بر اساس {toPersianDigits(l.rowCount)} قیمت
+                      {t('basedOnPrices', { count: localizeDigits(l.rowCount, locale) })}
                     </span>
                   </th>
-                  <td className={styles.num}>{formatToman(l.pricePerKg, false)}</td>
+                  <td className={styles.num}>{localizeDigits(formatToman(l.pricePerKg, false), locale)}</td>
                   <td className={`${styles.num} ${l.best ? styles.deltaBest : styles.delta}`}>
-                    {l.best ? '۰' : `${formatToman(delta, false)}+`}
+                    {l.best ? localizeDigits(0, locale) : `${localizeDigits(formatToman(delta, false), locale)}+`}
                   </td>
-                  <td className={`${styles.num} ${styles.lineCost}`}>{formatToman(l.lineToman, false)}</td>
+                  <td className={`${styles.num} ${styles.lineCost}`}>
+                    {localizeDigits(formatToman(l.lineToman, false), locale)}
+                  </td>
                 </tr>
               );
             })}
@@ -364,77 +374,82 @@ export function BulkQuote({
         <p className={styles.suggest}>
           <CheckCircleIcon size={15} aria-hidden="true" />
           <span>
-            پیشنهاد: تأمین از کارخانهٔ <strong>{split.cheapest.factory}</strong> با قیمت{' '}
-            <strong className="tnum">{formatToman(split.cheapest.pricePerKg, false)}</strong> تومان
-            بر کیلوگرم؛ هزینهٔ تقریبی کل{' '}
-            <strong className="tnum">{formatToman(split.cheapest.lineToman)}</strong>
-            {split.cheapest.rowCount === 1 ? ' (بر اساس فقط یک قیمت ثبت‌شده)' : ''}.
-            {savingsVsNext > 0 ? (
-              <>
-                {' '}
-                نسبت به گزینهٔ بعدی حدود{' '}
-                <strong className="tnum">{formatToman(savingsVsNext)}</strong> صرفه‌جویی دارد.
-              </>
-            ) : null}
-            {savingsVsMax > savingsVsNext ? (
-              <>
-                {' '}
-                (نسبت به گران‌ترین گزینه، تفاوت تا{' '}
-                <strong className="tnum">{formatToman(savingsVsMax)}</strong> تومان است.)
-              </>
-            ) : null}
+            {t.rich('suggest', {
+              ...richB,
+              factory: split.cheapest.factory,
+              price: localizeDigits(formatToman(split.cheapest.pricePerKg, false), locale),
+              currency: tCommon('unit.currency'),
+              total: localizeDigits(formatToman(split.cheapest.lineToman), locale),
+              onlyOneNote: split.cheapest.rowCount === 1 ? t('onlyOneRecordedPrice') : '',
+            })}
+            {savingsVsNext > 0
+              ? t.rich('savingsVsNext', {
+                  ...richB,
+                  amount: localizeDigits(formatToman(savingsVsNext), locale),
+                })
+              : null}
+            {savingsVsMax > savingsVsNext
+              ? t.rich('savingsVsMax', {
+                  ...richB,
+                  amount: localizeDigits(formatToman(savingsVsMax), locale),
+                  currency: tCommon('unit.currency'),
+                })
+              : null}
           </span>
         </p>
       ) : (
-        <p className={styles.suggest}>برای این انتخاب، ردیفی در جدول قیمت نیست؛ زیرشاخه یا {sizeCol} دیگری را امتحان کنید.</p>
+        <p className={styles.suggest}>{t('noRowsForSelection', { size: sizeCol })}</p>
       )}
 
       {landed && split.cheapest ? (
         <div className={styles.landed}>
           <h3 className={styles.landedTitle}>
-            قیمت تمام‌شده تا {city}
-            <span className={styles.landedOrigin}>ارسال از {logisticsConfig.originLabel}</span>
+            {t('landedCostTo', { city })}
+            <span className={styles.landedOrigin}>
+              {t('shippedFrom', { origin: logisticsConfig.originLabel })}
+            </span>
           </h3>
           <dl className={styles.landedGrid}>
             <div className={styles.landedRow}>
-              <dt>کالا ({split.cheapest.factory})</dt>
-              <dd className="tnum">{formatToman(split.cheapest.lineToman)}</dd>
+              <dt>{t('itemCost', { factory: split.cheapest.factory })}</dt>
+              <dd className="tnum">{localizeDigits(formatToman(split.cheapest.lineToman), locale)}</dd>
             </div>
             <div className={styles.landedRow}>
-              <dt>حمل ({toPersianDigits(km)} کیلومتر)</dt>
-              <dd className="tnum">{formatToman(landed.freight)}</dd>
+              <dt>{t('freight', { km: localizeDigits(km, locale) })}</dt>
+              <dd className="tnum">{localizeDigits(formatToman(landed.freight), locale)}</dd>
             </div>
             <div className={styles.landedRow}>
-              <dt>بارگیری و تخلیه</dt>
-              <dd className="tnum">{formatToman(landed.handling)}</dd>
+              <dt>{t('handling')}</dt>
+              <dd className="tnum">{localizeDigits(formatToman(landed.handling), locale)}</dd>
             </div>
             <div className={styles.landedRow}>
-              <dt>بیمهٔ بار و باسکول</dt>
-              <dd className="tnum">{formatToman(landed.insurance + landed.scale)}</dd>
+              <dt>{t('insuranceAndScale')}</dt>
+              <dd className="tnum">{localizeDigits(formatToman(landed.insurance + landed.scale), locale)}</dd>
             </div>
             <div className={styles.landedRow}>
-              <dt>بسته‌بندی</dt>
-              <dd className="tnum">{landed.packaging > 0 ? formatToman(landed.packaging) : 'مشمول نیست / صفر'}</dd>
+              <dt>{t('packaging')}</dt>
+              <dd className="tnum">
+                {landed.packaging > 0
+                  ? localizeDigits(formatToman(landed.packaging), locale)
+                  : t('packagingNotApplicable')}
+              </dd>
             </div>
             <div className={styles.landedRow}>
-              <dt>ارزش افزوده (٪{toPersianDigits(Math.round(vatRate * 100))})</dt>
-              <dd className="tnum">{formatToman(landed.vat)}</dd>
+              <dt>{t('vatWithPercent', { percent: localizeDigits(Math.round(vatRate * 100), locale) })}</dt>
+              <dd className="tnum">{localizeDigits(formatToman(landed.vat), locale)}</dd>
             </div>
             <div className={`${styles.landedRow} ${styles.landedTotal}`}>
-              <dt>جمع تقریبی</dt>
-              <dd className="tnum">{formatToman(landed.total)}</dd>
+              <dt>{t('approximateTotal')}</dt>
+              <dd className="tnum">{localizeDigits(formatToman(landed.total), locale)}</dd>
             </div>
           </dl>
           <p className={styles.landedMeta}>
-            زمان تحویل تقریبی: <strong>{landed.delivery}</strong>
+            {t('estimatedDeliveryTime')} <strong>{localizeDigits(landed.delivery, locale)}</strong>
           </p>
-          <p className={styles.landedMeta}>
-            بارگیری، بیمه، باسکول و بسته‌بندی در ردیف‌های بالا برآورد شده‌اند؛ مبلغ قطعی را کارشناس هنگام تماس
-            اعلام می‌کند.
-          </p>
+          <p className={styles.landedMeta}>{t('landedCostDisclaimer')}</p>
           {!logisticsConfig.verifiedAt || Date.now() - new Date(logisticsConfig.verifiedAt).getTime() > 30 * 86_400_000 ? (
             <p className={styles.landedMeta} role="status">
-              نرخ‌های جانبی بیش از ۳۰ روز است تأیید نشده‌اند؛ این جمع صرفاً برآورد اولیه است.
+              {t('ratesStaleWarning')}
             </p>
           ) : null}
         </div>
@@ -450,27 +465,31 @@ export function BulkQuote({
               const best = split.cheapest;
               addRequest({
                 type: 'bulk',
-                title: `پیش‌فاکتور ${categoryName} عمده، ${toPersianDigits(split.tonnage)} تن`,
+                title: t('proformaTitle', {
+                  category: categoryName,
+                  tonnage: localizeDigits(split.tonnage, locale),
+                }),
                 detail: best
-                  ? `پیشنهاد سیستم: کارخانهٔ ${best.factory} · ${formatToman(best.pricePerKg, false)} تومان بر کیلوگرم`
+                  ? t('proformaDetail', {
+                      factory: best.factory,
+                      price: localizeDigits(formatToman(best.pricePerKg, false), locale),
+                      currency: tCommon('unit.currency'),
+                    })
                   : undefined,
               });
-              toast.success('درخواست پیش‌فاکتور ثبت شد؛ وضعیت آن در پروفایل شماست.');
+              toast.success(t('proformaSubmitted'));
               router.push(routes.account('requests'));
             })
           }
         >
-          دریافت پیش‌فاکتور
+          {t('getProforma')}
         </button>
         <button type="button" className={styles.ghost} onClick={addToInquiry}>
-          <PlusIcon size={16} /> افزودن به سبد استعلام
+          <PlusIcon size={16} /> {tSkuDetail('addToCart')}
         </button>
       </div>
 
-      <p className={styles.note}>
-        قیمت‌ها میانگین نرخ روز هر کارخانه‌اند و تخمینی محسوب می‌شوند؛ نرخ نهایی و موجودی برای این
-        تناژ را کارشناس هنگام تماس تأیید می‌کند. پرداخت آنلاین نداریم.
-      </p>
+      <p className={styles.note}>{t('footerNote')}</p>
     </section>
   );
 }

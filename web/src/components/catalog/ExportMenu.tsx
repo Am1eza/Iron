@@ -1,19 +1,18 @@
 'use client';
+import { useLocale, useTranslations } from 'next-intl';
+import type { AppLocale } from '@/i18n/config';
+import { getDirection } from '@/i18n/config';
 import { useToast } from '@/lib/hooks/useToast';
-import {
-  formatToman,
-  formatMovement,
-  priceHiddenLabel,
-  toPersianDigits,
-  withVat,
-} from '@/lib/utils/format';
+import { formatToman, formatMovement, priceHiddenLabel, localizeDigits, withVat } from '@/lib/utils/format';
 import { formatJalali } from '@/lib/utils/jalali';
 import {
   sizeLabel,
   weightLabel,
   usesDimensions,
   dimensionsLabel,
-  REGION_LABEL,
+  regionLabel,
+  unknownValue,
+  translateLabel,
 } from '@/lib/utils/catalogLabels';
 import { CONSTANTS } from '@/lib/config/constants';
 import type { PriceRow } from '@/lib/types/domain';
@@ -36,17 +35,18 @@ export const cols = (
   categorySlug?: string,
   subCategorySlug: string | null = null,
   regionColumn = false,
+  locale: AppLocale = 'fa',
 ) => [
-  'محصول',
+  translateLabel('محصول', locale),
   // ورق is measured by thickness, not size — same rule the on-screen table
   // follows (see catalogLabels), so an exported file matches what the buyer
   // was looking at when they clicked «اکسل».
-  sizeLabel(categorySlug, subCategorySlug),
+  sizeLabel(categorySlug, subCategorySlug, locale),
   // The same shared secondary-spec column as the screen: «ابعاد» for ورق,
   // «ضخامت» for the source-verified section subs, and absent on mixed or
   // unrelated product lines.
   ...(usesDimensions(categorySlug, subCategorySlug)
-    ? [dimensionsLabel(categorySlug, subCategorySlug)]
+    ? [dimensionsLabel(categorySlug, subCategorySlug, locale)]
     : []),
   // Same column, different question, on the پروفیل sub-categories whose mill
   // names are withheld: they publish a producing city instead (see
@@ -54,11 +54,11 @@ export const cols = (
   // «نامشخص» in every row of it would drop the one fact the on-screen table
   // groups by. A SUBSTITUTION, never an extra column — the image export lays
   // its columns out on a fixed pixel grid.
-  regionColumn ? REGION_LABEL : 'کارخانه',
-  `${weightLabel(categorySlug)} (kg)`,
-  'قیمت (تومان)',
-  'نوسان',
-  'زمان تحویل',
+  regionColumn ? regionLabel(locale) : translateLabel('کارخانه', locale),
+  `${weightLabel(categorySlug, locale)} (kg)`,
+  translateLabel('قیمت (تومان)', locale),
+  translateLabel('نوسان', locale),
+  translateLabel('زمان تحویل', locale),
 ];
 
 /** `withDimensions` MUST be the same flag `cols()` was built with — the cells
@@ -75,19 +75,24 @@ export function rowCells(
   withDimensions = false,
   vat = false,
   vatRate: number = CONSTANTS.VAT_RATE,
+  locale: AppLocale = 'fa',
 ): string[] {
+  const unknown = unknownValue(locale);
   // `factory ?? region` and not a second flag: the two are alternatives on any
   // one row (catalogRepo.toPriceRow publishes exactly one of them), so this
-  // cell cannot disagree with the header `cols()` chose for it.
+  // cell cannot disagree with the header `cols()` chose for it. Both are DB
+  // content (a mill name or a recovered city), left untranslated on purpose —
+  // same rule as `groupKeyFor` in catalogLabels.ts.
   return [
     r.name,
-    r.size ? toPersianDigits(r.size) : 'نامشخص',
-    ...(withDimensions ? [r.dimensions ? toPersianDigits(r.dimensions) : 'نامشخص'] : []),
-    r.factory ?? r.region ?? 'نامشخص',
-    r.theoreticalWeightKg ? toPersianDigits(String(r.theoreticalWeightKg)) : 'نامشخص',
-    priceHiddenLabel(r.current) ?? formatToman(withVat(r.current.price, vat, vatRate), false),
-    formatMovement(r.current.movementPct),
-    r.current.deliveryTime,
+    r.size ? localizeDigits(r.size, locale) : unknown,
+    ...(withDimensions ? [r.dimensions ? localizeDigits(r.dimensions, locale) : unknown] : []),
+    r.factory ?? r.region ?? unknown,
+    r.theoreticalWeightKg ? localizeDigits(String(r.theoreticalWeightKg), locale) : unknown,
+    priceHiddenLabel(r.current, locale) ??
+      localizeDigits(formatToman(withVat(r.current.price, vat, vatRate), false), locale),
+    formatMovement(r.current.movementPct, locale),
+    localizeDigits(r.current.deliveryTime, locale),
   ];
 }
 
@@ -120,21 +125,29 @@ export function ExportMenu({
    *  times with nothing to tell the factories apart. */
   scopeLabel?: string;
 }) {
+  const locale = useLocale() as AppLocale;
+  const t = useTranslations('exportMenu');
+  const tCommon = useTranslations('common');
+  const isRtl = getDirection(locale) === 'rtl';
   const toast = useToast();
-  const today = formatJalali(new Date());
+  const today = localizeDigits(formatJalali(new Date()), locale);
   const showDimensions = usesDimensions(categorySlug, subCategorySlug);
   const regionColumn = !rows.some((r) => r.factory) && rows.some((r) => r.region);
-  const COLS = cols(categorySlug, subCategorySlug, regionColumn);
-  const cells = (r: PriceRow) => rowCells(r, showDimensions, vat, vatRate);
+  const COLS = cols(categorySlug, subCategorySlug, regionColumn, locale);
+  const cells = (r: PriceRow) => rowCells(r, showDimensions, vat, vatRate, locale);
   // Spelled out on the sheet itself so a downloaded file is unambiguous about
   // which of the two numbers it carries once it leaves the browser.
-  const vatNote = vat ? ' · با ارزش‌افزوده' : '';
+  const vatNote = vat ? t('vatNoteSuffix') : '';
+  const subtitle = t('subtitle', { title, date: today }) + vatNote;
+  const brand = locale === 'fa' ? 'آهن‌تایم' : 'Ahantime';
+  const tagline = `ahantime.com · ${tCommon('tagline')}`;
 
   // Branded spreadsheet — a styled HTML table saved as .xls (Excel opens it with
   // the branding + RTL intact). Header carries «آهن‌تایم» + the date; green header
   // row, zebra rows. No dependency; for a true .xlsx with an embedded raster logo,
   // swap in exceljs later.
   const exportXls = () => {
+    const align = isRtl ? 'right' : 'left';
     const head = `<tr>${COLS.map((c) => `<th>${esc(c)}</th>`).join('')}</tr>`;
     const body = rows
       .map(
@@ -145,24 +158,28 @@ export function ExportMenu({
       )
       .join('');
     const cols = COLS.length;
+    const brandHtml =
+      locale === 'fa'
+        ? '<span class="brand">آهن‌<span class="a">تایم</span></span>'
+        : `<span class="brand">${esc(brand)}</span>`;
     const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8">
-      <!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>قیمت ${esc(title)}</x:Name><x:WorksheetOptions><x:DisplayRightToLeft/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
+      <!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>${esc(t('worksheetName', { title }))}</x:Name><x:WorksheetOptions><x:DisplayRightToLeft/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
       <style>
         table{border-collapse:collapse;font-family:Tahoma,'B Nazanin',sans-serif;}
         .brand{font-size:20px;font-weight:800;color:#171C22;}
         .brand .a{color:#0A7F77;}
         .meta{color:#64707E;font-size:12px;}
         .foot{color:#97A2B0;font-size:11px;}
-        th{background:#0A7F77;color:#FFFFFF;font-weight:700;border:1px solid #04635D;padding:8px 10px;text-align:right;}
-        td{border:1px solid #E5E9F0;padding:6px 10px;text-align:right;font-size:12px;color:#171C22;mso-number-format:'\\@';}
+        th{background:#0A7F77;color:#FFFFFF;font-weight:700;border:1px solid #04635D;padding:8px 10px;text-align:${align};}
+        td{border:1px solid #E5E9F0;padding:6px 10px;text-align:${align};font-size:12px;color:#171C22;mso-number-format:'\\@';}
         tr.even td{background:#F4F7FA;}
       </style></head><body>
-      <table dir="rtl" border="0">
-        <tr><td colspan="${cols}" style="border:none;padding:6px 0 0;"><span class="brand">آهن‌<span class="a">تایم</span></span></td></tr>
-        <tr><td colspan="${cols}" style="border:none;padding:2px 0 12px;"><span class="meta">قیمت روز ${esc(title)} · ${today}${vatNote}</span></td></tr>
+      <table dir="${isRtl ? 'rtl' : 'ltr'}" border="0">
+        <tr><td colspan="${cols}" style="border:none;padding:6px 0 0;">${brandHtml}</td></tr>
+        <tr><td colspan="${cols}" style="border:none;padding:2px 0 12px;"><span class="meta">${esc(subtitle)}</span></td></tr>
         <thead>${head}</thead>
         <tbody>${body}</tbody>
-        <tr><td colspan="${cols}" style="border:none;padding-top:12px;"><span class="foot">ahantime.com · اول مشورت، بعد خرید</span></td></tr>
+        <tr><td colspan="${cols}" style="border:none;padding-top:12px;"><span class="foot">${esc(tagline)}</span></td></tr>
       </table>
     </body></html>`;
     const blob = new Blob(['﻿' + html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
@@ -172,33 +189,38 @@ export function ExportMenu({
     a.download = `ahantime-${title}.xls`;
     a.click();
     URL.revokeObjectURL(url);
-    toast.success('فایل اکسل برنددار دانلود شد.');
+    toast.success(t('xlsDownloaded'));
   };
 
   const print = () => {
     const win = window.open('', '_blank', 'width=900,height=700');
     if (!win) {
-      toast.error('اجازهٔ باز کردن پنجرهٔ چاپ داده نشد؛ مسدودکنندهٔ پاپ‌آپ را بررسی کنید.');
+      toast.error(t('printBlocked'));
       return;
     }
+    const align = isRtl ? 'right' : 'left';
     const head = `<tr>${COLS.map((c) => `<th>${esc(c)}</th>`).join('')}</tr>`;
     const body = rows
       .map((r) => `<tr>${cells(r).map((c) => `<td>${esc(c)}</td>`).join('')}</tr>`)
       .join('');
-    win.document.write(`<!doctype html><html dir="rtl" lang="fa"><head><meta charset="utf-8"><title>${esc(title)}، آهن‌تایم</title>
+    const brandHtml =
+      locale === 'fa'
+        ? '<div class="brand">آهن‌<span>تایم</span></div>'
+        : `<div class="brand">${esc(brand)}</div>`;
+    win.document.write(`<!doctype html><html dir="${isRtl ? 'rtl' : 'ltr'}" lang="${locale}"><head><meta charset="utf-8"><title>${esc(t('printTitle', { title }))}</title>
       <style>
         body{font-family:Tahoma,sans-serif;color:#171C22;padding:24px;}
         .bar{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #171C22;padding-bottom:12px;margin-bottom:16px;}
         .brand{font-size:22px;font-weight:800;} .brand span{color:#0A7F77;}
         .meta{color:#64707E;font-size:13px;}
         table{width:100%;border-collapse:collapse;font-size:13px;}
-        th,td{border:1px solid #E5E9F0;padding:8px 10px;text-align:right;}
+        th,td{border:1px solid #E5E9F0;padding:8px 10px;text-align:${align};}
         th{background:#F4F7FA;} tr:nth-child(even) td{background:#FAFBFD;}
         .foot{margin-top:16px;color:#97A2B0;font-size:12px;text-align:center;}
       </style></head><body>
-      <div class="bar"><div class="brand">آهن‌<span>تایم</span></div><div class="meta">قیمت روز ${esc(title)} · ${today}${vatNote}</div></div>
+      <div class="bar">${brandHtml}<div class="meta">${esc(subtitle)}</div></div>
       <table><thead>${head}</thead><tbody>${body}</tbody></table>
-      <div class="foot">ahantime.com · اول مشورت، بعد خرید</div>
+      <div class="foot">${esc(tagline)}</div>
       </body></html>`);
     win.document.close();
     win.focus();
@@ -226,9 +248,15 @@ export function ExportMenu({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctx.scale(scale, scale);
-    ctx.direction = 'rtl';
-    ctx.textAlign = 'right';
+    // Column x-positions run from the leading edge for RTL (right, stepping
+    // left) and from the leading edge for LTR (left, stepping right) — same
+    // "leading edge, then advance toward the trailing one" rule, mirrored.
+    ctx.direction = isRtl ? 'rtl' : 'ltr';
+    ctx.textAlign = isRtl ? 'right' : 'left';
     ctx.textBaseline = 'middle';
+    const leadX = isRtl ? width - padX : padX;
+    const headerX = isRtl ? width - padX - 150 : padX;
+    const step = isRtl ? -1 : 1;
 
     // bg
     ctx.fillStyle = '#fff';
@@ -236,12 +264,12 @@ export function ExportMenu({
     // header
     ctx.fillStyle = '#171C22';
     ctx.font = '800 26px Tahoma';
-    ctx.fillText('آهن‌تایم', width - padX, 40);
+    ctx.fillText(brand, leadX, 40);
     ctx.fillStyle = '#0A7F77';
-    ctx.fillRect(width - padX - 150, 56, 150, 3);
+    ctx.fillRect(headerX, 56, 150, 3);
     ctx.fillStyle = '#64707E';
     ctx.font = '14px Tahoma';
-    ctx.fillText(`قیمت روز ${title} · ${today}${vatNote}`, width - padX, 78);
+    ctx.fillText(subtitle, leadX, 78);
 
     // column header
     let yy = headerH;
@@ -249,10 +277,10 @@ export function ExportMenu({
     ctx.fillRect(padX, yy, width - padX * 2, rowH);
     ctx.fillStyle = '#64707E';
     ctx.font = '700 13px Tahoma';
-    let cx = width - padX - 10;
+    let cx = isRtl ? width - padX - 10 : padX + 10;
     COLS.forEach((c, i) => {
       ctx.fillText(c, cx, yy + rowH / 2);
-      cx -= colW[i]!;
+      cx += step * colW[i]!;
     });
 
     // rows
@@ -264,10 +292,10 @@ export function ExportMenu({
       }
       ctx.fillStyle = '#2B333D';
       ctx.font = '13px Tahoma';
-      let x2 = width - padX - 10;
+      let x2 = isRtl ? width - padX - 10 : padX + 10;
       cells(r).forEach((cell, i) => {
         ctx.fillText(cell, x2, yy + rowH / 2);
-        x2 -= colW[i]!;
+        x2 += step * colW[i]!;
       });
     });
 
@@ -275,7 +303,7 @@ export function ExportMenu({
     ctx.fillStyle = '#97A2B0';
     ctx.font = '12px Tahoma';
     ctx.textAlign = 'center';
-    ctx.fillText('ahantime.com · اول مشورت، بعد خرید', width / 2, height - footerH / 2);
+    ctx.fillText(tagline, width / 2, height - footerH / 2);
 
     canvas.toBlob((blob) => {
       if (!blob) return;
@@ -285,7 +313,7 @@ export function ExportMenu({
       a.download = `ahantime-${title}.png`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success('تصویر جدول با لوگو دانلود شد.');
+      toast.success(t('imageDownloaded'));
     });
   };
 
@@ -299,16 +327,16 @@ export function ExportMenu({
     <div
       className={compact ? `${styles.menu} ${styles.compact}` : styles.menu}
       role="group"
-      aria-label={scopeLabel ? `خروجی جدول ${scopeLabel}` : 'خروجی جدول'}
+      aria-label={scopeLabel ? t('exportGroupScoped', { scope: scopeLabel }) : t('exportGroup')}
     >
-      <button type="button" className={styles.btn} onClick={exportXls} aria-label={scoped('اکسل')}>
-        <SheetIcon size={iconSize} /> <span>اکسل</span>
+      <button type="button" className={styles.btn} onClick={exportXls} aria-label={scoped(t('excel'))}>
+        <SheetIcon size={iconSize} /> <span>{t('excel')}</span>
       </button>
-      <button type="button" className={styles.btn} onClick={print} aria-label={scoped('چاپ')}>
-        <PrintIcon size={iconSize} /> <span>چاپ</span>
+      <button type="button" className={styles.btn} onClick={print} aria-label={scoped(t('print'))}>
+        <PrintIcon size={iconSize} /> <span>{t('print')}</span>
       </button>
-      <button type="button" className={styles.btn} onClick={exportImage} aria-label={scoped('تصویر')}>
-        <ImageIcon size={iconSize} /> <span>تصویر</span>
+      <button type="button" className={styles.btn} onClick={exportImage} aria-label={scoped(t('image'))}>
+        <ImageIcon size={iconSize} /> <span>{t('image')}</span>
       </button>
     </div>
   );

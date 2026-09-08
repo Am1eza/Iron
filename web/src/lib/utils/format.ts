@@ -67,9 +67,33 @@ export function withVat(price: number, vat: boolean, rate: number = CONSTANTS.VA
  * withheld price's literal `0` sentinel as a real number instead. A single
  * shared helper closes that class of bug for good — every price render site
  * calls this FIRST, and only formats the real number when it returns null. */
-export function priceHiddenLabel(current: { priceHidden?: boolean; priceIsEstimated?: boolean }): string | null {
-  if (current.priceHidden) return 'تماس بگیرید';
-  return current.priceIsEstimated ? 'برآورد بازار — قیمت قطعی با استعلام' : null;
+const PRICE_HIDDEN_TEXT: Record<Exclude<string, 'fa'>, string> = {
+  en: 'Call for price',
+  ar: 'اتصل للسعر',
+  zh: '电询价格',
+};
+const PRICE_ESTIMATED_TEXT: Record<Exclude<string, 'fa'>, string> = {
+  en: 'Market estimate — confirm the final price by inquiry',
+  ar: 'تقدير سوقي — يُرجى تأكيد السعر النهائي بالاستفسار',
+  zh: '市场估价 — 最终价格请咨询确认',
+};
+
+/**
+ * Locale defaults to `'fa'`, so every existing call site (there are several —
+ * see the note above) that passes no third argument keeps returning
+ * byte-for-byte the same Persian text it always has.
+ */
+export function priceHiddenLabel(
+  current: { priceHidden?: boolean; priceIsEstimated?: boolean },
+  locale: string = 'fa',
+): string | null {
+  if (current.priceHidden) {
+    return locale === 'fa' ? 'تماس بگیرید' : (PRICE_HIDDEN_TEXT[locale] ?? 'تماس بگیرید');
+  }
+  if (!current.priceIsEstimated) return null;
+  return locale === 'fa'
+    ? 'برآورد بازار — قیمت قطعی با استعلام'
+    : (PRICE_ESTIMATED_TEXT[locale] ?? 'برآورد بازار — قیمت قطعی با استعلام');
 }
 
 /** Compact Toman for KPI headlines — «۱٫۲ میلیارد», «۳۴۵ میلیون», plain
@@ -89,11 +113,14 @@ export function formatTomanCompact(value: number): string {
   return sign + formatToman(abs, false);
 }
 
-/** Format نوسان percent with sign + Persian digits (color/arrow handled in UI). */
-export function formatMovement(pct: number | undefined): string {
+/** Format نوسان percent with sign + locale-appropriate digits (color/arrow
+ *  handled in UI). `locale` defaults to `'fa'`, so every existing call site
+ *  keeps its exact Persian output. */
+export function formatMovement(pct: number | undefined, locale: string = 'fa'): string {
   if (pct === undefined || Number.isNaN(pct)) return '';
   const sign = pct > 0 ? '+' : pct < 0 ? '−' : '';
-  return `${sign}${toPersianDigits(Math.abs(pct).toFixed(2))}٪`;
+  const percentSign = locale === 'fa' ? '٪' : '%';
+  return `${sign}${localizeDigits(Math.abs(pct).toFixed(2), locale)}${percentSign}`;
 }
 
 /* formatJalali lives in ./jalali — see that file's header. Keeping the
