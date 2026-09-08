@@ -1,7 +1,8 @@
 'use client';
+import { useTranslations } from 'next-intl';
 import { useQuery } from '@tanstack/react-query';
 import { http } from '@/lib/api/http';
-import { stepsForType, REQUEST_TYPE_LABEL, type RequestStatus, type RequestType } from '@/lib/stores/requests';
+import { stepsForType, type RequestStatus, type RequestType } from '@/lib/stores/requests';
 import { EmptyState, TableSkeleton, emptyPresets } from '@/components/ui';
 import { formatJalali } from '@/lib/utils/jalali';
 import styles from './RequestsList.module.css';
@@ -22,6 +23,7 @@ interface RequestDto {
  * not the old localStorage mock store.
  */
 export function RequestsList() {
+  const t = useTranslations('account.requests');
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['me', 'requests'],
     queryFn: () => http.get<{ requests: RequestDto[] }>('/api/me/requests'),
@@ -33,8 +35,8 @@ export function RequestsList() {
       <EmptyState
         size="section"
         tone="error"
-        headline="خطا در دریافت درخواست‌ها"
-        primary={{ label: 'تلاش دوباره', onClick: () => refetch() }}
+        headline={t('errorHeadline')}
+        primary={{ label: t('retry'), onClick: () => refetch() }}
       />
     );
   }
@@ -57,7 +59,7 @@ export function RequestsList() {
           <li key={r.id} className={styles.item}>
             <div className={styles.top}>
               <div className={styles.titleWrap}>
-                <span className={styles.type}>{REQUEST_TYPE_LABEL[r.type]}</span>
+                <span className={styles.type}>{t(`typeLabel.${r.type}`)}</span>
                 <h3 className={styles.title}>{r.title}</h3>
               </div>
               <div className={styles.meta}>
@@ -68,7 +70,7 @@ export function RequestsList() {
 
             {r.detail && <p className={styles.detail}>{r.detail}</p>}
 
-            <ol className={styles.steps} aria-label="وضعیت درخواست">
+            <ol className={styles.steps} aria-label={t('ariaStatus')}>
               {steps.map((s, i) => (
                 <li
                   key={s.key}
@@ -77,7 +79,7 @@ export function RequestsList() {
                   aria-current={i === stepIndex ? 'step' : undefined}
                 >
                   <span className={styles.dot} aria-hidden="true" />
-                  <span className={styles.stepLabel}>{s.label}</span>
+                  <span className={styles.stepLabel}>{t(`stepLabel.${s.key}`)}</span>
                 </li>
               ))}
             </ol>

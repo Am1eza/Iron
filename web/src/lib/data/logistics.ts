@@ -80,6 +80,38 @@ export const CITIES: { name: string; km: number }[] = [
   { name: 'بندرعباس', km: 1280 },
 ];
 
+/** City-name translations for the customer-facing account UI (`DeliveryCity`).
+ *  `CITIES` itself stays fa-only (also read server-side and by the already-shipped
+ *  calculator tools) — this is an additive lookup, not a structural change. */
+const CITY_NAME_TRANSLATIONS: Record<string, { en: string; ar: string; zh: string }> = {
+  'تهران': { en: 'Tehran', ar: 'طهران', zh: '德黑兰' },
+  'کرج': { en: 'Karaj', ar: 'كرج', zh: '卡拉季' },
+  'قم': { en: 'Qom', ar: 'قم', zh: '库姆' },
+  'ساری': { en: 'Sari', ar: 'ساري', zh: '萨里' },
+  'اراک': { en: 'Arak', ar: 'أراك', zh: '阿拉克' },
+  'همدان': { en: 'Hamedan', ar: 'همدان', zh: '哈马丹' },
+  'رشت': { en: 'Rasht', ar: 'رشت', zh: '拉什特' },
+  'اصفهان': { en: 'Isfahan', ar: 'أصفهان', zh: '伊斯法罕' },
+  'کرمانشاه': { en: 'Kermanshah', ar: 'كرمانشاه', zh: '克尔曼沙阿' },
+  'تبریز': { en: 'Tabriz', ar: 'تبريز', zh: '大不里士' },
+  'یزد': { en: 'Yazd', ar: 'يزد', zh: '亚兹德' },
+  'اهواز': { en: 'Ahvaz', ar: 'الأهواز', zh: '阿瓦士' },
+  'مشهد': { en: 'Mashhad', ar: 'مشهد', zh: '马什哈德' },
+  'شیراز': { en: 'Shiraz', ar: 'شيراز', zh: '设拉子' },
+  'کرمان': { en: 'Kerman', ar: 'كرمان', zh: '克尔曼' },
+  'بندرعباس': { en: 'Bandar Abbas', ar: 'بندر عباس', zh: '阿巴斯港' },
+};
+
+export function localizedCityName(name: string, locale: string): string {
+  if (locale === 'fa') return name;
+  const t = CITY_NAME_TRANSLATIONS[name];
+  if (!t) return name;
+  if (locale === 'en') return t.en;
+  if (locale === 'ar') return t.ar;
+  if (locale === 'zh') return t.zh;
+  return name;
+}
+
 export interface LogisticsConfig {
   originLabel: string;
   freightTable: FreightAnchor[];
@@ -131,6 +163,20 @@ export function deliveryLabel(km: number): string {
   if (km < 700) return '۲ تا ۳ روز کاری';
   if (km < 1000) return '۳ تا ۴ روز کاری';
   return '۴ تا ۵ روز کاری';
+}
+
+/** Same bucketing as `deliveryLabel`, returning a translation key instead of fa
+ *  text — for customer-facing UI that needs the estimate in en/ar/zh. Kept as a
+ *  separate function rather than adding a `locale` param to `deliveryLabel` so the
+ *  server-side callers (`estimateLogistics`, admin) are entirely unaffected. */
+export type DeliveryBucket = 'sameDay' | 'oneToTwoDays' | 'twoToThreeDays' | 'threeToFourDays' | 'fourToFiveDays';
+
+export function deliveryBucket(km: number): DeliveryBucket {
+  if (km < 150) return 'sameDay';
+  if (km < 400) return 'oneToTwoDays';
+  if (km < 700) return 'twoToThreeDays';
+  if (km < 1000) return 'threeToFourDays';
+  return 'fourToFiveDays';
 }
 
 /** Per-ton freight rate at `km`, piecewise-linearly interpolated between the

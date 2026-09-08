@@ -1116,5 +1116,305 @@
       "openConversationFailed": "این گفتگو باز نشد. دوباره تلاش کن یا گفتگوی تازه‌ای شروع کن.",
       "defaultHeading": "مشاور هوشمند آهن‌تایم"
     }
+  },
+  "account": {
+    "nav": {
+      "ariaLabel": "بخش‌های حساب",
+      "overview": "نمای کلی",
+      "orders": "سفارش‌ها",
+      "requests": "درخواست‌ها",
+      "warehouse": "انبار من",
+      "favorites": "علاقه‌مندی‌ها",
+      "alerts": "هشدارها",
+      "club": "باشگاه",
+      "profile": "پروفایل و تنظیمات"
+    },
+    "header": {
+      "overline": "حساب من",
+      "greetingWithName": "سلام، {name}",
+      "greetingNoName": "سلام",
+      "adminPanelBadge": "پنل آهن‌تایم"
+    },
+    "roleLabel": {
+      "customer": "مشتری",
+      "operator": "اپراتور قیمت‌گذاری",
+      "sales": "کارشناس فروش",
+      "content": "سردبیر محتوا",
+      "catalog": "مدیر کاتالوگ",
+      "admin": "مدیر سیستم"
+    },
+    "tabs": {
+      "ordersTitle": "سفارش‌های من",
+      "ordersSub": "وضعیت لحظه‌ای حمل بار هر سفارش را اینجا دنبال کنید.",
+      "warehouseTitle": "انبار من",
+      "warehouseSub": "کالاهای امانی شما نزد آهن‌تایم. برای ثبت کالای جدید به <link>صفحهٔ انبار مشتریان</link> بروید.",
+      "favoritesTitle": "علاقه‌مندی‌ها",
+      "favoritesSub": "محصولاتی که نشان کرده‌اید، با قیمت لحظه‌ای.",
+      "requestsTitle": "درخواست‌های من",
+      "requestsSub": "پیش‌فاکتورها، خرید عمده و درخواست‌های انبار، با وضعیت لحظه‌ای هرکدام.",
+      "alertsTitle": "هشدارهای قیمت",
+      "alertsSub": "وقتی قیمت به حد تعیین‌شده برسد، پیامک می‌گیرید.",
+      "clubTitleGuest": "باشگاه آهن‌تایم",
+      "clubGuestHeadline": "باشگاه آهن‌تایم",
+      "clubGuestBody": "با عضویت، قیمت ویژه، تحویل اولویت‌دار و مشاور اختصاصی بگیرید.",
+      "clubGuestCta": "مشاهدهٔ باشگاه",
+      "clubTitleMember": "باشگاه مشتریان",
+      "profileTitle": "پروفایل و تنظیمات",
+      "profileSub": "نام شما در پیش‌فاکتورها و گفتگو با کارشناس استفاده می‌شود."
+    },
+    "overview": {
+      "verifyNudgeTitle": "احراز هویت را کامل کنید",
+      "verifyNudgeBody": "با ارتقا به سطح {level}، مزایای بیشتری باز می‌شود.",
+      "verifyNudgeCta": "تکمیل",
+      "clubNudgeTitle": "به باشگاه مشتریان بپیوندید",
+      "clubNudgeBody": "عضویت رایگان است؛ با هر سفارش امتیاز بگیرید و سطح‌تان بالا برود.",
+      "clubNudgeCta": "عضویت",
+      "lastOrderTitle": "آخرین سفارش",
+      "allOrders": "همهٔ سفارش‌ها"
+    },
+    "shipmentStatus": {
+      "registered": "ثبت‌شده",
+      "confirmed": "تأییدشده",
+      "loading": "بارگیری",
+      "inTransit": "در حال حمل",
+      "delivered": "تحویل",
+      "cancelledBadge": "لغوشده",
+      "currentStageTag": "(مرحله فعلی)",
+      "cancelledNote": "این سفارش لغو شد؛ تا مرحلهٔ «{stage}» پیش رفته بود.",
+      "ariaCancelled": "سفارش لغوشده: تا مرحلهٔ {stage}",
+      "ariaActive": "وضعیت سفارش: {stage}"
+    },
+    "orders": {
+      "empty": {
+        "headline": "هنوز سفارشی ندارید",
+        "body": "بعد از نهایی‌شدن پیش‌فاکتور، سفارش شما اینجا ساخته می‌شود و حمل آن را لحظه‌ای دنبال می‌کنید.",
+        "cta": "مشاهدهٔ قیمت‌ها"
+      },
+      "refPrefix": "سفارش",
+      "placed": "ثبت: {date}",
+      "updated": "به‌روزرسانی: {date}",
+      "shippingWith": "ارسال با {carrier}",
+      "defaultCarrier": "شرکت حمل",
+      "trackingCode": "کد رهگیری: {code}",
+      "itemsCount": "({count} ردیف)",
+      "reorder": "سفارش مجدد",
+      "reorderSuccessAll": "اقلام این سفارش به سبد استعلام اضافه شد.",
+      "reorderSuccessPartial": "اقلام موجود این سفارش به سبد استعلام اضافه شد (برخی کالاها دیگر موجود نیستند)."
+    },
+    "warehouse": {
+      "empty": {
+        "headline": "هنوز کالایی در انبار شما ثبت نشده",
+        "body": "برای سپردن کالا به انبار آهن‌تایم (با امکان بیمه)، یک درخواست نگهداری ثبت کنید.",
+        "cta": "ثبت درخواست نگهداری"
+      },
+      "insuredBadge": "بیمه‌شده ✓",
+      "code": "کد",
+      "contract": "قرارداد",
+      "arrivedAt": "تاریخ ورود: {date}",
+      "location": "محل: {location}",
+      "quantityLabel": "مقدار",
+      "tons": "{value} تن",
+      "monthlyRateLabel": "نرخ نگهداری ماهانه (هر تن)",
+      "unsettledLabel": "مانده تسویه‌نشده",
+      "settlementHistoryTitle": "تاریخچهٔ تسویه",
+      "loadingSettlements": "در حال بارگذاری تاریخچهٔ تسویه…",
+      "settlementsErrorHeadline": "خطا در دریافت تاریخچهٔ تسویه",
+      "retry": "تلاش دوباره",
+      "periodRange": "از {from} تا {to}",
+      "voidedBadge": "اصلاح شد",
+      "paidBadge": "پرداخت‌شده",
+      "pendingBadge": "در انتظار پرداخت",
+      "statusLabel": {
+        "pending": "در انتظار",
+        "stored": "نگهداری‌شده",
+        "selling": "در حال فروش",
+        "released": "تحویل‌شده"
+      }
+    },
+    "favorites": {
+      "loading": "در حال بارگذاری…",
+      "remove": "حذف",
+      "removedToast": "از علاقه‌مندی‌ها حذف شد."
+    },
+    "requests": {
+      "errorHeadline": "خطا در دریافت درخواست‌ها",
+      "retry": "تلاش دوباره",
+      "ariaStatus": "وضعیت درخواست",
+      "typeLabel": {
+        "proforma": "پیش‌فاکتور",
+        "bulk": "خرید عمده",
+        "warehouse": "انبار مشتریان",
+        "cutToSize": "کالا با ابعاد درخواستی"
+      },
+      "stepLabel": {
+        "submitted": "ثبت شد",
+        "reviewing": "در حال بررسی",
+        "contacted": "تماس کارشناس",
+        "quoted": "پیش‌فاکتور صادر شد",
+        "fulfilled": "کالا در انبار ثبت شد"
+      }
+    },
+    "alerts": {
+      "errorHeadline": "خطا در دریافت هشدارها",
+      "retry": "تلاش دوباره",
+      "statusLabel": {
+        "active": "فعال",
+        "triggered": "اجراشده",
+        "paused": "متوقف"
+      },
+      "targetTypeLabel": {
+        "sku": "کالا",
+        "market": "شاخص بازار"
+      },
+      "unavailableTarget": "این مورد دیگر در دسترس نیست",
+      "below": "کمتر از",
+      "above": "بیشتر از",
+      "tomanSuffix": "تومان",
+      "now": "اکنون:",
+      "distancePct": "٪{pct} فاصله تا رسیدن",
+      "crossedSoon": "به شرط هشدار رسیده؛ به‌زودی پیامک می‌گیرید",
+      "staleNote": "(به‌روزرسانی نشده)",
+      "activate": "فعال‌سازی",
+      "pause": "توقف",
+      "remove": "حذف",
+      "updateSuccess": "هشدار به‌روزرسانی شد.",
+      "updateError": "به‌روزرسانی هشدار ناموفق بود.",
+      "removeSuccess": "هشدار حذف شد.",
+      "removeError": "حذف هشدار ناموفق بود.",
+      "triggeredAt": "اجرا: {date}",
+      "registeredAt": "ثبت: {date}"
+    },
+    "club": {
+      "joinHeadline": "به باشگاه مشتریان آهن‌تایم بپیوندید",
+      "joinLead": "عضویت رایگان است. با هر سفارش، تکمیل پروفایل و احراز هویت، امتیاز می‌گیرید و سطح‌تان بالا می‌رود؛ از اولویت در تأمین تا مشاور اختصاصی.",
+      "joinCta": "عضویت رایگان در باشگاه",
+      "pointsLabel": "امتیاز باشگاه",
+      "levelEyebrow": "سطح شما",
+      "progressAriaLabel": "پیشرفت تا سطح بعد",
+      "nearThreshold": "فقط <pts>{points}</pts> امتیاز تا <tierTag>{tier}</tierTag>!",
+      "farThreshold": "<pts>{points}</pts> امتیاز جمع کرده‌اید، در مسیر <tierTag>{tier}</tierTag>",
+      "highestBadge": "بالاترین سطح باشگاه",
+      "highestNote": "به بالاترین سطح رسیده‌اید؛ از همهٔ مزایا بهره‌مندید.",
+      "breakdownTitle": "امتیازهای شما",
+      "breakdown": {
+        "deliveredOrders": "سفارش‌های تحویل‌شده",
+        "profileComplete": "تکمیل پروفایل",
+        "verificationLevel": "احراز هویت (سطح {level})",
+        "referrals": "معرفی دوستان"
+      },
+      "ladderCurrentBadge": "سطح فعلی",
+      "tiers": {
+        "iron": {
+          "name": "آهنی",
+          "tagline": "نقطهٔ شروع هر همکاری",
+          "perk1": "دسترسی به قیمت‌های روز و آرشیو نوسان",
+          "perk2": "ثبت استعلام و دریافت پیش‌فاکتور",
+          "perk3": "پشتیبانی تلفنی کارشناسان"
+        },
+        "steel": {
+          "name": "فولادی",
+          "tagline": "برای خریدهای منظم و حرفه‌ای",
+          "perk1": "اولویت در تأمین و تحویل",
+          "perk2": "هشدار قیمت روی چند محصول هم‌زمان (نه فقط یکی)",
+          "perk3": "پیش‌فاکتور سریع‌تر"
+        },
+        "poolad": {
+          "name": "پولادی",
+          "tagline": "بالاترین سطح وفاداری",
+          "perk1": "تأمین تضمینی با اولویت کامل",
+          "perk2": "بیشترین سقف هشدار قیمت در بین همهٔ سطوح",
+          "perk3": "مشاور اختصاصی و خط ارتباطی مستقیم",
+          "perk4": "پیشنهادهای ویژهٔ پیش از عرضهٔ عمومی",
+          "perk5": "دانلود پیش‌فاکتور با سربرگ اختصاصی شرکت شما"
+        }
+      }
+    },
+    "letterhead": {
+      "title": "سربرگ اختصاصی پیش‌فاکتور",
+      "activeBadge": "فعال",
+      "lead": "به‌عنوان عضو سطح پولادی می‌توانید پیش‌فاکتورهای خود را با لوگو و مشخصات شرکت خودتان دانلود کنید، به‌جای سربرگ آهن‌تایم. لوگو و نام شرکت هر دو لازم است تا این گزینه روی پیش‌فاکتورهایتان فعال شود.",
+      "logoChange": "تعویض لوگو",
+      "logoChoose": "انتخاب لوگو",
+      "logoTypeError": "فقط تصاویر JPG، PNG یا WebP مجاز است.",
+      "logoSizeError": "حجم فایل نباید از ۵ مگابایت بیشتر باشد.",
+      "logoUploadError": "آپلود ناموفق بود؛ دوباره تلاش کنید.",
+      "logoSuccess": "لوگو ذخیره شد.",
+      "companyNameLabel": "نام شرکت",
+      "companyNamePlaceholder": "مثلاً: شرکت فولاد سازان پارس",
+      "addressLabel": "آدرس (اختیاری)",
+      "phoneLabel": "تلفن (اختیاری)",
+      "save": "ذخیرهٔ اطلاعات",
+      "saving": "در حال ذخیره…",
+      "saveSuccess": "سربرگ اختصاصی ذخیره شد.",
+      "saveError": "ذخیره ناموفق بود؛ دوباره تلاش کنید."
+    },
+    "invite": {
+      "ariaLabel": "کد دعوت شما",
+      "label": "کد دعوت شما",
+      "hint": "دوستانتان را دعوت کنید؛ با ثبت‌نام و احراز هویت آن‌ها، امتیاز می‌گیرید.",
+      "copy": "کپی",
+      "copied": "کپی شد ✓"
+    },
+    "verification": {
+      "title": "احراز هویت",
+      "currentLevelPrefix": "سطح فعلی شما:",
+      "levelBadge": "سطح {level}: {name}",
+      "nextLevelIntro": "با ارتقا به سطح {level} ({name}) این‌ها را باز کنید:",
+      "completeLevel": "تکمیل اطلاعات سطح {level}",
+      "pendingBadge": "در حال بررسی",
+      "pendingNote": "اطلاعات شما ثبت شده و کارشناس آن را بررسی می‌کند.",
+      "rejectedNotice": "اطلاعات قبلی تأیید نشد؛ لطفاً دوباره و دقیق وارد کنید.",
+      "nationalIdLabel": "کد ملی",
+      "companyNameLabel": "نام شرکت",
+      "companyNationalIdLabel": "شناسهٔ ملی شرکت",
+      "economicCodeLabel": "کد اقتصادی",
+      "submit": "ثبت برای بررسی",
+      "submitSuccess": "اطلاعات شما ثبت شد و در حال بررسی است.",
+      "submitError": "ثبت اطلاعات ناموفق بود.",
+      "maxedNote": "بالاترین سطح احراز. کارشناس فروش هنگام بررسی استعلام شما این نشان را می‌بیند.",
+      "businessAccountLabel": "حساب سازمانی تأییدشده",
+      "levelName": {
+        "1": "موبایل تأییدشده",
+        "2": "هویت شخصی تأییدشده",
+        "3": "کسب‌وکار تأییدشده"
+      },
+      "level1Unlock1": "مرور قیمت‌ها و ثبت استعلام",
+      "level1Unlock2": "دریافت پیش‌فاکتور",
+      "level1Unlock3": "عضویت در باشگاه مشتریان",
+      "level2Unlock1": "سقف سفارش بالاتر",
+      "level2Unlock2": "صدور فاکتور رسمی به نام شما",
+      "level2Unlock3": "نشان «خریدار تأییدشده»",
+      "level2Unlock4": "امتیاز باشگاه",
+      "level3Unlock1": "نشان «{label}» روی حساب شما",
+      "level3Unlock2": "کارشناس فروش هنگام استعلام می‌بیند که کسب‌وکار شما تأییدشده است",
+      "level3Unlock3": "مشخصات شرکت برای صدور فاکتور رسمی شرکتی ثبت و آمادهٔ استفاده است",
+      "level3Unlock4": "بیشترین امتیاز احراز در باشگاه مشتریان"
+    },
+    "deliveryCity": {
+      "title": "شهر انبار من",
+      "sub": "مقصد تحویل سفارش‌ها؛ در «مقایسهٔ کارخانه‌ها» هزینهٔ حمل از {origin} و زمان تحویل بر همین اساس محاسبه می‌شود.",
+      "selectAriaLabel": "شهر انبار",
+      "selectPlaceholder": "انتخاب کنید…",
+      "distanceHint": "{km} کیلومتر از انبار · تحویل {delivery}",
+      "bucket": {
+        "sameDay": "همان روز تا ۱ روز کاری",
+        "oneToTwoDays": "۱ تا ۲ روز کاری",
+        "twoToThreeDays": "۲ تا ۳ روز کاری",
+        "threeToFourDays": "۳ تا ۴ روز کاری",
+        "fourToFiveDays": "۴ تا ۵ روز کاری"
+      },
+      "originLabel": "انبار شادآباد تهران"
+    },
+    "profileStats": {
+      "openRequestsLabel": "درخواست فعال",
+      "openRequestsHintHas": "در انتظار پیگیری کارشناس",
+      "openRequestsHintEmpty": "هنوز درخواستی ندارید",
+      "activeOrdersLabel": "سفارش در جریان",
+      "activeOrdersHintHas": "حمل و تحویل را دنبال کنید",
+      "activeOrdersHintEmpty": "سفارش فعالی ندارید",
+      "warehouseItemsLabel": "کالای امانی در انبار",
+      "warehouseItemsHintHas": "موجودی انبار مشتریان",
+      "warehouseItemsHintEmpty": "کالای امانی ندارید"
+    }
   }
 }

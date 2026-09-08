@@ -1116,5 +1116,305 @@
       "openConversationFailed": "This conversation didn't open. Try again or start a new one.",
       "defaultHeading": "Ahantime AI Advisor"
     }
+  },
+  "account": {
+    "nav": {
+      "ariaLabel": "Account sections",
+      "overview": "Overview",
+      "orders": "Orders",
+      "requests": "Requests",
+      "warehouse": "My Warehouse",
+      "favorites": "Favorites",
+      "alerts": "Alerts",
+      "club": "Club",
+      "profile": "Profile & Settings"
+    },
+    "header": {
+      "overline": "My Account",
+      "greetingWithName": "Hello, {name}",
+      "greetingNoName": "Hello",
+      "adminPanelBadge": "Ahantime Panel"
+    },
+    "roleLabel": {
+      "customer": "Customer",
+      "operator": "Pricing Operator",
+      "sales": "Sales Rep",
+      "content": "Content Editor",
+      "catalog": "Catalog Manager",
+      "admin": "System Admin"
+    },
+    "tabs": {
+      "ordersTitle": "My Orders",
+      "ordersSub": "Track each order's shipment status in real time here.",
+      "warehouseTitle": "My Warehouse",
+      "warehouseSub": "Goods you have consigned to Ahantime. To register a new item, go to the <link>customer warehouse page</link>.",
+      "favoritesTitle": "Favorites",
+      "favoritesSub": "Products you've saved, with live pricing.",
+      "requestsTitle": "My Requests",
+      "requestsSub": "Proformas, bulk purchases and warehouse requests, with live status for each.",
+      "alertsTitle": "Price Alerts",
+      "alertsSub": "Get an SMS when the price reaches your set threshold.",
+      "clubTitleGuest": "Ahantime Club",
+      "clubGuestHeadline": "Ahantime Club",
+      "clubGuestBody": "Membership unlocks special pricing, priority delivery and a dedicated advisor.",
+      "clubGuestCta": "View club",
+      "clubTitleMember": "Customer Club",
+      "profileTitle": "Profile & Settings",
+      "profileSub": "Your name is used on proformas and in conversations with our advisors."
+    },
+    "overview": {
+      "verifyNudgeTitle": "Complete your verification",
+      "verifyNudgeBody": "Upgrading to level {level} unlocks more benefits.",
+      "verifyNudgeCta": "Complete",
+      "clubNudgeTitle": "Join the customer club",
+      "clubNudgeBody": "Membership is free; earn points with every order and level up.",
+      "clubNudgeCta": "Join",
+      "lastOrderTitle": "Latest Order",
+      "allOrders": "All orders"
+    },
+    "shipmentStatus": {
+      "registered": "Registered",
+      "confirmed": "Confirmed",
+      "loading": "Loading",
+      "inTransit": "In Transit",
+      "delivered": "Delivered",
+      "cancelledBadge": "Cancelled",
+      "currentStageTag": "(current stage)",
+      "cancelledNote": "This order was cancelled; it had reached the \"{stage}\" stage.",
+      "ariaCancelled": "Cancelled order: reached the {stage} stage",
+      "ariaActive": "Order status: {stage}"
+    },
+    "orders": {
+      "empty": {
+        "headline": "You have no orders yet",
+        "body": "Once a proforma is finalized, your order will be created here and you can track its shipment live.",
+        "cta": "View prices"
+      },
+      "refPrefix": "Order",
+      "placed": "Placed: {date}",
+      "updated": "Updated: {date}",
+      "shippingWith": "Shipping with {carrier}",
+      "defaultCarrier": "carrier",
+      "trackingCode": "Tracking code: {code}",
+      "itemsCount": "({count} items)",
+      "reorder": "Reorder",
+      "reorderSuccessAll": "This order's items were added to your inquiry cart.",
+      "reorderSuccessPartial": "The available items from this order were added to your inquiry cart (some items are no longer available)."
+    },
+    "warehouse": {
+      "empty": {
+        "headline": "No goods registered in your warehouse yet",
+        "body": "To consign goods to Ahantime's warehouse (with insurance available), submit a storage request.",
+        "cta": "Submit a storage request"
+      },
+      "insuredBadge": "Insured ✓",
+      "code": "Code",
+      "contract": "Contract",
+      "arrivedAt": "Arrival date: {date}",
+      "location": "Location: {location}",
+      "quantityLabel": "Quantity",
+      "tons": "{value} tons",
+      "monthlyRateLabel": "Monthly storage rate (per ton)",
+      "unsettledLabel": "Unsettled balance",
+      "settlementHistoryTitle": "Settlement History",
+      "loadingSettlements": "Loading settlement history…",
+      "settlementsErrorHeadline": "Error loading settlement history",
+      "retry": "Retry",
+      "periodRange": "From {from} to {to}",
+      "voidedBadge": "Corrected",
+      "paidBadge": "Paid",
+      "pendingBadge": "Payment pending",
+      "statusLabel": {
+        "pending": "Pending",
+        "stored": "Stored",
+        "selling": "Selling",
+        "released": "Released"
+      }
+    },
+    "favorites": {
+      "loading": "Loading…",
+      "remove": "Remove",
+      "removedToast": "Removed from favorites."
+    },
+    "requests": {
+      "errorHeadline": "Error loading requests",
+      "retry": "Retry",
+      "ariaStatus": "Request status",
+      "typeLabel": {
+        "proforma": "Proforma",
+        "bulk": "Bulk purchase",
+        "warehouse": "Customer warehouse",
+        "cutToSize": "Cut-to-size order"
+      },
+      "stepLabel": {
+        "submitted": "Submitted",
+        "reviewing": "Under review",
+        "contacted": "Contacted by advisor",
+        "quoted": "Proforma issued",
+        "fulfilled": "Registered in warehouse"
+      }
+    },
+    "alerts": {
+      "errorHeadline": "Error loading alerts",
+      "retry": "Retry",
+      "statusLabel": {
+        "active": "Active",
+        "triggered": "Triggered",
+        "paused": "Paused"
+      },
+      "targetTypeLabel": {
+        "sku": "Product",
+        "market": "Market index"
+      },
+      "unavailableTarget": "This item is no longer available",
+      "below": "Below",
+      "above": "Above",
+      "tomanSuffix": "Toman",
+      "now": "Now:",
+      "distancePct": "{pct}% away",
+      "crossedSoon": "Threshold reached; you'll get an SMS shortly",
+      "staleNote": "(not recently updated)",
+      "activate": "Activate",
+      "pause": "Pause",
+      "remove": "Remove",
+      "updateSuccess": "Alert updated.",
+      "updateError": "Failed to update the alert.",
+      "removeSuccess": "Alert removed.",
+      "removeError": "Failed to remove the alert.",
+      "triggeredAt": "Triggered: {date}",
+      "registeredAt": "Registered: {date}"
+    },
+    "club": {
+      "joinHeadline": "Join the Ahantime Customer Club",
+      "joinLead": "Membership is free. Earn points with every order, by completing your profile and by verifying your identity, and level up — from supply priority to a dedicated advisor.",
+      "joinCta": "Join the club for free",
+      "pointsLabel": "Club points",
+      "levelEyebrow": "Your level",
+      "progressAriaLabel": "Progress to the next level",
+      "nearThreshold": "Only <pts>{points}</pts> points to <tierTag>{tier}</tierTag>!",
+      "farThreshold": "You've earned <pts>{points}</pts> points, on your way to <tierTag>{tier}</tierTag>",
+      "highestBadge": "Highest club level",
+      "highestNote": "You've reached the highest level; enjoy every benefit.",
+      "breakdownTitle": "Your points",
+      "breakdown": {
+        "deliveredOrders": "Delivered orders",
+        "profileComplete": "Profile completed",
+        "verificationLevel": "Verification (level {level})",
+        "referrals": "Friend referrals"
+      },
+      "ladderCurrentBadge": "Current level",
+      "tiers": {
+        "iron": {
+          "name": "Iron",
+          "tagline": "Where every relationship starts",
+          "perk1": "Access to live prices and the volatility archive",
+          "perk2": "Submit inquiries and receive proformas",
+          "perk3": "Phone support from our advisors"
+        },
+        "steel": {
+          "name": "Steel",
+          "tagline": "For regular, professional buyers",
+          "perk1": "Priority in supply and delivery",
+          "perk2": "Price alerts on several products at once (not just one)",
+          "perk3": "Faster proformas"
+        },
+        "poolad": {
+          "name": "Poolad",
+          "tagline": "The highest loyalty level",
+          "perk1": "Guaranteed supply with full priority",
+          "perk2": "The highest price-alert cap of any level",
+          "perk3": "A dedicated advisor and direct line",
+          "perk4": "Special offers before public release",
+          "perk5": "Download proformas with your own company letterhead"
+        }
+      }
+    },
+    "letterhead": {
+      "title": "Custom Proforma Letterhead",
+      "activeBadge": "Active",
+      "lead": "As a Poolad-tier member you can download your proformas with your own logo and company details instead of Ahantime's letterhead. Both a logo and a company name are required to activate this on your proformas.",
+      "logoChange": "Change logo",
+      "logoChoose": "Choose logo",
+      "logoTypeError": "Only JPG, PNG or WebP images are allowed.",
+      "logoSizeError": "The file must not exceed 5 MB.",
+      "logoUploadError": "Upload failed; please try again.",
+      "logoSuccess": "Logo saved.",
+      "companyNameLabel": "Company name",
+      "companyNamePlaceholder": "e.g. Pars Steel Makers Co.",
+      "addressLabel": "Address (optional)",
+      "phoneLabel": "Phone (optional)",
+      "save": "Save details",
+      "saving": "Saving…",
+      "saveSuccess": "Custom letterhead saved.",
+      "saveError": "Save failed; please try again."
+    },
+    "invite": {
+      "ariaLabel": "Your invite code",
+      "label": "Your invite code",
+      "hint": "Invite your friends; you earn points once they sign up and verify their identity.",
+      "copy": "Copy",
+      "copied": "Copied ✓"
+    },
+    "verification": {
+      "title": "Identity Verification",
+      "currentLevelPrefix": "Your current level:",
+      "levelBadge": "Level {level}: {name}",
+      "nextLevelIntro": "Upgrade to level {level} ({name}) to unlock:",
+      "completeLevel": "Complete level {level} details",
+      "pendingBadge": "Under review",
+      "pendingNote": "Your information has been submitted and is being reviewed by our team.",
+      "rejectedNotice": "Your previous submission wasn't approved; please re-enter it carefully.",
+      "nationalIdLabel": "National ID",
+      "companyNameLabel": "Company name",
+      "companyNationalIdLabel": "Company national ID",
+      "economicCodeLabel": "Economic code",
+      "submit": "Submit for review",
+      "submitSuccess": "Your information was submitted and is under review.",
+      "submitError": "Failed to submit your information.",
+      "maxedNote": "Highest verification level. Our sales rep sees this badge when reviewing your inquiry.",
+      "businessAccountLabel": "Verified Business Account",
+      "levelName": {
+        "1": "Mobile verified",
+        "2": "Personal identity verified",
+        "3": "Business verified"
+      },
+      "level1Unlock1": "Browse prices and submit inquiries",
+      "level1Unlock2": "Receive proformas",
+      "level1Unlock3": "Join the customer club",
+      "level2Unlock1": "Higher order limit",
+      "level2Unlock2": "Official invoices issued in your name",
+      "level2Unlock3": "\"Verified Buyer\" badge",
+      "level2Unlock4": "Club points",
+      "level3Unlock1": "The \"{label}\" badge on your account",
+      "level3Unlock2": "Our sales rep sees your business is verified during your inquiry",
+      "level3Unlock3": "Your company details are on file, ready for official company invoices",
+      "level3Unlock4": "The most verification points in the customer club"
+    },
+    "deliveryCity": {
+      "title": "My Warehouse City",
+      "sub": "Where your orders are delivered; in \"Compare factories\", freight cost from {origin} and delivery time are calculated on this basis.",
+      "selectAriaLabel": "Warehouse city",
+      "selectPlaceholder": "Select…",
+      "distanceHint": "{km} km from the warehouse · delivery {delivery}",
+      "bucket": {
+        "sameDay": "same day to 1 business day",
+        "oneToTwoDays": "1 to 2 business days",
+        "twoToThreeDays": "2 to 3 business days",
+        "threeToFourDays": "3 to 4 business days",
+        "fourToFiveDays": "4 to 5 business days"
+      },
+      "originLabel": "our Tehran warehouse"
+    },
+    "profileStats": {
+      "openRequestsLabel": "Open requests",
+      "openRequestsHintHas": "Awaiting follow-up from our advisor",
+      "openRequestsHintEmpty": "You have no requests yet",
+      "activeOrdersLabel": "Orders in progress",
+      "activeOrdersHintHas": "Track shipment and delivery",
+      "activeOrdersHintEmpty": "No active orders",
+      "warehouseItemsLabel": "Consigned items in warehouse",
+      "warehouseItemsHintHas": "Customer warehouse inventory",
+      "warehouseItemsHintEmpty": "No consigned goods"
+    }
   }
 }

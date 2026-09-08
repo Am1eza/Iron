@@ -7,12 +7,9 @@
  */
 'use client';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslations } from 'next-intl';
 import { Stack, Cluster, Text, Badge, EmptyState, Spinner } from '@/components/ui';
-import {
-  WAREHOUSE_STATUS_LABEL,
-  type WarehouseItem,
-  type WarehouseStatus,
-} from '@/lib/types/domain';
+import { type WarehouseItem, type WarehouseStatus } from '@/lib/types/domain';
 import { formatToman, toPersianDigits } from '@/lib/utils/format';
 import { formatJalali } from '@/lib/utils/jalali';
 import { http } from '@/lib/api/http';
@@ -38,13 +35,15 @@ interface WarehouseSettlementDto {
 }
 
 export function WarehouseList({ items }: { items: WarehouseItem[] }) {
+  const t = useTranslations('account.warehouse');
+
   if (items.length === 0) {
     return (
       <EmptyState
         size="section"
-        headline="هنوز کالایی در انبار شما ثبت نشده"
-        body="برای سپردن کالا به انبار آهن‌تایم (با امکان بیمه)، یک درخواست نگهداری ثبت کنید."
-        primary={{ label: 'ثبت درخواست نگهداری', href: routes.warehouse() }}
+        headline={t('empty.headline')}
+        body={t('empty.body')}
+        primary={{ label: t('empty.cta'), href: routes.warehouse() }}
       />
     );
   }
@@ -78,35 +77,35 @@ export function WarehouseList({ items }: { items: WarehouseItem[] }) {
                       {it.product}
                       {it.sizeLabel ? ` · ${it.sizeLabel}` : ''}
                     </Text>
-                    {it.insured ? <Badge tone="success">بیمه‌شده ✓</Badge> : null}
+                    {it.insured ? <Badge tone="success">{t('insuredBadge')}</Badge> : null}
                   </Cluster>
                   <Text variant="caption" color="muted">
-                    کد <bdi>{it.ref}</bdi>
+                    {t('code')} <bdi>{it.ref}</bdi>
                     {it.contractRef ? (
                       <>
                         {' '}
-                        · قرارداد <bdi>{it.contractRef}</bdi>
+                        · {t('contract')} <bdi>{it.contractRef}</bdi>
                       </>
                     ) : null}
-                    {' '}· تاریخ ورود: {formatJalali(it.arrivedAt ?? it.storedAt)}
-                    {it.location ? ` · محل: ${it.location}` : ''}
+                    {' '}· {t('arrivedAt', { date: formatJalali(it.arrivedAt ?? it.storedAt) })}
+                    {it.location ? ` · ${t('location', { location: it.location })}` : ''}
                   </Text>
                 </Stack>
-                <Badge tone={STATUS_TONE[it.status]}>{WAREHOUSE_STATUS_LABEL[it.status]}</Badge>
+                <Badge tone={STATUS_TONE[it.status]}>{t(`statusLabel.${it.status}`)}</Badge>
               </Cluster>
 
               <Cluster gap={6}>
                 <Stack gap={0}>
                   <Text variant="caption" color="muted">
-                    مقدار
+                    {t('quantityLabel')}
                   </Text>
                   <Text variant="body-sm" color="strong" as="span">
-                    <span className="tnum">{toPersianDigits(it.quantityTons)}</span> تن
+                    <span className="tnum">{t('tons', { value: toPersianDigits(it.quantityTons) })}</span>
                   </Text>
                 </Stack>
                 <Stack gap={0}>
                   <Text variant="caption" color="muted">
-                    نرخ نگهداری ماهانه (هر تن)
+                    {t('monthlyRateLabel')}
                   </Text>
                   <Text variant="body-sm" color="strong" as="span">
                     <span className="tnum">{formatToman(it.monthlyFeeToman)}</span>
@@ -115,7 +114,7 @@ export function WarehouseList({ items }: { items: WarehouseItem[] }) {
                 {typeof it.unsettledToman === 'number' ? (
                   <Stack gap={0}>
                     <Text variant="caption" color="muted">
-                      مانده تسویه‌نشده
+                      {t('unsettledLabel')}
                     </Text>
                     <Text variant="body-sm" color="strong" as="span">
                       <span
@@ -143,6 +142,7 @@ export function WarehouseList({ items }: { items: WarehouseItem[] }) {
  *  mock mode for billing history, so it simply stays hidden there rather than
  *  faking financial records. */
 function SettlementHistory() {
+  const t = useTranslations('account.warehouse');
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['me', 'warehouse', 'settlements'],
     queryFn: () => http.get<{ settlements: WarehouseSettlementDto[] }>('/api/me/warehouse/settlements'),
@@ -155,12 +155,12 @@ function SettlementHistory() {
     return (
       <Stack gap={2}>
         <Text variant="label" color="strong">
-          تاریخچهٔ تسویه
+          {t('settlementHistoryTitle')}
         </Text>
         <Cluster gap={2} align="center">
-          <Spinner size={16} label="در حال بارگذاری" />
+          <Spinner size={16} label={t('loadingSettlements')} />
           <Text variant="caption" color="muted">
-            در حال بارگذاری تاریخچهٔ تسویه…
+            {t('loadingSettlements')}
           </Text>
         </Cluster>
       </Stack>
@@ -172,8 +172,8 @@ function SettlementHistory() {
       <EmptyState
         size="inline"
         tone="error"
-        headline="خطا در دریافت تاریخچهٔ تسویه"
-        primary={{ label: 'تلاش دوباره', onClick: () => refetch() }}
+        headline={t('settlementsErrorHeadline')}
+        primary={{ label: t('retry'), onClick: () => refetch() }}
       />
     );
   }
@@ -188,7 +188,7 @@ function SettlementHistory() {
   return (
     <Stack gap={3}>
       <Text variant="label" color="strong">
-        تاریخچهٔ تسویه
+        {t('settlementHistoryTitle')}
       </Text>
       <ul
         style={{
@@ -215,7 +215,7 @@ function SettlementHistory() {
               <Cluster justify="space-between" align="center">
                 <Stack gap={0}>
                   <Text variant="caption" color="muted">
-                    از {formatJalali(s.periodFrom)} تا {formatJalali(s.periodTo)}
+                    {t('periodRange', { from: formatJalali(s.periodFrom), to: formatJalali(s.periodTo) })}
                   </Text>
                   <Text variant="body-sm" color="strong" as="span">
                     <span
@@ -228,11 +228,11 @@ function SettlementHistory() {
                 </Stack>
                 <Cluster gap={2}>
                   {voided ? (
-                    <Badge tone="neutral">اصلاح شد</Badge>
+                    <Badge tone="neutral">{t('voidedBadge')}</Badge>
                   ) : s.paidAt ? (
-                    <Badge tone="success">پرداخت‌شده</Badge>
+                    <Badge tone="success">{t('paidBadge')}</Badge>
                   ) : (
-                    <Badge tone="warning">در انتظار پرداخت</Badge>
+                    <Badge tone="warning">{t('pendingBadge')}</Badge>
                   )}
                 </Cluster>
               </Cluster>

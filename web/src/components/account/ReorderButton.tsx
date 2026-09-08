@@ -4,6 +4,7 @@
  *  in the server-rendered order data, this just replays them into the
  *  client-side cart store. */
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { inferSnapshotPriceBasis, useCartStore } from '@/lib/stores/cart';
 import { useToast } from '@/lib/hooks/useToast';
 import { routes } from '@/lib/routes';
@@ -14,6 +15,7 @@ export function ReorderButton({ items }: { items: LineItem[] }) {
   const router = useRouter();
   const add = useCartStore((s) => s.add);
   const toast = useToast();
+  const t = useTranslations('account.orders');
 
   // A line whose SKU was later deleted carries skuId:'' (see toLineItem) —
   // there's nothing left to add it back as.
@@ -29,14 +31,12 @@ export function ReorderButton({ items }: { items: LineItem[] }) {
           add({ skuId: it.skuId, name: it.name, qty: it.qty, unit: it.unit, unitPrice: it.unitPrice, weightKg: it.weightKg, priceBasis: inferSnapshotPriceBasis(it) });
         }
         toast.success(
-          reorderable.length < items.length
-            ? 'اقلام موجود این سفارش به سبد استعلام اضافه شد (برخی کالاها دیگر موجود نیستند).'
-            : 'اقلام این سفارش به سبد استعلام اضافه شد.',
+          reorderable.length < items.length ? t('reorderSuccessPartial') : t('reorderSuccessAll'),
         );
         router.push(routes.cart());
       }}
     >
-      سفارش مجدد
+      {t('reorder')}
     </Button>
   );
 }

@@ -1116,5 +1116,305 @@
       "openConversationFailed": "该对话未能打开。请重试或开始新对话。",
       "defaultHeading": "安通智能顾问"
     }
+  },
+  "account": {
+    "nav": {
+      "ariaLabel": "账户各版块",
+      "overview": "总览",
+      "orders": "订单",
+      "requests": "我的申请",
+      "warehouse": "我的仓库",
+      "favorites": "收藏",
+      "alerts": "提醒",
+      "club": "会员俱乐部",
+      "profile": "个人资料与设置"
+    },
+    "header": {
+      "overline": "我的账户",
+      "greetingWithName": "您好，{name}",
+      "greetingNoName": "您好",
+      "adminPanelBadge": "Ahantime 后台"
+    },
+    "roleLabel": {
+      "customer": "客户",
+      "operator": "定价操作员",
+      "sales": "销售专员",
+      "content": "内容编辑",
+      "catalog": "目录管理员",
+      "admin": "系统管理员"
+    },
+    "tabs": {
+      "ordersTitle": "我的订单",
+      "ordersSub": "在此实时跟踪每笔订单的发货状态。",
+      "warehouseTitle": "我的仓库",
+      "warehouseSub": "您寄存在 Ahantime 的货物。如需登记新货物，请前往<link>客户仓库页面</link>。",
+      "favoritesTitle": "收藏",
+      "favoritesSub": "您收藏的产品，附实时价格。",
+      "requestsTitle": "我的申请",
+      "requestsSub": "形式发票、批量采购与仓储申请，附各自的实时状态。",
+      "alertsTitle": "价格提醒",
+      "alertsSub": "价格达到您设定的阈值时，将收到短信通知。",
+      "clubTitleGuest": "Ahantime 会员俱乐部",
+      "clubGuestHeadline": "Ahantime 会员俱乐部",
+      "clubGuestBody": "加入会员即可获得专属价格、优先配送与专属顾问。",
+      "clubGuestCta": "查看俱乐部",
+      "clubTitleMember": "客户俱乐部",
+      "profileTitle": "个人资料与设置",
+      "profileSub": "您的姓名将用于形式发票及与顾问的对话中。"
+    },
+    "overview": {
+      "verifyNudgeTitle": "完成身份认证",
+      "verifyNudgeBody": "升级到 {level} 级可解锁更多权益。",
+      "verifyNudgeCta": "完成",
+      "clubNudgeTitle": "加入客户俱乐部",
+      "clubNudgeBody": "会员免费加入；每笔订单均可获得积分，助您升级。",
+      "clubNudgeCta": "加入",
+      "lastOrderTitle": "最近订单",
+      "allOrders": "所有订单"
+    },
+    "shipmentStatus": {
+      "registered": "已登记",
+      "confirmed": "已确认",
+      "loading": "装货中",
+      "inTransit": "运输中",
+      "delivered": "已送达",
+      "cancelledBadge": "已取消",
+      "currentStageTag": "（当前阶段）",
+      "cancelledNote": "该订单已取消；此前已进行到「{stage}」阶段。",
+      "ariaCancelled": "已取消订单：已进行到{stage}阶段",
+      "ariaActive": "订单状态：{stage}"
+    },
+    "orders": {
+      "empty": {
+        "headline": "您还没有订单",
+        "body": "形式发票确认后，订单将在此生成，您可实时跟踪发货进度。",
+        "cta": "查看价格"
+      },
+      "refPrefix": "订单",
+      "placed": "下单时间：{date}",
+      "updated": "更新时间：{date}",
+      "shippingWith": "承运商：{carrier}",
+      "defaultCarrier": "承运公司",
+      "trackingCode": "运单号：{code}",
+      "itemsCount": "（共 {count} 项）",
+      "reorder": "再次订购",
+      "reorderSuccessAll": "该订单的商品已加入询价车。",
+      "reorderSuccessPartial": "该订单中仍可用的商品已加入询价车（部分商品已下架）。"
+    },
+    "warehouse": {
+      "empty": {
+        "headline": "您的仓库中还没有登记货物",
+        "body": "如需将货物寄存至 Ahantime 仓库（可投保），请提交仓储申请。",
+        "cta": "提交仓储申请"
+      },
+      "insuredBadge": "已投保 ✓",
+      "code": "编号",
+      "contract": "合同",
+      "arrivedAt": "入库日期：{date}",
+      "location": "位置：{location}",
+      "quantityLabel": "数量",
+      "tons": "{value} 吨",
+      "monthlyRateLabel": "月度仓储费（每吨）",
+      "unsettledLabel": "未结清余额",
+      "settlementHistoryTitle": "结算历史",
+      "loadingSettlements": "正在加载结算历史…",
+      "settlementsErrorHeadline": "获取结算历史时出错",
+      "retry": "重试",
+      "periodRange": "自 {from} 至 {to}",
+      "voidedBadge": "已冲正",
+      "paidBadge": "已支付",
+      "pendingBadge": "待支付",
+      "statusLabel": {
+        "pending": "待处理",
+        "stored": "已入库",
+        "selling": "出售中",
+        "released": "已放行"
+      }
+    },
+    "favorites": {
+      "loading": "正在加载…",
+      "remove": "移除",
+      "removedToast": "已从收藏中移除。"
+    },
+    "requests": {
+      "errorHeadline": "获取申请记录时出错",
+      "retry": "重试",
+      "ariaStatus": "申请状态",
+      "typeLabel": {
+        "proforma": "形式发票",
+        "bulk": "批量采购",
+        "warehouse": "客户仓储",
+        "cutToSize": "定制尺寸商品"
+      },
+      "stepLabel": {
+        "submitted": "已提交",
+        "reviewing": "审核中",
+        "contacted": "顾问已联系",
+        "quoted": "已开具形式发票",
+        "fulfilled": "已登记入库"
+      }
+    },
+    "alerts": {
+      "errorHeadline": "获取提醒时出错",
+      "retry": "重试",
+      "statusLabel": {
+        "active": "生效中",
+        "triggered": "已触发",
+        "paused": "已暂停"
+      },
+      "targetTypeLabel": {
+        "sku": "产品",
+        "market": "市场指数"
+      },
+      "unavailableTarget": "该项目已不可用",
+      "below": "低于",
+      "above": "高于",
+      "tomanSuffix": "托曼",
+      "now": "当前：",
+      "distancePct": "距目标还差 {pct}%",
+      "crossedSoon": "已达到提醒条件；短信通知即将发送",
+      "staleNote": "（未及时更新）",
+      "activate": "启用",
+      "pause": "暂停",
+      "remove": "删除",
+      "updateSuccess": "提醒已更新。",
+      "updateError": "更新提醒失败。",
+      "removeSuccess": "提醒已删除。",
+      "removeError": "删除提醒失败。",
+      "triggeredAt": "触发时间：{date}",
+      "registeredAt": "登记时间：{date}"
+    },
+    "club": {
+      "joinHeadline": "加入 Ahantime 客户俱乐部",
+      "joinLead": "会员免费加入。每笔订单、完善个人资料及身份认证均可获得积分，助您升级——从优先供货到专属顾问，权益逐级解锁。",
+      "joinCta": "免费加入俱乐部",
+      "pointsLabel": "俱乐部积分",
+      "levelEyebrow": "您的等级",
+      "progressAriaLabel": "距下一等级的进度",
+      "nearThreshold": "距 <tierTag>{tier}</tierTag> 仅差 <pts>{points}</pts> 积分！",
+      "farThreshold": "您已获得 <pts>{points}</pts> 积分，正迈向 <tierTag>{tier}</tierTag>",
+      "highestBadge": "俱乐部最高等级",
+      "highestNote": "您已达到最高等级，尽享全部权益。",
+      "breakdownTitle": "您的积分构成",
+      "breakdown": {
+        "deliveredOrders": "已完成的订单",
+        "profileComplete": "完善个人资料",
+        "verificationLevel": "身份认证（{level} 级）",
+        "referrals": "邀请好友"
+      },
+      "ladderCurrentBadge": "当前等级",
+      "tiers": {
+        "iron": {
+          "name": "铁级",
+          "tagline": "每段合作关系的起点",
+          "perk1": "查看实时价格及波动历史",
+          "perk2": "提交询价并获取形式发票",
+          "perk3": "顾问电话支持"
+        },
+        "steel": {
+          "name": "钢级",
+          "tagline": "适合稳定的专业采购客户",
+          "perk1": "供货与配送优先",
+          "perk2": "可同时为多个产品设置价格提醒（不限一个）",
+          "perk3": "形式发票开具更快"
+        },
+        "poolad": {
+          "name": "精钢级",
+          "tagline": "最高忠诚等级",
+          "perk1": "供货保证，享最高优先级",
+          "perk2": "各等级中最高的价格提醒上限",
+          "perk3": "专属顾问及直接联系渠道",
+          "perk4": "新品公开发售前的专属优惠",
+          "perk5": "下载带贵公司专属抬头的形式发票"
+        }
+      }
+    },
+    "letterhead": {
+      "title": "形式发票专属抬头",
+      "activeBadge": "已启用",
+      "lead": "作为精钢级会员，您可以使用自己的徽标和公司信息下载形式发票，而非 Ahantime 的默认抬头。徽标与公司名称需同时提供，此功能才能在您的形式发票上生效。",
+      "logoChange": "更换徽标",
+      "logoChoose": "选择徽标",
+      "logoTypeError": "仅支持 JPG、PNG 或 WebP 格式的图片。",
+      "logoSizeError": "文件大小不得超过 5 MB。",
+      "logoUploadError": "上传失败，请重试。",
+      "logoSuccess": "徽标已保存。",
+      "companyNameLabel": "公司名称",
+      "companyNamePlaceholder": "例如：帕尔斯钢铁制造公司",
+      "addressLabel": "地址（可选）",
+      "phoneLabel": "电话（可选）",
+      "save": "保存信息",
+      "saving": "保存中…",
+      "saveSuccess": "专属抬头已保存。",
+      "saveError": "保存失败，请重试。"
+    },
+    "invite": {
+      "ariaLabel": "您的邀请码",
+      "label": "您的邀请码",
+      "hint": "邀请好友；待其注册并完成身份认证后，您将获得积分。",
+      "copy": "复制",
+      "copied": "已复制 ✓"
+    },
+    "verification": {
+      "title": "身份认证",
+      "currentLevelPrefix": "您当前的等级：",
+      "levelBadge": "{level} 级：{name}",
+      "nextLevelIntro": "升级到 {level} 级（{name}）即可解锁：",
+      "completeLevel": "填写 {level} 级信息",
+      "pendingBadge": "审核中",
+      "pendingNote": "您的信息已提交，客服正在审核。",
+      "rejectedNotice": "此前提交的信息未通过审核，请重新准确填写。",
+      "nationalIdLabel": "身份证号",
+      "companyNameLabel": "公司名称",
+      "companyNationalIdLabel": "公司统一社会信用代码",
+      "economicCodeLabel": "经济代码",
+      "submit": "提交审核",
+      "submitSuccess": "您的信息已提交，正在审核中。",
+      "submitError": "信息提交失败。",
+      "maxedNote": "最高认证等级。销售专员在审核您的询价时会看到此徽章。",
+      "businessAccountLabel": "已认证企业账户",
+      "levelName": {
+        "1": "手机已验证",
+        "2": "个人身份已认证",
+        "3": "企业身份已认证"
+      },
+      "level1Unlock1": "浏览价格并提交询价",
+      "level1Unlock2": "获取形式发票",
+      "level1Unlock3": "加入客户俱乐部",
+      "level2Unlock1": "更高的下单额度",
+      "level2Unlock2": "以您本人名义开具正式发票",
+      "level2Unlock3": "「已认证买家」徽章",
+      "level2Unlock4": "俱乐部积分",
+      "level3Unlock1": "账户上显示「{label}」徽章",
+      "level3Unlock2": "销售专员在处理询价时可见您的企业已通过认证",
+      "level3Unlock3": "公司信息已登记备案，可随时开具正式企业发票",
+      "level3Unlock4": "客户俱乐部中最高的认证积分"
+    },
+    "deliveryCity": {
+      "title": "我的仓库所在城市",
+      "sub": "订单的送达目的地；在「比较工厂」中，从{origin}起算的运费与配送时间均以此为依据计算。",
+      "selectAriaLabel": "仓库所在城市",
+      "selectPlaceholder": "请选择…",
+      "distanceHint": "距仓库 {km} 公里 · 配送时长 {delivery}",
+      "bucket": {
+        "sameDay": "当天至1个工作日",
+        "oneToTwoDays": "1至2个工作日",
+        "twoToThreeDays": "2至3个工作日",
+        "threeToFourDays": "3至4个工作日",
+        "fourToFiveDays": "4至5个工作日"
+      },
+      "originLabel": "德黑兰仓库"
+    },
+    "profileStats": {
+      "openRequestsLabel": "进行中的申请",
+      "openRequestsHintHas": "等待顾问跟进",
+      "openRequestsHintEmpty": "您还没有任何申请",
+      "activeOrdersLabel": "进行中的订单",
+      "activeOrdersHintHas": "跟踪发货与配送",
+      "activeOrdersHintEmpty": "没有进行中的订单",
+      "warehouseItemsLabel": "仓库中寄存的货物",
+      "warehouseItemsHintHas": "客户仓库库存",
+      "warehouseItemsHintEmpty": "没有寄存的货物"
+    }
   }
 }

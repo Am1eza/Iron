@@ -1,32 +1,23 @@
 import type { Metadata } from 'next';
 import dynamic from 'next/dynamic';
-import Link from 'next/link';
-import type { ReactNode } from 'react';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { requireUser } from '@/lib/auth/guards';
-import { canAccessAdmin, ROLE_LABEL } from '@/lib/auth/roles';
-import { Container, Section, Stack, Cluster, Heading, Text, Card, Badge, EmptyState, emptyPresets } from '@/components/ui';
-import {
-  HomeIcon,
-  CartIcon,
-  SheetIcon,
-  BankIcon,
-  HeartIcon,
-  BellIcon,
-  StarIcon,
-  UserIcon,
-} from '@/components/primitives/icons';
+import { canAccessAdmin } from '@/lib/auth/roles';
+import { Container, Section, Stack, Card, EmptyState, emptyPresets } from '@/components/ui';
 import { WarehouseList } from '@/components/account/WarehouseList';
 import { OrdersListLive } from '@/components/account/OrdersListLive';
 import { ClubPanel } from '@/components/account/ClubPanel';
 import { AccountOverview, type OverviewNudge } from '@/components/account/AccountOverview';
-import { BusinessAccountBadge } from '@/components/account/BusinessAccountBadge';
+import { AccountNav } from '@/components/account/AccountNav';
+import { AccountHeader } from '@/components/account/AccountHeader';
+import { TabHeading } from '@/components/account/TabHeading';
+import { WarehouseTabSub } from '@/components/account/WarehouseTabSub';
+import { ClubGuestEmptyState } from '@/components/account/ClubGuestEmptyState';
 import { getOrders, getWarehouseItems, getProfileCounts } from '@/lib/server/account';
 import { clubStatus, getLetterhead } from '@/lib/server/repos/clubRepo';
 import { getUserProfile } from '@/lib/server/repos/verificationRepo';
 import { API_MODE } from '@/lib/api/config';
-import { toPersianDigits } from '@/lib/utils/format';
 import styles from '../account.module.css';
 
 // Every tab is resolved server-side (the `switch` below already knows which
@@ -55,6 +46,9 @@ const AlertsList = dynamic(() =>
   import('@/components/account/AlertsList').then((m) => m.AlertsList),
 );
 
+// SEO shell metadata: never resolved through next-intl (locale is a client-side
+// cookie here, not server-known — see LocaleProvider.tsx) and this route is
+// noindex besides, so it stays fa like every other page's metadata this session.
 export const metadata: Metadata = buildMetadata({ title: 'حساب من', noindex: true });
 
 /**
@@ -62,19 +56,10 @@ export const metadata: Metadata = buildMetadata({ title: 'حساب من', noinde
  * dashboard (counts, next-step nudges, latest order) instead of a settings
  * form; everything identity/settings-shaped lives under «پروفایل». Desktop
  * gets a vertical icon sidebar (faster scanning, room to grow — nav research);
- * mobile keeps the horizontal pill row.
+ * mobile keeps the horizontal pill row. Nav labels/tab headings live in Client
+ * Components (AccountNav/AccountHeader/TabHeading) so they can localize — this
+ * Server Component's own job is just data-fetching per tab.
  */
-const TABS = [
-  { slug: '', label: 'نمای کلی', icon: HomeIcon },
-  { slug: 'orders', label: 'سفارش‌ها', icon: CartIcon },
-  { slug: 'requests', label: 'درخواست‌ها', icon: SheetIcon },
-  { slug: 'warehouse', label: 'انبار من', icon: BankIcon },
-  { slug: 'favorites', label: 'علاقه‌مندی‌ها', icon: HeartIcon },
-  { slug: 'alerts', label: 'هشدارها', icon: BellIcon },
-  { slug: 'club', label: 'باشگاه', icon: StarIcon },
-  { slug: 'profile', label: 'پروفایل و تنظیمات', icon: UserIcon },
-] as const;
-
 type Params = { params: Promise<{ tab?: string[] }> };
 
 export default async function AccountPage({ params }: Params) {
@@ -91,61 +76,24 @@ export default async function AccountPage({ params }: Params) {
   const headerProfile = API_MODE === 'live' ? await getUserProfile(user.id) : null;
   const isVerifiedBusiness = headerProfile?.bizVerifyStatus === 'approved';
 
-  const nav = (variant: 'side' | 'pills') => (
-    <nav
-      aria-label="بخش‌های حساب"
-      className={variant === 'side' ? styles.side : styles.nav}
-    >
-      {TABS.map((t) => {
-        const active = t.slug === slug;
-        const Icon = t.icon;
-        return (
-          <Link
-            key={t.slug}
-            href={t.slug ? routes.account(t.slug) : routes.account()}
-            aria-current={active ? 'page' : undefined}
-            className={
-              variant === 'side'
-                ? `${styles.sideItem} ${active ? styles.sideItemActive : ''}`
-                : `${styles.tab} ${active ? styles.tabActive : ''}`
-            }
-          >
-            <Icon size={variant === 'side' ? 18 : 16} aria-hidden="true" />
-            {t.label}
-          </Link>
-        );
-      })}
-    </nav>
-  );
-
   return (
     <Container>
       <Section space={12}>
         <Stack gap={6}>
-          <Cluster justify="space-between" align="flex-start">
-            <div>
-              <Text variant="overline" color="accent">
-                حساب من
-              </Text>
-              <Heading level={1}>سلام{user.name ? `، ${user.name}` : ''}</Heading>
-            </div>
-            <Cluster gap={2}>
-              {isVerifiedBusiness ? (
-                <BusinessAccountBadge companyName={headerProfile?.companyName} />
-              ) : null}
-              <Badge tone="neutral">{ROLE_LABEL[user.role]}</Badge>
-              {canAccessAdmin(user.role) ? (
-                <Link href="https://panel.ahantime.com">
-                  <Badge tone="accent">پنل آهن‌تایم</Badge>
-                </Link>
-              ) : null}
-            </Cluster>
-          </Cluster>
+          <AccountHeader
+            name={user.name ?? undefined}
+            role={user.role}
+            isVerifiedBusiness={isVerifiedBusiness}
+            companyName={headerProfile?.companyName ?? undefined}
+            canAccessAdmin={canAccessAdmin(user.role)}
+          />
 
-          {nav('pills')}
+          <AccountNav slug={slug} variant="pills" />
 
           <div className={styles.layout}>
-            <aside className={styles.sidebar}>{nav('side')}</aside>
+            <aside className={styles.sidebar}>
+              <AccountNav slug={slug} variant="side" />
+            </aside>
             <div className={styles.content}>
               <TabContent slug={slug} userId={user.id} />
             </div>
@@ -156,61 +104,29 @@ export default async function AccountPage({ params }: Params) {
   );
 }
 
-/** Consistent per-tab chrome: one heading + optional sub, content below —
- *  no card-in-card nesting. */
-function TabSection({
-  title,
-  sub,
-  children,
-}: {
-  title: string;
-  sub?: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <Stack gap={4}>
-      <div>
-        <Heading level={2} className={styles.tabTitle}>
-          {title}
-        </Heading>
-        {sub ? <Text color="muted">{sub}</Text> : null}
-      </div>
-      {children}
-    </Stack>
-  );
-}
-
 async function TabContent({ slug, userId }: { slug: string; userId: string }) {
   switch (slug) {
     case 'orders': {
       const orders = await getOrders(userId);
       return (
-        <TabSection title="سفارش‌های من" sub="وضعیت لحظه‌ای حمل بار هر سفارش را اینجا دنبال کنید.">
+        <TabHeading titleKey="ordersTitle" subKey="ordersSub">
           <Card>
             <OrdersListLive initialOrders={orders} />
           </Card>
-        </TabSection>
+        </TabHeading>
       );
     }
     case 'warehouse':
       return (
-        <TabSection
-          title="انبار من"
-          sub={
-            <>
-              کالاهای امانی شما نزد آهن‌تایم. برای ثبت کالای جدید به{' '}
-              <Link href={routes.warehouse()}>صفحهٔ انبار مشتریان</Link> بروید.
-            </>
-          }
-        >
+        <TabHeading titleKey="warehouseTitle" sub={<WarehouseTabSub />}>
           <Card>
             <WarehouseList items={await getWarehouseItems(userId)} />
           </Card>
-        </TabSection>
+        </TabHeading>
       );
     case 'favorites':
       return (
-        <TabSection title="علاقه‌مندی‌ها" sub="محصولاتی که نشان کرده‌اید، با قیمت لحظه‌ای.">
+        <TabHeading titleKey="favoritesTitle" subKey="favoritesSub">
           <Card>
             {API_MODE === 'live' ? (
               <FavoritesList />
@@ -218,44 +134,32 @@ async function TabContent({ slug, userId }: { slug: string; userId: string }) {
               <EmptyState size="section" {...emptyPresets.favoritesEmpty()} />
             )}
           </Card>
-        </TabSection>
+        </TabHeading>
       );
     case 'requests':
       return (
-        <TabSection
-          title="درخواست‌های من"
-          sub="پیش‌فاکتورها، خرید عمده و درخواست‌های انبار، با وضعیت لحظه‌ای هرکدام."
-        >
+        <TabHeading titleKey="requestsTitle" subKey="requestsSub">
           <Card>
             <RequestsList />
           </Card>
-        </TabSection>
+        </TabHeading>
       );
     case 'alerts':
       return (
-        <TabSection title="هشدارهای قیمت" sub="وقتی قیمت به حد تعیین‌شده برسد، پیامک می‌گیرید.">
+        <TabHeading titleKey="alertsTitle" subKey="alertsSub">
           <Card>
-            {API_MODE === 'live' ? (
-              <AlertsList />
-            ) : (
-              <EmptyState size="section" {...emptyPresets.alertsEmpty()} />
-            )}
+            {API_MODE === 'live' ? <AlertsList /> : <EmptyState size="section" {...emptyPresets.alertsEmpty()} />}
           </Card>
-        </TabSection>
+        </TabHeading>
       );
     case 'club': {
       if (API_MODE !== 'live') {
         return (
-          <TabSection title="باشگاه آهن‌تایم">
+          <TabHeading titleKey="clubTitleGuest">
             <Card>
-              <EmptyState
-                size="section"
-                headline="باشگاه آهن‌تایم"
-                body="با عضویت، قیمت ویژه، تحویل اولویت‌دار و مشاور اختصاصی بگیرید."
-                primary={{ label: 'مشاهدهٔ باشگاه', href: routes.club() }}
-              />
+              <ClubGuestEmptyState />
             </Card>
-          </TabSection>
+          </TabHeading>
         );
       }
       const [status, profile] = await Promise.all([clubStatus(userId), getUserProfile(userId)]);
@@ -263,11 +167,11 @@ async function TabContent({ slug, userId }: { slug: string; userId: string }) {
       // everyone else.
       const letterhead = status.tier === 'poolad' ? await getLetterhead(userId) : null;
       return (
-        <TabSection title="باشگاه مشتریان">
+        <TabHeading titleKey="clubTitleMember">
           <Card>
             <ClubPanel status={status} inviteCode={profile?.inviteCode} letterhead={letterhead} />
           </Card>
-        </TabSection>
+        </TabHeading>
       );
     }
     case 'profile': {
@@ -275,10 +179,7 @@ async function TabContent({ slug, userId }: { slug: string; userId: string }) {
       // overview owns the dashboard-y parts now.
       const profile = API_MODE === 'live' ? await getUserProfile(userId) : null;
       return (
-        <TabSection
-          title="پروفایل و تنظیمات"
-          sub="نام شما در پیش‌فاکتورها و گفتگو با کارشناس استفاده می‌شود."
-        >
+        <TabHeading titleKey="profileTitle" subKey="profileSub">
           <Stack gap={4}>
             <Card>
               <Stack gap={5}>
@@ -298,7 +199,7 @@ async function TabContent({ slug, userId }: { slug: string; userId: string }) {
               <LogoutButton />
             </div>
           </Stack>
-        </TabSection>
+        </TabHeading>
       );
     }
     default: {
@@ -316,28 +217,14 @@ async function TabContent({ slug, userId }: { slug: string; userId: string }) {
           (profile.verificationLevel === 1 ? profile.idVerifyStatus : profile.bizVerifyStatus) ===
           'pending';
         if (!pending) {
-          nudges.push({
-            key: 'verify',
-            title: 'احراز هویت را کامل کنید',
-            body: `با ارتقا به سطح ${toPersianDigits(profile.verificationLevel + 1)}، مزایای بیشتری باز می‌شود.`,
-            href: routes.account('profile'),
-            cta: 'تکمیل',
-          });
+          nudges.push({ key: 'verify', href: routes.account('profile'), level: profile.verificationLevel + 1 });
         }
       }
       if (club && !club.member) {
-        nudges.push({
-          key: 'club',
-          title: 'به باشگاه مشتریان بپیوندید',
-          body: 'عضویت رایگان است؛ با هر سفارش امتیاز بگیرید و سطح‌تان بالا برود.',
-          href: routes.account('club'),
-          cta: 'عضویت',
-        });
+        nudges.push({ key: 'club', href: routes.account('club') });
       }
 
-      return (
-        <AccountOverview counts={counts} nudges={nudges} lastOrder={orders[0] ?? null} />
-      );
+      return <AccountOverview counts={counts} nudges={nudges} lastOrder={orders[0] ?? null} />;
     }
   }
 }

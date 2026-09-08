@@ -1116,5 +1116,305 @@
       "openConversationFailed": "لم تُفتح هذه المحادثة. حاول مجدداً أو ابدأ محادثة جديدة.",
       "defaultHeading": "مستشار Ahantime الذكي"
     }
+  },
+  "account": {
+    "nav": {
+      "ariaLabel": "أقسام الحساب",
+      "overview": "نظرة عامة",
+      "orders": "الطلبات",
+      "requests": "الطلبات المقدَّمة",
+      "warehouse": "مستودعي",
+      "favorites": "المفضلة",
+      "alerts": "التنبيهات",
+      "club": "النادي",
+      "profile": "الملف الشخصي والإعدادات"
+    },
+    "header": {
+      "overline": "حسابي",
+      "greetingWithName": "مرحبًا، {name}",
+      "greetingNoName": "مرحبًا",
+      "adminPanelBadge": "لوحة آهن‌تايم"
+    },
+    "roleLabel": {
+      "customer": "عميل",
+      "operator": "مشغّل التسعير",
+      "sales": "مندوب مبيعات",
+      "content": "محرر محتوى",
+      "catalog": "مدير الكتالوج",
+      "admin": "مدير النظام"
+    },
+    "tabs": {
+      "ordersTitle": "طلباتي",
+      "ordersSub": "تابع حالة شحن كل طلب لحظيًا من هنا.",
+      "warehouseTitle": "مستودعي",
+      "warehouseSub": "البضائع المودعة لديك في آهن‌تايم. لتسجيل بضاعة جديدة، انتقل إلى <link>صفحة مستودع العملاء</link>.",
+      "favoritesTitle": "المفضلة",
+      "favoritesSub": "المنتجات التي حفظتها، بالأسعار اللحظية.",
+      "requestsTitle": "طلباتي المقدَّمة",
+      "requestsSub": "الفواتير الأولية والشراء بالجملة وطلبات المستودع، مع الحالة اللحظية لكل منها.",
+      "alertsTitle": "تنبيهات الأسعار",
+      "alertsSub": "استلم رسالة نصية عند وصول السعر إلى الحد الذي حددته.",
+      "clubTitleGuest": "نادي آهن‌تايم",
+      "clubGuestHeadline": "نادي آهن‌تايم",
+      "clubGuestBody": "بالعضوية، احصل على أسعار خاصة وتسليم بالأولوية ومستشار مخصص.",
+      "clubGuestCta": "عرض النادي",
+      "clubTitleMember": "نادي العملاء",
+      "profileTitle": "الملف الشخصي والإعدادات",
+      "profileSub": "يُستخدم اسمك في الفواتير الأولية والمحادثة مع المستشار."
+    },
+    "overview": {
+      "verifyNudgeTitle": "أكمل التحقق من الهوية",
+      "verifyNudgeBody": "بالترقية إلى المستوى {level}، تُفتح مزايا إضافية.",
+      "verifyNudgeCta": "إكمال",
+      "clubNudgeTitle": "انضم إلى نادي العملاء",
+      "clubNudgeBody": "العضوية مجانية؛ اكسب نقاطًا مع كل طلب وارفع مستواك.",
+      "clubNudgeCta": "انضمام",
+      "lastOrderTitle": "أحدث طلب",
+      "allOrders": "جميع الطلبات"
+    },
+    "shipmentStatus": {
+      "registered": "مسجَّل",
+      "confirmed": "مؤكَّد",
+      "loading": "قيد التحميل",
+      "inTransit": "قيد الشحن",
+      "delivered": "تم التسليم",
+      "cancelledBadge": "ملغى",
+      "currentStageTag": "(المرحلة الحالية)",
+      "cancelledNote": "أُلغي هذا الطلب؛ وكان قد وصل إلى مرحلة «{stage}».",
+      "ariaCancelled": "طلب ملغى: وصل إلى مرحلة {stage}",
+      "ariaActive": "حالة الطلب: {stage}"
+    },
+    "orders": {
+      "empty": {
+        "headline": "لا توجد لديك طلبات بعد",
+        "body": "بعد إتمام الفاتورة الأولية، يُنشأ طلبك هنا ويمكنك متابعة شحنه لحظيًا.",
+        "cta": "عرض الأسعار"
+      },
+      "refPrefix": "الطلب",
+      "placed": "تاريخ الطلب: {date}",
+      "updated": "آخر تحديث: {date}",
+      "shippingWith": "الشحن عبر {carrier}",
+      "defaultCarrier": "شركة الشحن",
+      "trackingCode": "رقم التتبع: {code}",
+      "itemsCount": "({count} بند)",
+      "reorder": "إعادة الطلب",
+      "reorderSuccessAll": "أُضيفت أصناف هذا الطلب إلى سلة الاستعلام.",
+      "reorderSuccessPartial": "أُضيفت الأصناف المتوفرة من هذا الطلب إلى سلة الاستعلام (بعض الأصناف لم تعد متوفرة)."
+    },
+    "warehouse": {
+      "empty": {
+        "headline": "لم تُسجَّل أي بضاعة في مستودعك بعد",
+        "body": "لإيداع بضاعة في مستودع آهن‌تايم (مع إمكانية التأمين)، قدّم طلب حفظ.",
+        "cta": "تقديم طلب حفظ"
+      },
+      "insuredBadge": "مؤمَّن ✓",
+      "code": "الرمز",
+      "contract": "العقد",
+      "arrivedAt": "تاريخ الوصول: {date}",
+      "location": "الموقع: {location}",
+      "quantityLabel": "الكمية",
+      "tons": "{value} طن",
+      "monthlyRateLabel": "رسوم الحفظ الشهرية (لكل طن)",
+      "unsettledLabel": "الرصيد غير المسدَّد",
+      "settlementHistoryTitle": "سجل التسويات",
+      "loadingSettlements": "جارٍ تحميل سجل التسويات…",
+      "settlementsErrorHeadline": "خطأ في جلب سجل التسويات",
+      "retry": "إعادة المحاولة",
+      "periodRange": "من {from} إلى {to}",
+      "voidedBadge": "تم التصحيح",
+      "paidBadge": "مدفوع",
+      "pendingBadge": "بانتظار الدفع",
+      "statusLabel": {
+        "pending": "قيد الانتظار",
+        "stored": "مخزَّن",
+        "selling": "قيد البيع",
+        "released": "تم التسليم"
+      }
+    },
+    "favorites": {
+      "loading": "جارٍ التحميل…",
+      "remove": "إزالة",
+      "removedToast": "أُزيل من المفضلة."
+    },
+    "requests": {
+      "errorHeadline": "خطأ في جلب الطلبات المقدَّمة",
+      "retry": "إعادة المحاولة",
+      "ariaStatus": "حالة الطلب",
+      "typeLabel": {
+        "proforma": "فاتورة أولية",
+        "bulk": "شراء بالجملة",
+        "warehouse": "مستودع العملاء",
+        "cutToSize": "منتج بأبعاد مخصَّصة"
+      },
+      "stepLabel": {
+        "submitted": "تم التقديم",
+        "reviewing": "قيد المراجعة",
+        "contacted": "تم التواصل من المستشار",
+        "quoted": "صدرت الفاتورة الأولية",
+        "fulfilled": "سُجِّلت البضاعة في المستودع"
+      }
+    },
+    "alerts": {
+      "errorHeadline": "خطأ في جلب التنبيهات",
+      "retry": "إعادة المحاولة",
+      "statusLabel": {
+        "active": "نشط",
+        "triggered": "تم التفعيل",
+        "paused": "متوقف"
+      },
+      "targetTypeLabel": {
+        "sku": "منتج",
+        "market": "مؤشر السوق"
+      },
+      "unavailableTarget": "لم يعد هذا العنصر متاحًا",
+      "below": "أقل من",
+      "above": "أكثر من",
+      "tomanSuffix": "تومان",
+      "now": "الآن:",
+      "distancePct": "{pct}٪ تبقى للوصول",
+      "crossedSoon": "تم بلوغ حد التنبيه؛ ستصلك رسالة نصية قريبًا",
+      "staleNote": "(لم يُحدَّث مؤخرًا)",
+      "activate": "تفعيل",
+      "pause": "إيقاف مؤقت",
+      "remove": "إزالة",
+      "updateSuccess": "تم تحديث التنبيه.",
+      "updateError": "فشل تحديث التنبيه.",
+      "removeSuccess": "تم حذف التنبيه.",
+      "removeError": "فشل حذف التنبيه.",
+      "triggeredAt": "التفعيل: {date}",
+      "registeredAt": "التسجيل: {date}"
+    },
+    "club": {
+      "joinHeadline": "انضم إلى نادي عملاء آهن‌تايم",
+      "joinLead": "العضوية مجانية. اكسب نقاطًا مع كل طلب، وبإكمال ملفك الشخصي والتحقق من هويتك، ويرتفع مستواك — من أولوية التوريد إلى مستشار مخصص.",
+      "joinCta": "انضمام مجاني إلى النادي",
+      "pointsLabel": "نقاط النادي",
+      "levelEyebrow": "مستواك",
+      "progressAriaLabel": "التقدم نحو المستوى التالي",
+      "nearThreshold": "<pts>{points}</pts> نقطة فقط حتى <tierTag>{tier}</tierTag>!",
+      "farThreshold": "جمعت <pts>{points}</pts> نقطة، في طريقك إلى <tierTag>{tier}</tierTag>",
+      "highestBadge": "أعلى مستوى في النادي",
+      "highestNote": "وصلت إلى أعلى مستوى؛ استمتع بجميع المزايا.",
+      "breakdownTitle": "نقاطك",
+      "breakdown": {
+        "deliveredOrders": "الطلبات المسلَّمة",
+        "profileComplete": "اكتمال الملف الشخصي",
+        "verificationLevel": "التحقق (المستوى {level})",
+        "referrals": "إحالة الأصدقاء"
+      },
+      "ladderCurrentBadge": "المستوى الحالي",
+      "tiers": {
+        "iron": {
+          "name": "حديدي",
+          "tagline": "نقطة انطلاق كل تعامل",
+          "perk1": "الوصول إلى أسعار اليوم وأرشيف التقلبات",
+          "perk2": "تقديم الاستعلامات والحصول على فواتير أولية",
+          "perk3": "دعم هاتفي من المستشارين"
+        },
+        "steel": {
+          "name": "فولاذي",
+          "tagline": "للمشتريات المنتظمة والاحترافية",
+          "perk1": "أولوية في التوريد والتسليم",
+          "perk2": "تنبيه سعر لعدة منتجات في وقت واحد (وليس منتجًا واحدًا فقط)",
+          "perk3": "فواتير أولية أسرع"
+        },
+        "poolad": {
+          "name": "بولادي",
+          "tagline": "أعلى مستوى ولاء",
+          "perk1": "توريد مضمون بأولوية كاملة",
+          "perk2": "أعلى حد لتنبيهات الأسعار بين جميع المستويات",
+          "perk3": "مستشار مخصص وخط تواصل مباشر",
+          "perk4": "عروض خاصة قبل الطرح العام",
+          "perk5": "تنزيل الفواتير الأولية بترويسة شركتك الخاصة"
+        }
+      }
+    },
+    "letterhead": {
+      "title": "ترويسة مخصَّصة للفاتورة الأولية",
+      "activeBadge": "مفعَّل",
+      "lead": "بصفتك عضوًا في المستوى البولادي، يمكنك تنزيل فواتيرك الأولية بشعارك وبيانات شركتك بدلًا من ترويسة آهن‌تايم. يلزم توفر الشعار واسم الشركة معًا لتفعيل هذا الخيار على فواتيرك.",
+      "logoChange": "تغيير الشعار",
+      "logoChoose": "اختيار شعار",
+      "logoTypeError": "يُسمح فقط بصور JPG أو PNG أو WebP.",
+      "logoSizeError": "يجب ألا يتجاوز حجم الملف 5 ميغابايت.",
+      "logoUploadError": "فشل الرفع؛ يرجى المحاولة مرة أخرى.",
+      "logoSuccess": "تم حفظ الشعار.",
+      "companyNameLabel": "اسم الشركة",
+      "companyNamePlaceholder": "مثال: شركة بارس لصناعة الفولاذ",
+      "addressLabel": "العنوان (اختياري)",
+      "phoneLabel": "الهاتف (اختياري)",
+      "save": "حفظ البيانات",
+      "saving": "جارٍ الحفظ…",
+      "saveSuccess": "تم حفظ الترويسة المخصَّصة.",
+      "saveError": "فشل الحفظ؛ يرجى المحاولة مرة أخرى."
+    },
+    "invite": {
+      "ariaLabel": "رمز الدعوة الخاص بك",
+      "label": "رمز الدعوة الخاص بك",
+      "hint": "ادعُ أصدقاءك؛ تكسب نقاطًا عند تسجيلهم والتحقق من هويتهم.",
+      "copy": "نسخ",
+      "copied": "تم النسخ ✓"
+    },
+    "verification": {
+      "title": "التحقق من الهوية",
+      "currentLevelPrefix": "مستواك الحالي:",
+      "levelBadge": "المستوى {level}: {name}",
+      "nextLevelIntro": "بالترقية إلى المستوى {level} ({name}) تفتح:",
+      "completeLevel": "إكمال بيانات المستوى {level}",
+      "pendingBadge": "قيد المراجعة",
+      "pendingNote": "تم تسجيل بياناتك ويقوم أحد المختصين بمراجعتها.",
+      "rejectedNotice": "لم تُعتمد بياناتك السابقة؛ يرجى إدخالها من جديد وبدقة.",
+      "nationalIdLabel": "الرقم الوطني",
+      "companyNameLabel": "اسم الشركة",
+      "companyNationalIdLabel": "الرقم الوطني للشركة",
+      "economicCodeLabel": "الرمز الاقتصادي",
+      "submit": "تقديم للمراجعة",
+      "submitSuccess": "تم تسجيل بياناتك وهي قيد المراجعة.",
+      "submitError": "فشل تسجيل بياناتك.",
+      "maxedNote": "أعلى مستوى تحقق. يرى مندوب المبيعات هذه الشارة عند مراجعة استعلامك.",
+      "businessAccountLabel": "حساب تجاري موثَّق",
+      "levelName": {
+        "1": "الجوال موثَّق",
+        "2": "الهوية الشخصية موثَّقة",
+        "3": "النشاط التجاري موثَّق"
+      },
+      "level1Unlock1": "تصفح الأسعار وتقديم الاستعلامات",
+      "level1Unlock2": "استلام الفواتير الأولية",
+      "level1Unlock3": "الانضمام إلى نادي العملاء",
+      "level2Unlock1": "حد أعلى للطلبات",
+      "level2Unlock2": "إصدار فواتير رسمية باسمك",
+      "level2Unlock3": "شارة «مشترٍ موثَّق»",
+      "level2Unlock4": "نقاط النادي",
+      "level3Unlock1": "شارة «{label}» على حسابك",
+      "level3Unlock2": "يرى مندوب المبيعات أن نشاطك التجاري موثَّق عند تقديم استعلامك",
+      "level3Unlock3": "بيانات شركتك مسجَّلة وجاهزة لإصدار الفواتير الرسمية للشركة",
+      "level3Unlock4": "أعلى نقاط توثيق في نادي العملاء"
+    },
+    "deliveryCity": {
+      "title": "مدينة مستودعي",
+      "sub": "وجهة تسليم الطلبات؛ في «مقارنة المصانع» تُحسب تكلفة الشحن من {origin} ووقت التسليم على هذا الأساس.",
+      "selectAriaLabel": "مدينة المستودع",
+      "selectPlaceholder": "اختر…",
+      "distanceHint": "{km} كم من المستودع · التسليم {delivery}",
+      "bucket": {
+        "sameDay": "نفس اليوم إلى يوم عمل واحد",
+        "oneToTwoDays": "من يوم إلى يومي عمل",
+        "twoToThreeDays": "من يومين إلى 3 أيام عمل",
+        "threeToFourDays": "من 3 إلى 4 أيام عمل",
+        "fourToFiveDays": "من 4 إلى 5 أيام عمل"
+      },
+      "originLabel": "مستودعنا في طهران"
+    },
+    "profileStats": {
+      "openRequestsLabel": "طلب نشط",
+      "openRequestsHintHas": "بانتظار متابعة المستشار",
+      "openRequestsHintEmpty": "لا توجد لديك طلبات بعد",
+      "activeOrdersLabel": "طلب قيد التنفيذ",
+      "activeOrdersHintHas": "تابع الشحن والتسليم",
+      "activeOrdersHintEmpty": "لا توجد طلبات نشطة",
+      "warehouseItemsLabel": "بضاعة مودعة في المستودع",
+      "warehouseItemsHintHas": "مخزون مستودع العملاء",
+      "warehouseItemsHintEmpty": "لا توجد بضاعة مودعة"
+    }
   }
 }

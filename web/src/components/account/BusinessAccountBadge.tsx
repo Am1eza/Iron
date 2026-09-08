@@ -1,4 +1,5 @@
-import { BUSINESS_ACCOUNT_LABEL } from '@/lib/data/verification';
+'use client';
+import { useTranslations } from 'next-intl';
 import { Badge } from '@/components/ui';
 import { ShieldIcon } from '@/components/primitives/icons';
 
@@ -17,9 +18,11 @@ import { ShieldIcon } from '@/components/primitives/icons';
  * what makes the state feel real.
  */
 export function BusinessAccountBadge({ companyName }: { companyName?: string }) {
+  const t = useTranslations('account.verification');
+  const label = t('businessAccountLabel');
   return (
     <Badge tone="success" icon={<ShieldIcon size={13} />}>
-      {companyName?.trim() ? `${BUSINESS_ACCOUNT_LABEL} · ${companyName.trim()}` : BUSINESS_ACCOUNT_LABEL}
+      {companyName?.trim() ? `${label} · ${companyName.trim()}` : label}
     </Badge>
   );
 }

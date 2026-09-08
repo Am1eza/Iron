@@ -1,11 +1,12 @@
 'use client';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
+import { useTranslations, useLocale } from 'next-intl';
 import { queryKeys } from '@/lib/query/keys';
 import { alertsApi } from '@/lib/api/resources/misc';
 import { ApiError } from '@/lib/api/errors';
 import { useAlerts } from '@/lib/hooks/useAlerts';
 import { useToast } from '@/lib/hooks/useToast';
-import { formatToman, toPersianDigits } from '@/lib/utils/format';
+import { formatToman, localizeDigits } from '@/lib/utils/format';
 import { formatJalali } from '@/lib/utils/jalali';
 import { formatAlertValue, alertDistance } from '@/lib/utils/alerts';
 import type { Alert } from '@/lib/types/domain';
@@ -13,22 +14,10 @@ import { Badge, Button, EmptyState, TableSkeleton, emptyPresets } from '@/compon
 import styles from './RequestsList.module.css';
 import alertStyles from './AlertsList.module.css';
 
-// Standardized on the admin AlertsPanel's wording for the `triggered` status
-// (اجراشده) — the old «اعلان‌شده» here was a second, inconsistent term for
-// the exact same state.
-const STATUS_LABEL: Record<Alert['status'], string> = {
-  active: 'فعال',
-  triggered: 'اجراشده',
-  paused: 'متوقف',
-};
 const STATUS_TONE: Record<Alert['status'], 'gain' | 'accent' | 'stale'> = {
   active: 'gain',
   triggered: 'accent',
   paused: 'stale',
-};
-const TARGET_TYPE_LABEL: Record<Alert['target']['type'], string> = {
-  sku: 'کالا',
-  market: 'شاخص بازار',
 };
 
 /** Live alerts (قیمت‌سنج) — pause / re-arm / delete from the account.
@@ -36,6 +25,8 @@ const TARGET_TYPE_LABEL: Record<Alert['target']['type'], string> = {
  *  page and the market board (`AlertBellButton`); this tab is management +
  *  status only. */
 export function AlertsList() {
+  const t = useTranslations('account.alerts');
+  const locale = useLocale();
   const qc = useQueryClient();
   const toast = useToast();
   const { data, isLoading, isError, refetch } = useAlerts();
@@ -46,17 +37,17 @@ export function AlertsList() {
       alertsApi[status === 'active' ? 'reactivate' : 'pause'](id),
     onSuccess: () => {
       invalidate();
-      toast.success('هشدار به‌روزرسانی شد.');
+      toast.success(t('updateSuccess'));
     },
-    onError: (err) => toast.error(err instanceof ApiError ? err.message : 'به‌روزرسانی هشدار ناموفق بود.'),
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : t('updateError')),
   });
   const remove = useMutation({
     mutationFn: (id: string) => alertsApi.remove(id),
     onSuccess: () => {
       invalidate();
-      toast.success('هشدار حذف شد.');
+      toast.success(t('removeSuccess'));
     },
-    onError: (err) => toast.error(err instanceof ApiError ? err.message : 'حذف هشدار ناموفق بود.'),
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : t('removeError')),
   });
 
   if (isLoading) return <TableSkeleton rows={3} cols={4} />;
@@ -65,8 +56,8 @@ export function AlertsList() {
       <EmptyState
         size="section"
         tone="error"
-        headline="خطا در دریافت هشدارها"
-        primary={{ label: 'تلاش دوباره', onClick: () => refetch() }}
+        headline={t('errorHeadline')}
+        primary={{ label: t('retry'), onClick: () => refetch() }}
       />
     );
   }
@@ -79,46 +70,49 @@ export function AlertsList() {
   return (
     <ul className={styles.list}>
       {alerts.map((a) => {
-        const label = a.target.label ?? 'این مورد دیگر در دسترس نیست';
+        // `a.target.label` is a live SKU/market-index display name straight from
+        // the API — no category/sub-category context here to recompose a
+        // translated name from (same residual gap as OrdersList's line items).
+        const label = a.target.label ?? t('unavailableTarget');
         const dist = a.status === 'active' ? alertDistance(a.currentValue, a.threshold, a.op) : null;
         return (
           <li key={a.id} className={styles.item}>
             <div className={styles.top}>
               <div className={styles.titleWrap}>
-                <span className={styles.type}>{TARGET_TYPE_LABEL[a.target.type]}</span>
+                <span className={styles.type}>{t(`targetTypeLabel.${a.target.type}`)}</span>
                 <h3 className={styles.title}>{label}</h3>
               </div>
               <div className={styles.meta}>
-                <Badge tone={STATUS_TONE[a.status]}>{STATUS_LABEL[a.status]}</Badge>
+                <Badge tone={STATUS_TONE[a.status]}>{t(`statusLabel.${a.status}`)}</Badge>
                 <span className={`${styles.date} tnum`}>
                   {a.status === 'triggered' && a.lastTriggeredAt
-                    ? `اجرا: ${formatJalali(a.lastTriggeredAt)}`
-                    : `ثبت: ${formatJalali(a.createdAt)}`}
+                    ? t('triggeredAt', { date: formatJalali(a.lastTriggeredAt) })
+                    : t('registeredAt', { date: formatJalali(a.createdAt) })}
                 </span>
               </div>
             </div>
 
             <p className={styles.detail}>
-              {a.op === 'below' ? 'کمتر از' : 'بیشتر از'}{' '}
-              <bdi className="tnum">{formatToman(a.threshold, false)}</bdi> تومان
+              {a.op === 'below' ? t('below') : t('above')}{' '}
+              <bdi className="tnum">{formatToman(a.threshold, false)}</bdi> {t('tomanSuffix')}
             </p>
 
             {a.currentValue != null ? (
               <p className={alertStyles.live}>
-                <span className={alertStyles.liveLabel}>اکنون:</span>{' '}
+                <span className={alertStyles.liveLabel}>{t('now')}</span>{' '}
                 <bdi className="tnum">{formatAlertValue(a.currentValue, a.target)}</bdi>
                 {dist ? (
                   dist.crossed ? (
-                    <Badge tone="warning">به شرط هشدار رسیده؛ به‌زودی پیامک می‌گیرید</Badge>
+                    <Badge tone="warning">{t('crossedSoon')}</Badge>
                   ) : dist.near ? (
-                    <Badge tone="warning">٪{toPersianDigits(dist.pct.toFixed(1))} فاصله تا رسیدن</Badge>
+                    <Badge tone="warning">{t('distancePct', { pct: localizeDigits(dist.pct.toFixed(1), locale) })}</Badge>
                   ) : (
                     <span className={alertStyles.distanceMuted}>
-                      ٪{toPersianDigits(dist.pct.toFixed(1))} فاصله تا رسیدن
+                      {t('distancePct', { pct: localizeDigits(dist.pct.toFixed(1), locale) })}
                     </span>
                   )
                 ) : null}
-                {a.isStale ? <span className={alertStyles.staleNote}>(به‌روزرسانی نشده)</span> : null}
+                {a.isStale ? <span className={alertStyles.staleNote}>{t('staleNote')}</span> : null}
               </p>
             ) : null}
 
@@ -131,7 +125,7 @@ export function AlertsList() {
                   loading={patch.isPending && patch.variables?.id === a.id}
                   disabled={patch.isPending || remove.isPending}
                 >
-                  فعال‌سازی
+                  {t('activate')}
                 </Button>
               ) : (
                 <Button
@@ -141,7 +135,7 @@ export function AlertsList() {
                   loading={patch.isPending && patch.variables?.id === a.id}
                   disabled={patch.isPending || remove.isPending}
                 >
-                  توقف
+                  {t('pause')}
                 </Button>
               )}
               <Button
@@ -151,7 +145,7 @@ export function AlertsList() {
                 loading={remove.isPending && remove.variables === a.id}
                 disabled={remove.isPending || patch.isPending}
               >
-                حذف
+                {t('remove')}
               </Button>
             </div>
           </li>
