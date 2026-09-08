@@ -69,6 +69,60 @@ describe('withIdempotency', () => {
     expect(calls).toBe(2);
   });
 
+  it('extraLookupKeys catches a retry landing in the adjacent time bucket (item 76)', async () => {
+    let calls = 0;
+    const run = async () => {
+      calls += 1;
+      return { status: 201, body: { n: calls } };
+    };
+
+    // First request claims bucket N.
+    const first = await withIdempotency(req(), 'leads', 'mobile:fp:5', run);
+    // Retry lands in bucket N+1, but passes bucket N as an extra lookup key —
+    // must find and replay the first request's response, not run again.
+    const retry = await withIdempotency(req(), 'leads', 'mobile:fp:6', run, ['mobile:fp:5']);
+
+    expect(calls).toBe(1);
+    expect(await first.json()).toEqual({ n: 1 });
+    expect(await retry.json()).toEqual({ n: 1 });
+    expect(retry.headers.get('Idempotency-Replayed')).toBe('true');
+  });
+
+  it('extraLookupKeys is ignored once a client sends an explicit Idempotency-Key header', async () => {
+    let calls = 0;
+    const run = async () => {
+      calls += 1;
+      return { status: 201, body: { n: calls } };
+    };
+
+    await withIdempotency(req(), 'leads', 'mobile:fp:7', run);
+    // Client explicitly scoped this retry with its own header — the adjacent
+    // bucket must not widen that scope even though it matches.
+    const retry = await withIdempotency(
+      req({ 'idempotency-key': 'client-1' }),
+      'leads',
+      'mobile:fp:8',
+      run,
+      ['mobile:fp:7'],
+    );
+
+    expect(calls).toBe(2);
+    expect(await retry.json()).toEqual({ n: 2 });
+  });
+
+  it('a non-adjacent lookup key that does not exist yet still runs the side effect', async () => {
+    let calls = 0;
+    const run = async () => {
+      calls += 1;
+      return { status: 201, body: { n: calls } };
+    };
+
+    const result = await withIdempotency(req(), 'leads', 'mobile:fp:100', run, ['mobile:fp:99']);
+
+    expect(calls).toBe(1);
+    expect(await result.json()).toEqual({ n: 1 });
+  });
+
   it('releases the claim on failure so a genuine retry after an error can succeed', async () => {
     let calls = 0;
     const flaky = async () => {
