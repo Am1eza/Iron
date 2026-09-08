@@ -111,6 +111,7 @@ export default async function FactoryLandingPage({ params }: Params) {
           <BulkQuote
             category={category}
             categoryName={cat.name}
+            categoryEntity={cat}
             rows={rows}
             subs={subs}
             logisticsConfig={logisticsConfig}

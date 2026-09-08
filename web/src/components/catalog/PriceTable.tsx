@@ -10,7 +10,7 @@ import { useToast } from '@/lib/hooks/useToast';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { CONSTANTS } from '@/lib/config/constants';
 import { routes } from '@/lib/routes';
-import { formatToman, priceHiddenLabel, toPersianDigits, withVat } from '@/lib/utils/format';
+import { formatToman, priceHiddenLabel, toPersianDigits, localizeDigits, withVat } from '@/lib/utils/format';
 import { compareCatalogSizes } from '@/lib/utils/catalogSize';
 import {
   sizeLabel,
@@ -359,7 +359,7 @@ const PriceTableRow = memo(function PriceTableRow({
       {/* The size is the tail of the product name, so the card form drops this
           cell rather than printing «سایز: ۱۴» directly under «میلگرد ۱۴». */}
       <td role="cell" data-label={sizeCol} className={styles.sizeCell}>
-        {r.size ? toPersianDigits(r.size) : 'نامشخص'}
+        {r.size ? toPersianDigits(r.size) : t('unknown')}
       </td>
       {showDimensions ? (
         <td
@@ -367,7 +367,7 @@ const PriceTableRow = memo(function PriceTableRow({
           data-label={dimensionsCol}
           className={`${styles.muted}${r.dimensions ? '' : ` ${styles.blankOnNarrow}`}`}
         >
-          {r.dimensions ? toPersianDigits(r.dimensions) : 'نامشخص'}
+          {r.dimensions ? toPersianDigits(r.dimensions) : t('unknown')}
         </td>
       ) : null}
       {attrCols.map((c) => (
@@ -411,7 +411,7 @@ const PriceTableRow = memo(function PriceTableRow({
             {toPersianDigits(r.theoreticalWeightKg)} <bdi lang="en">kg</bdi>
           </>
         ) : (
-          'نامشخص'
+          t('unknown')
         )}
       </td>
       <td
@@ -430,7 +430,7 @@ const PriceTableRow = memo(function PriceTableRow({
       <td role="cell" className={`${styles.num} ${styles.movementCell}`}>
         {!hiddenLabel ? <MovementBadge dir={r.current.movementDir} pct={r.current.movementPct} /> : null}
       </td>
-      <td role="cell" data-label="به‌روزرسانی" className={styles.muted}>
+      <td role="cell" data-label={t('updatedAt')} className={styles.muted}>
         {formatJalali(r.current.updatedAt, 'MM/dd')}
       </td>
       <td role="cell" className={styles.deliveryCell}>
@@ -440,7 +440,7 @@ const PriceTableRow = memo(function PriceTableRow({
         <div className={styles.actions}>
           <IconButton
             size="sm"
-            label="افزودن به علاقه‌مندی"
+            label={t('addToFavorites')}
             active={isFav}
             icon={<HeartIcon size={18} filled={isFav} />}
             onClick={() => onToggleFav(r.id)}
@@ -448,7 +448,7 @@ const PriceTableRow = memo(function PriceTableRow({
           {!hiddenLabel ? <AlertBellButton target={{ type: 'sku', skuId: r.id, label: displayName, currentValue: r.current.price }} /> : null}
           <IconButton
             size="sm"
-            label="نمودار قیمت"
+            label={t('priceChart')}
             icon={<ChartIcon size={18} />}
             onClick={() => onChart(r)}
           />
@@ -456,9 +456,9 @@ const PriceTableRow = memo(function PriceTableRow({
             className={styles.addBtn}
             onClick={() => onAddToCart(r)}
             disabled={Boolean(hiddenLabel)}
-            title={hiddenLabel ? 'قیمت قطعی این کالا باید استعلام شود.' : undefined}
+            title={hiddenLabel ? t('mustBeQuoted') : undefined}
           >
-            <PlusIcon size={16} /> <span className={styles.addBtnLabel}>سبد</span>
+            <PlusIcon size={16} /> <span className={styles.addBtnLabel}>{t('cartShort')}</span>
           </button>
         </div>
       </td>
@@ -539,6 +539,7 @@ export function PriceTable({
   factoryOrder?: string[];
 }) {
   const t = useTranslations('priceTable');
+  const tCommon = useTranslations('common');
   const locale = useLocale() as AppLocale;
   const categoryName = getLocalizedName(category, locale);
   const weightCol = weightLabel(categorySlug);
@@ -729,7 +730,7 @@ export function PriceTable({
    * at all — the DTO publishes one or the other, never both.
    */
   const showRegionColumn = groupMode === 'none' && subFiltered.some((r) => r.region);
-  const sortLabel = sectionNoun ? `مرتب‌سازی بخش‌های ${sectionNoun}` : 'مرتب‌سازی جدول قیمت';
+  const sortLabel = sectionNoun ? t('sortSections', { section: sectionNoun }) : t('sortTable');
 
   /**
    * Spec filters (owner request, 1405/06/02): "فیلتر کنه فقط یک سایز خاص رو
@@ -925,11 +926,19 @@ export function PriceTable({
     }
   };
 
+  // The React Compiler's memoization-preservation check bails out on this
+  // specific callback once both `t` and `tCommon` are in its dependency
+  // array (verified — a single one of the two is fine, and the near-identical
+  // `addRowToCart` below has no trouble with `t` alone either). The array
+  // below is otherwise complete and correct per exhaustive-deps; this only
+  // costs this one callback the compiler's extra optimization pass, not
+  // correctness.
   const toggleFav = useCallback(
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization
     (id: string) => {
       if (!isAuthenticated) {
-        toast.info('برای ذخیرهٔ علاقه‌مندی‌ها وارد شوید.', {
-          label: 'ورود',
+        toast.info(t('loginToSaveFavorites'), {
+          label: tCommon('action.login'),
           href: routes.login(routes.category(rows[0]?.categoryId ?? '')),
         });
         return;
@@ -960,7 +969,7 @@ export function PriceTable({
         });
       }
     },
-    [isAuthenticated, rows, toast],
+    [isAuthenticated, rows, toast, t, tCommon],
   );
 
   const addRowToCart = useCallback(
@@ -1040,7 +1049,7 @@ export function PriceTable({
       <div className={styles.toolbar}>
         <div className={styles.subs}>
           <Chip variant="filter" selected={sub === null} onClick={() => setSub(null)}>
-            همه
+            {t('allSubs')}
           </Chip>
           {/* Sub-categories sharing a `groupLabel` cluster under one heading —
               same treatment the mega-menu, mobile drawer, home stage and admin
@@ -1068,7 +1077,7 @@ export function PriceTable({
                       selected={sub === s.slug}
                       onClick={() => setSub(sub === s.slug ? null : s.slug)}
                     >
-                      {s.name}
+                      {getLocalizedName(s, locale)}
                     </Chip>
                   ))}
                 </div>
@@ -1081,7 +1090,7 @@ export function PriceTable({
                   selected={sub === s.slug}
                   onClick={() => setSub(sub === s.slug ? null : s.slug)}
                 >
-                  {s.name}
+                  {getLocalizedName(s, locale)}
                 </Chip>
               ))
             ),
@@ -1098,11 +1107,11 @@ export function PriceTable({
               aria-label={sortLabel}
             >
               <option value="size">{sizeCol}</option>
-              <option value="price">قیمت</option>
-              <option value="movement">نوسان</option>
+              <option value="price">{t('priceOption')}</option>
+              <option value="movement">{t('movementOption')}</option>
             </select>
           </label>
-          <Switch checked={vat} onChange={setGlobalVat} label="با ارزش‌افزوده" />
+          <Switch checked={vat} onChange={setGlobalVat} label={t('vatToggle')} />
           {/* The switch's own label is static text regardless of on/off state
               — this restates the CURRENT state next to it, the same pattern
               SkuDetail.tsx already used, so a visitor who toggles, scrolls,
@@ -1111,8 +1120,8 @@ export function PriceTable({
               finding, 2026-08-26). */}
           <span className={styles.vatNote}>
             {vat
-              ? `شامل ${toPersianDigits(vatRate * 100)}٪ مالیات بر ارزش‌افزوده`
-              : 'بدون ارزش‌افزوده'}
+              ? t('vatIncludedPct', { pct: localizeDigits(vatRate * 100, locale) })
+              : t('vatExcluded')}
           </span>
           {/* Page-wide export — every factory at once, in the page-wide VAT
               state. A section a visitor has individually overridden is NOT
@@ -1130,6 +1139,8 @@ export function PriceTable({
             title={subject}
             categorySlug={categorySlug}
             subCategorySlug={sub}
+            category={category}
+            subs={subs}
             vat={vat}
             vatRate={vatRate}
           />
@@ -1139,8 +1150,8 @@ export function PriceTable({
             disabled={selectedForCompare.length < 2}
             onClick={() => setCompareOpen(true)}
           >
-            مقایسه{' '}
-            {selectedForCompare.length > 0 ? `(${toPersianDigits(selectedForCompare.length)})` : ''}
+            {t('compare')}{' '}
+            {selectedForCompare.length > 0 ? `(${localizeDigits(selectedForCompare.length, locale)})` : ''}
           </button>
         </div>
       </div>
@@ -1156,7 +1167,7 @@ export function PriceTable({
           انتخاب‌شده به‌صورت چیپ‌های قابل‌حذف زیر همون ردیف میان — فقط وقتی
           چیزی انتخاب شده (progressive disclosure). */}
       {facets.length > 0 ? (
-        <div className={styles.specFilters} role="group" aria-label="فیلتر مشخصات">
+        <div className={styles.specFilters} role="group" aria-label={t('specFiltersGroup')}>
           <div className={styles.specFilterTriggers}>
             {facets.map((f) => (
               <SpecFilterDropdown
@@ -1169,12 +1180,12 @@ export function PriceTable({
             ))}
             {activeSpecFilterCount > 0 ? (
               <button type="button" className={styles.specFilterClear} onClick={clearSpecFilters}>
-                پاک کردن فیلترها ({toPersianDigits(activeSpecFilterCount)})
+                {t('clearFilters', { count: localizeDigits(activeSpecFilterCount, locale) })}
               </button>
             ) : null}
           </div>
           {activeSpecFilterCount > 0 ? (
-            <div className={styles.specFilterActive} role="group" aria-label="فیلترهای فعال">
+            <div className={styles.specFilterActive} role="group" aria-label={t('activeFiltersGroup')}>
               {facets.map((f) =>
                 [...(specFilters[f.key] ?? EMPTY_SPEC_SET)].map((v) => (
                   <Chip
@@ -1184,7 +1195,7 @@ export function PriceTable({
                     onClick={() => toggleSpecFilter(f.key, v)}
                     onRemove={() => toggleSpecFilter(f.key, v)}
                   >
-                    {`${f.label}: ${toPersianDigits(v)}`}
+                    {`${f.label}: ${localizeDigits(v, locale)}`}
                   </Chip>
                 )),
               )}
@@ -1200,7 +1211,7 @@ export function PriceTable({
           missing, not just on page load. */}
       {selectedForCompare.length === 1 ? (
         <p className={styles.compareHint} role="status">
-          حداقل دو محصول برای مقایسه انتخاب کنید — یک مورد دیگر را هم علامت بزنید.
+          {t('selectOneMoreToCompare')}
         </p>
       ) : null}
 
@@ -1211,10 +1222,13 @@ export function PriceTable({
               read identically whether that ۱۲ is the whole sub-category or a
               narrowed slice of it. */}
           {activeSpecFilterCount > 0 && filtered.length !== subFiltered.length
-            ? `${toPersianDigits(filtered.length)} از ${toPersianDigits(subFiltered.length)} کالا`
-            : `${toPersianDigits(subFiltered.length)} کالا`}
-          {sectionNoun ? ` · ${toPersianDigits(bySection.length)} ${sectionNoun}` : ''}
-          {updated ? ` · به‌روزرسانی ${formatJalali(updated)}` : ''}
+            ? t('filteredItemCount', {
+                filtered: localizeDigits(filtered.length, locale),
+                total: localizeDigits(subFiltered.length, locale),
+              })
+            : t('itemCount', { count: localizeDigits(subFiltered.length, locale) })}
+          {sectionNoun ? ` · ${localizeDigits(bySection.length, locale)} ${sectionNoun}` : ''}
+          {updated ? ` · ${t('updatedAt')} ${formatJalali(updated)}` : ''}
         </span>
         {/* Only when every visible row shares one denomination. A table mixing
             kg-priced and عدد-priced products (میلگرد + کوپلر) would otherwise
@@ -1222,14 +1236,14 @@ export function PriceTable({
             own rows; there, each row's own caption carries it instead. */}
         {priceBasis ? (
           <span className={styles.note}>
-            {`قیمت‌ها به تومان و برای هر ${priceBasisNoun(priceBasis.basis, priceBasis.branchLengthM)} است.`}
+            {t('priceNote', { basis: priceBasisNoun(priceBasis.basis, priceBasis.branchLengthM) })}
           </span>
         ) : null}
       </div>
 
       {/* ===== پرش سریع به بخش‌ها ===== */}
       {sectionNoun && bySection.length > 1 && (
-        <nav className={styles.quickJump} aria-label={`پرش به ${sectionNoun}`}>
+        <nav className={styles.quickJump} aria-label={t('jumpToSections', { section: sectionNoun })}>
           {bySection.map(([name]) => (
             <button
               key={name}
@@ -1250,9 +1264,9 @@ export function PriceTable({
           right here instead of leaving a blank page under the toolbar. */}
       {filtered.length === 0 && subFiltered.length > 0 ? (
         <p className={styles.specFilterEmpty} role="status">
-          با این ترکیب فیلتر، کالایی پیدا نشد.{' '}
+          {t('noResultsForFilter')}{' '}
           <button type="button" className={styles.specFilterClear} onClick={clearSpecFilters}>
-            پاک کردن فیلترها
+            {t('clearFiltersPlain')}
           </button>
         </p>
       ) : null}
@@ -1279,20 +1293,22 @@ export function PriceTable({
               labelled={sectionNoun !== null}
               index={i}
               name={name}
-              title={`قیمت ${sectionTitle}`}
+              title={t('priceFor', { name: sectionTitle })}
               open={i < DEFAULT_OPEN_COUNT}
               meta={
                 <>
-                  {toPersianDigits(list.length)} {sizeCol}
+                  {localizeDigits(list.length, locale)} {sizeCol}
                   {cheapest ? (
                     <>
                       {' '}
-                      · از{' '}
-                      {formatToman(
-                        withVat(cheapest.current.price, factoryVat, vatRate),
-                        false,
-                      )}{' '}
-                      تومان
+                      {t('startingFrom', {
+                        price: formatToman(
+                          withVat(cheapest.current.price, factoryVat, vatRate),
+                          false,
+                          locale,
+                        ),
+                        unit: tCommon('unit.currency'),
+                      })}
                     </>
                   ) : null}
                 </>
@@ -1317,21 +1333,25 @@ export function PriceTable({
                       size="sm"
                       checked={factoryVat}
                       onChange={(next) => setFactoryVat(name, next)}
-                      label="با ارزش‌افزوده"
-                      ariaLabel={`با ارزش‌افزوده — ${name}`}
+                      label={t('vatToggle')}
+                      ariaLabel={t('vatToggleFor', { name })}
                     />
                     {/* Same state-restating note as the page-wide toggle above
                         — doubly needed here, since a section's own override
                         can silently disagree with the page-wide toggle's
                         state (audit finding, 2026-08-26). */}
                     <span className={styles.vatNote}>
-                      {factoryVat ? `شامل ${toPersianDigits(vatRate * 100)}٪` : 'بدون ارزش‌افزوده'}
+                      {factoryVat
+                        ? t('vatIncludedPctShort', { pct: localizeDigits(vatRate * 100, locale) })
+                        : t('vatExcluded')}
                     </span>
                     <ExportMenu
                       rows={list}
                       title={sectionTitle}
                       categorySlug={categorySlug}
                       subCategorySlug={sub}
+                      category={category}
+                      subs={subs}
                       vat={factoryVat}
                       vatRate={vatRate}
                       compact
@@ -1345,7 +1365,7 @@ export function PriceTable({
                 <div
                   className={styles.tableScroll}
                   role="region"
-                  aria-label={`قیمت ${sectionTitle}`}
+                  aria-label={t('priceFor', { name: sectionTitle })}
                   tabIndex={0}
                 >
                   {/* eslint-disable jsx-a11y/no-redundant-roles -- NOT redundant here:
@@ -1355,14 +1375,14 @@ export function PriceTable({
                       list a real table for assistive tech — which the `<ul>` of
                       cards it replaced never was. */}
                   <table role="table" className={`${styles.table} tnum`}>
-                    <caption className="visually-hidden">قیمت {sectionTitle}</caption>
+                    <caption className="visually-hidden">{t('priceFor', { name: sectionTitle })}</caption>
                     <thead role="rowgroup">
                       <tr role="row">
                         <th role="columnheader" scope="col">
-                          <span className="visually-hidden">مقایسه</span>
+                          <span className="visually-hidden">{t('compare')}</span>
                         </th>
                         <th role="columnheader" scope="col">
-                          محصول
+                          {t('product')}
                         </th>
                         <th
                           role="columnheader"
@@ -1404,7 +1424,7 @@ export function PriceTable({
                           className={styles.num}
                           aria-sort={sort === 'price' ? 'ascending' : 'none'}
                         >
-                          قیمت (تومان)
+                          {t('priceColumn')}
                         </th>
                         <th
                           role="columnheader"
@@ -1412,16 +1432,16 @@ export function PriceTable({
                           className={styles.num}
                           aria-sort={sort === 'movement' ? 'descending' : 'none'}
                         >
-                          نوسان
+                          {t('movementOption')}
                         </th>
                         <th role="columnheader" scope="col">
-                          تاریخ
+                          {t('dateColumn')}
                         </th>
                         <th role="columnheader" scope="col">
-                          تحویل
+                          {t('deliveryColumn')}
                         </th>
                         <th role="columnheader" scope="col" className={styles.actionsCol}>
-                          عملیات
+                          {t('actionsColumn')}
                         </th>
                       </tr>
                     </thead>
@@ -1486,7 +1506,7 @@ export function PriceTable({
                 setChartFor(null);
               }}
             >
-              مشاهدهٔ صفحهٔ محصول
+              {t('viewProductPage')}
             </button>
           ) : undefined
         }
@@ -1495,7 +1515,7 @@ export function PriceTable({
           chartSeries.length >= 2 ? (
             <PriceChart series={chartSeries} />
           ) : (
-            <p className={styles.muted}>در حال بارگذاری نمودار…</p>
+            <p className={styles.muted}>{t('loadingChart')}</p>
           )
         ) : null}
       </Modal>
@@ -1512,7 +1532,7 @@ export function PriceTable({
       <Modal
         open={compareOpen}
         onClose={() => setCompareOpen(false)}
-        title="مقایسهٔ کالاها"
+        title={t('compareModalTitle')}
         footer={
           cheapestForCompare ? (
             <button
@@ -1548,13 +1568,10 @@ export function PriceTable({
         {selectedForCompare.length < 2 ? null : (
           <div className={styles.compareScroll}>
             <table className={`${styles.compareTable} tnum`}>
-              <caption className="visually-hidden">
-                مقایسهٔ مشخصات و قیمت کالاهای انتخاب‌شده؛ ردیف‌هایی که کالاها در آن‌ها متفاوت‌اند
-                برجسته شده‌اند.
-              </caption>
+              <caption className="visually-hidden">{t('compareTableCaption')}</caption>
               <tbody>
                 <tr>
-                  <th scope="row">محصول</th>
+                  <th scope="row">{t('product')}</th>
                   {selectedForCompare.map((r) => (
                     <td key={r.id}>
                       <Link
@@ -1569,7 +1586,7 @@ export function PriceTable({
                 <tr className={diffRowClass(selectedForCompare.map((r) => r.size ?? null))}>
                   <th scope="row">{sizeCol}</th>
                   {selectedForCompare.map((r) => (
-                    <td key={r.id}>{r.size ? toPersianDigits(r.size) : 'نامشخص'}</td>
+                    <td key={r.id}>{r.size ? toPersianDigits(r.size) : t('unknown')}</td>
                   ))}
                 </tr>
                 {/* ورق dimensions or the approved نبشی wall thickness,
@@ -1578,7 +1595,7 @@ export function PriceTable({
                   <tr className={diffRowClass(selectedForCompare.map((r) => r.dimensions ?? null))}>
                     <th scope="row">{dimensionsCol}</th>
                     {selectedForCompare.map((r) => (
-                      <td key={r.id}>{r.dimensions ? toPersianDigits(r.dimensions) : 'نامشخص'}</td>
+                      <td key={r.id}>{r.dimensions ? toPersianDigits(r.dimensions) : t('unknown')}</td>
                     ))}
                   </tr>
                 ) : null}
@@ -1590,7 +1607,7 @@ export function PriceTable({
                   <tr className={diffRowClass(selectedForCompare.map((r) => r.factory ?? null))}>
                     <th scope="row">{factoryCol}</th>
                     {selectedForCompare.map((r) => (
-                      <td key={r.id}>{r.factory ?? 'نامشخص'}</td>
+                      <td key={r.id}>{r.factory ?? t('unknown')}</td>
                     ))}
                   </tr>
                 ) : selectedForCompare.some((r) => r.region) ? (
@@ -1611,7 +1628,7 @@ export function PriceTable({
                     <td key={r.id}>
                       {r.theoreticalWeightKg
                         ? `${toPersianDigits(r.theoreticalWeightKg)} kg`
-                        : 'نامشخص'}
+                        : t('unknown')}
                     </td>
                   ))}
                 </tr>
@@ -1622,7 +1639,7 @@ export function PriceTable({
                     ),
                   )}
                 >
-                  <th scope="row">قیمت (تومان)</th>
+                  <th scope="row">{t('priceColumn')}</th>
                   {selectedForCompare.map((r) => (
                     <td key={r.id} className={styles.price}>
                       {priceHiddenLabel(r.current) ??
@@ -1637,7 +1654,7 @@ export function PriceTable({
                     ),
                   )}
                 >
-                  <th scope="row">نوسان</th>
+                  <th scope="row">{t('movementOption')}</th>
                   {selectedForCompare.map((r) => (
                     <td key={r.id}>
                       <MovementBadge dir={r.current.movementDir} pct={r.current.movementPct} />
@@ -1649,7 +1666,7 @@ export function PriceTable({
                     selectedForCompare.map((r) => r.current.deliveryTime ?? null),
                   )}
                 >
-                  <th scope="row">تحویل</th>
+                  <th scope="row">{t('deliveryColumn')}</th>
                   {selectedForCompare.map((r) => (
                     <td key={r.id}>
                       <DeliveryBadge value={r.current.deliveryTime} />
@@ -1665,7 +1682,11 @@ export function PriceTable({
       <KgQuantityModal
         open={kgQtyRow !== null}
         onClose={() => setKgQtyRow(null)}
-        productName={kgQtyRow?.name ?? ''}
+        productName={
+          kgQtyRow
+            ? getLocalizedSkuName(kgQtyRow, category, subs.find((s) => s.slug === kgQtyRow.subCategoryId), locale)
+            : ''
+        }
         branchWeightKg={kgQtyRow?.theoreticalWeightKg}
         unitPrice={kgQtyRow?.current.price}
         onConfirm={(qtyKg) => {

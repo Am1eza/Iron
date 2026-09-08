@@ -1,5 +1,6 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Chip, CountBadge } from '@/components/ui';
 import { toPersianDigits, normalizeDigits } from '@/lib/utils/format';
 import styles from './SpecFilterDropdown.module.css';
@@ -27,6 +28,7 @@ export function SpecFilterDropdown({
   selected: ReadonlySet<string>;
   onToggle: (value: string) => void;
 }) {
+  const t = useTranslations('specFilterDropdown');
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const rootRef = useRef<HTMLDivElement>(null);
@@ -87,7 +89,7 @@ export function SpecFilterDropdown({
         onClick={() => setOpen((o) => !o)}
       >
         <span>{label}</span>
-        <CountBadge count={count} label={`${toPersianDigits(count)} مقدار انتخاب‌شده در ${label}`} />
+        <CountBadge count={count} label={t('selectedCount', { count: toPersianDigits(count), label })} />
         <span className={styles.caret} aria-hidden="true">
           ▾
         </span>
@@ -99,14 +101,14 @@ export function SpecFilterDropdown({
               ref={searchRef}
               type="text"
               className={styles.search}
-              placeholder="جست‌وجو…"
+              placeholder={t('searchPlaceholder')}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
           ) : null}
           <div className={styles.chips}>
             {visible.length === 0 ? (
-              <p className={styles.empty}>موردی یافت نشد</p>
+              <p className={styles.empty}>{t('noMatches')}</p>
             ) : (
               visible.map((v) => (
                 <Chip

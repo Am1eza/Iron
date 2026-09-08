@@ -1,3 +1,5 @@
+'use client';
+import { useTranslations } from 'next-intl';
 import { productImage, productThumb } from '@/lib/data/productImages';
 import styles from './ProductImage.module.css';
 
@@ -36,6 +38,7 @@ export function ProductImage({
    *  see the note on `SKU.imageUrl`. */
   src?: string;
 }) {
+  const t = useTranslations('common');
   const src = srcOverride ?? (variant === 'thumb' ? productThumb(slug) : productImage(slug));
   if (!src) return null;
   const [w, h] = variant === 'thumb' ? [320, 213] : [1200, 800];
@@ -51,7 +54,7 @@ export function ProductImage({
       src={src}
       srcSet={thumb ? `${thumb} 320w, ${src} 1200w` : undefined}
       sizes={thumb ? sizes : undefined}
-      alt={`تصویر ${name}`}
+      alt={t('imageOf', { name })}
       width={w}
       height={h}
       loading={eager ? 'eager' : 'lazy'}

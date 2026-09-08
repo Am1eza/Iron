@@ -136,7 +136,7 @@ export default async function CategoryPage({ params }: Params) {
                 vatRate={vatRate}
                 factoryOrder={factoryOrder}
               />
-              <BulkQuote category={category} categoryName={cat.name} rows={rows} subs={subs} logisticsConfig={logisticsConfig} vatRate={vatRate} />
+              <BulkQuote category={category} categoryName={cat.name} categoryEntity={cat} rows={rows} subs={subs} logisticsConfig={logisticsConfig} vatRate={vatRate} />
               {/* The internal link graph into the per-factory / per-size
                   landing pages. Without it those pages are reachable only from
                   sitemap.xml, which is a discovery hint, not a crawl path. */}

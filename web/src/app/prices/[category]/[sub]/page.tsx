@@ -173,6 +173,7 @@ export default async function SubCategoryPage({ params }: Params) {
               <BulkQuote
                 category={category}
                 categoryName={cat.name}
+                categoryEntity={cat}
                 rows={allRows}
                 subs={subs}
                 logisticsConfig={logisticsConfig}
