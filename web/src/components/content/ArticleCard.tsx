@@ -7,6 +7,7 @@ import { routes } from '@/lib/routes';
 import { formatJalali } from '@/lib/utils/jalali';
 import { localizeDigits } from '@/lib/utils/format';
 import type { AppLocale } from '@/i18n/config';
+import { getLocalizedArticleTitle, getLocalizedArticleExcerpt } from '@/lib/utils/localizedNames';
 import { CalendarIcon, ClockIcon, ChevronStartIcon } from '@/components/primitives/icons';
 import styles from './ArticleCard.module.css';
 
@@ -32,6 +33,8 @@ export function ArticleCard({ article }: { article: Article }) {
   // Reuses searchBar's existing "خبر بازار" translation rather than
   // duplicating it under a second key.
   const kicker = article.type === 'news' ? tSearchBar('newsLabel') : t('articleKicker');
+  const title = getLocalizedArticleTitle(article, locale);
+  const excerpt = getLocalizedArticleExcerpt(article, locale);
 
   return (
     <li className={styles.item}>
@@ -52,11 +55,11 @@ export function ArticleCard({ article }: { article: Article }) {
 
         <h3 className={styles.title}>
           <Link href={href} className={styles.titleLink}>
-            {article.title}
+            {title}
           </Link>
         </h3>
 
-        {article.excerpt ? <p className={styles.excerpt}>{article.excerpt}</p> : null}
+        {excerpt ? <p className={styles.excerpt}>{excerpt}</p> : null}
 
         <div className={styles.foot}>
           {article.publishAt || article.readingMinutes ? (

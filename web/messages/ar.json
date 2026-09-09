@@ -2254,5 +2254,18 @@
         "body": "لأي استفسار حول هذه الشروط، يمكنك التواصل معنا عبر الهاتف الثابت <landline>x</landline> أو الجوال <mobile>x</mobile>، أو استخدام صفحة التواصل."
       }
     }
+  },
+  "articleDetail": {
+    "notFoundBlog": "المقالة غير موجودة",
+    "notFoundNews": "الخبر غير موجود",
+    "crumbBlog": "المدونة",
+    "crumbNews": "أخبار السوق",
+    "kickerBlog": "مقالة",
+    "kickerNews": "أخبار السوق",
+    "byline": "فريق تحرير آهن‌تايم",
+    "backToBlog": "العودة إلى المدونة",
+    "backToNews": "العودة إلى الأخبار",
+    "relatedBlog": "مقالات ذات صلة",
+    "relatedNews": "أخبار ذات صلة"
   }
 }

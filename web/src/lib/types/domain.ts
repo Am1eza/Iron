@@ -399,6 +399,17 @@ export interface Article {
   type: 'blog' | 'news';
   title: string;
   excerpt?: string;
+  /** Per-locale title/excerpt translations — same shape and fallback
+   *  semantics as `Category.nameEn/nameAr/nameZh` (see `getLocalizedName`
+   *  in `lib/utils/localizedNames.ts`). Machine-translated, not part of the
+   *  editor's own fields. `undefined`/absent means untranslated for that
+   *  locale, which falls back to the fa `title`/`excerpt`. */
+  titleEn?: string;
+  titleAr?: string;
+  titleZh?: string;
+  excerptEn?: string;
+  excerptAr?: string;
+  excerptZh?: string;
   /**
    * DERIVED markdown mirror of `bodyJson` — present on live article-detail
    * reads. Still the column full-text search, the AI advisor's guide grounding

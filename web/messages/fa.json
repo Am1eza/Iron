@@ -2254,5 +2254,18 @@
         "body": "برای هر پرسش دربارهٔ این قوانین می‌توانید با شمارهٔ ثابت <landline>x</landline> یا همراه <mobile>x</mobile> با ما در تماس باشید یا از صفحهٔ تماس استفاده کنید."
       }
     }
+  },
+  "articleDetail": {
+    "notFoundBlog": "مطلب یافت نشد",
+    "notFoundNews": "خبر یافت نشد",
+    "crumbBlog": "وبلاگ",
+    "crumbNews": "اخبار بازار",
+    "kickerBlog": "مقاله",
+    "kickerNews": "خبر بازار",
+    "byline": "تحریریهٔ آهن‌تایم",
+    "backToBlog": "بازگشت به وبلاگ",
+    "backToNews": "بازگشت به اخبار",
+    "relatedBlog": "مطالب مرتبط",
+    "relatedNews": "اخبار مرتبط"
   }
 }

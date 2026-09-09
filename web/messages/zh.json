@@ -2254,5 +2254,18 @@
         "body": "如对本条款有任何疑问，可通过座机 <landline>x</landline> 或手机 <mobile>x</mobile> 与我们联系，或使用联系页面。"
       }
     }
+  },
+  "articleDetail": {
+    "notFoundBlog": "未找到该文章",
+    "notFoundNews": "未找到该新闻",
+    "crumbBlog": "博客",
+    "crumbNews": "市场资讯",
+    "kickerBlog": "文章",
+    "kickerNews": "市场资讯",
+    "byline": "安挺编辑部",
+    "backToBlog": "返回博客",
+    "backToNews": "返回资讯",
+    "relatedBlog": "相关文章",
+    "relatedNews": "相关资讯"
   }
 }

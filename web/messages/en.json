@@ -2254,5 +2254,18 @@
         "body": "For any question about these terms, you can reach us at our landline <landline>x</landline> or mobile <mobile>x</mobile>, or use the contact page."
       }
     }
+  },
+  "articleDetail": {
+    "notFoundBlog": "Post not found",
+    "notFoundNews": "News item not found",
+    "crumbBlog": "Blog",
+    "crumbNews": "Market News",
+    "kickerBlog": "Article",
+    "kickerNews": "Market News",
+    "byline": "Ahantime Editorial",
+    "backToBlog": "Back to blog",
+    "backToNews": "Back to news",
+    "relatedBlog": "Related posts",
+    "relatedNews": "Related news"
   }
 }

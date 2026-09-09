@@ -75,6 +75,28 @@ export const articles = pgTable(
     // normalises both to `[]` so no consumer ever has to know the difference.
     tags: jsonb('tags').$type<string[]>(),
     seo: jsonb('seo').$type<SeoMeta>(),
+    /**
+     * Machine-translated title/excerpt for the site's 3 non-fa locales
+     * (US i18n follow-up). `body_md`/`body_json` are deliberately NOT part of
+     * this: the full-text renderer (`RichContent.tsx`) is a Server Component
+     * on purpose (no Tiptap/ProseMirror in the reader's bundle) and this
+     * app's locale only ever resolves client-side (cookie, to preserve ISR —
+     * see `LocaleProvider`'s header comment) — so a translated BODY has
+     * nowhere to be selected without either shipping the renderer to the
+     * client (reversing that bundle-size decision, and cascading to
+     * `ArticleChart.tsx`, which it renders inline) or making every article
+     * page request-dynamic (reversing the ISR decision). Title/excerpt carry
+     * none of that: they're plain strings already rendered by Client
+     * Components (`ArticleCard.tsx` etc.), so they can localize the same way
+     * `Category.nameEn/nameAr/nameZh` already does, with none of the above
+     * tradeoffs. Full-body translation is a real follow-up decision, not
+     * done silently here — see `getLocalizedArticleTitle`/`Excerpt` in
+     * `lib/utils/localizedNames.ts` for the read side and
+     * `scripts/backfillArticleTranslations.ts` for how this gets populated.
+     */
+    translations: jsonb('translations').$type<
+      Partial<Record<'en' | 'ar' | 'zh', { title: string; excerpt: string | null }>>
+    >(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

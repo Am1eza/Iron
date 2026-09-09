@@ -96,3 +96,37 @@ export function getLocalizedSkuName(
   const subCoversCategory = catName.length > 0 && subName.toLowerCase().includes(catName.toLowerCase());
   return subCoversCategory ? `${subName}${sizePart}` : `${catName} ${subName}${sizePart}`;
 }
+
+type TranslatedArticle = {
+  title: string;
+  excerpt?: string;
+  titleEn?: string;
+  titleAr?: string;
+  titleZh?: string;
+  excerptEn?: string;
+  excerptAr?: string;
+  excerptZh?: string;
+};
+
+/**
+ * Locale-aware article title/excerpt — same shape and fallback semantics as
+ * `getLocalizedName` above (`articles.translations`, added by migration 0058
+ * and backfilled by `scripts/backfillArticleTranslations.ts`), just against
+ * `title`/`excerpt` instead of `name`, since `Article` doesn't share
+ * `NamedEntity`'s field name. Deliberately covers title/excerpt ONLY, not
+ * the article body — see the `translations` column's own doc comment in
+ * `lib/server/db/schema/content.ts` for why the full body stays untranslated
+ * (a real architecture tradeoff, not an oversight).
+ */
+export function getLocalizedArticleTitle(article: TranslatedArticle, locale: AppLocale): string {
+  if (locale === 'fa') return article.title;
+  const translated = locale === 'en' ? article.titleEn : locale === 'ar' ? article.titleAr : article.titleZh;
+  return translated || article.title;
+}
+
+export function getLocalizedArticleExcerpt(article: TranslatedArticle, locale: AppLocale): string | undefined {
+  if (locale === 'fa') return article.excerpt;
+  const translated =
+    locale === 'en' ? article.excerptEn : locale === 'ar' ? article.excerptAr : article.excerptZh;
+  return translated || article.excerpt;
+}

@@ -407,6 +407,13 @@
       "when": 1788889545695,
       "tag": "0057_premium_paper_doll",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1788939842488,
+      "tag": "0058_demonic_sugar_man",
+      "breakpoints": true
     }
   ]
 }
