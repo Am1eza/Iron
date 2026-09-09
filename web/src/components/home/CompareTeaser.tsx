@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { routes } from '@/lib/routes';
 import { formatToman } from '@/lib/utils/format';
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion';
@@ -28,6 +28,7 @@ export function CompareTeaser({ slides }: { slides: CompareSlide[] }) {
   // Mill names and SKU names inside this card stay Persian — they come from
   // the catalog. Only the surrounding chrome is translated.
   const t = useTranslations('home.compare');
+  const locale = useLocale();
   const [active, setActive] = useState(0);
   const reduced = useReducedMotion();
   const paused = useRef(false);
@@ -155,10 +156,10 @@ export function CompareTeaser({ slides }: { slides: CompareSlide[] }) {
                   </span>
                   <span className={styles.figures}>
                     <span className={`${styles.price} tnum`}>
-                      {formatToman(l.pricePerKg, false)}
+                      {formatToman(l.pricePerKg, false, locale)}
                     </span>
                     <span className={`${styles.delta} tnum`}>
-                      {l.best ? '' : `${formatToman(l.pricePerKg - cheapest.pricePerKg, false)}+`}
+                      {l.best ? '' : `${formatToman(l.pricePerKg - cheapest.pricePerKg, false, locale)}+`}
                     </span>
                   </span>
                 </li>
@@ -166,7 +167,7 @@ export function CompareTeaser({ slides }: { slides: CompareSlide[] }) {
             </ul>
 
             <Link href={`${routes.category(slide.slug)}#compare`} className={styles.cta}>
-              مقایسهٔ کامل کارخانه‌های {slide.name}
+              {t('fullComparisonCta', { name: slide.name })}
               <ChevronStartIcon size={16} className="icon--rtl" />
             </Link>
           </div>

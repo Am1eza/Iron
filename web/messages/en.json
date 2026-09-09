@@ -306,7 +306,8 @@
       "sub": "See today's price from each mill side by side, weigh the difference and pick the cheapest.",
       "tabsAria": "Choose a product to compare",
       "perKg": "Toman per kilogram",
-      "cheapest": "Cheapest"
+      "cheapest": "Cheapest",
+      "fullComparisonCta": "See the full mill comparison for {name}"
     },
     "priceBoard": {
       "ariaLabel": "Live Price Board",
@@ -2083,5 +2084,57 @@
     "title": "Fresh products and prices are in",
     "desc": "Join the Ahantime customer club for supply priority and dedicated price alerts.",
     "cta": "View the customer club"
+  },
+  "logo": {
+    "homeAriaLabel": "{brand}, Home",
+    "tagline": "Smart Steel Marketplace"
+  },
+  "legalDoc": {
+    "tocTitle": "Contents",
+    "tocAriaLabel": "Table of contents"
+  },
+  "pricesPage": {
+    "title": "Today's Steel & Iron Prices",
+    "intro": "The headline rate for every steel category — from rebar and I-beams to sheet, profiles and pipe — gathered in one table. Every rate is entered by Ahantime staff by hand after checking with the mill, VAT-free and priced per kilogram; open a category's full table to see every size and mill.",
+    "faq": {
+      "item1": {
+        "question": "How does Ahantime determine today's steel prices?",
+        "answer": "Every rate is entered manually by Ahantime staff after checking with the mill and the market — no number is ever generated automatically from a formula or an exchange rate. The date and time of the last update is shown on every table, and if a rate goes stale, it shows \"Call for price\" instead of an outdated number."
+      },
+      "item2": {
+        "question": "Do the displayed prices include VAT?",
+        "answer": "No. Every price published on Ahantime excludes value-added tax and is quoted per kilogram. VAT and freight are calculated and added separately on the official proforma."
+      },
+      "item3": {
+        "question": "Why does today's rebar price differ from yesterday's?",
+        "answer": "Steel section prices follow the billet rate, the US dollar and mill supply, and these variables change daily. The \"Change\" column in Ahantime's tables shows exactly that shift from the last recorded rate."
+      },
+      "item4": {
+        "question": "Do I have to pay online to buy?",
+        "answer": "No. Ahantime has no online payment. You choose the product you want and submit a proforma request; a sales rep then calls to confirm availability and delivery time, and the purchase is finalized by a human."
+      },
+      "item5": {
+        "question": "How long is the listed price valid?",
+        "answer": "Site rates are shown alongside the time of their last update. The final, binding rate is whatever is printed on the issued proforma, and its validity window is stated on that proforma itself."
+      }
+    }
+  },
+  "toolsPage": {
+    "weight": {
+      "title": "Steel Section Weight Calculator",
+      "intro": "Calculate the theoretical weight of rebar, sheet, pipe, strip, angle, I-beam and channel using the standard formula and a steel density of 7.85 g/cm³. The result is shown per bar and for the whole order, along with the formula used."
+    },
+    "project": {
+      "title": "Project Steel Estimator",
+      "intro": "Choose your project type (concrete building, steel frame or industrial shed) to get an initial estimate of the materials you'll need and their approximate cost. For an exact figure, talk to the AI advisor."
+    },
+    "cost": {
+      "title": "Purchase Cost Calculator",
+      "intro": "Choose a category and product, enter the quantity in bars or kilograms, and see the approximate purchase cost including VAT and delivery time. Then add it straight to your inquiry cart."
+    }
+  },
+  "requestPage": {
+    "title": "Submit a Proforma Request",
+    "subtitle": "This request is filed under your account ({user}); our sales rep will call you on that same number."
   }
 }

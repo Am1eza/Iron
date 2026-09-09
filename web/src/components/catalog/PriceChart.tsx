@@ -1,7 +1,7 @@
 'use client';
 import { useId, useMemo, useState } from 'react';
-import { useTranslations } from 'next-intl';
-import { formatToman, toPersianDigits } from '@/lib/utils/format';
+import { useTranslations, useLocale } from 'next-intl';
+import { formatToman, toPersianDigits, localizeDigits } from '@/lib/utils/format';
 import { formatJalali } from '@/lib/utils/jalali';
 import styles from './PriceChart.module.css';
 
@@ -33,6 +33,7 @@ export function PriceChart({
 }) {
   const t = useTranslations('priceChart');
   const tCommon = useTranslations('common');
+  const locale = useLocale();
   const [range, setRange] = useState<Range>(30);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const id = useId();
@@ -84,10 +85,13 @@ export function PriceChart({
   // «تومان», which is wrong for the انس جهانی ticker (unit دلار, and it
   // carries a decimal). Toman values stay integer-rounded; a non-Toman
   // unit keeps up to one decimal and its own unit label.
-  const fmtVal = (v: number) =>
-    unit === 'تومان'
-      ? formatToman(v, false)
-      : toPersianDigits(v.toLocaleString('en-US', { maximumFractionDigits: 1 })).replace(/,/g, '٬');
+  const fmtVal = (v: number) => {
+    if (unit === 'تومان') return formatToman(v, false, locale);
+    const grouped = v.toLocaleString('en-US', { maximumFractionDigits: 1 });
+    // Same fa-vs-other split as formatToman's own internals: fa needs the
+    // Persian thousands separator swapped in too, not just the digits.
+    return locale === 'fa' ? toPersianDigits(grouped).replace(/,/g, '٬') : localizeDigits(grouped, locale);
+  };
   const first = data[0]!;
   const last = data[data.length - 1]!;
   const up = last >= first;
@@ -108,7 +112,7 @@ export function PriceChart({
   // Build text as single strings — interleaved text/expression nodes inside an
   // SVG <title> can hydrate-mismatch, so we render one text node per element.
   const titleText = t('titleText', { range: rangeLabel, from: fmtVal(first), to: fmtVal(last), unit: unitLabel });
-  const deltaText = `${up ? '▲' : '▼'} ${toPersianDigits(Math.abs(Number(pct)).toString())}٪`;
+  const deltaText = `${up ? '▲' : '▼'} ${localizeDigits(Math.abs(Number(pct)).toString(), locale)}${locale === 'fa' ? '٪' : '%'}`;
   // The <svg> stretches non-uniformly to fill its container width
   // (preserveAspectRatio="none", so x-scale and y-scale differ — the
   // container is typically ~2x the viewBox width). A <circle> drawn in

@@ -3,6 +3,7 @@ import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { requireUser } from '@/lib/auth/guards';
 import { RequestFlow } from '@/components/forms/RequestFlow';
+import { RequestPageHeading } from '@/components/forms/RequestPageHeading';
 
 export const metadata: Metadata = buildMetadata({ title: 'ثبت درخواست', noindex: true });
 
@@ -17,17 +18,7 @@ export default async function RequestPage() {
 
   return (
     <div className="container" style={{ paddingBlock: 'var(--space-16)', maxInlineSize: 720 }}>
-      <h1 style={{ marginBlockEnd: 'var(--space-2)' }}>ثبت درخواست پیش‌فاکتور</h1>
-      <p
-        style={{
-          font: 'var(--t-body-sm)',
-          color: 'var(--color-text-muted)',
-          margin: '0 0 var(--space-8)',
-        }}
-      >
-        درخواست با حساب {user.name ?? user.mobile} ثبت می‌شود و کارشناس با همین شماره تماس
-        می‌گیرد.
-      </p>
+      <RequestPageHeading userLabel={user.name ?? user.mobile} />
       <RequestFlow />
     </div>
   );
