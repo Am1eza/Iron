@@ -51,7 +51,11 @@
       "headline": "This page could not be found",
       "body": "The address may have changed. Try search, or ask Ahantime for help."
     },
-    "imageOf": "Image of {name}"
+    "imageOf": "Image of {name}",
+    "priceHidden": {
+      "callForPrice": "Call for price",
+      "estimated": "Market estimate — call for a firm price"
+    }
   },
   "nav": {
     "home": "Home",
@@ -1678,5 +1682,133 @@
       "piece": "Piece",
       "sqm": "m²"
     }
+  },
+  "marketBoard": {
+    "sourceBadge": "Live market rate",
+    "viewChartAriaLabel": "Show {label} chart",
+    "chartAriaLabel": "{label} chart",
+    "chartLabel": "{label} chart",
+    "chartHint": "Approximate price trend over the last week to year.",
+    "loadingChart": "Loading chart…",
+    "viewPricesCta": "View steel prices",
+    "labels": {
+      "usd": "USD",
+      "eur": "EUR",
+      "gold18": "18k Gold",
+      "ounce": "Gold Ounce",
+      "billet": "Steel Billet"
+    }
+  },
+  "categoryPriceSummary": {
+    "eyebrow": "Today's market summary",
+    "title": "Headline price per category",
+    "caption": "For each steel category, the latest recorded price of a headline product. The full table for each category — every size and mill — is one click below.",
+    "col": {
+      "category": "Category",
+      "headlineProduct": "Headline product",
+      "size": "Size",
+      "factory": "Mill",
+      "price": "Price (Toman)",
+      "movement": "Change",
+      "deliveryTime": "Delivery time",
+      "fullTable": "Full table"
+    },
+    "unknown": "Unspecified",
+    "fullTableOf": "Full {category} table",
+    "note": "Prices exclude VAT and are based on Ahantime's own recorded rates. Get a proforma for final confirmation and an exact delivery time — consult first, buy after."
+  },
+  "featuredPrices": {
+    "eyebrow": "Most popular",
+    "title": "Today's rebar prices",
+    "fullTable": "Full rebar table",
+    "col": {
+      "product": "Product",
+      "size": "Size",
+      "factory": "Mill",
+      "price": "Price (Toman)",
+      "movement": "Change",
+      "deliveryTime": "Delivery time",
+      "details": "Details"
+    },
+    "unknown": "Unspecified",
+    "detailsOf": "Details for {name}",
+    "note": "Prices exclude VAT and update live."
+  },
+  "categoryGrid": {
+    "eyebrow": "Product categories",
+    "title": "Today's steel prices",
+    "allPrices": "All prices",
+    "viewPrice": "View price"
+  },
+  "articleFaq": {
+    "heading": "Frequently Asked Questions"
+  },
+  "marketPage": {
+    "overline": "Market Pulse",
+    "title": "Gold, Currency & Steel Billet",
+    "intro": "See live rates for USD, EUR, 18k gold, the global gold ounce and steel billet right here — five variables that directly or indirectly move rebar, I-beam and section prices. When USD or steel billet gets more expensive, that effect usually reaches final steel prices within a few weeks, not the same day; we explain why further down this page.",
+    "whyTitle": "Why do steel prices follow the dollar and gold?",
+    "explainer1": "Steel billet, the main raw material for rebar and I-beams, is priced on Iran's commodity exchange based on the dollar cost of imported iron ore and scrap. When the dollar gets more expensive, this cost rises for mills and usually affects the final price of rebar, I-beam and sections within a few weeks.",
+    "explainer2": "The global gold ounce also affects steel prices, though from a different angle than the dollar. When concern about inflation or global economic instability rises, capital tends to flee to both gold and base metals like iron and copper at the same time, since both are considered physical assets. That's why the gold ounce and global steel prices often move together during volatile periods, even without a direct link.",
+    "chain": {
+      "0": "The dollar gets more expensive, so the cost of imported iron ore and scrap rises for mills.",
+      "1": "Iran's commodity exchange updates the steel billet rate with this new cost.",
+      "2": "Mills set rebar, I-beam and section prices based on the new billet cost.",
+      "3": "This effect is usually seen in the steel market within a few weeks, not the same day."
+    },
+    "roleTableCaption": "Each variable's role in steel prices (see the live rate this instant in the board above this page)",
+    "roleCol": {
+      "variable": "Variable",
+      "role": "Role in steel prices"
+    },
+    "role": {
+      "usd": {
+        "label": "USD",
+        "role": "Mills' dollar cost of imported iron ore and scrap"
+      },
+      "eur": {
+        "label": "EUR",
+        "role": "Indirect effect, mainly European machinery and raw materials"
+      },
+      "gold18": {
+        "label": "18k Gold",
+        "role": "Domestic reflection of the global gold price and the dollar rate"
+      },
+      "ounce": {
+        "label": "Gold Ounce",
+        "role": "A risk-aversion and global inflation gauge"
+      },
+      "billet": {
+        "label": "Steel Billet",
+        "role": "The main raw material and most direct driver of rebar and I-beam prices"
+      }
+    },
+    "faq": {
+      "0": {
+        "question": "Why does rebar get more expensive when the dollar rises?",
+        "answer": "Because steel billet, rebar's main raw material, is priced on Iran's commodity exchange based on the dollar cost of imported iron ore and scrap. A more expensive dollar raises this cost for mills and usually affects the final price of rebar and I-beam within a few weeks."
+      },
+      "1": {
+        "question": "How is the global gold ounce related to steel prices?",
+        "answer": "When concern about inflation or global economic instability rises, capital tends to flee to both gold and base metals like iron and copper at once, since both are physical assets. That is why the gold ounce and global steel prices often move together during volatile periods."
+      },
+      "2": {
+        "question": "If the dollar rises today, does rebar change price the same day?",
+        "answer": "Usually not. Mills set prices based on recent-day rates, not instantly, and existing inventory or pre-signed contracts can delay the effect by days to weeks. The relationship between the dollar and steel prices moves in the same direction, but not at the same time."
+      },
+      "3": {
+        "question": "Does the euro affect steel prices the way the dollar does?",
+        "answer": "The euro's effect is weaker and more indirect, since iron ore and scrap purchases on the global market are mostly priced in dollars. The euro matters more for mills that import specific machinery or raw materials from Europe, not for the steel market as a whole."
+      },
+      "4": {
+        "question": "How is the steel billet rate at Ahantime determined?",
+        "answer": "Unlike the dollar and gold, which are recorded via automated live tracking, the steel billet rate is reviewed and entered by Ahantime's own expert team based on Iran's commodity exchange. This is deliberate: it prevents false, momentary swings from affecting a number that directly drives rebar and I-beam prices."
+      },
+      "5": {
+        "question": "Can today's dollar rate exactly predict tomorrow's steel price?",
+        "answer": "Not precisely. The dollar is one of several key variables, not the only factor: domestic supply, export policy and even mill inventory levels also affect the final price. The dollar rate shows the direction steel prices are moving, not the exact size of the change."
+      }
+    },
+    "relatedTitle": "Read more"
   }
 }

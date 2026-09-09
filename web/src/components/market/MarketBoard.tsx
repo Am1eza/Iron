@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
+import { useTranslations, useLocale } from 'next-intl';
 import { routes } from '@/lib/routes';
 import { formatToman, toPersianDigits } from '@/lib/utils/format';
 import { marketValues as fallbackValues } from '@/lib/mock/fixtures';
@@ -9,6 +10,7 @@ import { API_MODE } from '@/lib/api/config';
 import { marketApi } from '@/lib/api/resources/market';
 import { useMarket } from '@/lib/hooks/useMarket';
 import type { MarketValue } from '@/lib/types/domain';
+import type { AppLocale } from '@/i18n/config';
 import { MovementBadge, EmptyState, emptyPresets, Skeleton } from '@/components/ui';
 import { PriceChart } from '@/components/catalog/PriceChart';
 import { AlertBellButton } from '@/components/alerts/AlertBellButton';
@@ -22,14 +24,25 @@ import styles from './MarketBoard.module.css';
  * tgju-backed. Values come from
  * `useMarket()` (the same live-polled hook the header Ticker uses) — a mock
  * fallback only covers the brief pre-load flash, not live mode itself.
+ *
+ * `v.label`/`v.unit` arrive from the server as fixed fa text (not
+ * per-locale) — display label/unit are instead looked up locally from
+ * `v.key` (a closed 5-value `MarketKey`), the same key→translation pattern
+ * `lib/utils/alerts.ts`'s `marketUnit`/`MARKET_UNIT` already uses.
  */
 
-/** Big value: Toman ones via formatToman; ounce (unit دلار) via Persian digits. */
-function formatValue(v: MarketValue): { num: string; unit: string } {
+/** Big value: Toman ones via formatToman; ounce (unit دلار) via localized digits. */
+function formatValue(
+  v: MarketValue,
+  locale: AppLocale,
+  tUnit: (key: 'currency' | 'usd') => string,
+): { num: string; unit: string } {
   if (v.unit === 'تومان') {
-    return { num: formatToman(v.value, false), unit: 'تومان' };
+    return { num: formatToman(v.value, false, locale), unit: tUnit('currency') };
   }
-  return { num: toPersianDigits(v.value.toLocaleString('en-US').replace(/,/g, '٬')), unit: v.unit };
+  const grouped = v.value.toLocaleString('en-US');
+  const num = locale === 'fa' ? toPersianDigits(grouped.replace(/,/g, '٬')) : grouped;
+  return { num, unit: tUnit('usd') };
 }
 
 /** Same badge on every card regardless of `source` — a deliberate choice
@@ -39,10 +52,11 @@ function formatValue(v: MarketValue): { num: string; unit: string } {
  * its upstream reprices a few times a day) — this label is a uniform visual
  * category, not a claim that every card's *number* refreshes at one cadence. */
 function SourceBadge() {
+  const t = useTranslations('marketBoard');
   return (
     <span className={styles.source}>
       <span className={styles.sourceDot} aria-hidden="true" />
-      نرخ لحظه‌ای بازار
+      {t('sourceBadge')}
     </span>
   );
 }
@@ -72,6 +86,9 @@ function MarketBoardSkeleton() {
 }
 
 export function MarketBoard() {
+  const t = useTranslations('marketBoard');
+  const tUnit = useTranslations('common.unit');
+  const locale = useLocale() as AppLocale;
   const { data, isLoading, refetch } = useMarket();
   // NEVER fall back to mock fixtures in live mode. Those constants carry
   // `source: 'tgju'` and `isStale: false`, so an empty response painted
@@ -119,8 +136,9 @@ export function MarketBoard() {
     <div className={styles.board}>
       <ul className={styles.grid} role="list">
         {marketValues.map((v) => {
-          const { num, unit } = formatValue(v);
+          const { num, unit } = formatValue(v, locale, (k) => tUnit(k));
           const active = v.key === selectedKey;
+          const label = t(`labels.${v.key}`);
           return (
             <li key={v.key} className={styles.cardWrap}>
               {/* The bell trigger is a real, independently-clickable <button>
@@ -133,11 +151,11 @@ export function MarketBoard() {
                 className={styles.card}
                 data-active={active ? '' : undefined}
                 aria-pressed={active}
-                aria-label={`نمایش نمودار ${v.label}`}
+                aria-label={t('viewChartAriaLabel', { label })}
                 onClick={() => setSelectedKey(v.key)}
               >
                 <span className={styles.cardHead}>
-                  <span className={styles.label}>{v.label}</span>
+                  <span className={styles.label}>{label}</span>
                   <SourceBadge />
                 </span>
                 <span className={styles.valueRow}>
@@ -151,7 +169,7 @@ export function MarketBoard() {
               <span className={styles.bellSlot}>
                 <AlertBellButton
                   variant="subtle"
-                  target={{ type: 'market', key: v.key, label: v.label, currentValue: v.value }}
+                  target={{ type: 'market', key: v.key, label, currentValue: v.value }}
                 />
               </span>
             </li>
@@ -160,13 +178,11 @@ export function MarketBoard() {
       </ul>
 
       {selected ? (
-        <section className={styles.detail} aria-label={`نمودار ${selected.label}`}>
+        <section className={styles.detail} aria-label={t('chartAriaLabel', { label: t(`labels.${selected.key}`) })}>
           <div className={styles.detailHead}>
             <div>
-              <p className={styles.detailLabel}>نمودار {selected.label}</p>
-              <p className={styles.detailHint}>
-                روند تقریبی قیمت در بازه‌های هفته تا یک‌سال اخیر.
-              </p>
+              <p className={styles.detailLabel}>{t('chartLabel', { label: t(`labels.${selected.key}`) })}</p>
+              <p className={styles.detailHint}>{t('chartHint')}</p>
             </div>
             <SourceBadge />
           </div>
@@ -175,10 +191,10 @@ export function MarketBoard() {
             <PriceChart
               series={series}
               dates={chartDates}
-              unit={selected.unit === 'تومان' ? 'تومان' : selected.unit}
+              unit={formatValue(selected, locale, (k) => tUnit(k)).unit}
             />
           ) : (
-            <p className={styles.detailHint}>در حال بارگذاری نمودار…</p>
+            <p className={styles.detailHint}>{t('loadingChart')}</p>
           )}
         </section>
       ) : null}
@@ -186,7 +202,7 @@ export function MarketBoard() {
 
       <div className={styles.ctaRow}>
         <Link href={routes.prices()} className={styles.cta}>
-          مشاهدهٔ قیمت آهن‌آلات
+          {t('viewPricesCta')}
           <ChevronStartIcon size={18} className="icon--rtl" />
         </Link>
       </div>
