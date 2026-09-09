@@ -36,8 +36,14 @@ import styles from './AdvisorAbout.module.css';
  * the chat down on first paint for exactly the visitors this exists to help,
  * and re-create the bug in a different shape.
  */
-export function AdvisorAbout({ faqItems }: { faqItems: { question: string; answer: string }[] }) {
+const FAQ_ITEM_COUNT = 5;
+
+export function AdvisorAbout() {
   const t = useTranslations('ai.about');
+  const faqItems = Array.from({ length: FAQ_ITEM_COUNT }, (_, i) => ({
+    question: t(`faq.item${i + 1}.question`),
+    answer: t(`faq.item${i + 1}.answer`),
+  }));
   const link = (chunks: ReactNode) => (
     <Link href={routes.prices()} className={styles.link}>
       {chunks}

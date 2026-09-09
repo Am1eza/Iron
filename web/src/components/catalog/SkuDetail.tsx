@@ -9,7 +9,7 @@ import { useToast } from '@/lib/hooks/useToast';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { CONSTANTS } from '@/lib/config/constants';
 import { routes } from '@/lib/routes';
-import { formatToman, priceHiddenLabel, toPersianDigits } from '@/lib/utils/format';
+import { formatToman, priceHiddenLabelLocalized, toPersianDigits } from '@/lib/utils/format';
 import {
   priceBasisNoun,
   sizeLabel,
@@ -123,6 +123,7 @@ export function SkuDetail({
   // (add-to-cart confirmation), same wording, as PriceTable's toast.
   const tPriceTable = useTranslations('priceTable');
   const tCommon = useTranslations('common');
+  const tPriceHidden = useTranslations('common.priceHidden');
   const locale = useLocale() as AppLocale;
   // Falls back to `row.name` (fa) unchanged whenever `category` or the
   // matching sub-category lacks a real translation for this locale — see
@@ -177,7 +178,7 @@ export function SkuDetail({
   // W23 audit fix: a stale-hidden price's `row.current.price` is a `0`
   // sentinel (see catalogRepo.toPriceRow) — must never be formatted as a
   // real number or fed into the billet-comparison math below.
-  const hiddenLabel = priceHiddenLabel(row.current);
+  const hiddenLabel = priceHiddenLabelLocalized(row.current, locale, tPriceHidden);
   const price = vat ? Math.round(row.current.price * (1 + vatRate)) : row.current.price;
 
   // US-03.3 — compared against the raw (VAT-free) price: billet itself has
@@ -628,9 +629,9 @@ export function SkuDetail({
                   </span>
                   <span className={styles.relPriceRow}>
                     <span className={`${styles.relPrice} tnum`}>
-                      {priceHiddenLabel(r.current) ?? (
+                      {priceHiddenLabelLocalized(r.current, locale, tPriceHidden) ?? (
                         <>
-                          {formatToman(r.current.price, false)}
+                          {formatToman(r.current.price, false, locale)}
                           <span className={styles.relUnit}> {tCommon('unit.currency')}</span>
                         </>
                       )}

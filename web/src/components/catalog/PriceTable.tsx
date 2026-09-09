@@ -10,7 +10,7 @@ import { useToast } from '@/lib/hooks/useToast';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { CONSTANTS } from '@/lib/config/constants';
 import { routes } from '@/lib/routes';
-import { formatToman, priceHiddenLabel, toPersianDigits, localizeDigits, withVat } from '@/lib/utils/format';
+import { formatToman, priceHiddenLabelLocalized, toPersianDigits, localizeDigits, withVat } from '@/lib/utils/format';
 import { compareCatalogSizes } from '@/lib/utils/catalogSize';
 import {
   sizeLabel,
@@ -315,13 +315,14 @@ const PriceTableRow = memo(function PriceTableRow({
   weightCol: string;
 } & RowActions) {
   const t = useTranslations('priceTable');
+  const tPriceHidden = useTranslations('common.priceHidden');
   const locale = useLocale() as AppLocale;
   // `getLocalizedSkuName` falls back to `r.name` (fa) unchanged whenever
   // either parent lacks a real translation — see that function's own
   // comment for why a partially-translated name is worse than an honest
   // all-Persian one.
   const displayName = getLocalizedSkuName(r, category, subCategory, locale);
-  const hiddenLabel = priceHiddenLabel(r.current);
+  const hiddenLabel = priceHiddenLabelLocalized(r.current, locale, tPriceHidden);
   return (
     <tr role="row" className={styles.row}>
       <td role="cell" className={styles.compareCell}>
@@ -540,6 +541,7 @@ export function PriceTable({
 }) {
   const t = useTranslations('priceTable');
   const tCommon = useTranslations('common');
+  const tPriceHidden = useTranslations('common.priceHidden');
   const locale = useLocale() as AppLocale;
   const categoryName = getLocalizedName(category, locale);
   const weightCol = weightLabel(categorySlug);
@@ -1627,7 +1629,7 @@ export function PriceTable({
                   {selectedForCompare.map((r) => (
                     <td key={r.id}>
                       {r.theoreticalWeightKg
-                        ? `${toPersianDigits(r.theoreticalWeightKg)} kg`
+                        ? `${localizeDigits(r.theoreticalWeightKg, locale)} kg`
                         : t('unknown')}
                     </td>
                   ))}
@@ -1635,15 +1637,17 @@ export function PriceTable({
                 <tr
                   className={diffRowClass(
                     selectedForCompare.map(
-                      (r) => priceHiddenLabel(r.current) ?? withVat(r.current.price, vat, vatRate),
+                      (r) =>
+                        priceHiddenLabelLocalized(r.current, locale, tPriceHidden) ??
+                        withVat(r.current.price, vat, vatRate),
                     ),
                   )}
                 >
                   <th scope="row">{t('priceColumn')}</th>
                   {selectedForCompare.map((r) => (
                     <td key={r.id} className={styles.price}>
-                      {priceHiddenLabel(r.current) ??
-                        formatToman(withVat(r.current.price, vat, vatRate), false)}
+                      {priceHiddenLabelLocalized(r.current, locale, tPriceHidden) ??
+                        formatToman(withVat(r.current.price, vat, vatRate), false, locale)}
                     </td>
                   ))}
                 </tr>

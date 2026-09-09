@@ -928,7 +928,29 @@
     "about": {
       "summaryTitle": "What exactly does this advisor do?",
       "summaryHint": "Where the prices come from, how accurate the weights are, and why there's no online payment",
-      "lede": "The Ahantime advisor answers from the same prices you see in the <link>site's price tables</link>; it never makes up a number. Tell it what product and what it's for, and it will work out today's price, the exact section weight and the cheapest mill for your tonnage — and, if you'd like, get you a proforma at the end."
+      "lede": "The Ahantime advisor answers from the same prices you see in the <link>site's price tables</link>; it never makes up a number. Tell it what product and what it's for, and it will work out today's price, the exact section weight and the cheapest mill for your tonnage — and, if you'd like, get you a proforma at the end.",
+      "faq": {
+        "item1": {
+          "question": "Where does Ahantime's AI advisor get its prices from?",
+          "answer": "The same database that builds the site's own price tables — rates are entered by Ahantime staff after checking with mills and the market, never generated. The advisor never invents a number: if a product has no price on file, or it has gone stale, it says so and tells you a rep will confirm it, instead of guessing."
+        },
+        "item2": {
+          "question": "How accurate is the weight the advisor gives?",
+          "answer": "Weights are calculated with each section's standard formula (theoretical weight) — the exact formula the site's own weight calculator uses, never an estimate. The real scale weight can differ slightly from the theoretical figure due to production tolerance; the final number is set on the official proforma."
+        },
+        "item3": {
+          "question": "Can I get a proforma right in the chat?",
+          "answer": "Yes. Once the product, quantity and specs are clear, the advisor shows a request-summary card with today's price and weight under its reply, and you confirm it by tapping that card's own button. Nothing is submitted without your confirmation."
+        },
+        "item4": {
+          "question": "Do I have to pay online to buy?",
+          "answer": "No. Ahantime has no online payment, and there is no payment step in the chat at all. After you submit a request, a sales rep calls to finalize the price, availability and delivery time."
+        },
+        "item5": {
+          "question": "What happens if the advisor doesn't know the answer?",
+          "answer": "It says so honestly and hands the conversation to a human rep. The advisor's scope is iron, steel and construction — it won't answer outside that."
+        }
+      }
     },
     "capabilities": {
       "title": "What can this advisor do that a general-purpose chat can't?",
