@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { routes } from '@/lib/routes';
 import { useAuthStore } from '@/lib/stores/auth';
 import { ArrowEndIcon } from '@/components/primitives/icons';
@@ -21,22 +22,24 @@ export function ClubCtas({
   primaryClass: string;
   ghostClass: string;
 }) {
+  const t = useTranslations('clubCtas');
+  const tNav = useTranslations('nav');
   const user = useAuthStore((s) => s.user);
   return (
     <div className={wrapClass}>
       {user ? (
         <Link href={routes.account('club')} className={primaryClass}>
-          باشگاه من
+          {t('myClub')}
           <ArrowEndIcon size={18} aria-hidden="true" />
         </Link>
       ) : (
         <>
           <Link href={routes.login(routes.club())} className={primaryClass}>
-            ثبت‌نام / ورود
+            {t('registerLogin')}
             <ArrowEndIcon size={18} aria-hidden="true" />
           </Link>
           <Link href={routes.account('club')} className={ghostClass}>
-            حساب من
+            {tNav('account')}
           </Link>
         </>
       )}

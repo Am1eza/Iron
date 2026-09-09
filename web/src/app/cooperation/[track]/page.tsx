@@ -2,19 +2,10 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
-import {
-  Container,
-  Section,
-  Stack,
-  Breadcrumbs,
-  Heading,
-  Text,
-} from '@/components/ui';
+import { Container, Section, Stack, Breadcrumbs } from '@/components/ui';
 import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
-import { CheckIcon } from '@/components/primitives/icons';
-import { CooperationForm } from '@/components/cooperation/CooperationForm';
+import { CooperationTrackContent } from '@/components/cooperation/CooperationTrackContent';
 import { TRACKS, TRACK_ORDER, isTrackKey } from '@/components/cooperation/tracks';
-import layout from '@/components/cooperation/TrackLayout.module.css';
 
 type Params = { params: Promise<{ track: string }> };
 
@@ -39,6 +30,11 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   });
 }
 
+/**
+ * Breadcrumbs stay fa (reading `TRACKS[track].title`, unchanged) — the
+ * established SSR-shell exception. The page's actual content is
+ * `CooperationTrackContent`, a Client Component that translates.
+ */
 export default async function CooperationTrackPage({ params }: Params) {
   const { track } = await params;
   if (!isTrackKey(track)) notFound();
@@ -57,51 +53,7 @@ export default async function CooperationTrackPage({ params }: Params) {
       <Section space={10} aria-labelledby="track-title">
         <Stack gap={10}>
           <Breadcrumbs items={crumbs} />
-
-          <div className={layout.grid}>
-            {/* Explainer */}
-            <Stack gap={8}>
-              <Stack gap={4}>
-                <Text variant="overline" color="accent">
-                  {t.eyebrow}
-                </Text>
-                <div className={layout.header}>
-                  <span className={layout.icon} aria-hidden>
-                    {t.icon}
-                  </span>
-                  <Heading level={1} id="track-title">
-                    {t.title}
-                  </Heading>
-                </div>
-                <Text variant="body-lg" color="muted">
-                  {t.lead}
-                </Text>
-              </Stack>
-
-              <Stack gap={4}>
-                <Heading level={2}>این همکاری شامل چه می‌شود؟</Heading>
-                <ul className={layout.points}>
-                  {t.points.map((point) => (
-                    <li key={point} className={layout.point}>
-                      <span className={layout.check} aria-hidden>
-                        <CheckIcon size={18} />
-                      </span>
-                      <span>{point}</span>
-                    </li>
-                  ))}
-                </ul>
-              </Stack>
-            </Stack>
-
-            {/* Lead form */}
-            <div className={layout.formCard}>
-              <div className={layout.formHead}>
-                <h2 className={layout.formTitle}>درخواست همکاری</h2>
-                <p className={layout.formNote}>{t.formNote}</p>
-              </div>
-              <CooperationForm track={t.key} />
-            </div>
-          </div>
+          <CooperationTrackContent track={track} />
         </Stack>
       </Section>
     </Container>

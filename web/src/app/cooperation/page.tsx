@@ -1,19 +1,9 @@
 import type { Metadata } from 'next';
-import { buildMetadata, ORG_NAME } from '@/lib/seo';
+import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
-import {
-  Container,
-  Section,
-  Stack,
-  Grid,
-  Breadcrumbs,
-  Heading,
-  Text,
-  Divider,
-} from '@/components/ui';
+import { Container, Section, Stack, Breadcrumbs } from '@/components/ui';
 import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
-import { TrackCard } from '@/components/cooperation/TrackCard';
-import { TRACKS, TRACK_ORDER } from '@/components/cooperation/tracks';
+import { CooperationPageContent } from '@/components/cooperation/CooperationPageContent';
 
 export const metadata: Metadata = buildMetadata({
   title: 'همکاری با ما',
@@ -22,6 +12,11 @@ export const metadata: Metadata = buildMetadata({
   path: routes.cooperation(),
 });
 
+/**
+ * Breadcrumbs stay fa — the established SSR-shell exception (locale
+ * resolves client-side only). The page's actual content is
+ * `CooperationPageContent`, a Client Component that translates.
+ */
 export default function CooperationPage() {
   const crumbs = [
     { label: 'خانه', href: routes.home() },
@@ -34,45 +29,8 @@ export default function CooperationPage() {
 
       <Section space={10} aria-labelledby="coop-title">
         <Stack gap={10}>
-          <Stack gap={4}>
-            <Breadcrumbs items={crumbs} />
-            <Text variant="overline" color="accent">
-              همکاری با آهن‌تایم
-            </Text>
-            <Heading level={1} id="coop-title">
-              با هم بازار فولاد را شفاف‌تر کنیم
-            </Heading>
-            <Text variant="body-lg" color="muted">
-              {ORG_NAME} برای رشدِ کنار هم ساخته شده است. چه به دنبال تحلیل دقیق بازار
-              باشید، چه بخواهید محصولتان را عرضه کنید یا نمایندهٔ فروش ما شوید، یکی از این
-              سه مسیر برای شما هست. مسیر مناسب را انتخاب کنید؛ کارشناسان ما در ادامه با شما
-              هماهنگ می‌شوند.
-            </Text>
-          </Stack>
-
-          <Divider />
-
-          <Grid min="280px" gap={6}>
-            {TRACK_ORDER.map((key) => {
-              const t = TRACKS[key];
-              return (
-                <TrackCard
-                  key={key}
-                  href={routes.cooperation(t.key)}
-                  icon={t.icon}
-                  title={t.title}
-                  desc={t.summary}
-                  audience={t.audience}
-                  cta={t.cta}
-                />
-              );
-            })}
-          </Grid>
-
-          <Text variant="body-sm" color="muted">
-            مطمئن نیستید کدام مسیر مناسب شماست؟ بدون نگرانی فرم هر مسیر را پر کنید؛ ما
-            راهنمایی‌تان می‌کنیم.
-          </Text>
+          <Breadcrumbs items={crumbs} />
+          <CooperationPageContent />
         </Stack>
       </Section>
     </Container>

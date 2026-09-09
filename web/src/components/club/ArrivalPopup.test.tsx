@@ -1,8 +1,24 @@
+import type { ReactElement } from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, act } from '@testing-library/react';
+import { screen, act } from '@testing-library/react';
+import { NextIntlClientProvider } from 'next-intl';
+import { renderWithIntl as render } from '@/test/renderWithIntl';
 import { ArrivalPopup } from './ArrivalPopup';
 import { isPromoSuppressedPath } from './arrivalPopupRoutes';
 import { useUiStore } from '@/lib/stores/ui';
+import faMessages from '../../../messages/fa.json';
+
+// `rerender()` replaces the whole root tree, including whatever provider
+// `render()` wrapped it in — so a bare `<ArrivalPopup />` on rerender would
+// drop the NextIntlClientProvider `renderWithIntl` mounted and throw once
+// the component calls `useTranslations()`. Re-wrap it the same way.
+function withIntl(ui: ReactElement) {
+  return (
+    <NextIntlClientProvider locale="fa" messages={faMessages} timeZone="Asia/Tehran">
+      {ui}
+    </NextIntlClientProvider>
+  );
+}
 
 const pathname = vi.hoisted(() => ({ current: '/prices' }));
 vi.mock('next/navigation', () => ({ usePathname: () => pathname.current }));
@@ -71,11 +87,11 @@ describe('ArrivalPopup — a promo that never outranks the visitor’s task', ()
     expect(screen.getByRole('status')).toBeInTheDocument();
 
     modalOpen.current = true;
-    rerender(<ArrivalPopup />);
+    rerender(withIntl(<ArrivalPopup />));
     expect(screen.queryByRole('status')).toBeNull();
 
     modalOpen.current = false;
-    rerender(<ArrivalPopup />);
+    rerender(withIntl(<ArrivalPopup />));
     expect(screen.getByRole('status')).toBeInTheDocument();
   });
 
@@ -85,7 +101,7 @@ describe('ArrivalPopup — a promo that never outranks the visitor’s task', ()
     expect(screen.getByRole('status')).toBeInTheDocument();
 
     pathname.current = '/cart';
-    rerender(<ArrivalPopup />);
+    rerender(withIntl(<ArrivalPopup />));
     expect(screen.queryByRole('status')).toBeNull();
     expect(useUiStore.getState().dismissedClubPopupAt).toBeNull();
   });

@@ -151,7 +151,56 @@
     "notesPlaceholder": "Write your request or notes here…",
     "submit": "Submit Partnership Request",
     "consent": "By submitting this request, you agree to be contacted by an Ahantime representative about this matter.",
-    "success": "Your request has been received; we'll be in touch soon."
+    "success": "Your request has been received; we'll be in touch soon.",
+    "tracks": {
+      "analysis": {
+        "title": "Market Analysis",
+        "summary": "A dedicated steel-market report and analysis, tailored to your project and purchasing plan.",
+        "audience": "For contractors, developers and procurement teams",
+        "cta": "Request an analysis",
+        "eyebrow": "Cooperation · Market Analysis",
+        "lead": "Ahantime's analysis team tracks rebar, I-beam, sheet and other section prices along with the market forces behind them, and prepares a dedicated report tailored to your needs so you can buy at the right time.",
+        "point1": "Price-trend and volatility analysis for the sections you care about, over short and medium terms.",
+        "point2": "A look at the drivers: exchange rate, billet price, commodity-exchange supply and mill policies.",
+        "point3": "A recommended buying window to control your project's landed cost.",
+        "point4": "A configurable recurring report, tailored to your product mix and purchase volume.",
+        "formNote": "Note the products and time window you have in mind, so we can prepare a more precise report."
+      },
+      "supply": {
+        "title": "Supply From You",
+        "summary": "A producer or supplier? Put your products on Ahantime and reach buyers nationwide.",
+        "audience": "For mills, trading houses and suppliers",
+        "cta": "Register as a supplier",
+        "eyebrow": "Cooperation · Supply From You",
+        "lead": "If you produce or supply steel sections, you can list your products on Ahantime. We put your goods in front of our wide network of buyers, contractors and builders, and manage the whole process from inquiry to delivery.",
+        "point1": "Your products listed alongside the day's market price, in front of thousands of buyers.",
+        "point2": "Real sales inquiries and leads, without needing a large sales team of your own.",
+        "point3": "Price, availability and delivery-time coordination handled by Ahantime's staff.",
+        "point4": "A transparent, long-term partnership with clear settlement and performance reporting.",
+        "formNote": "Note your product type, production capacity or stock on hand, and delivery location."
+      },
+      "sell": {
+        "title": "Sell For Us",
+        "summary": "Become an Ahantime sales representative and grow your business on the strength of an established marketplace.",
+        "audience": "For trading firms, resellers and sales professionals",
+        "cta": "Apply as a sales rep",
+        "eyebrow": "Cooperation · Sell For Us",
+        "lead": "As an Ahantime sales representative, you can serve customers in your region and build steady revenue, backed by our transparent pricing, direct mill supply and brand credibility.",
+        "point1": "Access to daily prices, the product catalog and Ahantime's sales tools.",
+        "point2": "Expert support for inquiries, proformas and finalizing orders.",
+        "point3": "Reliable mill supply and coordinated delivery for your customers.",
+        "point4": "A transparent partnership model with clear commission and growth tied to performance.",
+        "formNote": "Note your operating region and sales track record, so we can review your application faster."
+      }
+    },
+    "indexOverline": "Cooperation with Ahantime",
+    "indexH1": "Let's make the steel market more transparent, together",
+    "indexLede": "{brand} is built for growing together. Whether you want in-depth market analysis, want to supply your products, or want to become our sales representative, one of these three paths is for you. Pick the right one, and our staff will follow up with you.",
+    "indexFooterNote": "Not sure which path is right for you? Don't worry — fill out any track's form and we'll help you find your way.",
+    "trackPage": {
+      "includesHeading": "What does this partnership include?",
+      "formHeading": "Request Cooperation"
+    }
   },
   "profile": {
     "updated": "Profile updated.",
@@ -1995,5 +2044,44 @@
       "global-market": "Global market developments",
       "demand-construction": "Demand & construction"
     }
+  },
+  "clubLanding": {
+    "overline": "Customer Club",
+    "h1": "Ahantime Customer Club",
+    "heroLead": "Your loyalty is worth something. With every inquiry and purchase, your tier goes up, unlocking supply priority, price alerts on several products at once, and a dedicated advisor. Volume-based tiered discounts also apply automatically to every customer — member or not — the same philosophy we've always had: \"consult first, then buy.\"",
+    "heroHint": "Membership is free and activates once you sign in and confirm it under \"My Club\".",
+    "tiersHeading": "Three tiers, growing benefits",
+    "tiersSub": "Start at \"Iron\", and move up to \"Steel\" and then \"Poolad\" as you keep working with us.",
+    "levelLabel": "Tier {n}",
+    "mostPopular": "Most popular",
+    "joinHeading": "How do I join?",
+    "joinSub": "Three simple steps to your first club benefits.",
+    "steps": {
+      "step1": {
+        "title": "Sign up with your mobile number",
+        "body": "Sign in with your mobile number, then activate free membership under \"My Club\"."
+      },
+      "step2": {
+        "title": "Your first inquiry or purchase",
+        "body": "Add products to your inquiry cart; our team will contact you with a proforma."
+      },
+      "step3": {
+        "title": "Move up a tier",
+        "body": "Keep working with us and you'll automatically move up to \"Steel\" and then \"Poolad\"."
+      }
+    },
+    "closingHeading": "Join now",
+    "closingLead": "Sign in, activate membership under \"My Club\", and start earning points on your next inquiries.",
+    "closingNote": "Have a question? Our staff are ready to help."
+  },
+  "clubCtas": {
+    "myClub": "My Club",
+    "registerLogin": "Register / Log in"
+  },
+  "arrivalPopup": {
+    "ariaLabel": "Invitation to the Ahantime customer club",
+    "title": "Fresh products and prices are in",
+    "desc": "Join the Ahantime customer club for supply priority and dedicated price alerts.",
+    "cta": "View the customer club"
   }
 }

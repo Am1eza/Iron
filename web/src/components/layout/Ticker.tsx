@@ -155,13 +155,21 @@ function TickerItem({
   const dirClass =
     v.movementDir === 'up' ? styles.up : v.movementDir === 'down' ? styles.down : styles.flat;
   const arrow = v.movementDir === 'up' ? '▲' : v.movementDir === 'down' ? '▼' : '•';
+  const isToman = v.unit === 'تومان';
   const valueText = pending
     ? '—'
-    : v.unit === 'تومان'
+    : isToman
       ? formatToman(v.value, false, locale)
       : localizeDigits(v.value.toLocaleString('en-US'), locale);
   const labelKey = LABEL_KEYS[v.key];
   const label = labelKey ? t(labelKey) : v.label;
+  // `v.unit` is an admin-editable, fa-only sentinel from the market-values
+  // table — same class of gap as `v.label` above (see the file header
+  // comment). Only "تومان"/"دلار" are ever actually stored (see PLACEHOLDER),
+  // so map those two through the ticker's own already-present (but until now
+  // unused) unitToman/unitDollar keys; anything else falls back to the raw
+  // fa value rather than crash.
+  const unitText = isToman ? t('unitToman') : v.unit === 'دلار' ? t('unitDollar') : v.unit;
 
   return (
     <li className={styles.item} aria-hidden={decorative ? 'true' : undefined}>
@@ -173,7 +181,7 @@ function TickerItem({
       >
         <span className={styles.label}>{label}</span>
         <span className={styles.value}>{valueText}</span>
-        <span className={styles.unit}>{v.unit}</span>
+        <span className={styles.unit}>{unitText}</span>
         <span className={`${styles.move} ${dirClass}`}>
           <span className={styles.arrow} aria-hidden="true">
             {arrow}
