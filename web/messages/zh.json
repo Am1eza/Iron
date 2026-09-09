@@ -1892,5 +1892,42 @@
       "headline": "请登录后继续",
       "body": "使用手机号和短信验证码登录。"
     }
+  },
+  "search": {
+    "title": "搜索",
+    "lede": "在安挺的产品、分类和文章中搜索。先咨询，后购买。",
+    "searchPlaceholder": "搜索产品、规格、工厂或文章…",
+    "emptyQueryHeadline": "您在寻找什么？",
+    "emptyQueryBody": "输入产品名称、规格、工厂或文章标题，例如「14号螺纹钢」或「马钢」。",
+    "resultsSummary": "「{q}」的搜索结果：{count} 条",
+    "filterAriaLabel": "按结果类型筛选",
+    "filterAll": "全部",
+    "typeLabel": {
+      "sku": "产品",
+      "category": "分类",
+      "article": "文章与资讯"
+    },
+    "noResultsForType": "此分类下没有结果——请尝试「全部」筛选。",
+    "groupAriaLabel": {
+      "products": "产品结果",
+      "categories": "分类结果",
+      "articles": "文章结果"
+    },
+    "groupCount": "{count} 项",
+    "groupCountTruncated": "{count} 项（显示前 {cap} 项）",
+    "moreCategories": "查看全部分类",
+    "moreArticles": "查看博客",
+    "sortAriaLabel": "结果排序",
+    "sort": {
+      "relevance": "相关度最高",
+      "price": "价格最低",
+      "factory": "工厂"
+    },
+    "productsGroupTitle": "产品",
+    "categoriesGroupTitle": "分类",
+    "articlesGroupTitle": "文章与资讯",
+    "sizeLabel": "规格",
+    "truncatedProductsNote": "如需查看此次搜索的全部产品，请使用价格列表页面的筛选功能。",
+    "popularCategoriesTitle": "热门分类"
   }
 }

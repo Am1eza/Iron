@@ -1892,5 +1892,42 @@
       "headline": "سجّل الدخول للمتابعة",
       "body": "سجّل الدخول برقم جوالك والرمز الذي نرسله إليك."
     }
+  },
+  "search": {
+    "title": "بحث",
+    "lede": "ابحث في منتجات آهن‌تايم وفئاتها ومقالاتها. استشر أولاً، ثم اشترِ.",
+    "searchPlaceholder": "ابحث عن منتج أو مقاس أو مصنع أو مقال…",
+    "emptyQueryHeadline": "عمّ تبحث؟",
+    "emptyQueryBody": "اكتب اسم المنتج أو المقاس أو المصنع أو عنوان المقال — على سبيل المثال «حديد تسليح 14» أو «فولاذ مباركة».",
+    "resultsSummary": "{count} نتيجة لـ «{q}»",
+    "filterAriaLabel": "تصفية حسب نوع النتيجة",
+    "filterAll": "الكل",
+    "typeLabel": {
+      "sku": "المنتجات",
+      "category": "الفئات",
+      "article": "المقالات والأخبار"
+    },
+    "noResultsForType": "لا توجد نتائج في هذه الفئة — جرّب فلتر «الكل».",
+    "groupAriaLabel": {
+      "products": "نتائج المنتجات",
+      "categories": "نتائج الفئات",
+      "articles": "نتائج المقالات"
+    },
+    "groupCount": "{count} عنصر",
+    "groupCountTruncated": "{count} عنصر (أول {cap} معروضة)",
+    "moreCategories": "جميع الفئات",
+    "moreArticles": "مشاهدة المدونة",
+    "sortAriaLabel": "ترتيب النتائج",
+    "sort": {
+      "relevance": "الأكثر صلة",
+      "price": "الأرخص",
+      "factory": "المصنع"
+    },
+    "productsGroupTitle": "المنتجات",
+    "categoriesGroupTitle": "الفئات",
+    "articlesGroupTitle": "المقالات والأخبار",
+    "sizeLabel": "المقاس",
+    "truncatedProductsNote": "لعرض جميع منتجات هذا البحث، استخدم فلاتر صفحة الأسعار.",
+    "popularCategoriesTitle": "الفئات الأكثر بحثًا"
   }
 }

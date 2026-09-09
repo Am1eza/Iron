@@ -1892,5 +1892,42 @@
       "headline": "برای ادامه وارد شوید",
       "body": "با شمارهٔ موبایل و کد پیامکی وارد شوید."
     }
+  },
+  "search": {
+    "title": "جستجو",
+    "lede": "در میان محصولات، دسته‌بندی‌ها و مقالات آهن‌تایم بگردید. اول مشورت، بعد خرید.",
+    "searchPlaceholder": "جستجوی محصول، سایز، کارخانه یا مقاله…",
+    "emptyQueryHeadline": "چه چیزی را جستجو می‌کنید؟",
+    "emptyQueryBody": "نام محصول، سایز، کارخانه یا عنوان مقاله را بنویسید. مثلاً «میلگرد ۱۴» یا «فولاد مبارکه».",
+    "resultsSummary": "{count} نتیجه برای «{q}»",
+    "filterAriaLabel": "فیلتر نوع نتیجه",
+    "filterAll": "همه",
+    "typeLabel": {
+      "sku": "محصولات",
+      "category": "دسته‌بندی‌ها",
+      "article": "مقالات و اخبار"
+    },
+    "noResultsForType": "نتیجه‌ای در این دسته نیست — فیلتر «همه» را امتحان کنید.",
+    "groupAriaLabel": {
+      "products": "نتایج محصولات",
+      "categories": "نتایج دسته‌بندی‌ها",
+      "articles": "نتایج مقالات"
+    },
+    "groupCount": "{count} مورد",
+    "groupCountTruncated": "{count} مورد ({cap} مورد اول)",
+    "moreCategories": "همهٔ دسته‌ها",
+    "moreArticles": "مشاهدهٔ وبلاگ",
+    "sortAriaLabel": "ترتیب نتایج",
+    "sort": {
+      "relevance": "مرتبط‌ترین",
+      "price": "ارزان‌ترین",
+      "factory": "کارخانه"
+    },
+    "productsGroupTitle": "محصولات",
+    "categoriesGroupTitle": "دسته‌بندی‌ها",
+    "articlesGroupTitle": "مقالات و اخبار",
+    "sizeLabel": "سایز",
+    "truncatedProductsNote": "برای دیدن همهٔ محصولات این جستجو، از فیلترهای صفحهٔ قیمت‌ها استفاده کنید.",
+    "popularCategoriesTitle": "دسته‌بندی‌های پرجستجو"
   }
 }

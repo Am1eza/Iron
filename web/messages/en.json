@@ -1892,5 +1892,42 @@
       "headline": "Sign in to continue",
       "body": "Sign in with your mobile number and the code we text you."
     }
+  },
+  "search": {
+    "title": "Search",
+    "lede": "Search Ahantime's products, categories and articles. Consult first, buy after.",
+    "searchPlaceholder": "Search a product, size, factory or article…",
+    "emptyQueryHeadline": "What are you looking for?",
+    "emptyQueryBody": "Enter a product name, size, factory or article title — for example “rebar 14” or “Mobarakeh Steel”.",
+    "resultsSummary": "{count} results for “{q}”",
+    "filterAriaLabel": "Filter by result type",
+    "filterAll": "All",
+    "typeLabel": {
+      "sku": "Products",
+      "category": "Categories",
+      "article": "Articles & news"
+    },
+    "noResultsForType": "No results in this category — try the “All” filter.",
+    "groupAriaLabel": {
+      "products": "Product results",
+      "categories": "Category results",
+      "articles": "Article results"
+    },
+    "groupCount": "{count} items",
+    "groupCountTruncated": "{count} items (first {cap} shown)",
+    "moreCategories": "All categories",
+    "moreArticles": "View the blog",
+    "sortAriaLabel": "Sort results",
+    "sort": {
+      "relevance": "Most relevant",
+      "price": "Cheapest",
+      "factory": "Factory"
+    },
+    "productsGroupTitle": "Products",
+    "categoriesGroupTitle": "Categories",
+    "articlesGroupTitle": "Articles & news",
+    "sizeLabel": "Size",
+    "truncatedProductsNote": "To see every product from this search, use the filters on the price-list page.",
+    "popularCategoriesTitle": "Popular categories"
   }
 }
