@@ -2136,5 +2136,123 @@
   "requestPage": {
     "title": "Submit a Proforma Request",
     "subtitle": "This request is filed under your account ({user}); our sales rep will call you on that same number."
+  },
+  "privacyPage": {
+    "eyebrow": "Legal",
+    "title": "Privacy Policy",
+    "lead": "We only collect the information necessary to provide our quotation service, and we do not sell your data.",
+    "alertTitle": "Minimal data, maximum respect",
+    "alertBody": "No registration is required to view prices; your mobile number is only requested when you submit a quotation request and to receive a verification code.",
+    "lastUpdated": "Last updated: {date}",
+    "sections": {
+      "intro": {
+        "title": "Introduction",
+        "body": "Protecting your privacy matters to us. This document explains what information Ahantime collects, why and how we use it, and what rights you have over your data. We collect only the information necessary to provide our quotation service."
+      },
+      "collect": {
+        "title": "What information we collect",
+        "item1": "<b>Mobile number</b>: to submit a quotation request, authenticate via a one-time verification code (OTP), and allow our specialists to contact you to finalize a proforma.",
+        "item2": "<b>Request information</b>: the list of items added to your quotation cart and the specifications needed to provide pricing and delivery.",
+        "item3": "<b>Your conversation with our AI advisor</b>: the text of the messages you write in the \"AI Advisor\" section, together with the advisor’s replies. If you write your name or mobile number within that conversation, that name and number also become part of the conversation text. The \"AI and cross-border processing\" section below explains where this text is processed.",
+        "item4": "<b>Basic technical data</b>: standard browser and device information used to maintain security, ensure correct operation, and improve the user experience."
+      },
+      "use": {
+        "title": "How we use your information",
+        "item1": "Responding to your quotation request and contacting you to provide pricing, availability, and delivery time.",
+        "item2": "Sending verification codes and notifications related to your request.",
+        "item3": "Improving the quality of our services, pricing, and the platform experience."
+      },
+      "ai": {
+        "title": "AI and cross-border processing",
+        "p1": "Ahantime’s \"AI Advisor\" section runs on a language model provided by <b>Surplus Intelligence</b>. This model does not run on Ahantime’s own servers; to generate a reply, the text of your conversation is sent from Ahantime’s server to a <b>relay server located outside Iran</b>, and from there to the model provider.",
+        "p2": "<b>What this means in practice:</b> anything you type in the chat window leaves Iran. If you write your name, mobile number, address, project details, or any other personal or business information in the conversation text, that information is sent along with the conversation. Once data leaves Iran, it becomes subject to the laws and terms of service of the foreign provider, and Ahantime does not have full control over its retention or deletion by that service.",
+        "p3": "<b>What is not sent:</b> the mobile number you use to sign in, your verification code (OTP), your quotation cart, your proformas, and your order history remain in Ahantime's database <i>inside Iran</i> and are not sent to the external server for the AI advisor. Conversation text is also stored in that same internal database so that reply quality can be reviewed and improved.",
+        "p4": "<b>Your choice:</b> using the AI advisor is entirely optional. Viewing prices, submitting a quotation request, and contacting our specialists do not require using the advisor chat. If you would prefer that no data leave Iran, do not use this section, and submit your request directly through the quotation form or by phone. We recommend not writing more personal information in the chat than is necessary for a reply.",
+        "p5": "The AI advisor's replies are built on Ahantime's real data, but they do not replace consulting with a specialist and are not a final basis for pricing or a sales commitment."
+      },
+      "sms": {
+        "title": "SMS messaging",
+        "body": "Ahantime's SMS messages (such as verification codes and request notifications) are sent through the messaging service <b>SMS.ir</b>, a service based in Iran. Only the data necessary to send the message (your mobile number and the related text) is shared with this service."
+      },
+      "analytics": {
+        "title": "Cookies and visit statistics",
+        "p1": "We use <b>Matomo</b> to measure page visits. Matomo is installed on Ahantime's own servers, and your visit statistics are not sent to any external advertising or analytics service.",
+        "p2": "This measurement runs in <b>cookie-free mode</b>: no tracking cookie is stored on your device, and no persistent identifier is created to follow you across different visits. Your IP address is also anonymized before being recorded. For this reason, our statistics are only an aggregate count of page visits, not a behavioral record of an individual. If your browser sends a \"Do Not Track\" request, we honor it and your visit is not recorded.",
+        "p3": "Any other cookies the site sets are purely functional — for example, keeping you signed in and remembering your quotation cart — and are not used for advertising or sold to others."
+      },
+      "noSale": {
+        "title": "No sale of data",
+        "body": "We <b>do not sell</b> your personal information, and we do not share it with third parties in exchange for payment. Data is used only to the extent necessary to provide our services or to comply with legal requirements."
+      },
+      "security": {
+        "title": "Retention and security",
+        "body": "Your information is kept using standard technical and organizational safeguards, and is retained only for as long as necessary for the purposes described above or as required by law. Access to data is limited to authorized personnel."
+      },
+      "rights": {
+        "title": "Your rights",
+        "item1": "Request to view or correct the information we hold about you.",
+        "item2": "Request deletion of your data, within the limits of legal and operational requirements.",
+        "item3": "Request deletion of your AI advisor conversation text from Ahantime's database. Note that deletion from our server does not, by itself, delete the data from the external model provider.",
+        "item4": "Opt out of receiving non-essential notification messages."
+      },
+      "contact": {
+        "title": "Contact",
+        "body": "To exercise your rights or for any question about privacy, you can reach us at our landline <landline>x</landline> or mobile <mobile>x</mobile>."
+      }
+    }
+  },
+  "termsPage": {
+    "eyebrow": "Legal",
+    "title": "Terms & Conditions",
+    "lead": "Please read Ahantime's terms of use before submitting a quotation request. Using the platform constitutes acceptance of these terms.",
+    "alertTitle": "No online payment",
+    "alertBody": "Ahantime does not process any online payment; purchasing is based on quotation requests, proforma issuance, and direct contact with our specialists.",
+    "lastUpdated": "Last updated: {date}",
+    "sections": {
+      "definitions": {
+        "title": "Definitions",
+        "item1": "<b>\"Ahantime\"</b>: the online marketplace for iron and steel pricing and sourcing, referred to in this document as the \"Platform\" or \"we\".",
+        "item2": "<b>\"User\"</b>: any natural or legal person who visits the Platform or submits a quotation request.",
+        "item3": "<b>\"Quotation\"</b>: a user’s request to receive the price, availability, and delivery terms for one or more items, submitted through the quotation cart.",
+        "item4": "<b>\"Proforma\"</b>: a non-binding document containing a list of items and an estimated price, issued to the user before our specialists make contact."
+      },
+      "service": {
+        "title": "Nature of the service and quotations",
+        "p1": "Ahantime is a price-information platform and quotation intermediary. Displaying a price for an item does not constitute a binding offer of sale or a guarantee of its availability. The user adds the desired items to the quotation cart and submits their request; our specialists then contact the user to finalize the price, availability, and delivery time.",
+        "p2": "<b>Ahantime does not process any online payment.</b> The entire purchasing process is based on quotation, consultation, and direct contact, and the final agreement is concluded outside the platform once the parties reach agreement."
+      },
+      "prices": {
+        "title": "Prices and VAT",
+        "p1": "Displayed prices are in <b>Toman</b> and per kilogram (unless stated otherwise), and are updated manually by our team based on the day's market and mill rates. Due to market fluctuation, the final price is announced and confirmed at the time of contact and invoicing.",
+        "p2": "Value-added tax is calculated at the statutory rate (currently 10%). Users can view prices inclusive of this tax using the \"With VAT\" toggle. The price of billet and certain specific items is entered manually by our team."
+      },
+      "request": {
+        "title": "Submitting a request and contact",
+        "p1": "To submit a request, the user's mobile number is collected and verified by sending a one-time verification code (OTP). The user undertakes to provide accurate and up-to-date information. By submitting a request, the user agrees that our specialists may contact them to follow up on the quotation.",
+        "p2": "Adding items to the quotation cart and receiving a proforma creates no financial obligation for the user, who remains free to decline or continue the request until a final agreement is reached."
+      },
+      "delivery": {
+        "title": "Delivery and shipping",
+        "body": "The displayed delivery time is an estimate and depends on mill availability, shipping conditions, and destination. Shipping, loading, and unloading costs (where applicable) are calculated separately and communicated to the user before dispatch. Final confirmation of delivery time and terms takes place when our specialists make contact."
+      },
+      "responsibilities": {
+        "title": "Responsibilities",
+        "item1": "The user is responsible for the accuracy of the information they provide and for lawful use of the platform.",
+        "item2": "We strive to provide accurate pricing and technical information (bar weight, grade, standard), but due to the nature of the market, we are not liable for obvious typographical errors or momentary fluctuations prior to final confirmation.",
+        "item3": "Calculator tools and the AI advisor are for guidance only and do not replace specialist consultation or a project's engineering calculations."
+      },
+      "ip": {
+        "title": "Intellectual property",
+        "body": "All content on the platform — including text, the \"{orgName}\" trademark, design, price data, and articles — belongs to Ahantime, and any copying, republication, or commercial use without written permission is prohibited."
+      },
+      "changes": {
+        "title": "Changes to these terms",
+        "body": "We may update these terms as needed. The updated version takes effect from the date it is published on this page, and continued use of the platform constitutes acceptance of the new terms."
+      },
+      "contact": {
+        "title": "Contact",
+        "body": "For any question about these terms, you can reach us at our landline <landline>x</landline> or mobile <mobile>x</mobile>, or use the contact page."
+      }
+    }
   }
 }
