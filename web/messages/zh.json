@@ -1810,5 +1810,65 @@
       }
     },
     "relatedTitle": "延伸阅读"
+  },
+  "emptyPresets": {
+    "filterNoResults": {
+      "headline": "未找到匹配结果",
+      "body": "没有符合这些筛选条件的产品。请简化筛选条件，或咨询 Ahantime。",
+      "clearFilters": "清除筛选"
+    },
+    "emptyCategory": {
+      "headline": "该分类即将上线",
+      "body": "该分类下暂无产品。提交需求，我们的专员会为您提供帮助。",
+      "otherCategories": "其他分类"
+    },
+    "noPrice": {
+      "headline": "获取实时报价",
+      "body": "我们的专员会为您提供该产品的最新报价。",
+      "callWithPhone": "致电 {phone}"
+    },
+    "searchNoResults": {
+      "headline": "未找到相关内容",
+      "body": "未找到与「{q}」相关的结果。请检查拼写，或咨询 Ahantime。",
+      "viewCategories": "浏览分类"
+    },
+    "aiRelayDown": {
+      "headline": "暂时无法计算",
+      "body": "请稍后重试，或提交需求，我们的专员会与您联系。"
+    },
+    "favoritesEmpty": {
+      "headline": "暂无收藏",
+      "body": "点击 ♡ 收藏产品，即可在此查看。"
+    },
+    "requestsEmpty": {
+      "headline": "暂无提交的需求",
+      "body": "从价格表或 Ahantime 提交需求，即可在此跟踪进度。"
+    },
+    "alertsEmpty": {
+      "headline": "暂无价格提醒",
+      "body": "点击任意产品或市场指标旁的 🔔 图标，价格达到目标值时即可收到短信提醒。"
+    },
+    "cartEmpty": {
+      "headline": "询价车是空的",
+      "body": "将产品加入询价车，即可一次性获取合并报价单。",
+      "backToPrices": "返回价格页"
+    },
+    "chartInsufficient": {
+      "headline": "历史数据尚不足",
+      "body": "积累更多价格记录后，图表将在此显示。"
+    },
+    "serverError": {
+      "headline": "出错了",
+      "body": "问题出在我们这边，请稍后重试。",
+      "contactUs": "联系我们"
+    },
+    "offline": {
+      "headline": "网络连接已断开",
+      "body": "网络恢复后将自动更新。"
+    },
+    "authRequired": {
+      "headline": "请登录后继续",
+      "body": "使用手机号和短信验证码登录。"
+    }
   }
 }

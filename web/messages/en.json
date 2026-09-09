@@ -1810,5 +1810,65 @@
       }
     },
     "relatedTitle": "Read more"
+  },
+  "emptyPresets": {
+    "filterNoResults": {
+      "headline": "No matches found",
+      "body": "No products match these filters. Try simplifying them, or ask Ahantime.",
+      "clearFilters": "Clear filters"
+    },
+    "emptyCategory": {
+      "headline": "Coming soon to this category",
+      "body": "No products are listed here yet. Send a request and our team will help.",
+      "otherCategories": "Other categories"
+    },
+    "noPrice": {
+      "headline": "Get today's price",
+      "body": "Our team will share the current price for this product.",
+      "callWithPhone": "Call {phone}"
+    },
+    "searchNoResults": {
+      "headline": "Nothing found",
+      "body": "No results for “{q}”. Check the spelling, or ask Ahantime.",
+      "viewCategories": "Browse categories"
+    },
+    "aiRelayDown": {
+      "headline": "Can't calculate that right now",
+      "body": "Try again in a moment, or send a request and our team will call you."
+    },
+    "favoritesEmpty": {
+      "headline": "No favorites yet",
+      "body": "Save products with ♡ to see them here."
+    },
+    "requestsEmpty": {
+      "headline": "No requests filed yet",
+      "body": "Send a request from the price table or Ahantime, and track it here."
+    },
+    "alertsEmpty": {
+      "headline": "No alerts set",
+      "body": "Tap the 🔔 icon next to any product or market indicator to get a text when it hits your target price."
+    },
+    "cartEmpty": {
+      "headline": "Your inquiry cart is empty",
+      "body": "Add products to your cart to get one combined proforma.",
+      "backToPrices": "Back to prices"
+    },
+    "chartInsufficient": {
+      "headline": "Not enough history yet",
+      "body": "The chart will appear here once more prices have been recorded."
+    },
+    "serverError": {
+      "headline": "Something went wrong",
+      "body": "It was on our end. Please try again in a moment.",
+      "contactUs": "Contact us"
+    },
+    "offline": {
+      "headline": "You're offline",
+      "body": "This will update automatically once you're back online."
+    },
+    "authRequired": {
+      "headline": "Sign in to continue",
+      "body": "Sign in with your mobile number and the code we text you."
+    }
   }
 }

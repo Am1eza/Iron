@@ -4,7 +4,7 @@ import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { requireUser } from '@/lib/auth/guards';
 import { canAccessAdmin } from '@/lib/auth/roles';
-import { Container, Section, Stack, Card, EmptyState, emptyPresets } from '@/components/ui';
+import { Container, Section, Stack, Card } from '@/components/ui';
 import { WarehouseList } from '@/components/account/WarehouseList';
 import { OrdersListLive } from '@/components/account/OrdersListLive';
 import { ClubPanel } from '@/components/account/ClubPanel';
@@ -14,6 +14,8 @@ import { AccountHeader } from '@/components/account/AccountHeader';
 import { TabHeading } from '@/components/account/TabHeading';
 import { WarehouseTabSub } from '@/components/account/WarehouseTabSub';
 import { ClubGuestEmptyState } from '@/components/account/ClubGuestEmptyState';
+import { FavoritesMockEmptyState } from '@/components/account/FavoritesMockEmptyState';
+import { AlertsMockEmptyState } from '@/components/account/AlertsMockEmptyState';
 import { getOrders, getWarehouseItems, getProfileCounts } from '@/lib/server/account';
 import { clubStatus, getLetterhead } from '@/lib/server/repos/clubRepo';
 import { getUserProfile } from '@/lib/server/repos/verificationRepo';
@@ -131,7 +133,7 @@ async function TabContent({ slug, userId }: { slug: string; userId: string }) {
             {API_MODE === 'live' ? (
               <FavoritesList />
             ) : (
-              <EmptyState size="section" {...emptyPresets.favoritesEmpty()} />
+              <FavoritesMockEmptyState />
             )}
           </Card>
         </TabHeading>
@@ -148,7 +150,7 @@ async function TabContent({ slug, userId }: { slug: string; userId: string }) {
       return (
         <TabHeading titleKey="alertsTitle" subKey="alertsSub">
           <Card>
-            {API_MODE === 'live' ? <AlertsList /> : <EmptyState size="section" {...emptyPresets.alertsEmpty()} />}
+            {API_MODE === 'live' ? <AlertsList /> : <AlertsMockEmptyState />}
           </Card>
         </TabHeading>
       );

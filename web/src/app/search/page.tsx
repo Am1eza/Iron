@@ -15,7 +15,6 @@ import {
   Text,
   Breadcrumbs,
   EmptyState,
-  emptyPresets,
   MovementBadge,
   Badge,
 } from '@/components/ui';
@@ -23,6 +22,7 @@ import { ArticleCard } from '@/components/content/ArticleCard';
 import { CategoryArt } from '@/components/catalog/CategoryArt';
 import { SearchIcon, TagIcon, ChevronStartIcon } from '@/components/primitives/icons';
 import { SearchBar } from '@/components/layout/SearchBar';
+import { SearchEmptyState } from './SearchEmptyState';
 import resultStyles from '@/components/search/SearchResults.module.css';
 
 // noindex'd (thin/duplicate search-results content) — no canonical `path` is
@@ -164,7 +164,7 @@ export default async function SearchPage({ searchParams }: Props) {
 
           {totalHits === 0 ? (
             <>
-              <EmptyState size="section" {...emptyPresets.searchNoResults(q)} showAi />
+              <SearchEmptyState q={q} />
               <PopularCategories items={popular} />
             </>
           ) : (

@@ -28,6 +28,8 @@ const STATUS_TONE: Record<Alert['status'], 'gain' | 'accent' | 'stale'> = {
 export function AlertsList() {
   const t = useTranslations('account.alerts');
   const tUnit = useTranslations('common.unit');
+  const tEmpty = useTranslations('emptyPresets');
+  const tAction = useTranslations('common.action');
   const locale = useLocale() as AppLocale;
   const qc = useQueryClient();
   const toast = useToast();
@@ -66,7 +68,7 @@ export function AlertsList() {
 
   const alerts = data?.alerts ?? [];
   if (alerts.length === 0) {
-    return <EmptyState size="section" {...emptyPresets.alertsEmpty()} />;
+    return <EmptyState size="section" {...emptyPresets.alertsEmpty(tEmpty, tAction)} />;
   }
 
   return (

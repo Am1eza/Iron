@@ -88,6 +88,8 @@ function MarketBoardSkeleton() {
 export function MarketBoard() {
   const t = useTranslations('marketBoard');
   const tUnit = useTranslations('common.unit');
+  const tEmpty = useTranslations('emptyPresets');
+  const tAction = useTranslations('common.action');
   const locale = useLocale() as AppLocale;
   const { data, isLoading, refetch } = useMarket();
   // NEVER fall back to mock fixtures in live mode. Those constants carry
@@ -127,7 +129,11 @@ export function MarketBoard() {
   if (!marketValues.length) {
     return (
       <div className={styles.board}>
-        {isLoading ? <MarketBoardSkeleton /> : <EmptyState {...emptyPresets.serverError(() => void refetch())} />}
+        {isLoading ? (
+          <MarketBoardSkeleton />
+        ) : (
+          <EmptyState {...emptyPresets.serverError(tEmpty, tAction, () => void refetch())} />
+        )}
       </div>
     );
   }

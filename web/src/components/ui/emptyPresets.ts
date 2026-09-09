@@ -2,6 +2,16 @@
  * Empty-state presets — the exact, on-brand copy from empty-states.md §5 wired to
  * typed routes. Pass the result straight to <EmptyState {...preset} />. Keeps copy
  * consistent everywhere and prevents ad-hoc «خالی» dead-ends.
+ *
+ * A plain (non-React) module can't call `useTranslations` itself, so every
+ * preset takes two translator functions as its first args — `t`, scoped to
+ * `emptyPresets` (one sub-key per preset), and `tAction`, scoped to the
+ * shared `common.action` namespace for CTA labels repeated across presets
+ * (`submitRequest`/`askAi`/`viewPrices`/`retry`/`login`, …) — the same two-
+ * translator split `NotFoundEmptyState.tsx` already uses for the one preset
+ * (`notFound`) that predates this file being translated at all. Callers get
+ * both from `useTranslations('emptyPresets')` / `useTranslations('common.action')`
+ * once and pass them through to every preset they use.
  */
 import { routes } from '@/lib/routes';
 
@@ -14,60 +24,63 @@ type Preset = {
   showAi?: boolean;
 };
 
+type T = (key: string, values?: Record<string, string | number | Date>) => string;
+type TAction = (key: string) => string;
+
 export const emptyPresets = {
   /** Price table — filters returned nothing. */
-  filterNoResults: (onClear?: () => void): Preset => ({
-    headline: 'موردی پیدا نشد',
-    body: 'با این فیلترها محصولی نیست. فیلترها را ساده‌تر کنید یا از آهن‌تایم بپرسید.',
-    primary: { label: 'حذف فیلترها', onClick: onClear },
+  filterNoResults: (t: T, _tAction: TAction, onClear?: () => void): Preset => ({
+    headline: t('filterNoResults.headline'),
+    body: t('filterNoResults.body'),
+    primary: { label: t('filterNoResults.clearFilters'), onClick: onClear },
     showAi: true,
   }),
 
   /** Price table — category has no SKUs yet. */
-  emptyCategory: (): Preset => ({
-    headline: 'به‌زودی در این دسته',
-    body: 'هنوز محصولی در این دسته ثبت نشده. درخواست بدهید تا کارشناس کمک کند.',
-    primary: { label: 'ثبت درخواست', href: routes.request() },
-    secondary: { label: 'دسته‌های دیگر', href: routes.prices() },
+  emptyCategory: (t: T, tAction: TAction): Preset => ({
+    headline: t('emptyCategory.headline'),
+    body: t('emptyCategory.body'),
+    primary: { label: tAction('submitRequest'), href: routes.request() },
+    secondary: { label: t('emptyCategory.otherCategories'), href: routes.prices() },
   }),
 
   /** SKU — no or stale price. */
-  noPrice: (phone: string): Preset => ({
-    headline: 'قیمت لحظه‌ای بگیرید',
-    body: 'قیمت این محصول را کارشناس به‌روز اعلام می‌کند.',
-    primary: { label: 'ثبت درخواست', href: routes.request() },
-    secondary: { label: `تماس ${phone}`, href: `tel:${phone}` },
+  noPrice: (t: T, tAction: TAction, phone: string): Preset => ({
+    headline: t('noPrice.headline'),
+    body: t('noPrice.body'),
+    primary: { label: tAction('submitRequest'), href: routes.request() },
+    secondary: { label: t('noPrice.callWithPhone', { phone }), href: `tel:${phone}` },
   }),
 
   /** Site search — no results for the query. */
-  searchNoResults: (q: string): Preset => ({
-    headline: 'چیزی پیدا نشد',
-    body: `برای «${q}» نتیجه‌ای نبود. املا را بررسی کنید یا از آهن‌تایم بپرسید.`,
-    primary: { label: 'پرسش از آهن‌تایم', href: routes.ai() },
-    secondary: { label: 'مشاهدهٔ دسته‌ها', href: routes.prices() },
+  searchNoResults: (t: T, tAction: TAction, q: string): Preset => ({
+    headline: t('searchNoResults.headline'),
+    body: t('searchNoResults.body', { q }),
+    primary: { label: tAction('askAi'), href: routes.ai() },
+    secondary: { label: t('searchNoResults.viewCategories'), href: routes.prices() },
   }),
 
   /** AI relay down. */
-  aiRelayDown: (onRetry?: () => void): Preset => ({
+  aiRelayDown: (t: T, tAction: TAction, onRetry?: () => void): Preset => ({
     tone: 'error',
-    headline: 'الان نمی‌توانم محاسبه کنم',
-    body: 'چند لحظهٔ دیگر دوباره امتحان کنید، یا درخواست بدهید تا کارشناس تماس بگیرد.',
-    primary: { label: 'ثبت درخواست', href: routes.request() },
-    secondary: { label: 'تلاش دوباره', onClick: onRetry },
+    headline: t('aiRelayDown.headline'),
+    body: t('aiRelayDown.body'),
+    primary: { label: tAction('submitRequest'), href: routes.request() },
+    secondary: { label: tAction('retry'), onClick: onRetry },
   }),
 
   /** Account — favorites empty. */
-  favoritesEmpty: (): Preset => ({
-    headline: 'علاقه‌مندی‌ای ندارید',
-    body: 'محصول‌ها را با ♡ ذخیره کنید تا اینجا ببینیدشان.',
-    primary: { label: 'مشاهدهٔ قیمت‌ها', href: routes.prices() },
+  favoritesEmpty: (t: T, tAction: TAction): Preset => ({
+    headline: t('favoritesEmpty.headline'),
+    body: t('favoritesEmpty.body'),
+    primary: { label: tAction('viewPrices'), href: routes.prices() },
   }),
 
   /** Account — requests/history empty. */
-  requestsEmpty: (): Preset => ({
-    headline: 'هنوز درخواستی ثبت نکرده‌اید',
-    body: 'از جدول قیمت یا آهن‌تایم، درخواست بدهید تا اینجا پیگیری کنید.',
-    primary: { label: 'مشاهدهٔ قیمت‌ها', href: routes.prices() },
+  requestsEmpty: (t: T, tAction: TAction): Preset => ({
+    headline: t('requestsEmpty.headline'),
+    body: t('requestsEmpty.body'),
+    primary: { label: tAction('viewPrices'), href: routes.prices() },
     showAi: true,
   }),
 
@@ -75,27 +88,29 @@ export const emptyPresets = {
    *  to every price row (PriceTable), the SKU page hero and the market board
    *  — not a dead self-link back here anymore (W22 fixed the actual gap; this
    *  CTA just routes to a surface that now has the control on it). */
-  alertsEmpty: (): Preset => ({
-    headline: 'هشداری ندارید',
-    body: 'روی آیکن 🔔 کنار هر محصول یا شاخص بازار بزنید تا با رسیدن قیمت به حد دلخواه، پیامک بگیرید.',
-    primary: { label: 'مشاهدهٔ قیمت‌ها', href: routes.prices() },
+  alertsEmpty: (t: T, tAction: TAction): Preset => ({
+    headline: t('alertsEmpty.headline'),
+    body: t('alertsEmpty.body'),
+    primary: { label: tAction('viewPrices'), href: routes.prices() },
   }),
 
   /** Inquiry cart — empty. */
-  cartEmpty: (): Preset => ({
-    headline: 'سبد استعلام خالی است',
-    body: 'محصول‌ها را به سبد اضافه کنید تا یک‌جا پیش‌فاکتور بگیرید.',
-    primary: { label: 'بازگشت به قیمت‌ها', href: routes.prices() },
+  cartEmpty: (t: T): Preset => ({
+    headline: t('cartEmpty.headline'),
+    body: t('cartEmpty.body'),
+    primary: { label: t('cartEmpty.backToPrices'), href: routes.prices() },
     showAi: true,
   }),
 
   /** Chart — not enough history. */
-  chartInsufficient: (): Preset => ({
-    headline: 'تاریخچهٔ کافی نیست',
-    body: 'به‌محض ثبت قیمت‌های بیشتر، نمودار اینجا نمایش داده می‌شود.',
+  chartInsufficient: (t: T): Preset => ({
+    headline: t('chartInsufficient.headline'),
+    body: t('chartInsufficient.body'),
   }),
 
-  /** 404. */
+  /** 404 — unused (superseded by `NotFoundEmptyState.tsx`, which builds its
+   *  translated preset inline rather than calling this) but left in its
+   *  original fa-only shape rather than touched, per this pass's scope. */
   notFound: (): Preset => ({
     headline: 'این صفحه پیدا نشد',
     body: 'شاید آدرس عوض شده. از جستجو یا آهن‌تایم کمک بگیرید.',
@@ -105,26 +120,26 @@ export const emptyPresets = {
   }),
 
   /** 500 / server error. */
-  serverError: (onRetry?: () => void): Preset => ({
+  serverError: (t: T, tAction: TAction, onRetry?: () => void): Preset => ({
     tone: 'error',
-    headline: 'مشکلی پیش آمد',
-    body: 'از طرف ما بود. چند لحظهٔ دیگر دوباره امتحان کنید.',
-    primary: { label: 'تلاش دوباره', onClick: onRetry },
-    secondary: { label: 'تماس با ما', href: routes.contact() },
+    headline: t('serverError.headline'),
+    body: t('serverError.body'),
+    primary: { label: tAction('retry'), onClick: onRetry },
+    secondary: { label: t('serverError.contactUs'), href: routes.contact() },
   }),
 
   /** Offline. */
-  offline: (onRetry?: () => void): Preset => ({
+  offline: (t: T, tAction: TAction, onRetry?: () => void): Preset => ({
     tone: 'error',
-    headline: 'اتصال اینترنت قطع است',
-    body: 'به‌محض وصل‌شدن، خودش به‌روز می‌شود.',
-    primary: { label: 'تلاش دوباره', onClick: onRetry },
+    headline: t('offline.headline'),
+    body: t('offline.body'),
+    primary: { label: tAction('retry'), onClick: onRetry },
   }),
 
   /** Auth required. */
-  authRequired: (next?: string): Preset => ({
-    headline: 'برای ادامه وارد شوید',
-    body: 'با شمارهٔ موبایل و کد پیامکی وارد شوید.',
-    primary: { label: 'ورود', href: routes.login(next) },
+  authRequired: (t: T, tAction: TAction, next?: string): Preset => ({
+    headline: t('authRequired.headline'),
+    body: t('authRequired.body'),
+    primary: { label: tAction('login'), href: routes.login(next) },
   }),
 } as const;

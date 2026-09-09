@@ -20,6 +20,8 @@ import styles from './RequestsList.module.css';
 export function FavoritesList() {
   const t = useTranslations('account.favorites');
   const tUnit = useTranslations('common.unit');
+  const tEmpty = useTranslations('emptyPresets');
+  const tAction = useTranslations('common.action');
   const qc = useQueryClient();
   const toast = useToast();
   const { data, isLoading } = useQuery({
@@ -37,7 +39,7 @@ export function FavoritesList() {
   if (isLoading) return <p style={{ color: 'var(--color-text-muted)' }}>{t('loading')}</p>;
   const favorites = data?.favorites ?? [];
   if (favorites.length === 0) {
-    return <EmptyState size="section" {...emptyPresets.favoritesEmpty()} />;
+    return <EmptyState size="section" {...emptyPresets.favoritesEmpty(tEmpty, tAction)} />;
   }
 
   return (

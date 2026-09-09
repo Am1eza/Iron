@@ -24,6 +24,8 @@ interface RequestDto {
  */
 export function RequestsList() {
   const t = useTranslations('account.requests');
+  const tEmpty = useTranslations('emptyPresets');
+  const tAction = useTranslations('common.action');
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['me', 'requests'],
     queryFn: () => http.get<{ requests: RequestDto[] }>('/api/me/requests'),
@@ -47,7 +49,7 @@ export function RequestsList() {
     // the-source copy of this exact headline/body used to live here (audit
     // finding, 2026-08-26), which is exactly the ad-hoc-dead-end drift
     // emptyPresets.ts exists to prevent.
-    return <EmptyState size="section" {...emptyPresets.requestsEmpty()} />;
+    return <EmptyState size="section" {...emptyPresets.requestsEmpty(tEmpty, tAction)} />;
   }
 
   return (
