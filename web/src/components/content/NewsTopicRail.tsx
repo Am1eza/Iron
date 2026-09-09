@@ -1,6 +1,9 @@
+'use client';
 import Link from 'next/link';
+import { useTranslations, useLocale } from 'next-intl';
 import { routes } from '@/lib/routes';
-import { toPersianDigits } from '@/lib/utils/format';
+import { localizeDigits } from '@/lib/utils/format';
+import type { AppLocale } from '@/i18n/config';
 import type { NewsTopicRailItem } from '@/lib/server/catalog';
 import styles from './NewsTopicRail.module.css';
 
@@ -14,24 +17,26 @@ import styles from './NewsTopicRail.module.css';
  * least one published article are ever passed in (`getNewsTopicRailItems`).
  */
 export function NewsTopicRail({ items, activeSlug }: { items: NewsTopicRailItem[]; activeSlug?: string }) {
+  const t = useTranslations('newsTopicRail');
+  const locale = useLocale() as AppLocale;
   if (items.length === 0) return null;
 
   return (
     <div>
-      <p className={styles.label}>اخبار را بر اساس موضوع ببینید</p>
-      <ul className={styles.rail} aria-label="موضوعات اخبار بازار">
-        {items.map((t) => {
-          const active = t.slug === activeSlug;
+      <p className={styles.label}>{t('label')}</p>
+      <ul className={styles.rail} aria-label={t('ariaLabel')}>
+        {items.map((topic) => {
+          const active = topic.slug === activeSlug;
           return (
-            <li key={t.slug} className={styles.item}>
+            <li key={topic.slug} className={styles.item}>
               <Link
-                href={routes.newsTopic(t.slug)}
+                href={routes.newsTopic(topic.slug)}
                 className={styles.chip}
                 data-active={active ? '' : undefined}
                 aria-current={active ? 'page' : undefined}
               >
-                <span className={styles.name}>{t.name}</span>
-                <span className={`${styles.count} tnum`}>{toPersianDigits(t.count)}</span>
+                <span className={styles.name}>{t(`topic.${topic.slug}`)}</span>
+                <span className={`${styles.count} tnum`}>{localizeDigits(topic.count, locale)}</span>
               </Link>
             </li>
           );

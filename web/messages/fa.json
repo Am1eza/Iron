@@ -1929,5 +1929,71 @@
     "sizeLabel": "سایز",
     "truncatedProductsNote": "برای دیدن همهٔ محصولات این جستجو، از فیلترهای صفحهٔ قیمت‌ها استفاده کنید.",
     "popularCategoriesTitle": "دسته‌بندی‌های پرجستجو"
+  },
+  "articleCard": {
+    "articleKicker": "مقاله",
+    "minutesUnit": "دقیقه",
+    "readMore": "ادامه مطلب"
+  },
+  "comments": {
+    "title": "نظرات کاربران",
+    "listAriaLabel": "نظرات",
+    "totalCount": "{count} نظر",
+    "helpfulTotal": "{count} رأی مفید",
+    "sortAriaLabel": "ترتیب نظرات",
+    "sortNewest": "جدیدترین",
+    "sortHelpful": "پرمفیدترین",
+    "emptyHeadline": "هنوز نظری ثبت نشده",
+    "emptyBody": "اولین نفری باشید که تجربه‌تان را دربارهٔ این مطلب می‌نویسید.",
+    "youLabel": "شما",
+    "pendingBadge": "در انتظار بررسی",
+    "pendingNote": "فقط برای شما نمایش داده می‌شود، تا زمانی که تایید شود.",
+    "anonymousAuthor": "کاربر آهن‌تایم",
+    "verifiedBuyerBadge": "خریدار تایید‌شده آهن‌تایم",
+    "helpfulButton": "👍 مفید بود",
+    "commentLabel": "نظر شما",
+    "commentPlaceholder": "نظر یا تجربهٔ خود را دربارهٔ این مطلب بنویسید…",
+    "submitting": "در حال ارسال…",
+    "submitButton": "ثبت نظر",
+    "submitError": "ثبت نظر ناموفق بود؛ دوباره تلاش کنید.",
+    "voteError": "ثبت رأی ناموفق بود؛ دوباره تلاش کنید.",
+    "loginPrompt": "برای نوشتن نظر باید وارد حساب کاربری‌تان شوید.",
+    "loginCta": "ورود یا ثبت‌نام"
+  },
+  "articleIndex": {
+    "blog": {
+      "overline": "محتوای آموزشی",
+      "h1": "وبلاگ آهن‌تایم",
+      "lede": "راهنمای خرید، تحلیل بازار و آموزش آهن‌آلات؛ نوشته‌شده برای کسانی که اول مشورت می‌کنند، بعد خرید.",
+      "listTitle": "همهٔ مطالب",
+      "featuredTitle": "تازه‌ترین مطالب",
+      "emptyHeadline": "هنوز مطلبی منتشر نشده است",
+      "emptyBody": "به‌زودی نخستین مقاله‌های آهن‌تایم اینجا منتشر می‌شوند."
+    },
+    "news": {
+      "overline": "اخبار بازار",
+      "h1": "اخبار بازار آهن و فولاد",
+      "lede": "تازه‌ترین تحولات تولید، عرضه و نرخ شمش؛ تا پیش از خرید، نبض بازار را در دست داشته باشید.",
+      "listTitle": "همهٔ مطالب",
+      "emptyHeadline": "هنوز خبری منتشر نشده است",
+      "emptyBody": "به‌محض انتشار، تازه‌ترین اخبار بازار اینجا قرار می‌گیرند."
+    }
+  },
+  "categoryRail": {
+    "label": "مقالات را بر اساس محصول ببینید",
+    "ariaLabel": "دسته‌بندی مقالات",
+    "articleCount": "{count} مقاله"
+  },
+  "newsTopicRail": {
+    "label": "اخبار را بر اساس موضوع ببینید",
+    "ariaLabel": "موضوعات اخبار بازار",
+    "topic": {
+      "rates-exchange": "نرخ‌ها و بورس کالا",
+      "production-mills": "تولید و کارخانه‌ها",
+      "trade": "صادرات و واردات",
+      "policy-regulation": "سیاست‌گذاری و مقررات",
+      "global-market": "تحولات بازار جهانی",
+      "demand-construction": "تقاضا و ساخت‌وساز"
+    }
   }
 }

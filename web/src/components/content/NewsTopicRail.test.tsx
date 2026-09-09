@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
+import { renderWithIntl as render } from '@/test/renderWithIntl';
 import { NewsTopicRail } from './NewsTopicRail';
 import type { NewsTopicRailItem } from '@/lib/server/catalog';
 

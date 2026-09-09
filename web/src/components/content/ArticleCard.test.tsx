@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
+import { renderWithIntl as render } from '@/test/renderWithIntl';
 import { ArticleCard } from './ArticleCard';
 import type { Article } from '@/lib/types/domain';
 
@@ -46,7 +47,7 @@ describe('ArticleCard', () => {
 
   it('shows a read-time badge when readingMinutes is present', () => {
     render(<ArticleCard article={{ ...article, readingMinutes: 4 }} />);
-    expect(screen.getByText('4 دقیقه')).toBeInTheDocument();
+    expect(screen.getByText('۴ دقیقه')).toBeInTheDocument();
   });
 
   it('omits the read-time badge when readingMinutes is absent — mock catalog has no body', () => {

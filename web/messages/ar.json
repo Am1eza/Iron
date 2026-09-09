@@ -1929,5 +1929,71 @@
     "sizeLabel": "المقاس",
     "truncatedProductsNote": "لعرض جميع منتجات هذا البحث، استخدم فلاتر صفحة الأسعار.",
     "popularCategoriesTitle": "الفئات الأكثر بحثًا"
+  },
+  "articleCard": {
+    "articleKicker": "مقالة",
+    "minutesUnit": "دقيقة",
+    "readMore": "اقرأ المزيد"
+  },
+  "comments": {
+    "title": "تعليقات القراء",
+    "listAriaLabel": "التعليقات",
+    "totalCount": "{count} تعليق",
+    "helpfulTotal": "{count} صوت مفيد",
+    "sortAriaLabel": "ترتيب التعليقات",
+    "sortNewest": "الأحدث",
+    "sortHelpful": "الأكثر فائدة",
+    "emptyHeadline": "لا توجد تعليقات بعد",
+    "emptyBody": "كن أول من يشارك تجربته حول هذا المقال.",
+    "youLabel": "أنت",
+    "pendingBadge": "قيد المراجعة",
+    "pendingNote": "يظهر لك فقط حتى تتم الموافقة عليه.",
+    "anonymousAuthor": "أحد مستخدمي آهن‌تايم",
+    "verifiedBuyerBadge": "مشترٍ موثّق من آهن‌تايم",
+    "helpfulButton": "👍 مفيد",
+    "commentLabel": "تعليقك",
+    "commentPlaceholder": "شارك تعليقك أو تجربتك حول هذا المقال…",
+    "submitting": "جارٍ الإرسال…",
+    "submitButton": "نشر التعليق",
+    "submitError": "تعذّر نشر التعليق؛ حاول مرة أخرى.",
+    "voteError": "تعذّر تسجيل التصويت؛ حاول مرة أخرى.",
+    "loginPrompt": "سجّل الدخول إلى حسابك لكتابة تعليق.",
+    "loginCta": "تسجيل الدخول أو إنشاء حساب"
+  },
+  "articleIndex": {
+    "blog": {
+      "overline": "مركز التعلم",
+      "h1": "مدونة آهن‌تايم",
+      "lede": "أدلة شراء وتحليلات سوقية ومحتوى تعليمي عن الحديد والصلب — كُتب لمشترين يستشيرون أولاً ثم يشترون.",
+      "listTitle": "كل المقالات",
+      "featuredTitle": "أحدث المقالات",
+      "emptyHeadline": "لم يُنشر أي مقال بعد",
+      "emptyBody": "ستُنشر أولى مقالات آهن‌تايم هنا قريبًا."
+    },
+    "news": {
+      "overline": "أخبار السوق",
+      "h1": "أخبار سوق الحديد والصلب",
+      "lede": "أحدث تطورات الإنتاج والعرض وأسعار البلوم — تابع نبض السوق قبل الشراء.",
+      "listTitle": "كل المقالات",
+      "emptyHeadline": "لم يُنشر أي خبر بعد",
+      "emptyBody": "ستظهر هنا أحدث أخبار السوق فور نشرها."
+    }
+  },
+  "categoryRail": {
+    "label": "تصفّح المقالات حسب المنتج",
+    "ariaLabel": "تصنيفات المقالات",
+    "articleCount": "{count} مقالة"
+  },
+  "newsTopicRail": {
+    "label": "تصفّح الأخبار حسب الموضوع",
+    "ariaLabel": "مواضيع أخبار السوق",
+    "topic": {
+      "rates-exchange": "الأسعار وبورصة السلع",
+      "production-mills": "الإنتاج والمصانع",
+      "trade": "الصادرات والواردات",
+      "policy-regulation": "السياسات واللوائح",
+      "global-market": "تطورات السوق العالمية",
+      "demand-construction": "الطلب والبناء"
+    }
   }
 }

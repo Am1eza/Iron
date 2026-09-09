@@ -1929,5 +1929,71 @@
     "sizeLabel": "规格",
     "truncatedProductsNote": "如需查看此次搜索的全部产品，请使用价格列表页面的筛选功能。",
     "popularCategoriesTitle": "热门分类"
+  },
+  "articleCard": {
+    "articleKicker": "文章",
+    "minutesUnit": "分钟",
+    "readMore": "阅读全文"
+  },
+  "comments": {
+    "title": "读者评论",
+    "listAriaLabel": "评论",
+    "totalCount": "{count} 条评论",
+    "helpfulTotal": "{count} 个有用投票",
+    "sortAriaLabel": "评论排序",
+    "sortNewest": "最新",
+    "sortHelpful": "最有用",
+    "emptyHeadline": "暂无评论",
+    "emptyBody": "来分享你对这篇文章的看法吧，做第一个评论的人。",
+    "youLabel": "你",
+    "pendingBadge": "待审核",
+    "pendingNote": "在通过审核之前，仅你自己可见。",
+    "anonymousAuthor": "安挺用户",
+    "verifiedBuyerBadge": "安挺认证买家",
+    "helpfulButton": "👍 有用",
+    "commentLabel": "你的评论",
+    "commentPlaceholder": "分享你对这篇文章的评论或体会……",
+    "submitting": "正在提交……",
+    "submitButton": "发布评论",
+    "submitError": "发布评论失败，请重试。",
+    "voteError": "投票失败，请重试。",
+    "loginPrompt": "请先登录账户后再发表评论。",
+    "loginCta": "登录或注册"
+  },
+  "articleIndex": {
+    "blog": {
+      "overline": "学习中心",
+      "h1": "安挺博客",
+      "lede": "采购指南、市场分析与钢铁知识——写给先咨询、后购买的买家。",
+      "listTitle": "全部文章",
+      "featuredTitle": "最新文章",
+      "emptyHeadline": "暂无发布的文章",
+      "emptyBody": "安挺的第一批文章即将在此发布。"
+    },
+    "news": {
+      "overline": "市场资讯",
+      "h1": "钢铁市场资讯",
+      "lede": "生产、供应与钢坯价格的最新动态——购买前先把握市场脉搏。",
+      "listTitle": "全部文章",
+      "emptyHeadline": "暂无发布的资讯",
+      "emptyBody": "最新市场资讯发布后将显示在这里。"
+    }
+  },
+  "categoryRail": {
+    "label": "按产品浏览文章",
+    "ariaLabel": "文章分类",
+    "articleCount": "{count} 篇文章"
+  },
+  "newsTopicRail": {
+    "label": "按主题浏览资讯",
+    "ariaLabel": "市场资讯主题",
+    "topic": {
+      "rates-exchange": "价格与大宗商品交易",
+      "production-mills": "生产与钢厂",
+      "trade": "进出口贸易",
+      "policy-regulation": "政策与法规",
+      "global-market": "全球市场动态",
+      "demand-construction": "需求与建筑"
+    }
   }
 }

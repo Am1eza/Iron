@@ -1,8 +1,12 @@
+'use client';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useTranslations, useLocale } from 'next-intl';
 import type { Article } from '@/lib/types/domain';
 import { routes } from '@/lib/routes';
 import { formatJalali } from '@/lib/utils/jalali';
+import { localizeDigits } from '@/lib/utils/format';
+import type { AppLocale } from '@/i18n/config';
 import { CalendarIcon, ClockIcon, ChevronStartIcon } from '@/components/primitives/icons';
 import styles from './ArticleCard.module.css';
 
@@ -21,8 +25,13 @@ import styles from './ArticleCard.module.css';
  * the entire card is still clickable for mouse and touch.
  */
 export function ArticleCard({ article }: { article: Article }) {
+  const t = useTranslations('articleCard');
+  const tSearchBar = useTranslations('searchBar');
+  const locale = useLocale() as AppLocale;
   const href = article.type === 'news' ? routes.news(article.slug) : routes.blog(article.slug);
-  const kicker = article.type === 'news' ? 'خبر بازار' : 'مقاله';
+  // Reuses searchBar's existing "خبر بازار" translation rather than
+  // duplicating it under a second key.
+  const kicker = article.type === 'news' ? tSearchBar('newsLabel') : t('articleKicker');
 
   return (
     <li className={styles.item}>
@@ -63,7 +72,9 @@ export function ArticleCard({ article }: { article: Article }) {
               {article.readingMinutes ? (
                 <span className={styles.readTime}>
                   <ClockIcon size={14} aria-hidden="true" />
-                  <span className="tnum">{article.readingMinutes} دقیقه</span>
+                  <span className="tnum">
+                    {localizeDigits(article.readingMinutes, locale)} {t('minutesUnit')}
+                  </span>
                 </span>
               ) : null}
             </span>
@@ -71,7 +82,7 @@ export function ArticleCard({ article }: { article: Article }) {
             <span />
           )}
           <span className={styles.more} aria-hidden="true">
-            ادامه مطلب
+            {t('readMore')}
             <ChevronStartIcon size={14} className="icon--rtl" />
           </span>
         </div>

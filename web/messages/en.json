@@ -1929,5 +1929,71 @@
     "sizeLabel": "Size",
     "truncatedProductsNote": "To see every product from this search, use the filters on the price-list page.",
     "popularCategoriesTitle": "Popular categories"
+  },
+  "articleCard": {
+    "articleKicker": "Article",
+    "minutesUnit": "min",
+    "readMore": "Read more"
+  },
+  "comments": {
+    "title": "Reader comments",
+    "listAriaLabel": "Comments",
+    "totalCount": "{count} comments",
+    "helpfulTotal": "{count} helpful votes",
+    "sortAriaLabel": "Sort comments",
+    "sortNewest": "Newest",
+    "sortHelpful": "Most helpful",
+    "emptyHeadline": "No comments yet",
+    "emptyBody": "Be the first to share your experience with this article.",
+    "youLabel": "You",
+    "pendingBadge": "Pending review",
+    "pendingNote": "Only visible to you until it is approved.",
+    "anonymousAuthor": "Ahantime user",
+    "verifiedBuyerBadge": "Verified Ahantime buyer",
+    "helpfulButton": "👍 Helpful",
+    "commentLabel": "Your comment",
+    "commentPlaceholder": "Share your comment or experience with this article…",
+    "submitting": "Submitting…",
+    "submitButton": "Post comment",
+    "submitError": "Posting the comment failed; try again.",
+    "voteError": "Voting failed; try again.",
+    "loginPrompt": "Sign in to your account to write a comment.",
+    "loginCta": "Sign in or register"
+  },
+  "articleIndex": {
+    "blog": {
+      "overline": "Learning center",
+      "h1": "Ahantime blog",
+      "lede": "Buying guides, market analysis and steel education — written for buyers who consult first, then buy.",
+      "listTitle": "All articles",
+      "featuredTitle": "Latest articles",
+      "emptyHeadline": "No articles published yet",
+      "emptyBody": "Ahantime's first articles will be published here soon."
+    },
+    "news": {
+      "overline": "Market news",
+      "h1": "Iron & steel market news",
+      "lede": "The latest on production, supply and billet rates — keep a finger on the market before you buy.",
+      "listTitle": "All articles",
+      "emptyHeadline": "No news published yet",
+      "emptyBody": "The latest market news will appear here as soon as it is published."
+    }
+  },
+  "categoryRail": {
+    "label": "Browse articles by product",
+    "ariaLabel": "Article categories",
+    "articleCount": "{count} articles"
+  },
+  "newsTopicRail": {
+    "label": "Browse news by topic",
+    "ariaLabel": "Market news topics",
+    "topic": {
+      "rates-exchange": "Rates & commodity exchange",
+      "production-mills": "Production & mills",
+      "trade": "Exports & imports",
+      "policy-regulation": "Policy & regulation",
+      "global-market": "Global market developments",
+      "demand-construction": "Demand & construction"
+    }
   }
 }
