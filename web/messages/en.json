@@ -1627,5 +1627,56 @@
       "maxBody": "To set an alert for “{label}”, first pause or remove one of your active alerts.",
       "maxCta": "Manage alerts"
     }
+  },
+  "proforma": {
+    "letterheadToggleAriaLabel": "Choose letterhead",
+    "ourLetterheadTab": "{brand} letterhead",
+    "myCompanyLetterheadTab": "My company's letterhead",
+    "phonePrefix": "Phone:",
+    "mobilePrefix": "Mobile:",
+    "tagline": "The smart iron & steel marketplace: consult first, buy second",
+    "title": "Proforma",
+    "issuedDatePrefix": "Issue date:",
+    "customerLabel": "Customer",
+    "cancelledMessage": "This version of the proforma has been cancelled and is no longer valid. Contact our sales team for a valid version.",
+    "expiredMessage": "This proforma has expired. Contact our sales team for today's price.",
+    "validityPrefix": "Prices valid until:",
+    "tableCaption": "Line items for proforma {ref}",
+    "col": {
+      "row": "#",
+      "description": "Item",
+      "qty": "Qty",
+      "unitPrice": "Unit price (Toman)",
+      "lineTotal": "Line total (Toman)"
+    },
+    "negotiable": "Quote on request",
+    "subtotalLabel": "Subtotal",
+    "volumeDiscountLabel": "Volume discount",
+    "discountLabel": "Discount",
+    "taxableAmountLabel": "Taxable amount",
+    "vatLabel": "VAT ({pct}%)",
+    "grandTotalLabel": "Total due",
+    "footerDisclaimer": "This proforma is for quotation purposes only and is not an official invoice. We do not process payments online; settlement is arranged with our sales team.",
+    "printButton": "Download / Print PDF"
+  },
+  "track": {
+    "overline": "Shipment tracking",
+    "title": "Track your order",
+    "intro": "Enter your order's tracking code to see the current shipping status.",
+    "fieldLabel": "Order tracking code",
+    "fieldPlaceholder": "e.g. OR-2309",
+    "fieldHelper": "The tracking code was sent in your order confirmation SMS.",
+    "submit": "Track",
+    "notFound": "No order was found with this code. Double-check the tracking code or contact support.",
+    "placedPrefix": "Placed:",
+    "lastUpdatePrefix": "Last updated:",
+    "unit": {
+      "kg": "Ton",
+      "branch": "Bar",
+      "sheet": "Sheet",
+      "meter": "Meter",
+      "piece": "Piece",
+      "sqm": "m²"
+    }
   }
 }

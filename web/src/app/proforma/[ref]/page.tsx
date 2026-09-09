@@ -9,13 +9,9 @@ import { getContact } from '@/lib/server/contact';
 import { getSession } from '@/lib/auth/session';
 import { clubStatus, getLetterhead } from '@/lib/server/repos/clubRepo';
 import { isLetterheadUsable } from '@/lib/utils/letterhead';
-import { formatToman, toPersianDigits } from '@/lib/utils/format';
-import { PRICE_UNIT_LABEL } from '@/lib/utils/catalogLabels';
 import { formatJalali } from '@/lib/utils/jalali';
 import { formatTehranJalaliDateTime } from '@/lib/server/utils/jalali';
 import { ProformaSheet, type CustomLetterhead } from './ProformaSheet';
-import styles from './proforma.module.css';
-import { proformaInvalidMessage } from '@/lib/utils/proformaStatus';
 
 export const metadata: Metadata = buildMetadata({ title: 'پیش‌فاکتور', noindex: true });
 
@@ -63,12 +59,9 @@ export default async function ProformaPage({ params }: Params) {
     }
   }
 
-  const invalidMessage = proformaInvalidMessage(p.status);
-
   return (
     <ProformaSheet
       orgName={ORG_NAME}
-      tagline="بازار هوشمند آهن و فولاد: اول مشورت، بعد خرید"
       address={CONTACT.address}
       phoneLandline={CONTACT.phoneLandline}
       phoneMobile={CONTACT.phoneMobile}
@@ -77,99 +70,16 @@ export default async function ProformaPage({ params }: Params) {
       customerName={lead?.contactName ?? null}
       customerMobile={lead?.contactMobile ?? null}
       custom={custom}
-    >
-      {invalidMessage ? (
-        <p className={styles.expired}>
-          {invalidMessage}
-        </p>
-      ) : (
-        <p className={styles.validity}>
-          اعتبار قیمت‌ها: تا {formatTehranJalaliDateTime(p.validUntil)}
-        </p>
-      )}
-
-      <table className={`${styles.table} tnum`}>
-        <caption className="visually-hidden">جدول اقلام پیش‌فاکتور {p.ref}</caption>
-        <thead>
-          <tr>
-            <th scope="col">ردیف</th>
-            <th scope="col">شرح کالا</th>
-            <th scope="col">مقدار</th>
-            <th scope="col">فی (تومان)</th>
-            <th scope="col">جمع (تومان)</th>
-          </tr>
-        </thead>
-        <tbody>
-          {p.lines.map((line, i) => (
-            <tr key={`${line.skuId}-${i}`}>
-              <td>{toPersianDigits(i + 1)}</td>
-              <td className={styles.name}>{line.name}</td>
-              <td>
-                {toPersianDigits(line.qty)}{' '}
-                {PRICE_UNIT_LABEL[line.unit] ?? line.unit}
-              </td>
-              <td>{line.unitPrice ? formatToman(line.unitPrice, false) : 'توافقی'}</td>
-              <td>{line.lineTotal ? formatToman(line.lineTotal, false) : 'توافقی'}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      <dl className={`${styles.totals} tnum`}>
-        <div>
-          <dt>جمع کل</dt>
-          <dd>{formatToman(p.subtotal, false)} تومان</dd>
-        </div>
-        {/* Discounts are applied BEFORE VAT (see issueProforma in
-              leads.service.ts), so hiding them made the printed numbers fail to
-              reconcile and the VAT percentage read as wrong against the printed
-              base. Each row is omitted when its own amount is zero, so a plain
-              quote prints exactly as it always has.
-
-              The تخفیف پلکانی row is deliberately its OWN line naming its own
-              reason and percentage, not folded into the unit price or into the
-              rep's «تخفیف» line: a buyer must be able to see that the volume
-              band was applied and at what rate, or the promise on the site is
-              unverifiable from the document it is supposed to appear on. */}
-        {p.volumeDiscountToman > 0 ? (
-          <div>
-            <dt>{p.volumeDiscountLabel ?? 'تخفیف پلکانی'}</dt>
-            <dd>−{formatToman(p.volumeDiscountToman, false)} تومان</dd>
-          </div>
-        ) : null}
-        {p.discountToman > 0 ? (
-          <div>
-            <dt>تخفیف</dt>
-            <dd>−{formatToman(p.discountToman, false)} تومان</dd>
-          </div>
-        ) : null}
-        {p.discountToman + p.volumeDiscountToman > 0 ? (
-          <div>
-            <dt>مبلغ مشمول مالیات</dt>
-            <dd>
-              {formatToman(p.subtotal - p.discountToman - p.volumeDiscountToman, false)} تومان
-            </dd>
-          </div>
-        ) : null}
-        <div>
-          <dt>ارزش افزوده ({toPersianDigits(Math.round(p.vatRate * 100))}٪)</dt>
-          <dd>{formatToman(p.vatAmount, false)} تومان</dd>
-        </div>
-        <div className={styles.grand}>
-          <dt>مبلغ قابل پرداخت</dt>
-          <dd>{formatToman(p.total, false)} تومان</dd>
-        </div>
-      </dl>
-
-      <footer className={styles.foot}>
-        <p>
-          این پیش‌فاکتور جهت استعلام است و فاکتور رسمی محسوب نمی‌شود. پرداخت آنلاین نداریم؛ تسویه
-          پس از هماهنگی با کارشناس فروش انجام می‌شود.
-        </p>
-        <p className="tnum">
-          {ORG_NAME} · {CONTACT.phoneLandline} · ahantime.com
-        </p>
-      </footer>
-    </ProformaSheet>
+      status={p.status}
+      validUntilText={formatTehranJalaliDateTime(p.validUntil)}
+      lines={p.lines}
+      subtotal={p.subtotal}
+      volumeDiscountToman={p.volumeDiscountToman}
+      volumeDiscountLabel={p.volumeDiscountLabel}
+      discountToman={p.discountToman}
+      vatRatePct={Math.round(p.vatRate * 100)}
+      vatAmount={p.vatAmount}
+      total={p.total}
+    />
   );
 }

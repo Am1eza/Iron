@@ -1627,5 +1627,56 @@
       "maxBody": "如需为「{label}」设置提醒，请先暂停或删除一条现有的有效提醒。",
       "maxCta": "管理提醒"
     }
+  },
+  "proforma": {
+    "letterheadToggleAriaLabel": "选择抬头",
+    "ourLetterheadTab": "{brand}抬头",
+    "myCompanyLetterheadTab": "我公司抬头",
+    "phonePrefix": "电话：",
+    "mobilePrefix": "手机：",
+    "tagline": "智能钢铁交易平台：先咨询，后购买",
+    "title": "形式发票",
+    "issuedDatePrefix": "开具日期：",
+    "customerLabel": "客户",
+    "cancelledMessage": "此版本的形式发票已作废，不再有效。请联系我们的销售顾问获取有效版本。",
+    "expiredMessage": "此形式发票已过期。请联系我们的销售顾问获取当前报价。",
+    "validityPrefix": "价格有效期至：",
+    "tableCaption": "形式发票 {ref} 的明细项",
+    "col": {
+      "row": "序号",
+      "description": "品名",
+      "qty": "数量",
+      "unitPrice": "单价（土曼）",
+      "lineTotal": "小计（土曼）"
+    },
+    "negotiable": "面议",
+    "subtotalLabel": "小计合计",
+    "volumeDiscountLabel": "阶梯折扣",
+    "discountLabel": "折扣",
+    "taxableAmountLabel": "计税金额",
+    "vatLabel": "增值税（{pct}%）",
+    "grandTotalLabel": "应付总额",
+    "footerDisclaimer": "本形式发票仅用于报价，不属于正式发票。我们不提供在线支付；结算由销售顾问协调安排。",
+    "printButton": "下载／打印 PDF"
+  },
+  "track": {
+    "overline": "货运跟踪",
+    "title": "跟踪订单",
+    "intro": "输入订单跟踪码，查看当前的运输状态。",
+    "fieldLabel": "订单跟踪码",
+    "fieldPlaceholder": "例如：OR-2309",
+    "fieldHelper": "跟踪码已通过订单确认短信发送给您。",
+    "submit": "查询",
+    "notFound": "未找到该跟踪码对应的订单。请核对跟踪码，或联系客服。",
+    "placedPrefix": "下单：",
+    "lastUpdatePrefix": "最近更新：",
+    "unit": {
+      "kg": "吨",
+      "branch": "支",
+      "sheet": "张",
+      "meter": "米",
+      "piece": "件",
+      "sqm": "平方米"
+    }
   }
 }

@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
-import { Container, Section, Stack, Heading, Text, Breadcrumbs } from '@/components/ui';
+import { Container, Section, Stack, Breadcrumbs } from '@/components/ui';
+import { TrackPageHeader } from './TrackPageHeader';
 import { TrackLookup } from './TrackLookup';
 
 export const metadata: Metadata = buildMetadata({
@@ -11,6 +12,10 @@ export const metadata: Metadata = buildMetadata({
   noindex: true,
 });
 
+// Breadcrumb labels stay fa — the established SSR-shell exception (locale
+// resolves client-side only, so this Server Component's own text can't
+// localize). The page's actual content is `TrackPageHeader`/`TrackLookup`,
+// both Client Components that do.
 export default function TrackPage() {
   return (
     <Container>
@@ -19,15 +24,7 @@ export default function TrackPage() {
           <Breadcrumbs
             items={[{ label: 'خانه', href: routes.home() }, { label: 'پیگیری سفارش' }]}
           />
-          <Stack gap={2}>
-            <Text variant="overline" color="accent">
-              پیگیری بار
-            </Text>
-            <Heading level={1}>پیگیری سفارش</Heading>
-            <Text color="muted">
-              کد پیگیری سفارش خود را وارد کنید تا وضعیت فعلی حمل بار را ببینید.
-            </Text>
-          </Stack>
+          <TrackPageHeader />
           <TrackLookup />
         </Stack>
       </Section>

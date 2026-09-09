@@ -1627,5 +1627,56 @@
       "maxBody": "برای ثبت هشدار «{label}»، ابتدا یکی از هشدارهای فعال‌تان را متوقف یا حذف کنید.",
       "maxCta": "مدیریت هشدارها"
     }
+  },
+  "proforma": {
+    "letterheadToggleAriaLabel": "انتخاب سربرگ",
+    "ourLetterheadTab": "سربرگ {brand}",
+    "myCompanyLetterheadTab": "سربرگ شرکت من",
+    "phonePrefix": "تلفن:",
+    "mobilePrefix": "همراه:",
+    "tagline": "بازار هوشمند آهن و فولاد: اول مشورت، بعد خرید",
+    "title": "پیش‌فاکتور",
+    "issuedDatePrefix": "تاریخ صدور:",
+    "customerLabel": "مشتری",
+    "cancelledMessage": "این نسخه از پیش‌فاکتور باطل شده است و اعتبار ندارد. برای دریافت نسخهٔ معتبر با کارشناسان تماس بگیرید.",
+    "expiredMessage": "اعتبار این پیش‌فاکتور به پایان رسیده است. برای قیمت به‌روز با کارشناسان تماس بگیرید.",
+    "validityPrefix": "اعتبار قیمت‌ها: تا",
+    "tableCaption": "جدول اقلام پیش‌فاکتور {ref}",
+    "col": {
+      "row": "ردیف",
+      "description": "شرح کالا",
+      "qty": "مقدار",
+      "unitPrice": "فی (تومان)",
+      "lineTotal": "جمع (تومان)"
+    },
+    "negotiable": "توافقی",
+    "subtotalLabel": "جمع کل",
+    "volumeDiscountLabel": "تخفیف پلکانی",
+    "discountLabel": "تخفیف",
+    "taxableAmountLabel": "مبلغ مشمول مالیات",
+    "vatLabel": "ارزش افزوده ({pct}٪)",
+    "grandTotalLabel": "مبلغ قابل پرداخت",
+    "footerDisclaimer": "این پیش‌فاکتور جهت استعلام است و فاکتور رسمی محسوب نمی‌شود. پرداخت آنلاین نداریم؛ تسویه پس از هماهنگی با کارشناس فروش انجام می‌شود.",
+    "printButton": "دانلود / چاپ PDF"
+  },
+  "track": {
+    "overline": "پیگیری بار",
+    "title": "پیگیری سفارش",
+    "intro": "کد پیگیری سفارش خود را وارد کنید تا وضعیت فعلی حمل بار را ببینید.",
+    "fieldLabel": "کد پیگیری سفارش",
+    "fieldPlaceholder": "مثال: OR-۲۳۰۹",
+    "fieldHelper": "کد پیگیری در پیامک تأیید سفارش ارسال شده است.",
+    "submit": "پیگیری",
+    "notFound": "سفارشی با این کد پیدا نشد. کد پیگیری را بررسی کنید یا با پشتیبانی تماس بگیرید.",
+    "placedPrefix": "ثبت:",
+    "lastUpdatePrefix": "آخرین به‌روزرسانی:",
+    "unit": {
+      "kg": "تن",
+      "branch": "شاخه",
+      "sheet": "برگ",
+      "meter": "متر",
+      "piece": "عدد",
+      "sqm": "متر مربع"
+    }
   }
 }

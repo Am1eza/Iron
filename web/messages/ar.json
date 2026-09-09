@@ -1627,5 +1627,56 @@
       "maxBody": "لتفعيل تنبيه لـ «{label}»، أوقف أو احذف أولاً أحد تنبيهاتك الفعّالة.",
       "maxCta": "إدارة التنبيهات"
     }
+  },
+  "proforma": {
+    "letterheadToggleAriaLabel": "اختيار الترويسة",
+    "ourLetterheadTab": "ترويسة {brand}",
+    "myCompanyLetterheadTab": "ترويسة شركتي",
+    "phonePrefix": "الهاتف:",
+    "mobilePrefix": "الجوال:",
+    "tagline": "السوق الذكي للحديد والصلب: استشارة أولاً، ثم الشراء",
+    "title": "عرض سعر أولي",
+    "issuedDatePrefix": "تاريخ الإصدار:",
+    "customerLabel": "العميل",
+    "cancelledMessage": "أُلغيت هذه النسخة من عرض السعر الأولي ولم تعد سارية. تواصل مع فريق المبيعات للحصول على نسخة سارية.",
+    "expiredMessage": "انتهت صلاحية عرض السعر الأولي هذا. تواصل مع فريق المبيعات للحصول على السعر الحالي.",
+    "validityPrefix": "الأسعار سارية حتى:",
+    "tableCaption": "بنود عرض السعر الأولي {ref}",
+    "col": {
+      "row": "#",
+      "description": "الصنف",
+      "qty": "الكمية",
+      "unitPrice": "سعر الوحدة (تومان)",
+      "lineTotal": "الإجمالي (تومان)"
+    },
+    "negotiable": "حسب الاستعلام",
+    "subtotalLabel": "المجموع الفرعي",
+    "volumeDiscountLabel": "خصم الكمية",
+    "discountLabel": "الخصم",
+    "taxableAmountLabel": "المبلغ الخاضع للضريبة",
+    "vatLabel": "ضريبة القيمة المضافة ({pct}٪)",
+    "grandTotalLabel": "المبلغ المستحق",
+    "footerDisclaimer": "عرض السعر الأولي هذا لأغراض الاستعلام فقط وليس فاتورة رسمية. لا نقبل الدفع عبر الإنترنت؛ تتم التسوية بالتنسيق مع فريق المبيعات.",
+    "printButton": "تنزيل / طباعة PDF"
+  },
+  "track": {
+    "overline": "تتبع الشحنة",
+    "title": "تتبع طلبك",
+    "intro": "أدخل رمز تتبع طلبك لمعرفة حالة الشحن الحالية.",
+    "fieldLabel": "رمز تتبع الطلب",
+    "fieldPlaceholder": "مثال: OR-2309",
+    "fieldHelper": "أُرسل رمز التتبع في رسالة تأكيد الطلب.",
+    "submit": "تتبع",
+    "notFound": "لم يُعثر على طلب بهذا الرمز. تحقق من رمز التتبع أو تواصل مع الدعم.",
+    "placedPrefix": "تاريخ الطلب:",
+    "lastUpdatePrefix": "آخر تحديث:",
+    "unit": {
+      "kg": "طن",
+      "branch": "قضيب",
+      "sheet": "لوح",
+      "meter": "متر",
+      "piece": "قطعة",
+      "sqm": "م²"
+    }
   }
 }
