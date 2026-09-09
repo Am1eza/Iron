@@ -1,8 +1,10 @@
 import Link from 'next/link';
+import { useTranslations, useLocale } from 'next-intl';
 import type { CompareBlock } from '@/lib/ai/blocks';
-import { formatToman, toPersianDigits } from '@/lib/utils/format';
+import { formatToman, localizeDigits } from '@/lib/utils/format';
 import { MovementBadge } from '@/components/ui/PriceParts';
 import { CheckCircleIcon, TruckIcon } from '@/components/primitives/icons';
+import type { AppLocale } from '@/i18n/config';
 import { CardHead, Freshness, Stat } from './parts';
 import styles from './blocks.module.css';
 
@@ -25,11 +27,13 @@ import styles from './blocks.module.css';
  * thing a person calls a broker for.
  */
 export function CompareCard({ block, onPick }: { block: CompareBlock; onPick: (text: string) => void }) {
+  const t = useTranslations('ai.blocks');
+  const locale = useLocale() as AppLocale;
   const showLanded = block.rows.some((r) => typeof r.landedToman === 'number');
 
   return (
     <div className={`${styles.card} ${styles.cardWide}`}>
-      <CardHead badge="مقایسهٔ کارخانه‌ها" title={block.title} subtitle={block.subtitle} />
+      <CardHead badge={t('badges.compare')} title={block.title} subtitle={block.subtitle} />
 
       <ul className={styles.compareList}>
         {block.rows.map((row) => (
@@ -41,23 +45,23 @@ export function CompareCard({ block, onPick }: { block: CompareBlock; onPick: (t
               <span className={styles.compareFactory}>
                 {row.href ? (
                   <Link href={row.href} className={styles.compareFactoryLink}>
-                    {toPersianDigits(row.factory)}
+                    {localizeDigits(row.factory, locale)}
                   </Link>
                 ) : (
-                  toPersianDigits(row.factory)
+                  localizeDigits(row.factory, locale)
                 )}
               </span>
               <span className={styles.compareTags}>
                 {row.cheapest ? (
                   <span className={styles.tagBest}>
                     <CheckCircleIcon size={13} aria-hidden="true" />
-                    ارزان‌ترین
+                    {t('tagBest')}
                   </span>
                 ) : null}
                 {row.cheapestLanded ? (
                   <span className={styles.tagLanded}>
                     <TruckIcon size={13} aria-hidden="true" />
-                    ارزان‌ترین با حمل
+                    {t('tagLanded')}
                   </span>
                 ) : null}
               </span>
@@ -65,15 +69,18 @@ export function CompareCard({ block, onPick }: { block: CompareBlock; onPick: (t
 
             <div className={styles.compareNums}>
               <Stat
-                label="هر کیلوگرم"
-                value={`${formatToman(row.pricePerKg, false)} تومان`}
+                label={t('perKg')}
+                value={`${formatToman(row.pricePerKg, false)} ${t('sparkline.tomanUnit')}`}
                 strong
               />
               {typeof row.totalToman === 'number' ? (
-                <Stat label="جمع کالا" value={formatToman(row.totalToman)} />
+                <Stat label={t('itemTotal')} value={formatToman(row.totalToman)} />
               ) : null}
               {typeof row.landedToman === 'number' ? (
-                <Stat label={`تحویل ${block.city ?? ''}`.trim()} value={formatToman(row.landedToman)} />
+                <Stat
+                  label={t('deliveredTo', { city: block.city ?? '' }).trim()}
+                  value={formatToman(row.landedToman)}
+                />
               ) : null}
             </div>
 
@@ -81,7 +88,7 @@ export function CompareCard({ block, onPick }: { block: CompareBlock; onPick: (t
               {row.movementDir ? <MovementBadge dir={row.movementDir} pct={row.movementPct} /> : null}
               {/* An average over ONE row is not an average — say so, rather
                   than letting a single quote pass for a market reading. */}
-              {row.rowCount === 1 ? <span className={styles.compareNote}>تک‌منبع</span> : null}
+              {row.rowCount === 1 ? <span className={styles.compareNote}>{t('singleSource')}</span> : null}
             </div>
           </li>
         ))}
@@ -91,22 +98,25 @@ export function CompareCard({ block, onPick }: { block: CompareBlock; onPick: (t
         <p className={styles.compareSaving}>
           <CheckCircleIcon size={15} aria-hidden="true" />
           <span>
-            انتخاب ارزان‌ترین گزینه نسبت به گزینهٔ بعدی{' '}
-            <strong className="tnum">{formatToman(block.savingsVsNextToman)}</strong> صرفه دارد.
+            {t('savingsNote', {
+              amount: `${formatToman(block.savingsVsNextToman)}`,
+            })}
           </span>
         </p>
       ) : null}
 
       {showLanded && block.originLabel ? (
         <p className={styles.compareNoteBlock}>
-          ستون تحویل، بار را از {toPersianDigits(block.originLabel)} تا {toPersianDigits(block.city ?? '')} با
-          کرایه، بارگیری، بیمه و باسکول حساب کرده است؛ عدد نهایی را کارشناس در پیش‌فاکتور تأیید می‌کند.
+          {t('landedNote', {
+            origin: localizeDigits(block.originLabel, locale),
+            city: localizeDigits(block.city ?? '', locale),
+          })}
         </p>
       ) : null}
 
       {block.excludedNonKg ? (
         <p className={styles.compareNoteBlock}>
-          {toPersianDigits(block.excludedNonKg)} ردیف قیمتش کیلویی نیست و در این مقایسه نیامده.
+          {t('excludedNonKg', { count: localizeDigits(block.excludedNonKg, locale) })}
         </p>
       ) : null}
 
@@ -122,7 +132,7 @@ export function CompareCard({ block, onPick }: { block: CompareBlock; onPick: (t
             )
           }
         >
-          پیش‌فاکتور از ارزان‌ترین
+          {t('actions.proformaFromCheapest')}
         </button>
         {!showLanded ? (
           <button
@@ -130,7 +140,7 @@ export function CompareCard({ block, onPick }: { block: CompareBlock; onPick: (t
             className={styles.actionGhost}
             onClick={() => onPick('با احتساب کرایهٔ حمل تا شهرم هم حساب کن')}
           >
-            با کرایهٔ حمل حساب کن
+            {t('actions.withFreight')}
           </button>
         ) : null}
         <button
@@ -138,7 +148,7 @@ export function CompareCard({ block, onPick }: { block: CompareBlock; onPick: (t
           className={styles.actionGhost}
           onClick={() => onPick(`روند قیمت ${block.title} را نشانم بده`)}
         >
-          روند قیمت
+          {t('actions.priceTrend')}
         </button>
       </div>
     </div>

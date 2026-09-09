@@ -1,24 +1,16 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import Link from 'next/link';
-import Image from 'next/image';
-import { buildMetadata, articleJsonLd } from '@/lib/seo';
+import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { articlesByType } from '@/lib/mock/catalogData';
 import { getArticle, getRelatedArticles } from '@/lib/server/catalog';
 import { shouldPrerenderMockParams } from '@/lib/server/seo/prerenderParams';
 import { decodeArticleSlugParam } from '@/lib/utils/articleSlug';
-import { formatJalali } from '@/lib/utils/jalali';
-import { Container, Section, Stack, Heading, Breadcrumbs, Badge } from '@/components/ui';
-import { CalendarIcon, ChevronStartIcon } from '@/components/primitives/icons';
-import { BreadcrumbJsonLd, JsonLd } from '@/components/seo/JsonLd';
 import { ArticleBody, articleDoc } from '@/components/content/ArticleBody';
 import { TableOfContents } from '@/components/content/TableOfContents';
-import { ReadingProgress } from '@/components/content/ReadingProgress';
 import { ArticleFaq } from '@/components/content/ArticleFaq';
 import { ArticleComments } from '@/components/content/ArticleComments';
-import { ArticleCard } from '@/components/content/ArticleCard';
-import styles from './article.module.css';
+import { ArticleDetailContent } from '@/components/content/ArticleDetailContent';
 
 type Params = { params: Promise<{ slug: string }> };
 
@@ -38,6 +30,8 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const slug = decodeArticleSlugParam(rawSlug);
   const article = await getArticle(slug);
   if (!article || article.type !== 'blog') {
+    // fa — the established SSR-shell exception; the translated 404 UI a
+    // visitor actually sees lives in NotFoundEmptyState.tsx.
     return buildMetadata({ title: 'مطلب یافت نشد', noindex: true, path: routes.blog(slug) });
   }
   // Admin-authored SEO overrides (title/description/canonical/ogImage) win when set.
@@ -67,87 +61,15 @@ export default async function BlogArticlePage({ params }: Params) {
   const [article, related] = await Promise.all([getArticle(slug), getRelatedArticles('blog', slug)]);
   if (!article || article.type !== 'blog') notFound();
 
-  const crumbs = [
-    { label: 'خانه', href: routes.home() },
-    { label: 'وبلاگ', href: routes.blog() },
-    { label: article.title, href: routes.blog(article.slug) },
-  ];
-
   return (
-    <Container>
-      <BreadcrumbJsonLd items={crumbs} />
-      <JsonLd
-        data={articleJsonLd({
-          title: article.title,
-          url: routes.blog(article.slug),
-          publishedAt: article.publishAt,
-          updatedAt: article.updatedAt,
-          image: article.seo?.ogImage ?? article.coverUrl,
-        })}
-      />
-      <ReadingProgress />
-
-      <Section space={10}>
-        <Stack gap={6}>
-          <Breadcrumbs items={crumbs} />
-
-          <article className={styles.article}>
-            <header className={styles.header}>
-              {article.coverUrl ? (
-                <Image
-                  src={article.coverUrl}
-                  alt={article.title}
-                  width={1200}
-                  height={630}
-                  priority
-                  className={styles.cover}
-                />
-              ) : null}
-              <p className={styles.kicker}>مقاله</p>
-              <Heading level={1}>{article.title}</Heading>
-              <div className={styles.meta}>
-                {article.publishAt ? (
-                  <span className={styles.date}>
-                    <CalendarIcon size={14} aria-hidden="true" />
-                    <time className="tnum" dateTime={article.publishAt}>
-                      {formatJalali(article.publishAt)}
-                    </time>
-                  </span>
-                ) : null}
-                <Badge tone="neutral">تحریریهٔ آهن‌تایم</Badge>
-              </div>
-            </header>
-
-            <TableOfContents doc={articleDoc(article)} />
-
-            <div className={styles.body}>
-              <ArticleBody article={article} />
-            </div>
-
-            <ArticleFaq items={article.faq ?? []} />
-
-            <ArticleComments articleId={article.id} slug={article.slug} />
-
-            <Link href={routes.blog()} className={styles.back}>
-              <ChevronStartIcon size={16} className="icon--rtl" />
-              بازگشت به وبلاگ
-            </Link>
-          </article>
-
-          {related.length > 0 ? (
-            <section className={styles.related} aria-labelledby="related-title">
-              <h2 id="related-title" className={styles.relatedTitle}>
-                مطالب مرتبط
-              </h2>
-              <ul className={styles.relatedGrid}>
-                {related.map((a) => (
-                  <ArticleCard key={a.id} article={a} />
-                ))}
-              </ul>
-            </section>
-          ) : null}
-        </Stack>
-      </Section>
-    </Container>
+    <ArticleDetailContent
+      type="blog"
+      article={article}
+      related={related}
+      tocSlot={<TableOfContents doc={articleDoc(article)} />}
+      bodySlot={<ArticleBody article={article} />}
+      faqSlot={<ArticleFaq items={article.faq ?? []} />}
+      commentsSlot={<ArticleComments articleId={article.id} slug={article.slug} />}
+    />
   );
 }

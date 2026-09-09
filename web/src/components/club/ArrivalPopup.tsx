@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { routes } from '@/lib/routes';
 import { useAnyModalOpen } from '@/lib/hooks/useFocusTrap';
 import { isPromoSuppressedPath } from './arrivalPopupRoutes';
@@ -38,6 +39,8 @@ const ELIGIBLE_KEY = 'ahantime_club_invite_eligible';
  * NOTE: This component does not mount itself anywhere — the orchestrator mounts it.
  */
 export function ArrivalPopup() {
+  const t = useTranslations('arrivalPopup');
+  const tAction = useTranslations('common.action');
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
   const reduced = useReducedMotion();
@@ -105,12 +108,12 @@ export function ArrivalPopup() {
     <div
       className={`${styles.root} ${reduced ? '' : styles.animated}`}
       role="status"
-      aria-label="دعوت به باشگاه مشتریان آهن‌تایم"
+      aria-label={t('ariaLabel')}
     >
       <button
         type="button"
         className={styles.close}
-        aria-label="بستن"
+        aria-label={tAction('close')}
         onClick={handleDismiss}
       >
         <CloseIcon size={18} />
@@ -121,15 +124,13 @@ export function ArrivalPopup() {
           <AiMarkIcon size={20} />
         </span>
         <div className={styles.text}>
-          <p className={styles.title}>محصول‌ها و قیمت‌های تازه رسید</p>
-          <p className={styles.desc}>
-            به باشگاه مشتریان آهن‌تایم بپیوندید و از اولویت در تأمین و هشدار قیمت اختصاصی بهره‌مند شوید.
-          </p>
+          <p className={styles.title}>{t('title')}</p>
+          <p className={styles.desc}>{t('desc')}</p>
         </div>
       </div>
 
       <Link href={routes.club()} className={styles.cta} onClick={handleDismiss}>
-        مشاهدهٔ باشگاه مشتریان
+        {t('cta')}
         <ArrowEndIcon size={16} aria-hidden="true" />
       </Link>
     </div>

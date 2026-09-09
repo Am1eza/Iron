@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { http } from '@/lib/api/http';
 import { Button } from '@/components/primitives/Button';
 import { trackGoal } from '@/lib/analytics/track';
@@ -9,6 +10,7 @@ import { trackGoal } from '@/lib/analytics/track';
  *  full member panel. No page navigation, no login prompt (already signed in). */
 export function JoinClubButton() {
   const router = useRouter();
+  const t = useTranslations('account.club');
   const [busy, setBusy] = useState(false);
   const join = async () => {
     setBusy(true);
@@ -22,7 +24,7 @@ export function JoinClubButton() {
   };
   return (
     <Button onClick={join} loading={busy}>
-      عضویت رایگان در باشگاه
+      {t('joinCta')}
     </Button>
   );
 }

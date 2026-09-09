@@ -6,19 +6,23 @@ import { useEffect } from 'react';
 // member of it (Modal, Tabs, Tooltip, useConfirm, …) — plus their CSS —
 // in the bundle. Error boundaries and the homepage price board are on
 // the first-load critical path, so that cost is paid by every visitor.
+import { useTranslations } from 'next-intl';
 import { Container } from '@/components/ui/Layout';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { emptyPresets } from '@/components/ui/emptyPresets';
 import { reportError } from '@/lib/errors/report';
 
 export default function Error({ error, reset }: { error: Error; reset: () => void }) {
+  const t = useTranslations('emptyPresets');
+  const tAction = useTranslations('common.action');
+
   useEffect(() => {
     reportError(error, { boundary: 'route-error' });
   }, [error]);
 
   return (
     <Container>
-      <EmptyState size="full" {...emptyPresets.serverError(reset)} />
+      <EmptyState size="full" {...emptyPresets.serverError(t, tAction, reset)} />
     </Container>
   );
 }

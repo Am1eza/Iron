@@ -64,6 +64,19 @@ export const categories = pgTable(
     id: text('id').primaryKey(),
     slug: text('slug').notNull().unique(),
     name: text('name').notNull(),
+    // Per-locale display names (i18n audit follow-up) — `name` stays the fa
+    // source of truth and the ONLY one ever written by the admin catalog
+    // form; these three are nullable and read-only from the public site's
+    // point of view, filled by a one-time translation backfill for the
+    // (small, bounded — 7 rows) taxonomy that existed at that time. A
+    // category added after that backfill has null en/ar/zh names until an
+    // admin (or a future translation workflow) fills them in; every read
+    // site falls back to `name` (fa) when the requested locale's column is
+    // null, so a missing translation degrades to "still Persian", never to
+    // a blank or broken page.
+    nameEn: text('name_en'),
+    nameAr: text('name_ar'),
+    nameZh: text('name_zh'),
     order: integer('order').notNull().default(0),
     iconId: text('icon_id').notNull().default(''),
     imageUrl: text('image_url'),
@@ -94,6 +107,13 @@ export const subCategories = pgTable(
       .references(() => categories.id, { onDelete: 'cascade' }),
     slug: text('slug').notNull(),
     name: text('name').notNull(),
+    // Per-locale display names — same rationale as categories.nameEn/Ar/Zh
+    // above (i18n audit follow-up): fa `name` stays the only admin-writable
+    // source of truth, these are a one-time backfill with a fa fallback
+    // wherever a locale's column is null.
+    nameEn: text('name_en'),
+    nameAr: text('name_ar'),
+    nameZh: text('name_zh'),
     // Purely a display-time cluster label, NOT a real hierarchy level — the
     // model above is a hard two-level Category → SubCategory, and stays that
     // way (both the URL structure `/prices/[category]/[sub]/[sku]` and every

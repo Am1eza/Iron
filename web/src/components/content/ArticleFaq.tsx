@@ -1,3 +1,5 @@
+'use client';
+import { useTranslations } from 'next-intl';
 import { faqJsonLd } from '@/lib/seo';
 import { JsonLd } from '@/components/seo/JsonLd';
 import { Heading, Card, Text } from '@/components/ui';
@@ -30,6 +32,7 @@ import styles from './ArticleFaq.module.css';
  * placeholder question just to fill the section.
  */
 export function ArticleFaq({ items }: { items: { question: string; answer: string }[] }) {
+  const t = useTranslations('articleFaq');
   if (items.length === 0) return null;
 
   return (
@@ -37,7 +40,7 @@ export function ArticleFaq({ items }: { items: { question: string; answer: strin
       <JsonLd data={faqJsonLd(items)} />
       <Card className={styles.card}>
         <Heading level={2} id="article-faq-title">
-          سوالات متداول
+          {t('heading')}
         </Heading>
         <div className={styles.faqList}>
           {items.map((item, i) => (

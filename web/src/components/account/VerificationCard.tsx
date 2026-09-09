@@ -1,8 +1,8 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { http } from '@/lib/api/http';
-import { LEVEL_INFO } from '@/lib/data/verification';
 import { toPersianDigits } from '@/lib/utils/format';
 import { useToast } from '@/lib/hooks/useToast';
 import { ApiError } from '@/lib/api/errors';
@@ -14,6 +14,11 @@ import { BusinessAccountBadge } from './BusinessAccountBadge';
 import styles from './VerificationCard.module.css';
 
 type VStatus = 'none' | 'pending' | 'approved' | 'rejected';
+
+/** `LEVEL_INFO` (lib/data/verification.ts) stays the fa-only source of truth
+ *  (also read server-side and by the lead view, out of scope) — translated
+ *  locally here via flat `account.verification` keys keyed by level. */
+const LEVEL_UNLOCK_COUNT: Record<1 | 2 | 3, number> = { 1: 3, 2: 4, 3: 4 };
 
 /**
  * Progressive identity verification — the "why verify" surface. Shows the
@@ -37,6 +42,7 @@ export function VerificationCard({
 }) {
   const router = useRouter();
   const toast = useToast();
+  const t = useTranslations('account.verification');
   const [nationalId, setNationalId] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [companyNationalId, setCompanyNationalId] = useState('');
@@ -44,15 +50,22 @@ export function VerificationCard({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
+  const levelUnlocks = (lvl: 1 | 2 | 3) =>
+    Array.from({ length: LEVEL_UNLOCK_COUNT[lvl] }, (_, i) =>
+      lvl === 3
+        ? t(`level3Unlock${i + 1}`, { label: t('businessAccountLabel') })
+        : t(`level${lvl}Unlock${i + 1}`),
+    );
+
   const submit = async (body: Record<string, unknown>) => {
     setBusy(true);
     setErr(null);
     try {
       await http.post('/api/me/verification', body);
-      toast.success('اطلاعات شما ثبت شد و در حال بررسی است.');
+      toast.success(t('submitSuccess'));
       router.refresh();
     } catch (e) {
-      setErr(e instanceof ApiError ? e.message : 'ثبت اطلاعات ناموفق بود.');
+      setErr(e instanceof ApiError ? e.message : t('submitError'));
     } finally {
       setBusy(false);
     }
@@ -69,17 +82,18 @@ export function VerificationCard({
         </span>
         <div>
           <h3 id="verify-heading" className={styles.title}>
-            احراز هویت
+            {t('title')}
           </h3>
           <p className={styles.currentLevel}>
-            سطح فعلی شما: <Badge tone="success">سطح {toPersianDigits(level)}: {LEVEL_INFO[level].name}</Badge>
+            {t('currentLevelPrefix')}{' '}
+            <Badge tone="success">{t('levelBadge', { level: toPersianDigits(level), name: t(`levelName.${level}`) })}</Badge>
           </p>
         </div>
       </div>
 
       {/* what's already unlocked */}
       <ul className={styles.unlocked}>
-        {LEVEL_INFO[level].unlocks.map((u) => (
+        {levelUnlocks(level).map((u) => (
           <li key={u}>
             <CheckCircleIcon size={15} aria-hidden="true" className={styles.unlockedIcon} />
             <span>{u}</span>
@@ -91,18 +105,18 @@ export function VerificationCard({
         <div className={styles.next}>
           <div className={styles.nextHead}>
             <span className={styles.nextTitle}>
-              با ارتقا به سطح {toPersianDigits(nextLevel)} ({LEVEL_INFO[nextLevel].name}) این‌ها را باز کنید:
+              {t('nextLevelIntro', { level: toPersianDigits(nextLevel), name: t(`levelName.${nextLevel}`) })}
             </span>
           </div>
           <ul className={styles.nextPerks}>
-            {LEVEL_INFO[nextLevel].unlocks.map((u) => (
+            {levelUnlocks(nextLevel).map((u) => (
               <li key={u}>{u}</li>
             ))}
           </ul>
 
           {nextStatus === 'pending' ? (
             <p className={styles.pending}>
-              <Badge tone="stale">در حال بررسی</Badge> اطلاعات شما ثبت شده و کارشناس آن را بررسی می‌کند.
+              <Badge tone="stale">{t('pendingBadge')}</Badge> {t('pendingNote')}
             </p>
           ) : (
             /* Progressive disclosure: the multi-field form only opens when the
@@ -111,7 +125,7 @@ export function VerificationCard({
                fix-and-resubmit path is one step, not two. */
             <details className={styles.formDisclosure} open={nextStatus === 'rejected'}>
             <summary className={styles.formSummary}>
-              تکمیل اطلاعات سطح {toPersianDigits(nextLevel)}
+              {t('completeLevel', { level: toPersianDigits(nextLevel) })}
             </summary>
             <form
               className={styles.form}
@@ -122,12 +136,10 @@ export function VerificationCard({
                 else submit({ level: 3, companyName, companyNationalId, economicCode });
               }}
             >
-              {nextStatus === 'rejected' ? (
-                <p className={styles.rejected}>اطلاعات قبلی تأیید نشد؛ لطفاً دوباره و دقیق وارد کنید.</p>
-              ) : null}
+              {nextStatus === 'rejected' ? <p className={styles.rejected}>{t('rejectedNotice')}</p> : null}
               {nextLevel === 2 ? (
                 <TextInput
-                  label="کد ملی"
+                  label={t('nationalIdLabel')}
                   inputMode="numeric"
                   dir="ltr"
                   maxLength={10}
@@ -137,12 +149,12 @@ export function VerificationCard({
               ) : (
                 <>
                   <TextInput
-                    label="نام شرکت"
+                    label={t('companyNameLabel')}
                     value={companyName}
                     onChange={(e) => setCompanyName(e.target.value)}
                   />
                   <TextInput
-                    label="شناسهٔ ملی شرکت"
+                    label={t('companyNationalIdLabel')}
                     inputMode="numeric"
                     dir="ltr"
                     maxLength={11}
@@ -150,7 +162,7 @@ export function VerificationCard({
                     onChange={(e) => setCompanyNationalId(e.target.value)}
                   />
                   <TextInput
-                    label="کد اقتصادی"
+                    label={t('economicCodeLabel')}
                     inputMode="numeric"
                     dir="ltr"
                     maxLength={12}
@@ -161,7 +173,7 @@ export function VerificationCard({
               )}
               {err ? <p className={styles.error}>{err}</p> : null}
               <Button type="submit" loading={busy}>
-                ثبت برای بررسی
+                {t('submit')}
               </Button>
             </form>
             </details>
@@ -173,9 +185,7 @@ export function VerificationCard({
            the badge itself is the payoff, with the company name on it. */
         <div className={styles.maxed}>
           <BusinessAccountBadge companyName={verifiedCompanyName} />
-          <p className={styles.maxedNote}>
-            بالاترین سطح احراز. کارشناس فروش هنگام بررسی استعلام شما این نشان را می‌بیند.
-          </p>
+          <p className={styles.maxedNote}>{t('maxedNote')}</p>
         </div>
       )}
     </section>

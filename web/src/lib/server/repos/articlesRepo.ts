@@ -37,6 +37,7 @@ export type ArticleListRow = Pick<
   | 'relatedNewsTopicIds'
   | 'faq'
   | 'seo'
+  | 'translations'
 > & {
   /** DB-side word count over `body_md` — see `LIST_COLUMNS`. Not a real
    *  column, so not part of `Row`/`Pick<Row, …>` above; absent when
@@ -69,6 +70,12 @@ export function toArticleDto(r: ArticleListRow): Article {
     faq: r.faq ?? [],
     seo: r.seo ?? undefined,
     readingMinutes: typeof r.wordCount === 'number' ? minutesFromWordCount(r.wordCount) : undefined,
+    titleEn: r.translations?.en?.title,
+    titleAr: r.translations?.ar?.title,
+    titleZh: r.translations?.zh?.title,
+    excerptEn: r.translations?.en?.excerpt ?? undefined,
+    excerptAr: r.translations?.ar?.excerpt ?? undefined,
+    excerptZh: r.translations?.zh?.excerpt ?? undefined,
   };
 }
 
@@ -163,6 +170,7 @@ const LIST_COLUMNS = {
   relatedNewsTopicIds: articles.relatedNewsTopicIds,
   faq: articles.faq,
   seo: articles.seo,
+  translations: articles.translations,
   // Approximate: raw whitespace-split over `body_md`'s Markdown source, not
   // the stripped reader-visible prose `stripMarkdownForWordCount` in
   // analyticsRepo.ts computes (that needs the full body text in Node; this

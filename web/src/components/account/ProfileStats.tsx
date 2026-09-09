@@ -1,6 +1,8 @@
+'use client';
 import Link from 'next/link';
+import { useTranslations, useLocale } from 'next-intl';
 import { routes } from '@/lib/routes';
-import { toPersianDigits } from '@/lib/utils/format';
+import { localizeDigits } from '@/lib/utils/format';
 import styles from './ProfileStats.module.css';
 
 /**
@@ -19,35 +21,37 @@ export function ProfileStats({
   activeOrders: number;
   warehouseItems: number;
 }) {
+  const t = useTranslations('account.profileStats');
+  const locale = useLocale();
   const tiles = [
     {
       href: routes.account('requests'),
       value: openRequests,
-      label: 'درخواست فعال',
-      hint: openRequests > 0 ? 'در انتظار پیگیری کارشناس' : 'هنوز درخواستی ندارید',
+      label: t('openRequestsLabel'),
+      hint: openRequests > 0 ? t('openRequestsHintHas') : t('openRequestsHintEmpty'),
     },
     {
       href: routes.account('orders'),
       value: activeOrders,
-      label: 'سفارش در جریان',
-      hint: activeOrders > 0 ? 'حمل و تحویل را دنبال کنید' : 'سفارش فعالی ندارید',
+      label: t('activeOrdersLabel'),
+      hint: activeOrders > 0 ? t('activeOrdersHintHas') : t('activeOrdersHintEmpty'),
     },
     {
       href: routes.account('warehouse'),
       value: warehouseItems,
-      label: 'کالای امانی در انبار',
-      hint: warehouseItems > 0 ? 'موجودی انبار مشتریان' : 'کالای امانی ندارید',
+      label: t('warehouseItemsLabel'),
+      hint: warehouseItems > 0 ? t('warehouseItemsHintHas') : t('warehouseItemsHintEmpty'),
     },
   ];
 
   return (
     <ul className={styles.grid}>
-      {tiles.map((t) => (
-        <li key={t.label}>
-          <Link href={t.href} className={styles.tile}>
-            <span className={`${styles.value} tnum`}>{toPersianDigits(t.value)}</span>
-            <span className={styles.label}>{t.label}</span>
-            <span className={styles.hint}>{t.hint}</span>
+      {tiles.map((tile) => (
+        <li key={tile.label}>
+          <Link href={tile.href} className={styles.tile}>
+            <span className={`${styles.value} tnum`}>{localizeDigits(tile.value, locale)}</span>
+            <span className={styles.label}>{tile.label}</span>
+            <span className={styles.hint}>{tile.hint}</span>
           </Link>
         </li>
       ))}

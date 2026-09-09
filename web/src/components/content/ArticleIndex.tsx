@@ -4,11 +4,12 @@ import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { PER_PAGE, archiveHref } from '@/lib/content/archivePaging';
 import { getArticlesPage, getBlogCategoryRailItems, getNewsTopicRailItems } from '@/lib/server/catalog';
-import { Container, Section, Stack, Heading, Text, Overline, Breadcrumbs, EmptyState, Pagination } from '@/components/ui';
+import { Container, Section, Stack, Breadcrumbs, Pagination } from '@/components/ui';
 import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
 import { ArticleCard } from '@/components/content/ArticleCard';
 import { CategoryRail } from '@/components/content/CategoryRail';
 import { NewsTopicRail } from '@/components/content/NewsTopicRail';
+import { ArticleIndexHeader, ArticleIndexHeading, ArticleIndexEmptyState } from '@/components/content/ArticleIndexChrome';
 import styles from './ArticleIndex.module.css';
 
 /**
@@ -21,37 +22,14 @@ import styles from './ArticleIndex.module.css';
  * already begun to drift.
  */
 
-type Copy = {
-  overline: string;
-  h1: string;
-  lede: string;
-  crumb: string;
-  listTitle: string;
-  emptyHeadline: string;
-  emptyBody: string;
-  featuredTitle?: string;
-};
-
-export const INDEX_COPY: Record<'blog' | 'news', Copy> = {
-  blog: {
-    overline: 'محتوای آموزشی',
-    h1: 'وبلاگ آهن‌تایم',
-    lede: 'راهنمای خرید، تحلیل بازار و آموزش آهن‌آلات؛ نوشته‌شده برای کسانی که اول مشورت می‌کنند، بعد خرید.',
-    crumb: 'وبلاگ',
-    listTitle: 'همهٔ مطالب',
-    featuredTitle: 'تازه‌ترین مطالب',
-    emptyHeadline: 'هنوز مطلبی منتشر نشده است',
-    emptyBody: 'به‌زودی نخستین مقاله‌های آهن‌تایم اینجا منتشر می‌شوند.',
-  },
-  news: {
-    overline: 'اخبار بازار',
-    h1: 'اخبار بازار آهن و فولاد',
-    lede: 'تازه‌ترین تحولات تولید، عرضه و نرخ شمش؛ تا پیش از خرید، نبض بازار را در دست داشته باشید.',
-    crumb: 'اخبار بازار',
-    listTitle: 'همهٔ مطالب',
-    emptyHeadline: 'هنوز خبری منتشر نشده است',
-    emptyBody: 'به‌محض انتشار، تازه‌ترین اخبار بازار اینجا قرار می‌گیرند.',
-  },
+// The breadcrumb label — the one piece of INDEX_COPY still needed
+// server-side. Everything else a reader sees (overline/h1/lede, empty
+// state, section headings) is translated by `ArticleIndexChrome`'s Client
+// Components instead; breadcrumbs stay fa, the established SSR-shell
+// exception this whole app uses.
+export const INDEX_CRUMB: Record<'blog' | 'news', string> = {
+  blog: 'وبلاگ',
+  news: 'اخبار بازار',
 };
 
 // How many of the already-fetched (recency-ordered) blog articles surface as
@@ -103,7 +81,7 @@ export function indexMetadata(type: 'blog' | 'news', page: number): Metadata {
 }
 
 export async function ArticleIndex({ type, page }: { type: 'blog' | 'news'; page: number }) {
-  const copy = INDEX_COPY[type];
+  const crumbLabel = INDEX_CRUMB[type];
   // Category rail (product-based, میلگرد/ورق/…) stays /blog-only — a
   // category page still surfaces both types together (see
   // `listPublishedByCategory`), but the ARCHIVE rail itself answers "what
@@ -135,7 +113,7 @@ export async function ArticleIndex({ type, page }: { type: 'blog' | 'news'; page
 
   const crumbs = [
     { label: 'خانه', href: routes.home() },
-    { label: copy.crumb, href: archiveHref(type, page) },
+    { label: crumbLabel, href: archiveHref(type, page) },
   ];
 
   return (
@@ -145,11 +123,7 @@ export async function ArticleIndex({ type, page }: { type: 'blog' | 'news'; page
         <Stack gap={6}>
           <div>
             <Breadcrumbs items={crumbs} />
-            <Overline>{copy.overline}</Overline>
-            <Heading level={1} id={`${type}-title`}>
-              {copy.h1}
-            </Heading>
-            <Text color="muted">{copy.lede}</Text>
+            <ArticleIndexHeader type={type} />
           </div>
 
           {/* A preview, not the flat list — see the comment below on why
@@ -159,11 +133,9 @@ export async function ArticleIndex({ type, page }: { type: 'blog' | 'news'; page
               reserved below it, and exists to fix a distinct problem: page 1
               rendering with literally zero article content until a reader
               picks a category first. */}
-          {type === 'blog' && page === 1 && articles.length > 0 && copy.featuredTitle ? (
+          {type === 'blog' && page === 1 && articles.length > 0 ? (
             <div>
-              <Heading level={2} id="blog-featured-title">
-                {copy.featuredTitle}
-              </Heading>
+              <ArticleIndexHeading type={type} variant="featured" id="blog-featured-title" />
               <ul className={styles.grid} aria-labelledby="blog-featured-title">
                 {articles.slice(0, FEATURED_COUNT).map((article) => (
                   <ArticleCard key={article.id} article={article} />
@@ -193,9 +165,7 @@ export async function ArticleIndex({ type, page }: { type: 'blog' | 'news'; page
           {type === 'news' &&
             (articles.length > 0 ? (
               <div>
-                <Heading level={2} id={`${type}-list-title`}>
-                  {copy.listTitle}
-                </Heading>
+                <ArticleIndexHeading type={type} variant="list" id={`${type}-list-title`} />
                 <ul className={styles.grid} aria-labelledby={`${type}-list-title`}>
                   {articles.map((article) => (
                     <ArticleCard key={article.id} article={article} />
@@ -204,12 +174,10 @@ export async function ArticleIndex({ type, page }: { type: 'blog' | 'news'; page
                 <Pagination page={page} pageCount={pageCount} hrefFor={(p) => archiveHref(type, p)} />
               </div>
             ) : (
-              <EmptyState size="section" headline={copy.emptyHeadline} body={copy.emptyBody} showAi />
+              <ArticleIndexEmptyState type={type} />
             ))}
 
-          {type === 'blog' && articles.length === 0 ? (
-            <EmptyState size="section" headline={copy.emptyHeadline} body={copy.emptyBody} showAi />
-          ) : null}
+          {type === 'blog' && articles.length === 0 ? <ArticleIndexEmptyState type={type} /> : null}
         </Stack>
       </Section>
     </Container>

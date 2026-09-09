@@ -1,17 +1,22 @@
 'use client';
 import { useState } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 import { Stack, Cluster, Heading, Text, Card, Button } from '@/components/ui';
 import { TextInput } from '@/components/forms/fields';
 import { FormStatus } from '@/components/forms/FormStatus';
 import { OrderTimeline } from '@/components/account/OrderTimeline';
+import { shipmentStatusLabel } from '@/lib/utils/shipmentStatusLabel';
 import { findOrder } from '@/lib/mock/orders';
 import { API_MODE } from '@/lib/api/config';
-import { SHIPMENT_STEPS, type Order } from '@/lib/types/domain';
-import { toPersianDigits } from '@/lib/utils/format';
+import type { Order, PriceUnit } from '@/lib/types/domain';
+import { localizeDigits } from '@/lib/utils/format';
 import { formatJalali } from '@/lib/utils/jalali';
 
 /** Public ref-lookup → renders that order's shipment timeline (mock). */
 export function TrackLookup() {
+  const t = useTranslations('track');
+  const tShipment = useTranslations('account.shipmentStatus');
+  const locale = useLocale();
   const [ref, setRef] = useState('');
   const [order, setOrder] = useState<Order | null>(null);
   const [notFound, setNotFound] = useState(false);
@@ -40,9 +45,7 @@ export function TrackLookup() {
     setNotFound(!found);
   };
 
-  const currentLabel = order
-    ? SHIPMENT_STEPS.find((s) => s.key === order.status)?.label ?? ''
-    : '';
+  const currentLabel = order ? shipmentStatusLabel(order.status, tShipment) : '';
 
   return (
     <Stack gap={6}>
@@ -50,24 +53,20 @@ export function TrackLookup() {
         <Cluster gap={3} align="flex-end">
           <div style={{ flex: '1 1 16rem' }}>
             <TextInput
-              label="کد پیگیری سفارش"
-              placeholder="مثال: OR-۲۳۰۹"
-              helper="کد پیگیری در پیامک تأیید سفارش ارسال شده است."
+              label={t('fieldLabel')}
+              placeholder={t('fieldPlaceholder')}
+              helper={t('fieldHelper')}
               value={ref}
               onChange={(e) => setRef(e.target.value)}
             />
           </div>
           <div style={{ marginBlockEnd: 'var(--space-4)' }}>
-            <Button type="submit">پیگیری</Button>
+            <Button type="submit">{t('submit')}</Button>
           </div>
         </Cluster>
       </form>
 
-      {notFound ? (
-        <FormStatus variant="error">
-          سفارشی با این کد پیدا نشد. کد پیگیری را بررسی کنید یا با پشتیبانی تماس بگیرید.
-        </FormStatus>
-      ) : null}
+      {notFound ? <FormStatus variant="error">{t('notFound')}</FormStatus> : null}
 
       {order ? (
         <Card>
@@ -78,7 +77,7 @@ export function TrackLookup() {
                   <bdi>{order.ref}</bdi>
                 </Heading>
                 <Text variant="caption" color="muted">
-                  ثبت: {formatJalali(order.placedAt)} · آخرین به‌روزرسانی:{' '}
+                  {t('placedPrefix')} {formatJalali(order.placedAt)} · {t('lastUpdatePrefix')}{' '}
                   {formatJalali(order.lastUpdate)}
                 </Text>
               </Stack>
@@ -92,7 +91,7 @@ export function TrackLookup() {
             <Stack gap={1}>
               {order.items.map((it) => (
                 <Text key={it.skuId} variant="body-sm" color="muted">
-                  {it.name}: {toPersianDigits(it.qty)} {unitLabel(it.unit)}
+                  {it.name}: {localizeDigits(it.qty, locale)} {unitLabel(it.unit, t)}
                 </Text>
               ))}
             </Stack>
@@ -105,23 +104,24 @@ export function TrackLookup() {
 
 /**
  * Deliberately its own table rather than `PRICE_UNIT_LABEL`: this page renders
- * `kg` as «تن», which no other surface does. Left as found — changing what a
- * shipment card says about quantity is a separate question from adding a unit.
+ * `kg` as «تن»/"Ton", which no other surface does. Left as found — changing
+ * what a shipment card says about quantity is a separate question from
+ * adding a translation for it.
  */
-function unitLabel(unit: string): string {
+function unitLabel(unit: PriceUnit, t: (key: string) => string): string {
   switch (unit) {
     case 'kg':
-      return 'تن';
+      return t('unit.kg');
     case 'branch':
-      return 'شاخه';
+      return t('unit.branch');
     case 'sheet':
-      return 'برگ';
+      return t('unit.sheet');
     case 'meter':
-      return 'متر';
+      return t('unit.meter');
     case 'piece':
-      return 'عدد';
+      return t('unit.piece');
     case 'sqm':
-      return 'متر مربع';
+      return t('unit.sqm');
     default:
       return '';
   }

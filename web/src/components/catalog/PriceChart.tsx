@@ -1,15 +1,16 @@
 'use client';
 import { useId, useMemo, useState } from 'react';
-import { formatToman, toPersianDigits } from '@/lib/utils/format';
+import { useTranslations, useLocale } from 'next-intl';
+import { formatToman, toPersianDigits, localizeDigits } from '@/lib/utils/format';
 import { formatJalali } from '@/lib/utils/jalali';
 import styles from './PriceChart.module.css';
 
 type Range = 7 | 30 | 90 | 365;
-const RANGES: { v: Range; label: string }[] = [
-  { v: 7, label: 'هفته' },
-  { v: 30, label: 'ماه' },
-  { v: 90, label: '۳ ماه' },
-  { v: 365, label: 'سال' },
+const RANGE_KEYS: { v: Range; key: 'week' | 'month' | 'threeMonths' | 'year' }[] = [
+  { v: 7, key: 'week' },
+  { v: 30, key: 'month' },
+  { v: 90, key: 'threeMonths' },
+  { v: 365, key: 'year' },
 ];
 
 /**
@@ -30,11 +31,19 @@ export function PriceChart({
   dates?: string[];
   unit?: string;
 }) {
+  const t = useTranslations('priceChart');
+  const tCommon = useTranslations('common');
+  const locale = useLocale();
   const [range, setRange] = useState<Range>(30);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const id = useId();
   const data = useMemo(() => series.slice(-range), [series, range]);
   const dateData = useMemo(() => dates?.slice(-range), [dates, range]);
+  const RANGES = RANGE_KEYS.map((r) => ({ v: r.v, label: t(`range.${r.key}`) }));
+  // `unit` also drives `fmtVal`'s comparison below (default «تومان» is a
+  // structural sentinel, not just display text) — only the RENDERED label is
+  // localized here, the prop and its comparisons stay untouched.
+  const unitLabel = unit === 'تومان' ? tCommon('unit.currency') : unit;
 
   // No history is a real, common state — a product priced for the first time
   // today, or never priced at all. Everything below indexes `data[0]` /
@@ -42,7 +51,7 @@ export function PriceChart({
   // render a NaN caption over an empty path. Say so instead. This must stay
   // AFTER the hooks above (rules of hooks) and BEFORE the arithmetic.
   if (data.length === 0) {
-    return <p className={styles.empty}>هنوز سابقهٔ قیمتی برای این کالا ثبت نشده است.</p>;
+    return <p className={styles.empty}>{t('noHistory')}</p>;
   }
 
   const w = 640;
@@ -76,10 +85,13 @@ export function PriceChart({
   // «تومان», which is wrong for the انس جهانی ticker (unit دلار, and it
   // carries a decimal). Toman values stay integer-rounded; a non-Toman
   // unit keeps up to one decimal and its own unit label.
-  const fmtVal = (v: number) =>
-    unit === 'تومان'
-      ? formatToman(v, false)
-      : toPersianDigits(v.toLocaleString('en-US', { maximumFractionDigits: 1 })).replace(/,/g, '٬');
+  const fmtVal = (v: number) => {
+    if (unit === 'تومان') return formatToman(v, false, locale);
+    const grouped = v.toLocaleString('en-US', { maximumFractionDigits: 1 });
+    // Same fa-vs-other split as formatToman's own internals: fa needs the
+    // Persian thousands separator swapped in too, not just the digits.
+    return locale === 'fa' ? toPersianDigits(grouped).replace(/,/g, '٬') : localizeDigits(grouped, locale);
+  };
   const first = data[0]!;
   const last = data[data.length - 1]!;
   const up = last >= first;
@@ -99,8 +111,8 @@ export function PriceChart({
     dateData?.[i] ? formatJalali(new Date(dateData[i]!), pattern) : formatJalali(dateFor(i), pattern);
   // Build text as single strings — interleaved text/expression nodes inside an
   // SVG <title> can hydrate-mismatch, so we render one text node per element.
-  const titleText = `نمودار قیمت در ${rangeLabel}؛ از ${fmtVal(first)} ${unit} به ${fmtVal(last)} ${unit}`;
-  const deltaText = `${up ? '▲' : '▼'} ${toPersianDigits(Math.abs(Number(pct)).toString())}٪`;
+  const titleText = t('titleText', { range: rangeLabel, from: fmtVal(first), to: fmtVal(last), unit: unitLabel });
+  const deltaText = `${up ? '▲' : '▼'} ${localizeDigits(Math.abs(Number(pct)).toString(), locale)}${locale === 'fa' ? '٪' : '%'}`;
   // The <svg> stretches non-uniformly to fill its container width
   // (preserveAspectRatio="none", so x-scale and y-scale differ — the
   // container is typically ~2x the viewBox width). A <circle> drawn in
@@ -144,10 +156,10 @@ export function PriceChart({
       <div className={styles.headRow}>
         <div className={styles.now}>
           <span className={`${styles.nowVal} tnum`}>{fmtVal(last)}</span>
-          <span className={styles.nowUnit}>{unit}</span>
+          <span className={styles.nowUnit}>{unitLabel}</span>
           <span className={`${styles.delta} ${up ? styles.up : styles.down} tnum`}>{deltaText}</span>
         </div>
-        <div className={styles.tabs} role="group" aria-label="بازهٔ زمانی">
+        <div className={styles.tabs} role="group" aria-label={t('rangeGroupAria')}>
           {RANGES.map((r) => (
             <button
               key={r.v}
@@ -169,7 +181,7 @@ export function PriceChart({
           language for a different period — spelling out "vs. the start of
           THIS range" keeps the two from ever reading as contradicting each
           other, and answers the audit's "percent of what?" complaint. */}
-      <p className={styles.deltaPeriod}>نسبت به ابتدای بازهٔ «{rangeLabel}»</p>
+      <p className={styles.deltaPeriod}>{t('deltaPeriod', { range: rangeLabel })}</p>
 
       <div className={styles.chartArea}>
         <div
@@ -218,7 +230,7 @@ export function PriceChart({
                 aria-hidden="true"
               >
                 <span className={styles.tooltipDate}>{labelFor(hoverIndex)}</span>
-                <span className={`${styles.tooltipVal} tnum`}>{fmtVal(hoverVal)} {unit}</span>
+                <span className={`${styles.tooltipVal} tnum`}>{fmtVal(hoverVal)} {unitLabel}</span>
               </div>
             </>
           )}
@@ -232,7 +244,7 @@ export function PriceChart({
 
         <div className={styles.axis}>
           <span>{fmtVal(min)}</span>
-          <span>کمینه / بیشینه</span>
+          <span>{t('minMaxLabel')}</span>
           <span>{fmtVal(max)}</span>
         </div>
       </div>
@@ -243,21 +255,21 @@ export function PriceChart({
           the hover tooltip above is pointer-only, so this is also its keyboard/
           screen-reader equivalent). */}
       <details className={styles.dataTableToggle}>
-        <summary>جدول داده‌های نمودار</summary>
+        <summary>{t('dataTableSummary')}</summary>
         <div className={styles.tableScroll}>
           <table>
-            <caption className="visually-hidden">داده‌های نمودار قیمت</caption>
+            <caption className="visually-hidden">{t('tableCaption')}</caption>
             <thead>
               <tr>
-                <th scope="col">تاریخ</th>
-                <th scope="col">قیمت</th>
+                <th scope="col">{t('dateColumn')}</th>
+                <th scope="col">{t('priceColumn')}</th>
               </tr>
             </thead>
             <tbody>
               {data.map((v, i) => (
                 <tr key={i}>
                   <td>{labelFor(i)}</td>
-                  <td>{`${fmtVal(v)} ${unit}`}</td>
+                  <td>{`${fmtVal(v)} ${unitLabel}`}</td>
                 </tr>
               ))}
             </tbody>

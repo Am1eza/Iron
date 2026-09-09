@@ -1,6 +1,7 @@
 'use client';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { routes } from '@/lib/routes';
 import { api, isApiError } from '@/lib/api';
 import { formatJalali } from '@/lib/utils/jalali';
@@ -15,20 +16,22 @@ export interface ConversationListItem {
   messageCount: number;
 }
 
-/** «امروز» / «دیروز» / a Jalali date — the grouping every chat product uses,
+type Bucket = 'today' | 'yesterday' | 'lastWeek' | 'lastMonth' | 'older';
+
+/** today / yesterday / a Jalali date — the grouping every chat product uses,
  *  because "when" is how people locate a conversation they half-remember. */
-function bucketOf(iso: string): string {
+function bucketOf(iso: string): Bucket {
   const then = new Date(iso);
   const now = new Date();
   const days = Math.floor((now.setHours(0, 0, 0, 0) - new Date(then).setHours(0, 0, 0, 0)) / 86_400_000);
-  if (days <= 0) return 'امروز';
-  if (days === 1) return 'دیروز';
-  if (days < 7) return 'هفتهٔ گذشته';
-  if (days < 31) return 'ماه گذشته';
-  return 'قدیمی‌تر';
+  if (days <= 0) return 'today';
+  if (days === 1) return 'yesterday';
+  if (days < 7) return 'lastWeek';
+  if (days < 31) return 'lastMonth';
+  return 'older';
 }
 
-const ORDER = ['امروز', 'دیروز', 'هفتهٔ گذشته', 'ماه گذشته', 'قدیمی‌تر'];
+const ORDER: Bucket[] = ['today', 'yesterday', 'lastWeek', 'lastMonth', 'older'];
 
 /**
  * The conversation history rail.
@@ -63,6 +66,8 @@ export function ConversationRail({
   /** Mobile drawer only — closes it after a selection. */
   onDismiss?: () => void;
 }) {
+  const t = useTranslations('ai.rail');
+  const tCommon = useTranslations('common.state');
   const authStatus = useAuthStore((s) => s.status);
   const [items, setItems] = useState<ConversationListItem[] | null>(null);
   const [needsLogin, setNeedsLogin] = useState(false);
@@ -116,34 +121,36 @@ export function ConversationRail({
           }}
         >
           <PlusIcon size={16} aria-hidden="true" />
-          گفتگوی جدید
+          {t('newConversation')}
         </button>
       </div>
 
-      <nav className={styles.list} aria-label="گفتگوهای پیشین">
+      <nav className={styles.list} aria-label={t('historyAria')}>
         {needsLogin ? (
           <p className={styles.empty}>
-            برای دیدن گفتگوهای قبلی‌ات{' '}
-            <Link href={routes.login(routes.ai())} className={styles.link}>
-              وارد حساب کاربری
-            </Link>{' '}
-            شو. گفتگوی فعلی‌ات همین‌جا می‌ماند.
+            {t.rich('loginPrompt', {
+              link: (chunks: ReactNode) => (
+                <Link href={routes.login(routes.ai())} className={styles.link}>
+                  {chunks}
+                </Link>
+              ),
+            })}
           </p>
         ) : failed ? (
           <p className={styles.empty}>
-            فهرست گفتگوها بارگذاری نشد.{' '}
+            {t('loadFailed')}{' '}
             <button type="button" className={styles.retry} onClick={() => void load()}>
-              دوباره تلاش کن
+              {t('retry')}
             </button>
           </p>
         ) : items === null ? (
-          <p className={styles.empty}>در حال بارگذاری…</p>
+          <p className={styles.empty}>{tCommon('loading')}</p>
         ) : items.length === 0 ? (
-          <p className={styles.empty}>هنوز گفتگوی ذخیره‌شده‌ای نداری.</p>
+          <p className={styles.empty}>{t('empty')}</p>
         ) : (
           grouped.map((group) => (
             <div key={group.bucket} className={styles.group}>
-              <p className={styles.groupLabel}>{group.bucket}</p>
+              <p className={styles.groupLabel}>{t(`bucket.${group.bucket}`)}</p>
               {group.rows.map((c) => (
                 <button
                   key={c.id}

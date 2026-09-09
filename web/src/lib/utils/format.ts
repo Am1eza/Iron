@@ -84,6 +84,26 @@ export function priceHiddenLabel(current: { priceHidden?: boolean; priceIsEstima
   return current.priceIsEstimated ? 'برآورد بازار — قیمت قطعی با استعلام' : null;
 }
 
+/**
+ * Locale-aware sibling of `priceHiddenLabel` — same fa fast path, but a
+ * translated string for the other 3 locales. A plain utility module can't
+ * call `useTranslations` itself, so the caller passes in `t` from
+ * `useTranslations('common.priceHidden')` (`callForPrice`/`estimated`), the
+ * same pattern `formatAlertValueLocalized`/`capLimitCopyLocalized`
+ * (`lib/utils/alerts.ts`) already use. `PriceTable.tsx`/`SkuDetail.tsx`
+ * still call the fa-only original directly — not touched here, flagged
+ * separately as a residual gap outside this change's scope.
+ */
+export function priceHiddenLabelLocalized(
+  current: { priceHidden?: boolean; priceIsEstimated?: boolean },
+  locale: string,
+  t: (key: 'callForPrice' | 'estimated') => string,
+): string | null {
+  if (locale === 'fa') return priceHiddenLabel(current);
+  if (current.priceHidden) return t('callForPrice');
+  return current.priceIsEstimated ? t('estimated') : null;
+}
+
 /** Compact Toman for KPI headlines — «۱٫۲ میلیارد», «۳۴۵ میلیون», plain
  *  grouped digits below a million. The unit («تومان») is deliberately NOT
  *  included: BI cards render it separately, small and muted, beside the

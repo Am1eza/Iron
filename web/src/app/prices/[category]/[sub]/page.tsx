@@ -12,7 +12,8 @@ import { toPersianDigits } from '@/lib/utils/format';
 import { DEFAULT_LOGISTICS_CONFIG, type LogisticsConfig } from '@/lib/data/logistics';
 import { shouldPrerenderMockParams } from '@/lib/server/seo/prerenderParams';
 import { taxonomyIsIndexable } from '../../_seo/indexability';
-import { Container, Section, Stack, Breadcrumbs, EmptyState, emptyPresets } from '@/components/ui';
+import { Container, Section, Stack, Breadcrumbs } from '@/components/ui';
+import { EmptyCategoryState } from '@/components/catalog/EmptyCategoryState';
 import { BreadcrumbJsonLd, JsonLd } from '@/components/seo/JsonLd';
 import { PriceTable } from '@/components/catalog/PriceTable';
 import { PriceHeader } from '@/components/catalog/PriceHeader';
@@ -164,7 +165,7 @@ export default async function SubCategoryPage({ params }: Params) {
               <PriceTable
                 rows={allRows}
                 subs={subs}
-                categoryName={cat.name}
+                category={cat}
                 categorySlug={category}
                 initialSub={sub}
                 vatRate={vatRate}
@@ -173,6 +174,7 @@ export default async function SubCategoryPage({ params }: Params) {
               <BulkQuote
                 category={category}
                 categoryName={cat.name}
+                categoryEntity={cat}
                 rows={allRows}
                 subs={subs}
                 logisticsConfig={logisticsConfig}
@@ -180,7 +182,7 @@ export default async function SubCategoryPage({ params }: Params) {
               />
             </>
           ) : (
-            <EmptyState size="section" {...emptyPresets.emptyCategory()} />
+            <EmptyCategoryState />
           )}
         </Stack>
       </Section>

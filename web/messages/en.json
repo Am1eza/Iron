@@ -30,7 +30,8 @@
     },
     "unit": {
       "currency": "Toman",
-      "vat": "VAT"
+      "vat": "VAT",
+      "usd": "USD"
     },
     "data": {
       "delivery": "Delivery time",
@@ -49,6 +50,11 @@
     "notFound": {
       "headline": "This page could not be found",
       "body": "The address may have changed. Try search, or ask Ahantime for help."
+    },
+    "imageOf": "Image of {name}",
+    "priceHidden": {
+      "callForPrice": "Call for price",
+      "estimated": "Market estimate — call for a firm price"
     }
   },
   "nav": {
@@ -124,7 +130,8 @@
     "searchCountry": "Search country…",
     "invalid": "Enter a valid mobile number.",
     "otpCountryUnsupported": "SMS sign-in currently only supports Iranian mobile numbers (+98). Please use an Iranian number, or contact us for help.",
-    "noCountry": "No country found"
+    "noCountry": "No country found",
+    "selected": "Selected"
   },
   "metadata": {
     "title": "Ahantime: Smart Iron & Steel Marketplace",
@@ -144,7 +151,56 @@
     "notesPlaceholder": "Write your request or notes here…",
     "submit": "Submit Partnership Request",
     "consent": "By submitting this request, you agree to be contacted by an Ahantime representative about this matter.",
-    "success": "Your request has been received; we'll be in touch soon."
+    "success": "Your request has been received; we'll be in touch soon.",
+    "tracks": {
+      "analysis": {
+        "title": "Market Analysis",
+        "summary": "A dedicated steel-market report and analysis, tailored to your project and purchasing plan.",
+        "audience": "For contractors, developers and procurement teams",
+        "cta": "Request an analysis",
+        "eyebrow": "Cooperation · Market Analysis",
+        "lead": "Ahantime's analysis team tracks rebar, I-beam, sheet and other section prices along with the market forces behind them, and prepares a dedicated report tailored to your needs so you can buy at the right time.",
+        "point1": "Price-trend and volatility analysis for the sections you care about, over short and medium terms.",
+        "point2": "A look at the drivers: exchange rate, billet price, commodity-exchange supply and mill policies.",
+        "point3": "A recommended buying window to control your project's landed cost.",
+        "point4": "A configurable recurring report, tailored to your product mix and purchase volume.",
+        "formNote": "Note the products and time window you have in mind, so we can prepare a more precise report."
+      },
+      "supply": {
+        "title": "Supply From You",
+        "summary": "A producer or supplier? Put your products on Ahantime and reach buyers nationwide.",
+        "audience": "For mills, trading houses and suppliers",
+        "cta": "Register as a supplier",
+        "eyebrow": "Cooperation · Supply From You",
+        "lead": "If you produce or supply steel sections, you can list your products on Ahantime. We put your goods in front of our wide network of buyers, contractors and builders, and manage the whole process from inquiry to delivery.",
+        "point1": "Your products listed alongside the day's market price, in front of thousands of buyers.",
+        "point2": "Real sales inquiries and leads, without needing a large sales team of your own.",
+        "point3": "Price, availability and delivery-time coordination handled by Ahantime's staff.",
+        "point4": "A transparent, long-term partnership with clear settlement and performance reporting.",
+        "formNote": "Note your product type, production capacity or stock on hand, and delivery location."
+      },
+      "sell": {
+        "title": "Sell For Us",
+        "summary": "Become an Ahantime sales representative and grow your business on the strength of an established marketplace.",
+        "audience": "For trading firms, resellers and sales professionals",
+        "cta": "Apply as a sales rep",
+        "eyebrow": "Cooperation · Sell For Us",
+        "lead": "As an Ahantime sales representative, you can serve customers in your region and build steady revenue, backed by our transparent pricing, direct mill supply and brand credibility.",
+        "point1": "Access to daily prices, the product catalog and Ahantime's sales tools.",
+        "point2": "Expert support for inquiries, proformas and finalizing orders.",
+        "point3": "Reliable mill supply and coordinated delivery for your customers.",
+        "point4": "A transparent partnership model with clear commission and growth tied to performance.",
+        "formNote": "Note your operating region and sales track record, so we can review your application faster."
+      }
+    },
+    "indexOverline": "Cooperation with Ahantime",
+    "indexH1": "Let's make the steel market more transparent, together",
+    "indexLede": "{brand} is built for growing together. Whether you want in-depth market analysis, want to supply your products, or want to become our sales representative, one of these three paths is for you. Pick the right one, and our staff will follow up with you.",
+    "indexFooterNote": "Not sure which path is right for you? Don't worry — fill out any track's form and we'll help you find your way.",
+    "trackPage": {
+      "includesHeading": "What does this partnership include?",
+      "formHeading": "Request Cooperation"
+    }
   },
   "profile": {
     "updated": "Profile updated.",
@@ -241,14 +297,17 @@
       "railAria": "Product categories",
       "subsOf": "Sub-categories of {name}",
       "mainCategories": "Main categories",
-      "noSubs": "No sub-category is registered for {name} yet; see this category’s price table."
+      "noSubs": "No sub-category is registered for {name} yet; see this category’s price table.",
+      "factoriesOf": "Mills carrying {name}",
+      "viewPriceTable": "View {name} price table"
     },
     "compare": {
       "title": "One product, every mill",
       "sub": "See today's price from each mill side by side, weigh the difference and pick the cheapest.",
       "tabsAria": "Choose a product to compare",
       "perKg": "Toman per kilogram",
-      "cheapest": "Cheapest"
+      "cheapest": "Cheapest",
+      "fullComparisonCta": "See the full mill comparison for {name}"
     },
     "priceBoard": {
       "ariaLabel": "Live Price Board",
@@ -443,7 +502,10 @@
     "belowAutoQuoteNote": "This cart's total is below the automatic-issue threshold ({amount}); your request will be filed and a specialist will review pricing and availability.",
     "continueRequestCta": "Continue and submit request",
     "loginContinueRequestCta": "Log in and continue with your request",
-    "noOnlinePaymentNote": "Ahantime does not accept online payment; our specialist will contact you to finalize the price and delivery."
+    "noOnlinePaymentNote": "Ahantime does not accept online payment; our specialist will contact you to finalize the price and delivery.",
+    "pageOverline": "Inquiry",
+    "pageTitle": "Inquiry cart",
+    "pageIntro": "Collect the products you want here and get a proforma with a single request. Consult first, buy after."
   },
   "kgModal": {
     "title": "Quantity for \"{name}\"",
@@ -460,5 +522,1750 @@
     "totalWeight": "Total weight: {weight} kg",
     "estimateLabel": "Estimate: {amount}",
     "addToCart": "Add to inquiry cart"
+  },
+  "priceTable": {
+    "addToCompare": "Add {name} to comparison",
+    "addedToCart": "{name} was added to your inquiry cart.",
+    "viewCart": "View Cart",
+    "priceChart": "Price Chart",
+    "priceChartFor": "{name} Price Chart",
+    "chooseQtyForCheapest": "Choose quantity for the cheaper option ({name})",
+    "addCheapestToCart": "Add the cheaper option ({name}) to cart",
+    "unknown": "Unspecified",
+    "updatedAt": "Updated",
+    "addToFavorites": "Add to favorites",
+    "mustBeQuoted": "This product's final price must be requested.",
+    "cartShort": "Cart",
+    "sortSections": "Sort {section} sections",
+    "sortTable": "Sort price table",
+    "loginToSaveFavorites": "Log in to save favorites.",
+    "allSubs": "All",
+    "priceOption": "Price",
+    "movementOption": "Change",
+    "vatToggle": "Incl. VAT",
+    "vatIncludedPct": "Includes {pct}% VAT",
+    "vatExcluded": "Excl. VAT",
+    "compare": "Compare",
+    "specFiltersGroup": "Spec filters",
+    "clearFilters": "Clear filters ({count})",
+    "activeFiltersGroup": "Active filters",
+    "selectOneMoreToCompare": "Select at least two products to compare — check one more.",
+    "filteredItemCount": "{filtered} of {total} items",
+    "itemCount": "{count} items",
+    "priceNote": "Prices are in Toman, per {basis}.",
+    "jumpToSections": "Jump to {section}",
+    "noResultsForFilter": "No products match this filter combination.",
+    "clearFiltersPlain": "Clear filters",
+    "priceFor": "{name} price",
+    "startingFrom": "from {price} {unit}",
+    "vatToggleFor": "Incl. VAT — {name}",
+    "vatIncludedPctShort": "Incl. {pct}%",
+    "product": "Product",
+    "priceColumn": "Price (Toman)",
+    "dateColumn": "Date",
+    "deliveryColumn": "Delivery",
+    "actionsColumn": "Actions",
+    "viewProductPage": "View product page",
+    "loadingChart": "Loading chart…",
+    "compareModalTitle": "Compare Products",
+    "compareTableCaption": "Comparison of specs and prices for the selected products; rows where they differ are highlighted."
+  },
+  "skuDetail": {
+    "shareText": "Today's price for {name} on Ahantime",
+    "sampleOf": "Sample of {name}",
+    "technicalSpecs": "Technical Specifications",
+    "technicalSpecsOf": "Technical specifications for {name}",
+    "addedToFavorites": "Added to favorites.",
+    "removedFromFavorites": "Removed from favorites.",
+    "favoriteSaveFailed": "Could not save favorite. Please try again.",
+    "removeFromFavorites": "Remove from favorites",
+    "linkCopied": "Page link copied.",
+    "shareNotSupported": "Sharing is not supported in this browser.",
+    "share": "Share",
+    "millLabel": "Mill:",
+    "kg": "kg",
+    "meter": "m",
+    "branchLength": "Branch length",
+    "saleUnit": "Sale unit",
+    "pricePerUnit": "Price per {basis}",
+    "mustCallForPrice": "Call us for this product.",
+    "addToCartCta": "Add to inquiry cart",
+    "noOnlinePayment": "We don't take online payment; after you submit, our expert will call to finalize the price and delivery.",
+    "priceHistoryTitle": "Price history",
+    "weightNote": "Weights are theoretical, calculated to standard; the actual branch weight may vary slightly.",
+    "relatedProductsTitle": "Related products",
+    "vatToggleLabel": "Include VAT",
+    "vatIncludedPct": "Includes {pct}% VAT",
+    "vatExcludedLabel": "VAT not included",
+    "aboveBillet": "{pct}% above the bourse billet base price",
+    "belowBillet": "{pct}% below the bourse billet base price",
+    "addToFavorites": "Add to favorites"
+  },
+  "bulkQuote": {
+    "title": "Compare mills",
+    "subtitle": "Enter your tonnage to compare today's {name} price mill by mill and pick the cheapest.",
+    "subCategoryLabel": "Sub-category",
+    "subCategoryAria": "Product sub-category",
+    "allAverage": "All (average)",
+    "sizeAria": "{sizeCol} of product",
+    "allSizesAverage": "All {sizeCol} (average)",
+    "tonnageLabel": "Order tonnage (t)",
+    "tonnageAria": "Order tonnage in tons",
+    "cityLabel": "Destination city",
+    "cityAria": "Delivery destination city",
+    "presetTonnagesAria": "Suggested tonnages",
+    "tonUnit": "t",
+    "exactCompareNote": "Exact comparison: only mills that carry \"{sub} {sizeCol} {size}\".",
+    "excludedNonKgNote": "{count} products in this selection are not priced per kg and are excluded from this comparison; contact our team for those.",
+    "tableCaption": "Mill comparison for {name}, for {tonnage} tons",
+    "factoryColumn": "Mill",
+    "pricePerKgColumn": "Price per kg",
+    "deltaColumn": "Difference from cheapest",
+    "costColumn": "Cost for {tonnage} t",
+    "cheapestTag": "Cheapest",
+    "basedOnPrices": "Based on {count} prices",
+    "suggestPrefix": "Suggestion: source from mill",
+    "suggestPriceLead": "at",
+    "suggestPerKgTotalLead": "Toman per kg; approximate total cost",
+    "singlePriceNote": "(based on a single recorded price)",
+    "savingsVsNextLead": "That saves about",
+    "savingsVsNextTail": "compared to the next option.",
+    "savingsVsMaxLead": "(Compared to the priciest option, the difference is up to",
+    "savingsVsMaxTail": "Toman.)",
+    "noRowsForSelection": "No rows in the price table for this selection; try a different sub-category or {sizeCol}.",
+    "landedTitle": "Landed cost to {city}",
+    "shippedFrom": "Shipped from {origin}",
+    "goodsLabel": "Goods ({factory})",
+    "freightLabel": "Freight ({km} km)",
+    "handlingLabel": "Loading & unloading",
+    "insuranceScaleLabel": "Cargo insurance & weighbridge",
+    "packagingLabel": "Packaging",
+    "notApplicableZero": "Not applicable / zero",
+    "vatLabel": "VAT ({pct}%)",
+    "approxTotalLabel": "Approximate total",
+    "approxDeliveryLabel": "Approximate delivery time:",
+    "landedDisclaimer": "Loading, insurance, weighbridge and packaging above are estimates; our expert will confirm the final amount on the call.",
+    "staleRatesWarning": "Ancillary rates have not been verified in over 30 days; this total is a preliminary estimate only.",
+    "getProforma": "Get a proforma",
+    "addToCart": "Add to inquiry cart",
+    "addedToCart": "Bulk inquiry added to cart.",
+    "bulkCartItemName": "{name} bulk, {factory} mill",
+    "requestTitle": "{name} bulk proforma, {tonnage} tons",
+    "requestDetail": "System suggestion: {factory} mill · {price} Toman per kg",
+    "proformaRequested": "Proforma request submitted; track its status in your profile.",
+    "footerNote": "Prices are each mill's average daily rate and are estimates; our expert will confirm the final rate and availability for this tonnage on the call. We don't take online payment."
+  },
+  "priceChart": {
+    "range": {
+      "week": "Week",
+      "month": "Month",
+      "threeMonths": "3 months",
+      "year": "Year"
+    },
+    "noHistory": "No price history has been recorded for this product yet.",
+    "titleText": "Price chart for the {range}; from {from} {unit} to {to} {unit}",
+    "rangeGroupAria": "Time range",
+    "deltaPeriod": "vs. the start of the \"{range}\" range",
+    "minMaxLabel": "Min / Max",
+    "dataTableSummary": "Chart data table",
+    "tableCaption": "Price chart data",
+    "dateColumn": "Date",
+    "priceColumn": "Price"
+  },
+  "specFilterDropdown": {
+    "selectedCount": "{count} values selected in {label}",
+    "searchPlaceholder": "Search…",
+    "noMatches": "No matches found"
+  },
+  "exportMenu": {
+    "colProduct": "Product",
+    "colFactory": "Mill",
+    "colPrice": "Price (Toman)",
+    "colMovement": "Change",
+    "vatNoteSuffix": " · incl. VAT",
+    "todayPriceLine": "Today's {title} price · {date}",
+    "pageTitle": "{title}, {brand}",
+    "xlsDownloaded": "Branded Excel file downloaded.",
+    "printBlocked": "Could not open the print window; check your pop-up blocker.",
+    "imageDownloaded": "Table image with logo downloaded.",
+    "excel": "Excel",
+    "print": "Print",
+    "image": "Image",
+    "exportGroupAria": "Table export",
+    "exportGroupAriaScoped": "Table export {scope}"
+  },
+  "weightCalculator": {
+    "sectionType": "Section type",
+    "selectPlaceholder": "Select",
+    "example": "e.g. {value}",
+    "pieceCountLabel": "Number of {piece}s",
+    "weightPerPiece": "Weight per {piece}",
+    "totalWeight": "Total weight ({count} {piece}s)",
+    "invalidGeometry": "The dimensions entered are not valid for this section.",
+    "enterValues": "Enter the values",
+    "noValue": "No value",
+    "equivalentTons": "Equivalent to {value} tons",
+    "formulaLabel": "Formula:",
+    "formulaPerMeter": "Weight per meter = {formula} → weight per {piece} = weight per meter × length",
+    "formulaAbsolute": "Weight per {piece} = {formula}",
+    "addToCart": "Add to inquiry cart",
+    "addedToCartToast": "The calculation result was added to your inquiry cart.",
+    "viewCart": "View cart",
+    "cartItemName": "{profile} (weight calculator result)",
+    "referenceTableTitle": "Standard weight table — {profile}",
+    "disclaimer": "The weights shown are theoretical, based on standard steel density; the actual weight of a shipment may vary slightly.",
+    "fieldAriaLabel": "{label} in {unit}",
+    "kg": "kg",
+    "perStandardTable": "Per standard table ({subject}) = {value}",
+    "perMillTable": "Per mill table ({subject}) = {value}",
+    "units": {
+      "mm": "mm",
+      "m": "m",
+      "count": "pcs"
+    },
+    "pieceWords": {
+      "branch": "piece",
+      "sheet": "sheet"
+    },
+    "terms": {
+      "diameter": "Diameter",
+      "outerDiameter": "Outer diameter",
+      "wallThickness": "Wall thickness",
+      "thickness": "Thickness",
+      "width": "Width",
+      "length": "Length",
+      "lengthPerPiece": "Length per {piece}",
+      "size": "Size",
+      "sizeLegLength": "Size (leg length)"
+    },
+    "profiles": {
+      "rebar": {
+        "label": "Rebar",
+        "hint": "Weight per meter of round rebar, based on nominal diameter."
+      },
+      "plate": {
+        "label": "Plate",
+        "hint": "Weight of a single steel plate sheet, based on length, width, and thickness."
+      },
+      "pipe": {
+        "label": "Pipe",
+        "hint": "Weight per meter of steel pipe, based on outer diameter and wall thickness."
+      },
+      "flat": {
+        "label": "Flat bar",
+        "hint": "Weight per meter of flat bar (rectangular section), based on width and thickness."
+      },
+      "angle": {
+        "label": "Angle",
+        "hint": "Weight of an equal-leg angle, based on the standard market size table."
+      },
+      "ibeam": {
+        "label": "I-beam",
+        "hint": "Weight per meter of standard I-beam, based on the mill weight table for each market size."
+      },
+      "channel": {
+        "label": "Channel",
+        "hint": "Weight per meter of standard channel, based on the mill weight table for each market size."
+      }
+    },
+    "tableHeaders": {
+      "diameterMm": "Diameter (mm)",
+      "weightPerMeterKg": "Weight per meter (kg)",
+      "weightPerBranchLengthKg": "Weight of a {length} m piece (kg)",
+      "thicknessMm": "Thickness (mm)",
+      "widthM": "Width (m)",
+      "lengthM": "Length (m)",
+      "weightPerSheetKg": "Weight per sheet (kg)",
+      "outerDiameterWithThickness": "Outer diameter (mm), {thickness}mm thickness",
+      "widthXThicknessMm": "Width × thickness (mm)",
+      "angleSize": "Size (angle L×L×t)"
+    }
+  },
+  "projectEstimator": {
+    "projectTypeAria": "Project type",
+    "types": {
+      "concrete": "Concrete building",
+      "steel": "Steel frame",
+      "shed": "Industrial shed"
+    },
+    "introShed": "Enter the shed span and total hall length to see a preliminary estimate of the main frame weight.",
+    "introOther": "Specify the lateral load system, roof type, and project area to see separate estimates for the frame and the roof.",
+    "shedSpanLabel": "Shed span",
+    "shedSpanPlaceholder": "Select the closest span",
+    "shedSpanWithColumns": "{span} m (with {columns} intermediate columns)",
+    "shedSpanWithoutColumns": "{span} m (no intermediate columns)",
+    "hallLength": "Hall length",
+    "unitMeter": "m",
+    "hallLengthAria": "Hall length in meters",
+    "example": "e.g. {value}",
+    "lateralSystemLabel": "Lateral load-resisting system",
+    "roofTypeLabel": "Roof type",
+    "floorAreaLabel": "Floor area per story",
+    "unitSqm": "m²",
+    "floorAreaAria": "Floor area per story in square meters",
+    "floorCountLabel": "Number of floors",
+    "unitCount": "pcs",
+    "totalAreaShed": "Total shed area",
+    "totalAreaOther": "Total floor area",
+    "shedFrameLabel": "Main shed frame (girder/truss)",
+    "rebarFrameLabel": "Frame rebar ({system})",
+    "roofRebarLabel": "Roof rebar ({roof})",
+    "unitKg": "kg",
+    "categoryAria": "Product category for {label}",
+    "skuAria": "Product spec for {label}",
+    "loadingOptions": "Loading…",
+    "noSkuAvailable": "No priced product available",
+    "fetchingPrice": "Fetching price…",
+    "noPriceAvailable": "No current price available",
+    "sizeBit": "size {size}",
+    "concreteNeeded": "Concrete required",
+    "unitM3": "m³",
+    "concreteBasis": "Based on {value} m³ per m²; not an Ahantime catalog product, informational only",
+    "totalCostLabel": "Total estimated steel cost",
+    "fetchingPrices": "Fetching live prices…",
+    "noCostAvailable": "No current price is available for the selected product; chat with the AI advisor for a cost estimate.",
+    "placeholderShed": "Enter the span and hall length to see the main frame weight and cost estimate.",
+    "placeholderOther": "Enter the lateral system, roof type, floor area, and number of floors to see the material and cost estimate.",
+    "alertTitle": "Preliminary estimate",
+    "chatCta": "Chat with the AI advisor",
+    "requestCta": "Submit an inquiry request",
+    "askExpertSuffix": "For an exact figure, chat with the AI advisor.",
+    "rangeTo": "to",
+    "listSeparator": ", ",
+    "kgPerSqm": "kg/m²",
+    "disclaimerIntro": "These figures are calculated from civil-engineering references:",
+    "disclaimerConcreteFrame": "frame rebar by lateral system ({ranges} {unit})",
+    "disclaimerConcreteRoof": "roof rebar by roof type ({ranges} {unit})",
+    "disclaimerConcreteConcrete": "and concrete {min} to {max} m³ per m²",
+    "disclaimerFoundationNote": "The foundation depends on soil conditions and is not calculated here.",
+    "disclaimerNotEngineering": "This calculation does not replace engineering calculations.",
+    "disclaimerSteelFrame": "main frame steel (columns, beams, bracing and connections together) by lateral system ({ranges} {unit})",
+    "disclaimerSteelRoof": "and roof rebar by roof type ({ranges} {unit}; the composite roof's steel deck sheet is not included in this figure and is calculated separately)",
+    "disclaimerShed": "This figure covers only the shed's main frame (girder/truss), based on a shed weight estimation table for a 100 kg/m² snow load (Tehran standard) and 85 km/h wind speed. Areas with heavier snow load (e.g. northern Iran) need substantially more frame weight, up to about 200 kg/m² per other references. Purlins (roof Z-profiles), roof/wall sheeting, and the foundation are not included in this estimate; they depend on purlin spacing and sheeting design, which cannot be reliably estimated without construction drawings.",
+    "systems": {
+      "concreteLateral": {
+        "shearwall": "Moment frame + shear wall",
+        "momentMedium": "Intermediate moment frame",
+        "momentSpecial": "Special moment frame (high seismic resistance)"
+      },
+      "steelLateral": {
+        "cbf": "Concentrically braced frame (CBF)",
+        "ebf": "Eccentrically braced frame (EBF)",
+        "momentMedium": "Intermediate moment frame",
+        "momentSpecial": "Special moment frame",
+        "dual": "Dual system"
+      },
+      "roof": {
+        "joistBlock": "Joist and block",
+        "solidSlab": "Solid concrete slab",
+        "composite": "Composite (steel deck)"
+      },
+      "frameCategories": {
+        "ibeam": "I-beam",
+        "profile": "Profile and box section",
+        "angleChannel": "Angle and channel"
+      }
+    }
+  },
+  "tenderEstimator": {
+    "optionsFetchError": "Failed to fetch options for this product.",
+    "minRowError": "Add at least one complete row (product and quantity).",
+    "submitErrorGeneric": "Submitting the estimate failed. Please try again.",
+    "successTitle": "Your estimate was submitted and sent to the sales team",
+    "successLead": "Ahantime's specialists have received your tender estimate and will coordinate with you to finalize the price and terms.",
+    "successRef": "Tracking code: {ref}",
+    "proformaIssued": "Your proforma invoice has been issued",
+    "proformaIssuedWithAmount": "Your proforma invoice has been issued, amount {amount}",
+    "downloadProforma": "Download proforma (PDF)",
+    "successNoteQuote": "Some items require a price inquiry; a sales specialist will send you the final proforma invoice.",
+    "trackRequests": "Track my requests",
+    "tableHeaders": {
+      "category": "Category",
+      "product": "Product",
+      "size": "Size",
+      "factory": "Factory",
+      "qty": "Quantity",
+      "weight": "Weight",
+      "unitPrice": "Unit price",
+      "lineTotal": "Line total",
+      "remove": "Remove"
+    },
+    "selectPlaceholder": "Select…",
+    "unknown": "N/A",
+    "factoryQuoteSuffix": "(quote)",
+    "factoryCheapestSuffix": ", cheapest",
+    "weightUnit": "kg",
+    "quoteLabel": "Quote",
+    "addRow": "Add row",
+    "pricingInProgress": "Calculating…",
+    "subtotalLabel": "Subtotal (excl. VAT)",
+    "vatLabel": "VAT",
+    "vatLabelWithRate": "VAT ({rate}%)",
+    "grandTotalLabel": "Grand total",
+    "partialPricingNote": "Some items have no live current price and are marked \"Quote\"; a specialist will state their price in the final proforma invoice.",
+    "notePlaceholder": "Notes (optional): tender deadline, delivery terms, a specific factory/standard requirement…",
+    "noteAriaLabel": "Notes",
+    "loginToSubmit": "Sign in to submit the estimate and receive a proforma invoice",
+    "submitting": "Submitting…",
+    "submitCta": "Submit estimate and receive proforma invoice",
+    "disclaimer": "Prices are calculated from Ahantime's current product rates and may change until the final proforma invoice is issued. We do not accept online payment; after submitting, a sales specialist will call to finalize the order.",
+    "removeRowAria": "Remove row"
+  },
+  "costCalculator": {
+    "categoryLabel": "Product category",
+    "selectCategoryAria": "Select a product category",
+    "productLabel": "Product",
+    "selectProductAria": "Select a product",
+    "qtyLabel": "Quantity",
+    "qtyAriaWhole": "Quantity in {unit}",
+    "qtyAriaBranch": "Number of pieces",
+    "qtyAriaKg": "Quantity in kilograms",
+    "unitToggleAria": "Quantity unit",
+    "unitBranch": "Piece",
+    "unitKg": "Kilogram",
+    "weightPerBranch": "Weight per piece",
+    "vatSwitchLabel": "Include VAT ({rate}%)",
+    "totalWeightLabel": "Total weight",
+    "itemAmountLabel": "Item amount",
+    "vatRowLabel": "VAT ({rate}%)",
+    "grandTotalLabel": "Grand total",
+    "deliveryTimeLabel": "Delivery time",
+    "addToCart": "Add to inquiry cart",
+    "addedToCart": "{name} was added to your inquiry cart.",
+    "viewCart": "View cart",
+    "finalPriceNote": "The final price is confirmed when the proforma invoice is issued. Consult first, buy after.",
+    "fetchingPrices": "Fetching live prices…",
+    "selectPrompt": "Select a category and product, and enter a quantity, to calculate the cost."
+  },
+  "projectEstimatorGuide": {
+    "title": "How is the steel weight for a project calculated?",
+    "intro": "This tool uses different engineering coefficients for each project type, because the lateral load system and the roof type — not just the floor area — are the main drivers of how much material is needed. Sources: several independent Iranian civil-engineering references, each given as a numeric range, and the tool displays that exact same range rather than a single fixed number.",
+    "concreteHeading": "Concrete-frame building",
+    "concreteBody": "The frame rebar weight (columns and beams) depends on the lateral load system: a moment frame with shear walls, the most common seismic-resistant system in Iranian concrete buildings, needs 35 to 60 kg per m²; an intermediate moment frame, 40 to 55 kg; a special moment frame, 45 to 70 kg. The roof rebar weight, independent of that choice, depends on the roof type (joist and block, solid concrete slab, or composite — see the FAQ below). The concrete volume required is also roughly 0.35 to 0.5 m³ per m² of floor area.",
+    "steelHeading": "Steel-frame building",
+    "steelBody": "The main frame steel weight (columns, beams, bracing and connections together) depends on the lateral load system: a concentrically braced frame, 45 to 70 kg per m²; an eccentrically braced frame, 50 to 75 kg; an intermediate moment frame, 65 to 105 kg; a special moment frame, 70 to 115 kg; a dual system, up to 120 kg. The roof rebar weight follows the same logic as a concrete roof, except that a composite roof (on a steel deck) is the most common choice in steel frames — 8 to 12 kg per m², not counting the weight of the steel deck sheet itself, which is calculated separately.",
+    "shedHeading": "Industrial shed",
+    "shedBody": "A shed is usually single-story, so its inputs are the span and hall length, not a number of floors. The main frame weight (girder or truss), based on a shed weight estimation table for a 100 kg/m² snow load (Tehran standard), ranges from about 25 kg/m² for small spans up to about 50 kg/m² for large spans. Areas with heavier snow load need substantially more frame weight, up to about 200 kg/m².",
+    "faqHeading": "Frequently asked questions",
+    "faq": {
+      "q1": {
+        "question": "Why are the frame weight and the roof rebar weight calculated separately instead of as one overall figure?",
+        "answer": "Because these two quantities depend on two different design decisions. The frame weight (columns and beams) depends on the lateral load system — for example, in a concrete building, an ordinary moment frame is lighter than a special seismic-resistant moment frame. The roof rebar weight, independent of that choice, depends on the roof system: joist and block, solid concrete slab, or composite roof. A single combined figure would hide these two independent decisions and would be misleading for a real project."
+      },
+      "q2": {
+        "question": "How much does the rebar weight differ between a joist-and-block roof, a solid concrete slab, and a composite roof?",
+        "answer": "As a rule of thumb: a joist-and-block roof (the most common and economical roof system in Iranian residential buildings) needs about 5 to 7 kg of rebar per m²; a composite roof (common in steel frames) needs about 8 to 12 kg per m²; and a solid concrete slab, the heaviest option, needs about 10 to 16 kg per m²."
+      },
+      "q3": {
+        "question": "What has the biggest effect on a building's steel frame weight?",
+        "answer": "The lateral load system. A concentrically braced frame (the most common and economical system) typically needs 45 to 70 kg of steel per m²; an eccentrically braced frame, 50 to 75 kg; an intermediate moment frame, 65 to 105 kg; a special moment frame, 70 to 115 kg; and a dual system (bracing combined with a moment frame, for high-rise structures or high-seismic-risk areas), up to 120 kg per m². This figure includes the columns, beams, bracing, and connections together, not just the main I-beams."
+      },
+      "q4": {
+        "question": "Why doesn't this tool calculate the weight of the shed's purlins and roof/wall sheeting?",
+        "answer": "Because the actual purlin weight depends on purlin spacing, and the sheeting weight depends on the roof/wall design — two parameters that aren't known without a construction drawing. Without those two inputs, no reliable rule-of-thumb coefficient exists for purlin or sheeting weight; a figure shown without that information would be false precision, not a real estimate. This tool only calculates the weight of the shed's main frame (girder or truss), based on span and length."
+      },
+      "q5": {
+        "question": "Does this estimate replace formal engineering calculations?",
+        "answer": "No. This is a preliminary rule-of-thumb estimate based on coefficients common in the Iranian construction industry, meant for a quick estimate of the quantity and approximate cost of steel before consulting a structural engineer. None of this tool's figures (including the foundation, which depends entirely on soil conditions and is not calculated here) replace formal structural drawings and calculations."
+      },
+      "q6": {
+        "question": "How is the approximate cost of a project's steel calculated?",
+        "answer": "For each line (frame rebar, roof rebar, shed frame), the user selects one specific product from Ahantime's live catalog, with an exact grade, size, and factory; the cost equals that line's calculated weight multiplied by that specific selected product's current price, not the average of an entire product category."
+      }
+    }
+  },
+  "ai": {
+    "about": {
+      "summaryTitle": "What exactly does this advisor do?",
+      "summaryHint": "Where the prices come from, how accurate the weights are, and why there's no online payment",
+      "lede": "The Ahantime advisor answers from the same prices you see in the <link>site's price tables</link>; it never makes up a number. Tell it what product and what it's for, and it will work out today's price, the exact section weight and the cheapest mill for your tonnage — and, if you'd like, get you a proforma at the end.",
+      "faq": {
+        "item1": {
+          "question": "Where does Ahantime's AI advisor get its prices from?",
+          "answer": "The same database that builds the site's own price tables — rates are entered by Ahantime staff after checking with mills and the market, never generated. The advisor never invents a number: if a product has no price on file, or it has gone stale, it says so and tells you a rep will confirm it, instead of guessing."
+        },
+        "item2": {
+          "question": "How accurate is the weight the advisor gives?",
+          "answer": "Weights are calculated with each section's standard formula (theoretical weight) — the exact formula the site's own weight calculator uses, never an estimate. The real scale weight can differ slightly from the theoretical figure due to production tolerance; the final number is set on the official proforma."
+        },
+        "item3": {
+          "question": "Can I get a proforma right in the chat?",
+          "answer": "Yes. Once the product, quantity and specs are clear, the advisor shows a request-summary card with today's price and weight under its reply, and you confirm it by tapping that card's own button. Nothing is submitted without your confirmation."
+        },
+        "item4": {
+          "question": "Do I have to pay online to buy?",
+          "answer": "No. Ahantime has no online payment, and there is no payment step in the chat at all. After you submit a request, a sales rep calls to finalize the price, availability and delivery time."
+        },
+        "item5": {
+          "question": "What happens if the advisor doesn't know the answer?",
+          "answer": "It says so honestly and hands the conversation to a human rep. The advisor's scope is iron, steel and construction — it won't answer outside that."
+        }
+      }
+    },
+    "capabilities": {
+      "title": "What can this advisor do that a general-purpose chat can't?",
+      "compare": {
+        "title": "Compares mills on your own tonnage",
+        "body": "Say how many tonnes you want; it compares the price per kilogram at that tonnage across available mills, marks the cheapest, and states how much it saves versus the next option. The comparison always runs on one specific grade, never a category-wide average."
+      },
+      "weight": {
+        "title": "Exact section weight, not a rough guess",
+        "body": "Computes the weight per bar and the total weight with each section's standard formula: rebar, I-beams, channels, angles, sheet, pipe, box, strip and wire. It also answers \"how many bars is 20 tonnes?\", using the same formula the site's <link>weight calculator</link> uses."
+      },
+      "outlook": {
+        "title": "A price outlook, with a range and a reason",
+        "body": "It won't leave \"buy now or wait?\" unanswered: it reads the product's real trend and its correlation with the dollar, gold and billet, and shows the short-term direction with a percentage range and its reason. It never states a firm price for a date, and if there isn't enough price history it honestly says so."
+      },
+      "sourced": {
+        "title": "A sourced technical answer, not a generic one",
+        "body": "For questions like the difference between rebar grades, it searches Ahantime's published guides and articles and names that guide as its source. If we don't have a guide on a topic, it says so honestly."
+      },
+      "footnote": "Every number it states comes from the same database the <link>price tables</link> are built from. If a price isn't on record, it won't invent one — it says a specialist will confirm it. There's no online payment either: you file the proforma request right here, and a specialist calls to finalize the price and delivery time."
+    },
+    "rail": {
+      "newConversation": "New conversation",
+      "historyAria": "Previous conversations",
+      "loginPrompt": "<link>Sign in</link> to see your previous conversations. Your current conversation stays right here.",
+      "loadFailed": "The conversation list didn't load.",
+      "retry": "Try again",
+      "empty": "No saved conversations yet.",
+      "bucket": {
+        "today": "Today",
+        "yesterday": "Yesterday",
+        "lastWeek": "Last week",
+        "lastMonth": "Last month",
+        "older": "Older"
+      }
+    },
+    "proforma": {
+      "confirmedBadge": "Request filed",
+      "trackingCode": "Tracking code:",
+      "confirmedNote": "A sales specialist will call you to finalize the price and delivery time.",
+      "viewDownload": "View & download proforma",
+      "trackRequests": "Track my requests",
+      "pendingBadge": "Proforma request summary",
+      "updatingPrice": "Updating price…",
+      "qtyOf": "Quantity of {name}",
+      "unitOf": "Unit for {name}",
+      "deliveryCity": "Delivery city",
+      "cityNotSelected": "Not selected",
+      "cityHint": "The specialist will state freight on the proforma.",
+      "totalWeight": "Total weight",
+      "kgUnit": "kg",
+      "grandTotal": "Grand total",
+      "partialPriceNote": "A specialist will state the price for some items; your request goes straight to the sales team.",
+      "updateFailed": "The update failed. Check your connection and try again.",
+      "confirmFailed": "Filing the request failed. Check your connection and try again.",
+      "confirming": "Filing…",
+      "confirmCta": "Confirm & file request",
+      "loginCta": "Sign in",
+      "addedToCart": "Added to cart",
+      "addToCart": "Add to cart",
+      "whatsappCta": "Send on WhatsApp",
+      "guestNote": "After signing in you'll return to this same conversation and file the request with one button; your name and number come from your account.",
+      "humanQuestion": "Have a technical question, or something doesn't add up?"
+    },
+    "blocks": {
+      "badges": {
+        "quote": "Today's price",
+        "compare": "Mill comparison",
+        "options": "Choose one",
+        "forecast": "Price outlook",
+        "expert": "Talk to a specialist",
+        "trend": "Price trend"
+      },
+      "freshness": {
+        "label": "Last updated:",
+        "at": "at",
+        "staleTag": "Needs a specialist to confirm"
+      },
+      "priceAsk": "Ask a specialist",
+      "sizeLabel": "size {size}",
+      "tagBest": "Cheapest",
+      "tagLanded": "Cheapest landed",
+      "perKg": "Per kilogram",
+      "itemTotal": "Item total",
+      "deliveredTo": "Delivered to {city}",
+      "singleSource": "Single source",
+      "savingsNote": "Choosing the cheapest option saves {amount} versus the next one.",
+      "landedNote": "The delivered column prices the load from {origin} to {city} including freight, loading, insurance and weighbridge; the specialist confirms the final figure on the proforma.",
+      "excludedNonKg": "{count} row(s) aren't priced per kilogram and were left out of this comparison.",
+      "actions": {
+        "proformaFromCheapest": "Proforma from the cheapest",
+        "withFreight": "Include freight cost",
+        "priceTrend": "Price trend",
+        "compareFactories": "Compare mills",
+        "proforma": "Proforma",
+        "productPage": "Product page",
+        "moreOptions": "There are more options; if yours isn't here, just type it.",
+        "proformaTodayPrice": "Proforma at today's price",
+        "priceAlert": "Price alert"
+      },
+      "forecast": {
+        "bandRange": "Approximate change range over {horizon}",
+        "direction": {
+          "up": "Trending up",
+          "down": "Trending down",
+          "flat": "Low volatility"
+        },
+        "confidence": {
+          "high": "Fairly reliable",
+          "medium": "Moderately reliable",
+          "low": "Low reliability"
+        },
+        "correlation": "correlation",
+        "caveat": "This is a directional estimate from past data, not a firm price. The steel market can move overnight on news and the exchange rate; the valid price is the one set on that day's proforma."
+      },
+      "trend": {
+        "change": {
+          "up": "Up",
+          "down": "Down",
+          "flat": "No change"
+        },
+        "inRange": "over {range}",
+        "fullChart": "Full chart on the product page"
+      },
+      "whatsapp": "WhatsApp",
+      "sparkline": {
+        "fromTo": "from {from} to {to}",
+        "priceFromTo": "from {from} to {to} {unit}",
+        "tomanUnit": "Toman",
+        "changeSuffix": ", {direction} {pct} percent"
+      },
+      "trendOfLabel": "Price trend of {name}:",
+      "trendOfDaysLabel": "Price trend of {name} over the last {days} days:",
+      "trendOfRangeLabel": "Price trend of {name} over {range}:"
+    },
+    "markdown": {
+      "tableAria": "Advisor's answer table"
+    },
+    "chat": {
+      "greeting": "Hi! I'm the Ahantime AI advisor.\nI'll help you make the best purchase, like a knowledgeable friend — consult first, then buy.",
+      "newChat": "New conversation",
+      "notice": {
+        "fallback": "The AI assistant is temporarily unavailable. Try again in a moment, or contact a specialist.",
+        "rateLimited": "Messages were sent back to back. Wait a bit and send again.",
+        "offline": "Your internet connection is down. Try again once you're back online.",
+        "dropped": "The answer was cut short; the connection dropped mid-stream.",
+        "waitingSeconds": "({seconds}s)"
+      },
+      "retry": {
+        "waitingAria": "Retry in {seconds} seconds",
+        "defaultAria": "Retry for a live answer",
+        "continue": "Continue",
+        "retry": "Retry"
+      },
+      "feedback": {
+        "groupLabel": "How was this answer?",
+        "helpful": "Helpful",
+        "notHelpful": "Not helpful",
+        "thanks": "Thanks for the feedback"
+      },
+      "roleUser": "You",
+      "tool": {
+        "getPrice": "Checking today's prices…",
+        "calcWeight": "Calculating weight…",
+        "estimateProject": "Estimating the project…",
+        "prepareProforma": "Preparing the request summary…",
+        "compareFactories": "Comparing mills…",
+        "searchGuides": "Searching the guides…",
+        "productOptions": "Checking available options…",
+        "priceHistory": "Reading the price trend…",
+        "forecastPrice": "Checking market trend and indices…",
+        "setPriceAlert": "Setting up the price alert…",
+        "default": "Writing…"
+      },
+      "slowHint": "This is taking a bit; thanks for your patience.",
+      "railToggleAria": "Conversation list",
+      "railScrimAria": "Close conversation list",
+      "exitImmersiveAria": "Back to the page",
+      "composerLabel": "Message to the AI advisor",
+      "placeholder": {
+        "offline": "Your internet connection is down…",
+        "busy": "Answering…",
+        "default": "Type your question…"
+      },
+      "micStart": "Voice input",
+      "micStop": "Stop voice input",
+      "stopAria": "Stop the answer",
+      "sendAria": "Send",
+      "offlineBar": "Your internet connection is down; you can send a message again as soon as you're reconnected.",
+      "humanQuestion": "Didn't get your answer?",
+      "humanWhatsapp": "WhatsApp a specialist",
+      "disclaimer": "Answers are based on real prices; Ahantime never invents a number.",
+      "openingConversation": "Opening conversation…",
+      "openConversationFailed": "This conversation didn't open. Try again or start a new one.",
+      "defaultHeading": "Ahantime AI Advisor"
+    }
+  },
+  "account": {
+    "nav": {
+      "ariaLabel": "Account sections",
+      "overview": "Overview",
+      "orders": "Orders",
+      "requests": "Requests",
+      "warehouse": "My Warehouse",
+      "favorites": "Favorites",
+      "alerts": "Alerts",
+      "club": "Club",
+      "profile": "Profile & Settings"
+    },
+    "header": {
+      "overline": "My Account",
+      "greetingWithName": "Hello, {name}",
+      "greetingNoName": "Hello",
+      "adminPanelBadge": "Ahantime Panel"
+    },
+    "roleLabel": {
+      "customer": "Customer",
+      "operator": "Pricing Operator",
+      "sales": "Sales Rep",
+      "content": "Content Editor",
+      "catalog": "Catalog Manager",
+      "admin": "System Admin"
+    },
+    "tabs": {
+      "ordersTitle": "My Orders",
+      "ordersSub": "Track each order's shipment status in real time here.",
+      "warehouseTitle": "My Warehouse",
+      "warehouseSub": "Goods you have consigned to Ahantime. To register a new item, go to the <link>customer warehouse page</link>.",
+      "favoritesTitle": "Favorites",
+      "favoritesSub": "Products you've saved, with live pricing.",
+      "requestsTitle": "My Requests",
+      "requestsSub": "Proformas, bulk purchases and warehouse requests, with live status for each.",
+      "alertsTitle": "Price Alerts",
+      "alertsSub": "Get an SMS when the price reaches your set threshold.",
+      "clubTitleGuest": "Ahantime Club",
+      "clubGuestHeadline": "Ahantime Club",
+      "clubGuestBody": "Membership unlocks special pricing, priority delivery and a dedicated advisor.",
+      "clubGuestCta": "View club",
+      "clubTitleMember": "Customer Club",
+      "profileTitle": "Profile & Settings",
+      "profileSub": "Your name is used on proformas and in conversations with our advisors."
+    },
+    "overview": {
+      "verifyNudgeTitle": "Complete your verification",
+      "verifyNudgeBody": "Upgrading to level {level} unlocks more benefits.",
+      "verifyNudgeCta": "Complete",
+      "clubNudgeTitle": "Join the customer club",
+      "clubNudgeBody": "Membership is free; earn points with every order and level up.",
+      "clubNudgeCta": "Join",
+      "lastOrderTitle": "Latest Order",
+      "allOrders": "All orders"
+    },
+    "shipmentStatus": {
+      "registered": "Registered",
+      "confirmed": "Confirmed",
+      "loading": "Loading",
+      "inTransit": "In Transit",
+      "delivered": "Delivered",
+      "cancelledBadge": "Cancelled",
+      "currentStageTag": "(current stage)",
+      "cancelledNote": "This order was cancelled; it had reached the \"{stage}\" stage.",
+      "ariaCancelled": "Cancelled order: reached the {stage} stage",
+      "ariaActive": "Order status: {stage}"
+    },
+    "orders": {
+      "empty": {
+        "headline": "You have no orders yet",
+        "body": "Once a proforma is finalized, your order will be created here and you can track its shipment live.",
+        "cta": "View prices"
+      },
+      "refPrefix": "Order",
+      "placed": "Placed: {date}",
+      "updated": "Updated: {date}",
+      "shippingWith": "Shipping with {carrier}",
+      "defaultCarrier": "carrier",
+      "trackingCode": "Tracking code: {code}",
+      "itemsCount": "({count} items)",
+      "reorder": "Reorder",
+      "reorderSuccessAll": "This order's items were added to your inquiry cart.",
+      "reorderSuccessPartial": "The available items from this order were added to your inquiry cart (some items are no longer available)."
+    },
+    "warehouse": {
+      "empty": {
+        "headline": "No goods registered in your warehouse yet",
+        "body": "To consign goods to Ahantime's warehouse (with insurance available), submit a storage request.",
+        "cta": "Submit a storage request"
+      },
+      "insuredBadge": "Insured ✓",
+      "code": "Code",
+      "contract": "Contract",
+      "arrivedAt": "Arrival date: {date}",
+      "location": "Location: {location}",
+      "quantityLabel": "Quantity",
+      "tons": "{value} tons",
+      "monthlyRateLabel": "Monthly storage rate (per ton)",
+      "unsettledLabel": "Unsettled balance",
+      "settlementHistoryTitle": "Settlement History",
+      "loadingSettlements": "Loading settlement history…",
+      "settlementsErrorHeadline": "Error loading settlement history",
+      "retry": "Retry",
+      "periodRange": "From {from} to {to}",
+      "voidedBadge": "Corrected",
+      "paidBadge": "Paid",
+      "pendingBadge": "Payment pending",
+      "statusLabel": {
+        "pending": "Pending",
+        "stored": "Stored",
+        "selling": "Selling",
+        "released": "Released"
+      }
+    },
+    "favorites": {
+      "loading": "Loading…",
+      "remove": "Remove",
+      "removedToast": "Removed from favorites."
+    },
+    "requests": {
+      "errorHeadline": "Error loading requests",
+      "retry": "Retry",
+      "ariaStatus": "Request status",
+      "typeLabel": {
+        "proforma": "Proforma",
+        "bulk": "Bulk purchase",
+        "warehouse": "Customer warehouse",
+        "cutToSize": "Cut-to-size order"
+      },
+      "stepLabel": {
+        "submitted": "Submitted",
+        "reviewing": "Under review",
+        "contacted": "Contacted by advisor",
+        "quoted": "Proforma issued",
+        "fulfilled": "Registered in warehouse"
+      }
+    },
+    "alerts": {
+      "errorHeadline": "Error loading alerts",
+      "retry": "Retry",
+      "statusLabel": {
+        "active": "Active",
+        "triggered": "Triggered",
+        "paused": "Paused"
+      },
+      "targetTypeLabel": {
+        "sku": "Product",
+        "market": "Market index"
+      },
+      "unavailableTarget": "This item is no longer available",
+      "below": "Below",
+      "above": "Above",
+      "tomanSuffix": "Toman",
+      "now": "Now:",
+      "distancePct": "{pct}% away",
+      "crossedSoon": "Threshold reached; you'll get an SMS shortly",
+      "staleNote": "(not recently updated)",
+      "activate": "Activate",
+      "pause": "Pause",
+      "remove": "Remove",
+      "updateSuccess": "Alert updated.",
+      "updateError": "Failed to update the alert.",
+      "removeSuccess": "Alert removed.",
+      "removeError": "Failed to remove the alert.",
+      "triggeredAt": "Triggered: {date}",
+      "registeredAt": "Registered: {date}"
+    },
+    "club": {
+      "joinHeadline": "Join the Ahantime Customer Club",
+      "joinLead": "Membership is free. Earn points with every order, by completing your profile and by verifying your identity, and level up — from supply priority to a dedicated advisor.",
+      "joinCta": "Join the club for free",
+      "pointsLabel": "Club points",
+      "levelEyebrow": "Your level",
+      "progressAriaLabel": "Progress to the next level",
+      "nearThreshold": "Only <pts>{points}</pts> points to <tierTag>{tier}</tierTag>!",
+      "farThreshold": "You've earned <pts>{points}</pts> points, on your way to <tierTag>{tier}</tierTag>",
+      "highestBadge": "Highest club level",
+      "highestNote": "You've reached the highest level; enjoy every benefit.",
+      "breakdownTitle": "Your points",
+      "breakdown": {
+        "deliveredOrders": "Delivered orders",
+        "profileComplete": "Profile completed",
+        "verificationLevel": "Verification (level {level})",
+        "referrals": "Friend referrals"
+      },
+      "ladderCurrentBadge": "Current level",
+      "tiers": {
+        "iron": {
+          "name": "Iron",
+          "tagline": "Where every relationship starts",
+          "perk1": "Access to live prices and the volatility archive",
+          "perk2": "Submit inquiries and receive proformas",
+          "perk3": "Phone support from our advisors"
+        },
+        "steel": {
+          "name": "Steel",
+          "tagline": "For regular, professional buyers",
+          "perk1": "Priority in supply and delivery",
+          "perk2": "Price alerts on several products at once (not just one)",
+          "perk3": "Faster proformas"
+        },
+        "poolad": {
+          "name": "Poolad",
+          "tagline": "The highest loyalty level",
+          "perk1": "Guaranteed supply with full priority",
+          "perk2": "The highest price-alert cap of any level",
+          "perk3": "A dedicated advisor and direct line",
+          "perk4": "Special offers before public release",
+          "perk5": "Download proformas with your own company letterhead"
+        }
+      }
+    },
+    "letterhead": {
+      "title": "Custom Proforma Letterhead",
+      "activeBadge": "Active",
+      "lead": "As a Poolad-tier member you can download your proformas with your own logo and company details instead of Ahantime's letterhead. Both a logo and a company name are required to activate this on your proformas.",
+      "logoChange": "Change logo",
+      "logoChoose": "Choose logo",
+      "logoTypeError": "Only JPG, PNG or WebP images are allowed.",
+      "logoSizeError": "The file must not exceed 5 MB.",
+      "logoUploadError": "Upload failed; please try again.",
+      "logoSuccess": "Logo saved.",
+      "companyNameLabel": "Company name",
+      "companyNamePlaceholder": "e.g. Pars Steel Makers Co.",
+      "addressLabel": "Address (optional)",
+      "phoneLabel": "Phone (optional)",
+      "save": "Save details",
+      "saving": "Saving…",
+      "saveSuccess": "Custom letterhead saved.",
+      "saveError": "Save failed; please try again."
+    },
+    "invite": {
+      "ariaLabel": "Your invite code",
+      "label": "Your invite code",
+      "hint": "Invite your friends; you earn points once they sign up and verify their identity.",
+      "copy": "Copy",
+      "copied": "Copied ✓"
+    },
+    "verification": {
+      "title": "Identity Verification",
+      "currentLevelPrefix": "Your current level:",
+      "levelBadge": "Level {level}: {name}",
+      "nextLevelIntro": "Upgrade to level {level} ({name}) to unlock:",
+      "completeLevel": "Complete level {level} details",
+      "pendingBadge": "Under review",
+      "pendingNote": "Your information has been submitted and is being reviewed by our team.",
+      "rejectedNotice": "Your previous submission wasn't approved; please re-enter it carefully.",
+      "nationalIdLabel": "National ID",
+      "companyNameLabel": "Company name",
+      "companyNationalIdLabel": "Company national ID",
+      "economicCodeLabel": "Economic code",
+      "submit": "Submit for review",
+      "submitSuccess": "Your information was submitted and is under review.",
+      "submitError": "Failed to submit your information.",
+      "maxedNote": "Highest verification level. Our sales rep sees this badge when reviewing your inquiry.",
+      "businessAccountLabel": "Verified Business Account",
+      "levelName": {
+        "1": "Mobile verified",
+        "2": "Personal identity verified",
+        "3": "Business verified"
+      },
+      "level1Unlock1": "Browse prices and submit inquiries",
+      "level1Unlock2": "Receive proformas",
+      "level1Unlock3": "Join the customer club",
+      "level2Unlock1": "Higher order limit",
+      "level2Unlock2": "Official invoices issued in your name",
+      "level2Unlock3": "\"Verified Buyer\" badge",
+      "level2Unlock4": "Club points",
+      "level3Unlock1": "The \"{label}\" badge on your account",
+      "level3Unlock2": "Our sales rep sees your business is verified during your inquiry",
+      "level3Unlock3": "Your company details are on file, ready for official company invoices",
+      "level3Unlock4": "The most verification points in the customer club"
+    },
+    "deliveryCity": {
+      "title": "My Warehouse City",
+      "sub": "Where your orders are delivered; in \"Compare factories\", freight cost from {origin} and delivery time are calculated on this basis.",
+      "selectAriaLabel": "Warehouse city",
+      "selectPlaceholder": "Select…",
+      "distanceHint": "{km} km from the warehouse · delivery {delivery}",
+      "bucket": {
+        "sameDay": "same day to 1 business day",
+        "oneToTwoDays": "1 to 2 business days",
+        "twoToThreeDays": "2 to 3 business days",
+        "threeToFourDays": "3 to 4 business days",
+        "fourToFiveDays": "4 to 5 business days"
+      },
+      "originLabel": "our Tehran warehouse"
+    },
+    "profileStats": {
+      "openRequestsLabel": "Open requests",
+      "openRequestsHintHas": "Awaiting follow-up from our advisor",
+      "openRequestsHintEmpty": "You have no requests yet",
+      "activeOrdersLabel": "Orders in progress",
+      "activeOrdersHintHas": "Track shipment and delivery",
+      "activeOrdersHintEmpty": "No active orders",
+      "warehouseItemsLabel": "Consigned items in warehouse",
+      "warehouseItemsHintHas": "Customer warehouse inventory",
+      "warehouseItemsHintEmpty": "No consigned goods"
+    }
+  },
+  "warehouseForm": {
+    "authGateHeadline": "Sign In to Submit a Request",
+    "authGateBody": "Your storage request is recorded and tracked in your profile; please sign in with your mobile number first.",
+    "authGateCta": "Log In / Sign Up",
+    "productLabel": "Product Type",
+    "productRequired": "Please select a product type.",
+    "selectPlaceholder": "Select…",
+    "quantityLabel": "Quantity (tons)",
+    "quantityRequired": "Please enter the quantity.",
+    "quantityInvalid": "The quantity must be greater than zero.",
+    "durationLabel": "Storage Duration",
+    "durationRequired": "Please select a storage duration.",
+    "notesLabel": "Notes",
+    "submitLabel": "Submit Storage Request",
+    "submitError": "Failed to submit the request. Please try again.",
+    "successPrefix": "Your storage request has been submitted (tracking code: ",
+    "successSuffix": ") and our team will contact you to arrange delivery and the contract.",
+    "trackInProfile": "Track in Profile",
+    "products": {
+      "rebarDeformed": "Deformed Rebar",
+      "rebarPlain": "Plain Rebar",
+      "rebar": "Rebar",
+      "blackSheet": "Black Sheet",
+      "galvanizedSheet": "Galvanized Sheet",
+      "oiledSheet": "Oiled Sheet",
+      "checkeredSheet": "Checkered Sheet",
+      "strip": "Steel Strip",
+      "ibeam": "I-Beam",
+      "angleAndChannel": "Angle & Channel",
+      "profileAndBoxPipe": "Profile & Box Pipe",
+      "pipe": "Pipe",
+      "other": "Other"
+    },
+    "durations": {
+      "oneToThreeMonths": "1–3 months",
+      "threeToSixMonths": "3–6 months",
+      "sixToTwelveMonths": "6–12 months",
+      "moreThanOneYear": "More than a year"
+    }
+  },
+  "cutToSizeForm": {
+    "authGateHeadline": "Sign In to Submit a Request",
+    "authGateBody": "Your cutting/conversion request is recorded and tracked in your profile; please sign in with your mobile number first.",
+    "authGateCta": "Log In / Sign Up",
+    "productLabel": "Product Type",
+    "productRequired": "Please select a product type.",
+    "selectPlaceholder": "Select…",
+    "currentDimensionsLabel": "Current Dimensions (optional)",
+    "currentDimensionsPlaceholder": "e.g. 6mm sheet, 1250×2500",
+    "requestedDimensionsLabel": "Requested Dimensions",
+    "requestedDimensionsPlaceholder": "e.g. cut to 1000×2000 or 20cm diameter",
+    "requestedDimensionsRequired": "Please enter the requested dimensions.",
+    "quantityLabel": "Quantity",
+    "quantityPlaceholder": "e.g. 50 sheets, 20 bars, or 3 tons",
+    "quantityRequired": "Please enter the quantity.",
+    "notesLabel": "Notes",
+    "submitLabel": "Submit Request",
+    "submitError": "Failed to submit the request. Please try again.",
+    "successPrefix": "Your request has been submitted (tracking code: ",
+    "successSuffix": ") and our team will review the cutting/conversion feasibility and contact you with a quote.",
+    "trackInProfile": "Track in Profile",
+    "products": {
+      "rebarDeformed": "Deformed Rebar",
+      "rebarPlain": "Plain Rebar",
+      "rebar": "Rebar",
+      "blackSheet": "Black Sheet",
+      "galvanizedSheet": "Galvanized Sheet",
+      "oiledSheet": "Oiled Sheet",
+      "checkeredSheet": "Checkered Sheet",
+      "strip": "Steel Strip",
+      "ibeam": "I-Beam",
+      "angleAndChannel": "Angle & Channel",
+      "profileAndBoxPipe": "Profile & Box Pipe",
+      "pipe": "Pipe",
+      "other": "Other"
+    }
+  },
+  "warehousePage": {
+    "overline": "Ahantime Services",
+    "heading": "Customer Warehousing",
+    "lead": "Store your goods with Ahantime on consignment. We keep them in a secure, insured warehouse and sell them for you whenever the market is right. You only pay a small monthly storage fee, while benefiting from price movement and quick liquidity.",
+    "benefits": {
+      "security": {
+        "title": "Full Security",
+        "body": "A covered warehouse with round-the-clock guarding and monitoring; your goods are kept safe."
+      },
+      "insurance": {
+        "title": "Goods Insurance",
+        "body": "Your entire inventory is insured and covered against accidents."
+      },
+      "timedSale": {
+        "title": "Timely Sale",
+        "body": "Whenever the market price is right, our specialist sells the goods on your behalf."
+      },
+      "liquidity": {
+        "title": "Fast Liquidity",
+        "body": "With Ahantime's buyer network, your inventory converts to cash in the shortest possible time."
+      }
+    },
+    "howItWorksHeading": "How It Works",
+    "steps": {
+      "register": {
+        "title": "Submit a Request",
+        "body": "Tell us the type and quantity of goods in the form below."
+      },
+      "deliverAndContract": {
+        "title": "Delivery & Contract",
+        "body": "You deliver the goods and a storage contract is signed."
+      },
+      "safeStorage": {
+        "title": "Secure Storage",
+        "body": "Your inventory is kept in an insured warehouse for a fixed monthly fee."
+      },
+      "sellAndSettle": {
+        "title": "Sale & Settlement",
+        "body": "We sell at the right time and settle the payment with you."
+      }
+    },
+    "formHeading": "Storage Request",
+    "formLead": "Fill out the form below; our specialist will contact you to arrange delivery and sign the contract."
+  },
+  "cutToSizePage": {
+    "overline": "Ahantime Services",
+    "heading": "Cut-to-Size Goods",
+    "lead": "Hand your steel goods to Ahantime and we'll cut them to the exact dimensions your project needs and prepare them for delivery — from sheet and strip to rebar and other sections. You tell us the product type and size you want; our specialist first reviews feasibility and cost, and the cutting is done once you confirm.",
+    "benefits": {
+      "exactSize": {
+        "title": "Exactly the Size You Need",
+        "body": "Instead of buying standard sizes and wasting offcuts, receive goods in exactly the size your project requires."
+      },
+      "lessWaste": {
+        "title": "Less Waste, Lower Cost",
+        "body": "Precise cutting means less material is wasted, so you don't pay for the labor and hauling of scrap."
+      },
+      "precisionCut": {
+        "title": "Precise Industrial Cutting",
+        "body": "Cut on industrial machines to a defined tolerance; the delivered dimensions match exactly what you ordered."
+      },
+      "readyToDeliver": {
+        "title": "Ready to Deliver",
+        "body": "The cut goods are packaged and prepared for shipping or in-person pickup."
+      }
+    },
+    "howItWorksHeading": "How It Works",
+    "steps": {
+      "register": {
+        "title": "Submit a Request",
+        "body": "Tell us the product type and requested dimensions in the form below."
+      },
+      "reviewAndQuote": {
+        "title": "Review & Quote",
+        "body": "Our specialist reviews the cutting feasibility and gives you a cost quote."
+      },
+      "cutting": {
+        "title": "Cutting",
+        "body": "Once you confirm, the goods are cut to the requested dimensions on industrial machines."
+      },
+      "delivery": {
+        "title": "Delivery",
+        "body": "The finished goods are packaged and arranged for shipping or pickup."
+      }
+    },
+    "formHeading": "Submit a Cutting/Conversion Request",
+    "formLead": "Fill out the form below; our specialist will review feasibility and cost, and coordinate with you."
+  },
+  "alertBell": {
+    "loginPrompt": "Sign in to set a price alert.",
+    "loginCta": "Sign in",
+    "bellLabelActive": "Active price alert; manage",
+    "bellLabelInactive": "Set a price alert",
+    "removedToast": "Alert removed.",
+    "removeFailedToast": "Couldn't remove the alert.",
+    "alreadyActiveToast": "You already have an active alert for “{label}”.",
+    "viewInAccount": "View in my account",
+    "setToastBelow": "You'll get an SMS when “{label}” reaches {threshold} or lower.",
+    "setToastAbove": "You'll get an SMS when “{label}” reaches {threshold} or higher.",
+    "submitFailedToast": "Couldn't set the alert. Please try again.",
+    "manageTitle": "Manage price alert",
+    "newTitle": "New price alert",
+    "close": "Close",
+    "submitAsNew": "Save as a new alert",
+    "submit": "Set alert",
+    "removeThis": "Remove this alert",
+    "currentPrice": "Current price of “{label}”:",
+    "existingHint": "This alert is already active. Changing the value below and saving adds a separate alert; to replace it, remove this one first.",
+    "directionLabel": "Alert direction",
+    "directionBelow": "When the price drops",
+    "directionAbove": "When the price rises",
+    "thresholdLabel": "Alert threshold ({unit})",
+    "indexUnit": "index unit",
+    "thresholdError": "Enter an amount greater than zero.",
+    "defaultHint": "Defaults to 5% {direction} the current price; you can change the number.",
+    "defaultHintBelow": "below",
+    "defaultHintAbove": "above",
+    "limitCap": {
+      "headlineWithCap": "You've reached your limit of {cap} active alerts.",
+      "nonMemberBody": "To also track “{label}”, join the Ahantime club — membership raises your active-alert limit.",
+      "nonMemberCta": "Join the club",
+      "ironBody": "To also track “{label}”, upgrade to the Steel club tier to raise your active-alert limit.",
+      "steelBody": "To also track “{label}”, upgrade your club tier to raise your active-alert limit.",
+      "upgradeCta": "View the club",
+      "maxHeadlineWithCap": "You're at the top club tier and have reached your limit of {cap} active alerts.",
+      "maxBody": "To set an alert for “{label}”, first pause or remove one of your active alerts.",
+      "maxCta": "Manage alerts"
+    }
+  },
+  "proforma": {
+    "letterheadToggleAriaLabel": "Choose letterhead",
+    "ourLetterheadTab": "{brand} letterhead",
+    "myCompanyLetterheadTab": "My company's letterhead",
+    "phonePrefix": "Phone:",
+    "mobilePrefix": "Mobile:",
+    "tagline": "The smart iron & steel marketplace: consult first, buy second",
+    "title": "Proforma",
+    "issuedDatePrefix": "Issue date:",
+    "customerLabel": "Customer",
+    "cancelledMessage": "This version of the proforma has been cancelled and is no longer valid. Contact our sales team for a valid version.",
+    "expiredMessage": "This proforma has expired. Contact our sales team for today's price.",
+    "validityPrefix": "Prices valid until:",
+    "tableCaption": "Line items for proforma {ref}",
+    "col": {
+      "row": "#",
+      "description": "Item",
+      "qty": "Qty",
+      "unitPrice": "Unit price (Toman)",
+      "lineTotal": "Line total (Toman)"
+    },
+    "negotiable": "Quote on request",
+    "subtotalLabel": "Subtotal",
+    "volumeDiscountLabel": "Volume discount",
+    "discountLabel": "Discount",
+    "taxableAmountLabel": "Taxable amount",
+    "vatLabel": "VAT ({pct}%)",
+    "grandTotalLabel": "Total due",
+    "footerDisclaimer": "This proforma is for quotation purposes only and is not an official invoice. We do not process payments online; settlement is arranged with our sales team.",
+    "printButton": "Download / Print PDF"
+  },
+  "track": {
+    "overline": "Shipment tracking",
+    "title": "Track your order",
+    "intro": "Enter your order's tracking code to see the current shipping status.",
+    "fieldLabel": "Order tracking code",
+    "fieldPlaceholder": "e.g. OR-2309",
+    "fieldHelper": "The tracking code was sent in your order confirmation SMS.",
+    "submit": "Track",
+    "notFound": "No order was found with this code. Double-check the tracking code or contact support.",
+    "placedPrefix": "Placed:",
+    "lastUpdatePrefix": "Last updated:",
+    "unit": {
+      "kg": "Ton",
+      "branch": "Bar",
+      "sheet": "Sheet",
+      "meter": "Meter",
+      "piece": "Piece",
+      "sqm": "m²"
+    }
+  },
+  "marketBoard": {
+    "sourceBadge": "Live market rate",
+    "viewChartAriaLabel": "Show {label} chart",
+    "chartAriaLabel": "{label} chart",
+    "chartLabel": "{label} chart",
+    "chartHint": "Approximate price trend over the last week to year.",
+    "loadingChart": "Loading chart…",
+    "viewPricesCta": "View steel prices",
+    "labels": {
+      "usd": "USD",
+      "eur": "EUR",
+      "gold18": "18k Gold",
+      "ounce": "Gold Ounce",
+      "billet": "Steel Billet"
+    }
+  },
+  "categoryPriceSummary": {
+    "eyebrow": "Today's market summary",
+    "title": "Headline price per category",
+    "caption": "For each steel category, the latest recorded price of a headline product. The full table for each category — every size and mill — is one click below.",
+    "col": {
+      "category": "Category",
+      "headlineProduct": "Headline product",
+      "size": "Size",
+      "factory": "Mill",
+      "price": "Price (Toman)",
+      "movement": "Change",
+      "deliveryTime": "Delivery time",
+      "fullTable": "Full table"
+    },
+    "unknown": "Unspecified",
+    "fullTableOf": "Full {category} table",
+    "note": "Prices exclude VAT and are based on Ahantime's own recorded rates. Get a proforma for final confirmation and an exact delivery time — consult first, buy after."
+  },
+  "featuredPrices": {
+    "eyebrow": "Most popular",
+    "title": "Today's rebar prices",
+    "fullTable": "Full rebar table",
+    "col": {
+      "product": "Product",
+      "size": "Size",
+      "factory": "Mill",
+      "price": "Price (Toman)",
+      "movement": "Change",
+      "deliveryTime": "Delivery time",
+      "details": "Details"
+    },
+    "unknown": "Unspecified",
+    "detailsOf": "Details for {name}",
+    "note": "Prices exclude VAT and update live."
+  },
+  "categoryGrid": {
+    "eyebrow": "Product categories",
+    "title": "Today's steel prices",
+    "allPrices": "All prices",
+    "viewPrice": "View price"
+  },
+  "articleFaq": {
+    "heading": "Frequently Asked Questions"
+  },
+  "marketPage": {
+    "overline": "Market Pulse",
+    "title": "Gold, Currency & Steel Billet",
+    "intro": "See live rates for USD, EUR, 18k gold, the global gold ounce and steel billet right here — five variables that directly or indirectly move rebar, I-beam and section prices. When USD or steel billet gets more expensive, that effect usually reaches final steel prices within a few weeks, not the same day; we explain why further down this page.",
+    "whyTitle": "Why do steel prices follow the dollar and gold?",
+    "explainer1": "Steel billet, the main raw material for rebar and I-beams, is priced on Iran's commodity exchange based on the dollar cost of imported iron ore and scrap. When the dollar gets more expensive, this cost rises for mills and usually affects the final price of rebar, I-beam and sections within a few weeks.",
+    "explainer2": "The global gold ounce also affects steel prices, though from a different angle than the dollar. When concern about inflation or global economic instability rises, capital tends to flee to both gold and base metals like iron and copper at the same time, since both are considered physical assets. That's why the gold ounce and global steel prices often move together during volatile periods, even without a direct link.",
+    "chain": {
+      "0": "The dollar gets more expensive, so the cost of imported iron ore and scrap rises for mills.",
+      "1": "Iran's commodity exchange updates the steel billet rate with this new cost.",
+      "2": "Mills set rebar, I-beam and section prices based on the new billet cost.",
+      "3": "This effect is usually seen in the steel market within a few weeks, not the same day."
+    },
+    "roleTableCaption": "Each variable's role in steel prices (see the live rate this instant in the board above this page)",
+    "roleCol": {
+      "variable": "Variable",
+      "role": "Role in steel prices"
+    },
+    "role": {
+      "usd": {
+        "label": "USD",
+        "role": "Mills' dollar cost of imported iron ore and scrap"
+      },
+      "eur": {
+        "label": "EUR",
+        "role": "Indirect effect, mainly European machinery and raw materials"
+      },
+      "gold18": {
+        "label": "18k Gold",
+        "role": "Domestic reflection of the global gold price and the dollar rate"
+      },
+      "ounce": {
+        "label": "Gold Ounce",
+        "role": "A risk-aversion and global inflation gauge"
+      },
+      "billet": {
+        "label": "Steel Billet",
+        "role": "The main raw material and most direct driver of rebar and I-beam prices"
+      }
+    },
+    "faq": {
+      "0": {
+        "question": "Why does rebar get more expensive when the dollar rises?",
+        "answer": "Because steel billet, rebar's main raw material, is priced on Iran's commodity exchange based on the dollar cost of imported iron ore and scrap. A more expensive dollar raises this cost for mills and usually affects the final price of rebar and I-beam within a few weeks."
+      },
+      "1": {
+        "question": "How is the global gold ounce related to steel prices?",
+        "answer": "When concern about inflation or global economic instability rises, capital tends to flee to both gold and base metals like iron and copper at once, since both are physical assets. That is why the gold ounce and global steel prices often move together during volatile periods."
+      },
+      "2": {
+        "question": "If the dollar rises today, does rebar change price the same day?",
+        "answer": "Usually not. Mills set prices based on recent-day rates, not instantly, and existing inventory or pre-signed contracts can delay the effect by days to weeks. The relationship between the dollar and steel prices moves in the same direction, but not at the same time."
+      },
+      "3": {
+        "question": "Does the euro affect steel prices the way the dollar does?",
+        "answer": "The euro's effect is weaker and more indirect, since iron ore and scrap purchases on the global market are mostly priced in dollars. The euro matters more for mills that import specific machinery or raw materials from Europe, not for the steel market as a whole."
+      },
+      "4": {
+        "question": "How is the steel billet rate at Ahantime determined?",
+        "answer": "Unlike the dollar and gold, which are recorded via automated live tracking, the steel billet rate is reviewed and entered by Ahantime's own expert team based on Iran's commodity exchange. This is deliberate: it prevents false, momentary swings from affecting a number that directly drives rebar and I-beam prices."
+      },
+      "5": {
+        "question": "Can today's dollar rate exactly predict tomorrow's steel price?",
+        "answer": "Not precisely. The dollar is one of several key variables, not the only factor: domestic supply, export policy and even mill inventory levels also affect the final price. The dollar rate shows the direction steel prices are moving, not the exact size of the change."
+      }
+    },
+    "relatedTitle": "Read more"
+  },
+  "emptyPresets": {
+    "filterNoResults": {
+      "headline": "No matches found",
+      "body": "No products match these filters. Try simplifying them, or ask Ahantime.",
+      "clearFilters": "Clear filters"
+    },
+    "emptyCategory": {
+      "headline": "Coming soon to this category",
+      "body": "No products are listed here yet. Send a request and our team will help.",
+      "otherCategories": "Other categories"
+    },
+    "noPrice": {
+      "headline": "Get today's price",
+      "body": "Our team will share the current price for this product.",
+      "callWithPhone": "Call {phone}"
+    },
+    "searchNoResults": {
+      "headline": "Nothing found",
+      "body": "No results for “{q}”. Check the spelling, or ask Ahantime.",
+      "viewCategories": "Browse categories"
+    },
+    "aiRelayDown": {
+      "headline": "Can't calculate that right now",
+      "body": "Try again in a moment, or send a request and our team will call you."
+    },
+    "favoritesEmpty": {
+      "headline": "No favorites yet",
+      "body": "Save products with ♡ to see them here."
+    },
+    "requestsEmpty": {
+      "headline": "No requests filed yet",
+      "body": "Send a request from the price table or Ahantime, and track it here."
+    },
+    "alertsEmpty": {
+      "headline": "No alerts set",
+      "body": "Tap the 🔔 icon next to any product or market indicator to get a text when it hits your target price."
+    },
+    "cartEmpty": {
+      "headline": "Your inquiry cart is empty",
+      "body": "Add products to your cart to get one combined proforma.",
+      "backToPrices": "Back to prices"
+    },
+    "chartInsufficient": {
+      "headline": "Not enough history yet",
+      "body": "The chart will appear here once more prices have been recorded."
+    },
+    "serverError": {
+      "headline": "Something went wrong",
+      "body": "It was on our end. Please try again in a moment.",
+      "contactUs": "Contact us"
+    },
+    "offline": {
+      "headline": "You're offline",
+      "body": "This will update automatically once you're back online."
+    },
+    "authRequired": {
+      "headline": "Sign in to continue",
+      "body": "Sign in with your mobile number and the code we text you."
+    }
+  },
+  "search": {
+    "title": "Search",
+    "lede": "Search Ahantime's products, categories and articles. Consult first, buy after.",
+    "searchPlaceholder": "Search a product, size, factory or article…",
+    "emptyQueryHeadline": "What are you looking for?",
+    "emptyQueryBody": "Enter a product name, size, factory or article title — for example “rebar 14” or “Mobarakeh Steel”.",
+    "resultsSummary": "{count} results for “{q}”",
+    "filterAriaLabel": "Filter by result type",
+    "filterAll": "All",
+    "typeLabel": {
+      "sku": "Products",
+      "category": "Categories",
+      "article": "Articles & news"
+    },
+    "noResultsForType": "No results in this category — try the “All” filter.",
+    "groupAriaLabel": {
+      "products": "Product results",
+      "categories": "Category results",
+      "articles": "Article results"
+    },
+    "groupCount": "{count} items",
+    "groupCountTruncated": "{count} items (first {cap} shown)",
+    "moreCategories": "All categories",
+    "moreArticles": "View the blog",
+    "sortAriaLabel": "Sort results",
+    "sort": {
+      "relevance": "Most relevant",
+      "price": "Cheapest",
+      "factory": "Factory"
+    },
+    "productsGroupTitle": "Products",
+    "categoriesGroupTitle": "Categories",
+    "articlesGroupTitle": "Articles & news",
+    "sizeLabel": "Size",
+    "truncatedProductsNote": "To see every product from this search, use the filters on the price-list page.",
+    "popularCategoriesTitle": "Popular categories"
+  },
+  "articleCard": {
+    "articleKicker": "Article",
+    "minutesUnit": "min",
+    "readMore": "Read more"
+  },
+  "comments": {
+    "title": "Reader comments",
+    "listAriaLabel": "Comments",
+    "totalCount": "{count} comments",
+    "helpfulTotal": "{count} helpful votes",
+    "sortAriaLabel": "Sort comments",
+    "sortNewest": "Newest",
+    "sortHelpful": "Most helpful",
+    "emptyHeadline": "No comments yet",
+    "emptyBody": "Be the first to share your experience with this article.",
+    "youLabel": "You",
+    "pendingBadge": "Pending review",
+    "pendingNote": "Only visible to you until it is approved.",
+    "anonymousAuthor": "Ahantime user",
+    "verifiedBuyerBadge": "Verified Ahantime buyer",
+    "helpfulButton": "👍 Helpful",
+    "commentLabel": "Your comment",
+    "commentPlaceholder": "Share your comment or experience with this article…",
+    "submitting": "Submitting…",
+    "submitButton": "Post comment",
+    "submitError": "Posting the comment failed; try again.",
+    "voteError": "Voting failed; try again.",
+    "loginPrompt": "Sign in to your account to write a comment.",
+    "loginCta": "Sign in or register"
+  },
+  "articleIndex": {
+    "blog": {
+      "overline": "Learning center",
+      "h1": "Ahantime blog",
+      "lede": "Buying guides, market analysis and steel education — written for buyers who consult first, then buy.",
+      "listTitle": "All articles",
+      "featuredTitle": "Latest articles",
+      "emptyHeadline": "No articles published yet",
+      "emptyBody": "Ahantime's first articles will be published here soon."
+    },
+    "news": {
+      "overline": "Market news",
+      "h1": "Iron & steel market news",
+      "lede": "The latest on production, supply and billet rates — keep a finger on the market before you buy.",
+      "listTitle": "All articles",
+      "emptyHeadline": "No news published yet",
+      "emptyBody": "The latest market news will appear here as soon as it is published."
+    }
+  },
+  "categoryRail": {
+    "label": "Browse articles by product",
+    "ariaLabel": "Article categories",
+    "articleCount": "{count} articles"
+  },
+  "newsTopicRail": {
+    "label": "Browse news by topic",
+    "ariaLabel": "Market news topics",
+    "topic": {
+      "rates-exchange": "Rates & commodity exchange",
+      "production-mills": "Production & mills",
+      "trade": "Exports & imports",
+      "policy-regulation": "Policy & regulation",
+      "global-market": "Global market developments",
+      "demand-construction": "Demand & construction"
+    }
+  },
+  "clubLanding": {
+    "overline": "Customer Club",
+    "h1": "Ahantime Customer Club",
+    "heroLead": "Your loyalty is worth something. With every inquiry and purchase, your tier goes up, unlocking supply priority, price alerts on several products at once, and a dedicated advisor. Volume-based tiered discounts also apply automatically to every customer — member or not — the same philosophy we've always had: \"consult first, then buy.\"",
+    "heroHint": "Membership is free and activates once you sign in and confirm it under \"My Club\".",
+    "tiersHeading": "Three tiers, growing benefits",
+    "tiersSub": "Start at \"Iron\", and move up to \"Steel\" and then \"Poolad\" as you keep working with us.",
+    "levelLabel": "Tier {n}",
+    "mostPopular": "Most popular",
+    "joinHeading": "How do I join?",
+    "joinSub": "Three simple steps to your first club benefits.",
+    "steps": {
+      "step1": {
+        "title": "Sign up with your mobile number",
+        "body": "Sign in with your mobile number, then activate free membership under \"My Club\"."
+      },
+      "step2": {
+        "title": "Your first inquiry or purchase",
+        "body": "Add products to your inquiry cart; our team will contact you with a proforma."
+      },
+      "step3": {
+        "title": "Move up a tier",
+        "body": "Keep working with us and you'll automatically move up to \"Steel\" and then \"Poolad\"."
+      }
+    },
+    "closingHeading": "Join now",
+    "closingLead": "Sign in, activate membership under \"My Club\", and start earning points on your next inquiries.",
+    "closingNote": "Have a question? Our staff are ready to help."
+  },
+  "clubCtas": {
+    "myClub": "My Club",
+    "registerLogin": "Register / Log in"
+  },
+  "arrivalPopup": {
+    "ariaLabel": "Invitation to the Ahantime customer club",
+    "title": "Fresh products and prices are in",
+    "desc": "Join the Ahantime customer club for supply priority and dedicated price alerts.",
+    "cta": "View the customer club"
+  },
+  "logo": {
+    "homeAriaLabel": "{brand}, Home",
+    "tagline": "Smart Steel Marketplace"
+  },
+  "legalDoc": {
+    "tocTitle": "Contents",
+    "tocAriaLabel": "Table of contents"
+  },
+  "pricesPage": {
+    "title": "Today's Steel & Iron Prices",
+    "intro": "The headline rate for every steel category — from rebar and I-beams to sheet, profiles and pipe — gathered in one table. Every rate is entered by Ahantime staff by hand after checking with the mill, VAT-free and priced per kilogram; open a category's full table to see every size and mill.",
+    "faq": {
+      "item1": {
+        "question": "How does Ahantime determine today's steel prices?",
+        "answer": "Every rate is entered manually by Ahantime staff after checking with the mill and the market — no number is ever generated automatically from a formula or an exchange rate. The date and time of the last update is shown on every table, and if a rate goes stale, it shows \"Call for price\" instead of an outdated number."
+      },
+      "item2": {
+        "question": "Do the displayed prices include VAT?",
+        "answer": "No. Every price published on Ahantime excludes value-added tax and is quoted per kilogram. VAT and freight are calculated and added separately on the official proforma."
+      },
+      "item3": {
+        "question": "Why does today's rebar price differ from yesterday's?",
+        "answer": "Steel section prices follow the billet rate, the US dollar and mill supply, and these variables change daily. The \"Change\" column in Ahantime's tables shows exactly that shift from the last recorded rate."
+      },
+      "item4": {
+        "question": "Do I have to pay online to buy?",
+        "answer": "No. Ahantime has no online payment. You choose the product you want and submit a proforma request; a sales rep then calls to confirm availability and delivery time, and the purchase is finalized by a human."
+      },
+      "item5": {
+        "question": "How long is the listed price valid?",
+        "answer": "Site rates are shown alongside the time of their last update. The final, binding rate is whatever is printed on the issued proforma, and its validity window is stated on that proforma itself."
+      }
+    }
+  },
+  "toolsPage": {
+    "weight": {
+      "title": "Steel Section Weight Calculator",
+      "intro": "Calculate the theoretical weight of rebar, sheet, pipe, strip, angle, I-beam and channel using the standard formula and a steel density of 7.85 g/cm³. The result is shown per bar and for the whole order, along with the formula used."
+    },
+    "project": {
+      "title": "Project Steel Estimator",
+      "intro": "Choose your project type (concrete building, steel frame or industrial shed) to get an initial estimate of the materials you'll need and their approximate cost. For an exact figure, talk to the AI advisor."
+    },
+    "cost": {
+      "title": "Purchase Cost Calculator",
+      "intro": "Choose a category and product, enter the quantity in bars or kilograms, and see the approximate purchase cost including VAT and delivery time. Then add it straight to your inquiry cart."
+    }
+  },
+  "requestPage": {
+    "title": "Submit a Proforma Request",
+    "subtitle": "This request is filed under your account ({user}); our sales rep will call you on that same number."
+  },
+  "privacyPage": {
+    "eyebrow": "Legal",
+    "title": "Privacy Policy",
+    "lead": "We only collect the information necessary to provide our quotation service, and we do not sell your data.",
+    "alertTitle": "Minimal data, maximum respect",
+    "alertBody": "No registration is required to view prices; your mobile number is only requested when you submit a quotation request and to receive a verification code.",
+    "lastUpdated": "Last updated: {date}",
+    "sections": {
+      "intro": {
+        "title": "Introduction",
+        "body": "Protecting your privacy matters to us. This document explains what information Ahantime collects, why and how we use it, and what rights you have over your data. We collect only the information necessary to provide our quotation service."
+      },
+      "collect": {
+        "title": "What information we collect",
+        "item1": "<b>Mobile number</b>: to submit a quotation request, authenticate via a one-time verification code (OTP), and allow our specialists to contact you to finalize a proforma.",
+        "item2": "<b>Request information</b>: the list of items added to your quotation cart and the specifications needed to provide pricing and delivery.",
+        "item3": "<b>Your conversation with our AI advisor</b>: the text of the messages you write in the \"AI Advisor\" section, together with the advisor’s replies. If you write your name or mobile number within that conversation, that name and number also become part of the conversation text. The \"AI and cross-border processing\" section below explains where this text is processed.",
+        "item4": "<b>Basic technical data</b>: standard browser and device information used to maintain security, ensure correct operation, and improve the user experience."
+      },
+      "use": {
+        "title": "How we use your information",
+        "item1": "Responding to your quotation request and contacting you to provide pricing, availability, and delivery time.",
+        "item2": "Sending verification codes and notifications related to your request.",
+        "item3": "Improving the quality of our services, pricing, and the platform experience."
+      },
+      "ai": {
+        "title": "AI and cross-border processing",
+        "p1": "Ahantime’s \"AI Advisor\" section runs on a language model provided by <b>Surplus Intelligence</b>. This model does not run on Ahantime’s own servers; to generate a reply, the text of your conversation is sent from Ahantime’s server to a <b>relay server located outside Iran</b>, and from there to the model provider.",
+        "p2": "<b>What this means in practice:</b> anything you type in the chat window leaves Iran. If you write your name, mobile number, address, project details, or any other personal or business information in the conversation text, that information is sent along with the conversation. Once data leaves Iran, it becomes subject to the laws and terms of service of the foreign provider, and Ahantime does not have full control over its retention or deletion by that service.",
+        "p3": "<b>What is not sent:</b> the mobile number you use to sign in, your verification code (OTP), your quotation cart, your proformas, and your order history remain in Ahantime's database <i>inside Iran</i> and are not sent to the external server for the AI advisor. Conversation text is also stored in that same internal database so that reply quality can be reviewed and improved.",
+        "p4": "<b>Your choice:</b> using the AI advisor is entirely optional. Viewing prices, submitting a quotation request, and contacting our specialists do not require using the advisor chat. If you would prefer that no data leave Iran, do not use this section, and submit your request directly through the quotation form or by phone. We recommend not writing more personal information in the chat than is necessary for a reply.",
+        "p5": "The AI advisor's replies are built on Ahantime's real data, but they do not replace consulting with a specialist and are not a final basis for pricing or a sales commitment."
+      },
+      "sms": {
+        "title": "SMS messaging",
+        "body": "Ahantime's SMS messages (such as verification codes and request notifications) are sent through the messaging service <b>SMS.ir</b>, a service based in Iran. Only the data necessary to send the message (your mobile number and the related text) is shared with this service."
+      },
+      "analytics": {
+        "title": "Cookies and visit statistics",
+        "p1": "We use <b>Matomo</b> to measure page visits. Matomo is installed on Ahantime's own servers, and your visit statistics are not sent to any external advertising or analytics service.",
+        "p2": "This measurement runs in <b>cookie-free mode</b>: no tracking cookie is stored on your device, and no persistent identifier is created to follow you across different visits. Your IP address is also anonymized before being recorded. For this reason, our statistics are only an aggregate count of page visits, not a behavioral record of an individual. If your browser sends a \"Do Not Track\" request, we honor it and your visit is not recorded.",
+        "p3": "Any other cookies the site sets are purely functional — for example, keeping you signed in and remembering your quotation cart — and are not used for advertising or sold to others."
+      },
+      "noSale": {
+        "title": "No sale of data",
+        "body": "We <b>do not sell</b> your personal information, and we do not share it with third parties in exchange for payment. Data is used only to the extent necessary to provide our services or to comply with legal requirements."
+      },
+      "security": {
+        "title": "Retention and security",
+        "body": "Your information is kept using standard technical and organizational safeguards, and is retained only for as long as necessary for the purposes described above or as required by law. Access to data is limited to authorized personnel."
+      },
+      "rights": {
+        "title": "Your rights",
+        "item1": "Request to view or correct the information we hold about you.",
+        "item2": "Request deletion of your data, within the limits of legal and operational requirements.",
+        "item3": "Request deletion of your AI advisor conversation text from Ahantime's database. Note that deletion from our server does not, by itself, delete the data from the external model provider.",
+        "item4": "Opt out of receiving non-essential notification messages."
+      },
+      "contact": {
+        "title": "Contact",
+        "body": "To exercise your rights or for any question about privacy, you can reach us at our landline <landline>x</landline> or mobile <mobile>x</mobile>."
+      }
+    }
+  },
+  "termsPage": {
+    "eyebrow": "Legal",
+    "title": "Terms & Conditions",
+    "lead": "Please read Ahantime's terms of use before submitting a quotation request. Using the platform constitutes acceptance of these terms.",
+    "alertTitle": "No online payment",
+    "alertBody": "Ahantime does not process any online payment; purchasing is based on quotation requests, proforma issuance, and direct contact with our specialists.",
+    "lastUpdated": "Last updated: {date}",
+    "sections": {
+      "definitions": {
+        "title": "Definitions",
+        "item1": "<b>\"Ahantime\"</b>: the online marketplace for iron and steel pricing and sourcing, referred to in this document as the \"Platform\" or \"we\".",
+        "item2": "<b>\"User\"</b>: any natural or legal person who visits the Platform or submits a quotation request.",
+        "item3": "<b>\"Quotation\"</b>: a user’s request to receive the price, availability, and delivery terms for one or more items, submitted through the quotation cart.",
+        "item4": "<b>\"Proforma\"</b>: a non-binding document containing a list of items and an estimated price, issued to the user before our specialists make contact."
+      },
+      "service": {
+        "title": "Nature of the service and quotations",
+        "p1": "Ahantime is a price-information platform and quotation intermediary. Displaying a price for an item does not constitute a binding offer of sale or a guarantee of its availability. The user adds the desired items to the quotation cart and submits their request; our specialists then contact the user to finalize the price, availability, and delivery time.",
+        "p2": "<b>Ahantime does not process any online payment.</b> The entire purchasing process is based on quotation, consultation, and direct contact, and the final agreement is concluded outside the platform once the parties reach agreement."
+      },
+      "prices": {
+        "title": "Prices and VAT",
+        "p1": "Displayed prices are in <b>Toman</b> and per kilogram (unless stated otherwise), and are updated manually by our team based on the day's market and mill rates. Due to market fluctuation, the final price is announced and confirmed at the time of contact and invoicing.",
+        "p2": "Value-added tax is calculated at the statutory rate (currently 10%). Users can view prices inclusive of this tax using the \"With VAT\" toggle. The price of billet and certain specific items is entered manually by our team."
+      },
+      "request": {
+        "title": "Submitting a request and contact",
+        "p1": "To submit a request, the user's mobile number is collected and verified by sending a one-time verification code (OTP). The user undertakes to provide accurate and up-to-date information. By submitting a request, the user agrees that our specialists may contact them to follow up on the quotation.",
+        "p2": "Adding items to the quotation cart and receiving a proforma creates no financial obligation for the user, who remains free to decline or continue the request until a final agreement is reached."
+      },
+      "delivery": {
+        "title": "Delivery and shipping",
+        "body": "The displayed delivery time is an estimate and depends on mill availability, shipping conditions, and destination. Shipping, loading, and unloading costs (where applicable) are calculated separately and communicated to the user before dispatch. Final confirmation of delivery time and terms takes place when our specialists make contact."
+      },
+      "responsibilities": {
+        "title": "Responsibilities",
+        "item1": "The user is responsible for the accuracy of the information they provide and for lawful use of the platform.",
+        "item2": "We strive to provide accurate pricing and technical information (bar weight, grade, standard), but due to the nature of the market, we are not liable for obvious typographical errors or momentary fluctuations prior to final confirmation.",
+        "item3": "Calculator tools and the AI advisor are for guidance only and do not replace specialist consultation or a project's engineering calculations."
+      },
+      "ip": {
+        "title": "Intellectual property",
+        "body": "All content on the platform — including text, the \"{orgName}\" trademark, design, price data, and articles — belongs to Ahantime, and any copying, republication, or commercial use without written permission is prohibited."
+      },
+      "changes": {
+        "title": "Changes to these terms",
+        "body": "We may update these terms as needed. The updated version takes effect from the date it is published on this page, and continued use of the platform constitutes acceptance of the new terms."
+      },
+      "contact": {
+        "title": "Contact",
+        "body": "For any question about these terms, you can reach us at our landline <landline>x</landline> or mobile <mobile>x</mobile>, or use the contact page."
+      }
+    }
+  },
+  "articleDetail": {
+    "notFoundBlog": "Post not found",
+    "notFoundNews": "News item not found",
+    "crumbBlog": "Blog",
+    "crumbNews": "Market News",
+    "kickerBlog": "Article",
+    "kickerNews": "Market News",
+    "byline": "Ahantime Editorial",
+    "backToBlog": "Back to blog",
+    "backToNews": "Back to news",
+    "relatedBlog": "Related posts",
+    "relatedNews": "Related news"
   }
 }

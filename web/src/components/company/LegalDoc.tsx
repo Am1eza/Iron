@@ -1,12 +1,19 @@
+'use client';
 import type { ReactNode } from 'react';
-import { toPersianDigits } from '@/lib/utils/format';
+import { useTranslations, useLocale } from 'next-intl';
+import { localizeDigits } from '@/lib/utils/format';
 import prose from './Prose.module.css';
 import styles from './LegalDoc.module.css';
 
 /**
  * LegalDoc — renders a numbered legal document (terms / privacy) as anchored
- * sections with a sticky table of contents. Server component. Each section's
- * `id` is a stable ASCII slug for deep-linking; titles/body are Persian.
+ * sections with a sticky table of contents. Client component (for the TOC
+ * chrome only — `t`/`locale`) fed with data-only props from its Server
+ * Component callers (`privacy/page.tsx`/`terms/page.tsx`), which pass
+ * `sections`/`updatedLabel` as plain data (no functions). Each section's
+ * `id` is a stable ASCII slug for deep-linking; titles/body are the actual
+ * legal document prose — real content, deliberately fa-only, out of scope
+ * for UI-string translation.
  */
 export type LegalSection = {
   /** Stable ASCII anchor id. */
@@ -18,22 +25,24 @@ export type LegalSection = {
 export function LegalDoc({
   sections,
   updatedLabel,
-  tocTitle = 'فهرست',
+  tocTitle,
 }: {
   sections: LegalSection[];
   /** e.g. «آخرین به‌روزرسانی: تیر ۱۴۰۵». */
   updatedLabel?: string;
   tocTitle?: string;
 }) {
+  const t = useTranslations('legalDoc');
+  const locale = useLocale();
   return (
     <div className={styles.layout}>
-      <nav className={styles.toc} aria-label="فهرست مطالب">
-        <p className={styles.tocTitle}>{tocTitle}</p>
+      <nav className={styles.toc} aria-label={t('tocAriaLabel')}>
+        <p className={styles.tocTitle}>{tocTitle ?? t('tocTitle')}</p>
         <ol className={styles.tocList}>
           {sections.map((s, i) => (
             <li key={s.id}>
               <a className={styles.tocLink} href={`#${s.id}`}>
-                <span className={styles.tocNum}>{toPersianDigits(i + 1)}.</span>
+                <span className={styles.tocNum}>{localizeDigits(i + 1, locale)}.</span>
                 <span>{s.title}</span>
               </a>
             </li>
@@ -48,7 +57,7 @@ export function LegalDoc({
             <section key={s.id} id={s.id} className={styles.section}>
               <div className={styles.sectionHead}>
                 <span className={styles.sectionNum} aria-hidden="true">
-                  {toPersianDigits(i + 1)}
+                  {localizeDigits(i + 1, locale)}
                 </span>
                 <h2 className={styles.sectionTitle}>{s.title}</h2>
               </div>

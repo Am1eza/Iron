@@ -1,4 +1,7 @@
+'use client';
 import Link from 'next/link';
+import type { ReactNode } from 'react';
+import { useTranslations } from 'next-intl';
 import { routes } from '@/lib/routes';
 import { AdvisorCapabilities } from './AdvisorCapabilities';
 import { ArticleFaq } from '@/components/content/ArticleFaq';
@@ -33,29 +36,31 @@ import styles from './AdvisorAbout.module.css';
  * the chat down on first paint for exactly the visitors this exists to help,
  * and re-create the bug in a different shape.
  */
-export function AdvisorAbout({ faqItems }: { faqItems: { question: string; answer: string }[] }) {
+const FAQ_ITEM_COUNT = 5;
+
+export function AdvisorAbout() {
+  const t = useTranslations('ai.about');
+  const faqItems = Array.from({ length: FAQ_ITEM_COUNT }, (_, i) => ({
+    question: t(`faq.item${i + 1}.question`),
+    answer: t(`faq.item${i + 1}.answer`),
+  }));
+  const link = (chunks: ReactNode) => (
+    <Link href={routes.prices()} className={styles.link}>
+      {chunks}
+    </Link>
+  );
   return (
     <details className={styles.about}>
       <summary className={styles.summary}>
         <span className={styles.summaryText}>
-          <span className={styles.summaryTitle}>این مشاور دقیقاً چه کار می‌کند؟</span>
-          <span className={styles.summaryHint}>
-            قیمت‌ها از کجا می‌آیند، وزن‌ها چقدر دقیق‌اند، و چرا پرداخت آنلاینی در کار نیست
-          </span>
+          <span className={styles.summaryTitle}>{t('summaryTitle')}</span>
+          <span className={styles.summaryHint}>{t('summaryHint')}</span>
         </span>
         <ChevronDownIcon size={18} aria-hidden="true" />
       </summary>
 
       <div className={styles.body}>
-        <p className={styles.lede}>
-          مشاور آهن‌تایم بر پایهٔ همان قیمت‌هایی جواب می‌دهد که در{' '}
-          <Link href={routes.prices()} className={styles.link}>
-            جدول‌های سایت
-          </Link>{' '}
-          می‌بینی؛ هیچ عددی از خودش نمی‌سازد. بگو چه محصولی و برای چه کاری می‌خواهی تا قیمت روز، وزن
-          دقیق مقاطع و ارزان‌ترین کارخانه برای تناژت را حساب کند و در پایان، اگر خواستی، پیش‌فاکتور
-          هم بگیری.
-        </p>
+        <p className={styles.lede}>{t.rich('lede', { link })}</p>
         <AdvisorCapabilities />
         <ArticleFaq items={faqItems} />
       </div>

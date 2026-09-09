@@ -1,7 +1,11 @@
+'use client';
 import Link from 'next/link';
+import { useTranslations, useLocale } from 'next-intl';
 import { routes } from '@/lib/routes';
-import { formatToman, formatMovement, priceHiddenLabel, toPersianDigits } from '@/lib/utils/format';
+import { formatToman, formatMovement, priceHiddenLabelLocalized, localizeDigits } from '@/lib/utils/format';
+import { getLocalizedName } from '@/lib/utils/localizedNames';
 import type { Category, PriceRow } from '@/lib/types/domain';
+import type { AppLocale } from '@/i18n/config';
 import { FactoryLink } from '@/components/catalog/FactoryLink';
 import { ChevronStartIcon } from '@/components/primitives/icons';
 import styles from './CategoryPriceSummary.module.css';
@@ -27,42 +31,49 @@ export function CategoryPriceSummary({
   rows: PriceRow[];
   categories: Category[];
 }) {
+  const t = useTranslations('categoryPriceSummary');
+  const tPriceHidden = useTranslations('common.priceHidden');
+  const locale = useLocale() as AppLocale;
   if (rows.length === 0) return null;
-  const catName = new Map(categories.map((c) => [c.slug, c.name]));
-  const labelled = rows.map((r) => ({ row: r, category: catName.get(r.categoryId) ?? r.categoryId }));
+  // `r.name` (the SKU's own name) has no sub-category entity available at
+  // this call site (only full categories are passed in) — `getLocalizedSkuName`
+  // needs both to compose, so this stays fa, same documented exception as
+  // FavoritesList/FeaturedPrices.
+  const catMap = new Map(categories.map((c) => [c.slug, c]));
+  const labelled = rows.map((r) => {
+    const cat = catMap.get(r.categoryId);
+    return { row: r, category: cat ? getLocalizedName(cat, locale) : r.categoryId };
+  });
 
   return (
     <section className={styles.section} aria-labelledby="summary-title">
       <header className={styles.head}>
         <div>
-          <p className={styles.eyebrow}>خلاصهٔ بازار امروز</p>
+          <p className={styles.eyebrow}>{t('eyebrow')}</p>
           <h2 id="summary-title" className={styles.title}>
-            قیمت شاخص هر دسته
+            {t('title')}
           </h2>
         </div>
       </header>
 
-      <div className={styles.tableWrap} role="region" aria-label="قیمت شاخص هر دسته" tabIndex={0}>
+      <div className={styles.tableWrap} role="region" aria-label={t('title')} tabIndex={0}>
         <table className={`${styles.table} tnum`}>
-          <caption className={styles.caption}>
-            برای هر دستهٔ آهن‌آلات، تازه‌ترین قیمت ثبت‌شدهٔ یک محصول شاخص. جدول کامل هر دسته با
-            همهٔ سایزها و کارخانه‌ها یک کلیک پایین‌تر است.
-          </caption>
+          <caption className={styles.caption}>{t('caption')}</caption>
           <thead>
             <tr>
-              <th scope="col">دسته</th>
-              <th scope="col">محصول شاخص</th>
-              <th scope="col">سایز</th>
-              <th scope="col">کارخانه</th>
+              <th scope="col">{t('col.category')}</th>
+              <th scope="col">{t('col.headlineProduct')}</th>
+              <th scope="col">{t('col.size')}</th>
+              <th scope="col">{t('col.factory')}</th>
               <th scope="col" className={styles.num}>
-                قیمت (تومان)
+                {t('col.price')}
               </th>
               <th scope="col" className={styles.num}>
-                نوسان
+                {t('col.movement')}
               </th>
-              <th scope="col">زمان تحویل</th>
+              <th scope="col">{t('col.deliveryTime')}</th>
               <th scope="col" className={styles.action}>
-                <span className="visually-hidden">جدول کامل</span>
+                <span className="visually-hidden">{t('col.fullTable')}</span>
               </th>
             </tr>
           </thead>
@@ -85,25 +96,26 @@ export function CategoryPriceSummary({
                       {r.name}
                     </Link>
                   </td>
-                  <td>{r.size ? toPersianDigits(r.size) : 'نامشخص'}</td>
+                  <td>{r.size ? localizeDigits(r.size, locale) : t('unknown')}</td>
                   <td className={styles.muted}>
                     <FactoryLink categorySlug={r.categoryId} factory={r.factory} />
                   </td>
                   <td className={`${styles.num} ${styles.price}`}>
-                    {priceHiddenLabel(r.current) ?? formatToman(r.current.price, false)}
+                    {priceHiddenLabelLocalized(r.current, locale, tPriceHidden) ??
+                      formatToman(r.current.price, false, locale)}
                   </td>
                   <td
                     className={`${styles.num} ${up ? styles.up : down ? styles.down : styles.flat}`}
                   >
                     <span aria-hidden="true">{up ? '▲' : down ? '▼' : '•'}</span>{' '}
-                    {formatMovement(r.current.movementPct)}
+                    {formatMovement(r.current.movementPct, locale)}
                   </td>
                   <td className={styles.muted}>{r.current.deliveryTime || '—'}</td>
                   <td className={styles.action}>
                     <Link
                       href={routes.category(r.categoryId)}
                       className={styles.detail}
-                      aria-label={`جدول کامل ${category}`}
+                      aria-label={t('fullTableOf', { category })}
                     >
                       <ChevronStartIcon size={16} className="icon--rtl" />
                     </Link>
@@ -136,31 +148,32 @@ export function CategoryPriceSummary({
               </Link>
               <p className={`${styles.cardPrice} tnum`}>
                 <span className={styles.price}>
-                  {priceHiddenLabel(r.current) ?? formatToman(r.current.price, false)}
+                  {priceHiddenLabelLocalized(r.current, locale, tPriceHidden) ??
+                    formatToman(r.current.price, false, locale)}
                 </span>
                 <span className={up ? styles.up : down ? styles.down : styles.flat}>
                   <span aria-hidden="true">{up ? '▲' : down ? '▼' : '•'}</span>{' '}
-                  {formatMovement(r.current.movementPct)}
+                  {formatMovement(r.current.movementPct, locale)}
                 </span>
               </p>
               <dl className={styles.cardMeta}>
                 <div>
-                  <dt>سایز</dt>
-                  <dd className="tnum">{r.size ? toPersianDigits(r.size) : 'نامشخص'}</dd>
+                  <dt>{t('col.size')}</dt>
+                  <dd className="tnum">{r.size ? localizeDigits(r.size, locale) : t('unknown')}</dd>
                 </div>
                 <div>
-                  <dt>کارخانه</dt>
+                  <dt>{t('col.factory')}</dt>
                   <dd>
                     <FactoryLink categorySlug={r.categoryId} factory={r.factory} />
                   </dd>
                 </div>
                 <div>
-                  <dt>زمان تحویل</dt>
+                  <dt>{t('col.deliveryTime')}</dt>
                   <dd>{r.current.deliveryTime || '—'}</dd>
                 </div>
               </dl>
               <Link href={routes.category(r.categoryId)} className={styles.cardAll}>
-                جدول کامل {category}
+                {t('fullTableOf', { category })}
                 <ChevronStartIcon size={16} className="icon--rtl" />
               </Link>
             </li>
@@ -168,10 +181,7 @@ export function CategoryPriceSummary({
         })}
       </ul>
 
-      <p className={styles.note}>
-        قیمت‌ها بدون احتساب ارزش افزوده و بر پایهٔ نرخ‌های ثبت‌شدهٔ کارشناسان آهن‌تایم‌اند. برای
-        تأیید نهایی و زمان تحویل دقیق، پیش‌فاکتور بگیرید؛ اول مشورت، بعد خرید.
-      </p>
+      <p className={styles.note}>{t('note')}</p>
     </section>
   );
 }

@@ -43,7 +43,7 @@ function renderTable(subs: SubCat[]) {
       <PriceTable
         rows={[row('pipe-seamless-1', 'seamless-internal'), row('pipe-gas-1', 'gas')]}
         subs={subs}
-        categoryName="لوله"
+        category={{ id: 'pipe', slug: 'pipe', name: 'لوله', order: 0, iconId: '' }}
         categorySlug="pipe"
       />
     </QueryClientProvider>,

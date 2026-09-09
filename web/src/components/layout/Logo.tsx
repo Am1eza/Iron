@@ -1,5 +1,7 @@
+'use client';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { routes } from '@/lib/routes';
 import styles from './Logo.module.css';
 import logoMark from '../../../public/brand/ahantime-logo.png';
@@ -23,15 +25,18 @@ const MARK_H = 38;
 const MARK_W = Math.round((logoMark.width / logoMark.height) * MARK_H);
 
 export function Logo({ compact = false, light = false }: { compact?: boolean; light?: boolean }) {
+  const t = useTranslations('logo');
+  const tCommon = useTranslations('common');
+  const brand = tCommon('brand');
   return (
     <Link
       href={routes.home()}
       className={`${styles.logo} ${light ? styles.light : ''}`}
-      aria-label="آهن‌تایم، خانه"
+      aria-label={t('homeAriaLabel', { brand })}
     >
       <Image
         src={logoMark}
-        alt="آهن‌تایم"
+        alt={brand}
         className={styles.mark}
         width={MARK_W}
         height={MARK_H}
@@ -50,8 +55,8 @@ export function Logo({ compact = false, light = false }: { compact?: boolean; li
         priority
       />
       <span className={styles.word} data-compact={compact ? '' : undefined}>
-        <span className={styles.wordmark}>آهن‌تایم</span>
-        <span className={styles.tagline}>بازار هوشمند فولاد</span>
+        <span className={styles.wordmark}>{brand}</span>
+        <span className={styles.tagline}>{t('tagline')}</span>
       </span>
     </Link>
   );

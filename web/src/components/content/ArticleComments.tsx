@@ -1,5 +1,5 @@
 import { getApprovedComments } from '@/lib/server/catalog';
-import { Heading, Card } from '@/components/ui';
+import { Card } from '@/components/ui';
 import { CommentsSection } from './CommentsSection';
 import styles from './ArticleComments.module.css';
 
@@ -37,9 +37,6 @@ export async function ArticleComments({ articleId, slug }: { articleId: string; 
   return (
     <section aria-labelledby="article-comments-title">
       <Card className={styles.card}>
-        <Heading level={2} id="article-comments-title">
-          نظرات کاربران
-        </Heading>
         <CommentsSection slug={slug} initialComments={comments} />
       </Card>
     </section>

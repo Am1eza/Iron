@@ -1,6 +1,8 @@
 import { useId } from 'react';
-import { formatToman, toPersianDigits } from '@/lib/utils/format';
+import { useTranslations, useLocale } from 'next-intl';
+import { formatToman, localizeDigits } from '@/lib/utils/format';
 import { formatJalali } from '@/lib/utils/jalali';
+import type { AppLocale } from '@/i18n/config';
 import styles from './blocks.module.css';
 
 /**
@@ -34,6 +36,9 @@ export function Sparkline({
   label: string;
 }) {
   const id = useId();
+  const t = useTranslations('ai.blocks.sparkline');
+  const tBlocks = useTranslations('ai.blocks');
+  const locale = useLocale() as AppLocale;
   if (values.length < 2) return null;
 
   const w = 240;
@@ -62,12 +67,17 @@ export function Sparkline({
   const lastDate = dates?.[dates.length - 1];
   const summary = [
     label,
-    firstDate && lastDate ? `از ${formatJalali(firstDate)} تا ${formatJalali(lastDate)}` : '',
-    `از ${formatToman(first, false)} به ${formatToman(last, false)}${unitLabel ? ` ${unitLabel}` : ' تومان'}`,
+    firstDate && lastDate ? t('fromTo', { from: formatJalali(firstDate), to: formatJalali(lastDate) }) : '',
+    t('priceFromTo', {
+      from: formatToman(first, false),
+      to: formatToman(last, false),
+      unit: unitLabel ?? t('tomanUnit'),
+    }),
     changePct !== undefined
-      ? `، ${dir === 'down' ? 'کاهش' : dir === 'up' ? 'افزایش' : 'بدون تغییر'} ${toPersianDigits(
-          Math.abs(changePct).toFixed(1),
-        )} درصد`
+      ? t('changeSuffix', {
+          direction: tBlocks(`trend.change.${dir}`),
+          pct: localizeDigits(Math.abs(changePct).toFixed(1), locale),
+        })
       : '',
   ]
     .filter(Boolean)

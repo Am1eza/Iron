@@ -1,3 +1,5 @@
+'use client';
+import { useTranslations } from 'next-intl';
 import styles from './CommentAvatar.module.css';
 
 /**
@@ -8,7 +10,8 @@ import styles from './CommentAvatar.module.css';
  * so there is nothing else to show anyway.
  */
 export function CommentAvatar({ name }: { name: string | null }) {
-  const initial = (name ?? 'کاربر').trim().charAt(0) || 'ک';
+  const fallbackName = useTranslations('comments')('anonymousAuthor');
+  const initial = (name ?? fallbackName).trim().charAt(0) || fallbackName.charAt(0);
   return (
     <span className={styles.avatar} aria-hidden="true">
       {initial}

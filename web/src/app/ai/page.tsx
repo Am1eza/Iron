@@ -3,7 +3,7 @@ import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { Container } from '@/components/ui';
 import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
-import { AdvisorChat, GREETING_TEXT } from '@/components/ai/AdvisorChat';
+import { AdvisorChat } from '@/components/ai/AdvisorChat';
 import { AdvisorAbout } from '@/components/ai/AdvisorAbout';
 import styles from './page.module.css';
 import { PURPOSE_CHIPS } from '@/lib/data/aiTaxonomy';
@@ -21,41 +21,6 @@ const crumbs = [
   { label: 'مشاور هوشمند', href: routes.ai() },
 ];
 
-/** What a visitor who lands on «مشاور هوشمند آهن» actually wants to know
- *  before typing. Each answer stands alone — FAQPage entries get quoted out
- *  of page context by Google's "People also ask" and AI Overviews — and each
- *  is deliberately free of prices or dated figures, which belong in the live
- *  tables and would silently go stale in prose. Written impersonally rather
- *  than in the advisor's own تو-voice, for the same reason: quoted out of
- *  context, these are the site speaking, not the advisor. */
-const FAQ_ITEMS = [
-  {
-    question: 'مشاور هوشمند آهن‌تایم قیمت‌ها را از کجا می‌آورد؟',
-    answer:
-      'از همان دیتابیسی که جدول‌های قیمت سایت از آن ساخته می‌شوند؛ نرخ‌ها را کارشناسان آهن‌تایم پس از استعلام از کارخانه و بازار دستی ثبت می‌کنند. مشاور هیچ عددی نمی‌سازد: اگر قیمتی برای محصولی ثبت نشده یا کهنه باشد، به‌جای حدس‌زدن می‌گوید کارشناس آن را اعلام می‌کند.',
-  },
-  {
-    question: 'وزنی که مشاور اعلام می‌کند چقدر دقیق است؟',
-    answer:
-      'وزن‌ها با فرمول استاندارد هر مقطع (وزن تئوری) حساب می‌شوند، دقیقاً با همان فرمولی که ابزار وزن‌سنج آهن‌تایم به کار می‌برد، نه با تخمین. وزن واقعی باسکول به‌دلیل رواداری تولید ممکن است اندکی با وزن تئوری فرق کند؛ عدد نهایی در پیش‌فاکتور رسمی مشخص می‌شود.',
-  },
-  {
-    question: 'می‌شود همان‌جا در گفتگو پیش‌فاکتور گرفت؟',
-    answer:
-      'بله. وقتی محصول، مقدار و مشخصات روشن شد، مشاور یک کارت خلاصهٔ درخواست با قیمت و وزن روز زیر پاسخش نشان می‌دهد و ثبت نهایی با زدن دکمهٔ همان کارت انجام می‌شود. چیزی بدون تأیید کاربر ثبت نمی‌شود.',
-  },
-  {
-    question: 'برای خرید باید آنلاین پرداخت کرد؟',
-    answer:
-      'خیر. در آهن‌تایم پرداخت آنلاین وجود ندارد و هیچ مرحلهٔ پرداختی در گفتگو نیست. پس از ثبت درخواست، کارشناس فروش تماس می‌گیرد و قیمت، موجودی و زمان تحویل را نهایی می‌کند.',
-  },
-  {
-    question: 'اگر مشاور جواب سؤالی را نداشته باشد چه می‌شود؟',
-    answer:
-      'همان را صادقانه می‌گوید و گفتگو را به کارشناس انسانی می‌سپارد. حوزهٔ کاری مشاور آهن و فولاد و ساخت‌وساز است؛ برای موضوع‌های بیرون از این حوزه پاسخ نمی‌دهد.',
-  },
-];
-
 type Search = { searchParams: Promise<{ q?: string }> };
 
 export default async function AiPage({ searchParams }: Search) {
@@ -66,11 +31,18 @@ export default async function AiPage({ searchParams }: Search) {
   const contact = await getContact();
   // Rendered server-side so the advisor's opening message is real, crawlable
   // HTML on first load instead of only appearing after client-side hydration.
+  // Persian, like every other server-rendered string on this page (metadata,
+  // crumbs) — this app never resolves locale server-side (LocaleProvider's
+  // header comment), so the server always renders the static fa shell.
+  // AdvisorChat's own client-side greeting (used on "new chat" / reopening an
+  // empty conversation) already localizes; the FAQ below (`AdvisorAbout`) is
+  // client-rendered for the same reason, same as `ArticleFaq`'s FAQPage
+  // JSON-LD elsewhere on the site.
   const initialMessages = [
     {
       id: 'greeting',
       role: 'ai' as const,
-      text: GREETING_TEXT,
+      text: 'سلام! من مشاور هوشمند آهن‌تایم‌ام.\nمثل یک دوستِ کاربلد کمکت می‌کنم بهترین خرید را بکنی؛ اول مشورت، بعد خرید.',
       chips: initialQuestion ? undefined : PURPOSE_CHIPS,
     },
   ];
@@ -107,7 +79,7 @@ export default async function AiPage({ searchParams }: Search) {
       {/* Below the fold by construction: the shell above is exactly one
           viewport tall, so this can no longer compress the chat. */}
       <Container width="wide">
-        <AdvisorAbout faqItems={FAQ_ITEMS} />
+        <AdvisorAbout />
       </Container>
     </>
   );

@@ -30,7 +30,8 @@
     },
     "unit": {
       "currency": "土曼",
-      "vat": "增值税"
+      "vat": "增值税",
+      "usd": "美元"
     },
     "data": {
       "delivery": "交货时间",
@@ -49,6 +50,11 @@
     "notFound": {
       "headline": "未找到该页面",
       "body": "网址可能已更改。请尝试搜索，或向 Ahantime 寻求帮助。"
+    },
+    "imageOf": "{name}图片",
+    "priceHidden": {
+      "callForPrice": "致电询价",
+      "estimated": "市场估价——最终价格请致电确认"
     }
   },
   "nav": {
@@ -124,7 +130,8 @@
     "searchCountry": "搜索国家/地区…",
     "invalid": "请输入有效的手机号码。",
     "otpCountryUnsupported": "短信验证目前仅支持伊朗手机号码（+98）。请使用伊朗号码，或联系我们寻求帮助。",
-    "noCountry": "未找到相关国家/地区"
+    "noCountry": "未找到相关国家/地区",
+    "selected": "已选择"
   },
   "metadata": {
     "title": "Ahantime：智能钢铁市场",
@@ -144,7 +151,56 @@
     "notesPlaceholder": "请在此填写您的需求或备注…",
     "submit": "提交合作申请",
     "consent": "提交此申请即表示您同意 Ahantime 代表就此事与您联系。",
-    "success": "您的申请已收到，我们会尽快与您联系。"
+    "success": "您的申请已收到，我们会尽快与您联系。",
+    "tracks": {
+      "analysis": {
+        "title": "市场分析",
+        "summary": "专属钢铁市场报告与分析，根据您的项目和采购计划量身定制。",
+        "audience": "适用于承包商、开发商和采购团队",
+        "cta": "申请分析报告",
+        "eyebrow": "合作·市场分析",
+        "lead": "安挺分析团队持续跟踪螺纹钢、工字钢、钢板及其他型材的价格走势及市场影响因素，并根据您的需求准备专属报告，助您把握最佳采购时机。",
+        "point1": "针对您关注的型材，提供短期和中期价格走势与波动分析。",
+        "point2": "分析影响因素：汇率、坯料价格、大宗商品交易所供应及工厂政策。",
+        "point3": "建议合适的采购时机，以控制项目的最终成本。",
+        "point4": "可定制的定期报告，针对您的产品组合和采购量量身定制。",
+        "formNote": "请在备注中说明您关注的产品和时间范围，以便我们准备更精确的报告。"
+      },
+      "supply": {
+        "title": "由您供货",
+        "summary": "您是生产商或供应商吗？将您的产品上架安挺，触达全国各地买家。",
+        "audience": "适用于工厂、贸易商和供应商",
+        "cta": "登记供货合作",
+        "eyebrow": "合作·由您供货",
+        "lead": "如果您是钢材型材的生产商或供应商，可以在安挺上架您的产品。我们会将您的货物推荐给我们庞大的买家、承包商和建筑商网络，并全程管理从询价到交付的整个流程。",
+        "point1": "您的产品将与当日市场价格一同展示给数千名买家。",
+        "point2": "获得真实的询价与销售线索，无需组建庞大的销售团队。",
+        "point3": "由安挺工作人员协调价格、库存和交货时间。",
+        "point4": "透明、长期的合作关系，结算清晰并提供业绩报告。",
+        "formNote": "请在备注中说明产品类型、产能或库存情况以及交货地点。"
+      },
+      "sell": {
+        "title": "为我们销售",
+        "summary": "成为安挺销售代表，借助知名平台的信誉发展您的业务。",
+        "audience": "适用于贸易公司、经销商和销售专业人士",
+        "cta": "申请成为销售代表",
+        "eyebrow": "合作·为我们销售",
+        "lead": "作为安挺的销售代表，依托透明的价格、工厂直供以及我们的品牌信誉，您可以为所在地区的客户提供服务，并建立稳定的收入来源。",
+        "point1": "可使用每日价格、产品目录及安挺的销售工具。",
+        "point2": "提供专业支持，协助询价、开具形式发票及完成订单。",
+        "point3": "为您的客户提供可靠的工厂供货与协调交付。",
+        "point4": "透明的合作模式，佣金清晰，收入随业绩增长。",
+        "formNote": "请在备注中说明您的经营地区及销售业绩，以便我们更快审核。"
+      }
+    },
+    "indexOverline": "与安挺合作",
+    "indexH1": "携手让钢铁市场更加透明",
+    "indexLede": "{brand} 致力于与您共同成长。无论您需要深入的市场分析，希望供应产品，还是想成为我们的销售代表，这三条合作路径总有一款适合您。选择合适的路径后，我们的工作人员会与您联系。",
+    "indexFooterNote": "不确定哪条路径适合您？没关系，填写任意一条路径的表单，我们会帮您找到方向。",
+    "trackPage": {
+      "includesHeading": "此项合作包含哪些内容？",
+      "formHeading": "申请合作"
+    }
   },
   "profile": {
     "updated": "个人资料已更新。",
@@ -241,14 +297,17 @@
       "railAria": "产品分类",
       "subsOf": "{name} 的子分类",
       "mainCategories": "主要分类",
-      "noSubs": "{name}尚无已登记的子分类；请查看该分类的价格表。"
+      "noSubs": "{name}尚无已登记的子分类；请查看该分类的价格表。",
+      "factoriesOf": "{name}供应钢厂",
+      "viewPriceTable": "查看{name}价格表"
     },
     "compare": {
       "title": "同一产品，各家钢厂",
       "sub": "并排查看各钢厂的当日价格，比较差价，选出最低价。",
       "tabsAria": "选择要比较的产品",
       "perKg": "土曼/公斤",
-      "cheapest": "最低价"
+      "cheapest": "最低价",
+      "fullComparisonCta": "查看{name}的完整工厂比较"
     },
     "priceBoard": {
       "ariaLabel": "实时价格看板",
@@ -443,7 +502,10 @@
     "belowAutoQuoteNote": "此购物车总额低于自动开票门槛（{amount}）；您的申请将被记录，专员将审核价格和供货情况。",
     "continueRequestCta": "继续提交申请",
     "loginContinueRequestCta": "登录并继续申请",
-    "noOnlinePaymentNote": "Ahantime 不支持在线支付；我们的专员将与您联系以确定最终价格和交货事宜。"
+    "noOnlinePaymentNote": "Ahantime 不支持在线支付；我们的专员将与您联系以确定最终价格和交货事宜。",
+    "pageOverline": "询价",
+    "pageTitle": "询价车",
+    "pageIntro": "在这里收集您选中的产品，一次请求即可获取形式发票。先咨询，后购买。"
   },
   "kgModal": {
     "title": "“{name}” 的数量",
@@ -460,5 +522,1750 @@
     "totalWeight": "总重量：{weight} 公斤",
     "estimateLabel": "预估：{amount}",
     "addToCart": "加入询价篮"
+  },
+  "priceTable": {
+    "addToCompare": "将{name}加入对比",
+    "addedToCart": "{name}已加入询价车。",
+    "viewCart": "查看购物车",
+    "priceChart": "价格走势图",
+    "priceChartFor": "{name}价格走势图",
+    "chooseQtyForCheapest": "为更便宜的选项({name})选择数量",
+    "addCheapestToCart": "将更便宜的选项({name})加入购物车",
+    "unknown": "未知",
+    "updatedAt": "更新时间",
+    "addToFavorites": "加入收藏",
+    "mustBeQuoted": "该产品的最终价格需要询价。",
+    "cartShort": "购物车",
+    "sortSections": "对{section}分区排序",
+    "sortTable": "对价格表排序",
+    "loginToSaveFavorites": "登录后即可保存收藏。",
+    "allSubs": "全部",
+    "priceOption": "价格",
+    "movementOption": "涨跌",
+    "vatToggle": "含增值税",
+    "vatIncludedPct": "含{pct}%增值税",
+    "vatExcluded": "不含增值税",
+    "compare": "对比",
+    "specFiltersGroup": "规格筛选",
+    "clearFilters": "清除筛选（{count}）",
+    "activeFiltersGroup": "生效中的筛选",
+    "selectOneMoreToCompare": "请至少选择两个产品进行对比——再勾选一项。",
+    "filteredItemCount": "{total}件中的{filtered}件",
+    "itemCount": "{count}件产品",
+    "priceNote": "价格以土曼计，按每{basis}计价。",
+    "jumpToSections": "跳转到{section}",
+    "noResultsForFilter": "没有符合该筛选组合的产品。",
+    "clearFiltersPlain": "清除筛选",
+    "priceFor": "{name}价格",
+    "startingFrom": "起价{price}{unit}",
+    "vatToggleFor": "含增值税 — {name}",
+    "vatIncludedPctShort": "含{pct}%",
+    "product": "产品",
+    "priceColumn": "价格（土曼）",
+    "dateColumn": "日期",
+    "deliveryColumn": "交货",
+    "actionsColumn": "操作",
+    "viewProductPage": "查看产品页面",
+    "loadingChart": "图表加载中…",
+    "compareModalTitle": "产品对比",
+    "compareTableCaption": "所选产品的规格与价格对比；不同之处所在行已高亮显示。"
+  },
+  "skuDetail": {
+    "shareText": "Ahantime上{name}的今日价格",
+    "sampleOf": "{name}样品",
+    "technicalSpecs": "技术规格",
+    "technicalSpecsOf": "{name}的技术规格",
+    "addedToFavorites": "已加入收藏。",
+    "removedFromFavorites": "已从收藏中移除。",
+    "favoriteSaveFailed": "收藏保存失败，请重试。",
+    "removeFromFavorites": "取消收藏",
+    "linkCopied": "页面链接已复制。",
+    "shareNotSupported": "此浏览器不支持分享。",
+    "share": "分享",
+    "millLabel": "厂家：",
+    "kg": "公斤",
+    "meter": "米",
+    "branchLength": "定尺长度",
+    "saleUnit": "销售单位",
+    "pricePerUnit": "每{basis}价格",
+    "mustCallForPrice": "该产品请致电咨询。",
+    "addToCartCta": "加入询价车",
+    "noOnlinePayment": "我们不提供在线支付；提交后专员会致电确定最终价格与交货。",
+    "priceHistoryTitle": "价格走势",
+    "weightNote": "重量为理论值，按标准计算；实际定尺重量可能略有差异。",
+    "relatedProductsTitle": "相关产品",
+    "vatToggleLabel": "含增值税",
+    "vatIncludedPct": "含{pct}%增值税",
+    "vatExcludedLabel": "不含增值税",
+    "aboveBillet": "比期货坯料基准价高{pct}%",
+    "belowBillet": "比期货坯料基准价低{pct}%",
+    "addToFavorites": "加入收藏"
+  },
+  "bulkQuote": {
+    "title": "厂家比价",
+    "subtitle": "输入所需吨位，逐厂比较今日{name}价格，选出最优惠的一家。",
+    "subCategoryLabel": "子类别",
+    "subCategoryAria": "产品子类别",
+    "allAverage": "全部（平均）",
+    "sizeAria": "产品{sizeCol}",
+    "allSizesAverage": "全部{sizeCol}（平均）",
+    "tonnageLabel": "订购吨位（吨）",
+    "tonnageAria": "订购吨位（吨）",
+    "cityLabel": "目的城市",
+    "cityAria": "交货目的城市",
+    "presetTonnagesAria": "建议吨位",
+    "tonUnit": "吨",
+    "exactCompareNote": "精确比较：仅显示提供「{sub} {sizeCol} {size}」的厂家。",
+    "excludedNonKgNote": "此次筛选中有{count}件产品不是按公斤计价，未纳入本次比较；如需了解请联系我们的专员。",
+    "tableCaption": "{name}厂家比价（{tonnage}吨）",
+    "factoryColumn": "厂家",
+    "pricePerKgColumn": "每公斤价格",
+    "deltaColumn": "与最低价的差额",
+    "costColumn": "{tonnage}吨费用",
+    "cheapestTag": "最低价",
+    "basedOnPrices": "基于{count}个报价",
+    "suggestPrefix": "建议：从",
+    "suggestPriceLead": "厂家采购，价格为",
+    "suggestPerKgTotalLead": "土曼/公斤；预计总费用约",
+    "singlePriceNote": "（仅基于一个已登记报价）",
+    "savingsVsNextLead": "相比次优选项约可节省",
+    "savingsVsNextTail": "土曼。",
+    "savingsVsMaxLead": "（相比最贵选项，差额最多可达",
+    "savingsVsMaxTail": "土曼。）",
+    "noRowsForSelection": "该筛选条件下价格表中无数据；请尝试其他子类别或{sizeCol}。",
+    "landedTitle": "到{city}的到岸价",
+    "shippedFrom": "发货自{origin}",
+    "goodsLabel": "货物（{factory}）",
+    "freightLabel": "运费（{km}公里）",
+    "handlingLabel": "装卸费",
+    "insuranceScaleLabel": "货物保险及过磅费",
+    "packagingLabel": "包装费",
+    "notApplicableZero": "不适用/零",
+    "vatLabel": "增值税（{pct}%）",
+    "approxTotalLabel": "预计总计",
+    "approxDeliveryLabel": "预计交货时间：",
+    "landedDisclaimer": "以上装卸、保险、过磅及包装费用均为估算；最终金额由专员在通话中确认。",
+    "staleRatesWarning": "附加费率已超过30天未核实；此总额仅为初步估算。",
+    "getProforma": "获取形式发票",
+    "addToCart": "加入询价车",
+    "addedToCart": "批量询价已加入购物车。",
+    "bulkCartItemName": "{name}批量，{factory}厂",
+    "requestTitle": "{name}批量形式发票，{tonnage}吨",
+    "requestDetail": "系统建议：{factory}厂 · {price}土曼/公斤",
+    "proformaRequested": "形式发票申请已提交；可在您的个人资料中查看状态。",
+    "footerNote": "价格为各厂家的日均价，仅供参考；最终价格与该吨位的库存情况将由专员在通话中确认。我们不提供在线支付。"
+  },
+  "priceChart": {
+    "range": {
+      "week": "周",
+      "month": "月",
+      "threeMonths": "3个月",
+      "year": "年"
+    },
+    "noHistory": "该产品尚无价格历史记录。",
+    "titleText": "{range}价格走势图；从{from}{unit}到{to}{unit}",
+    "rangeGroupAria": "时间范围",
+    "deltaPeriod": "相对于「{range}」区间起点",
+    "minMaxLabel": "最低 / 最高",
+    "dataTableSummary": "图表数据表",
+    "tableCaption": "价格走势图数据",
+    "dateColumn": "日期",
+    "priceColumn": "价格"
+  },
+  "specFilterDropdown": {
+    "selectedCount": "{label}中已选{count}项",
+    "searchPlaceholder": "搜索…",
+    "noMatches": "未找到匹配项"
+  },
+  "exportMenu": {
+    "colProduct": "产品",
+    "colFactory": "厂家",
+    "colPrice": "价格（土曼）",
+    "colMovement": "涨跌",
+    "vatNoteSuffix": " · 含增值税",
+    "todayPriceLine": "{title}今日价格 · {date}",
+    "pageTitle": "{title}，{brand}",
+    "xlsDownloaded": "已下载带品牌标识的 Excel 文件。",
+    "printBlocked": "无法打开打印窗口；请检查浏览器的弹窗拦截设置。",
+    "imageDownloaded": "已下载带标志的表格图片。",
+    "excel": "Excel",
+    "print": "打印",
+    "image": "图片",
+    "exportGroupAria": "表格导出",
+    "exportGroupAriaScoped": "{scope}表格导出"
+  },
+  "weightCalculator": {
+    "sectionType": "型材类型",
+    "selectPlaceholder": "请选择",
+    "example": "例如 {value}",
+    "pieceCountLabel": "{piece}数量",
+    "weightPerPiece": "每{piece}重量",
+    "totalWeight": "总重量（{count} {piece}）",
+    "invalidGeometry": "所输入的尺寸对该型材无效。",
+    "enterValues": "请输入数值",
+    "noValue": "无数值",
+    "equivalentTons": "约合 {value} 吨",
+    "formulaLabel": "公式：",
+    "formulaPerMeter": "每米重量 = {formula} → 每{piece}重量 = 每米重量 × 长度",
+    "formulaAbsolute": "每{piece}重量 = {formula}",
+    "addToCart": "加入询价车",
+    "addedToCartToast": "计算结果已加入询价车。",
+    "viewCart": "查看购物车",
+    "cartItemName": "{profile}（重量计算结果）",
+    "referenceTableTitle": "标准重量表——{profile}",
+    "disclaimer": "所显示的重量为理论值，基于钢材标准密度计算；实际每批货物的重量可能略有差异。",
+    "fieldAriaLabel": "{label}（单位：{unit}）",
+    "kg": "公斤",
+    "perStandardTable": "按标准表（{subject}）= {value}",
+    "perMillTable": "按厂家表（{subject}）= {value}",
+    "units": {
+      "mm": "毫米",
+      "m": "米",
+      "count": "件"
+    },
+    "pieceWords": {
+      "branch": "件",
+      "sheet": "张"
+    },
+    "terms": {
+      "diameter": "直径",
+      "outerDiameter": "外径",
+      "wallThickness": "壁厚",
+      "thickness": "厚度",
+      "width": "宽度",
+      "length": "长度",
+      "lengthPerPiece": "每{piece}长度",
+      "size": "规格",
+      "sizeLegLength": "规格（边长）"
+    },
+    "profiles": {
+      "rebar": {
+        "label": "螺纹钢",
+        "hint": "根据公称直径计算圆钢每米重量。"
+      },
+      "plate": {
+        "label": "钢板",
+        "hint": "根据长度、宽度和厚度计算单张钢板的重量。"
+      },
+      "pipe": {
+        "label": "钢管",
+        "hint": "根据外径和壁厚计算钢管每米重量。"
+      },
+      "flat": {
+        "label": "扁钢",
+        "hint": "根据宽度和厚度计算扁钢（矩形截面）每米重量。"
+      },
+      "angle": {
+        "label": "角钢",
+        "hint": "根据市场标准规格表计算等边角钢的重量。"
+      },
+      "ibeam": {
+        "label": "工字钢",
+        "hint": "根据各市场规格的厂家重量表计算标准工字钢每米重量。"
+      },
+      "channel": {
+        "label": "槽钢",
+        "hint": "根据各市场规格的厂家重量表计算标准槽钢每米重量。"
+      }
+    },
+    "tableHeaders": {
+      "diameterMm": "直径（mm）",
+      "weightPerMeterKg": "每米重量（kg）",
+      "weightPerBranchLengthKg": "{length}米长每件重量（kg）",
+      "thicknessMm": "厚度（mm）",
+      "widthM": "宽度（m）",
+      "lengthM": "长度（m）",
+      "weightPerSheetKg": "每张重量（kg）",
+      "outerDiameterWithThickness": "外径（mm），厚度{thickness}mm",
+      "widthXThicknessMm": "宽×厚（mm）",
+      "angleSize": "规格（角钢 L×L×t）"
+    }
+  },
+  "projectEstimator": {
+    "projectTypeAria": "项目类型",
+    "types": {
+      "concrete": "混凝土建筑",
+      "steel": "钢结构",
+      "shed": "工业厂房"
+    },
+    "introShed": "输入厂房跨度和大厅总长度，查看主体钢架重量的初步估算。",
+    "introOther": "指定侧向抗力体系类型、屋面类型和项目面积，查看钢架与屋面的分别估算。",
+    "shedSpanLabel": "厂房跨度",
+    "shedSpanPlaceholder": "请选择最接近的跨度",
+    "shedSpanWithColumns": "{span} 米（含 {columns} 根中间柱）",
+    "shedSpanWithoutColumns": "{span} 米（无中间柱）",
+    "hallLength": "大厅长度",
+    "unitMeter": "米",
+    "hallLengthAria": "大厅长度（米）",
+    "example": "例如 {value}",
+    "lateralSystemLabel": "侧向抗力体系类型",
+    "roofTypeLabel": "屋面类型",
+    "floorAreaLabel": "每层建筑面积",
+    "unitSqm": "平方米",
+    "floorAreaAria": "每层建筑面积（平方米）",
+    "floorCountLabel": "楼层数",
+    "unitCount": "个",
+    "totalAreaShed": "厂房总面积",
+    "totalAreaOther": "总建筑面积",
+    "shedFrameLabel": "厂房主钢架（梁/桁架）",
+    "rebarFrameLabel": "钢架钢筋（{system}）",
+    "roofRebarLabel": "屋面钢筋（{roof}）",
+    "unitKg": "公斤",
+    "categoryAria": "{label}的产品类别",
+    "skuAria": "{label}的产品规格",
+    "loadingOptions": "加载中…",
+    "noSkuAvailable": "暂无可用报价产品",
+    "fetchingPrice": "正在获取价格…",
+    "noPriceAvailable": "暂无当前价格",
+    "sizeBit": "规格 {size}",
+    "concreteNeeded": "所需混凝土量",
+    "unitM3": "立方米",
+    "concreteBasis": "按每平方米 {value} 立方米计算；非阿罕时代目录商品，仅供参考",
+    "totalCostLabel": "钢材预估总费用",
+    "fetchingPrices": "正在获取实时价格…",
+    "noCostAvailable": "所选产品暂无当前价格；请与智能顾问沟通以获取费用估算。",
+    "placeholderShed": "请输入跨度和大厅长度，以查看主钢架重量和费用估算。",
+    "placeholderOther": "请输入侧向体系、屋面类型、建筑面积和楼层数，以查看材料和费用估算。",
+    "alertTitle": "初步估算",
+    "chatCta": "与智能顾问沟通",
+    "requestCta": "提交询价申请",
+    "askExpertSuffix": "如需准确数字，请与智能顾问沟通。",
+    "rangeTo": "至",
+    "listSeparator": "、",
+    "kgPerSqm": "公斤/平方米",
+    "disclaimerIntro": "以下数值根据土木工程参考资料计算：",
+    "disclaimerConcreteFrame": "钢架钢筋按侧向体系分类（{ranges} {unit}）",
+    "disclaimerConcreteRoof": "屋面钢筋按屋面类型分类（{ranges} {unit}）",
+    "disclaimerConcreteConcrete": "以及每平方米 {min} 至 {max} 立方米的混凝土",
+    "disclaimerFoundationNote": "基础取决于地质条件，本计算未包含在内。",
+    "disclaimerNotEngineering": "本计算不能替代工程计算。",
+    "disclaimerSteelFrame": "主钢架用钢（柱、梁、支撑及连接件合计）按侧向体系分类（{ranges} {unit}）",
+    "disclaimerSteelRoof": "以及屋面钢筋按屋面类型分类（{ranges} {unit}；复合屋面的压型钢板不含在此数值中，需单独计算）",
+    "disclaimerShed": "该数值仅包含厂房主钢架（梁/桁架），依据厂房重量估算表，按 100 公斤/平方米的雪荷载（德黑兰标准）和 85 公里/小时的风速计算。雪荷载较大的地区（如伊朗北部）需要更大的钢架重量，据其他资料可达约 200 公斤/平方米。檩条（屋面 Z 型钢）、屋面及墙面覆材以及基础均未包含在此估算中；这些项目取决于檩条间距和覆材设计，若无施工图纸则无法可靠估算。",
+    "systems": {
+      "concreteLateral": {
+        "shearwall": "抗弯框架+抗震墙",
+        "momentMedium": "中等抗弯框架",
+        "momentSpecial": "特殊抗弯框架（高抗震性能）"
+      },
+      "steelLateral": {
+        "cbf": "中心支撑框架（CBF）",
+        "ebf": "偏心支撑框架（EBF）",
+        "momentMedium": "中等抗弯框架",
+        "momentSpecial": "特殊抗弯框架",
+        "dual": "双重体系"
+      },
+      "roof": {
+        "joistBlock": "密肋梁+空心砖楼板",
+        "solidSlab": "混凝土实心楼板",
+        "composite": "组合楼面（压型钢板）"
+      },
+      "frameCategories": {
+        "ibeam": "工字钢",
+        "profile": "型材及方管",
+        "angleChannel": "角钢及槽钢"
+      }
+    }
+  },
+  "tenderEstimator": {
+    "optionsFetchError": "获取该产品的选项失败。",
+    "minRowError": "请至少添加一行完整信息（产品和数量）。",
+    "submitErrorGeneric": "提交预估失败，请重试。",
+    "successTitle": "您的预估已提交并发送至销售团队",
+    "successLead": "阿罕时代的专员已收到您的投标预估，将与您沟通以确定最终价格和条款。",
+    "successRef": "跟踪编号：{ref}",
+    "proformaIssued": "您的形式发票已开具",
+    "proformaIssuedWithAmount": "您的形式发票已开具，金额为 {amount}",
+    "downloadProforma": "下载形式发票（PDF）",
+    "successNoteQuote": "部分商品需要询价；销售专员会将最终形式发票发送给您。",
+    "trackRequests": "跟踪我的请求",
+    "tableHeaders": {
+      "category": "类别",
+      "product": "产品",
+      "size": "规格",
+      "factory": "厂家",
+      "qty": "数量",
+      "weight": "重量",
+      "unitPrice": "单价",
+      "lineTotal": "行合计",
+      "remove": "删除"
+    },
+    "selectPlaceholder": "请选择…",
+    "unknown": "未知",
+    "factoryQuoteSuffix": "（询价）",
+    "factoryCheapestSuffix": "，最便宜",
+    "weightUnit": "公斤",
+    "quoteLabel": "询价",
+    "addRow": "添加行",
+    "pricingInProgress": "计算中…",
+    "subtotalLabel": "小计（不含税）",
+    "vatLabel": "增值税",
+    "vatLabelWithRate": "增值税（{rate}%）",
+    "grandTotalLabel": "最终金额",
+    "partialPricingNote": "部分商品暂无实时价格，已标记为“询价”；专员会在最终形式发票中告知其价格。",
+    "notePlaceholder": "备注（可选）：投标截止日期、交货条件、特定厂家/标准要求…",
+    "noteAriaLabel": "备注",
+    "loginToSubmit": "登录以提交预估并获取形式发票",
+    "submitting": "提交中…",
+    "submitCta": "提交预估并获取形式发票",
+    "disclaimer": "价格根据阿罕时代产品的当前价格计算，在最终形式发票开具前可能会变动。我们不支持在线支付；提交后，销售专员会致电与您确认最终订单。",
+    "removeRowAria": "删除该行"
+  },
+  "costCalculator": {
+    "categoryLabel": "商品类别",
+    "selectCategoryAria": "选择商品类别",
+    "productLabel": "产品",
+    "selectProductAria": "选择产品",
+    "qtyLabel": "数量",
+    "qtyAriaWhole": "数量（{unit}）",
+    "qtyAriaBranch": "件数",
+    "qtyAriaKg": "数量（公斤）",
+    "unitToggleAria": "数量单位",
+    "unitBranch": "件",
+    "unitKg": "公斤",
+    "weightPerBranch": "每件重量",
+    "vatSwitchLabel": "含增值税（{rate}%）",
+    "totalWeightLabel": "总重量",
+    "itemAmountLabel": "商品金额",
+    "vatRowLabel": "增值税（{rate}%）",
+    "grandTotalLabel": "总计",
+    "deliveryTimeLabel": "交货时间",
+    "addToCart": "加入询价车",
+    "addedToCart": "已将 {name} 加入询价车。",
+    "viewCart": "查看购物车",
+    "finalPriceNote": "最终价格将在开具形式发票时确认。先咨询，后购买。",
+    "fetchingPrices": "正在获取实时价格…",
+    "selectPrompt": "请选择类别和产品，并输入数量以计算费用。"
+  },
+  "projectEstimatorGuide": {
+    "title": "项目所需钢材重量是如何计算的？",
+    "intro": "本工具针对每种项目类型使用不同的工程系数，因为侧向抗力体系和屋面类型——而不仅仅是建筑面积——才是决定所需材料数量的主要因素。数据来源：多份独立的伊朗土木工程参考资料，每份均以数值区间给出，工具中显示的正是同一区间，而非单一固定数值。",
+    "concreteHeading": "混凝土框架建筑",
+    "concreteBody": "钢架钢筋重量（柱和梁）取决于侧向抗力体系：抗弯框架加抗震墙，是伊朗混凝土建筑中最常见的抗震体系，每平方米需要 35 至 60 公斤；中等抗弯框架需要 40 至 55 公斤；特殊抗弯框架需要 45 至 70 公斤。屋面钢筋重量与此选择无关，取决于屋面类型（密肋梁加空心砖、混凝土实心楼板或组合楼面——参见下方常见问题）。所需混凝土用量约为每平方米建筑面积 0.35 至 0.5 立方米。",
+    "steelHeading": "钢结构建筑",
+    "steelBody": "主钢架用钢重量（柱、梁、支撑及连接件合计）取决于侧向抗力体系：中心支撑框架每平方米需要 45 至 70 公斤；偏心支撑框架需要 50 至 75 公斤；中等抗弯框架需要 65 至 105 公斤；特殊抗弯框架需要 70 至 115 公斤；双重体系最多需要 120 公斤。屋面钢筋重量遵循与混凝土屋面相同的逻辑，不同之处在于组合楼面（压型钢板之上）是钢结构中最常见的选择；每平方米 8 至 12 公斤，不含压型钢板本身的重量，该重量需单独计算。",
+    "shedHeading": "工业厂房",
+    "shedBody": "厂房通常为单层建筑，因此其输入参数是跨度和大厅长度，而非楼层数。主钢架（梁或桁架）的重量，依据厂房重量估算表，按 100 公斤/平方米的雪荷载（德黑兰标准）计算，小跨度约为每平方米 25 公斤，大跨度可达约每平方米 50 公斤。雪荷载较大的地区需要显著更大的钢架重量，可达约每平方米 200 公斤。",
+    "faqHeading": "常见问题",
+    "faq": {
+      "q1": {
+        "question": "为什么要分别计算钢架重量和屋面钢筋重量，而不是用一个总数？",
+        "answer": "因为这两个数值取决于两个不同的设计选择。钢架重量（柱和梁）取决于侧向抗力体系的类型；例如在混凝土建筑中，普通抗弯框架比抗震性能更强的特殊抗弯框架更轻。屋面钢筋重量与此选择无关，取决于屋面体系的类型：密肋梁加空心砖、混凝土实心楼板或组合楼面。用一个合并的数字会掩盖这两个独立的决定，对实际项目而言具有误导性。"
+      },
+      "q2": {
+        "question": "密肋梁加空心砖屋面、混凝土实心楼板和组合楼面之间的钢筋重量差异有多大？",
+        "answer": "大致而言：密肋梁加空心砖屋面（伊朗住宅建筑中最常见、最经济的屋面体系）每平方米约需 5 至 7 公斤钢筋；组合楼面（钢结构中常见）每平方米约需 8 至 12 公斤；而混凝土实心楼板作为最重的选项，每平方米约需 10 至 16 公斤。"
+      },
+      "q3": {
+        "question": "建筑钢结构重量最主要取决于什么因素？",
+        "answer": "取决于侧向抗力体系的类型。中心支撑框架（最常见、最经济的体系）通常每平方米需要 45 至 70 公斤钢材；偏心支撑框架需要 50 至 75 公斤；中等抗弯框架需要 65 至 105 公斤；特殊抗弯框架需要 70 至 115 公斤；双重体系（支撑与抗弯框架结合，用于高层结构或高地震风险地区）最多需要每平方米 120 公斤。该数值包含柱、梁、支撑及连接件的合计，而不仅仅是主工字钢。"
+      },
+      "q4": {
+        "question": "为什么该工具不计算厂房檩条和屋面/墙面覆材的重量？",
+        "answer": "因为檩条的实际重量取决于其安装间距，覆材重量取决于屋面/墙面设计，而这两个参数在没有施工图纸的情况下是未知的。缺少这两项输入，就没有可靠的经验系数可用于估算檩条或覆材重量；在没有这些信息的情况下给出的数字只是虚假的精确度，而非真实的估算。该工具仅根据跨度和长度计算厂房主钢架（梁或桁架）的重量。"
+      },
+      "q5": {
+        "question": "该估算能否替代正式的工程计算？",
+        "answer": "不能。这是基于伊朗建筑行业常用系数的初步经验估算，旨在让您在咨询结构工程师之前，快速估算所需钢材数量和大致费用。该工具的任何数值（包括完全取决于地质条件、本工具未予计算的基础部分）都不能替代正式的结构图纸和计算。"
+      },
+      "q6": {
+        "question": "项目钢材的大致费用是如何计算的？",
+        "answer": "对于每一行（钢架钢筋、屋面钢筋、厂房钢架），用户从阿罕时代的实时目录中选择一个具体商品，指定确切的牌号、规格和厂家；费用等于该行的计算重量乘以所选具体商品的当前价格，而不是整个产品类别的平均价格。"
+      }
+    }
+  },
+  "ai": {
+    "about": {
+      "summaryTitle": "这个顾问究竟能做什么？",
+      "summaryHint": "价格从哪里来、重量有多准确，以及为什么没有在线支付",
+      "lede": "安通顾问的回答基于您在<link>网站价格表</link>中看到的同一价格，绝不会自己编造数字。告诉它您需要什么产品、用于什么用途，它就会为您计算今日价格、型材精确重量，以及按您的吨位计算的最便宜工厂——如果您需要，最后还能为您取得形式发票。",
+      "faq": {
+        "item1": {
+          "question": "安挺智能顾问的价格数据来自哪里？",
+          "answer": "来自与网站价格表相同的数据库；价格由安挺工作人员在与工厂和市场核实后手动录入，顾问从不凭空生成数字。如果某产品尚未录入价格或价格已过期，它会如实说明，并告知你销售顾问会为你确认，而不是随意猜测。"
+        },
+        "item2": {
+          "question": "顾问给出的重量数据有多准确？",
+          "answer": "重量按各截面的标准公式（理论重量）计算，与网站自带的重量计算工具使用完全相同的公式，而非估算。由于生产公差，实际过磅重量可能与理论重量略有差异；最终数值以正式形式发票为准。"
+        },
+        "item3": {
+          "question": "可以直接在对话中获取形式发票吗？",
+          "answer": "可以。一旦产品、数量和规格确认清楚，顾问会在回复下方显示一张请求摘要卡片，包含当日价格和重量，点击卡片上的按钮即可最终确认。未经你确认，不会提交任何内容。"
+        },
+        "item4": {
+          "question": "购买需要在线支付吗？",
+          "answer": "不需要。安挺没有在线支付功能，对话中也没有任何支付环节。提交请求后，销售顾问会致电你，最终确定价格、库存和交货时间。"
+        },
+        "item5": {
+          "question": "如果顾问不知道某个问题的答案怎么办？",
+          "answer": "它会如实说明，并将对话转交给人工顾问。顾问的服务范围是钢铁与建筑相关领域，不会回答此范围以外的问题。"
+        }
+      }
+    },
+    "capabilities": {
+      "title": "这个顾问能做到通用聊天做不到的哪些事？",
+      "compare": {
+        "title": "按您自己的吨位比较各工厂",
+        "body": "告诉它您需要多少吨；它会按该吨位在各可用工厂之间比较每公斤价格，标出最便宜的选项，并说明比次优选项能省多少。比较始终基于同一具体规格，而不是整个品类的平均值。"
+      },
+      "weight": {
+        "title": "精确的型材重量，而非粗略估算",
+        "body": "按各型材的标准公式计算每支重量和总重量：螺纹钢、工字钢、槽钢、角钢、钢板、钢管、方管、扁钢和钢丝。它也能回答“20吨等于多少支？”，使用与网站<link>重量计算器</link>相同的公式。"
+      },
+      "outlook": {
+        "title": "价格走势，附区间与理由",
+        "body": "它不会把“现在买还是再等等？”这个问题晾在一边：读取该产品的真实走势及其与美元、黄金和坯料的相关性，用一个百分比区间及理由给出短期方向。它绝不会给某个日期报出确定价格，若历史价格数据不足，也会如实说明。"
+      },
+      "sourced": {
+        "title": "有据可查的专业回答，而非泛泛而谈",
+        "body": "对于像螺纹钢各等级区别这类问题，它会在安通已发布的指南和文章中查找，并注明所引用的指南名称作为来源。若某主题没有相关指南，它会如实说明。"
+      },
+      "footnote": "它给出的每一个数字都来自<link>价格表</link>所用的同一数据库。若某价格未登记，它不会编造，而是说明将由专员告知。同样没有在线支付：您可以在这里直接提交形式发票申请，专员会致电确认最终价格和交货时间。"
+    },
+    "rail": {
+      "newConversation": "新对话",
+      "historyAria": "历史对话",
+      "loginPrompt": "<link>登录</link>即可查看您之前的对话，当前对话会保留在这里。",
+      "loadFailed": "对话列表加载失败。",
+      "retry": "重试",
+      "empty": "暂无已保存的对话。",
+      "bucket": {
+        "today": "今天",
+        "yesterday": "昨天",
+        "lastWeek": "上周",
+        "lastMonth": "上月",
+        "older": "更早"
+      }
+    },
+    "proforma": {
+      "confirmedBadge": "请求已提交",
+      "trackingCode": "跟踪码：",
+      "confirmedNote": "销售专员会致电您，确认最终价格和交货时间。",
+      "viewDownload": "查看并下载形式发票",
+      "trackRequests": "查看我的请求",
+      "pendingBadge": "形式发票请求摘要",
+      "updatingPrice": "正在更新价格…",
+      "qtyOf": "{name}的数量",
+      "unitOf": "{name}的单位",
+      "deliveryCity": "交货城市",
+      "cityNotSelected": "未选择",
+      "cityHint": "运费将由专员在形式发票中注明。",
+      "totalWeight": "总重量",
+      "kgUnit": "公斤",
+      "grandTotal": "总计",
+      "partialPriceNote": "部分商品的价格将由专员告知；您的请求将直接转给销售团队。",
+      "updateFailed": "更新失败。请检查网络连接后重试。",
+      "confirmFailed": "提交请求失败。请检查网络连接后重试。",
+      "confirming": "正在提交…",
+      "confirmCta": "确认并提交请求",
+      "loginCta": "登录",
+      "addedToCart": "已加入购物车",
+      "addToCart": "加入购物车",
+      "whatsappCta": "通过WhatsApp发送",
+      "guestNote": "登录后您会返回同一对话，一键即可提交请求；姓名和电话将取自您的账户。",
+      "humanQuestion": "有技术问题，或者哪里对不上？"
+    },
+    "blocks": {
+      "badges": {
+        "quote": "今日价格",
+        "compare": "工厂比价",
+        "options": "请选择",
+        "forecast": "价格走势",
+        "expert": "联系专员",
+        "trend": "价格趋势"
+      },
+      "freshness": {
+        "label": "最后更新：",
+        "at": "",
+        "staleTag": "需专员确认"
+      },
+      "priceAsk": "请咨询专员",
+      "sizeLabel": "规格{size}",
+      "tagBest": "最便宜",
+      "tagLanded": "含运费最便宜",
+      "perKg": "每公斤",
+      "itemTotal": "商品小计",
+      "deliveredTo": "送至{city}",
+      "singleSource": "单一来源",
+      "savingsNote": "选择最便宜的选项比次优选项节省{amount}。",
+      "landedNote": "到货价一栏已计入从{origin}到{city}的运费、装卸费、保险和过磅费；最终数字以专员在形式发票中确认为准。",
+      "excludedNonKg": "有{count}项价格不是按公斤计算，未列入此次比较。",
+      "actions": {
+        "proformaFromCheapest": "按最便宜价格开形式发票",
+        "withFreight": "计入运费",
+        "priceTrend": "价格趋势",
+        "compareFactories": "比较各工厂",
+        "proforma": "形式发票",
+        "productPage": "产品页面",
+        "moreOptions": "还有更多选项；如果没有您需要的，直接输入即可。",
+        "proformaTodayPrice": "按今日价格开形式发票",
+        "priceAlert": "价格提醒"
+      },
+      "forecast": {
+        "bandRange": "{horizon}内的大致变动区间",
+        "direction": {
+          "up": "上行",
+          "down": "下行",
+          "flat": "波动较小"
+        },
+        "confidence": {
+          "high": "可信度较高",
+          "medium": "可信度中等",
+          "low": "可信度较低"
+        },
+        "correlation": "相关性",
+        "caveat": "这是基于历史数据的方向性估计，并非确定价格。钢铁市场可能因消息面和汇率一夜之间波动；有效价格以当天形式发票所载价格为准。"
+      },
+      "trend": {
+        "change": {
+          "up": "上涨",
+          "down": "下跌",
+          "flat": "无变化"
+        },
+        "inRange": "{range}内",
+        "fullChart": "在产品页面查看完整图表"
+      },
+      "whatsapp": "WhatsApp",
+      "sparkline": {
+        "fromTo": "从{from}到{to}",
+        "priceFromTo": "从{from}到{to}{unit}",
+        "tomanUnit": "托曼",
+        "changeSuffix": "，{direction}{pct}%"
+      },
+      "trendOfLabel": "{name}价格趋势：",
+      "trendOfDaysLabel": "{name}最近{days}天的价格趋势：",
+      "trendOfRangeLabel": "{name}在{range}的价格趋势："
+    },
+    "markdown": {
+      "tableAria": "顾问回答表格"
+    },
+    "chat": {
+      "greeting": "你好！我是安通智能顾问。\n我会像一位内行的朋友一样帮你做出最好的采购决定；先咨询，再购买。",
+      "newChat": "新对话",
+      "notice": {
+        "fallback": "智能助手暂时不可用。请稍后重试，或联系专员。",
+        "rateLimited": "消息发送过于频繁。请稍等片刻后再发送。",
+        "offline": "网络连接已断开。重新连接后请再试一次。",
+        "dropped": "回答未完成；接收过程中连接中断。",
+        "waitingSeconds": "（{seconds}秒）"
+      },
+      "retry": {
+        "waitingAria": "{seconds}秒后重试",
+        "defaultAria": "重试以获取实时回答",
+        "continue": "继续",
+        "retry": "重试"
+      },
+      "feedback": {
+        "groupLabel": "这个回答怎么样？",
+        "helpful": "有帮助",
+        "notHelpful": "没帮助",
+        "thanks": "感谢您的反馈"
+      },
+      "roleUser": "你",
+      "tool": {
+        "getPrice": "正在查询今日价格…",
+        "calcWeight": "正在计算重量…",
+        "estimateProject": "正在估算项目用量…",
+        "prepareProforma": "正在准备请求摘要…",
+        "compareFactories": "正在比较各工厂…",
+        "searchGuides": "正在查阅指南…",
+        "productOptions": "正在查看可选项…",
+        "priceHistory": "正在读取价格走势…",
+        "forecastPrice": "正在分析市场趋势与指标…",
+        "setPriceAlert": "正在设置价格提醒…",
+        "default": "正在生成回答…"
+      },
+      "slowHint": "需要多一点时间，感谢您的耐心等待。",
+      "railToggleAria": "对话列表",
+      "railScrimAria": "关闭对话列表",
+      "exitImmersiveAria": "返回页面",
+      "composerLabel": "给智能顾问发消息",
+      "placeholder": {
+        "offline": "网络连接已断开…",
+        "busy": "正在回答…",
+        "default": "输入您的问题…"
+      },
+      "micStart": "语音输入",
+      "micStop": "停止语音输入",
+      "stopAria": "停止回答",
+      "sendAria": "发送",
+      "offlineBar": "网络连接已断开；重新连接后即可继续发送消息。",
+      "humanQuestion": "没有得到答案？",
+      "humanWhatsapp": "WhatsApp联系专员",
+      "disclaimer": "回答均基于真实价格；安通绝不编造任何数字。",
+      "openingConversation": "正在打开对话…",
+      "openConversationFailed": "该对话未能打开。请重试或开始新对话。",
+      "defaultHeading": "安通智能顾问"
+    }
+  },
+  "account": {
+    "nav": {
+      "ariaLabel": "账户各版块",
+      "overview": "总览",
+      "orders": "订单",
+      "requests": "我的申请",
+      "warehouse": "我的仓库",
+      "favorites": "收藏",
+      "alerts": "提醒",
+      "club": "会员俱乐部",
+      "profile": "个人资料与设置"
+    },
+    "header": {
+      "overline": "我的账户",
+      "greetingWithName": "您好，{name}",
+      "greetingNoName": "您好",
+      "adminPanelBadge": "Ahantime 后台"
+    },
+    "roleLabel": {
+      "customer": "客户",
+      "operator": "定价操作员",
+      "sales": "销售专员",
+      "content": "内容编辑",
+      "catalog": "目录管理员",
+      "admin": "系统管理员"
+    },
+    "tabs": {
+      "ordersTitle": "我的订单",
+      "ordersSub": "在此实时跟踪每笔订单的发货状态。",
+      "warehouseTitle": "我的仓库",
+      "warehouseSub": "您寄存在 Ahantime 的货物。如需登记新货物，请前往<link>客户仓库页面</link>。",
+      "favoritesTitle": "收藏",
+      "favoritesSub": "您收藏的产品，附实时价格。",
+      "requestsTitle": "我的申请",
+      "requestsSub": "形式发票、批量采购与仓储申请，附各自的实时状态。",
+      "alertsTitle": "价格提醒",
+      "alertsSub": "价格达到您设定的阈值时，将收到短信通知。",
+      "clubTitleGuest": "Ahantime 会员俱乐部",
+      "clubGuestHeadline": "Ahantime 会员俱乐部",
+      "clubGuestBody": "加入会员即可获得专属价格、优先配送与专属顾问。",
+      "clubGuestCta": "查看俱乐部",
+      "clubTitleMember": "客户俱乐部",
+      "profileTitle": "个人资料与设置",
+      "profileSub": "您的姓名将用于形式发票及与顾问的对话中。"
+    },
+    "overview": {
+      "verifyNudgeTitle": "完成身份认证",
+      "verifyNudgeBody": "升级到 {level} 级可解锁更多权益。",
+      "verifyNudgeCta": "完成",
+      "clubNudgeTitle": "加入客户俱乐部",
+      "clubNudgeBody": "会员免费加入；每笔订单均可获得积分，助您升级。",
+      "clubNudgeCta": "加入",
+      "lastOrderTitle": "最近订单",
+      "allOrders": "所有订单"
+    },
+    "shipmentStatus": {
+      "registered": "已登记",
+      "confirmed": "已确认",
+      "loading": "装货中",
+      "inTransit": "运输中",
+      "delivered": "已送达",
+      "cancelledBadge": "已取消",
+      "currentStageTag": "（当前阶段）",
+      "cancelledNote": "该订单已取消；此前已进行到「{stage}」阶段。",
+      "ariaCancelled": "已取消订单：已进行到{stage}阶段",
+      "ariaActive": "订单状态：{stage}"
+    },
+    "orders": {
+      "empty": {
+        "headline": "您还没有订单",
+        "body": "形式发票确认后，订单将在此生成，您可实时跟踪发货进度。",
+        "cta": "查看价格"
+      },
+      "refPrefix": "订单",
+      "placed": "下单时间：{date}",
+      "updated": "更新时间：{date}",
+      "shippingWith": "承运商：{carrier}",
+      "defaultCarrier": "承运公司",
+      "trackingCode": "运单号：{code}",
+      "itemsCount": "（共 {count} 项）",
+      "reorder": "再次订购",
+      "reorderSuccessAll": "该订单的商品已加入询价车。",
+      "reorderSuccessPartial": "该订单中仍可用的商品已加入询价车（部分商品已下架）。"
+    },
+    "warehouse": {
+      "empty": {
+        "headline": "您的仓库中还没有登记货物",
+        "body": "如需将货物寄存至 Ahantime 仓库（可投保），请提交仓储申请。",
+        "cta": "提交仓储申请"
+      },
+      "insuredBadge": "已投保 ✓",
+      "code": "编号",
+      "contract": "合同",
+      "arrivedAt": "入库日期：{date}",
+      "location": "位置：{location}",
+      "quantityLabel": "数量",
+      "tons": "{value} 吨",
+      "monthlyRateLabel": "月度仓储费（每吨）",
+      "unsettledLabel": "未结清余额",
+      "settlementHistoryTitle": "结算历史",
+      "loadingSettlements": "正在加载结算历史…",
+      "settlementsErrorHeadline": "获取结算历史时出错",
+      "retry": "重试",
+      "periodRange": "自 {from} 至 {to}",
+      "voidedBadge": "已冲正",
+      "paidBadge": "已支付",
+      "pendingBadge": "待支付",
+      "statusLabel": {
+        "pending": "待处理",
+        "stored": "已入库",
+        "selling": "出售中",
+        "released": "已放行"
+      }
+    },
+    "favorites": {
+      "loading": "正在加载…",
+      "remove": "移除",
+      "removedToast": "已从收藏中移除。"
+    },
+    "requests": {
+      "errorHeadline": "获取申请记录时出错",
+      "retry": "重试",
+      "ariaStatus": "申请状态",
+      "typeLabel": {
+        "proforma": "形式发票",
+        "bulk": "批量采购",
+        "warehouse": "客户仓储",
+        "cutToSize": "定制尺寸商品"
+      },
+      "stepLabel": {
+        "submitted": "已提交",
+        "reviewing": "审核中",
+        "contacted": "顾问已联系",
+        "quoted": "已开具形式发票",
+        "fulfilled": "已登记入库"
+      }
+    },
+    "alerts": {
+      "errorHeadline": "获取提醒时出错",
+      "retry": "重试",
+      "statusLabel": {
+        "active": "生效中",
+        "triggered": "已触发",
+        "paused": "已暂停"
+      },
+      "targetTypeLabel": {
+        "sku": "产品",
+        "market": "市场指数"
+      },
+      "unavailableTarget": "该项目已不可用",
+      "below": "低于",
+      "above": "高于",
+      "tomanSuffix": "托曼",
+      "now": "当前：",
+      "distancePct": "距目标还差 {pct}%",
+      "crossedSoon": "已达到提醒条件；短信通知即将发送",
+      "staleNote": "（未及时更新）",
+      "activate": "启用",
+      "pause": "暂停",
+      "remove": "删除",
+      "updateSuccess": "提醒已更新。",
+      "updateError": "更新提醒失败。",
+      "removeSuccess": "提醒已删除。",
+      "removeError": "删除提醒失败。",
+      "triggeredAt": "触发时间：{date}",
+      "registeredAt": "登记时间：{date}"
+    },
+    "club": {
+      "joinHeadline": "加入 Ahantime 客户俱乐部",
+      "joinLead": "会员免费加入。每笔订单、完善个人资料及身份认证均可获得积分，助您升级——从优先供货到专属顾问，权益逐级解锁。",
+      "joinCta": "免费加入俱乐部",
+      "pointsLabel": "俱乐部积分",
+      "levelEyebrow": "您的等级",
+      "progressAriaLabel": "距下一等级的进度",
+      "nearThreshold": "距 <tierTag>{tier}</tierTag> 仅差 <pts>{points}</pts> 积分！",
+      "farThreshold": "您已获得 <pts>{points}</pts> 积分，正迈向 <tierTag>{tier}</tierTag>",
+      "highestBadge": "俱乐部最高等级",
+      "highestNote": "您已达到最高等级，尽享全部权益。",
+      "breakdownTitle": "您的积分构成",
+      "breakdown": {
+        "deliveredOrders": "已完成的订单",
+        "profileComplete": "完善个人资料",
+        "verificationLevel": "身份认证（{level} 级）",
+        "referrals": "邀请好友"
+      },
+      "ladderCurrentBadge": "当前等级",
+      "tiers": {
+        "iron": {
+          "name": "铁级",
+          "tagline": "每段合作关系的起点",
+          "perk1": "查看实时价格及波动历史",
+          "perk2": "提交询价并获取形式发票",
+          "perk3": "顾问电话支持"
+        },
+        "steel": {
+          "name": "钢级",
+          "tagline": "适合稳定的专业采购客户",
+          "perk1": "供货与配送优先",
+          "perk2": "可同时为多个产品设置价格提醒（不限一个）",
+          "perk3": "形式发票开具更快"
+        },
+        "poolad": {
+          "name": "精钢级",
+          "tagline": "最高忠诚等级",
+          "perk1": "供货保证，享最高优先级",
+          "perk2": "各等级中最高的价格提醒上限",
+          "perk3": "专属顾问及直接联系渠道",
+          "perk4": "新品公开发售前的专属优惠",
+          "perk5": "下载带贵公司专属抬头的形式发票"
+        }
+      }
+    },
+    "letterhead": {
+      "title": "形式发票专属抬头",
+      "activeBadge": "已启用",
+      "lead": "作为精钢级会员，您可以使用自己的徽标和公司信息下载形式发票，而非 Ahantime 的默认抬头。徽标与公司名称需同时提供，此功能才能在您的形式发票上生效。",
+      "logoChange": "更换徽标",
+      "logoChoose": "选择徽标",
+      "logoTypeError": "仅支持 JPG、PNG 或 WebP 格式的图片。",
+      "logoSizeError": "文件大小不得超过 5 MB。",
+      "logoUploadError": "上传失败，请重试。",
+      "logoSuccess": "徽标已保存。",
+      "companyNameLabel": "公司名称",
+      "companyNamePlaceholder": "例如：帕尔斯钢铁制造公司",
+      "addressLabel": "地址（可选）",
+      "phoneLabel": "电话（可选）",
+      "save": "保存信息",
+      "saving": "保存中…",
+      "saveSuccess": "专属抬头已保存。",
+      "saveError": "保存失败，请重试。"
+    },
+    "invite": {
+      "ariaLabel": "您的邀请码",
+      "label": "您的邀请码",
+      "hint": "邀请好友；待其注册并完成身份认证后，您将获得积分。",
+      "copy": "复制",
+      "copied": "已复制 ✓"
+    },
+    "verification": {
+      "title": "身份认证",
+      "currentLevelPrefix": "您当前的等级：",
+      "levelBadge": "{level} 级：{name}",
+      "nextLevelIntro": "升级到 {level} 级（{name}）即可解锁：",
+      "completeLevel": "填写 {level} 级信息",
+      "pendingBadge": "审核中",
+      "pendingNote": "您的信息已提交，客服正在审核。",
+      "rejectedNotice": "此前提交的信息未通过审核，请重新准确填写。",
+      "nationalIdLabel": "身份证号",
+      "companyNameLabel": "公司名称",
+      "companyNationalIdLabel": "公司统一社会信用代码",
+      "economicCodeLabel": "经济代码",
+      "submit": "提交审核",
+      "submitSuccess": "您的信息已提交，正在审核中。",
+      "submitError": "信息提交失败。",
+      "maxedNote": "最高认证等级。销售专员在审核您的询价时会看到此徽章。",
+      "businessAccountLabel": "已认证企业账户",
+      "levelName": {
+        "1": "手机已验证",
+        "2": "个人身份已认证",
+        "3": "企业身份已认证"
+      },
+      "level1Unlock1": "浏览价格并提交询价",
+      "level1Unlock2": "获取形式发票",
+      "level1Unlock3": "加入客户俱乐部",
+      "level2Unlock1": "更高的下单额度",
+      "level2Unlock2": "以您本人名义开具正式发票",
+      "level2Unlock3": "「已认证买家」徽章",
+      "level2Unlock4": "俱乐部积分",
+      "level3Unlock1": "账户上显示「{label}」徽章",
+      "level3Unlock2": "销售专员在处理询价时可见您的企业已通过认证",
+      "level3Unlock3": "公司信息已登记备案，可随时开具正式企业发票",
+      "level3Unlock4": "客户俱乐部中最高的认证积分"
+    },
+    "deliveryCity": {
+      "title": "我的仓库所在城市",
+      "sub": "订单的送达目的地；在「比较工厂」中，从{origin}起算的运费与配送时间均以此为依据计算。",
+      "selectAriaLabel": "仓库所在城市",
+      "selectPlaceholder": "请选择…",
+      "distanceHint": "距仓库 {km} 公里 · 配送时长 {delivery}",
+      "bucket": {
+        "sameDay": "当天至1个工作日",
+        "oneToTwoDays": "1至2个工作日",
+        "twoToThreeDays": "2至3个工作日",
+        "threeToFourDays": "3至4个工作日",
+        "fourToFiveDays": "4至5个工作日"
+      },
+      "originLabel": "德黑兰仓库"
+    },
+    "profileStats": {
+      "openRequestsLabel": "进行中的申请",
+      "openRequestsHintHas": "等待顾问跟进",
+      "openRequestsHintEmpty": "您还没有任何申请",
+      "activeOrdersLabel": "进行中的订单",
+      "activeOrdersHintHas": "跟踪发货与配送",
+      "activeOrdersHintEmpty": "没有进行中的订单",
+      "warehouseItemsLabel": "仓库中寄存的货物",
+      "warehouseItemsHintHas": "客户仓库库存",
+      "warehouseItemsHintEmpty": "没有寄存的货物"
+    }
+  },
+  "warehouseForm": {
+    "authGateHeadline": "登录以提交申请",
+    "authGateBody": "仓储申请将记录并追踪在您的个人账户中；请先使用手机号码登录。",
+    "authGateCta": "登录 / 注册",
+    "productLabel": "产品类型",
+    "productRequired": "请选择产品类型。",
+    "selectPlaceholder": "请选择…",
+    "quantityLabel": "数量（吨）",
+    "quantityRequired": "请输入数量。",
+    "quantityInvalid": "数量必须大于零。",
+    "durationLabel": "仓储时长",
+    "durationRequired": "请选择仓储时长。",
+    "notesLabel": "备注",
+    "submitLabel": "提交仓储申请",
+    "submitError": "提交申请失败，请重试。",
+    "successPrefix": "您的仓储申请已提交（追踪码：",
+    "successSuffix": "），我们的专员将与您联系以安排交货和签订合同。",
+    "trackInProfile": "在个人中心追踪",
+    "products": {
+      "rebarDeformed": "带肋钢筋",
+      "rebarPlain": "光圆钢筋",
+      "rebar": "螺纹钢",
+      "blackSheet": "黑板",
+      "galvanizedSheet": "镀锌板",
+      "oiledSheet": "涂油板",
+      "checkeredSheet": "花纹板",
+      "strip": "钢带",
+      "ibeam": "工字钢",
+      "angleAndChannel": "角钢与槽钢",
+      "profileAndBoxPipe": "型材与方管",
+      "pipe": "钢管",
+      "other": "其他"
+    },
+    "durations": {
+      "oneToThreeMonths": "1至3个月",
+      "threeToSixMonths": "3至6个月",
+      "sixToTwelveMonths": "6至12个月",
+      "moreThanOneYear": "一年以上"
+    }
+  },
+  "cutToSizeForm": {
+    "authGateHeadline": "登录以提交申请",
+    "authGateBody": "尺寸切割/加工申请将记录并追踪在您的个人账户中；请先使用手机号码登录。",
+    "authGateCta": "登录 / 注册",
+    "productLabel": "产品类型",
+    "productRequired": "请选择产品类型。",
+    "selectPlaceholder": "请选择…",
+    "currentDimensionsLabel": "当前尺寸（选填）",
+    "currentDimensionsPlaceholder": "例如：6毫米钢板，1250×2500",
+    "requestedDimensionsLabel": "所需尺寸",
+    "requestedDimensionsPlaceholder": "例如：切割为1000×2000或直径20厘米",
+    "requestedDimensionsRequired": "请输入所需尺寸。",
+    "quantityLabel": "数量",
+    "quantityPlaceholder": "例如：50张、20根或3吨",
+    "quantityRequired": "请输入数量。",
+    "notesLabel": "备注",
+    "submitLabel": "提交申请",
+    "submitError": "提交申请失败，请重试。",
+    "successPrefix": "您的申请已提交（追踪码：",
+    "successSuffix": "），我们的专员将评估切割/加工的可行性并与您联系报价。",
+    "trackInProfile": "在个人中心追踪",
+    "products": {
+      "rebarDeformed": "带肋钢筋",
+      "rebarPlain": "光圆钢筋",
+      "rebar": "螺纹钢",
+      "blackSheet": "黑板",
+      "galvanizedSheet": "镀锌板",
+      "oiledSheet": "涂油板",
+      "checkeredSheet": "花纹板",
+      "strip": "钢带",
+      "ibeam": "工字钢",
+      "angleAndChannel": "角钢与槽钢",
+      "profileAndBoxPipe": "型材与方管",
+      "pipe": "钢管",
+      "other": "其他"
+    }
+  },
+  "warehousePage": {
+    "overline": "Ahantime 服务",
+    "heading": "客户仓储",
+    "lead": "将您的货物委托给 Ahantime 保管。我们会将其存放在安全且已投保的仓库中，并在市场行情合适时为您出售。您只需支付少量的月度仓储费，即可享受价格波动带来的收益和快速变现。",
+    "benefits": {
+      "security": {
+        "title": "全面安全",
+        "body": "设有全天候警卫与监控的封闭仓库，您的货物安心存放。"
+      },
+      "insurance": {
+        "title": "货物保险",
+        "body": "您的全部库存均已投保，如遇意外可获得赔偿。"
+      },
+      "timedSale": {
+        "title": "适时出售",
+        "body": "一旦市场价格合适，我们的专员即为您出售货物。"
+      },
+      "liquidity": {
+        "title": "快速变现",
+        "body": "借助 Ahantime 的买家网络，库存可在最短时间内变现为现金。"
+      }
+    },
+    "howItWorksHeading": "如何运作？",
+    "steps": {
+      "register": {
+        "title": "提交申请",
+        "body": "在下方表单中告知我们货物的类型和数量。"
+      },
+      "deliverAndContract": {
+        "title": "交付与签约",
+        "body": "您交付货物，双方签订仓储合同。"
+      },
+      "safeStorage": {
+        "title": "安全存储",
+        "body": "您的库存存放在已投保的仓库中，按固定月费计费。"
+      },
+      "sellAndSettle": {
+        "title": "出售与结算",
+        "body": "我们在合适的时机出售并与您结算款项。"
+      }
+    },
+    "formHeading": "仓储申请",
+    "formLead": "请填写下方表单，我们的专员将与您联系安排交货并签订合同。"
+  },
+  "cutToSizePage": {
+    "overline": "Ahantime 服务",
+    "heading": "定制尺寸货品",
+    "lead": "将您的钢材交给 Ahantime，我们会按照您项目所需的精确尺寸进行切割并准备交付——从钢板、钢带到钢筋及其他型材均可。您只需告知产品类型和所需尺寸；我们的专员会先评估可行性和费用，经您确认后再进行切割。",
+    "benefits": {
+      "exactSize": {
+        "title": "精准符合您的需求尺寸",
+        "body": "无需购买标准尺寸并造成边角料浪费，按项目所需的精确尺寸收货。"
+      },
+      "lessWaste": {
+        "title": "减少浪费与成本",
+        "body": "精准切割意味着更少的材料浪费，您无需支付废料的加工和运输费用。"
+      },
+      "precisionCut": {
+        "title": "精密工业切割",
+        "body": "采用工业设备按既定公差切割；交付尺寸与您所订购的完全一致。"
+      },
+      "readyToDeliver": {
+        "title": "备妥交付",
+        "body": "切割完成的货物将包装妥当，可供发货或现场提货。"
+      }
+    },
+    "howItWorksHeading": "如何运作？",
+    "steps": {
+      "register": {
+        "title": "提交申请",
+        "body": "在下方表单中告知我们产品类型和所需尺寸。"
+      },
+      "reviewAndQuote": {
+        "title": "评估与报价",
+        "body": "我们的专员评估切割可行性并向您报价。"
+      },
+      "cutting": {
+        "title": "执行切割",
+        "body": "经您确认后，货物将使用工业设备按所需尺寸切割。"
+      },
+      "delivery": {
+        "title": "交付",
+        "body": "成品货物将被包装，并安排发货或提货。"
+      }
+    },
+    "formHeading": "提交切割/加工申请",
+    "formLead": "请填写下方表单，我们的专员将评估可行性和费用并与您协调。"
+  },
+  "alertBell": {
+    "loginPrompt": "登录后即可设置价格提醒。",
+    "loginCta": "登录",
+    "bellLabelActive": "已有价格提醒；管理",
+    "bellLabelInactive": "设置价格提醒",
+    "removedToast": "提醒已删除。",
+    "removeFailedToast": "删除提醒失败。",
+    "alreadyActiveToast": "您已为「{label}」设置了有效提醒。",
+    "viewInAccount": "在我的账户中查看",
+    "setToastBelow": "当「{label}」降至{threshold}或更低时，您将收到短信通知。",
+    "setToastAbove": "当「{label}」升至{threshold}或更高时，您将收到短信通知。",
+    "submitFailedToast": "设置提醒失败，请重试。",
+    "manageTitle": "管理价格提醒",
+    "newTitle": "新建价格提醒",
+    "close": "关闭",
+    "submitAsNew": "另存为新提醒",
+    "submit": "设置提醒",
+    "removeThis": "删除此提醒",
+    "currentPrice": "「{label}」当前价格：",
+    "existingHint": "该提醒已生效。修改下方数值并保存将新增一条独立提醒；如需替换，请先删除此提醒。",
+    "directionLabel": "提醒方向",
+    "directionBelow": "价格下跌至",
+    "directionAbove": "价格上涨至",
+    "thresholdLabel": "提醒阈值（{unit}）",
+    "indexUnit": "指数单位",
+    "thresholdError": "请输入大于零的金额。",
+    "defaultHint": "默认值为当前价格{direction}5%；您可以修改该数值。",
+    "defaultHintBelow": "下浮",
+    "defaultHintAbove": "上浮",
+    "limitCap": {
+      "headlineWithCap": "您已达到{cap}条有效提醒的上限。",
+      "nonMemberBody": "如需同时关注「{label}」，请加入阿罕时代俱乐部；会员身份将提高您的有效提醒上限。",
+      "nonMemberCta": "加入俱乐部",
+      "ironBody": "如需同时关注「{label}」，请升级至俱乐部钢级会员以提高您的有效提醒上限。",
+      "steelBody": "如需同时关注「{label}」，请升级俱乐部等级以提高您的有效提醒上限。",
+      "upgradeCta": "查看俱乐部",
+      "maxHeadlineWithCap": "您已是俱乐部最高等级，并已达到{cap}条有效提醒的上限。",
+      "maxBody": "如需为「{label}」设置提醒，请先暂停或删除一条现有的有效提醒。",
+      "maxCta": "管理提醒"
+    }
+  },
+  "proforma": {
+    "letterheadToggleAriaLabel": "选择抬头",
+    "ourLetterheadTab": "{brand}抬头",
+    "myCompanyLetterheadTab": "我公司抬头",
+    "phonePrefix": "电话：",
+    "mobilePrefix": "手机：",
+    "tagline": "智能钢铁交易平台：先咨询，后购买",
+    "title": "形式发票",
+    "issuedDatePrefix": "开具日期：",
+    "customerLabel": "客户",
+    "cancelledMessage": "此版本的形式发票已作废，不再有效。请联系我们的销售顾问获取有效版本。",
+    "expiredMessage": "此形式发票已过期。请联系我们的销售顾问获取当前报价。",
+    "validityPrefix": "价格有效期至：",
+    "tableCaption": "形式发票 {ref} 的明细项",
+    "col": {
+      "row": "序号",
+      "description": "品名",
+      "qty": "数量",
+      "unitPrice": "单价（土曼）",
+      "lineTotal": "小计（土曼）"
+    },
+    "negotiable": "面议",
+    "subtotalLabel": "小计合计",
+    "volumeDiscountLabel": "阶梯折扣",
+    "discountLabel": "折扣",
+    "taxableAmountLabel": "计税金额",
+    "vatLabel": "增值税（{pct}%）",
+    "grandTotalLabel": "应付总额",
+    "footerDisclaimer": "本形式发票仅用于报价，不属于正式发票。我们不提供在线支付；结算由销售顾问协调安排。",
+    "printButton": "下载／打印 PDF"
+  },
+  "track": {
+    "overline": "货运跟踪",
+    "title": "跟踪订单",
+    "intro": "输入订单跟踪码，查看当前的运输状态。",
+    "fieldLabel": "订单跟踪码",
+    "fieldPlaceholder": "例如：OR-2309",
+    "fieldHelper": "跟踪码已通过订单确认短信发送给您。",
+    "submit": "查询",
+    "notFound": "未找到该跟踪码对应的订单。请核对跟踪码，或联系客服。",
+    "placedPrefix": "下单：",
+    "lastUpdatePrefix": "最近更新：",
+    "unit": {
+      "kg": "吨",
+      "branch": "支",
+      "sheet": "张",
+      "meter": "米",
+      "piece": "件",
+      "sqm": "平方米"
+    }
+  },
+  "marketBoard": {
+    "sourceBadge": "市场实时汇率",
+    "viewChartAriaLabel": "显示{label}走势图",
+    "chartAriaLabel": "{label}走势图",
+    "chartLabel": "{label}走势图",
+    "chartHint": "过去一周至一年的大致价格走势。",
+    "loadingChart": "图表加载中……",
+    "viewPricesCta": "查看钢铁价格",
+    "labels": {
+      "usd": "美元",
+      "eur": "欧元",
+      "gold18": "18K金",
+      "ounce": "国际金价（盎司）",
+      "billet": "钢坯"
+    }
+  },
+  "categoryPriceSummary": {
+    "eyebrow": "今日市场概览",
+    "title": "各类别代表价格",
+    "caption": "每个钢铁类别下，一款代表产品的最新登记价格。每个类别的完整价格表（含全部规格与钢厂）只需再点一下即可查看。",
+    "col": {
+      "category": "类别",
+      "headlineProduct": "代表产品",
+      "size": "规格",
+      "factory": "钢厂",
+      "price": "价格（托曼）",
+      "movement": "涨跌",
+      "deliveryTime": "交货时间",
+      "fullTable": "完整价格表"
+    },
+    "unknown": "未知",
+    "fullTableOf": "{category}完整价格表",
+    "note": "价格不含增值税，基于Ahantime专家登记的价格。如需最终确认价格及准确交货时间，请获取形式发票；先咨询，后购买。"
+  },
+  "featuredPrices": {
+    "eyebrow": "热门产品",
+    "title": "今日螺纹钢价格",
+    "fullTable": "螺纹钢完整价格表",
+    "col": {
+      "product": "产品",
+      "size": "规格",
+      "factory": "钢厂",
+      "price": "价格（托曼）",
+      "movement": "涨跌",
+      "deliveryTime": "交货时间",
+      "details": "详情"
+    },
+    "unknown": "未知",
+    "detailsOf": "{name}详情",
+    "note": "价格不含增值税，实时更新。"
+  },
+  "categoryGrid": {
+    "eyebrow": "产品类别",
+    "title": "今日钢铁价格",
+    "allPrices": "所有价格",
+    "viewPrice": "查看价格"
+  },
+  "articleFaq": {
+    "heading": "常见问题"
+  },
+  "marketPage": {
+    "overline": "市场脉动",
+    "title": "黄金、汇率与钢坯",
+    "intro": "在此查看美元、欧元、18K金、国际金价（盎司）与钢坯的实时汇率——这五个变量直接或间接影响螺纹钢、工字钢和型材的价格。当美元或钢坯价格上涨时，这一影响通常在几周内（而非当天）传导至钢铁最终价格；本页下文将解释原因。",
+    "whyTitle": "为什么钢铁价格会跟随美元和黄金变动？",
+    "explainer1": "钢坯是螺纹钢和工字钢的主要原材料，在伊朗商品交易所按进口铁矿石和废钢的美元成本定价。当美元升值时，钢厂的这一成本随之上升，通常在几周内影响螺纹钢、工字钢和型材的最终价格。",
+    "explainer2": "国际金价（盎司）也会影响钢铁价格，只是角度与美元不同。当市场对通胀或全球经济不稳定的担忧上升时，资金往往同时涌向黄金和铁、铜等基础金属这两类实物资产。因此，在市场波动剧烈时期，国际金价与全球钢铁价格常常同向变动，即便二者并无直接联系。",
+    "chain": {
+      "0": "美元升值，钢厂进口铁矿石和废钢的成本随之上升。",
+      "1": "伊朗商品交易所按这一新成本更新钢坯价格。",
+      "2": "钢厂根据钢坯的新成本调整螺纹钢、工字钢和型材的价格。",
+      "3": "这一影响通常在几周内（而非当天）在钢铁市场中显现。"
+    },
+    "roleTableCaption": "各变量在钢铁价格中的作用（本页上方看板可查看当前实时汇率）",
+    "roleCol": {
+      "variable": "变量",
+      "role": "对钢铁价格的作用"
+    },
+    "role": {
+      "usd": {
+        "label": "美元",
+        "role": "钢厂进口铁矿石和废钢的美元成本"
+      },
+      "eur": {
+        "label": "欧元",
+        "role": "间接影响，主要涉及欧洲机械设备和原材料"
+      },
+      "gold18": {
+        "label": "18K金",
+        "role": "国际金价与美元汇率在国内市场的反映"
+      },
+      "ounce": {
+        "label": "国际金价（盎司）",
+        "role": "全球经济风险规避与通胀的指标"
+      },
+      "billet": {
+        "label": "钢坯",
+        "role": "主要原材料，也是螺纹钢和工字钢价格最直接的驱动因素"
+      }
+    },
+    "faq": {
+      "0": {
+        "question": "为什么美元上涨时螺纹钢价格也会上涨？",
+        "answer": "因为螺纹钢的主要原材料钢坯，在伊朗商品交易所是按进口铁矿石和废钢的美元成本定价的。美元升值会推高钢厂的这一成本，通常在几周内影响螺纹钢和工字钢的最终价格。"
+      },
+      "1": {
+        "question": "国际金价（盎司）与钢铁价格有什么关系？",
+        "answer": "当市场对通胀或全球经济不稳定的担忧上升时，资金往往同时涌向黄金以及铁、铜等基础金属，因为二者都被视为实物资产。因此，在市场剧烈波动时期，国际金价与全球钢铁价格常常同向变动。"
+      },
+      "2": {
+        "question": "如果今天美元上涨，螺纹钢价格当天就会变化吗？",
+        "answer": "通常不会。钢厂是根据近几日的汇率来调整价格的，而非实时调整，现有库存或已签订的合同也可能使这一影响延迟数天到数周才显现。美元与钢铁价格的关系是同向的，但并非同步的。"
+      },
+      "3": {
+        "question": "欧元对钢铁价格的影响和美元一样吗？",
+        "answer": "欧元的影响更弱、更间接，因为国际市场上铁矿石和废钢的采购主要以美元计价。欧元对那些从欧洲进口特定机械设备或原材料的钢厂影响更大，而非对整个钢铁市场。"
+      },
+      "4": {
+        "question": "Ahantime的钢坯价格是如何确定的？",
+        "answer": "与通过自动实时监测记录的美元和黄金不同，钢坯价格是由Ahantime的专家团队基于伊朗商品交易所审核后录入的。这是有意为之的做法：目的是防止虚假、瞬时的波动影响这一直接驱动螺纹钢和工字钢价格的数字。"
+      },
+      "5": {
+        "question": "能否根据今天的美元汇率准确预测明天的钢铁价格？",
+        "answer": "不能精确预测。美元只是几个关键变量之一，并非唯一因素：国内供应、出口政策，甚至钢厂库存水平也会影响最终价格。美元汇率只能显示钢铁价格变动的方向，而非变化的确切幅度。"
+      }
+    },
+    "relatedTitle": "延伸阅读"
+  },
+  "emptyPresets": {
+    "filterNoResults": {
+      "headline": "未找到匹配结果",
+      "body": "没有符合这些筛选条件的产品。请简化筛选条件，或咨询 Ahantime。",
+      "clearFilters": "清除筛选"
+    },
+    "emptyCategory": {
+      "headline": "该分类即将上线",
+      "body": "该分类下暂无产品。提交需求，我们的专员会为您提供帮助。",
+      "otherCategories": "其他分类"
+    },
+    "noPrice": {
+      "headline": "获取实时报价",
+      "body": "我们的专员会为您提供该产品的最新报价。",
+      "callWithPhone": "致电 {phone}"
+    },
+    "searchNoResults": {
+      "headline": "未找到相关内容",
+      "body": "未找到与「{q}」相关的结果。请检查拼写，或咨询 Ahantime。",
+      "viewCategories": "浏览分类"
+    },
+    "aiRelayDown": {
+      "headline": "暂时无法计算",
+      "body": "请稍后重试，或提交需求，我们的专员会与您联系。"
+    },
+    "favoritesEmpty": {
+      "headline": "暂无收藏",
+      "body": "点击 ♡ 收藏产品，即可在此查看。"
+    },
+    "requestsEmpty": {
+      "headline": "暂无提交的需求",
+      "body": "从价格表或 Ahantime 提交需求，即可在此跟踪进度。"
+    },
+    "alertsEmpty": {
+      "headline": "暂无价格提醒",
+      "body": "点击任意产品或市场指标旁的 🔔 图标，价格达到目标值时即可收到短信提醒。"
+    },
+    "cartEmpty": {
+      "headline": "询价车是空的",
+      "body": "将产品加入询价车，即可一次性获取合并报价单。",
+      "backToPrices": "返回价格页"
+    },
+    "chartInsufficient": {
+      "headline": "历史数据尚不足",
+      "body": "积累更多价格记录后，图表将在此显示。"
+    },
+    "serverError": {
+      "headline": "出错了",
+      "body": "问题出在我们这边，请稍后重试。",
+      "contactUs": "联系我们"
+    },
+    "offline": {
+      "headline": "网络连接已断开",
+      "body": "网络恢复后将自动更新。"
+    },
+    "authRequired": {
+      "headline": "请登录后继续",
+      "body": "使用手机号和短信验证码登录。"
+    }
+  },
+  "search": {
+    "title": "搜索",
+    "lede": "在安挺的产品、分类和文章中搜索。先咨询，后购买。",
+    "searchPlaceholder": "搜索产品、规格、工厂或文章…",
+    "emptyQueryHeadline": "您在寻找什么？",
+    "emptyQueryBody": "输入产品名称、规格、工厂或文章标题，例如「14号螺纹钢」或「马钢」。",
+    "resultsSummary": "「{q}」的搜索结果：{count} 条",
+    "filterAriaLabel": "按结果类型筛选",
+    "filterAll": "全部",
+    "typeLabel": {
+      "sku": "产品",
+      "category": "分类",
+      "article": "文章与资讯"
+    },
+    "noResultsForType": "此分类下没有结果——请尝试「全部」筛选。",
+    "groupAriaLabel": {
+      "products": "产品结果",
+      "categories": "分类结果",
+      "articles": "文章结果"
+    },
+    "groupCount": "{count} 项",
+    "groupCountTruncated": "{count} 项（显示前 {cap} 项）",
+    "moreCategories": "查看全部分类",
+    "moreArticles": "查看博客",
+    "sortAriaLabel": "结果排序",
+    "sort": {
+      "relevance": "相关度最高",
+      "price": "价格最低",
+      "factory": "工厂"
+    },
+    "productsGroupTitle": "产品",
+    "categoriesGroupTitle": "分类",
+    "articlesGroupTitle": "文章与资讯",
+    "sizeLabel": "规格",
+    "truncatedProductsNote": "如需查看此次搜索的全部产品，请使用价格列表页面的筛选功能。",
+    "popularCategoriesTitle": "热门分类"
+  },
+  "articleCard": {
+    "articleKicker": "文章",
+    "minutesUnit": "分钟",
+    "readMore": "阅读全文"
+  },
+  "comments": {
+    "title": "读者评论",
+    "listAriaLabel": "评论",
+    "totalCount": "{count} 条评论",
+    "helpfulTotal": "{count} 个有用投票",
+    "sortAriaLabel": "评论排序",
+    "sortNewest": "最新",
+    "sortHelpful": "最有用",
+    "emptyHeadline": "暂无评论",
+    "emptyBody": "来分享你对这篇文章的看法吧，做第一个评论的人。",
+    "youLabel": "你",
+    "pendingBadge": "待审核",
+    "pendingNote": "在通过审核之前，仅你自己可见。",
+    "anonymousAuthor": "安挺用户",
+    "verifiedBuyerBadge": "安挺认证买家",
+    "helpfulButton": "👍 有用",
+    "commentLabel": "你的评论",
+    "commentPlaceholder": "分享你对这篇文章的评论或体会……",
+    "submitting": "正在提交……",
+    "submitButton": "发布评论",
+    "submitError": "发布评论失败，请重试。",
+    "voteError": "投票失败，请重试。",
+    "loginPrompt": "请先登录账户后再发表评论。",
+    "loginCta": "登录或注册"
+  },
+  "articleIndex": {
+    "blog": {
+      "overline": "学习中心",
+      "h1": "安挺博客",
+      "lede": "采购指南、市场分析与钢铁知识——写给先咨询、后购买的买家。",
+      "listTitle": "全部文章",
+      "featuredTitle": "最新文章",
+      "emptyHeadline": "暂无发布的文章",
+      "emptyBody": "安挺的第一批文章即将在此发布。"
+    },
+    "news": {
+      "overline": "市场资讯",
+      "h1": "钢铁市场资讯",
+      "lede": "生产、供应与钢坯价格的最新动态——购买前先把握市场脉搏。",
+      "listTitle": "全部文章",
+      "emptyHeadline": "暂无发布的资讯",
+      "emptyBody": "最新市场资讯发布后将显示在这里。"
+    }
+  },
+  "categoryRail": {
+    "label": "按产品浏览文章",
+    "ariaLabel": "文章分类",
+    "articleCount": "{count} 篇文章"
+  },
+  "newsTopicRail": {
+    "label": "按主题浏览资讯",
+    "ariaLabel": "市场资讯主题",
+    "topic": {
+      "rates-exchange": "价格与大宗商品交易",
+      "production-mills": "生产与钢厂",
+      "trade": "进出口贸易",
+      "policy-regulation": "政策与法规",
+      "global-market": "全球市场动态",
+      "demand-construction": "需求与建筑"
+    }
+  },
+  "clubLanding": {
+    "overline": "客户俱乐部",
+    "h1": "安挺客户俱乐部",
+    "heroLead": "您的忠诚有其价值。每次询价和购买都会提升您的等级，让您享有优先供货、多产品同时设置价格提醒，以及专属顾问服务。按订单量的阶梯折扣也会自动应用于所有客户——无论是否为会员——这正是我们始终坚持的理念：「先咨询，后购买」。",
+    "heroHint": "会员免费加入，登录并在「我的俱乐部」确认后即可激活。",
+    "tiersHeading": "三个等级，权益递增",
+    "tiersSub": "从「铁级」开始，随着持续合作逐步升级至「钢级」及「精钢级」。",
+    "levelLabel": "等级 {n}",
+    "mostPopular": "最受欢迎",
+    "joinHeading": "如何加入？",
+    "joinSub": "三个简单步骤，即可享受俱乐部首批权益。",
+    "steps": {
+      "step1": {
+        "title": "使用手机号注册",
+        "body": "使用手机号登录账户，然后在「我的俱乐部」中激活免费会员资格。"
+      },
+      "step2": {
+        "title": "首次询价或购买",
+        "body": "将产品加入询价车；我们的团队会联系您提供形式发票。"
+      },
+      "step3": {
+        "title": "升级等级",
+        "body": "随着持续合作，您将自动升级至「钢级」，随后升级至「精钢级」。"
+      }
+    },
+    "closingHeading": "立即加入",
+    "closingLead": "登录账户，在「我的俱乐部」中激活会员资格，即可在下次询价中开始累积积分。",
+    "closingNote": "有疑问？我们的工作人员随时为您提供帮助。"
+  },
+  "clubCtas": {
+    "myClub": "我的俱乐部",
+    "registerLogin": "注册／登录"
+  },
+  "arrivalPopup": {
+    "ariaLabel": "安挺客户俱乐部邀请",
+    "title": "新产品与最新价格已上线",
+    "desc": "加入安挺客户俱乐部，享受优先供货与专属价格提醒。",
+    "cta": "查看客户俱乐部"
+  },
+  "logo": {
+    "homeAriaLabel": "{brand}，首页",
+    "tagline": "智能钢铁市场"
+  },
+  "legalDoc": {
+    "tocTitle": "目录",
+    "tocAriaLabel": "目录导航"
+  },
+  "pricesPage": {
+    "title": "今日钢铁价格",
+    "intro": "各类钢材的基准价格——从螺纹钢、工字钢到钢板、型材和管材——汇总在一张表格中。所有价格均由安挺工作人员在与工厂核实后手动录入，不含增值税，按公斤计价；进入某一类别的完整价目表可查看全部规格和工厂。",
+    "faq": {
+      "item1": {
+        "question": "安挺如何确定今日钢铁价格？",
+        "answer": "每个价格均由安挺工作人员在与工厂和市场核实后手动录入；不会根据公式或交易所行情自动生成任何数字。每张表格都标注了最近一次更新的日期和时间，若某价格已过期，会显示\"致电询价\"而非旧数字。"
+      },
+      "item2": {
+        "question": "显示的价格是否含增值税？",
+        "answer": "不含。安挺发布的所有价格均不含增值税，按公斤计价。增值税和运费将在正式形式发票中单独计算并加入。"
+      },
+      "item3": {
+        "question": "为什么今天的螺纹钢价格与昨天不同？",
+        "answer": "钢材价格取决于钢坯价格、美元汇率和工厂供应量，这些变量每天都在变化。安挺表格中的\"涨跌\"列准确反映了相对最近一次记录价格的变化。"
+      },
+      "item4": {
+        "question": "购买需要在线支付吗？",
+        "answer": "不需要。安挺没有在线支付功能。您选择所需产品并提交形式发票请求，随后销售顾问会致电确认库存和交货时间，最终由人工完成购买。"
+      },
+      "item5": {
+        "question": "所显示的价格有效期多久？",
+        "answer": "网站价格会与最近一次更新的时间一并显示。最终具有约束力的价格以已开具的形式发票为准，其有效期在该发票中注明。"
+      }
+    }
+  },
+  "toolsPage": {
+    "weight": {
+      "title": "钢材截面重量计算器",
+      "intro": "使用标准公式和钢材密度7.85克/立方厘米，计算螺纹钢、钢板、管材、扁钢、角钢、工字钢和槽钢的理论重量。结果按每根及整单显示，并附所用公式。"
+    },
+    "project": {
+      "title": "项目用钢估算器",
+      "intro": "选择项目类型（混凝土建筑、钢结构或工业厂房），获取所需材料及其大致成本的初步估算。如需精确数字，请与智能顾问对话。"
+    },
+    "cost": {
+      "title": "采购成本计算器",
+      "intro": "选择类别和产品，以根或公斤为单位输入数量，查看包含增值税和交货时间的大致采购成本，然后直接加入询价车。"
+    }
+  },
+  "requestPage": {
+    "title": "提交形式发票申请",
+    "subtitle": "此申请将记录在您的账户（{user}）下，销售顾问将通过该号码与您联系。"
+  },
+  "privacyPage": {
+    "eyebrow": "法律",
+    "title": "隐私政策",
+    "lead": "我们仅收集提供询价服务所必需的信息，绝不出售您的数据。",
+    "alertTitle": "数据最少，尊重最多",
+    "alertBody": "查看价格无需注册；仅在您提交询价请求以及接收验证码时才需要您的手机号码。",
+    "lastUpdated": "最近更新：{date}",
+    "sections": {
+      "intro": {
+        "title": "引言",
+        "body": "保护您的隐私对我们至关重要。本文件说明安挺（Ahantime）收集哪些信息、为何以及如何使用这些信息，以及您对自己数据享有的权利。我们仅收集提供询价服务所必需的信息。"
+      },
+      "collect": {
+        "title": "我们收集哪些信息",
+        "item1": "<b>手机号码</b>：用于提交询价请求、通过验证码（OTP）进行身份验证，以及供销售顾问联系您以完成形式发票。",
+        "item2": "<b>请求信息</b>：添加到询价车中的商品清单，以及提供报价和交货所需的规格信息。",
+        "item3": "<b>您与智能顾问的对话</b>：您在「智能顾问」板块中输入的消息内容及顾问的回复。如果您在对话中写下自己的姓名或手机号码，该姓名和号码也将成为对话文本的一部分。下文「人工智能与跨境处理」部分说明了该文本在何处被处理。",
+        "item4": "<b>基本技术数据</b>：用于维护安全、确保正常运行并改善用户体验的常规浏览器和设备信息。"
+      },
+      "use": {
+        "title": "信息使用方式",
+        "item1": "回复您的询价请求，并联系您告知价格、库存与交货时间。",
+        "item2": "发送验证码及与您的请求相关的通知。",
+        "item3": "改善服务质量、定价及平台使用体验。"
+      },
+      "ai": {
+        "title": "人工智能与跨境处理",
+        "p1": "安挺的「智能顾问」板块基于 <b>Surplus Intelligence</b> 提供的语言模型运行。该模型并非运行于安挺自有服务器上；为生成回复，您的对话文本会从安挺服务器发送至位于<b>伊朗境外的中转服务器</b>，再由该服务器转发至模型提供方。",
+        "p2": "<b>这在实际中意味着：</b> 您在对话框中输入的任何内容都会离开伊朗。如果您在对话文本中写下姓名、手机号码、地址、项目详情或其他任何个人或商业信息，这些信息也会随对话一并发送。数据离开伊朗后，将受该境外提供方的法律及服务条款约束，安挺无法完全控制该服务对数据的保留或删除。",
+        "p3": "<b>不会被发送的内容：</b> 您登录账户所用的手机号码、验证码（OTP）、询价车、形式发票及订单记录，均保存在安挺<i>位于伊朗境内</i>的数据库中，不会为智能顾问功能发送至境外服务器。对话文本同样保存在该境内数据库中，以便审核并改进回复质量。",
+        "p4": "<b>您的选择：</b> 使用智能顾问完全是自愿的。查看价格、提交询价请求、联系销售顾问均无需使用顾问对话功能。如果您希望不让任何数据离开伊朗，请不要使用该板块，改为直接通过询价表单或电话提交请求。我们建议您在对话中不要填写超出获得回复所需的个人信息。",
+        "p5": "智能顾问的回复基于安挺的真实数据生成，但不能替代与销售顾问的沟通，也不构成最终报价依据或销售承诺。"
+      },
+      "sms": {
+        "title": "短信发送",
+        "body": "安挺的短信（如验证码及请求通知）通过总部位于伊朗的短信服务 <b>SMS.ir</b> 发送。仅发送短信所需的数据（手机号码及相关文本内容）会提供给该服务。"
+      },
+      "analytics": {
+        "title": "Cookie 与访问统计",
+        "p1": "我们使用 <b>Matomo</b> 统计页面访问量。Matomo 部署在安挺自有服务器上，您的访问统计数据不会发送至任何外部广告或分析服务。",
+        "p2": "该统计功能以<b>无 Cookie 模式</b>运行：不会在您的设备上存储任何跟踪 Cookie，也不会创建持久标识符以在不同访问间跟踪您。您的 IP 地址在记录前也会进行匿名化处理。因此，我们的统计数据仅为页面访问量的总体计数，而非个人行为记录。如果您的浏览器发送「请勿跟踪」（Do Not Track）请求，我们将予以尊重，您的访问将不会被记录。",
+        "p3": "网站设置的其他 Cookie 仅用于功能性用途，例如保持登录状态及记住您的询价车，不会用于广告投放或出售给他方。"
+      },
+      "noSale": {
+        "title": "不出售数据",
+        "body": "我们<b>绝不出售</b>您的个人信息，也不会以获取报酬为目的与第三方共享该信息。数据仅在提供服务或满足法律要求所必需的范围内使用。"
+      },
+      "security": {
+        "title": "数据保留与安全",
+        "body": "您的信息将采用常规的技术与组织性保障措施进行保存，仅在实现上述目的或满足法律要求所需的期限内予以保留。数据访问权限仅限于获授权人员。"
+      },
+      "rights": {
+        "title": "用户权利",
+        "item1": "请求查阅或更正我们保存的关于您的信息。",
+        "item2": "在法律与运营要求允许的范围内，请求删除您的数据。",
+        "item3": "请求从安挺数据库中删除您与智能顾问的对话文本。请注意，从我们服务器中删除数据本身并不会删除该境外模型提供方所保存的数据。",
+        "item4": "取消订阅非必要的通知消息。"
+      },
+      "contact": {
+        "title": "联系我们",
+        "body": "如需行使您的权利或有任何隐私相关问题，可通过座机 <landline>x</landline> 或手机 <mobile>x</mobile> 与我们联系。"
+      }
+    }
+  },
+  "termsPage": {
+    "eyebrow": "法律",
+    "title": "条款与条件",
+    "lead": "请在提交询价请求前阅读安挺的使用条款。使用本平台即视为接受这些条款。",
+    "alertTitle": "无在线支付",
+    "alertBody": "安挺不提供任何在线支付；购买流程基于询价、形式发票开具及销售顾问联系。",
+    "lastUpdated": "最近更新：{date}",
+    "sections": {
+      "definitions": {
+        "title": "定义",
+        "item1": "<b>「安挺」</b>：钢铁价格与供应的在线市场平台，本文件中简称「平台」或「我们」。",
+        "item2": "<b>「用户」</b>：访问本平台或提交询价请求的任何自然人或法人。",
+        "item3": "<b>「询价」</b>：用户通过询价车提交的、请求获取一项或多项商品的价格、库存及交货条件的请求。",
+        "item4": "<b>「形式发票」</b>：在销售顾问联系用户之前出具的、载有商品清单及预估价格的不具约束力的文件。"
+      },
+      "service": {
+        "title": "服务性质与询价",
+        "p1": "安挺是一个价格信息平台及询价中介平台。展示某商品的价格并不构成具有约束力的销售要约，也不保证该商品的库存。用户将所需商品添加至询价车并提交请求；随后我们的销售顾问会联系用户，以确定最终价格、库存及交货时间。",
+        "p2": "<b>安挺不提供任何在线支付。</b> 整个购买流程均基于询价、协商与直接联系，最终协议在双方达成一致后于平台之外订立。"
+      },
+      "prices": {
+        "title": "价格与增值税",
+        "p1": "所显示价格以<b>托曼</b>计价，并按公斤计算（另有说明者除外），由我们的团队根据当日市场及工厂行情手动更新。由于市场波动，最终价格将在联系及开具发票时公布并确认。",
+        "p2": "增值税按法定税率（目前为 10%）计算。用户可通过「含增值税」切换选项查看含税价格。钢坯及部分特定商品的价格由我们团队手动录入。"
+      },
+      "request": {
+        "title": "提交请求与联系",
+        "p1": "提交请求时，将收集用户的手机号码，并通过发送一次性验证码（OTP）进行验证。用户承诺提供准确、最新的信息。提交请求即表示用户同意我们的销售顾问就该询价与其联系。",
+        "p2": "将商品加入询价车并获取形式发票不会为用户产生任何财务义务，在达成最终协议之前，用户可自由拒绝或继续该请求。"
+      },
+      "delivery": {
+        "title": "交货与运输",
+        "body": "所显示的交货时间为预估值，取决于工厂库存、运输条件及目的地。运输、装卸费用（如适用）将单独计算，并在发货前告知用户。交货时间及条件的最终确认将在销售顾问联系时完成。"
+      },
+      "responsibilities": {
+        "title": "责任",
+        "item1": "用户对其提供信息的准确性及平台的合法使用负责。",
+        "item2": "我们努力提供准确的价格及技术信息（单位重量、钢号、标准），但由于市场性质，对最终确认前出现的明显打字错误或瞬时波动不承担责任。",
+        "item3": "计算工具及智能顾问仅供参考，不能替代专业咨询或项目工程计算。"
+      },
+      "ip": {
+        "title": "知识产权",
+        "body": "平台的全部内容，包括文字、「{orgName}」商标、设计、价格数据及文章，均归安挺所有；未经书面许可，禁止任何复制、转载或商业性使用。"
+      },
+      "changes": {
+        "title": "条款变更",
+        "body": "我们可能会根据需要更新本条款。更新版本自在本页面发布之日起生效，继续使用本平台即视为接受新条款。"
+      },
+      "contact": {
+        "title": "联系我们",
+        "body": "如对本条款有任何疑问，可通过座机 <landline>x</landline> 或手机 <mobile>x</mobile> 与我们联系，或使用联系页面。"
+      }
+    }
+  },
+  "articleDetail": {
+    "notFoundBlog": "未找到该文章",
+    "notFoundNews": "未找到该新闻",
+    "crumbBlog": "博客",
+    "crumbNews": "市场资讯",
+    "kickerBlog": "文章",
+    "kickerNews": "市场资讯",
+    "byline": "安挺编辑部",
+    "backToBlog": "返回博客",
+    "backToNews": "返回资讯",
+    "relatedBlog": "相关文章",
+    "relatedNews": "相关资讯"
   }
 }

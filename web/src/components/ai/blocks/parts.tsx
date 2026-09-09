@@ -1,6 +1,8 @@
-import { toPersianDigits } from '@/lib/utils/format';
+import { useTranslations, useLocale } from 'next-intl';
+import { localizeDigits } from '@/lib/utils/format';
 import { formatJalali } from '@/lib/utils/jalali';
 import { ClockIcon } from '@/components/primitives/icons';
+import type { AppLocale } from '@/i18n/config';
 import styles from './blocks.module.css';
 
 /**
@@ -13,18 +15,19 @@ import styles from './blocks.module.css';
  * `<time>` carries the machine-readable ISO alongside the Jalali text.
  */
 export function Freshness({ at, stale }: { at: string; stale?: boolean }) {
+  const t = useTranslations('ai.blocks.freshness');
   const parsed = Date.parse(at);
   if (!Number.isFinite(parsed)) return null;
   return (
     <p className={`${styles.freshness}${stale ? ` ${styles.freshnessStale}` : ''}`}>
       <ClockIcon size={13} aria-hidden="true" />
       <span>
-        آخرین به‌روزرسانی:{' '}
+        {t('label')}{' '}
         <time dateTime={at} className="tnum">
-          {formatJalali(at)} ساعت {formatJalali(at, 'HH:mm')}
+          {formatJalali(at)} {t('at')} {formatJalali(at, 'HH:mm')}
         </time>
       </span>
-      {stale ? <span className={styles.staleTag}>نیازمند تأیید کارشناس</span> : null}
+      {stale ? <span className={styles.staleTag}>{t('staleTag')}</span> : null}
     </p>
   );
 }
@@ -49,11 +52,12 @@ export function CardHead({
   title?: string;
   subtitle?: string;
 }) {
+  const locale = useLocale() as AppLocale;
   return (
     <div className={styles.head}>
       <span className={styles.badge}>{badge}</span>
       {title ? <h3 className={styles.title}>{title}</h3> : null}
-      {subtitle ? <p className={styles.subtitle}>{toPersianDigits(subtitle)}</p> : null}
+      {subtitle ? <p className={styles.subtitle}>{localizeDigits(subtitle, locale)}</p> : null}
     </div>
   );
 }

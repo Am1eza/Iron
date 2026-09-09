@@ -8,6 +8,7 @@
  * costly to leave half-saved than a wrong logo is to re-pick.
  */
 import { useId, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { meApi } from '@/lib/api/resources/me';
 import { ApiError } from '@/lib/api/errors';
 import { compressImageForUpload } from '@/lib/utils/compressImage';
@@ -30,6 +31,7 @@ export interface LetterheadValue {
 
 export function LetterheadForm({ initial }: { initial: LetterheadValue }) {
   const toast = useToast();
+  const t = useTranslations('account.letterhead');
   const errId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const [logoUrl, setLogoUrl] = useState(initial.logoUrl);
@@ -45,20 +47,20 @@ export function LetterheadForm({ initial }: { initial: LetterheadValue }) {
   const handleLogo = async (file: File) => {
     setLogoError(null);
     if (!ALLOWED_TYPES.has(file.type)) {
-      setLogoError('فقط تصاویر JPG، PNG یا WebP مجاز است.');
+      setLogoError(t('logoTypeError'));
       return;
     }
     if (file.size > MAX_BYTES) {
-      setLogoError('حجم فایل نباید از ۵ مگابایت بیشتر باشد.');
+      setLogoError(t('logoSizeError'));
       return;
     }
     setLogoBusy(true);
     try {
       const { url } = await meApi.letterhead.uploadLogo(await compressImageForUpload(file));
       setLogoUrl(url);
-      toast.success('لوگو ذخیره شد.');
+      toast.success(t('logoSuccess'));
     } catch (err) {
-      setLogoError(err instanceof ApiError ? err.message : 'آپلود ناموفق بود؛ دوباره تلاش کنید.');
+      setLogoError(err instanceof ApiError ? err.message : t('logoUploadError'));
     } finally {
       setLogoBusy(false);
     }
@@ -72,9 +74,9 @@ export function LetterheadForm({ initial }: { initial: LetterheadValue }) {
         address: address.trim(),
         phone: phone.trim(),
       });
-      toast.success('سربرگ اختصاصی ذخیره شد.');
+      toast.success(t('saveSuccess'));
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'ذخیره ناموفق بود؛ دوباره تلاش کنید.');
+      toast.error(err instanceof ApiError ? err.message : t('saveError'));
     } finally {
       setSaving(false);
     }
@@ -83,13 +85,10 @@ export function LetterheadForm({ initial }: { initial: LetterheadValue }) {
   return (
     <section className={styles.wrap}>
       <div className={styles.head}>
-        <h4 className={styles.title}>سربرگ اختصاصی پیش‌فاکتور</h4>
-        {usable ? <Badge tone="gain">فعال</Badge> : null}
+        <h4 className={styles.title}>{t('title')}</h4>
+        {usable ? <Badge tone="gain">{t('activeBadge')}</Badge> : null}
       </div>
-      <p className={styles.lead}>
-        به‌عنوان عضو سطح پولادی می‌توانید پیش‌فاکتورهای خود را با لوگو و مشخصات شرکت خودتان دانلود کنید،
-        به‌جای سربرگ آهن‌تایم. لوگو و نام شرکت هر دو لازم است تا این گزینه روی پیش‌فاکتورهایتان فعال شود.
-      </p>
+      <p className={styles.lead}>{t('lead')}</p>
 
       <div className={styles.logoRow}>
         {logoUrl ? (
@@ -107,7 +106,7 @@ export function LetterheadForm({ initial }: { initial: LetterheadValue }) {
             disabled={logoBusy}
             onClick={() => inputRef.current?.click()}
           >
-            {logoUrl ? 'تعویض لوگو' : 'انتخاب لوگو'}
+            {logoUrl ? t('logoChange') : t('logoChoose')}
           </Button>
           <input
             ref={inputRef}
@@ -131,20 +130,20 @@ export function LetterheadForm({ initial }: { initial: LetterheadValue }) {
 
       <div className={styles.fields}>
         <TextInput
-          label="نام شرکت"
+          label={t('companyNameLabel')}
           value={companyName}
           onChange={(e) => setCompanyName(e.target.value)}
           maxLength={80}
-          placeholder="مثلاً: شرکت فولاد سازان پارس"
+          placeholder={t('companyNamePlaceholder')}
         />
         <TextInput
-          label="آدرس (اختیاری)"
+          label={t('addressLabel')}
           value={address}
           onChange={(e) => setAddress(e.target.value)}
           maxLength={300}
         />
         <TextInput
-          label="تلفن (اختیاری)"
+          label={t('phoneLabel')}
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
           dir="ltr"
@@ -153,7 +152,7 @@ export function LetterheadForm({ initial }: { initial: LetterheadValue }) {
       </div>
 
       <Button onClick={save} disabled={saving} loading={saving}>
-        {saving ? 'در حال ذخیره…' : 'ذخیرهٔ اطلاعات'}
+        {saving ? t('saving') : t('save')}
       </Button>
     </section>
   );

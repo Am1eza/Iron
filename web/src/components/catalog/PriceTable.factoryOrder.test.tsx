@@ -53,7 +53,7 @@ function renderTable(rows: PriceRow[], factoryOrder?: string[]) {
       <PriceTable
         rows={rows}
         subs={SUBS}
-        categoryName="میلگرد"
+        category={{ id: 'rebar', slug: 'rebar', name: 'میلگرد', order: 0, iconId: '' }}
         categorySlug="rebar"
         factoryOrder={factoryOrder}
       />

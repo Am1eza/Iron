@@ -1,13 +1,15 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { routes } from '@/lib/routes';
-import { toPersianDigits, normalizeDigits, formatToman } from '@/lib/utils/format';
+import { toPersianDigits, normalizeDigits, formatToman, localizeDigits } from '@/lib/utils/format';
 import { Card, Stack, Cluster, Text, Alert } from '@/components/ui';
 import { AiMarkIcon, ArrowEndIcon, ChevronDownIcon } from '@/components/primitives/icons';
 import type { PriceRow } from '@/lib/types/domain';
+import type { AppLocale } from '@/i18n/config';
 import styles from './ProjectEstimator.module.css';
 
 /**
@@ -45,66 +47,44 @@ import styles from './ProjectEstimator.module.css';
  * client `PriceTable`/`CostCalculator`/`WeightCalculator` already use) —
  * this used to read `@/lib/mock/catalogData`'s seeded-PRNG fixtures
  * unconditionally, the same bug already fixed for `/tools/cost` in #99.
+ *
+ * All display strings are localized (i18n audit follow-up) — the
+ * engineering-source Persian labels in the comments above are for the
+ * benefit of future maintainers cross-checking against those references;
+ * the coefficient tables themselves are language-independent.
  */
 
 type ProjectType = 'concrete' | 'steel' | 'shed';
-type SystemOption = { key: string; label: string; range: [number, number]; mid: number };
-type CategoryOption = { slug: string; label: string };
+type SystemKey = string;
+type SystemOption = { key: SystemKey; range: [number, number]; mid: number };
+type CategoryKey = 'ibeam' | 'profile' | 'angleChannel';
 
-/** اسکلت بتنی — وزن میلگرد بر مترمربع زیربنا، به تفکیک سیستم باربر جانبی
- *  (رادمان‌آهن). قاب خمشی+دیوار برشی رایج‌ترین سیستم مقاوم در برابر زلزله
- *  در ساختمان‌های بتنی ایران است — پیش‌فرض. */
 const CONCRETE_LATERAL_SYSTEMS: SystemOption[] = [
-  { key: 'shearwall', label: 'قاب خمشی + دیوار برشی', range: [35, 60], mid: 48 },
-  { key: 'moment-medium', label: 'قاب خمشی متوسط', range: [40, 55], mid: 48 },
-  { key: 'moment-special', label: 'قاب خمشی ویژه (مقاومت بالا در برابر زلزله)', range: [45, 70], mid: 58 },
+  { key: 'shearwall', range: [35, 60], mid: 48 },
+  { key: 'moment-medium', range: [40, 55], mid: 48 },
+  { key: 'moment-special', range: [45, 70], mid: 58 },
 ];
 
-/** اسکلت فلزی — وزن کل آهن‌آلات مصرفی بر مترمربع (ستون/تیر/بادبند/اتصالات
- *  با هم، بدون سقف)، به تفکیک سیستم باربر جانبی (رادمان‌آهن). مهاربندی
- *  هم‌مرکز به‌صرفه‌ترین و رایج‌ترین سیستم در ساختمان‌های میان‌مرتبه است —
- *  پیش‌فرض. */
 const STEEL_LATERAL_SYSTEMS: SystemOption[] = [
-  { key: 'cbf', label: 'مهاربندی هم‌مرکز (CBF)', range: [45, 70], mid: 58 },
-  { key: 'ebf', label: 'مهاربندی غیرهم‌مرکز (EBF)', range: [50, 75], mid: 63 },
-  { key: 'moment-medium', label: 'قاب خمشی متوسط', range: [65, 105], mid: 85 },
-  { key: 'moment-special', label: 'قاب خمشی ویژه', range: [70, 115], mid: 93 },
-  { key: 'dual', label: 'سیستم دوگانه', range: [70, 120], mid: 95 },
+  { key: 'cbf', range: [45, 70], mid: 58 },
+  { key: 'ebf', range: [50, 75], mid: 63 },
+  { key: 'moment-medium', range: [65, 105], mid: 85 },
+  { key: 'moment-special', range: [70, 115], mid: 93 },
+  { key: 'dual', range: [70, 120], mid: 95 },
 ];
 
-/** وزن آرماتور/فولاد سقف بر مترمربع، به تفکیک نوع سقف (رادمان‌آهن) —
- *  تیرچه‌بلوک اقتصادی‌ترین و رایج‌ترین سیستم سقف در اسکلت بتنی سبک ایران
- *  است؛ کامپوزیت (عرشهٔ فولادی) رایج‌ترین گزینه در اسکلت فلزی است. */
 const ROOF_SYSTEMS: SystemOption[] = [
-  { key: 'joist-block', label: 'تیرچه و بلوک', range: [5, 7], mid: 6 },
-  { key: 'solid-slab', label: 'دال بتنی توپر', range: [10, 16], mid: 13 },
-  { key: 'composite', label: 'کامپوزیت (عرشهٔ فولادی)', range: [8, 12], mid: 10 },
+  { key: 'joist-block', range: [5, 7], mid: 6 },
+  { key: 'solid-slab', range: [10, 16], mid: 13 },
+  { key: 'composite', range: [8, 12], mid: 10 },
 ];
 
-const STEEL_FRAME_CATEGORIES: CategoryOption[] = [
-  { slug: 'ibeam', label: 'تیرآهن' },
-  { slug: 'profile', label: 'پروفیل و قوطی' },
-  { slug: 'angle-channel', label: 'نبشی و ناودانی' },
-];
-const SHED_FRAME_CATEGORIES: CategoryOption[] = [
-  { slug: 'ibeam', label: 'تیرآهن' },
-  { slug: 'profile', label: 'پروفیل و قوطی' },
-];
+const STEEL_FRAME_CATEGORY_KEYS: CategoryKey[] = ['ibeam', 'profile', 'angleChannel'];
+const SHED_FRAME_CATEGORY_KEYS: CategoryKey[] = ['ibeam', 'profile'];
 
-/** بتن — اسکلت بتنی شامل فونداسیون، ستون، تیر و سقف: بازهٔ رایج ۰٫۳۵ تا ۰٫۵
- *  مترمکعب بر مترمربع، با ۰٫۴ به‌عنوان مقدار پراستنادترین منبع. بتن کالای
- *  کاتالوگ آهن‌تایم نیست — این خط صرفاً اطلاعاتی است، بدون انتخاب SKU. */
 const CONCRETE_M3_RANGE: [number, number] = [0.35, 0.5];
 const CONCRETE_M3_PER_M2 = 0.4;
 
-/**
- * سوله — جدول برآورد وزن سوله تیرورقی (سازه‌نگار سینا)، محاسبه‌شده بر پایهٔ
- * بار برف ۱۰۰ کیلوگرم بر مترمربع (استاندارد تهران) و سرعت باد ۸۵ کیلومتر بر
- * ساعت — مناطق پرباربرف (مثلاً شمال کشور) به وزن به‌مراتب بیشتری نیاز دارند
- * (تا ۲۰۰ کیلوگرم بر مترمربع طبق سایر منابع). این عدد فقط اسکلت اصلی
- * (تیرورق/خرپا) است — پرلین، پوشش سقف/دیوار و فونداسیون جداست (به دلیل
- * وابستگی به فاصلهٔ پرلین/طراحی پوشش، سرانگشتی قابل استناد ندارد).
- */
 const SHED_SPANS: { span: number; columns: 0 | 1 | 2; kgPerM2: number }[] = [
   { span: 10, columns: 0, kgPerM2: 25 },
   { span: 15, columns: 0, kgPerM2: 28 },
@@ -116,38 +96,58 @@ const SHED_SPANS: { span: number; columns: 0 | 1 | 2; kgPerM2: number }[] = [
   { span: 60, columns: 1, kgPerM2: 40 },
   { span: 60, columns: 2, kgPerM2: 35 },
 ];
-const shedSpanLabel = (s: (typeof SHED_SPANS)[number]) =>
-  `${toPersianDigits(s.span)} متر${s.columns > 0 ? ` (با ${toPersianDigits(s.columns)} ستون میانی)` : ' (بدون ستون میانی)'}`;
 const shedOptionKey = (s: (typeof SHED_SPANS)[number]) => `${s.span}-${s.columns}`;
+
+type T = ReturnType<typeof useTranslations>;
+
+function shedSpanLabel(s: (typeof SHED_SPANS)[number], t: T, locale: AppLocale): string {
+  const span = localizeDigits(s.span, locale);
+  return s.columns > 0
+    ? t('shedSpanWithColumns', { span, columns: localizeDigits(s.columns, locale) })
+    : t('shedSpanWithoutColumns', { span });
+}
 
 function parse(value: string): number {
   const n = Number(normalizeDigits(value).replace(/[^\d.]/g, ''));
   return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
-function faNum(n: number, maxFrac = 1): string {
-  const str = n
-    .toLocaleString('en-US', { maximumFractionDigits: maxFrac })
-    .replace(/,/g, '٬');
-  return toPersianDigits(str);
+function faNum(n: number, locale: AppLocale, maxFrac = 1): string {
+  const str = n.toLocaleString('en-US', { maximumFractionDigits: maxFrac });
+  return locale === 'fa' ? toPersianDigits(str).replace(/,/g, '٬') : str;
 }
 
 /** For fixed decimal constants (e.g. 0.4 m³/m²) embedded in static disclaimer
- *  text — `toPersianDigits` alone leaves the "." as-is; every other
- *  hand-written Persian decimal on this site uses «٫». */
-function faDecimal(n: number): string {
-  return toPersianDigits(String(n)).replace('.', '٫');
+ *  text — fa uses the Persian decimal separator «٫», every other locale
+ *  keeps the plain ASCII point. */
+function localizedDecimal(n: number, locale: AppLocale): string {
+  return locale === 'fa' ? toPersianDigits(String(n)).replace('.', '٫') : String(n);
 }
 
-function rangeText([min, max]: [number, number]): string {
-  return `${toPersianDigits(min)} تا ${toPersianDigits(max)}`;
+function rangeText([min, max]: [number, number], t: T, locale: AppLocale): string {
+  return `${localizeDigits(min, locale)} ${t('rangeTo')} ${localizeDigits(max, locale)}`;
+}
+
+function joinedRanges(
+  systems: SystemOption[],
+  labelFor: (key: SystemKey) => string,
+  t: T,
+  locale: AppLocale,
+): string {
+  return systems
+    .map((s) => `${labelFor(s.key)} ${rangeText(s.range, t, locale)}`)
+    .join(t('listSeparator'));
 }
 
 /** «میلگرد آجدار A2 ۱۸ (ذوب‌آهن اصفهان)» — grade/size/factory make a rebar
  *  SKU meaningfully different in price; a bare product name alone (identical
  *  across grades) would leave the select unusable. */
-function skuLabel(row: PriceRow): string {
-  const bits = [row.grade, row.size ? `سایز ${row.size}` : null, row.factory].filter(Boolean);
+function skuLabel(row: PriceRow, t: T, locale: AppLocale): string {
+  const bits = [
+    row.grade,
+    row.size ? t('sizeBit', { size: localizeDigits(row.size, locale) }) : null,
+    row.factory,
+  ].filter(Boolean);
   return bits.length > 0 ? `${row.name} (${bits.join(' - ')})` : row.name;
 }
 
@@ -172,7 +172,7 @@ function useCategoryRows(slug: string) {
 function MaterialRow({
   label,
   weightKg,
-  categories,
+  categoryOptions,
   category,
   onCategoryChange,
   rows,
@@ -182,14 +182,16 @@ function MaterialRow({
 }: {
   label: string;
   weightKg: number;
-  categories?: CategoryOption[];
-  category?: string;
-  onCategoryChange?: (slug: string) => void;
+  categoryOptions?: { key: CategoryKey; label: string }[];
+  category?: CategoryKey;
+  onCategoryChange?: (key: CategoryKey) => void;
   rows: PriceRow[];
   skuId: string;
   onSkuChange: (id: string) => void;
   isLoading: boolean;
 }) {
+  const t = useTranslations('projectEstimator');
+  const locale = useLocale() as AppLocale;
   const selected = rows.find((r) => r.id === skuId) ?? null;
   const cost = selected ? weightKg * selected.current.price : null;
 
@@ -200,20 +202,20 @@ function MaterialRow({
           {label}
         </Text>
         <Text variant="caption" color="muted">
-          <span className="tnum">{faNum(weightKg)}</span> کیلوگرم
+          <span className="tnum">{faNum(weightKg, locale)}</span> {t('unitKg')}
         </Text>
       </div>
       <div className={styles.lineItemFields}>
-        {categories ? (
+        {categoryOptions ? (
           <div className={styles.selectWrap}>
             <select
               className={`${styles.select} ${styles.selectSm} tnum`}
               value={category}
-              onChange={(e) => onCategoryChange?.(e.target.value)}
-              aria-label={`دستهٔ محصول برای ${label}`}
+              onChange={(e) => onCategoryChange?.(e.target.value as CategoryKey)}
+              aria-label={t('categoryAria', { label })}
             >
-              {categories.map((c) => (
-                <option key={c.slug} value={c.slug}>
+              {categoryOptions.map((c) => (
+                <option key={c.key} value={c.key}>
                   {c.label}
                 </option>
               ))}
@@ -226,15 +228,15 @@ function MaterialRow({
             className={`${styles.select} ${styles.selectSm} tnum`}
             value={skuId}
             onChange={(e) => onSkuChange(e.target.value)}
-            aria-label={`مشخصات کالا برای ${label}`}
+            aria-label={t('skuAria', { label })}
             disabled={rows.length === 0}
           >
             {rows.length === 0 ? (
-              <option value="">{isLoading ? 'در حال بارگذاری…' : 'کالایی با قیمت روز موجود نیست'}</option>
+              <option value="">{isLoading ? t('loadingOptions') : t('noSkuAvailable')}</option>
             ) : (
               rows.map((r) => (
                 <option key={r.id} value={r.id}>
-                  {skuLabel(r)}
+                  {skuLabel(r, t, locale)}
                 </option>
               ))
             )}
@@ -245,13 +247,13 @@ function MaterialRow({
       <div className={`${styles.lineItemCost} tnum`}>
         {isLoading ? (
           <Text variant="caption" color="muted">
-            در حال دریافت قیمت…
+            {t('fetchingPrice')}
           </Text>
         ) : cost !== null ? (
           formatToman(cost)
         ) : (
           <Text variant="caption" color="muted">
-            قیمت روز موجود نیست
+            {t('noPriceAvailable')}
           </Text>
         )}
       </div>
@@ -260,6 +262,9 @@ function MaterialRow({
 }
 
 export function ProjectEstimator() {
+  const t = useTranslations('projectEstimator');
+  const locale = useLocale() as AppLocale;
+
   const [projectType, setProjectType] = useState<ProjectType>('concrete');
   const [areaInput, setAreaInput] = useState('');
   const [floorsInput, setFloorsInput] = useState('1');
@@ -267,19 +272,30 @@ export function ProjectEstimator() {
   const [shedLengthInput, setShedLengthInput] = useState('');
   const [lateralKey, setLateralKey] = useState('shearwall');
   const [roofKey, setRoofKey] = useState('joist-block');
-  const [frameCategory, setFrameCategory] = useState('ibeam');
+  const [frameCategory, setFrameCategory] = useState<CategoryKey>('ibeam');
   const [frameSkuId, setFrameSkuId] = useState('');
   const [roofSkuId, setRoofSkuId] = useState('');
+
+  // Two separate lookups, not one keyed off the current `projectType` state —
+  // `concreteBody`/`steelBody` below both render unconditionally every
+  // render (so their disclaimer text is ready the instant the user switches
+  // tabs), and each must always resolve its OWN system keys against its own
+  // namespace regardless of which tab is currently active, or a steel key
+  // (e.g. 'cbf') looked up under `concreteLateral` throws MISSING_MESSAGE.
+  const concreteLateralLabel = (key: SystemKey) => t(`systems.concreteLateral.${camel(key)}`);
+  const steelLateralLabel = (key: SystemKey) => t(`systems.steelLateral.${camel(key)}`);
+  const lateralLabel = projectType === 'concrete' ? concreteLateralLabel : steelLateralLabel;
+  const roofLabel = (key: SystemKey) => t(`systems.roof.${camel(key)}`);
+  const frameCategoryLabel = (key: CategoryKey) => t(`systems.frameCategories.${key}`);
 
   const rebarRows = useCategoryRows('rebar');
   const ibeamRows = useCategoryRows('ibeam');
   const profileRows = useCategoryRows('profile');
   const angleChannelRows = useCategoryRows('angle-channel');
-  const categoryRows: Record<string, { rows: PriceRow[]; isLoading: boolean }> = {
-    rebar: rebarRows,
+  const categoryRows: Record<CategoryKey, { rows: PriceRow[]; isLoading: boolean }> = {
     ibeam: ibeamRows,
     profile: profileRows,
-    'angle-channel': angleChannelRows,
+    angleChannel: angleChannelRows,
   };
 
   const area = parse(areaInput);
@@ -287,7 +303,7 @@ export function ProjectEstimator() {
   const shedLength = parse(shedLengthInput);
   const shedSpan = SHED_SPANS.find((s) => shedOptionKey(s) === shedKey);
 
-  const frameRows = projectType === 'concrete' ? rebarRows : categoryRows[frameCategory]!;
+  const frameRows = projectType === 'concrete' ? rebarRows : categoryRows[frameCategory];
   const roofRows = rebarRows;
 
   // Rows arrive async (and change when the user switches product category) —
@@ -347,14 +363,14 @@ export function ProjectEstimator() {
   const totalPricesLoading =
     frameRows.isLoading || (result != null && result.kind !== 'shed' && roofRows.isLoading);
 
-  const switchType = (t: ProjectType) => {
-    setProjectType(t);
+  const switchType = (nt: ProjectType) => {
+    setProjectType(nt);
     setFrameSkuId('');
     setRoofSkuId('');
-    if (t === 'concrete') {
+    if (nt === 'concrete') {
       setLateralKey('shearwall');
       setRoofKey('joist-block');
-    } else if (t === 'steel') {
+    } else if (nt === 'steel') {
       setLateralKey('cbf');
       setRoofKey('composite');
       setFrameCategory('ibeam');
@@ -363,17 +379,47 @@ export function ProjectEstimator() {
     }
   };
 
-  const onFrameCategoryChange = (slug: string) => {
-    setFrameCategory(slug);
+  const onFrameCategoryChange = (key: CategoryKey) => {
+    setFrameCategory(key);
     setFrameSkuId('');
   };
 
   const lateralSystems = projectType === 'concrete' ? CONCRETE_LATERAL_SYSTEMS : STEEL_LATERAL_SYSTEMS;
-  const frameCategoryOptions = projectType === 'steel' ? STEEL_FRAME_CATEGORIES : SHED_FRAME_CATEGORIES;
+  const frameCategoryKeys = projectType === 'steel' ? STEEL_FRAME_CATEGORY_KEYS : SHED_FRAME_CATEGORY_KEYS;
+  const frameCategoryOptions = frameCategoryKeys.map((key) => ({ key, label: frameCategoryLabel(key) }));
+
+  const kgPerSqm = t('kgPerSqm');
+  const concreteBody =
+    result?.kind === 'concrete' || projectType === 'concrete'
+      ? `${t('disclaimerIntro')} ${[
+          t('disclaimerConcreteFrame', {
+            ranges: joinedRanges(CONCRETE_LATERAL_SYSTEMS, concreteLateralLabel, t, locale),
+            unit: kgPerSqm,
+          }),
+          t('disclaimerConcreteRoof', {
+            ranges: joinedRanges([ROOF_SYSTEMS[0]!, ROOF_SYSTEMS[1]!], roofLabel, t, locale),
+            unit: kgPerSqm,
+          }),
+          t('disclaimerConcreteConcrete', {
+            min: localizedDecimal(CONCRETE_M3_RANGE[0], locale),
+            max: localizedDecimal(CONCRETE_M3_RANGE[1], locale),
+          }),
+        ].join(t('listSeparator'))}. ${t('disclaimerFoundationNote')} ${t('disclaimerNotEngineering')}`
+      : '';
+  const steelBody = `${t('disclaimerIntro')} ${[
+    t('disclaimerSteelFrame', {
+      ranges: joinedRanges(STEEL_LATERAL_SYSTEMS, steelLateralLabel, t, locale),
+      unit: kgPerSqm,
+    }),
+    t('disclaimerSteelRoof', {
+      ranges: joinedRanges([ROOF_SYSTEMS[2]!, ROOF_SYSTEMS[0]!], roofLabel, t, locale),
+      unit: kgPerSqm,
+    }),
+  ].join(t('listSeparator'))}. ${t('disclaimerFoundationNote')} ${t('disclaimerNotEngineering')}`;
 
   return (
     <Stack gap={6}>
-      <div className={styles.segmented} role="group" aria-label="نوع پروژه">
+      <div className={styles.segmented} role="group" aria-label={t('projectTypeAria')}>
         <button
           type="button"
           aria-pressed={projectType === 'concrete'}
@@ -381,7 +427,7 @@ export function ProjectEstimator() {
           data-active={projectType === 'concrete' ? '' : undefined}
           onClick={() => switchType('concrete')}
         >
-          ساختمان بتنی
+          {t('types.concrete')}
         </button>
         <button
           type="button"
@@ -390,7 +436,7 @@ export function ProjectEstimator() {
           data-active={projectType === 'steel' ? '' : undefined}
           onClick={() => switchType('steel')}
         >
-          اسکلت فلزی
+          {t('types.steel')}
         </button>
         <button
           type="button"
@@ -399,35 +445,33 @@ export function ProjectEstimator() {
           data-active={projectType === 'shed' ? '' : undefined}
           onClick={() => switchType('shed')}
         >
-          سوله صنعتی
+          {t('types.shed')}
         </button>
       </div>
 
       <Card>
         <Stack gap={5}>
           <Text variant="body-sm" color="muted">
-            {projectType === 'shed'
-              ? 'دهانهٔ سوله و طول کل سالن را وارد کنید تا برآورد اولیهٔ وزن اسکلت اصلی را ببینید.'
-              : 'نوع سیستم باربر جانبی، نوع سقف، و متراژ پروژه را مشخص کنید تا برآورد جداگانهٔ اسکلت و سقف را ببینید.'}
+            {projectType === 'shed' ? t('introShed') : t('introOther')}
           </Text>
 
           {projectType === 'shed' ? (
             <div className={styles.fields}>
               <label className={styles.field}>
-                <span className={styles.fieldLabel}>دهانهٔ سوله</span>
+                <span className={styles.fieldLabel}>{t('shedSpanLabel')}</span>
                 <div className={styles.selectWrap}>
                   <select
                     className={`${styles.select} tnum`}
                     value={shedKey}
                     onChange={(e) => setShedKey(e.target.value)}
-                    aria-label="دهانهٔ سوله"
+                    aria-label={t('shedSpanLabel')}
                   >
                     <option value="" disabled>
-                      نزدیک‌ترین دهانه را انتخاب کنید
+                      {t('shedSpanPlaceholder')}
                     </option>
                     {SHED_SPANS.map((s) => (
                       <option key={shedOptionKey(s)} value={shedOptionKey(s)}>
-                        {shedSpanLabel(s)}
+                        {shedSpanLabel(s, t, locale)}
                       </option>
                     ))}
                   </select>
@@ -436,17 +480,17 @@ export function ProjectEstimator() {
               </label>
               <label className={styles.field}>
                 <span className={styles.fieldLabel}>
-                  طول سالن
-                  <span className={styles.fieldUnit}>(متر)</span>
+                  {t('hallLength')}
+                  <span className={styles.fieldUnit}>({t('unitMeter')})</span>
                 </span>
                 <input
                   className={`${styles.input} tnum`}
                   inputMode="decimal"
                   autoComplete="off"
-                  placeholder="مثلاً ۴۰"
+                  placeholder={t('example', { value: localizeDigits(40, locale) })}
                   value={shedLengthInput}
                   onChange={(e) => setShedLengthInput(e.target.value)}
-                  aria-label="طول سالن بر حسب متر"
+                  aria-label={t('hallLengthAria')}
                 />
               </label>
             </div>
@@ -454,17 +498,17 @@ export function ProjectEstimator() {
             <>
               <div className={styles.fields}>
                 <label className={styles.field}>
-                  <span className={styles.fieldLabel}>نوع سیستم باربر جانبی</span>
+                  <span className={styles.fieldLabel}>{t('lateralSystemLabel')}</span>
                   <div className={styles.selectWrap}>
                     <select
                       className={`${styles.select} tnum`}
                       value={lateralKey}
                       onChange={(e) => setLateralKey(e.target.value)}
-                      aria-label="نوع سیستم باربر جانبی"
+                      aria-label={t('lateralSystemLabel')}
                     >
                       {lateralSystems.map((s) => (
                         <option key={s.key} value={s.key}>
-                          {s.label}
+                          {lateralLabel(s.key)}
                         </option>
                       ))}
                     </select>
@@ -472,17 +516,17 @@ export function ProjectEstimator() {
                   </div>
                 </label>
                 <label className={styles.field}>
-                  <span className={styles.fieldLabel}>نوع سقف</span>
+                  <span className={styles.fieldLabel}>{t('roofTypeLabel')}</span>
                   <div className={styles.selectWrap}>
                     <select
                       className={`${styles.select} tnum`}
                       value={roofKey}
                       onChange={(e) => setRoofKey(e.target.value)}
-                      aria-label="نوع سقف"
+                      aria-label={t('roofTypeLabel')}
                     >
                       {ROOF_SYSTEMS.map((r) => (
                         <option key={r.key} value={r.key}>
-                          {r.label}
+                          {roofLabel(r.key)}
                         </option>
                       ))}
                     </select>
@@ -493,32 +537,32 @@ export function ProjectEstimator() {
               <div className={styles.fields}>
                 <label className={styles.field}>
                   <span className={styles.fieldLabel}>
-                    زیربنای هر طبقه
-                    <span className={styles.fieldUnit}>(متر مربع)</span>
+                    {t('floorAreaLabel')}
+                    <span className={styles.fieldUnit}>({t('unitSqm')})</span>
                   </span>
                   <input
                     className={`${styles.input} tnum`}
                     inputMode="decimal"
                     autoComplete="off"
-                    placeholder="مثلاً ۱۲۰"
+                    placeholder={t('example', { value: localizeDigits(120, locale) })}
                     value={areaInput}
                     onChange={(e) => setAreaInput(e.target.value)}
-                    aria-label="زیربنای هر طبقه بر حسب متر مربع"
+                    aria-label={t('floorAreaAria')}
                   />
                 </label>
                 <label className={styles.field}>
                   <span className={styles.fieldLabel}>
-                    تعداد طبقات
-                    <span className={styles.fieldUnit}>(عدد)</span>
+                    {t('floorCountLabel')}
+                    <span className={styles.fieldUnit}>({t('unitCount')})</span>
                   </span>
                   <input
                     className={`${styles.input} tnum`}
                     inputMode="numeric"
                     autoComplete="off"
-                    placeholder="مثلاً ۴"
+                    placeholder={t('example', { value: localizeDigits(4, locale) })}
                     value={floorsInput}
                     onChange={(e) => setFloorsInput(e.target.value)}
-                    aria-label="تعداد طبقات"
+                    aria-label={t('floorCountLabel')}
                   />
                 </label>
               </div>
@@ -527,8 +571,8 @@ export function ProjectEstimator() {
 
           {result ? (
             <Text variant="caption" color="muted">
-              {projectType === 'shed' ? 'مساحت کل سوله' : 'سطح زیربنای کل'}:{' '}
-              <span className="tnum">{faNum(result.totalArea)}</span> متر مربع
+              {projectType === 'shed' ? t('totalAreaShed') : t('totalAreaOther')}:{' '}
+              <span className="tnum">{faNum(result.totalArea, locale)}</span> {t('unitSqm')}
             </Text>
           ) : null}
         </Stack>
@@ -541,9 +585,9 @@ export function ProjectEstimator() {
             <Stack gap={3}>
               {result.kind === 'shed' ? (
                 <MaterialRow
-                  label="اسکلت اصلی سوله (تیرورق/خرپا)"
+                  label={t('shedFrameLabel')}
                   weightKg={result.frameKg}
-                  categories={frameCategoryOptions}
+                  categoryOptions={frameCategoryOptions}
                   category={frameCategory}
                   onCategoryChange={onFrameCategoryChange}
                   rows={frameRows.rows}
@@ -554,9 +598,9 @@ export function ProjectEstimator() {
               ) : (
                 <>
                   <MaterialRow
-                    label={`میلگرد اسکلت (${result.system.label})`}
+                    label={t('rebarFrameLabel', { system: lateralLabel(result.system.key) })}
                     weightKg={result.frameKg}
-                    categories={projectType === 'steel' ? frameCategoryOptions : undefined}
+                    categoryOptions={projectType === 'steel' ? frameCategoryOptions : undefined}
                     category={projectType === 'steel' ? frameCategory : undefined}
                     onCategoryChange={projectType === 'steel' ? onFrameCategoryChange : undefined}
                     rows={frameRows.rows}
@@ -565,7 +609,7 @@ export function ProjectEstimator() {
                     isLoading={frameRows.isLoading}
                   />
                   <MaterialRow
-                    label={`آرماتور سقف (${result.roof.label})`}
+                    label={t('roofRebarLabel', { roof: roofLabel(result.roof.key) })}
                     weightKg={result.roofKg}
                     rows={roofRows.rows}
                     skuId={roofSkuId}
@@ -579,15 +623,14 @@ export function ProjectEstimator() {
             {result.kind === 'concrete' ? (
               <div className={styles.metric}>
                 <Text variant="overline" color="muted" as="p">
-                  بتن موردنیاز
+                  {t('concreteNeeded')}
                 </Text>
                 <p className={`${styles.metricValue} tnum`}>
-                  <span className={styles.metricNum}>{faNum(result.concreteM3, 1)}</span>
-                  <span className={styles.metricUnit}>متر مکعب</span>
+                  <span className={styles.metricNum}>{faNum(result.concreteM3, locale, 1)}</span>
+                  <span className={styles.metricUnit}>{t('unitM3')}</span>
                 </p>
                 <Text variant="caption" color="muted">
-                  بر پایهٔ {faDecimal(CONCRETE_M3_PER_M2)} مترمکعب در هر متر مربع؛ کالای کاتالوگ آهن‌تایم
-                  نیست، صرفاً اطلاعاتی
+                  {t('concreteBasis', { value: localizedDecimal(CONCRETE_M3_PER_M2, locale) })}
                 </Text>
               </div>
             ) : null}
@@ -596,17 +639,17 @@ export function ProjectEstimator() {
 
             <div className={styles.cost}>
               <Text variant="overline" color="muted" as="p">
-                جمع هزینهٔ تقریبی آهن‌آلات
+                {t('totalCostLabel')}
               </Text>
               {totalPricesLoading ? (
                 <Text variant="body-sm" color="muted">
-                  در حال دریافت قیمت‌های لحظه‌ای…
+                  {t('fetchingPrices')}
                 </Text>
               ) : totalCost !== null ? (
                 <p className={`${styles.costValue} tnum`}>{formatToman(totalCost)}</p>
               ) : (
                 <Text variant="body-sm" color="muted">
-                  قیمت روز کالای انتخاب‌شده در دسترس نیست؛ برای برآورد هزینه با مشاور هوشمند گفتگو کنید.
+                  {t('noCostAvailable')}
                 </Text>
               )}
             </div>
@@ -615,15 +658,13 @@ export function ProjectEstimator() {
           <div className={styles.placeholder}>
             <AiMarkIcon size={28} />
             <Text variant="body-sm" color="muted" align="center">
-              {projectType === 'shed'
-                ? 'دهانه و طول سالن را وارد کنید تا برآورد وزن اسکلت اصلی و هزینه نمایش داده شود.'
-                : 'سیستم باربر جانبی، نوع سقف، زیربنا و تعداد طبقات را وارد کنید تا برآورد مصالح و هزینه نمایش داده شود.'}
+              {projectType === 'shed' ? t('placeholderShed') : t('placeholderOther')}
             </Text>
           </div>
         )}
       </Card>
 
-      <Alert tone="warning" title="برآورد اولیه">
+      <Alert tone="warning" title={t('alertTitle')}>
         <Stack gap={4}>
           {/* Plain element, not <Text> — Text always sets color via inline
               style (higher specificity than the Alert's own inherited tone
@@ -631,24 +672,27 @@ export function ProjectEstimator() {
               the same fixed way --amber-50 is, so any of them would flip to a
               too-light shade in dark mode against this permanently-light bg. */}
           <p className={styles.alertBody}>
-            {projectType === 'concrete' &&
-              `این اعداد بر پایهٔ منابع مهندسی عمران محاسبه شده‌اند: میلگرد اسکلت به تفکیک سیستم باربر جانبی (قاب خمشی+دیوار برشی ${rangeText(CONCRETE_LATERAL_SYSTEMS[0]!.range)}، قاب خمشی متوسط ${rangeText(CONCRETE_LATERAL_SYSTEMS[1]!.range)}، قاب خمشی ویژه ${rangeText(CONCRETE_LATERAL_SYSTEMS[2]!.range)} کیلوگرم بر مترمربع)، آرماتور سقف به تفکیک نوع سقف (تیرچه‌بلوک ${rangeText(ROOF_SYSTEMS[0]!.range)}، دال بتنی توپر ${rangeText(ROOF_SYSTEMS[1]!.range)} کیلوگرم بر مترمربع)، و بتن ${faDecimal(CONCRETE_M3_RANGE[0])} تا ${faDecimal(CONCRETE_M3_RANGE[1])} مترمکعب بر مترمربع. فونداسیون به شرایط خاک بستگی دارد و اینجا محاسبه نشده. این محاسبه جای محاسبات مهندسی را نمی‌گیرد.`}
-            {projectType === 'steel' &&
-              `این اعداد بر پایهٔ منابع مهندسی عمران محاسبه شده‌اند: آهن‌آلات اسکلت اصلی (ستون، تیر، بادبند و اتصالات با هم) به تفکیک سیستم باربر جانبی (مهاربندی هم‌مرکز ${rangeText(STEEL_LATERAL_SYSTEMS[0]!.range)}، غیرهم‌مرکز ${rangeText(STEEL_LATERAL_SYSTEMS[1]!.range)}، قاب خمشی متوسط ${rangeText(STEEL_LATERAL_SYSTEMS[2]!.range)}، قاب خمشی ویژه ${rangeText(STEEL_LATERAL_SYSTEMS[3]!.range)}، دوگانه ${rangeText(STEEL_LATERAL_SYSTEMS[4]!.range)} کیلوگرم بر مترمربع)، و آرماتور سقف به تفکیک نوع سقف (کامپوزیت ${rangeText(ROOF_SYSTEMS[2]!.range)}، تیرچه‌بلوک ${rangeText(ROOF_SYSTEMS[0]!.range)} کیلوگرم بر مترمربع؛ ورق عرشهٔ فولادی سقف کامپوزیت در این عدد نیست، جدا محاسبه می‌شود). فونداسیون به شرایط خاک بستگی دارد و اینجا محاسبه نشده. این محاسبه جای محاسبات مهندسی را نمی‌گیرد.`}
-            {projectType === 'shed' &&
-              'این عدد فقط اسکلت اصلی سوله (تیرورق/خرپا) را شامل می‌شود، بر پایهٔ جدول برآورد وزن سولهٔ تیرورقی، برای بار برف ۱۰۰ کیلوگرم بر مترمربع (استاندارد تهران) و سرعت باد ۸۵ کیلومتر بر ساعت. مناطق با بار برف بیشتر (مثلاً شمال کشور) به وزن اسکلت به‌مراتب بیشتری نیاز دارند، تا حدود ۲۰۰ کیلوگرم بر مترمربع. پرلین (پروفیل Z سقف)، پوشش سقف و دیوار، و فونداسیون در این برآورد نیامده؛ این اقلام به فاصلهٔ پرلین و طراحی پوشش بستگی دارند که بدون نقشهٔ اجرایی سرانگشتی قابل‌استنادی ندارند.'}{' '}
-            برای عدد دقیق، با مشاور هوشمند گفتگو کنید.
+            {projectType === 'concrete' && concreteBody}
+            {projectType === 'steel' && steelBody}
+            {projectType === 'shed' && t('disclaimerShed')}{' '}
+            {t('askExpertSuffix')}
           </p>
           <Cluster gap={3}>
             <Link href={routes.ai()} className={styles.ctaPrimary} data-event="ai_entry">
-              <AiMarkIcon size={18} /> گفتگو با مشاور هوشمند
+              <AiMarkIcon size={18} /> {t('chatCta')}
             </Link>
             <Link href={routes.request()} className={styles.ctaSecondary}>
-              ثبت درخواست استعلام <ArrowEndIcon size={18} />
+              {t('requestCta')} <ArrowEndIcon size={18} />
             </Link>
           </Cluster>
         </Stack>
       </Alert>
     </Stack>
   );
+}
+
+/** SystemOption keys use kebab-case ('moment-medium'); message keys are
+ *  camelCase — this is the one place that bridges them. */
+function camel(key: string): string {
+  return key.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
 }

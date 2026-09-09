@@ -13,9 +13,10 @@
  * ever stops matching a tool that exists, this is the test that should fail.
  */
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import AiPage from './page';
 import { ApiError } from '@/lib/api/errors';
+import { renderWithIntl } from '@/test/renderWithIntl';
 
 vi.mock('@/lib/api', () => ({
   API_MODE: 'live',
@@ -28,7 +29,7 @@ if (!Element.prototype.scrollTo) Element.prototype.scrollTo = () => {};
 
 async function renderPage() {
   const ui = await AiPage({ searchParams: Promise.resolve({}) });
-  return render(ui);
+  return renderWithIntl(ui);
 }
 
 /** House style (§6 + the system prompt's own rule 19): Persian guillemets,

@@ -1,9 +1,11 @@
 'use client';
 import { Fragment, memo, useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useTranslations, useLocale } from 'next-intl';
 import { routes } from '@/lib/routes';
 import { api, API_MODE, isApiError } from '@/lib/api';
-import { normalizeDigits, toPersianDigits, formatToman } from '@/lib/utils/format';
+import { normalizeDigits, toPersianDigits, formatToman, localizeDigits } from '@/lib/utils/format';
+import type { AppLocale } from '@/i18n/config';
 import { normalizeDimensionToken } from '@/lib/utils/catalogSize';
 import { getRows } from '@/lib/mock/catalogData';
 import type { PriceRow } from '@/lib/types/domain';
@@ -87,11 +89,6 @@ export type Msg = {
    *  text to replay. Absent on every normal answer, so nothing is shown. */
   notice?: TurnNotice;
 };
-
-/** The opening greeting — shared so it can be rendered server-side (crawlable
- *  initial HTML) and reused as the client fallback if no SSR message is passed. */
-export const GREETING_TEXT =
-  'سلام! من مشاور هوشمند آهن‌تایم‌ام.\nمثل یک دوستِ کاربلد کمکت می‌کنم بهترین خرید را بکنی؛ اول مشورت، بعد خرید.';
 
 /** Detect «۲۰ تن میلگرد» → tonnage + category (shared alias table — no drift
  *  with the server tools). Returns null if not a bulk ask. */
@@ -259,41 +256,24 @@ export type TurnNotice = {
   retryAfterMs?: number;
 };
 
-const NOTICE_TEXT: Record<NoticeKind, string> = {
-  // No answer at all — never a lesser one standing in for the real advisor.
-  // The rule-based local engine used to fill this slot; a visitor arguing
-  // with it, or getting a subtly different bot mid-conversation with zero
-  // warning on the SECOND message onward, is a worse experience than an
-  // honest "try again" (owner decision — the advisor is ONE thing or it
-  // says so, never a quietly swapped-in impostor).
-  fallback:
-    'دستیار هوشمند موقتاً در دسترس نیست. چند لحظهٔ دیگر دوباره امتحان کن یا با کارشناس تماس بگیر.',
-  rate_limited: 'پیام‌ها پشت‌سرهم ارسال شد. کمی صبر کن و دوباره بفرست.',
-  offline: 'اتصال اینترنت قطع است. وقتی وصل شدی دوباره امتحان کن.',
-  // A genuine mid-stream drop — the partial answer above is REAL model output,
-  // so it is kept rather than thrown away and replaced by a lesser one.
-  dropped: 'پاسخ ناتمام ماند؛ اتصال وسط دریافت قطع شد.',
-};
-
 /** Tool frames are the ONLY progress signal during the wait — measured live at
  *  2–45s between the request and the first token, because every number is
  *  validated server-side before ANY text is allowed out (grounding, AC-D-3),
  *  so the text necessarily arrives as one burst at the end. They used to be
  *  read and thrown away, leaving a bare three-dot indicator for the whole
  *  wait. Naming the actual work is honest and makes a long wait legible. */
-const TOOL_PROGRESS: Record<string, string> = {
-  getPrice: 'در حال بررسی قیمت‌های امروز…',
-  calcWeight: 'در حال محاسبهٔ وزن…',
-  estimateProject: 'در حال برآورد پروژه…',
-  prepareProforma: 'در حال آماده‌سازی خلاصهٔ درخواست…',
-  compareFactories: 'در حال مقایسهٔ کارخانه‌ها…',
-  searchGuides: 'در حال مرور راهنماها…',
-  productOptions: 'در حال دیدن گزینه‌های موجود…',
-  priceHistory: 'در حال خواندن روند قیمت…',
-  forecastPrice: 'در حال بررسی روند و شاخص‌های بازار…',
-  setPriceAlert: 'در حال ثبت هشدار قیمت…',
-};
-const PROGRESS_DEFAULT = 'در حال نوشتن…';
+const TOOL_KEYS = [
+  'getPrice',
+  'calcWeight',
+  'estimateProject',
+  'prepareProforma',
+  'compareFactories',
+  'searchGuides',
+  'productOptions',
+  'priceHistory',
+  'forecastPrice',
+  'setPriceAlert',
+] as const;
 /** After this long with no answer, say so. A 45s server deadline is a normal
  *  tail event on this reasoning model (measured 6.8s / 48.8s / 6.7s on three
  *  identical requests), and unexplained silence reads as "broken". Shown
@@ -301,7 +281,6 @@ const PROGRESS_DEFAULT = 'در حال نوشتن…';
  *  is the more useful fact, and a frozen-looking label is exactly the thing
  *  this reassurance exists to answer. */
 const SLOW_HINT_MS = 12_000;
-const SLOW_HINT = 'کمی طول می‌کشد؛ ممنون از صبرت.';
 /** No frame at all for this long means the connection is hung rather than
  *  slow: the server's own deadline is AI_TIMEOUT_MS (90s as of 2026-08-16 —
  *  the proforma flow needs 2-4 relay round trips, not the 2 the old 45s
@@ -496,6 +475,7 @@ function FeedbackButtons({
   messageId: string;
   conversationId?: string;
 }) {
+  const t = useTranslations('ai.chat.feedback');
   const [sent, setSent] = useState<'up' | 'down' | null>(null);
   const submit = (rating: 'up' | 'down') => {
     if (sent) return;
@@ -509,13 +489,13 @@ function FeedbackButtons({
     });
   };
   return (
-    <div className={styles.feedback} role="group" aria-label="این پاسخ چطور بود؟">
+    <div className={styles.feedback} role="group" aria-label={t('groupLabel')}>
       <button
         type="button"
         className={styles.feedbackBtn}
         data-active={sent === 'up' ? '' : undefined}
         aria-pressed={sent === 'up'}
-        aria-label="پاسخ مفید بود"
+        aria-label={t('helpful')}
         disabled={sent !== null}
         onClick={() => submit('up')}
       >
@@ -526,13 +506,13 @@ function FeedbackButtons({
         className={styles.feedbackBtn}
         data-active={sent === 'down' ? '' : undefined}
         aria-pressed={sent === 'down'}
-        aria-label="پاسخ مفید نبود"
+        aria-label={t('notHelpful')}
         disabled={sent !== null}
         onClick={() => submit('down')}
       >
         <ThumbDownIcon size={16} />
       </button>
-      {sent && <span className={styles.feedbackThanks}>ممنون از بازخوردت</span>}
+      {sent && <span className={styles.feedbackThanks}>{t('thanks')}</span>}
     </div>
   );
 }
@@ -548,6 +528,8 @@ function FeedbackButtons({
  * interrupting with a second one.
  */
 function TurnNoticeRow({ notice, onRetry }: { notice: TurnNotice; onRetry: () => void }) {
+  const t = useTranslations('ai.chat');
+  const locale = useLocale() as AppLocale;
   // Rate limits are the only case with a real wait to count down. Ticks once a
   // second only while a wait is actually pending, then stops.
   const [now, setNow] = useState(() => Date.now());
@@ -555,16 +537,18 @@ function TurnNoticeRow({ notice, onRetry }: { notice: TurnNotice; onRetry: () =>
   const waiting = waitMs > 0;
   useEffect(() => {
     if (!notice.retryAfterMs) return;
-    const t = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(t);
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
   }, [notice.retryAfterMs]);
 
   const secs = Math.ceil(waitMs / 1000);
+  const secsDigits = localizeDigits(secs, locale);
+  const noticeKey = notice.kind === 'rate_limited' ? 'rateLimited' : notice.kind;
   return (
     <div className={styles.notice} data-kind={notice.kind}>
       <span className={styles.noticeText}>
-        {NOTICE_TEXT[notice.kind]}
-        {waiting && ` (${toPersianDigits(secs)} ثانیه)`}
+        {t(`notice.${noticeKey}`)}
+        {waiting && ` ${t('notice.waitingSeconds', { seconds: secsDigits })}`}
       </span>
       <button
         type="button"
@@ -574,11 +558,11 @@ function TurnNoticeRow({ notice, onRetry }: { notice: TurnNotice; onRetry: () =>
         // The countdown is decoration; the label carries the state for AT.
         aria-label={
           waiting
-            ? `تلاش دوباره، ${toPersianDigits(secs)} ثانیه دیگر`
-            : 'تلاش دوباره برای پاسخ هوشمند'
+            ? t('retry.waitingAria', { seconds: secsDigits })
+            : t('retry.defaultAria')
         }
       >
-        {notice.kind === 'dropped' ? 'ادامه بده' : 'تلاش دوباره'}
+        {notice.kind === 'dropped' ? t('retry.continue') : t('retry.retry')}
       </button>
     </div>
   );
@@ -599,6 +583,8 @@ const MessageBubble = memo(function MessageBubble({
   onDraftPatch: (messageId: string, patch: Partial<LeadDraftView>) => void;
   hidden?: boolean;
 }) {
+  const t = useTranslations('ai.chat');
+  const tCommon = useTranslations('common');
   // Speech bubbles want the ragged 86% edge so the thread reads as a
   // conversation. Chips and data cards are not speech — they're navigation
   // and a price summary — and that cap plus the avatar column squeezed the
@@ -620,7 +606,7 @@ const MessageBubble = memo(function MessageBubble({
       <div className={styles.bubbleWrap}>
         {m.text && (
           <div className={`${styles.bubble} ${m.role === 'user' ? styles.user : styles.ai}`}>
-            <span className="visually-hidden">{m.role === 'user' ? 'شما' : 'آهن‌تایم'}: </span>
+            <span className="visually-hidden">{m.role === 'user' ? t('roleUser') : tCommon('brand')}: </span>
             {m.role === 'ai' ? (
               // Advisor replies carry markdown (tables/lists/bold) — rendered
               // through the safe subset renderer, never as raw asterisks. The
@@ -697,7 +683,7 @@ export function AdvisorChat({
   initialMessages,
   contact,
   crumbs,
-  heading = 'مشاور هوشمند آهن‌تایم',
+  heading,
 }: {
   initialQuestion?: string;
   /** Server-rendered greeting (see app/ai/page.tsx) so the advisor's opening
@@ -714,6 +700,13 @@ export function AdvisorChat({
    *  own heading (and its SEO phrase) even though the shell renders it. */
   heading?: string;
 }) {
+  const t = useTranslations('ai.chat');
+  const resolvedHeading = heading ?? t('defaultHeading');
+  const PROGRESS_DEFAULT = t('tool.default');
+  const SLOW_HINT = t('slowHint');
+  const TOOL_PROGRESS: Record<string, string> = Object.fromEntries(
+    TOOL_KEYS.map((k) => [k, t(`tool.${k}`)]),
+  );
   const [messages, setMessages] = useState<Msg[]>(() => initialMessages ?? []);
   // The in-progress streamed reply — purely presentational (rendered aria-hidden)
   // so screen readers are never spammed token-by-token. Only once the stream
@@ -1243,7 +1236,7 @@ export function AdvisorChat({
     transcriptRef.current = [];
     purposeRef.current = null;
     setStreamPreview(null);
-    setMessages([{ id: uid(), role: 'ai', text: GREETING_TEXT, chips: PURPOSE_CHIPS }]);
+    setMessages([{ id: uid(), role: 'ai', text: t('greeting'), chips: PURPOSE_CHIPS }]);
   };
 
   /**
@@ -1263,7 +1256,7 @@ export function AdvisorChat({
   const openConversation = useCallback(async (id: string) => {
     if (busyRef.current) return;
     setStreamPreview(null);
-    setMessages([{ id: uid(), role: 'ai', text: 'در حال باز کردن گفتگو…' }]);
+    setMessages([{ id: uid(), role: 'ai', text: t('openingConversation') }]);
     try {
       const conv = await api.ai.conversation(id);
       conversationIdRef.current = conv.id;
@@ -1278,18 +1271,18 @@ export function AdvisorChat({
               role: m.role === 'assistant' ? ('ai' as const) : ('user' as const),
               text: m.content,
             }))
-          : [{ id: uid(), role: 'ai', text: GREETING_TEXT, chips: [...PURPOSE_CHIPS] }],
+          : [{ id: uid(), role: 'ai', text: t('greeting'), chips: [...PURPOSE_CHIPS] }],
       );
     } catch {
       setMessages([
         {
           id: uid(),
           role: 'ai',
-          text: 'این گفتگو باز نشد. دوباره تلاش کن یا گفتگوی تازه‌ای شروع کن.',
+          text: t('openConversationFailed'),
         },
       ]);
     }
-  }, []);
+  }, [t]);
 
   // First load: greet (unless the server already rendered it — see
   // `initialMessages`), then auto-send the question from the home search (if any).
@@ -1311,7 +1304,7 @@ export function AdvisorChat({
         {
           id: uid(),
           role: 'ai',
-          text: GREETING_TEXT,
+          text: t('greeting'),
           chips: initialQuestion ? undefined : PURPOSE_CHIPS,
         },
       ]);
@@ -1360,7 +1353,7 @@ export function AdvisorChat({
         <button
           type="button"
           className={styles.railScrim}
-          aria-label="بستن فهرست گفتگوها"
+          aria-label={t('railScrimAria')}
           onClick={() => setRailOpen(false)}
         />
       ) : null}
@@ -1373,7 +1366,7 @@ export function AdvisorChat({
           type="button"
           className={styles.railToggle}
           onClick={() => setRailOpen(true)}
-          aria-label="فهرست گفتگوها"
+          aria-label={t('railToggleAria')}
           aria-expanded={railOpen}
         >
           <MenuIcon size={20} />
@@ -1385,7 +1378,7 @@ export function AdvisorChat({
             type="button"
             className={styles.exitImmersive}
             onClick={() => setImmersive(false)}
-            aria-label="بازگشت به صفحه"
+            aria-label={t('exitImmersiveAria')}
           >
             <ChevronStartIcon size={20} className="icon--rtl" />
           </button>
@@ -1416,11 +1409,11 @@ export function AdvisorChat({
            *  shorter product name in an app bar would be trading the page's
            *  topic for a nicer bar. It renders at app-bar size instead. */}
           <h1 id="advisor-panel-title" className={styles.headName}>
-            {heading}
+            {resolvedHeading}
           </h1>
         </div>
         <button type="button" className={styles.newChat} onClick={resetChat}>
-          گفتگوی جدید
+          {t('newChat')}
         </button>
       </header>
 
@@ -1498,7 +1491,7 @@ export function AdvisorChat({
         // it explains. role="status" (not "alert") — losing signal is a state,
         // not an emergency, and this must not steal focus mid-conversation.
         <p className={styles.offlineBar} role="status">
-          اتصال اینترنت قطع است؛ به‌محض وصل‌شدن دوباره می‌توانی پیام بفرستی.
+          {t('offlineBar')}
         </p>
       )}
 
@@ -1510,7 +1503,7 @@ export function AdvisorChat({
         }}
       >
         <label htmlFor="chat-input" className="visually-hidden">
-          پیام به مشاور هوشمند
+          {t('composerLabel')}
         </label>
         {/* AUTO-GROWING TEXTAREA.
          *  A cut list, a tender line or «۳ تن میلگرد ۱۴ و ۲ تن ۱۶، تحویل
@@ -1540,15 +1533,15 @@ export function AdvisorChat({
           }}
           placeholder={
             !online
-              ? 'اتصال اینترنت قطع است…'
+              ? t('placeholder.offline')
               : busy
-                ? 'در حال پاسخ…'
+                ? t('placeholder.busy')
                 : // Short on purpose: the composer is a textarea now, and at
                   // 390px the old placeholder («… یه خونهٔ ۱۰۰ متری دو طبقه»)
                   // wrapped to a second line inside a one-line box. The four
                   // starter chips in the empty state already carry the
                   // examples, and carry them as things you can tap.
-                  'سؤالت را بنویس…'
+                  t('placeholder.default')
           }
           enterKeyHint="send"
           maxLength={1000}
@@ -1559,7 +1552,7 @@ export function AdvisorChat({
             type="button"
             className={`${styles.mic} ${listening ? styles.micOn : ''}`}
             onClick={toggleVoice}
-            aria-label={listening ? 'توقف ورودی صوتی' : 'ورودی صوتی'}
+            aria-label={listening ? t('micStop') : t('micStart')}
             aria-pressed={listening}
             disabled={busy || !online}
           >
@@ -1570,7 +1563,7 @@ export function AdvisorChat({
           <button
             type="button"
             className={styles.send}
-            aria-label="توقف پاسخ"
+            aria-label={t('stopAria')}
             onClick={() => abortRef.current?.abort()}
           >
             <StopIcon size={18} />
@@ -1580,7 +1573,7 @@ export function AdvisorChat({
           // flipped under [dir=rtl] to point at the inline-START, i.e. "back"
           // in a Persian layout, and a bare chevron is the same glyph this
           // icon set uses for "previous" elsewhere.
-          <button type="submit" className={styles.send} aria-label="ارسال" disabled={!online}>
+          <button type="submit" className={styles.send} aria-label={t('sendAria')} disabled={!online}>
             <SendIcon size={20} />
           </button>
         )}
@@ -1597,7 +1590,7 @@ export function AdvisorChat({
        *  they are already frustrated. */}
       {contact ? (
         <p className={styles.human}>
-          <span>جوابت را نگرفتی؟</span>
+          <span>{t('humanQuestion')}</span>
           <a className={styles.humanLink} href={`tel:${contact.phoneMobile}`} dir="ltr">
             <PhoneIcon size={14} aria-hidden="true" />
             <bdi>{toPersianDigits(contact.phoneMobile)}</bdi>
@@ -1609,13 +1602,11 @@ export function AdvisorChat({
             rel="noreferrer noopener"
           >
             <WhatsappIcon size={14} aria-hidden="true" />
-            واتساپ کارشناس
+            {t('humanWhatsapp')}
           </a>
         </p>
       ) : null}
-      <p className={styles.disclaimer}>
-        پاسخ‌ها بر پایهٔ قیمت‌های واقعی است؛ آهن‌تایم هرگز عدد ساختگی نمی‌سازد.
-      </p>
+      <p className={styles.disclaimer}>{t('disclaimer')}</p>
       </div>
     </section>
   );

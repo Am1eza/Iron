@@ -17,6 +17,7 @@ import type { Category } from '@/lib/types/domain';
 import type { SubsMap } from '@/lib/data/catalog';
 import { groupSubCategories } from '@/lib/utils/catalogGroups';
 import { localizeDigits } from '@/lib/utils/format';
+import { getLocalizedName } from '@/lib/utils/localizedNames';
 import type { AppLocale } from '@/i18n/config';
 import { useUiStore } from '@/lib/stores/ui';
 import { useAuthStore } from '@/lib/stores/auth';
@@ -165,6 +166,7 @@ export function MobileDrawer({ categories, subs }: { categories: Category[]; sub
                   const catSubs = subs[cat.slug] ?? [];
                   const isOpen = expandedCat === cat.slug;
                   const bodyId = `mobile-drawer-cat-${cat.slug}`;
+                  const catName = getLocalizedName(cat, locale);
                   return (
                     <li key={cat.id}>
                       {/* Two targets in one row, not one: the NAME goes to the
@@ -179,7 +181,7 @@ export function MobileDrawer({ categories, subs }: { categories: Category[]; sub
                           className={styles.catLink}
                           aria-current={onCategoryPage(cat.slug) ? 'page' : undefined}
                         >
-                          {cat.name}
+                          {catName}
                           {/* Screen-reader only — the visible «۱۹» chip is
                               gone, for the reason the desktop rail's is (see
                               ProductsMenu.tsx): it is internal metadata, not
@@ -198,7 +200,7 @@ export function MobileDrawer({ categories, subs }: { categories: Category[]; sub
                             className={styles.catToggle}
                             aria-expanded={isOpen}
                             aria-controls={bodyId}
-                            aria-label={t('subCategoriesOf', { name: cat.name })}
+                            aria-label={t('subCategoriesOf', { name: catName })}
                             onClick={() =>
                               setExpandedCat((s) => (s === cat.slug ? null : cat.slug))
                             }
@@ -234,7 +236,7 @@ export function MobileDrawer({ categories, subs }: { categories: Category[]; sub
                               className={`${styles.subLink} ${styles.subAll}`}
                               aria-current={onCategoryPage(cat.slug) ? 'page' : undefined}
                             >
-                              {t('todayPriceOf', { name: cat.name })}
+                              {t('todayPriceOf', { name: catName })}
                               <ChevronStartIcon size={14} className="icon--rtl" />
                             </Link>
                           </li>
@@ -266,7 +268,7 @@ export function MobileDrawer({ categories, subs }: { categories: Category[]; sub
                                       size={18}
                                     />
                                   </span>
-                                  {group.lead.name}
+                                  {getLocalizedName(group.lead, locale)}
                                 </Link>
                               ) : group.label ? (
                                 <p className={styles.subGroupHeading}>
@@ -319,7 +321,7 @@ export function MobileDrawer({ categories, subs }: { categories: Category[]; sub
                                             />
                                           </span>
                                         )}
-                                        {sub.name}
+                                        {getLocalizedName(sub, locale)}
                                       </Link>
                                     </li>
                                   ))}

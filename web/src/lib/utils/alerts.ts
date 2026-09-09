@@ -5,8 +5,9 @@
  * two surfaces (W22).
  */
 import type { Alert, MarketKey } from '@/lib/types/domain';
+import type { AppLocale } from '@/i18n/config';
 import { routes } from '@/lib/routes';
-import { formatToman, toPersianDigits } from './format';
+import { formatToman, toPersianDigits, localizeDigits } from './format';
 
 export type AlertTarget = Alert['target'];
 
@@ -48,6 +49,29 @@ export function formatAlertValue(value: number, target: AlertTarget): string {
   const unit = marketUnit(target.key);
   if (unit === 'تومان') return `${formatToman(value, false)} تومان`;
   return `${toPersianDigits(value.toLocaleString('en-US').replace(/,/g, '٬'))} ${unit}`;
+}
+
+/**
+ * Locale-aware sibling of `formatAlertValue` — same unit logic, but with
+ * locale-formatted digits and a translated currency word instead of the
+ * hardcoded fa "تومان"/"دلار". This is a plain utility module (no React
+ * context), so it can't call `useTranslations` itself — the caller passes
+ * in `currencyWord`/`usdWord` from `useTranslations('common.unit')`
+ * (`currency`/`usd`), the same catalog entries every other translated
+ * price display in this app already reuses.
+ */
+export function formatAlertValueLocalized(
+  value: number,
+  target: AlertTarget,
+  locale: AppLocale,
+  currencyWord: string,
+  usdWord: string,
+): string {
+  if (locale === 'fa') return formatAlertValue(value, target);
+  if (target.type === 'sku') return `${formatToman(value, false, locale)} ${currencyWord}`;
+  const unit = marketUnit(target.key);
+  if (unit === 'تومان') return `${formatToman(value, false, locale)} ${currencyWord}`;
+  return `${localizeDigits(value.toLocaleString('en-US'), locale)} ${usdWord}`;
 }
 
 /** How far the live value is from the alert's threshold, from the customer's
@@ -117,5 +141,49 @@ export function capLimitCopy(
     headline: `شما در بالاترین سطح باشگاه، به سقف ${capFa} هشدار فعال رسیده‌اید.`,
     body: `برای ثبت هشدار «${targetLabel}»، ابتدا یکی از هشدارهای فعال‌تان را متوقف یا حذف کنید.`,
     cta: { label: 'مدیریت هشدارها', href: routes.account('alerts') },
+  };
+}
+
+/**
+ * Locale-aware sibling of `capLimitCopy`, same tier-branching logic — takes
+ * a translation function (`useTranslations('alertBell.limitCap')`) instead
+ * of hardcoding fa copy, so it can't call `useTranslations` itself from this
+ * plain utility module. Delegates to the original for fa so that path's
+ * output is byte-for-byte unchanged.
+ */
+export function capLimitCopyLocalized(
+  cap: number,
+  tier: ClubTier | undefined,
+  targetLabel: string,
+  locale: AppLocale,
+  t: (key: string, values?: Record<string, string | number>) => string,
+): { headline: string; body: string; cta?: { label: string; href: string } } {
+  if (locale === 'fa') return capLimitCopy(cap, tier, targetLabel);
+  const capDigits = localizeDigits(cap, locale);
+  if (!tier) {
+    return {
+      headline: t('headlineWithCap', { cap: capDigits }),
+      body: t('nonMemberBody', { label: targetLabel }),
+      cta: { label: t('nonMemberCta'), href: routes.club() },
+    };
+  }
+  if (tier === 'iron') {
+    return {
+      headline: t('headlineWithCap', { cap: capDigits }),
+      body: t('ironBody', { label: targetLabel }),
+      cta: { label: t('upgradeCta'), href: routes.club() },
+    };
+  }
+  if (tier === 'steel') {
+    return {
+      headline: t('headlineWithCap', { cap: capDigits }),
+      body: t('steelBody', { label: targetLabel }),
+      cta: { label: t('upgradeCta'), href: routes.club() },
+    };
+  }
+  return {
+    headline: t('maxHeadlineWithCap', { cap: capDigits }),
+    body: t('maxBody', { label: targetLabel }),
+    cta: { label: t('maxCta'), href: routes.account('alerts') },
   };
 }

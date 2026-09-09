@@ -1,10 +1,13 @@
+'use client';
 /**
  * OrderTimeline — accessible shipment stepper for a cargo order.
  * Presentational: pass the current `status`; done steps fill emerald/gain with a
  * check, the current step is emphasized, future steps are hairline. RTL-native,
  * reduced-motion safe. (request #11)
  */
+import { useTranslations } from 'next-intl';
 import { SHIPMENT_STEPS, type ShipmentStatus } from '@/lib/types/domain';
+import { shipmentStatusLabel } from '@/lib/utils/shipmentStatusLabel';
 import styles from './OrderTimeline.module.css';
 
 function CheckIcon() {
@@ -26,15 +29,16 @@ function CheckIcon() {
  *  بارگیری before it was cancelled") but nothing reads as "current" anymore,
  *  since there is no longer an active next step. */
 export function OrderTimeline({ status, cancelled = false }: { status: ShipmentStatus; cancelled?: boolean }) {
+  const t = useTranslations('account.shipmentStatus');
   const currentIndex = SHIPMENT_STEPS.findIndex((s) => s.key === status);
-  const currentLabel = SHIPMENT_STEPS[currentIndex]?.label ?? '';
+  const currentLabel = shipmentStatusLabel(status, t);
 
   return (
     <>
-      {cancelled ? <p className={styles.cancelledNote}>این سفارش لغو شد؛ تا مرحلهٔ «{currentLabel}» پیش رفته بود.</p> : null}
+      {cancelled ? <p className={styles.cancelledNote}>{t('cancelledNote', { stage: currentLabel })}</p> : null}
       <ol
         className={`${styles.timeline} ${cancelled ? styles.cancelled : ''}`}
-        aria-label={cancelled ? `سفارش لغوشده: تا مرحلهٔ ${currentLabel}` : `وضعیت سفارش: ${currentLabel}`}
+        aria-label={cancelled ? t('ariaCancelled', { stage: currentLabel }) : t('ariaActive', { stage: currentLabel })}
       >
         {SHIPMENT_STEPS.map((step, i) => {
           const state = i < currentIndex ? 'done' : i === currentIndex ? (cancelled ? 'done' : 'current') : 'future';
@@ -48,8 +52,8 @@ export function OrderTimeline({ status, cancelled = false }: { status: ShipmentS
                 {state === 'done' ? <CheckIcon /> : <span className={styles.bullet} aria-hidden="true" />}
               </span>
               <span className={styles.label}>
-                {step.label}
-                {state === 'current' ? <span className={styles.tag}>(مرحله فعلی)</span> : null}
+                {shipmentStatusLabel(step.key, t)}
+                {state === 'current' ? <span className={styles.tag}>{t('currentStageTag')}</span> : null}
               </span>
             </li>
           );

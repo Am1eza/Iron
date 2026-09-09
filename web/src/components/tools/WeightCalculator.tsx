@@ -1,13 +1,15 @@
 'use client';
 import { useMemo, useState } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 import { useCartStore } from '@/lib/stores/cart';
 import { useToast } from '@/lib/hooks/useToast';
 import { routes } from '@/lib/routes';
-import { toPersianDigits, normalizeDigits } from '@/lib/utils/format';
+import { toPersianDigits, normalizeDigits, localizeDigits } from '@/lib/utils/format';
 import { unitWeightKg, IBEAM_KG_PER_M, CHANNEL_KG_PER_M, ANGLE_KG_PER_M } from '@/lib/utils/weight';
 import { Card, Stack, Cluster, Text, Alert } from '@/components/ui';
 import { Button } from '@/components/ui';
 import { PlusIcon, CheckCircleIcon, ChevronDownIcon } from '@/components/primitives/icons';
+import type { AppLocale } from '@/i18n/config';
 import styles from './WeightCalculator.module.css';
 
 /**
@@ -20,9 +22,11 @@ import styles from './WeightCalculator.module.css';
  * وزن‌سنج API route and the AI advisor's calcWeight tool call. This page used
  * to carry its own copy, which is how the site could quote a customer one
  * weight here and a different one in chat. What stays local is presentation:
- * which fields to ask for, the Persian formula string shown underneath, and
+ * which fields to ask for, the formula string shown underneath, and
  * (audit-2026-08-09) a static reference table per profile — see
- * `REFERENCE_TABLES` below.
+ * `buildReferenceTables` below. All display strings are localized (i18n
+ * audit follow-up); only the underlying numeric constants and lookup tables
+ * are language-independent.
  *
  * audit-2026-08-08/09: this used to have one combined «نبشی/تسمه» tab whose
  * hint claimed to cover BOTH a flat bar and an equal-leg angle, but only ever
@@ -44,6 +48,7 @@ type Field = {
   label: string;
   unit: string;
   placeholder: string;
+  ariaLabel: string;
   /** 'select' for mill-table sizes (ibeam/channel/angle) — a free-text mm/m
    *  value has no meaning there, only the published size codes do. */
   type?: 'text' | 'select';
@@ -61,7 +66,6 @@ type ReferenceTable = {
 type ProfileSpec = {
   key: Profile;
   label: string;
-  /** Persian description of the section. */
   hint: string;
   fields: Field[];
   /** kg per شاخه (a single piece) given parsed inputs, or null if incomplete
@@ -72,18 +76,12 @@ type ProfileSpec = {
   /** Whether the piece result is "per meter" (everything except plate) or
    *  absolute (plate). */
   perMeter: boolean;
-  pieceWord: string; // شاخه | برگ
+  pieceWord: string; // localized شاخه | برگ
   /** Static published-size reference table shown under the calculator,
    *  matching مرکزآهن's own جدول‌وزن pages — Amir's explicit request
    *  (2026-08-09) after a page-by-page formula comparison against them. */
   referenceTable?: ReferenceTable;
 };
-
-const sizeOptions = (table: Readonly<Record<string, number>>) =>
-  Object.keys(table)
-    .map(Number)
-    .sort((a, b) => a - b)
-    .map((n) => ({ value: String(n), label: toPersianDigits(n) }));
 
 /** Standard thickness that ships with each published نبشی leg size — display
  *  only (the live calc reads the weight straight from `ANGLE_KG_PER_M`). */
@@ -91,253 +89,399 @@ const ANGLE_STANDARD_THICKNESS_MM: Readonly<Record<string, number>> = {
   '30': 3, '40': 4, '50': 5, '60': 6, '70': 7, '80': 8, '100': 10, '120': 12,
 };
 
-const round2 = (n: number) => Math.round(n * 100) / 100;
-
-/** Common shape for every bar/profile table: size label, weight/metre, weight
- *  for one standard branch. Plate (sold by the sheet, not the metre) builds
- *  its own table below instead of using this helper. */
-function perMeterTable(
-  sizeHeader: string,
-  branchM: number,
-  sizes: number[],
-  perMFor: (size: number) => number,
-  labelFor: (size: number) => string = (s) => toPersianDigits(s),
-): ReferenceTable {
-  return {
-    headers: [sizeHeader, 'وزن هر متر (kg)', `وزن شاخه ${toPersianDigits(branchM)} متری (kg)`],
-    rows: sizes.map((s) => {
-      const perM = round2(perMFor(s));
-      return [labelFor(s), faNum(perM), faNum(round2(perM * branchM))];
-    }),
-  };
-}
-
-const REBAR_TABLE: ReferenceTable = perMeterTable(
-  'قطر (mm)',
-  12,
-  [8, 10, 12, 14, 16, 18, 20, 22, 25, 28, 32],
-  (d) => (d * d) / 162,
-);
-
 const PLATE_STANDARD_WIDTH_M = 1.5;
 const PLATE_STANDARD_LENGTH_M = 6;
-const PLATE_TABLE: ReferenceTable = {
-  headers: ['ضخامت (mm)', 'عرض (m)', 'طول (m)', 'وزن هر برگ (kg)'],
-  rows: [3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30].map((t) => {
-    const w = round2(t * PLATE_STANDARD_WIDTH_M * PLATE_STANDARD_LENGTH_M * 7.85);
-    return [
-      toPersianDigits(t),
-      toPersianDigits(PLATE_STANDARD_WIDTH_M),
-      toPersianDigits(PLATE_STANDARD_LENGTH_M),
-      faNum(w),
-    ];
-  }),
-};
-
 const PIPE_STANDARD_THICKNESS_MM = 2;
-const PIPE_TABLE: ReferenceTable = perMeterTable(
-  `قطر خارجی (mm)، ضخامت ${toPersianDigits(PIPE_STANDARD_THICKNESS_MM)}mm`,
-  6,
-  [21.3, 26.7, 33.4, 42.2, 48.3, 60.3, 73, 88.9, 114.3],
-  (od) => (od - PIPE_STANDARD_THICKNESS_MM) * PIPE_STANDARD_THICKNESS_MM * 0.02466,
-);
-
 const FLAT_SIZES: [number, number][] = [
   [20, 3], [25, 3], [30, 3], [40, 4], [40, 5], [50, 5], [50, 6], [60, 6], [80, 8], [100, 10],
 ];
-const FLAT_TABLE: ReferenceTable = {
-  headers: ['عرض × ضخامت (mm)', 'وزن هر متر (kg)', 'وزن شاخه ۶ متری (kg)'],
-  rows: FLAT_SIZES.map(([w, t]) => {
-    const perM = round2(w * t * 0.00785);
-    return [`${toPersianDigits(w)}×${toPersianDigits(t)}`, faNum(perM), faNum(round2(perM * 6))];
-  }),
-};
 
-const ANGLE_TABLE: ReferenceTable = perMeterTable(
-  'سایز (نبشی L×L×t)',
-  6,
-  Object.keys(ANGLE_KG_PER_M).map(Number).sort((a, b) => a - b),
-  (leg) => ANGLE_KG_PER_M[String(leg)]!,
-  (leg) => {
-    const t = ANGLE_STANDARD_THICKNESS_MM[String(leg)] ?? 0;
-    return `L${toPersianDigits(leg)}×${toPersianDigits(leg)}×${toPersianDigits(t)}`;
-  },
-);
-
-const IBEAM_TABLE: ReferenceTable = perMeterTable(
-  'سایز',
-  12,
-  Object.keys(IBEAM_KG_PER_M).map(Number).sort((a, b) => a - b),
-  (size) => IBEAM_KG_PER_M[String(size)]!,
-);
-
-const CHANNEL_TABLE: ReferenceTable = perMeterTable(
-  'سایز',
-  6,
-  Object.keys(CHANNEL_KG_PER_M).map(Number).sort((a, b) => a - b),
-  (size) => CHANNEL_KG_PER_M[String(size)]!,
-);
-
-const PROFILES: ProfileSpec[] = [
-  {
-    key: 'rebar',
-    label: 'میلگرد',
-    hint: 'وزن هر متر میلگرد گرد بر اساس قطر اسمی.',
-    perMeter: true,
-    pieceWord: 'شاخه',
-    fields: [
-      { key: 'd', label: 'قطر', unit: 'میلی‌متر', placeholder: 'مثلاً ۱۴' },
-      { key: 'len', label: 'طول هر شاخه', unit: 'متر', placeholder: 'مثلاً ۱۲' },
-    ],
-    perPiece: (v) => unitWeightKg('rebar', { diameterMm: v.d, lengthM: v.len }),
-    formula: (v) => `(قطر² ÷ ۱۶۲) = (${toPersianDigits(v.d || 0)}² ÷ ۱۶۲)`,
-    referenceTable: REBAR_TABLE,
-  },
-  {
-    key: 'plate',
-    label: 'ورق',
-    hint: 'وزن یک برگ ورق بر اساس طول، عرض و ضخامت.',
-    perMeter: false,
-    pieceWord: 'برگ',
-    fields: [
-      { key: 'len', label: 'طول', unit: 'متر', placeholder: 'مثلاً ۶' },
-      { key: 'w', label: 'عرض', unit: 'متر', placeholder: 'مثلاً ۱٫۲۵' },
-      { key: 't', label: 'ضخامت', unit: 'میلی‌متر', placeholder: 'مثلاً ۳' },
-    ],
-    perPiece: (v) => unitWeightKg('plate', { lengthM: v.len, widthM: v.w, thicknessMm: v.t }),
-    formula: (v) =>
-      `طول × عرض × ضخامت × ۷٫۸۵ = ${toPersianDigits(v.len || 0)} × ${toPersianDigits(v.w || 0)} × ${toPersianDigits(v.t || 0)} × ۷٫۸۵`,
-    referenceTable: PLATE_TABLE,
-  },
-  {
-    key: 'pipe',
-    label: 'لوله',
-    hint: 'وزن هر متر لولهٔ فولادی بر اساس قطر خارجی و ضخامت جداره.',
-    perMeter: true,
-    pieceWord: 'شاخه',
-    fields: [
-      { key: 'od', label: 'قطر خارجی', unit: 'میلی‌متر', placeholder: 'مثلاً ۶۰' },
-      { key: 't', label: 'ضخامت جداره', unit: 'میلی‌متر', placeholder: 'مثلاً ۳' },
-      { key: 'len', label: 'طول هر شاخه', unit: 'متر', placeholder: 'مثلاً ۶' },
-    ],
-    perPiece: (v) =>
-      unitWeightKg('pipe', { outerDiameterMm: v.od, thicknessMm: v.t, lengthM: v.len }),
-    formula: (v) =>
-      `(قطر خارجی − ضخامت) × ضخامت × ۰٫۰۲۴۶۶ = (${toPersianDigits(v.od || 0)} − ${toPersianDigits(v.t || 0)}) × ${toPersianDigits(v.t || 0)} × ۰٫۰۲۴۶۶`,
-    referenceTable: PIPE_TABLE,
-  },
-  {
-    key: 'flat',
-    label: 'تسمه',
-    hint: 'وزن هر متر تسمه (مقطع تخت مستطیلی) بر اساس عرض و ضخامت.',
-    perMeter: true,
-    pieceWord: 'شاخه',
-    fields: [
-      { key: 'w', label: 'عرض', unit: 'میلی‌متر', placeholder: 'مثلاً ۴۰' },
-      { key: 't', label: 'ضخامت', unit: 'میلی‌متر', placeholder: 'مثلاً ۴' },
-      { key: 'len', label: 'طول هر شاخه', unit: 'متر', placeholder: 'مثلاً ۶' },
-    ],
-    perPiece: (v) => unitWeightKg('flat', { widthMm: v.w, thicknessMm: v.t, lengthM: v.len }),
-    formula: (v) =>
-      `عرض × ضخامت × ۰٫۰۰۷۸۵ = ${toPersianDigits(v.w || 0)} × ${toPersianDigits(v.t || 0)} × ۰٫۰۰۷۸۵`,
-    referenceTable: FLAT_TABLE,
-  },
-  {
-    key: 'angle',
-    label: 'نبشی',
-    hint: 'وزن نبشی با بال‌های مساوی، بر اساس جدول سایزهای استاندارد بازار.',
-    perMeter: true,
-    pieceWord: 'شاخه',
-    fields: [
-      {
-        key: 'size',
-        label: 'سایز (طول بال)',
-        unit: '',
-        placeholder: '',
-        type: 'select',
-        options: sizeOptions(ANGLE_KG_PER_M),
-      },
-      { key: 'len', label: 'طول هر شاخه', unit: 'متر', placeholder: 'مثلاً ۶' },
-    ],
-    perPiece: (v) => unitWeightKg('angle', { sizeCode: v.size, lengthM: v.len }),
-    formula: (v) => {
-      const kgPerM = ANGLE_KG_PER_M[String(Math.round(v.size || 0))];
-      const t = ANGLE_STANDARD_THICKNESS_MM[String(Math.round(v.size || 0))] ?? 0;
-      return `طبق جدول استاندارد (نبشی L${toPersianDigits(v.size || 0)}×${toPersianDigits(v.size || 0)}×${toPersianDigits(t)}) = ${toPersianDigits(kgPerM ?? 0)}`;
-    },
-    referenceTable: ANGLE_TABLE,
-  },
-  {
-    key: 'ibeam',
-    label: 'تیرآهن',
-    hint: 'وزن هر متر تیرآهن استاندارد، بر اساس جدول وزن کارخانه برای هر سایز بازاری.',
-    perMeter: true,
-    pieceWord: 'شاخه',
-    fields: [
-      {
-        key: 'size',
-        label: 'سایز',
-        unit: '',
-        placeholder: '',
-        type: 'select',
-        options: sizeOptions(IBEAM_KG_PER_M),
-      },
-      { key: 'len', label: 'طول هر شاخه', unit: 'متر', placeholder: 'مثلاً ۱۲' },
-    ],
-    perPiece: (v) => unitWeightKg('ibeam', { sizeCode: v.size, lengthM: v.len }),
-    formula: (v) => {
-      const kgPerM = IBEAM_KG_PER_M[String(Math.round(v.size || 0))];
-      return `طبق جدول کارخانه (تیرآهن ${toPersianDigits(v.size || 0)}) = ${toPersianDigits(kgPerM ?? 0)}`;
-    },
-    referenceTable: IBEAM_TABLE,
-  },
-  {
-    key: 'channel',
-    label: 'ناودانی',
-    hint: 'وزن هر متر ناودانی استاندارد، بر اساس جدول وزن کارخانه برای هر سایز بازاری.',
-    perMeter: true,
-    pieceWord: 'شاخه',
-    fields: [
-      {
-        key: 'size',
-        label: 'سایز',
-        unit: '',
-        placeholder: '',
-        type: 'select',
-        options: sizeOptions(CHANNEL_KG_PER_M),
-      },
-      { key: 'len', label: 'طول هر شاخه', unit: 'متر', placeholder: 'مثلاً ۶' },
-    ],
-    perPiece: (v) => unitWeightKg('channel', { sizeCode: v.size, lengthM: v.len }),
-    formula: (v) => {
-      const kgPerM = CHANNEL_KG_PER_M[String(Math.round(v.size || 0))];
-      return `طبق جدول کارخانه (ناودانی ${toPersianDigits(v.size || 0)}) = ${toPersianDigits(kgPerM ?? 0)}`;
-    },
-    referenceTable: CHANNEL_TABLE,
-  },
-];
+const round2 = (n: number) => Math.round(n * 100) / 100;
 
 function parse(value: string): number {
   const n = Number(normalizeDigits(value).replace(/[^\d.]/g, ''));
   return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
-/** Show up to 2 decimals, Persian digits, trimmed trailing zeros. */
-function faNum(n: number): string {
+/** Show up to 2 decimals, locale digits, trimmed trailing zeros. */
+function localizedNum(n: number, locale: AppLocale): string {
   const rounded = Math.round(n * 100) / 100;
-  const str = rounded
-    .toLocaleString('en-US', { maximumFractionDigits: 2 })
-    .replace(/,/g, '٬');
-  return toPersianDigits(str);
+  const str = rounded.toLocaleString('en-US', { maximumFractionDigits: 2 });
+  return locale === 'fa' ? toPersianDigits(str).replace(/,/g, '٬') : str;
+}
+
+/** A fixed formula constant (162, 7.85, 0.02466, 0.00785): Persian digits with
+ *  the Persian decimal separator for fa, plain ASCII for every other locale —
+ *  matching how the rest of this file's live values are localized. */
+function localizedConst(value: string, locale: AppLocale): string {
+  return locale === 'fa' ? toPersianDigits(value).replace('.', '٫') : value;
+}
+
+const sizeOptions = (table: Readonly<Record<string, number>>, locale: AppLocale) =>
+  Object.keys(table)
+    .map(Number)
+    .sort((a, b) => a - b)
+    .map((n) => ({ value: String(n), label: localizeDigits(n, locale) }));
+
+type T = ReturnType<typeof useTranslations>;
+
+/** Common shape for every bar/profile table: size label, weight/metre, weight
+ *  for one standard branch. Plate (sold by the sheet, not the metre) builds
+ *  its own table below instead of using this helper. */
+function perMeterTable(
+  t: T,
+  locale: AppLocale,
+  sizeHeader: string,
+  branchM: number,
+  sizes: number[],
+  perMFor: (size: number) => number,
+  labelFor: (size: number) => string = (s) => localizeDigits(s, locale),
+): ReferenceTable {
+  return {
+    headers: [
+      sizeHeader,
+      t('tableHeaders.weightPerMeterKg'),
+      t('tableHeaders.weightPerBranchLengthKg', { length: localizeDigits(branchM, locale) }),
+    ],
+    rows: sizes.map((s) => {
+      const perM = round2(perMFor(s));
+      return [labelFor(s), localizedNum(perM, locale), localizedNum(round2(perM * branchM), locale)];
+    }),
+  };
+}
+
+function buildReferenceTables(t: T, locale: AppLocale): Record<Profile, ReferenceTable> {
+  const rebar = perMeterTable(
+    t,
+    locale,
+    t('tableHeaders.diameterMm'),
+    12,
+    [8, 10, 12, 14, 16, 18, 20, 22, 25, 28, 32],
+    (d) => (d * d) / 162,
+  );
+
+  const plate: ReferenceTable = {
+    headers: [
+      t('tableHeaders.thicknessMm'),
+      t('tableHeaders.widthM'),
+      t('tableHeaders.lengthM'),
+      t('tableHeaders.weightPerSheetKg'),
+    ],
+    rows: [3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30].map((th) => {
+      const w = round2(th * PLATE_STANDARD_WIDTH_M * PLATE_STANDARD_LENGTH_M * 7.85);
+      return [
+        localizeDigits(th, locale),
+        localizeDigits(PLATE_STANDARD_WIDTH_M, locale),
+        localizeDigits(PLATE_STANDARD_LENGTH_M, locale),
+        localizedNum(w, locale),
+      ];
+    }),
+  };
+
+  const pipe = perMeterTable(
+    t,
+    locale,
+    t('tableHeaders.outerDiameterWithThickness', {
+      thickness: localizeDigits(PIPE_STANDARD_THICKNESS_MM, locale),
+    }),
+    6,
+    [21.3, 26.7, 33.4, 42.2, 48.3, 60.3, 73, 88.9, 114.3],
+    (od) => (od - PIPE_STANDARD_THICKNESS_MM) * PIPE_STANDARD_THICKNESS_MM * 0.02466,
+  );
+
+  const flat: ReferenceTable = {
+    headers: [
+      t('tableHeaders.widthXThicknessMm'),
+      t('tableHeaders.weightPerMeterKg'),
+      t('tableHeaders.weightPerBranchLengthKg', { length: localizeDigits(6, locale) }),
+    ],
+    rows: FLAT_SIZES.map(([w, th]) => {
+      const perM = round2(w * th * 0.00785);
+      return [
+        `${localizeDigits(w, locale)}×${localizeDigits(th, locale)}`,
+        localizedNum(perM, locale),
+        localizedNum(round2(perM * 6), locale),
+      ];
+    }),
+  };
+
+  const angle = perMeterTable(
+    t,
+    locale,
+    t('tableHeaders.angleSize'),
+    6,
+    Object.keys(ANGLE_KG_PER_M).map(Number).sort((a, b) => a - b),
+    (leg) => ANGLE_KG_PER_M[String(leg)]!,
+    (leg) => {
+      const th = ANGLE_STANDARD_THICKNESS_MM[String(leg)] ?? 0;
+      return `L${localizeDigits(leg, locale)}×${localizeDigits(leg, locale)}×${localizeDigits(th, locale)}`;
+    },
+  );
+
+  const ibeam = perMeterTable(
+    t,
+    locale,
+    t('terms.size'),
+    12,
+    Object.keys(IBEAM_KG_PER_M).map(Number).sort((a, b) => a - b),
+    (size) => IBEAM_KG_PER_M[String(size)]!,
+  );
+
+  const channel = perMeterTable(
+    t,
+    locale,
+    t('terms.size'),
+    6,
+    Object.keys(CHANNEL_KG_PER_M).map(Number).sort((a, b) => a - b),
+    (size) => CHANNEL_KG_PER_M[String(size)]!,
+  );
+
+  return { rebar, plate, pipe, flat, angle, ibeam, channel };
+}
+
+function buildProfiles(t: T, locale: AppLocale, refTables: Record<Profile, ReferenceTable>): ProfileSpec[] {
+  const branch = t('pieceWords.branch');
+  const sheet = t('pieceWords.sheet');
+  const diameter = t('terms.diameter');
+  const outerDiameter = t('terms.outerDiameter');
+  const wallThickness = t('terms.wallThickness');
+  const thickness = t('terms.thickness');
+  const width = t('terms.width');
+  const length = t('terms.length');
+  const lengthPerBranch = t('terms.lengthPerPiece', { piece: branch });
+  const size = t('terms.size');
+  const sizeLegLength = t('terms.sizeLegLength');
+  const mm = t('units.mm');
+  const m = t('units.m');
+  const example = (value: number | string) => t('example', { value: localizeDigits(value, locale) });
+  const fieldAria = (label: string, unit: string) => t('fieldAriaLabel', { label, unit });
+  const rebarLabel = t('profiles.rebar.label');
+  const plateLabel = t('profiles.plate.label');
+  const pipeLabel = t('profiles.pipe.label');
+  const flatLabel = t('profiles.flat.label');
+  const angleLabel = t('profiles.angle.label');
+  const ibeamLabel = t('profiles.ibeam.label');
+  const channelLabel = t('profiles.channel.label');
+
+  return [
+    {
+      key: 'rebar',
+      label: rebarLabel,
+      hint: t('profiles.rebar.hint'),
+      perMeter: true,
+      pieceWord: branch,
+      fields: [
+        { key: 'd', label: diameter, unit: mm, placeholder: example(14), ariaLabel: fieldAria(diameter, mm) },
+        {
+          key: 'len',
+          label: lengthPerBranch,
+          unit: m,
+          placeholder: example(12),
+          ariaLabel: fieldAria(lengthPerBranch, m),
+        },
+      ],
+      perPiece: (v) => unitWeightKg('rebar', { diameterMm: v.d, lengthM: v.len }),
+      formula: (v) => {
+        const divisor = localizedConst('162', locale);
+        const val = localizeDigits(v.d || 0, locale);
+        return `(${diameter}² ÷ ${divisor}) = (${val}² ÷ ${divisor})`;
+      },
+      referenceTable: refTables.rebar,
+    },
+    {
+      key: 'plate',
+      label: plateLabel,
+      hint: t('profiles.plate.hint'),
+      perMeter: false,
+      pieceWord: sheet,
+      fields: [
+        { key: 'len', label: length, unit: m, placeholder: example(6), ariaLabel: fieldAria(length, m) },
+        { key: 'w', label: width, unit: m, placeholder: example('1.25'), ariaLabel: fieldAria(width, m) },
+        { key: 't', label: thickness, unit: mm, placeholder: example(3), ariaLabel: fieldAria(thickness, mm) },
+      ],
+      perPiece: (v) => unitWeightKg('plate', { lengthM: v.len, widthM: v.w, thicknessMm: v.t }),
+      formula: (v) => {
+        const c = localizedConst('7.85', locale);
+        return `${length} × ${width} × ${thickness} × ${c} = ${localizeDigits(v.len || 0, locale)} × ${localizeDigits(v.w || 0, locale)} × ${localizeDigits(v.t || 0, locale)} × ${c}`;
+      },
+      referenceTable: refTables.plate,
+    },
+    {
+      key: 'pipe',
+      label: pipeLabel,
+      hint: t('profiles.pipe.hint'),
+      perMeter: true,
+      pieceWord: branch,
+      fields: [
+        {
+          key: 'od',
+          label: outerDiameter,
+          unit: mm,
+          placeholder: example(60),
+          ariaLabel: fieldAria(outerDiameter, mm),
+        },
+        {
+          key: 't',
+          label: wallThickness,
+          unit: mm,
+          placeholder: example(3),
+          ariaLabel: fieldAria(wallThickness, mm),
+        },
+        {
+          key: 'len',
+          label: lengthPerBranch,
+          unit: m,
+          placeholder: example(6),
+          ariaLabel: fieldAria(lengthPerBranch, m),
+        },
+      ],
+      perPiece: (v) =>
+        unitWeightKg('pipe', { outerDiameterMm: v.od, thicknessMm: v.t, lengthM: v.len }),
+      formula: (v) => {
+        const c = localizedConst('0.02466', locale);
+        const od = localizeDigits(v.od || 0, locale);
+        const th = localizeDigits(v.t || 0, locale);
+        return `(${outerDiameter} − ${wallThickness}) × ${wallThickness} × ${c} = (${od} − ${th}) × ${th} × ${c}`;
+      },
+      referenceTable: refTables.pipe,
+    },
+    {
+      key: 'flat',
+      label: flatLabel,
+      hint: t('profiles.flat.hint'),
+      perMeter: true,
+      pieceWord: branch,
+      fields: [
+        { key: 'w', label: width, unit: mm, placeholder: example(40), ariaLabel: fieldAria(width, mm) },
+        { key: 't', label: thickness, unit: mm, placeholder: example(4), ariaLabel: fieldAria(thickness, mm) },
+        {
+          key: 'len',
+          label: lengthPerBranch,
+          unit: m,
+          placeholder: example(6),
+          ariaLabel: fieldAria(lengthPerBranch, m),
+        },
+      ],
+      perPiece: (v) => unitWeightKg('flat', { widthMm: v.w, thicknessMm: v.t, lengthM: v.len }),
+      formula: (v) => {
+        const c = localizedConst('0.00785', locale);
+        return `${width} × ${thickness} × ${c} = ${localizeDigits(v.w || 0, locale)} × ${localizeDigits(v.t || 0, locale)} × ${c}`;
+      },
+      referenceTable: refTables.flat,
+    },
+    {
+      key: 'angle',
+      label: angleLabel,
+      hint: t('profiles.angle.hint'),
+      perMeter: true,
+      pieceWord: branch,
+      fields: [
+        {
+          key: 'size',
+          label: sizeLegLength,
+          unit: '',
+          placeholder: '',
+          ariaLabel: sizeLegLength,
+          type: 'select',
+          options: sizeOptions(ANGLE_KG_PER_M, locale),
+        },
+        {
+          key: 'len',
+          label: lengthPerBranch,
+          unit: m,
+          placeholder: example(6),
+          ariaLabel: fieldAria(lengthPerBranch, m),
+        },
+      ],
+      perPiece: (v) => unitWeightKg('angle', { sizeCode: v.size, lengthM: v.len }),
+      formula: (v) => {
+        const kgPerM = ANGLE_KG_PER_M[String(Math.round(v.size || 0))];
+        const th = ANGLE_STANDARD_THICKNESS_MM[String(Math.round(v.size || 0))] ?? 0;
+        const sz = localizeDigits(v.size || 0, locale);
+        const subject = `${angleLabel} L${sz}×${sz}×${localizeDigits(th, locale)}`;
+        return t('perStandardTable', { subject, value: localizeDigits(kgPerM ?? 0, locale) });
+      },
+      referenceTable: refTables.angle,
+    },
+    {
+      key: 'ibeam',
+      label: ibeamLabel,
+      hint: t('profiles.ibeam.hint'),
+      perMeter: true,
+      pieceWord: branch,
+      fields: [
+        {
+          key: 'size',
+          label: size,
+          unit: '',
+          placeholder: '',
+          ariaLabel: size,
+          type: 'select',
+          options: sizeOptions(IBEAM_KG_PER_M, locale),
+        },
+        {
+          key: 'len',
+          label: lengthPerBranch,
+          unit: m,
+          placeholder: example(12),
+          ariaLabel: fieldAria(lengthPerBranch, m),
+        },
+      ],
+      perPiece: (v) => unitWeightKg('ibeam', { sizeCode: v.size, lengthM: v.len }),
+      formula: (v) => {
+        const kgPerM = IBEAM_KG_PER_M[String(Math.round(v.size || 0))];
+        const subject = `${ibeamLabel} ${localizeDigits(v.size || 0, locale)}`;
+        return t('perMillTable', { subject, value: localizeDigits(kgPerM ?? 0, locale) });
+      },
+      referenceTable: refTables.ibeam,
+    },
+    {
+      key: 'channel',
+      label: channelLabel,
+      hint: t('profiles.channel.hint'),
+      perMeter: true,
+      pieceWord: branch,
+      fields: [
+        {
+          key: 'size',
+          label: size,
+          unit: '',
+          placeholder: '',
+          ariaLabel: size,
+          type: 'select',
+          options: sizeOptions(CHANNEL_KG_PER_M, locale),
+        },
+        {
+          key: 'len',
+          label: lengthPerBranch,
+          unit: m,
+          placeholder: example(6),
+          ariaLabel: fieldAria(lengthPerBranch, m),
+        },
+      ],
+      perPiece: (v) => unitWeightKg('channel', { sizeCode: v.size, lengthM: v.len }),
+      formula: (v) => {
+        const kgPerM = CHANNEL_KG_PER_M[String(Math.round(v.size || 0))];
+        const subject = `${channelLabel} ${localizeDigits(v.size || 0, locale)}`;
+        return t('perMillTable', { subject, value: localizeDigits(kgPerM ?? 0, locale) });
+      },
+      referenceTable: refTables.channel,
+    },
+  ];
 }
 
 export function WeightCalculator() {
+  const t = useTranslations('weightCalculator');
+  const locale = useLocale() as AppLocale;
   const add = useCartStore((s) => s.add);
   const toast = useToast();
 
   const [profileKey, setProfileKey] = useState<Profile>('rebar');
   const [values, setValues] = useState<Record<string, string>>({});
   const [count, setCount] = useState('1');
+
+  const refTables = useMemo(() => buildReferenceTables(t, locale), [t, locale]);
+  const PROFILES = useMemo(() => buildProfiles(t, locale, refTables), [t, locale, refTables]);
 
   const profile = PROFILES.find((p) => p.key === profileKey) ?? PROFILES[0]!;
 
@@ -372,13 +516,13 @@ export function WeightCalculator() {
     if (total === null || perPiece === null) return;
     add({
       skuId: `weight-calc-${profile.key}`,
-      name: `${profile.label} (محاسبهٔ وزن‌سنج)`,
+      name: t('cartItemName', { profile: profile.label }),
       qty: pieces,
       unit: profile.key === 'plate' ? 'sheet' : 'branch',
       weightKg: Math.round(perPiece * 100) / 100,
     });
-    toast.success('نتیجهٔ محاسبه به سبد استعلام اضافه شد.', {
-      label: 'مشاهده سبد',
+    toast.success(t('addedToCartToast'), {
+      label: t('viewCart'),
       href: routes.cart(),
     });
   };
@@ -389,7 +533,7 @@ export function WeightCalculator() {
       <div
         className={styles.segmented}
         role="group"
-        aria-label="نوع مقطع"
+        aria-label={t('sectionType')}
       >
         {PROFILES.map((p) => (
           <button
@@ -422,10 +566,10 @@ export function WeightCalculator() {
                         className={`${styles.select} tnum`}
                         value={values[f.key] ?? ''}
                         onChange={(e) => setField(f.key, e.target.value)}
-                        aria-label={f.label}
+                        aria-label={f.ariaLabel}
                       >
                         <option value="" disabled>
-                          انتخاب کنید
+                          {t('selectPlaceholder')}
                         </option>
                         {f.options?.map((o) => (
                           <option key={o.value} value={o.value}>
@@ -449,24 +593,24 @@ export function WeightCalculator() {
                       placeholder={f.placeholder}
                       value={values[f.key] ?? ''}
                       onChange={(e) => setField(f.key, e.target.value)}
-                      aria-label={`${f.label} بر حسب ${f.unit}`}
+                      aria-label={f.ariaLabel}
                     />
                   </label>
                 ),
               )}
               <label className={styles.field}>
                 <span className={styles.fieldLabel}>
-                  تعداد {profile.pieceWord}
-                  <span className={styles.fieldUnit}>(عدد)</span>
+                  {t('pieceCountLabel', { piece: profile.pieceWord })}
+                  <span className={styles.fieldUnit}>({t('units.count')})</span>
                 </span>
                 <input
                   className={`${styles.input} tnum`}
                   inputMode="numeric"
                   autoComplete="off"
-                  placeholder="مثلاً ۱۰"
+                  placeholder={t('example', { value: localizeDigits(10, locale) })}
                   value={count}
                   onChange={(e) => setCount(e.target.value)}
-                  aria-label={`تعداد ${profile.pieceWord}`}
+                  aria-label={t('pieceCountLabel', { piece: profile.pieceWord })}
                 />
               </label>
             </div>
@@ -479,17 +623,17 @@ export function WeightCalculator() {
           <Stack gap={5}>
             <div>
               <Text variant="overline" color="muted" as="p">
-                وزن هر {profile.pieceWord}
+                {t('weightPerPiece', { piece: profile.pieceWord })}
               </Text>
               <p className={`${styles.value} tnum`}>
                 {perPiece !== null ? (
                   <>
-                    <span className={styles.valueNum}>{faNum(perPiece)}</span>
-                    <span className={styles.valueUnit}>کیلوگرم</span>
+                    <span className={styles.valueNum}>{localizedNum(perPiece, locale)}</span>
+                    <span className={styles.valueUnit}>{t('kg')}</span>
                   </>
                 ) : (
                   <span className={styles.empty}>
-                    {invalidGeometry ? 'ابعاد واردشده برای این مقطع معتبر نیست.' : 'مقادیر را وارد کنید'}
+                    {invalidGeometry ? t('invalidGeometry') : t('enterValues')}
                   </span>
                 )}
               </p>
@@ -499,31 +643,31 @@ export function WeightCalculator() {
 
             <div>
               <Text variant="overline" color="muted" as="p">
-                وزن کل ({toPersianDigits(pieces)} {profile.pieceWord})
+                {t('totalWeight', { count: localizeDigits(pieces, locale), piece: profile.pieceWord })}
               </Text>
               <p className={`${styles.valueTotal} tnum`}>
                 {total !== null ? (
                   <>
-                    <span className={styles.valueNum}>{faNum(total)}</span>
-                    <span className={styles.valueUnit}>کیلوگرم</span>
+                    <span className={styles.valueNum}>{localizedNum(total, locale)}</span>
+                    <span className={styles.valueUnit}>{t('kg')}</span>
                   </>
                 ) : (
-                  <span className={styles.empty}>بدون مقدار</span>
+                  <span className={styles.empty}>{t('noValue')}</span>
                 )}
               </p>
               {total !== null && total >= 1000 ? (
                 <Text variant="caption" color="muted">
-                  معادل {faNum(total / 1000)} تن
+                  {t('equivalentTons', { value: localizedNum(total / 1000, locale) })}
                 </Text>
               ) : null}
             </div>
 
             {perPiece !== null ? (
               <p className={styles.formula}>
-                <span className={styles.formulaLabel}>فرمول:</span>{' '}
+                <span className={styles.formulaLabel}>{t('formulaLabel')}</span>{' '}
                 {profile.perMeter
-                  ? `وزن هر متر = ${profile.formula(parsed)} → وزن هر ${profile.pieceWord} = وزن هر متر × طول`
-                  : `وزن هر ${profile.pieceWord} = ${profile.formula(parsed)}`}
+                  ? t('formulaPerMeter', { formula: profile.formula(parsed), piece: profile.pieceWord })
+                  : t('formulaAbsolute', { formula: profile.formula(parsed), piece: profile.pieceWord })}
               </p>
             ) : null}
 
@@ -534,7 +678,7 @@ export function WeightCalculator() {
               disabled={total === null}
               onClick={addToCart}
             >
-              <PlusIcon size={18} /> افزودن به سبد استعلام
+              <PlusIcon size={18} /> {t('addToCart')}
             </Button>
           </Stack>
         </Card>
@@ -547,7 +691,7 @@ export function WeightCalculator() {
         <Card className={styles.tableCard}>
           <Stack gap={3}>
             <Text variant="overline" color="muted" as="p">
-              جدول وزن استاندارد {profile.label}
+              {t('referenceTableTitle', { profile: profile.label })}
             </Text>
             <div className={styles.tableScroll}>
               <table className={`${styles.refTable} tnum`}>
@@ -576,10 +720,7 @@ export function WeightCalculator() {
       <Alert tone="info">
         <Cluster gap={2} align="center">
           <CheckCircleIcon size={16} />
-          <span>
-            وزن‌های نمایش‌داده‌شده تئوریک و بر پایهٔ چگالی استاندارد فولاد است؛ وزن
-            واقعی هر محموله ممکن است اندکی متفاوت باشد.
-          </span>
+          <span>{t('disclaimer')}</span>
         </Cluster>
       </Alert>
     </Stack>

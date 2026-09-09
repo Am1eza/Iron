@@ -15,14 +15,16 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations, useLocale } from 'next-intl';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { useToast } from '@/lib/hooks/useToast';
 import { api } from '@/lib/api';
 import { ApiError } from '@/lib/api/errors';
 import { routes } from '@/lib/routes';
 import { formatJalali } from '@/lib/utils/jalali';
-import { toPersianDigits } from '@/lib/utils/format';
-import { Button, Text, Badge, EmptyState } from '@/components/ui';
+import { localizeDigits } from '@/lib/utils/format';
+import type { AppLocale } from '@/i18n/config';
+import { Heading, Button, Text, Badge, EmptyState } from '@/components/ui';
 import { Textarea } from '@/components/forms/fields';
 import { CommentAvatar } from './CommentAvatar';
 import styles from './CommentsSection.module.css';
@@ -41,6 +43,8 @@ const MAX_LEN = 1000;
 type Sort = 'newest' | 'helpful';
 
 export function CommentsSection({ slug, initialComments }: { slug: string; initialComments: PublicCommentDto[] }) {
+  const t = useTranslations('comments');
+  const locale = useLocale() as AppLocale;
   const { isAuthenticated, isLoading, user } = useAuth();
   const toast = useToast();
   const router = useRouter();
@@ -95,7 +99,7 @@ export function CommentsSection({ slug, initialComments }: { slug: string; initi
       setPending((p) => [...p, { id: `local-${Date.now()}`, body: trimmed }]);
       setBody('');
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'ثبت نظر ناموفق بود؛ دوباره تلاش کنید.');
+      toast.error(err instanceof ApiError ? err.message : t('submitError'));
     } finally {
       setSubmitting(false);
     }
@@ -123,7 +127,7 @@ export function CommentsSection({ slug, initialComments }: { slug: string; initi
             : c,
         ),
       );
-      toast.error('ثبت رأی ناموفق بود؛ دوباره تلاش کنید.');
+      toast.error(t('voteError'));
     } finally {
       setVotingId(null);
     }
@@ -131,20 +135,23 @@ export function CommentsSection({ slug, initialComments }: { slug: string; initi
 
   return (
     <div className={styles.root}>
+      <Heading level={2} id="article-comments-title">
+        {t('title')}
+      </Heading>
       <div className={styles.head}>
         <Text variant="label" color="muted">
-          {toPersianDigits(totalCount)} نظر
-          {helpfulTotal > 0 ? <> · {toPersianDigits(helpfulTotal)} رأی مفید</> : null}
+          {t('totalCount', { count: localizeDigits(totalCount, locale) })}
+          {helpfulTotal > 0 ? <> · {t('helpfulTotal', { count: localizeDigits(helpfulTotal, locale) })}</> : null}
         </Text>
         {comments.length > 1 ? (
-          <div className={styles.sortTabs} role="group" aria-label="ترتیب نظرات">
+          <div className={styles.sortTabs} role="group" aria-label={t('sortAriaLabel')}>
             <button
               type="button"
               className={styles.sortBtn}
               aria-pressed={sort === 'newest'}
               onClick={() => setSort('newest')}
             >
-              جدیدترین
+              {t('sortNewest')}
             </button>
             <button
               type="button"
@@ -152,7 +159,7 @@ export function CommentsSection({ slug, initialComments }: { slug: string; initi
               aria-pressed={sort === 'helpful'}
               onClick={() => setSort('helpful')}
             >
-              پرمفیدترین
+              {t('sortHelpful')}
             </button>
           </div>
         ) : null}
@@ -164,25 +171,20 @@ export function CommentsSection({ slug, initialComments }: { slug: string; initi
         // with the brand glyph (the same `EmptyState` every other empty
         // list on the site uses, not a one-off) reads as "start the
         // conversation" instead of "nothing to see here".
-        <EmptyState
-          size="section"
-          headingLevel={3}
-          headline="هنوز نظری ثبت نشده"
-          body="اولین نفری باشید که تجربه‌تان را دربارهٔ این مطلب می‌نویسید."
-        />
+        <EmptyState size="section" headingLevel={3} headline={t('emptyHeadline')} body={t('emptyBody')} />
       ) : (
-        <ul className={styles.list} aria-label="نظرات">
+        <ul className={styles.list} aria-label={t('listAriaLabel')}>
           {pending.map((p) => (
             <li key={p.id} className={`${styles.item} ${styles.itemPending}`}>
               <CommentAvatar name={user?.name ?? null} />
               <div className={styles.itemBody}>
                 <div className={styles.itemHead}>
-                  <span className={styles.author}>{user?.name ?? 'شما'}</span>
-                  <Badge tone="stale">در انتظار بررسی</Badge>
+                  <span className={styles.author}>{user?.name ?? t('youLabel')}</span>
+                  <Badge tone="stale">{t('pendingBadge')}</Badge>
                 </div>
                 <Text>{p.body}</Text>
                 <Text color="muted" variant="caption">
-                  فقط برای شما نمایش داده می‌شود، تا زمانی که تایید شود.
+                  {t('pendingNote')}
                 </Text>
               </div>
             </li>
@@ -192,8 +194,8 @@ export function CommentsSection({ slug, initialComments }: { slug: string; initi
               <CommentAvatar name={c.authorName} />
               <div className={styles.itemBody}>
                 <div className={styles.itemHead}>
-                  <span className={styles.author}>{c.authorName ?? 'کاربر آهن‌تایم'}</span>
-                  {c.isVerifiedBuyer ? <Badge tone="gain">خریدار تایید‌شده آهن‌تایم</Badge> : null}
+                  <span className={styles.author}>{c.authorName ?? t('anonymousAuthor')}</span>
+                  {c.isVerifiedBuyer ? <Badge tone="gain">{t('verifiedBuyerBadge')}</Badge> : null}
                   <time className="tnum" dateTime={c.createdAt}>
                     {formatJalali(c.createdAt)}
                   </time>
@@ -206,8 +208,10 @@ export function CommentsSection({ slug, initialComments }: { slug: string; initi
                   disabled={!isAuthenticated || votingId === c.id}
                   onClick={() => void toggleHelpful(c.id)}
                 >
-                  👍 مفید بود
-                  {c.helpfulCount > 0 ? <span className="tnum">{toPersianDigits(c.helpfulCount)}</span> : null}
+                  {t('helpfulButton')}
+                  {c.helpfulCount > 0 ? (
+                    <span className="tnum">{localizeDigits(c.helpfulCount, locale)}</span>
+                  ) : null}
                 </button>
               </div>
             </li>
@@ -218,36 +222,36 @@ export function CommentsSection({ slug, initialComments }: { slug: string; initi
       {isLoading ? null : isAuthenticated ? (
         <div className={styles.form}>
           <Textarea
-            label="نظر شما"
+            label={t('commentLabel')}
             value={body}
             maxLength={MAX_LEN}
             rows={3}
-            placeholder="نظر یا تجربهٔ خود را دربارهٔ این مطلب بنویسید…"
+            placeholder={t('commentPlaceholder')}
             onChange={(e) => setBody(e.target.value)}
           />
           <div className={styles.formFoot}>
             <span className={styles.counter}>
-              {toPersianDigits(body.length)}/{toPersianDigits(MAX_LEN)}
+              {localizeDigits(body.length, locale)}/{localizeDigits(MAX_LEN, locale)}
             </span>
             <Button type="button" size="sm" disabled={submitting || body.trim().length === 0} onClick={() => void submit()}>
-              {submitting ? 'در حال ارسال…' : 'ثبت نظر'}
+              {submitting ? t('submitting') : t('submitButton')}
             </Button>
           </div>
         </div>
       ) : (
         // Was a muted-gray inline text link — easy to read as decorative
         // and skip. A filled primary Button is the same visual weight as
-        // the "ثبت نظر" submit button an authenticated reader sees, so the
+        // the submit button an authenticated reader sees, so the
         // signed-out state reads as "one step before that", not a dead end.
         <div className={styles.loginPrompt}>
-          <Text color="muted">برای نوشتن نظر باید وارد حساب کاربری‌تان شوید.</Text>
+          <Text color="muted">{t('loginPrompt')}</Text>
           <Button
             type="button"
             variant="primary"
             size="sm"
             onClick={() => router.push(routes.login(window.location.pathname))}
           >
-            ورود یا ثبت‌نام
+            {t('loginCta')}
           </Button>
         </div>
       )}

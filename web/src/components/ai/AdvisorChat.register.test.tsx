@@ -10,10 +10,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { AdvisorChat, GREETING_TEXT } from './AdvisorChat';
+import { AdvisorChat } from './AdvisorChat';
 import { ApiError } from '@/lib/api/errors';
 import { useAuthStore } from '@/lib/stores/auth';
 import { formalMarkersIn } from '@/test/persianRegister';
+import faMessages from '../../../messages/fa.json';
+
+const GREETING_TEXT = faMessages.ai.chat.greeting;
 
 vi.mock('@/lib/api', () => ({
   API_MODE: 'live',

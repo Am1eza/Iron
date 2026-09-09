@@ -63,6 +63,7 @@ export function CartView({
   const t = useTranslations('cart');
   const tAction = useTranslations('common.action');
   const tUnit = useTranslations('common.unit');
+  const tEmpty = useTranslations('emptyPresets');
   const locale = useLocale() as AppLocale;
   const [mounted, setMounted] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
@@ -97,7 +98,7 @@ export function CartView({
   }
 
   if (items.length === 0) {
-    return <EmptyState size="section" {...emptyPresets.cartEmpty()} />;
+    return <EmptyState size="section" {...emptyPresets.cartEmpty(tEmpty)} />;
   }
 
   return (

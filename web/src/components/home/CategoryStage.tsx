@@ -1,14 +1,16 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { routes } from '@/lib/routes';
 import type { SubsMap } from '@/lib/data/catalog';
 import type { Category } from '@/lib/types/domain';
+import type { AppLocale } from '@/i18n/config';
 import { CategoryArt } from '@/components/catalog/CategoryArt';
 import { ProductImage } from '@/components/catalog/ProductImage';
 import { productImage, productThumb } from '@/lib/data/productImages';
 import { groupSubCategories } from '@/lib/utils/catalogGroups';
+import { getLocalizedName } from '@/lib/utils/localizedNames';
 import { FactoryLink } from '@/components/catalog/FactoryLink';
 import { ChevronStartIcon } from '@/components/primitives/icons';
 import styles from './CategoryStage.module.css';
@@ -34,9 +36,12 @@ export function CategoryStage({
   subs: SubsMap;
   factories: FactoryMap;
 }) {
-  // Category and sub-category names come from the catalog and stay Persian in
-  // every locale; only the chrome around them is translated.
+  // Category and sub-category names have a per-locale name_en/ar/zh backfill
+  // (i18n audit follow-up, migration 0057) resolved through
+  // `getLocalizedName` below — falls back to the fa `name` for any row the
+  // backfill hasn't reached yet, never a mixed-language render.
   const t = useTranslations('home.browse');
+  const locale = useLocale() as AppLocale;
   const firstSub = (slug: string): string => subsMap[slug]?.[0]?.slug ?? '';
   const [activeCat, setActiveCat] = useState<Category | null>(categories[0] ?? null);
   const [activeSub, setActiveSub] = useState<string>(firstSub(categories[0]?.slug ?? ''));
@@ -68,7 +73,9 @@ export function CategoryStage({
   const subGroups = groupSubCategories(subs);
   const firstSubSlug = subGroups[0]?.lead?.slug ?? subGroups[0]?.items[0]?.slug;
   const mills = factories[activeCat.slug]?.[activeSub] ?? [];
-  const activeSubName = subs.find((s) => s.slug === activeSub)?.name ?? '';
+  const activeSubEntity = subs.find((s) => s.slug === activeSub);
+  const activeSubName = activeSubEntity ? getLocalizedName(activeSubEntity, locale) : '';
+  const activeCatName = getLocalizedName(activeCat, locale);
 
   const pickCat = (cat: Category) => {
     setActiveCat(cat);
@@ -150,7 +157,7 @@ export function CategoryStage({
                         <CategoryArt slug={cat.slug} size={20} />
                       )}
                     </span>
-                    <span className={styles.railName}>{cat.name}</span>
+                    <span className={styles.railName}>{getLocalizedName(cat, locale)}</span>
                     <ChevronStartIcon size={20} className={`${styles.railChev} icon--rtl`} />
                   </Link>
                 </li>
@@ -190,7 +197,7 @@ export function CategoryStage({
             <div className={styles.cols}>
               {/* sub-groups */}
               <div className={styles.col}>
-                <p className={styles.colLabel}>{t('subsOf', { name: activeCat.name })}</p>
+                <p className={styles.colLabel}>{t('subsOf', { name: activeCatName })}</p>
                 {subGroups.map((group) => (
                   <div key={group.label ?? `_solo_${(group.lead ?? group.items[0])!.slug}`}>
                     {group.lead ? (
@@ -205,7 +212,7 @@ export function CategoryStage({
                           group.lead.slug === firstSubSlug ? handleFlyoutFirstKeyDown : undefined
                         }
                       >
-                        <span>{group.lead.name}</span>
+                        <span>{getLocalizedName(group.lead, locale)}</span>
                         <ChevronStartIcon size={14} className={`${styles.subChev} icon--rtl`} />
                       </Link>
                     ) : group.label ? (
@@ -225,7 +232,7 @@ export function CategoryStage({
                               s.slug === firstSubSlug ? handleFlyoutFirstKeyDown : undefined
                             }
                           >
-                            <span>{s.name}</span>
+                            <span>{getLocalizedName(s, locale)}</span>
                             <ChevronStartIcon size={14} className={`${styles.subChev} icon--rtl`} />
                           </Link>
                         </li>
@@ -237,7 +244,7 @@ export function CategoryStage({
 
               {/* factories of the active sub-group */}
               <div className={`${styles.col} ${styles.colFactories}`}>
-                <p className={styles.colLabel}>کارخانه‌های {activeSubName}</p>
+                <p className={styles.colLabel}>{t('factoriesOf', { name: activeSubName })}</p>
                 {/* A mill name goes to that MILL'S page, not to a filtered
                       view of the sub-category we happen to be standing in.
                       `?factory=` produced a query-string URL with no page of
@@ -261,7 +268,7 @@ export function CategoryStage({
             </div>
 
             <Link href={routes.category(activeCat.slug)} className={styles.cta}>
-              مشاهده جدول قیمت {activeCat.name}
+              {t('viewPriceTable', { name: activeCatName })}
               <ChevronStartIcon size={18} className="icon--rtl" />
             </Link>
           </div>

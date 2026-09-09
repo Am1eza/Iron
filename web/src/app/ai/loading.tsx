@@ -1,6 +1,8 @@
 /** AI advisor route loading — a chat-bubble shape, not a price table. This is
  *  the product's flagship page (EP-04); the generic table skeleton it was
- *  falling back to made no sense here (US-26.6). */
+ *  falling back to made no sense here (US-26.6). Persian, like every other
+ *  server-rendered string on this route — this app never resolves locale
+ *  server-side (see `LocaleProvider`'s header comment). */
 import { Container, Section, Stack, Skeleton } from '@/components/ui';
 
 export default function Loading() {

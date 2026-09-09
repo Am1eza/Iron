@@ -45,7 +45,7 @@ function renderTable(rows: PriceRow[]) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
-      <PriceTable rows={rows} subs={SUBS} categoryName="میلگرد" categorySlug="rebar" />
+      <PriceTable rows={rows} subs={SUBS} category={{ id: 'rebar', slug: 'rebar', name: 'میلگرد', order: 0, iconId: '' }} categorySlug="rebar" />
     </QueryClientProvider>,
   );
 }

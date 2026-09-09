@@ -311,6 +311,12 @@ export async function getCategoryArticleCounts(): Promise<Record<string, number>
 export type CategoryRailItem = {
   slug: string;
   name: string;
+  /** Per-locale translations, same as `Category` itself — see
+   *  `getLocalizedName` (`@/lib/utils/localizedNames`); `CategoryRail`
+   *  uses these instead of the raw fa `name` for non-fa locales. */
+  nameEn?: string;
+  nameAr?: string;
+  nameZh?: string;
   /** `null` when the category has articles but no photo set yet in the admin
    *  catalog form — `CategoryRail` renders a brand-tinted fallback tile
    *  rather than skipping it. */
@@ -331,6 +337,9 @@ export async function getBlogCategoryRailItems(): Promise<CategoryRailItem[]> {
     .map((c) => ({
       slug: c.slug,
       name: c.name,
+      nameEn: c.nameEn,
+      nameAr: c.nameAr,
+      nameZh: c.nameZh,
       imageUrl: c.imageUrl ?? null,
       count: counts[c.id] ?? 0,
     }))

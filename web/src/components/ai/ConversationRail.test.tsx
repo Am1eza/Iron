@@ -8,9 +8,10 @@
  * a 401 has to read as an invitation, not a failure.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ApiError } from '@/lib/api/errors';
+import { renderWithIntl as render } from '@/test/renderWithIntl';
 
 vi.mock('@/lib/api', () => ({
   API_MODE: 'live',
@@ -28,9 +29,20 @@ import { ConversationRail } from './ConversationRail';
 
 const conversations = api.ai.conversations as unknown as ReturnType<typeof vi.fn>;
 
+// `bucketOf` (ConversationRail.tsx) diffs CALENDAR days (both timestamps
+// truncated to local midnight before subtracting), so a raw hour-offset like
+// `now - 26h` is flaky: near a day boundary it can cross two midnights
+// instead of one and land in the wrong bucket. Building from `setDate()`
+// pins the calendar-day distance regardless of the current hour.
 const today = new Date().toISOString();
-const yesterday = new Date(Date.now() - 26 * 3600_000).toISOString();
-const lastMonth = new Date(Date.now() - 20 * 86_400_000).toISOString();
+const daysAgo = (n: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  d.setHours(12, 0, 0, 0);
+  return d.toISOString();
+};
+const yesterday = daysAgo(1);
+const lastMonth = daysAgo(20);
 
 beforeEach(() => {
   authStatus = 'authenticated';

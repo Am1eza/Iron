@@ -1,6 +1,10 @@
+'use client';
 import Link from 'next/link';
+import { useTranslations, useLocale } from 'next-intl';
 import { routes } from '@/lib/routes';
-import { toPersianDigits } from '@/lib/utils/format';
+import { localizeDigits } from '@/lib/utils/format';
+import { getLocalizedName } from '@/lib/utils/localizedNames';
+import type { AppLocale } from '@/i18n/config';
 import type { CategoryRailItem } from '@/lib/server/catalog';
 import styles from './CategoryRail.module.css';
 
@@ -13,12 +17,14 @@ import styles from './CategoryRail.module.css';
  * hiding an empty state behind a click.
  */
 export function CategoryRail({ items, activeSlug }: { items: CategoryRailItem[]; activeSlug?: string }) {
+  const t = useTranslations('categoryRail');
+  const locale = useLocale() as AppLocale;
   if (items.length === 0) return null;
 
   return (
     <div>
-      <p className={styles.label}>مقالات را بر اساس محصول ببینید</p>
-      <ul className={styles.rail} aria-label="دسته‌بندی مقالات">
+      <p className={styles.label}>{t('label')}</p>
+      <ul className={styles.rail} aria-label={t('ariaLabel')}>
         {items.map((c) => {
           const active = c.slug === activeSlug;
           return (
@@ -32,8 +38,10 @@ export function CategoryRail({ items, activeSlug }: { items: CategoryRailItem[];
               >
                 <span className={styles.scrim} aria-hidden="true" />
                 <span className={styles.text}>
-                  <span className={styles.name}>{c.name}</span>
-                  <span className={`${styles.count} tnum`}>{toPersianDigits(c.count)} مقاله</span>
+                  <span className={styles.name}>{getLocalizedName(c, locale)}</span>
+                  <span className={`${styles.count} tnum`}>
+                    {t('articleCount', { count: localizeDigits(c.count, locale) })}
+                  </span>
                 </span>
               </Link>
             </li>

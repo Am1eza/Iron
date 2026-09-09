@@ -93,7 +93,7 @@ function renderTable(rows: PriceRow[] = ROWS, initialSub: string | null = null) 
       <PriceTable
         rows={rows}
         subs={SUBS}
-        categoryName="لوله"
+        category={{ id: 'pipe', slug: 'pipe', name: 'لوله', order: 0, iconId: '' }}
         categorySlug="pipe"
         initialSub={initialSub}
       />

@@ -75,7 +75,7 @@ function renderTable(initialSub: string | null = null) {
       <PriceTable
         rows={ROWS}
         subs={SUBS}
-        categoryName="تیرآهن"
+        category={{ id: 'ibeam', slug: 'ibeam', name: 'تیرآهن', order: 0, iconId: '' }}
         categorySlug="ibeam"
         initialSub={initialSub}
       />
@@ -157,7 +157,7 @@ describe('PriceTable — تیرآهن sub-type section headings name the sub-typ
         <PriceTable
           rows={[row('lz-1', 'lane-zanburi', 'فایکو'), row('lz-2', 'lane-zanburi', 'ظفر بناب')]}
           subs={SUBS}
-          categoryName="تیرآهن"
+          category={{ id: 'ibeam', slug: 'ibeam', name: 'تیرآهن', order: 0, iconId: '' }}
           categorySlug="ibeam"
           initialSub="lane-zanburi"
         />
@@ -177,7 +177,7 @@ describe('PriceTable — no other category’s heading changes', () => {
         <PriceTable
           rows={[{ ...row('rebar-14', 'deformed'), categoryId: 'rebar' } as PriceRow]}
           subs={[{ slug: 'deformed', name: 'آجدار A3', groupLabel: null }]}
-          categoryName="میلگرد"
+          category={{ id: 'rebar', slug: 'rebar', name: 'میلگرد', order: 0, iconId: '' }}
           categorySlug="rebar"
           initialSub="deformed"
         />

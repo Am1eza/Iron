@@ -2,9 +2,10 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
-import { Container, Section, Stack, Heading, Text, Breadcrumbs } from '@/components/ui';
+import { Container, Section, Stack, Breadcrumbs } from '@/components/ui';
 import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
 import { ToolRenderer, type ToolSlug } from '@/components/tools/ToolRenderer';
+import { ToolPageHeading } from '@/components/tools/ToolPageHeading';
 import { ProjectEstimatorGuide } from '@/components/tools/ProjectEstimatorGuide';
 
 const TOOLS: Record<ToolSlug, { title: string; intro: string }> = {
@@ -72,10 +73,7 @@ export default async function ToolPage({ params }: Params) {
         <Stack gap={8}>
           <Stack gap={3}>
             <Breadcrumbs items={crumbs} />
-            <Heading level={1} id="tool-title">
-              {t.title}
-            </Heading>
-            <Text color="muted">{t.intro}</Text>
+            <ToolPageHeading tool={tool} />
           </Stack>
 
           <ToolRenderer tool={tool} />
