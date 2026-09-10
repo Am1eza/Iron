@@ -79,12 +79,12 @@ const patchPayload = nonEmptyPatch(
     // an emptied box really clears it (see the nullable-vs-optional note above).
     branchLengthM: finiteNumber.positive().max(100).nullable().optional(),
     imageUrl: uploadPathSchema.nullable().optional(),
-    crossListedCategoryIds: z.array(z.string().min(1)).max(5).nullable().optional(),
+    crossListedCategoryIds: z.array(z.string().min(1).max(64)).max(5).nullable().optional(),
     // Moving a product between sub-categories was impossible: a mis-filed SKU
     // could only be retired and rebuilt — and the global unique slug meant the
     // rebuild got a worse URL and orphaned its price history. The repo derives
     // `categoryId` from this, so the pair can never disagree.
-    subCategoryId: z.string().min(1).optional(),
+    subCategoryId: z.string().min(1).max(64).optional(),
   }),
 );
 

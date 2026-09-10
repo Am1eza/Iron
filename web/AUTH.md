@@ -87,6 +87,7 @@ Reference call sites: `components/admin/AdminAlerts.tsx`, `components/admin/lead
 - Logs never include codes, hashes, tokens, or PII (`errors/report.ts` redaction).
 - `SESSION_SECRET` and the separate `OTP_SECRET` are **required in live production** and must each contain at least 32 characters.
 - For a zero-downtime session-key rotation, set the old value temporarily as `SESSION_SECRET_PREVIOUS`, deploy the new `SESSION_SECRET`, wait one refresh lifetime, then remove the previous value.
+  - **F-150 safety guard (`lib/validation/env.ts`):** boot fails immediately if `SESSION_SECRET_PREVIOUS` is ever set equal to `SESSION_SECRET` (a no-op "rotation" that looks configured but isn't). Set `SESSION_SECRET_ROTATED_AT` (epoch-ms or any parseable date) to when you staged `SESSION_SECRET_PREVIOUS` — the app logs a warning at every boot if that rotation has outlived one refresh-token lifetime (`CONSTANTS.SESSION_TTL_DAYS`, 30 days) or if `SESSION_SECRET_ROTATED_AT` was never set at all, so a "temporary" previous key doesn't silently outlive whoever staged it. `SESSION_SECRET_TTL_DAYS` can shorten (never lengthen) that window for an operator who wants an earlier reminder. None of this is enforced at the auth layer — it is advisory logging only; a stale `SESSION_SECRET_PREVIOUS` still works exactly as before, it's just now impossible to boot without a loud reminder that it's overdue for removal.
 
 ## Files
 

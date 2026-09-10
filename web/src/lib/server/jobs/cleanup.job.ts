@@ -8,7 +8,8 @@ import path from 'path';
 import { decodeTime } from 'ulid';
 import { getDb } from '@/lib/server/db/client';
 import { cleanupExpiredAuth } from '@/lib/auth/store';
-import { idempotencyKeys } from '@/lib/server/db/schema';
+import { idempotencyKeys, rateLimitWindows } from '@/lib/server/db/schema';
+import { lt } from 'drizzle-orm';
 import { getSetting, setSetting } from '@/lib/server/repos/settingsRepo';
 import { reportError } from '@/lib/errors/report';
 import { uploadDir, UPLOAD_FILENAME_RE } from '@/lib/server/utils/uploadStorage';
@@ -222,6 +223,11 @@ export const cleanupJob: Job = {
       .where(sql`${idempotencyKeys.status} = 'done' AND ${idempotencyKeys.createdAt} < now() - interval '24 hours'`);
     // Market points: after 48h keep at most one point per 15 minutes.
     await thinMarketPoints();
+    // F-131: one row per (scope:key:windowBucket) — a Redis outage that lasts
+    // any length of time would otherwise leave this growing without bound.
+    // `expiresAt` is the bucket's own end time, already in the past for any
+    // row worth deleting.
+    await db.delete(rateLimitWindows).where(lt(rateLimitWindows.expiresAt, Date.now()));
     // Idempotency keys: one row per financially-meaningful write (proforma/
     // order/lead issuance). A row is only ever deleted on its own failure
     // path (see lib/server/utils/idempotency.ts) — successful ones are kept

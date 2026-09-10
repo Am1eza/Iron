@@ -8,7 +8,7 @@ import { planDeletedNodeRedirects, revalidateCatalog, writeCatalogRedirects } fr
 const MAX_BULK_DELETE = 200;
 
 const payload = z.object({
-  ids: z.array(z.string().min(1)).min(1).max(MAX_BULK_DELETE),
+  ids: z.array(z.string().min(1).max(120)).min(1).max(MAX_BULK_DELETE),
 });
 
 /**

@@ -77,15 +77,19 @@ export const tenderPricePayload = z.object({
 });
 
 /* ---------- external/response schemas (parse at the boundary) ---------- */
+// H-173: these three free-text fields come from a trusted internal source
+// (BrsAPI/admin), not a raw attacker request body, but they're capped anyway
+// — cheap, and a boundary parser shouldn't rely on "the upstream is trusted"
+// as its only defense against a malformed/oversized payload.
 export const marketValueSchema = z.object({
   key: z.enum(['usd', 'eur', 'gold18', 'ounce', 'billet']),
-  label: z.string(),
+  label: z.string().max(100),
   value: finiteNumber,
-  unit: z.string(),
+  unit: z.string().max(20),
   source: z.enum(['tgju', 'esfahanahan', 'admin']),
   movementDir: z.enum(['up', 'down', 'flat']),
   movementPct: finiteNumber.optional(),
-  updatedAt: z.string(),
+  updatedAt: z.string().max(40),
   isStale: z.boolean(),
 });
 export const marketResponseSchema = z.object({ values: z.array(marketValueSchema) });

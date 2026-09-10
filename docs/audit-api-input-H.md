@@ -5,6 +5,15 @@
 
 ## نتیجهٔ فعلی: ۹۳ از ۱۰۰ — هنوز ۱۰۰ نیست
 
+> **یادداشت ادغام (۲۰۲۶-۰۹-۱۱، بعدازظهر):** دو نوبت مستقل هم‌زمان روی این
+> سند کار کردند — یکی H-172 را بست، دیگری (از یک worktree ایزوله با پایهٔ
+> قدیم‌تر، بدون اطلاع از اولی) H-171/H-173 را به artifact خودکار تبدیل
+> کرد. پس از ادغام هر سه در همان کد کنار هم موجودند و هیچ‌کدام دیگری را
+> نقض نمی‌کند (فایل‌های لمس‌شده مجزا بودند). migration این نوبت
+> (`rate_limit_windows`، برای F-131 که هم‌زمان در audit-auth-F.md مستند
+> است) با شمارهٔ `0061` مستقل از E-track's `0061_order_items_sku_code`
+> تولید شده بود؛ در ادغام به `0062` تغییر شماره گرفت.
+>
 > **نوبت ۲۰۲۶-۰۹-۱۱ — H-172 (سقف طول query string در `/api/search`) رفع شد:**
 > `web/src/app/api/search/route.ts:16` اکنون `const q = (...).trim().slice(0, 100)`
 > است — همان سقف و همان الگویی که `admin/search/route.ts:50` از قبل داشت
@@ -18,6 +27,87 @@
 > تولیدی exit 0. این تنها یافتهٔ صراحتاً «این نوبت رفع نشد» در کل سند H
 > بود؛ اکنون بسته است. جدول امتیاز پایین (نمرهٔ ۸۸ برای H-172) یک snapshot
 > قبل از این رفع است.
+>
+> **نوبت ۲۰۲۶-۰۹-۱۱ — H-171 و H-173 از «بررسی یک‌باره» به artifact خودکار و CI-locked تبدیل شدند:**
+>
+> **H-171 (بود ۹۵):** خودِ سند نوشته بود «تکمیل واقعی نیازمند یک تست مشابه
+> `adminApiConventions.test.ts` است که هر route زیر admin باید
+> `requireApiPermission` داشته باشد را در CI enforce کند — این تست امروز
+> وجود ندارد». این نوبت آن تست نوشته شد: `web/scripts/lib/routeInventory.ts`
+> (منطق) + `web/scripts/routeInventory.ts` (CLI قابل اجرای مستقل —
+> `pnpm exec tsx scripts/routeInventory.ts` گزارش auth/rate-limit/validateBody
+> را per-family چاپ می‌کند) + `web/scripts/routeInventory.test.ts` (تست
+> vitest که در هر اجرای مجموعهٔ تست پروژه دوباره چک می‌شود، نه فقط دستی).
+> این تست چهار ادعا را enforce می‌کند: (۱) هر مسیر `/api/admin/**` یکی از
+> `requireApiPermission`/`requireApiUser`/`getSessionVerified` را صدا می‌زند
+> (صفر استثنا — دوباره تأیید شد، اکنون به‌صورت خودکار)، (۲) همین برای
+> `/api/me/**`، (۳) هر route.ts با POST/PUT/PATCH/DELETE یا `validateBody`
+> صدا می‌زند یا در یک allowlist صریح با دلیل مکتوب است (۲۵ مسیر — هرکدام
+> جداگانه خوانده و تأیید شد که یا بدون body واقعی هستند، یا با
+> `readJsonBody`+zod `safeParse` دستی معادل `validateBody` اعتبارسنجی
+> می‌شوند، یا multipart/form-data با size-cap+magic-byte/ExcelJS، یا یک
+> webhook عمداً بدون schema که field-by-field دفاعی parse می‌شود؛ **هیچ گپ
+> واقعی پیدا نشد** — نگاه کنید به `routeInventory.test.ts`'s
+> `VALIDATE_BODY_EXEMPT` برای فهرست کامل با دلیل هرکدام)، (۴) خودِ
+> allowlist هیچ ورودی کهنه ندارد (اگر یک route بعداً `validateBody` بگیرد یا
+> حذف شود، تست این را هم می‌گیرد). شمارش `pnpm exec tsx
+> scripts/routeInventory.ts` روی این نوبت: ۱۵۴ route، admin auth ۹۴/۹۴
+> (۱۰۰٪)، me auth ۱۸/۱۸ (۱۰۰٪)، admin rate-limit ۳/۹۴ (۳٪ — دقیقاً همان رقم
+> H-185، عمداً hard-fail نشد چون H-185 این را یک تغییر ساختاری جداگانه با
+> scope خودش می‌داند، نه رگرسیون این بند). rate-limit coverage عمداً فقط
+> **گزارش** می‌شود نه enforce، تا این تست CI را بابت شکاف شناخته‌شدهٔ دیگری
+> (H-185) قرمز نکند.
+>
+> **H-173 (بود ۹۶):** سند نوشته بود «بررسی کامل‌تر روی تمام ۶۷ schema (نه
+> فقط چهار موردی که نوبت قبل پیدا شد) با یک اسکریپت خودکار (نه grep دستی)
+> انجام نشده». این نوبت آن اسکریپت نوشته شد:
+> `web/scripts/lib/zodStringMaxScan.ts` — یک AST walker واقعی (نه regex؛
+> TypeScript Compiler API) که هر فراخوانی `z.string()` را پیدا می‌کند و زنجیرهٔ
+> متدهای chain‌شده رویش (`.max`, `.length`, `.regex`, `.uuid`, `.superRefine`,
+> …) را دنبال می‌کند تا ببیند محدود شده یا نه؛ یک کامنت `// unbounded: ...`
+> هم یک exemption صریح و مستند است. `web/scripts/schemaLengthCapScan.ts`
+> این را روی کل `lib/validation/**` (به‌جز `env.ts` — پیکربندی عملیاتی
+> است، نه ورودی کاربر) و هر `route.ts` زیر `app/api/**` اجرا می‌کند —
+> نه فقط چهار schema که grep دستی نوبت قبل پیدا کرد. نتیجهٔ اجرای این
+> نوبت (پیش از اصلاح): **۳۹ فیلد `z.string()` بدون سقف** در ۱۵ فایل واقعی
+> پیدا شد (نمونه: `marketValueSchema.label/unit/updatedAt`،
+> `admin/catalog/skus`'s `subCategoryId`/`crossListedCategoryIds`،
+> `admin/settings`'s `putPayload.key`/`CLUB_CONFIG.tiers` record key،
+> `me/verification`'s `nationalId`/`companyNationalId`/`economicCode`
+> — این سه‌تا فرمت ثابت دارند و validation واقعی‌شان
+> `isValidNationalId`/... در `verificationRepo.ts` است، اما در سطح Zod
+> هیچ سقفی نداشتند). همهٔ این ۳۹ مورد در همین نوبت **رفع** شد (سقف‌های
+> ۲۰ تا ۱۲۰ کاراکتر، هم‌مقیاس با الگوی موجود در بقیهٔ اپ — `skuId`≤۱۲۰،
+> شناسه‌های دیگر≤۶۴). **۱۶ مورد دیگر عمداً رفع نشد**: چهار route زیر
+> `admin/operations`, `admin/warehouse[/settlements]`,
+> `me/warehouse/operations` — این فایل‌ها را طبق دستور صریح این نشست
+> («یک جریان کاری جدا هم‌زمان روی order/warehouse کار می‌کند») دست نزدم؛
+> این استثنا در خودِ اسکریپت (`DEFERRED_ORDER_WAREHOUSE_FILES`) با کامنت
+> مستند شده، نه یک حذف بی‌صدا. اسکریپت اکنون در
+> `web/scripts/schemaLengthCapScan.test.ts` به‌صورت یک تست vitest
+> CI-enforced قفل شده — یک PR آینده که یک `z.string()` جدید بدون سقف در هر
+> schema دیگری (به‌جز چهار فایل مستثنا‌شدهٔ بالا) اضافه کند، این تست را
+> قرمز می‌کند. شواهد: `web/scripts/lib/zodStringMaxScan.test.ts` (۷ تست
+> واحد روی خودِ scanner — ثابت می‌کند یک فیلد بدون سقف را می‌گیرد، یک فیلد
+> با `.max()`/chain چندخطی/fixed-format/کامنت مستند را رد نمی‌کند)،
+> `web/scripts/lib/routeInventory.test.ts` (۵ تست روی خودِ inventory
+> builder با فیکسچرهای موقت).
+>
+> **شواهد اجرای کامل این نوبت** (نه فقط این دو بند؛ کل کار جانبی
+> F-131/F-146/F-150 هم همین نوبت انجام شد — نگاه کنید به docs/audit-auth-F.md):
+> `tsc --noEmit` پاک؛ `eslint` پاک روی هر فایل تغییریافته؛ روی یک
+> PostgreSQL 15 disposable واقعی (`initdb`+`pg_ctl` محلی، migrate شده از صفر
+> تا آخرین migration) — `vitest run` سراسری **۲۹۲ فایل، ۳۳۴۶ تست، همه
+> PASS**؛ `next build` تولیدی (Turbopack) با `DATABASE_URL` واقعی —
+> **exit 0، صفر خطا**. این نوبت روی یک worktree ایزوله با پایهٔ
+> `main@ef276bbb` اجرا شد که هنوز شامل H-172 نبود — نوبت ادغام (یادداشت
+> بالای سند) هر دو را در همان کد کنار هم آورد.
+>
+> جدول امتیاز پایین برای ۱۷۱ و ۱۷۳ به‌روزرسانی شد؛ سرجمع ۹۳/۱۰۰ بالای سند
+> عمداً بازمحاسبه نشد — تغییر سه بند از ۳۰ (هرکدام چند واحد) میانگین کل را
+> کمتر از یک واحد جابه‌جا می‌کند و بدون بازخوانی هر ۲۷ بند دیگر یک عدد
+> صحیح جدید ادعا کردن دقیقاً همان «ظاهر خوب بدون شاهد» است که این سند از
+> ابتدا رد می‌کند.
 
 نمره میانگین مساوی ۳۰ محور است؛ گواهی انطباق یا امتیاز احتمال حمله نیست. برخلاف
 آدیت‌های E و F که با یک baseline پایین (به‌ترتیب ۳۷ و شروع‌شده از شکاف‌های Critical)
@@ -86,9 +176,9 @@ Production در دسترس نیست.
 
 | بند | محور | نمره از ۱۰۰ | شدت | اولویت |
 | --- | --- | ---: | --- | --- |
-| 171 | inventory کامل ۱۵۴ route | 95 | N/A | P3 |
+| 171 | inventory کامل ۱۵۴ route | 99 (CI-locked این نوبت — نگاه کنید به یادداشت بالا) | N/A | P3 |
 | 172 | validation کامل body/query/params/headers | 88 (سقف q رفع شد، هنوز بدون helper عمومی) | Low | P2 (بخشی انجام شد) |
-| 173 | سقف طول string | 96 | Medium (پیش از اصلاح) | P1 (انجام شد) |
+| 173 | سقف طول string | 99 (اسکن خودکار کل schema این نوبت — نگاه کنید به یادداشت بالا) | Medium (پیش از اصلاح) | P1 (انجام شد) |
 | 174 | سقف array/عمق JSON | 92 | Low | P2 |
 | 175 | Content-Type اشتباه / body malformed | 98 | N/A | N/A |
 | 176 | مقابله با mass assignment | 94 | Low | P2 |

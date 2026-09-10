@@ -33,7 +33,7 @@ const patchPayload = nonEmptyPatch(
     // Moving a sub-category between categories was impossible: a mis-filed
     // sub could only be retired and rebuilt. The repo re-parents its products
     // in the same call so the two can't drift apart.
-    categoryId: z.string().min(1).optional(),
+    categoryId: z.string().min(1).max(64).optional(),
   }),
 );
 

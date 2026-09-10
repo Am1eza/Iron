@@ -45,7 +45,7 @@ const numberSchema = z.preprocess(
 /* ---- form schemas ---- */
 export const loginMobileSchema = z.object({
   mobile: mobileSchema,
-  name: z.string().optional(),
+  name: z.string().max(60).optional(),
 });
 export type LoginMobileValues = z.infer<typeof loginMobileSchema>;
 

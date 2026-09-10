@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { CONSTANTS } from '@/lib/config/constants';
 
 /**
  * Environment validation — fail-fast on misconfiguration.
@@ -88,6 +89,18 @@ const serverSchema = z
     OUNCE_API_URL: z.string().optional(),
     SESSION_SECRET: z.string().optional(),
     SESSION_SECRET_PREVIOUS: z.string().optional(),
+    // F-150 — when staging a SESSION_SECRET rotation (AUTH.md's documented
+    // procedure: set the OLD value here, deploy the NEW SESSION_SECRET, wait
+    // one refresh lifetime, then remove this var), an operator sets this to
+    // the epoch-ms (or any Date-parseable string) they did that. Purely
+    // advisory — see checkSessionSecretRotationSchedule below — nothing
+    // reads it to change auth behavior, so an unset/stale value degrades to
+    // "can't verify the schedule", never to a security failure.
+    SESSION_SECRET_ROTATED_AT: z.string().optional(),
+    // Deliberately only ever used to SHORTEN the rotation safety window
+    // below CONSTANTS.SESSION_TTL_DAYS (see checkSessionSecretRotationSchedule)
+    // — never to widen it.
+    SESSION_SECRET_TTL_DAYS: z.string().optional(),
     OTP_SECRET: z.string().optional(),
     DATABASE_URL: z.string().optional(),
     // Defaults to enforced. A security gate must not turn itself off just
@@ -119,6 +132,21 @@ const serverSchema = z
   // last-known values) and the AI relay keys (gated on AI_ENABLED) still
   // degrade without blocking boot.
   .superRefine((env, ctx) => {
+    // F-150 — an accidental `SESSION_SECRET_PREVIOUS=$SESSION_SECRET` (a copy-
+    // paste mistake in a deploy script/`.env`, or a rotation "completed" by
+    // setting the previous var to the CURRENT value instead of removing it)
+    // achieves nothing but silently defeats the whole point of a staged
+    // rotation: it looks configured, but jwt.ts's verify loop is trying the
+    // same key twice. This does not rotate or invalidate anything by itself
+    // — it only refuses to boot with a self-contradictory config, the same
+    // fail-fast this file already does for every other required-secret case.
+    if (env.SESSION_SECRET && env.SESSION_SECRET_PREVIOUS && env.SESSION_SECRET === env.SESSION_SECRET_PREVIOUS) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['SESSION_SECRET_PREVIOUS'],
+        message: 'SESSION_SECRET_PREVIOUS نباید برابر SESSION_SECRET باشد — این یک rotation ناقص یا اشتباه پیکربندی است.',
+      });
+    }
     if (publicEnv.NEXT_PUBLIC_API_MODE === 'live') {
       for (const key of ['DATABASE_URL', 'SESSION_SECRET', 'OTP_SECRET'] as const) {
         if (!env[key]) {
@@ -154,6 +182,68 @@ const serverSchema = z
 
 let cached: z.infer<typeof serverSchema> | null = null;
 
+/**
+ * F-150 — SESSION_SECRET rotation has a documented safe procedure (AUTH.md:
+ * stage the old value as SESSION_SECRET_PREVIOUS, deploy the new
+ * SESSION_SECRET, wait one refresh lifetime so every still-live refresh
+ * token gets a chance to rotate under the new key, THEN remove
+ * SESSION_SECRET_PREVIOUS) but nothing previously enforced or even reminded
+ * an operator of that schedule — a `SESSION_SECRET_PREVIOUS` left in place
+ * indefinitely is not unsafe on its own, but it is exactly the kind of
+ * "temporary" config that outlives the person who set it and quietly widens
+ * the set of keys that can forge a session forever. This is advisory only —
+ * a missing/unparseable/stale timestamp degrades to "can't confirm the
+ * schedule is being followed", logged loudly, never to a boot failure or a
+ * change in auth behavior (jwt.ts/service.ts don't read this var at all).
+ *
+ * `SESSION_SECRET_TTL_DAYS` env override exists only for a deliberately
+ * SHORTER migration window (e.g. an emergency rotation an operator wants
+ * flagged sooner) — it is never widened past the refresh lifetime's decision
+ * boundary by config, on purpose: extending "how long is this still fine" is
+ * exactly the kind of self-serve override that would defeat the point of a
+ * safety warning.
+ */
+function checkSessionSecretRotationSchedule(env: {
+  SESSION_SECRET_PREVIOUS?: string;
+  SESSION_SECRET_ROTATED_AT?: string;
+  SESSION_SECRET_TTL_DAYS?: string;
+}): void {
+  if (!env.SESSION_SECRET_PREVIOUS) return;
+  const maxDays = Math.min(
+    CONSTANTS.SESSION_TTL_DAYS,
+    Number(env.SESSION_SECRET_TTL_DAYS) || CONSTANTS.SESSION_TTL_DAYS,
+  );
+  const maxAgeMs = maxDays * 24 * 60 * 60 * 1000;
+  const raw = env.SESSION_SECRET_ROTATED_AT;
+  if (!raw) {
+    console.warn(
+      '[F-150] SESSION_SECRET_PREVIOUS is set but SESSION_SECRET_ROTATED_AT is not — cannot verify this ' +
+        `rotation is still within its safety window (${maxDays} days, one refresh-token lifetime). Set ` +
+        'SESSION_SECRET_ROTATED_AT to when the rotation started, or remove SESSION_SECRET_PREVIOUS if the ' +
+        'rotation is already complete. See AUTH.md.',
+    );
+    return;
+  }
+  const rotatedAtMs = /^\d+$/.test(raw.trim()) ? Number(raw) : Date.parse(raw);
+  const now = Date.now();
+  if (!Number.isFinite(rotatedAtMs) || Number.isNaN(rotatedAtMs)) {
+    console.warn(`[F-150] SESSION_SECRET_ROTATED_AT="${raw}" is not a valid timestamp — cannot verify the rotation schedule. See AUTH.md.`);
+    return;
+  }
+  if (rotatedAtMs > now) {
+    console.warn(`[F-150] SESSION_SECRET_ROTATED_AT is in the future — check the deploy's clock/config. See AUTH.md.`);
+    return;
+  }
+  const ageDays = (now - rotatedAtMs) / (24 * 60 * 60 * 1000);
+  if (now - rotatedAtMs > maxAgeMs) {
+    console.warn(
+      `[F-150] SESSION_SECRET_PREVIOUS has been set for ${ageDays.toFixed(1)} days — past the ${maxDays}-day ` +
+        'safety window (one refresh-token lifetime). Every legitimate session should have rotated onto the ' +
+        'new SESSION_SECRET by now; remove SESSION_SECRET_PREVIOUS to stop accepting the old key. See AUTH.md.',
+    );
+  }
+}
+
 /** Read + validate server env (throws on invalid). Call from server contexts only. */
 export function getServerEnv() {
   if (cached) return cached;
@@ -162,5 +252,6 @@ export function getServerEnv() {
     throw new Error(`پیکربندی محیط نامعتبر است:\n${JSON.stringify(parsed.error.flatten().fieldErrors)}`);
   }
   cached = parsed.data;
+  checkSessionSecretRotationSchedule(cached);
   return cached;
 }

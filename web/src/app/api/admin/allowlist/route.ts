@@ -20,6 +20,10 @@ const payload = z.object({
   mobile: z
     .string()
     .trim()
+    // H-173: bounds the input BEFORE it reaches transform()/normalizeDigits —
+    // the .regex() below only constrains the value AFTER the pipe, so an
+    // unbounded string still reaches .trim()/transform() first without this.
+    .max(20)
     .transform((s) => normalizeDigits(s))
     .pipe(z.string().regex(/^09\d{9}$/, 'شمارهٔ موبایل معتبر نیست (۰۹xxxxxxxxx).')),
   label: z.string().trim().max(60).optional(),

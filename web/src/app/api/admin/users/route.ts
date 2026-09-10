@@ -30,7 +30,7 @@ async function GETImpl(req: NextRequest) {
 }
 
 const createPayload = z.object({
-  mobile: z.string().trim().min(1),
+  mobile: z.string().trim().min(1).max(20),
   name: z.string().trim().min(1).max(60).optional(),
   role: z.enum(INVITABLE_ROLES),
 });
