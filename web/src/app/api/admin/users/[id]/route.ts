@@ -1,9 +1,12 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
+import { and, eq } from 'drizzle-orm';
 import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
-import { listUsers, updateUser, userById, revokeAllForUser } from '@/lib/auth/store';
+import { updateUser, userById, revokeAllForUser } from '@/lib/auth/store';
 import { getDb } from '@/lib/server/db/client';
+import { users } from '@/lib/server/db/schema';
+import { BusinessRuleError } from '@/lib/server/utils/businessOperation';
 import { publicUser } from '@/lib/auth/publicUser';
 import { leadsForUser } from '@/lib/server/repos/leadsRepo';
 import { ordersForUser } from '@/lib/server/repos/ordersRepo';
@@ -73,24 +76,39 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }
     );
   }
 
-  // Never demote/deactivate the last admin (lock-out guard).
+  // Never demote/deactivate the last ACTIVE admin (lock-out guard). Reachable
+  // only via `isActive: false` in practice — the check above already refuses
+  // any role value that would flip admin-ness.
   const demoting = (v.data.role && before.role === 'admin' && v.data.role !== 'admin') || v.data.isActive === false;
-  if (demoting && before.role === 'admin') {
-    const { users: admins } = await listUsers({ role: 'admin', perPage: 2 });
-    if (admins.length <= 1) {
-      return NextResponse.json(
-        { error: 'last_admin', message: 'آخرین مدیر سیستم را نمی‌توان حذف یا تنزل داد.' },
-        { status: 409 },
-      );
-    }
-  }
 
   // The write and its audit row commit together (G-160): a failure inserting
   // the audit entry rolls back the role/active-state change too, instead of
   // silently leaving an unattributed change with no trail — see audit()'s
   // doc comment for why that's the right trade-off specifically when `tx`
   // is supplied.
+  //
+  // G-159 follow-up (found this session): the last-admin count used to be a
+  // plain `listUsers({role:'admin'})` read BEFORE this transaction opened —
+  // two concurrent PATCHes deactivating two DIFFERENT admins could each
+  // observe "2 admins, safe" and both proceed, leaving zero (the exact race
+  // proven — and fixed the same way — in adminAllowlistRepo.ts's
+  // lockAdminRowsAndTarget). It also never filtered `isActive`, so an
+  // already-inactive admin row (e.g. one who self-deleted via `/api/me`,
+  // which does not touch `role`) silently inflated the count and could let
+  // the true last active admin be deactivated anyway. Both are fixed here:
+  // the check now runs UNDER a `FOR UPDATE` lock on every currently-active
+  // admin row, inside the same transaction as the write.
   const user = await getDb().transaction(async (tx) => {
+    if (demoting && before.role === 'admin') {
+      const activeAdmins = await tx
+        .select({ id: users.id })
+        .from(users)
+        .where(and(eq(users.role, 'admin'), eq(users.isActive, true)))
+        .for('update');
+      if (activeAdmins.length <= 1) {
+        throw new BusinessRuleError('last_admin', 'آخرین مدیر سیستم را نمی‌توان حذف یا تنزل داد.', 409);
+      }
+    }
     const updated = await updateUser(id, v.data, tx);
     await audit(auth.session.id, 'user.update', { type: 'user', id }, { role: before.role }, v.data, tx);
     return updated;
