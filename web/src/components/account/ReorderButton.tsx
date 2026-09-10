@@ -17,13 +17,22 @@ export function ReorderButton({ items }: { items: LineItem[] }) {
   const toast = useToast();
   const t = useTranslations('account.orders');
 
-  // A line whose SKU was later deleted carries skuId:'' (see toLineItem) —
-  // there's nothing left to add it back as.
-  const reorderable = items.filter((it) => it.skuId);
+  // A line whose SKU was later deleted carries `orderable: false` (E-108;
+  // see toLineItem) — there's nothing left to add it back as. This checks
+  // the explicit flag rather than re-deriving it from `skuId === ''`, which
+  // reads identically for "no id was ever set" and "the id was deleted".
+  const reorderable = items.filter((it) => it.orderable ?? Boolean(it.skuId));
+  const unorderable = items.filter((it) => !(it.orderable ?? Boolean(it.skuId)));
 
   return (
     <>
     {reorderable.length === 0 ? <span>کالاهای این سفارش دیگر قابل سفارش نیستند.</span> : null}
+    {reorderable.length > 0 && unorderable.length > 0 ? (
+      <span>
+        این کالاها دیگر قابل سفارش نیستند و در سفارش مجدد گنجانده نمی‌شوند:{' '}
+        {unorderable.map((it) => it.name).join('، ')}
+      </span>
+    ) : null}
     <Button
       size="sm"
       variant="ghost"

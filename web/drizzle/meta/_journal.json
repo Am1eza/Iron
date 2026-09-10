@@ -428,6 +428,13 @@
       "when": 1789019223013,
       "tag": "0060_operations_integrity",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1789075465808,
+      "tag": "0061_order_items_sku_code",
+      "breakpoints": true
     }
   ]
 }
