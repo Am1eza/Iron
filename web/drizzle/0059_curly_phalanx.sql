@@ -128,7 +128,7 @@ CREATE INDEX "warehouse_reservations_item_idx" ON "warehouse_reservations" USING
 CREATE INDEX "warehouse_withdrawals_owner_idx" ON "warehouse_withdrawals" USING btree ("owner_id","created_at");--> statement-breakpoint
 ALTER TABLE "warehouse_movements" ADD CONSTRAINT "warehouse_movements_warehouse_item_id_warehouse_items_id_fk" FOREIGN KEY ("warehouse_item_id") REFERENCES "public"."warehouse_items"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "warehouse_settlements" ADD CONSTRAINT "warehouse_settlements_warehouse_item_id_warehouse_items_id_fk" FOREIGN KEY ("warehouse_item_id") REFERENCES "public"."warehouse_items"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-CREATE UNIQUE INDEX "orders_lead_uq" ON "orders" USING btree ("lead_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "orders_lead_uq" ON "orders" USING btree ("lead_id") WHERE "deleted_at" is null;--> statement-breakpoint
 CREATE UNIQUE INDEX "warehouse_items_request_uq" ON "warehouse_items" USING btree ("request_id");--> statement-breakpoint
 ALTER TABLE "warehouse_movements" ADD CONSTRAINT "warehouse_movements_operation_id_unique" UNIQUE("operation_id");--> statement-breakpoint
 ALTER TABLE "warehouse_settlements" ADD CONSTRAINT "warehouse_settlements_voids_settlement_id_unique" UNIQUE("voids_settlement_id");--> statement-breakpoint
