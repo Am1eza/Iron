@@ -13,6 +13,7 @@ import {
 import { rateLimit } from '@/lib/server/utils/rateLimit';
 import { sniffImageExt } from '@/lib/server/utils/imageSniff';
 import { uploadDir } from '@/lib/server/utils/uploadStorage';
+import { reencodeUploadedImage, ImageTooLargeError } from '@/lib/server/utils/mediaProcessing';
 
 export const runtime = 'nodejs';
 
@@ -66,12 +67,30 @@ async function POSTImpl(req: NextRequest) {
     );
   }
 
+  // Re-encode server-side before anything touches disk (I-206/207/209):
+  // strips EXIF/GPS/ICC (sharp never preserves it unless `.withMetadata()`
+  // is called, which this never does), rejects a declared-huge-dimension
+  // decompression bomb, and rejects a truncated/corrupt upload cleanly
+  // instead of storing bytes that would only fail later at serve time.
+  let processed: Buffer;
+  try {
+    processed = await reencodeUploadedImage(buf, ext);
+  } catch (err) {
+    if (err instanceof ImageTooLargeError) {
+      return NextResponse.json({ error: 'image_too_large', message: err.message }, { status: 400 });
+    }
+    return NextResponse.json(
+      { error: 'bad_file', message: 'پردازش تصویر ممکن نشد؛ فایل ممکن است خراب باشد.' },
+      { status: 400 },
+    );
+  }
+
   // Never trust the client-supplied filename (path traversal, collisions) —
   // the on-disk name is entirely server-generated.
   const filename = `${ulid()}.${ext}`;
   const dir = uploadDir();
   await fs.mkdir(dir, { recursive: true });
-  await fs.writeFile(path.join(/*turbopackIgnore: true*/ dir, filename), buf);
+  await fs.writeFile(path.join(/*turbopackIgnore: true*/ dir, filename), processed);
 
   // Served back by app/uploads/[filename]/route.ts, NOT Next's static
   // public/ handling — see that file for why a runtime-written file can't
@@ -79,7 +98,7 @@ async function POSTImpl(req: NextRequest) {
   const url = `/uploads/${filename}`;
   await audit(session.id, 'media.upload', { type: 'media', id: filename }, undefined, {
     url,
-    size: file.size,
+    size: processed.length,
     ext,
   });
 

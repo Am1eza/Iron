@@ -6,10 +6,12 @@ import { ulid } from 'ulid';
 import { getSessionVerified } from '@/lib/auth/session';
 import { assertSameOrigin } from '@/lib/auth/origin';
 import { requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
-import { clubStatus, setLetterhead } from '@/lib/server/repos/clubRepo';
+import { clubStatus, getLetterhead, setLetterhead } from '@/lib/server/repos/clubRepo';
 import { rateLimit } from '@/lib/server/utils/rateLimit';
 import { sniffImageExt } from '@/lib/server/utils/imageSniff';
 import { uploadDir } from '@/lib/server/utils/uploadStorage';
+import { reencodeUploadedImage, ImageTooLargeError } from '@/lib/server/utils/mediaProcessing';
+import { deleteOrphanedUploadIfUnused } from '@/lib/server/utils/uploadCleanup';
 
 export const runtime = 'nodejs';
 
@@ -22,6 +24,11 @@ const MAX_BYTES = 5 * 1024 * 1024; // same cap as admin/upload
  * (`uploadDir`, magic-byte sniff, ULID filename, served by
  * app/uploads/[filename]/route.ts) so there is exactly one place a file on
  * disk can come from.
+ *
+ * The saved logo is served back WITHOUT auth (see app/uploads/[filename]/
+ * route.ts's docstring, I-210) — intentional: it is embedded on the public-
+ * capability `/proforma/[ref]` page, which a customer forwards to third
+ * parties by design.
  */
 async function POSTImpl(req: NextRequest) {
   const origin = assertSameOrigin(req);
@@ -68,10 +75,31 @@ async function POSTImpl(req: NextRequest) {
     );
   }
 
+  // Same server-side re-encode as /api/admin/upload — strips EXIF/GPS (this
+  // is a customer's own photo/scan, the highest-privacy asset this pipeline
+  // handles — see docs/audit-upload-media-I.md#I-206), and rejects an
+  // oversized/corrupt file cleanly before it ever reaches disk.
+  let processed: Buffer;
+  try {
+    processed = await reencodeUploadedImage(buf, ext);
+  } catch (err) {
+    if (err instanceof ImageTooLargeError) {
+      return NextResponse.json({ error: 'image_too_large', message: err.message }, { status: 400 });
+    }
+    return NextResponse.json(
+      { error: 'bad_file', message: 'پردازش تصویر ممکن نشد؛ فایل ممکن است خراب باشد.' },
+      { status: 400 },
+    );
+  }
+
+  // Read the OLD logo before overwriting it — a replace must not leave the
+  // previous file behind forever (I-212).
+  const previous = await getLetterhead(session.id);
+
   const filename = `${ulid()}.${ext}`;
   const dir = uploadDir();
   await fs.mkdir(dir, { recursive: true });
-  await fs.writeFile(path.join(/*turbopackIgnore: true*/ dir, filename), buf);
+  await fs.writeFile(path.join(/*turbopackIgnore: true*/ dir, filename), processed);
 
   const url = `/uploads/${filename}`;
   const ok = await setLetterhead(session.id, { logoUrl: url });
@@ -80,6 +108,12 @@ async function POSTImpl(req: NextRequest) {
       { error: 'no_membership', message: 'عضویت باشگاه یافت نشد.' },
       { status: 409 },
     );
+  }
+
+  // Best-effort — never lets a disk failure turn a successful logo swap into
+  // an error response; see uploadCleanup.ts's docstring.
+  if (previous?.logoUrl && previous.logoUrl !== url) {
+    await deleteOrphanedUploadIfUnused(previous.logoUrl);
   }
 
   return NextResponse.json({ url }, { status: 201 });

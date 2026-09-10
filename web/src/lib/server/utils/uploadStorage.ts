@@ -20,6 +20,15 @@ export function uploadDir(): string {
  *  rejected outright rather than touching the filesystem with it. */
 export const UPLOAD_FILENAME_RE = /^[0-9A-HJKMNP-TV-Z]{26}\.(jpg|png|webp)$/;
 
+/** A stricter version of the same pattern, anchored to a `/uploads/` URL path
+ *  rather than a bare filename — used wherever a stored DB value (`imageUrl`,
+ *  `coverUrl`, an inline article-body image `src`, `letterheadLogoUrl`) needs
+ *  to be turned back into the on-disk filename it names, e.g. to delete it
+ *  (see `uploadCleanup.ts`). Capture group 1 is the filename alone. */
+export const UPLOAD_URL_RE = /^\/uploads\/([0-9A-HJKMNP-TV-Z]{26}\.(?:jpg|png|webp))$/;
+
+export type UploadImageExt = 'jpg' | 'png' | 'webp';
+
 export const MIME_FOR_EXT: Record<string, string> = {
   jpg: 'image/jpeg',
   png: 'image/png',
