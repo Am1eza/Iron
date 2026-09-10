@@ -26,13 +26,19 @@ async function GETImpl(req: NextRequest) {
   );
 }
 
+// H-173: these are fixed-format numeric ids (کد ملی/شناسهٔ ملی شرکت/کد
+// اقتصادی, each well under 30 chars even with separators) whose REAL
+// validation is isValidNationalId/isValidCompanyNationalId/isValidEconomicCode
+// in verificationRepo.ts (digit-count + checksum) — .max(30) here is just a
+// defensive bound so an oversized string never reaches that digit-stripping
+// step at all, not the primary check.
 const payload = z.discriminatedUnion('level', [
-  z.object({ level: z.literal(2), nationalId: z.string().trim().min(1) }),
+  z.object({ level: z.literal(2), nationalId: z.string().trim().min(1).max(30) }),
   z.object({
     level: z.literal(3),
     companyName: z.string().trim().min(1).max(120),
-    companyNationalId: z.string().trim().min(1),
-    economicCode: z.string().trim().min(1),
+    companyNationalId: z.string().trim().min(1).max(30),
+    economicCode: z.string().trim().min(1).max(30),
   }),
 ]);
 

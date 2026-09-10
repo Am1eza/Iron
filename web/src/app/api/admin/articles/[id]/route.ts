@@ -93,7 +93,7 @@ const patchPayload = z.object({
   bodyMd: z.string().max(100_000).optional(),
   bodyJson: richDocSchema.nullable().optional(),
   coverUrl: z.preprocess((v) => (v === '' ? null : v), uploadPathSchema.nullable().optional()),
-  authorId: z.string().min(1).nullable().optional(),
+  authorId: z.string().min(1).max(64).nullable().optional(),
   tags: articleTagsSchema,
   relatedCategoryIds: articleCategoryIdsSchema,
   relatedNewsTopicIds: articleNewsTopicIdsSchema,

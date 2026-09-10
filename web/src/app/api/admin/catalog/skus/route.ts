@@ -49,7 +49,7 @@ const createPayload = z.object({
   // `categoryId` is deliberately absent: it is fully determined by the
   // sub-category, and accepting both only created a way for them to disagree
   // (a live product page under a breadcrumb path that 404s).
-  subCategoryId: z.string().min(1),
+  subCategoryId: z.string().min(1).max(64),
   slug: slugSchema(120),
   // Latin digits (typed directly, or from an OS/keyboard whose numeral
   // setting silently outputs 0-9 even on a Persian layout) would otherwise
@@ -106,7 +106,7 @@ const createPayload = z.object({
   // an emptied box really clears it (see the nullable-vs-optional note above).
   branchLengthM: finiteNumber.positive().max(100).nullable().optional(),
   imageUrl: uploadPathSchema.nullable().optional(),
-  crossListedCategoryIds: z.array(z.string().min(1)).max(5).nullable().optional(),
+  crossListedCategoryIds: z.array(z.string().min(1).max(64)).max(5).nullable().optional(),
 });
 
 async function POSTImpl(req: NextRequest) {
