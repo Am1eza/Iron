@@ -76,6 +76,12 @@ export const orderItems = pgTable(
     // cross-reference only — preserve the order history on product deletion.
     skuId: text('sku_id').references(() => skus.id, { onDelete: 'set null' }),
     historicalSkuId: text('historical_sku_id'),
+    // E-108: the SKU's `slug` (human-facing code) snapshotted at order-item
+    // creation — independent of both the live `skuId` FK (nulled on delete)
+    // and `historicalSkuId` (the row id, not human-readable and unaffected
+    // by a rename). Nullable and additive: rows created before this column
+    // existed, or with no skuId to snapshot from, simply have none.
+    skuCode: text('sku_code'),
     snapshot: jsonb('snapshot').$type<LineItem>(),
     name: text('name').notNull(),
     qty: doublePrecision('qty').notNull(),

@@ -2,7 +2,7 @@
 import { and, desc, eq, ilike, inArray, isNull, or, sql } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { getDb, type DbOrTx } from '@/lib/server/db/client';
-import { orders, orderItems, warehouseItems, warehouseMovements, leads, proformas, orderEvents, orderFulfillments, operationOutbox, users, userRequests, warehouseReservations, warehouseSettlements } from '@/lib/server/db/schema';
+import { orders, orderItems, warehouseItems, warehouseMovements, leads, proformas, orderEvents, orderFulfillments, operationOutbox, users, userRequests, warehouseReservations, warehouseSettlements, skus } from '@/lib/server/db/schema';
 import type { LineItem, Order, WarehouseItem } from '@/lib/types/domain';
 import { normalizeDigits } from '@/lib/utils/format';
 import { unsettledForMany } from '@/lib/server/repos/warehouseSettlementsRepo';
@@ -49,6 +49,11 @@ function toLineItem(r: typeof orderItems.$inferSelect): LineItem {
     ...r.snapshot,
     orderItemId: r.id,
     historicalSkuId: r.historicalSkuId ?? r.skuId ?? undefined,
+    skuCode: r.skuCode ?? undefined,
+    // Explicit boolean instead of leaving callers to re-derive
+    // "no longer orderable" from `skuId === ''` (E-108) — the live FK is
+    // gone (deleted SKU) exactly when this is false.
+    orderable: r.skuId != null,
     skuId: r.skuId ?? '',
     name: r.name,
     qty: r.qty,
@@ -221,8 +226,19 @@ export async function createOrder(input: {
     }
     const [row] = await tx.insert(orders).values({ id: ulid(), ref: input.ref, userId: ownerId, leadId: input.leadId ?? null, terms }).returning();
     if (!row) throw new Error('Business write returned no row');
+    // E-108: snapshot each item's SKU *code* (its `slug`, the human-facing
+    // identity) at creation time, batched in one query — independent of
+    // `historicalSkuId` (the row id) and of the live, possibly-later-renamed
+    // or -deleted `skuId` FK. A missing/unknown skuId simply gets no code.
+    const skuIds = [...new Set(items.map(item => item.skuId).filter((id): id is string => Boolean(id)))];
+    const skuCodeById = new Map<string, string>();
+    if (skuIds.length) {
+      const skuRows = await tx.select({ id: skus.id, slug: skus.slug }).from(skus).where(inArray(skus.id, skuIds));
+      for (const s of skuRows) skuCodeById.set(s.id, s.slug);
+    }
     const lines = items.length ? await tx.insert(orderItems).values(items.map(item => ({
       id: ulid(), orderId: row.id, skuId: item.skuId || null, historicalSkuId: item.skuId || null,
+      skuCode: item.skuId ? skuCodeById.get(item.skuId) ?? null : null,
       snapshot: item, name: item.name, qty: item.qty, unit: item.unit,
       weightKg: item.weightKg ?? null, unitPrice: item.unitPrice ?? null, lineTotal: item.lineTotal ?? null,
     }))).returning() : [];
@@ -438,6 +454,40 @@ export async function warehouseForUser(userId: string): Promise<WarehouseItem[]>
     .where(and(eq(warehouseItems.userId, userId), isNull(warehouseItems.deletedAt)))
     .orderBy(desc(warehouseItems.storedAt));
   return withBalances(rows.map(toWarehouseDto), rows);
+}
+
+/** One page of a customer's own warehouse items — a SIBLING of
+ *  warehouseForUser (E-116), never a replacement: /api/me/export and the
+ *  account page's SSR list still need the complete, unpaginated set.
+ *  `warehouseForUser` had no limit at all, unlike the already-paginated
+ *  settlements list (`settlementsPageForUser`); this closes that gap for
+ *  callers (e.g. a future mobile client hitting /api/me/warehouse) that want
+ *  a bounded page instead of a full dump. Scoped strictly to `userId` — the
+ *  same ownership filter as warehouseForUser — so paging never lets a caller
+ *  reach another customer's rows. */
+export async function warehouseItemsPageForUser(
+  userId: string,
+  page = 1,
+  perPage = 50,
+): Promise<{ rows: WarehouseItem[]; total: number; page: number; perPage: number }> {
+  const db = getDb();
+  const safePage = Math.max(1, Math.trunc(page) || 1);
+  const safePerPage = Math.min(100, Math.max(1, Math.trunc(perPage) || 50));
+  const where = and(eq(warehouseItems.userId, userId), isNull(warehouseItems.deletedAt))!;
+  const [rows, counted] = await Promise.all([
+    db
+      .select()
+      .from(warehouseItems)
+      .where(where)
+      // `id` breaks ties so offset paging is deterministic when several
+      // items share a storedAt timestamp.
+      .orderBy(desc(warehouseItems.storedAt), desc(warehouseItems.id))
+      .limit(safePerPage)
+      .offset((safePage - 1) * safePerPage),
+    db.select({ n: sql<number>`count(*)`.mapWith(Number) }).from(warehouseItems).where(where),
+  ]);
+  const total = counted[0]?.n ?? 0;
+  return { rows: await withBalances(rows.map(toWarehouseDto), rows), total, page: safePage, perPage: safePerPage };
 }
 
 export async function adminListWarehouse(
