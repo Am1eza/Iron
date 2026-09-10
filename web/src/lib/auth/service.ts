@@ -4,6 +4,7 @@
  * All user-facing errors are Persian; nothing leaks codes/hashes/provider details.
  */
 import { CONSTANTS } from '@/lib/config/constants';
+import { isObviouslyFakeMobile } from '@/lib/utils/format';
 import { hasDb } from '@/lib/server/db/client';
 import { allowlistedRole } from '@/lib/server/repos/adminAllowlistRepo';
 import type { AuthUser, IssuedTokens } from './types';
@@ -16,11 +17,9 @@ import {
   createUser,
   setOtp,
   getOtp,
-  clearOtp,
   consumeOtp,
   incrementOtpAttempts,
-  getRate,
-  setRate,
+  lockAndClearOtp,
   claimOtpSend,
   clearRate,
   saveRefresh,
@@ -64,6 +63,15 @@ export async function requestOtp(
   panelOnly = false,
   combinedRateKey?: string,
 ): Promise<{ ttl: number; devCode?: string }> {
+  // F-134: a structurally-impossible number (all-same or fully sequential
+  // digits — never a real subscriber assignment) is rejected before it can
+  // burn a resend/hourly quota slot or an SMS credit on a number that was
+  // never going to receive it. See isObviouslyFakeMobile's doc comment for
+  // why this stops at that narrow check rather than a hardcoded carrier map.
+  if (isObviouslyFakeMobile(mobile)) {
+    throw new AuthError('invalid_mobile', 'این شماره موبایل معتبر نیست.', 400);
+  }
+
   const now = Date.now();
 
   const cooldownMs = CONSTANTS.OTP_RESEND_COOLDOWN_SECONDS * 1000;
@@ -154,8 +162,9 @@ export async function verifyOtp(
     throw new AuthError('expired', 'کد منقضی شده. کد جدید بگیرید.', 410);
   }
   if (record.attempts > CONSTANTS.OTP_MAX_ATTEMPTS) {
-    await clearOtp(mobile);
-    await lock(mobile);
+    // F-130: retiring the challenge and setting the resend lockout must be one
+    // atomic transition — see lockAndClearOtp's doc comment in store.types.ts.
+    await lockAndClearOtp(mobile, Date.now() + CONSTANTS.OTP_LOCK_MINUTES * 60 * 1000);
     throw new AuthError('locked', 'تلاش بیش از حد. چند دقیقه بعد دوباره وارد شوید.', 429);
   }
 
@@ -335,9 +344,4 @@ async function issueTokens(
     parentHash,
   });
   return { accessToken, accessExpiresAt, refreshToken, refreshExpiresAt };
-}
-
-async function lock(mobile: string) {
-  const rate = await getRate(mobile);
-  await setRate(mobile, { ...rate, lockedUntil: Date.now() + CONSTANTS.OTP_LOCK_MINUTES * 60 * 1000 });
 }

@@ -5,6 +5,7 @@ import {
   formatToman,
   formatMovement,
   normalizeMobile,
+  isObviouslyFakeMobile,
 } from './format';
 
 describe('toPersianDigits', () => {
@@ -61,6 +62,25 @@ describe('normalizeMobile', () => {
   it('accepts common visual separators', () => {
     expect(normalizeMobile(' ۰۹۱۲ ۱۳۹ ۵۹۵۴ ')).toBe('09121395954');
     expect(normalizeMobile('+98 (912) 139-5954')).toBe('09121395954');
+  });
+});
+
+describe('isObviouslyFakeMobile (F-134)', () => {
+  it('flags every digit identical', () => {
+    expect(isObviouslyFakeMobile('09000000000')).toBe(true);
+    expect(isObviouslyFakeMobile('09111111111')).toBe(true);
+    expect(isObviouslyFakeMobile('09999999999')).toBe(true);
+  });
+  it('flags a strictly ascending sequence, wrapping 9→0', () => {
+    expect(isObviouslyFakeMobile('09123456789')).toBe(true);
+    expect(isObviouslyFakeMobile('09234567890')).toBe(true);
+  });
+  it('flags a strictly descending sequence, wrapping 0→9', () => {
+    expect(isObviouslyFakeMobile('09987654321')).toBe(true);
+  });
+  it('does not flag a real-shaped subscriber number', () => {
+    expect(isObviouslyFakeMobile('09121395954')).toBe(false);
+    expect(isObviouslyFakeMobile('09355512345')).toBe(false);
   });
 });
 

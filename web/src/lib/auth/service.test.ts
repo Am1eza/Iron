@@ -48,6 +48,13 @@ describe('OTP auth flow', () => {
     await expect(requestOtp(mobile)).rejects.toBeInstanceOf(AuthError);
   });
 
+  it('rejects a structurally-impossible number before charging any quota (F-134)', async () => {
+    const mobile = '09111111111';
+    await expect(requestOtp(mobile)).rejects.toMatchObject({ code: 'invalid_mobile' });
+    // No quota was burned — a real number can still request normally right after.
+    await expect(requestOtp(mobile)).rejects.toMatchObject({ code: 'invalid_mobile' });
+  });
+
   it('a resend invalidates the previous unexpired code', async () => {
     const mobile = '09131000014';
     const { devCode: codeA } = await requestOtp(mobile);

@@ -93,6 +93,9 @@ export function consumeOtp(mobile: string, hash: string, expiresAt: number): Pro
 export function incrementOtpAttempts(mobile: string): Promise<OtpRecord | null> {
   return store().incrementOtpAttempts(mobile);
 }
+export function lockAndClearOtp(mobile: string, lockedUntil: number): Promise<void> {
+  return store().lockAndClearOtp(mobile, lockedUntil);
+}
 
 /* --------------------------- rate limits -------------------------- */
 export function getRate(mobile: string): Promise<RateRecord> {

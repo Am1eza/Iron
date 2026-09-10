@@ -339,6 +339,22 @@ export const pgStore: AuthStore = {
     };
   },
 
+  async lockAndClearOtp(mobile, lockedUntil) {
+    await getDb().transaction(async (tx) => {
+      await tx.insert(otpRateLimits).values({ mobile, sends: [] }).onConflictDoNothing();
+      const [rate] = await tx
+        .select()
+        .from(otpRateLimits)
+        .where(eq(otpRateLimits.mobile, mobile))
+        .for('update');
+      await tx.delete(otpCodes).where(eq(otpCodes.mobile, mobile));
+      await tx
+        .update(otpRateLimits)
+        .set({ lockedUntil, sends: rate?.sends ?? [] })
+        .where(eq(otpRateLimits.mobile, mobile));
+    });
+  },
+
   async getRate(mobile) {
     const rows = await getDb().select().from(otpRateLimits).where(eq(otpRateLimits.mobile, mobile)).limit(1);
     const r = rows[0];

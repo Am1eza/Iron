@@ -112,6 +112,12 @@ export interface AuthStore {
    *  same `attempts` value and bypass the lockout. `null` if there's no OTP
    *  record for this mobile. */
   incrementOtpAttempts(mobile: string): Promise<OtpRecord | null>;
+  /** Attempt-cap exceeded: atomically retire the current challenge AND set the
+   *  resend lockout in one transaction (F-130) — a separate clearOtp()+lock()
+   *  pair left a window where a concurrent requestOtp() could observe the rate
+   *  row as not-yet-locked and mint a fresh, unlocked OTP in between. Locks the
+   *  same rate row `claimOtpSend` locks, so the two can never interleave. */
+  lockAndClearOtp(mobile: string, lockedUntil: number): Promise<void>;
 
   getRate(mobile: string): Promise<RateRecord>;
   setRate(mobile: string, record: RateRecord): Promise<void>;

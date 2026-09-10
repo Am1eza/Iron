@@ -3,6 +3,8 @@ import {
   mobileSchema,
   otpCodeSchema,
   requestSchema,
+  contactSchema,
+  cooperationSchema,
 } from './schemas';
 
 describe('mobileSchema', () => {
@@ -38,6 +40,42 @@ describe('requestSchema', () => {
   });
   it('fails with an empty name', () => {
     const r = requestSchema.safeParse({ name: '', mobile: '09121395954', channel: 'sms' });
+    expect(r.success).toBe(false);
+  });
+  it('rejects an oversized name (H-173)', () => {
+    const r = requestSchema.safeParse({ name: 'ا'.repeat(61), mobile: '09121395954', channel: 'sms' });
+    expect(r.success).toBe(false);
+  });
+});
+
+describe('contactSchema (H-173: text fields are length-capped)', () => {
+  it('passes with valid fields', () => {
+    const r = contactSchema.safeParse({ name: 'رضا', mobile: '09121395954', message: 'سلام، سوالی دارم.' });
+    expect(r.success).toBe(true);
+  });
+  it('rejects an oversized name', () => {
+    const r = contactSchema.safeParse({ name: 'ا'.repeat(61), mobile: '09121395954', message: 'سلام، سوالی دارم.' });
+    expect(r.success).toBe(false);
+  });
+  it('rejects an oversized message', () => {
+    const r = contactSchema.safeParse({ name: 'رضا', mobile: '09121395954', message: 'ا'.repeat(2001) });
+    expect(r.success).toBe(false);
+  });
+});
+
+describe('cooperationSchema (H-173: text fields are length-capped)', () => {
+  it('passes with valid fields', () => {
+    const r = cooperationSchema.safeParse({ track: 'supply', company: 'شرکت آهن', mobile: '09121395954' });
+    expect(r.success).toBe(true);
+  });
+  it('rejects an oversized company name', () => {
+    const r = cooperationSchema.safeParse({ track: 'supply', company: 'ا'.repeat(121), mobile: '09121395954' });
+    expect(r.success).toBe(false);
+  });
+  it('rejects an oversized free-text message', () => {
+    const r = cooperationSchema.safeParse({
+      track: 'supply', company: 'شرکت آهن', mobile: '09121395954', message: 'ا'.repeat(2001),
+    });
     expect(r.success).toBe(false);
   });
 });

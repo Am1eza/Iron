@@ -3,6 +3,7 @@ import { rotateRefresh } from '@/lib/auth/service';
 import { getRefreshToken, setSessionCookies, clearSessionCookies } from '@/lib/auth/session';
 import { safeNextPath } from '@/lib/routes';
 import { withApiErrorHandling } from '@/lib/server/utils/apiGuard';
+import { rateLimit } from '@/lib/server/utils/rateLimit';
 
 /**
  * GET /api/auth/silent?next=… — recover an expired access cookie from the
@@ -41,6 +42,14 @@ async function GETImpl(req: NextRequest) {
   // both starts and ends inside a legitimate authentication flow.
   const next = safeNextPath(req.nextUrl.searchParams.get('next')) ?? '/';
   const loginPath = `/login?next=${encodeURIComponent(next)}`;
+
+  // H-185: same rotation cost as /api/auth/refresh, reached by a plain GET
+  // (no origin check applies), so it needs its own budget too. This route is
+  // a full-page navigation target (middleware sends browsers here directly),
+  // not a fetch() caller — over the limit still means a redirect, never the
+  // rate limiter's raw JSON 429, which a browser would render as a broken page.
+  const limited = await rateLimit(req, 'auth-refresh', { limit: 60, windowMs: 60_000 });
+  if (limited) return redirectTo(loginPath);
 
   const refreshToken = await getRefreshToken();
   if (!refreshToken) return redirectTo(loginPath);

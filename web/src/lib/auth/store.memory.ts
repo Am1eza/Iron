@@ -201,6 +201,12 @@ export const memoryStore: AuthStore = {
     return rec;
   },
 
+  async lockAndClearOtp(mobile: string, lockedUntil: number) {
+    otpByMobile.delete(mobile);
+    const rate = rateByMobile.get(mobile) ?? { sends: [] };
+    rateByMobile.set(mobile, { ...rate, lockedUntil });
+  },
+
   async getRate(mobile: string) {
     return rateByMobile.get(mobile) ?? { sends: [] };
   },

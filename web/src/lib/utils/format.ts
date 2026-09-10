@@ -149,3 +149,25 @@ export function normalizeMobile(input: string): string | null {
   const m = digits.replace(/^(\+98|0098|98)/, '0');
   return /^09\d{9}$/.test(m) ? m : null;
 }
+
+/**
+ * A *normalized* (09XXXXXXXXX) mobile that structurally can never be a real
+ * subscriber line — every digit after the operator prefix is identical, or
+ * strictly sequential ascending/descending — the shape of test fixtures,
+ * placeholder input, and fraud/spam bots, never a real SIM assignment.
+ *
+ * Deliberately narrow: Iran's actual operator-prefix-to-carrier map (which
+ * numbers are Hamrah-e-Aval vs. Irancell vs. a since-decommissioned MVNO
+ * range, etc.) changes over time and has no authoritative source available in
+ * this codebase — hardcoding one would risk silently locking out real
+ * customers on a newly-assigned prefix, which is worse than the SMS credit
+ * this narrower check saves. See docs/audit-auth-F.md#F-134.
+ */
+export function isObviouslyFakeMobile(mobile: string): boolean {
+  const local = mobile.slice(2); // drop the "09" — 9 remaining digits
+  if (local.length !== 9) return false;
+  if (new Set(local).size === 1) return true;
+  const asc = local.split('').every((d, i) => i === 0 || Number(d) === (Number(local[i - 1]) + 1) % 10);
+  const desc = local.split('').every((d, i) => i === 0 || Number(d) === (Number(local[i - 1]) + 9) % 10);
+  return asc || desc;
+}
