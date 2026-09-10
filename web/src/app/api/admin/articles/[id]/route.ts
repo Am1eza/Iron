@@ -22,6 +22,7 @@ import { richDocSchema } from '@/lib/content/richDoc';
 import { createRedirect, RedirectLoopError } from '@/lib/server/repos/redirectsRepo';
 import { reportError } from '@/lib/errors/report';
 import { routes } from '@/lib/routes';
+import { deleteOrphanedUploadIfUnused } from '@/lib/server/utils/uploadCleanup';
 
 function articlePath(type: 'blog' | 'news', slug: string): string {
   return type === 'news' ? routes.news(slug) : routes.blog(slug);
@@ -148,6 +149,13 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }
   // Taking live content down is not an ordinary edit and must not read as one
   // in the activity log.
   const isUnpublish = v.data.status === 'draft' && before.status !== 'draft';
+  // I-212 — a cover-image replace must not leave the old file behind
+  // forever. Checked against every other live reference (another article's
+  // cover/ogImage/in-body image, a category) before deleting — see
+  // uploadCleanup.ts.
+  if (before.coverUrl && before.coverUrl !== article.coverUrl) {
+    await deleteOrphanedUploadIfUnused(before.coverUrl);
+  }
   await audit(
     auth.session.id,
     isUnpublish ? 'content.unpublish' : 'content.update',
@@ -183,6 +191,11 @@ async function DELETEImpl(req: NextRequest, ctx: { params: Promise<{ id: string 
   }
   await deleteDraftArticle(id);
   await audit(auth.session.id, 'content.delete', { type: 'article', id }, existing, null);
+  // I-212 — the cover image (in-body images, if any, are left to the
+  // periodic reconciliation job in cleanup.job.ts: they may still be
+  // referenced by a DIFFERENT article's body, which a synchronous per-row
+  // delete here has no cheap way to rule out for a whole JSON tree at once).
+  await deleteOrphanedUploadIfUnused(existing.coverUrl);
   revalidateArticle({ type: existing.type, slug: existing.slug });
   return NextResponse.json({ ok: true });
 }

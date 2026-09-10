@@ -13,6 +13,7 @@ import {
 } from '@/lib/server/utils/catalogRoute';
 import { finiteNumber, nonEmptyPatch, subCategorySlugSchema } from '@/lib/validation/utils';
 import { normalizeCatalogText } from '@/lib/server/utils/persianZwnj';
+import { deleteOrphanedUploadsIfUnused } from '@/lib/server/utils/uploadCleanup';
 
 const patchPayload = nonEmptyPatch(
   z.object({
@@ -84,6 +85,9 @@ async function DELETEImpl(req: NextRequest, ctx: { params: Promise<{ id: string 
   // The whole row, plus the products it cascaded away — see the category
   // route for why two columns and a bare count is not a recovery story.
   await audit(auth.session.id, 'catalog.sub.delete', { type: 'sub', id }, { ...removed, _subtree: subtree }, null);
+  // I-212 — same cascade-orphan bug as category delete, one level down: the
+  // sub-category itself has no image, but every product under it does.
+  await deleteOrphanedUploadsIfUnused(subtree.skus.map((s) => s.imageUrl));
   // The sub's own page and each of its products land on the parent category.
   await writeCatalogRedirects(tombstone);
   await revalidateCatalog('taxonomy');
