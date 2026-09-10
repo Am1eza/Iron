@@ -53,7 +53,10 @@ export const orders = pgTable(
   (t) => [
     index('orders_user_idx').on(t.userId),
     // FK with no covering index (W29) — the `leads` ON DELETE SET NULL.
-    uniqueIndex('orders_lead_uq').on(t.leadId),
+    // Partial: only active orders must be unique per lead. Legacy data has
+    // leads with multiple orders where all but one were soft-deleted, and a
+    // deleted order must not block filing a new one against the same lead.
+    uniqueIndex('orders_lead_uq').on(t.leadId).where(sql`${t.deletedAt} is null`),
     check('orders_status_ck', sql`${t.status} in ('registered','confirmed','loading','in_transit','delivered')`),
     // Both the admin order list (`ORDER BY placed_at DESC`, ordersRepo:126)
     // and the analytics orders KPI window on `placed_at`, which had no index.

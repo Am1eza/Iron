@@ -3724,7 +3724,8 @@
           "isUnique": true,
           "with": {},
           "method": "btree",
-          "concurrently": false
+          "concurrently": false,
+          "where": "deleted_at is null"
         },
         "orders_placed_at_idx": {
           "name": "orders_placed_at_idx",
