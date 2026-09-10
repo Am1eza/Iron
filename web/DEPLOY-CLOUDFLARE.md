@@ -70,7 +70,7 @@ App installation on this repo.
      geo-routing setup actually reached this origin; see `../GEO-ROUTING.md`.
    - **Runtime secrets** on the Worker (see `web/.dev.vars.example` for the
      full list) — at minimum, live mode structurally requires
-     `DATABASE_URL` and `SESSION_SECRET` (the app 503s `db_unavailable` on
+     `DATABASE_URL`, `SESSION_SECRET` and a separate `OTP_SECRET` (the app 503s `db_unavailable` on
      every DB-backed route, including the AI advisor, without the former;
      auth cannot sign a session JWT without the latter). **The AI advisor
      additionally needs its own master switch** — `AI_ENABLED` must be set
@@ -82,6 +82,9 @@ App installation on this repo.
    cd web
    npx wrangler secret put DATABASE_URL     # see "which connection string" below
    npx wrangler secret put SESSION_SECRET
+   npx wrangler secret put OTP_SECRET
+   # Only during a planned key rotation:
+   npx wrangler secret put SESSION_SECRET_PREVIOUS
    npx wrangler secret put SMSIR_API_KEY
    npx wrangler secret put SMSIR_TEMPLATE_ID    # …and the rest
    npx wrangler secret put AI_ENABLED       # exactly: true

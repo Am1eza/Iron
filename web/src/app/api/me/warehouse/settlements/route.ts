@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { requireApiUser, requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
-import { settlementsForUser } from '@/lib/server/repos/warehouseSettlementsRepo';
+import { settlementsPageForUser } from '@/lib/server/repos/warehouseSettlementsRepo';
 
 /** GET /api/me/warehouse/settlements — the signed-in customer's OWN
  *  consignment-fee billing history (W20). Previously the only settlement
@@ -12,8 +12,10 @@ async function GETImpl(req: NextRequest) {
   if (guard) return guard;
   const auth = await requireApiUser(req);
   if ('response' in auth) return auth.response;
-  const settlements = await settlementsForUser(auth.session.id);
-  return NextResponse.json({ settlements }, { headers: { 'Cache-Control': 'no-store' } });
+  const page = Math.max(1, Math.floor(Number(req.nextUrl.searchParams.get('page')) || 1));
+  const history = await settlementsPageForUser(auth.session.id, page);
+  const settlements = history.rows;
+  return NextResponse.json({ settlements, page, hasMore: page * history.perPage < history.total }, { headers: { 'Cache-Control': 'no-store' } });
 }
 
 export const GET = withApiErrorHandling(GETImpl);

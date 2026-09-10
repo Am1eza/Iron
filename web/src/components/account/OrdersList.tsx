@@ -58,7 +58,7 @@ export function OrdersList({ orders }: { orders: Order[] }) {
                 {o.cancelled ? tShipment('cancelledBadge') : label}
               </Badge>
             </div>
-            <OrderTimeline status={o.status} cancelled={o.cancelled} />
+            <OrderTimeline events={o.events} status={o.status} cancelled={o.cancelled} />
             {!o.cancelled && (o.trackingNumber || o.carrierName) ? (
               <p className={styles.shipping}>
                 <span className={styles.shippingLabel}>

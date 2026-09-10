@@ -7,7 +7,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { ulid } from 'ulid';
 import { createTestDb } from '@/test/db';
 import { requestOtp, verifyOtp, rotateRefresh, logout, AuthError } from './service';
-import { userByMobile, userById, updateUser, revokeAllForUser } from './store';
+import { userByMobile, userById, updateUser, revokeAllForUser, createUser, setOtp, consumeOtp, getOtp } from './store';
 
 let close: () => Promise<void>;
 
@@ -19,6 +19,20 @@ afterAll(async () => {
 });
 
 describe('OTP auth flow (pg store)', () => {
+  it('allows only one concurrent successful login with the same OTP', async () => {
+    const mobile = '09135000004';
+    await createUser({ mobile });
+    const { devCode } = await requestOtp(mobile);
+    const results = await Promise.allSettled([verifyOtp(mobile, devCode!), verifyOtp(mobile, devCode!)]);
+    expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1);
+    expect(await getOtp(mobile)).toBeNull();
+  });
+  it('an old verifier cannot consume a replacement challenge', async () => {
+    const mobile = '09135000005', expiresAt = Date.now() + 60_000;
+    await setOtp(mobile, { hash: 'replacement', expiresAt, attempts: 0 });
+    expect(await consumeOtp(mobile, 'old', expiresAt)).toBe(false);
+    expect((await getOtp(mobile))?.hash).toBe('replacement');
+  });
   it('registers, logs in, rotates and revokes against the database', async () => {
     const mobile = '09135000001';
     const { devCode } = await requestOtp(mobile, 'رضا');

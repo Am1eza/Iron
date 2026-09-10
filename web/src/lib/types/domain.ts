@@ -318,6 +318,8 @@ export const WAREHOUSE_STATUS_LABEL: Record<WarehouseStatus, string> = {
 };
 
 export interface WarehouseItem {
+  version?: number;
+  reservedTons?: number;
   id: string;
   ref: string;
   product: string;
@@ -356,6 +358,8 @@ export const SHIPMENT_STEPS: { key: ShipmentStatus; label: string }[] = [
 ];
 
 export interface Order {
+  terms?: { currency: 'TOMAN'; source: 'proforma' | 'manual' | 'legacy'; proformaRef?: string; total?: number; paymentTerms?: string; deliveryTerms?: string };
+  events?: Array<{ id: string; kind: string; status: string; note: string; at: string }>;
   ref: string;
   placedAt: string; // ISO
   items: LineItem[];
@@ -371,6 +375,10 @@ export interface Order {
 }
 
 export interface LineItem {
+  orderItemId?: string;
+  historicalSkuId?: string;
+  deliveredQty?: number;
+  returnedQty?: number;
   skuId: string;
   name: string;
   qty: number;

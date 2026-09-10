@@ -50,7 +50,7 @@ async function seedItem(opts: {
     ref: `WH-${id}`,
     userId: opts.userId,
     product: 'میلگرد',
-    quantityTons: 5,
+    quantityTons: opts.status === 'released' ? 0 : 5,
     monthlyFeeToman: opts.monthlyFeeToman,
     storedAt: opts.storedAt,
     // Default 'stored': the column itself defaults to 'pending' (not yet
@@ -61,6 +61,13 @@ async function seedItem(opts: {
     arrivedAt: opts.arrivedAt,
     releasedAt: opts.releasedAt,
   });
+  if (opts.status === 'released') {
+    const from = opts.arrivedAt ?? opts.storedAt;
+    await db.insert(schema.warehouseBillingEvents).values([
+      { id: ulid(), warehouseItemId: id, effectiveAt: from, quantityTons: 5, monthlyFeeToman: opts.monthlyFeeToman, note: 'test opening custody' },
+      { id: ulid(), warehouseItemId: id, effectiveAt: opts.releasedAt!, quantityTons: 0, monthlyFeeToman: opts.monthlyFeeToman, note: 'test release' },
+    ]);
+  }
   const rows = await db.select().from(schema.warehouseItems).where(eq(schema.warehouseItems.id, id));
   return rows[0]!;
 }
@@ -332,7 +339,7 @@ describe('markSettlementPaid', () => {
     const storedAt = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const item = await seedItem({ userId, storedAt, monthlyFeeToman: 60_000 });
     const settlement = await createSettlement(item.id, null);
-    await markSettlementPaid(settlement!.id);
+    await markSettlementPaid(settlement!.id, 'رسید بانکی آزمون');
     await expect(markSettlementPaid(settlement!.id)).resolves.toBeNull();
   });
 

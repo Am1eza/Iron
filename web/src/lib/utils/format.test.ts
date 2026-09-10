@@ -55,6 +55,12 @@ describe('normalizeMobile', () => {
   });
   it('rejects invalid numbers', () => {
     expect(normalizeMobile('12345')).toBeNull();
+    expect(normalizeMobile('abc09121395954')).toBeNull();
+    expect(normalizeMobile('0912-139-5954 ext 1')).toBeNull();
+  });
+  it('accepts common visual separators', () => {
+    expect(normalizeMobile(' ۰۹۱۲ ۱۳۹ ۵۹۵۴ ')).toBe('09121395954');
+    expect(normalizeMobile('+98 (912) 139-5954')).toBe('09121395954');
   });
 });
 

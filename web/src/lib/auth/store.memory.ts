@@ -43,6 +43,7 @@ type RefreshMap = Map<string, RefreshRecord>;
 const refreshByHash: RefreshMap = new Map();
 const otpByMobile = new Map<string, OtpRecord>();
 const rateByMobile = new Map<string, RateRecord>();
+const MAX_SESSION_FAMILIES = 5;
 
 export const memoryStore: AuthStore = {
   async userByMobile(mobile: string) {
@@ -84,6 +85,7 @@ export const memoryStore: AuthStore = {
     // already-issued access token is rejected on the next request.
     const bump = patch.role !== undefined || patch.isActive !== undefined;
     const next = { ...user, ...patch, tokenVersion: bump ? (user.tokenVersion ?? 0) + 1 : user.tokenVersion };
+    if (bump) for (const [hash, rec] of refreshByHash) if (rec.userId === id) refreshByHash.delete(hash);
     usersById.set(id, next);
     return next;
   },
@@ -104,6 +106,19 @@ export const memoryStore: AuthStore = {
   },
 
   async saveRefresh(hash: string, record: RefreshRecord) {
+    if (!record.parentHash) {
+      const families = new Map<string, number>();
+      for (const [tokenHash, row] of refreshByHash) {
+        if (row.userId !== record.userId || row.expiresAt <= Date.now()) continue;
+        const family = row.familyId ?? tokenHash;
+        families.set(family, Math.min(families.get(family) ?? Infinity, row.expiresAt));
+      }
+      if (families.size >= MAX_SESSION_FAMILIES) {
+        const oldest = [...families].sort((a, b) => a[1] - b[1])[0]?.[0];
+        if (oldest) for (const [tokenHash, row] of refreshByHash)
+          if ((row.familyId ?? tokenHash) === oldest) refreshByHash.delete(tokenHash);
+      }
+    }
     refreshByHash.set(hash, { ...record });
   },
 
@@ -126,6 +141,17 @@ export const memoryStore: AuthStore = {
     if (!rec || rec.rotatedAt !== undefined || rec.expiresAt <= rotatedAt) return null;
     rec.rotatedAt = rotatedAt;
     return { ...rec };
+  },
+  async rotateRefreshAtomic(parentHash, childHash, child, now, graceMs, enforceReuse) {
+    const parent=refreshByHash.get(parentHash);
+    if(!parent || parent.expiresAt<=now)return {status:'invalid'} as const;
+    const family=parent.familyId??parentHash;
+    const next={...child,userId:parent.userId,expiresAt:Math.min(child.expiresAt,parent.expiresAt),familyId:family,parentHash};
+    if(parent.rotatedAt===undefined){parent.rotatedAt=now;refreshByHash.set(childHash,next);return {status:'claimed',record:{...parent}} as const;}
+    const age=now-parent.rotatedAt;
+    if(age>=0 && age<=graceMs){refreshByHash.set(childHash,next);return {status:'grace',record:{...parent}} as const;}
+    if(enforceReuse)for(const [hash,row] of refreshByHash)if(row.familyId===family||hash===family)refreshByHash.delete(hash);
+    return {status:'reuse',record:{...parent}} as const;
   },
 
   async revokeRefresh(hash: string) {
@@ -163,6 +189,11 @@ export const memoryStore: AuthStore = {
   async clearOtp(mobile: string) {
     otpByMobile.delete(mobile);
   },
+  async consumeOtp(mobile, hash, expiresAt) {
+    const current = otpByMobile.get(mobile);
+    if (!current || current.hash !== hash || current.expiresAt !== expiresAt || expiresAt <= Date.now()) return false;
+    return otpByMobile.delete(mobile);
+  },
   async incrementOtpAttempts(mobile: string) {
     const rec = otpByMobile.get(mobile);
     if (!rec) return null;
@@ -175,6 +206,15 @@ export const memoryStore: AuthStore = {
   },
   async setRate(mobile: string, record: RateRecord) {
     rateByMobile.set(mobile, record);
+  },
+  async claimOtpSend(mobile, now, cooldownMs, windowMs, maxSends, combinedKey) {
+    const keys=[mobile,...(combinedKey?[combinedKey]:[])];
+    for(const key of keys){const current=rateByMobile.get(key)??{sends:[]};const sends=current.sends.filter(t=>now-t<windowMs);const last=sends.at(-1);
+      if(current.lockedUntil&&current.lockedUntil>now)return {ok:false,reason:'locked',retryAfter:Math.ceil((current.lockedUntil-now)/1000)} as const;
+      if(last&&now-last<cooldownMs)return {ok:false,reason:'cooldown',retryAfter:Math.ceil((cooldownMs-(now-last))/1000)} as const;
+      if(sends.length>=maxSends)return {ok:false,reason:'too_many',retryAfter:Math.ceil(windowMs/1000)} as const;}
+    for(const key of keys){const current=rateByMobile.get(key)??{sends:[]};rateByMobile.set(key,{sends:[...current.sends.filter(t=>now-t<windowMs),now],lockedUntil:current.lockedUntil});}
+    return {ok:true} as const;
   },
   async clearRate(mobile: string) {
     rateByMobile.delete(mobile);

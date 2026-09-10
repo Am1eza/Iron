@@ -7,10 +7,16 @@ import {
   boolean,
   doublePrecision,
   index,
+  integer,
+  jsonb,
+  uniqueIndex,
+  check,
   pgTable,
   text,
   timestamp,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+import type { LineItem } from '@/lib/types/domain';
 import { users } from './auth';
 import { PRICE_UNITS, skus } from './catalog';
 import { leads, userRequests } from './leads';
@@ -27,6 +33,7 @@ export const orders = pgTable(
     // just detach the reference.
     userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
     leadId: text('lead_id').references(() => leads.id, { onDelete: 'set null' }),
+    terms: jsonb('terms').$type<{ currency: 'TOMAN'; source: 'proforma' | 'manual' | 'legacy'; proformaRef?: string; subtotal?: number; discountToman?: number; volumeDiscountToman?: number; vatRate?: number; vatAmount?: number; total?: number; validUntil?: string; volumePolicyVersion?: string; paymentTerms?: string; deliveryTerms?: string; lines?: LineItem[] }>(),
     status: text('status', { enum: SHIPMENT_STATUSES }).notNull().default('registered'),
     // Carrier tracking (US-08.4) — both optional, set once the shipment is
     // actually booked with a carrier (typically around 'loading'/'in_transit').
@@ -46,7 +53,8 @@ export const orders = pgTable(
   (t) => [
     index('orders_user_idx').on(t.userId),
     // FK with no covering index (W29) — the `leads` ON DELETE SET NULL.
-    index('orders_lead_idx').on(t.leadId),
+    uniqueIndex('orders_lead_uq').on(t.leadId),
+    check('orders_status_ck', sql`${t.status} in ('registered','confirmed','loading','in_transit','delivered')`),
     // Both the admin order list (`ORDER BY placed_at DESC`, ordersRepo:126)
     // and the analytics orders KPI window on `placed_at`, which had no index.
     index('orders_placed_at_idx').on(t.placedAt),
@@ -64,6 +72,8 @@ export const orderItems = pgTable(
     // Line item snapshots its own name/qty/price; the sku link is a
     // cross-reference only — preserve the order history on product deletion.
     skuId: text('sku_id').references(() => skus.id, { onDelete: 'set null' }),
+    historicalSkuId: text('historical_sku_id'),
+    snapshot: jsonb('snapshot').$type<LineItem>(),
     name: text('name').notNull(),
     qty: doublePrecision('qty').notNull(),
     unit: text('unit', { enum: PRICE_UNITS }).notNull(),
@@ -72,6 +82,8 @@ export const orderItems = pgTable(
     lineTotal: bigint('line_total', { mode: 'number' }),
   },
   (t) => [
+    check('order_items_qty_ck', sql`${t.qty} > 0 and ${t.qty} < 1000000000000`),
+    check('order_items_money_ck', sql`(${t.unitPrice} is null or ${t.unitPrice} between 0 and 10000000000000) and (${t.lineTotal} is null or ${t.lineTotal} between 0 and 9007199254740991)`),
     index('order_items_order_idx').on(t.orderId),
     // FK with no covering index (W29) — the `skus` ON DELETE SET NULL.
     index('order_items_sku_idx').on(t.skuId),
@@ -98,6 +110,7 @@ export const warehouseItems = pgTable(
     product: text('product').notNull(),
     sizeLabel: text('size_label'),
     quantityTons: doublePrecision('quantity_tons').notNull(),
+    version: integer('version').notNull().default(1),
     monthlyFeeToman: bigint('monthly_fee_toman', { mode: 'number' }).notNull().default(0),
     // `storedAt` (existing) is unavoidably "the moment this row was inserted" —
     // it defaults on create and nothing ever let it be anything else. `arrivedAt`
@@ -134,7 +147,10 @@ export const warehouseItems = pgTable(
     index('warehouse_items_user_idx').on(t.userId),
     // Three FKs with no covering index (W29) — request/lead ON DELETE SET
     // NULL, received_by ON DELETE SET NULL.
-    index('warehouse_items_request_idx').on(t.requestId),
+    uniqueIndex('warehouse_items_request_uq').on(t.requestId),
+    check('warehouse_items_quantity_ck', sql`${t.quantityTons} between 0 and 100000 and round(${t.quantityTons}::numeric,6)=${t.quantityTons}::numeric`),
+    check('warehouse_items_fee_ck', sql`${t.monthlyFeeToman} between 0 and 1000000000`),
+    check('warehouse_items_status_ck', sql`${t.status} in ('pending','stored','selling','released')`),
     index('warehouse_items_lead_idx').on(t.leadId),
     index('warehouse_items_received_by_idx').on(t.receivedBy),
     // Admin warehouse list: `ORDER BY stored_at DESC` (ordersRepo:402/439).
@@ -158,7 +174,8 @@ export const warehouseMovements = pgTable(
     id: text('id').primaryKey(),
     warehouseItemId: text('warehouse_item_id')
       .notNull()
-      .references(() => warehouseItems.id, { onDelete: 'cascade' }),
+      .references(() => warehouseItems.id, { onDelete: 'restrict' }),
+    operationId: text('operation_id').unique(),
     kind: text('kind', { enum: WAREHOUSE_MOVEMENT_KINDS }).notNull(),
     // Signed: positive for intake, negative for a release/reduction.
     deltaTons: doublePrecision('delta_tons').notNull(),
@@ -170,6 +187,8 @@ export const warehouseMovements = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    check('warehouse_movements_quantity_ck', sql`${t.quantityAfterTons} between 0 and 100000 and ${t.deltaTons} between -100000 and 100000`),
+    check('warehouse_movements_kind_ck', sql`(${t.kind}='receipt' and ${t.deltaTons}>0) or (${t.kind}='release' and ${t.deltaTons}<0) or (${t.kind}='adjustment' and ${t.deltaTons}<>0)`),
     index('warehouse_movements_item_idx').on(t.warehouseItemId, t.createdAt),
     // FK with no covering index (W29) — `users` ON DELETE SET NULL.
     index('warehouse_movements_actor_idx').on(t.actorId),
@@ -190,7 +209,7 @@ export const warehouseSettlements = pgTable(
     id: text('id').primaryKey(),
     warehouseItemId: text('warehouse_item_id')
       .notNull()
-      .references(() => warehouseItems.id, { onDelete: 'cascade' }),
+      .references(() => warehouseItems.id, { onDelete: 'restrict' }),
     // Denormalized from warehouseItems.userId — lets "every settlement for
     // this customer" be queried without joining through warehouse_items.
     userId: text('user_id')
@@ -216,10 +235,14 @@ export const warehouseSettlements = pgTable(
     // soft link the repo layer always sets consistently, not worth the
     // lazy-reference ceremony a self-referencing constraint needs here.
     voidedAt: timestamp('voided_at', { withTimezone: true }),
-    voidsSettlementId: text('voids_settlement_id'),
+    voidsSettlementId: text('voids_settlement_id').unique(),
+    operationId: text('operation_id').unique(),
+    segments: jsonb('segments').$type<Array<{ from: string; to: string; quantityTons: number; monthlyFeeToman: number }>>(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    check('warehouse_settlements_money_ck', sql`${t.amountToman} between -9007199254740991 and 9007199254740991 and (${t.voidsSettlementId} is not null or ${t.amountToman}>=0)`),
+    check('warehouse_settlements_period_ck', sql`${t.periodTo}>${t.periodFrom}`),
     index('warehouse_settlements_item_idx').on(t.warehouseItemId, t.periodTo),
     index('warehouse_settlements_user_idx').on(t.userId),
     // FK with no covering index (W29) — `users` ON DELETE SET NULL.

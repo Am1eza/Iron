@@ -13,16 +13,17 @@ import { finiteNumber } from '@/lib/validation/utils';
 
 const payload = z
   .object({
+    expectedVersion: z.number().int().positive(),
     status: z.enum(['pending', 'stored', 'selling', 'released']).optional(),
     // W20: fractional now rejected (was `finiteNumber.min(0)`, no `.int()` —
     // passed validation but silently mismatched the bigint column).
     monthlyFeeToman: finiteNumber.min(0).max(1e9).int().optional(),
-    quantityTons: finiteNumber.positive().max(100000).optional(),
+    quantityTons: finiteNumber.min(0).max(100000).optional(),
     location: z.string().trim().max(120).nullable().optional(),
     contractRef: z.string().trim().max(120).nullable().optional(),
     insured: z.boolean().optional(),
     arrivedAt: z.string().datetime().nullable().optional(),
-    movementNote: z.string().trim().max(500).optional(),
+    movementNote: z.string().trim().min(5).max(500),
   })
   .refine((v) => Object.keys(v).length > 0, { message: 'حداقل یک فیلد باید ارسال شود.' });
 
@@ -50,7 +51,7 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }
     );
   }
 
-  const { movementNote, arrivedAt, ...patch } = v.data;
+  const { movementNote, arrivedAt, expectedVersion, ...patch } = v.data;
   let result;
   try {
     result = await updateWarehouseItem(
@@ -58,6 +59,7 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }
       { ...patch, arrivedAt: arrivedAt === undefined ? undefined : arrivedAt ? new Date(arrivedAt) : null },
       auth.session.id,
       movementNote,
+      { expectedVersion },
     );
   } catch (err) {
     if (err instanceof InvalidStatusTransitionError) {
@@ -86,6 +88,7 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }
     item: {
       id: result.after.id,
       ref: result.after.ref,
+      version: result.after.version,
       product: result.after.product,
       sizeLabel: result.after.sizeLabel ?? undefined,
       quantityTons: result.after.quantityTons,
@@ -120,7 +123,7 @@ async function DELETEImpl(req: NextRequest, ctx: { params: Promise<{ id: string 
 
   let row;
   try {
-    row = await softDeleteWarehouseItem(id, { force });
+    row = await softDeleteWarehouseItem(id, { force, actorId: auth.session.id });
   } catch (err) {
     if (err instanceof UnsettledBalanceError) {
       return NextResponse.json(

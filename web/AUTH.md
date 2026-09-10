@@ -16,9 +16,9 @@
 | --- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 51  | **Login**           | OTP flow (`LoginForm` → `/api/auth/otp/*`); returning users log in on verify                                                                                               |
 | 52  | **Register**        | Same flow; first OTP for a new mobile creates the account (optional name captured at request)                                                                              |
-| 53  | **OTP**             | `service.requestOtp/verifyOtp`: **6**-digit code, **900s** TTL, hashed at rest, attempts + lockout, resend cooldown, per-hour cap; SMS.ir (dev logs the code)              |
+| 53  | **OTP**             | `service.requestOtp/verifyOtp`: **6**-digit code, **600s** TTL, hashed at rest with an independent secret, attempts + lockout, resend cooldown, per-hour cap              |
 | 54  | **Session**         | httpOnly cookies — access JWT (`ahantime_at`, path `/`) + refresh (`ahantime_rt`, path `/api/auth`); `getSession()` server helper                                          |
-| 55  | **JWT**             | `jwt.ts` — HS256 (pinned via `algorithms`) via `jose`, **4-hour** access token, issuer/audience, signed with `SESSION_SECRET`                                              |
+| 55  | **JWT**             | `jwt.ts` — HS256 (pinned via `algorithms`) via `jose`, **1-hour** access token, issuer/audience, signed with `SESSION_SECRET`                                              |
 | 56  | **Refresh Token**   | Opaque 32-byte token, **hashed** in store, **single-use rotation** (`rotateRefresh`, but **no reuse detection** — see below); silent client refresh every **3 hours**      |
 | 57  | **Role Management** | `Role` = customer + operator/sales/content/catalog/admin (navigation §21); `ROLE_LABEL`, `STAFF_ROLES`                                                                     |
 | 58  | **Permissions**     | `Permission` set + `ROLE_PERMISSIONS` map + `can()` / `canAccessAdmin()`; `requirePermission()` (server) + the same `can()` called directly in client components (below)   |
@@ -79,13 +79,14 @@ Reference call sites: `components/admin/AdminAlerts.tsx`, `components/admin/lead
 
 ## Security notes
 
-- OTP and refresh tokens are **never stored in clear** (SHA-256 + `SESSION_SECRET` pepper); comparisons are constant-time.
+- OTP and refresh tokens are **never stored in clear**; OTP digests use `OTP_SECRET`, while sessions use `SESSION_SECRET`.
 - Brute-force: ≤5 verify attempts, then a 15-min lockout; resend cooldown 60s; ≤**5** sends/hour.
 - Cookies: `httpOnly` (no JS access), `Secure` in production, `SameSite=Lax`; refresh token scoped to `/api/auth`.
 - CSRF: `SameSite=Lax` + an explicit same-origin Origin/Referer check on every mutating auth route.
 - Refresh **rotation** makes stolen refresh tokens single-use; reuse fails and clears the session.
 - Logs never include codes, hashes, tokens, or PII (`errors/report.ts` redaction).
-- `SESSION_SECRET` is **required in production** (loud dev fallback otherwise); validated by `lib/validation/env.ts` in live mode.
+- `SESSION_SECRET` and the separate `OTP_SECRET` are **required in live production** and must each contain at least 32 characters.
+- For a zero-downtime session-key rotation, set the old value temporarily as `SESSION_SECRET_PREVIOUS`, deploy the new `SESSION_SECRET`, wait one refresh lifetime, then remove the previous value.
 
 ## Files
 

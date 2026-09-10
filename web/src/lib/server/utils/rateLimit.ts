@@ -110,7 +110,7 @@ function onCloudflareWorkers(): boolean {
   }
 }
 
-function clientIp(req: NextRequest): string {
+export function clientIp(req: NextRequest): string {
   if (process.env.TRUST_PROXY === 'false') return 'untrusted-proxy';
   // `CF-Connecting-IP` is only unspoofable on topology 1, where Cloudflare's
   // own edge sets it before the Worker runs. On topology 2 (Docker/Caddy) the

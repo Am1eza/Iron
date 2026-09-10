@@ -6,6 +6,8 @@
  * equivalent, so it's fetched client-side, live-mode only.
  */
 'use client';
+import { WarehouseOperationsPanel } from '@/components/warehouse/WarehouseOperationsPanel';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { Stack, Cluster, Text, Badge, EmptyState, Spinner } from '@/components/ui';
@@ -50,6 +52,7 @@ export function WarehouseList({ items }: { items: WarehouseItem[] }) {
 
   return (
     <Stack gap={8}>
+      {API_MODE === 'live' ? <WarehouseOperationsPanel items={items} /> : null}
       <ul
         style={{
           display: 'flex',
@@ -143,9 +146,10 @@ export function WarehouseList({ items }: { items: WarehouseItem[] }) {
  *  faking financial records. */
 function SettlementHistory() {
   const t = useTranslations('account.warehouse');
+  const [page, setPage] = useState(1);
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['me', 'warehouse', 'settlements'],
-    queryFn: () => http.get<{ settlements: WarehouseSettlementDto[] }>('/api/me/warehouse/settlements'),
+    queryKey: ['me', 'warehouse', 'settlements', page],
+    queryFn: () => http.get<{ settlements: WarehouseSettlementDto[]; hasMore: boolean }>(`/api/me/warehouse/settlements?page=${page}`),
     enabled: API_MODE === 'live',
   });
 
@@ -183,7 +187,7 @@ function SettlementHistory() {
   // mark it superseded — never show a customer a raw ledger where two rows
   // silently cancel out.
   const settlements = (data?.settlements ?? []).filter((s) => !s.voidsSettlementId);
-  if (settlements.length === 0) return null;
+  if (settlements.length === 0 && !data?.hasMore && page === 1) return null;
 
   return (
     <Stack gap={3}>
@@ -240,6 +244,14 @@ function SettlementHistory() {
           );
         })}
       </ul>
+      <Cluster gap={2}>
+        <button disabled={page === 1} onClick={() => setPage(page - 1)}>
+          {t('prevPage')}
+        </button>
+        <button disabled={!data?.hasMore} onClick={() => setPage(page + 1)}>
+          {t('nextPage')}
+        </button>
+      </Cluster>
     </Stack>
   );
 }

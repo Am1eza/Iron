@@ -7,7 +7,9 @@
  * sets env vars (via vi.stubEnv — NODE_ENV is read-only on process.env
  * itself) THEN dynamically re-imports the module via vi.resetModules().
  */
-import { describe, it, expect, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+
+beforeEach(() => vi.stubEnv('OTP_SECRET', 'o'.repeat(32)));
 
 afterEach(() => {
   vi.unstubAllEnvs();

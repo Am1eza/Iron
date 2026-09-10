@@ -12,6 +12,7 @@ import { assertSameOrigin } from '@/lib/auth/origin';
 import { hasDb } from '@/lib/server/db/client';
 import { writeAudit } from '@/lib/server/repos/auditRepo';
 import { reportError } from '@/lib/errors/report';
+import { BusinessRuleError } from './businessOperation';
 
 /**
  * Wrap a route handler so ANY uncaught error (a dropped Postgres connection
@@ -30,6 +31,7 @@ export function withApiErrorHandling<Args extends unknown[]>(
     try {
       return await handler(...args);
     } catch (err) {
+      if (err instanceof BusinessRuleError) return NextResponse.json({ error: err.code, message: err.message }, { status: err.status });
       if (err instanceof PayloadTooLargeError) return payloadTooLargeResponse();
       reportError(err, { scope: 'api', unhandled: true });
       return NextResponse.json(

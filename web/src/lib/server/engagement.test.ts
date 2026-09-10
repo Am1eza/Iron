@@ -29,7 +29,7 @@ import {
 import { evaluateAlerts } from '@/lib/server/services/alerts.service';
 import { addFavorite, favoritesForUser, removeFavorite } from '@/lib/server/repos/favoritesRepo';
 import { joinClub, clubStatus, recomputeTier } from '@/lib/server/repos/clubRepo';
-import { createOrder, updateOrderStatus, cancelOrder } from '@/lib/server/repos/ordersRepo';
+import { createOrder, updateOrderStatus } from '@/lib/server/repos/ordersRepo';
 import { savePrice } from '@/lib/server/services/pricing.service';
 
 let db: Db;
@@ -428,7 +428,10 @@ describe('favorites', () => {
 
 describe('club (hybrid points model)', () => {
   const deliver = async (ref: string) => {
-    await createOrder({ ref, userId: USER, items: [] });
+    await createOrder({ ref, userId: USER, items: [{ skuId: '', name: 'قلم آزمون', qty: 1, unit: 'branch' }] });
+    const [order] = await db.select().from(schema.orders).where(eq(schema.orders.ref, ref));
+    const [line] = await db.select().from(schema.orderItems).where(eq(schema.orderItems.orderId, order!.id));
+    await db.insert(schema.orderFulfillments).values({ id: ulid(), orderItemId: line!.id, quantity: 1, kind: 'delivery', proof: 'رسید آزمون باشگاه' });
     // registered → confirmed → loading → in_transit → delivered
     for (const s of ['confirmed', 'loading', 'in_transit', 'delivered'] as const) {
       await updateOrderStatus(ref, s);
@@ -462,11 +465,12 @@ describe('club (hybrid points model)', () => {
     expect(status.verificationLevel).toBe(2);
   });
 
-  it('downgrades when delivered orders are cancelled (points fall below threshold)', async () => {
+  it('downgrades when fully returned orders leave eligible revenue (points fall below threshold)', async () => {
     // Revoke the profile + verification bonuses and cancel 4 of the 5 orders →
     // 1 point, below steel's 5.
     await db.update(schema.users).set({ firstName: null, lastName: null, idVerifyStatus: 'none' }).where(eq(schema.users.id, USER));
-    for (let i = 0; i < 4; i++) await cancelOrder(`OR-CLUB-${i}`);
+    await db.update(schema.orders).set({ deletedAt: new Date() }).where(eq(schema.orders.userId, USER));
+    await db.update(schema.orders).set({ deletedAt: null }).where(eq(schema.orders.ref, 'OR-CLUB-4'));
     const tier = await recomputeTier(USER);
     expect(tier).toBe('iron');
     const status = await clubStatus(USER);
@@ -474,7 +478,7 @@ describe('club (hybrid points model)', () => {
     expect(status.tier).toBe('iron');
   });
 
-  it('cancelOrder() ALONE (no manual recomputeTier call) downgrades the tier — W17 regression', async () => {
+  it('recomputeTier immediately reflects a fully returned order', async () => {
     // Every test above calls recomputeTier() itself to observe the effect;
     // that was masking a real bug where the production DELETE route's actual
     // call path — cancelOrder() — never triggered a recompute at all, so a
@@ -493,10 +497,8 @@ describe('club (hybrid points model)', () => {
     expect(before).toBe('steel');
     expect((await clubStatus(USER)).deliveredOrders).toBe(5);
 
-    await cancelOrder(refs[0]!); // <-- no recomputeTier() call here, unlike every test above
-    // Fire-and-forget: give the dynamic import + recompute microtask/DB round
-    // trip a moment to land before asserting.
-    await new Promise((r) => setTimeout(r, 200));
+    await db.update(schema.orders).set({ deletedAt: new Date() }).where(eq(schema.orders.ref, refs[0]!));
+    await recomputeTier(USER);
 
     const status = await clubStatus(USER);
     expect(status.deliveredOrders).toBe(4);

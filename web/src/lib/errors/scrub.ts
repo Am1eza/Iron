@@ -41,6 +41,9 @@ const EMAIL_VALUE = /[\w.+-]+@[\w-]+(?:\.[\w-]+)*\.[A-Za-z]{2,}/g;
 // then chewed the bot id, leaving the secret half in the clear. That exact
 // case is a test.
 const BOT_TOKEN_VALUE = /\d{5,16}:[A-Za-z0-9_-]{30,}/g;
+const JWT_VALUE = /\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g;
+const BEARER_VALUE = /\bBearer\s+[A-Za-z0-9._~-]+/gi;
+const TOKEN_QUERY_VALUE = /([?&](?:access_token|refresh_token|token|jwt)=)[^&#\s]+/gi;
 
 function scrubBotToken<T>(v: T): T {
   return typeof v === 'string' ? (v.replace(BOT_TOKEN_VALUE, '[redacted-token]') as unknown as T) : v;
@@ -63,5 +66,10 @@ function scrubEmail<T>(v: T): T {
  * other (disjoint patterns).
  */
 export function scrubPii<T>(v: T): T {
-  return scrubEmail(scrubMobile(scrubBotToken(v)));
+  if (typeof v !== 'string') return scrubEmail(scrubMobile(scrubBotToken(v)));
+  const credentials = v
+    .replace(BEARER_VALUE, 'Bearer [redacted-token]')
+    .replace(JWT_VALUE, '[redacted-token]')
+    .replace(TOKEN_QUERY_VALUE, '$1[redacted-token]');
+  return scrubEmail(scrubMobile(scrubBotToken(credentials))) as T;
 }

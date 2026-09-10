@@ -2,10 +2,15 @@
 import { and, desc, eq, ilike, inArray, isNull, or, sql } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { getDb, type DbOrTx } from '@/lib/server/db/client';
-import { orders, orderItems, warehouseItems, warehouseMovements, leads } from '@/lib/server/db/schema';
+import { orders, orderItems, warehouseItems, warehouseMovements, leads, proformas, orderEvents, orderFulfillments, operationOutbox, users, userRequests, warehouseReservations, warehouseSettlements } from '@/lib/server/db/schema';
 import type { LineItem, Order, WarehouseItem } from '@/lib/types/domain';
 import { normalizeDigits } from '@/lib/utils/format';
-import { unsettledFor, unsettledForMany } from '@/lib/server/repos/warehouseSettlementsRepo';
+import { unsettledForMany } from '@/lib/server/repos/warehouseSettlementsRepo';
+import { BusinessRuleError, financialAudit, safeMoney, stockGrams, businessOperation } from '@/lib/server/utils/businessOperation';
+import type { AuthUser } from '@/lib/auth/types';
+import { canActOnAssignedRecord } from '@/lib/auth/roles';
+import { orderSmsNotification, orderStatusSmsNotification, orderShippingSmsNotification, orderCancelledSmsNotification } from '@/lib/server/services/leads.service';
+import { recordBillingChange } from '@/lib/server/services/warehouseBilling';
 import { likeContainsDigitVariants } from '@/lib/server/utils/likeEscape';
 
 type OrderRow = typeof orders.$inferSelect;
@@ -34,13 +39,16 @@ const ORDER_STATUS_ORDER: OrderRow['status'][] = ['registered', 'confirmed', 'lo
 const WAREHOUSE_STATUS_ORDER: WarehouseRow['status'][] = ['pending', 'stored', 'selling', 'released'];
 
 function assertForwardTransition<T extends string>(order: T[], from: T, to: T): void {
-  if (order.indexOf(to) < order.indexOf(from)) {
+  if (!order.includes(from) || !order.includes(to) || order.indexOf(to) < order.indexOf(from)) {
     throw new InvalidStatusTransitionError(`نمی‌توان وضعیت را از «${from}» به «${to}» (به عقب) تغییر داد.`);
   }
 }
 
 function toLineItem(r: typeof orderItems.$inferSelect): LineItem {
   return {
+    ...r.snapshot,
+    orderItemId: r.id,
+    historicalSkuId: r.historicalSkuId ?? r.skuId ?? undefined,
     skuId: r.skuId ?? '',
     name: r.name,
     qty: r.qty,
@@ -54,6 +62,7 @@ function toLineItem(r: typeof orderItems.$inferSelect): LineItem {
 function toOrderDto(r: OrderRow, items: LineItem[]): Order {
   return {
     ref: r.ref,
+    terms: r.terms ?? undefined,
     placedAt: r.placedAt.toISOString(),
     items,
     status: r.status,
@@ -64,9 +73,24 @@ function toOrderDto(r: OrderRow, items: LineItem[]): Order {
   };
 }
 
-async function itemsOf(orderId: string): Promise<LineItem[]> {
-  const rows = await getDb().select().from(orderItems).where(eq(orderItems.orderId, orderId));
-  return rows.map(toLineItem);
+async function withOrderEvidence(dtos: Order[], rows: OrderRow[]): Promise<Order[]> {
+  if (!rows.length) return [];
+  const ids = rows.map(r => r.id);
+  const [events, fulfillments] = await Promise.all([
+    getDb().select().from(orderEvents).where(inArray(orderEvents.orderId, ids)).orderBy(orderEvents.at, orderEvents.id),
+    getDb().select({ fulfillment: orderFulfillments }).from(orderFulfillments)
+      .innerJoin(orderItems, eq(orderItems.id, orderFulfillments.orderItemId)).where(inArray(orderItems.orderId, ids)),
+  ]);
+  const sums = new Map<string, { delivered: number; returned: number }>();
+  for (const { fulfillment: f } of fulfillments) {
+    const sum = sums.get(f.orderItemId) ?? { delivered: 0, returned: 0 };
+    if (f.kind === 'delivery') sum.delivered += f.quantity; else sum.returned += f.quantity;
+    sums.set(f.orderItemId, sum);
+  }
+  return dtos.map((dto, i) => ({ ...dto,
+    events: events.filter(e => e.orderId === rows[i]!.id).map(e => ({ id: e.id, kind: e.kind, status: e.status, note: e.note, at: e.at.toISOString() })),
+    items: dto.items.map(item => ({ ...item, deliveredQty: sums.get(item.orderItemId ?? '')?.delivered ?? 0, returnedQty: sums.get(item.orderItemId ?? '')?.returned ?? 0 })),
+  }));
 }
 
 /**
@@ -87,7 +111,7 @@ async function toOrderDtos(rows: OrderRow[]): Promise<Order[]> {
     list.push(toLineItem(r));
     byOrderId.set(r.orderId, list);
   }
-  return rows.map((r) => toOrderDto(r, byOrderId.get(r.id) ?? []));
+  return withOrderEvidence(rows.map((r) => toOrderDto(r, byOrderId.get(r.id) ?? [])), rows);
 }
 
 /** Public tracking: ref is the capability (digits normalized, case-insensitive).
@@ -100,7 +124,7 @@ export async function findOrderByRef(rawRef: string): Promise<Order | null> {
   const ref = normalizeDigits(rawRef.trim()).toUpperCase();
   const rows = await getDb().select().from(orders).where(eq(orders.ref, ref)).limit(1);
   if (!rows[0]) return null;
-  return toOrderDto(rows[0], await itemsOf(rows[0].id));
+  return (await toOrderDtos(rows))[0] ?? null;
 }
 
 /** Paginated (was a hard `limit(100)` with no way past it — a customer with
@@ -131,155 +155,151 @@ export async function ordersForUser(
   return { rows: await toOrderDtos(rows.slice(0, size)), hasMore };
 }
 
-/** Cancel/archive an order — pre-shipment (mis-registered, duplicate,
- *  customer changed their mind) AND post-delivery (a return): `clubRepo`
- *  deliberately counts only non-cancelled delivered orders, and
- *  `engagement.test.ts` exercises exactly this — cancelling a delivered
- *  order to model a return and confirms it downgrades the customer's club
- *  tier. An earlier pass here added a precondition blocking cancellation of
- *  a 'delivered' order on the theory that a completed deal shouldn't be
- *  undoable; that broke the return flow and its test, so returns are
- *  unrestricted by status, on purpose, same as before. Separate from the
- *  shipment `status` stepper — see the schema column comment. */
-export async function cancelOrder(ref: string): Promise<Order | null> {
-  const rows = await getDb()
-    .update(orders)
-    .set({
-      deletedAt: new Date(),
-      lastUpdate: sql`greatest(${orders.lastUpdate} + interval '1 millisecond', clock_timestamp())`,
-      updatedAt: new Date(),
-    })
-    .where(and(eq(orders.ref, ref), isNull(orders.deletedAt)))
-    .returning();
-  if (!rows[0]) return null;
-  // Symmetric with updateOrderStatus's delivered-transition recompute: a
-  // return (cancelling a DELIVERED order) removes it from the buyer's
-  // delivered-order count just as surely as advancing INTO delivered added
-  // it, so their club tier needs recomputing here too — this was previously
-  // only exercised by directly calling recomputeTier in a test, never by the
-  // real cancelOrder() call path, so a real return left the tier stale until
-  // something unrelated happened to trigger a recompute.
-  if (rows[0].status === 'delivered' && rows[0].userId) {
-    const userId = rows[0].userId;
-    void import('@/lib/server/repos/clubRepo')
-      .then((m) => m.recomputeTier(userId))
-      .catch(() => {});
-  }
-  return toOrderDto(rows[0], await itemsOf(rows[0].id));
+/** Complete owner-scoped export, independent of UI pagination. */
+export async function exportOrderWarehouse(userId: string) {
+  return getDb().transaction(async tx => {
+    const orderRows = await tx.select().from(orders).where(eq(orders.userId,userId)).orderBy(orders.placedAt,orders.id);
+    const lines = orderRows.length ? await tx.select().from(orderItems).where(inArray(orderItems.orderId,orderRows.map(o=>o.id))) : [];
+    const stock = await tx.select().from(warehouseItems).where(eq(warehouseItems.userId,userId)).orderBy(warehouseItems.storedAt,warehouseItems.id);
+    const movements = stock.length ? await tx.select().from(warehouseMovements).where(inArray(warehouseMovements.warehouseItemId,stock.map(i=>i.id))) : [];
+    const { warehouseCashEntries, warehouseWithdrawals } = await import('@/lib/server/db/schema');
+    const cash = await tx.select().from(warehouseCashEntries).where(eq(warehouseCashEntries.ownerId,userId));
+    const withdrawals = await tx.select().from(warehouseWithdrawals).where(eq(warehouseWithdrawals.ownerId,userId));
+    return { orders:orderRows.map(o=>toOrderDto(o,lines.filter(l=>l.orderId===o.id).map(toLineItem))),
+      warehouseItems:stock.map(toWarehouseDto), movements:movements.map(({actorId:_actor,...m})=>{void _actor;return m;}),
+      cash:cash.map(({actorId:_actor,...entry})=>{void _actor;return entry;}),withdrawals };
+  }, { isolationLevel: 'repeatable read', accessMode: 'read only' });
+}
+
+/** Pre-shipment cancellation. Delivered goods require an explicit return. */
+export async function cancelOrder(ref: string, actor?: AuthUser): Promise<Order | null> {
+  const result = await mutateOrder(ref, { cancel: true }, actor);
+  return result?.order ?? null;
 }
 
 export async function createOrder(input: {
-  ref: string;
-  userId?: string;
-  leadId?: string;
-  items: LineItem[];
+  ref: string; userId?: string; leadId?: string; items: LineItem[];
+  actor?: AuthUser; requireTerms?: boolean;
+  terms?: NonNullable<OrderRow['terms']>;
 }): Promise<Order> {
-  const db = getDb();
-  const order = await db.transaction(async (tx) => {
-    const inserted = await tx
-      .insert(orders)
-      .values({ id: ulid(), ref: input.ref, userId: input.userId ?? null, leadId: input.leadId ?? null })
-      .returning();
-    const row = inserted[0]!;
-    if (input.items.length > 0) {
-      await tx.insert(orderItems).values(
-        input.items.map((item) => ({
-          id: ulid(),
-          orderId: row.id,
-          skuId: item.skuId || null,
-          name: item.name,
-          qty: item.qty,
-          unit: item.unit,
-          weightKg: item.weightKg ?? null,
-          unitPrice: item.unitPrice ?? null,
-          lineTotal: item.lineTotal ?? null,
-        })),
-      );
+  const result = await getDb().transaction(async tx => {
+    let ownerId = input.userId ?? null;
+    let items = input.items;
+    let terms: OrderRow['terms'] = input.terms ?? { currency: 'TOMAN', source: 'manual' };
+    let mobile: string | null = null;
+    if (input.leadId) {
+      const [lead] = await tx.select().from(leads).where(and(eq(leads.id, input.leadId), isNull(leads.deletedAt))).for('update');
+      if (!lead) throw new BusinessRuleError('lead_not_found', 'سرنخ یافت نشد.', 404);
+      if (input.actor && !canActOnAssignedRecord(input.actor, lead.assigneeId))
+        throw new BusinessRuleError('lead_forbidden', 'سرنخ به کارشناس دیگری واگذار شده است.', 403);
+      ownerId = lead.userId;
+      mobile = lead.contactMobile;
+      const [existing] = await tx.select().from(orders).where(eq(orders.leadId, lead.id));
+      if (existing) {
+        const lines = await tx.select().from(orderItems).where(eq(orderItems.orderId, existing.id));
+        return toOrderDto(existing, lines.map(toLineItem));
+      }
+      const [quote] = await tx.select().from(proformas).where(and(eq(proformas.leadId, lead.id), eq(proformas.status, 'active')))
+        .orderBy(desc(proformas.createdAt), desc(proformas.id)).limit(1).for('share');
+      if (input.requireTerms && (!quote || quote.validUntil.getTime() <= Date.now()))
+        throw new BusinessRuleError('quote_required', 'ابتدا پیش‌فاکتور معتبر شامل قیمت و شرایط معامله صادر کنید.');
+      if (quote && quote.validUntil.getTime() > Date.now()) {
+        items = quote.lines;
+        terms = { currency: 'TOMAN', source: 'proforma', proformaRef: quote.ref, lines: quote.lines,
+          subtotal: quote.subtotal, discountToman: quote.discountToman, volumeDiscountToman: quote.volumeDiscountToman,
+          vatRate: quote.vatRate, vatAmount: quote.vatAmount, total: quote.total,
+          validUntil: quote.validUntil.toISOString(), volumePolicyVersion: quote.volumePolicyVersion,
+          paymentTerms: 'مطابق پیش‌فاکتور ثبت‌شده؛ تأیید پرداخت توسط کارشناس', deliveryTerms: 'هماهنگی تحویل مطابق پیش‌فاکتور' };
+      }
+      await tx.update(leads).set({ status: 'won', updatedAt: new Date() }).where(eq(leads.id, lead.id));
     }
-    return row;
+    if (input.requireTerms && items.length === 0) throw new BusinessRuleError('empty_order', 'سفارش بدون قلم قابل ثبت نیست.');
+    for (const item of items) {
+      if (!Number.isFinite(item.qty) || item.qty <= 0) throw new BusinessRuleError('invalid_quantity', 'مقدار قلم معتبر نیست.', 400);
+      if (item.unitPrice != null) safeMoney(item.unitPrice, 10000000000000);
+      if (item.lineTotal != null) safeMoney(item.lineTotal);
+    }
+    const [row] = await tx.insert(orders).values({ id: ulid(), ref: input.ref, userId: ownerId, leadId: input.leadId ?? null, terms }).returning();
+    if (!row) throw new Error('Business write returned no row');
+    const lines = items.length ? await tx.insert(orderItems).values(items.map(item => ({
+      id: ulid(), orderId: row.id, skuId: item.skuId || null, historicalSkuId: item.skuId || null,
+      snapshot: item, name: item.name, qty: item.qty, unit: item.unit,
+      weightKg: item.weightKg ?? null, unitPrice: item.unitPrice ?? null, lineTotal: item.lineTotal ?? null,
+    }))).returning() : [];
+    await tx.insert(orderEvents).values({ id: ulid(), orderId: row.id, kind: 'created', status: row.status,
+      note: 'سفارش ثبت شد', actorId: input.actor?.id ?? null });
+    await financialAudit(tx, input.actor?.id ?? null, 'order.create', 'order', row.id, null, { ref: row.ref, terms, items });
+    if (mobile) await tx.insert(operationOutbox).values({ id: `order-created:${row.id}`, mobile, message: `سفارش ${row.ref} ثبت شد`, notification: orderSmsNotification(row.ref, null) });
+    return toOrderDto(row, lines.map(toLineItem));
   });
-  // DTO assembly queries run outside the transaction (single-connection safe).
-  return toOrderDto(order, input.items);
+  return result;
 }
 
-export async function updateOrderStatus(
-  ref: string,
-  status: OrderRow['status'],
-): Promise<{ order: Order; prevStatus: OrderRow['status'] } | null> {
-  const db = getDb();
-  // Read, validate the forward-only transition, and write inside ONE
-  // transaction with the read row locked (`for('update')`) — the previous
-  // plain read-then-write let a concurrent request (this same function, or
-  // cancelOrder) act on a stale read: two overlapping PATCHes could each
-  // pass assertForwardTransition against the same "before" status, or a
-  // cancellation land between the read and the write, leaving `status`
-  // updated on an order that `deletedAt` says is gone. The lock serializes
-  // concurrent callers on the same ref; the write's own `isNull(deletedAt)`
-  // is the belt to the lock's suspenders.
-  const result = await db.transaction(async (tx) => {
-    const current = await tx
-      .select({ status: orders.status })
-      .from(orders)
-      .where(and(eq(orders.ref, ref), isNull(orders.deletedAt)))
-      .for('update')
-      .limit(1);
-    if (!current[0]) return null;
-    assertForwardTransition(ORDER_STATUS_ORDER, current[0].status, status);
-    const rows = await tx
-      .update(orders)
-      .set({
-        status,
-        lastUpdate: sql`greatest(${orders.lastUpdate} + interval '1 millisecond', clock_timestamp())`,
-        updatedAt: new Date(),
-      })
-      .where(and(eq(orders.ref, ref), isNull(orders.deletedAt)))
-      .returning();
-    if (!rows[0]) return null;
-    return { row: rows[0], prevStatus: current[0].status };
-  });
-  if (!result) return null;
-  // A newly-delivered order changes the buyer's club points → recompute their
-  // tier. Fire-and-forget; a club miss never blocks the shipment update. Only
-  // on the transition INTO delivered, and only when the order has an owner.
-  if (status === 'delivered' && result.prevStatus !== 'delivered' && result.row.userId) {
-    const userId = result.row.userId;
-    void import('@/lib/server/repos/clubRepo')
-      .then((m) => m.recomputeTier(userId))
-      .catch(() => {});
-  }
-  // `prevStatus` is returned (not just used internally above) so the route
-  // layer can tell a genuine transition from a same-status no-op (a
-  // double-click, a retried request after a timeout) — without it, the
-  // caller has no race-proof way to know whether to fire a customer SMS.
-  return { order: toOrderDto(result.row, await itemsOf(result.row.id)), prevStatus: result.prevStatus };
-}
-
-/** Set/clear carrier tracking info (US-08.4) — independent of the shipment
- *  `status` stepper, so it can be filled in at any point (e.g. as soon as a
- *  carrier is booked, before the order actually moves to 'loading'). */
-export async function updateOrderShipping(
-  ref: string,
-  patch: { trackingNumber?: string | null; carrierName?: string | null },
-): Promise<Order | null> {
-  // lastUpdate bumps here too, not just on status changes — a customer
-  // watching "آخرین به‌روزرسانی" should see it move the moment a rep enters a
-  // tracking number, which is real, visible progress even with the shipment
-  // stepper unchanged.
-  const rows = await getDb()
-    .update(orders)
-    .set({
-      updatedAt: new Date(),
-      // `new Date()` can equal the insert timestamp at millisecond precision.
-      // Keep this customer-visible progress clock strictly monotonic even for
-      // two writes in the same tick, and do it atomically in Postgres.
+export async function mutateOrder(ref: string, patch: {
+  status?: OrderRow['status']; trackingNumber?: string | null; carrierName?: string | null;
+  cancel?: boolean; note?: string;
+}, actor?: AuthUser): Promise<{ order: Order; prevStatus: OrderRow['status'] } | null> {
+  return getDb().transaction(async tx => {
+    const [before] = await tx.select().from(orders).where(eq(orders.ref, ref)).for('update');
+    if (!before || before.deletedAt) return null;
+    let mobile: string | null = null, name: string | null = null;
+    if (before.leadId) {
+      const [lead] = await tx.select().from(leads).where(eq(leads.id, before.leadId)).for('share');
+      if (actor && lead && !canActOnAssignedRecord(actor, lead.assigneeId))
+        throw new BusinessRuleError('order_forbidden', 'این سفارش به کارشناس دیگری واگذار شده است.', 403);
+      mobile = lead?.contactMobile ?? null; name = lead?.contactName ?? null;
+    }
+    if (!mobile && before.userId) {
+      const [user] = await tx.select().from(users).where(eq(users.id, before.userId));
+      mobile = user?.mobile ?? null; name = user?.name ?? null;
+    }
+    const lines = await tx.select().from(orderItems).where(eq(orderItems.orderId, before.id));
+    const next = patch.status ?? before.status;
+    assertForwardTransition(ORDER_STATUS_ORDER, before.status, next);
+    if (ORDER_STATUS_ORDER.indexOf(next) > ORDER_STATUS_ORDER.indexOf(before.status) + 1)
+      throw new BusinessRuleError('skipped_transition', 'مراحل سفارش باید به‌ترتیب ثبت شوند.');
+    if (next === 'delivered' && before.status !== 'delivered') {
+      const delivered = lines.length ? await tx.select().from(orderFulfillments).where(inArray(orderFulfillments.orderItemId, lines.map(l => l.id))) : [];
+      if (!lines.length || lines.some(line => delivered.filter(d => d.orderItemId === line.id).reduce((n,d) => n + (d.kind === 'delivery' ? d.quantity : -d.quantity), 0) < line.qty))
+        throw new BusinessRuleError('delivery_incomplete', 'ابتدا رسید تحویل تمام اقلام را ثبت کنید.');
+    }
+    if (patch.cancel && ['in_transit','delivered'].includes(before.status))
+      throw new BusinessRuleError('return_required', 'کالای ارسال‌شده باید با رسید برگشت ثبت شود؛ لغو ساده مجاز نیست.');
+    const changed = next !== before.status || patch.cancel ||
+      (patch.trackingNumber !== undefined && patch.trackingNumber !== before.trackingNumber) ||
+      (patch.carrierName !== undefined && patch.carrierName !== before.carrierName);
+    if (!changed) return { order: toOrderDto(before, lines.map(toLineItem)), prevStatus: before.status };
+    if (patch.cancel && lines.length) {
+      await tx.update(warehouseReservations).set({ status: 'released' }).where(and(
+        inArray(warehouseReservations.orderItemId, lines.map(l => l.id)), eq(warehouseReservations.status, 'reserved')));
+    }
+    const [after] = await tx.update(orders).set({ status: next,
+      trackingNumber: patch.trackingNumber === undefined ? before.trackingNumber : patch.trackingNumber,
+      carrierName: patch.carrierName === undefined ? before.carrierName : patch.carrierName,
+      deletedAt: patch.cancel ? new Date() : null, updatedAt: new Date(),
       lastUpdate: sql`greatest(${orders.lastUpdate} + interval '1 millisecond', clock_timestamp())`,
-      ...(patch.trackingNumber !== undefined ? { trackingNumber: patch.trackingNumber } : {}),
-      ...(patch.carrierName !== undefined ? { carrierName: patch.carrierName } : {}),
-    })
-    .where(and(eq(orders.ref, ref), isNull(orders.deletedAt)))
-    .returning();
-  if (!rows[0]) return null;
-  return toOrderDto(rows[0], await itemsOf(rows[0].id));
+    }).where(eq(orders.id, before.id)).returning();
+    if (!after) throw new Error('Business write returned no row');
+    const eventId = ulid();
+    const note = patch.note ?? (patch.cancel ? 'سفارش پیش از ارسال لغو شد' : next !== before.status ? `وضعیت سفارش: ${next}` : 'اطلاعات حمل به‌روزرسانی شد');
+    await tx.insert(orderEvents).values({ id: eventId, orderId: before.id, kind: patch.cancel ? 'cancelled' : next !== before.status ? 'status' : 'shipping', status: next, note, actorId: actor?.id ?? null });
+    await financialAudit(tx, actor?.id ?? null, 'order.update', 'order', before.id, before, { ...after, note });
+    if (mobile) {
+      const notification = patch.cancel ? orderCancelledSmsNotification(ref, name) : next !== before.status && next !== 'registered'
+        ? orderStatusSmsNotification(ref, name, next) : after.trackingNumber
+          ? orderShippingSmsNotification(ref, name, after.trackingNumber, after.carrierName) : null;
+      if (notification) await tx.insert(operationOutbox).values({ id: eventId, mobile, message: notification.fallbackText, notification });
+    }
+    return { order: toOrderDto(after, lines.map(toLineItem)), prevStatus: before.status };
+  });
+}
+
+export async function updateOrderStatus(ref: string, status: OrderRow['status'], actor?: AuthUser) {
+  return mutateOrder(ref, { status }, actor);
+}
+
+export async function updateOrderShipping(ref: string, patch: { trackingNumber?: string | null; carrierName?: string | null }, actor?: AuthUser): Promise<Order | null> {
+  return (await mutateOrder(ref, patch, actor))?.order ?? null;
 }
 
 /** Admin-only ownership lookup — which lead (if any) this order traces back
@@ -385,6 +405,7 @@ export async function adminListOrders(query: {
 function toWarehouseDto(r: WarehouseRow): WarehouseItem {
   return {
     id: r.id,
+    version: r.version,
     ref: r.ref,
     product: r.product,
     sizeLabel: r.sizeLabel ?? undefined,
@@ -491,27 +512,25 @@ export async function adminListWarehouse(
  *  warning; `force` exists for the legitimate "customer stopped paying,
  *  remove it anyway" case, and is deliberately still logged with the
  *  forfeited amount by the caller (see the route's audit call). */
-export async function softDeleteWarehouseItem(
-  id: string,
-  opts: { force?: boolean } = {},
-): Promise<WarehouseRow | null> {
-  const db = getDb();
-  const current = await db
-    .select()
-    .from(warehouseItems)
-    .where(and(eq(warehouseItems.id, id), isNull(warehouseItems.deletedAt)))
-    .limit(1);
-  if (!current[0]) return null;
-  if (!opts.force) {
-    const balance = await unsettledFor(current[0]);
-    if (balance.amountToman > 0) throw new UnsettledBalanceError(balance.amountToman);
-  }
-  const rows = await db
-    .update(warehouseItems)
-    .set({ deletedAt: new Date(), updatedAt: new Date() })
-    .where(and(eq(warehouseItems.id, id), isNull(warehouseItems.deletedAt)))
-    .returning();
-  return rows[0] ?? null;
+export async function softDeleteWarehouseItem(id: string, opts: { force?: boolean; actorId?: string; reason?: string } = {}): Promise<WarehouseRow | null> {
+  return getDb().transaction(async tx => {
+    const [item] = await tx.select().from(warehouseItems).where(and(eq(warehouseItems.id, id), isNull(warehouseItems.deletedAt))).for('update');
+    if (!item) return null;
+    if (item.quantityTons > 0) throw new BusinessRuleError('stock_remaining', 'تا زمانی که کالا در انبار است، بایگانی مجاز نیست.');
+    const { lastSettlementFor } = await import('./warehouseSettlementsRepo');
+    const last = await lastSettlementFor(id, tx);
+    if (item.status !== 'pending' && (!last || last.periodTo < (item.releasedAt ?? new Date())))
+      throw new BusinessRuleError('unsettled_period', 'ابتدا دورهٔ نگهداری را تسویه کنید.');
+    const [unpaid] = await tx.select({ id: warehouseSettlements.id }).from(warehouseSettlements).where(and(
+      eq(warehouseSettlements.warehouseItemId, id), isNull(warehouseSettlements.paidAt), isNull(warehouseSettlements.voidedAt),
+      isNull(warehouseSettlements.voidsSettlementId), sql`${warehouseSettlements.amountToman}>0`)).limit(1);
+    if (unpaid) throw new BusinessRuleError('unpaid_settlement', 'صورتحساب پرداخت‌نشده باید پیش از بایگانی تعیین تکلیف شود.');
+    const [after] = await tx.update(warehouseItems).set({ deletedAt: new Date(), updatedAt: new Date(), version: item.version + 1 })
+      .where(eq(warehouseItems.id, id)).returning();
+    if (!after) throw new Error('Business write returned no row');
+    await financialAudit(tx, opts.actorId ?? null, 'warehouse.archive', 'warehouseItem', id, item, { ...after, reason: opts.reason ?? 'بایگانی کالای بدون موجودی و بدهی' });
+    return after;
+  });
 }
 
 async function recordMovement(
@@ -522,10 +541,12 @@ async function recordMovement(
   quantityAfterTons: number,
   actorId: string | null,
   note?: string,
+  operationId?: string,
 ): Promise<void> {
   await tx.insert(warehouseMovements).values({
     id: ulid(),
     warehouseItemId,
+    operationId,
     kind,
     deltaTons,
     quantityAfterTons,
@@ -565,9 +586,25 @@ export async function createWarehouseItem(input: {
   leadId?: string;
   requestId?: string;
   actorId: string | null;
+  operationId?: string;
 }): Promise<WarehouseItem> {
-  const db = getDb();
-  const row = await db.transaction(async (tx) => {
+  stockGrams(input.quantityTons); safeMoney(input.monthlyFeeToman ?? 0, 1000000000);
+  if (input.quantityTons <= 0) throw new BusinessRuleError('invalid_quantity', 'مقدار ورود باید مثبت باشد.', 400);
+  if (input.arrivedAt && (!Number.isFinite(input.arrivedAt.getTime()) || input.arrivedAt > new Date()))
+    throw new BusinessRuleError('invalid_arrival', 'تاریخ ورود نمی‌تواند نامعتبر یا در آینده باشد.', 400);
+  const { ref: _ref, operationId: _key, ...identity } = input;
+  void _ref; void _key;
+  return businessOperation(`warehouse-intake:${input.requestId ?? input.operationId ?? input.ref}`, identity, async tx => {
+    if (input.requestId) {
+      const [request] = await tx.select().from(userRequests).where(eq(userRequests.id, input.requestId)).for('update');
+      if (!request || request.type !== 'warehouse' || request.userId !== input.userId || (input.leadId && request.leadId !== input.leadId))
+        throw new BusinessRuleError('ownership_mismatch', 'درخواست، سرنخ و مالک کالا با هم مطابقت ندارند.');
+      if (request.status === 'fulfilled') throw new BusinessRuleError('already_received', 'این درخواست قبلاً تحویل گرفته شده است.');
+    }
+    if (input.leadId) {
+      const [lead] = await tx.select().from(leads).where(eq(leads.id, input.leadId)).for('share');
+      if (!lead || lead.userId !== input.userId) throw new BusinessRuleError('ownership_mismatch', 'مالک سرنخ با مالک کالا مطابقت ندارد.');
+    }
     const inserted = await tx
       .insert(warehouseItems)
       .values({
@@ -589,10 +626,11 @@ export async function createWarehouseItem(input: {
       })
       .returning();
     const item = inserted[0]!;
-    await recordMovement(tx, item.id, 'receipt', input.quantityTons, input.quantityTons, input.actorId);
-    return item;
+    await recordMovement(tx, item.id, 'receipt', input.quantityTons, input.quantityTons, input.actorId, input.intakeNote, `receipt:${item.id}`);
+    if (input.requestId) await tx.update(userRequests).set({ status: 'fulfilled', updatedAt: new Date() }).where(eq(userRequests.id, input.requestId));
+    await financialAudit(tx, input.actorId, 'warehouse.create', 'warehouseItem', item.id, null, item);
+    return toWarehouseDto(item);
   });
-  return toWarehouseDto(row);
 }
 
 export async function updateWarehouseItem(
@@ -608,9 +646,9 @@ export async function updateWarehouseItem(
   }>,
   actorId: string | null = null,
   movementNote?: string,
+  opts: { tx?: DbOrTx; expectedVersion?: number; operationId?: string } = {},
 ): Promise<{ before: WarehouseRow; after: WarehouseRow } | null> {
-  const db = getDb();
-  const result = await db.transaction(async (tx) => {
+  const write = async (tx: DbOrTx) => {
     // Row-locked read-modify-write (W20) — was an unlocked read outside any
     // transaction, the exact TOCTOU the orders equivalent was already fixed
     // for: two concurrent PATCHes could each pass the forward-transition
@@ -623,12 +661,28 @@ export async function updateWarehouseItem(
       .limit(1);
     if (!current[0]) return null;
     const before = current[0];
+    if (opts.expectedVersion !== undefined && opts.expectedVersion !== before.version)
+      throw new BusinessRuleError('stale_version', 'اطلاعات این کالا تغییر کرده است؛ صفحه را تازه کنید و دوباره بررسی کنید.');
+    if (patch.quantityTons !== undefined) stockGrams(patch.quantityTons);
+    if (patch.monthlyFeeToman !== undefined) safeMoney(patch.monthlyFeeToman, 1000000000);
+    if (patch.arrivedAt !== undefined && (patch.arrivedAt?.getTime() ?? null) !== (before.arrivedAt?.getTime() ?? null) && before.status !== 'pending')
+      throw new BusinessRuleError('arrival_frozen', 'تاریخ ورود پس از آغاز نگهداری قابل بازنویسی نیست؛ اصلاح با سند جبرانی انجام شود.');
+    if (patch.arrivedAt && (!Number.isFinite(patch.arrivedAt.getTime()) || patch.arrivedAt > new Date()))
+      throw new BusinessRuleError('invalid_arrival', 'تاریخ ورود معتبر و غیرآینده لازم است.', 400);
+    if (before.status === 'released' && (patch.quantityTons !== undefined && patch.quantityTons !== 0))
+      throw new BusinessRuleError('released_item', 'ورود مجدد باید به‌عنوان رسید تازه ثبت شود.');
     if (patch.status) assertForwardTransition(WAREHOUSE_STATUS_ORDER, before.status, patch.status);
 
-    const set: Partial<typeof warehouseItems.$inferInsert> = { ...patch, updatedAt: new Date() };
-    // Stop-clock (W20): stamp the instant custody actually ends, once, so
-    // accrual has something to clamp against instead of running forever.
-    if (patch.status === 'released' && !before.releasedAt) set.releasedAt = new Date();
+    const at = new Date();
+    const set: Partial<typeof warehouseItems.$inferInsert> = { ...patch, updatedAt: at, version: before.version + 1 };
+    if (patch.status === 'released' || patch.quantityTons === 0) { set.status = 'released'; set.quantityTons = 0; }
+    if (set.status === 'released' && !before.releasedAt) set.releasedAt = at;
+    const quantity = set.quantityTons ?? before.quantityTons;
+    const reservations = await tx.select({ n: sql<number>`coalesce(sum(${warehouseReservations.quantityTons}),0)`.mapWith(Number) })
+      .from(warehouseReservations).where(and(eq(warehouseReservations.warehouseItemId, id), eq(warehouseReservations.status, 'reserved')));
+    if (stockGrams(quantity) < stockGrams(reservations[0]?.n ?? 0))
+      throw new BusinessRuleError('reserved_stock', 'بخشی از موجودی رزرو شده است؛ ابتدا همان عملیات را آزاد یا تحویل کنید.');
+    await recordBillingChange(tx, before, { ...before, ...set } as WarehouseRow, at, actorId, movementNote ?? 'تغییر مقدار یا تعرفه');
 
     const rows = await tx
       .update(warehouseItems)
@@ -637,11 +691,12 @@ export async function updateWarehouseItem(
       .returning();
     const after = rows[0]!;
 
-    if (patch.quantityTons !== undefined && patch.quantityTons !== before.quantityTons) {
-      const delta = patch.quantityTons - before.quantityTons;
-      await recordMovement(tx, id, delta < 0 ? 'release' : 'adjustment', delta, patch.quantityTons, actorId, movementNote);
+    if (quantity !== before.quantityTons) {
+      const delta = (stockGrams(quantity) - stockGrams(before.quantityTons)) / 1_000_000;
+      await recordMovement(tx, id, delta < 0 ? 'release' : 'adjustment', delta, quantity, actorId, movementNote, opts.operationId);
     }
+    await financialAudit(tx, actorId, 'warehouse.update', 'warehouseItem', id, before, { ...after, reason: movementNote ?? 'تغییر مشخصات کالا' });
     return { before, after };
-  });
-  return result;
+  };
+  return opts.tx ? write(opts.tx) : getDb().transaction(write);
 }

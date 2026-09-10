@@ -54,7 +54,7 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }
     return NextResponse.json({ voided: result.voided, reversal: result.reversal });
   }
 
-  const settlement = await markSettlementPaid(id, v.data.note);
+  const settlement = await markSettlementPaid(id, v.data.note, auth.session.id);
   if (!settlement) return NextResponse.json({ error: 'not_found', message: 'تسویه یافت نشد یا قبلاً پرداخت‌شده ثبت شده.' }, { status: 404 });
   await audit(auth.session.id, 'warehouse.settle_paid', { type: 'warehouseSettlement', id }, null, {
     paidAt: settlement.paidAt,

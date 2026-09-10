@@ -71,9 +71,9 @@ export function timingSafeEqual(a: string, b: string): boolean {
  * silently diverge on this policy.
  */
 export function requiredSecret(envVar: string | undefined, devFallback: string): string {
-  if (envVar) return envVar;
+  if (envVar && (process.env.NODE_ENV !== 'production' || envVar.trim().length >= 32)) return envVar;
   if (process.env.NODE_ENV === 'production') {
-    throw new Error('SESSION_SECRET is required in production.');
+    throw new Error('Authentication secret must contain at least 32 non-whitespace characters in production.');
   }
   return devFallback;
 }

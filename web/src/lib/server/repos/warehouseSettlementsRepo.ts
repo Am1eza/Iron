@@ -16,11 +16,8 @@
  * A caller-supplied `periodTo` is clamped to that same stop-clock — it can
  * shorten a settlement, never extend one past what has genuinely accrued.
  *
- * If quantityTons/monthlyFeeToman change mid-period (updateWarehouseItem),
- * the whole unsettled period is still priced at the CURRENT snapshot, not
- * split into sub-periods at the old/new rate — a documented v1
- * simplification. For exact accuracy across a rate change, settle before
- * changing the rate.
+ * Quantity/rate changes append billing events; every period is integrated
+ * using the historical values and rounded once in integer Toman.
  *
  * Mistakes are corrected with a REVERSING entry, never an edit or delete —
  * see voidSettlement(). lastSettlementFor() skips voided settlements and
@@ -30,7 +27,10 @@
 import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { getDb, type DbOrTx } from '@/lib/server/db/client';
-import { warehouseItems, warehouseSettlements, users } from '@/lib/server/db/schema';
+import { warehouseItems, warehouseSettlements, users, warehouseCashEntries } from '@/lib/server/db/schema';
+
+import { billingEventsFor, billPeriod } from '@/lib/server/services/warehouseBilling';
+import { financialAudit, BusinessRuleError } from '@/lib/server/utils/businessOperation';
 
 export type WarehouseSettlementRow = typeof warehouseSettlements.$inferSelect;
 type WarehouseItemForBilling = Pick<
@@ -118,6 +118,7 @@ function summarizeUnsettled(
   item: WarehouseItemForBilling,
   last: WarehouseSettlementRow | null,
   now: Date,
+  events: Awaited<ReturnType<typeof billingEventsFor>> extends Map<string, infer E> ? E : never = [],
 ): UnsettledSummary {
   if (item.status === 'pending') {
     return {
@@ -133,7 +134,7 @@ function summarizeUnsettled(
   const periodFrom = last ? last.periodTo : (item.arrivedAt ?? item.storedAt);
   const periodTo = stopClock(item, now);
   const days = Math.max(0, (periodTo.getTime() - periodFrom.getTime()) / MS_PER_DAY);
-  const amountToman = Math.round(item.monthlyFeeToman * item.quantityTons * (days / 30));
+  const { amountToman } = billPeriod(item, periodFrom, periodTo, events);
   return {
     warehouseItemId: item.id,
     periodFrom: periodFrom.toISOString(),
@@ -152,7 +153,7 @@ function summarizeUnsettled(
 export async function unsettledFor(item: WarehouseItemForBilling): Promise<UnsettledSummary> {
   const now = new Date();
   if (item.status === 'pending') return summarizeUnsettled(item, null, now);
-  return summarizeUnsettled(item, await lastSettlementFor(item.id), now);
+  return summarizeUnsettled(item, await lastSettlementFor(item.id), now, (await billingEventsFor([item.id])).get(item.id));
 }
 
 /** unsettledFor across many items with ONE settlement query instead of one
@@ -164,8 +165,8 @@ export async function unsettledForMany(
 ): Promise<UnsettledSummary[]> {
   const now = new Date();
   const billableIds = items.filter((i) => i.status !== 'pending').map((i) => i.id);
-  const lastByItem = await lastSettlementForMany(billableIds);
-  return items.map((item) => summarizeUnsettled(item, lastByItem.get(item.id) ?? null, now));
+  const [lastByItem, events] = await Promise.all([lastSettlementForMany(billableIds), billingEventsFor(billableIds)]);
+  return items.map((item) => summarizeUnsettled(item, lastByItem.get(item.id) ?? null, now, events.get(item.id)));
 }
 
 export class NothingToSettleError extends Error {}
@@ -182,7 +183,7 @@ export class ItemPendingError extends Error {}
 export async function createSettlement(
   warehouseItemId: string,
   actorId: string | null,
-  opts: { periodTo?: Date; note?: string } = {},
+  opts: { periodTo?: Date; note?: string; operationId?: string } = {},
 ): Promise<WarehouseSettlementRow | null> {
   // Read-last-settlement-then-insert used to run as two unguarded queries: two
   // concurrent settle requests for the same item could both read the same
@@ -205,6 +206,13 @@ export async function createSettlement(
       throw new ItemPendingError('کالایی که هنوز فیزیکی تحویل نشده قابل تسویه نیست.');
     }
 
+    if (opts.operationId) {
+      const [previous] = await tx.select().from(warehouseSettlements).where(eq(warehouseSettlements.operationId, opts.operationId));
+      if (previous) {
+        if (previous.warehouseItemId !== warehouseItemId) throw new BusinessRuleError('operation_conflict', 'شناسهٔ عملیات تکراری است.');
+        return previous;
+      }
+    }
     const last = await lastSettlementFor(warehouseItemId, tx);
     const periodFrom = last ? last.periodTo : (item.arrivedAt ?? item.storedAt);
     const now = new Date();
@@ -216,8 +224,7 @@ export async function createSettlement(
     if (periodTo.getTime() <= periodFrom.getTime()) {
       throw new NothingToSettleError('periodTo must be strictly after the current unsettled period start');
     }
-    const days = (periodTo.getTime() - periodFrom.getTime()) / MS_PER_DAY;
-    const amountToman = Math.round(item.monthlyFeeToman * item.quantityTons * (days / 30));
+    const { amountToman, segments } = billPeriod(item, periodFrom, periodTo, (await billingEventsFor([item.id], tx)).get(item.id));
 
     const rows = await tx
       .insert(warehouseSettlements)
@@ -230,10 +237,13 @@ export async function createSettlement(
         quantityTons: item.quantityTons,
         monthlyFeeToman: item.monthlyFeeToman,
         amountToman,
+        segments,
+        operationId: opts.operationId,
         note: opts.note ?? null,
         actorId,
       })
       .returning();
+    await financialAudit(tx, actorId, 'warehouse.settle', 'warehouseSettlement', rows[0]!.id, null, rows[0]);
     return rows[0]!;
   });
 }
@@ -264,6 +274,17 @@ export async function voidSettlement(
   reason?: string,
 ): Promise<{ voided: WarehouseSettlementRow; reversal: WarehouseSettlementRow } | null> {
   return getDb().transaction(async (tx) => {
+    // Serialize creation and reversal on the SAME parent row. Locking only
+    // the settlement does not prevent createSettlement from inserting a new
+    // period after the latest-period check below (a phantom insert).
+    const [target] = await tx
+      .select({ warehouseItemId: warehouseSettlements.warehouseItemId })
+      .from(warehouseSettlements)
+      .where(eq(warehouseSettlements.id, settlementId))
+      .limit(1);
+    if (!target) return null;
+    await tx.select({ id: warehouseItems.id }).from(warehouseItems)
+      .where(eq(warehouseItems.id, target.warehouseItemId)).for('update');
     const rows = await tx
       .select()
       .from(warehouseSettlements)
@@ -275,9 +296,8 @@ export async function voidSettlement(
     if (original.voidedAt) throw new AlreadyVoidedError('این تسویه قبلاً باطل شده است.');
     if (original.voidsSettlementId) throw new AlreadyVoidedError('یک سطرِ اصلاحی را نمی‌توان باطل کرد.');
 
-    // Row-locked (same transaction, same FOR UPDATE guarantee as `original`
-    // itself) so a concurrent createSettlement can't slip a newer row in
-    // between this check and the update below.
+    // The parent lock above prevents a concurrent createSettlement from
+    // inserting a newer period between this check and the reversal.
     const newer = await tx
       .select({ id: warehouseSettlements.id })
       .from(warehouseSettlements)
@@ -314,12 +334,14 @@ export async function voidSettlement(
         quantityTons: original.quantityTons,
         monthlyFeeToman: original.monthlyFeeToman,
         amountToman: -original.amountToman,
+        segments: original.segments,
         note: reason ?? `ابطال تسویهٔ ${original.id}`,
         actorId,
         voidsSettlementId: original.id,
       })
       .returning();
 
+    await financialAudit(tx, actorId, 'warehouse.settlement.void', 'warehouseSettlement', original.id, original, { reversalId: reversalRows[0]!.id, reason });
     return { voided: voidedRows[0]!, reversal: reversalRows[0]! };
   });
 }
@@ -329,23 +351,36 @@ export async function voidSettlement(
  *  VOIDED original or a REVERSING entry itself "paid" (review finding — the
  *  UI already hides this, but a direct API call must not be able to produce
  *  misleading bookkeeping either). */
-export async function markSettlementPaid(
-  settlementId: string,
-  note?: string,
-): Promise<WarehouseSettlementRow | null> {
-  const rows = await getDb()
-    .update(warehouseSettlements)
-    .set({ paidAt: new Date(), paymentNote: note ?? null })
-    .where(
-      and(
-        eq(warehouseSettlements.id, settlementId),
-        isNull(warehouseSettlements.paidAt),
-        isNull(warehouseSettlements.voidedAt),
-        isNull(warehouseSettlements.voidsSettlementId),
-      ),
-    )
-    .returning();
-  return rows[0] ?? null;
+export async function markSettlementPaid(settlementId: string, note?: string, actorId: string | null = null): Promise<WarehouseSettlementRow | null> {
+  return getDb().transaction(async tx => {
+    const [target] = await tx.select().from(warehouseSettlements).where(eq(warehouseSettlements.id, settlementId));
+    if (!target) return null;
+    await tx.select().from(warehouseItems).where(eq(warehouseItems.id, target.warehouseItemId)).for('update');
+    const [before] = await tx.select().from(warehouseSettlements).where(eq(warehouseSettlements.id, settlementId)).for('update');
+    if (!before || before.paidAt || before.voidedAt || before.voidsSettlementId) return null;
+    if (!note || note.trim().length < 5) throw new BusinessRuleError('payment_proof', 'شمارهٔ رسید پرداخت و توضیح قابل پیگیری لازم است.', 400);
+    const [after] = await tx.update(warehouseSettlements).set({ paidAt: new Date(), paymentNote: note }).where(eq(warehouseSettlements.id, settlementId)).returning();
+    if (before.amountToman > 0) await tx.insert(warehouseCashEntries).values({ id: `payment:${before.id}`, warehouseItemId: before.warehouseItemId,
+      ownerId: before.userId, settlementId: before.id, kind: 'payment', amountToman: before.amountToman, proof: note, actorId });
+    await financialAudit(tx, actorId, 'warehouse.settlement.paid', 'warehouseSettlement', before.id, before, after);
+    return after ?? null;
+  });
+}
+
+export async function warehouseAccountBalance(userId: string) {
+  const [billed, cash] = await Promise.all([
+    getDb().select({ n: sql<string>`coalesce(sum(${warehouseSettlements.amountToman}),0)::text` }).from(warehouseSettlements).where(eq(warehouseSettlements.userId,userId)),
+    getDb().select({ kind: warehouseCashEntries.kind, amount: sql<string>`sum(${warehouseCashEntries.amountToman})::text` }).from(warehouseCashEntries)
+      .where(eq(warehouseCashEntries.ownerId,userId)).groupBy(warehouseCashEntries.kind),
+  ]);
+  let credit=0n, salePayable=0n;
+  for(const row of cash) {
+    if(row.kind==='payment'||row.kind==='refund') credit+=BigInt(row.amount);
+    else salePayable+=BigInt(row.amount);
+  }
+  const feeDue=BigInt(billed[0]?.n??'0')-credit;
+  const safe=(n:bigint)=>{if(n>BigInt(Number.MAX_SAFE_INTEGER)||n < -BigInt(Number.MAX_SAFE_INTEGER))throw new BusinessRuleError('balance_overflow','مانده از محدودهٔ نمایش عبور کرده است.');return Number(n);};
+  return { billedFeeBalanceToman:safe(feeDue), salePayableToman:safe(salePayable) };
 }
 
 /** A customer's COMPLETE settlement ledger — deliberately unpaged, and it
@@ -379,7 +414,7 @@ export async function settlementsPageForUser(
 ): Promise<{ rows: WarehouseSettlementRow[]; total: number; page: number; perPage: number }> {
   const db = getDb();
   const safePage = Math.max(1, Math.trunc(page) || 1);
-  const safePerPage = Math.max(1, Math.trunc(perPage) || 50);
+  const safePerPage = Math.min(100, Math.max(1, Math.trunc(perPage) || 50));
   const where = eq(warehouseSettlements.userId, userId);
   const [rows, counted] = await Promise.all([
     db

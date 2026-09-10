@@ -2,6 +2,7 @@
 /** Consignment warehouse — all customers' stock + receive new items +
  *  per-customer settlement report (US-08.5, hardened W20 for per-ton
  *  billing, search/pagination, intake details and a void/paid ledger). */
+import { WarehouseOperationsPanel } from '@/components/warehouse/WarehouseOperationsPanel';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api/resources/admin';
@@ -45,20 +46,21 @@ function ItemEditFields({ item, canEditFee }: { item: AdminWarehouseItem; canEdi
   const qc = useQueryClient();
   const [qty, setQty] = useState(String(item.quantityTons));
   const [fee, setFee] = useState(String(item.monthlyFeeToman));
+  const [reason, setReason] = useState('');
 
   const qtyNum = Number(normalizeDigits(qty));
   const feeNum = Number(normalizeDigits(fee));
   // W20 audit fix: clearing the input to '' used to silently save as 0
   // (`Number('') === 0`) — a rate/qty of zero must be an explicit, valid
   // typed value, never the accidental result of an empty field.
-  const qtyValid = normalizeDigits(qty).trim() !== '' && Number.isFinite(qtyNum) && qtyNum > 0;
-  const feeValid = !canEditFee || (normalizeDigits(fee).trim() !== '' && Number.isFinite(feeNum) && feeNum > 0);
+  const qtyValid = normalizeDigits(qty).trim() !== '' && Number.isFinite(qtyNum) && qtyNum >= 0;
+  const feeValid = !canEditFee || (normalizeDigits(fee).trim() !== '' && Number.isFinite(feeNum) && feeNum >= 0);
   const dirty = normalizeDigits(qty) !== String(item.quantityTons) || (canEditFee && normalizeDigits(fee) !== String(item.monthlyFeeToman));
-  const valid = qtyValid && feeValid;
+  const valid = qtyValid && feeValid && reason.trim().length >= 5;
 
   const save = useMutation({
     mutationFn: () => {
-      const patch: { quantityTons: number; monthlyFeeToman?: number } = { quantityTons: qtyNum };
+      const patch = { quantityTons: qtyNum, monthlyFeeToman: canEditFee ? feeNum : undefined, expectedVersion: item.version, movementNote: reason };
       if (canEditFee) patch.monthlyFeeToman = feeNum;
       return adminApi.updateWarehouseItem(item.id, patch);
     },
@@ -91,6 +93,7 @@ function ItemEditFields({ item, canEditFee }: { item: AdminWarehouseItem; canEdi
         aria-invalid={(canEditFee && !feeValid) || undefined}
         title={!canEditFee ? 'تغییر هزینهٔ ماهانه فقط از عهدهٔ مدیر سیستم برمی‌آید.' : undefined}
       />
+      {dirty ? <input className={ui.textCell} aria-label="دلیل اصلاح موجودی یا تعرفه" placeholder="دلیل اصلاح (الزامی)" value={reason} onChange={e => setReason(e.target.value)} /> : null}
       {dirty ? (
         <Button size="sm" variant="ghost" onClick={() => save.mutate()} loading={save.isPending} disabled={!valid}>
           ذخیره
@@ -159,7 +162,7 @@ function WarehouseItemRow({
   const invalidate = () => void qc.invalidateQueries({ queryKey: ['admin', 'warehouse'] });
 
   const updateStatus = useMutation({
-    mutationFn: (status: WarehouseStatus) => adminApi.updateWarehouseItem(item.id, { status }),
+    mutationFn: (status: WarehouseStatus) => adminApi.updateWarehouseItem(item.id, { status, expectedVersion: item.version, movementNote: `تغییر وضعیت به ${WAREHOUSE_STATUS_LABEL[status]}` }),
     onSuccess: () => {
       toast.success('وضعیت کالا به‌روزرسانی شد.');
       invalidate();
@@ -382,6 +385,7 @@ const emptyForm = {
 };
 
 export function WarehouseManager() {
+  const intakeKey = useRef('');
   const toast = useToast();
   const qc = useQueryClient();
   const { confirm, dialog } = useConfirm();
@@ -439,6 +443,7 @@ export function WarehouseManager() {
   const create = useMutation({
     mutationFn: () =>
       adminApi.createWarehouseItem({
+        operationId: intakeKey.current ||= crypto.randomUUID(),
         mobile: normalizeDigits(form.mobile.trim()),
         customerName: form.customerName.trim() || undefined,
         product: form.product.trim(),
@@ -458,6 +463,7 @@ export function WarehouseManager() {
         requestId: form.requestId || undefined,
       }),
     onSuccess: (res) => {
+      intakeKey.current = "";
       toast.success(
         res.registeredNewCustomer
           ? `کالا با شمارهٔ ${res.item.ref} ثبت شد و مشتری جدید ${toPersianDigits(res.customer.mobile)} به نام ${res.customer.name ?? ''} ساخته شد.`
@@ -481,6 +487,7 @@ export function WarehouseManager() {
 
   return (
     <div style={{ display: 'grid', gap: 'var(--space-5)' }}>
+      <WarehouseOperationsPanel staff items={data?.items ?? []} />
       <Tabs
         label="بخش‌های انبار"
         idBase="warehouse"
@@ -812,10 +819,12 @@ function CustomerSettlementDetail({
     void qc.invalidateQueries({ queryKey: ['admin', 'warehouse', 'settlement-customers'] });
   };
 
+  const settlementKeys = useRef<Record<string,string>>({});
   const settle = useMutation({
     mutationFn: ({ warehouseItemId, note }: { warehouseItemId: string; note?: string }) =>
-      adminApi.createSettlement(warehouseItemId, note || undefined),
+      adminApi.createSettlement(warehouseItemId, note || undefined, undefined, settlementKeys.current[warehouseItemId] ||= crypto.randomUUID()),
     onSuccess: (_res, vars) => {
+      delete settlementKeys.current[vars.warehouseItemId];
       toast.success('تسویه ثبت شد.');
       setNotes((prev) => ({ ...prev, [vars.warehouseItemId]: '' }));
       invalidate();

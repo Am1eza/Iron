@@ -3,10 +3,10 @@ import { getTranslations } from 'next-intl/server';
 import { validateBody } from '@/lib/validation/request';
 import { otpRequestPayload } from '@/lib/validation/api';
 import { normalizeMobile } from '@/lib/utils/format';
-import { requestOtp } from '@/lib/auth/service';
+import { requestOtp, AuthError } from '@/lib/auth/service';
 import { authErrorResponse } from '@/lib/auth/apiError';
 import { assertSameOrigin } from '@/lib/auth/origin';
-import { rateLimit } from '@/lib/server/utils/rateLimit';
+import { clientIp, rateLimit } from '@/lib/server/utils/rateLimit';
 import { withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { isPanelHost } from '@/lib/server/utils/panelHost';
 
@@ -52,9 +52,14 @@ async function POSTImpl(req: NextRequest) {
   try {
     // No `isNewUser` in this response — see requestOtp. It told any anonymous
     // caller whether a phone number already had an account here.
-    const { ttl, devCode } = await requestOtp(mobile, v.data.name, onPanelHost);
+    const { ttl, devCode } = await requestOtp(mobile, v.data.name, onPanelHost, `otp-combined:${clientIp(req)}:${mobile}`);
     return NextResponse.json({ ok: true, ttl, devCode });
   } catch (err) {
+    // Do not expose which numbers are staff. The service still charges and
+    // reports probes and sends no SMS to an unlisted number.
+    if (onPanelHost && err instanceof AuthError && err.code === 'not_staff') {
+      return NextResponse.json({ ok: true, ttl: 60 });
+    }
     return authErrorResponse(err);
   }
 }
