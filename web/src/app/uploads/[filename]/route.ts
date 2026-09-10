@@ -25,6 +25,22 @@ export const runtime = 'nodejs';
  * (`${ulid()}.${ext}`) — never anything a client supplied — so a strict
  * allowlist regex is both sufficient validation and the path-traversal
  * guard (rejects `..`, slashes, or any other extension outright).
+ *
+ * DELIBERATELY UNAUTHENTICATED, including for the پولادی customer's
+ * letterhead logo (I-210): that logo is embedded (`<img src>`) directly on
+ * `/proforma/[ref]`, which is ITSELF a public-capability page by design —
+ * "reachable from the SMS link; the ref is the capability" (see that page's
+ * own docstring). Whoever holds a proforma link already sees the logo baked
+ * into that page's HTML with no session of their own required (a buyer
+ * forwarding a quote to their own finance/procurement team is the exact,
+ * intended use case — see ProformaSheet.tsx). Gating this route behind auth
+ * would only break that legitimate sharing flow; it would add no real
+ * confidentiality, because the same image is already reachable, unguarded,
+ * through the page that is SUPPOSED to show it to a third party. The actual
+ * privacy boundary for that logo is the proforma ref's unguessability, not
+ * this route — same trust model as the ref link itself. See
+ * docs/audit-upload-media-I.md#I-210 for the full reasoning; do not add an
+ * auth check here for the logo case without re-reading it first.
  */
 async function GETImpl(_req: NextRequest, { params }: { params: Promise<{ filename: string }> }) {
   const { filename } = await params;
