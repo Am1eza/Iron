@@ -16,6 +16,34 @@ import type { AuthStore, CreateUserInput, ListUsersQuery, UserPatch } from './st
 type UserRow = typeof users.$inferSelect;
 const MAX_SESSION_FAMILIES = 5;
 
+/** `db.execute(sql...)` returns a plain array under one driver (pglite, tests)
+ *  and `{ rows: [...] }` under another (node-postgres, prod) — same ambiguity
+ *  already handled this way in catalogRepo.ts/cleanup.job.ts. */
+function rowsOf<T>(execResult: unknown): T[] {
+  if (Array.isArray(execResult)) return execResult as T[];
+  return (execResult as { rows?: T[] })?.rows ?? [];
+}
+
+/** F-145: the ONE authoritative clock for refresh-token lifecycle decisions —
+ *  read from inside the caller's transaction (so it is consistent with
+ *  whatever row lock that transaction already holds), never from Node's
+ *  `Date.now()`. `clock_timestamp()` (not `now()`) is used deliberately: it
+ *  reads the actual wall clock at call time rather than the time the
+ *  enclosing transaction began, which matters here because this is called
+ *  after this same transaction has already taken a row lock that may have
+ *  waited on a concurrent rotation. */
+async function dbNowMs(tx: DbOrTx): Promise<number> {
+  // `round(...)`, not just cast: `refreshTokens.rotatedAt`/`expiresAt` are
+  // bigint columns (whole milliseconds) — clock_timestamp()'s microsecond
+  // precision left a fractional part (e.g. 1789072773241.079) that Postgres
+  // rejects outright ("invalid input syntax for type bigint") the first time
+  // this ran against a real connection, caught by service.pg.test.ts.
+  const result = await tx.execute(sql`select round(extract(epoch from clock_timestamp()) * 1000) as ms`);
+  const ms = Number(rowsOf<{ ms: string | number }>(result)[0]?.ms);
+  if (!Number.isFinite(ms)) throw new Error('Could not read the database clock');
+  return ms;
+}
+
 function toAuthUser(row: UserRow, clubTier?: 'iron' | 'steel' | 'poolad' | null): AuthUser {
   return {
     id: row.id,
@@ -214,24 +242,38 @@ export const pgStore: AuthStore = {
       rotatedAt: rec.rotatedAt ?? undefined,
     };
   },
-  async rotateRefreshAtomic(parentHash, childHash, child, now, graceMs, enforceReuse) {
+  async rotateRefreshAtomic(parentHash, childHash, ttlMs, graceMs, enforceReuse) {
     return getDb().transaction(async tx=>{
       const [hint]=await tx.select({userId:refreshTokens.userId}).from(refreshTokens).where(eq(refreshTokens.tokenHash,parentHash));
       if(!hint)return {status:'invalid'} as const;
       await tx.select({id:users.id}).from(users).where(eq(users.id,hint.userId)).for('update');
       const [parent]=await tx.select().from(refreshTokens).where(eq(refreshTokens.tokenHash,parentHash)).for('update');
-      if(!parent||parent.expiresAt<=now)return {status:'invalid'} as const;
+      if(!parent)return {status:'invalid'} as const;
+      // F-145: read the database's own clock, inside this same transaction —
+      // not the calling Node worker's `Date.now()`. Two app-server processes
+      // can drift from each other by real, ordinary amounts (NTP resync,
+      // container pause, VM steal time); if each stamped/compared `rotatedAt`
+      // against its OWN clock, a worker running merely a few seconds behind
+      // could see a negative "age" for a rotation another worker just
+      // performed and misclassify an ordinary multi-tab retry as token reuse
+      // (killing the whole session family). Sourcing "now" from Postgres once
+      // here means every worker's decision is computed against the one clock
+      // the row itself — and its `rotatedAt`, stamped the same way — is
+      // compared with. See store.types.ts#rotateRefreshAtomic.
+      const now = await dbNowMs(tx);
+      if(parent.expiresAt<=now)return {status:'invalid'} as const;
       const family=parent.familyId??parentHash;
       const record={userId:parent.userId,expiresAt:parent.expiresAt,familyId:parent.familyId??undefined,parentHash:parent.parentHash??undefined,rotatedAt:parent.rotatedAt??undefined};
+      const childExpiresAt=Math.min(now+ttlMs,parent.expiresAt);
       if(parent.rotatedAt===null){
         await tx.update(refreshTokens).set({rotatedAt:now}).where(eq(refreshTokens.tokenHash,parentHash));
-        await tx.insert(refreshTokens).values({tokenHash:childHash,userId:parent.userId,expiresAt:Math.min(child.expiresAt,parent.expiresAt),familyId:family,parentHash});
-        return {status:'claimed',record} as const;
+        await tx.insert(refreshTokens).values({tokenHash:childHash,userId:parent.userId,expiresAt:childExpiresAt,familyId:family,parentHash});
+        return {status:'claimed',record,childExpiresAt} as const;
       }
       const age=now-parent.rotatedAt;
       if(age>=0&&age<=graceMs){
-        await tx.insert(refreshTokens).values({tokenHash:childHash,userId:parent.userId,expiresAt:Math.min(child.expiresAt,parent.expiresAt),familyId:family,parentHash});
-        return {status:'grace',record} as const;
+        await tx.insert(refreshTokens).values({tokenHash:childHash,userId:parent.userId,expiresAt:childExpiresAt,familyId:family,parentHash});
+        return {status:'grace',record,childExpiresAt} as const;
       }
       if(enforceReuse)await tx.delete(refreshTokens).where(or(eq(refreshTokens.familyId,family),eq(refreshTokens.tokenHash,family)));
       return {status:'reuse',record} as const;

@@ -35,7 +35,12 @@ export type OtpRecord = {
 export type RateRecord = { sends: number[]; lockedUntil?: number };
 export type OtpSendClaim = { ok: true } | { ok: false; reason: 'locked' | 'cooldown' | 'too_many'; retryAfter: number };
 export type RefreshRotation =
-  | { status: 'claimed' | 'grace' | 'reuse'; record: RefreshRecord }
+  // F-145: `claimed`/`grace` carry the NEW token's actual expiry
+  // (`childExpiresAt`), computed by the store from ITS OWN authoritative
+  // clock (the database's, for pgStore) rather than by the caller's — see
+  // rotateRefreshAtomic's doc comment.
+  | { status: 'claimed' | 'grace'; record: RefreshRecord; childExpiresAt: number }
+  | { status: 'reuse'; record: RefreshRecord }
   | { status: 'invalid' };
 
 export type UserPatch = Partial<Pick<AuthUser, 'name' | 'firstName' | 'lastName' | 'role' | 'mobile'>> & {
@@ -86,7 +91,21 @@ export interface AuthStore {
    * rotation. See auth/service.ts#rotateRefresh for the race analysis.
    */
   claimRefresh(hash: string, rotatedAt: number): Promise<RefreshRecord | null>;
-  rotateRefreshAtomic(parentHash: string, childHash: string, child: RefreshRecord, now: number, graceMs: number, enforceReuse: boolean): Promise<RefreshRotation>;
+  /**
+   * F-145: the reuse/grace decision is security-relevant and must not depend
+   * on the CALLING Node process's clock — two app workers can legitimately
+   * disagree with each other (and with the database) by seconds, and this
+   * function used to be handed a pre-computed `now` that baked that skew
+   * straight into "is this a legitimate multi-tab retry or a stolen token".
+   * Each implementation now sources "now" itself (pgStore: one
+   * `clock_timestamp()` read inside the same transaction as the row lock, so
+   * every worker's decision is computed against the one clock the row itself
+   * is compared with; memoryStore: `Date.now()`, since a single in-process
+   * store has no separate clock to disagree with). `ttlMs` — not an absolute
+   * expiry — lets the store compute the child's `expiresAt` from that same
+   * authoritative instant.
+   */
+  rotateRefreshAtomic(parentHash: string, childHash: string, ttlMs: number, graceMs: number, enforceReuse: boolean): Promise<RefreshRotation>;
   revokeRefresh(hash: string): Promise<void>;
   /** Kill an entire rotation lineage (reuse detected / logout). */
   revokeFamily(familyId: string): Promise<void>;

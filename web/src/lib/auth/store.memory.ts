@@ -142,14 +142,19 @@ export const memoryStore: AuthStore = {
     rec.rotatedAt = rotatedAt;
     return { ...rec };
   },
-  async rotateRefreshAtomic(parentHash, childHash, child, now, graceMs, enforceReuse) {
+  async rotateRefreshAtomic(parentHash, childHash, ttlMs, graceMs, enforceReuse) {
+    // No separate clock to disagree with here — this store is one in-process
+    // Map, never shared across workers, so `Date.now()` is genuinely
+    // authoritative for it (unlike store.pg.ts, see store.types.ts).
+    const now = Date.now();
     const parent=refreshByHash.get(parentHash);
     if(!parent || parent.expiresAt<=now)return {status:'invalid'} as const;
     const family=parent.familyId??parentHash;
-    const next={...child,userId:parent.userId,expiresAt:Math.min(child.expiresAt,parent.expiresAt),familyId:family,parentHash};
-    if(parent.rotatedAt===undefined){parent.rotatedAt=now;refreshByHash.set(childHash,next);return {status:'claimed',record:{...parent}} as const;}
+    const childExpiresAt=Math.min(now+ttlMs,parent.expiresAt);
+    const next={userId:parent.userId,expiresAt:childExpiresAt,familyId:family,parentHash};
+    if(parent.rotatedAt===undefined){parent.rotatedAt=now;refreshByHash.set(childHash,next);return {status:'claimed',record:{...parent},childExpiresAt} as const;}
     const age=now-parent.rotatedAt;
-    if(age>=0 && age<=graceMs){refreshByHash.set(childHash,next);return {status:'grace',record:{...parent}} as const;}
+    if(age>=0 && age<=graceMs){refreshByHash.set(childHash,next);return {status:'grace',record:{...parent},childExpiresAt} as const;}
     if(enforceReuse)for(const [hash,row] of refreshByHash)if(row.familyId===family||hash===family)refreshByHash.delete(hash);
     return {status:'reuse',record:{...parent}} as const;
   },
