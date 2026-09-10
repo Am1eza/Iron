@@ -17,6 +17,7 @@ import { finiteNumber, nonEmptyPatch, slugSchema, uploadPathSchema } from '@/lib
 import { normalizeCatalogSize, normalizeCatalogText, normalizeFactoryName } from '@/lib/server/utils/persianZwnj';
 import { toPersianDigits } from '@/lib/utils/format';
 import { PRICE_BASIS_VALUES, PRICE_UNIT_VALUES } from '@/lib/types/domain';
+import { deleteOrphanedUploadIfUnused } from '@/lib/server/utils/uploadCleanup';
 
 const optionalPersianText = (max: number) =>
   z
@@ -105,6 +106,11 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }
   }
   if (!result) return NextResponse.json({ error: 'not_found', message: 'محصول یافت نشد.' }, { status: 404 });
   await audit(auth.session.id, 'catalog.sku.update', { type: 'sku', id }, result.before, result.after);
+  // The old image is now unreachable through this row — delete it once the
+  // update has committed (I-212). Best-effort: never blocks the response.
+  if (result.before.imageUrl && result.before.imageUrl !== result.after.imageUrl) {
+    await deleteOrphanedUploadIfUnused(result.before.imageUrl);
+  }
   // A slug edit (or a move) changes the public URL; without a redirect every
   // indexed page and every customer bookmark hard-404s with no SEO transfer.
   const slugChanged = Boolean(v.data.slug && v.data.slug !== result.before.slug);
@@ -153,6 +159,10 @@ async function DELETEImpl(req: NextRequest, ctx: { params: Promise<{ id: string 
   // entry is not a good recovery story; rebuilding from two of eighteen
   // columns is not a recovery story at all.
   await audit(auth.session.id, 'catalog.sku.delete', { type: 'sku', id }, removed, null);
+  // The product's image is gone too now — I-212. Best-effort, after the
+  // audit entry (which still names the file in `removed.imageUrl` for a
+  // manual restore), and never allowed to fail the delete itself.
+  await deleteOrphanedUploadIfUnused(removed.imageUrl);
   // A deleted product's URL is usually its most-linked one. Hand it to the
   // sub-category it lived in rather than answering a bare 404.
   await writeCatalogRedirects(tombstone);
