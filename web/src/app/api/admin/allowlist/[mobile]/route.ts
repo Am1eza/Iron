@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
-import { allowlistCount, allowlistedRole, removeFromAllowlist } from '@/lib/server/repos/adminAllowlistRepo';
+import { allowlistedRole, removeFromAllowlist } from '@/lib/server/repos/adminAllowlistRepo';
 import { revokeAllForUser } from '@/lib/auth/store';
 import { normalizeDigits } from '@/lib/utils/format';
 import { getDb } from '@/lib/server/db/client';
@@ -30,15 +30,11 @@ async function DELETEImpl(req: NextRequest, ctx: { params: Promise<{ mobile: str
   if (!grantedRole) {
     return NextResponse.json({ error: 'not_found', message: 'این شماره در فهرست نیست.' }, { status: 404 });
   }
-  // The lock-out guard is about ADMINS specifically: since the registry
-  // gained roles, removing the last sales/content entry is perfectly fine —
-  // only removing the last account that can still manage access is not.
-  if (grantedRole === 'admin' && (await allowlistCount()) <= 1) {
-    return NextResponse.json(
-      { error: 'last_admin', message: 'آخرین مدیر سیستم را نمی‌توان حذف کرد.' },
-      { status: 409 },
-    );
-  }
+  // The last-admin lock-out guard is enforced INSIDE removeFromAllowlist,
+  // under a row lock that serializes against any concurrent grant/removal
+  // (G-159 follow-up: an unlocked pre-check here let two concurrent removals
+  // of two DIFFERENT admins each observe "2 admins, safe" and both proceed,
+  // zeroing the registry — see lockAdminRowsAndTarget in adminAllowlistRepo.ts).
 
   // Same atomicity guarantee as the grant path (G-160): registry removal,
   // the target's role reset, and the audit row commit as one unit.

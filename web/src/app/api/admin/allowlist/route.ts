@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
-import { addToAllowlist, allowlistCount, allowlistedRole, listAllowlist } from '@/lib/server/repos/adminAllowlistRepo';
+import { addToAllowlist, listAllowlist } from '@/lib/server/repos/adminAllowlistRepo';
 import { revokeAllForUser } from '@/lib/auth/store';
 import { normalizeDigits } from '@/lib/utils/format';
 import { getDb } from '@/lib/server/db/client';
@@ -39,15 +39,10 @@ async function POSTImpl(req: NextRequest) {
   if (!v.ok) return v.response;
 
   // Demoting the last admin through a role change would lock everyone out of
-  // access management just as surely as deleting the row — same guard.
-  if (v.data.role !== 'admin' && (await allowlistedRole(v.data.mobile)) === 'admin') {
-    if ((await allowlistCount()) <= 1) {
-      return NextResponse.json(
-        { error: 'last_admin', message: 'آخرین مدیر سیستم را نمی‌توان تنزل داد.' },
-        { status: 409 },
-      );
-    }
-  }
+  // access management just as surely as deleting the row — same guard, and
+  // (G-159 follow-up) enforced INSIDE addToAllowlist under a row lock now,
+  // not as an unlocked pre-check here — see lockAdminRowsAndTarget's doc
+  // comment in adminAllowlistRepo.ts for why a pre-check here was racy.
 
   // Registry row, user role bump, and the audit row all commit as one unit
   // (G-160) — a failure anywhere in here rolls the whole grant back instead
