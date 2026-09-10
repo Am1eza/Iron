@@ -58,6 +58,11 @@ services:
       PG_POOL_MAX: ${PG_POOL_MAX:-10}
       # REQUIRED — the app refuses to start in production without this.
       SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET in .env (openssl rand -hex 32)}
+      # REQUIRED — OTP pepper (W-auth-hardening). Without this the code falls
+      # back to a hardcoded dev pepper, so live mode refuses to boot instead.
+      # Setting it in .env alone does nothing without this line (same class of
+      # bug as AI_TIMEOUT_MS above).
+      OTP_SECRET: ${OTP_SECRET:?set OTP_SECRET in .env (openssl rand -hex 32)}
       NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://ahantime.com}
       NEXT_PUBLIC_API_MODE: ${NEXT_PUBLIC_API_MODE:-live}
       AUTH_ENFORCED: ${AUTH_ENFORCED:-true}
