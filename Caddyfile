@@ -177,7 +177,19 @@ ahantime.com, www.ahantime.com {
 		}
 	}
 
-	reverse_proxy web:3000
+	# Disable Caddy's connection pooling to the Next.js backend. Node's
+	# default http.Server keepAliveTimeout is 5s; when Caddy reused a
+	# pooled idle connection older than that, the Next.js container had
+	# already closed its end of the socket, so the next request landed on
+	# a dead connection and failed with "reading: context canceled" — an
+	# intermittent false "site is down" on roughly 1 in 5 requests, all
+	# day long, unrelated to load or deploys. A fresh connection per
+	# request is free on the docker-internal network.
+	reverse_proxy web:3000 {
+		transport http {
+			keepalive off
+		}
+	}
 }
 
 # Matomo admin console — same certificate, separate port (no extra DNS record
@@ -265,5 +277,17 @@ panel.ahantime.com {
 		respond "پنل مدیریت موقتاً در دسترس نیست. (Error {http.error.status_code})" {http.error.status_code}
 	}
 
-	reverse_proxy web:3000
+	# Disable Caddy's connection pooling to the Next.js backend. Node's
+	# default http.Server keepAliveTimeout is 5s; when Caddy reused a
+	# pooled idle connection older than that, the Next.js container had
+	# already closed its end of the socket, so the next request landed on
+	# a dead connection and failed with "reading: context canceled" — an
+	# intermittent false "site is down" on roughly 1 in 5 requests, all
+	# day long, unrelated to load or deploys. A fresh connection per
+	# request is free on the docker-internal network.
+	reverse_proxy web:3000 {
+		transport http {
+			keepalive off
+		}
+	}
 }
