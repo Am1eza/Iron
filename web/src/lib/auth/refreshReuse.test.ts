@@ -98,8 +98,14 @@ describe('concurrent refresh must never look like reuse', () => {
     const { tokens } = await login();
     const first = await rotateRefresh(tokens.refreshToken);
 
-    // 90 seconds later — inside a 120s window, so still "the client racing
-    // itself", not theft.
+    // F-145: the grace decision is now made against the DATABASE's clock, not
+    // this process's — so mocking Date.now() forward no longer simulates
+    // elapsed time for it (real elapsed time here is milliseconds, well
+    // inside the 120s window regardless). The mock is kept to prove exactly
+    // that: it must have NO effect on the outcome any more. The scenario this
+    // test used to fake (a real ~90s gap, still inside the window) is instead
+    // proven against a real disposable Postgres, with a much larger and
+    // adversarial lie, by scripts/refreshClockSkewProbe.ts.
     vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 90_000);
     await expect(rotateRefresh(tokens.refreshToken)).resolves.toBeTruthy();
     vi.restoreAllMocks();

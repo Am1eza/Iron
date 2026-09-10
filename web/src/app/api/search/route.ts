@@ -13,7 +13,11 @@ async function GETImpl(req: NextRequest) {
   if (limited) return limited;
   const guard = requireDb();
   if (guard) return guard;
-  const q = (req.nextUrl.searchParams.get('q') ?? '').trim();
+  // H-172: slice BEFORE use — same precedent as admin/search's `q` and
+  // catalogAdminRepo.adminListSkus. No real search phrase is anywhere near
+  // this long; an unbounded `q` reached `likeContains` unchanged and turned a
+  // trivial 30/min-rate-limited request into an oversized ILIKE scan.
+  const q = (req.nextUrl.searchParams.get('q') ?? '').trim().slice(0, 100);
   if (q.length < 2) return NextResponse.json({ skus: [], articles: [] });
   const [skus, articles] = await Promise.all([searchSkus(q), searchArticles(q)]);
   return NextResponse.json(
