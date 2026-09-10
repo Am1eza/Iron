@@ -14,7 +14,7 @@ async function GETImpl(req: NextRequest) {
   const auth = await requireApiPermission(req, 'content:write');
   if ('response' in auth) return auth.response;
   const [stats, traffic] = await Promise.all([seoStats(), matomoSeoInsights(30)]);
-  return NextResponse.json({ ...stats, traffic });
+  return NextResponse.json({ ...stats, traffic }, { headers: { 'Cache-Control': 'no-store' } });
 }
 
 export const GET = withApiErrorHandling(GETImpl);

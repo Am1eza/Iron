@@ -13,7 +13,7 @@
  * strangers can neither reach the panel nor burn SMS credit probing it.
  */
 import { eq } from 'drizzle-orm';
-import { getDb, hasDb } from '@/lib/server/db/client';
+import { getDb, hasDb, type DbOrTx } from '@/lib/server/db/client';
 import { adminAllowlist, users } from '@/lib/server/db/schema';
 import { updateUser, userByMobile } from '@/lib/auth/store';
 import { isStaff } from '@/lib/auth/roles';
@@ -76,34 +76,47 @@ export async function allowlistCount(): Promise<number> {
   return rows.length;
 }
 
-/** Add or re-role a mobile; if that user already exists, apply it right away. */
+/** Add or re-role a mobile; if that user already exists, apply it right away.
+ *  The registry row and the user's role bump commit atomically — either both
+ *  happen or neither does, so a mid-write failure can never leave the
+ *  registry saying one role while the live user account still holds another
+ *  (or vice versa). Runs in its own transaction unless the caller already has
+ *  one open (`tx`), e.g. to include the audit row in the same commit. */
 export async function addToAllowlist(
   mobile: string,
   label: string | null,
   role: StaffRole,
   addedBy: string,
+  tx?: DbOrTx,
 ): Promise<{ promotedUserId: string | null }> {
-  await getDb()
-    .insert(adminAllowlist)
-    .values({ mobile, label, role, addedBy })
-    .onConflictDoUpdate({ target: adminAllowlist.mobile, set: { label, role, addedBy } });
-  const existing = await userByMobile(mobile);
-  if (existing && existing.role !== role) {
-    await updateUser(existing.id, { role }); // bumps tokenVersion
-    return { promotedUserId: existing.id };
-  }
-  return { promotedUserId: null };
+  const run = async (t: DbOrTx) => {
+    await t
+      .insert(adminAllowlist)
+      .values({ mobile, label, role, addedBy })
+      .onConflictDoUpdate({ target: adminAllowlist.mobile, set: { label, role, addedBy } });
+    const existing = await userByMobile(mobile, t);
+    if (existing && existing.role !== role) {
+      await updateUser(existing.id, { role }, t); // bumps tokenVersion
+      return { promotedUserId: existing.id };
+    }
+    return { promotedUserId: null };
+  };
+  return tx ? run(tx) : getDb().transaction(run);
 }
 
-/** Remove a mobile and strip its user's staff role (fail-closed) at once. */
-export async function removeFromAllowlist(mobile: string): Promise<{ demotedUserId: string | null }> {
-  await getDb().delete(adminAllowlist).where(eq(adminAllowlist.mobile, mobile));
-  const existing = await userByMobile(mobile);
-  if (existing && isStaff(existing.role)) {
-    await updateUser(existing.id, { role: 'customer' }); // bumps tokenVersion → live session dies
-    return { demotedUserId: existing.id };
-  }
-  return { demotedUserId: null };
+/** Remove a mobile and strip its user's staff role (fail-closed) at once —
+ *  same atomicity guarantee as `addToAllowlist`. */
+export async function removeFromAllowlist(mobile: string, tx?: DbOrTx): Promise<{ demotedUserId: string | null }> {
+  const run = async (t: DbOrTx) => {
+    await t.delete(adminAllowlist).where(eq(adminAllowlist.mobile, mobile));
+    const existing = await userByMobile(mobile, t);
+    if (existing && isStaff(existing.role)) {
+      await updateUser(existing.id, { role: 'customer' }, t); // bumps tokenVersion → live session dies
+      return { demotedUserId: existing.id };
+    }
+    return { demotedUserId: null };
+  };
+  return tx ? run(tx) : getDb().transaction(run);
 }
 
 /**

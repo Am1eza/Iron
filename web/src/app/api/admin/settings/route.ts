@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
-import { listSettings, setSetting } from '@/lib/server/repos/settingsRepo';
+import { getSetting, listSettings, setSetting } from '@/lib/server/repos/settingsRepo';
 import { finiteNumber } from '@/lib/validation/utils';
 import { logisticsSettingSchema } from '@/lib/validation/settingsSchemas';
 
@@ -152,8 +152,13 @@ async function PUTImpl(req: NextRequest) {
     v.data.key === 'LOGISTICS'
       ? { ...(parsed.data as Record<string, unknown>), verifiedAt: new Date().toISOString() }
       : parsed.data;
+  // G-165: capture the PREVIOUS value before overwriting — this key covers
+  // AI_PROMPT_VERSIONS (the live system prompt a customer actually talks to)
+  // among others, so "what did it change FROM" matters for the audit trail
+  // just as much as "what did it change TO", not just the latter.
+  const before = await getSetting<unknown>(v.data.key, null);
   await setSetting(v.data.key, storedValue);
-  await audit(auth.session.id, 'settings.update', { type: 'setting', id: v.data.key }, null, { value: storedValue });
+  await audit(auth.session.id, 'settings.update', { type: 'setting', id: v.data.key }, { value: before }, { value: storedValue });
   return NextResponse.json({ ok: true });
 }
 

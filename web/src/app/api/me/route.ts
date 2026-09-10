@@ -21,9 +21,14 @@ async function GETImpl() {
   // for a second userById() call here.
   const session = await getSessionVerified();
   if (!session) {
-    return NextResponse.json({ user: null });
+    // Anonymous is the overwhelmingly common case and genuinely shareable —
+    // still explicit no-store below though, since a shared/corporate cache
+    // cannot tell "logged-out visitor" from "cached stale response" apart
+    // from this header, and the authenticated branch right below returns
+    // real personal data (name/role/club tier) through the exact same URL.
+    return NextResponse.json({ user: null }, { headers: { 'Cache-Control': 'no-store' } });
   }
-  return NextResponse.json({ user: publicUser(session) });
+  return NextResponse.json({ user: publicUser(session) }, { headers: { 'Cache-Control': 'no-store' } });
 }
 
 /**

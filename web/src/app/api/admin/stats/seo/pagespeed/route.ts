@@ -11,7 +11,7 @@ import { pageSpeedInsights } from '@/lib/server/integrations/pagespeed';
 async function GETImpl(req: NextRequest) {
   const auth = await requireApiPermission(req, 'content:write');
   if ('response' in auth) return auth.response;
-  return NextResponse.json({ results: await pageSpeedInsights() });
+  return NextResponse.json({ results: await pageSpeedInsights() }, { headers: { 'Cache-Control': 'no-store' } });
 }
 
 export const GET = withApiErrorHandling(GETImpl);

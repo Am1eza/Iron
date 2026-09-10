@@ -216,6 +216,15 @@ Always run a full `next build` using the appropriate local or Docker toolchain b
 
 ## 7. Operational context
 
+- **Cloudflare fronts the site** (both `ahantime.com` and `panel.ahantime.com`), in front of
+  Caddy — confirmed live (`Server: cloudflare`, `CF-RAY` on every response; a crafted request
+  with a spoofed `Host` header reaches neither Caddy nor the app, so Cloudflare is rejecting
+  the SNI/Host mismatch before the origin ever sees it — see docs/audit-rbac-panel-G.md §G-152
+  for the live test). This isn't configured anywhere in this repo (no Cloudflare config-as-code
+  exists here) — treat Cloudflare-side settings (DNS proxy status, cache/page rules, WAF,
+  Authenticated Origin Pulls) as living entirely in the Cloudflare dashboard, not discoverable
+  from the codebase. Caddy's own host-based routing (below) is real and still matters as the
+  second layer, but it is not the outermost edge.
 - **GlitchTip** (error tracking) on port **9443** — there is **no wildcard DNS**, so don't
   assume a subdomain resolves.
 - **Matomo** for analytics (self-hosted, with MarketingCampaignsReporting). Only

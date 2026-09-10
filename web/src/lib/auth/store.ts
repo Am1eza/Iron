@@ -4,7 +4,7 @@
  * resets per cold start). Route handlers and the auth service only call these
  * functions, so the swap is invisible to them.
  */
-import { hasDb } from '@/lib/server/db/client';
+import { hasDb, type DbOrTx } from '@/lib/server/db/client';
 import type { AuthUser } from './types';
 import type {
   AuthStore,
@@ -30,17 +30,17 @@ function store(): AuthStore {
 }
 
 /* ----------------------------- users ----------------------------- */
-export function userByMobile(mobile: string): Promise<AuthUser | null> {
-  return store().userByMobile(mobile);
+export function userByMobile(mobile: string, tx?: DbOrTx): Promise<AuthUser | null> {
+  return store().userByMobile(mobile, tx);
 }
-export function userById(id: string): Promise<AuthUser | null> {
-  return store().userById(id);
+export function userById(id: string, tx?: DbOrTx): Promise<AuthUser | null> {
+  return store().userById(id, tx);
 }
 export function createUser(input: CreateUserInput): Promise<AuthUser> {
   return store().createUser(input);
 }
-export function updateUser(id: string, patch: UserPatch): Promise<AuthUser | null> {
-  return store().updateUser(id, patch);
+export function updateUser(id: string, patch: UserPatch, tx?: DbOrTx): Promise<AuthUser | null> {
+  return store().updateUser(id, patch, tx);
 }
 export function listUsers(query?: ListUsersQuery): Promise<{ users: (AuthUser & { isActive?: boolean })[]; total: number }> {
   return store().listUsers(query);

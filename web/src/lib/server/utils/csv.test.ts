@@ -31,6 +31,22 @@ describe('toCsv', () => {
   it('leaves a Persian value untouched (no escaping needed for non-comma/quote text)', () => {
     expect(toCsv(['نام'], [['کارشناس فروش']])).toContain('کارشناس فروش');
   });
+
+  it('neutralizes a leading = as a spreadsheet-formula-injection guard', () => {
+    expect(toCsv(['x'], [['=cmd|\'/c calc\'!A1']])).toContain("'=cmd|");
+  });
+
+  it.each([['+1+1'], ['-2+3'], ['@SUM(A1:A9)'], ['\tsneaky']])(
+    'neutralizes a leading %s the same way',
+    (value) => {
+      const out = toCsv(['x'], [[value]]);
+      expect(out).toContain(`'${value}`);
+    },
+  );
+
+  it('does not touch a field that merely contains = later, only a LEADING trigger char', () => {
+    expect(toCsv(['x'], [['a=b']])).toContain('x\r\na=b');
+  });
 });
 
 describe('csvResponse', () => {

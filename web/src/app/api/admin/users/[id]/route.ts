@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { listUsers, updateUser, userById, revokeAllForUser } from '@/lib/auth/store';
+import { getDb } from '@/lib/server/db/client';
 import { publicUser } from '@/lib/auth/publicUser';
 import { leadsForUser } from '@/lib/server/repos/leadsRepo';
 import { ordersForUser } from '@/lib/server/repos/ordersRepo';
@@ -84,10 +85,21 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }
     }
   }
 
-  const user = await updateUser(id, v.data);
-  // Role/active changes end existing sessions.
+  // The write and its audit row commit together (G-160): a failure inserting
+  // the audit entry rolls back the role/active-state change too, instead of
+  // silently leaving an unattributed change with no trail — see audit()'s
+  // doc comment for why that's the right trade-off specifically when `tx`
+  // is supplied.
+  const user = await getDb().transaction(async (tx) => {
+    const updated = await updateUser(id, v.data, tx);
+    await audit(auth.session.id, 'user.update', { type: 'user', id }, { role: before.role }, v.data, tx);
+    return updated;
+  });
+  // Role/active changes end existing sessions. Redundant with the delete
+  // updateUser's own role/isActive branch already did inside that same
+  // transaction — kept as a defense-in-depth no-op for any other revocation
+  // bookkeeping revokeAllForUser does beyond that row.
   if (v.data.role || v.data.isActive === false) await revokeAllForUser(id);
-  await audit(auth.session.id, 'user.update', { type: 'user', id }, { role: before.role }, v.data);
   return NextResponse.json({ user });
 }
 

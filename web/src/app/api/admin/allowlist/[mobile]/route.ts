@@ -3,6 +3,7 @@ import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/
 import { allowlistCount, allowlistedRole, removeFromAllowlist } from '@/lib/server/repos/adminAllowlistRepo';
 import { revokeAllForUser } from '@/lib/auth/store';
 import { normalizeDigits } from '@/lib/utils/format';
+import { getDb } from '@/lib/server/db/client';
 
 /** DELETE /api/admin/allowlist/{mobile} — remove an admin mobile.
  *  Safeguards: you cannot remove yourself, and you cannot remove the last
@@ -39,15 +40,21 @@ async function DELETEImpl(req: NextRequest, ctx: { params: Promise<{ mobile: str
     );
   }
 
-  const { demotedUserId } = await removeFromAllowlist(mobile);
+  // Same atomicity guarantee as the grant path (G-160): registry removal,
+  // the target's role reset, and the audit row commit as one unit.
+  const { demotedUserId } = await getDb().transaction(async (tx) => {
+    const result = await removeFromAllowlist(mobile, tx);
+    await audit(
+      auth.session.id,
+      'admin_allowlist.remove',
+      { type: 'admin_allowlist', id: mobile },
+      { mobile },
+      { demotedUserId: result.demotedUserId },
+      tx,
+    );
+    return result;
+  });
   if (demotedUserId) await revokeAllForUser(demotedUserId);
-  await audit(
-    auth.session.id,
-    'admin_allowlist.remove',
-    { type: 'admin_allowlist', id: mobile },
-    { mobile },
-    { demotedUserId },
-  );
   return NextResponse.json({ ok: true });
 }
 

@@ -3,6 +3,7 @@
  * The facade in store.ts picks the implementation at call time.
  */
 import type { AuthUser, Role } from './types';
+import type { DbOrTx } from '@/lib/server/db/client';
 
 /**
  * One refresh token row. `familyId`/`parentHash`/`rotatedAt` implement reuse
@@ -55,10 +56,18 @@ export type CreateUserInput = {
 export type ListUsersQuery = { role?: Role; q?: string; page?: number; perPage?: number };
 
 export interface AuthStore {
-  userByMobile(mobile: string): Promise<AuthUser | null>;
-  userById(id: string): Promise<AuthUser | null>;
+  /** `tx`: read inside a caller-supplied transaction. Postgres-only — see
+   *  `updateUser`'s doc comment; the same "don't open a second top-level
+   *  query against an already-open transaction" reasoning applies (PGlite,
+   *  used in tests, has no real connection pool and deadlocks on it). */
+  userByMobile(mobile: string, tx?: DbOrTx): Promise<AuthUser | null>;
+  userById(id: string, tx?: DbOrTx): Promise<AuthUser | null>;
   createUser(input: CreateUserInput): Promise<AuthUser>;
-  updateUser(id: string, patch: UserPatch): Promise<AuthUser | null>;
+  /** `tx`: participate in a caller-supplied transaction (e.g. so an audit row
+   *  for the role change commits/rolls back atomically with it) instead of
+   *  opening this store's own. Postgres-only — memoryStore ignores it (an
+   *  in-process Map write is already effectively atomic). */
+  updateUser(id: string, patch: UserPatch, tx?: DbOrTx): Promise<AuthUser | null>;
   listUsers(query?: ListUsersQuery): Promise<{ users: (AuthUser & { isActive?: boolean })[]; total: number }>;
 
   saveRefresh(hash: string, record: RefreshRecord): Promise<void>;

@@ -1,5 +1,37 @@
 import { describe, it, expect } from 'vitest';
-import { can, canAccessAdmin, canActOnAssignedRecord, canChangeLeadAssignee } from './roles';
+import { can, canAccessAdmin, canActOnAssignedRecord, canChangeLeadAssignee, ROLES, ROLE_PERMISSIONS, STAFF_ROLES } from './roles';
+import type { Permission } from './types';
+
+// G-158/G-159: the entire self-escalation defense (admin PATCH /users/[id]
+// refuses to touch the `admin` role at all; only the allowlist — gated on
+// `users:manage` — may grant it) rests on ONE fact staying true forever:
+// `users:manage` belongs to `admin` alone. If a future edit to
+// ROLE_PERMISSIONS ever granted it to another role, that role could then
+// grant/revoke ANY role including its own via the allowlist endpoints —
+// this test exists to make that edit fail CI immediately, not get caught by
+// a later manual audit.
+const NON_ADMIN_ROLES = ROLES.filter((r) => r !== 'admin');
+describe('RBAC — self-escalation invariant (G-158/G-159)', () => {
+  it.each(NON_ADMIN_ROLES)('%s never holds users:manage', (role) => {
+    expect(can(role, 'users:manage')).toBe(false);
+  });
+
+  it('exactly one role (admin) holds users:manage — the allowlist and /admin/users routes are both gated on it alone', () => {
+    const holders = ROLES.filter((r) => can(r, 'users:manage'));
+    expect(holders).toEqual(['admin']);
+  });
+
+  it('every staff role can still reach the admin area, even with zero admin-only permissions', () => {
+    for (const role of STAFF_ROLES) expect(canAccessAdmin(role)).toBe(true);
+  });
+
+  it('no role permission list contains a permission the app does not define (typo/drift guard)', () => {
+    const known = new Set<Permission>(ROLE_PERMISSIONS.admin);
+    for (const role of ROLES) {
+      for (const permission of ROLE_PERMISSIONS[role]) expect(known.has(permission)).toBe(true);
+    }
+  });
+});
 
 describe('RBAC', () => {
   it('admin holds every permission', () => {

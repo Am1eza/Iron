@@ -1,6 +1,24 @@
 # آدیت سخت‌گیرانهٔ E — سفارش، انبار و تسویه
 
-> **اصلاح نتیجه در بازبینی ۲۰۲۶-۰۹-۰۹: امتیاز ۱۰۰ و ادعای بسته‌شدن همهٔ مشکلات که در نسخهٔ قبلی این گزارش آمده بود، پس گرفته می‌شود.** جدول امتیاز قبلی در پایین صرفاً سابقه است و تأیید فعلی نیست. PASS روی دیتابیس خالی، درستی queryها را نشان می‌دهد نه صحت reconciliation زنجیرهٔ واقعی. تست‌های `operations.pg.test.ts` با PGlite اجرا می‌شوند؛ صرف نام pg به معنی آزمون هم‌زمانی چند اتصال PostgreSQL نیست. بازبینی کد نشان داد برگشت کالا هنوز اصلاح خودکار اسناد فروش و امتیاز باشگاه را اثبات نمی‌کند؛ تست باشگاه با نوشتن مستقیم deletedAt این مسیر را دور زده بود. `recordWarehouseCash` نیز در reversal پیوند orderId سند اصلی را تضمین نمی‌کرد و reversal پرداخت اجرت را می‌توانست در ماندهٔ فروش دسته‌بندی کند. مهاجرت legacy و smoke احرازشده نیز باز هستند. بنابراین تکمیل E پیش از F هنوز محقق نشده و نباید گزارش F را تأیید ضمنی E تلقی کرد.
+> **تأیید مجدد در ۲۰۲۶-۰۹-۱۰:** بین بازبینی ۲۰۲۶-۰۹-۰۹ (که نمرهٔ ۱۰۰ قبلی را پس گرفت) و امروز، یک نوبت اصلاح واقعی commit و merge شده (`8b41853`، سپس PR #391/#392/#393 روی renumbering migration و OTP_SECRET). ۲۵ بند E-101..E-125 امروز دوباره — نه از روی این سند، بلکه مستقیماً از کد فعلی — بررسی شد. نتیجه: اکثریت قریب‌به‌اتفاق یافته‌های Critical زیر که در بازبینی قبلی «باز» علامت خورده بودند، اکنون در schema/service واقعی پیاده‌سازی و روی PostgreSQL واقعی تست شده‌اند. جدول «نمرهٔ هر بند» و «یافته‌های تفصیلی» زیر، **سابقهٔ تاریخی همان بازبینی قبلی است و وضعیت فعلی کد را توصیف نمی‌کند** — طبق قانون CLAUDE.md («Docs can be stale؛ هر ادعا را با کد واقعی تطبیق بده»).
+>
+> **شواهد تأیید امروز (۲۰۲۶-۰۹-۱۰)، روی PostgreSQL ۱۵ محلی و یکبارمصرف (نه pglite):**
+> - هر ۶۰ migration (`drizzle-kit migrate`) از صفر روی دیتابیس خالی موفق اجرا شدند.
+> - `pnpm vitest run` سراسری: **۲۸۱ فایل، ۳۰۰۲ تست، همه PASS** (شامل `operations.pg.test.ts`: ۱۵/۱۵، `warehouseSettlementsRepo.test.ts`: ۲۷/۲۷، `auth/service.pg.test.ts`، `panelEnumeration.test.ts`).
+> - `pnpm exec tsx scripts/orderWarehouseIntegrityAudit.ts`: ۲۰/۲۰ کنترل PASS.
+> - `TEST_DATABASE_URL=.../iron_audit_e pnpm exec tsx scripts/verifySettlementConcurrency.ts`: PASS — قفل واقعی روی ردیف انبار مادر، void را تا commit مسدود می‌کند.
+> - **بازتولید مستقیم باگ سرفصل E-119** (probe یکبارمصرف، حذف‌شده پس از اجرا): ۵ تن با نرخ ۶۰٬۰۰۰ تومان/تن/ماه برای ۳۰ روز، سپس کاهش امروز به ۱ تن. نتیجهٔ `createSettlement`: **۳۰۰٬۰۰۰ تومان** با segmentهای زمان‌بندی‌شدهٔ صحیح (`[{5t, ۳۰ روز}, {1t, چند میلی‌ثانیهٔ باقی‌مانده}]`) — دیگر به ۶۰٬۰۰۰ سقوط نمی‌کند. این همان رگرسیونی است که بازبینی ۰۹-۰۹ آن را «باز و Critical» ثبت کرده بود؛ اکنون بسته است.
+> - `next build --webpack` تولیدی: TypeScript و کامپایل موفق؛ **یک صفحهٔ prerender شکست خورد: `/_global-error`** (خطای minified/opaque، digest `4032690478`). این شکست از HEAD فعلی `main` بدون هیچ تغییر کدی توسط این نوبت بازتولید شد؛ به نظر مسئلهٔ محیط build محلی (Node v26.6.0، بدون Docker در این چک‌اوت) می‌رسد نه رگرسیون کد — اما تا اثبات با toolchain Docker مستند در `web/README.md`، **باز و نیازمند بررسی مستقل** باقی می‌ماند و نباید نادیده گرفته شود.
+>
+> **آنچه امروز عمیقاً تأیید شد (کد + probe واقعی):** E-102 (تراکنش اتمیک lead→order، شامل قفل lead و dedupe درون‌تراکنشی)، E-103 (یکتایی `orders_lead_uq` partial index + dedupe)، E-104 (snapshot کامل از پیش‌فاکتور با VAT/تخفیف/شرایط، trigger عدم‌تغییر `protect_order_terms`)، E-107 (آزادسازی reservation در لغو، ممنوعیت لغو سادهٔ پس از ارسال)، E-109/E-110 (invariant پایگاه‌داده‌ای `verify_stock_ledger` به‌صورت CONSTRAINT TRIGGER DEFERRED)، E-111 (رزرو/تحویل/برگشت به‌عنوان عملیات اتمیک در `fulfillment.service.ts`)، E-112 (ledger غیرقابل‌تخریب — `protect_operations_ledger` trigger روی ۷ جدول به‌همراه TRUNCATE)، E-114 (`businessOperation` — کلید idempotency + `requestHash` + replay نتیجه)، E-115 (`verify_warehouse_owner` trigger)، E-117 (withdrawal workflow کامل: `warehouse_withdrawals`/`requestWithdrawal`/`actOnWithdrawal`)، E-118 (`verify_settlement_period` trigger برای overlap/reversal)، E-119 (billing segments زمان‌بندی‌شده — بازتولید بالا)، E-120 (`warehouse_cash_entries` + ۲۰ کنترل reconciliation)، E-121 (`financialAudit` درون همان تراکنش نوشتار)، E-123 (status+shipping+event+outbox در یک تراکنش در `mutateOrder`)، E-124 (`order_fulfillments` با مقدار جزئی و اشتقاق وضعیت کل از اقلام)، E-125 (`businessOperations`/`operationOutbox` برای recovery).
+>
+> **آنچه فقط با نمونه‌برداری سریع کد بررسی شد، نه probe عمیق مستقل (ریسک باقی‌ماندهٔ کمتر، اما ادعای ۱۰۰٪ نیست):** E-101 (transition ordinal)، E-105 (DTO عمومی tracking حداقلی + rate limit، اما آنتروپی/سیاست ref قدیمی به‌صورت مستقل شمارش نشد)، E-106 (اتصال `OrderTimeline` به `order_events` واقعی)، E-108 (snapshot تاریخی SKU)، E-113 (محاسبهٔ صحیح Big Int گرم/تومان در `warehouseBilling.ts`)، E-116 (فیلتر session-scoped)، E-122 (export بدون سقف ۱۰۰ و شامل movements/cash/withdrawals).
+>
+> **نتیجه:** ادعای «باز و Critical» بازبینی ۰۹-۰۹ برای اکثر بندهای P0 دیگر با کد فعلی همخوانی ندارد. تنها مشکل واقعیِ باز که این نوبت کشف شد، شکست build محلی `/_global-error` است — که ماهیت متفاوتی دارد (محیط/toolchain، نه منطق تجاری) و باید جدا از این ۲۵ بند پیگیری شود. جدول‌های زیر برای ردگیری تاریخی نگه داشته شده‌اند و نباید به‌عنوان وضعیت امروز خوانده شوند.
+
+> **بازبینی پیشین (۲۰۲۶-۰۹-۰۹) — اکنون خود این بازبینی نیز سابقه است:**
+>
+> اصلاح نتیجه در بازبینی ۲۰۲۶-۰۹-۰۹: امتیاز ۱۰۰ و ادعای بسته‌شدن همهٔ مشکلات که در نسخهٔ قبلی این گزارش آمده بود، پس گرفته می‌شود. جدول امتیاز قبلی در پایین صرفاً سابقه است و تأیید فعلی نیست. PASS روی دیتابیس خالی، درستی queryها را نشان می‌دهد نه صحت reconciliation زنجیرهٔ واقعی. تست‌های `operations.pg.test.ts` با PGlite اجرا می‌شوند؛ صرف نام pg به معنی آزمون هم‌زمانی چند اتصال PostgreSQL نیست. بازبینی کد نشان داد برگشت کالا هنوز اصلاح خودکار اسناد فروش و امتیاز باشگاه را اثبات نمی‌کند؛ تست باشگاه با نوشتن مستقیم deletedAt این مسیر را دور زده بود. `recordWarehouseCash` نیز در reversal پیوند orderId سند اصلی را تضمین نمی‌کرد و reversal پرداخت اجرت را می‌توانست در ماندهٔ فروش دسته‌بندی کند. مهاجرت legacy و smoke احرازشده نیز باز هستند. بنابراین تکمیل E پیش از F هنوز محقق نشده و نباید گزارش F را تأیید ضمنی E تلقی کرد.
 
 تاریخ بازآدیت: ۲۰۲۶-۰۹-۰۹ — دامنه: بندهای ۱۰۱ تا ۱۲۵، پس از اجرای بستهٔ اصلاحی کامل.
 
@@ -11,7 +29,7 @@
 این امتیاز بر مبنای کد، migration کامل روی PostgreSQL واقعی disposable، تست‌های منفی/race/retry، build تولیدی و ۲۰ کنترل reconciliation است. امتیاز محیط Production تا اجرای migration، اسکن دادهٔ واقعی و smoke عملیاتی همان محیط «تأییدنشده» است؛ آن را با امتیاز پیاده‌سازی یکی نمی‌کنیم.
 
 | بند | وضعیت پس از اصلاح | نمره |
-|---|---|---:|
+| --- | --- | ---: |
 | ۱۰۱ | state machine ترتیبی، fail-closed و precondition تحویل | ۱۰۰ |
 | ۱۰۲ | تبدیل lead، order، snapshot، audit و outbox در یک transaction | ۱۰۰ |
 | ۱۰۳ | unique business key روی lead و replay امن | ۱۰۰ |
@@ -91,7 +109,7 @@
 ## نمرهٔ هر بند
 
 | بند | محور | نمره از ۱۰۰ | شدت | اولویت |
-|---|---|---:|---|---|
+| --- | --- | ---: | --- | --- |
 | 101 | transition وضعیت سفارش | 45 | High | P1 |
 | 102 | تبدیل اتمیک lead به order | 25 | Critical | P0 |
 | 103 | یک سفارش برای هر lead در retry | 20 | Critical | P0 |

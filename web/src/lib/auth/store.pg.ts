@@ -6,7 +6,7 @@
 import { and, eq, ilike, lt, or, sql } from 'drizzle-orm';
 import { ulid } from 'ulid';
 
-import { getDb } from '@/lib/server/db/client';
+import { getDb, type DbOrTx } from '@/lib/server/db/client';
 import { users, refreshTokens, otpCodes, otpRateLimits, clubMemberships } from '@/lib/server/db/schema';
 import { likeContainsDigitVariants } from '@/lib/server/utils/likeEscape';
 import { randomInviteCode } from './crypto';
@@ -30,8 +30,8 @@ function toAuthUser(row: UserRow, clubTier?: 'iron' | 'steel' | 'poolad' | null)
   };
 }
 
-async function userWhere(cond: ReturnType<typeof eq>): Promise<AuthUser | null> {
-  const db = getDb();
+async function userWhere(cond: ReturnType<typeof eq>, tx?: DbOrTx): Promise<AuthUser | null> {
+  const db = tx ?? getDb();
   const rows = await db
     .select({ user: users, tier: clubMemberships.tier })
     .from(users)
@@ -44,12 +44,12 @@ async function userWhere(cond: ReturnType<typeof eq>): Promise<AuthUser | null> 
 }
 
 export const pgStore: AuthStore = {
-  userByMobile(mobile: string) {
-    return userWhere(eq(users.mobile, mobile));
+  userByMobile(mobile: string, tx?: DbOrTx) {
+    return userWhere(eq(users.mobile, mobile), tx);
   },
 
-  userById(id: string) {
-    return userWhere(eq(users.id, id));
+  userById(id: string, tx?: DbOrTx) {
+    return userWhere(eq(users.id, id), tx);
   },
 
   async createUser(input: CreateUserInput) {
@@ -70,8 +70,8 @@ export const pgStore: AuthStore = {
     return toAuthUser(inserted[0]!);
   },
 
-  async updateUser(id: string, patch: UserPatch) {
-    const db = getDb();
+  async updateUser(id: string, patch: UserPatch, tx?: DbOrTx) {
+    const db = tx ?? getDb();
     const set: Record<string, unknown> = {};
     if (patch.name !== undefined) set.name = patch.name;
     if (patch.firstName !== undefined) set.firstName = patch.firstName;
@@ -88,12 +88,18 @@ export const pgStore: AuthStore = {
     }
     if (Object.keys(set).length === 0) return this.userById(id);
     if (patch.role !== undefined || patch.isActive !== undefined) {
-      return db.transaction(async tx=>{
-        await tx.select({id:users.id}).from(users).where(eq(users.id,id)).for('update');
-        await tx.delete(refreshTokens).where(eq(refreshTokens.userId,id));
-        const updated=await tx.update(users).set(set).where(eq(users.id,id)).returning();
-        return updated[0]?toAuthUser(updated[0]):null;
-      });
+      // A caller-supplied `tx` already provides atomicity (and a caller that
+      // opened one is typically already holding — or about to take — its own
+      // lock on this row, e.g. the admin allowlist's last-admin count read;
+      // opening ANOTHER nested transaction here would just be redundant, not
+      // safer). Only self-manage a transaction when nobody handed us one.
+      const run = async (t: DbOrTx) => {
+        await t.select({ id: users.id }).from(users).where(eq(users.id, id)).for('update');
+        await t.delete(refreshTokens).where(eq(refreshTokens.userId, id));
+        const updated = await t.update(users).set(set).where(eq(users.id, id)).returning();
+        return updated[0] ? toAuthUser(updated[0]) : null;
+      };
+      return tx ? run(tx) : getDb().transaction(run);
     }
     const updated = await db.update(users).set(set).where(eq(users.id, id)).returning();
     return updated[0] ? toAuthUser(updated[0]) : null;

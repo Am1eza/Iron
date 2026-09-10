@@ -19,7 +19,7 @@ async function GETImpl(req: NextRequest) {
     status,
     page: Math.max(1, Number(p.get('page') ?? 1) || 1),
   });
-  return NextResponse.json(result);
+  return NextResponse.json(result, { headers: { 'Cache-Control': 'no-store' } });
 }
 
 export const GET = withApiErrorHandling(GETImpl);

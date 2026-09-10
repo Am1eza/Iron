@@ -4,10 +4,13 @@
  * mobile is listed, with exactly that row's role», proven against the real pg
  * store (pglite) through the REAL login flow.
  */
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import { createTestDb } from '@/test/db';
 import { requestOtp, verifyOtp } from '@/lib/auth/service';
 import { userByMobile } from '@/lib/auth/store';
+import { getDb } from '@/lib/server/db/client';
+import * as auditRepo from '@/lib/server/repos/auditRepo';
+import { audit } from '@/lib/server/utils/apiGuard';
 import {
   addToAllowlist,
   allowlistCount,
@@ -120,5 +123,27 @@ describe('admin allowlist (pg)', () => {
     await bootstrapAllowlist(['09121395954']);
     const res = await requestOtp('09121395954', undefined, true);
     expect(res.ttl).toBeGreaterThan(0);
+  });
+
+  it('G-160: a fault between the role grant and its audit row rolls BOTH back on real PostgreSQL, not just the audit row', async () => {
+    const mobile = '09135550099';
+    const { user } = await login(mobile);
+    expect(user.role).toBe('customer');
+
+    const writeAuditSpy = vi.spyOn(auditRepo, 'writeAudit').mockRejectedValueOnce(new Error('injected audit failure'));
+    await expect(
+      getDb().transaction(async (tx) => {
+        const result = await addToAllowlist(mobile, 'تزریق خطا', 'admin', user.id, tx);
+        await audit(user.id, 'admin_allowlist.add', { type: 'admin_allowlist', id: mobile }, undefined, result, tx);
+      }),
+    ).rejects.toThrow('injected audit failure');
+    writeAuditSpy.mockRestore();
+
+    // Neither half of the operation may have taken effect — not the registry
+    // row, not the user's role, not a tokenVersion bump.
+    expect(await allowlistedRole(mobile)).toBeNull();
+    const after = await userByMobile(mobile);
+    expect(after?.role).toBe('customer');
+    expect(after?.tokenVersion).toBe(user.tokenVersion);
   });
 });

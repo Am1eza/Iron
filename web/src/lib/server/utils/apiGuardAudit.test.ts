@@ -54,6 +54,28 @@ describe('audit()', () => {
   });
 });
 
+describe('audit(..., tx) — G-160: sensitive writes (role changes) share a transaction with their audit row', () => {
+  it('passes the tx through to writeAudit instead of using the pooled db', async () => {
+    const fakeTx = { __fakeTx: true } as never;
+    await audit('actor-1', 'user.update', { type: 'user', id: 'u-1' }, { role: 'sales' }, { role: 'admin' }, fakeTx);
+    expect(writeAudit).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'user.update', tx: fakeTx }),
+    );
+  });
+
+  it('propagates (does NOT swallow) an audit-insert failure when a tx is given — the opposite of the no-tx case above', async () => {
+    writeAudit.mockRejectedValueOnce(new Error('audit insert failed'));
+    const fakeTx = { __fakeTx: true } as never;
+    await expect(
+      audit('actor-1', 'user.update', { type: 'user', id: 'u-1' }, undefined, undefined, fakeTx),
+    ).rejects.toThrow('audit insert failed');
+    // Unlike the no-tx path, this must NOT be swallowed into a reportError —
+    // it needs to actually throw so the caller's db.transaction() rolls back
+    // the role change it was about to commit alongside this row.
+    expect(reportError).not.toHaveBeenCalled();
+  });
+});
+
 describe('request size errors at the API boundary', () => {
   it('returns 413 without flooding error reporting', async () => {
     const handler = withApiErrorHandling(() => {

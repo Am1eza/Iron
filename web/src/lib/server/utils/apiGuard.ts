@@ -9,7 +9,7 @@ import { getSessionVerified } from '@/lib/auth/session';
 import { can } from '@/lib/auth/roles';
 import type { AuthUser, Permission } from '@/lib/auth/types';
 import { assertSameOrigin } from '@/lib/auth/origin';
-import { hasDb } from '@/lib/server/db/client';
+import { hasDb, type DbOrTx } from '@/lib/server/db/client';
 import { writeAudit } from '@/lib/server/repos/auditRepo';
 import { reportError } from '@/lib/errors/report';
 import { BusinessRuleError } from './businessOperation';
@@ -74,6 +74,29 @@ export async function requireApiUser(
   return { session };
 }
 
+/**
+ * G-161 — role re-validation policy: the role check here reads the JWT ONCE,
+ * at the top of the request; nothing re-checks it before the handler's final
+ * write. That is safe ONLY because every admin route in this codebase is a
+ * single short request — one or a few DB round trips, no per-item sequential
+ * `await` loop, no long-lived stream — so "the role was valid when this
+ * request started" and "the role is still valid when it finishes" are, in
+ * practice, the same instant. A role/active-state change also bumps
+ * `tokenVersion` and revokes refresh tokens (store.pg.ts's `updateUser`), so
+ * the NEXT request from a demoted actor is rejected immediately — the
+ * exposure window is bounded by one in-flight request's duration, not by
+ * anything longer.
+ *
+ * This stops being true the moment an admin route does real per-item
+ * sequential I/O over a large batch (verified empirically at the time of
+ * writing: `grep`-checked every `for (const ...)` in `api/admin/**` — none
+ * contains an `await` inside the loop body; see docs/audit-rbac-panel-G.md
+ * §G-161). If you are adding one: re-fetch and re-check
+ * `can(session.role, permission)` immediately before the operation's
+ * irreversible step, not just at the top — the JWT claim from minutes
+ * earlier is no longer a safe stand-in for "this actor may still do this
+ * right now".
+ */
 export async function requireApiPermission(
   req: NextRequest,
   permission: Permission,
@@ -93,14 +116,20 @@ export async function requireApiPermission(
 /**
  * Audit an admin write — thin wrapper so handlers stay one-line.
  *
- * Never throws. Every caller runs this AFTER its write has committed, and
- * `withApiErrorHandling` turns anything thrown here into a generic 500 — so a
- * transient failure inserting the audit row reported «خطایی در سرور رخ داد» for
- * an operation that had fully succeeded. The admin then retries, gets a 404
- * (the product is already deleted, the slug is already taken), and has no way
- * to tell what actually happened. The row is gone either way; losing the trail
- * of who removed it is bad, and lying about the outcome on top of that is
- * worse. Reported instead, so the failure is visible where failures are read.
+ * Two modes, chosen by whether a `tx` is passed:
+ *
+ * - No `tx` (the default, and every pre-existing caller): never throws. The
+ *   write it records has ALREADY committed by the time this runs, and
+ *   `withApiErrorHandling` turns anything thrown here into a generic 500 — so
+ *   a transient failure inserting the audit row reported «خطایی در سرور رخ داد»
+ *   for an operation that had fully succeeded. Reported instead, so the
+ *   failure is visible where failures are read, without lying to the caller.
+ * - `tx` given: this call is expected to run BEFORE commit, inside the same
+ *   transaction as the write it records (see `users/[id]/route.ts`'s role
+ *   change for the canonical caller) — so a failure here MUST propagate and
+ *   roll back the state change too. Losing "who changed this sensitive
+ *   field" is worse than losing the change itself for something like a role
+ *   grant; unlike the no-tx case, nothing has committed yet to lie about.
  */
 export async function audit(
   actorId: string | null,
@@ -108,7 +137,12 @@ export async function audit(
   entity: { type: string; id: string },
   before?: unknown,
   after?: unknown,
+  tx?: DbOrTx,
 ): Promise<void> {
+  if (tx) {
+    await writeAudit({ actorId, action, entityType: entity.type, entityId: entity.id, before, after, tx });
+    return;
+  }
   try {
     await writeAudit({
       actorId,

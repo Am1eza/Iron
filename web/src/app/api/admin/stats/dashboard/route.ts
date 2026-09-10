@@ -14,7 +14,7 @@ async function GETImpl(req: NextRequest) {
 
   const raw = Number(req.nextUrl.searchParams.get('range'));
   const range = (DASHBOARD_RANGES as readonly number[]).includes(raw) ? (raw as DashboardRange) : 30;
-  return NextResponse.json(await dashboardStats(range));
+  return NextResponse.json(await dashboardStats(range), { headers: { 'Cache-Control': 'no-store' } });
 }
 
 export const GET = withApiErrorHandling(GETImpl);

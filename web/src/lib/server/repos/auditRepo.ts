@@ -1,7 +1,7 @@
 /** Audit log — append-only record of every admin/system write. */
 import { and, desc, eq, gte, lte, lt, or, type SQL } from 'drizzle-orm';
 import { ulid } from 'ulid';
-import { getDb } from '@/lib/server/db/client';
+import { getDb, type DbOrTx } from '@/lib/server/db/client';
 import { auditEntries, users } from '@/lib/server/db/schema';
 
 export type AuditRow = typeof auditEntries.$inferSelect;
@@ -18,8 +18,14 @@ export async function writeAudit(entry: {
   entityId: string;
   before?: unknown;
   after?: unknown;
+  /** Run inside the caller's own transaction (e.g. a role change) so the
+   *  audit row commits or rolls back atomically with the write it records,
+   *  instead of as a second, separately-committed statement. Defaults to the
+   *  pooled db — every existing caller that doesn't pass one keeps its
+   *  current (non-atomic, best-effort) behavior unchanged. */
+  tx?: DbOrTx;
 }): Promise<void> {
-  await getDb().insert(auditEntries).values({
+  await (entry.tx ?? getDb()).insert(auditEntries).values({
     id: ulid(),
     actorId: entry.actorId,
     action: entry.action,

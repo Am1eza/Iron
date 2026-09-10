@@ -8,7 +8,7 @@ async function GETImpl(req: NextRequest) {
   if (guard) return guard;
   const auth = await requireApiPermission(req, 'leads:read');
   if ('response' in auth) return auth.response;
-  return NextResponse.json(await cohortRetention());
+  return NextResponse.json(await cohortRetention(), { headers: { 'Cache-Control': 'no-store' } });
 }
 
 export const GET = withApiErrorHandling(GETImpl);

@@ -5,6 +5,7 @@ import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/
 import { addToAllowlist, allowlistCount, allowlistedRole, listAllowlist } from '@/lib/server/repos/adminAllowlistRepo';
 import { revokeAllForUser } from '@/lib/auth/store';
 import { normalizeDigits } from '@/lib/utils/format';
+import { getDb } from '@/lib/server/db/client';
 
 /** GET /api/admin/allowlist — who may hold the admin role (joined with users). */
 async function GETImpl(req: NextRequest) {
@@ -12,7 +13,7 @@ async function GETImpl(req: NextRequest) {
   if (guard) return guard;
   const auth = await requireApiPermission(req, 'users:manage');
   if ('response' in auth) return auth.response;
-  return NextResponse.json({ entries: await listAllowlist() });
+  return NextResponse.json({ entries: await listAllowlist() }, { headers: { 'Cache-Control': 'no-store' } });
 }
 
 const payload = z.object({
@@ -48,22 +49,27 @@ async function POSTImpl(req: NextRequest) {
     }
   }
 
-  const { promotedUserId } = await addToAllowlist(
-    v.data.mobile,
-    v.data.label ?? null,
-    v.data.role,
-    auth.session.id,
-  );
+  // Registry row, user role bump, and the audit row all commit as one unit
+  // (G-160) — a failure anywhere in here rolls the whole grant back instead
+  // of leaving the registry, the live user account, and the audit trail
+  // disagreeing about whether it happened.
+  const { promotedUserId } = await getDb().transaction(async (tx) => {
+    const result = await addToAllowlist(v.data.mobile, v.data.label ?? null, v.data.role, auth.session.id, tx);
+    await audit(
+      auth.session.id,
+      'admin_allowlist.add',
+      { type: 'admin_allowlist', id: v.data.mobile },
+      undefined,
+      { mobile: v.data.mobile, label: v.data.label ?? null, role: v.data.role, promotedUserId: result.promotedUserId },
+      tx,
+    );
+    return result;
+  });
   // A grant/re-role invalidates the target's existing sessions so their NEXT
   // request carries the new role via a fresh login/refresh, not a stale JWT.
+  // Redundant with addToAllowlist's own updateUser call (already did this
+  // inside the same transaction above) — kept as defense-in-depth.
   if (promotedUserId) await revokeAllForUser(promotedUserId);
-  await audit(
-    auth.session.id,
-    'admin_allowlist.add',
-    { type: 'admin_allowlist', id: v.data.mobile },
-    undefined,
-    { mobile: v.data.mobile, label: v.data.label ?? null, role: v.data.role, promotedUserId },
-  );
   return NextResponse.json({ entries: await listAllowlist() }, { status: 201 });
 }
 

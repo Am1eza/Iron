@@ -28,7 +28,9 @@ import { routes } from '@/lib/routes';
 function back(req: NextRequest, outcome: string): NextResponse {
   const url = new URL(routes.admin.seo(), req.nextUrl.origin);
   url.searchParams.set('searchConsole', outcome);
-  return NextResponse.redirect(url);
+  const res = NextResponse.redirect(url);
+  res.headers.set('Cache-Control', 'no-store');
+  return res;
 }
 
 async function GETImpl(req: NextRequest) {
