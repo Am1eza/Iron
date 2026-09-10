@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api/resources/admin';
+import { OrderFulfillmentPanel } from './OrderFulfillmentPanel';
 import { SHIPMENT_STEPS } from '@/lib/types/domain';
 import type { Order } from '@/lib/types/domain';
 import { toPersianDigits } from '@/lib/utils/format';
@@ -165,7 +166,7 @@ export function OrdersManager() {
     // both facts belong in the confirm body, not just the button label.
     void confirm({
       title: `پیشروی به «${next.label}»؟`,
-      body: `وضعیت سفارش ${order.ref} به «${next.label}» تغییر می‌کند و همان لحظه پیامک اطلاع‌رسانی برای مشتری ارسال می‌شود. این تغییر قابل بازگشت نیست.`,
+      body: `وضعیت سفارش ${order.ref} به «${next.label}» تغییر می‌کند و پیامک اطلاع‌رسانی برای ارسال در صف قرار می‌گیرد. این تغییر قابل بازگشت نیست.`,
       confirmLabel: 'تغییر و اطلاع به مشتری',
     }).then((ok) => {
       if (ok) advance.mutate({ ref: order.ref, next: next.key });
@@ -306,7 +307,7 @@ export function OrdersManager() {
                         مرحلهٔ بعد: {next.label}
                       </Button>
                     ) : null}
-                    {!o.cancelled && canManageOrders ? (
+                    {!o.cancelled && canManageOrders && !['in_transit','delivered'].includes(o.status) ? (
                       <Button
                         size="sm"
                         variant="ghost"
@@ -328,10 +329,11 @@ export function OrdersManager() {
                     (`aria-label`), same muted/frozen treatment for a
                     cancelled shipment — a rep and a customer should never
                     read two different stories about the same order. */}
-                <OrderTimeline status={o.status} cancelled={Boolean(o.cancelled)} />
+                <OrderTimeline status={o.status} cancelled={Boolean(o.cancelled)} events={o.events} />
                 {!o.cancelled ? (
                   <ShippingFields order={o} disabled={!canAct} onSmsResult={onShippingSmsResult} />
                 ) : null}
+                {!o.cancelled && canAct ? <OrderFulfillmentPanel order={o} /> : null}
                 <p className={ui.muted}>
                   {o.items.map((it) => `${it.name} × ${toPersianDigits(it.qty)}`).join(' · ') || 'بدون قلم'}
                 </p>

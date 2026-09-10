@@ -157,9 +157,8 @@ export const adminAllowlist = pgTable(
 );
 
 /** One active OTP per mobile (upsert semantics, matches `setOtp`).
- *  prev_* keep the previous still-unexpired code valid through a resend —
- *  SMS delivery to Iranian MVNOs can lag ~5 minutes, and without this the
- *  resend invalidates the code that then arrives. */
+ * Legacy prev_* columns remain nullable for migration compatibility; the
+ * service never writes or accepts them, so a resend invalidates the old code. */
 export const otpCodes = pgTable('otp_codes', {
   mobile: text('mobile').primaryKey(),
   codeHash: text('code_hash').notNull(),

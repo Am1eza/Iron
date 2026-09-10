@@ -4,7 +4,6 @@ import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { can } from '@/lib/auth/roles';
 import { adminListWarehouse, createWarehouseItem } from '@/lib/server/repos/ordersRepo';
-import { updateRequestStatus } from '@/lib/server/repos/requestsRepo';
 import { userByMobile, createUser } from '@/lib/auth/store';
 import { nextRef } from '@/lib/server/utils/refs';
 import { finiteNumber } from '@/lib/validation/utils';
@@ -31,6 +30,7 @@ async function GETImpl(req: NextRequest) {
 }
 
 const createPayload = z.object({
+  operationId: z.string().min(8).max(100),
   mobile: z.string().regex(/^09\d{9}$/, 'شمارهٔ موبایل نامعتبر است.'),
   // W20: if the mobile doesn't resolve to an existing account, `customerName`
   // (when present) registers a new customer on the spot — a walk-in who
@@ -89,6 +89,7 @@ async function POSTImpl(req: NextRequest) {
   const ref = await nextRef('WH');
   const item = await createWarehouseItem({
     ref,
+    operationId: `${auth.session.id}:${v.data.operationId}`,
     userId: owner.id,
     product: v.data.product,
     sizeLabel: v.data.sizeLabel,
@@ -104,14 +105,6 @@ async function POSTImpl(req: NextRequest) {
     requestId: v.data.requestId,
     actorId: auth.session.id,
   });
-  // W21: the piece that was missing entirely — a warehouse item created
-  // FROM a request (via the admin intake queue) must close the loop on that
-  // request, or it sits "submitted" forever even after the goods physically
-  // arrived. Best-effort: a bad/stale requestId just no-ops (updateRequestStatus
-  // returns null), it must never fail the intake itself.
-  if (v.data.requestId) {
-    await updateRequestStatus(v.data.requestId, 'fulfilled');
-  }
   await audit(auth.session.id, 'warehouse.create', { type: 'warehouseItem', id: item.id }, null, {
     ...v.data,
     customerId: owner.id,

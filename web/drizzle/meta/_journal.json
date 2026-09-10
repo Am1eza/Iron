@@ -414,6 +414,20 @@
       "when": 1788939842488,
       "tag": "0058_demonic_sugar_man",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1789019209104,
+      "tag": "0059_curly_phalanx",
+      "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1789019223013,
+      "tag": "0060_operations_integrity",
+      "breakpoints": true
     }
   ]
 }

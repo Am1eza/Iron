@@ -86,7 +86,7 @@ export function TrackLookup() {
               </Text>
             </Cluster>
 
-            <OrderTimeline status={order.status} />
+            <OrderTimeline events={order.events} status={order.status} />
 
             <Stack gap={1}>
               {order.items.map((it) => (

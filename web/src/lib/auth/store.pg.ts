@@ -14,6 +14,7 @@ import type { AuthUser } from './types';
 import type { AuthStore, CreateUserInput, ListUsersQuery, UserPatch } from './store.types';
 
 type UserRow = typeof users.$inferSelect;
+const MAX_SESSION_FAMILIES = 5;
 
 function toAuthUser(row: UserRow, clubTier?: 'iron' | 'steel' | 'poolad' | null): AuthUser {
   return {
@@ -86,6 +87,14 @@ export const pgStore: AuthStore = {
       set.tokenVersion = sql`${users.tokenVersion} + 1`;
     }
     if (Object.keys(set).length === 0) return this.userById(id);
+    if (patch.role !== undefined || patch.isActive !== undefined) {
+      return db.transaction(async tx=>{
+        await tx.select({id:users.id}).from(users).where(eq(users.id,id)).for('update');
+        await tx.delete(refreshTokens).where(eq(refreshTokens.userId,id));
+        const updated=await tx.update(users).set(set).where(eq(users.id,id)).returning();
+        return updated[0]?toAuthUser(updated[0]):null;
+      });
+    }
     const updated = await db.update(users).set(set).where(eq(users.id, id)).returning();
     return updated[0] ? toAuthUser(updated[0]) : null;
   },
@@ -120,12 +129,36 @@ export const pgStore: AuthStore = {
 
   async saveRefresh(hash, record) {
     const db = getDb();
-    await db.insert(refreshTokens).values({
-      tokenHash: hash,
-      userId: record.userId,
-      expiresAt: record.expiresAt,
-      familyId: record.familyId ?? null,
-      parentHash: record.parentHash ?? null,
+    await db.transaction(async tx => {
+      await tx.select({ id: users.id }).from(users).where(eq(users.id, record.userId)).for('update');
+      if (!record.parentHash) {
+        const rows = await tx.select({
+          tokenHash: refreshTokens.tokenHash,
+          familyId: refreshTokens.familyId,
+          expiresAt: refreshTokens.expiresAt,
+        }).from(refreshTokens).where(and(
+          eq(refreshTokens.userId, record.userId),
+          sql`${refreshTokens.expiresAt} > ${Date.now()}`,
+        ));
+        const families = new Map<string, number>();
+        for (const row of rows) {
+          const family = row.familyId ?? row.tokenHash;
+          families.set(family, Math.min(families.get(family) ?? Infinity, row.expiresAt));
+        }
+        if (families.size >= MAX_SESSION_FAMILIES) {
+          const oldest = [...families].sort((a, b) => a[1] - b[1])[0]?.[0];
+          if (oldest) await tx.delete(refreshTokens).where(or(
+            eq(refreshTokens.familyId, oldest), eq(refreshTokens.tokenHash, oldest),
+          ));
+        }
+      }
+      await tx.insert(refreshTokens).values({
+        tokenHash: hash,
+        userId: record.userId,
+        expiresAt: record.expiresAt,
+        familyId: record.familyId ?? null,
+        parentHash: record.parentHash ?? null,
+      });
     });
   },
 
@@ -175,6 +208,29 @@ export const pgStore: AuthStore = {
       rotatedAt: rec.rotatedAt ?? undefined,
     };
   },
+  async rotateRefreshAtomic(parentHash, childHash, child, now, graceMs, enforceReuse) {
+    return getDb().transaction(async tx=>{
+      const [hint]=await tx.select({userId:refreshTokens.userId}).from(refreshTokens).where(eq(refreshTokens.tokenHash,parentHash));
+      if(!hint)return {status:'invalid'} as const;
+      await tx.select({id:users.id}).from(users).where(eq(users.id,hint.userId)).for('update');
+      const [parent]=await tx.select().from(refreshTokens).where(eq(refreshTokens.tokenHash,parentHash)).for('update');
+      if(!parent||parent.expiresAt<=now)return {status:'invalid'} as const;
+      const family=parent.familyId??parentHash;
+      const record={userId:parent.userId,expiresAt:parent.expiresAt,familyId:parent.familyId??undefined,parentHash:parent.parentHash??undefined,rotatedAt:parent.rotatedAt??undefined};
+      if(parent.rotatedAt===null){
+        await tx.update(refreshTokens).set({rotatedAt:now}).where(eq(refreshTokens.tokenHash,parentHash));
+        await tx.insert(refreshTokens).values({tokenHash:childHash,userId:parent.userId,expiresAt:Math.min(child.expiresAt,parent.expiresAt),familyId:family,parentHash});
+        return {status:'claimed',record} as const;
+      }
+      const age=now-parent.rotatedAt;
+      if(age>=0&&age<=graceMs){
+        await tx.insert(refreshTokens).values({tokenHash:childHash,userId:parent.userId,expiresAt:Math.min(child.expiresAt,parent.expiresAt),familyId:family,parentHash});
+        return {status:'grace',record} as const;
+      }
+      if(enforceReuse)await tx.delete(refreshTokens).where(or(eq(refreshTokens.familyId,family),eq(refreshTokens.tokenHash,family)));
+      return {status:'reuse',record} as const;
+    });
+  },
 
   async revokeRefresh(hash) {
     await getDb().delete(refreshTokens).where(eq(refreshTokens.tokenHash, hash));
@@ -185,9 +241,13 @@ export const pgStore: AuthStore = {
     // has family_id NULL, and rotateRefresh names such a lineage after the
     // token's own hash — without this the pre-migration root would survive
     // the very revocation it triggered.
-    await getDb()
-      .delete(refreshTokens)
-      .where(or(eq(refreshTokens.familyId, familyId), eq(refreshTokens.tokenHash, familyId)));
+    await getDb().transaction(async tx=>{
+      const [hint]=await tx.select({userId:refreshTokens.userId}).from(refreshTokens)
+        .where(or(eq(refreshTokens.familyId,familyId),eq(refreshTokens.tokenHash,familyId))).limit(1);
+      if(!hint)return;
+      await tx.select({id:users.id}).from(users).where(eq(users.id,hint.userId)).for('update');
+      await tx.delete(refreshTokens).where(or(eq(refreshTokens.familyId, familyId), eq(refreshTokens.tokenHash, familyId)));
+    });
   },
 
   async revokeAllForUser(userId) {
@@ -195,9 +255,11 @@ export const pgStore: AuthStore = {
   },
 
   async revokeSessionsForUser(userId) {
-    const db = getDb();
-    await db.delete(refreshTokens).where(eq(refreshTokens.userId, userId));
-    await db.update(users).set({ tokenVersion: sql`${users.tokenVersion} + 1` }).where(eq(users.id, userId));
+    await getDb().transaction(async tx=>{
+      await tx.select({id:users.id}).from(users).where(eq(users.id,userId)).for('update');
+      await tx.delete(refreshTokens).where(eq(refreshTokens.userId, userId));
+      await tx.update(users).set({ tokenVersion: sql`${users.tokenVersion} + 1` }).where(eq(users.id, userId));
+    });
   },
 
   async setOtp(mobile, record) {
@@ -232,6 +294,13 @@ export const pgStore: AuthStore = {
 
   async clearOtp(mobile) {
     await getDb().delete(otpCodes).where(eq(otpCodes.mobile, mobile));
+  },
+  async consumeOtp(mobile, hash, expiresAt) {
+    const rows = await getDb().delete(otpCodes).where(and(
+      eq(otpCodes.mobile, mobile), eq(otpCodes.codeHash, hash),
+      eq(otpCodes.expiresAt, expiresAt), sql`${otpCodes.expiresAt} > ${Date.now()}`,
+    )).returning({ mobile: otpCodes.mobile });
+    return rows.length === 1;
   },
 
   async incrementOtpAttempts(mobile) {
@@ -279,6 +348,19 @@ export const pgStore: AuthStore = {
         target: otpRateLimits.mobile,
         set: { sends: record.sends, lockedUntil: record.lockedUntil ?? null },
       });
+  },
+  async claimOtpSend(mobile, now, cooldownMs, windowMs, maxSends, combinedKey) {
+    return getDb().transaction(async tx => {
+      const keys=[mobile,...(combinedKey?[combinedKey]:[])].sort();
+      for(const key of keys)await tx.insert(otpRateLimits).values({mobile:key,sends:[]}).onConflictDoNothing();
+      const rows=[];for(const key of keys){const [row]=await tx.select().from(otpRateLimits).where(eq(otpRateLimits.mobile,key)).for('update');rows.push(row!);}
+      for(const current of rows){const sends=current.sends.filter(t=>now-t<windowMs),last=sends.at(-1);
+        if(current.lockedUntil&&current.lockedUntil>now)return {ok:false,reason:'locked',retryAfter:Math.ceil((current.lockedUntil-now)/1000)} as const;
+        if(last&&now-last<cooldownMs)return {ok:false,reason:'cooldown',retryAfter:Math.ceil((cooldownMs-(now-last))/1000)} as const;
+        if(sends.length>=maxSends)return {ok:false,reason:'too_many',retryAfter:Math.ceil(windowMs/1000)} as const;}
+      for(const current of rows)await tx.update(otpRateLimits).set({sends:[...current.sends.filter(t=>now-t<windowMs),now]}).where(eq(otpRateLimits.mobile,current.mobile));
+      return {ok:true} as const;
+    });
   },
 
   async clearRate(mobile) {

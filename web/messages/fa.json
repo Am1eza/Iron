@@ -1263,7 +1263,9 @@
       "currentStageTag": "(مرحله فعلی)",
       "cancelledNote": "این سفارش لغو شد؛ تا مرحلهٔ «{stage}» پیش رفته بود.",
       "ariaCancelled": "سفارش لغوشده: تا مرحلهٔ {stage}",
-      "ariaActive": "وضعیت سفارش: {stage}"
+      "ariaActive": "وضعیت سفارش: {stage}",
+      "eventHistoryLabel": "تاریخچهٔ واقعی سفارش",
+      "noEventHistory": "تاریخچهٔ جزئی مراحل برای این سفارش ثبت نشده است."
     },
     "orders": {
       "empty": {
@@ -1310,7 +1312,9 @@
         "stored": "نگهداری‌شده",
         "selling": "در حال فروش",
         "released": "تحویل‌شده"
-      }
+      },
+      "prevPage": "صفحهٔ قبل",
+      "nextPage": "صفحهٔ بعد"
     },
     "favorites": {
       "loading": "در حال بارگذاری…",

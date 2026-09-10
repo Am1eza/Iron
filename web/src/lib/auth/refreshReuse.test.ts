@@ -186,8 +186,8 @@ describe('reuse detection', () => {
   });
 });
 
-describe('detect-only is the default and is externally identical to the old behaviour', () => {
-  it('reports the reuse but leaves the family alive', async () => {
+describe('reuse policy defaults', () => {
+  it('enforces reuse detection by default and revokes the family', async () => {
     process.env.REFRESH_REUSE_GRACE_SECONDS = '0';
     const { tokens } = await login();
     const live = await rotateRefresh(tokens.refreshToken);
@@ -196,7 +196,7 @@ describe('detect-only is the default and is externally identical to the old beha
     await expect(rotateRefresh(tokens.refreshToken)).rejects.toBeInstanceOf(AuthError);
     // …and the session it belongs to is untouched. Nobody is logged out by a
     // heuristic that has not yet been observed in production.
-    await expect(rotateRefresh(live.tokens.refreshToken)).resolves.toBeTruthy();
+    await expect(rotateRefresh(live.tokens.refreshToken)).rejects.toBeInstanceOf(AuthError);
   });
 
   it('off: no revocation and no report', async () => {
@@ -208,13 +208,13 @@ describe('detect-only is the default and is externally identical to the old beha
     await expect(rotateRefresh(live.tokens.refreshToken)).resolves.toBeTruthy();
   });
 
-  it('an unknown REFRESH_REUSE_DETECTION value falls back to detect, never to enforce', async () => {
+  it('an unknown REFRESH_REUSE_DETECTION value fails safe to enforce', async () => {
     process.env.REFRESH_REUSE_DETECTION = 'ENFORCE_MAYBE';
     process.env.REFRESH_REUSE_GRACE_SECONDS = '0';
     const { tokens } = await login();
     const live = await rotateRefresh(tokens.refreshToken);
     await expect(rotateRefresh(tokens.refreshToken)).rejects.toBeInstanceOf(AuthError);
-    await expect(rotateRefresh(live.tokens.refreshToken)).resolves.toBeTruthy();
+    await expect(rotateRefresh(live.tokens.refreshToken)).rejects.toBeInstanceOf(AuthError);
   });
 });
 

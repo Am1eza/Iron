@@ -12,17 +12,21 @@ import type {
   ListUsersQuery,
   OtpRecord,
   RateRecord,
+  OtpSendClaim,
+  RefreshRotation,
   RefreshRecord,
   UserPatch,
 } from './store.types';
 import { memoryStore } from './store.memory';
 import { pgStore } from './store.pg';
 
-export type { CreateUserInput, OtpRecord, RateRecord, RefreshRecord, UserPatch, ListUsersQuery };
+export type { CreateUserInput, OtpRecord, RateRecord, OtpSendClaim, RefreshRecord, RefreshRotation, UserPatch, ListUsersQuery };
 
 /** Resolved per call so tests can swap the DB (pglite) at runtime. */
 function store(): AuthStore {
-  return hasDb() ? pgStore : memoryStore;
+  if (hasDb()) return pgStore;
+  if (process.env.NODE_ENV === 'production') throw new Error('Auth database is required in production.');
+  return memoryStore;
 }
 
 /* ----------------------------- users ----------------------------- */
@@ -53,6 +57,9 @@ export function findRefresh(hash: string): Promise<RefreshRecord | null> {
 export function claimRefresh(hash: string, rotatedAt: number): Promise<RefreshRecord | null> {
   return store().claimRefresh(hash, rotatedAt);
 }
+export function rotateRefreshAtomic(parentHash: string, childHash: string, child: RefreshRecord, now: number, graceMs: number, enforceReuse: boolean) {
+  return store().rotateRefreshAtomic(parentHash, childHash, child, now, graceMs, enforceReuse);
+}
 export function revokeRefresh(hash: string): Promise<void> {
   return store().revokeRefresh(hash);
 }
@@ -80,6 +87,9 @@ export function getOtp(mobile: string): Promise<OtpRecord | null> {
 export function clearOtp(mobile: string): Promise<void> {
   return store().clearOtp(mobile);
 }
+export function consumeOtp(mobile: string, hash: string, expiresAt: number): Promise<boolean> {
+  return store().consumeOtp(mobile, hash, expiresAt);
+}
 export function incrementOtpAttempts(mobile: string): Promise<OtpRecord | null> {
   return store().incrementOtpAttempts(mobile);
 }
@@ -90,6 +100,9 @@ export function getRate(mobile: string): Promise<RateRecord> {
 }
 export function setRate(mobile: string, record: RateRecord): Promise<void> {
   return store().setRate(mobile, record);
+}
+export function claimOtpSend(mobile: string, now: number, cooldownMs: number, windowMs: number, maxSends: number, combinedKey?: string) {
+  return store().claimOtpSend(mobile, now, cooldownMs, windowMs, maxSends, combinedKey);
 }
 export function clearRate(mobile: string): Promise<void> {
   return store().clearRate(mobile);

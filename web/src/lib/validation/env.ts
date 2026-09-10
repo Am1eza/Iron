@@ -87,6 +87,8 @@ const serverSchema = z
     BRSAPI_URL: z.string().optional(),
     OUNCE_API_URL: z.string().optional(),
     SESSION_SECRET: z.string().optional(),
+    SESSION_SECRET_PREVIOUS: z.string().optional(),
+    OTP_SECRET: z.string().optional(),
     DATABASE_URL: z.string().optional(),
     // Defaults to enforced. A security gate must not turn itself off just
     // because a deployment target forgot to set it — see proxy.ts.
@@ -118,7 +120,7 @@ const serverSchema = z
   // degrade without blocking boot.
   .superRefine((env, ctx) => {
     if (publicEnv.NEXT_PUBLIC_API_MODE === 'live') {
-      for (const key of ['DATABASE_URL', 'SESSION_SECRET'] as const) {
+      for (const key of ['DATABASE_URL', 'SESSION_SECRET', 'OTP_SECRET'] as const) {
         if (!env[key]) {
           ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: `${key} در حالت live الزامی است.` });
         }

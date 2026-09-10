@@ -93,6 +93,7 @@ async function GETImpl(req: NextRequest) {
 }
 
 const payload = z.object({
+  operationId: z.string().min(8).max(100),
   warehouseItemId: z.string().min(1),
   periodTo: z.string().datetime().optional(),
   note: z.string().trim().max(500).optional(),
@@ -121,6 +122,7 @@ async function POSTImpl(req: NextRequest) {
     settlement = await createSettlement(v.data.warehouseItemId, auth.session.id, {
       periodTo: v.data.periodTo ? new Date(v.data.periodTo) : undefined,
       note: v.data.note,
+      operationId: `${auth.session.id}:${v.data.operationId}`,
     });
   } catch (err) {
     if (err instanceof NothingToSettleError) {

@@ -75,11 +75,10 @@ async function addOrder(leadId: string, userId?: string) {
 beforeAll(async () => {
   ({ db, close } = await createTestDb());
 
-  // ONE won 'cart' lead carrying 3 proformas and 3 orders — the exact shape
-  // that produced "3 leads / 3 won" and a 3×3=9-row funnel blow-up live.
+  // Quote revisions may be many, while conversion is one order per lead.
   const heavy = await makeLead({ source: 'cart', status: 'won' });
   for (let i = 0; i < 3; i++) await addProforma(heavy);
-  for (let i = 0; i < 3; i++) await addOrder(heavy);
+  await addOrder(heavy);
 
   // A second, plain lead with no children — proves the fix doesn't
   // under-count the ordinary case while removing the inflation.
@@ -125,8 +124,7 @@ describe('marketingStats — per-lead aggregates never fan out (W28)', () => {
 
   it('does not square the funnel when a lead has BOTH proformas and orders', async () => {
     const { funnel } = await marketingStats(90);
-    // Old SQL: 3 proformas × 3 orders = 9 rows for the heavy lead, +1 for the
-    // plain one = 10. True answer is 2 leads.
+    // Old SQL still fans this lead out across its three proformas.
     expect(funnel.leads).toBe(2);
     expect(funnel.proformas).toBe(1);
     expect(funnel.orders).toBe(1);

@@ -26,14 +26,16 @@ export type OtpRecord = {
   expiresAt: number;
   attempts: number;
   name?: string; // captured at request time for first-login registration
-  /** The PREVIOUS still-unexpired code, kept valid through a resend. SMS
-   *  delivery to Iranian MVNOs can lag ~5 minutes; without this, a resend
-   *  invalidates the code that then arrives and the user can never log in. */
+  /** Legacy migration fields; current service neither writes nor accepts them. */
   prevHash?: string;
   prevExpiresAt?: number;
 };
 
 export type RateRecord = { sends: number[]; lockedUntil?: number };
+export type OtpSendClaim = { ok: true } | { ok: false; reason: 'locked' | 'cooldown' | 'too_many'; retryAfter: number };
+export type RefreshRotation =
+  | { status: 'claimed' | 'grace' | 'reuse'; record: RefreshRecord }
+  | { status: 'invalid' };
 
 export type UserPatch = Partial<Pick<AuthUser, 'name' | 'firstName' | 'lastName' | 'role' | 'mobile'>> & {
   isActive?: boolean;
@@ -75,6 +77,7 @@ export interface AuthStore {
    * rotation. See auth/service.ts#rotateRefresh for the race analysis.
    */
   claimRefresh(hash: string, rotatedAt: number): Promise<RefreshRecord | null>;
+  rotateRefreshAtomic(parentHash: string, childHash: string, child: RefreshRecord, now: number, graceMs: number, enforceReuse: boolean): Promise<RefreshRotation>;
   revokeRefresh(hash: string): Promise<void>;
   /** Kill an entire rotation lineage (reuse detected / logout). */
   revokeFamily(familyId: string): Promise<void>;
@@ -92,6 +95,7 @@ export interface AuthStore {
   setOtp(mobile: string, record: OtpRecord): Promise<void>;
   getOtp(mobile: string): Promise<OtpRecord | null>;
   clearOtp(mobile: string): Promise<void>;
+  consumeOtp(mobile: string, hash: string, expiresAt: number): Promise<boolean>;
   /** Atomically increments the attempt counter and returns the updated
    *  record (hash/expiresAt/name included, so callers don't need a separate
    *  getOtp round trip) in one shot — no read-then-write window where
@@ -102,6 +106,7 @@ export interface AuthStore {
 
   getRate(mobile: string): Promise<RateRecord>;
   setRate(mobile: string, record: RateRecord): Promise<void>;
+  claimOtpSend(mobile: string, now: number, cooldownMs: number, windowMs: number, maxSends: number, combinedKey?: string): Promise<OtpSendClaim>;
   clearRate(mobile: string): Promise<void>;
 
   /** Purge expired OTPs / refresh tokens / stale rate rows (cleanup job). */

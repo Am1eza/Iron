@@ -41,3 +41,19 @@ describe('revokeSessionsForUser', () => {
     expect(after?.tokenVersion).toBe(2);
   });
 });
+
+describe('active session family cap', () => {
+  it('keeps at most five login families and evicts the oldest atomically', async () => {
+    const user = await createUser({ mobile: '09135000097' });
+    const base = Date.now() + 60_000;
+    for (let i = 1; i <= 6; i++) {
+      await saveRefresh(`family-${i}`, {
+        userId: user.id,
+        expiresAt: base + i,
+        familyId: `family-${i}`,
+      });
+    }
+    expect(await findRefresh('family-1')).toBeNull();
+    for (let i = 2; i <= 6; i++) expect(await findRefresh(`family-${i}`)).not.toBeNull();
+  });
+});

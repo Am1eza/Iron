@@ -1263,7 +1263,9 @@
       "currentStageTag": "(current stage)",
       "cancelledNote": "This order was cancelled; it had reached the \"{stage}\" stage.",
       "ariaCancelled": "Cancelled order: reached the {stage} stage",
-      "ariaActive": "Order status: {stage}"
+      "ariaActive": "Order status: {stage}",
+      "eventHistoryLabel": "Order event history",
+      "noEventHistory": "No detailed stage history has been recorded for this order."
     },
     "orders": {
       "empty": {
@@ -1310,7 +1312,9 @@
         "stored": "Stored",
         "selling": "Selling",
         "released": "Released"
-      }
+      },
+      "prevPage": "Previous page",
+      "nextPage": "Next page"
     },
     "favorites": {
       "loading": "Loading…",

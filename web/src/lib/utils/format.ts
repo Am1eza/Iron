@@ -143,7 +143,9 @@ export function formatMovement(pct: number | undefined, locale: string = 'fa'): 
 
 /** Iranian mobile validation/normalization → 09XXXXXXXXX (or null). */
 export function normalizeMobile(input: string): string | null {
-  const digits = normalizeDigits(input).replace(/[^\d+]/g, '');
+  const normalized = normalizeDigits(input).trim();
+  if (!/^(?:\+?\d[\d\s()-]*|\d[\d\s()-]*)$/.test(normalized)) return null;
+  const digits = normalized.replace(/[\s()-]/g, '');
   const m = digits.replace(/^(\+98|0098|98)/, '0');
   return /^09\d{9}$/.test(m) ? m : null;
 }

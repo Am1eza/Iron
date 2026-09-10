@@ -6,7 +6,7 @@ import { favoritesForUser } from '@/lib/server/repos/favoritesRepo';
 import { alertsForUser } from '@/lib/server/repos/alertsRepo';
 import { clubStatus } from '@/lib/server/repos/clubRepo';
 import { leadsForUser, leadItemsOfMany, proformasOfLeads, toLineItem } from '@/lib/server/repos/leadsRepo';
-import { ordersForUser, warehouseForUser } from '@/lib/server/repos/ordersRepo';
+import { exportOrderWarehouse, warehouseForUser } from '@/lib/server/repos/ordersRepo';
 import { requestsForUser } from '@/lib/server/repos/requestsRepo';
 import { settlementsForUser } from '@/lib/server/repos/warehouseSettlementsRepo';
 import { rateLimit } from '@/lib/server/utils/rateLimit';
@@ -32,14 +32,14 @@ async function GETImpl(req: NextRequest) {
   if ('response' in auth) return auth.response;
   const { session } = auth;
 
-  const [user, favorites, alerts, club, leadRows, orders, warehouseItems, warehouseSettlements, requests] = await Promise.all([
+  const [user, favorites, alerts, club, leadRows, orders, _warehouseItems, warehouseSettlements, requests] = await Promise.all([
     userById(session.id),
     favoritesForUser(session.id),
     alertsForUser(session.id),
     clubStatus(session.id),
     // Export wants everything in one go — request the max page size.
     leadsForUser(session.id, session.mobile, 1, 100).then((r) => r.rows),
-    ordersForUser(session.id, 1, 100).then((r) => r.rows),
+    exportOrderWarehouse(session.id),
     warehouseForUser(session.id),
     // W20: was missing entirely — a customer's warehouse billing history is
     // unambiguously their own personal data (the table exists specifically
@@ -48,6 +48,7 @@ async function GETImpl(req: NextRequest) {
     requestsForUser(session.id, 1, 100).then((r) => r.rows),
   ]);
 
+  void _warehouseItems;
   // Two queries for the whole export rather than two per lead — this endpoint
   // is unbounded by design (it must return everything the user has), so the
   // per-lead version scaled directly with how long the customer has been here.
@@ -76,8 +77,11 @@ async function GETImpl(req: NextRequest) {
       alerts,
       club,
       leads,
-      orders,
-      warehouseItems,
+      orders: orders.orders,
+      warehouseMovements: orders.movements,
+      warehouseCashEntries: orders.cash,
+      warehouseWithdrawals: orders.withdrawals,
+      warehouseItems: orders.warehouseItems,
       warehouseSettlements,
       requests,
     },

@@ -1263,7 +1263,9 @@
       "currentStageTag": "(المرحلة الحالية)",
       "cancelledNote": "أُلغي هذا الطلب؛ وكان قد وصل إلى مرحلة «{stage}».",
       "ariaCancelled": "طلب ملغى: وصل إلى مرحلة {stage}",
-      "ariaActive": "حالة الطلب: {stage}"
+      "ariaActive": "حالة الطلب: {stage}",
+      "eventHistoryLabel": "سجل أحداث الطلب",
+      "noEventHistory": "لم يتم تسجيل سجل مفصل لمراحل هذا الطلب."
     },
     "orders": {
       "empty": {
@@ -1310,7 +1312,9 @@
         "stored": "مخزَّن",
         "selling": "قيد البيع",
         "released": "تم التسليم"
-      }
+      },
+      "prevPage": "الصفحة السابقة",
+      "nextPage": "الصفحة التالية"
     },
     "favorites": {
       "loading": "جارٍ التحميل…",

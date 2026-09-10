@@ -104,6 +104,7 @@ export default defineConfig({
         NEXT_PUBLIC_API_MODE: 'live',
         NEXT_PUBLIC_SITE_URL: BASE_URL,
         SESSION_SECRET: 'e2e-test-session-secret-not-for-real-use-0000',
+        OTP_SECRET: 'e2e-test-otp-secret-not-for-real-use-00000000',
         AUTH_ENFORCED: 'true',
         AI_ENABLED: 'false',
         SMSIR_API_KEY: '',

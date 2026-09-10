@@ -867,6 +867,7 @@ export const adminApi = {
     }>(`/api/admin/warehouse?${qs}`);
   },
   createWarehouseItem: (input: {
+    operationId: string;
     mobile: string;
     customerName?: string;
     product: string;
@@ -896,6 +897,7 @@ export const adminApi = {
       insured: boolean;
       arrivedAt: string | null;
       movementNote: string;
+      expectedVersion: number;
     }>,
   ) => http.patch<{ item: WarehouseItem }>(`/api/admin/warehouse/${id}`, patch),
   /** `force`: forfeit and delete even with an unsettled balance — omit to get
@@ -977,8 +979,8 @@ export const adminApi = {
        *  to not offer «ابطال» on a row that will just 409. */
       latestSettlementIds: string[];
     }>(`/api/admin/warehouse/settlements?userId=${userId}&historyPage=${historyPage}`),
-  createSettlement: (warehouseItemId: string, note?: string, periodTo?: string) =>
-    http.post<{ settlement: unknown }>('/api/admin/warehouse/settlements', { warehouseItemId, note, periodTo }),
+  createSettlement: (warehouseItemId: string, note?: string, periodTo?: string, operationId?: string) =>
+    http.post<{ settlement: unknown }>('/api/admin/warehouse/settlements', { warehouseItemId, note, periodTo, operationId }),
   voidSettlement: (id: string, reason?: string) =>
     http.patch<{ voided: unknown; reversal: unknown }>(`/api/admin/warehouse/settlements/${id}`, { action: 'void', reason }),
   markSettlementPaid: (id: string, note?: string) =>

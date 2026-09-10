@@ -9,11 +9,15 @@ import type { AccessTokenClaims } from './types';
 
 const ISSUER = 'ahantime';
 const AUDIENCE = 'ahantime-web';
+const clockTolerance = () => Math.min(60, Math.max(0, Number(process.env.AUTH_CLOCK_TOLERANCE_SECONDS) || 30));
 
-function getSecret(): Uint8Array {
+function getSecrets(): Uint8Array[] {
   // Dev-only fallback so the flow runs locally without config.
   const secret = requiredSecret(process.env.SESSION_SECRET, 'dev-insecure-secret-change-me-0000000000');
-  return new TextEncoder().encode(secret);
+  const values = [secret];
+  if (process.env.SESSION_SECRET_PREVIOUS)
+    values.push(requiredSecret(process.env.SESSION_SECRET_PREVIOUS, ''));
+  return [...new Set(values)].map((value) => new TextEncoder().encode(value));
 }
 
 /** Sign an access token. `ttlSeconds` controls expiry (default 15 min). */
@@ -30,14 +34,14 @@ export async function signAccessToken(
     .setAudience(AUDIENCE)
     .setIssuedAt(now)
     .setExpirationTime(exp)
-    .sign(getSecret());
+    .sign(getSecrets()[0]!);
   return { token, expiresAt: exp * 1000 };
 }
 
 /** Verify + decode an access token. Returns null on any failure (expired/tampered). */
 export async function verifyAccessToken(token: string): Promise<AccessTokenClaims | null> {
-  try {
-    const { payload } = await jwtVerify(token, getSecret(), {
+  for (const secret of getSecrets()) try {
+    const { payload } = await jwtVerify(token, secret, {
       issuer: ISSUER,
       audience: AUDIENCE,
       // Pin the algorithm. jose already refuses asymmetric algs for a
@@ -47,6 +51,7 @@ export async function verifyAccessToken(token: string): Promise<AccessTokenClaim
       // anyone who later swaps the key type. All tokens in circulation are
       // HS256 (signAccessToken), so nothing is invalidated.
       algorithms: ['HS256'],
+      clockTolerance: clockTolerance(),
     });
     if (!payload.sub || typeof payload.role !== 'string') return null;
     return {
@@ -59,7 +64,6 @@ export async function verifyAccessToken(token: string): Promise<AccessTokenClaim
       // tokens keep working until the next role/isActive change bumps it.
       tv: typeof payload.tv === 'number' ? payload.tv : 0,
     };
-  } catch {
-    return null;
-  }
+  } catch { /* try the previous key during a controlled rotation */ }
+  return null;
 }

@@ -87,10 +87,7 @@ export const getSession = cache(async (): Promise<AuthUser | null> => {
 /**
  * Like `getSession()`, but also re-checks the DB: rejects the session if the
  * user was deactivated or their role changed since this access token was
- * issued (tokenVersion mismatch — see schema/auth.ts), instead of trusting
- * the JWT's claims for its full 4-HOUR lifetime regardless (CONSTANTS.
- * ACCESS_TTL_SECONDS — not the 15 minutes this file used to claim; see that
- * constant's docblock for why the value is what it is). One extra
+ * issued (tokenVersion mismatch — see schema/auth.ts). One extra
  * indexed lookup, so use this at actual permission/authorization boundaries
  * (requireApiUser/requirePermission and friends), not on every page render.
  *
@@ -117,11 +114,7 @@ export const getSessionVerified = cache(async (opts?: { strict?: boolean }): Pro
     reportError(err, { scope: 'auth', fn: 'getSessionVerified' });
     // Permission-critical callers fail CLOSED on a DB outage rather than trust
     // a possibly-stale JWT role / missed deactivation. Page rendering stays
-    // lenient (availability over the 4-hour access-token revocation window —
-    // CONSTANTS.ACCESS_TTL_SECONDS, not the 15 minutes this comment claimed).
-    // That window is why `strict` exists at all: it is 16x what the original
-    // design assumed, so a permission-critical caller must not inherit the
-    // lenient trade-off.
+    // lenient for availability; permission-critical callers use `strict`.
     if (opts?.strict) return null;
     return fallback;
   }

@@ -1263,7 +1263,9 @@
       "currentStageTag": "（当前阶段）",
       "cancelledNote": "该订单已取消；此前已进行到「{stage}」阶段。",
       "ariaCancelled": "已取消订单：已进行到{stage}阶段",
-      "ariaActive": "订单状态：{stage}"
+      "ariaActive": "订单状态：{stage}",
+      "eventHistoryLabel": "订单事件历史",
+      "noEventHistory": "该订单尚未记录详细的阶段历史。"
     },
     "orders": {
       "empty": {
@@ -1310,7 +1312,9 @@
         "stored": "已入库",
         "selling": "出售中",
         "released": "已放行"
-      }
+      },
+      "prevPage": "上一页",
+      "nextPage": "下一页"
     },
     "favorites": {
       "loading": "正在加载…",

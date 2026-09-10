@@ -22,6 +22,8 @@ export function ReorderButton({ items }: { items: LineItem[] }) {
   const reorderable = items.filter((it) => it.skuId);
 
   return (
+    <>
+    {reorderable.length === 0 ? <span>کالاهای این سفارش دیگر قابل سفارش نیستند.</span> : null}
     <Button
       size="sm"
       variant="ghost"
@@ -38,5 +40,6 @@ export function ReorderButton({ items }: { items: LineItem[] }) {
     >
       {t('reorder')}
     </Button>
+    </>
   );
 }

@@ -531,18 +531,22 @@ describe('orders & tracking', () => {
     expect(found?.ref).toBe(ref);
     expect(found?.status).toBe('registered');
 
+    await updateOrderStatus(ref, 'confirmed');
+    await updateOrderStatus(ref, 'loading');
     const advanced = await updateOrderStatus(ref, 'in_transit');
     expect(advanced?.order.status).toBe('in_transit');
   });
 
-  it('rejects a backward order-status transition (delivered -> registered)', async () => {
+  it('rejects a backward order-status transition (in_transit -> registered)', async () => {
     const ref = await nextRef('OR');
     await createOrder({ ref, userId: user.id, items: [{ skuId: '', name: 'تیرآهن', qty: 2, unit: 'branch' }] });
-    await updateOrderStatus(ref, 'delivered');
+    await updateOrderStatus(ref, 'confirmed');
+    await updateOrderStatus(ref, 'loading');
+    await updateOrderStatus(ref, 'in_transit');
     await expect(updateOrderStatus(ref, 'registered')).rejects.toThrow(InvalidStatusTransitionError);
     // Rejected transition must not have partially applied.
     const found = await findOrderByRef(ref);
-    expect(found?.status).toBe('delivered');
+    expect(found?.status).toBe('in_transit');
   });
 
   it('rejects a backward warehouse-status transition (released -> stored)', async () => {

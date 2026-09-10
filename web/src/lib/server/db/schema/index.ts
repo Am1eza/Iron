@@ -6,6 +6,7 @@ export * from './market';
 export * from './engagement';
 export * from './leads';
 export * from './orders';
+export * from './operations';
 export * from './content';
 export * from './system';
 export * from './seo';

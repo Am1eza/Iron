@@ -18,7 +18,8 @@ async function GETImpl(req: NextRequest, ctx: { params: Promise<{ ref: string }>
       { status: 404 },
     );
   }
-  return NextResponse.json({ order }, { headers: { 'Cache-Control': 'no-store' } });
+  const publicOrder = { ref: order.ref, placedAt: order.placedAt, status: order.status, lastUpdate: order.lastUpdate, cancelled: order.cancelled, carrierName: order.carrierName, trackingNumber: order.trackingNumber, items: [], events: order.events?.map(({ note: _note, ...event }) => ({ ...event, note: '' })) };
+  return NextResponse.json({ order: publicOrder }, { headers: { 'Cache-Control': 'no-store' } });
 }
 
 export const GET = withApiErrorHandling(GETImpl);

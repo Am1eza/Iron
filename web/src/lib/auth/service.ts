@@ -17,13 +17,15 @@ import {
   setOtp,
   getOtp,
   clearOtp,
+  consumeOtp,
   incrementOtpAttempts,
   getRate,
   setRate,
+  claimOtpSend,
   clearRate,
   saveRefresh,
   findRefresh,
-  claimRefresh,
+  rotateRefreshAtomic,
   revokeRefresh,
   revokeFamily,
 } from './store';
@@ -48,7 +50,11 @@ const HOUR = 60 * 60 * 1000;
 // without it, a production deploy missing SESSION_SECRET would silently
 // hash/verify OTPs against the hardcoded dev literal, making every OTP hash
 // trivially offline-crackable from a DB dump rather than failing loudly.
-const pepper = () => requiredSecret(process.env.SESSION_SECRET, 'dev-pepper');
+const otpPepper = () => requiredSecret(process.env.OTP_SECRET, 'dev-otp-pepper-change-me-0000000000');
+const sessionPepper = () => requiredSecret(process.env.SESSION_SECRET, 'dev-pepper');
+const sessionPeppers = () => [sessionPepper(), ...(process.env.SESSION_SECRET_PREVIOUS
+  ? [requiredSecret(process.env.SESSION_SECRET_PREVIOUS, '')] : [])];
+const otpDigest = (mobile: string, code: string) => sha256(`${mobile}:${code}`, otpPepper());
 
 /* ----------------------------- request OTP ----------------------------- */
 export async function requestOtp(
@@ -56,37 +62,13 @@ export async function requestOtp(
   name?: string,
   /** True when the request came from the panel host — see the gate below. */
   panelOnly = false,
+  combinedRateKey?: string,
 ): Promise<{ ttl: number; devCode?: string }> {
   const now = Date.now();
 
-  const rate = await getRate(mobile);
-
-  if (rate.lockedUntil && rate.lockedUntil > now) {
-    throw new AuthError(
-      'locked',
-      'به دلیل تلاش زیاد، چند دقیقه صبر کنید.',
-      429,
-      Math.ceil((rate.lockedUntil - now) / 1000),
-    );
-  }
-
-  // Resend cooldown.
-  const lastSend = rate.sends[rate.sends.length - 1];
   const cooldownMs = CONSTANTS.OTP_RESEND_COOLDOWN_SECONDS * 1000;
-  if (lastSend && now - lastSend < cooldownMs) {
-    throw new AuthError(
-      'cooldown',
-      'برای ارسال مجدد کمی صبر کنید.',
-      429,
-      Math.ceil((cooldownMs - (now - lastSend)) / 1000),
-    );
-  }
-
-  // Max sends per hour.
-  const recentSends = rate.sends.filter((t) => now - t < HOUR);
-  if (recentSends.length >= CONSTANTS.OTP_MAX_RESEND_PER_HOUR) {
-    throw new AuthError('too_many', 'تعداد درخواست‌ها زیاد است. بعداً تلاش کنید.', 429, 3600);
-  }
+  const claim=await claimOtpSend(mobile,now,cooldownMs,HOUR,CONSTANTS.OTP_MAX_RESEND_PER_HOUR,combinedRateKey);
+  if(!claim.ok) throw new AuthError(claim.reason,claim.reason==='locked'?'به دلیل تلاش زیاد، چند دقیقه صبر کنید.':claim.reason==='cooldown'?'برای ارسال مجدد کمی صبر کنید.':'تعداد درخواست‌ها زیاد است. بعداً تلاش کنید.',429,claim.retryAfter);
 
   // Panel login is invitation-only: a number that isn't in the staff access
   // registry never receives a panel code. This is the real entry gate — the
@@ -106,14 +88,13 @@ export async function requestOtp(
   if (panelOnly && hasDb()) {
     const granted = await allowlistedRole(mobile);
     if (!granted) {
-      await setRate(mobile, { sends: [...recentSends, now], lockedUntil: rate.lockedUntil });
       reportError(new Error('panel_otp_not_staff'), {
         scope: 'auth',
         fn: 'requestOtp',
         // `mobile` is redacted by name in lib/errors/report.ts — the report
         // says a probe happened and how many, never who was probed.
         mobile,
-        recentAttempts: recentSends.length + 1,
+        recentAttempts: 'charged',
       });
       throw new AuthError(
         'not_staff',
@@ -124,23 +105,14 @@ export async function requestOtp(
   }
 
   const code = randomOtp(CONSTANTS.OTP_LENGTH);
-  const hash = await sha256(code, pepper());
-  // Resend keeps the PREVIOUS still-unexpired code valid (its own original
-  // expiry). SMS delivery to Iranian MVNOs measures ~5 minutes; without this,
-  // every resend invalidates the code that then arrives, and a user on a slow
-  // operator can never log in. Only the most recent previous code is kept
-  // (window of 2), and the shared 5-attempt cap covers both.
+  const hash = await otpDigest(mobile, code);
   const existing = await getOtp(mobile);
-  const prevStillValid = existing && existing.expiresAt > now;
   await setOtp(mobile, {
     hash,
     expiresAt: now + CONSTANTS.OTP_TTL_SECONDS * 1000,
-    attempts: prevStillValid ? existing.attempts : 0,
+    attempts: existing && existing.expiresAt > now ? existing.attempts : 0,
     name,
-    prevHash: prevStillValid ? existing.hash : undefined,
-    prevExpiresAt: prevStillValid ? existing.expiresAt : undefined,
   });
-  await setRate(mobile, { sends: [...recentSends, now], lockedUntil: rate.lockedUntil });
 
   const sms = await sendOtpSms(mobile, code);
   if (!sms.ok) throw new AuthError('sms_failed', 'ارسال پیامک ناموفق بود. دوباره تلاش کنید.', 502);
@@ -187,17 +159,9 @@ export async function verifyOtp(
     throw new AuthError('locked', 'تلاش بیش از حد. چند دقیقه بعد دوباره وارد شوید.', 429);
   }
 
-  const hash = await sha256(code, pepper());
-  // Accept the current code OR the previous still-unexpired one (kept across
-  // a resend — see requestOtp). Both share the same attempt counter, so the
-  // brute-force budget is unchanged.
+  const hash = await otpDigest(mobile, code);
   const matchesCurrent = timingSafeEqual(hash, record.hash);
-  const matchesPrev =
-    !matchesCurrent &&
-    !!record.prevHash &&
-    (record.prevExpiresAt ?? 0) > Date.now() &&
-    timingSafeEqual(hash, record.prevHash);
-  if (!matchesCurrent && !matchesPrev) {
+  if (!matchesCurrent) {
     const left = CONSTANTS.OTP_MAX_ATTEMPTS - record.attempts;
     throw new AuthError(
       'wrong_code',
@@ -206,7 +170,9 @@ export async function verifyOtp(
     );
   }
 
-  await clearOtp(mobile);
+  if (!await consumeOtp(mobile, record.hash, record.expiresAt)) {
+    throw new AuthError('expired', 'کد مصرف شده یا تغییر کرده است. دوباره تلاش کنید.', 410);
+  }
   // A successful login resets the send throttle for this number.
   await clearRate(mobile);
 
@@ -289,51 +255,35 @@ const invalidRefresh = () =>
 export async function rotateRefresh(
   refreshToken: string,
 ): Promise<{ user: AuthUser; tokens: IssuedTokens }> {
-  const hash = await sha256(refreshToken, pepper());
+  const hashes = await Promise.all(sessionPeppers().map((pepper) => sha256(refreshToken, pepper)));
   const now = Date.now();
 
-  // Fast path: claim the token. Exactly one concurrent caller can win this.
-  const claimed = await claimRefresh(hash, now);
-  if (claimed) {
-    const user = await userById(claimed.userId);
-    if (!user) {
-      await revokeRefresh(hash);
-      throw invalidRefresh();
-    }
-    return { user, tokens: await issueTokens(user, familyOf(hash, claimed), hash) };
-  }
-
-  // Nothing to claim: unknown hash, expired, already spent, or logged out.
-  const record = await findRefresh(hash);
-  if (!record || record.rotatedAt === undefined) throw invalidRefresh();
-
-  const spentAgo = now - record.rotatedAt;
-  if (spentAgo <= reuseGraceMs()) {
-    // Case 2 — the client racing itself. Mint a sibling; do not re-rotate the
-    // parent (it is already spent) and do not report anything.
-    const user = await userById(record.userId);
-    if (!user) throw invalidRefresh();
-    return { user, tokens: await issueTokens(user, familyOf(hash, record), hash) };
-  }
-
-  // Case 3 — a token spent long ago is being presented again. Either the
-  // token leaked, or a client is holding a stale cookie far past its
-  // rotation. Report it either way; act on it only when enforcing.
   const mode = reuseMode();
-  const family = familyOf(hash, record);
-  if (mode !== 'off') {
+  const refreshTokenNext=randomToken(32);
+  const refreshHash=await sha256(refreshTokenNext,sessionPepper());
+  const refreshExpiresAt=now+CONSTANTS.SESSION_TTL_DAYS*24*HOUR;
+  let hash=hashes[0]!;
+  let rotation=await rotateRefreshAtomic(hash,refreshHash,{userId:'',expiresAt:refreshExpiresAt},now,reuseGraceMs(),mode==='enforce');
+  for(let i=1;rotation.status==='invalid'&&i<hashes.length;i++){hash=hashes[i]!;rotation=await rotateRefreshAtomic(hash,refreshHash,{userId:'',expiresAt:refreshExpiresAt},now,reuseGraceMs(),mode==='enforce');}
+  if(rotation.status==='invalid')throw invalidRefresh();
+  if(rotation.status==='reuse') {
+   if (mode !== 'off') {
     reportError(new Error('refresh_token_reuse'), {
       scope: 'auth',
       fn: 'rotateRefresh',
-      userId: record.userId,
-      // Hashes, never the token itself — this goes to an error tracker.
-      familyId: family,
-      spentAgoMs: spentAgo,
+      userId: rotation.record.userId,
       enforced: mode === 'enforce',
     });
+   }
+   throw invalidRefresh();
   }
-  if (mode === 'enforce') await revokeFamily(family);
-  throw invalidRefresh();
+  if (!('record' in rotation)) throw invalidRefresh();
+  const record=rotation.record;
+  const user=await userById(record.userId);
+  if(!user){await revokeFamily(familyOf(hash,record));throw invalidRefresh();}
+  const absoluteExpiry=Math.min(record.expiresAt,refreshExpiresAt);
+  const {token:accessToken,expiresAt:accessExpiresAt}=await signAccessToken({sub:user.id,mobile:user.mobile,role:user.role,name:user.name,tv:user.tokenVersion??0},CONSTANTS.ACCESS_TTL_SECONDS);
+  return {user,tokens:{accessToken,accessExpiresAt,refreshToken:refreshTokenNext,refreshExpiresAt:absoluteExpiry}};
 }
 
 /** The lineage a token belongs to. A row issued before the family columns
@@ -349,10 +299,10 @@ function familyOf(hash: string, record: { familyId?: string }): string {
  */
 export async function logout(refreshToken: string | undefined): Promise<void> {
   if (!refreshToken) return;
-  const hash = await sha256(refreshToken, pepper());
-  const record = await findRefresh(hash);
-  await revokeFamily(record ? familyOf(hash, record) : hash);
-  await revokeRefresh(hash);
+  for(const pepper of sessionPeppers()){
+    const hash=await sha256(refreshToken,pepper);const record=await findRefresh(hash);
+    await revokeFamily(record?familyOf(hash,record):hash);await revokeRefresh(hash);
+  }
 }
 
 /* ------------------------------- helpers ------------------------------- */
@@ -375,7 +325,7 @@ async function issueTokens(
   );
   const refreshToken = randomToken(32);
   const refreshExpiresAt = Date.now() + CONSTANTS.SESSION_TTL_DAYS * 24 * HOUR;
-  const refreshHash = await sha256(refreshToken, pepper());
+  const refreshHash = await sha256(refreshToken, sessionPepper());
   await saveRefresh(refreshHash, {
     userId: user.id,
     expiresAt: refreshExpiresAt,

@@ -48,7 +48,7 @@ describe('OTP auth flow', () => {
     await expect(requestOtp(mobile)).rejects.toBeInstanceOf(AuthError);
   });
 
-  it('a resend keeps the PREVIOUS unexpired code valid (slow-operator SMS delivery)', async () => {
+  it('a resend invalidates the previous unexpired code', async () => {
     const mobile = '09131000014';
     const { devCode: codeA } = await requestOtp(mobile);
     // Skip past the resend cooldown without waiting.
@@ -56,10 +56,10 @@ describe('OTP auth flow', () => {
     const { devCode: codeB } = await requestOtp(mobile);
     expect(codeB).not.toBe(codeA);
 
-    // The FIRST code — the SMS that arrives minutes late — still logs in.
-    const { user } = await verifyOtp(mobile, codeA!);
+    await expect(verifyOtp(mobile, codeA!)).rejects.toMatchObject({ code: 'wrong_code' });
+    const { user } = await verifyOtp(mobile, codeB!);
     expect(user.mobile).toBe(mobile);
-    // Single-use: after success neither code works again.
+    // Single-use: after success the latest code no longer works.
     await expect(verifyOtp(mobile, codeB!)).rejects.toBeInstanceOf(AuthError);
   });
 

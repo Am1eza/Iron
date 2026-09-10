@@ -4,6 +4,7 @@
  *  stay visible to the customer instead of vanishing. */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { ulid } from 'ulid';
+import { eq } from 'drizzle-orm';
 import { createTestDb } from '@/test/db';
 import * as schema from '@/lib/server/db/schema';
 import type { Db } from '@/lib/server/db/client';
@@ -51,6 +52,22 @@ async function seedLead(opts: { assigneeId?: string; contactName?: string; conta
 }
 
 describe('updateOrderShipping', () => {
+  it('rejects an unknown runtime shipment status without changing the order', async () => {
+    const ref = `INVALID-${ulid()}`;
+    await createOrder({ ref, items: [] });
+    await expect(updateOrderStatus(ref, 'not_a_status' as never))
+      .rejects.toBeInstanceOf(InvalidStatusTransitionError);
+    expect((await findOrderByRef(ref))?.status).toBe('registered');
+  });
+
+  it('fails closed when persisted status is corrupt instead of promoting it', async () => {
+    const ref = `CORRUPT-${ulid()}`;
+    await createOrder({ ref, items: [] });
+    await expect(db.update(schema.orders).set({ status: 'corrupt' as never }).where(eq(schema.orders.ref, ref)))
+      .rejects.toThrow();
+    expect((await findOrderByRef(ref))?.status).toBe('registered');
+  });
+
   it('sets trackingNumber/carrierName on an order that started without them', async () => {
     const ref = `TRK-${ulid()}`;
     await createOrder({ ref, items: [] });
@@ -93,16 +110,13 @@ describe('updateOrderShipping', () => {
 });
 
 describe('cancelOrder', () => {
-  it('cancels a DELIVERED order too — this is the return flow, relied on by engagement.test.ts\'s club-tier downgrade', async () => {
+  it('requires the explicit receipted return flow after shipment', async () => {
     const ref = `CNL-${ulid()}`;
     await createOrder({ ref, items: [] });
     await updateOrderStatus(ref, 'confirmed');
     await updateOrderStatus(ref, 'loading');
     await updateOrderStatus(ref, 'in_transit');
-    await updateOrderStatus(ref, 'delivered');
-
-    const cancelled = await cancelOrder(ref);
-    expect(cancelled).toMatchObject({ status: 'delivered', cancelled: true });
+    await expect(cancelOrder(ref)).rejects.toMatchObject({ code: 'return_required' });
   });
 
   it('cancels a non-delivered order and marks it, without deleting the row', async () => {
@@ -162,6 +176,7 @@ describe('updateOrderStatus (W17)', () => {
   it('still enforces the forward-only guard', async () => {
     const ref = `STA-${ulid()}`;
     await createOrder({ ref, items: [] });
+    await updateOrderStatus(ref, 'confirmed');
     await updateOrderStatus(ref, 'loading');
     await expect(updateOrderStatus(ref, 'confirmed')).rejects.toBeInstanceOf(InvalidStatusTransitionError);
   });

@@ -6,7 +6,8 @@
  * reduced-motion safe. (request #11)
  */
 import { useTranslations } from 'next-intl';
-import { SHIPMENT_STEPS, type ShipmentStatus } from '@/lib/types/domain';
+import { formatJalali } from '@/lib/utils/jalali';
+import { SHIPMENT_STEPS, type Order, type ShipmentStatus } from '@/lib/types/domain';
 import { shipmentStatusLabel } from '@/lib/utils/shipmentStatusLabel';
 import styles from './OrderTimeline.module.css';
 
@@ -28,7 +29,15 @@ function CheckIcon() {
  *  freeze at whatever they'd reached (still useful: "it got as far as
  *  بارگیری before it was cancelled") but nothing reads as "current" anymore,
  *  since there is no longer an active next step. */
-export function OrderTimeline({ status, cancelled = false }: { status: ShipmentStatus; cancelled?: boolean }) {
+export function OrderTimeline({
+  status,
+  cancelled = false,
+  events,
+}: {
+  status: ShipmentStatus;
+  cancelled?: boolean;
+  events?: Order['events'];
+}) {
   const t = useTranslations('account.shipmentStatus');
   const currentIndex = SHIPMENT_STEPS.findIndex((s) => s.key === status);
   const currentLabel = shipmentStatusLabel(status, t);
@@ -59,6 +68,18 @@ export function OrderTimeline({ status, cancelled = false }: { status: ShipmentS
           );
         })}
       </ol>
+      {events?.length ? (
+        <ol aria-label={t('eventHistoryLabel')}>
+          {events.map((e) => (
+            <li key={e.id}>
+              <time dateTime={e.at}>{formatJalali(e.at)}</time> —{' '}
+              {e.note || SHIPMENT_STEPS.find((s) => s.key === e.status)?.label || e.kind}
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <p>{t('noEventHistory')}</p>
+      )}
     </>
   );
 }
