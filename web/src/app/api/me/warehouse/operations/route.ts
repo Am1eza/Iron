@@ -8,8 +8,8 @@ import { warehouseWithdrawals, warehouseCashEntries } from '@/lib/server/db/sche
 import { warehouseAccountBalance } from '@/lib/server/repos/warehouseSettlementsRepo';
 import { requestWithdrawal, actOnWithdrawal } from '@/lib/server/services/fulfillment.service';
 const payload=z.discriminatedUnion('action',[
-  z.object({action:z.literal('request'),operationId:z.string().min(8).max(100),warehouseItemId:z.string(),quantityTons:z.number().positive().max(100000),recipient:z.string().trim().min(5).max(1000)}),
-  z.object({action:z.literal('cancel'),operationId:z.string().min(8).max(100),id:z.string(),proof:z.string().trim().min(5).max(1000)}),
+  z.object({action:z.literal('request'),operationId:z.string().min(8).max(100),warehouseItemId:z.string().min(1).max(64),quantityTons:z.number().positive().max(100000),recipient:z.string().trim().min(5).max(1000)}),
+  z.object({action:z.literal('cancel'),operationId:z.string().min(8).max(100),id:z.string().min(1).max(64),proof:z.string().trim().min(5).max(1000)}),
 ]);
 async function GETImpl(req:NextRequest){
  const guard=requireDb();if(guard)return guard;

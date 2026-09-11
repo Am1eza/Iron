@@ -27,23 +27,6 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-/**
- * Deliberately NOT swept by this scan/test right now: a separate work stream
- * is actively editing order/warehouse code concurrently in sibling
- * worktrees, and this repo's convention (CLAUDE.md) is not to touch those
- * files to avoid a merge collision. Their unbounded `z.string()` fields (16,
- * as of this writing — admin/operations, admin/warehouse[/settlements],
- * me/warehouse/operations) are real findings, just knowingly deferred rather
- * than silently missed — see docs/audit-api-input-H.md's H-173 note.
- * Re-include them (delete this filter) once that work stream's changes land.
- */
-const DEFERRED_ORDER_WAREHOUSE_FILES = [
-  path.join('src', 'app', 'api', 'admin', 'operations', 'route.ts'),
-  path.join('src', 'app', 'api', 'admin', 'warehouse', 'route.ts'),
-  path.join('src', 'app', 'api', 'admin', 'warehouse', 'settlements', 'route.ts'),
-  path.join('src', 'app', 'api', 'me', 'warehouse', 'operations', 'route.ts'),
-];
-
 const root = path.join(__dirname, '..');
 const targets = [
   // env.ts/env.test.ts validate operator-set CONFIGURATION (env vars), not
@@ -52,11 +35,7 @@ const targets = [
   // legitimately long DATABASE_URL). Everything else in lib/validation gates
   // real request input.
   ...walk(path.join(root, 'src', 'lib', 'validation')).filter((f) => !/[/\\]env\.tsx?$/.test(f)),
-  ...walk(path.join(root, 'src', 'app', 'api')).filter(
-    (f) =>
-      f.endsWith('route.ts') &&
-      !DEFERRED_ORDER_WAREHOUSE_FILES.some((deferred) => f.endsWith(deferred)),
-  ),
+  ...walk(path.join(root, 'src', 'app', 'api')).filter((f) => f.endsWith('route.ts')),
 ];
 
 export function runScan(): Finding[] {

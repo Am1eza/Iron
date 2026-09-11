@@ -78,12 +78,20 @@
 > `isValidNationalId`/... در `verificationRepo.ts` است، اما در سطح Zod
 > هیچ سقفی نداشتند). همهٔ این ۳۹ مورد در همین نوبت **رفع** شد (سقف‌های
 > ۲۰ تا ۱۲۰ کاراکتر، هم‌مقیاس با الگوی موجود در بقیهٔ اپ — `skuId`≤۱۲۰،
-> شناسه‌های دیگر≤۶۴). **۱۶ مورد دیگر عمداً رفع نشد**: چهار route زیر
-> `admin/operations`, `admin/warehouse[/settlements]`,
-> `me/warehouse/operations` — این فایل‌ها را طبق دستور صریح این نشست
-> («یک جریان کاری جدا هم‌زمان روی order/warehouse کار می‌کند») دست نزدم؛
-> این استثنا در خودِ اسکریپت (`DEFERRED_ORDER_WAREHOUSE_FILES`) با کامنت
-> مستند شده، نه یک حذف بی‌صدا. اسکریپت اکنون در
+> شناسه‌های دیگر≤۶۴).
+>
+> **یادداشت ۲۰۲۶-۰۹-۱۱ (بعدازظهر) — ۱۶ مورد باقی‌مانده هم رفع شد:** آن
+> ۱۶ مورد در چهار route زیر `admin/operations`, `admin/warehouse[/settlements]`,
+> `me/warehouse/operations` عمداً کنار گذاشته شده بودند چون یک جریان کاری
+> جدا هم‌زمان روی order/warehouse کار می‌کرد؛ آن کار اکنون merge شده
+> (`docs/audit-order-warehouse-E.md`). با همان الگوی شناسه≤۶۴ (`id64`
+> helper در `admin/operations/route.ts`؛ `.max(64)` مستقیم در بقیه) رفع
+> شد؛ `DEFERRED_ORDER_WAREHOUSE_FILES` allowlist از خودِ اسکریپت حذف شد —
+> `pnpm exec tsx scripts/schemaLengthCapScan.ts` اکنون **۱۶۰ فایل** (نه
+> ۱۵۶) را بدون استثنا اسکن می‌کند و صفر یافته می‌دهد. شواهد: `tsc --noEmit`
+> پاک؛ `vitest run` سراسری (بدون `DATABASE_URL` — دقیقاً روش CI،
+> `.github/workflows/ci.yml`) **۳۰۳ فایل، ۳۴۳۰ تست، همه PASS**. اکنون
+> **صفر مورد شناخته‌شدهٔ باز** برای H-173 باقی مانده. اسکریپت اکنون در
 > `web/scripts/schemaLengthCapScan.test.ts` به‌صورت یک تست vitest
 > CI-enforced قفل شده — یک PR آینده که یک `z.string()` جدید بدون سقف در هر
 > schema دیگری (به‌جز چهار فایل مستثنا‌شدهٔ بالا) اضافه کند، این تست را
@@ -178,7 +186,7 @@ Production در دسترس نیست.
 | --- | --- | ---: | --- | --- |
 | 171 | inventory کامل ۱۵۴ route | 99 (CI-locked این نوبت — نگاه کنید به یادداشت بالا) | N/A | P3 |
 | 172 | validation کامل body/query/params/headers | 88 (سقف q رفع شد، هنوز بدون helper عمومی) | Low | P2 (بخشی انجام شد) |
-| 173 | سقف طول string | 99 (اسکن خودکار کل schema این نوبت — نگاه کنید به یادداشت بالا) | Medium (پیش از اصلاح) | P1 (انجام شد) |
+| 173 | سقف طول string | 100 (اسکن خودکار کل schema، صفر مورد باز — نگاه کنید به یادداشت بالا) | Medium (پیش از اصلاح) | P1 (انجام شد) |
 | 174 | سقف array/عمق JSON | 92 | Low | P2 |
 | 175 | Content-Type اشتباه / body malformed | 98 | N/A | N/A |
 | 176 | مقابله با mass assignment | 94 | Low | P2 |

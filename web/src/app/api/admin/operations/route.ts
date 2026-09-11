@@ -11,12 +11,13 @@ import { can } from '@/lib/auth/roles';
 
 const common = { operationId: z.string().min(8).max(100) };
 const proof = z.string().trim().min(5).max(1000);
+const id64 = z.string().min(1).max(64);
 const payload = z.discriminatedUnion('action', [
-  z.object({ ...common, action: z.literal('reserve'), ref: z.string(), orderItemId: z.string(), warehouseItemId: z.string(), quantityTons: z.number().positive().max(100000), ownerAuthorization: proof }),
-  z.object({ ...common, action: z.literal('fulfill'), ref: z.string(), orderItemId: z.string(), quantity: z.number().positive().max(1e11), proof, reservationId: z.string().optional(), kind: z.enum(['delivery','return']) }),
-  z.object({ ...common, action: z.literal('withdrawal'), id: z.string(), decision: z.enum(['approve','deliver','cancel']), proof }),
-  z.object({ ...common, action: z.literal('cash'), warehouseItemId: z.string(), kind: z.enum(['sale','payout','reversal']), amountToman: z.number().int().positive().max(Number.MAX_SAFE_INTEGER).optional(), orderRef: z.string().optional(), reversesId: z.string().optional(), proof }),
-  z.object({ ...common, action: z.literal('outbox'), id: z.string(), decision: z.enum(['confirmed_sent','confirmed_not_sent']), proof }),
+  z.object({ ...common, action: z.literal('reserve'), ref: id64, orderItemId: id64, warehouseItemId: id64, quantityTons: z.number().positive().max(100000), ownerAuthorization: proof }),
+  z.object({ ...common, action: z.literal('fulfill'), ref: id64, orderItemId: id64, quantity: z.number().positive().max(1e11), proof, reservationId: id64.optional(), kind: z.enum(['delivery','return']) }),
+  z.object({ ...common, action: z.literal('withdrawal'), id: id64, decision: z.enum(['approve','deliver','cancel']), proof }),
+  z.object({ ...common, action: z.literal('cash'), warehouseItemId: id64, kind: z.enum(['sale','payout','reversal']), amountToman: z.number().int().positive().max(Number.MAX_SAFE_INTEGER).optional(), orderRef: id64.optional(), reversesId: id64.optional(), proof }),
+  z.object({ ...common, action: z.literal('outbox'), id: id64, decision: z.enum(['confirmed_sent','confirmed_not_sent']), proof }),
 ]);
 async function GETImpl(req: NextRequest) {
   const guard=requireDb(); if(guard) return guard;

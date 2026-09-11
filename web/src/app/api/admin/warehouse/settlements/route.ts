@@ -94,7 +94,7 @@ async function GETImpl(req: NextRequest) {
 
 const payload = z.object({
   operationId: z.string().min(8).max(100),
-  warehouseItemId: z.string().min(1),
+  warehouseItemId: z.string().min(1).max(64),
   periodTo: z.string().datetime().optional(),
   note: z.string().trim().max(500).optional(),
 });
