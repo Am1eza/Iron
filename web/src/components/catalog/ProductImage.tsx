@@ -1,4 +1,5 @@
 'use client';
+import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import { productImage, productThumb } from '@/lib/data/productImages';
 import styles from './ProductImage.module.css';
@@ -45,6 +46,27 @@ export function ProductImage({
   // Only the full variant has a choice to offer — the thumb IS the small one.
   // A real product photo has no pre-rendered thumb — only the stock map does.
   const thumb = !srcOverride && variant === 'full' ? productThumb(slug) : undefined;
+  const cls = [styles.img, className].filter(Boolean).join(' ');
+  if (srcOverride) {
+    // I-209: unlike the stock category photos below, a SKU's own uploaded
+    // photo is arbitrary-sized (capped at 2400px on upload, per
+    // uploadStorage.ts, but still far larger than this box) with no
+    // pre-generated thumb to hand-roll a srcset from — route it through the
+    // optimizer so it's actually resized server-side to what the box needs.
+    return (
+      <Image
+        src={srcOverride}
+        alt={t('imageOf', { name })}
+        width={w}
+        height={h}
+        sizes={sizes}
+        priority={eager}
+        loading={eager ? undefined : 'lazy'}
+        draggable={false}
+        className={cls}
+      />
+    );
+  }
   return (
     // Deliberate, see the module doc comment above: these are pre-generated,
     // fixed-size (1200/320px) static .webp files with a hand-rolled srcset,
@@ -60,7 +82,7 @@ export function ProductImage({
       loading={eager ? 'eager' : 'lazy'}
       decoding="async"
       draggable={false}
-      className={[styles.img, className].filter(Boolean).join(' ')}
+      className={cls}
     />
   );
 }

@@ -14,6 +14,7 @@
  * will take down before it does it.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
+import Image from 'next/image';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   adminApi,
@@ -656,8 +657,12 @@ export function CatalogManager() {
                       <td className={s.nameCell}>
                         <div className={s.nameInner}>
                           {r.imageUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={r.imageUrl} alt="" className={s.thumb} />
+                            // I-209: routed through the optimizer so an
+                            // arbitrary-sized uploaded image is actually
+                            // resized to this 34px thumbnail server-side,
+                            // instead of shipping the full upload to render
+                            // a 34px box.
+                            <Image src={r.imageUrl} alt="" width={34} height={34} className={s.thumb} />
                           ) : null}
                           <span>
                             {r.name}
