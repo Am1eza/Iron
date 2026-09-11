@@ -34,6 +34,16 @@ export default defineConfig({
     // 03:30 Tehran time, not midnight. That is a product decision about price
     // baselines, not something to "fix" in the test config.
     env: { TZ: 'UTC' },
+    // vitest's 5000ms default was tight enough to be a real CI flake, not a
+    // safety margin: tests that spin up a real PGlite instance AND run a
+    // real `sharp` re-encode (the I-206/207/209/212 upload-pipeline suites)
+    // measure 1-6s locally on a fast machine and occasionally cleared 5s on
+    // GitHub's shared 2-core runners under load — a genuine `Test timed out
+    // in 5000ms`, not an assertion failure, confirmed by rerunning the exact
+    // same file in isolation and having it pass in a fraction of that time.
+    // 15s keeps real hangs/regressions catchable while giving slow/shared
+    // CI hardware realistic room for what these tests actually do.
+    testTimeout: 15_000,
     setupFiles: ['./vitest.setup.ts'],
     css: false,
     // `scripts/` is in here for one reason: some of what runs against
