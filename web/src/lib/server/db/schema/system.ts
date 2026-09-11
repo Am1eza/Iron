@@ -3,7 +3,7 @@
  * log (also how dev-mode SMS stays visible without a provider key), and the
  * AI-advisor usage log (per-request token cost + grounding violations).
  */
-import { boolean, index, integer, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
+import { bigint, boolean, index, integer, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { users } from './auth';
 
@@ -231,4 +231,40 @@ export const idempotencyKeys = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('idempotency_keys_created_idx').on(t.createdAt)],
+);
+
+/**
+ * F-131 — Postgres-backed fixed-window rate-limit fallback, used ONLY when
+ * Redis is unreachable (see server/utils/rateLimit.ts#dbRateCheck). Without
+ * this, an outage silently downgrades a globally-shared quota (Redis) to a
+ * per-worker in-memory one (server/utils/rateLimit.ts's `windows` Map) — in a
+ * multi-replica deploy that turns a single "8 OTP sends per 5 minutes" quota
+ * into N independent 8-per-5-minute quotas, exactly when an operator most
+ * needs the limit to hold (an outage is also when abuse is more likely).
+ *
+ * `key` already encodes the fixed window (`${scope}:${ip-or-mobile}:${bucket}`)
+ * so a plain `INSERT ... ON CONFLICT DO UPDATE SET count = count + 1
+ * RETURNING count` is one atomic statement — Postgres serializes concurrent
+ * upserts of the same row, so two workers racing the same key can never both
+ * observe a pre-increment count the way a read-then-write would allow. No
+ * explicit transaction/row lock is needed for correctness; the single
+ * statement IS the atomic unit.
+ *
+ * Deliberately NOT used for every rate-limited scope — see the allowlist in
+ * rateLimit.ts. Applying this to every public scope (search, leads, contact)
+ * would turn a Redis outage into extra synchronous Postgres writes on the
+ * highest-QPS routes, at the exact moment the database may also be under
+ * elevated load; it is wired in only for the auth-critical scopes where a
+ * fragmented quota is a real security regression (OTP send/verify), not a
+ * UX/cost nicety.
+ */
+export const rateLimitWindows = pgTable(
+  'rate_limit_windows',
+  {
+    key: text('key').primaryKey(), // `${scope}:${bucketedKey}:${windowBucket}`
+    count: integer('count').notNull().default(0),
+    // Epoch ms this window's bucket ends — cleanup.job.ts sweeps past this.
+    expiresAt: bigint('expires_at', { mode: 'number' }).notNull(),
+  },
+  (t) => [index('rate_limit_windows_expires_idx').on(t.expiresAt)],
 );

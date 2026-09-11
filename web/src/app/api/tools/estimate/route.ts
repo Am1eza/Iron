@@ -12,7 +12,7 @@ const payload = z.union([
     items: z
       .array(
         z.object({
-          skuId: z.string().min(1),
+          skuId: z.string().min(1).max(120),
           qty: finiteNumber.positive().max(100_000),
           unit: z.enum(PRICE_UNIT_VALUES),
         }),

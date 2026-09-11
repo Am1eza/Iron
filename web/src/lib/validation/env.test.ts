@@ -108,3 +108,98 @@ describe('getServerEnv — mock mode', () => {
     expect(() => getServerEnv()).not.toThrow();
   });
 });
+
+describe('getServerEnv — F-150 SESSION_SECRET rotation schedule', () => {
+  it('throws when SESSION_SECRET_PREVIOUS equals SESSION_SECRET (a no-op/accidental "rotation")', async () => {
+    vi.stubEnv('NEXT_PUBLIC_API_MODE', 'mock');
+    vi.stubEnv('SESSION_SECRET', 'same-secret-value');
+    vi.stubEnv('SESSION_SECRET_PREVIOUS', 'same-secret-value');
+    const { getServerEnv } = await loadEnv();
+    expect(() => getServerEnv()).toThrow(/SESSION_SECRET_PREVIOUS/);
+  });
+
+  it('does not throw when SESSION_SECRET_PREVIOUS genuinely differs from SESSION_SECRET', async () => {
+    vi.stubEnv('NEXT_PUBLIC_API_MODE', 'mock');
+    vi.stubEnv('SESSION_SECRET', 'new-secret-value');
+    vi.stubEnv('SESSION_SECRET_PREVIOUS', 'old-secret-value');
+    const { getServerEnv } = await loadEnv();
+    expect(() => getServerEnv()).not.toThrow();
+  });
+
+  it('warns when SESSION_SECRET_PREVIOUS is set with no SESSION_SECRET_ROTATED_AT to verify the schedule against', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.stubEnv('NEXT_PUBLIC_API_MODE', 'mock');
+    vi.stubEnv('SESSION_SECRET', 'new-secret-value');
+    vi.stubEnv('SESSION_SECRET_PREVIOUS', 'old-secret-value');
+    vi.stubEnv('SESSION_SECRET_ROTATED_AT', '');
+    const { getServerEnv } = await loadEnv();
+    getServerEnv();
+    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/F-150.*SESSION_SECRET_ROTATED_AT is not/));
+    warn.mockRestore();
+  });
+
+  it('does not warn for a rotation staged well within the safety window', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.stubEnv('NEXT_PUBLIC_API_MODE', 'mock');
+    vi.stubEnv('SESSION_SECRET', 'new-secret-value');
+    vi.stubEnv('SESSION_SECRET_PREVIOUS', 'old-secret-value');
+    vi.stubEnv('SESSION_SECRET_ROTATED_AT', String(Date.now() - 24 * 60 * 60 * 1000)); // 1 day ago
+    const { getServerEnv } = await loadEnv();
+    getServerEnv();
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('warns once the rotation has outlived the safety window (one refresh-token lifetime)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.stubEnv('NEXT_PUBLIC_API_MODE', 'mock');
+    vi.stubEnv('SESSION_SECRET', 'new-secret-value');
+    vi.stubEnv('SESSION_SECRET_PREVIOUS', 'old-secret-value');
+    vi.stubEnv('SESSION_SECRET_ROTATED_AT', String(Date.now() - 45 * 24 * 60 * 60 * 1000)); // 45 days ago
+    const { getServerEnv } = await loadEnv();
+    getServerEnv();
+    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/F-150.*past the \d+-day safety window/));
+    warn.mockRestore();
+  });
+
+  it('honours a SHORTER SESSION_SECRET_TTL_DAYS override but never a longer one', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.stubEnv('NEXT_PUBLIC_API_MODE', 'mock');
+    vi.stubEnv('SESSION_SECRET', 'new-secret-value');
+    vi.stubEnv('SESSION_SECRET_PREVIOUS', 'old-secret-value');
+    // 10 days old; a 5-day override must flag it even though the 30-day
+    // default would not.
+    vi.stubEnv('SESSION_SECRET_ROTATED_AT', String(Date.now() - 10 * 24 * 60 * 60 * 1000));
+    vi.stubEnv('SESSION_SECRET_TTL_DAYS', '5');
+    const { getServerEnv } = await loadEnv();
+    getServerEnv();
+    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/past the 5-day safety window/));
+    warn.mockRestore();
+  });
+
+  it('ignores an attempt to WIDEN the window past one refresh-token lifetime', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.stubEnv('NEXT_PUBLIC_API_MODE', 'mock');
+    vi.stubEnv('SESSION_SECRET', 'new-secret-value');
+    vi.stubEnv('SESSION_SECRET_PREVIOUS', 'old-secret-value');
+    // 45 days old; a 90-day override request must NOT suppress the warning —
+    // the cap is min(default, override), never max.
+    vi.stubEnv('SESSION_SECRET_ROTATED_AT', String(Date.now() - 45 * 24 * 60 * 60 * 1000));
+    vi.stubEnv('SESSION_SECRET_TTL_DAYS', '90');
+    const { getServerEnv } = await loadEnv();
+    getServerEnv();
+    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/past the 30-day safety window/));
+    warn.mockRestore();
+  });
+
+  it('never warns when SESSION_SECRET_PREVIOUS is unset — the common case', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.stubEnv('NEXT_PUBLIC_API_MODE', 'mock');
+    vi.stubEnv('SESSION_SECRET', 'new-secret-value');
+    vi.stubEnv('SESSION_SECRET_PREVIOUS', '');
+    const { getServerEnv } = await loadEnv();
+    getServerEnv();
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+});

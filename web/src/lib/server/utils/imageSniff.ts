@@ -8,7 +8,9 @@
  * `runtime`, `dynamic`, ...) from an actual `route.ts` — `next build`
  * type-checks this and fails on any other named export.
  */
-export function sniffImageExt(buf: Buffer): 'jpg' | 'png' | 'webp' | null {
+import type { UploadImageExt } from './uploadStorage';
+
+export function sniffImageExt(buf: Buffer): UploadImageExt | null {
   if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'jpg';
   if (
     buf.length >= 8 &&

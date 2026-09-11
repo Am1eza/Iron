@@ -265,15 +265,18 @@ export async function rotateRefresh(
   refreshToken: string,
 ): Promise<{ user: AuthUser; tokens: IssuedTokens }> {
   const hashes = await Promise.all(sessionPeppers().map((pepper) => sha256(refreshToken, pepper)));
-  const now = Date.now();
 
   const mode = reuseMode();
   const refreshTokenNext=randomToken(32);
   const refreshHash=await sha256(refreshTokenNext,sessionPepper());
-  const refreshExpiresAt=now+CONSTANTS.SESSION_TTL_DAYS*24*HOUR;
+  // F-145: no Node `Date.now()` here — the store computes the new token's
+  // expiry, and decides claimed/grace/reuse, against ITS OWN authoritative
+  // clock (the database's, for the real store), not this worker's. Only the
+  // requested TTL crosses the boundary; see store.types.ts#rotateRefreshAtomic.
+  const ttlMs=CONSTANTS.SESSION_TTL_DAYS*24*HOUR;
   let hash=hashes[0]!;
-  let rotation=await rotateRefreshAtomic(hash,refreshHash,{userId:'',expiresAt:refreshExpiresAt},now,reuseGraceMs(),mode==='enforce');
-  for(let i=1;rotation.status==='invalid'&&i<hashes.length;i++){hash=hashes[i]!;rotation=await rotateRefreshAtomic(hash,refreshHash,{userId:'',expiresAt:refreshExpiresAt},now,reuseGraceMs(),mode==='enforce');}
+  let rotation=await rotateRefreshAtomic(hash,refreshHash,ttlMs,reuseGraceMs(),mode==='enforce');
+  for(let i=1;rotation.status==='invalid'&&i<hashes.length;i++){hash=hashes[i]!;rotation=await rotateRefreshAtomic(hash,refreshHash,ttlMs,reuseGraceMs(),mode==='enforce');}
   if(rotation.status==='invalid')throw invalidRefresh();
   if(rotation.status==='reuse') {
    if (mode !== 'off') {
@@ -286,13 +289,12 @@ export async function rotateRefresh(
    }
    throw invalidRefresh();
   }
-  if (!('record' in rotation)) throw invalidRefresh();
+  if (!('record' in rotation) || !('childExpiresAt' in rotation)) throw invalidRefresh();
   const record=rotation.record;
   const user=await userById(record.userId);
   if(!user){await revokeFamily(familyOf(hash,record));throw invalidRefresh();}
-  const absoluteExpiry=Math.min(record.expiresAt,refreshExpiresAt);
   const {token:accessToken,expiresAt:accessExpiresAt}=await signAccessToken({sub:user.id,mobile:user.mobile,role:user.role,name:user.name,tv:user.tokenVersion??0},CONSTANTS.ACCESS_TTL_SECONDS);
-  return {user,tokens:{accessToken,accessExpiresAt,refreshToken:refreshTokenNext,refreshExpiresAt:absoluteExpiry}};
+  return {user,tokens:{accessToken,accessExpiresAt,refreshToken:refreshTokenNext,refreshExpiresAt:rotation.childExpiresAt}};
 }
 
 /** The lineage a token belongs to. A row issued before the family columns

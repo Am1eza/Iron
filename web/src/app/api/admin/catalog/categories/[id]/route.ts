@@ -13,6 +13,7 @@ import {
 } from '@/lib/server/utils/catalogRoute';
 import { finiteNumber, nonEmptyPatch, seoMetaSchema, slugSchema, uploadPathSchema } from '@/lib/validation/utils';
 import { normalizeCatalogText } from '@/lib/server/utils/persianZwnj';
+import { deleteOrphanedUploadIfUnused, deleteOrphanedUploadsIfUnused } from '@/lib/server/utils/uploadCleanup';
 
 const patchPayload = nonEmptyPatch(
   z.object({
@@ -54,6 +55,10 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }
   // slug used to be, so a broken public URL can be restored — was never
   // recorded anywhere.
   await audit(auth.session.id, 'catalog.category.update', { type: 'category', id }, result.before, result.after);
+  // I-212 — the replaced image is now unreachable through this row.
+  if (result.before.imageUrl && result.before.imageUrl !== result.after.imageUrl) {
+    await deleteOrphanedUploadIfUnused(result.before.imageUrl);
+  }
   if (v.data.slug && v.data.slug !== result.before.slug) {
     await redirectCategorySlugChange(id, result.before.slug, v.data.slug);
   }
@@ -89,6 +94,9 @@ async function DELETEImpl(req: NextRequest, ctx: { params: Promise<{ id: string 
   // history is deliberately excluded and only counted (see
   // `CategorySubtreeSnapshot`).
   await audit(auth.session.id, 'catalog.category.delete', { type: 'category', id }, { ...removed, _subtree: subtree }, null);
+  // I-212 — the category's own image plus every product image the cascade
+  // took down with it. Best-effort, after the audit entry.
+  await deleteOrphanedUploadsIfUnused([removed.imageUrl, ...subtree.skus.map((s) => s.imageUrl)]);
   // Every URL under a deleted category — its own page, its subs, its products
   // — points at the price index instead of hard-404ing.
   await writeCatalogRedirects(tombstone);

@@ -67,7 +67,7 @@ const KEY_SCHEMAS: Record<string, z.ZodTypeAny> = {
       level3: finiteNumber.min(0).max(1000),
       referral: finiteNumber.min(0).max(1000),
     }),
-    tiers: z.record(z.string(), z.object({ name: z.string().max(40), minPoints: finiteNumber.int().min(0).max(1_000_000) })),
+    tiers: z.record(z.string().max(60), z.object({ name: z.string().max(40), minPoints: finiteNumber.int().min(0).max(1_000_000) })),
   }),
   SMS_AUTOMATIONS: z.object({
     welcome: z.boolean(),
@@ -129,7 +129,7 @@ async function GETImpl(req: NextRequest) {
   return NextResponse.json({ settings }, { headers: { 'Cache-Control': 'no-store' } });
 }
 
-const putPayload = z.object({ key: z.string().min(1), value: z.unknown() });
+const putPayload = z.object({ key: z.string().min(1).max(100), value: z.unknown() });
 
 /** PUT /api/admin/settings — one validated key at a time. */
 async function PUTImpl(req: NextRequest) {

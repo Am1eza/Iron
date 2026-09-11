@@ -5,6 +5,118 @@
 
 ## نتیجهٔ فعلی: ۹۳ از ۱۰۰ — هنوز ۱۰۰ نیست
 
+> **یادداشت ادغام (۲۰۲۶-۰۹-۱۱، بعدازظهر):** دو نوبت مستقل هم‌زمان روی این
+> سند کار کردند — یکی H-172 را بست، دیگری (از یک worktree ایزوله با پایهٔ
+> قدیم‌تر، بدون اطلاع از اولی) H-171/H-173 را به artifact خودکار تبدیل
+> کرد. پس از ادغام هر سه در همان کد کنار هم موجودند و هیچ‌کدام دیگری را
+> نقض نمی‌کند (فایل‌های لمس‌شده مجزا بودند). migration این نوبت
+> (`rate_limit_windows`، برای F-131 که هم‌زمان در audit-auth-F.md مستند
+> است) با شمارهٔ `0061` مستقل از E-track's `0061_order_items_sku_code`
+> تولید شده بود؛ در ادغام به `0062` تغییر شماره گرفت.
+>
+> **نوبت ۲۰۲۶-۰۹-۱۱ — H-172 (سقف طول query string در `/api/search`) رفع شد:**
+> `web/src/app/api/search/route.ts:16` اکنون `const q = (...).trim().slice(0, 100)`
+> است — همان سقف و همان الگویی که `admin/search/route.ts:50` از قبل داشت
+> (پیشوند این بند دقیقاً به آن نمونهٔ موجود اشاره می‌کرد). یک تست جدید
+> (`web/src/app/api/search/route.test.ts`, ۳ مورد) مستقیماً ثابت می‌کند یک
+> query پنجاه‌هزار-کاراکتری قبل از رسیدن به `searchSkus`/`searchArticles`
+> به ۱۰۰ کاراکتر truncate می‌شود، یک query عادی دست‌نخورده می‌ماند، و رفتار
+> `MIN_Q` (رد query کوتاه) تغییر نکرده. شواهد اجرا: `tsc --noEmit` پاک؛
+> `eslint` پاک؛ روی PostgreSQL 15 disposable واقعی (نه pglite) —
+> `vitest run` سراسری **۲۸۷ فایل، ۳۳۱۶ تست، همه PASS**؛ `npm run build`
+> تولیدی exit 0. این تنها یافتهٔ صراحتاً «این نوبت رفع نشد» در کل سند H
+> بود؛ اکنون بسته است. جدول امتیاز پایین (نمرهٔ ۸۸ برای H-172) یک snapshot
+> قبل از این رفع است.
+>
+> **نوبت ۲۰۲۶-۰۹-۱۱ — H-171 و H-173 از «بررسی یک‌باره» به artifact خودکار و CI-locked تبدیل شدند:**
+>
+> **H-171 (بود ۹۵):** خودِ سند نوشته بود «تکمیل واقعی نیازمند یک تست مشابه
+> `adminApiConventions.test.ts` است که هر route زیر admin باید
+> `requireApiPermission` داشته باشد را در CI enforce کند — این تست امروز
+> وجود ندارد». این نوبت آن تست نوشته شد: `web/scripts/lib/routeInventory.ts`
+> (منطق) + `web/scripts/routeInventory.ts` (CLI قابل اجرای مستقل —
+> `pnpm exec tsx scripts/routeInventory.ts` گزارش auth/rate-limit/validateBody
+> را per-family چاپ می‌کند) + `web/scripts/routeInventory.test.ts` (تست
+> vitest که در هر اجرای مجموعهٔ تست پروژه دوباره چک می‌شود، نه فقط دستی).
+> این تست چهار ادعا را enforce می‌کند: (۱) هر مسیر `/api/admin/**` یکی از
+> `requireApiPermission`/`requireApiUser`/`getSessionVerified` را صدا می‌زند
+> (صفر استثنا — دوباره تأیید شد، اکنون به‌صورت خودکار)، (۲) همین برای
+> `/api/me/**`، (۳) هر route.ts با POST/PUT/PATCH/DELETE یا `validateBody`
+> صدا می‌زند یا در یک allowlist صریح با دلیل مکتوب است (۲۵ مسیر — هرکدام
+> جداگانه خوانده و تأیید شد که یا بدون body واقعی هستند، یا با
+> `readJsonBody`+zod `safeParse` دستی معادل `validateBody` اعتبارسنجی
+> می‌شوند، یا multipart/form-data با size-cap+magic-byte/ExcelJS، یا یک
+> webhook عمداً بدون schema که field-by-field دفاعی parse می‌شود؛ **هیچ گپ
+> واقعی پیدا نشد** — نگاه کنید به `routeInventory.test.ts`'s
+> `VALIDATE_BODY_EXEMPT` برای فهرست کامل با دلیل هرکدام)، (۴) خودِ
+> allowlist هیچ ورودی کهنه ندارد (اگر یک route بعداً `validateBody` بگیرد یا
+> حذف شود، تست این را هم می‌گیرد). شمارش `pnpm exec tsx
+> scripts/routeInventory.ts` روی این نوبت: ۱۵۴ route، admin auth ۹۴/۹۴
+> (۱۰۰٪)، me auth ۱۸/۱۸ (۱۰۰٪)، admin rate-limit ۳/۹۴ (۳٪ — دقیقاً همان رقم
+> H-185، عمداً hard-fail نشد چون H-185 این را یک تغییر ساختاری جداگانه با
+> scope خودش می‌داند، نه رگرسیون این بند). rate-limit coverage عمداً فقط
+> **گزارش** می‌شود نه enforce، تا این تست CI را بابت شکاف شناخته‌شدهٔ دیگری
+> (H-185) قرمز نکند.
+>
+> **H-173 (بود ۹۶):** سند نوشته بود «بررسی کامل‌تر روی تمام ۶۷ schema (نه
+> فقط چهار موردی که نوبت قبل پیدا شد) با یک اسکریپت خودکار (نه grep دستی)
+> انجام نشده». این نوبت آن اسکریپت نوشته شد:
+> `web/scripts/lib/zodStringMaxScan.ts` — یک AST walker واقعی (نه regex؛
+> TypeScript Compiler API) که هر فراخوانی `z.string()` را پیدا می‌کند و زنجیرهٔ
+> متدهای chain‌شده رویش (`.max`, `.length`, `.regex`, `.uuid`, `.superRefine`,
+> …) را دنبال می‌کند تا ببیند محدود شده یا نه؛ یک کامنت `// unbounded: ...`
+> هم یک exemption صریح و مستند است. `web/scripts/schemaLengthCapScan.ts`
+> این را روی کل `lib/validation/**` (به‌جز `env.ts` — پیکربندی عملیاتی
+> است، نه ورودی کاربر) و هر `route.ts` زیر `app/api/**` اجرا می‌کند —
+> نه فقط چهار schema که grep دستی نوبت قبل پیدا کرد. نتیجهٔ اجرای این
+> نوبت (پیش از اصلاح): **۳۹ فیلد `z.string()` بدون سقف** در ۱۵ فایل واقعی
+> پیدا شد (نمونه: `marketValueSchema.label/unit/updatedAt`،
+> `admin/catalog/skus`'s `subCategoryId`/`crossListedCategoryIds`،
+> `admin/settings`'s `putPayload.key`/`CLUB_CONFIG.tiers` record key،
+> `me/verification`'s `nationalId`/`companyNationalId`/`economicCode`
+> — این سه‌تا فرمت ثابت دارند و validation واقعی‌شان
+> `isValidNationalId`/... در `verificationRepo.ts` است، اما در سطح Zod
+> هیچ سقفی نداشتند). همهٔ این ۳۹ مورد در همین نوبت **رفع** شد (سقف‌های
+> ۲۰ تا ۱۲۰ کاراکتر، هم‌مقیاس با الگوی موجود در بقیهٔ اپ — `skuId`≤۱۲۰،
+> شناسه‌های دیگر≤۶۴).
+>
+> **یادداشت ۲۰۲۶-۰۹-۱۱ (بعدازظهر) — ۱۶ مورد باقی‌مانده هم رفع شد:** آن
+> ۱۶ مورد در چهار route زیر `admin/operations`, `admin/warehouse[/settlements]`,
+> `me/warehouse/operations` عمداً کنار گذاشته شده بودند چون یک جریان کاری
+> جدا هم‌زمان روی order/warehouse کار می‌کرد؛ آن کار اکنون merge شده
+> (`docs/audit-order-warehouse-E.md`). با همان الگوی شناسه≤۶۴ (`id64`
+> helper در `admin/operations/route.ts`؛ `.max(64)` مستقیم در بقیه) رفع
+> شد؛ `DEFERRED_ORDER_WAREHOUSE_FILES` allowlist از خودِ اسکریپت حذف شد —
+> `pnpm exec tsx scripts/schemaLengthCapScan.ts` اکنون **۱۶۰ فایل** (نه
+> ۱۵۶) را بدون استثنا اسکن می‌کند و صفر یافته می‌دهد. شواهد: `tsc --noEmit`
+> پاک؛ `vitest run` سراسری (بدون `DATABASE_URL` — دقیقاً روش CI،
+> `.github/workflows/ci.yml`) **۳۰۳ فایل، ۳۴۳۰ تست، همه PASS**. اکنون
+> **صفر مورد شناخته‌شدهٔ باز** برای H-173 باقی مانده. اسکریپت اکنون در
+> `web/scripts/schemaLengthCapScan.test.ts` به‌صورت یک تست vitest
+> CI-enforced قفل شده — یک PR آینده که یک `z.string()` جدید بدون سقف در هر
+> schema دیگری (به‌جز چهار فایل مستثنا‌شدهٔ بالا) اضافه کند، این تست را
+> قرمز می‌کند. شواهد: `web/scripts/lib/zodStringMaxScan.test.ts` (۷ تست
+> واحد روی خودِ scanner — ثابت می‌کند یک فیلد بدون سقف را می‌گیرد، یک فیلد
+> با `.max()`/chain چندخطی/fixed-format/کامنت مستند را رد نمی‌کند)،
+> `web/scripts/lib/routeInventory.test.ts` (۵ تست روی خودِ inventory
+> builder با فیکسچرهای موقت).
+>
+> **شواهد اجرای کامل این نوبت** (نه فقط این دو بند؛ کل کار جانبی
+> F-131/F-146/F-150 هم همین نوبت انجام شد — نگاه کنید به docs/audit-auth-F.md):
+> `tsc --noEmit` پاک؛ `eslint` پاک روی هر فایل تغییریافته؛ روی یک
+> PostgreSQL 15 disposable واقعی (`initdb`+`pg_ctl` محلی، migrate شده از صفر
+> تا آخرین migration) — `vitest run` سراسری **۲۹۲ فایل، ۳۳۴۶ تست، همه
+> PASS**؛ `next build` تولیدی (Turbopack) با `DATABASE_URL` واقعی —
+> **exit 0، صفر خطا**. این نوبت روی یک worktree ایزوله با پایهٔ
+> `main@ef276bbb` اجرا شد که هنوز شامل H-172 نبود — نوبت ادغام (یادداشت
+> بالای سند) هر دو را در همان کد کنار هم آورد.
+>
+> جدول امتیاز پایین برای ۱۷۱ و ۱۷۳ به‌روزرسانی شد؛ سرجمع ۹۳/۱۰۰ بالای سند
+> عمداً بازمحاسبه نشد — تغییر سه بند از ۳۰ (هرکدام چند واحد) میانگین کل را
+> کمتر از یک واحد جابه‌جا می‌کند و بدون بازخوانی هر ۲۷ بند دیگر یک عدد
+> صحیح جدید ادعا کردن دقیقاً همان «ظاهر خوب بدون شاهد» است که این سند از
+> ابتدا رد می‌کند.
+
 نمره میانگین مساوی ۳۰ محور است؛ گواهی انطباق یا امتیاز احتمال حمله نیست. برخلاف
 آدیت‌های E و F که با یک baseline پایین (به‌ترتیب ۳۷ و شروع‌شده از شکاف‌های Critical)
 آغاز شدند، این بخش یک الگوی متفاوت نشان داد: **بیشتر سطح حملهٔ ورودی این اپ از قبل،
@@ -72,9 +184,9 @@ Production در دسترس نیست.
 
 | بند | محور | نمره از ۱۰۰ | شدت | اولویت |
 | --- | --- | ---: | --- | --- |
-| 171 | inventory کامل ۱۵۴ route | 95 | N/A | P3 |
-| 172 | validation کامل body/query/params/headers | 88 | Low | P2 |
-| 173 | سقف طول string | 96 | Medium (پیش از اصلاح) | P1 (انجام شد) |
+| 171 | inventory کامل ۱۵۴ route | 99 (CI-locked این نوبت — نگاه کنید به یادداشت بالا) | N/A | P3 |
+| 172 | validation کامل body/query/params/headers | 88 (سقف q رفع شد، هنوز بدون helper عمومی) | Low | P2 (بخشی انجام شد) |
+| 173 | سقف طول string | 100 (اسکن خودکار کل schema، صفر مورد باز — نگاه کنید به یادداشت بالا) | Medium (پیش از اصلاح) | P1 (انجام شد) |
 | 174 | سقف array/عمق JSON | 92 | Low | P2 |
 | 175 | Content-Type اشتباه / body malformed | 98 | N/A | N/A |
 | 176 | مقابله با mass assignment | 94 | Low | P2 |
@@ -86,8 +198,8 @@ Production در دسترس نیست.
 | 182 | جلوگیری از javascript: URL و event handler | 95 | N/A | N/A |
 | 183 | مقابله با prototype pollution | 94 | N/A | N/A |
 | 184 | محدودیت اندازهٔ request | 93 | Low | P2 |
-| 185 | rate limit جدا برای دسته‌های مختلف | 74 | High (برای admin) | P1 |
-| 186 | مقابله با spam فرم | 78 | Medium | P2 |
+| 185 | rate limit جدا برای دسته‌های مختلف | ~~74~~ **90** | ~~High~~ Low | ~~P1~~ P3 |
+| 186 | مقابله با spam فرم | ~~78~~ **88 برای contact** | ~~Medium~~ Low (contact) | ~~P2~~ — contact انجام شد؛ باگ جدید cooperation جدا پیگیری شود |
 | 187 | جلوگیری از replay | 85 | Low | P2 |
 | 188 | صحت idempotency key | 97 | N/A | N/A |
 | 189 | جلوگیری از cache poisoning | 93 | Low | P3 |
@@ -124,7 +236,7 @@ Production در دسترس نیست.
 - **چرا هنوز ۱۰۰ نیست:** جدول کامل route-by-route با هر ستون (auth/role/rate-limit/schema) به‌صورت یک artifact نگهداری‌شده در repo ذخیره نشد — اگر یک route جدید فردا اضافه شود، هیچ تست CI این inventory را دوباره اعتبارسنجی نمی‌کند؛ فقط یک بررسی دستیِ یک‌بارهٔ این نشست است.
 - **Acceptance Criteria:** برای همین نشست برآورده (شمارش کامل + دو ادعای ساختاری با grep صفر-استثنا اثبات شد). تکمیل واقعی نیازمند یک تست مشابه `adminApiConventions.test.ts` (که G برای no-store/audit ساخت) است که "هر route زیر admin باید requireApiPermission داشته باشد" را در CI enforce کند — این تست امروز وجود ندارد.
 
-### H-172 — validation کامل body، query، params و headers — 88/100
+### H-172 — validation کامل body، query، params و headers — رفع جزئی (سقف q) در ۲۰۲۶-۰۹-۱۱، امتیاز ۸۸/۱۰۰ زیر مربوط به قبل از رفع است
 
 - **وضعیت فعلی:** body: `validateBody`+Zod در تمام ۶۷ مسیری که body می‌پذیرند (شمارش مستقیم). route params ([id]/[ref]/[slug]) عموماً یا مستقیم به یک query پارامتری‌شده (Drizzle) می‌روند (امن ذاتاً در برابر injection، صرف‌نظر از نوع) یا `decodeURIComponent` می‌شوند و در یک lookup برابری استفاده می‌شوند (نه در ساخت SQL خام).
 - **مشکل دقیق:** query string **هیچ helper مشترکی مثل `validateBody` ندارد**. نمونهٔ واقعی: `src/app/api/search/route.ts:16` — `const q = (req.nextUrl.searchParams.get('q') ?? '').trim();` فقط حداقل طول (۲) چک می‌شود، **بدون سقف بالا**. طول واقعی توسط چیزی در این اپ محدود نمی‌شود؛ تنها backstop، محدودیت طول URL در لایهٔ Caddy/Cloudflare است (که این مخزن آن را کنترل نمی‌کند). یک query دو-کاراکتری معتبر و یک query ۵۰۰۰۰-کاراکتری هر دو از این خط رد می‌شوند و به `searchSkus`/`searchArticles` (که `likeContains` را صدا می‌زنند) می‌رسند — ILIKE‌کردن یک رشتهٔ خیلی بلند هزینهٔ CPU دارد (نه injection، چون escape می‌شود).
@@ -137,7 +249,7 @@ Production در دسترس نیست.
 - **سختی/هزینهٔ اصلاح:** کم؛ چند خط، کمتر از نیم‌روز.
 - **تخمین Impact اصلاح:** کم تا متوسط — کاهش هزینهٔ CPU حاشیه‌ای، نه یک آسیب‌پذیری بحرانی.
 - **مثال از سایت‌های برتر:** اکثر APIهای جستجوی عمومی (Algolia, Elasticsearch-backed) یک سقف صریح روی طول query دارند (معمولاً ۱۰۰–۲۵۶ کاراکتر) دقیقاً به همین دلیل.
-- **Acceptance Criteria:** یک query با طول > ۱۰۰ کاراکتر یا رد شود (۴۰۰) یا truncate شود قبل از رسیدن به لایهٔ DB؛ تست جدید این رفتار را پوشش دهد. **این نوبت رفع نشد** — یافته باز است، عمداً برای اولویت‌بندی مستقل (Low، نه اضطراری).
+- **Acceptance Criteria:** یک query با طول > ۱۰۰ کاراکتر یا رد شود (۴۰۰) یا truncate شود قبل از رسیدن به لایهٔ DB؛ تست جدید این رفتار را پوشش دهد. **رفع شد در نوبت ۲۰۲۶-۰۹-۱۱:** `src/app/api/search/route.ts:16` اکنون `.slice(0, 100)` می‌کند — همان سقف/الگوی از پیش موجود در `admin/search/route.ts:50`. `src/app/api/search/route.test.ts` (۳ تست) این رفتار را با query ۵۰هزار-کاراکتری، query عادی و query زیرِ حداقل پوشش می‌دهد؛ همه PASS روی PostgreSQL واقعی. **چرا این بند هنوز کامل ۱۰۰ نیست:** «هیچ helper مشترک مثل `validateBody` برای query string» هنوز درست است — این رفع فقط یک مسیر (`/api/search`) را دستی اصلاح کرد، نه یک قاعدهٔ عمومی/CI-enforced برای هر route آینده‌ای که یک query-string جدید بدون سقف اضافه کند؛ چنین helper/testی نوشته نشد.
 
 ### H-173 — سقف طول برای تمام stringها — 96/100 (رفع شد این نوبت)
 
@@ -320,7 +432,47 @@ Production در دسترس نیست.
 - **مثال از سایت‌های برتر:** الگوی «دو لایه، لایهٔ داخلی سخت‌گیرتر» دقیقاً همان چیزی است که [nginx `client_max_body_size` + app-level validation](https://nginx.org/en/docs/http/ngx_http_core_module.html#client_max_body_size) به‌صورت استاندارد توصیه می‌شود.
 - **Acceptance Criteria:** `grep -i "request_body\|max_size" Caddyfile` باید یک عدد مشخص و منطقی (نزدیک ۲۰MB طبق ادعای قبلی) نشان دهد — این نوبت اجرا نشد.
 
-### H-185 — rate limit جداگانه برای auth، AI، search، comment، contact و lead — 74/100
+### H-185 — rate limit جداگانه برای auth، AI، search، comment، contact و lead — 74/100 → **90/100 (۲۰۲۶-۰۹-۱۱، بعدازظهر)**
+
+> **شکاف اصلی («صفر از ۹۴ مسیر admin») بسته شد، دقیقاً به روش پیشنهادی خودِ
+> این یافته:** به‌جای ۹۱ فراخوانی جداگانه، یک سقف پیش‌فرض سخاوتمندانه
+> (۱۲۰/دقیقه) داخل خودِ `requireApiPermission` (`apiGuard.ts`) اضافه شد —
+> یعنی هر ۹۴ مسیر admin (نه فقط آن‌هایی که از قبل rate limit داشتند)
+> اکنون این کف مشترک را دارند، بدون لمس تک‌تک فایل‌های route. کلید بر اساس
+> **session id**، نه IP — چون تهدید واقعی «توکن staff دزدیده‌شده» است، نه
+> IP، و کلیدسازی روی IP یک دفتر مشترک واقعی را هم بی‌دلیل محدود می‌کرد.
+> بررسی می‌شود **بعد از** تأیید session و permission، تا یک caller
+> غیرمجاز نتواند با حدس‌زدن id سهمیهٔ یک ادمین واقعی را بسوزاند. مسیرهایی
+> که از قبل `rateLimit()` خودشان را صدا می‌زنند (admin/search،
+> admin/upload) دست‌نخورده ماندند — این سقف فقط یک "outer ceiling" اضافه
+> می‌کند، هرگز یک محدودیت سخت‌گیرانه‌تر موجود را شل نمی‌کند.
+>
+> **ریسک اصلی («این یک تغییر ساختاری با شعاع اثر روی ۹۴ فایل است») قبل از
+> اعمال بررسی شد، نه بعد:** شمارش دقیق نشان داد فقط ۱۰ فایل تست واقعاً
+> مسیرهای admin را در سطح route تست می‌کنند؛ ۹ تا از آن‌ها کل ماژول
+> `apiGuard` را mock می‌کنند (یعنی ذاتاً از این تغییر بی‌اثرند)، و دهمی
+> (`leads/filters.test.ts`) اصلاً `requireApiPermission` را صدا نمی‌زند
+> (یک تابع خالص را مستقیم تست می‌کند). e2e از قبل `DISABLE_RATE_LIMIT_
+> FOR_TESTS=true` دارد (`playwright.config.ts:115`) — یعنی کاملاً معاف.
+>
+> **اثبات، نه فقط استدلال:** یک تست جدید و واقعی
+> (`apiGuardRateLimit.test.ts`) — بدون mock کردن `rateLimit` — ثابت
+> می‌کند: (۱) ترافیک عادی (۵ درخواست) بدون مشکل رد می‌شود، (۲) یک session
+> واحد دقیقاً در مرز ۱۲۰ به یک ۴۲۹ واقعی می‌رسد (نه یک عبور خاموش)، (۳)
+> سهمیهٔ یک session **دیگر** دست‌نخورده می‌ماند — یعنی کلید واقعاً per-session
+> است، نه سراسری. کل مجموعهٔ تست (۳۰۵ فایل، ۳۴۳۳ تست) بلافاصله بعد از این
+> تغییر (پیش از هرگونه فشار خارجی روی ماشین) **سبز کامل** بود؛ تست‌های
+> ناموفق در اجراهای بعدی (روی همین نوبت) با اجرای مجزا هرکدام دوباره PASS
+> شدند و همگی یا کل `apiGuard` را mock می‌کردند یا اصلاً از
+> `requireApiPermission` عبور نمی‌کردند — یعنی timeout منابع سیستم (load
+> average ۴۶ روی ۱۰ هستهٔ همین Mac، از یک process دیگر، نه این تغییر)
+> بودند، نه رگرسیون. `tsc`/`eslint` پاک.
+>
+> **چرا هنوز ۱۰۰ نیست:** طبق Acceptance Criteria خودِ این بند، یک تست
+> CI که به‌صراحت enforce کند «هر route admin از این wrapper عبور می‌کند»
+> نوشته نشد (فقط رفتار خودِ wrapper اثبات شد، نه اینکه هیچ route جدیدی
+> نتواند دور آن بزند)؛ و عدد ۱۲۰/دقیقه یک تخمین مهندسی معقول است، نه
+> چیزی که روی بار واقعی Production کالیبره شده باشد.
 
 - **وضعیت فعلی (پس از اصلاح این نوبت):** پوشش برای هر دستهٔ ذکرشده در متن درخواست واقعاً جدا و منطقی است:
   - **auth:** `otp-request` (۸/۵دقیقه)، `otp-verify` (۲۰/۵دقیقه) — هردو جدا؛ به‌علاوهٔ کنترل‌های DB-backed مستقل (F audit) روی همان مسیرها. این نوبت `auth-refresh` (۶۰/دقیقه) به `/api/auth/refresh` و `/api/auth/silent` اضافه شد (قبلاً هیچ نداشتند).
@@ -342,7 +494,44 @@ Production در دسترس نیست.
 - **چرا این نوبت رفع نشد:** این یک تغییر ساختاری با شعاع اثر روی ۹۴ فایل است؛ آزمودن کافی (که هیچ مسیر admin موجود به‌طور ناخواسته rate-limit نشود، به‌ویژه در سناریوهای batch/bulk مشروع پنل) به بیش از زمان باقی‌ماندهٔ این نشست نیاز دارد. رفع عجولانه بدون تست کامل دقیقاً همان «over-engineering بدون تست» است که CLAUDE.md منع می‌کند.
 - **Acceptance Criteria:** یک تست CI (به سبک `adminApiConventions.test.ts`) که یا (الف) تأیید کند هر route admin از یک rate-limit-aware wrapper عبور می‌کند، یا (ب) به‌صراحت مسیرهای معاف را allowlist کند با دلیل مکتوب.
 
-### H-186 — مقابله با spam فرم همکاری، تماس و درخواست برش — 78/100
+### H-186 — مقابله با spam فرم همکاری، تماس و درخواست برش — 78/100 → **88/100 برای contact؛ یافتهٔ مستقل جدید برای cooperation (۲۰۲۶-۰۹-۱۱، بعدازظهر)**
+
+> **contact بسته شد:** یک فیلد honeypot واقعی (`website`، اختیاری در
+> `contactSchema`) اضافه شد — در `ContactForm.tsx` با `position:absolute`
+> خارج از صفحه، `tabIndex={-1}`، `aria-hidden` (یعنی نه در دید کاربر واقعی،
+> نه در tab order، نه در درخت accessibility، ولی در DOM خام برای یک
+> submitter اسکریپتی که هر input را پر می‌کند حاضر است). `contact/route.ts`
+> اگر این فیلد پر باشد **موفقیت جعلی برمی‌گرداند و هیچ ردیفی نمی‌سازد** —
+> دقیقاً طبق Acceptance Criteria («بی‌صدا شکست بخورد»، نه یک خطای قابل‌تشخیص
+> که به ربات یاد بدهد کدام فیلد را خالی بگذارد). تست جدید
+> (`contact/route.test.ts`) هر دو مسیر را روی یک PGlite واقعی ثابت می‌کند:
+> submit عادی یک ردیف می‌سازد؛ submit با honeypot پر، `{ok:true}` برمی‌گرداند
+> ولی صفر ردیف می‌سازد. `tsc`/`eslint` پاک.
+>
+> **یافتهٔ مستقل جدید دربارهٔ cooperation، بزرگ‌تر از خودِ H-186:** بررسی
+> `CooperationForm.tsx` (رندرشده در صفحات واقعی `/cooperation/analysis`
+> `/cooperation/supply` `/cooperation/sell`) نشان داد این کامپوننت اصلاً
+> `cooperationApi.submit`/`POST /api/cooperation` را صدا **نمی‌زند** — کامنت
+> خودِ کد صریح است: «No backend — record the lead client-side only». یعنی
+> هر submit روی این سه صفحهٔ زندهٔ عمومی یک toast موفقیت **دروغین** نشان
+> می‌دهد و هیچ لیدی هرگز در `leads`/پنل ساخته نمی‌شود. `cooperationApi` در
+> `lib/api/resources/misc.ts` هست و درست پیاده‌سازی شده، فقط هیچ‌جا فراخوانی
+> نمی‌شود؛ `POST /api/cooperation` خودش سالم و مستقیماً reachable است (فقط
+> از مسیر UI واقعی هرگز صدا زده نمی‌شود). این یعنی چارچوب اصلی این یافته
+> («spam از طریق فرم عمومی») برای cooperation از پایه صادق نیست — چون فرم
+> عمومی اصلاً به API نمی‌رسد، یک honeypot سطح-فرم آنجا هیچ ریسکی را نمی‌بندد؛
+> سطح حملهٔ واقعی برای این endpoint «هر اسکریپتی که مستقیم آن را curl کند»
+> است، نه «کسی که فرم واقعی را پر می‌کند».
+>
+> **این نوبت عمداً خودِ اتصال فرم را رفع نکرد:** `cooperationSchema` را
+> `company` (نه `name`) تعریف می‌کند در حالی‌که `CooperationForm.tsx`
+> فیلدهای `name`/`note` را جمع‌آوری می‌کند — یک تصمیم داده‌ای/محصولی («نام
+> شخص را باید کجای رکورد لید ذخیره کرد؟») که حدس زدنش بدون تأیید صاحب
+> محصول می‌تواند دادهٔ لید واقعی را در ستون اشتباه بنویسد. توصیه: این را
+> جدا از H-186 (که صرفاً دربارهٔ rate-limit/CAPTCHA/honeypot بود) به‌عنوان
+> یک باگ از‌دست‌رفتن لید با اولویت بالا پیگیری کنید — طبق مدل کسب‌وکار
+> «Magnet → Engage → Capture» در CLAUDE.md، این مستقیماً یعنی هر لید
+> همکاری واقعی از این سه صفحه گم می‌شود، نه فقط یک ریسک امنیتی.
 
 - **وضعیت فعلی:** هر سه فرم (`contact`, `cooperation`, `cut-to-size-requests`) rate limit دارند (به‌ترتیب `contact`:۵، `cooperation`:۵، `cut-to-size-requests`:۱۰ در پنجرهٔ پیش‌فرض) و `assertSameOrigin` (CSRF) را چک می‌کنند. `cut-to-size-requests` و `warehouse-requests` علاوه‌براین **نیازمند session معتبر** هستند (`requireApiUser`) — یعنی یک اسپمر باید حداقل یک حساب OTP-تأییدشده بسازد، که خودش هزینهٔ SMS واقعی (نه صفر) دارد.
 - **مشکل دقیق:** `contact` و `cooperation` **بدون نیاز به session** هستند (عمومی، طبق طراحی — کاربر بدون حساب باید بتواند تماس بگیرد) و **هیچ CAPTCHA یا honeypot field** ندارند. یک اسکریپت با ۵ درخواست در پنجرهٔ rate-limit (که پیش‌فرض تابع rateLimit است، محتمل ۶۰ثانیه) می‌تواند به‌سادگی از چند IP (یا با فاصلهٔ زمانی) پیام spam واقعی به `contact_messages`/لید همکاری تزریق کند — این جدول‌ها مستقیم توسط کارشناس پنل خوانده می‌شوند، پس spam واقعی هزینهٔ زمان انسانی دارد، نه فقط فضای دیسک.

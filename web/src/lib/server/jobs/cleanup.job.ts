@@ -3,10 +3,17 @@
  * thin market history so the ticker table never grows unbounded.
  */
 import { sql } from 'drizzle-orm';
+import { promises as fs } from 'fs';
+import path from 'path';
+import { decodeTime } from 'ulid';
 import { getDb } from '@/lib/server/db/client';
 import { cleanupExpiredAuth } from '@/lib/auth/store';
-import { idempotencyKeys } from '@/lib/server/db/schema';
+import { idempotencyKeys, rateLimitWindows } from '@/lib/server/db/schema';
+import { lt } from 'drizzle-orm';
 import { getSetting, setSetting } from '@/lib/server/repos/settingsRepo';
+import { reportError } from '@/lib/errors/report';
+import { uploadDir, UPLOAD_FILENAME_RE } from '@/lib/server/utils/uploadStorage';
+import { referencedUploadFilenames } from '@/lib/server/utils/uploadCleanup';
 import type { Job } from './scheduler';
 
 /** How long full-resolution ticker history is kept before thinning. */
@@ -124,6 +131,74 @@ export async function thinMarketPoints(): Promise<void> {
   await setSetting(THIN_WATERMARK_KEY, cutoff.toISOString());
 }
 
+/**
+ * I-212 — the safety net behind the per-route synchronous cleanup added in
+ * the SKU/category/sub-category/article delete-and-replace routes (see
+ * uploadCleanup.ts). Those handle the common case; this catches everything
+ * else: an upload whose row was never saved (the admin closed the tab
+ * mid-form), a bug in some future route, a row edited directly in the
+ * database. Lists every file physically under `uploadDir()`, deletes any
+ * whose ULID-encoded creation time is older than `ORPHAN_GRACE_MS` AND that
+ * `referencedUploadFilenames()` says no live row points at.
+ *
+ * The grace period (not "delete anything unreferenced right now") exists
+ * because this job can run at any point in the gap between a file landing on
+ * disk (`POST /api/admin/upload` succeeding) and the follow-up PATCH that
+ * actually saves the SKU/article/category row pointing at it — an admin
+ * picks an image, then fills in the rest of the form, then saves; a
+ * reconciliation pass mid-form-fill must not delete a file that upload
+ * already told the browser it could use. 48h is generously past any
+ * realistic editing session while still bounding disk growth in days, not
+ * indefinitely (I-212's actual complaint).
+ */
+const ORPHAN_GRACE_MS = 48 * 60 * 60 * 1000;
+
+/** The filename's own embedded ULID timestamp, not the file's mtime —
+ *  correct even across a `restic restore` or a volume copy that changes
+ *  filesystem timestamps but can never change what's encoded in the name
+ *  itself. `UPLOAD_FILENAME_RE` already guarantees the first 26 characters
+ *  are a valid Crockford-base32 ULID before this is ever called. */
+function uploadedAt(filename: string): number {
+  return decodeTime(filename.slice(0, 26));
+}
+
+export async function reconcileOrphanUploads(): Promise<{ scanned: number; removed: number }> {
+  const dir = uploadDir();
+  let entries: string[];
+  try {
+    entries = await fs.readdir(dir);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return { scanned: 0, removed: 0 };
+    reportError(err, { stage: 'cleanup.reconcileOrphanUploads.readdir' });
+    return { scanned: 0, removed: 0 };
+  }
+
+  const candidates = entries.filter((name) => UPLOAD_FILENAME_RE.test(name));
+  if (candidates.length === 0) return { scanned: 0, removed: 0 };
+
+  const inUse = await referencedUploadFilenames();
+  const cutoff = Date.now() - ORPHAN_GRACE_MS;
+  let removed = 0;
+  for (const name of candidates) {
+    if (inUse.has(name)) continue;
+    let age: number;
+    try {
+      age = uploadedAt(name);
+    } catch {
+      continue; // shouldn't happen given the regex filter above; never guess
+    }
+    if (age > cutoff) continue; // too young — may be an in-flight upload
+    try {
+      await fs.unlink(path.join(dir, name));
+      removed++;
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') continue;
+      reportError(err, { stage: 'cleanup.reconcileOrphanUploads.unlink', name });
+    }
+  }
+  return { scanned: candidates.length, removed };
+}
+
 export const cleanupJob: Job = {
   name: 'cleanup',
   everyMs: 60 * 60 * 1000,
@@ -148,6 +223,11 @@ export const cleanupJob: Job = {
       .where(sql`${idempotencyKeys.status} = 'done' AND ${idempotencyKeys.createdAt} < now() - interval '24 hours'`);
     // Market points: after 48h keep at most one point per 15 minutes.
     await thinMarketPoints();
+    // F-131: one row per (scope:key:windowBucket) — a Redis outage that lasts
+    // any length of time would otherwise leave this growing without bound.
+    // `expiresAt` is the bucket's own end time, already in the past for any
+    // row worth deleting.
+    await db.delete(rateLimitWindows).where(lt(rateLimitWindows.expiresAt, Date.now()));
     // Idempotency keys: one row per financially-meaningful write (proforma/
     // order/lead issuance). A row is only ever deleted on its own failure
     // path (see lib/server/utils/idempotency.ts) — successful ones are kept
@@ -181,5 +261,8 @@ export const cleanupJob: Job = {
     // longest window here; do NOT shorten without an operator decision).
     await db.execute(sql`DELETE FROM audit_entries WHERE at < now() - interval '365 days'`);
     // contact_messages are business correspondence — never auto-deleted.
+
+    // I-212 — orphaned upload files (see reconcileOrphanUploads' docstring).
+    await reconcileOrphanUploads();
   },
 };

@@ -11,7 +11,7 @@ import {
   LeadMergeSelfError,
 } from '@/lib/server/repos/leadsRepo';
 
-const mergePayload = z.object({ loserId: z.string().min(1) });
+const mergePayload = z.object({ loserId: z.string().min(1).max(64) });
 
 /**
  * POST /api/admin/leads/{id}/merge — fold `{loserId}` into `{id}`.

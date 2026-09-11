@@ -32,7 +32,7 @@ import {
   updateWarehouseItem,
   InvalidStatusTransitionError,
 } from '@/lib/server/repos/ordersRepo';
-import { nextRef } from '@/lib/server/utils/refs';
+import { nextRef, REF_SUFFIX_LENGTH } from '@/lib/server/utils/refs';
 import { quoteValidUntil, jalaliStamp } from '@/lib/server/utils/jalali';
 import type { AuthUser } from '@/lib/auth/types';
 
@@ -138,8 +138,8 @@ describe('refs & validity', () => {
     // The trailing random suffix is the actual unguessability guarantee for
     // the public proforma/track lookup endpoints (see refs.ts) — assert the
     // sequence prefix deterministically, the suffix only by shape.
-    expect(a).toMatch(new RegExp(`^PF-${stamp}-0001-[A-Z2-9]{6}$`));
-    expect(b).toMatch(new RegExp(`^PF-${stamp}-0002-[A-Z2-9]{6}$`));
+    expect(a).toMatch(new RegExp(`^PF-${stamp}-0001-[A-Z2-9]{${REF_SUFFIX_LENGTH}}$`));
+    expect(b).toMatch(new RegExp(`^PF-${stamp}-0002-[A-Z2-9]{${REF_SUFFIX_LENGTH}}$`));
     expect(a).not.toBe(b);
   });
 
@@ -164,7 +164,7 @@ describe('lead → proforma flow', () => {
       user,
     );
 
-    expect(result.ref).toMatch(/^PF-\d{8}-\d{4}-[A-Z2-9]{6}$/);
+    expect(result.ref).toMatch(new RegExp(`^PF-\\d{8}-\\d{4}-[A-Z2-9]{${REF_SUFFIX_LENGTH}}$`));
     expect(result.proformaRef).toBe(result.ref); // first issue reuses the lead ref
     expect(result.total).toBeGreaterThan(0);
 

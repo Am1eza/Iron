@@ -66,7 +66,7 @@ const patchPayload = z.object({
   status: z.enum(['new', 'contacted', 'won', 'lost']).optional(),
   // min(1): the picker sends `null` to unassign, never ''. An empty string was
   // reaching the FK as a literal id and blowing up as a 500.
-  assigneeId: z.string().min(1).nullable().optional(),
+  assigneeId: z.string().min(1).max(64).nullable().optional(),
   callbackAt: z.string().datetime().nullable().optional(),
   // Why a lead is being pulled back out of a terminal status. Only read when
   // `checkLeadStatusChange` demands it (today: leaving 'won'); ignored

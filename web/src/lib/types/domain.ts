@@ -377,6 +377,20 @@ export interface Order {
 export interface LineItem {
   orderItemId?: string;
   historicalSkuId?: string;
+  /** Snapshot of the SKU's `slug` at the moment this line item was created
+   *  (E-108) — independent of the live, possibly-renamed-or-deleted `skuId`
+   *  FK. Unlike `historicalSkuId` (the SKU's row id, unreadable to a human
+   *  and unchanged by a rename), this is the human-facing product code as it
+   *  existed at order time, so a renamed/retired product's order history
+   *  still shows what was actually bought. Undefined for line items created
+   *  before this column existed, or with no `skuId` at all. */
+  skuCode?: string;
+  /** Explicit, non-string signal for "this line's live SKU is gone" (E-108)
+   *  — computed as `Boolean(skuId)` server-side. Exists so callers (e.g.
+   *  ReorderButton) can branch on a real boolean instead of re-deriving the
+   *  same truthiness check from `skuId === ''`, which silently reads the
+   *  same as "no id was ever set" and as "the id was deleted". */
+  orderable?: boolean;
   deliveredQty?: number;
   returnedQty?: number;
   skuId: string;

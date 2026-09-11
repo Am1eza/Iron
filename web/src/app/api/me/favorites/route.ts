@@ -14,7 +14,7 @@ async function GETImpl(req: NextRequest) {
   return NextResponse.json({ favorites }, { headers: { 'Cache-Control': 'no-store' } });
 }
 
-const payload = z.object({ skuId: z.string().min(1) });
+const payload = z.object({ skuId: z.string().min(1).max(120) });
 
 /** POST /api/me/favorites — star a SKU (id or slug). */
 async function POSTImpl(req: NextRequest) {

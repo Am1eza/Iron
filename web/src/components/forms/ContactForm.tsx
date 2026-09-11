@@ -59,6 +59,18 @@ export function ContactForm() {
         {...register('name')}
       />
       <input type="hidden" {...register('mobile')} />
+      {/* H-186 honeypot — invisible to a real visitor (off-screen, out of
+          the tab order and the accessibility tree), present in the raw DOM
+          for a scripted submitter that autofills every input to find. See
+          contactSchema's doc comment on `website`. */}
+      <input
+        type="text"
+        tabIndex={-1}
+        autoComplete="off"
+        aria-hidden="true"
+        style={{ position: 'absolute', insetInlineStart: -9999, width: 1, height: 1, opacity: 0 }}
+        {...register('website')}
+      />
       <PhoneField
         label={t('mobileLabel')}
         required

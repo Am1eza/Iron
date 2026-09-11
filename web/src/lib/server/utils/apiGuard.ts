@@ -12,7 +12,22 @@ import { assertSameOrigin } from '@/lib/auth/origin';
 import { hasDb, type DbOrTx } from '@/lib/server/db/client';
 import { writeAudit } from '@/lib/server/repos/auditRepo';
 import { reportError } from '@/lib/errors/report';
+import { rateLimit } from './rateLimit';
 import { BusinessRuleError } from './businessOperation';
+
+/**
+ * H-185 — a shared floor under every authenticated admin request, closing
+ * the gap where 91 of 94 `/api/admin/**` routes had no independent
+ * throttle of their own: only a valid session+permission stood between a
+ * stolen/rogue staff token and hammering something expensive (BrsAPI sync,
+ * a heavy export query) at unlimited speed. Deliberately generous — this
+ * is a backstop against abuse, not a UX-visible limit for normal admin use
+ * (GitHub's own per-token default is the cited pattern: one big number on
+ * every authenticated call, not a hand-tuned limit per endpoint). A route
+ * that already calls `rateLimit()` itself keeps that tighter limit; this
+ * one only ever adds an outer ceiling, never loosens an existing one.
+ */
+const ADMIN_DEFAULT_RATE_LIMIT = { limit: 120, windowMs: 60_000 };
 
 /**
  * Wrap a route handler so ANY uncaught error (a dropped Postgres connection
@@ -110,6 +125,15 @@ export async function requireApiPermission(
       response: NextResponse.json({ error: 'not_found', message: 'یافت نشد.' }, { status: 404 }),
     };
   }
+  // H-185 — checked last, after we know WHO (keyed by session id, not IP —
+  // see ADMIN_DEFAULT_RATE_LIMIT's doc comment above) and that they're
+  // actually staff with this permission, so an anonymous/unauthorized
+  // caller can't burn a real admin's quota by guessing their session id.
+  const limited = await rateLimit(req, 'admin-default', {
+    ...ADMIN_DEFAULT_RATE_LIMIT,
+    key: auth.session.id,
+  });
+  if (limited) return { response: limited };
   return auth;
 }
 

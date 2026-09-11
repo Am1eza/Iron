@@ -25,7 +25,7 @@ async function GETImpl(req: NextRequest) {
 }
 
 const createPayload = z.object({
-  categoryId: z.string().min(1),
+  categoryId: z.string().min(1).max(64),
   slug: subCategorySlugSchema(60),
   name: z.string().trim().min(1).max(80).transform(normalizeCatalogText),
   // Display-only cluster label (not a real hierarchy level, see catalog.ts).

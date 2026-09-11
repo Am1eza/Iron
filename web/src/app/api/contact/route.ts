@@ -21,6 +21,12 @@ async function POSTImpl(req: NextRequest) {
   const v = await validateBody(req, contactSchema);
   if (!v.ok) return v.response;
 
+  // H-186 honeypot: pretend success, write nothing. See contactSchema's
+  // doc comment on `website` for why this isn't a rejection.
+  if (v.data.website) {
+    return NextResponse.json({ ok: true }, { status: 201 });
+  }
+
   try {
     await getDb().insert(contactMessages).values({
       id: ulid(),

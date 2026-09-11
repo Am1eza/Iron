@@ -48,8 +48,8 @@ const createPayload = z.object({
   intakeNote: z.string().trim().max(1000).optional(),
   contractRef: z.string().trim().max(120).optional(),
   insured: z.boolean().optional(),
-  leadId: z.string().min(1).optional(),
-  requestId: z.string().min(1).optional(),
+  leadId: z.string().min(1).max(64).optional(),
+  requestId: z.string().min(1).max(64).optional(),
 });
 
 /** POST /api/admin/warehouse — receive a customer's stock (assign by mobile,

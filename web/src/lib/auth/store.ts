@@ -57,8 +57,8 @@ export function findRefresh(hash: string): Promise<RefreshRecord | null> {
 export function claimRefresh(hash: string, rotatedAt: number): Promise<RefreshRecord | null> {
   return store().claimRefresh(hash, rotatedAt);
 }
-export function rotateRefreshAtomic(parentHash: string, childHash: string, child: RefreshRecord, now: number, graceMs: number, enforceReuse: boolean) {
-  return store().rotateRefreshAtomic(parentHash, childHash, child, now, graceMs, enforceReuse);
+export function rotateRefreshAtomic(parentHash: string, childHash: string, ttlMs: number, graceMs: number, enforceReuse: boolean) {
+  return store().rotateRefreshAtomic(parentHash, childHash, ttlMs, graceMs, enforceReuse);
 }
 export function revokeRefresh(hash: string): Promise<void> {
   return store().revokeRefresh(hash);
