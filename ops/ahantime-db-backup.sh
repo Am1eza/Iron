@@ -73,10 +73,20 @@ fi
 # volume — restore the DB after a host loss and every product image, article
 # cover and partner logo is a broken link with no way to reconstruct it.
 # Tagged separately so it gets its own retention rule below.
+#
+# I-213: this used to be `|| echo ... FAILED` — the exact "silently stops
+# mattering" shape the db copy already learned the hard way above (see the
+# --group-by comment below). A failed uploads copy left the run green while
+# quietly losing the only thing that makes the db dump restorable. Fail loud
+# like the db copy does, unless there's nothing to back up in the first
+# place (the directory doesn't exist yet — a fresh host before first upload).
+uploads_failed=0
 UPLOADS=/var/lib/docker/volumes/ahantime_uploads/_data
 if [ -d "$UPLOADS" ]; then
-  restic backup --tag ahantime-uploads --host ahantime "$UPLOADS" >/dev/null || \
-    echo "restic: uploads copy FAILED (db copy succeeded)" >&2
+  if ! restic backup --tag ahantime-uploads --host ahantime "$UPLOADS" >/dev/null; then
+    echo "restic: uploads copy FAILED — db copy succeeded but uploads did NOT" >&2
+    uploads_failed=1
+  fi
 fi
 
 # Mirror the local 14-day policy. --prune reclaims the space; it is safe to
@@ -128,11 +138,34 @@ fi
 
 echo "restic: off-site copy ok ($(restic snapshots --tag ahantime-db --json 2>/dev/null | grep -o '"id"' | wc -l) db snapshots, newest $NEWEST)"
 
+# I-213: the db copy above has always had this freshness assertion; the
+# uploads copy never did, so a silently-stale (or never-run) uploads backup
+# had no way to turn the unit red — the same blind spot --group-by fixed for
+# retention, just for verification instead. Only asserted when the uploads
+# directory exists at all (see the `-d "$UPLOADS"` guard above) so a fresh
+# host with no uploads yet doesn't fail on a tag that was never expected to
+# have a snapshot today.
+if [ -d "$UPLOADS" ]; then
+  UPLOADS_NEWEST=$(restic snapshots --tag ahantime-uploads --host ahantime --json 2>/dev/null \
+    | grep -o '"time":"[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}' | cut -d'"' -f4 | sort | tail -1)
+  if [ "$UPLOADS_NEWEST" != "$(date +%F)" ]; then
+    echo "restic: VERIFY FAILED — newest ahantime-uploads snapshot is '${UPLOADS_NEWEST:-none}', expected $(date +%F)" >&2
+    uploads_failed=1
+  else
+    echo "restic: uploads copy ok ($(restic snapshots --tag ahantime-uploads --json 2>/dev/null | grep -o '"id"' | wc -l) snapshots, newest $UPLOADS_NEWEST)"
+  fi
+fi
+
 # The dump landed and is verifiably in the repository — that part is fine and
 # has already been reported above. But exit non-zero anyway if retention did
-# not run, so the unit goes red and OnFailure= fires. Reported last so the
-# operator sees "backup ok, retention broken" rather than a bare failure.
+# not run, or the uploads copy failed/is stale, so the unit goes red and
+# OnFailure= fires. Reported last so the operator sees "backup ok, X broken"
+# rather than a bare failure.
 if [ "$forget_failed" -ne 0 ]; then
   echo "restic: backup succeeded but RETENTION FAILED — repository will grow unbounded" >&2
+  exit 1
+fi
+if [ "$uploads_failed" -ne 0 ]; then
+  echo "restic: db backup succeeded but the UPLOADS copy did not — see above" >&2
   exit 1
 fi

@@ -74,6 +74,33 @@ docker compose exec -T db psql -U ahantime -d postgres -c "DROP DATABASE restore
 rm -rf "$WORK"
 ```
 
+## تست بازیابی — فایل‌های آپلودشده (I-213، ۲۰۲۶-۰۹-۱۱)
+
+تست بالا فقط پایگاه‌داده را بازیابی می‌کند. تصویر SKU/دسته، کاور مقاله و لوگوی
+سربرگ فقط به‌صورت یک مسیر (`imageUrl`/`coverUrl`/...) در همان دیتابیس ذخیره
+می‌شوند — خودِ فایل‌ها در volume جدای `ahantime-uploads` هستند. بازیابی پایگاه‌داده
+بدون این مرحله یعنی هر تصویر یک لینک شکسته است.
+
+**تست منطق این مرحله (نه روی داده/سرور واقعی) در ۲۰۲۶-۰۹-۱۱ روی یک مخزن restic
+یکبارمصرف محلی اجرا شد:** یک uploads دلخواه backup، forget/prune و
+snapshot-verify شد (دقیقاً همان دستورات خودِ `ahantime-db-backup.sh`)، سپس با
+`restic restore` به یک مسیر جدا بازگردانده و با `diff` **بایت‌به‌بایت با فایل
+اصلی یکسان** تأیید شد؛ یک تلاش دوم با رمز عبور غلط، شکست را هم درست نشان داد
+(exit ناموفق، نه سکوت). این اثبات می‌کند مکانیسم restic درست کار می‌کند؛ اجرای
+واقعی روی سرور Production و مخزن واقعی هنوز جداگانه لازم است — **این تست را هم
+هر چند ماه یک‌بار، هم‌زمان با تست بالا، روی سرور واقعی تکرار کنید**:
+
+```bash
+set -a; . /etc/ahantime-backup.env; set +a
+WORK=$(mktemp -d)
+restic restore latest --tag ahantime-uploads --target "$WORK"
+find "$WORK" -type f | wc -l          # باید با تعداد فایل‌های واقعی uploads نزدیک باشد
+# یک فایل دلخواه را با نسخهٔ زندهٔ روی دیسک مقایسه کنید:
+diff "$WORK$(find "$WORK" -name '*.jpg' | head -1 | sed "s#^$WORK##")" \
+     "/var/lib/docker/volumes/ahantime_uploads/_data/$(basename "$(find "$WORK" -name '*.jpg' | head -1)")"
+rm -rf "$WORK"
+```
+
 ## طراحی
 
 نسخهٔ محلی **اول** گرفته و نگهداری می‌شود، بعد نسخهٔ بیرونی. اگر ارسال بیرونی
@@ -86,12 +113,20 @@ rm -rf "$WORK"
 
 ## بازیابی کامل در شرایط اضطراری
 
+**هر دو تگ لازم است — فقط پایگاه‌داده کافی نیست (I-213).** بازیابی تنها
+`ahantime-db` سایت را بالا می‌آورد اما هر تصویر SKU/دسته/مقاله/لوگو را به یک
+لینک شکسته تبدیل می‌کند، چون فایل‌های واقعی در تگ جدای `ahantime-uploads`اند.
+
 ```bash
 set -a; . /etc/ahantime-backup.env; set +a
-restic snapshots                          # کدام نسخه؟
-restic restore <شناسه> --target /tmp/rec
+restic snapshots                                  # کدام نسخه؟ (هر دو تگ را ببینید)
+restic restore <شناسهٔ db>       --tag ahantime-db      --target /tmp/rec-db
+restic restore <شناسهٔ uploads> --tag ahantime-uploads --target /tmp/rec-uploads
 cd /opt/ahantime
 docker compose up -d db
-gunzip -c /tmp/rec/var/backups/ahantime/*.sql.gz | docker compose exec -T db psql -U ahantime -d ahantime
+gunzip -c /tmp/rec-db/var/backups/ahantime/*.sql.gz | docker compose exec -T db psql -U ahantime -d ahantime
+# uploads یک named volume است (I-214) — کپی مستقیم به آن، نه به مسیر کانتینر:
+rsync -a /tmp/rec-uploads/var/lib/docker/volumes/ahantime_uploads/_data/ \
+  /var/lib/docker/volumes/ahantime_uploads/_data/
 docker compose up -d
 ```
