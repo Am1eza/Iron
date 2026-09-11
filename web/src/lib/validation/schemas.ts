@@ -72,6 +72,12 @@ export const contactSchema = z.object({
   name: z.string().min(1, { message: M.name }).max(60),
   mobile: mobileSchema,
   message: z.string().min(5, { message: M.message }).max(2000),
+  // H-186 honeypot: a real visitor never sees or fills this field (hidden
+  // off-screen in ContactForm.tsx); a simple scripted submitter that
+  // autofills every input in the DOM does. Non-empty here means "treat as
+  // spam, respond as if it succeeded" (route.ts) rather than reject it —
+  // rejecting would teach the bot which field to leave blank next time.
+  website: z.string().max(200).optional(),
 });
 export type ContactValues = z.infer<typeof contactSchema>;
 
