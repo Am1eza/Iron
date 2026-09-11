@@ -168,7 +168,11 @@ function limitedResponse(windowMs: number): NextResponse {
 export async function rateLimit(
   req: NextRequest,
   scope: string,
-  { limit = 10, windowMs = 60_000 }: { limit?: number; windowMs?: number } = {},
+  {
+    limit = 10,
+    windowMs = 60_000,
+    key: keyOverride,
+  }: { limit?: number; windowMs?: number; key?: string } = {},
 ): Promise<NextResponse | null> {
   // e2e drives many logins (across specs, plus toPass retries for
   // hydration races — see e2e/auth.spec.ts) through this same loopback IP
@@ -188,8 +192,13 @@ export async function rateLimit(
     return null;
   }
 
+  // H-185 — admin's shared default limit keys by session id (authenticated,
+  // set by the caller), not IP: office staff legitimately share an IP, and
+  // the actual threat this guards is a stolen/rogue staff token, which an
+  // IP-keyed limit wouldn't bound any better while collaterally throttling
+  // an entire shared office network for one attacker's traffic.
   const ip = clientIp(req);
-  const key = `${scope}:${ip}`;
+  const key = `${scope}:${keyOverride ?? ip}`;
 
   const native = await nativeLimited(scope, key);
   if (native === true) return limitedResponse(windowMs);
