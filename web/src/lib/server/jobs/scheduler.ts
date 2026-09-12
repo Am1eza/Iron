@@ -86,6 +86,9 @@ export function startJobs(jobs: Job[]): void {
     }, jitter);
     if (typeof kickoff.unref === 'function') kickoff.unref();
   }
+  // Job names only, no user/request data — a one-line startup confirmation
+  // for the standalone jobs process (scripts/jobs.ts), not a redaction risk.
+  // eslint-disable-next-line no-console
   console.info(`[jobs] scheduler started (${jobs.map((j) => j.name).join(', ')})`);
 }
 

@@ -55,4 +55,30 @@ export default defineConfig([
             "@typescript-eslint/no-require-imports": "off",
         },
     },
+    {
+        // H-200: a direct console.* call bypasses BOTH redaction layers
+        // lib/errors/report.ts (recursive key-based redaction) and
+        // lib/errors/scrub.ts (value-pattern redaction for mobile numbers,
+        // tokens, JWTs, ...) sit in front of. reportError() is the only
+        // sanctioned way for app code to write a log line; this rule makes a
+        // future bare `console.log`/`.error`/`.warn` a lint failure instead
+        // of a silent redaction bypass.
+        //
+        // Scoped to `src/**` (not `scripts/**`, which is CLI tooling that
+        // talks to an operator's own terminal, not a request path) and
+        // excludes test files (mocking/asserting on `console.*` is normal
+        // there) and `lib/validation/env.ts` (session-secret rotation
+        // warnings — left out of scope rather than edited, per this repo's
+        // rule against touching auth/session/token files).
+        //
+        // The small number of legitimate call sites this DOES cover (the
+        // structured JSON log line in errors/report.ts itself, and a
+        // handful of already-existing dev-only debug logs) already carry
+        // their own `eslint-disable-next-line no-console`.
+        files: ["src/**/*.{ts,tsx}"],
+        ignores: ["src/**/*.test.{ts,tsx}", "src/lib/validation/env.ts"],
+        rules: {
+            "no-console": "error",
+        },
+    },
 ]);

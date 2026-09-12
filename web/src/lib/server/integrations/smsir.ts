@@ -163,6 +163,11 @@ export async function sendSms(mobile: string, text: string, kind: SmsKind = 'gen
     }
     // PII (mobile + message content) — never echoed to prod stdout, only the
     // DB-backed sms_log (which is access-controlled via the admin panel).
+    // Gated on `!isProd()` above, same as sms.ts's identical dev-mode escape
+    // hatch, which is why this is exempted rather than routed through
+    // reportError() — that would scrub the very mobile/text a developer is
+    // running this locally to see.
+    // eslint-disable-next-line no-console
     console.info(`[sms:dev] ${kind} → ${mobile}: ${text}`);
     await log(mobile, kind, { text }, 'dev_logged');
     return { ok: true };
@@ -290,6 +295,8 @@ export async function sendTemplate(
       await log(mobile, kind, { templateId, params, error: 'unconfigured: SMSIR_API_KEY' }, 'failed');
       return { ok: false, permanent: true };
     }
+    // Same dev-mode-only rationale as sendSms above.
+    // eslint-disable-next-line no-console
     console.info(`[sms:dev] ${kind} template ${templateId} → ${mobile}: ${JSON.stringify(params)}`);
     await log(mobile, kind, { templateId, params }, 'dev_logged');
     return { ok: true };
