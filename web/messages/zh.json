@@ -2406,5 +2406,60 @@
   },
   "richContent": {
     "tableRegion": "文章表格"
+  },
+  "warehouseOps": {
+    "status": {
+      "requested": "待审批",
+      "approved": "已预留",
+      "delivered": "已交付",
+      "cancelled": "已取消",
+      "sale": "销售款",
+      "payout": "支付给货主",
+      "payment": "费用支付",
+      "refund": "信用退款",
+      "reversal": "更正凭证"
+    },
+    "unnamedItem": "已登记货品",
+    "panelLabel": "提货与账户往来",
+    "heading": "提货与账户往来",
+    "balance": "仓储账单余额：{billed}（负数表示您的信用额度）；应付给您的销售款：{payable}",
+    "request": {
+      "legend": "申请从您的库存中提货",
+      "itemLabel": "货品",
+      "itemPlaceholder": "选择货品",
+      "qtyLabel": "数量（吨）",
+      "recipientLabel": "收货人姓名及交付信息",
+      "submit": "提交提货申请",
+      "note": "申请在核实库存并经专员确认后予以预留；提交申请本身并不代表已交付货品。"
+    },
+    "proofLabel": "操作说明／用于确认、交付或取消的凭证编号",
+    "loading": "正在获取记录…",
+    "loadError": "获取记录失败。",
+    "withdrawalRow": "{title} — {qty} 吨 — 收货人：{recipient} — {status}",
+    "approveAndReserve": "确认并预留",
+    "recordDelivery": "登记交付凭证",
+    "cancelRequest": "取消申请",
+    "cashEntry": {
+      "legend": "登记已完成的销售或付款",
+      "note": "此表单不执行银行转账，仅登记已确认的销售凭证或付款收据。",
+      "amountLabel": "金额（图曼）",
+      "orderRefLabel": "与销售相关的订单代码",
+      "recordSale": "登记销售款",
+      "recordPayout": "登记支付给货主"
+    },
+    "cashHeading": "已登记的资金往来",
+    "cashRow": "{title} — {kind} — {amount} — {proof}",
+    "recordReversal": "登记更正凭证",
+    "outbox": {
+      "heading": "待审核的短信",
+      "note": "请先查看短信服务商的报告；未收到回执并不能证明短信未发送。",
+      "row": "{message} — {lastError}",
+      "confirmSent": "服务商报告已确认发送",
+      "confirmNotSent": "已确认未发送；重新发送"
+    },
+    "retryAfterReview": "审核结果后再开始新的操作",
+    "success": "操作已登记。",
+    "prevPage": "上一页",
+    "nextPage": "下一页"
   }
 }

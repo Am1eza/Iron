@@ -2406,5 +2406,60 @@
   },
   "richContent": {
     "tableRegion": "Article table"
+  },
+  "warehouseOps": {
+    "status": {
+      "requested": "Awaiting approval",
+      "approved": "Reserved",
+      "delivered": "Delivered",
+      "cancelled": "Cancelled",
+      "sale": "Sale proceeds",
+      "payout": "Payout to owner",
+      "payment": "Fee payment",
+      "refund": "Credit refund",
+      "reversal": "Correction entry"
+    },
+    "unnamedItem": "Registered item",
+    "panelLabel": "Withdrawals and account activity",
+    "heading": "Withdrawals and account activity",
+    "balance": "Storage bill balance: {billed} (a negative amount is your credit); sale proceeds payable to you: {payable}",
+    "request": {
+      "legend": "Request a withdrawal from your stock",
+      "itemLabel": "Item",
+      "itemPlaceholder": "Select an item",
+      "qtyLabel": "Quantity (tons)",
+      "recipientLabel": "Recipient name and delivery details",
+      "submit": "Submit withdrawal request",
+      "note": "The request is reserved after the stock and an expert both confirm it; submitting a request does not itself mean delivery."
+    },
+    "proofLabel": "Operation notes / receipt number for approval, delivery or cancellation",
+    "loading": "Fetching records…",
+    "loadError": "Failed to fetch records.",
+    "withdrawalRow": "{title} — {qty} tons — recipient: {recipient} — {status}",
+    "approveAndReserve": "Approve and reserve",
+    "recordDelivery": "Record delivery receipt",
+    "cancelRequest": "Cancel request",
+    "cashEntry": {
+      "legend": "Record a completed sale or payout",
+      "note": "This form does not perform a bank transfer; it only records a confirmed sale document or payout receipt.",
+      "amountLabel": "Amount (Toman)",
+      "orderRefLabel": "Order code for the sale",
+      "recordSale": "Record sale proceeds",
+      "recordPayout": "Record payout to owner"
+    },
+    "cashHeading": "Recorded cash activity",
+    "cashRow": "{title} — {kind} — {amount} — {proof}",
+    "recordReversal": "Record correction entry",
+    "outbox": {
+      "heading": "SMS messages needing review",
+      "note": "Check the SMS provider report first; no delivery confirmation is not proof it was never sent.",
+      "row": "{message} — {lastError}",
+      "confirmSent": "Confirmed sent in the provider report",
+      "confirmNotSent": "Confirmed not sent; resend"
+    },
+    "retryAfterReview": "Start a fresh operation once the result has been reviewed",
+    "success": "Operation recorded.",
+    "prevPage": "Previous page",
+    "nextPage": "Next page"
   }
 }
