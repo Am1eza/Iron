@@ -60,3 +60,13 @@ it.each(['{', '{"text":12}'])('retains validation errors for %s', async (body) =
   if (result.ok) throw new Error('Expected rejection');
   expect(result.response.status).toBe(400);
 });
+it('rejects a JSON body nested past the depth cap (H-174)', async () => {
+  let deep: unknown = 'leaf';
+  for (let i = 0; i < 25; i++) deep = { n: deep };
+  const result = await validateBody(
+    new Request('https://example.test', { method: 'POST', body: JSON.stringify(deep) }),
+    schema,
+  );
+  if (result.ok) throw new Error('Expected rejection');
+  expect(result.response.status).toBe(400);
+});

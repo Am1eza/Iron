@@ -2,6 +2,8 @@ import {
   readJsonBody,
   PayloadTooLargeError,
   payloadTooLargeResponse,
+  JsonTooDeepError,
+  jsonTooDeepResponse,
 } from '@/lib/server/utils/requestBody';
 import type { z } from 'zod';
 import { NextResponse } from 'next/server';
@@ -22,8 +24,13 @@ export async function validateBody<S extends z.ZodTypeAny>(
   try {
     body = await readJsonBody(req);
   } catch (error) {
-    if (!(error instanceof PayloadTooLargeError)) throw error;
-    return { ok: false, response: payloadTooLargeResponse() };
+    if (error instanceof PayloadTooLargeError) {
+      return { ok: false, response: payloadTooLargeResponse() };
+    }
+    if (error instanceof JsonTooDeepError) {
+      return { ok: false, response: jsonTooDeepResponse() };
+    }
+    throw error;
   }
   const result = schema.safeParse(body);
   if (!result.success) {
