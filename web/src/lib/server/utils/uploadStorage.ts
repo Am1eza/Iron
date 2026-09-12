@@ -1,4 +1,6 @@
 import path from 'path';
+import { promises as fs } from 'fs';
+import { ulid } from 'ulid';
 import { getCloudflareContext } from '@opennextjs/cloudflare';
 
 /** I-214 — `true` only when actually executing on Cloudflare Workers. Same
@@ -69,3 +71,35 @@ export const MIME_FOR_EXT: Record<string, string> = {
   png: 'image/png',
   webp: 'image/webp',
 };
+
+/** I-204/I-205 — a ULID collision is astronomically unlikely but not
+ *  impossible, and a plain `fs.writeFile` would silently overwrite whatever
+ *  is already at that path (someone else's uploaded photo/logo) rather than
+ *  fail loudly. `flag: 'wx'` makes the write exclusive (`O_CREAT | O_EXCL`,
+ *  same primitive Node exposes for `fs.open`) so an existing file throws
+ *  EEXIST instead of being clobbered; on that specific error we just mint a
+ *  fresh ULID and retry, since the whole point of a ULID name is that a
+ *  second draw is independent of the first. Any other write error propagates
+ *  unchanged. Callers (`/api/admin/upload`, `/api/me/letterhead/logo`) both
+ *  need this exact sequence, so it lives here once rather than being
+ *  duplicated per route. */
+export async function writeUploadFile(
+  dir: string,
+  ext: UploadImageExt,
+  data: Buffer,
+): Promise<string> {
+  const MAX_ATTEMPTS = 5;
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    const filename = `${ulid()}.${ext}`;
+    try {
+      await fs.writeFile(path.join(/*turbopackIgnore: true*/ dir, filename), data, {
+        flag: 'wx',
+      });
+      return filename;
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'EEXIST') continue;
+      throw err;
+    }
+  }
+  throw new Error('uploadStorage: could not generate a unique filename after retries');
+}
