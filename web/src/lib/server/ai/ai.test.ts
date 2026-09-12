@@ -21,6 +21,22 @@ describe('GroundingLedger + sanitizeGrounded (AC-D-3)', () => {
     expect(r.text).not.toContain('۴۲٬۰۰۰');
   });
 
+  it('J-218: censors a grounded price relabeled «ریال» — the number is real, the currency word is always wrong here', () => {
+    const ledger = new GroundingLedger();
+    ledger.add(38500);
+    const r = sanitizeGrounded('قیمت ۳۸,۵۰۰ ریال است.', ledger, new Set());
+    expect(r.violations).toEqual([38500]);
+    expect(r.text).toContain(UNGROUNDED_REPLACEMENT);
+    expect(r.text).not.toContain('ریال');
+  });
+
+  it('J-218: still passes the same grounded number labeled correctly as «تومان»', () => {
+    const ledger = new GroundingLedger();
+    ledger.add(38500);
+    const r = sanitizeGrounded('قیمت ۳۸,۵۰۰ تومان است.', ledger, new Set());
+    expect(r.violations).toEqual([]);
+  });
+
   it('allows the «هزار تومان» scaled form of a grounded price', () => {
     const ledger = new GroundingLedger();
     ledger.add(38000);

@@ -120,6 +120,13 @@ const DATE = new RegExp(`[${D}]{4}[/\\-][${D}]{1,2}[/\\-][${D}]{1,2}`, 'g');
  *  token, the same way a date is exempt. */
 const REF_CODE = /\b(?:PF|RQ|OR|LD|WH)-\d{8}-\d{4}-[A-Z0-9]{4,8}\b/g;
 const MONEY_UNIT = '(?:تومان|ریال)';
+// J-218: this system stores and quotes exclusively in تومان (see CLAUDE.md
+// §1, "Localization: ... Toman currency") — ریال never legitimately labels a
+// real price here. Accepting it as an interchangeable money unit would let a
+// grounded Toman figure be relabeled ریال (a 10x understatement of its real
+// Rial value) and pass validation untouched, since only the NUMBER was ever
+// checked against the ledger, never the currency word attached to it.
+const RIAL_TAIL = new RegExp(`^${J}ریال`);
 const WEIGHT_UNIT = '(?:کیلوگرم|کیلو(?!متر)|گرم)';
 /** Units that make ANY attached number a money/weight claim. */
 const CLAIM_UNIT = new RegExp(`^${J}(هزار|میلیون|میلیارد|${MONEY_UNIT.slice(3, -1)}|${WEIGHT_UNIT.slice(3, -1)})`);
@@ -149,7 +156,21 @@ function claimKind(tail: string): NumberKind | undefined {
 }
 
 /** One numeric claim found in text: its resolved value + match span + scale. */
-type Claim = { start: number; end: number; value: number; scale: number; isClaim: boolean; kind?: NumberKind };
+type Claim = {
+  start: number;
+  end: number;
+  value: number;
+  scale: number;
+  isClaim: boolean;
+  kind?: NumberKind;
+  /** J-218: attached to the literal word «ریال» — always censored, since this
+   *  system never legitimately quotes in Rial (see RIAL_TAIL above). */
+  rial?: boolean;
+  /** End offset including the matched «ریال» word itself, so censoring a rial
+   *  claim removes the wrong currency word too, not just the number in front
+   *  of it (leaving "«...» ریال است" would still assert the wrong currency). */
+  rialEnd?: number;
+};
 
 function findClaims(text: string): Claim[] {
   const claims: Claim[] = [];
@@ -174,7 +195,11 @@ function findClaims(text: string): Claim[] {
     if (Number.isFinite(value)) {
       const tail = text.slice(e, e + 14);
       const kind = new RegExp(`^${J}${WEIGHT_UNIT}`).test(tail) ? 'weight' : 'money';
-      claims.push({ start: s, end: e, value, scale, isClaim: true, kind });
+      const rialMatch = RIAL_TAIL.exec(tail);
+      claims.push({
+        start: s, end: e, value, scale, isClaim: true, kind,
+        rial: Boolean(rialMatch), rialEnd: rialMatch ? e + rialMatch[0].length : undefined,
+      });
       covered.push([s, e]);
     }
   }
@@ -188,7 +213,11 @@ function findClaims(text: string): Claim[] {
     if (!Number.isFinite(value)) continue;
     const tail = text.slice(e, e + 14);
     const isClaim = Math.round(value) >= SIGNIFICANT_MIN || CLAIM_UNIT.test(tail);
-    claims.push({ start: s, end: e, value, scale: 1, isClaim, kind: claimKind(tail) });
+    const rialMatch = RIAL_TAIL.exec(tail);
+    claims.push({
+      start: s, end: e, value, scale: 1, isClaim, kind: claimKind(tail),
+      rial: Boolean(rialMatch), rialEnd: rialMatch ? e + rialMatch[0].length : undefined,
+    });
   }
 
   return claims.sort((a, b) => a.start - b.start);
@@ -228,13 +257,18 @@ export function sanitizeGrounded(
   for (const c of findClaims(text)) {
     if (!c.isClaim) continue;
     const rounded = Math.round(c.value);
+    // J-218: a ریال-labeled figure is never valid here regardless of whether
+    // the bare number is grounded — the number IS real (as a Toman price),
+    // but the currency word attached to it is always wrong, which the
+    // ledger's number-only check can't see on its own.
     const ok =
-      c.scale > 1
+      !c.rial &&
+      (c.scale > 1
         ? ledger.hasNear(c.value, c.scale, c.kind) || userNumbers.has(rounded)
-        : ledger.has(rounded, c.kind) || userNumbers.has(rounded);
+        : ledger.has(rounded, c.kind) || userNumbers.has(rounded));
     if (!ok) {
       violations.push(rounded);
-      cuts.push({ start: c.start, end: c.end });
+      cuts.push({ start: c.start, end: c.rial && c.rialEnd ? c.rialEnd : c.end });
     }
   }
 
