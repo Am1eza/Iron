@@ -15,10 +15,14 @@ export const metadata: Metadata = buildMetadata({ title: 'ورود به پنل',
  * the storefront chrome — no ticker/navbar/footer, just a focused stage —
  * because the person standing here is staff, not a customer. Wording is
  * deliberately «پنل», not «پنل مدیریت»: experts and operators use it too.
+ *
+ * `<main id="main">` here, not in a shared layout: this route sits outside
+ * app/[locale]/ (see i18n/routing.ts) and outside /admin, so it owns its own
+ * main landmark the same way admin/layout.tsx now does.
  */
 export default function PanelLoginPage() {
   return (
-    <div className={`${styles.stage} blueprint`}>
+    <main id="main" tabIndex={-1} className={`${styles.stage} blueprint`}>
       <div className={styles.card}>
         <div className={styles.head}>
           <Image src={logoMark} alt="" width={64} height={Math.round((logoMark.height / logoMark.width) * 64)} priority />
@@ -32,6 +36,6 @@ export default function PanelLoginPage() {
           <LoginForm chromeless />
         </Suspense>
       </div>
-    </div>
+    </main>
   );
 }

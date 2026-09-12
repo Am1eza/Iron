@@ -14,10 +14,20 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import type * as NextNavigation from 'next/navigation';
 import { SiteChromeBottom } from './SiteChrome';
 
 const pathname = vi.hoisted(() => ({ current: '/' }));
-vi.mock('next/navigation', () => ({ usePathname: () => pathname.current }));
+// Importing SiteChrome.tsx transitively imports Header.tsx → LocaleSwitcher
+// → i18n/navigation.ts, whose `createNavigation()` runs at module load and
+// needs the REAL `next/navigation` exports (redirect, useRouter, ...) beside
+// the mocked `usePathname` — a full replacement (rather than merging with
+// importOriginal) leaves those missing and createNavigation throws before
+// this file's own tests ever run.
+vi.mock('next/navigation', async (importOriginal) => ({
+  ...(await importOriginal<typeof NextNavigation>()),
+  usePathname: () => pathname.current,
+}));
 
 vi.mock('./Footer', () => ({ Footer: () => <footer data-testid="footer" /> }));
 vi.mock('./BottomTabBar', () => ({ BottomTabBar: () => <nav data-testid="tabbar" /> }));

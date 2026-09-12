@@ -12,13 +12,13 @@ describe('public business claims safeguards', () => {
 
   it('keeps the requested client-logo roster', () => {
     expect(read('components/home/Partners.tsx')).toMatch(/clientLogos|clientsTitle|clientsAria/);
-    expect(read('app/page.tsx')).toMatch(/clientLogos/);
+    expect(read('app/[locale]/page.tsx')).toMatch(/clientLogos/);
   });
 
   it('keeps the core promotional value propositions visible', () => {
     const publicCopy = [
-      read('app/about/page.tsx'),
-      read('app/warehouse/page.tsx'),
+      read('app/[locale]/about/page.tsx'),
+      read('app/[locale]/warehouse/page.tsx'),
       read('components/forms/RequestFlow.tsx'),
       read('../messages/fa.json'),
     ].join('\n');

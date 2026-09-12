@@ -79,7 +79,16 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const flatNav = groups.flatMap((g) => g.items);
 
   return (
-    <div data-area="admin" className={styles.shell}>
+    // A real <main id="main"> now that URL-locale routing (i18n/routing.ts)
+    // moved the public site under app/[locale]/ — this panel sits OUTSIDE
+    // that tree, alongside it, and used to get its "#main" landmark for free
+    // by nesting inside the shared root layout's <main>. Now each top-level
+    // area (this one, app/[locale]/layout.tsx, panel-login/page.tsx) owns
+    // its own, all sharing the same id since only one of them ever renders
+    // per request. `#admin-main` below is unrelated and unchanged — a
+    // second, more specific skip target past the sidebar into the content
+    // pane, for the panel's own skip link.
+    <main id="main" tabIndex={-1} data-area="admin" className={styles.shell}>
       <a href="#admin-main" className="skip-link">
         پرش به محتوای پنل
       </a>
@@ -117,13 +126,15 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <AdminNavLinks groups={groups} variant="side" />
           </nav>
         </aside>
-        {/* Not a <main> — the root layout's <main id="main"> is the page's only
-            main landmark; SiteChrome hides the public header/footer/nav here,
-            so this is simply the admin panel's content area. */}
+        {/* Deliberately a <div>, not a nested <main> — this layout's own
+            outer element above is already the page's one <main id="main">
+            landmark; a second nested <main> here would be invalid/confusing
+            ARIA structure. This is simply the admin panel's content area,
+            with its own more specific skip-link target (#admin-main). */}
         <div id="admin-main" className={styles.main}>
           {children}
         </div>
       </div>
-    </div>
+    </main>
   );
 }

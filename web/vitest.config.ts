@@ -56,6 +56,19 @@ export default defineConfig({
     // collected here.
     include: ['src/**/*.{test,spec}.{ts,tsx}', 'scripts/**/*.{test,spec}.ts'],
     exclude: ['node_modules', '.next', 'e2e', 'tests/e2e'],
+    server: {
+      deps: {
+        // next-intl/navigation's createNavigation (i18n/navigation.ts, added
+        // for the URL-locale migration) does an internal `import 'next/
+        // navigation'` that Vitest's default externalization can't resolve
+        // through pnpm's nested node_modules layout ("Did you mean to
+        // import next/navigation.js?"). Every OTHER next-intl export
+        // (`useTranslations`, `NextIntlClientProvider`, ...) already worked
+        // without this — only the navigation sub-path needs it processed by
+        // Vite's own resolver instead of treated as pre-bundled.
+        inline: [/next-intl/],
+      },
+    },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],

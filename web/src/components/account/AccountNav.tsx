@@ -12,7 +12,7 @@ import {
   StarIcon,
   UserIcon,
 } from '@/components/primitives/icons';
-import styles from '@/app/account/account.module.css';
+import styles from '@/app/[locale]/account/account.module.css';
 
 const TABS = [
   { slug: '', key: 'overview', icon: HomeIcon },

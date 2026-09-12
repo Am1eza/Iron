@@ -1,17 +1,12 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import { NextIntlClientProvider } from 'next-intl';
 import { AppProviders } from '@/lib/providers/AppProviders';
 import { AuthHydrator } from '@/lib/providers/AuthHydrator';
 import { ThemeScript } from '@/components/theme/ThemeScript';
-import { getCategories, getSubsMap, type SubsMap } from '@/lib/data/catalog';
-import { SiteChromeTop, SiteChromeBottom } from '@/components/layout/SiteChrome';
-import { getContact } from '@/lib/server/contact';
-import { listMarketValues } from '@/lib/server/repos/marketRepo';
-import { hasDb } from '@/lib/server/db/client';
 import { RouteAnnouncer } from '@/components/a11y/RouteAnnouncer';
 import { SkipLink } from '@/components/a11y/SkipLink';
 import { vazirmatn, inter } from '@/lib/theme/fonts';
-import { LocaleProvider } from '@/i18n/LocaleProvider';
 import { LocaleScript } from '@/i18n/LocaleScript';
 import { Analytics } from '@/components/analytics/Analytics';
 import { AttributionCapture } from '@/components/analytics/AttributionCapture';
@@ -20,7 +15,29 @@ import { ServiceWorkerRegistrar } from '@/components/pwa/ServiceWorkerRegistrar'
 import faMessages from '../../messages/fa.json';
 
 /**
- * Root layout — the RTL, Persian-first shell.
+ * Root layout — the TRUE Next.js root (the one place `<html><body>` may
+ * appear), shared by BOTH `/admin/*` (which never lives under `[locale]` —
+ * the panel is Persian-only for staff) and the public `[locale]/*` tree.
+ * Because it sits ABOVE `[locale]` in the route tree it cannot read
+ * `params.locale` (a parent layout renders before a child dynamic segment is
+ * resolved) — so `<html lang dir>` stays a static Persian default here,
+ * fixed to the REQUEST's real locale before paint by `LocaleScript`
+ * (`public/locale-init.js`, now reading the URL path instead of a cookie —
+ * see that file's header comment) exactly the same way `ThemeScript` fixes
+ * `data-theme` before paint. This is the identical trade-off the old
+ * cookie-based i18n setup already made and documented; only the SOURCE of
+ * truth for "which locale is this" moved from a cookie to the URL.
+ *
+ * Everything genuinely PUBLIC-SITE-specific — the ticker/header/footer
+ * (`SiteChrome`) and the locale-correct `NextIntlClientProvider` — moved to
+ * `app/[locale]/layout.tsx`, which nests inside this one. The
+ * `NextIntlClientProvider` here (fa, static import) is the exact fallback
+ * every route already got before this migration (initial SSR was always fa
+ * regardless of locale) — it exists so a shared component that calls
+ * `useTranslations()` from `/admin/*` (outside `[locale]`) never crashes for
+ * want of a provider; `[locale]/layout.tsx` nests a second, correctly-scoped
+ * provider on top of it for public pages.
+ *
  * <html lang="fa" dir="rtl"> + design tokens (via globals.css).
  * Fonts are self-hosted via `next/font/local` (lib/theme/fonts.ts); Vazirmatn
  * preloads automatically, and tokens.css consumes its `--font-*` CSS variable
@@ -31,11 +48,6 @@ import faMessages from '../../messages/fa.json';
  * dropping dots and turning e.g. ق into ف, ش into س. Chromium/Firefox render
  * the same bytes correctly, so this is a WebKit font-engine bug, not
  * something fixable from our CSS/loading code.
- *
- * Multi-language (fa default; en/ar/zh via the header's language switcher)
- * is deliberately layered in client-side (`LocaleProvider`/`LocaleScript`)
- * rather than resolved here via next-intl's server APIs, preserving ISR for
- * public pages while returning visitors keep their selected language.
  */
 
 export const metadata: Metadata = {
@@ -76,39 +88,7 @@ export const viewport: Viewport = {
   themeColor: '#025652',
 };
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  // No cookies()/headers() read here (and none in anything this layout renders
-  // synchronously) — that's deliberate. Any dynamic API call reached from the
-  // root layout forces every route in the app into per-request dynamic
-  // rendering, silently defeating the ISR/generateStaticParams strategy used
-  // across the ~250 prerendered SKU/blog/tool pages. The signed-in user is
-  // resolved client-side instead (`AuthHydrator` → `GET /api/me`), which is
-  // enough since 100% of auth-driven UI already lives behind Zustand's
-  // `useAuthStore`, not server-rendered markup.
-  // The image build deliberately has no database. Never freeze development
-  // fixtures into the year-long cached shell: render an honest empty catalog
-  // and let SiteChrome hydrate it from /api/categories at runtime. Dynamic
-  // renders with a DB still get complete SSR navigation.
-  const dbReady = hasDb();
-  const [[categories, subs], contact, initialMarketValues]: [
-    [Awaited<ReturnType<typeof getCategories>>, SubsMap],
-    Awaited<ReturnType<typeof getContact>>,
-    Awaited<ReturnType<typeof listMarketValues>> | undefined,
-  ] = await Promise.all([
-    dbReady ? Promise.all([getCategories(), getSubsMap()]) : Promise.resolve([[], {}] as [[], SubsMap]),
-    getContact(),
-    dbReady ? listMarketValues().catch(() => undefined) : Promise.resolve(undefined),
-  ]);
-  // SEO audit: the ticker used to render a literal "0 / 0.00%" placeholder
-  // in the server-rendered HTML for every one of ~1200 pages until the
-  // client hydrated and polled `/api/market` a moment later — a real user
-  // saw a flash of it, and anything that reads raw HTML without running JS
-  // (most non-Google crawlers, some AI answer engines) saw only false
-  // financial data. `listMarketValues()` is the exact same Redis-cached
-  // (30s) read `/api/market` itself calls, so this adds no new load path —
-  // just runs it once more, server-side, before the first paint. Errors
-  // are swallowed the same way `hasDb()` gates the API route: a market
-  // hiccup must not take the whole site down through the root layout.
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="fa"
@@ -127,26 +107,18 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body>
         <ThemeScript />
         <LocaleScript />
-        <LocaleProvider defaultMessages={faMessages}>
+        <NextIntlClientProvider locale="fa" messages={faMessages} timeZone="Asia/Tehran">
           <AppProviders>
             <SkipLink />
             <AuthHydrator />
             <InteractionAnalytics />
-            <SiteChromeTop
-              categories={categories}
-              subs={subs}
-              initialMarketValues={initialMarketValues}
-            />
-            <main id="main" tabIndex={-1}>
-              {children}
-            </main>
-            <SiteChromeBottom categories={categories} contact={contact} />
+            {children}
             <RouteAnnouncer />
             <Analytics />
             <AttributionCapture />
             <ServiceWorkerRegistrar />
           </AppProviders>
-        </LocaleProvider>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

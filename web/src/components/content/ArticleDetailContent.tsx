@@ -14,7 +14,7 @@ import { CalendarIcon, ChevronStartIcon } from '@/components/primitives/icons';
 import { BreadcrumbJsonLd, JsonLd } from '@/components/seo/JsonLd';
 import { ReadingProgress } from './ReadingProgress';
 import { ArticleCard } from './ArticleCard';
-import styles from '@/app/blog/[slug]/article.module.css';
+import styles from '@/app/[locale]/blog/[slug]/article.module.css';
 
 /**
  * The translated half of the blog/news article detail page — shared by

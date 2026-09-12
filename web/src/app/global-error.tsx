@@ -35,7 +35,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { reportError } from '@/lib/errors/report';
 import { useChunkRecovery } from '@/lib/errors/chunkRecovery';
-import { LOCALE_COOKIE, DEFAULT_LOCALE, getDirection, isAppLocale } from '@/i18n/config';
+import { DEFAULT_LOCALE, getDirection, isAppLocale } from '@/i18n/config';
 // Same font the rest of the site uses (`lib/theme/fonts`, wired into the
 // real root `layout.tsx` via `vazirmatn.variable`). Importing it here gives
 // THIS route its own font stylesheet + preload, independent of the root
@@ -51,11 +51,10 @@ import { vazirmatn } from '@/lib/theme/fonts';
 /**
  * No `useTranslations()` here — this boundary REPLACES the root layout
  * entirely (see the file header), so there is no `NextIntlClientProvider`
- * ancestor to read from. Reads the same `ahantime_locale` cookie
- * `LocaleProvider` does and picks from a small inline dictionary instead —
- * this file's only 4 always-visible strings, not worth a message-catalog
- * round trip for a boundary that must survive a broken JS chunk. `retryLabel`
- * / `statusText` (from `useChunkRecovery`, shared with the blog/news error
+ * ancestor to read from. Picks from a small inline dictionary instead — this
+ * file's only 4 always-visible strings, not worth a message-catalog round
+ * trip for a boundary that must survive a broken JS chunk. `retryLabel` /
+ * `statusText` (from `useChunkRecovery`, shared with the blog/news error
  * boundaries that DO have next-intl available) are left Persian-only for now
  * — a smaller, secondary gap, flagged in the i18n audit rather than
  * duplicated here.
@@ -67,11 +66,13 @@ const COPY = {
   zh: { title: '出现问题', heading: '出现问题', body: '这是我们这边的问题,请稍后重试。', home: '返回首页', brand: 'Ahantime' },
 } as const;
 
-function readLocaleCookie(): keyof typeof COPY {
-  if (typeof document === 'undefined') return DEFAULT_LOCALE;
-  const match = document.cookie.match(new RegExp(`(?:^|; )${LOCALE_COOKIE}=([^;]+)`));
-  const value = match?.[1] ? decodeURIComponent(match[1]) : undefined;
-  return value && isAppLocale(value) ? value : DEFAULT_LOCALE;
+/** The locale now lives in the URL (`i18n/routing.ts`), not a cookie — read
+ *  the same explicit-prefix shape `lib/server/utils/localePath.ts` parses
+ *  server-side, so this boundary agrees with the page it replaced. */
+function readLocaleFromPath(): keyof typeof COPY {
+  if (typeof window === 'undefined') return DEFAULT_LOCALE;
+  const first = window.location.pathname.split('/')[1];
+  return first && isAppLocale(first) ? first : DEFAULT_LOCALE;
 }
 
 export default function GlobalError({ error, reset }: { error: Error; reset: () => void }) {
@@ -80,7 +81,7 @@ export default function GlobalError({ error, reset }: { error: Error; reset: () 
   // Read once per mount, not reactively — this page has no locale SWITCHER,
   // just a locale it happens to render in; matches LocaleScript's own
   // one-shot-before-paint philosophy (see that file's header comment).
-  const locale = useMemo(readLocaleCookie, []);
+  const locale = useMemo(readLocaleFromPath, []);
   const copy = COPY[locale];
 
   useEffect(() => {

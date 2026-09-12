@@ -18,7 +18,7 @@ import {
   skuHasPublishedPrice,
   skuSitemapHints,
   taxonomyIsIndexable,
-} from './prices/_seo/indexability';
+} from './[locale]/prices/_seo/indexability';
 
 /**
  * Why this route is dynamic, and why that is not negotiable.

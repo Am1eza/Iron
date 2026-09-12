@@ -1,51 +1,20 @@
-import { cookies, headers } from 'next/headers';
+import { hasLocale } from 'next-intl';
 import { getRequestConfig } from 'next-intl/server';
-import { DEFAULT_LOCALE, LOCALE_COOKIE, isAppLocale } from './config';
+import { routing } from './routing';
 
 /**
- * next-intl request config — "without i18n routing" mode (see next-intl's
- * own docs section of that name): the locale is resolved from a cookie, not
- * a URL segment. Chosen deliberately over moving all ~40 existing routes
- * under a `[locale]/` segment: this app just went through a security,
- * accessibility, and SEO audit, has real e2e/unit test coverage keyed to
- * today's flat paths, and admin-gating middleware matches `/admin` directly
- * — restructuring the entire route tree in the same pass as adding
- * languages is a second, much larger and riskier migration that deserves
- * its own dedicated, fully-tested pass. This mode is itself a first-class,
- * documented next-intl setup, not a workaround — upgrading to URL-prefixed
- * locales later (for shareable/indexable per-language URLs) is a supported,
- * incremental next step once ready.
- *
- * Falls back to Accept-Language on first visit (no cookie yet), then to fa.
- * This config is next-intl's server-side resolution — it drives anything
- * that calls `getTranslations()`/`getLocale()` from 'next-intl/server'
- * (currently just the OTP SMS route). It does NOT drive the page a browser
- * visitor actually sees: the root layout renders a static `fa` shell for
- * ISR (see `LocaleProvider`'s header comment), so the equivalent detection
- * for the rendered UI is duplicated client-side in `LocaleProvider`'s
- * `readBrowserLocale()` and in `public/locale-init.js` — keep those in sync
- * with the `isAppLocale`/`LOCALES` list here if it ever changes.
- *
-
- * The static-export build (GitHub Pages mock preview, `EXPORT=1`) has no
- * per-request context at all — `cookies()`/`headers()` cannot be called
- * during static generation — so that path skips straight to the default
- * locale rather than attempting either.
+ * next-intl request config, now driven by the `[locale]` URL segment
+ * (`routing.ts`) instead of a cookie. `requestLocale` resolves from the
+ * matched route param during both dynamic requests and static generation —
+ * no `cookies()`/`headers()` call, so this works identically for an ISR
+ * page built at deploy time and a live request, and needs no special case
+ * for the static-export preview build (that used to skip straight to the
+ * default locale because `cookies()` cannot be called during static
+ * generation at all; here there is simply no cookie read to skip).
  */
-export default getRequestConfig(async () => {
-  let locale = DEFAULT_LOCALE;
-
-  if (process.env.EXPORT !== '1') {
-    const cookieStore = await cookies();
-    const cookieLocale = cookieStore.get(LOCALE_COOKIE)?.value;
-    if (cookieLocale && isAppLocale(cookieLocale)) {
-      locale = cookieLocale;
-    } else {
-      const acceptLanguage = (await headers()).get('accept-language') ?? '';
-      const preferred = acceptLanguage.split(',')[0]?.split('-')[0]?.trim();
-      if (preferred && isAppLocale(preferred)) locale = preferred;
-    }
-  }
+export default getRequestConfig(async ({ requestLocale }) => {
+  const requested = await requestLocale;
+  const locale = hasLocale(routing.locales, requested) ? requested : routing.defaultLocale;
 
   return {
     locale,

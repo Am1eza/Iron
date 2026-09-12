@@ -8,6 +8,13 @@ import { hasGuardedPrefix, shouldNotFound, getKnownPaths } from '@/lib/server/se
 import { archiveIndexFallback, archiveRedirect } from '@/lib/content/archivePaging';
 import { resolvePanelRouting, isPanelHost } from '@/lib/server/utils/panelHost';
 import { rateLimit } from '@/lib/server/utils/rateLimit';
+import {
+  splitLocalePrefix,
+  withLocalePrefix,
+  withInternalLocaleSegment,
+  needsDefaultLocaleRewrite,
+} from '@/lib/server/utils/localePath';
+import { DEFAULT_LOCALE } from '@/i18n/config';
 
 /**
  * Proxy (renamed from `middleware` in Next.js 16 — same file, same
@@ -109,6 +116,18 @@ export async function proxy(req: NextRequest) {
     });
   }
 
+  // URL-locale split (I-07/I-08): every content-shape check below (proforma
+  // rate-limit, redirects, archive paging, the known-paths 404 guard) must
+  // reason about the LOCALE-NEUTRAL path — the redirect table and known-path
+  // set are built without locale prefixes (catalog/article content stays
+  // Persian-only across every locale, I-10) — then restore whatever prefix
+  // the request actually had on any rewrite/redirect target. Meaningless (and
+  // skipped) on the panel host, which never carries a locale prefix at all.
+  const { explicitLocale, pathWithoutLocale } = onPanelHost
+    ? { explicitLocale: null, pathWithoutLocale: req.nextUrl.pathname }
+    : splitLocalePrefix(req.nextUrl.pathname);
+  const requestLocale = explicitLocale ?? DEFAULT_LOCALE;
+
   // /proforma/[ref] renders the SAME real customer PII (name + mobile) that
   // GET /api/proforma/[ref] deliberately withholds — see that route for why
   // it's rate-limited. This page had no throttle at all: the ref's ~29.4-bit
@@ -116,7 +135,7 @@ export async function proxy(req: NextRequest) {
   // refs from a single IP to harvest customer PII. Same scope/limit as the
   // API route (and shares its bucket, since rateLimit keys on scope+IP) so
   // neither path can be used to bypass the other's throttle.
-  if (/^\/proforma\/[^/]+\/?$/.test(req.nextUrl.pathname)) {
+  if (/^\/proforma\/[^/]+\/?$/.test(pathWithoutLocale)) {
     const limited = await rateLimit(req, 'proforma', { limit: 20, windowMs: 60_000 });
     if (limited) return limited;
   }
@@ -130,10 +149,10 @@ export async function proxy(req: NextRequest) {
   // panel host, where every path is already spoken for by the admin rewrite.
   if (!onPanelHost) {
     await refreshRedirectCacheIfStale();
-    const redirectMatch = redirectCache.get(normalizePath(req.nextUrl.pathname));
+    const redirectMatch = redirectCache.get(normalizePath(pathWithoutLocale));
     if (redirectMatch) {
       const url = req.nextUrl.clone();
-      url.pathname = redirectMatch.toPath;
+      url.pathname = withLocalePrefix(redirectMatch.toPath, requestLocale);
       url.search = ''; // the configured target is a complete destination, not a query passthrough
       return NextResponse.redirect(url, redirectMatch.permanent ? 308 : 307);
     }
@@ -148,10 +167,10 @@ export async function proxy(req: NextRequest) {
     // AFTER the redirect table, deliberately: an admin-configured row for
     // /blog or /news is an explicit editorial decision and must win over this
     // structural rewrite, exactly as it wins over the 404 guard below.
-    const archive = archiveRedirect(req.nextUrl.pathname, req.nextUrl.searchParams.get('page'));
+    const archive = archiveRedirect(pathWithoutLocale, req.nextUrl.searchParams.get('page'));
     if (archive) {
       const url = req.nextUrl.clone();
-      url.pathname = archive.pathname;
+      url.pathname = withLocalePrefix(archive.pathname, requestLocale);
       // Only `page` is consumed — `url.search = ''` here would permanently
       // strip `utm_*`/`gclid` from every newsletter and ad link into /blog.
       url.searchParams.delete('page');
@@ -169,10 +188,10 @@ export async function proxy(req: NextRequest) {
     // the ghost behind a ~365-day stale-while-revalidate window. Rewriting to
     // a path that matches no route makes Next's own router produce the 404 —
     // the same technique `/__admin_denied__` below already relies on.
-    if (hasGuardedPrefix(req.nextUrl.pathname)) {
+    if (hasGuardedPrefix(pathWithoutLocale)) {
       const known = await getKnownPaths();
       if (
-        shouldNotFound(req.nextUrl.pathname, known, {
+        shouldNotFound(pathWithoutLocale, known, {
           redirectsLoaded: redirectsEverLoaded,
         })
       ) {
@@ -183,9 +202,9 @@ export async function proxy(req: NextRequest) {
         // rather than to a tombstone, and temporarily, because page N may
         // exist again next week. Without this an indexed `/blog?page=2` would
         // 308 into a hard 404, which is a worse signal than either endpoint.
-        const fallback = archiveIndexFallback(url.pathname);
+        const fallback = archiveIndexFallback(pathWithoutLocale);
         if (fallback) {
-          url.pathname = fallback;
+          url.pathname = withLocalePrefix(fallback, requestLocale);
           url.searchParams.delete('page');
           return NextResponse.redirect(url, 307);
         }
@@ -268,6 +287,19 @@ export async function proxy(req: NextRequest) {
   if (shouldPrefix) {
     const url = req.nextUrl.clone();
     url.pathname = effectivePathname;
+    return NextResponse.rewrite(url);
+  }
+
+  // Persian (default locale) is served bare — no `/fa` in any real URL — so
+  // Next's own router needs help finding `app/[locale]/...`: rewrite the
+  // INTERNAL routing path only, leaving the browser's address bar untouched.
+  // Never runs on the panel host (never locale-routed) or for an
+  // admin/api/panel-login/uploads path (never under `[locale]` at all) or
+  // once a request already names a real locale (`/en/...` etc. — Next's own
+  // dynamic-segment matching handles those with no rewrite needed).
+  if (!onPanelHost && needsDefaultLocaleRewrite(req.nextUrl.pathname)) {
+    const url = req.nextUrl.clone();
+    url.pathname = withInternalLocaleSegment(req.nextUrl.pathname, DEFAULT_LOCALE);
     return NextResponse.rewrite(url);
   }
 

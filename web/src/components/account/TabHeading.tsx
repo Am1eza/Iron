@@ -2,7 +2,7 @@
 import type { ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { Heading, Text, Stack } from '@/components/ui';
-import styles from '@/app/account/account.module.css';
+import styles from '@/app/[locale]/account/account.module.css';
 
 /** Consistent per-tab chrome: one translated heading + optional sub, content
  *  below. Client Component so it can translate — the account page's per-tab
