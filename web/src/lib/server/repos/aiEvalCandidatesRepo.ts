@@ -6,10 +6,15 @@ import { desc, eq, sql } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { getDb } from '@/lib/server/db/client';
 import { aiEvalCandidates, type AI_EVAL_CANDIDATE_STATUSES } from '@/lib/server/db/schema';
+import { scrubPii } from '@/lib/errors/scrub';
 
 export type AiEvalCandidateRow = typeof aiEvalCandidates.$inferSelect;
 export type AiEvalCandidateStatus = (typeof AI_EVAL_CANDIDATE_STATUSES)[number];
 
+/** J-245: a promoted candidate's `question`/`badAnswer` can end up copied
+ *  verbatim into `evals.test.ts` — committed, public source — so a customer's
+ *  mobile/email in the raw flagged text is scrubbed the same way createCorrection
+ *  scrubs its own free text, for the same reason (see that doc comment). */
 export async function createEvalCandidate(input: {
   conversationId?: string | null;
   messageId?: string | null;
@@ -24,9 +29,9 @@ export async function createEvalCandidate(input: {
       id: ulid(),
       conversationId: input.conversationId ?? null,
       messageId: input.messageId ?? null,
-      question: input.question,
-      badAnswer: input.badAnswer,
-      note: input.note ?? null,
+      question: scrubPii(input.question),
+      badAnswer: scrubPii(input.badAnswer),
+      note: input.note ? scrubPii(input.note) : null,
       createdBy: input.createdBy ?? null,
     })
     .returning();

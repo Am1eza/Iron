@@ -6,9 +6,23 @@ import { getDb } from '@/lib/server/db/client';
 import { aiCorrections } from '@/lib/server/db/schema';
 import { normalizeDigits, toPersianDigits } from '@/lib/utils/format';
 import { likeContains } from '@/lib/server/utils/likeEscape';
+import { scrubPii } from '@/lib/errors/scrub';
 
 export type AiCorrectionRow = typeof aiCorrections.$inferSelect;
 
+/**
+ * J-245: a correction is sourced from a REAL flagged customer conversation
+ * (AiReview.tsx prefills the admin form with the visitor's actual message
+ * verbatim) and, once curated, is retrieved into a DIFFERENT customer's live
+ * conversation (aiTools#searchCorrections) — so a mobile number or email a
+ * customer typed under the (accurate, per /privacy) belief that only THEIR
+ * own conversation would see it could otherwise resurface in front of a
+ * stranger. Reuses the same value-level scrubber already trusted for
+ * logs/Sentry (errors/scrub.ts) rather than inventing a second PII pattern
+ * set. Free-text names/addresses have no reliable regex signature the way a
+ * mobile/email does, so they are NOT caught here — this closes the
+ * structured, highest-likelihood case, not every conceivable one.
+ */
 export async function createCorrection(input: {
   question: string;
   answer: string;
@@ -19,8 +33,8 @@ export async function createCorrection(input: {
     .insert(aiCorrections)
     .values({
       id: ulid(),
-      question: input.question,
-      answer: input.answer,
+      question: scrubPii(input.question),
+      answer: scrubPii(input.answer),
       sourceMessageId: input.sourceMessageId ?? null,
       createdBy: input.createdBy ?? null,
     })
