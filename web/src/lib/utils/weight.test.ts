@@ -139,3 +139,96 @@ describe('unitWeightKg — pinned to the previously shipping formulas', () => {
     expect(unitWeightKg('flat', {})).toBeNull();
   });
 });
+
+/**
+ * B-19 (audit-catalog-B-FINAL) — edge cases at the boundary of what every
+ * CALLER already guards against.
+ *
+ * `unitWeightKg` itself is a pure arithmetic function with no validation of
+ * its own: `/api/tools/weight` and the AI advisor's `calcWeight` both bind
+ * every dimension through `finiteNumber.positive().max(...)` before it ever
+ * reaches here (see route.ts / aiTools.ts), and `catalogCompose.
+ * theoreticalWeightFor` separately rejects a non-positive/non-finite size
+ * before calling in. Nothing here changes a single formula — the INVARIANT at
+ * the top of this file (no number that has ever been quoted may move) still
+ * holds. These tests exist because the audit's own words were "healthy only
+ * in COVERED functions" — i.e. the untested paths are exactly what a caller
+ * happens not to exercise, not what the callers actually send. Pinning them
+ * makes it a deliberate decision, not an accident, if a future edit to this
+ * file ever changes what happens at zero, at a negative number, at an
+ * extreme, or at a rounded/unknown code.
+ */
+describe('unitWeightKg — edge cases outside what any current caller sends', () => {
+  it('zero for any required dimension is falsy and returns null, not a zero-weight product', () => {
+    expect(unitWeightKg('rebar', { diameterMm: 0, lengthM: 12 })).toBeNull();
+    expect(unitWeightKg('rebar', { diameterMm: 14, lengthM: 0 })).toBeNull();
+    expect(unitWeightKg('pipe', { outerDiameterMm: 0, thicknessMm: 3, lengthM: 6 })).toBeNull();
+    expect(unitWeightKg('box', { widthMm: 0, heightMm: 40, thicknessMm: 2, lengthM: 6 })).toBeNull();
+    expect(unitWeightKg('ibeam', { sizeCode: 0, lengthM: 12 })).toBeNull();
+  });
+
+  it("NaN in any dimension is falsy in the formula's own guard and returns null", () => {
+    expect(unitWeightKg('rebar', { diameterMm: NaN, lengthM: 12 })).toBeNull();
+    expect(unitWeightKg('plate', { thicknessMm: 3, widthM: NaN, lengthM: 6 })).toBeNull();
+    expect(unitWeightKg('angle', { sizeCode: NaN, lengthM: 6 })).toBeNull();
+  });
+
+  it('pipe: a non-finite (Infinity) wall/diameter pair fails the t < D comparison and returns null', () => {
+    // Infinity - Infinity is NaN, and NaN < Infinity is false — the same
+    // "impossible geometry" branch that rejects t >= D degrades gracefully
+    // here too, without a special case for it.
+    expect(unitWeightKg('pipe', { outerDiameterMm: Infinity, thicknessMm: Infinity, lengthM: 6 })).toBeNull();
+  });
+
+  it("documents (does not defend against) a negative dimension the pure function itself does not reject", () => {
+    // `-14` is truthy in JS, so the rebar branch runs the same arithmetic
+    // it would for `+14` — the square makes the sign disappear. This is
+    // exactly why every real caller validates with `.positive()` BEFORE
+    // calling in (route.ts, aiTools.ts, catalogCompose's `n <= 0` guard):
+    // this function alone would otherwise answer a physically nonsensical
+    // input with a plausible-looking number.
+    expect(unitWeightKg('rebar', { diameterMm: -14, lengthM: 12 })).toBe(unitWeightKg('rebar', { diameterMm: 14, lengthM: 12 }));
+    // A negative length is likewise truthy and not rejected on its own.
+    expect(unitWeightKg('rebar', { diameterMm: 14, lengthM: -12 })).toBe(((14 * 14) / 162) * -12);
+  });
+
+  it('an unrecognised shape (bypassing the WeightShape union at runtime) falls through to null', () => {
+    expect(unitWeightKg('unknown-shape' as never, { diameterMm: 14, lengthM: 12 })).toBeNull();
+  });
+
+  it('sizeCode rounds to the nearest table entry rather than requiring an exact integer', () => {
+    // Math.round(13.4) === 13, Math.round(13.6) === 14 — a caller passing a
+    // slightly-off market size number (OCR'd from a price list, or a stray
+    // float from a form) still resolves to a real published row instead of
+    // silently missing the table and returning null.
+    expect(unitWeightKg('ibeam', { sizeCode: 13.6, lengthM: 12 })).toBe(IBEAM_KG_PER_M['14']! * 12);
+    expect(unitWeightKg('ibeam', { sizeCode: 14.4, lengthM: 12 })).toBe(IBEAM_KG_PER_M['14']! * 12);
+    expect(unitWeightKg('angle', { sizeCode: 49.6, lengthM: 6 })).toBe(ANGLE_KG_PER_M['50']! * 6);
+    expect(unitWeightKg('hea', { sizeCode: 13.9, lengthM: 12 })).toBe(HEA_KG_PER_M['14']! * 12);
+    expect(unitWeightKg('heb', { sizeCode: 24.4, lengthM: 12 })).toBe(HEB_KG_PER_M['24']! * 12);
+    expect(unitWeightKg('channel', { sizeCode: 9.6, lengthM: 6 })).toBe(CHANNEL_KG_PER_M['10']! * 6);
+    // Rounding to a code that is NOT in the table still returns null rather
+    // than silently landing on a neighbouring size.
+    expect(unitWeightKg('ibeam', { sizeCode: 14.9, lengthM: 12 })).toBeNull(); // rounds to 15, absent
+  });
+
+  it('extreme (but finite) dimensions compute without throwing or overflowing to Infinity', () => {
+    // Well past any Zod .max() a real caller enforces, but the pure function
+    // itself has no ceiling — it should still return a plain finite number,
+    // not throw, not silently clamp, and not overflow.
+    const huge = unitWeightKg('plate', { thicknessMm: 500, widthM: 3, lengthM: 100 });
+    expect(huge).toBe(500 * 3 * 100 * STEEL_DENSITY);
+    expect(Number.isFinite(huge)).toBe(true);
+
+    const tiny = unitWeightKg('wire', { diameterMm: 0.001, lengthM: 0.001 });
+    expect(tiny).toBeCloseTo(((0.001 * 0.001) / 162) * 0.001, 15);
+    expect(tiny).not.toBeNull();
+  });
+
+  it('pipe: a wall exactly equal to the outer diameter is refused, one ulp under is not', () => {
+    expect(unitWeightKg('pipe', { outerDiameterMm: 20, thicknessMm: 20, lengthM: 6 })).toBeNull();
+    const almost = unitWeightKg('pipe', { outerDiameterMm: 20, thicknessMm: 19.999999, lengthM: 6 });
+    expect(almost).not.toBeNull();
+    expect(almost).toBeGreaterThan(0);
+  });
+});
