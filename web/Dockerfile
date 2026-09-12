@@ -46,7 +46,8 @@ RUN pnpm build
 RUN pnpm dlx esbuild scripts/migrate.mjs --bundle --platform=node --format=esm --outfile=scripts-dist/migrate.mjs --external:pg \
  && pnpm dlx esbuild scripts/seed.ts --bundle --platform=node --format=esm --outfile=scripts-dist/seed.mjs --external:pg \
  && pnpm dlx esbuild scripts/jobs.ts --bundle --platform=node --format=esm --outfile=scripts-dist/jobs.mjs --external:pg --banner:js='import{fileURLToPath as _f}from"url";import{dirname as _d}from"path";const __filename=_f(import.meta.url),__dirname=_d(__filename);' \
- && pnpm dlx esbuild scripts/priceSync.ts --bundle --platform=node --format=esm --outfile=scripts-dist/priceSync.mjs --external:pg --banner:js='import{fileURLToPath as _f}from"url";import{dirname as _d}from"path";const __filename=_f(import.meta.url),__dirname=_d(__filename);'
+ && pnpm dlx esbuild scripts/priceSync.ts --bundle --platform=node --format=esm --outfile=scripts-dist/priceSync.mjs --external:pg --banner:js='import{fileURLToPath as _f}from"url";import{dirname as _d}from"path";const __filename=_f(import.meta.url),__dirname=_d(__filename);' \
+ && pnpm dlx esbuild scripts/pricingIntegrityAudit.ts --bundle --platform=node --format=esm --outfile=scripts-dist/pricingIntegrityAudit.mjs --external:pg
 
 # ---- 3. runner --------------------------------------------------------------
 FROM node:20-alpine AS runner

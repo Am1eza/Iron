@@ -1,15 +1,13 @@
 import { readFormBody } from '@/lib/server/utils/requestBody';
 import { promises as fs } from 'fs';
-import path from 'path';
 import { NextResponse, type NextRequest } from 'next/server';
-import { ulid } from 'ulid';
 import { getSessionVerified } from '@/lib/auth/session';
 import { assertSameOrigin } from '@/lib/auth/origin';
 import { requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { clubStatus, getLetterhead, setLetterhead } from '@/lib/server/repos/clubRepo';
 import { rateLimit } from '@/lib/server/utils/rateLimit';
 import { sniffImageExt } from '@/lib/server/utils/imageSniff';
-import { uploadDir } from '@/lib/server/utils/uploadStorage';
+import { uploadDir, writeUploadFile } from '@/lib/server/utils/uploadStorage';
 import { reencodeUploadedImage, ImageTooLargeError } from '@/lib/server/utils/mediaProcessing';
 import { deleteOrphanedUploadIfUnused } from '@/lib/server/utils/uploadCleanup';
 
@@ -96,10 +94,9 @@ async function POSTImpl(req: NextRequest) {
   // previous file behind forever (I-212).
   const previous = await getLetterhead(session.id);
 
-  const filename = `${ulid()}.${ext}`;
   const dir = uploadDir();
   await fs.mkdir(dir, { recursive: true });
-  await fs.writeFile(path.join(/*turbopackIgnore: true*/ dir, filename), processed);
+  const filename = await writeUploadFile(dir, ext, processed);
 
   const url = `/uploads/${filename}`;
   const ok = await setLetterhead(session.id, { logoUrl: url });

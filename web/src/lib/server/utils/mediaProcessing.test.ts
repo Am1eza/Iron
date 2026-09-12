@@ -35,6 +35,48 @@ async function plainJpeg(width = 40, height = 30): Promise<Buffer> {
     .toBuffer();
 }
 
+/** A JPEG carrying an actual GPS IFD (libexif's IFD index 3, which `sharp`
+ *  exposes as `IFD3`) — the specific EXIF sub-block a leaked-location bug
+ *  would live in, distinct from the generic IFD0 Copyright/Software fields
+ *  the other fixture uses. */
+async function jpegWithGpsExif(): Promise<Buffer> {
+  return sharp({ create: { width: 40, height: 30, channels: 3, background: { r: 20, g: 200, b: 20 } } })
+    .withMetadata({
+      exif: {
+        IFD0: { Copyright: 'ACME Corp' },
+        IFD3: {
+          GPSLatitudeRef: 'N',
+          GPSLatitude: '40/1 26/1 46/1',
+          GPSLongitudeRef: 'W',
+          GPSLongitude: '79/1 58/1 56/1',
+        },
+      },
+    })
+    .jpeg()
+    .toBuffer();
+}
+
+/** Walks the raw EXIF/TIFF structure `sharp.metadata().exif` returns and
+ *  checks IFD0 for tag 0x8825 — the GPS Info IFD pointer. Its presence is
+ *  what actually proves a fixture (or an output buffer) carries GPS data;
+ *  `meta.exif` being merely defined only proves SOME EXIF block exists,
+ *  which was the gap I-206 flagged (only generic EXIF was ever asserted). */
+function hasGpsIfdPointer(exif: Buffer): boolean {
+  const tiff = exif.subarray(6); // skip the leading 'Exif\0\0' APP1 marker
+  const littleEndian = tiff.toString('ascii', 0, 2) === 'II';
+  const readU16 = (offset: number) =>
+    littleEndian ? tiff.readUInt16LE(offset) : tiff.readUInt16BE(offset);
+  const readU32 = (offset: number) =>
+    littleEndian ? tiff.readUInt32LE(offset) : tiff.readUInt32BE(offset);
+  const ifd0Offset = readU32(4);
+  const entryCount = readU16(ifd0Offset);
+  for (let i = 0; i < entryCount; i++) {
+    const entryOffset = ifd0Offset + 2 + i * 12;
+    if (readU16(entryOffset) === 0x8825) return true;
+  }
+  return false;
+}
+
 describe('reencodeUploadedImage — EXIF stripping (I-206)', () => {
   it('the fixture genuinely carries an EXIF segment before processing', async () => {
     const withExif = await jpegWithExif();
@@ -49,6 +91,23 @@ describe('reencodeUploadedImage — EXIF stripping (I-206)', () => {
     expect(meta.exif).toBeUndefined();
     // Still a real, decodable JPEG with the same visible dimensions — this
     // isn't just truncating the file, it's a genuine re-encode.
+    expect(sniffImageExt(out)).toBe('jpg');
+    expect(meta.width).toBe(40);
+    expect(meta.height).toBe(30);
+  });
+
+  it('the GPS fixture genuinely carries a GPS Info IFD before processing', async () => {
+    const withGps = await jpegWithGpsExif();
+    const meta = await sharp(withGps).metadata();
+    expect(meta.exif).toBeDefined();
+    expect(hasGpsIfdPointer(meta.exif as Buffer)).toBe(true);
+  });
+
+  it('strips GPS EXIF tags (GPSLatitude/GPSLongitude) from the re-encoded output', async () => {
+    const withGps = await jpegWithGpsExif();
+    const out = await reencodeUploadedImage(withGps, 'jpg');
+    const meta = await sharp(out).metadata();
+    expect(meta.exif).toBeUndefined();
     expect(sniffImageExt(out)).toBe('jpg');
     expect(meta.width).toBe(40);
     expect(meta.height).toBe(30);

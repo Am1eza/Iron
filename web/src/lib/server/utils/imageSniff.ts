@@ -30,5 +30,11 @@ export function sniffImageExt(buf: Buffer): UploadImageExt | null {
     buf.subarray(8, 12).toString('ascii') === 'WEBP'
   )
     return 'webp';
+  // I-208 — layer 1 of 2 against SVG/HTML masquerading as an image (this
+  // rejects anything, including SVG/HTML, that isn't one of the three
+  // binary signatures above). Layer 2 is next.config.mjs's `images` block
+  // never setting `dangerouslyAllowSVG` (Next's default is `false`). Both
+  // must stay — removing either on its own, thinking the other already
+  // covers it, reopens the gap.
   return null;
 }

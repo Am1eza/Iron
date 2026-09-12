@@ -1,8 +1,6 @@
 import { readFormBody } from '@/lib/server/utils/requestBody';
 import { promises as fs } from 'fs';
-import path from 'path';
 import { NextResponse, type NextRequest } from 'next/server';
-import { ulid } from 'ulid';
 import { can } from '@/lib/auth/roles';
 import {
   requireApiUser,
@@ -12,7 +10,7 @@ import {
 } from '@/lib/server/utils/apiGuard';
 import { rateLimit } from '@/lib/server/utils/rateLimit';
 import { sniffImageExt } from '@/lib/server/utils/imageSniff';
-import { uploadDir } from '@/lib/server/utils/uploadStorage';
+import { uploadDir, writeUploadFile } from '@/lib/server/utils/uploadStorage';
 import { reencodeUploadedImage, ImageTooLargeError } from '@/lib/server/utils/mediaProcessing';
 
 export const runtime = 'nodejs';
@@ -87,10 +85,9 @@ async function POSTImpl(req: NextRequest) {
 
   // Never trust the client-supplied filename (path traversal, collisions) —
   // the on-disk name is entirely server-generated.
-  const filename = `${ulid()}.${ext}`;
   const dir = uploadDir();
   await fs.mkdir(dir, { recursive: true });
-  await fs.writeFile(path.join(/*turbopackIgnore: true*/ dir, filename), processed);
+  const filename = await writeUploadFile(dir, ext, processed);
 
   // Served back by app/uploads/[filename]/route.ts, NOT Next's static
   // public/ handling — see that file for why a runtime-written file can't
