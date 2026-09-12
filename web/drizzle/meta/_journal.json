@@ -442,6 +442,13 @@
       "when": 1789078285808,
       "tag": "0062_rate_limit_windows",
       "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1789206811230,
+      "tag": "0063_chief_silverclaw",
+      "breakpoints": true
     }
   ]
 }
