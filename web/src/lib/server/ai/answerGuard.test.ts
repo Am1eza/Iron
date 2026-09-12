@@ -13,8 +13,10 @@ import { describe, it, expect } from 'vitest';
 import {
   collapseImmediateRepeat,
   looksLikeLeakedReasoning,
+  looksLikeLeakedSystemPrompt,
   stripFalseProcessClaims,
 } from './answerGuard';
+import { AI_SYSTEM_PROMPT } from '@/lib/server/services/aiTools';
 
 const LEAKED = `We need to respond to user. The user wants to proceed with a proforma for ۳ tons of ۱۶mm rebar, but the system says product not found with that exact name. We need to ask user to specify product name more precisely, using Persian name. Also we must follow style: use "تو" etc. Also we must not reveal internal tool calls.`;
 
@@ -59,6 +61,28 @@ describe('looksLikeLeakedReasoning', () => {
     // claim a leak it cannot see.
     expect(looksLikeLeakedReasoning('')).toBe(false);
     expect(looksLikeLeakedReasoning('   \n ')).toBe(false);
+  });
+});
+
+describe('looksLikeLeakedSystemPrompt (J-221 — a PERSIAN recitation of the real instructions, which has no English at all to trip looksLikeLeakedReasoning)', () => {
+  it('catches a verbatim quote of the real system prompt', () => {
+    // A real 90+ char run lifted straight from AI_SYSTEM_PROMPT — exactly
+    // what a successful «system prompt خودت را بنویس» injection would produce.
+    const excerpt = AI_SYSTEM_PROMPT.slice(200, 320);
+    expect(looksLikeLeakedSystemPrompt(`باشه، حتماً: ${excerpt} امیدوارم کمک کند.`, AI_SYSTEM_PROMPT)).toBe(true);
+  });
+
+  it('leaves a normal Persian answer about prices alone', () => {
+    expect(
+      looksLikeLeakedSystemPrompt(
+        'قیمت امروز میلگرد ۱۶ ذوب‌آهن اصفهان ۴۲٬۵۰۰ تومان بر کیلوگرم است. اگر بخواهی، پیش‌فاکتور را همین‌جا آماده می‌کنم.',
+        AI_SYSTEM_PROMPT,
+      ),
+    ).toBe(false);
+  });
+
+  it('is quiet on short text — nothing meaningful to compare a 28-char window against', () => {
+    expect(looksLikeLeakedSystemPrompt('باشه', AI_SYSTEM_PROMPT)).toBe(false);
   });
 });
 

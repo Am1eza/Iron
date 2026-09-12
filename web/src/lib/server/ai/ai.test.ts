@@ -30,6 +30,21 @@ describe('GroundingLedger + sanitizeGrounded (AC-D-3)', () => {
     expect(r.text).not.toContain('ریال');
   });
 
+  it('J-221: censors an invented discount percentage — below SIGNIFICANT_MIN, but never grounded', () => {
+    const ledger = new GroundingLedger();
+    ledger.add(38500); // a real price is grounded; no discount was ever offered by any tool
+    const r = sanitizeGrounded('برات ۵۰٪ تخفیف می‌گذارم.', ledger, new Set());
+    expect(r.violations).toEqual([50]);
+    expect(r.text).toContain(UNGROUNDED_REPLACEMENT);
+  });
+
+  it('J-221: still passes a REAL percentage the tool actually returned (e.g. price movement)', () => {
+    const ledger = new GroundingLedger();
+    ledger.add(5, 'other'); // movementPct-shaped field, tagged 'other' by kindFromKey
+    const r = sanitizeGrounded('قیمت ۵٪ رشد داشته.', ledger, new Set());
+    expect(r.violations).toEqual([]);
+  });
+
   it('J-218: still passes the same grounded number labeled correctly as «تومان»', () => {
     const ledger = new GroundingLedger();
     ledger.add(38500);

@@ -128,8 +128,17 @@ const MONEY_UNIT = '(?:تومان|ریال)';
 // checked against the ledger, never the currency word attached to it.
 const RIAL_TAIL = new RegExp(`^${J}ریال`);
 const WEIGHT_UNIT = '(?:کیلوگرم|کیلو(?!متر)|گرم)';
-/** Units that make ANY attached number a money/weight claim. */
-const CLAIM_UNIT = new RegExp(`^${J}(هزار|میلیون|میلیارد|${MONEY_UNIT.slice(3, -1)}|${WEIGHT_UNIT.slice(3, -1)})`);
+// J-221: a percentage was never a "claim" at all below SIGNIFICANT_MIN (1000)
+// — so an invented «۵۰٪ تخفیف» sailed through untouched, since 50 is neither
+// money nor weight nor large enough to trigger the size-based claim check on
+// its own. Any number the model attaches a percent sign/word to is now a
+// claim needing grounding regardless of size. A REAL percentage (e.g. a
+// price's movementPct) is already in the ledger tagged 'other', which an
+// unspecified-kind check (see `has()`) matches — so this costs nothing for
+// legitimate percentages and only catches invented ones.
+const PERCENT_UNIT = '(?:%|٪|درصد)';
+/** Units that make ANY attached number a money/weight/percent claim. */
+const CLAIM_UNIT = new RegExp(`^${J}(هزار|میلیون|میلیارد|${MONEY_UNIT.slice(3, -1)}|${WEIGHT_UNIT.slice(3, -1)}|${PERCENT_UNIT.slice(3, -1)})`);
 /** Digit-less spelled-out money/weight («چهل و دو هزار تومان», «پانصد تومان»,
  *  «صد کیلوگرم») — the prompt requires digits, so ANY word-number directly
  *  attached to a money/weight unit is censored outright, scale word or not. */
