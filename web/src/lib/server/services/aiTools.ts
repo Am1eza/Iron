@@ -1095,6 +1095,12 @@ export async function runTool(
 
         return {
           ...(compareBlock ? { ui: 'compare', uiNote: UI_NOTE.compare } : {}),
+          // J-220: a bulk factory comparison without a known delivery city
+          // only ever prices ex-works — flag it structurally so the pipeline
+          // can verify the model actually asked for the city (rule 8), not
+          // just silently showed ex-works and let the visitor assume it was
+          // the final delivered price.
+          ...(ctx.city ? {} : { missingCity: true }),
           category: category.name,
           // Which exact product this comparison is for — state this in the
           // reply, especially when the model didn't ask the user for a size

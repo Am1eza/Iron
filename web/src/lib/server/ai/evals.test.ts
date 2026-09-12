@@ -245,6 +245,93 @@ const SCENARIOS: Scenario[] = [
     },
   },
   {
+    // J-217: rule 2 requires the date + کارشناس caveat next to a stale-but-
+    // priced quote, but nothing ever verified the model's actual prose
+    // carried it. Here the model's first (and its retry's) answer omits the
+    // caveat entirely — the pipeline's post-generation check has to recover
+    // it, in code if necessary.
+    name: 'J-217: staleness caveat is enforced even when the model omits it',
+    userMessages: ['قیمت میلگرد کارخانهٔ دوم چنده؟'],
+    rounds: () => [
+      { toolCalls: [{ name: 'getPrice', args: () => ({ query: staleSku.slug }) }] },
+      // No date, no کارشناس caveat — exactly the gap the audit found.
+      {
+        text: (msgs) =>
+          `قیمت این محصول ${lastToolResult<GetPriceResult>(msgs).results[0]!.price!.toLocaleString('en-US')} تومان است.`,
+      },
+      // The pipeline's own retry (tools withheld) — still omits it, forcing
+      // the code-appended fallback rather than a bare undated price.
+      {
+        text: (msgs) =>
+          `قیمت این محصول ${lastToolResult<GetPriceResult>(msgs).results[0]!.price!.toLocaleString('en-US')} تومان است.`,
+      },
+    ],
+    expectations: ({ result, messages }) => {
+      const tool = lastToolResult<GetPriceResult>(messages).results[0]!;
+      expect(tool.isStale).toBe(true);
+      // The customer never sees a bare, undated stale price.
+      expect(result.text).toContain(tool.updatedAtJalali);
+      expect(result.text).toContain('کارشناس');
+    },
+  },
+  {
+    // J-217, the recovery path: the model's SECOND attempt (the pipeline's
+    // own retry) fixes the gap on its own — the code-appended fallback must
+    // not also fire and duplicate the caveat.
+    name: 'J-217: a clean retry is taken as-is, without a duplicated caveat',
+    userMessages: ['قیمت میلگرد کارخانهٔ دوم چنده؟'],
+    rounds: () => [
+      { toolCalls: [{ name: 'getPrice', args: () => ({ query: staleSku.slug }) }] },
+      {
+        text: (msgs) =>
+          `قیمت این محصول ${lastToolResult<GetPriceResult>(msgs).results[0]!.price!.toLocaleString('en-US')} تومان است.`,
+      },
+      {
+        text: (msgs) => {
+          const r = lastToolResult<GetPriceResult>(msgs).results[0]!;
+          return `آخرین قیمت ثبت‌شده: ${r.price!.toLocaleString('en-US')} تومان در تاریخ ${r.updatedAtJalali}؛ قیمت به‌روز را کارشناس تأیید می‌کند.`;
+        },
+      },
+    ],
+    expectations: ({ result, messages }) => {
+      const tool = lastToolResult<GetPriceResult>(messages).results[0]!;
+      expect(result.text).toContain(tool.updatedAtJalali);
+      // Exactly one occurrence of the date — the fallback appender never ran.
+      expect(result.text.split(tool.updatedAtJalali).length - 1).toBe(1);
+    },
+  },
+  {
+    // J-220: rule 8 tells the model to ask once for the delivery city before
+    // a bulk comparison, but nothing verified it actually did. Here the
+    // model never asks — aiTools.ts's own `missingCity` flag has to force
+    // the pipeline's post-generation check to recover the question.
+    name: 'J-220: a bulk comparison without a known city is forced to ask for it',
+    userMessages: ['۲۰ تن میلگرد از کجا ارزون‌تره؟'],
+    rounds: () => [
+      { toolCalls: [{ name: 'compareFactories', args: { category: 'rebar', tonnage: 20 } }] },
+      // Ex-works only, no question about delivery — exactly the gap found.
+      {
+        text: (msgs) => {
+          const r = lastToolResult<CompareResult>(msgs);
+          return `ارزان‌ترین گزینه برای ۲۰ تن، کارخانهٔ ${r.cheapestFactory} با ${r.cheapestPricePerKg.toLocaleString('en-US')} تومان بر کیلوگرم است.`;
+        },
+      },
+      // The pipeline's own retry — still doesn't ask, forcing the fallback.
+      {
+        text: (msgs) => {
+          const r = lastToolResult<CompareResult>(msgs);
+          return `ارزان‌ترین گزینه برای ۲۰ تن، کارخانهٔ ${r.cheapestFactory} با ${r.cheapestPricePerKg.toLocaleString('en-US')} تومان بر کیلوگرم است.`;
+        },
+      },
+    ],
+    expectations: ({ result, messages }) => {
+      const r = lastToolResult<CompareResult & { missingCity?: boolean }>(messages);
+      expect(r.missingCity).toBe(true);
+      expect(result.text).toContain('شهر');
+      expect(result.text).toContain('؟');
+    },
+  },
+  {
     name: 'weight: تیرآهن ۱۴ از جدول استاندارد (۱۲٫۹ kg/m — نه تقریب هندسی)',
     userMessages: ['وزن ۵ شاخه تیرآهن ۱۴ دوازده متری چقدره؟'],
     rounds: () => [

@@ -14,6 +14,10 @@ import {
   collapseImmediateRepeat,
   looksLikeLeakedReasoning,
   stripFalseProcessClaims,
+  missingStaleCaveat,
+  appendStaleCaveat,
+  answerAsksAboutCity,
+  appendCityQuestion,
 } from './answerGuard';
 
 const LEAKED = `We need to respond to user. The user wants to proceed with a proforma for ۳ tons of ۱۶mm rebar, but the system says product not found with that exact name. We need to ask user to specify product name more precisely, using Persian name. Also we must follow style: use "تو" etc. Also we must not reveal internal tool calls.`;
@@ -253,5 +257,60 @@ describe('stripFalseProcessClaims — the near misses', () => {
   it('keeps a سفارش sentence whose only verb is future', () => {
     const t = 'با زدن دکمه، سفارش تو ثبت خواهد شد و کارشناس تماس می‌گیرد.';
     expect(stripFalseProcessClaims(t)).toBe(t);
+  });
+});
+
+describe('missingStaleCaveat / appendStaleCaveat (J-217)', () => {
+  it('is never missing when there are no stale dates to check', () => {
+    expect(missingStaleCaveat('قیمت ۴۲٬۰۰۰ تومان است.', new Set())).toBe(false);
+  });
+
+  it('flags an answer that quotes a price with no date at all', () => {
+    expect(missingStaleCaveat('قیمت این محصول ۴۲٬۰۰۰ تومان است.', new Set(['۱۴۰۵/۰۴/۱۱']))).toBe(true);
+  });
+
+  it('is satisfied once the exact tool-produced date string is present', () => {
+    const text = 'آخرین قیمت ثبت‌شده: ۴۲٬۰۰۰ تومان در تاریخ ۱۴۰۵/۰۴/۱۱؛ قیمت به‌روز را کارشناس تأیید می‌کند.';
+    expect(missingStaleCaveat(text, new Set(['۱۴۰۵/۰۴/۱۱']))).toBe(false);
+  });
+
+  it('requires EVERY stale date this turn produced, not just one of several', () => {
+    const text = 'قیمت اول در تاریخ ۱۴۰۵/۰۴/۱۱ ثبت شده.';
+    expect(missingStaleCaveat(text, new Set(['۱۴۰۵/۰۴/۱۱', '۱۴۰۵/۰۴/۱۲']))).toBe(true);
+  });
+
+  it('appends a single-date caveat with the exact date and the کارشناس sentence', () => {
+    const out = appendStaleCaveat('قیمت ۴۲٬۰۰۰ تومان است.', new Set(['۱۴۰۵/۰۴/۱۱']));
+    expect(out).toContain('۱۴۰۵/۰۴/۱۱');
+    expect(out).toContain('کارشناس');
+    expect(missingStaleCaveat(out, new Set(['۱۴۰۵/۰۴/۱۱']))).toBe(false);
+  });
+
+  it('appends every date when more than one row was stale', () => {
+    const out = appendStaleCaveat('چند قیمت اینجاست.', new Set(['۱۴۰۵/۰۴/۱۱', '۱۴۰۵/۰۴/۱۲']));
+    expect(out).toContain('۱۴۰۵/۰۴/۱۱');
+    expect(out).toContain('۱۴۰۵/۰۴/۱۲');
+  });
+});
+
+describe('answerAsksAboutCity / appendCityQuestion (J-220)', () => {
+  it('is false for a comparison answer that never mentions the city', () => {
+    const t = 'ارزان‌ترین گزینه برای ۲۰ تن، کارخانهٔ ذوب‌آهن با ۴۲٬۰۰۰ تومان بر کیلوگرم است.';
+    expect(answerAsksAboutCity(t)).toBe(false);
+  });
+
+  it('is true once the answer asks a real question about the delivery city', () => {
+    const t = 'محصول قرار است به کدام شهر تحویل داده شود؟';
+    expect(answerAsksAboutCity(t)).toBe(true);
+  });
+
+  it('does not count a mere MENTION of a city with no question mark', () => {
+    const t = 'این کارخانه در شهر اصفهان است.';
+    expect(answerAsksAboutCity(t)).toBe(false);
+  });
+
+  it('appendCityQuestion always produces text answerAsksAboutCity accepts', () => {
+    const out = appendCityQuestion('ارزان‌ترین گزینه ذوب‌آهن است.');
+    expect(answerAsksAboutCity(out)).toBe(true);
   });
 });
