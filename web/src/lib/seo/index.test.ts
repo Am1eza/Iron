@@ -233,15 +233,21 @@ describe('buildMetadata — hreflang', () => {
   const langsOf = (m: ReturnType<typeof buildMetadata>) =>
     (m.alternates as { languages?: Record<string, string> } | undefined)?.languages;
 
-  it('declares one self-referential fa alternate matching the canonical', () => {
+  it('declares the fa alternate bare (unprefixed), matching the canonical', () => {
     const m = buildMetadata({ title: 'x', path: '/prices' });
-    expect(langsOf(m)).toEqual({ fa: 'https://ahantime.com/prices' });
+    expect(langsOf(m)?.fa).toBe('https://ahantime.com/prices');
   });
 
-  it('never declares en/ar/zh alternates — no such URLs exist (client-side i18n only)', () => {
+  it('declares a real, distinct URL for every other locale (I-08: real per-locale URLs now exist)', () => {
     const langs = langsOf(buildMetadata({ title: 'x', path: '/prices' })) ?? {};
-    expect(Object.keys(langs)).toEqual(['fa']);
-    expect(langs).not.toHaveProperty('x-default');
+    expect(langs.en).toBe('https://ahantime.com/en/prices');
+    expect(langs.ar).toBe('https://ahantime.com/ar/prices');
+    expect(langs.zh).toBe('https://ahantime.com/zh/prices');
+  });
+
+  it('x-default mirrors the fa (bare) URL — the actual default a locale-less visitor gets', () => {
+    const langs = langsOf(buildMetadata({ title: 'x', path: '/prices' })) ?? {};
+    expect(langs['x-default']).toBe(langs.fa);
   });
 
   it('emits no alternates block at all when the canonical was rejected', () => {

@@ -5,6 +5,8 @@ import type { Metadata } from 'next';
 import { VERIFIED_CHANNELS } from '@/lib/data/nav';
 import { SITE_ORIGIN } from '@/lib/utils/url';
 import type { PriceBasis } from '@/lib/types/domain';
+import { LOCALES, DEFAULT_LOCALE } from '@/i18n/config';
+import { withLocalePrefix } from '@/lib/server/utils/localePath';
 
 /**
  * UN/CEFACT Recommendation 20 unit codes for the price bases that HAVE one.
@@ -104,16 +106,31 @@ export function buildMetadata(opts: {
   return {
     title: opts.absoluteTitle ? { absolute: opts.title } : opts.title,
     description: opts.description,
-    // `languages` is SELF-REFERENTIAL ON PURPOSE. Every URL on this site
-    // serves Persian; en/ar/zh exist only as a client-side chrome
-    // translation over that same URL (see i18n/LocaleProvider — cookie-based
-    // by deliberate choice, so ISR isn't broken), so there is no second
-    // indexable per-locale URL to point a real hreflang cluster at.
-    // Declaring `fa` for the canonical states the one true fact; declaring
-    // `en`/`ar`/`zh` — or an `x-default` implying a chooser page — would
-    // claim alternates that do not exist as URLs, which Google reports as an
-    // hreflang error and which no return-tag could ever confirm.
-    alternates: canonical ? { canonical, languages: { fa: canonical } } : undefined,
+    // I-08: real per-locale URLs now exist (i18n/routing.ts's URL-based
+    // locale migration — localePrefix:'as-needed', so fa stays bare and
+    // en/ar/zh get their own /en, /ar, /zh prefix on this SAME path). Every
+    // locale is declared, plus `x-default` pointing at the fa (bare) URL —
+    // the actual default a locale-less visitor/crawler receives. Before that
+    // migration this was deliberately self-referential-only (fa canonical,
+    // no other locale declared): en/ar/zh were a client-side chrome swap
+    // over the identical URL, so declaring them here would have claimed
+    // alternates that did not exist as real URLs — an hreflang error Google
+    // would have reported and no return-tag could ever have confirmed.
+    alternates:
+      canonical && resolved
+        ? {
+            canonical,
+            languages: {
+              ...Object.fromEntries(
+                LOCALES.map((locale) => [
+                  locale,
+                  new URL(withLocalePrefix(resolved.pathname, locale) + resolved.search, SITE_URL).toString(),
+                ]),
+              ),
+              'x-default': new URL(withLocalePrefix(resolved.pathname, DEFAULT_LOCALE) + resolved.search, SITE_URL).toString(),
+            },
+          }
+        : undefined,
     robots: opts.noindex ? { index: false, follow: false } : undefined,
     openGraph: {
       title: socialTitle,
