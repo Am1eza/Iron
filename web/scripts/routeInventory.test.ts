@@ -62,6 +62,7 @@ const VALIDATE_BODY_EXEMPT: Record<string, string> = {
   'admin/seo/search-console/route.ts': '(a) no body — DELETE disconnects the stored OAuth connection, no params needed',
   'me/favorites/[skuId]/route.ts': '(a) no body — DELETE acts on the [skuId] route param + session only',
   'me/route.ts': '(a) no body — DELETE deletes the session-owner\'s own account, no params needed',
+  'ai/conversations/[id]/route.ts': '(a) no body — DELETE acts on the [id] route param + session only (J-228)',
 };
 
 function withBody(rs: RouteInfo[]): RouteInfo[] {
