@@ -3,6 +3,11 @@
  * Same verified-wire-format regression as auth/sms.test.ts, for the bulk
  * free-text send path — see that file's header comment for how the shape
  * was confirmed against the real official SDK source.
+ *
+ * Fetch is mocked with real `Response` instances (not plain `{ok, json}`
+ * objects) since H-199's `fetchWithLimits` reads the response body itself
+ * (streamed, capped) rather than delegating to whatever `.json()`/`.text()`
+ * a test double happens to provide.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { resetCircuitBreakers } from '@/lib/server/utils/resilience';
@@ -57,10 +62,9 @@ describe('sendSms (bulk)', () => {
   it('live mode calls the exact verified SMS.ir bulk-send API shape', async () => {
     vi.stubEnv('SMSIR_API_KEY', 'test-key');
     vi.stubEnv('SMSIR_LINE_NUMBER', '3000123456');
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ status: 1, message: 'ok', data: null }),
-    });
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ status: 1, message: 'ok', data: null }), { status: 200 }),
+    );
     vi.stubGlobal('fetch', fetchMock);
     const { sendSms } = await import('./smsir');
 
@@ -89,7 +93,9 @@ describe('sendSms (bulk)', () => {
     vi.stubEnv('SMSIR_LINE_NUMBER', '3000123456');
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ status: 2, message: 'rejected' }) }),
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ status: 2, message: 'rejected' }), { status: 200 }),
+      ),
     );
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const { sendSms } = await import('./smsir');
@@ -106,7 +112,7 @@ describe('sendSms (bulk)', () => {
     try {
       vi.stubEnv('SMSIR_API_KEY', 'test-key');
       vi.stubEnv('SMSIR_LINE_NUMBER', '3000123456');
-      const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 500, json: async () => null });
+      const fetchMock = vi.fn().mockResolvedValue(new Response('', { status: 500 }));
       vi.stubGlobal('fetch', fetchMock);
       const { sendSms } = await import('./smsir');
 
@@ -126,8 +132,8 @@ describe('sendSms (bulk)', () => {
       vi.stubEnv('SMSIR_LINE_NUMBER', '3000123456');
       const fetchMock = vi
         .fn()
-        .mockResolvedValueOnce({ ok: false, status: 503 })
-        .mockResolvedValueOnce({ ok: true, json: async () => ({ status: 1 }) });
+        .mockResolvedValueOnce(new Response('', { status: 503 }))
+        .mockResolvedValueOnce(new Response(JSON.stringify({ status: 1 }), { status: 200 }));
       vi.stubGlobal('fetch', fetchMock);
       const { sendSms } = await import('./smsir');
 
@@ -143,7 +149,7 @@ describe('sendSms (bulk)', () => {
   it('does not retry a 4xx — fails immediately with a single fetch call', async () => {
     vi.stubEnv('SMSIR_API_KEY', 'test-key');
     vi.stubEnv('SMSIR_LINE_NUMBER', '3000123456');
-    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 401, json: async () => null });
+    const fetchMock = vi.fn().mockResolvedValue(new Response('', { status: 401 }));
     vi.stubGlobal('fetch', fetchMock);
     const { sendSms } = await import('./smsir');
 
@@ -159,11 +165,12 @@ describe('sendSms (bulk)', () => {
     vi.stubEnv('SMSIR_LINE_NUMBER', '9999999999');
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue({
-        ok: false,
-        status: 400,
-        text: async () => JSON.stringify({ status: 20, message: 'شماره خط ارسال معتبر نیست', data: null }),
-      }),
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({ status: 20, message: 'شماره خط ارسال معتبر نیست', data: null }),
+          { status: 400 },
+        ),
+      ),
     );
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const { sendSms } = await import('./smsir');
@@ -181,11 +188,9 @@ describe('sendSms (bulk)', () => {
     vi.stubGlobal(
       'fetch',
       // Worst case: the provider echoes the recipient back at us in the reason.
-      vi.fn().mockResolvedValue({
-        ok: false,
-        status: 400,
-        text: async () => JSON.stringify({ message: 'mobile 09121234567 is blocked' }),
-      }),
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ message: 'mobile 09121234567 is blocked' }), { status: 400 }),
+      ),
     );
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const { sendSms } = await import('./smsir');
@@ -203,7 +208,7 @@ describe('sendSms (bulk)', () => {
     vi.stubEnv('SMSIR_LINE_NUMBER', '3000123456');
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue({ ok: false, status: 403, text: async () => '<html>Forbidden</html>' }),
+      vi.fn().mockResolvedValue(new Response('<html>Forbidden</html>', { status: 403 })),
     );
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const { sendSms } = await import('./smsir');
@@ -220,7 +225,7 @@ describe('sendSms (bulk)', () => {
     try {
       vi.stubEnv('SMSIR_API_KEY', 'test-key');
       vi.stubEnv('SMSIR_LINE_NUMBER', '3000123456');
-      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 429, text: async () => 'too many' }));
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('too many', { status: 429 })));
       const { sendSms } = await import('./smsir');
 
       const p = sendSms('09120000000', 'سلام');
@@ -236,7 +241,7 @@ describe('sendSms (bulk)', () => {
     try {
       vi.stubEnv('SMSIR_API_KEY', 'test-key');
       vi.stubEnv('SMSIR_LINE_NUMBER', '3000123456');
-      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 503, text: async () => 'upstream down' }));
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('upstream down', { status: 503 })));
       const { sendSms } = await import('./smsir');
 
       const p = sendSms('09120000000', 'سلام');
@@ -258,8 +263,8 @@ describe('sendSms (bulk)', () => {
       vi.stubEnv('SMSIR_LINE_NUMBER', '3000123456');
       const fetchMock = vi
         .fn()
-        .mockResolvedValueOnce({ ok: false, status: 429 })
-        .mockResolvedValueOnce({ ok: true, json: async () => ({ status: 1 }) });
+        .mockResolvedValueOnce(new Response('', { status: 429 }))
+        .mockResolvedValueOnce(new Response(JSON.stringify({ status: 1 }), { status: 200 }));
       vi.stubGlobal('fetch', fetchMock);
       const { sendSms } = await import('./smsir');
 
@@ -275,15 +280,7 @@ describe('sendSms (bulk)', () => {
   it('a response body that fails to parse as JSON is a failure, not a silent success', async () => {
     vi.stubEnv('SMSIR_API_KEY', 'test-key');
     vi.stubEnv('SMSIR_LINE_NUMBER', '3000123456');
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => {
-          throw new SyntaxError('Unexpected end of JSON input');
-        },
-      }),
-    );
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('not valid json{', { status: 200 })));
     const { sendSms } = await import('./smsir');
 
     expect(await sendSms('09120000000', 'سلام')).toEqual({ ok: false });
@@ -294,7 +291,7 @@ describe('sendSms (bulk)', () => {
     try {
       vi.stubEnv('SMSIR_API_KEY', 'test-key');
       vi.stubEnv('SMSIR_LINE_NUMBER', '3000123456');
-      const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 500, json: async () => null });
+      const fetchMock = vi.fn().mockResolvedValue(new Response('', { status: 500 }));
       vi.stubGlobal('fetch', fetchMock);
       const { sendSms } = await import('./smsir');
 
@@ -364,10 +361,9 @@ describe('sendTemplate (Verify API)', () => {
 
   it('calls the Verify endpoint with the exact SMS.ir shape (no lineNumber)', async () => {
     vi.stubEnv('SMSIR_API_KEY', 'test-key');
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ status: 1, message: 'ok', data: { messageId: 1 } }),
-    });
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ status: 1, message: 'ok', data: { messageId: 1 } }), { status: 200 }),
+    );
     vi.stubGlobal('fetch', fetchMock);
     const { sendTemplate } = await import('./smsir');
 
@@ -397,7 +393,10 @@ describe('sendTemplate (Verify API)', () => {
 
   it('a non-1 status in the response body is a failure', async () => {
     vi.stubEnv('SMSIR_API_KEY', 'test-key');
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ status: 2, message: 'rejected' }) }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({ status: 2, message: 'rejected' }), { status: 200 })),
+    );
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const { sendTemplate } = await import('./smsir');
 
@@ -417,7 +416,7 @@ describe('sendNotification (template-if-configured, else free-text fallback)', (
   it('uses the free-text bulk send when the template env var is unset (today\'s behaviour)', async () => {
     vi.stubEnv('SMSIR_API_KEY', 'test-key');
     vi.stubEnv('SMSIR_LINE_NUMBER', '3000123456');
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ status: 1 }) });
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ status: 1 }), { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
     const { sendNotification } = await import('./smsir');
 
@@ -438,7 +437,7 @@ describe('sendNotification (template-if-configured, else free-text fallback)', (
     vi.stubEnv('SMSIR_API_KEY', 'test-key');
     vi.stubEnv('SMSIR_LINE_NUMBER', '3000123456'); // present but must NOT be used
     vi.stubEnv('SMSIR_TEMPLATE_ID_PROFORMA_ISSUED', '577777');
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ status: 1 }) });
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ status: 1 }), { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
     const { sendNotification } = await import('./smsir');
 

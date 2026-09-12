@@ -105,13 +105,20 @@ describe('sendOtpSms', () => {
   it('delivery watchdog: unconfirmed delivery → re-sends the SAME code via the bulk route', async () => {
     vi.stubEnv('SMSIR_API_KEY', 'test-key');
     vi.stubEnv('SMSIR_LINE_NUMBER', '30002108024652');
-    const fetchMock = vi.fn().mockImplementation(async (url: string) => ({
-      ok: true,
-      json: async () =>
-        String(url).includes('/send/42')
-          ? { status: 1, data: { deliveryState: null } } // report: not delivered yet
-          : { status: 1 }, // bulk send accepted
-    }));
+    // A real Response, not a plain {ok, json} object: the fallback send goes
+    // through smsir.ts's sendSms, whose fetchWithLimits (H-199) reads
+    // `.headers`/`.body` itself rather than delegating to a test double's
+    // own `.json()`.
+    const fetchMock = vi.fn().mockImplementation(async (url: string) =>
+      new Response(
+        JSON.stringify(
+          String(url).includes('/send/42')
+            ? { status: 1, data: { deliveryState: null } } // report: not delivered yet
+            : { status: 1 }, // bulk send accepted
+        ),
+        { status: 200 },
+      ),
+    );
     vi.stubGlobal('fetch', fetchMock);
     const { checkDeliveryAndFallback } = await import('./sms');
 

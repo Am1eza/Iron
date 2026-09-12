@@ -33,10 +33,13 @@ const CHAT_ID = '-1001234567890';
 const fetchMock = vi.fn();
 
 function ok(): Response {
-  return { ok: true, status: 200, json: async () => ({ ok: true, result: {} }) } as unknown as Response;
+  // A real Response, not a plain {ok, json} object: H-199's fetchWithLimits
+  // reads `.headers`/`.body` itself rather than delegating to a test
+  // double's own `.json()`.
+  return new Response(JSON.stringify({ ok: true, result: {} }), { status: 200 });
 }
 function httpError(status: number, description = 'Bad Request'): Response {
-  return { ok: false, status, json: async () => ({ ok: false, description }) } as unknown as Response;
+  return new Response(JSON.stringify({ ok: false, description }), { status });
 }
 
 function post(key: string | null, body: unknown = { text: 'GlitchTip Alert' }) {

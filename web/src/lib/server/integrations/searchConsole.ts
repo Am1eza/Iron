@@ -26,6 +26,7 @@ import {
   gscTokenBaseUrl,
 } from './searchConsoleConfig';
 import { withResilience } from '@/lib/server/utils/resilience';
+import { fetchWithLimits } from '@/lib/server/utils/fetchWithLimits';
 
 const TIMEOUT_MS = 15_000;
 
@@ -86,13 +87,16 @@ function requireCredentials(): { clientId: string; clientSecret: string } {
 }
 
 async function postForm(url: string, body: URLSearchParams): Promise<unknown> {
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: body.toString(),
-    signal: AbortSignal.timeout(TIMEOUT_MS),
-  });
-  const text = await res.text();
+  const res = await fetchWithLimits(
+    url,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString(),
+    },
+    { timeoutMs: TIMEOUT_MS },
+  );
+  const text = res.text();
   if (!res.ok) throw new SearchConsoleHttpError(res.status, text.slice(0, 500), 'token');
   try {
     return JSON.parse(text) as unknown;
@@ -252,25 +256,28 @@ export async function fetchTopQueriesForPage(params: SearchAnalyticsParams): Pro
   const raw = await withResilience(
     'gsc-api',
     async () => {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
+      const res = await fetchWithLimits(
+        url,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            startDate,
+            endDate,
+            dimensions: ['query'],
+            dimensionFilterGroups: [
+              { filters: [{ dimension: 'page', operator: 'equals', expression: pageUrl }] },
+            ],
+            rowLimit,
+            dataState: 'final',
+          }),
         },
-        body: JSON.stringify({
-          startDate,
-          endDate,
-          dimensions: ['query'],
-          dimensionFilterGroups: [
-            { filters: [{ dimension: 'page', operator: 'equals', expression: pageUrl }] },
-          ],
-          rowLimit,
-          dataState: 'final',
-        }),
-        signal: AbortSignal.timeout(TIMEOUT_MS),
-      });
-      const text = await res.text();
+        { timeoutMs: TIMEOUT_MS },
+      );
+      const text = res.text();
       if (!res.ok) throw new SearchConsoleHttpError(res.status, text.slice(0, 500), 'api');
       return JSON.parse(text) as unknown;
     },

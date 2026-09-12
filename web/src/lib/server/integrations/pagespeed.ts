@@ -21,6 +21,7 @@
  */
 import { reportError } from '@/lib/errors/report';
 import { cacheGetJson, cacheSetJson, jitterTtl } from '@/lib/server/redis';
+import { fetchWithLimits } from '@/lib/server/utils/fetchWithLimits';
 
 export interface PageSpeedResult {
   url: string;
@@ -51,15 +52,17 @@ async function fetchOne(url: string, apiKey: string): Promise<PageSpeedResult | 
   endpoint.searchParams.append('category', 'performance');
   endpoint.searchParams.append('category', 'seo');
 
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
   try {
-    const res = await fetch(endpoint.toString(), { signal: ctrl.signal, cache: 'no-store' });
+    const res = await fetchWithLimits(
+      endpoint.toString(),
+      { cache: 'no-store' },
+      { timeoutMs: TIMEOUT_MS },
+    );
     if (!res.ok) {
       reportError(new Error(`pagespeed: HTTP ${res.status}`), { integration: 'pagespeed', url });
       return null;
     }
-    const json = (await res.json()) as {
+    const json = res.json() as {
       lighthouseResult?: {
         categories?: { performance?: { score?: number }; seo?: { score?: number } };
         audits?: { 'largest-contentful-paint'?: { numericValue?: number }; 'cumulative-layout-shift'?: { numericValue?: number } };
@@ -95,8 +98,6 @@ async function fetchOne(url: string, apiKey: string): Promise<PageSpeedResult | 
       reportError(err, { integration: 'pagespeed', url });
     }
     return null;
-  } finally {
-    clearTimeout(timer);
   }
 }
 
