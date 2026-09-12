@@ -174,7 +174,7 @@ export interface PipelineResult {
    *  aiTaxonomy.EstimateFacts). Undefined unless estimateProject ran. */
   estimate?: EstimateFacts;
   toolsUsed: Set<string>;
-  usage: { promptTokens: number; completionTokens: number; cacheHitTokens: number };
+  usage: { promptTokens: number; completionTokens: number; cacheHitTokens: number; reasoningTokens: number };
   /** Per-stage record of what post-processing removed (see AnswerTrace). */
   trace: AnswerTrace;
   /** Exposed so callers/tests can re-verify the final text independently. */
@@ -220,8 +220,10 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
   let missingCityFlagged = false;
 
   // Token cost accumulated across ALL completion rounds (tool rounds + the
-  // correction retry) — one aiUsage row per request.
-  const usage = { promptTokens: 0, completionTokens: 0, cacheHitTokens: 0 };
+  // correction retry) — one aiUsage row per request. reasoningTokens (J-238)
+  // rides along here too but is deliberately NOT part of the daily budget sum
+  // (budget.ts) — that needs a separate owner decision on whether to count it.
+  const usage = { promptTokens: 0, completionTokens: 0, cacheHitTokens: 0, reasoningTokens: 0 };
 
   // Counters the answering rounds fill in; the rest of the trace is assembled
   // stage by stage at the bottom of this function.
@@ -272,6 +274,7 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
           usage.promptTokens += ev.usage.promptTokens;
           usage.completionTokens += ev.usage.completionTokens;
           usage.cacheHitTokens += ev.usage.cacheHitTokens;
+          usage.reasoningTokens += ev.usage.reasoningTokens;
         }
       }
     } catch {
@@ -303,6 +306,7 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
           usage.promptTokens += ev.usage.promptTokens;
           usage.completionTokens += ev.usage.completionTokens;
           usage.cacheHitTokens += ev.usage.cacheHitTokens;
+          usage.reasoningTokens += ev.usage.reasoningTokens;
         }
       }
       if (!pendingCalls || !allowTools) {

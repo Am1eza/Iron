@@ -96,7 +96,7 @@ function scriptedRelay(rounds: ScriptedRound[]): StreamCompletionFn {
       const text = typeof raw === 'function' ? raw(messages) : raw;
       for (let p = 0; p < text.length; p += 48) yield { type: 'token', text: text.slice(p, p + 48) };
     }
-    yield { type: 'usage', usage: { promptTokens: 120, completionTokens: 30, cacheHitTokens: 60 } };
+    yield { type: 'usage', usage: { promptTokens: 120, completionTokens: 30, cacheHitTokens: 60, reasoningTokens: 0 } };
     yield { type: 'done' };
   };
   return relay;

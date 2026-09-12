@@ -93,7 +93,7 @@ describe('streamCompletion usage telemetry', () => {
       { type: 'token', text: 'سلام! ' },
       { type: 'token', text: 'چه کمکی؟' },
       { type: 'finish', reason: 'stop' },
-      { type: 'usage', usage: { promptTokens: 120, completionTokens: 40, cacheHitTokens: 64 } },
+      { type: 'usage', usage: { promptTokens: 120, completionTokens: 40, cacheHitTokens: 64, reasoningTokens: 0 } },
       { type: 'done' },
     ]);
   });
@@ -105,7 +105,7 @@ describe('streamCompletion usage telemetry', () => {
     ]);
     expect(events).toContainEqual({
       type: 'usage',
-      usage: { promptTokens: 10, completionTokens: 0, cacheHitTokens: 0 },
+      usage: { promptTokens: 10, completionTokens: 0, cacheHitTokens: 0, reasoningTokens: 0 },
     });
   });
 
@@ -158,7 +158,7 @@ describe('streamCompletion usage telemetry', () => {
       type: 'usage',
       // cached_tokens is where this provider puts the number DeepSeek called
       // prompt_cache_hit_tokens; both spellings have to work.
-      usage: { promptTokens: 1180, completionTokens: 136, cacheHitTokens: 512 },
+      usage: { promptTokens: 1180, completionTokens: 136, cacheHitTokens: 512, reasoningTokens: 0 },
     });
   });
 
@@ -185,6 +185,46 @@ describe('streamCompletion usage telemetry', () => {
     expect(events.some((e) => e.type === 'token')).toBe(false);
     expect(events).toContainEqual({ type: 'truncated' });
     expect(events).toContainEqual({ type: 'reasoning', chars: 'thinking hard'.length });
+  });
+
+  /**
+   * J-238: CLAUDE.md's "measured reasoning_tokens: 0 at low effort" was a
+   * one-time manual observation, not something any code ever checked — a
+   * silent provider/model switch to a reasoning-heavy model (this project's
+   * own history: DeepSeek → Parspack → current) would spend real reasoning
+   * tokens with nothing anywhere noticing. These pin that a nonzero value in
+   * either spelling the wire actually uses is now captured.
+   */
+  it('captures a nonzero top-level usage.reasoning_tokens', async () => {
+    const { events } = await collect([
+      JSON.stringify({
+        choices: [{ delta: { content: '' }, finish_reason: 'stop' }],
+        usage: { prompt_tokens: 200, completion_tokens: 50, reasoning_tokens: 340 },
+      }),
+      '[DONE]',
+    ]);
+    expect(events).toContainEqual({
+      type: 'usage',
+      usage: { promptTokens: 200, completionTokens: 50, cacheHitTokens: 0, reasoningTokens: 340 },
+    });
+  });
+
+  it('captures a nonzero usage.completion_tokens_details.reasoning_tokens (OpenAI-standard nesting)', async () => {
+    const { events } = await collect([
+      JSON.stringify({
+        choices: [{ delta: { content: '' }, finish_reason: 'stop' }],
+        usage: {
+          prompt_tokens: 200,
+          completion_tokens: 50,
+          completion_tokens_details: { reasoning_tokens: 275 },
+        },
+      }),
+      '[DONE]',
+    ]);
+    expect(events).toContainEqual({
+      type: 'usage',
+      usage: { promptTokens: 200, completionTokens: 50, cacheHitTokens: 0, reasoningTokens: 275 },
+    });
   });
 });
 

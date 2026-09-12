@@ -10,6 +10,7 @@
  * prefix — not a bug, but real, which is why it's opt-in (empty/one-version
  * settings = feature fully off, zero cache impact) rather than always-on.
  */
+import { createHash } from 'node:crypto';
 import { getSetting } from '@/lib/server/repos/settingsRepo';
 import { AI_SYSTEM_PROMPT } from '@/lib/server/services/aiTools';
 
@@ -58,4 +59,22 @@ export function assignPromptVersion(conversationId: string, versions: PromptVers
 export function resolvePromptText(versionId: string | null | undefined, versions: PromptVersion[]): string {
   if (!versionId) return AI_SYSTEM_PROMPT;
   return versions.find((v) => v.id === versionId)?.prompt ?? AI_SYSTEM_PROMPT;
+}
+
+/**
+ * J-241: a content hash of the ACTUAL resolved prompt text, to be stored
+ * alongside a request's usage row — not just `promptVersionId`.
+ *
+ * `promptVersionId` alone does not pin what generated an answer: an admin can
+ * freely edit an existing version's text in `PromptVersionsPanel.tsx` (no
+ * immutability), and `promptVersionMetrics()` groups purely by that id — so a
+ * mid-experiment edit silently blends pre- and post-edit generations under
+ * one label. Storing this hash per request lets a future query split them
+ * back apart without changing the versioning UX at all.
+ *
+ * sha256, not a security boundary — a fast, collision-safe-enough fingerprint
+ * of the exact text sent as `role: 'system'` for this one request.
+ */
+export function hashPromptText(text: string): string {
+  return createHash('sha256').update(text).digest('hex');
 }

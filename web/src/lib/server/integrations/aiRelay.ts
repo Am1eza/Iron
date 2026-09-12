@@ -77,6 +77,19 @@ export interface CompletionUsage {
   promptTokens: number;
   completionTokens: number;
   cacheHitTokens: number;
+  /**
+   * J-238: the model's private-reasoning token count, when the provider's
+   * `usage` object reports one — as opposed to `reasoning`/`reasoning_content`
+   * delta CHARACTERS (see below), which this app already counts but which are
+   * not a token count. CLAUDE.md records a one-time manual observation
+   * ("measured reasoning_tokens: 0 for this model at low effort"); this makes
+   * that an actual measured field instead of something nothing ever parses,
+   * so a silent provider/model change that starts spending real reasoning
+   * tokens becomes visible rather than a blind spot. Deliberately NOT folded
+   * into the daily token budget sum (budget.ts) — that needs an owner
+   * decision on whether to count it; this only makes it queryable.
+   */
+  reasoningTokens: number;
 }
 
 /** POST one OpenAI-compatible streaming completion to a relay. */
@@ -286,6 +299,11 @@ export async function* streamCompletion(
             prompt_cache_hit_tokens?: number;
             prompt_cache_miss_tokens?: number;
             prompt_tokens_details?: { cached_tokens?: number } | null;
+            // Top-level (some relays) or nested under completion_tokens_details
+            // (the OpenAI-standard shape, e.g. o1-style reasoning models) —
+            // same dual-spelling situation as the cache-hit field above.
+            reasoning_tokens?: number;
+            completion_tokens_details?: { reasoning_tokens?: number } | null;
           } | null;
         };
         // Token accounting, read BEFORE the choices check and not inside it.
@@ -306,6 +324,8 @@ export async function* streamCompletion(
               // differently and neither is guaranteed present.
               cacheHitTokens:
                 json.usage.prompt_cache_hit_tokens ?? json.usage.prompt_tokens_details?.cached_tokens ?? 0,
+              reasoningTokens:
+                json.usage.reasoning_tokens ?? json.usage.completion_tokens_details?.reasoning_tokens ?? 0,
             },
           };
         }

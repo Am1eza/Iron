@@ -105,7 +105,20 @@ export const aiUsage = pgTable(
     promptTokens: integer('prompt_tokens').notNull().default(0),
     completionTokens: integer('completion_tokens').notNull().default(0),
     cacheHitTokens: integer('cache_hit_tokens').notNull().default(0),
+    /** J-238: the provider's own reasoning-token count, when it reports one
+     *  (aiRelay.ts parses `usage.reasoning_tokens` /
+     *  `usage.completion_tokens_details.reasoning_tokens`). Deliberately NOT
+     *  summed into the daily budget (budget.ts) — visible/queryable only,
+     *  pending an owner decision on whether to count it. */
+    reasoningTokens: integer('reasoning_tokens').notNull().default(0),
     violations: integer('violations').notNull().default(0),
+    /** J-241: sha256 of the EXACT system-prompt text resolved for this
+     *  request (promptVersions.ts#hashPromptText) — `ai_conversations
+     *  .prompt_version_id` alone does not pin this, since an admin can edit
+     *  an existing version's text in place. Nullable: rows written before
+     *  this column existed, and any request where prompt resolution itself
+     *  failed before persistence, have none. */
+    promptTextHash: text('prompt_text_hash'),
     /**
      * Per-stage record of what the answer post-processors removed from this
      * turn, and whether that left the customer with nothing — see
