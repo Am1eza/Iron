@@ -20,6 +20,7 @@
  */
 import { reportError } from '@/lib/errors/report';
 import { cacheGetJson, cacheSetJson, jitterTtl } from '@/lib/server/redis';
+import { fetchWithLimits } from '@/lib/server/utils/fetchWithLimits';
 
 export interface MatomoSummary {
   visits: number;
@@ -53,18 +54,19 @@ async function call<T>(params: Record<string, string>): Promise<T | null> {
     ...params,
   });
 
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
   try {
-    const res = await fetch(`${base}/index.php`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body,
-      signal: ctrl.signal,
-      cache: 'no-store',
-    });
+    const res = await fetchWithLimits(
+      `${base}/index.php`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body,
+        cache: 'no-store',
+      },
+      { timeoutMs: TIMEOUT_MS },
+    );
     if (!res.ok) return null;
-    const json = (await res.json()) as unknown;
+    const json = res.json() as unknown;
     // Matomo answers errors with HTTP 200 and {result:'error', message}.
     if (json && typeof json === 'object' && (json as { result?: string }).result === 'error') {
       reportError(new Error(`matomo: ${(json as { message?: string }).message ?? 'unknown'}`), {
@@ -80,8 +82,6 @@ async function call<T>(params: Record<string, string>): Promise<T | null> {
       reportError(err, { integration: 'matomo', method: params.method });
     }
     return null;
-  } finally {
-    clearTimeout(timer);
   }
 }
 

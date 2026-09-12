@@ -56,6 +56,7 @@
  */
 import { scrubPii } from '@/lib/errors/scrub';
 import { withResilience } from '@/lib/server/utils/resilience';
+import { fetchWithLimits, type LimitedResponse } from '@/lib/server/utils/fetchWithLimits';
 
 /** Telegram's hard limit for `sendMessage.text`. Over it the API answers 400
  *  and the alert is silently lost, so every message is clamped below it. */
@@ -173,10 +174,10 @@ class TelegramHttpError extends Error {
 /** Bound what a Telegram error body can push into logs. */
 const DESCRIPTION_MAX = 200;
 
-async function readDescription(res: Response): Promise<string | undefined> {
+async function readDescription(res: LimitedResponse): Promise<string | undefined> {
   try {
     if (typeof res.json !== 'function') return undefined;
-    const body: unknown = await res.json();
+    const body: unknown = res.json();
     const d = (body as { description?: unknown } | null)?.description;
     // Scrubbed: with TELEGRAM_API_BASE overridden this body comes from the
     // forwarder, not from Telegram, and a forwarder that echoes the upstream
@@ -216,20 +217,23 @@ export async function sendTelegramHtml(
       async () => {
         // The token sits in the path because Telegram's API takes it nowhere
         // else. It is never logged: no error raised below carries this string.
-        const res = await fetch(`${cfg.apiBase}/bot${cfg.token}/sendMessage`, {
-          method: 'POST',
-          headers: {
-            'content-type': 'application/json',
-            // Sent as a HEADER, never as a ?key= query parameter: the query
-            // string is the part of a URL that ends up in access logs and
-            // Referer headers, and this secret guards a hop that holds a bot
-            // token. Omitted entirely when unset so a direct-to-Telegram
-            // deployment sends exactly what it sent before.
-            ...(cfg.forwardSecret ? { 'x-forward-secret': cfg.forwardSecret } : {}),
+        const res = await fetchWithLimits(
+          `${cfg.apiBase}/bot${cfg.token}/sendMessage`,
+          {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/json',
+              // Sent as a HEADER, never as a ?key= query parameter: the query
+              // string is the part of a URL that ends up in access logs and
+              // Referer headers, and this secret guards a hop that holds a bot
+              // token. Omitted entirely when unset so a direct-to-Telegram
+              // deployment sends exactly what it sent before.
+              ...(cfg.forwardSecret ? { 'x-forward-secret': cfg.forwardSecret } : {}),
+            },
+            body,
           },
-          body,
-          signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-        });
+          { timeoutMs: FETCH_TIMEOUT_MS },
+        );
         if (!res.ok) throw new TelegramHttpError(res.status, await readDescription(res));
         return { ok: true, status: res.status } satisfies TelegramResult;
       },

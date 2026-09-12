@@ -27,6 +27,8 @@ export const publishArticlesJob: Job = {
     // Making this instant needs a shared (Redis-backed) Next cache handler, so
     // that one purge reaches every worker. That is a deployment change, not a
     // line of code here.
+    // Article slugs/types only, no user/request data.
+    // eslint-disable-next-line no-console
     console.info(
       `[jobs] published ${published.length} scheduled article(s): ` +
         published.map((a) => `/${a.type}/${a.slug}`).join(', '),

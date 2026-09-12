@@ -1,7 +1,7 @@
 // @vitest-environment node
-import { expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
-import { validateBody } from './request';
+import { validateBody, validateQuery } from './request';
 const schema = z.object({ text: z.string() });
 function streamed(chunks: Uint8Array[], headers?: Record<string, string>) {
   const cancel = vi.fn();
@@ -59,4 +59,48 @@ it.each(['{', '{"text":12}'])('retains validation errors for %s', async (body) =
   );
   if (result.ok) throw new Error('Expected rejection');
   expect(result.response.status).toBe(400);
+});
+it('rejects a JSON body nested past the depth cap (H-174)', async () => {
+  let deep: unknown = 'leaf';
+  for (let i = 0; i < 25; i++) deep = { n: deep };
+  const result = await validateBody(
+    new Request('https://example.test', { method: 'POST', body: JSON.stringify(deep) }),
+    schema,
+  );
+  if (result.ok) throw new Error('Expected rejection');
+  expect(result.response.status).toBe(400);
+});
+
+describe('validateQuery (H-172)', () => {
+  const querySchema = z.object({
+    q: z.string().trim().min(2).max(100),
+    limit: z.coerce.number().int().min(1).max(50).optional(),
+  });
+
+  it('parses valid query params into the schema shape', () => {
+    const req = new Request('https://example.test/api?q=میلگرد&limit=10');
+    const result = validateQuery(req, querySchema);
+    expect(result).toEqual({ ok: true, data: { q: 'میلگرد', limit: 10 } });
+  });
+
+  it('rejects a query missing a required param, with a 400 + field errors', () => {
+    const req = new Request('https://example.test/api?limit=10');
+    const result = validateQuery(req, querySchema);
+    if (result.ok) throw new Error('Expected rejection');
+    expect(result.response.status).toBe(400);
+  });
+
+  it('rejects a query param over an explicit length cap', () => {
+    const req = new Request(`https://example.test/api?q=${'x'.repeat(200)}`);
+    const result = validateQuery(req, querySchema);
+    if (result.ok) throw new Error('Expected rejection');
+    expect(result.response.status).toBe(400);
+  });
+
+  it('collapses a repeated key to its first value, matching URLSearchParams.get', () => {
+    const req = new Request('https://example.test/api?q=first&q=second');
+    const result = validateQuery(req, querySchema);
+    if (!result.ok) throw new Error('Expected success');
+    expect(result.data.q).toBe('first');
+  });
 });

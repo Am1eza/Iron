@@ -79,7 +79,19 @@ export interface CompletionUsage {
   cacheHitTokens: number;
 }
 
-/** POST one OpenAI-compatible streaming completion to a relay. */
+/**
+ * POST one OpenAI-compatible streaming completion to a relay.
+ *
+ * NOT migrated to `fetchWithLimits` (H-199): that helper buffers the whole
+ * response before returning, which is exactly wrong here — this fetch's
+ * Response is handed back with its body UNREAD, and `streamCompletion`
+ * below reads it incrementally as SSE frames arrive so tokens can reach the
+ * user as the model writes them. The size risk `fetchWithLimits` guards
+ * against is already bounded a different way on this path: `max_tokens` in
+ * the request body below caps how much the relay can generate, and
+ * `streamCompletion` never buffers more than one incomplete line between
+ * `\n`-delimited SSE frames.
+ */
 function postCompletion(
   base: string,
   apiKey: string,

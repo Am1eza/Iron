@@ -27,6 +27,7 @@ import { scrubPii } from '@/lib/errors/scrub';
 import { getDb, hasDb } from '@/lib/server/db/client';
 import { smsLog } from '@/lib/server/db/schema';
 import { withResilience } from '@/lib/server/utils/resilience';
+import { fetchWithLimits, type LimitedResponse } from '@/lib/server/utils/fetchWithLimits';
 
 class SmsHttpError extends Error {
   constructor(
@@ -52,10 +53,10 @@ const PROVIDER_MESSAGE_MAX = 300;
  * Scrubbed because SMS.ir echoes the recipient mobile in some messages; the
  * request's `x-api-key` never appears in a response body and is never logged.
  */
-async function readProviderMessage(res: Response): Promise<string | undefined> {
+async function readProviderMessage(res: LimitedResponse): Promise<string | undefined> {
   try {
     if (typeof res.text !== 'function') return undefined;
-    const raw = await res.text();
+    const raw = res.text();
     if (!raw) return undefined;
     let msg = raw;
     try {
@@ -162,6 +163,11 @@ export async function sendSms(mobile: string, text: string, kind: SmsKind = 'gen
     }
     // PII (mobile + message content) — never echoed to prod stdout, only the
     // DB-backed sms_log (which is access-controlled via the admin panel).
+    // Gated on `!isProd()` above, same as sms.ts's identical dev-mode escape
+    // hatch, which is why this is exempted rather than routed through
+    // reportError() — that would scrub the very mobile/text a developer is
+    // running this locally to see.
+    // eslint-disable-next-line no-console
     console.info(`[sms:dev] ${kind} → ${mobile}: ${text}`);
     await log(mobile, kind, { text }, 'dev_logged');
     return { ok: true };
@@ -180,17 +186,20 @@ export async function sendSms(mobile: string, text: string, kind: SmsKind = 'gen
     const res = await withResilience(
       'smsir',
       async () => {
-        const r = await fetch('https://api.sms.ir/v1/send/bulk', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'x-api-key': apiKey },
-          body: JSON.stringify({
-            lineNumber: Number(lineNumber),
-            MessageText: text,
-            Mobiles: [mobile],
-            SendDateTime: null,
-          }),
-          signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-        });
+        const r = await fetchWithLimits(
+          'https://api.sms.ir/v1/send/bulk',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'x-api-key': apiKey },
+            body: JSON.stringify({
+              lineNumber: Number(lineNumber),
+              MessageText: text,
+              Mobiles: [mobile],
+              SendDateTime: null,
+            }),
+          },
+          { timeoutMs: FETCH_TIMEOUT_MS },
+        );
         // Read the body BEFORE throwing: SMS.ir puts the actual reason
         // (invalid line number, unapproved text, ...) in it, and a Response
         // whose body is never consumed carries that reason to the grave.
@@ -212,7 +221,12 @@ export async function sendSms(mobile: string, text: string, kind: SmsKind = 'gen
     // it used to be (the `!body ||` branch), which meant a malformed/empty
     // response from sms.ir was silently logged and reported as a successful
     // send with no visibility into the real outcome.
-    const body = (await res.json().catch(() => null)) as { status?: number; message?: string } | null;
+    let body: { status?: number; message?: string } | null;
+    try {
+      body = res.json();
+    } catch {
+      body = null;
+    }
     const ok = typeof body?.status === 'number' && body.status === 1;
     if (ok) {
       await log(mobile, kind, { text }, 'sent');
@@ -281,6 +295,8 @@ export async function sendTemplate(
       await log(mobile, kind, { templateId, params, error: 'unconfigured: SMSIR_API_KEY' }, 'failed');
       return { ok: false, permanent: true };
     }
+    // Same dev-mode-only rationale as sendSms above.
+    // eslint-disable-next-line no-console
     console.info(`[sms:dev] ${kind} template ${templateId} → ${mobile}: ${JSON.stringify(params)}`);
     await log(mobile, kind, { templateId, params }, 'dev_logged');
     return { ok: true };
@@ -289,16 +305,19 @@ export async function sendTemplate(
     const res = await withResilience(
       'smsir-verify',
       async () => {
-        const r = await fetch('https://api.sms.ir/v1/send/verify/', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'x-api-key': apiKey },
-          body: JSON.stringify({
-            Mobile: mobile,
-            TemplateId: Number(templateId),
-            Parameters: params.map((p) => ({ name: p.name, value: p.value })),
-          }),
-          signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-        });
+        const r = await fetchWithLimits(
+          'https://api.sms.ir/v1/send/verify/',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'x-api-key': apiKey },
+            body: JSON.stringify({
+              Mobile: mobile,
+              TemplateId: Number(templateId),
+              Parameters: params.map((p) => ({ name: p.name, value: p.value })),
+            }),
+          },
+          { timeoutMs: FETCH_TIMEOUT_MS },
+        );
         if (!r.ok) throw new SmsHttpError(r.status, await readProviderMessage(r));
         return r;
       },
@@ -308,7 +327,12 @@ export async function sendTemplate(
         isRetryable: (err) => err instanceof SmsHttpError && (err.status >= 500 || err.status === 429),
       },
     );
-    const body = (await res.json().catch(() => null)) as { status?: number; message?: string } | null;
+    let body: { status?: number; message?: string } | null;
+    try {
+      body = res.json();
+    } catch {
+      body = null;
+    }
     const ok = typeof body?.status === 'number' && body.status === 1;
     if (ok) {
       await log(mobile, kind, { templateId, params }, 'sent');

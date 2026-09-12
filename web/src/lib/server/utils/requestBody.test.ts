@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { expect, it, vi } from 'vitest';
-import { readFormBody, readJsonBody, PayloadTooLargeError } from './requestBody';
+import { readFormBody, readJsonBody, PayloadTooLargeError, JsonTooDeepError } from './requestBody';
 
 it('round-trips a multipart file and text field', async () => {
   const form = new FormData();
@@ -51,4 +51,18 @@ it('does not turn oversized JSON into null for callers with optional payloads', 
 });
 it('preserves malformed JSON fallback', async () => {
   expect(await readJsonBody(new Request('http://local', { method: 'POST', body: '{' }))).toBeNull();
+});
+it('rejects JSON nested past the depth cap (H-174)', async () => {
+  let deep: unknown = 'leaf';
+  for (let i = 0; i < 25; i++) deep = { n: deep };
+  await expect(
+    readJsonBody(new Request('http://local', { method: 'POST', body: JSON.stringify(deep) })),
+  ).rejects.toBeInstanceOf(JsonTooDeepError);
+});
+it('accepts ordinary nesting well under the depth cap', async () => {
+  let normal: unknown = 'leaf';
+  for (let i = 0; i < 5; i++) normal = { n: normal };
+  await expect(
+    readJsonBody(new Request('http://local', { method: 'POST', body: JSON.stringify(normal) })),
+  ).resolves.toEqual(normal);
 });
