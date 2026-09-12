@@ -657,6 +657,12 @@ export interface SkuInput {
   priceBasis?: PriceBasis;
   branchLengthM?: number | null;
   imageUrl?: string | null;
+  /** B-22 — who/when confirmed `imageUrl` is really this SKU's own photo.
+   *  Absent = leave alone; both are repo-owned in practice (see `updateSku`,
+   *  which clears them whenever `imageUrl` itself changes without the same
+   *  write also setting approval) rather than admin-typed free text. */
+  imageApprovedBy?: string | null;
+  imageApprovedAt?: Date | null;
   /** Additional category IDs this SKU is ALSO listed under — its own
    *  subCategoryId/categoryId above stays the one thing that decides its URL.
    *  See catalog.ts's crossListedCategoryIds doc comment. */
@@ -791,6 +797,20 @@ export async function updateSku(id: string, patch: Partial<SkuInput>) {
   if (!before) return null;
   if (Object.keys(patch).length === 0) return { before, after: before };
   const next = { ...patch };
+  // B-22 — an approval is a fact about ONE photo. If this write changes
+  // `imageUrl` without also saying anything about approval, whatever was
+  // recorded for the OLD photo must not silently survive onto the new one —
+  // otherwise a swapped-in wrong-variant image would inherit its predecessor's
+  // "confirmed" stamp for free.
+  if (
+    'imageUrl' in patch &&
+    patch.imageUrl !== before.imageUrl &&
+    !('imageApprovedBy' in patch) &&
+    !('imageApprovedAt' in patch)
+  ) {
+    next.imageApprovedBy = null;
+    next.imageApprovedAt = null;
+  }
   // Moving a product: the destination sub decides the category, so a client
   // cannot desynchronise the pair even by sending a contradictory categoryId.
   if (patch.subCategoryId && patch.subCategoryId !== before.subCategoryId) {
@@ -871,6 +891,28 @@ export async function updateSku(id: string, patch: Partial<SkuInput>) {
   const after = rows[0];
   if (!after) return null;
   return { before, after };
+}
+
+/**
+ * B-22 — record (or revoke) that a human confirmed `imageUrl` is really this
+ * SKU's own photo. The one write path for `imageApprovedBy`/`imageApprovedAt`:
+ * routes never take a client-supplied approver identity (that would let
+ * anyone with `catalog:write` sign someone else's name to a review), they
+ * pass the ACTING admin's own session id/label here instead — same convention
+ * as `audit()` elsewhere in this file.
+ *
+ * Returns null when the SKU no longer exists (same "not found" contract as
+ * every other admin catalog write here).
+ */
+export async function setSkuImageApproval(
+  id: string,
+  approved: boolean,
+  approvedBy: string,
+): Promise<{ before: typeof skus.$inferSelect; after: typeof skus.$inferSelect } | null> {
+  return updateSku(id, {
+    imageApprovedBy: approved ? approvedBy : null,
+    imageApprovedAt: approved ? new Date() : null,
+  });
 }
 
 /**

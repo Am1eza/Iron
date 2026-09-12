@@ -79,6 +79,10 @@ const patchPayload = nonEmptyPatch(
     // an emptied box really clears it (see the nullable-vs-optional note above).
     branchLengthM: finiteNumber.positive().max(100).nullable().optional(),
     imageUrl: uploadPathSchema.nullable().optional(),
+    // B-22 — a boolean flag, never a client-supplied approver identity: the
+    // acting admin's own session id is what gets recorded (setSkuImageApproval
+    // below), the same way `audit()` never trusts a caller-named actor.
+    imageApproved: z.boolean().optional(),
     crossListedCategoryIds: z.array(z.string().min(1).max(64)).max(5).nullable().optional(),
     // Moving a product between sub-categories was impossible: a mis-filed SKU
     // could only be retired and rebuilt — and the global unique slug meant the
@@ -96,9 +100,22 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }
   const { id } = await ctx.params;
   const v = await validateBody(req, patchPayload);
   if (!v.ok) return v.response;
+  // `imageApproved` is a client-facing flag, not a real column — translate it
+  // into the repo-owned imageApprovedBy/imageApprovedAt pair here so the
+  // approver identity is always the ACTING admin's own session id, never
+  // whatever a caller might otherwise supply (see setSkuImageApproval's doc).
+  const { imageApproved, ...rest } = v.data;
+  const patch =
+    imageApproved === undefined
+      ? rest
+      : {
+          ...rest,
+          imageApprovedBy: imageApproved ? auth.session.id : null,
+          imageApprovedAt: imageApproved ? new Date() : null,
+        };
   let result;
   try {
-    result = await updateSku(id, v.data);
+    result = await updateSku(id, patch);
   } catch (err) {
     const mapped = catalogErrorResponse(err);
     if (mapped) return mapped;
