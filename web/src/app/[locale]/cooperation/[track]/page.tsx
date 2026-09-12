@@ -24,31 +24,27 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   if (!isTrackKey(track)) {
     return buildMetadata({ title: tMeta('title'), path: routes.cooperation() });
   }
-  const t = TRACKS[track];
+  // `cooperation.tracks.${track}.*` is the SAME translated namespace
+  // `CooperationTrackContent`/`CooperationPageContent` already read for the
+  // page's visible copy — title/metaDescription here are just that data
+  // used for the <title> tag instead of JSX.
+  const tTrack = await getTranslations(`cooperation.tracks.${track}`);
   return buildMetadata({
-    title: `${tMeta('title')} · ${t.title}`,
-    description: t.metaDescription,
-    path: routes.cooperation(t.key),
+    title: `${tMeta('title')} · ${tTrack('title')}`,
+    description: tTrack('metaDescription'),
+    path: routes.cooperation(TRACKS[track].key),
   });
 }
 
-/**
- * The «خانه»/«همکاری با ما» crumb levels localize via next-intl; the track's
- * own label (`TRACKS[track].title`) stays fa — that object is fixed
- * page-copy with no locale variants yet (unlike DB category names, which
- * carry nameEn/nameAr/nameZh). `CooperationTrackContent` is the Client
- * Component that translates the rest of the page.
- */
 export default async function CooperationTrackPage({ params }: Params) {
   const { track } = await params;
   if (!isTrackKey(track)) notFound();
-  const t = TRACKS[track];
-  const tNav = await getTranslations();
+  const [tNav, tTrack] = await Promise.all([getTranslations(), getTranslations(`cooperation.tracks.${track}`)]);
 
   const crumbs = [
     { label: tNav('nav.home'), href: routes.home() },
     { label: tNav('meta.cooperation.title'), href: routes.cooperation() },
-    { label: t.title, href: routes.cooperation(t.key) },
+    { label: tTrack('title'), href: routes.cooperation(TRACKS[track].key) },
   ];
 
   return (

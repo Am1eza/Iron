@@ -176,7 +176,8 @@
         "point2": "A look at the drivers: exchange rate, billet price, commodity-exchange supply and mill policies.",
         "point3": "A recommended buying window to control your project's landed cost.",
         "point4": "A configurable recurring report, tailored to your product mix and purchase volume.",
-        "formNote": "Note the products and time window you have in mind, so we can prepare a more precise report."
+        "formNote": "Note the products and time window you have in mind, so we can prepare a more precise report.",
+        "metaDescription": "Ahantime's dedicated steel-market report and analysis: price trends, the drivers behind them, and the right time to buy for your project."
       },
       "supply": {
         "title": "Supply From You",
@@ -189,7 +190,8 @@
         "point2": "Real sales inquiries and leads, without needing a large sales team of your own.",
         "point3": "Price, availability and delivery-time coordination handled by Ahantime's staff.",
         "point4": "A transparent, long-term partnership with clear settlement and performance reporting.",
-        "formNote": "Note your product type, production capacity or stock on hand, and delivery location."
+        "formNote": "Note your product type, production capacity or stock on hand, and delivery location.",
+        "metaDescription": "A steel producer or supplier? List your products on Ahantime and reach buyers nationwide."
       },
       "sell": {
         "title": "Sell For Us",
@@ -202,7 +204,8 @@
         "point2": "Expert support for inquiries, proformas and finalizing orders.",
         "point3": "Reliable mill supply and coordinated delivery for your customers.",
         "point4": "A transparent partnership model with clear commission and growth tied to performance.",
-        "formNote": "Note your operating region and sales track record, so we can review your application faster."
+        "formNote": "Note your operating region and sales track record, so we can review your application faster.",
+        "metaDescription": "Become an Ahantime sales representative; grow your business with transparent pricing, direct mill supply and brand credibility."
       }
     },
     "indexOverline": "Cooperation with Ahantime",
@@ -2461,5 +2464,29 @@
     "success": "Operation recorded.",
     "prevPage": "Previous page",
     "nextPage": "Next page"
+  },
+  "tenderPage": {
+    "overline": "Ahantime Services",
+    "lead": "A tender can include dozens of different line items, each needing today's price, a weight calculation, and a running total. This tool does all of that at once: pick each item from Ahantime's products, the cheapest factory is suggested automatically (and can be changed), and the grand total along with an official proforma invoice is prepared for you.",
+    "benefits": {
+      "bulkEstimate": {
+        "title": "Dozens of items, one estimate",
+        "body": "Instead of pricing and weighing each tender item one by one, enter them all in a single table and get the grand total at once."
+      },
+      "cheapestFactory": {
+        "title": "Cheapest factory, automatically",
+        "body": "The cheapest factory is selected by default for each item, and you can change it yourself if the tender calls for a specific mill."
+      },
+      "livePricing": {
+        "title": "Today's price and weight",
+        "body": "Each item's weight is calculated from its dimensions and its price from Ahantime's daily rate — no manual estimates, no arithmetic errors."
+      },
+      "officialProforma": {
+        "title": "Official proforma invoice",
+        "body": "The final output is issued with Ahantime's official letterhead — the same document you can attach to the tender."
+      }
+    },
+    "tableHeading": "Estimate table",
+    "tableLead": "For each item, choose the category, product, size and quantity. The price, weight and total for each row are calculated live."
   }
 }

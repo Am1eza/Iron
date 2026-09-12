@@ -18,24 +18,7 @@ export async function generateMetadata(): Promise<Metadata> {
 // the form changes about as often.
 export const revalidate = 600;
 
-const BENEFITS: { title: string; body: string }[] = [
-  {
-    title: 'ده‌ها قلم، یک برآورد',
-    body: 'به‌جای قیمت‌گرفتن و وزن‌کردن تک‌تک اقلام مناقصه، همه را در یک جدول وارد کنید و جمع کل را یک‌جا بگیرید.',
-  },
-  {
-    title: 'ارزان‌ترین کارخانه، خودکار',
-    body: 'برای هر قلم، ارزان‌ترین کارخانه به‌صورت پیش‌فرض انتخاب می‌شود، و اگر مناقصه کارخانهٔ خاصی خواست، خودتان تغییرش می‌دهید.',
-  },
-  {
-    title: 'قیمت و وزن روز',
-    body: 'وزن هر قلم بر پایهٔ ابعاد و قیمت بر پایهٔ نرخ روز آهن‌تایم محاسبه می‌شود؛ نه تخمین دستی، نه خطای ضرب‌وجمع.',
-  },
-  {
-    title: 'پیش‌فاکتور رسمی',
-    body: 'خروجی نهایی با سربرگ رسمی آهن‌تایم صادر می‌شود؛ همان سندی که می‌توانید ضمیمهٔ مناقصه کنید.',
-  },
-];
+const BENEFIT_KEYS = ['bulkEstimate', 'cheapestFactory', 'livePricing', 'officialProforma'] as const;
 
 export default async function TenderPage() {
   // No DB at build/prerender → an empty form shell; the client still renders
@@ -47,6 +30,11 @@ export default async function TenderPage() {
     { label: t('nav.home'), href: routes.home() },
     { label: t('meta.tender.title'), href: routes.tender() },
   ];
+  const benefits = BENEFIT_KEYS.map((key) => ({
+    key,
+    title: t(`tenderPage.benefits.${key}.title`),
+    body: t(`tenderPage.benefits.${key}.body`),
+  }));
 
   const catOptions = categories.map((c) => ({
     slug: c.slug,
@@ -78,22 +66,17 @@ export default async function TenderPage() {
 
           <Stack gap={3}>
             <Text variant="overline" color="accent">
-              خدمات آهن‌تایم
+              {t('tenderPage.overline')}
             </Text>
-            <Heading level={1}>برآورد مناقصات و استعلام‌ها</Heading>
+            <Heading level={1}>{t('meta.tender.title')}</Heading>
             <div style={{ maxInlineSize: '62ch' }}>
-              <Text color="muted">
-                یک مناقصه ممکن است ده‌ها قلم کالای مختلف داشته باشد که باید برای هرکدام قیمت روز گرفته
-                شود، در وزن ضرب و با هم جمع شود. این ابزار همهٔ این کارها را یک‌جا انجام می‌دهد: اقلام
-                را از محصولات آهن‌تایم انتخاب می‌کنید، ارزان‌ترین کارخانه به‌صورت خودکار پیشنهاد می‌شود
-                (و قابل تغییر است)، و جمع کل به‌همراه پیش‌فاکتور رسمی برای شما آماده می‌شود.
-              </Text>
+              <Text color="muted">{t('tenderPage.lead')}</Text>
             </div>
           </Stack>
 
           <Grid min="16rem" gap={4}>
-            {BENEFITS.map((b) => (
-              <Card key={b.title}>
+            {benefits.map((b) => (
+              <Card key={b.key}>
                 <Stack gap={2}>
                   <Heading level={3}>{b.title}</Heading>
                   <Text color="muted" variant="body-sm">
@@ -107,11 +90,8 @@ export default async function TenderPage() {
           <Card>
             <Stack gap={5}>
               <Stack gap={1}>
-                <Heading level={2}>جدول برآورد</Heading>
-                <Text color="muted">
-                  برای هر قلم دسته، محصول، سایز و مقدار را انتخاب کنید. قیمت، وزن و جمع هر ردیف زنده
-                  محاسبه می‌شود.
-                </Text>
+                <Heading level={2}>{t('tenderPage.tableHeading')}</Heading>
+                <Text color="muted">{t('tenderPage.tableLead')}</Text>
               </Stack>
               <TenderEstimator categories={catOptions} subsByCat={subOptions} />
             </Stack>
